@@ -65,7 +65,7 @@ void QuicConnectionPeer::SetPerspective(QuicConnection* connection,
 // static
 void QuicConnectionPeer::SetSelfAddress(QuicConnection* connection,
                                         const QuicSocketAddress& self_address) {
-  connection->self_address_ = self_address;
+  connection->default_path_.self_address = self_address;
 }
 
 // static
@@ -85,7 +85,7 @@ void QuicConnectionPeer::SetDirectPeerAddress(
 void QuicConnectionPeer::SetEffectivePeerAddress(
     QuicConnection* connection,
     const QuicSocketAddress& effective_peer_address) {
-  connection->effective_peer_address_ = effective_peer_address;
+  connection->default_path_.peer_address = effective_peer_address;
 }
 
 // static
@@ -294,13 +294,14 @@ void QuicConnectionPeer::SetLastHeaderFormat(QuicConnection* connection,
 void QuicConnectionPeer::AddBytesReceived(QuicConnection* connection,
                                           size_t length) {
   if (connection->EnforceAntiAmplificationLimit()) {
-    connection->bytes_received_before_address_validation_ += length;
+    connection->default_path_.bytes_received_before_address_validation +=
+        length;
   }
 }
 
 // static
 void QuicConnectionPeer::SetAddressValidated(QuicConnection* connection) {
-  connection->address_validated_ = true;
+  connection->default_path_.validated = true;
 }
 
 // static

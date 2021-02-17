@@ -591,7 +591,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   }
 
   // Set self address.
-  void SetSelfAddress(QuicSocketAddress address) { self_address_ = address; }
+  void SetSelfAddress(QuicSocketAddress address) {
+    default_path_.self_address = address;
+  }
 
   // The version of the protocol this connection is using.
   QuicTransportVersion transport_version() const {
@@ -736,10 +738,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void set_creator_debug_delegate(QuicPacketCreator::DebugDelegate* visitor) {
     packet_creator_.set_debug_delegate(visitor);
   }
-  const QuicSocketAddress& self_address() const { return self_address_; }
+  const QuicSocketAddress& self_address() const {
+    return default_path_.self_address;
+  }
   const QuicSocketAddress& peer_address() const { return direct_peer_address_; }
   const QuicSocketAddress& effective_peer_address() const {
-    return effective_peer_address_;
+    return default_path_.peer_address;
   }
   QuicConnectionId connection_id() const { return server_connection_id_; }
   QuicConnectionId client_connection_id() const {
@@ -1271,7 +1275,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool EnforceAntiAmplificationLimit() const;
 
   void AddBytesReceivedBeforeAddressValidation(size_t length) {
-    bytes_received_before_address_validation_ += length;
+    default_path_.bytes_received_before_address_validation += length;
   }
 
  private:
@@ -1282,9 +1286,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     QuicSocketAddress peer_address;
   };
 
-  struct QUIC_EXPORT_PRIVATE AlternativePathState {
-    AlternativePathState(const QuicSocketAddress& alternative_self_address,
-                         const QuicSocketAddress& alternative_peer_address)
+  struct QUIC_EXPORT_PRIVATE PathState {
+    PathState(const QuicSocketAddress& alternative_self_address,
+              const QuicSocketAddress& alternative_peer_address)
         : self_address(alternative_self_address),
           peer_address(alternative_peer_address) {}
 
@@ -1294,6 +1298,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     QuicSocketAddress self_address;
     // The actual peer address behind the proxy if there is any.
     QuicSocketAddress peer_address;
+    // True if the peer address has been validated. Address is considered
+    // validated when 1) an address token of the peer address is received and
+    // validated, or 2) a HANDSHAKE packet has been successfully processed on
+    // this path, or 3) a path validation on this path has succeeded.
     bool validated = false;
     // Used by the sever to apply anti-amplification limit after this path
     // becomes the default path if |peer_address| hasn't been validated.
@@ -1656,19 +1664,15 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool client_connection_id_is_set_;
   // Address on the last successfully processed packet received from the
   // direct peer.
-  QuicSocketAddress self_address_;
   QuicSocketAddress peer_address_;
 
   // Other than initialization, do not modify it directly, use
   // UpdatePeerAddress() instead.
   QuicSocketAddress direct_peer_address_;
-  // Address of the endpoint behind the proxy if the connection is proxied.
-  // Otherwise it is the same as |peer_address_|.
-  // NOTE: Currently |effective_peer_address_| and |peer_address_| are always
-  // the same(the address of the direct peer), but soon we'll change
-  // |effective_peer_address_| to be the address of the endpoint behind the
-  // proxy if the connection is proxied.
-  QuicSocketAddress effective_peer_address_;
+  // The default path on which the endpoint sends non-probing packets.
+  // The send algorithm and RTT stats of this path are stored in
+  // |sent_packet_manager_| instead of in this object.
+  PathState default_path_;
 
   // Records change type when the effective peer initiates migration to a new
   // address. Reset to NO_CHANGE after effective peer migration is validated.
@@ -1944,20 +1948,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // the source connection ID from that packet.
   absl::optional<QuicConnectionId> retry_source_connection_id_;
 
-  // Bytes received before address validation. Only used when
-  // EnforceAntiAmplificationLimit returns true.
-  size_t bytes_received_before_address_validation_;
-
-  // Bytes sent before address validation. Only used when
-  // EnforceAntiAmplificationLimit returns true.
-  size_t bytes_sent_before_address_validation_;
-
-  // True if peer address has been validated. Address is considered validated
-  // when 1) an address token is received and validated, or 2) a HANDSHAKE
-  // packet has been successfully processed. Only used when
-  // EnforceAntiAmplificationLimit returns true.
-  bool address_validated_;
-
   // Used to store content of packets which cannot be sent because of write
   // blocked. Packets' encrypted buffers are copied and owned by
   // buffered_packets_. From unacked_packet_map (and congestion control)'s
@@ -2042,7 +2032,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // the path validation fails or replaced by a newer path of interest. On the
   // server side, alternative_path gets created when server receives
   // PATH_CHALLENGE on non-default path.
-  AlternativePathState alternative_path_;
+  PathState alternative_path_;
 
   // This field is used to debug b/177312785.
   QuicFrameType most_recent_frame_type_;
