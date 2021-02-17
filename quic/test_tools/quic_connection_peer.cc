@@ -71,7 +71,7 @@ void QuicConnectionPeer::SetSelfAddress(QuicConnection* connection,
 // static
 void QuicConnectionPeer::SetPeerAddress(QuicConnection* connection,
                                         const QuicSocketAddress& peer_address) {
-  connection->peer_address_ = peer_address;
+  connection->UpdatePeerAddress(peer_address);
 }
 
 // static

@@ -1664,7 +1664,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool client_connection_id_is_set_;
   // Address on the last successfully processed packet received from the
   // direct peer.
-  QuicSocketAddress peer_address_;
 
   // Other than initialization, do not modify it directly, use
   // UpdatePeerAddress() instead.

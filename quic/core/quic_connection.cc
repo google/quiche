@@ -278,7 +278,6 @@ QuicConnection::QuicConnection(
       server_connection_id_(server_connection_id),
       client_connection_id_(EmptyQuicConnectionId()),
       client_connection_id_is_set_(false),
-      peer_address_(initial_peer_address),
       direct_peer_address_(initial_peer_address),
       default_path_(initial_self_address, QuicSocketAddress()),
       active_effective_peer_migration_type_(NO_CHANGE),
@@ -718,6 +717,7 @@ void QuicConnection::EnableLegacyVersionEncapsulation(
 }
 
 bool QuicConnection::MaybeTestLiveness() {
+  QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
   if (encryption_level_ != ENCRYPTION_FORWARD_SECURE) {
     return false;
   }
@@ -740,7 +740,7 @@ bool QuicConnection::MaybeTestLiveness() {
   if (!sent_packet_manager_.IsLessThanThreePTOs(timeout)) {
     return false;
   }
-  SendConnectivityProbingPacket(writer_, peer_address_);
+  SendConnectivityProbingPacket(writer_, peer_address());
   return true;
 }
 
@@ -4519,7 +4519,7 @@ void QuicConnection::SetMtuDiscoveryTarget(QuicByteCount target) {
 
 QuicByteCount QuicConnection::GetLimitedMaxPacketSize(
     QuicByteCount suggested_max_packet_size) {
-  if (!peer_address_.IsInitialized()) {
+  if (!peer_address().IsInitialized()) {
     QUIC_BUG << "Attempted to use a connection without a valid peer address";
     return suggested_max_packet_size;
   }
@@ -4906,13 +4906,13 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
           << current_effective_peer_migration_type_;
     } else {
       is_current_packet_connectivity_probing_ =
-          (last_packet_source_address_ != peer_address_) ||
+          (last_packet_source_address_ != peer_address()) ||
           (last_packet_destination_address_ != default_path_.self_address);
       QUIC_DLOG_IF(INFO, is_current_packet_connectivity_probing_)
           << ENDPOINT
           << "Detected connectivity probing packet. "
              "last_packet_source_address_:"
-          << last_packet_source_address_ << ", peer_address_:" << peer_address_
+          << last_packet_source_address_ << ", peer_address_:" << peer_address()
           << ", last_packet_destination_address_:"
           << last_packet_destination_address_
           << ", self_address_:" << default_path_.self_address;
