@@ -699,6 +699,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         .Times(AnyNumber());
     EXPECT_CALL(*send_algorithm_, InSlowStart()).Times(AnyNumber());
     EXPECT_CALL(*send_algorithm_, InRecovery()).Times(AnyNumber());
+    EXPECT_CALL(*send_algorithm_, GetCongestionControlType())
+        .Times(AnyNumber());
     EXPECT_CALL(*send_algorithm_, OnApplicationLimited(_)).Times(AnyNumber());
     EXPECT_CALL(visitor_, WillingAndAbleToWrite()).Times(AnyNumber());
     EXPECT_CALL(visitor_, OnPacketDecrypted(_)).Times(AnyNumber());
@@ -8594,12 +8596,6 @@ TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnAlternativeSocket) {
 
 TEST_P(QuicConnectionTest,
        RestartPathDegradingDetectionAfterMigrationWithProbe) {
-  // TODO(b/150095484): add test coverage for IETF to verify that client takes
-  // PATH RESPONSE with peer address change as correct validation on the new
-  // path.
-  if (GetParam().version.HasIetfQuicFrames()) {
-    return;
-  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   PathProbeTestInit(Perspective::IS_CLIENT);
 
@@ -8622,24 +8618,21 @@ TEST_P(QuicConnectionTest,
   EXPECT_TRUE(connection_.IsPathDegrading());
   EXPECT_FALSE(connection_.PathDegradingDetectionInProgress());
 
-  // Simulate path degrading handling by sending a probe on an alternet path.
-  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
-  TestPacketWriter probing_writer(version(), &clock_, Perspective::IS_CLIENT);
-  connection_.SendConnectivityProbingPacket(&probing_writer,
-                                            connection_.peer_address());
-  // Verify that path degrading detection is not reset.
-  EXPECT_FALSE(connection_.PathDegradingDetectionInProgress());
-
-  // Simulate successful path degrading handling by receiving probe response.
-  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(20));
-
   if (!GetParam().version.HasIetfQuicFrames()) {
+    // Simulate path degrading handling by sending a probe on an alternet path.
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+    TestPacketWriter probing_writer(version(), &clock_, Perspective::IS_CLIENT);
+    connection_.SendConnectivityProbingPacket(&probing_writer,
+                                              connection_.peer_address());
+    // Verify that path degrading detection is not reset.
+    EXPECT_FALSE(connection_.PathDegradingDetectionInProgress());
+
+    // Simulate successful path degrading handling by receiving probe response.
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(20));
+
     EXPECT_CALL(visitor_,
                 OnPacketReceived(_, _, /*is_connectivity_probe=*/true))
         .Times(1);
-  } else {
-    EXPECT_CALL(visitor_, OnPacketReceived(_, _, _)).Times(0);
-  }
   const QuicSocketAddress kNewSelfAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
 
@@ -8657,12 +8650,44 @@ TEST_P(QuicConnectionTest,
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
   EXPECT_TRUE(connection_.IsPathDegrading());
+  }
 
   // Verify new path degrading detection is activated.
   EXPECT_CALL(visitor_, OnForwardProgressMadeAfterPathDegrading()).Times(1);
-  connection_.OnSuccessfulMigration();
+  connection_.OnSuccessfulMigration(/*is_port_change*/ true);
   EXPECT_FALSE(connection_.IsPathDegrading());
   EXPECT_TRUE(connection_.PathDegradingDetectionInProgress());
+}
+
+TEST_P(QuicConnectionTest, ClientsResetCwndAfterConnectionMigration) {
+  if (!GetParam().version.HasIetfQuicFrames()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  EXPECT_EQ(kSelfAddress, connection_.self_address());
+
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_->GetRttStats());
+  QuicTime::Delta default_init_rtt = rtt_stats->initial_rtt();
+  rtt_stats->set_initial_rtt(default_init_rtt * 2);
+  EXPECT_EQ(2 * default_init_rtt, rtt_stats->initial_rtt());
+
+  QuicSentPacketManagerPeer::SetConsecutiveRtoCount(manager_, 1);
+  EXPECT_EQ(1u, manager_->GetConsecutiveRtoCount());
+  QuicSentPacketManagerPeer::SetConsecutiveTlpCount(manager_, 2);
+  EXPECT_EQ(2u, manager_->GetConsecutiveTlpCount());
+  const SendAlgorithmInterface* send_algorithm = manager_->GetSendAlgorithm();
+
+  // Migrate to a new address with different IP.
+  const QuicSocketAddress kNewSelfAddress =
+      QuicSocketAddress(QuicIpAddress::Loopback4(), /*port=*/23456);
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  connection_.MigratePath(kNewSelfAddress, connection_.peer_address(),
+                          &new_writer, false);
+  EXPECT_EQ(default_init_rtt, manager_->GetRttStats()->initial_rtt());
+  EXPECT_EQ(0u, manager_->GetConsecutiveRtoCount());
+  EXPECT_EQ(0u, manager_->GetConsecutiveTlpCount());
+  EXPECT_NE(send_algorithm, manager_->GetSendAlgorithm());
 }
 
 // Regression test for b/110259444

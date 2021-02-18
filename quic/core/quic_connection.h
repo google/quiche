@@ -1095,7 +1095,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnSuccessfulVersionNegotiation();
 
   // Called when self migration succeeds after probing.
-  void OnSuccessfulMigration();
+  void OnSuccessfulMigration(bool is_port_change);
 
   // Called for QUIC+TLS versions when we send transport parameters.
   void OnTransportParametersSent(

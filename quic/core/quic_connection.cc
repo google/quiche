@@ -1088,7 +1088,7 @@ void QuicConnection::OnSuccessfulVersionNegotiation() {
   }
 }
 
-void QuicConnection::OnSuccessfulMigration() {
+void QuicConnection::OnSuccessfulMigration(bool is_port_change) {
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
   if (IsPathDegrading()) {
     // If path was previously degrading, and migration is successful after
@@ -1100,8 +1100,10 @@ void QuicConnection::OnSuccessfulMigration() {
     // Reset alternative path state even if it is still under validation.
     alternative_path_.Clear();
   }
-  // TODO(b/159074035): notify SentPacketManger with RTT sample from probing and
-  // reset cwnd if this is a successful network migration.
+  // TODO(b/159074035): notify SentPacketManger with RTT sample from probing.
+  if (version().HasIetfQuicFrames() && !is_port_change) {
+    sent_packet_manager_.OnConnectionMigration(/*reset_send_algorithm=*/true);
+  }
 }
 
 void QuicConnection::OnTransportParametersSent(
@@ -5780,10 +5782,15 @@ void QuicConnection::MigratePath(const QuicSocketAddress& self_address,
   if (!connected_) {
     return;
   }
+  const bool is_port_change =
+      QuicUtils::DetermineAddressChangeType(default_path_.self_address,
+                                            self_address) == PORT_CHANGE &&
+      QuicUtils::DetermineAddressChangeType(default_path_.peer_address,
+                                            peer_address) == PORT_CHANGE;
   SetSelfAddress(self_address);
   UpdatePeerAddress(peer_address);
   SetQuicPacketWriter(writer, owns_writer);
-  OnSuccessfulMigration();
+  OnSuccessfulMigration(is_port_change);
 }
 
 std::vector<QuicConnectionId> QuicConnection::GetActiveServerConnectionIds()
