@@ -299,6 +299,7 @@ std::unique_ptr<QuicPacketWriter> QuicClientBase::CreateWriterForNewNetwork(
     const QuicIpAddress& new_host,
     int port) {
   set_bind_to_address(new_host);
+  set_local_port(port);
   if (!network_helper_->CreateUDPSocketAndBind(server_address_,
                                                bind_to_address_, port)) {
     return nullptr;

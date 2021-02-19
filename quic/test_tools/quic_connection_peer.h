@@ -180,6 +180,11 @@ class QuicConnectionPeer {
   static bool IsAlternativePath(QuicConnection* connection,
                                 const QuicSocketAddress& self_address,
                                 const QuicSocketAddress& peer_address);
+
+  static bool IsAlternativePathValidated(QuicConnection* connection);
+
+  static QuicByteCount BytesReceivedBeforeAddressValidation(
+      QuicConnection* connection);
 };
 
 }  // namespace test

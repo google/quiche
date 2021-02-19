@@ -428,11 +428,23 @@ QuicByteCount QuicConnectionPeer::BytesReceivedOnAlternativePath(
 }
 
 // static
+bool QuicConnectionPeer::IsAlternativePathValidated(
+    QuicConnection* connection) {
+  return connection->alternative_path_.validated;
+}
+
+// static
 bool QuicConnectionPeer::IsAlternativePath(
     QuicConnection* connection,
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address) {
   return connection->IsAlternativePath(self_address, peer_address);
+}
+
+// static
+QuicByteCount QuicConnectionPeer::BytesReceivedBeforeAddressValidation(
+    QuicConnection* connection) {
+  return connection->default_path_.bytes_received_before_address_validation;
 }
 
 }  // namespace test

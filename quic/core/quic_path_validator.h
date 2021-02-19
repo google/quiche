@@ -93,6 +93,8 @@ class QUIC_EXPORT_PRIVATE QuicPathValidator {
   };
 
   // Handles the validation result.
+  // TODO(danzh) consider to simplify this interface and its life time to
+  // outlive a validation.
   class QUIC_EXPORT_PRIVATE ResultDelegate {
    public:
     virtual ~ResultDelegate() = default;
@@ -129,6 +131,8 @@ class QUIC_EXPORT_PRIVATE QuicPathValidator {
   // Send another PATH_CHALLENGE on the same path. After retrying
   // |kMaxRetryTimes| times, fail the current path validation.
   void OnRetryTimeout();
+
+  bool IsValidatingPeerAddress(const QuicSocketAddress& effective_peer_address);
 
  private:
   friend class test::QuicPathValidatorPeer;

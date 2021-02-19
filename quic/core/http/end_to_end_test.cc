@@ -2466,6 +2466,164 @@ TEST_P(EndToEndTest, ConnectionMigrationClientIPChanged) {
 
   // Send a request using the new socket.
   SendSynchronousBarRequestAndCheckResponse();
+
+  if (!version_.HasIetfQuicFrames() ||
+      !client_->client()->session()->connection()->validate_client_address()) {
+    return;
+  }
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_TRUE(client_connection);
+  EXPECT_EQ(1u,
+            client_connection->GetStats().num_connectivity_probing_received);
+
+  // Send another request.
+  SendSynchronousBarRequestAndCheckResponse();
+  // By the time the 2nd request is completed, the PATH_RESPONSE must have been
+  // received by the server.
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    EXPECT_FALSE(server_connection->HasPendingPathValidation());
+    EXPECT_EQ(1u, server_connection->GetStats().num_validated_peer_migration);
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
+}
+
+TEST_P(EndToEndTest, ConnectionMigrationNewTokenForNewIp) {
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames() ||
+      !client_->client()->session()->connection()->validate_client_address()) {
+    return;
+  }
+  SendSynchronousFooRequestAndCheckResponse();
+
+  // Store the client IP address which was used to send the first request.
+  QuicIpAddress old_host =
+      client_->client()->network_helper()->GetLatestClientAddress().host();
+
+  // Migrate socket to the new IP address.
+  QuicIpAddress new_host = TestLoopback(2);
+  EXPECT_NE(old_host, new_host);
+  ASSERT_TRUE(client_->client()->MigrateSocket(new_host));
+
+  // Send a request using the new socket.
+  SendSynchronousBarRequestAndCheckResponse();
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_TRUE(client_connection);
+  EXPECT_EQ(1u,
+            client_connection->GetStats().num_connectivity_probing_received);
+
+  // Send another request to ensure that the server will time to finish the
+  // reverse path validation and send address token.
+  SendSynchronousBarRequestAndCheckResponse();
+
+  client_->Disconnect();
+  // The 0-RTT handshake should succeed.
+  client_->Connect();
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  ASSERT_TRUE(client_->client()->connected());
+  SendSynchronousFooRequestAndCheckResponse();
+
+  EXPECT_TRUE(GetClientSession()->EarlyDataAccepted());
+  EXPECT_TRUE(client_->client()->EarlyDataAccepted());
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    if (GetQuicReloadableFlag(quic_enable_token_based_address_validation)) {
+      // Verify address is validated via validating token received in INITIAL
+      // packet.
+      EXPECT_FALSE(server_connection->GetStats()
+                       .address_validated_via_decrypting_packet);
+      EXPECT_TRUE(server_connection->GetStats().address_validated_via_token);
+    } else {
+      EXPECT_TRUE(server_connection->GetStats()
+                      .address_validated_via_decrypting_packet);
+      EXPECT_FALSE(server_connection->GetStats().address_validated_via_token);
+    }
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
+  client_->Disconnect();
+}
+
+// A writer which copies the packet and send the copy with a specified self
+// address and then send the same packet with the original self address.
+class DuplicatePacketWithSpoofedSelfAddressWriter
+    : public QuicPacketWriterWrapper {
+ public:
+  WriteResult WritePacket(const char* buffer,
+                          size_t buf_len,
+                          const QuicIpAddress& self_address,
+                          const QuicSocketAddress& peer_address,
+                          PerPacketOptions* options) override {
+    if (self_address_to_overwrite_.IsInitialized()) {
+      // Send the same packet on the overwriting address before sending on the
+      // actual self address.
+      QuicPacketWriterWrapper::WritePacket(
+          buffer, buf_len, self_address_to_overwrite_, peer_address, options);
+    }
+    return QuicPacketWriterWrapper::WritePacket(buffer, buf_len, self_address,
+                                                peer_address, options);
+  }
+
+  void set_self_address_to_overwrite(const QuicIpAddress& self_address) {
+    self_address_to_overwrite_ = self_address;
+  }
+
+ private:
+  QuicIpAddress self_address_to_overwrite_;
+};
+
+TEST_P(EndToEndTest, ClientAddressSpoofedForSomePeriod) {
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames() ||
+      !client_->client()->session()->connection()->validate_client_address()) {
+    return;
+  }
+  auto writer = new DuplicatePacketWithSpoofedSelfAddressWriter();
+  client_.reset(CreateQuicClient(writer));
+  QuicIpAddress real_host = TestLoopback(1);
+  client_->MigrateSocket(real_host);
+  SendSynchronousFooRequestAndCheckResponse();
+  EXPECT_EQ(
+      0u, GetClientConnection()->GetStats().num_connectivity_probing_received);
+  EXPECT_EQ(
+      real_host,
+      client_->client()->network_helper()->GetLatestClientAddress().host());
+  client_->WaitForDelayedAcks();
+
+  std::string large_body(10240, 'a');
+  AddToCache("/large_response", 200, large_body);
+
+  QuicIpAddress spoofed_host = TestLoopback(2);
+  writer->set_self_address_to_overwrite(spoofed_host);
+
+  client_->SendRequest("/large_response");
+  QuicConnection* client_connection = GetClientConnection();
+  QuicPacketCount num_packets_received =
+      client_connection->GetStats().packets_received;
+
+  while (client_->client()->WaitForEvents() && client_->connected()) {
+    if (client_connection->GetStats().packets_received > num_packets_received) {
+      // Ideally the client won't receive any packets till the server finds out
+      // the new client address is not working. But there are 2 corner cases:
+      // 1) Before the server received the packet from spoofed address, it might
+      // send packets to the real client address. So the client will immediately
+      // switch back to use the original address;
+      // 2) Between the server fails reverse path validation and the client
+      // receives packets again, the client might sent some packets with the
+      // spoofed address and triggers another migration.
+      // In both corner cases, the attempted migration should fail and fall back
+      // to the working path.
+      writer->set_self_address_to_overwrite(QuicIpAddress());
+    }
+  }
+  client_->WaitForResponse();
+  EXPECT_EQ(large_body, client_->response_body());
 }
 
 TEST_P(EndToEndTest, AsynchronousConnectionMigrationClientIPChanged) {
@@ -2491,6 +2649,10 @@ TEST_P(EndToEndTest, AsynchronousConnectionMigrationClientIPChanged) {
     client_->client()->WaitForEvents();
   }
   EXPECT_EQ(new_host, client_->client()->session()->self_address().host());
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_TRUE(client_connection);
+  EXPECT_EQ(client_connection->validate_client_address() ? 1u : 0,
+            client_connection->GetStats().num_connectivity_probing_received);
   // Send a request using the new socket.
   SendSynchronousBarRequestAndCheckResponse();
 }
@@ -2546,6 +2708,21 @@ TEST_P(EndToEndTest, ConnectionMigrationClientPortChanged) {
       client_->client()->network_helper()->GetLatestClientAddress();
   EXPECT_EQ(old_address.host(), new_address.host());
   EXPECT_NE(old_address.port(), new_address.port());
+
+  if (!version_.HasIetfQuicFrames() ||
+      !GetClientConnection()->validate_client_address()) {
+    return;
+  }
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    EXPECT_FALSE(server_connection->HasPendingPathValidation());
+    EXPECT_EQ(1u, server_connection->GetStats().num_validated_peer_migration);
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
 }
 
 TEST_P(EndToEndTest, NegotiatedInitialCongestionWindow) {
@@ -4564,6 +4741,46 @@ class PacketHoldingWriter : public QuicPacketWriterWrapper {
   std::unique_ptr<PerPacketOptions> options_;
 };
 
+TEST_P(EndToEndTest, ClientValidateNewNetwork) {
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames() ||
+      !GetClientConnection()->validate_client_address()) {
+    return;
+  }
+  client_.reset(EndToEndTest::CreateQuicClient(nullptr));
+  SendSynchronousFooRequestAndCheckResponse();
+
+  // Store the client IP address which was used to send the first request.
+  QuicIpAddress old_host =
+      client_->client()->network_helper()->GetLatestClientAddress().host();
+
+  // Migrate socket to the new IP address.
+  QuicIpAddress new_host = TestLoopback(2);
+  EXPECT_NE(old_host, new_host);
+
+  client_->client()->ValidateNewNetwork(new_host);
+  // Send a request using the old socket.
+  EXPECT_EQ(kBarResponseBody, client_->SendSynchronousRequest("/bar"));
+  // Client should have received a PATH_CHALLENGE.
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_TRUE(client_connection);
+  EXPECT_EQ(1u,
+            client_connection->GetStats().num_connectivity_probing_received);
+
+  // Send another request to make sure THE server will receive PATH_RESPONSE.
+  client_->SendSynchronousRequest("/eep");
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    EXPECT_EQ(1u,
+              server_connection->GetStats().num_connectivity_probing_received);
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
+}
+
 TEST_P(EndToEndPacketReorderingTest, ReorderedPathChallenge) {
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames() ||
@@ -4593,7 +4810,7 @@ TEST_P(EndToEndPacketReorderingTest, ReorderedPathChallenge) {
   holding_writer->HoldNextPacket();
 
   // A packet with PATH_CHALLENGE will be held in the writer.
-  ASSERT_TRUE(client_->client()->ValidateAndMigrateSocket(new_host));
+  client_->client()->ValidateNewNetwork(new_host);
 
   // Send (on-hold) PATH_CHALLENGE after this request.
   client_->SendRequest("/foo");
@@ -4607,6 +4824,12 @@ TEST_P(EndToEndPacketReorderingTest, ReorderedPathChallenge) {
   // the server's response to probing is guaranteed to have been received by the
   // client.
   EXPECT_EQ(kBarResponseBody, client_->SendSynchronousRequest("/bar"));
+
+  // Client should have received a PATH_CHALLENGE.
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_TRUE(client_connection);
+  EXPECT_EQ(client_connection->validate_client_address() ? 1u : 0,
+            client_connection->GetStats().num_connectivity_probing_received);
 
   server_thread_->Pause();
   QuicConnection* server_connection = GetServerConnection();
@@ -4646,6 +4869,10 @@ TEST_P(EndToEndPacketReorderingTest, PathValidationFailure) {
   while (client_->client()->HasPendingPathValidation()) {
     client_->client()->WaitForEvents();
   }
+  EXPECT_EQ(old_addr, client_->client()->session()->self_address());
+  server_writer_->set_fake_packet_loss_percentage(0);
+  EXPECT_EQ(kBarResponseBody, client_->SendSynchronousRequest("/bar"));
+
   server_thread_->Pause();
   QuicConnection* server_connection = GetServerConnection();
   if (server_connection != nullptr) {
@@ -4655,10 +4882,6 @@ TEST_P(EndToEndPacketReorderingTest, PathValidationFailure) {
     ADD_FAILURE() << "Missing server connection";
   }
   server_thread_->Resume();
-
-  EXPECT_EQ(old_addr, client_->client()->session()->self_address());
-  server_writer_->set_fake_packet_loss_percentage(0);
-  EXPECT_EQ(kBarResponseBody, client_->SendSynchronousRequest("/bar"));
 }
 
 TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {

@@ -136,4 +136,10 @@ void QuicPathValidator::SendPathChallengeAndSetAlarm() {
       path_context_->peer_address(), path_context_->WriterToUse()));
 }
 
+bool QuicPathValidator::IsValidatingPeerAddress(
+    const QuicSocketAddress& effective_peer_address) {
+  return path_context_ != nullptr &&
+         path_context_->effective_peer_address() == effective_peer_address;
+}
+
 }  // namespace quic

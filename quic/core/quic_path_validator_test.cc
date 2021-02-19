@@ -93,6 +93,7 @@ TEST_F(QuicPathValidatorTest, PathValidationSuccessOnFirstRound) {
       std::unique_ptr<QuicPathValidationContext>(context_),
       std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_));
   EXPECT_TRUE(path_validator_.HasPendingPathValidation());
+  EXPECT_TRUE(path_validator_.IsValidatingPeerAddress(effective_peer_address_));
   EXPECT_CALL(*result_delegate_, OnPathValidationSuccess(_))
       .WillOnce(Invoke([=](std::unique_ptr<QuicPathValidationContext> context) {
         EXPECT_EQ(context.get(), context_);

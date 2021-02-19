@@ -11,6 +11,7 @@
 #include <iterator>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -18,6 +19,8 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quic/core/congestion_control/rtt_stats.h"
+#include "quic/core/congestion_control/send_algorithm_interface.h"
 #include "quic/core/crypto/crypto_protocol.h"
 #include "quic/core/crypto/crypto_utils.h"
 #include "quic/core/crypto/quic_decrypter.h"
@@ -368,7 +371,12 @@ QuicConnection::QuicConnection(
           GetQuicReloadableFlag(quic_use_encryption_level_context)),
       path_validator_(alarm_factory_, &arena_, this, random_generator_),
       alternative_path_(QuicSocketAddress(), QuicSocketAddress()),
-      most_recent_frame_type_(NUM_FRAME_TYPES) {
+      most_recent_frame_type_(NUM_FRAME_TYPES),
+      validate_client_addresses_(
+          framer_.version().HasIetfQuicFrames() && use_path_validator_ &&
+          count_bytes_on_alternative_path_separately_ &&
+          update_packet_content_returns_connected_ &&
+          GetQuicReloadableFlag(quic_server_reverse_validate_new_path)) {
   QUIC_BUG_IF(!start_peer_migration_earlier_ && send_path_response_);
 
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
@@ -1192,8 +1200,8 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   if (perspective_ == Perspective::IS_CLIENT) {
     if (!GetLargestReceivedPacket().IsInitialized() ||
         header.packet_number > GetLargestReceivedPacket()) {
-      // Update peer_address_ and effective_peer_address_ immediately for
-      // client connections.
+      // Update direct_peer_address_ and default path peer_address immediately
+      // for client connections.
       // TODO(fayang): only change peer addresses in application data packet
       // number space.
       UpdatePeerAddress(last_packet_source_address_);
@@ -1597,6 +1605,23 @@ bool QuicConnection::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
   return connected_;
 }
 
+class ReversePathValidationContext : public QuicPathValidationContext {
+ public:
+  ReversePathValidationContext(const QuicSocketAddress& self_address,
+                               const QuicSocketAddress& peer_address,
+                               const QuicSocketAddress& effective_peer_address,
+                               QuicConnection* connection)
+      : QuicPathValidationContext(self_address,
+                                  peer_address,
+                                  effective_peer_address),
+        connection_(connection) {}
+
+  QuicPacketWriter* WriterToUse() override { return connection_->writer(); }
+
+ private:
+  QuicConnection* connection_;
+};
+
 bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
   QUIC_BUG_IF(!connected_) << "Processing PATH_CHALLENGE frame when connection "
                               "is closed. Last frame: "
@@ -1604,9 +1629,30 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
   if (has_path_challenge_in_current_packet_) {
     QUICHE_DCHECK(send_path_response_);
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response, 2, 5);
-    // Only respond to the 1st PATH_CHALLENGE.
+    // Only respond to the 1st PATH_CHALLENGE in the packet.
     return true;
   }
+  if (!validate_client_addresses_) {
+    return OnPathChallengeFrameInternal(frame);
+  }
+  {
+    // UpdatePacketStateAndReplyPathChallenge() may start reverse path
+    // validation, if so bundle the PATH_CHALLENGE together with the
+    // PATH_RESPONSE. This context needs to be out of scope before returning.
+    // TODO(danzh) inline OnPathChallengeFrameInternal() once
+    // support_reverse_path_validation_ is deprecated.
+    QuicPacketCreator::ScopedPeerAddressContext context(
+        &packet_creator_, last_packet_source_address_);
+    if (!OnPathChallengeFrameInternal(frame)) {
+      return false;
+    }
+  }
+  return connected_;
+}
+
+bool QuicConnection::OnPathChallengeFrameInternal(
+    const QuicPathChallengeFrame& frame) {
+  // UpdatePacketContent() may start reverse path validation.
   if (!UpdatePacketContent(PATH_CHALLENGE_FRAME)) {
     return false;
   }
@@ -1625,9 +1671,9 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response, 3, 5);
   has_path_challenge_in_current_packet_ = true;
   MaybeUpdateAckTimeout();
-  // Queue or send PATH_RESPONSE. No matter where the pending data are supposed
-  // to sent, PATH_RESPONSE should always be sent to the source address of the
-  // current incoming packet.
+  // Queue or send PATH_RESPONSE. Send PATH_RESPONSE to the source address of
+  // the current incoming packet, even if it's not the default path or the
+  // alternative path.
   if (!SendPathResponse(frame.data_buffer, last_packet_source_address_)) {
     // Queue the payloads to re-try later.
     pending_path_challenge_payloads_.push_back(
@@ -2510,7 +2556,7 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
     const QuicSocketAddress effective_peer_addr =
         GetEffectivePeerAddressFromCurrentPacket();
 
-    // effective_peer_address_ must be initialized at the beginning of the
+    // The default path peer_address must be initialized at the beginning of the
     // first packet processed(here). If effective_peer_addr is uninitialized,
     // just set effective_peer_address_ to the direct peer address.
     default_path_.peer_address = effective_peer_addr.IsInitialized()
@@ -2542,7 +2588,8 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   }
   time_of_last_received_packet_ = packet.receipt_time();
   QUIC_DVLOG(1) << ENDPOINT << "time of last received packet: "
-                << packet.receipt_time().ToDebuggingValue();
+                << packet.receipt_time().ToDebuggingValue() << " from peer "
+                << last_packet_source_address_;
 
   ScopedPacketFlusher flusher(this);
   if (!framer_.ProcessPacket(packet)) {
@@ -2565,7 +2612,8 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
       << sent_packet_manager_.GetLargestObserved()
       << ", highest_packet_sent_before_effective_peer_migration_ = "
       << highest_packet_sent_before_effective_peer_migration_;
-  if (active_effective_peer_migration_type_ != NO_CHANGE &&
+  if (!validate_client_addresses_ &&
+      active_effective_peer_migration_type_ != NO_CHANGE &&
       sent_packet_manager_.GetLargestObserved().IsInitialized() &&
       (!highest_packet_sent_before_effective_peer_migration_.IsInitialized() ||
        sent_packet_manager_.GetLargestObserved() >
@@ -2909,7 +2957,10 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     QUIC_CODE_COUNT(quic_throttled_by_amplification_limit);
     QUIC_DVLOG(1) << ENDPOINT
                   << "Constrained by amplification restriction to peer address "
-                  << direct_peer_address_;
+                  << default_path_.peer_address << " bytes received "
+                  << default_path_.bytes_received_before_address_validation
+                  << ", bytes sent"
+                  << default_path_.bytes_sent_before_address_validation;
     ++stats_.num_amplification_throttling;
     return false;
   }
@@ -4719,30 +4770,202 @@ void QuicConnection::OnEffectivePeerMigrationValidated() {
     return;
   }
   highest_packet_sent_before_effective_peer_migration_.Clear();
+  const bool send_address_token =
+      active_effective_peer_migration_type_ != PORT_CHANGE;
   active_effective_peer_migration_type_ = NO_CHANGE;
+  ++stats_.num_validated_peer_migration;
+  if (!validate_client_addresses_) {
+    return;
+  }
+  // Lift anti-amplification limit.
+  default_path_.validated = true;
+  alternative_path_.Clear();
+  if (send_address_token) {
+    visitor_->MaybeSendAddressToken();
+  }
 }
 
 void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
   // TODO(fayang): Currently, all peer address change type are allowed. Need to
   // add a method ShouldAllowPeerAddressChange(PeerAddressChangeType type) to
   // determine whether |type| is allowed.
+  if (!validate_client_addresses_) {
+    if (type == NO_CHANGE) {
+      QUIC_BUG << "EffectivePeerMigration started without address change.";
+      return;
+    }
+    QUIC_DLOG(INFO) << ENDPOINT << "Effective peer's ip:port changed from "
+                    << default_path_.peer_address.ToString() << " to "
+                    << GetEffectivePeerAddressFromCurrentPacket().ToString()
+                    << ", address change type is " << type
+                    << ", migrating connection.";
+
+    highest_packet_sent_before_effective_peer_migration_ =
+        sent_packet_manager_.GetLargestSentPacket();
+    default_path_.peer_address = GetEffectivePeerAddressFromCurrentPacket();
+    active_effective_peer_migration_type_ = type;
+
+    OnConnectionMigration();
+    return;
+  }
+
   if (type == NO_CHANGE) {
+    UpdatePeerAddress(last_packet_source_address_);
     QUIC_BUG << "EffectivePeerMigration started without address change.";
     return;
   }
+
+  // Action items:
+  //   1. Switch congestion controller;
+  //   2. Update default_path_ (addresses, validation and bytes accounting);
+  //   3. Save previous default path if needed;
+  //   4. Kick off reverse path validation if needed.
+  // Items 1 and 2 are must-to-do. Items 3 and 4 depends on if the new address
+  // is validated or not and which path the incoming packet is on.
+
+  const QuicSocketAddress current_effective_peer_address =
+      GetEffectivePeerAddressFromCurrentPacket();
   QUIC_DLOG(INFO) << ENDPOINT << "Effective peer's ip:port changed from "
                   << default_path_.peer_address.ToString() << " to "
-                  << GetEffectivePeerAddressFromCurrentPacket().ToString()
+                  << current_effective_peer_address.ToString()
                   << ", address change type is " << type
                   << ", migrating connection.";
 
-  highest_packet_sent_before_effective_peer_migration_ =
-      sent_packet_manager_.GetLargestSentPacket();
-  default_path_.peer_address = GetEffectivePeerAddressFromCurrentPacket();
+  const QuicSocketAddress previous_direct_peer_address = direct_peer_address_;
+  PathState previous_default_path = std::move(default_path_);
   active_effective_peer_migration_type_ = type;
-
-  // TODO(wub): Move these calls to OnEffectivePeerMigrationValidated.
   OnConnectionMigration();
+
+  // Update congestion controller if the address change type is not PORT_CHANGE.
+  if (type == PORT_CHANGE) {
+    QUICHE_DCHECK(previous_default_path.validated ||
+                  alternative_path_.validated &&
+                      alternative_path_.send_algorithm != nullptr);
+    // No need to store previous congestion controller because either the new
+    // default path is validated or the alternative path is validated and
+    // already has associated congestion controller.
+  } else {
+    previous_default_path.rtt_stats.emplace();
+    previous_default_path.rtt_stats->CloneFrom(
+        *sent_packet_manager_.GetRttStats());
+    // If the new peer address share the same IP with the alternative path, the
+    // connection should switch to the congestion controller of the alternative
+    // path. Otherwise, the connection should use a brand new one.
+    // In order to re-use existing code in sent_packet_manager_, reset
+    // congestion controller to initial state first and then change to the one
+    // on alternative path.
+    // TODO(danzh) combine these two steps into one after deprecating gQUIC.
+    previous_default_path.send_algorithm =
+        sent_packet_manager_.OnConnectionMigration(
+            /*reset_send_algorithm=*/true);
+    // OnConnectionMigration() might have marked in-flight packets to be
+    // retransmitted if there is any.
+    QUICHE_DCHECK(!sent_packet_manager_.HasInFlightPackets());
+    // Stop detections in quiecense.
+    blackhole_detector_.StopDetection();
+
+    if (alternative_path_.peer_address.host() ==
+            current_effective_peer_address.host() &&
+        alternative_path_.send_algorithm != nullptr) {
+      // Update the default path with the congestion controller of the
+      // alternative path.
+      sent_packet_manager_.SetSendAlgorithm(
+          alternative_path_.send_algorithm.release());
+      sent_packet_manager_.SetRttStats(
+          std::move(alternative_path_.rtt_stats).value());
+    }
+  }
+
+  // Update to the new peer address.
+  UpdatePeerAddress(last_packet_source_address_);
+  // Update the default path.
+  if (IsAlternativePath(last_packet_destination_address_,
+                        current_effective_peer_address)) {
+    default_path_ = std::move(alternative_path_);
+  } else {
+    default_path_ = PathState(last_packet_destination_address_,
+                              current_effective_peer_address);
+    // The path is considered validated if its peer IP address matches any
+    // validated path's peer IP address.
+    default_path_.validated =
+        (alternative_path_.peer_address.host() ==
+             current_effective_peer_address.host() &&
+         alternative_path_.validated) ||
+        (previous_default_path.validated && type == PORT_CHANGE);
+  }
+  if (!current_incoming_packet_received_bytes_counted_) {
+    // Increment bytes counting on the new default path.
+    default_path_.bytes_received_before_address_validation += last_size_;
+    current_incoming_packet_received_bytes_counted_ = true;
+  }
+
+  if (!previous_default_path.validated) {
+    // If the old address is under validation, cancel and fail it. Failing to
+    // validate the old path shouldn't take any effect.
+    QUIC_DVLOG(1) << "Cancel validation of previous peer address change to "
+                  << previous_default_path.peer_address
+                  << " upon peer migration to " << default_path_.peer_address;
+    path_validator_.CancelPathValidation();
+    ++stats_.num_peer_migration_while_validating_default_path;
+  }
+
+  // Clear alternative path if the new default path shares the same IP as the
+  // alternative path.
+  if (alternative_path_.peer_address.host() ==
+      default_path_.peer_address.host()) {
+    alternative_path_.Clear();
+  }
+
+  if (default_path_.validated) {
+    QUIC_DVLOG(1) << "Peer migrated to a validated address.";
+    // No need to save previous default path, validate new peer address or
+    // update bytes sent/received.
+    if (!(previous_default_path.validated && type == PORT_CHANGE)) {
+      // The alternative path was validated because of proactive reverse path
+      // validation.
+      ++stats_.num_peer_migration_to_proactively_validated_address;
+    }
+    OnEffectivePeerMigrationValidated();
+    return;
+  }
+
+  // The new default address is not validated yet. Anti-amplification limit is
+  // enforced.
+  QUICHE_DCHECK(EnforceAntiAmplificationLimit());
+  QUIC_DVLOG(1) << "Apply anti-amplification limit to effective peer address "
+                << default_path_.peer_address << " with "
+                << default_path_.bytes_sent_before_address_validation
+                << " bytes sent and "
+                << default_path_.bytes_received_before_address_validation
+                << " bytes received.";
+
+  QUICHE_DCHECK(!alternative_path_.peer_address.IsInitialized() ||
+                alternative_path_.peer_address.host() !=
+                    default_path_.peer_address.host());
+
+  // Save previous default path to the altenative path.
+  if (previous_default_path.validated) {
+    // The old path is a validated path which the connection might revert back
+    // to later. Store it as the alternative path.
+    alternative_path_ = std::move(previous_default_path);
+    QUICHE_DCHECK(alternative_path_.send_algorithm != nullptr);
+  }
+
+  // If the new address is not validated and the connection is not already
+  // validating that address, a new reverse path validation is needed.
+  if (!path_validator_.IsValidatingPeerAddress(
+          current_effective_peer_address)) {
+    ++stats_.num_reverse_path_validtion_upon_migration;
+    ValidatePath(std::make_unique<ReversePathValidationContext>(
+                     default_path_.self_address, peer_address(),
+                     default_path_.peer_address, this),
+                 std::make_unique<ReversePathValidationResultDelegate>(
+                     this, previous_direct_peer_address));
+  } else {
+    QUIC_DVLOG(1) << "Peer address " << default_path_.peer_address
+                  << " is already under validation, wait for result.";
+    ++stats_.num_peer_migration_to_proactively_validated_address;
+  }
 }
 
 void QuicConnection::OnConnectionMigration() {
@@ -4756,7 +4979,8 @@ void QuicConnection::OnConnectionMigration() {
   }
   visitor_->OnConnectionMigration(active_effective_peer_migration_type_);
   if (active_effective_peer_migration_type_ != PORT_CHANGE &&
-      active_effective_peer_migration_type_ != IPV4_SUBNET_CHANGE) {
+      active_effective_peer_migration_type_ != IPV4_SUBNET_CHANGE &&
+      !validate_client_addresses_) {
     sent_packet_manager_.OnConnectionMigration(/*reset_send_algorithm=*/false);
   }
 }
@@ -4863,13 +5087,45 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
     if (type == PATH_CHALLENGE_FRAME &&
         !IsAlternativePath(last_packet_destination_address_,
                            current_effective_peer_address)) {
-      // Only override the alternative path state upon a PATH_CHALLENGE.
       QUIC_DVLOG(1)
           << "The peer is probing a new path with effective peer address "
           << current_effective_peer_address << ",  self address "
           << last_packet_destination_address_;
-      alternative_path_ = PathState(last_packet_destination_address_,
-                                    current_effective_peer_address);
+      if (!validate_client_addresses_) {
+        alternative_path_ = PathState(last_packet_destination_address_,
+                                      current_effective_peer_address);
+      } else if (!default_path_.validated) {
+        // Skip reverse path validation because either handshake hasn't
+        // completed or the connection is validating the default path. Using
+        // PATH_CHALLENGE to validate alternative client address before
+        // handshake gets comfirmed is meaningless because anyone can respond to
+        // it. If the connection is validating the default path, this
+        // alternative path is currently the only validated path which shouldn't
+        // be overridden.
+        QUIC_DVLOG(1) << "The connection hasn't finished handshake or is "
+                         "validating a recent peer address change.";
+        QUIC_BUG_IF(IsHandshakeConfirmed() && !alternative_path_.validated)
+            << "No validated peer address to send after handshake comfirmed.";
+      } else if (!IsReceivedPeerAddressValidated()) {
+        // Only override alternative path state upon receiving a PATH_CHALLENGE
+        // from an unvalidated peer address, and the connection isn't validating
+        // a recent peer migration.
+        alternative_path_ = PathState(last_packet_destination_address_,
+                                      current_effective_peer_address);
+        // Conditions to proactively validate peer address:
+        // The perspective is server
+        // The PATH_CHALLENGE is received on an unvalidated alternative path.
+        // The connection isn't validating migrated peer address, which is of
+        // higher prority.
+        QUIC_DVLOG(1) << "Proactively validate the effective peer address "
+                      << current_effective_peer_address;
+        ValidatePath(
+            std::make_unique<ReversePathValidationContext>(
+                default_path_.self_address, current_effective_peer_address,
+                current_effective_peer_address, this),
+            std::make_unique<ReversePathValidationResultDelegate>(
+                this, peer_address()));
+      }
     }
     MaybeUpdateBytesReceivedFromAlternativeAddress(last_size_);
     return !update_packet_content_returns_connected_ || connected_;
@@ -4917,7 +5173,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
           << last_packet_source_address_ << ", peer_address_:" << peer_address()
           << ", last_packet_destination_address_:"
           << last_packet_destination_address_
-          << ", self_address_:" << default_path_.self_address;
+          << ", default path self_address :" << default_path_.self_address;
     }
     return !update_packet_content_returns_connected_ || connected_;
   }
@@ -4962,13 +5218,17 @@ void QuicConnection::MaybeStartIetfPeerMigration() {
 
   if (GetLargestReceivedPacket().IsInitialized() &&
       last_header_.packet_number == GetLargestReceivedPacket()) {
-    UpdatePeerAddress(last_packet_source_address_);
     if (current_effective_peer_migration_type_ != NO_CHANGE) {
       // Start effective peer migration when the current packet contains a
       // non-probing frame.
       // TODO(fayang): When multiple packet number spaces is supported, only
       // start peer migration for the application data.
+      if (!validate_client_addresses_) {
+        UpdatePeerAddress(last_packet_source_address_);
+      }
       StartEffectivePeerMigration(current_effective_peer_migration_type_);
+    } else {
+      UpdatePeerAddress(last_packet_source_address_);
     }
   }
   current_effective_peer_migration_type_ = NO_CHANGE;
@@ -5884,6 +6144,124 @@ void QuicConnection::PathState::Clear() {
   validated = false;
   bytes_received_before_address_validation = 0;
   bytes_sent_before_address_validation = 0;
+  send_algorithm = nullptr;
+  rtt_stats = absl::nullopt;
+}
+
+QuicConnection::PathState::PathState(PathState&& other) {
+  *this = std::move(other);
+}
+
+QuicConnection::PathState& QuicConnection::PathState::operator=(
+    QuicConnection::PathState&& other) {
+  if (this != &other) {
+    self_address = other.self_address;
+    peer_address = other.peer_address;
+    validated = other.validated;
+    bytes_received_before_address_validation =
+        other.bytes_received_before_address_validation;
+    bytes_sent_before_address_validation =
+        other.bytes_sent_before_address_validation;
+    send_algorithm = std::move(other.send_algorithm);
+    if (other.rtt_stats.has_value()) {
+      rtt_stats.emplace();
+      rtt_stats->CloneFrom(other.rtt_stats.value());
+    } else {
+      rtt_stats.reset();
+    }
+    other.Clear();
+  }
+  return *this;
+}
+
+bool QuicConnection::IsReceivedPeerAddressValidated() const {
+  QuicSocketAddress current_effective_peer_address =
+      GetEffectivePeerAddressFromCurrentPacket();
+  QUICHE_DCHECK(current_effective_peer_address.IsInitialized());
+  return (alternative_path_.peer_address.host() ==
+              current_effective_peer_address.host() &&
+          alternative_path_.validated) ||
+         (default_path_.validated && default_path_.peer_address.host() ==
+                                         current_effective_peer_address.host());
+}
+
+QuicConnection::ReversePathValidationResultDelegate::
+    ReversePathValidationResultDelegate(
+        QuicConnection* connection,
+        const QuicSocketAddress& direct_peer_address)
+    : QuicPathValidator::ResultDelegate(),
+      connection_(connection),
+      original_direct_peer_address_(direct_peer_address) {}
+
+void QuicConnection::ReversePathValidationResultDelegate::
+    OnPathValidationSuccess(
+        std::unique_ptr<QuicPathValidationContext> context) {
+  QUIC_DLOG(INFO) << "Successfully validated new path " << *context;
+  if (connection_->IsDefaultPath(context->self_address(),
+                                 context->peer_address())) {
+    connection_->OnEffectivePeerMigrationValidated();
+  } else {
+    QUICHE_DCHECK(connection_->IsAlternativePath(
+        context->self_address(), context->effective_peer_address()));
+    QUIC_DVLOG(1) << "Mark alternative peer address "
+                  << context->effective_peer_address() << " validated.";
+    connection_->alternative_path_.validated = true;
+  }
+}
+
+void QuicConnection::ReversePathValidationResultDelegate::
+    OnPathValidationFailure(
+        std::unique_ptr<QuicPathValidationContext> context) {
+  if (!connection_->connected()) {
+    return;
+  }
+  QUIC_DLOG(INFO) << "Fail to validate new path " << *context;
+  if (connection_->IsDefaultPath(context->self_address(),
+                                 context->peer_address())) {
+    // Only act upon validation failure on the default path.
+    connection_->RestoreToLastValidatedPath(original_direct_peer_address_);
+  } else if (connection_->IsAlternativePath(
+                 context->self_address(), context->effective_peer_address())) {
+    connection_->alternative_path_.Clear();
+  }
+}
+
+void QuicConnection::RestoreToLastValidatedPath(
+    QuicSocketAddress original_direct_peer_address) {
+  QUIC_DLOG(INFO) << "Switch back to use the old peer address "
+                  << alternative_path_.peer_address;
+  if (!alternative_path_.validated) {
+    // If not validated by now, close connection silently so that the following
+    // packets received will be rejected.
+    CloseConnection(QUIC_INTERNAL_ERROR,
+                    "No validated peer address to use after reverse path "
+                    "validation failure.",
+                    ConnectionCloseBehavior::SILENT_CLOSE);
+    return;
+  }
+
+  // Revert congestion control context to old state.
+  sent_packet_manager_.OnConnectionMigration(true);
+  QUICHE_DCHECK(!sent_packet_manager_.HasInFlightPackets());
+  // Stop detections in quiecense.
+  blackhole_detector_.StopDetection();
+
+  if (alternative_path_.send_algorithm != nullptr) {
+    sent_packet_manager_.SetSendAlgorithm(
+        alternative_path_.send_algorithm.release());
+    sent_packet_manager_.SetRttStats(alternative_path_.rtt_stats.value());
+  } else {
+    QUIC_BUG << "Fail to store congestion controller before migration.";
+  }
+
+  UpdatePeerAddress(original_direct_peer_address);
+  default_path_ = std::move(alternative_path_);
+
+  active_effective_peer_migration_type_ = NO_CHANGE;
+  ++stats_.num_invalid_peer_migration;
+  // The reverse path validation failed because of alarm firing, flush all the
+  // pending writes previously throttled by anti-amplification limit.
+  WriteIfNotBlocked();
 }
 
 #undef ENDPOINT  // undef for jumbo builds

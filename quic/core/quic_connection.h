@@ -1149,7 +1149,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                            QuicPacketWriter* writer_to_use) const override;
 
   // Start vaildating the path defined by |context| asynchronously and call the
-  // |result_delegate| after validation finishes.
+  // |result_delegate| after validation finishes. If the connection is
+  // validating another path, cancel and fail that validation before starting
+  // this one.
   void ValidatePath(
       std::unique_ptr<QuicPathValidationContext> context,
       std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate);
@@ -1190,6 +1192,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   }
 
   virtual std::vector<QuicConnectionId> GetActiveServerConnectionIds() const;
+
+  bool validate_client_address() const { return validate_client_addresses_; }
 
  protected:
   // Calls cancel() on all the alarms owned by this connection.
@@ -1257,8 +1261,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Decides whether to send probing retransmissions, and does so if required.
   void MaybeSendProbingRetransmissions();
 
-  // Notify various components(SendPacketManager, Session etc.) that this
-  // connection has been migrated.
+  // Notify various components(Session etc.) that this connection has been
+  // migrated.
   virtual void OnConnectionMigration();
 
   // Return whether the packet being processed is a connectivity probing.
@@ -1292,6 +1296,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
         : self_address(alternative_self_address),
           peer_address(alternative_peer_address) {}
 
+    PathState(PathState&& other);
+
+    PathState& operator=(PathState&& other);
+
     // Reset all the members.
     void Clear();
 
@@ -1307,6 +1315,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     // becomes the default path if |peer_address| hasn't been validated.
     QuicByteCount bytes_received_before_address_validation = 0;
     QuicByteCount bytes_sent_before_address_validation = 0;
+    // Points to the send algorithm on the old default path while connection is
+    // validating migrated peer address. Nullptr otherwise.
+    std::unique_ptr<SendAlgorithmInterface> send_algorithm;
+    absl::optional<RttStats> rtt_stats;
   };
 
   using QueuedPacketList = std::list<SerializedPacket>;
@@ -1344,6 +1356,27 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
     std::unique_ptr<QuicEncryptedPacket> packet;
     EncryptionLevel encryption_level;
+  };
+
+  // Handles the reverse path validation result depending on connection state:
+  // whether the connection is validating a migrated peer address or is
+  // validating an alternative path.
+  class ReversePathValidationResultDelegate
+      : public QuicPathValidator::ResultDelegate {
+   public:
+    ReversePathValidationResultDelegate(
+        QuicConnection* connection,
+        const QuicSocketAddress& direct_peer_address);
+
+    void OnPathValidationSuccess(
+        std::unique_ptr<QuicPathValidationContext> context) override;
+
+    void OnPathValidationFailure(
+        std::unique_ptr<QuicPathValidationContext> context) override;
+
+   private:
+    QuicConnection* connection_;
+    QuicSocketAddress original_direct_peer_address_;
   };
 
   // Notifies the visitor of the close and marks the connection as disconnected.
@@ -1620,15 +1653,32 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void MaybeUpdateBytesReceivedFromAlternativeAddress(
       QuicByteCount received_packet_size);
 
-  // Return true if the given self address and peer address is the same as the
-  // self address and peer address of the default path.
+  // TODO(danzh) pass in PathState of the incoming packet or the packet sent
+  // once PathState is used in packet creator. Return true if the given self
+  // address and peer address is the same as the self address and peer address
+  // of the default path.
   bool IsDefaultPath(const QuicSocketAddress& self_address,
                      const QuicSocketAddress& peer_address) const;
 
-  // Return true if the given self address and peer address is the same as the
+  // Return true if the |self_address| and |peer_address| is the same as the
   // self address and peer address of the alternative path.
   bool IsAlternativePath(const QuicSocketAddress& self_address,
                          const QuicSocketAddress& peer_address) const;
+
+  // Restore connection default path and congestion control state to the last
+  // validated path and its state. Called after fail to validate peer address
+  // upon detecting a peer migration.
+  void RestoreToLastValidatedPath(
+      QuicSocketAddress original_direct_peer_address);
+
+  // Return true if the current incoming packet is from a peer address that is
+  // validated.
+  bool IsReceivedPeerAddressValidated() const;
+
+  // Called after receiving PATH_CHALLENGE. Update packet content and
+  // alternative path state if the current packet is from a non-default path.
+  // Return true if framer should continue processing the packet.
+  bool OnPathChallengeFrameInternal(const QuicPathChallengeFrame& frame);
 
   QuicFramer framer_;
 
@@ -2029,8 +2079,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // future. On the client side, it gets created when the client starts
   // validating a new path and gets cleared once it becomes the default path or
   // the path validation fails or replaced by a newer path of interest. On the
-  // server side, alternative_path gets created when server receives
-  // PATH_CHALLENGE on non-default path.
+  // server side, alternative_path gets created when server: 1) receives
+  // PATH_CHALLENGE on non-default path, or 2) switches to a not yet validated
+  // default path such that it needs to store the previous validated default
+  // path.
+  // Note that if alternative_path_ stores a validated path information (case
+  // 2), do not override it on receiving PATH_CHALLENGE (case 1).
   PathState alternative_path_;
 
   // This field is used to debug b/177312785.
@@ -2043,6 +2097,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool update_packet_content_returns_connected_ =
       GetQuicReloadableFlag(quic_update_packet_content_returns_connected);
+
+  // If true, upon seeing a new client address, validate the client address.
+  const bool validate_client_addresses_;
 };
 
 }  // namespace quic
