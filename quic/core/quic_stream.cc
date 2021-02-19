@@ -1433,4 +1433,10 @@ spdy::SpdyStreamPrecedence QuicStream::CalculateDefaultPriority(
           : QuicStream::kDefaultPriority);
 }
 
+absl::optional<QuicByteCount> QuicStream::GetSendWindow() const {
+  return flow_controller_.has_value()
+             ? absl::optional<QuicByteCount>(flow_controller_->SendWindowSize())
+             : absl::nullopt;
+}
+
 }  // namespace quic
