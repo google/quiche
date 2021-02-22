@@ -1131,6 +1131,21 @@ TEST_P(QuicDataWriterTest, WriteRandomBytes) {
                                               20);
 }
 
+TEST_P(QuicDataWriterTest, WriteInsecureRandomBytes) {
+  char buffer[20];
+  char expected[20];
+  for (size_t i = 0; i < 20; ++i) {
+    expected[i] = 'r';
+  }
+  MockRandom random;
+  QuicDataWriter writer(20, buffer, GetParam().endianness);
+  EXPECT_FALSE(writer.WriteInsecureRandomBytes(&random, 30));
+
+  EXPECT_TRUE(writer.WriteInsecureRandomBytes(&random, 20));
+  quiche::test::CompareCharArraysWithHexError("random", buffer, 20, expected,
+                                              20);
+}
+
 TEST_P(QuicDataWriterTest, PeekVarInt62Length) {
   // In range [0, 63], variable length should be 1 byte.
   char buffer[20];

@@ -241,6 +241,14 @@ void SimpleRandom::RandBytes(void* data, size_t len) {
   }
 }
 
+void SimpleRandom::InsecureRandBytes(void* data, size_t len) {
+  RandBytes(data, len);
+}
+
+uint64_t SimpleRandom::InsecureRandUint64() {
+  return RandUint64();
+}
+
 void SimpleRandom::FillBuffer() {
   uint8_t nonce[12];
   memcpy(nonce, buffer_, sizeof(nonce));

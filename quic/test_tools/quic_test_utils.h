@@ -267,10 +267,15 @@ class SimpleRandom : public QuicRandom {
   SimpleRandom& operator=(const SimpleRandom&) = delete;
   ~SimpleRandom() override {}
 
+  // Generates |len| random bytes in the |data| buffer.
+  void RandBytes(void* data, size_t len) override;
   // Returns a random number in the range [0, kuint64max].
   uint64_t RandUint64() override;
 
-  void RandBytes(void* data, size_t len) override;
+  // InsecureRandBytes behaves equivalently to RandBytes.
+  void InsecureRandBytes(void* data, size_t len) override;
+  // InsecureRandUint64 behaves equivalently to RandUint64.
+  uint64_t InsecureRandUint64() override;
 
   void set_seed(uint64_t seed);
 

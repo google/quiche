@@ -1287,10 +1287,22 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
   if (!writer.WriteUInt8(type)) {
     return nullptr;
   }
-  // Append random bytes.
-  if (!writer.WriteRandomBytes(QuicRandom::GetInstance(),
-                               kMinRandomBytesLengthInStatelessReset)) {
-    return nullptr;
+
+  // Append random bytes. This randomness only exists to prevent middleboxes
+  // from comparing the entire packet to a known value. Therefore it has no
+  // cryptographic use, and does not need a secure cryptographic pseudo-random
+  // number generator. It's therefore safe to use WriteInsecureRandomBytes here.
+  if (GetQuicReloadableFlag(quic_stateless_reset_faster_randomness)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_stateless_reset_faster_randomness);
+    if (!writer.WriteInsecureRandomBytes(
+            QuicRandom::GetInstance(), kMinRandomBytesLengthInStatelessReset)) {
+      return nullptr;
+    }
+  } else {
+    if (!writer.WriteRandomBytes(QuicRandom::GetInstance(),
+                                 kMinRandomBytesLengthInStatelessReset)) {
+      return nullptr;
+    }
   }
 
   // Append stateless reset token.

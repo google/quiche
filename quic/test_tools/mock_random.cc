@@ -21,6 +21,14 @@ uint64_t MockRandom::RandUint64() {
   return base_ + increment_;
 }
 
+void MockRandom::InsecureRandBytes(void* data, size_t len) {
+  RandBytes(data, len);
+}
+
+uint64_t MockRandom::InsecureRandUint64() {
+  return RandUint64();
+}
+
 void MockRandom::ChangeValue() {
   increment_++;
 }

@@ -91,6 +91,17 @@ bool QuicDataWriter::WriteRandomBytes(QuicRandom* random, size_t length) {
   return true;
 }
 
+bool QuicDataWriter::WriteInsecureRandomBytes(QuicRandom* random,
+                                              size_t length) {
+  char* dest = BeginWrite(length);
+  if (!dest) {
+    return false;
+  }
+
+  random->InsecureRandBytes(dest, length);
+  IncreaseLength(length);
+  return true;
+}
 
 // Converts a uint64_t into an IETF/Quic formatted Variable Length
 // Integer. IETF Variable Length Integers have 62 significant bits, so
