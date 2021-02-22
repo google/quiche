@@ -69,7 +69,10 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream
   QuicSpdySession* spdy_session() { return spdy_session_; }
 
  private:
-  void OnWrongFrame(absl::string_view frame_type);
+  // Called when a frame of allowed type is received.  Returns true if the frame
+  // is allowed in this position.  Returns false and resets the stream
+  // otherwise.
+  bool ValidateFrameType(HttpFrameType frame_type);
 
   // False until a SETTINGS frame is received.
   bool settings_frame_received_;
