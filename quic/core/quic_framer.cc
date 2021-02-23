@@ -1292,8 +1292,8 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
   // from comparing the entire packet to a known value. Therefore it has no
   // cryptographic use, and does not need a secure cryptographic pseudo-random
   // number generator. It's therefore safe to use WriteInsecureRandomBytes here.
-  if (GetQuicReloadableFlag(quic_stateless_reset_faster_randomness)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_stateless_reset_faster_randomness);
+  if (GetQuicReloadableFlag(quic_stateless_reset_faster_random)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_stateless_reset_faster_random);
     if (!writer.WriteInsecureRandomBytes(
             QuicRandom::GetInstance(), kMinRandomBytesLengthInStatelessReset)) {
       return nullptr;

@@ -36,27 +36,6 @@ class QUIC_EXPORT_PRIVATE QuicRandom {
   virtual uint64_t InsecureRandUint64() = 0;
 };
 
-// A class that generates non-cryptographically-secure random numbers. It uses
-// a QuicRandom instance to seed its initial randomness. This MUST NOT be used
-// for any application that requires cryptographically-secure randomness.
-class QUIC_EXPORT_PRIVATE QuicInsecureRandom {
- public:
-  // |random| is only used during construction of the QuicInsecureRandom to seed
-  // its inital state.
-  explicit QuicInsecureRandom(QuicRandom* random);
-
-  // Generates |len| random bytes in the |data| buffer. This MUST NOT be used
-  // for any application that requires cryptographically-secure randomness.
-  void InsecureRandBytes(void* data, size_t len);
-
-  // Returns a random number in the range [0, kuint64max]. This MUST NOT be used
-  // for any application that requires cryptographically-secure randomness.
-  uint64_t InsecureRandUint64();
-
- private:
-  uint64_t rng_state_[4];
-};
-
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_CRYPTO_QUIC_RANDOM_H_
