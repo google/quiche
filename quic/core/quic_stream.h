@@ -454,6 +454,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   // Return the current flow control send window in bytes.
   absl::optional<QuicByteCount> GetSendWindow() const;
+  absl::optional<QuicByteCount> GetReceiveWindow() const;
 
  private:
   friend class test::QuicStreamPeer;

@@ -1439,4 +1439,11 @@ absl::optional<QuicByteCount> QuicStream::GetSendWindow() const {
              : absl::nullopt;
 }
 
+absl::optional<QuicByteCount> QuicStream::GetReceiveWindow() const {
+  return flow_controller_.has_value()
+             ? absl::optional<QuicByteCount>(
+                   flow_controller_->receive_window_size())
+             : absl::nullopt;
+}
+
 }  // namespace quic

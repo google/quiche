@@ -77,6 +77,8 @@ class QUIC_EXPORT_PRIVATE QuicFlowController
   // Returns the current available send window.
   QuicByteCount SendWindowSize() const;
 
+  QuicByteCount receive_window_size() const { return receive_window_size_; }
+
   // Returns whether a BLOCKED frame should be sent.
   bool ShouldSendBlocked();
 
