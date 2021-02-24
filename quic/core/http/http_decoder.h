@@ -150,6 +150,9 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
   const std::string& error_detail() const { return error_detail_; }
 
+  // Returns true if input data processed so far ends on a frame boundary.
+  bool AtFrameBoundary() const { return state_ == STATE_READING_FRAME_TYPE; }
+
  private:
   friend test::HttpDecoderPeer;
 

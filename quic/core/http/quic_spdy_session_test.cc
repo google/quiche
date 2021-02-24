@@ -3314,11 +3314,14 @@ TEST_P(QuicSpdySessionTestClient, ReceiveAcceptChFrame) {
   session_.OnStreamFrame(data3);
 }
 
-TEST_P(QuicSpdySessionTestClient, OnAlpsData) {
+TEST_P(QuicSpdySessionTestClient, AcceptChViaAlps) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
   StrictMock<MockHttp3DebugVisitor> debug_visitor;
   session_.set_debug_visitor(&debug_visitor);
 
-  AcceptChFrame accept_ch_frame{{{"foo", "bar"}}};
   std::string serialized_accept_ch_frame = absl::HexStringToBytes(
       "4089"      // type (ACCEPT_CH)
       "08"        // length
@@ -3328,12 +3331,48 @@ TEST_P(QuicSpdySessionTestClient, OnAlpsData) {
       "626172");  // value "bar"
 
   if (GetQuicReloadableFlag(quic_parse_accept_ch_frame)) {
-    EXPECT_CALL(debug_visitor, OnAcceptChFrameReceivedViaAlps(accept_ch_frame));
+    AcceptChFrame expected_accept_ch_frame{{{"foo", "bar"}}};
+    EXPECT_CALL(debug_visitor,
+                OnAcceptChFrameReceivedViaAlps(expected_accept_ch_frame));
   }
 
-  session_.OnAlpsData(
+  auto error = session_.OnAlpsData(
       reinterpret_cast<const uint8_t*>(serialized_accept_ch_frame.data()),
       serialized_accept_ch_frame.size());
+  EXPECT_FALSE(error);
+}
+
+TEST_P(QuicSpdySessionTestClient, AlpsForbiddenFrame) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  std::string forbidden_frame = absl::HexStringToBytes(
+      "00"        // type (DATA)
+      "03"        // length
+      "66666f");  // "foo"
+
+  auto error = session_.OnAlpsData(
+      reinterpret_cast<const uint8_t*>(forbidden_frame.data()),
+      forbidden_frame.size());
+  ASSERT_TRUE(error);
+  EXPECT_EQ("DATA frame forbidden", error.value());
+}
+
+TEST_P(QuicSpdySessionTestClient, AlpsIncompleteFrame) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  std::string incomplete_frame = absl::HexStringToBytes(
+      "04"    // type (SETTINGS)
+      "03");  // non-zero length but empty payload
+
+  auto error = session_.OnAlpsData(
+      reinterpret_cast<const uint8_t*>(incomplete_frame.data()),
+      incomplete_frame.size());
+  ASSERT_TRUE(error);
+  EXPECT_EQ("incomplete HTTP/3 frame", error.value());
 }
 
 }  // namespace

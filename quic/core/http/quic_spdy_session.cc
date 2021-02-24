@@ -98,51 +98,74 @@ class AlpsFrameDecoder : public HttpDecoder::Visitor {
   // HttpDecoder::Visitor implementation.
   void OnError(HttpDecoder* /*decoder*/) override {}
   bool OnCancelPushFrame(const CancelPushFrame& /*frame*/) override {
-    return true;
+    error_detail_ = "CANCEL_PUSH frame forbidden";
+    return false;
   }
   bool OnMaxPushIdFrame(const MaxPushIdFrame& /*frame*/) override {
-    return true;
+    error_detail_ = "MAX_PUSH_ID frame forbidden";
+    return false;
   }
-  bool OnGoAwayFrame(const GoAwayFrame& /*frame*/) override { return true; }
+  bool OnGoAwayFrame(const GoAwayFrame& /*frame*/) override {
+    error_detail_ = "GOAWAY frame forbidden";
+    return false;
+  }
   bool OnSettingsFrameStart(QuicByteCount /*header_length*/) override {
     return true;
   }
   bool OnSettingsFrame(const SettingsFrame& /*frame*/) override { return true; }
   bool OnDataFrameStart(QuicByteCount /*header_length*/, QuicByteCount
                         /*payload_length*/) override {
-    return true;
+    error_detail_ = "DATA frame forbidden";
+    return false;
   }
   bool OnDataFramePayload(absl::string_view /*payload*/) override {
-    return true;
+    QUICHE_NOTREACHED();
+    return false;
   }
-  bool OnDataFrameEnd() override { return true; }
+  bool OnDataFrameEnd() override {
+    QUICHE_NOTREACHED();
+    return false;
+  }
   bool OnHeadersFrameStart(QuicByteCount /*header_length*/,
                            QuicByteCount /*payload_length*/) override {
-    return true;
+    error_detail_ = "HEADERS frame forbidden";
+    return false;
   }
   bool OnHeadersFramePayload(absl::string_view /*payload*/) override {
-    return true;
+    QUICHE_NOTREACHED();
+    return false;
   }
-  bool OnHeadersFrameEnd() override { return true; }
+  bool OnHeadersFrameEnd() override {
+    QUICHE_NOTREACHED();
+    return false;
+  }
   bool OnPushPromiseFrameStart(QuicByteCount /*header_length*/) override {
-    return true;
+    error_detail_ = "PUSH_PROMISE frame forbidden";
+    return false;
   }
   bool OnPushPromiseFramePushId(
       PushId /*push_id*/,
       QuicByteCount
       /*push_id_length*/,
       QuicByteCount /*header_block_length*/) override {
-    return true;
+    QUICHE_NOTREACHED();
+    return false;
   }
   bool OnPushPromiseFramePayload(absl::string_view /*payload*/) override {
-    return true;
+    QUICHE_NOTREACHED();
+    return false;
   }
-  bool OnPushPromiseFrameEnd() override { return true; }
+  bool OnPushPromiseFrameEnd() override {
+    QUICHE_NOTREACHED();
+    return false;
+  }
   bool OnPriorityUpdateFrameStart(QuicByteCount /*header_length*/) override {
-    return true;
+    error_detail_ = "PRIORITY_UPDATE frame forbidden";
+    return false;
   }
   bool OnPriorityUpdateFrame(const PriorityUpdateFrame& /*frame*/) override {
-    return true;
+    QUICHE_NOTREACHED();
+    return false;
   }
   bool OnAcceptChFrameStart(QuicByteCount /*header_length*/) override {
     return true;
@@ -162,8 +185,13 @@ class AlpsFrameDecoder : public HttpDecoder::Visitor {
   }
   bool OnUnknownFrameEnd() override { return true; }
 
+  const absl::optional<std::string>& error_detail() const {
+    return error_detail_;
+  }
+
  private:
   QuicSpdySession* const session_;
+  absl::optional<std::string> error_detail_;
 };
 
 }  // namespace
@@ -1053,8 +1081,16 @@ absl::optional<std::string> QuicSpdySession::OnAlpsData(
   AlpsFrameDecoder alps_frame_decoder(this);
   HttpDecoder decoder(&alps_frame_decoder);
   decoder.ProcessInput(reinterpret_cast<const char*>(alps_data), alps_length);
+  if (alps_frame_decoder.error_detail()) {
+    return alps_frame_decoder.error_detail();
+  }
+
   if (decoder.error() != QUIC_NO_ERROR) {
     return decoder.error_detail();
+  }
+
+  if (!decoder.AtFrameBoundary()) {
+    return "incomplete HTTP/3 frame";
   }
 
   return absl::nullopt;
