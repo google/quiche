@@ -114,7 +114,7 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
     return nullptr;
   }
 
-  QuicDatagramFlowId flow_id = compression_engine_.GetNextFlowId();
+  QuicDatagramFlowId flow_id = GetNextDatagramFlowId();
 
   // Send the request.
   spdy::Http2HeaderBlock headers;

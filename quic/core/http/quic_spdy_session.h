@@ -417,6 +417,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // extension.
   virtual void OnAcceptChFrameReceivedViaAlps(const AcceptChFrame& /*frame*/);
 
+  // Generates a new HTTP/3 datagram flow ID.
+  QuicDatagramFlowId GetNextDatagramFlowId();
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to
@@ -622,6 +625,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Latched value of reloadable flag quic_goaway_with_max_stream_id.
   const bool goaway_with_max_stream_id_;
+
+  // Value of the smallest unused HTTP/3 datagram flow ID that this endpoint's
+  // datagram flow ID allocation service will use next.
+  QuicDatagramFlowId next_available_datagram_flow_id_;
 };
 
 }  // namespace quic

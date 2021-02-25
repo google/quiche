@@ -291,6 +291,13 @@ QUIC_EXPORT_PRIVATE QuicPacketNumber FirstSendingPacketNumber();
 QUIC_EXPORT_PRIVATE extern const char* const kEPIDGoogleFrontEnd;
 QUIC_EXPORT_PRIVATE extern const char* const kEPIDGoogleFrontEnd0;
 
+// HTTP/3 Datagrams.
+enum : QuicDatagramFlowId {
+  kFirstDatagramFlowIdClient = 0,
+  kFirstDatagramFlowIdServer = 1,
+  kDatagramFlowIdIncrement = 2,
+};
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_CONSTANTS_H_

@@ -7,8 +7,8 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
+#include "quic/core/http/quic_spdy_session.h"
 #include "quic/core/quic_connection_id.h"
-#include "quic/core/quic_session.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_export.h"
@@ -35,7 +35,7 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
  public:
   // Caller must ensure that |masque_session| has a lifetime longer than the
   // newly constructed MasqueCompressionEngine.
-  explicit MasqueCompressionEngine(QuicSession* masque_session);
+  explicit MasqueCompressionEngine(QuicSpdySession* masque_session);
 
   // Disallow copy and assign.
   MasqueCompressionEngine(const MasqueCompressionEngine&) = delete;
@@ -69,9 +69,6 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
   // Clears all entries referencing |client_connection_id| from the
   // compression table.
   void UnregisterClientConnectionId(QuicConnectionId client_connection_id);
-
-  // Generates a new datagram flow ID.
-  QuicDatagramFlowId GetNextFlowId();
 
  private:
   struct QUIC_NO_EXPORT MasqueCompressionContext {
@@ -117,9 +114,8 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
                                std::vector<char>* packet,
                                bool* version_present);
 
-  QuicSession* masque_session_;  // Unowned.
+  QuicSpdySession* masque_session_;  // Unowned.
   absl::flat_hash_map<QuicDatagramFlowId, MasqueCompressionContext> contexts_;
-  QuicDatagramFlowId next_flow_id_;
 };
 
 }  // namespace quic

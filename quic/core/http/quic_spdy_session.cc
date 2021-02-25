@@ -509,7 +509,10 @@ QuicSpdySession::QuicSpdySession(
           GetQuicFlag(FLAGS_quic_enable_http3_server_push)),
       http3_max_push_id_sent_(false),
       goaway_with_max_stream_id_(
-          GetQuicReloadableFlag(quic_goaway_with_max_stream_id)) {
+          GetQuicReloadableFlag(quic_goaway_with_max_stream_id)),
+      next_available_datagram_flow_id_(perspective() == Perspective::IS_SERVER
+                                           ? kFirstDatagramFlowIdServer
+                                           : kFirstDatagramFlowIdClient) {
   if (goaway_with_max_stream_id_) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_goaway_with_max_stream_id, 1, 2);
   }
@@ -1701,6 +1704,12 @@ void QuicSpdySession::LogHeaderCompressionRatioHistogram(
                             "received headers using HPACK.");
     }
   }
+}
+
+QuicDatagramFlowId QuicSpdySession::GetNextDatagramFlowId() {
+  QuicDatagramFlowId result = next_available_datagram_flow_id_;
+  next_available_datagram_flow_id_ += kDatagramFlowIdIncrement;
+  return result;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

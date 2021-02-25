@@ -442,6 +442,8 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     closed_streams_.insert(id);
   }
 
+  ParsedQuicVersion version() const { return connection_->version(); }
+
   QuicTransportVersion transport_version() const {
     return connection_->transport_version();
   }
@@ -3373,6 +3375,26 @@ TEST_P(QuicSpdySessionTestClient, AlpsIncompleteFrame) {
       incomplete_frame.size());
   ASSERT_TRUE(error);
   EXPECT_EQ("incomplete HTTP/3 frame", error.value());
+}
+
+TEST_P(QuicSpdySessionTestClient, GetNextDatagramFlowId) {
+  if (!version().UsesHttp3()) {
+    return;
+  }
+  EXPECT_EQ(session_.GetNextDatagramFlowId(), 0u);
+  EXPECT_EQ(session_.GetNextDatagramFlowId(), 2u);
+  EXPECT_EQ(session_.GetNextDatagramFlowId(), 4u);
+  EXPECT_EQ(session_.GetNextDatagramFlowId(), 6u);
+}
+
+TEST_P(QuicSpdySessionTestServer, GetNextDatagramFlowId) {
+  if (!version().UsesHttp3()) {
+    return;
+  }
+  EXPECT_EQ(session_.GetNextDatagramFlowId(), 1u);
+  EXPECT_EQ(session_.GetNextDatagramFlowId(), 3u);
+  EXPECT_EQ(session_.GetNextDatagramFlowId(), 5u);
+  EXPECT_EQ(session_.GetNextDatagramFlowId(), 7u);
 }
 
 }  // namespace

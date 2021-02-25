@@ -30,14 +30,9 @@ enum MasqueAddressFamily : uint8_t {
 
 }  // namespace
 
-MasqueCompressionEngine::MasqueCompressionEngine(QuicSession* masque_session)
-    : masque_session_(masque_session) {
-  if (masque_session_->perspective() == Perspective::IS_SERVER) {
-    next_flow_id_ = 1;
-  } else {
-    next_flow_id_ = 2;
-  }
-}
+MasqueCompressionEngine::MasqueCompressionEngine(
+    QuicSpdySession* masque_session)
+    : masque_session_(masque_session) {}
 
 QuicDatagramFlowId MasqueCompressionEngine::FindOrCreateCompressionContext(
     QuicConnectionId client_connection_id,
@@ -79,7 +74,11 @@ QuicDatagramFlowId MasqueCompressionEngine::FindOrCreateCompressionContext(
   }
 
   // Create new compression context.
-  flow_id = GetNextFlowId();
+  flow_id = masque_session_->GetNextDatagramFlowId();
+  if (flow_id == kFlowId0) {
+    // Do not use value zero which is reserved in this mode.
+    flow_id = masque_session_->GetNextDatagramFlowId();
+  }
   QUIC_DVLOG(1) << "Compression assigning new flow_id " << flow_id << " to "
                 << server_address << " client " << client_connection_id
                 << " server " << server_connection_id;
@@ -518,12 +517,6 @@ bool MasqueCompressionEngine::DecompressDatagram(
                        absl::string_view(packet->data(), packet->size()));
 
   return true;
-}
-
-QuicDatagramFlowId MasqueCompressionEngine::GetNextFlowId() {
-  const QuicDatagramFlowId next_flow_id = next_flow_id_;
-  next_flow_id_ += 2;
-  return next_flow_id;
 }
 
 void MasqueCompressionEngine::UnregisterClientConnectionId(
