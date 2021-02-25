@@ -5,8 +5,12 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_SERVER_SESSION_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_SERVER_SESSION_H_
 
+#include "quic/core/quic_types.h"
+#include "quic/core/quic_udp_socket.h"
 #include "quic/masque/masque_compression_engine.h"
 #include "quic/masque/masque_server_backend.h"
+#include "quic/masque/masque_utils.h"
+#include "quic/platform/api/quic_epoll.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/tools/quic_simple_server_session.h"
 
@@ -15,7 +19,8 @@ namespace quic {
 // QUIC server session for connection to MASQUE proxy.
 class QUIC_NO_EXPORT MasqueServerSession
     : public QuicSimpleServerSession,
-      public MasqueServerBackend::BackendClient {
+      public MasqueServerBackend::BackendClient,
+      public QuicEpollCallbackInterface {
  public:
   // Interface meant to be implemented by owner of this MasqueServerSession
   // instance.
@@ -33,11 +38,13 @@ class QUIC_NO_EXPORT MasqueServerSession
   };
 
   explicit MasqueServerSession(
+      MasqueMode masque_mode,
       const QuicConfig& config,
       const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection,
       QuicSession::Visitor* visitor,
       Visitor* owner,
+      QuicEpollServer* epoll_server,
       QuicCryptoServerStreamBase::Helper* helper,
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
@@ -54,6 +61,7 @@ class QUIC_NO_EXPORT MasqueServerSession
   void OnMessageLost(QuicMessageId message_id) override;
   void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
+  void OnStreamClosed(QuicStreamId stream_id) override;
 
   // From MasqueServerBackend::BackendClient.
   std::unique_ptr<QuicBackendResponse> HandleMasqueRequest(
@@ -62,13 +70,61 @@ class QUIC_NO_EXPORT MasqueServerSession
       const std::string& request_body,
       QuicSimpleServerBackend::RequestHandler* request_handler) override;
 
+  // From QuicEpollCallbackInterface.
+  void OnRegistration(QuicEpollServer* eps,
+                      QuicUdpSocketFd fd,
+                      int event_mask) override;
+  void OnModification(QuicUdpSocketFd fd, int event_mask) override;
+  void OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) override;
+  void OnUnregistration(QuicUdpSocketFd fd, bool replaced) override;
+  void OnShutdown(QuicEpollServer* eps, QuicUdpSocketFd fd) override;
+  std::string Name() const override;
+
   // Handle packet for client, meant to be called by MasqueDispatcher.
   void HandlePacketFromServer(const ReceivedPacketInfo& packet_info);
 
  private:
+  // State that the MasqueServerSession keeps for each CONNECT-UDP request.
+  class QUIC_NO_EXPORT ConnectUdpServerState {
+   public:
+    // ConnectUdpServerState takes ownership of |fd|. It will unregister it
+    // from |epoll_server| and close the file descriptor when destructed.
+    explicit ConnectUdpServerState(
+        QuicDatagramFlowId flow_id,
+        QuicStreamId stream_id,
+        const QuicSocketAddress& target_server_address,
+        QuicUdpSocketFd fd,
+        QuicEpollServer* epoll_server);
+
+    ~ConnectUdpServerState();
+
+    // Disallow copy but allow move.
+    ConnectUdpServerState(const ConnectUdpServerState&) = delete;
+    ConnectUdpServerState(ConnectUdpServerState&&);
+    ConnectUdpServerState& operator=(const ConnectUdpServerState&) = delete;
+    ConnectUdpServerState& operator=(ConnectUdpServerState&&);
+
+    QuicDatagramFlowId flow_id() const { return flow_id_; }
+    QuicStreamId stream_id() const { return stream_id_; }
+    const QuicSocketAddress& target_server_address() const {
+      return target_server_address_;
+    }
+    QuicUdpSocketFd fd() const { return fd_; }
+
+   private:
+    QuicDatagramFlowId flow_id_;
+    QuicStreamId stream_id_;
+    QuicSocketAddress target_server_address_;
+    QuicUdpSocketFd fd_;             // Owned.
+    QuicEpollServer* epoll_server_;  // Unowned.
+  };
+
   MasqueServerBackend* masque_server_backend_;  // Unowned.
   Visitor* owner_;                              // Unowned.
+  QuicEpollServer* epoll_server_;               // Unowned.
   MasqueCompressionEngine compression_engine_;
+  MasqueMode masque_mode_;
+  std::list<ConnectUdpServerState> connect_udp_server_states_;
   bool masque_initialized_ = false;
 };
 

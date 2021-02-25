@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_MASQUE_MASQUE_EPOLL_CLIENT_H_
 
 #include "quic/masque/masque_client_session.h"
+#include "quic/masque/masque_utils.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/tools/quic_client.h"
 
@@ -19,6 +20,7 @@ class QUIC_NO_EXPORT MasqueEpollClient : public QuicClient,
   static std::unique_ptr<MasqueEpollClient> Create(
       const std::string& host,
       int port,
+      MasqueMode masque_mode,
       QuicEpollServer* epoll_server,
       std::unique_ptr<ProofVerifier> proof_verifier);
 
@@ -37,10 +39,13 @@ class QUIC_NO_EXPORT MasqueEpollClient : public QuicClient,
   void UnregisterClientConnectionId(
       QuicConnectionId client_connection_id) override;
 
+  MasqueMode masque_mode() const { return masque_mode_; }
+
  private:
   // Constructor is private, use Create() instead.
   MasqueEpollClient(QuicSocketAddress server_address,
                     const QuicServerId& server_id,
+                    MasqueMode masque_mode,
                     QuicEpollServer* epoll_server,
                     std::unique_ptr<ProofVerifier> proof_verifier,
                     const std::string& authority);
@@ -49,6 +54,7 @@ class QUIC_NO_EXPORT MasqueEpollClient : public QuicClient,
   MasqueEpollClient(const MasqueEpollClient&) = delete;
   MasqueEpollClient& operator=(const MasqueEpollClient&) = delete;
 
+  MasqueMode masque_mode_;
   std::string authority_;
 };
 

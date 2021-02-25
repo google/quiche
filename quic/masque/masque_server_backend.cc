@@ -19,9 +19,10 @@ std::string GetRequestHandlerKey(
 
 }  // namespace
 
-MasqueServerBackend::MasqueServerBackend(const std::string& server_authority,
+MasqueServerBackend::MasqueServerBackend(MasqueMode masque_mode,
+                                         const std::string& server_authority,
                                          const std::string& cache_directory)
-    : server_authority_(server_authority) {
+    : masque_mode_(masque_mode), server_authority_(server_authority) {
   if (!cache_directory.empty()) {
     QuicMemoryCacheBackend::InitializeBackend(cache_directory);
   }
@@ -43,16 +44,24 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
   absl::string_view path = path_pair->second;
   absl::string_view scheme = scheme_pair->second;
   absl::string_view method = method_pair->second;
-  if (scheme != "https" || method != "POST" || request_body.empty()) {
-    // MASQUE requests MUST be a non-empty https POST.
-    return false;
-  }
+  std::string masque_path = "";
+  if (masque_mode_ == MasqueMode::kLegacy) {
+    if (scheme != "https" || method != "POST" || request_body.empty()) {
+      // MASQUE requests MUST be a non-empty https POST.
+      return false;
+    }
 
-  if (path.rfind("/.well-known/masque/", 0) != 0) {
-    // This request is not a MASQUE path.
-    return false;
+    if (path.rfind("/.well-known/masque/", 0) != 0) {
+      // This request is not a MASQUE path.
+      return false;
+    }
+    masque_path = path.substr(sizeof("/.well-known/masque/") - 1);
+  } else {
+    if (method != "CONNECT-UDP") {
+      // Unexpected method.
+      return false;
+    }
   }
-  std::string masque_path(path.substr(sizeof("/.well-known/masque/") - 1));
 
   if (!server_authority_.empty()) {
     auto authority_pair = request_headers.find(":authority");

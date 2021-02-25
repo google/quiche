@@ -11,15 +11,18 @@
 
 namespace quic {
 
-MasqueEpollServer::MasqueEpollServer(MasqueServerBackend* masque_server_backend)
+MasqueEpollServer::MasqueEpollServer(MasqueMode masque_mode,
+                                     MasqueServerBackend* masque_server_backend)
     : QuicServer(CreateDefaultProofSource(),
                  masque_server_backend,
                  MasqueSupportedVersions()),
+      masque_mode_(masque_mode),
       masque_server_backend_(masque_server_backend) {}
 
 QuicDispatcher* MasqueEpollServer::CreateQuicDispatcher() {
   return new MasqueDispatcher(
-      &config(), &crypto_config(), version_manager(),
+      masque_mode_, &config(), &crypto_config(), version_manager(),
+      epoll_server(),
       std::make_unique<QuicEpollConnectionHelper>(epoll_server(),
                                                   QuicAllocator::BUFFER_POOL),
       std::make_unique<QuicSimpleCryptoServerStreamHelper>(),

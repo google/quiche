@@ -27,4 +27,21 @@ QuicConfig MasqueEncapsulatedConfig() {
   return config;
 }
 
+std::string MasqueModeToString(MasqueMode masque_mode) {
+  switch (masque_mode) {
+    case MasqueMode::kInvalid:
+      return "Invalid";
+    case MasqueMode::kLegacy:
+      return "Legacy";
+    case MasqueMode::kOpen:
+      return "Open";
+  }
+  return absl::StrCat("Unknown(", static_cast<int>(masque_mode), ")");
+}
+
+std::ostream& operator<<(std::ostream& os, const MasqueMode& masque_mode) {
+  os << MasqueModeToString(masque_mode);
+  return os;
+}
+
 }  // namespace quic

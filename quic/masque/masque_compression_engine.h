@@ -70,6 +70,9 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
   // compression table.
   void UnregisterClientConnectionId(QuicConnectionId client_connection_id);
 
+  // Generates a new datagram flow ID.
+  QuicDatagramFlowId GetNextFlowId();
+
  private:
   struct QUIC_NO_EXPORT MasqueCompressionContext {
     QuicConnectionId client_connection_id;
@@ -77,9 +80,6 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
     QuicSocketAddress server_address;
     bool validated = false;
   };
-
-  // Generates a new datagram flow ID.
-  QuicDatagramFlowId GetNextFlowId();
 
   // Finds or creates a new compression context to use during compression.
   // |client_connection_id_present| and |server_connection_id_present| indicate

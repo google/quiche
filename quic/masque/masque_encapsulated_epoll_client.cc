@@ -30,8 +30,8 @@ class MasquePacketWriter : public QuicPacketWriter {
     absl::string_view packet(buffer, buf_len);
     client_->masque_client()->masque_client_session()->SendPacket(
         client_->session()->connection()->client_connection_id(),
-        client_->session()->connection()->connection_id(), packet,
-        peer_address);
+        client_->session()->connection()->connection_id(), packet, peer_address,
+        client_->masque_encapsulated_client_session());
     return WriteResult(WRITE_STATUS_OK, buf_len);
   }
 
@@ -94,7 +94,7 @@ MasqueEncapsulatedEpollClient::MasqueEncapsulatedEpollClient(
 
 MasqueEncapsulatedEpollClient::~MasqueEncapsulatedEpollClient() {
   masque_client_->masque_client_session()->UnregisterConnectionId(
-      client_connection_id_);
+      client_connection_id_, masque_encapsulated_client_session());
 }
 
 std::unique_ptr<QuicSession>

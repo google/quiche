@@ -29,6 +29,12 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
                               false,
                               "If true, don't verify the server certificate.");
 
+DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
+                              masque_mode,
+                              "",
+                              "Allows setting MASQUE mode, valid values are "
+                              "open and legacy. Defaults to open.");
+
 namespace quic {
 
 namespace {
@@ -54,7 +60,8 @@ int RunMasqueClient(int argc, char* argv[]) {
     masque_url = QuicUrl(absl::StrCat("https://", urls[0]), "https");
   }
   if (masque_url.host().empty()) {
-    QUIC_LOG(ERROR) << "Failed to parse MASQUE server address " << urls[0];
+    std::cerr << "Failed to parse MASQUE server address \"" << urls[0] << "\""
+              << std::endl;
     return 1;
   }
   std::unique_ptr<ProofVerifier> proof_verifier;
@@ -63,15 +70,23 @@ int RunMasqueClient(int argc, char* argv[]) {
   } else {
     proof_verifier = CreateDefaultProofVerifier(masque_url.host());
   }
-  std::unique_ptr<MasqueEpollClient> masque_client =
-      MasqueEpollClient::Create(masque_url.host(), masque_url.port(),
-                                &epoll_server, std::move(proof_verifier));
+  MasqueMode masque_mode = MasqueMode::kOpen;
+  std::string mode_string = GetQuicFlag(FLAGS_masque_mode);
+  if (mode_string == "legacy") {
+    masque_mode = MasqueMode::kLegacy;
+  } else if (!mode_string.empty() && mode_string != "open") {
+    std::cerr << "Invalid masque_mode \"" << mode_string << "\"" << std::endl;
+    return 1;
+  }
+  std::unique_ptr<MasqueEpollClient> masque_client = MasqueEpollClient::Create(
+      masque_url.host(), masque_url.port(), masque_mode, &epoll_server,
+      std::move(proof_verifier));
   if (masque_client == nullptr) {
     return 1;
   }
 
   std::cerr << "MASQUE is connected " << masque_client->connection_id()
-            << std::endl;
+            << " in " << masque_mode << " mode" << std::endl;
 
   for (size_t i = 1; i < urls.size(); ++i) {
     if (!tools::SendEncapsulatedMasqueRequest(

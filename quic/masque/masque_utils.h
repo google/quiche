@@ -18,7 +18,24 @@ QUIC_NO_EXPORT ParsedQuicVersionVector MasqueSupportedVersions();
 QUIC_NO_EXPORT QuicConfig MasqueEncapsulatedConfig();
 
 // Maximum packet size for encapsulated connections.
-const QuicByteCount kMasqueMaxEncapsulatedPacketSize = 1300;
+enum : QuicByteCount { kMasqueMaxEncapsulatedPacketSize = 1300 };
+
+// Mode that MASQUE is operating in.
+enum class MasqueMode : uint8_t {
+  kInvalid = 0,  // Should never be used.
+  kLegacy = 1,   // Legacy mode uses the legacy MASQUE protocol as documented in
+  // <https://tools.ietf.org/html/draft-schinazi-masque-protocol>. That version
+  // of MASQUE uses a custom application-protocol over HTTP/3, and also allows
+  // unauthenticated clients.
+  kOpen = 2,  // Open mode uses the MASQUE HTTP CONNECT-UDP method as documented
+  // in <https://tools.ietf.org/html/draft-ietf-masque-connect-udp>. This mode
+  // allows unauthenticated clients (a more restricted mode will be added to
+  // this enum at a later date).
+};
+
+QUIC_NO_EXPORT std::string MasqueModeToString(MasqueMode masque_mode);
+QUIC_NO_EXPORT std::ostream& operator<<(std::ostream& os,
+                                        const MasqueMode& masque_mode);
 
 }  // namespace quic
 
