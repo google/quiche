@@ -12,7 +12,6 @@
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
-#include "quic/platform/api/quic_pcc_sender.h"
 
 namespace quic {
 
@@ -45,7 +44,7 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
               ? static_cast<BbrSender*>(old_send_algorithm)
               : nullptr);
     case kPCC:
-      // PCC is work has stalled, fall back to CUBIC instead.
+      // PCC is currently not supported, fall back to CUBIC instead.
       ABSL_FALLTHROUGH_INTENDED;
     case kCubicBytes:
       return new TcpCubicSenderBytes(
