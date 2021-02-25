@@ -4839,8 +4839,8 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
   // Update congestion controller if the address change type is not PORT_CHANGE.
   if (type == PORT_CHANGE) {
     QUICHE_DCHECK(previous_default_path.validated ||
-                  alternative_path_.validated &&
-                      alternative_path_.send_algorithm != nullptr);
+                  (alternative_path_.validated &&
+                   alternative_path_.send_algorithm != nullptr));
     // No need to store previous congestion controller because either the new
     // default path is validated or the alternative path is validated and
     // already has associated congestion controller.
