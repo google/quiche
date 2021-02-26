@@ -55,7 +55,7 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
       // This request is not a MASQUE path.
       return false;
     }
-    masque_path = path.substr(sizeof("/.well-known/masque/") - 1);
+    masque_path = std::string(path.substr(sizeof("/.well-known/masque/") - 1));
   } else {
     if (method != "CONNECT-UDP") {
       // Unexpected method.
