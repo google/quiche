@@ -508,14 +508,9 @@ QuicSpdySession::QuicSpdySession(
       ietf_server_push_enabled_(
           GetQuicFlag(FLAGS_quic_enable_http3_server_push)),
       http3_max_push_id_sent_(false),
-      goaway_with_max_stream_id_(
-          GetQuicReloadableFlag(quic_goaway_with_max_stream_id)),
       next_available_datagram_flow_id_(perspective() == Perspective::IS_SERVER
                                            ? kFirstDatagramFlowIdServer
                                            : kFirstDatagramFlowIdClient) {
-  if (goaway_with_max_stream_id_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_goaway_with_max_stream_id, 1, 2);
-  }
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
@@ -822,68 +817,22 @@ void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
   }
   QuicStreamId stream_id;
 
-  if (goaway_with_max_stream_id_) {
-    stream_id = QuicUtils::GetMaxClientInitiatedBidirectionalStreamId(
-        transport_version());
-    if (last_sent_http3_goaway_id_.has_value()) {
-      if (last_sent_http3_goaway_id_.value() == stream_id) {
-        // Do not send GOAWAY twice.
-        return;
-      }
-      if (last_sent_http3_goaway_id_.value() < stream_id) {
-        // A previous GOAWAY frame was sent with smaller stream ID.  This is not
-        // possible, because the only time a GOAWAY frame with non-maximal
-        // stream ID is sent is right before closing connection.
-        QUIC_BUG << "GOAWAY frame with smaller ID already sent.";
-        return;
-      }
+  stream_id = QuicUtils::GetMaxClientInitiatedBidirectionalStreamId(
+      transport_version());
+  if (last_sent_http3_goaway_id_.has_value()) {
+    if (last_sent_http3_goaway_id_.value() == stream_id) {
+      // Do not send GOAWAY twice.
+      return;
     }
-  } else {
-    stream_id = GetLargestPeerCreatedStreamId(/*unidirectional = */ false);
-
-    if (stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
-      // No client-initiated bidirectional streams received yet.
-      // Send 0 to let client know that all requests can be retried.
-      stream_id = 0;
-    } else {
-      // Tell client that streams starting with the next after the largest
-      // received one can be retried.
-      stream_id += QuicUtils::StreamIdDelta(transport_version());
-    }
-    if (last_sent_http3_goaway_id_.has_value() &&
-        last_sent_http3_goaway_id_.value() <= stream_id) {
-      // MUST not send GOAWAY with identifier larger than previously sent.
-      // Do not bother sending one with same identifier as before, since
-      // GOAWAY frames on the control stream are guaranteed to be processed in
-      // order.
+    if (last_sent_http3_goaway_id_.value() < stream_id) {
+      // A previous GOAWAY frame was sent with smaller stream ID.  This is not
+      // possible, because the only time a GOAWAY frame with non-maximal
+      // stream ID is sent is right before closing connection.
+      QUIC_BUG << "GOAWAY frame with smaller ID already sent.";
       return;
     }
   }
 
-  send_control_stream_->SendGoAway(stream_id);
-  last_sent_http3_goaway_id_ = stream_id;
-}
-
-void QuicSpdySession::SendHttp3Shutdown() {
-  if (goaway_with_max_stream_id_) {
-    SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Server shutdown");
-    return;
-  }
-
-  QUICHE_DCHECK_EQ(perspective(), Perspective::IS_SERVER);
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
-  QuicStreamCount advertised_max_incoming_bidirectional_streams =
-      GetAdvertisedMaxIncomingBidirectionalStreams();
-  const QuicStreamId stream_id =
-      QuicUtils::GetFirstBidirectionalStreamId(transport_version(),
-                                               Perspective::IS_CLIENT) +
-      QuicUtils::StreamIdDelta(transport_version()) *
-          advertised_max_incoming_bidirectional_streams;
-  if (last_sent_http3_goaway_id_.has_value() &&
-      last_sent_http3_goaway_id_.value() < stream_id) {
-    send_control_stream_->SendGoAway(last_sent_http3_goaway_id_.value());
-    return;
-  }
   send_control_stream_->SendGoAway(stream_id);
   last_sent_http3_goaway_id_ = stream_id;
 }
@@ -1555,13 +1504,12 @@ void QuicSpdySession::BeforeConnectionCloseSent() {
   }
   if (last_sent_http3_goaway_id_.has_value() &&
       last_sent_http3_goaway_id_.value() <= stream_id) {
-    if (goaway_with_max_stream_id_) {
-      // A previous GOAWAY frame was sent with smaller stream ID.  This is not
-      // possible, because this is the only method sending a GOAWAY frame with
-      // non-maximal stream ID, and this must only be called once, right
-      // before closing connection.
-      QUIC_BUG << "GOAWAY frame with smaller ID already sent.";
-    }
+    // A previous GOAWAY frame was sent with smaller stream ID.  This is not
+    // possible, because this is the only method sending a GOAWAY frame with
+    // non-maximal stream ID, and this must only be called once, right
+    // before closing connection.
+    QUIC_BUG << "GOAWAY frame with smaller ID already sent.";
+
     // MUST not send GOAWAY with identifier larger than previously sent.
     // Do not bother sending one with same identifier as before, since GOAWAY
     // frames on the control stream are guaranteed to be processed in order.

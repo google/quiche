@@ -1132,15 +1132,8 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
 
   EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  if (GetQuicReloadableFlag(quic_goaway_with_max_stream_id)) {
-    // Send max stream id (currently 32 bits).
-    EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 0xfffffffc));
-  } else {
-    // No client-initiated stream has been received, therefore a GOAWAY frame
-    // with stream ID = 0 is sent to notify the client that all requests can be
-    // retried on a different connection.
-    EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 0));
-  }
+  // Send max stream id (currently 32 bits).
+  EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 0xfffffffc));
   session_.SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Goaway");
   EXPECT_TRUE(session_.goaway_sent());
 
@@ -1183,74 +1176,14 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAfterStreamIsCreated) {
 
   EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  if (GetQuicReloadableFlag(quic_goaway_with_max_stream_id)) {
-    // Send max stream id (currently 32 bits).
-    EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 0xfffffffc));
-  } else {
-    // The first stream, of kTestStreamId = 0, could already have been
-    // processed. A GOAWAY frame is sent to notify the client that requests
-    // starting with stream ID = 4 can be retried on a different connection.
-    EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 4));
-  }
+  // Send max stream id (currently 32 bits).
+  EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 0xfffffffc));
   session_.SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Goaway");
   EXPECT_TRUE(session_.goaway_sent());
 
   // No more GOAWAY frames are sent because they could not convey new
   // information to the client.
   session_.SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Goaway");
-}
-
-TEST_P(QuicSpdySessionTestServer, SendHttp3Shutdown) {
-  if (GetQuicReloadableFlag(quic_goaway_with_max_stream_id)) {
-    return;
-  }
-
-  if (!VersionUsesHttp3(transport_version())) {
-    return;
-  }
-
-  CompleteHandshake();
-  StrictMock<MockHttp3DebugVisitor> debug_visitor;
-  session_.set_debug_visitor(&debug_visitor);
-
-  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
-      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(_));
-  session_.SendHttp3Shutdown();
-  EXPECT_TRUE(session_.goaway_sent());
-
-  const QuicStreamId kTestStreamId =
-      GetNthClientInitiatedBidirectionalStreamId(transport_version(), 0);
-  EXPECT_CALL(*connection_, OnStreamReset(kTestStreamId, _)).Times(0);
-  EXPECT_TRUE(session_.GetOrCreateStream(kTestStreamId));
-}
-
-TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAfterShutdownNotice) {
-  if (GetQuicReloadableFlag(quic_goaway_with_max_stream_id)) {
-    return;
-  }
-
-  if (!VersionUsesHttp3(transport_version())) {
-    return;
-  }
-
-  CompleteHandshake();
-  StrictMock<MockHttp3DebugVisitor> debug_visitor;
-  session_.set_debug_visitor(&debug_visitor);
-
-  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
-      .Times(2)
-      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(_)).Times(2);
-
-  session_.SendHttp3Shutdown();
-  EXPECT_TRUE(session_.goaway_sent());
-  session_.SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Goaway");
-
-  const QuicStreamId kTestStreamId =
-      GetNthClientInitiatedBidirectionalStreamId(transport_version(), 0);
-  EXPECT_CALL(*connection_, OnStreamReset(kTestStreamId, _)).Times(0);
-  EXPECT_TRUE(session_.GetOrCreateStream(kTestStreamId));
 }
 
 TEST_P(QuicSpdySessionTestServer, DoNotSendGoAwayTwice) {

@@ -243,10 +243,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // before encryption gets established.
   void SendHttp3GoAway(QuicErrorCode error_code, const std::string& reason);
 
-  // Same as SendHttp3GoAway().  TODO(bnc): remove when
-  // gfe2_reloadable_flag_quic_goaway_with_max_stream_id flag is deprecated.
-  void SendHttp3Shutdown();
-
   // Write |headers| for |promised_stream_id| on |original_stream_id| in a
   // PUSH_PROMISE frame to peer.
   virtual void WritePushPromise(QuicStreamId original_stream_id,
@@ -626,9 +622,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // has been sent, in which case |max_push_id_| has the value sent in the most
   // recent MAX_PUSH_ID frame.  Once true, never goes back to false.
   bool http3_max_push_id_sent_;
-
-  // Latched value of reloadable flag quic_goaway_with_max_stream_id.
-  const bool goaway_with_max_stream_id_;
 
   // Value of the smallest unused HTTP/3 datagram flow ID that this endpoint's
   // datagram flow ID allocation service will use next.
