@@ -867,11 +867,43 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
                     "\x04"  // length
                     "\x05"  // valid stream id
                     "foo",  // superfluous data
-                    "Superfluous data in GOAWAY frame."}};
+                    "Superfluous data in GOAWAY frame."},
+                   {"\x40\x89"  // type (ACCEPT_CH)
+                    "\x01"      // length
+                    "\x40",     // first byte of two-byte varint origin length
+                    "Unable to read ACCEPT_CH origin."},
+                   {"\x40\x89"  // type (ACCEPT_CH)
+                    "\x01"      // length
+                    "\x05",     // valid origin length but no origin string
+                    "Unable to read ACCEPT_CH origin."},
+                   {"\x40\x89"  // type (ACCEPT_CH)
+                    "\x04"      // length
+                    "\x05"      // valid origin length
+                    "foo",      // payload ends before origin ends
+                    "Unable to read ACCEPT_CH origin."},
+                   {"\x40\x89"  // type (ACCEPT_CH)
+                    "\x04"      // length
+                    "\x03"      // valid origin length
+                    "foo",      // payload ends at end of origin: no value
+                    "Unable to read ACCEPT_CH value."},
+                   {"\x40\x89"  // type (ACCEPT_CH)
+                    "\x05"      // length
+                    "\x03"      // valid origin length
+                    "foo"       // payload ends at end of origin: no value
+                    "\x40",     // first byte of two-byte varint value length
+                    "Unable to read ACCEPT_CH value."},
+                   {"\x40\x89"  // type (ACCEPT_CH)
+                    "\x08"      // length
+                    "\x03"      // valid origin length
+                    "foo"       // origin
+                    "\x05"      // valid value length
+                    "bar",      // payload ends before value ends
+                    "Unable to read ACCEPT_CH value."}};
 
   for (const auto& test_data : kTestData) {
     {
       HttpDecoder decoder(&visitor_);
+      EXPECT_CALL(visitor_, OnAcceptChFrameStart(_)).Times(AnyNumber());
       EXPECT_CALL(visitor_, OnError(&decoder));
 
       absl::string_view input(test_data.input);
@@ -881,6 +913,7 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
     }
     {
       HttpDecoder decoder(&visitor_);
+      EXPECT_CALL(visitor_, OnAcceptChFrameStart(_)).Times(AnyNumber());
       EXPECT_CALL(visitor_, OnError(&decoder));
 
       absl::string_view input(test_data.input);
@@ -1194,10 +1227,6 @@ TEST_F(HttpDecoderTest, CorruptNewPriorityUpdateFrame) {
 }
 
 TEST_F(HttpDecoderTest, AcceptChFrame) {
-  if (!GetQuicReloadableFlag(quic_parse_accept_ch_frame)) {
-    return;
-  }
-
   InSequence s;
   std::string input1 = absl::HexStringToBytes(
       "4089"  // type (ACCEPT_CH)
@@ -1270,74 +1299,6 @@ TEST_F(HttpDecoderTest, AcceptChFrame) {
   ProcessInputCharByChar(input2);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
-}
-
-TEST_F(HttpDecoderTest, CorruptAcceptChFrame) {
-  if (!GetQuicReloadableFlag(quic_parse_accept_ch_frame)) {
-    // TODO(bnc): merge this test into HttpDecoderTest.CorruptFrame when
-    // deprecating flag.
-    return;
-  }
-
-  EXPECT_CALL(visitor_, OnAcceptChFrameStart(_)).Times(AnyNumber());
-
-  struct {
-    const char* const input;
-    const char* const error_message;
-  } kTestData[] = {{"\x40\x89"  // type (ACCEPT_CH)
-                    "\x01"      // length
-                    "\x40",     // first byte of two-byte varint origin length
-                    "Unable to read ACCEPT_CH origin."},
-                   {"\x40\x89"  // type (ACCEPT_CH)
-                    "\x01"      // length
-                    "\x05",     // valid origin length but no origin string
-                    "Unable to read ACCEPT_CH origin."},
-                   {"\x40\x89"  // type (ACCEPT_CH)
-                    "\x04"      // length
-                    "\x05"      // valid origin length
-                    "foo",      // payload ends before origin ends
-                    "Unable to read ACCEPT_CH origin."},
-                   {"\x40\x89"  // type (ACCEPT_CH)
-                    "\x04"      // length
-                    "\x03"      // valid origin length
-                    "foo",      // payload ends at end of origin: no value
-                    "Unable to read ACCEPT_CH value."},
-                   {"\x40\x89"  // type (ACCEPT_CH)
-                    "\x05"      // length
-                    "\x03"      // valid origin length
-                    "foo"       // payload ends at end of origin: no value
-                    "\x40",     // first byte of two-byte varint value length
-                    "Unable to read ACCEPT_CH value."},
-                   {"\x40\x89"  // type (ACCEPT_CH)
-                    "\x08"      // length
-                    "\x03"      // valid origin length
-                    "foo"       // origin
-                    "\x05"      // valid value length
-                    "bar",      // payload ends before value ends
-                    "Unable to read ACCEPT_CH value."}};
-
-  for (const auto& test_data : kTestData) {
-    {
-      HttpDecoder decoder(&visitor_);
-      EXPECT_CALL(visitor_, OnError(&decoder));
-
-      absl::string_view input(test_data.input);
-      decoder.ProcessInput(input.data(), input.size());
-      EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
-      EXPECT_EQ(test_data.error_message, decoder.error_detail());
-    }
-    {
-      HttpDecoder decoder(&visitor_);
-      EXPECT_CALL(visitor_, OnError(&decoder));
-
-      absl::string_view input(test_data.input);
-      for (auto c : input) {
-        decoder.ProcessInput(&c, 1);
-      }
-      EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
-      EXPECT_EQ(test_data.error_message, decoder.error_detail());
-    }
-  }
 }
 
 TEST_F(HttpDecoderTest, DecodeSettings) {

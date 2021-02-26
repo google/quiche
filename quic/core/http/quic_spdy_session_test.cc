@@ -3203,10 +3203,6 @@ TEST_P(QuicSpdySessionTestClient, ReceiveAcceptChFrame) {
     return;
   }
 
-  if (!GetQuicReloadableFlag(quic_parse_accept_ch_frame)) {
-    return;
-  }
-
   StrictMock<MockHttp3DebugVisitor> debug_visitor;
   session_.set_debug_visitor(&debug_visitor);
 
@@ -3265,11 +3261,9 @@ TEST_P(QuicSpdySessionTestClient, AcceptChViaAlps) {
       "03"        // length of value
       "626172");  // value "bar"
 
-  if (GetQuicReloadableFlag(quic_parse_accept_ch_frame)) {
-    AcceptChFrame expected_accept_ch_frame{{{"foo", "bar"}}};
-    EXPECT_CALL(debug_visitor,
-                OnAcceptChFrameReceivedViaAlps(expected_accept_ch_frame));
-  }
+  AcceptChFrame expected_accept_ch_frame{{{"foo", "bar"}}};
+  EXPECT_CALL(debug_visitor,
+              OnAcceptChFrameReceivedViaAlps(expected_accept_ch_frame));
 
   auto error = session_.OnAlpsData(
       reinterpret_cast<const uint8_t*>(serialized_accept_ch_frame.data()),

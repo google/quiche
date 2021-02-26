@@ -404,8 +404,7 @@ TEST_P(QuicReceiveControlStreamTest, AcceptChFrameBeforeSettings) {
       "4089"  // type (ACCEPT_CH)
       "00");  // length
 
-  if (GetQuicReloadableFlag(quic_parse_accept_ch_frame) &&
-      perspective() == Perspective::IS_SERVER) {
+  if (perspective() == Perspective::IS_SERVER) {
     EXPECT_CALL(*connection_,
                 CloseConnection(
                     QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM,
@@ -449,23 +448,17 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveAcceptChFrame) {
       "4089"  // type (ACCEPT_CH)
       "00");  // length
 
-  if (GetQuicReloadableFlag(quic_parse_accept_ch_frame)) {
-    if (perspective() == Perspective::IS_CLIENT) {
-      EXPECT_CALL(debug_visitor, OnAcceptChFrameReceived(_));
-    } else {
-      EXPECT_CALL(*connection_,
-                  CloseConnection(
-                      QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM,
-                      "Invalid frame type 137 received on control stream.", _))
-          .WillOnce(
-              Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-      EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
-      EXPECT_CALL(session_, OnConnectionClosed(_, _));
-    }
+  if (perspective() == Perspective::IS_CLIENT) {
+    EXPECT_CALL(debug_visitor, OnAcceptChFrameReceived(_));
   } else {
-    EXPECT_CALL(debug_visitor,
-                OnUnknownFrameReceived(id, /* frame_type = */ 0x89,
-                                       /* payload_length = */ 0));
+    EXPECT_CALL(*connection_,
+                CloseConnection(
+                    QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM,
+                    "Invalid frame type 137 received on control stream.", _))
+        .WillOnce(
+            Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+    EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
+    EXPECT_CALL(session_, OnConnectionClosed(_, _));
   }
 
   receive_control_stream_->OnStreamFrame(

@@ -238,13 +238,7 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
       continue_processing = visitor_->OnPriorityUpdateFrameStart(header_length);
       break;
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH):
-      if (GetQuicReloadableFlag(quic_parse_accept_ch_frame)) {
-        QUIC_RELOADABLE_FLAG_COUNT(quic_parse_accept_ch_frame);
-        continue_processing = visitor_->OnAcceptChFrameStart(header_length);
-      } else {
-        continue_processing = visitor_->OnUnknownFrameStart(
-            current_frame_type_, header_length, current_frame_length_);
-      }
+      continue_processing = visitor_->OnAcceptChFrameStart(header_length);
       break;
     default:
       continue_processing = visitor_->OnUnknownFrameStart(
@@ -381,13 +375,9 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH): {
-      if (GetQuicReloadableFlag(quic_parse_accept_ch_frame)) {
-        // TODO(bnc): Avoid buffering if the entire frame is present, and
-        // instead parse directly out of |reader|.
-        BufferFramePayload(reader);
-      } else {
-        continue_processing = HandleUnknownFramePayload(reader);
-      }
+      // TODO(bnc): Avoid buffering if the entire frame is present, and
+      // instead parse directly out of |reader|.
+      BufferFramePayload(reader);
       break;
     }
     default: {
@@ -499,18 +489,14 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH): {
-      if (GetQuicReloadableFlag(quic_parse_accept_ch_frame)) {
-        // TODO(bnc): Avoid buffering if the entire frame is present, and
-        // instead parse directly out of |reader|.
-        AcceptChFrame frame;
-        QuicDataReader reader(buffer_.data(), current_frame_length_);
-        if (!ParseAcceptChFrame(&reader, &frame)) {
-          return false;
-        }
-        continue_processing = visitor_->OnAcceptChFrame(frame);
-      } else {
-        continue_processing = visitor_->OnUnknownFrameEnd();
+      // TODO(bnc): Avoid buffering if the entire frame is present, and
+      // instead parse directly out of |reader|.
+      AcceptChFrame frame;
+      QuicDataReader reader(buffer_.data(), current_frame_length_);
+      if (!ParseAcceptChFrame(&reader, &frame)) {
+        return false;
       }
+      continue_processing = visitor_->OnAcceptChFrame(frame);
       break;
     }
     default:
