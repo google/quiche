@@ -569,6 +569,10 @@ void QuicSpdySession::FillSettingsFrame() {
       qpack_maximum_blocked_streams_;
   settings_.values[SETTINGS_MAX_FIELD_SECTION_SIZE] =
       max_inbound_header_list_size_;
+  if (GetQuicReloadableFlag(quic_h3_datagram) && version().UsesHttp3()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_h3_datagram);
+    settings_.values[SETTINGS_H3_DATAGRAM] = 1;
+  }
 }
 
 void QuicSpdySession::OnDecoderStreamError(QuicErrorCode error_code,
@@ -1204,6 +1208,26 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
             absl::StrCat("received HTTP/2 specific setting in HTTP/3 session: ",
                          id));
         return false;
+      case SETTINGS_H3_DATAGRAM: {
+        if (!GetQuicReloadableFlag(quic_h3_datagram)) {
+          break;
+        }
+        QUIC_DVLOG(1) << ENDPOINT << "SETTINGS_H3_DATAGRAM received with value "
+                      << value;
+        if (!version().UsesHttp3()) {
+          break;
+        }
+        if (value != 0 && value != 1) {
+          std::string error_details = absl::StrCat(
+              "received SETTINGS_H3_DATAGRAM with invalid value ", value);
+          QUIC_PEER_BUG << ENDPOINT << error_details;
+          CloseConnectionWithDetails(QUIC_HTTP_RECEIVE_SPDY_SETTING,
+                                     error_details);
+          return false;
+        }
+        h3_datagram_supported_ = !!value;
+        break;
+      }
       default:
         QUIC_DVLOG(1) << ENDPOINT << "Unknown setting identifier " << id
                       << " received with value " << value;

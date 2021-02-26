@@ -34,6 +34,8 @@ enum Http3AndQpackSettingsIdentifiers : uint64_t {
   // Same value as spdy::SETTINGS_MAX_HEADER_LIST_SIZE.
   SETTINGS_MAX_FIELD_SECTION_SIZE = 0x06,
   SETTINGS_QPACK_BLOCKED_STREAMS = 0x07,
+  // draft-ietf-masque-h3-datagram.
+  SETTINGS_H3_DATAGRAM = 0x276,
 };
 
 // Returns HTTP/3 SETTINGS identifier as a string.

@@ -51,6 +51,8 @@ int RunMasqueClient(int argc, char* argv[]) {
     return 1;
   }
 
+  SetQuicReloadableFlag(quic_h3_datagram, true);
+
   const bool disable_certificate_verification =
       GetQuicFlag(FLAGS_disable_certificate_verification);
   QuicEpollServer epoll_server;

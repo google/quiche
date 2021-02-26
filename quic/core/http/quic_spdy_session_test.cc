@@ -3397,6 +3397,29 @@ TEST_P(QuicSpdySessionTestServer, GetNextDatagramFlowId) {
   EXPECT_EQ(session_.GetNextDatagramFlowId(), 7u);
 }
 
+TEST_P(QuicSpdySessionTestClient, H3DatagramSetting) {
+  if (!version().UsesHttp3()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_h3_datagram, true);
+  // HTTP/3 datagrams aren't supported before SETTINGS are received.
+  EXPECT_FALSE(session_.h3_datagram_supported());
+  // Receive SETTINGS.
+  SettingsFrame settings;
+  settings.values[SETTINGS_H3_DATAGRAM] = 1;
+  std::string data = std::string(1, kControlStream) + EncodeSettings(settings);
+  QuicStreamId stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
+  QuicStreamFrame frame(stream_id, /*fin=*/false, /*offset=*/0, data);
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+  EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(stream_id));
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
+  session_.OnStreamFrame(frame);
+  // HTTP/3 datagrams are now supported.
+  EXPECT_TRUE(session_.h3_datagram_supported());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
