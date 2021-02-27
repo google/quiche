@@ -1483,14 +1483,11 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
 }
 
 void QuicSpdySession::BeforeConnectionCloseSent() {
-  if (!GetQuicReloadableFlag(quic_send_goaway_with_connection_close) ||
-      !VersionUsesHttp3(transport_version()) || !IsEncryptionEstablished()) {
+  if (!VersionUsesHttp3(transport_version()) || !IsEncryptionEstablished()) {
     return;
   }
 
   QUICHE_DCHECK_EQ(perspective(), Perspective::IS_SERVER);
-
-  QUIC_CODE_COUNT(quic_send_goaway_with_connection_close);
 
   QuicStreamId stream_id =
       GetLargestPeerCreatedStreamId(/*unidirectional = */ false);

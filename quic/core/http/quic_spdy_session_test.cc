@@ -3112,13 +3112,11 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayWhenClosingConnection) {
   EXPECT_EQ(stream_id, QuicSessionPeer::GetLargestPeerCreatedStreamId(
                            &session_, /*unidirectional = */ false));
 
-  if (GetQuicReloadableFlag(quic_send_goaway_with_connection_close)) {
-    // Stream with stream_id is already received and potentially processed,
-    // therefore a GOAWAY frame is sent with the next stream ID.
-    EXPECT_CALL(debug_visitor,
-                OnGoAwayFrameSent(
-                    stream_id + QuicUtils::StreamIdDelta(transport_version())));
-  }
+  // Stream with stream_id is already received and potentially processed,
+  // therefore a GOAWAY frame is sent with the next stream ID.
+  EXPECT_CALL(debug_visitor,
+              OnGoAwayFrameSent(stream_id +
+                                QuicUtils::StreamIdDelta(transport_version())));
 
   // Close connection.
   EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
