@@ -57,6 +57,8 @@ class QuicSpdySessionPeer {
       QuicSpdySession* session);
   static QpackReceiveStream* GetQpackEncoderReceiveStream(
       QuicSpdySession* session);
+  static void SetH3DatagramSupported(QuicSpdySession* session,
+                                     bool h3_datagram_supported);
 };
 
 }  // namespace test

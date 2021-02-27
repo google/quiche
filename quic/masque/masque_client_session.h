@@ -100,33 +100,47 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
 
  private:
   // State that the MasqueClientSession keeps for each CONNECT-UDP request.
-  class QUIC_NO_EXPORT ConnectUdpClientState {
+  class QUIC_NO_EXPORT ConnectUdpClientState
+      : public QuicSpdySession::Http3DatagramVisitor {
    public:
     // |stream| and |encapsulated_client_session| must be valid for the lifetime
     // of the ConnectUdpClientState.
     explicit ConnectUdpClientState(
         QuicSpdyClientStream* stream,
         EncapsulatedClientSession* encapsulated_client_session,
+        MasqueClientSession* masque_session,
         QuicDatagramFlowId flow_id,
-        const QuicSocketAddress& target_server_address)
-        : stream_(stream),
-          encapsulated_client_session_(encapsulated_client_session),
-          flow_id_(flow_id),
-          target_server_address_(target_server_address) {}
+        const QuicSocketAddress& target_server_address);
+
+    ~ConnectUdpClientState();
+
+    // Disallow copy but allow move.
+    ConnectUdpClientState(const ConnectUdpClientState&) = delete;
+    ConnectUdpClientState(ConnectUdpClientState&&);
+    ConnectUdpClientState& operator=(const ConnectUdpClientState&) = delete;
+    ConnectUdpClientState& operator=(ConnectUdpClientState&&);
 
     QuicSpdyClientStream* stream() const { return stream_; }
     EncapsulatedClientSession* encapsulated_client_session() const {
       return encapsulated_client_session_;
     }
-    QuicDatagramFlowId flow_id() const { return flow_id_; }
+    QuicDatagramFlowId flow_id() const {
+      QUICHE_DCHECK(flow_id_.has_value());
+      return *flow_id_;
+    }
     const QuicSocketAddress& target_server_address() const {
       return target_server_address_;
     }
 
+    // From QuicSpdySession::Http3DatagramVisitor.
+    void OnHttp3Datagram(QuicDatagramFlowId flow_id,
+                         absl::string_view payload) override;
+
    private:
     QuicSpdyClientStream* stream_;                            // Unowned.
     EncapsulatedClientSession* encapsulated_client_session_;  // Unowned.
-    QuicDatagramFlowId flow_id_;
+    MasqueClientSession* masque_session_;                     // Unowned.
+    absl::optional<QuicDatagramFlowId> flow_id_;
     QuicSocketAddress target_server_address_;
   };
 

@@ -2284,6 +2284,32 @@ bool WriteServerVersionNegotiationProbeResponse(
     const char* source_connection_id_bytes,
     uint8_t source_connection_id_length);
 
+// Implementation of Http3DatagramVisitor which saves all received datagrams.
+class SavingHttp3DatagramVisitor
+    : public QuicSpdySession::Http3DatagramVisitor {
+ public:
+  struct SavedHttp3Datagram {
+    QuicDatagramFlowId flow_id;
+    std::string payload;
+    bool operator==(const SavedHttp3Datagram& o) const {
+      return flow_id == o.flow_id && payload == o.payload;
+    }
+  };
+  const std::vector<SavedHttp3Datagram>& received_h3_datagrams() const {
+    return received_h3_datagrams_;
+  }
+
+  // Override from QuicSpdySession::Http3DatagramVisitor.
+  void OnHttp3Datagram(QuicDatagramFlowId flow_id,
+                       absl::string_view payload) override {
+    received_h3_datagrams_.push_back(
+        SavedHttp3Datagram{flow_id, std::string(payload)});
+  }
+
+ private:
+  std::vector<SavedHttp3Datagram> received_h3_datagrams_;
+};
+
 }  // namespace test
 }  // namespace quic
 

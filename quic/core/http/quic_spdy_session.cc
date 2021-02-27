@@ -518,9 +518,11 @@ QuicSpdySession::QuicSpdySession(
 
 QuicSpdySession::~QuicSpdySession() {
   QUIC_BUG_IF(destruction_indicator_ != 123456789)
-      << "QuicSpdyStream use after free. " << destruction_indicator_
+      << "QuicSpdySession use after free. " << destruction_indicator_
       << QuicStackTrace();
   destruction_indicator_ = 987654321;
+  QUIC_BUG_IF(!h3_datagram_registrations_.empty())
+      << "HTTP/3 datagram flow ID was not unregistered";
 }
 
 void QuicSpdySession::Initialize() {
@@ -1682,6 +1684,64 @@ QuicDatagramFlowId QuicSpdySession::GetNextDatagramFlowId() {
   QuicDatagramFlowId result = next_available_datagram_flow_id_;
   next_available_datagram_flow_id_ += kDatagramFlowIdIncrement;
   return result;
+}
+
+MessageStatus QuicSpdySession::SendHttp3Datagram(QuicDatagramFlowId flow_id,
+                                                 absl::string_view payload) {
+  size_t slice_length =
+      QuicDataWriter::GetVarInt62Len(flow_id) + payload.length();
+  QuicUniqueBufferPtr buffer = MakeUniqueBuffer(
+      connection()->helper()->GetStreamSendBufferAllocator(), slice_length);
+  QuicDataWriter writer(slice_length, buffer.get());
+  if (!writer.WriteVarInt62(flow_id)) {
+    QUIC_BUG << "Failed to write HTTP/3 datagram flow ID";
+    return MESSAGE_STATUS_INTERNAL_ERROR;
+  }
+  if (!writer.WriteBytes(payload.data(), payload.length())) {
+    QUIC_BUG << "Failed to write HTTP/3 datagram payload";
+    return MESSAGE_STATUS_INTERNAL_ERROR;
+  }
+
+  QuicMemSlice slice(std::move(buffer), slice_length);
+  return datagram_queue()->SendOrQueueDatagram(std::move(slice));
+}
+
+void QuicSpdySession::RegisterHttp3FlowId(
+    QuicDatagramFlowId flow_id,
+    QuicSpdySession::Http3DatagramVisitor* visitor) {
+  QUICHE_DCHECK_NE(visitor, nullptr);
+  auto insertion_result = h3_datagram_registrations_.insert({flow_id, visitor});
+  QUIC_BUG_IF(!insertion_result.second)
+      << "Attempted to doubly register HTTP/3 flow ID " << flow_id;
+}
+
+void QuicSpdySession::UnregisterHttp3FlowId(QuicDatagramFlowId flow_id) {
+  size_t num_erased = h3_datagram_registrations_.erase(flow_id);
+  QUIC_BUG_IF(num_erased != 1)
+      << "Attempted to unregister unknown HTTP/3 flow ID " << flow_id;
+}
+
+void QuicSpdySession::OnMessageReceived(absl::string_view message) {
+  QuicSession::OnMessageReceived(message);
+  if (!h3_datagram_supported_) {
+    QUIC_DLOG(ERROR) << "Ignoring unexpected received HTTP/3 datagram";
+    return;
+  }
+  QuicDataReader reader(message);
+  QuicDatagramFlowId flow_id;
+  if (!reader.ReadVarInt62(&flow_id)) {
+    QUIC_DLOG(ERROR) << "Failed to parse flow ID in received HTTP/3 datagram";
+    return;
+  }
+  auto it = h3_datagram_registrations_.find(flow_id);
+  if (it == h3_datagram_registrations_.end()) {
+    // TODO(dschinazi) buffer unknown HTTP/3 datagram flow IDs for a short
+    // period of time in case they were reordered.
+    QUIC_DLOG(ERROR) << "Received unknown HTTP/3 datagram flow ID " << flow_id;
+    return;
+  }
+  absl::string_view payload = reader.ReadRemainingPayload();
+  it->second->OnHttp3Datagram(flow_id, payload);
 }
 
 #undef ENDPOINT  // undef for jumbo builds

@@ -109,5 +109,11 @@ QpackReceiveStream* QuicSpdySessionPeer::GetQpackEncoderReceiveStream(
   return session->qpack_encoder_receive_stream_;
 }
 
+// static
+void QuicSpdySessionPeer::SetH3DatagramSupported(QuicSpdySession* session,
+                                                 bool h3_datagram_supported) {
+  session->h3_datagram_supported_ = h3_datagram_supported;
+}
+
 }  // namespace test
 }  // namespace quic

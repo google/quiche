@@ -83,9 +83,12 @@ class QUIC_NO_EXPORT MasqueServerSession
   // Handle packet for client, meant to be called by MasqueDispatcher.
   void HandlePacketFromServer(const ReceivedPacketInfo& packet_info);
 
+  QuicEpollServer* epoll_server() const { return epoll_server_; }
+
  private:
   // State that the MasqueServerSession keeps for each CONNECT-UDP request.
-  class QUIC_NO_EXPORT ConnectUdpServerState {
+  class QUIC_NO_EXPORT ConnectUdpServerState
+      : public QuicSpdySession::Http3DatagramVisitor {
    public:
     // ConnectUdpServerState takes ownership of |fd|. It will unregister it
     // from |epoll_server| and close the file descriptor when destructed.
@@ -94,7 +97,7 @@ class QUIC_NO_EXPORT MasqueServerSession
         QuicStreamId stream_id,
         const QuicSocketAddress& target_server_address,
         QuicUdpSocketFd fd,
-        QuicEpollServer* epoll_server);
+        MasqueServerSession* masque_session);
 
     ~ConnectUdpServerState();
 
@@ -104,19 +107,26 @@ class QUIC_NO_EXPORT MasqueServerSession
     ConnectUdpServerState& operator=(const ConnectUdpServerState&) = delete;
     ConnectUdpServerState& operator=(ConnectUdpServerState&&);
 
-    QuicDatagramFlowId flow_id() const { return flow_id_; }
+    QuicDatagramFlowId flow_id() const {
+      QUICHE_DCHECK(flow_id_.has_value());
+      return *flow_id_;
+    }
     QuicStreamId stream_id() const { return stream_id_; }
     const QuicSocketAddress& target_server_address() const {
       return target_server_address_;
     }
     QuicUdpSocketFd fd() const { return fd_; }
 
+    // From QuicSpdySession::Http3DatagramVisitor.
+    void OnHttp3Datagram(QuicDatagramFlowId flow_id,
+                         absl::string_view payload) override;
+
    private:
-    QuicDatagramFlowId flow_id_;
+    absl::optional<QuicDatagramFlowId> flow_id_;
     QuicStreamId stream_id_;
     QuicSocketAddress target_server_address_;
     QuicUdpSocketFd fd_;             // Owned.
-    QuicEpollServer* epoll_server_;  // Unowned.
+    MasqueServerSession* masque_session_;  // Unowned.
   };
 
   MasqueServerBackend* masque_server_backend_;  // Unowned.

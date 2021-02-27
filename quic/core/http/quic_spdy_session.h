@@ -420,6 +420,34 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // SETTINGS.
   bool h3_datagram_supported() const { return h3_datagram_supported_; }
 
+  // Sends an HTTP/3 datagram. The flow ID is not part of |payload|.
+  MessageStatus SendHttp3Datagram(QuicDatagramFlowId flow_id,
+                                  absl::string_view payload);
+
+  class QUIC_EXPORT_PRIVATE Http3DatagramVisitor {
+   public:
+    virtual ~Http3DatagramVisitor() {}
+
+    // Called when an HTTP/3 datagram is received. |payload| does not contain
+    // the flow ID.
+    virtual void OnHttp3Datagram(QuicDatagramFlowId flow_id,
+                                 absl::string_view payload) = 0;
+  };
+
+  // Registers |visitor| to receive HTTP/3 datagrams for flow ID |flow_id|. This
+  // must not be called on a previously register flow ID without first calling
+  // UnregisterHttp3FlowId. |visitor| must be valid until a corresponding call
+  // to UnregisterHttp3FlowId. The flow ID must be unregistered before the
+  // QuicSpdySession is destroyed.
+  void RegisterHttp3FlowId(QuicDatagramFlowId flow_id,
+                           Http3DatagramVisitor* visitor);
+
+  // Unregister a given HTTP/3 datagram flow ID.
+  void UnregisterHttp3FlowId(QuicDatagramFlowId flow_id);
+
+  // Override from QuicSession to support HTTP/3 datagrams.
+  void OnMessageReceived(absl::string_view message) override;
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to
@@ -629,6 +657,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Whether both this endpoint and our peer support HTTP/3 datagrams.
   bool h3_datagram_supported_ = false;
+
+  absl::flat_hash_map<QuicDatagramFlowId, Http3DatagramVisitor*>
+      h3_datagram_registrations_;
 };
 
 }  // namespace quic

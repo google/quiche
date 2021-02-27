@@ -48,6 +48,7 @@
 #include "quic/test_tools/quic_test_utils.h"
 #include "common/platform/api/quiche_text_utils.h"
 #include "common/quiche_endian.h"
+#include "common/test_tools/quiche_test_utils.h"
 #include "spdy/core/spdy_framer.h"
 
 using spdy::kV3HighestPriority;
@@ -60,6 +61,7 @@ using spdy::SpdySerializedFrame;
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::AtLeast;
+using ::testing::ElementsAre;
 using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::Return;
@@ -3345,6 +3347,47 @@ TEST_P(QuicSpdySessionTestClient, H3DatagramSetting) {
   session_.OnStreamFrame(frame);
   // HTTP/3 datagrams are now supported.
   EXPECT_TRUE(session_.h3_datagram_supported());
+}
+
+TEST_P(QuicSpdySessionTestClient, H3DatagramRegistration) {
+  if (!version().UsesHttp3()) {
+    return;
+  }
+  CompleteHandshake();
+  SetQuicReloadableFlag(quic_h3_datagram, true);
+  QuicSpdySessionPeer::SetH3DatagramSupported(&session_, true);
+  SavingHttp3DatagramVisitor h3_datagram_visitor;
+  QuicDatagramFlowId flow_id = session_.GetNextDatagramFlowId();
+  ASSERT_EQ(QuicDataWriter::GetVarInt62Len(flow_id), 1);
+  uint8_t datagram[256];
+  datagram[0] = flow_id;
+  for (size_t i = 1; i < ABSL_ARRAYSIZE(datagram); i++) {
+    datagram[i] = i;
+  }
+  session_.RegisterHttp3FlowId(flow_id, &h3_datagram_visitor);
+  session_.OnMessageReceived(absl::string_view(
+      reinterpret_cast<const char*>(datagram), sizeof(datagram)));
+  EXPECT_THAT(
+      h3_datagram_visitor.received_h3_datagrams(),
+      ElementsAre(SavingHttp3DatagramVisitor::SavedHttp3Datagram{
+          flow_id, std::string(reinterpret_cast<const char*>(datagram + 1),
+                               sizeof(datagram) - 1)}));
+  session_.UnregisterHttp3FlowId(flow_id);
+}
+
+TEST_P(QuicSpdySessionTestClient, SendHttp3Datagram) {
+  if (!version().UsesHttp3()) {
+    return;
+  }
+  CompleteHandshake();
+  SetQuicReloadableFlag(quic_h3_datagram, true);
+  QuicSpdySessionPeer::SetH3DatagramSupported(&session_, true);
+  QuicDatagramFlowId flow_id = session_.GetNextDatagramFlowId();
+  std::string h3_datagram_payload = {1, 2, 3, 4, 5, 6};
+  EXPECT_CALL(*connection_, SendMessage(1, _, false))
+      .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
+  EXPECT_EQ(session_.SendHttp3Datagram(flow_id, h3_datagram_payload),
+            MESSAGE_STATUS_SUCCESS);
 }
 
 }  // namespace

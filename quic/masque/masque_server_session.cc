@@ -7,6 +7,7 @@
 #include <netdb.h>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "quic/core/quic_data_reader.h"
 #include "quic/core/quic_udp_socket.h"
 #include "quic/tools/quic_url.h"
@@ -95,11 +96,12 @@ MasqueServerSession::MasqueServerSession(
       compression_engine_(this),
       masque_mode_(masque_mode) {
   masque_server_backend_->RegisterBackendClient(connection_id(), this);
+  QUICHE_DCHECK_NE(epoll_server_, nullptr);
 }
 
 void MasqueServerSession::OnMessageReceived(absl::string_view message) {
-  QUIC_DVLOG(1) << "Received DATAGRAM frame of length " << message.length();
   if (masque_mode_ == MasqueMode::kLegacy) {
+    QUIC_DVLOG(1) << "Received DATAGRAM frame of length " << message.length();
     QuicConnectionId client_connection_id, server_connection_id;
     QuicSocketAddress target_server_address;
     std::vector<char> packet;
@@ -132,33 +134,7 @@ void MasqueServerSession::OnMessageReceived(absl::string_view message) {
     return;
   }
   QUICHE_DCHECK_EQ(masque_mode_, MasqueMode::kOpen);
-  QuicDataReader reader(message);
-  QuicDatagramFlowId flow_id;
-  if (!reader.ReadVarInt62(&flow_id)) {
-    QUIC_DLOG(ERROR) << "Failed to read flow_id";
-    return;
-  }
-
-  auto it =
-      absl::c_find_if(connect_udp_server_states_,
-                      [flow_id](const ConnectUdpServerState& connect_udp) {
-                        return connect_udp.flow_id() == flow_id;
-                      });
-  if (it == connect_udp_server_states_.end()) {
-    QUIC_DLOG(ERROR) << "Received unknown flow_id " << flow_id;
-    return;
-  }
-  QuicSocketAddress target_server_address = it->target_server_address();
-  QUICHE_DCHECK(target_server_address.IsInitialized());
-  QuicUdpSocketFd fd = it->fd();
-  QUICHE_DCHECK_NE(fd, kQuicInvalidSocketFd);
-  absl::string_view packet = reader.ReadRemainingPayload();
-  QuicUdpSocketApi socket_api;
-  QuicUdpPacketInfo packet_info;
-  packet_info.SetPeerAddress(target_server_address);
-  WriteResult write_result =
-      socket_api.WritePacket(fd, packet.data(), packet.length(), packet_info);
-  QUIC_DVLOG(1) << "Wrote packet to server with result " << write_result;
+  QuicSpdySession::OnMessageReceived(message);
 }
 
 void MasqueServerSession::OnMessageAcked(QuicMessageId message_id,
@@ -275,7 +251,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
 
     connect_udp_server_states_.emplace_back(ConnectUdpServerState(
         flow_id, request_handler->stream_id(), target_server_address,
-        fd_wrapper.extract_fd(), epoll_server_));
+        fd_wrapper.extract_fd(), this));
 
     spdy::Http2HeaderBlock response_headers;
     response_headers[":status"] = "200";
@@ -400,26 +376,12 @@ void MasqueServerSession::OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) {
       return;
     }
     // The packet is valid, send it to the client in a DATAGRAM frame.
-    size_t slice_length = QuicDataWriter::GetVarInt62Len(flow_id) +
-                          read_result.packet_buffer.buffer_len;
-    QuicUniqueBufferPtr buffer = MakeUniqueBuffer(
-        connection()->helper()->GetStreamSendBufferAllocator(), slice_length);
-    QuicDataWriter writer(slice_length, buffer.get());
-    if (!writer.WriteVarInt62(flow_id)) {
-      QUIC_BUG << "Failed to write flow_id";
-      continue;
-    }
-    if (!writer.WriteBytes(read_result.packet_buffer.buffer,
-                           read_result.packet_buffer.buffer_len)) {
-      QUIC_BUG << "Failed to write packet";
-      continue;
-    }
-    QUICHE_DCHECK_EQ(writer.remaining(), 0u);
-    QuicMemSlice slice(std::move(buffer), slice_length);
-    MessageResult message_result = SendMessage(QuicMemSliceSpan(&slice));
+    MessageStatus message_status = SendHttp3Datagram(
+        flow_id, absl::string_view(read_result.packet_buffer.buffer,
+                                   read_result.packet_buffer.buffer_len));
     QUIC_DVLOG(1) << "Sent UDP packet from target server of length "
                   << read_result.packet_buffer.buffer_len << " with flow ID "
-                  << flow_id << " and got message result " << message_result;
+                  << flow_id << " and got message status " << message_status;
   }
 }
 
@@ -442,23 +404,27 @@ MasqueServerSession::ConnectUdpServerState::ConnectUdpServerState(
     QuicStreamId stream_id,
     const QuicSocketAddress& target_server_address,
     QuicUdpSocketFd fd,
-    QuicEpollServer* epoll_server)
+    MasqueServerSession* masque_session)
     : flow_id_(flow_id),
       stream_id_(stream_id),
       target_server_address_(target_server_address),
       fd_(fd),
-      epoll_server_(epoll_server) {
+      masque_session_(masque_session) {
   QUICHE_DCHECK_NE(fd_, kQuicInvalidSocketFd);
-  QUICHE_DCHECK_NE(epoll_server_, nullptr);
+  QUICHE_DCHECK_NE(masque_session_, nullptr);
+  masque_session_->RegisterHttp3FlowId(this->flow_id(), this);
 }
 
 MasqueServerSession::ConnectUdpServerState::~ConnectUdpServerState() {
+  if (flow_id_.has_value()) {
+    masque_session_->UnregisterHttp3FlowId(flow_id());
+  }
   if (fd_ == kQuicInvalidSocketFd) {
     return;
   }
   QuicUdpSocketApi socket_api;
   QUIC_DLOG(INFO) << "Closing fd " << fd_;
-  epoll_server_->UnregisterFD(fd_);
+  masque_session_->epoll_server()->UnregisterFD(fd_);
   socket_api.Destroy(fd_);
 }
 
@@ -474,16 +440,33 @@ MasqueServerSession::ConnectUdpServerState::operator=(
   if (fd_ != kQuicInvalidSocketFd) {
     QuicUdpSocketApi socket_api;
     QUIC_DLOG(INFO) << "Closing fd " << fd_;
-    epoll_server_->UnregisterFD(fd_);
+    masque_session_->epoll_server()->UnregisterFD(fd_);
     socket_api.Destroy(fd_);
   }
   flow_id_ = other.flow_id_;
   stream_id_ = other.stream_id_;
   target_server_address_ = other.target_server_address_;
   fd_ = other.fd_;
-  epoll_server_ = other.epoll_server_;
+  masque_session_ = other.masque_session_;
   other.fd_ = kQuicInvalidSocketFd;
+  other.flow_id_.reset();
+  if (flow_id_.has_value()) {
+    masque_session_->UnregisterHttp3FlowId(flow_id());
+    masque_session_->RegisterHttp3FlowId(flow_id(), this);
+  }
   return *this;
+}
+
+void MasqueServerSession::ConnectUdpServerState::OnHttp3Datagram(
+    QuicDatagramFlowId flow_id,
+    absl::string_view payload) {
+  QUICHE_DCHECK_EQ(flow_id, this->flow_id());
+  QuicUdpSocketApi socket_api;
+  QuicUdpPacketInfo packet_info;
+  packet_info.SetPeerAddress(target_server_address_);
+  WriteResult write_result = socket_api.WritePacket(
+      fd_, payload.data(), payload.length(), packet_info);
+  QUIC_DVLOG(1) << "Wrote packet to server with result " << write_result;
 }
 
 }  // namespace quic

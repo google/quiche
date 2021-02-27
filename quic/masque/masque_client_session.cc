@@ -29,8 +29,8 @@ MasqueClientSession::MasqueClientSession(
       compression_engine_(this) {}
 
 void MasqueClientSession::OnMessageReceived(absl::string_view message) {
-  QUIC_DVLOG(1) << "Received DATAGRAM frame of length " << message.length();
   if (masque_mode_ == MasqueMode::kLegacy) {
+    QUIC_DVLOG(1) << "Received DATAGRAM frame of length " << message.length();
     QuicConnectionId client_connection_id, server_connection_id;
     QuicSocketAddress target_server_address;
     std::vector<char> packet;
@@ -58,31 +58,8 @@ void MasqueClientSession::OnMessageReceived(absl::string_view message) {
                   << client_connection_id;
     return;
   }
-  QuicDataReader reader(message);
-  QuicDatagramFlowId flow_id;
-  if (!reader.ReadVarInt62(&flow_id)) {
-    QUIC_DLOG(ERROR) << "Failed to parse flow_id";
-    return;
-  }
-  auto it =
-      absl::c_find_if(connect_udp_client_states_,
-                      [flow_id](const ConnectUdpClientState& connect_udp) {
-                        return connect_udp.flow_id() == flow_id;
-                      });
-  if (it == connect_udp_client_states_.end()) {
-    QUIC_DLOG(ERROR) << "Received unknown flow_id " << flow_id;
-    return;
-  }
-  EncapsulatedClientSession* encapsulated_client_session =
-      it->encapsulated_client_session();
-  QuicSocketAddress target_server_address = it->target_server_address();
-  QUICHE_DCHECK_NE(encapsulated_client_session, nullptr);
-  QUICHE_DCHECK(target_server_address.IsInitialized());
-  absl::string_view packet = reader.ReadRemainingPayload();
-  encapsulated_client_session->ProcessPacket(packet, target_server_address);
-
-  QUIC_DVLOG(1) << "Sent " << packet.size()
-                << " bytes to connection for flow_id " << flow_id;
+  QUICHE_DCHECK_EQ(masque_mode_, MasqueMode::kOpen);
+  QuicSpdySession::OnMessageReceived(message);
 }
 
 void MasqueClientSession::OnMessageAcked(QuicMessageId message_id,
@@ -130,8 +107,9 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
     return nullptr;
   }
 
-  connect_udp_client_states_.push_back(ConnectUdpClientState(
-      stream, encapsulated_client_session, flow_id, target_server_address));
+  connect_udp_client_states_.push_back(
+      ConnectUdpClientState(stream, encapsulated_client_session, this, flow_id,
+                            target_server_address));
   return &connect_udp_client_states_.back();
 }
 
@@ -155,26 +133,12 @@ void MasqueClientSession::SendPacket(
   }
 
   QuicDatagramFlowId flow_id = connect_udp->flow_id();
-  size_t slice_length =
-      QuicDataWriter::GetVarInt62Len(flow_id) + packet.length();
-  QuicUniqueBufferPtr buffer = MakeUniqueBuffer(
-      connection()->helper()->GetStreamSendBufferAllocator(), slice_length);
-  QuicDataWriter writer(slice_length, buffer.get());
-  if (!writer.WriteVarInt62(flow_id)) {
-    QUIC_BUG << "Failed to write flow_id";
-    return;
-  }
-  if (!writer.WriteBytes(packet.data(), packet.length())) {
-    QUIC_BUG << "Failed to write packet";
-    return;
-  }
-
-  QuicMemSlice slice(std::move(buffer), slice_length);
-  MessageResult message_result = SendMessage(QuicMemSliceSpan(&slice));
+  MessageStatus message_status =
+      SendHttp3Datagram(connect_udp->flow_id(), packet);
 
   QUIC_DVLOG(1) << "Sent packet to " << target_server_address
                 << " compressed with flow ID " << flow_id
-                << " and got message result " << message_result;
+                << " and got message status " << message_status;
 }
 
 void MasqueClientSession::RegisterConnectionId(
@@ -225,7 +189,7 @@ void MasqueClientSession::OnConnectionClosed(
     ConnectionCloseSource source) {
   QuicSpdyClientSession::OnConnectionClosed(frame, source);
   // Close all encapsulated sessions.
-  for (auto client_state : connect_udp_client_states_) {
+  for (const auto& client_state : connect_udp_client_states_) {
     client_state.encapsulated_client_session()->CloseConnection(
         QUIC_CONNECTION_CANCELLED, "Underlying MASQUE connection was closed",
         ConnectionCloseBehavior::SILENT_CLOSE);
@@ -251,6 +215,57 @@ void MasqueClientSession::OnStreamClosed(QuicStreamId stream_id) {
   }
 
   QuicSpdyClientSession::OnStreamClosed(stream_id);
+}
+
+MasqueClientSession::ConnectUdpClientState::ConnectUdpClientState(
+    QuicSpdyClientStream* stream,
+    EncapsulatedClientSession* encapsulated_client_session,
+    MasqueClientSession* masque_session,
+    QuicDatagramFlowId flow_id,
+    const QuicSocketAddress& target_server_address)
+    : stream_(stream),
+      encapsulated_client_session_(encapsulated_client_session),
+      masque_session_(masque_session),
+      flow_id_(flow_id),
+      target_server_address_(target_server_address) {
+  QUICHE_DCHECK_NE(masque_session_, nullptr);
+  masque_session_->RegisterHttp3FlowId(this->flow_id(), this);
+}
+
+MasqueClientSession::ConnectUdpClientState::~ConnectUdpClientState() {
+  if (flow_id_.has_value()) {
+    masque_session_->UnregisterHttp3FlowId(flow_id());
+  }
+}
+
+MasqueClientSession::ConnectUdpClientState::ConnectUdpClientState(
+    MasqueClientSession::ConnectUdpClientState&& other) {
+  *this = std::move(other);
+}
+
+MasqueClientSession::ConnectUdpClientState&
+MasqueClientSession::ConnectUdpClientState::operator=(
+    MasqueClientSession::ConnectUdpClientState&& other) {
+  stream_ = other.stream_;
+  encapsulated_client_session_ = other.encapsulated_client_session_;
+  masque_session_ = other.masque_session_;
+  flow_id_ = other.flow_id_;
+  target_server_address_ = other.target_server_address_;
+  other.flow_id_.reset();
+  if (flow_id_.has_value()) {
+    masque_session_->UnregisterHttp3FlowId(flow_id());
+    masque_session_->RegisterHttp3FlowId(flow_id(), this);
+  }
+  return *this;
+}
+
+void MasqueClientSession::ConnectUdpClientState::OnHttp3Datagram(
+    QuicDatagramFlowId flow_id,
+    absl::string_view payload) {
+  QUICHE_DCHECK_EQ(flow_id, this->flow_id());
+  encapsulated_client_session_->ProcessPacket(payload, target_server_address_);
+  QUIC_DVLOG(1) << "Sent " << payload.size()
+                << " bytes to connection for flow_id " << flow_id;
 }
 
 }  // namespace quic
