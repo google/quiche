@@ -4,6 +4,7 @@
 
 #include "quic/masque/masque_client_session.h"
 #include "absl/algorithm/container.h"
+#include "quic/core/http/spdy_utils.h"
 #include "quic/core/quic_data_reader.h"
 #include "common/platform/api/quiche_text_utils.h"
 
@@ -99,7 +100,7 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   headers[":scheme"] = "masque";
   headers[":path"] = "/";
   headers[":authority"] = target_server_address.ToString();
-  headers["datagram-flow-id"] = absl::StrCat(flow_id);
+  SpdyUtils::AddDatagramFlowIdHeader(&headers, flow_id);
   size_t bytes_sent =
       stream->SendRequest(std::move(headers), /*body=*/"", /*fin=*/false);
   if (bytes_sent == 0) {

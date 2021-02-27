@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/types/optional.h"
 #include "quic/core/http/http_constants.h"
 #include "quic/core/http/quic_header_list.h"
 #include "quic/core/quic_packets.h"
@@ -51,6 +52,15 @@ class QUIC_EXPORT_PRIVATE SpdyUtils {
   // which must be fully-qualified.
   static bool PopulateHeaderBlockFromUrl(const std::string url,
                                          spdy::SpdyHeaderBlock* headers);
+
+  // Parses the "datagram-flow-id" header, returns the flow ID on success, or
+  // returns absl::nullopt if the header was not present or failed to parse.
+  static absl::optional<QuicDatagramFlowId> ParseDatagramFlowIdHeader(
+      const spdy::SpdyHeaderBlock& headers);
+
+  // Adds the "datagram-flow-id" header.
+  static void AddDatagramFlowIdHeader(spdy::SpdyHeaderBlock* headers,
+                                      QuicDatagramFlowId flow_id);
 };
 
 }  // namespace quic

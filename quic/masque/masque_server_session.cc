@@ -8,6 +8,8 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
+#include "quic/core/http/spdy_utils.h"
 #include "quic/core/quic_data_reader.h"
 #include "quic/core/quic_udp_socket.h"
 #include "quic/tools/quic_url.h"
@@ -174,12 +176,10 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     auto path_pair = request_headers.find(":path");
     auto scheme_pair = request_headers.find(":scheme");
     auto method_pair = request_headers.find(":method");
-    auto flow_id_pair = request_headers.find("datagram-flow-id");
     auto authority_pair = request_headers.find(":authority");
     if (path_pair == request_headers.end() ||
         scheme_pair == request_headers.end() ||
         method_pair == request_headers.end() ||
-        flow_id_pair == request_headers.end() ||
         authority_pair == request_headers.end()) {
       QUIC_DLOG(ERROR) << "MASQUE request is missing required headers";
       return CreateBackendErrorResponse("400", "Missing required headers");
@@ -187,7 +187,6 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     absl::string_view path = path_pair->second;
     absl::string_view scheme = scheme_pair->second;
     absl::string_view method = method_pair->second;
-    absl::string_view flow_id_str = flow_id_pair->second;
     absl::string_view authority = authority_pair->second;
     if (path.empty()) {
       QUIC_DLOG(ERROR) << "MASQUE request with empty path";
@@ -201,11 +200,13 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
       QUIC_DLOG(ERROR) << "MASQUE request with bad method \"" << method << "\"";
       return CreateBackendErrorResponse("400", "Bad method");
     }
-    QuicDatagramFlowId flow_id;
-    if (!absl::SimpleAtoi(flow_id_str, &flow_id)) {
-      QUIC_DLOG(ERROR) << "MASQUE request with bad flow_id \"" << flow_id_str
-                       << "\"";
-      return CreateBackendErrorResponse("400", "Bad flow ID");
+    absl::optional<QuicDatagramFlowId> flow_id =
+        SpdyUtils::ParseDatagramFlowIdHeader(request_headers);
+    if (!flow_id.has_value()) {
+      QUIC_DLOG(ERROR)
+          << "MASQUE request with bad or missing DatagramFlowId header";
+      return CreateBackendErrorResponse("400",
+                                        "Bad or missing DatagramFlowId header");
     }
     QuicUrl url(absl::StrCat("https://", authority));
     if (!url.IsValid() || url.PathParamsQuery() != "/") {
@@ -232,7 +233,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
         info_list, freeaddrinfo);
     QuicSocketAddress target_server_address(info_list->ai_addr,
                                             info_list->ai_addrlen);
-    QUIC_DLOG(INFO) << "Got CONNECT_UDP request flow_id=" << flow_id
+    QUIC_DLOG(INFO) << "Got CONNECT_UDP request flow_id=" << *flow_id
                     << " target_server_address=\"" << target_server_address
                     << "\"";
 
@@ -250,12 +251,12 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     epoll_server_->RegisterFDForRead(fd_wrapper.fd(), this);
 
     connect_udp_server_states_.emplace_back(ConnectUdpServerState(
-        flow_id, request_handler->stream_id(), target_server_address,
+        *flow_id, request_handler->stream_id(), target_server_address,
         fd_wrapper.extract_fd(), this));
 
     spdy::Http2HeaderBlock response_headers;
     response_headers[":status"] = "200";
-    response_headers["datagram-flow-id"] = absl::StrCat(flow_id);
+    SpdyUtils::AddDatagramFlowIdHeader(&response_headers, *flow_id);
     auto response = std::make_unique<QuicBackendResponse>();
     response->set_response_type(QuicBackendResponse::INCOMPLETE_RESPONSE);
     response->set_headers(std::move(response_headers));

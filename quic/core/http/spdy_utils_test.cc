@@ -33,6 +33,14 @@ static std::unique_ptr<QuicHeaderList> FromList(
   return headers;
 }
 
+static void ValidateDatagramFlowId(
+    const std::string& header_value,
+    absl::optional<QuicDatagramFlowId> expected_flow_id) {
+  SpdyHeaderBlock headers;
+  headers["datagram-flow-id"] = header_value;
+  ASSERT_EQ(SpdyUtils::ParseDatagramFlowIdHeader(headers), expected_flow_id);
+}
+
 }  // anonymous namespace
 
 using CopyAndValidateHeaders = QuicTest;
@@ -375,6 +383,30 @@ TEST_F(PopulateHeaderBlockFromUrl, Failure) {
   EXPECT_FALSE(SpdyUtils::PopulateHeaderBlockFromUrl("/index.html", &headers));
   EXPECT_FALSE(
       SpdyUtils::PopulateHeaderBlockFromUrl("www.google.com/", &headers));
+}
+
+using DatagramFlowIdTest = QuicTest;
+
+TEST_F(DatagramFlowIdTest, DatagramFlowId) {
+  // Test missing header.
+  SpdyHeaderBlock headers;
+  EXPECT_EQ(SpdyUtils::ParseDatagramFlowIdHeader(headers), absl::nullopt);
+  // Add header and verify it parses.
+  QuicDatagramFlowId flow_id = 123;
+  SpdyUtils::AddDatagramFlowIdHeader(&headers, flow_id);
+  EXPECT_EQ(SpdyUtils::ParseDatagramFlowIdHeader(headers), flow_id);
+  // Test empty header.
+  ValidateDatagramFlowId("", absl::nullopt);
+  // Test invalid header.
+  ValidateDatagramFlowId("M4SQU3", absl::nullopt);
+  // Test simple header.
+  ValidateDatagramFlowId("42", 42);
+  // Test with parameter.
+  ValidateDatagramFlowId("42; abc=def", 42);
+  // Test list.
+  ValidateDatagramFlowId("42, 44; ecn-ect0, 46; ecn-ect1, 48; ecn-ce", 42);
+  // Test reordered list.
+  ValidateDatagramFlowId("44; ecn-ect0, 42, 48; ecn-ce, 46; ecn-ect1", 42);
 }
 
 }  // namespace test
