@@ -8,17 +8,16 @@ namespace quic {
 
 ParsedQuicVersionVector MasqueSupportedVersions() {
   QuicVersionInitializeSupportForIetfDraft();
-  ParsedQuicVersion version = UnsupportedQuicVersion();
-  for (const ParsedQuicVersion& vers : AllSupportedVersions()) {
-    // Find the first version that supports IETF QUIC.
-    if (vers.HasIetfQuicFrames() && vers.UsesTls()) {
-      version = vers;
-      break;
+  ParsedQuicVersionVector versions;
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    // Use all versions that support IETF QUIC.
+    if (version.UsesHttp3()) {
+      QuicEnableVersion(version);
+      versions.push_back(version);
     }
   }
-  QUICHE_CHECK(version.IsKnown());
-  QuicEnableVersion(version);
-  return {version};
+  QUICHE_CHECK(!versions.empty());
+  return versions;
 }
 
 QuicConfig MasqueEncapsulatedConfig() {
