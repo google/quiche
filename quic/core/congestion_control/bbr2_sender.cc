@@ -146,9 +146,7 @@ void Bbr2Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kB2H2)) {
     params_.limit_inflight_hi_by_max_delivered = true;
   }
-  if (GetQuicReloadableFlag(quic_bbr2_use_bytes_delivered) &&
-      ContainsQuicTag(connection_options, kB2DL)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_use_bytes_delivered);
+  if (ContainsQuicTag(connection_options, kB2DL)) {
     params_.use_bytes_delivered_for_inflight_hi = true;
   }
   if (ContainsQuicTag(connection_options, kB2RC)) {
