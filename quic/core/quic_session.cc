@@ -25,6 +25,7 @@
 #include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_server_stats.h"
 #include "quic/platform/api/quic_stack_trace.h"
+#include "common/platform/api/quiche_text_utils.h"
 
 using spdy::SpdyPriority;
 
@@ -368,8 +369,11 @@ void QuicSession::OnGoAway(const QuicGoAwayFrame& /*frame*/) {
 }
 
 void QuicSession::OnMessageReceived(absl::string_view message) {
-  QUIC_DVLOG(1) << ENDPOINT << "Received message, length: " << message.length()
-                << ", " << message;
+  QUIC_DVLOG(1) << ENDPOINT << "Received message of length "
+                << message.length();
+  QUIC_DVLOG(2) << ENDPOINT << "Contents of message of length "
+                << message.length() << ":" << std::endl
+                << quiche::QuicheTextUtils::HexDump(message);
 }
 
 void QuicSession::OnHandshakeDoneReceived() {
