@@ -1085,8 +1085,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
             << value;
         // Communicate |value| to encoder, because it is used for encoding
         // Required Insert Count.
-        bool success = qpack_encoder_->SetMaximumDynamicTableCapacity(value);
-        if (GetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2) && !success) {
+        if (!qpack_encoder_->SetMaximumDynamicTableCapacity(value)) {
           CloseConnectionWithDetails(
               was_zero_rtt_rejected()
                   ? QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH
@@ -1109,8 +1108,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         QUIC_DVLOG(1) << ENDPOINT
                       << "SETTINGS_MAX_FIELD_SECTION_SIZE received with value "
                       << value;
-        if (GetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2) &&
-            max_outbound_header_list_size_ !=
+        if (max_outbound_header_list_size_ !=
                 std::numeric_limits<size_t>::max() &&
             max_outbound_header_list_size_ > value) {
           CloseConnectionWithDetails(
@@ -1131,8 +1129,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         QUIC_DVLOG(1) << ENDPOINT
                       << "SETTINGS_QPACK_BLOCKED_STREAMS received with value "
                       << value;
-        bool success = qpack_encoder_->SetMaximumBlockedStreams(value);
-        if (GetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2) && !success) {
+        if (!qpack_encoder_->SetMaximumBlockedStreams(value)) {
           CloseConnectionWithDetails(
               was_zero_rtt_rejected()
                   ? QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH

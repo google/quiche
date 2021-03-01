@@ -36,9 +36,8 @@ bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
   } else {
     QUIC_RESTART_FLAG_COUNT_N(quic_session_tickets_always_enabled, 3, 3);
   }
-  if (GetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2) &&
-      (proof_source->GetTicketCrypter() ||
-       GetQuicRestartFlag(quic_session_tickets_always_enabled))) {
+  if (proof_source->GetTicketCrypter() ||
+      GetQuicRestartFlag(quic_session_tickets_always_enabled)) {
     SSL_CTX_set_early_data_enabled(ssl_ctx.get(), 1);
   }
   SSL_CTX_set_select_certificate_cb(

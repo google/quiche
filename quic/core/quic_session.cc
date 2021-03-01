@@ -1096,8 +1096,7 @@ bool QuicSession::OneRttKeysAvailable() const {
 void QuicSession::OnConfigNegotiated() {
   // In versions with TLS, the configs will be set twice if 0-RTT is available.
   // In the second config setting, 1-RTT keys are guaranteed to be available.
-  if (GetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2) &&
-      version().UsesTls() && is_configured_ &&
+  if (version().UsesTls() && is_configured_ &&
       connection_->encryption_level() != ENCRYPTION_FORWARD_SECURE) {
     QUIC_BUG
         << ENDPOINT
@@ -1296,8 +1295,7 @@ void QuicSession::OnConfigNegotiated() {
   // Or if this session is configured on TLS enabled QUIC versions,
   // attempt to retransmit 0-RTT data if there's any.
   if (connection_->version().AllowsLowFlowControlLimits() ||
-      (GetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2) &&
-       version().UsesTls())) {
+      version().UsesTls()) {
     OnCanWrite();
   }
 }

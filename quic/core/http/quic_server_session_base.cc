@@ -40,9 +40,7 @@ void QuicServerSessionBase::Initialize() {
   crypto_stream_ =
       CreateQuicCryptoServerStream(crypto_config_, compressed_certs_cache_);
   QuicSpdySession::Initialize();
-  if (GetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2)) {
-    SendSettingsToCryptoStream();
-  }
+  SendSettingsToCryptoStream();
 }
 
 void QuicServerSessionBase::OnConfigNegotiated() {

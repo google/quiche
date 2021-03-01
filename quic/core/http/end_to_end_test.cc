@@ -198,7 +198,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     AddToCache("/foo", 200, kFooResponseBody);
     AddToCache("/bar", 200, kBarResponseBody);
     // Enable fixes for bugs found in tests and prod.
-    SetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2, true);
   }
 
   ~EndToEndTest() override { QuicRecyclePort(server_address_.port()); }
