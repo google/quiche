@@ -60,13 +60,13 @@ class FdWrapper {
 
 std::unique_ptr<QuicBackendResponse> CreateBackendErrorResponse(
     absl::string_view status,
-    absl::string_view body) {
+    absl::string_view error_details) {
   spdy::Http2HeaderBlock response_headers;
   response_headers[":status"] = status;
+  response_headers["masque-debug-info"] = error_details;
   auto response = std::make_unique<QuicBackendResponse>();
   response->set_response_type(QuicBackendResponse::REGULAR_RESPONSE);
   response->set_headers(std::move(response_headers));
-  response->set_body(body);
   return response;
 }
 
@@ -177,12 +177,21 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     auto scheme_pair = request_headers.find(":scheme");
     auto method_pair = request_headers.find(":method");
     auto authority_pair = request_headers.find(":authority");
-    if (path_pair == request_headers.end() ||
-        scheme_pair == request_headers.end() ||
-        method_pair == request_headers.end() ||
-        authority_pair == request_headers.end()) {
-      QUIC_DLOG(ERROR) << "MASQUE request is missing required headers";
-      return CreateBackendErrorResponse("400", "Missing required headers");
+    if (path_pair == request_headers.end()) {
+      QUIC_DLOG(ERROR) << "MASQUE request is missing :path";
+      return CreateBackendErrorResponse("400", "Missing :path");
+    }
+    if (scheme_pair == request_headers.end()) {
+      QUIC_DLOG(ERROR) << "MASQUE request is missing :scheme";
+      return CreateBackendErrorResponse("400", "Missing :scheme");
+    }
+    if (method_pair == request_headers.end()) {
+      QUIC_DLOG(ERROR) << "MASQUE request is missing :method";
+      return CreateBackendErrorResponse("400", "Missing :method");
+    }
+    if (authority_pair == request_headers.end()) {
+      QUIC_DLOG(ERROR) << "MASQUE request is missing :authority";
+      return CreateBackendErrorResponse("400", "Missing :authority");
     }
     absl::string_view path = path_pair->second;
     absl::string_view scheme = scheme_pair->second;
@@ -380,9 +389,10 @@ void MasqueServerSession::OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) {
     MessageStatus message_status = SendHttp3Datagram(
         flow_id, absl::string_view(read_result.packet_buffer.buffer,
                                    read_result.packet_buffer.buffer_len));
-    QUIC_DVLOG(1) << "Sent UDP packet from target server of length "
-                  << read_result.packet_buffer.buffer_len << " with flow ID "
-                  << flow_id << " and got message status " << message_status;
+    QUIC_DVLOG(1) << "Sent UDP packet from " << expected_target_server_address
+                  << " of length " << read_result.packet_buffer.buffer_len
+                  << " with flow ID " << flow_id << " and got message status "
+                  << MessageStatusToString(message_status);
   }
 }
 
@@ -467,7 +477,8 @@ void MasqueServerSession::ConnectUdpServerState::OnHttp3Datagram(
   packet_info.SetPeerAddress(target_server_address_);
   WriteResult write_result = socket_api.WritePacket(
       fd_, payload.data(), payload.length(), packet_info);
-  QUIC_DVLOG(1) << "Wrote packet to server with result " << write_result;
+  QUIC_DVLOG(1) << "Wrote packet of length " << payload.length() << " to "
+                << target_server_address_ << " with result " << write_result;
 }
 
 }  // namespace quic
