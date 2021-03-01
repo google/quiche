@@ -14,6 +14,7 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_socket_address.h"
+#include "quic/platform/api/quic_system_event_loop.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
                               port,
@@ -42,6 +43,7 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
                               "open and legacy. Defaults to open.");
 
 int main(int argc, char* argv[]) {
+  QuicSystemEventLoop event_loop("masque_server");
   const char* usage = "Usage: masque_server [options]";
   std::vector<std::string> non_option_args =
       quic::QuicParseCommandLineFlags(usage, argc, argv);
