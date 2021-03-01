@@ -558,16 +558,9 @@ TEST_F(Http2FrameDecoderTest, PriorityUpdatePayload) {
   };
   Http2FrameHeader header(7, Http2FrameType::PRIORITY_UPDATE, 0, 0);
 
-  if (GetHttp2RestartFlag(http2_parse_priority_update_frame)) {
-    FrameParts expected(header, "abc");
-    expected.SetOptPriorityUpdate(Http2PriorityUpdateFields{5});
-    EXPECT_TRUE(DecodePayloadAndValidateSeveralWays(kFrameData, expected));
-  } else {
-    FrameParts expected(header, absl::string_view("\x00\x00\x00\x05"
-                                                  "abc",
-                                                  7));
-    EXPECT_TRUE(DecodePayloadAndValidateSeveralWays(kFrameData, expected));
-  }
+  FrameParts expected(header, "abc");
+  expected.SetOptPriorityUpdate(Http2PriorityUpdateFields{5});
+  EXPECT_TRUE(DecodePayloadAndValidateSeveralWays(kFrameData, expected));
 }
 
 TEST_F(Http2FrameDecoderTest, UnknownPayload) {

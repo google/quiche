@@ -48,12 +48,8 @@ enum class Http2FrameType : uint8_t {
 
 // Is the frame type known/supported?
 inline bool IsSupportedHttp2FrameType(uint32_t v) {
-  if (GetHttp2RestartFlag(http2_parse_priority_update_frame) &&
-      v == static_cast<uint32_t>(Http2FrameType::PRIORITY_UPDATE)) {
-    return true;
-  }
-
-  return v <= static_cast<uint32_t>(Http2FrameType::ALTSVC);
+  return v <= static_cast<uint32_t>(Http2FrameType::ALTSVC) ||
+         v == static_cast<uint32_t>(Http2FrameType::PRIORITY_UPDATE);
 }
 inline bool IsSupportedHttp2FrameType(Http2FrameType v) {
   return IsSupportedHttp2FrameType(static_cast<uint32_t>(v));

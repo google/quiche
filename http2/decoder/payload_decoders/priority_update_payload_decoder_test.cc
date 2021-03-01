@@ -61,31 +61,14 @@ struct Listener : public FramePartsCollector {
   }
 };
 
-// Avoid initialization of test class when flag is false, because base class
-// method AbstractPayloadDecoderTest::SetUp() crashes if
-// IsSupportedHttp2FrameType(PRIORITY_UPDATE) returns false.
-std::vector<bool> GetTestParams() {
-  if (GetHttp2RestartFlag(http2_parse_priority_update_frame)) {
-    return {true};  // Actual Boolean value is ignored.
-  } else {
-    return {};
-  }
-}
-
 class PriorityUpdatePayloadDecoderTest
     : public AbstractPayloadDecoderTest<PriorityUpdatePayloadDecoder,
                                         PriorityUpdatePayloadDecoderPeer,
-                                        Listener>,
-      public ::testing::WithParamInterface<bool> {};
-
-INSTANTIATE_TEST_SUITE_P(MaybeRunTest,
-                         PriorityUpdatePayloadDecoderTest,
-                         ::testing::ValuesIn(GetTestParams()));
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(PriorityUpdatePayloadDecoderTest);
+                                        Listener> {};
 
 // Confirm we get an error if the payload is not long enough to hold
 // Http2PriorityUpdateFields.
-TEST_P(PriorityUpdatePayloadDecoderTest, Truncated) {
+TEST_F(PriorityUpdatePayloadDecoderTest, Truncated) {
   auto approve_size = [](size_t size) {
     return size != Http2PriorityUpdateFields::EncodedSize();
   };
@@ -98,9 +81,9 @@ class PriorityUpdatePayloadLengthTests
     : public AbstractPayloadDecoderTest<PriorityUpdatePayloadDecoder,
                                         PriorityUpdatePayloadDecoderPeer,
                                         Listener>,
-      public ::testing::WithParamInterface<std::tuple<uint32_t, bool>> {
+      public ::testing::WithParamInterface<uint32_t> {
  protected:
-  PriorityUpdatePayloadLengthTests() : length_(std::get<0>(GetParam())) {
+  PriorityUpdatePayloadLengthTests() : length_(GetParam()) {
     HTTP2_VLOG(1) << "################  length_=" << length_
                   << "  ################";
   }
@@ -108,12 +91,9 @@ class PriorityUpdatePayloadLengthTests
   const uint32_t length_;
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    VariousLengths,
-    PriorityUpdatePayloadLengthTests,
-    ::testing::Combine(::testing::Values(0, 1, 2, 3, 4, 5, 6),
-                       ::testing::ValuesIn(GetTestParams())));
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(PriorityUpdatePayloadLengthTests);
+INSTANTIATE_TEST_SUITE_P(VariousLengths,
+                         PriorityUpdatePayloadLengthTests,
+                         ::testing::Values(0, 1, 2, 3, 4, 5, 6));
 
 TEST_P(PriorityUpdatePayloadLengthTests, ValidLength) {
   Http2PriorityUpdateFields priority_update;
