@@ -60,7 +60,7 @@ enum : QuicByteCount {
 // SETTINGS_QPACK_BLOCKED_STREAMS.
 enum : uint64_t { kDefaultMaximumBlockedStreams = 100 };
 
-QUIC_EXPORT_PRIVATE ABSL_CONST_INIT extern const absl::string_view
+ABSL_CONST_INIT QUIC_EXPORT_PRIVATE extern const absl::string_view
     kUserAgentHeaderName;
 
 }  // namespace quic
