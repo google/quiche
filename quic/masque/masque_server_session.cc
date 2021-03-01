@@ -60,13 +60,13 @@ class FdWrapper {
 
 std::unique_ptr<QuicBackendResponse> CreateBackendErrorResponse(
     absl::string_view status,
-    absl::string_view body) {
+    absl::string_view error_details) {
   spdy::Http2HeaderBlock response_headers;
   response_headers[":status"] = status;
+  response_headers["masque-debug-info"] = error_details;
   auto response = std::make_unique<QuicBackendResponse>();
   response->set_response_type(QuicBackendResponse::REGULAR_RESPONSE);
   response->set_headers(std::move(response_headers));
-  response->set_body(body);
   return response;
 }
 
@@ -177,12 +177,21 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     auto scheme_pair = request_headers.find(":scheme");
     auto method_pair = request_headers.find(":method");
     auto authority_pair = request_headers.find(":authority");
-    if (path_pair == request_headers.end() ||
-        scheme_pair == request_headers.end() ||
-        method_pair == request_headers.end() ||
-        authority_pair == request_headers.end()) {
-      QUIC_DLOG(ERROR) << "MASQUE request is missing required headers";
-      return CreateBackendErrorResponse("400", "Missing required headers");
+    if (path_pair == request_headers.end()) {
+      QUIC_DLOG(ERROR) << "MASQUE request is missing :path";
+      return CreateBackendErrorResponse("400", "Missing :path");
+    }
+    if (scheme_pair == request_headers.end()) {
+      QUIC_DLOG(ERROR) << "MASQUE request is missing :scheme";
+      return CreateBackendErrorResponse("400", "Missing :scheme");
+    }
+    if (method_pair == request_headers.end()) {
+      QUIC_DLOG(ERROR) << "MASQUE request is missing :method";
+      return CreateBackendErrorResponse("400", "Missing :method");
+    }
+    if (authority_pair == request_headers.end()) {
+      QUIC_DLOG(ERROR) << "MASQUE request is missing :authority";
+      return CreateBackendErrorResponse("400", "Missing :authority");
     }
     absl::string_view path = path_pair->second;
     absl::string_view scheme = scheme_pair->second;

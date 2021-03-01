@@ -21,20 +21,20 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
     const spdy::Http2HeaderBlock& request_headers,
     const std::string& request_body,
     QuicSimpleServerBackend::RequestHandler* request_handler) {
-  auto path_pair = request_headers.find(":path");
-  auto method_pair = request_headers.find(":method");
-  auto scheme_pair = request_headers.find(":scheme");
-  if (path_pair == request_headers.end() ||
-      method_pair == request_headers.end() ||
-      scheme_pair == request_headers.end()) {
-    // This request is missing required headers.
-    return false;
-  }
-  absl::string_view path = path_pair->second;
-  absl::string_view scheme = scheme_pair->second;
-  absl::string_view method = method_pair->second;
   std::string masque_path = "";
   if (masque_mode_ == MasqueMode::kLegacy) {
+    auto path_pair = request_headers.find(":path");
+    auto method_pair = request_headers.find(":method");
+    auto scheme_pair = request_headers.find(":scheme");
+    if (path_pair == request_headers.end() ||
+        method_pair == request_headers.end() ||
+        scheme_pair == request_headers.end()) {
+      // This request is missing required headers.
+      return false;
+    }
+    absl::string_view path = path_pair->second;
+    absl::string_view scheme = scheme_pair->second;
+    absl::string_view method = method_pair->second;
     if (scheme != "https" || method != "POST" || request_body.empty()) {
       // MASQUE requests MUST be a non-empty https POST.
       return false;
@@ -45,11 +45,6 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
       return false;
     }
     masque_path = std::string(path.substr(sizeof("/.well-known/masque/") - 1));
-  } else {
-    if (method != "CONNECT-UDP") {
-      // Unexpected method.
-      return false;
-    }
   }
 
   if (!server_authority_.empty()) {

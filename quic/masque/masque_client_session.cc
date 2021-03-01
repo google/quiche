@@ -6,6 +6,7 @@
 #include "absl/algorithm/container.h"
 #include "quic/core/http/spdy_utils.h"
 #include "quic/core/quic_data_reader.h"
+#include "quic/core/quic_utils.h"
 #include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -198,6 +199,16 @@ void MasqueClientSession::OnConnectionClosed(
 }
 
 void MasqueClientSession::OnStreamClosed(QuicStreamId stream_id) {
+  if (QuicUtils::IsBidirectionalStreamId(stream_id, version()) &&
+      QuicUtils::IsClientInitiatedStreamId(transport_version(), stream_id)) {
+    QuicSpdyClientStream* stream =
+        reinterpret_cast<QuicSpdyClientStream*>(GetActiveStream(stream_id));
+    if (stream != nullptr) {
+      QUIC_DLOG(INFO) << "Stream " << stream_id
+                      << " closed, got response headers:"
+                      << stream->response_headers().DebugString();
+    }
+  }
   for (auto it = connect_udp_client_states_.begin();
        it != connect_udp_client_states_.end();) {
     if (it->stream()->id() == stream_id) {
