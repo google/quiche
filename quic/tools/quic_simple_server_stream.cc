@@ -153,11 +153,22 @@ void QuicSimpleServerStream::SendResponse() {
     return;
   }
 
-  if (!QuicContainsKey(request_headers_, ":authority") ||
-      !QuicContainsKey(request_headers_, ":path")) {
-    QUIC_DVLOG(1) << "Request headers do not contain :authority or :path.";
+  if (!QuicContainsKey(request_headers_, ":authority")) {
+    QUIC_DVLOG(1) << "Request headers do not contain :authority.";
     SendErrorResponse();
     return;
+  }
+
+  if (!QuicContainsKey(request_headers_, ":path")) {
+    // CONNECT and other CONNECT-like methods (such as CONNECT-UDP) do not all
+    // require :path to be present.
+    auto it = request_headers_.find(":method");
+    if (it == request_headers_.end() ||
+        !absl::StartsWith(it->second, "CONNECT")) {
+      QUIC_DVLOG(1) << "Request headers do not contain :path.";
+      SendErrorResponse();
+      return;
+    }
   }
 
   if (quic_simple_server_backend_ == nullptr) {

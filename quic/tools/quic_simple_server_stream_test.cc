@@ -77,6 +77,9 @@ class TestStream : public QuicSimpleServerStream {
   const std::string& body() const { return body_; }
   int content_length() const { return content_length_; }
   bool send_response_was_called() const { return send_response_was_called_; }
+  bool send_error_response_was_called() const {
+    return send_error_response_was_called_;
+  }
 
   absl::string_view GetHeader(absl::string_view key) const {
     auto it = request_headers_.find(key);
@@ -90,8 +93,14 @@ class TestStream : public QuicSimpleServerStream {
     QuicSimpleServerStream::SendResponse();
   }
 
+  void SendErrorResponse() override {
+    send_error_response_was_called_ = true;
+    QuicSimpleServerStream::SendErrorResponse();
+  }
+
  private:
   bool send_response_was_called_ = false;
+  bool send_error_response_was_called_ = false;
 };
 
 namespace {
@@ -778,6 +787,7 @@ TEST_P(QuicSimpleServerStreamTest, ConnectSendsResponseBeforeFinReceived) {
   EXPECT_EQ("CONNECT-SILLY", StreamHeadersValue(":method"));
   EXPECT_EQ(body_, StreamBody());
   EXPECT_TRUE(stream_->send_response_was_called());
+  EXPECT_FALSE(stream_->send_error_response_was_called());
 }
 
 }  // namespace
