@@ -743,6 +743,22 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
       << context->connection_id() << " which is invalid with version "
       << context->version();
 
+  if (context->validate_chlo_result()->postpone_cert_validate_for_server &&
+      context->info().reject_reasons.empty()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_crypto_postpone_cert_validate_for_server);
+    if (!context->signed_config() || !context->signed_config()->chain) {
+      // No chain.
+      context->validate_chlo_result()->info.reject_reasons.push_back(
+          SERVER_CONFIG_UNKNOWN_CONFIG_FAILURE);
+    } else if (!ValidateExpectedLeafCertificate(
+                   context->client_hello(),
+                   context->signed_config()->chain->certs)) {
+      // Has chain but leaf is invalid.
+      context->validate_chlo_result()->info.reject_reasons.push_back(
+          INVALID_EXPECTED_LEAF_CERTIFICATE);
+    }
+  }
+
   if (found_error) {
     context->Fail(QUIC_HANDSHAKE_FAILED, "Failed to get proof");
     return;
@@ -1276,13 +1292,15 @@ void QuicCryptoServerConfig::EvaluateClientHello(
     // No valid source address token.
   }
 
-  QuicReferenceCountedPointer<ProofSource::Chain> chain =
-      proof_source_->GetCertChain(server_address, client_address,
-                                  std::string(info->sni));
-  if (!chain) {
-    info->reject_reasons.push_back(SERVER_CONFIG_UNKNOWN_CONFIG_FAILURE);
-  } else if (!ValidateExpectedLeafCertificate(client_hello, chain->certs)) {
-    info->reject_reasons.push_back(INVALID_EXPECTED_LEAF_CERTIFICATE);
+  if (!client_hello_state->postpone_cert_validate_for_server) {
+    QuicReferenceCountedPointer<ProofSource::Chain> chain =
+        proof_source_->GetCertChain(server_address, client_address,
+                                    std::string(info->sni));
+    if (!chain) {
+      info->reject_reasons.push_back(SERVER_CONFIG_UNKNOWN_CONFIG_FAILURE);
+    } else if (!ValidateExpectedLeafCertificate(client_hello, chain->certs)) {
+      info->reject_reasons.push_back(INVALID_EXPECTED_LEAF_CERTIFICATE);
+    }
   }
 
   if (info->client_nonce.size() != kNonceSize) {

@@ -796,7 +796,8 @@ void QuicTestClient::OnClose(QuicSpdyStream* stream) {
   closed_stream_states_.insert(std::make_pair(
       id,
       PerStreamState(
-          client_stream->stream_error(), true,
+          // Set response_complete to true iff stream is closed while connected.
+          client_stream->stream_error(), connected(),
           client_stream->headers_decompressed(),
           client_stream->response_headers(),
           client_stream->preliminary_headers(),
