@@ -152,6 +152,16 @@ TransmissionType QuicCoalescedPacket::TransmissionTypeOfPacket(
   return transmission_types_[level];
 }
 
+size_t QuicCoalescedPacket::NumberOfPackets() const {
+  size_t num_of_packets = 0;
+  for (int8_t i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
+    if (ContainsPacketOfEncryptionLevel(static_cast<EncryptionLevel>(i))) {
+      ++num_of_packets;
+    }
+  }
+  return num_of_packets;
+}
+
 std::string QuicCoalescedPacket::ToString(size_t serialized_length) const {
   // Total length and padding size.
   std::string info = absl::StrCat(

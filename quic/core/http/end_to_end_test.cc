@@ -2385,6 +2385,50 @@ TEST_P(EndToEndTest, ResetConnection) {
   SendSynchronousBarRequestAndCheckResponse();
 }
 
+// Regression test for b/180737158.
+TEST_P(
+    EndToEndTest,
+    HalfRttResponseBlocksShloRetransmissionWithoutTokenBasedAddressValidation) {
+  // Turn off token based address validation to make the server get constrained
+  // by amplification factor during handshake.
+  // TODO(fayang): Keep this test while deprecating
+  // quic_enable_token_based_address_validation. For example, consider always
+  // rejecting the received address token.
+  SetQuicReloadableFlag(quic_enable_token_based_address_validation, false);
+  ASSERT_TRUE(Initialize());
+  if (!version_.SupportsAntiAmplificationLimit()) {
+    return;
+  }
+  // Perform a full 1-RTT handshake to get the new session ticket such that the
+  // next connection will perform a 0-RTT handshake.
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  client_->Disconnect();
+
+  server_thread_->Pause();
+  // Drop the 1st server packet which is the coalesced INITIAL + HANDSHAKE +
+  // 1RTT.
+  PacketDroppingTestWriter* writer = new PacketDroppingTestWriter();
+  writer->set_fake_drop_first_n_packets(1);
+  QuicDispatcherPeer::UseWriter(
+      QuicServerPeer::GetDispatcher(server_thread_->server()), writer);
+  server_thread_->Resume();
+
+  // Large response (100KB) for 0-RTT request.
+  std::string large_body(102400, 'a');
+  AddToCache("/large_response", 200, large_body);
+  if (GetQuicReloadableFlag(quic_preempt_stream_data_with_handshake_packet)) {
+    SendSynchronousRequestAndCheckResponse(client_.get(), "/large_response",
+                                           large_body);
+  } else {
+    // Server consistently gets constrained by amplification factor, hence PTO
+    // never gets armed. The CHLO retransmission would trigger the
+    // retransmission of SHLO, however, the ENCRYPTION_HANDSHAKE packet NEVER
+    // gets retransmitted since half RTT data consumes the remaining space in
+    // the coalescer.
+    EXPECT_EQ("", client_->SendSynchronousRequest("/large_response"));
+  }
+}
+
 TEST_P(EndToEndTest, MaxStreamsUberTest) {
   // Connect with lower fake packet loss than we'd like to test.  Until
   // b/10126687 is fixed, losing handshake packets is pretty brutal.

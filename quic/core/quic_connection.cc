@@ -2315,6 +2315,21 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
       QuicUtils::IsCryptoStreamId(transport_version(), id)) {
     MaybeActivateLegacyVersionEncapsulation();
   }
+  if (GetQuicReloadableFlag(quic_preempt_stream_data_with_handshake_packet) &&
+      perspective_ == Perspective::IS_SERVER &&
+      version().CanSendCoalescedPackets() && !IsHandshakeConfirmed()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_preempt_stream_data_with_handshake_packet,
+                                 1, 2);
+    if (coalesced_packet_.ContainsPacketOfEncryptionLevel(ENCRYPTION_INITIAL) &&
+        coalesced_packet_.NumberOfPackets() == 1u) {
+      // Handshake is not confirmed yet, if there is only an initial packet in
+      // the coalescer, try to bundle an ENCRYPTION_HANDSHAKE packet before
+      // sending stream data.
+      QUIC_RELOADABLE_FLAG_COUNT_N(
+          quic_preempt_stream_data_with_handshake_packet, 2, 2);
+      sent_packet_manager_.RetransmitDataOfSpaceIfAny(HANDSHAKE_DATA);
+    }
+  }
   QuicConsumedData consumed_data(0, false);
   {
     // Opportunistically bundle an ack with every outgoing packet.

@@ -46,6 +46,9 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
   // when this coalesced packet contains packet of |level|.
   TransmissionType TransmissionTypeOfPacket(EncryptionLevel level) const;
 
+  // Returns number of packets contained in this coalesced packet.
+  size_t NumberOfPackets() const;
+
   const SerializedPacket* initial_packet() const {
     return initial_packet_.get();
   }
