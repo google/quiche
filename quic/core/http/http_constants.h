@@ -38,6 +38,8 @@ enum Http3AndQpackSettingsIdentifiers : uint64_t {
   SETTINGS_QPACK_BLOCKED_STREAMS = 0x07,
   // draft-ietf-masque-h3-datagram.
   SETTINGS_H3_DATAGRAM = 0x276,
+  // draft-ietf-webtrans-http3-00
+  SETTINGS_WEBTRANS_DRAFT00 = 0x2b603742,
 };
 
 // Returns HTTP/3 SETTINGS identifier as a string.

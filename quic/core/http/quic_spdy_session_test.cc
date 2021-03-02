@@ -353,6 +353,9 @@ class TestSession : public QuicSpdySession {
                       GetEncryptionLevelToSendApplicationData());
   }
 
+  bool ShouldNegotiateWebTransport() override { return supports_webtransport_; }
+  void set_supports_webtransport(bool value) { supports_webtransport_ = value; }
+
   MOCK_METHOD(void, OnAcceptChFrame, (const AcceptChFrame&), (override));
 
   using QuicSession::closed_streams;
@@ -364,6 +367,7 @@ class TestSession : public QuicSpdySession {
   StrictMock<TestCryptoStream> crypto_stream_;
 
   bool writev_consumes_all_data_;
+  bool supports_webtransport_ = false;
 };
 
 class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
@@ -3386,6 +3390,36 @@ TEST_P(QuicSpdySessionTestClient, SendHttp3Datagram) {
       .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
   EXPECT_EQ(session_.SendHttp3Datagram(flow_id, h3_datagram_payload),
             MESSAGE_STATUS_SUCCESS);
+}
+
+TEST_P(QuicSpdySessionTestClient, WebTransportSetting) {
+  if (!version().UsesHttp3()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_h3_datagram, true);
+  session_.set_supports_webtransport(true);
+
+  EXPECT_FALSE(session_.SupportsWebTransport());
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  // Note that this does not actually fill out correct settings because the
+  // settings are filled in at the construction time.
+  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
+  session_.set_debug_visitor(&debug_visitor);
+  CompleteHandshake();
+
+  SettingsFrame server_settings;
+  server_settings.values[SETTINGS_H3_DATAGRAM] = 1;
+  server_settings.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
+  std::string data =
+      std::string(1, kControlStream) + EncodeSettings(server_settings);
+  QuicStreamId stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
+  QuicStreamFrame frame(stream_id, /*fin=*/false, /*offset=*/0, data);
+  EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(stream_id));
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(server_settings));
+  session_.OnStreamFrame(frame);
+  EXPECT_TRUE(session_.SupportsWebTransport());
 }
 
 }  // namespace

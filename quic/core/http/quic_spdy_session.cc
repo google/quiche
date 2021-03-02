@@ -570,6 +570,9 @@ void QuicSpdySession::FillSettingsFrame() {
     QUIC_RELOADABLE_FLAG_COUNT(quic_h3_datagram);
     settings_.values[SETTINGS_H3_DATAGRAM] = 1;
   }
+  if (WillNegotiateWebTransport()) {
+    settings_.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
+  }
 }
 
 void QuicSpdySession::OnDecoderStreamError(QuicErrorCode error_code,
@@ -948,6 +951,15 @@ void QuicSpdySession::OnNewEncryptionKeyAvailable(
   }
 }
 
+bool QuicSpdySession::ShouldNegotiateWebTransport() {
+  return false;
+}
+
+bool QuicSpdySession::WillNegotiateWebTransport() {
+  return GetQuicReloadableFlag(quic_h3_datagram) && version().UsesHttp3() &&
+         ShouldNegotiateWebTransport();
+}
+
 // True if there are open HTTP requests.
 bool QuicSpdySession::ShouldKeepConnectionAlive() const {
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()) ||
@@ -1176,6 +1188,9 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         h3_datagram_supported_ = !!value;
         break;
       }
+      case SETTINGS_WEBTRANS_DRAFT00:
+        peer_supports_webtransport_ = true;
+        break;
       default:
         QUIC_DVLOG(1) << ENDPOINT << "Unknown setting identifier " << id
                       << " received with value " << value;
@@ -1736,6 +1751,11 @@ void QuicSpdySession::OnMessageReceived(absl::string_view message) {
   }
   absl::string_view payload = reader.ReadRemainingPayload();
   it->second->OnHttp3Datagram(flow_id, payload);
+}
+
+bool QuicSpdySession::SupportsWebTransport() {
+  return WillNegotiateWebTransport() && h3_datagram_supported_ &&
+         peer_supports_webtransport_;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

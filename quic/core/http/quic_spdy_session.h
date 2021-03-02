@@ -448,6 +448,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Override from QuicSession to support HTTP/3 datagrams.
   void OnMessageReceived(absl::string_view message) override;
 
+  // Indicates whether the HTTP/3 session supports WebTransport.
+  bool SupportsWebTransport();
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to
@@ -466,6 +469,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // true.
   virtual bool ShouldCreateOutgoingBidirectionalStream() = 0;
   virtual bool ShouldCreateOutgoingUnidirectionalStream() = 0;
+
+  // Indicates whether the underlying backend can accept and process
+  // WebTransport sessions over HTTP/3.
+  virtual bool ShouldNegotiateWebTransport();
+  bool WillNegotiateWebTransport();
 
   // Returns true if there are open HTTP requests.
   bool ShouldKeepConnectionAlive() const override;
@@ -657,6 +665,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Whether both this endpoint and our peer support HTTP/3 datagrams.
   bool h3_datagram_supported_ = false;
+
+  // Whether the peer has indicated WebTransport support.
+  bool peer_supports_webtransport_ = false;
 
   absl::flat_hash_map<QuicDatagramFlowId, Http3DatagramVisitor*>
       h3_datagram_registrations_;
