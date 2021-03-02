@@ -339,6 +339,21 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
 
 void QuicSentPacketManager::ApplyConnectionOptions(
     const QuicTagVector& connection_options) {
+  absl::optional<CongestionControlType> cc_type;
+  if (ContainsQuicTag(connection_options, kB2ON)) {
+    cc_type = kBBRv2;
+  } else if (ContainsQuicTag(connection_options, kTBBR)) {
+    cc_type = kBBR;
+  } else if (ContainsQuicTag(connection_options, kRENO)) {
+    cc_type = kRenoBytes;
+  } else if (ContainsQuicTag(connection_options, kQBIC)) {
+    cc_type = kCubicBytes;
+  }
+
+  if (cc_type.has_value()) {
+    SetSendAlgorithm(*cc_type);
+  }
+
   send_algorithm_->ApplyConnectionOptions(connection_options);
 }
 
