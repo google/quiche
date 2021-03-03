@@ -833,7 +833,10 @@ void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
       // A previous GOAWAY frame was sent with smaller stream ID.  This is not
       // possible, because the only time a GOAWAY frame with non-maximal
       // stream ID is sent is right before closing connection.
-      QUIC_BUG << "GOAWAY frame with smaller ID already sent.";
+      QUIC_BUG << "Not sending GOAWAY frame with " << stream_id
+               << " because one with " << last_sent_http3_goaway_id_.value()
+               << " already sent on connection "
+               << connection()->connection_id();
       return;
     }
   }
@@ -1519,7 +1522,9 @@ void QuicSpdySession::BeforeConnectionCloseSent() {
     // possible, because this is the only method sending a GOAWAY frame with
     // non-maximal stream ID, and this must only be called once, right
     // before closing connection.
-    QUIC_BUG << "GOAWAY frame with smaller ID already sent.";
+    QUIC_BUG << "Not sending GOAWAY frame with " << stream_id
+             << " because one with " << last_sent_http3_goaway_id_.value()
+             << " already sent on connection " << connection()->connection_id();
 
     // MUST not send GOAWAY with identifier larger than previously sent.
     // Do not bother sending one with same identifier as before, since GOAWAY
