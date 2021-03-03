@@ -1438,6 +1438,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                                bool missing_retry_id_in_config,
                                bool wrong_retry_id_in_config);
 
+  void TestReplaceConnectionIdFromInitial();
+
   QuicConnectionId connection_id_;
   QuicFramer framer_;
 
@@ -9266,7 +9268,7 @@ TEST_P(QuicConnectionTest, ValidClientConnectionId) {
   frames.push_back(QuicFrame(ping_frame));
   frames.push_back(QuicFrame(padding_frame));
   std::unique_ptr<QuicPacket> packet =
-      BuildUnsizedDataPacket(&framer_, header, frames);
+      BuildUnsizedDataPacket(&peer_framer_, header, frames);
   char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length = peer_framer_.EncryptPayload(
       ENCRYPTION_FORWARD_SECURE, QuicPacketNumber(1), *packet, buffer,
@@ -9294,7 +9296,7 @@ TEST_P(QuicConnectionTest, InvalidClientConnectionId) {
   frames.push_back(QuicFrame(ping_frame));
   frames.push_back(QuicFrame(padding_frame));
   std::unique_ptr<QuicPacket> packet =
-      BuildUnsizedDataPacket(&framer_, header, frames);
+      BuildUnsizedDataPacket(&peer_framer_, header, frames);
   char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length = peer_framer_.EncryptPayload(
       ENCRYPTION_FORWARD_SECURE, QuicPacketNumber(1), *packet, buffer,
@@ -9322,7 +9324,7 @@ TEST_P(QuicConnectionTest, UpdateClientConnectionIdFromFirstPacket) {
   frames.push_back(QuicFrame(ping_frame));
   frames.push_back(QuicFrame(padding_frame));
   std::unique_ptr<QuicPacket> packet =
-      BuildUnsizedDataPacket(&framer_, header, frames);
+      BuildUnsizedDataPacket(&peer_framer_, header, frames);
   char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length =
       peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(1),
@@ -9333,6 +9335,79 @@ TEST_P(QuicConnectionTest, UpdateClientConnectionIdFromFirstPacket) {
   ProcessReceivedPacket(kSelfAddress, kPeerAddress, received_packet);
   EXPECT_EQ(0u, connection_.GetStats().packets_dropped);
   EXPECT_EQ(TestConnectionId(0x33), connection_.client_connection_id());
+}
+void QuicConnectionTest::TestReplaceConnectionIdFromInitial() {
+  if (!framer_.version().AllowsVariableLengthConnectionIds()) {
+    return;
+  }
+  // We start with a known connection ID.
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_EQ(0u, connection_.GetStats().packets_dropped);
+  EXPECT_NE(TestConnectionId(0x33), connection_.connection_id());
+  // Receiving an initial can replace the connection ID once.
+  {
+    QuicPacketHeader header = ConstructPacketHeader(1, ENCRYPTION_INITIAL);
+    header.source_connection_id = TestConnectionId(0x33);
+    header.source_connection_id_included = CONNECTION_ID_PRESENT;
+    QuicFrames frames;
+    QuicPingFrame ping_frame;
+    QuicPaddingFrame padding_frame;
+    frames.push_back(QuicFrame(ping_frame));
+    frames.push_back(QuicFrame(padding_frame));
+    std::unique_ptr<QuicPacket> packet =
+        BuildUnsizedDataPacket(&peer_framer_, header, frames);
+    char buffer[kMaxOutgoingPacketSize];
+    size_t encrypted_length =
+        peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(1),
+                                    *packet, buffer, kMaxOutgoingPacketSize);
+    QuicReceivedPacket received_packet(buffer, encrypted_length, clock_.Now(),
+                                       false);
+    ProcessReceivedPacket(kSelfAddress, kPeerAddress, received_packet);
+  }
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_EQ(0u, connection_.GetStats().packets_dropped);
+  EXPECT_EQ(TestConnectionId(0x33), connection_.connection_id());
+  // Trying to replace the connection ID a second time drops the packet.
+  {
+    QuicPacketHeader header = ConstructPacketHeader(2, ENCRYPTION_INITIAL);
+    header.source_connection_id = TestConnectionId(0x66);
+    header.source_connection_id_included = CONNECTION_ID_PRESENT;
+    QuicFrames frames;
+    QuicPingFrame ping_frame;
+    QuicPaddingFrame padding_frame;
+    frames.push_back(QuicFrame(ping_frame));
+    frames.push_back(QuicFrame(padding_frame));
+    std::unique_ptr<QuicPacket> packet =
+        BuildUnsizedDataPacket(&peer_framer_, header, frames);
+    char buffer[kMaxOutgoingPacketSize];
+    size_t encrypted_length =
+        peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(2),
+                                    *packet, buffer, kMaxOutgoingPacketSize);
+    QuicReceivedPacket received_packet(buffer, encrypted_length, clock_.Now(),
+                                       false);
+    ProcessReceivedPacket(kSelfAddress, kPeerAddress, received_packet);
+  }
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_EQ(1u, connection_.GetStats().packets_dropped);
+  EXPECT_EQ(TestConnectionId(0x33), connection_.connection_id());
+}
+
+TEST_P(QuicConnectionTest, ReplaceServerConnectionIdFromInitial) {
+  TestReplaceConnectionIdFromInitial();
+}
+
+TEST_P(QuicConnectionTest, ReplaceServerConnectionIdFromRetryAndInitial) {
+  // First make the connection process a RETRY and replace the server connection
+  // ID a first time.
+  TestClientRetryHandling(/*invalid_retry_tag=*/false,
+                          /*missing_original_id_in_config=*/false,
+                          /*wrong_original_id_in_config=*/false,
+                          /*missing_retry_id_in_config=*/false,
+                          /*wrong_retry_id_in_config=*/false);
+  // Reset the test framer to use the right connection ID.
+  peer_framer_.SetInitialObfuscators(connection_.connection_id());
+  // Now process an INITIAL and replace the server connection ID a second time.
+  TestReplaceConnectionIdFromInitial();
 }
 
 // Regression test for b/134416344.

@@ -2757,6 +2757,14 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
 
   if (PacketCanReplaceConnectionId(header, perspective_) &&
       server_connection_id_ != header.source_connection_id) {
+    QUICHE_DCHECK_EQ(header.long_packet_type, INITIAL);
+    if (server_connection_id_replaced_by_initial_) {
+      QUIC_DLOG(ERROR) << ENDPOINT << "Refusing to replace connection ID "
+                       << server_connection_id_ << " with "
+                       << header.source_connection_id;
+      return false;
+    }
+    server_connection_id_replaced_by_initial_ = true;
     QUIC_DLOG(INFO) << ENDPOINT << "Replacing connection ID "
                     << server_connection_id_ << " with "
                     << header.source_connection_id;

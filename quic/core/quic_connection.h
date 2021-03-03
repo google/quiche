@@ -1712,6 +1712,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // On the server, the connection ID is set when receiving the first packet.
   // This variable ensures we only set it this way once.
   bool client_connection_id_is_set_;
+
+  // Whether we've already replaced our server connection ID due to receiving an
+  // INITIAL packet with a different source connection ID. Only used on client.
+  bool server_connection_id_replaced_by_initial_ = false;
   // Address on the last successfully processed packet received from the
   // direct peer.
 
