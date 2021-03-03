@@ -414,6 +414,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
   // Called on peer address change.
   virtual void OnPeerAddressChange(AddressChangeType /*type*/,
                                    QuicTime::Delta /*connection_time*/) {}
+
+  // Called after peer migration is validated.
+  virtual void OnPeerMigrationValidated(QuicTime::Delta /*connection_time*/) {}
 };
 
 class QUIC_EXPORT_PRIVATE QuicConnectionHelperInterface {

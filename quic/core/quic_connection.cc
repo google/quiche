@@ -4800,6 +4800,16 @@ void QuicConnection::OnEffectivePeerMigrationValidated() {
   if (!validate_client_addresses_) {
     return;
   }
+  if (debug_visitor_ != nullptr) {
+    const QuicTime now = clock_->ApproximateNow();
+    if (now >= stats_.handshake_completion_time) {
+      debug_visitor_->OnPeerMigrationValidated(
+          now - stats_.handshake_completion_time);
+    } else {
+      QUIC_BUG << "Handshake completion time is larger than current time.";
+    }
+  }
+
   // Lift anti-amplification limit.
   default_path_.validated = true;
   alternative_path_.Clear();
