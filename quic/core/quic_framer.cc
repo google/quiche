@@ -1899,7 +1899,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
   // Handle the payload.
   if (VersionHasIetfQuicFrames(version_.transport_version)) {
     current_received_frame_type_ = 0;
-    if (!ProcessIetfFrameData(&reader, *header)) {
+    if (!ProcessIetfFrameData(&reader, *header, decrypted_level)) {
       current_received_frame_type_ = 0;
       QUICHE_DCHECK_NE(QUIC_NO_ERROR,
                        error_);  // ProcessIetfFrameData sets the error.
@@ -3098,8 +3098,33 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
   return true;
 }
 
+// static
+bool QuicFramer::IsIetfFrameTypeExpectedForEncryptionLevel(
+    uint64_t frame_type,
+    EncryptionLevel level) {
+  switch (level) {
+    case ENCRYPTION_INITIAL:
+    case ENCRYPTION_HANDSHAKE:
+      return frame_type == IETF_CRYPTO || frame_type == IETF_ACK ||
+             frame_type == IETF_PING || frame_type == IETF_PADDING ||
+             frame_type == IETF_CONNECTION_CLOSE;
+    case ENCRYPTION_ZERO_RTT:
+      return !(frame_type == IETF_ACK || frame_type == IETF_CRYPTO ||
+               frame_type == IETF_HANDSHAKE_DONE ||
+               frame_type == IETF_NEW_TOKEN ||
+               frame_type == IETF_PATH_RESPONSE ||
+               frame_type == IETF_RETIRE_CONNECTION_ID);
+    case ENCRYPTION_FORWARD_SECURE:
+      return true;
+    default:
+      QUIC_BUG << "Unknown encryption level: " << level;
+  }
+  return false;
+}
+
 bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
-                                      const QuicPacketHeader& header) {
+                                      const QuicPacketHeader& header,
+                                      EncryptionLevel decrypted_level) {
   QUICHE_DCHECK(VersionHasIetfQuicFrames(version_.transport_version))
       << "Attempt to process frames as IETF frames but version ("
       << version_.transport_version << ") does not support IETF Framing.";
@@ -3117,6 +3142,19 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
     if (!reader->ReadVarInt62(&frame_type)) {
       set_detailed_error("Unable to read frame type.");
       return RaiseError(QUIC_INVALID_FRAME_DATA);
+    }
+    if (reject_unexpected_ietf_frame_types_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_reject_unexpected_ietf_frame_types, 1,
+                                   2);
+      if (!IsIetfFrameTypeExpectedForEncryptionLevel(frame_type,
+                                                     decrypted_level)) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_reject_unexpected_ietf_frame_types, 2,
+                                     2);
+        set_detailed_error(absl::StrCat("IETF frame type ", frame_type,
+                                        " is unexpected at encryption level ",
+                                        decrypted_level));
+        return RaiseError(IETF_QUIC_PROTOCOL_VIOLATION);
+      }
     }
     current_received_frame_type_ = frame_type;
 

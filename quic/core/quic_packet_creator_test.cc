@@ -299,7 +299,9 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
   for (int i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
     EncryptionLevel level = static_cast<EncryptionLevel>(i);
     creator_.set_encryption_level(level);
-    frames_.push_back(QuicFrame(new QuicAckFrame(InitAckFrame(1))));
+    if (level != ENCRYPTION_ZERO_RTT) {
+      frames_.push_back(QuicFrame(new QuicAckFrame(InitAckFrame(1))));
+    }
     QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
         client_framer_.transport_version(), Perspective::IS_CLIENT);
     if (level != ENCRYPTION_INITIAL && level != ENCRYPTION_HANDSHAKE) {
@@ -308,7 +310,9 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
     }
     SerializedPacket serialized = SerializeAllFrames(frames_);
     EXPECT_EQ(level, serialized.encryption_level);
-    delete frames_[0].ack_frame;
+    if (level != ENCRYPTION_ZERO_RTT) {
+      delete frames_[0].ack_frame;
+    }
     frames_.clear();
 
     {
@@ -318,13 +322,15 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
       EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
       EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
       EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
-      EXPECT_CALL(framer_visitor_, OnAckFrameStart(_, _))
-          .WillOnce(Return(true));
-      EXPECT_CALL(framer_visitor_,
-                  OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2)))
-          .WillOnce(Return(true));
-      EXPECT_CALL(framer_visitor_, OnAckFrameEnd(QuicPacketNumber(1)))
-          .WillOnce(Return(true));
+      if (level != ENCRYPTION_ZERO_RTT) {
+        EXPECT_CALL(framer_visitor_, OnAckFrameStart(_, _))
+            .WillOnce(Return(true));
+        EXPECT_CALL(framer_visitor_,
+                    OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2)))
+            .WillOnce(Return(true));
+        EXPECT_CALL(framer_visitor_, OnAckFrameEnd(QuicPacketNumber(1)))
+            .WillOnce(Return(true));
+      }
       if (level != ENCRYPTION_INITIAL && level != ENCRYPTION_HANDSHAKE) {
         EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
       }
@@ -2118,7 +2124,9 @@ TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
     EncryptionLevel level = static_cast<EncryptionLevel>(i);
     creator_.set_encryption_level(level);
     QuicAckFrame ack_frame(InitAckFrame(1));
-    frames_.push_back(QuicFrame(&ack_frame));
+    if (level != ENCRYPTION_ZERO_RTT) {
+      frames_.push_back(QuicFrame(&ack_frame));
+    }
     if (level != ENCRYPTION_INITIAL && level != ENCRYPTION_HANDSHAKE) {
       frames_.push_back(
           QuicFrame(QuicStreamFrame(1, false, 0u, absl::string_view())));
@@ -2156,19 +2164,25 @@ TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
     EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
-    EXPECT_CALL(framer_visitor_, OnAckFrameStart(_, _)).WillOnce(Return(true));
-    EXPECT_CALL(framer_visitor_,
-                OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2)))
-        .WillOnce(Return(true));
-    EXPECT_CALL(framer_visitor_, OnAckFrameEnd(_)).WillOnce(Return(true));
+    if (i != ENCRYPTION_ZERO_RTT) {
+      EXPECT_CALL(framer_visitor_, OnAckFrameStart(_, _))
+          .WillOnce(Return(true));
+      EXPECT_CALL(framer_visitor_,
+                  OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2)))
+          .WillOnce(Return(true));
+      EXPECT_CALL(framer_visitor_, OnAckFrameEnd(_)).WillOnce(Return(true));
+    }
     if (i == ENCRYPTION_INITIAL) {
       // Verify padding is added.
       EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
-    } else {
+    } else if (i != ENCRYPTION_ZERO_RTT) {
       EXPECT_CALL(framer_visitor_, OnPaddingFrame(_)).Times(testing::AtMost(1));
     }
     if (i != ENCRYPTION_INITIAL && i != ENCRYPTION_HANDSHAKE) {
       EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
+    }
+    if (i == ENCRYPTION_ZERO_RTT) {
+      EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
     }
     EXPECT_CALL(framer_visitor_, OnPacketComplete());
 

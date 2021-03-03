@@ -15164,6 +15164,47 @@ TEST_P(QuicFramerTest, KeyUpdateLocallyInitiatedReceivedOldPacket) {
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 }
 
+TEST_P(QuicFramerTest, ErrorWhenUnexpectedFrameTypeEncountered) {
+  if (!GetQuicReloadableFlag(quic_reject_unexpected_ietf_frame_types) ||
+      !VersionHasIetfQuicFrames(framer_.transport_version()) ||
+      !QuicVersionHasLongHeaderLengths(framer_.transport_version()) ||
+      !framer_.version().HasLongHeaderLengths()) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
+  // clang-format off
+  unsigned char packet[] = {
+    // public flags (long header with packet type ZERO_RTT_PROTECTED and
+    // 4-byte packet number)
+    0xD3,
+    // version
+    QUIC_VERSION_BYTES,
+    // destination connection ID length
+    0x08,
+    // destination connection ID
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // source connection ID length
+    0x08,
+    // source connection ID
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11,
+    // long header packet length
+    0x05,
+    // packet number
+    0x12, 0x34, 0x56, 0x00,
+    // unexpected ietf ack frame type in 0-RTT packet
+    0x02,
+  };
+  // clang-format on
+
+  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+
+  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
+
+  EXPECT_THAT(framer_.error(), IsError(IETF_QUIC_PROTOCOL_VIOLATION));
+  EXPECT_EQ("IETF frame type 2 is unexpected at encryption level 2",
+            framer_.detailed_error());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

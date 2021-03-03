@@ -826,8 +826,13 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicPacketNumber base_packet_number,
       uint64_t* packet_number);
   bool ProcessFrameData(QuicDataReader* reader, const QuicPacketHeader& header);
+
+  static bool IsIetfFrameTypeExpectedForEncryptionLevel(uint64_t frame_type,
+                                                        EncryptionLevel level);
+
   bool ProcessIetfFrameData(QuicDataReader* reader,
-                            const QuicPacketHeader& header);
+                            const QuicPacketHeader& header,
+                            EncryptionLevel decrypted_level);
   bool ProcessStreamFrame(QuicDataReader* reader,
                           uint8_t frame_type,
                           QuicStreamFrame* frame);
@@ -1157,6 +1162,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Indicates whether received RETRY packets should be dropped.
   bool drop_incoming_retry_packets_ = false;
+
+  bool reject_unexpected_ietf_frame_types_ =
+      GetQuicReloadableFlag(quic_reject_unexpected_ietf_frame_types);
 
   // The length in bytes of the last packet number written to an IETF-framed
   // packet.

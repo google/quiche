@@ -1174,9 +1174,16 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                                                   EncryptionLevel level) {
     QuicPacketHeader header = ConstructPacketHeader(number, level);
     QuicFrames frames;
-    frames.push_back(QuicFrame(frame1_));
-    if (has_stop_waiting) {
-      frames.push_back(QuicFrame(stop_waiting_));
+    if (GetQuicReloadableFlag(quic_reject_unexpected_ietf_frame_types) &&
+        VersionHasIetfQuicFrames(version().transport_version) &&
+        (level == ENCRYPTION_INITIAL || level == ENCRYPTION_HANDSHAKE)) {
+      frames.push_back(QuicFrame(QuicPingFrame()));
+      frames.push_back(QuicFrame(QuicPaddingFrame(100)));
+    } else {
+      frames.push_back(QuicFrame(frame1_));
+      if (has_stop_waiting) {
+        frames.push_back(QuicFrame(stop_waiting_));
+      }
     }
     return ConstructPacket(header, frames);
   }
@@ -2785,7 +2792,9 @@ TEST_P(QuicConnectionTest, PacketsOutOfOrderWithAdditionsAndLeastAwaiting) {
 
 TEST_P(QuicConnectionTest, RejectUnencryptedStreamData) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
-  if (!IsDefaultTestConfiguration()) {
+  if (!IsDefaultTestConfiguration() ||
+      (GetQuicReloadableFlag(quic_reject_unexpected_ietf_frame_types) &&
+       VersionHasIetfQuicFrames(version().transport_version))) {
     return;
   }
 
@@ -2935,28 +2944,6 @@ TEST_P(QuicConnectionTest, AckFrequencyUpdatedFromAckFrequencyFrame) {
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(38);
   // Receives packets 2 - 39.
   for (size_t i = 2; i <= 39; ++i) {
-    ProcessDataPacket(i);
-  }
-}
-
-TEST_P(QuicConnectionTest,
-       AckFrequencyFrameOutsideApplicationDataNumberSpaceIsIgnored) {
-  if (!GetParam().version.HasIetfQuicFrames()) {
-    return;
-  }
-  connection_.set_can_receive_ack_frequency_frame();
-
-  QuicAckFrequencyFrame ack_frequency_frame;
-  ack_frequency_frame.packet_tolerance = 3;
-  ProcessFramePacketAtLevel(1, QuicFrame(&ack_frequency_frame),
-                            ENCRYPTION_HANDSHAKE);
-
-  // Expect 30 acks, every 2nd (instead of 3rd) packet including the first
-  // packet with AckFrequencyFrame.
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(30);
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(60);
-  // Receives packets 2 - 61.
-  for (size_t i = 2; i <= 61; ++i) {
     ProcessDataPacket(i);
   }
 }
@@ -7757,7 +7744,13 @@ TEST_P(QuicConnectionTest, ServerReceivesChloOnNonCryptoStream) {
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   ForceProcessFramePacket(QuicFrame(frame1_));
-  TestConnectionCloseQuicErrorCode(QUIC_MAYBE_CORRUPTED_MEMORY);
+  if (GetQuicReloadableFlag(quic_reject_unexpected_ietf_frame_types) &&
+      VersionHasIetfQuicFrames(version().transport_version)) {
+    // INITIAL packet should not contain STREAM frame.
+    TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
+  } else {
+    TestConnectionCloseQuicErrorCode(QUIC_MAYBE_CORRUPTED_MEMORY);
+  }
 }
 
 TEST_P(QuicConnectionTest, ClientReceivesRejOnNonCryptoStream) {
@@ -7774,7 +7767,13 @@ TEST_P(QuicConnectionTest, ClientReceivesRejOnNonCryptoStream) {
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   ForceProcessFramePacket(QuicFrame(frame1_));
-  TestConnectionCloseQuicErrorCode(QUIC_MAYBE_CORRUPTED_MEMORY);
+  if (GetQuicReloadableFlag(quic_reject_unexpected_ietf_frame_types) &&
+      VersionHasIetfQuicFrames(version().transport_version)) {
+    // INITIAL packet should not contain STREAM frame.
+    TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
+  } else {
+    TestConnectionCloseQuicErrorCode(QUIC_MAYBE_CORRUPTED_MEMORY);
+  }
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionOnPacketTooLarge) {
@@ -9174,23 +9173,23 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacesBasicReceiving) {
   // Receives packet 1000 in initial data.
   ProcessCryptoPacketAtLevel(1000, ENCRYPTION_INITIAL);
   EXPECT_TRUE(connection_.HasPendingAcks());
-  peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                             std::make_unique<TaggingEncrypter>(0x02));
-  SetDecrypter(ENCRYPTION_ZERO_RTT,
+  SetDecrypter(ENCRYPTION_FORWARD_SECURE,
                std::make_unique<StrictTaggingDecrypter>(0x02));
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            std::make_unique<TaggingEncrypter>(0x02));
   // Receives packet 1000 in application data.
-  ProcessDataPacketAtLevel(1000, false, ENCRYPTION_ZERO_RTT);
+  ProcessDataPacketAtLevel(1000, false, ENCRYPTION_FORWARD_SECURE);
   EXPECT_TRUE(connection_.HasPendingAcks());
-  connection_.SendApplicationDataAtLevel(ENCRYPTION_ZERO_RTT, 5, "data", 0,
-                                         NO_FIN);
+  connection_.SendApplicationDataAtLevel(ENCRYPTION_FORWARD_SECURE, 5, "data",
+                                         0, NO_FIN);
   // Verify application data ACK gets bundled with outgoing data.
   EXPECT_EQ(2u, writer_->frame_count());
   // Make sure ACK alarm is still set because initial data is not ACKed.
   EXPECT_TRUE(connection_.HasPendingAcks());
   // Receive packet 1001 in application data.
-  ProcessDataPacketAtLevel(1001, false, ENCRYPTION_ZERO_RTT);
+  ProcessDataPacketAtLevel(1001, false, ENCRYPTION_FORWARD_SECURE);
   clock_.AdvanceTime(DefaultRetransmissionTime());
   // Simulates ACK alarm fires and verify two ACKs are flushed.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
@@ -9199,13 +9198,9 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacesBasicReceiving) {
   connection_.GetAckAlarm()->Fire();
   EXPECT_FALSE(connection_.HasPendingAcks());
   // Receives more packets in application data.
-  ProcessDataPacketAtLevel(1002, false, ENCRYPTION_ZERO_RTT);
+  ProcessDataPacketAtLevel(1002, false, ENCRYPTION_FORWARD_SECURE);
   EXPECT_TRUE(connection_.HasPendingAcks());
 
-  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
-                            std::make_unique<TaggingEncrypter>(0x02));
-  SetDecrypter(ENCRYPTION_FORWARD_SECURE,
-               std::make_unique<StrictTaggingDecrypter>(0x02));
   // Verify zero rtt and forward secure packets get acked in the same packet.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessDataPacket(1003);
@@ -11049,7 +11044,10 @@ TEST_P(QuicConnectionTest, ProcessUndecryptablePacketsBasedOnEncryptionLevel) {
                            std::make_unique<TaggingEncrypter>(0x01));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
   // Verify all ENCRYPTION_HANDSHAKE packets get processed.
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(6);
+  if (!GetQuicReloadableFlag(quic_reject_unexpected_ietf_frame_types) ||
+      !VersionHasIetfQuicFrames(version().transport_version)) {
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(6);
+  }
   connection_.GetProcessUndecryptablePacketsAlarm()->Fire();
   EXPECT_EQ(1u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
 
