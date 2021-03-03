@@ -97,6 +97,11 @@ MasqueServerSession::MasqueServerSession(
       epoll_server_(epoll_server),
       compression_engine_(this),
       masque_mode_(masque_mode) {
+  // Artificially increase the max packet length to 1350 to ensure we can fit
+  // QUIC packets inside DATAGRAM frames.
+  // TODO(b/181606597) Remove this workaround once we use PMTUD.
+  connection->SetMaxPacketLength(kDefaultMaxPacketSize);
+
   masque_server_backend_->RegisterBackendClient(connection_id(), this);
   QUICHE_DCHECK_NE(epoll_server_, nullptr);
 }
