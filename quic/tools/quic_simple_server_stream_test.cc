@@ -790,6 +790,32 @@ TEST_P(QuicSimpleServerStreamTest, ConnectSendsResponseBeforeFinReceived) {
   EXPECT_FALSE(stream_->send_error_response_was_called());
 }
 
+TEST_P(QuicSimpleServerStreamTest, ConnectWithInvalidHeader) {
+  EXPECT_CALL(session_, WritevData(_, _, _, _, _, _))
+      .WillRepeatedly(
+          Invoke(&session_, &MockQuicSimpleServerSession::ConsumeData));
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":method", "CONNECT-SILLY");
+  // QUIC requires lower-case header names.
+  header_list.OnHeader("InVaLiD-HeAdEr", "Well that's just wrong!");
+  header_list.OnHeaderBlockEnd(128, 128);
+  EXPECT_CALL(*stream_, WriteHeadersMock(/*fin=*/false));
+  stream_->OnStreamHeaderList(/*fin=*/false, kFakeFrameLen, header_list);
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount header_length =
+      HttpEncoder::SerializeDataFrameHeader(body_.length(), &buffer);
+  std::string header = std::string(buffer.get(), header_length);
+  std::string data = UsesHttp3() ? header + body_ : body_;
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
+  EXPECT_EQ("CONNECT-SILLY", StreamHeadersValue(":method"));
+  EXPECT_EQ(body_, StreamBody());
+  EXPECT_FALSE(stream_->send_response_was_called());
+  EXPECT_TRUE(stream_->send_error_response_was_called());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

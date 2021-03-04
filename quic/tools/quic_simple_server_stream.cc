@@ -64,7 +64,7 @@ void QuicSimpleServerStream::OnInitialHeadersComplete(
     SendErrorResponse();
   }
   ConsumeHeaderList();
-  if (!fin) {
+  if (!fin && !response_sent_) {
     // CONNECT and other CONNECT-like methods (such as CONNECT-UDP) require
     // sending the response right after parsing the headers even though the FIN
     // bit has not been received on the request stream.
@@ -290,6 +290,8 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
         quiche::QuicheTextUtils::Uint64ToString(generate_bytes_length_);
 
     WriteHeaders(std::move(headers), false, nullptr);
+    QUICHE_DCHECK(!response_sent_);
+    response_sent_ = true;
 
     WriteGeneratedBytes();
 
@@ -349,6 +351,8 @@ void QuicSimpleServerStream::SendIncompleteResponse(
   QUIC_DLOG(INFO) << "Stream " << id() << " writing headers (fin = false) : "
                   << response_headers.DebugString();
   WriteHeaders(std::move(response_headers), /*fin=*/false, nullptr);
+  QUICHE_DCHECK(!response_sent_);
+  response_sent_ = true;
 
   QUIC_DLOG(INFO) << "Stream " << id()
                   << " writing body (fin = false) with size: " << body.size();
@@ -373,6 +377,8 @@ void QuicSimpleServerStream::SendHeadersAndBodyAndTrailers(
   QUIC_DLOG(INFO) << "Stream " << id() << " writing headers (fin = " << send_fin
                   << ") : " << response_headers.DebugString();
   WriteHeaders(std::move(response_headers), send_fin, nullptr);
+  QUICHE_DCHECK(!response_sent_);
+  response_sent_ = true;
   if (send_fin) {
     // Nothing else to send.
     return;

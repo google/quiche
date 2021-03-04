@@ -99,6 +99,8 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
 
  private:
   uint64_t generate_bytes_length_;
+  // Whether response headers have already been sent.
+  bool response_sent_ = false;
 
   QuicSimpleServerBackend* quic_simple_server_backend_;  // Not owned.
 };
