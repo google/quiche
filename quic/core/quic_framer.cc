@@ -3150,9 +3150,11 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
                                                      decrypted_level)) {
         QUIC_RELOADABLE_FLAG_COUNT_N(quic_reject_unexpected_ietf_frame_types, 2,
                                      2);
-        set_detailed_error(absl::StrCat("IETF frame type ", frame_type,
-                                        " is unexpected at encryption level ",
-                                        decrypted_level));
+        set_detailed_error(absl::StrCat(
+            "IETF frame type ",
+            QuicIetfFrameTypeString(static_cast<QuicIetfFrameType>(frame_type)),
+            " is unexpected at encryption level ",
+            EncryptionLevelToString(decrypted_level)));
         return RaiseError(IETF_QUIC_PROTOCOL_VIOLATION);
       }
     }

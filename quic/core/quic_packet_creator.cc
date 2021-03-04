@@ -1604,6 +1604,21 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
     return false;
   }
 
+  // Sanity check to ensure we don't send frames at the wrong encryption level.
+  QUICHE_DCHECK(
+      packet_.encryption_level == ENCRYPTION_ZERO_RTT ||
+      packet_.encryption_level == ENCRYPTION_FORWARD_SECURE ||
+      (frame.type != GOAWAY_FRAME && frame.type != WINDOW_UPDATE_FRAME &&
+       frame.type != HANDSHAKE_DONE_FRAME &&
+       frame.type != NEW_CONNECTION_ID_FRAME &&
+       frame.type != MAX_STREAMS_FRAME && frame.type != STREAMS_BLOCKED_FRAME &&
+       frame.type != PATH_RESPONSE_FRAME &&
+       frame.type != PATH_CHALLENGE_FRAME && frame.type != STOP_SENDING_FRAME &&
+       frame.type != MESSAGE_FRAME && frame.type != NEW_TOKEN_FRAME &&
+       frame.type != RETIRE_CONNECTION_ID_FRAME &&
+       frame.type != ACK_FREQUENCY_FRAME))
+      << frame.type << " not allowed at " << packet_.encryption_level;
+
   if (frame.type == STREAM_FRAME) {
     if (MaybeCoalesceStreamFrame(frame.stream_frame)) {
       LogCoalesceStreamFrameStatus(true);

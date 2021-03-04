@@ -1847,6 +1847,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
   if (version().SupportsAntiAmplificationLimit()) {
     QuicConnectionPeer::SetAddressValidated(&connection_);
   }
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
 
@@ -1866,7 +1867,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress, kPeerAddress,
-                                  ENCRYPTION_INITIAL);
+                                  ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kEffectivePeerAddress, connection_.effective_peer_address());
 
@@ -1877,7 +1878,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
   connection_.ReturnEffectivePeerAddressForNextPacket(kNewEffectivePeerAddress);
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress, kPeerAddress,
-                                  ENCRYPTION_INITIAL);
+                                  ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewEffectivePeerAddress, connection_.effective_peer_address());
   EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
@@ -1900,7 +1901,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
     QuicAckFrame ack_frame = InitAckFrame(1);
     EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
     ProcessFramePacketWithAddresses(QuicFrame(&ack_frame), kSelfAddress,
-                                    kNewPeerAddress, ENCRYPTION_INITIAL);
+                                    kNewPeerAddress, ENCRYPTION_FORWARD_SECURE);
     EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
     EXPECT_EQ(kNewEffectivePeerAddress, connection_.effective_peer_address());
     EXPECT_EQ(NO_CHANGE, connection_.active_effective_peer_migration_type());
@@ -1916,7 +1917,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
       kNewerEffectivePeerAddress);
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
-                                  kFinalPeerAddress, ENCRYPTION_INITIAL);
+                                  kFinalPeerAddress, ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(kFinalPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewerEffectivePeerAddress, connection_.effective_peer_address());
   if (connection_.validate_client_address()) {
@@ -1938,7 +1939,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
     EXPECT_CALL(*send_algorithm_, OnConnectionMigration()).Times(1);
   }
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
-                                  kFinalPeerAddress, ENCRYPTION_INITIAL);
+                                  kFinalPeerAddress, ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(kFinalPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewestEffectivePeerAddress, connection_.effective_peer_address());
   EXPECT_EQ(IPV6_TO_IPV4_CHANGE,

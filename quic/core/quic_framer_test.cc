@@ -15237,8 +15237,10 @@ TEST_P(QuicFramerTest, ErrorWhenUnexpectedFrameTypeEncountered) {
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
 
   EXPECT_THAT(framer_.error(), IsError(IETF_QUIC_PROTOCOL_VIOLATION));
-  EXPECT_EQ("IETF frame type 2 is unexpected at encryption level 2",
-            framer_.detailed_error());
+  EXPECT_EQ(
+      "IETF frame type IETF_ACK is unexpected at encryption level "
+      "ENCRYPTION_ZERO_RTT",
+      framer_.detailed_error());
 }
 
 }  // namespace

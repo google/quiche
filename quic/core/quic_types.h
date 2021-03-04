@@ -278,7 +278,7 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 // byte, with the two most significant bits being 0. Thus, the following
 // enumerations are valid as both the numeric values of frame types AND their
 // encodings.
-enum QuicIetfFrameType : uint8_t {
+enum QuicIetfFrameType : uint64_t {
   IETF_PADDING = 0x00,
   IETF_PING = 0x01,
   IETF_ACK = 0x02,
