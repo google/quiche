@@ -4335,6 +4335,7 @@ bool QuicFramer::DoKeyUpdate(KeyUpdateReason reason) {
     QUIC_BUG << "Failed to create next crypters";
     return false;
   }
+  key_update_performed_ = true;
   current_key_phase_bit_ = !current_key_phase_bit_;
   QUIC_DLOG(INFO) << ENDPOINT << "DoKeyUpdate: new current_key_phase_bit_="
                   << current_key_phase_bit_;
@@ -4772,9 +4773,13 @@ bool QuicFramer::DecryptPayload(size_t udp_packet_length,
                     << " received key_phase=" << key_phase
                     << " current_key_phase_bit_=" << current_key_phase_bit_;
       if (key_phase != current_key_phase_bit_) {
-        if (current_key_phase_first_received_packet_number_.IsInitialized() &&
-            header.packet_number >
-                current_key_phase_first_received_packet_number_) {
+        if ((current_key_phase_first_received_packet_number_.IsInitialized() &&
+             header.packet_number >
+                 current_key_phase_first_received_packet_number_) ||
+            (GetQuicReloadableFlag(quic_fix_key_update_on_first_packet) &&
+             !current_key_phase_first_received_packet_number_.IsInitialized() &&
+             !key_update_performed_)) {
+          QUIC_RELOADABLE_FLAG_COUNT(quic_fix_key_update_on_first_packet);
           if (!next_decrypter_) {
             next_decrypter_ =
                 visitor_->AdvanceKeysAndCreateCurrentOneRttDecrypter();

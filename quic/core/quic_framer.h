@@ -1117,6 +1117,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // The value of the current key phase bit, which is toggled when the keys are
   // changed.
   bool current_key_phase_bit_;
+  // Whether we have performed a key update at least once.
+  bool key_update_performed_ = false;
   // Tracks the first packet received in the current key phase. Will be
   // uninitialized before the first one-RTT packet has been received or after a
   // locally initiated key update but before the first packet from the peer in
