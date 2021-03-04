@@ -6092,11 +6092,17 @@ void QuicConnection::MigratePath(const QuicSocketAddress& self_address,
   if (!connected_) {
     return;
   }
-  const bool is_port_change =
-      QuicUtils::DetermineAddressChangeType(default_path_.self_address,
-                                            self_address) == PORT_CHANGE &&
-      QuicUtils::DetermineAddressChangeType(default_path_.peer_address,
-                                            peer_address) == PORT_CHANGE;
+
+  const auto self_address_change_type = QuicUtils::DetermineAddressChangeType(
+      default_path_.self_address, self_address);
+  const auto peer_address_change_type = QuicUtils::DetermineAddressChangeType(
+      default_path_.peer_address, peer_address);
+  QUICHE_DCHECK(self_address_change_type != NO_CHANGE ||
+                peer_address_change_type != NO_CHANGE);
+  const bool is_port_change = (self_address_change_type == PORT_CHANGE ||
+                               self_address_change_type == NO_CHANGE) &&
+                              (peer_address_change_type == PORT_CHANGE ||
+                               peer_address_change_type == NO_CHANGE);
   SetSelfAddress(self_address);
   UpdatePeerAddress(peer_address);
   SetQuicPacketWriter(writer, owns_writer);
