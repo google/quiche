@@ -1007,10 +1007,16 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
     framer_.set_drop_incoming_retry_packets(true);
   }
 
+  bool skip_server_connection_id_validation =
+      framer_.do_not_synthesize_source_cid_for_short_header() &&
+      perspective_ == Perspective::IS_CLIENT &&
+      header.form == IETF_QUIC_SHORT_HEADER_PACKET;
+
   QuicConnectionId server_connection_id =
       GetServerConnectionIdAsRecipient(header, perspective_);
 
-  if (server_connection_id != server_connection_id_ &&
+  if (!skip_server_connection_id_validation &&
+      server_connection_id != server_connection_id_ &&
       !HasIncomingConnectionId(server_connection_id)) {
     if (PacketCanReplaceConnectionId(header, perspective_)) {
       QUIC_DLOG(INFO) << ENDPOINT << "Accepting packet with new connection ID "
@@ -1035,6 +1041,14 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
   }
 
   if (!version().SupportsClientConnectionIds()) {
+    return true;
+  }
+
+  if (framer_.do_not_synthesize_source_cid_for_short_header() &&
+      perspective_ == Perspective::IS_SERVER &&
+      header.form == IETF_QUIC_SHORT_HEADER_PACKET) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_do_not_synthesize_source_cid_for_short_header, 3, 3);
     return true;
   }
 
@@ -1069,7 +1083,10 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
   // Check that any public reset packet with a different connection ID that was
   // routed to this QuicConnection has been redirected before control reaches
   // here.
-  QUICHE_DCHECK(GetServerConnectionIdAsRecipient(header, perspective_) ==
+  QUICHE_DCHECK((framer_.do_not_synthesize_source_cid_for_short_header() &&
+                 perspective_ == Perspective::IS_CLIENT &&
+                 header.form == IETF_QUIC_SHORT_HEADER_PACKET) ||
+                GetServerConnectionIdAsRecipient(header, perspective_) ==
                     server_connection_id_ ||
                 HasIncomingConnectionId(
                     GetServerConnectionIdAsRecipient(header, perspective_)) ||
