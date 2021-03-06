@@ -95,6 +95,10 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
 
   QuicDatagramFlowId flow_id = GetNextDatagramFlowId();
 
+  QUIC_DLOG(INFO) << "Sending CONNECT-UDP request for " << target_server_address
+                  << " using flow ID " << flow_id << " on stream "
+                  << stream->id();
+
   // Send the request.
   spdy::Http2HeaderBlock headers;
   headers[":method"] = "CONNECT-UDP";
