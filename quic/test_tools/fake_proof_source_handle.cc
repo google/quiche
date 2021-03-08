@@ -176,7 +176,8 @@ void FakeProofSourceHandle::SelectCertOperation::Run() {
     bool ok = chain && !chain->certs.empty();
     callback_->OnSelectCertificateDone(ok, /*is_sync=*/false, chain.get());
   } else {
-    QUIC_BUG << "Unexpected action: " << static_cast<int>(action_);
+    QUIC_BUG_V2(quic_bug_10139_1)
+        << "Unexpected action: " << static_cast<int>(action_);
   }
 }
 
@@ -200,7 +201,8 @@ void FakeProofSourceHandle::ComputeSignatureOperation::Run() {
                                       result.signature,
                                       std::move(result.details));
   } else {
-    QUIC_BUG << "Unexpected action: " << static_cast<int>(action_);
+    QUIC_BUG_V2(quic_bug_10139_2)
+        << "Unexpected action: " << static_cast<int>(action_);
   }
 }
 

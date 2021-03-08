@@ -40,7 +40,8 @@ void QuicSessionPeer::SetNextOutgoingBidirectionalStreamId(QuicSession* session,
 void QuicSessionPeer::SetMaxOpenIncomingStreams(QuicSession* session,
                                                 uint32_t max_streams) {
   if (VersionHasIetfQuicFrames(session->transport_version())) {
-    QUIC_BUG << "SetmaxOpenIncomingStreams deprecated for IETF QUIC";
+    QUIC_BUG_V2(quic_bug_10193_1)
+        << "SetmaxOpenIncomingStreams deprecated for IETF QUIC";
     session->ietf_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
         max_streams);
     session->ietf_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(
@@ -75,7 +76,8 @@ void QuicSessionPeer::SetMaxOpenIncomingUnidirectionalStreams(
 void QuicSessionPeer::SetMaxOpenOutgoingStreams(QuicSession* session,
                                                 uint32_t max_streams) {
   if (VersionHasIetfQuicFrames(session->transport_version())) {
-    QUIC_BUG << "SetmaxOpenOutgoingStreams deprecated for IETF QUIC";
+    QUIC_BUG_V2(quic_bug_10193_2)
+        << "SetmaxOpenOutgoingStreams deprecated for IETF QUIC";
     return;
   }
   session->stream_id_manager_.set_max_open_outgoing_streams(max_streams);

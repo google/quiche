@@ -1974,7 +1974,7 @@ class TaggingDecrypter : public QuicDecrypter {
   }
 
   bool SetPreliminaryKey(absl::string_view /*key*/) override {
-    QUIC_BUG << "should not be called";
+    QUIC_BUG_V2(quic_bug_10230_1) << "should not be called";
     return false;
   }
 
