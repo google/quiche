@@ -27,7 +27,8 @@ QuicSendControlStream::QuicSendControlStream(QuicStreamId id,
       spdy_session_(spdy_session) {}
 
 void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
-  QUIC_BUG << "OnStreamReset() called for write unidirectional stream.";
+  QUIC_BUG_V2(quic_bug_10382_1)
+      << "OnStreamReset() called for write unidirectional stream.";
 }
 
 bool QuicSendControlStream::OnStopSending(QuicRstStreamErrorCode /* code */) {

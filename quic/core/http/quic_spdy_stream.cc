@@ -335,7 +335,8 @@ size_t QuicSpdyStream::WriteTrailers(
     SpdyHeaderBlock trailer_block,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
   if (fin_sent()) {
-    QUIC_BUG << "Trailers cannot be sent after a FIN, on stream " << id();
+    QUIC_BUG_V2(quic_bug_10410_1)
+        << "Trailers cannot be sent after a FIN, on stream " << id();
     return 0;
   }
 

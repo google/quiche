@@ -84,8 +84,9 @@ bool QuicHeadersStream::OnStreamFrameAcked(QuicStreamOffset offset,
           std::min(acked_length, header.full_length - header_offset);
 
       if (header.unacked_length < header_length) {
-        QUIC_BUG << "Unsent stream data is acked. unacked_length: "
-                 << header.unacked_length << " acked_length: " << header_length;
+        QUIC_BUG_V2(quic_bug_10416_1)
+            << "Unsent stream data is acked. unacked_length: "
+            << header.unacked_length << " acked_length: " << header_length;
         OnUnrecoverableError(QUIC_INTERNAL_ERROR,
                              "Unsent stream data is acked");
         return false;

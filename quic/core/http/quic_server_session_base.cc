@@ -173,7 +173,8 @@ void QuicServerSessionBase::OnCongestionWindowChange(QuicTime now) {
       BandwidthToCachedParameterBytesPerSecond(max_bandwidth_estimate);
   QUIC_BUG_IF(max_bw_estimate_bytes_per_second < 0)
       << max_bw_estimate_bytes_per_second;
-  QUIC_BUG_IF(bw_estimate_bytes_per_second < 0) << bw_estimate_bytes_per_second;
+  QUIC_BUG_IF_V2(quic_bug_10393_1, bw_estimate_bytes_per_second < 0)
+      << bw_estimate_bytes_per_second;
 
   CachedNetworkParameters cached_network_params;
   cached_network_params.set_bandwidth_estimate_bytes_per_second(
@@ -205,13 +206,15 @@ void QuicServerSessionBase::OnCongestionWindowChange(QuicTime now) {
 
 bool QuicServerSessionBase::ShouldCreateIncomingStream(QuicStreamId id) {
   if (!connection()->connected()) {
-    QUIC_BUG << "ShouldCreateIncomingStream called when disconnected";
+    QUIC_BUG_V2(quic_bug_10393_2)
+        << "ShouldCreateIncomingStream called when disconnected";
     return false;
   }
 
   if (QuicUtils::IsServerInitiatedStreamId(transport_version(), id)) {
-    QUIC_BUG << "ShouldCreateIncomingStream called with server initiated "
-                "stream ID.";
+    QUIC_BUG_V2(quic_bug_10393_3)
+        << "ShouldCreateIncomingStream called with server initiated "
+           "stream ID.";
     return false;
   }
 
@@ -232,7 +235,8 @@ bool QuicServerSessionBase::ShouldCreateOutgoingBidirectionalStream() {
     return false;
   }
   if (!crypto_stream_->encryption_established()) {
-    QUIC_BUG << "Encryption not established so no outgoing stream created.";
+    QUIC_BUG_V2(quic_bug_10393_4)
+        << "Encryption not established so no outgoing stream created.";
     return false;
   }
 
@@ -246,7 +250,8 @@ bool QuicServerSessionBase::ShouldCreateOutgoingUnidirectionalStream() {
     return false;
   }
   if (!crypto_stream_->encryption_established()) {
-    QUIC_BUG << "Encryption not established so no outgoing stream created.";
+    QUIC_BUG_V2(quic_bug_10393_5)
+        << "Encryption not established so no outgoing stream created.";
     return false;
   }
 

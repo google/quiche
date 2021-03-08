@@ -430,7 +430,7 @@ class QuicSpdySession::SpdyFramerVisitor
                              size_t payload_len,
                              size_t frame_len) override {
     if (payload_len == 0) {
-      QUIC_BUG << "Zero payload length.";
+      QUIC_BUG_V2(quic_bug_10360_1) << "Zero payload length.";
       return;
     }
     int compression_pct = 100 - (100 * frame_len) / payload_len;
@@ -695,7 +695,7 @@ bool QuicSpdySession::OnPriorityUpdateForRequestStream(QuicStreamId stream_id,
                      buffered_stream_priorities_.size(),
                      ", which should not exceed the incoming stream limit of ",
                      max_open_incoming_bidirectional_streams());
-    QUIC_BUG << error_message;
+    QUIC_BUG_V2(quic_bug_10360_2) << error_message;
     connection()->CloseConnection(
         QUIC_INTERNAL_ERROR, error_message,
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -833,10 +833,10 @@ void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
       // A previous GOAWAY frame was sent with smaller stream ID.  This is not
       // possible, because the only time a GOAWAY frame with non-maximal
       // stream ID is sent is right before closing connection.
-      QUIC_BUG << "Not sending GOAWAY frame with " << stream_id
-               << " because one with " << last_sent_http3_goaway_id_.value()
-               << " already sent on connection "
-               << connection()->connection_id();
+      QUIC_BUG_V2(quic_bug_10360_3)
+          << "Not sending GOAWAY frame with " << stream_id
+          << " because one with " << last_sent_http3_goaway_id_.value()
+          << " already sent on connection " << connection()->connection_id();
       return;
     }
   }
@@ -849,7 +849,7 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
                                        QuicStreamId promised_stream_id,
                                        SpdyHeaderBlock headers) {
   if (perspective() == Perspective::IS_CLIENT) {
-    QUIC_BUG << "Client shouldn't send PUSH_PROMISE";
+    QUIC_BUG_V2(quic_bug_10360_4) << "Client shouldn't send PUSH_PROMISE";
     return;
   }
 
@@ -932,9 +932,10 @@ QuicSpdyStream* QuicSpdySession::GetOrCreateSpdyDataStream(
     const QuicStreamId stream_id) {
   QuicStream* stream = GetOrCreateStream(stream_id);
   if (stream && stream->is_static()) {
-    QUIC_BUG << "GetOrCreateSpdyDataStream returns static stream " << stream_id
-             << " in version " << transport_version() << "\n"
-             << QuicStackTrace();
+    QUIC_BUG_V2(quic_bug_10360_5)
+        << "GetOrCreateSpdyDataStream returns static stream " << stream_id
+        << " in version " << transport_version() << "\n"
+        << QuicStackTrace();
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID,
         absl::StrCat("stream ", stream_id, " is static"),
@@ -1023,7 +1024,7 @@ void QuicSpdySession::OnPromiseHeaderList(
     const QuicHeaderList& /*header_list*/) {
   std::string error =
       "OnPromiseHeaderList should be overridden in client code.";
-  QUIC_BUG << error;
+  QUIC_BUG_V2(quic_bug_10360_6) << error;
   connection()->CloseConnection(QUIC_INTERNAL_ERROR, error,
                                 ConnectionCloseBehavior::SILENT_CLOSE);
 }
@@ -1183,7 +1184,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         if (value != 0 && value != 1) {
           std::string error_details = absl::StrCat(
               "received SETTINGS_H3_DATAGRAM with invalid value ", value);
-          QUIC_PEER_BUG << ENDPOINT << error_details;
+          QUIC_PEER_BUG_V2(quic_peer_bug_10360_7) << ENDPOINT << error_details;
           CloseConnectionWithDetails(QUIC_HTTP_RECEIVE_SPDY_SETTING,
                                      error_details);
           return false;
@@ -1522,9 +1523,10 @@ void QuicSpdySession::BeforeConnectionCloseSent() {
     // possible, because this is the only method sending a GOAWAY frame with
     // non-maximal stream ID, and this must only be called once, right
     // before closing connection.
-    QUIC_BUG << "Not sending GOAWAY frame with " << stream_id
-             << " because one with " << last_sent_http3_goaway_id_.value()
-             << " already sent on connection " << connection()->connection_id();
+    QUIC_BUG_V2(quic_bug_10360_8)
+        << "Not sending GOAWAY frame with " << stream_id << " because one with "
+        << last_sent_http3_goaway_id_.value() << " already sent on connection "
+        << connection()->connection_id();
 
     // MUST not send GOAWAY with identifier larger than previously sent.
     // Do not bother sending one with same identifier as before, since GOAWAY
@@ -1642,8 +1644,8 @@ bool QuicSpdySession::CanCreatePushStreamWithId(PushId push_id) {
 
 void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
     absl::string_view type) {
-  QUIC_PEER_BUG << absl::StrCat("Received a duplicate ", type,
-                                " stream: Closing connection.");
+  QUIC_PEER_BUG_V2(quic_peer_bug_10360_9) << absl::StrCat(
+      "Received a duplicate ", type, " stream: Closing connection.");
   CloseConnectionWithDetails(QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
                              absl::StrCat(type, " stream is received twice."));
 }
@@ -1708,11 +1710,11 @@ MessageStatus QuicSpdySession::SendHttp3Datagram(QuicDatagramFlowId flow_id,
       connection()->helper()->GetStreamSendBufferAllocator(), slice_length);
   QuicDataWriter writer(slice_length, buffer.get());
   if (!writer.WriteVarInt62(flow_id)) {
-    QUIC_BUG << "Failed to write HTTP/3 datagram flow ID";
+    QUIC_BUG_V2(quic_bug_10360_10) << "Failed to write HTTP/3 datagram flow ID";
     return MESSAGE_STATUS_INTERNAL_ERROR;
   }
   if (!writer.WriteBytes(payload.data(), payload.length())) {
-    QUIC_BUG << "Failed to write HTTP/3 datagram payload";
+    QUIC_BUG_V2(quic_bug_10360_11) << "Failed to write HTTP/3 datagram payload";
     return MESSAGE_STATUS_INTERNAL_ERROR;
   }
 
