@@ -16,6 +16,7 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/http/http_constants.h"
 #include "quic/core/quic_types.h"
+#include "spdy/core/spdy_protocol.h"
 
 namespace quic {
 
@@ -182,15 +183,7 @@ struct QUIC_EXPORT_PRIVATE PriorityUpdateFrame {
 // https://tools.ietf.org/html/draft-davidben-http-client-hint-reliability-02
 //
 struct QUIC_EXPORT_PRIVATE AcceptChFrame {
-  struct QUIC_EXPORT_PRIVATE OriginValuePair {
-    std::string origin;
-    std::string value;
-    bool operator==(const OriginValuePair& rhs) const {
-      return origin == rhs.origin && value == rhs.value;
-    }
-  };
-
-  std::vector<OriginValuePair> entries;
+  std::vector<spdy::AcceptChOriginValuePair> entries;
 
   bool operator==(const AcceptChFrame& rhs) const {
     return entries.size() == rhs.entries.size() &&
