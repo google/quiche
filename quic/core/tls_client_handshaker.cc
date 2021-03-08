@@ -176,9 +176,13 @@ bool TlsClientHandshaker::SetAlpn() {
     return false;
   }
 
-  // Enable ALPS.
+  // Enable ALPS only for versions that use HTTP/3 frames.
   if (enable_alps_) {
     for (const std::string& alpn_string : alpns) {
+      ParsedQuicVersion version = ParseQuicVersionString(alpn_string);
+      if (!version.IsKnown() || !version.UsesHttp3()) {
+        continue;
+      }
       if (SSL_add_application_settings(
               ssl(), reinterpret_cast<const uint8_t*>(alpn_string.data()),
               alpn_string.size(), nullptr, /* settings_len = */ 0) != 1) {
