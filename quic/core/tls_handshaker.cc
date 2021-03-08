@@ -251,7 +251,7 @@ TlsHandshaker::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
       one_rtt_read_header_protection_key_.empty() ||
       one_rtt_write_header_protection_key_.empty()) {
     std::string error_details = "1-RTT secret(s) not set yet.";
-    QUIC_BUG << error_details;
+    QUIC_BUG_V2(quic_bug_10312_1) << error_details;
     CloseConnection(QUIC_INTERNAL_ERROR, error_details);
     return nullptr;
   }
@@ -276,7 +276,7 @@ std::unique_ptr<QuicEncrypter> TlsHandshaker::CreateCurrentOneRttEncrypter() {
   if (latest_write_secret_.empty() ||
       one_rtt_write_header_protection_key_.empty()) {
     std::string error_details = "1-RTT write secret not set yet.";
-    QUIC_BUG << error_details;
+    QUIC_BUG_V2(quic_bug_10312_2) << error_details;
     CloseConnection(QUIC_INTERNAL_ERROR, error_details);
     return nullptr;
   }

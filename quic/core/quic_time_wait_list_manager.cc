@@ -224,7 +224,7 @@ void QuicTimeWaitListManager::ProcessPacket(
   switch (connection_data->action) {
     case SEND_TERMINATION_PACKETS:
       if (connection_data->info.termination_packets.empty()) {
-        QUIC_BUG << "There are no termination packets.";
+        QUIC_BUG_V2(quic_bug_10608_1) << "There are no termination packets.";
         return;
       }
       switch (header_format) {
@@ -258,7 +258,7 @@ void QuicTimeWaitListManager::ProcessPacket(
 
     case SEND_CONNECTION_CLOSE_PACKETS:
       if (connection_data->info.termination_packets.empty()) {
-        QUIC_BUG << "There are no termination packets.";
+        QUIC_BUG_V2(quic_bug_10608_2) << "There are no termination packets.";
         return;
       }
       for (const auto& packet : connection_data->info.termination_packets) {

@@ -129,8 +129,8 @@ bool TlsChloExtractor::OnUnauthenticatedPublicHeader(
 bool TlsChloExtractor::OnProtocolVersionMismatch(ParsedQuicVersion version) {
   // This should never be called because we already check versions in
   // IngestPacket.
-  QUIC_BUG << "Unexpected version mismatch, expected " << framer_->version()
-           << ", got " << version;
+  QUIC_BUG_V2(quic_bug_10855_1) << "Unexpected version mismatch, expected "
+                                << framer_->version() << ", got " << version;
   return false;
 }
 
@@ -156,7 +156,7 @@ bool TlsChloExtractor::OnCryptoFrame(const QuicCryptoFrame& frame) {
   if (frame.level != ENCRYPTION_INITIAL) {
     // Since we drop non-INITIAL packets in OnUnauthenticatedPublicHeader,
     // we should never receive any CRYPTO frames at other encryption levels.
-    QUIC_BUG << "Parsed bad-level CRYPTO frame " << frame;
+    QUIC_BUG_V2(quic_bug_10855_2) << "Parsed bad-level CRYPTO frame " << frame;
     return false;
   }
   // parsed_crypto_frame_in_this_packet_ is checked in IngestPacket to allow
@@ -242,7 +242,7 @@ void TlsChloExtractor::HandleUnexpectedCallback(
     const std::string& callback_name) {
   std::string error_details =
       absl::StrCat("Unexpected callback ", callback_name);
-  QUIC_BUG << error_details;
+  QUIC_BUG_V2(quic_bug_10855_3) << error_details;
   HandleUnrecoverableError(error_details);
 }
 
@@ -311,8 +311,8 @@ void TlsChloExtractor::HandleParsedChlo(const SSL_CLIENT_HELLO* client_hello) {
   } else if (state_ == State::kParsedPartialChloFragment) {
     state_ = State::kParsedFullMultiPacketChlo;
   } else {
-    QUIC_BUG << "Unexpected state on successful parse "
-             << StateToString(state_);
+    QUIC_BUG_V2(quic_bug_10855_4)
+        << "Unexpected state on successful parse " << StateToString(state_);
   }
 }
 

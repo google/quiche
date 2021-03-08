@@ -59,8 +59,8 @@ void SetVersionFlag(const ParsedQuicVersion& version, bool should_enable) {
   } else if (version == ParsedQuicVersion::Q043()) {
     SetQuicReloadableFlag(quic_disable_version_q043, disable);
   } else {
-    QUIC_BUG << "Cannot " << (enable ? "en" : "dis") << "able version "
-             << version;
+    QUIC_BUG_V2(quic_bug_10589_1)
+        << "Cannot " << (enable ? "en" : "dis") << "able version " << version;
   }
 }
 
@@ -232,9 +232,10 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
   } else if (parsed_version == ParsedQuicVersion::ReservedForNegotiation()) {
     return CreateRandomVersionLabelForNegotiation();
   }
-  QUIC_BUG << "Unsupported version "
-           << QuicVersionToString(parsed_version.transport_version) << " "
-           << HandshakeProtocolToString(parsed_version.handshake_protocol);
+  QUIC_BUG_V2(quic_bug_10589_2)
+      << "Unsupported version "
+      << QuicVersionToString(parsed_version.transport_version) << " "
+      << HandshakeProtocolToString(parsed_version.handshake_protocol);
   return 0;
 }
 
@@ -255,7 +256,8 @@ ParsedQuicVersionVector AllSupportedVersionsWithQuicCrypto() {
       versions.push_back(version);
     }
   }
-  QUIC_BUG_IF(versions.empty()) << "No version with QUIC crypto found.";
+  QUIC_BUG_IF_V2(quic_bug_10589_3, versions.empty())
+      << "No version with QUIC crypto found.";
   return versions;
 }
 
@@ -266,7 +268,8 @@ ParsedQuicVersionVector CurrentSupportedVersionsWithQuicCrypto() {
       versions.push_back(version);
     }
   }
-  QUIC_BUG_IF(versions.empty()) << "No version with QUIC crypto found.";
+  QUIC_BUG_IF_V2(quic_bug_10589_4, versions.empty())
+      << "No version with QUIC crypto found.";
   return versions;
 }
 
@@ -277,7 +280,8 @@ ParsedQuicVersionVector AllSupportedVersionsWithTls() {
       versions.push_back(version);
     }
   }
-  QUIC_BUG_IF(versions.empty()) << "No version with TLS handshake found.";
+  QUIC_BUG_IF_V2(quic_bug_10589_5, versions.empty())
+      << "No version with TLS handshake found.";
   return versions;
 }
 
@@ -288,7 +292,8 @@ ParsedQuicVersionVector CurrentSupportedVersionsWithTls() {
       versions.push_back(version);
     }
   }
-  QUIC_BUG_IF(versions.empty()) << "No version with TLS handshake found.";
+  QUIC_BUG_IF_V2(quic_bug_10589_6, versions.empty())
+      << "No version with TLS handshake found.";
   return versions;
 }
 
@@ -414,7 +419,8 @@ ParsedQuicVersionVector FilterSupportedVersions(
         filtered_versions.push_back(version);
       }
     } else {
-      QUIC_BUG << "QUIC version " << version << " has no flag protection";
+      QUIC_BUG_V2(quic_bug_10589_7)
+          << "QUIC version " << version << " has no flag protection";
       filtered_versions.push_back(version);
     }
   }

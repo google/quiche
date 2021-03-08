@@ -22,7 +22,7 @@ quic_trace::EncryptionLevel EncryptionLevelToProto(EncryptionLevel level) {
     case ENCRYPTION_FORWARD_SECURE:
       return quic_trace::ENCRYPTION_1RTT;
     case NUM_ENCRYPTION_LEVELS:
-      QUIC_BUG << "Invalid encryption level specified";
+      QUIC_BUG_V2(quic_bug_10284_1) << "Invalid encryption level specified";
       return quic_trace::ENCRYPTION_UNKNOWN;
   }
 }
@@ -100,7 +100,7 @@ void QuicTraceVisitor::OnPacketSent(
         break;
 
       case NUM_FRAME_TYPES:
-        QUIC_BUG << "Unknown frame type encountered";
+        QUIC_BUG_V2(quic_bug_10284_2) << "Unknown frame type encountered";
         break;
     }
   }
@@ -228,7 +228,7 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
       break;
 
     case NUM_FRAME_TYPES:
-      QUIC_BUG << "Unknown frame type encountered";
+      QUIC_BUG_V2(quic_bug_10284_3) << "Unknown frame type encountered";
       break;
   }
 }
@@ -314,7 +314,8 @@ void QuicTraceVisitor::OnAdjustNetworkParameters(QuicBandwidth bandwidth,
 uint64_t QuicTraceVisitor::ConvertTimestampToRecordedFormat(
     QuicTime timestamp) {
   if (timestamp < start_time_) {
-    QUIC_BUG << "Timestamp went back in time while recording a trace";
+    QUIC_BUG_V2(quic_bug_10284_4)
+        << "Timestamp went back in time while recording a trace";
     return 0;
   }
 

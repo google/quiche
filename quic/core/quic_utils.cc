@@ -280,7 +280,8 @@ void QuicUtils::CopyToBuffer(const struct iovec* iov,
     src = static_cast<char*>(iov[iovnum].iov_base);
     copy_len = std::min(buffer_length, iov[iovnum].iov_len);
   }
-  QUIC_BUG_IF(buffer_length > 0) << "Failed to copy entire length to buffer.";
+  QUIC_BUG_IF_V2(quic_bug_10839_1, buffer_length > 0)
+      << "Failed to copy entire length to buffer.";
 }
 
 // static
@@ -356,7 +357,8 @@ SentPacketState QuicUtils::RetransmissionTypeToPacketState(
     case ALL_INITIAL_RETRANSMISSION:
       return UNACKABLE;
     default:
-      QUIC_BUG << retransmission_type << " is not a retransmission_type";
+      QUIC_BUG_V2(quic_bug_10839_2)
+          << retransmission_type << " is not a retransmission_type";
       return UNACKABLE;
   }
 }
@@ -648,8 +650,9 @@ PacketNumberSpace QuicUtils::GetPacketNumberSpace(
     case ENCRYPTION_FORWARD_SECURE:
       return APPLICATION_DATA;
     default:
-      QUIC_BUG << "Try to get packet number space of encryption level: "
-               << encryption_level;
+      QUIC_BUG_V2(quic_bug_10839_3)
+          << "Try to get packet number space of encryption level: "
+          << encryption_level;
       return NUM_PACKET_NUMBER_SPACES;
   }
 }
