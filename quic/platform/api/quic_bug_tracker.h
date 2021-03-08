@@ -12,4 +12,11 @@
 #define QUIC_PEER_BUG QUIC_PEER_BUG_IMPL
 #define QUIC_PEER_BUG_IF QUIC_PEER_BUG_IF_IMPL
 
+// V2 macros are the same as all the QUIC_BUG flavor above, but they take a
+// bug_id parameter.
+#define QUIC_BUG_V2 QUIC_BUG_V2_IMPL
+#define QUIC_BUG_IF_V2 QUIC_BUG_IF_V2_IMPL
+#define QUIC_PEER_BUG_V2 QUIC_PEER_BUG_V2_IMPL
+#define QUIC_PEER_BUG_IF_V2 QUIC_PEER_BUG_IF_V2_IMPL
+
 #endif  // QUICHE_QUIC_PLATFORM_API_QUIC_BUG_TRACKER_H_
