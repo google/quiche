@@ -33,7 +33,8 @@ QuicSocketAddress::QuicSocketAddress(const struct sockaddr_storage& saddr) {
       break;
     }
     default:
-      QUIC_BUG << "Unknown address family passed: " << saddr.ss_family;
+      QUIC_BUG_V2(quic_bug_10075_1)
+          << "Unknown address family passed: " << saddr.ss_family;
       break;
   }
 }
@@ -48,7 +49,8 @@ QuicSocketAddress::QuicSocketAddress(const sockaddr* saddr, socklen_t len) {
       (saddr->sa_family == AF_INET6 &&
        len < static_cast<socklen_t>(sizeof(sockaddr_in6))) ||
       len > static_cast<socklen_t>(sizeof(storage))) {
-    QUIC_BUG << "Socket address of invalid length provided";
+    QUIC_BUG_V2(quic_bug_10075_2)
+        << "Socket address of invalid length provided";
     return;
   }
   memcpy(&storage, saddr, len);

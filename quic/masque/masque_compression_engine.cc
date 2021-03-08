@@ -106,29 +106,29 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
   if (validated) {
     QUIC_DVLOG(1) << "Compressing using validated flow_id " << flow_id;
     if (!writer->WriteVarInt62(flow_id)) {
-      QUIC_BUG << "Failed to write flow_id";
+      QUIC_BUG_V2(quic_bug_10981_1) << "Failed to write flow_id";
       return false;
     }
   } else {
     QUIC_DVLOG(1) << "Compressing using unvalidated flow_id " << flow_id;
     if (!writer->WriteVarInt62(kFlowId0)) {
-      QUIC_BUG << "Failed to write kFlowId0";
+      QUIC_BUG_V2(quic_bug_10981_2) << "Failed to write kFlowId0";
       return false;
     }
     if (!writer->WriteVarInt62(flow_id)) {
-      QUIC_BUG << "Failed to write flow_id";
+      QUIC_BUG_V2(quic_bug_10981_3) << "Failed to write flow_id";
       return false;
     }
     if (!writer->WriteLengthPrefixedConnectionId(client_connection_id)) {
-      QUIC_BUG << "Failed to write client_connection_id";
+      QUIC_BUG_V2(quic_bug_10981_4) << "Failed to write client_connection_id";
       return false;
     }
     if (!writer->WriteLengthPrefixedConnectionId(server_connection_id)) {
-      QUIC_BUG << "Failed to write server_connection_id";
+      QUIC_BUG_V2(quic_bug_10981_5) << "Failed to write server_connection_id";
       return false;
     }
     if (!writer->WriteUInt16(server_address.port())) {
-      QUIC_BUG << "Failed to write port";
+      QUIC_BUG_V2(quic_bug_10981_6) << "Failed to write port";
       return false;
     }
     QuicIpAddress peer_ip = server_address.host();
@@ -139,30 +139,31 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
     if (peer_ip.address_family() == IpAddressFamily::IP_V6) {
       address_id = MasqueAddressFamilyIPv6;
       if (peer_ip_bytes.length() != QuicIpAddress::kIPv6AddressSize) {
-        QUIC_BUG << "Bad IPv6 length " << server_address;
+        QUIC_BUG_V2(quic_bug_10981_7) << "Bad IPv6 length " << server_address;
         return false;
       }
     } else if (peer_ip.address_family() == IpAddressFamily::IP_V4) {
       address_id = MasqueAddressFamilyIPv4;
       if (peer_ip_bytes.length() != QuicIpAddress::kIPv4AddressSize) {
-        QUIC_BUG << "Bad IPv4 length " << server_address;
+        QUIC_BUG_V2(quic_bug_10981_8) << "Bad IPv4 length " << server_address;
         return false;
       }
     } else {
-      QUIC_BUG << "Unexpected server_address " << server_address;
+      QUIC_BUG_V2(quic_bug_10981_9)
+          << "Unexpected server_address " << server_address;
       return false;
     }
     if (!writer->WriteUInt8(address_id)) {
-      QUIC_BUG << "Failed to write address_id";
+      QUIC_BUG_V2(quic_bug_10981_10) << "Failed to write address_id";
       return false;
     }
     if (!writer->WriteStringPiece(peer_ip_bytes)) {
-      QUIC_BUG << "Failed to write IP address";
+      QUIC_BUG_V2(quic_bug_10981_11) << "Failed to write IP address";
       return false;
     }
   }
   if (!writer->WriteUInt8(first_byte)) {
-    QUIC_BUG << "Failed to write first_byte";
+    QUIC_BUG_V2(quic_bug_10981_12) << "Failed to write first_byte";
     return false;
   }
   if (long_header) {
@@ -172,7 +173,7 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
       return false;
     }
     if (!writer->WriteUInt32(version_label)) {
-      QUIC_BUG << "Failed to write version";
+      QUIC_BUG_V2(quic_bug_10981_13) << "Failed to write version";
       return false;
     }
     QuicConnectionId packet_destination_connection_id,
@@ -214,7 +215,7 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
   }
   absl::string_view packet_payload = reader->ReadRemainingPayload();
   if (!writer->WriteStringPiece(packet_payload)) {
-    QUIC_BUG << "Failed to write packet_payload";
+    QUIC_BUG_V2(quic_bug_10981_14) << "Failed to write packet_payload";
     return false;
   }
   return true;
@@ -230,13 +231,13 @@ void MasqueCompressionEngine::CompressAndSendPacket(
                 << quiche::QuicheTextUtils::HexDump(packet);
   QUICHE_DCHECK(server_address.IsInitialized());
   if (packet.empty()) {
-    QUIC_BUG << "Tried to send empty packet";
+    QUIC_BUG_V2(quic_bug_10981_15) << "Tried to send empty packet";
     return;
   }
   QuicDataReader reader(packet.data(), packet.length());
   uint8_t first_byte;
   if (!reader.ReadUInt8(&first_byte)) {
-    QUIC_BUG << "Failed to read first_byte";
+    QUIC_BUG_V2(quic_bug_10981_16) << "Failed to read first_byte";
     return;
   }
   const bool long_header = (first_byte & FLAGS_LONG_HEADER) != 0;
@@ -340,7 +341,7 @@ bool MasqueCompressionEngine::ParseCompressionContext(
   QuicIpAddress ip_address;
   ip_address.FromPackedString(ip_bytes, ip_bytes_length);
   if (!ip_address.IsInitialized()) {
-    QUIC_BUG << "Failed to parse IP address";
+    QUIC_BUG_V2(quic_bug_10981_17) << "Failed to parse IP address";
     return false;
   }
   QuicSocketAddress new_server_address = QuicSocketAddress(ip_address, port);
@@ -424,7 +425,7 @@ bool MasqueCompressionEngine::WriteDecompressedPacket(
   *packet = std::vector<char>(packet_length);
   QuicDataWriter writer(packet->size(), packet->data());
   if (!writer.WriteUInt8(first_byte)) {
-    QUIC_BUG << "Failed to write first_byte";
+    QUIC_BUG_V2(quic_bug_10981_18) << "Failed to write first_byte";
     return false;
   }
   if (*version_present) {
@@ -434,26 +435,29 @@ bool MasqueCompressionEngine::WriteDecompressedPacket(
       return false;
     }
     if (!writer.WriteUInt32(version_label)) {
-      QUIC_BUG << "Failed to write version";
+      QUIC_BUG_V2(quic_bug_10981_19) << "Failed to write version";
       return false;
     }
     if (!writer.WriteLengthPrefixedConnectionId(destination_connection_id)) {
-      QUIC_BUG << "Failed to write long header destination_connection_id";
+      QUIC_BUG_V2(quic_bug_10981_20)
+          << "Failed to write long header destination_connection_id";
       return false;
     }
     if (!writer.WriteLengthPrefixedConnectionId(source_connection_id)) {
-      QUIC_BUG << "Failed to write long header source_connection_id";
+      QUIC_BUG_V2(quic_bug_10981_21)
+          << "Failed to write long header source_connection_id";
       return false;
     }
   } else {
     if (!writer.WriteConnectionId(destination_connection_id)) {
-      QUIC_BUG << "Failed to write short header destination_connection_id";
+      QUIC_BUG_V2(quic_bug_10981_22)
+          << "Failed to write short header destination_connection_id";
       return false;
     }
   }
   absl::string_view payload = reader->ReadRemainingPayload();
   if (!writer.WriteStringPiece(payload)) {
-    QUIC_BUG << "Failed to write payload";
+    QUIC_BUG_V2(quic_bug_10981_23) << "Failed to write payload";
     return false;
   }
   return true;

@@ -127,7 +127,7 @@ bool QpackInstructionDecoder::DoStartField() {
       state_ = State::kVarintStart;
       return true;
     default:
-      QUIC_BUG << "Invalid field type.";
+      QUIC_BUG_V2(quic_bug_10767_1) << "Invalid field type.";
       return false;
   }
 }
@@ -157,7 +157,7 @@ bool QpackInstructionDecoder::DoReadBit(absl::string_view data) {
       return true;
     }
     default:
-      QUIC_BUG << "Invalid field type.";
+      QUIC_BUG_V2(quic_bug_10767_2) << "Invalid field type.";
       return false;
   }
 }
@@ -186,7 +186,7 @@ bool QpackInstructionDecoder::DoVarintStart(absl::string_view data,
       OnError(ErrorCode::INTEGER_TOO_LARGE, "Encoded integer too large.");
       return false;
     default:
-      QUIC_BUG << "Unknown decode status " << status;
+      QUIC_BUG_V2(quic_bug_10767_3) << "Unknown decode status " << status;
       return false;
   }
 }
@@ -215,7 +215,7 @@ bool QpackInstructionDecoder::DoVarintResume(absl::string_view data,
       OnError(ErrorCode::INTEGER_TOO_LARGE, "Encoded integer too large.");
       return false;
     default:
-      QUIC_BUG << "Unknown decode status " << status;
+      QUIC_BUG_V2(quic_bug_10767_4) << "Unknown decode status " << status;
       return false;
   }
 }

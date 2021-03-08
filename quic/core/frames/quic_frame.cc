@@ -318,7 +318,8 @@ QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame) {
       copy = QuicFrame(new QuicNewTokenFrame(*frame.new_token_frame));
       break;
     default:
-      QUIC_BUG << "Try to copy a non-retransmittable control frame: " << frame;
+      QUIC_BUG_V2(quic_bug_10533_1)
+          << "Try to copy a non-retransmittable control frame: " << frame;
       copy = QuicFrame(QuicPingFrame(kInvalidControlFrameId));
       break;
   }
@@ -412,7 +413,7 @@ QuicFrame CopyQuicFrame(QuicBufferAllocator* allocator,
       copy = QuicFrame(new QuicAckFrequencyFrame(*frame.ack_frequency_frame));
       break;
     default:
-      QUIC_BUG << "Cannot copy frame: " << frame;
+      QUIC_BUG_V2(quic_bug_10533_2) << "Cannot copy frame: " << frame;
       copy = QuicFrame(QuicPingFrame(kInvalidControlFrameId));
       break;
   }

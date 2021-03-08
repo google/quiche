@@ -18,7 +18,8 @@ FragmentSizeGenerator FragmentModeToFragmentSizeGenerator(
     case FragmentMode::kOctetByOctet:
       return []() { return 1; };
   }
-  QUIC_BUG << "Unknown FragmentMode " << static_cast<int>(fragment_mode);
+  QUIC_BUG_V2(quic_bug_10259_1)
+      << "Unknown FragmentMode " << static_cast<int>(fragment_mode);
   return []() { return 0; };
 }
 
