@@ -72,7 +72,8 @@ void QuicPathValidator::StartPathValidation(
   QUIC_DLOG(INFO) << "Start validating path " << *context
                   << " via writer: " << context->WriterToUse();
   if (path_context_ != nullptr) {
-    QUIC_BUG << "There is an on-going validation on path " << *path_context_;
+    QUIC_BUG_V2(quic_bug_10876_1)
+        << "There is an on-going validation on path " << *path_context_;
     ResetPathValidation();
   }
 

@@ -614,11 +614,12 @@ void QuicSession::OnCanWrite() {
     if (!(write_blocked_streams_.HasWriteBlockedSpecialStream() ||
           write_blocked_streams_.HasWriteBlockedDataStreams())) {
       // Writing one stream removed another!? Something's broken.
-      QUIC_BUG << "WriteBlockedStream is missing, num_writes: " << num_writes
-               << ", finished_writes: " << i
-               << ", connected: " << connection_->connected()
-               << ", connection level flow control blocked: "
-               << flow_controller_.IsBlocked();
+      QUIC_BUG_V2(quic_bug_10866_1)
+          << "WriteBlockedStream is missing, num_writes: " << num_writes
+          << ", finished_writes: " << i
+          << ", connected: " << connection_->connected()
+          << ", connection level flow control blocked: "
+          << flow_controller_.IsBlocked();
       for (QuicStreamId id : last_writing_stream_ids) {
         QUIC_LOG(WARNING) << "last_writing_stream_id: " << id;
       }
@@ -760,8 +761,9 @@ QuicConsumedData QuicSession::WritevData(
           << ENDPOINT << "Try to send new data on stream " << id
           << "before 1-RTT keys are available while 0-RTT is rejected.";
     } else {
-      QUIC_BUG << ENDPOINT << "Try to send data of stream " << id
-               << " before encryption is established.";
+      QUIC_BUG_V2(quic_bug_10866_2)
+          << ENDPOINT << "Try to send data of stream " << id
+          << " before encryption is established.";
     }
     return QuicConsumedData(0, false);
   }
@@ -804,7 +806,7 @@ size_t QuicSession::SendCryptoData(EncryptionLevel level,
     const std::string error_details = absl::StrCat(
         "Try to send crypto data with missing keys of encryption level: ",
         EncryptionLevelToString(level));
-    QUIC_BUG << ENDPOINT << error_details;
+    QUIC_BUG_V2(quic_bug_10866_3) << ENDPOINT << error_details;
     connection()->CloseConnection(
         QUIC_MISSING_WRITE_KEYS, error_details,
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -840,8 +842,9 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame,
   if (connection_->encrypted_control_frames()) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_encrypted_control_frames);
     if (!IsEncryptionEstablished()) {
-      QUIC_BUG << ENDPOINT << "Tried to send control frame " << frame
-               << " before encryption is established.";
+      QUIC_BUG_V2(quic_bug_10866_4)
+          << ENDPOINT << "Tried to send control frame " << frame
+          << " before encryption is established.";
       return false;
     }
   }
@@ -953,7 +956,8 @@ void QuicSession::OnStreamError(QuicErrorCode error_code,
 void QuicSession::SendMaxStreams(QuicStreamCount stream_count,
                                  bool unidirectional) {
   if (!is_configured_) {
-    QUIC_BUG << "Try to send max streams before config negotiated.";
+    QUIC_BUG_V2(quic_bug_10866_5)
+        << "Try to send max streams before config negotiated.";
     return;
   }
   control_frame_manager_.WriteOrBufferMaxStreams(stream_count, unidirectional);
@@ -969,7 +973,8 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
   QUIC_DVLOG(1) << ENDPOINT << "Closing stream: " << stream_id;
   StreamMap::iterator it = stream_map_.find(stream_id);
   if (it == stream_map_.end()) {
-    QUIC_BUG << ENDPOINT << "Stream is already closed: " << stream_id;
+    QUIC_BUG_V2(quic_bug_10866_6)
+        << ENDPOINT << "Stream is already closed: " << stream_id;
     return;
   }
   QuicStream* stream = it->second.get();
@@ -1613,7 +1618,7 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
           connection()->clock()->ApproximateNow();
       break;
     default:
-      QUIC_BUG << "Unknown encryption level: " << level;
+      QUIC_BUG_V2(quic_bug_10866_7) << "Unknown encryption level: " << level;
   }
 }
 
@@ -1678,11 +1683,13 @@ void QuicSession::DiscardOldEncryptionKey(EncryptionLevel level) {
     case ENCRYPTION_ZERO_RTT:
       break;
     case ENCRYPTION_FORWARD_SECURE:
-      QUIC_BUG << ENDPOINT << "Discarding 1-RTT keys is not allowed";
+      QUIC_BUG_V2(quic_bug_10866_8)
+          << ENDPOINT << "Discarding 1-RTT keys is not allowed";
       break;
     default:
-      QUIC_BUG << ENDPOINT
-               << "Cannot discard keys for unknown encryption level: " << level;
+      QUIC_BUG_V2(quic_bug_10866_9)
+          << ENDPOINT
+          << "Cannot discard keys for unknown encryption level: " << level;
   }
 }
 
@@ -1696,7 +1703,8 @@ void QuicSession::OnZeroRttRejected(int reason) {
   was_zero_rtt_rejected_ = true;
   connection_->MarkZeroRttPacketsForRetransmission(reason);
   if (connection_->encryption_level() == ENCRYPTION_FORWARD_SECURE) {
-    QUIC_BUG << "1-RTT keys already available when 0-RTT is rejected.";
+    QUIC_BUG_V2(quic_bug_10866_10)
+        << "1-RTT keys already available when 0-RTT is rejected.";
     connection_->CloseConnection(
         QUIC_INTERNAL_ERROR,
         "1-RTT keys already available when 0-RTT is rejected.",
@@ -2029,7 +2037,8 @@ size_t QuicSession::GetNumActiveStreams() const {
 
 void QuicSession::MarkConnectionLevelWriteBlocked(QuicStreamId id) {
   if (GetOrCreateStream(id) == nullptr) {
-    QUIC_BUG << "Marking unknown stream " << id << " blocked.";
+    QUIC_BUG_V2(quic_bug_10866_11)
+        << "Marking unknown stream " << id << " blocked.";
     QUIC_LOG_FIRST_N(ERROR, 2) << QuicStackTrace();
   }
 
@@ -2184,8 +2193,9 @@ bool QuicSession::OnFrameAcked(const QuicFrame& frame,
 void QuicSession::OnStreamFrameRetransmitted(const QuicStreamFrame& frame) {
   QuicStream* stream = GetStream(frame.stream_id);
   if (stream == nullptr) {
-    QUIC_BUG << "Stream: " << frame.stream_id << " is closed when " << frame
-             << " is retransmitted.";
+    QUIC_BUG_V2(quic_bug_10866_12)
+        << "Stream: " << frame.stream_id << " is closed when " << frame
+        << " is retransmitted.";
     connection()->CloseConnection(
         QUIC_INTERNAL_ERROR, "Attempt to retransmit frame of a closed stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -2296,8 +2306,9 @@ WriteStreamDataResult QuicSession::WriteStreamData(QuicStreamId id,
   if (stream == nullptr) {
     // This causes the connection to be closed because of failed to serialize
     // packet.
-    QUIC_BUG << "Stream " << id << " does not exist when trying to write data."
-             << " version:" << transport_version();
+    QUIC_BUG_V2(quic_bug_10866_13)
+        << "Stream " << id << " does not exist when trying to write data."
+        << " version:" << transport_version();
     return STREAM_MISSING;
   }
   if (stream->WriteStreamData(offset, data_length, writer)) {
@@ -2382,7 +2393,8 @@ bool QuicSession::RetransmitLostData() {
         streams_with_pending_retransmission_.pop_front();
       }
     } else {
-      QUIC_BUG << "Try to retransmit data of a closed stream";
+      QUIC_BUG_V2(quic_bug_10866_14)
+          << "Try to retransmit data of a closed stream";
       streams_with_pending_retransmission_.pop_front();
     }
   }

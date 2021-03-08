@@ -776,7 +776,8 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
     const {
   QuicAckFrequencyFrame frame;
   if (!CanSendAckFrequency()) {
-    QUIC_BUG << "New AckFrequencyFrame is created while it shouldn't.";
+    QUIC_BUG_V2(quic_bug_10750_1)
+        << "New AckFrequencyFrame is created while it shouldn't.";
     return frame;
   }
 
@@ -804,7 +805,8 @@ bool QuicSentPacketManager::OnPacketSent(
   QuicPacketNumber packet_number = packet.packet_number;
   QUICHE_DCHECK_LE(FirstSendingPacketNumber(), packet_number);
   QUICHE_DCHECK(!unacked_packets_.IsUnacked(packet_number));
-  QUIC_BUG_IF(packet.encrypted_length == 0) << "Cannot send empty packets.";
+  QUIC_BUG_IF_V2(quic_bug_10750_2, packet.encrypted_length == 0)
+      << "Cannot send empty packets.";
   if (pending_timer_transmission_count_ > 0) {
     --pending_timer_transmission_count_;
   }
@@ -895,7 +897,8 @@ QuicSentPacketManager::OnRetransmissionTimeout() {
       pending_timer_transmission_count_ = max_probe_packets_per_pto_;
       return PTO_MODE;
   }
-  QUIC_BUG << "Unknown retransmission mode " << GetRetransmissionMode();
+  QUIC_BUG_V2(quic_bug_10750_3)
+      << "Unknown retransmission mode " << GetRetransmissionMode();
   return GetRetransmissionMode();
 }
 
@@ -1188,8 +1191,8 @@ bool QuicSentPacketManager::MaybeUpdateRTT(QuicPacketNumber largest_acked,
       unacked_packets_.GetTransmissionInfo(largest_acked);
   // Ensure the packet has a valid sent time.
   if (transmission_info.sent_time == QuicTime::Zero()) {
-    QUIC_BUG << "Acked packet has zero sent time, largest_acked:"
-             << largest_acked;
+    QUIC_BUG_V2(quic_bug_10750_4)
+        << "Acked packet has zero sent time, largest_acked:" << largest_acked;
     return false;
   }
   if (transmission_info.state == NOT_CONTRIBUTING_RTT) {
@@ -1591,16 +1594,18 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
         unacked_packets_.GetMutableTransmissionInfo(acked_packet.packet_number);
     if (!QuicUtils::IsAckable(info->state)) {
       if (info->state == ACKED) {
-        QUIC_BUG << "Trying to ack an already acked packet: "
-                 << acked_packet.packet_number
-                 << ", last_ack_frame_: " << last_ack_frame_
-                 << ", least_unacked: " << unacked_packets_.GetLeastUnacked()
-                 << ", packets_acked_: " << packets_acked_;
+        QUIC_BUG_V2(quic_bug_10750_5)
+            << "Trying to ack an already acked packet: "
+            << acked_packet.packet_number
+            << ", last_ack_frame_: " << last_ack_frame_
+            << ", least_unacked: " << unacked_packets_.GetLeastUnacked()
+            << ", packets_acked_: " << packets_acked_;
       } else {
-        QUIC_PEER_BUG << "Received " << ack_decrypted_level
-                      << " ack for unackable packet: "
-                      << acked_packet.packet_number << " with state: "
-                      << QuicUtils::SentPacketStateToString(info->state);
+        QUIC_PEER_BUG_V2(quic_peer_bug_10750_6)
+            << "Received " << ack_decrypted_level
+            << " ack for unackable packet: " << acked_packet.packet_number
+            << " with state: "
+            << QuicUtils::SentPacketStateToString(info->state);
         if (supports_multiple_packet_number_spaces()) {
           if (info->state == NEVER_SENT) {
             return UNSENT_PACKETS_ACKED;
@@ -1804,7 +1809,7 @@ void QuicSentPacketManager::OnAckFrequencyFrameAcked(
     in_use_sent_ack_delays_.pop_front_n(stale_entry_count);
   }
   if (in_use_sent_ack_delays_.empty()) {
-    QUIC_BUG << "in_use_sent_ack_delays_ is empty.";
+    QUIC_BUG_V2(quic_bug_10750_7) << "in_use_sent_ack_delays_ is empty.";
     return;
   }
   peer_max_ack_delay_ = std::max_element(in_use_sent_ack_delays_.cbegin(),

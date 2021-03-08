@@ -73,7 +73,7 @@ void QuicStreamSequencerBuffer::Clear() {
 
 bool QuicStreamSequencerBuffer::RetireBlock(size_t index) {
   if (blocks_[index] == nullptr) {
-    QUIC_BUG << "Try to retire block twice";
+    QUIC_BUG_V2(quic_bug_10610_1) << "Try to retire block twice";
     return false;
   }
   delete blocks_[index];
@@ -516,7 +516,7 @@ bool QuicStreamSequencerBuffer::RetireBlockIfEmpty(size_t block_index) {
         return true;
       }
     } else {
-      QUIC_BUG << "Read stopped at where it shouldn't.";
+      QUIC_BUG_V2(quic_bug_10610_2) << "Read stopped at where it shouldn't.";
       return false;
     }
   }

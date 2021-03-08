@@ -40,8 +40,8 @@ QuicStreamSequencer::QuicStreamSequencer(StreamInterface* quic_stream)
 
 QuicStreamSequencer::~QuicStreamSequencer() {
   if (stream_ == nullptr) {
-    QUIC_BUG << "Double free'ing QuicStreamSequencer at " << this << ". "
-             << QuicStackTrace();
+    QUIC_BUG_V2(quic_bug_10858_1) << "Double free'ing QuicStreamSequencer at "
+                                  << this << ". " << QuicStackTrace();
   }
   stream_ = nullptr;
 }
@@ -235,9 +235,10 @@ void QuicStreamSequencer::MarkConsumed(size_t num_bytes_consumed) {
   QUICHE_DCHECK(!blocked_);
   bool result = buffered_frames_.MarkConsumed(num_bytes_consumed);
   if (!result) {
-    QUIC_BUG << "Invalid argument to MarkConsumed."
-             << " expect to consume: " << num_bytes_consumed
-             << ", but not enough bytes available. " << DebugString();
+    QUIC_BUG_V2(quic_bug_10858_2)
+        << "Invalid argument to MarkConsumed."
+        << " expect to consume: " << num_bytes_consumed
+        << ", but not enough bytes available. " << DebugString();
     stream_->Reset(QUIC_ERROR_PROCESSING_STREAM);
     return;
   }

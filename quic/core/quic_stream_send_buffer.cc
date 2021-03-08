@@ -77,7 +77,8 @@ void QuicStreamSendBuffer::SaveMemSlice(QuicMemSlice slice) {
   QUIC_DVLOG(2) << "Save slice offset " << stream_offset_ << " length "
                 << slice.length();
   if (slice.empty()) {
-    QUIC_BUG << "Try to save empty MemSlice to send buffer.";
+    QUIC_BUG_V2(quic_bug_10853_1)
+        << "Try to save empty MemSlice to send buffer.";
     return;
   }
   size_t length = slice.length();
@@ -122,7 +123,7 @@ bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
     QuicByteCount copy_length = std::min(data_length, available_bytes_in_slice);
     if (!writer->WriteBytes(slice_it->slice.data() + slice_offset,
                             copy_length)) {
-      QUIC_BUG << "Writer fails to write.";
+      QUIC_BUG_V2(quic_bug_10853_2) << "Writer fails to write.";
       return false;
     }
     offset += copy_length;
@@ -219,8 +220,9 @@ StreamPendingRetransmission QuicStreamSendBuffer::NextPendingRetransmission()
     const auto pending = pending_retransmissions_.begin();
     return {pending->min(), pending->max() - pending->min()};
   }
-  QUIC_BUG << "NextPendingRetransmission is called unexpected with no "
-              "pending retransmissions.";
+  QUIC_BUG_V2(quic_bug_10853_3)
+      << "NextPendingRetransmission is called unexpected with no "
+         "pending retransmissions.";
   return {0, 0};
 }
 
@@ -228,10 +230,11 @@ bool QuicStreamSendBuffer::FreeMemSlices(QuicStreamOffset start,
                                          QuicStreamOffset end) {
   auto it = interval_deque_.DataBegin();
   if (it == interval_deque_.DataEnd() || it->slice.empty()) {
-    QUIC_BUG << "Trying to ack stream data [" << start << ", " << end << "), "
-             << (it == interval_deque_.DataEnd()
-                     ? "and there is no outstanding data."
-                     : "and the first slice is empty.");
+    QUIC_BUG_V2(quic_bug_10853_4)
+        << "Trying to ack stream data [" << start << ", " << end << "), "
+        << (it == interval_deque_.DataEnd()
+                ? "and there is no outstanding data."
+                : "and the first slice is empty.");
     return false;
   }
   if (!it->interval().Contains(start)) {
@@ -240,9 +243,10 @@ bool QuicStreamSendBuffer::FreeMemSlices(QuicStreamOffset start,
                           interval_deque_.DataEnd(), start, CompareOffset());
   }
   if (it == interval_deque_.DataEnd() || it->slice.empty()) {
-    QUIC_BUG << "Offset " << start << " with iterator offset: " << it->offset
-             << (it == interval_deque_.DataEnd() ? " does not exist."
-                                                 : " has already been acked.");
+    QUIC_BUG_V2(quic_bug_10853_5)
+        << "Offset " << start << " with iterator offset: " << it->offset
+        << (it == interval_deque_.DataEnd() ? " does not exist."
+                                            : " has already been acked.");
     return false;
   }
   for (; it != interval_deque_.DataEnd(); ++it) {
