@@ -32,7 +32,8 @@ Bbr2StartupMode::Bbr2StartupMode(const Bbr2Sender* sender,
 
 void Bbr2StartupMode::Enter(QuicTime /*now*/,
                             const Bbr2CongestionEvent* /*congestion_event*/) {
-  QUIC_BUG << "Bbr2StartupMode::Enter should not be called";
+  QUIC_BUG_V2(quic_bug_10463_1)
+      << "Bbr2StartupMode::Enter should not be called";
 }
 
 void Bbr2StartupMode::Leave(QuicTime now,

@@ -69,9 +69,10 @@ LossDetectionInterface::DetectionStats GeneralLossAlgorithm::DetectLosses(
   auto it = unacked_packets.begin();
   if (least_in_flight_.IsInitialized() && least_in_flight_ >= packet_number) {
     if (least_in_flight_ > unacked_packets.largest_sent_packet() + 1) {
-      QUIC_BUG << "least_in_flight: " << least_in_flight_
-               << " is greater than largest_sent_packet + 1: "
-               << unacked_packets.largest_sent_packet() + 1;
+      QUIC_BUG_V2(quic_bug_10430_1)
+          << "least_in_flight: " << least_in_flight_
+          << " is greater than largest_sent_packet + 1: "
+          << unacked_packets.largest_sent_packet() + 1;
     } else {
       it += (least_in_flight_ - packet_number);
       packet_number = least_in_flight_;
@@ -181,7 +182,7 @@ void GeneralLossAlgorithm::Initialize(PacketNumberSpace packet_number_space,
                                       LossDetectionInterface* parent) {
   parent_ = parent;
   if (packet_number_space_ < NUM_PACKET_NUMBER_SPACES) {
-    QUIC_BUG << "Cannot switch packet_number_space";
+    QUIC_BUG_V2(quic_bug_10430_2) << "Cannot switch packet_number_space";
     return;
   }
 

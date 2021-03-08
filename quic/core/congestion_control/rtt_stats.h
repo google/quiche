@@ -79,7 +79,7 @@ class QUIC_EXPORT_PRIVATE RttStats {
   // Sets an initial RTT to be used for SmoothedRtt before any RTT updates.
   void set_initial_rtt(QuicTime::Delta initial_rtt) {
     if (initial_rtt.ToMicroseconds() <= 0) {
-      QUIC_BUG << "Attempt to set initial rtt to <= 0.";
+      QUIC_BUG_V2(quic_bug_10453_1) << "Attempt to set initial rtt to <= 0.";
       return;
     }
     initial_rtt_ = initial_rtt;
