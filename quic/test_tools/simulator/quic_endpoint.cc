@@ -228,7 +228,8 @@ bool QuicEndpoint::DataProducer::WriteCryptoData(EncryptionLevel /*level*/,
                                                  QuicStreamOffset /*offset*/,
                                                  QuicByteCount /*data_length*/,
                                                  QuicDataWriter* /*writer*/) {
-  QUIC_BUG << "QuicEndpoint::DataProducer::WriteCryptoData is unimplemented";
+  QUIC_BUG_V2(quic_bug_10157_1)
+      << "QuicEndpoint::DataProducer::WriteCryptoData is unimplemented";
   return false;
 }
 

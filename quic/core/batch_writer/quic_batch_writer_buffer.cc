@@ -75,11 +75,12 @@ QuicBatchWriterBuffer::PushResult QuicBatchWriterBuffer::PushBufferedWrite(
     } else if (IsInternalBuffer(buffer, buf_len)) {
       memmove(next_write_location, buffer, buf_len);
     } else {
-      QUIC_BUG << "Buffer[" << static_cast<const void*>(buffer) << ", "
-               << static_cast<const void*>(buffer + buf_len)
-               << ") overlaps with internal buffer["
-               << static_cast<const void*>(buffer_) << ", "
-               << static_cast<const void*>(buffer_end()) << ")";
+      QUIC_BUG_V2(quic_bug_10831_1)
+          << "Buffer[" << static_cast<const void*>(buffer) << ", "
+          << static_cast<const void*>(buffer + buf_len)
+          << ") overlaps with internal buffer["
+          << static_cast<const void*>(buffer_) << ", "
+          << static_cast<const void*>(buffer_end()) << ")";
       return result;
     }
     result.buffer_copied = true;
