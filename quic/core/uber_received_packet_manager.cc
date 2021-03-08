@@ -108,12 +108,14 @@ void UberReceivedPacketManager::ResetAckStates(
 void UberReceivedPacketManager::EnableMultiplePacketNumberSpacesSupport(
     Perspective perspective) {
   if (supports_multiple_packet_number_spaces_) {
-    QUIC_BUG << "Multiple packet number spaces has already been enabled";
+    QUIC_BUG_V2(quic_bug_10495_1)
+        << "Multiple packet number spaces has already been enabled";
     return;
   }
   if (received_packet_managers_[0].GetLargestObserved().IsInitialized()) {
-    QUIC_BUG << "Try to enable multiple packet number spaces support after any "
-                "packet has been received.";
+    QUIC_BUG_V2(quic_bug_10495_2)
+        << "Try to enable multiple packet number spaces support after any "
+           "packet has been received.";
     return;
   }
   // In IETF QUIC, the peer is expected to acknowledge packets in Initial and
@@ -236,8 +238,9 @@ void UberReceivedPacketManager::set_save_timestamps(bool save_timestamps) {
 void UberReceivedPacketManager::OnAckFrequencyFrame(
     const QuicAckFrequencyFrame& frame) {
   if (!supports_multiple_packet_number_spaces_) {
-    QUIC_BUG << "Received AckFrequencyFrame when multiple packet number spaces "
-                "is not supported";
+    QUIC_BUG_V2(quic_bug_10495_3)
+        << "Received AckFrequencyFrame when multiple packet number spaces "
+           "is not supported";
     return;
   }
   received_packet_managers_[APPLICATION_DATA].OnAckFrequencyFrame(frame);
