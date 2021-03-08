@@ -9,27 +9,15 @@
 #include "quic/core/quic_error_codes.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/mock_clock.h"
+#include "quic/test_tools/quic_connection_id_manager_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
 
 namespace quic {
-
-class QuicConnectionIdManagerPeer {
- public:
-  static QuicAlarm* GetRetirePeerIssuedConnectionIdAlarm(
-      QuicPeerIssuedConnectionIdManager* manager) {
-    return manager->retire_connection_id_alarm_.get();
-  }
-
-  static QuicAlarm* GetRetireSelfIssuedConnectionIdAlarm(
-      QuicSelfIssuedConnectionIdManager* manager) {
-    return manager->retire_connection_id_alarm_.get();
-  }
-};
-
 namespace {
 
 using ::quic::test::IsError;
 using ::quic::test::IsQuicNoError;
+using ::quic::test::QuicConnectionIdManagerPeer;
 using ::quic::test::TestConnectionId;
 using ::testing::_;
 using ::testing::ElementsAre;

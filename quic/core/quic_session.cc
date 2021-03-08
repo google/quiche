@@ -142,6 +142,8 @@ void QuicSession::Initialize() {
     config_.SetMinAckDelayMs(kDefaultMinAckDelayTimeMs);
   }
 
+  connection_->CreateConnectionIdManager();
+
   // On the server side, version negotiation has been done by the dispatcher,
   // and the server session is created with the right version.
   if (perspective() == Perspective::IS_SERVER) {
@@ -2051,6 +2053,27 @@ void QuicSession::OnAckNeedsRetransmittableFrame() {
 
 void QuicSession::SendAckFrequency(const QuicAckFrequencyFrame& frame) {
   control_frame_manager_.WriteOrBufferAckFrequency(frame);
+}
+
+void QuicSession::SendNewConnectionId(const QuicNewConnectionIdFrame& frame) {
+  control_frame_manager_.WriteOrBufferNewConnectionId(
+      frame.connection_id, frame.sequence_number, frame.retire_prior_to,
+      frame.stateless_reset_token);
+}
+
+void QuicSession::SendRetireConnectionId(uint64_t sequence_number) {
+  control_frame_manager_.WriteOrBufferRetireConnectionId(sequence_number);
+}
+
+void QuicSession::OnServerConnectionIdIssued(
+    const QuicConnectionId& server_connection_id) {
+  visitor_->OnNewConnectionIdSent(connection_->connection_id(),
+                                  server_connection_id);
+}
+
+void QuicSession::OnServerConnectionIdRetired(
+    const QuicConnectionId& server_connection_id) {
+  visitor_->OnConnectionIdRetired(server_connection_id);
 }
 
 bool QuicSession::IsConnectionFlowControlBlocked() const {

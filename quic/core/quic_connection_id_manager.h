@@ -24,6 +24,10 @@
 
 namespace quic {
 
+namespace test {
+class QuicConnectionIdManagerPeer;
+}  // namespace test
+
 struct QUIC_EXPORT_PRIVATE QuicConnectionIdData {
   QuicConnectionIdData(const QuicConnectionId& connection_id,
                        uint64_t sequence_number,
@@ -83,7 +87,7 @@ class QUIC_EXPORT_PRIVATE QuicPeerIssuedConnectionIdManager {
                            const QuicConnectionId& new_connection_id);
 
  private:
-  friend class QuicConnectionIdManagerPeer;
+  friend class test::QuicConnectionIdManagerPeer;
 
   bool IsConnectionIdNew(const QuicNewConnectionIdFrame& frame);
 
@@ -134,7 +138,7 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
       const QuicConnectionId& old_connection_id) const;
 
  private:
-  friend class QuicConnectionIdManagerPeer;
+  friend class test::QuicConnectionIdManagerPeer;
 
   QuicNewConnectionIdFrame IssueNewConnectionId();
 

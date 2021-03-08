@@ -577,6 +577,22 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
               SendAckFrequency,
               (const QuicAckFrequencyFrame& frame),
               (override));
+  MOCK_METHOD(void,
+              SendNewConnectionId,
+              (const QuicNewConnectionIdFrame& frame),
+              (override));
+  MOCK_METHOD(void,
+              SendRetireConnectionId,
+              (uint64_t sequence_number),
+              (override));
+  MOCK_METHOD(void,
+              OnServerConnectionIdIssued,
+              (const QuicConnectionId& server_connection_id),
+              (override));
+  MOCK_METHOD(void,
+              OnServerConnectionIdRetired,
+              (const QuicConnectionId& server_connection_id),
+              (override));
   MOCK_METHOD(bool, AllowSelfAddressChange, (), (const, override));
   MOCK_METHOD(HandshakeState, GetHandshakeState, (), (const, override));
   MOCK_METHOD(bool,

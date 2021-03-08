@@ -145,6 +145,12 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Adds a connection level WINDOW_UPDATE frame.
   void OnAckNeedsRetransmittableFrame() override;
   void SendAckFrequency(const QuicAckFrequencyFrame& frame) override;
+  void SendNewConnectionId(const QuicNewConnectionIdFrame& frame) override;
+  void SendRetireConnectionId(uint64_t sequence_number) override;
+  void OnServerConnectionIdIssued(
+      const QuicConnectionId& server_connection_id) override;
+  void OnServerConnectionIdRetired(
+      const QuicConnectionId& server_connection_id) override;
   bool WillingAndAbleToWrite() const override;
   std::string GetStreamsInfoForLogging() const override;
   void OnPathDegrading() override;

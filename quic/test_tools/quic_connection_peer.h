@@ -8,6 +8,7 @@
 #include <cstddef>
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_connection.h"
+#include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_connection_stats.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_types.h"
@@ -87,6 +88,10 @@ class QuicConnectionPeer {
   static QuicAlarm* GetDiscardPreviousOneRttKeysAlarm(
       QuicConnection* connection);
   static QuicAlarm* GetDiscardZeroRttDecryptionKeysAlarm(
+      QuicConnection* connection);
+  static QuicAlarm* GetRetirePeerIssuedConnectionIdAlarm(
+      QuicConnection* connection);
+  static QuicAlarm* GetRetireSelfIssuedConnectionIdAlarm(
       QuicConnection* connection);
 
   static QuicPacketWriter* GetWriter(QuicConnection* connection);
@@ -185,6 +190,10 @@ class QuicConnectionPeer {
 
   static QuicByteCount BytesReceivedBeforeAddressValidation(
       QuicConnection* connection);
+
+  static void EnableMultipleConnectionIdSupport(QuicConnection* connection);
+
+  static void ResetPeerIssuedConnectionIdManager(QuicConnection* connection);
 };
 
 }  // namespace test

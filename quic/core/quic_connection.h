@@ -31,12 +31,14 @@
 #include "quic/core/crypto/transport_parameters.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
 #include "quic/core/frames/quic_max_streams_frame.h"
+#include "quic/core/frames/quic_new_connection_id_frame.h"
 #include "quic/core/proto/cached_network_parameters_proto.h"
 #include "quic/core/quic_alarm.h"
 #include "quic/core/quic_alarm_factory.h"
 #include "quic/core/quic_blocked_writer_interface.h"
 #include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_connection_id.h"
+#include "quic/core/quic_connection_id_manager.h"
 #include "quic/core/quic_connection_stats.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_framer.h"
@@ -163,6 +165,20 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
 
   // Called when an AckFrequency frame need to be sent.
   virtual void SendAckFrequency(const QuicAckFrequencyFrame& frame) = 0;
+
+  // Called to send a NEW_CONNECTION_ID frame.
+  virtual void SendNewConnectionId(const QuicNewConnectionIdFrame& frame) = 0;
+
+  // Called to send a RETIRE_CONNECTION_ID frame.
+  virtual void SendRetireConnectionId(uint64_t sequence_number) = 0;
+
+  // Called when server starts to use a server issued connection ID.
+  virtual void OnServerConnectionIdIssued(
+      const QuicConnectionId& server_connection_id) = 0;
+
+  // Called when server stops to use a server issued connection ID.
+  virtual void OnServerConnectionIdRetired(
+      const QuicConnectionId& server_connection_id) = 0;
 
   // Called to ask if the visitor wants to schedule write resumption as it both
   // has pending data to write, and is able to write (e.g. based on flow control
@@ -440,7 +456,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       public QuicSentPacketManager::NetworkChangeVisitor,
       public QuicNetworkBlackholeDetector::Delegate,
       public QuicIdleNetworkDetector::Delegate,
-      public QuicPathValidator::SendDelegate {
+      public QuicPathValidator::SendDelegate,
+      public QuicConnectionIdManagerVisitorInterface {
  public:
   // Constructs a new QuicConnection for |connection_id| and
   // |initial_peer_address| using |writer| to write packets. |owns_writer|
@@ -702,9 +719,20 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnHandshakeTimeout() override;
   void OnIdleNetworkDetected() override;
 
+  // QuicConnectionIdManagerVisitorInterface
+  void OnPeerIssuedConnectionIdRetired() override;
+  bool SendNewConnectionId(const QuicNewConnectionIdFrame& frame) override;
+  void OnNewConnectionIdIssued(const QuicConnectionId& connection_id) override;
+  void OnSelfIssuedConnectionIdRetired(
+      const QuicConnectionId& connection_id) override;
+
   // Please note, this is not a const function. For logging purpose, please use
   // ack_frame().
   const QuicFrame GetUpdatedAckFrame();
+
+  // Called to send a new connection ID to client if the # of connection ID has
+  // not exceeded the active connection ID limits.
+  void MaybeSendConnectionIdToClient();
 
   // Called when the handshake completes. On the client side, handshake
   // completes on receipt of SHLO. On the server side, handshake completes when
@@ -1198,6 +1226,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool validate_client_address() const { return validate_client_addresses_; }
 
+  // Instantiates connection ID manager.
+  void CreateConnectionIdManager();
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1395,6 +1426,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                                     ConnectionCloseSource source);
   void TearDownLocalConnectionState(const QuicConnectionCloseFrame& frame,
                                     ConnectionCloseSource source);
+
+  // Replace server connection ID on the client side from retry packet or
+  // initial packets with a different source connection ID.
+  void ReplaceInitialServerConnectionId(
+      const QuicConnectionId& new_server_connection_id);
 
   // Writes the given packet to socket, encrypted with packet's
   // encryption_level. Returns true on successful write, and false if the writer
@@ -1683,6 +1719,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Return true if framer should continue processing the packet.
   bool OnPathChallengeFrameInternal(const QuicPathChallengeFrame& frame);
 
+  virtual std::unique_ptr<QuicSelfIssuedConnectionIdManager>
+  MakeSelfIssuedConnectionIdManager();
+
+  // Process NewConnectionIdFrame either sent from peer or synsthesized from
+  // preferred_address transport parameter.
+  bool OnNewConnectionIdFrameInner(const QuicNewConnectionIdFrame& frame);
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify
@@ -1967,6 +2010,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // True if the writer supports release timestamp.
   bool supports_release_time_;
 
+  std::unique_ptr<QuicPeerIssuedConnectionIdManager> peer_issued_cid_manager_;
+  std::unique_ptr<QuicSelfIssuedConnectionIdManager> self_issued_cid_manager_;
+
   // Time this connection can release packets into the future.
   QuicTime::Delta release_time_into_future_;
 
@@ -2107,6 +2153,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // If true, upon seeing a new client address, validate the client address.
   const bool validate_client_addresses_;
+
+  bool support_multiple_connection_ids_ = false;
 };
 
 }  // namespace quic
