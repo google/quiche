@@ -62,7 +62,8 @@ QbonePacketProcessor::Filter::FilterPacket(Direction direction,
 void QbonePacketProcessor::ProcessPacket(std::string* packet,
                                          Direction direction) {
   if (QUIC_PREDICT_FALSE(!IsValid())) {
-    QUIC_BUG << "QuicPacketProcessor is invoked in an invalid state.";
+    QUIC_BUG_V2(quic_bug_11024_1)
+        << "QuicPacketProcessor is invoked in an invalid state.";
     stats_->OnPacketDroppedSilently(direction);
     return;
   }
@@ -120,8 +121,9 @@ QbonePacketProcessor::ProcessIPv6HeaderAndFilter(std::string* packet,
     // Sanity-check the bounds.
     if (packet_data >= *transport_data || header_size > packet->size() ||
         header_size < kIPv6HeaderSize) {
-      QUIC_BUG << "Invalid pointers encountered in "
-                  "QbonePacketProcessor::ProcessPacket.  Dropping the packet";
+      QUIC_BUG_V2(quic_bug_11024_2)
+          << "Invalid pointers encountered in "
+             "QbonePacketProcessor::ProcessPacket.  Dropping the packet";
       return ProcessingResult::SILENT_DROP;
     }
 
