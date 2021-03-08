@@ -76,9 +76,10 @@ bool QuicTransportStream::Write(absl::string_view data) {
   // If WriteMemSlices() fails to provide that guarantee, we have no way to
   // communicate a partial write to the caller, and thus it's safer to just
   // close the connection.
-  QUIC_BUG << "WriteMemSlices() unexpectedly partially consumed the input "
-              "data, provided: "
-           << data.size() << ", written: " << consumed.bytes_consumed;
+  QUIC_BUG_V2(quic_bug_10893_1)
+      << "WriteMemSlices() unexpectedly partially consumed the input "
+         "data, provided: "
+      << data.size() << ", written: " << consumed.bytes_consumed;
   OnUnrecoverableError(
       QUIC_INTERNAL_ERROR,
       "WriteMemSlices() unexpectedly partially consumed the input data");
