@@ -78,7 +78,8 @@ bool AeadBaseEncrypter::SetKey(absl::string_view key) {
 
 bool AeadBaseEncrypter::SetNoncePrefix(absl::string_view nonce_prefix) {
   if (use_ietf_nonce_construction_) {
-    QUIC_BUG << "Attempted to set nonce prefix on IETF QUIC crypter";
+    QUIC_BUG_V2(quic_bug_10634_1)
+        << "Attempted to set nonce prefix on IETF QUIC crypter";
     return false;
   }
   QUICHE_DCHECK_EQ(nonce_prefix.size(), nonce_size_ - sizeof(QuicPacketNumber));
@@ -91,7 +92,8 @@ bool AeadBaseEncrypter::SetNoncePrefix(absl::string_view nonce_prefix) {
 
 bool AeadBaseEncrypter::SetIV(absl::string_view iv) {
   if (!use_ietf_nonce_construction_) {
-    QUIC_BUG << "Attempted to set IV on Google QUIC crypter";
+    QUIC_BUG_V2(quic_bug_10634_2)
+        << "Attempted to set IV on Google QUIC crypter";
     return false;
   }
   QUICHE_DCHECK_EQ(iv.size(), nonce_size_);

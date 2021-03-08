@@ -35,13 +35,13 @@ bool NullDecrypter::SetHeaderProtectionKey(absl::string_view key) {
 }
 
 bool NullDecrypter::SetPreliminaryKey(absl::string_view /*key*/) {
-  QUIC_BUG << "Should not be called";
+  QUIC_BUG_V2(quic_bug_10652_1) << "Should not be called";
   return false;
 }
 
 bool NullDecrypter::SetDiversificationNonce(
     const DiversificationNonce& /*nonce*/) {
-  QUIC_BUG << "Should not be called";
+  QUIC_BUG_V2(quic_bug_10652_2) << "Should not be called";
   return true;
 }
 
@@ -61,7 +61,8 @@ bool NullDecrypter::DecryptPacket(uint64_t /*packet_number*/,
 
   absl::string_view plaintext = reader.ReadRemainingPayload();
   if (plaintext.length() > max_output_length) {
-    QUIC_BUG << "Output buffer must be larger than the plaintext.";
+    QUIC_BUG_V2(quic_bug_10652_3)
+        << "Output buffer must be larger than the plaintext.";
     return false;
   }
   if (hash != ComputeHash(associated_data, plaintext)) {
