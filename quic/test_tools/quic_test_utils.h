@@ -787,6 +787,15 @@ class MockQuicConnection : public QuicConnection {
                                     connection_close_behavior);
   }
 
+  void ReallyCloseConnection4(
+      QuicErrorCode error,
+      QuicIetfTransportErrorCodes ietf_error,
+      const std::string& details,
+      ConnectionCloseBehavior connection_close_behavior) {
+    QuicConnection::CloseConnection(error, ietf_error, details,
+                                    connection_close_behavior);
+  }
+
   void ReallySendConnectionClosePacket(QuicErrorCode error,
                                        QuicIetfTransportErrorCodes ietf_error,
                                        const std::string& details) {
