@@ -42,10 +42,7 @@ bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
   }
   SSL_CTX_set_select_certificate_cb(
       ssl_ctx.get(), &TlsServerConnection::EarlySelectCertCallback);
-  if (GetQuicRestartFlag(quic_tls_prefer_server_cipher_and_curve_list)) {
-    QUIC_RESTART_FLAG_COUNT(quic_tls_prefer_server_cipher_and_curve_list);
-    SSL_CTX_set_options(ssl_ctx.get(), SSL_OP_CIPHER_SERVER_PREFERENCE);
-  }
+  SSL_CTX_set_options(ssl_ctx.get(), SSL_OP_CIPHER_SERVER_PREFERENCE);
   return ssl_ctx;
 }
 
