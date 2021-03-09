@@ -13565,64 +13565,7 @@ TEST_P(QuicConnectionTest, DonotOverrideRetryTokenWithAddressToken) {
 }
 
 TEST_P(QuicConnectionTest,
-       ServerReceivedZeroRttWithHigherPacketNumberThanOneRttAndFlagDisabled) {
-  SetQuicReloadableFlag(
-      quic_close_connection_on_0rtt_packet_number_higher_than_1rtt, false);
-  if (!connection_.version().UsesTls()) {
-    return;
-  }
-
-  // The code that checks for this error piggybacks on some book-keeping state
-  // kept for key update, so enable key update for the test.
-  std::string error_details;
-  TransportParameters params;
-  params.key_update_not_yet_supported = false;
-  QuicConfig config;
-  EXPECT_THAT(config.ProcessTransportParameters(
-                  params, /* is_resumption = */ false, &error_details),
-              IsQuicNoError());
-  config.SetKeyUpdateSupportedLocally();
-  QuicConfigPeer::SetNegotiated(&config, true);
-  QuicConfigPeer::SetReceivedOriginalConnectionId(&config,
-                                                  connection_.connection_id());
-  QuicConfigPeer::SetReceivedInitialSourceConnectionId(
-      &config, connection_.connection_id());
-  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
-  connection_.SetFromConfig(config);
-
-  set_perspective(Perspective::IS_SERVER);
-  SetDecrypter(ENCRYPTION_ZERO_RTT,
-               std::make_unique<NullDecrypter>(Perspective::IS_SERVER));
-
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
-  ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
-
-  // Finish handshake.
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  notifier_.NeuterUnencryptedData();
-  connection_.NeuterUnencryptedPackets();
-  connection_.OnHandshakeComplete();
-  EXPECT_CALL(visitor_, GetHandshakeState())
-      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
-
-  // Decrypt a 1-RTT packet.
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
-  ProcessDataPacketAtLevel(2, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
-  EXPECT_TRUE(connection_.GetDiscardZeroRttDecryptionKeysAlarm()->IsSet());
-
-  // 0-RTT packet with higher packet number than a 1-RTT packet is invalid, but
-  // accepted as the
-  // quic_close_connection_on_0rtt_packet_number_higher_than_1rtt
-  // flag is disabled.
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
-  ProcessDataPacketAtLevel(3, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
-  EXPECT_TRUE(connection_.connected());
-}
-
-TEST_P(QuicConnectionTest,
        ServerReceivedZeroRttWithHigherPacketNumberThanOneRtt) {
-  SetQuicReloadableFlag(
-      quic_close_connection_on_0rtt_packet_number_higher_than_1rtt, true);
   if (!connection_.version().UsesTls()) {
     return;
   }

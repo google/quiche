@@ -4849,21 +4849,16 @@ bool QuicFramer::DecryptPayload(size_t udp_packet_length,
       decrypted_buffer, decrypted_length, buffer_length);
   if (success) {
     visitor_->OnDecryptedPacket(udp_packet_length, level);
-    if (GetQuicReloadableFlag(
-            quic_close_connection_on_0rtt_packet_number_higher_than_1rtt)) {
-      QUIC_RELOADABLE_FLAG_COUNT(
-          quic_close_connection_on_0rtt_packet_number_higher_than_1rtt);
-      if (level == ENCRYPTION_ZERO_RTT &&
-          current_key_phase_first_received_packet_number_.IsInitialized() &&
-          header.packet_number >
-              current_key_phase_first_received_packet_number_) {
-        set_detailed_error(absl::StrCat(
-            "Decrypted a 0-RTT packet with a packet number ",
-            header.packet_number.ToString(),
-            " which is higher than a 1-RTT packet number ",
-            current_key_phase_first_received_packet_number_.ToString()));
-        return RaiseError(QUIC_INVALID_0RTT_PACKET_NUMBER_OUT_OF_ORDER);
-      }
+    if (level == ENCRYPTION_ZERO_RTT &&
+        current_key_phase_first_received_packet_number_.IsInitialized() &&
+        header.packet_number >
+            current_key_phase_first_received_packet_number_) {
+      set_detailed_error(absl::StrCat(
+          "Decrypted a 0-RTT packet with a packet number ",
+          header.packet_number.ToString(),
+          " which is higher than a 1-RTT packet number ",
+          current_key_phase_first_received_packet_number_.ToString()));
+      return RaiseError(QUIC_INVALID_0RTT_PACKET_NUMBER_OUT_OF_ORDER);
     }
     *decrypted_level = level;
     potential_peer_key_update_attempt_count_ = 0;
