@@ -677,6 +677,7 @@ int TlsServerHandshaker::SessionTicketSeal(uint8_t* out,
   }
   *out_len = ticket.size();
   memcpy(out, ticket.data(), ticket.size());
+  QUIC_CODE_COUNT(quic_tls_server_handshaker_tickets_sealed);
   return 1;  // success
 }
 
@@ -710,6 +711,7 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
   if (decrypted_session_ticket_.empty()) {
     QUIC_DLOG(ERROR) << "Session ticket decryption failed; ignoring ticket";
     // Ticket decryption failed. Ignore the ticket.
+    QUIC_CODE_COUNT(quic_tls_server_handshaker_tickets_ignored);
     return ssl_ticket_aead_ignore_ticket;
   }
   if (max_out_len < decrypted_session_ticket_.size()) {
@@ -719,6 +721,7 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
          decrypted_session_ticket_.size());
   *out_len = decrypted_session_ticket_.size();
 
+  QUIC_CODE_COUNT(quic_tls_server_handshaker_tickets_opened);
   return ssl_ticket_aead_success;
 }
 
