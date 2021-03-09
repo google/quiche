@@ -5,14 +5,14 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_TRANSPORT_TEST_TOOLS_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_TRANSPORT_TEST_TOOLS_H_
 
+#include "quic/core/web_transport_interface.h"
 #include "quic/platform/api/quic_test.h"
-#include "quic/quic_transport/quic_transport_client_session.h"
 #include "quic/quic_transport/quic_transport_server_session.h"
 
 namespace quic {
 namespace test {
 
-class MockClientVisitor : public QuicTransportClientSession::ClientVisitor {
+class MockClientVisitor : public WebTransportVisitor {
  public:
   MOCK_METHOD(void, OnSessionReady, (), (override));
   MOCK_METHOD(void, OnIncomingBidirectionalStreamAvailable, (), (override));
@@ -28,7 +28,7 @@ class MockServerVisitor : public QuicTransportServerSession::ServerVisitor {
   MOCK_METHOD(bool, ProcessPath, (const GURL&), (override));
 };
 
-class MockStreamVisitor : public QuicTransportStream::Visitor {
+class MockStreamVisitor : public WebTransportStreamVisitor {
  public:
   MOCK_METHOD(void, OnCanRead, (), (override));
   MOCK_METHOD(void, OnFinRead, (), (override));

@@ -34,7 +34,7 @@ QuicTransportClientSession::QuicTransportClientSession(
     const GURL& url,
     QuicCryptoClientConfig* crypto_config,
     url::Origin origin,
-    ClientVisitor* visitor,
+    WebTransportVisitor* visitor,
     std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer)
     : QuicSession(connection,
                   owner,

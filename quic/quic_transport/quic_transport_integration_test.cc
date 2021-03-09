@@ -349,8 +349,7 @@ TEST_F(QuicTransportIntegrationTest, EchoDatagram) {
   WireUpEndpoints();
   RunHandshake();
 
-  client_->session()->datagram_queue()->SendOrQueueDatagram(
-      MemSliceFromString("test"));
+  client_->session()->SendOrQueueDatagram(MemSliceFromString("test"));
 
   bool datagram_received = false;
   EXPECT_CALL(*client_->visitor(), OnDatagramReceived(Eq("test")))
@@ -368,11 +367,10 @@ TEST_F(QuicTransportIntegrationTest, EchoALotOfDatagrams) {
   RunHandshake();
 
   // Set the datagrams to effectively never expire.
-  client_->session()->datagram_queue()->SetMaxTimeInQueue(10000 * kRtt);
+  client_->session()->SetDatagramMaxTimeInQueue(10000 * kRtt);
   for (int i = 0; i < 1000; i++) {
-    client_->session()->datagram_queue()->SendOrQueueDatagram(
-        MemSliceFromString(std::string(
-            client_->session()->GetGuaranteedLargestMessagePayload(), 'a')));
+    client_->session()->SendOrQueueDatagram(MemSliceFromString(std::string(
+        client_->session()->GetGuaranteedLargestMessagePayload(), 'a')));
   }
 
   size_t received = 0;

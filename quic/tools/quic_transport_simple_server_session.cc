@@ -21,7 +21,7 @@ namespace quic {
 namespace {
 
 // Discards any incoming data.
-class DiscardVisitor : public QuicTransportStream::Visitor {
+class DiscardVisitor : public WebTransportStreamVisitor {
  public:
   DiscardVisitor(QuicTransportStream* stream) : stream_(stream) {}
 
@@ -40,7 +40,7 @@ class DiscardVisitor : public QuicTransportStream::Visitor {
 };
 
 // Echoes any incoming data back on the same stream.
-class BidirectionalEchoVisitor : public QuicTransportStream::Visitor {
+class BidirectionalEchoVisitor : public WebTransportStreamVisitor {
  public:
   BidirectionalEchoVisitor(QuicTransportStream* stream) : stream_(stream) {}
 
@@ -71,7 +71,7 @@ class BidirectionalEchoVisitor : public QuicTransportStream::Visitor {
 };
 
 // Buffers all of the data and calls EchoStreamBack() on the parent session.
-class UnidirectionalEchoReadVisitor : public QuicTransportStream::Visitor {
+class UnidirectionalEchoReadVisitor : public WebTransportStreamVisitor {
  public:
   UnidirectionalEchoReadVisitor(QuicTransportSimpleServerSession* session,
                                 QuicTransportStream* stream)
@@ -97,7 +97,7 @@ class UnidirectionalEchoReadVisitor : public QuicTransportStream::Visitor {
 };
 
 // Sends supplied data.
-class UnidirectionalEchoWriteVisitor : public QuicTransportStream::Visitor {
+class UnidirectionalEchoWriteVisitor : public WebTransportStreamVisitor {
  public:
   UnidirectionalEchoWriteVisitor(QuicTransportStream* stream,
                                  const std::string& data)
