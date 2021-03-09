@@ -552,8 +552,6 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   bool full_bandwidth_reached_ = false;
   QuicBandwidth full_bandwidth_baseline_ = QuicBandwidth::Zero();
   QuicRoundTripCount rounds_without_bandwidth_growth_ = 0;
-  const bool reset_max_bytes_delivered_ =
-      GetQuicReloadableFlag(quic_bbr2_reset_max_bytes_delivered);
 };
 
 enum class Bbr2Mode : uint8_t {
