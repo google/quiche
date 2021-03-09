@@ -88,18 +88,20 @@ bool ProofSourceX509::AddCertificateChain(
     QuicReferenceCountedPointer<Chain> chain,
     CertificatePrivateKey key) {
   if (chain->certs.empty()) {
-    QUIC_BUG << "Empty certificate chain supplied.";
+    QUIC_BUG_V2(quic_bug_10644_1) << "Empty certificate chain supplied.";
     return false;
   }
 
   std::unique_ptr<CertificateView> leaf =
       CertificateView::ParseSingleCertificate(chain->certs[0]);
   if (leaf == nullptr) {
-    QUIC_BUG << "Unable to parse X.509 leaf certificate in the supplied chain.";
+    QUIC_BUG_V2(quic_bug_10644_2)
+        << "Unable to parse X.509 leaf certificate in the supplied chain.";
     return false;
   }
   if (!key.MatchesPublicKey(*leaf)) {
-    QUIC_BUG << "Private key does not match the leaf certificate.";
+    QUIC_BUG_V2(quic_bug_10644_3)
+        << "Private key does not match the leaf certificate.";
     return false;
   }
 

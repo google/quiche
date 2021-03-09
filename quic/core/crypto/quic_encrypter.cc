@@ -53,7 +53,7 @@ std::unique_ptr<QuicEncrypter> QuicEncrypter::CreateFromCipherSuite(
     case TLS1_CK_CHACHA20_POLY1305_SHA256:
       return std::make_unique<ChaCha20Poly1305TlsEncrypter>();
     default:
-      QUIC_BUG << "TLS cipher suite is unknown to QUIC";
+      QUIC_BUG_V2(quic_bug_10711_1) << "TLS cipher suite is unknown to QUIC";
       return nullptr;
   }
 }

@@ -62,7 +62,8 @@ EncryptionLevel TlsConnection::QuicEncryptionLevel(
     case ssl_encryption_application:
       return ENCRYPTION_FORWARD_SECURE;
     default:
-      QUIC_BUG << "Invalid ssl_encryption_level_t " << static_cast<int>(level);
+      QUIC_BUG_V2(quic_bug_10698_1)
+          << "Invalid ssl_encryption_level_t " << static_cast<int>(level);
       return ENCRYPTION_INITIAL;
   }
 }
@@ -80,7 +81,8 @@ enum ssl_encryption_level_t TlsConnection::BoringEncryptionLevel(
     case ENCRYPTION_FORWARD_SECURE:
       return ssl_encryption_application;
     default:
-      QUIC_BUG << "Invalid encryption level " << static_cast<int>(level);
+      QUIC_BUG_V2(quic_bug_10698_2)
+          << "Invalid encryption level " << static_cast<int>(level);
       return ssl_encryption_initial;
   }
 }

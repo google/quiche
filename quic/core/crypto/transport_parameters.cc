@@ -212,17 +212,18 @@ bool TransportParameters::IntegerParameter::Write(
     return true;
   }
   if (!writer->WriteVarInt62(param_id_)) {
-    QUIC_BUG << "Failed to write param_id for " << *this;
+    QUIC_BUG_V2(quic_bug_10743_1) << "Failed to write param_id for " << *this;
     return false;
   }
   const QuicVariableLengthIntegerLength value_length =
       QuicDataWriter::GetVarInt62Len(value_);
   if (!writer->WriteVarInt62(value_length)) {
-    QUIC_BUG << "Failed to write value_length for " << *this;
+    QUIC_BUG_V2(quic_bug_10743_2)
+        << "Failed to write value_length for " << *this;
     return false;
   }
   if (!writer->WriteVarInt62(value_, value_length)) {
-    QUIC_BUG << "Failed to write value for " << *this;
+    QUIC_BUG_V2(quic_bug_10743_3) << "Failed to write value for " << *this;
     return false;
   }
   return true;
@@ -563,7 +564,7 @@ bool TransportParameters::AreValid(std::string* error_details) const {
   if (preferred_address &&
       (!preferred_address->ipv4_socket_address.host().IsIPv4() ||
        !preferred_address->ipv6_socket_address.host().IsIPv6())) {
-    QUIC_BUG << "Preferred address family failure";
+    QUIC_BUG_V2(quic_bug_10743_4) << "Preferred address family failure";
     *error_details = "Internal preferred address family failure";
     return false;
   }
@@ -612,13 +613,13 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
                                   std::vector<uint8_t>* out) {
   std::string error_details;
   if (!in.AreValid(&error_details)) {
-    QUIC_BUG << "Not serializing invalid transport parameters: "
-             << error_details;
+    QUIC_BUG_V2(quic_bug_10743_5)
+        << "Not serializing invalid transport parameters: " << error_details;
     return false;
   }
   if (in.version == 0 || (in.perspective == Perspective::IS_SERVER &&
                           in.supported_versions.empty())) {
-    QUIC_BUG << "Refusing to serialize without versions";
+    QUIC_BUG_V2(quic_bug_10743_6) << "Refusing to serialize without versions";
     return false;
   }
 
@@ -701,14 +702,15 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
         !writer.WriteStringPieceVarInt62(
             absl::string_view(original_destination_connection_id.data(),
                               original_destination_connection_id.length()))) {
-      QUIC_BUG << "Failed to write original_destination_connection_id "
-               << original_destination_connection_id << " for " << in;
+      QUIC_BUG_V2(quic_bug_10743_7)
+          << "Failed to write original_destination_connection_id "
+          << original_destination_connection_id << " for " << in;
       return false;
     }
   }
 
   if (!in.max_idle_timeout_ms.Write(&writer)) {
-    QUIC_BUG << "Failed to write idle_timeout for " << in;
+    QUIC_BUG_V2(quic_bug_10743_8) << "Failed to write idle_timeout for " << in;
     return false;
   }
 
@@ -721,8 +723,9 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
         !writer.WriteStringPieceVarInt62(absl::string_view(
             reinterpret_cast<const char*>(in.stateless_reset_token.data()),
             in.stateless_reset_token.size()))) {
-      QUIC_BUG << "Failed to write stateless_reset_token of length "
-               << in.stateless_reset_token.size() << " for " << in;
+      QUIC_BUG_V2(quic_bug_10743_9)
+          << "Failed to write stateless_reset_token of length "
+          << in.stateless_reset_token.size() << " for " << in;
       return false;
     }
   }
@@ -739,7 +742,7 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
       !in.active_connection_id_limit.Write(&writer) ||
       !in.max_datagram_frame_size.Write(&writer) ||
       !in.initial_round_trip_time_us.Write(&writer)) {
-    QUIC_BUG << "Failed to write integers for " << in;
+    QUIC_BUG_V2(quic_bug_10743_10) << "Failed to write integers for " << in;
     return false;
   }
 
@@ -747,7 +750,8 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
   if (in.disable_active_migration) {
     if (!writer.WriteVarInt62(TransportParameters::kDisableActiveMigration) ||
         !writer.WriteVarInt62(/* transport parameter length */ 0)) {
-      QUIC_BUG << "Failed to write disable_active_migration for " << in;
+      QUIC_BUG_V2(quic_bug_10743_11)
+          << "Failed to write disable_active_migration for " << in;
       return false;
     }
   }
@@ -761,7 +765,7 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
     if (v4_address_bytes.length() != 4 || v6_address_bytes.length() != 16 ||
         in.preferred_address->stateless_reset_token.size() !=
             kStatelessResetTokenLength) {
-      QUIC_BUG << "Bad lengths " << *in.preferred_address;
+      QUIC_BUG_V2(quic_bug_10743_12) << "Bad lengths " << *in.preferred_address;
       return false;
     }
     const uint64_t preferred_address_length =
@@ -783,7 +787,8 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
         !writer.WriteBytes(
             in.preferred_address->stateless_reset_token.data(),
             in.preferred_address->stateless_reset_token.size())) {
-      QUIC_BUG << "Failed to write preferred_address for " << in;
+      QUIC_BUG_V2(quic_bug_10743_13)
+          << "Failed to write preferred_address for " << in;
       return false;
     }
   }
@@ -797,8 +802,9 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
         !writer.WriteStringPieceVarInt62(
             absl::string_view(initial_source_connection_id.data(),
                               initial_source_connection_id.length()))) {
-      QUIC_BUG << "Failed to write initial_source_connection_id "
-               << initial_source_connection_id << " for " << in;
+      QUIC_BUG_V2(quic_bug_10743_14)
+          << "Failed to write initial_source_connection_id "
+          << initial_source_connection_id << " for " << in;
       return false;
     }
   }
@@ -812,8 +818,9 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
         !writer.WriteStringPieceVarInt62(
             absl::string_view(retry_source_connection_id.data(),
                               retry_source_connection_id.length()))) {
-      QUIC_BUG << "Failed to write retry_source_connection_id "
-               << retry_source_connection_id << " for " << in;
+      QUIC_BUG_V2(quic_bug_10743_15)
+          << "Failed to write retry_source_connection_id "
+          << retry_source_connection_id << " for " << in;
       return false;
     }
   }
@@ -827,15 +834,17 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
     if (!writer.WriteVarInt62(TransportParameters::kGoogleConnectionOptions) ||
         !writer.WriteVarInt62(
             /* transport parameter length */ connection_options_length)) {
-      QUIC_BUG << "Failed to write google_connection_options of length "
-               << connection_options_length << " for " << in;
+      QUIC_BUG_V2(quic_bug_10743_16)
+          << "Failed to write google_connection_options of length "
+          << connection_options_length << " for " << in;
       return false;
     }
     for (const QuicTag& connection_option :
          in.google_connection_options.value()) {
       if (!writer.WriteTag(connection_option)) {
-        QUIC_BUG << "Failed to write google_connection_option "
-                 << QuicTagToString(connection_option) << " for " << in;
+        QUIC_BUG_V2(quic_bug_10743_17)
+            << "Failed to write google_connection_option "
+            << QuicTagToString(connection_option) << " for " << in;
         return false;
       }
     }
@@ -845,8 +854,9 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
   if (in.user_agent_id.has_value()) {
     if (!writer.WriteVarInt62(TransportParameters::kGoogleUserAgentId) ||
         !writer.WriteStringPieceVarInt62(in.user_agent_id.value())) {
-      QUIC_BUG << "Failed to write Google user agent ID \""
-               << in.user_agent_id.value() << "\" for " << in;
+      QUIC_BUG_V2(quic_bug_10743_18)
+          << "Failed to write Google user agent ID \""
+          << in.user_agent_id.value() << "\" for " << in;
       return false;
     }
   }
@@ -856,7 +866,8 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
     if (!writer.WriteVarInt62(
             TransportParameters::kGoogleKeyUpdateNotYetSupported) ||
         !writer.WriteVarInt62(/* transport parameter length */ 0)) {
-      QUIC_BUG << "Failed to write key_update_not_yet_supported for " << in;
+      QUIC_BUG_V2(quic_bug_10743_19)
+          << "Failed to write key_update_not_yet_supported for " << in;
       return false;
     }
   }
@@ -873,18 +884,21 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
       !writer.WriteVarInt62(
           /* transport parameter length */ google_version_length) ||
       !writer.WriteUInt32(in.version)) {
-    QUIC_BUG << "Failed to write Google version extension for " << in;
+    QUIC_BUG_V2(quic_bug_10743_20)
+        << "Failed to write Google version extension for " << in;
     return false;
   }
   if (in.perspective == Perspective::IS_SERVER) {
     if (!writer.WriteUInt8(sizeof(QuicVersionLabel) *
                            in.supported_versions.size())) {
-      QUIC_BUG << "Failed to write versions length for " << in;
+      QUIC_BUG_V2(quic_bug_10743_21)
+          << "Failed to write versions length for " << in;
       return false;
     }
     for (QuicVersionLabel version_label : in.supported_versions) {
       if (!writer.WriteUInt32(version_label)) {
-        QUIC_BUG << "Failed to write supported version for " << in;
+        QUIC_BUG_V2(quic_bug_10743_22)
+            << "Failed to write supported version for " << in;
         return false;
       }
     }
@@ -895,13 +909,15 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
     if (param_id % 31 == 27) {
       // See the "Reserved Transport Parameters" section of
       // draft-ietf-quic-transport.
-      QUIC_BUG << "Serializing custom_parameters with GREASE ID " << param_id
-               << " is not allowed";
+      QUIC_BUG_V2(quic_bug_10743_23)
+          << "Serializing custom_parameters with GREASE ID " << param_id
+          << " is not allowed";
       return false;
     }
     if (!writer.WriteVarInt62(param_id) ||
         !writer.WriteStringPieceVarInt62(kv.second)) {
-      QUIC_BUG << "Failed to write custom parameter " << param_id;
+      QUIC_BUG_V2(quic_bug_10743_24)
+          << "Failed to write custom parameter " << param_id;
       return false;
     }
   }
@@ -928,8 +944,8 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
     if (!writer.WriteVarInt62(grease_id) ||
         !writer.WriteStringPieceVarInt62(
             absl::string_view(grease_contents, grease_length))) {
-      QUIC_BUG << "Failed to write GREASE parameter "
-               << TransportParameterIdToString(grease_id);
+      QUIC_BUG_V2(quic_bug_10743_25) << "Failed to write GREASE parameter "
+                                     << TransportParameterIdToString(grease_id);
       return false;
     }
   }
@@ -1253,8 +1269,8 @@ bool SerializeTransportParametersForTicket(
     std::vector<uint8_t>* out) {
   std::string error_details;
   if (!in.AreValid(&error_details)) {
-    QUIC_BUG << "Not serializing invalid transport parameters: "
-             << error_details;
+    QUIC_BUG_V2(quic_bug_10743_26)
+        << "Not serializing invalid transport parameters: " << error_details;
     return false;
   }
 
@@ -1286,8 +1302,9 @@ bool SerializeTransportParametersForTicket(
                         application_data.size()) ||
       !EVP_DigestUpdate(hash_ctx.get(), &parameter_version,
                         sizeof(parameter_version))) {
-    QUIC_BUG << "Unexpected failure of EVP_Digest functions when hashing "
-                "Transport Parameters for ticket";
+    QUIC_BUG_V2(quic_bug_10743_27)
+        << "Unexpected failure of EVP_Digest functions when hashing "
+           "Transport Parameters for ticket";
     return false;
   }
 
@@ -1304,16 +1321,18 @@ bool SerializeTransportParametersForTicket(
       !DigestUpdateIntegerParam(hash_ctx.get(), in.initial_max_streams_uni) ||
       !DigestUpdateIntegerParam(hash_ctx.get(),
                                 in.active_connection_id_limit)) {
-    QUIC_BUG << "Unexpected failure of EVP_Digest functions when hashing "
-                "Transport Parameters for ticket";
+    QUIC_BUG_V2(quic_bug_10743_28)
+        << "Unexpected failure of EVP_Digest functions when hashing "
+           "Transport Parameters for ticket";
     return false;
   }
   uint8_t disable_active_migration = in.disable_active_migration ? 1 : 0;
   if (!EVP_DigestUpdate(hash_ctx.get(), &disable_active_migration,
                         sizeof(disable_active_migration)) ||
       !EVP_DigestFinal(hash_ctx.get(), out->data() + 1, nullptr)) {
-    QUIC_BUG << "Unexpected failure of EVP_Digest functions when hashing "
-                "Transport Parameters for ticket";
+    QUIC_BUG_V2(quic_bug_10743_29)
+        << "Unexpected failure of EVP_Digest functions when hashing "
+           "Transport Parameters for ticket";
     return false;
   }
   return true;

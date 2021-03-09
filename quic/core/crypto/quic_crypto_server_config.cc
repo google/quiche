@@ -155,7 +155,8 @@ class ValidateClientHelloHelper {
   }
 
   void DetachCallback() {
-    QUIC_BUG_IF(done_cb_ == nullptr) << "Callback already detached.";
+    QUIC_BUG_IF_V2(quic_bug_10630_1, done_cb_ == nullptr)
+        << "Callback already detached.";
     done_cb_ = nullptr;
   }
 
@@ -1150,9 +1151,10 @@ void QuicCryptoServerConfig::SelectNewPrimaryConfig(
 
   if (configs.empty()) {
     if (primary_config_ != nullptr) {
-      QUIC_BUG << "No valid QUIC server config. Keeping the current config.";
+      QUIC_BUG_V2(quic_bug_10630_2)
+          << "No valid QUIC server config. Keeping the current config.";
     } else {
-      QUIC_BUG << "No valid QUIC server config.";
+      QUIC_BUG_V2(quic_bug_10630_3) << "No valid QUIC server config.";
     }
     return;
   }
@@ -1473,7 +1475,8 @@ void QuicCryptoServerConfig::BuildRejection(
 
   // The client may have requested a certificate chain.
   if (!ClientDemandsX509Proof(context.client_hello())) {
-    QUIC_BUG << "x509 certificates not supported in proof demand";
+    QUIC_BUG_V2(quic_bug_10630_4)
+        << "x509 certificates not supported in proof demand";
     return;
   }
 
