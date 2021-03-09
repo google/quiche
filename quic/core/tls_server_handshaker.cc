@@ -933,10 +933,18 @@ int TlsServerHandshaker::SelectAlpn(const uint8_t** out,
     size_t alps_length = 0;
     std::unique_ptr<char[]> buffer;
 
-    const std::string& origin = crypto_negotiated_params_->sni;
-    std::string accept_ch_value = GetAcceptChValueForOrigin(origin);
+    const std::string& hostname = crypto_negotiated_params_->sni;
+    std::string accept_ch_value = GetAcceptChValueForOrigin(hostname);
+
+    std::string origin;
+    if (GetQuicReloadableFlag(quic_alps_include_scheme_in_origin)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_alps_include_scheme_in_origin);
+      origin = "https://";
+    }
+    origin.append(crypto_negotiated_params_->sni);
+
     if (!accept_ch_value.empty()) {
-      AcceptChFrame frame{{{origin, std::move(accept_ch_value)}}};
+      AcceptChFrame frame{{{std::move(origin), std::move(accept_ch_value)}}};
       alps_length = HttpEncoder::SerializeAcceptChFrame(frame, &buffer);
       alps_data = reinterpret_cast<const uint8_t*>(buffer.get());
     }
