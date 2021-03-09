@@ -262,8 +262,8 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
   QUICHE_DCHECK_EQ(version.handshake_protocol, PROTOCOL_TLS1_3);
   auto it = undecryptable_packets_.find(connection_id);
   if (it == undecryptable_packets_.end()) {
-    QUIC_BUG << "Cannot ingest packet for unknown connection ID "
-             << connection_id;
+    QUIC_BUG_V2(quic_bug_10838_1)
+        << "Cannot ingest packet for unknown connection ID " << connection_id;
     return false;
   }
   it->second.tls_chlo_extractor.IngestPacket(version, packet);

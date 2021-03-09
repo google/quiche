@@ -180,8 +180,9 @@ void QuicControlFrameManager::OnControlFrameSent(const QuicFrame& frame) {
     return;
   }
   if (id > least_unsent_) {
-    QUIC_BUG << "Try to send control frames out of order, id: " << id
-             << " least_unsent: " << least_unsent_;
+    QUIC_BUG_V2(quic_bug_10517_1)
+        << "Try to send control frames out of order, id: " << id
+        << " least_unsent: " << least_unsent_;
     delegate_->OnControlFrameManagerError(
         QUIC_INTERNAL_ERROR, "Try to send control frames out of order");
     return;
@@ -211,7 +212,7 @@ void QuicControlFrameManager::OnControlFrameLost(const QuicFrame& frame) {
     return;
   }
   if (id >= least_unsent_) {
-    QUIC_BUG << "Try to mark unsent control frame as lost";
+    QUIC_BUG_V2(quic_bug_10517_2) << "Try to mark unsent control frame as lost";
     delegate_->OnControlFrameManagerError(
         QUIC_INTERNAL_ERROR, "Try to mark unsent control frame as lost");
     return;
@@ -279,7 +280,7 @@ bool QuicControlFrameManager::RetransmitControlFrame(const QuicFrame& frame,
     return true;
   }
   if (id >= least_unsent_) {
-    QUIC_BUG << "Try to retransmit unsent control frame";
+    QUIC_BUG_V2(quic_bug_10517_3) << "Try to retransmit unsent control frame";
     delegate_->OnControlFrameManagerError(
         QUIC_INTERNAL_ERROR, "Try to retransmit unsent control frame");
     return false;
@@ -333,7 +334,7 @@ bool QuicControlFrameManager::OnControlFrameIdAcked(QuicControlFrameId id) {
     return false;
   }
   if (id >= least_unsent_) {
-    QUIC_BUG << "Try to ack unsent control frame";
+    QUIC_BUG_V2(quic_bug_10517_4) << "Try to ack unsent control frame";
     delegate_->OnControlFrameManagerError(QUIC_INTERNAL_ERROR,
                                           "Try to ack unsent control frame");
     return false;

@@ -24,7 +24,7 @@ bool QuicCoalescedPacket::MaybeCoalescePacket(
     QuicBufferAllocator* allocator,
     QuicPacketLength current_max_packet_length) {
   if (packet.encrypted_length == 0) {
-    QUIC_BUG << "Trying to coalesce an empty packet";
+    QUIC_BUG_V2(quic_bug_10611_1) << "Trying to coalesce an empty packet";
     return true;
   }
   if (length_ == 0) {
@@ -47,7 +47,8 @@ bool QuicCoalescedPacket::MaybeCoalescePacket(
       return false;
     }
     if (max_packet_length_ != current_max_packet_length) {
-      QUIC_BUG << "Max packet length changes in the middle of the write path";
+      QUIC_BUG_V2(quic_bug_10611_2)
+          << "Max packet length changes in the middle of the write path";
       return false;
     }
     if (ContainsPacketOfEncryptionLevel(packet.encryption_level)) {
@@ -102,9 +103,9 @@ void QuicCoalescedPacket::NeuterInitialPacket() {
     return;
   }
   if (length_ < initial_packet_->encrypted_length) {
-    QUIC_BUG << "length_: " << length_
-             << ", is less than initial packet length: "
-             << initial_packet_->encrypted_length;
+    QUIC_BUG_V2(quic_bug_10611_3)
+        << "length_: " << length_ << ", is less than initial packet length: "
+        << initial_packet_->encrypted_length;
     Clear();
     return;
   }
@@ -145,8 +146,9 @@ bool QuicCoalescedPacket::ContainsPacketOfEncryptionLevel(
 TransmissionType QuicCoalescedPacket::TransmissionTypeOfPacket(
     EncryptionLevel level) const {
   if (!ContainsPacketOfEncryptionLevel(level)) {
-    QUIC_BUG << "Coalesced packet does not contain packet of encryption level: "
-             << EncryptionLevelToString(level);
+    QUIC_BUG_V2(quic_bug_10611_4)
+        << "Coalesced packet does not contain packet of encryption level: "
+        << EncryptionLevelToString(level);
     return NOT_RETRANSMISSION;
   }
   return transmission_types_[level];

@@ -155,7 +155,7 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
     return;
   }
   if (data.empty()) {
-    QUIC_BUG << "Empty crypto data being written";
+    QUIC_BUG_V2(quic_bug_10322_1) << "Empty crypto data being written";
     return;
   }
   const bool had_buffered_data = HasBufferedCryptoFrames();
@@ -166,7 +166,7 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
   send_buffer->SaveStreamData(&iov, /*iov_count=*/1, /*iov_offset=*/0,
                               data.length());
   if (kMaxStreamLength - offset < data.length()) {
-    QUIC_BUG << "Writing too much crypto handshake data";
+    QUIC_BUG_V2(quic_bug_10322_2) << "Writing too much crypto handshake data";
     // TODO(nharper): Switch this to an IETF QUIC error code, possibly
     // INTERNAL_ERROR?
     OnUnrecoverableError(QUIC_STREAM_LENGTH_OVERFLOW,
@@ -231,7 +231,8 @@ void QuicCryptoStream::NeuterStreamDataOfEncryptionLevel(
 
 void QuicCryptoStream::OnStreamDataConsumed(QuicByteCount bytes_consumed) {
   if (QuicVersionUsesCryptoFrames(session()->transport_version())) {
-    QUIC_BUG << "Stream data consumed when CRYPTO frames should be in use";
+    QUIC_BUG_V2(quic_bug_10322_3)
+        << "Stream data consumed when CRYPTO frames should be in use";
   }
   if (bytes_consumed > 0) {
     bytes_consumed_[session()->connection()->encryption_level()].Add(

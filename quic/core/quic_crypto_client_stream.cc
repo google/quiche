@@ -49,8 +49,9 @@ QuicCryptoClientStream::QuicCryptoClientStream(
           proof_handler, has_application_state);
       break;
     case PROTOCOL_UNSUPPORTED:
-      QUIC_BUG << "Attempting to create QuicCryptoClientStream for unknown "
-                  "handshake protocol";
+      QUIC_BUG_V2(quic_bug_10296_1)
+          << "Attempting to create QuicCryptoClientStream for unknown "
+             "handshake protocol";
   }
 }
 
