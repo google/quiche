@@ -77,6 +77,12 @@ class QUICHE_EXPORT_PRIVATE Http2FrameDecoder {
   // Returns kDecodeError if the frame's padding or length wasn't valid (i.e. if
   // the decoder called either the listener's OnPaddingTooLong or
   // OnFrameSizeError method).
+  //
+  // If the decode buffer contains the entirety of a frame payload or field,
+  // then the corresponding Http2FrameDecoderListener::On*Payload(),
+  // OnHpackFragment(), OnGoAwayOpaqueData(), or OnAltSvcValueData() method is
+  // guaranteed to be called exactly once, with the entire payload or field in a
+  // single chunk.
   DecodeStatus DecodeFrame(DecodeBuffer* db);
 
   //////////////////////////////////////////////////////////////////////////////
