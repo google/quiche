@@ -135,9 +135,9 @@ QuicCryptoServerStreamBase* CreateMockCryptoServerStream(
     case PROTOCOL_UNSUPPORTED:
       break;
   }
-  QUIC_BUG << "Unknown handshake protocol: "
-           << static_cast<int>(
-                  session->connection()->version().handshake_protocol);
+  QUIC_BUG_V2(quic_bug_10933_1)
+      << "Unknown handshake protocol: "
+      << static_cast<int>(session->connection()->version().handshake_protocol);
   return nullptr;
 }
 

@@ -80,7 +80,8 @@ void QuicSimpleServerStream::OnTrailingHeadersComplete(
     bool /*fin*/,
     size_t /*frame_len*/,
     const QuicHeaderList& /*header_list*/) {
-  QUIC_BUG << "Server does not support receiving Trailers.";
+  QUIC_BUG_V2(quic_bug_10962_1)
+      << "Server does not support receiving Trailers.";
   SendErrorResponse();
 }
 
@@ -124,7 +125,8 @@ void QuicSimpleServerStream::PushResponse(
     Http2HeaderBlock push_request_headers) {
   if (QuicUtils::IsClientInitiatedStreamId(session()->transport_version(),
                                            id())) {
-    QUIC_BUG << "Client initiated stream shouldn't be used as promised stream.";
+    QUIC_BUG_V2(quic_bug_10962_2)
+        << "Client initiated stream shouldn't be used as promised stream.";
     return;
   }
   // Change the stream state to emulate a client request.

@@ -235,7 +235,7 @@ QuicMemoryCacheBackend::QuicMemoryCacheBackend() : cache_initialized_(false) {}
 bool QuicMemoryCacheBackend::InitializeBackend(
     const std::string& cache_directory) {
   if (cache_directory.empty()) {
-    QUIC_BUG << "cache_directory must not be empty.";
+    QUIC_BUG_V2(quic_bug_10932_1) << "cache_directory must not be empty.";
     return false;
   }
   QUIC_LOG(INFO)
@@ -274,7 +274,8 @@ bool QuicMemoryCacheBackend::InitializeBackend(
       QuicUrl url(push_url);
       const QuicBackendResponse* response = GetResponse(url.host(), url.path());
       if (!response) {
-        QUIC_BUG << "Push URL '" << push_url << "' not found.";
+        QUIC_BUG_V2(quic_bug_10932_2)
+            << "Push URL '" << push_url << "' not found.";
         return false;
       }
       push_resources.push_back(ServerPushInfo(url, response->headers().Clone(),
@@ -368,7 +369,8 @@ void QuicMemoryCacheBackend::AddResponseImpl(
       << "Host must be populated, e.g. \"www.google.com\"";
   std::string key = GetKey(host, path);
   if (QuicContainsKey(responses_, key)) {
-    QUIC_BUG << "Response for '" << key << "' already exists!";
+    QUIC_BUG_V2(quic_bug_10932_3)
+        << "Response for '" << key << "' already exists!";
     return;
   }
   auto new_response = std::make_unique<QuicBackendResponse>();

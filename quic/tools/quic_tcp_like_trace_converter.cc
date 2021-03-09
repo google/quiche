@@ -30,7 +30,7 @@ QuicIntervalSet<uint64_t> QuicTcpLikeTraceConverter::OnCryptoFrameSent(
     QuicStreamOffset offset,
     QuicByteCount data_length) {
   if (level >= NUM_ENCRYPTION_LEVELS) {
-    QUIC_BUG << "Invalid encryption level";
+    QUIC_BUG_V2(quic_bug_10907_1) << "Invalid encryption level";
     return {};
   }
   return OnFrameSent(offset, data_length, /*fin=*/false,
