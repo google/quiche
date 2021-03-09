@@ -1664,7 +1664,7 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
                            << most_recent_frame_type_;
   if (has_path_challenge_in_current_packet_) {
     QUICHE_DCHECK(send_path_response_);
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response, 2, 5);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response2, 2, 5);
     // Only respond to the 1st PATH_CHALLENGE in the packet.
     return true;
   }
@@ -1704,7 +1704,7 @@ bool QuicConnection::OnPathChallengeFrameInternal(
     MaybeUpdateAckTimeout();
     return true;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response, 3, 5);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response2, 3, 5);
   has_path_challenge_in_current_packet_ = true;
   MaybeUpdateAckTimeout();
   // Queue or send PATH_RESPONSE. Send PATH_RESPONSE to the source address of
@@ -1735,6 +1735,7 @@ bool QuicConnection::OnPathResponseFrame(const QuicPathResponseFrame& frame) {
   }
   MaybeUpdateAckTimeout();
   if (use_path_validator_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_pass_path_response_to_validator, 1, 4);
     path_validator_.OnPathResponse(frame.data_buffer,
                                    last_packet_destination_address_);
   } else {
@@ -2191,6 +2192,7 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
 
   if (use_path_validator_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_pass_path_response_to_validator, 4, 4);
     if (!IsDefaultPath(last_packet_destination_address_,
                        last_packet_source_address_)) {
       // This packet is received on a probing path. Do not close connection.
@@ -2764,7 +2766,7 @@ void QuicConnection::OnCanWrite() {
   // TODO(danzh) PATH_RESPONSE is of more interest to the peer than ACK,
   // evaluate if it's worth to send them before sending ACKs.
   while (!pending_path_challenge_payloads_.empty()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response, 4, 5);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response2, 4, 5);
     const PendingPathChallenge& pending_path_challenge =
         pending_path_challenge_payloads_.front();
     if (!SendPathResponse(pending_path_challenge.received_path_challenge,
@@ -3367,6 +3369,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       return true;
     }
     if (use_path_validator_ && !send_on_current_path) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_pass_path_response_to_validator, 2, 4);
       // Only handle MSG_TOO_BIG as error on current path.
       return true;
     }
@@ -4407,6 +4410,7 @@ void QuicConnection::TearDownLocalConnectionState(
   // connection is closed.
   CancelAllAlarms();
   if (use_path_validator_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_pass_path_response_to_validator, 3, 4);
     CancelPathValidation();
   }
   peer_issued_cid_manager_.reset();

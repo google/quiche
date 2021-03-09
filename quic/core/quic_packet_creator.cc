@@ -2070,7 +2070,7 @@ bool QuicPacketCreator::AddPathResponseFrame(
   }
 
   QUIC_DVLOG(1) << ENDPOINT << "Can't send PATH_RESPONSE now";
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response, 5, 5);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response2, 5, 5);
   delete path_response;
   return false;
 }
