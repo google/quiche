@@ -66,7 +66,7 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
   handshaker_->OnSelectCertificateDone(
       /*ok=*/true, /*is_sync=*/true, chain.get());
   if (!handshaker_->select_cert_status().has_value()) {
-    QUIC_BUG
+    QUIC_BUG_V2(quic_bug_12423_1)
         << "select_cert_status() has no value after a synchronous select cert";
     // Return success to continue the handshake.
     return QUIC_SUCCESS;
@@ -669,7 +669,7 @@ int TlsServerHandshaker::SessionTicketSeal(uint8_t* out,
   QUICHE_DCHECK(proof_source_->GetTicketCrypter());
   std::vector<uint8_t> ticket = proof_source_->GetTicketCrypter()->Encrypt(in);
   if (max_out_len < ticket.size()) {
-    QUIC_BUG
+    QUIC_BUG_V2(quic_bug_12423_2)
         << "TicketCrypter returned " << ticket.size()
         << " bytes of ciphertext, which is larger than its max overhead of "
         << max_out_len;

@@ -383,7 +383,7 @@ QuicStreamId QuicUtils::GetInvalidStreamId(QuicTransportVersion version) {
 
 // static
 QuicStreamId QuicUtils::GetCryptoStreamId(QuicTransportVersion version) {
-  QUIC_BUG_IF(QuicVersionUsesCryptoFrames(version))
+  QUIC_BUG_IF_V2(quic_bug_12982_1, QuicVersionUsesCryptoFrames(version))
       << "CRYPTO data aren't in stream frames; they have no stream ID.";
   return QuicVersionUsesCryptoFrames(version) ? GetInvalidStreamId(version) : 1;
 }

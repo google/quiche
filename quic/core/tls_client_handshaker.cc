@@ -288,12 +288,12 @@ int TlsClientHandshaker::num_sent_client_hellos() const {
 }
 
 bool TlsClientHandshaker::IsResumption() const {
-  QUIC_BUG_IF(!one_rtt_keys_available());
+  QUIC_BUG_IF_V2(quic_bug_12736_1, !one_rtt_keys_available());
   return SSL_session_reused(ssl()) == 1;
 }
 
 bool TlsClientHandshaker::EarlyDataAccepted() const {
-  QUIC_BUG_IF(!one_rtt_keys_available());
+  QUIC_BUG_IF_V2(quic_bug_12736_2, !one_rtt_keys_available());
   return SSL_early_data_accepted(ssl()) == 1;
 }
 
@@ -302,7 +302,7 @@ ssl_early_data_reason_t TlsClientHandshaker::EarlyDataReason() const {
 }
 
 bool TlsClientHandshaker::ReceivedInchoateReject() const {
-  QUIC_BUG_IF(!one_rtt_keys_available());
+  QUIC_BUG_IF_V2(quic_bug_12736_3, !one_rtt_keys_available());
   // REJ messages are a QUIC crypto feature, so TLS always returns false.
   return false;
 }
