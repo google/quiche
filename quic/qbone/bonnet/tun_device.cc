@@ -14,9 +14,13 @@
 #include "quic/platform/api/quic_logging.h"
 #include "quic/qbone/platform/kernel_interface.h"
 
+ABSL_FLAG(std::string,
+          qbone_client_tun_device_path,
+          "/dev/net/tun",
+          "The path to the QBONE client's TUN device.");
+
 namespace quic {
 
-const char kTapTunDevicePath[] = "/dev/net/tun";
 const int kInvalidFd = -1;
 
 TunDevice::TunDevice(const std::string& interface_name,
@@ -116,9 +120,11 @@ bool TunDevice::OpenDevice() {
   // CleanUpFileDescriptor nicer and less error-prone.
   // When the device is running with IFF_MULTI_QUEUE set, each call to open will
   // create a queue which can be used to read/write packets from/to the device.
-  int fd = kernel_.open(kTapTunDevicePath, O_RDWR);
+  const std::string tun_device_path =
+      absl::GetFlag(FLAGS_qbone_client_tun_device_path);
+  int fd = kernel_.open(tun_device_path.c_str(), O_RDWR);
   if (fd < 0) {
-    QUIC_PLOG(WARNING) << "Failed to open " << kTapTunDevicePath;
+    QUIC_PLOG(WARNING) << "Failed to open " << tun_device_path;
     CleanUpFileDescriptor();
     return false;
   }
