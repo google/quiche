@@ -88,13 +88,16 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     bool is_chlo,
     const std::vector<std::string>& alpns,
     const ParsedQuicVersion& version) {
-  QUIC_BUG_IF(!GetQuicFlag(FLAGS_quic_allow_chlo_buffering))
+  QUIC_BUG_IF_V2(quic_bug_12410_1,
+                 !GetQuicFlag(FLAGS_quic_allow_chlo_buffering))
       << "Shouldn't buffer packets if disabled via flag.";
-  QUIC_BUG_IF(is_chlo && QuicContainsKey(connections_with_chlo_, connection_id))
+  QUIC_BUG_IF_V2(
+      quic_bug_12410_2,
+      is_chlo && QuicContainsKey(connections_with_chlo_, connection_id))
       << "Shouldn't buffer duplicated CHLO on connection " << connection_id;
-  QUIC_BUG_IF(!is_chlo && !alpns.empty())
+  QUIC_BUG_IF_V2(quic_bug_12410_3, !is_chlo && !alpns.empty())
       << "Shouldn't have an ALPN defined for a non-CHLO packet.";
-  QUIC_BUG_IF(is_chlo && !version.IsKnown())
+  QUIC_BUG_IF_V2(quic_bug_12410_4, is_chlo && !version.IsKnown())
       << "Should have version for CHLO packet.";
 
   const bool is_first_packet =
@@ -153,7 +156,8 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
       queue.tls_chlo_extractor.IngestPacket(version, packet);
       // Since this is the first packet and it's not a CHLO, the
       // TlsChloExtractor should not have the entire CHLO.
-      QUIC_BUG_IF(queue.tls_chlo_extractor.HasParsedFullChlo())
+      QUIC_BUG_IF_V2(quic_bug_12410_5,
+                     queue.tls_chlo_extractor.HasParsedFullChlo())
           << "First packet in list should not contain full CHLO";
     }
     // TODO(b/154857081) Reorder CHLO packets ahead of other ones.

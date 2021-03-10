@@ -377,7 +377,8 @@ QuicConnection::QuicConnection(
           count_bytes_on_alternative_path_separately_ &&
           update_packet_content_returns_connected_ &&
           GetQuicReloadableFlag(quic_server_reverse_validate_new_path)) {
-  QUIC_BUG_IF(!start_peer_migration_earlier_ && send_path_response_);
+  QUIC_BUG_IF_V2(quic_bug_12714_1,
+                 !start_peer_migration_earlier_ && send_path_response_);
 
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
@@ -399,8 +400,9 @@ QuicConnection::QuicConnection(
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
 
-  QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(server_connection_id,
-                                                        transport_version()))
+  QUIC_BUG_IF_V2(quic_bug_12714_2,
+                 !QuicUtils::IsConnectionIdValidForVersion(server_connection_id,
+                                                           transport_version()))
       << "QuicConnection: attempted to use server connection ID "
       << server_connection_id << " which is invalid with version " << version();
   framer_.set_visitor(this);
@@ -1300,7 +1302,7 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
 }
 
 bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_3, !connected_)
       << "Processing STREAM frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
 
@@ -1340,7 +1342,7 @@ bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
 }
 
 bool QuicConnection::OnCryptoFrame(const QuicCryptoFrame& frame) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_4, !connected_)
       << "Processing CRYPTO frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
 
@@ -1360,7 +1362,7 @@ bool QuicConnection::OnCryptoFrame(const QuicCryptoFrame& frame) {
 
 bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
                                      QuicTime::Delta ack_delay_time) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_5, !connected_)
       << "Processing ACK frame start when connection is closed. Last frame: "
       << most_recent_frame_type_;
 
@@ -1408,7 +1410,7 @@ bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
 }
 
 bool QuicConnection::OnAckRange(QuicPacketNumber start, QuicPacketNumber end) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_6, !connected_)
       << "Processing ACK frame range when connection is closed. Last frame: "
       << most_recent_frame_type_;
   QUIC_DVLOG(1) << ENDPOINT << "OnAckRange: [" << start << ", " << end << ")";
@@ -1443,7 +1445,7 @@ bool QuicConnection::OnAckTimestamp(QuicPacketNumber packet_number,
 }
 
 bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_7, !connected_)
       << "Processing ACK frame end when connection is closed. Last frame: "
       << most_recent_frame_type_;
   QUIC_DVLOG(1) << ENDPOINT << "OnAckFrameEnd, start: " << start;
@@ -1504,7 +1506,7 @@ bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
 }
 
 bool QuicConnection::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_8, !connected_)
       << "Processing STOP_WAITING frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
 
@@ -1542,7 +1544,7 @@ bool QuicConnection::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
 }
 
 bool QuicConnection::OnPaddingFrame(const QuicPaddingFrame& frame) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_9, !connected_)
       << "Processing PADDING frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
   if (!UpdatePacketContent(PADDING_FRAME)) {
@@ -1556,7 +1558,7 @@ bool QuicConnection::OnPaddingFrame(const QuicPaddingFrame& frame) {
 }
 
 bool QuicConnection::OnPingFrame(const QuicPingFrame& frame) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_10, !connected_)
       << "Processing PING frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
   if (!UpdatePacketContent(PING_FRAME)) {
@@ -1600,7 +1602,7 @@ const char* QuicConnection::ValidateStopWaitingFrame(
 }
 
 bool QuicConnection::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_11, !connected_)
       << "Processing RST_STREAM frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
 
@@ -1623,7 +1625,7 @@ bool QuicConnection::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
 }
 
 bool QuicConnection::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_12, !connected_)
       << "Processing STOP_SENDING frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
 
@@ -1809,7 +1811,7 @@ bool QuicConnection::OnConnectionCloseFrame(
 }
 
 bool QuicConnection::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_13, !connected_)
       << "Processing MAX_STREAMS frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
   if (!UpdatePacketContent(MAX_STREAMS_FRAME)) {
@@ -1839,7 +1841,7 @@ bool QuicConnection::OnStreamsBlockedFrame(
 }
 
 bool QuicConnection::OnGoAwayFrame(const QuicGoAwayFrame& frame) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_14, !connected_)
       << "Processing GOAWAY frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
 
@@ -1960,7 +1962,7 @@ bool QuicConnection::OnRetireConnectionIdFrame(
 }
 
 bool QuicConnection::OnNewTokenFrame(const QuicNewTokenFrame& frame) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_15, !connected_)
       << "Processing NEW_TOKEN frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
   if (!UpdatePacketContent(NEW_TOKEN_FRAME)) {
@@ -1985,7 +1987,7 @@ bool QuicConnection::OnNewTokenFrame(const QuicNewTokenFrame& frame) {
 }
 
 bool QuicConnection::OnMessageFrame(const QuicMessageFrame& frame) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_16, !connected_)
       << "Processing MESSAGE frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
 
@@ -2067,7 +2069,7 @@ bool QuicConnection::OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) {
 }
 
 bool QuicConnection::OnBlockedFrame(const QuicBlockedFrame& frame) {
-  QUIC_BUG_IF(!connected_)
+  QUIC_BUG_IF_V2(quic_bug_12714_17, !connected_)
       << "Processing BLOCKED frame when connection is closed. Last frame was "
       << most_recent_frame_type_;
 
@@ -2211,7 +2213,7 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
       // This packet is received on a probing path. Do not close connection.
       if (IsAlternativePath(last_packet_destination_address_,
                             GetEffectivePeerAddressFromCurrentPacket())) {
-        QUIC_BUG_IF(alternative_path_.validated)
+        QUIC_BUG_IF_V2(quic_bug_12714_18, alternative_path_.validated)
             << "STATELESS_RESET received on alternate path after it's "
                "validated.";
         path_validator_.CancelPathValidation();
@@ -2360,9 +2362,9 @@ void QuicConnection::MaybeActivateLegacyVersionEncapsulation() {
     return;
   }
   QUICHE_DCHECK(!legacy_version_encapsulation_in_progress_);
-  QUIC_BUG_IF(!packet_creator_.CanSetMaxPacketLength())
+  QUIC_BUG_IF_V2(quic_bug_12714_19, !packet_creator_.CanSetMaxPacketLength())
       << "Cannot activate Legacy Version Encapsulation mid-packet";
-  QUIC_BUG_IF(coalesced_packet_.length() != 0u)
+  QUIC_BUG_IF_V2(quic_bug_12714_20, coalesced_packet_.length() != 0u)
       << "Cannot activate Legacy Version Encapsulation mid-coalesced-packet";
   legacy_version_encapsulation_in_progress_ = true;
   MaybeUpdatePacketCreatorMaxPacketLengthAndPadding();
@@ -2645,7 +2647,7 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
                 << " bytes:" << std::endl
                 << quiche::QuicheTextUtils::HexDump(
                        absl::string_view(packet.data(), packet.length()));
-  QUIC_BUG_IF(current_packet_data_ != nullptr)
+  QUIC_BUG_IF_V2(quic_bug_12714_21, current_packet_data_ != nullptr)
       << "ProcessUdpPacket must not be called while processing a packet.";
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPacketReceived(self_address, peer_address, packet);
@@ -2839,8 +2841,9 @@ void QuicConnection::ReplaceInitialServerConnectionId(
       peer_issued_cid_manager_ = nullptr;
     } else {
       if (peer_issued_cid_manager_ != nullptr) {
-        QUIC_BUG_IF(!peer_issued_cid_manager_->IsConnectionIdActive(
-            server_connection_id_))
+        QUIC_BUG_IF_V2(quic_bug_12714_22,
+                       !peer_issued_cid_manager_->IsConnectionIdActive(
+                           server_connection_id_))
             << "Connection ID replaced header is no longer active. old id: "
             << server_connection_id_ << " new_id: " << new_server_connection_id;
         peer_issued_cid_manager_->ReplaceConnectionId(server_connection_id_,
@@ -3071,7 +3074,8 @@ const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
 
   QUIC_DVLOG(1) << ENDPOINT << "Bundle an ACK opportunistically";
   QuicFrame updated_ack_frame = GetUpdatedAckFrame();
-  QUIC_BUG_IF(updated_ack_frame.ack_frame->packets.Empty())
+  QUIC_BUG_IF_V2(quic_bug_12714_23,
+                 updated_ack_frame.ack_frame->packets.Empty())
       << ENDPOINT << "Attempted to opportunistically bundle an empty "
       << encryption_level_ << " ACK, " << (has_pending_ack ? "" : "!")
       << "has_pending_ack, stop_waiting_count_ " << stop_waiting_count_;
@@ -3241,7 +3245,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       ++stats_.packets_discarded;
       return true;
     case COALESCE:
-      QUIC_BUG_IF(!version().CanSendCoalescedPackets() || coalescing_done_);
+      QUIC_BUG_IF_V2(quic_bug_12714_24,
+                     !version().CanSendCoalescedPackets() || coalescing_done_);
       if (!coalesced_packet_.MaybeCoalescePacket(
               *packet, self_address(), send_to_address,
               helper_->GetStreamSendBufferAllocator(),
@@ -3463,9 +3468,10 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   const bool in_flight = sent_packet_manager_.OnPacketSent(
       packet, packet_send_time, packet->transmission_type,
       IsRetransmittable(*packet), /*measure_rtt=*/send_on_current_path);
-  QUIC_BUG_IF(default_enable_5rto_blackhole_detection_ &&
-              blackhole_detector_.IsDetectionInProgress() &&
-              !sent_packet_manager_.HasInFlightPackets())
+  QUIC_BUG_IF_V2(quic_bug_12714_25,
+                 default_enable_5rto_blackhole_detection_ &&
+                     blackhole_detector_.IsDetectionInProgress() &&
+                     !sent_packet_manager_.HasInFlightPackets())
       << ENDPOINT
       << "Trying to start blackhole detection without no bytes in flight";
 
@@ -3529,7 +3535,7 @@ bool QuicConnection::MaybeHandleAeadConfidentialityLimits(
   }
 
   if (packet.encryption_level != ENCRYPTION_FORWARD_SECURE) {
-    QUIC_BUG
+    QUIC_BUG_V2(quic_bug_12714_26)
         << "MaybeHandleAeadConfidentialityLimits called on non 1-RTT packet";
     return false;
   }
@@ -4001,10 +4007,11 @@ void QuicConnection::OnRetransmissionTimeout() {
     // When timer fires in TLP/RTO/PTO mode, ensure 1) at least one packet is
     // created, or there is data to send and available credit (such that
     // packets will be sent eventually).
-    QUIC_BUG_IF(packet_creator_.packet_number() ==
-                    previous_created_packet_number &&
-                (!visitor_->WillingAndAbleToWrite() ||
-                 sent_packet_manager_.pending_timer_transmission_count() == 0u))
+    QUIC_BUG_IF_V2(
+        quic_bug_12714_27,
+        packet_creator_.packet_number() == previous_created_packet_number &&
+            (!visitor_->WillingAndAbleToWrite() ||
+             sent_packet_manager_.pending_timer_transmission_count() == 0u))
         << "retransmission_mode: " << retransmission_mode
         << ", packet_number: " << packet_creator_.packet_number()
         << ", session has data to write: " << visitor_->WillingAndAbleToWrite()
@@ -4048,7 +4055,8 @@ void QuicConnection::SetDefaultEncryptionLevel(EncryptionLevel level) {
   }
   encryption_level_ = level;
   packet_creator_.set_encryption_level(level);
-  QUIC_BUG_IF(!framer_.HasEncrypterOfEncryptionLevel(level))
+  QUIC_BUG_IF_V2(quic_bug_12714_28,
+                 !framer_.HasEncrypterOfEncryptionLevel(level))
       << ENDPOINT << "Trying to set encryption level to "
       << EncryptionLevelToString(level) << " while the key is missing";
 
@@ -4465,7 +4473,7 @@ bool QuicConnection::HasQueuedData() const {
 
 void QuicConnection::SetNetworkTimeouts(QuicTime::Delta handshake_timeout,
                                         QuicTime::Delta idle_timeout) {
-  QUIC_BUG_IF(idle_timeout > handshake_timeout)
+  QUIC_BUG_IF_V2(quic_bug_12714_29, idle_timeout > handshake_timeout)
       << "idle_timeout:" << idle_timeout.ToMilliseconds()
       << " handshake_timeout:" << handshake_timeout.ToMilliseconds();
   // Adjust the idle timeout on client and server to prevent clients from
@@ -5295,7 +5303,8 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
         // be overridden.
         QUIC_DVLOG(1) << "The connection hasn't finished handshake or is "
                          "validating a recent peer address change.";
-        QUIC_BUG_IF(IsHandshakeConfirmed() && !alternative_path_.validated)
+        QUIC_BUG_IF_V2(quic_bug_12714_30,
+                       IsHandshakeConfirmed() && !alternative_path_.validated)
             << "No validated peer address to send after handshake comfirmed.";
       } else if (!IsReceivedPeerAddressValidated()) {
         // Only override alternative path state upon receiving a PATH_CHALLENGE
@@ -5531,7 +5540,8 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
   }
   if (IsHandshakeComplete()) {
     // A forward secure packet has been received.
-    QUIC_BUG_IF(encryption_level_ != ENCRYPTION_FORWARD_SECURE)
+    QUIC_BUG_IF_V2(quic_bug_12714_31,
+                   encryption_level_ != ENCRYPTION_FORWARD_SECURE)
         << ENDPOINT << "Unexpected connection close encryption level "
         << encryption_level_;
     return ENCRYPTION_FORWARD_SECURE;
@@ -5592,7 +5602,7 @@ void QuicConnection::SendAllPendingAcks() {
   ack_alarm_->Cancel();
   QuicTime earliest_ack_timeout =
       uber_received_packet_manager_.GetEarliestAckTimeout();
-  QUIC_BUG_IF(!earliest_ack_timeout.IsInitialized());
+  QUIC_BUG_IF_V2(quic_bug_12714_32, !earliest_ack_timeout.IsInitialized());
   MaybeBundleCryptoDataWithAcks();
   earliest_ack_timeout = uber_received_packet_manager_.GetEarliestAckTimeout();
   if (!earliest_ack_timeout.IsInitialized()) {
@@ -5633,7 +5643,8 @@ void QuicConnection::SendAllPendingAcks() {
     const bool flushed = packet_creator_.FlushAckFrame(frames);
     if (!flushed) {
       // Connection is write blocked.
-      QUIC_BUG_IF(!writer_->IsWriteBlocked() && !LimitedByAmplificationFactor())
+      QUIC_BUG_IF_V2(quic_bug_12714_33, !writer_->IsWriteBlocked() &&
+                                            !LimitedByAmplificationFactor())
           << "Writer not blocked and not throttled by amplification factor, "
              "but ACK not flushed for packet space:"
           << i;
@@ -5721,7 +5732,7 @@ bool QuicConnection::FlushCoalescedPacket() {
     return false;
   }
   if (!version().CanSendCoalescedPackets()) {
-    QUIC_BUG_IF(coalesced_packet_.length() > 0);
+    QUIC_BUG_IF_V2(quic_bug_12714_34, coalesced_packet_.length() > 0);
     return true;
   }
   if (coalesced_packet_.ContainsPacketOfEncryptionLevel(ENCRYPTION_INITIAL) &&
@@ -5849,9 +5860,10 @@ void QuicConnection::OnForwardProgressMade() {
     // Stop detections in quiecense.
     blackhole_detector_.StopDetection();
   }
-  QUIC_BUG_IF(default_enable_5rto_blackhole_detection_ &&
-              blackhole_detector_.IsDetectionInProgress() &&
-              !sent_packet_manager_.HasInFlightPackets())
+  QUIC_BUG_IF_V2(quic_bug_12714_35,
+                 default_enable_5rto_blackhole_detection_ &&
+                     blackhole_detector_.IsDetectionInProgress() &&
+                     !sent_packet_manager_.HasInFlightPackets())
       << ENDPOINT
       << "Trying to start blackhole detection without no bytes in flight";
 }
@@ -5949,7 +5961,7 @@ const QuicAckFrame& QuicConnection::ack_frame() const {
 void QuicConnection::set_client_connection_id(
     QuicConnectionId client_connection_id) {
   if (!version().SupportsClientConnectionIds()) {
-    QUIC_BUG_IF(!client_connection_id.IsEmpty())
+    QUIC_BUG_IF_V2(quic_bug_12714_36, !client_connection_id.IsEmpty())
         << ENDPOINT << "Attempted to use client connection ID "
         << client_connection_id << " with unsupported version " << version();
     return;

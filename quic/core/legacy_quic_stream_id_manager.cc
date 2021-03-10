@@ -107,11 +107,11 @@ void LegacyQuicStreamIdManager::ActivateStream(bool is_incoming) {
 
 void LegacyQuicStreamIdManager::OnStreamClosed(bool is_incoming) {
   if (is_incoming) {
-    QUIC_BUG_IF(num_open_incoming_streams_ == 0);
+    QUIC_BUG_IF_V2(quic_bug_12720_1, num_open_incoming_streams_ == 0);
     --num_open_incoming_streams_;
     return;
   }
-  QUIC_BUG_IF(num_open_outgoing_streams_ == 0);
+  QUIC_BUG_IF_V2(quic_bug_12720_2, num_open_outgoing_streams_ == 0);
   --num_open_outgoing_streams_;
 }
 

@@ -357,7 +357,7 @@ QuicSelfIssuedConnectionIdManager::GetUnretiredConnectionIds() const {
 
 void QuicSelfIssuedConnectionIdManager::RetireConnectionId() {
   if (to_be_retired_connection_ids_.empty()) {
-    QUIC_BUG
+    QUIC_BUG_V2(quic_bug_12420_1)
         << "retire_connection_id_alarm fired but there is no connection ID "
            "to be retired.";
     return;

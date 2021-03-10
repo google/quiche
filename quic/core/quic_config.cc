@@ -72,7 +72,7 @@ bool QuicFixedUint32::HasSendValue() const {
 }
 
 uint32_t QuicFixedUint32::GetSendValue() const {
-  QUIC_BUG_IF(!has_send_value_)
+  QUIC_BUG_IF_V2(quic_bug_12743_1, !has_send_value_)
       << "No send value to get for tag:" << QuicTagToString(tag_);
   return send_value_;
 }
@@ -87,7 +87,7 @@ bool QuicFixedUint32::HasReceivedValue() const {
 }
 
 uint32_t QuicFixedUint32::GetReceivedValue() const {
-  QUIC_BUG_IF(!has_receive_value_)
+  QUIC_BUG_IF_V2(quic_bug_12743_2, !has_receive_value_)
       << "No receive value to get for tag:" << QuicTagToString(tag_);
   return receive_value_;
 }
@@ -99,7 +99,7 @@ void QuicFixedUint32::SetReceivedValue(uint32_t value) {
 
 void QuicFixedUint32::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
   if (tag_ == 0) {
-    QUIC_BUG
+    QUIC_BUG_V2(quic_bug_12743_3)
         << "This parameter does not support writing to CryptoHandshakeMessage";
     return;
   }
@@ -236,7 +236,7 @@ bool QuicFixedUint128::HasSendValue() const {
 }
 
 QuicUint128 QuicFixedUint128::GetSendValue() const {
-  QUIC_BUG_IF(!has_send_value_)
+  QUIC_BUG_IF_V2(quic_bug_12743_4, !has_send_value_)
       << "No send value to get for tag:" << QuicTagToString(tag_);
   return send_value_;
 }
@@ -251,7 +251,7 @@ bool QuicFixedUint128::HasReceivedValue() const {
 }
 
 QuicUint128 QuicFixedUint128::GetReceivedValue() const {
-  QUIC_BUG_IF(!has_receive_value_)
+  QUIC_BUG_IF_V2(quic_bug_12743_5, !has_receive_value_)
       << "No receive value to get for tag:" << QuicTagToString(tag_);
   return receive_value_;
 }
@@ -306,7 +306,7 @@ bool QuicFixedTagVector::HasSendValues() const {
 }
 
 const QuicTagVector& QuicFixedTagVector::GetSendValues() const {
-  QUIC_BUG_IF(!has_send_values_)
+  QUIC_BUG_IF_V2(quic_bug_12743_6, !has_send_values_)
       << "No send values to get for tag:" << QuicTagToString(tag_);
   return send_values_;
 }
@@ -321,7 +321,7 @@ bool QuicFixedTagVector::HasReceivedValues() const {
 }
 
 const QuicTagVector& QuicFixedTagVector::GetReceivedValues() const {
-  QUIC_BUG_IF(!has_receive_values_)
+  QUIC_BUG_IF_V2(quic_bug_12743_7, !has_receive_values_)
       << "No receive value to get for tag:" << QuicTagToString(tag_);
   return receive_values_;
 }
@@ -377,7 +377,7 @@ bool QuicFixedSocketAddress::HasSendValue() const {
 }
 
 const QuicSocketAddress& QuicFixedSocketAddress::GetSendValue() const {
-  QUIC_BUG_IF(!has_send_value_)
+  QUIC_BUG_IF_V2(quic_bug_12743_8, !has_send_value_)
       << "No send value to get for tag:" << QuicTagToString(tag_);
   return send_value_;
 }
@@ -392,7 +392,7 @@ bool QuicFixedSocketAddress::HasReceivedValue() const {
 }
 
 const QuicSocketAddress& QuicFixedSocketAddress::GetReceivedValue() const {
-  QUIC_BUG_IF(!has_receive_value_)
+  QUIC_BUG_IF_V2(quic_bug_12743_9, !has_receive_value_)
       << "No receive value to get for tag:" << QuicTagToString(tag_);
   return receive_value_;
 }

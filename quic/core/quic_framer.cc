@@ -472,7 +472,7 @@ size_t QuicFramer::GetMinCryptoFrameSize(QuicStreamOffset offset,
 size_t QuicFramer::GetMessageFrameSize(QuicTransportVersion version,
                                        bool last_frame_in_packet,
                                        QuicByteCount length) {
-  QUIC_BUG_IF(!VersionSupportsMessageFrames(version))
+  QUIC_BUG_IF_V2(quic_bug_12975_1, !VersionSupportsMessageFrames(version))
       << "Try to serialize MESSAGE frame in " << version;
   return kQuicFrameTypeSize +
          (last_frame_in_packet ? 0 : QuicDataWriter::GetVarInt62Len(length)) +
@@ -895,8 +895,9 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
                                    char* buffer,
                                    size_t packet_length,
                                    EncryptionLevel level) {
-  QUIC_BUG_IF(header.version_flag && version().HasIetfInvariantHeader() &&
-              header.long_packet_type == RETRY && !frames.empty())
+  QUIC_BUG_IF_V2(quic_bug_12975_2,
+                 header.version_flag && version().HasIetfInvariantHeader() &&
+                     header.long_packet_type == RETRY && !frames.empty())
       << "IETF RETRY packets cannot contain frames " << header;
   QuicDataWriter writer(packet_length, buffer);
   size_t length_field_offset = 0;
@@ -2079,8 +2080,8 @@ bool QuicFramer::ProcessPublicResetPacket(QuicDataReader* reader,
 
 bool QuicFramer::IsIetfStatelessResetPacket(
     const QuicPacketHeader& header) const {
-  QUIC_BUG_IF(header.has_possible_stateless_reset_token &&
-              perspective_ != Perspective::IS_CLIENT)
+  QUIC_BUG_IF_V2(quic_bug_12975_3, header.has_possible_stateless_reset_token &&
+                                       perspective_ != Perspective::IS_CLIENT)
       << "has_possible_stateless_reset_token can only be true at client side.";
   return header.form == IETF_QUIC_SHORT_HEADER_PACKET &&
          header.has_possible_stateless_reset_token &&
@@ -2116,7 +2117,7 @@ bool QuicFramer::HasAnEncrypterForSpace(PacketNumberSpace space) const {
 
 EncryptionLevel QuicFramer::GetEncryptionLevelToSendApplicationData() const {
   if (!HasAnEncrypterForSpace(APPLICATION_DATA)) {
-    QUIC_BUG
+    QUIC_BUG_V2(quic_bug_12975_4)
         << "Tried to get encryption level to send application data with no "
            "encrypter available.";
     return NUM_ENCRYPTION_LEVELS;
@@ -2168,8 +2169,9 @@ bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
       }
       break;
     case CONNECTION_ID_PRESENT:
-      QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(
-          server_connection_id, transport_version()))
+      QUIC_BUG_IF_V2(quic_bug_12975_5,
+                     !QuicUtils::IsConnectionIdValidForVersion(
+                         server_connection_id, transport_version()))
           << "AppendPacketHeader: attempted to use connection ID "
           << server_connection_id << " which is invalid with version "
           << version();
@@ -2232,8 +2234,9 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
   QUIC_DVLOG(1) << ENDPOINT << "Appending IETF header: " << header;
   QuicConnectionId server_connection_id =
       GetServerConnectionIdAsSender(header, perspective_);
-  QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(server_connection_id,
-                                                        transport_version()))
+  QUIC_BUG_IF_V2(quic_bug_12975_6,
+                 !QuicUtils::IsConnectionIdValidForVersion(server_connection_id,
+                                                           transport_version()))
       << "AppendIetfPacketHeader: attempted to use connection ID "
       << server_connection_id << " which is invalid with version " << version();
   if (!AppendIetfHeaderTypeByte(header, writer)) {
@@ -2273,7 +2276,8 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
   }
 
   // TODO(b/141924462) Remove this QUIC_BUG once we do support sending RETRY.
-  QUIC_BUG_IF(header.version_flag && header.long_packet_type == RETRY)
+  QUIC_BUG_IF_V2(quic_bug_12975_7,
+                 header.version_flag && header.long_packet_type == RETRY)
       << "Sending IETF RETRY packets is not currently supported " << header;
 
   if (QuicVersionHasLongHeaderLengths(transport_version()) &&
@@ -4507,7 +4511,7 @@ bool QuicFramer::ApplyHeaderProtection(EncryptionLevel level,
   }
 
   if (encrypter_[level] == nullptr) {
-    QUIC_BUG
+    QUIC_BUG_V2(quic_bug_12975_8)
         << ENDPOINT
         << "Attempted to apply header protection without encrypter at level "
         << level << " using " << version_;
@@ -5959,7 +5963,7 @@ bool QuicFramer::AppendPaddingFrame(const QuicPaddingFrame& frame,
     return false;
   }
   if (frame.num_padding_bytes < 0) {
-    QUIC_BUG_IF(frame.num_padding_bytes != -1);
+    QUIC_BUG_IF_V2(quic_bug_12975_9, frame.num_padding_bytes != -1);
     writer->WritePadding();
     return true;
   }

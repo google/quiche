@@ -161,7 +161,7 @@ void QuicControlFrameManager::WriteOrBufferNewToken(absl::string_view token) {
 void QuicControlFrameManager::OnControlFrameSent(const QuicFrame& frame) {
   QuicControlFrameId id = GetControlFrameId(frame);
   if (id == kInvalidControlFrameId) {
-    QUIC_BUG
+    QUIC_BUG_V2(quic_bug_12727_1)
         << "Send or retransmit a control frame with invalid control frame id";
     return;
   }
@@ -225,7 +225,8 @@ void QuicControlFrameManager::OnControlFrameLost(const QuicFrame& frame) {
   }
   if (!QuicContainsKey(pending_retransmissions_, id)) {
     pending_retransmissions_[id] = true;
-    QUIC_BUG_IF(pending_retransmissions_.size() > control_frames_.size())
+    QUIC_BUG_IF_V2(quic_bug_12727_2,
+                   pending_retransmissions_.size() > control_frames_.size())
         << "least_unacked_: " << least_unacked_
         << ", least_unsent_: " << least_unsent_;
   }
@@ -253,7 +254,7 @@ bool QuicControlFrameManager::WillingToWrite() const {
 }
 
 QuicFrame QuicControlFrameManager::NextPendingRetransmission() const {
-  QUIC_BUG_IF(pending_retransmissions_.empty())
+  QUIC_BUG_IF_V2(quic_bug_12727_3, pending_retransmissions_.empty())
       << "Unexpected call to NextPendingRetransmission() with empty pending "
       << "retransmission list.";
   QuicControlFrameId id = pending_retransmissions_.begin()->first;

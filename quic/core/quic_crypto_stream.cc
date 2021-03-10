@@ -71,7 +71,8 @@ QuicByteCount QuicCryptoStream::CryptoMessageFramingOverhead(
 }
 
 void QuicCryptoStream::OnCryptoFrame(const QuicCryptoFrame& frame) {
-  QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(session()->transport_version()))
+  QUIC_BUG_IF_V2(quic_bug_12573_1,
+                 !QuicVersionUsesCryptoFrames(session()->transport_version()))
       << "Versions less than 47 shouldn't receive CRYPTO frames";
   EncryptionLevel level = session()->connection()->last_decrypted_level();
   substreams_[level].sequencer.OnCryptoFrame(frame);
@@ -85,7 +86,7 @@ void QuicCryptoStream::OnCryptoFrame(const QuicCryptoFrame& frame) {
 
 void QuicCryptoStream::OnStreamFrame(const QuicStreamFrame& frame) {
   if (QuicVersionUsesCryptoFrames(session()->transport_version())) {
-    QUIC_PEER_BUG
+    QUIC_PEER_BUG_V2(quic_peer_bug_12573_2)
         << "Crypto data received in stream frame instead of crypto frame";
     OnUnrecoverableError(QUIC_INVALID_STREAM_DATA, "Unexpected stream frame");
   }
@@ -264,7 +265,8 @@ bool QuicCryptoStream::HasPendingCryptoRetransmission() const {
 }
 
 void QuicCryptoStream::WritePendingCryptoRetransmission() {
-  QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(session()->transport_version()))
+  QUIC_BUG_IF_V2(quic_bug_12573_3,
+                 !QuicVersionUsesCryptoFrames(session()->transport_version()))
       << "Versions less than 47 don't write CRYPTO frames";
   for (EncryptionLevel level : AllEncryptionLevels()) {
     QuicStreamSendBuffer* send_buffer = &substreams_[level].send_buffer;
@@ -382,14 +384,16 @@ bool QuicCryptoStream::WriteCryptoFrame(EncryptionLevel level,
                                         QuicStreamOffset offset,
                                         QuicByteCount data_length,
                                         QuicDataWriter* writer) {
-  QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(session()->transport_version()))
+  QUIC_BUG_IF_V2(quic_bug_12573_4,
+                 !QuicVersionUsesCryptoFrames(session()->transport_version()))
       << "Versions less than 47 don't write CRYPTO frames (2)";
   return substreams_[level].send_buffer.WriteStreamData(offset, data_length,
                                                         writer);
 }
 
 void QuicCryptoStream::OnCryptoFrameLost(QuicCryptoFrame* crypto_frame) {
-  QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(session()->transport_version()))
+  QUIC_BUG_IF_V2(quic_bug_12573_5,
+                 !QuicVersionUsesCryptoFrames(session()->transport_version()))
       << "Versions less than 47 don't lose CRYPTO frames";
   substreams_[crypto_frame->level].send_buffer.OnStreamDataLost(
       crypto_frame->offset, crypto_frame->data_length);
@@ -397,7 +401,8 @@ void QuicCryptoStream::OnCryptoFrameLost(QuicCryptoFrame* crypto_frame) {
 
 void QuicCryptoStream::RetransmitData(QuicCryptoFrame* crypto_frame,
                                       TransmissionType type) {
-  QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(session()->transport_version()))
+  QUIC_BUG_IF_V2(quic_bug_12573_6,
+                 !QuicVersionUsesCryptoFrames(session()->transport_version()))
       << "Versions less than 47 don't retransmit CRYPTO frames";
   QuicIntervalSet<QuicStreamOffset> retransmission(
       crypto_frame->offset, crypto_frame->offset + crypto_frame->data_length);
@@ -422,7 +427,8 @@ void QuicCryptoStream::RetransmitData(QuicCryptoFrame* crypto_frame,
 }
 
 void QuicCryptoStream::WriteBufferedCryptoFrames() {
-  QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(session()->transport_version()))
+  QUIC_BUG_IF_V2(quic_bug_12573_7,
+                 !QuicVersionUsesCryptoFrames(session()->transport_version()))
       << "Versions less than 47 don't use CRYPTO frames";
   for (EncryptionLevel level : AllEncryptionLevels()) {
     QuicStreamSendBuffer* send_buffer = &substreams_[level].send_buffer;
@@ -444,7 +450,8 @@ void QuicCryptoStream::WriteBufferedCryptoFrames() {
 }
 
 bool QuicCryptoStream::HasBufferedCryptoFrames() const {
-  QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(session()->transport_version()))
+  QUIC_BUG_IF_V2(quic_bug_12573_8,
+                 !QuicVersionUsesCryptoFrames(session()->transport_version()))
       << "Versions less than 47 don't use CRYPTO frames";
   for (EncryptionLevel level : AllEncryptionLevels()) {
     const QuicStreamSendBuffer& send_buffer = substreams_[level].send_buffer;
