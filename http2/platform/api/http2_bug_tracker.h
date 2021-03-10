@@ -9,6 +9,12 @@
 
 #define HTTP2_BUG HTTP2_BUG_IMPL
 #define HTTP2_BUG_IF HTTP2_BUG_IF_IMPL
+
+// V2 macros are the same as all the HTTP2_BUG flavor above, but they take a
+// bug_id parameter.
+#define HTTP2_BUG_V2 HTTP2_BUG_V2_IMPL
+#define HTTP2_BUG_IF_V2 HTTP2_BUG_IF_V2_IMPL
+
 #define FLAGS_http2_always_log_bugs_for_tests \
   FLAGS_http2_always_log_bugs_for_tests_IMPL
 
