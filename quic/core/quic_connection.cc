@@ -393,7 +393,7 @@ QuicConnection::QuicConnection(
       GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2) &&
       GetQuicRestartFlag(
           quic_dispatcher_support_multiple_cid_per_connection_v2) &&
-      GetQuicReloadableFlag(quic_connection_support_multiple_cids);
+      GetQuicReloadableFlag(quic_connection_support_multiple_cids_v2);
 
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
@@ -1902,7 +1902,7 @@ bool QuicConnection::OnNewConnectionIdFrameInner(
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids, 1, 2);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v2, 1, 2);
   return true;
 }
 
@@ -1956,7 +1956,7 @@ bool QuicConnection::OnRetireConnectionIdFrame(
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids, 2, 2);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v2, 2, 2);
   return true;
 }
 
@@ -6352,7 +6352,9 @@ void QuicConnection::CreateConnectionIdManager() {
               alarm_factory_, this);
     }
   } else {
-    self_issued_cid_manager_ = MakeSelfIssuedConnectionIdManager();
+    if (!server_connection_id_.IsEmpty()) {
+      self_issued_cid_manager_ = MakeSelfIssuedConnectionIdManager();
+    }
   }
 }
 
