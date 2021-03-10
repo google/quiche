@@ -375,7 +375,6 @@ QuicConnection::QuicConnection(
       validate_client_addresses_(
           framer_.version().HasIetfQuicFrames() && use_path_validator_ &&
           count_bytes_on_alternative_path_separately_ &&
-          update_packet_content_returns_connected_ &&
           GetQuicReloadableFlag(quic_server_reverse_validate_new_path)) {
   QUIC_BUG_IF_V2(quic_bug_12714_1,
                  !start_peer_migration_earlier_ && send_path_response_);
@@ -5266,21 +5265,18 @@ void QuicConnection::CheckIfApplicationLimited() {
 }
 
 bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
-  if (update_packet_content_returns_connected_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_update_packet_content_returns_connected);
-  }
   most_recent_frame_type_ = type;
   if (version().HasIetfQuicFrames()) {
     if (!QuicUtils::IsProbingFrame(type)) {
       MaybeStartIetfPeerMigration();
-      return !update_packet_content_returns_connected_ || connected_;
+      return connected_;
     }
     QuicSocketAddress current_effective_peer_address =
         GetEffectivePeerAddressFromCurrentPacket();
     if (!count_bytes_on_alternative_path_separately_ ||
         IsDefaultPath(last_packet_destination_address_,
                       last_packet_source_address_)) {
-      return !update_packet_content_returns_connected_ || connected_;
+      return connected_;
     }
     QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 3, 5);
     if (type == PATH_CHALLENGE_FRAME &&
@@ -5328,7 +5324,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
       }
     }
     MaybeUpdateBytesReceivedFromAlternativeAddress(last_size_);
-    return !update_packet_content_returns_connected_ || connected_;
+    return connected_;
   }
   // Packet content is tracked to identify connectivity probe in non-IETF
   // version, where a connectivity probe is defined as
@@ -5339,13 +5335,13 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
     // We have already learned the current packet is not a connectivity
     // probing packet. Peer migration should have already been started earlier
     // if needed.
-    return !update_packet_content_returns_connected_ || connected_;
+    return connected_;
   }
 
   if (type == PING_FRAME) {
     if (current_packet_content_ == NO_FRAMES_RECEIVED) {
       current_packet_content_ = FIRST_FRAME_IS_PING;
-      return !update_packet_content_returns_connected_ || connected_;
+      return connected_;
     }
   }
 
@@ -5375,7 +5371,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
           << last_packet_destination_address_
           << ", default path self_address :" << default_path_.self_address;
     }
-    return !update_packet_content_returns_connected_ || connected_;
+    return connected_;
   }
 
   current_packet_content_ = NOT_PADDED_PING;
@@ -5389,7 +5385,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
     }
   }
   current_effective_peer_migration_type_ = NO_CHANGE;
-  return !update_packet_content_returns_connected_ || connected_;
+  return connected_;
 }
 
 void QuicConnection::MaybeStartIetfPeerMigration() {

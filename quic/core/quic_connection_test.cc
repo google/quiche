@@ -13653,17 +13653,10 @@ TEST_P(QuicConnectionTest, PeerMigrateBeforeHandshakeConfirm) {
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0u);
-  if (!GetQuicReloadableFlag(quic_update_packet_content_returns_connected)) {
-    EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
-    EXPECT_QUIC_BUG(
-        ProcessFramePacketWithAddresses(QuicFrame(&frame), kSelfAddress,
-                                        kNewPeerAddress, ENCRYPTION_INITIAL),
-        "");
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _)).Times(0);
-    ProcessFramePacketWithAddresses(QuicFrame(&frame), kSelfAddress,
-                                    kNewPeerAddress, ENCRYPTION_INITIAL);
-  }
+
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _)).Times(0);
+  ProcessFramePacketWithAddresses(QuicFrame(&frame), kSelfAddress,
+                                  kNewPeerAddress, ENCRYPTION_INITIAL);
   EXPECT_FALSE(connection_.connected());
 }
 

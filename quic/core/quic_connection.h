@@ -2148,9 +2148,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool count_bytes_on_alternative_path_separately_ =
       GetQuicReloadableFlag(quic_count_bytes_on_alternative_path_seperately);
 
-  bool update_packet_content_returns_connected_ =
-      GetQuicReloadableFlag(quic_update_packet_content_returns_connected);
-
   // If true, upon seeing a new client address, validate the client address.
   const bool validate_client_addresses_;
 
