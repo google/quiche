@@ -179,7 +179,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
 
   if (config.HasClientSentConnectionOption(kPTOS, perspective)) {
     if (!pto_enabled_) {
-      QUIC_PEER_BUG
+      QUIC_PEER_BUG_V2(quic_peer_bug_12552_1)
           << "PTO is not enabled when receiving PTOS connection option.";
       pto_enabled_ = true;
       max_probe_packets_per_pto_ = 1;
@@ -639,9 +639,11 @@ void QuicSentPacketManager::MarkForRetransmission(
       unacked_packets_.GetMutableTransmissionInfo(packet_number);
   // A previous RTO retransmission may cause connection close; packets without
   // retransmittable frames can be marked for loss retransmissions.
-  QUIC_BUG_IF(transmission_type != LOSS_RETRANSMISSION &&
-              transmission_type != RTO_RETRANSMISSION &&
-              !unacked_packets_.HasRetransmittableFrames(*transmission_info))
+  QUIC_BUG_IF_V2(
+      quic_bug_12552_2,
+      transmission_type != LOSS_RETRANSMISSION &&
+          transmission_type != RTO_RETRANSMISSION &&
+          !unacked_packets_.HasRetransmittableFrames(*transmission_info))
       << "packet number " << packet_number
       << " transmission_type: " << transmission_type << " transmission_info "
       << transmission_info->DebugString();
@@ -971,7 +973,7 @@ bool QuicSentPacketManager::MaybeRetransmitOldestPacket(TransmissionType type) {
 
 void QuicSentPacketManager::RetransmitRtoPackets() {
   QUICHE_DCHECK(!pto_enabled_);
-  QUIC_BUG_IF(pending_timer_transmission_count_ > 0)
+  QUIC_BUG_IF_V2(quic_bug_12552_3, pending_timer_transmission_count_ > 0)
       << "Retransmissions already queued:" << pending_timer_transmission_count_;
   // Mark two packets for retransmission.
   std::vector<QuicPacketNumber> retransmissions;
@@ -1001,7 +1003,7 @@ void QuicSentPacketManager::RetransmitRtoPackets() {
     MarkForRetransmission(retransmission, RTO_RETRANSMISSION);
   }
   if (retransmissions.empty()) {
-    QUIC_BUG_IF(pending_timer_transmission_count_ != 0);
+    QUIC_BUG_IF_V2(quic_bug_12552_4, pending_timer_transmission_count_ != 0);
     // No packets to be RTO retransmitted, raise up a credit to allow
     // connection to send.
     QUIC_CODE_COUNT(no_packets_to_be_rto_retransmitted);
@@ -1018,7 +1020,8 @@ void QuicSentPacketManager::MaybeSendProbePackets() {
     // Find out the packet number space to send probe packets.
     if (!GetEarliestPacketSentTimeForPto(&packet_number_space)
              .IsInitialized()) {
-      QUIC_BUG_IF(unacked_packets_.perspective() == Perspective::IS_SERVER)
+      QUIC_BUG_IF_V2(quic_bug_12552_5,
+                     unacked_packets_.perspective() == Perspective::IS_SERVER)
           << "earlist_sent_time not initialized when trying to send PTO "
              "retransmissions";
       return;
@@ -1419,7 +1422,7 @@ const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay(
   QUICHE_DCHECK(pto_enabled_);
   if (rtt_stats_.smoothed_rtt().IsZero()) {
     // Respect kMinHandshakeTimeoutMs to avoid a potential amplification attack.
-    QUIC_BUG_IF(rtt_stats_.initial_rtt().IsZero());
+    QUIC_BUG_IF_V2(quic_bug_12552_6, rtt_stats_.initial_rtt().IsZero());
     return std::max(
                pto_multiplier_without_rtt_samples_ * rtt_stats_.initial_rtt(),
                QuicTime::Delta::FromMilliseconds(kMinHandshakeTimeoutMs)) *

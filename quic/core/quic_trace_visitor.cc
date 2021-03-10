@@ -77,7 +77,7 @@ void QuicTraceVisitor::OnPacketSent(
       case MTU_DISCOVERY_FRAME:
       case STOP_WAITING_FRAME:
       case ACK_FRAME:
-        QUIC_BUG
+        QUIC_BUG_V2(quic_bug_12732_1)
             << "Frames of type are not retransmittable and are not supposed "
                "to be in retransmittable_frames";
         break;

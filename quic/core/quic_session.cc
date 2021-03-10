@@ -364,7 +364,7 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
 }
 
 void QuicSession::OnGoAway(const QuicGoAwayFrame& /*frame*/) {
-  QUIC_BUG_IF(version().UsesHttp3())
+  QUIC_BUG_IF_V2(quic_bug_12435_1, version().UsesHttp3())
       << "gQUIC GOAWAY received on version " << version();
 
   transport_goaway_received_ = true;
@@ -423,7 +423,7 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
     stream->OnConnectionClosed(frame.quic_error_code, source);
     auto it = stream_map_.find(id);
     if (it != stream_map_.end()) {
-      QUIC_BUG_IF(!it->second->IsZombie())
+      QUIC_BUG_IF_V2(quic_bug_12435_2, !it->second->IsZombie())
           << ENDPOINT << "Non-zombie stream " << id
           << " failed to close under OnConnectionClosed";
     }
@@ -757,7 +757,7 @@ QuicConsumedData QuicSession::WritevData(
     if (was_zero_rtt_rejected_ && !OneRttKeysAvailable()) {
       QUICHE_DCHECK(version().UsesTls() &&
                     perspective() == Perspective::IS_CLIENT);
-      QUIC_BUG_IF(type == NOT_RETRANSMISSION)
+      QUIC_BUG_IF_V2(quic_bug_12435_3, type == NOT_RETRANSMISSION)
           << ENDPOINT << "Try to send new data on stream " << id
           << "before 1-RTT keys are available while 0-RTT is rejected.";
     } else {
@@ -1011,10 +1011,10 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
   QUIC_DVLOG_IF(1, stream_was_draining)
       << ENDPOINT << "Stream " << stream_id << " was draining";
   if (stream_was_draining) {
-    QUIC_BUG_IF(num_draining_streams_ == 0);
+    QUIC_BUG_IF_V2(quic_bug_12435_4, num_draining_streams_ == 0);
     --num_draining_streams_;
     if (!IsIncomingStream(stream_id)) {
-      QUIC_BUG_IF(num_outgoing_draining_streams_ == 0);
+      QUIC_BUG_IF_V2(quic_bug_12435_5, num_outgoing_draining_streams_ == 0);
       --num_outgoing_draining_streams_;
     }
     // Stream Id manager has been informed with draining streams.
@@ -1105,7 +1105,7 @@ void QuicSession::OnConfigNegotiated() {
   // In the second config setting, 1-RTT keys are guaranteed to be available.
   if (version().UsesTls() && is_configured_ &&
       connection_->encryption_level() != ENCRYPTION_FORWARD_SECURE) {
-    QUIC_BUG
+    QUIC_BUG_V2(quic_bug_12435_6)
         << ENDPOINT
         << "1-RTT keys missing when config is negotiated for the second time.";
     connection_->CloseConnection(
@@ -1584,9 +1584,10 @@ void QuicSession::OnNewEncryptionKeyAvailable(
   if (reset_encryption_level) {
     connection()->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   }
-  QUIC_BUG_IF(IsEncryptionEstablished() &&
-              (connection()->encryption_level() == ENCRYPTION_INITIAL ||
-               connection()->encryption_level() == ENCRYPTION_HANDSHAKE))
+  QUIC_BUG_IF_V2(quic_bug_12435_7,
+                 IsEncryptionEstablished() &&
+                     (connection()->encryption_level() == ENCRYPTION_INITIAL ||
+                      connection()->encryption_level() == ENCRYPTION_HANDSHAKE))
       << "Encryption is established, but the encryption level " << level
       << " does not support sending stream data";
 }
@@ -1612,7 +1613,7 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
     case ENCRYPTION_HANDSHAKE:
       break;
     case ENCRYPTION_FORWARD_SECURE:
-      QUIC_BUG_IF(!config_.negotiated())
+      QUIC_BUG_IF_V2(quic_bug_12435_8, !config_.negotiated())
           << ENDPOINT << "Handshake confirmed without parameter negotiation.";
       connection()->mutable_stats().handshake_completion_time =
           connection()->clock()->ApproximateNow();
@@ -1624,9 +1625,10 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
 
 void QuicSession::OnTlsHandshakeComplete() {
   QUICHE_DCHECK_EQ(PROTOCOL_TLS1_3, connection_->version().handshake_protocol);
-  QUIC_BUG_IF(!GetCryptoStream()->crypto_negotiated_params().cipher_suite)
+  QUIC_BUG_IF_V2(quic_bug_12435_9,
+                 !GetCryptoStream()->crypto_negotiated_params().cipher_suite)
       << ENDPOINT << "Handshake completes without cipher suite negotiation.";
-  QUIC_BUG_IF(!config_.negotiated())
+  QUIC_BUG_IF_V2(quic_bug_12435_10, !config_.negotiated())
       << ENDPOINT << "Handshake completes without parameter negotiation.";
   connection()->mutable_stats().handshake_completion_time =
       connection()->clock()->ApproximateNow();

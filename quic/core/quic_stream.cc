@@ -176,7 +176,7 @@ void PendingStream::OnStreamFrame(const QuicStreamFrame& frame) {
       (kMaxStreamLength - frame.offset < frame.data_length);
   if (is_stream_too_long) {
     // Close connection if stream becomes too long.
-    QUIC_PEER_BUG
+    QUIC_PEER_BUG_V2(quic_peer_bug_12570_1)
         << "Receive stream frame reaches max stream length. frame offset "
         << frame.offset << " length " << frame.data_length;
     OnUnrecoverableError(QUIC_STREAM_LENGTH_OVERFLOW,
@@ -474,7 +474,7 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
       MaybeIncreaseHighestReceivedOffset(frame.offset + frame_payload_size)) {
     // As the highest received offset has changed, check to see if this is a
     // violation of flow control.
-    QUIC_BUG_IF(!flow_controller_.has_value())
+    QUIC_BUG_IF_V2(quic_bug_12570_2, !flow_controller_.has_value())
         << ENDPOINT << "OnStreamFrame called on stream without flow control";
     if ((flow_controller_.has_value() &&
          flow_controller_->FlowControlViolation()) ||
@@ -542,7 +542,7 @@ void QuicStream::OnStreamReset(const QuicRstStreamFrame& frame) {
   }
 
   MaybeIncreaseHighestReceivedOffset(frame.byte_offset);
-  QUIC_BUG_IF(!flow_controller_.has_value())
+  QUIC_BUG_IF_V2(quic_bug_12570_3, !flow_controller_.has_value())
       << ENDPOINT << "OnStreamReset called on stream without flow control";
   if ((flow_controller_.has_value() &&
        flow_controller_->FlowControlViolation()) ||
@@ -631,7 +631,8 @@ void QuicStream::WriteOrBufferData(
     bool fin,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
   if (session()->use_write_or_buffer_data_at_level()) {
-    QUIC_BUG_IF(QuicUtils::IsCryptoStreamId(transport_version(), id_))
+    QUIC_BUG_IF_V2(quic_bug_12570_4,
+                   QuicUtils::IsCryptoStreamId(transport_version(), id_))
         << ENDPOINT
         << "WriteOrBufferData is used to send application data, use "
            "WriteOrBufferDataAtLevel to send crypto data.";
@@ -880,7 +881,7 @@ void QuicStream::MaybeSendRstStream(QuicRstStreamErrorCode error) {
   }
 
   if (!session()->version().UsesHttp3()) {
-    QUIC_BUG_IF(error == QUIC_STREAM_NO_ERROR);
+    QUIC_BUG_IF_V2(quic_bug_12570_5, error == QUIC_STREAM_NO_ERROR);
     stop_sending_sent_ = true;
     CloseReadSide();
   }
@@ -915,8 +916,8 @@ void QuicStream::OnClose() {
   QUICHE_DCHECK(read_side_closed_ && write_side_closed_);
 
   if (!fin_sent_ && !rst_sent_) {
-    QUIC_BUG_IF(session()->connection()->connected() &&
-                session()->version().UsesHttp3())
+    QUIC_BUG_IF_V2(quic_bug_12570_6, session()->connection()->connected() &&
+                                         session()->version().UsesHttp3())
         << "The stream should've already sent RST in response to "
            "STOP_SENDING";
     // For flow control accounting, tell the peer how many bytes have been
@@ -1008,7 +1009,7 @@ void QuicStream::AddBytesConsumed(QuicByteCount bytes) {
     return;
   }
   if (!flow_controller_.has_value()) {
-    QUIC_BUG
+    QUIC_BUG_V2(quic_bug_12570_7)
         << ENDPOINT
         << "AddBytesConsumed called on non-crypto stream without flow control";
     return;
@@ -1038,7 +1039,7 @@ bool QuicStream::MaybeConfigSendWindowOffset(QuicStreamOffset new_offset,
     if (was_zero_rtt_rejected && new_offset < flow_controller_->bytes_sent()) {
       // The client is given flow control window lower than what's written in
       // 0-RTT. This QUIC implementation is unable to retransmit them.
-      QUIC_BUG_IF(perspective_ == Perspective::IS_SERVER)
+      QUIC_BUG_IF_V2(quic_bug_12570_8, perspective_ == Perspective::IS_SERVER)
           << "Server streams' flow control should never be configured twice.";
       OnUnrecoverableError(
           QUIC_ZERO_RTT_UNRETRANSMITTABLE,
@@ -1051,7 +1052,7 @@ bool QuicStream::MaybeConfigSendWindowOffset(QuicStreamOffset new_offset,
       // In IETF QUIC, if the client receives flow control limit lower than what
       // was resumed from 0-RTT, depending on 0-RTT status, it's either the
       // peer's fault or our implementation's fault.
-      QUIC_BUG_IF(perspective_ == Perspective::IS_SERVER)
+      QUIC_BUG_IF_V2(quic_bug_12570_9, perspective_ == Perspective::IS_SERVER)
           << "Server streams' flow control should never be configured twice.";
       OnUnrecoverableError(
           was_zero_rtt_rejected ? QUIC_ZERO_RTT_REJECTION_LIMIT_REDUCED

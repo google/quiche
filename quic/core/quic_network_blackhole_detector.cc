@@ -80,8 +80,8 @@ void QuicNetworkBlackholeDetector::RestartDetection(
   blackhole_deadline_ = blackhole_deadline;
   path_mtu_reduction_deadline_ = path_mtu_reduction_deadline;
 
-  QUIC_BUG_IF(blackhole_deadline_.IsInitialized() &&
-              blackhole_deadline_ != GetLastDeadline())
+  QUIC_BUG_IF_V2(quic_bug_12708_1, blackhole_deadline_.IsInitialized() &&
+                                       blackhole_deadline_ != GetLastDeadline())
       << "Blackhole detection deadline should be the last deadline.";
 
   UpdateAlarm();

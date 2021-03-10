@@ -105,7 +105,7 @@ void QuicStreamSendBuffer::OnStreamDataConsumed(size_t bytes_consumed) {
 bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
                                            QuicByteCount data_length,
                                            QuicDataWriter* writer) {
-  QUIC_BUG_IF(current_end_offset_ < offset)
+  QUIC_BUG_IF_V2(quic_bug_12823_1, current_end_offset_ < offset)
       << "Tried to write data out of sequence. last_offset_end:"
       << current_end_offset_ << ", offset:" << offset;
   // The iterator returned from |interval_deque_| will automatically advance
@@ -264,7 +264,8 @@ bool QuicStreamSendBuffer::FreeMemSlices(QuicStreamOffset start,
 void QuicStreamSendBuffer::CleanUpBufferedSlices() {
   while (!interval_deque_.Empty() &&
          interval_deque_.DataBegin()->slice.empty()) {
-    QUIC_BUG_IF(interval_deque_.DataBegin()->offset > current_end_offset_)
+    QUIC_BUG_IF_V2(quic_bug_12823_2,
+                   interval_deque_.DataBegin()->offset > current_end_offset_)
         << "Fail to pop front from interval_deque_. Front element contained "
            "a slice whose data has not all be written. Front offset "
         << interval_deque_.DataBegin()->offset << " length "

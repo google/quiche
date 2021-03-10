@@ -47,7 +47,8 @@ void QuicPathValidator::OnPathResponse(const QuicPathFrameBuffer& probing_data,
   }
 
   QUIC_DVLOG(1) << "Match PATH_RESPONSE received on " << self_address;
-  QUIC_BUG_IF(!path_context_->self_address().IsInitialized())
+  QUIC_BUG_IF_V2(quic_bug_12402_1,
+                 !path_context_->self_address().IsInitialized())
       << "Self address should have been known by now";
   if (self_address != path_context_->self_address()) {
     QUIC_DVLOG(1) << "Expect the response to be received on "

@@ -140,8 +140,8 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* mutable_packet,
   const SerializedPacket& packet = *mutable_packet;
   QuicPacketNumber packet_number = packet.packet_number;
   QuicPacketLength bytes_sent = packet.encrypted_length;
-  QUIC_BUG_IF(largest_sent_packet_.IsInitialized() &&
-              largest_sent_packet_ >= packet_number)
+  QUIC_BUG_IF_V2(quic_bug_12645_1, largest_sent_packet_.IsInitialized() &&
+                                       largest_sent_packet_ >= packet_number)
       << "largest_sent_packet_: " << largest_sent_packet_
       << ", packet_number: " << packet_number;
   QUICHE_DCHECK_GE(packet_number, least_unacked_ + unacked_packets_.size());
@@ -158,7 +158,7 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* mutable_packet,
   largest_sent_largest_acked_.UpdateMax(packet.largest_acked);
 
   if (!measure_rtt) {
-    QUIC_BUG_IF(set_in_flight);
+    QUIC_BUG_IF_V2(quic_bug_12645_2, set_in_flight);
     info.state = NOT_CONTRIBUTING_RTT;
   }
 
@@ -289,8 +289,8 @@ bool QuicUnackedPacketMap::IsUnacked(QuicPacketNumber packet_number) const {
 
 void QuicUnackedPacketMap::RemoveFromInFlight(QuicTransmissionInfo* info) {
   if (info->in_flight) {
-    QUIC_BUG_IF(bytes_in_flight_ < info->bytes_sent);
-    QUIC_BUG_IF(packets_in_flight_ == 0);
+    QUIC_BUG_IF_V2(quic_bug_12645_3, bytes_in_flight_ < info->bytes_sent);
+    QUIC_BUG_IF_V2(quic_bug_12645_4, packets_in_flight_ == 0);
     bytes_in_flight_ -= info->bytes_sent;
     --packets_in_flight_;
 
