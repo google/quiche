@@ -280,8 +280,9 @@ void CryptoUtils::CreateInitialObfuscators(Perspective perspective,
     crypters->decrypter = std::make_unique<NullDecrypter>(perspective);
     return;
   }
-  QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(
-      connection_id, version.transport_version))
+  QUIC_BUG_IF_V2(quic_bug_12871_1,
+                 !QuicUtils::IsConnectionIdValidForVersion(
+                     connection_id, version.transport_version))
       << "CreateTlsInitialCrypters: attempted to use connection ID "
       << connection_id << " which is invalid with version " << version;
   const EVP_MD* hash = EVP_sha256();
@@ -295,7 +296,7 @@ void CryptoUtils::CreateInitialObfuscators(Perspective perspective,
       HKDF_extract(handshake_secret.data(), &handshake_secret_len, hash,
                    reinterpret_cast<const uint8_t*>(connection_id.data()),
                    connection_id.length(), salt, salt_len);
-  QUIC_BUG_IF(!hkdf_extract_success)
+  QUIC_BUG_IF_V2(quic_bug_12871_2, !hkdf_extract_success)
       << "HKDF_extract failed when creating initial crypters";
   handshake_secret.resize(handshake_secret_len);
 
@@ -742,7 +743,8 @@ std::string CryptoUtils::EarlyDataReasonToString(
     RETURN_STRING_LITERAL(ssl_early_data_quic_parameter_mismatch);
   }
 #endif
-  QUIC_BUG_IF(reason < 0 || reason > ssl_early_data_reason_max_value)
+  QUIC_BUG_IF_V2(quic_bug_12871_3,
+                 reason < 0 || reason > ssl_early_data_reason_max_value)
       << "Unknown ssl_early_data_reason_t " << reason;
   return "unknown ssl_early_data_reason_t";
 }

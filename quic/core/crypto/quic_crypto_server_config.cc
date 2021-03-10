@@ -140,7 +140,7 @@ class ValidateClientHelloHelper {
       delete;
 
   ~ValidateClientHelloHelper() {
-    QUIC_BUG_IF(done_cb_ != nullptr)
+    QUIC_BUG_IF_V2(quic_bug_12963_1, done_cb_ != nullptr)
         << "Deleting ValidateClientHelloHelper with a pending callback.";
   }
 
@@ -738,8 +738,9 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
     std::unique_ptr<ProofSource::Details> proof_source_details,
     std::unique_ptr<ProcessClientHelloContext> context,
     const Configs& configs) const {
-  QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(
-      context->connection_id(), context->transport_version()))
+  QUIC_BUG_IF_V2(quic_bug_12963_2,
+                 !QuicUtils::IsConnectionIdValidForVersion(
+                     context->connection_id(), context->transport_version()))
       << "ProcessClientHelloAfterGetProof: attempted to use connection ID "
       << context->connection_id() << " which is invalid with version "
       << context->version();
@@ -841,8 +842,9 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
     absl::string_view public_value,
     std::unique_ptr<ProcessClientHelloContext> context,
     const Configs& configs) const {
-  QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(
-      context->connection_id(), context->transport_version()))
+  QUIC_BUG_IF_V2(quic_bug_12963_3,
+                 !QuicUtils::IsConnectionIdValidForVersion(
+                     context->connection_id(), context->transport_version()))
       << "ProcessClientHelloAfterCalculateSharedKeys:"
          " attempted to use connection ID "
       << context->connection_id() << " which is invalid with version "
