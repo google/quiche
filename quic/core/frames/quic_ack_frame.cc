@@ -96,7 +96,7 @@ bool PacketNumberQueue::RemoveUpTo(QuicPacketNumber higher) {
 
 void PacketNumberQueue::RemoveSmallestInterval() {
   // TODO(wub): Move this QUIC_BUG to upper level.
-  QUIC_BUG_IF(packet_number_intervals_.Size() < 2)
+  QUIC_BUG_IF_V2(quic_bug_12614_1, packet_number_intervals_.Size() < 2)
       << (Empty() ? "No intervals to remove."
                   : "Can't remove the last interval.");
   packet_number_intervals_.PopFront();
@@ -171,7 +171,7 @@ std::ostream& operator<<(std::ostream& os, const PacketNumberQueue& q) {
         (interval.max() - interval.min() > kMaxPrintRange)) {
       // If min>max, it's really a bug, so QUIC_BUG it to
       // catch it in development.
-      QUIC_BUG_IF(interval.min() >= interval.max())
+      QUIC_BUG_IF_V2(quic_bug_12614_2, interval.min() >= interval.max())
           << "Ack Range minimum (" << interval.min() << "Not less than max ("
           << interval.max() << ")";
       // print range as min...max rather than full list.

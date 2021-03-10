@@ -120,8 +120,8 @@ void MasqueServerBackend::CloseBackendResponseStream(
 void MasqueServerBackend::RegisterBackendClient(QuicConnectionId connection_id,
                                                 BackendClient* backend_client) {
   QUIC_DLOG(INFO) << "Registering backend client for " << connection_id;
-  QUIC_BUG_IF(backend_client_states_.find(connection_id) !=
-              backend_client_states_.end())
+  QUIC_BUG_IF_V2(quic_bug_12005_1, backend_client_states_.find(connection_id) !=
+                                       backend_client_states_.end())
       << connection_id << " already in backend clients map";
   backend_client_states_[connection_id] =
       BackendClientState{backend_client, {}};

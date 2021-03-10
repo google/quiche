@@ -100,7 +100,7 @@ class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
 
     batch_buffer().PopBufferedWrite(buffered_writes().size());
 
-    QUIC_BUG_IF(!buffered_writes().empty())
+    QUIC_BUG_IF_V2(quic_bug_12544_1, !buffered_writes().empty())
         << "All packets should have been written on a successful return";
     return result;
   }

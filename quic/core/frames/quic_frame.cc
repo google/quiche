@@ -267,7 +267,7 @@ void SetControlFrameId(QuicControlFrameId control_frame_id, QuicFrame* frame) {
       frame->new_token_frame->control_frame_id = control_frame_id;
       return;
     default:
-      QUIC_BUG
+      QUIC_BUG_V2(quic_bug_12594_1)
           << "Try to set control frame id of a frame without control frame id";
   }
 }

@@ -75,7 +75,7 @@ QuicSendmmsgBatchWriter::InternalFlushImpl(size_t cmsg_space,
     return result;
   }
 
-  QUIC_BUG_IF(!buffered_writes().empty())
+  QUIC_BUG_IF_V2(quic_bug_12537_1, !buffered_writes().empty())
       << "All packets should have been written on a successful return";
   write_result.bytes_written = result.bytes_written;
   return result;
