@@ -166,7 +166,7 @@ QuicPacketNumberLength ReadSequenceNumberLength(uint8_t flags) {
     case PACKET_FLAGS_1BYTE_PACKET:
       return PACKET_1BYTE_PACKET_NUMBER;
     default:
-      QUIC_BUG << "Unreachable case statement.";
+      QUIC_BUG_V2(quic_bug_10850_1) << "Unreachable case statement.";
       return PACKET_6BYTE_PACKET_NUMBER;
   }
 }
@@ -183,7 +183,7 @@ QuicPacketNumberLength ReadAckPacketNumberLength(
     case PACKET_FLAGS_1BYTE_PACKET:
       return PACKET_1BYTE_PACKET_NUMBER;
     default:
-      QUIC_BUG << "Unreachable case statement.";
+      QUIC_BUG_V2(quic_bug_10850_2) << "Unreachable case statement.";
       return PACKET_6BYTE_PACKET_NUMBER;
   }
 }
@@ -211,7 +211,7 @@ uint8_t LongHeaderTypeToOnWireValue(QuicLongHeaderType type) {
     case VERSION_NEGOTIATION:
       return 0xF0;  // Value does not matter
     default:
-      QUIC_BUG << "Invalid long header type: " << type;
+      QUIC_BUG_V2(quic_bug_10850_3) << "Invalid long header type: " << type;
       return 0xFF;
   }
 }
@@ -232,7 +232,7 @@ bool GetLongHeaderType(uint8_t type, QuicLongHeaderType* long_header_type) {
       *long_header_type = RETRY;
       break;
     default:
-      QUIC_BUG << "Unreachable statement";
+      QUIC_BUG_V2(quic_bug_10850_4) << "Unreachable statement";
       *long_header_type = INVALID_PACKET_TYPE;
       return false;
   }
@@ -247,7 +247,8 @@ QuicPacketNumberLength GetLongHeaderPacketNumberLength(uint8_t type) {
 PacketNumberSpace GetPacketNumberSpace(const QuicPacketHeader& header) {
   switch (header.form) {
     case GOOGLE_QUIC_PACKET:
-      QUIC_BUG << "Try to get packet number space of Google QUIC packet";
+      QUIC_BUG_V2(quic_bug_10850_5)
+          << "Try to get packet number space of Google QUIC packet";
       break;
     case IETF_QUIC_SHORT_HEADER_PACKET:
       return APPLICATION_DATA;
@@ -262,9 +263,9 @@ PacketNumberSpace GetPacketNumberSpace(const QuicPacketHeader& header) {
         case VERSION_NEGOTIATION:
         case RETRY:
         case INVALID_PACKET_TYPE:
-          QUIC_BUG << "Try to get packet number space of long header type: "
-                   << QuicUtils::QuicLongHeaderTypetoString(
-                          header.long_packet_type);
+          QUIC_BUG_V2(quic_bug_10850_6)
+              << "Try to get packet number space of long header type: "
+              << QuicUtils::QuicLongHeaderTypetoString(header.long_packet_type);
           break;
       }
   }
@@ -275,7 +276,8 @@ PacketNumberSpace GetPacketNumberSpace(const QuicPacketHeader& header) {
 EncryptionLevel GetEncryptionLevel(const QuicPacketHeader& header) {
   switch (header.form) {
     case GOOGLE_QUIC_PACKET:
-      QUIC_BUG << "Cannot determine EncryptionLevel from Google QUIC header";
+      QUIC_BUG_V2(quic_bug_10850_7)
+          << "Cannot determine EncryptionLevel from Google QUIC header";
       break;
     case IETF_QUIC_SHORT_HEADER_PACKET:
       return ENCRYPTION_FORWARD_SECURE;
@@ -290,9 +292,9 @@ EncryptionLevel GetEncryptionLevel(const QuicPacketHeader& header) {
         case VERSION_NEGOTIATION:
         case RETRY:
         case INVALID_PACKET_TYPE:
-          QUIC_BUG << "No encryption used with type "
-                   << QuicUtils::QuicLongHeaderTypetoString(
-                          header.long_packet_type);
+          QUIC_BUG_V2(quic_bug_10850_8)
+              << "No encryption used with type "
+              << QuicUtils::QuicLongHeaderTypetoString(header.long_packet_type);
       }
   }
   return NUM_ENCRYPTION_LEVELS;
@@ -590,9 +592,10 @@ size_t QuicFramer::GetWindowUpdateFrameSize(
 size_t QuicFramer::GetMaxStreamsFrameSize(QuicTransportVersion version,
                                           const QuicMaxStreamsFrame& frame) {
   if (!VersionHasIetfQuicFrames(version)) {
-    QUIC_BUG << "In version " << version
-             << ", which does not support IETF Frames, and tried to serialize "
-                "MaxStreams Frame.";
+    QUIC_BUG_V2(quic_bug_10850_9)
+        << "In version " << version
+        << ", which does not support IETF Frames, and tried to serialize "
+           "MaxStreams Frame.";
   }
   return kQuicFrameTypeSize +
          QuicDataWriter::GetVarInt62Len(frame.stream_count);
@@ -603,9 +606,10 @@ size_t QuicFramer::GetStreamsBlockedFrameSize(
     QuicTransportVersion version,
     const QuicStreamsBlockedFrame& frame) {
   if (!VersionHasIetfQuicFrames(version)) {
-    QUIC_BUG << "In version " << version
-             << ", which does not support IETF frames, and tried to serialize "
-                "StreamsBlocked Frame.";
+    QUIC_BUG_V2(quic_bug_10850_10)
+        << "In version " << version
+        << ", which does not support IETF frames, and tried to serialize "
+           "StreamsBlocked Frame.";
   }
 
   return kQuicFrameTypeSize +
@@ -726,7 +730,7 @@ size_t QuicFramer::GetStreamIdSize(QuicStreamId stream_id) {
       return i;
     }
   }
-  QUIC_BUG << "Failed to determine StreamIDSize.";
+  QUIC_BUG_V2(quic_bug_10850_11) << "Failed to determine StreamIDSize.";
   return 4;
 }
 
@@ -744,7 +748,7 @@ size_t QuicFramer::GetStreamOffsetSize(QuicStreamOffset offset) {
       return i;
     }
   }
-  QUIC_BUG << "Failed to determine StreamOffsetSize.";
+  QUIC_BUG_V2(quic_bug_10850_12) << "Failed to determine StreamOffsetSize.";
   return 8;
 }
 
@@ -800,10 +804,11 @@ size_t QuicFramer::GetSerializedFrameLength(
     QuicPacketNumberLength packet_number_length) {
   // Prevent a rare crash reported in b/19458523.
   if (frame.type == ACK_FRAME && frame.ack_frame == nullptr) {
-    QUIC_BUG << "Cannot compute the length of a null ack frame. free_bytes:"
-             << free_bytes << " first_frame:" << first_frame
-             << " last_frame:" << last_frame
-             << " seq num length:" << packet_number_length;
+    QUIC_BUG_V2(quic_bug_10850_13)
+        << "Cannot compute the length of a null ack frame. free_bytes:"
+        << free_bytes << " first_frame:" << first_frame
+        << " last_frame:" << last_frame
+        << " seq num length:" << packet_number_length;
     set_error(QUIC_INTERNAL_ERROR);
     visitor_->OnError(this);
     return 0;
@@ -866,7 +871,7 @@ bool QuicFramer::WriteIetfLongHeaderLength(const QuicPacketHeader& header,
       writer->length() - length_field_offset <
           kQuicDefaultLongHeaderLengthLength) {
     set_detailed_error("Invalid length_field_offset.");
-    QUIC_BUG << "Invalid length_field_offset.";
+    QUIC_BUG_V2(quic_bug_10850_14) << "Invalid length_field_offset.";
     return false;
   }
   size_t length_to_write = writer->length() - length_field_offset -
@@ -879,7 +884,7 @@ bool QuicFramer::WriteIetfLongHeaderLength(const QuicPacketHeader& header,
   if (!length_writer.WriteVarInt62(length_to_write,
                                    kQuicDefaultLongHeaderLengthLength)) {
     set_detailed_error("Failed to overwrite long header length.");
-    QUIC_BUG << "Failed to overwrite long header length.";
+    QUIC_BUG_V2(quic_bug_10850_15) << "Failed to overwrite long header length.";
     return false;
   }
   return true;
@@ -896,7 +901,7 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
   QuicDataWriter writer(packet_length, buffer);
   size_t length_field_offset = 0;
   if (!AppendPacketHeader(header, &writer, &length_field_offset)) {
-    QUIC_BUG << "AppendPacketHeader failed";
+    QUIC_BUG_V2(quic_bug_10850_16) << "AppendPacketHeader failed";
     return 0;
   }
 
@@ -916,35 +921,37 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
     // Determine if we should write stream frame length in header.
     const bool last_frame_in_packet = i == frames.size() - 1;
     if (!AppendTypeByte(frame, last_frame_in_packet, &writer)) {
-      QUIC_BUG << "AppendTypeByte failed";
+      QUIC_BUG_V2(quic_bug_10850_17) << "AppendTypeByte failed";
       return 0;
     }
 
     switch (frame.type) {
       case PADDING_FRAME:
         if (!AppendPaddingFrame(frame.padding_frame, &writer)) {
-          QUIC_BUG << "AppendPaddingFrame of "
-                   << frame.padding_frame.num_padding_bytes << " failed";
+          QUIC_BUG_V2(quic_bug_10850_18)
+              << "AppendPaddingFrame of "
+              << frame.padding_frame.num_padding_bytes << " failed";
           return 0;
         }
         break;
       case STREAM_FRAME:
         if (!AppendStreamFrame(frame.stream_frame, last_frame_in_packet,
                                &writer)) {
-          QUIC_BUG << "AppendStreamFrame failed";
+          QUIC_BUG_V2(quic_bug_10850_19) << "AppendStreamFrame failed";
           return 0;
         }
         break;
       case ACK_FRAME:
         if (!AppendAckFrameAndTypeByte(*frame.ack_frame, &writer)) {
-          QUIC_BUG << "AppendAckFrameAndTypeByte failed: " << detailed_error_;
+          QUIC_BUG_V2(quic_bug_10850_20)
+              << "AppendAckFrameAndTypeByte failed: " << detailed_error_;
           return 0;
         }
         break;
       case STOP_WAITING_FRAME:
         if (!AppendStopWaitingFrame(header, frame.stop_waiting_frame,
                                     &writer)) {
-          QUIC_BUG << "AppendStopWaitingFrame failed";
+          QUIC_BUG_V2(quic_bug_10850_21) << "AppendStopWaitingFrame failed";
           return 0;
         }
         break;
@@ -956,32 +963,32 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
         break;
       case RST_STREAM_FRAME:
         if (!AppendRstStreamFrame(*frame.rst_stream_frame, &writer)) {
-          QUIC_BUG << "AppendRstStreamFrame failed";
+          QUIC_BUG_V2(quic_bug_10850_22) << "AppendRstStreamFrame failed";
           return 0;
         }
         break;
       case CONNECTION_CLOSE_FRAME:
         if (!AppendConnectionCloseFrame(*frame.connection_close_frame,
                                         &writer)) {
-          QUIC_BUG << "AppendConnectionCloseFrame failed";
+          QUIC_BUG_V2(quic_bug_10850_23) << "AppendConnectionCloseFrame failed";
           return 0;
         }
         break;
       case GOAWAY_FRAME:
         if (!AppendGoAwayFrame(*frame.goaway_frame, &writer)) {
-          QUIC_BUG << "AppendGoAwayFrame failed";
+          QUIC_BUG_V2(quic_bug_10850_24) << "AppendGoAwayFrame failed";
           return 0;
         }
         break;
       case WINDOW_UPDATE_FRAME:
         if (!AppendWindowUpdateFrame(*frame.window_update_frame, &writer)) {
-          QUIC_BUG << "AppendWindowUpdateFrame failed";
+          QUIC_BUG_V2(quic_bug_10850_25) << "AppendWindowUpdateFrame failed";
           return 0;
         }
         break;
       case BLOCKED_FRAME:
         if (!AppendBlockedFrame(*frame.blocked_frame, &writer)) {
-          QUIC_BUG << "AppendBlockedFrame failed";
+          QUIC_BUG_V2(quic_bug_10850_26) << "AppendBlockedFrame failed";
           return 0;
         }
         break;
@@ -1021,7 +1028,7 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
       case MESSAGE_FRAME:
         if (!AppendMessageFrameAndTypeByte(*frame.message_frame,
                                            last_frame_in_packet, &writer)) {
-          QUIC_BUG << "AppendMessageFrame failed";
+          QUIC_BUG_V2(quic_bug_10850_27) << "AppendMessageFrame failed";
           return 0;
         }
         break;
@@ -1032,7 +1039,7 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
           return RaiseError(QUIC_INTERNAL_ERROR);
         }
         if (!AppendCryptoFrame(*frame.crypto_frame, &writer)) {
-          QUIC_BUG << "AppendCryptoFrame failed";
+          QUIC_BUG_V2(quic_bug_10850_28) << "AppendCryptoFrame failed";
           return 0;
         }
         break;
@@ -1041,7 +1048,7 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
         break;
       default:
         RaiseError(QUIC_INVALID_FRAME_DATA);
-        QUIC_BUG << "QUIC_INVALID_FRAME_DATA";
+        QUIC_BUG_V2(quic_bug_10850_29) << "QUIC_INVALID_FRAME_DATA";
         return 0;
     }
     ++i;
@@ -1061,30 +1068,33 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
     // Determine if we should write stream frame length in header.
     const bool last_frame_in_packet = i == frames.size() - 1;
     if (!AppendIetfFrameType(frame, last_frame_in_packet, writer)) {
-      QUIC_BUG << "AppendIetfFrameType failed: " << detailed_error();
+      QUIC_BUG_V2(quic_bug_10850_30)
+          << "AppendIetfFrameType failed: " << detailed_error();
       return 0;
     }
 
     switch (frame.type) {
       case PADDING_FRAME:
         if (!AppendPaddingFrame(frame.padding_frame, writer)) {
-          QUIC_BUG << "AppendPaddingFrame of "
-                   << frame.padding_frame.num_padding_bytes
-                   << " failed: " << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_31)
+              << "AppendPaddingFrame of "
+              << frame.padding_frame.num_padding_bytes
+              << " failed: " << detailed_error();
           return 0;
         }
         break;
       case STREAM_FRAME:
         if (!AppendStreamFrame(frame.stream_frame, last_frame_in_packet,
                                writer)) {
-          QUIC_BUG << "AppendStreamFrame failed: " << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_32)
+              << "AppendStreamFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case ACK_FRAME:
         if (!AppendIetfAckFrameAndTypeByte(*frame.ack_frame, writer)) {
-          QUIC_BUG << "AppendIetfAckFrameAndTypeByte failed: "
-                   << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_33)
+              << "AppendIetfAckFrameAndTypeByte failed: " << detailed_error();
           return 0;
         }
         break;
@@ -1092,7 +1102,7 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         set_detailed_error(
             "Attempt to append STOP WAITING frame in IETF QUIC.");
         RaiseError(QUIC_INTERNAL_ERROR);
-        QUIC_BUG << detailed_error();
+        QUIC_BUG_V2(quic_bug_10850_34) << detailed_error();
         return 0;
       case MTU_DISCOVERY_FRAME:
         // MTU discovery frames are serialized as ping frames.
@@ -1102,22 +1112,23 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         break;
       case RST_STREAM_FRAME:
         if (!AppendRstStreamFrame(*frame.rst_stream_frame, writer)) {
-          QUIC_BUG << "AppendRstStreamFrame failed: " << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_35)
+              << "AppendRstStreamFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case CONNECTION_CLOSE_FRAME:
         if (!AppendIetfConnectionCloseFrame(*frame.connection_close_frame,
                                             writer)) {
-          QUIC_BUG << "AppendIetfConnectionCloseFrame failed: "
-                   << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_36)
+              << "AppendIetfConnectionCloseFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case GOAWAY_FRAME:
         set_detailed_error("Attempt to append GOAWAY frame in IETF QUIC.");
         RaiseError(QUIC_INTERNAL_ERROR);
-        QUIC_BUG << detailed_error();
+        QUIC_BUG_V2(quic_bug_10850_37) << detailed_error();
         return 0;
       case WINDOW_UPDATE_FRAME:
         // Depending on whether there is a stream ID or not, will be either a
@@ -1125,83 +1136,95 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         if (frame.window_update_frame->stream_id ==
             QuicUtils::GetInvalidStreamId(transport_version())) {
           if (!AppendMaxDataFrame(*frame.window_update_frame, writer)) {
-            QUIC_BUG << "AppendMaxDataFrame failed: " << detailed_error();
+            QUIC_BUG_V2(quic_bug_10850_38)
+                << "AppendMaxDataFrame failed: " << detailed_error();
             return 0;
           }
         } else {
           if (!AppendMaxStreamDataFrame(*frame.window_update_frame, writer)) {
-            QUIC_BUG << "AppendMaxStreamDataFrame failed: " << detailed_error();
+            QUIC_BUG_V2(quic_bug_10850_39)
+                << "AppendMaxStreamDataFrame failed: " << detailed_error();
             return 0;
           }
         }
         break;
       case BLOCKED_FRAME:
         if (!AppendBlockedFrame(*frame.blocked_frame, writer)) {
-          QUIC_BUG << "AppendBlockedFrame failed: " << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_40)
+              << "AppendBlockedFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case MAX_STREAMS_FRAME:
         if (!AppendMaxStreamsFrame(frame.max_streams_frame, writer)) {
-          QUIC_BUG << "AppendMaxStreamsFrame failed: " << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_41)
+              << "AppendMaxStreamsFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case STREAMS_BLOCKED_FRAME:
         if (!AppendStreamsBlockedFrame(frame.streams_blocked_frame, writer)) {
-          QUIC_BUG << "AppendStreamsBlockedFrame failed: " << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_42)
+              << "AppendStreamsBlockedFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case NEW_CONNECTION_ID_FRAME:
         if (!AppendNewConnectionIdFrame(*frame.new_connection_id_frame,
                                         writer)) {
-          QUIC_BUG << "AppendNewConnectionIdFrame failed: " << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_43)
+              << "AppendNewConnectionIdFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case RETIRE_CONNECTION_ID_FRAME:
         if (!AppendRetireConnectionIdFrame(*frame.retire_connection_id_frame,
                                            writer)) {
-          QUIC_BUG << "AppendRetireConnectionIdFrame failed: "
-                   << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_44)
+              << "AppendRetireConnectionIdFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case NEW_TOKEN_FRAME:
         if (!AppendNewTokenFrame(*frame.new_token_frame, writer)) {
-          QUIC_BUG << "AppendNewTokenFrame failed: " << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_45)
+              << "AppendNewTokenFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case STOP_SENDING_FRAME:
         if (!AppendStopSendingFrame(*frame.stop_sending_frame, writer)) {
-          QUIC_BUG << "AppendStopSendingFrame failed: " << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_46)
+              << "AppendStopSendingFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case PATH_CHALLENGE_FRAME:
         if (!AppendPathChallengeFrame(*frame.path_challenge_frame, writer)) {
-          QUIC_BUG << "AppendPathChallengeFrame failed: " << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_47)
+              << "AppendPathChallengeFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case PATH_RESPONSE_FRAME:
         if (!AppendPathResponseFrame(*frame.path_response_frame, writer)) {
-          QUIC_BUG << "AppendPathResponseFrame failed: " << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_48)
+              << "AppendPathResponseFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case MESSAGE_FRAME:
         if (!AppendMessageFrameAndTypeByte(*frame.message_frame,
                                            last_frame_in_packet, writer)) {
-          QUIC_BUG << "AppendMessageFrame failed: " << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_49)
+              << "AppendMessageFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case CRYPTO_FRAME:
         if (!AppendCryptoFrame(*frame.crypto_frame, writer)) {
-          QUIC_BUG << "AppendCryptoFrame failed: " << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_50)
+              << "AppendCryptoFrame failed: " << detailed_error();
           return 0;
         }
         break;
@@ -1210,14 +1233,16 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         break;
       case ACK_FREQUENCY_FRAME:
         if (!AppendAckFrequencyFrame(*frame.ack_frequency_frame, writer)) {
-          QUIC_BUG << "AppendAckFrequencyFrame failed: " << detailed_error();
+          QUIC_BUG_V2(quic_bug_10850_51)
+              << "AppendAckFrequencyFrame failed: " << detailed_error();
           return 0;
         }
         break;
       default:
         set_detailed_error("Tried to append unknown frame type.");
         RaiseError(QUIC_INVALID_FRAME_DATA);
-        QUIC_BUG << "QUIC_INVALID_FRAME_DATA: " << frame.type;
+        QUIC_BUG_V2(quic_bug_10850_52)
+            << "QUIC_INVALID_FRAME_DATA: " << frame.type;
         return 0;
     }
     ++i;
@@ -1532,9 +1557,9 @@ bool QuicFramer::ProcessPacketInternal(const QuicEncryptedPacket& packet) {
       rv = ProcessDataPacket(&reader, &header, packet, large_buffer.get(),
                              packet.length());
     }
-    QUIC_BUG_IF(rv) << "QUIC should never successfully process packets larger"
-                    << "than kMaxIncomingPacketSize. packet size:"
-                    << packet.length();
+    QUIC_BUG_IF_V2(quic_bug_10850_53, rv)
+        << "QUIC should never successfully process packets larger"
+        << "than kMaxIncomingPacketSize. packet size:" << packet.length();
   }
   return rv;
 }
@@ -1713,7 +1738,7 @@ bool QuicFramer::MaybeProcessIetfLength(QuicDataReader* encrypted_reader,
 
   if (!encrypted_reader->TruncateRemaining(header->remaining_packet_length)) {
     set_detailed_error("Length TruncateRemaining failed.");
-    QUIC_BUG << "Length TruncateRemaining failed.";
+    QUIC_BUG_V2(quic_bug_10850_54) << "Length TruncateRemaining failed.";
     return RaiseError(QUIC_INVALID_PACKET_HEADER);
   }
   return true;
@@ -2083,8 +2108,9 @@ bool QuicFramer::HasAnEncrypterForSpace(PacketNumberSpace space) const {
     case NUM_PACKET_NUMBER_SPACES:
       break;
   }
-  QUIC_BUG << ENDPOINT
-           << "Try to send data of space: " << PacketNumberSpaceToString(space);
+  QUIC_BUG_V2(quic_bug_10850_55)
+      << ENDPOINT
+      << "Try to send data of space: " << PacketNumberSpaceToString(space);
   return false;
 }
 
@@ -2472,7 +2498,7 @@ uint8_t QuicFramer::GetPacketNumberFlags(
     case PACKET_8BYTE_PACKET_NUMBER:
       return PACKET_FLAGS_8BYTE_PACKET;
     default:
-      QUIC_BUG << "Unreachable case statement.";
+      QUIC_BUG_V2(quic_bug_10850_56) << "Unreachable case statement.";
       return PACKET_FLAGS_8BYTE_PACKET;
   }
 }
@@ -3138,7 +3164,7 @@ bool QuicFramer::IsIetfFrameTypeExpectedForEncryptionLevel(
     case ENCRYPTION_FORWARD_SECURE:
       return true;
     default:
-      QUIC_BUG << "Unknown encryption level: " << level;
+      QUIC_BUG_V2(quic_bug_10850_57) << "Unknown encryption level: " << level;
   }
   return false;
 }
@@ -4355,7 +4381,7 @@ bool QuicFramer::DoKeyUpdate(KeyUpdateReason reason) {
   std::unique_ptr<QuicEncrypter> next_encrypter =
       visitor_->CreateCurrentOneRttEncrypter();
   if (!next_decrypter_ || !next_encrypter) {
-    QUIC_BUG << "Failed to create next crypters";
+    QUIC_BUG_V2(quic_bug_10850_58) << "Failed to create next crypters";
     return false;
   }
   key_update_performed_ = true;
@@ -4419,9 +4445,9 @@ size_t QuicFramer::EncryptInPlace(EncryptionLevel level,
                                   char* buffer) {
   QUICHE_DCHECK(packet_number.IsInitialized());
   if (encrypter_[level] == nullptr) {
-    QUIC_BUG << ENDPOINT
-             << "Attempted to encrypt in place without encrypter at level "
-             << level;
+    QUIC_BUG_V2(quic_bug_10850_59)
+        << ENDPOINT
+        << "Attempted to encrypt in place without encrypter at level " << level;
     RaiseError(QUIC_ENCRYPTION_FAILURE);
     return 0;
   }
@@ -4474,9 +4500,9 @@ bool QuicFramer::ApplyHeaderProtection(EncryptionLevel level,
   absl::string_view sample;
   if (!sample_reader.Seek(sample_offset) ||
       !sample_reader.ReadStringPiece(&sample, kHPSampleLen)) {
-    QUIC_BUG << "Not enough bytes to sample: sample_offset " << sample_offset
-             << ", sample len: " << kHPSampleLen
-             << ", buffer len: " << buffer_len;
+    QUIC_BUG_V2(quic_bug_10850_60)
+        << "Not enough bytes to sample: sample_offset " << sample_offset
+        << ", sample len: " << kHPSampleLen << ", buffer len: " << buffer_len;
     return false;
   }
 
@@ -4490,7 +4516,8 @@ bool QuicFramer::ApplyHeaderProtection(EncryptionLevel level,
 
   std::string mask = encrypter_[level]->GenerateHeaderProtectionMask(sample);
   if (mask.empty()) {
-    QUIC_BUG << "Unable to generate header protection mask.";
+    QUIC_BUG_V2(quic_bug_10850_61)
+        << "Unable to generate header protection mask.";
     return false;
   }
   QuicDataReader mask_reader(mask.data(), mask.size());
@@ -4519,7 +4546,8 @@ bool QuicFramer::ApplyHeaderProtection(EncryptionLevel level,
       perspective_ == Perspective::IS_SERVER &&
       version_.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
     if (pn_offset <= kDiversificationNonceSize) {
-      QUIC_BUG << "Expected diversification nonce, but not enough bytes";
+      QUIC_BUG_V2(quic_bug_10850_62)
+          << "Expected diversification nonce, but not enough bytes";
       return false;
     }
     pn_offset -= kDiversificationNonceSize;
@@ -4674,8 +4702,9 @@ size_t QuicFramer::EncryptPayload(EncryptionLevel level,
                                   size_t buffer_len) {
   QUICHE_DCHECK(packet_number.IsInitialized());
   if (encrypter_[level] == nullptr) {
-    QUIC_BUG << ENDPOINT << "Attempted to encrypt without encrypter at level "
-             << level;
+    QUIC_BUG_V2(quic_bug_10850_63)
+        << ENDPOINT << "Attempted to encrypt without encrypter at level "
+        << level;
     RaiseError(QUIC_ENCRYPTION_FAILURE);
     return 0;
   }
@@ -4686,10 +4715,10 @@ size_t QuicFramer::EncryptPayload(EncryptionLevel level,
   // plaintext content.
   const size_t ad_len = associated_data.length();
   if (packet.length() < ad_len) {
-    QUIC_BUG << ENDPOINT
-             << "packet is shorter than associated data length. version:"
-             << version() << ", packet length:" << packet.length()
-             << ", associated data length:" << ad_len;
+    QUIC_BUG_V2(quic_bug_10850_64)
+        << ENDPOINT << "packet is shorter than associated data length. version:"
+        << version() << ", packet length:" << packet.length()
+        << ", associated data length:" << ad_len;
     RaiseError(QUIC_ENCRYPTION_FAILURE);
     return 0;
   }
@@ -4716,9 +4745,10 @@ size_t QuicFramer::EncryptPayload(EncryptionLevel level,
 size_t QuicFramer::GetCiphertextSize(EncryptionLevel level,
                                      size_t plaintext_size) const {
   if (encrypter_[level] == nullptr) {
-    QUIC_BUG << ENDPOINT
-             << "Attempted to get ciphertext size without encrypter at level "
-             << level << " using " << version_;
+    QUIC_BUG_V2(quic_bug_10850_65)
+        << ENDPOINT
+        << "Attempted to get ciphertext size without encrypter at level "
+        << level << " using " << version_;
     return plaintext_size;
   }
   return encrypter_[level]->GetCiphertextSize(plaintext_size);
@@ -4743,7 +4773,7 @@ size_t QuicFramer::GetMaxPlaintextSize(size_t ciphertext_size) {
 
 QuicPacketCount QuicFramer::GetOneRttEncrypterConfidentialityLimit() const {
   if (!encrypter_[ENCRYPTION_FORWARD_SECURE]) {
-    QUIC_BUG << "1-RTT encrypter not set";
+    QUIC_BUG_V2(quic_bug_10850_66) << "1-RTT encrypter not set";
     return 0;
   }
   return encrypter_[ENCRYPTION_FORWARD_SECURE]->GetConfidentialityLimit();
@@ -4758,7 +4788,8 @@ bool QuicFramer::DecryptPayload(size_t udp_packet_length,
                                 size_t* decrypted_length,
                                 EncryptionLevel* decrypted_level) {
   if (!EncryptionLevelIsValid(decrypter_level_)) {
-    QUIC_BUG << "Attempted to decrypt with bad decrypter_level_";
+    QUIC_BUG_V2(quic_bug_10850_67)
+        << "Attempted to decrypt with bad decrypter_level_";
     return false;
   }
   EncryptionLevel level = decrypter_level_;
@@ -4769,13 +4800,14 @@ bool QuicFramer::DecryptPayload(size_t udp_packet_length,
   bool attempt_key_update = false;
   if (version().KnowsWhichDecrypterToUse()) {
     if (header.form == GOOGLE_QUIC_PACKET) {
-      QUIC_BUG << "Attempted to decrypt GOOGLE_QUIC_PACKET with a version that "
-                  "knows which decrypter to use";
+      QUIC_BUG_V2(quic_bug_10850_68)
+          << "Attempted to decrypt GOOGLE_QUIC_PACKET with a version that "
+             "knows which decrypter to use";
       return false;
     }
     level = GetEncryptionLevel(header);
     if (!EncryptionLevelIsValid(level)) {
-      QUIC_BUG << "Attempted to decrypt with bad level";
+      QUIC_BUG_V2(quic_bug_10850_69) << "Attempted to decrypt with bad level";
       return false;
     }
     decrypter = decrypter_[level].get();
@@ -4807,7 +4839,8 @@ bool QuicFramer::DecryptPayload(size_t udp_packet_length,
             next_decrypter_ =
                 visitor_->AdvanceKeysAndCreateCurrentOneRttDecrypter();
             if (!next_decrypter_) {
-              QUIC_BUG << "Failed to create next_decrypter";
+              QUIC_BUG_V2(quic_bug_10850_70)
+                  << "Failed to create next_decrypter";
               return false;
             }
           }
@@ -4832,15 +4865,17 @@ bool QuicFramer::DecryptPayload(size_t udp_packet_length,
     }
   } else if (alternative_decrypter_level_ != NUM_ENCRYPTION_LEVELS) {
     if (!EncryptionLevelIsValid(alternative_decrypter_level_)) {
-      QUIC_BUG << "Attempted to decrypt with bad alternative_decrypter_level_";
+      QUIC_BUG_V2(quic_bug_10850_71)
+          << "Attempted to decrypt with bad alternative_decrypter_level_";
       return false;
     }
     alternative_decrypter = decrypter_[alternative_decrypter_level_].get();
   }
 
   if (decrypter == nullptr) {
-    QUIC_BUG << "Attempting to decrypt without decrypter, encryption level:"
-             << level << " version:" << version();
+    QUIC_BUG_V2(quic_bug_10850_72)
+        << "Attempting to decrypt without decrypter, encryption level:" << level
+        << " version:" << version();
     return false;
   }
 
@@ -4911,8 +4946,9 @@ bool QuicFramer::DecryptPayload(size_t udp_packet_length,
       *decrypted_level = decrypter_level_;
       if (alternative_decrypter_latch_) {
         if (!EncryptionLevelIsValid(alternative_decrypter_level_)) {
-          QUIC_BUG << "Attempted to latch alternate decrypter with bad "
-                      "alternative_decrypter_level_";
+          QUIC_BUG_V2(quic_bug_10850_73)
+              << "Attempted to latch alternate decrypter with bad "
+                 "alternative_decrypter_level_";
           return false;
         }
         // Switch to the alternative decrypter and latch so that we cannot
@@ -4947,7 +4983,7 @@ size_t QuicFramer::GetIetfAckFrameSize(const QuicAckFrame& frame) {
   ack_frame_size += QuicDataWriter::GetVarInt62Len(ack_delay_time_us);
 
   if (frame.packets.Empty() || frame.packets.Max() != largest_acked) {
-    QUIC_BUG << "Malformed ack frame";
+    QUIC_BUG_V2(quic_bug_10850_74) << "Malformed ack frame";
     // ACK frame serialization will fail and connection will be closed.
     return ack_frame_size;
   }
@@ -5230,8 +5266,9 @@ bool QuicFramer::AppendIetfFrameType(const QuicFrame& frame,
       type_byte = IETF_ACK_FREQUENCY;
       break;
     default:
-      QUIC_BUG << "Attempt to generate a frame type for an unsupported value: "
-               << frame.type;
+      QUIC_BUG_V2(quic_bug_10850_75)
+          << "Attempt to generate a frame type for an unsupported value: "
+          << frame.type;
       return false;
   }
   return writer->WriteVarInt62(type_byte);
@@ -5243,7 +5280,8 @@ bool QuicFramer::AppendPacketNumber(QuicPacketNumberLength packet_number_length,
                                     QuicDataWriter* writer) {
   QUICHE_DCHECK(packet_number.IsInitialized());
   if (!IsValidPacketNumberLength(packet_number_length)) {
-    QUIC_BUG << "Invalid packet_number_length: " << packet_number_length;
+    QUIC_BUG_V2(quic_bug_10850_76)
+        << "Invalid packet_number_length: " << packet_number_length;
     return false;
   }
   return writer->WriteBytesToUInt64(packet_number_length,
@@ -5255,7 +5293,8 @@ bool QuicFramer::AppendStreamId(size_t stream_id_length,
                                 QuicStreamId stream_id,
                                 QuicDataWriter* writer) {
   if (stream_id_length == 0 || stream_id_length > 4) {
-    QUIC_BUG << "Invalid stream_id_length: " << stream_id_length;
+    QUIC_BUG_V2(quic_bug_10850_77)
+        << "Invalid stream_id_length: " << stream_id_length;
     return false;
   }
   return writer->WriteBytesToUInt64(stream_id_length, stream_id);
@@ -5266,7 +5305,8 @@ bool QuicFramer::AppendStreamOffset(size_t offset_length,
                                     QuicStreamOffset offset,
                                     QuicDataWriter* writer) {
   if (offset_length == 1 || offset_length > 8) {
-    QUIC_BUG << "Invalid stream_offset_length: " << offset_length;
+    QUIC_BUG_V2(quic_bug_10850_78)
+        << "Invalid stream_offset_length: " << offset_length;
     return false;
   }
 
@@ -5280,7 +5320,8 @@ bool QuicFramer::AppendAckBlock(uint8_t gap,
                                 QuicDataWriter* writer) {
   if (length == 0) {
     if (!IsValidPacketNumberLength(length_length)) {
-      QUIC_BUG << "Invalid packet_number_length: " << length_length;
+      QUIC_BUG_V2(quic_bug_10850_79)
+          << "Invalid packet_number_length: " << length_length;
       return false;
     }
     return writer->WriteUInt8(gap) &&
@@ -5298,12 +5339,12 @@ bool QuicFramer::AppendStreamFrame(const QuicStreamFrame& frame,
   }
   if (!AppendStreamId(GetStreamIdSize(frame.stream_id), frame.stream_id,
                       writer)) {
-    QUIC_BUG << "Writing stream id size failed.";
+    QUIC_BUG_V2(quic_bug_10850_80) << "Writing stream id size failed.";
     return false;
   }
   if (!AppendStreamOffset(GetStreamOffsetSize(frame.offset), frame.offset,
                           writer)) {
-    QUIC_BUG << "Writing offset size failed.";
+    QUIC_BUG_V2(quic_bug_10850_81) << "Writing offset size failed.";
     return false;
   }
   if (!no_stream_frame_length) {
@@ -5313,7 +5354,7 @@ bool QuicFramer::AppendStreamFrame(const QuicStreamFrame& frame,
         "If frame.data_length can hold more than a uint16_t than we need to "
         "check that frame.data_length <= std::numeric_limits<uint16_t>::max()");
     if (!writer->WriteUInt16(static_cast<uint16_t>(frame.data_length))) {
-      QUIC_BUG << "Writing stream frame length failed";
+      QUIC_BUG_V2(quic_bug_10850_82) << "Writing stream frame length failed";
       return false;
     }
   }
@@ -5326,14 +5367,14 @@ bool QuicFramer::AppendStreamFrame(const QuicStreamFrame& frame,
     if (data_producer_->WriteStreamData(frame.stream_id, frame.offset,
                                         frame.data_length,
                                         writer) != WRITE_SUCCESS) {
-      QUIC_BUG << "Writing frame data failed.";
+      QUIC_BUG_V2(quic_bug_10850_83) << "Writing frame data failed.";
       return false;
     }
     return true;
   }
 
   if (!writer->WriteBytes(frame.data_buffer, frame.data_length)) {
-    QUIC_BUG << "Writing frame data failed.";
+    QUIC_BUG_V2(quic_bug_10850_84) << "Writing frame data failed.";
     return false;
   }
   return true;
@@ -5585,8 +5626,9 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
       }
       if (num_ack_blocks_written >= num_ack_blocks) {
         if (QUIC_PREDICT_FALSE(num_ack_blocks_written != num_ack_blocks)) {
-          QUIC_BUG << "Wrote " << num_ack_blocks_written
-                   << ", expected to write " << num_ack_blocks;
+          QUIC_BUG_V2(quic_bug_10850_85)
+              << "Wrote " << num_ack_blocks_written << ", expected to write "
+              << num_ack_blocks;
         }
         break;
       }
@@ -5696,11 +5738,12 @@ bool QuicFramer::AppendStopWaitingFrame(const QuicPacketHeader& header,
   const uint64_t length_shift = header.packet_number_length * 8;
 
   if (least_unacked_delta >> length_shift > 0) {
-    QUIC_BUG << "packet_number_length " << header.packet_number_length
-             << " is too small for least_unacked_delta: " << least_unacked_delta
-             << " packet_number:" << header.packet_number
-             << " least_unacked:" << frame.least_unacked
-             << " version:" << version_.transport_version;
+    QUIC_BUG_V2(quic_bug_10850_86)
+        << "packet_number_length " << header.packet_number_length
+        << " is too small for least_unacked_delta: " << least_unacked_delta
+        << " packet_number:" << header.packet_number
+        << " least_unacked:" << frame.least_unacked
+        << " version:" << version_.transport_version;
     return false;
   }
   if (least_unacked_delta == 0) {
@@ -5709,7 +5752,8 @@ bool QuicFramer::AppendStopWaitingFrame(const QuicPacketHeader& header,
   }
   if (!AppendPacketNumber(header.packet_number_length,
                           QuicPacketNumber(least_unacked_delta), writer)) {
-    QUIC_BUG << " seq failed: " << header.packet_number_length;
+    QUIC_BUG_V2(quic_bug_10850_87)
+        << " seq failed: " << header.packet_number_length;
     return false;
   }
 
@@ -5753,7 +5797,7 @@ bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
   }
 
   if (frame.packets.Empty() || frame.packets.Max() != largest_acked) {
-    QUIC_BUG << "Malformed ack frame: " << frame;
+    QUIC_BUG_V2(quic_bug_10850_88) << "Malformed ack frame: " << frame;
     set_detailed_error("Malformed ack frame");
     return false;
   }
@@ -5800,9 +5844,9 @@ bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
         !count_writer.WriteVarInt62(appended_ack_blocks)) {
       // This should never happen as ack_block_count is limited by
       // max_ack_ranges_.
-      QUIC_BUG << "Ack frame truncation fails. ack_block_count: "
-               << ack_block_count
-               << ", appended count: " << appended_ack_blocks;
+      QUIC_BUG_V2(quic_bug_10850_89)
+          << "Ack frame truncation fails. ack_block_count: " << ack_block_count
+          << ", appended count: " << appended_ack_blocks;
       set_detailed_error("ACK frame truncation fails");
       return false;
     }
@@ -5976,7 +6020,8 @@ bool QuicFramer::AppendIetfConnectionCloseFrame(
     QuicDataWriter* writer) {
   if (frame.close_type != IETF_QUIC_TRANSPORT_CONNECTION_CLOSE &&
       frame.close_type != IETF_QUIC_APPLICATION_CONNECTION_CLOSE) {
-    QUIC_BUG << "Invalid close_type for writing IETF CONNECTION CLOSE.";
+    QUIC_BUG_V2(quic_bug_10850_90)
+        << "Invalid close_type for writing IETF CONNECTION CLOSE.";
     set_detailed_error("Invalid close_type for writing IETF CONNECTION CLOSE.");
     return false;
   }
@@ -6467,12 +6512,14 @@ void QuicFramer::InferPacketHeaderTypeFromVersion() {
 
 void QuicFramer::EnableMultiplePacketNumberSpacesSupport() {
   if (supports_multiple_packet_number_spaces_) {
-    QUIC_BUG << "Multiple packet number spaces has already been enabled";
+    QUIC_BUG_V2(quic_bug_10850_91)
+        << "Multiple packet number spaces has already been enabled";
     return;
   }
   if (largest_packet_number_.IsInitialized()) {
-    QUIC_BUG << "Try to enable multiple packet number spaces support after any "
-                "packet has been received.";
+    QUIC_BUG_V2(quic_bug_10850_92)
+        << "Try to enable multiple packet number spaces support after any "
+           "packet has been received.";
     return;
   }
 
@@ -6762,17 +6809,17 @@ bool QuicFramer::WriteClientVersionNegotiationProbePacket(
     const char* destination_connection_id_bytes,
     uint8_t destination_connection_id_length) {
   if (packet_bytes == nullptr) {
-    QUIC_BUG << "Invalid packet_bytes";
+    QUIC_BUG_V2(quic_bug_10850_93) << "Invalid packet_bytes";
     return false;
   }
   if (packet_length < kMinPacketSizeForVersionNegotiation ||
       packet_length > 65535) {
-    QUIC_BUG << "Invalid packet_length";
+    QUIC_BUG_V2(quic_bug_10850_94) << "Invalid packet_length";
     return false;
   }
   if (destination_connection_id_length > kQuicMaxConnectionId4BitLength ||
       destination_connection_id_length < kQuicDefaultConnectionIdLength) {
-    QUIC_BUG << "Invalid connection_id_length";
+    QUIC_BUG_V2(quic_bug_10850_95) << "Invalid connection_id_length";
     return false;
   }
   // clang-format off
@@ -6788,7 +6835,7 @@ bool QuicFramer::WriteClientVersionNegotiationProbePacket(
   static_assert(sizeof(packet_start_bytes) == 5, "bad packet_start_bytes size");
   QuicDataWriter writer(packet_length, packet_bytes);
   if (!writer.WriteBytes(packet_start_bytes, sizeof(packet_start_bytes))) {
-    QUIC_BUG << "Failed to write packet start";
+    QUIC_BUG_V2(quic_bug_10850_96) << "Failed to write packet start";
     return false;
   }
 
@@ -6797,7 +6844,7 @@ bool QuicFramer::WriteClientVersionNegotiationProbePacket(
   if (!AppendIetfConnectionIds(
           /*version_flag=*/true, /*use_length_prefix=*/true,
           destination_connection_id, EmptyQuicConnectionId(), &writer)) {
-    QUIC_BUG << "Failed to write connection IDs";
+    QUIC_BUG_V2(quic_bug_10850_97) << "Failed to write connection IDs";
     return false;
   }
   // Add 8 bytes of zeroes followed by 8 bytes of ones to ensure that this does
@@ -6807,14 +6854,14 @@ bool QuicFramer::WriteClientVersionNegotiationProbePacket(
   // valid frame type.
   if (!writer.WriteUInt64(0) ||
       !writer.WriteUInt64(std::numeric_limits<uint64_t>::max())) {
-    QUIC_BUG << "Failed to write 18 bytes";
+    QUIC_BUG_V2(quic_bug_10850_98) << "Failed to write 18 bytes";
     return false;
   }
   // Make sure the polite greeting below is padded to a 16-byte boundary to
   // make it easier to read in tcpdump.
   while (writer.length() % 16 != 0) {
     if (!writer.WriteUInt8(0)) {
-      QUIC_BUG << "Failed to write padding byte";
+      QUIC_BUG_V2(quic_bug_10850_99) << "Failed to write padding byte";
       return false;
     }
   }
@@ -6824,7 +6871,7 @@ bool QuicFramer::WriteClientVersionNegotiationProbePacket(
       "Please respond with a Version Negotiation packet indicating what "
       "versions you support. Thank you and have a nice day.";
   if (!writer.WriteBytes(polite_greeting, sizeof(polite_greeting))) {
-    QUIC_BUG << "Failed to write polite greeting";
+    QUIC_BUG_V2(quic_bug_10850_100) << "Failed to write polite greeting";
     return false;
   }
   // Fill the rest of the packet with zeroes.
@@ -6841,7 +6888,7 @@ bool QuicFramer::ParseServerVersionNegotiationProbeResponse(
     uint8_t* source_connection_id_length_out,
     std::string* detailed_error) {
   if (detailed_error == nullptr) {
-    QUIC_BUG << "Invalid error_details";
+    QUIC_BUG_V2(quic_bug_10850_101) << "Invalid error_details";
     return false;
   }
   *detailed_error = "";

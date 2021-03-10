@@ -201,8 +201,8 @@ bool QuicDataWriter::WriteVarInt62(
 
   const QuicVariableLengthIntegerLength min_length = GetVarInt62Len(value);
   if (write_length < min_length) {
-    QUIC_BUG << "Cannot write value " << value << " with write_length "
-             << write_length;
+    QUIC_BUG_V2(quic_bug_10347_1) << "Cannot write value " << value
+                                  << " with write_length " << write_length;
     return false;
   }
   if (write_length == min_length) {
@@ -220,15 +220,16 @@ bool QuicDataWriter::WriteVarInt62(
            WriteUInt32(value);
   }
 
-  QUIC_BUG << "Invalid write_length " << static_cast<int>(write_length);
+  QUIC_BUG_V2(quic_bug_10347_2)
+      << "Invalid write_length " << static_cast<int>(write_length);
   return false;
 }
 
 // static
 QuicVariableLengthIntegerLength QuicDataWriter::GetVarInt62Len(uint64_t value) {
   if ((value & kVarInt62ErrorMask) != 0) {
-    QUIC_BUG << "Attempted to encode a value, " << value
-             << ", that is too big for VarInt62";
+    QUIC_BUG_V2(quic_bug_10347_3) << "Attempted to encode a value, " << value
+                                  << ", that is too big for VarInt62";
     return VARIABLE_LENGTH_INTEGER_LENGTH_0;
   }
   if ((value & kVarInt62Mask8Bytes) != 0) {

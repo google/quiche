@@ -36,7 +36,8 @@ QuicNetworkBlackholeDetector::QuicNetworkBlackholeDetector(
 void QuicNetworkBlackholeDetector::OnAlarm() {
   QuicTime next_deadline = GetEarliestDeadline();
   if (!next_deadline.IsInitialized()) {
-    QUIC_BUG << "BlackholeDetector alarm fired unexpectedly";
+    QUIC_BUG_V2(quic_bug_10328_1)
+        << "BlackholeDetector alarm fired unexpectedly";
     return;
   }
 

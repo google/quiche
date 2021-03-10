@@ -176,7 +176,7 @@ class StatelessConnectionTerminator {
                                      /*transport_close_frame_type=*/0);
 
     if (!creator_.AddFrame(QuicFrame(frame), NOT_RETRANSMISSION)) {
-      QUIC_BUG << "Unable to add frame to an empty packet";
+      QUIC_BUG_V2(quic_bug_10287_1) << "Unable to add frame to an empty packet";
       delete frame;
       return;
     }
@@ -265,9 +265,10 @@ bool MaybeHandleLegacyVersionEncapsulation(
   }
   if (legacy_version_encapsulation_inner_packet.length() >=
       packet_info.packet.length()) {
-    QUIC_BUG << "Inner packet cannot be larger than outer "
-             << legacy_version_encapsulation_inner_packet.length() << " vs "
-             << packet_info.packet.length();
+    QUIC_BUG_V2(quic_bug_10287_2)
+        << "Inner packet cannot be larger than outer "
+        << legacy_version_encapsulation_inner_packet.length() << " vs "
+        << packet_info.packet.length();
     return false;
   }
 
@@ -1002,10 +1003,11 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
   if (use_reference_counted_session_map_) {
     auto it = reference_counted_session_map_.find(server_connection_id);
     if (it == reference_counted_session_map_.end()) {
-      QUIC_BUG << "ConnectionId " << server_connection_id
-               << " does not exist in the session map.  Error: "
-               << QuicErrorCodeToString(error);
-      QUIC_BUG << QuicStackTrace();
+      QUIC_BUG_V2(quic_bug_10287_3)
+          << "ConnectionId " << server_connection_id
+          << " does not exist in the session map.  Error: "
+          << QuicErrorCodeToString(error);
+      QUIC_BUG_V2(quic_bug_10287_4) << QuicStackTrace();
       return;
     }
 
@@ -1039,10 +1041,11 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
   } else {
     auto it = session_map_.find(server_connection_id);
     if (it == session_map_.end()) {
-      QUIC_BUG << "ConnectionId " << server_connection_id
-               << " does not exist in the session map.  Error: "
-               << QuicErrorCodeToString(error);
-      QUIC_BUG << QuicStackTrace();
+      QUIC_BUG_V2(quic_bug_10287_5)
+          << "ConnectionId " << server_connection_id
+          << " does not exist in the session map.  Error: "
+          << QuicErrorCodeToString(error);
+      QUIC_BUG_V2(quic_bug_10287_6) << QuicStackTrace();
       return;
     }
 
@@ -1092,10 +1095,10 @@ void QuicDispatcher::OnNewConnectionIdSent(
   QUICHE_DCHECK(support_multiple_cid_per_connection_);
   auto it = reference_counted_session_map_.find(server_connection_id);
   if (it == reference_counted_session_map_.end()) {
-    QUIC_BUG << "Couldn't locate the session that issues the connection ID in "
-                "reference_counted_session_map_.  server_connection_id:"
-             << server_connection_id
-             << " new_connection_id: " << new_connection_id;
+    QUIC_BUG_V2(quic_bug_10287_7)
+        << "Couldn't locate the session that issues the connection ID in "
+           "reference_counted_session_map_.  server_connection_id:"
+        << server_connection_id << " new_connection_id: " << new_connection_id;
     return;
   }
   auto insertion_result = reference_counted_session_map_.insert(
@@ -1322,10 +1325,11 @@ void QuicDispatcher::ProcessChlo(const std::vector<std::string>& alpns,
       packet_info->destination_connection_id, packet_info->self_address,
       packet_info->peer_address, alpn, packet_info->version);
   if (QUIC_PREDICT_FALSE(session == nullptr)) {
-    QUIC_BUG << "CreateQuicSession returned nullptr for "
-             << packet_info->destination_connection_id << " from "
-             << packet_info->peer_address << " to " << packet_info->self_address
-             << " ALPN \"" << alpn << "\" version " << packet_info->version;
+    QUIC_BUG_V2(quic_bug_10287_8)
+        << "CreateQuicSession returned nullptr for "
+        << packet_info->destination_connection_id << " from "
+        << packet_info->peer_address << " to " << packet_info->self_address
+        << " ALPN \"" << alpn << "\" version " << packet_info->version;
     return;
   }
   if (original_connection_id != packet_info->destination_connection_id) {
@@ -1342,9 +1346,10 @@ void QuicDispatcher::ProcessChlo(const std::vector<std::string>& alpns,
             packet_info->destination_connection_id,
             std::shared_ptr<QuicSession>(std::move(session.release()))));
     if (!insertion_result.second) {
-      QUIC_BUG << "Tried to add a session to session_map with existing "
-                  "connection id: "
-               << packet_info->destination_connection_id;
+      QUIC_BUG_V2(quic_bug_10287_9)
+          << "Tried to add a session to session_map with existing "
+             "connection id: "
+          << packet_info->destination_connection_id;
     } else if (support_multiple_cid_per_connection_) {
       ++num_sessions_in_session_map_;
     }

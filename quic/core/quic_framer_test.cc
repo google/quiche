@@ -153,7 +153,7 @@ class TestDecrypter : public QuicDecrypter {
     return true;
   }
   bool SetPreliminaryKey(absl::string_view /*key*/) override {
-    QUIC_BUG << "should not be called";
+    QUIC_BUG_V2(quic_bug_10486_1) << "should not be called";
     return false;
   }
   bool SetDiversificationNonce(const DiversificationNonce& /*key*/) override {
