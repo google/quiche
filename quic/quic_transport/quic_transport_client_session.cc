@@ -46,7 +46,8 @@ QuicTransportClientSession::QuicTransportClientSession(
       origin_(origin),
       visitor_(visitor) {
   for (const ParsedQuicVersion& version : supported_versions) {
-    QUIC_BUG_IF(version.handshake_protocol != PROTOCOL_TLS1_3)
+    QUIC_BUG_IF_V2(quic_bug_12035_1,
+                   version.handshake_protocol != PROTOCOL_TLS1_3)
         << "QuicTransport requires TLS 1.3 handshake";
   }
   crypto_stream_ = std::make_unique<QuicCryptoClientStream>(
@@ -187,7 +188,7 @@ std::string QuicTransportClientSession::SerializeClientIndication() {
       writer.WriteUInt16(path.size()) && writer.WriteStringPiece(path);
   QUIC_BUG_IF_V2(quic_bug_10881_5, !success)
       << "Failed to serialize client indication";
-  QUIC_BUG_IF(writer.length() != buffer.length())
+  QUIC_BUG_IF_V2(quic_bug_12035_2, writer.length() != buffer.length())
       << "Serialized client indication has length different from expected";
   return buffer;
 }
@@ -213,7 +214,8 @@ void QuicTransportClientSession::SendClientIndication() {
   auto client_indication_owned = std::make_unique<ClientIndication>(
       /*stream_id=*/GetNextOutgoingUnidirectionalStreamId(), this,
       /*is_static=*/false, WRITE_UNIDIRECTIONAL);
-  QUIC_BUG_IF(client_indication_owned->id() != ClientIndicationStream())
+  QUIC_BUG_IF_V2(quic_bug_12035_3,
+                 client_indication_owned->id() != ClientIndicationStream())
       << "Client indication stream is " << client_indication_owned->id()
       << " instead of expected " << ClientIndicationStream();
   ClientIndication* client_indication = client_indication_owned.get();

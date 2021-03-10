@@ -366,7 +366,8 @@ class QuicSpdySession::SpdyFramerVisitor
       return;
     }
 
-    QUIC_BUG_IF(session_->destruction_indicator() != 123456789)
+    QUIC_BUG_IF_V2(quic_bug_12477_1,
+                   session_->destruction_indicator() != 123456789)
         << "QuicSpdyStream use after free. "
         << session_->destruction_indicator() << QuicStackTrace();
 
@@ -517,11 +518,11 @@ QuicSpdySession::QuicSpdySession(
 }
 
 QuicSpdySession::~QuicSpdySession() {
-  QUIC_BUG_IF(destruction_indicator_ != 123456789)
+  QUIC_BUG_IF_V2(quic_bug_12477_2, destruction_indicator_ != 123456789)
       << "QuicSpdySession use after free. " << destruction_indicator_
       << QuicStackTrace();
   destruction_indicator_ = 987654321;
-  QUIC_BUG_IF(!h3_datagram_registrations_.empty())
+  QUIC_BUG_IF_V2(quic_bug_12477_3, !h3_datagram_registrations_.empty())
       << "HTTP/3 datagram flow ID was not unregistered";
 }
 
@@ -712,7 +713,7 @@ bool QuicSpdySession::OnPriorityUpdateForPushStream(QuicStreamId /*push_id*/,
 }
 
 size_t QuicSpdySession::ProcessHeaderData(const struct iovec& iov) {
-  QUIC_BUG_IF(destruction_indicator_ != 123456789)
+  QUIC_BUG_IF_V2(quic_bug_12477_4, destruction_indicator_ != 123456789)
       << "QuicSpdyStream use after free. " << destruction_indicator_
       << QuicStackTrace();
   return h2_deframer_.ProcessInput(static_cast<char*>(iov.iov_base),
@@ -754,7 +755,7 @@ void QuicSpdySession::WriteHttp3PriorityUpdate(
 }
 
 void QuicSpdySession::OnHttp3GoAway(uint64_t id) {
-  QUIC_BUG_IF(!version().UsesHttp3())
+  QUIC_BUG_IF_V2(quic_bug_12477_5, !version().UsesHttp3())
       << "HTTP/3 GOAWAY received on version " << version();
 
   if (last_received_http3_goaway_id_.has_value() &&
@@ -867,7 +868,7 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
   }
 
   if (!max_push_id_.has_value() || promised_stream_id > max_push_id_.value()) {
-    QUIC_BUG
+    QUIC_BUG_V2(quic_bug_12477_6)
         << "Server shouldn't send push id higher than client's MAX_PUSH_ID.";
     return;
   }
@@ -1727,13 +1728,13 @@ void QuicSpdySession::RegisterHttp3FlowId(
     QuicSpdySession::Http3DatagramVisitor* visitor) {
   QUICHE_DCHECK_NE(visitor, nullptr);
   auto insertion_result = h3_datagram_registrations_.insert({flow_id, visitor});
-  QUIC_BUG_IF(!insertion_result.second)
+  QUIC_BUG_IF_V2(quic_bug_12477_7, !insertion_result.second)
       << "Attempted to doubly register HTTP/3 flow ID " << flow_id;
 }
 
 void QuicSpdySession::UnregisterHttp3FlowId(QuicDatagramFlowId flow_id) {
   size_t num_erased = h3_datagram_registrations_.erase(flow_id);
-  QUIC_BUG_IF(num_erased != 1)
+  QUIC_BUG_IF_V2(quic_bug_12477_8, num_erased != 1)
       << "Attempted to unregister unknown HTTP/3 flow ID " << flow_id;
 }
 

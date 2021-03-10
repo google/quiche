@@ -32,7 +32,7 @@ QuicHeaderList& QuicHeaderList::operator=(QuicHeaderList&& other) = default;
 QuicHeaderList::~QuicHeaderList() {}
 
 void QuicHeaderList::OnHeaderBlockStart() {
-  QUIC_BUG_IF(current_header_list_size_ != 0)
+  QUIC_BUG_IF_V2(quic_bug_12518_1, current_header_list_size_ != 0)
       << "OnHeaderBlockStart called more than once!";
 }
 

@@ -171,7 +171,7 @@ void QuicServerSessionBase::OnCongestionWindowChange(QuicTime now) {
           bandwidth_estimate_sent_to_client_);
   const int32_t max_bw_estimate_bytes_per_second =
       BandwidthToCachedParameterBytesPerSecond(max_bandwidth_estimate);
-  QUIC_BUG_IF(max_bw_estimate_bytes_per_second < 0)
+  QUIC_BUG_IF_V2(quic_bug_12513_1, max_bw_estimate_bytes_per_second < 0)
       << max_bw_estimate_bytes_per_second;
   QUIC_BUG_IF_V2(quic_bug_10393_1, bw_estimate_bytes_per_second < 0)
       << bw_estimate_bytes_per_second;
@@ -230,7 +230,7 @@ bool QuicServerSessionBase::ShouldCreateIncomingStream(QuicStreamId id) {
 
 bool QuicServerSessionBase::ShouldCreateOutgoingBidirectionalStream() {
   if (!connection()->connected()) {
-    QUIC_BUG
+    QUIC_BUG_V2(quic_bug_12513_2)
         << "ShouldCreateOutgoingBidirectionalStream called when disconnected";
     return false;
   }
@@ -245,7 +245,7 @@ bool QuicServerSessionBase::ShouldCreateOutgoingBidirectionalStream() {
 
 bool QuicServerSessionBase::ShouldCreateOutgoingUnidirectionalStream() {
   if (!connection()->connected()) {
-    QUIC_BUG
+    QUIC_BUG_V2(quic_bug_12513_3)
         << "ShouldCreateOutgoingUnidirectionalStream called when disconnected";
     return false;
   }
