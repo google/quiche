@@ -155,7 +155,7 @@ DecodeStatus PushPromisePayloadDecoder::ResumeDecodingPayload(
         payload_state_ = PayloadState::kResumeDecodingPushPromiseFields;
         return status;
     }
-    HTTP2_BUG << "PayloadState: " << payload_state_;
+    HTTP2_BUG_V2(http2_bug_183_1) << "PayloadState: " << payload_state_;
   }
 }
 

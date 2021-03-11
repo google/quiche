@@ -21,7 +21,8 @@ namespace http2 {
 uint32_t Http2StructureDecoder::IncompleteStart(DecodeBuffer* db,
                                                 uint32_t target_size) {
   if (target_size > sizeof buffer_) {
-    HTTP2_BUG << "target_size too large for buffer: " << target_size;
+    HTTP2_BUG_V2(http2_bug_154_1)
+        << "target_size too large for buffer: " << target_size;
     return 0;
   }
   const uint32_t num_to_copy = db->MinLengthRemaining(target_size);
@@ -53,8 +54,9 @@ bool Http2StructureDecoder::ResumeFillingBuffer(DecodeBuffer* db,
                  << ": target_size=" << target_size << "; offset_=" << offset_
                  << "; db->Remaining=" << db->Remaining();
   if (target_size < offset_) {
-    HTTP2_BUG << "Already filled buffer_! target_size=" << target_size
-              << "    offset_=" << offset_;
+    HTTP2_BUG_V2(http2_bug_154_2)
+        << "Already filled buffer_! target_size=" << target_size
+        << "    offset_=" << offset_;
     return false;
   }
   const uint32_t needed = target_size - offset_;
@@ -74,8 +76,9 @@ bool Http2StructureDecoder::ResumeFillingBuffer(DecodeBuffer* db,
                  << "; *remaining_payload=" << *remaining_payload
                  << "; db->Remaining=" << db->Remaining();
   if (target_size < offset_) {
-    HTTP2_BUG << "Already filled buffer_! target_size=" << target_size
-              << "    offset_=" << offset_;
+    HTTP2_BUG_V2(http2_bug_154_3)
+        << "Already filled buffer_! target_size=" << target_size
+        << "    offset_=" << offset_;
     return false;
   }
   const uint32_t needed = target_size - offset_;

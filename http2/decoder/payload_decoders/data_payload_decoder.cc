@@ -29,7 +29,8 @@ std::ostream& operator<<(std::ostream& out,
   // Since the value doesn't come over the wire, only a programming bug should
   // result in reaching this point.
   int unknown = static_cast<int>(v);
-  HTTP2_BUG << "Invalid DataPayloadDecoder::PayloadState: " << unknown;
+  HTTP2_BUG_V2(http2_bug_174_1)
+      << "Invalid DataPayloadDecoder::PayloadState: " << unknown;
   return out << "DataPayloadDecoder::PayloadState(" << unknown << ")";
 }
 
@@ -120,7 +121,7 @@ DecodeStatus DataPayloadDecoder::ResumeDecodingPayload(FrameDecoderState* state,
       payload_state_ = PayloadState::kSkipPadding;
       return DecodeStatus::kDecodeInProgress;
   }
-  HTTP2_BUG << "PayloadState: " << payload_state_;
+  HTTP2_BUG_V2(http2_bug_174_2) << "PayloadState: " << payload_state_;
   return DecodeStatus::kDecodeError;
 }
 

@@ -86,7 +86,7 @@ DecodeStatus HpackEntryDecoder::Start(DecodeBuffer* db,
       return status;
   }
 
-  HTTP2_BUG << "Unreachable";
+  HTTP2_BUG_V2(http2_bug_63_1) << "Unreachable";
   return DecodeStatus::kDecodeError;
 }
 
@@ -252,7 +252,7 @@ bool HpackEntryDecoder::DispatchOnType(HpackEntryDecoderListener* listener) {
       return true;
   }
 
-  HTTP2_BUG << "Unreachable, entry_type=" << entry_type;
+  HTTP2_BUG_V2(http2_bug_63_2) << "Unreachable, entry_type=" << entry_type;
   return true;
 }
 

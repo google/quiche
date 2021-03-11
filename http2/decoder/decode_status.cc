@@ -21,7 +21,7 @@ std::ostream& operator<<(std::ostream& out, DecodeStatus v) {
   // Since the value doesn't come over the wire, only a programming bug should
   // result in reaching this point.
   int unknown = static_cast<int>(v);
-  HTTP2_BUG << "Unknown DecodeStatus " << unknown;
+  HTTP2_BUG_V2(http2_bug_147_1) << "Unknown DecodeStatus " << unknown;
   return out << "DecodeStatus(" << unknown << ")";
 }
 
