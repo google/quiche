@@ -294,8 +294,9 @@ SpdyFramer::SpdyFrameIterator::~SpdyFrameIterator() = default;
 size_t SpdyFramer::SpdyFrameIterator::NextFrame(ZeroCopyOutputBuffer* output) {
   const SpdyFrameIR& frame_ir = GetIR();
   if (!has_next_frame_) {
-    SPDY_BUG << "SpdyFramer::SpdyFrameIterator::NextFrame called without "
-             << "a next frame.";
+    SPDY_BUG_V2(spdy_bug_75_1)
+        << "SpdyFramer::SpdyFrameIterator::NextFrame called without "
+        << "a next frame.";
     return false;
   }
 

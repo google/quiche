@@ -66,9 +66,10 @@ class QUICHE_EXPORT_PRIVATE SpdyFrameBuilder {
 
   // Takes the buffer from the SpdyFrameBuilder.
   SpdySerializedFrame take() {
-    SPDY_BUG_IF(output_ != nullptr) << "ZeroCopyOutputBuffer is used to build "
-                                    << "frames. take() shouldn't be called";
-    SPDY_BUG_IF(kMaxFrameSizeLimit < length_)
+    SPDY_BUG_IF_V2(spdy_bug_39_1, output_ != nullptr)
+        << "ZeroCopyOutputBuffer is used to build "
+        << "frames. take() shouldn't be called";
+    SPDY_BUG_IF_V2(spdy_bug_39_2, kMaxFrameSizeLimit < length_)
         << "Frame length " << length_
         << " is longer than the maximum possible allowed length.";
     SpdySerializedFrame rv(buffer_.release(), length(), true);

@@ -61,19 +61,21 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
         << "Parent stream " << parent_id << " not registered";
 
     if (stream_id == root_stream_id_) {
-      SPDY_BUG << "Stream " << root_stream_id_ << " already registered";
+      SPDY_BUG_V2(spdy_bug_19_1)
+          << "Stream " << root_stream_id_ << " already registered";
       return;
     }
     StreamInfo stream_info = {precedence.spdy3_priority(), stream_id, false};
     bool inserted =
         stream_infos_.insert(std::make_pair(stream_id, stream_info)).second;
-    SPDY_BUG_IF(!inserted) << "Stream " << stream_id << " already registered";
+    SPDY_BUG_IF_V2(spdy_bug_19_2, !inserted)
+        << "Stream " << stream_id << " already registered";
   }
 
   void UnregisterStream(StreamIdType stream_id) override {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
-      SPDY_BUG << "Stream " << stream_id << " not registered";
+      SPDY_BUG_V2(spdy_bug_19_3) << "Stream " << stream_id << " not registered";
       return;
     }
     StreamInfo& stream_info = it->second;
@@ -141,7 +143,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
                              int64_t now_in_usec) override {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
-      SPDY_BUG << "Stream " << stream_id << " not registered";
+      SPDY_BUG_V2(spdy_bug_19_4) << "Stream " << stream_id << " not registered";
       return;
     }
     PriorityInfo& priority_info = priority_infos_[it->second.priority];
@@ -152,7 +154,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   int64_t GetLatestEventWithPrecedence(StreamIdType stream_id) const override {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
-      SPDY_BUG << "Stream " << stream_id << " not registered";
+      SPDY_BUG_V2(spdy_bug_19_5) << "Stream " << stream_id << " not registered";
       return 0;
     }
     int64_t last_event_time_usec = 0;
@@ -185,14 +187,14 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
                                StreamPrecedenceType(info->priority));
       }
     }
-    SPDY_BUG << "No ready streams available";
+    SPDY_BUG_V2(spdy_bug_19_6) << "No ready streams available";
     return std::make_tuple(0, StreamPrecedenceType(kV3LowestPriority));
   }
 
   bool ShouldYield(StreamIdType stream_id) const override {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
-      SPDY_BUG << "Stream " << stream_id << " not registered";
+      SPDY_BUG_V2(spdy_bug_19_7) << "Stream " << stream_id << " not registered";
       return false;
     }
 
@@ -219,7 +221,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   void MarkStreamReady(StreamIdType stream_id, bool add_to_front) override {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
-      SPDY_BUG << "Stream " << stream_id << " not registered";
+      SPDY_BUG_V2(spdy_bug_19_8) << "Stream " << stream_id << " not registered";
       return;
     }
     StreamInfo& stream_info = it->second;
@@ -239,7 +241,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   void MarkStreamNotReady(StreamIdType stream_id) override {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
-      SPDY_BUG << "Stream " << stream_id << " not registered";
+      SPDY_BUG_V2(spdy_bug_19_9) << "Stream " << stream_id << " not registered";
       return;
     }
     StreamInfo& stream_info = it->second;
