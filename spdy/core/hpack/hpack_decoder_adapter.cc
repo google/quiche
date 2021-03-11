@@ -11,7 +11,6 @@
 #include "spdy/platform/api/spdy_logging.h"
 
 using ::http2::DecodeBuffer;
-using ::http2::HpackString;
 
 namespace spdy {
 namespace {
@@ -159,18 +158,17 @@ void HpackDecoderAdapter::ListenerAdapter::OnHeaderListStart() {
   }
 }
 
-void HpackDecoderAdapter::ListenerAdapter::OnHeader(const HpackString& name,
-                                                    const HpackString& value) {
+void HpackDecoderAdapter::ListenerAdapter::OnHeader(const std::string& name,
+                                                    const std::string& value) {
   SPDY_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnHeader:\n name: "
                 << name << "\n value: " << value;
   total_uncompressed_bytes_ += name.size() + value.size();
   if (handler_ == nullptr) {
     SPDY_DVLOG(3) << "Adding to decoded_block";
-    decoded_block_.AppendValueOrAddHeader(name.ToStringPiece(),
-                                          value.ToStringPiece());
+    decoded_block_.AppendValueOrAddHeader(name, value);
   } else {
     SPDY_DVLOG(3) << "Passing to handler";
-    handler_->OnHeader(name.ToStringPiece(), value.ToStringPiece());
+    handler_->OnHeader(name, value);
   }
 }
 
@@ -197,8 +195,7 @@ int64_t HpackDecoderAdapter::ListenerAdapter::OnEntryInserted(
   if (visitor_ == nullptr) {
     return 0;
   }
-  HpackEntry hpack_entry(entry.name.ToStringPiece(),
-                         entry.value.ToStringPiece(),
+  HpackEntry hpack_entry(entry.name, entry.value,
                          /*is_static*/ false, insert_count);
   int64_t time_added = visitor_->OnNewEntry(hpack_entry);
   SPDY_DVLOG(2)
@@ -215,8 +212,7 @@ void HpackDecoderAdapter::ListenerAdapter::OnUseEntry(
                 << ",  insert_count=" << insert_count
                 << ",  time_added=" << time_added;
   if (visitor_ != nullptr) {
-    HpackEntry hpack_entry(entry.name.ToStringPiece(),
-                           entry.value.ToStringPiece(), /*is_static*/ false,
+    HpackEntry hpack_entry(entry.name, entry.value, /*is_static*/ false,
                            insert_count);
     hpack_entry.set_time_added(time_added);
     visitor_->OnUseEntry(hpack_entry);

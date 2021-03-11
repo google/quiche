@@ -108,7 +108,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderDynamicTable {
 
   // Insert entry if possible.
   // If entry is too large to insert, then dynamic table will be empty.
-  void Insert(const HpackString& name, const HpackString& value);
+  void Insert(const std::string& name, const std::string& value);
 
   // If index is valid, returns a pointer to the entry, otherwise returns
   // nullptr.
@@ -120,7 +120,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderDynamicTable {
  private:
   friend class test::HpackDecoderTablesPeer;
   struct HpackDecoderTableEntry : public HpackStringPair {
-    HpackDecoderTableEntry(const HpackString& name, const HpackString& value);
+    HpackDecoderTableEntry(std::string name_arg, std::string value_arg);
     int64_t time_added;
   };
 
@@ -169,7 +169,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderTables {
   // If entry is too large to insert, then dynamic table will be empty.
   // TODO(jamessynge): Add methods for moving the string(s) into the table,
   // or for otherwise avoiding unnecessary copies.
-  void Insert(const HpackString& name, const HpackString& value) {
+  void Insert(const std::string& name, const std::string& value) {
     dynamic_table_.Insert(name, value);
   }
 

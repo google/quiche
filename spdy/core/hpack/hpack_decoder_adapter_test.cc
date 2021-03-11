@@ -28,7 +28,6 @@
 #include "spdy/platform/api/spdy_string_utils.h"
 
 using ::http2::HpackEntryType;
-using ::http2::HpackString;
 using ::http2::HpackStringPair;
 using ::http2::test::HpackBlockBuilder;
 using ::http2::test::HpackDecoderPeer;
@@ -66,9 +65,9 @@ class HpackDecoderAdapterPeer {
   explicit HpackDecoderAdapterPeer(HpackDecoderAdapter* decoder)
       : decoder_(decoder) {}
 
-  void HandleHeaderRepresentation(absl::string_view name,
-                                  absl::string_view value) {
-    decoder_->listener_adapter_.OnHeader(HpackString(name), HpackString(value));
+  void HandleHeaderRepresentation(const std::string& name,
+                                  const std::string& value) {
+    decoder_->listener_adapter_.OnHeader(name, value);
   }
 
   http2::HpackDecoderTables* GetDecoderTables() {

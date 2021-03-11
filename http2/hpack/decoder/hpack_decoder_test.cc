@@ -65,7 +65,7 @@ class MockHpackDecoderListener : public HpackDecoderListener {
  public:
   MOCK_METHOD0(OnHeaderListStart, void());
   MOCK_METHOD2(OnHeader,
-               void(const HpackString& name, const HpackString& value));
+               void(const std::string& name, const std::string& value));
   MOCK_METHOD0(OnHeaderListEnd, void());
   MOCK_METHOD(void,
               OnHeaderErrorDetected,
@@ -95,10 +95,10 @@ class HpackDecoderTest : public QuicheTestWithParam<bool>,
   // Called for each header name-value pair that is decoded, in the order they
   // appear in the HPACK block. Multiple values for a given key will be emitted
   // as multiple calls to OnHeader.
-  void OnHeader(const HpackString& name, const HpackString& value) override {
+  void OnHeader(const std::string& name, const std::string& value) override {
     ASSERT_TRUE(saw_start_);
     ASSERT_FALSE(saw_end_);
-    header_entries_.emplace_back(name.ToString(), value.ToString());
+    header_entries_.emplace_back(name, value);
   }
 
   // OnHeaderBlockEnd is called after successfully decoding an HPACK block. Will
@@ -190,8 +190,8 @@ class HpackDecoderTest : public QuicheTestWithParam<bool>,
     const HpackStringPair* entry =
         Lookup(dynamic_index + kFirstDynamicTableIndex - 1);
     VERIFY_NE(entry, nullptr);
-    VERIFY_EQ(entry->name.ToStringPiece(), name);
-    VERIFY_EQ(entry->value.ToStringPiece(), value);
+    VERIFY_EQ(entry->name, name);
+    VERIFY_EQ(entry->value, value);
     return AssertionSuccess();
   }
   AssertionResult VerifyNoEntry(size_t dynamic_index) {

@@ -110,8 +110,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderAdapter {
 
     // Override the HpackDecoderListener methods:
     void OnHeaderListStart() override;
-    void OnHeader(const http2::HpackString& name,
-                  const http2::HpackString& value) override;
+    void OnHeader(const std::string& name, const std::string& value) override;
     void OnHeaderListEnd() override;
     void OnHeaderErrorDetected(absl::string_view error_message) override;
 

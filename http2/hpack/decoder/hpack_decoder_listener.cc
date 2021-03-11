@@ -13,8 +13,8 @@ HpackDecoderNoOpListener::HpackDecoderNoOpListener() = default;
 HpackDecoderNoOpListener::~HpackDecoderNoOpListener() = default;
 
 void HpackDecoderNoOpListener::OnHeaderListStart() {}
-void HpackDecoderNoOpListener::OnHeader(const HpackString& /*name*/,
-                                        const HpackString& /*value*/) {}
+void HpackDecoderNoOpListener::OnHeader(const std::string& /*name*/,
+                                        const std::string& /*value*/) {}
 void HpackDecoderNoOpListener::OnHeaderListEnd() {}
 void HpackDecoderNoOpListener::OnHeaderErrorDetected(
     absl::string_view /*error_message*/) {}

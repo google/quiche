@@ -12,11 +12,11 @@
 namespace http2 {
 namespace {
 
-HpackString ExtractHpackString(HpackDecoderStringBuffer* string_buffer) {
+std::string ExtractString(HpackDecoderStringBuffer* string_buffer) {
   if (string_buffer->IsBuffered()) {
-    return HpackString(string_buffer->ReleaseString());
+    return string_buffer->ReleaseString();
   } else {
-    auto result = HpackString(string_buffer->str());
+    auto result = std::string(string_buffer->str());
     string_buffer->Reset();
     return result;
   }
@@ -114,7 +114,7 @@ void HpackDecoderState::OnNameIndexAndLiteralValue(
   allow_dynamic_table_size_update_ = false;
   const HpackStringPair* entry = decoder_tables_.Lookup(name_index);
   if (entry != nullptr) {
-    HpackString value(ExtractHpackString(value_buffer));
+    std::string value(ExtractString(value_buffer));
     listener_->OnHeader(entry->name, value);
     if (entry_type == HpackEntryType::kIndexedLiteralHeader) {
       decoder_tables_.Insert(entry->name, value);
@@ -138,8 +138,8 @@ void HpackDecoderState::OnLiteralNameAndValue(
     return;
   }
   allow_dynamic_table_size_update_ = false;
-  HpackString name(ExtractHpackString(name_buffer));
-  HpackString value(ExtractHpackString(value_buffer));
+  std::string name(ExtractString(name_buffer));
+  std::string value(ExtractString(value_buffer));
   listener_->OnHeader(name, value);
   if (entry_type == HpackEntryType::kIndexedLiteralHeader) {
     decoder_tables_.Insert(name, value);

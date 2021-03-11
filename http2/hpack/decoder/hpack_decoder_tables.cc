@@ -51,9 +51,9 @@ const HpackStringPair* HpackDecoderStaticTable::Lookup(size_t index) const {
 }
 
 HpackDecoderDynamicTable::HpackDecoderTableEntry::HpackDecoderTableEntry(
-    const HpackString& name,
-    const HpackString& value)
-    : HpackStringPair(name, value) {}
+    std::string name_arg,
+    std::string value_arg)
+    : HpackStringPair(std::move(name_arg), std::move(value_arg)) {}
 
 HpackDecoderDynamicTable::HpackDecoderDynamicTable()
     : insert_count_(kFirstDynamicTableIndex - 1), debug_listener_(nullptr) {}
@@ -69,8 +69,8 @@ void HpackDecoderDynamicTable::DynamicTableSizeUpdate(size_t size_limit) {
 
 // TODO(jamessynge): Check somewhere before here that names received from the
 // peer are valid (e.g. are lower-case, no whitespace, etc.).
-void HpackDecoderDynamicTable::Insert(const HpackString& name,
-                                      const HpackString& value) {
+void HpackDecoderDynamicTable::Insert(const std::string& name,
+                                      const std::string& value) {
   HpackDecoderTableEntry entry(name, value);
   size_t entry_size = entry.size();
   HTTP2_DVLOG(2) << "InsertEntry of size=" << entry_size

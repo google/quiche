@@ -5,11 +5,6 @@
 #ifndef QUICHE_HTTP2_HPACK_HPACK_STRING_H_
 #define QUICHE_HTTP2_HPACK_HPACK_STRING_H_
 
-// HpackString is currently a very simple container for a string, but allows us
-// to relatively easily experiment with alternate string storage mechanisms for
-// handling strings to be encoded with HPACK, or decoded from HPACK, such as
-// a ref-counted string.
-
 #include <stddef.h>
 
 #include <iosfwd>
@@ -20,44 +15,8 @@
 
 namespace http2 {
 
-class QUICHE_EXPORT_PRIVATE HpackString {
- public:
-  explicit HpackString(const char* data);
-  explicit HpackString(absl::string_view str);
-  explicit HpackString(std::string str);
-  HpackString(const HpackString& other);
-
-  // Not sure yet whether this move ctor is required/sensible.
-  HpackString(HpackString&& other) = default;
-
-  ~HpackString();
-
-  size_t size() const { return str_.size(); }
-  const std::string& ToString() const { return str_; }
-  absl::string_view ToStringPiece() const;
-
-  bool operator==(const HpackString& other) const;
-
-  bool operator==(absl::string_view str) const;
-
- private:
-  std::string str_;
-};
-
-QUICHE_EXPORT_PRIVATE bool operator==(absl::string_view a,
-                                      const HpackString& b);
-QUICHE_EXPORT_PRIVATE bool operator!=(absl::string_view a,
-                                      const HpackString& b);
-QUICHE_EXPORT_PRIVATE bool operator!=(const HpackString& a,
-                                      const HpackString& b);
-QUICHE_EXPORT_PRIVATE bool operator!=(const HpackString& a,
-                                      absl::string_view b);
-QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                               const HpackString& v);
-
 struct QUICHE_EXPORT_PRIVATE HpackStringPair {
-  HpackStringPair(const HpackString& name, const HpackString& value);
-  HpackStringPair(absl::string_view name, absl::string_view value);
+  HpackStringPair(std::string name, std::string value);
   ~HpackStringPair();
 
   // Returns the size of a header entry with this name and value, per the RFC:
@@ -66,8 +25,8 @@ struct QUICHE_EXPORT_PRIVATE HpackStringPair {
 
   std::string DebugString() const;
 
-  const HpackString name;
-  const HpackString value;
+  const std::string name;
+  const std::string value;
 };
 
 QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

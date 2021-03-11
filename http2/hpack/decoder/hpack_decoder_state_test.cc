@@ -38,7 +38,7 @@ class MockHpackDecoderListener : public HpackDecoderListener {
  public:
   MOCK_METHOD0(OnHeaderListStart, void());
   MOCK_METHOD2(OnHeader,
-               void(const HpackString& name, const HpackString& value));
+               void(const std::string& name, const std::string& value));
   MOCK_METHOD0(OnHeaderListEnd, void());
   MOCK_METHOD(void,
               OnHeaderErrorDetected,
@@ -155,8 +155,8 @@ class HpackDecoderStateTest : public QuicheTest {
     const HpackStringPair* entry =
         Lookup(dynamic_index + kFirstDynamicTableIndex - 1);
     VERIFY_NE(entry, nullptr);
-    VERIFY_EQ(entry->name.ToStringPiece(), name);
-    VERIFY_EQ(entry->value.ToStringPiece(), value);
+    VERIFY_EQ(entry->name, name);
+    VERIFY_EQ(entry->value, value);
     return AssertionSuccess();
   }
   AssertionResult VerifyNoEntry(size_t dynamic_index) {

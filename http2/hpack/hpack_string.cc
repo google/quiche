@@ -11,48 +11,8 @@
 
 namespace http2 {
 
-HpackString::HpackString(const char* data) : str_(data) {}
-HpackString::HpackString(absl::string_view str) : str_(std::string(str)) {}
-HpackString::HpackString(std::string str) : str_(std::move(str)) {}
-HpackString::HpackString(const HpackString& other) = default;
-HpackString::~HpackString() = default;
-
-absl::string_view HpackString::ToStringPiece() const {
-  return str_;
-}
-
-bool HpackString::operator==(const HpackString& other) const {
-  return str_ == other.str_;
-}
-bool HpackString::operator==(absl::string_view str) const {
-  return str == str_;
-}
-
-bool operator==(absl::string_view a, const HpackString& b) {
-  return b == a;
-}
-bool operator!=(absl::string_view a, const HpackString& b) {
-  return !(b == a);
-}
-bool operator!=(const HpackString& a, const HpackString& b) {
-  return !(a == b);
-}
-bool operator!=(const HpackString& a, absl::string_view b) {
-  return !(a == b);
-}
-std::ostream& operator<<(std::ostream& out, const HpackString& v) {
-  return out << v.ToString();
-}
-
-HpackStringPair::HpackStringPair(const HpackString& name,
-                                 const HpackString& value)
-    : name(name), value(value) {
-  HTTP2_DVLOG(3) << DebugString() << " ctor";
-}
-
-HpackStringPair::HpackStringPair(absl::string_view name,
-                                 absl::string_view value)
-    : name(name), value(value) {
+HpackStringPair::HpackStringPair(std::string name, std::string value)
+    : name(std::move(name)), value(std::move(value)) {
   HTTP2_DVLOG(3) << DebugString() << " ctor";
 }
 
@@ -61,8 +21,7 @@ HpackStringPair::~HpackStringPair() {
 }
 
 std::string HpackStringPair::DebugString() const {
-  return absl::StrCat("HpackStringPair(name=", name.ToString(),
-                      ", value=", value.ToString(), ")");
+  return absl::StrCat("HpackStringPair(name=", name, ", value=", value, ")");
 }
 
 std::ostream& operator<<(std::ostream& os, const HpackStringPair& p) {

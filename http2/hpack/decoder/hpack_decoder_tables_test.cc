@@ -205,7 +205,7 @@ class HpackDecoderTablesTest : public HpackDecoderStaticTableTest {
   // move up by 1 index.
   AssertionResult Insert(const std::string& name, const std::string& value) {
     size_t old_count = num_dynamic_entries();
-    tables_.Insert(HpackString(name), HpackString(value));
+    tables_.Insert(name, value);
     FakeInsert(name, value);
     VERIFY_EQ(old_count + 1, fake_dynamic_table_.size());
     FakeTrim(dynamic_size_limit());
