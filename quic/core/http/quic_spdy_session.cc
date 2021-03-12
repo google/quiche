@@ -1142,7 +1142,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
                                ? "Server rejected 0-RTT, aborting because "
                                : "",
                            "Server sent an SETTINGS_QPACK_MAX_TABLE_CAPACITY: ",
-                           value, "while current value is: ",
+                           value, " while current value is: ",
                            qpack_encoder_->MaximumDynamicTableCapacity()));
           return false;
         }
@@ -1167,7 +1167,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
                                ? "Server rejected 0-RTT, aborting because "
                                : "",
                            "Server sent an SETTINGS_MAX_FIELD_SECTION_SIZE: ",
-                           value, "which reduces current value: ",
+                           value, " which reduces current value: ",
                            max_outbound_header_list_size_));
           return false;
         }
@@ -1186,7 +1186,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
                                ? "Server rejected 0-RTT, aborting because "
                                : "",
                            "Server sent an SETTINGS_QPACK_BLOCKED_STREAMS: ",
-                           value, "which reduces current value: ",
+                           value, " which reduces current value: ",
                            qpack_encoder_->maximum_blocked_streams()));
           return false;
         }

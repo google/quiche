@@ -3410,7 +3410,7 @@ TEST_P(QuicSpdySessionTestClient,
       *connection_,
       CloseConnection(QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
                       "Server sent an SETTINGS_QPACK_MAX_TABLE_CAPACITY: "
-                      "32while current value is: 1024",
+                      "32 while current value is: 1024",
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
   std::string serialized_settings_frame2 = absl::HexStringToBytes(
       "04"    // type (SETTINGS)
