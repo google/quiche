@@ -1020,9 +1020,9 @@ void QuicSentPacketManager::MaybeSendProbePackets() {
     // Find out the packet number space to send probe packets.
     if (!GetEarliestPacketSentTimeForPto(&packet_number_space)
              .IsInitialized()) {
-      QUIC_BUG_IF_V2(quic_bug_12552_5,
+      QUIC_BUG_IF_V2(quic_earliest_sent_time_not_initialized,
                      unacked_packets_.perspective() == Perspective::IS_SERVER)
-          << "earlist_sent_time not initialized when trying to send PTO "
+          << "earliest_sent_time not initialized when trying to send PTO "
              "retransmissions";
       return;
     }

@@ -1119,7 +1119,7 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
     const std::string error_details =
         "Pending frames must be serialized before incoming packets are "
         "processed.";
-    QUIC_BUG_V2(quic_bug_10511_5)
+    QUIC_BUG_V2(quic_pending_frames_not_serialized)
         << error_details << ", received header: " << header;
     CloseConnection(QUIC_INTERNAL_ERROR, error_details,
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
