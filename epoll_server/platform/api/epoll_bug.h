@@ -8,5 +8,8 @@
 #include "net/tools/epoll_server/platform/impl/epoll_bug_impl.h"
 
 #define EPOLL_BUG EPOLL_BUG_IMPL
+// V2 macro is the same as the EPOLL_BUG above, but it takes a
+// bug_id parameter.
+#define EPOLL_BUG_V2 EPOLL_BUG_V2_IMPL
 
 #endif  // QUICHE_EPOLL_SERVER_PLATFORM_API_EPOLL_BUG_H_

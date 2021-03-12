@@ -444,7 +444,7 @@ void SimpleEpollServer::RegisterAlarm(int64_t timeout_time_in_us, AlarmCB* ac) {
   EPOLL_VLOG(4) << "RegisteringAlarm " << ac << " at : " << timeout_time_in_us;
   CHECK(ac);
   if (all_alarms_.find(ac) != all_alarms_.end()) {
-    EPOLL_BUG << "Alarm already exists";
+    EPOLL_BUG_V2(epoll_bug_1_1) << "Alarm already exists";
   }
 
   auto alarm_iter = alarm_map_.insert(std::make_pair(timeout_time_in_us, ac));
