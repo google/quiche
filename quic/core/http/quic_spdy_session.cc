@@ -112,7 +112,17 @@ class AlpsFrameDecoder : public HttpDecoder::Visitor {
   bool OnSettingsFrameStart(QuicByteCount /*header_length*/) override {
     return true;
   }
-  bool OnSettingsFrame(const SettingsFrame& /*frame*/) override { return true; }
+  bool OnSettingsFrame(const SettingsFrame& frame) override {
+    if (settings_frame_received_via_alps_) {
+      error_detail_ = "multiple SETTINGS frames";
+      return false;
+    }
+
+    settings_frame_received_via_alps_ = true;
+
+    error_detail_ = session_->OnSettingsFrameViaAlps(frame);
+    return !error_detail_;
+  }
   bool OnDataFrameStart(QuicByteCount /*header_length*/, QuicByteCount
                         /*payload_length*/) override {
     error_detail_ = "DATA frame forbidden";
@@ -192,6 +202,9 @@ class AlpsFrameDecoder : public HttpDecoder::Visitor {
  private:
   QuicSpdySession* const session_;
   absl::optional<std::string> error_detail_;
+
+  // True if SETTINGS frame has been received via ALPS.
+  bool settings_frame_received_via_alps_ = false;
 };
 
 }  // namespace
@@ -1089,6 +1102,24 @@ bool QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
     }
   }
   return true;
+}
+
+absl::optional<std::string> QuicSpdySession::OnSettingsFrameViaAlps(
+    const SettingsFrame& frame) {
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnSettingsFrameReceivedViaAlps(frame);
+  }
+  for (const auto& setting : frame.values) {
+    if (!OnSetting(setting.first, setting.second)) {
+      // Do not bother adding the setting identifier or value to the error
+      // message, because OnSetting() already closed the connection, therefore
+      // the error message will be ignored.
+      return "error parsing setting";
+    }
+  }
+  return absl::nullopt;
 }
 
 bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {

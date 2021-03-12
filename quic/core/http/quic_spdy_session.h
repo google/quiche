@@ -85,6 +85,7 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   virtual void OnPeerQpackDecoderStreamCreated(QuicStreamId /*stream_id*/) = 0;
 
   // Incoming HTTP/3 frames in ALPS TLS extension.
+  virtual void OnSettingsFrameReceivedViaAlps(const SettingsFrame& /*frame*/) {}
   virtual void OnAcceptChFrameReceivedViaAlps(const AcceptChFrame& /*frame*/) {}
 
   // Incoming HTTP/3 frames on the control stream.
@@ -270,9 +271,18 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // cached values, true otherwise.
   virtual bool OnSettingsFrame(const SettingsFrame& frame);
 
-  // Called when a SETTINGS is parsed from an incoming SETTINGS frame.
-  // Returns false in case of 0-RTT if received SETTINGS is incompatible with
-  // cached value, true otherwise.
+  // Called when an HTTP/3 SETTINGS frame is received via ALPS.
+  // Returns an error message if an error has occurred, or nullopt otherwise.
+  // May or may not close the connection on error.
+  absl::optional<std::string> OnSettingsFrameViaAlps(
+      const SettingsFrame& frame);
+
+  // Called when a setting is parsed from a SETTINGS frame received on the
+  // control stream or from cached application state.
+  // Returns true on success.
+  // Returns false if received setting is incompatible with cached value (in
+  // case of 0-RTT) or with previously received value (in case of ALPS).
+  // Also closes the connection on error.
   bool OnSetting(uint64_t id, uint64_t value);
 
   // Return true if this session wants to release headers stream's buffer

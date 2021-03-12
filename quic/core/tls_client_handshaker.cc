@@ -513,6 +513,8 @@ void TlsClientHandshaker::FinishHandshake() {
     if (alps_length > 0) {
       auto error = session()->OnAlpsData(alps_data, alps_length);
       if (error) {
+        // Calling CloseConnection() is safe even in case OnAlpsData() has
+        // already closed the connection.
         CloseConnection(
             QUIC_HANDSHAKE_FAILED,
             absl::StrCat("Error processing ALPS data: ", error.value()));

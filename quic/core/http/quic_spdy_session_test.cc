@@ -3308,6 +3308,138 @@ TEST_P(QuicSpdySessionTestClient, AlpsIncompleteFrame) {
   EXPECT_EQ("incomplete HTTP/3 frame", error.value());
 }
 
+// After receiving a SETTINGS frame via ALPS,
+// another SETTINGS frame is still allowed on control frame.
+TEST_P(QuicSpdySessionTestClient, SettingsViaAlpsThenOnControlStream) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  QpackEncoder* qpack_encoder = session_.qpack_encoder();
+  EXPECT_EQ(0u, qpack_encoder->MaximumDynamicTableCapacity());
+  EXPECT_EQ(0u, qpack_encoder->maximum_blocked_streams());
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  std::string serialized_settings_frame1 = absl::HexStringToBytes(
+      "04"    // type (SETTINGS)
+      "05"    // length
+      "01"    // SETTINGS_QPACK_MAX_TABLE_CAPACITY
+      "4400"  // 0x0400 = 1024
+      "07"    // SETTINGS_QPACK_BLOCKED_STREAMS
+      "20");  // 0x20 = 32
+
+  SettingsFrame expected_settings_frame1{
+      {{SETTINGS_QPACK_MAX_TABLE_CAPACITY, 1024},
+       {SETTINGS_QPACK_BLOCKED_STREAMS, 32}}};
+  EXPECT_CALL(debug_visitor,
+              OnSettingsFrameReceivedViaAlps(expected_settings_frame1));
+
+  auto error = session_.OnAlpsData(
+      reinterpret_cast<const uint8_t*>(serialized_settings_frame1.data()),
+      serialized_settings_frame1.size());
+  EXPECT_FALSE(error);
+
+  EXPECT_EQ(1024u, qpack_encoder->MaximumDynamicTableCapacity());
+  EXPECT_EQ(32u, qpack_encoder->maximum_blocked_streams());
+
+  const QuicStreamId control_stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+  EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(control_stream_id));
+
+  std::string stream_type = absl::HexStringToBytes("00");
+  session_.OnStreamFrame(QuicStreamFrame(control_stream_id, /* fin = */ false,
+                                         /* offset = */ 0, stream_type));
+
+  // SETTINGS_QPACK_MAX_TABLE_CAPACITY, if advertised again, MUST have identical
+  // value.
+  // SETTINGS_QPACK_BLOCKED_STREAMS is a limit.  Limits MUST NOT be reduced, but
+  // increasing is okay.
+  SettingsFrame expected_settings_frame2{
+      {{SETTINGS_QPACK_MAX_TABLE_CAPACITY, 1024},
+       {SETTINGS_QPACK_BLOCKED_STREAMS, 48}}};
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(expected_settings_frame2));
+  std::string serialized_settings_frame2 = absl::HexStringToBytes(
+      "04"    // type (SETTINGS)
+      "05"    // length
+      "01"    // SETTINGS_QPACK_MAX_TABLE_CAPACITY
+      "4400"  // 0x0400 = 1024
+      "07"    // SETTINGS_QPACK_BLOCKED_STREAMS
+      "30");  // 0x30 = 48
+  session_.OnStreamFrame(QuicStreamFrame(control_stream_id, /* fin = */ false,
+                                         /* offset = */ stream_type.length(),
+                                         serialized_settings_frame2));
+
+  EXPECT_EQ(1024u, qpack_encoder->MaximumDynamicTableCapacity());
+  EXPECT_EQ(48u, qpack_encoder->maximum_blocked_streams());
+}
+
+// A SETTINGS frame received via ALPS and another one on the control stream
+// cannot have conflicting values.
+TEST_P(QuicSpdySessionTestClient,
+       SettingsViaAlpsConflictsSettingsViaControlStream) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  QpackEncoder* qpack_encoder = session_.qpack_encoder();
+  EXPECT_EQ(0u, qpack_encoder->MaximumDynamicTableCapacity());
+
+  std::string serialized_settings_frame1 = absl::HexStringToBytes(
+      "04"      // type (SETTINGS)
+      "03"      // length
+      "01"      // SETTINGS_QPACK_MAX_TABLE_CAPACITY
+      "4400");  // 0x0400 = 1024
+
+  auto error = session_.OnAlpsData(
+      reinterpret_cast<const uint8_t*>(serialized_settings_frame1.data()),
+      serialized_settings_frame1.size());
+  EXPECT_FALSE(error);
+
+  EXPECT_EQ(1024u, qpack_encoder->MaximumDynamicTableCapacity());
+
+  const QuicStreamId control_stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+
+  std::string stream_type = absl::HexStringToBytes("00");
+  session_.OnStreamFrame(QuicStreamFrame(control_stream_id, /* fin = */ false,
+                                         /* offset = */ 0, stream_type));
+
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
+                      "Server sent an SETTINGS_QPACK_MAX_TABLE_CAPACITY: "
+                      "32while current value is: 1024",
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+  std::string serialized_settings_frame2 = absl::HexStringToBytes(
+      "04"    // type (SETTINGS)
+      "02"    // length
+      "01"    // SETTINGS_QPACK_MAX_TABLE_CAPACITY
+      "20");  // 0x20 = 32
+  session_.OnStreamFrame(QuicStreamFrame(control_stream_id, /* fin = */ false,
+                                         /* offset = */ stream_type.length(),
+                                         serialized_settings_frame2));
+}
+
+TEST_P(QuicSpdySessionTestClient, AlpsTwoSettingsFrame) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  std::string banned_frame = absl::HexStringToBytes(
+      "04"    // type (SETTINGS)
+      "00"    // length
+      "04"    // type (SETTINGS)
+      "00");  // length
+
+  auto error =
+      session_.OnAlpsData(reinterpret_cast<const uint8_t*>(banned_frame.data()),
+                          banned_frame.size());
+  ASSERT_TRUE(error);
+  EXPECT_EQ("multiple SETTINGS frames", error.value());
+}
+
 TEST_P(QuicSpdySessionTestClient, GetNextDatagramFlowId) {
   if (!version().UsesHttp3()) {
     return;

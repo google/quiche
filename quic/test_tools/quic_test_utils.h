@@ -1119,6 +1119,11 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
               (override));
 
   MOCK_METHOD(void,
+              OnSettingsFrameReceivedViaAlps,
+              (const SettingsFrame&),
+              (override));
+
+  MOCK_METHOD(void,
               OnAcceptChFrameReceivedViaAlps,
               (const AcceptChFrame&),
               (override));
