@@ -5,6 +5,7 @@
 #include "quic/core/http/quic_spdy_stream.h"
 
 #include <limits>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -15,6 +16,7 @@
 #include "quic/core/http/http_decoder.h"
 #include "quic/core/http/quic_spdy_session.h"
 #include "quic/core/http/spdy_utils.h"
+#include "quic/core/http/web_transport_http3.h"
 #include "quic/core/qpack/qpack_decoder.h"
 #include "quic/core/qpack/qpack_encoder.h"
 #include "quic/core/quic_utils.h"
@@ -286,6 +288,8 @@ size_t QuicSpdyStream::WriteHeaders(
     WriteOrBufferData(absl::string_view(writer.data(), writer.length()), false,
                       nullptr);
   }
+
+  MaybeProcessSentWebTransportHeaders(header_block);
 
   size_t bytes_written =
       WriteHeadersImpl(std::move(header_block), fin, std::move(ack_listener));
@@ -647,6 +651,8 @@ void QuicSpdyStream::OnInitialHeadersComplete(
   // TODO(b/134706391): remove |fin| argument.
   headers_decompressed_ = true;
   header_list_ = header_list;
+
+  MaybeProcessReceivedWebTransportHeaders();
 
   if (VersionUsesHttp3(transport_version())) {
     if (fin) {
@@ -1161,6 +1167,65 @@ size_t QuicSpdyStream::WriteHeadersImpl(
       header_block.TotalBytesUsed());
 
   return encoded_headers.size();
+}
+
+void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
+  if (!spdy_session_->SupportsWebTransport()) {
+    return;
+  }
+  if (session()->perspective() != Perspective::IS_SERVER) {
+    return;
+  }
+  QUICHE_DCHECK(IsValidWebTransportSessionId(id(), version()));
+
+  std::string method;
+  std::string protocol;
+  for (const auto& header : header_list_) {
+    const std::string& header_name = header.first;
+    const std::string& header_value = header.second;
+    if (header_name == ":method") {
+      if (!method.empty() || header_value.empty()) {
+        return;
+      }
+      method = header_value;
+    }
+    if (header_name == ":protocol") {
+      if (!protocol.empty() || header_value.empty()) {
+        return;
+      }
+      protocol = header_value;
+    }
+  }
+
+  if (method != "CONNECT" || protocol != "webtransport") {
+    return;
+  }
+
+  web_transport_ =
+      std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
+}
+
+void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
+    spdy::SpdyHeaderBlock& headers) {
+  if (!spdy_session_->SupportsWebTransport()) {
+    return;
+  }
+  if (session()->perspective() != Perspective::IS_CLIENT) {
+    return;
+  }
+  QUICHE_DCHECK(IsValidWebTransportSessionId(id(), version()));
+
+  const auto method_it = headers.find(":method");
+  const auto protocol_it = headers.find(":protocol");
+  if (method_it == headers.end() || protocol_it == headers.end()) {
+    return;
+  }
+  if (method_it->second != "CONNECT" && protocol_it->second != "webtransport") {
+    return;
+  }
+
+  web_transport_ =
+      std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
 }
 
 #undef ENDPOINT  // undef for jumbo builds

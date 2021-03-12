@@ -239,6 +239,11 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   static bool IsProbingFrame(QuicFrameType type);
 };
 
+// Returns true if the specific ID is a valid WebTransport session ID that our
+// implementation can process.
+bool IsValidWebTransportSessionId(WebTransportSessionId id,
+                                  ParsedQuicVersion transport_version);
+
 template <typename Mask>
 class QUIC_EXPORT_PRIVATE BitMask {
  public:

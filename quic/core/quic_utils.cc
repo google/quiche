@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <string>
 
 #include "absl/base/macros.h"
@@ -21,6 +22,7 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_prefetch.h"
 #include "quic/platform/api/quic_uint128.h"
+#include "common/platform/api/quiche_logging.h"
 #include "common/quiche_endian.h"
 
 namespace quic {
@@ -684,6 +686,14 @@ bool QuicUtils::IsProbingFrame(QuicFrameType type) {
     default:
       return false;
   }
+}
+
+bool IsValidWebTransportSessionId(WebTransportSessionId id,
+                                  ParsedQuicVersion version) {
+  QUICHE_DCHECK(version.UsesHttp3());
+  return (id <= std::numeric_limits<QuicStreamId>::max()) &&
+         QuicUtils::IsBidirectionalStreamId(id, version) &&
+         QuicUtils::IsClientInitiatedStreamId(version.transport_version, id);
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds

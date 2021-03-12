@@ -15,6 +15,7 @@
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/http/http_encoder.h"
 #include "quic/core/http/spdy_utils.h"
+#include "quic/core/http/web_transport_http3.h"
 #include "quic/core/quic_connection.h"
 #include "quic/core/quic_stream_sequencer_buffer.h"
 #include "quic/core/quic_utils.h"
@@ -254,6 +255,8 @@ class TestSession : public MockQuicSpdySession {
   const TestCryptoStream* GetCryptoStream() const override {
     return &crypto_stream_;
   }
+
+  bool ShouldNegotiateWebTransport() override { return true; }
 
  private:
   StrictMock<TestCryptoStream> crypto_stream_;
@@ -3069,6 +3072,47 @@ TEST_P(QuicSpdyStreamTest, TwoResetStreamFrames) {
         stream_->OnStreamReset(rst_frame2),
         "The stream should've already sent RST in response to STOP_SENDING");
   }
+}
+
+TEST_P(QuicSpdyStreamTest, ProcessOutgoingWebTransportHeaders) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+  QuicSpdySessionPeer::EnableWebTransport(*session_);
+
+  EXPECT_CALL(*stream_, WriteHeadersMock(false));
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _))
+      .Times(AnyNumber());
+
+  spdy::SpdyHeaderBlock headers;
+  headers[":method"] = "CONNECT";
+  headers[":protocol"] = "webtransport";
+  stream_->WriteHeaders(std::move(headers), /*fin=*/false, nullptr);
+  ASSERT_TRUE(stream_->web_transport() != nullptr);
+  EXPECT_EQ(stream_->id(), stream_->web_transport()->id());
+}
+
+TEST_P(QuicSpdyStreamTest, ProcessIncomingWebTransportHeaders) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  QuicSpdySessionPeer::EnableWebTransport(*session_);
+
+  headers_[":method"] = "CONNECT";
+  headers_[":protocol"] = "webtransport";
+
+  stream_->OnStreamHeadersPriority(
+      spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  ProcessHeaders(false, headers_);
+  EXPECT_EQ("", stream_->data());
+  EXPECT_FALSE(stream_->header_list().empty());
+  EXPECT_FALSE(stream_->IsDoneReading());
+  ASSERT_TRUE(stream_->web_transport() != nullptr);
+  EXPECT_EQ(stream_->id(), stream_->web_transport()->id());
 }
 
 }  // namespace

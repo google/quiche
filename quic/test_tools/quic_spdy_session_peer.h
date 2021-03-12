@@ -59,6 +59,7 @@ class QuicSpdySessionPeer {
       QuicSpdySession* session);
   static void SetH3DatagramSupported(QuicSpdySession* session,
                                      bool h3_datagram_supported);
+  static void EnableWebTransport(QuicSpdySession& session);
 };
 
 }  // namespace test

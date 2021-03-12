@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <ostream>
 #include <vector>
@@ -42,6 +43,9 @@ using QuicPublicResetNonceProof = uint64_t;
 using QuicStreamOffset = uint64_t;
 using DiversificationNonce = std::array<char, 32>;
 using PacketTimeVector = std::vector<std::pair<QuicPacketNumber, QuicTime>>;
+
+// WebTransport session IDs are stream IDs.
+using WebTransportSessionId = uint64_t;
 
 enum : size_t { kQuicPathFrameBufferSize = 8 };
 using QuicPathFrameBuffer = std::array<uint8_t, kQuicPathFrameBufferSize>;
@@ -708,10 +712,10 @@ enum AckResult {
 
 // Indicates the fate of a serialized packet in WritePacket().
 enum SerializedPacketFate : uint8_t {
-  DISCARD,         // Discard the packet.
-  COALESCE,        // Try to coalesce packet.
-  BUFFER,          // Buffer packet in buffered_packets_.
-  SEND_TO_WRITER,  // Send packet to writer.
+  DISCARD,                     // Discard the packet.
+  COALESCE,                    // Try to coalesce packet.
+  BUFFER,                      // Buffer packet in buffered_packets_.
+  SEND_TO_WRITER,              // Send packet to writer.
   LEGACY_VERSION_ENCAPSULATE,  // Perform Legacy Version Encapsulation on this
                                // packet.
 };

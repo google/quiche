@@ -7,7 +7,9 @@
 #include "quic/core/http/quic_spdy_session.h"
 #include "quic/core/qpack/qpack_receive_stream.h"
 #include "quic/core/quic_utils.h"
+#include "quic/platform/api/quic_flags.h"
 #include "quic/test_tools/quic_session_peer.h"
+#include "common/platform/api/quiche_logging.h"
 
 namespace quic {
 namespace test {
@@ -113,6 +115,14 @@ QpackReceiveStream* QuicSpdySessionPeer::GetQpackEncoderReceiveStream(
 void QuicSpdySessionPeer::SetH3DatagramSupported(QuicSpdySession* session,
                                                  bool h3_datagram_supported) {
   session->h3_datagram_supported_ = h3_datagram_supported;
+}
+
+// static
+void QuicSpdySessionPeer::EnableWebTransport(QuicSpdySession& session) {
+  SetQuicReloadableFlag(quic_h3_datagram, true);
+  QUICHE_DCHECK(session.WillNegotiateWebTransport());
+  session.h3_datagram_supported_ = true;
+  session.peer_supports_webtransport_ = true;
 }
 
 }  // namespace test

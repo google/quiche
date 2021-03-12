@@ -461,6 +461,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Indicates whether the HTTP/3 session supports WebTransport.
   bool SupportsWebTransport();
 
+  // Returns a WebTransport session by its session ID.  Returns nullptr if no
+  // session is associated with the given ID.
+  WebTransportHttp3* GetWebTransportSession(WebTransportSessionId id);
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to

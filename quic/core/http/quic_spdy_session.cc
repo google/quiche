@@ -1797,6 +1797,21 @@ bool QuicSpdySession::SupportsWebTransport() {
          peer_supports_webtransport_;
 }
 
+WebTransportHttp3* QuicSpdySession::GetWebTransportSession(
+    WebTransportSessionId id) {
+  if (!SupportsWebTransport()) {
+    return nullptr;
+  }
+  if (!IsValidWebTransportSessionId(id, version())) {
+    return nullptr;
+  }
+  QuicSpdyStream* connect_stream = GetOrCreateSpdyDataStream(id);
+  if (connect_stream == nullptr) {
+    return nullptr;
+  }
+  return connect_stream->web_transport();
+}
+
 #undef ENDPOINT  // undef for jumbo builds
 
 }  // namespace quic

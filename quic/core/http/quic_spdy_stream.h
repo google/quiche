@@ -13,6 +13,7 @@
 
 #include <cstddef>
 #include <list>
+#include <memory>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -28,6 +29,7 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "spdy/core/spdy_framer.h"
+#include "spdy/core/spdy_header_block.h"
 
 namespace quic {
 
@@ -37,6 +39,7 @@ class QuicStreamPeer;
 }  // namespace test
 
 class QuicSpdySession;
+class WebTransportHttp3;
 
 // A QUIC stream that can send and receive HTTP2 (SPDY) headers.
 class QUIC_EXPORT_PRIVATE QuicSpdyStream
@@ -222,6 +225,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // |last_sent_urgency_| is different from current priority.
   void MaybeSendPriorityUpdateFrame() override;
 
+  // Returns the WebTransport session owned by this stream, if one exists.
+  WebTransportHttp3* web_transport() { return web_transport_.get(); }
+
  protected:
   // Called when the received headers are too large. By default this will
   // reset the stream.
@@ -278,6 +284,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // the number of frame header bytes contained in it.
   QuicByteCount GetNumFrameHeadersInInterval(QuicStreamOffset offset,
                                              QuicByteCount data_length) const;
+
+  void MaybeProcessSentWebTransportHeaders(spdy::SpdyHeaderBlock& headers);
+  void MaybeProcessReceivedWebTransportHeaders();
 
   QuicSpdySession* spdy_session_;
 
@@ -339,6 +348,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Urgency value sent in the last PRIORITY_UPDATE frame, or default urgency
   // defined by the spec if no PRIORITY_UPDATE frame has been sent.
   int last_sent_urgency_;
+
+  // If this stream is a WebTransport extended CONNECT stream, contains the
+  // WebTransport session associated with this stream.
+  std::unique_ptr<WebTransportHttp3> web_transport_;
 };
 
 }  // namespace quic
