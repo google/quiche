@@ -139,6 +139,11 @@ class QuicSpdyClientBase : public QuicClientBase,
   }
   bool drop_response_body() const { return drop_response_body_; }
 
+  void set_enable_web_transport(bool enable_web_transport) {
+    enable_web_transport_ = enable_web_transport;
+  }
+  bool enable_web_transport() const { return enable_web_transport_; }
+
   // Set the max promise id for the client session.
   // TODO(b/151641466): Rename this method.
   void SetMaxAllowedPushId(PushId max) { max_allowed_push_id_ = max; }
@@ -221,6 +226,7 @@ class QuicSpdyClientBase : public QuicClientBase,
   std::unique_ptr<ClientQuicDataToResend> push_promise_data_to_resend_;
 
   bool drop_response_body_ = false;
+  bool enable_web_transport_ = false;
 
   // The max promise id to set on the client session when created.
   PushId max_allowed_push_id_;

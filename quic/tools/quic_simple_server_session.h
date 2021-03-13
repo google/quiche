@@ -104,6 +104,10 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
 
   void MaybeInitializeHttp3UnidirectionalStreams() override;
 
+  bool ShouldNegotiateWebTransport() override {
+    return quic_simple_server_backend_->SupportsWebTransport();
+  }
+
  private:
   friend class test::QuicSimpleServerSessionPeer;
 

@@ -24,6 +24,7 @@
 #include "quic/core/quic_packet_writer_wrapper.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_session.h"
+#include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_epoll.h"
 #include "quic/platform/api/quic_error_code_wrappers.h"
@@ -55,6 +56,7 @@
 #include "quic/test_tools/quic_stream_id_manager_peer.h"
 #include "quic/test_tools/quic_stream_peer.h"
 #include "quic/test_tools/quic_stream_sequencer_peer.h"
+#include "quic/test_tools/quic_test_backend.h"
 #include "quic/test_tools/quic_test_client.h"
 #include "quic/test_tools/quic_test_server.h"
 #include "quic/test_tools/quic_test_utils.h"
@@ -220,6 +222,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     client->UseConnectionIdLength(override_server_connection_id_length_);
     client->UseClientConnectionIdLength(override_client_connection_id_length_);
     client->client()->set_connection_debug_visitor(connection_debug_visitor_);
+    client->client()->set_enable_web_transport(enable_web_transport_);
     client->Connect();
     return client;
   }
@@ -356,6 +359,11 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   bool Initialize() {
+    if (enable_web_transport_) {
+      SetQuicReloadableFlag(quic_h3_datagram, true);
+      memory_cache_backend_.set_enable_webtransport(true);
+    }
+
     QuicTagVector copt;
     server_config_.SetConnectionOptionsToSend(copt);
     copt = client_extra_copts_;
@@ -676,7 +684,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   bool connect_to_server_on_initialize_;
   QuicSocketAddress server_address_;
   std::string server_hostname_;
-  QuicMemoryCacheBackend memory_cache_backend_;
+  QuicTestBackend memory_cache_backend_;
   std::unique_ptr<ServerThread> server_thread_;
   std::unique_ptr<QuicTestClient> client_;
   QuicConnectionDebugVisitor* connection_debug_visitor_ = nullptr;
@@ -695,6 +703,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   int override_server_connection_id_length_ = -1;
   int override_client_connection_id_length_ = -1;
   uint8_t expected_server_connection_id_length_;
+  bool enable_web_transport_ = false;
 };
 
 // Run all end to end tests with all supported versions.
@@ -5665,6 +5674,35 @@ TEST_P(EndToEndTest, TlsResumptionDisabledOnTheFly) {
   }
 
   ADD_FAILURE() << "Client should not have 10 resumption tickets.";
+}
+
+TEST_P(EndToEndTest, WebTransportSession) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  spdy::SpdyHeaderBlock headers;
+  headers[":scheme"] = "https";
+  headers[":authority"] = "localhost";
+  headers[":path"] = "/echo";
+  headers[":method"] = "CONNECT";
+  headers[":protocol"] = "webtransport";
+
+  client_->SendMessage(headers, "", /*fin=*/false);
+  QuicSpdyStream* stream = client_->latest_created_stream();
+  EXPECT_TRUE(stream->web_transport() != nullptr);
+  WebTransportSessionId id = client_->latest_created_stream()->id();
+  QuicSpdySession* client_session = GetClientSession();
+  EXPECT_TRUE(client_session->GetWebTransportSession(id) != nullptr);
+  client_->WaitUntil(-1, [stream]() { return stream->headers_decompressed(); });
+
+  server_thread_->Pause();
+  QuicSpdySession* server_session = GetServerSession();
+  EXPECT_TRUE(server_session->GetWebTransportSession(id) != nullptr);
+  server_thread_->Resume();
 }
 
 }  // namespace
