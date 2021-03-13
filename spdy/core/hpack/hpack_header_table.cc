@@ -52,11 +52,7 @@ const HpackEntry* HpackHeaderTable::GetByIndex(size_t index) {
   }
   index -= static_entries_.size();
   if (index < dynamic_entries_.size()) {
-    const HpackEntry* result = &dynamic_entries_[index];
-    if (debug_visitor_ != nullptr) {
-      debug_visitor_->OnUseEntry(*result);
-    }
-    return result;
+    return &dynamic_entries_[index];
   }
   return nullptr;
 }
@@ -71,11 +67,7 @@ const HpackEntry* HpackHeaderTable::GetByName(absl::string_view name) {
   {
     NameToEntryMap::const_iterator it = dynamic_name_index_.find(name);
     if (it != dynamic_name_index_.end()) {
-      const HpackEntry* result = it->second;
-      if (debug_visitor_ != nullptr) {
-        debug_visitor_->OnUseEntry(*result);
-      }
-      return result;
+      return it->second;
     }
   }
   return nullptr;
@@ -93,11 +85,7 @@ const HpackEntry* HpackHeaderTable::GetByNameAndValue(absl::string_view name,
   {
     auto it = dynamic_index_.find(&query);
     if (it != dynamic_index_.end()) {
-      const HpackEntry* result = *it;
-      if (debug_visitor_ != nullptr) {
-        debug_visitor_->OnUseEntry(*result);
-      }
-      return result;
+      return *it;
     }
   }
   return nullptr;
@@ -230,15 +218,6 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
 
   size_ += entry_size;
   ++total_insertions_;
-  if (debug_visitor_ != nullptr) {
-    // Call |debug_visitor_->OnNewEntry()| to get the current time.
-    HpackEntry& entry = dynamic_entries_.front();
-    entry.set_time_added(debug_visitor_->OnNewEntry(entry));
-    SPDY_DVLOG(2) << "HpackHeaderTable::OnNewEntry: name=" << entry.name()
-                  << ",  value=" << entry.value()
-                  << ",  insert_index=" << entry.InsertionIndex()
-                  << ",  time_added=" << entry.time_added();
-  }
 
   return &dynamic_entries_.front();
 }

@@ -107,18 +107,6 @@ const SpdyHeaderBlock& HpackDecoderAdapter::decoded_block() const {
   return listener_adapter_.decoded_block();
 }
 
-void HpackDecoderAdapter::SetHeaderTableDebugVisitor(
-    std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor) {
-  SPDY_DVLOG(2) << "HpackDecoderAdapter::SetHeaderTableDebugVisitor";
-  if (visitor != nullptr) {
-    listener_adapter_.SetHeaderTableDebugVisitor(std::move(visitor));
-    hpack_decoder_.set_tables_debug_listener(&listener_adapter_);
-  } else {
-    hpack_decoder_.set_tables_debug_listener(nullptr);
-    listener_adapter_.SetHeaderTableDebugVisitor(nullptr);
-  }
-}
-
 void HpackDecoderAdapter::set_max_decode_buffer_size_bytes(
     size_t max_decode_buffer_size_bytes) {
   SPDY_DVLOG(2) << "HpackDecoderAdapter::set_max_decode_buffer_size_bytes";
@@ -141,11 +129,6 @@ HpackDecoderAdapter::ListenerAdapter::~ListenerAdapter() = default;
 void HpackDecoderAdapter::ListenerAdapter::set_handler(
     SpdyHeadersHandlerInterface* handler) {
   handler_ = handler;
-}
-
-void HpackDecoderAdapter::ListenerAdapter::SetHeaderTableDebugVisitor(
-    std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor) {
-  visitor_ = std::move(visitor);
 }
 
 void HpackDecoderAdapter::ListenerAdapter::OnHeaderListStart() {
@@ -185,38 +168,6 @@ void HpackDecoderAdapter::ListenerAdapter::OnHeaderListEnd() {
 void HpackDecoderAdapter::ListenerAdapter::OnHeaderErrorDetected(
     absl::string_view error_message) {
   SPDY_VLOG(1) << error_message;
-}
-
-int64_t HpackDecoderAdapter::ListenerAdapter::OnEntryInserted(
-    const http2::HpackStringPair& entry,
-    size_t insert_count) {
-  SPDY_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnEntryInserted: "
-                << entry << ",  insert_count=" << insert_count;
-  if (visitor_ == nullptr) {
-    return 0;
-  }
-  HpackEntry hpack_entry(entry.name, entry.value,
-                         /*is_static*/ false, insert_count);
-  int64_t time_added = visitor_->OnNewEntry(hpack_entry);
-  SPDY_DVLOG(2)
-      << "HpackDecoderAdapter::ListenerAdapter::OnEntryInserted: time_added="
-      << time_added;
-  return time_added;
-}
-
-void HpackDecoderAdapter::ListenerAdapter::OnUseEntry(
-    const http2::HpackStringPair& entry,
-    size_t insert_count,
-    int64_t time_added) {
-  SPDY_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnUseEntry: " << entry
-                << ",  insert_count=" << insert_count
-                << ",  time_added=" << time_added;
-  if (visitor_ != nullptr) {
-    HpackEntry hpack_entry(entry.name, entry.value, /*is_static*/ false,
-                           insert_count);
-    hpack_entry.set_time_added(time_added);
-    visitor_->OnUseEntry(hpack_entry);
-  }
 }
 
 }  // namespace spdy

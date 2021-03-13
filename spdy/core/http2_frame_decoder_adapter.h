@@ -127,10 +127,6 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
     return debug_visitor_;
   }
 
-  // Set debug callbacks to be called from the HPACK decoder.
-  void SetDecoderHeaderTableDebugVisitor(
-      std::unique_ptr<spdy::HpackHeaderTable::DebugVisitorInterface> visitor);
-
   // Decode the |len| bytes of encoded HTTP/2 starting at |*data|. Returns
   // the number of bytes consumed. It is safe to pass more bytes in than
   // may be consumed. Should process (or otherwise buffer) as much as

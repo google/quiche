@@ -39,18 +39,6 @@ spdy::SpdyFramer* QuicSpdySessionPeer::GetSpdyFramer(QuicSpdySession* session) {
   return &session->spdy_framer_;
 }
 
-void QuicSpdySessionPeer::SetHpackEncoderDebugVisitor(
-    QuicSpdySession* session,
-    std::unique_ptr<QuicHpackDebugVisitor> visitor) {
-  session->SetHpackEncoderDebugVisitor(std::move(visitor));
-}
-
-void QuicSpdySessionPeer::SetHpackDecoderDebugVisitor(
-    QuicSpdySession* session,
-    std::unique_ptr<QuicHpackDebugVisitor> visitor) {
-  session->SetHpackDecoderDebugVisitor(std::move(visitor));
-}
-
 void QuicSpdySessionPeer::SetMaxInboundHeaderListSize(
     QuicSpdySession* session,
     size_t max_inbound_header_size) {

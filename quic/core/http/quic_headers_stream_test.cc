@@ -73,17 +73,6 @@ using testing::WithArgs;
 
 namespace quic {
 namespace test {
-
-class MockQuicHpackDebugVisitor : public QuicHpackDebugVisitor {
- public:
-  MockQuicHpackDebugVisitor() : QuicHpackDebugVisitor() {}
-  MockQuicHpackDebugVisitor(const MockQuicHpackDebugVisitor&) = delete;
-  MockQuicHpackDebugVisitor& operator=(const MockQuicHpackDebugVisitor&) =
-      delete;
-
-  MOCK_METHOD(void, OnUseEntry, (QuicTime::Delta elapsed), (override));
-};
-
 namespace {
 
 class MockVisitor : public SpdyFramerVisitorInterface {
@@ -764,95 +753,6 @@ TEST_P(QuicHeadersStreamTest, ProcessSpdyWindowUpdateFrame) {
 TEST_P(QuicHeadersStreamTest, NoConnectionLevelFlowControl) {
   EXPECT_FALSE(QuicStreamPeer::StreamContributesToConnectionFlowControl(
       headers_stream_));
-}
-
-TEST_P(QuicHeadersStreamTest, HpackDecoderDebugVisitor) {
-  auto hpack_decoder_visitor =
-      std::make_unique<StrictMock<MockQuicHpackDebugVisitor>>();
-  {
-    InSequence seq;
-    // Number of indexed representations generated in headers below.
-    for (int i = 1; i < 28; i++) {
-      EXPECT_CALL(*hpack_decoder_visitor,
-                  OnUseEntry(QuicTime::Delta::FromMilliseconds(i)))
-          .Times(4);
-    }
-  }
-  QuicSpdySessionPeer::SetHpackDecoderDebugVisitor(
-      &session_, std::move(hpack_decoder_visitor));
-
-  // Create some headers we expect to generate entries in HPACK's
-  // dynamic table, in addition to content-length.
-  headers_["key0"] = std::string(1 << 1, '.');
-  headers_["key1"] = std::string(1 << 2, '.');
-  headers_["key2"] = std::string(1 << 3, '.');
-  for (QuicStreamId stream_id = client_id_1_; stream_id < client_id_3_;
-       stream_id += next_stream_id_) {
-    for (bool fin : {false, true}) {
-      for (SpdyPriority priority = 0; priority < 7; ++priority) {
-        // Replace with "WriteHeadersAndSaveData"
-        SpdySerializedFrame frame;
-        if (perspective() == Perspective::IS_SERVER) {
-          SpdyHeadersIR headers_frame(stream_id, headers_.Clone());
-          headers_frame.set_fin(fin);
-          headers_frame.set_has_priority(true);
-          headers_frame.set_weight(Spdy3PriorityToHttp2Weight(0));
-          frame = framer_->SerializeFrame(headers_frame);
-          EXPECT_CALL(session_, OnStreamHeadersPriority(
-                                    stream_id, spdy::SpdyStreamPrecedence(0)));
-        } else {
-          SpdyHeadersIR headers_frame(stream_id, headers_.Clone());
-          headers_frame.set_fin(fin);
-          frame = framer_->SerializeFrame(headers_frame);
-        }
-        EXPECT_CALL(session_,
-                    OnStreamHeaderList(stream_id, fin, frame.size(), _))
-            .WillOnce(Invoke(this, &QuicHeadersStreamTest::SaveHeaderList));
-        stream_frame_.data_buffer = frame.data();
-        stream_frame_.data_length = frame.size();
-        connection_->AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
-        headers_stream_->OnStreamFrame(stream_frame_);
-        stream_frame_.offset += frame.size();
-        CheckHeaders();
-      }
-    }
-  }
-}
-
-TEST_P(QuicHeadersStreamTest, HpackEncoderDebugVisitor) {
-  auto hpack_encoder_visitor =
-      std::make_unique<StrictMock<MockQuicHpackDebugVisitor>>();
-  if (perspective() == Perspective::IS_SERVER) {
-    InSequence seq;
-    for (int i = 1; i < 4; i++) {
-      EXPECT_CALL(*hpack_encoder_visitor,
-                  OnUseEntry(QuicTime::Delta::FromMilliseconds(i)));
-    }
-  } else {
-    InSequence seq;
-    for (int i = 1; i < 28; i++) {
-      EXPECT_CALL(*hpack_encoder_visitor,
-                  OnUseEntry(QuicTime::Delta::FromMilliseconds(i)));
-    }
-  }
-  QuicSpdySessionPeer::SetHpackEncoderDebugVisitor(
-      &session_, std::move(hpack_encoder_visitor));
-
-  for (QuicStreamId stream_id = client_id_1_; stream_id < client_id_3_;
-       stream_id += next_stream_id_) {
-    for (bool fin : {false, true}) {
-      if (perspective() == Perspective::IS_SERVER) {
-        WriteAndExpectResponseHeaders(stream_id, fin);
-        connection_->AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
-      } else {
-        for (SpdyPriority priority = 0; priority < 7; ++priority) {
-          // TODO(rch): implement priorities correctly.
-          WriteAndExpectRequestHeaders(stream_id, fin, 0);
-          connection_->AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
-        }
-      }
-    }
-  }
 }
 
 TEST_P(QuicHeadersStreamTest, AckSentData) {

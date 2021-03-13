@@ -93,11 +93,6 @@ class QUICHE_EXPORT_PRIVATE HpackEncoder {
   // this encoder.
   void SetHeaderListener(HeaderListener listener) { listener_ = listener; }
 
-  void SetHeaderTableDebugVisitor(
-      std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor) {
-    header_table_.set_debug_visitor(std::move(visitor));
-  }
-
   void DisableCompression() { enable_compression_ = false; }
 
   // Returns the estimate of dynamically allocated memory in bytes.

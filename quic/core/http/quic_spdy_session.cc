@@ -60,34 +60,6 @@ namespace {
 #define ENDPOINT \
   (perspective() == Perspective::IS_SERVER ? "Server: " : "Client: ")
 
-class HeaderTableDebugVisitor : public HpackHeaderTable::DebugVisitorInterface {
- public:
-  HeaderTableDebugVisitor(const QuicClock* clock,
-                          std::unique_ptr<QuicHpackDebugVisitor> visitor)
-      : clock_(clock), headers_stream_hpack_visitor_(std::move(visitor)) {}
-  HeaderTableDebugVisitor(const HeaderTableDebugVisitor&) = delete;
-  HeaderTableDebugVisitor& operator=(const HeaderTableDebugVisitor&) = delete;
-
-  int64_t OnNewEntry(const HpackEntry& entry) override {
-    QUIC_DVLOG(1) << entry.GetDebugString();
-    return (clock_->ApproximateNow() - QuicTime::Zero()).ToMicroseconds();
-  }
-
-  void OnUseEntry(const HpackEntry& entry) override {
-    const QuicTime::Delta elapsed(
-        clock_->ApproximateNow() -
-        QuicTime::Delta::FromMicroseconds(entry.time_added()) -
-        QuicTime::Zero());
-    QUIC_DVLOG(1) << entry.GetDebugString() << " " << elapsed.ToMilliseconds()
-                  << " ms";
-    headers_stream_hpack_visitor_->OnUseEntry(elapsed);
-  }
-
- private:
-  const QuicClock* clock_;
-  std::unique_ptr<QuicHpackDebugVisitor> headers_stream_hpack_visitor_;
-};
-
 // Class to forward ACCEPT_CH frame to QuicSpdySession,
 // and ignore every other frame.
 class AlpsFrameDecoder : public HttpDecoder::Visitor {
@@ -473,10 +445,6 @@ class QuicSpdySession::SpdyFramerVisitor
   QuicSpdySession* session_;
   QuicHeaderList header_list_;
 };
-
-QuicHpackDebugVisitor::QuicHpackDebugVisitor() {}
-
-QuicHpackDebugVisitor::~QuicHpackDebugVisitor() {}
 
 Http3DebugVisitor::Http3DebugVisitor() {}
 
@@ -1368,20 +1336,6 @@ void QuicSpdySession::OnHeaderList(const QuicHeaderList& header_list) {
 
 void QuicSpdySession::OnCompressedFrameSize(size_t frame_len) {
   frame_len_ += frame_len;
-}
-
-void QuicSpdySession::SetHpackEncoderDebugVisitor(
-    std::unique_ptr<QuicHpackDebugVisitor> visitor) {
-  spdy_framer_.SetEncoderHeaderTableDebugVisitor(
-      std::unique_ptr<HeaderTableDebugVisitor>(new HeaderTableDebugVisitor(
-          connection()->helper()->GetClock(), std::move(visitor))));
-}
-
-void QuicSpdySession::SetHpackDecoderDebugVisitor(
-    std::unique_ptr<QuicHpackDebugVisitor> visitor) {
-  h2_deframer_.SetDecoderHeaderTableDebugVisitor(
-      std::make_unique<HeaderTableDebugVisitor>(
-          connection()->helper()->GetClock(), std::move(visitor)));
 }
 
 void QuicSpdySession::CloseConnectionWithDetails(QuicErrorCode error,

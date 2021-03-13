@@ -34,11 +34,6 @@ HpackDecoderState::HpackDecoderState(HpackDecoderListener* listener)
       error_(HpackDecodingError::kOk) {}
 HpackDecoderState::~HpackDecoderState() = default;
 
-void HpackDecoderState::set_tables_debug_listener(
-    HpackDecoderTablesDebugListener* debug_listener) {
-  decoder_tables_.set_debug_listener(debug_listener);
-}
-
 void HpackDecoderState::ApplyHeaderTableSizeSetting(
     uint32_t header_table_size) {
   HTTP2_DVLOG(2) << "HpackDecoderState::ApplyHeaderTableSizeSetting("

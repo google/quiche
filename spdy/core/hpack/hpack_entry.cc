@@ -21,22 +21,15 @@ HpackEntry::HpackEntry(absl::string_view name,
       name_ref_(name_),
       value_ref_(value_),
       insertion_index_(insertion_index),
-      type_(is_static ? STATIC : DYNAMIC),
-      time_added_(0) {}
+      type_(is_static ? STATIC : DYNAMIC) {}
 
 HpackEntry::HpackEntry(absl::string_view name, absl::string_view value)
-    : name_ref_(name),
-      value_ref_(value),
-      insertion_index_(0),
-      type_(LOOKUP),
-      time_added_(0) {}
+    : name_ref_(name), value_ref_(value), insertion_index_(0), type_(LOOKUP) {}
 
-HpackEntry::HpackEntry() : insertion_index_(0), type_(LOOKUP), time_added_(0) {}
+HpackEntry::HpackEntry() : insertion_index_(0), type_(LOOKUP) {}
 
 HpackEntry::HpackEntry(const HpackEntry& other)
-    : insertion_index_(other.insertion_index_),
-      type_(other.type_),
-      time_added_(0) {
+    : insertion_index_(other.insertion_index_), type_(other.type_) {
   if (type_ == LOOKUP) {
     name_ref_ = other.name_ref_;
     value_ref_ = other.value_ref_;

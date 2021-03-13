@@ -43,11 +43,6 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderState : public HpackWholeEntryListener {
   // The listener may be changed at any time.
   HpackDecoderListener* listener() const { return listener_; }
 
-  // Set listener to be notified of insertions into the HPACK dynamic table,
-  // and uses of those entries.
-  void set_tables_debug_listener(
-      HpackDecoderTablesDebugListener* debug_listener);
-
   // ApplyHeaderTableSizeSetting notifies this object that this endpoint has
   // received a SETTINGS ACK frame acknowledging an earlier SETTINGS frame from
   // this endpoint specifying a new value for SETTINGS_HEADER_TABLE_SIZE (the

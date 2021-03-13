@@ -277,12 +277,6 @@ void Http2DecoderAdapter::set_extension_visitor(
   extension_ = visitor;
 }
 
-// Passes the call on to the HPACK decoder.
-void Http2DecoderAdapter::SetDecoderHeaderTableDebugVisitor(
-    std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor) {
-  GetHpackDecoder()->SetHeaderTableDebugVisitor(std::move(visitor));
-}
-
 size_t Http2DecoderAdapter::ProcessInput(const char* data, size_t len) {
   size_t limit = recv_frame_size_limit_;
   frame_decoder_->set_maximum_payload_size(limit);

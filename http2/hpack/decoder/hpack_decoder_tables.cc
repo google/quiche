@@ -34,9 +34,6 @@ const std::vector<HpackStringPair>* GetStaticTable() {
 
 }  // namespace
 
-HpackDecoderTablesDebugListener::HpackDecoderTablesDebugListener() = default;
-HpackDecoderTablesDebugListener::~HpackDecoderTablesDebugListener() = default;
-
 HpackDecoderStaticTable::HpackDecoderStaticTable(
     const std::vector<HpackStringPair>* table)
     : table_(table) {}
@@ -50,13 +47,8 @@ const HpackStringPair* HpackDecoderStaticTable::Lookup(size_t index) const {
   return nullptr;
 }
 
-HpackDecoderDynamicTable::HpackDecoderTableEntry::HpackDecoderTableEntry(
-    std::string name_arg,
-    std::string value_arg)
-    : HpackStringPair(std::move(name_arg), std::move(value_arg)) {}
-
 HpackDecoderDynamicTable::HpackDecoderDynamicTable()
-    : insert_count_(kFirstDynamicTableIndex - 1), debug_listener_(nullptr) {}
+    : insert_count_(kFirstDynamicTableIndex - 1) {}
 HpackDecoderDynamicTable::~HpackDecoderDynamicTable() = default;
 
 void HpackDecoderDynamicTable::DynamicTableSizeUpdate(size_t size_limit) {
@@ -84,11 +76,6 @@ void HpackDecoderDynamicTable::Insert(const std::string& name,
     return;
   }
   ++insert_count_;
-  if (debug_listener_ != nullptr) {
-    entry.time_added = debug_listener_->OnEntryInserted(entry, insert_count_);
-    HTTP2_DVLOG(2) << "OnEntryInserted returned time_added=" << entry.time_added
-                   << " for insert_count_=" << insert_count_;
-  }
   size_t insert_limit = size_limit_ - entry_size;
   EnsureSizeNoMoreThan(insert_limit);
   table_.push_front(entry);
@@ -100,13 +87,7 @@ void HpackDecoderDynamicTable::Insert(const std::string& name,
 
 const HpackStringPair* HpackDecoderDynamicTable::Lookup(size_t index) const {
   if (index < table_.size()) {
-    const HpackDecoderTableEntry& entry = table_[index];
-    if (debug_listener_ != nullptr) {
-      size_t insert_count_of_index = insert_count_ + table_.size() - index;
-      debug_listener_->OnUseEntry(entry, insert_count_of_index,
-                                  entry.time_added);
-    }
-    return &entry;
+    return &table_[index];
   }
   return nullptr;
 }
@@ -136,11 +117,6 @@ void HpackDecoderDynamicTable::RemoveLastEntry() {
 
 HpackDecoderTables::HpackDecoderTables() = default;
 HpackDecoderTables::~HpackDecoderTables() = default;
-
-void HpackDecoderTables::set_debug_listener(
-    HpackDecoderTablesDebugListener* debug_listener) {
-  dynamic_table_.set_debug_listener(debug_listener);
-}
 
 const HpackStringPair* HpackDecoderTables::Lookup(size_t index) const {
   if (index < kFirstDynamicTableIndex) {

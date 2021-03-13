@@ -37,25 +37,6 @@ namespace test {
 class QuicSpdySessionPeer;
 }  // namespace test
 
-// QuicHpackDebugVisitor gathers data used for understanding HPACK HoL
-// dynamics.  Specifically, it is to help predict the compression
-// penalty of avoiding HoL by chagning how the dynamic table is used.
-// In chromium, the concrete instance populates an UMA
-// histogram with the data.
-class QUIC_EXPORT_PRIVATE QuicHpackDebugVisitor {
- public:
-  QuicHpackDebugVisitor();
-  QuicHpackDebugVisitor(const QuicHpackDebugVisitor&) = delete;
-  QuicHpackDebugVisitor& operator=(const QuicHpackDebugVisitor&) = delete;
-
-  virtual ~QuicHpackDebugVisitor();
-
-  // For each HPACK indexed representation processed, |elapsed| is
-  // the time since the corresponding entry was added to the dynamic
-  // table.
-  virtual void OnUseEntry(QuicTime::Delta elapsed) = 0;
-};
-
 class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
  public:
   Http3DebugVisitor();
@@ -512,12 +493,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   void OnNewEncryptionKeyAvailable(
       EncryptionLevel level,
       std::unique_ptr<QuicEncrypter> encrypter) override;
-
-  // Optional, enables instrumentation related to go/quic-hpack.
-  void SetHpackEncoderDebugVisitor(
-      std::unique_ptr<QuicHpackDebugVisitor> visitor);
-  void SetHpackDecoderDebugVisitor(
-      std::unique_ptr<QuicHpackDebugVisitor> visitor);
 
   // Sets the maximum size of the header compression table spdy_framer_ is
   // willing to use to encode header blocks.

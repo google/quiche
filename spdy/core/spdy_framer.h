@@ -233,9 +233,6 @@ class QUICHE_EXPORT_PRIVATE SpdyFramer {
   // Returns the maximum size of the header encoder compression table.
   size_t header_encoder_table_size() const;
 
-  void SetEncoderHeaderTableDebugVisitor(
-      std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor);
-
   // Get (and lazily initialize) the HPACK encoder state.
   HpackEncoder* GetHpackEncoder();
 

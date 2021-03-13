@@ -1380,11 +1380,6 @@ size_t SpdyFramer::header_encoder_table_size() const {
   }
 }
 
-void SpdyFramer::SetEncoderHeaderTableDebugVisitor(
-    std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor) {
-  GetHpackEncoder()->SetHeaderTableDebugVisitor(std::move(visitor));
-}
-
 size_t SpdyFramer::EstimateMemoryUsage() const {
   return SpdyEstimateMemoryUsage(hpack_encoder_);
 }

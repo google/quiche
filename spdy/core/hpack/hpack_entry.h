@@ -72,9 +72,6 @@ class QUICHE_EXPORT_PRIVATE HpackEntry {
 
   std::string GetDebugString() const;
 
-  int64_t time_added() const { return time_added_; }
-  void set_time_added(int64_t now) { time_added_ = now; }
-
   // Returns the estimate of dynamically allocated memory in bytes.
   size_t EstimateMemoryUsage() const;
 
@@ -99,9 +96,6 @@ class QUICHE_EXPORT_PRIVATE HpackEntry {
   size_t insertion_index_;
 
   EntryType type_;
-
-  // For HpackHeaderTable::DebugVisitorInterface
-  int64_t time_added_;
 };
 
 }  // namespace spdy

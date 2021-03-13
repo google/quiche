@@ -17,7 +17,6 @@ namespace quic {
 
 class QuicHeadersStream;
 class QuicSpdySession;
-class QuicHpackDebugVisitor;
 
 namespace test {
 
@@ -29,12 +28,6 @@ class QuicSpdySessionPeer {
   static void SetHeadersStream(QuicSpdySession* session,
                                QuicHeadersStream* headers_stream);
   static spdy::SpdyFramer* GetSpdyFramer(QuicSpdySession* session);
-  static void SetHpackEncoderDebugVisitor(
-      QuicSpdySession* session,
-      std::unique_ptr<QuicHpackDebugVisitor> visitor);
-  static void SetHpackDecoderDebugVisitor(
-      QuicSpdySession* session,
-      std::unique_ptr<QuicHpackDebugVisitor> visitor);
   // Must be called before Initialize().
   static void SetMaxInboundHeaderListSize(QuicSpdySession* session,
                                           size_t max_inbound_header_size);

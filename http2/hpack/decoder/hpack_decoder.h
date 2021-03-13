@@ -45,11 +45,6 @@ class QUICHE_EXPORT_PRIVATE HpackDecoder {
   HpackDecoder(const HpackDecoder&) = delete;
   HpackDecoder& operator=(const HpackDecoder&) = delete;
 
-  // Set listener to be notified of insertions into the HPACK dynamic table,
-  // and uses of those entries.
-  void set_tables_debug_listener(
-      HpackDecoderTablesDebugListener* debug_listener);
-
   // max_string_size specifies the maximum size of an on-the-wire string (name
   // or value, plain or Huffman encoded) that will be accepted. See sections
   // 5.1 and 5.2 of RFC 7541. This is a defense against OOM attacks; HTTP/2
