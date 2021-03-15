@@ -105,27 +105,27 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
  private:
   friend class test::QpackEncoderPeer;
 
-  using Instructions = std::vector<QpackInstructionWithValues>;
+  using Representation = QpackInstructionWithValues;
+  using Representations = std::vector<Representation>;
 
-  // Generate indexed header field instruction
+  // Generate indexed header field representation
   // and optionally update |*referred_indices|.
-  static QpackInstructionWithValues EncodeIndexedHeaderField(
+  static Representation EncodeIndexedHeaderField(
       bool is_static,
       uint64_t index,
       QpackBlockingManager::IndexSet* referred_indices);
 
-  // Generate literal header field with name reference instruction
+  // Generate literal header field with name reference representation
   // and optionally update |*referred_indices|.
-  static QpackInstructionWithValues EncodeLiteralHeaderFieldWithNameReference(
+  static Representation EncodeLiteralHeaderFieldWithNameReference(
       bool is_static,
       uint64_t index,
       absl::string_view value,
       QpackBlockingManager::IndexSet* referred_indices);
 
-  // Generate literal header field instruction.
-  static QpackInstructionWithValues EncodeLiteralHeaderField(
-      absl::string_view name,
-      absl::string_view value);
+  // Generate literal header field representation.
+  static Representation EncodeLiteralHeaderField(absl::string_view name,
+                                                 absl::string_view value);
 
   // Performs first pass of two-pass encoding: represent each header field in
   // |*header_list| as a reference to an existing entry, the name of an existing
@@ -136,17 +136,18 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   // sets |*encoder_stream_sent_byte_count| to the number of bytes sent on the
   // encoder stream to insert dynamic table entries.  Returns list of header
   // field representations, with all dynamic table entries referred to with
-  // absolute indices.  Returned Instructions object may have
+  // absolute indices.  Returned representation objects may have
   // absl::string_views pointing to strings owned by |*header_list|.
-  Instructions FirstPassEncode(QuicStreamId stream_id,
-                               const spdy::Http2HeaderBlock& header_list,
-                               QpackBlockingManager::IndexSet* referred_indices,
-                               QuicByteCount* encoder_stream_sent_byte_count);
+  Representations FirstPassEncode(
+      QuicStreamId stream_id,
+      const spdy::Http2HeaderBlock& header_list,
+      QpackBlockingManager::IndexSet* referred_indices,
+      QuicByteCount* encoder_stream_sent_byte_count);
 
   // Performs second pass of two-pass encoding: serializes representations
   // generated in first pass, transforming absolute indices of dynamic table
   // entries to relative indices.
-  std::string SecondPassEncode(Instructions instructions,
+  std::string SecondPassEncode(Representations representations,
                                uint64_t required_insert_count) const;
 
   DecoderStreamErrorDelegate* const decoder_stream_error_delegate_;
