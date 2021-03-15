@@ -81,13 +81,13 @@ class QpackHeaderTableTest : public QuicTest {
         << name << ": " << value;
   }
 
-  void InsertEntry(absl::string_view name, absl::string_view value) {
-    EXPECT_TRUE(table_.InsertEntry(name, value));
+  bool EntryFitsDynamicTableCapacity(absl::string_view name,
+                                     absl::string_view value) const {
+    return table_.EntryFitsDynamicTableCapacity(name, value);
   }
 
-  void ExpectToFailInsertingEntry(absl::string_view name,
-                                  absl::string_view value) {
-    EXPECT_FALSE(table_.InsertEntry(name, value));
+  void InsertEntry(absl::string_view name, absl::string_view value) {
+    table_.InsertEntry(name, value);
   }
 
   bool SetDynamicTableCapacity(uint64_t capacity) {
@@ -293,9 +293,6 @@ TEST_F(QpackHeaderTableTest, EvictByInsertion) {
   ExpectNoMatch("foo", "bar");
   ExpectMatch("baz", "qux", QpackHeaderTable::MatchType::kNameAndValue,
               /* expected_is_static = */ false, 1u);
-
-  // Inserting an entry that does not fit results in error.
-  ExpectToFailInsertingEntry("foobar", "foobar");
 }
 
 TEST_F(QpackHeaderTableTest, EvictByUpdateTableSize) {
@@ -389,7 +386,7 @@ TEST_F(QpackHeaderTableTest, MaxInsertSizeWithoutEvictingGivenEntry) {
             table.MaxInsertSizeWithoutEvictingGivenEntry(0));
 
   const uint64_t entry_size1 = QpackEntry::Size("foo", "bar");
-  EXPECT_TRUE(table.InsertEntry("foo", "bar"));
+  table.InsertEntry("foo", "bar");
   EXPECT_EQ(dynamic_table_capacity - entry_size1,
             table.MaxInsertSizeWithoutEvictingGivenEntry(0));
   // Table can take an entry up to its capacity if all entries are allowed to be
@@ -398,7 +395,7 @@ TEST_F(QpackHeaderTableTest, MaxInsertSizeWithoutEvictingGivenEntry) {
             table.MaxInsertSizeWithoutEvictingGivenEntry(1));
 
   const uint64_t entry_size2 = QpackEntry::Size("baz", "foobar");
-  EXPECT_TRUE(table.InsertEntry("baz", "foobar"));
+  table.InsertEntry("baz", "foobar");
   // Table can take an entry up to its capacity if all entries are allowed to be
   // evicted.
   EXPECT_EQ(dynamic_table_capacity,
@@ -412,7 +409,7 @@ TEST_F(QpackHeaderTableTest, MaxInsertSizeWithoutEvictingGivenEntry) {
 
   // Third entry evicts first one.
   const uint64_t entry_size3 = QpackEntry::Size("last", "entry");
-  EXPECT_TRUE(table.InsertEntry("last", "entry"));
+  table.InsertEntry("last", "entry");
   EXPECT_EQ(1u, table.dropped_entry_count());
   // Table can take an entry up to its capacity if all entries are allowed to be
   // evicted.
@@ -497,14 +494,14 @@ TEST_F(QpackHeaderTableTest, DrainingIndex) {
   EXPECT_EQ(0u, table.draining_index(1.0));
 
   // Table with one entry.
-  EXPECT_TRUE(table.InsertEntry("foo", "bar"));
+  table.InsertEntry("foo", "bar");
   // Any entry can be referenced if none of the table is draining.
   EXPECT_EQ(0u, table.draining_index(0.0));
   // No entry can be referenced if all of the table is draining.
   EXPECT_EQ(1u, table.draining_index(1.0));
 
   // Table with two entries is at half capacity.
-  EXPECT_TRUE(table.InsertEntry("foo", "bar"));
+  table.InsertEntry("foo", "bar");
   // Any entry can be referenced if at most half of the table is draining,
   // because current entries only take up half of total capacity.
   EXPECT_EQ(0u, table.draining_index(0.0));
@@ -513,8 +510,8 @@ TEST_F(QpackHeaderTableTest, DrainingIndex) {
   EXPECT_EQ(2u, table.draining_index(1.0));
 
   // Table with four entries is full.
-  EXPECT_TRUE(table.InsertEntry("foo", "bar"));
-  EXPECT_TRUE(table.InsertEntry("foo", "bar"));
+  table.InsertEntry("foo", "bar");
+  table.InsertEntry("foo", "bar");
   // Any entry can be referenced if none of the table is draining.
   EXPECT_EQ(0u, table.draining_index(0.0));
   // In a full table with identically sized entries, |draining_fraction| of all
@@ -531,6 +528,14 @@ TEST_F(QpackHeaderTableTest, Cancel) {
 
   EXPECT_CALL(observer, Cancel);
   table.reset();
+}
+
+TEST_F(QpackHeaderTableTest, EntryFitsDynamicTableCapacity) {
+  EXPECT_TRUE(SetDynamicTableCapacity(39));
+
+  EXPECT_TRUE(EntryFitsDynamicTableCapacity("foo", "bar"));
+  EXPECT_TRUE(EntryFitsDynamicTableCapacity("foo", "bar2"));
+  EXPECT_FALSE(EntryFitsDynamicTableCapacity("foo", "bar12"));
 }
 
 }  // namespace

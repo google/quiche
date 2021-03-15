@@ -75,11 +75,16 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
                             bool* is_static,
                             uint64_t* index) const;
 
-  // Insert (name, value) into the dynamic table.  May evict entries.  Returns a
-  // pointer to the inserted owned entry on success.  Returns nullptr if entry
-  // is larger than the capacity of the dynamic table.
-  const QpackEntry* InsertEntry(absl::string_view name,
-                                absl::string_view value);
+  // Returns whether an entry with |name| and |value| has a size (including
+  // overhead) that is smaller than or equal to the capacity of the dynamic
+  // table.
+  bool EntryFitsDynamicTableCapacity(absl::string_view name,
+                                     absl::string_view value) const;
+
+  // Inserts (name, value) into the dynamic table.  Entry must not be larger
+  // than the capacity of the dynamic table.  May evict entries.  Returns the
+  // absolute index of the inserted dynamic table entry.
+  uint64_t InsertEntry(absl::string_view name, absl::string_view value);
 
   // Returns the size of the largest entry that could be inserted into the
   // dynamic table without evicting entry |index|.  |index| might be larger than

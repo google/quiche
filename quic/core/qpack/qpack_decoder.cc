@@ -81,11 +81,12 @@ void QpackDecoder::OnInsertWithNameReference(bool is_static,
       return;
     }
 
-    entry = header_table_.InsertEntry(entry->name(), value);
-    if (!entry) {
+    if (!header_table_.EntryFitsDynamicTableCapacity(entry->name(), value)) {
       OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_STATIC,
                       "Error inserting entry with name reference.");
+      return;
     }
+    header_table_.InsertEntry(entry->name(), value);
     return;
   }
 
@@ -104,20 +105,22 @@ void QpackDecoder::OnInsertWithNameReference(bool is_static,
                     "Dynamic table entry not found.");
     return;
   }
-  entry = header_table_.InsertEntry(entry->name(), value);
-  if (!entry) {
+  if (!header_table_.EntryFitsDynamicTableCapacity(entry->name(), value)) {
     OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_DYNAMIC,
                     "Error inserting entry with name reference.");
+    return;
   }
+  header_table_.InsertEntry(entry->name(), value);
 }
 
 void QpackDecoder::OnInsertWithoutNameReference(absl::string_view name,
                                                 absl::string_view value) {
-  const QpackEntry* entry = header_table_.InsertEntry(name, value);
-  if (!entry) {
+  if (!header_table_.EntryFitsDynamicTableCapacity(name, value)) {
     OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_LITERAL,
                     "Error inserting literal entry.");
+    return;
   }
+  header_table_.InsertEntry(name, value);
 }
 
 void QpackDecoder::OnDuplicate(uint64_t index) {
@@ -136,13 +139,13 @@ void QpackDecoder::OnDuplicate(uint64_t index) {
                     "Dynamic table entry not found.");
     return;
   }
-  entry = header_table_.InsertEntry(entry->name(), entry->value());
-  if (!entry) {
-    // InsertEntry() can only fail if entry is larger then dynamic table
-    // capacity, but that is impossible since entry was retrieved from the
-    // dynamic table.
+  if (!header_table_.EntryFitsDynamicTableCapacity(entry->name(),
+                                                   entry->value())) {
+    // This is impossible since entry was retrieved from the dynamic table.
     OnErrorDetected(QUIC_INTERNAL_ERROR, "Error inserting duplicate entry.");
+    return;
   }
+  header_table_.InsertEntry(entry->name(), entry->value());
 }
 
 void QpackDecoder::OnSetDynamicTableCapacity(uint64_t capacity) {

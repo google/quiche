@@ -96,12 +96,15 @@ QpackHeaderTable::MatchType QpackHeaderTable::FindHeaderField(
   return MatchType::kNoMatch;
 }
 
-const QpackEntry* QpackHeaderTable::InsertEntry(absl::string_view name,
-                                                absl::string_view value) {
-  const uint64_t entry_size = QpackEntry::Size(name, value);
-  if (entry_size > dynamic_table_capacity_) {
-    return nullptr;
-  }
+bool QpackHeaderTable::EntryFitsDynamicTableCapacity(
+    absl::string_view name,
+    absl::string_view value) const {
+  return QpackEntry::Size(name, value) <= dynamic_table_capacity_;
+}
+
+uint64_t QpackHeaderTable::InsertEntry(absl::string_view name,
+                                       absl::string_view value) {
+  QUICHE_DCHECK(EntryFitsDynamicTableCapacity(name, value));
 
   const uint64_t index = dropped_entry_count_ + dynamic_entries_.size();
   dynamic_entries_.push_back({name, value, /* is_static = */ false, index});
@@ -109,7 +112,7 @@ const QpackEntry* QpackHeaderTable::InsertEntry(absl::string_view name,
 
   // Evict entries after inserting the new entry instead of before
   // in order to avoid invalidating |name| and |value|.
-  dynamic_table_size_ += entry_size;
+  dynamic_table_size_ += QpackEntry::Size(name, value);
   EvictDownToCurrentCapacity();
 
   auto index_result = dynamic_index_.insert(new_entry);
@@ -147,7 +150,7 @@ const QpackEntry* QpackHeaderTable::InsertEntry(absl::string_view name,
     observer->OnInsertCountReachedThreshold();
   }
 
-  return new_entry;
+  return index;
 }
 
 uint64_t QpackHeaderTable::MaxInsertSizeWithoutEvictingGivenEntry(

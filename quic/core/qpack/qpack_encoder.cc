@@ -156,9 +156,9 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
             encoder_stream_sender_.SendDuplicate(
                 QpackAbsoluteIndexToEncoderStreamRelativeIndex(
                     index, header_table_.inserted_entry_count()));
-            auto entry = header_table_.InsertEntry(name, value);
+            uint64_t new_index = header_table_.InsertEntry(name, value);
             instructions.push_back(EncodeIndexedHeaderField(
-                is_static, entry->InsertionIndex(), referred_indices));
+                is_static, new_index, referred_indices));
             smallest_blocking_index = std::min(smallest_blocking_index, index);
             header_table_.set_dynamic_table_entry_referenced();
 
@@ -184,12 +184,11 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
             // If allowed, insert entry into dynamic table and refer to it.
             encoder_stream_sender_.SendInsertWithNameReference(is_static, index,
                                                                value);
-            auto entry = header_table_.InsertEntry(name, value);
+            uint64_t new_index = header_table_.InsertEntry(name, value);
             instructions.push_back(EncodeIndexedHeaderField(
-                /* is_static = */ false, entry->InsertionIndex(),
-                referred_indices));
-            smallest_blocking_index = std::min<uint64_t>(
-                smallest_blocking_index, entry->InsertionIndex());
+                /* is_static = */ false, new_index, referred_indices));
+            smallest_blocking_index =
+                std::min<uint64_t>(smallest_blocking_index, new_index);
 
             break;
           }
@@ -214,9 +213,9 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
               QpackAbsoluteIndexToEncoderStreamRelativeIndex(
                   index, header_table_.inserted_entry_count()),
               value);
-          auto entry = header_table_.InsertEntry(name, value);
-          instructions.push_back(EncodeIndexedHeaderField(
-              is_static, entry->InsertionIndex(), referred_indices));
+          uint64_t new_index = header_table_.InsertEntry(name, value);
+          instructions.push_back(
+              EncodeIndexedHeaderField(is_static, new_index, referred_indices));
           smallest_blocking_index = std::min(smallest_blocking_index, index);
           header_table_.set_dynamic_table_entry_referenced();
 
@@ -253,12 +252,11 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
           dynamic_table_insertion_blocked = true;
         } else {
           encoder_stream_sender_.SendInsertWithoutNameReference(name, value);
-          auto entry = header_table_.InsertEntry(name, value);
+          uint64_t new_index = header_table_.InsertEntry(name, value);
           instructions.push_back(EncodeIndexedHeaderField(
-              /* is_static = */ false, entry->InsertionIndex(),
-              referred_indices));
-          smallest_blocking_index = std::min<uint64_t>(smallest_blocking_index,
-                                                       entry->InsertionIndex());
+              /* is_static = */ false, new_index, referred_indices));
+          smallest_blocking_index =
+              std::min<uint64_t>(smallest_blocking_index, new_index);
 
           break;
         }
