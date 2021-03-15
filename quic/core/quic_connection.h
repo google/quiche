@@ -239,6 +239,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Called by the server to send another token.
   // Return false if the crypto stream fail to generate one.
   virtual void MaybeSendAddressToken() = 0;
+
+  // Whether the server address is known to the connection.
+  virtual bool IsKnownServerAddress(const QuicSocketAddress& address) const = 0;
 };
 
 // Interface which gets callbacks from the QuicConnection at interesting

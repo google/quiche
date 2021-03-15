@@ -311,6 +311,9 @@ void MockableQuicClient::UseWriter(QuicPacketWriterWrapper* writer) {
 
 void MockableQuicClient::set_peer_address(const QuicSocketAddress& address) {
   mockable_network_helper()->set_peer_address(address);
+  if (client_session() != nullptr) {
+    client_session()->AddKnownServerAddress(address);
+  }
 }
 
 const QuicReceivedPacket* MockableQuicClient::last_incoming_packet() {

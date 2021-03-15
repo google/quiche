@@ -170,6 +170,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void BeforeConnectionCloseSent() override {}
   bool ValidateToken(absl::string_view token) const override;
   void MaybeSendAddressToken() override;
+  bool IsKnownServerAddress(
+      const QuicSocketAddress& /*address*/) const override {
+    return false;
+  }
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,

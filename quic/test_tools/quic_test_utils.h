@@ -33,6 +33,7 @@
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_mem_slice_storage.h"
+#include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/mock_clock.h"
 #include "quic/test_tools/mock_quic_session_visitor.h"
@@ -622,6 +623,11 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(void, BeforeConnectionCloseSent, (), (override));
   MOCK_METHOD(bool, ValidateToken, (absl::string_view), (const, override));
   MOCK_METHOD(void, MaybeSendAddressToken, (), (override));
+
+  bool IsKnownServerAddress(
+      const QuicSocketAddress& /*address*/) const override {
+    return false;
+  }
 };
 
 class MockQuicConnectionHelper : public QuicConnectionHelperInterface {

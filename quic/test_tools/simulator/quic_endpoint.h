@@ -114,6 +114,10 @@ class QuicEndpoint : public QuicEndpointBase,
     return true;
   }
   void MaybeSendAddressToken() override {}
+  bool IsKnownServerAddress(
+      const QuicSocketAddress& /*address*/) const override {
+    return false;
+  }
 
   // End QuicConnectionVisitorInterface implementation.
 

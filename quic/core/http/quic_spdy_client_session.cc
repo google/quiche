@@ -104,6 +104,18 @@ const QuicCryptoClientStreamBase* QuicSpdyClientSession::GetCryptoStream()
   return crypto_stream_.get();
 }
 
+bool QuicSpdyClientSession::IsKnownServerAddress(
+    const QuicSocketAddress& address) const {
+  return std::find(known_server_addresses_.cbegin(),
+                   known_server_addresses_.cend(),
+                   address) != known_server_addresses_.cend();
+}
+
+void QuicSpdyClientSession::AddKnownServerAddress(
+    const QuicSocketAddress& address) {
+  known_server_addresses_.push_back(address);
+}
+
 void QuicSpdyClientSession::CryptoConnect() {
   QUICHE_DCHECK(flow_controller());
   crypto_stream_->CryptoConnect();

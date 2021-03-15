@@ -2861,6 +2861,17 @@ void QuicConnection::ReplaceInitialServerConnectionId(
 }
 
 bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
+  if (perspective_ == Perspective::IS_CLIENT && version().HasIetfQuicFrames() &&
+      direct_peer_address_.IsInitialized() &&
+      last_packet_source_address_.IsInitialized() &&
+      direct_peer_address_ != last_packet_source_address_ &&
+      !visitor_->IsKnownServerAddress(last_packet_source_address_)) {
+    // TODO(haoyuewang) Revisit this when preferred_address transport parameter
+    // is used on the client side.
+    // Discard packets received from unseen server addresses.
+    return false;
+  }
+
   if (perspective_ == Perspective::IS_SERVER &&
       default_path_.self_address.IsInitialized() &&
       last_packet_destination_address_.IsInitialized() &&
@@ -5275,7 +5286,8 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
       return connected_;
     }
     QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 3, 5);
-    if (type == PATH_CHALLENGE_FRAME &&
+    if (perspective_ == Perspective::IS_SERVER &&
+        type == PATH_CHALLENGE_FRAME &&
         !IsAlternativePath(last_packet_destination_address_,
                            current_effective_peer_address)) {
       QUIC_DVLOG(1)
