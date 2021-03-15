@@ -470,9 +470,13 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   static std::unique_ptr<QuicEncryptedPacket> BuildPublicResetPacket(
       const QuicPublicResetPacket& packet);
 
+  // Returns the minimal stateless reset packet length.
+  static size_t GetMinStatelessResetPacketLength();
+
   // Returns a new IETF stateless reset packet.
   static std::unique_ptr<QuicEncryptedPacket> BuildIetfStatelessResetPacket(
       QuicConnectionId connection_id,
+      size_t received_packet_length,
       QuicUint128 stateless_reset_token);
 
   // Returns a new version negotiation packet.

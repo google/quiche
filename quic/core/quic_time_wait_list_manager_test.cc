@@ -41,6 +41,8 @@ namespace quic {
 namespace test {
 namespace {
 
+const size_t kTestPacketSize = 100;
+
 class FramerVisitorCapturingPublicReset : public NoOpFramerVisitor {
  public:
   FramerVisitorCapturingPublicReset(QuicConnectionId connection_id)
@@ -176,7 +178,7 @@ class QuicTimeWaitListManagerTest : public QuicTest {
   void ProcessPacket(QuicConnectionId connection_id) {
     time_wait_list_manager_.ProcessPacket(
         self_address_, peer_address_, connection_id, GOOGLE_QUIC_PACKET,
-        std::make_unique<QuicPerPacketContext>());
+        kTestPacketSize, std::make_unique<QuicPerPacketContext>());
   }
 
   QuicEncryptedPacket* ConstructEncryptedPacket(
@@ -684,7 +686,8 @@ TEST_F(QuicTimeWaitListManagerTest,
   // Processes IETF short header packet.
   time_wait_list_manager_.ProcessPacket(
       self_address_, peer_address_, connection_id_,
-      IETF_QUIC_SHORT_HEADER_PACKET, std::make_unique<QuicPerPacketContext>());
+      IETF_QUIC_SHORT_HEADER_PACKET, kTestPacketSize,
+      std::make_unique<QuicPerPacketContext>());
 }
 
 TEST_F(QuicTimeWaitListManagerTest,
@@ -707,7 +710,8 @@ TEST_F(QuicTimeWaitListManagerTest,
   // Processes IETF short header packet.
   time_wait_list_manager_.ProcessPacket(
       self_address_, peer_address_, connection_id_,
-      IETF_QUIC_SHORT_HEADER_PACKET, std::make_unique<QuicPerPacketContext>());
+      IETF_QUIC_SHORT_HEADER_PACKET, kTestPacketSize,
+      std::make_unique<QuicPerPacketContext>());
 }
 
 TEST_F(QuicTimeWaitListManagerTest,
@@ -741,7 +745,7 @@ TEST_F(QuicTimeWaitListManagerTest,
   for (auto const& cid : active_connection_ids) {
     time_wait_list_manager_.ProcessPacket(
         self_address_, peer_address_, cid, IETF_QUIC_SHORT_HEADER_PACKET,
-        std::make_unique<QuicPerPacketContext>());
+        kTestPacketSize, std::make_unique<QuicPerPacketContext>());
   }
 }
 

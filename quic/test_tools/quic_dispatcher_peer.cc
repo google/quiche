@@ -87,10 +87,11 @@ void QuicDispatcherPeer::SendPublicReset(
     const QuicSocketAddress& peer_address,
     QuicConnectionId connection_id,
     bool ietf_quic,
+    size_t received_packet_length,
     std::unique_ptr<QuicPerPacketContext> packet_context) {
   dispatcher->time_wait_list_manager()->SendPublicReset(
       self_address, peer_address, connection_id, ietf_quic,
-      std::move(packet_context));
+      received_packet_length, std::move(packet_context));
 }
 
 // static

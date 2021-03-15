@@ -192,6 +192,7 @@ void QuicTimeWaitListManager::ProcessPacket(
     const QuicSocketAddress& peer_address,
     QuicConnectionId connection_id,
     PacketHeaderFormat header_format,
+    size_t received_packet_length,
     std::unique_ptr<QuicPerPacketContext> packet_context) {
   QUICHE_DCHECK(IsConnectionIdInTimeWait(connection_id));
   // TODO(satyamshekhar): Think about handling packets from different peer
@@ -240,7 +241,7 @@ void QuicTimeWaitListManager::ProcessPacket(
           // Send stateless reset in response to short header packets.
           SendPublicReset(self_address, peer_address, connection_id,
                           connection_data->info.ietf_quic,
-                          std::move(packet_context));
+                          received_packet_length, std::move(packet_context));
           return;
         case GOOGLE_QUIC_PACKET:
           if (connection_data->info.ietf_quic) {
@@ -273,7 +274,7 @@ void QuicTimeWaitListManager::ProcessPacket(
         QUIC_CODE_COUNT(quic_stateless_reset_long_header_packet);
       }
       SendPublicReset(self_address, peer_address, connection_id,
-                      connection_data->info.ietf_quic,
+                      connection_data->info.ietf_quic, received_packet_length,
                       std::move(packet_context));
       return;
     case DO_NOTHING:
@@ -318,10 +319,11 @@ void QuicTimeWaitListManager::SendPublicReset(
     const QuicSocketAddress& peer_address,
     QuicConnectionId connection_id,
     bool ietf_quic,
+    size_t received_packet_length,
     std::unique_ptr<QuicPerPacketContext> packet_context) {
   if (ietf_quic) {
     std::unique_ptr<QuicEncryptedPacket> ietf_reset_packet =
-        BuildIetfStatelessResetPacket(connection_id);
+        BuildIetfStatelessResetPacket(connection_id, received_packet_length);
     QUIC_DVLOG(2) << "Dispatcher sending IETF reset packet for "
                   << connection_id << std::endl
                   << quiche::QuicheTextUtils::HexDump(
@@ -333,6 +335,7 @@ void QuicTimeWaitListManager::SendPublicReset(
         packet_context.get());
     return;
   }
+  // Google QUIC public resets donot elicit resets in response.
   QuicPublicResetPacket packet;
   packet.connection_id = connection_id;
   // TODO(satyamshekhar): generate a valid nonce for this connection_id.
@@ -366,9 +369,11 @@ std::unique_ptr<QuicEncryptedPacket> QuicTimeWaitListManager::BuildPublicReset(
 
 std::unique_ptr<QuicEncryptedPacket>
 QuicTimeWaitListManager::BuildIetfStatelessResetPacket(
-    QuicConnectionId connection_id) {
+    QuicConnectionId connection_id,
+    size_t received_packet_length) {
   return QuicFramer::BuildIetfStatelessResetPacket(
-      connection_id, GetStatelessResetToken(connection_id));
+      connection_id, received_packet_length,
+      GetStatelessResetToken(connection_id));
 }
 
 // Either sends the packet and deletes it or makes pending queue the

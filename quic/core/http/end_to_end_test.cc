@@ -3273,8 +3273,8 @@ TEST_P(EndToEndTest, ServerSendPublicReset) {
                     Perspective::IS_SERVER, kQuicDefaultConnectionIdLength);
   std::unique_ptr<QuicEncryptedPacket> packet;
   if (version_.HasIetfInvariantHeader()) {
-    packet = framer.BuildIetfStatelessResetPacket(connection_id,
-                                                  stateless_reset_token);
+    packet = framer.BuildIetfStatelessResetPacket(
+        connection_id, /*received_packet_length=*/100, stateless_reset_token);
   } else {
     packet = framer.BuildPublicResetPacket(header);
   }
@@ -3317,8 +3317,9 @@ TEST_P(EndToEndTest, ServerSendPublicResetWithDifferentConnectionId) {
   NiceMock<MockQuicConnectionDebugVisitor> visitor;
   client_connection->set_debug_visitor(&visitor);
   if (version_.HasIetfInvariantHeader()) {
-    packet = framer.BuildIetfStatelessResetPacket(incorrect_connection_id,
-                                                  stateless_reset_token);
+    packet = framer.BuildIetfStatelessResetPacket(
+        incorrect_connection_id, /*received_packet_length=*/100,
+        stateless_reset_token);
     EXPECT_CALL(visitor, OnIncorrectConnectionId(incorrect_connection_id))
         .Times(0);
   } else {

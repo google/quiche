@@ -609,7 +609,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
     time_wait_list_manager_->ProcessPacket(
         packet_info.self_address, packet_info.peer_address,
         packet_info.destination_connection_id, packet_info.form,
-        GetPerPacketContext());
+        packet_info.packet.length(), GetPerPacketContext());
     return true;
   }
 
@@ -630,7 +630,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
     time_wait_list_manager()->ProcessPacket(
         packet_info.self_address, packet_info.peer_address,
         packet_info.destination_connection_id, packet_info.form,
-        GetPerPacketContext());
+        packet_info.packet.length(), GetPerPacketContext());
     OnNewConnectionRejected();
     return true;
   }
@@ -760,7 +760,8 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
           server_connection_id));
       time_wait_list_manager_->ProcessPacket(
           packet_info->self_address, packet_info->peer_address,
-          server_connection_id, packet_info->form, GetPerPacketContext());
+          server_connection_id, packet_info->form, packet_info->packet.length(),
+          GetPerPacketContext());
 
       buffered_packets_.DiscardPackets(server_connection_id);
       break;
@@ -1420,21 +1421,32 @@ bool QuicDispatcher::IsSupportedVersion(const ParsedQuicVersion version) {
 void QuicDispatcher::MaybeResetPacketsWithNoVersion(
     const ReceivedPacketInfo& packet_info) {
   QUICHE_DCHECK(!packet_info.version_flag);
-  const size_t MinValidPacketLength =
-      kPacketHeaderTypeSize + expected_server_connection_id_length_ +
-      PACKET_1BYTE_PACKET_NUMBER + /*payload size=*/1 + /*tag size=*/12;
-  if (packet_info.packet.length() < MinValidPacketLength) {
-    // The packet size is too small.
-    QUIC_CODE_COUNT(drop_too_small_packets);
-    return;
+  if (GetQuicReloadableFlag(quic_fix_stateless_reset) &&
+      packet_info.form != GOOGLE_QUIC_PACKET) {
+    // Drop IETF packets smaller than the minimal stateless reset length.
+    if (packet_info.packet.length() <=
+        QuicFramer::GetMinStatelessResetPacketLength()) {
+      QUIC_CODE_COUNT(quic_drop_too_small_short_header_packets);
+      return;
+    }
+  } else {
+    const size_t MinValidPacketLength =
+        kPacketHeaderTypeSize + expected_server_connection_id_length_ +
+        PACKET_1BYTE_PACKET_NUMBER + /*payload size=*/1 + /*tag size=*/12;
+    if (packet_info.packet.length() < MinValidPacketLength) {
+      // The packet size is too small.
+      QUIC_CODE_COUNT(drop_too_small_packets);
+      return;
+    }
+    // TODO(fayang): Consider rate limiting reset packets if reset packet size >
+    // packet_length.
   }
-  // TODO(fayang): Consider rate limiting reset packets if reset packet size >
-  // packet_length.
 
   time_wait_list_manager()->SendPublicReset(
       packet_info.self_address, packet_info.peer_address,
       packet_info.destination_connection_id,
-      packet_info.form != GOOGLE_QUIC_PACKET, GetPerPacketContext());
+      packet_info.form != GOOGLE_QUIC_PACKET, packet_info.packet.length(),
+      GetPerPacketContext());
 }
 
 size_t QuicDispatcher::NumSessions() const {

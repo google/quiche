@@ -118,11 +118,14 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
   // connection_id. Sending of the public reset packet is throttled by using
   // exponential back off. QUICHE_DCHECKs for the connection_id to be in time
   // wait state. virtual to override in tests.
+  // TODO(fayang): change ProcessPacket and SendPublicReset to take
+  // ReceivedPacketInfo.
   virtual void ProcessPacket(
       const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address,
       QuicConnectionId connection_id,
       PacketHeaderFormat header_format,
+      size_t received_packet_length,
       std::unique_ptr<QuicPerPacketContext> packet_context);
 
   // Called by the dispatcher when the underlying socket becomes writable again,
@@ -164,6 +167,7 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
       const QuicSocketAddress& peer_address,
       QuicConnectionId connection_id,
       bool ietf_quic,
+      size_t received_packet_length,
       std::unique_ptr<QuicPerPacketContext> packet_context);
 
   // Called to send |packet|.
@@ -257,7 +261,8 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
       QuicTime::Delta /*srtt*/) const {}
 
   std::unique_ptr<QuicEncryptedPacket> BuildIetfStatelessResetPacket(
-      QuicConnectionId connection_id);
+      QuicConnectionId connection_id,
+      size_t received_packet_length);
 
   // A map from a recently closed connection_id to the number of packets
   // received after the termination of the connection bound to the

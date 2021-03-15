@@ -57,6 +57,7 @@ class QuicDispatcherPeer {
       const QuicSocketAddress& peer_address,
       QuicConnectionId connection_id,
       bool ietf_quic,
+      size_t received_packet_length,
       std::unique_ptr<QuicPerPacketContext> packet_context);
 
   static std::unique_ptr<QuicPerPacketContext> GetPerPacketContext(

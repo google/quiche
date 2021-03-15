@@ -36,11 +36,12 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
 
   MOCK_METHOD(void,
               ProcessPacket,
-              (const QuicSocketAddress& server_address,
-               const QuicSocketAddress& client_address,
-               QuicConnectionId connection_id,
-               PacketHeaderFormat header_format,
-               std::unique_ptr<QuicPerPacketContext> packet_context),
+              (const QuicSocketAddress&,
+               const QuicSocketAddress&,
+               QuicConnectionId,
+               PacketHeaderFormat,
+               size_t,
+               std::unique_ptr<QuicPerPacketContext>),
               (override));
 
   MOCK_METHOD(void,
@@ -61,6 +62,7 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
                const QuicSocketAddress&,
                QuicConnectionId,
                bool,
+               size_t,
                std::unique_ptr<QuicPerPacketContext>),
               (override));
 
