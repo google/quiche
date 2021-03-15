@@ -206,6 +206,13 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
     return;
   }
 
+  // Send Early Hints first.
+  for (const auto& headers : response->early_hints()) {
+    QUIC_DVLOG(1) << "Stream " << id() << " sending an Early Hints response: "
+                  << headers.DebugString();
+    WriteHeaders(headers.Clone(), false, nullptr);
+  }
+
   if (response->response_type() == QuicBackendResponse::CLOSE_CONNECTION) {
     QUIC_DVLOG(1) << "Special response: closing connection.";
     OnUnrecoverableError(QUIC_NO_ERROR, "Toy server forcing close");

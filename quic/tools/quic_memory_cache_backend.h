@@ -110,6 +110,14 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
                    absl::string_view response_body,
                    spdy::Http2HeaderBlock response_trailers);
 
+  // Add a response, with 103 Early Hints, to the cache.
+  void AddResponseWithEarlyHints(
+      absl::string_view host,
+      absl::string_view path,
+      spdy::Http2HeaderBlock response_headers,
+      absl::string_view response_body,
+      const std::vector<spdy::Http2HeaderBlock>& early_hints);
+
   // Simulate a special behavior at a particular path.
   void AddSpecialResponse(
       absl::string_view host,
@@ -152,7 +160,8 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
                        QuicBackendResponse::SpecialResponseType response_type,
                        spdy::Http2HeaderBlock response_headers,
                        absl::string_view response_body,
-                       spdy::Http2HeaderBlock response_trailers);
+                       spdy::Http2HeaderBlock response_trailers,
+                       const std::vector<spdy::Http2HeaderBlock>& early_hints);
 
   std::string GetKey(absl::string_view host, absl::string_view path) const;
 

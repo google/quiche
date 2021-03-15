@@ -59,12 +59,17 @@ class TestStream : public QuicSimpleServerStream {
   ~TestStream() override = default;
 
   MOCK_METHOD(void, WriteHeadersMock, (bool fin), ());
+  MOCK_METHOD(void, WriteEarlyHintsHeadersMock, (bool fin), ());
 
-  size_t WriteHeaders(spdy::Http2HeaderBlock /*header_block*/,
+  size_t WriteHeaders(spdy::Http2HeaderBlock header_block,
                       bool fin,
                       QuicReferenceCountedPointer<QuicAckListenerInterface>
                       /*ack_listener*/) override {
-    WriteHeadersMock(fin);
+    if (header_block[":status"] == "103") {
+      WriteEarlyHintsHeadersMock(fin);
+    } else {
+      WriteHeadersMock(fin);
+    }
     return 0;
   }
 
@@ -579,6 +584,50 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithPushResources) {
   EXPECT_CALL(session_, WritevData(_, body.length(), _, FIN, _, _));
   stream_->DoSendResponse();
   EXPECT_EQ(*request_headers, session_.original_request_headers_);
+}
+
+TEST_P(QuicSimpleServerStreamTest, SendResponseWithEarlyHints) {
+  std::string host = "www.google.com";
+  std::string request_path = "/foo";
+  std::string body = "Yummm";
+
+  // Add a request and response with early hints.
+  spdy::Http2HeaderBlock* request_headers = stream_->mutable_headers();
+  (*request_headers)[":path"] = request_path;
+  (*request_headers)[":authority"] = host;
+  (*request_headers)[":method"] = "GET";
+
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount header_length =
+      HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
+  std::vector<spdy::Http2HeaderBlock> early_hints;
+  // Add two Early Hints.
+  const size_t kNumEarlyHintsResponses = 2;
+  for (size_t i = 0; i < kNumEarlyHintsResponses; ++i) {
+    spdy::Http2HeaderBlock hints;
+    hints["link"] = "</image.png>; rel=preload; as=image";
+    early_hints.push_back(std::move(hints));
+  }
+
+  response_headers_[":status"] = "200";
+  response_headers_["content-length"] = "5";
+  memory_cache_backend_.AddResponseWithEarlyHints(
+      host, request_path, std::move(response_headers_), body, early_hints);
+  QuicStreamPeer::SetFinReceived(stream_);
+
+  InSequence s;
+  for (size_t i = 0; i < kNumEarlyHintsResponses; ++i) {
+    EXPECT_CALL(*stream_, WriteEarlyHintsHeadersMock(false));
+  }
+  EXPECT_CALL(*stream_, WriteHeadersMock(false));
+  if (UsesHttp3()) {
+    EXPECT_CALL(session_, WritevData(_, header_length, _, NO_FIN, _, _));
+  }
+  EXPECT_CALL(session_, WritevData(_, body.length(), _, FIN, _, _));
+
+  stream_->DoSendResponse();
+  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
+  EXPECT_TRUE(stream_->write_side_closed());
 }
 
 TEST_P(QuicSimpleServerStreamTest, PushResponseOnClientInitiatedStream) {

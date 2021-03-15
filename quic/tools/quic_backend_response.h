@@ -50,10 +50,19 @@ class QuicBackendResponse {
 
   ~QuicBackendResponse();
 
+  const std::vector<spdy::Http2HeaderBlock>& early_hints() const {
+    return early_hints_;
+  }
   SpecialResponseType response_type() const { return response_type_; }
   const spdy::Http2HeaderBlock& headers() const { return headers_; }
   const spdy::Http2HeaderBlock& trailers() const { return trailers_; }
   const absl::string_view body() const { return absl::string_view(body_); }
+
+  void AddEarlyHints(const spdy::Http2HeaderBlock& headers) {
+    spdy::Http2HeaderBlock hints = headers.Clone();
+    hints[":status"] = "103";
+    early_hints_.push_back(std::move(hints));
+  }
 
   void set_response_type(SpecialResponseType response_type) {
     response_type_ = response_type;
@@ -70,6 +79,7 @@ class QuicBackendResponse {
   }
 
  private:
+  std::vector<spdy::Http2HeaderBlock> early_hints_;
   SpecialResponseType response_type_;
   spdy::Http2HeaderBlock headers_;
   spdy::Http2HeaderBlock trailers_;
