@@ -2055,6 +2055,12 @@ void QuicPacketCreator::set_encryption_level(EncryptionLevel level) {
 
 void QuicPacketCreator::AddPathChallengeFrame(
     const QuicPathFrameBuffer& payload) {
+  // TODO(danzh) Unify similar checks at several entry points into one in
+  // AddFrame(). Sort out test helper functions and peer class that don't
+  // enforce this check.
+  QUIC_BUG_IF_V2(quic_bug_10752_39, !flusher_attached_)
+      << "Packet flusher is not attached when "
+         "generator tries to write stream data.";
   // Write a PATH_CHALLENGE frame, which has a random 8-byte payload.
   auto path_challenge_frame = new QuicPathChallengeFrame(0, payload);
   QuicFrame frame(path_challenge_frame);

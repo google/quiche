@@ -1726,6 +1726,7 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   QuicConnectionPeer::SetAddressValidated(&connection_);
+  connection_.OnHandshakeComplete();
 
   // Enable 5 RTO
   QuicConfig config;
@@ -1771,6 +1772,7 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
   connection_.SendStreamData3();
   EXPECT_EQ(1u, writer_->packets_write_attempts());
   EXPECT_TRUE(connection_.BlackholeDetectionInProgress());
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // Process another packet with a different peer address on server side will
   // start connection migration.
@@ -1792,6 +1794,7 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
   EXPECT_EQ(IPV6_TO_IPV4_CHANGE,
             connection_.active_effective_peer_migration_type());
   EXPECT_FALSE(connection_.BlackholeDetectionInProgress());
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   EXPECT_EQ(2u, writer_->packets_write_attempts());
   EXPECT_FALSE(writer_->path_challenge_frames().empty());
@@ -1979,6 +1982,7 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   QuicConnectionPeer::SetAddressValidated(&connection_);
+  connection_.OnHandshakeComplete();
 
   // Clear direct_peer_address.
   QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
@@ -2016,14 +2020,16 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
 
   QuicFrames frames2;
   frames2.push_back(QuicFrame(frame2_));
+  QuicPaddingFrame padding;
+  frames2.push_back(QuicFrame(padding));
   ProcessFramesPacketWithAddresses(frames2, kSelfAddress, kNewPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
   EXPECT_EQ(IPV6_TO_IPV4_CHANGE,
             connection_.active_effective_peer_migration_type());
-  EXPECT_EQ(1u, writer_->packets_write_attempts());
-  EXPECT_FALSE(writer_->path_challenge_frames().empty());
+  EXPECT_LT(0u, writer_->packets_write_attempts());
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
   EXPECT_NE(connection_.sent_packet_manager().GetSendAlgorithm(),
             send_algorithm_);
   EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
@@ -2040,6 +2046,9 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   EXPECT_EQ(IPV6_TO_IPV4_CHANGE,
             connection_.active_effective_peer_migration_type());
 
+  SendStreamDataToPeer(1, "foo", 0, NO_FIN, nullptr);
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+
   // Advance the time so that the reverse path validation times out.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
   static_cast<TestAlarmFactory::TestAlarm*>(
@@ -2051,6 +2060,7 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
   EXPECT_EQ(connection_.sent_packet_manager().GetSendAlgorithm(),
             send_algorithm_);
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
 }
 
 TEST_P(QuicConnectionTest, ReceivePathProbeWithNoAddressChangeAtServer) {
@@ -11778,6 +11788,40 @@ TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
           kNewSelfAddress2, connection_.peer_address(), &success2));
   EXPECT_FALSE(success);
   EXPECT_TRUE(connection_.HasPendingPathValidation());
+}
+
+// Regression test for b/182571515.
+TEST_P(QuicConnectionTest, PathValidationRetry) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
+      !connection_.use_path_validator()) {
+    return;
+  }
+  PathProbeTestInit(Perspective::IS_CLIENT);
+
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(2u)
+      .WillRepeatedly(Invoke([&]() {
+        EXPECT_EQ(1u, writer_->path_challenge_frames().size());
+        EXPECT_EQ(1u, writer_->padding_frames().size());
+      }));
+  bool success = true;
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          connection_.self_address(), connection_.peer_address(),
+          writer_.get()),
+      std::make_unique<TestValidationResultDelegate>(
+          connection_.self_address(), connection_.peer_address(), &success));
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+
+  // Retry after time out.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
+  static_cast<test::MockRandom*>(helper_->GetRandomGenerator())->ChangeValue();
+  static_cast<TestAlarmFactory::TestAlarm*>(
+      QuicPathValidatorPeer::retry_timer(
+          QuicConnectionPeer::path_validator(&connection_)))
+      ->Fire();
+  EXPECT_EQ(2u, writer_->packets_write_attempts());
 }
 
 TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {

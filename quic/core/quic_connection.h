@@ -1722,6 +1722,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   virtual std::unique_ptr<QuicSelfIssuedConnectionIdManager>
   MakeSelfIssuedConnectionIdManager();
 
+  // Called on peer IP change or restoring to previous address to reset
+  // congestion window, RTT stats, retransmission timer, etc. Only used in IETF
+  // QUIC.
+  std::unique_ptr<SendAlgorithmInterface> OnPeerIpAddressChanged();
+
   // Process NewConnectionIdFrame either sent from peer or synsthesized from
   // preferred_address transport parameter.
   bool OnNewConnectionIdFrameInner(const QuicNewConnectionIdFrame& frame);

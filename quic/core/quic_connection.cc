@@ -375,7 +375,7 @@ QuicConnection::QuicConnection(
       validate_client_addresses_(
           framer_.version().HasIetfQuicFrames() && use_path_validator_ &&
           count_bytes_on_alternative_path_separately_ &&
-          GetQuicReloadableFlag(quic_server_reverse_validate_new_path)) {
+          GetQuicReloadableFlag(quic_server_reverse_validate_new_path2)) {
   QUIC_BUG_IF_V2(quic_bug_12714_1,
                  !start_peer_migration_earlier_ && send_path_response_);
 
@@ -1677,6 +1677,7 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
   if (!validate_client_addresses_) {
     return OnPathChallengeFrameInternal(frame);
   }
+  QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path2, 1, 5);
   {
     // UpdatePacketStateAndReplyPathChallenge() may start reverse path
     // validation, if so bundle the PATH_CHALLENGE together with the
@@ -4961,6 +4962,7 @@ void QuicConnection::OnEffectivePeerMigrationValidated() {
   if (!validate_client_addresses_) {
     return;
   }
+  QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path2, 2, 5);
   if (debug_visitor_ != nullptr) {
     const QuicTime now = clock_->ApproximateNow();
     if (now >= stats_.handshake_completion_time) {
@@ -5005,6 +5007,7 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
     return;
   }
 
+  QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path2, 3, 5);
   if (type == NO_CHANGE) {
     UpdatePeerAddress(last_packet_source_address_);
     QUIC_BUG_V2(quic_bug_10511_36)
@@ -5052,14 +5055,7 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
     // congestion controller to initial state first and then change to the one
     // on alternative path.
     // TODO(danzh) combine these two steps into one after deprecating gQUIC.
-    previous_default_path.send_algorithm =
-        sent_packet_manager_.OnConnectionMigration(
-            /*reset_send_algorithm=*/true);
-    // OnConnectionMigration() might have marked in-flight packets to be
-    // retransmitted if there is any.
-    QUICHE_DCHECK(!sent_packet_manager_.HasInFlightPackets());
-    // Stop detections in quiecense.
-    blackhole_detector_.StopDetection();
+    previous_default_path.send_algorithm = OnPeerIpAddressChanged();
 
     if (alternative_path_.peer_address.host() ==
             current_effective_peer_address.host() &&
@@ -5290,6 +5286,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
         alternative_path_ = PathState(last_packet_destination_address_,
                                       current_effective_peer_address);
       } else if (!default_path_.validated) {
+        QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path2, 4, 5);
         // Skip reverse path validation because either handshake hasn't
         // completed or the connection is validating the default path. Using
         // PATH_CHALLENGE to validate alternative client address before
@@ -5303,6 +5300,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
                        IsHandshakeConfirmed() && !alternative_path_.validated)
             << "No validated peer address to send after handshake comfirmed.";
       } else if (!IsReceivedPeerAddressValidated()) {
+        QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path2, 5, 5);
         // Only override alternative path state upon receiving a PATH_CHALLENGE
         // from an unvalidated peer address, and the connection isn't validating
         // a recent peer migration.
@@ -6192,6 +6190,7 @@ bool QuicConnection::SendPathChallenge(
     const QuicSocketAddress& /*effective_peer_address*/,
     QuicPacketWriter* writer) {
   if (writer == writer_) {
+    ScopedPacketFlusher flusher(this);
     {
       // It's on current path, add the PATH_CHALLENGE the same way as other
       // frames.
@@ -6541,10 +6540,7 @@ void QuicConnection::RestoreToLastValidatedPath(
   }
 
   // Revert congestion control context to old state.
-  sent_packet_manager_.OnConnectionMigration(true);
-  QUICHE_DCHECK(!sent_packet_manager_.HasInFlightPackets());
-  // Stop detections in quiecense.
-  blackhole_detector_.StopDetection();
+  OnPeerIpAddressChanged();
 
   if (alternative_path_.send_algorithm != nullptr) {
     sent_packet_manager_.SetSendAlgorithm(
@@ -6563,6 +6559,23 @@ void QuicConnection::RestoreToLastValidatedPath(
   // The reverse path validation failed because of alarm firing, flush all the
   // pending writes previously throttled by anti-amplification limit.
   WriteIfNotBlocked();
+}
+
+std::unique_ptr<SendAlgorithmInterface>
+QuicConnection::OnPeerIpAddressChanged() {
+  QUICHE_DCHECK(validate_client_addresses_);
+  std::unique_ptr<SendAlgorithmInterface> old_send_algorithm =
+      sent_packet_manager_.OnConnectionMigration(
+          /*reset_send_algorithm=*/true);
+  // OnConnectionMigration() should have marked in-flight packets to be
+  // retransmitted if there is any.
+  QUICHE_DCHECK(!sent_packet_manager_.HasInFlightPackets());
+  // OnConnectionMigration() may have changed the retransmission timer, so
+  // re-arm it.
+  SetRetransmissionAlarm();
+  // Stop detections in quiecense.
+  blackhole_detector_.StopDetection();
+  return old_send_algorithm;
 }
 
 #undef ENDPOINT  // undef for jumbo builds
