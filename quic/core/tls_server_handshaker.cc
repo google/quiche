@@ -757,7 +757,7 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
                          decrypt_ticket_stats.async_latency,
                          "Async decrypt ticket latency in microseconds");
   }
-  connection_stats().tls_server_compute_signature_stats =
+  connection_stats().tls_server_decrypt_ticket_stats =
       std::move(decrypt_ticket_stats);
 
   return result;
