@@ -15,6 +15,7 @@
 #include "quic/core/proto/cached_network_parameters_proto.h"
 #include "quic/core/quic_crypto_server_stream_base.h"
 #include "quic/core/quic_crypto_stream.h"
+#include "quic/core/quic_time_accumulator.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/tls_handshaker.h"
 #include "quic/platform/api/quic_export.h"
@@ -155,6 +156,11 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
                                              size_t* out_len,
                                              size_t max_out_len,
                                              absl::string_view in) override;
+  // Called when ticket_decryption_callback_ is done to determine a final
+  // decryption result.
+  ssl_ticket_aead_result_t FinalizeSessionTicketOpen(uint8_t* out,
+                                                     size_t* out_len,
+                                                     size_t max_out_len);
   TlsConnection::Delegate* ConnectionDelegate() override { return this; }
 
   // The status of cert selection. nullopt means it hasn't started.
@@ -296,6 +302,11 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   bool ProcessTransportParameters(const SSL_CLIENT_HELLO* client_hello,
                                   std::string* error_details);
 
+  QuicConnectionStats& connection_stats() {
+    return session()->connection()->mutable_stats();
+  }
+  QuicTime now() const { return session()->GetClock()->Now(); }
+
   std::unique_ptr<ProofSourceHandle> proof_source_handle_;
   ProofSource* proof_source_;
   SignatureCallback* signature_callback_ = nullptr;
@@ -320,6 +331,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   std::string hostname_;
   std::string cert_verify_sig_;
   std::unique_ptr<ProofSource::Details> proof_source_details_;
+
+  // Count the duration of the current async operation, if any.
+  absl::optional<QuicTimeAccumulator> async_op_timer_;
 
   std::unique_ptr<ApplicationState> application_state_;
 

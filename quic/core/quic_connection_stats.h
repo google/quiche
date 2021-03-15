@@ -209,6 +209,21 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // which was canceled because the peer migrated again. Such migration is also
   // counted as invalid peer migration.
   size_t num_peer_migration_while_validating_default_path = 0;
+
+  struct QUIC_NO_EXPORT TlsServerOperationStats {
+    bool success = false;
+    // If the operation is performed asynchronously, how long did it take.
+    // Zero() for synchronous operations.
+    QuicTime::Delta async_latency = QuicTime::Delta::Zero();
+  };
+
+  // The TLS server op stats only have values when the corresponding operation
+  // is performed by TlsServerHandshaker. If an operation is done within
+  // BoringSSL, e.g. ticket decrypted without using
+  // TlsServerHandshaker::SessionTicketOpen, it will not be recorded here.
+  absl::optional<TlsServerOperationStats> tls_server_select_cert_stats;
+  absl::optional<TlsServerOperationStats> tls_server_compute_signature_stats;
+  absl::optional<TlsServerOperationStats> tls_server_decrypt_ticket_stats;
 };
 
 }  // namespace quic
