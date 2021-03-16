@@ -41,7 +41,7 @@ size_t QuicSpdyStreamBodyManager::OnBodyConsumed(size_t num_bytes) {
 
   while (remaining_bytes > 0) {
     if (fragments_.empty()) {
-      QUIC_BUG_V2(quic_bug_10394_1) << "Not enough available body to consume.";
+      QUIC_BUG(quic_bug_10394_1) << "Not enough available body to consume.";
       return 0;
     }
 
