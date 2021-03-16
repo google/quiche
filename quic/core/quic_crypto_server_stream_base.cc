@@ -42,7 +42,7 @@ std::unique_ptr<QuicCryptoServerStreamBase> CreateCryptoServerStream(
     case PROTOCOL_UNSUPPORTED:
       break;
   }
-  QUIC_BUG_V2(quic_bug_10492_1)
+  QUIC_BUG(quic_bug_10492_1)
       << "Unknown handshake protocol: "
       << static_cast<int>(session->connection()->version().handshake_protocol);
   return nullptr;

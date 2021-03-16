@@ -176,7 +176,7 @@ class StatelessConnectionTerminator {
                                      /*transport_close_frame_type=*/0);
 
     if (!creator_.AddFrame(QuicFrame(frame), NOT_RETRANSMISSION)) {
-      QUIC_BUG_V2(quic_bug_10287_1) << "Unable to add frame to an empty packet";
+      QUIC_BUG(quic_bug_10287_1) << "Unable to add frame to an empty packet";
       delete frame;
       return;
     }
@@ -265,7 +265,7 @@ bool MaybeHandleLegacyVersionEncapsulation(
   }
   if (legacy_version_encapsulation_inner_packet.length() >=
       packet_info.packet.length()) {
-    QUIC_BUG_V2(quic_bug_10287_2)
+    QUIC_BUG(quic_bug_10287_2)
         << "Inner packet cannot be larger than outer "
         << legacy_version_encapsulation_inner_packet.length() << " vs "
         << packet_info.packet.length();
@@ -328,7 +328,7 @@ QuicDispatcher::QuicDispatcher(
   if (use_reference_counted_session_map_) {
     QUIC_RESTART_FLAG_COUNT(quic_use_reference_counted_sesssion_map);
   }
-  QUIC_BUG_IF_V2(quic_bug_12724_1, GetSupportedVersions().empty())
+  QUIC_BUG_IF(quic_bug_12724_1, GetSupportedVersions().empty())
       << "Trying to create dispatcher without any supported versions";
   QUIC_DLOG(INFO) << "Created QuicDispatcher with versions: "
                   << ParsedQuicVersionVectorToString(GetSupportedVersions());
@@ -917,7 +917,7 @@ void QuicDispatcher::DeleteSessions() {
     if (!write_blocked_list_.empty()) {
       for (const auto& session : closed_ref_counted_session_list_) {
         if (write_blocked_list_.erase(session->connection()) != 0) {
-          QUIC_BUG_V2(quic_bug_12724_2)
+          QUIC_BUG(quic_bug_12724_2)
               << "QuicConnection was in WriteBlockedList before destruction "
               << session->connection()->connection_id();
         }
@@ -928,7 +928,7 @@ void QuicDispatcher::DeleteSessions() {
     if (!write_blocked_list_.empty()) {
       for (const std::unique_ptr<QuicSession>& session : closed_session_list_) {
         if (write_blocked_list_.erase(session->connection()) != 0) {
-          QUIC_BUG_V2(quic_bug_12724_3)
+          QUIC_BUG(quic_bug_12724_3)
               << "QuicConnection was in WriteBlockedList before destruction "
               << session->connection()->connection_id();
         }
@@ -1004,11 +1004,11 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
   if (use_reference_counted_session_map_) {
     auto it = reference_counted_session_map_.find(server_connection_id);
     if (it == reference_counted_session_map_.end()) {
-      QUIC_BUG_V2(quic_bug_10287_3)
+      QUIC_BUG(quic_bug_10287_3)
           << "ConnectionId " << server_connection_id
           << " does not exist in the session map.  Error: "
           << QuicErrorCodeToString(error);
-      QUIC_BUG_V2(quic_bug_10287_4) << QuicStackTrace();
+      QUIC_BUG(quic_bug_10287_4) << QuicStackTrace();
       return;
     }
 
@@ -1042,11 +1042,11 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
   } else {
     auto it = session_map_.find(server_connection_id);
     if (it == session_map_.end()) {
-      QUIC_BUG_V2(quic_bug_10287_5)
+      QUIC_BUG(quic_bug_10287_5)
           << "ConnectionId " << server_connection_id
           << " does not exist in the session map.  Error: "
           << QuicErrorCodeToString(error);
-      QUIC_BUG_V2(quic_bug_10287_6) << QuicStackTrace();
+      QUIC_BUG(quic_bug_10287_6) << QuicStackTrace();
       return;
     }
 
@@ -1075,7 +1075,7 @@ void QuicDispatcher::OnWriteBlocked(
   if (!blocked_writer->IsWriterBlocked()) {
     // It is a programming error if this ever happens. When we are sure it is
     // not happening, replace it with a QUICHE_DCHECK.
-    QUIC_BUG_V2(quic_bug_12724_4)
+    QUIC_BUG(quic_bug_12724_4)
         << "Tried to add writer into blocked list when it shouldn't be added";
     // Return without adding the connection to the blocked list, to avoid
     // infinite loops in OnCanWrite.
@@ -1096,7 +1096,7 @@ void QuicDispatcher::OnNewConnectionIdSent(
   QUICHE_DCHECK(support_multiple_cid_per_connection_);
   auto it = reference_counted_session_map_.find(server_connection_id);
   if (it == reference_counted_session_map_.end()) {
-    QUIC_BUG_V2(quic_bug_10287_7)
+    QUIC_BUG(quic_bug_10287_7)
         << "Couldn't locate the session that issues the connection ID in "
            "reference_counted_session_map_.  server_connection_id:"
         << server_connection_id << " new_connection_id: " << new_connection_id;
@@ -1230,7 +1230,7 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
           std::make_pair(server_connection_id,
                          std::shared_ptr<QuicSession>(std::move(session))));
       if (!insertion_result.second) {
-        QUIC_BUG_V2(quic_bug_12724_5)
+        QUIC_BUG(quic_bug_12724_5)
             << "Tried to add a session to session_map with existing connection "
                "id: "
             << server_connection_id;
@@ -1241,7 +1241,7 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
     } else {
       auto insertion_result = session_map_.insert(
           std::make_pair(server_connection_id, std::move(session)));
-      QUIC_BUG_IF_V2(quic_bug_12724_6, !insertion_result.second)
+      QUIC_BUG_IF(quic_bug_12724_6, !insertion_result.second)
           << "Tried to add a session to session_map with existing connection "
              "id: "
           << server_connection_id;
@@ -1306,9 +1306,8 @@ void QuicDispatcher::ProcessChlo(const std::vector<std::string>& alpns,
   if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
       new_sessions_allowed_per_event_loop_ <= 0) {
     // Can't create new session any more. Wait till next event loop.
-    QUIC_BUG_IF_V2(quic_bug_12724_7,
-                   buffered_packets_.HasChloForConnection(
-                       packet_info->destination_connection_id));
+    QUIC_BUG_IF(quic_bug_12724_7, buffered_packets_.HasChloForConnection(
+                                      packet_info->destination_connection_id));
     EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(
         packet_info->destination_connection_id,
         packet_info->form != GOOGLE_QUIC_PACKET, packet_info->packet,
@@ -1330,7 +1329,7 @@ void QuicDispatcher::ProcessChlo(const std::vector<std::string>& alpns,
       packet_info->destination_connection_id, packet_info->self_address,
       packet_info->peer_address, alpn, packet_info->version);
   if (QUIC_PREDICT_FALSE(session == nullptr)) {
-    QUIC_BUG_V2(quic_bug_10287_8)
+    QUIC_BUG(quic_bug_10287_8)
         << "CreateQuicSession returned nullptr for "
         << packet_info->destination_connection_id << " from "
         << packet_info->peer_address << " to " << packet_info->self_address
@@ -1351,7 +1350,7 @@ void QuicDispatcher::ProcessChlo(const std::vector<std::string>& alpns,
             packet_info->destination_connection_id,
             std::shared_ptr<QuicSession>(std::move(session.release()))));
     if (!insertion_result.second) {
-      QUIC_BUG_V2(quic_bug_10287_9)
+      QUIC_BUG(quic_bug_10287_9)
           << "Tried to add a session to session_map with existing "
              "connection id: "
           << packet_info->destination_connection_id;
@@ -1362,7 +1361,7 @@ void QuicDispatcher::ProcessChlo(const std::vector<std::string>& alpns,
   } else {
     auto insertion_result = session_map_.insert(std::make_pair(
         packet_info->destination_connection_id, std::move(session)));
-    QUIC_BUG_IF_V2(quic_bug_12724_8, !insertion_result.second)
+    QUIC_BUG_IF(quic_bug_12724_8, !insertion_result.second)
         << "Tried to add a session to session_map with existing connection id: "
         << packet_info->destination_connection_id;
     session_ptr = insertion_result.first->second.get();
