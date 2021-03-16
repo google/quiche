@@ -8,7 +8,7 @@
 #include "net/spdy/platform/impl/spdy_bug_tracker_impl.h"
 
 #define SPDY_BUG SPDY_BUG_IMPL
-#define SPDY_BUG_IF(condition) SPDY_BUG_IF_IMPL(condition)
+#define SPDY_BUG_IF(bug_id, condition) SPDY_BUG_IF_IMPL(bug_id, condition)
 
 // V2 macros are the same as all the SPDY_BUG flavor above, but they take a
 // bug_id parameter.
