@@ -64,7 +64,7 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
     const std::vector<uint8_t>& /*quic_transport_params*/,
     const absl::optional<std::vector<uint8_t>>& /*early_data_context*/) {
   if (!handshaker_ || !proof_source_) {
-    QUIC_BUG_V2(quic_bug_10341_1)
+    QUIC_BUG(quic_bug_10341_1)
         << "SelectCertificate called on a detached handle";
     return QUIC_FAILURE;
   }
@@ -75,7 +75,7 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
   handshaker_->OnSelectCertificateDone(
       /*ok=*/true, /*is_sync=*/true, chain.get());
   if (!handshaker_->select_cert_status().has_value()) {
-    QUIC_BUG_V2(quic_bug_12423_1)
+    QUIC_BUG(quic_bug_12423_1)
         << "select_cert_status() has no value after a synchronous select cert";
     // Return success to continue the handshake.
     return QUIC_SUCCESS;
@@ -91,13 +91,13 @@ QuicAsyncStatus TlsServerHandshaker::DefaultProofSourceHandle::ComputeSignature(
     absl::string_view in,
     size_t max_signature_size) {
   if (!handshaker_ || !proof_source_) {
-    QUIC_BUG_V2(quic_bug_10341_2)
+    QUIC_BUG(quic_bug_10341_2)
         << "ComputeSignature called on a detached handle";
     return QUIC_FAILURE;
   }
 
   if (signature_callback_) {
-    QUIC_BUG_V2(quic_bug_10341_3) << "ComputeSignature called while pending";
+    QUIC_BUG(quic_bug_10341_3) << "ComputeSignature called while pending";
     return QUIC_FAILURE;
   }
 
@@ -500,7 +500,7 @@ TlsServerHandshaker::SetTransportParameters() {
     std::vector<uint8_t> early_data_context;
     if (!SerializeTransportParametersForTicket(
             server_params, *application_state_, &early_data_context)) {
-      QUIC_BUG_V2(quic_bug_10341_4)
+      QUIC_BUG(quic_bug_10341_4)
           << "Failed to serialize Transport Parameters for ticket.";
       result.early_data_context = std::vector<uint8_t>();
       return result;
@@ -582,7 +582,7 @@ QuicAsyncStatus TlsServerHandshaker::VerifyCertChain(
     std::unique_ptr<ProofVerifyDetails>* /*details*/,
     uint8_t* /*out_alert*/,
     std::unique_ptr<ProofVerifierCallback> /*callback*/) {
-  QUIC_BUG_V2(quic_bug_10341_5)
+  QUIC_BUG(quic_bug_10341_5)
       << "Client certificates are not yet supported on the server";
   return QUIC_FAILURE;
 }
@@ -700,7 +700,7 @@ int TlsServerHandshaker::SessionTicketSeal(uint8_t* out,
   QUICHE_DCHECK(proof_source_->GetTicketCrypter());
   std::vector<uint8_t> ticket = proof_source_->GetTicketCrypter()->Encrypt(in);
   if (max_out_len < ticket.size()) {
-    QUIC_BUG_V2(quic_bug_12423_2)
+    QUIC_BUG(quic_bug_12423_2)
         << "TicketCrypter returned " << ticket.size()
         << " bytes of ciphertext, which is larger than its max overhead of "
         << max_out_len;
@@ -811,7 +811,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
 
   if (!pre_shared_key_.empty()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
-    QUIC_BUG_V2(quic_bug_10341_6)
+    QUIC_BUG(quic_bug_10341_6)
         << "QUIC server pre-shared keys not yet supported with TLS";
     return ssl_select_cert_error;
   }
