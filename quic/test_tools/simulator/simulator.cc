@@ -155,7 +155,7 @@ void Simulator::HandleNextScheduledActor() {
   Unschedule(actor);
 
   if (clock_.Now() > event_time) {
-    QUIC_BUG_V2(quic_bug_10150_1)
+    QUIC_BUG(quic_bug_10150_1)
         << "Error: event registered by [" << actor->name()
         << "] requires travelling back in time.  Current time: "
         << clock_.Now().ToDebuggingValue()

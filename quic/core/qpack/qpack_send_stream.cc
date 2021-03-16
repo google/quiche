@@ -17,7 +17,7 @@ QpackSendStream::QpackSendStream(QuicStreamId id,
       stream_type_sent_(false) {}
 
 void QpackSendStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
-  QUIC_BUG_V2(quic_bug_10805_1)
+  QUIC_BUG(quic_bug_10805_1)
       << "OnStreamReset() called for write unidirectional stream.";
 }
 

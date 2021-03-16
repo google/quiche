@@ -23,7 +23,7 @@ static int ToPlatformAddressFamily(IpAddressFamily family) {
     case IpAddressFamily::IP_UNSPEC:
       return AF_UNSPEC;
   }
-  QUIC_BUG_V2(quic_bug_10126_1)
+  QUIC_BUG(quic_bug_10126_1)
       << "Invalid IpAddressFamily " << static_cast<int32_t>(family);
   return AF_UNSPEC;
 }
@@ -86,7 +86,7 @@ bool operator==(QuicIpAddress lhs, QuicIpAddress rhs) {
     case IpAddressFamily::IP_UNSPEC:
       return true;
   }
-  QUIC_BUG_V2(quic_bug_10126_2)
+  QUIC_BUG(quic_bug_10126_2)
       << "Invalid IpAddressFamily " << static_cast<int32_t>(lhs.family_);
   return false;
 }
@@ -116,7 +116,7 @@ std::string QuicIpAddress::ToPackedString() const {
     case IpAddressFamily::IP_UNSPEC:
       return "";
   }
-  QUIC_BUG_V2(quic_bug_10126_3)
+  QUIC_BUG(quic_bug_10126_3)
       << "Invalid IpAddressFamily " << static_cast<int32_t>(family_);
   return "";
 }
@@ -129,7 +129,7 @@ std::string QuicIpAddress::ToString() const {
   char buffer[INET6_ADDRSTRLEN] = {0};
   const char* result =
       inet_ntop(AddressFamilyToInt(), address_.bytes, buffer, sizeof(buffer));
-  QUIC_BUG_IF_V2(quic_bug_10126_4, result == nullptr)
+  QUIC_BUG_IF(quic_bug_10126_4, result == nullptr)
       << "Failed to convert an IP address to string";
   return buffer;
 }
@@ -204,12 +204,12 @@ bool QuicIpAddress::IsIPv6() const {
 bool QuicIpAddress::InSameSubnet(const QuicIpAddress& other,
                                  int subnet_length) {
   if (!IsInitialized()) {
-    QUIC_BUG_V2(quic_bug_10126_5)
+    QUIC_BUG(quic_bug_10126_5)
         << "Attempting to do subnet matching on undefined address";
     return false;
   }
   if ((IsIPv4() && subnet_length > 32) || (IsIPv6() && subnet_length > 128)) {
-    QUIC_BUG_V2(quic_bug_10126_6) << "Subnet mask is out of bounds";
+    QUIC_BUG(quic_bug_10126_6) << "Subnet mask is out of bounds";
     return false;
   }
 
