@@ -1155,6 +1155,9 @@ void QuicDispatcher::StatelesslyTerminateConnection(
     terminator.CloseConnection(
         error_code, error_details, format != GOOGLE_QUIC_PACKET,
         /*active_connection_ids=*/{server_connection_id});
+    QUIC_CODE_COUNT(quic_dispatcher_generated_connection_close);
+    QuicSession::RecordConnectionCloseAtServer(
+        error_code, ConnectionCloseSource::FROM_SELF);
     return;
   }
 
