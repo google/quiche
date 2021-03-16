@@ -121,7 +121,7 @@ WriteResult QuicBatchWriterBase::InternalWritePacket(
 
     // Since buffered_writes has been emptied, this write must have been
     // buffered successfully.
-    QUIC_BUG_IF_V2(quic_bug_10826_1, !buffered)
+    QUIC_BUG_IF(quic_bug_10826_1, !buffered)
         << "Failed to push to an empty batch buffer."
         << "  self_addr:" << self_address.ToString()
         << ", peer_addr:" << peer_address.ToString() << ", buf_len:" << buf_len;

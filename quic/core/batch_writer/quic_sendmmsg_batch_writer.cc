@@ -55,7 +55,7 @@ QuicSendmmsgBatchWriter::InternalFlushImpl(size_t cmsg_space,
       QUICHE_DCHECK_EQ(0, num_packets_sent);
       break;
     } else if (num_packets_sent == 0) {
-      QUIC_BUG_V2(quic_bug_10825_1)
+      QUIC_BUG(quic_bug_10825_1)
           << "WriteMultiplePackets returned OK, but no packets were sent.";
       write_result = WriteResult(WRITE_STATUS_ERROR, EIO);
       break;
@@ -75,7 +75,7 @@ QuicSendmmsgBatchWriter::InternalFlushImpl(size_t cmsg_space,
     return result;
   }
 
-  QUIC_BUG_IF_V2(quic_bug_12537_1, !buffered_writes().empty())
+  QUIC_BUG_IF(quic_bug_12537_1, !buffered_writes().empty())
       << "All packets should have been written on a successful return";
   write_result.bytes_written = result.bytes_written;
   return result;
