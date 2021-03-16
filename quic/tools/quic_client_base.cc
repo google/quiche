@@ -147,7 +147,7 @@ bool QuicClientBase::Connect() {
     num_attempts++;
   }
   if (session() == nullptr) {
-    QUIC_BUG_V2(quic_bug_10906_1) << "Missing session after Connect";
+    QUIC_BUG(quic_bug_10906_1) << "Missing session after Connect";
     return false;
   }
   return session()->connection()->connected();
@@ -230,7 +230,7 @@ bool QuicClientBase::EncryptionBeingEstablished() {
 
 bool QuicClientBase::WaitForEvents() {
   if (!connected()) {
-    QUIC_BUG_V2(quic_bug_10906_2)
+    QUIC_BUG(quic_bug_10906_2)
         << "Cannot call WaitForEvents on non-connected client";
     return false;
   }
@@ -336,7 +336,7 @@ const QuicClientBase::NetworkHelper* QuicClientBase::network_helper() const {
 
 void QuicClientBase::WaitForStreamToClose(QuicStreamId id) {
   if (!connected()) {
-    QUIC_BUG_V2(quic_bug_10906_3)
+    QUIC_BUG(quic_bug_10906_3)
         << "Cannot WaitForStreamToClose on non-connected client";
     return;
   }
@@ -348,7 +348,7 @@ void QuicClientBase::WaitForStreamToClose(QuicStreamId id) {
 
 bool QuicClientBase::WaitForOneRttKeysAvailable() {
   if (!connected()) {
-    QUIC_BUG_V2(quic_bug_10906_4)
+    QUIC_BUG(quic_bug_10906_4)
         << "Cannot WaitForOneRttKeysAvailable on non-connected client";
     return false;
   }

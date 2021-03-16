@@ -248,7 +248,7 @@ QuicMemoryCacheBackend::QuicMemoryCacheBackend() : cache_initialized_(false) {}
 bool QuicMemoryCacheBackend::InitializeBackend(
     const std::string& cache_directory) {
   if (cache_directory.empty()) {
-    QUIC_BUG_V2(quic_bug_10932_1) << "cache_directory must not be empty.";
+    QUIC_BUG(quic_bug_10932_1) << "cache_directory must not be empty.";
     return false;
   }
   QUIC_LOG(INFO)
@@ -287,7 +287,7 @@ bool QuicMemoryCacheBackend::InitializeBackend(
       QuicUrl url(push_url);
       const QuicBackendResponse* response = GetResponse(url.host(), url.path());
       if (!response) {
-        QUIC_BUG_V2(quic_bug_10932_2)
+        QUIC_BUG(quic_bug_10932_2)
             << "Push URL '" << push_url << "' not found.";
         return false;
       }
@@ -383,7 +383,7 @@ void QuicMemoryCacheBackend::AddResponseImpl(
       << "Host must be populated, e.g. \"www.google.com\"";
   std::string key = GetKey(host, path);
   if (QuicContainsKey(responses_, key)) {
-    QUIC_BUG_V2(quic_bug_10932_3)
+    QUIC_BUG(quic_bug_10932_3)
         << "Response for '" << key << "' already exists!";
     return;
   }

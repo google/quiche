@@ -146,7 +146,7 @@ void QuicSpdyClientBase::SendRequestInternal(Http2HeaderBlock sanitized_headers,
 
   QuicSpdyClientStream* stream = CreateClientStream();
   if (stream == nullptr) {
-    QUIC_BUG_V2(quic_bug_10949_1) << "stream creation failed!";
+    QUIC_BUG(quic_bug_10949_1) << "stream creation failed!";
     return;
   }
   stream->SendRequest(std::move(sanitized_headers), body, fin);
@@ -166,7 +166,7 @@ void QuicSpdyClientBase::SendRequestsAndWaitForResponse(
   for (size_t i = 0; i < url_list.size(); ++i) {
     Http2HeaderBlock headers;
     if (!SpdyUtils::PopulateHeaderBlockFromUrl(url_list[i], &headers)) {
-      QUIC_BUG_V2(quic_bug_10949_2) << "Unable to create request";
+      QUIC_BUG(quic_bug_10949_2) << "Unable to create request";
       continue;
     }
     SendRequest(headers, "", true);
@@ -260,33 +260,33 @@ void QuicSpdyClientBase::OnRendezvousResult(QuicSpdyStream* stream) {
 }
 
 int QuicSpdyClientBase::latest_response_code() const {
-  QUIC_BUG_IF_V2(quic_bug_10949_3, !store_response_) << "Response not stored!";
+  QUIC_BUG_IF(quic_bug_10949_3, !store_response_) << "Response not stored!";
   return latest_response_code_;
 }
 
 const std::string& QuicSpdyClientBase::latest_response_headers() const {
-  QUIC_BUG_IF_V2(quic_bug_10949_4, !store_response_) << "Response not stored!";
+  QUIC_BUG_IF(quic_bug_10949_4, !store_response_) << "Response not stored!";
   return latest_response_headers_;
 }
 
 const std::string& QuicSpdyClientBase::preliminary_response_headers() const {
-  QUIC_BUG_IF_V2(quic_bug_10949_5, !store_response_) << "Response not stored!";
+  QUIC_BUG_IF(quic_bug_10949_5, !store_response_) << "Response not stored!";
   return preliminary_response_headers_;
 }
 
 const Http2HeaderBlock& QuicSpdyClientBase::latest_response_header_block()
     const {
-  QUIC_BUG_IF_V2(quic_bug_10949_6, !store_response_) << "Response not stored!";
+  QUIC_BUG_IF(quic_bug_10949_6, !store_response_) << "Response not stored!";
   return latest_response_header_block_;
 }
 
 const std::string& QuicSpdyClientBase::latest_response_body() const {
-  QUIC_BUG_IF_V2(quic_bug_10949_7, !store_response_) << "Response not stored!";
+  QUIC_BUG_IF(quic_bug_10949_7, !store_response_) << "Response not stored!";
   return latest_response_body_;
 }
 
 const std::string& QuicSpdyClientBase::latest_response_trailers() const {
-  QUIC_BUG_IF_V2(quic_bug_10949_8, !store_response_) << "Response not stored!";
+  QUIC_BUG_IF(quic_bug_10949_8, !store_response_) << "Response not stored!";
   return latest_response_trailers_;
 }
 
