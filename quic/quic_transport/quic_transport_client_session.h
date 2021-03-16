@@ -73,7 +73,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
 
   QuicStream* CreateIncomingStream(QuicStreamId id) override;
   QuicStream* CreateIncomingStream(PendingStream* /*pending*/) override {
-    QUIC_BUG_V2(quic_bug_10890_1)
+    QUIC_BUG(quic_bug_10890_1)
         << "QuicTransportClientSession::CreateIncomingStream("
            "PendingStream) not implemented";
     return nullptr;
@@ -121,7 +121,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
     // This method should never be called, since the stream is client-initiated
     // unidirectional.
     void OnDataAvailable() override {
-      QUIC_BUG_V2(quic_bug_10890_2) << "Received data on a write-only stream";
+      QUIC_BUG(quic_bug_10890_2) << "Received data on a write-only stream";
     }
   };
 

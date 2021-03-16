@@ -50,8 +50,7 @@ QuicTransportServerSession::QuicTransportServerSession(
                   /*num_expected_unidirectional_static_streams*/ 0),
       visitor_(visitor) {
   for (const ParsedQuicVersion& version : supported_versions) {
-    QUIC_BUG_IF_V2(quic_bug_12025_1,
-                   version.handshake_protocol != PROTOCOL_TLS1_3)
+    QUIC_BUG_IF(quic_bug_12025_1, version.handshake_protocol != PROTOCOL_TLS1_3)
         << "QuicTransport requires TLS 1.3 handshake";
   }
 

@@ -125,7 +125,7 @@ QuicAsyncStatus WebTransportFingerprintProofVerifier::VerifyProof(
   *error_details =
       "QUIC crypto certificate verification is not supported in "
       "WebTransportFingerprintProofVerifier";
-  QUIC_BUG_V2(quic_bug_10879_1) << *error_details;
+  QUIC_BUG(quic_bug_10879_1) << *error_details;
   *details = std::make_unique<Details>(Status::kInternalError);
   return QUIC_FAILURE;
 }
@@ -191,7 +191,7 @@ bool WebTransportFingerprintProofVerifier::HasKnownFingerprint(
   const std::string fingerprint = ComputeSha256Fingerprint(der_certificate);
   for (const CertificateFingerprint& reference : fingerprints_) {
     if (reference.algorithm != CertificateFingerprint::kSha256) {
-      QUIC_BUG_V2(quic_bug_10879_2) << "Unexpected non-SHA-256 hash";
+      QUIC_BUG(quic_bug_10879_2) << "Unexpected non-SHA-256 hash";
       continue;
     }
     if (fingerprint == reference.fingerprint) {

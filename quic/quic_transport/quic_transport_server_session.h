@@ -66,7 +66,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportServerSession
 
   QuicStream* CreateIncomingStream(QuicStreamId id) override;
   QuicStream* CreateIncomingStream(PendingStream* /*pending*/) override {
-    QUIC_BUG_V2(quic_bug_10884_1)
+    QUIC_BUG(quic_bug_10884_1)
         << "QuicTransportServerSession::CreateIncomingStream("
            "PendingStream) not implemented";
     return nullptr;
