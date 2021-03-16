@@ -472,7 +472,7 @@ class MockCommonCertSets : public CommonCertSets {
       : cert_(cert), hash_(hash), index_(index) {}
 
   absl::string_view GetCommonHashes() const override {
-    QUIC_BUG_V2(quic_bug_10142_1) << "not implemented";
+    QUIC_BUG(quic_bug_10142_1) << "not implemented";
     return absl::string_view();
   }
 

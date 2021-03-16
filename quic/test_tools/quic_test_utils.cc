@@ -1535,11 +1535,11 @@ bool WriteServerVersionNegotiationProbeResponse(
     const char* source_connection_id_bytes,
     uint8_t source_connection_id_length) {
   if (packet_bytes == nullptr) {
-    QUIC_BUG_V2(quic_bug_10256_1) << "Invalid packet_bytes";
+    QUIC_BUG(quic_bug_10256_1) << "Invalid packet_bytes";
     return false;
   }
   if (packet_length_out == nullptr) {
-    QUIC_BUG_V2(quic_bug_10256_2) << "Invalid packet_length_out";
+    QUIC_BUG(quic_bug_10256_2) << "Invalid packet_length_out";
     return false;
   }
   QuicConnectionId source_connection_id(source_connection_id_bytes,
@@ -1550,12 +1550,11 @@ bool WriteServerVersionNegotiationProbeResponse(
           /*ietf_quic=*/true, /*use_length_prefix=*/true,
           ParsedQuicVersionVector{});
   if (!encrypted_packet) {
-    QUIC_BUG_V2(quic_bug_10256_3)
-        << "Failed to create version negotiation packet";
+    QUIC_BUG(quic_bug_10256_3) << "Failed to create version negotiation packet";
     return false;
   }
   if (*packet_length_out < encrypted_packet->length()) {
-    QUIC_BUG_V2(quic_bug_10256_4)
+    QUIC_BUG(quic_bug_10256_4)
         << "Invalid *packet_length_out " << *packet_length_out << " < "
         << encrypted_packet->length();
     return false;
@@ -1571,20 +1570,20 @@ bool ParseClientVersionNegotiationProbePacket(
     char* destination_connection_id_bytes,
     uint8_t* destination_connection_id_length_out) {
   if (packet_bytes == nullptr) {
-    QUIC_BUG_V2(quic_bug_10256_5) << "Invalid packet_bytes";
+    QUIC_BUG(quic_bug_10256_5) << "Invalid packet_bytes";
     return false;
   }
   if (packet_length < kMinPacketSizeForVersionNegotiation ||
       packet_length > 65535) {
-    QUIC_BUG_V2(quic_bug_10256_6) << "Invalid packet_length";
+    QUIC_BUG(quic_bug_10256_6) << "Invalid packet_length";
     return false;
   }
   if (destination_connection_id_bytes == nullptr) {
-    QUIC_BUG_V2(quic_bug_10256_7) << "Invalid destination_connection_id_bytes";
+    QUIC_BUG(quic_bug_10256_7) << "Invalid destination_connection_id_bytes";
     return false;
   }
   if (destination_connection_id_length_out == nullptr) {
-    QUIC_BUG_V2(quic_bug_10256_8)
+    QUIC_BUG(quic_bug_10256_8)
         << "Invalid destination_connection_id_length_out";
     return false;
   }
@@ -1605,17 +1604,16 @@ bool ParseClientVersionNegotiationProbePacket(
       &parsed_version, &destination_connection_id, &source_connection_id,
       &retry_token_present, &retry_token, &detailed_error);
   if (error != QUIC_NO_ERROR) {
-    QUIC_BUG_V2(quic_bug_10256_9)
-        << "Failed to parse packet: " << detailed_error;
+    QUIC_BUG(quic_bug_10256_9) << "Failed to parse packet: " << detailed_error;
     return false;
   }
   if (!version_present) {
-    QUIC_BUG_V2(quic_bug_10256_10) << "Packet is not a long header";
+    QUIC_BUG(quic_bug_10256_10) << "Packet is not a long header";
     return false;
   }
   if (*destination_connection_id_length_out <
       destination_connection_id.length()) {
-    QUIC_BUG_V2(quic_bug_10256_11)
+    QUIC_BUG(quic_bug_10256_11)
         << "destination_connection_id_length_out too small";
     return false;
   }
