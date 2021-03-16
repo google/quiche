@@ -365,7 +365,7 @@ void QuicCryptoClientConfig::CachedState::InitializeFrom(
 
 std::string QuicCryptoClientConfig::CachedState::GetNextServerNonce() {
   if (server_nonces_.empty()) {
-    QUIC_BUG_V2(quic_bug_12943_1)
+    QUIC_BUG(quic_bug_12943_1)
         << "Attempting to consume a server nonce that was never designated.";
     return "";
   }
@@ -495,9 +495,9 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     CryptoHandshakeMessage* out,
     std::string* error_details) const {
   QUICHE_DCHECK(error_details != nullptr);
-  QUIC_BUG_IF_V2(quic_bug_12943_2,
-                 !QuicUtils::IsConnectionIdValidForVersion(
-                     connection_id, preferred_version.transport_version))
+  QUIC_BUG_IF(quic_bug_12943_2,
+              !QuicUtils::IsConnectionIdValidForVersion(
+                  connection_id, preferred_version.transport_version))
       << "FillClientHello: attempted to use connection ID " << connection_id
       << " which is invalid with version " << preferred_version;
 

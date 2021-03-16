@@ -140,7 +140,7 @@ class ValidateClientHelloHelper {
       delete;
 
   ~ValidateClientHelloHelper() {
-    QUIC_BUG_IF_V2(quic_bug_12963_1, done_cb_ != nullptr)
+    QUIC_BUG_IF(quic_bug_12963_1, done_cb_ != nullptr)
         << "Deleting ValidateClientHelloHelper with a pending callback.";
   }
 
@@ -155,7 +155,7 @@ class ValidateClientHelloHelper {
   }
 
   void DetachCallback() {
-    QUIC_BUG_IF_V2(quic_bug_10630_1, done_cb_ == nullptr)
+    QUIC_BUG_IF(quic_bug_10630_1, done_cb_ == nullptr)
         << "Callback already detached.";
     done_cb_ = nullptr;
   }
@@ -738,9 +738,9 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
     std::unique_ptr<ProofSource::Details> proof_source_details,
     std::unique_ptr<ProcessClientHelloContext> context,
     const Configs& configs) const {
-  QUIC_BUG_IF_V2(quic_bug_12963_2,
-                 !QuicUtils::IsConnectionIdValidForVersion(
-                     context->connection_id(), context->transport_version()))
+  QUIC_BUG_IF(quic_bug_12963_2,
+              !QuicUtils::IsConnectionIdValidForVersion(
+                  context->connection_id(), context->transport_version()))
       << "ProcessClientHelloAfterGetProof: attempted to use connection ID "
       << context->connection_id() << " which is invalid with version "
       << context->version();
@@ -842,9 +842,9 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
     absl::string_view public_value,
     std::unique_ptr<ProcessClientHelloContext> context,
     const Configs& configs) const {
-  QUIC_BUG_IF_V2(quic_bug_12963_3,
-                 !QuicUtils::IsConnectionIdValidForVersion(
-                     context->connection_id(), context->transport_version()))
+  QUIC_BUG_IF(quic_bug_12963_3,
+              !QuicUtils::IsConnectionIdValidForVersion(
+                  context->connection_id(), context->transport_version()))
       << "ProcessClientHelloAfterCalculateSharedKeys:"
          " attempted to use connection ID "
       << context->connection_id() << " which is invalid with version "
@@ -1153,10 +1153,10 @@ void QuicCryptoServerConfig::SelectNewPrimaryConfig(
 
   if (configs.empty()) {
     if (primary_config_ != nullptr) {
-      QUIC_BUG_V2(quic_bug_10630_2)
+      QUIC_BUG(quic_bug_10630_2)
           << "No valid QUIC server config. Keeping the current config.";
     } else {
-      QUIC_BUG_V2(quic_bug_10630_3) << "No valid QUIC server config.";
+      QUIC_BUG(quic_bug_10630_3) << "No valid QUIC server config.";
     }
     return;
   }
@@ -1477,7 +1477,7 @@ void QuicCryptoServerConfig::BuildRejection(
 
   // The client may have requested a certificate chain.
   if (!ClientDemandsX509Proof(context.client_hello())) {
-    QUIC_BUG_V2(quic_bug_10630_4)
+    QUIC_BUG(quic_bug_10630_4)
         << "x509 certificates not supported in proof demand";
     return;
   }
