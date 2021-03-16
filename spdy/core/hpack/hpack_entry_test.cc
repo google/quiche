@@ -30,14 +30,6 @@ class HpackEntryTest : public QuicheTest {
   }
   void DropEntry() { --table_size_; }
 
-  size_t IndexOf(const HpackEntry& entry) const {
-    if (entry.IsStatic()) {
-      return 1 + entry.InsertionIndex() + table_size_;
-    } else {
-      return total_insertions_ - entry.InsertionIndex();
-    }
-  }
-
   size_t Size() {
     return name_.size() + value_.size() + kHpackEntrySizeOverhead;
   }
@@ -56,7 +48,6 @@ TEST_F(HpackEntryTest, StaticConstructor) {
   EXPECT_EQ(name_, entry.name());
   EXPECT_EQ(value_, entry.value());
   EXPECT_TRUE(entry.IsStatic());
-  EXPECT_EQ(1u, IndexOf(entry));
   EXPECT_EQ(Size(), entry.Size());
 }
 
@@ -66,7 +57,6 @@ TEST_F(HpackEntryTest, DynamicConstructor) {
   EXPECT_EQ(name_, entry.name());
   EXPECT_EQ(value_, entry.value());
   EXPECT_FALSE(entry.IsStatic());
-  EXPECT_EQ(1u, IndexOf(entry));
   EXPECT_EQ(Size(), entry.Size());
 }
 
@@ -76,7 +66,6 @@ TEST_F(HpackEntryTest, LookupConstructor) {
   EXPECT_EQ(name_, entry.name());
   EXPECT_EQ(value_, entry.value());
   EXPECT_FALSE(entry.IsStatic());
-  EXPECT_EQ(0u, IndexOf(entry));
   EXPECT_EQ(Size(), entry.Size());
 }
 
@@ -86,35 +75,6 @@ TEST_F(HpackEntryTest, DefaultConstructor) {
   EXPECT_TRUE(entry.name().empty());
   EXPECT_TRUE(entry.value().empty());
   EXPECT_EQ(kHpackEntrySizeOverhead, entry.Size());
-}
-
-TEST_F(HpackEntryTest, IndexUpdate) {
-  HpackEntry static1(StaticEntry());
-  HpackEntry static2(StaticEntry());
-
-  EXPECT_EQ(1u, IndexOf(static1));
-  EXPECT_EQ(2u, IndexOf(static2));
-
-  HpackEntry dynamic1(DynamicEntry());
-  HpackEntry dynamic2(DynamicEntry());
-
-  EXPECT_EQ(1u, IndexOf(dynamic2));
-  EXPECT_EQ(2u, IndexOf(dynamic1));
-  EXPECT_EQ(3u, IndexOf(static1));
-  EXPECT_EQ(4u, IndexOf(static2));
-
-  DropEntry();  // Drops |dynamic1|.
-
-  EXPECT_EQ(1u, IndexOf(dynamic2));
-  EXPECT_EQ(2u, IndexOf(static1));
-  EXPECT_EQ(3u, IndexOf(static2));
-
-  HpackEntry dynamic3(DynamicEntry());
-
-  EXPECT_EQ(1u, IndexOf(dynamic3));
-  EXPECT_EQ(2u, IndexOf(dynamic2));
-  EXPECT_EQ(3u, IndexOf(static1));
-  EXPECT_EQ(4u, IndexOf(static2));
 }
 
 }  // namespace

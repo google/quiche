@@ -108,7 +108,7 @@ class QUICHE_EXPORT_PRIVATE HpackEncoder {
   void EncodeRepresentations(RepresentationIterator* iter, std::string* output);
 
   // Emits a static/dynamic indexed representation (Section 7.1).
-  void EmitIndex(const HpackEntry* entry);
+  void EmitIndex(size_t index);
 
   // Emits a literal representation (Section 7.2).
   void EmitIndexedLiteral(const Representation& representation);

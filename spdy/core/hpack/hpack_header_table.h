@@ -25,6 +25,11 @@ namespace test {
 class HpackHeaderTablePeer;
 }  // namespace test
 
+// Return value of GetByName() and GetByNameAndValue() if matching entry is not
+// found.  This value is never used in HPACK for indexing entries, see
+// https://httpwg.org/specs/rfc7541.html#index.address.space.
+constexpr size_t kHpackEntryNotFound = 0;
+
 // A data structure for the static table (2.3.1) and the dynamic table (2.3.2).
 class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
  public:
@@ -64,18 +69,20 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   size_t size() const { return size_; }
   size_t max_size() const { return max_size_; }
 
+  // The HPACK indexing scheme used by GetByIndex(), GetByName(), and
+  // GetByNameAndValue() is defined at
+  // https://httpwg.org/specs/rfc7541.html#index.address.space.
+
   // Returns the entry matching the index, or NULL.
   const HpackEntry* GetByIndex(size_t index);
 
-  // Returns the lowest-value entry having |name|, or NULL.
-  const HpackEntry* GetByName(absl::string_view name);
+  // Returns the index of the lowest-index entry matching |name|,
+  // or kHpackEntryNotFound if no matching entry is found.
+  size_t GetByName(absl::string_view name);
 
-  // Returns the lowest-index matching entry, or NULL.
-  const HpackEntry* GetByNameAndValue(absl::string_view name,
-                                      absl::string_view value);
-
-  // Returns the index of an entry within this header table.
-  size_t IndexOf(const HpackEntry* entry) const;
+  // Returns the index of the lowest-index entry matching |name| and |value|,
+  // or kHpackEntryNotFound if no matching entry is found.
+  size_t GetByNameAndValue(absl::string_view name, absl::string_view value);
 
   // Sets the maximum size of the header table, evicting entries if
   // necessary as described in 5.2.
@@ -144,8 +151,8 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   size_t size_;
   size_t max_size_;
 
-  // Total number of table insertions which have occurred. Referenced by
-  // IndexOf() for determination of an HpackEntry's table index.
+  // Total number of table insertions which have occurred,
+  // including initial static table insertions.
   size_t total_insertions_;
 };
 

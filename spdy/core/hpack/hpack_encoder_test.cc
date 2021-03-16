@@ -166,12 +166,6 @@ class HpackEncoderTest : public QuicheTestWithParam<EncodeStrategy> {
     expected_.AppendPrefix(kIndexedOpcode);
     expected_.AppendUint32(index);
   }
-  void ExpectIndexedLiteral(const HpackEntry* key_entry,
-                            absl::string_view value) {
-    expected_.AppendPrefix(kLiteralIncrementalIndexOpcode);
-    expected_.AppendUint32(peer_.table()->IndexOf(key_entry));
-    ExpectString(&expected_, value);
-  }
   void ExpectIndexedLiteral(size_t key_index, absl::string_view value) {
     expected_.AppendPrefix(kLiteralIncrementalIndexOpcode);
     expected_.AppendUint32(key_index);
@@ -190,10 +184,10 @@ class HpackEncoderTest : public QuicheTestWithParam<EncodeStrategy> {
     ExpectString(&expected_, name);
     ExpectString(&expected_, value);
   }
-  void ExpectNonIndexedLiteralWithNameIndex(const HpackEntry* key_entry,
+  void ExpectNonIndexedLiteralWithNameIndex(size_t key_index,
                                             absl::string_view value) {
     expected_.AppendPrefix(kLiteralNoIndexOpcode);
-    expected_.AppendUint32(peer_.table()->IndexOf(key_entry));
+    expected_.AppendUint32(key_index);
     ExpectString(&expected_, value);
   }
   void ExpectString(HpackOutputStream* stream, absl::string_view str) {

@@ -57,48 +57,39 @@ const HpackEntry* HpackHeaderTable::GetByIndex(size_t index) {
   return nullptr;
 }
 
-const HpackEntry* HpackHeaderTable::GetByName(absl::string_view name) {
+size_t HpackHeaderTable::GetByName(absl::string_view name) {
   {
     auto it = static_name_index_.find(name);
     if (it != static_name_index_.end()) {
-      return it->second;
+      return 1 + it->second->InsertionIndex();
     }
   }
   {
     NameToEntryMap::const_iterator it = dynamic_name_index_.find(name);
     if (it != dynamic_name_index_.end()) {
-      return it->second;
+      return total_insertions_ - it->second->InsertionIndex() +
+             kStaticTableSize;
     }
   }
-  return nullptr;
+  return kHpackEntryNotFound;
 }
 
-const HpackEntry* HpackHeaderTable::GetByNameAndValue(absl::string_view name,
-                                                      absl::string_view value) {
+size_t HpackHeaderTable::GetByNameAndValue(absl::string_view name,
+                                           absl::string_view value) {
   HpackEntry query(name, value);
   {
     auto it = static_index_.find(&query);
     if (it != static_index_.end()) {
-      return *it;
+      return 1 + (*it)->InsertionIndex();
     }
   }
   {
     auto it = dynamic_index_.find(&query);
     if (it != dynamic_index_.end()) {
-      return *it;
+      return total_insertions_ - (*it)->InsertionIndex() + kStaticTableSize;
     }
   }
-  return nullptr;
-}
-
-size_t HpackHeaderTable::IndexOf(const HpackEntry* entry) const {
-  if (entry->IsLookup()) {
-    return 0;
-  } else if (entry->IsStatic()) {
-    return 1 + entry->InsertionIndex();
-  } else {
-    return total_insertions_ - entry->InsertionIndex() + kStaticTableSize;
-  }
+  return kHpackEntryNotFound;
 }
 
 void HpackHeaderTable::SetMaxSize(size_t max_size) {

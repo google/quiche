@@ -137,10 +137,10 @@ void HpackEncoder::EncodeRepresentations(RepresentationIterator* iter,
     const auto header = iter->Next();
     listener_(header.first, header.second);
     if (enable_compression_) {
-      const HpackEntry* entry =
+      size_t index =
           header_table_.GetByNameAndValue(header.first, header.second);
-      if (entry != nullptr) {
-        EmitIndex(entry);
+      if (index != kHpackEntryNotFound) {
+        EmitIndex(index);
       } else if (should_index_(header.first, header.second)) {
         EmitIndexedLiteral(header);
       } else {
@@ -154,10 +154,10 @@ void HpackEncoder::EncodeRepresentations(RepresentationIterator* iter,
   output_stream_.TakeString(output);
 }
 
-void HpackEncoder::EmitIndex(const HpackEntry* entry) {
-  SPDY_DVLOG(2) << "Emitting index " << header_table_.IndexOf(entry);
+void HpackEncoder::EmitIndex(size_t index) {
+  SPDY_DVLOG(2) << "Emitting index " << index;
   output_stream_.AppendPrefix(kIndexedOpcode);
-  output_stream_.AppendUint32(header_table_.IndexOf(entry));
+  output_stream_.AppendUint32(index);
 }
 
 void HpackEncoder::EmitIndexedLiteral(const Representation& representation) {
@@ -173,9 +173,9 @@ void HpackEncoder::EmitNonIndexedLiteral(const Representation& representation,
   SPDY_DVLOG(2) << "Emitting nonindexed literal: (" << representation.first
                 << ", " << representation.second << ")";
   output_stream_.AppendPrefix(kLiteralNoIndexOpcode);
-  const HpackEntry* name_entry = header_table_.GetByName(representation.first);
-  if (enable_compression && name_entry != nullptr) {
-    output_stream_.AppendUint32(header_table_.IndexOf(name_entry));
+  size_t name_index = header_table_.GetByName(representation.first);
+  if (enable_compression && name_index != kHpackEntryNotFound) {
+    output_stream_.AppendUint32(name_index);
   } else {
     output_stream_.AppendUint32(0);
     EmitString(representation.first);
@@ -184,9 +184,9 @@ void HpackEncoder::EmitNonIndexedLiteral(const Representation& representation,
 }
 
 void HpackEncoder::EmitLiteral(const Representation& representation) {
-  const HpackEntry* name_entry = header_table_.GetByName(representation.first);
-  if (name_entry != nullptr) {
-    output_stream_.AppendUint32(header_table_.IndexOf(name_entry));
+  size_t name_index = header_table_.GetByName(representation.first);
+  if (name_index != kHpackEntryNotFound) {
+    output_stream_.AppendUint32(name_index);
   } else {
     output_stream_.AppendUint32(0);
     EmitString(representation.first);
@@ -357,10 +357,10 @@ void HpackEncoder::Encoderator::Next(size_t max_encoded_bytes,
     const Representation header = header_it_->Next();
     encoder_->listener_(header.first, header.second);
     if (enable_compression) {
-      const HpackEntry* entry = encoder_->header_table_.GetByNameAndValue(
-          header.first, header.second);
-      if (entry != nullptr) {
-        encoder_->EmitIndex(entry);
+      size_t index = encoder_->header_table_.GetByNameAndValue(header.first,
+                                                               header.second);
+      if (index != kHpackEntryNotFound) {
+        encoder_->EmitIndex(index);
       } else if (encoder_->should_index_(header.first, header.second)) {
         encoder_->EmitIndexedLiteral(header);
       } else {
