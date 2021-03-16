@@ -67,8 +67,7 @@ void FifoWriteScheduler<StreamIdType>::RegisterStream(
     StreamIdType stream_id,
     const StreamPrecedenceType& precedence) {
   if (StreamRegistered(stream_id)) {
-    SPDY_BUG_V2(spdy_bug_36_1)
-        << "Stream " << stream_id << " already registered";
+    SPDY_BUG(spdy_bug_36_1) << "Stream " << stream_id << " already registered";
     return;
   }
   registered_streams_.emplace_hint(
@@ -80,8 +79,7 @@ template <typename StreamIdType>
 void FifoWriteScheduler<StreamIdType>::UnregisterStream(
     StreamIdType stream_id) {
   if (!StreamRegistered(stream_id)) {
-    SPDY_BUG_V2(spdy_bug_36_2)
-        << "Stream " << stream_id << " is not registered";
+    SPDY_BUG(spdy_bug_36_2) << "Stream " << stream_id << " is not registered";
     return;
   }
   registered_streams_.erase(stream_id);
@@ -133,8 +131,7 @@ void FifoWriteScheduler<StreamIdType>::RecordStreamEventTime(
   if (it != registered_streams_.end()) {
     it->second.event_time = now_in_usec;
   } else {
-    SPDY_BUG_V2(spdy_bug_36_3)
-        << "Stream " << stream_id << " is not registered";
+    SPDY_BUG(spdy_bug_36_3) << "Stream " << stream_id << " is not registered";
   }
 }
 
@@ -142,8 +139,7 @@ template <typename StreamIdType>
 int64_t FifoWriteScheduler<StreamIdType>::GetLatestEventWithPrecedence(
     StreamIdType stream_id) const {
   if (!StreamRegistered(stream_id)) {
-    SPDY_BUG_V2(spdy_bug_36_4)
-        << "Stream " << stream_id << " is not registered";
+    SPDY_BUG(spdy_bug_36_4) << "Stream " << stream_id << " is not registered";
     return 0;
   }
   int64_t latest_event_time_us = 0;
@@ -168,8 +164,7 @@ template <typename StreamIdType>
 void FifoWriteScheduler<StreamIdType>::MarkStreamReady(StreamIdType stream_id,
                                                        bool /*add_to_front*/) {
   if (!StreamRegistered(stream_id)) {
-    SPDY_BUG_V2(spdy_bug_36_5)
-        << "Stream " << stream_id << " is not registered";
+    SPDY_BUG(spdy_bug_36_5) << "Stream " << stream_id << " is not registered";
     return;
   }
   if (ready_streams_.find(stream_id) != ready_streams_.end()) {
@@ -198,7 +193,7 @@ bool FifoWriteScheduler<StreamIdType>::HasReadyStreams() const {
 template <typename StreamIdType>
 StreamIdType FifoWriteScheduler<StreamIdType>::PopNextReadyStream() {
   if (ready_streams_.empty()) {
-    SPDY_BUG_V2(spdy_bug_36_6) << "No ready streams available";
+    SPDY_BUG(spdy_bug_36_6) << "No ready streams available";
     return 0;
   }
   auto it = ready_streams_.begin();
@@ -224,8 +219,7 @@ template <typename StreamIdType>
 bool FifoWriteScheduler<StreamIdType>::IsStreamReady(
     StreamIdType stream_id) const {
   if (!StreamRegistered(stream_id)) {
-    SPDY_BUG_V2(spdy_bug_36_7)
-        << "Stream " << stream_id << " is not registered";
+    SPDY_BUG(spdy_bug_36_7) << "Stream " << stream_id << " is not registered";
     return false;
   }
   return ready_streams_.find(stream_id) != ready_streams_.end();

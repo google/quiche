@@ -221,12 +221,11 @@ void Http2PriorityWriteScheduler<StreamIdType>::RegisterStream(
   //   (e.g. SpdyClientDispatcher) modified to pass StreamPrecedence instances
   //   appropriate for protocol version under test.
   //
-  // SPDY_BUG_IF_V2(spdy_bug_8_1, precedence.is_spdy3_priority())
+  // SPDY_BUG_IF(spdy_bug_8_1, precedence.is_spdy3_priority())
   //     << "Expected HTTP/2 stream dependency";
 
   if (StreamRegistered(stream_id)) {
-    SPDY_BUG_V2(spdy_bug_8_2)
-        << "Stream " << stream_id << " already registered";
+    SPDY_BUG(spdy_bug_8_2) << "Stream " << stream_id << " already registered";
     return;
   }
 
@@ -273,13 +272,13 @@ template <typename StreamIdType>
 void Http2PriorityWriteScheduler<StreamIdType>::UnregisterStream(
     StreamIdType stream_id) {
   if (stream_id == kHttp2RootStreamId) {
-    SPDY_BUG_V2(spdy_bug_8_3) << "Cannot unregister root stream";
+    SPDY_BUG(spdy_bug_8_3) << "Cannot unregister root stream";
     return;
   }
   // Remove the stream from table.
   auto it = all_stream_infos_.find(stream_id);
   if (it == all_stream_infos_.end()) {
-    SPDY_BUG_V2(spdy_bug_8_4) << "Stream " << stream_id << " not registered";
+    SPDY_BUG(spdy_bug_8_4) << "Stream " << stream_id << " not registered";
     return;
   }
   std::unique_ptr<StreamInfo> stream_info(std::move(it->second));
@@ -336,7 +335,7 @@ Http2PriorityWriteScheduler<StreamIdType>::GetStreamChildren(
   std::vector<StreamIdType> child_vec;
   const StreamInfo* stream_info = FindStream(stream_id);
   if (stream_info == nullptr) {
-    SPDY_BUG_V2(spdy_bug_8_5) << "Stream " << stream_id << " not registered";
+    SPDY_BUG(spdy_bug_8_5) << "Stream " << stream_id << " not registered";
   } else {
     child_vec.reserve(stream_info->children.size());
     for (StreamInfo* child : stream_info->children) {
@@ -354,10 +353,10 @@ void Http2PriorityWriteScheduler<StreamIdType>::UpdateStreamPrecedence(
   //   (e.g. SpdyClientDispatcher) modified to pass StreamPrecedence instances
   //   appropriate for protocol version under test.
   //
-  // SPDY_BUG_IF_V2(spdy_bug_8_6, precedence.is_spdy3_priority())
+  // SPDY_BUG_IF(spdy_bug_8_6, precedence.is_spdy3_priority())
   //     << "Expected HTTP/2 stream dependency";
   if (stream_id == kHttp2RootStreamId) {
-    SPDY_BUG_V2(spdy_bug_8_7) << "Cannot set precedence of root stream";
+    SPDY_BUG(spdy_bug_8_7) << "Cannot set precedence of root stream";
     return;
   }
 
@@ -394,7 +393,7 @@ void Http2PriorityWriteScheduler<StreamIdType>::UpdateStreamParent(
     StreamIdType parent_id,
     bool exclusive) {
   if (stream_info->id == parent_id) {
-    SPDY_BUG_V2(spdy_bug_8_8) << "Cannot set stream to be its own parent";
+    SPDY_BUG(spdy_bug_8_8) << "Cannot set stream to be its own parent";
     return;
   }
   StreamInfo* new_parent = FindStream(parent_id);
@@ -458,12 +457,12 @@ void Http2PriorityWriteScheduler<StreamIdType>::RecordStreamEventTime(
     StreamIdType stream_id,
     int64_t now_in_usec) {
   if (stream_id == kHttp2RootStreamId) {
-    SPDY_BUG_V2(spdy_bug_8_9) << "Cannot record event time for root stream";
+    SPDY_BUG(spdy_bug_8_9) << "Cannot record event time for root stream";
     return;
   }
   StreamInfo* stream_info = FindStream(stream_id);
   if (stream_info == nullptr) {
-    SPDY_BUG_V2(spdy_bug_8_10) << "Stream " << stream_id << " not registered";
+    SPDY_BUG(spdy_bug_8_10) << "Stream " << stream_id << " not registered";
     return;
   }
   stream_info->last_event_time_usec = now_in_usec;
@@ -478,12 +477,12 @@ template <typename StreamIdType>
 int64_t Http2PriorityWriteScheduler<StreamIdType>::GetLatestEventWithPrecedence(
     StreamIdType stream_id) const {
   if (stream_id == kHttp2RootStreamId) {
-    SPDY_BUG_V2(spdy_bug_8_11) << "Invalid argument: root stream";
+    SPDY_BUG(spdy_bug_8_11) << "Invalid argument: root stream";
     return 0;
   }
   const StreamInfo* stream_info = FindStream(stream_id);
   if (stream_info == nullptr) {
-    SPDY_BUG_V2(spdy_bug_8_12) << "Stream " << stream_id << " not registered";
+    SPDY_BUG(spdy_bug_8_12) << "Stream " << stream_id << " not registered";
     return 0;
   }
   int64_t last_event_time_usec = 0;
@@ -504,12 +503,12 @@ template <typename StreamIdType>
 bool Http2PriorityWriteScheduler<StreamIdType>::ShouldYield(
     StreamIdType stream_id) const {
   if (stream_id == kHttp2RootStreamId) {
-    SPDY_BUG_V2(spdy_bug_8_13) << "Invalid argument: root stream";
+    SPDY_BUG(spdy_bug_8_13) << "Invalid argument: root stream";
     return false;
   }
   const StreamInfo* stream_info = FindStream(stream_id);
   if (stream_info == nullptr) {
-    SPDY_BUG_V2(spdy_bug_8_14) << "Stream " << stream_id << " not registered";
+    SPDY_BUG(spdy_bug_8_14) << "Stream " << stream_id << " not registered";
     return false;
   }
   if (HasReadyAncestor(*stream_info)) {
@@ -535,12 +534,12 @@ void Http2PriorityWriteScheduler<StreamIdType>::MarkStreamReady(
     StreamIdType stream_id,
     bool add_to_front) {
   if (stream_id == kHttp2RootStreamId) {
-    SPDY_BUG_V2(spdy_bug_8_15) << "Cannot mark root stream ready";
+    SPDY_BUG(spdy_bug_8_15) << "Cannot mark root stream ready";
     return;
   }
   StreamInfo* stream_info = FindStream(stream_id);
   if (stream_info == nullptr) {
-    SPDY_BUG_V2(spdy_bug_8_16) << "Stream " << stream_id << " not registered";
+    SPDY_BUG(spdy_bug_8_16) << "Stream " << stream_id << " not registered";
     return;
   }
   if (stream_info->ready) {
@@ -554,12 +553,12 @@ template <typename StreamIdType>
 void Http2PriorityWriteScheduler<StreamIdType>::MarkStreamNotReady(
     StreamIdType stream_id) {
   if (stream_id == kHttp2RootStreamId) {
-    SPDY_BUG_V2(spdy_bug_8_17) << "Cannot mark root stream unready";
+    SPDY_BUG(spdy_bug_8_17) << "Cannot mark root stream unready";
     return;
   }
   StreamInfo* stream_info = FindStream(stream_id);
   if (stream_info == nullptr) {
-    SPDY_BUG_V2(spdy_bug_8_18) << "Stream " << stream_id << " not registered";
+    SPDY_BUG(spdy_bug_8_18) << "Stream " << stream_id << " not registered";
     return;
   }
   if (!stream_info->ready) {
@@ -681,7 +680,7 @@ Http2PriorityWriteScheduler<StreamIdType>::PopNextReadyStreamAndPrecedence() {
       return std::make_tuple(stream_info.id, stream_info.ToStreamPrecedence());
     }
   }
-  SPDY_BUG_V2(spdy_bug_8_19) << "No ready streams";
+  SPDY_BUG(spdy_bug_8_19) << "No ready streams";
   return std::make_tuple(
       kHttp2RootStreamId,
       StreamPrecedenceType(kHttp2RootStreamId, kHttp2MinStreamWeight, false));
@@ -696,12 +695,12 @@ template <typename StreamIdType>
 bool Http2PriorityWriteScheduler<StreamIdType>::IsStreamReady(
     StreamIdType stream_id) const {
   if (stream_id == kHttp2RootStreamId) {
-    SPDY_BUG_V2(spdy_bug_8_20) << "Try to check whether root stream is ready";
+    SPDY_BUG(spdy_bug_8_20) << "Try to check whether root stream is ready";
     return false;
   }
   const StreamInfo* stream_info = FindStream(stream_id);
   if (stream_info == nullptr) {
-    SPDY_BUG_V2(spdy_bug_8_21) << "Stream " << stream_id << " not registered";
+    SPDY_BUG(spdy_bug_8_21) << "Stream " << stream_id << " not registered";
     return false;
   }
   return stream_info->ready;

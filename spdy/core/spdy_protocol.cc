@@ -29,7 +29,7 @@ SpdyPriority ClampSpdy3Priority(SpdyPriority priority) {
                 "The value of given priority shouldn't be smaller than highest "
                 "priority. Check this invariant explicitly.");
   if (priority > kV3LowestPriority) {
-    SPDY_BUG_V2(spdy_bug_22_1)
+    SPDY_BUG(spdy_bug_22_1)
         << "Invalid priority: " << static_cast<int>(priority);
     return kV3LowestPriority;
   }
@@ -38,11 +38,11 @@ SpdyPriority ClampSpdy3Priority(SpdyPriority priority) {
 
 int ClampHttp2Weight(int weight) {
   if (weight < kHttp2MinStreamWeight) {
-    SPDY_BUG_V2(spdy_bug_22_2) << "Invalid weight: " << weight;
+    SPDY_BUG(spdy_bug_22_2) << "Invalid weight: " << weight;
     return kHttp2MinStreamWeight;
   }
   if (weight > kHttp2MaxStreamWeight) {
-    SPDY_BUG_V2(spdy_bug_22_3) << "Invalid weight: " << weight;
+    SPDY_BUG(spdy_bug_22_3) << "Invalid weight: " << weight;
     return kHttp2MaxStreamWeight;
   }
   return weight;
@@ -93,7 +93,7 @@ bool IsDefinedFrameType(uint8_t frame_type_field) {
 }
 
 SpdyFrameType ParseFrameType(uint8_t frame_type_field) {
-  SPDY_BUG_IF_V2(spdy_bug_22_4, !IsDefinedFrameType(frame_type_field))
+  SPDY_BUG_IF(spdy_bug_22_4, !IsDefinedFrameType(frame_type_field))
       << "Frame type not defined: " << static_cast<int>(frame_type_field);
   return static_cast<SpdyFrameType>(frame_type_field);
 }

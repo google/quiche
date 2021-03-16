@@ -69,7 +69,7 @@ bool SpdyFrameBuilder::BeginNewFrame(SpdyFrameType type,
   QUICHE_DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
   bool success = true;
   if (length_ > 0) {
-    SPDY_BUG_V2(spdy_bug_73_1)
+    SPDY_BUG(spdy_bug_73_1)
         << "SpdyFrameBuilder doesn't have a clean state when BeginNewFrame"
         << "is called. Leftover length_ is " << length_;
     offset_ += length_;
@@ -91,7 +91,7 @@ bool SpdyFrameBuilder::BeginNewFrame(SpdyFrameType type,
   uint8_t raw_frame_type = SerializeFrameType(type);
   QUICHE_DCHECK(IsDefinedFrameType(raw_frame_type));
   QUICHE_DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
-  SPDY_BUG_IF_V2(spdy_bug_73_2, length > kHttp2DefaultFramePayloadLimit)
+  SPDY_BUG_IF(spdy_bug_73_2, length > kHttp2DefaultFramePayloadLimit)
       << "Frame length  " << length_ << " is longer than frame size limit.";
   return BeginNewFrameInternal(raw_frame_type, flags, stream_id, length);
 }

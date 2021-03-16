@@ -470,7 +470,7 @@ void Http2DecoderAdapter::OnHeadersPriority(
   on_headers_called_ = true;
   ReportReceiveCompressedFrame(frame_header_);
   if (!visitor()) {
-    SPDY_BUG_V2(spdy_bug_1_1)
+    SPDY_BUG(spdy_bug_1_1)
         << "Visitor is nullptr, handling priority in headers failed."
         << " priority:" << priority << " frame_header:" << frame_header_;
     return;
@@ -822,7 +822,7 @@ size_t Http2DecoderAdapter::ProcessInputFrame(const char* data, size_t len) {
                      << " total remaining in the frame's payload.";
         db.AdvanceCursor(avail);
       } else {
-        SPDY_BUG_V2(spdy_bug_1_2)
+        SPDY_BUG(spdy_bug_1_2)
             << "Total remaining (" << total
             << ") should not be greater than the payload length; "
             << frame_header();
@@ -873,11 +873,11 @@ void Http2DecoderAdapter::DetermineSpdyState(DecodeStatus status) {
           DecodeBuffer tmp("", 0);
           DecodeStatus status = frame_decoder_->DecodeFrame(&tmp);
           if (status != DecodeStatus::kDecodeDone) {
-            SPDY_BUG_V2(spdy_bug_1_3)
+            SPDY_BUG(spdy_bug_1_3)
                 << "Expected to be done decoding the frame, not " << status;
             SetSpdyErrorAndNotify(SPDY_INTERNAL_FRAMER_ERROR, "");
           } else if (spdy_framer_error_ != SPDY_NO_ERROR) {
-            SPDY_BUG_V2(spdy_bug_1_4)
+            SPDY_BUG(spdy_bug_1_4)
                 << "Expected to have no error, not "
                 << SpdyFramerErrorToString(spdy_framer_error_);
           } else {
@@ -1074,8 +1074,7 @@ void Http2DecoderAdapter::CommonStartHpackBlock() {
   SpdyHeadersHandlerInterface* handler =
       visitor()->OnHeaderFrameStart(stream_id());
   if (handler == nullptr) {
-    SPDY_BUG_V2(spdy_bug_1_5)
-        << "visitor_->OnHeaderFrameStart returned nullptr";
+    SPDY_BUG(spdy_bug_1_5) << "visitor_->OnHeaderFrameStart returned nullptr";
     SetSpdyErrorAndNotify(SpdyFramerError::SPDY_INTERNAL_FRAMER_ERROR, "");
     return;
   }
