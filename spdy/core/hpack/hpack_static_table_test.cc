@@ -32,10 +32,10 @@ TEST_F(HpackStaticTableTest, Initialize) {
   EXPECT_TRUE(table_.IsInitialized());
 
   HpackHeaderTable::EntryTable static_entries = table_.GetStaticEntries();
-  EXPECT_EQ(HpackStaticTableVector().size(), static_entries.size());
+  EXPECT_EQ(kStaticTableSize, static_entries.size());
 
   HpackHeaderTable::UnorderedEntrySet static_index = table_.GetStaticIndex();
-  EXPECT_EQ(HpackStaticTableVector().size(), static_index.size());
+  EXPECT_EQ(kStaticTableSize, static_index.size());
 
   HpackHeaderTable::NameToEntryMap static_name_index =
       table_.GetStaticNameIndex();

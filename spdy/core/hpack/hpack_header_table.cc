@@ -38,7 +38,7 @@ HpackHeaderTable::HpackHeaderTable()
       settings_size_bound_(kDefaultHeaderTableSizeSetting),
       size_(0),
       max_size_(kDefaultHeaderTableSizeSetting),
-      total_insertions_(static_entries_.size()) {}
+      total_insertions_(kStaticTableSize) {}
 
 HpackHeaderTable::~HpackHeaderTable() = default;
 
@@ -47,10 +47,10 @@ const HpackEntry* HpackHeaderTable::GetByIndex(size_t index) {
     return nullptr;
   }
   index -= 1;
-  if (index < static_entries_.size()) {
+  if (index < kStaticTableSize) {
     return &static_entries_[index];
   }
-  index -= static_entries_.size();
+  index -= kStaticTableSize;
   if (index < dynamic_entries_.size()) {
     return &dynamic_entries_[index];
   }
@@ -97,7 +97,7 @@ size_t HpackHeaderTable::IndexOf(const HpackEntry* entry) const {
   } else if (entry->IsStatic()) {
     return 1 + entry->InsertionIndex();
   } else {
-    return total_insertions_ - entry->InsertionIndex() + static_entries_.size();
+    return total_insertions_ - entry->InsertionIndex() + kStaticTableSize;
   }
 }
 

@@ -12,6 +12,9 @@ namespace spdy {
 
 struct HpackStaticEntry;
 
+// Number of entries in the HPACK static table.
+constexpr size_t kStaticTableSize = 61;
+
 // HpackStaticTable provides |static_entries_| and |static_index_| for HPACK
 // encoding and decoding contexts.  Once initialized, an instance is read only
 // and may be accessed only through its const interface.  Such an instance may
