@@ -1088,7 +1088,8 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         if (!AppendStreamFrame(frame.stream_frame, last_frame_in_packet,
                                writer)) {
           QUIC_BUG_V2(quic_bug_10850_32)
-              << "AppendStreamFrame failed: " << detailed_error();
+              << "AppendStreamFrame " << frame.stream_frame
+              << " failed: " << detailed_error();
           return 0;
         }
         break;
@@ -5502,7 +5503,7 @@ bool QuicFramer::AppendIetfStreamFrame(const QuicStreamFrame& frame,
     if (data_producer_->WriteStreamData(frame.stream_id, frame.offset,
                                         frame.data_length,
                                         writer) != WRITE_SUCCESS) {
-      set_detailed_error("Writing frame data failed.");
+      set_detailed_error("Writing frame data from producer failed.");
       return false;
     }
   }
