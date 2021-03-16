@@ -208,9 +208,6 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
 
   // Set the pacing gain to 25% larger than the recent BW increase in STARTUP.
   bool decrease_startup_pacing_at_end_of_round = false;
-
-  // Latch the flag for quic_bbr2_bw_startup.
-  const bool bw_startup = GetQuicReloadableFlag(quic_bbr2_bw_startup);
 };
 
 class QUIC_EXPORT_PRIVATE RoundTripCounter {

@@ -188,7 +188,6 @@ void Bbr2NetworkModel::OnCongestionEventStart(
 void Bbr2NetworkModel::AdaptLowerBounds(
     const Bbr2CongestionEvent& congestion_event) {
   if (Params().bw_lo_mode_ != Bbr2Params::DEFAULT) {
-    QUICHE_DCHECK(Params().bw_startup);
     if (congestion_event.bytes_lost == 0) {
       return;
     }

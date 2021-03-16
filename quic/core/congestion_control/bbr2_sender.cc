@@ -133,9 +133,7 @@ void Bbr2Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kBBQ2)) {
     params_.startup_cwnd_gain = 2.885;
     params_.drain_cwnd_gain = 2.885;
-    if (params_.bw_startup) {
-      model_.set_cwnd_gain(params_.startup_cwnd_gain);
-    }
+    model_.set_cwnd_gain(params_.startup_cwnd_gain);
   }
   if (ContainsQuicTag(connection_options, kB2NE)) {
     params_.always_exit_startup_on_excess_loss = false;
@@ -155,20 +153,16 @@ void Bbr2Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kBSAO)) {
     model_.EnableOverestimateAvoidance();
   }
-  if (params_.bw_startup && ContainsQuicTag(connection_options, kBBQ6)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_bw_startup, 1, 4);
+  if (ContainsQuicTag(connection_options, kBBQ6)) {
     params_.decrease_startup_pacing_at_end_of_round = true;
   }
-  if (params_.bw_startup && ContainsQuicTag(connection_options, kBBQ7)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_bw_startup, 2, 4);
+  if (ContainsQuicTag(connection_options, kBBQ7)) {
     params_.bw_lo_mode_ = Bbr2Params::QuicBandwidthLoMode::MIN_RTT_REDUCTION;
   }
-  if (params_.bw_startup && ContainsQuicTag(connection_options, kBBQ8)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_bw_startup, 3, 4);
+  if (ContainsQuicTag(connection_options, kBBQ8)) {
     params_.bw_lo_mode_ = Bbr2Params::QuicBandwidthLoMode::INFLIGHT_REDUCTION;
   }
-  if (params_.bw_startup && ContainsQuicTag(connection_options, kBBQ9)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_bw_startup, 4, 4);
+  if (ContainsQuicTag(connection_options, kBBQ9)) {
     params_.bw_lo_mode_ = Bbr2Params::QuicBandwidthLoMode::CWND_REDUCTION;
   }
 }
