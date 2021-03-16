@@ -39,7 +39,7 @@ class HpackEntryTest : public QuicheTest {
   }
 
   size_t Size() {
-    return name_.size() + value_.size() + HpackEntry::kSizeOverhead;
+    return name_.size() + value_.size() + kHpackEntrySizeOverhead;
   }
 
   std::string name_, value_;
@@ -85,7 +85,7 @@ TEST_F(HpackEntryTest, DefaultConstructor) {
 
   EXPECT_TRUE(entry.name().empty());
   EXPECT_TRUE(entry.value().empty());
-  EXPECT_EQ(HpackEntry::kSizeOverhead, entry.Size());
+  EXPECT_EQ(kHpackEntrySizeOverhead, entry.Size());
 }
 
 TEST_F(HpackEntryTest, IndexUpdate) {

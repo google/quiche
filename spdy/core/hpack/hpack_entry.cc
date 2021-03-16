@@ -10,8 +10,6 @@
 
 namespace spdy {
 
-const size_t HpackEntry::kSizeOverhead = 32;
-
 HpackEntry::HpackEntry(absl::string_view name,
                        absl::string_view value,
                        bool is_static,
@@ -62,7 +60,7 @@ HpackEntry::~HpackEntry() = default;
 
 // static
 size_t HpackEntry::Size(absl::string_view name, absl::string_view value) {
-  return name.size() + value.size() + kSizeOverhead;
+  return name.size() + value.size() + kHpackEntrySizeOverhead;
 }
 size_t HpackEntry::Size() const {
   return Size(name(), value());

@@ -17,14 +17,14 @@
 
 namespace spdy {
 
+// The constant amount added to name().size() and value().size() to
+// get the size of an HpackEntry as defined in 5.1.
+constexpr size_t kHpackEntrySizeOverhead = 32;
+
 // A structure for an entry in the static table (3.3.1)
 // and the header table (3.3.2).
 class QUICHE_EXPORT_PRIVATE HpackEntry {
  public:
-  // The constant amount added to name().size() and value().size() to
-  // get the size of an HpackEntry as defined in 5.1.
-  static const size_t kSizeOverhead;
-
   // Creates an entry. Preconditions:
   // - |is_static| captures whether this entry is a member of the static
   //   or dynamic header table.

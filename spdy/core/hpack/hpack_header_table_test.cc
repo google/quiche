@@ -75,9 +75,9 @@ class HpackHeaderTableTest : public QuicheTest {
 
   // Returns an entry whose Size() is equal to the given one.
   static HpackEntry MakeEntryOfSize(uint32_t size) {
-    EXPECT_GE(size, HpackEntry::kSizeOverhead);
-    std::string name((size - HpackEntry::kSizeOverhead) / 2, 'n');
-    std::string value(size - HpackEntry::kSizeOverhead - name.size(), 'v');
+    EXPECT_GE(size, kHpackEntrySizeOverhead);
+    std::string name((size - kHpackEntrySizeOverhead) / 2, 'n');
+    std::string value(size - kHpackEntrySizeOverhead - name.size(), 'v');
     HpackEntry entry(name, value, false, 0);
     EXPECT_EQ(size, entry.Size());
     return entry;
@@ -86,8 +86,8 @@ class HpackHeaderTableTest : public QuicheTest {
   // Returns a vector of entries whose total size is equal to the given
   // one.
   static HpackEntryVector MakeEntriesOfTotalSize(uint32_t total_size) {
-    EXPECT_GE(total_size, HpackEntry::kSizeOverhead);
-    uint32_t entry_size = HpackEntry::kSizeOverhead;
+    EXPECT_GE(total_size, kHpackEntrySizeOverhead);
+    uint32_t entry_size = kHpackEntrySizeOverhead;
     uint32_t remaining_size = total_size;
     HpackEntryVector entries;
     while (remaining_size > 0) {

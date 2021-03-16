@@ -24,6 +24,7 @@ class QpackHeaderTablePeer;
 }  // namespace test
 
 using QpackEntry = spdy::HpackEntry;
+constexpr size_t kQpackEntrySizeOverhead = spdy::kHpackEntrySizeOverhead;
 
 // This class manages the QPACK static and dynamic tables.  For dynamic entries,
 // it only has a concept of absolute indices.  The caller needs to perform the
