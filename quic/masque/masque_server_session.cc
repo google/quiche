@@ -347,9 +347,8 @@ void MasqueServerSession::OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) {
                               return connect_udp.fd() == fd;
                             });
   if (it == connect_udp_server_states_.end()) {
-    QUIC_BUG_V2(quic_bug_10974_1)
-        << "Got unexpected event mask " << event->in_events << " on unknown fd "
-        << fd;
+    QUIC_BUG(quic_bug_10974_1) << "Got unexpected event mask "
+                               << event->in_events << " on unknown fd " << fd;
     return;
   }
   QuicDatagramFlowId flow_id = it->flow_id();
@@ -373,7 +372,7 @@ void MasqueServerSession::OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) {
       break;
     }
     if (!read_result.packet_info.HasValue(QuicUdpPacketInfoBit::PEER_ADDRESS)) {
-      QUIC_BUG_V2(quic_bug_10974_2)
+      QUIC_BUG(quic_bug_10974_2)
           << "Missing peer address when reading from fd " << fd;
       continue;
     }
@@ -387,7 +386,7 @@ void MasqueServerSession::OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) {
       continue;
     }
     if (!connection()->connected()) {
-      QUIC_BUG_V2(quic_bug_10974_3)
+      QUIC_BUG(quic_bug_10974_3)
           << "Unexpected incoming UDP packet on fd " << fd << " from "
           << expected_target_server_address
           << " because MASQUE connection is closed";

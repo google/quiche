@@ -74,12 +74,11 @@ void MasqueDispatcher::RegisterClientConnectionId(
 
   // Make sure we don't try to overwrite an existing registration with a
   // different session.
-  QUIC_BUG_IF_V2(
-      quic_bug_12013_1,
-      client_connection_id_registrations_.find(client_connection_id) !=
-              client_connection_id_registrations_.end() &&
-          client_connection_id_registrations_[client_connection_id] !=
-              masque_server_session)
+  QUIC_BUG_IF(quic_bug_12013_1,
+              client_connection_id_registrations_.find(client_connection_id) !=
+                      client_connection_id_registrations_.end() &&
+                  client_connection_id_registrations_[client_connection_id] !=
+                      masque_server_session)
       << "Overwriting existing registration for " << client_connection_id;
   client_connection_id_registrations_[client_connection_id] =
       masque_server_session;
