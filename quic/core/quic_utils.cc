@@ -282,7 +282,7 @@ void QuicUtils::CopyToBuffer(const struct iovec* iov,
     src = static_cast<char*>(iov[iovnum].iov_base);
     copy_len = std::min(buffer_length, iov[iovnum].iov_len);
   }
-  QUIC_BUG_IF_V2(quic_bug_10839_1, buffer_length > 0)
+  QUIC_BUG_IF(quic_bug_10839_1, buffer_length > 0)
       << "Failed to copy entire length to buffer.";
 }
 
@@ -359,7 +359,7 @@ SentPacketState QuicUtils::RetransmissionTypeToPacketState(
     case ALL_INITIAL_RETRANSMISSION:
       return UNACKABLE;
     default:
-      QUIC_BUG_V2(quic_bug_10839_2)
+      QUIC_BUG(quic_bug_10839_2)
           << retransmission_type << " is not a retransmission_type";
       return UNACKABLE;
   }
@@ -385,7 +385,7 @@ QuicStreamId QuicUtils::GetInvalidStreamId(QuicTransportVersion version) {
 
 // static
 QuicStreamId QuicUtils::GetCryptoStreamId(QuicTransportVersion version) {
-  QUIC_BUG_IF_V2(quic_bug_12982_1, QuicVersionUsesCryptoFrames(version))
+  QUIC_BUG_IF(quic_bug_12982_1, QuicVersionUsesCryptoFrames(version))
       << "CRYPTO data aren't in stream frames; they have no stream ID.";
   return QuicVersionUsesCryptoFrames(version) ? GetInvalidStreamId(version) : 1;
 }
@@ -652,7 +652,7 @@ PacketNumberSpace QuicUtils::GetPacketNumberSpace(
     case ENCRYPTION_FORWARD_SECURE:
       return APPLICATION_DATA;
     default:
-      QUIC_BUG_V2(quic_bug_10839_3)
+      QUIC_BUG(quic_bug_10839_3)
           << "Try to get packet number space of encryption level: "
           << encryption_level;
       return NUM_PACKET_NUMBER_SPACES;

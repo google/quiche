@@ -86,7 +86,7 @@ bool QuicStreamIdManager::MaybeAllowNewOutgoingStreams(
 
 void QuicStreamIdManager::SetMaxOpenIncomingStreams(
     QuicStreamCount max_open_streams) {
-  QUIC_BUG_IF_V2(quic_bug_12413_1, incoming_stream_count_ > 0)
+  QUIC_BUG_IF(quic_bug_12413_1, incoming_stream_count_ > 0)
       << "non-zero incoming stream count " << incoming_stream_count_
       << " when setting max incoming stream to " << max_open_streams;
   QUIC_DLOG_IF(WARNING, incoming_initial_max_open_streams_ != max_open_streams)
@@ -113,8 +113,8 @@ void QuicStreamIdManager::MaybeSendMaxStreamsFrame() {
 }
 
 void QuicStreamIdManager::SendMaxStreamsFrame() {
-  QUIC_BUG_IF_V2(quic_bug_12413_2, incoming_advertised_max_streams_ >=
-                                       incoming_actual_max_streams_);
+  QUIC_BUG_IF(quic_bug_12413_2,
+              incoming_advertised_max_streams_ >= incoming_actual_max_streams_);
   incoming_advertised_max_streams_ = incoming_actual_max_streams_;
   delegate_->SendMaxStreams(incoming_advertised_max_streams_, unidirectional_);
 }
@@ -139,8 +139,7 @@ void QuicStreamIdManager::OnStreamClosed(QuicStreamId stream_id) {
 }
 
 QuicStreamId QuicStreamIdManager::GetNextOutgoingStreamId() {
-  QUIC_BUG_IF_V2(quic_bug_12413_3,
-                 outgoing_stream_count_ >= outgoing_max_streams_)
+  QUIC_BUG_IF(quic_bug_12413_3, outgoing_stream_count_ >= outgoing_max_streams_)
       << "Attempt to allocate a new outgoing stream that would exceed the "
          "limit ("
       << outgoing_max_streams_ << ")";

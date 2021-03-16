@@ -157,8 +157,7 @@ void PopulatePacketInfoFromControlMessage(struct cmsghdr* cmsg,
       if (self_v6_ip.FromPackedString(addr_data, addr_len)) {
         packet_info->SetSelfV6Ip(self_v6_ip);
       } else {
-        QUIC_BUG_V2(quic_bug_10751_1)
-            << "QuicIpAddress::FromPackedString failed";
+        QUIC_BUG(quic_bug_10751_1) << "QuicIpAddress::FromPackedString failed";
       }
     }
     return;
@@ -173,8 +172,7 @@ void PopulatePacketInfoFromControlMessage(struct cmsghdr* cmsg,
       if (self_v4_ip.FromPackedString(addr_data, addr_len)) {
         packet_info->SetSelfV4Ip(self_v4_ip);
       } else {
-        QUIC_BUG_V2(quic_bug_10751_2)
-            << "QuicIpAddress::FromPackedString failed";
+        QUIC_BUG(quic_bug_10751_2) << "QuicIpAddress::FromPackedString failed";
       }
     }
     return;
@@ -423,7 +421,7 @@ void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
   }
 
   if (QUIC_PREDICT_FALSE(hdr.msg_flags & MSG_CTRUNC)) {
-    QUIC_BUG_V2(quic_bug_10751_3)
+    QUIC_BUG(quic_bug_10751_3)
         << "Control buffer too small. size:" << control_buffer.buffer_len;
     return;
   }
@@ -512,9 +510,9 @@ size_t QuicUdpSocketApi::ReadMultiplePackets(QuicUdpSocketFd fd,
 
     msghdr& hdr = hdrs[i].msg_hdr;
     if (QUIC_PREDICT_FALSE(hdr.msg_flags & MSG_CTRUNC)) {
-      QUIC_BUG_V2(quic_bug_10751_4) << "Control buffer too small. size:"
-                                    << (*results)[i].control_buffer.buffer_len
-                                    << ", need:" << hdr.msg_controllen;
+      QUIC_BUG(quic_bug_10751_4) << "Control buffer too small. size:"
+                                 << (*results)[i].control_buffer.buffer_len
+                                 << ", need:" << hdr.msg_controllen;
       continue;
     }
 

@@ -77,8 +77,7 @@ void QuicStreamSendBuffer::SaveMemSlice(QuicMemSlice slice) {
   QUIC_DVLOG(2) << "Save slice offset " << stream_offset_ << " length "
                 << slice.length();
   if (slice.empty()) {
-    QUIC_BUG_V2(quic_bug_10853_1)
-        << "Try to save empty MemSlice to send buffer.";
+    QUIC_BUG(quic_bug_10853_1) << "Try to save empty MemSlice to send buffer.";
     return;
   }
   size_t length = slice.length();
@@ -105,7 +104,7 @@ void QuicStreamSendBuffer::OnStreamDataConsumed(size_t bytes_consumed) {
 bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
                                            QuicByteCount data_length,
                                            QuicDataWriter* writer) {
-  QUIC_BUG_IF_V2(quic_bug_12823_1, current_end_offset_ < offset)
+  QUIC_BUG_IF(quic_bug_12823_1, current_end_offset_ < offset)
       << "Tried to write data out of sequence. last_offset_end:"
       << current_end_offset_ << ", offset:" << offset;
   // The iterator returned from |interval_deque_| will automatically advance
@@ -123,7 +122,7 @@ bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
     QuicByteCount copy_length = std::min(data_length, available_bytes_in_slice);
     if (!writer->WriteBytes(slice_it->slice.data() + slice_offset,
                             copy_length)) {
-      QUIC_BUG_V2(quic_bug_10853_2) << "Writer fails to write.";
+      QUIC_BUG(quic_bug_10853_2) << "Writer fails to write.";
       return false;
     }
     offset += copy_length;
@@ -220,7 +219,7 @@ StreamPendingRetransmission QuicStreamSendBuffer::NextPendingRetransmission()
     const auto pending = pending_retransmissions_.begin();
     return {pending->min(), pending->max() - pending->min()};
   }
-  QUIC_BUG_V2(quic_bug_10853_3)
+  QUIC_BUG(quic_bug_10853_3)
       << "NextPendingRetransmission is called unexpected with no "
          "pending retransmissions.";
   return {0, 0};
@@ -230,7 +229,7 @@ bool QuicStreamSendBuffer::FreeMemSlices(QuicStreamOffset start,
                                          QuicStreamOffset end) {
   auto it = interval_deque_.DataBegin();
   if (it == interval_deque_.DataEnd() || it->slice.empty()) {
-    QUIC_BUG_V2(quic_bug_10853_4)
+    QUIC_BUG(quic_bug_10853_4)
         << "Trying to ack stream data [" << start << ", " << end << "), "
         << (it == interval_deque_.DataEnd()
                 ? "and there is no outstanding data."
@@ -243,7 +242,7 @@ bool QuicStreamSendBuffer::FreeMemSlices(QuicStreamOffset start,
                           interval_deque_.DataEnd(), start, CompareOffset());
   }
   if (it == interval_deque_.DataEnd() || it->slice.empty()) {
-    QUIC_BUG_V2(quic_bug_10853_5)
+    QUIC_BUG(quic_bug_10853_5)
         << "Offset " << start << " with iterator offset: " << it->offset
         << (it == interval_deque_.DataEnd() ? " does not exist."
                                             : " has already been acked.");
@@ -264,8 +263,8 @@ bool QuicStreamSendBuffer::FreeMemSlices(QuicStreamOffset start,
 void QuicStreamSendBuffer::CleanUpBufferedSlices() {
   while (!interval_deque_.Empty() &&
          interval_deque_.DataBegin()->slice.empty()) {
-    QUIC_BUG_IF_V2(quic_bug_12823_2,
-                   interval_deque_.DataBegin()->offset > current_end_offset_)
+    QUIC_BUG_IF(quic_bug_12823_2,
+                interval_deque_.DataBegin()->offset > current_end_offset_)
         << "Fail to pop front from interval_deque_. Front element contained "
            "a slice whose data has not all be written. Front offset "
         << interval_deque_.DataBegin()->offset << " length "
