@@ -133,7 +133,7 @@ QuicStream* QboneSessionBase::ActivateDataStream(
 
 void QboneSessionBase::SendPacketToPeer(absl::string_view packet) {
   if (crypto_stream_ == nullptr) {
-    QUIC_BUG_V2(quic_bug_10987_1)
+    QUIC_BUG(quic_bug_10987_1)
         << "Attempting to send packet before encryption established";
     return;
   }
@@ -148,7 +148,7 @@ void QboneSessionBase::SendPacketToPeer(absl::string_view packet) {
         break;
       case MESSAGE_STATUS_TOO_LARGE: {
         if (packet.size() < sizeof(ip6_hdr)) {
-          QUIC_BUG_V2(quic_bug_10987_2)
+          QUIC_BUG(quic_bug_10987_2)
               << "Dropped malformed packet: IPv6 header too short";
           break;
         }
@@ -166,17 +166,17 @@ void QboneSessionBase::SendPacketToPeer(absl::string_view packet) {
         break;
       }
       case MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED:
-        QUIC_BUG_V2(quic_bug_10987_3)
+        QUIC_BUG(quic_bug_10987_3)
             << "MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED";
         break;
       case MESSAGE_STATUS_UNSUPPORTED:
-        QUIC_BUG_V2(quic_bug_10987_4) << "MESSAGE_STATUS_UNSUPPORTED";
+        QUIC_BUG(quic_bug_10987_4) << "MESSAGE_STATUS_UNSUPPORTED";
         break;
       case MESSAGE_STATUS_BLOCKED:
-        QUIC_BUG_V2(quic_bug_10987_5) << "MESSAGE_STATUS_BLOCKED";
+        QUIC_BUG(quic_bug_10987_5) << "MESSAGE_STATUS_BLOCKED";
         break;
       case MESSAGE_STATUS_INTERNAL_ERROR:
-        QUIC_BUG_V2(quic_bug_10987_6) << "MESSAGE_STATUS_INTERNAL_ERROR";
+        QUIC_BUG(quic_bug_10987_6) << "MESSAGE_STATUS_INTERNAL_ERROR";
         break;
     }
     return;
@@ -185,8 +185,7 @@ void QboneSessionBase::SendPacketToPeer(absl::string_view packet) {
   // QBONE streams are ephemeral.
   QuicStream* stream = CreateOutgoingStream();
   if (!stream) {
-    QUIC_BUG_V2(quic_bug_10987_7)
-        << "Failed to create an outgoing QBONE stream.";
+    QUIC_BUG(quic_bug_10987_7) << "Failed to create an outgoing QBONE stream.";
     return;
   }
 

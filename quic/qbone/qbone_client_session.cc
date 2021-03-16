@@ -72,7 +72,7 @@ int QboneClientSession::GetNumReceivedServerConfigUpdates() const {
 
 bool QboneClientSession::SendServerRequest(const QboneServerRequest& request) {
   if (!control_stream_) {
-    QUIC_BUG_V2(quic_bug_11056_1)
+    QUIC_BUG(quic_bug_11056_1)
         << "Cannot send server request before control stream is created.";
     return false;
   }

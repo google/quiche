@@ -66,7 +66,7 @@ void QboneServerSession::Initialize() {
 
 bool QboneServerSession::SendClientRequest(const QboneClientRequest& request) {
   if (!control_stream_) {
-    QUIC_BUG_V2(quic_bug_11026_1)
+    QUIC_BUG(quic_bug_11026_1)
         << "Cannot send client request before control stream is created.";
     return false;
   }
