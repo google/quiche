@@ -19,7 +19,7 @@ std::unique_ptr<SynchronousKeyExchange> CreateLocalSynchronousKeyExchange(
     case kP256:
       return P256KeyExchange::New(private_key);
     default:
-      QUIC_BUG_V2(quic_bug_10712_1)
+      QUIC_BUG(quic_bug_10712_1)
           << "Unknown key exchange method: " << QuicTagToString(type);
       return nullptr;
   }
@@ -36,7 +36,7 @@ std::unique_ptr<SynchronousKeyExchange> CreateLocalSynchronousKeyExchange(
       return P256KeyExchange::New();
       break;
     default:
-      QUIC_BUG_V2(quic_bug_10712_2)
+      QUIC_BUG(quic_bug_10712_2)
           << "Unknown key exchange method: " << QuicTagToString(type);
       return nullptr;
   }

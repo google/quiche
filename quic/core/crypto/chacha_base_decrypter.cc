@@ -17,7 +17,7 @@ namespace quic {
 
 bool ChaChaBaseDecrypter::SetHeaderProtectionKey(absl::string_view key) {
   if (key.size() != GetKeySize()) {
-    QUIC_BUG_V2(quic_bug_10620_1) << "Invalid key size for header protection";
+    QUIC_BUG(quic_bug_10620_1) << "Invalid key size for header protection";
     return false;
   }
   memcpy(pne_key_, key.data(), key.size());

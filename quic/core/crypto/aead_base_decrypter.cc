@@ -88,7 +88,7 @@ bool AeadBaseDecrypter::SetKey(absl::string_view key) {
 
 bool AeadBaseDecrypter::SetNoncePrefix(absl::string_view nonce_prefix) {
   if (use_ietf_nonce_construction_) {
-    QUIC_BUG_V2(quic_bug_10709_1)
+    QUIC_BUG(quic_bug_10709_1)
         << "Attempted to set nonce prefix on IETF QUIC crypter";
     return false;
   }
@@ -102,8 +102,7 @@ bool AeadBaseDecrypter::SetNoncePrefix(absl::string_view nonce_prefix) {
 
 bool AeadBaseDecrypter::SetIV(absl::string_view iv) {
   if (!use_ietf_nonce_construction_) {
-    QUIC_BUG_V2(quic_bug_10709_2)
-        << "Attempted to set IV on Google QUIC crypter";
+    QUIC_BUG(quic_bug_10709_2) << "Attempted to set IV on Google QUIC crypter";
     return false;
   }
   QUICHE_DCHECK_EQ(iv.size(), nonce_size_);
@@ -160,7 +159,7 @@ bool AeadBaseDecrypter::DecryptPacket(uint64_t packet_number,
   }
 
   if (have_preliminary_key_) {
-    QUIC_BUG_V2(quic_bug_10709_3)
+    QUIC_BUG(quic_bug_10709_3)
         << "Unable to decrypt while key diversification is pending";
     return false;
   }

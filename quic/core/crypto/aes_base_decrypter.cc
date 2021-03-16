@@ -12,13 +12,12 @@ namespace quic {
 
 bool AesBaseDecrypter::SetHeaderProtectionKey(absl::string_view key) {
   if (key.size() != GetKeySize()) {
-    QUIC_BUG_V2(quic_bug_10649_1) << "Invalid key size for header protection";
+    QUIC_BUG(quic_bug_10649_1) << "Invalid key size for header protection";
     return false;
   }
   if (AES_set_encrypt_key(reinterpret_cast<const uint8_t*>(key.data()),
                           key.size() * 8, &pne_key_) != 0) {
-    QUIC_BUG_V2(quic_bug_10649_2)
-        << "Unexpected failure of AES_set_encrypt_key";
+    QUIC_BUG(quic_bug_10649_2) << "Unexpected failure of AES_set_encrypt_key";
     return false;
   }
   return true;

@@ -25,7 +25,7 @@ std::unique_ptr<Curve25519KeyExchange> Curve25519KeyExchange::New(
     QuicRandom* rand) {
   std::unique_ptr<Curve25519KeyExchange> result =
       New(Curve25519KeyExchange::NewPrivateKey(rand));
-  QUIC_BUG_IF_V2(quic_bug_12891_1, result == nullptr);
+  QUIC_BUG_IF(quic_bug_12891_1, result == nullptr);
   return result;
 }
 

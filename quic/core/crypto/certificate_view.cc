@@ -495,7 +495,7 @@ bool CertificateView::VerifySignature(absl::string_view data,
                                       uint16_t signature_algorithm) const {
   if (PublicKeyTypeFromSignatureAlgorithm(signature_algorithm) !=
       PublicKeyTypeFromKey(public_key_.get())) {
-    QUIC_BUG_V2(quic_bug_10640_1)
+    QUIC_BUG(quic_bug_10640_1)
         << "Mismatch between the requested signature algorithm and the "
            "type of the public key.";
     return false;
@@ -588,7 +588,7 @@ skip:
 std::string CertificatePrivateKey::Sign(absl::string_view input,
                                         uint16_t signature_algorithm) {
   if (!ValidForSignatureAlgorithm(signature_algorithm)) {
-    QUIC_BUG_V2(quic_bug_10640_2)
+    QUIC_BUG(quic_bug_10640_2)
         << "Mismatch between the requested signature algorithm and the "
            "type of the private key.";
     return "";
