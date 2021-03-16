@@ -10,6 +10,7 @@
 #include "http2/hpack/huffman/hpack_huffman_encoder.h"
 #include "http2/test_tools/http2_random.h"
 #include "common/platform/api/quiche_test.h"
+#include "spdy/core/hpack/hpack_static_table.h"
 #include "spdy/core/spdy_simple_arena.h"
 #include "spdy/platform/api/spdy_flags.h"
 
@@ -118,6 +119,8 @@ namespace {
 using testing::ElementsAre;
 using testing::Pair;
 
+const size_t StaticEntryIndex = 1;
+
 enum EncodeStrategy {
   kDefault,
   kIncremental,
@@ -130,7 +133,8 @@ class HpackEncoderTest : public QuicheTestWithParam<EncodeStrategy> {
 
   HpackEncoderTest()
       : peer_(&encoder_),
-        static_(peer_.table()->GetByIndex(1)),
+        static_(peer_.table()->GetByIndex(StaticEntryIndex)),
+        dynamic_table_insertions_(0),
         headers_storage_(1024 /* block size */),
         strategy_(GetParam()) {}
 
@@ -138,9 +142,13 @@ class HpackEncoderTest : public QuicheTestWithParam<EncodeStrategy> {
     // Populate dynamic entries into the table fixture. For simplicity each
     // entry has name.size() + value.size() == 10.
     key_1_ = peer_.table()->TryAddEntry("key1", "value1");
+    key_1_index_ = dynamic_table_insertions_++;
     key_2_ = peer_.table()->TryAddEntry("key2", "value2");
+    key_2_index_ = dynamic_table_insertions_++;
     cookie_a_ = peer_.table()->TryAddEntry("cookie", "a=bb");
+    cookie_a_index_ = dynamic_table_insertions_++;
     cookie_c_ = peer_.table()->TryAddEntry("cookie", "c=dd");
+    cookie_c_index_ = dynamic_table_insertions_++;
 
     // No further insertions may occur without evictions.
     peer_.table()->SetMaxSize(peer_.table()->size());
@@ -161,7 +169,12 @@ class HpackEncoderTest : public QuicheTestWithParam<EncodeStrategy> {
   void ExpectIndexedLiteral(const HpackEntry* key_entry,
                             absl::string_view value) {
     expected_.AppendPrefix(kLiteralIncrementalIndexOpcode);
-    expected_.AppendUint32(IndexOf(key_entry));
+    expected_.AppendUint32(peer_.table()->IndexOf(key_entry));
+    ExpectString(&expected_, value);
+  }
+  void ExpectIndexedLiteral(size_t key_index, absl::string_view value) {
+    expected_.AppendPrefix(kLiteralIncrementalIndexOpcode);
+    expected_.AppendUint32(key_index);
     ExpectString(&expected_, value);
   }
   void ExpectIndexedLiteral(absl::string_view name, absl::string_view value) {
@@ -180,7 +193,7 @@ class HpackEncoderTest : public QuicheTestWithParam<EncodeStrategy> {
   void ExpectNonIndexedLiteralWithNameIndex(const HpackEntry* key_entry,
                                             absl::string_view value) {
     expected_.AppendPrefix(kLiteralNoIndexOpcode);
-    expected_.AppendUint32(IndexOf(key_entry));
+    expected_.AppendUint32(peer_.table()->IndexOf(key_entry));
     ExpectString(&expected_, value);
   }
   void ExpectString(HpackOutputStream* stream, absl::string_view str) {
@@ -233,8 +246,12 @@ class HpackEncoderTest : public QuicheTestWithParam<EncodeStrategy> {
         &encoder_, representations, &actual_out));
     EXPECT_EQ(expected_out, actual_out);
   }
-  size_t IndexOf(const HpackEntry* entry) {
-    return peer_.table()->IndexOf(entry);
+  // Converts the index of a dynamic table entry to the HPACK index.
+  // In these test, dynamic table entries are indexed sequentially, starting
+  // with 0.  The HPACK indexing scheme is defined at
+  // https://httpwg.org/specs/rfc7541.html#index.address.space.
+  size_t DynamicIndexToWireIndex(size_t index) {
+    return dynamic_table_insertions_ - index + kStaticTableSize;
   }
 
   HpackEncoder encoder_;
@@ -245,6 +262,11 @@ class HpackEncoderTest : public QuicheTestWithParam<EncodeStrategy> {
   const HpackEntry* key_2_;
   const HpackEntry* cookie_a_;
   const HpackEntry* cookie_c_;
+  size_t key_1_index_;
+  size_t key_2_index_;
+  size_t cookie_a_index_;
+  size_t cookie_c_index_;
+  size_t dynamic_table_insertions_;
 
   SpdySimpleArena headers_storage_;
   std::vector<std::pair<absl::string_view, absl::string_view>>
@@ -303,7 +325,7 @@ TEST_P(HpackEncoderTest, SingleDynamicIndex) {
         this->SaveHeaders(name, value);
       });
 
-  ExpectIndex(IndexOf(key_2_));
+  ExpectIndex(DynamicIndexToWireIndex(key_2_index_));
 
   SpdyHeaderBlock headers;
   headers[key_2_->name()] = key_2_->value();
@@ -313,7 +335,7 @@ TEST_P(HpackEncoderTest, SingleDynamicIndex) {
 }
 
 TEST_P(HpackEncoderTest, SingleStaticIndex) {
-  ExpectIndex(IndexOf(static_));
+  ExpectIndex(StaticEntryIndex);
 
   SpdyHeaderBlock headers;
   headers[static_->name()] = static_->value();
@@ -322,7 +344,7 @@ TEST_P(HpackEncoderTest, SingleStaticIndex) {
 
 TEST_P(HpackEncoderTest, SingleStaticIndexTooLarge) {
   peer_.table()->SetMaxSize(1);  // Also evicts all fixtures.
-  ExpectIndex(IndexOf(static_));
+  ExpectIndex(StaticEntryIndex);
 
   SpdyHeaderBlock headers;
   headers[static_->name()] = static_->value();
@@ -332,7 +354,7 @@ TEST_P(HpackEncoderTest, SingleStaticIndexTooLarge) {
 }
 
 TEST_P(HpackEncoderTest, SingleLiteralWithIndexName) {
-  ExpectIndexedLiteral(key_2_, "value3");
+  ExpectIndexedLiteral(DynamicIndexToWireIndex(key_2_index_), "value3");
 
   SpdyHeaderBlock headers;
   headers[key_2_->name()] = "value3";
@@ -373,7 +395,7 @@ TEST_P(HpackEncoderTest, SingleLiteralTooLarge) {
 TEST_P(HpackEncoderTest, EmitThanEvict) {
   // |key_1_| is toggled and placed into the reference set,
   // and then immediately evicted by "key3".
-  ExpectIndex(IndexOf(key_1_));
+  ExpectIndex(DynamicIndexToWireIndex(key_1_index_));
   ExpectIndexedLiteral("key3", "value3");
 
   SpdyHeaderBlock headers;
@@ -383,8 +405,8 @@ TEST_P(HpackEncoderTest, EmitThanEvict) {
 }
 
 TEST_P(HpackEncoderTest, CookieHeaderIsCrumbled) {
-  ExpectIndex(IndexOf(cookie_a_));
-  ExpectIndex(IndexOf(cookie_c_));
+  ExpectIndex(DynamicIndexToWireIndex(cookie_a_index_));
+  ExpectIndex(DynamicIndexToWireIndex(cookie_c_index_));
   ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "e=ff");
 
   SpdyHeaderBlock headers;
@@ -474,8 +496,8 @@ TEST_P(HpackEncoderTest, MultipleEncodingPasses) {
     headers["key1"] = "value1";
     headers["cookie"] = "a=bb";
 
-    ExpectIndex(IndexOf(key_1_));
-    ExpectIndex(IndexOf(cookie_a_));
+    ExpectIndex(DynamicIndexToWireIndex(key_1_index_));
+    ExpectIndex(DynamicIndexToWireIndex(cookie_a_index_));
     CompareWithExpectedEncoding(headers);
   }
   // Header table is:
@@ -490,11 +512,12 @@ TEST_P(HpackEncoderTest, MultipleEncodingPasses) {
     headers["cookie"] = "c=dd; e=ff";
 
     // "key2: value2"
-    ExpectIndex(64);
+    ExpectIndex(DynamicIndexToWireIndex(key_2_index_));
     // "cookie: c=dd"
-    ExpectIndex(62);
+    ExpectIndex(DynamicIndexToWireIndex(cookie_c_index_));
     // This cookie evicts |key1| from the dynamic table.
     ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "e=ff");
+    dynamic_table_insertions_++;
 
     CompareWithExpectedEncoding(headers);
   }
@@ -510,13 +533,16 @@ TEST_P(HpackEncoderTest, MultipleEncodingPasses) {
     headers["cookie"] = "a=bb; b=cc; c=dd";
 
     // "key2: value2"
-    ExpectIndex(65);
+    EXPECT_EQ(65u, DynamicIndexToWireIndex(key_2_index_));
+    ExpectIndex(DynamicIndexToWireIndex(key_2_index_));
     // "cookie: a=bb"
-    ExpectIndex(64);
+    EXPECT_EQ(64u, DynamicIndexToWireIndex(cookie_a_index_));
+    ExpectIndex(DynamicIndexToWireIndex(cookie_a_index_));
     // This cookie evicts |key2| from the dynamic table.
     ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "b=cc");
+    dynamic_table_insertions_++;
     // "cookie: c=dd"
-    ExpectIndex(64);
+    ExpectIndex(DynamicIndexToWireIndex(cookie_c_index_));
 
     CompareWithExpectedEncoding(headers);
   }
