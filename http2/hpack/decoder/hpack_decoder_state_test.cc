@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "http2/hpack/hpack_string.h"
 #include "http2/hpack/http2_hpack_constants.h"
 #include "http2/http2_constants.h"
 #include "http2/platform/api/http2_logging.h"

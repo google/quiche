@@ -4,7 +4,6 @@
 
 #include "http2/hpack/decoder/hpack_decoder_state.h"
 
-#include "http2/hpack/hpack_string.h"
 #include "http2/http2_constants.h"
 #include "http2/platform/api/http2_logging.h"
 #include "http2/platform/api/http2_macros.h"

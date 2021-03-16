@@ -4,6 +4,9 @@
 
 #include "http2/hpack/decoder/hpack_decoder_tables.h"
 
+#include <utility>
+
+#include "absl/strings/str_cat.h"
 #include "http2/hpack/http2_hpack_constants.h"
 #include "http2/platform/api/http2_logging.h"
 
@@ -34,6 +37,24 @@ const std::vector<HpackStringPair>* GetStaticTable() {
 
 }  // namespace
 
+HpackStringPair::HpackStringPair(std::string name, std::string value)
+    : name(std::move(name)), value(std::move(value)) {
+  HTTP2_DVLOG(3) << DebugString() << " ctor";
+}
+
+HpackStringPair::~HpackStringPair() {
+  HTTP2_DVLOG(3) << DebugString() << " dtor";
+}
+
+std::string HpackStringPair::DebugString() const {
+  return absl::StrCat("HpackStringPair(name=", name, ", value=", value, ")");
+}
+
+std::ostream& operator<<(std::ostream& os, const HpackStringPair& p) {
+  os << p.DebugString();
+  return os;
+}
+
 HpackDecoderStaticTable::HpackDecoderStaticTable(
     const std::vector<HpackStringPair>* table)
     : table_(table) {}
@@ -63,7 +84,7 @@ void HpackDecoderDynamicTable::DynamicTableSizeUpdate(size_t size_limit) {
 // peer are valid (e.g. are lower-case, no whitespace, etc.).
 void HpackDecoderDynamicTable::Insert(const std::string& name,
                                       const std::string& value) {
-  HpackDecoderTableEntry entry(name, value);
+  HpackStringPair entry(name, value);
   size_t entry_size = entry.size();
   HTTP2_DVLOG(2) << "InsertEntry of size=" << entry_size
                  << "\n     name: " << name << "\n    value: " << value;

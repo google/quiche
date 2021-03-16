@@ -17,7 +17,6 @@
 #include "http2/hpack/decoder/hpack_decoder.h"
 #include "http2/hpack/decoder/hpack_decoder_listener.h"
 #include "http2/hpack/decoder/hpack_decoder_tables.h"
-#include "http2/hpack/hpack_string.h"
 #include "http2/hpack/http2_hpack_constants.h"
 #include "common/platform/api/quiche_export.h"
 #include "spdy/core/hpack/hpack_header_table.h"

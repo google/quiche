@@ -15,7 +15,6 @@
 #include "http2/hpack/decoder/hpack_decoder_listener.h"
 #include "http2/hpack/decoder/hpack_decoder_state.h"
 #include "http2/hpack/decoder/hpack_decoder_tables.h"
-#include "http2/hpack/hpack_string.h"
 #include "http2/hpack/http2_hpack_constants.h"
 #include "http2/hpack/tools/hpack_block_builder.h"
 #include "http2/hpack/tools/hpack_example.h"

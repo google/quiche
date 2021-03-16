@@ -19,9 +19,10 @@
 #include <stddef.h>
 
 #include <cstdint>
+#include <iosfwd>
+#include <string>
 #include <vector>
 
-#include "http2/hpack/hpack_string.h"
 #include "http2/http2_constants.h"
 #include "http2/platform/api/http2_containers.h"
 #include "common/platform/api/quiche_export.h"
@@ -30,6 +31,23 @@ namespace http2 {
 namespace test {
 class HpackDecoderTablesPeer;
 }  // namespace test
+
+struct QUICHE_EXPORT_PRIVATE HpackStringPair {
+  HpackStringPair(std::string name, std::string value);
+  ~HpackStringPair();
+
+  // Returns the size of a header entry with this name and value, per the RFC:
+  // http://httpwg.org/specs/rfc7541.html#calculating.table.size
+  size_t size() const { return 32 + name.size() + value.size(); }
+
+  std::string DebugString() const;
+
+  const std::string name;
+  const std::string value;
+};
+
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                               const HpackStringPair& p);
 
 // See http://httpwg.org/specs/rfc7541.html#static.table.definition for the
 // contents, and http://httpwg.org/specs/rfc7541.html#index.address.space for
@@ -81,8 +99,6 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderDynamicTable {
 
  private:
   friend class test::HpackDecoderTablesPeer;
-  // TODO(bnc): Move HpackStringPair class here.
-  using HpackDecoderTableEntry = HpackStringPair;
 
   // Drop older entries to ensure the size is not greater than limit.
   void EnsureSizeNoMoreThan(size_t limit);
@@ -90,7 +106,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderDynamicTable {
   // Removes the oldest dynamic table entry.
   void RemoveLastEntry();
 
-  Http2Deque<HpackDecoderTableEntry> table_;
+  Http2Deque<HpackStringPair> table_;
 
   // The last received DynamicTableSizeUpdate value, initialized to
   // SETTINGS_HEADER_TABLE_SIZE.
