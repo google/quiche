@@ -14,7 +14,7 @@
 namespace quic {
 
 namespace {
-class QUIC_EXPORT_PRIVATE NoopWebTransportVisitor : public WebTransportVisitor {
+class QUIC_NO_EXPORT NoopWebTransportVisitor : public WebTransportVisitor {
   void OnSessionReady() override {}
   void OnIncomingBidirectionalStreamAvailable() override {}
   void OnIncomingUnidirectionalStreamAvailable() override {}
