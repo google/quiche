@@ -12,6 +12,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "quic/core/crypto/cert_compressor.h"
@@ -57,24 +58,23 @@ const char kOldConfigId[] = "old-config-id";
 }  // namespace
 
 struct TestParams {
-  TestParams(ParsedQuicVersionVector supported_versions)
-      : supported_versions(std::move(supported_versions)) {}
-
   friend std::ostream& operator<<(std::ostream& os, const TestParams& p) {
     os << "  versions: "
-       << ParsedQuicVersionVectorToString(p.supported_versions) << " }";
+       << ParsedQuicVersionVectorToString(p.supported_versions)
+       << " } allow_sni_without_dots: " << p.allow_sni_without_dots;
     return os;
   }
 
   // Versions supported by client and server.
   ParsedQuicVersionVector supported_versions;
+  bool allow_sni_without_dots;
 };
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
   std::string rv = ParsedQuicVersionVectorToString(p.supported_versions);
   std::replace(rv.begin(), rv.end(), ',', '_');
-  return rv;
+  return absl::StrCat(rv, "_allow_sni_without_dots_", p.allow_sni_without_dots);
 }
 
 // Constructs various test permutations.
@@ -84,7 +84,9 @@ std::vector<TestParams> GetTestParams() {
   // Start with all versions, remove highest on each iteration.
   ParsedQuicVersionVector supported_versions = AllSupportedVersions();
   while (!supported_versions.empty()) {
-    params.push_back(TestParams(supported_versions));
+    for (bool allow_sni_without_dots : {false, true}) {
+      params.push_back({supported_versions, allow_sni_without_dots});
+    }
     supported_versions.erase(supported_versions.begin());
   }
 
@@ -108,6 +110,8 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
         signed_config_(new QuicSignedServerConfig),
         chlo_packet_size_(kDefaultMaxPacketSize) {
     supported_versions_ = GetParam().supported_versions;
+    SetQuicReloadableFlag(quic_and_tls_allow_sni_without_dots,
+                          GetParam().allow_sni_without_dots);
     config_.set_enable_serving_sct(true);
 
     client_version_ = supported_versions_.front();
@@ -377,26 +381,33 @@ INSTANTIATE_TEST_SUITE_P(CryptoServerTests,
 
 TEST_P(CryptoServerTest, BadSNI) {
   // clang-format off
-  static const char* const kBadSNIs[] = {
+  std::vector<std::string> badSNIs = {
     "",
-    "foo",
     "#00",
     "#ff00",
     "127.0.0.1",
     "ffee::1",
   };
+  if (!GetParam().allow_sni_without_dots) {
+    badSNIs.push_back("foo");
+  }
   // clang-format on
 
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(kBadSNIs); i++) {
-    CryptoHandshakeMessage msg =
-        crypto_test_utils::CreateCHLO({{"PDMD", "X509"},
-                                       {"SNI", kBadSNIs[i]},
-                                       {"VER\0", client_version_string_}},
-                                      kClientHelloMinimumSize);
+  for (const std::string& bad_sni : badSNIs) {
+    CryptoHandshakeMessage msg = crypto_test_utils::CreateCHLO(
+        {{"PDMD", "X509"}, {"SNI", bad_sni}, {"VER\0", client_version_string_}},
+        kClientHelloMinimumSize);
     ShouldFailMentioning("SNI", msg);
     const HandshakeFailureReason kRejectReasons[] = {
         SERVER_CONFIG_INCHOATE_HELLO_FAILURE};
     CheckRejectReasons(kRejectReasons, ABSL_ARRAYSIZE(kRejectReasons));
+  }
+
+  if (GetParam().allow_sni_without_dots) {
+    CryptoHandshakeMessage msg = crypto_test_utils::CreateCHLO(
+        {{"PDMD", "X509"}, {"SNI", "foo"}, {"VER\0", client_version_string_}},
+        kClientHelloMinimumSize);
+    ShouldSucceed(msg);
   }
 }
 
