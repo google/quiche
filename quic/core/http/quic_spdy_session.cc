@@ -351,8 +351,8 @@ class QuicSpdySession::SpdyFramerVisitor
       return;
     }
 
-    QUIC_BUG_IF_V2(quic_bug_12477_1,
-                   session_->destruction_indicator() != 123456789)
+    QUIC_BUG_IF(quic_bug_12477_1,
+                session_->destruction_indicator() != 123456789)
         << "QuicSpdyStream use after free. "
         << session_->destruction_indicator() << QuicStackTrace();
 
@@ -416,7 +416,7 @@ class QuicSpdySession::SpdyFramerVisitor
                              size_t payload_len,
                              size_t frame_len) override {
     if (payload_len == 0) {
-      QUIC_BUG_V2(quic_bug_10360_1) << "Zero payload length.";
+      QUIC_BUG(quic_bug_10360_1) << "Zero payload length.";
       return;
     }
     int compression_pct = 100 - (100 * frame_len) / payload_len;
@@ -499,11 +499,11 @@ QuicSpdySession::QuicSpdySession(
 }
 
 QuicSpdySession::~QuicSpdySession() {
-  QUIC_BUG_IF_V2(quic_bug_12477_2, destruction_indicator_ != 123456789)
+  QUIC_BUG_IF(quic_bug_12477_2, destruction_indicator_ != 123456789)
       << "QuicSpdySession use after free. " << destruction_indicator_
       << QuicStackTrace();
   destruction_indicator_ = 987654321;
-  QUIC_BUG_IF_V2(quic_bug_12477_3, !h3_datagram_registrations_.empty())
+  QUIC_BUG_IF(quic_bug_12477_3, !h3_datagram_registrations_.empty())
       << "HTTP/3 datagram flow ID was not unregistered";
 }
 
@@ -677,7 +677,7 @@ bool QuicSpdySession::OnPriorityUpdateForRequestStream(QuicStreamId stream_id,
                      buffered_stream_priorities_.size(),
                      ", which should not exceed the incoming stream limit of ",
                      max_open_incoming_bidirectional_streams());
-    QUIC_BUG_V2(quic_bug_10360_2) << error_message;
+    QUIC_BUG(quic_bug_10360_2) << error_message;
     connection()->CloseConnection(
         QUIC_INTERNAL_ERROR, error_message,
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -694,7 +694,7 @@ bool QuicSpdySession::OnPriorityUpdateForPushStream(QuicStreamId /*push_id*/,
 }
 
 size_t QuicSpdySession::ProcessHeaderData(const struct iovec& iov) {
-  QUIC_BUG_IF_V2(quic_bug_12477_4, destruction_indicator_ != 123456789)
+  QUIC_BUG_IF(quic_bug_12477_4, destruction_indicator_ != 123456789)
       << "QuicSpdyStream use after free. " << destruction_indicator_
       << QuicStackTrace();
   return h2_deframer_.ProcessInput(static_cast<char*>(iov.iov_base),
@@ -736,7 +736,7 @@ void QuicSpdySession::WriteHttp3PriorityUpdate(
 }
 
 void QuicSpdySession::OnHttp3GoAway(uint64_t id) {
-  QUIC_BUG_IF_V2(quic_bug_12477_5, !version().UsesHttp3())
+  QUIC_BUG_IF(quic_bug_12477_5, !version().UsesHttp3())
       << "HTTP/3 GOAWAY received on version " << version();
 
   if (last_received_http3_goaway_id_.has_value() &&
@@ -815,7 +815,7 @@ void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
       // A previous GOAWAY frame was sent with smaller stream ID.  This is not
       // possible, because the only time a GOAWAY frame with non-maximal
       // stream ID is sent is right before closing connection.
-      QUIC_BUG_V2(quic_bug_10360_3)
+      QUIC_BUG(quic_bug_10360_3)
           << "Not sending GOAWAY frame with " << stream_id
           << " because one with " << last_sent_http3_goaway_id_.value()
           << " already sent on connection " << connection()->connection_id();
@@ -831,7 +831,7 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
                                        QuicStreamId promised_stream_id,
                                        SpdyHeaderBlock headers) {
   if (perspective() == Perspective::IS_CLIENT) {
-    QUIC_BUG_V2(quic_bug_10360_4) << "Client shouldn't send PUSH_PROMISE";
+    QUIC_BUG(quic_bug_10360_4) << "Client shouldn't send PUSH_PROMISE";
     return;
   }
 
@@ -849,7 +849,7 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
   }
 
   if (!max_push_id_.has_value() || promised_stream_id > max_push_id_.value()) {
-    QUIC_BUG_V2(quic_bug_12477_6)
+    QUIC_BUG(quic_bug_12477_6)
         << "Server shouldn't send push id higher than client's MAX_PUSH_ID.";
     return;
   }
@@ -914,7 +914,7 @@ QuicSpdyStream* QuicSpdySession::GetOrCreateSpdyDataStream(
     const QuicStreamId stream_id) {
   QuicStream* stream = GetOrCreateStream(stream_id);
   if (stream && stream->is_static()) {
-    QUIC_BUG_V2(quic_bug_10360_5)
+    QUIC_BUG(quic_bug_10360_5)
         << "GetOrCreateSpdyDataStream returns static stream " << stream_id
         << " in version " << transport_version() << "\n"
         << QuicStackTrace();
@@ -1006,7 +1006,7 @@ void QuicSpdySession::OnPromiseHeaderList(
     const QuicHeaderList& /*header_list*/) {
   std::string error =
       "OnPromiseHeaderList should be overridden in client code.";
-  QUIC_BUG_V2(quic_bug_10360_6) << error;
+  QUIC_BUG(quic_bug_10360_6) << error;
   connection()->CloseConnection(QUIC_INTERNAL_ERROR, error,
                                 ConnectionCloseBehavior::SILENT_CLOSE);
 }
@@ -1184,7 +1184,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         if (value != 0 && value != 1) {
           std::string error_details = absl::StrCat(
               "received SETTINGS_H3_DATAGRAM with invalid value ", value);
-          QUIC_PEER_BUG_V2(quic_peer_bug_10360_7) << ENDPOINT << error_details;
+          QUIC_PEER_BUG(quic_peer_bug_10360_7) << ENDPOINT << error_details;
           CloseConnectionWithDetails(QUIC_HTTP_RECEIVE_SPDY_SETTING,
                                      error_details);
           return false;
@@ -1509,7 +1509,7 @@ void QuicSpdySession::BeforeConnectionCloseSent() {
     // possible, because this is the only method sending a GOAWAY frame with
     // non-maximal stream ID, and this must only be called once, right
     // before closing connection.
-    QUIC_BUG_V2(quic_bug_10360_8)
+    QUIC_BUG(quic_bug_10360_8)
         << "Not sending GOAWAY frame with " << stream_id << " because one with "
         << last_sent_http3_goaway_id_.value() << " already sent on connection "
         << connection()->connection_id();
@@ -1630,7 +1630,7 @@ bool QuicSpdySession::CanCreatePushStreamWithId(PushId push_id) {
 
 void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
     absl::string_view type) {
-  QUIC_PEER_BUG_V2(quic_peer_bug_10360_9) << absl::StrCat(
+  QUIC_PEER_BUG(quic_peer_bug_10360_9) << absl::StrCat(
       "Received a duplicate ", type, " stream: Closing connection.");
   CloseConnectionWithDetails(QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
                              absl::StrCat(type, " stream is received twice."));
@@ -1696,11 +1696,11 @@ MessageStatus QuicSpdySession::SendHttp3Datagram(QuicDatagramFlowId flow_id,
       connection()->helper()->GetStreamSendBufferAllocator(), slice_length);
   QuicDataWriter writer(slice_length, buffer.get());
   if (!writer.WriteVarInt62(flow_id)) {
-    QUIC_BUG_V2(quic_bug_10360_10) << "Failed to write HTTP/3 datagram flow ID";
+    QUIC_BUG(quic_bug_10360_10) << "Failed to write HTTP/3 datagram flow ID";
     return MESSAGE_STATUS_INTERNAL_ERROR;
   }
   if (!writer.WriteBytes(payload.data(), payload.length())) {
-    QUIC_BUG_V2(quic_bug_10360_11) << "Failed to write HTTP/3 datagram payload";
+    QUIC_BUG(quic_bug_10360_11) << "Failed to write HTTP/3 datagram payload";
     return MESSAGE_STATUS_INTERNAL_ERROR;
   }
 
@@ -1713,13 +1713,13 @@ void QuicSpdySession::RegisterHttp3FlowId(
     QuicSpdySession::Http3DatagramVisitor* visitor) {
   QUICHE_DCHECK_NE(visitor, nullptr);
   auto insertion_result = h3_datagram_registrations_.insert({flow_id, visitor});
-  QUIC_BUG_IF_V2(quic_bug_12477_7, !insertion_result.second)
+  QUIC_BUG_IF(quic_bug_12477_7, !insertion_result.second)
       << "Attempted to doubly register HTTP/3 flow ID " << flow_id;
 }
 
 void QuicSpdySession::UnregisterHttp3FlowId(QuicDatagramFlowId flow_id) {
   size_t num_erased = h3_datagram_registrations_.erase(flow_id);
-  QUIC_BUG_IF_V2(quic_bug_12477_8, num_erased != 1)
+  QUIC_BUG_IF(quic_bug_12477_8, num_erased != 1)
       << "Attempted to unregister unknown HTTP/3 flow ID " << flow_id;
 }
 

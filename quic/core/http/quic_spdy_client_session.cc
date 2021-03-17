@@ -66,7 +66,7 @@ bool QuicSpdyClientSession::ShouldCreateOutgoingBidirectionalStream() {
 }
 
 bool QuicSpdyClientSession::ShouldCreateOutgoingUnidirectionalStream() {
-  QUIC_BUG_V2(quic_bug_10396_1)
+  QUIC_BUG(quic_bug_10396_1)
       << "Try to create outgoing unidirectional client data streams";
   return false;
 }
@@ -84,7 +84,7 @@ QuicSpdyClientSession::CreateOutgoingBidirectionalStream() {
 
 QuicSpdyClientStream*
 QuicSpdyClientSession::CreateOutgoingUnidirectionalStream() {
-  QUIC_BUG_V2(quic_bug_10396_2)
+  QUIC_BUG(quic_bug_10396_2)
       << "Try to create outgoing unidirectional client data streams";
   return nullptr;
 }
@@ -139,7 +139,7 @@ int QuicSpdyClientSession::GetNumReceivedServerConfigUpdates() const {
 
 bool QuicSpdyClientSession::ShouldCreateIncomingStream(QuicStreamId id) {
   if (!connection()->connected()) {
-    QUIC_BUG_V2(quic_bug_10396_3)
+    QUIC_BUG(quic_bug_10396_3)
         << "ShouldCreateIncomingStream called when disconnected";
     return false;
   }
@@ -150,7 +150,7 @@ bool QuicSpdyClientSession::ShouldCreateIncomingStream(QuicStreamId id) {
   }
 
   if (QuicUtils::IsClientInitiatedStreamId(transport_version(), id)) {
-    QUIC_BUG_V2(quic_bug_10396_4)
+    QUIC_BUG(quic_bug_10396_4)
         << "ShouldCreateIncomingStream called with client initiated "
            "stream ID.";
     return false;

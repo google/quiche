@@ -171,9 +171,9 @@ void QuicServerSessionBase::OnCongestionWindowChange(QuicTime now) {
           bandwidth_estimate_sent_to_client_);
   const int32_t max_bw_estimate_bytes_per_second =
       BandwidthToCachedParameterBytesPerSecond(max_bandwidth_estimate);
-  QUIC_BUG_IF_V2(quic_bug_12513_1, max_bw_estimate_bytes_per_second < 0)
+  QUIC_BUG_IF(quic_bug_12513_1, max_bw_estimate_bytes_per_second < 0)
       << max_bw_estimate_bytes_per_second;
-  QUIC_BUG_IF_V2(quic_bug_10393_1, bw_estimate_bytes_per_second < 0)
+  QUIC_BUG_IF(quic_bug_10393_1, bw_estimate_bytes_per_second < 0)
       << bw_estimate_bytes_per_second;
 
   CachedNetworkParameters cached_network_params;
@@ -206,13 +206,13 @@ void QuicServerSessionBase::OnCongestionWindowChange(QuicTime now) {
 
 bool QuicServerSessionBase::ShouldCreateIncomingStream(QuicStreamId id) {
   if (!connection()->connected()) {
-    QUIC_BUG_V2(quic_bug_10393_2)
+    QUIC_BUG(quic_bug_10393_2)
         << "ShouldCreateIncomingStream called when disconnected";
     return false;
   }
 
   if (QuicUtils::IsServerInitiatedStreamId(transport_version(), id)) {
-    QUIC_BUG_V2(quic_bug_10393_3)
+    QUIC_BUG(quic_bug_10393_3)
         << "ShouldCreateIncomingStream called with server initiated "
            "stream ID.";
     return false;
@@ -230,12 +230,12 @@ bool QuicServerSessionBase::ShouldCreateIncomingStream(QuicStreamId id) {
 
 bool QuicServerSessionBase::ShouldCreateOutgoingBidirectionalStream() {
   if (!connection()->connected()) {
-    QUIC_BUG_V2(quic_bug_12513_2)
+    QUIC_BUG(quic_bug_12513_2)
         << "ShouldCreateOutgoingBidirectionalStream called when disconnected";
     return false;
   }
   if (!crypto_stream_->encryption_established()) {
-    QUIC_BUG_V2(quic_bug_10393_4)
+    QUIC_BUG(quic_bug_10393_4)
         << "Encryption not established so no outgoing stream created.";
     return false;
   }
@@ -245,12 +245,12 @@ bool QuicServerSessionBase::ShouldCreateOutgoingBidirectionalStream() {
 
 bool QuicServerSessionBase::ShouldCreateOutgoingUnidirectionalStream() {
   if (!connection()->connected()) {
-    QUIC_BUG_V2(quic_bug_12513_3)
+    QUIC_BUG(quic_bug_12513_3)
         << "ShouldCreateOutgoingUnidirectionalStream called when disconnected";
     return false;
   }
   if (!crypto_stream_->encryption_established()) {
-    QUIC_BUG_V2(quic_bug_10393_5)
+    QUIC_BUG(quic_bug_10393_5)
         << "Encryption not established so no outgoing stream created.";
     return false;
   }

@@ -111,7 +111,7 @@ QuicByteCount HttpDecoder::ProcessInput(const char* data, QuicByteCount len) {
       case STATE_ERROR:
         break;
       default:
-        QUIC_BUG_V2(quic_bug_10411_1) << "Invalid state: " << state_;
+        QUIC_BUG(quic_bug_10411_1) << "Invalid state: " << state_;
     }
   }
 

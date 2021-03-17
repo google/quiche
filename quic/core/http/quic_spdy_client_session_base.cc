@@ -142,7 +142,7 @@ bool QuicSpdyClientSessionBase::HandlePromised(QuicStreamId /* associated_id */,
   if (GetPromisedById(promised_id)) {
     // OnPromiseHeadersComplete() would have closed the connection if
     // promised id is a duplicate.
-    QUIC_BUG_V2(quic_bug_10412_1) << "Duplicate promise for id " << promised_id;
+    QUIC_BUG(quic_bug_10412_1) << "Duplicate promise for id " << promised_id;
     return false;
   }
 

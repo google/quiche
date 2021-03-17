@@ -98,7 +98,7 @@ QuicAsyncStatus QuicClientPromisedInfo::FinalValidation() {
     // This shouldn't be possible, as |ClientRequest| guards against
     // closed stream for the synchronous case.  And in the
     // asynchronous case, a RST can only be caught by |OnAlarm()|.
-    QUIC_BUG_V2(quic_bug_10378_1) << "missing promised stream" << id_;
+    QUIC_BUG(quic_bug_10378_1) << "missing promised stream" << id_;
   }
   QuicClientPushPromiseIndex::Delegate* delegate = client_request_delegate_;
   session_->DeletePromised(this);

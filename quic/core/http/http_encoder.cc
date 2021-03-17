@@ -205,7 +205,7 @@ QuicByteCount HttpEncoder::SerializePriorityUpdateFrame(
     const PriorityUpdateFrame& priority_update,
     std::unique_ptr<char[]>* output) {
   if (priority_update.prioritized_element_type != REQUEST_STREAM) {
-    QUIC_BUG_V2(quic_bug_10402_1)
+    QUIC_BUG(quic_bug_10402_1)
         << "PRIORITY_UPDATE for push streams not implemented";
     return 0;
   }
