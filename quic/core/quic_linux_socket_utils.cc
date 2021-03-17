@@ -229,7 +229,7 @@ void QuicLinuxSocketUtils::SetIpInfoInCmsgData(
     in6_pktinfo* pktinfo = static_cast<in6_pktinfo*>(cmsg_data);
     memcpy(&pktinfo->ipi6_addr, address_str.c_str(), address_str.length());
   } else {
-    QUIC_BUG_V2(quic_bug_10598_1) << "Unrecognized IPAddress";
+    QUIC_BUG(quic_bug_10598_1) << "Unrecognized IPAddress";
   }
 }
 
@@ -259,7 +259,7 @@ size_t QuicLinuxSocketUtils::SetIpInfoInCmsg(const QuicIpAddress& self_address,
            address_string.length());
     return sizeof(in6_pktinfo);
   } else {
-    QUIC_BUG_V2(quic_bug_10598_2) << "Unrecognized IPAddress";
+    QUIC_BUG(quic_bug_10598_2) << "Unrecognized IPAddress";
     return 0;
   }
 }
@@ -300,7 +300,7 @@ WriteResult QuicLinuxSocketUtils::WriteMultiplePackets(int fd,
 
     return WriteResult(WRITE_STATUS_OK, mhdr->num_bytes_sent(rc));
   } else if (rc == 0) {
-    QUIC_BUG_V2(quic_bug_10598_3)
+    QUIC_BUG(quic_bug_10598_3)
         << "sendmmsg returned 0, returning WRITE_STATUS_ERROR. errno: "
         << errno;
     errno = EIO;

@@ -67,7 +67,7 @@ bool QuicPacketReader::ReadAndDispatchPackets(
     }
 
     if (!result.packet_info.HasValue(QuicUdpPacketInfoBit::PEER_ADDRESS)) {
-      QUIC_BUG_V2(quic_bug_10329_1) << "Unable to get peer socket address.";
+      QUIC_BUG(quic_bug_10329_1) << "Unable to get peer socket address.";
       continue;
     }
 
@@ -77,7 +77,7 @@ bool QuicPacketReader::ReadAndDispatchPackets(
     QuicIpAddress self_ip = GetSelfIpFromPacketInfo(
         result.packet_info, peer_address.host().IsIPv6());
     if (!self_ip.IsInitialized()) {
-      QUIC_BUG_V2(quic_bug_10329_2) << "Unable to get self IP address.";
+      QUIC_BUG(quic_bug_10329_2) << "Unable to get self IP address.";
       continue;
     }
 

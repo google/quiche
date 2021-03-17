@@ -309,7 +309,7 @@ QuicPacketNumber QuicReceivedPacketManager::GetLargestObserved() const {
 QuicPacketNumber QuicReceivedPacketManager::PeerFirstSendingPacketNumber()
     const {
   if (!least_received_packet_number_.IsInitialized()) {
-    QUIC_BUG_V2(quic_bug_10849_1) << "No packets have been received yet";
+    QUIC_BUG(quic_bug_10849_1) << "No packets have been received yet";
     return QuicPacketNumber(1);
   }
   return least_received_packet_number_;

@@ -38,7 +38,7 @@ class QUIC_EXPORT_PRIVATE QuicOneBlockArena {
     static_assert(alignof(T) > 1,
                   "Objects added to the arena must be at least 2B aligned.");
     if (QUIC_PREDICT_FALSE(offset_ > ArenaSize - AlignedSize<T>())) {
-      QUIC_BUG_V2(quic_bug_10593_1)
+      QUIC_BUG(quic_bug_10593_1)
           << "Ran out of space in QuicOneBlockArena at " << this
           << ", max size was " << ArenaSize << ", failing request was "
           << AlignedSize<T>() << ", end of arena was " << offset_;
