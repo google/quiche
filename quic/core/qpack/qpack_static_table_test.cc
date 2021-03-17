@@ -25,13 +25,13 @@ TEST(QpackStaticTableTest, Initialize) {
                    QpackStaticTableVector().size());
   EXPECT_TRUE(table.IsInitialized());
 
-  auto static_entries = table.GetStaticEntries();
+  const auto& static_entries = table.GetStaticEntries();
   EXPECT_EQ(QpackStaticTableVector().size(), static_entries.size());
 
-  auto static_index = table.GetStaticIndex();
+  const auto& static_index = table.GetStaticIndex();
   EXPECT_EQ(QpackStaticTableVector().size(), static_index.size());
 
-  auto static_name_index = table.GetStaticNameIndex();
+  const auto& static_name_index = table.GetStaticNameIndex();
   std::set<absl::string_view> names;
   for (auto entry : static_index) {
     names.insert(entry->name());

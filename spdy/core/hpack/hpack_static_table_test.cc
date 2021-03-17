@@ -31,7 +31,8 @@ TEST_F(HpackStaticTableTest, Initialize) {
                     HpackStaticTableVector().size());
   EXPECT_TRUE(table_.IsInitialized());
 
-  HpackHeaderTable::EntryTable static_entries = table_.GetStaticEntries();
+  const HpackHeaderTable::EntryTable& static_entries =
+      table_.GetStaticEntries();
   EXPECT_EQ(kStaticTableSize, static_entries.size());
 
   HpackHeaderTable::UnorderedEntrySet static_index = table_.GetStaticIndex();

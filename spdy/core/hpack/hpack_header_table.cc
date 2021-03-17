@@ -174,9 +174,9 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
     QUICHE_DCHECK_EQ(0u, size_);
     return nullptr;
   }
-  dynamic_entries_.push_front(HpackEntry(name, value,
-                                         false,  // is_static
-                                         total_insertions_));
+  dynamic_entries_.emplace_front(name, value,
+                                 false,  // is_static
+                                 total_insertions_);
   HpackEntry* new_entry = &dynamic_entries_.front();
   auto index_result = dynamic_index_.insert(new_entry);
   if (!index_result.second) {

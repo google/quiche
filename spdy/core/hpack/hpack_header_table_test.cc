@@ -56,8 +56,8 @@ class HpackHeaderTablePeer {
   void Evict(size_t count) { return table_->Evict(count); }
 
   void AddDynamicEntry(absl::string_view name, absl::string_view value) {
-    table_->dynamic_entries_.push_back(
-        HpackEntry(name, value, false, table_->total_insertions_++));
+    table_->dynamic_entries_.emplace_back(name, value, false,
+                                          table_->total_insertions_++);
   }
 
  private:

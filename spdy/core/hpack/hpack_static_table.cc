@@ -23,11 +23,10 @@ void HpackStaticTable::Initialize(const HpackStaticEntry* static_entry_table,
   int total_insertions = 0;
   for (const HpackStaticEntry* it = static_entry_table;
        it != static_entry_table + static_entry_count; ++it) {
-    static_entries_.push_back(
-        HpackEntry(absl::string_view(it->name, it->name_len),
-                   absl::string_view(it->value, it->value_len),
-                   true,  // is_static
-                   total_insertions));
+    static_entries_.emplace_back(absl::string_view(it->name, it->name_len),
+                                 absl::string_view(it->value, it->value_len),
+                                 true,  // is_static
+                                 total_insertions);
     HpackEntry* entry = &static_entries_.back();
     QUICHE_CHECK(static_index_.insert(entry).second);
     // Multiple static entries may have the same name, so inserts may fail.
