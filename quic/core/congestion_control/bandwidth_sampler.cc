@@ -171,7 +171,7 @@ void BandwidthSampler::OnPacketSent(
     if (unacked_packet_map_ != nullptr && !unacked_packet_map_->empty()) {
       QuicPacketNumber maybe_least_unacked =
           unacked_packet_map_->GetLeastUnacked();
-      QUIC_BUG_V2(quic_bug_10437_1)
+      QUIC_BUG(quic_bug_10437_1)
           << "BandwidthSampler in-flight packet map has exceeded maximum "
              "number of tracked packets("
           << max_tracked_packets_
@@ -196,7 +196,7 @@ void BandwidthSampler::OnPacketSent(
                         .DebugString()
                   : "n/a");
     } else {
-      QUIC_BUG_V2(quic_bug_10437_2)
+      QUIC_BUG(quic_bug_10437_2)
           << "BandwidthSampler in-flight packet map has exceeded maximum "
              "number of tracked packets.";
     }
@@ -204,7 +204,7 @@ void BandwidthSampler::OnPacketSent(
 
   bool success = connection_state_map_.Emplace(packet_number, sent_time, bytes,
                                                bytes_in_flight + bytes, *this);
-  QUIC_BUG_IF_V2(quic_bug_10437_3, !success)
+  QUIC_BUG_IF(quic_bug_10437_3, !success)
       << "BandwidthSampler failed to insert the packet "
          "into the map, most likely because it's already "
          "in it.";
@@ -356,7 +356,7 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   // current packet was sent. In that case, there is no bandwidth sample to
   // make.
   if (sent_packet.last_acked_packet_sent_time == QuicTime::Zero()) {
-    QUIC_BUG_V2(quic_bug_10437_4)
+    QUIC_BUG(quic_bug_10437_4)
         << "sent_packet.last_acked_packet_sent_time is zero";
     return BandwidthSample();
   }
@@ -429,7 +429,7 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
 bool BandwidthSampler::ChooseA0Point(QuicByteCount total_bytes_acked,
                                      AckPoint* a0) {
   if (a0_candidates_.empty()) {
-    QUIC_BUG_V2(quic_bug_10437_5)
+    QUIC_BUG(quic_bug_10437_5)
         << "No A0 point candicates. total_bytes_acked:" << total_bytes_acked;
     return false;
   }

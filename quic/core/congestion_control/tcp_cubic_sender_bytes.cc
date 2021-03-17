@@ -361,7 +361,7 @@ void TcpCubicSenderBytes::MaybeIncreaseCwnd(
     QuicByteCount acked_bytes,
     QuicByteCount prior_in_flight,
     QuicTime event_time) {
-  QUIC_BUG_IF_V2(quic_bug_10439_1, InRecovery())
+  QUIC_BUG_IF(quic_bug_10439_1, InRecovery())
       << "Never increase the CWND during recovery.";
   // Do not increase the congestion window unless the sender is close to using
   // the current window.

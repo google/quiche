@@ -93,7 +93,7 @@ void UberLossAlgorithm::SpuriousLossDetected(
 void UberLossAlgorithm::SetLossDetectionTuner(
     std::unique_ptr<LossDetectionTunerInterface> tuner) {
   if (tuner_ != nullptr) {
-    QUIC_BUG_V2(quic_bug_10469_1)
+    QUIC_BUG(quic_bug_10469_1)
         << "LossDetectionTuner can only be set once when session begins.";
     return;
   }
@@ -120,7 +120,7 @@ void UberLossAlgorithm::MaybeStartTuning() {
     SetReorderingShift(*tuned_parameters_.reordering_shift);
     SetReorderingThreshold(*tuned_parameters_.reordering_threshold);
   } else {
-    QUIC_BUG_V2(quic_bug_10469_2)
+    QUIC_BUG(quic_bug_10469_2)
         << "Tuner started but some parameters are missing";
   }
 }
@@ -206,7 +206,7 @@ void UberLossAlgorithm::DisablePacketThresholdForRuntPackets() {
 
 void UberLossAlgorithm::ResetLossDetection(PacketNumberSpace space) {
   if (space >= NUM_PACKET_NUMBER_SPACES) {
-    QUIC_BUG_V2(quic_bug_10469_3) << "Invalid packet number space: " << space;
+    QUIC_BUG(quic_bug_10469_3) << "Invalid packet number space: " << space;
     return;
   }
   general_loss_algorithms_[space].Reset();

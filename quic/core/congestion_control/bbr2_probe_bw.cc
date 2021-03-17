@@ -205,7 +205,7 @@ Bbr2ProbeBwMode::AdaptUpperBoundsResult Bbr2ProbeBwMode::MaybeAdaptUpperBounds(
           model_->total_bytes_acked() -
           congestion_event.last_packet_send_state.total_bytes_acked;
     } else {
-      QUIC_BUG_V2(quic_bug_10436_1)
+      QUIC_BUG(quic_bug_10436_1)
           << "Total_bytes_acked(" << model_->total_bytes_acked()
           << ") < send_state.total_bytes_acked("
           << congestion_event.last_packet_send_state.total_bytes_acked << ")";
@@ -394,7 +394,7 @@ void Bbr2ProbeBwMode::ProbeInflightHighUpward(
 
       model_->set_inflight_hi(new_inflight_hi);
     } else {
-      QUIC_BUG_V2(quic_bug_10436_2)
+      QUIC_BUG(quic_bug_10436_2)
           << "Not growing inflight_hi due to wrap around. Old value:"
           << model_->inflight_hi() << ", new value:" << new_inflight_hi;
     }

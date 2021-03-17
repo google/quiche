@@ -226,7 +226,7 @@ void Bbr2NetworkModel::AdaptLowerBounds(
              static_cast<double>(congestion_event.prior_cwnd));
         break;
       case Bbr2Params::DEFAULT:
-        QUIC_BUG_V2(quic_bug_10466_1) << "Unreachable case DEFAULT.";
+        QUIC_BUG(quic_bug_10466_1) << "Unreachable case DEFAULT.";
     }
     if (pacing_gain_ > Params().startup_full_bw_threshold) {
       // In STARTUP, pacing_gain_ is applied to bandwidth_lo_, so this backs

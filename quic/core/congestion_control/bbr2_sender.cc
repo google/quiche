@@ -258,18 +258,18 @@ void Bbr2Sender::OnCongestionEvent(bool /*rtt_updated*/,
     BBR2_MODE_DISPATCH(Enter(event_time, &congestion_event));
     --mode_changes_allowed;
     if (mode_changes_allowed < 0) {
-      QUIC_BUG_V2(quic_bug_10443_1)
+      QUIC_BUG(quic_bug_10443_1)
           << "Exceeded max number of mode changes per congestion event.";
       break;
     }
   }
 
   UpdatePacingRate(congestion_event.bytes_acked);
-  QUIC_BUG_IF_V2(quic_bug_10443_2, pacing_rate_.IsZero())
+  QUIC_BUG_IF(quic_bug_10443_2, pacing_rate_.IsZero())
       << "Pacing rate must not be zero!";
 
   UpdateCongestionWindow(congestion_event.bytes_acked);
-  QUIC_BUG_IF_V2(quic_bug_10443_3, cwnd_ == 0u)
+  QUIC_BUG_IF(quic_bug_10443_3, cwnd_ == 0u)
       << "Congestion window must not be zero!";
 
   model_.OnCongestionEventFinish(unacked_packets_->GetLeastUnacked(),
