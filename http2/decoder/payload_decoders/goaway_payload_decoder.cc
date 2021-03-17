@@ -31,7 +31,7 @@ std::ostream& operator<<(std::ostream& out,
   // Since the value doesn't come over the wire, only a programming bug should
   // result in reaching this point.
   int unknown = static_cast<int>(v);
-  HTTP2_BUG_V2(http2_bug_167_1)
+  HTTP2_BUG(http2_bug_167_1)
       << "Invalid GoAwayPayloadDecoder::PayloadState: " << unknown;
   return out << "GoAwayPayloadDecoder::PayloadState(" << unknown << ")";
 }
@@ -115,7 +115,7 @@ DecodeStatus GoAwayPayloadDecoder::ResumeDecodingPayload(
         payload_state_ = PayloadState::kHandleFixedFieldsStatus;
         continue;
     }
-    HTTP2_BUG_V2(http2_bug_167_2) << "PayloadState: " << payload_state_;
+    HTTP2_BUG(http2_bug_167_2) << "PayloadState: " << payload_state_;
   }
 }
 

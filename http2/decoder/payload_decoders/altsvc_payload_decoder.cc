@@ -31,7 +31,7 @@ std::ostream& operator<<(std::ostream& out,
   // Since the value doesn't come over the wire, only a programming bug should
   // result in reaching this point.
   int unknown = static_cast<int>(v);
-  HTTP2_BUG_V2(http2_bug_163_1)
+  HTTP2_BUG(http2_bug_163_1)
       << "Invalid AltSvcPayloadDecoder::PayloadState: " << unknown;
   return out << "AltSvcPayloadDecoder::PayloadState(" << unknown << ")";
 }
@@ -105,7 +105,7 @@ DecodeStatus AltSvcPayloadDecoder::ResumeDecodingPayload(
         payload_state_ = PayloadState::kMaybeDecodedStruct;
         continue;
     }
-    HTTP2_BUG_V2(http2_bug_163_2) << "PayloadState: " << payload_state_;
+    HTTP2_BUG(http2_bug_163_2) << "PayloadState: " << payload_state_;
   }
 }
 
