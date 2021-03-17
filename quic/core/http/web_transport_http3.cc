@@ -8,6 +8,8 @@
 
 #include "quic/core/http/quic_spdy_session.h"
 #include "quic/core/http/quic_spdy_stream.h"
+#include "quic/core/quic_utils.h"
+#include "common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -28,7 +30,11 @@ WebTransportHttp3::WebTransportHttp3(QuicSpdySession* session,
     : session_(session),
       connect_stream_(connect_stream),
       id_(id),
-      visitor_(std::make_unique<NoopWebTransportVisitor>()) {}
+      visitor_(std::make_unique<NoopWebTransportVisitor>()) {
+  QUICHE_DCHECK(session_->SupportsWebTransport());
+  QUICHE_DCHECK(IsValidWebTransportSessionId(id, session_->version()));
+  QUICHE_DCHECK_EQ(connect_stream_->id(), id);
+}
 
 void WebTransportHttp3::HeadersReceived(
     const spdy::SpdyHeaderBlock& /*headers*/) {

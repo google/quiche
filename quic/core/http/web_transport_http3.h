@@ -49,8 +49,8 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3 : public WebTransportSession {
   void SetDatagramMaxTimeInQueue(QuicTime::Delta max_time_in_queue) override;
 
  private:
-  const QuicSpdySession* session_;        // Unowned.
-  const QuicSpdyStream* connect_stream_;  // Unowned.
+  QuicSpdySession* const session_;        // Unowned.
+  QuicSpdyStream* const connect_stream_;  // Unowned.
   const WebTransportSessionId id_;
   // |ready_| is set to true when the peer has seen both sets of headers.
   bool ready_ = false;
