@@ -2291,8 +2291,9 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
                                      ENCRYPTION_FORWARD_SECURE);
     EXPECT_LT(2 * received->length(),
               QuicConnectionPeer::BytesReceivedOnAlternativePath(&connection_));
-    EXPECT_TRUE(QuicConnectionPeer::IsAlternativePathValidated(&connection_));
-
+    if (connection_.validate_client_address()) {
+      EXPECT_TRUE(QuicConnectionPeer::IsAlternativePathValidated(&connection_));
+    }
     // Receiving another probing packet from a newer address with a different
     // port shouldn't trigger another reverse path validation.
     QuicSocketAddress kNewerPeerAddress(QuicIpAddress::Loopback4(),
