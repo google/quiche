@@ -25,7 +25,7 @@ std::ostream& operator<<(std::ostream& out,
   // Since the value doesn't come over the wire, only a programming bug should
   // result in reaching this point.
   int unknown = static_cast<int>(v);
-  HTTP2_BUG_V2(http2_bug_50_1)
+  HTTP2_BUG(http2_bug_50_1)
       << "Invalid HpackDecoderStringBuffer::State: " << unknown;
   return out << "HpackDecoderStringBuffer::State(" << unknown << ")";
 }
@@ -45,7 +45,7 @@ std::ostream& operator<<(std::ostream& out,
   // Since the value doesn't come over the wire, only a programming bug should
   // result in reaching this point.
   auto v2 = static_cast<int>(v);
-  HTTP2_BUG_V2(http2_bug_50_2)
+  HTTP2_BUG(http2_bug_50_2)
       << "Invalid HpackDecoderStringBuffer::Backing: " << v2;
   return out << "HpackDecoderStringBuffer::Backing(" << v2 << ")";
 }

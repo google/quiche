@@ -21,7 +21,7 @@ namespace http2 {
 uint32_t Http2StructureDecoder::IncompleteStart(DecodeBuffer* db,
                                                 uint32_t target_size) {
   if (target_size > sizeof buffer_) {
-    HTTP2_BUG_V2(http2_bug_154_1)
+    HTTP2_BUG(http2_bug_154_1)
         << "target_size too large for buffer: " << target_size;
     return 0;
   }
@@ -54,7 +54,7 @@ bool Http2StructureDecoder::ResumeFillingBuffer(DecodeBuffer* db,
                  << ": target_size=" << target_size << "; offset_=" << offset_
                  << "; db->Remaining=" << db->Remaining();
   if (target_size < offset_) {
-    HTTP2_BUG_V2(http2_bug_154_2)
+    HTTP2_BUG(http2_bug_154_2)
         << "Already filled buffer_! target_size=" << target_size
         << "    offset_=" << offset_;
     return false;
@@ -76,7 +76,7 @@ bool Http2StructureDecoder::ResumeFillingBuffer(DecodeBuffer* db,
                  << "; *remaining_payload=" << *remaining_payload
                  << "; db->Remaining=" << db->Remaining();
   if (target_size < offset_) {
-    HTTP2_BUG_V2(http2_bug_154_3)
+    HTTP2_BUG(http2_bug_154_3)
         << "Already filled buffer_! target_size=" << target_size
         << "    offset_=" << offset_;
     return false;
