@@ -44,7 +44,7 @@ TunDevice::~TunDevice() {
 
 bool TunDevice::Init() {
   if (interface_name_.empty() || interface_name_.size() >= IFNAMSIZ) {
-    QUIC_BUG_V2(quic_bug_10995_1)
+    QUIC_BUG(quic_bug_10995_1)
         << "interface_name must be nonempty and shorter than " << IFNAMSIZ;
     return false;
   }
