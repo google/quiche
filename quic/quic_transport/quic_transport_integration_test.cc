@@ -325,7 +325,7 @@ TEST_F(QuicTransportIntegrationTest, EchoUnidirectionalStreams) {
       client_->session()->AcceptIncomingUnidirectionalStream();
   ASSERT_TRUE(reply != nullptr);
   std::string buffer;
-  reply->set_visitor(VisitorExpectingFin());
+  reply->SetVisitor(VisitorExpectingFin());
   EXPECT_GT(reply->Read(&buffer), 0u);
   EXPECT_EQ(buffer, "Stream Two");
 
@@ -339,7 +339,7 @@ TEST_F(QuicTransportIntegrationTest, EchoUnidirectionalStreams) {
       [&stream_received]() { return stream_received; }, kDefaultTimeout));
   reply = client_->session()->AcceptIncomingUnidirectionalStream();
   ASSERT_TRUE(reply != nullptr);
-  reply->set_visitor(VisitorExpectingFin());
+  reply->SetVisitor(VisitorExpectingFin());
   EXPECT_GT(reply->Read(&buffer), 0u);
   EXPECT_EQ(buffer, "Stream One");
 }

@@ -51,7 +51,7 @@ class QuicTransportStreamTest : public QuicTest {
 
     auto visitor = std::make_unique<MockStreamVisitor>();
     visitor_ = visitor.get();
-    stream_->set_visitor(std::move(visitor));
+    stream_->SetVisitor(std::move(visitor));
   }
 
   void ReceiveStreamData(absl::string_view data, QuicStreamOffset offset) {

@@ -9,6 +9,7 @@
 #define QUICHE_QUIC_CORE_WEB_TRANSPORT_INTERFACE_H_
 
 #include <cstddef>
+#include <memory>
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
@@ -52,6 +53,9 @@ class QUIC_EXPORT_PRIVATE WebTransportStream {
   virtual bool CanWrite() const = 0;
   // Indicates the number of bytes that can be read from the stream.
   virtual size_t ReadableBytes() const = 0;
+
+  virtual void SetVisitor(
+      std::unique_ptr<WebTransportStreamVisitor> visitor) = 0;
 };
 
 // Visitor that gets notified about events related to a WebTransport session.

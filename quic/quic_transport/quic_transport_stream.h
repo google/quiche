@@ -14,6 +14,7 @@
 #include "quic/core/quic_stream.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/web_transport_interface.h"
+#include "quic/core/web_transport_stream_adapter.h"
 #include "quic/quic_transport/quic_transport_session_interface.h"
 
 namespace quic {
@@ -47,9 +48,9 @@ class QUIC_EXPORT_PRIVATE QuicTransportStream : public QuicStream,
   void OnDataAvailable() override;
   void OnCanWriteNewData() override;
 
-  WebTransportStreamVisitor* visitor() { return visitor_.get(); }
-  void set_visitor(std::unique_ptr<WebTransportStreamVisitor> visitor) {
-    visitor_ = std::move(visitor);
+  WebTransportStreamVisitor* visitor() { return adapter_.visitor(); }
+  void SetVisitor(std::unique_ptr<WebTransportStreamVisitor> visitor) override {
+    adapter_.SetVisitor(std::move(visitor));
   }
 
  protected:
@@ -59,9 +60,8 @@ class QUIC_EXPORT_PRIVATE QuicTransportStream : public QuicStream,
 
   void MaybeNotifyFinRead();
 
+  WebTransportStreamAdapter adapter_;
   QuicTransportSessionInterface* session_interface_;
-  std::unique_ptr<WebTransportStreamVisitor> visitor_ = nullptr;
-  bool fin_read_notified_ = false;
 };
 
 }  // namespace quic

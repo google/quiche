@@ -154,21 +154,21 @@ void QuicTransportSimpleServerSession::OnIncomingDataStream(
     QuicTransportStream* stream) {
   switch (mode_) {
     case DISCARD:
-      stream->set_visitor(std::make_unique<DiscardVisitor>(stream));
+      stream->SetVisitor(std::make_unique<DiscardVisitor>(stream));
       break;
 
     case ECHO:
       switch (stream->type()) {
         case BIDIRECTIONAL:
           QUIC_DVLOG(1) << "Opening bidirectional echo stream " << stream->id();
-          stream->set_visitor(
+          stream->SetVisitor(
               std::make_unique<BidirectionalEchoVisitor>(stream));
           break;
         case READ_UNIDIRECTIONAL:
           QUIC_DVLOG(1)
               << "Started receiving data on unidirectional echo stream "
               << stream->id();
-          stream->set_visitor(
+          stream->SetVisitor(
               std::make_unique<UnidirectionalEchoReadVisitor>(this, stream));
           break;
         default:
@@ -178,7 +178,7 @@ void QuicTransportSimpleServerSession::OnIncomingDataStream(
       break;
 
     case OUTGOING_BIDIRECTIONAL:
-      stream->set_visitor(std::make_unique<DiscardVisitor>(stream));
+      stream->SetVisitor(std::make_unique<DiscardVisitor>(stream));
       ++pending_outgoing_bidirectional_streams_;
       MaybeCreateOutgoingBidirectionalStream();
       break;
@@ -252,7 +252,7 @@ void QuicTransportSimpleServerSession::MaybeEchoStreamsBack() {
     ActivateStream(std::move(stream_owned));
     QUIC_DVLOG(1) << "Opened echo response stream " << stream->id();
 
-    stream->set_visitor(
+    stream->SetVisitor(
         std::make_unique<UnidirectionalEchoWriteVisitor>(stream, data));
     stream->visitor()->OnCanWrite();
   }
@@ -267,7 +267,7 @@ void QuicTransportSimpleServerSession::
     QuicTransportStream* stream = stream_owned.get();
     ActivateStream(std::move(stream_owned));
     QUIC_DVLOG(1) << "Opened outgoing bidirectional stream " << stream->id();
-    stream->set_visitor(std::make_unique<BidirectionalEchoVisitor>(stream));
+    stream->SetVisitor(std::make_unique<BidirectionalEchoVisitor>(stream));
     if (!stream->Write("hello")) {
       QUIC_DVLOG(1) << "Write failed.";
     }

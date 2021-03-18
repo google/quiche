@@ -25,6 +25,7 @@ QuicTransportStream::QuicTransportStream(
                                           session->connection()->perspective(),
                                           session->IsIncomingStream(id),
                                           session->version())),
+      adapter_(session, this, sequencer()),
       session_interface_(session_interface) {}
 
 size_t QuicTransportStream::Read(char* buffer, size_t buffer_size) {
@@ -32,24 +33,15 @@ size_t QuicTransportStream::Read(char* buffer, size_t buffer_size) {
     return 0;
   }
 
-  iovec iov;
-  iov.iov_base = buffer;
-  iov.iov_len = buffer_size;
-  const size_t result = sequencer()->Readv(&iov, 1);
-  if (sequencer()->IsClosed()) {
-    MaybeNotifyFinRead();
-  }
-  return result;
+  return adapter_.Read(buffer, buffer_size);
 }
 
 size_t QuicTransportStream::Read(std::string* output) {
-  const size_t old_size = output->size();
-  const size_t bytes_to_read = ReadableBytes();
-  output->resize(old_size + bytes_to_read);
-  size_t bytes_read = Read(&(*output)[old_size], bytes_to_read);
-  QUICHE_DCHECK_EQ(bytes_to_read, bytes_read);
-  output->resize(old_size + bytes_read);
-  return bytes_read;
+  if (!session_interface_->IsSessionReady()) {
+    return 0;
+  }
+
+  return adapter_.Read(output);
 }
 
 bool QuicTransportStream::Write(absl::string_view data) {
@@ -57,33 +49,7 @@ bool QuicTransportStream::Write(absl::string_view data) {
     return false;
   }
 
-  QuicUniqueBufferPtr buffer = MakeUniqueBuffer(
-      session()->connection()->helper()->GetStreamSendBufferAllocator(),
-      data.size());
-  memcpy(buffer.get(), data.data(), data.size());
-  QuicMemSlice memslice(std::move(buffer), data.size());
-  QuicConsumedData consumed =
-      WriteMemSlices(QuicMemSliceSpan(&memslice), /*fin=*/false);
-
-  if (consumed.bytes_consumed == data.size()) {
-    return true;
-  }
-  if (consumed.bytes_consumed == 0) {
-    return false;
-  }
-  // QuicTransportStream::Write() is an all-or-nothing write API.  To achieve
-  // that property, it relies on WriteMemSlices() being an all-or-nothing API.
-  // If WriteMemSlices() fails to provide that guarantee, we have no way to
-  // communicate a partial write to the caller, and thus it's safer to just
-  // close the connection.
-  QUIC_BUG(quic_bug_10893_1)
-      << "WriteMemSlices() unexpectedly partially consumed the input "
-         "data, provided: "
-      << data.size() << ", written: " << consumed.bytes_consumed;
-  OnUnrecoverableError(
-      QUIC_INTERNAL_ERROR,
-      "WriteMemSlices() unexpectedly partially consumed the input data");
-  return false;
+  return adapter_.Write(data);
 }
 
 bool QuicTransportStream::SendFin() {
@@ -91,16 +57,11 @@ bool QuicTransportStream::SendFin() {
     return false;
   }
 
-  QuicMemSlice empty;
-  QuicConsumedData consumed =
-      WriteMemSlices(QuicMemSliceSpan(&empty), /*fin=*/true);
-  QUICHE_DCHECK_EQ(consumed.bytes_consumed, 0u);
-  return consumed.fin_consumed;
+  return adapter_.SendFin();
 }
 
 bool QuicTransportStream::CanWrite() const {
-  return session_interface_->IsSessionReady() && CanWriteNewData() &&
-         !write_side_closed();
+  return session_interface_->IsSessionReady() && adapter_.CanWrite();
 }
 
 size_t QuicTransportStream::ReadableBytes() const {
@@ -108,22 +69,11 @@ size_t QuicTransportStream::ReadableBytes() const {
     return 0;
   }
 
-  return sequencer()->ReadableBytes();
+  return adapter_.ReadableBytes();
 }
 
 void QuicTransportStream::OnDataAvailable() {
-  if (sequencer()->IsClosed()) {
-    MaybeNotifyFinRead();
-    return;
-  }
-
-  if (visitor_ == nullptr) {
-    return;
-  }
-  if (ReadableBytes() == 0) {
-    return;
-  }
-  visitor_->OnCanRead();
+  adapter_.OnDataAvailable();
 }
 
 void QuicTransportStream::OnCanWriteNewData() {
@@ -132,18 +82,7 @@ void QuicTransportStream::OnCanWriteNewData() {
   if (!CanWrite()) {
     return;
   }
-  if (visitor_ != nullptr) {
-    visitor_->OnCanWrite();
-  }
-}
-
-void QuicTransportStream::MaybeNotifyFinRead() {
-  if (visitor_ == nullptr || fin_read_notified_) {
-    return;
-  }
-  fin_read_notified_ = true;
-  visitor_->OnFinRead();
-  OnFinRead();
+  adapter_.OnCanWriteNewData();
 }
 
 }  // namespace quic
