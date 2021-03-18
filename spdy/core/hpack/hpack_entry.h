@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
 
 #include "absl/strings/string_view.h"
 #include "common/platform/api/quiche_export.h"
@@ -30,7 +31,7 @@ struct QUICHE_EXPORT_PRIVATE HpackLookupEntry {
     return name == other.name && value == other.value;
   }
 
-  // Absail hashing framework extension according to absl/hash/hash.h:
+  // Abseil hashing framework extension according to absl/hash/hash.h:
   template <typename H>
   friend H AbslHashValue(H h, const HpackLookupEntry& entry) {
     return H::combine(std::move(h), entry.name, entry.value);
@@ -41,40 +42,22 @@ struct QUICHE_EXPORT_PRIVATE HpackLookupEntry {
 // and the header table (3.3.2).
 class QUICHE_EXPORT_PRIVATE HpackEntry {
  public:
-  // Creates an entry. Preconditions:
-  // - |is_static| captures whether this entry is a member of the static
-  //   or dynamic header table.
-  // - |insertion_index| is this entry's index in the total set of entries ever
-  //   inserted into the header table (including static entries).
-  //
-  // The combination of |is_static| and |insertion_index| allows an
+  // Copies |name| and |value| in the constructor.
+  // |insertion_index| is this entry's index in the total set of entries ever
+  // inserted into the header table (including static entries).  This allows an
   // HpackEntryTable to determine the index of an HpackEntry in O(1) time.
-  // Copies |name| and |value|.
   HpackEntry(absl::string_view name,
              absl::string_view value,
-             bool is_static,
              size_t insertion_index);
-
-  HpackEntry(const HpackEntry& other);
-  HpackEntry& operator=(const HpackEntry& other);
 
   // Creates an entry with empty name and value. Only defined so that
   // entries can be stored in STL containers.
   HpackEntry();
 
-  ~HpackEntry();
+  ~HpackEntry() = default;
 
-  absl::string_view name() const { return name_ref_; }
-  absl::string_view value() const { return value_ref_; }
-
-  // Returns whether this entry is a member of the static (as opposed to
-  // dynamic) table.
-  // TODO(b/182789212): Remove.
-  bool IsStatic() const { return type_ == STATIC; }
-
-  // Returns whether this entry is a lookup-only entry.
-  // TODO(b/182789212): Remove.
-  bool IsLookup() const { return type_ == LOOKUP; }
+  absl::string_view name() const { return name_; }
+  absl::string_view value() const { return value_; }
 
   // Used to compute the entry's index in the header table.
   size_t InsertionIndex() const { return insertion_index_; }
@@ -89,29 +72,12 @@ class QUICHE_EXPORT_PRIVATE HpackEntry {
   size_t EstimateMemoryUsage() const;
 
  private:
-  // TODO(b/182789212): Remove.
-  enum EntryType {
-    LOOKUP,
-    DYNAMIC,
-    STATIC,
-  };
-
-  // These members are not used for LOOKUP entries.
   std::string name_;
   std::string value_;
-
-  // These members are always valid. For DYNAMIC and STATIC entries, they
-  // always point to |name_| and |value_|.
-  // TODO(b/182789212): Remove.
-  absl::string_view name_ref_;
-  absl::string_view value_ref_;
 
   // The entry's index in the total set of entries ever inserted into the header
   // table.
   size_t insertion_index_;
-
-  // TODO(b/182789212): Remove.
-  EntryType type_;
 };
 
 }  // namespace spdy

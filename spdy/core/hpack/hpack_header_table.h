@@ -97,8 +97,9 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
                    EntryTable::iterator* end_out);
 
   // Adds an entry for the representation, evicting entries as needed. |name|
-  // and |value| must not be owned by an entry which could be evicted. The
-  // added HpackEntry is returned, or NULL is returned if all entries were
+  // and |value| must not point to an entry in |dynamic_entries_| which is about
+  // to be evicted, but they may point to an entry which is not.
+  // The added HpackEntry is returned, or NULL is returned if all entries were
   // evicted and the empty table is of insufficent size for the representation.
   const HpackEntry* TryAddEntry(absl::string_view name,
                                 absl::string_view value);

@@ -60,7 +60,6 @@ QpackHeaderTable::MatchType QpackHeaderTable::FindHeaderField(
   // Look for exact match in static table.
   auto index_it = static_index_.find(query);
   if (index_it != static_index_.end()) {
-    QUICHE_DCHECK(index_it->second->IsStatic());
     *index = index_it->second->InsertionIndex();
     *is_static = true;
     return MatchType::kNameAndValue;
@@ -69,7 +68,6 @@ QpackHeaderTable::MatchType QpackHeaderTable::FindHeaderField(
   // Look for exact match in dynamic table.
   index_it = dynamic_index_.find(query);
   if (index_it != dynamic_index_.end()) {
-    QUICHE_DCHECK(!index_it->second->IsStatic());
     *index = index_it->second->InsertionIndex();
     *is_static = false;
     return MatchType::kNameAndValue;
@@ -78,7 +76,6 @@ QpackHeaderTable::MatchType QpackHeaderTable::FindHeaderField(
   // Look for name match in static table.
   auto name_index_it = static_name_index_.find(name);
   if (name_index_it != static_name_index_.end()) {
-    QUICHE_DCHECK(name_index_it->second->IsStatic());
     *index = name_index_it->second->InsertionIndex();
     *is_static = true;
     return MatchType::kName;
@@ -87,7 +84,6 @@ QpackHeaderTable::MatchType QpackHeaderTable::FindHeaderField(
   // Look for name match in dynamic table.
   name_index_it = dynamic_name_index_.find(name);
   if (name_index_it != dynamic_name_index_.end()) {
-    QUICHE_DCHECK(!name_index_it->second->IsStatic());
     *index = name_index_it->second->InsertionIndex();
     *is_static = false;
     return MatchType::kName;
@@ -107,7 +103,7 @@ uint64_t QpackHeaderTable::InsertEntry(absl::string_view name,
   QUICHE_DCHECK(EntryFitsDynamicTableCapacity(name, value));
 
   const uint64_t index = dropped_entry_count_ + dynamic_entries_.size();
-  dynamic_entries_.push_back({name, value, /* is_static = */ false, index});
+  dynamic_entries_.push_back({name, value, index});
   QpackEntry* const new_entry = &dynamic_entries_.back();
 
   // Evict entries after inserting the new entry instead of before

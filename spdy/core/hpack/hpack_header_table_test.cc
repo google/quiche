@@ -55,11 +55,6 @@ class HpackHeaderTablePeer {
   }
   void Evict(size_t count) { return table_->Evict(count); }
 
-  void AddDynamicEntry(absl::string_view name, absl::string_view value) {
-    table_->dynamic_entries_.emplace_back(name, value, false,
-                                          table_->total_insertions_++);
-  }
-
  private:
   HpackHeaderTable* table_;
 };
@@ -79,7 +74,7 @@ class HpackHeaderTableTest : public QuicheTest {
     EXPECT_GE(size, kHpackEntrySizeOverhead);
     std::string name((size - kHpackEntrySizeOverhead) / 2, 'n');
     std::string value(size - kHpackEntrySizeOverhead - name.size(), 'v');
-    HpackEntry entry(name, value, false, 0);
+    HpackEntry entry(name, value, 0);
     EXPECT_EQ(size, entry.Size());
     return entry;
   }
@@ -122,11 +117,6 @@ class HpackHeaderTableTest : public QuicheTest {
     }
   }
 
-  HpackEntry DynamicEntry(const std::string& name, const std::string& value) {
-    peer_.AddDynamicEntry(name, value);
-    return peer_.dynamic_entries().back();
-  }
-
   HpackHeaderTable table_;
   test::HpackHeaderTablePeer peer_;
 };
@@ -145,8 +135,6 @@ TEST_F(HpackHeaderTableTest, StaticTableInitialization) {
   for (size_t i = 0; i != peer_.static_entries().size(); ++i) {
     const HpackEntry* entry = &peer_.static_entries()[i];
 
-    EXPECT_TRUE(entry->IsStatic());
-
     size_t index = i + 1;
     EXPECT_EQ(entry, table_.GetByIndex(index));
     EXPECT_EQ(index, table_.GetByNameAndValue(entry->name(), entry->value()));
@@ -162,7 +150,6 @@ TEST_F(HpackHeaderTableTest, BasicDynamicEntryInsertionAndEviction) {
   const HpackEntry* entry = table_.TryAddEntry("header-key", "Header Value");
   EXPECT_EQ("header-key", entry->name());
   EXPECT_EQ("Header Value", entry->value());
-  EXPECT_FALSE(entry->IsStatic());
 
   // Table counts were updated appropriately.
   EXPECT_EQ(entry->Size(), table_.size());

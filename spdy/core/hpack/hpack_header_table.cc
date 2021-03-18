@@ -149,6 +149,9 @@ void HpackHeaderTable::Evict(size_t count) {
 
 const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
                                                 absl::string_view value) {
+  // Since |dynamic_entries_| has iterator stability, |name| and |value| are
+  // valid even after evicting other entries and emplace_front() making room for
+  // the new one.
   Evict(EvictionCountForEntry(name, value));
 
   size_t entry_size = HpackEntry::Size(name, value);
@@ -158,9 +161,7 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
     QUICHE_DCHECK_EQ(0u, size_);
     return nullptr;
   }
-  dynamic_entries_.emplace_front(name, value,
-                                 false,  // is_static
-                                 total_insertions_);
+  dynamic_entries_.emplace_front(name, value, total_insertions_);
   HpackEntry* new_entry = &dynamic_entries_.front();
   auto index_result = dynamic_index_.insert(std::make_pair(
       HpackLookupEntry{new_entry->name(), new_entry->value()}, new_entry));

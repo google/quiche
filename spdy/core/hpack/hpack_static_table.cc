@@ -25,8 +25,7 @@ void HpackStaticTable::Initialize(const HpackStaticEntry* static_entry_table,
        it != static_entry_table + static_entry_count; ++it) {
     absl::string_view name(it->name, it->name_len);
     absl::string_view value(it->value, it->value_len);
-    static_entries_.emplace_back(name, value, true,  // is_static
-                                 total_insertions);
+    static_entries_.emplace_back(name, value, total_insertions);
     HpackEntry* entry = &static_entries_.back();
     auto result = static_index_.insert(
         std::make_pair(HpackLookupEntry{name, value}, entry));
