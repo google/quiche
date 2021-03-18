@@ -55,22 +55,22 @@ QpackHeaderTable::MatchType QpackHeaderTable::FindHeaderField(
     absl::string_view value,
     bool* is_static,
     uint64_t* index) const {
-  QpackEntry query(name, value);
+  QpackLookupEntry query{name, value};
 
   // Look for exact match in static table.
-  auto index_it = static_index_.find(&query);
+  auto index_it = static_index_.find(query);
   if (index_it != static_index_.end()) {
-    QUICHE_DCHECK((*index_it)->IsStatic());
-    *index = (*index_it)->InsertionIndex();
+    QUICHE_DCHECK(index_it->second->IsStatic());
+    *index = index_it->second->InsertionIndex();
     *is_static = true;
     return MatchType::kNameAndValue;
   }
 
   // Look for exact match in dynamic table.
-  index_it = dynamic_index_.find(&query);
+  index_it = dynamic_index_.find(query);
   if (index_it != dynamic_index_.end()) {
-    QUICHE_DCHECK(!(*index_it)->IsStatic());
-    *index = (*index_it)->InsertionIndex();
+    QUICHE_DCHECK(!index_it->second->IsStatic());
+    *index = index_it->second->InsertionIndex();
     *is_static = false;
     return MatchType::kNameAndValue;
   }
@@ -115,15 +115,17 @@ uint64_t QpackHeaderTable::InsertEntry(absl::string_view name,
   dynamic_table_size_ += QpackEntry::Size(name, value);
   EvictDownToCurrentCapacity();
 
-  auto index_result = dynamic_index_.insert(new_entry);
+  auto index_result = dynamic_index_.insert(std::make_pair(
+      QpackLookupEntry{new_entry->name(), new_entry->value()}, new_entry));
   if (!index_result.second) {
     // An entry with the same name and value already exists.  It needs to be
     // replaced, because |dynamic_index_| tracks the most recent entry for a
     // given name and value.
     QUICHE_DCHECK_GT(new_entry->InsertionIndex(),
-                     (*index_result.first)->InsertionIndex());
+                     index_result.first->second->InsertionIndex());
     dynamic_index_.erase(index_result.first);
-    auto result = dynamic_index_.insert(new_entry);
+    auto result = dynamic_index_.insert(std::make_pair(
+        QpackLookupEntry{new_entry->name(), new_entry->value()}, new_entry));
     QUICHE_CHECK(result.second);
   }
 
@@ -255,13 +257,10 @@ void QpackHeaderTable::EvictDownToCurrentCapacity() {
     QUICHE_DCHECK_GE(dynamic_table_size_, entry_size);
     dynamic_table_size_ -= entry_size;
 
-    auto index_it = dynamic_index_.find(entry);
+    auto index_it = dynamic_index_.find({entry->name(), entry->value()});
     // Remove |dynamic_index_| entry only if it points to the same
-    // QpackEntry in |dynamic_entries_|.  Note that |dynamic_index_| has a
-    // comparison function that only considers name and value, not actual
-    // QpackEntry* address, so find() can return a different entry if name and
-    // value match.
-    if (index_it != dynamic_index_.end() && *index_it == entry) {
+    // QpackEntry in |dynamic_entries_|.
+    if (index_it != dynamic_index_.end() && index_it->second == entry) {
       dynamic_index_.erase(index_it);
     }
 

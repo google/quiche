@@ -21,9 +21,6 @@ HpackEntry::HpackEntry(absl::string_view name,
       insertion_index_(insertion_index),
       type_(is_static ? STATIC : DYNAMIC) {}
 
-HpackEntry::HpackEntry(absl::string_view name, absl::string_view value)
-    : name_ref_(name), value_ref_(value), insertion_index_(0), type_(LOOKUP) {}
-
 HpackEntry::HpackEntry() : insertion_index_(0), type_(LOOKUP) {}
 
 HpackEntry::HpackEntry(const HpackEntry& other)

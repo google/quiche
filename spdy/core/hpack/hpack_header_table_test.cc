@@ -393,50 +393,6 @@ TEST_F(HpackHeaderTableTest, TryAddTooLargeEntry) {
   EXPECT_EQ(0u, peer_.dynamic_entries().size());
 }
 
-TEST_F(HpackHeaderTableTest, EntryNamesDiffer) {
-  HpackEntry entry1("header", "value");
-  HpackEntry entry2("HEADER", "value");
-
-  HpackHeaderTable::EntryHasher hasher;
-  EXPECT_NE(hasher(&entry1), hasher(&entry2));
-
-  HpackHeaderTable::EntriesEq eq;
-  EXPECT_FALSE(eq(&entry1, &entry2));
-}
-
-TEST_F(HpackHeaderTableTest, EntryValuesDiffer) {
-  HpackEntry entry1("header", "value");
-  HpackEntry entry2("header", "VALUE");
-
-  HpackHeaderTable::EntryHasher hasher;
-  EXPECT_NE(hasher(&entry1), hasher(&entry2));
-
-  HpackHeaderTable::EntriesEq eq;
-  EXPECT_FALSE(eq(&entry1, &entry2));
-}
-
-TEST_F(HpackHeaderTableTest, EntriesEqual) {
-  HpackEntry entry1(DynamicEntry("name", "value"));
-  HpackEntry entry2(DynamicEntry("name", "value"));
-
-  HpackHeaderTable::EntryHasher hasher;
-  EXPECT_EQ(hasher(&entry1), hasher(&entry2));
-
-  HpackHeaderTable::EntriesEq eq;
-  EXPECT_TRUE(eq(&entry1, &entry2));
-}
-
-TEST_F(HpackHeaderTableTest, StaticAndDynamicEntriesEqual) {
-  HpackEntry entry1("name", "value");
-  HpackEntry entry2(DynamicEntry("name", "value"));
-
-  HpackHeaderTable::EntryHasher hasher;
-  EXPECT_EQ(hasher(&entry1), hasher(&entry2));
-
-  HpackHeaderTable::EntriesEq eq;
-  EXPECT_TRUE(eq(&entry1, &entry2));
-}
-
 }  // namespace
 
 }  // namespace spdy

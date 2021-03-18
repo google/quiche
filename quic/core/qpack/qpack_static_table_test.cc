@@ -32,9 +32,10 @@ TEST(QpackStaticTableTest, Initialize) {
   EXPECT_EQ(QpackStaticTableVector().size(), static_index.size());
 
   const auto& static_name_index = table.GetStaticNameIndex();
+  // Count distinct names in static table.
   std::set<absl::string_view> names;
-  for (auto entry : static_index) {
-    names.insert(entry->name());
+  for (const auto& entry : static_entries) {
+    names.insert(entry.name());
   }
   EXPECT_EQ(names.size(), static_name_index.size());
 }

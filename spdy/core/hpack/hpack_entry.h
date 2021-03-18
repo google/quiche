@@ -21,6 +21,22 @@ namespace spdy {
 // get the size of an HpackEntry as defined in 5.1.
 constexpr size_t kHpackEntrySizeOverhead = 32;
 
+// A structure for looking up entries in the static and dynamic tables.
+struct QUICHE_EXPORT_PRIVATE HpackLookupEntry {
+  absl::string_view name;
+  absl::string_view value;
+
+  bool operator==(const HpackLookupEntry& other) const {
+    return name == other.name && value == other.value;
+  }
+
+  // Absail hashing framework extension according to absl/hash/hash.h:
+  template <typename H>
+  friend H AbslHashValue(H h, const HpackLookupEntry& entry) {
+    return H::combine(std::move(h), entry.name, entry.value);
+  }
+};
+
 // A structure for an entry in the static table (3.3.1)
 // and the header table (3.3.2).
 class QUICHE_EXPORT_PRIVATE HpackEntry {
@@ -39,11 +55,6 @@ class QUICHE_EXPORT_PRIVATE HpackEntry {
              bool is_static,
              size_t insertion_index);
 
-  // Create a 'lookup' entry (only) suitable for querying a HpackEntrySet. The
-  // instance InsertionIndex() always returns 0 and IsLookup() returns true.
-  // The memory backing |name| and |value| must outlive this object.
-  HpackEntry(absl::string_view name, absl::string_view value);
-
   HpackEntry(const HpackEntry& other);
   HpackEntry& operator=(const HpackEntry& other);
 
@@ -58,9 +69,11 @@ class QUICHE_EXPORT_PRIVATE HpackEntry {
 
   // Returns whether this entry is a member of the static (as opposed to
   // dynamic) table.
+  // TODO(b/182789212): Remove.
   bool IsStatic() const { return type_ == STATIC; }
 
   // Returns whether this entry is a lookup-only entry.
+  // TODO(b/182789212): Remove.
   bool IsLookup() const { return type_ == LOOKUP; }
 
   // Used to compute the entry's index in the header table.
@@ -76,6 +89,7 @@ class QUICHE_EXPORT_PRIVATE HpackEntry {
   size_t EstimateMemoryUsage() const;
 
  private:
+  // TODO(b/182789212): Remove.
   enum EntryType {
     LOOKUP,
     DYNAMIC,
@@ -88,6 +102,7 @@ class QUICHE_EXPORT_PRIVATE HpackEntry {
 
   // These members are always valid. For DYNAMIC and STATIC entries, they
   // always point to |name_| and |value_|.
+  // TODO(b/182789212): Remove.
   absl::string_view name_ref_;
   absl::string_view value_ref_;
 
@@ -95,6 +110,7 @@ class QUICHE_EXPORT_PRIVATE HpackEntry {
   // table.
   size_t insertion_index_;
 
+  // TODO(b/182789212): Remove.
   EntryType type_;
 };
 

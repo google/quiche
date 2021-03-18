@@ -23,14 +23,16 @@ void HpackStaticTable::Initialize(const HpackStaticEntry* static_entry_table,
   int total_insertions = 0;
   for (const HpackStaticEntry* it = static_entry_table;
        it != static_entry_table + static_entry_count; ++it) {
-    static_entries_.emplace_back(absl::string_view(it->name, it->name_len),
-                                 absl::string_view(it->value, it->value_len),
-                                 true,  // is_static
+    absl::string_view name(it->name, it->name_len);
+    absl::string_view value(it->value, it->value_len);
+    static_entries_.emplace_back(name, value, true,  // is_static
                                  total_insertions);
     HpackEntry* entry = &static_entries_.back();
-    QUICHE_CHECK(static_index_.insert(entry).second);
+    auto result = static_index_.insert(
+        std::make_pair(HpackLookupEntry{name, value}, entry));
+    QUICHE_CHECK(result.second);
     // Multiple static entries may have the same name, so inserts may fail.
-    static_name_index_.insert(std::make_pair(entry->name(), entry));
+    static_name_index_.insert(std::make_pair(name, entry));
 
     ++total_insertions;
   }

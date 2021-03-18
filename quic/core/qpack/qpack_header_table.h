@@ -24,6 +24,7 @@ class QpackHeaderTablePeer;
 }  // namespace test
 
 using QpackEntry = spdy::HpackEntry;
+using QpackLookupEntry = spdy::HpackLookupEntry;
 constexpr size_t kQpackEntrySizeOverhead = spdy::kHpackEntrySizeOverhead;
 
 // This class manages the QPACK static and dynamic tables.  For dynamic entries,
@@ -32,9 +33,7 @@ constexpr size_t kQpackEntrySizeOverhead = spdy::kHpackEntrySizeOverhead;
 class QUIC_EXPORT_PRIVATE QpackHeaderTable {
  public:
   using EntryTable = spdy::HpackHeaderTable::EntryTable;
-  using EntryHasher = spdy::HpackHeaderTable::EntryHasher;
-  using EntriesEq = spdy::HpackHeaderTable::EntriesEq;
-  using UnorderedEntrySet = spdy::HpackHeaderTable::UnorderedEntrySet;
+  using NameValueToEntryMap = spdy::HpackHeaderTable::NameValueToEntryMap;
   using NameToEntryMap = spdy::HpackHeaderTable::NameToEntryMap;
 
   // Result of header table lookup.
@@ -168,7 +167,7 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   const EntryTable& static_entries_;
 
   // Tracks the unique static entry for a given header name and value.
-  const UnorderedEntrySet& static_index_;
+  const NameValueToEntryMap& static_index_;
 
   // Tracks the first static entry for a given header name.
   const NameToEntryMap& static_name_index_;
@@ -183,7 +182,7 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // only cares about name and value.  This allows fast lookup of the most
   // recently inserted dynamic entry for a given header name and value pair.
   // Entries point to entries owned by |dynamic_entries_|.
-  UnorderedEntrySet dynamic_index_;
+  NameValueToEntryMap dynamic_index_;
 
   // An unordered map of QpackEntry pointers keyed off header name.  This allows
   // fast lookup of the most recently inserted dynamic entry for a given header

@@ -46,14 +46,8 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   // which case |*_index_| can be trivially extended to map to list iterators.
   using EntryTable = std::deque<HpackEntry>;
 
-  struct QUICHE_EXPORT_PRIVATE EntryHasher {
-    size_t operator()(const HpackEntry* entry) const;
-  };
-  struct QUICHE_EXPORT_PRIVATE EntriesEq {
-    bool operator()(const HpackEntry* lhs, const HpackEntry* rhs) const;
-  };
-  using UnorderedEntrySet =
-      absl::flat_hash_set<HpackEntry*, EntryHasher, EntriesEq>;
+  using NameValueToEntryMap =
+      absl::flat_hash_map<HpackLookupEntry, const HpackEntry*>;
   using NameToEntryMap =
       absl::flat_hash_map<absl::string_view, const HpackEntry*>;
 
@@ -109,8 +103,6 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   const HpackEntry* TryAddEntry(absl::string_view name,
                                 absl::string_view value);
 
-  void DebugLogTableState() const ABSL_ATTRIBUTE_UNUSED;
-
   // Returns the estimate of dynamically allocated memory in bytes.
   size_t EstimateMemoryUsage() const;
 
@@ -133,16 +125,23 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   EntryTable dynamic_entries_;
 
   // Tracks the unique HpackEntry for a given header name and value.
-  const UnorderedEntrySet& static_index_;
+  // Entries consist of string_views that point to strings stored in
+  // |static_entries_|.
+  const NameValueToEntryMap& static_index_;
 
   // Tracks the first static entry for each name in the static table.
+  // Each entry has a string_view that points to the name strings stored in
+  // |static_entries_|.
   const NameToEntryMap& static_name_index_;
 
   // Tracks the most recently inserted HpackEntry for a given header name and
-  // value.
-  UnorderedEntrySet dynamic_index_;
+  // value.  Entries consist of string_views that point to strings stored in
+  // |dynamic_entries_|.
+  NameValueToEntryMap dynamic_index_;
 
   // Tracks the most recently inserted HpackEntry for a given header name.
+  // Each entry has a string_view that points to the name strings stored in
+  // |dynamic_entries_|.
   NameToEntryMap dynamic_name_index_;
 
   // Last acknowledged value for SETTINGS_HEADER_TABLE_SIZE.
