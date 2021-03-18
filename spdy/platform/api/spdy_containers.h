@@ -9,19 +9,6 @@
 
 namespace spdy {
 
-template <typename KeyType>
-using SpdyHash = SpdyHashImpl<KeyType>;
-
-// SpdyHashMap does not guarantee pointer stability.
-template <typename KeyType,
-          typename ValueType,
-          typename Hash = SpdyHash<KeyType>>
-using SpdyHashMap = SpdyHashMapImpl<KeyType, ValueType, Hash>;
-
-// SpdyHashSet does not guarantee pointer stability.
-template <typename ElementType, typename Hasher, typename Eq>
-using SpdyHashSet = SpdyHashSetImpl<ElementType, Hasher, Eq>;
-
 // A map which offers insertion-ordered iteration.
 template <typename Key, typename Value, typename Hash, typename Eq>
 using SpdyLinkedHashMap = SpdyLinkedHashMapImpl<Key, Value, Hash, Eq>;

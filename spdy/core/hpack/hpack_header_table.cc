@@ -6,7 +6,6 @@
 
 #include <algorithm>
 
-#include "common/platform/api/quiche_string_piece.h"
 #include "spdy/core/hpack/hpack_constants.h"
 #include "spdy/core/hpack/hpack_static_table.h"
 #include "spdy/platform/api/spdy_containers.h"
@@ -17,7 +16,8 @@ namespace spdy {
 
 size_t HpackHeaderTable::EntryHasher::operator()(
     const HpackEntry* entry) const {
-  return quiche::QuicheHashStringPair(entry->name(), entry->value());
+  return absl::Hash<std::pair<absl::string_view, absl::string_view>>()(
+      std::make_pair(entry->name(), entry->value()));
 }
 
 bool HpackHeaderTable::EntriesEq::operator()(const HpackEntry* lhs,

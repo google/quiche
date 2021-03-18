@@ -11,6 +11,8 @@
 #include <memory>
 
 #include "absl/base/attributes.h"
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/hash/hash.h"
 #include "absl/strings/string_view.h"
 #include "common/platform/api/quiche_export.h"
@@ -50,10 +52,10 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   struct QUICHE_EXPORT_PRIVATE EntriesEq {
     bool operator()(const HpackEntry* lhs, const HpackEntry* rhs) const;
   };
-  using UnorderedEntrySet = SpdyHashSet<HpackEntry*, EntryHasher, EntriesEq>;
-  using NameToEntryMap = SpdyHashMap<absl::string_view,
-                                     const HpackEntry*,
-                                     absl::Hash<absl::string_view>>;
+  using UnorderedEntrySet =
+      absl::flat_hash_set<HpackEntry*, EntryHasher, EntriesEq>;
+  using NameToEntryMap =
+      absl::flat_hash_map<absl::string_view, const HpackEntry*>;
 
   HpackHeaderTable();
   HpackHeaderTable(const HpackHeaderTable&) = delete;
