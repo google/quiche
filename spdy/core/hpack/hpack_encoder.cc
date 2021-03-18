@@ -347,7 +347,7 @@ HpackEncoder::Encoderator::Encoderator(const Representations& representations,
 
 void HpackEncoder::Encoderator::Next(size_t max_encoded_bytes,
                                      std::string* output) {
-  SPDY_BUG_IF_V2(spdy_bug_61_1, !has_next_)
+  SPDY_BUG_IF(spdy_bug_61_1, !has_next_)
       << "Encoderator::Next called with nothing left to encode.";
   const bool enable_compression = encoder_->enable_compression_;
 
