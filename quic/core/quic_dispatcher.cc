@@ -803,7 +803,9 @@ QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
 
 void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
                                     QuicConnection* connection,
-                                    ConnectionCloseSource /*source*/) {
+                                    QuicErrorCode error,
+                                    const std::string& error_details,
+                                    ConnectionCloseSource source) {
   write_blocked_list_.erase(connection);
   QuicTimeWaitListManager::TimeWaitAction action =
       QuicTimeWaitListManager::SEND_STATELESS_RESET;
@@ -812,6 +814,14 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
     action = QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS;
   } else {
     if (!connection->IsHandshakeComplete()) {
+      const bool fix_dispatcher_sent_error_code =
+          GetQuicReloadableFlag(quic_fix_dispatcher_sent_error_code) &&
+          source == ConnectionCloseSource::FROM_SELF;
+      // TODO(fayang): Do not serialize connection close packet if the
+      // connection is closed by the client.
+      if (fix_dispatcher_sent_error_code) {
+        QUIC_RELOADABLE_FLAG_COUNT(quic_fix_dispatcher_sent_error_code);
+      }
       if (!connection->version().HasIetfInvariantHeader()) {
         QUIC_CODE_COUNT(gquic_add_to_time_wait_list_with_handshake_failed);
       } else {
@@ -820,20 +830,22 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
       if (support_multiple_cid_per_connection_) {
         QUIC_RESTART_FLAG_COUNT_N(
             quic_dispatcher_support_multiple_cid_per_connection_v2, 1, 2);
-        // This serializes a connection close termination packet with error code
-        // QUIC_HANDSHAKE_FAILED and adds the connection to the time wait list.
+        // This serializes a connection close termination packet and adds the
+        // connection to the time wait list.
         StatelessConnectionTerminator terminator(
             server_connection_id, connection->version(), helper_.get(),
             time_wait_list_manager_.get());
         terminator.CloseConnection(
-            QUIC_HANDSHAKE_FAILED,
-            "Connection is closed by server before handshake confirmed",
+            fix_dispatcher_sent_error_code ? error : QUIC_HANDSHAKE_FAILED,
+            fix_dispatcher_sent_error_code
+                ? error_details
+                : "Connection is closed by server before handshake confirmed",
             connection->version().HasIetfInvariantHeader(),
             connection->GetActiveServerConnectionIds());
       } else {
         action = QuicTimeWaitListManager::SEND_TERMINATION_PACKETS;
-        // This serializes a connection close termination packet with error code
-        // QUIC_HANDSHAKE_FAILED and adds the connection to the time wait list.
+        // This serializes a connection close termination packet and adds the
+        // connection to the time wait list.
         StatelesslyTerminateConnection(
             connection->connection_id(),
             connection->version().HasIetfInvariantHeader()
@@ -841,8 +853,11 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
                 : GOOGLE_QUIC_PACKET,
             /*version_flag=*/true,
             connection->version().HasLengthPrefixedConnectionIds(),
-            connection->version(), QUIC_HANDSHAKE_FAILED,
-            "Connection is closed by server before handshake confirmed",
+            connection->version(),
+            fix_dispatcher_sent_error_code ? error : QUIC_HANDSHAKE_FAILED,
+            fix_dispatcher_sent_error_code
+                ? error_details
+                : "Connection is closed by server before handshake confirmed",
             // Although it is our intention to send termination packets, the
             // |action| argument is not used by this call to
             // StatelesslyTerminateConnection().
@@ -1027,7 +1042,7 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
       }
       closed_ref_counted_session_list_.push_back(std::move(it->second));
     }
-    CleanUpSession(it->first, connection, source);
+    CleanUpSession(it->first, connection, error, error_details, source);
     if (support_multiple_cid_per_connection_) {
       QUIC_RESTART_FLAG_COUNT_N(
           quic_dispatcher_support_multiple_cid_per_connection_v2, 1, 2);
@@ -1065,7 +1080,7 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
       }
       closed_session_list_.push_back(std::move(it->second));
     }
-    CleanUpSession(it->first, connection, source);
+    CleanUpSession(it->first, connection, error, error_details, source);
     session_map_.erase(it);
   }
 }

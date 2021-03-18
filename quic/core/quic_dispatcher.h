@@ -305,6 +305,8 @@ class QUIC_NO_EXPORT QuicDispatcher
   // from the map after that.
   void CleanUpSession(QuicConnectionId server_connection_id,
                       QuicConnection* connection,
+                      QuicErrorCode error,
+                      const std::string& error_details,
                       ConnectionCloseSource source);
 
   // Called to terminate a connection statelessly. Depending on |format|, either
