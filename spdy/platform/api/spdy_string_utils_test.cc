@@ -180,6 +180,28 @@ TEST(SpdyStringUtilsTest, SpdyHexEncodeUInt32AndTrim) {
   EXPECT_EQ("10000001", SpdyHexEncodeUInt32AndTrim(0x10000001));
 }
 
+TEST(SpdyStringUtilsTest, SpdyStringPieceCaseHash) {
+  SpdyStringPieceCaseHash hasher;
+  auto mixed = hasher("To Be Or Not To Be, That is The Question");
+  auto lower = hasher("to be or not to be, that is the question");
+  EXPECT_EQ(mixed, lower);
+  auto lower2 = hasher("to be or not to be, that is the question");
+  EXPECT_EQ(lower, lower2);
+  auto different = hasher("to see or not to see, that is the question");
+  EXPECT_NE(lower, different);
+  EXPECT_NE(lower, hasher(""));
+}
+
+TEST(SpdyStringUtilsTest, SpdyStringPieceCaseEq) {
+  SpdyStringPieceCaseEq eq;
+  EXPECT_TRUE(eq("To Be Or Not To Be, That is The Question",
+                 "to be or not to be, that is the question"));
+  EXPECT_TRUE(eq("to be or not to be, that is the question",
+                 "to be or not to be, that is the question"));
+  EXPECT_FALSE(eq("to be or not to be, that is the question",
+                  "to see or not to see, that is the question"));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace spdy

@@ -94,8 +94,8 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
 
   typedef SpdyLinkedHashMap<absl::string_view,
                             HeaderValue,
-                            StringPieceCaseHash,
-                            StringPieceCaseEqual>
+                            SpdyStringPieceCaseHash,
+                            SpdyStringPieceCaseEq>
       MapType;
 
  public:
