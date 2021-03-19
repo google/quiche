@@ -48,10 +48,6 @@ inline std::string SpdyHexDump(absl::string_view data) {
   return SpdyHexDumpImpl(data);
 }
 
-using SpdyStringPieceCaseHash = SpdyStringPieceCaseHashImpl;
-
-using SpdyStringPieceCaseEq = SpdyStringPieceCaseEqImpl;
-
 }  // namespace spdy
 
 #endif  // QUICHE_SPDY_PLATFORM_API_SPDY_STRING_UTILS_H_
