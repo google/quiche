@@ -153,9 +153,9 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   size_t size_;
   size_t max_size_;
 
-  // Total number of table insertions which have occurred,
-  // including initial static table insertions.
-  size_t total_insertions_;
+  // Total number of dynamic table insertions so far
+  // (including entries that have been evicted).
+  size_t dynamic_table_insertions_;
 };
 
 }  // namespace spdy

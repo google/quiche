@@ -31,6 +31,7 @@ class HpackHeaderTablePeer {
   const HpackHeaderTable::EntryTable& static_entries() {
     return table_->static_entries_;
   }
+  // TODO(b/182789212): Remove this method, because it does not add any value.
   size_t index_size() {
     return table_->static_index_.size() + table_->dynamic_index_.size();
   }
@@ -44,7 +45,10 @@ class HpackHeaderTablePeer {
     }
     return result;
   }
-  size_t total_insertions() { return table_->total_insertions_; }
+  size_t dynamic_table_insertions() {
+    return table_->dynamic_table_insertions_;
+  }
+  // TODO(b/182789212): Inline this method.
   size_t dynamic_entries_count() { return table_->dynamic_entries_.size(); }
   size_t EvictionCountForEntry(absl::string_view name,
                                absl::string_view value) {
@@ -127,10 +131,10 @@ TEST_F(HpackHeaderTableTest, StaticTableInitialization) {
   EXPECT_EQ(kDefaultHeaderTableSizeSetting, table_.settings_size_bound());
 
   EXPECT_EQ(0u, peer_.dynamic_entries_count());
-  EXPECT_EQ(peer_.static_entries().size(), peer_.total_insertions());
+  EXPECT_EQ(0u, peer_.dynamic_table_insertions());
 
   // Static entries have been populated and inserted into the table & index.
-  EXPECT_NE(0u, peer_.static_entries().size());
+  EXPECT_EQ(kStaticTableSize, peer_.static_entries().size());
   EXPECT_EQ(peer_.index_size(), peer_.static_entries().size());
   for (size_t i = 0; i != peer_.static_entries().size(); ++i) {
     const HpackEntry* entry = &peer_.static_entries()[i];
@@ -142,8 +146,6 @@ TEST_F(HpackHeaderTableTest, StaticTableInitialization) {
 }
 
 TEST_F(HpackHeaderTableTest, BasicDynamicEntryInsertionAndEviction) {
-  size_t static_count = peer_.total_insertions();
-
   const HpackEntry* first_static_entry = table_.GetByIndex(1);
   EXPECT_EQ(first_static_entry, table_.GetByIndex(1));
 
@@ -155,8 +157,7 @@ TEST_F(HpackHeaderTableTest, BasicDynamicEntryInsertionAndEviction) {
   EXPECT_EQ(entry->Size(), table_.size());
   EXPECT_EQ(1u, peer_.dynamic_entries_count());
   EXPECT_EQ(peer_.dynamic_entries().size(), peer_.dynamic_entries_count());
-  EXPECT_EQ(static_count + 1, peer_.total_insertions());
-  EXPECT_EQ(static_count + 1, peer_.index_size());
+  EXPECT_EQ(kStaticTableSize + 1, peer_.index_size());
 
   EXPECT_EQ(entry, table_.GetByIndex(62));
 
@@ -168,8 +169,7 @@ TEST_F(HpackHeaderTableTest, BasicDynamicEntryInsertionAndEviction) {
   EXPECT_EQ(0u, table_.size());
   EXPECT_EQ(0u, peer_.dynamic_entries_count());
   EXPECT_EQ(peer_.dynamic_entries().size(), peer_.dynamic_entries_count());
-  EXPECT_EQ(static_count + 1, peer_.total_insertions());
-  EXPECT_EQ(static_count, peer_.index_size());
+  EXPECT_EQ(kStaticTableSize, peer_.index_size());
 
   // Index of |first_static_entry| does not change.
   EXPECT_EQ(first_static_entry, table_.GetByIndex(1));

@@ -21,7 +21,7 @@ HpackHeaderTable::HpackHeaderTable()
       settings_size_bound_(kDefaultHeaderTableSizeSetting),
       size_(0),
       max_size_(kDefaultHeaderTableSizeSetting),
-      total_insertions_(kStaticTableSize) {}
+      dynamic_table_insertions_(0) {}
 
 HpackHeaderTable::~HpackHeaderTable() = default;
 
@@ -50,7 +50,7 @@ size_t HpackHeaderTable::GetByName(absl::string_view name) {
   {
     NameToEntryMap::const_iterator it = dynamic_name_index_.find(name);
     if (it != dynamic_name_index_.end()) {
-      return total_insertions_ - it->second->InsertionIndex() +
+      return dynamic_table_insertions_ - it->second->InsertionIndex() +
              kStaticTableSize;
     }
   }
@@ -69,7 +69,7 @@ size_t HpackHeaderTable::GetByNameAndValue(absl::string_view name,
   {
     auto it = dynamic_index_.find(query);
     if (it != dynamic_index_.end()) {
-      return total_insertions_ - it->second->InsertionIndex() +
+      return dynamic_table_insertions_ - it->second->InsertionIndex() +
              kStaticTableSize;
     }
   }
@@ -125,6 +125,9 @@ void HpackHeaderTable::Evict(size_t count) {
   for (size_t i = 0; i != count; ++i) {
     QUICHE_CHECK(!dynamic_entries_.empty());
     HpackEntry* entry = &dynamic_entries_.back();
+    // TODO(b/182789212): Remove InsertionIndex().
+    QUICHE_CHECK_EQ(dynamic_table_insertions_ - dynamic_entries_.size(),
+                    entry->InsertionIndex());
 
     size_ -= entry->Size();
     auto it = dynamic_index_.find({entry->name(), entry->value()});
@@ -161,7 +164,7 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
     QUICHE_DCHECK_EQ(0u, size_);
     return nullptr;
   }
-  dynamic_entries_.emplace_front(name, value, total_insertions_);
+  dynamic_entries_.emplace_front(name, value, dynamic_table_insertions_);
   HpackEntry* new_entry = &dynamic_entries_.front();
   auto index_result = dynamic_index_.insert(std::make_pair(
       HpackLookupEntry{new_entry->name(), new_entry->value()}, new_entry));
@@ -196,7 +199,7 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
   }
 
   size_ += entry_size;
-  ++total_insertions_;
+  ++dynamic_table_insertions_;
 
   return &dynamic_entries_.front();
 }

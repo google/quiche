@@ -43,9 +43,9 @@ struct QUICHE_EXPORT_PRIVATE HpackLookupEntry {
 class QUICHE_EXPORT_PRIVATE HpackEntry {
  public:
   // Copies |name| and |value| in the constructor.
-  // |insertion_index| is this entry's index in the total set of entries ever
-  // inserted into the header table (including static entries).  This allows an
-  // HpackEntryTable to determine the index of an HpackEntry in O(1) time.
+  // TODO(b/182789212): Remove |insertion_index|.
+  // |insertion_index| starts from 0, separately for static entries and dynamic
+  // entries.
   HpackEntry(absl::string_view name,
              absl::string_view value,
              size_t insertion_index);
@@ -75,8 +75,9 @@ class QUICHE_EXPORT_PRIVATE HpackEntry {
   std::string name_;
   std::string value_;
 
-  // The entry's index in the total set of entries ever inserted into the header
-  // table.
+  // TODO(b/182789212): Remove |insertion_index_|.
+  // |insertion_index_| starts from 0, separately for static entries and dynamic
+  // entries.
   size_t insertion_index_;
 };
 

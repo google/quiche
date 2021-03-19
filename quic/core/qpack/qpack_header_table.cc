@@ -163,10 +163,14 @@ uint64_t QpackHeaderTable::MaxInsertSizeWithoutEvictingGivenEntry(
   // Initialize to current available capacity.
   uint64_t max_insert_size = dynamic_table_capacity_ - dynamic_table_size_;
 
+  uint64_t entry_index = dropped_entry_count_;
   for (const auto& entry : dynamic_entries_) {
+    // TODO(b/182789212): Remove InsertionIndex(), use entry_index instead.
+    QUICHE_CHECK_EQ(entry_index, entry.InsertionIndex());
     if (entry.InsertionIndex() >= index) {
       break;
     }
+    ++entry_index;
     max_insert_size += entry.Size();
   }
 
@@ -232,14 +236,18 @@ uint64_t QpackHeaderTable::draining_index(float draining_fraction) const {
   }
 
   auto it = dynamic_entries_.begin();
+  uint64_t entry_index = dropped_entry_count_;
   while (space_above_draining_index < required_space) {
     space_above_draining_index += it->Size();
+    QUICHE_CHECK_EQ(entry_index, it->InsertionIndex());
     ++it;
+    ++entry_index;
     if (it == dynamic_entries_.end()) {
       return inserted_entry_count();
     }
   }
 
+  // TODO(b/182789212): Remove InsertionIndex(), use entry_index instead.
   return it->InsertionIndex();
 }
 
@@ -248,10 +256,14 @@ void QpackHeaderTable::EvictDownToCurrentCapacity() {
     QUICHE_DCHECK(!dynamic_entries_.empty());
 
     QpackEntry* const entry = &dynamic_entries_.front();
-    const uint64_t entry_size = entry->Size();
 
+    const uint64_t entry_size = entry->Size();
     QUICHE_DCHECK_GE(dynamic_table_size_, entry_size);
     dynamic_table_size_ -= entry_size;
+
+    // TODO(b/182789212): Remove InsertionIndex(), use dropped_entry_count_
+    // instead.
+    QUICHE_CHECK_EQ(dropped_entry_count_, entry->InsertionIndex());
 
     auto index_it = dynamic_index_.find({entry->name(), entry->value()});
     // Remove |dynamic_index_| entry only if it points to the same
