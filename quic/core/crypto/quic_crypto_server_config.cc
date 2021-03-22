@@ -854,9 +854,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
     // If we are already using the fallback config, or there is no fallback
     // config to use, just bail out of the handshake.
     if (configs.fallback == nullptr ||
-        context->signed_config()->config == configs.fallback ||
-        !GetQuicReloadableFlag(
-            send_quic_fallback_server_config_on_leto_error)) {
+        context->signed_config()->config == configs.fallback) {
       context->Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER,
                     "Failed to calculate shared key");
     } else {
