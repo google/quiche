@@ -20,18 +20,25 @@ void HpackStaticTable::Initialize(const HpackStaticEntry* static_entry_table,
                                   size_t static_entry_count) {
   QUICHE_CHECK(!IsInitialized());
 
-  int insertion_count = 0;
+  static_entries_.reserve(static_entry_count);
+
   for (const HpackStaticEntry* it = static_entry_table;
        it != static_entry_table + static_entry_count; ++it) {
     absl::string_view name(it->name, it->name_len);
     absl::string_view value(it->value, it->value_len);
     static_entries_.emplace_back(name, value);
-    HpackEntry* entry = &static_entries_.back();
+  }
+
+  // |static_entries_| will not be mutated any more.  Therefore its entries will
+  // remain stable even if the container does not have iterator stability.
+  int insertion_count = 0;
+  for (const auto& entry : static_entries_) {
     auto result = static_index_.insert(std::make_pair(
-        HpackLookupEntry{entry->name(), entry->value()}, insertion_count));
+        HpackLookupEntry{entry.name(), entry.value()}, insertion_count));
     QUICHE_CHECK(result.second);
+
     // Multiple static entries may have the same name, so inserts may fail.
-    static_name_index_.insert(std::make_pair(entry->name(), insertion_count));
+    static_name_index_.insert(std::make_pair(entry.name(), insertion_count));
 
     ++insertion_count;
   }

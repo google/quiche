@@ -25,15 +25,15 @@ class HpackHeaderTablePeer {
  public:
   explicit HpackHeaderTablePeer(HpackHeaderTable* table) : table_(table) {}
 
-  const HpackHeaderTable::EntryTable& dynamic_entries() {
+  const HpackHeaderTable::DynamicEntryTable& dynamic_entries() {
     return table_->dynamic_entries_;
   }
-  const HpackHeaderTable::EntryTable& static_entries() {
+  const HpackHeaderTable::StaticEntryTable& static_entries() {
     return table_->static_entries_;
   }
   std::vector<HpackEntry*> EvictionSet(absl::string_view name,
                                        absl::string_view value) {
-    HpackHeaderTable::EntryTable::iterator begin, end;
+    HpackHeaderTable::DynamicEntryTable::iterator begin, end;
     table_->EvictionSet(name, value, &begin, &end);
     std::vector<HpackEntry*> result;
     for (; begin != end; ++begin) {
@@ -97,7 +97,7 @@ class HpackHeaderTableTest : public QuicheTest {
   // expecting no eviction to happen.
   void AddEntriesExpectNoEviction(const HpackEntryVector& entries) {
     for (auto it = entries.begin(); it != entries.end(); ++it) {
-      HpackHeaderTable::EntryTable::iterator begin, end;
+      HpackHeaderTable::DynamicEntryTable::iterator begin, end;
 
       table_.EvictionSet(it->name(), it->value(), &begin, &end);
       EXPECT_EQ(0, distance(begin, end));

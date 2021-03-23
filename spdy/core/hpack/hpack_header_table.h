@@ -37,6 +37,10 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
  public:
   friend class test::HpackHeaderTablePeer;
 
+  // Use a lightweight, memory efficient container for the static table, which
+  // is initialized once and never changed after.
+  using StaticEntryTable = std::vector<HpackEntry>;
+
   // HpackHeaderTable takes advantage of the deque property that references
   // remain valid, so long as insertions & deletions are at the head & tail.
   // This precludes the use of base::circular_deque.
@@ -44,7 +48,9 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   // If this changes (we want to change to circular_deque or we start to drop
   // entries from the middle of the table), this should to be a std::list, in
   // which case |*_index_| can be trivially extended to map to list iterators.
-  using EntryTable = std::deque<HpackEntry>;
+  //
+  // TODO(b/182349990): Change to a more memory efficient container.
+  using DynamicEntryTable = std::deque<HpackEntry>;
 
   using NameValueToEntryMap = absl::flat_hash_map<HpackLookupEntry, size_t>;
   using NameToEntryMap = absl::flat_hash_map<absl::string_view, size_t>;
@@ -91,8 +97,8 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   // actually occurs. The set is returned via range [begin_out, end_out).
   void EvictionSet(absl::string_view name,
                    absl::string_view value,
-                   EntryTable::iterator* begin_out,
-                   EntryTable::iterator* end_out);
+                   DynamicEntryTable::iterator* begin_out,
+                   DynamicEntryTable::iterator* end_out);
 
   // Adds an entry for the representation, evicting entries as needed. |name|
   // and |value| must not point to an entry in |dynamic_entries_| which is about
@@ -120,8 +126,8 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   // HpackStaticTable singleton.
 
   // Stores HpackEntries.
-  const EntryTable& static_entries_;
-  EntryTable dynamic_entries_;
+  const StaticEntryTable& static_entries_;
+  DynamicEntryTable dynamic_entries_;
 
   // Tracks the index of the unique HpackEntry for a given header name and
   // value.  Keys consist of string_views that point to strings stored in

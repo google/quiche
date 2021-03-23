@@ -91,8 +91,8 @@ void HpackHeaderTable::SetSettingsHeaderTableSize(size_t settings_size) {
 
 void HpackHeaderTable::EvictionSet(absl::string_view name,
                                    absl::string_view value,
-                                   EntryTable::iterator* begin_out,
-                                   EntryTable::iterator* end_out) {
+                                   DynamicEntryTable::iterator* begin_out,
+                                   DynamicEntryTable::iterator* end_out) {
   size_t eviction_count = EvictionCountForEntry(name, value);
   *begin_out = dynamic_entries_.end() - eviction_count;
   *end_out = dynamic_entries_.end();

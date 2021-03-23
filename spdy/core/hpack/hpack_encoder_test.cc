@@ -22,7 +22,7 @@ class HpackHeaderTablePeer {
  public:
   explicit HpackHeaderTablePeer(HpackHeaderTable* table) : table_(table) {}
 
-  HpackHeaderTable::EntryTable* dynamic_entries() {
+  HpackHeaderTable::DynamicEntryTable* dynamic_entries() {
     return &table_->dynamic_entries_;
   }
 

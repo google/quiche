@@ -32,7 +32,8 @@ constexpr size_t kQpackEntrySizeOverhead = spdy::kHpackEntrySizeOverhead;
 // necessary transformations to and from relative indices and post-base indices.
 class QUIC_EXPORT_PRIVATE QpackHeaderTable {
  public:
-  using EntryTable = spdy::HpackHeaderTable::EntryTable;
+  using StaticEntryTable = spdy::HpackHeaderTable::StaticEntryTable;
+  using DynamicEntryTable = spdy::HpackHeaderTable::DynamicEntryTable;
   using NameValueToEntryMap = spdy::HpackHeaderTable::NameValueToEntryMap;
   using NameToEntryMap = spdy::HpackHeaderTable::NameToEntryMap;
 
@@ -164,7 +165,7 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // QpackStaticTable singleton.
 
   // Tracks QpackEntries by index.
-  const EntryTable& static_entries_;
+  const StaticEntryTable& static_entries_;
 
   // Tracks the unique static entry for a given header name and value.
   const NameValueToEntryMap& static_index_;
@@ -176,7 +177,7 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
 
   // Queue of dynamic table entries, for lookup by index.
   // |dynamic_entries_| owns the entries in the dynamic table.
-  EntryTable dynamic_entries_;
+  DynamicEntryTable dynamic_entries_;
 
   // An unordered set of QpackEntry pointers with a comparison operator that
   // only cares about name and value.  This allows fast lookup of the most
