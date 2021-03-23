@@ -42,7 +42,7 @@ class MockSendDelegate : public QuicPathValidator::SendDelegate {
   MOCK_METHOD(QuicTime,
               GetRetryTimeout,
               (const QuicSocketAddress&, QuicPacketWriter*),
-              (const override));
+              (const, override));
 };
 
 class QuicPathValidatorTest : public QuicTest {
