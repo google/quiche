@@ -1039,6 +1039,12 @@ class QUICHE_EXPORT_PRIVATE SpdySerializedFrame {
   // Returns the actual size of the underlying buffer.
   size_t size() const { return size_; }
 
+  operator absl::string_view() const {
+    return absl::string_view{frame_, size_};
+  }
+
+  operator std::string() const { return std::string{frame_, size_}; }
+
   // Returns a buffer containing the contents of the frame, of which the caller
   // takes ownership, and clears this SpdySerializedFrame.
   char* ReleaseBuffer() {
