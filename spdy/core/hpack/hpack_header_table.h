@@ -46,10 +46,8 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   // which case |*_index_| can be trivially extended to map to list iterators.
   using EntryTable = std::deque<HpackEntry>;
 
-  using NameValueToEntryMap =
-      absl::flat_hash_map<HpackLookupEntry, const HpackEntry*>;
-  using NameToEntryMap =
-      absl::flat_hash_map<absl::string_view, const HpackEntry*>;
+  using NameValueToEntryMap = absl::flat_hash_map<HpackLookupEntry, size_t>;
+  using NameToEntryMap = absl::flat_hash_map<absl::string_view, size_t>;
 
   HpackHeaderTable();
   HpackHeaderTable(const HpackHeaderTable&) = delete;
@@ -121,28 +119,28 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   // |static_entries_|, |static_index_|, and |static_name_index_| are owned by
   // HpackStaticTable singleton.
 
-  // Tracks HpackEntries by index.
+  // Stores HpackEntries.
   const EntryTable& static_entries_;
   EntryTable dynamic_entries_;
 
-  // Tracks the unique HpackEntry for a given header name and value.
-  // Entries consist of string_views that point to strings stored in
+  // Tracks the index of the unique HpackEntry for a given header name and
+  // value.  Keys consist of string_views that point to strings stored in
   // |static_entries_|.
   const NameValueToEntryMap& static_index_;
 
-  // Tracks the first static entry for each name in the static table.
-  // Each entry has a string_view that points to the name strings stored in
+  // Tracks the index of the first static entry for each name in the static
+  // table.  Each key is a string_view that points to a name string stored in
   // |static_entries_|.
   const NameToEntryMap& static_name_index_;
 
-  // Tracks the most recently inserted HpackEntry for a given header name and
-  // value.  Entries consist of string_views that point to strings stored in
-  // |dynamic_entries_|.
+  // Tracks the index of the most recently inserted HpackEntry for a given
+  // header name and value.  Keys consist of string_views that point to strings
+  // stored in |dynamic_entries_|.
   NameValueToEntryMap dynamic_index_;
 
-  // Tracks the most recently inserted HpackEntry for a given header name.
-  // Each entry has a string_view that points to the name strings stored in
-  // |dynamic_entries_|.
+  // Tracks the index of the most recently inserted HpackEntry for a given
+  // header name.  Each key is a string_view that points to a name string stored
+  // in |dynamic_entries_|.
   NameToEntryMap dynamic_name_index_;
 
   // Last acknowledged value for SETTINGS_HEADER_TABLE_SIZE.

@@ -44,14 +44,13 @@ size_t HpackHeaderTable::GetByName(absl::string_view name) {
   {
     auto it = static_name_index_.find(name);
     if (it != static_name_index_.end()) {
-      return 1 + it->second->InsertionIndex();
+      return 1 + it->second;
     }
   }
   {
     NameToEntryMap::const_iterator it = dynamic_name_index_.find(name);
     if (it != dynamic_name_index_.end()) {
-      return dynamic_table_insertions_ - it->second->InsertionIndex() +
-             kStaticTableSize;
+      return dynamic_table_insertions_ - it->second + kStaticTableSize;
     }
   }
   return kHpackEntryNotFound;
@@ -63,14 +62,13 @@ size_t HpackHeaderTable::GetByNameAndValue(absl::string_view name,
   {
     auto it = static_index_.find(query);
     if (it != static_index_.end()) {
-      return 1 + it->second->InsertionIndex();
+      return 1 + it->second;
     }
   }
   {
     auto it = dynamic_index_.find(query);
     if (it != dynamic_index_.end()) {
-      return dynamic_table_insertions_ - it->second->InsertionIndex() +
-             kStaticTableSize;
+      return dynamic_table_insertions_ - it->second + kStaticTableSize;
     }
   }
   return kHpackEntryNotFound;
@@ -124,10 +122,9 @@ size_t HpackHeaderTable::EvictionCountToReclaim(size_t reclaim_size) const {
 void HpackHeaderTable::Evict(size_t count) {
   for (size_t i = 0; i != count; ++i) {
     QUICHE_CHECK(!dynamic_entries_.empty());
+
     HpackEntry* entry = &dynamic_entries_.back();
-    // TODO(b/182789212): Remove InsertionIndex().
-    QUICHE_CHECK_EQ(dynamic_table_insertions_ - dynamic_entries_.size(),
-                    entry->InsertionIndex());
+    const size_t index = dynamic_table_insertions_ - dynamic_entries_.size();
 
     size_ -= entry->Size();
     auto it = dynamic_index_.find({entry->name(), entry->value()});
@@ -135,7 +132,7 @@ void HpackHeaderTable::Evict(size_t count) {
     // Only remove an entry from the index if its insertion index matches;
     // otherwise, the index refers to another entry with the same name and
     // value.
-    if (it->second->InsertionIndex() == entry->InsertionIndex()) {
+    if (it->second == index) {
       dynamic_index_.erase(it);
     }
     auto name_it = dynamic_name_index_.find(entry->name());
@@ -143,7 +140,7 @@ void HpackHeaderTable::Evict(size_t count) {
     // Only remove an entry from the literal index if its insertion index
     /// matches; otherwise, the index refers to another entry with the same
     // name.
-    if (name_it->second->InsertionIndex() == entry->InsertionIndex()) {
+    if (name_it->second == index) {
       dynamic_name_index_.erase(name_it);
     }
     dynamic_entries_.pop_back();
@@ -164,37 +161,37 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
     QUICHE_DCHECK_EQ(0u, size_);
     return nullptr;
   }
-  dynamic_entries_.emplace_front(name, value, dynamic_table_insertions_);
+
+  const size_t index = dynamic_table_insertions_;
+  dynamic_entries_.emplace_front(name, value);
   HpackEntry* new_entry = &dynamic_entries_.front();
   auto index_result = dynamic_index_.insert(std::make_pair(
-      HpackLookupEntry{new_entry->name(), new_entry->value()}, new_entry));
+      HpackLookupEntry{new_entry->name(), new_entry->value()}, index));
   if (!index_result.second) {
     // An entry with the same name and value already exists in the dynamic
     // index. We should replace it with the newly added entry.
-    SPDY_DVLOG(1) << "Found existing entry: "
-                  << index_result.first->second->GetDebugString()
-                  << " replacing with: " << new_entry->GetDebugString();
-    QUICHE_DCHECK_GT(new_entry->InsertionIndex(),
-                     index_result.first->second->InsertionIndex());
+    SPDY_DVLOG(1) << "Found existing entry at: " << index_result.first->second
+                  << " replacing with: " << new_entry->GetDebugString()
+                  << " at: " << index;
+    QUICHE_DCHECK_GT(index, index_result.first->second);
     dynamic_index_.erase(index_result.first);
     auto insert_result = dynamic_index_.insert(std::make_pair(
-        HpackLookupEntry{new_entry->name(), new_entry->value()}, new_entry));
+        HpackLookupEntry{new_entry->name(), new_entry->value()}, index));
     QUICHE_CHECK(insert_result.second);
   }
 
   auto name_result =
-      dynamic_name_index_.insert(std::make_pair(new_entry->name(), new_entry));
+      dynamic_name_index_.insert(std::make_pair(new_entry->name(), index));
   if (!name_result.second) {
     // An entry with the same name already exists in the dynamic index. We
     // should replace it with the newly added entry.
-    SPDY_DVLOG(1) << "Found existing entry: "
-                  << name_result.first->second->GetDebugString()
-                  << " replacing with: " << new_entry->GetDebugString();
-    QUICHE_DCHECK_GT(new_entry->InsertionIndex(),
-                     name_result.first->second->InsertionIndex());
+    SPDY_DVLOG(1) << "Found existing entry at: " << name_result.first->second
+                  << " replacing with: " << new_entry->GetDebugString()
+                  << " at: " << index;
+    QUICHE_DCHECK_GT(index, name_result.first->second);
     dynamic_name_index_.erase(name_result.first);
-    auto insert_result = dynamic_name_index_.insert(
-        std::make_pair(new_entry->name(), new_entry));
+    auto insert_result =
+        dynamic_name_index_.insert(std::make_pair(new_entry->name(), index));
     QUICHE_CHECK(insert_result.second);
   }
 

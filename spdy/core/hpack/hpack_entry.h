@@ -43,24 +43,16 @@ struct QUICHE_EXPORT_PRIVATE HpackLookupEntry {
 class QUICHE_EXPORT_PRIVATE HpackEntry {
  public:
   // Copies |name| and |value| in the constructor.
-  // TODO(b/182789212): Remove |insertion_index|.
-  // |insertion_index| starts from 0, separately for static entries and dynamic
-  // entries.
-  HpackEntry(absl::string_view name,
-             absl::string_view value,
-             size_t insertion_index);
+  HpackEntry(absl::string_view name, absl::string_view value);
 
   // Creates an entry with empty name and value. Only defined so that
   // entries can be stored in STL containers.
-  HpackEntry();
+  HpackEntry() = default;
 
   ~HpackEntry() = default;
 
   absl::string_view name() const { return name_; }
   absl::string_view value() const { return value_; }
-
-  // Used to compute the entry's index in the header table.
-  size_t InsertionIndex() const { return insertion_index_; }
 
   // Returns the size of an entry as defined in 5.1.
   static size_t Size(absl::string_view name, absl::string_view value);
@@ -74,11 +66,6 @@ class QUICHE_EXPORT_PRIVATE HpackEntry {
  private:
   std::string name_;
   std::string value_;
-
-  // TODO(b/182789212): Remove |insertion_index_|.
-  // |insertion_index_| starts from 0, separately for static entries and dynamic
-  // entries.
-  size_t insertion_index_;
 };
 
 }  // namespace spdy

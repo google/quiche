@@ -72,7 +72,7 @@ class HpackHeaderTableTest : public QuicheTest {
     EXPECT_GE(size, kHpackEntrySizeOverhead);
     std::string name((size - kHpackEntrySizeOverhead) / 2, 'n');
     std::string value(size - kHpackEntrySizeOverhead - name.size(), 'v');
-    HpackEntry entry(name, value, 0);
+    HpackEntry entry(name, value);
     EXPECT_EQ(size, entry.Size());
     return entry;
   }

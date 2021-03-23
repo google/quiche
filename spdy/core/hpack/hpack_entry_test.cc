@@ -39,7 +39,7 @@ TEST(HpackLookupEntryTest, EntriesEqual) {
 }
 
 TEST(HpackEntryTest, BasicEntry) {
-  HpackEntry entry("header-name", "header value", 0);
+  HpackEntry entry("header-name", "header value");
 
   EXPECT_EQ("header-name", entry.name());
   EXPECT_EQ("header value", entry.value());

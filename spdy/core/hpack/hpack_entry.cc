@@ -10,14 +10,8 @@
 
 namespace spdy {
 
-HpackEntry::HpackEntry(absl::string_view name,
-                       absl::string_view value,
-                       size_t insertion_index)
-    : name_(std::string(name)),
-      value_(std::string(value)),
-      insertion_index_(insertion_index) {}
-
-HpackEntry::HpackEntry() : insertion_index_(0) {}
+HpackEntry::HpackEntry(absl::string_view name, absl::string_view value)
+    : name_(std::string(name)), value_(std::string(value)) {}
 
 // static
 size_t HpackEntry::Size(absl::string_view name, absl::string_view value) {
@@ -28,8 +22,7 @@ size_t HpackEntry::Size() const {
 }
 
 std::string HpackEntry::GetDebugString() const {
-  return absl::StrCat("{ name: \"", name_, "\", value: \"", value_,
-                      "\", index: ", insertion_index_, " }");
+  return absl::StrCat("{ name: \"", name_, "\", value: \"", value_, "\" }");
 }
 
 size_t HpackEntry::EstimateMemoryUsage() const {
