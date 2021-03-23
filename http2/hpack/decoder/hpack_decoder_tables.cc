@@ -4,8 +4,6 @@
 
 #include "http2/hpack/decoder/hpack_decoder_tables.h"
 
-#include <utility>
-
 #include "absl/strings/str_cat.h"
 #include "http2/hpack/http2_hpack_constants.h"
 #include "http2/platform/api/http2_logging.h"
@@ -82,12 +80,12 @@ void HpackDecoderDynamicTable::DynamicTableSizeUpdate(size_t size_limit) {
 
 // TODO(jamessynge): Check somewhere before here that names received from the
 // peer are valid (e.g. are lower-case, no whitespace, etc.).
-void HpackDecoderDynamicTable::Insert(const std::string& name,
-                                      const std::string& value) {
-  HpackStringPair entry(name, value);
+void HpackDecoderDynamicTable::Insert(std::string name, std::string value) {
+  HpackStringPair entry(std::move(name), std::move(value));
   size_t entry_size = entry.size();
   HTTP2_DVLOG(2) << "InsertEntry of size=" << entry_size
-                 << "\n     name: " << name << "\n    value: " << value;
+                 << "\n     name: " << entry.name
+                 << "\n    value: " << entry.value;
   if (entry_size > size_limit_) {
     HTTP2_DVLOG(2) << "InsertEntry: entry larger than table, removing "
                    << table_.size() << " entries, of total size "

@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <iosfwd>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "http2/http2_constants.h"
@@ -88,7 +89,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderDynamicTable {
 
   // Insert entry if possible.
   // If entry is too large to insert, then dynamic table will be empty.
-  void Insert(const std::string& name, const std::string& value);
+  void Insert(std::string name, std::string value);
 
   // If index is valid, returns a pointer to the entry, otherwise returns
   // nullptr.
@@ -137,10 +138,8 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderTables {
 
   // Insert entry if possible.
   // If entry is too large to insert, then dynamic table will be empty.
-  // TODO(jamessynge): Add methods for moving the string(s) into the table,
-  // or for otherwise avoiding unnecessary copies.
-  void Insert(const std::string& name, const std::string& value) {
-    dynamic_table_.Insert(name, value);
+  void Insert(std::string name, std::string value) {
+    dynamic_table_.Insert(std::move(name), std::move(value));
   }
 
   // If index is valid, returns a pointer to the entry, otherwise returns

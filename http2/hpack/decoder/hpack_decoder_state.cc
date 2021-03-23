@@ -4,6 +4,8 @@
 
 #include "http2/hpack/decoder/hpack_decoder_state.h"
 
+#include <utility>
+
 #include "http2/http2_constants.h"
 #include "http2/platform/api/http2_logging.h"
 #include "http2/platform/api/http2_macros.h"
@@ -111,7 +113,7 @@ void HpackDecoderState::OnNameIndexAndLiteralValue(
     std::string value(ExtractString(value_buffer));
     listener_->OnHeader(entry->name, value);
     if (entry_type == HpackEntryType::kIndexedLiteralHeader) {
-      decoder_tables_.Insert(entry->name, value);
+      decoder_tables_.Insert(entry->name, std::move(value));
     }
   } else {
     ReportError(HpackDecodingError::kInvalidNameIndex, "");
@@ -136,7 +138,7 @@ void HpackDecoderState::OnLiteralNameAndValue(
   std::string value(ExtractString(value_buffer));
   listener_->OnHeader(name, value);
   if (entry_type == HpackEntryType::kIndexedLiteralHeader) {
-    decoder_tables_.Insert(name, value);
+    decoder_tables_.Insert(std::move(name), std::move(value));
   }
 }
 
