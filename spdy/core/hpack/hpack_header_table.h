@@ -69,12 +69,8 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   size_t size() const { return size_; }
   size_t max_size() const { return max_size_; }
 
-  // The HPACK indexing scheme used by GetByIndex(), GetByName(), and
-  // GetByNameAndValue() is defined at
-  // https://httpwg.org/specs/rfc7541.html#index.address.space.
-
-  // Returns the entry matching the index, or NULL.
-  const HpackEntry* GetByIndex(size_t index);
+  // The HPACK indexing scheme used by GetByName() and GetByNameAndValue() is
+  // defined at https://httpwg.org/specs/rfc7541.html#index.address.space.
 
   // Returns the index of the lowest-index entry matching |name|,
   // or kHpackEntryNotFound if no matching entry is found.

@@ -25,21 +25,6 @@ HpackHeaderTable::HpackHeaderTable()
 
 HpackHeaderTable::~HpackHeaderTable() = default;
 
-const HpackEntry* HpackHeaderTable::GetByIndex(size_t index) {
-  if (index == 0) {
-    return nullptr;
-  }
-  index -= 1;
-  if (index < kStaticTableSize) {
-    return &static_entries_[index];
-  }
-  index -= kStaticTableSize;
-  if (index < dynamic_entries_.size()) {
-    return &dynamic_entries_[index];
-  }
-  return nullptr;
-}
-
 size_t HpackHeaderTable::GetByName(absl::string_view name) {
   {
     auto it = static_name_index_.find(name);

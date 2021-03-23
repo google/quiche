@@ -22,6 +22,10 @@ class HpackHeaderTablePeer {
  public:
   explicit HpackHeaderTablePeer(HpackHeaderTable* table) : table_(table) {}
 
+  const HpackEntry* GetFirstStaticEntry() const {
+    return &table_->static_entries_.front();
+  }
+
   HpackHeaderTable::DynamicEntryTable* dynamic_entries() {
     return &table_->dynamic_entries_;
   }
@@ -119,7 +123,7 @@ namespace {
 using testing::ElementsAre;
 using testing::Pair;
 
-const size_t StaticEntryIndex = 1;
+const size_t kStaticEntryIndex = 1;
 
 enum EncodeStrategy {
   kDefault,
@@ -133,7 +137,7 @@ class HpackEncoderTest : public QuicheTestWithParam<EncodeStrategy> {
 
   HpackEncoderTest()
       : peer_(&encoder_),
-        static_(peer_.table()->GetByIndex(StaticEntryIndex)),
+        static_(peer_.table_peer().GetFirstStaticEntry()),
         dynamic_table_insertions_(0),
         headers_storage_(1024 /* block size */),
         strategy_(GetParam()) {}
@@ -329,7 +333,7 @@ TEST_P(HpackEncoderTest, SingleDynamicIndex) {
 }
 
 TEST_P(HpackEncoderTest, SingleStaticIndex) {
-  ExpectIndex(StaticEntryIndex);
+  ExpectIndex(kStaticEntryIndex);
 
   SpdyHeaderBlock headers;
   headers[static_->name()] = static_->value();
@@ -338,7 +342,7 @@ TEST_P(HpackEncoderTest, SingleStaticIndex) {
 
 TEST_P(HpackEncoderTest, SingleStaticIndexTooLarge) {
   peer_.table()->SetMaxSize(1);  // Also evicts all fixtures.
-  ExpectIndex(StaticEntryIndex);
+  ExpectIndex(kStaticEntryIndex);
 
   SpdyHeaderBlock headers;
   headers[static_->name()] = static_->value();
