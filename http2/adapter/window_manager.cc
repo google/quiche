@@ -20,7 +20,7 @@ void WindowManager::OnWindowSizeLimitChange(const size_t new_limit) {
   if (new_limit > limit_) {
     window_ += (new_limit - limit_);
   } else {
-    SPDY_BUG_V2(H2 window decrease)
+    SPDY_BUG(H2 window decrease)
         << "Window size limit decrease not currently supported.";
   }
   limit_ = new_limit;
@@ -56,9 +56,8 @@ void WindowManager::MarkDataFlushed(size_t bytes) {
   QUICHE_VLOG(2) << "WindowManager@" << this << " buffered: " << buffered_
                  << " bytes: " << bytes;
   if (buffered_ < bytes) {
-    SPDY_BUG_V2(bug_2816_1)
-        << "WindowManager@" << this << " buffered underflow "
-        << "buffered_: " << buffered_ << " bytes: " << bytes;
+    SPDY_BUG(bug_2816_1) << "WindowManager@" << this << " buffered underflow "
+                         << "buffered_: " << buffered_ << " bytes: " << bytes;
     buffered_ = 0;
   } else {
     buffered_ -= bytes;

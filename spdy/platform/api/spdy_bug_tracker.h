@@ -10,11 +10,6 @@
 #define SPDY_BUG SPDY_BUG_IMPL
 #define SPDY_BUG_IF(bug_id, condition) SPDY_BUG_IF_IMPL(bug_id, condition)
 
-// V2 macros are the same as all the SPDY_BUG flavor above, but they take a
-// bug_id parameter.
-#define SPDY_BUG_V2 SPDY_BUG_V2_IMPL
-#define SPDY_BUG_IF_V2 SPDY_BUG_IF_V2_IMPL
-
 #define FLAGS_spdy_always_log_bugs_for_tests \
   FLAGS_spdy_always_log_bugs_for_tests_impl
 
