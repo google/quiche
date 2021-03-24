@@ -1454,4 +1454,8 @@ absl::optional<QuicByteCount> QuicStream::GetReceiveWindow() const {
              : absl::nullopt;
 }
 
+void QuicStream::OnStreamCreatedFromPendingStream() {
+  sequencer()->SetUnblocked();
+}
+
 }  // namespace quic

@@ -293,14 +293,13 @@ class TestSession : public QuicSession {
   // QuicSession doesn't do anything in this method. So it's overridden here to
   // test that the session handles pending streams correctly in terms of
   // receiving stream frames.
-  bool ProcessPendingStream(PendingStream* pending) override {
+  QuicStream* ProcessPendingStream(PendingStream* pending) override {
     struct iovec iov;
     if (pending->sequencer()->GetReadableRegion(&iov)) {
       // Create TestStream once the first byte is received.
-      CreateIncomingStream(pending);
-      return true;
+      return CreateIncomingStream(pending);
     }
-    return false;
+    return nullptr;
   }
 
   bool IsClosedStream(QuicStreamId id) {

@@ -745,10 +745,11 @@ class QUIC_EXPORT_PRIVATE QuicSession
   size_t num_draining_streams() const { return num_draining_streams_; }
 
   // Processes the stream type information of |pending| depending on
-  // different kinds of sessions' own rules. Returns true if the pending stream
-  // is converted into a normal stream.
-  virtual bool ProcessPendingStream(PendingStream* /*pending*/) {
-    return false;
+  // different kinds of sessions' own rules. If the pending stream has been
+  // converted to a normal stream, returns a pointer to the new stream;
+  // otherwise, returns nullptr.
+  virtual QuicStream* ProcessPendingStream(PendingStream* /*pending*/) {
+    return nullptr;
   }
 
   // Called by applications to perform |action| on active streams.

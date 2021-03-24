@@ -379,6 +379,10 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // True if buffered data in send buffer is below buffered_data_threshold_.
   bool CanWriteNewData() const;
 
+  // Called immediately after the stream is created from a pending stream,
+  // indicating it can start processing data.
+  void OnStreamCreatedFromPendingStream();
+
  protected:
   // Called when data of [offset, offset + data_length] is buffered in send
   // buffer.

@@ -168,8 +168,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Clears |header_list_|.
   void ConsumeHeaderList();
 
-  void SetUnblocked() { sequencer()->SetUnblocked(); }
-
   // This block of functions wraps the sequencer's functions of the same
   // name.  These methods return uncompressed data until that has
   // been fully processed.  Then they simply delegate to the sequencer.

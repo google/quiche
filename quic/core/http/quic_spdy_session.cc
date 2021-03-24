@@ -1348,13 +1348,13 @@ bool QuicSpdySession::HasActiveRequestStreams() const {
   return GetNumActiveStreams() + num_draining_streams() > 0;
 }
 
-bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
+QuicStream* QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
   QUICHE_DCHECK(connection()->connected());
   struct iovec iov;
   if (!pending->sequencer()->GetReadableRegion(&iov)) {
     // The first byte hasn't been received yet.
-    return false;
+    return nullptr;
   }
 
   QuicDataReader reader(static_cast<char*>(iov.iov_base), iov.iov_len);
@@ -1367,7 +1367,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       // Mark all bytes consumed in order to close stream.
       pending->MarkConsumed(pending->sequencer()->close_offset());
     }
-    return false;
+    return nullptr;
   }
   pending->MarkConsumed(stream_type_length);
 
@@ -1375,58 +1375,54 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
     case kControlStream: {  // HTTP/3 control stream.
       if (receive_control_stream_) {
         CloseConnectionOnDuplicateHttp3UnidirectionalStreams("Control");
-        return false;
+        return nullptr;
       }
       auto receive_stream =
           std::make_unique<QuicReceiveControlStream>(pending, this);
       receive_control_stream_ = receive_stream.get();
       ActivateStream(std::move(receive_stream));
-      receive_control_stream_->SetUnblocked();
       QUIC_DVLOG(1) << ENDPOINT << "Receive Control stream is created";
       if (debug_visitor_ != nullptr) {
         debug_visitor_->OnPeerControlStreamCreated(
             receive_control_stream_->id());
       }
-      return true;
+      return receive_control_stream_;
     }
     case kServerPushStream: {  // Push Stream.
       QuicSpdyStream* stream = CreateIncomingStream(pending);
-      stream->SetUnblocked();
-      return true;
+      return stream;
     }
     case kQpackEncoderStream: {  // QPACK encoder stream.
       if (qpack_encoder_receive_stream_) {
         CloseConnectionOnDuplicateHttp3UnidirectionalStreams("QPACK encoder");
-        return false;
+        return nullptr;
       }
       auto encoder_receive = std::make_unique<QpackReceiveStream>(
           pending, this, qpack_decoder_->encoder_stream_receiver());
       qpack_encoder_receive_stream_ = encoder_receive.get();
       ActivateStream(std::move(encoder_receive));
-      qpack_encoder_receive_stream_->SetUnblocked();
       QUIC_DVLOG(1) << ENDPOINT << "Receive QPACK Encoder stream is created";
       if (debug_visitor_ != nullptr) {
         debug_visitor_->OnPeerQpackEncoderStreamCreated(
             qpack_encoder_receive_stream_->id());
       }
-      return true;
+      return qpack_encoder_receive_stream_;
     }
     case kQpackDecoderStream: {  // QPACK decoder stream.
       if (qpack_decoder_receive_stream_) {
         CloseConnectionOnDuplicateHttp3UnidirectionalStreams("QPACK decoder");
-        return false;
+        return nullptr;
       }
       auto decoder_receive = std::make_unique<QpackReceiveStream>(
           pending, this, qpack_encoder_->decoder_stream_receiver());
       qpack_decoder_receive_stream_ = decoder_receive.get();
       ActivateStream(std::move(decoder_receive));
-      qpack_decoder_receive_stream_->SetUnblocked();
       QUIC_DVLOG(1) << ENDPOINT << "Receive QPACK Decoder stream is created";
       if (debug_visitor_ != nullptr) {
         debug_visitor_->OnPeerQpackDecoderStreamCreated(
             qpack_decoder_receive_stream_->id());
       }
-      return true;
+      return qpack_decoder_receive_stream_;
     }
     default:
       if (GetQuicReloadableFlag(quic_unify_stop_sending)) {
@@ -1440,7 +1436,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       }
       pending->StopReading();
   }
-  return false;
+  return nullptr;
 }
 
 void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {

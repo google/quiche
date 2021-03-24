@@ -64,8 +64,6 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream
   bool OnUnknownFramePayload(absl::string_view payload) override;
   bool OnUnknownFrameEnd() override;
 
-  void SetUnblocked() { sequencer()->SetUnblocked(); }
-
   QuicSpdySession* spdy_session() { return spdy_session_; }
 
  private:

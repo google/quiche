@@ -33,8 +33,6 @@ class QUIC_EXPORT_PRIVATE QpackReceiveStream : public QuicStream {
   // Implementation of QuicStream.
   void OnDataAvailable() override;
 
-  void SetUnblocked() { sequencer()->SetUnblocked(); }
-
  private:
   QpackStreamReceiver* receiver_;
 };

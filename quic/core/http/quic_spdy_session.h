@@ -476,10 +476,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Overridden to buffer incoming unidirectional streams for version 99.
   bool UsesPendingStreams() const override;
 
-  // Overridden to Process HTTP/3 stream types. H/3 streams will be created from
-  // pending streams accordingly if the stream type can be read. Returns true if
-  // unidirectional streams are created.
-  bool ProcessPendingStream(PendingStream* pending) override;
+  // Processes incoming unidirectional streams; parses the stream type, and
+  // creates a new stream of the corresponding type.  Returns the pointer to the
+  // newly created stream, or nullptr if the stream type is not yet available.
+  QuicStream* ProcessPendingStream(PendingStream* pending) override;
 
   size_t WriteHeadersOnHeadersStreamImpl(
       QuicStreamId id,
