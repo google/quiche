@@ -111,6 +111,17 @@ testing::Matcher<const std::string> ContainsFrames(
   return MakeMatcher(new SpdyControlFrameMatcher(std::move(types_and_lengths)));
 }
 
+testing::Matcher<const std::string> ContainsFrames(
+    std::vector<spdy::SpdyFrameType> types) {
+  std::vector<std::pair<spdy::SpdyFrameType, absl::optional<size_t>>>
+      types_and_lengths;
+  types_and_lengths.reserve(types.size());
+  for (spdy::SpdyFrameType type : types) {
+    types_and_lengths.push_back({type, absl::nullopt});
+  }
+  return MakeMatcher(new SpdyControlFrameMatcher(std::move(types_and_lengths)));
+}
+
 }  // namespace test
 }  // namespace adapter
 }  // namespace http2

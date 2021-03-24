@@ -17,6 +17,11 @@ testing::Matcher<const std::string> ContainsFrames(
     std::vector<std::pair<spdy::SpdyFrameType, absl::optional<size_t>>>
         types_and_lengths);
 
+// Matcher that checks whether a string contains HTTP/2 frames of the specified
+// ordered sequence of types.
+testing::Matcher<const std::string> ContainsFrames(
+    std::vector<spdy::SpdyFrameType> types);
+
 }  // namespace test
 }  // namespace adapter
 }  // namespace http2

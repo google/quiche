@@ -11,7 +11,7 @@ namespace {
 using spdy::SpdyFramer;
 
 TEST(ContainsFrames, Empty) {
-  EXPECT_THAT("", ContainsFrames({}));
+  EXPECT_THAT("", ContainsFrames(std::vector<spdy::SpdyFrameType>{}));
 }
 
 TEST(ContainsFrames, SingleFrameWithLength) {
@@ -67,19 +67,27 @@ TEST(ContainsFrames, MultipleFrames) {
   block[":authority"] = "example.com";
   spdy::SpdyHeadersIR headers{17, std::move(block)};
 
-  EXPECT_THAT(
+  const std::string frame_sequence =
       absl::StrCat(absl::string_view(framer.SerializeFrame(ping)),
                    absl::string_view(framer.SerializeFrame(window_update)),
                    absl::string_view(framer.SerializeFrame(data)),
                    absl::string_view(framer.SerializeFrame(rst_stream)),
                    absl::string_view(framer.SerializeFrame(goaway)),
-                   absl::string_view(framer.SerializeFrame(headers))),
+                   absl::string_view(framer.SerializeFrame(headers)));
+  EXPECT_THAT(
+      frame_sequence,
       ContainsFrames({{spdy::SpdyFrameType::PING, absl::nullopt},
                       {spdy::SpdyFrameType::WINDOW_UPDATE, absl::nullopt},
                       {spdy::SpdyFrameType::DATA, 25},
                       {spdy::SpdyFrameType::RST_STREAM, absl::nullopt},
                       {spdy::SpdyFrameType::GOAWAY, 42},
                       {spdy::SpdyFrameType::HEADERS, 19}}));
+  EXPECT_THAT(
+      frame_sequence,
+      ContainsFrames(
+          {spdy::SpdyFrameType::PING, spdy::SpdyFrameType::WINDOW_UPDATE,
+           spdy::SpdyFrameType::DATA, spdy::SpdyFrameType::RST_STREAM,
+           spdy::SpdyFrameType::GOAWAY, spdy::SpdyFrameType::HEADERS}));
 }
 
 }  // namespace
