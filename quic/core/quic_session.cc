@@ -994,6 +994,11 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
       closed_streams_clean_up_alarm_->Set(
           connection_->clock()->ApproximateNow());
     }
+    QUIC_BUG_IF(
+        364846171_1,
+        connection_->packet_creator().HasPendingStreamFramesOfStream(stream_id))
+        << "Stream " << stream_id
+        << " gets closed while there are pending frames.";
   }
 
   if (!stream->HasReceivedFinalOffset()) {
@@ -2140,6 +2145,9 @@ void QuicSession::MaybeCloseZombieStream(QuicStreamId id) {
   }
   // Do not retransmit data of a closed stream.
   streams_with_pending_retransmission_.erase(id);
+  QUIC_BUG_IF(364846171_2,
+              connection_->packet_creator().HasPendingStreamFramesOfStream(id))
+      << "Stream " << id << " gets closed while there are pending frames.";
 }
 
 QuicStream* QuicSession::GetStream(QuicStreamId id) const {
