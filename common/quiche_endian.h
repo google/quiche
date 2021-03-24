@@ -19,8 +19,7 @@ enum Endianness {
 };
 
 // Provide utility functions that convert from/to network order (big endian)
-// to/from host order (can be either little or big endian depending on the
-// platform).
+// to/from host order (little endian).
 class QUICHE_EXPORT_PRIVATE QuicheEndian {
  public:
   // Convert |x| from host order (little endian) to network order (big endian).
@@ -40,9 +39,6 @@ class QUICHE_EXPORT_PRIVATE QuicheEndian {
   static uint16_t NetToHost16(uint16_t x) { return HostToNet16(x); }
   static uint32_t NetToHost32(uint32_t x) { return HostToNet32(x); }
   static uint64_t NetToHost64(uint64_t x) { return HostToNet64(x); }
-
-  // Returns true if current host order is little endian.
-  static bool HostIsLittleEndian() { return true; }
 
   // Left public for tests.
   template <typename T>
