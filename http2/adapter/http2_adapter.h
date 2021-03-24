@@ -80,34 +80,12 @@ class Http2Adapter {
   explicit Http2Adapter(Http2VisitorInterface& visitor) : visitor_(visitor) {}
   virtual ~Http2Adapter() {}
 
-  // Performs any necessary initialization of the underlying HTTP/2 session,
-  // such as preparing initial SETTINGS.
-  virtual void Initialize() = 0;
-
-  // Creates the callbacks that will be used to initialize the |session_|.
-  virtual std::unique_ptr<Http2SessionCallbacks> CreateCallbacks() = 0;
-
-  // Creates with the given |callbacks| and |visitor| as context.
-  virtual std::unique_ptr<Http2Session> CreateSession(
-      std::unique_ptr<Http2SessionCallbacks> callbacks,
-      std::unique_ptr<Http2Options> options,
-      Http2VisitorInterface& visitor) = 0;
-
-  // Creates the connection-level configuration options for the |session_|.
-  virtual std::unique_ptr<Http2Options> CreateOptions() = 0;
-
   // Accessors. Do not transfer ownership.
   Http2VisitorInterface& visitor() { return visitor_; }
 
  private:
   // Http2Adapter will invoke callbacks upon the |visitor_| while processing.
   Http2VisitorInterface& visitor_;
-
-  // Http2Adapter creates a |session_| for use with the underlying library.
-  std::unique_ptr<Http2Session> session_;
-
-  // Http2Adapter creates the |options_| for use with the |session_|.
-  std::unique_ptr<Http2Options> options_;
 };
 
 }  // namespace adapter
