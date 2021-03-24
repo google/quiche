@@ -19,6 +19,11 @@ namespace adapter {
 // implementations.
 class Http2Adapter {
  public:
+  enum class Perspective {
+    kClient,
+    kServer,
+  };
+
   Http2Adapter(const Http2Adapter&) = delete;
   Http2Adapter& operator=(const Http2Adapter&) = delete;
 
