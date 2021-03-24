@@ -21,9 +21,9 @@ class Http2Session {
 
   virtual int Consume(Http2StreamId stream_id, size_t num_bytes) = 0;
 
-  virtual bool want_read() = 0;
-  virtual bool want_write() = 0;
-  virtual int GetRemoteWindowSize() = 0;
+  virtual bool want_read() const = 0;
+  virtual bool want_write() const = 0;
+  virtual int GetRemoteWindowSize() const = 0;
 };
 
 class Http2Options {

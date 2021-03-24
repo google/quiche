@@ -2,6 +2,7 @@
 #define QUICHE_HTTP2_ADAPTER_HTTP2_ADAPTER_H_
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "absl/types/span.h"
 #include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/http2_session.h"
@@ -23,21 +24,22 @@ class Http2Adapter {
 
   // Processes the incoming |bytes| as HTTP/2 and invokes callbacks on the
   // |visitor_| as appropriate.
-  ssize_t ProcessBytes(absl::string_view bytes);
+  virtual ssize_t ProcessBytes(absl::string_view bytes) = 0;
 
   // Submits the |settings| to be written to the peer, e.g., as part of the
   // HTTP/2 connection preface.
-  void SubmitSettings(absl::Span<const Http2Setting> settings);
+  virtual void SubmitSettings(absl::Span<const Http2Setting> settings) = 0;
 
   // Submits a PRIORITY frame for the given stream.
-  void SubmitPriorityForStream(Http2StreamId stream_id,
-                               Http2StreamId parent_stream_id, int weight,
-                               bool exclusive);
+  virtual void SubmitPriorityForStream(Http2StreamId stream_id,
+                                       Http2StreamId parent_stream_id,
+                                       int weight,
+                                       bool exclusive) = 0;
 
   // Submits a PING on the connection. Note that nghttp2 automatically submits
   // PING acks upon receiving non-ack PINGs from the peer, so callers only use
   // this method to originate PINGs. See nghttp2_option_set_no_auto_ping_ack().
-  void SubmitPing(Http2PingId ping_id);
+  virtual void SubmitPing(Http2PingId ping_id) = 0;
 
   // Submits a GOAWAY on the connection. Note that |last_accepted_stream_id|
   // refers to stream IDs initiated by the peer. For client-side, this last
@@ -45,59 +47,59 @@ class Http2Adapter {
   // odd (or 0). To submit a GOAWAY with |last_accepted_stream_id| with the
   // maximum stream ID, signaling imminent connection termination, call
   // SubmitShutdownNotice() instead (though this is only possible server-side).
-  void SubmitGoAway(Http2StreamId last_accepted_stream_id,
-                    Http2ErrorCode error_code, absl::string_view opaque_data);
+  virtual void SubmitGoAway(Http2StreamId last_accepted_stream_id,
+                            Http2ErrorCode error_code,
+                            absl::string_view opaque_data) = 0;
 
   // Submits a WINDOW_UPDATE for the given stream (a |stream_id| of 0 indicates
   // a connection-level WINDOW_UPDATE).
-  void SubmitWindowUpdate(Http2StreamId stream_id, int window_increment);
+  virtual void SubmitWindowUpdate(Http2StreamId stream_id,
+                                  int window_increment) = 0;
 
   // Submits a METADATA frame for the given stream (a |stream_id| of 0 indicates
   // connection-level METADATA). If |fin|, the frame will also have the
   // END_METADATA flag set.
-  void SubmitMetadata(Http2StreamId stream_id, bool fin);
+  virtual void SubmitMetadata(Http2StreamId stream_id, bool fin) = 0;
 
   // Returns serialized bytes for writing to the wire.
   // Writes should be submitted to Http2Adapter first, so that Http2Adapter
   // has data to serialize and return in this method.
-  std::string GetBytesToWrite();
+  virtual std::string GetBytesToWrite(absl::optional<size_t> max_bytes) = 0;
 
   // Returns the connection-level flow control window for the peer.
-  int GetPeerConnectionWindow() const;
+  virtual int GetPeerConnectionWindow() const = 0;
 
   // Marks the given amount of data as consumed for the given stream, which
   // enables the nghttp2 layer to trigger WINDOW_UPDATEs as appropriate.
-  void MarkDataConsumedForStream(Http2StreamId stream_id, size_t num_bytes);
+  virtual void MarkDataConsumedForStream(Http2StreamId stream_id,
+                                         size_t num_bytes) = 0;
 
  protected:
   // Subclasses should expose a public factory method for constructing and
   // initializing (via Initialize()) adapter instances.
   explicit Http2Adapter(Http2VisitorInterface& visitor) : visitor_(visitor) {}
-  virtual ~Http2Adapter();
+  virtual ~Http2Adapter() {}
 
-  // Initializes the underlying HTTP/2 session and submits initial SETTINGS.
-  // Users must call Initialize() before doing other work with Http2Adapter.
-  // Because Initialize() calls virtual methods, this method cannot be called in
-  // the constructor. Factory methods may instead construct and initialize
-  // Http2Adapter instances to hide this implementation detail from users.
-  void Initialize();
+  // Performs any necessary initialization of the underlying HTTP/2 session,
+  // such as preparing initial SETTINGS.
+  virtual void Initialize() = 0;
 
   // Creates the callbacks that will be used to initialize the |session_|.
-  virtual std::unique_ptr<Http2SessionCallbacks> CreateCallbacks();
+  virtual std::unique_ptr<Http2SessionCallbacks> CreateCallbacks() = 0;
 
   // Creates with the given |callbacks| and |visitor| as context.
   virtual std::unique_ptr<Http2Session> CreateSession(
       std::unique_ptr<Http2SessionCallbacks> callbacks,
       std::unique_ptr<Http2Options> options,
-      std::unique_ptr<Http2VisitorInterface> visitor) = 0;
+      Http2VisitorInterface& visitor) = 0;
+
+  // Creates the connection-level configuration options for the |session_|.
+  virtual std::unique_ptr<Http2Options> CreateOptions() = 0;
 
   // Accessors. Do not transfer ownership.
   Http2VisitorInterface& visitor() { return visitor_; }
 
  private:
-  // Creates the connection-level configuration options for the |session_|.
-  std::unique_ptr<Http2Options> CreateOptions();
-
   // Http2Adapter will invoke callbacks upon the |visitor_| while processing.
   Http2VisitorInterface& visitor_;
 
