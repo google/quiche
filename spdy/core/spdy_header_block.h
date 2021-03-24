@@ -14,12 +14,14 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/hash/hash.h"
+#include "absl/strings/ascii.h"
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_logging.h"
 #include "spdy/core/spdy_header_storage.h"
 #include "spdy/platform/api/spdy_containers.h"
-#include "spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
 
@@ -92,10 +94,24 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
     size_t separator_size_ = 0;
   };
 
+  struct StringPieceCaseHash {
+    size_t operator()(absl::string_view data) const {
+      std::string lower = absl::AsciiStrToLower(data);
+      absl::Hash<absl::string_view> hasher;
+      return hasher(lower);
+    }
+  };
+
+  struct StringPieceCaseEqual {
+    bool operator()(absl::string_view piece1, absl::string_view piece2) const {
+      return absl::EqualsIgnoreCase(piece1, piece2);
+    }
+  };
+
   typedef SpdyLinkedHashMap<absl::string_view,
                             HeaderValue,
-                            SpdyStringPieceCaseHash,
-                            SpdyStringPieceCaseEq>
+                            StringPieceCaseHash,
+                            StringPieceCaseEqual>
       MapType;
 
  public:

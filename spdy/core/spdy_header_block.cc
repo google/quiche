@@ -9,9 +9,9 @@
 #include <algorithm>
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "spdy/platform/api/spdy_logging.h"
-#include "spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
 namespace {
@@ -223,9 +223,9 @@ std::string Http2HeaderBlock::DebugString() const {
 
   std::string output = "\n{\n";
   for (auto it = begin(); it != end(); ++it) {
-    SpdyStrAppend(&output, "  ", it->first, " ", it->second, "\n");
+    absl::StrAppend(&output, "  ", it->first, " ", it->second, "\n");
   }
-  SpdyStrAppend(&output, "}\n");
+  absl::StrAppend(&output, "}\n");
   return output;
 }
 

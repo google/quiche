@@ -9,7 +9,6 @@
 
 #include "absl/strings/str_cat.h"
 #include "spdy/platform/api/spdy_bug_tracker.h"
-#include "spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
 
@@ -192,8 +191,7 @@ bool ParseSettingsId(SpdySettingsId wire_setting_id,
 std::string SettingsIdToString(SpdySettingsId id) {
   SpdyKnownSettingsId known_id;
   if (!ParseSettingsId(id, &known_id)) {
-    return absl::StrCat("SETTINGS_UNKNOWN_",
-                        SpdyHexEncodeUInt32AndTrim(uint32_t{id}));
+    return absl::StrCat("SETTINGS_UNKNOWN_", absl::Hex(uint32_t{id}));
   }
 
   switch (known_id) {
@@ -217,8 +215,7 @@ std::string SettingsIdToString(SpdySettingsId id) {
       return "SETTINGS_EXPERIMENT_SCHEDULER";
   }
 
-  return absl::StrCat("SETTINGS_UNKNOWN_",
-                      SpdyHexEncodeUInt32AndTrim(uint32_t{id}));
+  return absl::StrCat("SETTINGS_UNKNOWN_", absl::Hex(uint32_t{id}));
 }
 
 SpdyErrorCode ParseErrorCode(uint32_t wire_error_code) {

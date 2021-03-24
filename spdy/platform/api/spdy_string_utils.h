@@ -19,11 +19,6 @@
 
 namespace spdy {
 
-template <typename... Args>
-inline void SpdyStrAppend(std::string* output, const Args&... args) {
-  SpdyStrAppendImpl(output, std::forward<const Args&>(args)...);
-}
-
 inline char SpdyHexDigitToInt(char c) {
   return SpdyHexDigitToIntImpl(c);
 }
@@ -40,17 +35,9 @@ inline std::string SpdyHexEncode(const char* bytes, size_t size) {
   return SpdyHexEncodeImpl(bytes, size);
 }
 
-inline std::string SpdyHexEncodeUInt32AndTrim(uint32_t data) {
-  return SpdyHexEncodeUInt32AndTrimImpl(data);
-}
-
 inline std::string SpdyHexDump(absl::string_view data) {
   return SpdyHexDumpImpl(data);
 }
-
-using SpdyStringPieceCaseHash = SpdyStringPieceCaseHashImpl;
-
-using SpdyStringPieceCaseEq = SpdyStringPieceCaseEqImpl;
 
 }  // namespace spdy
 

@@ -265,15 +265,14 @@ std::string SpdyAltSvcWireFormat::SerializeHeaderFieldValue(
       }
       value.push_back(c);
     }
-    value.append(absl::StrCat(":", altsvc.port, "\""));
+    absl::StrAppend(&value, ":", altsvc.port, "\"");
     if (altsvc.max_age != 86400) {
-      value.append(absl::StrCat("; ma=", altsvc.max_age));
+      absl::StrAppend(&value, "; ma=", altsvc.max_age);
     }
     if (!altsvc.version.empty()) {
       if (is_ietf_format_quic) {
         for (uint32_t quic_version : altsvc.version) {
-          value.append("; quic=");
-          value.append(SpdyHexEncodeUInt32AndTrim(quic_version));
+          absl::StrAppend(&value, "; quic=", absl::Hex(quic_version));
         }
       } else {
         value.append("; v=\"");
@@ -282,7 +281,7 @@ std::string SpdyAltSvcWireFormat::SerializeHeaderFieldValue(
           if (it != altsvc.version.begin()) {
             value.append(",");
           }
-          value.append(absl::StrCat(*it));
+          absl::StrAppend(&value, *it);
         }
         value.append("\"");
       }
