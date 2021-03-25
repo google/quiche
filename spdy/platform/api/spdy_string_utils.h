@@ -8,12 +8,6 @@
 #include <string>
 #include <utility>
 
-// The following header file has to be included from at least
-// non-test file in order to avoid strange linking errors.
-// TODO(bnc): Remove this include as soon as it is included elsewhere in
-// non-test code.
-#include "spdy/platform/api/spdy_mem_slice.h"
-
 #include "absl/strings/string_view.h"
 #include "net/spdy/platform/impl/spdy_string_utils_impl.h"
 
