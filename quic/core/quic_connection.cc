@@ -371,11 +371,7 @@ QuicConnection::QuicConnection(
           GetQuicReloadableFlag(quic_use_encryption_level_context)),
       path_validator_(alarm_factory_, &arena_, this, random_generator_),
       alternative_path_(QuicSocketAddress(), QuicSocketAddress()),
-      most_recent_frame_type_(NUM_FRAME_TYPES),
-      validate_client_addresses_(
-          framer_.version().HasIetfQuicFrames() && use_path_validator_ &&
-          count_bytes_on_alternative_path_separately_ &&
-          GetQuicReloadableFlag(quic_server_reverse_validate_new_path2)) {
+      most_recent_frame_type_(NUM_FRAME_TYPES) {
   QUIC_BUG_IF(quic_bug_12714_1,
               !start_peer_migration_earlier_ && send_path_response_);
 
@@ -700,6 +696,13 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   }
   if (config.HasClientSentConnectionOption(kDFER, perspective_)) {
     defer_send_in_response_to_packets_ = false;
+  }
+  if (framer_.version().HasIetfQuicFrames() && use_path_validator_ &&
+      count_bytes_on_alternative_path_separately_ &&
+      GetQuicReloadableFlag(quic_server_reverse_validate_new_path3) &&
+      config.HasClientSentConnectionOption(kRVCM, perspective_)) {
+    QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 6, 6);
+    validate_client_addresses_ = true;
   }
   if (config.HasReceivedMaxPacketSize()) {
     peer_max_packet_size_ = config.ReceivedMaxPacketSize();
@@ -1674,7 +1677,7 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
   if (!validate_client_addresses_) {
     return OnPathChallengeFrameInternal(frame);
   }
-  QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path2, 1, 5);
+  QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 1, 6);
   {
     // UpdatePacketStateAndReplyPathChallenge() may start reverse path
     // validation, if so bundle the PATH_CHALLENGE together with the
@@ -4968,7 +4971,7 @@ void QuicConnection::OnEffectivePeerMigrationValidated() {
   if (!validate_client_addresses_) {
     return;
   }
-  QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path2, 2, 5);
+  QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 2, 6);
   if (debug_visitor_ != nullptr) {
     const QuicTime now = clock_->ApproximateNow();
     if (now >= stats_.handshake_completion_time) {
@@ -4998,11 +5001,12 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
           << "EffectivePeerMigration started without address change.";
       return;
     }
-    QUIC_DLOG(INFO) << ENDPOINT << "Effective peer's ip:port changed from "
-                    << default_path_.peer_address.ToString() << " to "
-                    << GetEffectivePeerAddressFromCurrentPacket().ToString()
-                    << ", address change type is " << type
-                    << ", migrating connection.";
+    QUIC_DLOG(INFO)
+        << ENDPOINT << "Effective peer's ip:port changed from "
+        << default_path_.peer_address.ToString() << " to "
+        << GetEffectivePeerAddressFromCurrentPacket().ToString()
+        << ", address change type is " << type
+        << ", migrating connection without validating new client address.";
 
     highest_packet_sent_before_effective_peer_migration_ =
         sent_packet_manager_.GetLargestSentPacket();
@@ -5013,7 +5017,7 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
     return;
   }
 
-  QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path2, 3, 5);
+  QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 3, 6);
   if (type == NO_CHANGE) {
     UpdatePeerAddress(last_packet_source_address_);
     QUIC_BUG(quic_bug_10511_36)
@@ -5293,7 +5297,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
         alternative_path_ = PathState(last_packet_destination_address_,
                                       current_effective_peer_address);
       } else if (!default_path_.validated) {
-        QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path2, 4, 5);
+        QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 4, 6);
         // Skip reverse path validation because either handshake hasn't
         // completed or the connection is validating the default path. Using
         // PATH_CHALLENGE to validate alternative client address before
@@ -5307,7 +5311,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
                     IsHandshakeConfirmed() && !alternative_path_.validated)
             << "No validated peer address to send after handshake comfirmed.";
       } else if (!IsReceivedPeerAddressValidated()) {
-        QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path2, 5, 5);
+        QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 5, 6);
         // Only override alternative path state upon receiving a PATH_CHALLENGE
         // from an unvalidated peer address, and the connection isn't validating
         // a recent peer migration.

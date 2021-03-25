@@ -2157,7 +2157,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       GetQuicReloadableFlag(quic_count_bytes_on_alternative_path_seperately);
 
   // If true, upon seeing a new client address, validate the client address.
-  const bool validate_client_addresses_;
+  bool validate_client_addresses_ = false;
 
   bool support_multiple_connection_ids_ = false;
 };
