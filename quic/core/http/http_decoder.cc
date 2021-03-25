@@ -282,10 +282,14 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH): {
+      // TODO(bnc): Avoid buffering if the entire frame is present, and
+      // instead parse directly out of |reader|.
       BufferFramePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::SETTINGS): {
+      // TODO(bnc): Avoid buffering if the entire frame is present, and
+      // instead parse directly out of |reader|.
       BufferFramePayload(reader);
       break;
     }
@@ -355,10 +359,14 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::GOAWAY): {
+      // TODO(bnc): Avoid buffering if the entire frame is present, and
+      // instead parse directly out of |reader|.
       BufferFramePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID): {
+      // TODO(bnc): Avoid buffering if the entire frame is present, and
+      // instead parse directly out of |reader|.
       BufferFramePayload(reader);
       break;
     }
@@ -408,8 +416,11 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH): {
+      // TODO(bnc): Avoid buffering if the entire frame is present, and
+      // instead parse directly out of |reader|.
       CancelPushFrame frame;
-      QuicDataReader reader(buffer_.data(), current_frame_length_);
+      QUICHE_DCHECK_EQ(current_frame_length_, buffer_.size());
+      QuicDataReader reader(buffer_);
       if (!reader.ReadVarInt62(&frame.push_id)) {
         RaiseError(QUIC_HTTP_FRAME_ERROR,
                    "Unable to read CANCEL_PUSH push_id.");
@@ -424,8 +435,11 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::SETTINGS): {
+      // TODO(bnc): Avoid buffering if the entire frame is present, and
+      // instead parse directly out of |reader|.
       SettingsFrame frame;
-      QuicDataReader reader(buffer_.data(), current_frame_length_);
+      QUICHE_DCHECK_EQ(current_frame_length_, buffer_.size());
+      QuicDataReader reader(buffer_);
       if (!ParseSettingsFrame(&reader, &frame)) {
         return false;
       }
@@ -437,7 +451,10 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::GOAWAY): {
-      QuicDataReader reader(buffer_.data(), current_frame_length_);
+      // TODO(bnc): Avoid buffering if the entire frame is present, and
+      // instead parse directly out of |reader|.
+      QUICHE_DCHECK_EQ(current_frame_length_, buffer_.size());
+      QuicDataReader reader(buffer_);
       GoAwayFrame frame;
       if (!reader.ReadVarInt62(&frame.id)) {
         RaiseError(QUIC_HTTP_FRAME_ERROR, "Unable to read GOAWAY ID.");
@@ -451,7 +468,10 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID): {
-      QuicDataReader reader(buffer_.data(), current_frame_length_);
+      // TODO(bnc): Avoid buffering if the entire frame is present, and
+      // instead parse directly out of |reader|.
+      QUICHE_DCHECK_EQ(current_frame_length_, buffer_.size());
+      QuicDataReader reader(buffer_);
       MaxPushIdFrame frame;
       if (!reader.ReadVarInt62(&frame.push_id)) {
         RaiseError(QUIC_HTTP_FRAME_ERROR,
@@ -470,7 +490,8 @@ bool HttpDecoder::FinishParsing() {
       // TODO(bnc): Avoid buffering if the entire frame is present, and
       // instead parse directly out of |reader|.
       PriorityUpdateFrame frame;
-      QuicDataReader reader(buffer_.data(), current_frame_length_);
+      QUICHE_DCHECK_EQ(current_frame_length_, buffer_.size());
+      QuicDataReader reader(buffer_);
       if (!ParsePriorityUpdateFrame(&reader, &frame)) {
         return false;
       }
@@ -481,7 +502,8 @@ bool HttpDecoder::FinishParsing() {
       // TODO(bnc): Avoid buffering if the entire frame is present, and
       // instead parse directly out of |reader|.
       PriorityUpdateFrame frame;
-      QuicDataReader reader(buffer_.data(), current_frame_length_);
+      QUICHE_DCHECK_EQ(current_frame_length_, buffer_.size());
+      QuicDataReader reader(buffer_);
       if (!ParseNewPriorityUpdateFrame(&reader, &frame)) {
         return false;
       }
@@ -492,7 +514,8 @@ bool HttpDecoder::FinishParsing() {
       // TODO(bnc): Avoid buffering if the entire frame is present, and
       // instead parse directly out of |reader|.
       AcceptChFrame frame;
-      QuicDataReader reader(buffer_.data(), current_frame_length_);
+      QUICHE_DCHECK_EQ(current_frame_length_, buffer_.size());
+      QuicDataReader reader(buffer_);
       if (!ParseAcceptChFrame(&reader, &frame)) {
         return false;
       }
@@ -536,16 +559,21 @@ void HttpDecoder::DiscardFramePayload(QuicDataReader* reader) {
 
 void HttpDecoder::BufferFramePayload(QuicDataReader* reader) {
   if (current_frame_length_ == remaining_frame_length_) {
-    buffer_.erase(buffer_.size());
+    buffer_.clear();
     buffer_.reserve(current_frame_length_);
   }
+
+  QUICHE_DCHECK_EQ(current_frame_length_ - remaining_frame_length_,
+                   buffer_.size());
   QuicByteCount bytes_to_read = std::min<QuicByteCount>(
       remaining_frame_length_, reader->BytesRemaining());
-  bool success = reader->ReadBytes(
-      &(buffer_[0]) + current_frame_length_ - remaining_frame_length_,
-      bytes_to_read);
-  QUICHE_DCHECK(success);
+  absl::StrAppend(&buffer_, reader->PeekRemainingPayload().substr(
+                                /* pos = */ 0, bytes_to_read));
+  reader->Seek(bytes_to_read);
+
   remaining_frame_length_ -= bytes_to_read;
+  QUICHE_DCHECK_EQ(current_frame_length_ - remaining_frame_length_,
+                   buffer_.size());
 }
 
 void HttpDecoder::BufferFrameLength(QuicDataReader* reader) {
