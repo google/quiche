@@ -21,7 +21,6 @@
 
 #include "absl/strings/str_cat.h"
 #include "http2/http2_structures_test_util.h"
-#include "http2/platform/api/http2_string_utils.h"
 #include "http2/platform/api/http2_test_helpers.h"
 #include "http2/test_tools/http2_random.h"
 #include "common/platform/api/quiche_test.h"

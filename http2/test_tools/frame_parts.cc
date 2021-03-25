@@ -6,9 +6,9 @@
 
 #include <type_traits>
 
+#include "absl/strings/escaping.h"
 #include "http2/http2_structures_test_util.h"
 #include "http2/platform/api/http2_logging.h"
-#include "http2/platform/api/http2_string_utils.h"
 #include "http2/platform/api/http2_test_helpers.h"
 #include "common/platform/api/quiche_test.h"
 
@@ -442,16 +442,16 @@ void FrameParts::OnFrameSizeError(const Http2FrameHeader& header) {
 void FrameParts::OutputTo(std::ostream& out) const {
   out << "FrameParts{\n  frame_header_: " << frame_header_ << "\n";
   if (!payload_.empty()) {
-    out << "  payload_=\"" << Http2HexEscape(payload_) << "\"\n";
+    out << "  payload_=\"" << absl::CHexEscape(payload_) << "\"\n";
   }
   if (!padding_.empty()) {
-    out << "  padding_=\"" << Http2HexEscape(padding_) << "\"\n";
+    out << "  padding_=\"" << absl::CHexEscape(padding_) << "\"\n";
   }
   if (!altsvc_origin_.empty()) {
-    out << "  altsvc_origin_=\"" << Http2HexEscape(altsvc_origin_) << "\"\n";
+    out << "  altsvc_origin_=\"" << absl::CHexEscape(altsvc_origin_) << "\"\n";
   }
   if (!altsvc_value_.empty()) {
-    out << "  altsvc_value_=\"" << Http2HexEscape(altsvc_value_) << "\"\n";
+    out << "  altsvc_value_=\"" << absl::CHexEscape(altsvc_value_) << "\"\n";
   }
   if (opt_priority_) {
     out << "  priority=" << opt_priority_.value() << "\n";

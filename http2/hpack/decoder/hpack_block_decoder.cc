@@ -10,7 +10,6 @@
 #include "http2/platform/api/http2_flag_utils.h"
 #include "http2/platform/api/http2_flags.h"
 #include "http2/platform/api/http2_logging.h"
-#include "http2/platform/api/http2_string_utils.h"
 
 namespace http2 {
 
@@ -56,7 +55,7 @@ DecodeStatus HpackBlockDecoder::Decode(DecodeBuffer* db) {
 std::string HpackBlockDecoder::DebugString() const {
   return absl::StrCat(
       "HpackBlockDecoder(", entry_decoder_.DebugString(), ", listener@",
-      Http2Hex(reinterpret_cast<intptr_t>(listener_)),
+      absl::Hex(reinterpret_cast<intptr_t>(listener_)),
       (before_entry_ ? ", between entries)" : ", in an entry)"));
 }
 

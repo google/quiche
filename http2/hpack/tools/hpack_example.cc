@@ -42,7 +42,7 @@ void HpackExampleToStringOrDie(absl::string_view example, std::string* output) {
     }
     HTTP2_BUG(http2_bug_107_1)
         << "Can't parse byte " << static_cast<int>(c0)
-        << absl::StrCat(" (0x", Http2Hex(c0), ")") << "\nExample: " << example;
+        << absl::StrCat(" (0x", absl::Hex(c0), ")") << "\nExample: " << example;
   }
   QUICHE_CHECK_LT(0u, output->size()) << "Example is empty.";
 }

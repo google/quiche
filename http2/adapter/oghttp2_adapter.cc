@@ -3,8 +3,8 @@
 #include <list>
 
 #include "absl/memory/memory.h"
+#include "absl/strings/str_cat.h"
 #include "http2/adapter/window_manager.h"
-#include "http2/platform/api/http2_string_utils.h"
 #include "spdy/core/spdy_framer.h"
 #include "spdy/core/spdy_protocol.h"
 
@@ -101,7 +101,7 @@ class OgHttp2Adapter::OgHttp2Session : public Http2Session {
     while (serialized.size() < serialized_max && !frames_.empty()) {
       spdy::SpdySerializedFrame frame =
           framer_.SerializeFrame(*frames_.front());
-      Http2StrAppend(&serialized, absl::string_view(frame));
+      absl::StrAppend(&serialized, absl::string_view(frame));
       frames_.pop_front();
     }
     if (serialized.size() > serialized_max) {

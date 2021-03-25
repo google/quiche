@@ -4,10 +4,10 @@
 
 #include "http2/hpack/decoder/hpack_entry_collector.h"
 
+#include "absl/strings/str_cat.h"
 #include "http2/hpack/decoder/hpack_string_collector.h"
 #include "http2/hpack/http2_hpack_constants.h"
 #include "http2/platform/api/http2_logging.h"
-#include "http2/platform/api/http2_string_utils.h"
 #include "http2/platform/api/http2_test_helpers.h"
 #include "common/platform/api/quiche_test.h"
 
@@ -254,25 +254,25 @@ std::string HpackEntryCollector::ToString() const {
       if (header_type_ == kInvalidHeaderType) {
         result += "<unset>";
       } else {
-        Http2StrAppend(&result, header_type_);
+        absl::StrAppend(&result, header_type_);
       }
   }
   if (index_ != 0) {
-    Http2StrAppend(&result, " Index=", index_);
+    absl::StrAppend(&result, " Index=", index_);
   }
   if (!name_.IsClear()) {
-    Http2StrAppend(&result, " Name", name_.ToString());
+    absl::StrAppend(&result, " Name", name_.ToString());
   }
   if (!value_.IsClear()) {
-    Http2StrAppend(&result, " Value", value_.ToString());
+    absl::StrAppend(&result, " Value", value_.ToString());
   }
   if (!started_) {
     EXPECT_FALSE(ended_);
-    Http2StrAppend(&result, " !started");
+    absl::StrAppend(&result, " !started");
   } else if (!ended_) {
-    Http2StrAppend(&result, " !ended");
+    absl::StrAppend(&result, " !ended");
   } else {
-    Http2StrAppend(&result, " Complete");
+    absl::StrAppend(&result, " Complete");
   }
   return result;
 }

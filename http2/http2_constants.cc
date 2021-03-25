@@ -53,7 +53,7 @@ std::string Http2FrameFlagsToString(Http2FrameType type, uint8_t flags) {
     if (!s.empty()) {
       s.push_back('|');
     }
-    Http2StrAppend(&s, v);
+    absl::StrAppend(&s, v);
     flags ^= bit;
   };
   if (flags & 0x01) {
@@ -123,7 +123,7 @@ std::string Http2ErrorCodeToString(uint32_t v) {
     case 0xd:
       return "HTTP_1_1_REQUIRED";
   }
-  return absl::StrCat("UnknownErrorCode(0x", Http2Hex(v), ")");
+  return absl::StrCat("UnknownErrorCode(0x", absl::Hex(v), ")");
 }
 std::string Http2ErrorCodeToString(Http2ErrorCode v) {
   return Http2ErrorCodeToString(static_cast<uint32_t>(v));
@@ -144,7 +144,7 @@ std::string Http2SettingsParameterToString(uint32_t v) {
     case 0x6:
       return "MAX_HEADER_LIST_SIZE";
   }
-  return absl::StrCat("UnknownSettingsParameter(0x", Http2Hex(v), ")");
+  return absl::StrCat("UnknownSettingsParameter(0x", absl::Hex(v), ")");
 }
 std::string Http2SettingsParameterToString(Http2SettingsParameter v) {
   return Http2SettingsParameterToString(static_cast<uint32_t>(v));

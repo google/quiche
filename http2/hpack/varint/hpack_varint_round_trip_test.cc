@@ -162,7 +162,7 @@ class HpackVarintRoundTripTest : public RandomDecoderTest {
     for (const uint64_t value : values) {
       Encode(value, prefix_length);  // Sets buffer_.
 
-      std::string msg = absl::StrCat("value=", value, " (0x", Http2Hex(value),
+      std::string msg = absl::StrCat("value=", value, " (0x", absl::Hex(value),
                                      "), prefix_length=", prefix_length,
                                      ", expected_bytes=", expected_bytes, "\n",
                                      Http2HexDump(buffer_));

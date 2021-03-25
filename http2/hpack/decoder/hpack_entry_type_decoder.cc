@@ -9,7 +9,6 @@
 #include "http2/platform/api/http2_flag_utils.h"
 #include "http2/platform/api/http2_flags.h"
 #include "http2/platform/api/http2_logging.h"
-#include "http2/platform/api/http2_string_utils.h"
 
 namespace http2 {
 

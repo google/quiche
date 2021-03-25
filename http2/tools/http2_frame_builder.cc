@@ -11,7 +11,7 @@
 #include <netinet/in.h>  // for htonl, htons
 #endif
 
-#include "http2/platform/api/http2_string_utils.h"
+#include "absl/strings/str_cat.h"
 #include "common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -31,7 +31,7 @@ Http2FrameBuilder::Http2FrameBuilder(const Http2FrameHeader& v) {
 }
 
 void Http2FrameBuilder::Append(absl::string_view s) {
-  Http2StrAppend(&buffer_, s);
+  absl::StrAppend(&buffer_, s);
 }
 
 void Http2FrameBuilder::AppendBytes(const void* data, uint32_t num_bytes) {
