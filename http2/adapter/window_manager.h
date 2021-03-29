@@ -6,6 +6,10 @@
 namespace http2 {
 namespace adapter {
 
+namespace test {
+class WindowManagerPeer;
+}
+
 // This class keeps track of a HTTP/2 flow control window, notifying a listener
 // when a window update needs to be sent. This class is not thread-safe.
 class WindowManager {
@@ -44,7 +48,7 @@ class WindowManager {
   }
 
  private:
-  friend class WindowManagerPeer;
+  friend class test::WindowManagerPeer;
 
   void MaybeNotifyListener();
 

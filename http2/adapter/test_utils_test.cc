@@ -1,6 +1,6 @@
 #include "http2/adapter/test_utils.h"
 
-#include "testing/base/public/gunit.h"
+#include "common/platform/api/quiche_test.h"
 #include "spdy/core/spdy_framer.h"
 
 namespace http2 {

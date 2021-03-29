@@ -2,16 +2,14 @@
 
 #include <list>
 
-#include "testing/base/public/gmock.h"
-#include "testing/base/public/gunit.h"
 #include "absl/functional/bind_front.h"
+#include "http2/test_tools/http2_random.h"
+#include "common/platform/api/quiche_test.h"
 #include "spdy/platform/api/spdy_test_helpers.h"
-#include "util/random/acmrandom.h"
-
-using ::absl::bind_front;
 
 namespace http2 {
 namespace adapter {
+namespace test {
 
 // Use the peer to access private vars of WindowManager.
 class WindowManagerPeer {
@@ -26,12 +24,13 @@ class WindowManagerPeer {
   const WindowManager& wm_;
 };
 
+namespace {
+
 class WindowManagerTest : public ::testing::Test {
  protected:
   WindowManagerTest()
-      : wm_(kDefaultLimit, bind_front(&WindowManagerTest::OnCall, this)),
-        peer_(wm_),
-        random_(ACMRandom::HostnamePidTimeSeed()) {}
+      : wm_(kDefaultLimit, absl::bind_front(&WindowManagerTest::OnCall, this)),
+        peer_(wm_) {}
 
   void OnCall(size_t s) {
     call_sequence_.push_back(s);
@@ -41,7 +40,7 @@ class WindowManagerTest : public ::testing::Test {
   std::list<size_t> call_sequence_;
   WindowManager wm_;
   WindowManagerPeer peer_;
-  ACMRandom random_;
+  ::http2::test::Http2Random random_;
 };
 
 // A few no-op calls.
@@ -59,8 +58,7 @@ TEST_F(WindowManagerTest, NoOps) {
 TEST_F(WindowManagerTest, DataOnlyBuffered) {
   size_t total = 0;
   while (total < kDefaultLimit) {
-    size_t s = std::min<size_t>(kDefaultLimit - total,
-                                random_.UnbiasedUniform64(1024));
+    size_t s = std::min<size_t>(kDefaultLimit - total, random_.Uniform(1024));
     total += s;
     wm_.MarkDataBuffered(s);
   }
@@ -73,13 +71,12 @@ TEST_F(WindowManagerTest, DataBufferedAndFlushed) {
   size_t total_buffered = 0;
   size_t total_flushed = 0;
   while (call_sequence_.empty()) {
-    size_t buffered = std::min<size_t>(kDefaultLimit - total_buffered,
-                                       random_.UnbiasedUniform64(1024));
+    size_t buffered =
+        std::min<size_t>(kDefaultLimit - total_buffered, random_.Uniform(1024));
     wm_.MarkDataBuffered(buffered);
     total_buffered += buffered;
     EXPECT_TRUE(call_sequence_.empty());
-    size_t flushed =
-        random_.UnbiasedUniform64(total_buffered - total_flushed);
+    size_t flushed = random_.Uniform(total_buffered - total_flushed);
     wm_.MarkDataFlushed(flushed);
     total_flushed += flushed;
   }
@@ -168,5 +165,7 @@ TEST_F(WindowManagerTest, ZeroWindowNotification) {
   EXPECT_THAT(call_sequence_, testing::ElementsAre(1));
 }
 
+}  // namespace
+}  // namespace test
 }  // namespace adapter
 }  // namespace http2
