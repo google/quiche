@@ -83,8 +83,12 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
                                      absl::string_view value) const;
 
   // Inserts (name, value) into the dynamic table.  Entry must not be larger
-  // than the capacity of the dynamic table.  May evict entries.  Returns the
-  // absolute index of the inserted dynamic table entry.
+  // than the capacity of the dynamic table.  May evict entries.  |name| and
+  // |value| are copied first, therefore it is safe for them to point to an
+  // entry in the dynamic table, even if it is about to be evicted, or even if
+  // the underlying container might move entries around when resizing for
+  // insertion.
+  // Returns the absolute index of the inserted dynamic table entry.
   uint64_t InsertEntry(absl::string_view name, absl::string_view value);
 
   // Returns the size of the largest entry that could be inserted into the
@@ -156,8 +160,8 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   friend class test::QpackHeaderTablePeer;
 
   // Evict entries from the dynamic table until table size is less than or equal
-  // to current value of |dynamic_table_capacity_|.
-  void EvictDownToCurrentCapacity();
+  // to |capacity|.
+  void EvictDownToCapacity(uint64_t capacity);
 
   // Static Table
 

@@ -103,35 +103,43 @@ uint64_t QpackHeaderTable::InsertEntry(absl::string_view name,
   QUICHE_DCHECK(EntryFitsDynamicTableCapacity(name, value));
 
   const uint64_t index = dropped_entry_count_ + dynamic_entries_.size();
-  dynamic_entries_.push_back({name, value});
-  QpackEntry* const new_entry = &dynamic_entries_.back();
 
-  // Evict entries after inserting the new entry instead of before
-  // in order to avoid invalidating |name| and |value|.
-  dynamic_table_size_ += QpackEntry::Size(name, value);
-  EvictDownToCurrentCapacity();
+  // Copy name and value before modifying the container, because evicting
+  // entries or even inserting a new one might invalidate |name| or |value| if
+  // they point to an entry.
+  QpackEntry new_entry((std::string(name)), (std::string(value)));
+  const size_t entry_size = new_entry.Size();
 
-  auto index_result = dynamic_index_.insert(std::make_pair(
-      QpackLookupEntry{new_entry->name(), new_entry->value()}, index));
+  EvictDownToCapacity(dynamic_table_capacity_ - entry_size);
+
+  dynamic_table_size_ += entry_size;
+  dynamic_entries_.push_back(std::move(new_entry));
+
+  // Make name and value point to the new entry.
+  name = dynamic_entries_.back().name();
+  value = dynamic_entries_.back().value();
+
+  auto index_result = dynamic_index_.insert(
+      std::make_pair(QpackLookupEntry{name, value}, index));
   if (!index_result.second) {
     // An entry with the same name and value already exists.  It needs to be
     // replaced, because |dynamic_index_| tracks the most recent entry for a
     // given name and value.
     QUICHE_DCHECK_GT(index, index_result.first->second);
     dynamic_index_.erase(index_result.first);
-    auto result = dynamic_index_.insert(std::make_pair(
-        QpackLookupEntry{new_entry->name(), new_entry->value()}, index));
+    auto result = dynamic_index_.insert(
+        std::make_pair(QpackLookupEntry{name, value}, index));
     QUICHE_CHECK(result.second);
   }
 
-  auto name_result = dynamic_name_index_.insert({new_entry->name(), index});
+  auto name_result = dynamic_name_index_.insert({name, index});
   if (!name_result.second) {
     // An entry with the same name already exists.  It needs to be replaced,
     // because |dynamic_name_index_| tracks the most recent entry for a given
     // name.
     QUICHE_DCHECK_GT(index, name_result.first->second);
     dynamic_name_index_.erase(name_result.first);
-    auto result = dynamic_name_index_.insert({new_entry->name(), index});
+    auto result = dynamic_name_index_.insert({name, index});
     QUICHE_CHECK(result.second);
   }
 
@@ -179,7 +187,7 @@ bool QpackHeaderTable::SetDynamicTableCapacity(uint64_t capacity) {
   }
 
   dynamic_table_capacity_ = capacity;
-  EvictDownToCurrentCapacity();
+  EvictDownToCapacity(capacity);
 
   QUICHE_DCHECK_LE(dynamic_table_size_, dynamic_table_capacity_);
 
@@ -245,8 +253,8 @@ uint64_t QpackHeaderTable::draining_index(float draining_fraction) const {
   return entry_index;
 }
 
-void QpackHeaderTable::EvictDownToCurrentCapacity() {
-  while (dynamic_table_size_ > dynamic_table_capacity_) {
+void QpackHeaderTable::EvictDownToCapacity(uint64_t capacity) {
+  while (dynamic_table_size_ > capacity) {
     QUICHE_DCHECK(!dynamic_entries_.empty());
 
     QpackEntry* const entry = &dynamic_entries_.front();
