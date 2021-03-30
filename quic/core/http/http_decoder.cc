@@ -106,7 +106,7 @@ QuicByteCount HttpDecoder::ProcessInput(const char* data, QuicByteCount len) {
         continue_processing = ReadFramePayload(&reader);
         break;
       case STATE_FINISH_PARSING:
-        continue_processing = FinishParsing();
+        continue_processing = FinishParsing(&reader);
         break;
       case STATE_ERROR:
         break;
@@ -282,15 +282,11 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH): {
-      // TODO(bnc): Avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      BufferFramePayload(reader);
+      continue_processing = BufferOrParsePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::SETTINGS): {
-      // TODO(bnc): Avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      BufferFramePayload(reader);
+      continue_processing = BufferOrParsePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE): {
@@ -359,33 +355,23 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::GOAWAY): {
-      // TODO(bnc): Avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      BufferFramePayload(reader);
+      continue_processing = BufferOrParsePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID): {
-      // TODO(bnc): Avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      BufferFramePayload(reader);
+      continue_processing = BufferOrParsePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE): {
-      // TODO(bnc): Avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      BufferFramePayload(reader);
+      continue_processing = BufferOrParsePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM): {
-      // TODO(bnc): Avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      BufferFramePayload(reader);
+      continue_processing = BufferOrParsePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH): {
-      // TODO(bnc): Avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      BufferFramePayload(reader);
+      continue_processing = BufferOrParsePayload(reader);
       break;
     }
     default: {
@@ -394,14 +380,15 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
     }
   }
 
-  if (remaining_frame_length_ == 0) {
+  // BufferOrParsePayload() may have advanced |state_|.
+  if (state_ == STATE_READING_FRAME_PAYLOAD && remaining_frame_length_ == 0) {
     state_ = STATE_FINISH_PARSING;
   }
 
   return continue_processing;
 }
 
-bool HttpDecoder::FinishParsing() {
+bool HttpDecoder::FinishParsing(QuicDataReader* reader) {
   QUICHE_DCHECK_EQ(0u, remaining_frame_length_);
 
   bool continue_processing = true;
@@ -416,34 +403,15 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH): {
-      // TODO(bnc): Avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      CancelPushFrame frame;
-      QUICHE_DCHECK_EQ(current_frame_length_, buffer_.size());
-      QuicDataReader reader(buffer_);
-      if (!reader.ReadVarInt62(&frame.push_id)) {
-        RaiseError(QUIC_HTTP_FRAME_ERROR,
-                   "Unable to read CANCEL_PUSH push_id.");
-        return false;
-      }
-      if (!reader.IsDoneReading()) {
-        RaiseError(QUIC_HTTP_FRAME_ERROR,
-                   "Superfluous data in CANCEL_PUSH frame.");
-        return false;
-      }
-      continue_processing = visitor_->OnCancelPushFrame(frame);
+      // If frame payload is not empty, FinishParsing() is skipped.
+      QUICHE_DCHECK_EQ(0u, current_frame_length_);
+      continue_processing = BufferOrParsePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::SETTINGS): {
-      // TODO(bnc): Avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      SettingsFrame frame;
-      QUICHE_DCHECK_EQ(current_frame_length_, buffer_.size());
-      QuicDataReader reader(buffer_);
-      if (!ParseSettingsFrame(&reader, &frame)) {
-        return false;
-      }
-      continue_processing = visitor_->OnSettingsFrame(frame);
+      // If frame payload is not empty, FinishParsing() is skipped.
+      QUICHE_DCHECK_EQ(0u, current_frame_length_);
+      continue_processing = BufferOrParsePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE): {
@@ -451,75 +419,33 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::GOAWAY): {
-      // TODO(bnc): Avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      QUICHE_DCHECK_EQ(current_frame_length_, buffer_.size());
-      QuicDataReader reader(buffer_);
-      GoAwayFrame frame;
-      if (!reader.ReadVarInt62(&frame.id)) {
-        RaiseError(QUIC_HTTP_FRAME_ERROR, "Unable to read GOAWAY ID.");
-        return false;
-      }
-      if (!reader.IsDoneReading()) {
-        RaiseError(QUIC_HTTP_FRAME_ERROR, "Superfluous data in GOAWAY frame.");
-        return false;
-      }
-      continue_processing = visitor_->OnGoAwayFrame(frame);
+      // If frame payload is not empty, FinishParsing() is skipped.
+      QUICHE_DCHECK_EQ(0u, current_frame_length_);
+      continue_processing = BufferOrParsePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID): {
-      // TODO(bnc): Avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      QUICHE_DCHECK_EQ(current_frame_length_, buffer_.size());
-      QuicDataReader reader(buffer_);
-      MaxPushIdFrame frame;
-      if (!reader.ReadVarInt62(&frame.push_id)) {
-        RaiseError(QUIC_HTTP_FRAME_ERROR,
-                   "Unable to read MAX_PUSH_ID push_id.");
-        return false;
-      }
-      if (!reader.IsDoneReading()) {
-        RaiseError(QUIC_HTTP_FRAME_ERROR,
-                   "Superfluous data in MAX_PUSH_ID frame.");
-        return false;
-      }
-      continue_processing = visitor_->OnMaxPushIdFrame(frame);
+      // If frame payload is not empty, FinishParsing() is skipped.
+      QUICHE_DCHECK_EQ(0u, current_frame_length_);
+      continue_processing = BufferOrParsePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE): {
-      // TODO(bnc): Avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      PriorityUpdateFrame frame;
-      QUICHE_DCHECK_EQ(current_frame_length_, buffer_.size());
-      QuicDataReader reader(buffer_);
-      if (!ParsePriorityUpdateFrame(&reader, &frame)) {
-        return false;
-      }
-      continue_processing = visitor_->OnPriorityUpdateFrame(frame);
+      // If frame payload is not empty, FinishParsing() is skipped.
+      QUICHE_DCHECK_EQ(0u, current_frame_length_);
+      continue_processing = BufferOrParsePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM): {
-      // TODO(bnc): Avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      PriorityUpdateFrame frame;
-      QUICHE_DCHECK_EQ(current_frame_length_, buffer_.size());
-      QuicDataReader reader(buffer_);
-      if (!ParseNewPriorityUpdateFrame(&reader, &frame)) {
-        return false;
-      }
-      continue_processing = visitor_->OnPriorityUpdateFrame(frame);
+      // If frame payload is not empty, FinishParsing() is skipped.
+      QUICHE_DCHECK_EQ(0u, current_frame_length_);
+      continue_processing = BufferOrParsePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH): {
-      // TODO(bnc): Avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      AcceptChFrame frame;
-      QUICHE_DCHECK_EQ(current_frame_length_, buffer_.size());
-      QuicDataReader reader(buffer_);
-      if (!ParseAcceptChFrame(&reader, &frame)) {
-        return false;
-      }
-      continue_processing = visitor_->OnAcceptChFrame(frame);
+      // If frame payload is not empty, FinishParsing() is skipped.
+      QUICHE_DCHECK_EQ(0u, current_frame_length_);
+      continue_processing = BufferOrParsePayload(reader);
       break;
     }
     default:
@@ -557,23 +483,129 @@ void HttpDecoder::DiscardFramePayload(QuicDataReader* reader) {
   }
 }
 
-void HttpDecoder::BufferFramePayload(QuicDataReader* reader) {
-  if (current_frame_length_ == remaining_frame_length_) {
+bool HttpDecoder::BufferOrParsePayload(QuicDataReader* reader) {
+  QUICHE_DCHECK_EQ(current_frame_length_,
+                   buffer_.size() + remaining_frame_length_);
+
+  bool continue_processing = true;
+
+  if (buffer_.empty() && reader->BytesRemaining() >= current_frame_length_) {
+    // |*reader| contains entire payload, which might be empty.
+    remaining_frame_length_ = 0;
+    QuicDataReader current_payload_reader(reader->PeekRemainingPayload().data(),
+                                          current_frame_length_);
+    continue_processing = ParseEntirePayload(&current_payload_reader);
+    reader->Seek(current_frame_length_);
+  } else {
+    if (buffer_.empty()) {
+      buffer_.reserve(current_frame_length_);
+    }
+
+    // Buffer as much of the payload as |*reader| contains.
+    QuicByteCount bytes_to_read = std::min<QuicByteCount>(
+        remaining_frame_length_, reader->BytesRemaining());
+    absl::StrAppend(&buffer_, reader->PeekRemainingPayload().substr(
+                                  /* pos = */ 0, bytes_to_read));
+    reader->Seek(bytes_to_read);
+    remaining_frame_length_ -= bytes_to_read;
+
+    QUICHE_DCHECK_EQ(current_frame_length_,
+                     buffer_.size() + remaining_frame_length_);
+
+    if (remaining_frame_length_ > 0) {
+      QUICHE_DCHECK(reader->IsDoneReading());
+      return true;
+    }
+
+    QuicDataReader buffer_reader(buffer_);
+    continue_processing = ParseEntirePayload(&buffer_reader);
     buffer_.clear();
-    buffer_.reserve(current_frame_length_);
   }
 
-  QUICHE_DCHECK_EQ(current_frame_length_ - remaining_frame_length_,
-                   buffer_.size());
-  QuicByteCount bytes_to_read = std::min<QuicByteCount>(
-      remaining_frame_length_, reader->BytesRemaining());
-  absl::StrAppend(&buffer_, reader->PeekRemainingPayload().substr(
-                                /* pos = */ 0, bytes_to_read));
-  reader->Seek(bytes_to_read);
+  current_length_field_length_ = 0;
+  current_type_field_length_ = 0;
+  state_ = STATE_READING_FRAME_TYPE;
+  return continue_processing;
+}
 
-  remaining_frame_length_ -= bytes_to_read;
-  QUICHE_DCHECK_EQ(current_frame_length_ - remaining_frame_length_,
-                   buffer_.size());
+bool HttpDecoder::ParseEntirePayload(QuicDataReader* reader) {
+  QUICHE_DCHECK_EQ(current_frame_length_, reader->BytesRemaining());
+  QUICHE_DCHECK_EQ(0u, remaining_frame_length_);
+
+  switch (current_frame_type_) {
+    case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH): {
+      CancelPushFrame frame;
+      if (!reader->ReadVarInt62(&frame.push_id)) {
+        RaiseError(QUIC_HTTP_FRAME_ERROR,
+                   "Unable to read CANCEL_PUSH push_id.");
+        return false;
+      }
+      if (!reader->IsDoneReading()) {
+        RaiseError(QUIC_HTTP_FRAME_ERROR,
+                   "Superfluous data in CANCEL_PUSH frame.");
+        return false;
+      }
+      return visitor_->OnCancelPushFrame(frame);
+    }
+    case static_cast<uint64_t>(HttpFrameType::SETTINGS): {
+      SettingsFrame frame;
+      if (!ParseSettingsFrame(reader, &frame)) {
+        return false;
+      }
+      return visitor_->OnSettingsFrame(frame);
+    }
+    case static_cast<uint64_t>(HttpFrameType::GOAWAY): {
+      GoAwayFrame frame;
+      if (!reader->ReadVarInt62(&frame.id)) {
+        RaiseError(QUIC_HTTP_FRAME_ERROR, "Unable to read GOAWAY ID.");
+        return false;
+      }
+      if (!reader->IsDoneReading()) {
+        RaiseError(QUIC_HTTP_FRAME_ERROR, "Superfluous data in GOAWAY frame.");
+        return false;
+      }
+      return visitor_->OnGoAwayFrame(frame);
+    }
+    case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID): {
+      MaxPushIdFrame frame;
+      if (!reader->ReadVarInt62(&frame.push_id)) {
+        RaiseError(QUIC_HTTP_FRAME_ERROR,
+                   "Unable to read MAX_PUSH_ID push_id.");
+        return false;
+      }
+      if (!reader->IsDoneReading()) {
+        RaiseError(QUIC_HTTP_FRAME_ERROR,
+                   "Superfluous data in MAX_PUSH_ID frame.");
+        return false;
+      }
+      return visitor_->OnMaxPushIdFrame(frame);
+    }
+    case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE): {
+      PriorityUpdateFrame frame;
+      if (!ParsePriorityUpdateFrame(reader, &frame)) {
+        return false;
+      }
+      return visitor_->OnPriorityUpdateFrame(frame);
+    }
+    case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM): {
+      PriorityUpdateFrame frame;
+      if (!ParseNewPriorityUpdateFrame(reader, &frame)) {
+        return false;
+      }
+      return visitor_->OnPriorityUpdateFrame(frame);
+    }
+    case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH): {
+      AcceptChFrame frame;
+      if (!ParseAcceptChFrame(reader, &frame)) {
+        return false;
+      }
+      return visitor_->OnAcceptChFrame(frame);
+    }
+    default:
+      // Only above frame types are parsed by ParseEntirePayload().
+      QUICHE_NOTREACHED();
+      return false;
+  }
 }
 
 void HttpDecoder::BufferFrameLength(QuicDataReader* reader) {
