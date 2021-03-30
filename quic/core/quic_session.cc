@@ -845,7 +845,8 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame,
     if (!IsEncryptionEstablished()) {
       QUIC_BUG(quic_bug_10866_4)
           << ENDPOINT << "Tried to send control frame " << frame
-          << " before encryption is established.";
+          << " before encryption is established. Last decrypted level: "
+          << EncryptionLevelToString(connection_->last_decrypted_level());
       return false;
     }
   }
