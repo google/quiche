@@ -795,6 +795,11 @@ void QuicSpdyStream::OnDataAvailable() {
     return;
   }
 
+  if (!spdy_session()->ShouldProcessIncomingRequests()) {
+    spdy_session()->OnStreamWaitingForClientSettings(id());
+    return;
+  }
+
   if (is_decoder_processing_input_) {
     // Let the outermost nested OnDataAvailable() call do the work.
     return;

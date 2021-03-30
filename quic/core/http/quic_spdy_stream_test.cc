@@ -256,9 +256,11 @@ class TestSession : public MockQuicSpdySession {
     return &crypto_stream_;
   }
 
-  bool ShouldNegotiateWebTransport() override { return true; }
+  bool ShouldNegotiateWebTransport() override { return enable_webtransport_; }
+  void EnableWebTransport() { enable_webtransport_ = true; }
 
  private:
+  bool enable_webtransport_ = false;
   StrictMock<TestCryptoStream> crypto_stream_;
 };
 
@@ -3080,6 +3082,7 @@ TEST_P(QuicSpdyStreamTest, ProcessOutgoingWebTransportHeaders) {
   }
 
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+  session_->EnableWebTransport();
   QuicSpdySessionPeer::EnableWebTransport(*session_);
 
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
@@ -3100,6 +3103,7 @@ TEST_P(QuicSpdyStreamTest, ProcessIncomingWebTransportHeaders) {
   }
 
   Initialize(kShouldProcessData);
+  session_->EnableWebTransport();
   QuicSpdySessionPeer::EnableWebTransport(*session_);
 
   headers_[":method"] = "CONNECT";

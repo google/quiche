@@ -1025,6 +1025,7 @@ bool QuicSpdySession::ResumeApplicationState(ApplicationState* cached_state) {
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnSettingsFrameResumed(out);
   }
+  QUICHE_DCHECK(streams_waiting_for_settings_.empty());
   for (const auto& setting : out.values) {
     OnSetting(setting.first, setting.second);
   }
@@ -1069,6 +1070,17 @@ bool QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
       return false;
     }
   }
+  for (QuicStreamId stream_id : streams_waiting_for_settings_) {
+    QUICHE_DCHECK(ShouldBufferRequestsUntilSettings());
+    QuicSpdyStream* stream = GetOrCreateSpdyDataStream(stream_id);
+    if (stream == nullptr) {
+      // The stream may no longer exist, since it is possible for a stream to
+      // get reset while waiting for the SETTINGS frame.
+      continue;
+    }
+    stream->OnDataAvailable();
+  }
+  streams_waiting_for_settings_.clear();
   return true;
 }
 
@@ -1091,6 +1103,8 @@ absl::optional<std::string> QuicSpdySession::OnSettingsFrameViaAlps(
 }
 
 bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
+  any_settings_received_ = true;
+
   if (VersionUsesHttp3(transport_version())) {
     // SETTINGS frame received on the control stream.
     switch (id) {
@@ -1760,6 +1774,20 @@ WebTransportHttp3* QuicSpdySession::GetWebTransportSession(
     return nullptr;
   }
   return connect_stream->web_transport();
+}
+
+bool QuicSpdySession::ShouldProcessIncomingRequests() {
+  if (!ShouldBufferRequestsUntilSettings()) {
+    return true;
+  }
+
+  return any_settings_received_;
+}
+
+void QuicSpdySession::OnStreamWaitingForClientSettings(QuicStreamId id) {
+  QUICHE_DCHECK(ShouldBufferRequestsUntilSettings());
+  QUICHE_DCHECK(QuicUtils::IsBidirectionalStreamId(id, version()));
+  streams_waiting_for_settings_.insert(id);
 }
 
 #undef ENDPOINT  // undef for jumbo builds

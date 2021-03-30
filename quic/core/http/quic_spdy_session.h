@@ -10,6 +10,7 @@
 #include <string>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quic/core/http/http_frames.h"
@@ -446,6 +447,20 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // session is associated with the given ID.
   WebTransportHttp3* GetWebTransportSession(WebTransportSessionId id);
 
+  // If true, no data on bidirectional streams will be processed by the server
+  // until the SETTINGS are received.  Only works for HTTP/3.
+  bool ShouldBufferRequestsUntilSettings() {
+    return version().UsesHttp3() && perspective() == Perspective::IS_SERVER &&
+           WillNegotiateWebTransport();
+  }
+
+  // Returns if the incoming bidirectional streams should process data.  This is
+  // usually true, but in certain cases we would want to wait until the settings
+  // are received.
+  bool ShouldProcessIncomingRequests();
+
+  void OnStreamWaitingForClientSettings(QuicStreamId id);
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to
@@ -660,6 +675,14 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   absl::flat_hash_map<QuicDatagramFlowId, Http3DatagramVisitor*>
       h3_datagram_registrations_;
+
+  // Whether any settings have been received, either from the peer or from a
+  // session ticket.
+  bool any_settings_received_ = false;
+
+  // If ShouldBufferRequestsUntilSettings() is true, all streams that are
+  // blocked by that are tracked here.
+  absl::flat_hash_set<QuicStreamId> streams_waiting_for_settings_;
 };
 
 }  // namespace quic

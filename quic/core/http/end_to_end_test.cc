@@ -16,6 +16,7 @@
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/http/http_constants.h"
 #include "quic/core/http/quic_spdy_client_stream.h"
+#include "quic/core/http/web_transport_http3.h"
 #include "quic/core/quic_data_writer.h"
 #include "quic/core/quic_epoll_connection_helper.h"
 #include "quic/core/quic_error_codes.h"
@@ -675,6 +676,41 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 
   bool WaitForFooResponseAndCheckIt() {
     return WaitForFooResponseAndCheckIt(client_.get());
+  }
+
+  WebTransportHttp3* CreateWebTransportSession(const std::string& path,
+                                               bool wait_for_server_response) {
+    // Wait until we receive the settings from the server indicating
+    // WebTransport support.
+    client_->WaitUntil(
+        2000, [this]() { return GetClientSession()->SupportsWebTransport(); });
+    if (!GetClientSession()->SupportsWebTransport()) {
+      return nullptr;
+    }
+
+    spdy::SpdyHeaderBlock headers;
+    headers[":scheme"] = "https";
+    headers[":authority"] = "localhost";
+    headers[":path"] = path;
+    headers[":method"] = "CONNECT";
+    headers[":protocol"] = "webtransport";
+
+    client_->SendMessage(headers, "", /*fin=*/false);
+    QuicSpdyStream* stream = client_->latest_created_stream();
+    if (stream->web_transport() == nullptr) {
+      return nullptr;
+    }
+    WebTransportSessionId id = client_->latest_created_stream()->id();
+    QuicSpdySession* client_session = GetClientSession();
+    if (client_session->GetWebTransportSession(id) == nullptr) {
+      return nullptr;
+    }
+    WebTransportHttp3* session = client_session->GetWebTransportSession(id);
+    if (wait_for_server_response) {
+      client_->WaitUntil(-1,
+                         [stream]() { return stream->headers_decompressed(); });
+    }
+    return session;
   }
 
   ScopedEnvironmentForThreads environment_;
@@ -5690,24 +5726,34 @@ TEST_P(EndToEndTest, WebTransportSession) {
     return;
   }
 
-  spdy::SpdyHeaderBlock headers;
-  headers[":scheme"] = "https";
-  headers[":authority"] = "localhost";
-  headers[":path"] = "/echo";
-  headers[":method"] = "CONNECT";
-  headers[":protocol"] = "webtransport";
-
-  client_->SendMessage(headers, "", /*fin=*/false);
-  QuicSpdyStream* stream = client_->latest_created_stream();
-  EXPECT_TRUE(stream->web_transport() != nullptr);
-  WebTransportSessionId id = client_->latest_created_stream()->id();
-  QuicSpdySession* client_session = GetClientSession();
-  EXPECT_TRUE(client_session->GetWebTransportSession(id) != nullptr);
-  client_->WaitUntil(-1, [stream]() { return stream->headers_decompressed(); });
+  WebTransportHttp3* web_transport =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
 
   server_thread_->Pause();
   QuicSpdySession* server_session = GetServerSession();
-  EXPECT_TRUE(server_session->GetWebTransportSession(id) != nullptr);
+  EXPECT_TRUE(server_session->GetWebTransportSession(web_transport->id()) !=
+              nullptr);
+  server_thread_->Resume();
+}
+
+TEST_P(EndToEndTest, WebTransportSessionWithLoss) {
+  enable_web_transport_ = true;
+  // Enable loss to verify all permutations of receiving SETTINGS and
+  // request/response data.
+  SetPacketLossPercentage(30);
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* web_transport =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+
+  server_thread_->Pause();
+  QuicSpdySession* server_session = GetServerSession();
+  EXPECT_TRUE(server_session->GetWebTransportSession(web_transport->id()) !=
+              nullptr);
   server_thread_->Resume();
 }
 

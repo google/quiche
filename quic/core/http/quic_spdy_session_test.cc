@@ -3554,6 +3554,31 @@ TEST_P(QuicSpdySessionTestClient, WebTransportSetting) {
   EXPECT_TRUE(session_.SupportsWebTransport());
 }
 
+TEST_P(QuicSpdySessionTestServer, WebTransportSetting) {
+  if (!version().UsesHttp3()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_h3_datagram, true);
+  session_.set_supports_webtransport(true);
+
+  EXPECT_FALSE(session_.SupportsWebTransport());
+  EXPECT_FALSE(session_.ShouldProcessIncomingRequests());
+
+  CompleteHandshake();
+
+  SettingsFrame server_settings;
+  server_settings.values[SETTINGS_H3_DATAGRAM] = 1;
+  server_settings.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
+  std::string data =
+      std::string(1, kControlStream) + EncodeSettings(server_settings);
+  QuicStreamId stream_id =
+      GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
+  QuicStreamFrame frame(stream_id, /*fin=*/false, /*offset=*/0, data);
+  session_.OnStreamFrame(frame);
+  EXPECT_TRUE(session_.SupportsWebTransport());
+  EXPECT_TRUE(session_.ShouldProcessIncomingRequests());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
