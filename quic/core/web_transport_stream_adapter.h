@@ -31,6 +31,20 @@ class QUIC_EXPORT_PRIVATE WebTransportStreamAdapter
   void SetVisitor(std::unique_ptr<WebTransportStreamVisitor> visitor) override {
     visitor_ = std::move(visitor);
   }
+  QuicStreamId GetStreamId() const override { return stream_->id(); }
+
+  void ResetWithUserCode(QuicRstStreamErrorCode error) override {
+    stream_->Reset(error);
+  }
+  void ResetDueToInternalError() override {
+    stream_->Reset(QUIC_STREAM_INTERNAL_ERROR);
+  }
+  void MaybeResetDueToStreamObjectGone() override {
+    if (stream_->write_side_closed() && stream_->read_side_closed()) {
+      return;
+    }
+    stream_->Reset(QUIC_STREAM_CANCELLED);
+  }
 
   WebTransportStreamVisitor* visitor() { return visitor_.get(); }
 

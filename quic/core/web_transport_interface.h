@@ -54,6 +54,18 @@ class QUIC_EXPORT_PRIVATE WebTransportStream {
   // Indicates the number of bytes that can be read from the stream.
   virtual size_t ReadableBytes() const = 0;
 
+  // An ID that is unique within the session.  Those are not exposed to the user
+  // via the web API, but can be used internally for bookkeeping and
+  // diagnostics.
+  virtual QuicStreamId GetStreamId() const = 0;
+
+  // Resets the stream with the specified error code.
+  // TODO(b/184048994): change the error code type based on IETF consensus.
+  virtual void ResetWithUserCode(QuicRstStreamErrorCode error) = 0;
+  virtual void ResetDueToInternalError() = 0;
+  // Called when the owning object has been garbage-collected.
+  virtual void MaybeResetDueToStreamObjectGone() = 0;
+
   virtual void SetVisitor(
       std::unique_ptr<WebTransportStreamVisitor> visitor) = 0;
 };

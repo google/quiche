@@ -48,6 +48,18 @@ class QUIC_EXPORT_PRIVATE QuicTransportStream : public QuicStream,
   void OnDataAvailable() override;
   void OnCanWriteNewData() override;
 
+  QuicStreamId GetStreamId() const override { return id(); }
+
+  void ResetWithUserCode(QuicRstStreamErrorCode error) override {
+    adapter_.ResetWithUserCode(error);
+  }
+  void ResetDueToInternalError() override {
+    adapter_.ResetDueToInternalError();
+  }
+  void MaybeResetDueToStreamObjectGone() override {
+    adapter_.MaybeResetDueToStreamObjectGone();
+  }
+
   WebTransportStreamVisitor* visitor() { return adapter_.visitor(); }
   void SetVisitor(std::unique_ptr<WebTransportStreamVisitor> visitor) override {
     adapter_.SetVisitor(std::move(visitor));
