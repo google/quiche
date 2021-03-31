@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -15,7 +16,6 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
-#include "http2/platform/api/http2_containers.h"
 #include "spdy/core/spdy_protocol.h"
 #include "spdy/core/write_scheduler.h"
 #include "spdy/platform/api/spdy_bug_tracker.h"
@@ -290,7 +290,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   };
 
   // O(1) size lookup, O(1) insert at front or back (amortized).
-  using ReadyList = http2::Http2Deque<StreamInfo*>;
+  using ReadyList = std::deque<StreamInfo*>;
 
   // State kept for each priority level.
   struct PriorityInfo {
