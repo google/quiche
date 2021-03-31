@@ -62,10 +62,12 @@ typedef std::vector<HpackHeaderEntry> HpackHeaderEntries;
 // and with VerifyDynamicTableContents.
 class MockHpackDecoderListener : public HpackDecoderListener {
  public:
-  MOCK_METHOD0(OnHeaderListStart, void());
-  MOCK_METHOD2(OnHeader,
-               void(const std::string& name, const std::string& value));
-  MOCK_METHOD0(OnHeaderListEnd, void());
+  MOCK_METHOD(void, OnHeaderListStart, (), (override));
+  MOCK_METHOD(void,
+              OnHeader,
+              (const std::string& name, const std::string& value),
+              (override));
+  MOCK_METHOD(void, OnHeaderListEnd, (), (override));
   MOCK_METHOD(void,
               OnHeaderErrorDetected,
               (absl::string_view error_message),

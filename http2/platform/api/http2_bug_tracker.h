@@ -5,10 +5,15 @@
 #ifndef QUICHE_HTTP2_PLATFORM_API_HTTP2_BUG_TRACKER_H_
 #define QUICHE_HTTP2_PLATFORM_API_HTTP2_BUG_TRACKER_H_
 
-#include "net/http2/platform/impl/http2_bug_tracker_impl.h"
+#include "common/platform/api/quiche_bug_tracker.h"
 
-#define HTTP2_BUG HTTP2_BUG_IMPL
-#define HTTP2_BUG_IF HTTP2_BUG_IF_IMPL
+#define HTTP2_BUG QUICHE_BUG
+#define HTTP2_BUG_IF QUICHE_BUG_IF
+
+// V2 macros are the same as all the HTTP2_BUG flavor above, but they take a
+// bug_id parameter.
+#define HTTP2_BUG_V2 QUICHE_BUG
+#define HTTP2_BUG_IF_V2 QUICHE_BUG_IF
 
 #define FLAGS_http2_always_log_bugs_for_tests \
   FLAGS_http2_always_log_bugs_for_tests_IMPL

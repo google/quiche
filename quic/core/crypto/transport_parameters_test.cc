@@ -448,7 +448,7 @@ TEST_P(TransportParametersTest, NoClientParamsWithStatelessResetToken) {
   orig_params.max_udp_payload_size.set_value(kMaxPacketSizeForTest);
 
   std::vector<uint8_t> out;
-  bool ok;
+  bool ok = true;
   EXPECT_QUIC_BUG(
       ok = SerializeTransportParameters(version_, orig_params, &out),
       "Not serializing invalid transport parameters: Client cannot send "

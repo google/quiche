@@ -15,10 +15,11 @@
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_exported_stats.h"
 #include "quic/platform/api/quic_logging.h"
+#include "quic/platform/api/quic_testvalue.h"
 #include "quic/qbone/platform/icmp_packet.h"
 #include "quic/qbone/qbone_constants.h"
 
-ABSL_FLAG(
+DEFINE_QUIC_COMMAND_LINE_FLAG(
     bool,
     qbone_close_ephemeral_frames,
     true,
@@ -212,7 +213,7 @@ uint64_t QboneSessionBase::GetNumFallbackToStream() const {
 
 void QboneSessionBase::set_writer(QbonePacketWriter* writer) {
   writer_ = writer;
-  testing::testvalue::Adjust("quic_QbonePacketWriter", &writer_);
+  quic::AdjustTestValue("quic_QbonePacketWriter", &writer_);
 }
 
 }  // namespace quic

@@ -407,7 +407,6 @@ const SpdyFrameIR& SpdyFramer::SpdyControlFrameIterator::GetIR() const {
   return *(frame_ir_.get());
 }
 
-// TODO(yasong): remove all the static_casts.
 std::unique_ptr<SpdyFrameSequence> SpdyFramer::CreateIterator(
     SpdyFramer* framer,
     std::unique_ptr<const SpdyFrameIR> frame_ir) {
@@ -419,8 +418,8 @@ std::unique_ptr<SpdyFrameSequence> SpdyFramer::CreateIterator(
     }
     case SpdyFrameType::PUSH_PROMISE: {
       return std::make_unique<SpdyPushPromiseFrameIterator>(
-          framer, absl::WrapUnique(
-                      static_cast<const SpdyPushPromiseIR*>(frame_ir.release())));
+          framer, absl::WrapUnique(static_cast<const SpdyPushPromiseIR*>(
+                      frame_ir.release())));
     }
     case SpdyFrameType::DATA: {
       SPDY_DVLOG(1) << "Serialize a stream end DATA frame for VTL";

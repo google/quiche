@@ -40,6 +40,7 @@
 #define QUICHE_LOG_ERROR_IS_ON() QUICHE_LOG_ERROR_IS_ON_IMPL()
 
 #define QUICHE_CHECK(condition) QUICHE_CHECK_IMPL(condition)
+#define QUICHE_CHECK_OK(condition) QUICHE_CHECK_OK_IMPL(condition)
 #define QUICHE_CHECK_EQ(val1, val2) QUICHE_CHECK_EQ_IMPL(val1, val2)
 #define QUICHE_CHECK_NE(val1, val2) QUICHE_CHECK_NE_IMPL(val1, val2)
 #define QUICHE_CHECK_LE(val1, val2) QUICHE_CHECK_LE_IMPL(val1, val2)

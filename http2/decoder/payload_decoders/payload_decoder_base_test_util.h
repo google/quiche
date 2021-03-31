@@ -385,7 +385,7 @@ class AbstractPaddablePayloadDecoderTest
     auto& listener = listener_;
     Validator validator =
         [header, expected_missing_length, &listener](
-            const DecodeBuffer& input,
+            const DecodeBuffer&,
             DecodeStatus status) -> ::testing::AssertionResult {
       VERIFY_EQ(DecodeStatus::kDecodeError, status);
       VERIFY_FALSE(listener.IsInProgress());

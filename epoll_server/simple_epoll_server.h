@@ -487,6 +487,7 @@ class EPOLL_EXPORT_PRIVATE SimpleEpollServer {
   // Summary:
   // Returns true when the SimpleEpollServer() is being destroyed.
   bool in_shutdown() const { return in_shutdown_; }
+  bool ShutdownCalled() const { return in_shutdown(); }
 
   // Compatibility stub.
   void Shutdown() {}

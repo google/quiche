@@ -11,7 +11,10 @@
 #include "quic/qbone/qbone_constants.h"
 #include "quic/qbone/qbone_session_base.h"
 
-ABSL_FLAG(int, qbone_stream_ttl_secs, 3, "The QBONE Stream TTL in seconds.");
+DEFINE_QUIC_COMMAND_LINE_FLAG(int,
+                              qbone_stream_ttl_secs,
+                              3,
+                              "The QBONE Stream TTL in seconds.");
 
 namespace quic {
 

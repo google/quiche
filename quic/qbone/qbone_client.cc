@@ -11,6 +11,7 @@
 #include "quic/core/quic_epoll_connection_helper.h"
 #include "quic/platform/api/quic_epoll.h"
 #include "quic/platform/api/quic_exported_stats.h"
+#include "quic/platform/api/quic_testvalue.h"
 #include "quic/qbone/qbone_stream.h"
 
 namespace quic {
@@ -20,7 +21,7 @@ std::unique_ptr<QuicClientBase::NetworkHelper> CreateNetworkHelper(
     QboneClient* client) {
   std::unique_ptr<QuicClientBase::NetworkHelper> helper =
       std::make_unique<QuicClientEpollNetworkHelper>(epoll_server, client);
-  testing::testvalue::Adjust("QboneClient/network_helper", &helper);
+  quic::AdjustTestValue("QboneClient/network_helper", &helper);
   return helper;
 }
 }  // namespace
