@@ -774,19 +774,26 @@ class QuicSimpleServerSessionServerPushTest
   }
 };
 
+ParsedQuicVersionVector SupportedVersionsWithPush() {
+  ParsedQuicVersionVector versions;
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    if (!version.UsesHttp3()) {
+      // Push over HTTP/3 is not supported.
+      versions.push_back(version);
+    }
+  }
+  return versions;
+}
+
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSimpleServerSessionServerPushTest,
-                         ::testing::ValuesIn(AllSupportedVersions()));
+                         ::testing::ValuesIn(SupportedVersionsWithPush()));
 
 // Tests that given more than kMaxStreamsForTest resources, all their
 // PUSH_PROMISE's will be sent out and only kMaxStreamsForTest streams will be
 // opened and send push response.
 TEST_P(QuicSimpleServerSessionServerPushTest, TestPromisePushResources) {
   MaybeConsumeHeadersStreamData();
-  if (VersionUsesHttp3(transport_version())) {
-    session_->EnableServerPush();
-    session_->OnMaxPushIdFrame(kMaxQuicStreamId);
-  }
   size_t num_resources = kMaxStreamsForTest + 5;
   PromisePushResources(num_resources);
   EXPECT_EQ(kMaxStreamsForTest,
@@ -798,10 +805,6 @@ TEST_P(QuicSimpleServerSessionServerPushTest, TestPromisePushResources) {
 TEST_P(QuicSimpleServerSessionServerPushTest,
        HandlePromisedPushRequestsAfterStreamDraining) {
   MaybeConsumeHeadersStreamData();
-  if (VersionUsesHttp3(transport_version())) {
-    session_->EnableServerPush();
-    session_->OnMaxPushIdFrame(kMaxQuicStreamId);
-  }
   size_t num_resources = kMaxStreamsForTest + 1;
   QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
   QuicStreamId next_out_going_stream_id;
@@ -879,10 +882,6 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
     return;
   }
   MaybeConsumeHeadersStreamData();
-  if (VersionUsesHttp3(transport_version())) {
-    session_->EnableServerPush();
-    session_->OnMaxPushIdFrame(kMaxQuicStreamId);
-  }
 
   // Having two extra resources to be send later. One of them will be reset, so
   // when opened stream become close, only one will become open.
@@ -969,10 +968,6 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
 TEST_P(QuicSimpleServerSessionServerPushTest,
        CloseStreamToHandleMorePromisedStream) {
   MaybeConsumeHeadersStreamData();
-  if (VersionUsesHttp3(transport_version())) {
-    session_->EnableServerPush();
-    session_->OnMaxPushIdFrame(kMaxQuicStreamId);
-  }
   size_t num_resources = kMaxStreamsForTest + 1;
   if (VersionHasIetfQuicFrames(transport_version())) {
     // V99 will send out a stream-id-blocked frame when the we desired to exceed

@@ -136,6 +136,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   // Serializes |frame| and writes the encoded push promise data.
+  // TODO(b/171463363): Remove.
   void WritePushPromise(const PushPromiseFrame& frame);
 
   // Override to report newly acked bytes via ack_listener_.

@@ -491,9 +491,6 @@ QuicSpdySession::QuicSpdySession(
       debug_visitor_(nullptr),
       destruction_indicator_(123456789),
       server_push_enabled_(true),
-      ietf_server_push_enabled_(
-          GetQuicFlag(FLAGS_quic_enable_http3_server_push)),
-      http3_max_push_id_sent_(false),
       next_available_datagram_flow_id_(perspective() == Perspective::IS_SERVER
                                            ? kFirstDatagramFlowIdServer
                                            : kFirstDatagramFlowIdClient) {
@@ -839,45 +836,25 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
     return;
   }
 
-  if (!VersionUsesHttp3(transport_version())) {
-    SpdyPushPromiseIR push_promise(original_stream_id, promised_stream_id,
-                                   std::move(headers));
-    // PUSH_PROMISE must not be the last frame sent out, at least followed by
-    // response headers.
-    push_promise.set_fin(false);
-
-    SpdySerializedFrame frame(spdy_framer_.SerializeFrame(push_promise));
-    headers_stream()->WriteOrBufferData(
-        absl::string_view(frame.data(), frame.size()), false, nullptr);
-    return;
-  }
-
-  if (!max_push_id_.has_value() || promised_stream_id > max_push_id_.value()) {
+  if (VersionUsesHttp3(transport_version())) {
     QUIC_BUG(quic_bug_12477_6)
-        << "Server shouldn't send push id higher than client's MAX_PUSH_ID.";
+        << "Support for server push over HTTP/3 has been removed.";
     return;
   }
 
-  // Encode header list.
-  std::string encoded_headers =
-      qpack_encoder_->EncodeHeaderList(original_stream_id, headers, nullptr);
+  SpdyPushPromiseIR push_promise(original_stream_id, promised_stream_id,
+                                 std::move(headers));
+  // PUSH_PROMISE must not be the last frame sent out, at least followed by
+  // response headers.
+  push_promise.set_fin(false);
 
-  if (debug_visitor_) {
-    debug_visitor_->OnPushPromiseFrameSent(original_stream_id,
-                                           promised_stream_id, headers);
-  }
-
-  PushPromiseFrame frame;
-  frame.push_id = promised_stream_id;
-  frame.headers = encoded_headers;
-  QuicSpdyStream* stream = GetOrCreateSpdyDataStream(original_stream_id);
-  stream->WritePushPromise(frame);
+  SpdySerializedFrame frame(spdy_framer_.SerializeFrame(push_promise));
+  headers_stream()->WriteOrBufferData(
+      absl::string_view(frame.data(), frame.size()), false, nullptr);
 }
 
 bool QuicSpdySession::server_push_enabled() const {
-  return VersionUsesHttp3(transport_version())
-             ? ietf_server_push_enabled_ && max_push_id_.has_value()
-             : server_push_enabled_;
+  return VersionUsesHttp3(transport_version()) ? false : server_push_enabled_;
 }
 
 void QuicSpdySession::SendInitialData() {
@@ -886,10 +863,6 @@ void QuicSpdySession::SendInitialData() {
   }
   QuicConnection::ScopedPacketFlusher flusher(connection());
   send_control_stream_->MaybeSendSettingsFrame();
-  if (perspective() == Perspective::IS_CLIENT && max_push_id_.has_value() &&
-      !http3_max_push_id_sent_) {
-    SendMaxPushId();
-  }
 }
 
 QpackEncoder* QuicSpdySession::qpack_encoder() {
@@ -1563,38 +1536,6 @@ void QuicSpdySession::OnCanCreateNewOutgoingStream(bool unidirectional) {
   }
 }
 
-void QuicSpdySession::SetMaxPushId(PushId max_push_id) {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
-  QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective());
-  if (max_push_id_.has_value()) {
-    QUICHE_DCHECK_GE(max_push_id, max_push_id_.value());
-  }
-
-  if (!max_push_id_.has_value() && max_push_id == 0) {
-    // The default max_push_id is 0. So no need to send out MaxPushId frame.
-    return;
-  }
-
-  ietf_server_push_enabled_ = true;
-
-  if (max_push_id_.has_value()) {
-    if (max_push_id == max_push_id_.value()) {
-      QUIC_DVLOG(1) << "Not changing max_push_id: " << max_push_id;
-      return;
-    }
-
-    QUIC_DVLOG(1) << "Setting max_push_id to: " << max_push_id
-                  << " from: " << max_push_id_.value();
-  } else {
-    QUIC_DVLOG(1) << "Setting max_push_id to: " << max_push_id << " from unset";
-  }
-  max_push_id_ = max_push_id;
-
-  if (IsEncryptionEstablished()) {
-    SendMaxPushId();
-  }
-}
-
 bool QuicSpdySession::OnMaxPushIdFrame(PushId max_push_id) {
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
   QUICHE_DCHECK_EQ(Perspective::IS_SERVER, perspective());
@@ -1627,21 +1568,6 @@ bool QuicSpdySession::OnMaxPushIdFrame(PushId max_push_id) {
   return true;
 }
 
-void QuicSpdySession::SendMaxPushId() {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
-  QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective());
-
-  send_control_stream_->SendMaxPushIdFrame(max_push_id_.value());
-  http3_max_push_id_sent_ = true;
-}
-
-void QuicSpdySession::EnableServerPush() {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
-  QUICHE_DCHECK_EQ(perspective(), Perspective::IS_SERVER);
-
-  ietf_server_push_enabled_ = true;
-}
-
 bool QuicSpdySession::goaway_received() const {
   return VersionUsesHttp3(transport_version())
              ? last_received_http3_goaway_id_.has_value()
@@ -1654,11 +1580,11 @@ bool QuicSpdySession::goaway_sent() const {
              : transport_goaway_sent();
 }
 
-bool QuicSpdySession::CanCreatePushStreamWithId(PushId push_id) {
+bool QuicSpdySession::CanCreatePushStreamWithId(PushId /* push_id */) {
+  // TODO(b/171463363): Remove this method.
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
 
-  return ietf_server_push_enabled_ && max_push_id_.has_value() &&
-         max_push_id_.value() >= push_id;
+  return false;
 }
 
 void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(

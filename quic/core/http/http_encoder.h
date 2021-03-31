@@ -34,6 +34,7 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
 
   // Serializes a CANCEL_PUSH frame into a new buffer stored in |output|.
   // Returns the length of the buffer on success, or 0 otherwise.
+  // TODO(b/171463363): Remove.
   static QuicByteCount SerializeCancelPushFrame(
       const CancelPushFrame& cancel_push,
       std::unique_ptr<char[]>* output);
@@ -46,6 +47,7 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
   // Serializes the header and push_id of a PUSH_PROMISE frame into a new buffer
   // stored in |output|. Returns the length of the buffer on success, or 0
   // otherwise.
+  // TODO(b/171463363): Remove.
   static QuicByteCount SerializePushPromiseFrameWithOnlyPushId(
       const PushPromiseFrame& push_promise,
       std::unique_ptr<char[]>* output);
@@ -57,6 +59,7 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
 
   // Serializes a MAX_PUSH frame into a new buffer stored in |output|.
   // Returns the length of the buffer on success, or 0 otherwise.
+  // TODO(b/171463363): Remove.
   static QuicByteCount SerializeMaxPushIdFrame(
       const MaxPushIdFrame& max_push_id,
       std::unique_ptr<char[]>* output);

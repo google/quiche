@@ -3851,13 +3851,11 @@ TEST_P(EndToEndTest, Trailers) {
   EXPECT_EQ(trailers, client_->response_trailers());
 }
 
-// TODO(b/151749109): Test server push for IETF QUIC.
 class EndToEndTestServerPush : public EndToEndTest {
  protected:
   const size_t kNumMaxStreams = 10;
 
   EndToEndTestServerPush() : EndToEndTest() {
-    SetQuicFlag(FLAGS_quic_enable_http3_server_push, true);
     client_config_.SetMaxBidirectionalStreamsToSend(kNumMaxStreams);
     server_config_.SetMaxBidirectionalStreamsToSend(kNumMaxStreams);
     client_config_.SetMaxUnidirectionalStreamsToSend(kNumMaxStreams);
@@ -3970,12 +3968,11 @@ TEST_P(EndToEndTestServerPush, ServerPushUnderLimit) {
   // them with requests later.
   ASSERT_TRUE(Initialize());
 
-  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   if (version_.UsesHttp3()) {
-    static_cast<QuicSpdySession*>(client_->client()->session())
-        ->SetMaxPushId(kMaxQuicStreamId);
+    return;
   }
 
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   // Set reordering to ensure that body arriving before PUSH_PROMISE is ok.
   SetPacketSendDelay(QuicTime::Delta::FromMilliseconds(2));
   SetReorderPercentage(30);
@@ -4019,8 +4016,6 @@ TEST_P(EndToEndTestServerPush, ServerPushUnderLimit) {
 
 TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
   if (version_.UsesHttp3()) {
-    // TODO(b/142504641): Re-enable this test when we support push streams
-    // arriving before the corresponding promises.
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -4030,10 +4025,6 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
   // immediately after pushing resources.
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
-  if (version_.UsesHttp3()) {
-    static_cast<QuicSpdySession*>(client_->client()->session())
-        ->SetMaxPushId(kMaxQuicStreamId);
-  }
 
   // Set reordering to ensure that body arriving before PUSH_PROMISE is ok.
   SetPacketSendDelay(QuicTime::Delta::FromMilliseconds(2));
@@ -4075,6 +4066,11 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
 }
 
 TEST_P(EndToEndTestServerPush, ServerPushOverLimitWithBlocking) {
+  if (version_.UsesHttp3()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+
   // Tests that when server tries to send more large resources(large enough to
   // be blocked by flow control window or congestion control window) than max
   // open outgoing streams , server can open upto max number of outgoing
@@ -4092,10 +4088,6 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitWithBlocking) {
 
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
-  if (version_.UsesHttp3()) {
-    static_cast<QuicSpdySession*>(client_->client()->session())
-        ->SetMaxPushId(kMaxQuicStreamId);
-  }
 
   // Set reordering to ensure that body arriving before PUSH_PROMISE is ok.
   SetPacketSendDelay(QuicTime::Delta::FromMilliseconds(2));
@@ -5230,34 +5222,6 @@ TEST_P(EndToEndTest, TooBigStreamIdClosesConnection) {
   EXPECT_EQ(IETF_QUIC_TRANSPORT_CONNECTION_CLOSE, client_session->close_type());
   EXPECT_TRUE(
       IS_IETF_STREAM_FRAME(client_session->transport_close_frame_type()));
-}
-
-TEST_P(EndToEndTest, TestMaxPushId) {
-  if (!version_.HasIetfQuicFrames()) {
-    // MaxPushId is only implemented for IETF QUIC.
-    Initialize();
-    return;
-  }
-  SetQuicFlag(FLAGS_quic_enable_http3_server_push, true);
-  ASSERT_TRUE(Initialize());
-
-  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
-  QuicSpdyClientSession* client_session = GetClientSession();
-  ASSERT_TRUE(client_session);
-  client_session->SetMaxPushId(kMaxQuicStreamId);
-
-  client_->SendSynchronousRequest("/foo");
-
-  EXPECT_TRUE(client_session->CanCreatePushStreamWithId(kMaxQuicStreamId));
-
-  server_thread_->Pause();
-  QuicSpdySession* server_session = GetServerSession();
-  if (server_session != nullptr) {
-    EXPECT_TRUE(server_session->CanCreatePushStreamWithId(kMaxQuicStreamId));
-  } else {
-    ADD_FAILURE() << "Missing server session";
-  }
-  server_thread_->Resume();
 }
 
 TEST_P(EndToEndTest, CustomTransportParameters) {

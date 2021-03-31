@@ -3185,25 +3185,6 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayWhenClosingConnection) {
       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
 
-TEST_P(QuicSpdySessionTestClient, SendInitialMaxPushIdIfSet) {
-  if (!VersionUsesHttp3(transport_version())) {
-    return;
-  }
-
-  StrictMock<MockHttp3DebugVisitor> debug_visitor;
-  session_.set_debug_visitor(&debug_visitor);
-
-  const PushId max_push_id = 5;
-  session_.SetMaxPushId(max_push_id);
-
-  InSequence s;
-  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
-  const MaxPushIdFrame max_push_id_frame{max_push_id};
-  EXPECT_CALL(debug_visitor, OnMaxPushIdFrameSent(max_push_id_frame));
-
-  CompleteHandshake();
-}
-
 TEST_P(QuicSpdySessionTestClient, DoNotSendInitialMaxPushIdIfNotSet) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
@@ -3215,21 +3196,6 @@ TEST_P(QuicSpdySessionTestClient, DoNotSendInitialMaxPushIdIfNotSet) {
   InSequence s;
   EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
 
-  CompleteHandshake();
-}
-
-TEST_P(QuicSpdySessionTestClient, DoNotSendInitialMaxPushIdIfSetToDefaut) {
-  if (!VersionUsesHttp3(transport_version())) {
-    return;
-  }
-
-  StrictMock<MockHttp3DebugVisitor> debug_visitor;
-  session_.set_debug_visitor(&debug_visitor);
-
-  session_.SetMaxPushId(0);
-
-  InSequence s;
-  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
   CompleteHandshake();
 }
 

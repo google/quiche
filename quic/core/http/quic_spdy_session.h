@@ -248,11 +248,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Returns whether server push is enabled.
   // For a Google QUIC client this always returns false.
   // For a Google QUIC server this is set by incoming SETTINGS_ENABLE_PUSH.
-  // For an IETF QUIC client this returns true if SetMaxPushId() has ever been
-  // called.
-  // For an IETF QUIC server this returns true if EnableServerPush() has been
-  // called and the server has received at least one MAX_PUSH_ID frame from the
-  // client.
+  // For an IETF QUIC client or server this returns false.
   bool server_push_enabled() const;
 
   // Called when the control stream receives HTTP/3 SETTINGS.
@@ -329,12 +325,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // those streams are not initialized yet.
   void OnCanCreateNewOutgoingStream(bool unidirectional) override;
 
-  // Sets |max_push_id_| and sends a MAX_PUSH_ID frame.
-  // This method must only be called if protocol is IETF QUIC and perspective is
-  // client.  |max_push_id| must be greater than or equal to current
-  // |max_push_id_|.
-  void SetMaxPushId(PushId max_push_id);
-
   // Sets |max_push_id_|.
   // This method must only be called if protocol is IETF QUIC and perspective is
   // server.  It must only be called if a MAX_PUSH_ID frame is received.
@@ -342,21 +332,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // |max_push_id_|.
   bool OnMaxPushIdFrame(PushId max_push_id);
 
-  // Enables server push.
-  // Must only be called when using IETF QUIC, for which server push is disabled
-  // by default.  Server push defaults to enabled and cannot be disabled for
-  // Google QUIC.
-  // Must only be called for a server.  A client can effectively disable push by
-  // never calling SetMaxPushId().
-  void EnableServerPush();
-
-  // Returns true if push is enabled and a push with |push_id| can be created.
-  // For a server this means that EnableServerPush() has been called, at least
-  // one MAX_PUSH_ID frame has been received, and the largest received
-  // MAX_PUSH_ID value is greater than or equal to |push_id|.
-  // For a client this means that SetMaxPushId() has been called with
-  // |max_push_id| greater than or equal to |push_id|.
-  // Must only be called when using IETF QUIC.
+  // TODO(b/171463363): Remove.
+  // Returns false.
   bool CanCreatePushStreamWithId(PushId push_id);
 
   int32_t destruction_indicator() const { return destruction_indicator_; }
@@ -538,10 +515,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // willing to use to encode header blocks.
   void UpdateHeaderEncoderTableSize(uint32_t value);
 
-  // Called when SETTINGS_ENABLE_PUSH is received, only supported on
-  // server side.
-  void UpdateEnableServerPush(bool value);
-
   bool IsConnected() { return connection()->connected(); }
 
   const QuicReceiveControlStream* receive_control_stream() const {
@@ -587,9 +560,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // When using 0-RTT, this method is called twice: once when encryption is
   // established, and again when 1-RTT keys are available.
   void SendInitialData();
-
-  // Send a MAX_PUSH_ID frame.  Used in IETF QUIC only.
-  void SendMaxPushId();
 
   void FillSettingsFrame();
 
@@ -676,22 +646,12 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Defaults to true.
   bool server_push_enabled_;
 
-  // Used in IETF QUIC only.  Defaults to false.
-  // Server push is enabled for a server by calling EnableServerPush().
-  // Server push is enabled for a client by calling SetMaxPushId().
-  bool ietf_server_push_enabled_;
-
   // The identifier in the most recently received GOAWAY frame.  Unset if no
   // GOAWAY frame has been received yet.
   absl::optional<uint64_t> last_received_http3_goaway_id_;
   // The identifier in the most recently sent GOAWAY frame.  Unset if no GOAWAY
   // frame has been sent yet.
   absl::optional<uint64_t> last_sent_http3_goaway_id_;
-
-  // Only used by a client, only with IETF QUIC.  True if a MAX_PUSH_ID frame
-  // has been sent, in which case |max_push_id_| has the value sent in the most
-  // recent MAX_PUSH_ID frame.  Once true, never goes back to false.
-  bool http3_max_push_id_sent_;
 
   // Value of the smallest unused HTTP/3 datagram flow ID that this endpoint's
   // datagram flow ID allocation service will use next.

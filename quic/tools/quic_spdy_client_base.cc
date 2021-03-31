@@ -50,8 +50,7 @@ QuicSpdyClientBase::QuicSpdyClientBase(
                      std::move(proof_verifier),
                      std::move(session_cache)),
       store_response_(false),
-      latest_response_code_(-1),
-      max_allowed_push_id_(0) {}
+      latest_response_code_(-1) {}
 
 QuicSpdyClientBase::~QuicSpdyClientBase() {
   // We own the push promise index. We need to explicitly kill
@@ -70,10 +69,6 @@ const QuicSpdyClientSession* QuicSpdyClientBase::client_session() const {
 void QuicSpdyClientBase::InitializeSession() {
   client_session()->Initialize();
   client_session()->CryptoConnect();
-  if (max_allowed_push_id_ > 0 &&
-      VersionUsesHttp3(client_session()->transport_version())) {
-    client_session()->SetMaxPushId(max_allowed_push_id_);
-  }
 }
 
 void QuicSpdyClientBase::OnClose(QuicSpdyStream* stream) {

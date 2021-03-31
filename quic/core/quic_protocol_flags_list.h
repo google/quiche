@@ -116,12 +116,6 @@ QUIC_PROTOCOL_FLAG(
     "descendents) will be automatically converted to lower case.")
 
 QUIC_PROTOCOL_FLAG(
-    bool,
-    quic_enable_http3_server_push,
-    false,
-    "If true, server push will be allowed in QUIC versions that use HTTP/3.")
-
-QUIC_PROTOCOL_FLAG(
     int32_t,
     quic_bbr2_default_probe_bw_base_duration_ms,
     2000,

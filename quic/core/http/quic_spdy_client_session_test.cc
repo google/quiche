@@ -595,12 +595,12 @@ TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
 }
 
 TEST_P(QuicSpdyClientSessionTest, PushPromiseOnPromiseHeaders) {
+  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    return;
+  }
+
   // Initialize crypto before the client session will create a stream.
   CompleteCryptoHandshake();
-
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    session_->SetMaxPushId(10);
-  }
 
   MockQuicSpdyClientStream* stream = static_cast<MockQuicSpdyClientStream*>(
       session_->CreateOutgoingBidirectionalStream());
@@ -611,6 +611,10 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseOnPromiseHeaders) {
 }
 
 TEST_P(QuicSpdyClientSessionTest, PushPromiseStreamIdTooHigh) {
+  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    return;
+  }
+
   // Initialize crypto before the client session will create a stream.
   CompleteCryptoHandshake();
   QuicStreamId stream_id =
@@ -627,18 +631,6 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseStreamIdTooHigh) {
   headers.OnHeader(":scheme", "https");
   headers.OnHeaderBlockEnd(0, 0);
 
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    session_->SetMaxPushId(10);
-    // TODO(b/136295430) Use PushId to represent Push IDs instead of
-    // QuicStreamId.
-    EXPECT_CALL(
-        *connection_,
-        CloseConnection(QUIC_INVALID_STREAM_ID,
-                        "Received push stream id higher than MAX_PUSH_ID.", _));
-    const PushId promise_id = 11;
-    session_->OnPromiseHeaderList(stream_id, promise_id, 0, headers);
-    return;
-  }
   const QuicStreamId promise_id = GetNthServerInitiatedUnidirectionalStreamId(
       connection_->transport_version(), 11);
   session_->OnPromiseHeaderList(stream_id, promise_id, 0, headers);
@@ -660,12 +652,12 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseOnPromiseHeadersAlreadyClosed) {
 }
 
 TEST_P(QuicSpdyClientSessionTest, PushPromiseOutOfOrder) {
+  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    return;
+  }
+
   // Initialize crypto before the client session will create a stream.
   CompleteCryptoHandshake();
-
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    session_->SetMaxPushId(10);
-  }
 
   MockQuicSpdyClientStream* stream = static_cast<MockQuicSpdyClientStream*>(
       session_->CreateOutgoingBidirectionalStream());
@@ -929,6 +921,10 @@ TEST_P(QuicSpdyClientSessionTest,
 }
 
 TEST_P(QuicSpdyClientSessionTest, TooManyPushPromises) {
+  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    return;
+  }
+
   // Initialize crypto before the client session will create a stream.
   CompleteCryptoHandshake();
   QuicStreamId stream_id =
@@ -936,10 +932,6 @@ TEST_P(QuicSpdyClientSessionTest, TooManyPushPromises) {
   QuicSessionPeer::ActivateStream(
       session_.get(), std::make_unique<QuicSpdyClientStream>(
                           stream_id, session_.get(), BIDIRECTIONAL));
-
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    session_->SetMaxPushId(kMaxQuicStreamId);
-  }
 
   EXPECT_CALL(*connection_, OnStreamReset(_, QUIC_REFUSED_STREAM));
 
@@ -1265,119 +1257,6 @@ TEST_P(QuicSpdyClientSessionTest,
   crypto_test_utils::HandshakeWithFakeServer(
       &config, server_crypto_config_.get(), &helper_, &alarm_factory_,
       connection_, crypto_stream_, AlpnForVersion(connection_->version()));
-}
-
-TEST_P(QuicSpdyClientSessionTest, SetMaxPushIdBeforeEncryptionEstablished) {
-  // 0-RTT is TLS-only, MAX_PUSH_ID frame is HTTP/3-only.
-  if (!session_->version().UsesTls() || !session_->version().UsesHttp3()) {
-    return;
-  }
-
-  CompleteFirstConnection();
-
-  CreateConnection();
-  StrictMock<MockHttp3DebugVisitor> debug_visitor;
-  session_->set_debug_visitor(&debug_visitor);
-
-  // No MAX_PUSH_ID frame is sent before encryption is established.
-  session_->SetMaxPushId(5);
-
-  EXPECT_FALSE(session_->IsEncryptionEstablished());
-  EXPECT_FALSE(session_->OneRttKeysAvailable());
-  EXPECT_EQ(ENCRYPTION_INITIAL, session_->connection()->encryption_level());
-
-  // MAX_PUSH_ID frame is sent upon encryption establishment with the value set
-  // by the earlier SetMaxPushId() call.
-  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
-  EXPECT_CALL(debug_visitor, OnMaxPushIdFrameSent(_))
-      .WillOnce(Invoke(
-          [](const MaxPushIdFrame& frame) { EXPECT_EQ(5u, frame.push_id); }));
-  session_->CryptoConnect();
-  testing::Mock::VerifyAndClearExpectations(&debug_visitor);
-
-  EXPECT_TRUE(session_->IsEncryptionEstablished());
-  EXPECT_FALSE(session_->OneRttKeysAvailable());
-  EXPECT_EQ(ENCRYPTION_ZERO_RTT, session_->connection()->encryption_level());
-
-  // Another SetMaxPushId() call with the same value does not trigger sending
-  // another MAX_PUSH_ID frame.
-  session_->SetMaxPushId(5);
-
-  // Calling SetMaxPushId() with a different value results in sending another
-  // MAX_PUSH_ID frame.
-  EXPECT_CALL(debug_visitor, OnMaxPushIdFrameSent(_))
-      .WillOnce(Invoke(
-          [](const MaxPushIdFrame& frame) { EXPECT_EQ(10u, frame.push_id); }));
-  session_->SetMaxPushId(10);
-  testing::Mock::VerifyAndClearExpectations(&debug_visitor);
-
-  QuicConfig config = DefaultQuicConfig();
-  crypto_test_utils::HandshakeWithFakeServer(
-      &config, server_crypto_config_.get(), &helper_, &alarm_factory_,
-      connection_, crypto_stream_, AlpnForVersion(connection_->version()));
-
-  EXPECT_TRUE(session_->IsEncryptionEstablished());
-  EXPECT_TRUE(session_->OneRttKeysAvailable());
-  EXPECT_EQ(ENCRYPTION_FORWARD_SECURE,
-            session_->connection()->encryption_level());
-  EXPECT_TRUE(session_->GetCryptoStream()->IsResumption());
-}
-
-TEST_P(QuicSpdyClientSessionTest, SetMaxPushIdAfterEncryptionEstablished) {
-  // 0-RTT is TLS-only, MAX_PUSH_ID frame is HTTP/3-only.
-  if (!session_->version().UsesTls() || !session_->version().UsesHttp3()) {
-    return;
-  }
-
-  CompleteFirstConnection();
-
-  CreateConnection();
-  StrictMock<MockHttp3DebugVisitor> debug_visitor;
-  session_->set_debug_visitor(&debug_visitor);
-
-  EXPECT_FALSE(session_->IsEncryptionEstablished());
-  EXPECT_FALSE(session_->OneRttKeysAvailable());
-  EXPECT_EQ(ENCRYPTION_INITIAL, session_->connection()->encryption_level());
-
-  // No MAX_PUSH_ID frame is sent if SetMaxPushId() has not been called.
-  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
-  session_->CryptoConnect();
-  testing::Mock::VerifyAndClearExpectations(&debug_visitor);
-
-  EXPECT_TRUE(session_->IsEncryptionEstablished());
-  EXPECT_FALSE(session_->OneRttKeysAvailable());
-  EXPECT_EQ(ENCRYPTION_ZERO_RTT, session_->connection()->encryption_level());
-
-  // Calling SetMaxPushId() for the first time after encryption is established
-  // results in sending a MAX_PUSH_ID frame.
-  EXPECT_CALL(debug_visitor, OnMaxPushIdFrameSent(_))
-      .WillOnce(Invoke(
-          [](const MaxPushIdFrame& frame) { EXPECT_EQ(5u, frame.push_id); }));
-  session_->SetMaxPushId(5);
-  testing::Mock::VerifyAndClearExpectations(&debug_visitor);
-
-  // Another SetMaxPushId() call with the same value does not trigger sending
-  // another MAX_PUSH_ID frame.
-  session_->SetMaxPushId(5);
-
-  // Calling SetMaxPushId() with a different value results in sending another
-  // MAX_PUSH_ID frame.
-  EXPECT_CALL(debug_visitor, OnMaxPushIdFrameSent(_))
-      .WillOnce(Invoke(
-          [](const MaxPushIdFrame& frame) { EXPECT_EQ(10u, frame.push_id); }));
-  session_->SetMaxPushId(10);
-  testing::Mock::VerifyAndClearExpectations(&debug_visitor);
-
-  QuicConfig config = DefaultQuicConfig();
-  crypto_test_utils::HandshakeWithFakeServer(
-      &config, server_crypto_config_.get(), &helper_, &alarm_factory_,
-      connection_, crypto_stream_, AlpnForVersion(connection_->version()));
-
-  EXPECT_TRUE(session_->IsEncryptionEstablished());
-  EXPECT_TRUE(session_->OneRttKeysAvailable());
-  EXPECT_EQ(ENCRYPTION_FORWARD_SECURE,
-            session_->connection()->encryption_level());
-  EXPECT_TRUE(session_->GetCryptoStream()->IsResumption());
 }
 
 TEST_P(QuicSpdyClientSessionTest, BadSettingsInZeroRttResumption) {
