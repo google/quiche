@@ -20,6 +20,8 @@
 #include "quic/core/frames/quic_streams_blocked_frame.h"
 #include "quic/core/http/http_constants.h"
 #include "quic/core/http/http_encoder.h"
+#include "quic/core/http/quic_header_list.h"
+#include "quic/core/http/web_transport_http3.h"
 #include "quic/core/qpack/qpack_header_table.h"
 #include "quic/core/quic_config.h"
 #include "quic/core/quic_crypto_stream.h"
@@ -524,6 +526,53 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
     testing::Mock::VerifyAndClearExpectations(writer_);
     testing::Mock::VerifyAndClearExpectations(connection_);
+  }
+
+  void ReceiveWebTransportSettings() {
+    SettingsFrame settings;
+    settings.values[SETTINGS_H3_DATAGRAM] = 1;
+    settings.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
+    std::string data =
+        std::string(1, kControlStream) + EncodeSettings(settings);
+    QuicStreamId control_stream_id =
+        session_.perspective() == Perspective::IS_SERVER
+            ? GetNthClientInitiatedUnidirectionalStreamId(transport_version(),
+                                                          3)
+            : GetNthServerInitiatedUnidirectionalStreamId(transport_version(),
+                                                          3);
+    QuicStreamFrame frame(control_stream_id, /*fin=*/false, /*offset=*/0, data);
+    session_.OnStreamFrame(frame);
+  }
+
+  void ReceiveWebTransportSession(WebTransportSessionId session_id) {
+    SetQuicReloadableFlag(quic_accept_empty_stream_frame_with_no_fin, true);
+    QuicStreamFrame frame(session_id, /*fin=*/false, /*offset=*/0,
+                          absl::string_view());
+    session_.OnStreamFrame(frame);
+    QuicSpdyStream* stream =
+        static_cast<QuicSpdyStream*>(session_.GetOrCreateStream(session_id));
+    QuicHeaderList headers;
+    headers.OnHeaderBlockStart();
+    headers.OnHeader(":method", "CONNECT");
+    headers.OnHeader(":protocol", "webtransport");
+    stream->OnStreamHeaderList(/*fin=*/true, 0, headers);
+    WebTransportHttp3* web_transport =
+        session_.GetWebTransportSession(session_id);
+    ASSERT_TRUE(web_transport != nullptr);
+    spdy::SpdyHeaderBlock header_block;
+    web_transport->HeadersReceived(header_block);
+  }
+
+  void ReceiveWebTransportUnidirectionalStream(WebTransportSessionId session_id,
+                                               QuicStreamId stream_id) {
+    char buffer[256];
+    QuicDataWriter data_writer(sizeof(buffer), buffer);
+    ASSERT_TRUE(data_writer.WriteVarInt62(kWebTransportUnidirectionalStream));
+    ASSERT_TRUE(data_writer.WriteVarInt62(session_id));
+    ASSERT_TRUE(data_writer.WriteStringPiece("test data"));
+    std::string data(buffer, data_writer.length());
+    QuicStreamFrame frame(stream_id, /*fin=*/false, /*offset=*/0, data);
+    session_.OnStreamFrame(frame);
   }
 
   MockQuicConnectionHelper helper_;
@@ -3566,17 +3615,118 @@ TEST_P(QuicSpdySessionTestServer, WebTransportSetting) {
 
   CompleteHandshake();
 
-  SettingsFrame server_settings;
-  server_settings.values[SETTINGS_H3_DATAGRAM] = 1;
-  server_settings.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
-  std::string data =
-      std::string(1, kControlStream) + EncodeSettings(server_settings);
-  QuicStreamId stream_id =
-      GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
-  QuicStreamFrame frame(stream_id, /*fin=*/false, /*offset=*/0, data);
-  session_.OnStreamFrame(frame);
+  ReceiveWebTransportSettings();
   EXPECT_TRUE(session_.SupportsWebTransport());
   EXPECT_TRUE(session_.ShouldProcessIncomingRequests());
+}
+
+TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreams) {
+  if (!version().UsesHttp3()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_h3_datagram, true);
+  session_.set_supports_webtransport(true);
+
+  CompleteHandshake();
+  QuicStreamId session_id =
+      GetNthClientInitiatedBidirectionalStreamId(transport_version(), 1);
+
+  QuicStreamId data_stream_id =
+      GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 4);
+  ReceiveWebTransportUnidirectionalStream(session_id, data_stream_id);
+
+  ReceiveWebTransportSettings();
+
+  ReceiveWebTransportSession(session_id);
+  WebTransportHttp3* web_transport =
+      session_.GetWebTransportSession(session_id);
+  ASSERT_TRUE(web_transport != nullptr);
+
+  EXPECT_EQ(web_transport->NumberOfAssociatedStreams(), 1u);
+
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillRepeatedly(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, OnStreamReset(session_id, _));
+  EXPECT_CALL(
+      *connection_,
+      OnStreamReset(data_stream_id, QUIC_STREAM_WEBTRANSPORT_SESSION_GONE));
+  session_.ResetStream(session_id, QUIC_STREAM_INTERNAL_ERROR);
+}
+
+TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreamsLimit) {
+  if (!version().UsesHttp3()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_h3_datagram, true);
+  session_.set_supports_webtransport(true);
+
+  CompleteHandshake();
+  QuicStreamId session_id =
+      GetNthClientInitiatedBidirectionalStreamId(transport_version(), 1);
+
+  const int streams_to_send = kMaxUnassociatedWebTransportStreams + 4;
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillRepeatedly(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_,
+              OnStreamReset(
+                  _, QUIC_STREAM_WEBTRANSPORT_BUFFERED_STREAMS_LIMIT_EXCEEDED))
+      .Times(4);
+  for (int i = 0; i < streams_to_send; i++) {
+    QuicStreamId data_stream_id =
+        GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 4 + i);
+    ReceiveWebTransportUnidirectionalStream(session_id, data_stream_id);
+  }
+
+  ReceiveWebTransportSettings();
+
+  ReceiveWebTransportSession(session_id);
+  WebTransportHttp3* web_transport =
+      session_.GetWebTransportSession(session_id);
+  ASSERT_TRUE(web_transport != nullptr);
+
+  EXPECT_EQ(web_transport->NumberOfAssociatedStreams(),
+            kMaxUnassociatedWebTransportStreams);
+
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillRepeatedly(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, OnStreamReset(_, _))
+      .Times(kMaxUnassociatedWebTransportStreams + 1);
+  session_.ResetStream(session_id, QUIC_STREAM_INTERNAL_ERROR);
+}
+
+TEST_P(QuicSpdySessionTestServer, ResetOutgoingWebTransportStreams) {
+  if (!version().UsesHttp3()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_h3_datagram, true);
+  session_.set_supports_webtransport(true);
+
+  CompleteHandshake();
+  QuicStreamId session_id =
+      GetNthClientInitiatedBidirectionalStreamId(transport_version(), 1);
+
+  ReceiveWebTransportSettings();
+  ReceiveWebTransportSession(session_id);
+  WebTransportHttp3* web_transport =
+      session_.GetWebTransportSession(session_id);
+  ASSERT_TRUE(web_transport != nullptr);
+
+  session_.set_writev_consumes_all_data(true);
+  EXPECT_TRUE(web_transport->CanOpenNextOutgoingUnidirectionalStream());
+  EXPECT_EQ(web_transport->NumberOfAssociatedStreams(), 0u);
+  WebTransportStream* stream =
+      web_transport->OpenOutgoingUnidirectionalStream();
+  EXPECT_EQ(web_transport->NumberOfAssociatedStreams(), 1u);
+  ASSERT_TRUE(stream != nullptr);
+  QuicStreamId stream_id = stream->GetStreamId();
+
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillRepeatedly(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, OnStreamReset(session_id, _));
+  EXPECT_CALL(*connection_,
+              OnStreamReset(stream_id, QUIC_STREAM_WEBTRANSPORT_SESSION_GONE));
+  session_.ResetStream(session_id, QUIC_STREAM_INTERNAL_ERROR);
+  EXPECT_EQ(web_transport->NumberOfAssociatedStreams(), 0u);
 }
 
 }  // namespace

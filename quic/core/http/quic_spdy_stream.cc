@@ -857,6 +857,10 @@ void QuicSpdyStream::OnClose() {
     visitor_ = nullptr;
     visitor->OnClose(this);
   }
+
+  if (web_transport_ != nullptr) {
+    web_transport_->CloseAllAssociatedStreams();
+  }
 }
 
 void QuicSpdyStream::OnCanWrite() {

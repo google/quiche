@@ -61,6 +61,7 @@
 #include "quic/test_tools/quic_test_client.h"
 #include "quic/test_tools/quic_test_server.h"
 #include "quic/test_tools/quic_test_utils.h"
+#include "quic/test_tools/quic_transport_test_tools.h"
 #include "quic/test_tools/server_thread.h"
 #include "quic/test_tools/simple_session_cache.h"
 #include "quic/tools/quic_backend_response.h"
@@ -77,6 +78,7 @@ using spdy::SpdyHeaderBlock;
 using spdy::SpdySerializedFrame;
 using spdy::SpdySettingsIR;
 using ::testing::_;
+using ::testing::Assign;
 using ::testing::Invoke;
 using ::testing::NiceMock;
 
@@ -709,8 +711,17 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     if (wait_for_server_response) {
       client_->WaitUntil(-1,
                          [stream]() { return stream->headers_decompressed(); });
+      EXPECT_TRUE(session->ready());
     }
     return session;
+  }
+
+  NiceMock<MockClientVisitor>& SetupWebTransportVisitor(
+      WebTransportHttp3* session) {
+    auto visitor_owned = std::make_unique<NiceMock<MockClientVisitor>>();
+    NiceMock<MockClientVisitor>& visitor = *visitor_owned;
+    session->SetVisitor(std::move(visitor_owned));
+    return visitor;
   }
 
   ScopedEnvironmentForThreads environment_;
@@ -5718,7 +5729,7 @@ TEST_P(EndToEndTest, TlsResumptionDisabledOnTheFly) {
   ADD_FAILURE() << "Client should not have 10 resumption tickets.";
 }
 
-TEST_P(EndToEndTest, WebTransportSession) {
+TEST_P(EndToEndTest, WebTransportSessionSetup) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
@@ -5755,6 +5766,71 @@ TEST_P(EndToEndTest, WebTransportSessionWithLoss) {
   EXPECT_TRUE(server_session->GetWebTransportSession(web_transport->id()) !=
               nullptr);
   server_thread_->Resume();
+}
+
+TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStream) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_TRUE(session != nullptr);
+  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+
+  WebTransportStream* outgoing_stream =
+      session->OpenOutgoingUnidirectionalStream();
+  ASSERT_TRUE(outgoing_stream != nullptr);
+  EXPECT_TRUE(outgoing_stream->Write("test"));
+  EXPECT_TRUE(outgoing_stream->SendFin());
+
+  bool stream_received = false;
+  EXPECT_CALL(visitor, OnIncomingUnidirectionalStreamAvailable())
+      .WillOnce(Assign(&stream_received, true));
+  client_->WaitUntil(2000, [&stream_received]() { return stream_received; });
+  EXPECT_TRUE(stream_received);
+  WebTransportStream* received_stream =
+      session->AcceptIncomingUnidirectionalStream();
+  ASSERT_TRUE(received_stream != nullptr);
+  std::string received_data;
+  received_stream->Read(&received_data);
+  EXPECT_EQ(received_data, "test");
+}
+
+TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStreamSentEarly) {
+  enable_web_transport_ = true;
+  SetPacketLossPercentage(30);
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/false);
+  ASSERT_TRUE(session != nullptr);
+  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+
+  WebTransportStream* outgoing_stream =
+      session->OpenOutgoingUnidirectionalStream();
+  ASSERT_TRUE(outgoing_stream != nullptr);
+  EXPECT_TRUE(outgoing_stream->Write("test"));
+  EXPECT_TRUE(outgoing_stream->SendFin());
+
+  bool stream_received = false;
+  EXPECT_CALL(visitor, OnIncomingUnidirectionalStreamAvailable())
+      .WillOnce(Assign(&stream_received, true));
+  client_->WaitUntil(5000, [&stream_received]() { return stream_received; });
+  EXPECT_TRUE(stream_received);
+  WebTransportStream* received_stream =
+      session->AcceptIncomingUnidirectionalStream();
+  ASSERT_TRUE(received_stream != nullptr);
+  std::string received_data;
+  received_stream->Read(&received_data);
+  EXPECT_EQ(received_data, "test");
 }
 
 }  // namespace

@@ -66,6 +66,7 @@ class QUIC_EXPORT_PRIVATE WebTransportStream {
   // Called when the owning object has been garbage-collected.
   virtual void MaybeResetDueToStreamObjectGone() = 0;
 
+  virtual WebTransportStreamVisitor* visitor() = 0;
   virtual void SetVisitor(
       std::unique_ptr<WebTransportStreamVisitor> visitor) = 0;
 };

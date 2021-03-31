@@ -60,7 +60,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportStream : public QuicStream,
     adapter_.MaybeResetDueToStreamObjectGone();
   }
 
-  WebTransportStreamVisitor* visitor() { return adapter_.visitor(); }
+  WebTransportStreamVisitor* visitor() override { return adapter_.visitor(); }
   void SetVisitor(std::unique_ptr<WebTransportStreamVisitor> visitor) override {
     adapter_.SetVisitor(std::move(visitor));
   }

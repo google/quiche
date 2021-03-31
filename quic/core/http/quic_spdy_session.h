@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_SESSION_H_
 
 #include <cstddef>
+#include <list>
 #include <memory>
 #include <string>
 
@@ -25,10 +26,12 @@
 #include "quic/core/qpack/qpack_encoder_stream_sender.h"
 #include "quic/core/qpack/qpack_receive_stream.h"
 #include "quic/core/qpack/qpack_send_stream.h"
+#include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_time.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_versions.h"
+#include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_export.h"
 #include "spdy/core/http2_frame_decoder_adapter.h"
 
@@ -37,6 +40,10 @@ namespace quic {
 namespace test {
 class QuicSpdySessionPeer;
 }  // namespace test
+
+class WebTransportHttp3UnidirectionalStream;
+
+QUIC_EXPORT_PRIVATE extern const size_t kMaxUnassociatedWebTransportStreams;
 
 class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
  public:
@@ -461,6 +468,24 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   void OnStreamWaitingForClientSettings(QuicStreamId id);
 
+  // Links the specified stream with a WebTransport session.  If the session is
+  // not present, it is buffered until a corresponding stream is found.
+  void AssociateIncomingWebTransportStreamWithSession(
+      WebTransportSessionId session_id,
+      QuicStreamId stream_id);
+
+  void ProcessBufferedWebTransportStreamsForSession(WebTransportHttp3* session);
+
+  bool CanOpenOutgoingUnidirectionalWebTransportStream(
+      WebTransportSessionId /*id*/) {
+    return CanOpenNextOutgoingUnidirectionalStream();
+  }
+
+  // Creates an outgoing unidirectional WebTransport stream.  Returns nullptr if
+  // the stream cannot be created due to flow control or some other reason.
+  WebTransportHttp3UnidirectionalStream*
+  CreateOutgoingUnidirectionalWebTransportStream(WebTransportHttp3* session);
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to
@@ -535,6 +560,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   friend class test::QuicSpdySessionPeer;
 
   class SpdyFramerVisitor;
+
+  struct QUIC_EXPORT_PRIVATE BufferedWebTransportStream {
+    WebTransportSessionId session_id;
+    QuicStreamId stream_id;
+  };
 
   // The following methods are called by the SimpleVisitor.
 
@@ -683,6 +713,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // If ShouldBufferRequestsUntilSettings() is true, all streams that are
   // blocked by that are tracked here.
   absl::flat_hash_set<QuicStreamId> streams_waiting_for_settings_;
+
+  // WebTransport streams that do not have a session associated with them.
+  // Limited to kMaxUnassociatedWebTransportStreams; when the list is full,
+  // oldest streams are evicated first.
+  std::list<BufferedWebTransportStream> buffered_streams_;
 };
 
 }  // namespace quic

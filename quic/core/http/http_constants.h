@@ -22,6 +22,8 @@ enum : uint64_t {
   // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#enc-dec-stream-def
   kQpackEncoderStream = 0x02,
   kQpackDecoderStream = 0x03,
+  // https://ietf-wg-webtrans.github.io/draft-ietf-webtrans-http3/draft-ietf-webtrans-http3.html#name-unidirectional-streams
+  kWebTransportUnidirectionalStream = 0x54,
 };
 
 // This includes control stream, QPACK encoder stream, and QPACK decoder stream.

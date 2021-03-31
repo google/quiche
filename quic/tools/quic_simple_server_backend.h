@@ -61,7 +61,8 @@ class QuicSimpleServerBackend {
   virtual void CloseBackendResponseStream(RequestHandler* request_handler) = 0;
 
   virtual WebTransportResponse ProcessWebTransportRequest(
-      const spdy::Http2HeaderBlock& /*request_headers*/) {
+      const spdy::Http2HeaderBlock& /*request_headers*/,
+      WebTransportSession* /*session*/) {
     WebTransportResponse response;
     response.response_headers[":status"] = "400";
     return response;

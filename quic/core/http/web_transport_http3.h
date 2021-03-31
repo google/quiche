@@ -7,8 +7,12 @@
 
 #include <memory>
 
+#include "absl/container/flat_hash_set.h"
+#include "absl/types/optional.h"
+#include "quic/core/quic_stream.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/web_transport_interface.h"
+#include "quic/core/web_transport_stream_adapter.h"
 #include "spdy/core/spdy_header_block.h"
 
 namespace quic {
@@ -33,6 +37,13 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3 : public WebTransportSession {
   }
 
   WebTransportSessionId id() { return id_; }
+  bool ready() { return ready_; }
+
+  void AssociateStream(QuicStreamId stream_id);
+  void OnStreamClosed(QuicStreamId stream_id) { streams_.erase(stream_id); }
+  void CloseAllAssociatedStreams();
+
+  size_t NumberOfAssociatedStreams() { return streams_.size(); }
 
   // Return the earliest incoming stream that has been received by the session
   // but has not been accepted.  Returns nullptr if there are no incoming
@@ -55,6 +66,42 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3 : public WebTransportSession {
   // |ready_| is set to true when the peer has seen both sets of headers.
   bool ready_ = false;
   std::unique_ptr<WebTransportVisitor> visitor_;
+  absl::flat_hash_set<QuicStreamId> streams_;
+  QuicCircularDeque<QuicStreamId> incoming_bidirectional_streams_;
+  QuicCircularDeque<QuicStreamId> incoming_unidirectional_streams_;
+};
+
+class QUIC_EXPORT_PRIVATE WebTransportHttp3UnidirectionalStream
+    : public QuicStream {
+ public:
+  // Incoming stream.
+  WebTransportHttp3UnidirectionalStream(PendingStream* pending,
+                                        QuicSpdySession* session);
+  // Outgoing stream.
+  WebTransportHttp3UnidirectionalStream(QuicStreamId id,
+                                        QuicSpdySession* session,
+                                        WebTransportSessionId session_id);
+
+  // Sends the stream type and the session ID on the stream.
+  void WritePreamble();
+
+  // Implementation of QuicStream.
+  void OnDataAvailable() override;
+  void OnCanWriteNewData() override;
+  void OnClose() override;
+
+  WebTransportStream* interface() { return &adapter_; }
+  void SetUnblocked() { sequencer()->SetUnblocked(); }
+
+ private:
+  QuicSpdySession* session_;
+  WebTransportStreamAdapter adapter_;
+  absl::optional<WebTransportSessionId> session_id_;
+  bool needs_to_send_preamble_;
+
+  bool ReadSessionId();
+  // Closes the stream if all of the data has been received.
+  void MaybeCloseIncompleteStream();
 };
 
 }  // namespace quic

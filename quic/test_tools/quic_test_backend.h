@@ -16,7 +16,8 @@ namespace test {
 class QuicTestBackend : public QuicMemoryCacheBackend {
  public:
   WebTransportResponse ProcessWebTransportRequest(
-      const spdy::Http2HeaderBlock& /*request_headers*/) override;
+      const spdy::Http2HeaderBlock& request_headers,
+      WebTransportSession* session) override;
   bool SupportsWebTransport() override { return enable_webtransport_; }
 
   void set_enable_webtransport(bool enable_webtransport) {

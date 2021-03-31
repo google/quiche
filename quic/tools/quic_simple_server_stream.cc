@@ -12,6 +12,7 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/http/quic_spdy_stream.h"
 #include "quic/core/http/spdy_utils.h"
+#include "quic/core/http/web_transport_http3.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flags.h"
@@ -175,6 +176,22 @@ void QuicSimpleServerStream::SendResponse() {
   if (quic_simple_server_backend_ == nullptr) {
     QUIC_DVLOG(1) << "Backend is missing.";
     SendErrorResponse();
+    return;
+  }
+
+  if (web_transport() != nullptr) {
+    QuicSimpleServerBackend::WebTransportResponse response =
+        quic_simple_server_backend_->ProcessWebTransportRequest(
+            request_headers_, web_transport());
+    if (response.response_headers[":status"] == "200") {
+      WriteHeaders(std::move(response.response_headers), false, nullptr);
+      if (response.visitor != nullptr) {
+        web_transport()->SetVisitor(std::move(response.visitor));
+      }
+      web_transport()->HeadersReceived(request_headers_);
+    } else {
+      WriteHeaders(std::move(response.response_headers), true, nullptr);
+    }
     return;
   }
 

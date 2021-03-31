@@ -15,114 +15,9 @@
 #include "quic/platform/api/quic_logging.h"
 #include "quic/quic_transport/quic_transport_protocol.h"
 #include "quic/quic_transport/quic_transport_stream.h"
+#include "quic/tools/web_transport_test_visitors.h"
 
 namespace quic {
-
-namespace {
-
-// Discards any incoming data.
-class DiscardVisitor : public WebTransportStreamVisitor {
- public:
-  DiscardVisitor(QuicTransportStream* stream) : stream_(stream) {}
-
-  void OnCanRead() override {
-    std::string buffer;
-    size_t bytes_read = stream_->Read(&buffer);
-    QUIC_DVLOG(2) << "Read " << bytes_read << " bytes from stream "
-                  << stream_->id();
-  }
-
-  void OnFinRead() override {}
-  void OnCanWrite() override {}
-
- private:
-  QuicTransportStream* stream_;
-};
-
-// Echoes any incoming data back on the same stream.
-class BidirectionalEchoVisitor : public WebTransportStreamVisitor {
- public:
-  BidirectionalEchoVisitor(QuicTransportStream* stream) : stream_(stream) {}
-
-  void OnCanRead() override {
-    stream_->Read(&buffer_);
-    OnCanWrite();
-  }
-
-  void OnFinRead() override {
-    bool success = stream_->SendFin();
-    QUICHE_DCHECK(success);
-  }
-
-  void OnCanWrite() override {
-    if (buffer_.empty()) {
-      return;
-    }
-
-    bool success = stream_->Write(buffer_);
-    if (success) {
-      buffer_ = "";
-    }
-  }
-
- private:
-  QuicTransportStream* stream_;
-  std::string buffer_;
-};
-
-// Buffers all of the data and calls EchoStreamBack() on the parent session.
-class UnidirectionalEchoReadVisitor : public WebTransportStreamVisitor {
- public:
-  UnidirectionalEchoReadVisitor(QuicTransportSimpleServerSession* session,
-                                QuicTransportStream* stream)
-      : session_(session), stream_(stream) {}
-
-  void OnCanRead() override {
-    bool success = stream_->Read(&buffer_);
-    QUICHE_DCHECK(success);
-  }
-
-  void OnFinRead() override {
-    QUIC_DVLOG(1) << "Finished receiving data on stream " << stream_->id()
-                  << ", queueing up the echo";
-    session_->EchoStreamBack(buffer_);
-  }
-
-  void OnCanWrite() override { QUIC_NOTREACHED(); }
-
- private:
-  QuicTransportSimpleServerSession* session_;
-  QuicTransportStream* stream_;
-  std::string buffer_;
-};
-
-// Sends supplied data.
-class UnidirectionalEchoWriteVisitor : public WebTransportStreamVisitor {
- public:
-  UnidirectionalEchoWriteVisitor(QuicTransportStream* stream,
-                                 const std::string& data)
-      : stream_(stream), data_(data) {}
-
-  void OnCanRead() override { QUIC_NOTREACHED(); }
-  void OnFinRead() override { QUIC_NOTREACHED(); }
-  void OnCanWrite() override {
-    if (data_.empty()) {
-      return;
-    }
-    if (!stream_->Write(data_)) {
-      return;
-    }
-    data_ = "";
-    bool fin_sent = stream_->SendFin();
-    QUICHE_DCHECK(fin_sent);
-  }
-
- private:
-  QuicTransportStream* stream_;
-  std::string data_;
-};
-
-}  // namespace
 
 QuicTransportSimpleServerSession::QuicTransportSimpleServerSession(
     QuicConnection* connection,
@@ -154,7 +49,7 @@ void QuicTransportSimpleServerSession::OnIncomingDataStream(
     QuicTransportStream* stream) {
   switch (mode_) {
     case DISCARD:
-      stream->SetVisitor(std::make_unique<DiscardVisitor>(stream));
+      stream->SetVisitor(std::make_unique<WebTransportDiscardVisitor>(stream));
       break;
 
     case ECHO:
@@ -162,14 +57,16 @@ void QuicTransportSimpleServerSession::OnIncomingDataStream(
         case BIDIRECTIONAL:
           QUIC_DVLOG(1) << "Opening bidirectional echo stream " << stream->id();
           stream->SetVisitor(
-              std::make_unique<BidirectionalEchoVisitor>(stream));
+              std::make_unique<WebTransportBidirectionalEchoVisitor>(stream));
           break;
         case READ_UNIDIRECTIONAL:
           QUIC_DVLOG(1)
               << "Started receiving data on unidirectional echo stream "
               << stream->id();
           stream->SetVisitor(
-              std::make_unique<UnidirectionalEchoReadVisitor>(this, stream));
+              std::make_unique<WebTransportUnidirectionalEchoReadVisitor>(
+                  stream,
+                  [this](const std::string& s) { this->EchoStreamBack(s); }));
           break;
         default:
           QUIC_NOTREACHED();
@@ -178,7 +75,7 @@ void QuicTransportSimpleServerSession::OnIncomingDataStream(
       break;
 
     case OUTGOING_BIDIRECTIONAL:
-      stream->SetVisitor(std::make_unique<DiscardVisitor>(stream));
+      stream->SetVisitor(std::make_unique<WebTransportDiscardVisitor>(stream));
       ++pending_outgoing_bidirectional_streams_;
       MaybeCreateOutgoingBidirectionalStream();
       break;
@@ -253,7 +150,8 @@ void QuicTransportSimpleServerSession::MaybeEchoStreamsBack() {
     QUIC_DVLOG(1) << "Opened echo response stream " << stream->id();
 
     stream->SetVisitor(
-        std::make_unique<UnidirectionalEchoWriteVisitor>(stream, data));
+        std::make_unique<WebTransportUnidirectionalEchoWriteVisitor>(stream,
+                                                                     data));
     stream->visitor()->OnCanWrite();
   }
 }
@@ -267,7 +165,8 @@ void QuicTransportSimpleServerSession::
     QuicTransportStream* stream = stream_owned.get();
     ActivateStream(std::move(stream_owned));
     QUIC_DVLOG(1) << "Opened outgoing bidirectional stream " << stream->id();
-    stream->SetVisitor(std::make_unique<BidirectionalEchoVisitor>(stream));
+    stream->SetVisitor(
+        std::make_unique<WebTransportBidirectionalEchoVisitor>(stream));
     if (!stream->Write("hello")) {
       QUIC_DVLOG(1) << "Write failed.";
     }

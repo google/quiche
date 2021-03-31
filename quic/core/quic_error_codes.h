@@ -103,8 +103,14 @@ enum QuicRstStreamErrorCode {
   // IETF RESET_FRAME application error code not matching any HTTP/3 or QPACK
   // error codes.
   QUIC_STREAM_UNKNOWN_APPLICATION_ERROR_CODE = 35,
+  // WebTransport session is going away, causing all underlying streams to be
+  // reset.
+  QUIC_STREAM_WEBTRANSPORT_SESSION_GONE = 36,
+  // There is no corresponding WebTransport session to associate this stream
+  // with, and the limit for buffered streams has been exceeded.
+  QUIC_STREAM_WEBTRANSPORT_BUFFERED_STREAMS_LIMIT_EXCEEDED = 37,
   // No error. Used as bound while iterating.
-  QUIC_STREAM_LAST_ERROR = 36,
+  QUIC_STREAM_LAST_ERROR = 38,
 };
 // QuicRstStreamErrorCode is encoded as a single octet on-the-wire.
 static_assert(static_cast<int>(QUIC_STREAM_LAST_ERROR) <=

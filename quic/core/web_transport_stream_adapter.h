@@ -46,7 +46,7 @@ class QUIC_EXPORT_PRIVATE WebTransportStreamAdapter
     stream_->Reset(QUIC_STREAM_CANCELLED);
   }
 
-  WebTransportStreamVisitor* visitor() { return visitor_.get(); }
+  WebTransportStreamVisitor* visitor() override { return visitor_.get(); }
 
   // Calls that need to be passed from the corresponding QuicStream methods.
   void OnDataAvailable();

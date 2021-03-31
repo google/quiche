@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -18,6 +19,7 @@
 #include "quic/core/http/http_decoder.h"
 #include "quic/core/http/http_frames.h"
 #include "quic/core/http/quic_headers_stream.h"
+#include "quic/core/http/web_transport_http3.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
@@ -54,6 +56,8 @@ using spdy::SpdySettingsId;
 using spdy::SpdyStreamId;
 
 namespace quic {
+
+ABSL_CONST_INIT const size_t kMaxUnassociatedWebTransportStreams = 24;
 
 namespace {
 
@@ -1438,18 +1442,37 @@ QuicStream* QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       }
       return qpack_decoder_receive_stream_;
     }
-    default:
-      if (GetQuicReloadableFlag(quic_unify_stop_sending)) {
-        QUIC_RELOADABLE_FLAG_COUNT(quic_unify_stop_sending);
-        MaybeSendStopSendingFrame(pending->id(),
-                                  QUIC_STREAM_STREAM_CREATION_ERROR);
-      } else {
-        // TODO(renjietang): deprecate SendStopSending() when the flag is
-        // deprecated.
-        SendStopSending(QUIC_STREAM_STREAM_CREATION_ERROR, pending->id());
+    case kWebTransportUnidirectionalStream: {
+      // Note that this checks whether WebTransport is enabled on the receiver
+      // side, as we may receive WebTransport streams before peer's SETTINGS are
+      // received.
+      // TODO(b/184156476): consider whether this means we should drop buffered
+      // streams if we don't receive indication of WebTransport support.
+      if (!WillNegotiateWebTransport()) {
+        // Treat as unknown stream type.
+        break;
       }
-      pending->StopReading();
+      QUIC_DVLOG(1) << ENDPOINT << "Created an incoming WebTransport stream "
+                    << pending->id();
+      auto stream_owned =
+          std::make_unique<WebTransportHttp3UnidirectionalStream>(pending,
+                                                                  this);
+      WebTransportHttp3UnidirectionalStream* stream = stream_owned.get();
+      ActivateStream(std::move(stream_owned));
+      return stream;
+    }
+    default:
+      break;
   }
+  if (GetQuicReloadableFlag(quic_unify_stop_sending)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_unify_stop_sending);
+    MaybeSendStopSendingFrame(pending->id(), QUIC_STREAM_STREAM_CREATION_ERROR);
+  } else {
+    // TODO(renjietang): deprecate SendStopSending() when the flag is
+    // deprecated.
+    SendStopSending(QUIC_STREAM_STREAM_CREATION_ERROR, pending->id());
+  }
+  pending->StopReading();
   return nullptr;
 }
 
@@ -1788,6 +1811,77 @@ void QuicSpdySession::OnStreamWaitingForClientSettings(QuicStreamId id) {
   QUICHE_DCHECK(ShouldBufferRequestsUntilSettings());
   QUICHE_DCHECK(QuicUtils::IsBidirectionalStreamId(id, version()));
   streams_waiting_for_settings_.insert(id);
+}
+
+void QuicSpdySession::AssociateIncomingWebTransportStreamWithSession(
+    WebTransportSessionId session_id,
+    QuicStreamId stream_id) {
+  if (QuicUtils::IsOutgoingStreamId(version(), stream_id, perspective())) {
+    QUIC_BUG(AssociateIncomingWebTransportStreamWithSession got outgoing stream)
+        << ENDPOINT
+        << "AssociateIncomingWebTransportStreamWithSession() got an outgoing "
+           "stream ID: "
+        << stream_id;
+    return;
+  }
+  WebTransportHttp3* session = GetWebTransportSession(session_id);
+  if (session != nullptr) {
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Successfully associated incoming WebTransport stream "
+                  << stream_id << " with session ID " << session_id;
+
+    session->AssociateStream(stream_id);
+    return;
+  }
+  // Evict the oldest streams until we are under the limit.
+  while (buffered_streams_.size() >= kMaxUnassociatedWebTransportStreams) {
+    QUIC_DVLOG(1) << ENDPOINT << "Removing stream "
+                  << buffered_streams_.front().stream_id
+                  << " from buffered streams as the queue is full.";
+    ResetStream(buffered_streams_.front().stream_id,
+                QUIC_STREAM_WEBTRANSPORT_BUFFERED_STREAMS_LIMIT_EXCEEDED);
+    buffered_streams_.pop_front();
+  }
+  QUIC_DVLOG(1) << ENDPOINT << "Received a WebTransport stream " << stream_id
+                << " for session ID " << session_id
+                << " but cannot associate it; buffering instead.";
+  buffered_streams_.push_back(
+      BufferedWebTransportStream{session_id, stream_id});
+}
+
+void QuicSpdySession::ProcessBufferedWebTransportStreamsForSession(
+    WebTransportHttp3* session) {
+  const WebTransportSessionId session_id = session->id();
+  QUIC_DVLOG(1) << "Processing buffered WebTransport streams for "
+                << session_id;
+  auto it = buffered_streams_.begin();
+  while (it != buffered_streams_.end()) {
+    if (it->session_id == session_id) {
+      QUIC_DVLOG(1) << "Unbuffered and associated WebTransport stream "
+                    << it->stream_id << " with session " << it->session_id;
+      session->AssociateStream(it->stream_id);
+      it = buffered_streams_.erase(it);
+    } else {
+      it++;
+    }
+  }
+}
+
+WebTransportHttp3UnidirectionalStream*
+QuicSpdySession::CreateOutgoingUnidirectionalWebTransportStream(
+    WebTransportHttp3* session) {
+  if (!CanOpenNextOutgoingUnidirectionalStream()) {
+    return nullptr;
+  }
+
+  QuicStreamId stream_id = GetNextOutgoingUnidirectionalStreamId();
+  auto stream_owned = std::make_unique<WebTransportHttp3UnidirectionalStream>(
+      stream_id, this, session->id());
+  WebTransportHttp3UnidirectionalStream* stream = stream_owned.get();
+  ActivateStream(std::move(stream_owned));
+  stream->WritePreamble();
+  session->AssociateStream(stream_id);
+  return stream;
 }
 
 #undef ENDPOINT  // undef for jumbo builds
