@@ -236,6 +236,16 @@ void Bbr2Sender::OnCongestionEvent(bool /*rtt_updated*/,
   model_.OnCongestionEventStart(event_time, acked_packets, lost_packets,
                                 &congestion_event);
 
+  if (InSlowStart()) {
+    if (!lost_packets.empty()) {
+      connection_stats_->slowstart_packets_lost += lost_packets.size();
+      connection_stats_->slowstart_bytes_lost += congestion_event.bytes_lost;
+    }
+    if (congestion_event.end_of_round_trip) {
+      ++connection_stats_->slowstart_num_rtts;
+    }
+  }
+
   // Number of mode changes allowed for this congestion event.
   int mode_changes_allowed = kMaxModeChangesPerCongestionEvent;
   while (true) {
@@ -369,6 +379,10 @@ void Bbr2Sender::OnPacketSent(QuicTime sent_time,
                 << ", total_acked:" << model_.total_bytes_acked()
                 << ", total_lost:" << model_.total_bytes_lost() << "  @ "
                 << sent_time;
+  if (InSlowStart()) {
+    ++connection_stats_->slowstart_packets_sent;
+    connection_stats_->slowstart_bytes_sent += bytes;
+  }
   if (bytes_in_flight == 0 && params().avoid_unnecessary_probe_rtt) {
     OnExitQuiescence(sent_time);
   }
