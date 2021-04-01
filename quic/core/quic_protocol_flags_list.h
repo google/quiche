@@ -242,4 +242,11 @@ QUIC_PROTOCOL_FLAG(bool,
                    true,
                    "If true, QUIC servers will defer sending in response to "
                    "incoming packets by default.")
+
+QUIC_PROTOCOL_FLAG(
+    bool,
+    quic_header_size_limit_includes_overhead,
+    true,
+    "If true, QUIC QPACK decoder includes 32-bytes overheader per entry while "
+    "comparing request/response header size against its upper limit.")
 #endif

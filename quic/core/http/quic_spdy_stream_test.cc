@@ -557,6 +557,23 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
   EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_HEADERS_TOO_LARGE));
 }
 
+TEST_P(QuicSpdyStreamTest, QpackProcessLargeHeaderListDiscountOverhead) {
+  if (!UsesHttp3()) {
+    return;
+  }
+  // Setting this flag to false causes no per-entry overhead to be included
+  // in the header size.
+  SetQuicFlag(FLAGS_quic_header_size_limit_includes_overhead, false);
+  Initialize(kShouldProcessData);
+  session_->set_max_inbound_header_list_size(40);
+  std::string headers =
+      HeadersFrame({std::make_pair("foo", "too long headers")});
+
+  QuicStreamFrame frame(stream_->id(), false, 0, headers);
+  stream_->OnStreamFrame(frame);
+  EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_NO_ERROR));
+}
+
 TEST_P(QuicSpdyStreamTest, ProcessHeaderListWithFin) {
   Initialize(kShouldProcessData);
 
