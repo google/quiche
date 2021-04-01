@@ -1515,7 +1515,7 @@ void QuicSpdySession::BeforeConnectionCloseSent() {
     // possible, because this is the only method sending a GOAWAY frame with
     // non-maximal stream ID, and this must only be called once, right
     // before closing connection.
-    QUIC_BUG(quic_bug_10360_8)
+    QUIC_BUG(QuicGoawayFrameAlreadySent)
         << "Not sending GOAWAY frame with " << stream_id << " because one with "
         << last_sent_http3_goaway_id_.value() << " already sent on connection "
         << connection()->connection_id();
