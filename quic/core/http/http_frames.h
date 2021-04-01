@@ -103,6 +103,7 @@ struct QUIC_EXPORT_PRIVATE SettingsFrame {
 //
 //   The PUSH_PROMISE frame (type=0x05) is used to carry a request header
 //   set from server to client, as in HTTP/2.
+// TODO(b/171463363): Remove.
 struct QUIC_EXPORT_PRIVATE PushPromiseFrame {
   PushId push_id;
   absl::string_view headers;

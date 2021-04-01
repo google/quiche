@@ -78,9 +78,11 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   virtual void OnAcceptChFrameReceivedViaAlps(const AcceptChFrame& /*frame*/) {}
 
   // Incoming HTTP/3 frames on the control stream.
+  // TODO(b/171463363): Remove.
   virtual void OnCancelPushFrameReceived(const CancelPushFrame& /*frame*/) {}
   virtual void OnSettingsFrameReceived(const SettingsFrame& /*frame*/) = 0;
   virtual void OnGoAwayFrameReceived(const GoAwayFrame& /*frame*/) {}
+  // TODO(b/171463363): Remove.
   virtual void OnMaxPushIdFrameReceived(const MaxPushIdFrame& /*frame*/) {}
   virtual void OnPriorityUpdateFrameReceived(
       const PriorityUpdateFrame& /*frame*/) {}
@@ -94,10 +96,12 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
       QuicByteCount /*compressed_headers_length*/) {}
   virtual void OnHeadersDecoded(QuicStreamId /*stream_id*/,
                                 QuicHeaderList /*headers*/) {}
+  // TODO(b/171463363): Remove.
   virtual void OnPushPromiseFrameReceived(QuicStreamId /*stream_id*/,
                                           QuicStreamId /*push_id*/,
                                           QuicByteCount
                                           /*compressed_headers_length*/) {}
+  // TODO(b/171463363): Remove.
   virtual void OnPushPromiseDecoded(QuicStreamId /*stream_id*/,
                                     QuicStreamId /*push_id*/,
                                     QuicHeaderList /*headers*/) {}
@@ -110,6 +114,7 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   // Outgoing HTTP/3 frames on the control stream.
   virtual void OnSettingsFrameSent(const SettingsFrame& /*frame*/) = 0;
   virtual void OnGoAwayFrameSent(QuicStreamId /*stream_id*/) {}
+  // TODO(b/171463363): Remove.
   virtual void OnMaxPushIdFrameSent(const MaxPushIdFrame& /*frame*/) {}
   virtual void OnPriorityUpdateFrameSent(const PriorityUpdateFrame& /*frame*/) {
   }
@@ -120,6 +125,7 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   virtual void OnHeadersFrameSent(
       QuicStreamId /*stream_id*/,
       const spdy::SpdyHeaderBlock& /*header_block*/) {}
+  // TODO(b/171463363): Remove.
   virtual void OnPushPromiseFrameSent(
       QuicStreamId /*stream_id*/,
       QuicStreamId
@@ -313,6 +319,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   void OnCompressedFrameSize(size_t frame_len);
 
   // Called when a PUSH_PROMISE frame has been received.
+  // TODO(b/171463363): Remove.
   void OnPushPromise(spdy::SpdyStreamId stream_id,
                      spdy::SpdyStreamId promised_stream_id);
 
@@ -330,6 +337,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // server.  It must only be called if a MAX_PUSH_ID frame is received.
   // Returns whether |max_push_id| is greater than or equal to current
   // |max_push_id_|.
+  // TODO(b/171463363): Remove.
   bool OnMaxPushIdFrame(PushId max_push_id);
 
   // TODO(b/171463363): Remove.
@@ -628,6 +636,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   //   after encryption is established, the push ID in the most recently sent
   //   MAX_PUSH_ID frame.
   // Once set, never goes back to unset.
+  // TODO(b/171463363): Remove.
   absl::optional<PushId> max_push_id_;
 
   // Not owned by the session.

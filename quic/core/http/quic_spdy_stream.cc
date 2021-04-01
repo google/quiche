@@ -377,35 +377,6 @@ size_t QuicSpdyStream::WriteTrailers(
   return bytes_written;
 }
 
-void QuicSpdyStream::WritePushPromise(const PushPromiseFrame& frame) {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
-  std::unique_ptr<char[]> push_promise_frame_with_id;
-  const size_t push_promise_frame_length =
-      HttpEncoder::SerializePushPromiseFrameWithOnlyPushId(
-          frame, &push_promise_frame_with_id);
-
-  unacked_frame_headers_offsets_.Add(send_buffer().stream_offset(),
-                                     send_buffer().stream_offset() +
-                                         push_promise_frame_length +
-                                         frame.headers.length());
-
-  // Write Push Promise frame header and push id.
-  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
-                  << " is writing Push Promise frame header of length "
-                  << push_promise_frame_length << " , with promised id "
-                  << frame.push_id;
-  WriteOrBufferData(absl::string_view(push_promise_frame_with_id.get(),
-                                      push_promise_frame_length),
-                    /* fin = */ false, /* ack_listener = */ nullptr);
-
-  // Write response headers.
-  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
-                  << " is writing Push Promise request header of length "
-                  << frame.headers.length();
-  WriteOrBufferData(frame.headers, /* fin = */ false,
-                    /* ack_listener = */ nullptr);
-}
-
 QuicConsumedData QuicSpdyStream::WritevBody(const struct iovec* iov,
                                             int count,
                                             bool fin) {

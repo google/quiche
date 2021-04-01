@@ -483,13 +483,27 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     return std::string(priority_buffer.get(), priority_frame_length);
   }
 
+  // TODO(b/171463363): Remove.
   std::string SerializeMaxPushIdFrame(PushId push_id) {
-    MaxPushIdFrame max_push_id_frame;
-    max_push_id_frame.push_id = push_id;
-    std::unique_ptr<char[]> buffer;
-    QuicByteCount frame_length =
-        HttpEncoder::SerializeMaxPushIdFrame(max_push_id_frame, &buffer);
-    return std::string(buffer.get(), frame_length);
+    const QuicByteCount payload_length =
+        QuicDataWriter::GetVarInt62Len(push_id);
+
+    const QuicByteCount total_length =
+        QuicDataWriter::GetVarInt62Len(
+            static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID)) +
+        QuicDataWriter::GetVarInt62Len(payload_length) +
+        QuicDataWriter::GetVarInt62Len(push_id);
+
+    std::string max_push_id_frame(total_length, '\0');
+    QuicDataWriter writer(total_length, max_push_id_frame.data());
+
+    QUICHE_CHECK(writer.WriteVarInt62(
+        static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID)));
+    QUICHE_CHECK(writer.WriteVarInt62(payload_length));
+    QUICHE_CHECK(writer.WriteVarInt62(push_id));
+    QUICHE_CHECK_EQ(0u, writer.remaining());
+
+    return max_push_id_frame;
   }
 
   QuicStreamId StreamCountToId(QuicStreamCount stream_count,
@@ -1823,6 +1837,7 @@ TEST_P(QuicSpdySessionTestServer, DrainingStreamsDoNotCountAsOpened) {
   }
 }
 
+// TODO(b/171463363): Remove.
 TEST_P(QuicSpdySessionTestServer, ReduceMaxPushId) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
@@ -2914,12 +2929,12 @@ TEST_P(QuicSpdySessionTestClient, IgnoreCancelPush) {
   EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(_));
   session_.OnStreamFrame(data2);
 
-  CancelPushFrame cancel_push{/* push_id = */ 0};
-  std::unique_ptr<char[]> buffer;
-  auto frame_length =
-      HttpEncoder::SerializeCancelPushFrame(cancel_push, &buffer);
+  std::string cancel_push_frame = absl::HexStringToBytes(
+      "03"    // CANCEL_PUSH
+      "01"    // length
+      "00");  // push ID
   QuicStreamFrame data3(receive_control_stream_id, /* fin = */ false, offset,
-                        absl::string_view(buffer.get(), frame_length));
+                        cancel_push_frame);
   EXPECT_CALL(debug_visitor, OnCancelPushFrameReceived(_));
   session_.OnStreamFrame(data3);
 }
@@ -3125,12 +3140,12 @@ TEST_P(QuicSpdySessionTestServer, IgnoreCancelPush) {
   EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(_));
   session_.OnStreamFrame(data2);
 
-  CancelPushFrame cancel_push{/* push_id = */ 0};
-  std::unique_ptr<char[]> buffer;
-  auto frame_length =
-      HttpEncoder::SerializeCancelPushFrame(cancel_push, &buffer);
+  std::string cancel_push_frame = absl::HexStringToBytes(
+      "03"    // CANCEL_PUSH
+      "01"    // length
+      "00");  // push ID
   QuicStreamFrame data3(receive_control_stream_id, /* fin = */ false, offset,
-                        absl::string_view(buffer.get(), frame_length));
+                        cancel_push_frame);
   EXPECT_CALL(debug_visitor, OnCancelPushFrameReceived(_));
   session_.OnStreamFrame(data3);
 }

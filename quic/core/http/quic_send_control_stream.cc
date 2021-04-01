@@ -104,24 +104,6 @@ void QuicSendControlStream::WritePriorityUpdate(
                     nullptr);
 }
 
-void QuicSendControlStream::SendMaxPushIdFrame(PushId max_push_id) {
-  QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, session()->perspective());
-  QuicConnection::ScopedPacketFlusher flusher(session()->connection());
-  MaybeSendSettingsFrame();
-
-  MaxPushIdFrame frame;
-  frame.push_id = max_push_id;
-  if (spdy_session_->debug_visitor()) {
-    spdy_session_->debug_visitor()->OnMaxPushIdFrameSent(frame);
-  }
-
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount frame_length =
-      HttpEncoder::SerializeMaxPushIdFrame(frame, &buffer);
-  WriteOrBufferData(absl::string_view(buffer.get(), frame_length),
-                    /*fin = */ false, nullptr);
-}
-
 void QuicSendControlStream::SendGoAway(QuicStreamId id) {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   MaybeSendSettingsFrame();

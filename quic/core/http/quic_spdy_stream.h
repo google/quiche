@@ -135,10 +135,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
       spdy::SpdyHeaderBlock trailer_block,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
-  // Serializes |frame| and writes the encoded push promise data.
-  // TODO(b/171463363): Remove.
-  void WritePushPromise(const PushPromiseFrame& frame);
-
   // Override to report newly acked bytes via ack_listener_.
   bool OnStreamFrameAcked(QuicStreamOffset offset,
                           QuicByteCount data_length,

@@ -11,6 +11,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/http/http_encoder.h"
@@ -448,18 +449,30 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   // Construct PUSH_PROMISE frame with given payload.
+  // TODO(b/171463363): Remove.
   std::string SerializePushPromiseFrame(PushId push_id,
-                                        absl::string_view payload) {
-    PushPromiseFrame frame;
-    frame.push_id = push_id;
-    frame.headers = payload;
-    std::unique_ptr<char[]> push_promise_buffer;
-    QuicByteCount push_promise_frame_header_length =
-        HttpEncoder::SerializePushPromiseFrameWithOnlyPushId(
-            frame, &push_promise_buffer);
-    absl::string_view push_promise_frame_header(
-        push_promise_buffer.get(), push_promise_frame_header_length);
-    return absl::StrCat(push_promise_frame_header, payload);
+                                        absl::string_view headers) {
+    const QuicByteCount payload_length =
+        QuicDataWriter::GetVarInt62Len(push_id) + headers.length();
+
+    const QuicByteCount length_without_headers =
+        QuicDataWriter::GetVarInt62Len(
+            static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE)) +
+        QuicDataWriter::GetVarInt62Len(payload_length) +
+        QuicDataWriter::GetVarInt62Len(push_id);
+
+    std::string push_promise_frame(length_without_headers, '\0');
+    QuicDataWriter writer(length_without_headers, push_promise_frame.data());
+
+    QUICHE_CHECK(writer.WriteVarInt62(
+        static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE)));
+    QUICHE_CHECK(writer.WriteVarInt62(payload_length));
+    QUICHE_CHECK(writer.WriteVarInt62(push_id));
+    QUICHE_CHECK_EQ(0u, writer.remaining());
+
+    absl::StrAppend(&push_promise_frame, headers);
+
+    return push_promise_frame;
   }
 
   std::string DataFrame(absl::string_view payload) {
@@ -2758,6 +2771,7 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, UnknownFramesInterleaved) {
   EXPECT_EQ(unknown_frame4.size(), NewlyConsumedBytes());
 }
 
+// TODO(b/171463363): Remove.
 TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStream) {
   Initialize(kShouldProcessData);
   if (!UsesHttp3()) {
@@ -2786,6 +2800,7 @@ TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStream) {
 }
 
 // Regression test for b/152518220.
+// TODO(b/171463363): Remove.
 TEST_P(QuicSpdyStreamTest,
        OnStreamHeaderBlockArgumentDoesNotIncludePushedHeaderBlock) {
   Initialize(kShouldProcessData);

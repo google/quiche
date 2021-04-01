@@ -303,14 +303,12 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
 }
 
 TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {
-  PushPromiseFrame push_promise;
-  push_promise.push_id = 0x01;
-  push_promise.headers = "Headers";
-  std::unique_ptr<char[]> buffer;
-  uint64_t length = HttpEncoder::SerializePushPromiseFrameWithOnlyPushId(
-      push_promise, &buffer);
-  QuicStreamFrame frame(receive_control_stream_->id(), false, 1, buffer.get(),
-                        length);
+  std::string push_promise_frame = absl::HexStringToBytes(
+      "05"    // PUSH_PROMISE
+      "01"    // length
+      "00");  // push ID
+  QuicStreamFrame frame(receive_control_stream_->id(), false, 1,
+                        push_promise_frame);
   EXPECT_CALL(
       *connection_,
       CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM, _, _))
