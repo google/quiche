@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_TEST_TOOLS_SIMULATOR_QUEUE_H_
 
 #include "quic/core/quic_alarm.h"
+#include "quic/core/quic_circular_deque.h"
 #include "quic/test_tools/simulator/link.h"
 
 namespace quic {
@@ -109,7 +110,7 @@ class Queue : public Actor, public UnconstrainedPortInterface {
   std::unique_ptr<QuicAlarm> aggregation_timeout_alarm_;
 
   ConstrainedPortInterface* tx_port_;
-  QuicQueue<EnqueuedPacket> queue_;
+  QuicCircularDeque<EnqueuedPacket> queue_;
 
   ListenerInterface* listener_;
 };

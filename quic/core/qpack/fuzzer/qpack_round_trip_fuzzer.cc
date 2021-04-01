@@ -15,8 +15,8 @@
 #include "quic/core/qpack/qpack_encoder.h"
 #include "quic/core/qpack/qpack_stream_sender_delegate.h"
 #include "quic/core/qpack/value_splitting_header_list.h"
+#include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_error_codes.h"
-#include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_fuzzed_data_provider.h"
 #include "quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "quic/test_tools/qpack/qpack_encoder_peer.h"
@@ -413,7 +413,7 @@ class DelayedStreamDataTransmitter : public QpackStreamSenderDelegate {
 
   // QpackStreamSenderDelegate implementation.
   void WriteStreamData(absl::string_view data) override {
-    stream_data.push(std::string(data.data(), data.size()));
+    stream_data.push_back(std::string(data.data(), data.size()));
   }
 
   // Release some (possibly none) delayed stream data.
@@ -421,7 +421,7 @@ class DelayedStreamDataTransmitter : public QpackStreamSenderDelegate {
     auto count = provider_->ConsumeIntegral<uint8_t>();
     while (!stream_data.empty() && count > 0) {
       receiver_->Decode(stream_data.front());
-      stream_data.pop();
+      stream_data.pop_front();
       --count;
     }
   }
@@ -430,14 +430,14 @@ class DelayedStreamDataTransmitter : public QpackStreamSenderDelegate {
   void Flush() {
     while (!stream_data.empty()) {
       receiver_->Decode(stream_data.front());
-      stream_data.pop();
+      stream_data.pop_front();
     }
   }
 
  private:
   QpackStreamReceiver* const receiver_;
   QuicFuzzedDataProvider* const provider_;
-  QuicQueue<std::string> stream_data;
+  QuicCircularDeque<std::string> stream_data;
 };
 
 // Generate header list using fuzzer data.

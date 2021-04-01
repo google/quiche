@@ -43,7 +43,7 @@ void Queue::AcceptPacket(std::unique_ptr<Packet> packet) {
   }
 
   bytes_queued_ += packet->size;
-  queue_.emplace(std::move(packet), current_bundle_);
+  queue_.emplace_back(std::move(packet), current_bundle_);
 
   if (IsAggregationEnabled()) {
     current_bundle_bytes_ += queue_.front().packet->size;
@@ -65,7 +65,7 @@ void Queue::Act() {
     bytes_queued_ -= queue_.front().packet->size;
 
     tx_port_->AcceptPacket(std::move(queue_.front().packet));
-    queue_.pop();
+    queue_.pop_front();
     if (listener_ != nullptr) {
       listener_->OnPacketDequeued();
     }
