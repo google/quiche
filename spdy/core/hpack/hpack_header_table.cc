@@ -8,7 +8,6 @@
 
 #include "spdy/core/hpack/hpack_constants.h"
 #include "spdy/core/hpack/hpack_static_table.h"
-#include "spdy/platform/api/spdy_containers.h"
 #include "spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "spdy/platform/api/spdy_logging.h"
 

@@ -12,7 +12,6 @@
 
 #include "absl/strings/str_cat.h"
 #include "spdy/core/write_scheduler.h"
-#include "spdy/platform/api/spdy_containers.h"
 
 namespace spdy {
 

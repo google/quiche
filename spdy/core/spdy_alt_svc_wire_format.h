@@ -14,9 +14,9 @@
 #include <string>
 #include <vector>
 
+#include "absl/container/inlined_vector.h"
 #include "absl/strings/string_view.h"
 #include "common/platform/api/quiche_export.h"
-#include "spdy/platform/api/spdy_containers.h"
 
 namespace spdy {
 
@@ -26,7 +26,7 @@ class SpdyAltSvcWireFormatPeer;
 
 class QUICHE_EXPORT_PRIVATE SpdyAltSvcWireFormat {
  public:
-  using VersionVector = SpdyInlinedVector<uint32_t, 8>;
+  using VersionVector = absl::InlinedVector<uint32_t, 8>;
 
   struct QUICHE_EXPORT_PRIVATE AlternativeService {
     std::string protocol_id;

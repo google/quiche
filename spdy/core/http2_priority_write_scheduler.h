@@ -82,7 +82,7 @@ class Http2PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   friend class test::Http2PriorityWriteSchedulerPeer<StreamIdType>;
 
   struct StreamInfo;
-  typedef SpdyInlinedVector<StreamInfo*, 4> StreamInfoVector;
+  using StreamInfoVector = absl::InlinedVector<StreamInfo*, 4>;
 
   struct StreamInfo : public SpdyIntrusiveLink<StreamInfo> {
     // ID for this stream.

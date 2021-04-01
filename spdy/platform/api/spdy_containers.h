@@ -13,10 +13,6 @@ namespace spdy {
 template <typename Key, typename Value, typename Hash, typename Eq>
 using SpdyLinkedHashMap = SpdyLinkedHashMapImpl<Key, Value, Hash, Eq>;
 
-// A vector optimized for small sizes. Provides the same APIs as a std::vector.
-template <typename T, size_t N, typename A = std::allocator<T>>
-using SpdyInlinedVector = SpdyInlinedVectorImpl<T, N, A>;
-
 // Used for maps that are typically small, then it is faster than (for example)
 // hash_map which is optimized for large data sets. SpdySmallMap upgrades itself
 // automatically to a SpdySmallMapImpl-specified map when it runs out of space.

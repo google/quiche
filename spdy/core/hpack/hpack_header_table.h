@@ -17,7 +17,6 @@
 #include "absl/strings/string_view.h"
 #include "common/platform/api/quiche_export.h"
 #include "spdy/core/hpack/hpack_entry.h"
-#include "spdy/platform/api/spdy_containers.h"
 
 // All section references below are to http://tools.ietf.org/html/rfc7541.
 
