@@ -1722,10 +1722,10 @@ TEST_P(QuicConnectionTest, PeerPortChangeAtServer) {
 }
 
 TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
+  set_perspective(Perspective::IS_SERVER);
   if (!connection_.validate_client_address()) {
     return;
   }
-  set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -1978,10 +1978,10 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
 }
 
 TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
+  set_perspective(Perspective::IS_SERVER);
   if (!connection_.validate_client_address()) {
     return;
   }
-  set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -13748,10 +13748,10 @@ TEST_P(QuicConnectionTest, TryToFlushAckWithAckQueued) {
 }
 
 TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
+  set_perspective(Perspective::IS_SERVER);
   if (!connection_.validate_client_address()) {
     return;
   }
-  set_perspective(Perspective::IS_SERVER);
   PathProbeTestInit(Perspective::IS_SERVER);
 
   const QuicSocketAddress kNewPeerAddress =
@@ -13846,10 +13846,10 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
 
 TEST_P(QuicConnectionTest,
        PathValidationSucceedsBeforePeerIpAddressChangeAtServer) {
+  set_perspective(Perspective::IS_SERVER);
   if (!connection_.validate_client_address()) {
     return;
   }
-  set_perspective(Perspective::IS_SERVER);
   PathProbeTestInit(Perspective::IS_SERVER);
 
   // Receive probing packet with new peer address.
@@ -13937,10 +13937,10 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest,
        ProbedOnAnotherPathAfterPeerIpAddressChangeAtServer) {
+  PathProbeTestInit(Perspective::IS_SERVER);
   if (!connection_.validate_client_address()) {
     return;
   }
-  PathProbeTestInit(Perspective::IS_SERVER);
 
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Loopback4(),
                                           /*port=*/23456);
