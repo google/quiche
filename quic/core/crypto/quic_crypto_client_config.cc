@@ -134,15 +134,6 @@ QuicCryptoClientConfig::CachedState::GetServerConfig() const {
   return scfg_.get();
 }
 
-void QuicCryptoClientConfig::CachedState::add_server_nonce(
-    const std::string& server_nonce) {
-  server_nonces_.push(server_nonce);
-}
-
-bool QuicCryptoClientConfig::CachedState::has_server_nonce() const {
-  return !server_nonces_.empty();
-}
-
 QuicCryptoClientConfig::CachedState::ServerConfigState
 QuicCryptoClientConfig::CachedState::SetServerConfig(
     absl::string_view server_config,
@@ -361,17 +352,6 @@ void QuicCryptoClientConfig::CachedState::InitializeFrom(
     proof_verify_details_.reset(other.proof_verify_details_->Clone());
   }
   ++generation_counter_;
-}
-
-std::string QuicCryptoClientConfig::CachedState::GetNextServerNonce() {
-  if (server_nonces_.empty()) {
-    QUIC_BUG(quic_bug_12943_1)
-        << "Attempting to consume a server nonce that was never designated.";
-    return "";
-  }
-  const std::string server_nonce = server_nonces_.front();
-  server_nonces_.pop();
-  return server_nonce;
 }
 
 void QuicCryptoClientConfig::SetDefaults() {

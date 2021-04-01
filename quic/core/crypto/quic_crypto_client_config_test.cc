@@ -81,45 +81,6 @@ TEST_F(QuicCryptoClientConfigTest, CachedState_SetProofVerifyDetails) {
   EXPECT_EQ(details, state.proof_verify_details());
 }
 
-TEST_F(QuicCryptoClientConfigTest, CachedState_ServerNonce) {
-  QuicCryptoClientConfig::CachedState state;
-  EXPECT_FALSE(state.has_server_nonce());
-
-  std::string server_nonce = "nonce_1";
-  state.add_server_nonce(server_nonce);
-  EXPECT_TRUE(state.has_server_nonce());
-  EXPECT_EQ(server_nonce, state.GetNextServerNonce());
-  EXPECT_FALSE(state.has_server_nonce());
-
-  // Allow the ID to be set multiple times.  It's unusual that this would
-  // happen, but not impossible.
-  server_nonce = "nonce_2";
-  state.add_server_nonce(server_nonce);
-  EXPECT_TRUE(state.has_server_nonce());
-  EXPECT_EQ(server_nonce, state.GetNextServerNonce());
-  server_nonce = "nonce_3";
-  state.add_server_nonce(server_nonce);
-  EXPECT_EQ(server_nonce, state.GetNextServerNonce());
-  EXPECT_FALSE(state.has_server_nonce());
-
-  // Test FIFO behavior.
-  const std::string first_nonce = "first_nonce";
-  const std::string second_nonce = "second_nonce";
-  state.add_server_nonce(first_nonce);
-  state.add_server_nonce(second_nonce);
-  EXPECT_TRUE(state.has_server_nonce());
-  EXPECT_EQ(first_nonce, state.GetNextServerNonce());
-  EXPECT_EQ(second_nonce, state.GetNextServerNonce());
-}
-
-TEST_F(QuicCryptoClientConfigTest, CachedState_ServerNonceConsumedBeforeSet) {
-  QuicCryptoClientConfig::CachedState state;
-  EXPECT_FALSE(state.has_server_nonce());
-  EXPECT_QUIC_BUG(state.GetNextServerNonce(),
-                  "Attempting to consume a server nonce "
-                  "that was never designated.");
-}
-
 TEST_F(QuicCryptoClientConfigTest, CachedState_InitializeFrom) {
   QuicCryptoClientConfig::CachedState state;
   QuicCryptoClientConfig::CachedState other;
@@ -130,7 +91,6 @@ TEST_F(QuicCryptoClientConfigTest, CachedState_InitializeFrom) {
   EXPECT_EQ(state.source_address_token(), other.source_address_token());
   EXPECT_EQ(state.certs(), other.certs());
   EXPECT_EQ(1u, other.generation_counter());
-  EXPECT_FALSE(state.has_server_nonce());
 }
 
 TEST_F(QuicCryptoClientConfigTest, InchoateChlo) {
@@ -492,7 +452,6 @@ TEST_F(QuicCryptoClientConfigTest, ProcessReject) {
           AllSupportedVersionsWithQuicCrypto().front().transport_version, "",
           &cached, out_params, &error),
       IsQuicNoError());
-  EXPECT_FALSE(cached.has_server_nonce());
 }
 
 TEST_F(QuicCryptoClientConfigTest, ProcessRejectWithLongTTL) {
