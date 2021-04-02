@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
@@ -22,7 +23,6 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_map_util.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_server_stats.h"
 #include "quic/platform/api/quic_stack_trace.h"
 #include "common/platform/api/quiche_text_utils.h"
@@ -116,7 +116,7 @@ QuicSession::QuicSession(
       was_zero_rtt_rejected_(false),
       liveness_testing_in_progress_(false) {
   closed_streams_clean_up_alarm_ =
-      QuicWrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
+      absl::WrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
   if (perspective() == Perspective::IS_SERVER &&
       connection_->version().handshake_protocol == PROTOCOL_TLS1_3) {

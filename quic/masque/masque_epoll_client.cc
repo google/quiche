@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 #include "quic/masque/masque_epoll_client.h"
+#include "absl/memory/memory.h"
 #include "quic/masque/masque_client_session.h"
 #include "quic/masque/masque_utils.h"
-#include "quic/platform/api/quic_ptr_util.h"
 
 namespace quic {
 
@@ -56,10 +56,10 @@ std::unique_ptr<MasqueEpollClient> MasqueEpollClient::Create(
     return nullptr;
   }
   QuicServerId server_id(host, port);
-  // Use QuicWrapUnique(new MasqueEpollClient(...)) instead of
+  // Use absl::WrapUnique(new MasqueEpollClient(...)) instead of
   // std::make_unique<MasqueEpollClient>(...) because the constructor for
   // MasqueEpollClient is private and therefore not accessible from make_unique.
-  auto masque_client = QuicWrapUnique(new MasqueEpollClient(
+  auto masque_client = absl::WrapUnique(new MasqueEpollClient(
       addr, server_id, masque_mode, epoll_server, std::move(proof_verifier),
       absl::StrCat(host, ":", port)));
 

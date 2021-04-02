@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/memory/memory.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -35,7 +36,6 @@
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_map_util.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/qpack/qpack_encoder_peer.h"
 #include "quic/test_tools/qpack/qpack_header_table_peer.h"
@@ -258,14 +258,14 @@ class TestSession : public QuicSpdySession {
   TestStream* CreateOutgoingBidirectionalStream() override {
     TestStream* stream = new TestStream(GetNextOutgoingBidirectionalStreamId(),
                                         this, BIDIRECTIONAL);
-    ActivateStream(QuicWrapUnique(stream));
+    ActivateStream(absl::WrapUnique(stream));
     return stream;
   }
 
   TestStream* CreateOutgoingUnidirectionalStream() override {
     TestStream* stream = new TestStream(GetNextOutgoingUnidirectionalStreamId(),
                                         this, WRITE_UNIDIRECTIONAL);
-    ActivateStream(QuicWrapUnique(stream));
+    ActivateStream(absl::WrapUnique(stream));
     return stream;
   }
 
@@ -283,7 +283,7 @@ class TestSession : public QuicSpdySession {
           id, this,
           DetermineStreamType(id, connection()->version(), perspective(),
                               /*is_incoming=*/true, BIDIRECTIONAL));
-      ActivateStream(QuicWrapUnique(stream));
+      ActivateStream(absl::WrapUnique(stream));
       return stream;
     }
   }
@@ -294,7 +294,7 @@ class TestSession : public QuicSpdySession {
         pending, this,
         DetermineStreamType(id, connection()->version(), perspective(),
                             /*is_incoming=*/true, BIDIRECTIONAL));
-    ActivateStream(QuicWrapUnique(stream));
+    ActivateStream(absl::WrapUnique(stream));
     return stream;
   }
 

@@ -25,7 +25,6 @@
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_stack_trace.h"
 #include "common/platform/api/quiche_text_utils.h"
 

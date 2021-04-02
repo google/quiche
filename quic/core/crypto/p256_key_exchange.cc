@@ -10,13 +10,13 @@
 #include <string>
 #include <utility>
 
+#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ec.h"
 #include "third_party/boringssl/src/include/openssl/ecdh.h"
 #include "third_party/boringssl/src/include/openssl/err.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_ptr_util.h"
 
 namespace quic {
 
@@ -57,7 +57,7 @@ std::unique_ptr<P256KeyExchange> P256KeyExchange::New(absl::string_view key) {
     return nullptr;
   }
 
-  return QuicWrapUnique(
+  return absl::WrapUnique(
       new P256KeyExchange(std::move(private_key), public_key));
 }
 

@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/memory/memory.h"
 #include "quic/core/crypto/crypto_protocol.h"
 #include "quic/core/http/quic_spdy_client_stream.h"
 #include "quic/core/http/spdy_utils.h"
@@ -16,7 +17,6 @@
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_ptr_util.h"
 
 namespace quic {
 
@@ -181,7 +181,7 @@ QuicSpdyStream* QuicSpdyClientSession::CreateIncomingStream(
     PendingStream* pending) {
   QuicSpdyStream* stream =
       new QuicSpdyClientStream(pending, this, READ_UNIDIRECTIONAL);
-  ActivateStream(QuicWrapUnique(stream));
+  ActivateStream(absl::WrapUnique(stream));
   return stream;
 }
 
@@ -191,7 +191,7 @@ QuicSpdyStream* QuicSpdyClientSession::CreateIncomingStream(QuicStreamId id) {
   }
   QuicSpdyStream* stream =
       new QuicSpdyClientStream(id, this, READ_UNIDIRECTIONAL);
-  ActivateStream(QuicWrapUnique(stream));
+  ActivateStream(absl::WrapUnique(stream));
   return stream;
 }
 

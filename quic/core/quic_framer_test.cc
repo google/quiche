@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "absl/base/macros.h"
+#include "absl/memory/memory.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
@@ -29,7 +30,6 @@
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_framer_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
@@ -319,7 +319,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     // Save a copy of the data so it is valid after the packet is processed.
     std::string* string_data =
         new std::string(frame.data_buffer, frame.data_length);
-    stream_data_.push_back(QuicWrapUnique(string_data));
+    stream_data_.push_back(absl::WrapUnique(string_data));
     stream_frames_.push_back(std::make_unique<QuicStreamFrame>(
         frame.stream_id, frame.fin, frame.offset, *string_data));
     if (VersionHasIetfQuicFrames(transport_version_)) {
@@ -336,7 +336,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     // Save a copy of the data so it is valid after the packet is processed.
     std::string* string_data =
         new std::string(frame.data_buffer, frame.data_length);
-    crypto_data_.push_back(QuicWrapUnique(string_data));
+    crypto_data_.push_back(absl::WrapUnique(string_data));
     crypto_frames_.push_back(std::make_unique<QuicCryptoFrame>(
         frame.level, frame.offset, *string_data));
     if (VersionHasIetfQuicFrames(transport_version_)) {

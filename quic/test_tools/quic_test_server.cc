@@ -6,10 +6,10 @@
 
 #include <utility>
 
+#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_epoll_alarm_factory.h"
 #include "quic/core/quic_epoll_connection_helper.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/tools/quic_simple_crypto_server_stream_helper.h"
 #include "quic/tools/quic_simple_dispatcher.h"
 #include "quic/tools/quic_simple_server_session.h"
@@ -49,7 +49,7 @@ class CustomStreamSession : public QuicSimpleServerSession {
     if (stream_factory_) {
       QuicSpdyStream* stream =
           stream_factory_->CreateStream(id, this, server_backend());
-      ActivateStream(QuicWrapUnique(stream));
+      ActivateStream(absl::WrapUnique(stream));
       return stream;
     }
     return QuicSimpleServerSession::CreateIncomingStream(id);

@@ -9,6 +9,7 @@
 #include <string>
 
 #include "absl/base/macros.h"
+#include "absl/memory/memory.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
@@ -33,7 +34,6 @@
 #include "quic/platform/api/quic_hostname_utils.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_map_util.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -375,7 +375,7 @@ QuicCryptoClientConfig::CachedState* QuicCryptoClientConfig::LookupOrCreate(
   }
 
   CachedState* cached = new CachedState;
-  cached_states_.insert(std::make_pair(server_id, QuicWrapUnique(cached)));
+  cached_states_.insert(std::make_pair(server_id, absl::WrapUnique(cached)));
   bool cache_populated = PopulateFromCanonicalConfig(server_id, cached);
   QUIC_CLIENT_HISTOGRAM_BOOL(
       "QuicCryptoClientConfig.PopulatedFromCanonicalConfig", cache_populated,

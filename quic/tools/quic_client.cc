@@ -24,7 +24,6 @@
 #include "quic/core/quic_server_id.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/tools/quic_simple_client_session.h"
 
@@ -67,7 +66,7 @@ QuicClient::QuicClient(QuicSocketAddress server_address,
           supported_versions,
           QuicConfig(),
           epoll_server,
-          QuicWrapUnique(new QuicClientEpollNetworkHelper(epoll_server, this)),
+          std::make_unique<QuicClientEpollNetworkHelper>(epoll_server, this),
           std::move(proof_verifier),
           nullptr) {}
 
@@ -83,7 +82,7 @@ QuicClient::QuicClient(QuicSocketAddress server_address,
           supported_versions,
           QuicConfig(),
           epoll_server,
-          QuicWrapUnique(new QuicClientEpollNetworkHelper(epoll_server, this)),
+          std::make_unique<QuicClientEpollNetworkHelper>(epoll_server, this),
           std::move(proof_verifier),
           std::move(session_cache)) {}
 
@@ -100,7 +99,7 @@ QuicClient::QuicClient(QuicSocketAddress server_address,
           supported_versions,
           config,
           epoll_server,
-          QuicWrapUnique(new QuicClientEpollNetworkHelper(epoll_server, this)),
+          std::make_unique<QuicClientEpollNetworkHelper>(epoll_server, this),
           std::move(proof_verifier),
           std::move(session_cache)) {}
 

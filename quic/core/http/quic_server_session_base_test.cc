@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/crypto/quic_crypto_server_config.h"
@@ -21,7 +22,6 @@
 #include "quic/core/tls_server_handshaker.h"
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/crypto_test_utils.h"
@@ -83,14 +83,14 @@ class TestServerSession : public QuicServerSessionBase {
     }
     QuicSpdyStream* stream = new QuicSimpleServerStream(
         id, this, BIDIRECTIONAL, quic_simple_server_backend_);
-    ActivateStream(QuicWrapUnique(stream));
+    ActivateStream(absl::WrapUnique(stream));
     return stream;
   }
 
   QuicSpdyStream* CreateIncomingStream(PendingStream* pending) override {
     QuicSpdyStream* stream = new QuicSimpleServerStream(
         pending, this, BIDIRECTIONAL, quic_simple_server_backend_);
-    ActivateStream(QuicWrapUnique(stream));
+    ActivateStream(absl::WrapUnique(stream));
     return stream;
   }
 
@@ -107,7 +107,7 @@ class TestServerSession : public QuicServerSessionBase {
     QuicSpdyStream* stream = new QuicSimpleServerStream(
         GetNextOutgoingUnidirectionalStreamId(), this, WRITE_UNIDIRECTIONAL,
         quic_simple_server_backend_);
-    ActivateStream(QuicWrapUnique(stream));
+    ActivateStream(absl::WrapUnique(stream));
     return stream;
   }
 

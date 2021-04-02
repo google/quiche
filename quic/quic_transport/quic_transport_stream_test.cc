@@ -6,11 +6,11 @@
 
 #include <memory>
 
+#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/frames/quic_window_update_frame.h"
 #include "quic/platform/api/quic_expect_bug.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/quic_transport/quic_transport_session_interface.h"
 #include "quic/test_tools/quic_config_peer.h"
@@ -47,7 +47,7 @@ class QuicTransportStreamTest : public QuicTest {
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<NullEncrypter>(connection_->perspective()));
     stream_ = new QuicTransportStream(0, &session_, &interface_);
-    session_.ActivateStream(QuicWrapUnique(stream_));
+    session_.ActivateStream(absl::WrapUnique(stream_));
 
     auto visitor = std::make_unique<MockStreamVisitor>();
     visitor_ = visitor.get();

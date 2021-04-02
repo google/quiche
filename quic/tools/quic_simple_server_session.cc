@@ -6,12 +6,12 @@
 
 #include <utility>
 
+#include "absl/memory/memory.h"
 #include "quic/core/http/quic_spdy_session.h"
 #include "quic/core/quic_connection.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/tools/quic_simple_server_stream.h"
 
 namespace quic {
@@ -101,7 +101,7 @@ QuicSpdyStream* QuicSimpleServerSession::CreateIncomingStream(QuicStreamId id) {
 
   QuicSpdyStream* stream = new QuicSimpleServerStream(
       id, this, BIDIRECTIONAL, quic_simple_server_backend_);
-  ActivateStream(QuicWrapUnique(stream));
+  ActivateStream(absl::WrapUnique(stream));
   return stream;
 }
 
@@ -109,7 +109,7 @@ QuicSpdyStream* QuicSimpleServerSession::CreateIncomingStream(
     PendingStream* pending) {
   QuicSpdyStream* stream = new QuicSimpleServerStream(
       pending, this, BIDIRECTIONAL, quic_simple_server_backend_);
-  ActivateStream(QuicWrapUnique(stream));
+  ActivateStream(absl::WrapUnique(stream));
   return stream;
 }
 
@@ -128,7 +128,7 @@ QuicSimpleServerSession::CreateOutgoingUnidirectionalStream() {
   QuicSimpleServerStream* stream = new QuicSimpleServerStream(
       GetNextOutgoingUnidirectionalStreamId(), this, WRITE_UNIDIRECTIONAL,
       quic_simple_server_backend_);
-  ActivateStream(QuicWrapUnique(stream));
+  ActivateStream(absl::WrapUnique(stream));
   return stream;
 }
 

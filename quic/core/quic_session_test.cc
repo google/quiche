@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
@@ -28,7 +29,6 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_map_util.h"
 #include "quic/platform/api/quic_mem_slice_storage.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/platform/api/quic_test_mem_slice_vector.h"
 #include "quic/test_tools/mock_quic_session_visitor.h"
@@ -246,14 +246,14 @@ class TestSession : public QuicSession {
       return nullptr;
     }
     TestStream* stream = new TestStream(id, this, BIDIRECTIONAL);
-    ActivateStream(QuicWrapUnique(stream));
+    ActivateStream(absl::WrapUnique(stream));
     return stream;
   }
 
   TestStream* CreateOutgoingUnidirectionalStream() {
     TestStream* stream = new TestStream(GetNextOutgoingUnidirectionalStreamId(),
                                         this, WRITE_UNIDIRECTIONAL);
-    ActivateStream(QuicWrapUnique(stream));
+    ActivateStream(absl::WrapUnique(stream));
     return stream;
   }
 
@@ -274,7 +274,7 @@ class TestSession : public QuicSession {
         id, this,
         DetermineStreamType(id, connection()->version(), perspective(),
                             /*is_incoming=*/true, BIDIRECTIONAL));
-    ActivateStream(QuicWrapUnique(stream));
+    ActivateStream(absl::WrapUnique(stream));
     ++num_incoming_streams_created_;
     return stream;
   }
@@ -285,7 +285,7 @@ class TestSession : public QuicSession {
         pending, this,
         DetermineStreamType(id, connection()->version(), perspective(),
                             /*is_incoming=*/true, BIDIRECTIONAL));
-    ActivateStream(QuicWrapUnique(stream));
+    ActivateStream(absl::WrapUnique(stream));
     ++num_incoming_streams_created_;
     return stream;
   }
@@ -2551,7 +2551,7 @@ TEST_P(QuicSessionTestServer, WriteUnidirectionalStream) {
   session_.set_writev_consumes_all_data(true);
   TestStream* stream4 = new TestStream(GetNthServerInitiatedUnidirectionalId(1),
                                        &session_, WRITE_UNIDIRECTIONAL);
-  session_.ActivateStream(QuicWrapUnique(stream4));
+  session_.ActivateStream(absl::WrapUnique(stream4));
   std::string body(100, '.');
   stream4->WriteOrBufferData(body, false, nullptr);
   stream4->WriteOrBufferData(body, true, nullptr);
@@ -2564,7 +2564,7 @@ TEST_P(QuicSessionTestServer, WriteUnidirectionalStream) {
 TEST_P(QuicSessionTestServer, ReceivedDataOnWriteUnidirectionalStream) {
   TestStream* stream4 = new TestStream(GetNthServerInitiatedUnidirectionalId(1),
                                        &session_, WRITE_UNIDIRECTIONAL);
-  session_.ActivateStream(QuicWrapUnique(stream4));
+  session_.ActivateStream(absl::WrapUnique(stream4));
 
   EXPECT_CALL(
       *connection_,
@@ -2578,7 +2578,7 @@ TEST_P(QuicSessionTestServer, ReceivedDataOnWriteUnidirectionalStream) {
 TEST_P(QuicSessionTestServer, ReadUnidirectionalStream) {
   TestStream* stream4 = new TestStream(GetNthClientInitiatedUnidirectionalId(1),
                                        &session_, READ_UNIDIRECTIONAL);
-  session_.ActivateStream(QuicWrapUnique(stream4));
+  session_.ActivateStream(absl::WrapUnique(stream4));
   EXPECT_FALSE(stream4->IsWaitingForAcks());
   // Discard all incoming data.
   stream4->StopReading();
@@ -2598,7 +2598,7 @@ TEST_P(QuicSessionTestServer, ReadUnidirectionalStream) {
 TEST_P(QuicSessionTestServer, WriteOrBufferDataOnReadUnidirectionalStream) {
   TestStream* stream4 = new TestStream(GetNthClientInitiatedUnidirectionalId(1),
                                        &session_, READ_UNIDIRECTIONAL);
-  session_.ActivateStream(QuicWrapUnique(stream4));
+  session_.ActivateStream(absl::WrapUnique(stream4));
 
   EXPECT_CALL(*connection_,
               CloseConnection(
@@ -2611,7 +2611,7 @@ TEST_P(QuicSessionTestServer, WriteOrBufferDataOnReadUnidirectionalStream) {
 TEST_P(QuicSessionTestServer, WritevDataOnReadUnidirectionalStream) {
   TestStream* stream4 = new TestStream(GetNthClientInitiatedUnidirectionalId(1),
                                        &session_, READ_UNIDIRECTIONAL);
-  session_.ActivateStream(QuicWrapUnique(stream4));
+  session_.ActivateStream(absl::WrapUnique(stream4));
 
   EXPECT_CALL(*connection_,
               CloseConnection(
@@ -2628,7 +2628,7 @@ TEST_P(QuicSessionTestServer, WritevDataOnReadUnidirectionalStream) {
 TEST_P(QuicSessionTestServer, WriteMemSlicesOnReadUnidirectionalStream) {
   TestStream* stream4 = new TestStream(GetNthClientInitiatedUnidirectionalId(1),
                                        &session_, READ_UNIDIRECTIONAL);
-  session_.ActivateStream(QuicWrapUnique(stream4));
+  session_.ActivateStream(absl::WrapUnique(stream4));
 
   EXPECT_CALL(*connection_,
               CloseConnection(

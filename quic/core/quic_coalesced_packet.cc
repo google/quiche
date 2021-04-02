@@ -4,9 +4,9 @@
 
 #include "quic/core/quic_coalesced_packet.h"
 
+#include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "quic/platform/api/quic_bug_tracker.h"
-#include "quic/platform/api/quic_ptr_util.h"
 
 namespace quic {
 
@@ -74,7 +74,7 @@ bool QuicCoalescedPacket::MaybeCoalescePacket(
   if (packet.encryption_level == ENCRYPTION_INITIAL) {
     // Save a copy of ENCRYPTION_INITIAL packet (excluding encrypted buffer, as
     // the packet will be re-serialized later).
-    initial_packet_ = QuicWrapUnique<SerializedPacket>(
+    initial_packet_ = absl::WrapUnique<SerializedPacket>(
         CopySerializedPacket(packet, allocator, /*copy_buffer=*/false));
     return true;
   }

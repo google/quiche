@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/memory/memory.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -24,7 +25,6 @@
 #include "quic/core/quic_write_blocked_list.h"
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_map_util.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/qpack/qpack_test_utils.h"
 #include "quic/test_tools/quic_config_peer.h"
@@ -371,11 +371,11 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     stream_ =
         new StrictMock<TestStream>(GetNthClientInitiatedBidirectionalId(0),
                                    session_.get(), stream_should_process_data);
-    session_->ActivateStream(QuicWrapUnique(stream_));
+    session_->ActivateStream(absl::WrapUnique(stream_));
     stream2_ =
         new StrictMock<TestStream>(GetNthClientInitiatedBidirectionalId(1),
                                    session_.get(), stream_should_process_data);
-    session_->ActivateStream(QuicWrapUnique(stream2_));
+    session_->ActivateStream(absl::WrapUnique(stream2_));
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_->config(), kMinimumFlowControlSendWindow);
     QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesUnidirectional(
@@ -1796,7 +1796,7 @@ TEST_P(QuicSpdyStreamTest, SetPriorityBeforeUpdateStreamPriority) {
                                      session->transport_version(), 0),
                                  session.get(),
                                  /*should_process_data=*/true);
-  session->ActivateStream(QuicWrapUnique(stream));
+  session->ActivateStream(absl::WrapUnique(stream));
 
   // QuicSpdyStream::SetPriority() should eventually call UpdateStreamPriority()
   // on the session. Make sure stream->priority() returns the updated priority

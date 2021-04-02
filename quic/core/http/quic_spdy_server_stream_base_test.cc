@@ -4,8 +4,8 @@
 
 #include "quic/core/http/quic_spdy_server_stream_base.h"
 
+#include "absl/memory/memory.h"
 #include "quic/core/crypto/null_encrypter.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_spdy_session_peer.h"
 #include "quic/test_tools/quic_stream_peer.h"
@@ -41,7 +41,7 @@ class QuicSpdyServerStreamBaseTest : public QuicTest {
         new TestQuicSpdyServerStream(GetNthClientInitiatedBidirectionalStreamId(
                                          session_.transport_version(), 0),
                                      &session_, BIDIRECTIONAL);
-    session_.ActivateStream(QuicWrapUnique(stream_));
+    session_.ActivateStream(absl::WrapUnique(stream_));
     helper_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
   }
 

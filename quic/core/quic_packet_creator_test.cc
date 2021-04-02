@@ -25,7 +25,6 @@
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_framer_peer.h"

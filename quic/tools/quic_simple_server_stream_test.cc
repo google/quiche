@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quic/core/crypto/null_encrypter.h"
@@ -18,7 +19,6 @@
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_expect_bug.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/crypto_test_utils.h"
@@ -280,7 +280,7 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
             connection_->transport_version(), 0),
         &session_, BIDIRECTIONAL, &memory_cache_backend_);
     // Register stream_ in dynamic_stream_map_ and pass ownership to session_.
-    session_.ActivateStream(QuicWrapUnique(stream_));
+    session_.ActivateStream(absl::WrapUnique(stream_));
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_.config(), kMinimumFlowControlSendWindow);
     QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesUnidirectional(
@@ -488,7 +488,7 @@ TEST_P(QuicSimpleServerStreamTest, SendPushResponseWith404Response) {
       GetNthServerInitiatedUnidirectionalStreamId(
           connection_->transport_version(), 3),
       &session_, WRITE_UNIDIRECTIONAL, &memory_cache_backend_);
-  session_.ActivateStream(QuicWrapUnique(promised_stream));
+  session_.ActivateStream(absl::WrapUnique(promised_stream));
 
   // Send a push response with response status 404, which will be regarded as
   // invalid server push response.
@@ -655,7 +655,7 @@ TEST_P(QuicSimpleServerStreamTest, PushResponseOnServerInitiatedStream) {
   auto server_initiated_stream =
       new StrictMock<TestStream>(kServerInitiatedStreamId, &session_,
                                  WRITE_UNIDIRECTIONAL, &memory_cache_backend_);
-  session_.ActivateStream(QuicWrapUnique(server_initiated_stream));
+  session_.ActivateStream(absl::WrapUnique(server_initiated_stream));
 
   const std::string kHost = "www.foo.com";
   const std::string kPath = "/bar";

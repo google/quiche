@@ -4,13 +4,13 @@
 
 #include "quic/core/http/quic_receive_control_stream.h"
 
+#include "absl/memory/memory.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/http/http_constants.h"
 #include "quic/core/qpack/qpack_header_table.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/test_tools/qpack/qpack_encoder_peer.h"
 #include "quic/test_tools/quic_spdy_session_peer.h"
 #include "quic/test_tools/quic_stream_peer.h"
@@ -106,7 +106,7 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
     stream_ = new TestStream(GetNthClientInitiatedBidirectionalStreamId(
                                  GetParam().version.transport_version, 0),
                              &session_);
-    session_.ActivateStream(QuicWrapUnique(stream_));
+    session_.ActivateStream(absl::WrapUnique(stream_));
   }
 
   Perspective perspective() const { return GetParam().perspective; }

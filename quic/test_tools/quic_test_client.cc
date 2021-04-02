@@ -20,7 +20,6 @@
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_stack_trace.h"
 #include "quic/test_tools/crypto_test_utils.h"
 #include "quic/test_tools/quic_client_peer.h"
@@ -236,7 +235,7 @@ MockableQuicClient::MockableQuicClient(
           epoll_server,
           std::make_unique<MockableQuicClientEpollNetworkHelper>(epoll_server,
                                                                  this),
-          QuicWrapUnique(new RecordingProofVerifier(std::move(proof_verifier))),
+          std::make_unique<RecordingProofVerifier>(std::move(proof_verifier)),
           std::move(session_cache)),
       override_server_connection_id_(EmptyQuicConnectionId()),
       server_connection_id_overridden_(false),

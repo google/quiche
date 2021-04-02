@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "absl/base/macros.h"
+#include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/null_decrypter.h"
@@ -25,7 +26,6 @@
 #include "quic/core/tls_client_handshaker.h"
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/crypto_test_utils.h"
@@ -83,7 +83,7 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSession {
     }
     MockQuicSpdyClientStream* stream =
         new MockQuicSpdyClientStream(id, this, READ_UNIDIRECTIONAL);
-    ActivateStream(QuicWrapUnique(stream));
+    ActivateStream(absl::WrapUnique(stream));
     return stream;
   }
 };

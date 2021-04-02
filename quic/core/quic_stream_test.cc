@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quic/core/crypto/null_encrypter.h"
@@ -24,7 +25,6 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_mem_slice_storage.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/platform/api/quic_test_mem_slice_vector.h"
 #include "quic/test_tools/quic_config_peer.h"
@@ -114,7 +114,7 @@ class QuicStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
                                          BIDIRECTIONAL);
     EXPECT_NE(nullptr, stream_);
     // session_ now owns stream_.
-    session_->ActivateStream(QuicWrapUnique(stream_));
+    session_->ActivateStream(absl::WrapUnique(stream_));
     // Ignore resetting when session_ is terminated.
     EXPECT_CALL(*session_, MaybeSendStopSendingFrame(kTestStreamId, _))
         .Times(AnyNumber());
@@ -264,7 +264,7 @@ TEST_P(QuicStreamTest, FromPendingStreamThenData) {
 
   auto stream = new TestStream(&pending, session_.get(),
                                StreamType::READ_UNIDIRECTIONAL, false);
-  session_->ActivateStream(QuicWrapUnique(stream));
+  session_->ActivateStream(absl::WrapUnique(stream));
 
   QuicStreamFrame frame2(kTestStreamId + 2, true, 3, ".");
   stream->OnStreamFrame(frame2);
@@ -1437,7 +1437,7 @@ TEST_P(QuicStreamTest, MarkConnectionLevelWriteBlockedOnWindowUpdateFrame) {
   auto stream = new TestStream(GetNthClientInitiatedBidirectionalStreamId(
                                    GetParam().transport_version, 2),
                                session_.get(), BIDIRECTIONAL);
-  session_->ActivateStream(QuicWrapUnique(stream));
+  session_->ActivateStream(absl::WrapUnique(stream));
 
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillRepeatedly(Invoke(session_.get(), &MockQuicSession::ConsumeData));
@@ -1470,7 +1470,7 @@ TEST_P(QuicStreamTest,
   auto stream = new TestStream(GetNthClientInitiatedBidirectionalStreamId(
                                    GetParam().transport_version, 2),
                                session_.get(), BIDIRECTIONAL);
-  session_->ActivateStream(QuicWrapUnique(stream));
+  session_->ActivateStream(absl::WrapUnique(stream));
 
   std::string data(100, '.');
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))

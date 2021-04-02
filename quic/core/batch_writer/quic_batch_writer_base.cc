@@ -7,7 +7,6 @@
 
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_flags.h"
-#include "quic/platform/api/quic_ptr_util.h"
 #include "quic/platform/api/quic_server_stats.h"
 
 namespace quic {

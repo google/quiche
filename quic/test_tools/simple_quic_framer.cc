@@ -7,10 +7,10 @@
 #include <memory>
 #include <utility>
 
+#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/quic_decrypter.h"
 #include "quic/core/crypto/quic_encrypter.h"
-#include "quic/platform/api/quic_ptr_util.h"
 
 namespace quic {
 namespace test {
@@ -73,7 +73,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     // Save a copy of the data so it is valid after the packet is processed.
     std::string* string_data =
         new std::string(frame.data_buffer, frame.data_length);
-    stream_data_.push_back(QuicWrapUnique(string_data));
+    stream_data_.push_back(absl::WrapUnique(string_data));
     // TODO(ianswett): A pointer isn't necessary with emplace_back.
     stream_frames_.push_back(std::make_unique<QuicStreamFrame>(
         frame.stream_id, frame.fin, frame.offset,
@@ -85,7 +85,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     // Save a copy of the data so it is valid after the packet is processed.
     std::string* string_data =
         new std::string(frame.data_buffer, frame.data_length);
-    crypto_data_.push_back(QuicWrapUnique(string_data));
+    crypto_data_.push_back(absl::WrapUnique(string_data));
     crypto_frames_.push_back(std::make_unique<QuicCryptoFrame>(
         frame.level, frame.offset, absl::string_view(*string_data)));
     return true;
