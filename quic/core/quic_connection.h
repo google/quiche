@@ -1475,9 +1475,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // blocked when this is called.
   void WriteQueuedPackets();
 
-  // Writes new data if congestion control allows.
-  void WriteNewData();
-
   // Queues |packet| in the hopes that it can be decrypted in the
   // future, when a new key is installed.
   void QueueUndecryptablePacket(const QuicEncryptedPacket& packet,

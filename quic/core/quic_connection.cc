@@ -2763,7 +2763,6 @@ void QuicConnection::OnCanWrite() {
     return;
   }
 
-  // Add a flusher to ensure the connection is marked app-limited.
   ScopedPacketFlusher flusher(this);
 
   WriteQueuedPackets();
@@ -2792,30 +2791,22 @@ void QuicConnection::OnCanWrite() {
     }
     pending_path_challenge_payloads_.pop_front();
   }
-  WriteNewData();
-}
 
-void QuicConnection::WriteNewData() {
   // Sending queued packets may have caused the socket to become write blocked,
-  // or the congestion manager to prohibit sending.  If we've sent everything
-  // we had queued and we're still not blocked, let the visitor know it can
-  // write more.
+  // or the congestion manager to prohibit sending.
   if (!CanWrite(HAS_RETRANSMITTABLE_DATA)) {
     return;
   }
 
-  {
-    ScopedPacketFlusher flusher(this);
-    visitor_->OnCanWrite();
-  }
+  // Tell the session it can write.
+  visitor_->OnCanWrite();
 
   // After the visitor writes, it may have caused the socket to become write
   // blocked or the congestion manager to prohibit sending, so check again.
   if (visitor_->WillingAndAbleToWrite() && !send_alarm_->IsSet() &&
       CanWrite(HAS_RETRANSMITTABLE_DATA)) {
-    // We're not write blocked, but some stream didn't write out all of its
-    // bytes. Register for 'immediate' resumption so we'll keep writing after
-    // other connections and events have had a chance to use the thread.
+    // We're not write blocked, but some data wasn't written. Register for
+    // 'immediate' resumption so we'll keep writing after other connections.
     send_alarm_->Set(clock_->ApproximateNow());
   }
 }
