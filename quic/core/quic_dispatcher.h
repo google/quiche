@@ -180,7 +180,8 @@ class QUIC_NO_EXPORT QuicDispatcher
       const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address,
       absl::string_view alpn,
-      const ParsedQuicVersion& version) = 0;
+      const ParsedQuicVersion& version,
+      absl::string_view sni) = 0;
 
   // Tries to validate and dispatch packet based on available information.
   // Returns true if packet is dropped or successfully dispatched (e.g.,
@@ -242,6 +243,7 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Called when |packet_info| is a CHLO packet. Creates a new connection and
   // delivers any buffered packets for that connection id.
   void ProcessChlo(const std::vector<std::string>& alpns,
+                   absl::string_view sni,
                    ReceivedPacketInfo* packet_info);
 
   // Return true if dispatcher wants to destroy session outside of

@@ -36,7 +36,8 @@ class QuicSimpleDispatcher : public QuicDispatcher {
       const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address,
       absl::string_view alpn,
-      const ParsedQuicVersion& version) override;
+      const ParsedQuicVersion& version,
+      absl::string_view sni) override;
 
   QuicSimpleServerBackend* server_backend() {
     return quic_simple_server_backend_;

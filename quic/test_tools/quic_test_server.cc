@@ -98,12 +98,13 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
       const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address,
       absl::string_view alpn,
-      const ParsedQuicVersion& version) override {
+      const ParsedQuicVersion& version,
+      absl::string_view sni) override {
     QuicReaderMutexLock lock(&factory_lock_);
     if (session_factory_ == nullptr && stream_factory_ == nullptr &&
         crypto_stream_factory_ == nullptr) {
       return QuicSimpleDispatcher::CreateQuicSession(
-          id, self_address, peer_address, alpn, version);
+          id, self_address, peer_address, alpn, version, sni);
     }
     QuicConnection* connection = new QuicConnection(
         id, self_address, peer_address, helper(), alarm_factory(), writer(),

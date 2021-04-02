@@ -42,7 +42,8 @@ class QUIC_NO_EXPORT MasqueDispatcher : public QuicSimpleDispatcher,
       const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address,
       absl::string_view alpn,
-      const ParsedQuicVersion& version) override;
+      const ParsedQuicVersion& version,
+      absl::string_view sni) override;
 
   bool OnFailedToDispatchPacket(const ReceivedPacketInfo& packet_info) override;
 

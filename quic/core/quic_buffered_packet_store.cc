@@ -87,6 +87,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     QuicSocketAddress peer_address,
     bool is_chlo,
     const std::vector<std::string>& alpns,
+    const absl::string_view sni,
     const ParsedQuicVersion& version) {
   QUIC_BUG_IF(quic_bug_12410_1, !GetQuicFlag(FLAGS_quic_allow_chlo_buffering))
       << "Shouldn't buffer packets if disabled via flag.";
@@ -142,6 +143,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     // first later.
     queue.buffered_packets.push_front(std::move(new_entry));
     queue.alpns = alpns;
+    queue.sni = std::string(sni);
     connections_with_chlo_[connection_id] = false;  // Dummy value.
     // Set the version of buffered packets of this connection on CHLO.
     queue.version = version;
@@ -259,8 +261,10 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
     const QuicConnectionId& connection_id,
     const ParsedQuicVersion& version,
     const QuicReceivedPacket& packet,
-    std::vector<std::string>* out_alpns) {
+    std::vector<std::string>* out_alpns,
+    std::string* out_sni) {
   QUICHE_DCHECK_NE(out_alpns, nullptr);
+  QUICHE_DCHECK_NE(out_sni, nullptr);
   QUICHE_DCHECK_EQ(version.handshake_protocol, PROTOCOL_TLS1_3);
   auto it = undecryptable_packets_.find(connection_id);
   if (it == undecryptable_packets_.end()) {
@@ -273,6 +277,7 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
     return false;
   }
   *out_alpns = it->second.tls_chlo_extractor.alpns();
+  *out_sni = it->second.tls_chlo_extractor.server_name();
   return true;
 }
 

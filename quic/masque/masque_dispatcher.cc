@@ -35,7 +35,8 @@ std::unique_ptr<QuicSession> MasqueDispatcher::CreateQuicSession(
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address,
     absl::string_view /*alpn*/,
-    const ParsedQuicVersion& version) {
+    const ParsedQuicVersion& version,
+    absl::string_view /*sni*/) {
   // The MasqueServerSession takes ownership of |connection| below.
   QuicConnection* connection =
       new QuicConnection(connection_id, self_address, peer_address, helper(),
