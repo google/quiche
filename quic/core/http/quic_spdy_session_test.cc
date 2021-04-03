@@ -495,7 +495,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         QuicDataWriter::GetVarInt62Len(push_id);
 
     std::string max_push_id_frame(total_length, '\0');
-    QuicDataWriter writer(total_length, max_push_id_frame.data());
+    QuicDataWriter writer(total_length, &*max_push_id_frame.begin());
 
     QUICHE_CHECK(writer.WriteVarInt62(
         static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID)));

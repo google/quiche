@@ -462,7 +462,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         QuicDataWriter::GetVarInt62Len(push_id);
 
     std::string push_promise_frame(length_without_headers, '\0');
-    QuicDataWriter writer(length_without_headers, push_promise_frame.data());
+    QuicDataWriter writer(length_without_headers, &*push_promise_frame.begin());
 
     QUICHE_CHECK(writer.WriteVarInt62(
         static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE)));
