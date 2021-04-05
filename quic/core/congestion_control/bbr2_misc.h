@@ -535,6 +535,9 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   QuicBandwidth bandwidth_latest_ = QuicBandwidth::Zero();
   // Max bandwidth of recent rounds. Updated once per round.
   QuicBandwidth bandwidth_lo_ = bandwidth_lo_default();
+  // bandwidth_lo_ at the beginning of a round with loss. Only used when the
+  // bw_lo_mode is non-default.
+  QuicBandwidth prior_bandwidth_lo_ = QuicBandwidth::Zero();
 
   // Max inflight in the current round. Updated once per congestion event.
   QuicByteCount inflight_latest_ = 0;

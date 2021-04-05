@@ -9,6 +9,7 @@
 #include "quic/core/quic_time.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_flag_utils.h"
+#include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -201,6 +202,10 @@ void Bbr2NetworkModel::AdaptLowerBounds(
     if (bandwidth_lo_.IsInfinite()) {
       bandwidth_lo_ = MaxBandwidth();
     }
+    // Save bandwidth_lo_ if it hasn't already been saved.
+    if (prior_bandwidth_lo_.IsZero()) {
+      prior_bandwidth_lo_ = bandwidth_lo_;
+    }
     switch (Params().bw_lo_mode_) {
       case Bbr2Params::MIN_RTT_REDUCTION:
         bandwidth_lo_ =
@@ -229,9 +234,10 @@ void Bbr2NetworkModel::AdaptLowerBounds(
         QUIC_BUG(quic_bug_10466_1) << "Unreachable case DEFAULT.";
     }
     if (pacing_gain_ > Params().startup_full_bw_threshold) {
-      // In STARTUP, pacing_gain_ is applied to bandwidth_lo_, so this backs
-      // that multiplication out to allow the pacing rate to decrease,
-      // but not below bandwidth_latest_ * startup_full_bw_threshold.
+      // In STARTUP, pacing_gain_ is applied to bandwidth_lo_ in
+      // UpdatePacingRate, so this backs that multiplication out to allow the
+      // pacing rate to decrease, but not below
+      // bandwidth_latest_ * startup_full_bw_threshold.
       bandwidth_lo_ =
           std::max(bandwidth_lo_,
                    bandwidth_latest_ *
@@ -239,6 +245,15 @@ void Bbr2NetworkModel::AdaptLowerBounds(
     } else {
       // Ensure bandwidth_lo isn't lower than bandwidth_latest_.
       bandwidth_lo_ = std::max(bandwidth_lo_, bandwidth_latest_);
+    }
+    // If it's the end of the round, ensure bandwidth_lo doesn't decrease more
+    // than beta.
+    if (GetQuicReloadableFlag(quic_bbr2_fix_bw_lo_mode) &&
+        congestion_event.end_of_round_trip) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_fix_bw_lo_mode, 2, 2);
+      bandwidth_lo_ =
+          std::max(bandwidth_lo_, prior_bandwidth_lo_ * (1.0 - Params().beta));
+      prior_bandwidth_lo_ = QuicBandwidth::Zero();
     }
     // This early return ignores inflight_lo as well.
     return;

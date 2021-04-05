@@ -321,9 +321,17 @@ void Bbr2Sender::UpdatePacingRate(QuicByteCount bytes_acked) {
   }
 
   QuicBandwidth target_rate = model_.pacing_gain() * model_.BandwidthEstimate();
-  if (model_.full_bandwidth_reached() ||
-      params_.decrease_startup_pacing_at_end_of_round ||
-      params_.bw_lo_mode_ != Bbr2Params::DEFAULT) {
+  if (model_.full_bandwidth_reached()) {
+    pacing_rate_ = target_rate;
+    return;
+  }
+  if (params_.decrease_startup_pacing_at_end_of_round &&
+      model_.pacing_gain() < Params().startup_pacing_gain) {
+    pacing_rate_ = target_rate;
+    return;
+  }
+  if (params_.bw_lo_mode_ != Bbr2Params::DEFAULT &&
+      model_.loss_events_in_round() > 0) {
     pacing_rate_ = target_rate;
     return;
   }
