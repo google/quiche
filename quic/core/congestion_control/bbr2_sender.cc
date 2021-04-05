@@ -111,9 +111,6 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
   if (config.HasClientRequestedIndependentOption(k2RTT, perspective)) {
     params_.startup_full_bw_rounds = 2;
   }
-  if (config.HasClientRequestedIndependentOption(kB2LO, perspective)) {
-    params_.ignore_inflight_lo = true;
-  }
   if (config.HasClientRequestedIndependentOption(kB2HR, perspective)) {
     params_.inflight_hi_headroom = 0.15;
   }
@@ -130,6 +127,9 @@ void Bbr2Sender::ApplyConnectionOptions(
     params_.startup_cwnd_gain = 2.885;
     params_.drain_cwnd_gain = 2.885;
     model_.set_cwnd_gain(params_.startup_cwnd_gain);
+  }
+  if (ContainsQuicTag(connection_options, kB2LO)) {
+    params_.ignore_inflight_lo = true;
   }
   if (ContainsQuicTag(connection_options, kB2NE)) {
     params_.always_exit_startup_on_excess_loss = false;
