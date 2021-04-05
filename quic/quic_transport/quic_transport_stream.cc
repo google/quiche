@@ -28,17 +28,18 @@ QuicTransportStream::QuicTransportStream(
       adapter_(session, this, sequencer()),
       session_interface_(session_interface) {}
 
-size_t QuicTransportStream::Read(char* buffer, size_t buffer_size) {
+WebTransportStream::ReadResult QuicTransportStream::Read(char* buffer,
+                                                         size_t buffer_size) {
   if (!session_interface_->IsSessionReady()) {
-    return 0;
+    return ReadResult{0, false};
   }
 
   return adapter_.Read(buffer, buffer_size);
 }
 
-size_t QuicTransportStream::Read(std::string* output) {
+WebTransportStream::ReadResult QuicTransportStream::Read(std::string* output) {
   if (!session_interface_->IsSessionReady()) {
-    return 0;
+    return ReadResult{0, false};
   }
 
   return adapter_.Read(output);

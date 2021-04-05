@@ -19,12 +19,12 @@ class WebTransportDiscardVisitor : public WebTransportStreamVisitor {
 
   void OnCanRead() override {
     std::string buffer;
-    size_t bytes_read = stream_->Read(&buffer);
-    QUIC_DVLOG(2) << "Read " << bytes_read << " bytes from WebTransport stream "
-                  << stream_->GetStreamId();
+    WebTransportStream::ReadResult result = stream_->Read(&buffer);
+    QUIC_DVLOG(2) << "Read " << result.bytes_read
+                  << " bytes from WebTransport stream "
+                  << stream_->GetStreamId() << ", fin: " << result.fin;
   }
 
-  void OnFinRead() override {}
   void OnCanWrite() override {}
 
  private:
@@ -38,29 +38,33 @@ class WebTransportBidirectionalEchoVisitor : public WebTransportStreamVisitor {
       : stream_(stream) {}
 
   void OnCanRead() override {
-    stream_->Read(&buffer_);
+    WebTransportStream::ReadResult result = stream_->Read(&buffer_);
+    if (result.fin) {
+      send_fin_ = true;
+    }
     OnCanWrite();
   }
 
-  void OnFinRead() override {
-    bool success = stream_->SendFin();
-    QUICHE_DCHECK(success);
-  }
-
   void OnCanWrite() override {
-    if (buffer_.empty()) {
-      return;
+    if (!buffer_.empty()) {
+      bool success = stream_->Write(buffer_);
+      if (!success) {
+        return;
+      }
+
+      buffer_ = "";
     }
 
-    bool success = stream_->Write(buffer_);
-    if (success) {
-      buffer_ = "";
+    if (send_fin_) {
+      bool success = stream_->SendFin();
+      QUICHE_DCHECK(success);
     }
   }
 
  private:
   WebTransportStream* stream_;
   std::string buffer_;
+  bool send_fin_ = false;
 };
 
 // Buffers all of the data and calls |callback| with the entirety of the stream
@@ -75,15 +79,15 @@ class WebTransportUnidirectionalEchoReadVisitor
       : stream_(stream), callback_(std::move(callback)) {}
 
   void OnCanRead() override {
-    bool success = stream_->Read(&buffer_);
+    WebTransportStream::ReadResult result = stream_->Read(&buffer_);
     QUIC_DVLOG(1) << "Attempted reading on WebTransport unidirectional stream "
-                  << stream_->GetStreamId() << ", result: " << success;
-  }
-
-  void OnFinRead() override {
-    QUIC_DVLOG(1) << "Finished receiving data on a WebTransport stream "
-                  << stream_->GetStreamId() << ", queueing up the echo";
-    callback_(buffer_);
+                  << stream_->GetStreamId()
+                  << ", bytes read: " << result.bytes_read;
+    if (result.fin) {
+      QUIC_DVLOG(1) << "Finished receiving data on a WebTransport stream "
+                    << stream_->GetStreamId() << ", queueing up the echo";
+      callback_(buffer_);
+    }
   }
 
   void OnCanWrite() override { QUIC_NOTREACHED(); }
@@ -103,7 +107,6 @@ class WebTransportUnidirectionalEchoWriteVisitor
       : stream_(stream), data_(data) {}
 
   void OnCanRead() override { QUIC_NOTREACHED(); }
-  void OnFinRead() override { QUIC_NOTREACHED(); }
   void OnCanWrite() override {
     if (data_.empty()) {
       return;

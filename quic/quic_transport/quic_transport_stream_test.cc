@@ -81,8 +81,9 @@ TEST_F(QuicTransportStreamTest, ReadWhenNotReady) {
   EXPECT_CALL(interface_, IsSessionReady()).WillRepeatedly(Return(false));
   ReceiveStreamData("test", 0);
   char buffer[4];
-  QuicByteCount bytes_read = stream_->Read(buffer, sizeof(buffer));
-  EXPECT_EQ(bytes_read, 0u);
+  WebTransportStream::ReadResult result = stream_->Read(buffer, sizeof(buffer));
+  EXPECT_EQ(result.bytes_read, 0u);
+  EXPECT_FALSE(result.fin);
 }
 
 TEST_F(QuicTransportStreamTest, WriteWhenNotReady) {
@@ -102,26 +103,47 @@ TEST_F(QuicTransportStreamTest, ReceiveData) {
   EXPECT_CALL(interface_, IsSessionReady()).WillRepeatedly(Return(true));
   EXPECT_CALL(*visitor_, OnCanRead());
   ReceiveStreamData("test", 0);
+
+  std::string buffer;
+  WebTransportStream::ReadResult result = stream_->Read(&buffer);
+  EXPECT_EQ(result.bytes_read, 4u);
+  EXPECT_FALSE(result.fin);
+  EXPECT_EQ(buffer, "test");
 }
 
 TEST_F(QuicTransportStreamTest, FinReadWithNoDataPending) {
   EXPECT_CALL(interface_, IsSessionReady()).WillRepeatedly(Return(true));
-  EXPECT_CALL(*visitor_, OnFinRead());
+  EXPECT_CALL(*visitor_, OnCanRead());
+
   QuicStreamFrame frame(0, true, 0, "");
   stream_->OnStreamFrame(frame);
+
+  std::string buffer;
+  WebTransportStream::ReadResult result = stream_->Read(&buffer);
+  EXPECT_EQ(result.bytes_read, 0u);
+  EXPECT_TRUE(result.fin);
+  EXPECT_EQ(buffer, "");
 }
 
 TEST_F(QuicTransportStreamTest, FinReadWithDataPending) {
   EXPECT_CALL(interface_, IsSessionReady()).WillRepeatedly(Return(true));
 
   EXPECT_CALL(*visitor_, OnCanRead());
-  EXPECT_CALL(*visitor_, OnFinRead()).Times(0);
   QuicStreamFrame frame(0, true, 0, "test");
   stream_->OnStreamFrame(frame);
 
-  EXPECT_CALL(*visitor_, OnFinRead()).Times(1);
-  std::string buffer;
-  ASSERT_EQ(stream_->Read(&buffer), 4u);
+  char buffer[2];
+  WebTransportStream::ReadResult result = stream_->Read(buffer, sizeof(buffer));
+  EXPECT_EQ(result.bytes_read, 2u);
+  EXPECT_FALSE(result.fin);
+  EXPECT_EQ(buffer[0], 't');
+  EXPECT_EQ(buffer[1], 'e');
+
+  result = stream_->Read(buffer, sizeof(buffer));
+  EXPECT_EQ(result.bytes_read, 2u);
+  EXPECT_TRUE(result.fin);
+  EXPECT_EQ(buffer[0], 's');
+  EXPECT_EQ(buffer[1], 't');
 }
 
 TEST_F(QuicTransportStreamTest, WritingTooMuchData) {

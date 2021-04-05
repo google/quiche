@@ -31,9 +31,9 @@ class QUIC_EXPORT_PRIVATE QuicTransportStream : public QuicStream,
 
   // Reads at most |buffer_size| bytes into |buffer| and returns the number of
   // bytes actually read.
-  size_t Read(char* buffer, size_t buffer_size) override;
+  ReadResult Read(char* buffer, size_t buffer_size) override;
   // Reads all available data and appends it to the end of |output|.
-  size_t Read(std::string* output) override;
+  ReadResult Read(std::string* output) override;
   // Writes |data| into the stream.  Returns true on success.
   ABSL_MUST_USE_RESULT bool Write(absl::string_view data) override;
   // Sends the FIN on the stream.  Returns true on success.

@@ -12,25 +12,29 @@ WebTransportStreamAdapter::WebTransportStreamAdapter(
     QuicStreamSequencer* sequencer)
     : session_(session), stream_(stream), sequencer_(sequencer) {}
 
-size_t WebTransportStreamAdapter::Read(char* buffer, size_t buffer_size) {
+WebTransportStream::ReadResult WebTransportStreamAdapter::Read(
+    char* buffer,
+    size_t buffer_size) {
   iovec iov;
   iov.iov_base = buffer;
   iov.iov_len = buffer_size;
   const size_t result = sequencer_->Readv(&iov, 1);
-  if (sequencer_->IsClosed()) {
-    MaybeNotifyFinRead();
+  if (!fin_read_ && sequencer_->IsClosed()) {
+    fin_read_ = true;
+    stream_->OnFinRead();
   }
-  return result;
+  return ReadResult{result, sequencer_->IsClosed()};
 }
 
-size_t WebTransportStreamAdapter::Read(std::string* output) {
+WebTransportStream::ReadResult WebTransportStreamAdapter::Read(
+    std::string* output) {
   const size_t old_size = output->size();
   const size_t bytes_to_read = ReadableBytes();
   output->resize(old_size + bytes_to_read);
-  size_t bytes_read = Read(&(*output)[old_size], bytes_to_read);
-  QUICHE_DCHECK_EQ(bytes_to_read, bytes_read);
-  output->resize(old_size + bytes_read);
-  return bytes_read;
+  ReadResult result = Read(&(*output)[old_size], bytes_to_read);
+  QUICHE_DCHECK_EQ(bytes_to_read, result.bytes_read);
+  output->resize(old_size + result.bytes_read);
+  return result;
 }
 
 bool WebTransportStreamAdapter::Write(absl::string_view data) {
@@ -88,15 +92,11 @@ size_t WebTransportStreamAdapter::ReadableBytes() const {
 }
 
 void WebTransportStreamAdapter::OnDataAvailable() {
-  if (sequencer_->IsClosed()) {
-    MaybeNotifyFinRead();
-    return;
-  }
-
   if (visitor_ == nullptr) {
     return;
   }
-  if (ReadableBytes() == 0) {
+  const bool fin_readable = sequencer_->IsClosed() && !fin_read_;
+  if (ReadableBytes() == 0 && !fin_readable) {
     return;
   }
   visitor_->OnCanRead();
@@ -111,15 +111,6 @@ void WebTransportStreamAdapter::OnCanWriteNewData() {
   if (visitor_ != nullptr) {
     visitor_->OnCanWrite();
   }
-}
-
-void WebTransportStreamAdapter::MaybeNotifyFinRead() {
-  if (visitor_ == nullptr || fin_read_notified_) {
-    return;
-  }
-  fin_read_notified_ = true;
-  visitor_->OnFinRead();
-  stream_->OnFinRead();
 }
 
 }  // namespace quic

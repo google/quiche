@@ -140,12 +140,6 @@ class QuicTransportServerEndpoint : public QuicTransportEndpointBase {
   QuicTransportSimpleServerSession session_;
 };
 
-std::unique_ptr<MockStreamVisitor> VisitorExpectingFin() {
-  auto visitor = std::make_unique<MockStreamVisitor>();
-  EXPECT_CALL(*visitor, OnFinRead());
-  return visitor;
-}
-
 constexpr QuicBandwidth kClientBandwidth =
     QuicBandwidth::FromKBitsPerSecond(10000);
 constexpr QuicTime::Delta kClientPropagationDelay =
@@ -286,7 +280,9 @@ TEST_F(QuicTransportIntegrationTest, EchoBidirectionalStreams) {
       [stream]() { return stream->ReadableBytes() == strlen("Hello!"); },
       kDefaultTimeout));
   std::string received;
-  EXPECT_EQ(stream->Read(&received), strlen("Hello!"));
+  WebTransportStream::ReadResult result = stream->Read(&received);
+  EXPECT_EQ(result.bytes_read, strlen("Hello!"));
+  EXPECT_FALSE(result.fin);
   EXPECT_EQ(received, "Hello!");
 
   EXPECT_TRUE(stream->SendFin());
@@ -325,8 +321,9 @@ TEST_F(QuicTransportIntegrationTest, EchoUnidirectionalStreams) {
       client_->session()->AcceptIncomingUnidirectionalStream();
   ASSERT_TRUE(reply != nullptr);
   std::string buffer;
-  reply->SetVisitor(VisitorExpectingFin());
-  EXPECT_GT(reply->Read(&buffer), 0u);
+  WebTransportStream::ReadResult result = reply->Read(&buffer);
+  EXPECT_GT(result.bytes_read, 0u);
+  EXPECT_TRUE(result.fin);
   EXPECT_EQ(buffer, "Stream Two");
 
   // Reset reply-related variables.
@@ -339,8 +336,9 @@ TEST_F(QuicTransportIntegrationTest, EchoUnidirectionalStreams) {
       [&stream_received]() { return stream_received; }, kDefaultTimeout));
   reply = client_->session()->AcceptIncomingUnidirectionalStream();
   ASSERT_TRUE(reply != nullptr);
-  reply->SetVisitor(VisitorExpectingFin());
-  EXPECT_GT(reply->Read(&buffer), 0u);
+  result = reply->Read(&buffer);
+  EXPECT_GT(result.bytes_read, 0u);
+  EXPECT_TRUE(result.fin);
   EXPECT_EQ(buffer, "Stream One");
 }
 

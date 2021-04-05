@@ -5760,8 +5760,9 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStream) {
       session->AcceptIncomingUnidirectionalStream();
   ASSERT_TRUE(received_stream != nullptr);
   std::string received_data;
-  received_stream->Read(&received_data);
+  WebTransportStream::ReadResult result = received_stream->Read(&received_data);
   EXPECT_EQ(received_data, "test");
+  EXPECT_TRUE(result.fin);
 }
 
 TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStreamSentEarly) {
@@ -5793,8 +5794,9 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStreamSentEarly) {
       session->AcceptIncomingUnidirectionalStream();
   ASSERT_TRUE(received_stream != nullptr);
   std::string received_data;
-  received_stream->Read(&received_data);
+  WebTransportStream::ReadResult result = received_stream->Read(&received_data);
   EXPECT_EQ(received_data, "test");
+  EXPECT_TRUE(result.fin);
 }
 
 }  // namespace

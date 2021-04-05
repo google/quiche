@@ -31,7 +31,6 @@ class MockServerVisitor : public QuicTransportServerSession::ServerVisitor {
 class MockStreamVisitor : public WebTransportStreamVisitor {
  public:
   MOCK_METHOD(void, OnCanRead, (), (override));
-  MOCK_METHOD(void, OnFinRead, (), (override));
   MOCK_METHOD(void, OnCanWrite, (), (override));
 };
 

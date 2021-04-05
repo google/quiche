@@ -26,9 +26,6 @@ class QUIC_EXPORT_PRIVATE WebTransportStreamVisitor {
 
   // Called whenever the stream has readable data available.
   virtual void OnCanRead() = 0;
-  // Called when all the data on the stream has been consumed and a FIN has been
-  // received.
-  virtual void OnFinRead() = 0;
   // Called whenever the stream is not write-blocked and can accept new data.
   virtual void OnCanWrite() = 0;
 };
@@ -37,13 +34,22 @@ class QUIC_EXPORT_PRIVATE WebTransportStreamVisitor {
 // WebTransport session.
 class QUIC_EXPORT_PRIVATE WebTransportStream {
  public:
+  struct QUIC_EXPORT_PRIVATE ReadResult {
+    // Number of bytes actually read.
+    size_t bytes_read;
+    // Whether the FIN has been received; if true, no further data will arrive
+    // on the stream, and the stream object can be soon potentially garbage
+    // collected.
+    bool fin;
+  };
+
   virtual ~WebTransportStream() {}
 
-  // Reads at most |buffer_size| bytes into |buffer| and returns the number of
-  // bytes actually read.
-  virtual size_t Read(char* buffer, size_t buffer_size) = 0;
+  // Reads at most |buffer_size| bytes into |buffer|.
+  virtual ABSL_MUST_USE_RESULT ReadResult Read(char* buffer,
+                                               size_t buffer_size) = 0;
   // Reads all available data and appends it to the end of |output|.
-  virtual size_t Read(std::string* output) = 0;
+  virtual ABSL_MUST_USE_RESULT ReadResult Read(std::string* output) = 0;
   // Writes |data| into the stream.  Returns true on success.
   virtual ABSL_MUST_USE_RESULT bool Write(absl::string_view data) = 0;
   // Sends the FIN on the stream.  Returns true on success.
