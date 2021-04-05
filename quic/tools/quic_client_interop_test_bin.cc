@@ -25,6 +25,12 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
                               "",
                               "The IP or hostname to connect to.");
 
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    std::string,
+    quic_version,
+    "",
+    "The QUIC version to use. Defaults to most recent IETF QUIC version.");
+
 DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t, port, 0, "The port to connect to.");
 
 namespace quic {
@@ -366,21 +372,8 @@ void QuicClientInteropRunner::SendRequest(
 
 std::set<Feature> ServerSupport(std::string dns_host,
                                 std::string url_host,
-                                int port) {
-  // Enable IETF version support.
-  QuicVersionInitializeSupportForIetfDraft();
-  ParsedQuicVersion version = UnsupportedQuicVersion();
-  for (const ParsedQuicVersion& vers : AllSupportedVersions()) {
-    // Find the first version that supports IETF QUIC.
-    if (vers.HasIetfQuicFrames() &&
-        vers.handshake_protocol == quic::PROTOCOL_TLS1_3) {
-      version = vers;
-      break;
-    }
-  }
-  QUICHE_CHECK(version.IsKnown());
-  QuicEnableVersion(version);
-
+                                int port,
+                                ParsedQuicVersion version) {
   std::cout << "Attempting interop with version " << version << std::endl;
 
   // Build the client, and try to connect.
@@ -440,7 +433,26 @@ int main(int argc, char* argv[]) {
     url_host = dns_host;
   }
 
-  auto supported_features = quic::ServerSupport(dns_host, url_host, port);
+  // Pick QUIC version to use.
+  quic::QuicVersionInitializeSupportForIetfDraft();
+  quic::ParsedQuicVersion version = quic::UnsupportedQuicVersion();
+  std::string quic_version_string = GetQuicFlag(FLAGS_quic_version);
+  if (!quic_version_string.empty()) {
+    version = quic::ParseQuicVersionString(quic_version_string);
+  } else {
+    for (const quic::ParsedQuicVersion& vers : quic::AllSupportedVersions()) {
+      // Use the most recent IETF QUIC version.
+      if (vers.HasIetfQuicFrames() && vers.UsesHttp3() && vers.UsesTls()) {
+        version = vers;
+        break;
+      }
+    }
+  }
+  QUICHE_CHECK(version.IsKnown());
+  QuicEnableVersion(version);
+
+  auto supported_features =
+      quic::ServerSupport(dns_host, url_host, port, version);
   std::cout << "Results for " << url_host << ":" << port << std::endl;
   int current_row = 1;
   for (auto feature : supported_features) {
