@@ -24,9 +24,9 @@ void HpackStaticTable::Initialize(const HpackStaticEntry* static_entry_table,
 
   for (const HpackStaticEntry* it = static_entry_table;
        it != static_entry_table + static_entry_count; ++it) {
-    absl::string_view name(it->name, it->name_len);
-    absl::string_view value(it->value, it->value_len);
-    static_entries_.emplace_back(name, value);
+    std::string name(it->name, it->name_len);
+    std::string value(it->value, it->value_len);
+    static_entries_.push_back(HpackEntry(std::move(name), std::move(value)));
   }
 
   // |static_entries_| will not be mutated any more.  Therefore its entries will

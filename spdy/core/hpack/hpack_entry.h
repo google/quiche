@@ -42,15 +42,26 @@ struct QUICHE_EXPORT_PRIVATE HpackLookupEntry {
 // and the header table (3.3.2).
 class QUICHE_EXPORT_PRIVATE HpackEntry {
  public:
-  // Copies |name| and |value| in the constructor.
-  HpackEntry(absl::string_view name, absl::string_view value);
+  HpackEntry(std::string name, std::string value);
 
-  // Creates an entry with empty name and value. Only defined so that
-  // entries can be stored in STL containers.
-  HpackEntry() = default;
+  // Make HpackEntry non-copyable to make sure it is always moved.
+  HpackEntry(const HpackEntry&) = delete;
+  HpackEntry& operator=(const HpackEntry&) = delete;
 
-  ~HpackEntry() = default;
+  HpackEntry(HpackEntry&&) = default;
+  HpackEntry& operator=(HpackEntry&&) = default;
 
+  // Getters for std::string members traditionally return const std::string&.
+  // However, HpackHeaderTable uses string_view as keys in the maps
+  // static_name_index_ and dynamic_name_index_.  If HpackEntry::name() returned
+  // const std::string&, then
+  //   dynamic_name_index_.insert(std::make_pair(entry.name(), index));
+  // would silently create a dangling reference: make_pair infers type from the
+  // return type of entry.name() and silently creates a temporary string copy.
+  // Insert creates a string_view that points to this copy, which then
+  // immediately goes out of scope and gets destroyed.  While this is quite easy
+  // to avoid, for example, by explicitly specifying type as a template
+  // parameter to make_pair, returning string_view here is less error-prone.
   absl::string_view name() const { return name_; }
   absl::string_view value() const { return value_; }
 

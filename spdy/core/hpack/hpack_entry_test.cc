@@ -48,16 +48,6 @@ TEST(HpackEntryTest, BasicEntry) {
   EXPECT_EQ(55u, HpackEntry::Size("header-name", "header value"));
 }
 
-TEST(HpackEntryTest, DefaultConstructor) {
-  HpackEntry entry;
-
-  EXPECT_TRUE(entry.name().empty());
-  EXPECT_TRUE(entry.value().empty());
-
-  EXPECT_EQ(32u, entry.Size());
-  EXPECT_EQ(32u, HpackEntry::Size("", ""));
-}
-
 }  // namespace
 
 }  // namespace spdy

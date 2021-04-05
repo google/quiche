@@ -10,8 +10,8 @@
 
 namespace spdy {
 
-HpackEntry::HpackEntry(absl::string_view name, absl::string_view value)
-    : name_(std::string(name)), value_(std::string(value)) {}
+HpackEntry::HpackEntry(std::string name, std::string value)
+    : name_(std::move(name)), value_(std::move(value)) {}
 
 // static
 size_t HpackEntry::Size(absl::string_view name, absl::string_view value) {
