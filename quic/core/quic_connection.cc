@@ -2737,9 +2737,12 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
     }
   }
 
-  MaybeProcessCoalescedPackets();
-  MaybeProcessUndecryptablePackets();
-  MaybeSendInResponseToPacket();
+  const bool processed = MaybeProcessCoalescedPackets();
+  if (!donot_write_mid_packet_processing_ || !processed) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_donot_write_mid_packet_processing, 3, 3);
+    MaybeProcessUndecryptablePackets();
+    MaybeSendInResponseToPacket();
+  }
   SetPingAlarm();
   current_packet_data_ = nullptr;
   is_current_packet_connectivity_probing_ = false;
@@ -2812,6 +2815,11 @@ void QuicConnection::OnCanWrite() {
 }
 
 void QuicConnection::WriteIfNotBlocked() {
+  if (donot_write_mid_packet_processing_ && framer().is_processing_packet()) {
+    QUIC_BUG(connection_write_mid_packet_processing)
+        << ENDPOINT << "Tried to write in mid of packet processing";
+    return;
+  }
   if (!HandleWriteBlocked()) {
     OnCanWrite();
   }
@@ -4230,14 +4238,14 @@ void QuicConnection::QueueCoalescedPacket(const QuicEncryptedPacket& packet) {
   ++stats_.num_coalesced_packets_received;
 }
 
-void QuicConnection::MaybeProcessCoalescedPackets() {
+bool QuicConnection::MaybeProcessCoalescedPackets() {
   bool processed = false;
   while (connected_ && !received_coalesced_packets_.empty()) {
     // Making sure there are no pending frames when processing the next
     // coalesced packet because the queued ack frame may change.
     packet_creator_.FlushCurrentPacket();
     if (!connected_) {
-      return;
+      return processed;
     }
 
     std::unique_ptr<QuicEncryptedPacket> packet =
@@ -4255,7 +4263,13 @@ void QuicConnection::MaybeProcessCoalescedPackets() {
   }
   if (processed) {
     MaybeProcessUndecryptablePackets();
+    if (donot_write_mid_packet_processing_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_donot_write_mid_packet_processing, 2,
+                                   3);
+      MaybeSendInResponseToPacket();
+    }
   }
+  return processed;
 }
 
 void QuicConnection::CloseConnection(

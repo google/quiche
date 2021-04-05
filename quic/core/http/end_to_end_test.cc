@@ -1850,8 +1850,11 @@ TEST_P(EndToEndTest, RetransmissionAfterZeroRTTRejectBeforeOneRtt) {
 
   ON_CALL(visitor, OnZeroRttRejected(_)).WillByDefault(Invoke([this]() {
     EXPECT_FALSE(GetClientSession()->IsEncryptionEstablished());
-    // Trigger an OnCanWrite() to make sure no unencrypted data will be written.
-    GetClientSession()->OnCanWrite();
+    if (!GetQuicReloadableFlag(quic_donot_write_mid_packet_processing)) {
+      // Trigger an OnCanWrite() to make sure no unencrypted data will be
+      // written.
+      GetClientSession()->OnCanWrite();
+    }
   }));
 
   // The 0-RTT handshake should fail.

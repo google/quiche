@@ -587,6 +587,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   }
 
   // Called when the caller thinks it's worth a try to write.
+  // TODO(fayang): consider unifying this with QuicSession::OnCanWrite.
   virtual void OnCanWrite();
 
   // Called when an error occurs while attempting to write a packet to the
@@ -1079,8 +1080,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Queue a coalesced packet.
   void QueueCoalescedPacket(const QuicEncryptedPacket& packet);
 
-  // Process previously queued coalesced packets.
-  void MaybeProcessCoalescedPackets();
+  // Process previously queued coalesced packets. Returns true if any coalesced
+  // packets have been successfully processed.
+  bool MaybeProcessCoalescedPackets();
 
   enum PacketContent : uint8_t {
     NO_FRAMES_RECEIVED,
@@ -1231,6 +1233,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Instantiates connection ID manager.
   void CreateConnectionIdManager();
+
+  bool donot_write_mid_packet_processing() const {
+    return donot_write_mid_packet_processing_;
+  }
 
  protected:
   // Calls cancel() on all the alarms owned by this connection.
@@ -2157,6 +2163,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool validate_client_addresses_ = false;
 
   bool support_multiple_connection_ids_ = false;
+
+  const bool donot_write_mid_packet_processing_ =
+      GetQuicReloadableFlag(quic_donot_write_mid_packet_processing);
 };
 
 }  // namespace quic

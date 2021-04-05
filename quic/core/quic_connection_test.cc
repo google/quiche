@@ -12521,8 +12521,10 @@ TEST_P(QuicConnectionTest, ZeroRttRejectionAndMissingInitialKeys) {
           connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                                    std::make_unique<TaggingEncrypter>(0x04));
           connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-          // Retransmit rejected 0-RTT packets.
-          connection_.OnCanWrite();
+          if (!GetQuicReloadableFlag(quic_donot_write_mid_packet_processing)) {
+            // Retransmit rejected 0-RTT packets.
+            connection_.OnCanWrite();
+          }
           // Advance INITIAL ack delay to trigger initial ACK to be sent AFTER
           // the retransmission of rejected 0-RTT packets while the HANDSHAKE
           // packet is still in the coalescer, such that the INITIAL key gets
@@ -14211,6 +14213,61 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
   retire_self_issued_cid_alarm->Fire();
   EXPECT_THAT(connection_.GetActiveServerConnectionIds(),
               ElementsAre(cid1, cid2));
+}
+
+// Regression test for b/182571515
+TEST_P(QuicConnectionTest, LostDataThenGetAcknowledged) {
+  set_perspective(Perspective::IS_SERVER);
+  if (!connection_.validate_client_address()) {
+    return;
+  }
+
+  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+  if (version().SupportsAntiAmplificationLimit()) {
+    QuicConnectionPeer::SetAddressValidated(&connection_);
+  }
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+
+  QuicPacketNumber last_packet;
+  // Send packets 1 to 4.
+  SendStreamDataToPeer(3, "foo", 0, NO_FIN, &last_packet);  // Packet 1
+  SendStreamDataToPeer(3, "foo", 3, NO_FIN, &last_packet);  // Packet 2
+  SendStreamDataToPeer(3, "foo", 6, NO_FIN, &last_packet);  // Packet 3
+  SendStreamDataToPeer(3, "foo", 9, NO_FIN, &last_packet);  // Packet 4
+
+  // Process a PING packet to set peer address.
+  ProcessFramePacket(QuicFrame(QuicPingFrame()));
+
+  // Process a packet containing a STREAM_FRAME and an ACK with changed peer
+  // address.
+  QuicFrames frames;
+  frames.push_back(QuicFrame(frame1_));
+  QuicAckFrame ack = InitAckFrame({{QuicPacketNumber(1), QuicPacketNumber(5)}});
+  frames.push_back(QuicFrame(&ack));
+
+  EXPECT_CALL(visitor_, OnConnectionMigration(_)).Times(1);
+
+  // Invoke OnCanWrite.
+  EXPECT_CALL(visitor_, OnStreamFrame(_))
+      .WillOnce(
+          InvokeWithoutArgs(&notifier_, &SimpleSessionNotifier::OnCanWrite));
+  QuicIpAddress ip_address;
+  ASSERT_TRUE(ip_address.FromString("127.0.52.223"));
+  EXPECT_QUIC_BUG(ProcessFramesPacketWithAddresses(
+                      frames, kSelfAddress, QuicSocketAddress(ip_address, 1000),
+                      ENCRYPTION_FORWARD_SECURE),
+                  "Try to write mid packet processing");
+  if (GetQuicReloadableFlag(quic_donot_write_mid_packet_processing)) {
+    EXPECT_EQ(1u, writer_->path_challenge_frames().size());
+    // Verify stream frame will not be retransmitted.
+    EXPECT_TRUE(writer_->stream_frames().empty());
+  } else {
+    // In prod, this would cause FAILED_TO_SERIALIZE_PACKET since the stream
+    // data has been freed, but simple_data_producer does not free data.
+    EXPECT_EQ(1u, writer_->stream_frames().size());
+  }
 }
 
 }  // namespace

@@ -563,6 +563,18 @@ bool QuicSession::CheckStreamWriteBlocked(QuicStream* stream) const {
 }
 
 void QuicSession::OnCanWrite() {
+  if (connection_->donot_write_mid_packet_processing()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_donot_write_mid_packet_processing, 1, 3);
+    if (connection_->framer().is_processing_packet()) {
+      // Do not write data in the middle of packet processing because rest
+      // frames in the packet may change the data to write. For example, lost
+      // data could be acknowledged. Also, connection is going to emit
+      // OnCanWrite signal post packet processing.
+      QUIC_BUG(session_write_mid_packet_processing)
+          << ENDPOINT << "Try to write mid packet processing.";
+      return;
+    }
+  }
   if (!RetransmitLostData()) {
     // Cannot finish retransmitting lost data, connection is write blocked.
     QUIC_DVLOG(1) << ENDPOINT
@@ -1308,8 +1320,12 @@ void QuicSession::OnConfigNegotiated() {
   // Ask flow controllers to try again since the config could have unblocked us.
   // Or if this session is configured on TLS enabled QUIC versions,
   // attempt to retransmit 0-RTT data if there's any.
-  if (connection_->version().AllowsLowFlowControlLimits() ||
-      version().UsesTls()) {
+  // TODO(fayang): consider removing this OnCanWrite call.
+  if ((!connection_->donot_write_mid_packet_processing() ||
+       !connection_->framer().is_processing_packet()) &&
+      (connection_->version().AllowsLowFlowControlLimits() ||
+       version().UsesTls())) {
+    QUIC_CODE_COUNT(quic_session_on_can_write_on_config_negotiated);
     OnCanWrite();
   }
 }
@@ -1613,8 +1629,14 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
         // Retransmit old 0-RTT data (if any) with the new 0-RTT keys, since
         // they can't be decrypted by the server.
         connection_->MarkZeroRttPacketsForRetransmission(0);
-        // Given any streams blocked by encryption a chance to write.
-        OnCanWrite();
+        if (!connection_->donot_write_mid_packet_processing() ||
+            !connection_->framer().is_processing_packet()) {
+          // TODO(fayang): consider removing this OnCanWrite call.
+          // Given any streams blocked by encryption a chance to write.
+          QUIC_CODE_COUNT(
+              quic_session_on_can_write_set_default_encryption_level);
+          OnCanWrite();
+        }
       }
       break;
     case ENCRYPTION_HANDSHAKE:
