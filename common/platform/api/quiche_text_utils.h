@@ -28,17 +28,6 @@ class QUICHE_EXPORT QuicheTextUtils {
     quiche::QuicheTextUtilsImpl::RemoveLeadingAndTrailingWhitespace(data);
   }
 
-  // Returns a new string representing |in|.
-  static std::string Uint64ToString(uint64_t in) {
-    return quiche::QuicheTextUtilsImpl::Uint64ToString(in);
-  }
-
-  // This converts a uint32 into an 8-character hexidecimal
-  // representation.  Return value: 8 characters of ASCII string.
-  static std::string Hex(uint32_t v) {
-    return quiche::QuicheTextUtilsImpl::Hex(v);
-  }
-
   // Base64 encodes with no padding |data_len| bytes of |data| into |output|.
   static void Base64Encode(const uint8_t* data,
                            size_t data_len,

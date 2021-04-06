@@ -9,6 +9,7 @@
 
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/http/quic_spdy_stream.h"
 #include "quic/core/http/spdy_utils.h"
@@ -19,7 +20,6 @@
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_map_util.h"
 #include "quic/tools/quic_simple_server_session.h"
-#include "common/platform/api/quiche_text_utils.h"
 #include "spdy/core/spdy_protocol.h"
 
 using spdy::Http2HeaderBlock;
@@ -311,8 +311,7 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
       return;
     }
     Http2HeaderBlock headers = response->headers().Clone();
-    headers["content-length"] =
-        quiche::QuicheTextUtils::Uint64ToString(generate_bytes_length_);
+    headers["content-length"] = absl::StrCat(generate_bytes_length_);
 
     WriteHeaders(std::move(headers), false, nullptr);
     QUICHE_DCHECK(!response_sent_);
@@ -348,8 +347,7 @@ void QuicSimpleServerStream::SendNotFoundResponse() {
   QUIC_DVLOG(1) << "Stream " << id() << " sending not found response.";
   Http2HeaderBlock headers;
   headers[":status"] = "404";
-  headers["content-length"] =
-      quiche::QuicheTextUtils::Uint64ToString(strlen(kNotFoundResponseBody));
+  headers["content-length"] = absl::StrCat(strlen(kNotFoundResponseBody));
   SendHeadersAndBody(std::move(headers), kNotFoundResponseBody);
 }
 
@@ -363,10 +361,9 @@ void QuicSimpleServerStream::SendErrorResponse(int resp_code) {
   if (resp_code <= 0) {
     headers[":status"] = "500";
   } else {
-    headers[":status"] = quiche::QuicheTextUtils::Uint64ToString(resp_code);
+    headers[":status"] = absl::StrCat(resp_code);
   }
-  headers["content-length"] =
-      quiche::QuicheTextUtils::Uint64ToString(strlen(kErrorResponseBody));
+  headers["content-length"] = absl::StrCat(strlen(kErrorResponseBody));
   SendHeadersAndBody(std::move(headers), kErrorResponseBody);
 }
 

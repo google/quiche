@@ -35,7 +35,6 @@
 #include "quic/test_tools/quic_spdy_stream_peer.h"
 #include "quic/test_tools/quic_stream_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 using spdy::kV3HighestPriority;
 using spdy::kV3LowestPriority;
@@ -1311,8 +1310,7 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithOffset) {
   trailers_block["key1"] = "value1";
   trailers_block["key2"] = "value2";
   trailers_block["key3"] = "value3";
-  trailers_block[kFinalOffsetHeaderKey] =
-      quiche::QuicheTextUtils::Uint64ToString(data.size());
+  trailers_block[kFinalOffsetHeaderKey] = absl::StrCat(data.size());
 
   QuicHeaderList trailers = ProcessHeaders(true, trailers_block);
 
@@ -1613,7 +1611,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
   // on the headers stream.
   if (!UsesHttp3()) {
     expected_trailers[kFinalOffsetHeaderKey] =
-        quiche::QuicheTextUtils::Uint64ToString(body.length() + header_length);
+        absl::StrCat(body.length() + header_length);
   }
 
   EXPECT_CALL(*stream_, WriteHeadersMock(true));

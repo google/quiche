@@ -33,11 +33,6 @@ TEST_F(QuicheTextUtilsTest, RemoveLeadingAndTrailingWhitespace) {
   }
 }
 
-TEST_F(QuicheTextUtilsTest, Uint64ToString) {
-  EXPECT_EQ("123", quiche::QuicheTextUtils::Uint64ToString(123));
-  EXPECT_EQ("1234", quiche::QuicheTextUtils::Uint64ToString(1234));
-}
-
 TEST_F(QuicheTextUtilsTest, HexDump) {
   // Verify output of the HexDump method is as expected.
   char packet[] = {

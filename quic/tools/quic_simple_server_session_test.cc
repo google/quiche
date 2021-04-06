@@ -8,6 +8,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/crypto/quic_crypto_server_config.h"
@@ -37,7 +38,6 @@
 #include "quic/tools/quic_backend_response.h"
 #include "quic/tools/quic_memory_cache_backend.h"
 #include "quic/tools/quic_simple_server_stream.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -699,8 +699,7 @@ class QuicSimpleServerSessionServerPushTest
       } else {
         stream_id = GetNthServerInitiatedUnidirectionalId(i - 1);
       }
-      std::string path = partial_push_resource_path +
-                         quiche::QuicheTextUtils::Uint64ToString(i);
+      std::string path = absl::StrCat(partial_push_resource_path, i);
       std::string url = scheme + "://" + resource_host + path;
       QuicUrl resource_url = QuicUrl(url);
       std::string body(body_size, 'a');

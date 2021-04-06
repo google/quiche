@@ -8,6 +8,7 @@
 
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/http/spdy_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
@@ -171,10 +172,8 @@ void QuicMemoryCacheBackend::AddSimpleResponse(absl::string_view host,
                                                int response_code,
                                                absl::string_view body) {
   Http2HeaderBlock response_headers;
-  response_headers[":status"] =
-      quiche::QuicheTextUtils::Uint64ToString(response_code);
-  response_headers["content-length"] =
-      quiche::QuicheTextUtils::Uint64ToString(body.length());
+  response_headers[":status"] = absl::StrCat(response_code);
+  response_headers["content-length"] = absl::StrCat(body.length());
   AddResponse(host, path, std::move(response_headers), body);
 }
 

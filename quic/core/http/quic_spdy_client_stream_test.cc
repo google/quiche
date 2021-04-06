@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/http/quic_spdy_client_session.h"
 #include "quic/core/http/spdy_utils.h"
@@ -18,7 +19,6 @@
 #include "quic/test_tools/crypto_test_utils.h"
 #include "quic/test_tools/quic_spdy_session_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 using spdy::SpdyHeaderBlock;
 using testing::_;
@@ -283,8 +283,7 @@ TEST_P(QuicSpdyClientStreamTest, ReceivingTrailers) {
   // promised by the final offset field.
   SpdyHeaderBlock trailer_block;
   trailer_block["trailer key"] = "trailer value";
-  trailer_block[kFinalOffsetHeaderKey] =
-      quiche::QuicheTextUtils::Uint64ToString(body_.size());
+  trailer_block[kFinalOffsetHeaderKey] = absl::StrCat(body_.size());
   auto trailers = AsHeaderList(trailer_block);
   stream_->OnStreamHeaderList(true, trailers.uncompressed_header_bytes(),
                               trailers);

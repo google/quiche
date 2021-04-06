@@ -8,6 +8,7 @@
 #include <string>
 
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/crypto_framer.h"
@@ -16,7 +17,6 @@
 #include "quic/core/quic_socket_address_coder.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_map_util.h"
-#include "common/platform/api/quiche_text_utils.h"
 #include "common/quiche_endian.h"
 
 namespace quic {
@@ -296,7 +296,7 @@ std::string CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
         if (it->second.size() == 4) {
           uint32_t value;
           memcpy(&value, it->second.data(), sizeof(value));
-          ret += quiche::QuicheTextUtils::Uint64ToString(value);
+          absl::StrAppend(&ret, value);
           done = true;
         }
         break;

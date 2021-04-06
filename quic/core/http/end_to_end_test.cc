@@ -71,7 +71,6 @@
 #include "quic/tools/quic_server.h"
 #include "quic/tools/quic_simple_client_stream.h"
 #include "quic/tools/quic_simple_server_stream.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 using spdy::kV3LowestPriority;
 using spdy::SpdyFramer;
@@ -3650,8 +3649,7 @@ class ServerStreamWithErrorResponseBody : public QuicSimpleServerStream {
     QUIC_DLOG(INFO) << "Sending error response for stream " << id();
     SpdyHeaderBlock headers;
     headers[":status"] = "500";
-    headers["content-length"] =
-        quiche::QuicheTextUtils::Uint64ToString(response_body_.size());
+    headers["content-length"] = absl::StrCat(response_body_.size());
     // This method must call CloseReadSide to cause the test case, StopReading
     // is not sufficient.
     QuicStreamPeer::CloseReadSide(this);
@@ -3868,8 +3866,7 @@ TEST_P(EndToEndTest, Trailers) {
 
   SpdyHeaderBlock headers;
   headers[":status"] = "200";
-  headers["content-length"] =
-      quiche::QuicheTextUtils::Uint64ToString(kBody.size());
+  headers["content-length"] = absl::StrCat(kBody.size());
 
   SpdyHeaderBlock trailers;
   trailers["some-trailing-header"] = "trailing-header-value";
@@ -3921,8 +3918,7 @@ class EndToEndTestServerPush : public EndToEndTest {
               : absl::StrCat("This is server push response body for ", url);
       SpdyHeaderBlock response_headers;
       response_headers[":status"] = "200";
-      response_headers["content-length"] =
-          quiche::QuicheTextUtils::Uint64ToString(body.size());
+      response_headers["content-length"] = absl::StrCat(body.size());
       push_resources.push_back(QuicBackendResponse::ServerPushInfo(
           resource_url, std::move(response_headers), kV3LowestPriority, body));
     }
@@ -4216,8 +4212,7 @@ TEST_P(EndToEndTest, DISABLED_TestHugePostWithPacketLoss) {
   headers[":path"] = "/foo";
   headers[":scheme"] = "https";
   headers[":authority"] = server_hostname_;
-  headers["content-length"] =
-      quiche::QuicheTextUtils::Uint64ToString(request_body_size_bytes);
+  headers["content-length"] = absl::StrCat(request_body_size_bytes);
 
   client_->SendMessage(headers, "", /*fin=*/false);
 
@@ -4636,9 +4631,8 @@ TEST_P(EndToEndTest, RequestAndStreamRstInOnePacket) {
   // (and the FIN) after the response body.
   std::string response_body(1305, 'a');
   SpdyHeaderBlock response_headers;
-  response_headers[":status"] = quiche::QuicheTextUtils::Uint64ToString(200);
-  response_headers["content-length"] =
-      quiche::QuicheTextUtils::Uint64ToString(response_body.length());
+  response_headers[":status"] = absl::StrCat(200);
+  response_headers["content-length"] = absl::StrCat(response_body.length());
   memory_cache_backend_.AddSpecialResponse(
       server_hostname_, "/test_url", std::move(response_headers), response_body,
       QuicBackendResponse::INCOMPLETE_RESPONSE);

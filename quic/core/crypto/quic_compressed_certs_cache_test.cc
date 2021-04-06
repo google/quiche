@@ -6,10 +6,10 @@
 
 #include <string>
 
+#include "absl/strings/str_cat.h"
 #include "quic/core/crypto/cert_compressor.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/crypto_test_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -85,8 +85,7 @@ TEST_F(QuicCompressedCertsCacheTest, CacheMissDueToEviction) {
   for (unsigned int i = 0;
        i < QuicCompressedCertsCache::kQuicCompressedCertsCacheSize; i++) {
     EXPECT_EQ(certs_cache_.Size(), i + 1);
-    certs_cache_.Insert(chain, quiche::QuicheTextUtils::Uint64ToString(i), "",
-                        quiche::QuicheTextUtils::Uint64ToString(i));
+    certs_cache_.Insert(chain, absl::StrCat(i), "", absl::StrCat(i));
   }
   EXPECT_EQ(certs_cache_.MaxSize(), certs_cache_.Size());
 

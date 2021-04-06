@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <algorithm>
-
 #include "quic/core/quic_packet_number.h"
-#include "common/platform/api/quiche_text_utils.h"
+
+#include <algorithm>
+#include <limits>
+
+#include "absl/strings/str_cat.h"
 
 namespace quic {
 
@@ -98,7 +100,7 @@ std::string QuicPacketNumber::ToString() const {
   if (!IsInitialized()) {
     return "uninitialized";
   }
-  return quiche::QuicheTextUtils::Uint64ToString(ToUint64());
+  return absl::StrCat(ToUint64());
 }
 
 std::ostream& operator<<(std::ostream& os, const QuicPacketNumber& p) {

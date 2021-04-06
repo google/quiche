@@ -22,7 +22,6 @@
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_bug_tracker.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -131,7 +130,7 @@ std::string TransportParameterIdToString(
     case TransportParameters::kMinAckDelay:
       return "min_ack_delay_us";
   }
-  return "Unknown(" + quiche::QuicheTextUtils::Uint64ToString(param_id) + ")";
+  return absl::StrCat("Unknown(", param_id, ")");
 }
 
 bool TransportParameterIdIsKnown(
@@ -257,8 +256,7 @@ std::string TransportParameters::IntegerParameter::ToString(
     return "";
   }
   std::string rv = for_use_in_list ? " " : "";
-  rv += TransportParameterIdToString(param_id_) + " ";
-  rv += quiche::QuicheTextUtils::Uint64ToString(value_);
+  absl::StrAppend(&rv, TransportParameterIdToString(param_id_), " ", value_);
   if (!IsValid()) {
     rv += " (Invalid)";
   }
@@ -387,8 +385,8 @@ std::string TransportParameters::ToString() const {
     rv += " " + TransportParameterIdToString(kGoogleKeyUpdateNotYetSupported);
   }
   for (const auto& kv : custom_parameters) {
-    rv += " 0x" + quiche::QuicheTextUtils::Hex(static_cast<uint32_t>(kv.first));
-    rv += "=";
+    absl::StrAppend(&rv, " 0x", absl::Hex(static_cast<uint32_t>(kv.first)),
+                    "=");
     static constexpr size_t kMaxPrintableLength = 32;
     if (kv.second.length() <= kMaxPrintableLength) {
       rv += absl::BytesToHexString(kv.second);

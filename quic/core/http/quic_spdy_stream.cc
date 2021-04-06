@@ -11,6 +11,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/http/http_constants.h"
 #include "quic/core/http/http_decoder.h"
@@ -377,8 +378,7 @@ size_t QuicSpdyStream::WriteTrailers(
     QUIC_DLOG(INFO) << ENDPOINT << "Inserting trailer: ("
                     << kFinalOffsetHeaderKey << ", " << final_offset << ")";
     trailer_block.insert(
-        std::make_pair(kFinalOffsetHeaderKey,
-                       quiche::QuicheTextUtils::Uint64ToString(final_offset)));
+        std::make_pair(kFinalOffsetHeaderKey, absl::StrCat(final_offset)));
   }
 
   // Write the trailing headers with a FIN, and close stream for writing:
