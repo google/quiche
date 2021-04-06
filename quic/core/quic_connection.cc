@@ -2194,7 +2194,7 @@ void QuicConnection::MaybeRespondToConnectivityProbingOrMigration() {
   }
 }
 
-bool QuicConnection::IsValidStatelessResetToken(QuicUint128 token) const {
+bool QuicConnection::IsValidStatelessResetToken(absl::uint128 token) const {
   return stateless_reset_token_received_ &&
          token == received_stateless_reset_token_;
 }

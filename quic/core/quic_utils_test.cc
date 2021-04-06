@@ -7,6 +7,7 @@
 #include <string>
 
 #include "absl/base/macros.h"
+#include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/crypto_protocol.h"
 #include "quic/core/quic_connection_id.h"
@@ -79,17 +80,17 @@ TEST_F(QuicUtilsTest, DetermineAddressChangeType) {
             QuicUtils::DetermineAddressChangeType(old_address, new_address));
 }
 
-QuicUint128 IncrementalHashReference(const void* data, size_t len) {
+absl::uint128 IncrementalHashReference(const void* data, size_t len) {
   // The two constants are defined as part of the hash algorithm.
   // see http://www.isthe.com/chongo/tech/comp/fnv/
   // hash = 144066263297769815596495629667062367629
-  QuicUint128 hash = MakeQuicUint128(UINT64_C(7809847782465536322),
-                                     UINT64_C(7113472399480571277));
+  absl::uint128 hash = absl::MakeUint128(UINT64_C(7809847782465536322),
+                                         UINT64_C(7113472399480571277));
   // kPrime = 309485009821345068724781371
-  const QuicUint128 kPrime = MakeQuicUint128(16777216, 315);
+  const absl::uint128 kPrime = absl::MakeUint128(16777216, 315);
   const uint8_t* octets = reinterpret_cast<const uint8_t*>(data);
   for (size_t i = 0; i < len; ++i) {
-    hash = hash ^ MakeQuicUint128(0, octets[i]);
+    hash = hash ^ absl::MakeUint128(0, octets[i]);
     hash = hash * kPrime;
   }
   return hash;
@@ -311,9 +312,11 @@ TEST_F(QuicUtilsTest, StatelessResetToken) {
   QuicConnectionId connection_id1a = test::TestConnectionId(1);
   QuicConnectionId connection_id1b = test::TestConnectionId(1);
   QuicConnectionId connection_id2 = test::TestConnectionId(2);
-  QuicUint128 token1a = QuicUtils::GenerateStatelessResetToken(connection_id1a);
-  QuicUint128 token1b = QuicUtils::GenerateStatelessResetToken(connection_id1b);
-  QuicUint128 token2 = QuicUtils::GenerateStatelessResetToken(connection_id2);
+  absl::uint128 token1a =
+      QuicUtils::GenerateStatelessResetToken(connection_id1a);
+  absl::uint128 token1b =
+      QuicUtils::GenerateStatelessResetToken(connection_id1b);
+  absl::uint128 token2 = QuicUtils::GenerateStatelessResetToken(connection_id2);
   EXPECT_EQ(token1a, token1b);
   EXPECT_NE(token1a, token2);
 }

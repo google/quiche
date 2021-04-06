@@ -449,7 +449,7 @@ bool NoOpFramerVisitor::OnAckFrequencyFrame(
 }
 
 bool NoOpFramerVisitor::IsValidStatelessResetToken(
-    QuicUint128 /*token*/) const {
+    absl::uint128 /*token*/) const {
   return false;
 }
 

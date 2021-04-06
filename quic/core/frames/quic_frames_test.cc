@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "absl/numeric/int128.h"
 #include "quic/core/frames/quic_ack_frame.h"
 #include "quic/core/frames/quic_blocked_frame.h"
 #include "quic/core/frames/quic_connection_close_frame.h"
@@ -116,7 +117,7 @@ TEST_F(QuicFramesTest, NewConnectionIdFrameToString) {
   new_connection_id_frame.connection_id = TestConnectionId(2);
   new_connection_id_frame.sequence_number = 2u;
   new_connection_id_frame.retire_prior_to = 1u;
-  new_connection_id_frame.stateless_reset_token = MakeQuicUint128(0, 1);
+  new_connection_id_frame.stateless_reset_token = absl::MakeUint128(0, 1);
   std::ostringstream stream;
   stream << new_connection_id_frame;
   EXPECT_EQ(

@@ -1300,14 +1300,14 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildPublicResetPacket(
 // static
 size_t QuicFramer::GetMinStatelessResetPacketLength() {
   // 5 bytes (40 bits) = 2 Fixed Bits (01) + 38 Unpredictable bits
-  return 5 + sizeof(quic::QuicUint128);
+  return 5 + sizeof(absl::uint128);
 }
 
 // static
 std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
     QuicConnectionId /*connection_id*/,
     size_t received_packet_length,
-    QuicUint128 stateless_reset_token) {
+    absl::uint128 stateless_reset_token) {
   QUIC_DVLOG(1) << "Building IETF stateless reset packet.";
   if (GetQuicReloadableFlag(quic_fix_stateless_reset)) {
     if (received_packet_length <= GetMinStatelessResetPacketLength()) {
@@ -1329,9 +1329,9 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
     // cryptographic use, and does not need a secure cryptographic pseudo-random
     // number generator. It's therefore safe to use WriteInsecureRandomBytes.
     if (!writer.WriteInsecureRandomBytes(QuicRandom::GetInstance(),
-                                         len - sizeof(quic::QuicUint128))) {
+                                         len - sizeof(absl::uint128))) {
       QUIC_BUG(362045737_2) << "Failed to append random bytes of length: "
-                            << len - sizeof(quic::QuicUint128);
+                            << len - sizeof(absl::uint128);
       return nullptr;
     }
     // Change first 2 fixed bits to 01.

@@ -10,7 +10,7 @@ QuicNewConnectionIdFrame::QuicNewConnectionIdFrame(
     QuicControlFrameId control_frame_id,
     QuicConnectionId connection_id,
     QuicConnectionIdSequenceNumber sequence_number,
-    const QuicUint128 stateless_reset_token,
+    const absl::uint128 stateless_reset_token,
     uint64_t retire_prior_to)
     : control_frame_id(control_frame_id),
       connection_id(connection_id),

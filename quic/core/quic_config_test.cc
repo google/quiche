@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/numeric/int128.h"
 #include "quic/core/crypto/crypto_handshake_message.h"
 #include "quic/core/crypto/crypto_protocol.h"
 #include "quic/core/crypto/transport_parameters.h"
@@ -17,7 +18,6 @@
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_test.h"
-#include "quic/platform/api/quic_uint128.h"
 #include "quic/test_tools/quic_config_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
 
@@ -188,7 +188,7 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
   QuicIpAddress host;
   host.FromString("127.0.3.1");
   const QuicSocketAddress kTestServerAddress = QuicSocketAddress(host, 1234);
-  const QuicUint128 kTestResetToken = MakeQuicUint128(0, 10111100001);
+  const absl::uint128 kTestResetToken = absl::MakeUint128(0, 10111100001);
   const uint32_t kTestMaxAckDelayMs =
       static_cast<uint32_t>(kDefaultDelayedAckTimeMs + 1);
   QuicConfig server_config;
@@ -481,7 +481,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   host.FromString("127.0.3.1");
   QuicSocketAddress kTestServerAddress = QuicSocketAddress(host, 1234);
   QuicConnectionId new_connection_id = TestConnectionId(5);
-  QuicUint128 new_stateless_reset_token =
+  absl::uint128 new_stateless_reset_token =
       QuicUtils::GenerateStatelessResetToken(new_connection_id);
   config_.SetIPv4AlternateServerAddressToSend(
       kTestServerAddress, new_connection_id, new_stateless_reset_token);
@@ -522,7 +522,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
 
   EXPECT_EQ(params.preferred_address->ipv4_socket_address, kTestServerAddress);
   EXPECT_EQ(params.preferred_address->connection_id, new_connection_id);
-  EXPECT_EQ(*reinterpret_cast<QuicUint128*>(
+  EXPECT_EQ(*reinterpret_cast<absl::uint128*>(
                 &params.preferred_address->stateless_reset_token.front()),
             new_stateless_reset_token);
 }
@@ -775,7 +775,7 @@ TEST_P(QuicConfigTest, SendPreferredIPv4Address) {
   host.FromString("::ffff:192.0.2.128");
   QuicSocketAddress kTestServerAddress = QuicSocketAddress(host, 1234);
   QuicConnectionId new_connection_id = TestConnectionId(5);
-  QuicUint128 new_stateless_reset_token =
+  absl::uint128 new_stateless_reset_token =
       QuicUtils::GenerateStatelessResetToken(new_connection_id);
   auto preferred_address =
       std::make_unique<TransportParameters::PreferredAddress>();
@@ -795,7 +795,7 @@ TEST_P(QuicConfigTest, SendPreferredIPv4Address) {
   EXPECT_TRUE(config_.HasReceivedIPv6AlternateServerAddress());
   EXPECT_EQ(config_.ReceivedIPv6AlternateServerAddress(), kTestServerAddress);
   EXPECT_TRUE(config_.HasReceivedPreferredAddressConnectionIdAndToken());
-  const std::pair<QuicConnectionId, QuicUint128>&
+  const std::pair<QuicConnectionId, absl::uint128>&
       preferred_address_connection_id_and_token =
           config_.ReceivedPreferredAddressConnectionIdAndToken();
   EXPECT_EQ(preferred_address_connection_id_and_token.first, new_connection_id);

@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/numeric/int128.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/null_encrypter.h"
@@ -3339,7 +3340,7 @@ TEST_P(EndToEndTest, ServerSendPublicReset) {
   QuicConfig* config = client_session->config();
   ASSERT_TRUE(config);
   EXPECT_TRUE(config->HasReceivedStatelessResetToken());
-  QuicUint128 stateless_reset_token = config->ReceivedStatelessResetToken();
+  absl::uint128 stateless_reset_token = config->ReceivedStatelessResetToken();
 
   // Send the public reset.
   QuicConnection* client_connection = GetClientConnection();
@@ -3381,7 +3382,7 @@ TEST_P(EndToEndTest, ServerSendPublicResetWithDifferentConnectionId) {
   QuicConfig* config = client_session->config();
   ASSERT_TRUE(config);
   EXPECT_TRUE(config->HasReceivedStatelessResetToken());
-  QuicUint128 stateless_reset_token = config->ReceivedStatelessResetToken();
+  absl::uint128 stateless_reset_token = config->ReceivedStatelessResetToken();
   // Send the public reset.
   QuicConnection* client_connection = GetClientConnection();
   ASSERT_TRUE(client_connection);

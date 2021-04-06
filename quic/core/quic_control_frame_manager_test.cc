@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "absl/numeric/int128.h"
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
 #include "quic/core/frames/quic_retire_connection_id_frame.h"
@@ -250,7 +251,7 @@ TEST_F(QuicControlFrameManagerTest, NewAndRetireConnectionIdFrames) {
   // Send NewConnectionIdFrame as frame 6.
   manager_->WriteOrBufferNewConnectionId(
       TestConnectionId(3), /*sequence_number=*/2, /*retire_prior_to=*/1,
-      /*stateless_reset_token=*/MakeQuicUint128(1, 1));
+      /*stateless_reset_token=*/absl::MakeUint128(1, 1));
   // Send RetireConnectionIdFrame as frame 7.
   manager_->WriteOrBufferRetireConnectionId(/*sequence_number=*/0);
   manager_->OnCanWrite();

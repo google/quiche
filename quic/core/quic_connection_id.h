@@ -8,8 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "absl/numeric/int128.h"
 #include "quic/platform/api/quic_export.h"
-#include "quic/platform/api/quic_uint128.h"
 
 namespace quic {
 

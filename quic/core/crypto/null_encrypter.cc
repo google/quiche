@@ -4,6 +4,7 @@
 
 #include "quic/core/crypto/null_encrypter.h"
 
+#include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_data_writer.h"
 #include "quic/core/quic_utils.h"
@@ -41,7 +42,7 @@ bool NullEncrypter::EncryptPacket(uint64_t /*packet_number*/,
   if (max_output_length < len) {
     return false;
   }
-  QuicUint128 hash;
+  absl::uint128 hash;
   if (perspective_ == Perspective::IS_SERVER) {
     hash =
         QuicUtils::FNV1a_128_Hash_Three(associated_data, plaintext, "Server");

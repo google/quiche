@@ -6,11 +6,11 @@
 
 #include <cstdint>
 
+#include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_data_reader.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
-#include "quic/platform/api/quic_uint128.h"
 #include "common/quiche_endian.h"
 
 namespace quic {
@@ -53,7 +53,7 @@ bool NullDecrypter::DecryptPacket(uint64_t /*packet_number*/,
                                   size_t max_output_length) {
   QuicDataReader reader(ciphertext.data(), ciphertext.length(),
                         quiche::HOST_BYTE_ORDER);
-  QuicUint128 hash;
+  absl::uint128 hash;
 
   if (!ReadHash(&reader, &hash)) {
     return false;
@@ -107,19 +107,19 @@ QuicPacketCount NullDecrypter::GetIntegrityLimit() const {
   return std::numeric_limits<QuicPacketCount>::max();
 }
 
-bool NullDecrypter::ReadHash(QuicDataReader* reader, QuicUint128* hash) {
+bool NullDecrypter::ReadHash(QuicDataReader* reader, absl::uint128* hash) {
   uint64_t lo;
   uint32_t hi;
   if (!reader->ReadUInt64(&lo) || !reader->ReadUInt32(&hi)) {
     return false;
   }
-  *hash = MakeQuicUint128(hi, lo);
+  *hash = absl::MakeUint128(hi, lo);
   return true;
 }
 
-QuicUint128 NullDecrypter::ComputeHash(const absl::string_view data1,
-                                       const absl::string_view data2) const {
-  QuicUint128 correct_hash;
+absl::uint128 NullDecrypter::ComputeHash(const absl::string_view data1,
+                                         const absl::string_view data2) const {
+  absl::uint128 correct_hash;
   if (perspective_ == Perspective::IS_CLIENT) {
     // Peer is a server.
     correct_hash = QuicUtils::FNV1a_128_Hash_Three(data1, data2, "Server");
@@ -127,7 +127,7 @@ QuicUint128 NullDecrypter::ComputeHash(const absl::string_view data1,
     // Peer is a client.
     correct_hash = QuicUtils::FNV1a_128_Hash_Three(data1, data2, "Client");
   }
-  QuicUint128 mask = MakeQuicUint128(UINT64_C(0x0), UINT64_C(0xffffffff));
+  absl::uint128 mask = absl::MakeUint128(UINT64_C(0x0), UINT64_C(0xffffffff));
   mask <<= 96;
   correct_hash &= ~mask;
   return correct_hash;

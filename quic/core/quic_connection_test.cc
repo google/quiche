@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/numeric/int128.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/congestion_control/loss_detection_interface.h"
@@ -6899,7 +6900,7 @@ TEST_P(QuicConnectionTest, IetfStatelessReset) {
   if (!GetParam().version.HasIetfInvariantHeader()) {
     return;
   }
-  const QuicUint128 kTestStatelessResetToken = 1010101;
+  const absl::uint128 kTestStatelessResetToken = 1010101;
   QuicConfig config;
   QuicConfigPeer::SetReceivedStatelessResetToken(&config,
                                                  kTestStatelessResetToken);
@@ -8611,8 +8612,8 @@ TEST_P(QuicConnectionTest, RetransmittableOnWirePingLimit) {
 }
 
 TEST_P(QuicConnectionTest, ValidStatelessResetToken) {
-  const QuicUint128 kTestToken = 1010101;
-  const QuicUint128 kWrongTestToken = 1010100;
+  const absl::uint128 kTestToken = 1010101;
+  const absl::uint128 kWrongTestToken = 1010100;
   QuicConfig config;
   // No token has been received.
   EXPECT_FALSE(connection_.IsValidStatelessResetToken(kTestToken));
@@ -11845,7 +11846,7 @@ TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
-  const QuicUint128 kTestStatelessResetToken = 1010101;
+  const absl::uint128 kTestStatelessResetToken = 1010101;
   QuicConfig config;
   QuicConfigPeer::SetReceivedStatelessResetToken(&config,
                                                  kTestStatelessResetToken);

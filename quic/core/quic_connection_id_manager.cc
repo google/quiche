@@ -5,18 +5,18 @@
 #include "quic/core/quic_connection_id_manager.h"
 #include <cstdio>
 
+#include "absl/numeric/int128.h"
 #include "quic/core/quic_clock.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_utils.h"
-#include "quic/platform/api/quic_uint128.h"
 
 namespace quic {
 
 QuicConnectionIdData::QuicConnectionIdData(
     const QuicConnectionId& connection_id,
     uint64_t sequence_number,
-    QuicUint128 stateless_reset_token)
+    absl::uint128 stateless_reset_token)
     : connection_id(connection_id),
       sequence_number(sequence_number),
       stateless_reset_token(stateless_reset_token) {}
@@ -73,7 +73,7 @@ QuicPeerIssuedConnectionIdManager::QuicPeerIssuedConnectionIdManager(
   QUICHE_DCHECK(!initial_peer_issued_connection_id.IsEmpty());
   active_connection_id_data_.emplace_back(initial_peer_issued_connection_id,
                                           /*sequence_number=*/0u,
-                                          QuicUint128());
+                                          absl::uint128());
   recent_new_connection_id_sequence_numbers_.Add(0u, 1u);
 }
 

@@ -7,10 +7,10 @@
 
 #include <ostream>
 
+#include "absl/numeric/int128.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_types.h"
-#include "quic/platform/api/quic_uint128.h"
 
 namespace quic {
 

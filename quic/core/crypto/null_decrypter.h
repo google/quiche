@@ -8,11 +8,11 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/quic_decrypter.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
-#include "quic/platform/api/quic_uint128.h"
 
 namespace quic {
 
@@ -53,9 +53,9 @@ class QUIC_EXPORT_PRIVATE NullDecrypter : public QuicDecrypter {
   QuicPacketCount GetIntegrityLimit() const override;
 
  private:
-  bool ReadHash(QuicDataReader* reader, QuicUint128* hash);
-  QuicUint128 ComputeHash(absl::string_view data1,
-                          absl::string_view data2) const;
+  bool ReadHash(QuicDataReader* reader, absl::uint128* hash);
+  absl::uint128 ComputeHash(absl::string_view data1,
+                            absl::string_view data2) const;
 
   Perspective perspective_;
 };

@@ -2359,7 +2359,7 @@ bool QuicSession::WriteCryptoData(EncryptionLevel level,
                                                     writer);
 }
 
-QuicUint128 QuicSession::GetStatelessResetToken() const {
+absl::uint128 QuicSession::GetStatelessResetToken() const {
   return QuicUtils::GenerateStatelessResetToken(connection_->connection_id());
 }
 

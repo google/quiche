@@ -28,12 +28,13 @@
 
 #include <iostream>
 
+#include "absl/numeric/int128.h"
+#include "absl/strings/escaping.h"
+#include "absl/strings/string_view.h"
 #include "quic/core/quic_framer.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "common/platform/api/quiche_text_utils.h"
-#include "absl/strings/string_view.h"
-#include "absl/strings/escaping.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
                               quic_version,
@@ -213,7 +214,7 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     return true;
   }
   void OnPacketComplete() override { std::cerr << "OnPacketComplete\n"; }
-  bool IsValidStatelessResetToken(QuicUint128 /*token*/) const override {
+  bool IsValidStatelessResetToken(absl::uint128 /*token*/) const override {
     std::cerr << "IsValidStatelessResetToken\n";
     return false;
   }

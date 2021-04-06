@@ -9,6 +9,7 @@
 #include <ostream>
 #include <utility>
 
+#include "absl/numeric/int128.h"
 #include "quic/core/crypto/crypto_protocol.h"
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/crypto/quic_decrypter.h"
@@ -21,7 +22,6 @@
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_test.h"
-#include "quic/platform/api/quic_uint128.h"
 #include "quic/test_tools/mock_quic_session_visitor.h"
 #include "quic/test_tools/quic_test_utils.h"
 #include "quic/test_tools/quic_time_wait_list_manager_peer.h"
@@ -57,7 +57,7 @@ class FramerVisitorCapturingPublicReset : public NoOpFramerVisitor {
     return public_reset_packet_;
   }
 
-  bool IsValidStatelessResetToken(QuicUint128 token) const override {
+  bool IsValidStatelessResetToken(absl::uint128 token) const override {
     return token == QuicUtils::GenerateStatelessResetToken(connection_id_);
   }
 
@@ -220,7 +220,7 @@ bool ValidPublicResetPacketPredicate(
   QuicIetfStatelessResetPacket stateless_reset =
       visitor.stateless_reset_packet();
 
-  QuicUint128 expected_stateless_reset_token =
+  absl::uint128 expected_stateless_reset_token =
       QuicUtils::GenerateStatelessResetToken(expected_connection_id);
 
   bool stateless_reset_is_valid =

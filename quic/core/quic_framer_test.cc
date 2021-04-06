@@ -47,7 +47,7 @@ namespace {
 const uint64_t kEpoch = UINT64_C(1) << 32;
 const uint64_t kMask = kEpoch - 1;
 
-const QuicUint128 kTestStatelessResetToken = 1010101;  // 0x0F69B5
+const absl::uint128 kTestStatelessResetToken = 1010101;  // 0x0F69B5
 
 // Use fields in which each byte is distinct to ensure that every byte is
 // framed correctly. The values are otherwise arbitrary.
@@ -571,7 +571,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  bool IsValidStatelessResetToken(QuicUint128 token) const override {
+  bool IsValidStatelessResetToken(absl::uint128 token) const override {
     EXPECT_EQ(0u, framer_->current_received_frame_type());
     return token == kTestStatelessResetToken;
   }

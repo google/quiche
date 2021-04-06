@@ -219,7 +219,7 @@ QuicIetfStatelessResetPacket::QuicIetfStatelessResetPacket()
 
 QuicIetfStatelessResetPacket::QuicIetfStatelessResetPacket(
     const QuicPacketHeader& header,
-    QuicUint128 token)
+    absl::uint128 token)
     : header(header), stateless_reset_token(token) {}
 
 QuicIetfStatelessResetPacket::QuicIetfStatelessResetPacket(

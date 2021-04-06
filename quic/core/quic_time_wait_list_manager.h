@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/numeric/int128.h"
 #include "quic/core/quic_blocked_writer_interface.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_framer.h"
@@ -186,7 +187,7 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
 
   // Returns a stateless reset token which will be included in the public reset
   // packet.
-  virtual QuicUint128 GetStatelessResetToken(
+  virtual absl::uint128 GetStatelessResetToken(
       QuicConnectionId connection_id) const;
 
   // Internal structure to store pending termination packets.

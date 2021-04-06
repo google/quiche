@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "absl/numeric/int128.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
 #include "quic/core/quic_framer.h"
@@ -156,7 +157,7 @@ class QUIC_NO_EXPORT TlsChloExtractor
     return true;
   }
   void OnPacketComplete() override {}
-  bool IsValidStatelessResetToken(QuicUint128 /*token*/) const override {
+  bool IsValidStatelessResetToken(absl::uint128 /*token*/) const override {
     return true;
   }
   void OnAuthenticatedIetfStatelessResetPacket(

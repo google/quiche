@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "absl/memory/memory.h"
+#include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/quic_decrypter.h"
 #include "quic/core/crypto/quic_encrypter.h"
@@ -210,7 +211,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 
   void OnPacketComplete() override {}
 
-  bool IsValidStatelessResetToken(QuicUint128 /*token*/) const override {
+  bool IsValidStatelessResetToken(absl::uint128 /*token*/) const override {
     return false;
   }
 
