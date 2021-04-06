@@ -601,10 +601,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // If the socket is not blocked, writes queued packets.
   void WriteIfNotBlocked();
 
-  // If the socket is not blocked, writes queued packets and bundles any pending
-  // ACKs.
-  void WriteAndBundleAcksIfNotBlocked();
-
   // Set the packet writer.
   void SetQuicPacketWriter(QuicPacketWriter* writer, bool owns_writer) {
     QUICHE_DCHECK(writer != nullptr);

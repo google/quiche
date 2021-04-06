@@ -117,7 +117,7 @@ class SendAlarmDelegate : public QuicAlarm::Delegate {
 
   void OnAlarm() override {
     QUICHE_DCHECK(connection_->connected());
-    connection_->WriteAndBundleAcksIfNotBlocked();
+    connection_->WriteIfNotBlocked();
   }
 
  private:
@@ -2353,7 +2353,7 @@ void QuicConnection::MaybeSendInResponseToPacket() {
   if (defer_send_in_response_to_packets_) {
     send_alarm_->Update(clock_->ApproximateNow(), QuicTime::Delta::Zero());
   } else {
-    WriteAndBundleAcksIfNotBlocked();
+    WriteIfNotBlocked();
   }
 }
 
@@ -2822,13 +2822,6 @@ void QuicConnection::WriteIfNotBlocked() {
   }
   if (!HandleWriteBlocked()) {
     OnCanWrite();
-  }
-}
-
-void QuicConnection::WriteAndBundleAcksIfNotBlocked() {
-  if (!HandleWriteBlocked()) {
-    ScopedPacketFlusher flusher(this);
-    WriteIfNotBlocked();
   }
 }
 
