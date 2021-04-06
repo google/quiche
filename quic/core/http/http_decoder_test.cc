@@ -15,6 +15,7 @@
 #include "quic/core/http/http_frames.h"
 #include "quic/core/quic_data_writer.h"
 #include "quic/core/quic_versions.h"
+#include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_test_utils.h"
@@ -109,6 +110,10 @@ class MockVisitor : public HttpDecoder::Visitor {
               (QuicByteCount header_length),
               (override));
   MOCK_METHOD(bool, OnAcceptChFrame, (const AcceptChFrame& frame), (override));
+  MOCK_METHOD(void,
+              OnWebTransportStreamFrameType,
+              (QuicByteCount header_length, WebTransportSessionId session_id),
+              (override));
 
   MOCK_METHOD(bool,
               OnUnknownFrameStart,
@@ -1299,6 +1304,43 @@ TEST_F(HttpDecoderTest, AcceptChFrame) {
   ProcessInputCharByChar(input2);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, WebTransportStreamDisabled) {
+  InSequence s;
+
+  // Unknown frame of type 0x41 and length 0x104.
+  std::string input = absl::HexStringToBytes("40414104");
+  EXPECT_CALL(visitor_, OnUnknownFrameStart(0x41, input.size(), 0x104));
+  EXPECT_EQ(ProcessInput(input), input.size());
+}
+
+TEST(HttpDecoderTestNoFixture, WebTransportStream) {
+  HttpDecoder::Options options;
+  options.allow_web_transport_stream = true;
+  testing::StrictMock<MockVisitor> visitor;
+  HttpDecoder decoder(&visitor, options);
+
+  // WebTransport stream for session ID 0x104, with four bytes of extra data.
+  std::string input = absl::HexStringToBytes("40414104ffffffff");
+  EXPECT_CALL(visitor, OnWebTransportStreamFrameType(4, 0x104));
+  QuicByteCount bytes = decoder.ProcessInput(input.data(), input.size());
+  EXPECT_EQ(bytes, 4u);
+}
+
+TEST(HttpDecoderTestNoFixture, WebTransportStreamError) {
+  HttpDecoder::Options options;
+  options.allow_web_transport_stream = true;
+  testing::StrictMock<MockVisitor> visitor;
+  HttpDecoder decoder(&visitor, options);
+
+  std::string input = absl::HexStringToBytes("404100");
+  EXPECT_CALL(visitor, OnWebTransportStreamFrameType(_, _));
+  decoder.ProcessInput(input.data(), input.size());
+
+  EXPECT_CALL(visitor, OnError(_));
+  EXPECT_QUIC_BUG(decoder.ProcessInput(input.data(), input.size()),
+                  "HttpDecoder called after an indefinite-length frame");
 }
 
 TEST_F(HttpDecoderTest, DecodeSettings) {

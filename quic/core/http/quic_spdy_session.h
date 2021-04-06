@@ -435,6 +435,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Indicates whether the HTTP/3 session supports WebTransport.
   bool SupportsWebTransport();
 
+  // Indicates whether the HTTP/3 session will indicate WebTransport support to
+  // the peer.
+  bool WillNegotiateWebTransport();
+
   // Returns a WebTransport session by its session ID.  Returns nullptr if no
   // session is associated with the given ID.
   WebTransportHttp3* GetWebTransportSession(WebTransportSessionId id);
@@ -465,11 +469,22 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
       WebTransportSessionId /*id*/) {
     return CanOpenNextOutgoingUnidirectionalStream();
   }
+  bool CanOpenOutgoingBidirectionalWebTransportStream(
+      WebTransportSessionId /*id*/) {
+    return CanOpenNextOutgoingBidirectionalStream();
+  }
 
   // Creates an outgoing unidirectional WebTransport stream.  Returns nullptr if
   // the stream cannot be created due to flow control or some other reason.
   WebTransportHttp3UnidirectionalStream*
   CreateOutgoingUnidirectionalWebTransportStream(WebTransportHttp3* session);
+
+  // Creates an outgoing bidirectional WebTransport stream.  Returns nullptr if
+  // the stream cannot be created due to flow control or some other reason.
+  QuicSpdyStream* CreateOutgoingBidirectionalWebTransportStream(
+      WebTransportHttp3* session);
+
+  QuicSpdyStream* GetOrCreateSpdyDataStream(const QuicStreamId stream_id);
 
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
@@ -479,8 +494,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   QuicSpdyStream* CreateIncomingStream(PendingStream* pending) override = 0;
   virtual QuicSpdyStream* CreateOutgoingBidirectionalStream() = 0;
   virtual QuicSpdyStream* CreateOutgoingUnidirectionalStream() = 0;
-
-  QuicSpdyStream* GetOrCreateSpdyDataStream(const QuicStreamId stream_id);
 
   // If an incoming stream can be created, return true.
   virtual bool ShouldCreateIncomingStream(QuicStreamId id) = 0;
@@ -493,7 +506,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Indicates whether the underlying backend can accept and process
   // WebTransport sessions over HTTP/3.
   virtual bool ShouldNegotiateWebTransport();
-  bool WillNegotiateWebTransport();
 
   // Returns true if there are open HTTP requests.
   bool ShouldKeepConnectionAlive() const override;

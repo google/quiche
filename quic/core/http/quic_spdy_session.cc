@@ -160,6 +160,11 @@ class AlpsFrameDecoder : public HttpDecoder::Visitor {
     session_->OnAcceptChFrameReceivedViaAlps(frame);
     return true;
   }
+  void OnWebTransportStreamFrameType(
+      QuicByteCount /*header_length*/,
+      WebTransportSessionId /*session_id*/) override {
+    QUICHE_NOTREACHED();
+  }
   bool OnUnknownFrameStart(uint64_t /*frame_type*/,
                            QuicByteCount
                            /*header_length*/,
@@ -1806,6 +1811,23 @@ QuicSpdySession::CreateOutgoingUnidirectionalWebTransportStream(
   WebTransportHttp3UnidirectionalStream* stream = stream_owned.get();
   ActivateStream(std::move(stream_owned));
   stream->WritePreamble();
+  session->AssociateStream(stream_id);
+  return stream;
+}
+
+QuicSpdyStream* QuicSpdySession::CreateOutgoingBidirectionalWebTransportStream(
+    WebTransportHttp3* session) {
+  QuicSpdyStream* stream = CreateOutgoingBidirectionalStream();
+  if (stream == nullptr) {
+    return nullptr;
+  }
+  QuicStreamId stream_id = stream->id();
+  stream->ConvertToWebTransportDataStream(session->id());
+  if (stream->web_transport_stream() == nullptr) {
+    // An error in ConvertToWebTransportDataStream() would result in
+    // CONNECTION_CLOSE, thus we don't need to do anything here.
+    return nullptr;
+  }
   session->AssociateStream(stream_id);
   return stream;
 }

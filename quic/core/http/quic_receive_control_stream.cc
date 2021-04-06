@@ -233,6 +233,13 @@ bool QuicReceiveControlStream::OnAcceptChFrame(const AcceptChFrame& frame) {
   return true;
 }
 
+void QuicReceiveControlStream::OnWebTransportStreamFrameType(
+    QuicByteCount /*header_length*/,
+    WebTransportSessionId /*session_id*/) {
+  QUIC_BUG(WEBTRANSPORT_STREAM on Control Stream)
+      << "Parsed WEBTRANSPORT_STREAM on a control stream.";
+}
+
 bool QuicReceiveControlStream::OnUnknownFrameStart(
     uint64_t frame_type,
     QuicByteCount /*header_length*/,

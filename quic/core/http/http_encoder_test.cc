@@ -123,5 +123,18 @@ TEST(HttpEncoderTest, SerializeAcceptChFrame) {
                                               output2, ABSL_ARRAYSIZE(output2));
 }
 
+TEST(HttpEncoderTest, SerializeWebTransportStreamFrameHeader) {
+  WebTransportSessionId session_id = 0x17;
+  char output[] = {0x40, 0x41,  // type (WEBTRANSPORT_STREAM)
+                   0x17};       // session ID
+
+  std::unique_ptr<char[]> buffer;
+  uint64_t length =
+      HttpEncoder::SerializeWebTransportStreamFrameHeader(session_id, &buffer);
+  EXPECT_EQ(sizeof(output), length);
+  quiche::test::CompareCharArraysWithHexError(
+      "WEBTRANSPORT_STREAM", buffer.get(), length, output, sizeof(output));
+}
+
 }  // namespace test
 }  // namespace quic

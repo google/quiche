@@ -248,4 +248,25 @@ QuicByteCount HttpEncoder::SerializeGreasingFrame(
   return 0;
 }
 
+QuicByteCount HttpEncoder::SerializeWebTransportStreamFrameHeader(
+    WebTransportSessionId session_id,
+    std::unique_ptr<char[]>* output) {
+  uint64_t stream_type =
+      static_cast<uint64_t>(HttpFrameType::WEBTRANSPORT_STREAM);
+  QuicByteCount header_length = QuicDataWriter::GetVarInt62Len(stream_type) +
+                                QuicDataWriter::GetVarInt62Len(session_id);
+
+  *output = std::make_unique<char[]>(header_length);
+  QuicDataWriter writer(header_length, output->get());
+  bool success =
+      writer.WriteVarInt62(stream_type) && writer.WriteVarInt62(session_id);
+  if (success && writer.remaining() == 0) {
+    return header_length;
+  }
+
+  QUIC_DLOG(ERROR) << "Http encoder failed when attempting to serialize "
+                      "WEBTRANSPORT_STREAM frame header.";
+  return 0;
+}
+
 }  // namespace quic

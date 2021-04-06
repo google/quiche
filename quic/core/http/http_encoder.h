@@ -8,6 +8,7 @@
 #include <memory>
 #include "quic/core/http/http_frames.h"
 #include "quic/core/quic_error_codes.h"
+#include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -56,6 +57,12 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
   // Serializes a frame with reserved frame type specified in
   // https://tools.ietf.org/html/draft-ietf-quic-http-25#section-7.2.9.
   static QuicByteCount SerializeGreasingFrame(std::unique_ptr<char[]>* output);
+
+  // Serializes a WEBTRANSPORT_STREAM frame header as specified in
+  // https://www.ietf.org/archive/id/draft-ietf-webtrans-http3-00.html#name-client-initiated-bidirectio
+  static QuicByteCount SerializeWebTransportStreamFrameHeader(
+      WebTransportSessionId session_id,
+      std::unique_ptr<char[]>* output);
 };
 
 }  // namespace quic

@@ -724,6 +724,33 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     return visitor;
   }
 
+  std::string ReadDataFromWebTransportStreamUntilFin(
+      WebTransportStream* stream) {
+    std::string buffer;
+    while (true) {
+      bool can_read = false;
+      auto visitor = std::make_unique<MockStreamVisitor>();
+      EXPECT_CALL(*visitor, OnCanRead()).WillOnce(Assign(&can_read, true));
+      stream->SetVisitor(std::move(visitor));
+      client_->WaitUntil(5000 /*ms*/, [&can_read]() { return can_read; });
+      if (!can_read) {
+        ADD_FAILURE() << "Waiting for readable data on stream "
+                      << stream->GetStreamId() << " timed out";
+        return buffer;
+      }
+
+      WebTransportStream::ReadResult result = stream->Read(&buffer);
+      if (result.fin) {
+        return buffer;
+      }
+      if (result.bytes_read == 0) {
+        ADD_FAILURE() << "No progress made while reading from stream "
+                      << stream->GetStreamId();
+        return buffer;
+      }
+    }
+  }
+
   ScopedEnvironmentForThreads environment_;
   bool initialized_;
   // If true, the Initialize() function will create |client_| and starts to
@@ -5800,6 +5827,49 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStreamSentEarly) {
   WebTransportStream::ReadResult result = received_stream->Read(&received_data);
   EXPECT_EQ(received_data, "test");
   EXPECT_TRUE(result.fin);
+}
+
+TEST_P(EndToEndTest, WebTransportSessionBidirectionalStream) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_TRUE(session != nullptr);
+
+  WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+  EXPECT_TRUE(stream->Write("test"));
+  EXPECT_TRUE(stream->SendFin());
+
+  std::string received_data = ReadDataFromWebTransportStreamUntilFin(stream);
+  EXPECT_EQ(received_data, "test");
+}
+
+TEST_P(EndToEndTest, WebTransportSessionBidirectionalStreamWithBuffering) {
+  enable_web_transport_ = true;
+  SetPacketLossPercentage(30);
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/false);
+  ASSERT_TRUE(session != nullptr);
+
+  WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+  EXPECT_TRUE(stream->Write("test"));
+  EXPECT_TRUE(stream->SendFin());
+
+  std::string received_data = ReadDataFromWebTransportStreamUntilFin(stream);
+  EXPECT_EQ(received_data, "test");
 }
 
 }  // namespace

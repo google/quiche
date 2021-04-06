@@ -27,6 +27,11 @@ class QuicDataReader;
 // session.
 class QUIC_EXPORT_PRIVATE HttpDecoder {
  public:
+  struct QUIC_EXPORT_PRIVATE Options {
+    // Indicates that WEBTRANSPORT_STREAM should be parsed.
+    bool allow_web_transport_stream = false;
+  };
+
   class QUIC_EXPORT_PRIVATE Visitor {
    public:
     virtual ~Visitor() {}
@@ -109,6 +114,15 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when an ACCEPT_CH frame has been successfully parsed.
     virtual bool OnAcceptChFrame(const AcceptChFrame& frame) = 0;
 
+    // Called when a WEBTRANSPORT_STREAM frame type and the session ID varint
+    // immediately following it has been received.  Any further parsing should
+    // be done by the stream itself, and not the parser. Note that this does not
+    // return bool, because WEBTRANSPORT_STREAM always causes the parsing
+    // process to cease.
+    virtual void OnWebTransportStreamFrameType(
+        QuicByteCount header_length,
+        WebTransportSessionId session_id) = 0;
+
     // Called when a frame of unknown type |frame_type| has been received.
     // Frame type might be reserved, Visitor must make sure to ignore.
     // |header_length| and |payload_length| are the length of the frame header
@@ -126,6 +140,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
   // |visitor| must be non-null, and must outlive HttpDecoder.
   explicit HttpDecoder(Visitor* visitor);
+  explicit HttpDecoder(Visitor* visitor, Options options);
 
   ~HttpDecoder();
 
@@ -162,6 +177,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     STATE_READING_FRAME_TYPE,
     STATE_READING_FRAME_PAYLOAD,
     STATE_FINISH_PARSING,
+    STATE_PARSING_NO_LONGER_POSSIBLE,
     STATE_ERROR
   };
 
@@ -241,6 +257,8 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
   // Visitor to invoke when messages are parsed.
   Visitor* const visitor_;  // Unowned.
+  // Whether WEBTRANSPORT_STREAM should be parsed.
+  bool allow_web_transport_stream_;
   // Current state of the parsing.
   HttpDecoderState state_;
   // Type of the frame currently being parsed.

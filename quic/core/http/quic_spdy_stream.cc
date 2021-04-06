@@ -19,6 +19,7 @@
 #include "quic/core/http/web_transport_http3.h"
 #include "quic/core/qpack/qpack_decoder.h"
 #include "quic/core/qpack/qpack_encoder.h"
+#include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
 #include "quic/core/quic_write_blocked_list.h"
@@ -166,6 +167,12 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     return false;
   }
 
+  void OnWebTransportStreamFrameType(
+      QuicByteCount header_length,
+      WebTransportSessionId session_id) override {
+    stream_->OnWebTransportStreamFrameType(header_length, session_id);
+  }
+
   bool OnUnknownFrameStart(uint64_t frame_type,
                            QuicByteCount header_length,
                            QuicByteCount payload_length) override {
@@ -194,6 +201,16 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
                                                       : "Client:"  \
                                                         " ")
 
+namespace {
+HttpDecoder::Options HttpDecoderOptionsForBidiStream(
+    QuicSpdySession* spdy_session) {
+  HttpDecoder::Options options;
+  options.allow_web_transport_stream =
+      spdy_session->WillNegotiateWebTransport();
+  return options;
+}
+}  // namespace
+
 QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
                                QuicSpdySession* spdy_session,
                                StreamType type)
@@ -208,7 +225,8 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       trailers_decompressed_(false),
       trailers_consumed_(false),
       http_decoder_visitor_(std::make_unique<HttpDecoderVisitor>(this)),
-      decoder_(http_decoder_visitor_.get()),
+      decoder_(http_decoder_visitor_.get(),
+               HttpDecoderOptionsForBidiStream(spdy_session)),
       sequencer_offset_(0),
       is_decoder_processing_input_(false),
       ack_listener_(nullptr),
@@ -271,6 +289,10 @@ size_t QuicSpdyStream::WriteHeaders(
     SpdyHeaderBlock header_block,
     bool fin,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+  if (!AssertNotWebTransportDataStream("writing headers")) {
+    return 0;
+  }
+
   QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
   // Send stream type for server push stream
   if (VersionUsesHttp3(transport_version()) && type() == WRITE_UNIDIRECTIONAL &&
@@ -305,6 +327,9 @@ size_t QuicSpdyStream::WriteHeaders(
 }
 
 void QuicSpdyStream::WriteOrBufferBody(absl::string_view data, bool fin) {
+  if (!AssertNotWebTransportDataStream("writing body data")) {
+    return;
+  }
   if (!VersionUsesHttp3(transport_version()) || data.length() == 0) {
     WriteOrBufferData(data, fin, nullptr);
     return;
@@ -703,6 +728,11 @@ void QuicSpdyStream::OnPriorityFrame(
 }
 
 void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
+  if (web_transport_data_ != nullptr) {
+    QuicStream::OnStreamReset(frame);
+    return;
+  }
+
   // TODO(bnc): Merge the two blocks below when both
   // quic_abort_qpack_on_stream_reset and quic_fix_on_stream_reset are
   // deprecated.
@@ -743,7 +773,7 @@ void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
 
 void QuicSpdyStream::Reset(QuicRstStreamErrorCode error) {
   if (VersionUsesHttp3(transport_version()) && !fin_received() &&
-      spdy_session_->qpack_decoder()) {
+      spdy_session_->qpack_decoder() && web_transport_data_ == nullptr) {
     QUIC_CODE_COUNT_N(quic_abort_qpack_on_stream_reset, 2, 2);
     spdy_session_->qpack_decoder()->OnStreamReset(id());
     if (GetQuicReloadableFlag(quic_abort_qpack_on_stream_reset)) {
@@ -763,6 +793,11 @@ void QuicSpdyStream::OnDataAvailable() {
 
   if (!VersionUsesHttp3(transport_version())) {
     OnBodyAvailable();
+    return;
+  }
+
+  if (web_transport_data_ != nullptr) {
+    web_transport_data_->adapter.OnDataAvailable();
     return;
   }
 
@@ -795,6 +830,9 @@ void QuicSpdyStream::OnDataAvailable() {
     is_decoder_processing_input_ = false;
     sequencer_offset_ += processed_bytes;
     if (blocked_on_decoding_headers_) {
+      return;
+    }
+    if (web_transport_data_ != nullptr) {
       return;
     }
   }
@@ -831,6 +869,20 @@ void QuicSpdyStream::OnClose() {
 
   if (web_transport_ != nullptr) {
     web_transport_->CloseAllAssociatedStreams();
+  }
+  if (web_transport_data_ != nullptr) {
+    WebTransportHttp3* web_transport =
+        spdy_session_->GetWebTransportSession(web_transport_data_->session_id);
+    if (web_transport == nullptr) {
+      // Since there is no guaranteed destruction order for streams, the session
+      // could be already removed from the stream map by the time we reach here.
+      QUIC_DLOG(WARNING) << ENDPOINT << "WebTransport stream " << id()
+                         << " attempted to notify parent session "
+                         << web_transport_data_->session_id
+                         << ", but the session could not be found.";
+      return;
+    }
+    web_transport->OnStreamClosed(id());
   }
 }
 
@@ -1071,6 +1123,36 @@ bool QuicSpdyStream::OnPushPromiseFrameEnd() {
   return OnHeadersFrameEnd();
 }
 
+void QuicSpdyStream::OnWebTransportStreamFrameType(
+    QuicByteCount header_length,
+    WebTransportSessionId session_id) {
+  QUIC_DVLOG(1) << ENDPOINT << " Received WEBTRANSPORT_STREAM on stream "
+                << id() << " for session " << session_id;
+  sequencer()->MarkConsumed(header_length);
+
+  if (headers_payload_length_ > 0 || headers_decompressed_) {
+    QUIC_PEER_BUG(WEBTRANSPORT_STREAM received on HTTP request)
+        << ENDPOINT << "Stream " << id()
+        << " tried to convert to WebTransport, but it already "
+           "has HTTP data on it";
+    Reset(QUIC_STREAM_FRAME_UNEXPECTED);
+  }
+  if (QuicUtils::IsOutgoingStreamId(spdy_session_->version(), id(),
+                                    spdy_session_->perspective())) {
+    QUIC_PEER_BUG(WEBTRANSPORT_STREAM received on outgoing request)
+        << ENDPOINT << "Stream " << id()
+        << " tried to convert to WebTransport, but only the "
+           "initiator of the stream can do it.";
+    Reset(QUIC_STREAM_FRAME_UNEXPECTED);
+  }
+
+  QUICHE_DCHECK(web_transport_ == nullptr);
+  web_transport_data_ =
+      std::make_unique<WebTransportDataStream>(this, session_id);
+  spdy_session_->AssociateIncomingWebTransportStreamWithSession(session_id,
+                                                                id());
+}
+
 bool QuicSpdyStream::OnUnknownFrameStart(uint64_t frame_type,
                                          QuicByteCount header_length,
                                          QuicByteCount payload_length) {
@@ -1207,6 +1289,64 @@ void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
   web_transport_ =
       std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
 }
+
+void QuicSpdyStream::OnCanWriteNewData() {
+  if (web_transport_data_ != nullptr) {
+    web_transport_data_->adapter.OnCanWriteNewData();
+  }
+}
+
+bool QuicSpdyStream::AssertNotWebTransportDataStream(
+    absl::string_view operation) {
+  if (web_transport_data_ != nullptr) {
+    QUIC_BUG(Invalid operation on WebTransport stream)
+        << "Attempted to " << operation << " on WebTransport data stream "
+        << id() << " associated with session "
+        << web_transport_data_->session_id;
+    OnUnrecoverableError(QUIC_INTERNAL_ERROR,
+                         absl::StrCat("Attempted to ", operation,
+                                      " on WebTransport data stream"));
+    return false;
+  }
+  return true;
+}
+
+void QuicSpdyStream::ConvertToWebTransportDataStream(
+    WebTransportSessionId session_id) {
+  if (send_buffer().stream_offset() != 0) {
+    QUIC_BUG(Sending WEBTRANSPORT_STREAM when data already sent)
+        << "Attempted to send a WEBTRANSPORT_STREAM frame when other data has "
+           "already been sent on the stream.";
+    OnUnrecoverableError(QUIC_INTERNAL_ERROR,
+                         "Attempted to send a WEBTRANSPORT_STREAM frame when "
+                         "other data has already been sent on the stream.");
+    return;
+  }
+
+  std::unique_ptr<char[]> header;
+  QuicByteCount header_size =
+      HttpEncoder::SerializeWebTransportStreamFrameHeader(session_id, &header);
+  if (header_size == 0) {
+    QUIC_BUG(Failed to serialize WEBTRANSPORT_STREAM)
+        << "Failed to serialize a WEBTRANSPORT_STREAM frame.";
+    OnUnrecoverableError(QUIC_INTERNAL_ERROR,
+                         "Failed to serialize a WEBTRANSPORT_STREAM frame.");
+    return;
+  }
+
+  WriteOrBufferData(absl::string_view(header.get(), header_size), /*fin=*/false,
+                    nullptr);
+  web_transport_data_ =
+      std::make_unique<WebTransportDataStream>(this, session_id);
+  QUIC_DVLOG(1) << ENDPOINT << "Successfully opened WebTransport data stream "
+                << id() << " for session " << session_id;
+}
+
+QuicSpdyStream::WebTransportDataStream::WebTransportDataStream(
+    QuicSpdyStream* stream,
+    WebTransportSessionId session_id)
+    : session_id(session_id),
+      adapter(stream->spdy_session_, stream, stream->sequencer()) {}
 
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

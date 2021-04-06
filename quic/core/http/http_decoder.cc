@@ -5,6 +5,7 @@
 #include "quic/core/http/http_decoder.h"
 
 #include <cstdint>
+#include <limits>
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
@@ -20,8 +21,10 @@
 
 namespace quic {
 
-HttpDecoder::HttpDecoder(Visitor* visitor)
+HttpDecoder::HttpDecoder(Visitor* visitor) : HttpDecoder(visitor, Options()) {}
+HttpDecoder::HttpDecoder(Visitor* visitor, Options options)
     : visitor_(visitor),
+      allow_web_transport_stream_(options.allow_web_transport_stream),
       state_(STATE_READING_FRAME_TYPE),
       current_frame_type_(0),
       current_length_field_length_(0),
@@ -108,6 +111,15 @@ QuicByteCount HttpDecoder::ProcessInput(const char* data, QuicByteCount len) {
       case STATE_FINISH_PARSING:
         continue_processing = FinishParsing(&reader);
         break;
+      case STATE_PARSING_NO_LONGER_POSSIBLE:
+        continue_processing = false;
+        QUIC_BUG(HttpDecoder PARSING_NO_LONGER_POSSIBLE)
+            << "HttpDecoder called after an indefinite-length frame has been "
+               "received";
+        RaiseError(QUIC_INTERNAL_ERROR,
+                   "HttpDecoder called after an indefinite-length frame has "
+                   "been received");
+        break;
       case STATE_ERROR:
         break;
       default:
@@ -190,6 +202,19 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
                                  current_length_field_length_);
     bool success = length_reader.ReadVarInt62(&current_frame_length_);
     QUICHE_DCHECK(success);
+  }
+
+  // WEBTRANSPORT_STREAM frames are indefinitely long, and thus require
+  // special handling; the number after the frame type is actually the
+  // WebTransport session ID, and not the length.
+  if (allow_web_transport_stream_ &&
+      current_frame_type_ ==
+          static_cast<uint64_t>(HttpFrameType::WEBTRANSPORT_STREAM)) {
+    visitor_->OnWebTransportStreamFrameType(
+        current_length_field_length_ + current_type_field_length_,
+        current_frame_length_);
+    state_ = STATE_PARSING_NO_LONGER_POSSIBLE;
+    return false;
   }
 
   if (current_frame_length_ > MaxFrameLength(current_frame_type_)) {

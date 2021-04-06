@@ -27,7 +27,18 @@ class EchoWebTransportServer : public WebTransportVisitor {
   void OnSessionReady() override {}
 
   void OnIncomingBidirectionalStreamAvailable() override {
-    // TODO(vasilvv): implement once bidirectional streams are supported.
+    while (true) {
+      WebTransportStream* stream =
+          session_->AcceptIncomingBidirectionalStream();
+      if (stream == nullptr) {
+        return;
+      }
+      QUIC_DVLOG(1) << "EchoWebTransportServer received a bidirectional stream "
+                    << stream->GetStreamId();
+      stream->SetVisitor(
+          std::make_unique<WebTransportBidirectionalEchoVisitor>(stream));
+      stream->visitor()->OnCanRead();
+    }
   }
 
   void OnIncomingUnidirectionalStreamAvailable() override {

@@ -91,7 +91,17 @@ void WebTransportHttp3::HeadersReceived(const spdy::SpdyHeaderBlock& headers) {
 }
 
 WebTransportStream* WebTransportHttp3::AcceptIncomingBidirectionalStream() {
-  // TODO(vasilvv): implement this.
+  while (!incoming_bidirectional_streams_.empty()) {
+    QuicStreamId id = incoming_bidirectional_streams_.front();
+    incoming_bidirectional_streams_.pop_front();
+    QuicSpdyStream* stream = session_->GetOrCreateSpdyDataStream(id);
+    if (stream == nullptr) {
+      // Skip the streams that were reset in between the time they were
+      // receieved and the time the client has polled for them.
+      continue;
+    }
+    return stream->web_transport_stream();
+  }
   return nullptr;
 }
 
@@ -112,15 +122,20 @@ WebTransportStream* WebTransportHttp3::AcceptIncomingUnidirectionalStream() {
 }
 
 bool WebTransportHttp3::CanOpenNextOutgoingBidirectionalStream() {
-  // TODO(vasilvv): implement this.
-  return false;
+  return session_->CanOpenOutgoingBidirectionalWebTransportStream(id_);
 }
 bool WebTransportHttp3::CanOpenNextOutgoingUnidirectionalStream() {
   return session_->CanOpenOutgoingUnidirectionalWebTransportStream(id_);
 }
 WebTransportStream* WebTransportHttp3::OpenOutgoingBidirectionalStream() {
-  // TODO(vasilvv): implement this.
-  return nullptr;
+  QuicSpdyStream* stream =
+      session_->CreateOutgoingBidirectionalWebTransportStream(this);
+  if (stream == nullptr) {
+    // If stream cannot be created due to flow control or other errors, return
+    // nullptr.
+    return nullptr;
+  }
+  return stream->web_transport_stream();
 }
 
 WebTransportStream* WebTransportHttp3::OpenOutgoingUnidirectionalStream() {

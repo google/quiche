@@ -34,6 +34,8 @@ enum class HttpFrameType {
   ACCEPT_CH = 0x89,
   // https://tools.ietf.org/html/draft-ietf-httpbis-priority-02
   PRIORITY_UPDATE_REQUEST_STREAM = 0xF0700,
+  // https://www.ietf.org/archive/id/draft-ietf-webtrans-http3-00.html
+  WEBTRANSPORT_STREAM = 0x41,
 };
 
 // 7.2.1.  DATA

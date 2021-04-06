@@ -25,6 +25,9 @@
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_stream.h"
 #include "quic/core/quic_stream_sequencer.h"
+#include "quic/core/quic_types.h"
+#include "quic/core/web_transport_interface.h"
+#include "quic/core/web_transport_stream_adapter.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_socket_address.h"
@@ -223,6 +226,24 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Returns the WebTransport session owned by this stream, if one exists.
   WebTransportHttp3* web_transport() { return web_transport_.get(); }
 
+  // Returns the WebTransport data stream associated with this QUIC stream, or
+  // null if this is not a WebTransport data stream.
+  WebTransportStream* web_transport_stream() {
+    if (web_transport_data_ == nullptr) {
+      return nullptr;
+    }
+    return &web_transport_data_->adapter;
+  }
+
+  // Sends a WEBTRANSPORT_STREAM frame and sets up the appropriate metadata.
+  void ConvertToWebTransportDataStream(WebTransportSessionId session_id);
+
+  void OnCanWriteNewData() override;
+
+  // If this stream is a WebTransport data stream, closes the connection with an
+  // error, and returns false.
+  bool AssertNotWebTransportDataStream(absl::string_view operation);
+
  protected:
   // Called when the received headers are too large. By default this will
   // reset the stream.
@@ -254,6 +275,14 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   friend class QuicStreamUtils;
   class HttpDecoderVisitor;
 
+  struct QUIC_EXPORT_PRIVATE WebTransportDataStream {
+    WebTransportDataStream(QuicSpdyStream* stream,
+                           WebTransportSessionId session_id);
+
+    WebTransportSessionId session_id;
+    WebTransportStreamAdapter adapter;
+  };
+
   // Called by HttpDecoderVisitor.
   bool OnDataFrameStart(QuicByteCount header_length,
                         QuicByteCount payload_length);
@@ -269,6 +298,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
                                 QuicByteCount header_block_length);
   bool OnPushPromiseFramePayload(absl::string_view payload);
   bool OnPushPromiseFrameEnd();
+  void OnWebTransportStreamFrameType(QuicByteCount header_length,
+                                     WebTransportSessionId session_id);
   bool OnUnknownFrameStart(uint64_t frame_type,
                            QuicByteCount header_length,
                            QuicByteCount payload_length);
@@ -347,6 +378,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // If this stream is a WebTransport extended CONNECT stream, contains the
   // WebTransport session associated with this stream.
   std::unique_ptr<WebTransportHttp3> web_transport_;
+
+  // If this stream is a WebTransport data stream, |web_transport_data_|
+  // contains all of the associated metadata.
+  std::unique_ptr<WebTransportDataStream> web_transport_data_;
 };
 
 }  // namespace quic
