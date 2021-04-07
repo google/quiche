@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "quic/core/quic_error_codes.h"
+
 #include <cstdint>
 #include <cstring>
 
 #include "absl/strings/str_cat.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
-#include "quic/core/quic_error_codes.h"
 #include "quic/platform/api/quic_logging.h"
 
 namespace quic {

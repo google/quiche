@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "quic/core/quic_constants.h"
+#include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_types.h"
 
 namespace quic {
