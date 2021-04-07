@@ -21,6 +21,7 @@
 #include "quic/core/qpack/qpack_decoder.h"
 #include "quic/core/qpack/qpack_encoder.h"
 #include "quic/core/quic_error_codes.h"
+#include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
 #include "quic/core/quic_write_blocked_list.h"
@@ -1242,6 +1243,7 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
 
   std::string method;
   std::string protocol;
+  absl::optional<QuicDatagramFlowId> flow_id;
   for (const auto& header : header_list_) {
     const std::string& header_name = header.first;
     const std::string& header_value = header.second;
@@ -1257,14 +1259,25 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
       }
       protocol = header_value;
     }
+    if (header_name == "datagram-flow-id") {
+      if (flow_id.has_value() || header_value.empty()) {
+        return;
+      }
+      QuicDatagramFlowId flow_id_out;
+      if (!absl::SimpleAtoi(header_value, &flow_id_out)) {
+        return;
+      }
+      flow_id = flow_id_out;
+    }
   }
 
-  if (method != "CONNECT" || protocol != "webtransport") {
+  if (method != "CONNECT" || protocol != "webtransport" ||
+      !flow_id.has_value()) {
     return;
   }
 
   web_transport_ =
-      std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
+      std::make_unique<WebTransportHttp3>(spdy_session_, this, id(), *flow_id);
 }
 
 void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
@@ -1286,8 +1299,11 @@ void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
     return;
   }
 
+  QuicDatagramFlowId flow_id = spdy_session_->GetNextDatagramFlowId();
+  headers["datagram-flow-id"] = absl::StrCat(flow_id);
+
   web_transport_ =
-      std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
+      std::make_unique<WebTransportHttp3>(spdy_session_, this, id(), flow_id);
 }
 
 void QuicSpdyStream::OnCanWriteNewData() {

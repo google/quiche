@@ -3122,6 +3122,7 @@ TEST_P(QuicSpdyStreamTest, ProcessOutgoingWebTransportHeaders) {
   spdy::SpdyHeaderBlock headers;
   headers[":method"] = "CONNECT";
   headers[":protocol"] = "webtransport";
+  headers["datagram-flow-id"] = absl::StrCat(session_->GetNextDatagramFlowId());
   stream_->WriteHeaders(std::move(headers), /*fin=*/false, nullptr);
   ASSERT_TRUE(stream_->web_transport() != nullptr);
   EXPECT_EQ(stream_->id(), stream_->web_transport()->id());
@@ -3138,6 +3139,8 @@ TEST_P(QuicSpdyStreamTest, ProcessIncomingWebTransportHeaders) {
 
   headers_[":method"] = "CONNECT";
   headers_[":protocol"] = "webtransport";
+  headers_["datagram-flow-id"] =
+      absl::StrCat(session_->GetNextDatagramFlowId());
 
   stream_->OnStreamHeadersPriority(
       spdy::SpdyStreamPrecedence(kV3HighestPriority));

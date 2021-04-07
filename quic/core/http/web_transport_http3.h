@@ -9,6 +9,7 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/types/optional.h"
+#include "quic/core/http/quic_spdy_session.h"
 #include "quic/core/quic_stream.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/web_transport_interface.h"
@@ -25,11 +26,14 @@ class QuicSpdyStream;
 //
 // WebTransport over HTTP/3 specification:
 // <https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3>
-class QUIC_EXPORT_PRIVATE WebTransportHttp3 : public WebTransportSession {
+class QUIC_EXPORT_PRIVATE WebTransportHttp3
+    : public WebTransportSession,
+      public QuicSpdySession::Http3DatagramVisitor {
  public:
   WebTransportHttp3(QuicSpdySession* session,
                     QuicSpdyStream* connect_stream,
-                    WebTransportSessionId id);
+                    WebTransportSessionId id,
+                    QuicDatagramFlowId flow_id);
 
   void HeadersReceived(const spdy::SpdyHeaderBlock& headers);
   void SetVisitor(std::unique_ptr<WebTransportVisitor> visitor) {
@@ -59,10 +63,14 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3 : public WebTransportSession {
   MessageStatus SendOrQueueDatagram(QuicMemSlice datagram) override;
   void SetDatagramMaxTimeInQueue(QuicTime::Delta max_time_in_queue) override;
 
+  void OnHttp3Datagram(QuicDatagramFlowId flow_id,
+                       absl::string_view payload) override;
+
  private:
   QuicSpdySession* const session_;        // Unowned.
   QuicSpdyStream* const connect_stream_;  // Unowned.
   const WebTransportSessionId id_;
+  const QuicDatagramFlowId flow_id_;
   // |ready_| is set to true when the peer has seen both sets of headers.
   bool ready_ = false;
   std::unique_ptr<WebTransportVisitor> visitor_;

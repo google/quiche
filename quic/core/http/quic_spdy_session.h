@@ -429,6 +429,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Unregister a given HTTP/3 datagram flow ID.
   void UnregisterHttp3FlowId(QuicDatagramFlowId flow_id);
 
+  // Sets max time in queue for a specified datagram flow ID.
+  void SetMaxTimeInQueueForFlowId(QuicDatagramFlowId flow_id,
+                                  QuicTime::Delta max_time_in_queue);
+
   // Override from QuicSession to support HTTP/3 datagrams.
   void OnMessageReceived(absl::string_view message) override;
 

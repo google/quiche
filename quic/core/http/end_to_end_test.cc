@@ -5895,6 +5895,36 @@ TEST_P(EndToEndTest, WebTransportSessionServerBidirectionalStream) {
   EXPECT_EQ(received_data, "test");
 }
 
+TEST_P(EndToEndTest, WebTransportDatagrams) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_TRUE(session != nullptr);
+  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+
+  SimpleBufferAllocator allocator;
+  for (int i = 0; i < 10; i++) {
+    absl::string_view datagram = "test";
+    auto buffer = MakeUniqueBuffer(&allocator, datagram.size());
+    memcpy(buffer.get(), datagram.data(), datagram.size());
+    QuicMemSlice slice(std::move(buffer), datagram.size());
+    session->SendOrQueueDatagram(std::move(slice));
+  }
+
+  int received = 0;
+  EXPECT_CALL(visitor, OnDatagramReceived(_)).WillRepeatedly([&received]() {
+    received++;
+  });
+  client_->WaitUntil(5000, [&received]() { return received > 0; });
+  EXPECT_GT(received, 0);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

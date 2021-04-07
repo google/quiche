@@ -509,8 +509,6 @@ QuicSpdySession::~QuicSpdySession() {
       << "QuicSpdySession use after free. " << destruction_indicator_
       << QuicStackTrace();
   destruction_indicator_ = 987654321;
-  QUIC_BUG_IF(quic_bug_12477_3, !h3_datagram_registrations_.empty())
-      << "HTTP/3 datagram flow ID was not unregistered";
 }
 
 void QuicSpdySession::Initialize() {
@@ -1685,6 +1683,14 @@ void QuicSpdySession::UnregisterHttp3FlowId(QuicDatagramFlowId flow_id) {
   size_t num_erased = h3_datagram_registrations_.erase(flow_id);
   QUIC_BUG_IF(quic_bug_12477_8, num_erased != 1)
       << "Attempted to unregister unknown HTTP/3 flow ID " << flow_id;
+}
+
+void QuicSpdySession::SetMaxTimeInQueueForFlowId(
+    QuicDatagramFlowId /*flow_id*/,
+    QuicTime::Delta max_time_in_queue) {
+  // TODO(b/184598230): implement this in a way that works for multiple sessions
+  // on a same connection.
+  datagram_queue()->SetMaxTimeInQueue(max_time_in_queue);
 }
 
 void QuicSpdySession::OnMessageReceived(absl::string_view message) {
