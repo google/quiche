@@ -1187,7 +1187,23 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         break;
       }
       case SETTINGS_WEBTRANS_DRAFT00:
-        peer_supports_webtransport_ = true;
+        if (!WillNegotiateWebTransport()) {
+          break;
+        }
+        QUIC_DVLOG(1) << ENDPOINT
+                      << "SETTINGS_ENABLE_WEBTRANSPORT received with value "
+                      << value;
+        if (value != 0 && value != 1) {
+          std::string error_details = absl::StrCat(
+              "received SETTINGS_ENABLE_WEBTRANSPORT with invalid value ",
+              value);
+          QUIC_PEER_BUG(invalid SETTINGS_ENABLE_WEBTRANSPORT value)
+              << ENDPOINT << error_details;
+          CloseConnectionWithDetails(QUIC_HTTP_RECEIVE_SPDY_SETTING,
+                                     error_details);
+          return false;
+        }
+        peer_supports_webtransport_ = (value == 1);
         break;
       default:
         QUIC_DVLOG(1) << ENDPOINT << "Unknown setting identifier " << id
