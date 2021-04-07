@@ -46,14 +46,14 @@ class QUIC_EXPORT_PRIVATE WebTransportStream {
   virtual ~WebTransportStream() {}
 
   // Reads at most |buffer_size| bytes into |buffer|.
-  virtual ABSL_MUST_USE_RESULT ReadResult Read(char* buffer,
+  ABSL_MUST_USE_RESULT virtual ReadResult Read(char* buffer,
                                                size_t buffer_size) = 0;
   // Reads all available data and appends it to the end of |output|.
-  virtual ABSL_MUST_USE_RESULT ReadResult Read(std::string* output) = 0;
+  ABSL_MUST_USE_RESULT virtual ReadResult Read(std::string* output) = 0;
   // Writes |data| into the stream.  Returns true on success.
-  virtual ABSL_MUST_USE_RESULT bool Write(absl::string_view data) = 0;
+  ABSL_MUST_USE_RESULT virtual bool Write(absl::string_view data) = 0;
   // Sends the FIN on the stream.  Returns true on success.
-  virtual ABSL_MUST_USE_RESULT bool SendFin() = 0;
+  ABSL_MUST_USE_RESULT virtual bool SendFin() = 0;
 
   // Indicates whether it is possible to write into stream right now.
   virtual bool CanWrite() const = 0;
