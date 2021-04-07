@@ -472,8 +472,9 @@ QuicSpdySession::QuicSpdySession(
                   supported_versions,
                   /*num_expected_unidirectional_static_streams = */
                   VersionUsesHttp3(connection->transport_version())
-                      ? kHttp3StaticUnidirectionalStreamCount
-                      : 0),
+                      ? static_cast<QuicStreamCount>(
+                            kHttp3StaticUnidirectionalStreamCount)
+                      : 0u),
       send_control_stream_(nullptr),
       receive_control_stream_(nullptr),
       qpack_encoder_receive_stream_(nullptr),
