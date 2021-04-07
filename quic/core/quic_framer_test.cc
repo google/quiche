@@ -47,7 +47,9 @@ namespace {
 const uint64_t kEpoch = UINT64_C(1) << 32;
 const uint64_t kMask = kEpoch - 1;
 
-const absl::uint128 kTestStatelessResetToken = 1010101;  // 0x0F69B5
+const StatelessResetToken kTestStatelessResetToken{
+    0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+    0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f};
 
 // Use fields in which each byte is distinct to ensure that every byte is
 // framed correctly. The values are otherwise arbitrary.
@@ -571,7 +573,8 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  bool IsValidStatelessResetToken(absl::uint128 token) const override {
+  bool IsValidStatelessResetToken(
+      const StatelessResetToken& token) const override {
     EXPECT_EQ(0u, framer_->current_received_frame_type());
     return token == kTestStatelessResetToken;
   }
@@ -5752,8 +5755,8 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacket) {
       0x01, 0x11, 0x02, 0x22, 0x03, 0x33, 0x04, 0x44,
       0x01, 0x11, 0x02, 0x22, 0x03, 0x33, 0x04, 0x44,
       // stateless reset token
-      0xB5, 0x69, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+      0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f,
   };
   // clang-format on
   if (!framer_.version().HasIetfInvariantHeader()) {
@@ -9253,8 +9256,8 @@ TEST_P(QuicFramerTest, BuildIetfStatelessResetPacket) {
       // At least 4 bytes of random bytes.
       0x00, 0x00, 0x00, 0x00,
       // stateless reset token
-      0xB5, 0x69, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+      0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f
     };
     // clang-format on
 
@@ -9272,11 +9275,10 @@ TEST_P(QuicFramerTest, BuildIetfStatelessResetPacket) {
     // Verify stateless reset token.
     quiche::test::CompareCharArraysWithHexError(
         "constructed packet",
-        data->data() + data->length() - sizeof(kTestStatelessResetToken),
-        sizeof(kTestStatelessResetToken),
-        AsChars(packet) + ABSL_ARRAYSIZE(packet) -
-            sizeof(kTestStatelessResetToken),
-        sizeof(kTestStatelessResetToken));
+        data->data() + data->length() - kStatelessResetTokenLength,
+        kStatelessResetTokenLength,
+        AsChars(packet) + ABSL_ARRAYSIZE(packet) - kStatelessResetTokenLength,
+        kStatelessResetTokenLength);
 
     // Packets with length <= minimal stateless reset does not trigger stateless
     // reset.
@@ -9306,8 +9308,8 @@ TEST_P(QuicFramerTest, BuildIetfStatelessResetPacket) {
     // random packet number
     0xFE,
     // stateless reset token
-    0xB5, 0x69, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+    0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f,
   };
   // clang-format on
 
@@ -9319,16 +9321,15 @@ TEST_P(QuicFramerTest, BuildIetfStatelessResetPacket) {
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), 1, AsChars(packet), 1);
   const size_t random_bytes_length =
-      data->length() - kPacketHeaderTypeSize - sizeof(kTestStatelessResetToken);
+      data->length() - kPacketHeaderTypeSize - kStatelessResetTokenLength;
   EXPECT_EQ(kMinRandomBytesLengthInStatelessReset, random_bytes_length);
   // Verify stateless reset token is correct.
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet",
-      data->data() + data->length() - sizeof(kTestStatelessResetToken),
-      sizeof(kTestStatelessResetToken),
-      AsChars(packet) + ABSL_ARRAYSIZE(packet) -
-          sizeof(kTestStatelessResetToken),
-      sizeof(kTestStatelessResetToken));
+      data->data() + data->length() - kStatelessResetTokenLength,
+      kStatelessResetTokenLength,
+      AsChars(packet) + ABSL_ARRAYSIZE(packet) - kStatelessResetTokenLength,
+      kStatelessResetTokenLength);
 }
 
 TEST_P(QuicFramerTest, EncryptPacket) {
@@ -10912,8 +10913,8 @@ TEST_P(QuicFramerTest, NewConnectionIdFrame) {
       {"Unable to read new connection ID frame connection id.",
        {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11}},
       {"Can not read new connection ID frame reset token.",
-       {0xb5, 0x69, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}
+       {0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+        0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f}}
   };
   // clang-format on
 
@@ -10971,8 +10972,8 @@ TEST_P(QuicFramerTest, NewConnectionIdFrameVariableLength) {
       {"Unable to read new connection ID frame connection id.",
        {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42}},
       {"Can not read new connection ID frame reset token.",
-       {0xb5, 0x69, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}
+       {0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+        0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f}}
   };
   // clang-format on
 
@@ -11138,8 +11139,8 @@ TEST_P(QuicFramerTest, BuildNewConnectionIdFramePacket) {
     // new connection id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11,
     // stateless reset token
-    0xb5, 0x69, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+    0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f,
   };
   // clang-format on
 
@@ -11545,8 +11546,8 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
     return;
   }
 
-  QuicNewConnectionIdFrame new_connection_id(5, TestConnectionId(), 1, 101111,
-                                             1);
+  QuicNewConnectionIdFrame new_connection_id(5, TestConnectionId(), 1,
+                                             kTestStatelessResetToken, 1);
   EXPECT_EQ(QuicFramer::GetNewConnectionIdFrameSize(new_connection_id),
             QuicFramer::GetRetransmittableControlFrameSize(
                 framer_.transport_version(), QuicFrame(&new_connection_id)));

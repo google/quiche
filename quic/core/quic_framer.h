@@ -10,7 +10,6 @@
 #include <memory>
 #include <string>
 
-#include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/quic_decrypter.h"
 #include "quic/core/crypto/quic_encrypter.h"
@@ -226,7 +225,8 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   virtual void OnPacketComplete() = 0;
 
   // Called to check whether |token| is a valid stateless reset token.
-  virtual bool IsValidStatelessResetToken(absl::uint128 token) const = 0;
+  virtual bool IsValidStatelessResetToken(
+      const StatelessResetToken& token) const = 0;
 
   // Called when an IETF stateless reset packet has been parsed and validated
   // with the stateless reset token.
@@ -478,7 +478,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   static std::unique_ptr<QuicEncryptedPacket> BuildIetfStatelessResetPacket(
       QuicConnectionId connection_id,
       size_t received_packet_length,
-      absl::uint128 stateless_reset_token);
+      StatelessResetToken stateless_reset_token);
 
   // Returns a new version negotiation packet.
   static std::unique_ptr<QuicEncryptedPacket> BuildVersionNegotiationPacket(

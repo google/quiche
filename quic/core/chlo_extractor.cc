@@ -4,7 +4,6 @@
 
 #include "quic/core/chlo_extractor.h"
 
-#include "absl/numeric/int128.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/crypto_framer.h"
@@ -16,6 +15,7 @@
 #include "quic/core/crypto/quic_encrypter.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
 #include "quic/core/quic_framer.h"
+#include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "common/platform/api/quiche_text_utils.h"
 
@@ -82,7 +82,8 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override;
   bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& farme) override;
   void OnPacketComplete() override {}
-  bool IsValidStatelessResetToken(absl::uint128 token) const override;
+  bool IsValidStatelessResetToken(
+      const StatelessResetToken& token) const override;
   void OnAuthenticatedIetfStatelessResetPacket(
       const QuicIetfStatelessResetPacket& /*packet*/) override {}
   void OnKeyUpdate(KeyUpdateReason /*reason*/) override;
@@ -304,7 +305,7 @@ bool ChloFramerVisitor::OnAckFrequencyFrame(
 }
 
 bool ChloFramerVisitor::IsValidStatelessResetToken(
-    absl::uint128 /*token*/) const {
+    const StatelessResetToken& /*token*/) const {
   return false;
 }
 

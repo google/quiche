@@ -500,7 +500,7 @@ QuicTimeWaitListManager::ConnectionIdData::ConnectionIdData(
 
 QuicTimeWaitListManager::ConnectionIdData::~ConnectionIdData() = default;
 
-absl::uint128 QuicTimeWaitListManager::GetStatelessResetToken(
+StatelessResetToken QuicTimeWaitListManager::GetStatelessResetToken(
     QuicConnectionId connection_id) const {
   return QuicUtils::GenerateStatelessResetToken(connection_id);
 }

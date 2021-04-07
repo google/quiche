@@ -11,9 +11,9 @@
 #include <string>
 #include <vector>
 
-#include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_packets.h"
+#include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -110,7 +110,9 @@ class QUIC_EXPORT_PRIVATE CryptoHandshakeMessage {
                               absl::string_view* out) const;
   QuicErrorCode GetUint32(QuicTag tag, uint32_t* out) const;
   QuicErrorCode GetUint64(QuicTag tag, uint64_t* out) const;
-  QuicErrorCode GetUint128(QuicTag tag, absl::uint128* out) const;
+
+  QuicErrorCode GetStatelessResetToken(QuicTag tag,
+                                       StatelessResetToken* out) const;
 
   // size returns 4 (message tag) + 2 (uint16_t, number of entries) +
   // (4 (tag) + 4 (end offset))*tag_value_map_.size() + ∑ value sizes.

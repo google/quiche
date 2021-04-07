@@ -219,7 +219,7 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   static QuicConnectionId CreateZeroConnectionId(QuicTransportVersion version);
 
   // Generates a 128bit stateless reset token based on a connection ID.
-  static absl::uint128 GenerateStatelessResetToken(
+  static StatelessResetToken GenerateStatelessResetToken(
       QuicConnectionId connection_id);
 
   // Determines packet number space from |encryption_level|.

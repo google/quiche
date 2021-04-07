@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
-#include "absl/numeric/int128.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/congestion_control/loss_detection_interface.h"
@@ -432,7 +431,7 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
   MOCK_METHOD(void, OnPacketComplete, (), (override));
   MOCK_METHOD(bool,
               IsValidStatelessResetToken,
-              (absl::uint128),
+              (const StatelessResetToken&),
               (const, override));
   MOCK_METHOD(void,
               OnAuthenticatedIetfStatelessResetPacket,
@@ -505,7 +504,8 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override;
   bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override;
   void OnPacketComplete() override {}
-  bool IsValidStatelessResetToken(absl::uint128 token) const override;
+  bool IsValidStatelessResetToken(
+      const StatelessResetToken& token) const override;
   void OnAuthenticatedIetfStatelessResetPacket(
       const QuicIetfStatelessResetPacket& /*packet*/) override {}
   void OnKeyUpdate(KeyUpdateReason /*reason*/) override {}

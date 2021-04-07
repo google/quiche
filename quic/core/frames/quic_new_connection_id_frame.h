@@ -7,7 +7,6 @@
 
 #include <ostream>
 
-#include "absl/numeric/int128.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_error_codes.h"
@@ -20,7 +19,7 @@ struct QUIC_EXPORT_PRIVATE QuicNewConnectionIdFrame {
   QuicNewConnectionIdFrame(QuicControlFrameId control_frame_id,
                            QuicConnectionId connection_id,
                            QuicConnectionIdSequenceNumber sequence_number,
-                           const absl::uint128 stateless_reset_token,
+                           StatelessResetToken stateless_reset_token,
                            uint64_t retire_prior_to);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
@@ -32,7 +31,7 @@ struct QUIC_EXPORT_PRIVATE QuicNewConnectionIdFrame {
   QuicControlFrameId control_frame_id = kInvalidControlFrameId;
   QuicConnectionId connection_id = EmptyQuicConnectionId();
   QuicConnectionIdSequenceNumber sequence_number = 0;
-  absl::uint128 stateless_reset_token;
+  StatelessResetToken stateless_reset_token;
   uint64_t retire_prior_to;
 };
 

@@ -630,10 +630,15 @@ bool QuicUtils::IsConnectionIdValidForVersion(
                                              transport_version);
 }
 
-absl::uint128 QuicUtils::GenerateStatelessResetToken(
+StatelessResetToken QuicUtils::GenerateStatelessResetToken(
     QuicConnectionId connection_id) {
-  return FNV1a_128_Hash(
+  static_assert(sizeof(absl::uint128) == sizeof(StatelessResetToken),
+                "bad size");
+  static_assert(alignof(absl::uint128) >= alignof(StatelessResetToken),
+                "bad alignment");
+  absl::uint128 hash = FNV1a_128_Hash(
       absl::string_view(connection_id.data(), connection_id.length()));
+  return *reinterpret_cast<StatelessResetToken*>(&hash);
 }
 
 // static

@@ -353,7 +353,7 @@ QuicConnection::QuicConnection(
       fill_up_link_during_probing_(false),
       probing_retransmission_pending_(false),
       stateless_reset_token_received_(false),
-      received_stateless_reset_token_(0),
+      received_stateless_reset_token_({}),
       last_control_frame_id_(kInvalidControlFrameId),
       is_path_degrading_(false),
       processing_ack_frame_(false),
@@ -2194,7 +2194,8 @@ void QuicConnection::MaybeRespondToConnectivityProbingOrMigration() {
   }
 }
 
-bool QuicConnection::IsValidStatelessResetToken(absl::uint128 token) const {
+bool QuicConnection::IsValidStatelessResetToken(
+    const StatelessResetToken& token) const {
   return stateless_reset_token_received_ &&
          token == received_stateless_reset_token_;
 }

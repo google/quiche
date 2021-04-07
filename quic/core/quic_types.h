@@ -44,6 +44,9 @@ using QuicStreamOffset = uint64_t;
 using DiversificationNonce = std::array<char, 32>;
 using PacketTimeVector = std::vector<std::pair<QuicPacketNumber, QuicTime>>;
 
+enum : size_t { kStatelessResetTokenLength = 16 };
+using StatelessResetToken = std::array<char, kStatelessResetTokenLength>;
+
 // WebTransport session IDs are stream IDs.
 using WebTransportSessionId = uint64_t;
 

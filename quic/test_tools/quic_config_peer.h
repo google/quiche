@@ -5,10 +5,10 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_CONFIG_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_CONFIG_PEER_H_
 
-#include "absl/numeric/int128.h"
 #include "quic/core/quic_config.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_packets.h"
+#include "quic/core/quic_types.h"
 
 namespace quic {
 
@@ -55,7 +55,7 @@ class QuicConfigPeer {
                                          const QuicTagVector& options);
 
   static void SetReceivedStatelessResetToken(QuicConfig* config,
-                                             absl::uint128 token);
+                                             const StatelessResetToken& token);
 
   static void SetReceivedMaxPacketSize(QuicConfig* config,
                                        uint32_t max_udp_payload_size);

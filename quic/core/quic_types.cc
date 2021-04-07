@@ -11,6 +11,9 @@
 
 namespace quic {
 
+static_assert(sizeof(StatelessResetToken) == kStatelessResetTokenLength,
+              "bad size");
+
 std::ostream& operator<<(std::ostream& os, const QuicConsumedData& s) {
   os << "bytes_consumed: " << s.bytes_consumed
      << " fin_consumed: " << s.fin_consumed;

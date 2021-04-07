@@ -221,9 +221,10 @@ QuicErrorCode CryptoHandshakeMessage::GetUint64(QuicTag tag,
   return GetPOD(tag, out, sizeof(uint64_t));
 }
 
-QuicErrorCode CryptoHandshakeMessage::GetUint128(QuicTag tag,
-                                                 absl::uint128* out) const {
-  return GetPOD(tag, out, sizeof(absl::uint128));
+QuicErrorCode CryptoHandshakeMessage::GetStatelessResetToken(
+    QuicTag tag,
+    StatelessResetToken* out) const {
+  return GetPOD(tag, out, kStatelessResetTokenLength);
 }
 
 size_t CryptoHandshakeMessage::size() const {

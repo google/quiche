@@ -8,10 +8,10 @@
 #include <cstdint>
 #include <string>
 
-#include "absl/numeric/int128.h"
 #include "quic/core/frames/quic_frame.h"
 #include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_connection_id.h"
+#include "quic/core/quic_types.h"
 
 namespace quic {
 
@@ -93,10 +93,11 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
 
   // Tries to send a NEW_CONNECTION_ID frame. The frame is buffered if it cannot
   // be sent immediately.
-  void WriteOrBufferNewConnectionId(const QuicConnectionId& connection_id,
-                                    uint64_t sequence_number,
-                                    uint64_t retire_prior_to,
-                                    absl::uint128 stateless_reset_token);
+  void WriteOrBufferNewConnectionId(
+      const QuicConnectionId& connection_id,
+      uint64_t sequence_number,
+      uint64_t retire_prior_to,
+      const StatelessResetToken& stateless_reset_token);
 
   // Tries to send a RETIRE_CONNNECTION_ID frame. The frame is buffered if it
   // cannot be sent immediately.

@@ -24,7 +24,6 @@
 #include <string>
 #include <vector>
 
-#include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quic/core/crypto/quic_decrypter.h"
@@ -686,7 +685,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override;
   bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override;
   void OnPacketComplete() override;
-  bool IsValidStatelessResetToken(absl::uint128 token) const override;
+  bool IsValidStatelessResetToken(
+      const StatelessResetToken& token) const override;
   void OnAuthenticatedIetfStatelessResetPacket(
       const QuicIetfStatelessResetPacket& packet) override;
   void OnKeyUpdate(KeyUpdateReason reason) override;
@@ -2004,7 +2004,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool stateless_reset_token_received_;
   // Stores received stateless reset token from peer. Used to verify whether a
   // packet is a stateless reset packet.
-  absl::uint128 received_stateless_reset_token_;
+  StatelessResetToken received_stateless_reset_token_;
 
   // Id of latest sent control frame. 0 if no control frame has been sent.
   QuicControlFrameId last_control_frame_id_;

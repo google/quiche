@@ -138,7 +138,7 @@ void QuicControlFrameManager::WriteOrBufferNewConnectionId(
     const QuicConnectionId& connection_id,
     uint64_t sequence_number,
     uint64_t retire_prior_to,
-    absl::uint128 stateless_reset_token) {
+    const StatelessResetToken& stateless_reset_token) {
   QUIC_DVLOG(1) << "Writing NEW_CONNECTION_ID frame";
   WriteOrBufferQuicFrame(QuicFrame(new QuicNewConnectionIdFrame(
       ++last_control_frame_id_, connection_id, sequence_number,

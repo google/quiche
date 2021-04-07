@@ -183,7 +183,7 @@ QuicPacketHeader::QuicPacketHeader()
       nonce(nullptr),
       form(GOOGLE_QUIC_PACKET),
       long_packet_type(INITIAL),
-      possible_stateless_reset_token(0),
+      possible_stateless_reset_token({}),
       retry_token_length_length(VARIABLE_LENGTH_INTEGER_LENGTH_0),
       retry_token(absl::string_view()),
       length_length(VARIABLE_LENGTH_INTEGER_LENGTH_0),
@@ -215,11 +215,11 @@ QuicVersionNegotiationPacket::QuicVersionNegotiationPacket(
 QuicVersionNegotiationPacket::~QuicVersionNegotiationPacket() {}
 
 QuicIetfStatelessResetPacket::QuicIetfStatelessResetPacket()
-    : stateless_reset_token(0) {}
+    : stateless_reset_token({}) {}
 
 QuicIetfStatelessResetPacket::QuicIetfStatelessResetPacket(
     const QuicPacketHeader& header,
-    absl::uint128 token)
+    StatelessResetToken token)
     : header(header), stateless_reset_token(token) {}
 
 QuicIetfStatelessResetPacket::QuicIetfStatelessResetPacket(

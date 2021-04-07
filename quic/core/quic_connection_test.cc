@@ -12,7 +12,6 @@
 #include <utility>
 
 #include "absl/base/macros.h"
-#include "absl/numeric/int128.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/congestion_control/loss_detection_interface.h"
@@ -83,6 +82,10 @@ DiversificationNonce kTestDiversificationNonce = {
     'b', 'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b',
     'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b',
 };
+
+const StatelessResetToken kTestStatelessResetToken{
+    0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+    0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f};
 
 const QuicSocketAddress kPeerAddress =
     QuicSocketAddress(QuicIpAddress::Loopback6(),
@@ -6900,7 +6903,6 @@ TEST_P(QuicConnectionTest, IetfStatelessReset) {
   if (!GetParam().version.HasIetfInvariantHeader()) {
     return;
   }
-  const absl::uint128 kTestStatelessResetToken = 1010101;
   QuicConfig config;
   QuicConfigPeer::SetReceivedStatelessResetToken(&config,
                                                  kTestStatelessResetToken);
@@ -8612,8 +8614,10 @@ TEST_P(QuicConnectionTest, RetransmittableOnWirePingLimit) {
 }
 
 TEST_P(QuicConnectionTest, ValidStatelessResetToken) {
-  const absl::uint128 kTestToken = 1010101;
-  const absl::uint128 kWrongTestToken = 1010100;
+  const StatelessResetToken kTestToken{0, 1, 0, 1, 0, 1, 0, 1,
+                                       0, 1, 0, 1, 0, 1, 0, 1};
+  const StatelessResetToken kWrongTestToken{0, 1, 0, 1, 0, 1, 0, 1,
+                                            0, 1, 0, 1, 0, 1, 0, 2};
   QuicConfig config;
   // No token has been received.
   EXPECT_FALSE(connection_.IsValidStatelessResetToken(kTestToken));
@@ -11846,7 +11850,6 @@ TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
-  const absl::uint128 kTestStatelessResetToken = 1010101;
   QuicConfig config;
   QuicConfigPeer::SetReceivedStatelessResetToken(&config,
                                                  kTestStatelessResetToken);

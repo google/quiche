@@ -28,10 +28,10 @@
 
 #include <iostream>
 
-#include "absl/numeric/int128.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_framer.h"
+#include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "common/platform/api/quiche_text_utils.h"
@@ -214,7 +214,8 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     return true;
   }
   void OnPacketComplete() override { std::cerr << "OnPacketComplete\n"; }
-  bool IsValidStatelessResetToken(absl::uint128 /*token*/) const override {
+  bool IsValidStatelessResetToken(
+      const StatelessResetToken& /*token*/) const override {
     std::cerr << "IsValidStatelessResetToken\n";
     return false;
   }

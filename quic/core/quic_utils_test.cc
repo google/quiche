@@ -312,11 +312,12 @@ TEST_F(QuicUtilsTest, StatelessResetToken) {
   QuicConnectionId connection_id1a = test::TestConnectionId(1);
   QuicConnectionId connection_id1b = test::TestConnectionId(1);
   QuicConnectionId connection_id2 = test::TestConnectionId(2);
-  absl::uint128 token1a =
+  StatelessResetToken token1a =
       QuicUtils::GenerateStatelessResetToken(connection_id1a);
-  absl::uint128 token1b =
+  StatelessResetToken token1b =
       QuicUtils::GenerateStatelessResetToken(connection_id1b);
-  absl::uint128 token2 = QuicUtils::GenerateStatelessResetToken(connection_id2);
+  StatelessResetToken token2 =
+      QuicUtils::GenerateStatelessResetToken(connection_id2);
   EXPECT_EQ(token1a, token1b);
   EXPECT_NE(token1a, token2);
 }

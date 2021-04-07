@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
-#include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
@@ -721,7 +720,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Returns a stateless reset token which will be included in the public reset
   // packet.
-  virtual absl::uint128 GetStatelessResetToken() const;
+  virtual StatelessResetToken GetStatelessResetToken() const;
 
   QuicControlFrameManager& control_frame_manager() {
     return control_frame_manager_;

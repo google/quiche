@@ -7,7 +7,6 @@
 #include <memory>
 #include <string>
 
-#include "absl/numeric/int128.h"
 #include "quic/core/crypto/crypto_handshake_message.h"
 #include "quic/core/crypto/crypto_protocol.h"
 #include "quic/core/crypto/transport_parameters.h"
@@ -188,7 +187,9 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
   QuicIpAddress host;
   host.FromString("127.0.3.1");
   const QuicSocketAddress kTestServerAddress = QuicSocketAddress(host, 1234);
-  const absl::uint128 kTestResetToken = absl::MakeUint128(0, 10111100001);
+  const StatelessResetToken kTestStatelessResetToken{
+      0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+      0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f};
   const uint32_t kTestMaxAckDelayMs =
       static_cast<uint32_t>(kDefaultDelayedAckTimeMs + 1);
   QuicConfig server_config;
@@ -202,7 +203,7 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
   server_config.SetInitialSessionFlowControlWindowToSend(
       2 * kInitialSessionFlowControlWindowForTest);
   server_config.SetIPv4AlternateServerAddressToSend(kTestServerAddress);
-  server_config.SetStatelessResetTokenToSend(kTestResetToken);
+  server_config.SetStatelessResetTokenToSend(kTestStatelessResetToken);
   server_config.SetMaxAckDelayToSendMs(kTestMaxAckDelayMs);
   CryptoHandshakeMessage msg;
   server_config.ToHandshakeMessage(&msg, version_.transport_version);
@@ -222,7 +223,7 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
   EXPECT_EQ(kTestServerAddress, config_.ReceivedIPv4AlternateServerAddress());
   EXPECT_FALSE(config_.HasReceivedIPv6AlternateServerAddress());
   EXPECT_TRUE(config_.HasReceivedStatelessResetToken());
-  EXPECT_EQ(kTestResetToken, config_.ReceivedStatelessResetToken());
+  EXPECT_EQ(kTestStatelessResetToken, config_.ReceivedStatelessResetToken());
   EXPECT_TRUE(config_.HasReceivedMaxAckDelayMs());
   EXPECT_EQ(kTestMaxAckDelayMs, config_.ReceivedMaxAckDelayMs());
 
@@ -481,7 +482,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   host.FromString("127.0.3.1");
   QuicSocketAddress kTestServerAddress = QuicSocketAddress(host, 1234);
   QuicConnectionId new_connection_id = TestConnectionId(5);
-  absl::uint128 new_stateless_reset_token =
+  StatelessResetToken new_stateless_reset_token =
       QuicUtils::GenerateStatelessResetToken(new_connection_id);
   config_.SetIPv4AlternateServerAddressToSend(
       kTestServerAddress, new_connection_id, new_stateless_reset_token);
@@ -521,8 +522,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   EXPECT_TRUE(params.key_update_not_yet_supported);
 
   EXPECT_EQ(params.preferred_address->ipv4_socket_address, kTestServerAddress);
-  EXPECT_EQ(params.preferred_address->connection_id, new_connection_id);
-  EXPECT_EQ(*reinterpret_cast<absl::uint128*>(
+  EXPECT_EQ(*reinterpret_cast<StatelessResetToken*>(
                 &params.preferred_address->stateless_reset_token.front()),
             new_stateless_reset_token);
 }
@@ -775,7 +775,7 @@ TEST_P(QuicConfigTest, SendPreferredIPv4Address) {
   host.FromString("::ffff:192.0.2.128");
   QuicSocketAddress kTestServerAddress = QuicSocketAddress(host, 1234);
   QuicConnectionId new_connection_id = TestConnectionId(5);
-  absl::uint128 new_stateless_reset_token =
+  StatelessResetToken new_stateless_reset_token =
       QuicUtils::GenerateStatelessResetToken(new_connection_id);
   auto preferred_address =
       std::make_unique<TransportParameters::PreferredAddress>();
@@ -795,7 +795,7 @@ TEST_P(QuicConfigTest, SendPreferredIPv4Address) {
   EXPECT_TRUE(config_.HasReceivedIPv6AlternateServerAddress());
   EXPECT_EQ(config_.ReceivedIPv6AlternateServerAddress(), kTestServerAddress);
   EXPECT_TRUE(config_.HasReceivedPreferredAddressConnectionIdAndToken());
-  const std::pair<QuicConnectionId, absl::uint128>&
+  const std::pair<QuicConnectionId, StatelessResetToken>&
       preferred_address_connection_id_and_token =
           config_.ReceivedPreferredAddressConnectionIdAndToken();
   EXPECT_EQ(preferred_address_connection_id_and_token.first, new_connection_id);

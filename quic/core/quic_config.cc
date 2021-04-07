@@ -11,7 +11,6 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
-#include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/crypto_handshake_message.h"
 #include "quic/core/crypto/crypto_protocol.h"
@@ -225,54 +224,61 @@ QuicErrorCode QuicFixedUint62::ProcessPeerHello(
   return error;
 }
 
-QuicFixedUint128::QuicFixedUint128(QuicTag tag, QuicConfigPresence presence)
+QuicFixedStatelessResetToken::QuicFixedStatelessResetToken(
+    QuicTag tag,
+    QuicConfigPresence presence)
     : QuicConfigValue(tag, presence),
       has_send_value_(false),
       has_receive_value_(false) {}
-QuicFixedUint128::~QuicFixedUint128() {}
+QuicFixedStatelessResetToken::~QuicFixedStatelessResetToken() {}
 
-bool QuicFixedUint128::HasSendValue() const {
+bool QuicFixedStatelessResetToken::HasSendValue() const {
   return has_send_value_;
 }
 
-absl::uint128 QuicFixedUint128::GetSendValue() const {
+const StatelessResetToken& QuicFixedStatelessResetToken::GetSendValue() const {
   QUIC_BUG_IF(quic_bug_12743_4, !has_send_value_)
       << "No send value to get for tag:" << QuicTagToString(tag_);
   return send_value_;
 }
 
-void QuicFixedUint128::SetSendValue(absl::uint128 value) {
+void QuicFixedStatelessResetToken::SetSendValue(
+    const StatelessResetToken& value) {
   has_send_value_ = true;
   send_value_ = value;
 }
 
-bool QuicFixedUint128::HasReceivedValue() const {
+bool QuicFixedStatelessResetToken::HasReceivedValue() const {
   return has_receive_value_;
 }
 
-absl::uint128 QuicFixedUint128::GetReceivedValue() const {
+const StatelessResetToken& QuicFixedStatelessResetToken::GetReceivedValue()
+    const {
   QUIC_BUG_IF(quic_bug_12743_5, !has_receive_value_)
       << "No receive value to get for tag:" << QuicTagToString(tag_);
   return receive_value_;
 }
 
-void QuicFixedUint128::SetReceivedValue(absl::uint128 value) {
+void QuicFixedStatelessResetToken::SetReceivedValue(
+    const StatelessResetToken& value) {
   has_receive_value_ = true;
   receive_value_ = value;
 }
 
-void QuicFixedUint128::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
+void QuicFixedStatelessResetToken::ToHandshakeMessage(
+    CryptoHandshakeMessage* out) const {
   if (has_send_value_) {
     out->SetValue(tag_, send_value_);
   }
 }
 
-QuicErrorCode QuicFixedUint128::ProcessPeerHello(
+QuicErrorCode QuicFixedStatelessResetToken::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
     HelloType /*hello_type*/,
     std::string* error_details) {
   QUICHE_DCHECK(error_details != nullptr);
-  QuicErrorCode error = peer_hello.GetUint128(tag_, &receive_value_);
+  QuicErrorCode error =
+      peer_hello.GetStatelessResetToken(tag_, &receive_value_);
   switch (error) {
     case QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND:
       if (presence_ == PRESENCE_OPTIONAL) {
@@ -887,7 +893,7 @@ void QuicConfig::SetIPv6AlternateServerAddressToSend(
 void QuicConfig::SetIPv6AlternateServerAddressToSend(
     const QuicSocketAddress& alternate_server_address_ipv6,
     const QuicConnectionId& connection_id,
-    absl::uint128 stateless_reset_token) {
+    const StatelessResetToken& stateless_reset_token) {
   if (!alternate_server_address_ipv6.host().IsIPv6()) {
     QUIC_BUG(quic_bug_10575_10)
         << "Cannot use SetIPv6AlternateServerAddressToSend with "
@@ -922,7 +928,7 @@ void QuicConfig::SetIPv4AlternateServerAddressToSend(
 void QuicConfig::SetIPv4AlternateServerAddressToSend(
     const QuicSocketAddress& alternate_server_address_ipv4,
     const QuicConnectionId& connection_id,
-    absl::uint128 stateless_reset_token) {
+    const StatelessResetToken& stateless_reset_token) {
   if (!alternate_server_address_ipv4.host().IsIPv4()) {
     QUIC_BUG(quic_bug_10575_12)
         << "Cannot use SetIPv4AlternateServerAddressToSend with "
@@ -949,7 +955,7 @@ bool QuicConfig::HasReceivedPreferredAddressConnectionIdAndToken() const {
          preferred_address_connection_id_and_token_.has_value();
 }
 
-const std::pair<QuicConnectionId, absl::uint128>&
+const std::pair<QuicConnectionId, StatelessResetToken>&
 QuicConfig::ReceivedPreferredAddressConnectionIdAndToken() const {
   QUICHE_DCHECK(HasReceivedPreferredAddressConnectionIdAndToken());
   return *preferred_address_connection_id_and_token_;
@@ -1008,7 +1014,7 @@ QuicConnectionId QuicConfig::ReceivedRetrySourceConnectionId() const {
 }
 
 void QuicConfig::SetStatelessResetTokenToSend(
-    absl::uint128 stateless_reset_token) {
+    const StatelessResetToken& stateless_reset_token) {
   stateless_reset_token_.SetSendValue(stateless_reset_token);
 }
 
@@ -1016,7 +1022,7 @@ bool QuicConfig::HasReceivedStatelessResetToken() const {
   return stateless_reset_token_.HasReceivedValue();
 }
 
-absl::uint128 QuicConfig::ReceivedStatelessResetToken() const {
+const StatelessResetToken& QuicConfig::ReceivedStatelessResetToken() const {
   return stateless_reset_token_.GetReceivedValue();
 }
 
@@ -1204,7 +1210,8 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
       max_idle_timeout_to_send_.ToMilliseconds());
 
   if (stateless_reset_token_.HasSendValue()) {
-    absl::uint128 stateless_reset_token = stateless_reset_token_.GetSendValue();
+    StatelessResetToken stateless_reset_token =
+        stateless_reset_token_.GetSendValue();
     params->stateless_reset_token.assign(
         reinterpret_cast<const char*>(&stateless_reset_token),
         reinterpret_cast<const char*>(&stateless_reset_token) +
@@ -1319,7 +1326,7 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   }
 
   if (!is_resumption && !params.stateless_reset_token.empty()) {
-    absl::uint128 stateless_reset_token;
+    StatelessResetToken stateless_reset_token;
     if (params.stateless_reset_token.size() != sizeof(stateless_reset_token)) {
       QUIC_BUG(quic_bug_10575_16) << "Bad stateless reset token length "
                                   << params.stateless_reset_token.size();
@@ -1385,7 +1392,7 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
       if (!params.preferred_address->connection_id.IsEmpty()) {
         preferred_address_connection_id_and_token_ = std::make_pair(
             params.preferred_address->connection_id,
-            *reinterpret_cast<const absl::uint128*>(
+            *reinterpret_cast<const StatelessResetToken*>(
                 &params.preferred_address->stateless_reset_token.front()));
       }
     }

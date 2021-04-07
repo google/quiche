@@ -9,12 +9,12 @@
 #include <cstdint>
 #include <string>
 
-#include "absl/numeric/int128.h"
 #include "absl/types/optional.h"
 #include "quic/core/crypto/transport_parameters.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_time.h"
+#include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -134,23 +134,25 @@ class QUIC_EXPORT_PRIVATE QuicFixedUint62 : public QuicConfigValue {
   uint64_t receive_value_;
 };
 
-// Stores uint128 from CHLO or SHLO messages that are not negotiated.
-class QUIC_EXPORT_PRIVATE QuicFixedUint128 : public QuicConfigValue {
+// Stores StatelessResetToken from CHLO or SHLO messages that are not
+// negotiated.
+class QUIC_EXPORT_PRIVATE QuicFixedStatelessResetToken
+    : public QuicConfigValue {
  public:
-  QuicFixedUint128(QuicTag tag, QuicConfigPresence presence);
-  ~QuicFixedUint128() override;
+  QuicFixedStatelessResetToken(QuicTag tag, QuicConfigPresence presence);
+  ~QuicFixedStatelessResetToken() override;
 
   bool HasSendValue() const;
 
-  absl::uint128 GetSendValue() const;
+  const StatelessResetToken& GetSendValue() const;
 
-  void SetSendValue(absl::uint128 value);
+  void SetSendValue(const StatelessResetToken& value);
 
   bool HasReceivedValue() const;
 
-  absl::uint128 GetReceivedValue() const;
+  const StatelessResetToken& GetReceivedValue() const;
 
-  void SetReceivedValue(absl::uint128 value);
+  void SetReceivedValue(const StatelessResetToken& value);
 
   // If has_send_value is true, serialises |tag_| and |send_value_| to |out|.
   void ToHandshakeMessage(CryptoHandshakeMessage* out) const override;
@@ -163,8 +165,8 @@ class QUIC_EXPORT_PRIVATE QuicFixedUint128 : public QuicConfigValue {
  private:
   bool has_send_value_;
   bool has_receive_value_;
-  absl::uint128 send_value_;
-  absl::uint128 receive_value_;
+  StatelessResetToken send_value_;
+  StatelessResetToken receive_value_;
 };
 
 // Stores tag from CHLO or SHLO messages that are not negotiated.
@@ -394,7 +396,7 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   void SetIPv6AlternateServerAddressToSend(
       const QuicSocketAddress& alternate_server_address_ipv6,
       const QuicConnectionId& connection_id,
-      absl::uint128 stateless_reset_token);
+      const StatelessResetToken& stateless_reset_token);
   bool HasReceivedIPv6AlternateServerAddress() const;
   const QuicSocketAddress& ReceivedIPv6AlternateServerAddress() const;
 
@@ -404,13 +406,13 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   void SetIPv4AlternateServerAddressToSend(
       const QuicSocketAddress& alternate_server_address_ipv4,
       const QuicConnectionId& connection_id,
-      absl::uint128 stateless_reset_token);
+      const StatelessResetToken& stateless_reset_token);
   bool HasReceivedIPv4AlternateServerAddress() const;
   const QuicSocketAddress& ReceivedIPv4AlternateServerAddress() const;
 
   // Preferred Address Connection ID and Token.
   bool HasReceivedPreferredAddressConnectionIdAndToken() const;
-  const std::pair<QuicConnectionId, absl::uint128>&
+  const std::pair<QuicConnectionId, StatelessResetToken>&
   ReceivedPreferredAddressConnectionIdAndToken() const;
 
   // Original destination connection ID.
@@ -420,9 +422,10 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   QuicConnectionId ReceivedOriginalConnectionId() const;
 
   // Stateless reset token.
-  void SetStatelessResetTokenToSend(absl::uint128 stateless_reset_token);
+  void SetStatelessResetTokenToSend(
+      const StatelessResetToken& stateless_reset_token);
   bool HasReceivedStatelessResetToken() const;
-  absl::uint128 ReceivedStatelessResetToken() const;
+  const StatelessResetToken& ReceivedStatelessResetToken() const;
 
   // Manage the IETF QUIC Max ACK Delay transport parameter.
   // The sent value is the delay that this node uses
@@ -604,12 +607,12 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   QuicFixedSocketAddress alternate_server_address_ipv4_;
   // Connection Id data to send from the server or receive at the client as part
   // of the preferred address transport parameter.
-  absl::optional<std::pair<QuicConnectionId, absl::uint128>>
+  absl::optional<std::pair<QuicConnectionId, StatelessResetToken>>
       preferred_address_connection_id_and_token_;
 
   // Stateless reset token used in IETF public reset packet.
   // Uses the stateless_reset_token transport parameter in IETF QUIC.
-  QuicFixedUint128 stateless_reset_token_;
+  QuicFixedStatelessResetToken stateless_reset_token_;
 
   // List of QuicTags whose presence immediately causes the session to
   // be created. This allows for CHLOs that are larger than a single

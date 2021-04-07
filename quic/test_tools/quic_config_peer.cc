@@ -87,8 +87,9 @@ void QuicConfigPeer::SetConnectionOptionsToSend(QuicConfig* config,
 }
 
 // static
-void QuicConfigPeer::SetReceivedStatelessResetToken(QuicConfig* config,
-                                                    absl::uint128 token) {
+void QuicConfigPeer::SetReceivedStatelessResetToken(
+    QuicConfig* config,
+    const StatelessResetToken& token) {
   config->stateless_reset_token_.SetReceivedValue(token);
 }
 

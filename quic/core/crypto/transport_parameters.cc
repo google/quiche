@@ -74,7 +74,6 @@ constexpr uint64_t kMaxAckDelayExponentTransportParam = 20;
 constexpr uint64_t kDefaultAckDelayExponentTransportParam = 3;
 constexpr uint64_t kMaxMaxAckDelayTransportParam = 16383;
 constexpr uint64_t kDefaultMaxAckDelayTransportParam = 25;
-constexpr size_t kStatelessResetTokenLength = 16;
 constexpr uint64_t kMinActiveConnectionIdLimitTransportParam = 2;
 constexpr uint64_t kDefaultActiveConnectionIdLimitTransportParam = 2;
 
