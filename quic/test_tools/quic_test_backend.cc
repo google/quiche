@@ -24,7 +24,11 @@ class EchoWebTransportServer : public WebTransportVisitor {
  public:
   EchoWebTransportServer(WebTransportSession* session) : session_(session) {}
 
-  void OnSessionReady() override {}
+  void OnSessionReady() override {
+    if (session_->CanOpenNextOutgoingBidirectionalStream()) {
+      OnCanCreateNewOutgoingBidirectionalStream();
+    }
+  }
 
   void OnIncomingBidirectionalStreamAvailable() override {
     while (true) {
@@ -67,7 +71,14 @@ class EchoWebTransportServer : public WebTransportVisitor {
     session_->SendOrQueueDatagram(std::move(slice));
   }
 
-  void OnCanCreateNewOutgoingBidirectionalStream() override {}
+  void OnCanCreateNewOutgoingBidirectionalStream() override {
+    if (!echo_stream_opened_) {
+      WebTransportStream* stream = session_->OpenOutgoingBidirectionalStream();
+      stream->SetVisitor(
+          std::make_unique<WebTransportBidirectionalEchoVisitor>(stream));
+      echo_stream_opened_ = true;
+    }
+  }
   void OnCanCreateNewOutgoingUnidirectionalStream() override {
     TrySendingUnidirectionalStreams();
   }
@@ -89,6 +100,7 @@ class EchoWebTransportServer : public WebTransportVisitor {
  private:
   WebTransportSession* session_;
   SimpleBufferAllocator allocator_;
+  bool echo_stream_opened_ = false;
 
   QuicCircularDeque<std::string> streams_to_echo_back_;
 };

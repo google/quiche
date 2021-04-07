@@ -5867,6 +5867,34 @@ TEST_P(EndToEndTest, WebTransportSessionBidirectionalStreamWithBuffering) {
   EXPECT_EQ(received_data, "test");
 }
 
+TEST_P(EndToEndTest, WebTransportSessionServerBidirectionalStream) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/false);
+  ASSERT_TRUE(session != nullptr);
+  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+
+  bool stream_received = false;
+  EXPECT_CALL(visitor, OnIncomingBidirectionalStreamAvailable())
+      .WillOnce(Assign(&stream_received, true));
+  client_->WaitUntil(5000, [&stream_received]() { return stream_received; });
+  EXPECT_TRUE(stream_received);
+
+  WebTransportStream* stream = session->AcceptIncomingBidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+  EXPECT_TRUE(stream->Write("test"));
+  EXPECT_TRUE(stream->SendFin());
+
+  std::string received_data = ReadDataFromWebTransportStreamUntilFin(stream);
+  EXPECT_EQ(received_data, "test");
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

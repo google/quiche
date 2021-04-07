@@ -9,6 +9,7 @@
 
 #include "absl/memory/memory.h"
 #include "quic/core/crypto/crypto_protocol.h"
+#include "quic/core/http/quic_server_initiated_spdy_stream.h"
 #include "quic/core/http/quic_spdy_client_stream.h"
 #include "quic/core/http/spdy_utils.h"
 #include "quic/core/quic_server_id.h"
@@ -166,7 +167,8 @@ bool QuicSpdyClientSession::ShouldCreateIncomingStream(QuicStreamId id) {
   }
 
   if (VersionHasIetfQuicFrames(transport_version()) &&
-      QuicUtils::IsBidirectionalStreamId(id, version())) {
+      QuicUtils::IsBidirectionalStreamId(id, version()) &&
+      !WillNegotiateWebTransport()) {
     connection()->CloseConnection(
         QUIC_HTTP_SERVER_INITIATED_BIDIRECTIONAL_STREAM,
         "Server created bidirectional stream.",
@@ -189,8 +191,16 @@ QuicSpdyStream* QuicSpdyClientSession::CreateIncomingStream(QuicStreamId id) {
   if (!ShouldCreateIncomingStream(id)) {
     return nullptr;
   }
-  QuicSpdyStream* stream =
-      new QuicSpdyClientStream(id, this, READ_UNIDIRECTIONAL);
+  QuicSpdyStream* stream;
+  if (version().UsesHttp3() &&
+      QuicUtils::IsBidirectionalStreamId(id, version())) {
+    QUIC_BUG_IF(QuicServerInitiatedSpdyStream but no WebTransport support,
+                !WillNegotiateWebTransport())
+        << "QuicServerInitiatedSpdyStream created but no WebTransport support";
+    stream = new QuicServerInitiatedSpdyStream(id, this, BIDIRECTIONAL);
+  } else {
+    stream = new QuicSpdyClientStream(id, this, READ_UNIDIRECTIONAL);
+  }
   ActivateStream(absl::WrapUnique(stream));
   return stream;
 }

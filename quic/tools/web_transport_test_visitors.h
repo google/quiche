@@ -39,6 +39,9 @@ class WebTransportBidirectionalEchoVisitor : public WebTransportStreamVisitor {
 
   void OnCanRead() override {
     WebTransportStream::ReadResult result = stream_->Read(&buffer_);
+    QUIC_DVLOG(1) << "Attempted reading on WebTransport bidirectional stream "
+                  << stream_->GetStreamId()
+                  << ", bytes read: " << result.bytes_read;
     if (result.fin) {
       send_fin_ = true;
     }
@@ -48,6 +51,9 @@ class WebTransportBidirectionalEchoVisitor : public WebTransportStreamVisitor {
   void OnCanWrite() override {
     if (!buffer_.empty()) {
       bool success = stream_->Write(buffer_);
+      QUIC_DVLOG(1) << "Attempted writing on WebTransport bidirectional stream "
+                    << stream_->GetStreamId()
+                    << ", success: " << (success ? "yes" : "no");
       if (!success) {
         return;
       }
