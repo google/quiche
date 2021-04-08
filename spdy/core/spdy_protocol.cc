@@ -462,7 +462,7 @@ SpdyFrameType SpdyContinuationIR::frame_type() const {
 size_t SpdyContinuationIR::size() const {
   // We don't need to get the size of CONTINUATION frame directly. It is
   // calculated in HEADERS or PUSH_PROMISE frame.
-  SPDY_DLOG(WARNING) << "Shouldn't not call size() for CONTINUATION frame.";
+  QUICHE_DLOG(WARNING) << "Shouldn't not call size() for CONTINUATION frame.";
   return 0;
 }
 

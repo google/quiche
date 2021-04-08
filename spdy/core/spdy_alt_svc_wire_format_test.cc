@@ -5,7 +5,6 @@
 #include "spdy/core/spdy_alt_svc_wire_format.h"
 
 #include "common/platform/api/quiche_test.h"
-#include "spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
 

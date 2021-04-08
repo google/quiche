@@ -6,7 +6,6 @@
 
 #include "absl/strings/str_cat.h"
 #include "spdy/platform/api/spdy_estimate_memory_usage.h"
-#include "spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
 

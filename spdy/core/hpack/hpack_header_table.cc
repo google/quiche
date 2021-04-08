@@ -6,10 +6,10 @@
 
 #include <algorithm>
 
+#include "common/platform/api/quiche_logging.h"
 #include "spdy/core/hpack/hpack_constants.h"
 #include "spdy/core/hpack/hpack_static_table.h"
 #include "spdy/platform/api/spdy_estimate_memory_usage.h"
-#include "spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
 
@@ -155,9 +155,9 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
   if (!index_result.second) {
     // An entry with the same name and value already exists in the dynamic
     // index. We should replace it with the newly added entry.
-    SPDY_DVLOG(1) << "Found existing entry at: " << index_result.first->second
-                  << " replacing with: " << new_entry->GetDebugString()
-                  << " at: " << index;
+    QUICHE_DVLOG(1) << "Found existing entry at: " << index_result.first->second
+                    << " replacing with: " << new_entry->GetDebugString()
+                    << " at: " << index;
     QUICHE_DCHECK_GT(index, index_result.first->second);
     dynamic_index_.erase(index_result.first);
     auto insert_result = dynamic_index_.insert(std::make_pair(
@@ -170,9 +170,9 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
   if (!name_result.second) {
     // An entry with the same name already exists in the dynamic index. We
     // should replace it with the newly added entry.
-    SPDY_DVLOG(1) << "Found existing entry at: " << name_result.first->second
-                  << " replacing with: " << new_entry->GetDebugString()
-                  << " at: " << index;
+    QUICHE_DVLOG(1) << "Found existing entry at: " << name_result.first->second
+                    << " replacing with: " << new_entry->GetDebugString()
+                    << " at: " << index;
     QUICHE_DCHECK_GT(index, name_result.first->second);
     dynamic_name_index_.erase(name_result.first);
     auto insert_result =

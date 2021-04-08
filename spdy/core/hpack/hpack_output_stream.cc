@@ -6,8 +6,8 @@
 
 #include <utility>
 
+#include "common/platform/api/quiche_logging.h"
 #include "spdy/platform/api/spdy_estimate_memory_usage.h"
-#include "spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
 

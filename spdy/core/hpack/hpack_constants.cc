@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "absl/base/macros.h"
+#include "common/platform/api/quiche_logging.h"
 #include "spdy/core/hpack/hpack_static_table.h"
-#include "spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
 

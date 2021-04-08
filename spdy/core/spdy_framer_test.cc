@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "absl/base/macros.h"
+#include "common/platform/api/quiche_logging.h"
 #include "common/platform/api/quiche_test.h"
 #include "spdy/core/array_output_buffer.h"
 #include "spdy/core/mock_spdy_framer_visitor.h"
@@ -24,7 +25,6 @@
 #include "spdy/core/spdy_protocol.h"
 #include "spdy/core/spdy_test_utils.h"
 #include "spdy/platform/api/spdy_flags.h"
-#include "spdy/platform/api/spdy_logging.h"
 #include "spdy/platform/api/spdy_string_utils.h"
 
 using ::http2::Http2DecoderAdapter;
@@ -62,7 +62,7 @@ MATCHER_P(IsFrameUnionOf, frame_list, "") {
   size_t size_verified = 0;
   for (const auto& frame : *frame_list) {
     if (arg.size() < size_verified + frame.size()) {
-      SPDY_LOG(FATAL)
+      QUICHE_LOG(FATAL)
           << "Incremental header serialization should not lead to a "
           << "higher total frame length than non-incremental method.";
       return false;
@@ -268,16 +268,16 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
 
   void OnError(Http2DecoderAdapter::SpdyFramerError error,
                std::string /*detailed_error*/) override {
-    SPDY_VLOG(1) << "SpdyFramer Error: "
-                 << Http2DecoderAdapter::SpdyFramerErrorToString(error);
+    QUICHE_VLOG(1) << "SpdyFramer Error: "
+                   << Http2DecoderAdapter::SpdyFramerErrorToString(error);
     ++error_count_;
   }
 
   void OnDataFrameHeader(SpdyStreamId stream_id,
                          size_t length,
                          bool fin) override {
-    SPDY_VLOG(1) << "OnDataFrameHeader(" << stream_id << ", " << length << ", "
-                 << fin << ")";
+    QUICHE_VLOG(1) << "OnDataFrameHeader(" << stream_id << ", " << length
+                   << ", " << fin << ")";
     ++data_frame_count_;
     header_stream_id_ = stream_id;
   }
@@ -285,30 +285,30 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   void OnStreamFrameData(SpdyStreamId stream_id,
                          const char* data,
                          size_t len) override {
-    SPDY_VLOG(1) << "OnStreamFrameData(" << stream_id << ", data, " << len
-                 << ", "
-                 << ")   data:\n"
-                 << SpdyHexDump(absl::string_view(data, len));
+    QUICHE_VLOG(1) << "OnStreamFrameData(" << stream_id << ", data, " << len
+                   << ", "
+                   << ")   data:\n"
+                   << SpdyHexDump(absl::string_view(data, len));
     EXPECT_EQ(header_stream_id_, stream_id);
 
     data_bytes_ += len;
   }
 
   void OnStreamEnd(SpdyStreamId stream_id) override {
-    SPDY_VLOG(1) << "OnStreamEnd(" << stream_id << ")";
+    QUICHE_VLOG(1) << "OnStreamEnd(" << stream_id << ")";
     EXPECT_EQ(header_stream_id_, stream_id);
     ++end_of_stream_count_;
   }
 
   void OnStreamPadLength(SpdyStreamId stream_id, size_t value) override {
-    SPDY_VLOG(1) << "OnStreamPadding(" << stream_id << ", " << value << ")\n";
+    QUICHE_VLOG(1) << "OnStreamPadding(" << stream_id << ", " << value << ")\n";
     EXPECT_EQ(header_stream_id_, stream_id);
     // Count the padding length field byte against total data bytes.
     data_bytes_ += 1;
   }
 
   void OnStreamPadding(SpdyStreamId stream_id, size_t len) override {
-    SPDY_VLOG(1) << "OnStreamPadding(" << stream_id << ", " << len << ")\n";
+    QUICHE_VLOG(1) << "OnStreamPadding(" << stream_id << ", " << len << ")\n";
     EXPECT_EQ(header_stream_id_, stream_id);
     data_bytes_ += len;
   }
@@ -329,34 +329,34 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   }
 
   void OnRstStream(SpdyStreamId stream_id, SpdyErrorCode error_code) override {
-    SPDY_VLOG(1) << "OnRstStream(" << stream_id << ", " << error_code << ")";
+    QUICHE_VLOG(1) << "OnRstStream(" << stream_id << ", " << error_code << ")";
     ++fin_frame_count_;
   }
 
   void OnSetting(SpdySettingsId id, uint32_t value) override {
-    SPDY_VLOG(1) << "OnSetting(" << id << ", " << std::hex << value << ")";
+    QUICHE_VLOG(1) << "OnSetting(" << id << ", " << std::hex << value << ")";
     ++setting_count_;
   }
 
   void OnSettingsAck() override {
-    SPDY_VLOG(1) << "OnSettingsAck";
+    QUICHE_VLOG(1) << "OnSettingsAck";
     ++settings_ack_received_;
   }
 
   void OnSettingsEnd() override {
-    SPDY_VLOG(1) << "OnSettingsEnd";
+    QUICHE_VLOG(1) << "OnSettingsEnd";
     ++settings_ack_sent_;
   }
 
   void OnPing(SpdyPingId unique_id, bool is_ack) override {
-    SPDY_LOG(DFATAL) << "OnPing(" << unique_id << ", " << (is_ack ? 1 : 0)
-                     << ")";
+    QUICHE_LOG(DFATAL) << "OnPing(" << unique_id << ", " << (is_ack ? 1 : 0)
+                       << ")";
   }
 
   void OnGoAway(SpdyStreamId last_accepted_stream_id,
                 SpdyErrorCode error_code) override {
-    SPDY_VLOG(1) << "OnGoAway(" << last_accepted_stream_id << ", " << error_code
-                 << ")";
+    QUICHE_VLOG(1) << "OnGoAway(" << last_accepted_stream_id << ", "
+                   << error_code << ")";
     ++goaway_count_;
   }
 
@@ -367,9 +367,9 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
                  bool exclusive,
                  bool fin,
                  bool end) override {
-    SPDY_VLOG(1) << "OnHeaders(" << stream_id << ", " << has_priority << ", "
-                 << weight << ", " << parent_stream_id << ", " << exclusive
-                 << ", " << fin << ", " << end << ")";
+    QUICHE_VLOG(1) << "OnHeaders(" << stream_id << ", " << has_priority << ", "
+                   << weight << ", " << parent_stream_id << ", " << exclusive
+                   << ", " << fin << ", " << end << ")";
     ++headers_frame_count_;
     InitHeaderStreaming(SpdyFrameType::HEADERS, stream_id);
     if (fin) {
@@ -381,8 +381,8 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   }
 
   void OnWindowUpdate(SpdyStreamId stream_id, int delta_window_size) override {
-    SPDY_VLOG(1) << "OnWindowUpdate(" << stream_id << ", " << delta_window_size
-                 << ")";
+    QUICHE_VLOG(1) << "OnWindowUpdate(" << stream_id << ", "
+                   << delta_window_size << ")";
     last_window_update_stream_ = stream_id;
     last_window_update_delta_ = delta_window_size;
   }
@@ -390,8 +390,8 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   void OnPushPromise(SpdyStreamId stream_id,
                      SpdyStreamId promised_stream_id,
                      bool end) override {
-    SPDY_VLOG(1) << "OnPushPromise(" << stream_id << ", " << promised_stream_id
-                 << ", " << end << ")";
+    QUICHE_VLOG(1) << "OnPushPromise(" << stream_id << ", "
+                   << promised_stream_id << ", " << end << ")";
     ++push_promise_frame_count_;
     InitHeaderStreaming(SpdyFrameType::PUSH_PROMISE, stream_id);
     last_push_promise_stream_ = stream_id;
@@ -399,7 +399,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   }
 
   void OnContinuation(SpdyStreamId stream_id, bool end) override {
-    SPDY_VLOG(1) << "OnContinuation(" << stream_id << ", " << end << ")";
+    QUICHE_VLOG(1) << "OnContinuation(" << stream_id << ", " << end << ")";
     ++continuation_count_;
   }
 
@@ -407,8 +407,8 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
                 absl::string_view origin,
                 const SpdyAltSvcWireFormat::AlternativeServiceVector&
                     altsvc_vector) override {
-    SPDY_VLOG(1) << "OnAltSvc(" << stream_id << ", \"" << origin
-                 << "\", altsvc_vector)";
+    QUICHE_VLOG(1) << "OnAltSvc(" << stream_id << ", \"" << origin
+                   << "\", altsvc_vector)";
     test_altsvc_ir_ = std::make_unique<SpdyAltSvcIR>(stream_id);
     if (origin.length() > 0) {
       test_altsvc_ir_->set_origin(std::string(origin));
@@ -423,19 +423,20 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
                   SpdyStreamId parent_stream_id,
                   int weight,
                   bool exclusive) override {
-    SPDY_VLOG(1) << "OnPriority(" << stream_id << ", " << parent_stream_id
-                 << ", " << weight << ", " << (exclusive ? 1 : 0) << ")";
+    QUICHE_VLOG(1) << "OnPriority(" << stream_id << ", " << parent_stream_id
+                   << ", " << weight << ", " << (exclusive ? 1 : 0) << ")";
     ++priority_count_;
   }
 
   void OnPriorityUpdate(SpdyStreamId prioritized_stream_id,
                         absl::string_view priority_field_value) override {
-    SPDY_VLOG(1) << "OnPriorityUpdate(" << prioritized_stream_id << ", "
-                 << priority_field_value << ")";
+    QUICHE_VLOG(1) << "OnPriorityUpdate(" << prioritized_stream_id << ", "
+                   << priority_field_value << ")";
   }
 
   bool OnUnknownFrame(SpdyStreamId stream_id, uint8_t frame_type) override {
-    SPDY_VLOG(1) << "OnUnknownFrame(" << stream_id << ", " << frame_type << ")";
+    QUICHE_VLOG(1) << "OnUnknownFrame(" << stream_id << ", " << frame_type
+                   << ")";
     return on_unknown_frame_result_;
   }
 
@@ -443,8 +444,8 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
                              SpdyFrameType type,
                              size_t payload_len,
                              size_t frame_len) override {
-    SPDY_VLOG(1) << "OnSendCompressedFrame(" << stream_id << ", " << type
-                 << ", " << payload_len << ", " << frame_len << ")";
+    QUICHE_VLOG(1) << "OnSendCompressedFrame(" << stream_id << ", " << type
+                   << ", " << payload_len << ", " << frame_len << ")";
     last_payload_len_ = payload_len;
     last_frame_len_ = frame_len;
   }
@@ -452,8 +453,8 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   void OnReceiveCompressedFrame(SpdyStreamId stream_id,
                                 SpdyFrameType type,
                                 size_t frame_len) override {
-    SPDY_VLOG(1) << "OnReceiveCompressedFrame(" << stream_id << ", " << type
-                 << ", " << frame_len << ")";
+    QUICHE_VLOG(1) << "OnReceiveCompressedFrame(" << stream_id << ", " << type
+                   << ", " << frame_len << ")";
     last_frame_len_ = frame_len;
   }
 
@@ -479,8 +480,9 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   void InitHeaderStreaming(SpdyFrameType header_control_type,
                            SpdyStreamId stream_id) {
     if (!IsDefinedFrameType(SerializeFrameType(header_control_type))) {
-      SPDY_DLOG(FATAL) << "Attempted to init header streaming with "
-                       << "invalid control frame type: " << header_control_type;
+      QUICHE_DLOG(FATAL) << "Attempted to init header streaming with "
+                         << "invalid control frame type: "
+                         << header_control_type;
     }
     memset(header_buffer_.get(), 0, header_buffer_size_);
     header_buffer_length_ = 0;
@@ -4817,8 +4819,8 @@ TEST_P(SpdyFramerTest, ProcessAllInput) {
   const size_t frame1_size = frame1.size();
   const size_t frame2_size = frame2.size();
 
-  SPDY_VLOG(1) << "frame1_size = " << frame1_size;
-  SPDY_VLOG(1) << "frame2_size = " << frame2_size;
+  QUICHE_VLOG(1) << "frame1_size = " << frame1_size;
+  QUICHE_VLOG(1) << "frame2_size = " << frame2_size;
 
   std::string input_buffer;
   input_buffer.append(frame1.data(), frame1_size);
@@ -4827,7 +4829,7 @@ TEST_P(SpdyFramerTest, ProcessAllInput) {
   const char* buf = input_buffer.data();
   const size_t buf_size = input_buffer.size();
 
-  SPDY_VLOG(1) << "buf_size = " << buf_size;
+  QUICHE_VLOG(1) << "buf_size = " << buf_size;
 
   size_t processed = deframer_.ProcessInput(buf, buf_size);
   EXPECT_EQ(buf_size, processed);

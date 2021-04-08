@@ -11,9 +11,9 @@
 #include <utility>
 #include <vector>
 
+#include "common/platform/api/quiche_logging.h"
 #include "common/platform/api/quiche_test.h"
 #include "common/quiche_endian.h"
-#include "spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
 namespace test {
@@ -27,7 +27,7 @@ std::string HexDumpWithMarks(const unsigned char* data,
 
   const int kSizeLimit = 1024;
   if (length > kSizeLimit || mark_length > kSizeLimit) {
-    SPDY_LOG(ERROR) << "Only dumping first " << kSizeLimit << " bytes.";
+    QUICHE_LOG(ERROR) << "Only dumping first " << kSizeLimit << " bytes.";
     length = std::min(length, kSizeLimit);
     mark_length = std::min(mark_length, kSizeLimit);
   }

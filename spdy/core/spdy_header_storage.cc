@@ -2,7 +2,7 @@
 
 #include <cstring>
 
-#include "spdy/platform/api/spdy_logging.h"
+#include "common/platform/api/quiche_logging.h"
 
 namespace spdy {
 namespace {

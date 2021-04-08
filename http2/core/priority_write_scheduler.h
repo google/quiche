@@ -18,8 +18,8 @@
 #include "absl/strings/str_cat.h"
 #include "http2/core/write_scheduler.h"
 #include "common/platform/api/quiche_bug_tracker.h"
+#include "common/platform/api/quiche_logging.h"
 #include "spdy/core/spdy_protocol.h"
-#include "spdy/platform/api/spdy_logging.h"
 
 namespace http2 {
 
@@ -56,8 +56,8 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
     // parent_id not used here, but may as well validate it.  However,
     // parent_id may legitimately not be registered yet--see b/15676312.
     StreamIdType parent_id = precedence.parent_id();
-    SPDY_DVLOG_IF(1,
-                  parent_id != root_stream_id_ && !StreamRegistered(parent_id))
+    QUICHE_DVLOG_IF(
+        1, parent_id != root_stream_id_ && !StreamRegistered(parent_id))
         << "Parent stream " << parent_id << " not registered";
 
     if (stream_id == root_stream_id_) {
@@ -95,7 +95,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
       StreamIdType stream_id) const override {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
-      SPDY_DVLOG(1) << "Stream " << stream_id << " not registered";
+      QUICHE_DVLOG(1) << "Stream " << stream_id << " not registered";
       return StreamPrecedenceType(spdy::kV3LowestPriority);
     }
     return StreamPrecedenceType(it->second.priority);
@@ -109,14 +109,14 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
     // parent_id not used here, but may as well validate it.  However,
     // parent_id may legitimately not be registered yet--see b/15676312.
     StreamIdType parent_id = precedence.parent_id();
-    SPDY_DVLOG_IF(1,
-                  parent_id != root_stream_id_ && !StreamRegistered(parent_id))
+    QUICHE_DVLOG_IF(
+        1, parent_id != root_stream_id_ && !StreamRegistered(parent_id))
         << "Parent stream " << parent_id << " not registered";
 
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
       // TODO(mpw): add to stream_infos_ on demand--see b/15676312.
-      SPDY_DVLOG(1) << "Stream " << stream_id << " not registered";
+      QUICHE_DVLOG(1) << "Stream " << stream_id << " not registered";
       return;
     }
     StreamInfo& stream_info = it->second;
@@ -275,7 +275,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   bool IsStreamReady(StreamIdType stream_id) const override {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
-      SPDY_DLOG(INFO) << "Stream " << stream_id << " not registered";
+      QUICHE_DLOG(INFO) << "Stream " << stream_id << " not registered";
       return false;
     }
     return it->second.ready;

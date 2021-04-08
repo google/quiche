@@ -14,11 +14,11 @@
 #include "absl/memory/memory.h"
 #include "http2/platform/api/http2_macros.h"
 #include "common/platform/api/quiche_bug_tracker.h"
+#include "common/platform/api/quiche_logging.h"
 #include "spdy/core/spdy_bitmasks.h"
 #include "spdy/core/spdy_frame_builder.h"
 #include "spdy/core/spdy_frame_reader.h"
 #include "spdy/platform/api/spdy_estimate_memory_usage.h"
-#include "spdy/platform/api/spdy_logging.h"
 #include "spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
@@ -129,7 +129,8 @@ bool SerializeHeadersGivenEncoding(const SpdyHeadersIR& headers,
   }
 
   if (!ret) {
-    SPDY_DLOG(WARNING) << "Failed to build HEADERS. Not enough space in output";
+    QUICHE_DLOG(WARNING)
+        << "Failed to build HEADERS. Not enough space in output";
   }
   return ret;
 }
@@ -159,7 +160,7 @@ bool SerializePushPromiseGivenEncoding(const SpdyPushPromiseIR& push_promise,
     ok = builder.WriteBytes(padding.data(), padding.length());
   }
 
-  SPDY_DLOG_IF(ERROR, !ok)
+  QUICHE_DLOG_IF(ERROR, !ok)
       << "Failed to write PUSH_PROMISE encoding, not enough "
       << "space in output";
   return ok;
@@ -177,8 +178,8 @@ bool WritePayloadWithContinuation(SpdyFrameBuilder* builder,
   } else if (type == SpdyFrameType::PUSH_PROMISE) {
     end_flag = PUSH_PROMISE_FLAG_END_PUSH_PROMISE;
   } else {
-    SPDY_DLOG(FATAL) << "CONTINUATION frames cannot be used with frame type "
-                     << FrameTypeToString(type);
+    QUICHE_DLOG(FATAL) << "CONTINUATION frames cannot be used with frame type "
+                       << FrameTypeToString(type);
   }
 
   // Write all the padding payload and as much of the data payload as possible
@@ -422,7 +423,7 @@ std::unique_ptr<SpdyFrameSequence> SpdyFramer::CreateIterator(
                       frame_ir.release())));
     }
     case SpdyFrameType::DATA: {
-      SPDY_DVLOG(1) << "Serialize a stream end DATA frame for VTL";
+      QUICHE_DVLOG(1) << "Serialize a stream end DATA frame for VTL";
       HTTP2_FALLTHROUGH;
     }
     default: {

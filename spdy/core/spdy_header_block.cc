@@ -10,8 +10,8 @@
 #include <utility>
 
 #include "absl/strings/str_cat.h"
+#include "common/platform/api/quiche_logging.h"
 #include "spdy/platform/api/spdy_estimate_memory_usage.h"
-#include "spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
 namespace {
@@ -144,14 +144,14 @@ Http2HeaderBlock::ValueProxy& Http2HeaderBlock::ValueProxy::operator=(
   *spdy_header_block_value_size_ += value.size();
   SpdyHeaderStorage* storage = &block_->storage_;
   if (lookup_result_ == block_->map_.end()) {
-    SPDY_DVLOG(1) << "Inserting: (" << key_ << ", " << value << ")";
+    QUICHE_DVLOG(1) << "Inserting: (" << key_ << ", " << value << ")";
     lookup_result_ =
         block_->map_
             .emplace(std::make_pair(
                 key_, HeaderValue(storage, key_, storage->Write(value))))
             .first;
   } else {
-    SPDY_DVLOG(1) << "Updating key: " << key_ << " with value: " << value;
+    QUICHE_DVLOG(1) << "Updating key: " << key_ << " with value: " << value;
     *spdy_header_block_value_size_ -= lookup_result_->second.SizeEstimate();
     lookup_result_->second = HeaderValue(storage, key_, storage->Write(value));
   }
@@ -232,7 +232,7 @@ std::string Http2HeaderBlock::DebugString() const {
 void Http2HeaderBlock::erase(absl::string_view key) {
   auto iter = map_.find(key);
   if (iter != map_.end()) {
-    SPDY_DVLOG(1) << "Erasing header with name: " << key;
+    QUICHE_DVLOG(1) << "Erasing header with name: " << key;
     key_size_ -= key.size();
     value_size_ -= iter->second.SizeEstimate();
     map_.erase(iter);
@@ -252,12 +252,12 @@ void Http2HeaderBlock::insert(const Http2HeaderBlock::value_type& value) {
 
   auto iter = map_.find(value.first);
   if (iter == map_.end()) {
-    SPDY_DVLOG(1) << "Inserting: (" << value.first << ", " << value.second
-                  << ")";
+    QUICHE_DVLOG(1) << "Inserting: (" << value.first << ", " << value.second
+                    << ")";
     AppendHeader(value.first, value.second);
   } else {
-    SPDY_DVLOG(1) << "Updating key: " << iter->first
-                  << " with value: " << value.second;
+    QUICHE_DVLOG(1) << "Updating key: " << iter->first
+                    << " with value: " << value.second;
     value_size_ -= iter->second.SizeEstimate();
     iter->second =
         HeaderValue(&storage_, iter->first, storage_.Write(value.second));
@@ -266,16 +266,16 @@ void Http2HeaderBlock::insert(const Http2HeaderBlock::value_type& value) {
 
 Http2HeaderBlock::ValueProxy Http2HeaderBlock::operator[](
     const absl::string_view key) {
-  SPDY_DVLOG(2) << "Operator[] saw key: " << key;
+  QUICHE_DVLOG(2) << "Operator[] saw key: " << key;
   absl::string_view out_key;
   auto iter = map_.find(key);
   if (iter == map_.end()) {
     // We write the key first, to assure that the ValueProxy has a
     // reference to a valid absl::string_view in its operator=.
     out_key = WriteKey(key);
-    SPDY_DVLOG(2) << "Key written as: " << std::hex
-                  << static_cast<const void*>(key.data()) << ", " << std::dec
-                  << key.size();
+    QUICHE_DVLOG(2) << "Key written as: " << std::hex
+                    << static_cast<const void*>(key.data()) << ", " << std::dec
+                    << key.size();
   } else {
     out_key = iter->first;
   }
@@ -288,13 +288,13 @@ void Http2HeaderBlock::AppendValueOrAddHeader(const absl::string_view key,
 
   auto iter = map_.find(key);
   if (iter == map_.end()) {
-    SPDY_DVLOG(1) << "Inserting: (" << key << ", " << value << ")";
+    QUICHE_DVLOG(1) << "Inserting: (" << key << ", " << value << ")";
 
     AppendHeader(key, value);
     return;
   }
-  SPDY_DVLOG(1) << "Updating key: " << iter->first
-                << "; appending value: " << value;
+  QUICHE_DVLOG(1) << "Updating key: " << iter->first
+                  << "; appending value: " << value;
   value_size_ += SeparatorForKey(key).size();
   iter->second.Append(storage_.Write(value));
 }

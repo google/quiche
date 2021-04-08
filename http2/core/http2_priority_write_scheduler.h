@@ -20,10 +20,10 @@
 #include "absl/strings/str_cat.h"
 #include "http2/core/write_scheduler.h"
 #include "common/platform/api/quiche_bug_tracker.h"
+#include "common/platform/api/quiche_logging.h"
 #include "spdy/core/spdy_intrusive_list.h"
 #include "spdy/core/spdy_protocol.h"
 #include "spdy/platform/api/spdy_containers.h"
-#include "spdy/platform/api/spdy_logging.h"
 #include "spdy/platform/api/spdy_string_utils.h"
 
 namespace http2 {
@@ -233,8 +233,8 @@ void Http2PriorityWriteScheduler<StreamIdType>::RegisterStream(
   StreamInfo* parent = FindStream(precedence.parent_id());
   if (parent == nullptr) {
     // parent_id may legitimately not be registered yet--see b/15676312.
-    SPDY_VLOG(1) << "Parent stream " << precedence.parent_id()
-                 << " not registered";
+    QUICHE_VLOG(1) << "Parent stream " << precedence.parent_id()
+                   << " not registered";
     parent = root_stream_info_;
   }
 
@@ -322,7 +322,7 @@ Http2PriorityWriteScheduler<StreamIdType>::GetStreamPrecedence(
   if (stream_info == nullptr) {
     // Unknown streams tolerated due to b/15676312. However, return lowest
     // weight.
-    SPDY_VLOG(1) << "Stream " << stream_id << " not registered";
+    QUICHE_VLOG(1) << "Stream " << stream_id << " not registered";
     return StreamPrecedenceType(spdy::kHttp2RootStreamId,
                                 spdy::kHttp2MinStreamWeight, false);
   }
@@ -364,7 +364,7 @@ void Http2PriorityWriteScheduler<StreamIdType>::UpdateStreamPrecedence(
   StreamInfo* stream_info = FindStream(stream_id);
   if (stream_info == nullptr) {
     // TODO(mpw): add to all_stream_infos_ on demand--see b/15676312.
-    SPDY_VLOG(1) << "Stream " << stream_id << " not registered";
+    QUICHE_VLOG(1) << "Stream " << stream_id << " not registered";
     return;
   }
   UpdateStreamParent(stream_info, precedence.parent_id(),
@@ -400,7 +400,7 @@ void Http2PriorityWriteScheduler<StreamIdType>::UpdateStreamParent(
   StreamInfo* new_parent = FindStream(parent_id);
   if (new_parent == nullptr) {
     // parent_id may legitimately not be registered yet--see b/15676312.
-    SPDY_VLOG(1) << "Parent stream " << parent_id << " not registered";
+    QUICHE_VLOG(1) << "Parent stream " << parent_id << " not registered";
     return;
   }
 
@@ -734,8 +734,8 @@ bool Http2PriorityWriteScheduler<StreamIdType>::ValidateInvariantsForTests()
 
     // Verify each StreamInfo mapped under the proper stream ID.
     if (stream_id != stream_info.id) {
-      SPDY_DLOG(INFO) << "Stream ID " << stream_id
-                      << " maps to StreamInfo with ID " << stream_info.id;
+      QUICHE_DLOG(INFO) << "Stream ID " << stream_id
+                        << " maps to StreamInfo with ID " << stream_info.id;
       return false;
     }
 
@@ -743,9 +743,9 @@ bool Http2PriorityWriteScheduler<StreamIdType>::ValidateInvariantsForTests()
     // the children of that parent.
     if (stream_info.id != spdy::kHttp2RootStreamId &&
         !StreamHasChild(*stream_info.parent, &stream_info)) {
-      SPDY_DLOG(INFO) << "Parent stream " << stream_info.parent->id
-                      << " is not registered, or does not list stream "
-                      << stream_info.id << " as its child.";
+      QUICHE_DLOG(INFO) << "Parent stream " << stream_info.parent->id
+                        << " is not registered, or does not list stream "
+                        << stream_info.id << " as its child.";
       return false;
     }
 
@@ -757,20 +757,19 @@ bool Http2PriorityWriteScheduler<StreamIdType>::ValidateInvariantsForTests()
         // Each stream in the list should exist and should have this stream
         // set as its parent.
         if (!StreamRegistered(child->id) || child->parent != &stream_info) {
-          SPDY_DLOG(INFO) << "Child stream " << child->id
-                          << " is not registered, "
-                          << "or does not list " << stream_info.id
-                          << " as its parent.";
+          QUICHE_DLOG(INFO)
+              << "Child stream " << child->id << " is not registered, "
+              << "or does not list " << stream_info.id << " as its parent.";
           return false;
         }
         total_child_weights += child->weight;
       }
       // Verify that total_child_weights is correct.
       if (total_child_weights != stream_info.total_child_weights) {
-        SPDY_DLOG(INFO) << "Child weight totals do not agree. For stream "
-                        << stream_info.id << " total_child_weights has value "
-                        << stream_info.total_child_weights << ", expected "
-                        << total_child_weights;
+        QUICHE_DLOG(INFO) << "Child weight totals do not agree. For stream "
+                          << stream_info.id << " total_child_weights has value "
+                          << stream_info.total_child_weights << ", expected "
+                          << total_child_weights;
         return false;
       }
     }
@@ -779,7 +778,7 @@ bool Http2PriorityWriteScheduler<StreamIdType>::ValidateInvariantsForTests()
   // Make sure NumRegisteredStreams() reflects the total number of streams the
   // map contains.
   if (total_streams != NumRegisteredStreams()) {
-    SPDY_DLOG(INFO) << "Map contains incorrect number of streams.";
+    QUICHE_DLOG(INFO) << "Map contains incorrect number of streams.";
     return false;
   }
   // Validate the validation function; we should have visited each stream twice

@@ -10,9 +10,9 @@
 #include <new>
 
 #include "common/platform/api/quiche_bug_tracker.h"
+#include "common/platform/api/quiche_logging.h"
 #include "spdy/core/spdy_protocol.h"
 #include "spdy/core/zero_copy_output_buffer.h"
-#include "spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
 
@@ -168,8 +168,9 @@ bool SpdyFrameBuilder::CanWrite(size_t length) const {
 
   if (output_ == nullptr) {
     if (offset_ + length_ + length > capacity_) {
-      SPDY_DLOG(FATAL) << "Requested: " << length << " capacity: " << capacity_
-                       << " used: " << offset_ + length_;
+      QUICHE_DLOG(FATAL) << "Requested: " << length
+                         << " capacity: " << capacity_
+                         << " used: " << offset_ + length_;
       return false;
     }
   } else {

@@ -5,10 +5,10 @@
 #include "spdy/core/hpack/hpack_static_table.h"
 
 #include "absl/strings/string_view.h"
+#include "common/platform/api/quiche_logging.h"
 #include "spdy/core/hpack/hpack_constants.h"
 #include "spdy/core/hpack/hpack_entry.h"
 #include "spdy/platform/api/spdy_estimate_memory_usage.h"
-#include "spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
 
