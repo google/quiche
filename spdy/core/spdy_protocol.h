@@ -24,7 +24,6 @@
 #include "spdy/core/spdy_alt_svc_wire_format.h"
 #include "spdy/core/spdy_bitmasks.h"
 #include "spdy/core/spdy_header_block.h"
-#include "spdy/platform/api/spdy_bug_tracker.h"
 #include "spdy/platform/api/spdy_logging.h"
 
 namespace spdy {

@@ -21,6 +21,7 @@
 #include "http2/decoder/http2_frame_decoder_listener.h"
 #include "http2/http2_constants.h"
 #include "http2/http2_structures.h"
+#include "common/platform/api/quiche_bug_tracker.h"
 #include "common/quiche_endian.h"
 #include "spdy/core/hpack/hpack_decoder_adapter.h"
 #include "spdy/core/hpack/hpack_header_table.h"
@@ -28,7 +29,6 @@
 #include "spdy/core/spdy_header_block.h"
 #include "spdy/core/spdy_headers_handler_interface.h"
 #include "spdy/core/spdy_protocol.h"
-#include "spdy/platform/api/spdy_bug_tracker.h"
 #include "spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "spdy/platform/api/spdy_flags.h"
 #include "spdy/platform/api/spdy_logging.h"
@@ -470,7 +470,7 @@ void Http2DecoderAdapter::OnHeadersPriority(
   on_headers_called_ = true;
   ReportReceiveCompressedFrame(frame_header_);
   if (!visitor()) {
-    SPDY_BUG(spdy_bug_1_1)
+    QUICHE_BUG(spdy_bug_1_1)
         << "Visitor is nullptr, handling priority in headers failed."
         << " priority:" << priority << " frame_header:" << frame_header_;
     return;
@@ -822,7 +822,7 @@ size_t Http2DecoderAdapter::ProcessInputFrame(const char* data, size_t len) {
                      << " total remaining in the frame's payload.";
         db.AdvanceCursor(avail);
       } else {
-        SPDY_BUG(spdy_bug_1_2)
+        QUICHE_BUG(spdy_bug_1_2)
             << "Total remaining (" << total
             << ") should not be greater than the payload length; "
             << frame_header();
@@ -873,11 +873,11 @@ void Http2DecoderAdapter::DetermineSpdyState(DecodeStatus status) {
           DecodeBuffer tmp("", 0);
           DecodeStatus status = frame_decoder_->DecodeFrame(&tmp);
           if (status != DecodeStatus::kDecodeDone) {
-            SPDY_BUG(spdy_bug_1_3)
+            QUICHE_BUG(spdy_bug_1_3)
                 << "Expected to be done decoding the frame, not " << status;
             SetSpdyErrorAndNotify(SPDY_INTERNAL_FRAMER_ERROR, "");
           } else if (spdy_framer_error_ != SPDY_NO_ERROR) {
-            SPDY_BUG(spdy_bug_1_4)
+            QUICHE_BUG(spdy_bug_1_4)
                 << "Expected to have no error, not "
                 << SpdyFramerErrorToString(spdy_framer_error_);
           } else {
@@ -1074,7 +1074,7 @@ void Http2DecoderAdapter::CommonStartHpackBlock() {
   SpdyHeadersHandlerInterface* handler =
       visitor()->OnHeaderFrameStart(stream_id());
   if (handler == nullptr) {
-    SPDY_BUG(spdy_bug_1_5) << "visitor_->OnHeaderFrameStart returned nullptr";
+    QUICHE_BUG(spdy_bug_1_5) << "visitor_->OnHeaderFrameStart returned nullptr";
     SetSpdyErrorAndNotify(SpdyFramerError::SPDY_INTERNAL_FRAMER_ERROR, "");
     return;
   }

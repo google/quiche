@@ -2,8 +2,8 @@
 
 #include <utility>
 
+#include "common/platform/api/quiche_bug_tracker.h"
 #include "common/platform/api/quiche_logging.h"
-#include "spdy/platform/api/spdy_bug_tracker.h"
 
 namespace http2 {
 namespace adapter {
@@ -20,7 +20,7 @@ void WindowManager::OnWindowSizeLimitChange(const size_t new_limit) {
   if (new_limit > limit_) {
     window_ += (new_limit - limit_);
   } else {
-    SPDY_BUG(H2 window decrease)
+    QUICHE_BUG(H2 window decrease)
         << "Window size limit decrease not currently supported.";
   }
   limit_ = new_limit;
@@ -56,8 +56,8 @@ void WindowManager::MarkDataFlushed(size_t bytes) {
   QUICHE_VLOG(2) << "WindowManager@" << this << " buffered: " << buffered_
                  << " bytes: " << bytes;
   if (buffered_ < bytes) {
-    SPDY_BUG(bug_2816_1) << "WindowManager@" << this << " buffered underflow "
-                         << "buffered_: " << buffered_ << " bytes: " << bytes;
+    QUICHE_BUG(bug_2816_1) << "WindowManager@" << this << " buffered underflow "
+                           << "buffered_: " << buffered_ << " bytes: " << bytes;
     buffered_ = 0;
   } else {
     buffered_ -= bytes;

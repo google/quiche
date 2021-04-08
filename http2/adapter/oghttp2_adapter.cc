@@ -6,6 +6,7 @@
 #include "absl/strings/str_cat.h"
 #include "http2/adapter/http2_util.h"
 #include "http2/adapter/window_manager.h"
+#include "common/platform/api/quiche_bug_tracker.h"
 #include "spdy/core/spdy_framer.h"
 #include "spdy/core/spdy_protocol.h"
 
@@ -33,15 +34,15 @@ class OgHttp2Adapter::OgHttp2Session : public Http2Session {
   ~OgHttp2Session() override {}
 
   ssize_t ProcessBytes(absl::string_view bytes) override {
-    SPDY_BUG(oghttp2_process_bytes) << "Not implemented";
+    QUICHE_BUG(oghttp2_process_bytes) << "Not implemented";
     return 0;
   }
 
   int Consume(Http2StreamId stream_id, size_t num_bytes) override {
     auto it = stream_map_.find(stream_id);
     if (it == stream_map_.end()) {
-      // TODO(b/181586191): LOG_ERROR rather than SPDY_BUG.
-      SPDY_BUG(stream_consume_notfound)
+      // TODO(b/181586191): LOG_ERROR rather than QUICHE_BUG.
+      QUICHE_BUG(stream_consume_notfound)
           << "Stream " << stream_id << " not found";
     } else {
       it->second.window_manager.MarkDataFlushed(num_bytes);
@@ -54,7 +55,7 @@ class OgHttp2Adapter::OgHttp2Session : public Http2Session {
     return !frames_.empty() || !serialized_prefix_.empty();
   }
   int GetRemoteWindowSize() const override {
-    SPDY_BUG(peer_window_not_updated) << "Not implemented";
+    QUICHE_BUG(peer_window_not_updated) << "Not implemented";
     return peer_window_;
   }
 
@@ -135,7 +136,7 @@ void OgHttp2Adapter::SubmitWindowUpdate(Http2StreamId stream_id,
 }
 
 void OgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id, bool fin) {
-  SPDY_BUG(oghttp2_submit_metadata) << "Not implemented";
+  QUICHE_BUG(oghttp2_submit_metadata) << "Not implemented";
 }
 
 std::string OgHttp2Adapter::GetBytesToWrite(absl::optional<size_t> max_bytes) {

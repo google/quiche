@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "http2/hpack/huffman/hpack_huffman_encoder.h"
+#include "common/platform/api/quiche_bug_tracker.h"
 #include "spdy/core/hpack/hpack_constants.h"
 #include "spdy/core/hpack/hpack_header_table.h"
 #include "spdy/core/hpack/hpack_output_stream.h"
@@ -347,7 +348,7 @@ HpackEncoder::Encoderator::Encoderator(const Representations& representations,
 
 void HpackEncoder::Encoderator::Next(size_t max_encoded_bytes,
                                      std::string* output) {
-  SPDY_BUG_IF(spdy_bug_61_1, !has_next_)
+  QUICHE_BUG_IF(spdy_bug_61_1, !has_next_)
       << "Encoderator::Next called with nothing left to encode.";
   const bool enable_compression = encoder_->enable_compression_;
 

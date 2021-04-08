@@ -13,10 +13,10 @@
 
 #include "absl/memory/memory.h"
 #include "http2/platform/api/http2_macros.h"
+#include "common/platform/api/quiche_bug_tracker.h"
 #include "spdy/core/spdy_bitmasks.h"
 #include "spdy/core/spdy_frame_builder.h"
 #include "spdy/core/spdy_frame_reader.h"
-#include "spdy/platform/api/spdy_bug_tracker.h"
 #include "spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "spdy/platform/api/spdy_logging.h"
 #include "spdy/platform/api/spdy_string_utils.h"
@@ -294,7 +294,7 @@ SpdyFramer::SpdyFrameIterator::~SpdyFrameIterator() = default;
 size_t SpdyFramer::SpdyFrameIterator::NextFrame(ZeroCopyOutputBuffer* output) {
   const SpdyFrameIR& frame_ir = GetIR();
   if (!has_next_frame_) {
-    SPDY_BUG(spdy_bug_75_1)
+    QUICHE_BUG(spdy_bug_75_1)
         << "SpdyFramer::SpdyFrameIterator::NextFrame called without "
         << "a next frame.";
     return false;

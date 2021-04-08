@@ -10,11 +10,11 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
+#include "common/platform/api/quiche_bug_tracker.h"
 #include "common/platform/api/quiche_export.h"
 #include "common/quiche_endian.h"
 #include "spdy/core/spdy_protocol.h"
 #include "spdy/core/zero_copy_output_buffer.h"
-#include "spdy/platform/api/spdy_bug_tracker.h"
 
 namespace spdy {
 
@@ -66,10 +66,10 @@ class QUICHE_EXPORT_PRIVATE SpdyFrameBuilder {
 
   // Takes the buffer from the SpdyFrameBuilder.
   SpdySerializedFrame take() {
-    SPDY_BUG_IF(spdy_bug_39_1, output_ != nullptr)
+    QUICHE_BUG_IF(spdy_bug_39_1, output_ != nullptr)
         << "ZeroCopyOutputBuffer is used to build "
         << "frames. take() shouldn't be called";
-    SPDY_BUG_IF(spdy_bug_39_2, kMaxFrameSizeLimit < length_)
+    QUICHE_BUG_IF(spdy_bug_39_2, kMaxFrameSizeLimit < length_)
         << "Frame length " << length_
         << " is longer than the maximum possible allowed length.";
     SpdySerializedFrame rv(buffer_.release(), length(), true);
