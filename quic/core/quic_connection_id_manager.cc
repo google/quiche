@@ -263,7 +263,8 @@ QuicSelfIssuedConnectionIdManager::QuicSelfIssuedConnectionIdManager(
       retire_connection_id_alarm_(alarm_factory->CreateAlarm(
           new RetireSelfIssuedConnectionIdAlarmDelegate(this))),
       last_connection_id_(initial_connection_id),
-      next_connection_id_sequence_number_(1u) {
+      next_connection_id_sequence_number_(1u),
+      last_connection_id_consumed_by_self_sequence_number_(0u) {
   active_connection_ids_.emplace_back(initial_connection_id, 0u);
 }
 
@@ -384,6 +385,47 @@ void QuicSelfIssuedConnectionIdManager::MaybeSendNewConnectionIds() {
       break;
     }
   }
+}
+
+bool QuicSelfIssuedConnectionIdManager::HasConnectionIdToConsume() const {
+  for (const auto& active_cid_data : active_connection_ids_) {
+    if (active_cid_data.second >
+        last_connection_id_consumed_by_self_sequence_number_) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::optional<QuicConnectionId>
+QuicSelfIssuedConnectionIdManager::ConsumeOneConnectionId() {
+  for (const auto& active_cid_data : active_connection_ids_) {
+    if (active_cid_data.second >
+        last_connection_id_consumed_by_self_sequence_number_) {
+      // Since connection IDs in active_connection_ids_ has monotonically
+      // increasing sequence numbers, the returned connection ID has the
+      // smallest sequence number among all unconsumed active connection IDs.
+      last_connection_id_consumed_by_self_sequence_number_ =
+          active_cid_data.second;
+      return active_cid_data.first;
+    }
+  }
+  return {};
+}
+
+bool QuicSelfIssuedConnectionIdManager::IsConnectionIdInUse(
+    const QuicConnectionId& cid) const {
+  for (const auto& active_cid_data : active_connection_ids_) {
+    if (active_cid_data.first == cid) {
+      return true;
+    }
+  }
+  for (const auto& to_be_retired_cid_data : to_be_retired_connection_ids_) {
+    if (to_be_retired_cid_data.first == cid) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace quic

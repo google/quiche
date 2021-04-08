@@ -12,6 +12,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 
 #include "quic/core/frames/quic_new_connection_id_frame.h"
 #include "quic/core/frames/quic_retire_connection_id_frame.h"
@@ -67,6 +68,10 @@ class QUIC_EXPORT_PRIVATE QuicPeerIssuedConnectionIdManager {
 
   QuicErrorCode OnNewConnectionIdFrame(const QuicNewConnectionIdFrame& frame,
                                        std::string* error_detail);
+
+  bool HasUnusedConnectionId() const {
+    return !unused_connection_id_data_.empty();
+  }
 
   // Returns the data associated with an unused connection Id. After the call,
   // the Id is marked as used. Returns nullptr if there is no unused connection
@@ -135,6 +140,17 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
   // Sends new connection IDs if more can be sent.
   void MaybeSendNewConnectionIds();
 
+  // The two functions are called on the client side to associate a client
+  // connection ID with a new probing/migration path when client uses
+  // non-empty connection ID.
+  bool HasConnectionIdToConsume() const;
+  std::optional<QuicConnectionId> ConsumeOneConnectionId();
+
+  // Returns true if the given connection ID is issued by the
+  // QuicSelfIssuedConnectionIdManager and not retired locally yet. Called to
+  // tell if a received packet has a valid connection ID.
+  bool IsConnectionIdInUse(const QuicConnectionId& cid) const;
+
   virtual QuicConnectionId GenerateNewConnectionId(
       const QuicConnectionId& old_connection_id) const;
 
@@ -162,6 +178,8 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
   // State of the last issued connection Id.
   QuicConnectionId last_connection_id_;
   uint64_t next_connection_id_sequence_number_;
+  // The sequence number of last connection ID consumed.
+  uint64_t last_connection_id_consumed_by_self_sequence_number_;
 };
 
 }  // namespace quic
