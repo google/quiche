@@ -30,6 +30,8 @@ int OnFrameReceived(nghttp2_session* /* session */,
                     void* user_data) {
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   const Http2StreamId stream_id = frame->hd.stream_id;
+  QUICHE_VLOG(2) << "Frame " << static_cast<int>(frame->hd.type)
+                 << " for stream " << stream_id;
   switch (frame->hd.type) {
     // The beginning of the DATA frame is handled in OnBeginFrame(), and the
     // beginning of the header block is handled in client/server-specific

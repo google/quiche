@@ -25,6 +25,7 @@ uint8_t* ToUint8Ptr(const char* str);
 
 absl::string_view ToStringView(nghttp2_rcbuf* rc_buffer);
 absl::string_view ToStringView(uint8_t* pointer, size_t length);
+absl::string_view ToStringView(const uint8_t* pointer, size_t length);
 
 // Returns the nghttp2 header structure from the given request |headers|, which
 // must have the correct pseudoheaders preceding other headers.

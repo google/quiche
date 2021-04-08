@@ -25,6 +25,10 @@ absl::string_view ToStringView(uint8_t* pointer, size_t length) {
   return absl::string_view(reinterpret_cast<const char*>(pointer), length);
 }
 
+absl::string_view ToStringView(const uint8_t* pointer, size_t length) {
+  return absl::string_view(reinterpret_cast<const char*>(pointer), length);
+}
+
 std::vector<nghttp2_nv> GetRequestNghttp2Nvs(absl::Span<const Header> headers) {
   const int num_headers = headers.size();
   auto nghttp2_nvs = std::vector<nghttp2_nv>(num_headers);
