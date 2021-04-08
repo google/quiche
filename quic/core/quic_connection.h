@@ -2219,6 +2219,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool use_connection_id_on_default_path_ =
       GetQuicReloadableFlag(quic_use_connection_id_on_default_path);
+
+  const bool quic_deprecate_incoming_connection_ids_ =
+      GetQuicReloadableFlag(quic_deprecate_incoming_connection_ids);
 };
 
 }  // namespace quic

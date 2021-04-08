@@ -1000,6 +1000,11 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
 }
 
 bool QuicConnection::HasIncomingConnectionId(QuicConnectionId connection_id) {
+  if (quic_deprecate_incoming_connection_ids_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_deprecate_incoming_connection_ids);
+    // TODO(haoyuewang) Inline this after the flag is deprecated.
+    return connection_id == original_destination_connection_id_;
+  }
   for (QuicConnectionId const& incoming_connection_id :
        incoming_connection_ids_) {
     if (incoming_connection_id == connection_id) {
@@ -1016,8 +1021,10 @@ void QuicConnection::SetOriginalDestinationConnectionId(
                   << " on connection with server_connection_id "
                   << ServerConnectionId();
   QUICHE_DCHECK_NE(original_destination_connection_id, ServerConnectionId());
-  if (!HasIncomingConnectionId(original_destination_connection_id)) {
-    incoming_connection_ids_.push_back(original_destination_connection_id);
+  if (!quic_deprecate_incoming_connection_ids_) {
+    if (!HasIncomingConnectionId(original_destination_connection_id)) {
+      incoming_connection_ids_.push_back(original_destination_connection_id);
+    }
   }
   InstallInitialCrypters(original_destination_connection_id);
   QUICHE_DCHECK(!original_destination_connection_id_.has_value())
