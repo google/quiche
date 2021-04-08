@@ -107,6 +107,10 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
   bool ShouldNegotiateWebTransport() override {
     return quic_simple_server_backend_->SupportsWebTransport();
   }
+  bool ShouldNegotiateHttp3Datagram() override {
+    return QuicServerSessionBase::ShouldNegotiateHttp3Datagram() ||
+           ShouldNegotiateWebTransport();
+  }
 
  private:
   friend class test::QuicSimpleServerSessionPeer;
