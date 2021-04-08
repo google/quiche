@@ -474,7 +474,8 @@ QuicSpdySession::QuicSpdySession(
                   VersionUsesHttp3(connection->transport_version())
                       ? static_cast<QuicStreamCount>(
                             kHttp3StaticUnidirectionalStreamCount)
-                      : 0u),
+                      : 0u,
+                  std::make_unique<DatagramObserver>(this)),
       send_control_stream_(nullptr),
       receive_control_stream_(nullptr),
       qpack_encoder_receive_stream_(nullptr),
@@ -553,7 +554,7 @@ void QuicSpdySession::FillSettingsFrame() {
       qpack_maximum_blocked_streams_;
   settings_.values[SETTINGS_MAX_FIELD_SECTION_SIZE] =
       max_inbound_header_list_size_;
-  if (GetQuicReloadableFlag(quic_h3_datagram) && version().UsesHttp3()) {
+  if (ShouldNegotiateHttp3Datagram() && version().UsesHttp3()) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_h3_datagram);
     settings_.values[SETTINGS_H3_DATAGRAM] = 1;
   }
@@ -923,7 +924,7 @@ bool QuicSpdySession::ShouldNegotiateWebTransport() {
 }
 
 bool QuicSpdySession::WillNegotiateWebTransport() {
-  return GetQuicReloadableFlag(quic_h3_datagram) && version().UsesHttp3() &&
+  return ShouldNegotiateHttp3Datagram() && version().UsesHttp3() &&
          ShouldNegotiateWebTransport();
 }
 
@@ -1168,7 +1169,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
                          id));
         return false;
       case SETTINGS_H3_DATAGRAM: {
-        if (!GetQuicReloadableFlag(quic_h3_datagram)) {
+        if (!ShouldNegotiateHttp3Datagram()) {
           break;
         }
         QUIC_DVLOG(1) << ENDPOINT << "SETTINGS_H3_DATAGRAM received with value "
@@ -1853,6 +1854,20 @@ QuicSpdyStream* QuicSpdySession::CreateOutgoingBidirectionalWebTransportStream(
   }
   session->AssociateStream(stream_id);
   return stream;
+}
+
+void QuicSpdySession::OnDatagramProcessed(
+    absl::optional<MessageStatus> /*status*/) {
+  // TODO(b/184598230): make this work with multiple datagram flows.
+}
+
+void QuicSpdySession::DatagramObserver::OnDatagramProcessed(
+    absl::optional<MessageStatus> status) {
+  session_->OnDatagramProcessed(status);
+}
+
+bool QuicSpdySession::ShouldNegotiateHttp3Datagram() {
+  return GetQuicReloadableFlag(quic_h3_datagram);
 }
 
 #undef ENDPOINT  // undef for jumbo builds

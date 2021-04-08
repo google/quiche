@@ -553,10 +553,27 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // QuicConnectionVisitorInterface method.
   void BeforeConnectionCloseSent() override;
 
+  // Called whenever a datagram is dequeued or dropped from datagram_queue().
+  virtual void OnDatagramProcessed(absl::optional<MessageStatus> status);
+
+  // Returns true if HTTP/3 datagram extension should be supported.
+  virtual bool ShouldNegotiateHttp3Datagram();
+
  private:
   friend class test::QuicSpdySessionPeer;
 
   class SpdyFramerVisitor;
+
+  // Proxies OnDatagramProcessed() calls to the session.
+  class QUIC_EXPORT_PRIVATE DatagramObserver
+      : public QuicDatagramQueue::Observer {
+   public:
+    explicit DatagramObserver(QuicSpdySession* session) : session_(session) {}
+    void OnDatagramProcessed(absl::optional<MessageStatus> status) override;
+
+   private:
+    QuicSpdySession* session_;  // not owned
+  };
 
   struct QUIC_EXPORT_PRIVATE BufferedWebTransportStream {
     WebTransportSessionId session_id;
