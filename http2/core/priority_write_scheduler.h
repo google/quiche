@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_SPDY_CORE_PRIORITY_WRITE_SCHEDULER_H_
-#define QUICHE_SPDY_CORE_PRIORITY_WRITE_SCHEDULER_H_
+#ifndef QUICHE_HTTP2_CORE_PRIORITY_WRITE_SCHEDULER_H_
+#define QUICHE_HTTP2_CORE_PRIORITY_WRITE_SCHEDULER_H_
 
 #include <algorithm>
 #include <cstddef>
@@ -16,12 +16,12 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "http2/core/write_scheduler.h"
 #include "spdy/core/spdy_protocol.h"
-#include "spdy/core/write_scheduler.h"
 #include "spdy/platform/api/spdy_bug_tracker.h"
 #include "spdy/platform/api/spdy_logging.h"
 
-namespace spdy {
+namespace http2 {
 
 namespace test {
 template <typename StreamIdType>
@@ -44,7 +44,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   using typename WriteScheduler<StreamIdType>::StreamPrecedenceType;
 
   // Creates scheduler with no streams.
-  PriorityWriteScheduler() : PriorityWriteScheduler(kHttp2RootStreamId) {}
+  PriorityWriteScheduler() : PriorityWriteScheduler(spdy::kHttp2RootStreamId) {}
   explicit PriorityWriteScheduler(StreamIdType root_stream_id)
       : root_stream_id_(root_stream_id) {}
 
@@ -96,7 +96,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
       SPDY_DVLOG(1) << "Stream " << stream_id << " not registered";
-      return StreamPrecedenceType(kV3LowestPriority);
+      return StreamPrecedenceType(spdy::kV3LowestPriority);
     }
     return StreamPrecedenceType(it->second.priority);
   }
@@ -120,7 +120,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
       return;
     }
     StreamInfo& stream_info = it->second;
-    SpdyPriority new_priority = precedence.spdy3_priority();
+    spdy::SpdyPriority new_priority = precedence.spdy3_priority();
     if (stream_info.priority == new_priority) {
       return;
     }
@@ -159,7 +159,8 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
     }
     int64_t last_event_time_usec = 0;
     const StreamInfo& stream_info = it->second;
-    for (SpdyPriority p = kV3HighestPriority; p < stream_info.priority; ++p) {
+    for (spdy::SpdyPriority p = spdy::kV3HighestPriority;
+         p < stream_info.priority; ++p) {
       last_event_time_usec = std::max(last_event_time_usec,
                                       priority_infos_[p].last_event_time_usec);
     }
@@ -173,7 +174,8 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   // Returns the next ready stream and its precedence.
   std::tuple<StreamIdType, StreamPrecedenceType>
   PopNextReadyStreamAndPrecedence() override {
-    for (SpdyPriority p = kV3HighestPriority; p <= kV3LowestPriority; ++p) {
+    for (spdy::SpdyPriority p = spdy::kV3HighestPriority;
+         p <= spdy::kV3LowestPriority; ++p) {
       ReadyList& ready_list = priority_infos_[p].ready_list;
       if (!ready_list.empty()) {
         StreamInfo* info = ready_list.front();
@@ -188,7 +190,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
       }
     }
     SPDY_BUG(spdy_bug_19_6) << "No ready streams available";
-    return std::make_tuple(0, StreamPrecedenceType(kV3LowestPriority));
+    return std::make_tuple(0, StreamPrecedenceType(spdy::kV3LowestPriority));
   }
 
   bool ShouldYield(StreamIdType stream_id) const override {
@@ -200,7 +202,8 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
 
     // If there's a higher priority stream, this stream should yield.
     const StreamInfo& stream_info = it->second;
-    for (SpdyPriority p = kV3HighestPriority; p < stream_info.priority; ++p) {
+    for (spdy::SpdyPriority p = spdy::kV3HighestPriority;
+         p < stream_info.priority; ++p) {
       if (!priority_infos_[p].ready_list.empty()) {
         return true;
       }
@@ -284,7 +287,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   // State kept for all registered streams. All ready streams have ready = true
   // and should be present in priority_infos_[priority].ready_list.
   struct StreamInfo {
-    SpdyPriority priority;
+    spdy::SpdyPriority priority;
     StreamIdType stream_id;
     bool ready;
   };
@@ -318,12 +321,12 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   // Number of ready streams.
   size_t num_ready_streams_ = 0;
   // Per-priority state, including ready lists.
-  PriorityInfo priority_infos_[kV3LowestPriority + 1];
+  PriorityInfo priority_infos_[spdy::kV3LowestPriority + 1];
   // StreamInfos for all registered streams.
   StreamInfoMap stream_infos_;
   StreamIdType root_stream_id_;
 };
 
-}  // namespace spdy
+}  // namespace http2
 
-#endif  // QUICHE_SPDY_CORE_PRIORITY_WRITE_SCHEDULER_H_
+#endif  // QUICHE_HTTP2_CORE_PRIORITY_WRITE_SCHEDULER_H_

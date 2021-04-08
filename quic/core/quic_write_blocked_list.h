@@ -9,13 +9,13 @@
 #include <cstdint>
 #include <utility>
 
+#include "http2/core/priority_write_scheduler.h"
 #include "quic/core/quic_packets.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_map_util.h"
-#include "spdy/core/priority_write_scheduler.h"
 
 namespace quic {
 
@@ -78,7 +78,7 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   bool IsStreamBlocked(QuicStreamId stream_id) const;
 
  private:
-  spdy::PriorityWriteScheduler<QuicStreamId> priority_write_scheduler_;
+  http2::PriorityWriteScheduler<QuicStreamId> priority_write_scheduler_;
 
   // If performing batch writes, this will be the stream ID of the stream doing
   // batch writes for this priority level.  We will allow this stream to write

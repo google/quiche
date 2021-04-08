@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_SPDY_CORE_WRITE_SCHEDULER_H_
-#define QUICHE_SPDY_CORE_WRITE_SCHEDULER_H_
+#ifndef QUICHE_HTTP2_CORE_WRITE_SCHEDULER_H_
+#define QUICHE_HTTP2_CORE_WRITE_SCHEDULER_H_
 
 #include <cstdint>
 #include <string>
@@ -13,7 +13,7 @@
 #include "common/platform/api/quiche_export.h"
 #include "spdy/core/spdy_protocol.h"
 
-namespace spdy {
+namespace http2 {
 
 // Abstract superclass for classes that decide which SPDY or HTTP/2 stream to
 // write next. Concrete subclasses implement various scheduling policies:
@@ -42,7 +42,7 @@ namespace spdy {
 template <typename StreamIdType>
 class QUICHE_EXPORT_PRIVATE WriteScheduler {
  public:
-  typedef StreamPrecedence<StreamIdType> StreamPrecedenceType;
+  typedef spdy::StreamPrecedence<StreamIdType> StreamPrecedenceType;
 
   virtual ~WriteScheduler() {}
 
@@ -157,6 +157,6 @@ class QUICHE_EXPORT_PRIVATE WriteScheduler {
   virtual std::string DebugString() const = 0;
 };
 
-}  // namespace spdy
+}  // namespace http2
 
-#endif  // QUICHE_SPDY_CORE_WRITE_SCHEDULER_H_
+#endif  // QUICHE_HTTP2_CORE_WRITE_SCHEDULER_H_

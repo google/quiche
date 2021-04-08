@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "spdy/core/http2_priority_write_scheduler.h"
+#include "http2/core/http2_priority_write_scheduler.h"
 
 #include <initializer_list>
 
@@ -16,9 +16,14 @@ using ::testing::ElementsAre;
 using ::testing::IsEmpty;
 using ::testing::UnorderedElementsAre;
 
-namespace spdy {
-
+namespace http2 {
 namespace test {
+
+using ::spdy::kHttp2MaxStreamWeight;
+using ::spdy::kHttp2MinStreamWeight;
+using ::spdy::kHttp2RootStreamId;
+using ::spdy::kV3LowestPriority;
+using ::spdy::SpdyStreamPrecedence;
 
 template <typename StreamIdType>
 class Http2PriorityWriteSchedulerPeer {
@@ -962,4 +967,4 @@ TEST_F(PopNextReadyStreamTest, ScatteredBlocked) {
 }
 
 }  // namespace test
-}  // namespace spdy
+}  // namespace http2

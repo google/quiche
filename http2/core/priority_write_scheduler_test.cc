@@ -2,15 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "spdy/core/priority_write_scheduler.h"
+#include "http2/core/priority_write_scheduler.h"
 
 #include "common/platform/api/quiche_test.h"
 #include "spdy/core/spdy_protocol.h"
 #include "spdy/core/spdy_test_utils.h"
 #include "spdy/platform/api/spdy_test_helpers.h"
 
-namespace spdy {
+namespace http2 {
 namespace test {
+
+using ::spdy::kHttp2RootStreamId;
+using ::spdy::kV3LowestPriority;
+using ::spdy::SpdyPriority;
+using ::spdy::SpdyStreamId;
+using ::spdy::SpdyStreamPrecedence;
 
 template <typename StreamIdType>
 class PriorityWriteSchedulerPeer {
@@ -374,4 +380,4 @@ TEST_F(PriorityWriteSchedulerTest, GetLatestEventWithPrecedence) {
 
 }  // namespace
 }  // namespace test
-}  // namespace spdy
+}  // namespace http2
