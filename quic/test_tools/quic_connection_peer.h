@@ -182,6 +182,12 @@ class QuicConnectionPeer {
   static QuicByteCount BytesReceivedOnAlternativePath(
       QuicConnection* connection);
 
+  static QuicConnectionId GetClientConnectionIdOnAlternativePath(
+      const QuicConnection* connection);
+
+  static QuicConnectionId GetServerConnectionIdOnAlternativePath(
+      const QuicConnection* connection);
+
   static bool IsAlternativePath(QuicConnection* connection,
                                 const QuicSocketAddress& self_address,
                                 const QuicSocketAddress& peer_address);

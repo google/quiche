@@ -80,6 +80,7 @@ using ::testing::_;
 using ::testing::Assign;
 using ::testing::Invoke;
 using ::testing::NiceMock;
+using testing::NotNull;
 
 namespace quic {
 namespace test {
@@ -2620,6 +2621,55 @@ TEST_P(EndToEndTest, ConnectionMigrationClientIPChanged) {
   server_thread_->Resume();
 }
 
+TEST_P(EndToEndTest, ConnectionMigrationClientIPChangedWithNonEmptyClientCID) {
+  if (!version_.SupportsClientConnectionIds()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames() ||
+      !client_->client()->session()->connection()->validate_client_address()) {
+    return;
+  }
+  SendSynchronousFooRequestAndCheckResponse();
+
+  // Store the client IP address which was used to send the first request.
+  QuicIpAddress old_host =
+      client_->client()->network_helper()->GetLatestClientAddress().host();
+  auto* client_connection = GetClientConnection();
+  QuicConnectionId client_cid0 = client_connection->client_connection_id();
+  QuicConnectionId server_cid0 = client_connection->connection_id();
+
+  // Migrate socket to the new IP address.
+  QuicIpAddress new_host = TestLoopback(2);
+  EXPECT_NE(old_host, new_host);
+  ASSERT_TRUE(client_->client()->MigrateSocket(new_host));
+
+  // Send a request using the new socket.
+  SendSynchronousBarRequestAndCheckResponse();
+
+  EXPECT_EQ(1u,
+            client_connection->GetStats().num_connectivity_probing_received);
+
+  // Send another request.
+  SendSynchronousBarRequestAndCheckResponse();
+
+  EXPECT_EQ(client_cid0, client_connection->client_connection_id());
+  EXPECT_EQ(server_cid0, client_connection->connection_id());
+
+  // By the time the 2nd request is completed, the PATH_RESPONSE must have been
+  // received by the server.
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  ASSERT_THAT(server_connection, NotNull());
+  EXPECT_FALSE(server_connection->HasPendingPathValidation());
+  EXPECT_EQ(1u, server_connection->GetStats().num_validated_peer_migration);
+  EXPECT_EQ(client_cid0, server_connection->client_connection_id());
+  EXPECT_EQ(server_cid0, server_connection->connection_id());
+  server_thread_->Resume();
+}
+
 TEST_P(EndToEndTest, ConnectionMigrationNewTokenForNewIp) {
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames() ||
@@ -2784,6 +2834,50 @@ TEST_P(EndToEndTest, AsynchronousConnectionMigrationClientIPChanged) {
             client_connection->GetStats().num_connectivity_probing_received);
   // Send a request using the new socket.
   SendSynchronousBarRequestAndCheckResponse();
+}
+
+TEST_P(EndToEndTest,
+       AsynchronousConnectionMigrationClientIPChangedWithNonEmptyClientCID) {
+  if (!version_.SupportsClientConnectionIds()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames() ||
+      !client_->client()->session()->connection()->validate_client_address()) {
+    return;
+  }
+  client_.reset(CreateQuicClient(nullptr));
+
+  SendSynchronousFooRequestAndCheckResponse();
+
+  // Store the client IP address which was used to send the first request.
+  QuicIpAddress old_host =
+      client_->client()->network_helper()->GetLatestClientAddress().host();
+  auto* client_connection = GetClientConnection();
+  QuicConnectionId client_cid0 = client_connection->client_connection_id();
+  QuicConnectionId server_cid0 = client_connection->connection_id();
+
+  // Migrate socket to the new IP address.
+  QuicIpAddress new_host = TestLoopback(2);
+  EXPECT_NE(old_host, new_host);
+  ASSERT_TRUE(client_->client()->ValidateAndMigrateSocket(new_host));
+
+  while (client_->client()->HasPendingPathValidation()) {
+    client_->client()->WaitForEvents();
+  }
+  EXPECT_EQ(new_host, client_->client()->session()->self_address().host());
+  EXPECT_EQ(1u,
+            client_connection->GetStats().num_connectivity_probing_received);
+  // Send a request using the new socket.
+  SendSynchronousBarRequestAndCheckResponse();
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  EXPECT_EQ(client_cid0, server_connection->client_connection_id());
+  EXPECT_EQ(server_cid0, server_connection->connection_id());
+  server_thread_->Resume();
 }
 
 TEST_P(EndToEndTest, ConnectionMigrationClientPortChanged) {

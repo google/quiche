@@ -398,7 +398,11 @@ QuicIdleNetworkDetector& QuicConnectionPeer::GetIdleNetworkDetector(
 void QuicConnectionPeer::SetServerConnectionId(
     QuicConnection* connection,
     const QuicConnectionId& server_connection_id) {
-  connection->server_connection_id_ = server_connection_id;
+  if (connection->use_connection_id_on_default_path_) {
+    connection->default_path_.server_connection_id = server_connection_id;
+  } else {
+    connection->server_connection_id_ = server_connection_id;
+  }
   connection->InstallInitialCrypters(server_connection_id);
 }
 
@@ -445,6 +449,18 @@ QuicByteCount QuicConnectionPeer::BytesSentOnAlternativePath(
 QuicByteCount QuicConnectionPeer::BytesReceivedOnAlternativePath(
     QuicConnection* connection) {
   return connection->alternative_path_.bytes_received_before_address_validation;
+}
+
+// static
+QuicConnectionId QuicConnectionPeer::GetClientConnectionIdOnAlternativePath(
+    const QuicConnection* connection) {
+  return connection->alternative_path_.client_connection_id;
+}
+
+// static
+QuicConnectionId QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+    const QuicConnection* connection) {
+  return connection->alternative_path_.server_connection_id;
 }
 
 // static

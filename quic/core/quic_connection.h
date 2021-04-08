@@ -777,9 +777,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const QuicSocketAddress& effective_peer_address() const {
     return default_path_.peer_address;
   }
-  QuicConnectionId connection_id() const { return server_connection_id_; }
-  QuicConnectionId client_connection_id() const {
-    return client_connection_id_;
+  const QuicConnectionId& connection_id() const { return ServerConnectionId(); }
+  const QuicConnectionId& client_connection_id() const {
+    return ClientConnectionId();
   }
   void set_client_connection_id(QuicConnectionId client_connection_id);
   const QuicClock* clock() const { return clock_; }
@@ -1228,6 +1228,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool validate_client_address() const { return validate_client_addresses_; }
 
+  bool use_connection_id_on_default_path() const {
+    return use_connection_id_on_default_path_;
+  }
+
   // Instantiates connection ID manager.
   void CreateConnectionIdManager();
 
@@ -1331,10 +1335,20 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   };
 
   struct QUIC_EXPORT_PRIVATE PathState {
+    PathState() = default;
+
     PathState(const QuicSocketAddress& alternative_self_address,
-              const QuicSocketAddress& alternative_peer_address)
+              const QuicSocketAddress& alternative_peer_address,
+              const QuicConnectionId& client_connection_id,
+              const QuicConnectionId& server_connection_id,
+              bool stateless_reset_token_received,
+              StatelessResetToken stateless_reset_token)
         : self_address(alternative_self_address),
-          peer_address(alternative_peer_address) {}
+          peer_address(alternative_peer_address),
+          client_connection_id(client_connection_id),
+          server_connection_id(server_connection_id),
+          stateless_reset_token(stateless_reset_token),
+          stateless_reset_token_received(stateless_reset_token_received) {}
 
     PathState(PathState&& other);
 
@@ -1346,6 +1360,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     QuicSocketAddress self_address;
     // The actual peer address behind the proxy if there is any.
     QuicSocketAddress peer_address;
+    QuicConnectionId client_connection_id;
+    QuicConnectionId server_connection_id;
+    StatelessResetToken stateless_reset_token;
+    bool stateless_reset_token_received = false;
     // True if the peer address has been validated. Address is considered
     // validated when 1) an address token of the peer address is received and
     // validated, or 2) a HANDSHAKE packet has been successfully processed on
@@ -1419,6 +1437,28 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     QuicSocketAddress original_direct_peer_address_;
   };
 
+  QuicConnectionId& ClientConnectionId() {
+    return use_connection_id_on_default_path_
+               ? default_path_.client_connection_id
+               : client_connection_id_;
+  }
+  const QuicConnectionId& ClientConnectionId() const {
+    return use_connection_id_on_default_path_
+               ? default_path_.client_connection_id
+               : client_connection_id_;
+  }
+  QuicConnectionId& ServerConnectionId() {
+    return use_connection_id_on_default_path_
+               ? default_path_.server_connection_id
+               : server_connection_id_;
+  }
+  const QuicConnectionId& ServerConnectionId() const {
+    return use_connection_id_on_default_path_
+               ? default_path_.server_connection_id
+               : server_connection_id_;
+  }
+  void SetServerConnectionId(const QuicConnectionId& server_connection_id);
+
   // Notifies the visitor of the close and marks the connection as disconnected.
   // Does not send a connection close frame to the peer. It should only be
   // called by CloseConnection or OnConnectionCloseFrame, OnPublicResetPacket,
@@ -1437,6 +1477,16 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // initial packets with a different source connection ID.
   void ReplaceInitialServerConnectionId(
       const QuicConnectionId& new_server_connection_id);
+
+  // Given the server_connection_id find if there is already a corresponding
+  // client connection ID used on default/alternative path.
+  void FindMatchingClientConnectionIdOrToken(
+      const PathState& default_path,
+      const PathState& alternative_path,
+      const QuicConnectionId& server_connection_id,
+      QuicConnectionId* client_connection_id,
+      bool* stateless_reset_token_received,
+      StatelessResetToken* stateless_reset_token) const;
 
   // Writes the given packet to socket, encrypted with packet's
   // encryption_level. Returns true on successful write, and false if the writer
@@ -1937,6 +1987,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Source address of the last received packet.
   QuicSocketAddress last_packet_source_address_;
 
+  // Destination connection id of the last received packet.
+  QuicConnectionId last_packet_destination_connection_id_;
+
   // Set to false if the connection should not send truncated connection IDs to
   // the peer, even if the peer supports it.
   bool can_truncate_connection_ids_;
@@ -2163,6 +2216,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   const bool donot_write_mid_packet_processing_ =
       GetQuicReloadableFlag(quic_donot_write_mid_packet_processing);
+
+  bool use_connection_id_on_default_path_ =
+      GetQuicReloadableFlag(quic_use_connection_id_on_default_path);
 };
 
 }  // namespace quic

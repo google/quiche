@@ -764,6 +764,12 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   void use_tagging_decrypter() { writer_->use_tagging_decrypter(); }
 
+  void SetClientConnectionId(const QuicConnectionId& client_connection_id) {
+    connection_.set_client_connection_id(client_connection_id);
+    writer_->framer()->framer()->SetExpectedClientConnectionIdLength(
+        client_connection_id.length());
+  }
+
   void SetDecrypter(EncryptionLevel level,
                     std::unique_ptr<QuicDecrypter> decrypter) {
     if (connection_.version().KnowsWhichDecrypterToUse()) {
@@ -1422,6 +1428,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   void PathProbeTestInit(Perspective perspective) {
     set_perspective(perspective);
+    connection_.CreateConnectionIdManager();
     EXPECT_EQ(connection_.perspective(), perspective);
     if (perspective == Perspective::IS_SERVER) {
       QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -9300,7 +9307,7 @@ TEST_P(QuicConnectionTest, ValidClientConnectionId) {
     return;
   }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-  connection_.set_client_connection_id(TestConnectionId(0x33));
+  SetClientConnectionId(TestConnectionId(0x33));
   QuicPacketHeader header = ConstructPacketHeader(1, ENCRYPTION_FORWARD_SECURE);
   header.destination_connection_id = TestConnectionId(0x33);
   header.destination_connection_id_included = CONNECTION_ID_PRESENT;
@@ -9328,7 +9335,7 @@ TEST_P(QuicConnectionTest, InvalidClientConnectionId) {
   if (!framer_.version().SupportsClientConnectionIds()) {
     return;
   }
-  connection_.set_client_connection_id(TestConnectionId(0x33));
+  SetClientConnectionId(TestConnectionId(0x33));
   QuicPacketHeader header = ConstructPacketHeader(1, ENCRYPTION_FORWARD_SECURE);
   header.destination_connection_id = TestConnectionId(0xbad);
   header.destination_connection_id_included = CONNECTION_ID_PRESENT;
@@ -14098,7 +14105,7 @@ TEST_P(QuicConnectionTest,
   }
   QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
   set_perspective(Perspective::IS_SERVER);
-  connection_.set_client_connection_id(TestConnectionId(0));
+  SetClientConnectionId(TestConnectionId(0));
 
   QuicNewConnectionIdFrame frame;
   frame.sequence_number = 1u;
@@ -14129,9 +14136,70 @@ TEST_P(QuicConnectionTest,
             TestConnectionId(2));
 }
 
+TEST_P(
+    QuicConnectionTest,
+    ReplacePeerIssuedConnectionIdOnBothPathsTriggeredByNewConnectionIdFrame) {
+  if (!version().HasIetfQuicFrames() || !connection_.use_path_validator() ||
+      !connection_.use_connection_id_on_default_path()) {
+    return;
+  }
+  QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
+  PathProbeTestInit(Perspective::IS_SERVER);
+  SetClientConnectionId(TestConnectionId(0));
+
+  // Populate alternative_path_ with probing packet.
+  std::unique_ptr<SerializedPacket> probing_packet = ConstructProbingPacket();
+
+  std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
+      QuicEncryptedPacket(probing_packet->encrypted_buffer,
+                          probing_packet->encrypted_length),
+      clock_.Now()));
+  QuicIpAddress new_host;
+  new_host.FromString("1.1.1.1");
+  ProcessReceivedPacket(kSelfAddress,
+                        QuicSocketAddress(new_host, /*port=*/23456), *received);
+
+  EXPECT_EQ(
+      TestConnectionId(0),
+      QuicConnectionPeer::GetClientConnectionIdOnAlternativePath(&connection_));
+
+  QuicNewConnectionIdFrame frame;
+  frame.sequence_number = 1u;
+  frame.connection_id = TestConnectionId(1);
+  frame.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame.connection_id);
+  frame.retire_prior_to = 0u;
+
+  EXPECT_TRUE(connection_.OnNewConnectionIdFrame(frame));
+  auto* retire_peer_issued_cid_alarm =
+      connection_.GetRetirePeerIssuedConnectionIdAlarm();
+  ASSERT_FALSE(retire_peer_issued_cid_alarm->IsSet());
+
+  frame.sequence_number = 2u;
+  frame.connection_id = TestConnectionId(2);
+  frame.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame.connection_id);
+  frame.retire_prior_to = 1u;  // CID associated with #1 will be retired.
+
+  EXPECT_TRUE(connection_.OnNewConnectionIdFrame(frame));
+  ASSERT_TRUE(retire_peer_issued_cid_alarm->IsSet());
+  EXPECT_EQ(connection_.client_connection_id(), TestConnectionId(0));
+
+  EXPECT_CALL(visitor_, SendRetireConnectionId(/*sequence_number=*/0u));
+  retire_peer_issued_cid_alarm->Fire();
+  EXPECT_EQ(connection_.client_connection_id(), TestConnectionId(2));
+  EXPECT_EQ(connection_.packet_creator().GetDestinationConnectionId(),
+            TestConnectionId(2));
+  // Clean up alternative path connection ID.
+  EXPECT_EQ(
+      TestConnectionId(2),
+      QuicConnectionPeer::GetClientConnectionIdOnAlternativePath(&connection_));
+}
+
 TEST_P(QuicConnectionTest,
        CloseConnectionAfterReceiveRetireConnectionIdWhenNoCIDIssued) {
-  if (!version().HasIetfQuicFrames()) {
+  if (!version().HasIetfQuicFrames() ||
+      GetQuicReloadableFlag(quic_use_connection_id_on_default_path)) {
     return;
   }
   QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
@@ -14151,7 +14219,8 @@ TEST_P(QuicConnectionTest,
 }
 
 TEST_P(QuicConnectionTest, RetireConnectionIdFrameResultsInError) {
-  if (!version().HasIetfQuicFrames()) {
+  if (!version().HasIetfQuicFrames() ||
+      GetQuicReloadableFlag(quic_use_connection_id_on_default_path)) {
     return;
   }
   QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
@@ -14175,8 +14244,36 @@ TEST_P(QuicConnectionTest, RetireConnectionIdFrameResultsInError) {
               IsError(IETF_QUIC_PROTOCOL_VIOLATION));
 }
 
+TEST_P(QuicConnectionTest,
+       ServerRetireSelfIssuedConnectionIdWithoutSendingNewConnectionIdBefore) {
+  QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
+  set_perspective(Perspective::IS_SERVER);
+  connection_.CreateConnectionIdManager();
+
+  auto* retire_self_issued_cid_alarm =
+      connection_.GetRetireSelfIssuedConnectionIdAlarm();
+  ASSERT_FALSE(retire_self_issued_cid_alarm->IsSet());
+
+  QuicConnectionId cid0 = connection_id_;
+  QuicRetireConnectionIdFrame frame;
+  frame.sequence_number = 0u;
+  if (!GetQuicReloadableFlag(quic_use_connection_id_on_default_path)) {
+    EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_)).Times(2);
+    EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(2);
+  }
+  EXPECT_TRUE(connection_.OnRetireConnectionIdFrame(frame));
+  if (!GetQuicReloadableFlag(quic_use_connection_id_on_default_path)) {
+    ASSERT_TRUE(retire_self_issued_cid_alarm->IsSet());
+    // cid0 is retired when the retire CID alarm fires.
+    if (!GetQuicReloadableFlag(quic_use_connection_id_on_default_path))
+      EXPECT_CALL(visitor_, OnServerConnectionIdRetired(cid0));
+    retire_self_issued_cid_alarm->Fire();
+  }
+}
+
 TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
-  if (!version().HasIetfQuicFrames()) {
+  if (!version().HasIetfQuicFrames() ||
+      GetQuicReloadableFlag(quic_use_connection_id_on_default_path)) {
     return;
   }
   QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
