@@ -152,6 +152,12 @@ void OgHttp2Adapter::MarkDataConsumedForStream(Http2StreamId stream_id,
   session_->Consume(stream_id, num_bytes);
 }
 
+void OgHttp2Adapter::SubmitRst(Http2StreamId stream_id,
+                               Http2ErrorCode error_code) {
+  session_->EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+      stream_id, TranslateErrorCode(error_code)));
+}
+
 const Http2Session& OgHttp2Adapter::session() const {
   return *session_;
 }

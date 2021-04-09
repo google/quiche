@@ -37,6 +37,7 @@ class OgHttp2Adapter : public Http2Adapter {
   int GetPeerConnectionWindow() const override;
   void MarkDataConsumedForStream(Http2StreamId stream_id,
                                  size_t num_bytes) override;
+  void SubmitRst(Http2StreamId stream_id, Http2ErrorCode error_code) override;
 
   const Http2Session& session() const;
 

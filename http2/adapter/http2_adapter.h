@@ -74,6 +74,10 @@ class Http2Adapter {
   virtual void MarkDataConsumedForStream(Http2StreamId stream_id,
                                          size_t num_bytes) = 0;
 
+  // Submits a RST_STREAM for the given stream.
+  virtual void SubmitRst(Http2StreamId stream_id,
+                         Http2ErrorCode error_code) = 0;
+
  protected:
   // Subclasses should expose a public factory method for constructing and
   // initializing (via Initialize()) adapter instances.

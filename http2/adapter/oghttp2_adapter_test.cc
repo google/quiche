@@ -50,16 +50,18 @@ TEST_F(OgHttp2AdapterTest, TestSerialize) {
   EXPECT_TRUE(adapter_->session().want_write());
 
   adapter_->SubmitPriorityForStream(3, 1, 255, true);
+  adapter_->SubmitRst(3, Http2ErrorCode::CANCEL);
   adapter_->SubmitPing(42);
   adapter_->SubmitGoAway(13, Http2ErrorCode::NO_ERROR, "");
   adapter_->SubmitWindowUpdate(3, 127);
   EXPECT_TRUE(adapter_->session().want_write());
 
-  EXPECT_THAT(adapter_->GetBytesToWrite(absl::nullopt),
-              ContainsFrames(
-                  {spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::PRIORITY,
-                   spdy::SpdyFrameType::PING, spdy::SpdyFrameType::GOAWAY,
-                   spdy::SpdyFrameType::WINDOW_UPDATE}));
+  EXPECT_THAT(
+      adapter_->GetBytesToWrite(absl::nullopt),
+      ContainsFrames(
+          {spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::PRIORITY,
+           spdy::SpdyFrameType::RST_STREAM, spdy::SpdyFrameType::PING,
+           spdy::SpdyFrameType::GOAWAY, spdy::SpdyFrameType::WINDOW_UPDATE}));
   EXPECT_FALSE(adapter_->session().want_write());
 }
 
