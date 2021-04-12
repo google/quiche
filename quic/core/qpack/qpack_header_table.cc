@@ -21,12 +21,6 @@ QpackHeaderTableBase::QpackHeaderTableBase()
       dropped_entry_count_(0),
       dynamic_table_entry_referenced_(false) {}
 
-QpackHeaderTableBase::~QpackHeaderTableBase() {
-  for (auto& entry : observers_) {
-    entry.second->Cancel();
-  }
-}
-
 const QpackEntry* QpackHeaderTableBase::LookupEntry(bool is_static,
                                                     uint64_t index) const {
   if (is_static) {
@@ -143,17 +137,6 @@ uint64_t QpackHeaderTableBase::InsertEntry(absl::string_view name,
     QUICHE_CHECK(result.second);
   }
 
-  // Notify and deregister observers whose threshold is met, if any.
-  while (!observers_.empty()) {
-    auto it = observers_.begin();
-    if (it->first > inserted_entry_count()) {
-      break;
-    }
-    Observer* observer = it->second;
-    observers_.erase(it);
-    observer->OnInsertCountReachedThreshold();
-  }
-
   return index;
 }
 
@@ -203,27 +186,6 @@ bool QpackHeaderTableBase::SetMaximumDynamicTableCapacity(
   }
   // If the value is already set, it should not be changed.
   return maximum_dynamic_table_capacity == maximum_dynamic_table_capacity_;
-}
-
-void QpackHeaderTableBase::RegisterObserver(uint64_t required_insert_count,
-                                            Observer* observer) {
-  QUICHE_DCHECK_GT(required_insert_count, 0u);
-  observers_.insert({required_insert_count, observer});
-}
-
-void QpackHeaderTableBase::UnregisterObserver(uint64_t required_insert_count,
-                                              Observer* observer) {
-  auto it = observers_.lower_bound(required_insert_count);
-  while (it != observers_.end() && it->first == required_insert_count) {
-    if (it->second == observer) {
-      observers_.erase(it);
-      return;
-    }
-    ++it;
-  }
-
-  // |observer| must have been registered.
-  QUIC_NOTREACHED();
 }
 
 uint64_t QpackHeaderTableBase::draining_index(float draining_fraction) const {
@@ -282,6 +244,51 @@ void QpackHeaderTableBase::EvictDownToCapacity(uint64_t capacity) {
     dynamic_entries_.pop_front();
     ++dropped_entry_count_;
   }
+}
+
+QpackDecoderHeaderTable::~QpackDecoderHeaderTable() {
+  for (auto& entry : observers_) {
+    entry.second->Cancel();
+  }
+}
+
+uint64_t QpackDecoderHeaderTable::InsertEntry(absl::string_view name,
+                                              absl::string_view value) {
+  const uint64_t index = QpackHeaderTableBase::InsertEntry(name, value);
+
+  // Notify and deregister observers whose threshold is met, if any.
+  while (!observers_.empty()) {
+    auto it = observers_.begin();
+    if (it->first > inserted_entry_count()) {
+      break;
+    }
+    Observer* observer = it->second;
+    observers_.erase(it);
+    observer->OnInsertCountReachedThreshold();
+  }
+
+  return index;
+}
+
+void QpackDecoderHeaderTable::RegisterObserver(uint64_t required_insert_count,
+                                               Observer* observer) {
+  QUICHE_DCHECK_GT(required_insert_count, 0u);
+  observers_.insert({required_insert_count, observer});
+}
+
+void QpackDecoderHeaderTable::UnregisterObserver(uint64_t required_insert_count,
+                                                 Observer* observer) {
+  auto it = observers_.lower_bound(required_insert_count);
+  while (it != observers_.end() && it->first == required_insert_count) {
+    if (it->second == observer) {
+      observers_.erase(it);
+      return;
+    }
+    ++it;
+  }
+
+  // |observer| must have been registered.
+  QUIC_NOTREACHED();
 }
 
 }  // namespace quic

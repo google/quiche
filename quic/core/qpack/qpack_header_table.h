@@ -41,26 +41,11 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   // Result of header table lookup.
   enum class MatchType { kNameAndValue, kName, kNoMatch };
 
-  // Observer interface for dynamic table insertion.
-  class QUIC_EXPORT_PRIVATE Observer {
-   public:
-    virtual ~Observer() = default;
-
-    // Called when inserted_entry_count() reaches the threshold the Observer was
-    // registered with.  After this call the Observer automatically gets
-    // deregistered.
-    virtual void OnInsertCountReachedThreshold() = 0;
-
-    // Called when QpackDecoderHeaderTable is destroyed to let the Observer know
-    // that it must not call UnregisterObserver().
-    virtual void Cancel() = 0;
-  };
-
   QpackHeaderTableBase();
   QpackHeaderTableBase(const QpackHeaderTableBase&) = delete;
   QpackHeaderTableBase& operator=(const QpackHeaderTableBase&) = delete;
 
-  virtual ~QpackHeaderTableBase();
+  virtual ~QpackHeaderTableBase() = default;
 
   // Returns the entry at absolute index |index| from the static or dynamic
   // table according to |is_static|.  |index| is zero based for both the static
@@ -90,7 +75,7 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   // the underlying container might move entries around when resizing for
   // insertion.
   // Returns the absolute index of the inserted dynamic table entry.
-  uint64_t InsertEntry(absl::string_view name, absl::string_view value);
+  virtual uint64_t InsertEntry(absl::string_view name, absl::string_view value);
 
   // Returns the size of the largest entry that could be inserted into the
   // dynamic table without evicting entry |index|.  |index| might be larger than
@@ -117,18 +102,6 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   uint64_t maximum_dynamic_table_capacity() const {
     return maximum_dynamic_table_capacity_;
   }
-
-  // Register an observer to be notified when inserted_entry_count() reaches
-  // |required_insert_count|.  After the notification, |observer| automatically
-  // gets unregistered.  Each observer must only be registered at most once.
-  void RegisterObserver(uint64_t required_insert_count, Observer* observer);
-
-  // Unregister previously registered observer.  Must be called with the same
-  // |required_insert_count| value that |observer| was registered with.  Must be
-  // called before an observer still waiting for notification is destroyed,
-  // unless QpackDecoderHeaderTable already called Observer::Cancel(), in which
-  // case this method must not be called.
-  void UnregisterObserver(uint64_t required_insert_count, Observer* observer);
 
   // Used on request streams to encode and decode Required Insert Count.
   uint64_t max_entries() const { return max_entries_; }
@@ -217,9 +190,6 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   // The number of entries dropped from the dynamic table.
   uint64_t dropped_entry_count_;
 
-  // Observers waiting to be notified, sorted by required insert count.
-  std::multimap<uint64_t, Observer*> observers_;
-
   // True if any dynamic table entries have been referenced from a header block.
   // Set directly by the encoder or decoder.  Used for stats.
   bool dynamic_table_entry_referenced_;
@@ -234,7 +204,41 @@ class QUIC_EXPORT_PRIVATE QpackEncoderHeaderTable
 class QUIC_EXPORT_PRIVATE QpackDecoderHeaderTable
     : public QpackHeaderTableBase {
  public:
-  ~QpackDecoderHeaderTable() override = default;
+  // Observer interface for dynamic table insertion.
+  class QUIC_EXPORT_PRIVATE Observer {
+   public:
+    virtual ~Observer() = default;
+
+    // Called when inserted_entry_count() reaches the threshold the Observer was
+    // registered with.  After this call the Observer automatically gets
+    // deregistered.
+    virtual void OnInsertCountReachedThreshold() = 0;
+
+    // Called when QpackDecoderHeaderTable is destroyed to let the Observer know
+    // that it must not call UnregisterObserver().
+    virtual void Cancel() = 0;
+  };
+
+  ~QpackDecoderHeaderTable() override;
+
+  uint64_t InsertEntry(absl::string_view name,
+                       absl::string_view value) override;
+
+  // Register an observer to be notified when inserted_entry_count() reaches
+  // |required_insert_count|.  After the notification, |observer| automatically
+  // gets unregistered.  Each observer must only be registered at most once.
+  void RegisterObserver(uint64_t required_insert_count, Observer* observer);
+
+  // Unregister previously registered observer.  Must be called with the same
+  // |required_insert_count| value that |observer| was registered with.  Must be
+  // called before an observer still waiting for notification is destroyed,
+  // unless QpackDecoderHeaderTable already called Observer::Cancel(), in which
+  // case this method must not be called.
+  void UnregisterObserver(uint64_t required_insert_count, Observer* observer);
+
+ private:
+  // Observers waiting to be notified, sorted by required insert count.
+  std::multimap<uint64_t, Observer*> observers_;
 };
 
 }  // namespace quic
