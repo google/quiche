@@ -929,10 +929,6 @@ class MockQuicSession : public QuicSession {
               (override));
 
   MOCK_METHOD(bool, ShouldKeepConnectionAlive, (), (const, override));
-  MOCK_METHOD(void,
-              SendStopSending,
-              (QuicRstStreamErrorCode code, QuicStreamId stream_id),
-              (override));
   MOCK_METHOD(std::vector<std::string>, GetAlpnsToOffer, (), (const, override));
   MOCK_METHOD(std::vector<absl::string_view>::const_iterator,
               SelectAlpn,

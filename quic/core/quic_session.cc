@@ -2495,11 +2495,6 @@ QuicPacketLength QuicSession::GetGuaranteedLargestMessagePayload() const {
   return connection_->GetGuaranteedLargestMessagePayload();
 }
 
-void QuicSession::SendStopSending(QuicRstStreamErrorCode code,
-                                  QuicStreamId stream_id) {
-  control_frame_manager_.WriteOrBufferStopSending(code, stream_id);
-}
-
 QuicStreamId QuicSession::next_outgoing_bidirectional_stream_id() const {
   if (VersionHasIetfQuicFrames(transport_version())) {
     return ietf_streamid_manager_.next_outgoing_bidirectional_stream_id();
