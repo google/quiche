@@ -21,29 +21,6 @@ QpackHeaderTableBase::QpackHeaderTableBase()
       dropped_entry_count_(0),
       dynamic_table_entry_referenced_(false) {}
 
-const QpackEntry* QpackHeaderTableBase::LookupEntry(bool is_static,
-                                                    uint64_t index) const {
-  if (is_static) {
-    if (index >= static_entries_.size()) {
-      return nullptr;
-    }
-
-    return &static_entries_[index];
-  }
-
-  if (index < dropped_entry_count_) {
-    return nullptr;
-  }
-
-  index -= dropped_entry_count_;
-
-  if (index >= dynamic_entries_.size()) {
-    return nullptr;
-  }
-
-  return &dynamic_entries_[index];
-}
-
 QpackHeaderTableBase::MatchType QpackHeaderTableBase::FindHeaderField(
     absl::string_view name,
     absl::string_view value,
@@ -268,6 +245,29 @@ uint64_t QpackDecoderHeaderTable::InsertEntry(absl::string_view name,
   }
 
   return index;
+}
+
+const QpackEntry* QpackDecoderHeaderTable::LookupEntry(bool is_static,
+                                                       uint64_t index) const {
+  if (is_static) {
+    if (index >= static_entries_.size()) {
+      return nullptr;
+    }
+
+    return &static_entries_[index];
+  }
+
+  if (index < dropped_entry_count()) {
+    return nullptr;
+  }
+
+  index -= dropped_entry_count();
+
+  if (index >= dynamic_entries_.size()) {
+    return nullptr;
+  }
+
+  return &dynamic_entries_[index];
 }
 
 void QpackDecoderHeaderTable::RegisterObserver(uint64_t required_insert_count,

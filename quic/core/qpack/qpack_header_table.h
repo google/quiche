@@ -47,13 +47,6 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
 
   virtual ~QpackHeaderTableBase() = default;
 
-  // Returns the entry at absolute index |index| from the static or dynamic
-  // table according to |is_static|.  |index| is zero based for both the static
-  // and the dynamic table.  The returned pointer is valid until the entry is
-  // evicted, even if other entries are inserted into the dynamic table.
-  // Returns nullptr if entry does not exist.
-  const QpackEntry* LookupEntry(bool is_static, uint64_t index) const;
-
   // Returns the absolute index of an entry with matching name and value if such
   // exists, otherwise one with matching name is such exists.  |index| is zero
   // based for both the static and the dynamic table.
@@ -130,13 +123,7 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
     return dynamic_table_entry_referenced_;
   }
 
- private:
-  friend class test::QpackHeaderTablePeer;
-
-  // Evict entries from the dynamic table until table size is less than or equal
-  // to |capacity|.
-  void EvictDownToCapacity(uint64_t capacity);
-
+ protected:
   // Static Table
 
   // |static_entries_|, |static_index_|, |static_name_index_| are owned by
@@ -167,6 +154,13 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   // fast lookup of the most recently inserted dynamic entry for a given header
   // name.  Entries point to entries owned by |dynamic_entries_|.
   NameToEntryMap dynamic_name_index_;
+
+ private:
+  friend class test::QpackHeaderTablePeer;
+
+  // Evict entries from the dynamic table until table size is less than or equal
+  // to |capacity|.
+  void EvictDownToCapacity(uint64_t capacity);
 
   // Size of the dynamic table.  This is the sum of the size of its entries.
   uint64_t dynamic_table_size_;
@@ -223,6 +217,13 @@ class QUIC_EXPORT_PRIVATE QpackDecoderHeaderTable
 
   uint64_t InsertEntry(absl::string_view name,
                        absl::string_view value) override;
+
+  // Returns the entry at absolute index |index| from the static or dynamic
+  // table according to |is_static|.  |index| is zero based for both the static
+  // and the dynamic table.  The returned pointer is valid until the entry is
+  // evicted, even if other entries are inserted into the dynamic table.
+  // Returns nullptr if entry does not exist.
+  const QpackEntry* LookupEntry(bool is_static, uint64_t index) const;
 
   // Register an observer to be notified when inserted_entry_count() reaches
   // |required_insert_count|.  After the notification, |observer| automatically

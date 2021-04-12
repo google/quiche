@@ -31,20 +31,6 @@ class QpackHeaderTableTest : public QuicTest {
   }
   ~QpackHeaderTableTest() override = default;
 
-  void ExpectEntryAtIndex(bool is_static,
-                          uint64_t index,
-                          absl::string_view expected_name,
-                          absl::string_view expected_value) const {
-    const auto* entry = table_.LookupEntry(is_static, index);
-    ASSERT_TRUE(entry);
-    EXPECT_EQ(expected_name, entry->name());
-    EXPECT_EQ(expected_value, entry->value());
-  }
-
-  void ExpectNoEntryAtIndex(bool is_static, uint64_t index) const {
-    EXPECT_FALSE(table_.LookupEntry(is_static, index));
-  }
-
   void ExpectMatch(absl::string_view name,
                    absl::string_view value,
                    QpackHeaderTableBase::MatchType expected_match_type,
@@ -99,57 +85,6 @@ class QpackHeaderTableTest : public QuicTest {
 using MyTypes =
     ::testing::Types<QpackEncoderHeaderTable, QpackDecoderHeaderTable>;
 TYPED_TEST_SUITE(QpackHeaderTableTest, MyTypes);
-
-TYPED_TEST(QpackHeaderTableTest, LookupStaticEntry) {
-  this->ExpectEntryAtIndex(/* is_static = */ true, 0, ":authority", "");
-
-  this->ExpectEntryAtIndex(/* is_static = */ true, 1, ":path", "/");
-
-  // 98 is the last entry.
-  this->ExpectEntryAtIndex(/* is_static = */ true, 98, "x-frame-options",
-                           "sameorigin");
-
-  ASSERT_EQ(99u, QpackStaticTableVector().size());
-  this->ExpectNoEntryAtIndex(/* is_static = */ true, 99);
-}
-
-TYPED_TEST(QpackHeaderTableTest, InsertAndLookupDynamicEntry) {
-  // Dynamic table is initially entry.
-  this->ExpectNoEntryAtIndex(/* is_static = */ false, 0);
-  this->ExpectNoEntryAtIndex(/* is_static = */ false, 1);
-  this->ExpectNoEntryAtIndex(/* is_static = */ false, 2);
-  this->ExpectNoEntryAtIndex(/* is_static = */ false, 3);
-
-  // Insert one entry.
-  this->InsertEntry("foo", "bar");
-
-  this->ExpectEntryAtIndex(/* is_static = */ false, 0, "foo", "bar");
-
-  this->ExpectNoEntryAtIndex(/* is_static = */ false, 1);
-  this->ExpectNoEntryAtIndex(/* is_static = */ false, 2);
-  this->ExpectNoEntryAtIndex(/* is_static = */ false, 3);
-
-  // Insert a different entry.
-  this->InsertEntry("baz", "bing");
-
-  this->ExpectEntryAtIndex(/* is_static = */ false, 0, "foo", "bar");
-
-  this->ExpectEntryAtIndex(/* is_static = */ false, 1, "baz", "bing");
-
-  this->ExpectNoEntryAtIndex(/* is_static = */ false, 2);
-  this->ExpectNoEntryAtIndex(/* is_static = */ false, 3);
-
-  // Insert an entry identical to the most recently inserted one.
-  this->InsertEntry("baz", "bing");
-
-  this->ExpectEntryAtIndex(/* is_static = */ false, 0, "foo", "bar");
-
-  this->ExpectEntryAtIndex(/* is_static = */ false, 1, "baz", "bing");
-
-  this->ExpectEntryAtIndex(/* is_static = */ false, 2, "baz", "bing");
-
-  this->ExpectNoEntryAtIndex(/* is_static = */ false, 3);
-}
 
 TYPED_TEST(QpackHeaderTableTest, FindStaticHeaderField) {
   // A header name that has multiple entries with different values.
@@ -216,9 +151,6 @@ TYPED_TEST(QpackHeaderTableTest, FindDynamicHeaderField) {
 TYPED_TEST(QpackHeaderTableTest, FindHeaderFieldPrefersStaticTable) {
   // Insert an entry to the dynamic table that exists in the static table.
   this->InsertEntry(":method", "GET");
-
-  // Insertion works.
-  this->ExpectEntryAtIndex(/* is_static = */ false, 0, ":method", "GET");
 
   // FindHeaderField() prefers static table if both have name-and-value match.
   this->ExpectMatch(":method", "GET",
@@ -480,6 +412,20 @@ class QpackDecoderHeaderTableTest
  protected:
   ~QpackDecoderHeaderTableTest() override = default;
 
+  void ExpectEntryAtIndex(bool is_static,
+                          uint64_t index,
+                          absl::string_view expected_name,
+                          absl::string_view expected_value) const {
+    const auto* entry = table_.LookupEntry(is_static, index);
+    ASSERT_TRUE(entry);
+    EXPECT_EQ(expected_name, entry->name());
+    EXPECT_EQ(expected_value, entry->value());
+  }
+
+  void ExpectNoEntryAtIndex(bool is_static, uint64_t index) const {
+    EXPECT_FALSE(table_.LookupEntry(is_static, index));
+  }
+
   void RegisterObserver(uint64_t required_insert_count,
                         QpackDecoderHeaderTable::Observer* observer) {
     table_.RegisterObserver(required_insert_count, observer);
@@ -490,6 +436,57 @@ class QpackDecoderHeaderTableTest
     table_.UnregisterObserver(required_insert_count, observer);
   }
 };
+
+TEST_F(QpackDecoderHeaderTableTest, LookupStaticEntry) {
+  ExpectEntryAtIndex(/* is_static = */ true, 0, ":authority", "");
+
+  ExpectEntryAtIndex(/* is_static = */ true, 1, ":path", "/");
+
+  // 98 is the last entry.
+  ExpectEntryAtIndex(/* is_static = */ true, 98, "x-frame-options",
+                     "sameorigin");
+
+  ASSERT_EQ(99u, QpackStaticTableVector().size());
+  ExpectNoEntryAtIndex(/* is_static = */ true, 99);
+}
+
+TEST_F(QpackDecoderHeaderTableTest, InsertAndLookupDynamicEntry) {
+  // Dynamic table is initially entry.
+  ExpectNoEntryAtIndex(/* is_static = */ false, 0);
+  ExpectNoEntryAtIndex(/* is_static = */ false, 1);
+  ExpectNoEntryAtIndex(/* is_static = */ false, 2);
+  ExpectNoEntryAtIndex(/* is_static = */ false, 3);
+
+  // Insert one entry.
+  InsertEntry("foo", "bar");
+
+  ExpectEntryAtIndex(/* is_static = */ false, 0, "foo", "bar");
+
+  ExpectNoEntryAtIndex(/* is_static = */ false, 1);
+  ExpectNoEntryAtIndex(/* is_static = */ false, 2);
+  ExpectNoEntryAtIndex(/* is_static = */ false, 3);
+
+  // Insert a different entry.
+  InsertEntry("baz", "bing");
+
+  ExpectEntryAtIndex(/* is_static = */ false, 0, "foo", "bar");
+
+  ExpectEntryAtIndex(/* is_static = */ false, 1, "baz", "bing");
+
+  ExpectNoEntryAtIndex(/* is_static = */ false, 2);
+  ExpectNoEntryAtIndex(/* is_static = */ false, 3);
+
+  // Insert an entry identical to the most recently inserted one.
+  InsertEntry("baz", "bing");
+
+  ExpectEntryAtIndex(/* is_static = */ false, 0, "foo", "bar");
+
+  ExpectEntryAtIndex(/* is_static = */ false, 1, "baz", "bing");
+
+  ExpectEntryAtIndex(/* is_static = */ false, 2, "baz", "bing");
+
+  ExpectNoEntryAtIndex(/* is_static = */ false, 3);
+}
 
 TEST_F(QpackDecoderHeaderTableTest, RegisterObserver) {
   StrictMock<MockObserver> observer1;
