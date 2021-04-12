@@ -20,7 +20,7 @@ QpackProgressiveDecoder::QpackProgressiveDecoder(
     QuicStreamId stream_id,
     BlockedStreamLimitEnforcer* enforcer,
     DecodingCompletedVisitor* visitor,
-    QpackHeaderTable* header_table,
+    QpackDecoderHeaderTable* header_table,
     HeadersHandlerInterface* handler)
     : stream_id_(stream_id),
       prefix_decoder_(

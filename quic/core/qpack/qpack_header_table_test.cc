@@ -21,7 +21,7 @@ namespace {
 
 const uint64_t kMaximumDynamicTableCapacityForTesting = 1024 * 1024;
 
-class MockObserver : public QpackHeaderTable::Observer {
+class MockObserver : public QpackHeaderTableBase::Observer {
  public:
   ~MockObserver() override = default;
 
@@ -54,7 +54,7 @@ class QpackHeaderTableTest : public QuicTest {
 
   void ExpectMatch(absl::string_view name,
                    absl::string_view value,
-                   QpackHeaderTable::MatchType expected_match_type,
+                   QpackHeaderTableBase::MatchType expected_match_type,
                    bool expected_is_static,
                    uint64_t expected_index) const {
     // Initialize outparams to a value different from the expected to ensure
@@ -62,7 +62,7 @@ class QpackHeaderTableTest : public QuicTest {
     bool is_static = !expected_is_static;
     uint64_t index = expected_index + 1;
 
-    QpackHeaderTable::MatchType matchtype =
+    QpackHeaderTableBase::MatchType matchtype =
         table_.FindHeaderField(name, value, &is_static, &index);
 
     EXPECT_EQ(expected_match_type, matchtype) << name << ": " << value;
@@ -74,10 +74,10 @@ class QpackHeaderTableTest : public QuicTest {
     bool is_static = false;
     uint64_t index = 0;
 
-    QpackHeaderTable::MatchType matchtype =
+    QpackHeaderTableBase::MatchType matchtype =
         table_.FindHeaderField(name, value, &is_static, &index);
 
-    EXPECT_EQ(QpackHeaderTable::MatchType::kNoMatch, matchtype)
+    EXPECT_EQ(QpackHeaderTableBase::MatchType::kNoMatch, matchtype)
         << name << ": " << value;
   }
 
@@ -95,12 +95,12 @@ class QpackHeaderTableTest : public QuicTest {
   }
 
   void RegisterObserver(uint64_t required_insert_count,
-                        QpackHeaderTable::Observer* observer) {
+                        QpackHeaderTableBase::Observer* observer) {
     table_.RegisterObserver(required_insert_count, observer);
   }
 
   void UnregisterObserver(uint64_t required_insert_count,
-                          QpackHeaderTable::Observer* observer) {
+                          QpackHeaderTableBase::Observer* observer) {
     table_.UnregisterObserver(required_insert_count, observer);
   }
 
@@ -111,7 +111,7 @@ class QpackHeaderTableTest : public QuicTest {
   uint64_t dropped_entry_count() const { return table_.dropped_entry_count(); }
 
  private:
-  QpackHeaderTable table_;
+  QpackHeaderTableBase table_;
 };
 
 TEST_F(QpackHeaderTableTest, LookupStaticEntry) {
@@ -167,30 +167,31 @@ TEST_F(QpackHeaderTableTest, InsertAndLookupDynamicEntry) {
 
 TEST_F(QpackHeaderTableTest, FindStaticHeaderField) {
   // A header name that has multiple entries with different values.
-  ExpectMatch(":method", "GET", QpackHeaderTable::MatchType::kNameAndValue,
+  ExpectMatch(":method", "GET", QpackHeaderTableBase::MatchType::kNameAndValue,
               true, 17u);
 
-  ExpectMatch(":method", "POST", QpackHeaderTable::MatchType::kNameAndValue,
+  ExpectMatch(":method", "POST", QpackHeaderTableBase::MatchType::kNameAndValue,
               true, 20u);
 
-  ExpectMatch(":method", "TRACE", QpackHeaderTable::MatchType::kName, true,
+  ExpectMatch(":method", "TRACE", QpackHeaderTableBase::MatchType::kName, true,
               15u);
 
   // A header name that has a single entry with non-empty value.
   ExpectMatch("accept-encoding", "gzip, deflate, br",
-              QpackHeaderTable::MatchType::kNameAndValue, true, 31u);
+              QpackHeaderTableBase::MatchType::kNameAndValue, true, 31u);
 
-  ExpectMatch("accept-encoding", "compress", QpackHeaderTable::MatchType::kName,
+  ExpectMatch("accept-encoding", "compress",
+              QpackHeaderTableBase::MatchType::kName, true, 31u);
+
+  ExpectMatch("accept-encoding", "", QpackHeaderTableBase::MatchType::kName,
               true, 31u);
 
-  ExpectMatch("accept-encoding", "", QpackHeaderTable::MatchType::kName, true,
-              31u);
-
   // A header name that has a single entry with empty value.
-  ExpectMatch("location", "", QpackHeaderTable::MatchType::kNameAndValue, true,
-              12u);
+  ExpectMatch("location", "", QpackHeaderTableBase::MatchType::kNameAndValue,
+              true, 12u);
 
-  ExpectMatch("location", "foo", QpackHeaderTable::MatchType::kName, true, 12u);
+  ExpectMatch("location", "foo", QpackHeaderTableBase::MatchType::kName, true,
+              12u);
 
   // No matching header name.
   ExpectNoMatch("foo", "");
@@ -206,22 +207,22 @@ TEST_F(QpackHeaderTableTest, FindDynamicHeaderField) {
   InsertEntry("foo", "bar");
 
   // Match name and value.
-  ExpectMatch("foo", "bar", QpackHeaderTable::MatchType::kNameAndValue, false,
-              0u);
+  ExpectMatch("foo", "bar", QpackHeaderTableBase::MatchType::kNameAndValue,
+              false, 0u);
 
   // Match name only.
-  ExpectMatch("foo", "baz", QpackHeaderTable::MatchType::kName, false, 0u);
+  ExpectMatch("foo", "baz", QpackHeaderTableBase::MatchType::kName, false, 0u);
 
   // Insert an identical entry.  FindHeaderField() should return the index of
   // the most recently inserted matching entry.
   InsertEntry("foo", "bar");
 
   // Match name and value.
-  ExpectMatch("foo", "bar", QpackHeaderTable::MatchType::kNameAndValue, false,
-              1u);
+  ExpectMatch("foo", "bar", QpackHeaderTableBase::MatchType::kNameAndValue,
+              false, 1u);
 
   // Match name only.
-  ExpectMatch("foo", "baz", QpackHeaderTable::MatchType::kName, false, 1u);
+  ExpectMatch("foo", "baz", QpackHeaderTableBase::MatchType::kName, false, 1u);
 }
 
 TEST_F(QpackHeaderTableTest, FindHeaderFieldPrefersStaticTable) {
@@ -232,12 +233,12 @@ TEST_F(QpackHeaderTableTest, FindHeaderFieldPrefersStaticTable) {
   ExpectEntryAtIndex(/* is_static = */ false, 0, ":method", "GET");
 
   // FindHeaderField() prefers static table if both have name-and-value match.
-  ExpectMatch(":method", "GET", QpackHeaderTable::MatchType::kNameAndValue,
+  ExpectMatch(":method", "GET", QpackHeaderTableBase::MatchType::kNameAndValue,
               true, 17u);
 
   // FindHeaderField() prefers static table if both have name match but no value
   // match, and prefers the first entry with matching name.
-  ExpectMatch(":method", "TRACE", QpackHeaderTable::MatchType::kName, true,
+  ExpectMatch(":method", "TRACE", QpackHeaderTableBase::MatchType::kName, true,
               15u);
 
   // Add new entry to the dynamic table.
@@ -245,18 +246,18 @@ TEST_F(QpackHeaderTableTest, FindHeaderFieldPrefersStaticTable) {
 
   // FindHeaderField prefers name-and-value match in dynamic table over name
   // only match in static table.
-  ExpectMatch(":method", "TRACE", QpackHeaderTable::MatchType::kNameAndValue,
-              false, 1u);
+  ExpectMatch(":method", "TRACE",
+              QpackHeaderTableBase::MatchType::kNameAndValue, false, 1u);
 }
 
 // MaxEntries is determined by maximum dynamic table capacity,
 // which is set at construction time.
 TEST_F(QpackHeaderTableTest, MaxEntries) {
-  QpackHeaderTable table1;
+  QpackHeaderTableBase table1;
   table1.SetMaximumDynamicTableCapacity(1024);
   EXPECT_EQ(32u, table1.max_entries());
 
-  QpackHeaderTable table2;
+  QpackHeaderTableBase table2;
   table2.SetMaximumDynamicTableCapacity(500);
   EXPECT_EQ(15u, table2.max_entries());
 }
@@ -282,7 +283,7 @@ TEST_F(QpackHeaderTableTest, EvictByInsertion) {
   EXPECT_EQ(1u, inserted_entry_count());
   EXPECT_EQ(0u, dropped_entry_count());
 
-  ExpectMatch("foo", "bar", QpackHeaderTable::MatchType::kNameAndValue,
+  ExpectMatch("foo", "bar", QpackHeaderTableBase::MatchType::kNameAndValue,
               /* expected_is_static = */ false, 0u);
 
   // Inserting second entry evicts the first one.
@@ -291,7 +292,7 @@ TEST_F(QpackHeaderTableTest, EvictByInsertion) {
   EXPECT_EQ(1u, dropped_entry_count());
 
   ExpectNoMatch("foo", "bar");
-  ExpectMatch("baz", "qux", QpackHeaderTable::MatchType::kNameAndValue,
+  ExpectMatch("baz", "qux", QpackHeaderTableBase::MatchType::kNameAndValue,
               /* expected_is_static = */ false, 1u);
 }
 
@@ -302,9 +303,9 @@ TEST_F(QpackHeaderTableTest, EvictByUpdateTableSize) {
   EXPECT_EQ(2u, inserted_entry_count());
   EXPECT_EQ(0u, dropped_entry_count());
 
-  ExpectMatch("foo", "bar", QpackHeaderTable::MatchType::kNameAndValue,
+  ExpectMatch("foo", "bar", QpackHeaderTableBase::MatchType::kNameAndValue,
               /* expected_is_static = */ false, 0u);
-  ExpectMatch("baz", "qux", QpackHeaderTable::MatchType::kNameAndValue,
+  ExpectMatch("baz", "qux", QpackHeaderTableBase::MatchType::kNameAndValue,
               /* expected_is_static = */ false, 1u);
 
   EXPECT_TRUE(SetDynamicTableCapacity(40));
@@ -312,7 +313,7 @@ TEST_F(QpackHeaderTableTest, EvictByUpdateTableSize) {
   EXPECT_EQ(1u, dropped_entry_count());
 
   ExpectNoMatch("foo", "bar");
-  ExpectMatch("baz", "qux", QpackHeaderTable::MatchType::kNameAndValue,
+  ExpectMatch("baz", "qux", QpackHeaderTableBase::MatchType::kNameAndValue,
               /* expected_is_static = */ false, 1u);
 
   EXPECT_TRUE(SetDynamicTableCapacity(20));
@@ -334,7 +335,7 @@ TEST_F(QpackHeaderTableTest, EvictOldestOfIdentical) {
   EXPECT_EQ(0u, dropped_entry_count());
 
   // Find most recently inserted entry.
-  ExpectMatch("foo", "bar", QpackHeaderTable::MatchType::kNameAndValue,
+  ExpectMatch("foo", "bar", QpackHeaderTableBase::MatchType::kNameAndValue,
               /* expected_is_static = */ false, 1u);
 
   // Inserting third entry evicts the first one, not the second.
@@ -342,9 +343,9 @@ TEST_F(QpackHeaderTableTest, EvictOldestOfIdentical) {
   EXPECT_EQ(3u, inserted_entry_count());
   EXPECT_EQ(1u, dropped_entry_count());
 
-  ExpectMatch("foo", "bar", QpackHeaderTable::MatchType::kNameAndValue,
+  ExpectMatch("foo", "bar", QpackHeaderTableBase::MatchType::kNameAndValue,
               /* expected_is_static = */ false, 1u);
-  ExpectMatch("baz", "qux", QpackHeaderTable::MatchType::kNameAndValue,
+  ExpectMatch("baz", "qux", QpackHeaderTableBase::MatchType::kNameAndValue,
               /* expected_is_static = */ false, 2u);
 }
 
@@ -359,7 +360,7 @@ TEST_F(QpackHeaderTableTest, EvictOldestOfSameName) {
   EXPECT_EQ(0u, dropped_entry_count());
 
   // Find most recently inserted entry with matching name.
-  ExpectMatch("foo", "foo", QpackHeaderTable::MatchType::kName,
+  ExpectMatch("foo", "foo", QpackHeaderTableBase::MatchType::kName,
               /* expected_is_static = */ false, 1u);
 
   // Inserting third entry evicts the first one, not the second.
@@ -367,9 +368,9 @@ TEST_F(QpackHeaderTableTest, EvictOldestOfSameName) {
   EXPECT_EQ(3u, inserted_entry_count());
   EXPECT_EQ(1u, dropped_entry_count());
 
-  ExpectMatch("foo", "foo", QpackHeaderTable::MatchType::kName,
+  ExpectMatch("foo", "foo", QpackHeaderTableBase::MatchType::kName,
               /* expected_is_static = */ false, 1u);
-  ExpectMatch("baz", "qux", QpackHeaderTable::MatchType::kNameAndValue,
+  ExpectMatch("baz", "qux", QpackHeaderTableBase::MatchType::kNameAndValue,
               /* expected_is_static = */ false, 2u);
 }
 
@@ -377,7 +378,7 @@ TEST_F(QpackHeaderTableTest, EvictOldestOfSameName) {
 // dynamic table without evicting entry |index|.
 TEST_F(QpackHeaderTableTest, MaxInsertSizeWithoutEvictingGivenEntry) {
   const uint64_t dynamic_table_capacity = 100;
-  QpackHeaderTable table;
+  QpackHeaderTableBase table;
   table.SetMaximumDynamicTableCapacity(dynamic_table_capacity);
   EXPECT_TRUE(table.SetDynamicTableCapacity(dynamic_table_capacity));
 
@@ -484,7 +485,7 @@ TEST_F(QpackHeaderTableTest, UnregisterObserver) {
 }
 
 TEST_F(QpackHeaderTableTest, DrainingIndex) {
-  QpackHeaderTable table;
+  QpackHeaderTableBase table;
   table.SetMaximumDynamicTableCapacity(kMaximumDynamicTableCapacityForTesting);
   EXPECT_TRUE(
       table.SetDynamicTableCapacity(4 * QpackEntry::Size("foo", "bar")));
@@ -523,7 +524,7 @@ TEST_F(QpackHeaderTableTest, DrainingIndex) {
 
 TEST_F(QpackHeaderTableTest, Cancel) {
   StrictMock<MockObserver> observer;
-  auto table = std::make_unique<QpackHeaderTable>();
+  auto table = std::make_unique<QpackHeaderTableBase>();
   table->RegisterObserver(1, &observer);
 
   EXPECT_CALL(observer, Cancel);

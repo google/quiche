@@ -18,12 +18,12 @@
 
 namespace quic {
 
-class QpackHeaderTable;
+class QpackDecoderHeaderTable;
 
 // Class to decode a single header block.
 class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
     : public QpackInstructionDecoder::Delegate,
-      public QpackHeaderTable::Observer {
+      public QpackDecoderHeaderTable::Observer {
  public:
   // Interface for receiving decoded header block from the decoder.
   class QUIC_EXPORT_PRIVATE HeadersHandlerInterface {
@@ -82,7 +82,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   QpackProgressiveDecoder(QuicStreamId stream_id,
                           BlockedStreamLimitEnforcer* enforcer,
                           DecodingCompletedVisitor* visitor,
-                          QpackHeaderTable* header_table,
+                          QpackDecoderHeaderTable* header_table,
                           HeadersHandlerInterface* handler);
   QpackProgressiveDecoder(const QpackProgressiveDecoder&) = delete;
   QpackProgressiveDecoder& operator=(const QpackProgressiveDecoder&) = delete;
@@ -103,7 +103,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   void OnInstructionDecodingError(QpackInstructionDecoder::ErrorCode error_code,
                                   absl::string_view error_message) override;
 
-  // QpackHeaderTable::Observer implementation.
+  // QpackDecoderHeaderTable::Observer implementation.
   void OnInsertCountReachedThreshold() override;
   void Cancel() override;
 
@@ -134,7 +134,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
 
   BlockedStreamLimitEnforcer* const enforcer_;
   DecodingCompletedVisitor* const visitor_;
-  QpackHeaderTable* const header_table_;
+  QpackDecoderHeaderTable* const header_table_;
   HeadersHandlerInterface* const handler_;
 
   // Required Insert Count and Base are decoded from the Header Data Prefix.
@@ -163,7 +163,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   // True if a decoding error has been detected.
   bool error_detected_;
 
-  // True if QpackHeaderTable has been destroyed
+  // True if QpackDecoderHeaderTable has been destroyed
   // while decoding is still blocked.
   bool cancelled_;
 };

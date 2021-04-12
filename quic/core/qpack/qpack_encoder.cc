@@ -122,7 +122,7 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
         header_table_.FindHeaderField(name, value, &is_static, &index);
 
     switch (match_type) {
-      case QpackHeaderTable::MatchType::kNameAndValue:
+      case QpackEncoderHeaderTable::MatchType::kNameAndValue:
         if (is_static) {
           // Refer to entry directly.
           representations.push_back(
@@ -175,7 +175,7 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
 
         break;
 
-      case QpackHeaderTable::MatchType::kName:
+      case QpackEncoderHeaderTable::MatchType::kName:
         if (is_static) {
           if (blocking_allowed &&
               QpackEntry::Size(name, value) <=
@@ -242,7 +242,7 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
 
         break;
 
-      case QpackHeaderTable::MatchType::kNoMatch:
+      case QpackEncoderHeaderTable::MatchType::kNoMatch:
         // If allowed, insert entry and refer to it.
         if (!blocking_allowed) {
           blocked_stream_limit_exhausted = true;

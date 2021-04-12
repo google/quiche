@@ -27,10 +27,11 @@ using QpackEntry = spdy::HpackEntry;
 using QpackLookupEntry = spdy::HpackLookupEntry;
 constexpr size_t kQpackEntrySizeOverhead = spdy::kHpackEntrySizeOverhead;
 
-// This class manages the QPACK static and dynamic tables.  For dynamic entries,
-// it only has a concept of absolute indices.  The caller needs to perform the
-// necessary transformations to and from relative indices and post-base indices.
-class QUIC_EXPORT_PRIVATE QpackHeaderTable {
+// This is a base class for encoder and decoder classes that manage the QPACK
+// static and dynamic tables.  For dynamic entries, it only has a concept of
+// absolute indices.  The caller needs to perform the necessary transformations
+// to and from relative indices and post-base indices.
+class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
  public:
   using StaticEntryTable = spdy::HpackHeaderTable::StaticEntryTable;
   using DynamicEntryTable = spdy::HpackHeaderTable::DynamicEntryTable;
@@ -50,16 +51,16 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
     // deregistered.
     virtual void OnInsertCountReachedThreshold() = 0;
 
-    // Called when QpackHeaderTable is destroyed to let the Observer know that
-    // it must not call UnregisterObserver().
+    // Called when QpackDecoderHeaderTable is destroyed to let the Observer know
+    // that it must not call UnregisterObserver().
     virtual void Cancel() = 0;
   };
 
-  QpackHeaderTable();
-  QpackHeaderTable(const QpackHeaderTable&) = delete;
-  QpackHeaderTable& operator=(const QpackHeaderTable&) = delete;
+  QpackHeaderTableBase();
+  QpackHeaderTableBase(const QpackHeaderTableBase&) = delete;
+  QpackHeaderTableBase& operator=(const QpackHeaderTableBase&) = delete;
 
-  ~QpackHeaderTable();
+  virtual ~QpackHeaderTableBase();
 
   // Returns the entry at absolute index |index| from the static or dynamic
   // table according to |is_static|.  |index| is zero based for both the static
@@ -125,8 +126,8 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // Unregister previously registered observer.  Must be called with the same
   // |required_insert_count| value that |observer| was registered with.  Must be
   // called before an observer still waiting for notification is destroyed,
-  // unless QpackHeaderTable already called Observer::Cancel(), in which case
-  // this method must not be called.
+  // unless QpackDecoderHeaderTable already called Observer::Cancel(), in which
+  // case this method must not be called.
   void UnregisterObserver(uint64_t required_insert_count, Observer* observer);
 
   // Used on request streams to encode and decode Required Insert Count.
@@ -222,6 +223,18 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // True if any dynamic table entries have been referenced from a header block.
   // Set directly by the encoder or decoder.  Used for stats.
   bool dynamic_table_entry_referenced_;
+};
+
+class QUIC_EXPORT_PRIVATE QpackEncoderHeaderTable
+    : public QpackHeaderTableBase {
+ public:
+  ~QpackEncoderHeaderTable() override = default;
+};
+
+class QUIC_EXPORT_PRIVATE QpackDecoderHeaderTable
+    : public QpackHeaderTableBase {
+ public:
+  ~QpackDecoderHeaderTable() override = default;
 };
 
 }  // namespace quic

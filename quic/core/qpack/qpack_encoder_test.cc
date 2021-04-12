@@ -186,7 +186,8 @@ TEST_F(QpackEncoderTest, TooLargeInsertCountIncrement) {
 
 // Regression test for https://crbug.com/1014372.
 TEST_F(QpackEncoderTest, InsertCountIncrementOverflow) {
-  QpackHeaderTable* header_table = QpackEncoderPeer::header_table(&encoder_);
+  QpackEncoderHeaderTable* header_table =
+      QpackEncoderPeer::header_table(&encoder_);
 
   // Set dynamic table capacity large enough to hold one entry.
   header_table->SetMaximumDynamicTableCapacity(4096);
@@ -461,7 +462,8 @@ TEST_F(QpackEncoderTest, DynamicTableCapacityLessThanMaximum) {
   encoder_.SetMaximumDynamicTableCapacity(1024);
   encoder_.SetDynamicTableCapacity(30);
 
-  QpackHeaderTable* header_table = QpackEncoderPeer::header_table(&encoder_);
+  QpackEncoderHeaderTable* header_table =
+      QpackEncoderPeer::header_table(&encoder_);
 
   EXPECT_EQ(1024u,
             QpackHeaderTablePeer::maximum_dynamic_table_capacity(header_table));

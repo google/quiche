@@ -11,13 +11,13 @@ namespace test {
 
 // static
 uint64_t QpackHeaderTablePeer::dynamic_table_capacity(
-    const QpackHeaderTable* header_table) {
+    const QpackHeaderTableBase* header_table) {
   return header_table->dynamic_table_capacity_;
 }
 
 // static
 uint64_t QpackHeaderTablePeer::maximum_dynamic_table_capacity(
-    const QpackHeaderTable* header_table) {
+    const QpackHeaderTableBase* header_table) {
   return header_table->maximum_dynamic_table_capacity_;
 }
 

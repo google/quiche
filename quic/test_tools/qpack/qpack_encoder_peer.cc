@@ -10,7 +10,7 @@ namespace quic {
 namespace test {
 
 // static
-QpackHeaderTable* QpackEncoderPeer::header_table(QpackEncoder* encoder) {
+QpackEncoderHeaderTable* QpackEncoderPeer::header_table(QpackEncoder* encoder) {
   return &encoder->header_table_;
 }
 

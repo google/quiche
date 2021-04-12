@@ -111,7 +111,7 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
   EncoderStreamErrorDelegate* const encoder_stream_error_delegate_;
   QpackEncoderStreamReceiver encoder_stream_receiver_;
   QpackDecoderStreamSender decoder_stream_sender_;
-  QpackHeaderTable header_table_;
+  QpackDecoderHeaderTable header_table_;
   std::set<QuicStreamId> blocked_streams_;
   const uint64_t maximum_blocked_streams_;
 

@@ -3351,7 +3351,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
         ADD_FAILURE() << "Missing QPACK encoder";
         return;
       }
-      QpackHeaderTable* header_table =
+      QpackEncoderHeaderTable* header_table =
           QpackEncoderPeer::header_table(qpack_encoder);
       if (header_table == nullptr) {
         ADD_FAILURE() << "Missing header table";

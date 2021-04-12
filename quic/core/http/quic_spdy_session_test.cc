@@ -2519,7 +2519,7 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
   QuicStreamFrame frame(stream_id, false, 1, absl::string_view(data));
 
   QpackEncoder* qpack_encoder = session_.qpack_encoder();
-  QpackHeaderTable* header_table =
+  QpackEncoderHeaderTable* header_table =
       QpackEncoderPeer::header_table(qpack_encoder);
 
   EXPECT_NE(512u,
@@ -2618,10 +2618,10 @@ TEST_P(QuicSpdySessionTestServer, SessionDestroyedWhileHeaderDecodingBlocked) {
   EXPECT_FALSE(stream->headers_decompressed());
 
   // |session_| gets destoyed.  That destroys QpackDecoder, a member of
-  // QuicSpdySession (derived class), which destroys QpackHeaderTable.
+  // QuicSpdySession (derived class), which destroys QpackDecoderHeaderTable.
   // Then |*stream|, owned by QuicSession (base class) get destroyed, which
-  // destroys QpackProgessiveDecoder, a registered Observer of QpackHeaderTable.
-  // This must not cause a crash.
+  // destroys QpackProgessiveDecoder, a registered Observer of
+  // QpackDecoderHeaderTable.  This must not cause a crash.
 }
 
 TEST_P(QuicSpdySessionTestClient, ResetAfterInvalidIncomingStreamType) {
@@ -2964,7 +2964,7 @@ TEST_P(QuicSpdySessionTestServer, OnSetting) {
     session_.OnSetting(SETTINGS_QPACK_BLOCKED_STREAMS, 12);
     EXPECT_EQ(12u, QpackEncoderPeer::maximum_blocked_streams(qpack_encoder));
 
-    QpackHeaderTable* header_table =
+    QpackEncoderHeaderTable* header_table =
         QpackEncoderPeer::header_table(qpack_encoder);
     EXPECT_EQ(0u, header_table->maximum_dynamic_table_capacity());
     session_.OnSetting(SETTINGS_QPACK_MAX_TABLE_CAPACITY, 37);

@@ -165,7 +165,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettings) {
   QuicStreamFrame frame(receive_control_stream_->id(), false, 1, data);
 
   QpackEncoder* qpack_encoder = session_.qpack_encoder();
-  QpackHeaderTable* header_table =
+  QpackEncoderHeaderTable* header_table =
       QpackEncoderPeer::header_table(qpack_encoder);
   EXPECT_EQ(std::numeric_limits<size_t>::max(),
             session_.max_outbound_header_list_size());

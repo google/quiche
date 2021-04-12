@@ -153,7 +153,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   DecoderStreamErrorDelegate* const decoder_stream_error_delegate_;
   QpackDecoderStreamReceiver decoder_stream_receiver_;
   QpackEncoderStreamSender encoder_stream_sender_;
-  QpackHeaderTable header_table_;
+  QpackEncoderHeaderTable header_table_;
   uint64_t maximum_blocked_streams_;
   QpackBlockingManager blocking_manager_;
   int header_list_count_;

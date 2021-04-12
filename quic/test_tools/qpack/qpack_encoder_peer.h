@@ -10,7 +10,7 @@
 namespace quic {
 
 class QpackEncoder;
-class QpackHeaderTable;
+class QpackEncoderHeaderTable;
 
 namespace test {
 
@@ -18,7 +18,7 @@ class QpackEncoderPeer {
  public:
   QpackEncoderPeer() = delete;
 
-  static QpackHeaderTable* header_table(QpackEncoder* encoder);
+  static QpackEncoderHeaderTable* header_table(QpackEncoder* encoder);
   static uint64_t maximum_blocked_streams(const QpackEncoder* encoder);
   static uint64_t smallest_blocking_index(const QpackEncoder* encoder);
 };

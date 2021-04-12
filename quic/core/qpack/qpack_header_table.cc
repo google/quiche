@@ -10,7 +10,7 @@
 
 namespace quic {
 
-QpackHeaderTable::QpackHeaderTable()
+QpackHeaderTableBase::QpackHeaderTableBase()
     : static_entries_(ObtainQpackStaticTable().GetStaticEntries()),
       static_index_(ObtainQpackStaticTable().GetStaticIndex()),
       static_name_index_(ObtainQpackStaticTable().GetStaticNameIndex()),
@@ -21,14 +21,14 @@ QpackHeaderTable::QpackHeaderTable()
       dropped_entry_count_(0),
       dynamic_table_entry_referenced_(false) {}
 
-QpackHeaderTable::~QpackHeaderTable() {
+QpackHeaderTableBase::~QpackHeaderTableBase() {
   for (auto& entry : observers_) {
     entry.second->Cancel();
   }
 }
 
-const QpackEntry* QpackHeaderTable::LookupEntry(bool is_static,
-                                                uint64_t index) const {
+const QpackEntry* QpackHeaderTableBase::LookupEntry(bool is_static,
+                                                    uint64_t index) const {
   if (is_static) {
     if (index >= static_entries_.size()) {
       return nullptr;
@@ -50,7 +50,7 @@ const QpackEntry* QpackHeaderTable::LookupEntry(bool is_static,
   return &dynamic_entries_[index];
 }
 
-QpackHeaderTable::MatchType QpackHeaderTable::FindHeaderField(
+QpackHeaderTableBase::MatchType QpackHeaderTableBase::FindHeaderField(
     absl::string_view name,
     absl::string_view value,
     bool* is_static,
@@ -92,14 +92,14 @@ QpackHeaderTable::MatchType QpackHeaderTable::FindHeaderField(
   return MatchType::kNoMatch;
 }
 
-bool QpackHeaderTable::EntryFitsDynamicTableCapacity(
+bool QpackHeaderTableBase::EntryFitsDynamicTableCapacity(
     absl::string_view name,
     absl::string_view value) const {
   return QpackEntry::Size(name, value) <= dynamic_table_capacity_;
 }
 
-uint64_t QpackHeaderTable::InsertEntry(absl::string_view name,
-                                       absl::string_view value) {
+uint64_t QpackHeaderTableBase::InsertEntry(absl::string_view name,
+                                           absl::string_view value) {
   QUICHE_DCHECK(EntryFitsDynamicTableCapacity(name, value));
 
   const uint64_t index = dropped_entry_count_ + dynamic_entries_.size();
@@ -157,7 +157,7 @@ uint64_t QpackHeaderTable::InsertEntry(absl::string_view name,
   return index;
 }
 
-uint64_t QpackHeaderTable::MaxInsertSizeWithoutEvictingGivenEntry(
+uint64_t QpackHeaderTableBase::MaxInsertSizeWithoutEvictingGivenEntry(
     uint64_t index) const {
   QUICHE_DCHECK_LE(dropped_entry_count_, index);
 
@@ -181,7 +181,7 @@ uint64_t QpackHeaderTable::MaxInsertSizeWithoutEvictingGivenEntry(
   return max_insert_size;
 }
 
-bool QpackHeaderTable::SetDynamicTableCapacity(uint64_t capacity) {
+bool QpackHeaderTableBase::SetDynamicTableCapacity(uint64_t capacity) {
   if (capacity > maximum_dynamic_table_capacity_) {
     return false;
   }
@@ -194,7 +194,7 @@ bool QpackHeaderTable::SetDynamicTableCapacity(uint64_t capacity) {
   return true;
 }
 
-bool QpackHeaderTable::SetMaximumDynamicTableCapacity(
+bool QpackHeaderTableBase::SetMaximumDynamicTableCapacity(
     uint64_t maximum_dynamic_table_capacity) {
   if (maximum_dynamic_table_capacity_ == 0) {
     maximum_dynamic_table_capacity_ = maximum_dynamic_table_capacity;
@@ -205,14 +205,14 @@ bool QpackHeaderTable::SetMaximumDynamicTableCapacity(
   return maximum_dynamic_table_capacity == maximum_dynamic_table_capacity_;
 }
 
-void QpackHeaderTable::RegisterObserver(uint64_t required_insert_count,
-                                        Observer* observer) {
+void QpackHeaderTableBase::RegisterObserver(uint64_t required_insert_count,
+                                            Observer* observer) {
   QUICHE_DCHECK_GT(required_insert_count, 0u);
   observers_.insert({required_insert_count, observer});
 }
 
-void QpackHeaderTable::UnregisterObserver(uint64_t required_insert_count,
-                                          Observer* observer) {
+void QpackHeaderTableBase::UnregisterObserver(uint64_t required_insert_count,
+                                              Observer* observer) {
   auto it = observers_.lower_bound(required_insert_count);
   while (it != observers_.end() && it->first == required_insert_count) {
     if (it->second == observer) {
@@ -226,7 +226,7 @@ void QpackHeaderTable::UnregisterObserver(uint64_t required_insert_count,
   QUIC_NOTREACHED();
 }
 
-uint64_t QpackHeaderTable::draining_index(float draining_fraction) const {
+uint64_t QpackHeaderTableBase::draining_index(float draining_fraction) const {
   QUICHE_DCHECK_LE(0.0, draining_fraction);
   QUICHE_DCHECK_LE(draining_fraction, 1.0);
 
@@ -253,7 +253,7 @@ uint64_t QpackHeaderTable::draining_index(float draining_fraction) const {
   return entry_index;
 }
 
-void QpackHeaderTable::EvictDownToCapacity(uint64_t capacity) {
+void QpackHeaderTableBase::EvictDownToCapacity(uint64_t capacity) {
   while (dynamic_table_size_ > capacity) {
     QUICHE_DCHECK(!dynamic_entries_.empty());
 
