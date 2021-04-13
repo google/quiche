@@ -124,6 +124,10 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   }
 
  protected:
+  // Removes a single entry from the end of the dynamic table, updates
+  // |dynamic_table_size_| and |dropped_entry_count_|.
+  void RemoveEntryFromEnd();
+
   // Static Table
 
   // |static_entries_|, |static_index_|, |static_name_index_| are owned by

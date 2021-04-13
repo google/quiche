@@ -192,34 +192,37 @@ uint64_t QpackHeaderTableBase::draining_index(float draining_fraction) const {
   return entry_index;
 }
 
+void QpackHeaderTableBase::RemoveEntryFromEnd() {
+  QpackEntry* const entry = &dynamic_entries_.front();
+
+  const uint64_t index = dropped_entry_count_;
+
+  auto index_it = dynamic_index_.find({entry->name(), entry->value()});
+  // Remove |dynamic_index_| entry only if it points to the same
+  // QpackEntry in |dynamic_entries_|.
+  if (index_it != dynamic_index_.end() && index_it->second == index) {
+    dynamic_index_.erase(index_it);
+  }
+
+  auto name_it = dynamic_name_index_.find(entry->name());
+  // Remove |dynamic_name_index_| entry only if it points to the same
+  // QpackEntry in |dynamic_entries_|.
+  if (name_it != dynamic_name_index_.end() && name_it->second == index) {
+    dynamic_name_index_.erase(name_it);
+  }
+
+  const uint64_t entry_size = entry->Size();
+  QUICHE_DCHECK_GE(dynamic_table_size_, entry_size);
+  dynamic_table_size_ -= entry_size;
+
+  dynamic_entries_.pop_front();
+  ++dropped_entry_count_;
+}
+
 void QpackHeaderTableBase::EvictDownToCapacity(uint64_t capacity) {
   while (dynamic_table_size_ > capacity) {
     QUICHE_DCHECK(!dynamic_entries_.empty());
-
-    QpackEntry* const entry = &dynamic_entries_.front();
-
-    const uint64_t entry_size = entry->Size();
-    QUICHE_DCHECK_GE(dynamic_table_size_, entry_size);
-    dynamic_table_size_ -= entry_size;
-
-    const uint64_t index = dropped_entry_count_;
-
-    auto index_it = dynamic_index_.find({entry->name(), entry->value()});
-    // Remove |dynamic_index_| entry only if it points to the same
-    // QpackEntry in |dynamic_entries_|.
-    if (index_it != dynamic_index_.end() && index_it->second == index) {
-      dynamic_index_.erase(index_it);
-    }
-
-    auto name_it = dynamic_name_index_.find(entry->name());
-    // Remove |dynamic_name_index_| entry only if it points to the same
-    // QpackEntry in |dynamic_entries_|.
-    if (name_it != dynamic_name_index_.end() && name_it->second == index) {
-      dynamic_name_index_.erase(name_it);
-    }
-
-    dynamic_entries_.pop_front();
-    ++dropped_entry_count_;
+    RemoveEntryFromEnd();
   }
 }
 
