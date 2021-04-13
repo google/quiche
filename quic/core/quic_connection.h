@@ -2094,6 +2094,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Buffer outstanding PATH_CHALLENGEs if socket write is blocked, future
   // OnCanWrite will attempt to respond with PATH_RESPONSEs using the retained
   // payload and peer addresses.
+  // TODO(fayang): remove this when deprecating quic_drop_unsent_path_response.
   QuicCircularDeque<PendingPathChallenge> pending_path_challenge_payloads_;
 
   // Set of connection IDs that should be accepted as destination on

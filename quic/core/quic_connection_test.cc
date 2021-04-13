@@ -12398,7 +12398,12 @@ TEST_P(QuicConnectionTest, FailToWritePathResponse) {
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kNewPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
 
-  EXPECT_EQ(
+  if (GetQuicReloadableFlag(quic_drop_unsent_path_response)) {
+    EXPECT_EQ(0u, QuicConnectionPeer::NumPendingPathChallengesToResponse(
+                      &connection_));
+    return;
+  }
+  ASSERT_EQ(
       1u, QuicConnectionPeer::NumPendingPathChallengesToResponse(&connection_));
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(1));

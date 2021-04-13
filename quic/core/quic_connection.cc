@@ -1736,10 +1736,18 @@ bool QuicConnection::OnPathChallengeFrameInternal(
   // Queue or send PATH_RESPONSE. Send PATH_RESPONSE to the source address of
   // the current incoming packet, even if it's not the default path or the
   // alternative path.
-  if (!SendPathResponse(frame.data_buffer, last_packet_source_address_)) {
-    // Queue the payloads to re-try later.
-    pending_path_challenge_payloads_.push_back(
-        {frame.data_buffer, last_packet_source_address_});
+  const bool success =
+      SendPathResponse(frame.data_buffer, last_packet_source_address_);
+  if (GetQuicReloadableFlag(quic_drop_unsent_path_response)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_drop_unsent_path_response);
+  }
+  if (!success) {
+    QUIC_CODE_COUNT(quic_failed_to_send_path_response);
+    if (!GetQuicReloadableFlag(quic_drop_unsent_path_response)) {
+      // Queue the payloads to re-try later.
+      pending_path_challenge_payloads_.push_back(
+          {frame.data_buffer, last_packet_source_address_});
+    }
   }
   // TODO(b/150095588): change the stats to
   // num_valid_path_challenge_received.
