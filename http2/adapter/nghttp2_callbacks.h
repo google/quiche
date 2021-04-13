@@ -6,6 +6,7 @@
 
 namespace http2 {
 namespace adapter {
+namespace callbacks {
 
 // The following functions are nghttp2 callbacks that Nghttp2Adapter sets at the
 // beginning of its lifetime. It is expected that |user_data| holds an
@@ -46,6 +47,9 @@ ssize_t OnReadyToReadDataForStream(nghttp2_session* session,
                                    nghttp2_data_source* source,
                                    void* user_data);
 
+nghttp2_session_callbacks* Create();
+
+}  // namespace callbacks
 }  // namespace adapter
 }  // namespace http2
 

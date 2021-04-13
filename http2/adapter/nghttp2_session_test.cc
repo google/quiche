@@ -41,21 +41,7 @@ class NgHttp2SessionTest : public testing::Test {
   }
 
   nghttp2_session_callbacks* CreateCallbacks() {
-    nghttp2_session_callbacks* callbacks;
-    nghttp2_session_callbacks_new(&callbacks);
-
-    nghttp2_session_callbacks_set_on_begin_frame_callback(callbacks,
-                                                          &OnBeginFrame);
-    nghttp2_session_callbacks_set_on_frame_recv_callback(callbacks,
-                                                         &OnFrameReceived);
-    nghttp2_session_callbacks_set_on_begin_headers_callback(callbacks,
-                                                            &OnBeginHeaders);
-    nghttp2_session_callbacks_set_on_header_callback2(callbacks, &OnHeader);
-    nghttp2_session_callbacks_set_on_data_chunk_recv_callback(callbacks,
-                                                              &OnDataChunk);
-    nghttp2_session_callbacks_set_on_stream_close_callback(callbacks,
-                                                           &OnStreamClosed);
-
+    nghttp2_session_callbacks* callbacks = callbacks::Create();
     nghttp2_session_callbacks_set_send_callback(callbacks, &SaveSessionOutput);
     return callbacks;
   }
