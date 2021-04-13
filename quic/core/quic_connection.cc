@@ -393,7 +393,7 @@ QuicConnection::QuicConnection(
       GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2) &&
       GetQuicRestartFlag(
           quic_dispatcher_support_multiple_cid_per_connection_v2) &&
-      GetQuicReloadableFlag(quic_connection_support_multiple_cids_v2);
+      GetQuicReloadableFlag(quic_connection_support_multiple_cids_v3);
 
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
@@ -1912,6 +1912,38 @@ bool QuicConnection::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
   return connected_;
 }
 
+void QuicConnection::OnClientConnectionIdAvailable() {
+  QUICHE_DCHECK(perspective_ == Perspective::IS_SERVER);
+  if (!peer_issued_cid_manager_->HasUnusedConnectionId()) {
+    return;
+  }
+  if (default_path_.client_connection_id.IsEmpty()) {
+    const QuicConnectionIdData* unused_cid_data =
+        peer_issued_cid_manager_->ConsumeOneUnusedConnectionId();
+    QUIC_DVLOG(1) << ENDPOINT << "Patch connection ID "
+                  << unused_cid_data->connection_id << " to default path";
+    default_path_.client_connection_id = unused_cid_data->connection_id;
+    default_path_.stateless_reset_token_received = true;
+    default_path_.stateless_reset_token =
+        unused_cid_data->stateless_reset_token;
+    QUICHE_DCHECK(!packet_creator_.HasPendingFrames());
+    QUICHE_DCHECK(packet_creator_.GetDestinationConnectionId().IsEmpty());
+    packet_creator_.SetClientConnectionId(default_path_.client_connection_id);
+    return;
+  }
+  if (alternative_path_.peer_address.IsInitialized() &&
+      alternative_path_.client_connection_id.IsEmpty()) {
+    const QuicConnectionIdData* unused_cid_data =
+        peer_issued_cid_manager_->ConsumeOneUnusedConnectionId();
+    QUIC_DVLOG(1) << ENDPOINT << "Patch connection ID "
+                  << unused_cid_data->connection_id << " to alternative path";
+    alternative_path_.client_connection_id = unused_cid_data->connection_id;
+    alternative_path_.stateless_reset_token_received = true;
+    alternative_path_.stateless_reset_token =
+        unused_cid_data->stateless_reset_token;
+  }
+}
+
 bool QuicConnection::OnNewConnectionIdFrameInner(
     const QuicNewConnectionIdFrame& frame) {
   QUICHE_DCHECK(support_multiple_connection_ids_);
@@ -1930,7 +1962,11 @@ bool QuicConnection::OnNewConnectionIdFrameInner(
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v2, 1, 2);
+  if (use_connection_id_on_default_path_ &&
+      perspective_ == Perspective::IS_SERVER) {
+    OnClientConnectionIdAvailable();
+  }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v3, 1, 2);
   return true;
 }
 
@@ -1988,7 +2024,7 @@ bool QuicConnection::OnRetireConnectionIdFrame(
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v2, 2, 2);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v3, 2, 2);
   return true;
 }
 

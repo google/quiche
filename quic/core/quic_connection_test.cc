@@ -14321,6 +14321,87 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
               ElementsAre(cid1, cid2));
 }
 
+TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoAlternativePath) {
+  if (!version().HasIetfQuicFrames() ||
+      !connection_.support_multiple_connection_ids() ||
+      !connection_.use_connection_id_on_default_path()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  connection_.CreateConnectionIdManager();
+  connection_.set_client_connection_id(TestConnectionId(1));
+
+  // Set up the state after path probing.
+  const auto* default_path = QuicConnectionPeer::GetDefaultPath(&connection_);
+  auto* alternative_path = QuicConnectionPeer::GetAlternativePath(&connection_);
+  QuicIpAddress new_host;
+  new_host.FromString("12.12.12.12");
+  alternative_path->self_address = default_path->self_address;
+  alternative_path->peer_address = QuicSocketAddress(new_host, 12345);
+  alternative_path->server_connection_id = TestConnectionId(3);
+  ASSERT_TRUE(alternative_path->client_connection_id.IsEmpty());
+  ASSERT_FALSE(alternative_path->stateless_reset_token_received);
+
+  QuicNewConnectionIdFrame frame;
+  frame.sequence_number = 1u;
+  frame.connection_id = TestConnectionId(5);
+  frame.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame.connection_id);
+  frame.retire_prior_to = 0u;
+  // New ID is patched onto the alternative path when the needed
+  // NEW_CONNECTION_ID frame is received after PATH_CHALLENGE frame.
+  connection_.OnNewConnectionIdFrame(frame);
+
+  ASSERT_EQ(alternative_path->client_connection_id, frame.connection_id);
+  ASSERT_EQ(alternative_path->stateless_reset_token,
+            frame.stateless_reset_token);
+  ASSERT_TRUE(alternative_path->stateless_reset_token_received);
+}
+
+TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoDefaultPath) {
+  if (!version().HasIetfQuicFrames() ||
+      !connection_.support_multiple_connection_ids() ||
+      !connection_.use_connection_id_on_default_path()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  connection_.CreateConnectionIdManager();
+  connection_.set_client_connection_id(TestConnectionId(1));
+
+  // Set up the state after peer migration without probing.
+  auto* default_path = QuicConnectionPeer::GetDefaultPath(&connection_);
+  auto* alternative_path = QuicConnectionPeer::GetAlternativePath(&connection_);
+  auto* packet_creator = QuicConnectionPeer::GetPacketCreator(&connection_);
+  *alternative_path = std::move(*default_path);
+  QuicIpAddress new_host;
+  new_host.FromString("12.12.12.12");
+  default_path->self_address = default_path->self_address;
+  default_path->peer_address = QuicSocketAddress(new_host, 12345);
+  default_path->server_connection_id = TestConnectionId(3);
+  packet_creator->SetDefaultPeerAddress(default_path->peer_address);
+  packet_creator->SetServerConnectionId(default_path->server_connection_id);
+  packet_creator->SetClientConnectionId(default_path->client_connection_id);
+
+  ASSERT_FALSE(default_path->validated);
+  ASSERT_TRUE(default_path->client_connection_id.IsEmpty());
+  ASSERT_FALSE(default_path->stateless_reset_token_received);
+
+  QuicNewConnectionIdFrame frame;
+  frame.sequence_number = 1u;
+  frame.connection_id = TestConnectionId(5);
+  frame.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame.connection_id);
+  frame.retire_prior_to = 0u;
+  // New ID is patched onto the default path when the needed
+  // NEW_CONNECTION_ID frame is received after PATH_CHALLENGE frame.
+  connection_.OnNewConnectionIdFrame(frame);
+
+  ASSERT_EQ(default_path->client_connection_id, frame.connection_id);
+  ASSERT_EQ(default_path->stateless_reset_token, frame.stateless_reset_token);
+  ASSERT_TRUE(default_path->stateless_reset_token_received);
+  ASSERT_EQ(packet_creator->GetDestinationConnectionId(), frame.connection_id);
+}
+
 // Regression test for b/182571515
 TEST_P(QuicConnectionTest, LostDataThenGetAcknowledged) {
   set_perspective(Perspective::IS_SERVER);

@@ -494,5 +494,18 @@ void QuicConnectionPeer::ResetPeerIssuedConnectionIdManager(
     QuicConnection* connection) {
   connection->peer_issued_cid_manager_ = nullptr;
 }
+
+// static
+QuicConnection::PathState* QuicConnectionPeer::GetDefaultPath(
+    QuicConnection* connection) {
+  return &connection->default_path_;
+}
+
+// static
+QuicConnection::PathState* QuicConnectionPeer::GetAlternativePath(
+    QuicConnection* connection) {
+  return &connection->alternative_path_;
+}
+
 }  // namespace test
 }  // namespace quic

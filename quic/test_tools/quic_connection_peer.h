@@ -200,6 +200,11 @@ class QuicConnectionPeer {
   static void EnableMultipleConnectionIdSupport(QuicConnection* connection);
 
   static void ResetPeerIssuedConnectionIdManager(QuicConnection* connection);
+
+  static QuicConnection::PathState* GetDefaultPath(QuicConnection* connection);
+
+  static QuicConnection::PathState* GetAlternativePath(
+      QuicConnection* connection);
 };
 
 }  // namespace test

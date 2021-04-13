@@ -1228,6 +1228,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool validate_client_address() const { return validate_client_addresses_; }
 
+  bool support_multiple_connection_ids() const {
+    return support_multiple_connection_ids_;
+  }
+
   bool use_connection_id_on_default_path() const {
     return use_connection_id_on_default_path_;
   }
@@ -1783,6 +1787,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Process NewConnectionIdFrame either sent from peer or synsthesized from
   // preferred_address transport parameter.
   bool OnNewConnectionIdFrameInner(const QuicNewConnectionIdFrame& frame);
+
+  // Called to patch missing client connection ID on default/alternative paths
+  // when a new client connection ID is received.
+  void OnClientConnectionIdAvailable();
 
   QuicFramer framer_;
 
