@@ -17,12 +17,6 @@
 
 namespace quic {
 
-namespace test {
-
-class QpackHeaderTablePeer;
-
-}  // namespace test
-
 using QpackEntry = spdy::HpackEntry;
 using QpackLookupEntry = spdy::HpackLookupEntry;
 constexpr size_t kQpackEntrySizeOverhead = spdy::kHpackEntrySizeOverhead;
@@ -75,12 +69,11 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   // returning false.
   bool SetMaximumDynamicTableCapacity(uint64_t maximum_dynamic_table_capacity);
 
-  // Get |maximum_dynamic_table_capacity_|.
+  uint64_t dynamic_table_size() const { return dynamic_table_size_; }
+  uint64_t dynamic_table_capacity() const { return dynamic_table_capacity_; }
   uint64_t maximum_dynamic_table_capacity() const {
     return maximum_dynamic_table_capacity_;
   }
-
-  // Used on request streams to encode and decode Required Insert Count.
   uint64_t max_entries() const { return max_entries_; }
 
   // The number of entries inserted to the dynamic table (including ones that
@@ -127,8 +120,6 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   DynamicEntryTable dynamic_entries_;
 
  private:
-  friend class test::QpackHeaderTablePeer;
-
   // Evict entries from the dynamic table until table size is less than or equal
   // to |capacity|.
   void EvictDownToCapacity(uint64_t capacity);
@@ -149,7 +140,8 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   uint64_t maximum_dynamic_table_capacity_;
 
   // MaxEntries, see Section 3.2.2.  Calculated based on
-  // |maximum_dynamic_table_capacity_|.
+  // |maximum_dynamic_table_capacity_|.  Used on request streams to encode and
+  // decode Required Insert Count.
   uint64_t max_entries_;
 
   // The number of entries dropped from the dynamic table.

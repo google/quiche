@@ -14,7 +14,6 @@
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/qpack/qpack_encoder_peer.h"
 #include "quic/test_tools/qpack/qpack_encoder_test_utils.h"
-#include "quic/test_tools/qpack/qpack_header_table_peer.h"
 #include "quic/test_tools/qpack/qpack_test_utils.h"
 #include "common/platform/api/quiche_text_utils.h"
 
@@ -465,9 +464,8 @@ TEST_F(QpackEncoderTest, DynamicTableCapacityLessThanMaximum) {
   QpackEncoderHeaderTable* header_table =
       QpackEncoderPeer::header_table(&encoder_);
 
-  EXPECT_EQ(1024u,
-            QpackHeaderTablePeer::maximum_dynamic_table_capacity(header_table));
-  EXPECT_EQ(30u, QpackHeaderTablePeer::dynamic_table_capacity(header_table));
+  EXPECT_EQ(1024u, header_table->maximum_dynamic_table_capacity());
+  EXPECT_EQ(30u, header_table->dynamic_table_capacity());
 }
 
 }  // namespace

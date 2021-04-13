@@ -38,7 +38,6 @@
 #include "quic/platform/api/quic_map_util.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/qpack/qpack_encoder_peer.h"
-#include "quic/test_tools/qpack/qpack_header_table_peer.h"
 #include "quic/test_tools/qpack/qpack_test_utils.h"
 #include "quic/test_tools/quic_config_peer.h"
 #include "quic/test_tools/quic_connection_peer.h"
@@ -2522,16 +2521,14 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
   QpackEncoderHeaderTable* header_table =
       QpackEncoderPeer::header_table(qpack_encoder);
 
-  EXPECT_NE(512u,
-            QpackHeaderTablePeer::maximum_dynamic_table_capacity(header_table));
+  EXPECT_NE(512u, header_table->maximum_dynamic_table_capacity());
   EXPECT_NE(5u, session_.max_outbound_header_list_size());
   EXPECT_NE(42u, QpackEncoderPeer::maximum_blocked_streams(qpack_encoder));
 
   EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
   session_.OnStreamFrame(frame);
 
-  EXPECT_EQ(512u,
-            QpackHeaderTablePeer::maximum_dynamic_table_capacity(header_table));
+  EXPECT_EQ(512u, header_table->maximum_dynamic_table_capacity());
   EXPECT_EQ(5u, session_.max_outbound_header_list_size());
   EXPECT_EQ(42u, QpackEncoderPeer::maximum_blocked_streams(qpack_encoder));
 }

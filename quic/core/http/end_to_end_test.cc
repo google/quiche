@@ -43,7 +43,6 @@
 #include "quic/test_tools/packet_reordering_writer.h"
 #include "quic/test_tools/qpack/qpack_encoder_peer.h"
 #include "quic/test_tools/qpack/qpack_encoder_test_utils.h"
-#include "quic/test_tools/qpack/qpack_header_table_peer.h"
 #include "quic/test_tools/qpack/qpack_test_utils.h"
 #include "quic/test_tools/quic_client_peer.h"
 #include "quic/test_tools/quic_config_peer.h"
@@ -3357,7 +3356,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
         ADD_FAILURE() << "Missing header table";
         return;
       }
-      if (QpackHeaderTablePeer::dynamic_table_capacity(header_table) > 0) {
+      if (header_table->dynamic_table_capacity() > 0) {
         break;
       }
     }
