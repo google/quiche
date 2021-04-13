@@ -1703,8 +1703,11 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
     // PATH_RESPONSE. This context needs to be out of scope before returning.
     // TODO(danzh) inline OnPathChallengeFrameInternal() once
     // support_reverse_path_validation_ is deprecated.
-    QuicPacketCreator::ScopedPeerAddressContext context(
-        &packet_creator_, last_packet_source_address_);
+    auto context =
+        group_path_response_and_challenge_sending_closer_
+            ? nullptr
+            : std::make_unique<QuicPacketCreator::ScopedPeerAddressContext>(
+                  &packet_creator_, last_packet_source_address_);
     if (!OnPathChallengeFrameInternal(frame)) {
       return false;
     }
@@ -1714,6 +1717,7 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
 
 bool QuicConnection::OnPathChallengeFrameInternal(
     const QuicPathChallengeFrame& frame) {
+  should_proactively_validate_peer_address_on_path_challenge_ = false;
   // UpdatePacketContent() may start reverse path validation.
   if (!UpdatePacketContent(PATH_CHALLENGE_FRAME)) {
     return false;
@@ -1722,6 +1726,29 @@ bool QuicConnection::OnPathChallengeFrameInternal(
     debug_visitor_->OnPathChallengeFrame(frame);
   }
 
+  std::unique_ptr<QuicPacketCreator::ScopedPeerAddressContext> context;
+  if (group_path_response_and_challenge_sending_closer_) {
+    context = std::make_unique<QuicPacketCreator::ScopedPeerAddressContext>(
+        &packet_creator_, last_packet_source_address_);
+  }
+  if (should_proactively_validate_peer_address_on_path_challenge_) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_group_path_response_and_challenge_sending_closer);
+    QuicSocketAddress current_effective_peer_address =
+        GetEffectivePeerAddressFromCurrentPacket();
+    // Conditions to proactively validate peer address:
+    // The perspective is server
+    // The PATH_CHALLENGE is received on an unvalidated alternative path.
+    // The connection isn't validating migrated peer address, which is of
+    // higher prority.
+    QUIC_DVLOG(1) << "Proactively validate the effective peer address "
+                  << current_effective_peer_address;
+    ValidatePath(std::make_unique<ReversePathValidationContext>(
+                     default_path_.self_address, current_effective_peer_address,
+                     current_effective_peer_address, this),
+                 std::make_unique<ReversePathValidationResultDelegate>(
+                     this, peer_address()));
+  }
   if (!send_path_response_) {
     // Save the path challenge's payload, for later use in generating the
     // response.
@@ -5453,19 +5480,23 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
             last_packet_destination_address_, current_effective_peer_address,
             client_connection_id, last_packet_destination_connection_id_,
             stateless_reset_token_received, stateless_reset_token);
-        // Conditions to proactively validate peer address:
-        // The perspective is server
-        // The PATH_CHALLENGE is received on an unvalidated alternative path.
-        // The connection isn't validating migrated peer address, which is of
-        // higher prority.
-        QUIC_DVLOG(1) << "Proactively validate the effective peer address "
-                      << current_effective_peer_address;
-        ValidatePath(
-            std::make_unique<ReversePathValidationContext>(
-                default_path_.self_address, current_effective_peer_address,
-                current_effective_peer_address, this),
-            std::make_unique<ReversePathValidationResultDelegate>(
-                this, peer_address()));
+        if (group_path_response_and_challenge_sending_closer_) {
+          should_proactively_validate_peer_address_on_path_challenge_ = true;
+        } else {
+          // Conditions to proactively validate peer address:
+          // The perspective is server
+          // The PATH_CHALLENGE is received on an unvalidated alternative path.
+          // The connection isn't validating migrated peer address, which is of
+          // higher prority.
+          QUIC_DVLOG(1) << "Proactively validate the effective peer address "
+                        << current_effective_peer_address;
+          ValidatePath(
+              std::make_unique<ReversePathValidationContext>(
+                  default_path_.self_address, current_effective_peer_address,
+                  current_effective_peer_address, this),
+              std::make_unique<ReversePathValidationResultDelegate>(
+                  this, peer_address()));
+        }
       }
     }
     MaybeUpdateBytesReceivedFromAlternativeAddress(last_size_);

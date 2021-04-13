@@ -2229,6 +2229,14 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool use_connection_id_on_default_path_ =
       GetQuicReloadableFlag(quic_use_connection_id_on_default_path);
 
+  // Indicates whether we should proactively validate peer address on a
+  // PATH_CHALLENGE received.
+  bool should_proactively_validate_peer_address_on_path_challenge_ = false;
+
+  const bool group_path_response_and_challenge_sending_closer_ =
+      GetQuicReloadableFlag(
+          quic_group_path_response_and_challenge_sending_closer);
+
   const bool quic_deprecate_incoming_connection_ids_ =
       GetQuicReloadableFlag(quic_deprecate_incoming_connection_ids);
 };
