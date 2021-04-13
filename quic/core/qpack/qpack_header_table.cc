@@ -12,8 +12,6 @@ namespace quic {
 
 QpackHeaderTableBase::QpackHeaderTableBase()
     : static_entries_(ObtainQpackStaticTable().GetStaticEntries()),
-      static_index_(ObtainQpackStaticTable().GetStaticIndex()),
-      static_name_index_(ObtainQpackStaticTable().GetStaticNameIndex()),
       dynamic_table_size_(0),
       dynamic_table_capacity_(0),
       maximum_dynamic_table_capacity_(0),
@@ -43,34 +41,6 @@ uint64_t QpackHeaderTableBase::InsertEntry(absl::string_view name,
 
   dynamic_table_size_ += entry_size;
   dynamic_entries_.push_back(std::move(new_entry));
-
-  // Make name and value point to the new entry.
-  name = dynamic_entries_.back().name();
-  value = dynamic_entries_.back().value();
-
-  auto index_result = dynamic_index_.insert(
-      std::make_pair(QpackLookupEntry{name, value}, index));
-  if (!index_result.second) {
-    // An entry with the same name and value already exists.  It needs to be
-    // replaced, because |dynamic_index_| tracks the most recent entry for a
-    // given name and value.
-    QUICHE_DCHECK_GT(index, index_result.first->second);
-    dynamic_index_.erase(index_result.first);
-    auto result = dynamic_index_.insert(
-        std::make_pair(QpackLookupEntry{name, value}, index));
-    QUICHE_CHECK(result.second);
-  }
-
-  auto name_result = dynamic_name_index_.insert({name, index});
-  if (!name_result.second) {
-    // An entry with the same name already exists.  It needs to be replaced,
-    // because |dynamic_name_index_| tracks the most recent entry for a given
-    // name.
-    QUICHE_DCHECK_GT(index, name_result.first->second);
-    dynamic_name_index_.erase(name_result.first);
-    auto result = dynamic_name_index_.insert({name, index});
-    QUICHE_CHECK(result.second);
-  }
 
   return index;
 }
@@ -151,25 +121,7 @@ uint64_t QpackHeaderTableBase::draining_index(float draining_fraction) const {
 }
 
 void QpackHeaderTableBase::RemoveEntryFromEnd() {
-  QpackEntry* const entry = &dynamic_entries_.front();
-
-  const uint64_t index = dropped_entry_count_;
-
-  auto index_it = dynamic_index_.find({entry->name(), entry->value()});
-  // Remove |dynamic_index_| entry only if it points to the same
-  // QpackEntry in |dynamic_entries_|.
-  if (index_it != dynamic_index_.end() && index_it->second == index) {
-    dynamic_index_.erase(index_it);
-  }
-
-  auto name_it = dynamic_name_index_.find(entry->name());
-  // Remove |dynamic_name_index_| entry only if it points to the same
-  // QpackEntry in |dynamic_entries_|.
-  if (name_it != dynamic_name_index_.end() && name_it->second == index) {
-    dynamic_name_index_.erase(name_it);
-  }
-
-  const uint64_t entry_size = entry->Size();
+  const uint64_t entry_size = dynamic_entries_.front().Size();
   QUICHE_DCHECK_GE(dynamic_table_size_, entry_size);
   dynamic_table_size_ -= entry_size;
 
@@ -182,6 +134,45 @@ void QpackHeaderTableBase::EvictDownToCapacity(uint64_t capacity) {
     QUICHE_DCHECK(!dynamic_entries_.empty());
     RemoveEntryFromEnd();
   }
+}
+
+QpackEncoderHeaderTable::QpackEncoderHeaderTable()
+    : static_index_(ObtainQpackStaticTable().GetStaticIndex()),
+      static_name_index_(ObtainQpackStaticTable().GetStaticNameIndex()) {}
+
+uint64_t QpackEncoderHeaderTable::InsertEntry(absl::string_view name,
+                                              absl::string_view value) {
+  const uint64_t index = QpackHeaderTableBase::InsertEntry(name, value);
+
+  // Make name and value point to the new entry.
+  name = dynamic_entries_.back().name();
+  value = dynamic_entries_.back().value();
+
+  auto index_result = dynamic_index_.insert(
+      std::make_pair(QpackLookupEntry{name, value}, index));
+  if (!index_result.second) {
+    // An entry with the same name and value already exists.  It needs to be
+    // replaced, because |dynamic_index_| tracks the most recent entry for a
+    // given name and value.
+    QUICHE_DCHECK_GT(index, index_result.first->second);
+    dynamic_index_.erase(index_result.first);
+    auto result = dynamic_index_.insert(
+        std::make_pair(QpackLookupEntry{name, value}, index));
+    QUICHE_CHECK(result.second);
+  }
+
+  auto name_result = dynamic_name_index_.insert({name, index});
+  if (!name_result.second) {
+    // An entry with the same name already exists.  It needs to be replaced,
+    // because |dynamic_name_index_| tracks the most recent entry for a given
+    // name.
+    QUICHE_DCHECK_GT(index, name_result.first->second);
+    dynamic_name_index_.erase(name_result.first);
+    auto result = dynamic_name_index_.insert({name, index});
+    QUICHE_CHECK(result.second);
+  }
+
+  return index;
 }
 
 QpackEncoderHeaderTable::MatchType QpackEncoderHeaderTable::FindHeaderField(
@@ -224,6 +215,27 @@ QpackEncoderHeaderTable::MatchType QpackEncoderHeaderTable::FindHeaderField(
   }
 
   return MatchType::kNoMatch;
+}
+
+void QpackEncoderHeaderTable::RemoveEntryFromEnd() {
+  QpackEntry* const entry = &dynamic_entries_.front();
+  const uint64_t index = dropped_entry_count();
+
+  auto index_it = dynamic_index_.find({entry->name(), entry->value()});
+  // Remove |dynamic_index_| entry only if it points to the same
+  // QpackEntry in |dynamic_entries_|.
+  if (index_it != dynamic_index_.end() && index_it->second == index) {
+    dynamic_index_.erase(index_it);
+  }
+
+  auto name_it = dynamic_name_index_.find(entry->name());
+  // Remove |dynamic_name_index_| entry only if it points to the same
+  // QpackEntry in |dynamic_entries_|.
+  if (name_it != dynamic_name_index_.end() && name_it->second == index) {
+    dynamic_name_index_.erase(name_it);
+  }
+
+  QpackHeaderTableBase::RemoveEntryFromEnd();
 }
 
 QpackDecoderHeaderTable::~QpackDecoderHeaderTable() {

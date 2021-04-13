@@ -33,11 +33,6 @@ constexpr size_t kQpackEntrySizeOverhead = spdy::kHpackEntrySizeOverhead;
 // to and from relative indices and post-base indices.
 class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
  public:
-  using StaticEntryTable = spdy::HpackHeaderTable::StaticEntryTable;
-  using DynamicEntryTable = spdy::HpackHeaderTable::DynamicEntryTable;
-  using NameValueToEntryMap = spdy::HpackHeaderTable::NameValueToEntryMap;
-  using NameToEntryMap = spdy::HpackHeaderTable::NameToEntryMap;
-
   QpackHeaderTableBase();
   QpackHeaderTableBase(const QpackHeaderTableBase&) = delete;
   QpackHeaderTableBase& operator=(const QpackHeaderTableBase&) = delete;
@@ -113,40 +108,23 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   }
 
  protected:
+  using StaticEntryTable = spdy::HpackHeaderTable::StaticEntryTable;
+  using DynamicEntryTable = spdy::HpackHeaderTable::DynamicEntryTable;
+
   // Removes a single entry from the end of the dynamic table, updates
   // |dynamic_table_size_| and |dropped_entry_count_|.
-  void RemoveEntryFromEnd();
+  virtual void RemoveEntryFromEnd();
 
   // Static Table
 
-  // |static_entries_|, |static_index_|, |static_name_index_| are owned by
-  // QpackStaticTable singleton.
-
-  // Tracks QpackEntries by index.
+  // Tracks QpackEntries by index. Owned by QpackStaticTable singleton.
   const StaticEntryTable& static_entries_;
-
-  // Tracks the unique static entry for a given header name and value.
-  const NameValueToEntryMap& static_index_;
-
-  // Tracks the first static entry for a given header name.
-  const NameToEntryMap& static_name_index_;
 
   // Dynamic Table
 
   // Queue of dynamic table entries, for lookup by index.
   // |dynamic_entries_| owns the entries in the dynamic table.
   DynamicEntryTable dynamic_entries_;
-
-  // An unordered set of QpackEntry pointers with a comparison operator that
-  // only cares about name and value.  This allows fast lookup of the most
-  // recently inserted dynamic entry for a given header name and value pair.
-  // Entries point to entries owned by |dynamic_entries_|.
-  NameValueToEntryMap dynamic_index_;
-
-  // An unordered map of QpackEntry pointers keyed off header name.  This allows
-  // fast lookup of the most recently inserted dynamic entry for a given header
-  // name.  Entries point to entries owned by |dynamic_entries_|.
-  NameToEntryMap dynamic_name_index_;
 
  private:
   friend class test::QpackHeaderTablePeer;
@@ -188,7 +166,11 @@ class QUIC_EXPORT_PRIVATE QpackEncoderHeaderTable
   // Result of header table lookup.
   enum class MatchType { kNameAndValue, kName, kNoMatch };
 
+  QpackEncoderHeaderTable();
   ~QpackEncoderHeaderTable() override = default;
+
+  uint64_t InsertEntry(absl::string_view name,
+                       absl::string_view value) override;
 
   // Returns the absolute index of an entry with matching name and value if such
   // exists, otherwise one with matching name is such exists.  |index| is zero
@@ -197,6 +179,38 @@ class QUIC_EXPORT_PRIVATE QpackEncoderHeaderTable
                             absl::string_view value,
                             bool* is_static,
                             uint64_t* index) const;
+
+ protected:
+  void RemoveEntryFromEnd() override;
+
+ private:
+  using NameValueToEntryMap = spdy::HpackHeaderTable::NameValueToEntryMap;
+  using NameToEntryMap = spdy::HpackHeaderTable::NameToEntryMap;
+
+  // Static Table
+
+  // |static_index_| and |static_name_index_| are owned by QpackStaticTable
+  // singleton.
+
+  // Tracks the unique static entry for a given header name and value.
+  const NameValueToEntryMap& static_index_;
+
+  // Tracks the first static entry for a given header name.
+  const NameToEntryMap& static_name_index_;
+
+  // Dynamic Table
+
+  // An unordered set of QpackEntry pointers with a comparison operator that
+  // only cares about name and value.  This allows fast lookup of the most
+  // recently inserted dynamic entry for a given header name and value pair.
+  // Entries point to entries owned by |QpackHeaderTableBase::dynamic_entries_|.
+  NameValueToEntryMap dynamic_index_;
+
+  // An unordered map of QpackEntry pointers keyed off header name.  This allows
+  // fast lookup of the most recently inserted dynamic entry for a given header
+  // name.  Entries point to entries owned by
+  // |QpackHeaderTableBase::dynamic_entries_|.
+  NameToEntryMap dynamic_name_index_;
 };
 
 class QUIC_EXPORT_PRIVATE QpackDecoderHeaderTable
