@@ -5,15 +5,14 @@
 
 #include "http2/adapter/http2_adapter.h"
 #include "http2/adapter/http2_session.h"
+#include "http2/adapter/oghttp2_session.h"
 
 namespace http2 {
 namespace adapter {
 
 class OgHttp2Adapter : public Http2Adapter {
  public:
-  struct Options {
-    Perspective context;
-  };
+  using Options = OgHttp2Session::Options;
   static std::unique_ptr<OgHttp2Adapter> Create(Http2VisitorInterface& visitor,
                                                 Options options);
 
@@ -44,7 +43,6 @@ class OgHttp2Adapter : public Http2Adapter {
  private:
   OgHttp2Adapter(Http2VisitorInterface& visitor, Options options);
 
-  class OgHttp2Session;
   std::unique_ptr<OgHttp2Session> session_;
 };
 
