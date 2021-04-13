@@ -48,12 +48,6 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   // Returns the absolute index of the inserted dynamic table entry.
   virtual uint64_t InsertEntry(absl::string_view name, absl::string_view value);
 
-  // Returns the size of the largest entry that could be inserted into the
-  // dynamic table without evicting entry |index|.  |index| might be larger than
-  // inserted_entry_count(), in which case the capacity of the table is
-  // returned.  |index| must not be smaller than dropped_entry_count().
-  uint64_t MaxInsertSizeWithoutEvictingGivenEntry(uint64_t index) const;
-
   // Change dynamic table capacity to |capacity|.  Returns true on success.
   // Returns false is |capacity| exceeds maximum dynamic table capacity.
   bool SetDynamicTableCapacity(uint64_t capacity);
@@ -84,14 +78,6 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
 
   // The number of entries dropped from the dynamic table.
   uint64_t dropped_entry_count() const { return dropped_entry_count_; }
-
-  // Returns the draining index described at
-  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#avoiding-blocked-insertions.
-  // Entries with an index larger than or equal to the draining index take up
-  // approximately |1.0 - draining_fraction| of dynamic table capacity.  The
-  // remaining capacity is taken up by draining entries and unused space.
-  // The returned index might not be the index of a valid entry.
-  uint64_t draining_index(float draining_fraction) const;
 
   void set_dynamic_table_entry_referenced() {
     dynamic_table_entry_referenced_ = true;
@@ -171,6 +157,20 @@ class QUIC_EXPORT_PRIVATE QpackEncoderHeaderTable
                             absl::string_view value,
                             bool* is_static,
                             uint64_t* index) const;
+
+  // Returns the size of the largest entry that could be inserted into the
+  // dynamic table without evicting entry |index|.  |index| might be larger than
+  // inserted_entry_count(), in which case the capacity of the table is
+  // returned.  |index| must not be smaller than dropped_entry_count().
+  uint64_t MaxInsertSizeWithoutEvictingGivenEntry(uint64_t index) const;
+
+  // Returns the draining index described at
+  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#avoiding-blocked-insertions.
+  // Entries with an index larger than or equal to the draining index take up
+  // approximately |1.0 - draining_fraction| of dynamic table capacity.  The
+  // remaining capacity is taken up by draining entries and unused space.
+  // The returned index might not be the index of a valid entry.
+  uint64_t draining_index(float draining_fraction) const;
 
  protected:
   void RemoveEntryFromEnd() override;

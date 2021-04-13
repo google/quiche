@@ -45,30 +45,6 @@ uint64_t QpackHeaderTableBase::InsertEntry(absl::string_view name,
   return index;
 }
 
-uint64_t QpackHeaderTableBase::MaxInsertSizeWithoutEvictingGivenEntry(
-    uint64_t index) const {
-  QUICHE_DCHECK_LE(dropped_entry_count_, index);
-
-  if (index > inserted_entry_count()) {
-    // All entries are allowed to be evicted.
-    return dynamic_table_capacity_;
-  }
-
-  // Initialize to current available capacity.
-  uint64_t max_insert_size = dynamic_table_capacity_ - dynamic_table_size_;
-
-  uint64_t entry_index = dropped_entry_count_;
-  for (const auto& entry : dynamic_entries_) {
-    if (entry_index >= index) {
-      break;
-    }
-    ++entry_index;
-    max_insert_size += entry.Size();
-  }
-
-  return max_insert_size;
-}
-
 bool QpackHeaderTableBase::SetDynamicTableCapacity(uint64_t capacity) {
   if (capacity > maximum_dynamic_table_capacity_) {
     return false;
@@ -91,33 +67,6 @@ bool QpackHeaderTableBase::SetMaximumDynamicTableCapacity(
   }
   // If the value is already set, it should not be changed.
   return maximum_dynamic_table_capacity == maximum_dynamic_table_capacity_;
-}
-
-uint64_t QpackHeaderTableBase::draining_index(float draining_fraction) const {
-  QUICHE_DCHECK_LE(0.0, draining_fraction);
-  QUICHE_DCHECK_LE(draining_fraction, 1.0);
-
-  const uint64_t required_space = draining_fraction * dynamic_table_capacity_;
-  uint64_t space_above_draining_index =
-      dynamic_table_capacity_ - dynamic_table_size_;
-
-  if (dynamic_entries_.empty() ||
-      space_above_draining_index >= required_space) {
-    return dropped_entry_count_;
-  }
-
-  auto it = dynamic_entries_.begin();
-  uint64_t entry_index = dropped_entry_count_;
-  while (space_above_draining_index < required_space) {
-    space_above_draining_index += it->Size();
-    ++it;
-    ++entry_index;
-    if (it == dynamic_entries_.end()) {
-      return inserted_entry_count();
-    }
-  }
-
-  return entry_index;
 }
 
 void QpackHeaderTableBase::RemoveEntryFromEnd() {
@@ -215,6 +164,58 @@ QpackEncoderHeaderTable::MatchType QpackEncoderHeaderTable::FindHeaderField(
   }
 
   return MatchType::kNoMatch;
+}
+
+uint64_t QpackEncoderHeaderTable::MaxInsertSizeWithoutEvictingGivenEntry(
+    uint64_t index) const {
+  QUICHE_DCHECK_LE(dropped_entry_count(), index);
+
+  if (index > inserted_entry_count()) {
+    // All entries are allowed to be evicted.
+    return dynamic_table_capacity();
+  }
+
+  // Initialize to current available capacity.
+  uint64_t max_insert_size = dynamic_table_capacity() - dynamic_table_size();
+
+  uint64_t entry_index = dropped_entry_count();
+  for (const auto& entry : dynamic_entries_) {
+    if (entry_index >= index) {
+      break;
+    }
+    ++entry_index;
+    max_insert_size += entry.Size();
+  }
+
+  return max_insert_size;
+}
+
+uint64_t QpackEncoderHeaderTable::draining_index(
+    float draining_fraction) const {
+  QUICHE_DCHECK_LE(0.0, draining_fraction);
+  QUICHE_DCHECK_LE(draining_fraction, 1.0);
+
+  const uint64_t required_space = draining_fraction * dynamic_table_capacity();
+  uint64_t space_above_draining_index =
+      dynamic_table_capacity() - dynamic_table_size();
+
+  if (dynamic_entries_.empty() ||
+      space_above_draining_index >= required_space) {
+    return dropped_entry_count();
+  }
+
+  auto it = dynamic_entries_.begin();
+  uint64_t entry_index = dropped_entry_count();
+  while (space_above_draining_index < required_space) {
+    space_above_draining_index += it->Size();
+    ++it;
+    ++entry_index;
+    if (it == dynamic_entries_.end()) {
+      return inserted_entry_count();
+    }
+  }
+
+  return entry_index;
 }
 
 void QpackEncoderHeaderTable::RemoveEntryFromEnd() {
