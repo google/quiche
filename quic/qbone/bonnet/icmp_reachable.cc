@@ -98,8 +98,6 @@ bool IcmpReachable::Init() {
   epoll_server_->RegisterFD(recv_fd_, &cb_, kEpollFlags);
   epoll_server_->RegisterAlarm(0, this);
 
-  epoll_server_->set_timeout_in_us(50000);
-
   QuicWriterMutexLock mu(&header_lock_);
   icmp_header_.icmp6_type = ICMP6_ECHO_REQUEST;
   icmp_header_.icmp6_code = 0;
