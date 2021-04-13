@@ -31,35 +31,6 @@ class QpackHeaderTableTest : public QuicTest {
   }
   ~QpackHeaderTableTest() override = default;
 
-  void ExpectMatch(absl::string_view name,
-                   absl::string_view value,
-                   QpackHeaderTableBase::MatchType expected_match_type,
-                   bool expected_is_static,
-                   uint64_t expected_index) const {
-    // Initialize outparams to a value different from the expected to ensure
-    // that FindHeaderField() sets them.
-    bool is_static = !expected_is_static;
-    uint64_t index = expected_index + 1;
-
-    QpackHeaderTableBase::MatchType matchtype =
-        table_.FindHeaderField(name, value, &is_static, &index);
-
-    EXPECT_EQ(expected_match_type, matchtype) << name << ": " << value;
-    EXPECT_EQ(expected_is_static, is_static) << name << ": " << value;
-    EXPECT_EQ(expected_index, index) << name << ": " << value;
-  }
-
-  void ExpectNoMatch(absl::string_view name, absl::string_view value) const {
-    bool is_static = false;
-    uint64_t index = 0;
-
-    QpackHeaderTableBase::MatchType matchtype =
-        table_.FindHeaderField(name, value, &is_static, &index);
-
-    EXPECT_EQ(QpackHeaderTableBase::MatchType::kNoMatch, matchtype)
-        << name << ": " << value;
-  }
-
   bool EntryFitsDynamicTableCapacity(absl::string_view name,
                                      absl::string_view value) const {
     return table_.EntryFitsDynamicTableCapacity(name, value);
@@ -86,90 +57,6 @@ using MyTypes =
     ::testing::Types<QpackEncoderHeaderTable, QpackDecoderHeaderTable>;
 TYPED_TEST_SUITE(QpackHeaderTableTest, MyTypes);
 
-TYPED_TEST(QpackHeaderTableTest, FindStaticHeaderField) {
-  // A header name that has multiple entries with different values.
-  this->ExpectMatch(":method", "GET",
-                    QpackHeaderTableBase::MatchType::kNameAndValue, true, 17u);
-
-  this->ExpectMatch(":method", "POST",
-                    QpackHeaderTableBase::MatchType::kNameAndValue, true, 20u);
-
-  this->ExpectMatch(":method", "TRACE", QpackHeaderTableBase::MatchType::kName,
-                    true, 15u);
-
-  // A header name that has a single entry with non-empty value.
-  this->ExpectMatch("accept-encoding", "gzip, deflate, br",
-                    QpackHeaderTableBase::MatchType::kNameAndValue, true, 31u);
-
-  this->ExpectMatch("accept-encoding", "compress",
-                    QpackHeaderTableBase::MatchType::kName, true, 31u);
-
-  this->ExpectMatch("accept-encoding", "",
-                    QpackHeaderTableBase::MatchType::kName, true, 31u);
-
-  // A header name that has a single entry with empty value.
-  this->ExpectMatch("location", "",
-                    QpackHeaderTableBase::MatchType::kNameAndValue, true, 12u);
-
-  this->ExpectMatch("location", "foo", QpackHeaderTableBase::MatchType::kName,
-                    true, 12u);
-
-  // No matching header name.
-  this->ExpectNoMatch("foo", "");
-  this->ExpectNoMatch("foo", "bar");
-}
-
-TYPED_TEST(QpackHeaderTableTest, FindDynamicHeaderField) {
-  // Dynamic table is initially entry.
-  this->ExpectNoMatch("foo", "bar");
-  this->ExpectNoMatch("foo", "baz");
-
-  // Insert one entry.
-  this->InsertEntry("foo", "bar");
-
-  // Match name and value.
-  this->ExpectMatch("foo", "bar",
-                    QpackHeaderTableBase::MatchType::kNameAndValue, false, 0u);
-
-  // Match name only.
-  this->ExpectMatch("foo", "baz", QpackHeaderTableBase::MatchType::kName, false,
-                    0u);
-
-  // Insert an identical entry.  FindHeaderField() should return the index of
-  // the most recently inserted matching entry.
-  this->InsertEntry("foo", "bar");
-
-  // Match name and value.
-  this->ExpectMatch("foo", "bar",
-                    QpackHeaderTableBase::MatchType::kNameAndValue, false, 1u);
-
-  // Match name only.
-  this->ExpectMatch("foo", "baz", QpackHeaderTableBase::MatchType::kName, false,
-                    1u);
-}
-
-TYPED_TEST(QpackHeaderTableTest, FindHeaderFieldPrefersStaticTable) {
-  // Insert an entry to the dynamic table that exists in the static table.
-  this->InsertEntry(":method", "GET");
-
-  // FindHeaderField() prefers static table if both have name-and-value match.
-  this->ExpectMatch(":method", "GET",
-                    QpackHeaderTableBase::MatchType::kNameAndValue, true, 17u);
-
-  // FindHeaderField() prefers static table if both have name match but no value
-  // match, and prefers the first entry with matching name.
-  this->ExpectMatch(":method", "TRACE", QpackHeaderTableBase::MatchType::kName,
-                    true, 15u);
-
-  // Add new entry to the dynamic table.
-  this->InsertEntry(":method", "TRACE");
-
-  // FindHeaderField prefers name-and-value match in dynamic table over name
-  // only match in static table.
-  this->ExpectMatch(":method", "TRACE",
-                    QpackHeaderTableBase::MatchType::kNameAndValue, false, 1u);
-}
-
 // MaxEntries is determined by maximum dynamic table capacity,
 // which is set at construction time.
 TYPED_TEST(QpackHeaderTableTest, MaxEntries) {
@@ -193,114 +80,6 @@ TYPED_TEST(QpackHeaderTableTest, SetDynamicTableCapacity) {
   // Dynamic table capacity cannot exceed maximum dynamic table capacity.
   EXPECT_FALSE(this->SetDynamicTableCapacity(
       2 * kMaximumDynamicTableCapacityForTesting));
-}
-
-TYPED_TEST(QpackHeaderTableTest, EvictByInsertion) {
-  EXPECT_TRUE(this->SetDynamicTableCapacity(40));
-
-  // Entry size is 3 + 3 + 32 = 38.
-  this->InsertEntry("foo", "bar");
-  EXPECT_EQ(1u, this->inserted_entry_count());
-  EXPECT_EQ(0u, this->dropped_entry_count());
-
-  this->ExpectMatch("foo", "bar",
-                    QpackHeaderTableBase::MatchType::kNameAndValue,
-                    /* expected_is_static = */ false, 0u);
-
-  // Inserting second entry evicts the first one.
-  this->InsertEntry("baz", "qux");
-  EXPECT_EQ(2u, this->inserted_entry_count());
-  EXPECT_EQ(1u, this->dropped_entry_count());
-
-  this->ExpectNoMatch("foo", "bar");
-  this->ExpectMatch("baz", "qux",
-                    QpackHeaderTableBase::MatchType::kNameAndValue,
-                    /* expected_is_static = */ false, 1u);
-}
-
-TYPED_TEST(QpackHeaderTableTest, EvictByUpdateTableSize) {
-  // Entry size is 3 + 3 + 32 = 38.
-  this->InsertEntry("foo", "bar");
-  this->InsertEntry("baz", "qux");
-  EXPECT_EQ(2u, this->inserted_entry_count());
-  EXPECT_EQ(0u, this->dropped_entry_count());
-
-  this->ExpectMatch("foo", "bar",
-                    QpackHeaderTableBase::MatchType::kNameAndValue,
-                    /* expected_is_static = */ false, 0u);
-  this->ExpectMatch("baz", "qux",
-                    QpackHeaderTableBase::MatchType::kNameAndValue,
-                    /* expected_is_static = */ false, 1u);
-
-  EXPECT_TRUE(this->SetDynamicTableCapacity(40));
-  EXPECT_EQ(2u, this->inserted_entry_count());
-  EXPECT_EQ(1u, this->dropped_entry_count());
-
-  this->ExpectNoMatch("foo", "bar");
-  this->ExpectMatch("baz", "qux",
-                    QpackHeaderTableBase::MatchType::kNameAndValue,
-                    /* expected_is_static = */ false, 1u);
-
-  EXPECT_TRUE(this->SetDynamicTableCapacity(20));
-  EXPECT_EQ(2u, this->inserted_entry_count());
-  EXPECT_EQ(2u, this->dropped_entry_count());
-
-  this->ExpectNoMatch("foo", "bar");
-  this->ExpectNoMatch("baz", "qux");
-}
-
-TYPED_TEST(QpackHeaderTableTest, EvictOldestOfIdentical) {
-  EXPECT_TRUE(this->SetDynamicTableCapacity(80));
-
-  // Entry size is 3 + 3 + 32 = 38.
-  // Insert same entry twice.
-  this->InsertEntry("foo", "bar");
-  this->InsertEntry("foo", "bar");
-  EXPECT_EQ(2u, this->inserted_entry_count());
-  EXPECT_EQ(0u, this->dropped_entry_count());
-
-  // Find most recently inserted entry.
-  this->ExpectMatch("foo", "bar",
-                    QpackHeaderTableBase::MatchType::kNameAndValue,
-                    /* expected_is_static = */ false, 1u);
-
-  // Inserting third entry evicts the first one, not the second.
-  this->InsertEntry("baz", "qux");
-  EXPECT_EQ(3u, this->inserted_entry_count());
-  EXPECT_EQ(1u, this->dropped_entry_count());
-
-  this->ExpectMatch("foo", "bar",
-                    QpackHeaderTableBase::MatchType::kNameAndValue,
-                    /* expected_is_static = */ false, 1u);
-  this->ExpectMatch("baz", "qux",
-                    QpackHeaderTableBase::MatchType::kNameAndValue,
-                    /* expected_is_static = */ false, 2u);
-}
-
-TYPED_TEST(QpackHeaderTableTest, EvictOldestOfSameName) {
-  EXPECT_TRUE(this->SetDynamicTableCapacity(80));
-
-  // Entry size is 3 + 3 + 32 = 38.
-  // Insert two entries with same name but different values.
-  this->InsertEntry("foo", "bar");
-  this->InsertEntry("foo", "baz");
-  EXPECT_EQ(2u, this->inserted_entry_count());
-  EXPECT_EQ(0u, this->dropped_entry_count());
-
-  // Find most recently inserted entry with matching name.
-  this->ExpectMatch("foo", "foo", QpackHeaderTableBase::MatchType::kName,
-                    /* expected_is_static = */ false, 1u);
-
-  // Inserting third entry evicts the first one, not the second.
-  this->InsertEntry("baz", "qux");
-  EXPECT_EQ(3u, this->inserted_entry_count());
-  EXPECT_EQ(1u, this->dropped_entry_count());
-
-  this->ExpectMatch("foo", "foo", QpackHeaderTableBase::MatchType::kName,
-                    /* expected_is_static = */ false, 1u);
-  this->ExpectMatch("baz", "qux",
-                    QpackHeaderTableBase::MatchType::kNameAndValue,
-                    /* expected_is_static = */ false, 2u);
 }
 
 // Returns the size of the largest entry that could be inserted into the
@@ -399,6 +178,224 @@ TYPED_TEST(QpackHeaderTableTest, EntryFitsDynamicTableCapacity) {
   EXPECT_FALSE(this->EntryFitsDynamicTableCapacity("foo", "bar12"));
 }
 
+class QpackEncoderHeaderTableTest
+    : public QpackHeaderTableTest<QpackEncoderHeaderTable> {
+ protected:
+  ~QpackEncoderHeaderTableTest() override = default;
+
+  void ExpectMatch(absl::string_view name,
+                   absl::string_view value,
+                   QpackEncoderHeaderTable::MatchType expected_match_type,
+                   bool expected_is_static,
+                   uint64_t expected_index) const {
+    // Initialize outparams to a value different from the expected to ensure
+    // that FindHeaderField() sets them.
+    bool is_static = !expected_is_static;
+    uint64_t index = expected_index + 1;
+
+    QpackEncoderHeaderTable::MatchType matchtype =
+        table_.FindHeaderField(name, value, &is_static, &index);
+
+    EXPECT_EQ(expected_match_type, matchtype) << name << ": " << value;
+    EXPECT_EQ(expected_is_static, is_static) << name << ": " << value;
+    EXPECT_EQ(expected_index, index) << name << ": " << value;
+  }
+
+  void ExpectNoMatch(absl::string_view name, absl::string_view value) const {
+    bool is_static = false;
+    uint64_t index = 0;
+
+    QpackEncoderHeaderTable::MatchType matchtype =
+        table_.FindHeaderField(name, value, &is_static, &index);
+
+    EXPECT_EQ(QpackEncoderHeaderTable::MatchType::kNoMatch, matchtype)
+        << name << ": " << value;
+  }
+};
+
+TEST_F(QpackEncoderHeaderTableTest, FindStaticHeaderField) {
+  // A header name that has multiple entries with different values.
+  ExpectMatch(":method", "GET",
+              QpackEncoderHeaderTable::MatchType::kNameAndValue, true, 17u);
+
+  ExpectMatch(":method", "POST",
+              QpackEncoderHeaderTable::MatchType::kNameAndValue, true, 20u);
+
+  ExpectMatch(":method", "TRACE", QpackEncoderHeaderTable::MatchType::kName,
+              true, 15u);
+
+  // A header name that has a single entry with non-empty value.
+  ExpectMatch("accept-encoding", "gzip, deflate, br",
+              QpackEncoderHeaderTable::MatchType::kNameAndValue, true, 31u);
+
+  ExpectMatch("accept-encoding", "compress",
+              QpackEncoderHeaderTable::MatchType::kName, true, 31u);
+
+  ExpectMatch("accept-encoding", "", QpackEncoderHeaderTable::MatchType::kName,
+              true, 31u);
+
+  // A header name that has a single entry with empty value.
+  ExpectMatch("location", "", QpackEncoderHeaderTable::MatchType::kNameAndValue,
+              true, 12u);
+
+  ExpectMatch("location", "foo", QpackEncoderHeaderTable::MatchType::kName,
+              true, 12u);
+
+  // No matching header name.
+  ExpectNoMatch("foo", "");
+  ExpectNoMatch("foo", "bar");
+}
+
+TEST_F(QpackEncoderHeaderTableTest, FindDynamicHeaderField) {
+  // Dynamic table is initially entry.
+  ExpectNoMatch("foo", "bar");
+  ExpectNoMatch("foo", "baz");
+
+  // Insert one entry.
+  InsertEntry("foo", "bar");
+
+  // Match name and value.
+  ExpectMatch("foo", "bar", QpackEncoderHeaderTable::MatchType::kNameAndValue,
+              false, 0u);
+
+  // Match name only.
+  ExpectMatch("foo", "baz", QpackEncoderHeaderTable::MatchType::kName, false,
+              0u);
+
+  // Insert an identical entry.  FindHeaderField() should return the index of
+  // the most recently inserted matching entry.
+  InsertEntry("foo", "bar");
+
+  // Match name and value.
+  ExpectMatch("foo", "bar", QpackEncoderHeaderTable::MatchType::kNameAndValue,
+              false, 1u);
+
+  // Match name only.
+  ExpectMatch("foo", "baz", QpackEncoderHeaderTable::MatchType::kName, false,
+              1u);
+}
+
+TEST_F(QpackEncoderHeaderTableTest, FindHeaderFieldPrefersStaticTable) {
+  // Insert an entry to the dynamic table that exists in the static table.
+  InsertEntry(":method", "GET");
+
+  // FindHeaderField() prefers static table if both have name-and-value match.
+  ExpectMatch(":method", "GET",
+              QpackEncoderHeaderTable::MatchType::kNameAndValue, true, 17u);
+
+  // FindHeaderField() prefers static table if both have name match but no value
+  // match, and prefers the first entry with matching name.
+  ExpectMatch(":method", "TRACE", QpackEncoderHeaderTable::MatchType::kName,
+              true, 15u);
+
+  // Add new entry to the dynamic table.
+  InsertEntry(":method", "TRACE");
+
+  // FindHeaderField prefers name-and-value match in dynamic table over name
+  // only match in static table.
+  ExpectMatch(":method", "TRACE",
+              QpackEncoderHeaderTable::MatchType::kNameAndValue, false, 1u);
+}
+
+TEST_F(QpackEncoderHeaderTableTest, EvictByInsertion) {
+  EXPECT_TRUE(SetDynamicTableCapacity(40));
+
+  // Entry size is 3 + 3 + 32 = 38.
+  InsertEntry("foo", "bar");
+  EXPECT_EQ(1u, inserted_entry_count());
+  EXPECT_EQ(0u, dropped_entry_count());
+
+  ExpectMatch("foo", "bar", QpackEncoderHeaderTable::MatchType::kNameAndValue,
+              /* expected_is_static = */ false, 0u);
+
+  // Inserting second entry evicts the first one.
+  InsertEntry("baz", "qux");
+  EXPECT_EQ(2u, inserted_entry_count());
+  EXPECT_EQ(1u, dropped_entry_count());
+
+  ExpectNoMatch("foo", "bar");
+  ExpectMatch("baz", "qux", QpackEncoderHeaderTable::MatchType::kNameAndValue,
+              /* expected_is_static = */ false, 1u);
+}
+
+TEST_F(QpackEncoderHeaderTableTest, EvictByUpdateTableSize) {
+  // Entry size is 3 + 3 + 32 = 38.
+  InsertEntry("foo", "bar");
+  InsertEntry("baz", "qux");
+  EXPECT_EQ(2u, inserted_entry_count());
+  EXPECT_EQ(0u, dropped_entry_count());
+
+  ExpectMatch("foo", "bar", QpackEncoderHeaderTable::MatchType::kNameAndValue,
+              /* expected_is_static = */ false, 0u);
+  ExpectMatch("baz", "qux", QpackEncoderHeaderTable::MatchType::kNameAndValue,
+              /* expected_is_static = */ false, 1u);
+
+  EXPECT_TRUE(SetDynamicTableCapacity(40));
+  EXPECT_EQ(2u, inserted_entry_count());
+  EXPECT_EQ(1u, dropped_entry_count());
+
+  ExpectNoMatch("foo", "bar");
+  ExpectMatch("baz", "qux", QpackEncoderHeaderTable::MatchType::kNameAndValue,
+              /* expected_is_static = */ false, 1u);
+
+  EXPECT_TRUE(SetDynamicTableCapacity(20));
+  EXPECT_EQ(2u, inserted_entry_count());
+  EXPECT_EQ(2u, dropped_entry_count());
+
+  ExpectNoMatch("foo", "bar");
+  ExpectNoMatch("baz", "qux");
+}
+
+TEST_F(QpackEncoderHeaderTableTest, EvictOldestOfIdentical) {
+  EXPECT_TRUE(SetDynamicTableCapacity(80));
+
+  // Entry size is 3 + 3 + 32 = 38.
+  // Insert same entry twice.
+  InsertEntry("foo", "bar");
+  InsertEntry("foo", "bar");
+  EXPECT_EQ(2u, inserted_entry_count());
+  EXPECT_EQ(0u, dropped_entry_count());
+
+  // Find most recently inserted entry.
+  ExpectMatch("foo", "bar", QpackEncoderHeaderTable::MatchType::kNameAndValue,
+              /* expected_is_static = */ false, 1u);
+
+  // Inserting third entry evicts the first one, not the second.
+  InsertEntry("baz", "qux");
+  EXPECT_EQ(3u, inserted_entry_count());
+  EXPECT_EQ(1u, dropped_entry_count());
+
+  ExpectMatch("foo", "bar", QpackEncoderHeaderTable::MatchType::kNameAndValue,
+              /* expected_is_static = */ false, 1u);
+  ExpectMatch("baz", "qux", QpackEncoderHeaderTable::MatchType::kNameAndValue,
+              /* expected_is_static = */ false, 2u);
+}
+
+TEST_F(QpackEncoderHeaderTableTest, EvictOldestOfSameName) {
+  EXPECT_TRUE(SetDynamicTableCapacity(80));
+
+  // Entry size is 3 + 3 + 32 = 38.
+  // Insert two entries with same name but different values.
+  InsertEntry("foo", "bar");
+  InsertEntry("foo", "baz");
+  EXPECT_EQ(2u, inserted_entry_count());
+  EXPECT_EQ(0u, dropped_entry_count());
+
+  // Find most recently inserted entry with matching name.
+  ExpectMatch("foo", "foo", QpackEncoderHeaderTable::MatchType::kName,
+              /* expected_is_static = */ false, 1u);
+
+  // Inserting third entry evicts the first one, not the second.
+  InsertEntry("baz", "qux");
+  EXPECT_EQ(3u, inserted_entry_count());
+  EXPECT_EQ(1u, dropped_entry_count());
+
+  ExpectMatch("foo", "foo", QpackEncoderHeaderTable::MatchType::kName,
+              /* expected_is_static = */ false, 1u);
+  ExpectMatch("baz", "qux", QpackEncoderHeaderTable::MatchType::kNameAndValue,
+              /* expected_is_static = */ false, 2u);
+}
+
 class MockObserver : public QpackDecoderHeaderTable::Observer {
  public:
   ~MockObserver() override = default;
@@ -486,6 +483,101 @@ TEST_F(QpackDecoderHeaderTableTest, InsertAndLookupDynamicEntry) {
   ExpectEntryAtIndex(/* is_static = */ false, 2, "baz", "bing");
 
   ExpectNoEntryAtIndex(/* is_static = */ false, 3);
+}
+
+TEST_F(QpackDecoderHeaderTableTest, EvictByInsertion) {
+  EXPECT_TRUE(SetDynamicTableCapacity(40));
+
+  // Entry size is 3 + 3 + 32 = 38.
+  InsertEntry("foo", "bar");
+  EXPECT_EQ(1u, inserted_entry_count());
+  EXPECT_EQ(0u, dropped_entry_count());
+
+  ExpectEntryAtIndex(/* is_static = */ false, 0u, "foo", "bar");
+
+  // Inserting second entry evicts the first one.
+  InsertEntry("baz", "qux");
+  EXPECT_EQ(2u, inserted_entry_count());
+  EXPECT_EQ(1u, dropped_entry_count());
+
+  ExpectNoEntryAtIndex(/* is_static = */ false, 0u);
+  ExpectEntryAtIndex(/* is_static = */ false, 1u, "baz", "qux");
+}
+
+TEST_F(QpackDecoderHeaderTableTest, EvictByUpdateTableSize) {
+  ExpectNoEntryAtIndex(/* is_static = */ false, 0u);
+  ExpectNoEntryAtIndex(/* is_static = */ false, 1u);
+
+  // Entry size is 3 + 3 + 32 = 38.
+  InsertEntry("foo", "bar");
+  InsertEntry("baz", "qux");
+  EXPECT_EQ(2u, inserted_entry_count());
+  EXPECT_EQ(0u, dropped_entry_count());
+
+  ExpectEntryAtIndex(/* is_static = */ false, 0u, "foo", "bar");
+  ExpectEntryAtIndex(/* is_static = */ false, 1u, "baz", "qux");
+
+  EXPECT_TRUE(SetDynamicTableCapacity(40));
+  EXPECT_EQ(2u, inserted_entry_count());
+  EXPECT_EQ(1u, dropped_entry_count());
+
+  ExpectNoEntryAtIndex(/* is_static = */ false, 0u);
+  ExpectEntryAtIndex(/* is_static = */ false, 1u, "baz", "qux");
+
+  EXPECT_TRUE(SetDynamicTableCapacity(20));
+  EXPECT_EQ(2u, inserted_entry_count());
+  EXPECT_EQ(2u, dropped_entry_count());
+
+  ExpectNoEntryAtIndex(/* is_static = */ false, 0u);
+  ExpectNoEntryAtIndex(/* is_static = */ false, 1u);
+}
+
+TEST_F(QpackDecoderHeaderTableTest, EvictOldestOfIdentical) {
+  EXPECT_TRUE(SetDynamicTableCapacity(80));
+
+  // Entry size is 3 + 3 + 32 = 38.
+  // Insert same entry twice.
+  InsertEntry("foo", "bar");
+  InsertEntry("foo", "bar");
+  EXPECT_EQ(2u, inserted_entry_count());
+  EXPECT_EQ(0u, dropped_entry_count());
+
+  ExpectEntryAtIndex(/* is_static = */ false, 0u, "foo", "bar");
+  ExpectEntryAtIndex(/* is_static = */ false, 1u, "foo", "bar");
+  ExpectNoEntryAtIndex(/* is_static = */ false, 2u);
+
+  // Inserting third entry evicts the first one, not the second.
+  InsertEntry("baz", "qux");
+  EXPECT_EQ(3u, inserted_entry_count());
+  EXPECT_EQ(1u, dropped_entry_count());
+
+  ExpectNoEntryAtIndex(/* is_static = */ false, 0u);
+  ExpectEntryAtIndex(/* is_static = */ false, 1u, "foo", "bar");
+  ExpectEntryAtIndex(/* is_static = */ false, 2u, "baz", "qux");
+}
+
+TEST_F(QpackDecoderHeaderTableTest, EvictOldestOfSameName) {
+  EXPECT_TRUE(SetDynamicTableCapacity(80));
+
+  // Entry size is 3 + 3 + 32 = 38.
+  // Insert two entries with same name but different values.
+  InsertEntry("foo", "bar");
+  InsertEntry("foo", "baz");
+  EXPECT_EQ(2u, inserted_entry_count());
+  EXPECT_EQ(0u, dropped_entry_count());
+
+  ExpectEntryAtIndex(/* is_static = */ false, 0u, "foo", "bar");
+  ExpectEntryAtIndex(/* is_static = */ false, 1u, "foo", "baz");
+  ExpectNoEntryAtIndex(/* is_static = */ false, 2u);
+
+  // Inserting third entry evicts the first one, not the second.
+  InsertEntry("baz", "qux");
+  EXPECT_EQ(3u, inserted_entry_count());
+  EXPECT_EQ(1u, dropped_entry_count());
+
+  ExpectNoEntryAtIndex(/* is_static = */ false, 0u);
+  ExpectEntryAtIndex(/* is_static = */ false, 1u, "foo", "baz");
+  ExpectEntryAtIndex(/* is_static = */ false, 2u, "baz", "qux");
 }
 
 TEST_F(QpackDecoderHeaderTableTest, RegisterObserver) {

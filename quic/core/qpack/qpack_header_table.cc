@@ -21,48 +21,6 @@ QpackHeaderTableBase::QpackHeaderTableBase()
       dropped_entry_count_(0),
       dynamic_table_entry_referenced_(false) {}
 
-QpackHeaderTableBase::MatchType QpackHeaderTableBase::FindHeaderField(
-    absl::string_view name,
-    absl::string_view value,
-    bool* is_static,
-    uint64_t* index) const {
-  QpackLookupEntry query{name, value};
-
-  // Look for exact match in static table.
-  auto index_it = static_index_.find(query);
-  if (index_it != static_index_.end()) {
-    *index = index_it->second;
-    *is_static = true;
-    return MatchType::kNameAndValue;
-  }
-
-  // Look for exact match in dynamic table.
-  index_it = dynamic_index_.find(query);
-  if (index_it != dynamic_index_.end()) {
-    *index = index_it->second;
-    *is_static = false;
-    return MatchType::kNameAndValue;
-  }
-
-  // Look for name match in static table.
-  auto name_index_it = static_name_index_.find(name);
-  if (name_index_it != static_name_index_.end()) {
-    *index = name_index_it->second;
-    *is_static = true;
-    return MatchType::kName;
-  }
-
-  // Look for name match in dynamic table.
-  name_index_it = dynamic_name_index_.find(name);
-  if (name_index_it != dynamic_name_index_.end()) {
-    *index = name_index_it->second;
-    *is_static = false;
-    return MatchType::kName;
-  }
-
-  return MatchType::kNoMatch;
-}
-
 bool QpackHeaderTableBase::EntryFitsDynamicTableCapacity(
     absl::string_view name,
     absl::string_view value) const {
@@ -224,6 +182,48 @@ void QpackHeaderTableBase::EvictDownToCapacity(uint64_t capacity) {
     QUICHE_DCHECK(!dynamic_entries_.empty());
     RemoveEntryFromEnd();
   }
+}
+
+QpackEncoderHeaderTable::MatchType QpackEncoderHeaderTable::FindHeaderField(
+    absl::string_view name,
+    absl::string_view value,
+    bool* is_static,
+    uint64_t* index) const {
+  QpackLookupEntry query{name, value};
+
+  // Look for exact match in static table.
+  auto index_it = static_index_.find(query);
+  if (index_it != static_index_.end()) {
+    *index = index_it->second;
+    *is_static = true;
+    return MatchType::kNameAndValue;
+  }
+
+  // Look for exact match in dynamic table.
+  index_it = dynamic_index_.find(query);
+  if (index_it != dynamic_index_.end()) {
+    *index = index_it->second;
+    *is_static = false;
+    return MatchType::kNameAndValue;
+  }
+
+  // Look for name match in static table.
+  auto name_index_it = static_name_index_.find(name);
+  if (name_index_it != static_name_index_.end()) {
+    *index = name_index_it->second;
+    *is_static = true;
+    return MatchType::kName;
+  }
+
+  // Look for name match in dynamic table.
+  name_index_it = dynamic_name_index_.find(name);
+  if (name_index_it != dynamic_name_index_.end()) {
+    *index = name_index_it->second;
+    *is_static = false;
+    return MatchType::kName;
+  }
+
+  return MatchType::kNoMatch;
 }
 
 QpackDecoderHeaderTable::~QpackDecoderHeaderTable() {

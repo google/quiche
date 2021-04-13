@@ -38,22 +38,11 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   using NameValueToEntryMap = spdy::HpackHeaderTable::NameValueToEntryMap;
   using NameToEntryMap = spdy::HpackHeaderTable::NameToEntryMap;
 
-  // Result of header table lookup.
-  enum class MatchType { kNameAndValue, kName, kNoMatch };
-
   QpackHeaderTableBase();
   QpackHeaderTableBase(const QpackHeaderTableBase&) = delete;
   QpackHeaderTableBase& operator=(const QpackHeaderTableBase&) = delete;
 
   virtual ~QpackHeaderTableBase() = default;
-
-  // Returns the absolute index of an entry with matching name and value if such
-  // exists, otherwise one with matching name is such exists.  |index| is zero
-  // based for both the static and the dynamic table.
-  MatchType FindHeaderField(absl::string_view name,
-                            absl::string_view value,
-                            bool* is_static,
-                            uint64_t* index) const;
 
   // Returns whether an entry with |name| and |value| has a size (including
   // overhead) that is smaller than or equal to the capacity of the dynamic
@@ -196,7 +185,18 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
 class QUIC_EXPORT_PRIVATE QpackEncoderHeaderTable
     : public QpackHeaderTableBase {
  public:
+  // Result of header table lookup.
+  enum class MatchType { kNameAndValue, kName, kNoMatch };
+
   ~QpackEncoderHeaderTable() override = default;
+
+  // Returns the absolute index of an entry with matching name and value if such
+  // exists, otherwise one with matching name is such exists.  |index| is zero
+  // based for both the static and the dynamic table.
+  MatchType FindHeaderField(absl::string_view name,
+                            absl::string_view value,
+                            bool* is_static,
+                            uint64_t* index) const;
 };
 
 class QUIC_EXPORT_PRIVATE QpackDecoderHeaderTable
