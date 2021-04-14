@@ -1441,6 +1441,19 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     QuicSocketAddress original_direct_peer_address_;
   };
 
+  // A class which sets and clears in_on_retransmission_time_out_ when entering
+  // and exiting OnRetransmissionTimeout, respectively.
+  class QUIC_EXPORT_PRIVATE ScopedRetransmissionTimeoutIndicator {
+   public:
+    // |connection| must outlive this indicator.
+    explicit ScopedRetransmissionTimeoutIndicator(QuicConnection* connection);
+
+    ~ScopedRetransmissionTimeoutIndicator();
+
+   private:
+    QuicConnection* connection_;  // Not owned.
+  };
+
   QuicConnectionId& ClientConnectionId() {
     return use_connection_id_on_default_path_
                ? default_path_.client_connection_id
@@ -2191,6 +2204,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // True after the first 1-RTT packet has successfully decrypted.
   bool have_decrypted_first_one_rtt_packet_ = false;
+
+  // True if we are currently processing OnRetransmissionTimeout.
+  bool in_on_retransmission_time_out_ = false;
 
   const bool encrypted_control_frames_;
 

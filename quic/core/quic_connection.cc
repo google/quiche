@@ -2517,6 +2517,16 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
       version().CanSendCoalescedPackets() && !IsHandshakeConfirmed()) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_preempt_stream_data_with_handshake_packet,
                                  1, 2);
+    if (GetQuicReloadableFlag(quic_donot_pto_half_rtt_data)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_donot_pto_half_rtt_data);
+      if (in_on_retransmission_time_out_ &&
+          coalesced_packet_.NumberOfPackets() == 0u) {
+        // PTO fires while handshake is not confirmed. Do not preempt handshake
+        // data with stream data.
+        QUIC_CODE_COUNT(quic_try_to_send_half_rtt_data_when_pto_fires);
+        return QuicConsumedData(0, false);
+      }
+    }
     if (coalesced_packet_.ContainsPacketOfEncryptionLevel(ENCRYPTION_INITIAL) &&
         coalesced_packet_.NumberOfPackets() == 1u) {
       // Handshake is not confirmed yet, if there is only an initial packet in
@@ -4063,6 +4073,7 @@ void QuicConnection::SendAck() {
 }
 
 void QuicConnection::OnRetransmissionTimeout() {
+  ScopedRetransmissionTimeoutIndicator indicator(this);
 #ifndef NDEBUG
   if (sent_packet_manager_.unacked_packets().empty()) {
     QUICHE_DCHECK(sent_packet_manager_.handshake_mode_disabled());
@@ -6753,6 +6764,20 @@ void QuicConnection::ReversePathValidationResultDelegate::
                  context->self_address(), context->effective_peer_address())) {
     connection_->alternative_path_.Clear();
   }
+}
+
+QuicConnection::ScopedRetransmissionTimeoutIndicator::
+    ScopedRetransmissionTimeoutIndicator(QuicConnection* connection)
+    : connection_(connection) {
+  QUICHE_DCHECK(!connection_->in_on_retransmission_time_out_)
+      << "ScopedRetransmissionTimeoutIndicator is not supposed to be nested";
+  connection_->in_on_retransmission_time_out_ = true;
+}
+
+QuicConnection::ScopedRetransmissionTimeoutIndicator::
+    ~ScopedRetransmissionTimeoutIndicator() {
+  QUICHE_DCHECK(connection_->in_on_retransmission_time_out_);
+  connection_->in_on_retransmission_time_out_ = false;
 }
 
 void QuicConnection::RestoreToLastValidatedPath(

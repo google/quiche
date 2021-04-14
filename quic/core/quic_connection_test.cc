@@ -14461,6 +14461,54 @@ TEST_P(QuicConnectionTest, LostDataThenGetAcknowledged) {
   }
 }
 
+TEST_P(QuicConnectionTest, PtoSendStreamData) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  }
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  use_tagging_decrypter();
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.HasPendingAcks());
+
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  // Send INITIAL 1.
+  connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_INITIAL);
+
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  SetDecrypter(ENCRYPTION_HANDSHAKE,
+               std::make_unique<StrictTaggingDecrypter>(0x02));
+  // Send HANDSHAKE packets.
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+  connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
+
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<TaggingEncrypter>(0x03));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+
+  // Send half RTT packet with congestion control blocked.
+  EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(false));
+  connection_.SendStreamDataWithString(2, std::string(1500, 'a'), 0, NO_FIN);
+
+  ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  connection_.GetRetransmissionAlarm()->Fire();
+  if (GetQuicReloadableFlag(quic_preempt_stream_data_with_handshake_packet) &&
+      GetQuicReloadableFlag(quic_donot_pto_half_rtt_data)) {
+    // Verify INITIAL and HANDSHAKE get retransmitted.
+    EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
+  } else {
+    // Application data preempts handshake data when PTO fires.
+    EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
