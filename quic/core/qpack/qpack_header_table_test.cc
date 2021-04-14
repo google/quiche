@@ -24,12 +24,14 @@ const uint64_t kMaximumDynamicTableCapacityForTesting = 1024 * 1024;
 template <typename T>
 class QpackHeaderTableTest : public QuicTest {
  protected:
-  QpackHeaderTableTest() {
-    table_.SetMaximumDynamicTableCapacity(
-        kMaximumDynamicTableCapacityForTesting);
-    table_.SetDynamicTableCapacity(kMaximumDynamicTableCapacityForTesting);
-  }
   ~QpackHeaderTableTest() override = default;
+
+  void SetUp() override {
+    ASSERT_TRUE(table_.SetMaximumDynamicTableCapacity(
+        kMaximumDynamicTableCapacityForTesting));
+    ASSERT_TRUE(
+        table_.SetDynamicTableCapacity(kMaximumDynamicTableCapacityForTesting));
+  }
 
   bool EntryFitsDynamicTableCapacity(absl::string_view name,
                                      absl::string_view value) const {
@@ -122,6 +124,14 @@ class QpackEncoderHeaderTableTest
 
     EXPECT_EQ(QpackEncoderHeaderTable::MatchType::kNoMatch, matchtype)
         << name << ": " << value;
+  }
+
+  uint64_t MaxInsertSizeWithoutEvictingGivenEntry(uint64_t index) const {
+    return table_.MaxInsertSizeWithoutEvictingGivenEntry(index);
+  }
+
+  uint64_t draining_index(float draining_fraction) const {
+    return table_.draining_index(draining_fraction);
   }
 };
 
@@ -312,88 +322,79 @@ TEST_F(QpackEncoderHeaderTableTest, EvictOldestOfSameName) {
 // dynamic table without evicting entry |index|.
 TEST_F(QpackEncoderHeaderTableTest, MaxInsertSizeWithoutEvictingGivenEntry) {
   const uint64_t dynamic_table_capacity = 100;
-  QpackEncoderHeaderTable table;
-  table.SetMaximumDynamicTableCapacity(dynamic_table_capacity);
-  EXPECT_TRUE(table.SetDynamicTableCapacity(dynamic_table_capacity));
+  EXPECT_TRUE(SetDynamicTableCapacity(dynamic_table_capacity));
 
   // Empty table can take an entry up to its capacity.
-  EXPECT_EQ(dynamic_table_capacity,
-            table.MaxInsertSizeWithoutEvictingGivenEntry(0));
+  EXPECT_EQ(dynamic_table_capacity, MaxInsertSizeWithoutEvictingGivenEntry(0));
 
   const uint64_t entry_size1 = QpackEntry::Size("foo", "bar");
-  table.InsertEntry("foo", "bar");
+  InsertEntry("foo", "bar");
   EXPECT_EQ(dynamic_table_capacity - entry_size1,
-            table.MaxInsertSizeWithoutEvictingGivenEntry(0));
+            MaxInsertSizeWithoutEvictingGivenEntry(0));
   // Table can take an entry up to its capacity if all entries are allowed to be
   // evicted.
-  EXPECT_EQ(dynamic_table_capacity,
-            table.MaxInsertSizeWithoutEvictingGivenEntry(1));
+  EXPECT_EQ(dynamic_table_capacity, MaxInsertSizeWithoutEvictingGivenEntry(1));
 
   const uint64_t entry_size2 = QpackEntry::Size("baz", "foobar");
-  table.InsertEntry("baz", "foobar");
+  InsertEntry("baz", "foobar");
   // Table can take an entry up to its capacity if all entries are allowed to be
   // evicted.
-  EXPECT_EQ(dynamic_table_capacity,
-            table.MaxInsertSizeWithoutEvictingGivenEntry(2));
+  EXPECT_EQ(dynamic_table_capacity, MaxInsertSizeWithoutEvictingGivenEntry(2));
   // Second entry must stay.
   EXPECT_EQ(dynamic_table_capacity - entry_size2,
-            table.MaxInsertSizeWithoutEvictingGivenEntry(1));
+            MaxInsertSizeWithoutEvictingGivenEntry(1));
   // First and second entry must stay.
   EXPECT_EQ(dynamic_table_capacity - entry_size2 - entry_size1,
-            table.MaxInsertSizeWithoutEvictingGivenEntry(0));
+            MaxInsertSizeWithoutEvictingGivenEntry(0));
 
   // Third entry evicts first one.
   const uint64_t entry_size3 = QpackEntry::Size("last", "entry");
-  table.InsertEntry("last", "entry");
-  EXPECT_EQ(1u, table.dropped_entry_count());
+  InsertEntry("last", "entry");
+  EXPECT_EQ(1u, dropped_entry_count());
   // Table can take an entry up to its capacity if all entries are allowed to be
   // evicted.
-  EXPECT_EQ(dynamic_table_capacity,
-            table.MaxInsertSizeWithoutEvictingGivenEntry(3));
+  EXPECT_EQ(dynamic_table_capacity, MaxInsertSizeWithoutEvictingGivenEntry(3));
   // Third entry must stay.
   EXPECT_EQ(dynamic_table_capacity - entry_size3,
-            table.MaxInsertSizeWithoutEvictingGivenEntry(2));
+            MaxInsertSizeWithoutEvictingGivenEntry(2));
   // Second and third entry must stay.
   EXPECT_EQ(dynamic_table_capacity - entry_size3 - entry_size2,
-            table.MaxInsertSizeWithoutEvictingGivenEntry(1));
+            MaxInsertSizeWithoutEvictingGivenEntry(1));
 }
 
 TEST_F(QpackEncoderHeaderTableTest, DrainingIndex) {
-  QpackEncoderHeaderTable table;
-  table.SetMaximumDynamicTableCapacity(kMaximumDynamicTableCapacityForTesting);
-  EXPECT_TRUE(
-      table.SetDynamicTableCapacity(4 * QpackEntry::Size("foo", "bar")));
+  EXPECT_TRUE(SetDynamicTableCapacity(4 * QpackEntry::Size("foo", "bar")));
 
   // Empty table: no draining entry.
-  EXPECT_EQ(0u, table.draining_index(0.0));
-  EXPECT_EQ(0u, table.draining_index(1.0));
+  EXPECT_EQ(0u, draining_index(0.0));
+  EXPECT_EQ(0u, draining_index(1.0));
 
   // Table with one entry.
-  table.InsertEntry("foo", "bar");
+  InsertEntry("foo", "bar");
   // Any entry can be referenced if none of the table is draining.
-  EXPECT_EQ(0u, table.draining_index(0.0));
+  EXPECT_EQ(0u, draining_index(0.0));
   // No entry can be referenced if all of the table is draining.
-  EXPECT_EQ(1u, table.draining_index(1.0));
+  EXPECT_EQ(1u, draining_index(1.0));
 
   // Table with two entries is at half capacity.
-  table.InsertEntry("foo", "bar");
+  InsertEntry("foo", "bar");
   // Any entry can be referenced if at most half of the table is draining,
   // because current entries only take up half of total capacity.
-  EXPECT_EQ(0u, table.draining_index(0.0));
-  EXPECT_EQ(0u, table.draining_index(0.5));
+  EXPECT_EQ(0u, draining_index(0.0));
+  EXPECT_EQ(0u, draining_index(0.5));
   // No entry can be referenced if all of the table is draining.
-  EXPECT_EQ(2u, table.draining_index(1.0));
+  EXPECT_EQ(2u, draining_index(1.0));
 
   // Table with four entries is full.
-  table.InsertEntry("foo", "bar");
-  table.InsertEntry("foo", "bar");
+  InsertEntry("foo", "bar");
+  InsertEntry("foo", "bar");
   // Any entry can be referenced if none of the table is draining.
-  EXPECT_EQ(0u, table.draining_index(0.0));
+  EXPECT_EQ(0u, draining_index(0.0));
   // In a full table with identically sized entries, |draining_fraction| of all
   // entries are draining.
-  EXPECT_EQ(2u, table.draining_index(0.5));
+  EXPECT_EQ(2u, draining_index(0.5));
   // No entry can be referenced if all of the table is draining.
-  EXPECT_EQ(4u, table.draining_index(1.0));
+  EXPECT_EQ(4u, draining_index(1.0));
 }
 
 class MockObserver : public QpackDecoderHeaderTable::Observer {
