@@ -74,8 +74,25 @@ bool QuicClientEpollNetworkHelper::CreateUDPSocketAndBind(
     client_address = QuicSocketAddress(QuicIpAddress::Any6(), bind_to_port);
   }
 
+  // Some platforms expect that the addrlen given to bind() exactly matches the
+  // size of the associated protocol family's sockaddr struct.
+  // TODO(b/179430548): Revert this when affected platforms are updated to
+  // to support binding with an addrelen of sizeof(sockaddr_storage)
+  socklen_t addrlen;
+  switch (client_address.host().address_family()) {
+    case IpAddressFamily::IP_V4:
+      addrlen = sizeof(sockaddr_in);
+      break;
+    case IpAddressFamily::IP_V6:
+      addrlen = sizeof(sockaddr_in6);
+      break;
+    case IpAddressFamily::IP_UNSPEC:
+      addrlen = 0;
+      break;
+  }
+
   sockaddr_storage addr = client_address.generic_address();
-  int rc = bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+  int rc = bind(fd, reinterpret_cast<sockaddr*>(&addr), addrlen);
   if (rc < 0) {
     QUIC_LOG(ERROR) << "Bind failed: " << strerror(errno)
                     << " bind_to_address:" << bind_to_address
