@@ -393,7 +393,7 @@ QuicConnection::QuicConnection(
       GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2) &&
       GetQuicRestartFlag(
           quic_dispatcher_support_multiple_cid_per_connection_v2) &&
-      GetQuicReloadableFlag(quic_connection_support_multiple_cids_v3);
+      GetQuicReloadableFlag(quic_connection_support_multiple_cids_v4);
 
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
@@ -1707,7 +1707,8 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
         group_path_response_and_challenge_sending_closer_
             ? nullptr
             : std::make_unique<QuicPacketCreator::ScopedPeerAddressContext>(
-                  &packet_creator_, last_packet_source_address_);
+                  &packet_creator_, last_packet_source_address_,
+                  /*update_connection_id=*/false);
     if (!OnPathChallengeFrameInternal(frame)) {
       return false;
     }
@@ -1729,7 +1730,8 @@ bool QuicConnection::OnPathChallengeFrameInternal(
   std::unique_ptr<QuicPacketCreator::ScopedPeerAddressContext> context;
   if (group_path_response_and_challenge_sending_closer_) {
     context = std::make_unique<QuicPacketCreator::ScopedPeerAddressContext>(
-        &packet_creator_, last_packet_source_address_);
+        &packet_creator_, last_packet_source_address_,
+        /*update_connection_id=*/false);
   }
   if (should_proactively_validate_peer_address_on_path_challenge_) {
     QUIC_RELOADABLE_FLAG_COUNT(
@@ -1993,7 +1995,7 @@ bool QuicConnection::OnNewConnectionIdFrameInner(
       perspective_ == Perspective::IS_SERVER) {
     OnClientConnectionIdAvailable();
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v3, 1, 2);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v4, 1, 2);
   return true;
 }
 
@@ -2051,7 +2053,7 @@ bool QuicConnection::OnRetireConnectionIdFrame(
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v3, 2, 2);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v4, 2, 2);
   return true;
 }
 
@@ -3186,6 +3188,15 @@ bool QuicConnection::ShouldGeneratePacket(
                 QuicVersionUsesCryptoFrames(transport_version()))
       << ENDPOINT
       << "Handshake in STREAM frames should not check ShouldGeneratePacket";
+  if (support_multiple_connection_ids_ && peer_issued_cid_manager_ != nullptr &&
+      packet_creator_.GetDestinationConnectionId().IsEmpty()) {
+    QUIC_CODE_COUNT(quic_generate_packet_blocked_by_no_connection_id);
+    QUIC_BUG_IF(quic_bug_90265_1, perspective_ == Perspective::IS_CLIENT);
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "There is no destination connection ID available to "
+                       "generate packet.";
+    return false;
+  }
   if (!count_bytes_on_alternative_path_separately_) {
     return CanWrite(retransmittable);
   }
@@ -4457,8 +4468,8 @@ void QuicConnection::SendConnectionClosePacket(
     QuicIetfTransportErrorCodes ietf_error,
     const std::string& details) {
   // Always use the current path to send CONNECTION_CLOSE.
-  QuicPacketCreator::ScopedPeerAddressContext context(&packet_creator_,
-                                                      peer_address());
+  QuicPacketCreator::ScopedPeerAddressContext context(
+      &packet_creator_, peer_address(), /*update_connection_id=*/false);
   if (!SupportsMultiplePacketNumberSpaces()) {
     QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet.";
     if (!use_encryption_level_context_) {
@@ -6425,8 +6436,8 @@ bool QuicConnection::SendPathChallenge(
     {
       // It's on current path, add the PATH_CHALLENGE the same way as other
       // frames.
-      QuicPacketCreator::ScopedPeerAddressContext context(&packet_creator_,
-                                                          peer_address);
+      QuicPacketCreator::ScopedPeerAddressContext context(
+          &packet_creator_, peer_address, /*update_connection_id=*/false);
       // This may cause connection to be closed.
       packet_creator_.AddPathChallengeFrame(data_buffer);
     }
@@ -6478,8 +6489,8 @@ bool QuicConnection::SendPathResponse(const QuicPathFrameBuffer& data_buffer,
   // Send PATH_RESPONSE using the provided peer address. If the creator has been
   // using a different peer address, it will flush before and after serializing
   // the current PATH_RESPONSE.
-  QuicPacketCreator::ScopedPeerAddressContext context(&packet_creator_,
-                                                      peer_address_to_send);
+  QuicPacketCreator::ScopedPeerAddressContext context(
+      &packet_creator_, peer_address_to_send, /*update_connection_id=*/false);
   QUIC_DVLOG(1) << ENDPOINT << "Send PATH_RESPONSE to " << peer_address_to_send;
   if (default_path_.self_address == last_packet_destination_address_) {
     // The PATH_CHALLENGE is received on the default socket. Respond on the same

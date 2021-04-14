@@ -25,6 +25,7 @@
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_error_codes.h"
+#include "quic/core/quic_packet_creator.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_path_validator.h"
 #include "quic/core/quic_simple_buffer_allocator.h"
@@ -33,6 +34,7 @@
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
+#include "quic/platform/api/quic_ip_address.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_reference_counted.h"
 #include "quic/platform/api/quic_socket_address.h"
@@ -14400,6 +14402,40 @@ TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoDefaultPath) {
   ASSERT_EQ(default_path->stateless_reset_token, frame.stateless_reset_token);
   ASSERT_TRUE(default_path->stateless_reset_token_received);
   ASSERT_EQ(packet_creator->GetDestinationConnectionId(), frame.connection_id);
+}
+
+TEST_P(QuicConnectionTest, ShouldGeneratePacketBlockedByMissingConnectionId) {
+  if (!version().HasIetfQuicFrames() ||
+      !connection_.support_multiple_connection_ids()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  connection_.set_client_connection_id(TestConnectionId(1));
+  connection_.CreateConnectionIdManager();
+  if (version().SupportsAntiAmplificationLimit()) {
+    QuicConnectionPeer::SetAddressValidated(&connection_);
+  }
+
+  ASSERT_TRUE(
+      connection_.ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA, NOT_HANDSHAKE));
+
+  QuicPacketCreator* packet_creator =
+      QuicConnectionPeer::GetPacketCreator(&connection_);
+  QuicIpAddress peer_host1;
+  peer_host1.FromString("12.12.12.12");
+  QuicSocketAddress peer_address1(peer_host1, 1235);
+
+  {
+    // No connection ID is available as context is created without any.
+    QuicPacketCreator::ScopedPeerAddressContext context(
+        packet_creator, peer_address1, EmptyQuicConnectionId(),
+        EmptyQuicConnectionId(),
+        /*update_connection_id=*/true);
+    ASSERT_FALSE(connection_.ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
+                                                  NOT_HANDSHAKE));
+  }
+  ASSERT_TRUE(
+      connection_.ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA, NOT_HANDSHAKE));
 }
 
 // Regression test for b/182571515

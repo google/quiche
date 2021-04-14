@@ -25,6 +25,7 @@
 #include "quic/core/frames/quic_stream_frame.h"
 #include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_coalesced_packet.h"
+#include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_framer.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_types.h"
@@ -83,18 +84,28 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     virtual void OnStreamFrameCoalesced(const QuicStreamFrame& /*frame*/) {}
   };
 
-  // Set the peer address which the serialized packet will be sent to during the
-  // scope of this object. Upon exiting the scope, the original peer address is
-  // restored.
+  // Set the peer address and connection IDs with which the serialized packet
+  // will be sent to during the scope of this object. Upon exiting the scope,
+  // the original peer address and connection IDs are restored.
   class QUIC_EXPORT_PRIVATE ScopedPeerAddressContext {
    public:
     ScopedPeerAddressContext(QuicPacketCreator* creator,
-                             QuicSocketAddress address);
+                             QuicSocketAddress address,
+                             bool update_connection_id);
+
+    ScopedPeerAddressContext(QuicPacketCreator* creator,
+                             QuicSocketAddress address,
+                             const QuicConnectionId& client_connection_id,
+                             const QuicConnectionId& server_connection_id,
+                             bool update_connection_id);
     ~ScopedPeerAddressContext();
 
    private:
     QuicPacketCreator* creator_;
     QuicSocketAddress old_peer_address_;
+    QuicConnectionId old_client_connection_id_;
+    QuicConnectionId old_server_connection_id_;
+    bool update_connection_id_;
   };
 
   QuicPacketCreator(QuicConnectionId server_connection_id,
@@ -260,6 +271,16 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Returns a dummy packet that is valid but contains no useful information.
   static SerializedPacket NoPacket();
+
+  // Returns the server connection ID to send over the wire.
+  const QuicConnectionId& GetServerConnectionId() const {
+    return server_connection_id_;
+  }
+
+  // Returns the client connection ID to send over the wire.
+  const QuicConnectionId& GetClientConnectionId() const {
+    return client_connection_id_;
+  }
 
   // Returns the destination connection ID to send over the wire.
   QuicConnectionId GetDestinationConnectionId() const;

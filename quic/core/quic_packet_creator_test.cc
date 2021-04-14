@@ -19,6 +19,7 @@
 #include "quic/core/crypto/quic_decrypter.h"
 #include "quic/core/crypto/quic_encrypter.h"
 #include "quic/core/frames/quic_stream_frame.h"
+#include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_data_writer.h"
 #include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_types.h"
@@ -3811,8 +3812,12 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ExtraPaddingNeeded) {
 
 TEST_F(QuicPacketCreatorMultiplePacketsTest,
        PeerAddressContextWithSameAddress) {
+  QuicConnectionId client_connection_id = TestConnectionId(1);
+  QuicConnectionId server_connection_id = TestConnectionId(2);
   QuicSocketAddress peer_addr(QuicIpAddress::Any4(), 12345);
   creator_.SetDefaultPeerAddress(peer_addr);
+  creator_.SetClientConnectionId(client_connection_id);
+  creator_.SetServerConnectionId(server_connection_id);
   // Send some stream data.
   MakeIOVector("foo", &iov_);
   EXPECT_CALL(delegate_, ShouldGeneratePacket(_, _))
@@ -3824,8 +3829,12 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   EXPECT_EQ(3u, consumed.bytes_consumed);
   EXPECT_TRUE(creator_.HasPendingFrames());
   {
-    // Set a different address via context which should trigger flush.
-    QuicPacketCreator::ScopedPeerAddressContext context(&creator_, peer_addr);
+    // Set the same address via context which should not trigger flush.
+    QuicPacketCreator::ScopedPeerAddressContext context(
+        &creator_, peer_addr, client_connection_id, server_connection_id,
+        /*update_connection_id=*/true);
+    ASSERT_EQ(client_connection_id, creator_.GetClientConnectionId());
+    ASSERT_EQ(server_connection_id, creator_.GetServerConnectionId());
     EXPECT_TRUE(creator_.HasPendingFrames());
     // Queue another STREAM_FRAME.
     QuicConsumedData consumed = creator_.ConsumeData(
@@ -3874,8 +3883,14 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
       }));
   EXPECT_TRUE(creator_.HasPendingFrames());
   {
+    QuicConnectionId client_connection_id = TestConnectionId(1);
+    QuicConnectionId server_connection_id = TestConnectionId(2);
     // Set a different address via context which should trigger flush.
-    QuicPacketCreator::ScopedPeerAddressContext context(&creator_, peer_addr1);
+    QuicPacketCreator::ScopedPeerAddressContext context(
+        &creator_, peer_addr1, client_connection_id, server_connection_id,
+        /*update_connection_id=*/true);
+    ASSERT_EQ(client_connection_id, creator_.GetClientConnectionId());
+    ASSERT_EQ(server_connection_id, creator_.GetServerConnectionId());
     EXPECT_FALSE(creator_.HasPendingFrames());
     // Queue another STREAM_FRAME.
     QuicConsumedData consumed = creator_.ConsumeData(
@@ -3891,9 +3906,15 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
 
 TEST_F(QuicPacketCreatorMultiplePacketsTest,
        NestedPeerAddressContextWithDifferentAddress) {
+  QuicConnectionId client_connection_id1 = creator_.GetClientConnectionId();
+  QuicConnectionId server_connection_id1 = creator_.GetServerConnectionId();
   QuicSocketAddress peer_addr(QuicIpAddress::Any4(), 12345);
   creator_.SetDefaultPeerAddress(peer_addr);
-  QuicPacketCreator::ScopedPeerAddressContext context(&creator_, peer_addr);
+  QuicPacketCreator::ScopedPeerAddressContext context(
+      &creator_, peer_addr, client_connection_id1, server_connection_id1,
+      /*update_connection_id=*/true);
+  ASSERT_EQ(client_connection_id1, creator_.GetClientConnectionId());
+  ASSERT_EQ(server_connection_id1, creator_.GetServerConnectionId());
 
   // Send some stream data.
   MakeIOVector("foo", &iov_);
@@ -3913,9 +3934,14 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
         ASSERT_EQ(1u, packet.retransmittable_frames.size());
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
 
+        QuicConnectionId client_connection_id2 = TestConnectionId(3);
+        QuicConnectionId server_connection_id2 = TestConnectionId(4);
         // Set up another context with a different address.
-        QuicPacketCreator::ScopedPeerAddressContext context(&creator_,
-                                                            peer_addr1);
+        QuicPacketCreator::ScopedPeerAddressContext context(
+            &creator_, peer_addr1, client_connection_id2, server_connection_id2,
+            /*update_connection_id=*/true);
+        ASSERT_EQ(client_connection_id2, creator_.GetClientConnectionId());
+        ASSERT_EQ(server_connection_id2, creator_.GetServerConnectionId());
         MakeIOVector("foo", &iov_);
         EXPECT_CALL(delegate_, ShouldGeneratePacket(_, _))
             .WillRepeatedly(Return(true));

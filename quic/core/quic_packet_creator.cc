@@ -2007,17 +2007,44 @@ void QuicPacketCreator::SetDefaultPeerAddress(QuicSocketAddress address) {
 
 QuicPacketCreator::ScopedPeerAddressContext::ScopedPeerAddressContext(
     QuicPacketCreator* creator,
-    QuicSocketAddress address)
-    : creator_(creator), old_peer_address_(creator_->packet_.peer_address) {
-  QUIC_BUG_IF(quic_bug_12398_19,
-              !creator_->packet_.peer_address.IsInitialized())
+    QuicSocketAddress address,
+    bool update_connection_id)
+    : ScopedPeerAddressContext(creator,
+                               address,
+                               EmptyQuicConnectionId(),
+                               EmptyQuicConnectionId(),
+                               update_connection_id) {}
+
+QuicPacketCreator::ScopedPeerAddressContext::ScopedPeerAddressContext(
+    QuicPacketCreator* creator,
+    QuicSocketAddress address,
+    const QuicConnectionId& client_connection_id,
+    const QuicConnectionId& server_connection_id,
+    bool update_connection_id)
+    : creator_(creator),
+      old_peer_address_(creator_->packet_.peer_address),
+      old_client_connection_id_(creator_->GetClientConnectionId()),
+      old_server_connection_id_(creator_->GetServerConnectionId()),
+      update_connection_id_(update_connection_id) {
+  QUIC_BUG_IF(quic_bug_12398_19, !old_peer_address_.IsInitialized())
       << "Context is used before seralized packet's peer address is "
          "initialized.";
   creator_->SetDefaultPeerAddress(address);
+  if (update_connection_id_) {
+    QUICHE_DCHECK(address != old_peer_address_ ||
+                  ((client_connection_id == old_client_connection_id_) &&
+                   (server_connection_id == old_server_connection_id_)));
+    creator_->SetClientConnectionId(client_connection_id);
+    creator_->SetServerConnectionId(server_connection_id);
+  }
 }
 
 QuicPacketCreator::ScopedPeerAddressContext::~ScopedPeerAddressContext() {
   creator_->SetDefaultPeerAddress(old_peer_address_);
+  if (update_connection_id_) {
+    creator_->SetClientConnectionId(old_client_connection_id_);
+    creator_->SetServerConnectionId(old_server_connection_id_);
+  }
 }
 
 QuicPacketCreator::ScopedSerializationFailureHandler::
