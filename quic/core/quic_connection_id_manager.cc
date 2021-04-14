@@ -397,7 +397,7 @@ bool QuicSelfIssuedConnectionIdManager::HasConnectionIdToConsume() const {
   return false;
 }
 
-std::optional<QuicConnectionId>
+absl::optional<QuicConnectionId>
 QuicSelfIssuedConnectionIdManager::ConsumeOneConnectionId() {
   for (const auto& active_cid_data : active_connection_ids_) {
     if (active_cid_data.second >
@@ -410,7 +410,7 @@ QuicSelfIssuedConnectionIdManager::ConsumeOneConnectionId() {
       return active_cid_data.first;
     }
   }
-  return {};
+  return absl::nullopt;
 }
 
 bool QuicSelfIssuedConnectionIdManager::IsConnectionIdInUse(

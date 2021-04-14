@@ -12,8 +12,8 @@
 
 #include <cstddef>
 #include <memory>
-#include <optional>
 
+#include "absl/types/optional.h"
 #include "quic/core/frames/quic_new_connection_id_frame.h"
 #include "quic/core/frames/quic_retire_connection_id_frame.h"
 #include "quic/core/quic_alarm.h"
@@ -144,7 +144,7 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
   // connection ID with a new probing/migration path when client uses
   // non-empty connection ID.
   bool HasConnectionIdToConsume() const;
-  std::optional<QuicConnectionId> ConsumeOneConnectionId();
+  absl::optional<QuicConnectionId> ConsumeOneConnectionId();
 
   // Returns true if the given connection ID is issued by the
   // QuicSelfIssuedConnectionIdManager and not retired locally yet. Called to
