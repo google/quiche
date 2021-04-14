@@ -87,28 +87,20 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   }
 
  protected:
-  using StaticEntryTable = spdy::HpackHeaderTable::StaticEntryTable;
-  using DynamicEntryTable = spdy::HpackHeaderTable::DynamicEntryTable;
-
   // Removes a single entry from the end of the dynamic table, updates
   // |dynamic_table_size_| and |dropped_entry_count_|.
   virtual void RemoveEntryFromEnd();
 
-  // Static Table
-
-  // Tracks QpackEntries by index. Owned by QpackStaticTable singleton.
-  const StaticEntryTable& static_entries_;
-
-  // Dynamic Table
-
-  // Queue of dynamic table entries, for lookup by index.
-  // |dynamic_entries_| owns the entries in the dynamic table.
-  DynamicEntryTable dynamic_entries_;
+  using DynamicEntryTable = spdy::HpackHeaderTable::DynamicEntryTable;
+  const DynamicEntryTable& dynamic_entries() const { return dynamic_entries_; }
 
  private:
   // Evict entries from the dynamic table until table size is less than or equal
   // to |capacity|.
   void EvictDownToCapacity(uint64_t capacity);
+
+  // Dynamic Table entries.
+  DynamicEntryTable dynamic_entries_;
 
   // Size of the dynamic table.  This is the sum of the size of its entries.
   uint64_t dynamic_table_size_;
@@ -223,6 +215,7 @@ class QUIC_EXPORT_PRIVATE QpackDecoderHeaderTable
     virtual void Cancel() = 0;
   };
 
+  QpackDecoderHeaderTable();
   ~QpackDecoderHeaderTable() override;
 
   uint64_t InsertEntry(absl::string_view name,
@@ -248,6 +241,10 @@ class QUIC_EXPORT_PRIVATE QpackDecoderHeaderTable
   void UnregisterObserver(uint64_t required_insert_count, Observer* observer);
 
  private:
+  // Static Table entries.  Owned by QpackStaticTable singleton.
+  using StaticEntryTable = spdy::HpackHeaderTable::StaticEntryTable;
+  const StaticEntryTable& static_entries_;
+
   // Observers waiting to be notified, sorted by required insert count.
   std::multimap<uint64_t, Observer*> observers_;
 };

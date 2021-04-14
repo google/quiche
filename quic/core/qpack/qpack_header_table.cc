@@ -11,8 +11,7 @@
 namespace quic {
 
 QpackHeaderTableBase::QpackHeaderTableBase()
-    : static_entries_(ObtainQpackStaticTable().GetStaticEntries()),
-      dynamic_table_size_(0),
+    : dynamic_table_size_(0),
       dynamic_table_capacity_(0),
       maximum_dynamic_table_capacity_(0),
       max_entries_(0),
@@ -94,8 +93,8 @@ uint64_t QpackEncoderHeaderTable::InsertEntry(absl::string_view name,
   const uint64_t index = QpackHeaderTableBase::InsertEntry(name, value);
 
   // Make name and value point to the new entry.
-  name = dynamic_entries_.back().name();
-  value = dynamic_entries_.back().value();
+  name = dynamic_entries().back().name();
+  value = dynamic_entries().back().value();
 
   auto index_result = dynamic_index_.insert(
       std::make_pair(QpackLookupEntry{name, value}, index));
@@ -179,7 +178,7 @@ uint64_t QpackEncoderHeaderTable::MaxInsertSizeWithoutEvictingGivenEntry(
   uint64_t max_insert_size = dynamic_table_capacity() - dynamic_table_size();
 
   uint64_t entry_index = dropped_entry_count();
-  for (const auto& entry : dynamic_entries_) {
+  for (const auto& entry : dynamic_entries()) {
     if (entry_index >= index) {
       break;
     }
@@ -199,18 +198,18 @@ uint64_t QpackEncoderHeaderTable::draining_index(
   uint64_t space_above_draining_index =
       dynamic_table_capacity() - dynamic_table_size();
 
-  if (dynamic_entries_.empty() ||
+  if (dynamic_entries().empty() ||
       space_above_draining_index >= required_space) {
     return dropped_entry_count();
   }
 
-  auto it = dynamic_entries_.begin();
+  auto it = dynamic_entries().begin();
   uint64_t entry_index = dropped_entry_count();
   while (space_above_draining_index < required_space) {
     space_above_draining_index += it->Size();
     ++it;
     ++entry_index;
-    if (it == dynamic_entries_.end()) {
+    if (it == dynamic_entries().end()) {
       return inserted_entry_count();
     }
   }
@@ -219,25 +218,28 @@ uint64_t QpackEncoderHeaderTable::draining_index(
 }
 
 void QpackEncoderHeaderTable::RemoveEntryFromEnd() {
-  QpackEntry* const entry = &dynamic_entries_.front();
+  const QpackEntry* const entry = &dynamic_entries().front();
   const uint64_t index = dropped_entry_count();
 
   auto index_it = dynamic_index_.find({entry->name(), entry->value()});
   // Remove |dynamic_index_| entry only if it points to the same
-  // QpackEntry in |dynamic_entries_|.
+  // QpackEntry in dynamic_entries().
   if (index_it != dynamic_index_.end() && index_it->second == index) {
     dynamic_index_.erase(index_it);
   }
 
   auto name_it = dynamic_name_index_.find(entry->name());
   // Remove |dynamic_name_index_| entry only if it points to the same
-  // QpackEntry in |dynamic_entries_|.
+  // QpackEntry in dynamic_entries().
   if (name_it != dynamic_name_index_.end() && name_it->second == index) {
     dynamic_name_index_.erase(name_it);
   }
 
   QpackHeaderTableBase::RemoveEntryFromEnd();
 }
+
+QpackDecoderHeaderTable::QpackDecoderHeaderTable()
+    : static_entries_(ObtainQpackStaticTable().GetStaticEntries()) {}
 
 QpackDecoderHeaderTable::~QpackDecoderHeaderTable() {
   for (auto& entry : observers_) {
@@ -279,11 +281,11 @@ const QpackEntry* QpackDecoderHeaderTable::LookupEntry(bool is_static,
 
   index -= dropped_entry_count();
 
-  if (index >= dynamic_entries_.size()) {
+  if (index >= dynamic_entries().size()) {
     return nullptr;
   }
 
-  return &dynamic_entries_[index];
+  return &dynamic_entries()[index];
 }
 
 void QpackDecoderHeaderTable::RegisterObserver(uint64_t required_insert_count,
