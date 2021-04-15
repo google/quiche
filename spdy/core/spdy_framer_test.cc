@@ -24,7 +24,6 @@
 #include "spdy/core/spdy_frame_reader.h"
 #include "spdy/core/spdy_protocol.h"
 #include "spdy/core/spdy_test_utils.h"
-#include "spdy/platform/api/spdy_flags.h"
 #include "spdy/platform/api/spdy_string_utils.h"
 
 using ::http2::Http2DecoderAdapter;

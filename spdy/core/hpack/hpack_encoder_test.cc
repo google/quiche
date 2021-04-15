@@ -12,7 +12,6 @@
 #include "common/platform/api/quiche_test.h"
 #include "spdy/core/hpack/hpack_static_table.h"
 #include "spdy/core/spdy_simple_arena.h"
-#include "spdy/platform/api/spdy_flags.h"
 
 namespace spdy {
 

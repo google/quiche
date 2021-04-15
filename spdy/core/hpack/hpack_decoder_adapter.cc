@@ -8,7 +8,6 @@
 #include "http2/decoder/decode_status.h"
 #include "common/platform/api/quiche_logging.h"
 #include "spdy/platform/api/spdy_estimate_memory_usage.h"
-#include "spdy/platform/api/spdy_flags.h"
 
 using ::http2::DecodeBuffer;
 
