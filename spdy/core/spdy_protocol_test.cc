@@ -9,9 +9,9 @@
 #include <memory>
 
 #include "common/platform/api/quiche_test.h"
+#include "common/platform/api/quiche_test_helpers.h"
 #include "spdy/core/spdy_bitmasks.h"
 #include "spdy/core/spdy_test_utils.h"
-#include "spdy/platform/api/spdy_test_helpers.h"
 
 namespace spdy {
 
@@ -31,16 +31,16 @@ std::ostream& operator<<(std::ostream& os,
 namespace test {
 
 TEST(SpdyProtocolTest, ClampSpdy3Priority) {
-  EXPECT_SPDY_BUG(EXPECT_EQ(7, ClampSpdy3Priority(8)), "Invalid priority: 8");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(7, ClampSpdy3Priority(8)), "Invalid priority: 8");
   EXPECT_EQ(kV3LowestPriority, ClampSpdy3Priority(kV3LowestPriority));
   EXPECT_EQ(kV3HighestPriority, ClampSpdy3Priority(kV3HighestPriority));
 }
 
 TEST(SpdyProtocolTest, ClampHttp2Weight) {
-  EXPECT_SPDY_BUG(EXPECT_EQ(kHttp2MinStreamWeight, ClampHttp2Weight(0)),
-                  "Invalid weight: 0");
-  EXPECT_SPDY_BUG(EXPECT_EQ(kHttp2MaxStreamWeight, ClampHttp2Weight(300)),
-                  "Invalid weight: 300");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(kHttp2MinStreamWeight, ClampHttp2Weight(0)),
+                    "Invalid weight: 0");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(kHttp2MaxStreamWeight, ClampHttp2Weight(300)),
+                    "Invalid weight: 300");
   EXPECT_EQ(kHttp2MinStreamWeight, ClampHttp2Weight(kHttp2MinStreamWeight));
   EXPECT_EQ(kHttp2MaxStreamWeight, ClampHttp2Weight(kHttp2MaxStreamWeight));
 }
@@ -175,14 +175,14 @@ TEST(SpdyStreamPrecedenceTest, Basic) {
 }
 
 TEST(SpdyStreamPrecedenceTest, Clamping) {
-  EXPECT_SPDY_BUG(EXPECT_EQ(7, SpdyStreamPrecedence(8).spdy3_priority()),
-                  "Invalid priority: 8");
-  EXPECT_SPDY_BUG(EXPECT_EQ(kHttp2MinStreamWeight,
-                            SpdyStreamPrecedence(3, 0, false).weight()),
-                  "Invalid weight: 0");
-  EXPECT_SPDY_BUG(EXPECT_EQ(kHttp2MaxStreamWeight,
-                            SpdyStreamPrecedence(3, 300, false).weight()),
-                  "Invalid weight: 300");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(7, SpdyStreamPrecedence(8).spdy3_priority()),
+                    "Invalid priority: 8");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(kHttp2MinStreamWeight,
+                              SpdyStreamPrecedence(3, 0, false).weight()),
+                    "Invalid weight: 0");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(kHttp2MaxStreamWeight,
+                              SpdyStreamPrecedence(3, 300, false).weight()),
+                    "Invalid weight: 300");
 }
 
 TEST(SpdyStreamPrecedenceTest, Copying) {

@@ -5,9 +5,9 @@
 #include "http2/core/priority_write_scheduler.h"
 
 #include "common/platform/api/quiche_test.h"
+#include "common/platform/api/quiche_test_helpers.h"
 #include "spdy/core/spdy_protocol.h"
 #include "spdy/core/spdy_test_utils.h"
-#include "spdy/platform/api/spdy_test_helpers.h"
 
 namespace http2 {
 namespace test {
@@ -52,15 +52,15 @@ TEST_F(PriorityWriteSchedulerTest, RegisterUnregisterStreams) {
   EXPECT_EQ(1u, scheduler_.NumRegisteredStreams());
 
   // Root stream counts as already registered.
-  EXPECT_SPDY_BUG(
+  EXPECT_QUICHE_BUG(
       scheduler_.RegisterStream(kHttp2RootStreamId, SpdyStreamPrecedence(1)),
       "Stream 0 already registered");
 
   // Try redundant registrations.
-  EXPECT_SPDY_BUG(scheduler_.RegisterStream(1, SpdyStreamPrecedence(1)),
-                  "Stream 1 already registered");
-  EXPECT_SPDY_BUG(scheduler_.RegisterStream(1, SpdyStreamPrecedence(2)),
-                  "Stream 1 already registered");
+  EXPECT_QUICHE_BUG(scheduler_.RegisterStream(1, SpdyStreamPrecedence(1)),
+                    "Stream 1 already registered");
+  EXPECT_QUICHE_BUG(scheduler_.RegisterStream(1, SpdyStreamPrecedence(2)),
+                    "Stream 1 already registered");
 
   scheduler_.RegisterStream(2, SpdyStreamPrecedence(3));
   EXPECT_EQ(2u, scheduler_.NumRegisteredStreams());
@@ -74,8 +74,8 @@ TEST_F(PriorityWriteSchedulerTest, RegisterUnregisterStreams) {
   EXPECT_EQ(0u, scheduler_.NumRegisteredStreams());
 
   // Try redundant unregistration.
-  EXPECT_SPDY_BUG(scheduler_.UnregisterStream(1), "Stream 1 not registered");
-  EXPECT_SPDY_BUG(scheduler_.UnregisterStream(2), "Stream 2 not registered");
+  EXPECT_QUICHE_BUG(scheduler_.UnregisterStream(1), "Stream 1 not registered");
+  EXPECT_QUICHE_BUG(scheduler_.UnregisterStream(2), "Stream 2 not registered");
 }
 
 TEST_F(PriorityWriteSchedulerTest, RegisterStreamWithHttp2StreamDependency) {
@@ -88,9 +88,10 @@ TEST_F(PriorityWriteSchedulerTest, RegisterStreamWithHttp2StreamDependency) {
   EXPECT_EQ(3, scheduler_.GetStreamPrecedence(1).spdy3_priority());
   EXPECT_FALSE(scheduler_.HasReadyStreams());
 
-  EXPECT_SPDY_BUG(scheduler_.RegisterStream(
-                      1, SpdyStreamPrecedence(kHttp2RootStreamId, 256, false)),
-                  "Stream 1 already registered");
+  EXPECT_QUICHE_BUG(
+      scheduler_.RegisterStream(
+          1, SpdyStreamPrecedence(kHttp2RootStreamId, 256, false)),
+      "Stream 1 already registered");
   EXPECT_TRUE(scheduler_.GetStreamPrecedence(1).is_spdy3_priority());
   EXPECT_EQ(3, scheduler_.GetStreamPrecedence(1).spdy3_priority());
 
@@ -113,8 +114,8 @@ TEST_F(PriorityWriteSchedulerTest, GetStreamPrecedence) {
   EXPECT_EQ(3, scheduler_.GetStreamPrecedence(1).spdy3_priority());
 
   // Redundant registration shouldn't change stream priority.
-  EXPECT_SPDY_BUG(scheduler_.RegisterStream(1, SpdyStreamPrecedence(4)),
-                  "Stream 1 already registered");
+  EXPECT_QUICHE_BUG(scheduler_.RegisterStream(1, SpdyStreamPrecedence(4)),
+                    "Stream 1 already registered");
   EXPECT_EQ(3, scheduler_.GetStreamPrecedence(1).spdy3_priority());
 
   scheduler_.UpdateStreamPrecedence(1, SpdyStreamPrecedence(5));
@@ -210,11 +211,11 @@ TEST_F(PriorityWriteSchedulerTest,
 
 TEST_F(PriorityWriteSchedulerTest, MarkStreamReadyBack) {
   EXPECT_FALSE(scheduler_.HasReadyStreams());
-  EXPECT_SPDY_BUG(scheduler_.MarkStreamReady(1, false),
-                  "Stream 1 not registered");
+  EXPECT_QUICHE_BUG(scheduler_.MarkStreamReady(1, false),
+                    "Stream 1 not registered");
   EXPECT_FALSE(scheduler_.HasReadyStreams());
-  EXPECT_SPDY_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
-                  "No ready streams available");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
+                    "No ready streams available");
 
   // Add a bunch of ready streams to tail of per-priority lists.
   // Expected order: (P2) 4, (P3) 1, 2, 3, (P5) 5.
@@ -235,17 +236,17 @@ TEST_F(PriorityWriteSchedulerTest, MarkStreamReadyBack) {
   EXPECT_EQ(2u, scheduler_.PopNextReadyStream());
   EXPECT_EQ(3u, scheduler_.PopNextReadyStream());
   EXPECT_EQ(5u, scheduler_.PopNextReadyStream());
-  EXPECT_SPDY_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
-                  "No ready streams available");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
+                    "No ready streams available");
 }
 
 TEST_F(PriorityWriteSchedulerTest, MarkStreamReadyFront) {
   EXPECT_FALSE(scheduler_.HasReadyStreams());
-  EXPECT_SPDY_BUG(scheduler_.MarkStreamReady(1, true),
-                  "Stream 1 not registered");
+  EXPECT_QUICHE_BUG(scheduler_.MarkStreamReady(1, true),
+                    "Stream 1 not registered");
   EXPECT_FALSE(scheduler_.HasReadyStreams());
-  EXPECT_SPDY_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
-                  "No ready streams available");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
+                    "No ready streams available");
 
   // Add a bunch of ready streams to head of per-priority lists.
   // Expected order: (P2) 4, (P3) 3, 2, 1, (P5) 5
@@ -266,8 +267,8 @@ TEST_F(PriorityWriteSchedulerTest, MarkStreamReadyFront) {
   EXPECT_EQ(2u, scheduler_.PopNextReadyStream());
   EXPECT_EQ(1u, scheduler_.PopNextReadyStream());
   EXPECT_EQ(5u, scheduler_.PopNextReadyStream());
-  EXPECT_SPDY_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
-                  "No ready streams available");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
+                    "No ready streams available");
 }
 
 TEST_F(PriorityWriteSchedulerTest, MarkStreamReadyBackAndFront) {
@@ -294,8 +295,8 @@ TEST_F(PriorityWriteSchedulerTest, MarkStreamReadyBackAndFront) {
   EXPECT_EQ(3u, scheduler_.PopNextReadyStream());
   EXPECT_EQ(1u, scheduler_.PopNextReadyStream());
   EXPECT_EQ(5u, scheduler_.PopNextReadyStream());
-  EXPECT_SPDY_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
-                  "No ready streams available");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
+                    "No ready streams available");
 }
 
 TEST_F(PriorityWriteSchedulerTest, MarkStreamNotReady) {
@@ -308,15 +309,16 @@ TEST_F(PriorityWriteSchedulerTest, MarkStreamNotReady) {
   EXPECT_EQ(0u, scheduler_.NumReadyStreams());
 
   // Empty pop should fail.
-  EXPECT_SPDY_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
-                  "No ready streams available");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
+                    "No ready streams available");
 
   // Tolerate redundant marking of a stream as not ready.
   scheduler_.MarkStreamNotReady(1);
   EXPECT_EQ(0u, scheduler_.NumReadyStreams());
 
   // Should only be able to mark registered streams.
-  EXPECT_SPDY_BUG(scheduler_.MarkStreamNotReady(3), "Stream 3 not registered");
+  EXPECT_QUICHE_BUG(scheduler_.MarkStreamNotReady(3),
+                    "Stream 3 not registered");
 }
 
 TEST_F(PriorityWriteSchedulerTest, UnregisterRemovesStream) {
@@ -327,8 +329,8 @@ TEST_F(PriorityWriteSchedulerTest, UnregisterRemovesStream) {
   // Unregistering a stream should remove it from set of ready streams.
   scheduler_.UnregisterStream(3);
   EXPECT_EQ(0u, scheduler_.NumReadyStreams());
-  EXPECT_SPDY_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
-                  "No ready streams available");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
+                    "No ready streams available");
 }
 
 TEST_F(PriorityWriteSchedulerTest, ShouldYield) {
@@ -359,10 +361,10 @@ TEST_F(PriorityWriteSchedulerTest, ShouldYield) {
 }
 
 TEST_F(PriorityWriteSchedulerTest, GetLatestEventWithPrecedence) {
-  EXPECT_SPDY_BUG(scheduler_.RecordStreamEventTime(3, 5),
-                  "Stream 3 not registered");
-  EXPECT_SPDY_BUG(EXPECT_EQ(0, scheduler_.GetLatestEventWithPrecedence(4)),
-                  "Stream 4 not registered");
+  EXPECT_QUICHE_BUG(scheduler_.RecordStreamEventTime(3, 5),
+                    "Stream 3 not registered");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(0, scheduler_.GetLatestEventWithPrecedence(4)),
+                    "Stream 4 not registered");
 
   for (int i = 1; i < 5; ++i) {
     scheduler_.RegisterStream(i, SpdyStreamPrecedence(i));

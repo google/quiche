@@ -5,7 +5,7 @@
 #include "absl/functional/bind_front.h"
 #include "http2/test_tools/http2_random.h"
 #include "common/platform/api/quiche_test.h"
-#include "spdy/platform/api/spdy_test_helpers.h"
+#include "common/platform/api/quiche_test_helpers.h"
 
 namespace http2 {
 namespace adapter {
@@ -97,13 +97,13 @@ TEST_F(WindowManagerTest, AvoidWindowUnderflow) {
 TEST_F(WindowManagerTest, AvoidBufferedUnderflow) {
   EXPECT_EQ(peer_.buffered(), 0);
   // Don't flush more than has been buffered!
-  EXPECT_SPDY_BUG(wm_.MarkDataFlushed(1), "buffered underflow");
+  EXPECT_QUICHE_BUG(wm_.MarkDataFlushed(1), "buffered underflow");
   EXPECT_EQ(peer_.buffered(), 0);
 
   wm_.MarkDataBuffered(42);
   EXPECT_EQ(peer_.buffered(), 42);
   // Don't flush more than has been buffered!
-  EXPECT_SPDY_BUG(wm_.MarkDataFlushed(43), "buffered underflow");
+  EXPECT_QUICHE_BUG(wm_.MarkDataFlushed(43), "buffered underflow");
   EXPECT_EQ(peer_.buffered(), 0);
 }
 

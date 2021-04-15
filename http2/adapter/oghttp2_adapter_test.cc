@@ -3,7 +3,7 @@
 #include "http2/adapter/mock_http2_visitor.h"
 #include "http2/adapter/test_utils.h"
 #include "common/platform/api/quiche_test.h"
-#include "spdy/platform/api/spdy_test_helpers.h"
+#include "common/platform/api/quiche_test_helpers.h"
 
 namespace http2 {
 namespace adapter {
@@ -22,23 +22,23 @@ class OgHttp2AdapterTest : public testing::Test {
 };
 
 TEST_F(OgHttp2AdapterTest, ProcessBytes) {
-  EXPECT_SPDY_BUG(adapter_->ProcessBytes("fake data"), "Not implemented");
+  EXPECT_QUICHE_BUG(adapter_->ProcessBytes("fake data"), "Not implemented");
 }
 
 TEST_F(OgHttp2AdapterTest, SubmitMetadata) {
-  EXPECT_SPDY_BUG(adapter_->SubmitMetadata(3, true), "Not implemented");
+  EXPECT_QUICHE_BUG(adapter_->SubmitMetadata(3, true), "Not implemented");
 }
 
 TEST_F(OgHttp2AdapterTest, GetPeerConnectionWindow) {
   int peer_window = 0;
-  EXPECT_SPDY_BUG(peer_window = adapter_->GetPeerConnectionWindow(),
-                  "Not implemented");
+  EXPECT_QUICHE_BUG(peer_window = adapter_->GetPeerConnectionWindow(),
+                    "Not implemented");
   EXPECT_GT(peer_window, 0);
 }
 
 TEST_F(OgHttp2AdapterTest, MarkDataConsumedForStream) {
-  EXPECT_SPDY_BUG(adapter_->MarkDataConsumedForStream(1, 11),
-                  "Stream 1 not found");
+  EXPECT_QUICHE_BUG(adapter_->MarkDataConsumedForStream(1, 11),
+                    "Stream 1 not found");
 }
 
 TEST_F(OgHttp2AdapterTest, TestSerialize) {

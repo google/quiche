@@ -7,7 +7,7 @@
 #include <initializer_list>
 
 #include "common/platform/api/quiche_test.h"
-#include "spdy/platform/api/spdy_test_helpers.h"
+#include "common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
@@ -68,7 +68,7 @@ TEST_F(Http2PriorityWriteSchedulerTest, RegisterAndUnregisterStreams) {
 
   scheduler_.RegisterStream(5, SpdyStreamPrecedence(0, 50, false));
   // Should not be able to add a stream with an id that already exists.
-  EXPECT_SPDY_BUG(
+  EXPECT_QUICHE_BUG(
       scheduler_.RegisterStream(5, SpdyStreamPrecedence(1, 50, false)),
       "Stream 5 already registered");
   EXPECT_EQ(3u, scheduler_.NumRegisteredStreams());
@@ -87,7 +87,7 @@ TEST_F(Http2PriorityWriteSchedulerTest, RegisterAndUnregisterStreams) {
 
   scheduler_.UnregisterStream(5);
   // Cannot remove a stream that has already been removed.
-  EXPECT_SPDY_BUG(scheduler_.UnregisterStream(5), "Stream 5 not registered");
+  EXPECT_QUICHE_BUG(scheduler_.UnregisterStream(5), "Stream 5 not registered");
   EXPECT_EQ(3u, scheduler_.NumRegisteredStreams());
   EXPECT_TRUE(scheduler_.StreamRegistered(1));
   EXPECT_FALSE(scheduler_.StreamRegistered(5));
@@ -99,7 +99,7 @@ TEST_F(Http2PriorityWriteSchedulerTest, RegisterAndUnregisterStreams) {
   EXPECT_TRUE(scheduler_.StreamRegistered(7));
   EXPECT_EQ(0u, scheduler_.GetStreamPrecedence(7).parent_id());
   // Now stream 7 already exists, so this should fail:
-  EXPECT_SPDY_BUG(
+  EXPECT_QUICHE_BUG(
       scheduler_.RegisterStream(7, SpdyStreamPrecedence(1, 70, false)),
       "Stream 7 already registered");
   // Try adding a second child to stream 13:
@@ -121,8 +121,8 @@ TEST_F(Http2PriorityWriteSchedulerTest, RegisterStreamWithSpdy3Priority) {
   EXPECT_EQ(kHttp2RootStreamId, scheduler_.GetStreamPrecedence(1).parent_id());
   EXPECT_THAT(scheduler_.GetStreamChildren(1), IsEmpty());
 
-  EXPECT_SPDY_BUG(scheduler_.RegisterStream(1, SpdyStreamPrecedence(4)),
-                  "Stream 1 already registered");
+  EXPECT_QUICHE_BUG(scheduler_.RegisterStream(1, SpdyStreamPrecedence(4)),
+                    "Stream 1 already registered");
   EXPECT_EQ(3, scheduler_.GetStreamPrecedence(1).spdy3_priority());
 }
 
@@ -161,20 +161,20 @@ TEST_F(Http2PriorityWriteSchedulerTest, GetStreamParent) {
 }
 
 TEST_F(Http2PriorityWriteSchedulerTest, GetStreamChildren) {
-  EXPECT_SPDY_BUG(EXPECT_THAT(scheduler_.GetStreamChildren(7), IsEmpty()),
-                  "Stream 7 not registered");
+  EXPECT_QUICHE_BUG(EXPECT_THAT(scheduler_.GetStreamChildren(7), IsEmpty()),
+                    "Stream 7 not registered");
   scheduler_.RegisterStream(7, SpdyStreamPrecedence(0, 70, false));
   EXPECT_THAT(scheduler_.GetStreamChildren(7), IsEmpty());
   scheduler_.RegisterStream(9, SpdyStreamPrecedence(7, 90, false));
   scheduler_.RegisterStream(15, SpdyStreamPrecedence(7, 150, false));
   EXPECT_THAT(scheduler_.GetStreamChildren(7), UnorderedElementsAre(9, 15));
   scheduler_.UnregisterStream(7);
-  EXPECT_SPDY_BUG(EXPECT_THAT(scheduler_.GetStreamChildren(7), IsEmpty()),
-                  "Stream 7 not registered");
+  EXPECT_QUICHE_BUG(EXPECT_THAT(scheduler_.GetStreamChildren(7), IsEmpty()),
+                    "Stream 7 not registered");
 }
 
 TEST_F(Http2PriorityWriteSchedulerTest, UpdateStreamWeight) {
-  EXPECT_SPDY_BUG(
+  EXPECT_QUICHE_BUG(
       scheduler_.UpdateStreamPrecedence(0, SpdyStreamPrecedence(0, 10, false)),
       "Cannot set precedence of root stream");
 
@@ -189,11 +189,11 @@ TEST_F(Http2PriorityWriteSchedulerTest, UpdateStreamWeight) {
   EXPECT_EQ(20, scheduler_.GetStreamPrecedence(3).weight());
   ASSERT_TRUE(peer_.ValidateInvariants());
 
-  EXPECT_SPDY_BUG(
+  EXPECT_QUICHE_BUG(
       scheduler_.UpdateStreamPrecedence(3, SpdyStreamPrecedence(0, 500, false)),
       "Invalid weight: 500");
   EXPECT_EQ(kHttp2MaxStreamWeight, scheduler_.GetStreamPrecedence(3).weight());
-  EXPECT_SPDY_BUG(
+  EXPECT_QUICHE_BUG(
       scheduler_.UpdateStreamPrecedence(3, SpdyStreamPrecedence(0, 0, false)),
       "Invalid weight: 0");
   EXPECT_EQ(kHttp2MinStreamWeight, scheduler_.GetStreamPrecedence(3).weight());
@@ -574,10 +574,10 @@ TEST_F(Http2PriorityWriteSchedulerTest, UpdateStreamParentToParent) {
 
 TEST_F(Http2PriorityWriteSchedulerTest, UpdateStreamParentToSelf) {
   scheduler_.RegisterStream(1, SpdyStreamPrecedence(0, 100, false));
-  EXPECT_SPDY_BUG(
+  EXPECT_QUICHE_BUG(
       scheduler_.UpdateStreamPrecedence(1, SpdyStreamPrecedence(1, 100, false)),
       "Cannot set stream to be its own parent");
-  EXPECT_SPDY_BUG(
+  EXPECT_QUICHE_BUG(
       scheduler_.UpdateStreamPrecedence(1, SpdyStreamPrecedence(1, 100, true)),
       "Cannot set stream to be its own parent");
   EXPECT_THAT(scheduler_.GetStreamChildren(0), ElementsAre(1));
@@ -666,7 +666,7 @@ TEST_F(Http2PriorityWriteSchedulerTest, HasReadyStreams) {
   scheduler_.UnregisterStream(1);
   EXPECT_FALSE(scheduler_.HasReadyStreams());
   ASSERT_TRUE(peer_.ValidateInvariants());
-  EXPECT_SPDY_BUG(scheduler_.IsStreamReady(1), "Stream 1 not registered");
+  EXPECT_QUICHE_BUG(scheduler_.IsStreamReady(1), "Stream 1 not registered");
 }
 
 TEST_F(Http2PriorityWriteSchedulerTest, CalculateRoundedWeights) {
@@ -704,10 +704,10 @@ TEST_F(Http2PriorityWriteSchedulerTest, CalculateRoundedWeights) {
 }
 
 TEST_F(Http2PriorityWriteSchedulerTest, GetLatestEventWithPrecedence) {
-  EXPECT_SPDY_BUG(scheduler_.RecordStreamEventTime(3, 5),
-                  "Stream 3 not registered");
-  EXPECT_SPDY_BUG(EXPECT_EQ(0, scheduler_.GetLatestEventWithPrecedence(4)),
-                  "Stream 4 not registered");
+  EXPECT_QUICHE_BUG(scheduler_.RecordStreamEventTime(3, 5),
+                    "Stream 3 not registered");
+  EXPECT_QUICHE_BUG(EXPECT_EQ(0, scheduler_.GetLatestEventWithPrecedence(4)),
+                    "Stream 4 not registered");
 
   for (int i = 1; i < 5; ++i) {
     int weight = SpdyStreamPrecedence(i).weight();
