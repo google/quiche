@@ -8,6 +8,7 @@ namespace http2 {
 namespace adapter {
 
 spdy::SpdyErrorCode TranslateErrorCode(Http2ErrorCode code);
+Http2ErrorCode TranslateErrorCode(spdy::SpdyErrorCode code);
 
 }  // namespace adapter
 }  // namespace http2

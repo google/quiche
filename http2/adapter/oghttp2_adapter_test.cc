@@ -1,6 +1,7 @@
 #include "http2/adapter/oghttp2_adapter.h"
 
 #include "http2/adapter/mock_http2_visitor.h"
+#include "http2/adapter/test_frame_sequence.h"
 #include "http2/adapter/test_utils.h"
 #include "common/platform/api/quiche_test.h"
 #include "common/platform/api/quiche_test_helpers.h"
@@ -13,7 +14,7 @@ namespace {
 class OgHttp2AdapterTest : public testing::Test {
  protected:
   void SetUp() override {
-    OgHttp2Adapter::Options options;
+    OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
     adapter_ = OgHttp2Adapter::Create(http2_visitor_, options);
   }
 
@@ -22,7 +23,11 @@ class OgHttp2AdapterTest : public testing::Test {
 };
 
 TEST_F(OgHttp2AdapterTest, ProcessBytes) {
-  EXPECT_QUICHE_BUG(adapter_->ProcessBytes("fake data"), "Not implemented");
+  EXPECT_CALL(http2_visitor_, OnSettingsStart());
+  EXPECT_CALL(http2_visitor_, OnSettingsEnd());
+  EXPECT_CALL(http2_visitor_, OnPing(17, false));
+  adapter_->ProcessBytes(
+      TestFrameSequence().ClientPreface().Ping(17).Serialize());
 }
 
 TEST_F(OgHttp2AdapterTest, SubmitMetadata) {
@@ -30,9 +35,7 @@ TEST_F(OgHttp2AdapterTest, SubmitMetadata) {
 }
 
 TEST_F(OgHttp2AdapterTest, GetPeerConnectionWindow) {
-  int peer_window = 0;
-  EXPECT_QUICHE_BUG(peer_window = adapter_->GetPeerConnectionWindow(),
-                    "Not implemented");
+  const int peer_window = adapter_->GetPeerConnectionWindow();
   EXPECT_GT(peer_window, 0);
 }
 
@@ -42,7 +45,7 @@ TEST_F(OgHttp2AdapterTest, MarkDataConsumedForStream) {
 }
 
 TEST_F(OgHttp2AdapterTest, TestSerialize) {
-  EXPECT_FALSE(adapter_->session().want_read());
+  EXPECT_TRUE(adapter_->session().want_read());
   EXPECT_FALSE(adapter_->session().want_write());
 
   adapter_->SubmitSettings(
