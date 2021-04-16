@@ -724,7 +724,6 @@ size_t QuicPacketCreator::ExpansionOnNewFrameWithLastFrame(
 }
 
 size_t QuicPacketCreator::BytesFree() const {
-  QUICHE_DCHECK_GE(max_plaintext_size_, PacketSize());
   return max_plaintext_size_ -
          std::min(max_plaintext_size_, PacketSize() + ExpansionOnNewFrame());
 }

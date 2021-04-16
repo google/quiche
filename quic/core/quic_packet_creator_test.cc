@@ -2262,6 +2262,32 @@ TEST_P(QuicPacketCreatorTest, SoftMaxPacketLength) {
   EXPECT_TRUE(creator_.HasPendingFrames());
 }
 
+TEST_P(QuicPacketCreatorTest,
+       ChangingEncryptionLevelRemovesSoftMaxPacketLength) {
+  if (!client_framer_.version().CanSendCoalescedPackets()) {
+    return;
+  }
+  // First set encryption level to forward secure which has the shortest header.
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  const QuicByteCount previous_max_packet_length = creator_.max_packet_length();
+  const size_t min_acceptable_packet_size =
+      GetPacketHeaderOverhead(client_framer_.transport_version()) +
+      QuicPacketCreator::MinPlaintextPacketSize(client_framer_.version()) +
+      GetEncryptionOverhead();
+  // Then set the soft max packet length to the lowest allowed value.
+  creator_.SetSoftMaxPacketLength(min_acceptable_packet_size);
+  // Make sure that the low value was accepted.
+  EXPECT_EQ(creator_.max_packet_length(), min_acceptable_packet_size);
+  // Now set the encryption level to handshake which increases the header size.
+  creator_.set_encryption_level(ENCRYPTION_HANDSHAKE);
+  // Make sure that adding a frame removes the the soft max packet length.
+  QuicAckFrame ack_frame(InitAckFrame(1));
+  frames_.push_back(QuicFrame(&ack_frame));
+  SerializedPacket serialized = SerializeAllFrames(frames_);
+  EXPECT_EQ(serialized.encryption_level, ENCRYPTION_HANDSHAKE);
+  EXPECT_EQ(creator_.max_packet_length(), previous_max_packet_length);
+}
+
 class MockDelegate : public QuicPacketCreator::DelegateInterface {
  public:
   MockDelegate() {}
