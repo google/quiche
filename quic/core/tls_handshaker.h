@@ -16,6 +16,7 @@
 #include "quic/core/crypto/tls_connection.h"
 #include "quic/core/quic_session.h"
 #include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_flags.h"
 
 namespace quic {
 
@@ -154,6 +155,9 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   // SendAlert causes this TlsHandshaker to close the QUIC connection with an
   // error code corresponding to the TLS alert description |desc|.
   void SendAlert(EncryptionLevel level, uint8_t desc) override;
+
+  const bool add_packet_flusher_on_async_op_done_ =
+      GetQuicReloadableFlag(quic_add_packet_flusher_on_async_op_done);
 
  private:
   // ProofVerifierCallbackImpl handles the result of an asynchronous certificate

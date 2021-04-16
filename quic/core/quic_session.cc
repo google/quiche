@@ -1775,6 +1775,11 @@ void QuicSession::OnHandshakeCallbackDone() {
   }
 }
 
+bool QuicSession::PacketFlusherAttached() const {
+  QUICHE_DCHECK(connection_->connected());
+  return connection()->packet_creator().PacketFlusherAttached();
+}
+
 void QuicSession::OnCryptoHandshakeMessageSent(
     const CryptoHandshakeMessage& /*message*/) {}
 

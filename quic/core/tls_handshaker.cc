@@ -93,6 +93,13 @@ void TlsHandshaker::AdvanceHandshake() {
     return;
   }
 
+  QUICHE_BUG_IF(quic_tls_server_async_done_no_flusher,
+                SSL_is_server(ssl()) && add_packet_flusher_on_async_op_done_ &&
+                    !handshaker_delegate_->PacketFlusherAttached())
+      << "is_server:" << SSL_is_server(ssl())
+      << ", add_packet_flusher_on_async_op_done_:"
+      << add_packet_flusher_on_async_op_done_;
+
   QUIC_VLOG(1) << "TlsHandshaker: continuing handshake";
   int rv = SSL_do_handshake(ssl());
   if (rv == 1) {

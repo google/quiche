@@ -74,6 +74,9 @@ class QUIC_EXPORT_PRIVATE HandshakerDelegateInterface {
 
   // Called at the end of an handshake operation callback.
   virtual void OnHandshakeCallbackDone() = 0;
+
+  // Whether a packet flusher is currently attached.
+  virtual bool PacketFlusherAttached() const = 0;
 };
 
 }  // namespace quic

@@ -384,6 +384,19 @@ TlsServerHandshaker::CreateCurrentOneRttEncrypter() {
 void TlsServerHandshaker::OverrideQuicConfigDefaults(QuicConfig* /*config*/) {}
 
 void TlsServerHandshaker::AdvanceHandshakeFromCallback() {
+  std::unique_ptr<QuicConnection::ScopedPacketFlusher> flusher;
+  if (add_packet_flusher_on_async_op_done_) {
+    if (session()->PacketFlusherAttached()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_add_packet_flusher_on_async_op_done, 1,
+                                   2);
+    } else {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_add_packet_flusher_on_async_op_done, 2,
+                                   2);
+    }
+    flusher = std::make_unique<QuicConnection::ScopedPacketFlusher>(
+        session()->connection());
+  }
+
   AdvanceHandshake();
   if (!is_connection_closed()) {
     handshaker_delegate()->OnHandshakeCallbackDone();
