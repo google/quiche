@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "absl/base/macros.h"
+#include "absl/strings/escaping.h"
 #include "http2/hpack/decoder/hpack_decoder_state.h"
 #include "http2/hpack/decoder/hpack_decoder_tables.h"
 #include "http2/hpack/tools/hpack_block_builder.h"
@@ -680,7 +681,7 @@ TEST_P(HpackDecoderAdapterTest, TruncatedHuffmanLiteral) {
   //                                         | www.example.com
   //                                         | -> :authority: www.example.com
 
-  std::string first = SpdyHexDecode("418cf1e3c2e5f23a6ba0ab90f4ff");
+  std::string first = absl::HexStringToBytes("418cf1e3c2e5f23a6ba0ab90f4ff");
   EXPECT_TRUE(DecodeHeaderBlock(first));
   first.pop_back();
   EXPECT_FALSE(DecodeHeaderBlock(first));
@@ -700,9 +701,9 @@ TEST_P(HpackDecoderAdapterTest, HuffmanEOSError) {
   //                                         | www.example.com
   //                                         | -> :authority: www.example.com
 
-  std::string first = SpdyHexDecode("418cf1e3c2e5f23a6ba0ab90f4ff");
+  std::string first = absl::HexStringToBytes("418cf1e3c2e5f23a6ba0ab90f4ff");
   EXPECT_TRUE(DecodeHeaderBlock(first));
-  first = SpdyHexDecode("418df1e3c2e5f23a6ba0ab90f4ffff");
+  first = absl::HexStringToBytes("418df1e3c2e5f23a6ba0ab90f4ffff");
   EXPECT_FALSE(DecodeHeaderBlock(first));
 }
 
@@ -749,7 +750,8 @@ TEST_P(HpackDecoderAdapterTest, SectionC4RequestHuffmanExamples) {
   //                                         |     Decoded:
   //                                         | www.example.com
   //                                         | -> :authority: www.example.com
-  std::string first = SpdyHexDecode("828684418cf1e3c2e5f23a6ba0ab90f4ff");
+  std::string first =
+      absl::HexStringToBytes("828684418cf1e3c2e5f23a6ba0ab90f4ff");
   const SpdyHeaderBlock& first_header_set = DecodeBlockExpectingSuccess(first);
 
   EXPECT_THAT(first_header_set,
@@ -786,7 +788,7 @@ TEST_P(HpackDecoderAdapterTest, SectionC4RequestHuffmanExamples) {
   //                                         | no-cache
   //                                         | -> cache-control: no-cache
 
-  std::string second = SpdyHexDecode("828684be5886a8eb10649cbf");
+  std::string second = absl::HexStringToBytes("828684be5886a8eb10649cbf");
   const SpdyHeaderBlock& second_header_set =
       DecodeBlockExpectingSuccess(second);
 
@@ -828,8 +830,8 @@ TEST_P(HpackDecoderAdapterTest, SectionC4RequestHuffmanExamples) {
   //                                         |     Decoded:
   //                                         | custom-value
   //                                         | -> custom-key: custom-value
-  std::string third =
-      SpdyHexDecode("828785bf408825a849e95ba97d7f8925a849e95bb8e8b4bf");
+  std::string third = absl::HexStringToBytes(
+      "828785bf408825a849e95ba97d7f8925a849e95bb8e8b4bf");
   const SpdyHeaderBlock& third_header_set = DecodeBlockExpectingSuccess(third);
 
   EXPECT_THAT(
@@ -898,7 +900,7 @@ TEST_P(HpackDecoderAdapterTest, SectionC6ResponseHuffmanExamples) {
   //                                         | -> location: https://www.e
   //                                         |    xample.com
 
-  std::string first = SpdyHexDecode(
+  std::string first = absl::HexStringToBytes(
       "488264025885aec3771a4b6196d07abe"
       "941054d444a8200595040b8166e082a6"
       "2d1bff6e919d29ad171863c78f0b97c8"
@@ -941,7 +943,7 @@ TEST_P(HpackDecoderAdapterTest, SectionC6ResponseHuffmanExamples) {
   //                                         |   idx = 63
   //                                         | -> location:
   //                                         |   https://www.example.com
-  std::string second = SpdyHexDecode("4883640effc1c0bf");
+  std::string second = absl::HexStringToBytes("4883640effc1c0bf");
   const SpdyHeaderBlock& second_header_set =
       DecodeBlockExpectingSuccess(second);
 
@@ -1013,7 +1015,7 @@ TEST_P(HpackDecoderAdapterTest, SectionC6ResponseHuffmanExamples) {
   //                                         | -> set-cookie: foo=ASDJKHQ
   //                                         |   KBZXOQWEOPIUAXQWEOIU;
   //                                         |   max-age=3600; version=1
-  std::string third = SpdyHexDecode(
+  std::string third = absl::HexStringToBytes(
       "88c16196d07abe941054d444a8200595"
       "040b8166e084a62d1bffc05a839bd9ab"
       "77ad94e7821dd7f2e6c7b335dfdfcd5b"
@@ -1116,7 +1118,7 @@ TEST_P(HpackDecoderAdapterTest, Cookies) {
   SpdyHeaderBlock expected_header_set;
   expected_header_set["cookie"] = "foo; bar";
 
-  EXPECT_TRUE(DecodeHeaderBlock(SpdyHexDecode("608294e76003626172")));
+  EXPECT_TRUE(DecodeHeaderBlock(absl::HexStringToBytes("608294e76003626172")));
   EXPECT_EQ(expected_header_set, decoded_block());
 }
 

@@ -17,16 +17,9 @@ inline char SpdyHexDigitToInt(char c) {
   return SpdyHexDigitToIntImpl(c);
 }
 
-inline std::string SpdyHexDecode(absl::string_view data) {
-  return SpdyHexDecodeImpl(data);
-}
 
 inline bool SpdyHexDecodeToUInt32(absl::string_view data, uint32_t* out) {
   return SpdyHexDecodeToUInt32Impl(data, out);
-}
-
-inline std::string SpdyHexEncode(const char* bytes, size_t size) {
-  return SpdyHexEncodeImpl(bytes, size);
 }
 
 inline std::string SpdyHexDump(absl::string_view data) {

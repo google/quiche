@@ -8,6 +8,7 @@
 
 #include <initializer_list>
 
+#include "absl/strings/escaping.h"
 #include "http2/platform/api/http2_logging.h"
 #include "http2/platform/api/http2_string_utils.h"
 #include "http2/platform/api/http2_test_helpers.h"
@@ -151,7 +152,7 @@ TEST_F(HpackDecoderStringBufferTest, PlainSplit) {
 }
 
 TEST_F(HpackDecoderStringBufferTest, HuffmanWhole) {
-  std::string encoded = Http2HexDecode("f1e3c2e5f23a6ba0ab90f4ff");
+  std::string encoded = absl::HexStringToBytes("f1e3c2e5f23a6ba0ab90f4ff");
   absl::string_view decoded("www.example.com");
 
   EXPECT_EQ(state(), State::RESET);
@@ -176,7 +177,7 @@ TEST_F(HpackDecoderStringBufferTest, HuffmanWhole) {
 }
 
 TEST_F(HpackDecoderStringBufferTest, HuffmanSplit) {
-  std::string encoded = Http2HexDecode("f1e3c2e5f23a6ba0ab90f4ff");
+  std::string encoded = absl::HexStringToBytes("f1e3c2e5f23a6ba0ab90f4ff");
   std::string part1 = encoded.substr(0, 5);
   std::string part2 = encoded.substr(5);
   absl::string_view decoded("www.example.com");
@@ -215,7 +216,7 @@ TEST_F(HpackDecoderStringBufferTest, HuffmanSplit) {
 
 TEST_F(HpackDecoderStringBufferTest, InvalidHuffmanOnData) {
   // Explicitly encode the End-of-String symbol, a no-no.
-  std::string encoded = Http2HexDecode("ffffffff");
+  std::string encoded = absl::HexStringToBytes("ffffffff");
 
   buf_.OnStart(/*huffman_encoded*/ true, encoded.size());
   EXPECT_EQ(state(), State::COLLECTING);
@@ -229,7 +230,7 @@ TEST_F(HpackDecoderStringBufferTest, InvalidHuffmanOnData) {
 
 TEST_F(HpackDecoderStringBufferTest, InvalidHuffmanOnEnd) {
   // Last byte of string doesn't end with prefix of End-of-String symbol.
-  std::string encoded = Http2HexDecode("00");
+  std::string encoded = absl::HexStringToBytes("00");
 
   buf_.OnStart(/*huffman_encoded*/ true, encoded.size());
   EXPECT_EQ(state(), State::COLLECTING);

@@ -7,6 +7,7 @@
 #include <cstring>  // For std::memcmp
 #include <sstream>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "http2/platform/api/http2_string_utils.h"
 
@@ -98,7 +99,9 @@ bool operator==(const Http2PingFields& a, const Http2PingFields& b) {
 
 std::ostream& operator<<(std::ostream& out, const Http2PingFields& v) {
   return out << "opaque_bytes=0x"
-             << Http2HexEncode(v.opaque_bytes, sizeof v.opaque_bytes);
+             << absl::BytesToHexString(absl::string_view(
+                    reinterpret_cast<const char*>(v.opaque_bytes),
+                    sizeof v.opaque_bytes));
 }
 
 // Http2GoAwayFields:

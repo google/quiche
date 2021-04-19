@@ -5,6 +5,7 @@
 #include "http2/hpack/huffman/hpack_huffman_encoder.h"
 
 #include "absl/base/macros.h"
+#include "absl/strings/escaping.h"
 #include "http2/platform/api/http2_string_utils.h"
 #include "common/platform/api/quiche_test.h"
 
@@ -40,13 +41,13 @@ TEST_P(HuffmanEncoderTest, Empty) {
 
 TEST_P(HuffmanEncoderTest, SpecRequestExamples) {
   std::string test_table[] = {
-      Http2HexDecode("f1e3c2e5f23a6ba0ab90f4ff"),
+      absl::HexStringToBytes("f1e3c2e5f23a6ba0ab90f4ff"),
       "www.example.com",
-      Http2HexDecode("a8eb10649cbf"),
+      absl::HexStringToBytes("a8eb10649cbf"),
       "no-cache",
-      Http2HexDecode("25a849e95ba97d7f"),
+      absl::HexStringToBytes("25a849e95ba97d7f"),
       "custom-key",
-      Http2HexDecode("25a849e95bb8e8b4bf"),
+      absl::HexStringToBytes("25a849e95bb8e8b4bf"),
       "custom-value",
   };
   for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); i += 2) {
@@ -64,17 +65,17 @@ TEST_P(HuffmanEncoderTest, SpecRequestExamples) {
 TEST_P(HuffmanEncoderTest, SpecResponseExamples) {
   // clang-format off
   std::string test_table[] = {
-    Http2HexDecode("6402"),
+    absl::HexStringToBytes("6402"),
     "302",
-    Http2HexDecode("aec3771a4b"),
+    absl::HexStringToBytes("aec3771a4b"),
     "private",
-    Http2HexDecode("d07abe941054d444a8200595040b8166"
+    absl::HexStringToBytes("d07abe941054d444a8200595040b8166"
             "e082a62d1bff"),
     "Mon, 21 Oct 2013 20:13:21 GMT",
-    Http2HexDecode("9d29ad171863c78f0b97c8e9ae82ae43"
+    absl::HexStringToBytes("9d29ad171863c78f0b97c8e9ae82ae43"
             "d3"),
     "https://www.example.com",
-    Http2HexDecode("94e7821dd7f2e6c7b335dfdfcd5b3960"
+    absl::HexStringToBytes("94e7821dd7f2e6c7b335dfdfcd5b3960"
             "d5af27087f3672c1ab270fb5291f9587"
             "316065c003ed4ee5b1063d5007"),
     "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1",
@@ -120,11 +121,11 @@ TEST_P(HuffmanEncoderTest, AppendToOutput) {
   size_t encoded_size = HuffmanSize("foo");
   std::string buffer;
   Encode("foo", encoded_size, &buffer);
-  EXPECT_EQ(Http2HexDecode("94e7"), buffer);
+  EXPECT_EQ(absl::HexStringToBytes("94e7"), buffer);
 
   encoded_size = HuffmanSize("bar");
   Encode("bar", encoded_size, &buffer);
-  EXPECT_EQ(Http2HexDecode("94e78c767f"), buffer);
+  EXPECT_EQ(absl::HexStringToBytes("94e78c767f"), buffer);
 }
 
 }  // namespace

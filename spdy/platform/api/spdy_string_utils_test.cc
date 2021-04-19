@@ -67,12 +67,6 @@ TEST(SpdyStringUtilsTest, SpdyHexDecodeToUInt32) {
   EXPECT_FALSE(SpdyHexDecodeToUInt32("0x1111", &out));
 }
 
-TEST(SpdyStringUtilsTest, SpdyHexEncode) {
-  unsigned char bytes[] = {0x01, 0xff, 0x02, 0xfe, 0x03, 0x80, 0x81};
-  EXPECT_EQ("01ff02fe038081",
-            SpdyHexEncode(reinterpret_cast<char*>(bytes), sizeof(bytes)));
-}
-
 }  // namespace
 }  // namespace test
 }  // namespace spdy

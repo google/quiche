@@ -6,6 +6,7 @@
 
 #include <ctype.h>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "http2/platform/api/http2_bug_tracker.h"
 #include "http2/platform/api/http2_logging.h"
@@ -22,7 +23,7 @@ void HpackExampleToStringOrDie(absl::string_view example, std::string* output) {
       QUICHE_CHECK_GT(example.size(), 1u) << "Truncated hex byte?";
       const char c1 = example[1];
       QUICHE_CHECK(isxdigit(c1)) << "Found half a byte?";
-      *output += Http2HexDecode(example.substr(0, 2));
+      *output += absl::HexStringToBytes(example.substr(0, 2));
       example.remove_prefix(2);
       continue;
     }
