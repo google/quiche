@@ -179,18 +179,16 @@ bool TlsClientHandshaker::SetAlpn() {
   }
 
   // Enable ALPS only for versions that use HTTP/3 frames.
-  if (enable_alps_) {
-    for (const std::string& alpn_string : alpns) {
-      ParsedQuicVersion version = ParseQuicVersionString(alpn_string);
-      if (!version.IsKnown() || !version.UsesHttp3()) {
-        continue;
-      }
-      if (SSL_add_application_settings(
-              ssl(), reinterpret_cast<const uint8_t*>(alpn_string.data()),
-              alpn_string.size(), nullptr, /* settings_len = */ 0) != 1) {
-        QUIC_BUG(quic_bug_10576_7) << "Failed to enable ALPS.";
-        return false;
-      }
+  for (const std::string& alpn_string : alpns) {
+    ParsedQuicVersion version = ParseQuicVersionString(alpn_string);
+    if (!version.IsKnown() || !version.UsesHttp3()) {
+      continue;
+    }
+    if (SSL_add_application_settings(
+            ssl(), reinterpret_cast<const uint8_t*>(alpn_string.data()),
+            alpn_string.size(), nullptr, /* settings_len = */ 0) != 1) {
+      QUIC_BUG(quic_bug_10576_7) << "Failed to enable ALPS.";
+      return false;
     }
   }
 
@@ -505,20 +503,18 @@ void TlsClientHandshaker::FinishHandshake() {
                   << "'";
 
   // Parse ALPS extension.
-  if (enable_alps_) {
-    const uint8_t* alps_data;
-    size_t alps_length;
-    SSL_get0_peer_application_settings(ssl(), &alps_data, &alps_length);
-    if (alps_length > 0) {
-      auto error = session()->OnAlpsData(alps_data, alps_length);
-      if (error) {
-        // Calling CloseConnection() is safe even in case OnAlpsData() has
-        // already closed the connection.
-        CloseConnection(
-            QUIC_HANDSHAKE_FAILED,
-            absl::StrCat("Error processing ALPS data: ", error.value()));
-        return;
-      }
+  const uint8_t* alps_data;
+  size_t alps_length;
+  SSL_get0_peer_application_settings(ssl(), &alps_data, &alps_length);
+  if (alps_length > 0) {
+    auto error = session()->OnAlpsData(alps_data, alps_length);
+    if (error) {
+      // Calling CloseConnection() is safe even in case OnAlpsData() has
+      // already closed the connection.
+      CloseConnection(
+          QUIC_HANDSHAKE_FAILED,
+          absl::StrCat("Error processing ALPS data: ", error.value()));
+      return;
     }
   }
 

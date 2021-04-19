@@ -166,9 +166,6 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
 
   std::unique_ptr<TransportParameters> received_transport_params_ = nullptr;
   std::unique_ptr<ApplicationState> received_application_state_ = nullptr;
-
-  // Latched value of reloadable flag quic_enable_alps_client.
-  const bool enable_alps_ = GetQuicReloadableFlag(quic_enable_alps_client);
 };
 
 }  // namespace quic
