@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "http2/hpack/tools/hpack_block_builder.h"
 #include "http2/platform/api/http2_logging.h"
@@ -285,7 +286,7 @@ TEST_F(HpackVarintRoundTripTest, Encode) {
     for (uint64_t value : values) {
       EncodeNoRandom(value, prefix_length);
       std::string dump = Http2HexDump(buffer_);
-      HTTP2_LOG(INFO) << Http2StringPrintf("%10llu %0#18x ", value, value)
+      HTTP2_LOG(INFO) << absl::StrFormat("%10llu %0#18x ", value, value)
                       << Http2HexDump(buffer_).substr(7);
     }
   }

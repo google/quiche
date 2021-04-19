@@ -5,6 +5,7 @@
 #include "http2/http2_constants.h"
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "http2/platform/api/http2_logging.h"
 #include "http2/platform/api/http2_string_utils.h"
@@ -83,7 +84,7 @@ std::string Http2FrameFlagsToString(Http2FrameType type, uint8_t flags) {
     }
   }
   if (flags != 0) {
-    append_and_clear(Http2StringPrintf("0x%02x", flags), flags);
+    append_and_clear(absl::StrFormat("0x%02x", flags), flags);
   }
   QUICHE_DCHECK_EQ(0, flags);
   return s;

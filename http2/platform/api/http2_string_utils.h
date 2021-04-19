@@ -14,11 +14,6 @@
 
 namespace http2 {
 
-template <typename... Args>
-inline std::string Http2StringPrintf(const Args&... args) {
-  return Http2StringPrintfImpl(std::forward<const Args&>(args)...);
-}
-
 inline std::string Http2HexDump(absl::string_view data) {
   return Http2HexDumpImpl(data);
 }
