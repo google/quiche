@@ -21,6 +21,11 @@ class QuicTimeWaitListManagerPeer {
 
   static void set_clock(QuicTimeWaitListManager* manager,
                         const QuicClock* clock);
+
+  static bool SendOrQueuePacket(
+      QuicTimeWaitListManager* manager,
+      std::unique_ptr<QuicTimeWaitListManager::QueuedPacket> packet,
+      const QuicPerPacketContext* packet_context);
 };
 
 }  // namespace test

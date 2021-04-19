@@ -18,6 +18,7 @@
 #include "quic/core/quic_framer.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_utils.h"
+#include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
@@ -381,6 +382,10 @@ QuicTimeWaitListManager::BuildIetfStatelessResetPacket(
 bool QuicTimeWaitListManager::SendOrQueuePacket(
     std::unique_ptr<QueuedPacket> packet,
     const QuicPerPacketContext* /*packet_context*/) {
+  if (packet == nullptr) {
+    QUIC_LOG(ERROR) << "Tried to send or queue a null packet";
+    return true;
+  }
   if (WriteToWire(packet.get())) {
     // Allow the packet to be deleted upon leaving this function.
     return true;
