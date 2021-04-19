@@ -21,6 +21,7 @@
 #include "quic/core/crypto/quic_decrypter.h"
 #include "quic/core/crypto/quic_encrypter.h"
 #include "quic/core/frames/quic_connection_close_frame.h"
+#include "quic/core/frames/quic_new_connection_id_frame.h"
 #include "quic/core/frames/quic_path_response_frame.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_constants.h"
@@ -2193,10 +2194,12 @@ class TestQuicPathValidationContext : public QuicPathValidationContext {
 
 class TestValidationResultDelegate : public QuicPathValidator::ResultDelegate {
  public:
-  TestValidationResultDelegate(const QuicSocketAddress& expected_self_address,
+  TestValidationResultDelegate(QuicConnection* connection,
+                               const QuicSocketAddress& expected_self_address,
                                const QuicSocketAddress& expected_peer_address,
                                bool* success)
       : QuicPathValidator::ResultDelegate(),
+        connection_(connection),
         expected_self_address_(expected_self_address),
         expected_peer_address_(expected_peer_address),
         success_(success) {}
@@ -2211,10 +2214,14 @@ class TestValidationResultDelegate : public QuicPathValidator::ResultDelegate {
       std::unique_ptr<QuicPathValidationContext> context) override {
     EXPECT_EQ(expected_self_address_, context->self_address());
     EXPECT_EQ(expected_peer_address_, context->peer_address());
+    if (connection_->perspective() == Perspective::IS_CLIENT) {
+      connection_->OnPathValidationFailureAtClient();
+    }
     *success_ = false;
   }
 
  private:
+  QuicConnection* connection_;
   QuicSocketAddress expected_self_address_;
   QuicSocketAddress expected_peer_address_;
   bool* success_;
@@ -2300,7 +2307,8 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
           std::make_unique<TestQuicPathValidationContext>(
               connection_.self_address(), kNewPeerAddress, writer_.get()),
           std::make_unique<TestValidationResultDelegate>(
-              connection_.self_address(), kNewPeerAddress, &success));
+              &connection_, connection_.self_address(), kNewPeerAddress,
+              &success));
     }
     EXPECT_EQ((connection_.validate_client_address() ? 2 : 3) * bytes_sent,
               QuicConnectionPeer::BytesSentOnAlternativePath(&connection_));
@@ -8908,7 +8916,7 @@ TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnAlternativeSocket) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
 
   // Receiving a PATH_CHALLENGE on the alternative path. Response to this
   // PATH_CHALLENGE should be sent via the alternative writer.
@@ -11759,7 +11767,7 @@ TEST_P(QuicConnectionTest, PathValidationOnNewSocketSuccess) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
   EXPECT_EQ(0u, writer_->packets_write_attempts());
 
   QuicFrames frames;
@@ -11793,7 +11801,7 @@ TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
   EXPECT_EQ(0u, writer_->packets_write_attempts());
 
   // Start another path validation request.
@@ -11814,7 +11822,8 @@ TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress2, connection_.peer_address(), &new_writer2),
       std::make_unique<TestValidationResultDelegate>(
-          kNewSelfAddress2, connection_.peer_address(), &success2));
+          &connection_, kNewSelfAddress2, connection_.peer_address(),
+          &success2));
   EXPECT_FALSE(success);
   EXPECT_TRUE(connection_.HasPendingPathValidation());
 }
@@ -11834,12 +11843,12 @@ TEST_P(QuicConnectionTest, PathValidationRetry) {
         EXPECT_EQ(1u, writer_->padding_frames().size());
       }));
   bool success = true;
-  connection_.ValidatePath(
-      std::make_unique<TestQuicPathValidationContext>(
-          connection_.self_address(), connection_.peer_address(),
-          writer_.get()),
-      std::make_unique<TestValidationResultDelegate>(
-          connection_.self_address(), connection_.peer_address(), &success));
+  connection_.ValidatePath(std::make_unique<TestQuicPathValidationContext>(
+                               connection_.self_address(),
+                               connection_.peer_address(), writer_.get()),
+                           std::make_unique<TestValidationResultDelegate>(
+                               &connection_, connection_.self_address(),
+                               connection_.peer_address(), &success));
   EXPECT_EQ(1u, writer_->packets_write_attempts());
   EXPECT_TRUE(connection_.HasPendingPathValidation());
 
@@ -11881,7 +11890,7 @@ TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
   EXPECT_EQ(0u, writer_->packets_write_attempts());
   EXPECT_TRUE(connection_.HasPendingPathValidation());
 
@@ -11925,7 +11934,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
   EXPECT_EQ(0u, writer_->packets_write_attempts());
 
   new_writer.SetWritable();
@@ -11985,7 +11994,8 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedDefaultSocket) {
         std::make_unique<TestQuicPathValidationContext>(
             connection_.self_address(), kNewPeerAddress, writer_.get()),
         std::make_unique<TestValidationResultDelegate>(
-            connection_.self_address(), kNewPeerAddress, &success));
+            &connection_, connection_.self_address(), kNewPeerAddress,
+            &success));
   }
   EXPECT_EQ(1u, writer_->packets_write_attempts());
 
@@ -12029,7 +12039,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnNewSocket) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
   EXPECT_EQ(1u, new_writer.packets_write_attempts());
   EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
   EXPECT_EQ(1u, new_writer.padding_frames().size());
@@ -12061,12 +12071,12 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnDefaultPath) {
     // packet creator.
     bool success = false;
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
-    connection_.ValidatePath(
-        std::make_unique<TestQuicPathValidationContext>(
-            connection_.self_address(), connection_.peer_address(),
-            writer_.get()),
-        std::make_unique<TestValidationResultDelegate>(
-            connection_.self_address(), connection_.peer_address(), &success));
+    connection_.ValidatePath(std::make_unique<TestQuicPathValidationContext>(
+                                 connection_.self_address(),
+                                 connection_.peer_address(), writer_.get()),
+                             std::make_unique<TestValidationResultDelegate>(
+                                 &connection_, connection_.self_address(),
+                                 connection_.peer_address(), &success));
   }
   EXPECT_EQ(1u, writer_->packets_write_attempts());
   EXPECT_EQ(1u, writer_->path_challenge_frames().size());
@@ -12098,7 +12108,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnAlternativePeerAddress) {
       std::make_unique<TestQuicPathValidationContext>(
           connection_.self_address(), kNewPeerAddress, writer_.get()),
       std::make_unique<TestValidationResultDelegate>(
-          connection_.self_address(), kNewPeerAddress, &success));
+          &connection_, connection_.self_address(), kNewPeerAddress, &success));
 
   EXPECT_EQ(1u, writer_->packets_write_attempts());
   EXPECT_FALSE(connection_.HasPendingPathValidation());
@@ -12129,7 +12139,7 @@ TEST_P(QuicConnectionTest,
       std::make_unique<TestQuicPathValidationContext>(
           connection_.self_address(), kNewPeerAddress, writer_.get()),
       std::make_unique<TestValidationResultDelegate>(
-          connection_.self_address(), kNewPeerAddress, &success));
+          &connection_, connection_.self_address(), kNewPeerAddress, &success));
   EXPECT_TRUE(connection_.HasPendingPathValidation());
   // Connection shouldn't be closed.
   EXPECT_TRUE(connection_.connected());
@@ -13486,7 +13496,7 @@ TEST_P(QuicConnectionTest, MigrateToNewPathDuringProbing) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
   EXPECT_TRUE(connection_.HasPendingPathValidation());
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
       &connection_, kNewSelfAddress, connection_.peer_address()));
@@ -14016,6 +14026,236 @@ TEST_P(QuicConnectionTest,
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePathValidated(&connection_));
   EXPECT_TRUE(connection_.HasPendingPathValidation());
+}
+
+TEST_P(QuicConnectionTest,
+       PathValidationFailedOnClientDueToLackOfServerConnectionId) {
+  if (!connection_.support_multiple_connection_ids() ||
+      !connection_.use_connection_id_on_default_path()) {
+    return;
+  }
+  QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
+  PathProbeTestInit(Perspective::IS_CLIENT);
+
+  const QuicSocketAddress kNewSelfAddress(QuicIpAddress::Loopback4(),
+                                          /*port=*/34567);
+
+  bool success;
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          kNewSelfAddress, connection_.peer_address(), writer_.get()),
+      std::make_unique<TestValidationResultDelegate>(
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
+
+  EXPECT_FALSE(success);
+}
+
+TEST_P(QuicConnectionTest,
+       PathValidationFailedOnClientDueToLackOfClientConnectionIdTheSecondTime) {
+  if (!connection_.support_multiple_connection_ids() ||
+      !connection_.use_connection_id_on_default_path()) {
+    return;
+  }
+
+  QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  SetClientConnectionId(TestConnectionId(1));
+
+  // Make sure server connection ID is available for the 1st validation.
+  QuicNewConnectionIdFrame frame1;
+  frame1.connection_id = TestConnectionId(2);
+  frame1.sequence_number = 1u;
+  frame1.retire_prior_to = 0u;
+  frame1.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame1.connection_id);
+  connection_.OnNewConnectionIdFrame(frame1);
+
+  // Client will issue a new client connection ID to server.
+  QuicConnectionId new_client_connection_id;
+  EXPECT_CALL(visitor_, SendNewConnectionId(_))
+      .WillOnce(Invoke([&](const QuicNewConnectionIdFrame& frame) {
+        new_client_connection_id = frame.connection_id;
+      }));
+
+  const QuicSocketAddress kSelfAddress1(QuicIpAddress::Any4(), 12345);
+  ASSERT_NE(kSelfAddress1, connection_.self_address());
+  bool success1;
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          kSelfAddress1, connection_.peer_address(), writer_.get()),
+      std::make_unique<TestValidationResultDelegate>(
+          &connection_, kSelfAddress1, connection_.peer_address(), &success1));
+
+  // Migrate upon 1st validation success.
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  ASSERT_TRUE(connection_.MigratePath(kSelfAddress1, connection_.peer_address(),
+                                      &new_writer, /*owns_writer=*/false));
+  QuicConnectionPeer::RetirePeerIssuedConnectionIdsNoLongerOnPath(&connection_);
+  const auto* default_path = QuicConnectionPeer::GetDefaultPath(&connection_);
+  EXPECT_EQ(default_path->client_connection_id, new_client_connection_id);
+  EXPECT_EQ(default_path->server_connection_id, frame1.connection_id);
+  EXPECT_EQ(default_path->stateless_reset_token, frame1.stateless_reset_token);
+  EXPECT_TRUE(default_path->stateless_reset_token_received);
+  const auto* alternative_path =
+      QuicConnectionPeer::GetAlternativePath(&connection_);
+  EXPECT_TRUE(alternative_path->client_connection_id.IsEmpty());
+  EXPECT_TRUE(alternative_path->server_connection_id.IsEmpty());
+  EXPECT_FALSE(alternative_path->stateless_reset_token_received);
+
+  // Client will retire server connection ID on old default_path.
+  auto* retire_peer_issued_cid_alarm =
+      connection_.GetRetirePeerIssuedConnectionIdAlarm();
+  ASSERT_TRUE(retire_peer_issued_cid_alarm->IsSet());
+  EXPECT_CALL(visitor_, SendRetireConnectionId(/*sequence_number=*/0u));
+  retire_peer_issued_cid_alarm->Fire();
+
+  // Another server connection ID is available to client.
+  QuicNewConnectionIdFrame frame2;
+  frame2.connection_id = TestConnectionId(4);
+  frame2.sequence_number = 2u;
+  frame2.retire_prior_to = 1u;
+  frame2.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame2.connection_id);
+  connection_.OnNewConnectionIdFrame(frame2);
+
+  const QuicSocketAddress kSelfAddress2(QuicIpAddress::Loopback4(),
+                                        /*port=*/45678);
+  bool success2;
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          kSelfAddress2, connection_.peer_address(), writer_.get()),
+      std::make_unique<TestValidationResultDelegate>(
+          &connection_, kSelfAddress2, connection_.peer_address(), &success2));
+  // Since server does not retire any client connection ID yet, 2nd validation
+  // would fail due to lack of client connection ID.
+  EXPECT_FALSE(success2);
+}
+
+TEST_P(QuicConnectionTest, ServerConnectionIdRetiredUponPathValidationFailure) {
+  if (!connection_.support_multiple_connection_ids() ||
+      !connection_.use_connection_id_on_default_path()) {
+    return;
+  }
+
+  QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
+  PathProbeTestInit(Perspective::IS_CLIENT);
+
+  // Make sure server connection ID is available for validation.
+  QuicNewConnectionIdFrame frame;
+  frame.connection_id = TestConnectionId(2);
+  frame.sequence_number = 1u;
+  frame.retire_prior_to = 0u;
+  frame.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame.connection_id);
+  connection_.OnNewConnectionIdFrame(frame);
+
+  const QuicSocketAddress kNewSelfAddress(QuicIpAddress::Loopback4(),
+                                          /*port=*/34567);
+  bool success;
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          kNewSelfAddress, connection_.peer_address(), writer_.get()),
+      std::make_unique<TestValidationResultDelegate>(
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
+
+  auto* path_validator = QuicConnectionPeer::path_validator(&connection_);
+  path_validator->CancelPathValidation();
+  QuicConnectionPeer::RetirePeerIssuedConnectionIdsNoLongerOnPath(&connection_);
+  EXPECT_FALSE(success);
+  const auto* alternative_path =
+      QuicConnectionPeer::GetAlternativePath(&connection_);
+  EXPECT_TRUE(alternative_path->client_connection_id.IsEmpty());
+  EXPECT_TRUE(alternative_path->server_connection_id.IsEmpty());
+  EXPECT_FALSE(alternative_path->stateless_reset_token_received);
+
+  // Client will retire server connection ID on alternative_path.
+  auto* retire_peer_issued_cid_alarm =
+      connection_.GetRetirePeerIssuedConnectionIdAlarm();
+  ASSERT_TRUE(retire_peer_issued_cid_alarm->IsSet());
+  EXPECT_CALL(visitor_, SendRetireConnectionId(/*sequence_number=*/1u));
+  retire_peer_issued_cid_alarm->Fire();
+}
+
+TEST_P(QuicConnectionTest,
+       MigratePathDirectlyFailedDueToLackOfServerConnectionId) {
+  if (!connection_.support_multiple_connection_ids() ||
+      !connection_.use_connection_id_on_default_path()) {
+    return;
+  }
+  QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  const QuicSocketAddress kSelfAddress1(QuicIpAddress::Any4(), 12345);
+  ASSERT_NE(kSelfAddress1, connection_.self_address());
+
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  ASSERT_FALSE(connection_.MigratePath(kSelfAddress1,
+                                       connection_.peer_address(), &new_writer,
+                                       /*owns_writer=*/false));
+}
+
+TEST_P(QuicConnectionTest,
+       MigratePathDirectlyFailedDueToLackOfClientConnectionIdTheSecondTime) {
+  if (!connection_.support_multiple_connection_ids() ||
+      !connection_.use_connection_id_on_default_path()) {
+    return;
+  }
+  QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  SetClientConnectionId(TestConnectionId(1));
+
+  // Make sure server connection ID is available for the 1st migration.
+  QuicNewConnectionIdFrame frame1;
+  frame1.connection_id = TestConnectionId(2);
+  frame1.sequence_number = 1u;
+  frame1.retire_prior_to = 0u;
+  frame1.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame1.connection_id);
+  connection_.OnNewConnectionIdFrame(frame1);
+
+  // Client will issue a new client connection ID to server.
+  QuicConnectionId new_client_connection_id;
+  EXPECT_CALL(visitor_, SendNewConnectionId(_))
+      .WillOnce(Invoke([&](const QuicNewConnectionIdFrame& frame) {
+        new_client_connection_id = frame.connection_id;
+      }));
+
+  // 1st migration is successful.
+  const QuicSocketAddress kSelfAddress1(QuicIpAddress::Any4(), 12345);
+  ASSERT_NE(kSelfAddress1, connection_.self_address());
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  ASSERT_TRUE(connection_.MigratePath(kSelfAddress1, connection_.peer_address(),
+                                      &new_writer,
+                                      /*owns_writer=*/false));
+  QuicConnectionPeer::RetirePeerIssuedConnectionIdsNoLongerOnPath(&connection_);
+  const auto* default_path = QuicConnectionPeer::GetDefaultPath(&connection_);
+  EXPECT_EQ(default_path->client_connection_id, new_client_connection_id);
+  EXPECT_EQ(default_path->server_connection_id, frame1.connection_id);
+  EXPECT_EQ(default_path->stateless_reset_token, frame1.stateless_reset_token);
+  EXPECT_TRUE(default_path->stateless_reset_token_received);
+
+  // Client will retire server connection ID on old default_path.
+  auto* retire_peer_issued_cid_alarm =
+      connection_.GetRetirePeerIssuedConnectionIdAlarm();
+  ASSERT_TRUE(retire_peer_issued_cid_alarm->IsSet());
+  EXPECT_CALL(visitor_, SendRetireConnectionId(/*sequence_number=*/0u));
+  retire_peer_issued_cid_alarm->Fire();
+
+  // Another server connection ID is available to client.
+  QuicNewConnectionIdFrame frame2;
+  frame2.connection_id = TestConnectionId(4);
+  frame2.sequence_number = 2u;
+  frame2.retire_prior_to = 1u;
+  frame2.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame2.connection_id);
+  connection_.OnNewConnectionIdFrame(frame2);
+
+  // Since server does not retire any client connection ID yet, 2nd migration
+  // would fail due to lack of client connection ID.
+  const QuicSocketAddress kSelfAddress2(QuicIpAddress::Loopback4(),
+                                        /*port=*/45678);
+  ASSERT_FALSE(connection_.MigratePath(kSelfAddress2,
+                                       connection_.peer_address(), &new_writer,
+                                       /*owns_writer=*/false));
 }
 
 TEST_P(QuicConnectionTest,

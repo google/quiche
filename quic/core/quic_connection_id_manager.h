@@ -78,8 +78,10 @@ class QUIC_EXPORT_PRIVATE QuicPeerIssuedConnectionIdManager {
   // Id.
   const QuicConnectionIdData* ConsumeOneUnusedConnectionId();
 
-  // Add the connection Id to the pending retirement connection Id list.
-  void PrepareToRetireActiveConnectionId(const QuicConnectionId& cid);
+  // Add each active connection Id that is no longer on path to the pending
+  // retirement connection Id list.
+  void MaybeRetireUnusedConnectionIds(
+      const std::vector<QuicConnectionId>& active_connection_ids_on_path);
 
   bool IsConnectionIdActive(const QuicConnectionId& cid) const;
 
@@ -94,6 +96,10 @@ class QUIC_EXPORT_PRIVATE QuicPeerIssuedConnectionIdManager {
 
  private:
   friend class test::QuicConnectionIdManagerPeer;
+
+  // Add the connection Id to the pending retirement connection Id list and
+  // schedule an alarm if needed.
+  void PrepareToRetireActiveConnectionId(const QuicConnectionId& cid);
 
   bool IsConnectionIdNew(const QuicNewConnectionIdFrame& frame);
 

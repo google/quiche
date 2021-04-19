@@ -1211,10 +1211,16 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   void CancelPathValidation();
 
-  void MigratePath(const QuicSocketAddress& self_address,
+  // Returns true if the migration succeeds, otherwise returns false (e.g., no
+  // available CIDs, connection disconnected, etc).
+  bool MigratePath(const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address,
                    QuicPacketWriter* writer,
                    bool owns_writer);
+
+  // Called to clear the alternative_path_ when path validation failed on the
+  // client side.
+  void OnPathValidationFailureAtClient();
 
   void SetSourceAddressTokenToSend(absl::string_view token);
 
@@ -1234,6 +1240,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool use_connection_id_on_default_path() const {
     return use_connection_id_on_default_path_;
+  }
+
+  bool connection_migration_use_new_cid() const {
+    return connection_migration_use_new_cid_;
   }
 
   // Instantiates connection ID manager.
@@ -1504,6 +1514,16 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       QuicConnectionId* client_connection_id,
       bool* stateless_reset_token_received,
       StatelessResetToken* stateless_reset_token) const;
+
+  // Update the connection IDs when client migrates with/without validation.
+  // Returns false if required connection ID is not available.
+  bool UpdateConnectionIdsOnClientMigration(
+      const QuicSocketAddress& self_address,
+      const QuicSocketAddress& peer_address);
+
+  // Retire active peer issued connection IDs after they are no longer used on
+  // any path.
+  void RetirePeerIssuedConnectionIdsNoLongerOnPath();
 
   // Writes the given packet to socket, encrypted with packet's
   // encryption_level. Returns true on successful write, and false if the writer
@@ -2248,6 +2268,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Indicates whether we should proactively validate peer address on a
   // PATH_CHALLENGE received.
   bool should_proactively_validate_peer_address_on_path_challenge_ = false;
+
+  // Enable this via reloadable flag once this feature is complete.
+  bool connection_migration_use_new_cid_ = false;
 
   const bool group_path_response_and_challenge_sending_closer_ =
       GetQuicReloadableFlag(

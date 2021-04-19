@@ -455,7 +455,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool HasPendingPathValidation() const;
 
   // Switch to the path described in |context| without validating the path.
-  void MigratePath(const QuicSocketAddress& self_address,
+  bool MigratePath(const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address,
                    QuicPacketWriter* writer,
                    bool owns_writer);

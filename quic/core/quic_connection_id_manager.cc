@@ -199,6 +199,22 @@ void QuicPeerIssuedConnectionIdManager::PrepareToRetireActiveConnectionId(
   }
 }
 
+void QuicPeerIssuedConnectionIdManager::MaybeRetireUnusedConnectionIds(
+    const std::vector<QuicConnectionId>& active_connection_ids_on_path) {
+  std::vector<QuicConnectionId> cids_to_retire;
+  for (const auto& cid_data : active_connection_id_data_) {
+    if (std::find(active_connection_ids_on_path.begin(),
+                  active_connection_ids_on_path.end(),
+                  cid_data.connection_id) ==
+        active_connection_ids_on_path.end()) {
+      cids_to_retire.push_back(cid_data.connection_id);
+    }
+  }
+  for (const auto& cid : cids_to_retire) {
+    PrepareToRetireActiveConnectionId(cid);
+  }
+}
+
 bool QuicPeerIssuedConnectionIdManager::IsConnectionIdActive(
     const QuicConnectionId& cid) const {
   return FindConnectionIdData(active_connection_id_data_, cid) !=

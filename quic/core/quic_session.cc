@@ -2609,11 +2609,12 @@ bool QuicSession::HasPendingPathValidation() const {
   return connection_->HasPendingPathValidation();
 }
 
-void QuicSession::MigratePath(const QuicSocketAddress& self_address,
+bool QuicSession::MigratePath(const QuicSocketAddress& self_address,
                               const QuicSocketAddress& peer_address,
                               QuicPacketWriter* writer,
                               bool owns_writer) {
-  connection_->MigratePath(self_address, peer_address, writer, owns_writer);
+  return connection_->MigratePath(self_address, peer_address, writer,
+                                  owns_writer);
 }
 
 bool QuicSession::ValidateToken(absl::string_view token) const {

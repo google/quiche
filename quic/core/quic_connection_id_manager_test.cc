@@ -126,8 +126,8 @@ TEST_F(QuicPeerIssuedConnectionIdManagerTest,
               frame.stateless_reset_token);
 
     // Connection migration succeed. Prepares to retire CID #0.
-    peer_issued_cid_manager_.PrepareToRetireActiveConnectionId(
-        TestConnectionId(0));
+    peer_issued_cid_manager_.MaybeRetireUnusedConnectionIds(
+        {TestConnectionId(1)});
     cid_manager_visitor_.SetCurrentPeerConnectionId(TestConnectionId(1));
     ASSERT_TRUE(retire_peer_issued_cid_alarm_->IsSet());
     alarm_factory_.FireAlarm(retire_peer_issued_cid_alarm_);
@@ -150,8 +150,8 @@ TEST_F(QuicPeerIssuedConnectionIdManagerTest,
     // Start to use CID #2 for alternative path.
     peer_issued_cid_manager_.ConsumeOneUnusedConnectionId();
     // Connection migration succeed. Prepares to retire CID #1.
-    peer_issued_cid_manager_.PrepareToRetireActiveConnectionId(
-        TestConnectionId(1));
+    peer_issued_cid_manager_.MaybeRetireUnusedConnectionIds(
+        {TestConnectionId(2)});
     cid_manager_visitor_.SetCurrentPeerConnectionId(TestConnectionId(2));
     ASSERT_TRUE(retire_peer_issued_cid_alarm_->IsSet());
     alarm_factory_.FireAlarm(retire_peer_issued_cid_alarm_);
@@ -174,8 +174,8 @@ TEST_F(QuicPeerIssuedConnectionIdManagerTest,
     // Start to use CID #3 for alternative path.
     peer_issued_cid_manager_.ConsumeOneUnusedConnectionId();
     // Connection migration succeed. Prepares to retire CID #2.
-    peer_issued_cid_manager_.PrepareToRetireActiveConnectionId(
-        TestConnectionId(2));
+    peer_issued_cid_manager_.MaybeRetireUnusedConnectionIds(
+        {TestConnectionId(3)});
     cid_manager_visitor_.SetCurrentPeerConnectionId(TestConnectionId(3));
     ASSERT_TRUE(retire_peer_issued_cid_alarm_->IsSet());
     alarm_factory_.FireAlarm(retire_peer_issued_cid_alarm_);
@@ -214,8 +214,8 @@ TEST_F(QuicPeerIssuedConnectionIdManagerTest,
     // Start to use CID #1 for alternative path.
     peer_issued_cid_manager_.ConsumeOneUnusedConnectionId();
     // Connection migration fails. Prepares to retire CID #1.
-    peer_issued_cid_manager_.PrepareToRetireActiveConnectionId(
-        TestConnectionId(1));
+    peer_issued_cid_manager_.MaybeRetireUnusedConnectionIds(
+        {initial_connection_id_});
     // Actually retires CID #1.
     ASSERT_TRUE(retire_peer_issued_cid_alarm_->IsSet());
     alarm_factory_.FireAlarm(retire_peer_issued_cid_alarm_);
@@ -238,8 +238,8 @@ TEST_F(QuicPeerIssuedConnectionIdManagerTest,
     // Start to use CID #2 for alternative path.
     peer_issued_cid_manager_.ConsumeOneUnusedConnectionId();
     // Connection migration fails again. Prepares to retire CID #2.
-    peer_issued_cid_manager_.PrepareToRetireActiveConnectionId(
-        TestConnectionId(2));
+    peer_issued_cid_manager_.MaybeRetireUnusedConnectionIds(
+        {initial_connection_id_});
     // Actually retires CID #2.
     ASSERT_TRUE(retire_peer_issued_cid_alarm_->IsSet());
     alarm_factory_.FireAlarm(retire_peer_issued_cid_alarm_);
@@ -262,8 +262,8 @@ TEST_F(QuicPeerIssuedConnectionIdManagerTest,
     // Start to use CID #3 for alternative path.
     peer_issued_cid_manager_.ConsumeOneUnusedConnectionId();
     // Connection migration succeed. Prepares to retire CID #0.
-    peer_issued_cid_manager_.PrepareToRetireActiveConnectionId(
-        TestConnectionId(0));
+    peer_issued_cid_manager_.MaybeRetireUnusedConnectionIds(
+        {TestConnectionId(3)});
     // After CID #3 is default (i.e., when there is no pending frame to write
     // associated with CID #0), #0 can actually be retired.
     cid_manager_visitor_.SetCurrentPeerConnectionId(TestConnectionId(3));
@@ -374,8 +374,8 @@ TEST_F(QuicPeerIssuedConnectionIdManagerTest,
   // Outcome: (active: #0 #1 unused: None)
   peer_issued_cid_manager_.ConsumeOneUnusedConnectionId();
   // Prepare to retire CID #1 as path validation fails.
-  peer_issued_cid_manager_.PrepareToRetireActiveConnectionId(
-      TestConnectionId(1));
+  peer_issued_cid_manager_.MaybeRetireUnusedConnectionIds(
+      {initial_connection_id_});
   // Actually retires CID #1.
   ASSERT_TRUE(retire_peer_issued_cid_alarm_->IsSet());
   alarm_factory_.FireAlarm(retire_peer_issued_cid_alarm_);

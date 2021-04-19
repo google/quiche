@@ -465,6 +465,7 @@ class ValidationResultDelegate : public QuicPathValidator::ResultDelegate {
       std::unique_ptr<QuicPathValidationContext> context) override {
     QUIC_LOG(WARNING) << "Fail to validate path " << *context
                       << ", stop migrating.";
+    client_->session()->connection()->OnPathValidationFailureAtClient();
   }
 
  private:
