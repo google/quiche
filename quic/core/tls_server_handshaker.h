@@ -88,10 +88,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
  protected:
   // Creates a proof source handle for selecting cert and computing signature.
-  // Only called when |use_proof_source_handle_| is true.
   virtual std::unique_ptr<ProofSourceHandle> MaybeCreateProofSourceHandle();
-
-  bool use_proof_source_handle() const { return use_proof_source_handle_; }
 
   // Hook to allow the server to override parts of the QuicConfig based on SNI
   // before we generate transport parameters.
@@ -186,21 +183,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       std::unique_ptr<ProofSource::Details> details) override;
 
  private:
-  class QUIC_EXPORT_PRIVATE SignatureCallback
-      : public ProofSource::SignatureCallback {
-   public:
-    explicit SignatureCallback(TlsServerHandshaker* handshaker);
-    void Run(bool ok,
-             std::string signature,
-             std::unique_ptr<ProofSource::Details> details) override;
-
-    // If called, Cancel causes the pending callback to be a no-op.
-    void Cancel();
-
-   private:
-    TlsServerHandshaker* handshaker_;
-  };
-
   class QUIC_EXPORT_PRIVATE DecryptCallback
       : public ProofSource::DecryptCallback {
    public:
@@ -309,7 +291,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   std::unique_ptr<ProofSourceHandle> proof_source_handle_;
   ProofSource* proof_source_;
-  SignatureCallback* signature_callback_ = nullptr;
 
   // State to handle potentially asynchronous session ticket decryption.
   // |ticket_decryption_callback_| points to the non-owned callback that was
@@ -346,8 +327,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
   TlsServerConnection tls_connection_;
-  const bool use_proof_source_handle_ =
-      GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source);
   const bool use_normalized_sni_for_cert_selection_ =
       GetQuicReloadableFlag(quic_tls_use_normalized_sni_for_cert_selectioon);
   const QuicCryptoServerConfig* crypto_config_;  // Unowned.

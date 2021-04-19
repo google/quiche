@@ -400,10 +400,6 @@ TEST_P(TlsServerHandshakerTest, ConnectedAfterTlsHandshake) {
 }
 
 TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertSuccess) {
-  if (!GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source)) {
-    return;
-  }
-
   InitializeServerWithFakeProofSourceHandle();
   server_handshaker_->SetupProofSourceHandle(
       /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_ASYNC,
@@ -426,10 +422,6 @@ TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertSuccess) {
 }
 
 TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertFailure) {
-  if (!GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source)) {
-    return;
-  }
-
   InitializeServerWithFakeProofSourceHandle();
   server_handshaker_->SetupProofSourceHandle(
       /*select_cert_action=*/FakeProofSourceHandle::Action::FAIL_ASYNC,
@@ -449,10 +441,6 @@ TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertFailure) {
 }
 
 TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertAndSignature) {
-  if (!GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source)) {
-    return;
-  }
-
   InitializeServerWithFakeProofSourceHandle();
   server_handshaker_->SetupProofSourceHandle(
       /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_ASYNC,
@@ -507,10 +495,6 @@ TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSignature) {
 }
 
 TEST_P(TlsServerHandshakerTest, CancelPendingSelectCert) {
-  if (!GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source)) {
-    return;
-  }
-
   InitializeServerWithFakeProofSourceHandle();
   server_handshaker_->SetupProofSourceHandle(
       /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_ASYNC,
@@ -557,10 +541,6 @@ TEST_P(TlsServerHandshakerTest, ExtractSNI) {
 }
 
 TEST_P(TlsServerHandshakerTest, HostnameForCertSelectionAndComputeSignature) {
-  if (!GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source)) {
-    return;
-  }
-
   // Client uses upper case letters in hostname. It is considered valid by
   // QuicHostnameUtils::IsValidSNI, but it should be normalized for cert
   // selection.
