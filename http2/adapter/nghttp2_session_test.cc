@@ -4,6 +4,7 @@
 #include "http2/adapter/nghttp2_callbacks.h"
 #include "http2/adapter/nghttp2_util.h"
 #include "http2/adapter/test_frame_sequence.h"
+#include "http2/adapter/test_utils.h"
 #include "common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -16,6 +17,7 @@ class DataSavingVisitor : public testing::StrictMock<MockHttp2Visitor> {
   void Save(absl::string_view data) { absl::StrAppend(&data_, data); }
 
   const std::string& data() { return data_; }
+  void Clear() { data_.clear(); }
 
  private:
   std::string data_;
@@ -85,6 +87,14 @@ TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
   EXPECT_EQ(session.GetRemoteWindowSize(),
             kDefaultInitialStreamWindowSize + 1000);
   ASSERT_EQ(0, nghttp2_session_send(session.raw_ptr()));
+  // Some bytes should have been serialized.
+  absl::string_view serialized = visitor_.data();
+  ASSERT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                        spdy::SpdyFrameType::PING}));
+  visitor_.Clear();
 
   const std::vector<Header> headers1 = {{":method", "GET"},
                                         {":scheme", "http"},
@@ -120,6 +130,11 @@ TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
   QUICHE_LOG(INFO) << "Created stream: " << stream_id3;
 
   ASSERT_EQ(0, nghttp2_session_send(session.raw_ptr()));
+  serialized = visitor_.data();
+  EXPECT_THAT(serialized, EqualsFrames({spdy::SpdyFrameType::HEADERS,
+                                        spdy::SpdyFrameType::HEADERS,
+                                        spdy::SpdyFrameType::HEADERS}));
+  visitor_.Clear();
 
   const std::string stream_frames =
       TestFrameSequence()
@@ -147,7 +162,28 @@ TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
               OnGoAway(5, Http2ErrorCode::ENHANCE_YOUR_CALM, "calm down!!"));
   const ssize_t stream_result = session.ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
+
+  // Even though the client recieved a GOAWAY, streams 1 and 5 are still active.
+  EXPECT_TRUE(session.want_read());
+
+  EXPECT_CALL(visitor_, OnBeginDataForStream(1, 0));
+  EXPECT_CALL(visitor_, OnEndStream(1));
+  EXPECT_CALL(visitor_, OnCloseStream(1));
+  EXPECT_CALL(visitor_, OnRstStream(5, Http2ErrorCode::REFUSED_STREAM));
+  EXPECT_CALL(visitor_, OnAbortStream(5, Http2ErrorCode::REFUSED_STREAM));
+  session.ProcessBytes(TestFrameSequence()
+                           .Data(1, "", true)
+                           .RstStream(5, Http2ErrorCode::REFUSED_STREAM)
+                           .Serialize());
+  // After receiving END_STREAM for 1 and RST_STREAM for 5, the session no
+  // longer expects reads.
+  EXPECT_FALSE(session.want_read());
+
+  // Client will not have anything else to write.
+  EXPECT_FALSE(session.want_write());
   ASSERT_EQ(0, nghttp2_session_send(session.raw_ptr()));
+  serialized = visitor_.data();
+  EXPECT_EQ(serialized.size(), 0);
 }
 
 TEST_F(NgHttp2SessionTest, ServerConstruction) {
@@ -217,6 +253,15 @@ TEST_F(NgHttp2SessionTest, ServerHandlesFrames) {
 
   EXPECT_EQ(session.GetRemoteWindowSize(),
             kDefaultInitialStreamWindowSize + 1000);
+
+  EXPECT_TRUE(session.want_write());
+  ASSERT_EQ(0, nghttp2_session_send(session.raw_ptr()));
+  // Some bytes should have been serialized.
+  absl::string_view serialized = visitor_.data();
+  // SETTINGS ack, two PING acks.
+  EXPECT_THAT(serialized, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                        spdy::SpdyFrameType::PING,
+                                        spdy::SpdyFrameType::PING}));
 }
 
 }  // namespace
