@@ -30,16 +30,12 @@ bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
     QUIC_CODE_COUNT(quic_session_tickets_enabled);
     SSL_CTX_set_ticket_aead_method(ssl_ctx.get(),
                                    &TlsServerConnection::kSessionTicketMethod);
-  } else if (!GetQuicRestartFlag(quic_session_tickets_always_enabled)) {
-    QUIC_CODE_COUNT(quic_session_tickets_disabled_by_flag);
-    SSL_CTX_set_options(ssl_ctx.get(), SSL_OP_NO_TICKET);
   } else {
     QUIC_CODE_COUNT(quic_session_tickets_disabled);
   }
-  if (proof_source->GetTicketCrypter() ||
-      GetQuicRestartFlag(quic_session_tickets_always_enabled)) {
-    SSL_CTX_set_early_data_enabled(ssl_ctx.get(), 1);
-  }
+
+  SSL_CTX_set_early_data_enabled(ssl_ctx.get(), 1);
+
   SSL_CTX_set_select_certificate_cb(
       ssl_ctx.get(), &TlsServerConnection::EarlySelectCertCallback);
   SSL_CTX_set_options(ssl_ctx.get(), SSL_OP_CIPHER_SERVER_PREFERENCE);
