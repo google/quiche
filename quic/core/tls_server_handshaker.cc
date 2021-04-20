@@ -935,35 +935,31 @@ int TlsServerHandshaker::SelectAlpn(const uint8_t** out,
   }
 
   // Enable ALPS for the selected ALPN protocol.
-  if (GetQuicReloadableFlag(quic_enable_alps_server)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_enable_alps_server);
+  const uint8_t* alps_data = nullptr;
+  size_t alps_length = 0;
+  std::unique_ptr<char[]> buffer;
 
-    const uint8_t* alps_data = nullptr;
-    size_t alps_length = 0;
-    std::unique_ptr<char[]> buffer;
+  const std::string& hostname = crypto_negotiated_params_->sni;
+  std::string accept_ch_value = GetAcceptChValueForOrigin(hostname);
 
-    const std::string& hostname = crypto_negotiated_params_->sni;
-    std::string accept_ch_value = GetAcceptChValueForOrigin(hostname);
+  std::string origin;
+  if (GetQuicReloadableFlag(quic_alps_include_scheme_in_origin)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_alps_include_scheme_in_origin);
+    origin = "https://";
+  }
+  origin.append(crypto_negotiated_params_->sni);
 
-    std::string origin;
-    if (GetQuicReloadableFlag(quic_alps_include_scheme_in_origin)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_alps_include_scheme_in_origin);
-      origin = "https://";
-    }
-    origin.append(crypto_negotiated_params_->sni);
+  if (!accept_ch_value.empty()) {
+    AcceptChFrame frame{{{std::move(origin), std::move(accept_ch_value)}}};
+    alps_length = HttpEncoder::SerializeAcceptChFrame(frame, &buffer);
+    alps_data = reinterpret_cast<const uint8_t*>(buffer.get());
+  }
 
-    if (!accept_ch_value.empty()) {
-      AcceptChFrame frame{{{std::move(origin), std::move(accept_ch_value)}}};
-      alps_length = HttpEncoder::SerializeAcceptChFrame(frame, &buffer);
-      alps_data = reinterpret_cast<const uint8_t*>(buffer.get());
-    }
-
-    if (SSL_add_application_settings(
-            ssl(), reinterpret_cast<const uint8_t*>(selected_alpn->data()),
-            selected_alpn->size(), alps_data, alps_length) != 1) {
-      QUIC_DLOG(ERROR) << "Failed to enable ALPS";
-      return SSL_TLSEXT_ERR_NOACK;
-    }
+  if (SSL_add_application_settings(
+          ssl(), reinterpret_cast<const uint8_t*>(selected_alpn->data()),
+          selected_alpn->size(), alps_data, alps_length) != 1) {
+    QUIC_DLOG(ERROR) << "Failed to enable ALPS";
+    return SSL_TLSEXT_ERR_NOACK;
   }
 
   session()->OnAlpnSelected(*selected_alpn);
