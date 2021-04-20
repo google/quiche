@@ -23,17 +23,15 @@ std::vector<std::pair<const char*, std::string>> LogFriendly(
   return out;
 }
 
-// Custom gMock matcher, used to determine if a particular type of frame
-// is in a string. This is useful in tests where we want to show that a
-// particular control frame type is serialized for sending to the peer.
+// Custom gMock matcher, used to implement EqualsFrames().
 class SpdyControlFrameMatcher
-    : public testing::MatcherInterface<const std::string> {
+    : public testing::MatcherInterface<absl::string_view> {
  public:
   explicit SpdyControlFrameMatcher(
       std::vector<TypeAndOptionalLength> types_and_lengths)
       : expected_types_and_lengths_(std::move(types_and_lengths)) {}
 
-  bool MatchAndExplain(const std::string s,
+  bool MatchAndExplain(absl::string_view s,
                        testing::MatchResultListener* listener) const override {
     spdy::SpdyFrameReader reader(s.data(), s.size());
 
@@ -42,6 +40,11 @@ class SpdyControlFrameMatcher
                                    listener)) {
         return false;
       }
+    }
+    if (!reader.IsDoneReading()) {
+      size_t bytes_remaining = s.size() - reader.GetBytesConsumed();
+      *listener << "; " << bytes_remaining << " bytes left to read!";
+      return false;
     }
     return true;
   }
@@ -105,13 +108,13 @@ class SpdyControlFrameMatcher
 
 }  // namespace
 
-testing::Matcher<const std::string> ContainsFrames(
+testing::Matcher<absl::string_view> EqualsFrames(
     std::vector<std::pair<spdy::SpdyFrameType, absl::optional<size_t>>>
         types_and_lengths) {
   return MakeMatcher(new SpdyControlFrameMatcher(std::move(types_and_lengths)));
 }
 
-testing::Matcher<const std::string> ContainsFrames(
+testing::Matcher<absl::string_view> EqualsFrames(
     std::vector<spdy::SpdyFrameType> types) {
   std::vector<std::pair<spdy::SpdyFrameType, absl::optional<size_t>>>
       types_and_lengths;

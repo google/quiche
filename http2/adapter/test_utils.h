@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "common/platform/api/quiche_test.h"
 #include "spdy/core/spdy_protocol.h"
 
@@ -11,15 +12,19 @@ namespace http2 {
 namespace adapter {
 namespace test {
 
-// Matcher that checks whether a string contains HTTP/2 frames of the specified
-// ordered sequence of types and lengths.
-testing::Matcher<const std::string> ContainsFrames(
+// These matchers check whether a string consists entirely of HTTP/2 frames of
+// the specified ordered sequence. This is useful in tests where we want to show
+// that one or more particular frame types are serialized for sending to the
+// peer. The match will fail if there are input bytes not consumed by the
+// matcher.
+
+// Requires that frames match both types and lengths.
+testing::Matcher<absl::string_view> EqualsFrames(
     std::vector<std::pair<spdy::SpdyFrameType, absl::optional<size_t>>>
         types_and_lengths);
 
-// Matcher that checks whether a string contains HTTP/2 frames of the specified
-// ordered sequence of types.
-testing::Matcher<const std::string> ContainsFrames(
+// Requires that frames match the specified types.
+testing::Matcher<absl::string_view> EqualsFrames(
     std::vector<spdy::SpdyFrameType> types);
 
 }  // namespace test

@@ -61,7 +61,7 @@ TEST_F(OgHttp2AdapterTest, TestSerialize) {
 
   EXPECT_THAT(
       adapter_->GetBytesToWrite(absl::nullopt),
-      ContainsFrames(
+      EqualsFrames(
           {spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::PRIORITY,
            spdy::SpdyFrameType::RST_STREAM, spdy::SpdyFrameType::PING,
            spdy::SpdyFrameType::GOAWAY, spdy::SpdyFrameType::WINDOW_UPDATE}));
@@ -83,8 +83,8 @@ TEST_F(OgHttp2AdapterTest, TestPartialSerialize) {
   EXPECT_FALSE(adapter_->session().want_write());
   EXPECT_THAT(
       absl::StrCat(first_part, second_part),
-      ContainsFrames({spdy::SpdyFrameType::SETTINGS,
-                      spdy::SpdyFrameType::GOAWAY, spdy::SpdyFrameType::PING}));
+      EqualsFrames({spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::GOAWAY,
+                    spdy::SpdyFrameType::PING}));
 }
 
 }  // namespace
