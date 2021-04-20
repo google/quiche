@@ -557,13 +557,8 @@ TEST_P(TlsServerHandshakerTest, HostnameForCertSelectionAndComputeSignature) {
   EXPECT_EQ(server_stream()->crypto_negotiated_params().sni,
             "test.example.com");
 
-  if (GetQuicReloadableFlag(quic_tls_use_normalized_sni_for_cert_selectioon)) {
-    EXPECT_EQ(last_select_cert_args().hostname, "test.example.com");
-    EXPECT_EQ(last_compute_signature_args().hostname, "test.example.com");
-  } else {
-    EXPECT_EQ(last_select_cert_args().hostname, "tEsT.EXAMPLE.CoM");
-    EXPECT_EQ(last_compute_signature_args().hostname, "tEsT.EXAMPLE.CoM");
-  }
+  EXPECT_EQ(last_select_cert_args().hostname, "test.example.com");
+  EXPECT_EQ(last_compute_signature_args().hostname, "test.example.com");
 }
 
 TEST_P(TlsServerHandshakerTest, ConnectionClosedOnTlsError) {

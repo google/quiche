@@ -577,7 +577,7 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(
 
   QuicAsyncStatus status = proof_source_handle_->ComputeSignature(
       session()->connection()->self_address(),
-      session()->connection()->peer_address(), cert_selection_hostname(),
+      session()->connection()->peer_address(), crypto_negotiated_params_->sni,
       sig_alg, in, max_out);
   if (status == QUIC_PENDING) {
     set_expected_ssl_error(SSL_ERROR_WANT_PRIVATE_KEY_OPERATION);
@@ -814,7 +814,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
 
   const QuicAsyncStatus status = proof_source_handle_->SelectCertificate(
       session()->connection()->self_address(),
-      session()->connection()->peer_address(), cert_selection_hostname(),
+      session()->connection()->peer_address(), crypto_negotiated_params_->sni,
       absl::string_view(
           reinterpret_cast<const char*>(client_hello->client_hello),
           client_hello->client_hello_len),
