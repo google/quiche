@@ -389,7 +389,6 @@ QuicConnection::QuicConnection(
   support_multiple_connection_ids_ =
       version().HasIetfQuicFrames() &&
       framer_.do_not_synthesize_source_cid_for_short_header() &&
-      GetQuicRestartFlag(quic_use_reference_counted_sesssion_map) &&
       GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2) &&
       GetQuicRestartFlag(
           quic_dispatcher_support_multiple_cid_per_connection_v2) &&

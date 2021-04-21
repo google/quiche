@@ -166,10 +166,6 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   bool accept_new_connections() const { return accept_new_connections_; }
 
-  bool use_reference_counted_session_map() const {
-    return use_reference_counted_session_map_;
-  }
-
   bool support_multiple_cid_per_connection() const {
     return support_multiple_cid_per_connection_;
   }
@@ -457,10 +453,7 @@ class QUIC_NO_EXPORT QuicDispatcher
   // destination connection ID length of all IETF long headers.
   bool should_update_expected_server_connection_id_length_;
 
-  const bool use_reference_counted_session_map_ =
-      GetQuicRestartFlag(quic_use_reference_counted_sesssion_map);
   const bool support_multiple_cid_per_connection_ =
-      use_reference_counted_session_map_ &&
       GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2) &&
       GetQuicRestartFlag(
           quic_dispatcher_support_multiple_cid_per_connection_v2);

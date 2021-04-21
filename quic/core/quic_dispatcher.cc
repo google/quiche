@@ -331,9 +331,6 @@ QuicDispatcher::QuicDispatcher(
       expected_server_connection_id_length_(
           expected_server_connection_id_length),
       should_update_expected_server_connection_id_length_(false) {
-  if (use_reference_counted_session_map_) {
-    QUIC_RESTART_FLAG_COUNT(quic_use_reference_counted_sesssion_map);
-  }
   QUIC_BUG_IF(quic_bug_12724_1, GetSupportedVersions().empty())
       << "Trying to create dispatcher without any supported versions";
   QUIC_DLOG(INFO) << "Created QuicDispatcher with versions: "
@@ -341,15 +338,10 @@ QuicDispatcher::QuicDispatcher(
 }
 
 QuicDispatcher::~QuicDispatcher() {
-  if (use_reference_counted_session_map_) {
-    reference_counted_session_map_.clear();
-    closed_ref_counted_session_list_.clear();
-    if (support_multiple_cid_per_connection_) {
-      num_sessions_in_session_map_ = 0;
-    }
-  } else {
-    session_map_.clear();
-    closed_session_list_.clear();
+  reference_counted_session_map_.clear();
+  closed_ref_counted_session_list_.clear();
+  if (support_multiple_cid_per_connection_) {
+    num_sessions_in_session_map_ = 0;
   }
 }
 
@@ -512,58 +504,28 @@ bool QuicDispatcher::MaybeDispatchPacket(
 
   // Packets with connection IDs for active connections are processed
   // immediately.
-  if (use_reference_counted_session_map_) {
-    auto it = reference_counted_session_map_.find(server_connection_id);
-    if (it != reference_counted_session_map_.end()) {
-      QUICHE_DCHECK(
-          !buffered_packets_.HasBufferedPackets(server_connection_id));
-      if (packet_info.version_flag &&
-          packet_info.version != it->second->version() &&
-          packet_info.version == LegacyVersionForEncapsulation()) {
-        // This packet is using the Legacy Version Encapsulation version but the
-        // corresponding session isn't, attempt extraction of inner packet.
-        ChloAlpnSniExtractor alpn_extractor;
-        if (ChloExtractor::Extract(packet_info.packet, packet_info.version,
-                                   config_->create_session_tag_indicators(),
-                                   &alpn_extractor,
-                                   server_connection_id.length())) {
-          if (MaybeHandleLegacyVersionEncapsulation(this, &alpn_extractor,
-                                                    packet_info)) {
-            return true;
-          }
+  auto it = reference_counted_session_map_.find(server_connection_id);
+  if (it != reference_counted_session_map_.end()) {
+    QUICHE_DCHECK(!buffered_packets_.HasBufferedPackets(server_connection_id));
+    if (packet_info.version_flag &&
+        packet_info.version != it->second->version() &&
+        packet_info.version == LegacyVersionForEncapsulation()) {
+      // This packet is using the Legacy Version Encapsulation version but the
+      // corresponding session isn't, attempt extraction of inner packet.
+      ChloAlpnSniExtractor alpn_extractor;
+      if (ChloExtractor::Extract(packet_info.packet, packet_info.version,
+                                 config_->create_session_tag_indicators(),
+                                 &alpn_extractor,
+                                 server_connection_id.length())) {
+        if (MaybeHandleLegacyVersionEncapsulation(this, &alpn_extractor,
+                                                  packet_info)) {
+          return true;
         }
       }
-      it->second->ProcessUdpPacket(packet_info.self_address,
-                                   packet_info.peer_address,
-                                   packet_info.packet);
-      return true;
     }
-  } else {
-    auto it = session_map_.find(server_connection_id);
-    if (it != session_map_.end()) {
-      QUICHE_DCHECK(
-          !buffered_packets_.HasBufferedPackets(server_connection_id));
-      if (packet_info.version_flag &&
-          packet_info.version != it->second->version() &&
-          packet_info.version == LegacyVersionForEncapsulation()) {
-        // This packet is using the Legacy Version Encapsulation version but the
-        // corresponding session isn't, attempt extraction of inner packet.
-        ChloAlpnSniExtractor alpn_extractor;
-        if (ChloExtractor::Extract(packet_info.packet, packet_info.version,
-                                   config_->create_session_tag_indicators(),
-                                   &alpn_extractor,
-                                   server_connection_id.length())) {
-          if (MaybeHandleLegacyVersionEncapsulation(this, &alpn_extractor,
-                                                    packet_info)) {
-            return true;
-          }
-        }
-      }
-      it->second->ProcessUdpPacket(packet_info.self_address,
-                                   packet_info.peer_address,
-                                   packet_info.packet);
-      return true;
-    }
+    it->second->ProcessUdpPacket(packet_info.self_address,
+                                 packet_info.peer_address, packet_info.packet);
+    return true;
   }
   if (packet_info.version.IsKnown()) {
     // We did not find the connection ID, check if we've replaced it.
@@ -575,28 +537,15 @@ bool QuicDispatcher::MaybeDispatchPacket(
     QuicConnectionId replaced_connection_id = MaybeReplaceServerConnectionId(
         server_connection_id, packet_info.version);
     if (replaced_connection_id != server_connection_id) {
-      if (use_reference_counted_session_map_) {
-        // Search for the replacement.
-        auto it2 = reference_counted_session_map_.find(replaced_connection_id);
-        if (it2 != reference_counted_session_map_.end()) {
-          QUICHE_DCHECK(
-              !buffered_packets_.HasBufferedPackets(replaced_connection_id));
-          it2->second->ProcessUdpPacket(packet_info.self_address,
-                                        packet_info.peer_address,
-                                        packet_info.packet);
-          return true;
-        }
-      } else {
-        // Search for the replacement.
-        auto it2 = session_map_.find(replaced_connection_id);
-        if (it2 != session_map_.end()) {
-          QUICHE_DCHECK(
-              !buffered_packets_.HasBufferedPackets(replaced_connection_id));
-          it2->second->ProcessUdpPacket(packet_info.self_address,
-                                        packet_info.peer_address,
-                                        packet_info.packet);
-          return true;
-        }
+      // Search for the replacement.
+      auto it2 = reference_counted_session_map_.find(replaced_connection_id);
+      if (it2 != reference_counted_session_map_.end()) {
+        QUICHE_DCHECK(
+            !buffered_packets_.HasBufferedPackets(replaced_connection_id));
+        it2->second->ProcessUdpPacket(packet_info.self_address,
+                                      packet_info.peer_address,
+                                      packet_info.packet);
+        return true;
       }
     }
   }
@@ -898,18 +847,12 @@ void QuicDispatcher::StopAcceptingNewConnections() {
 
 void QuicDispatcher::PerformActionOnActiveSessions(
     std::function<void(QuicSession*)> operation) const {
-  if (use_reference_counted_session_map_) {
-    absl::flat_hash_set<QuicSession*> visited_session;
-    visited_session.reserve(reference_counted_session_map_.size());
-    for (auto const& kv : reference_counted_session_map_) {
-      QuicSession* session = kv.second.get();
-      if (visited_session.insert(session).second) {
-        operation(session);
-      }
-    }
-  } else {
-    for (auto const& kv : session_map_) {
-      operation(kv.second.get());
+  absl::flat_hash_set<QuicSession*> visited_session;
+  visited_session.reserve(reference_counted_session_map_.size());
+  for (auto const& kv : reference_counted_session_map_) {
+    QuicSession* session = kv.second.get();
+    if (visited_session.insert(session).second) {
+      operation(session);
     }
   }
 }
@@ -917,7 +860,6 @@ void QuicDispatcher::PerformActionOnActiveSessions(
 // Get a snapshot of all sessions.
 std::vector<std::shared_ptr<QuicSession>> QuicDispatcher::GetSessionsSnapshot()
     const {
-  QUICHE_DCHECK(use_reference_counted_session_map_);
   std::vector<std::shared_ptr<QuicSession>> snapshot;
   snapshot.reserve(reference_counted_session_map_.size());
   absl::flat_hash_set<QuicSession*> visited_session;
@@ -937,29 +879,16 @@ std::unique_ptr<QuicPerPacketContext> QuicDispatcher::GetPerPacketContext()
 }
 
 void QuicDispatcher::DeleteSessions() {
-  if (use_reference_counted_session_map_) {
-    if (!write_blocked_list_.empty()) {
-      for (const auto& session : closed_ref_counted_session_list_) {
-        if (write_blocked_list_.erase(session->connection()) != 0) {
-          QUIC_BUG(quic_bug_12724_2)
-              << "QuicConnection was in WriteBlockedList before destruction "
-              << session->connection()->connection_id();
-        }
+  if (!write_blocked_list_.empty()) {
+    for (const auto& session : closed_ref_counted_session_list_) {
+      if (write_blocked_list_.erase(session->connection()) != 0) {
+        QUIC_BUG(quic_bug_12724_2)
+            << "QuicConnection was in WriteBlockedList before destruction "
+            << session->connection()->connection_id();
       }
     }
-    closed_ref_counted_session_list_.clear();
-  } else {
-    if (!write_blocked_list_.empty()) {
-      for (const std::unique_ptr<QuicSession>& session : closed_session_list_) {
-        if (write_blocked_list_.erase(session->connection()) != 0) {
-          QUIC_BUG(quic_bug_12724_3)
-              << "QuicConnection was in WriteBlockedList before destruction "
-              << session->connection()->connection_id();
-        }
-      }
-    }
-    closed_session_list_.clear();
   }
+  closed_ref_counted_session_list_.clear();
 }
 
 void QuicDispatcher::OnCanWrite() {
@@ -995,28 +924,15 @@ bool QuicDispatcher::HasPendingWrites() const {
 }
 
 void QuicDispatcher::Shutdown() {
-  if (use_reference_counted_session_map_) {
-    while (!reference_counted_session_map_.empty()) {
-      QuicSession* session =
-          reference_counted_session_map_.begin()->second.get();
-      session->connection()->CloseConnection(
-          QUIC_PEER_GOING_AWAY, "Server shutdown imminent",
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      // Validate that the session removes itself from the session map on close.
-      QUICHE_DCHECK(reference_counted_session_map_.empty() ||
-                    reference_counted_session_map_.begin()->second.get() !=
-                        session);
-    }
-  } else {
-    while (!session_map_.empty()) {
-      QuicSession* session = session_map_.begin()->second.get();
-      session->connection()->CloseConnection(
-          QUIC_PEER_GOING_AWAY, "Server shutdown imminent",
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      // Validate that the session removes itself from the session map on close.
-      QUICHE_DCHECK(session_map_.empty() ||
-                    session_map_.begin()->second.get() != session);
-    }
+  while (!reference_counted_session_map_.empty()) {
+    QuicSession* session = reference_counted_session_map_.begin()->second.get();
+    session->connection()->CloseConnection(
+        QUIC_PEER_GOING_AWAY, "Server shutdown imminent",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    // Validate that the session removes itself from the session map on close.
+    QUICHE_DCHECK(reference_counted_session_map_.empty() ||
+                  reference_counted_session_map_.begin()->second.get() !=
+                      session);
   }
   DeleteSessions();
 }
@@ -1025,72 +941,41 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
                                         QuicErrorCode error,
                                         const std::string& error_details,
                                         ConnectionCloseSource source) {
-  if (use_reference_counted_session_map_) {
-    auto it = reference_counted_session_map_.find(server_connection_id);
-    if (it == reference_counted_session_map_.end()) {
-      QUIC_BUG(quic_bug_10287_3)
-          << "ConnectionId " << server_connection_id
-          << " does not exist in the session map.  Error: "
-          << QuicErrorCodeToString(error);
-      QUIC_BUG(quic_bug_10287_4) << QuicStackTrace();
-      return;
-    }
+  auto it = reference_counted_session_map_.find(server_connection_id);
+  if (it == reference_counted_session_map_.end()) {
+    QUIC_BUG(quic_bug_10287_3) << "ConnectionId " << server_connection_id
+                               << " does not exist in the session map.  Error: "
+                               << QuicErrorCodeToString(error);
+    QUIC_BUG(quic_bug_10287_4) << QuicStackTrace();
+    return;
+  }
 
-    QUIC_DLOG_IF(INFO, error != QUIC_NO_ERROR)
-        << "Closing connection (" << server_connection_id
-        << ") due to error: " << QuicErrorCodeToString(error)
-        << ", with details: " << error_details;
+  QUIC_DLOG_IF(INFO, error != QUIC_NO_ERROR)
+      << "Closing connection (" << server_connection_id
+      << ") due to error: " << QuicErrorCodeToString(error)
+      << ", with details: " << error_details;
 
-    QuicConnection* connection = it->second->connection();
-    if (ShouldDestroySessionAsynchronously()) {
-      // Set up alarm to fire immediately to bring destruction of this session
-      // out of current call stack.
-      if (closed_ref_counted_session_list_.empty()) {
-        delete_sessions_alarm_->Update(helper()->GetClock()->ApproximateNow(),
-                                       QuicTime::Delta::Zero());
-      }
-      closed_ref_counted_session_list_.push_back(std::move(it->second));
+  QuicConnection* connection = it->second->connection();
+  if (ShouldDestroySessionAsynchronously()) {
+    // Set up alarm to fire immediately to bring destruction of this session
+    // out of current call stack.
+    if (closed_ref_counted_session_list_.empty()) {
+      delete_sessions_alarm_->Update(helper()->GetClock()->ApproximateNow(),
+                                     QuicTime::Delta::Zero());
     }
-    CleanUpSession(it->first, connection, error, error_details, source);
-    if (support_multiple_cid_per_connection_) {
-      QUIC_RESTART_FLAG_COUNT_N(
-          quic_dispatcher_support_multiple_cid_per_connection_v2, 1, 2);
-      for (const QuicConnectionId& cid :
-           connection->GetActiveServerConnectionIds()) {
-        reference_counted_session_map_.erase(cid);
-      }
-      --num_sessions_in_session_map_;
-    } else {
-      reference_counted_session_map_.erase(it);
+    closed_ref_counted_session_list_.push_back(std::move(it->second));
+  }
+  CleanUpSession(it->first, connection, error, error_details, source);
+  if (support_multiple_cid_per_connection_) {
+    QUIC_RESTART_FLAG_COUNT_N(
+        quic_dispatcher_support_multiple_cid_per_connection_v2, 1, 2);
+    for (const QuicConnectionId& cid :
+         connection->GetActiveServerConnectionIds()) {
+      reference_counted_session_map_.erase(cid);
     }
+    --num_sessions_in_session_map_;
   } else {
-    auto it = session_map_.find(server_connection_id);
-    if (it == session_map_.end()) {
-      QUIC_BUG(quic_bug_10287_5)
-          << "ConnectionId " << server_connection_id
-          << " does not exist in the session map.  Error: "
-          << QuicErrorCodeToString(error);
-      QUIC_BUG(quic_bug_10287_6) << QuicStackTrace();
-      return;
-    }
-
-    QUIC_DLOG_IF(INFO, error != QUIC_NO_ERROR)
-        << "Closing connection (" << server_connection_id
-        << ") due to error: " << QuicErrorCodeToString(error)
-        << ", with details: " << error_details;
-
-    QuicConnection* connection = it->second->connection();
-    if (ShouldDestroySessionAsynchronously()) {
-      // Set up alarm to fire immediately to bring destruction of this session
-      // out of current call stack.
-      if (closed_session_list_.empty()) {
-        delete_sessions_alarm_->Update(helper()->GetClock()->ApproximateNow(),
-                                       QuicTime::Delta::Zero());
-      }
-      closed_session_list_.push_back(std::move(it->second));
-    }
-    CleanUpSession(it->first, connection, error, error_details, source);
-    session_map_.erase(it);
+    reference_counted_session_map_.erase(it);
   }
 }
 
@@ -1250,28 +1135,18 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
     }
     QUIC_DLOG(INFO) << "Created new session for " << server_connection_id;
 
-    if (use_reference_counted_session_map_) {
-      auto insertion_result = reference_counted_session_map_.insert(
-          std::make_pair(server_connection_id,
-                         std::shared_ptr<QuicSession>(std::move(session))));
-      if (!insertion_result.second) {
-        QUIC_BUG(quic_bug_12724_5)
-            << "Tried to add a session to session_map with existing connection "
-               "id: "
-            << server_connection_id;
-      } else if (support_multiple_cid_per_connection_) {
-        ++num_sessions_in_session_map_;
-      }
-      DeliverPacketsToSession(packets, insertion_result.first->second.get());
-    } else {
-      auto insertion_result = session_map_.insert(
-          std::make_pair(server_connection_id, std::move(session)));
-      QUIC_BUG_IF(quic_bug_12724_6, !insertion_result.second)
+    auto insertion_result = reference_counted_session_map_.insert(
+        std::make_pair(server_connection_id,
+                       std::shared_ptr<QuicSession>(std::move(session))));
+    if (!insertion_result.second) {
+      QUIC_BUG(quic_bug_12724_5)
           << "Tried to add a session to session_map with existing connection "
              "id: "
           << server_connection_id;
-      DeliverPacketsToSession(packets, insertion_result.first->second.get());
+    } else if (support_multiple_cid_per_connection_) {
+      ++num_sessions_in_session_map_;
     }
+    DeliverPacketsToSession(packets, insertion_result.first->second.get());
   }
 }
 
@@ -1370,28 +1245,18 @@ void QuicDispatcher::ProcessChlo(const std::vector<std::string>& alpns,
                   << packet_info->destination_connection_id;
 
   QuicSession* session_ptr;
-  if (use_reference_counted_session_map_) {
-    auto insertion_result =
-        reference_counted_session_map_.insert(std::make_pair(
-            packet_info->destination_connection_id,
-            std::shared_ptr<QuicSession>(std::move(session.release()))));
-    if (!insertion_result.second) {
-      QUIC_BUG(quic_bug_10287_9)
-          << "Tried to add a session to session_map with existing "
-             "connection id: "
-          << packet_info->destination_connection_id;
-    } else if (support_multiple_cid_per_connection_) {
-      ++num_sessions_in_session_map_;
-    }
-    session_ptr = insertion_result.first->second.get();
-  } else {
-    auto insertion_result = session_map_.insert(std::make_pair(
-        packet_info->destination_connection_id, std::move(session)));
-    QUIC_BUG_IF(quic_bug_12724_8, !insertion_result.second)
-        << "Tried to add a session to session_map with existing connection id: "
+  auto insertion_result = reference_counted_session_map_.insert(std::make_pair(
+      packet_info->destination_connection_id,
+      std::shared_ptr<QuicSession>(std::move(session.release()))));
+  if (!insertion_result.second) {
+    QUIC_BUG(quic_bug_10287_9)
+        << "Tried to add a session to session_map with existing "
+           "connection id: "
         << packet_info->destination_connection_id;
-    session_ptr = insertion_result.first->second.get();
+  } else if (support_multiple_cid_per_connection_) {
+    ++num_sessions_in_session_map_;
   }
+  session_ptr = insertion_result.first->second.get();
   std::list<BufferedPacket> packets =
       buffered_packets_.DeliverPackets(packet_info->destination_connection_id)
           .buffered_packets;
@@ -1481,9 +1346,7 @@ size_t QuicDispatcher::NumSessions() const {
   if (support_multiple_cid_per_connection_) {
     return num_sessions_in_session_map_;
   }
-  return use_reference_counted_session_map_
-             ? reference_counted_session_map_.size()
-             : session_map_.size();
+  return reference_counted_session_map_.size();
 }
 
 }  // namespace quic

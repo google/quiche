@@ -117,31 +117,20 @@ std::string QuicDispatcherPeer::SelectAlpn(
 // static
 QuicSession* QuicDispatcherPeer::GetFirstSessionIfAny(
     QuicDispatcher* dispatcher) {
-  if (dispatcher->use_reference_counted_session_map()) {
-    if (dispatcher->reference_counted_session_map_.empty()) {
-      return nullptr;
-    }
-    return dispatcher->reference_counted_session_map_.begin()->second.get();
-  } else {
-    if (dispatcher->session_map_.empty()) {
-      return nullptr;
-    }
-    return dispatcher->session_map_.begin()->second.get();
+  if (dispatcher->reference_counted_session_map_.empty()) {
+    return nullptr;
   }
+  return dispatcher->reference_counted_session_map_.begin()->second.get();
 }
 
 // static
 const QuicSession* QuicDispatcherPeer::FindSession(
     const QuicDispatcher* dispatcher,
     QuicConnectionId id) {
-  if (dispatcher->use_reference_counted_session_map()) {
-    auto it = dispatcher->reference_counted_session_map_.find(id);
-    return (it == dispatcher->reference_counted_session_map_.end())
-               ? nullptr
-               : it->second.get();
-  }
-  auto it = dispatcher->session_map_.find(id);
-  return (it == dispatcher->session_map_.end()) ? nullptr : it->second.get();
+  auto it = dispatcher->reference_counted_session_map_.find(id);
+  return (it == dispatcher->reference_counted_session_map_.end())
+             ? nullptr
+             : it->second.get();
 }
 
 }  // namespace test
