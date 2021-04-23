@@ -92,7 +92,7 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
 
   // If true, always exit STARTUP on loss, even if bandwidth exceeds threshold.
   // If false, exit STARTUP on loss only if bandwidth is below threshold.
-  bool always_exit_startup_on_excess_loss = true;
+  bool always_exit_startup_on_excess_loss = false;
 
   /*
    * DRAIN parameters.

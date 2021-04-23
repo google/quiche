@@ -417,25 +417,6 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer) {
   EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->smoothed_rtt(), 1.0f);
 }
 
-TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB2NE) {
-  SetConnectionOption(kB2NE);
-  DefaultTopologyParams params;
-  CreateNetwork(params);
-
-  // Transfer 12MB.
-  DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
-  EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
-
-  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
-                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
-
-  EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
-  // The margin here is high, because the aggregation greatly increases
-  // smoothed rtt.
-  EXPECT_GE(params.RTT() * 4, rtt_stats()->smoothed_rtt());
-  EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
-}
-
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB2RC) {
   SetConnectionOption(kB2RC);
   DefaultTopologyParams params;
@@ -857,6 +838,42 @@ TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLossB2SL) {
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
 
   EXPECT_APPROX_EQ(sender_->ExportDebugState().inflight_hi, params.BDP(), 0.1f);
+}
+
+// Verifies that in STARTUP, if we exceed loss threshold in a round, we exit
+// STARTUP at the end of the round even if there's enough bandwidth growth.
+TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLossB2NE) {
+  // Set up flags such that any loss will be considered "too high".
+  SetQuicFlag(FLAGS_quic_bbr2_default_startup_full_loss_count, 0);
+  SetQuicFlag(FLAGS_quic_bbr2_default_loss_threshold, 0.0);
+
+  sender_ = SetupBbr2Sender(&sender_endpoint_, /*old_sender=*/nullptr);
+
+  SetConnectionOption(kB2NE);
+  DefaultTopologyParams params;
+  params.switch_queue_capacity_in_bdp = 0.5;
+  CreateNetwork(params);
+
+  // Run until the full bandwidth is reached and check how many rounds it was.
+  sender_endpoint_.AddBytesToTransfer(12 * 1024 * 1024);
+  QuicRoundTripCount max_bw_round = 0;
+  QuicBandwidth max_bw(QuicBandwidth::Zero());
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [this, &max_bw, &max_bw_round]() {
+        if (max_bw < sender_->ExportDebugState().bandwidth_hi) {
+          max_bw = sender_->ExportDebugState().bandwidth_hi;
+          max_bw_round = sender_->ExportDebugState().round_trip_count;
+        }
+        return sender_->ExportDebugState().startup.full_bandwidth_reached;
+      },
+      QuicTime::Delta::FromSeconds(5));
+  ASSERT_TRUE(simulator_result);
+  EXPECT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
+  EXPECT_EQ(sender_->ExportDebugState().round_trip_count, max_bw_round);
+  EXPECT_EQ(
+      0u,
+      sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
+  EXPECT_NE(0u, sender_connection_stats().packets_lost);
 }
 
 TEST_F(Bbr2DefaultTopologyTest, SenderPoliced) {

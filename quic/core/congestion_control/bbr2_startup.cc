@@ -112,8 +112,9 @@ void Bbr2StartupMode::CheckExcessiveLosses(
         new_inflight_hi = model_->max_bytes_delivered_in_round();
       }
     }
-    QUIC_DVLOG(3) << sender_ << " Exiting STARTUP due to loss. inflight_hi:"
-                  << new_inflight_hi;
+    QUIC_DVLOG(3) << sender_ << " Exiting STARTUP due to loss at round "
+                  << model_->RoundTripCount()
+                  << ". inflight_hi:" << new_inflight_hi;
     // TODO(ianswett): Add a shared method to set inflight_hi in the model.
     model_->set_inflight_hi(new_inflight_hi);
     model_->set_full_bandwidth_reached();

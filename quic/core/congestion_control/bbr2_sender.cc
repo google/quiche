@@ -132,7 +132,7 @@ void Bbr2Sender::ApplyConnectionOptions(
     params_.ignore_inflight_lo = true;
   }
   if (ContainsQuicTag(connection_options, kB2NE)) {
-    params_.always_exit_startup_on_excess_loss = false;
+    params_.always_exit_startup_on_excess_loss = true;
   }
   if (ContainsQuicTag(connection_options, kB2SL)) {
     params_.startup_loss_exit_use_max_delivered_for_inflight_hi = false;
