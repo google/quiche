@@ -241,11 +241,13 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
   // Parses the payload of a PRIORITY_UPDATE frame (draft-01, type 0x0f)
   // from |reader| into |frame|.
+  // TODO(b/147306124): Remove.
   bool ParsePriorityUpdateFrame(QuicDataReader* reader,
                                 PriorityUpdateFrame* frame);
 
   // Parses the payload of a PRIORITY_UPDATE frame (draft-02, type 0xf0700)
   // from |reader| into |frame|.
+  // TODO(b/147306124): Rename to ParsePriorityUpdateFrame().
   bool ParseNewPriorityUpdateFrame(QuicDataReader* reader,
                                    PriorityUpdateFrame* frame);
 
@@ -291,6 +293,10 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   std::array<char, sizeof(uint64_t)> type_buffer_;
   // Remaining unparsed push id data.
   std::array<char, sizeof(uint64_t)> push_id_buffer_;
+
+  // Latched value of
+  // gfe2_reloadable_flag_quic_ignore_old_priority_update_frame.
+  const bool ignore_old_priority_update_;
 };
 
 }  // namespace quic

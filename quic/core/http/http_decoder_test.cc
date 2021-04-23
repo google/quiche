@@ -1003,7 +1003,11 @@ TEST_F(HttpDecoderTest, LargeStreamIdInGoAway) {
   EXPECT_EQ("", decoder_.error_detail());
 }
 
-TEST_F(HttpDecoderTest, PriorityUpdateFrame) {
+TEST_F(HttpDecoderTest, OldPriorityUpdateFrame) {
+  if (GetQuicReloadableFlag(quic_ignore_old_priority_update_frame)) {
+    return;
+  }
+
   InSequence s;
   std::string input1 = absl::HexStringToBytes(
       "0f"    // type (PRIORITY_UPDATE)
@@ -1085,7 +1089,44 @@ TEST_F(HttpDecoderTest, PriorityUpdateFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 }
 
-TEST_F(HttpDecoderTest, NewPriorityUpdateFrame) {
+TEST_F(HttpDecoderTest, ObsoletePriorityUpdateFrame) {
+  if (!GetQuicReloadableFlag(quic_ignore_old_priority_update_frame)) {
+    return;
+  }
+
+  const QuicByteCount header_length = 2;
+  const QuicByteCount payload_length = 3;
+  InSequence s;
+  std::string input = absl::HexStringToBytes(
+      "0f"        // type (obsolete PRIORITY_UPDATE)
+      "03"        // length
+      "666f6f");  // payload "foo"
+
+  // Process frame as a whole.
+  EXPECT_CALL(visitor_,
+              OnUnknownFrameStart(0x0f, header_length, payload_length));
+  EXPECT_CALL(visitor_, OnUnknownFramePayload(Eq("foo")));
+  EXPECT_CALL(visitor_, OnUnknownFrameEnd()).WillOnce(Return(false));
+
+  EXPECT_EQ(header_length + payload_length,
+            ProcessInputWithGarbageAppended(input));
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process frame byte by byte.
+  EXPECT_CALL(visitor_,
+              OnUnknownFrameStart(0x0f, header_length, payload_length));
+  EXPECT_CALL(visitor_, OnUnknownFramePayload(Eq("f")));
+  EXPECT_CALL(visitor_, OnUnknownFramePayload(Eq("o")));
+  EXPECT_CALL(visitor_, OnUnknownFramePayload(Eq("o")));
+  EXPECT_CALL(visitor_, OnUnknownFrameEnd());
+
+  ProcessInputCharByChar(input);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, PriorityUpdateFrame) {
   InSequence s;
   std::string input1 = absl::HexStringToBytes(
       "800f0700"  // type (PRIORITY_UPDATE)
@@ -1166,6 +1207,10 @@ TEST_F(HttpDecoderTest, NewPriorityUpdateFrame) {
 }
 
 TEST_F(HttpDecoderTest, CorruptPriorityUpdateFrame) {
+  if (GetQuicReloadableFlag(quic_ignore_old_priority_update_frame)) {
+    return;
+  }
+
   std::string payload1 = absl::HexStringToBytes(
       "80"      // prioritized element type: PUSH_STREAM
       "4005");  // prioritized element id

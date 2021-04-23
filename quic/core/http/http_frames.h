@@ -29,6 +29,7 @@ enum class HttpFrameType {
   GOAWAY = 0x7,
   MAX_PUSH_ID = 0xD,
   // https://tools.ietf.org/html/draft-ietf-httpbis-priority-01
+  // TODO(b/147306124): Remove.
   PRIORITY_UPDATE = 0XF,
   // https://tools.ietf.org/html/draft-davidben-http-client-hint-reliability-02
   ACCEPT_CH = 0x89,

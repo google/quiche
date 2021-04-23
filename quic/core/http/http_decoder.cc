@@ -36,8 +36,13 @@ HttpDecoder::HttpDecoder(Visitor* visitor, Options options)
       current_push_id_length_(0),
       remaining_push_id_length_(0),
       error_(QUIC_NO_ERROR),
-      error_detail_("") {
+      error_detail_(""),
+      ignore_old_priority_update_(
+          GetQuicReloadableFlag(quic_ignore_old_priority_update_frame)) {
   QUICHE_DCHECK(visitor_);
+  if (ignore_old_priority_update_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_ignore_old_priority_update_frame);
+  }
 }
 
 HttpDecoder::~HttpDecoder() {}
@@ -257,7 +262,13 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID):
       break;
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE):
-      continue_processing = visitor_->OnPriorityUpdateFrameStart(header_length);
+      if (ignore_old_priority_update_) {
+        continue_processing = visitor_->OnUnknownFrameStart(
+            current_frame_type_, header_length, current_frame_length_);
+      } else {
+        continue_processing =
+            visitor_->OnPriorityUpdateFrameStart(header_length);
+      }
       break;
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM):
       continue_processing = visitor_->OnPriorityUpdateFrameStart(header_length);
@@ -388,7 +399,11 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE): {
-      continue_processing = BufferOrParsePayload(reader);
+      if (ignore_old_priority_update_) {
+        continue_processing = HandleUnknownFramePayload(reader);
+      } else {
+        continue_processing = BufferOrParsePayload(reader);
+      }
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM): {
@@ -456,9 +471,13 @@ bool HttpDecoder::FinishParsing(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE): {
-      // If frame payload is not empty, FinishParsing() is skipped.
-      QUICHE_DCHECK_EQ(0u, current_frame_length_);
-      continue_processing = BufferOrParsePayload(reader);
+      if (ignore_old_priority_update_) {
+        continue_processing = visitor_->OnUnknownFrameEnd();
+      } else {
+        // If frame payload is not empty, FinishParsing() is skipped.
+        QUICHE_DCHECK_EQ(0u, current_frame_length_);
+        continue_processing = BufferOrParsePayload(reader);
+      }
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM): {
@@ -606,11 +625,16 @@ bool HttpDecoder::ParseEntirePayload(QuicDataReader* reader) {
       return visitor_->OnMaxPushIdFrame(frame);
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE): {
-      PriorityUpdateFrame frame;
-      if (!ParsePriorityUpdateFrame(reader, &frame)) {
+      if (ignore_old_priority_update_) {
+        QUICHE_NOTREACHED();
         return false;
+      } else {
+        PriorityUpdateFrame frame;
+        if (!ParsePriorityUpdateFrame(reader, &frame)) {
+          return false;
+        }
+        return visitor_->OnPriorityUpdateFrame(frame);
       }
-      return visitor_->OnPriorityUpdateFrame(frame);
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM): {
       PriorityUpdateFrame frame;
