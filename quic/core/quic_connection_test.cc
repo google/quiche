@@ -3393,15 +3393,15 @@ TEST_P(QuicConnectionTest, FramePackingNonCryptoThenCrypto) {
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
   EXPECT_FALSE(connection_.HasQueuedData());
 
-  // Parse the last packet and ensure it's the crypto stream frame.
-  EXPECT_EQ(2u, writer_->frame_count());
-  ASSERT_EQ(1u, writer_->padding_frames().size());
+  // Parse the last packet and ensure it contains a crypto stream frame.
+  EXPECT_LE(2u, writer_->frame_count());
+  ASSERT_LE(1u, writer_->padding_frames().size());
   if (!QuicVersionUsesCryptoFrames(connection_.transport_version())) {
     ASSERT_EQ(1u, writer_->stream_frames().size());
     EXPECT_EQ(QuicUtils::GetCryptoStreamId(connection_.transport_version()),
               writer_->stream_frames()[0]->stream_id);
   } else {
-    EXPECT_EQ(1u, writer_->crypto_frames().size());
+    EXPECT_LE(1u, writer_->crypto_frames().size());
   }
 }
 
