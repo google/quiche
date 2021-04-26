@@ -15230,7 +15230,6 @@ TEST_P(QuicFramerTest, KeyUpdateOnFirstReceivedPacket) {
     // Key update is only used in QUIC+TLS.
     return;
   }
-  SetQuicReloadableFlag(quic_fix_key_update_on_first_packet, true);
   ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
   // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
   // instead of TestDecrypter.

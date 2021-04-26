@@ -599,7 +599,6 @@ std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
 
 void QuicVersionInitializeSupportForIetfDraft() {
   // Enable necessary flags.
-  SetQuicReloadableFlag(quic_fix_key_update_on_first_packet, true);
 }
 
 void QuicEnableVersion(const ParsedQuicVersion& version) {

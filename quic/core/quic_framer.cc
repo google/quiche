@@ -4872,10 +4872,8 @@ bool QuicFramer::DecryptPayload(size_t udp_packet_length,
         if ((current_key_phase_first_received_packet_number_.IsInitialized() &&
              header.packet_number >
                  current_key_phase_first_received_packet_number_) ||
-            (GetQuicReloadableFlag(quic_fix_key_update_on_first_packet) &&
-             !current_key_phase_first_received_packet_number_.IsInitialized() &&
+            (!current_key_phase_first_received_packet_number_.IsInitialized() &&
              !key_update_performed_)) {
-          QUIC_RELOADABLE_FLAG_COUNT(quic_fix_key_update_on_first_packet);
           if (!next_decrypter_) {
             next_decrypter_ =
                 visitor_->AdvanceKeysAndCreateCurrentOneRttDecrypter();
