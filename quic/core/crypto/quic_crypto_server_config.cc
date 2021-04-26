@@ -745,9 +745,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
       << context->connection_id() << " which is invalid with version "
       << context->version();
 
-  if (context->validate_chlo_result()->postpone_cert_validate_for_server &&
-      context->info().reject_reasons.empty()) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_crypto_postpone_cert_validate_for_server);
+  if (context->info().reject_reasons.empty()) {
     if (!context->signed_config() || !context->signed_config()->chain) {
       // No chain.
       context->validate_chlo_result()->info.reject_reasons.push_back(
@@ -1224,8 +1222,8 @@ void QuicCryptoServerConfig::SelectNewPrimaryConfig(
 }
 
 void QuicCryptoServerConfig::EvaluateClientHello(
-    const QuicSocketAddress& server_address,
-    const QuicSocketAddress& client_address,
+    const QuicSocketAddress& /*server_address*/,
+    const QuicSocketAddress& /*client_address*/,
     QuicTransportVersion /*version*/,
     const Configs& configs,
     QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
@@ -1292,17 +1290,6 @@ void QuicCryptoServerConfig::EvaluateClientHello(
   if (source_address_token_error != HANDSHAKE_OK) {
     info->reject_reasons.push_back(source_address_token_error);
     // No valid source address token.
-  }
-
-  if (!client_hello_state->postpone_cert_validate_for_server) {
-    QuicReferenceCountedPointer<ProofSource::Chain> chain =
-        proof_source_->GetCertChain(server_address, client_address,
-                                    std::string(info->sni));
-    if (!chain) {
-      info->reject_reasons.push_back(SERVER_CONFIG_UNKNOWN_CONFIG_FAILURE);
-    } else if (!ValidateExpectedLeafCertificate(client_hello, chain->certs)) {
-      info->reject_reasons.push_back(INVALID_EXPECTED_LEAF_CERTIFICATE);
-    }
   }
 
   if (info->client_nonce.size() != kNonceSize) {

@@ -98,9 +98,6 @@ class QUIC_EXPORT_PRIVATE ValidateClientHelloResultCallback {
     // Populated if the CHLO STK contained a CachedNetworkParameters proto.
     CachedNetworkParameters cached_network_params;
 
-    const bool postpone_cert_validate_for_server =
-        GetQuicReloadableFlag(quic_crypto_postpone_cert_validate_for_server);
-
    protected:
     ~Result() override;
   };
