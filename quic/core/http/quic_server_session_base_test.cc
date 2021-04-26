@@ -148,7 +148,7 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
     config_.SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
 
-    ParsedQuicVersionVector supported_versions = SupportedVersions(GetParam());
+    ParsedQuicVersionVector supported_versions = SupportedVersions(version());
     connection_ = new StrictMock<MockQuicConnection>(
         &helper_, &alarm_factory_, Perspective::IS_SERVER, supported_versions);
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
@@ -166,23 +166,24 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_->config(), kMinimumFlowControlSendWindow);
     session_->OnConfigNegotiated();
-    if (connection_->version().SupportsAntiAmplificationLimit()) {
+    if (version().SupportsAntiAmplificationLimit()) {
       QuicConnectionPeer::SetAddressValidated(connection_);
     }
   }
 
   QuicStreamId GetNthClientInitiatedBidirectionalId(int n) {
-    return GetNthClientInitiatedBidirectionalStreamId(
-        connection_->transport_version(), n);
+    return GetNthClientInitiatedBidirectionalStreamId(transport_version(), n);
   }
 
   QuicStreamId GetNthServerInitiatedUnidirectionalId(int n) {
     return quic::test::GetNthServerInitiatedUnidirectionalStreamId(
-        connection_->transport_version(), n);
+        transport_version(), n);
   }
 
+  ParsedQuicVersion version() const { return GetParam(); }
+
   QuicTransportVersion transport_version() const {
-    return connection_->transport_version();
+    return version().transport_version;
   }
 
   // Create and inject a STOP_SENDING frame. In GOOGLE QUIC, receiving a
@@ -373,7 +374,7 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
   for (size_t i = 0; i < kMaxStreamsForTest; ++i) {
     EXPECT_TRUE(QuicServerSessionBasePeer::GetOrCreateStream(session_.get(),
                                                              stream_id));
-    stream_id += QuicUtils::StreamIdDelta(connection_->transport_version());
+    stream_id += QuicUtils::StreamIdDelta(transport_version());
   }
 
   if (!VersionHasIetfQuicFrames(transport_version())) {
@@ -382,11 +383,11 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
     for (size_t i = 0; i < kMaxStreamsMinimumIncrement; ++i) {
       EXPECT_TRUE(QuicServerSessionBasePeer::GetOrCreateStream(session_.get(),
                                                                stream_id));
-      stream_id += QuicUtils::StreamIdDelta(connection_->transport_version());
+      stream_id += QuicUtils::StreamIdDelta(transport_version());
     }
   }
   // Now violate the server's internal stream limit.
-  stream_id += QuicUtils::StreamIdDelta(connection_->transport_version());
+  stream_id += QuicUtils::StreamIdDelta(transport_version());
 
   if (!VersionHasIetfQuicFrames(transport_version())) {
     // For non-version 99, QUIC responds to an attempt to exceed the stream
@@ -418,8 +419,7 @@ TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
       session_.get(), GetNthClientInitiatedBidirectionalId(0)));
 
   // Establish available streams up to the server's limit.
-  QuicStreamId next_id =
-      QuicUtils::StreamIdDelta(connection_->transport_version());
+  QuicStreamId next_id = QuicUtils::StreamIdDelta(transport_version());
   const int kLimitingStreamId =
       GetNthClientInitiatedBidirectionalId(kAvailableStreamLimit + 1);
   if (!VersionHasIetfQuicFrames(transport_version())) {
@@ -456,7 +456,7 @@ TEST_P(QuicServerSessionBaseTest, GetEvenIncomingError) {
 
 TEST_P(QuicServerSessionBaseTest, GetStreamDisconnected) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
-  if (GetParam() != AllSupportedVersions()[0]) {
+  if (version() != AllSupportedVersions()[0]) {
     return;
   }
 
@@ -527,14 +527,13 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
 
   if (!VersionUsesHttp3(transport_version())) {
     session_->UnregisterStreamPriority(
-        QuicUtils::GetHeadersStreamId(connection_->transport_version()),
+        QuicUtils::GetHeadersStreamId(transport_version()),
         /*is_static=*/true);
   }
   QuicServerSessionBasePeer::SetCryptoStream(session_.get(), nullptr);
   MockQuicCryptoServerStream* quic_crypto_stream = nullptr;
   MockTlsServerHandshaker* tls_server_stream = nullptr;
-  if (session_->connection()->version().handshake_protocol ==
-      PROTOCOL_QUIC_CRYPTO) {
+  if (version().handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
     quic_crypto_stream = new MockQuicCryptoServerStream(
         &crypto_config_, &compressed_certs_cache_, session_.get(),
         &stream_helper_);
@@ -548,7 +547,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   }
   if (!VersionUsesHttp3(transport_version())) {
     session_->RegisterStreamPriority(
-        QuicUtils::GetHeadersStreamId(connection_->transport_version()),
+        QuicUtils::GetHeadersStreamId(transport_version()),
         /*is_static=*/true,
         spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority));
   }
@@ -571,11 +570,11 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   // Queue up some pending data.
   if (!VersionUsesHttp3(transport_version())) {
     session_->MarkConnectionLevelWriteBlocked(
-        QuicUtils::GetHeadersStreamId(connection_->transport_version()));
+        QuicUtils::GetHeadersStreamId(transport_version()));
   } else {
     session_->MarkConnectionLevelWriteBlocked(
-        QuicUtils::GetFirstUnidirectionalStreamId(
-            connection_->transport_version(), Perspective::IS_SERVER));
+        QuicUtils::GetFirstUnidirectionalStreamId(transport_version(),
+                                                  Perspective::IS_SERVER));
   }
   EXPECT_TRUE(session_->HasDataToWrite());
 
@@ -643,7 +642,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
 }
 
 TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
+  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
     // This test relies on resumption, which is not currently supported by the
     // TLS handshake.
     // TODO(nharper): Add support for resumption to the TLS handshake.
@@ -721,7 +720,7 @@ TEST_P(QuicServerSessionBaseTest, NoBandwidthResumptionByDefault) {
 }
 
 TEST_P(QuicServerSessionBaseTest, TurnOffServerPush) {
-  if (session_->version().UsesHttp3()) {
+  if (VersionHasIetfQuicFrames(transport_version())) {
     return;
   }
 
@@ -762,7 +761,7 @@ INSTANTIATE_TEST_SUITE_P(StreamMemberLifetimeTests,
 // ProofSource::GetProof.  Delay the completion of the operation until after the
 // stream has been destroyed, and verify that there are no memory bugs.
 TEST_P(StreamMemberLifetimeTest, Basic) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
+  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
     // This test depends on the QUIC crypto protocol, so it is disabled for the
     // TLS handshake.
     // TODO(nharper): Fix this test so it doesn't rely on QUIC crypto.
@@ -771,9 +770,9 @@ TEST_P(StreamMemberLifetimeTest, Basic) {
 
   const QuicClock* clock = helper_.GetClock();
   CryptoHandshakeMessage chlo = crypto_test_utils::GenerateDefaultInchoateCHLO(
-      clock, GetParam().transport_version, &crypto_config_);
+      clock, transport_version(), &crypto_config_);
   chlo.SetVector(kCOPT, QuicTagVector{kREJ});
-  std::vector<ParsedQuicVersion> packet_version_list = {GetParam()};
+  std::vector<ParsedQuicVersion> packet_version_list = {version()};
   std::unique_ptr<QuicEncryptedPacket> packet(ConstructEncryptedPacket(
       TestConnectionId(1), EmptyQuicConnectionId(), true, false, 1,
       std::string(chlo.GetSerialized().AsStringPiece()), CONNECTION_ID_PRESENT,

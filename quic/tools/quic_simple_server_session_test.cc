@@ -257,7 +257,7 @@ class QuicSimpleServerSessionTest
                                                           kMaxStreamsForTest);
     }
 
-    ParsedQuicVersionVector supported_versions = SupportedVersions(GetParam());
+    ParsedQuicVersionVector supported_versions = SupportedVersions(version());
     connection_ = new StrictMock<MockQuicConnectionWithSendStreamData>(
         &helper_, &alarm_factory_, Perspective::IS_SERVER, supported_versions);
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
@@ -289,8 +289,10 @@ class QuicSimpleServerSessionTest
         transport_version(), n);
   }
 
+  ParsedQuicVersion version() const { return GetParam(); }
+
   QuicTransportVersion transport_version() const {
-    return GetParam().transport_version;
+    return version().transport_version;
   }
 
   void InjectStopSending(QuicStreamId stream_id,
@@ -443,7 +445,7 @@ TEST_P(QuicSimpleServerSessionTest, AcceptClosedStream) {
 
 TEST_P(QuicSimpleServerSessionTest, CreateIncomingStreamDisconnected) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
-  if (GetParam() != AllSupportedVersions()[0]) {
+  if (version() != AllSupportedVersions()[0]) {
     return;
   }
 
@@ -467,7 +469,7 @@ TEST_P(QuicSimpleServerSessionTest, CreateIncomingStream) {
 
 TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamDisconnected) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
-  if (GetParam() != AllSupportedVersions()[0]) {
+  if (version() != AllSupportedVersions()[0]) {
     return;
   }
 
@@ -486,7 +488,7 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamDisconnected) {
 
 TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUnencrypted) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
-  if (GetParam() != AllSupportedVersions()[0]) {
+  if (version() != AllSupportedVersions()[0]) {
     return;
   }
 
@@ -606,7 +608,7 @@ class QuicSimpleServerSessionServerPushTest
 
   QuicSimpleServerSessionServerPushTest() {
     // Reset stream level flow control window to be 32KB.
-    if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
+    if (version().handshake_protocol == PROTOCOL_TLS1_3) {
       if (VersionHasIetfQuicFrames(transport_version())) {
         QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesUnidirectional(
             &config_, kStreamFlowControlWindowSize);
@@ -627,7 +629,7 @@ class QuicSimpleServerSessionServerPushTest
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         &config_, kInitialSessionFlowControlWindowForTest);
 
-    ParsedQuicVersionVector supported_versions = SupportedVersions(GetParam());
+    ParsedQuicVersionVector supported_versions = SupportedVersions(version());
     connection_ = new StrictMock<MockQuicConnectionWithSendStreamData>(
         &helper_, &alarm_factory_, Perspective::IS_SERVER, supported_versions);
     connection_->SetEncrypter(
