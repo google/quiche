@@ -9,7 +9,6 @@
 #include <utility>
 
 #include "absl/strings/str_cat.h"
-#include "absl/strings/string_view.h"
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/crypto/quic_crypto_server_config.h"
 #include "quic/core/crypto/quic_random.h"
@@ -55,6 +54,12 @@ using PromisedStreamInfo = QuicSimpleServerSession::PromisedStreamInfo;
 
 const QuicByteCount kHeadersFrameHeaderLength = 2;
 const QuicByteCount kHeadersFramePayloadLength = 9;
+
+// Data to be sent on a request stream.  In Google QUIC, this is interpreted as
+// DATA payload (there is no framing on request streams).  In IETF QUIC, this is
+// interpreted as HEADERS frame (type 0x1) with payload length 122 ('z').  Since
+// no payload is included, QPACK decoder will not be invoked.
+const char* const kStreamData = "\1z";
 
 }  // namespace
 
@@ -332,10 +337,9 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          ::testing::PrintToStringParamName());
 
 TEST_P(QuicSimpleServerSessionTest, CloseStreamDueToReset) {
-  // Open a stream, then reset it.
-  // Send two bytes of payload to open it.
+  // Send some data open a stream, then reset it.
   QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,
-                        absl::string_view("HT"));
+                        kStreamData);
   session_->OnStreamFrame(data1);
   EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 
@@ -390,9 +394,8 @@ TEST_P(QuicSimpleServerSessionTest, NeverOpenStreamDueToReset) {
 
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 
-  // Send two bytes of payload.
   QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,
-                        absl::string_view("HT"));
+                        kStreamData);
   session_->OnStreamFrame(data1);
 
   // The stream should never be opened, now that the reset is received.
@@ -401,11 +404,11 @@ TEST_P(QuicSimpleServerSessionTest, NeverOpenStreamDueToReset) {
 }
 
 TEST_P(QuicSimpleServerSessionTest, AcceptClosedStream) {
-  // Send (empty) compressed headers followed by two bytes of data.
+  // Send some data to open two streams.
   QuicStreamFrame frame1(GetNthClientInitiatedBidirectionalId(0), false, 0,
-                         absl::string_view("\1\0\0\0\0\0\0\0HT"));
+                         kStreamData);
   QuicStreamFrame frame2(GetNthClientInitiatedBidirectionalId(1), false, 0,
-                         absl::string_view("\3\0\0\0\0\0\0\0HT"));
+                         kStreamData);
   session_->OnStreamFrame(frame1);
   session_->OnStreamFrame(frame2);
   EXPECT_EQ(2u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
@@ -433,9 +436,9 @@ TEST_P(QuicSimpleServerSessionTest, AcceptClosedStream) {
   // past the reset point of stream 3.  As it's a closed stream we just drop the
   // data on the floor, but accept the packet because it has data for stream 5.
   QuicStreamFrame frame3(GetNthClientInitiatedBidirectionalId(0), false, 2,
-                         absl::string_view("TP"));
+                         kStreamData);
   QuicStreamFrame frame4(GetNthClientInitiatedBidirectionalId(1), false, 2,
-                         absl::string_view("TP"));
+                         kStreamData);
   session_->OnStreamFrame(frame3);
   session_->OnStreamFrame(frame4);
   // The stream should never be opened, now that the reset is received.
@@ -512,7 +515,7 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUptoLimit) {
   // Receive some data to initiate a incoming stream which should not effect
   // creating outgoing streams.
   QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,
-                        absl::string_view("HT"));
+                        kStreamData);
   session_->OnStreamFrame(data1);
   EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()) -
@@ -561,7 +564,7 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUptoLimit) {
 
   // Create peer initiated stream should have no problem.
   QuicStreamFrame data2(GetNthClientInitiatedBidirectionalId(1), false, 0,
-                        absl::string_view("HT"));
+                        kStreamData);
   session_->OnStreamFrame(data2);
   EXPECT_EQ(2u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()) -
                     /*outcoming=*/kMaxStreamsForTest);
@@ -569,7 +572,7 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUptoLimit) {
 
 TEST_P(QuicSimpleServerSessionTest, OnStreamFrameWithEvenStreamId) {
   QuicStreamFrame frame(GetNthServerInitiatedUnidirectionalId(0), false, 0,
-                        absl::string_view());
+                        kStreamData);
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID,
                               "Client sent data on server push stream", _));
