@@ -388,7 +388,6 @@ QuicConnection::QuicConnection(
 
   support_multiple_connection_ids_ =
       version().HasIetfQuicFrames() &&
-      framer_.do_not_synthesize_source_cid_for_short_header() &&
       GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2) &&
       GetQuicRestartFlag(
           quic_dispatcher_support_multiple_cid_per_connection_v2) &&
@@ -1048,7 +1047,6 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
   }
 
   bool skip_server_connection_id_validation =
-      framer_.do_not_synthesize_source_cid_for_short_header() &&
       perspective_ == Perspective::IS_CLIENT &&
       header.form == IETF_QUIC_SHORT_HEADER_PACKET;
 
@@ -1084,11 +1082,8 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
     return true;
   }
 
-  if (framer_.do_not_synthesize_source_cid_for_short_header() &&
-      perspective_ == Perspective::IS_SERVER &&
+  if (perspective_ == Perspective::IS_SERVER &&
       header.form == IETF_QUIC_SHORT_HEADER_PACKET) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_do_not_synthesize_source_cid_for_short_header, 3, 3);
     return true;
   }
 
@@ -1123,8 +1118,7 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
   // Check that any public reset packet with a different connection ID that was
   // routed to this QuicConnection has been redirected before control reaches
   // here.
-  QUICHE_DCHECK((framer_.do_not_synthesize_source_cid_for_short_header() &&
-                 perspective_ == Perspective::IS_CLIENT &&
+  QUICHE_DCHECK((perspective_ == Perspective::IS_CLIENT &&
                  header.form == IETF_QUIC_SHORT_HEADER_PACKET) ||
                 GetServerConnectionIdAsRecipient(header, perspective_) ==
                     ServerConnectionId() ||

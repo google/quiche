@@ -714,10 +714,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     drop_incoming_retry_packets_ = drop_incoming_retry_packets;
   }
 
-  bool do_not_synthesize_source_cid_for_short_header() const {
-    return do_not_synthesize_source_cid_for_short_header_;
-  }
-
  private:
   friend class test::QuicFramerPeer;
 
@@ -1173,11 +1169,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Indicates whether received RETRY packets should be dropped.
   bool drop_incoming_retry_packets_ = false;
-
-  // Indicates whether source connection ID should be synthesized when read
-  // short header packet.
-  const bool do_not_synthesize_source_cid_for_short_header_ =
-      GetQuicReloadableFlag(quic_do_not_synthesize_source_cid_for_short_header);
 
   // The length in bytes of the last packet number written to an IETF-framed
   // packet.

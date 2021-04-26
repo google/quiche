@@ -1479,9 +1479,6 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToClient) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_EQ(FramerTestConnectionId(),
             visitor_.header_->destination_connection_id);
-  if (!framer_.do_not_synthesize_source_cid_for_short_header()) {
-    EXPECT_EQ(TestConnectionId(0x33), visitor_.header_->source_connection_id);
-  }
 }
 
 // In short header packets from client to server, the client connection ID
@@ -1515,9 +1512,6 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToServer) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_EQ(FramerTestConnectionId(),
             visitor_.header_->destination_connection_id);
-  if (!framer_.do_not_synthesize_source_cid_for_short_header()) {
-    EXPECT_EQ(TestConnectionId(0x33), visitor_.header_->source_connection_id);
-  }
 }
 
 TEST_P(QuicFramerTest, PacketHeaderWith0ByteConnectionId) {
@@ -1567,9 +1561,6 @@ TEST_P(QuicFramerTest, PacketHeaderWith0ByteConnectionId) {
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
   EXPECT_THAT(framer_.error(), IsError(QUIC_MISSING_PAYLOAD));
   ASSERT_TRUE(visitor_.header_.get());
-  if (!framer_.do_not_synthesize_source_cid_for_short_header()) {
-    EXPECT_EQ(FramerTestConnectionId(), visitor_.header_->source_connection_id);
-  }
   EXPECT_FALSE(visitor_.header_->reset_flag);
   EXPECT_FALSE(visitor_.header_->version_flag);
   EXPECT_EQ(kPacketNumber, visitor_.header_->packet_number);

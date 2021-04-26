@@ -14012,7 +14012,8 @@ TEST_P(QuicConnectionTest,
 TEST_P(QuicConnectionTest,
        PathValidationFailedOnClientDueToLackOfServerConnectionId) {
   if (!connection_.support_multiple_connection_ids() ||
-      !connection_.use_connection_id_on_default_path()) {
+      !connection_.use_connection_id_on_default_path() ||
+      !connection_.use_path_validator()) {
     return;
   }
   QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
@@ -14034,7 +14035,8 @@ TEST_P(QuicConnectionTest,
 TEST_P(QuicConnectionTest,
        PathValidationFailedOnClientDueToLackOfClientConnectionIdTheSecondTime) {
   if (!connection_.support_multiple_connection_ids() ||
-      !connection_.use_connection_id_on_default_path()) {
+      !connection_.use_connection_id_on_default_path() ||
+      !connection_.use_path_validator()) {
     return;
   }
 
@@ -14114,7 +14116,8 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest, ServerConnectionIdRetiredUponPathValidationFailure) {
   if (!connection_.support_multiple_connection_ids() ||
-      !connection_.use_connection_id_on_default_path()) {
+      !connection_.use_connection_id_on_default_path() ||
+      !connection_.use_path_validator()) {
     return;
   }
 
@@ -14177,7 +14180,8 @@ TEST_P(QuicConnectionTest,
 TEST_P(QuicConnectionTest,
        MigratePathDirectlyFailedDueToLackOfClientConnectionIdTheSecondTime) {
   if (!connection_.support_multiple_connection_ids() ||
-      !connection_.use_connection_id_on_default_path()) {
+      !connection_.use_connection_id_on_default_path() ||
+      !connection_.use_path_validator()) {
     return;
   }
   QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);

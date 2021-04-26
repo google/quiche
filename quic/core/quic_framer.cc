@@ -435,10 +435,6 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
   version_ = supported_versions_[0];
   QUICHE_DCHECK(version_.IsKnown())
       << ParsedQuicVersionVectorToString(supported_versions_);
-  if (do_not_synthesize_source_cid_for_short_header_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_do_not_synthesize_source_cid_for_short_header, 1, 3);
-  }
 }
 
 QuicFramer::~QuicFramer() {}
@@ -2774,7 +2770,6 @@ bool QuicFramer::ProcessAndValidateIetfConnectionIdLength(
 
 bool QuicFramer::ValidateReceivedConnectionIds(const QuicPacketHeader& header) {
   bool skip_server_connection_id_validation =
-      do_not_synthesize_source_cid_for_short_header_ &&
       perspective_ == Perspective::IS_CLIENT &&
       header.form == IETF_QUIC_SHORT_HEADER_PACKET;
   if (!skip_server_connection_id_validation &&
@@ -2786,13 +2781,8 @@ bool QuicFramer::ValidateReceivedConnectionIds(const QuicPacketHeader& header) {
   }
 
   bool skip_client_connection_id_validation =
-      do_not_synthesize_source_cid_for_short_header_ &&
       perspective_ == Perspective::IS_SERVER &&
       header.form == IETF_QUIC_SHORT_HEADER_PACKET;
-  if (skip_client_connection_id_validation) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_do_not_synthesize_source_cid_for_short_header, 2, 3);
-  }
   if (!skip_client_connection_id_validation &&
       version_.SupportsClientConnectionIds() &&
       !QuicUtils::IsConnectionIdValidForVersion(
@@ -2829,15 +2819,6 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
     header->destination_connection_id_included = CONNECTION_ID_PRESENT;
     header->source_connection_id_included =
         header->version_flag ? CONNECTION_ID_PRESENT : CONNECTION_ID_ABSENT;
-    if (!do_not_synthesize_source_cid_for_short_header_ &&
-        header->source_connection_id_included == CONNECTION_ID_ABSENT) {
-      QUICHE_DCHECK(header->source_connection_id.IsEmpty());
-      if (perspective_ == Perspective::IS_CLIENT) {
-        header->source_connection_id = last_serialized_server_connection_id_;
-      } else {
-        header->source_connection_id = last_serialized_client_connection_id_;
-      }
-    }
 
     if (!ValidateReceivedConnectionIds(*header)) {
       return false;
@@ -2924,13 +2905,6 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
       QUICHE_DCHECK(!version_.SupportsClientConnectionIds());
       set_detailed_error("Client connection ID not supported in this version.");
       return false;
-    }
-    if (!do_not_synthesize_source_cid_for_short_header_) {
-      if (perspective_ == Perspective::IS_CLIENT) {
-        header->source_connection_id = last_serialized_server_connection_id_;
-      } else {
-        header->source_connection_id = last_serialized_client_connection_id_;
-      }
     }
   }
 
