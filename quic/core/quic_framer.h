@@ -1174,9 +1174,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // Indicates whether received RETRY packets should be dropped.
   bool drop_incoming_retry_packets_ = false;
 
-  bool reject_unexpected_ietf_frame_types_ =
-      GetQuicReloadableFlag(quic_reject_unexpected_ietf_frame_types);
-
   // Indicates whether source connection ID should be synthesized when read
   // short header packet.
   const bool do_not_synthesize_source_cid_for_short_header_ =

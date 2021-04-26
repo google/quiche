@@ -15261,8 +15261,7 @@ TEST_P(QuicFramerTest, KeyUpdateOnFirstReceivedPacket) {
 }
 
 TEST_P(QuicFramerTest, ErrorWhenUnexpectedFrameTypeEncountered) {
-  if (!GetQuicReloadableFlag(quic_reject_unexpected_ietf_frame_types) ||
-      !VersionHasIetfQuicFrames(framer_.transport_version()) ||
+  if (!VersionHasIetfQuicFrames(framer_.transport_version()) ||
       !QuicVersionHasLongHeaderLengths(framer_.transport_version()) ||
       !framer_.version().HasLongHeaderLengths()) {
     return;

@@ -3232,20 +3232,14 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
       set_detailed_error("Unable to read frame type.");
       return RaiseError(QUIC_INVALID_FRAME_DATA);
     }
-    if (reject_unexpected_ietf_frame_types_) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_reject_unexpected_ietf_frame_types, 1,
-                                   2);
-      if (!IsIetfFrameTypeExpectedForEncryptionLevel(frame_type,
-                                                     decrypted_level)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_reject_unexpected_ietf_frame_types, 2,
-                                     2);
-        set_detailed_error(absl::StrCat(
-            "IETF frame type ",
-            QuicIetfFrameTypeString(static_cast<QuicIetfFrameType>(frame_type)),
-            " is unexpected at encryption level ",
-            EncryptionLevelToString(decrypted_level)));
-        return RaiseError(IETF_QUIC_PROTOCOL_VIOLATION);
-      }
+    if (!IsIetfFrameTypeExpectedForEncryptionLevel(frame_type,
+                                                   decrypted_level)) {
+      set_detailed_error(absl::StrCat(
+          "IETF frame type ",
+          QuicIetfFrameTypeString(static_cast<QuicIetfFrameType>(frame_type)),
+          " is unexpected at encryption level ",
+          EncryptionLevelToString(decrypted_level)));
+      return RaiseError(IETF_QUIC_PROTOCOL_VIOLATION);
     }
     current_received_frame_type_ = frame_type;
 

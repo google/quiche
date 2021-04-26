@@ -1199,8 +1199,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                                                   EncryptionLevel level) {
     QuicPacketHeader header = ConstructPacketHeader(number, level);
     QuicFrames frames;
-    if (GetQuicReloadableFlag(quic_reject_unexpected_ietf_frame_types) &&
-        VersionHasIetfQuicFrames(version().transport_version) &&
+    if (VersionHasIetfQuicFrames(version().transport_version) &&
         (level == ENCRYPTION_INITIAL || level == ENCRYPTION_HANDSHAKE)) {
       frames.push_back(QuicFrame(QuicPingFrame()));
       frames.push_back(QuicFrame(QuicPaddingFrame(100)));
@@ -2853,8 +2852,7 @@ TEST_P(QuicConnectionTest, PacketsOutOfOrderWithAdditionsAndLeastAwaiting) {
 TEST_P(QuicConnectionTest, RejectUnencryptedStreamData) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
   if (!IsDefaultTestConfiguration() ||
-      (GetQuicReloadableFlag(quic_reject_unexpected_ietf_frame_types) &&
-       VersionHasIetfQuicFrames(version().transport_version))) {
+      VersionHasIetfQuicFrames(version().transport_version)) {
     return;
   }
 
@@ -7790,8 +7788,7 @@ TEST_P(QuicConnectionTest, ServerReceivesChloOnNonCryptoStream) {
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   ForceProcessFramePacket(QuicFrame(frame1_));
-  if (GetQuicReloadableFlag(quic_reject_unexpected_ietf_frame_types) &&
-      VersionHasIetfQuicFrames(version().transport_version)) {
+  if (VersionHasIetfQuicFrames(version().transport_version)) {
     // INITIAL packet should not contain STREAM frame.
     TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
   } else {
@@ -7813,8 +7810,7 @@ TEST_P(QuicConnectionTest, ClientReceivesRejOnNonCryptoStream) {
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   ForceProcessFramePacket(QuicFrame(frame1_));
-  if (GetQuicReloadableFlag(quic_reject_unexpected_ietf_frame_types) &&
-      VersionHasIetfQuicFrames(version().transport_version)) {
+  if (VersionHasIetfQuicFrames(version().transport_version)) {
     // INITIAL packet should not contain STREAM frame.
     TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
   } else {
@@ -11165,8 +11161,7 @@ TEST_P(QuicConnectionTest, ProcessUndecryptablePacketsBasedOnEncryptionLevel) {
                            std::make_unique<TaggingEncrypter>(0x01));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
   // Verify all ENCRYPTION_HANDSHAKE packets get processed.
-  if (!GetQuicReloadableFlag(quic_reject_unexpected_ietf_frame_types) ||
-      !VersionHasIetfQuicFrames(version().transport_version)) {
+  if (!VersionHasIetfQuicFrames(version().transport_version)) {
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(6);
   }
   connection_.GetProcessUndecryptablePacketsAlarm()->Fire();
