@@ -187,25 +187,6 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
               MaybeSendStopSendingFrame,
               (QuicStreamId stream_id, QuicRstStreamErrorCode error),
               (override));
-  // Matchers cannot be used on non-copyable types like Http2HeaderBlock.
-  void PromisePushResources(
-      const std::string& request_url,
-      const std::list<QuicBackendResponse::ServerPushInfo>& resources,
-      QuicStreamId original_stream_id,
-      const spdy::SpdyStreamPrecedence& original_precedence,
-      const spdy::Http2HeaderBlock& original_request_headers) override {
-    original_request_headers_ = original_request_headers.Clone();
-    PromisePushResourcesMock(request_url, resources, original_stream_id,
-                             original_precedence, original_request_headers);
-  }
-  MOCK_METHOD(void,
-              PromisePushResourcesMock,
-              (const std::string&,
-               const std::list<QuicBackendResponse::ServerPushInfo>&,
-               QuicStreamId,
-               const spdy::SpdyStreamPrecedence&,
-               const spdy::Http2HeaderBlock&),
-              ());
 
   using QuicSession::ActivateStream;
 
@@ -544,46 +525,6 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithValidHeaders) {
   stream_->DoSendResponse();
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
   EXPECT_TRUE(stream_->write_side_closed());
-}
-
-TEST_P(QuicSimpleServerStreamTest, SendResponseWithPushResources) {
-  // Tests that if a response has push resources to be send, SendResponse() will
-  // call PromisePushResources() to handle these resources.
-
-  // Add a request and response with valid headers into cache.
-  std::string host = "www.google.com";
-  std::string request_path = "/foo";
-  std::string body = "Yummm";
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount header_length =
-      HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
-  QuicBackendResponse::ServerPushInfo push_info(
-      QuicUrl(host, "/bar"), spdy::Http2HeaderBlock(),
-      QuicStream::kDefaultPriority, "Push body");
-  std::list<QuicBackendResponse::ServerPushInfo> push_resources;
-  push_resources.push_back(push_info);
-  memory_cache_backend_.AddSimpleResponseWithServerPushResources(
-      host, request_path, 200, body, push_resources);
-
-  spdy::Http2HeaderBlock* request_headers = stream_->mutable_headers();
-  (*request_headers)[":path"] = request_path;
-  (*request_headers)[":authority"] = host;
-  (*request_headers)[":method"] = "GET";
-
-  QuicStreamPeer::SetFinReceived(stream_);
-  InSequence s;
-  EXPECT_CALL(session_, PromisePushResourcesMock(
-                            host + request_path, _,
-                            GetNthClientInitiatedBidirectionalStreamId(
-                                connection_->transport_version(), 0),
-                            _, _));
-  EXPECT_CALL(*stream_, WriteHeadersMock(false));
-  if (UsesHttp3()) {
-    EXPECT_CALL(session_, WritevData(_, header_length, _, NO_FIN, _, _));
-  }
-  EXPECT_CALL(session_, WritevData(_, body.length(), _, FIN, _, _));
-  stream_->DoSendResponse();
-  EXPECT_EQ(*request_headers, session_.original_request_headers_);
 }
 
 TEST_P(QuicSimpleServerStreamTest, SendResponseWithEarlyHints) {

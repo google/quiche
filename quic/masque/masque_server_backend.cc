@@ -90,7 +90,7 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
   QUIC_DLOG(INFO) << "Sending MASQUE response for "
                   << request_headers.DebugString();
 
-  request_handler->OnResponseBackendComplete(response.get(), {});
+  request_handler->OnResponseBackendComplete(response.get());
   it->second.responses.emplace_back(std::move(response));
 
   return true;

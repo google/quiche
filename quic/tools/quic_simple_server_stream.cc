@@ -214,8 +214,7 @@ std::string QuicSimpleServerStream::peer_host() const {
 }
 
 void QuicSimpleServerStream::OnResponseBackendComplete(
-    const QuicBackendResponse* response,
-    std::list<QuicBackendResponse::ServerPushInfo> resources) {
+    const QuicBackendResponse* response) {
   if (response == nullptr) {
     QUIC_DVLOG(1) << "Response not found in cache.";
     SendNotFoundResponse();
@@ -283,15 +282,6 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
       Reset(QUIC_STREAM_CANCELLED);
       return;
     }
-  }
-
-  if (!resources.empty()) {
-    QUIC_DVLOG(1) << "Stream " << id() << " found " << resources.size()
-                  << " push resources.";
-    QuicSimpleServerSession* session =
-        static_cast<QuicSimpleServerSession*>(spdy_session());
-    session->PromisePushResources(request_url, resources, id(), precedence(),
-                                  request_headers_);
   }
 
   if (response->response_type() == QuicBackendResponse::INCOMPLETE_RESPONSE) {

@@ -62,39 +62,6 @@ void QuicSimpleServerSession::OnStreamFrame(const QuicStreamFrame& frame) {
   QuicSpdySession::OnStreamFrame(frame);
 }
 
-void QuicSimpleServerSession::PromisePushResources(
-    const std::string& request_url,
-    const std::list<QuicBackendResponse::ServerPushInfo>& resources,
-    QuicStreamId original_stream_id,
-    const spdy::SpdyStreamPrecedence& /* original_precedence */,
-    const spdy::Http2HeaderBlock& original_request_headers) {
-  if (!server_push_enabled()) {
-    return;
-  }
-
-  for (const QuicBackendResponse::ServerPushInfo& resource : resources) {
-    spdy::Http2HeaderBlock headers = SynthesizePushRequestHeaders(
-        request_url, resource, original_request_headers);
-    // TODO(b/136295430): Use sequential push IDs for IETF QUIC.
-    auto new_highest_promised_stream_id =
-        highest_promised_stream_id_ +
-        QuicUtils::StreamIdDelta(transport_version());
-    if (VersionUsesHttp3(transport_version()) &&
-        !CanCreatePushStreamWithId(new_highest_promised_stream_id)) {
-      return;
-    }
-    highest_promised_stream_id_ = new_highest_promised_stream_id;
-    SendPushPromise(original_stream_id, highest_promised_stream_id_,
-                    headers.Clone());
-    promised_streams_.push_back(
-        PromisedStreamInfo(std::move(headers), highest_promised_stream_id_,
-                           spdy::SpdyStreamPrecedence(resource.priority)));
-  }
-
-  // Procese promised push request as many as possible.
-  HandlePromisedPushRequests();
-}
-
 QuicSpdyStream* QuicSimpleServerSession::CreateIncomingStream(QuicStreamId id) {
   if (!ShouldCreateIncomingStream(id)) {
     return nullptr;

@@ -32,8 +32,7 @@ class QuicSimpleServerBackend {
     // Called when the response is ready at the backend and can be send back to
     // the QUIC client.
     virtual void OnResponseBackendComplete(
-        const QuicBackendResponse* response,
-        std::list<QuicBackendResponse::ServerPushInfo> resources) = 0;
+        const QuicBackendResponse* response) = 0;
   };
 
   struct WebTransportResponse {

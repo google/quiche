@@ -341,11 +341,10 @@ void QuicMemoryCacheBackend::FetchResponseFromBackend(
   if (path != request_headers.end()) {
     request_url += std::string(path->second);
   }
-  std::list<ServerPushInfo> resources = GetServerPushResources(request_url);
   QUIC_DVLOG(1)
       << "Fetching QUIC response from backend in-memory cache for url "
       << request_url;
-  quic_stream->OnResponseBackendComplete(quic_response, resources);
+  quic_stream->OnResponseBackendComplete(quic_response);
 }
 
 // The memory cache does not have a per-stream handler

@@ -17,6 +17,7 @@ class QuicBackendResponse {
  public:
   // A ServerPushInfo contains path of the push request and everything needed in
   // comprising a response for the push request.
+  // TODO(b/171463363): Remove.
   struct ServerPushInfo {
     ServerPushInfo(QuicUrl request_url,
                    spdy::Http2HeaderBlock headers,
