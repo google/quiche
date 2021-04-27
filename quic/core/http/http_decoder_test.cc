@@ -249,6 +249,14 @@ TEST_F(HttpDecoderTest, CancelPush) {
       "01"    // length
       "01");  // Push Id
 
+  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
+    EXPECT_CALL(visitor_, OnError(&decoder_));
+    EXPECT_EQ(1u, ProcessInput(input));
+    EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+    EXPECT_EQ("CANCEL_PUSH frame received.", decoder_.error_detail());
+    return;
+  }
+
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnCancelPushFrame(CancelPushFrame({1})))
       .WillOnce(Return(false));
@@ -276,6 +284,14 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
                                           "0f"  // length
                                           "C000000000000101"),  // push id 257
                    "Headers");                                  // headers
+
+  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
+    EXPECT_CALL(visitor_, OnError(&decoder_));
+    EXPECT_EQ(1u, ProcessInput(input));
+    EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+    EXPECT_EQ("PUSH_PROMISE frame received.", decoder_.error_detail());
+    return;
+  }
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2)).WillOnce(Return(false));
@@ -338,6 +354,10 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
 }
 
 TEST_F(HttpDecoderTest, CorruptPushPromiseFrame) {
+  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
+    return;
+  }
+
   InSequence s;
 
   std::string input = absl::HexStringToBytes(
@@ -733,6 +753,10 @@ TEST_F(HttpDecoderTest, EmptyHeadersFrame) {
 }
 
 TEST_F(HttpDecoderTest, PushPromiseFrameNoHeaders) {
+  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
+    return;
+  }
+
   InSequence s;
   std::string input = absl::HexStringToBytes(
       "05"    // type (PUSH_PROMISE)
@@ -768,6 +792,10 @@ TEST_F(HttpDecoderTest, PushPromiseFrameNoHeaders) {
 }
 
 TEST_F(HttpDecoderTest, MalformedFrameWithOverlyLargePayload) {
+  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
+    return;
+  }
+
   std::string input = absl::HexStringToBytes(
       "03"    // type (CANCEL_PUSH)
       "10"    // length
@@ -841,97 +869,183 @@ TEST_F(HttpDecoderTest, HeadersPausedThenData) {
 }
 
 TEST_F(HttpDecoderTest, CorruptFrame) {
-  InSequence s;
+  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
+    InSequence s;
 
-  struct {
-    const char* const input;
-    const char* const error_message;
-  } kTestData[] = {{"\x03"   // type (CANCEL_PUSH)
-                    "\x01"   // length
-                    "\x40",  // first byte of two-byte varint push id
-                    "Unable to read CANCEL_PUSH push_id."},
-                   {"\x03"  // type (CANCEL_PUSH)
-                    "\x04"  // length
-                    "\x05"  // valid push id
-                    "foo",  // superfluous data
-                    "Superfluous data in CANCEL_PUSH frame."},
-                   {"\x0D"   // type (MAX_PUSH_ID)
-                    "\x01"   // length
-                    "\x40",  // first byte of two-byte varint push id
-                    "Unable to read MAX_PUSH_ID push_id."},
-                   {"\x0D"  // type (MAX_PUSH_ID)
-                    "\x04"  // length
-                    "\x05"  // valid push id
-                    "foo",  // superfluous data
-                    "Superfluous data in MAX_PUSH_ID frame."},
-                   {"\x07"   // type (GOAWAY)
-                    "\x01"   // length
-                    "\x40",  // first byte of two-byte varint stream id
-                    "Unable to read GOAWAY ID."},
-                   {"\x07"  // type (GOAWAY)
-                    "\x04"  // length
-                    "\x05"  // valid stream id
-                    "foo",  // superfluous data
-                    "Superfluous data in GOAWAY frame."},
-                   {"\x40\x89"  // type (ACCEPT_CH)
-                    "\x01"      // length
-                    "\x40",     // first byte of two-byte varint origin length
-                    "Unable to read ACCEPT_CH origin."},
-                   {"\x40\x89"  // type (ACCEPT_CH)
-                    "\x01"      // length
-                    "\x05",     // valid origin length but no origin string
-                    "Unable to read ACCEPT_CH origin."},
-                   {"\x40\x89"  // type (ACCEPT_CH)
-                    "\x04"      // length
-                    "\x05"      // valid origin length
-                    "foo",      // payload ends before origin ends
-                    "Unable to read ACCEPT_CH origin."},
-                   {"\x40\x89"  // type (ACCEPT_CH)
-                    "\x04"      // length
-                    "\x03"      // valid origin length
-                    "foo",      // payload ends at end of origin: no value
-                    "Unable to read ACCEPT_CH value."},
-                   {"\x40\x89"  // type (ACCEPT_CH)
-                    "\x05"      // length
-                    "\x03"      // valid origin length
-                    "foo"       // payload ends at end of origin: no value
-                    "\x40",     // first byte of two-byte varint value length
-                    "Unable to read ACCEPT_CH value."},
-                   {"\x40\x89"  // type (ACCEPT_CH)
-                    "\x08"      // length
-                    "\x03"      // valid origin length
-                    "foo"       // origin
-                    "\x05"      // valid value length
-                    "bar",      // payload ends before value ends
-                    "Unable to read ACCEPT_CH value."}};
+    struct {
+      const char* const input;
+      const char* const error_message;
+    } kTestData[] = {{"\x0D"   // type (MAX_PUSH_ID)
+                      "\x01"   // length
+                      "\x40",  // first byte of two-byte varint push id
+                      "Unable to read MAX_PUSH_ID push_id."},
+                     {"\x0D"  // type (MAX_PUSH_ID)
+                      "\x04"  // length
+                      "\x05"  // valid push id
+                      "foo",  // superfluous data
+                      "Superfluous data in MAX_PUSH_ID frame."},
+                     {"\x07"   // type (GOAWAY)
+                      "\x01"   // length
+                      "\x40",  // first byte of two-byte varint stream id
+                      "Unable to read GOAWAY ID."},
+                     {"\x07"  // type (GOAWAY)
+                      "\x04"  // length
+                      "\x05"  // valid stream id
+                      "foo",  // superfluous data
+                      "Superfluous data in GOAWAY frame."},
+                     {"\x40\x89"  // type (ACCEPT_CH)
+                      "\x01"      // length
+                      "\x40",     // first byte of two-byte varint origin length
+                      "Unable to read ACCEPT_CH origin."},
+                     {"\x40\x89"  // type (ACCEPT_CH)
+                      "\x01"      // length
+                      "\x05",     // valid origin length but no origin string
+                      "Unable to read ACCEPT_CH origin."},
+                     {"\x40\x89"  // type (ACCEPT_CH)
+                      "\x04"      // length
+                      "\x05"      // valid origin length
+                      "foo",      // payload ends before origin ends
+                      "Unable to read ACCEPT_CH origin."},
+                     {"\x40\x89"  // type (ACCEPT_CH)
+                      "\x04"      // length
+                      "\x03"      // valid origin length
+                      "foo",      // payload ends at end of origin: no value
+                      "Unable to read ACCEPT_CH value."},
+                     {"\x40\x89"  // type (ACCEPT_CH)
+                      "\x05"      // length
+                      "\x03"      // valid origin length
+                      "foo"       // payload ends at end of origin: no value
+                      "\x40",     // first byte of two-byte varint value length
+                      "Unable to read ACCEPT_CH value."},
+                     {"\x40\x89"  // type (ACCEPT_CH)
+                      "\x08"      // length
+                      "\x03"      // valid origin length
+                      "foo"       // origin
+                      "\x05"      // valid value length
+                      "bar",      // payload ends before value ends
+                      "Unable to read ACCEPT_CH value."}};
 
-  for (const auto& test_data : kTestData) {
-    {
-      HttpDecoder decoder(&visitor_);
-      EXPECT_CALL(visitor_, OnAcceptChFrameStart(_)).Times(AnyNumber());
-      EXPECT_CALL(visitor_, OnError(&decoder));
+    for (const auto& test_data : kTestData) {
+      {
+        HttpDecoder decoder(&visitor_);
+        EXPECT_CALL(visitor_, OnAcceptChFrameStart(_)).Times(AnyNumber());
+        EXPECT_CALL(visitor_, OnError(&decoder));
 
-      absl::string_view input(test_data.input);
-      decoder.ProcessInput(input.data(), input.size());
-      EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
-      EXPECT_EQ(test_data.error_message, decoder.error_detail());
-    }
-    {
-      HttpDecoder decoder(&visitor_);
-      EXPECT_CALL(visitor_, OnAcceptChFrameStart(_)).Times(AnyNumber());
-      EXPECT_CALL(visitor_, OnError(&decoder));
-
-      absl::string_view input(test_data.input);
-      for (auto c : input) {
-        decoder.ProcessInput(&c, 1);
+        absl::string_view input(test_data.input);
+        decoder.ProcessInput(input.data(), input.size());
+        EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+        EXPECT_EQ(test_data.error_message, decoder.error_detail());
       }
-      EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
-      EXPECT_EQ(test_data.error_message, decoder.error_detail());
+      {
+        HttpDecoder decoder(&visitor_);
+        EXPECT_CALL(visitor_, OnAcceptChFrameStart(_)).Times(AnyNumber());
+        EXPECT_CALL(visitor_, OnError(&decoder));
+
+        absl::string_view input(test_data.input);
+        for (auto c : input) {
+          decoder.ProcessInput(&c, 1);
+        }
+        EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+        EXPECT_EQ(test_data.error_message, decoder.error_detail());
+      }
+    }
+  } else {
+    InSequence s;
+
+    struct {
+      const char* const input;
+      const char* const error_message;
+    } kTestData[] = {{"\x03"   // type (CANCEL_PUSH)
+                      "\x01"   // length
+                      "\x40",  // first byte of two-byte varint push id
+                      "Unable to read CANCEL_PUSH push_id."},
+                     {"\x03"  // type (CANCEL_PUSH)
+                      "\x04"  // length
+                      "\x05"  // valid push id
+                      "foo",  // superfluous data
+                      "Superfluous data in CANCEL_PUSH frame."},
+                     {"\x0D"   // type (MAX_PUSH_ID)
+                      "\x01"   // length
+                      "\x40",  // first byte of two-byte varint push id
+                      "Unable to read MAX_PUSH_ID push_id."},
+                     {"\x0D"  // type (MAX_PUSH_ID)
+                      "\x04"  // length
+                      "\x05"  // valid push id
+                      "foo",  // superfluous data
+                      "Superfluous data in MAX_PUSH_ID frame."},
+                     {"\x07"   // type (GOAWAY)
+                      "\x01"   // length
+                      "\x40",  // first byte of two-byte varint stream id
+                      "Unable to read GOAWAY ID."},
+                     {"\x07"  // type (GOAWAY)
+                      "\x04"  // length
+                      "\x05"  // valid stream id
+                      "foo",  // superfluous data
+                      "Superfluous data in GOAWAY frame."},
+                     {"\x40\x89"  // type (ACCEPT_CH)
+                      "\x01"      // length
+                      "\x40",     // first byte of two-byte varint origin length
+                      "Unable to read ACCEPT_CH origin."},
+                     {"\x40\x89"  // type (ACCEPT_CH)
+                      "\x01"      // length
+                      "\x05",     // valid origin length but no origin string
+                      "Unable to read ACCEPT_CH origin."},
+                     {"\x40\x89"  // type (ACCEPT_CH)
+                      "\x04"      // length
+                      "\x05"      // valid origin length
+                      "foo",      // payload ends before origin ends
+                      "Unable to read ACCEPT_CH origin."},
+                     {"\x40\x89"  // type (ACCEPT_CH)
+                      "\x04"      // length
+                      "\x03"      // valid origin length
+                      "foo",      // payload ends at end of origin: no value
+                      "Unable to read ACCEPT_CH value."},
+                     {"\x40\x89"  // type (ACCEPT_CH)
+                      "\x05"      // length
+                      "\x03"      // valid origin length
+                      "foo"       // payload ends at end of origin: no value
+                      "\x40",     // first byte of two-byte varint value length
+                      "Unable to read ACCEPT_CH value."},
+                     {"\x40\x89"  // type (ACCEPT_CH)
+                      "\x08"      // length
+                      "\x03"      // valid origin length
+                      "foo"       // origin
+                      "\x05"      // valid value length
+                      "bar",      // payload ends before value ends
+                      "Unable to read ACCEPT_CH value."}};
+
+    for (const auto& test_data : kTestData) {
+      {
+        HttpDecoder decoder(&visitor_);
+        EXPECT_CALL(visitor_, OnAcceptChFrameStart(_)).Times(AnyNumber());
+        EXPECT_CALL(visitor_, OnError(&decoder));
+
+        absl::string_view input(test_data.input);
+        decoder.ProcessInput(input.data(), input.size());
+        EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+        EXPECT_EQ(test_data.error_message, decoder.error_detail());
+      }
+      {
+        HttpDecoder decoder(&visitor_);
+        EXPECT_CALL(visitor_, OnAcceptChFrameStart(_)).Times(AnyNumber());
+        EXPECT_CALL(visitor_, OnError(&decoder));
+
+        absl::string_view input(test_data.input);
+        for (auto c : input) {
+          decoder.ProcessInput(&c, 1);
+        }
+        EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+        EXPECT_EQ(test_data.error_message, decoder.error_detail());
+      }
     }
   }
 }
 
 TEST_F(HttpDecoderTest, EmptyCancelPushFrame) {
+  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
+    return;
+  }
+
   std::string input = absl::HexStringToBytes(
       "03"    // type (CANCEL_PUSH)
       "00");  // frame length
@@ -959,6 +1073,10 @@ TEST_F(HttpDecoderTest, EmptySettingsFrame) {
 
 // Regression test for https://crbug.com/1001823.
 TEST_F(HttpDecoderTest, EmptyPushPromiseFrame) {
+  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
+    return;
+  }
+
   std::string input = absl::HexStringToBytes(
       "05"    // type (PUSH_PROMISE)
       "00");  // frame length

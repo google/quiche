@@ -70,7 +70,6 @@ bool QuicReceiveControlStream::OnCancelPushFrame(const CancelPushFrame& frame) {
     spdy_session()->debug_visitor()->OnCancelPushFrameReceived(frame);
   }
 
-  // TODO(b/151841240): Handle CANCEL_PUSH frames instead of ignoring them.
   return ValidateFrameType(HttpFrameType::CANCEL_PUSH);
 }
 

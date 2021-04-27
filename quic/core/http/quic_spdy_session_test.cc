@@ -2894,10 +2894,7 @@ TEST_P(QuicSpdySessionTestClient, Http3GoAwayLargerIdThanBefore) {
   session_.OnHttp3GoAway(stream_id2);
 }
 
-// Test that receipt of CANCEL_PUSH frame does not result in closing the
-// connection.
-// TODO(b/151841240): Handle CANCEL_PUSH frames instead of ignoring them.
-TEST_P(QuicSpdySessionTestClient, IgnoreCancelPush) {
+TEST_P(QuicSpdySessionTestClient, CloseConnectionOnCancelPush) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
@@ -2934,7 +2931,18 @@ TEST_P(QuicSpdySessionTestClient, IgnoreCancelPush) {
       "00");  // push ID
   QuicStreamFrame data3(receive_control_stream_id, /* fin = */ false, offset,
                         cancel_push_frame);
-  EXPECT_CALL(debug_visitor, OnCancelPushFrameReceived(_));
+  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
+    EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_FRAME_ERROR,
+                                              "CANCEL_PUSH frame received.", _))
+        .WillOnce(
+            Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+    EXPECT_CALL(*connection_,
+                SendConnectionClosePacket(QUIC_HTTP_FRAME_ERROR, _,
+                                          "CANCEL_PUSH frame received."));
+  } else {
+    // CANCEL_PUSH is ignored.
+    EXPECT_CALL(debug_visitor, OnCancelPushFrameReceived(_));
+  }
   session_.OnStreamFrame(data3);
 }
 
@@ -3093,10 +3101,7 @@ TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalSendStream) {
   session_.OnStopSendingFrame(stop_sending_encoder_stream);
 }
 
-// Test that receipt of CANCEL_PUSH frame does not result in closing the
-// connection.
-// TODO(b/151841240): Handle CANCEL_PUSH frames instead of ignoring them.
-TEST_P(QuicSpdySessionTestServer, IgnoreCancelPush) {
+TEST_P(QuicSpdySessionTestServer, CloseConnectionOnCancelPush) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
@@ -3133,7 +3138,18 @@ TEST_P(QuicSpdySessionTestServer, IgnoreCancelPush) {
       "00");  // push ID
   QuicStreamFrame data3(receive_control_stream_id, /* fin = */ false, offset,
                         cancel_push_frame);
-  EXPECT_CALL(debug_visitor, OnCancelPushFrameReceived(_));
+  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
+    EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_FRAME_ERROR,
+                                              "CANCEL_PUSH frame received.", _))
+        .WillOnce(
+            Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+    EXPECT_CALL(*connection_,
+                SendConnectionClosePacket(QUIC_HTTP_FRAME_ERROR, _,
+                                          "CANCEL_PUSH frame received."));
+  } else {
+    // CANCEL_PUSH is ignored.
+    EXPECT_CALL(debug_visitor, OnCancelPushFrameReceived(_));
+  }
   session_.OnStreamFrame(data3);
 }
 

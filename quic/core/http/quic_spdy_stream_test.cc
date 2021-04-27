@@ -2772,6 +2772,9 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, UnknownFramesInterleaved) {
 // TODO(b/171463363): Remove.
 TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStream) {
   Initialize(kShouldProcessData);
+  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
+    return;
+  }
   if (!UsesHttp3()) {
     return;
   }
@@ -2802,6 +2805,9 @@ TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStream) {
 TEST_P(QuicSpdyStreamTest,
        OnStreamHeaderBlockArgumentDoesNotIncludePushedHeaderBlock) {
   Initialize(kShouldProcessData);
+  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
+    return;
+  }
   if (!UsesHttp3()) {
     return;
   }

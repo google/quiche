@@ -38,10 +38,14 @@ HttpDecoder::HttpDecoder(Visitor* visitor, Options options)
       error_(QUIC_NO_ERROR),
       error_detail_(""),
       ignore_old_priority_update_(
-          GetQuicReloadableFlag(quic_ignore_old_priority_update_frame)) {
+          GetQuicReloadableFlag(quic_ignore_old_priority_update_frame)),
+      error_on_http3_push_(GetQuicReloadableFlag(quic_error_on_http3_push)) {
   QUICHE_DCHECK(visitor_);
   if (ignore_old_priority_update_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_ignore_old_priority_update_frame);
+  }
+  if (error_on_http3_push_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_error_on_http3_push);
   }
 }
 
@@ -177,6 +181,20 @@ bool HttpDecoder::ReadFrameType(QuicDataReader* reader) {
                             current_frame_type_));
     return false;
   }
+
+  if (error_on_http3_push_) {
+    if (current_frame_type_ ==
+        static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH)) {
+      RaiseError(QUIC_HTTP_FRAME_ERROR, "CANCEL_PUSH frame received.");
+      return false;
+    }
+    if (current_frame_type_ ==
+        static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE)) {
+      RaiseError(QUIC_HTTP_FRAME_ERROR, "PUSH_PROMISE frame received.");
+      return false;
+    }
+  }
+
   state_ = STATE_READING_FRAME_LENGTH;
   return true;
 }
@@ -243,11 +261,19 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
           visitor_->OnHeadersFrameStart(header_length, current_frame_length_);
       break;
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH):
+      if (error_on_http3_push_) {
+        QUICHE_NOTREACHED();
+        break;
+      }
       break;
     case static_cast<uint64_t>(HttpFrameType::SETTINGS):
       continue_processing = visitor_->OnSettingsFrameStart(header_length);
       break;
     case static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE):
+      if (error_on_http3_push_) {
+        QUICHE_NOTREACHED();
+        break;
+      }
       // This edge case needs to be handled here, because ReadFramePayload()
       // does not get called if |current_frame_length_| is zero.
       if (current_frame_length_ == 0) {
@@ -318,7 +344,11 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH): {
-      continue_processing = BufferOrParsePayload(reader);
+      if (error_on_http3_push_) {
+        QUICHE_NOTREACHED();
+      } else {
+        continue_processing = BufferOrParsePayload(reader);
+      }
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::SETTINGS): {
@@ -326,6 +356,10 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE): {
+      if (error_on_http3_push_) {
+        QUICHE_NOTREACHED();
+        break;
+      }
       PushId push_id;
       if (current_frame_length_ == remaining_frame_length_) {
         // A new Push Promise frame just arrived.
@@ -443,9 +477,13 @@ bool HttpDecoder::FinishParsing(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH): {
-      // If frame payload is not empty, FinishParsing() is skipped.
-      QUICHE_DCHECK_EQ(0u, current_frame_length_);
-      continue_processing = BufferOrParsePayload(reader);
+      if (error_on_http3_push_) {
+        QUICHE_NOTREACHED();
+      } else {
+        // If frame payload is not empty, FinishParsing() is skipped.
+        QUICHE_DCHECK_EQ(0u, current_frame_length_);
+        continue_processing = BufferOrParsePayload(reader);
+      }
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::SETTINGS): {
@@ -455,7 +493,11 @@ bool HttpDecoder::FinishParsing(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE): {
-      continue_processing = visitor_->OnPushPromiseFrameEnd();
+      if (error_on_http3_push_) {
+        QUICHE_NOTREACHED();
+      } else {
+        continue_processing = visitor_->OnPushPromiseFrameEnd();
+      }
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::GOAWAY): {
@@ -578,6 +620,10 @@ bool HttpDecoder::ParseEntirePayload(QuicDataReader* reader) {
 
   switch (current_frame_type_) {
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH): {
+      if (error_on_http3_push_) {
+        QUICHE_NOTREACHED();
+        return false;
+      }
       CancelPushFrame frame;
       if (!reader->ReadVarInt62(&frame.push_id)) {
         RaiseError(QUIC_HTTP_FRAME_ERROR,
@@ -791,6 +837,7 @@ bool HttpDecoder::ParseAcceptChFrame(QuicDataReader* reader,
 QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
   switch (frame_type) {
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH):
+      // TODO(b/171463363): Remove.
       return sizeof(PushId);
     case static_cast<uint64_t>(HttpFrameType::SETTINGS):
       // This limit is arbitrary.
@@ -798,6 +845,7 @@ QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
     case static_cast<uint64_t>(HttpFrameType::GOAWAY):
       return VARIABLE_LENGTH_INTEGER_LENGTH_8;
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID):
+      // TODO(b/171463363): Remove.
       return sizeof(PushId);
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE):
       // This limit is arbitrary.

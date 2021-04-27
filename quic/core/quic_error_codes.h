@@ -459,8 +459,12 @@ enum QuicErrorCode {
   // Received multiple close offset.
   QUIC_STREAM_MULTIPLE_OFFSET = 130,
 
-  // Internal error codes for HTTP/3 errors.
+  // HTTP/3 errors.
+
+  // Frame payload larger than what HttpDecoder is willing to buffer.
   QUIC_HTTP_FRAME_TOO_LARGE = 131,
+  // Malformed HTTP/3 frame, or PUSH_PROMISE or CANCEL_PUSH received (which is
+  // an error because MAX_PUSH_ID is never sent).
   QUIC_HTTP_FRAME_ERROR = 132,
   // A frame that is never allowed on a request stream is received.
   QUIC_HTTP_FRAME_UNEXPECTED_ON_SPDY_STREAM = 133,
