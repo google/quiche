@@ -126,7 +126,7 @@ void ServerThread::MaybeNotifyOfHandshakeConfirmation() {
 }
 
 void ServerThread::ExecuteScheduledActions() {
-  QuicCircularDeque<std::function<void()>> actions;
+  quiche::QuicheCircularDeque<std::function<void()>> actions;
   {
     QuicWriterMutexLock lock(&scheduled_actions_lock_);
     actions.swap(scheduled_actions_);

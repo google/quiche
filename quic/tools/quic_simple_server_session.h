@@ -144,7 +144,7 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
   // the queue also increases by 2 from previous one's. The front element's
   // stream_id is always next_outgoing_stream_id_, and the last one is always
   // highest_promised_stream_id_.
-  QuicCircularDeque<PromisedStreamInfo> promised_streams_;
+  quiche::QuicheCircularDeque<PromisedStreamInfo> promised_streams_;
 
   QuicSimpleServerBackend* quic_simple_server_backend_;  // Not owned.
 };

@@ -9,7 +9,6 @@
 
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_buffer_allocator.h"
-#include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/web_transport_interface.h"
 #include "quic/platform/api/quic_mem_slice.h"

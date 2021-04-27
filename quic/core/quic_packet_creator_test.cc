@@ -752,7 +752,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket1ResponseUnpadded) {
   };
   // clang-format on
   std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
-  QuicCircularDeque<QuicPathFrameBuffer> payloads;
+  quiche::QuicheCircularDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
   size_t length = creator_.BuildPathResponsePacket(
       header, buffer.get(), ABSL_ARRAYSIZE(packet), payloads,
@@ -799,7 +799,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket1ResponsePadded) {
   };
   // clang-format on
   std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
-  QuicCircularDeque<QuicPathFrameBuffer> payloads;
+  quiche::QuicheCircularDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
   size_t length = creator_.BuildPathResponsePacket(
       header, buffer.get(), ABSL_ARRAYSIZE(packet), payloads,
@@ -849,7 +849,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket3ResponsesUnpadded) {
   // clang-format on
 
   std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
-  QuicCircularDeque<QuicPathFrameBuffer> payloads;
+  quiche::QuicheCircularDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
   payloads.push_back(payload1);
   payloads.push_back(payload2);
@@ -903,7 +903,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket3ResponsesPadded) {
   // clang-format on
 
   std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
-  QuicCircularDeque<QuicPathFrameBuffer> payloads;
+  quiche::QuicheCircularDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
   payloads.push_back(payload1);
   payloads.push_back(payload2);
@@ -988,7 +988,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket1PayloadPadded) {
 
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
 
-  QuicCircularDeque<QuicPathFrameBuffer> payloads;
+  quiche::QuicheCircularDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
 
   std::unique_ptr<SerializedPacket> encrypted(
@@ -1018,7 +1018,7 @@ TEST_P(QuicPacketCreatorTest,
 
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
 
-  QuicCircularDeque<QuicPathFrameBuffer> payloads;
+  quiche::QuicheCircularDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
 
   std::unique_ptr<SerializedPacket> encrypted(
@@ -1048,7 +1048,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket2PayloadsPadded) {
 
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
 
-  QuicCircularDeque<QuicPathFrameBuffer> payloads;
+  quiche::QuicheCircularDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
   payloads.push_back(payload1);
 
@@ -1081,7 +1081,7 @@ TEST_P(QuicPacketCreatorTest,
 
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
 
-  QuicCircularDeque<QuicPathFrameBuffer> payloads;
+  quiche::QuicheCircularDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
   payloads.push_back(payload1);
 
@@ -1114,7 +1114,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket3PayloadsPadded) {
 
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
 
-  QuicCircularDeque<QuicPathFrameBuffer> payloads;
+  quiche::QuicheCircularDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
   payloads.push_back(payload1);
   payloads.push_back(payload2);
@@ -1150,7 +1150,7 @@ TEST_P(QuicPacketCreatorTest,
 
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
 
-  QuicCircularDeque<QuicPathFrameBuffer> payloads;
+  quiche::QuicheCircularDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
   payloads.push_back(payload1);
   payloads.push_back(payload2);

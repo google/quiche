@@ -152,8 +152,10 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   // has not accepted to a smaller number, by checking the size of
   // |incoming_bidirectional_streams_| and |incoming_unidirectional_streams_|
   // before sending MAX_STREAMS.
-  QuicCircularDeque<QuicTransportStream*> incoming_bidirectional_streams_;
-  QuicCircularDeque<QuicTransportStream*> incoming_unidirectional_streams_;
+  quiche::QuicheCircularDeque<QuicTransportStream*>
+      incoming_bidirectional_streams_;
+  quiche::QuicheCircularDeque<QuicTransportStream*>
+      incoming_unidirectional_streams_;
 };
 
 }  // namespace quic

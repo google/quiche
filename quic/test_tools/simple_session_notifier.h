@@ -6,10 +6,10 @@
 #define QUICHE_QUIC_TEST_TOOLS_SIMPLE_SESSION_NOTIFIER_H_
 
 #include "absl/container/flat_hash_map.h"
-#include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_interval_set.h"
 #include "quic/core/session_notifier_interface.h"
 #include "quic/platform/api/quic_test.h"
+#include "common/quiche_circular_deque.h"
 
 namespace quic {
 
@@ -132,7 +132,7 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
 
   bool StreamHasBufferedData(QuicStreamId id) const;
 
-  QuicCircularDeque<QuicFrame> control_frames_;
+  quiche::QuicheCircularDeque<QuicFrame> control_frames_;
 
   QuicLinkedHashMap<QuicControlFrameId, bool> lost_control_frames_;
 

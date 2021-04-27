@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_QUIC_CIRCULAR_DEQUE_H_
-#define QUICHE_QUIC_CORE_QUIC_CIRCULAR_DEQUE_H_
+#ifndef QUICHE_COMMON_QUICHE_CIRCULAR_DEQUE_H_
+#define QUICHE_COMMON_QUICHE_CIRCULAR_DEQUE_H_
 
 #include <algorithm>
 #include <cstddef>
@@ -13,16 +13,16 @@
 #include <ostream>
 #include <type_traits>
 
-#include "quic/platform/api/quic_export.h"
-#include "quic/platform/api/quic_logging.h"
+#include "common/platform/api/quiche_export.h"
+#include "common/platform/api/quiche_logging.h"
 
-namespace quic {
+namespace quiche {
 
-// QuicCircularDeque is a STL-style container that is similar to std deque in
+// QuicheCircularDeque is a STL-style container that is similar to std::deque in
 // API and std::vector in capacity management. The goal is to optimize a common
 // QUIC use case where we keep adding new elements to the end and removing old
 // elements from the beginning, under such scenarios, if the container's size()
-// remain relatively stable, QuicCircularDeque requires little to no memory
+// remain relatively stable, QuicheCircularDeque requires little to no memory
 // allocations or deallocations.
 //
 // The implementation, as the name suggests, uses a flat circular buffer to hold
@@ -40,12 +40,12 @@ namespace quic {
 template <typename T,
           size_t MinCapacityIncrement = 3,
           typename Allocator = std::allocator<T>>
-class QUIC_NO_EXPORT QuicCircularDeque {
+class QUICHE_NO_EXPORT QuicheCircularDeque {
   using AllocatorTraits = std::allocator_traits<Allocator>;
 
   // Pointee is either T or const T.
   template <typename Pointee>
-  class QUIC_NO_EXPORT basic_iterator {
+  class QUICHE_NO_EXPORT basic_iterator {
     using size_type = typename AllocatorTraits::size_type;
 
    public:
@@ -159,7 +159,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     }
 
    private:
-    basic_iterator(const QuicCircularDeque* deque, size_type index)
+    basic_iterator(const QuicheCircularDeque* deque, size_type index)
         : deque_(deque), index_(index) {}
 
     void Increment() {
@@ -191,8 +191,8 @@ class QUIC_NO_EXPORT QuicCircularDeque {
       return index_ + deque_->data_capacity() - deque_->begin_;
     }
 
-    friend class QuicCircularDeque;
-    const QuicCircularDeque* deque_ = nullptr;
+    friend class QuicheCircularDeque;
+    const QuicheCircularDeque* deque_ = nullptr;
     size_type index_ = 0;
   };
 
@@ -210,19 +210,19 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-  QuicCircularDeque() : QuicCircularDeque(allocator_type()) {}
-  explicit QuicCircularDeque(const allocator_type& alloc)
+  QuicheCircularDeque() : QuicheCircularDeque(allocator_type()) {}
+  explicit QuicheCircularDeque(const allocator_type& alloc)
       : allocator_and_data_(alloc) {}
 
-  QuicCircularDeque(size_type count,
-                    const T& value,
-                    const Allocator& alloc = allocator_type())
+  QuicheCircularDeque(size_type count,
+                      const T& value,
+                      const Allocator& alloc = allocator_type())
       : allocator_and_data_(alloc) {
     resize(count, value);
   }
 
-  explicit QuicCircularDeque(size_type count,
-                             const Allocator& alloc = allocator_type())
+  explicit QuicheCircularDeque(size_type count,
+                               const Allocator& alloc = allocator_type())
       : allocator_and_data_(alloc) {
     resize(count);
   }
@@ -232,25 +232,26 @@ class QUIC_NO_EXPORT QuicCircularDeque {
       typename = std::enable_if_t<std::is_base_of<
           std::input_iterator_tag,
           typename std::iterator_traits<InputIt>::iterator_category>::value>>
-  QuicCircularDeque(InputIt first,
-                    InputIt last,
-                    const Allocator& alloc = allocator_type())
+  QuicheCircularDeque(InputIt first,
+                      InputIt last,
+                      const Allocator& alloc = allocator_type())
       : allocator_and_data_(alloc) {
     AssignRange(first, last);
   }
 
-  QuicCircularDeque(const QuicCircularDeque& other)
-      : QuicCircularDeque(
+  QuicheCircularDeque(const QuicheCircularDeque& other)
+      : QuicheCircularDeque(
             other,
             AllocatorTraits::select_on_container_copy_construction(
                 other.allocator_and_data_.allocator())) {}
 
-  QuicCircularDeque(const QuicCircularDeque& other, const allocator_type& alloc)
+  QuicheCircularDeque(const QuicheCircularDeque& other,
+                      const allocator_type& alloc)
       : allocator_and_data_(alloc) {
     assign(other.begin(), other.end());
   }
 
-  QuicCircularDeque(QuicCircularDeque&& other)
+  QuicheCircularDeque(QuicheCircularDeque&& other)
       : begin_(other.begin_),
         end_(other.end_),
         allocator_and_data_(std::move(other.allocator_and_data_)) {
@@ -259,16 +260,16 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     other.allocator_and_data_.data_capacity = 0;
   }
 
-  QuicCircularDeque(QuicCircularDeque&& other, const allocator_type& alloc)
+  QuicheCircularDeque(QuicheCircularDeque&& other, const allocator_type& alloc)
       : allocator_and_data_(alloc) {
     MoveRetainAllocator(std::move(other));
   }
 
-  QuicCircularDeque(std::initializer_list<T> init,
-                    const allocator_type& alloc = allocator_type())
-      : QuicCircularDeque(init.begin(), init.end(), alloc) {}
+  QuicheCircularDeque(std::initializer_list<T> init,
+                      const allocator_type& alloc = allocator_type())
+      : QuicheCircularDeque(init.begin(), init.end(), alloc) {}
 
-  QuicCircularDeque& operator=(const QuicCircularDeque& other) {
+  QuicheCircularDeque& operator=(const QuicheCircularDeque& other) {
     if (this == &other) {
       return *this;
     }
@@ -286,21 +287,21 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     return *this;
   }
 
-  QuicCircularDeque& operator=(QuicCircularDeque&& other) {
+  QuicheCircularDeque& operator=(QuicheCircularDeque&& other) {
     if (this == &other) {
       return *this;
     }
     if (AllocatorTraits::propagate_on_container_move_assignment::value) {
       // Take over the storage of "other", along with its allocator.
-      this->~QuicCircularDeque();
-      new (this) QuicCircularDeque(std::move(other));
+      this->~QuicheCircularDeque();
+      new (this) QuicheCircularDeque(std::move(other));
     } else {
       MoveRetainAllocator(std::move(other));
     }
     return *this;
   }
 
-  ~QuicCircularDeque() { DestroyAndDeallocateAll(); }
+  ~QuicheCircularDeque() { DestroyAndDeallocateAll(); }
 
   void assign(size_type count, const T& value) {
     ClearRetainCapacity();
@@ -333,7 +334,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   }
 
   const_reference at(size_type pos) const {
-    return const_cast<QuicCircularDeque*>(this)->at(pos);
+    return const_cast<QuicheCircularDeque*>(this)->at(pos);
   }
 
   reference operator[](size_type pos) { return at(pos); }
@@ -346,7 +347,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   }
 
   const_reference front() const {
-    return const_cast<QuicCircularDeque*>(this)->front();
+    return const_cast<QuicheCircularDeque*>(this)->front();
   }
 
   reference back() {
@@ -355,7 +356,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   }
 
   const_reference back() const {
-    return const_cast<QuicCircularDeque*>(this)->back();
+    return const_cast<QuicheCircularDeque*>(this)->back();
   }
 
   iterator begin() { return iterator(this, begin_); }
@@ -460,7 +461,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     return num_elements_to_pop;
   }
 
-  void swap(QuicCircularDeque& other) {
+  void swap(QuicheCircularDeque& other) {
     using std::swap;
     swap(begin_, other.begin_);
     swap(end_, other.end_);
@@ -479,7 +480,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     }
   }
 
-  friend void swap(QuicCircularDeque& lhs, QuicCircularDeque& rhs) {
+  friend void swap(QuicheCircularDeque& lhs, QuicheCircularDeque& rhs) {
     lhs.swap(rhs);
   }
 
@@ -487,18 +488,19 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     return allocator_and_data_.allocator();
   }
 
-  friend bool operator==(const QuicCircularDeque& lhs,
-                         const QuicCircularDeque& rhs) {
+  friend bool operator==(const QuicheCircularDeque& lhs,
+                         const QuicheCircularDeque& rhs) {
     return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
   }
 
-  friend bool operator!=(const QuicCircularDeque& lhs,
-                         const QuicCircularDeque& rhs) {
+  friend bool operator!=(const QuicheCircularDeque& lhs,
+                         const QuicheCircularDeque& rhs) {
     return !(lhs == rhs);
   }
 
-  friend QUIC_NO_EXPORT std::ostream& operator<<(std::ostream& os,
-                                                 const QuicCircularDeque& dq) {
+  friend QUICHE_NO_EXPORT std::ostream& operator<<(
+      std::ostream& os,
+      const QuicheCircularDeque& dq) {
     os << "{";
     for (size_type pos = 0; pos != dq.size(); ++pos) {
       if (pos != 0) {
@@ -511,7 +513,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   }
 
  private:
-  void MoveRetainAllocator(QuicCircularDeque&& other) {
+  void MoveRetainAllocator(QuicheCircularDeque&& other) {
     if (get_allocator() == other.get_allocator()) {
       // Take over the storage of "other", with which we share an allocator.
       DestroyAndDeallocateAll();
@@ -752,6 +754,6 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   AllocatorAndData allocator_and_data_;
 };
 
-}  // namespace quic
+}  // namespace quiche
 
-#endif  // QUICHE_QUIC_CORE_QUIC_CIRCULAR_DEQUE_H_
+#endif  // QUICHE_COMMON_QUICHE_CIRCULAR_DEQUE_H_

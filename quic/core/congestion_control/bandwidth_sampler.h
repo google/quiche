@@ -9,13 +9,13 @@
 #include "quic/core/congestion_control/windowed_filter.h"
 #include "quic/core/packet_number_indexed_queue.h"
 #include "quic/core/quic_bandwidth.h"
-#include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_time.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_unacked_packet_map.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_flags.h"
+#include "common/quiche_circular_deque.h"
 
 namespace quic {
 
@@ -540,7 +540,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   PacketNumberIndexedQueue<ConnectionStateOnSentPacket> connection_state_map_;
 
   RecentAckPoints recent_ack_points_;
-  QuicCircularDeque<AckPoint> a0_candidates_;
+  quiche::QuicheCircularDeque<AckPoint> a0_candidates_;
 
   // Maximum number of tracked packets.
   const QuicPacketCount max_tracked_packets_;

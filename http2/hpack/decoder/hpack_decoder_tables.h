@@ -25,8 +25,8 @@
 #include <vector>
 
 #include "http2/http2_constants.h"
-#include "quic/core/quic_circular_deque.h"
 #include "common/platform/api/quiche_export.h"
+#include "common/quiche_circular_deque.h"
 
 namespace http2 {
 namespace test {
@@ -107,7 +107,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderDynamicTable {
   // Removes the oldest dynamic table entry.
   void RemoveLastEntry();
 
-  quic::QuicCircularDeque<HpackStringPair> table_;
+  quiche::QuicheCircularDeque<HpackStringPair> table_;
 
   // The last received DynamicTableSizeUpdate value, initialized to
   // SETTINGS_HEADER_TABLE_SIZE.

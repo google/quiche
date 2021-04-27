@@ -6,11 +6,11 @@
 #define QUICHE_QUIC_PLATFORM_IMPL_BATCH_WRITER_QUIC_BATCH_WRITER_BUFFER_H_
 
 #include "absl/base/optimization.h"
-#include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_linux_socket_utils.h"
 #include "quic/core/quic_packet_writer.h"
 #include "quic/platform/api/quic_ip_address.h"
 #include "quic/platform/api/quic_socket_address.h"
+#include "common/quiche_circular_deque.h"
 
 namespace quic {
 
@@ -61,7 +61,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBuffer {
   };
   PopResult PopBufferedWrite(int32_t num_buffered_writes);
 
-  const QuicCircularDeque<BufferedWrite>& buffered_writes() const {
+  const quiche::QuicheCircularDeque<BufferedWrite>& buffered_writes() const {
     return buffered_writes_;
   }
 
@@ -87,7 +87,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBuffer {
   bool Invariants() const;
   const char* buffer_end() const { return buffer_ + sizeof(buffer_); }
   ABSL_CACHELINE_ALIGNED char buffer_[kBufferSize];
-  QuicCircularDeque<BufferedWrite> buffered_writes_;
+  quiche::QuicheCircularDeque<BufferedWrite> buffered_writes_;
 };
 
 }  // namespace quic

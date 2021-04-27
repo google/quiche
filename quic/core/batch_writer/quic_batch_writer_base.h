@@ -60,7 +60,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
   const QuicBatchWriterBuffer& batch_buffer() const { return *batch_buffer_; }
   QuicBatchWriterBuffer& batch_buffer() { return *batch_buffer_; }
 
-  const QuicCircularDeque<BufferedWrite>& buffered_writes() const {
+  const quiche::QuicheCircularDeque<BufferedWrite>& buffered_writes() const {
     return batch_buffer_->buffered_writes();
   }
 

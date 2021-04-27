@@ -15,11 +15,11 @@
 #include "quic/core/qpack/qpack_encoder.h"
 #include "quic/core/qpack/qpack_stream_sender_delegate.h"
 #include "quic/core/qpack/value_splitting_header_list.h"
-#include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/platform/api/quic_fuzzed_data_provider.h"
 #include "quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "quic/test_tools/qpack/qpack_encoder_peer.h"
+#include "common/quiche_circular_deque.h"
 #include "spdy/core/spdy_header_block.h"
 
 namespace quic {
@@ -437,7 +437,7 @@ class DelayedStreamDataTransmitter : public QpackStreamSenderDelegate {
  private:
   QpackStreamReceiver* const receiver_;
   QuicFuzzedDataProvider* const provider_;
-  QuicCircularDeque<std::string> stream_data;
+  quiche::QuicheCircularDeque<std::string> stream_data;
 };
 
 // Generate header list using fuzzer data.

@@ -36,7 +36,6 @@
 #include "quic/core/quic_alarm.h"
 #include "quic/core/quic_alarm_factory.h"
 #include "quic/core/quic_blocked_writer_interface.h"
-#include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_connection_id_manager.h"
 #include "quic/core/quic_connection_stats.h"
@@ -58,6 +57,7 @@
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_socket_address.h"
+#include "common/quiche_circular_deque.h"
 
 namespace quic {
 
@@ -1920,7 +1920,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Collection of coalesced packets which were received while processing
   // the current packet.
-  QuicCircularDeque<std::unique_ptr<QuicEncryptedPacket>>
+  quiche::QuicheCircularDeque<std::unique_ptr<QuicEncryptedPacket>>
       received_coalesced_packets_;
 
   // Maximum number of undecryptable packets the connection will store.
@@ -2130,13 +2130,15 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // saved and responded to.
   // TODO(danzh) deprecate this field when deprecating
   // --quic_send_path_response.
-  QuicCircularDeque<QuicPathFrameBuffer> received_path_challenge_payloads_;
+  quiche::QuicheCircularDeque<QuicPathFrameBuffer>
+      received_path_challenge_payloads_;
 
   // Buffer outstanding PATH_CHALLENGEs if socket write is blocked, future
   // OnCanWrite will attempt to respond with PATH_RESPONSEs using the retained
   // payload and peer addresses.
   // TODO(fayang): remove this when deprecating quic_drop_unsent_path_response.
-  QuicCircularDeque<PendingPathChallenge> pending_path_challenge_payloads_;
+  quiche::QuicheCircularDeque<PendingPathChallenge>
+      pending_path_challenge_payloads_;
 
   // Set of connection IDs that should be accepted as destination on
   // received packets. This is conceptually a set but is implemented as a

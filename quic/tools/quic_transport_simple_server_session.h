@@ -73,7 +73,7 @@ class QuicTransportSimpleServerSession
   size_t pending_outgoing_bidirectional_streams_ = 0u;
   Mode mode_;
   std::vector<url::Origin> accepted_origins_;
-  QuicCircularDeque<std::string> streams_to_echo_back_;
+  quiche::QuicheCircularDeque<std::string> streams_to_echo_back_;
 };
 
 }  // namespace quic

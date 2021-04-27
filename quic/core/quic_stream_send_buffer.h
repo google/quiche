@@ -6,13 +6,13 @@
 #define QUICHE_QUIC_CORE_QUIC_STREAM_SEND_BUFFER_H_
 
 #include "quic/core/frames/quic_stream_frame.h"
-#include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_interval_deque.h"
 #include "quic/core/quic_interval_set.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_iovec.h"
 #include "quic/platform/api/quic_mem_slice.h"
 #include "quic/platform/api/quic_mem_slice_span.h"
+#include "common/quiche_circular_deque.h"
 
 namespace quic {
 

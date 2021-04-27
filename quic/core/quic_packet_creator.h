@@ -23,13 +23,13 @@
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/frames/quic_stream_frame.h"
-#include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_coalesced_packet.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_framer.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
+#include "common/quiche_circular_deque.h"
 
 namespace quic {
 namespace test {
@@ -258,7 +258,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // |payloads| is cleared.
   std::unique_ptr<SerializedPacket>
   SerializePathResponseConnectivityProbingPacket(
-      const QuicCircularDeque<QuicPathFrameBuffer>& payloads,
+      const quiche::QuicheCircularDeque<QuicPathFrameBuffer>& payloads,
       const bool is_padded);
 
   // Add PATH_RESPONSE to current packet, flush before or afterwards if needed.
@@ -465,7 +465,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
       const QuicPacketHeader& header,
       char* buffer,
       size_t packet_length,
-      const QuicCircularDeque<QuicPathFrameBuffer>& payloads,
+      const quiche::QuicheCircularDeque<QuicPathFrameBuffer>& payloads,
       const bool is_padded,
       EncryptionLevel level);
 

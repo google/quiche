@@ -78,7 +78,7 @@ class Switch {
   void DispatchPacket(SwitchPortNumber port_number,
                       std::unique_ptr<Packet> packet);
 
-  // This can not be a QuicCircularDeque since pointers into this are
+  // This cannot be a quiche::QuicheCircularDeque since pointers into this are
   // assumed to be stable.
   std::deque<Port> ports_;
   absl::flat_hash_map<std::string, Port*> switching_table_;

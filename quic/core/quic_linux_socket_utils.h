@@ -148,7 +148,7 @@ struct QUIC_EXPORT_PRIVATE BufferedWrite {
 // multiple packets at once via ::sendmmsg.
 //
 // Example:
-//   QuicCircularDeque<BufferedWrite> buffered_writes;
+//   quiche::QuicheCircularDeque<BufferedWrite> buffered_writes;
 //   ... (Populate buffered_writes) ...
 //
 //   QuicMMsgHdr mhdr(

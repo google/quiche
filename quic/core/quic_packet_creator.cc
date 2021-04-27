@@ -937,7 +937,7 @@ QuicPacketCreator::SerializePathChallengeConnectivityProbingPacket(
 
 std::unique_ptr<SerializedPacket>
 QuicPacketCreator::SerializePathResponseConnectivityProbingPacket(
-    const QuicCircularDeque<QuicPathFrameBuffer>& payloads,
+    const quiche::QuicheCircularDeque<QuicPathFrameBuffer>& payloads,
     const bool is_padded) {
   QUIC_BUG_IF(quic_bug_12398_13,
               !VersionHasIetfQuicFrames(framer_->transport_version()))
@@ -1010,7 +1010,7 @@ size_t QuicPacketCreator::BuildPathResponsePacket(
     const QuicPacketHeader& header,
     char* buffer,
     size_t packet_length,
-    const QuicCircularDeque<QuicPathFrameBuffer>& payloads,
+    const quiche::QuicheCircularDeque<QuicPathFrameBuffer>& payloads,
     const bool is_padded,
     EncryptionLevel level) {
   if (payloads.empty()) {

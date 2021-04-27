@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quic/core/quic_circular_deque.h"
+#include "common/quiche_circular_deque.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <type_traits>
 
-#include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_test.h"
+#include "common/platform/api/quiche_logging.h"
+#include "common/platform/api/quiche_test.h"
 
 using testing::ElementsAre;
 
-namespace quic {
+namespace quiche {
 namespace test {
 namespace {
 
@@ -106,10 +106,10 @@ void ShiftLeft(Deque* dq, bool emplace) {
   }
 }
 
-class QuicCircularDequeTest : public QuicTest {};
+class QuicheCircularDequeTest : public QuicheTest {};
 
-TEST_F(QuicCircularDequeTest, Empty) {
-  QuicCircularDeque<int> dq;
+TEST_F(QuicheCircularDequeTest, Empty) {
+  QuicheCircularDeque<int> dq;
   EXPECT_TRUE(dq.empty());
   EXPECT_EQ(0u, dq.size());
   dq.clear();
@@ -122,68 +122,69 @@ TEST_F(QuicCircularDequeTest, Empty) {
   EXPECT_TRUE(dq.empty());
   EXPECT_EQ(0u, dq.size());
 
-  EXPECT_QUIC_DEBUG_DEATH(dq.front(), "");
-  EXPECT_QUIC_DEBUG_DEATH(dq.back(), "");
-  EXPECT_QUIC_DEBUG_DEATH(dq.at(0), "");
-  EXPECT_QUIC_DEBUG_DEATH(dq[0], "");
+  EXPECT_QUICHE_DEBUG_DEATH(dq.front(), "");
+  EXPECT_QUICHE_DEBUG_DEATH(dq.back(), "");
+  EXPECT_QUICHE_DEBUG_DEATH(dq.at(0), "");
+  EXPECT_QUICHE_DEBUG_DEATH(dq[0], "");
 }
 
-TEST_F(QuicCircularDequeTest, Constructor) {
-  QuicCircularDeque<int> dq;
+TEST_F(QuicheCircularDequeTest, Constructor) {
+  QuicheCircularDeque<int> dq;
   EXPECT_TRUE(dq.empty());
 
   std::allocator<int> alloc;
-  QuicCircularDeque<int> dq1(alloc);
+  QuicheCircularDeque<int> dq1(alloc);
   EXPECT_TRUE(dq1.empty());
 
-  QuicCircularDeque<int> dq2(8, 100, alloc);
+  QuicheCircularDeque<int> dq2(8, 100, alloc);
   EXPECT_THAT(dq2, ElementsAre(100, 100, 100, 100, 100, 100, 100, 100));
 
-  QuicCircularDeque<int> dq3(5, alloc);
+  QuicheCircularDeque<int> dq3(5, alloc);
   EXPECT_THAT(dq3, ElementsAre(0, 0, 0, 0, 0));
 
-  QuicCircularDeque<int> dq4_rand_iter(dq3.begin(), dq3.end(), alloc);
+  QuicheCircularDeque<int> dq4_rand_iter(dq3.begin(), dq3.end(), alloc);
   EXPECT_THAT(dq4_rand_iter, ElementsAre(0, 0, 0, 0, 0));
   EXPECT_EQ(dq4_rand_iter, dq3);
 
   std::list<int> dq4_src = {4, 4, 4, 4};
-  QuicCircularDeque<int> dq4_bidi_iter(dq4_src.begin(), dq4_src.end());
+  QuicheCircularDeque<int> dq4_bidi_iter(dq4_src.begin(), dq4_src.end());
   EXPECT_THAT(dq4_bidi_iter, ElementsAre(4, 4, 4, 4));
 
-  QuicCircularDeque<int> dq5(dq4_bidi_iter);
+  QuicheCircularDeque<int> dq5(dq4_bidi_iter);
   EXPECT_THAT(dq5, ElementsAre(4, 4, 4, 4));
   EXPECT_EQ(dq5, dq4_bidi_iter);
 
-  QuicCircularDeque<int> dq6(dq5, alloc);
+  QuicheCircularDeque<int> dq6(dq5, alloc);
   EXPECT_THAT(dq6, ElementsAre(4, 4, 4, 4));
   EXPECT_EQ(dq6, dq5);
 
-  QuicCircularDeque<int> dq7(std::move(*&dq6));
+  QuicheCircularDeque<int> dq7(std::move(*&dq6));
   EXPECT_THAT(dq7, ElementsAre(4, 4, 4, 4));
   EXPECT_TRUE(dq6.empty());
 
-  QuicCircularDeque<int> dq8_equal_allocator(std::move(*&dq7), alloc);
+  QuicheCircularDeque<int> dq8_equal_allocator(std::move(*&dq7), alloc);
   EXPECT_THAT(dq8_equal_allocator, ElementsAre(4, 4, 4, 4));
   EXPECT_TRUE(dq7.empty());
 
-  QuicCircularDeque<int, 3, CountingAllocator<int>> dq8_temp = {5, 6, 7, 8, 9};
-  QuicCircularDeque<int, 3, CountingAllocator<int>> dq8_unequal_allocator(
+  QuicheCircularDeque<int, 3, CountingAllocator<int>> dq8_temp = {5, 6, 7, 8,
+                                                                  9};
+  QuicheCircularDeque<int, 3, CountingAllocator<int>> dq8_unequal_allocator(
       std::move(*&dq8_temp), CountingAllocator<int>());
   EXPECT_THAT(dq8_unequal_allocator, ElementsAre(5, 6, 7, 8, 9));
   EXPECT_TRUE(dq8_temp.empty());
 
-  QuicCircularDeque<int> dq9({3, 4, 5, 6, 7}, alloc);
+  QuicheCircularDeque<int> dq9({3, 4, 5, 6, 7}, alloc);
   EXPECT_THAT(dq9, ElementsAre(3, 4, 5, 6, 7));
 }
 
-TEST_F(QuicCircularDequeTest, Assign) {
+TEST_F(QuicheCircularDequeTest, Assign) {
   // assign()
-  QuicCircularDeque<int, 3, CountingAllocator<int>> dq;
+  QuicheCircularDeque<int, 3, CountingAllocator<int>> dq;
   dq.assign(7, 1);
   EXPECT_THAT(dq, ElementsAre(1, 1, 1, 1, 1, 1, 1));
   EXPECT_EQ(1u, dq.get_allocator().allocate_count());
 
-  QuicCircularDeque<int, 3, CountingAllocator<int>> dq2;
+  QuicheCircularDeque<int, 3, CountingAllocator<int>> dq2;
   dq2.assign(dq.begin(), dq.end());
   EXPECT_THAT(dq2, ElementsAre(1, 1, 1, 1, 1, 1, 1));
   EXPECT_EQ(1u, dq2.get_allocator().allocate_count());
@@ -194,7 +195,7 @@ TEST_F(QuicCircularDequeTest, Assign) {
 
   // Assign from a non random access iterator.
   std::list<int> dq3_src = {3, 3, 3, 3, 3};
-  QuicCircularDeque<int, 3, CountingAllocator<int>> dq3;
+  QuicheCircularDeque<int, 3, CountingAllocator<int>> dq3;
   dq3.assign(dq3_src.begin(), dq3_src.end());
   EXPECT_THAT(dq3, ElementsAre(3, 3, 3, 3, 3));
   EXPECT_LT(1u, dq3.get_allocator().allocate_count());
@@ -203,7 +204,7 @@ TEST_F(QuicCircularDequeTest, Assign) {
   dq3 = *&dq3;
   EXPECT_THAT(dq3, ElementsAre(3, 3, 3, 3, 3));
 
-  QuicCircularDeque<
+  QuicheCircularDeque<
       int, 3,
       ConfigurableAllocator<int,
                             /*propagate_on_copy_assignment=*/std::true_type,
@@ -215,7 +216,7 @@ TEST_F(QuicCircularDequeTest, Assign) {
   dq5 = dq4;
   EXPECT_THAT(dq5, ElementsAre(3, 3, 3, 3, 3));
 
-  QuicCircularDeque<
+  QuicheCircularDeque<
       int, 3,
       ConfigurableAllocator<int,
                             /*propagate_on_copy_assignment=*/std::false_type,
@@ -238,7 +239,7 @@ TEST_F(QuicCircularDequeTest, Assign) {
   EXPECT_THAT(dq8, ElementsAre(3, 3, 3, 3, 3));
   EXPECT_TRUE(dq3.empty());
 
-  QuicCircularDeque<
+  QuicheCircularDeque<
       int, 3,
       ConfigurableAllocator<int,
                             /*propagate_on_copy_assignment=*/std::true_type,
@@ -252,7 +253,7 @@ TEST_F(QuicCircularDequeTest, Assign) {
   EXPECT_THAT(dq9, ElementsAre(2, 2, 2, 2, 2, 2));
   EXPECT_TRUE(dq10.empty());
 
-  QuicCircularDeque<
+  QuicheCircularDeque<
       int, 3,
       ConfigurableAllocator<int,
                             /*propagate_on_copy_assignment=*/std::true_type,
@@ -267,13 +268,13 @@ TEST_F(QuicCircularDequeTest, Assign) {
   EXPECT_TRUE(dq12.empty());
 }
 
-TEST_F(QuicCircularDequeTest, Access) {
+TEST_F(QuicheCircularDequeTest, Access) {
   // at()
   // operator[]
   // front()
   // back()
 
-  QuicCircularDeque<int, 3, CountingAllocator<int>> dq;
+  QuicheCircularDeque<int, 3, CountingAllocator<int>> dq;
   dq.push_back(10);
   EXPECT_EQ(dq.front(), 10);
   EXPECT_EQ(dq.back(), 10);
@@ -369,15 +370,15 @@ TEST_F(QuicCircularDequeTest, Access) {
   EXPECT_EQ(1u, dq.get_allocator().allocate_count());
 }
 
-TEST_F(QuicCircularDequeTest, Iterate) {
-  QuicCircularDeque<int> dq;
+TEST_F(QuicheCircularDequeTest, Iterate) {
+  QuicheCircularDeque<int> dq;
   EXPECT_EQ(dq.begin(), dq.end());
   EXPECT_EQ(dq.cbegin(), dq.cend());
   EXPECT_EQ(dq.rbegin(), dq.rend());
   EXPECT_EQ(dq.crbegin(), dq.crend());
 
   dq.emplace_back(2);
-  QuicCircularDeque<int>::const_iterator citer = dq.begin();
+  QuicheCircularDeque<int>::const_iterator citer = dq.begin();
   EXPECT_NE(citer, dq.end());
   EXPECT_EQ(*citer, 2);
   ++citer;
@@ -389,7 +390,7 @@ TEST_F(QuicCircularDequeTest, Iterate) {
   EXPECT_EQ(*dq.crbegin(), 2);
 
   dq.emplace_front(1);
-  QuicCircularDeque<int>::const_reverse_iterator criter = dq.rbegin();
+  QuicheCircularDeque<int>::const_reverse_iterator criter = dq.rbegin();
   EXPECT_NE(criter, dq.rend());
   EXPECT_EQ(*criter, 2);
   ++criter;
@@ -407,42 +408,43 @@ TEST_F(QuicCircularDequeTest, Iterate) {
 
   // Forward iterate.
   int expected_value = 1;
-  for (QuicCircularDeque<int>::iterator it = dq.begin(); it != dq.end(); ++it) {
+  for (QuicheCircularDeque<int>::iterator it = dq.begin(); it != dq.end();
+       ++it) {
     EXPECT_EQ(expected_value++, *it);
   }
 
   expected_value = 1;
-  for (QuicCircularDeque<int>::const_iterator it = dq.cbegin(); it != dq.cend();
-       ++it) {
+  for (QuicheCircularDeque<int>::const_iterator it = dq.cbegin();
+       it != dq.cend(); ++it) {
     EXPECT_EQ(expected_value++, *it);
   }
 
   // Reverse iterate.
   expected_value = 3;
-  for (QuicCircularDeque<int>::reverse_iterator it = dq.rbegin();
+  for (QuicheCircularDeque<int>::reverse_iterator it = dq.rbegin();
        it != dq.rend(); ++it) {
     EXPECT_EQ(expected_value--, *it);
   }
 
   expected_value = 3;
-  for (QuicCircularDeque<int>::const_reverse_iterator it = dq.crbegin();
+  for (QuicheCircularDeque<int>::const_reverse_iterator it = dq.crbegin();
        it != dq.crend(); ++it) {
     EXPECT_EQ(expected_value--, *it);
   }
 }
 
-TEST_F(QuicCircularDequeTest, Iterator) {
+TEST_F(QuicheCircularDequeTest, Iterator) {
   // Default constructed iterators of the same type compare equal.
-  EXPECT_EQ(QuicCircularDeque<int>::iterator(),
-            QuicCircularDeque<int>::iterator());
-  EXPECT_EQ(QuicCircularDeque<int>::const_iterator(),
-            QuicCircularDeque<int>::const_iterator());
-  EXPECT_EQ(QuicCircularDeque<int>::reverse_iterator(),
-            QuicCircularDeque<int>::reverse_iterator());
-  EXPECT_EQ(QuicCircularDeque<int>::const_reverse_iterator(),
-            QuicCircularDeque<int>::const_reverse_iterator());
+  EXPECT_EQ(QuicheCircularDeque<int>::iterator(),
+            QuicheCircularDeque<int>::iterator());
+  EXPECT_EQ(QuicheCircularDeque<int>::const_iterator(),
+            QuicheCircularDeque<int>::const_iterator());
+  EXPECT_EQ(QuicheCircularDeque<int>::reverse_iterator(),
+            QuicheCircularDeque<int>::reverse_iterator());
+  EXPECT_EQ(QuicheCircularDeque<int>::const_reverse_iterator(),
+            QuicheCircularDeque<int>::const_reverse_iterator());
 
-  QuicCircularDeque<QuicCircularDeque<int>, 3> dqdq = {
+  QuicheCircularDeque<QuicheCircularDeque<int>, 3> dqdq = {
       {1, 2}, {10, 20, 30}, {100, 200, 300, 400}};
 
   // iter points to {1, 2}
@@ -494,8 +496,8 @@ TEST_F(QuicCircularDequeTest, Iterator) {
   }
 }
 
-TEST_F(QuicCircularDequeTest, Resize) {
-  QuicCircularDeque<int, 3, CountingAllocator<int>> dq;
+TEST_F(QuicheCircularDequeTest, Resize) {
+  QuicheCircularDeque<int, 3, CountingAllocator<int>> dq;
   dq.resize(8);
   EXPECT_THAT(dq, ElementsAre(0, 0, 0, 0, 0, 0, 0, 0));
   EXPECT_EQ(1u, dq.get_allocator().allocate_count());
@@ -503,7 +505,7 @@ TEST_F(QuicCircularDequeTest, Resize) {
   dq.resize(10, 5);
   EXPECT_THAT(dq, ElementsAre(0, 0, 0, 0, 0, 0, 0, 0, 5, 5));
 
-  QuicCircularDeque<int, 3, CountingAllocator<int>> dq2 = dq;
+  QuicheCircularDeque<int, 3, CountingAllocator<int>> dq2 = dq;
 
   for (size_t new_size = dq.size(); new_size != 0; --new_size) {
     dq.resize(new_size);
@@ -575,7 +577,7 @@ class Foo {
 };
 }  // namespace
 
-TEST_F(QuicCircularDequeTest, RelocateNonTriviallyCopyable) {
+TEST_F(QuicheCircularDequeTest, RelocateNonTriviallyCopyable) {
   // When relocating non-trivially-copyable objects:
   // - Move constructor is preferred, if available.
   // - Copy constructor is used otherwise.
@@ -585,8 +587,8 @@ TEST_F(QuicCircularDequeTest, RelocateNonTriviallyCopyable) {
     using MoveConstructible = std::unique_ptr<Foo>;
     ASSERT_FALSE(std::is_trivially_copyable<MoveConstructible>::value);
     ASSERT_TRUE(std::is_move_constructible<MoveConstructible>::value);
-    QuicCircularDeque<MoveConstructible, 3,
-                      CountingAllocator<MoveConstructible>>
+    QuicheCircularDeque<MoveConstructible, 3,
+                        CountingAllocator<MoveConstructible>>
         dq1;
     dq1.resize(3);
     EXPECT_EQ(dq1.size(), dq1.capacity());
@@ -606,8 +608,8 @@ TEST_F(QuicCircularDequeTest, RelocateNonTriviallyCopyable) {
     using NonMoveConstructible = Foo;
     ASSERT_FALSE(std::is_trivially_copyable<NonMoveConstructible>::value);
     ASSERT_FALSE(std::is_move_constructible<NonMoveConstructible>::value);
-    QuicCircularDeque<NonMoveConstructible, 3,
-                      CountingAllocator<NonMoveConstructible>>
+    QuicheCircularDeque<NonMoveConstructible, 3,
+                        CountingAllocator<NonMoveConstructible>>
         dq2;
     dq2.resize(3);
     EXPECT_EQ(dq2.size(), dq2.capacity());
@@ -623,49 +625,49 @@ TEST_F(QuicCircularDequeTest, RelocateNonTriviallyCopyable) {
   }
 }
 
-TEST_F(QuicCircularDequeTest, PushPop) {
+TEST_F(QuicheCircularDequeTest, PushPop) {
   // (push|pop|emplace)_(back|front)
 
   {
-    QuicCircularDeque<Foo, 4, CountingAllocator<Foo>> dq(4);
+    QuicheCircularDeque<Foo, 4, CountingAllocator<Foo>> dq(4);
     for (size_t i = 0; i < dq.size(); ++i) {
       dq[i].Set(i + 1);
     }
-    QUIC_LOG(INFO) << "dq initialized to " << dq;
+    QUICHE_LOG(INFO) << "dq initialized to " << dq;
     EXPECT_THAT(dq, ElementsAre(Foo(1), Foo(2), Foo(3), Foo(4)));
 
     ShiftLeft(&dq, false);
-    QUIC_LOG(INFO) << "shift left once : " << dq;
+    QUICHE_LOG(INFO) << "shift left once : " << dq;
     EXPECT_THAT(dq, ElementsAre(Foo(2), Foo(3), Foo(4), Foo(1)));
 
     ShiftLeft(&dq, true);
-    QUIC_LOG(INFO) << "shift left twice: " << dq;
+    QUICHE_LOG(INFO) << "shift left twice: " << dq;
     EXPECT_THAT(dq, ElementsAre(Foo(3), Foo(4), Foo(1), Foo(2)));
     ASSERT_GT(&dq.front(), &dq.back());
     // dq destructs with wrapped data.
   }
 
   {
-    QuicCircularDeque<Foo, 4, CountingAllocator<Foo>> dq1(4);
+    QuicheCircularDeque<Foo, 4, CountingAllocator<Foo>> dq1(4);
     for (size_t i = 0; i < dq1.size(); ++i) {
       dq1[i].Set(i + 1);
     }
-    QUIC_LOG(INFO) << "dq1 initialized to " << dq1;
+    QUICHE_LOG(INFO) << "dq1 initialized to " << dq1;
     EXPECT_THAT(dq1, ElementsAre(Foo(1), Foo(2), Foo(3), Foo(4)));
 
     ShiftRight(&dq1, false);
-    QUIC_LOG(INFO) << "shift right once : " << dq1;
+    QUICHE_LOG(INFO) << "shift right once : " << dq1;
     EXPECT_THAT(dq1, ElementsAre(Foo(4), Foo(1), Foo(2), Foo(3)));
 
     ShiftRight(&dq1, true);
-    QUIC_LOG(INFO) << "shift right twice: " << dq1;
+    QUICHE_LOG(INFO) << "shift right twice: " << dq1;
     EXPECT_THAT(dq1, ElementsAre(Foo(3), Foo(4), Foo(1), Foo(2)));
     ASSERT_GT(&dq1.front(), &dq1.back());
     // dq1 destructs with wrapped data.
   }
 
   {  // Pop n elements from front.
-    QuicCircularDeque<Foo, 4, CountingAllocator<Foo>> dq2(5);
+    QuicheCircularDeque<Foo, 4, CountingAllocator<Foo>> dq2(5);
     for (size_t i = 0; i < dq2.size(); ++i) {
       dq2[i].Set(i + 1);
     }
@@ -679,7 +681,7 @@ TEST_F(QuicCircularDequeTest, PushPop) {
   }
 
   {  // Pop n elements from back.
-    QuicCircularDeque<Foo, 4, CountingAllocator<Foo>> dq3(6);
+    QuicheCircularDeque<Foo, 4, CountingAllocator<Foo>> dq3(6);
     for (size_t i = 0; i < dq3.size(); ++i) {
       dq3[i].Set(i + 1);
     }
@@ -700,11 +702,11 @@ TEST_F(QuicCircularDequeTest, PushPop) {
   }
 }
 
-TEST_F(QuicCircularDequeTest, Allocation) {
+TEST_F(QuicheCircularDequeTest, Allocation) {
   CountingAllocator<int> alloc;
 
   {
-    QuicCircularDeque<int, 3, CountingAllocator<int>> dq(alloc);
+    QuicheCircularDeque<int, 3, CountingAllocator<int>> dq(alloc);
     EXPECT_EQ(alloc, dq.get_allocator());
     EXPECT_EQ(0u, dq.size());
     EXPECT_EQ(0u, dq.capacity());
@@ -734,13 +736,13 @@ TEST_F(QuicCircularDequeTest, Allocation) {
 
 }  // namespace
 }  // namespace test
-}  // namespace quic
+}  // namespace quiche
 
-// Use a non-quic namespace to make sure swap can be used via ADL.
+// Use a non-quiche namespace to make sure swap can be used via ADL.
 namespace {
 
 template <typename T>
-using SwappableAllocator = quic::test::ConfigurableAllocator<
+using SwappableAllocator = quiche::test::ConfigurableAllocator<
     T,
     /*propagate_on_copy_assignment=*/std::true_type,
     /*propagate_on_move_assignment=*/std::true_type,
@@ -748,7 +750,7 @@ using SwappableAllocator = quic::test::ConfigurableAllocator<
     /*equality_result=*/true>;
 
 template <typename T>
-using UnswappableEqualAllocator = quic::test::ConfigurableAllocator<
+using UnswappableEqualAllocator = quiche::test::ConfigurableAllocator<
     T,
     /*propagate_on_copy_assignment=*/std::true_type,
     /*propagate_on_move_assignment=*/std::true_type,
@@ -756,19 +758,19 @@ using UnswappableEqualAllocator = quic::test::ConfigurableAllocator<
     /*equality_result=*/true>;
 
 template <typename T>
-using UnswappableUnequalAllocator = quic::test::ConfigurableAllocator<
+using UnswappableUnequalAllocator = quiche::test::ConfigurableAllocator<
     T,
     /*propagate_on_copy_assignment=*/std::true_type,
     /*propagate_on_move_assignment=*/std::true_type,
     /*propagate_on_swap=*/std::false_type,
     /*equality_result=*/false>;
 
-using quic::test::QuicCircularDequeTest;
+using quiche::test::QuicheCircularDequeTest;
 
-TEST_F(QuicCircularDequeTest, Swap) {
+TEST_F(QuicheCircularDequeTest, Swap) {
   using std::swap;
 
-  quic::QuicCircularDeque<int64_t, 3, SwappableAllocator<int64_t>> dq1, dq2;
+  quiche::QuicheCircularDeque<int64_t, 3, SwappableAllocator<int64_t>> dq1, dq2;
   dq1.push_back(10);
   dq1.push_back(11);
   dq2.push_back(20);
@@ -776,14 +778,16 @@ TEST_F(QuicCircularDequeTest, Swap) {
   EXPECT_THAT(dq1, ElementsAre(20));
   EXPECT_THAT(dq2, ElementsAre(10, 11));
 
-  quic::QuicCircularDeque<char, 3, UnswappableEqualAllocator<char>> dq3, dq4;
+  quiche::QuicheCircularDeque<char, 3, UnswappableEqualAllocator<char>> dq3,
+      dq4;
   dq3 = {1, 2, 3, 4, 5};
   dq4 = {6, 7, 8, 9, 0};
   swap(dq3, dq4);
   EXPECT_THAT(dq3, ElementsAre(6, 7, 8, 9, 0));
   EXPECT_THAT(dq4, ElementsAre(1, 2, 3, 4, 5));
 
-  quic::QuicCircularDeque<int, 3, UnswappableUnequalAllocator<int>> dq5, dq6;
+  quiche::QuicheCircularDeque<int, 3, UnswappableUnequalAllocator<int>> dq5,
+      dq6;
   dq6.push_front(4);
 
   // Using UnswappableUnequalAllocator is ok as long as swap is not called.
@@ -791,6 +795,6 @@ TEST_F(QuicCircularDequeTest, Swap) {
   EXPECT_THAT(dq5, ElementsAre(4));
 
   // Undefined behavior to swap between two containers with unequal allocators.
-  EXPECT_QUIC_DEBUG_DEATH(swap(dq5, dq6), "Undefined swap behavior");
+  EXPECT_QUICHE_DEBUG_DEATH(swap(dq5, dq6), "Undefined swap behavior");
 }
 }  // namespace

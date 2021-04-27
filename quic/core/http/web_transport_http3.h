@@ -75,8 +75,8 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   bool ready_ = false;
   std::unique_ptr<WebTransportVisitor> visitor_;
   absl::flat_hash_set<QuicStreamId> streams_;
-  QuicCircularDeque<QuicStreamId> incoming_bidirectional_streams_;
-  QuicCircularDeque<QuicStreamId> incoming_unidirectional_streams_;
+  quiche::QuicheCircularDeque<QuicStreamId> incoming_bidirectional_streams_;
+  quiche::QuicheCircularDeque<QuicStreamId> incoming_unidirectional_streams_;
 };
 
 class QUIC_EXPORT_PRIVATE WebTransportHttp3UnidirectionalStream

@@ -12,4 +12,7 @@ using QuicheTest = quiche::test::QuicheTest;
 template <class T>
 using QuicheTestWithParam = quiche::test::QuicheTestWithParamImpl<T>;
 
+#define EXPECT_QUICHE_DEBUG_DEATH(condition, message) \
+  EXPECT_QUICHE_DEBUG_DEATH_IMPL(condition, message)
+
 #endif  // QUICHE_COMMON_PLATFORM_API_QUICHE_TEST_H_

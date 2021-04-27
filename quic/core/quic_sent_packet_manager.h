@@ -19,7 +19,6 @@
 #include "quic/core/congestion_control/send_algorithm_interface.h"
 #include "quic/core/congestion_control/uber_loss_algorithm.h"
 #include "quic/core/proto/cached_network_parameters_proto.h"
-#include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_sustained_bandwidth_recorder.h"
 #include "quic/core/quic_time.h"
@@ -28,6 +27,7 @@
 #include "quic/core/quic_unacked_packet_map.h"
 #include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_export.h"
+#include "common/quiche_circular_deque.h"
 
 namespace quic {
 
@@ -673,7 +673,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // The history of outstanding max_ack_delays sent to peer. Outstanding means
   // a max_ack_delay is sent as part of the last acked AckFrequencyFrame or
   // an unacked AckFrequencyFrame after that.
-  QuicCircularDeque<std::pair<QuicTime::Delta, /*sequence_number=*/uint64_t>>
+  quiche::QuicheCircularDeque<
+      std::pair<QuicTime::Delta, /*sequence_number=*/uint64_t>>
       in_use_sent_ack_delays_;
 
   // Latest received ack frame.

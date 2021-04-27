@@ -7,10 +7,10 @@
 
 #include <string>
 
-#include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/web_transport_interface.h"
 #include "quic/platform/api/quic_logging.h"
+#include "common/quiche_circular_deque.h"
 
 namespace quic {
 
@@ -220,7 +220,7 @@ class EchoWebTransportSessionVisitor : public WebTransportVisitor {
   SimpleBufferAllocator allocator_;
   bool echo_stream_opened_ = false;
 
-  QuicCircularDeque<std::string> streams_to_echo_back_;
+  quiche::QuicheCircularDeque<std::string> streams_to_echo_back_;
 };
 
 }  // namespace quic

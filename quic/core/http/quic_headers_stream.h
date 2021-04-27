@@ -91,7 +91,7 @@ class QUIC_EXPORT_PRIVATE QuicHeadersStream : public QuicStream {
   QuicSpdySession* spdy_session_;
 
   // Headers that have not been fully acked.
-  QuicCircularDeque<CompressedHeaderInfo> unacked_headers_;
+  quiche::QuicheCircularDeque<CompressedHeaderInfo> unacked_headers_;
 };
 
 }  // namespace quic

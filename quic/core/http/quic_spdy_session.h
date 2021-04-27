@@ -26,13 +26,13 @@
 #include "quic/core/qpack/qpack_encoder_stream_sender.h"
 #include "quic/core/qpack/qpack_receive_stream.h"
 #include "quic/core/qpack/qpack_send_stream.h"
-#include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_time.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_export.h"
+#include "common/quiche_circular_deque.h"
 #include "spdy/core/http2_frame_decoder_adapter.h"
 
 namespace quic {

@@ -25,9 +25,6 @@ inline std::string QuicGetTestMemoryCachePath() {
   return QuicGetTestMemoryCachePathImpl();
 }
 
-#define EXPECT_QUIC_DEBUG_DEATH(condition, message) \
-  EXPECT_QUIC_DEBUG_DEATH_IMPL(condition, message)
-
 #define QUIC_SLOW_TEST(test) QUIC_SLOW_TEST_IMPL(test)
 
 #endif  // QUICHE_QUIC_PLATFORM_API_QUIC_TEST_H_

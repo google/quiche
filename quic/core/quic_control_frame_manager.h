@@ -9,9 +9,9 @@
 #include <string>
 
 #include "quic/core/frames/quic_frame.h"
-#include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_types.h"
+#include "common/quiche_circular_deque.h"
 
 namespace quic {
 
@@ -163,7 +163,7 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // frame.
   void WriteOrBufferQuicFrame(QuicFrame frame);
 
-  QuicCircularDeque<QuicFrame> control_frames_;
+  quiche::QuicheCircularDeque<QuicFrame> control_frames_;
 
   // Id of latest saved control frame. 0 if no control frame has been saved.
   QuicControlFrameId last_control_frame_id_;
