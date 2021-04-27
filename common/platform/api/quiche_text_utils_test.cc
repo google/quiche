@@ -34,6 +34,8 @@ TEST_F(QuicheTextUtilsTest, RemoveLeadingAndTrailingWhitespace) {
 }
 
 TEST_F(QuicheTextUtilsTest, HexDump) {
+  // Verify output for empty input.
+  EXPECT_EQ("", quiche::QuicheTextUtils::HexDump(absl::HexStringToBytes("")));
   // Verify output of the HexDump method is as expected.
   char packet[] = {
       0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x51, 0x55, 0x49, 0x43, 0x21,
