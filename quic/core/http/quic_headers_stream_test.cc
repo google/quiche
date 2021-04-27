@@ -563,6 +563,10 @@ TEST_P(QuicHeadersStreamTest, ProcessPriorityFrame) {
 }
 
 TEST_P(QuicHeadersStreamTest, ProcessPushPromiseDisabledSetting) {
+  if (perspective() != Perspective::IS_CLIENT) {
+    return;
+  }
+
   session_.OnConfigNegotiated();
   SpdySettingsIR data;
   // Respect supported settings frames SETTINGS_ENABLE_PUSH.
@@ -570,15 +574,11 @@ TEST_P(QuicHeadersStreamTest, ProcessPushPromiseDisabledSetting) {
   SpdySerializedFrame frame(framer_->SerializeFrame(data));
   stream_frame_.data_buffer = frame.data();
   stream_frame_.data_length = frame.size();
-  if (perspective() == Perspective::IS_CLIENT) {
-    EXPECT_CALL(
-        *connection_,
-        CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
-                        "Unsupported field of HTTP/2 SETTINGS frame: 2", _));
-  }
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
+                      "Unsupported field of HTTP/2 SETTINGS frame: 2", _));
   headers_stream_->OnStreamFrame(stream_frame_);
-  EXPECT_EQ(session_.server_push_enabled(),
-            perspective() == Perspective::IS_CLIENT);
 }
 
 TEST_P(QuicHeadersStreamTest, ProcessLargeRawData) {

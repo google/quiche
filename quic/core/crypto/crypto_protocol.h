@@ -28,7 +28,7 @@ using ServerConfigID = std::string;
 
 // The following tags have been deprecated and should not be reused:
 // "1CON", "BBQ4", "NCON", "RCID", "SREJ", "TBKP", "TB10", "SCLS", "SMHL",
-// "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS"
+// "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS", "QNSP"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
@@ -401,9 +401,6 @@ const QuicTag kPDP5 = TAG('P', 'D', 'P', '5');   // Path degrading triggered
                                                  // at 5PTO.
 
 const QuicTag kQNZ2 = TAG('Q', 'N', 'Z', '2');   // Turn off QUIC crypto 0-RTT.
-
-const QuicTag kQNSP = TAG('Q', 'N', 'S', 'P');   // Turn off server push in
-                                                 // gQUIC.
 
 const QuicTag kMAD  = TAG('M', 'A', 'D', 0);     // Max Ack Delay (IETF QUIC)
 

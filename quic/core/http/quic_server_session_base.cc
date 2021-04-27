@@ -50,12 +50,6 @@ void QuicServerSessionBase::OnConfigNegotiated() {
     return;
   }
 
-  // Disable server push if peer sends the corresponding connection option.
-  if (!version().UsesHttp3() &&
-      ContainsQuicTag(config()->ReceivedConnectionOptions(), kQNSP)) {
-    OnSetting(spdy::SETTINGS_ENABLE_PUSH, 0);
-  }
-
   // Enable bandwidth resumption if peer sent correct connection options.
   const bool last_bandwidth_resumption =
       ContainsQuicTag(config()->ReceivedConnectionOptions(), kBWRE);

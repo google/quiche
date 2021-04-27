@@ -251,12 +251,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   const QuicHeadersStream* headers_stream() const { return headers_stream_; }
 
-  // Returns whether server push is enabled.
-  // For a Google QUIC client this always returns false.
-  // For a Google QUIC server this is set by incoming SETTINGS_ENABLE_PUSH.
-  // For an IETF QUIC client or server this returns false.
-  bool server_push_enabled() const;
-
   // Called when the control stream receives HTTP/3 SETTINGS.
   // Returns false in case of 0-RTT if received settings are incompatible with
   // cached values, true otherwise.
@@ -683,10 +677,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // constructor. As long as it is not the assigned value, that would indicate
   // an use-after-free.
   int32_t destruction_indicator_;
-
-  // Used in Google QUIC only.  Set every time SETTINGS_ENABLE_PUSH is received.
-  // Defaults to true.
-  bool server_push_enabled_;
 
   // The identifier in the most recently received GOAWAY frame.  Unset if no
   // GOAWAY frame has been received yet.

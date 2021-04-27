@@ -497,7 +497,6 @@ QuicSpdySession::QuicSpdySession(
       spdy_framer_visitor_(new SpdyFramerVisitor(this)),
       debug_visitor_(nullptr),
       destruction_indicator_(123456789),
-      server_push_enabled_(true),
       next_available_datagram_flow_id_(perspective() == Perspective::IS_SERVER
                                            ? kFirstDatagramFlowIdServer
                                            : kFirstDatagramFlowIdClient) {
@@ -856,10 +855,6 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
   SpdySerializedFrame frame(spdy_framer_.SerializeFrame(push_promise));
   headers_stream()->WriteOrBufferData(
       absl::string_view(frame.data(), frame.size()), false, nullptr);
-}
-
-bool QuicSpdySession::server_push_enabled() const {
-  return VersionUsesHttp3(transport_version()) ? false : server_push_enabled_;
 }
 
 void QuicSpdySession::SendInitialData() {
@@ -1239,8 +1234,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
           return true;
         }
         QUIC_DVLOG(1) << ENDPOINT << "SETTINGS_ENABLE_PUSH received with value "
-                      << value;
-        server_push_enabled_ = value;
+                      << value << ", ignoring.";
         break;
       } else {
         QUIC_DLOG(ERROR)

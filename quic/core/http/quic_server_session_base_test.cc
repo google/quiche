@@ -723,20 +723,6 @@ TEST_P(QuicServerSessionBaseTest, NoBandwidthResumptionByDefault) {
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
 }
 
-TEST_P(QuicServerSessionBaseTest, TurnOffServerPush) {
-  if (VersionHasIetfQuicFrames(transport_version())) {
-    return;
-  }
-
-  EXPECT_TRUE(session_->server_push_enabled());
-  QuicTagVector copt;
-  copt.push_back(kQNSP);
-  QuicConfigPeer::SetReceivedConnectionOptions(session_->config(), copt);
-  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  session_->OnConfigNegotiated();
-  EXPECT_FALSE(session_->server_push_enabled());
-}
-
 // Tests which check the lifetime management of data members of
 // QuicCryptoServerStream objects when async GetProof is in use.
 class StreamMemberLifetimeTest : public QuicServerSessionBaseTest {

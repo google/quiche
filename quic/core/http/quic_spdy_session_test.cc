@@ -2938,14 +2938,6 @@ TEST_P(QuicSpdySessionTestClient, IgnoreCancelPush) {
   session_.OnStreamFrame(data3);
 }
 
-TEST_P(QuicSpdySessionTestServer, ServerPushEnabledDefaultValue) {
-  if (VersionUsesHttp3(transport_version())) {
-    EXPECT_FALSE(session_.server_push_enabled());
-  } else {
-    EXPECT_TRUE(session_.server_push_enabled());
-  }
-}
-
 TEST_P(QuicSpdySessionTestServer, OnSetting) {
   CompleteHandshake();
   if (VersionUsesHttp3(transport_version())) {
@@ -2974,10 +2966,6 @@ TEST_P(QuicSpdySessionTestServer, OnSetting) {
             session_.max_outbound_header_list_size());
   session_.OnSetting(SETTINGS_MAX_FIELD_SECTION_SIZE, 5);
   EXPECT_EQ(5u, session_.max_outbound_header_list_size());
-
-  EXPECT_TRUE(session_.server_push_enabled());
-  session_.OnSetting(spdy::SETTINGS_ENABLE_PUSH, 0);
-  EXPECT_FALSE(session_.server_push_enabled());
 
   spdy::HpackEncoder* hpack_encoder =
       QuicSpdySessionPeer::GetSpdyFramer(&session_)->GetHpackEncoder();
