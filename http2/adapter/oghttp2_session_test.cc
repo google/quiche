@@ -65,7 +65,7 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 26));
   EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
   EXPECT_CALL(visitor, OnRstStream(3, Http2ErrorCode::INTERNAL_ERROR));
-  EXPECT_CALL(visitor, OnAbortStream(3, Http2ErrorCode::INTERNAL_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::INTERNAL_ERROR));
   EXPECT_CALL(visitor, OnGoAway(5, Http2ErrorCode::ENHANCE_YOUR_CALM, ""));
   const ssize_t stream_result = session.ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
@@ -131,7 +131,7 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
   EXPECT_CALL(visitor, OnEndHeadersForStream(3));
   EXPECT_CALL(visitor, OnEndStream(3));
   EXPECT_CALL(visitor, OnRstStream(3, Http2ErrorCode::CANCEL));
-  EXPECT_CALL(visitor, OnAbortStream(3, Http2ErrorCode::CANCEL));
+  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::CANCEL));
   EXPECT_CALL(visitor, OnPing(47, false));
 
   const ssize_t result = session.ProcessBytes(frames);

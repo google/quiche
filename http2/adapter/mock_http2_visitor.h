@@ -52,10 +52,8 @@ class MockHttp2Visitor : public Http2VisitorInterface {
               (Http2StreamId stream_id, Http2ErrorCode error_code),
               (override));
 
-  MOCK_METHOD(void, OnCloseStream, (Http2StreamId stream_id), (override));
-
   MOCK_METHOD(void,
-              OnAbortStream,
+              OnCloseStream,
               (Http2StreamId stream_id, Http2ErrorCode error_code),
               (override));
 

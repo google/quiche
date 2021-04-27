@@ -137,7 +137,7 @@ void OgHttp2Session::OnHeaderFrameEnd(spdy::SpdyStreamId stream_id) {
 void OgHttp2Session::OnRstStream(spdy::SpdyStreamId stream_id,
                                  spdy::SpdyErrorCode error_code) {
   visitor_.OnRstStream(stream_id, TranslateErrorCode(error_code));
-  visitor_.OnAbortStream(stream_id, TranslateErrorCode(error_code));
+  visitor_.OnCloseStream(stream_id, TranslateErrorCode(error_code));
 }
 
 void OgHttp2Session::OnSettings() {

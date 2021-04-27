@@ -157,7 +157,7 @@ TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
   EXPECT_CALL(visitor_, OnBeginDataForStream(1, 26));
   EXPECT_CALL(visitor_, OnDataForStream(1, "This is the response body."));
   EXPECT_CALL(visitor_, OnRstStream(3, Http2ErrorCode::INTERNAL_ERROR));
-  EXPECT_CALL(visitor_, OnAbortStream(3, Http2ErrorCode::INTERNAL_ERROR));
+  EXPECT_CALL(visitor_, OnCloseStream(3, Http2ErrorCode::INTERNAL_ERROR));
   EXPECT_CALL(visitor_,
               OnGoAway(5, Http2ErrorCode::ENHANCE_YOUR_CALM, "calm down!!"));
   const ssize_t stream_result = session.ProcessBytes(stream_frames);
@@ -168,9 +168,9 @@ TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
 
   EXPECT_CALL(visitor_, OnBeginDataForStream(1, 0));
   EXPECT_CALL(visitor_, OnEndStream(1));
-  EXPECT_CALL(visitor_, OnCloseStream(1));
+  EXPECT_CALL(visitor_, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
   EXPECT_CALL(visitor_, OnRstStream(5, Http2ErrorCode::REFUSED_STREAM));
-  EXPECT_CALL(visitor_, OnAbortStream(5, Http2ErrorCode::REFUSED_STREAM));
+  EXPECT_CALL(visitor_, OnCloseStream(5, Http2ErrorCode::REFUSED_STREAM));
   session.ProcessBytes(TestFrameSequence()
                            .Data(1, "", true)
                            .RstStream(5, Http2ErrorCode::REFUSED_STREAM)
@@ -245,7 +245,7 @@ TEST_F(NgHttp2SessionTest, ServerHandlesFrames) {
   EXPECT_CALL(visitor_, OnEndHeadersForStream(3));
   EXPECT_CALL(visitor_, OnEndStream(3));
   EXPECT_CALL(visitor_, OnRstStream(3, Http2ErrorCode::CANCEL));
-  EXPECT_CALL(visitor_, OnAbortStream(3, Http2ErrorCode::CANCEL));
+  EXPECT_CALL(visitor_, OnCloseStream(3, Http2ErrorCode::CANCEL));
   EXPECT_CALL(visitor_, OnPing(47, false));
 
   const ssize_t result = session.ProcessBytes(frames);

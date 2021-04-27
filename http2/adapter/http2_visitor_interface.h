@@ -34,7 +34,7 @@ namespace adapter {
 //     - OnHeaderForStream()
 //     - OnEndHeadersForStream()
 //     - OnRstStream()
-//     - OnAbortStream()
+//     - OnCloseStream()
 //
 //   Request closed mid-stream, e.g., with error code NO_ERROR:
 //     - OnBeginHeadersForStream()
@@ -43,8 +43,7 @@ namespace adapter {
 //     - OnRstStream()
 //     - OnCloseStream()
 //
-// More details are at RFC 7540 (go/http2spec), and more examples are at
-// http://google3/net/http2/server/lib/internal/h2/nghttp2/nghttp2_server_adapter_test.cc.
+// More details are at RFC 7540 (go/http2spec).
 class Http2VisitorInterface {
  public:
   Http2VisitorInterface(const Http2VisitorInterface&) = delete;
@@ -97,18 +96,12 @@ class Http2VisitorInterface {
   virtual void OnEndStream(Http2StreamId stream_id) = 0;
 
   // Called when the connection receives a RST_STREAM for a stream. This call
-  // will be followed by either OnCloseStream() or OnAbortStream().
+  // will be followed by either OnCloseStream().
   virtual void OnRstStream(Http2StreamId stream_id,
                            Http2ErrorCode error_code) = 0;
 
-  // Called when a stream is closed with error code NO_ERROR. Compare with
-  // OnAbortStream().
-  virtual void OnCloseStream(Http2StreamId stream_id) = 0;
-
-  // Called when a stream is aborted, i.e., closed for the reason indicated by
-  // the given |error_code|, where error_code != NO_ERROR. Compare with
-  // OnCloseStream().
-  virtual void OnAbortStream(Http2StreamId stream_id,
+  // Called when a stream is closed.
+  virtual void OnCloseStream(Http2StreamId stream_id,
                              Http2ErrorCode error_code) = 0;
 
   // Called when the connection receives a PRIORITY frame.

@@ -161,11 +161,7 @@ int OnStreamClosed(nghttp2_session* /* session */,
                    uint32_t error_code,
                    void* user_data) {
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
-  if (error_code == static_cast<uint32_t>(Http2ErrorCode::NO_ERROR)) {
-    visitor->OnCloseStream(stream_id);
-  } else {
-    visitor->OnAbortStream(stream_id, ToHttp2ErrorCode(error_code));
-  }
+  visitor->OnCloseStream(stream_id, ToHttp2ErrorCode(error_code));
   return 0;
 }
 
