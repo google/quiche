@@ -15,6 +15,7 @@
 #include "quic/platform/api/quic_file_utils.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_map_util.h"
+#include "quic/tools/web_transport_test_visitors.h"
 #include "common/platform/api/quiche_text_utils.h"
 
 using spdy::Http2HeaderBlock;
@@ -313,6 +314,10 @@ void QuicMemoryCacheBackend::GenerateDynamicResponses() {
       QuicBackendResponse::GENERATE_BYTES);
 }
 
+void QuicMemoryCacheBackend::EnableWebTransport() {
+  enable_webtransport_ = true;
+}
+
 bool QuicMemoryCacheBackend::IsBackendInitialized() const {
   return cache_initialized_;
 }
@@ -359,6 +364,35 @@ std::list<ServerPushInfo> QuicMemoryCacheBackend::GetServerPushResources(
   QUIC_DVLOG(1) << "Found " << resources.size() << " push resources for "
                 << request_url;
   return resources;
+}
+
+QuicMemoryCacheBackend::WebTransportResponse
+QuicMemoryCacheBackend::ProcessWebTransportRequest(
+    const spdy::Http2HeaderBlock& request_headers,
+    WebTransportSession* session) {
+  if (!SupportsWebTransport()) {
+    return QuicSimpleServerBackend::ProcessWebTransportRequest(request_headers,
+                                                               session);
+  }
+
+  auto path_it = request_headers.find(":path");
+  if (path_it == request_headers.end()) {
+    WebTransportResponse response;
+    response.response_headers[":status"] = "400";
+    return response;
+  }
+  absl::string_view path = path_it->second;
+  if (path == "/echo") {
+    WebTransportResponse response;
+    response.response_headers[":status"] = "200";
+    response.visitor =
+        std::make_unique<EchoWebTransportSessionVisitor>(session);
+    return response;
+  }
+
+  WebTransportResponse response;
+  response.response_headers[":status"] = "404";
+  return response;
 }
 
 QuicMemoryCacheBackend::~QuicMemoryCacheBackend() {

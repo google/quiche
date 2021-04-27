@@ -46,6 +46,11 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
     "QUIC versions to enable, e.g. \"h3-25,h3-27\". If not set, then all "
     "available versions are enabled.");
 
+DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
+                              enable_webtransport,
+                              false,
+                              "If true, WebTransport support is enabled.");
+
 namespace quic {
 
 std::unique_ptr<quic::QuicSimpleServerBackend>
@@ -57,6 +62,9 @@ QuicToyServer::MemoryCacheBackendFactory::CreateBackend() {
   if (!GetQuicFlag(FLAGS_quic_response_cache_dir).empty()) {
     memory_cache_backend->InitializeBackend(
         GetQuicFlag(FLAGS_quic_response_cache_dir));
+  }
+  if (GetQuicFlag(FLAGS_enable_webtransport)) {
+    memory_cache_backend->EnableWebTransport();
   }
   return memory_cache_backend;
 }

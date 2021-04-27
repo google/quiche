@@ -139,6 +139,8 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
   // generated response of that many bytes.
   void GenerateDynamicResponses();
 
+  void EnableWebTransport();
+
   // Find all the server push resources associated with |request_url|.
   std::list<QuicBackendResponse::ServerPushInfo> GetServerPushResources(
       std::string request_url);
@@ -153,6 +155,10 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
       QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
   void CloseBackendResponseStream(
       QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
+  WebTransportResponse ProcessWebTransportRequest(
+      const spdy::Http2HeaderBlock& request_headers,
+      WebTransportSession* session) override;
+  bool SupportsWebTransport() override { return enable_webtransport_; }
 
  private:
   void AddResponseImpl(absl::string_view host,
@@ -197,6 +203,8 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
   // server threads accessing those responses.
   mutable QuicMutex response_mutex_;
   bool cache_initialized_;
+
+  bool enable_webtransport_ = false;
 };
 
 }  // namespace quic
