@@ -5171,6 +5171,74 @@ TEST_P(EndToEndTest, LegacyVersionEncapsulationWithLoss) {
       0u);
 }
 
+// Testing packet writer that makes a copy of the first sent packets before
+// sending them. Useful for tests that need access to sent packets.
+class CopyingPacketWriter : public PacketDroppingTestWriter {
+ public:
+  explicit CopyingPacketWriter(int num_packets_to_copy)
+      : num_packets_to_copy_(num_packets_to_copy) {}
+  WriteResult WritePacket(const char* buffer,
+                          size_t buf_len,
+                          const QuicIpAddress& self_address,
+                          const QuicSocketAddress& peer_address,
+                          PerPacketOptions* options) override {
+    if (num_packets_to_copy_ > 0) {
+      num_packets_to_copy_--;
+      packets_.push_back(
+          QuicEncryptedPacket(buffer, buf_len, /*owns_buffer=*/false).Clone());
+    }
+    return PacketDroppingTestWriter::WritePacket(buffer, buf_len, self_address,
+                                                 peer_address, options);
+  }
+
+  std::vector<std::unique_ptr<QuicEncryptedPacket>>& packets() {
+    return packets_;
+  }
+
+ private:
+  int num_packets_to_copy_;
+  std::vector<std::unique_ptr<QuicEncryptedPacket>> packets_;
+};
+
+TEST_P(EndToEndTest, ChaosProtection) {
+  if (!version_.UsesCryptoFrames()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  // Replace the client's writer with one that'll save the first packet.
+  auto copying_writer = new CopyingPacketWriter(1);
+  delete client_writer_;
+  client_writer_ = copying_writer;
+  // Enable chaos protection and perform an HTTP request.
+  client_config_.SetClientConnectionOptions(QuicTagVector{kCHSP});
+  ASSERT_TRUE(Initialize());
+  SendSynchronousFooRequestAndCheckResponse();
+  // Parse the saved packet to make sure it's valid.
+  SimpleQuicFramer validation_framer({version_});
+  validation_framer.framer()->SetInitialObfuscators(
+      GetClientConnection()->connection_id());
+  ASSERT_GT(copying_writer->packets().size(), 0u);
+  EXPECT_TRUE(validation_framer.ProcessPacket(*copying_writer->packets()[0]));
+  // TODO(dschinazi) figure out a way to use a MockRandom in this test so we
+  // can inspect the contents of this packet.
+}
+
+TEST_P(EndToEndTest, ChaosProtectionWithMultiPacketChlo) {
+  if (!version_.UsesCryptoFrames()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  // Enable chaos protection.
+  client_config_.SetClientConnectionOptions(QuicTagVector{kCHSP});
+  // Add a transport parameter to make the client hello span multiple packets.
+  constexpr auto kCustomParameter =
+      static_cast<TransportParameters::TransportParameterId>(0xff34);
+  client_config_.custom_transport_parameters_to_send()[kCustomParameter] =
+      std::string(2000, '?');
+  ASSERT_TRUE(Initialize());
+  SendSynchronousFooRequestAndCheckResponse();
+}
+
 TEST_P(EndToEndTest, KeyUpdateInitiatedByClient) {
   if (!version_.UsesTls()) {
     // Key Update is only supported in TLS handshake.

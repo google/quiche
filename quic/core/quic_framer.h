@@ -634,6 +634,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   Perspective perspective() const { return perspective_; }
 
+  QuicStreamFrameDataProducer* data_producer() const { return data_producer_; }
+
   void set_data_producer(QuicStreamFrameDataProducer* data_producer) {
     data_producer_ = data_producer;
   }

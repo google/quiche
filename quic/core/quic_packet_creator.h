@@ -22,6 +22,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quic/core/frames/quic_stream_frame.h"
 #include "quic/core/quic_coalesced_packet.h"
 #include "quic/core/quic_connection_id.h"
@@ -308,6 +309,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   void set_encryption_level(EncryptionLevel level);
   EncryptionLevel encryption_level() { return packet_.encryption_level; }
 
+  // Sets whether initial packets are protected with chaos.
+  void set_chaos_protection_enabled(bool chaos_protection_enabled) {
+    chaos_protection_enabled_ = chaos_protection_enabled;
+  }
+
   // packet number of the last created packet, or 0 if no packets have been
   // created.
   QuicPacketNumber packet_number() const { return packet_.packet_number; }
@@ -508,6 +514,13 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     QuicPacketCreator* creator_;  // Unowned.
   };
 
+  // Attempts to build a data packet with chaos protection. If this packet isn't
+  // supposed to be protected or if serialization fails then absl::nullopt is
+  // returned. Otherwise returns the serialized length.
+  absl::optional<size_t> MaybeBuildDataPacketWithChaosProtection(
+      const QuicPacketHeader& header,
+      char* buffer);
+
   // Creates a stream frame which fits into the current open packet. If
   // |data_size| is 0 and fin is true, the expected behavior is to consume
   // the fin.
@@ -692,6 +705,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // accept. There is no limit for QUIC_CRYPTO connections, but QUIC+TLS
   // negotiates this during the handshake.
   QuicByteCount max_datagram_frame_size_;
+
+  // Whether to attempt protecting initial packets with chaos.
+  bool chaos_protection_enabled_;
 };
 
 }  // namespace quic

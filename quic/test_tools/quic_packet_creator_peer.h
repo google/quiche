@@ -10,6 +10,7 @@
 namespace quic {
 class QuicFramer;
 class QuicPacketCreator;
+class QuicRandom;
 
 namespace test {
 
@@ -61,6 +62,7 @@ class QuicPacketCreatorPeer {
   static QuicFramer* framer(QuicPacketCreator* creator);
   static std::string GetRetryToken(QuicPacketCreator* creator);
   static QuicFrames& QueuedFrames(QuicPacketCreator* creator);
+  static void SetRandom(QuicPacketCreator* creator, QuicRandom* random);
 };
 
 }  // namespace test

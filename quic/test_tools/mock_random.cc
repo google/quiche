@@ -33,5 +33,10 @@ void MockRandom::ChangeValue() {
   increment_++;
 }
 
+void MockRandom::ResetBase(uint32_t base) {
+  base_ = base;
+  increment_ = 0;
+}
+
 }  // namespace test
 }  // namespace quic

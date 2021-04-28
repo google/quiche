@@ -33,6 +33,9 @@ class MockRandom : public QuicRandom {
   // |RandUint64| and the byte that |RandBytes| fills with, to change.
   void ChangeValue();
 
+  // Sets the base to |base| and resets increment to zero.
+  void ResetBase(uint32_t base);
+
  private:
   uint32_t base_;
   uint8_t increment_;

@@ -35,13 +35,14 @@
 #include "quic/test_tools/simple_quic_framer.h"
 #include "common/test_tools/quiche_test_utils.h"
 
-using testing::_;
-using testing::DoAll;
-using testing::InSequence;
-using testing::Invoke;
-using testing::Return;
-using testing::SaveArg;
-using testing::StrictMock;
+using ::testing::_;
+using ::testing::AtLeast;
+using ::testing::DoAll;
+using ::testing::InSequence;
+using ::testing::Invoke;
+using ::testing::Return;
+using ::testing::SaveArg;
+using ::testing::StrictMock;
 
 namespace quic {
 namespace test {
@@ -269,6 +270,8 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
                creator_.transport_version(), Perspective::IS_CLIENT) +
            n * 2;
   }
+
+  void TestChaosProtection(bool enabled);
 
   static constexpr QuicStreamOffset kOffset = 0u;
 
@@ -1343,6 +1346,45 @@ TEST_P(QuicPacketCreatorTest, SerializeFrameShortData) {
   }
   ProcessPacket(serialized);
   EXPECT_EQ(GetParam().version_serialization, header.version_flag);
+}
+
+void QuicPacketCreatorTest::TestChaosProtection(bool enabled) {
+  if (!GetParam().version.UsesCryptoFrames()) {
+    return;
+  }
+  MockRandom mock_random(2);
+  QuicPacketCreatorPeer::SetRandom(&creator_, &mock_random);
+  creator_.set_chaos_protection_enabled(enabled);
+  std::string data("ChAoS_ThEoRy!");
+  producer_.SaveCryptoData(ENCRYPTION_INITIAL, 0, data);
+  frames_.push_back(
+      QuicFrame(new QuicCryptoFrame(ENCRYPTION_INITIAL, 0, data.length())));
+  frames_.push_back(QuicFrame(QuicPaddingFrame(33)));
+  SerializedPacket serialized = SerializeAllFrames(frames_);
+  EXPECT_CALL(framer_visitor_, OnPacket());
+  EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
+  EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
+  EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
+  EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
+  if (enabled) {
+    EXPECT_CALL(framer_visitor_, OnCryptoFrame(_)).Times(AtLeast(2));
+    EXPECT_CALL(framer_visitor_, OnPaddingFrame(_)).Times(AtLeast(2));
+    EXPECT_CALL(framer_visitor_, OnPingFrame(_)).Times(AtLeast(1));
+  } else {
+    EXPECT_CALL(framer_visitor_, OnCryptoFrame(_)).Times(1);
+    EXPECT_CALL(framer_visitor_, OnPaddingFrame(_)).Times(1);
+    EXPECT_CALL(framer_visitor_, OnPingFrame(_)).Times(0);
+  }
+  EXPECT_CALL(framer_visitor_, OnPacketComplete());
+  ProcessPacket(serialized);
+}
+
+TEST_P(QuicPacketCreatorTest, ChaosProtectionEnabled) {
+  TestChaosProtection(/*enabled=*/true);
+}
+
+TEST_P(QuicPacketCreatorTest, ChaosProtectionDisabled) {
+  TestChaosProtection(/*enabled=*/false);
 }
 
 TEST_P(QuicPacketCreatorTest, ConsumeDataLargerThanOneStreamFrame) {

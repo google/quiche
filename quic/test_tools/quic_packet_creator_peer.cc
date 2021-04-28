@@ -156,5 +156,11 @@ QuicFrames& QuicPacketCreatorPeer::QueuedFrames(QuicPacketCreator* creator) {
   return creator->queued_frames_;
 }
 
+// static
+void QuicPacketCreatorPeer::SetRandom(QuicPacketCreator* creator,
+                                      QuicRandom* random) {
+  creator->random_ = random;
+}
+
 }  // namespace test
 }  // namespace quic

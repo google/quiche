@@ -15,10 +15,12 @@
 #include "absl/base/optimization.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quic/core/crypto/crypto_protocol.h"
 #include "quic/core/frames/quic_frame.h"
 #include "quic/core/frames/quic_path_challenge_frame.h"
 #include "quic/core/frames/quic_stream_frame.h"
+#include "quic/core/quic_chaos_protector.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_data_writer.h"
@@ -132,7 +134,8 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       flusher_attached_(false),
       fully_pad_crypto_handshake_packets_(true),
       latched_hard_max_packet_length_(0),
-      max_datagram_frame_size_(0) {
+      max_datagram_frame_size_(0),
+      chaos_protection_enabled_(false) {
   SetMaxPacketLength(kDefaultMaxPacketSize);
   if (!framer_->version().UsesTls()) {
     // QUIC+TLS negotiates the maximum datagram frame size via the
@@ -752,6 +755,35 @@ bool QuicPacketCreator::AddPaddedSavedFrame(
   return false;
 }
 
+absl::optional<size_t>
+QuicPacketCreator::MaybeBuildDataPacketWithChaosProtection(
+    const QuicPacketHeader& header,
+    char* buffer) {
+  if (!chaos_protection_enabled_ ||
+      packet_.encryption_level != ENCRYPTION_INITIAL ||
+      !framer_->version().UsesCryptoFrames() || queued_frames_.size() != 2u ||
+      queued_frames_[0].type != CRYPTO_FRAME ||
+      queued_frames_[1].type != PADDING_FRAME ||
+      // Do not perform chaos protection if we do not have a known number of
+      // padding bytes to work with.
+      queued_frames_[1].padding_frame.num_padding_bytes <= 0 ||
+      // Chaos protection relies on the framer using a crypto data producer,
+      // which is always the case in practice.
+      framer_->data_producer() == nullptr) {
+    return absl::nullopt;
+  }
+  const QuicCryptoFrame& crypto_frame = *queued_frames_[0].crypto_frame;
+  if (packet_.encryption_level != crypto_frame.level) {
+    QUIC_BUG(chaos frame level)
+        << ENDPOINT << packet_.encryption_level << " != " << crypto_frame.level;
+    return absl::nullopt;
+  }
+  QuicChaosProtector chaos_protector(
+      crypto_frame, queued_frames_[1].padding_frame.num_padding_bytes,
+      packet_size_, framer_, random_);
+  return chaos_protector.BuildDataPacket(header, buffer);
+}
+
 bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
                                         size_t encrypted_buffer_len) {
   if (packet_.encrypted_buffer != nullptr) {
@@ -801,9 +833,18 @@ bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
   QUICHE_DCHECK_GE(max_plaintext_size_, packet_size_) << ENDPOINT;
   // Use the packet_size_ instead of the buffer size to ensure smaller
   // packet sizes are properly used.
-  size_t length =
-      framer_->BuildDataPacket(header, queued_frames_, encrypted_buffer.buffer,
-                               packet_size_, packet_.encryption_level);
+
+  size_t length;
+  absl::optional<size_t> length_with_chaos_protection =
+      MaybeBuildDataPacketWithChaosProtection(header, encrypted_buffer.buffer);
+  if (length_with_chaos_protection.has_value()) {
+    length = length_with_chaos_protection.value();
+  } else {
+    length = framer_->BuildDataPacket(header, queued_frames_,
+                                      encrypted_buffer.buffer, packet_size_,
+                                      packet_.encryption_level);
+  }
+
   if (length == 0) {
     QUIC_BUG(quic_bug_10752_16)
         << ENDPOINT << "Failed to serialize "
