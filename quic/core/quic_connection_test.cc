@@ -14431,7 +14431,7 @@ TEST_P(
 TEST_P(QuicConnectionTest,
        CloseConnectionAfterReceiveRetireConnectionIdWhenNoCIDIssued) {
   if (!version().HasIetfQuicFrames() ||
-      GetQuicReloadableFlag(quic_use_connection_id_on_default_path)) {
+      GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2)) {
     return;
   }
   QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
@@ -14452,7 +14452,7 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest, RetireConnectionIdFrameResultsInError) {
   if (!version().HasIetfQuicFrames() ||
-      GetQuicReloadableFlag(quic_use_connection_id_on_default_path)) {
+      GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2)) {
     return;
   }
   QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
@@ -14489,15 +14489,15 @@ TEST_P(QuicConnectionTest,
   QuicConnectionId cid0 = connection_id_;
   QuicRetireConnectionIdFrame frame;
   frame.sequence_number = 0u;
-  if (!GetQuicReloadableFlag(quic_use_connection_id_on_default_path)) {
+  if (!GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2)) {
     EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_)).Times(2);
     EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(2);
   }
   EXPECT_TRUE(connection_.OnRetireConnectionIdFrame(frame));
-  if (!GetQuicReloadableFlag(quic_use_connection_id_on_default_path)) {
+  if (!GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2)) {
     ASSERT_TRUE(retire_self_issued_cid_alarm->IsSet());
     // cid0 is retired when the retire CID alarm fires.
-    if (!GetQuicReloadableFlag(quic_use_connection_id_on_default_path))
+    if (!GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2))
       EXPECT_CALL(visitor_, OnServerConnectionIdRetired(cid0));
     retire_self_issued_cid_alarm->Fire();
   }
@@ -14505,7 +14505,7 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
   if (!version().HasIetfQuicFrames() ||
-      GetQuicReloadableFlag(quic_use_connection_id_on_default_path)) {
+      GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2)) {
     return;
   }
   QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);

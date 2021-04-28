@@ -1031,6 +1031,7 @@ void QuicConnection::SetOriginalDestinationConnectionId(
   QUICHE_DCHECK(!original_destination_connection_id_.has_value())
       << original_destination_connection_id_.value();
   original_destination_connection_id_ = original_destination_connection_id;
+  original_destination_connection_id_replacement_ = ServerConnectionId();
 }
 
 QuicConnectionId QuicConnection::GetOriginalDestinationConnectionId() {
@@ -1043,6 +1044,19 @@ QuicConnectionId QuicConnection::GetOriginalDestinationConnectionId() {
 bool QuicConnection::OnUnauthenticatedPublicHeader(
     const QuicPacketHeader& header) {
   last_packet_destination_connection_id_ = header.destination_connection_id;
+  // If last packet destination connection ID is the original server
+  // connection ID chosen by client, replaces it with the connection ID chosen
+  // by server.
+  if (use_connection_id_on_default_path_ &&
+      perspective_ == Perspective::IS_SERVER &&
+      original_destination_connection_id_.has_value() &&
+      last_packet_destination_connection_id_ ==
+          *original_destination_connection_id_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_connection_id_on_default_path_v2, 3,
+                                 3);
+    last_packet_destination_connection_id_ =
+        original_destination_connection_id_replacement_;
+  }
 
   // As soon as we receive an initial we start ignoring subsequent retries.
   if (header.version_flag && header.long_packet_type == INITIAL) {
@@ -2926,7 +2940,8 @@ void QuicConnection::WriteIfNotBlocked() {
 void QuicConnection::SetServerConnectionId(
     const QuicConnectionId& server_connection_id) {
   if (use_connection_id_on_default_path_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_connection_id_on_default_path, 2, 2);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_connection_id_on_default_path_v2, 2,
+                                 3);
     default_path_.server_connection_id = server_connection_id;
   } else {
     server_connection_id_ = server_connection_id;
@@ -6149,7 +6164,8 @@ void QuicConnection::set_client_connection_id(
     return;
   }
   if (use_connection_id_on_default_path_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_connection_id_on_default_path, 1, 2);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_connection_id_on_default_path_v2, 1,
+                                 3);
     default_path_.client_connection_id = client_connection_id;
   } else {
     client_connection_id_ = client_connection_id;

@@ -2028,7 +2028,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Source address of the last received packet.
   QuicSocketAddress last_packet_source_address_;
 
-  // Destination connection id of the last received packet.
+  // Destination connection ID of the last received packet. If this ID is the
+  // original server connection ID chosen by client and server replaces it with
+  // a different ID, last_packet_destination_connection_id_ is set to the
+  // replacement connection ID on the server side.
   QuicConnectionId last_packet_destination_connection_id_;
 
   // Set to false if the connection should not send truncated connection IDs to
@@ -2151,6 +2154,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // |original_destination_connection_id_| for validation.
   absl::optional<QuicConnectionId> original_destination_connection_id_;
 
+  // The connection ID that replaces original_destination_connection_id_.
+  QuicConnectionId original_destination_connection_id_replacement_;
+
   // After we receive a RETRY packet, |retry_source_connection_id_| contains
   // the source connection ID from that packet.
   absl::optional<QuicConnectionId> retry_source_connection_id_;
@@ -2265,7 +2271,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       GetQuicReloadableFlag(quic_donot_write_mid_packet_processing);
 
   bool use_connection_id_on_default_path_ =
-      GetQuicReloadableFlag(quic_use_connection_id_on_default_path);
+      GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2);
 
   // Indicates whether we should proactively validate peer address on a
   // PATH_CHALLENGE received.
