@@ -225,8 +225,8 @@ class ScopedCoalescedPacketClearer {
 };
 
 // Whether this incoming packet is allowed to replace our connection ID.
-bool PacketCanReplaceConnectionId(const QuicPacketHeader& header,
-                                  Perspective perspective) {
+bool PacketCanReplaceServerConnectionId(const QuicPacketHeader& header,
+                                        Perspective perspective) {
   return perspective == Perspective::IS_CLIENT &&
          header.form == IETF_QUIC_LONG_HEADER_PACKET &&
          header.version.IsKnown() &&
@@ -1000,7 +1000,8 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
   sent_packet_manager_.MarkInitialPacketsForRetransmission();
 }
 
-bool QuicConnection::HasIncomingConnectionId(QuicConnectionId connection_id) {
+bool QuicConnection::HasIncomingConnectionId(
+    QuicConnectionId connection_id) const {
   if (quic_deprecate_incoming_connection_ids_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_deprecate_incoming_connection_ids);
     // TODO(haoyuewang) Inline this after the flag is deprecated.
@@ -1041,6 +1042,31 @@ QuicConnectionId QuicConnection::GetOriginalDestinationConnectionId() {
   return ServerConnectionId();
 }
 
+bool QuicConnection::ValidateServerConnectionId(
+    const QuicPacketHeader& header) const {
+  if (perspective_ == Perspective::IS_CLIENT &&
+      header.form == IETF_QUIC_SHORT_HEADER_PACKET) {
+    return true;
+  }
+
+  QuicConnectionId server_connection_id =
+      GetServerConnectionIdAsRecipient(header, perspective_);
+
+  if (server_connection_id == ServerConnectionId() ||
+      HasIncomingConnectionId(server_connection_id)) {
+    return true;
+  }
+
+  if (PacketCanReplaceServerConnectionId(header, perspective_)) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Accepting packet with new connection ID "
+                    << server_connection_id << " instead of "
+                    << ServerConnectionId();
+    return true;
+  }
+
+  return false;
+}
+
 bool QuicConnection::OnUnauthenticatedPublicHeader(
     const QuicPacketHeader& header) {
   last_packet_destination_connection_id_ = header.destination_connection_id;
@@ -1063,23 +1089,9 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
     framer_.set_drop_incoming_retry_packets(true);
   }
 
-  bool skip_server_connection_id_validation =
-      perspective_ == Perspective::IS_CLIENT &&
-      header.form == IETF_QUIC_SHORT_HEADER_PACKET;
-
   QuicConnectionId server_connection_id =
       GetServerConnectionIdAsRecipient(header, perspective_);
-
-  if (!skip_server_connection_id_validation &&
-      server_connection_id != ServerConnectionId() &&
-      !HasIncomingConnectionId(server_connection_id)) {
-    if (PacketCanReplaceConnectionId(header, perspective_)) {
-      QUIC_DLOG(INFO) << ENDPOINT << "Accepting packet with new connection ID "
-                      << server_connection_id << " instead of "
-                      << ServerConnectionId();
-      return true;
-    }
-
+  if (!ValidateServerConnectionId(header)) {
     ++stats_.packets_dropped;
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Ignoring packet from unexpected server connection ID "
@@ -1132,16 +1144,8 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
     debug_visitor_->OnUnauthenticatedHeader(header);
   }
 
-  // Check that any public reset packet with a different connection ID that was
-  // routed to this QuicConnection has been redirected before control reaches
-  // here.
-  QUICHE_DCHECK((perspective_ == Perspective::IS_CLIENT &&
-                 header.form == IETF_QUIC_SHORT_HEADER_PACKET) ||
-                GetServerConnectionIdAsRecipient(header, perspective_) ==
-                    ServerConnectionId() ||
-                HasIncomingConnectionId(
-                    GetServerConnectionIdAsRecipient(header, perspective_)) ||
-                PacketCanReplaceConnectionId(header, perspective_));
+  // Sanity check on the server connection ID in header.
+  QUICHE_DCHECK(ValidateServerConnectionId(header));
 
   if (packet_creator_.HasPendingFrames()) {
     // Incoming packets may change a queued ACK frame.
@@ -3036,7 +3040,7 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
     default_path_.self_address = last_packet_destination_address_;
   }
 
-  if (PacketCanReplaceConnectionId(header, perspective_) &&
+  if (PacketCanReplaceServerConnectionId(header, perspective_) &&
       ServerConnectionId() != header.source_connection_id) {
     QUICHE_DCHECK_EQ(header.long_packet_type, INITIAL);
     if (server_connection_id_replaced_by_initial_) {

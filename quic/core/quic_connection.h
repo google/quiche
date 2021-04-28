@@ -1515,6 +1515,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       bool* stateless_reset_token_received,
       StatelessResetToken* stateless_reset_token) const;
 
+  // Returns true if header contains valid server connection ID.
+  bool ValidateServerConnectionId(const QuicPacketHeader& header) const;
+
   // Update the connection IDs when client migrates with/without validation.
   // Returns false if required connection ID is not available.
   bool UpdateConnectionIdsOnClientMigration(
@@ -1685,7 +1688,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicPacketNumber GetLargestAckedPacket() const;
 
   // Whether incoming_connection_ids_ contains connection_id.
-  bool HasIncomingConnectionId(QuicConnectionId connection_id);
+  bool HasIncomingConnectionId(QuicConnectionId connection_id) const;
 
   // Whether connection is limited by amplification factor.
   bool LimitedByAmplificationFactor() const;
