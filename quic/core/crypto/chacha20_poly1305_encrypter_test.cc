@@ -8,6 +8,7 @@
 #include <string>
 
 #include "absl/base/macros.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/chacha20_poly1305_decrypter.h"
 #include "quic/core/quic_utils.h"
