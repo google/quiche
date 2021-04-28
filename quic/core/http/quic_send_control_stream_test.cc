@@ -13,7 +13,6 @@
 #include "quic/test_tools/quic_config_peer.h"
 #include "quic/test_tools/quic_spdy_session_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
 #include "common/test_tools/quiche_test_utils.h"
 
 namespace quic {

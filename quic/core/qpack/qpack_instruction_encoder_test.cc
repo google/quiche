@@ -8,7 +8,6 @@
 #include "absl/strings/string_view.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_test.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 namespace test {

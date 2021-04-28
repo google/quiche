@@ -17,7 +17,7 @@
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_hostname_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
+#include "common/quiche_text_utils.h"
 
 namespace quic {
 

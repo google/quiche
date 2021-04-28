@@ -15,7 +15,6 @@
 #include "quic/test_tools/qpack/qpack_encoder_peer.h"
 #include "quic/test_tools/qpack/qpack_encoder_test_utils.h"
 #include "quic/test_tools/qpack/qpack_test_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 using ::testing::_;
 using ::testing::Eq;

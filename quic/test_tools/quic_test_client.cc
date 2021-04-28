@@ -28,7 +28,7 @@
 #include "quic/test_tools/quic_spdy_stream_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
 #include "quic/tools/quic_url.h"
-#include "common/platform/api/quiche_text_utils.h"
+#include "common/quiche_text_utils.h"
 
 namespace quic {
 namespace test {

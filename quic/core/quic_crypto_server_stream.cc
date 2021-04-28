@@ -11,7 +11,7 @@
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "quic/platform/api/quic_flag_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
+#include "common/quiche_text_utils.h"
 
 namespace quic {
 

@@ -15,7 +15,6 @@
 #include "quic/test_tools/quic_spdy_session_peer.h"
 #include "quic/test_tools/quic_stream_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 

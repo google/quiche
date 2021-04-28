@@ -32,7 +32,6 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_server_stats.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 namespace {

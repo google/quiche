@@ -7,7 +7,6 @@
 #include "absl/strings/escaping.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/qpack/qpack_test_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 using ::testing::Eq;
 using ::testing::StrictMock;

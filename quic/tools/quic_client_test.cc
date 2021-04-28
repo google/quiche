@@ -18,7 +18,7 @@
 #include "quic/platform/api/quic_test_loopback.h"
 #include "quic/test_tools/crypto_test_utils.h"
 #include "quic/test_tools/quic_client_peer.h"
-#include "common/platform/api/quiche_text_utils.h"
+#include "common/quiche_text_utils.h"
 
 namespace quic {
 namespace test {

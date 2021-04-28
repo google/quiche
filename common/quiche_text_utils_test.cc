@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "common/platform/api/quiche_text_utils.h"
+#include "common/quiche_text_utils.h"
 
 #include <string>
 
@@ -12,9 +12,7 @@
 namespace quiche {
 namespace test {
 
-class QuicheTextUtilsTest : public QuicheTest {};
-
-TEST_F(QuicheTextUtilsTest, ToLower) {
+TEST(QuicheTextUtilsTest, ToLower) {
   EXPECT_EQ("lower", quiche::QuicheTextUtils::ToLower("LOWER"));
   EXPECT_EQ("lower", quiche::QuicheTextUtils::ToLower("lower"));
   EXPECT_EQ("lower", quiche::QuicheTextUtils::ToLower("lOwEr"));
@@ -22,7 +20,7 @@ TEST_F(QuicheTextUtilsTest, ToLower) {
   EXPECT_EQ("", quiche::QuicheTextUtils::ToLower(""));
 }
 
-TEST_F(QuicheTextUtilsTest, RemoveLeadingAndTrailingWhitespace) {
+TEST(QuicheTextUtilsTest, RemoveLeadingAndTrailingWhitespace) {
   std::string input;
 
   for (auto* input : {"text", " text", "  text", "text ", "text  ", " text ",
@@ -33,7 +31,7 @@ TEST_F(QuicheTextUtilsTest, RemoveLeadingAndTrailingWhitespace) {
   }
 }
 
-TEST_F(QuicheTextUtilsTest, HexDump) {
+TEST(QuicheTextUtilsTest, HexDump) {
   // Verify output for empty input.
   EXPECT_EQ("", quiche::QuicheTextUtils::HexDump(absl::HexStringToBytes("")));
   // Verify output of the HexDump method is as expected.
@@ -64,7 +62,7 @@ TEST_F(QuicheTextUtilsTest, HexDump) {
             quiche::QuicheTextUtils::HexDump(absl::HexStringToBytes("90aaff")));
 }
 
-TEST_F(QuicheTextUtilsTest, Base64Encode) {
+TEST(QuicheTextUtilsTest, Base64Encode) {
   std::string output;
   std::string input = "Hello";
   quiche::QuicheTextUtils::Base64Encode(
@@ -82,7 +80,7 @@ TEST_F(QuicheTextUtilsTest, Base64Encode) {
       output);
 }
 
-TEST_F(QuicheTextUtilsTest, ContainsUpperCase) {
+TEST(QuicheTextUtilsTest, ContainsUpperCase) {
   EXPECT_FALSE(quiche::QuicheTextUtils::ContainsUpperCase("abc"));
   EXPECT_FALSE(quiche::QuicheTextUtils::ContainsUpperCase(""));
   EXPECT_FALSE(quiche::QuicheTextUtils::ContainsUpperCase("123"));

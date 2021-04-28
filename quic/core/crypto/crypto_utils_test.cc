@@ -11,7 +11,6 @@
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_test_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
 #include "common/test_tools/quiche_test_utils.h"
 
 namespace quic {

@@ -13,7 +13,7 @@
 #include "quic/core/quic_server_id.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "common/platform/api/quiche_text_utils.h"
+#include "common/quiche_text_utils.h"
 
 using spdy::Http2HeaderBlock;
 

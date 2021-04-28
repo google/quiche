@@ -10,7 +10,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quic/platform/api/quic_test.h"
-#include "common/platform/api/quiche_text_utils.h"
+#include "common/quiche_text_utils.h"
 
 namespace quic {
 namespace {

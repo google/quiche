@@ -16,7 +16,7 @@
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_map_util.h"
 #include "quic/tools/web_transport_test_visitors.h"
-#include "common/platform/api/quiche_text_utils.h"
+#include "common/quiche_text_utils.h"
 
 using spdy::Http2HeaderBlock;
 using spdy::kV3LowestPriority;

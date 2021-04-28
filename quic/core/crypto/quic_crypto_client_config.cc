@@ -34,7 +34,6 @@
 #include "quic/platform/api/quic_hostname_utils.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_map_util.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 

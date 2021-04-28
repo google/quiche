@@ -30,7 +30,6 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_stack_trace.h"
-#include "common/platform/api/quiche_text_utils.h"
 #include "spdy/core/http2_frame_decoder_adapter.h"
 
 using http2::Http2DecoderAdapter;

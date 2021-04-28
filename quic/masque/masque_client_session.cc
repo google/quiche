@@ -7,7 +7,6 @@
 #include "quic/core/http/spdy_utils.h"
 #include "quic/core/quic_data_reader.h"
 #include "quic/core/quic_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 

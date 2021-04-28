@@ -38,7 +38,6 @@
 #include "quic/platform/api/quic_file_utils.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/test_tools/qpack/qpack_test_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
 #include "common/quiche_endian.h"
 
 namespace quic {

@@ -33,7 +33,6 @@
 #include "quic/test_tools/mock_random.h"
 #include "quic/test_tools/quic_crypto_server_config_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
 #include "common/quiche_endian.h"
 
 namespace quic {

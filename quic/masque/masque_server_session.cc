@@ -13,7 +13,6 @@
 #include "quic/core/quic_data_reader.h"
 #include "quic/core/quic_udp_socket.h"
 #include "quic/tools/quic_url.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 

@@ -47,7 +47,6 @@
 #include "quic/test_tools/quic_stream_peer.h"
 #include "quic/test_tools/quic_stream_send_buffer_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
 #include "common/quiche_endian.h"
 #include "common/test_tools/quiche_test_utils.h"
 #include "spdy/core/spdy_framer.h"

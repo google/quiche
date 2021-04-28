@@ -12,7 +12,6 @@
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/mock_clock.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 namespace test {

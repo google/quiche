@@ -19,7 +19,6 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_test_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 using ::testing::_;
 using ::testing::AnyNumber;

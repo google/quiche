@@ -30,9 +30,9 @@
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_ip_address.h"
 #include "quic/platform/api/quic_logging.h"
-#include "common/platform/api/quiche_text_utils.h"
 #include "common/platform/api/quiche_time_utils.h"
 #include "common/quiche_data_reader.h"
+#include "common/quiche_text_utils.h"
 
 namespace quic {
 namespace {

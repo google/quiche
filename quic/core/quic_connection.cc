@@ -48,7 +48,7 @@
 #include "quic/platform/api/quic_map_util.h"
 #include "quic/platform/api/quic_server_stats.h"
 #include "quic/platform/api/quic_socket_address.h"
-#include "common/platform/api/quiche_text_utils.h"
+#include "common/quiche_text_utils.h"
 
 namespace quic {
 

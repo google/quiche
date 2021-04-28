@@ -34,7 +34,6 @@
 #include "quic/test_tools/quic_framer_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
 #include "quic/test_tools/simple_data_producer.h"
-#include "common/platform/api/quiche_text_utils.h"
 #include "common/test_tools/quiche_test_utils.h"
 
 using testing::_;

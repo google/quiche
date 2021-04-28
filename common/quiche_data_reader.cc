@@ -10,7 +10,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "common/platform/api/quiche_logging.h"
-#include "common/platform/api/quiche_text_utils.h"
 #include "common/quiche_endian.h"
 
 namespace quiche {

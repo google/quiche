@@ -51,7 +51,6 @@
 #include "quic/platform/api/quic_reference_counted.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_testvalue.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 

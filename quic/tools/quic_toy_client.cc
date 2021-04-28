@@ -61,7 +61,7 @@
 #include "quic/platform/api/quic_system_event_loop.h"
 #include "quic/tools/fake_proof_verifier.h"
 #include "quic/tools/quic_url.h"
-#include "common/platform/api/quiche_text_utils.h"
+#include "common/quiche_text_utils.h"
 
 namespace {
 

@@ -23,7 +23,6 @@
 #include "quic/test_tools/quic_connection_peer.h"
 #include "quic/test_tools/quic_session_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 namespace test {

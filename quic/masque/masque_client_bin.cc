@@ -22,7 +22,6 @@
 #include "quic/platform/api/quic_system_event_loop.h"
 #include "quic/tools/fake_proof_verifier.h"
 #include "quic/tools/quic_url.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
                               disable_certificate_verification,

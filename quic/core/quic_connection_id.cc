@@ -18,7 +18,6 @@
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "common/platform/api/quiche_text_utils.h"
 #include "common/quiche_endian.h"
 
 namespace quic {

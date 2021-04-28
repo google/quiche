@@ -22,7 +22,6 @@
 #include "quic/platform/api/quic_hostname_utils.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_server_stats.h"
-#include "common/platform/api/quiche_text_utils.h"
 
 #define RECORD_LATENCY_IN_US(stat_name, latency, comment)                   \
   do {                                                                      \

@@ -17,7 +17,7 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_map_util.h"
-#include "common/platform/api/quiche_text_utils.h"
+#include "common/quiche_text_utils.h"
 #include "spdy/core/spdy_protocol.h"
 
 using spdy::SpdyHeaderBlock;
