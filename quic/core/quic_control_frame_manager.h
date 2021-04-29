@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/container/flat_hash_map.h"
 #include "quic/core/frames/quic_frame.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_types.h"
@@ -182,7 +183,7 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   DelegateInterface* delegate_;
 
   // Last sent window update frame for each stream.
-  QuicSmallMap<QuicStreamId, QuicControlFrameId, 10> window_update_frames_;
+  absl::flat_hash_map<QuicStreamId, QuicControlFrameId> window_update_frames_;
 };
 
 }  // namespace quic

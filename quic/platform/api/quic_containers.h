@@ -33,14 +33,6 @@ using QuicHashSet = QuicHashSetImpl<Key, Hash>;
 template <typename Key, typename Value, typename Hash = QuicDefaultHasher<Key>>
 using QuicLinkedHashMap = QuicLinkedHashMapImpl<Key, Value, Hash>;
 
-// Used for maps that are typically small, then it is faster than (for example)
-// hash_map which is optimized for large data sets. QuicSmallMap upgrades itself
-// automatically to a QuicSmallMapImpl-specified map when it runs out of space.
-//
-// DOES NOT GUARANTEE POINTER OR ITERATOR STABILITY!
-template <typename Key, typename Value, int Size>
-using QuicSmallMap = QuicSmallMapImpl<Key, Value, Size>;
-
 // Represents a simple queue which may be backed by a list or
 // a flat circular buffer.
 //

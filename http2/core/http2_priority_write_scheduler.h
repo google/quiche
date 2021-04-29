@@ -17,13 +17,13 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
 #include "http2/core/write_scheduler.h"
 #include "common/platform/api/quiche_bug_tracker.h"
 #include "common/platform/api/quiche_logging.h"
 #include "spdy/core/spdy_intrusive_list.h"
 #include "spdy/core/spdy_protocol.h"
-#include "spdy/platform/api/spdy_containers.h"
 #include "spdy/platform/api/spdy_string_utils.h"
 
 namespace http2 {
@@ -178,7 +178,7 @@ class Http2PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   // Pointee owned by all_stream_infos_.
   StreamInfo* root_stream_info_;
   // Maps from stream IDs to StreamInfo objects.
-  spdy::SpdySmallMap<StreamIdType, std::unique_ptr<StreamInfo>, 10>
+  absl::flat_hash_map<StreamIdType, std::unique_ptr<StreamInfo>>
       all_stream_infos_;
   // Queue containing all ready streams, ordered with streams of higher
   // priority before streams of lower priority, and, among streams of equal
