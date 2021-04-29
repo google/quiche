@@ -1806,6 +1806,7 @@ bool QuicConnection::OnPathChallengeFrameInternal(
     // higher prority.
     QUIC_DVLOG(1) << "Proactively validate the effective peer address "
                   << current_effective_peer_address;
+    QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 2, 6);
     ValidatePath(std::make_unique<ReversePathValidationContext>(
                      default_path_.self_address, current_effective_peer_address,
                      current_effective_peer_address, this),
@@ -5609,6 +5610,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
           // higher prority.
           QUIC_DVLOG(1) << "Proactively validate the effective peer address "
                         << current_effective_peer_address;
+          QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 1, 6);
           ValidatePath(
               std::make_unique<ReversePathValidationContext>(
                   default_path_.self_address, last_packet_source_address_,
@@ -7000,10 +7002,12 @@ void QuicConnection::ReversePathValidationResultDelegate::
   QUIC_DLOG(INFO) << "Successfully validated new path " << *context;
   if (connection_->IsDefaultPath(context->self_address(),
                                  context->peer_address())) {
+    QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 3, 6);
     connection_->OnEffectivePeerMigrationValidated();
   } else {
     QUICHE_DCHECK(connection_->IsAlternativePath(
         context->self_address(), context->effective_peer_address()));
+    QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 4, 6);
     QUIC_DVLOG(1) << "Mark alternative peer address "
                   << context->effective_peer_address() << " validated.";
     connection_->alternative_path_.validated = true;
@@ -7020,9 +7024,11 @@ void QuicConnection::ReversePathValidationResultDelegate::
   if (connection_->IsDefaultPath(context->self_address(),
                                  context->peer_address())) {
     // Only act upon validation failure on the default path.
+    QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 5, 6);
     connection_->RestoreToLastValidatedPath(original_direct_peer_address_);
   } else if (connection_->IsAlternativePath(
                  context->self_address(), context->effective_peer_address())) {
+    QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 6, 6);
     connection_->alternative_path_.Clear();
   }
 }
