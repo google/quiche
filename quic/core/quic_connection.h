@@ -1506,14 +1506,27 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       const QuicConnectionId& new_server_connection_id);
 
   // Given the server_connection_id find if there is already a corresponding
-  // client connection ID used on default/alternative path.
-  void FindMatchingClientConnectionIdOrToken(
+  // client connection ID used on default/alternative path. If not, find if
+  // there is an unused connection ID.
+  void FindMatchingOrNewClientConnectionIdOrToken(
       const PathState& default_path,
       const PathState& alternative_path,
       const QuicConnectionId& server_connection_id,
       QuicConnectionId* client_connection_id,
       bool* stateless_reset_token_received,
-      StatelessResetToken* stateless_reset_token) const;
+      StatelessResetToken* stateless_reset_token);
+
+  // Returns true and sets connection IDs if (self_address, peer_address)
+  // corresponds to either the default path or alternative path. Returns false
+  // otherwise.
+  bool FindOnPathConnectionIds(const QuicSocketAddress& self_address,
+                               const QuicSocketAddress& peer_address,
+                               QuicConnectionId* client_connection_id,
+                               QuicConnectionId* server_connection_id) const;
+
+  // Set default_path_ to the new_path_state and update the connection IDs in
+  // packet creator accordingly.
+  void SetDefaultPathState(PathState new_path_state);
 
   // Returns true if header contains valid server connection ID.
   bool ValidateServerConnectionId(const QuicPacketHeader& header) const;
@@ -1761,7 +1774,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Send PATH_RESPONSE to the given peer address.
   bool SendPathResponse(const QuicPathFrameBuffer& data_buffer,
-                        QuicSocketAddress peer_address_to_send);
+                        const QuicSocketAddress& peer_address_to_send,
+                        const QuicSocketAddress& effective_peer_address);
 
   // Update both connection's and packet creator's peer address.
   void UpdatePeerAddress(QuicSocketAddress peer_address);

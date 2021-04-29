@@ -2124,10 +2124,12 @@ QuicPacketCreator::ScopedPeerAddressContext::ScopedPeerAddressContext(
          "initialized.";
   creator_->SetDefaultPeerAddress(address);
   if (update_connection_id_) {
-    QUICHE_DCHECK(address != old_peer_address_ ||
-                  ((client_connection_id == old_client_connection_id_) &&
-                   (server_connection_id == old_server_connection_id_)))
-        << ENDPOINT2;
+    // Flush current packet if connection ID changes.
+    if (address == old_peer_address_ &&
+        ((client_connection_id != old_client_connection_id_) ||
+         (server_connection_id != old_server_connection_id_))) {
+      creator_->FlushCurrentPacket();
+    }
     creator_->SetClientConnectionId(client_connection_id);
     creator_->SetServerConnectionId(server_connection_id);
   }
