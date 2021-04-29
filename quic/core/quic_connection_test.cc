@@ -14588,7 +14588,8 @@ TEST_P(
     QuicConnectionTest,
     ReplacePeerIssuedConnectionIdOnBothPathsTriggeredByNewConnectionIdFrame) {
   if (!version().HasIetfQuicFrames() || !connection_.use_path_validator() ||
-      !connection_.use_connection_id_on_default_path()) {
+      !connection_.use_connection_id_on_default_path() ||
+      !connection_.count_bytes_on_alternative_path_separately()) {
     return;
   }
   QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);

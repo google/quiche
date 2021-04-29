@@ -1246,6 +1246,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return connection_migration_use_new_cid_;
   }
 
+  bool count_bytes_on_alternative_path_separately() const {
+    return count_bytes_on_alternative_path_separately_;
+  }
+
   // Instantiates connection ID manager.
   void CreateConnectionIdManager();
 
