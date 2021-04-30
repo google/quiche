@@ -13,8 +13,8 @@
 // mutations, except for an iterator pointing to an element that was just
 // deleted.
 
-#ifndef QUICHE_COMMON_SIMPLE_LINKED_HASH_MAP_H_
-#define QUICHE_COMMON_SIMPLE_LINKED_HASH_MAP_H_
+#ifndef QUICHE_COMMON_QUICHE_LINKED_HASH_MAP_H_
+#define QUICHE_COMMON_QUICHE_LINKED_HASH_MAP_H_
 
 #include <functional>
 #include <list>
@@ -38,7 +38,7 @@ template <class Key,
           class Value,
           class Hash = std::hash<Key>,
           class Eq = std::equal_to<Key>>
-class SimpleLinkedHashMap {
+class QuicheLinkedHashMap {
  private:
   typedef std::list<std::pair<Key, Value>> ListType;
   typedef absl::node_hash_map<Key, typename ListType::iterator, Hash, Eq>
@@ -53,13 +53,13 @@ class SimpleLinkedHashMap {
   typedef typename ListType::value_type value_type;
   typedef typename ListType::size_type size_type;
 
-  SimpleLinkedHashMap() = default;
-  explicit SimpleLinkedHashMap(size_type bucket_count) : map_(bucket_count) {}
+  QuicheLinkedHashMap() = default;
+  explicit QuicheLinkedHashMap(size_type bucket_count) : map_(bucket_count) {}
 
-  SimpleLinkedHashMap(const SimpleLinkedHashMap& other) = delete;
-  SimpleLinkedHashMap& operator=(const SimpleLinkedHashMap& other) = delete;
-  SimpleLinkedHashMap(SimpleLinkedHashMap&& other) = default;
-  SimpleLinkedHashMap& operator=(SimpleLinkedHashMap&& other) = default;
+  QuicheLinkedHashMap(const QuicheLinkedHashMap& other) = delete;
+  QuicheLinkedHashMap& operator=(const QuicheLinkedHashMap& other) = delete;
+  QuicheLinkedHashMap(QuicheLinkedHashMap&& other) = default;
+  QuicheLinkedHashMap& operator=(QuicheLinkedHashMap&& other) = default;
 
   // Returns an iterator to the first (insertion-ordered) element.  Like a map,
   // this can be dereferenced to a pair<Key, Value>.
@@ -234,7 +234,7 @@ class SimpleLinkedHashMap {
     return {ins.first->second, true};
   }
 
-  void swap(SimpleLinkedHashMap& other) {
+  void swap(QuicheLinkedHashMap& other) {
     map_.swap(other.map_);
     list_.swap(other.list_);
   }
@@ -249,4 +249,4 @@ class SimpleLinkedHashMap {
 
 }  // namespace quiche
 
-#endif  // QUICHE_COMMON_SIMPLE_LINKED_HASH_MAP_H_
+#endif  // QUICHE_COMMON_QUICHE_LINKED_HASH_MAP_H_
