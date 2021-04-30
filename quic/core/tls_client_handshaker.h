@@ -90,6 +90,8 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   }
 
   void FinishHandshake() override;
+  void OnEnterEarlyData() override;
+  void FillNegotiatedParams();
   void ProcessPostHandshakeMessage() override;
   bool ShouldCloseConnectionOnUnexpectedError(int ssl_error) override;
   QuicAsyncStatus VerifyCertChain(
