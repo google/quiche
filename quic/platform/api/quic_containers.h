@@ -13,32 +13,9 @@ namespace quic {
 template <typename Key>
 using QuicDefaultHasher = QuicDefaultHasherImpl<Key>;
 
-// A general-purpose unordered map.
-template <typename Key, typename Value, typename Hash = QuicDefaultHasher<Key>>
-using QuicUnorderedMap = QuicUnorderedMapImpl<Key, Value, Hash>;
-
-// A general-purpose unordered map that does not gurantee pointer stability.
-template <typename Key, typename Value, typename Hash = QuicDefaultHasher<Key>>
-using QuicHashMap = QuicHashMapImpl<Key, Value, Hash>;
-
-// A general-purpose unordered set.
-template <typename Key, typename Hash = QuicDefaultHasher<Key>>
-using QuicUnorderedSet = QuicUnorderedSetImpl<Key, Hash>;
-
-// A general-purpose unordered set that does not gurantee pointer stability.
-template <typename Key, typename Hash = QuicDefaultHasher<Key>>
-using QuicHashSet = QuicHashSetImpl<Key, Hash>;
-
 // A map which offers insertion-ordered iteration.
 template <typename Key, typename Value, typename Hash = QuicDefaultHasher<Key>>
 using QuicLinkedHashMap = QuicLinkedHashMapImpl<Key, Value, Hash>;
-
-// Represents a simple queue which may be backed by a list or
-// a flat circular buffer.
-//
-// DOES NOT GUARANTEE POINTER OR ITERATOR STABILITY!
-template <typename T>
-using QuicQueue = QuicQueueImpl<T>;
 
 // A vector optimized for small sizes. Provides the same APIs as a std::vector.
 template <typename T, size_t N, typename A = std::allocator<T>>
