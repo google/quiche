@@ -55,9 +55,11 @@ QuicAsyncStatus
 TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
     const QuicSocketAddress& server_address,
     const QuicSocketAddress& client_address,
+    absl::string_view /*ssl_capabilities*/,
     const std::string& hostname,
     absl::string_view /*client_hello*/,
     const std::string& /*alpn*/,
+    absl::optional<std::string> /*alps*/,
     const std::vector<uint8_t>& /*quic_transport_params*/,
     const absl::optional<std::vector<uint8_t>>& /*early_data_context*/) {
   if (!handshaker_ || !proof_source_) {
@@ -70,7 +72,8 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
       proof_source_->GetCertChain(server_address, client_address, hostname);
 
   handshaker_->OnSelectCertificateDone(
-      /*ok=*/true, /*is_sync=*/true, chain.get());
+      /*ok=*/true, /*is_sync=*/true, chain.get(),
+      /*handshake_hints=*/absl::string_view());
   if (!handshaker_->select_cert_status().has_value()) {
     QUIC_BUG(quic_bug_12423_1)
         << "select_cert_status() has no value after a synchronous select cert";
@@ -811,13 +814,40 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     return ssl_select_cert_error;
   }
 
+  bssl::UniquePtr<uint8_t> ssl_capabilities;
+  size_t ssl_capabilities_len = 0;
+  absl::string_view ssl_capabilities_view;
+
+  absl::optional<std::string> alps;
+  if (use_handshake_hints_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_tls_server_use_handshake_hints);
+    if (CryptoUtils::GetSSLCapabilities(ssl(), &ssl_capabilities,
+                                        &ssl_capabilities_len)) {
+      ssl_capabilities_view = absl::string_view(
+          reinterpret_cast<const char*>(ssl_capabilities.get()),
+          ssl_capabilities_len);
+    }
+
+    // Enable ALPS for the session's ALPN.
+    SetApplicationSettingsResult alps_result =
+        SetApplicationSettings(AlpnForVersion(session()->version()));
+    if (!alps_result.success) {
+      return ssl_select_cert_error;
+    }
+    alps = alps_result.alps_length > 0
+               ? std::string(alps_result.alps_buffer.get(),
+                             alps_result.alps_length)
+               : std::string();
+  }
+
   const QuicAsyncStatus status = proof_source_handle_->SelectCertificate(
       session()->connection()->self_address(),
-      session()->connection()->peer_address(), crypto_negotiated_params_->sni,
+      session()->connection()->peer_address(), ssl_capabilities_view,
+      crypto_negotiated_params_->sni,
       absl::string_view(
           reinterpret_cast<const char*>(client_hello->client_hello),
           client_hello->client_hello_len),
-      AlpnForVersion(session()->version()),
+      AlpnForVersion(session()->version()), std::move(alps),
       set_transport_params_result.quic_transport_params,
       set_transport_params_result.early_data_context);
 
@@ -843,13 +873,27 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
 void TlsServerHandshaker::OnSelectCertificateDone(
     bool ok,
     bool is_sync,
-    const ProofSource::Chain* chain) {
+    const ProofSource::Chain* chain,
+    absl::string_view handshake_hints) {
   QUIC_DVLOG(1) << "OnSelectCertificateDone. ok:" << ok
-                << ", is_sync:" << is_sync;
+                << ", is_sync:" << is_sync
+                << ", len(handshake_hints):" << handshake_hints.size();
   select_cert_status_ = QUIC_FAILURE;
   if (ok) {
     if (chain && !chain->certs.empty()) {
       tls_connection_.SetCertChain(chain->ToCryptoBuffers().value);
+      if (use_handshake_hints_) {
+        if (!handshake_hints.empty() &&
+            !SSL_set_handshake_hints(
+                ssl(), reinterpret_cast<const uint8_t*>(handshake_hints.data()),
+                handshake_hints.size())) {
+          // If |SSL_set_handshake_hints| fails, the ssl() object will remain
+          // intact, it is as if we didn't call it. The handshaker will
+          // continue to compute signature/decrypt ticket as normal.
+          QUIC_CODE_COUNT(quic_tls_server_set_handshake_hints_failed);
+          QUIC_DVLOG(1) << "SSL_set_handshake_hints failed";
+        }
+      }
       select_cert_status_ = QUIC_SUCCESS;
     } else {
       QUIC_LOG(ERROR) << "No certs provided for host '" << hostname_ << "'";
@@ -927,16 +971,32 @@ int TlsServerHandshaker::SelectAlpn(const uint8_t** out,
                        alpn_length);
   }
 
+  // TODO(wub): Remove QuicSession::SelectAlpn. QuicSessions should know the
+  // ALPN on construction.
   auto selected_alpn = session()->SelectAlpn(alpns);
   if (selected_alpn == alpns.end()) {
     QUIC_DLOG(ERROR) << "No known ALPN provided by client";
     return SSL_TLSEXT_ERR_NOACK;
   }
 
-  // Enable ALPS for the selected ALPN protocol.
+  if (!use_handshake_hints_) {
+    // Enable ALPS for the selected ALPN protocol.
+    if (!SetApplicationSettings(*selected_alpn).success) {
+      return SSL_TLSEXT_ERR_NOACK;
+    }
+  }
+
+  session()->OnAlpnSelected(*selected_alpn);
+  valid_alpn_received_ = true;
+  *out_len = selected_alpn->size();
+  *out = reinterpret_cast<const uint8_t*>(selected_alpn->data());
+  return SSL_TLSEXT_ERR_OK;
+}
+
+TlsServerHandshaker::SetApplicationSettingsResult
+TlsServerHandshaker::SetApplicationSettings(absl::string_view alpn) {
+  TlsServerHandshaker::SetApplicationSettingsResult result;
   const uint8_t* alps_data = nullptr;
-  size_t alps_length = 0;
-  std::unique_ptr<char[]> buffer;
 
   const std::string& hostname = crypto_negotiated_params_->sni;
   std::string accept_ch_value = GetAcceptChValueForOrigin(hostname);
@@ -950,22 +1010,20 @@ int TlsServerHandshaker::SelectAlpn(const uint8_t** out,
 
   if (!accept_ch_value.empty()) {
     AcceptChFrame frame{{{std::move(origin), std::move(accept_ch_value)}}};
-    alps_length = HttpEncoder::SerializeAcceptChFrame(frame, &buffer);
-    alps_data = reinterpret_cast<const uint8_t*>(buffer.get());
+    result.alps_length =
+        HttpEncoder::SerializeAcceptChFrame(frame, &result.alps_buffer);
+    alps_data = reinterpret_cast<const uint8_t*>(result.alps_buffer.get());
   }
 
   if (SSL_add_application_settings(
-          ssl(), reinterpret_cast<const uint8_t*>(selected_alpn->data()),
-          selected_alpn->size(), alps_data, alps_length) != 1) {
+          ssl(), reinterpret_cast<const uint8_t*>(alpn.data()), alpn.size(),
+          alps_data, result.alps_length) != 1) {
     QUIC_DLOG(ERROR) << "Failed to enable ALPS";
-    return SSL_TLSEXT_ERR_NOACK;
+    result.success = false;
+  } else {
+    result.success = true;
   }
-
-  session()->OnAlpnSelected(*selected_alpn);
-  valid_alpn_received_ = true;
-  *out_len = selected_alpn->size();
-  *out = reinterpret_cast<const uint8_t*>(selected_alpn->data());
-  return SSL_TLSEXT_ERR_OK;
+  return result;
 }
 
 }  // namespace quic

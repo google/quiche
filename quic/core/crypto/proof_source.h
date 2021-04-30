@@ -229,12 +229,15 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandleCallback {
   //      whether it is completed before ProofSourceHandle::SelectCertificate
   //      returned.
   // |chain| the certificate chain in leaf-first order.
+  // |handshake_hints| (optional) handshake hints that can be used by
+  //      SSL_set_handshake_hints.
   //
   // When called asynchronously(is_sync=false), this method will be responsible
   // to continue the handshake from where it left off.
   virtual void OnSelectCertificateDone(bool ok,
                                        bool is_sync,
-                                       const ProofSource::Chain* chain) = 0;
+                                       const ProofSource::Chain* chain,
+                                       absl::string_view handshake_hints) = 0;
 
   // Called when a ProofSourceHandle::ComputeSignature operation completes.
   virtual void OnComputeSignatureDone(
@@ -280,9 +283,11 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandle {
   virtual QuicAsyncStatus SelectCertificate(
       const QuicSocketAddress& server_address,
       const QuicSocketAddress& client_address,
+      absl::string_view ssl_capabilities,
       const std::string& hostname,
       absl::string_view client_hello,
       const std::string& alpn,
+      absl::optional<std::string> alps,
       const std::vector<uint8_t>& quic_transport_params,
       const absl::optional<std::vector<uint8_t>>& early_data_context) = 0;
 

@@ -762,4 +762,21 @@ std::string CryptoUtils::HashHandshakeMessage(
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
+
+// static
+bool CryptoUtils::GetSSLCapabilities(const SSL* ssl,
+                                     bssl::UniquePtr<uint8_t>* capabilities,
+                                     size_t* capabilities_len) {
+  uint8_t* buffer;
+  CBB cbb;
+
+  if (!CBB_init(&cbb, 128) || !SSL_serialize_capabilities(ssl, &cbb) ||
+      !CBB_finish(&cbb, &buffer, capabilities_len)) {
+    return false;
+  }
+
+  *capabilities = bssl::UniquePtr<uint8_t>(buffer);
+  return true;
+}
+
 }  // namespace quic

@@ -40,9 +40,11 @@ class FakeProofSourceHandle : public ProofSourceHandle {
   QuicAsyncStatus SelectCertificate(
       const QuicSocketAddress& server_address,
       const QuicSocketAddress& client_address,
+      absl::string_view ssl_capabilities,
       const std::string& hostname,
       absl::string_view client_hello,
       const std::string& alpn,
+      absl::optional<std::string> alps,
       const std::vector<uint8_t>& quic_transport_params,
       const absl::optional<std::vector<uint8_t>>& early_data_context) override;
 
@@ -62,24 +64,30 @@ class FakeProofSourceHandle : public ProofSourceHandle {
   struct SelectCertArgs {
     SelectCertArgs(QuicSocketAddress server_address,
                    QuicSocketAddress client_address,
+                   absl::string_view ssl_capabilities,
                    std::string hostname,
                    absl::string_view client_hello,
                    std::string alpn,
+                   absl::optional<std::string> alps,
                    std::vector<uint8_t> quic_transport_params,
                    absl::optional<std::vector<uint8_t>> early_data_context)
         : server_address(server_address),
           client_address(client_address),
+          ssl_capabilities(ssl_capabilities),
           hostname(hostname),
           client_hello(client_hello),
           alpn(alpn),
+          alps(alps),
           quic_transport_params(quic_transport_params),
           early_data_context(early_data_context) {}
 
     QuicSocketAddress server_address;
     QuicSocketAddress client_address;
+    std::string ssl_capabilities;
     std::string hostname;
     std::string client_hello;
     std::string alpn;
+    absl::optional<std::string> alps;
     std::vector<uint8_t> quic_transport_params;
     absl::optional<std::vector<uint8_t>> early_data_context;
   };

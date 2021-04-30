@@ -237,6 +237,11 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // Returns a hash of the serialized |message|.
   static std::string HashHandshakeMessage(const CryptoHandshakeMessage& message,
                                           Perspective perspective);
+
+  // Wraps SSL_serialize_capabilities. Return nullptr if failed.
+  static bool GetSSLCapabilities(const SSL* ssl,
+                                 bssl::UniquePtr<uint8_t>* capabilities,
+                                 size_t* capabilities_len);
 };
 
 }  // namespace quic

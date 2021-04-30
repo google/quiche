@@ -19,6 +19,7 @@
 #include "quic/core/quic_types.h"
 #include "quic/core/tls_handshaker.h"
 #include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_flags.h"
 
 namespace quic {
 
@@ -166,7 +167,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // ProofSourceHandleCallback implementation:
   void OnSelectCertificateDone(bool ok,
                                bool is_sync,
-                               const ProofSource::Chain* chain) override;
+                               const ProofSource::Chain* chain,
+                               absl::string_view handshake_hints) override;
 
   void OnComputeSignatureDone(
       bool ok,
@@ -206,9 +208,11 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     QuicAsyncStatus SelectCertificate(
         const QuicSocketAddress& server_address,
         const QuicSocketAddress& client_address,
+        absl::string_view ssl_capabilities,
         const std::string& hostname,
         absl::string_view client_hello,
         const std::string& alpn,
+        absl::optional<std::string> alps,
         const std::vector<uint8_t>& quic_transport_params,
         const absl::optional<std::vector<uint8_t>>& early_data_context)
         override;
@@ -276,6 +280,13 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   bool ProcessTransportParameters(const SSL_CLIENT_HELLO* client_hello,
                                   std::string* error_details);
 
+  struct QUIC_NO_EXPORT SetApplicationSettingsResult {
+    bool success = false;
+    std::unique_ptr<char[]> alps_buffer;
+    size_t alps_length = 0;
+  };
+  SetApplicationSettingsResult SetApplicationSettings(absl::string_view alpn);
+
   QuicConnectionStats& connection_stats() {
     return session()->connection()->mutable_stats();
   }
@@ -320,6 +331,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       crypto_negotiated_params_;
   TlsServerConnection tls_connection_;
   const QuicCryptoServerConfig* crypto_config_;  // Unowned.
+  const bool use_handshake_hints_ =
+      GetQuicReloadableFlag(quic_tls_server_use_handshake_hints);
 };
 
 }  // namespace quic
