@@ -97,10 +97,12 @@ void OgHttp2Session::OnError(http2::Http2DecoderAdapter::SpdyFramerError error,
   visitor_.OnConnectionError();
 }
 
-void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId /*stream_id*/,
-                                    size_t /*length*/,
-                                    uint8_t /*type*/,
-                                    uint8_t /*flags*/) {}
+void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
+                                    size_t length,
+                                    uint8_t type,
+                                    uint8_t flags) {
+  visitor_.OnFrameHeader(stream_id, length, type, flags);
+}
 
 void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
                                        size_t length,
@@ -119,9 +121,12 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
 }
 
 void OgHttp2Session::OnStreamPadLength(spdy::SpdyStreamId /*stream_id*/,
-                                       size_t /*value*/) {}
+                                       size_t /*value*/) {
+  // TODO(181586191): handle padding
+}
 
 void OgHttp2Session::OnStreamPadding(spdy::SpdyStreamId stream_id, size_t len) {
+  // TODO(181586191): handle padding
 }
 
 spdy::SpdyHeadersHandlerInterface* OgHttp2Session::OnHeaderFrameStart(

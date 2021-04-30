@@ -23,8 +23,11 @@ class OgHttp2AdapterTest : public testing::Test {
 };
 
 TEST_F(OgHttp2AdapterTest, ProcessBytes) {
+  testing::InSequence seq;
+  EXPECT_CALL(http2_visitor_, OnFrameHeader(0, 0, 4, 0));
   EXPECT_CALL(http2_visitor_, OnSettingsStart());
   EXPECT_CALL(http2_visitor_, OnSettingsEnd());
+  EXPECT_CALL(http2_visitor_, OnFrameHeader(0, 8, 6, 0));
   EXPECT_CALL(http2_visitor_, OnPing(17, false));
   adapter_->ProcessBytes(
       TestFrameSequence().ClientPreface().Ping(17).Serialize());

@@ -20,6 +20,8 @@ int OnBeginFrame(nghttp2_session* /* session */,
                  const nghttp2_frame_hd* header,
                  void* user_data) {
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
+  visitor->OnFrameHeader(header->stream_id, header->length, header->type,
+                         header->flags);
   if (header->type == NGHTTP2_DATA) {
     visitor->OnBeginDataForStream(header->stream_id, header->length);
   }

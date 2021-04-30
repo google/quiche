@@ -53,6 +53,12 @@ class Http2VisitorInterface {
   // Called when a connection-level processing error has been encountered.
   virtual void OnConnectionError() = 0;
 
+  // Called when the header for a frame is received.
+  virtual void OnFrameHeader(Http2StreamId stream_id,
+                             size_t length,
+                             uint8_t type,
+                             uint8_t flags) {}
+
   // Called when a non-ack SETTINGS frame is received.
   virtual void OnSettingsStart() = 0;
 
