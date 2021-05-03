@@ -1340,6 +1340,14 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
       }
     }
 
+    if (use_connection_id_on_default_path_ &&
+        last_packet_destination_connection_id_ != ServerConnectionId() &&
+        (!original_destination_connection_id_.has_value() ||
+         last_packet_destination_connection_id_ !=
+             *original_destination_connection_id_)) {
+      QUIC_CODE_COUNT(quic_connection_id_change);
+    }
+
     QUIC_DLOG_IF(INFO, current_effective_peer_migration_type_ != NO_CHANGE)
         << ENDPOINT << "Effective peer's ip:port changed from "
         << default_path_.peer_address.ToString() << " to "
