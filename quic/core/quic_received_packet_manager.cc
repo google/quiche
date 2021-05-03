@@ -205,11 +205,7 @@ QuicTime::Delta QuicReceivedPacketManager::GetMaxAckDelay(
   // before sending an ack.
   QuicTime::Delta ack_delay = std::min(
       local_max_ack_delay_, rtt_stats.min_rtt() * ack_decimation_delay_);
-  if (GetQuicReloadableFlag(quic_ack_delay_alarm_granularity)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_ack_delay_alarm_granularity);
-    ack_delay = std::max(ack_delay, kAlarmGranularity);
-  }
-  return ack_delay;
+  return std::max(ack_delay, kAlarmGranularity);
 }
 
 void QuicReceivedPacketManager::MaybeUpdateAckFrequency(

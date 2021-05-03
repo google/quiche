@@ -397,9 +397,6 @@ TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimation) {
 }
 
 TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimationMin1ms) {
-  if (!GetQuicReloadableFlag(quic_ack_delay_alarm_granularity)) {
-    return;
-  }
   EXPECT_FALSE(HasPendingAck());
   // Seed the min_rtt with a kAlarmGranularity signal.
   rtt_stats_.UpdateRtt(kAlarmGranularity, QuicTime::Delta::Zero(),
