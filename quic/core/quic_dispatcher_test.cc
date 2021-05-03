@@ -167,6 +167,7 @@ class TestDispatcher : public QuicDispatcher {
 
   std::string custom_packet_context_;
 
+  using QuicDispatcher::MaybeDispatchPacket;
   using QuicDispatcher::SetAllowShortInitialServerConnectionIds;
   using QuicDispatcher::writer;
 
@@ -1099,6 +1100,31 @@ TEST_P(QuicDispatcherTestAllVersions,
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _, _))
       .Times(0);
   ProcessFirstFlight(client_address, EmptyQuicConnectionId());
+}
+
+TEST_P(QuicDispatcherTestAllVersions,
+       DropPacketWithKnownVersionAndInvalidInitialConnectionId) {
+  SetQuicReloadableFlag(quic_discard_packets_with_invalid_cid, true);
+  CreateTimeWaitListManager();
+
+  QuicSocketAddress server_address;
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  // dispatcher_ should drop this packet with invalid connection ID.
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
+      .Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _, _))
+      .Times(0);
+  absl::string_view cid_str = "123456789abcdefg123456789abcdefg";
+  QuicConnectionId invalid_connection_id(cid_str.data(), cid_str.length());
+  QuicReceivedPacket packet("packet", 6, QuicTime::Zero());
+  ReceivedPacketInfo packet_info(server_address, client_address, packet);
+  packet_info.version_flag = true;
+  packet_info.version = version_;
+  packet_info.destination_connection_id = invalid_connection_id;
+
+  ASSERT_TRUE(dispatcher_->MaybeDispatchPacket(packet_info));
 }
 
 void QuicDispatcherTestBase::

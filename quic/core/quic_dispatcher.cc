@@ -502,6 +502,21 @@ bool QuicDispatcher::MaybeDispatchPacket(
     return true;
   }
 
+  if (GetQuicReloadableFlag(quic_discard_packets_with_invalid_cid)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_discard_packets_with_invalid_cid);
+    if (packet_info.version_flag && packet_info.version.IsKnown() &&
+        !QuicUtils::IsConnectionIdLengthValidForVersion(
+            server_connection_id.length(),
+            packet_info.version.transport_version)) {
+      QUIC_DLOG(INFO) << "Packet with destination connection ID "
+                      << server_connection_id << " is invalid with version "
+                      << packet_info.version;
+      // Drop the packet silently.
+      QUIC_CODE_COUNT(quic_dropped_invalid_initial_connection_id);
+      return true;
+    }
+  }
+
   // Packets with connection IDs for active connections are processed
   // immediately.
   auto it = reference_counted_session_map_.find(server_connection_id);
