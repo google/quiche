@@ -8,6 +8,7 @@
 #include <string>
 
 #include "absl/base/macros.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
@@ -1004,13 +1005,7 @@ TlsServerHandshaker::SetApplicationSettings(absl::string_view alpn) {
 
   const std::string& hostname = crypto_negotiated_params_->sni;
   std::string accept_ch_value = GetAcceptChValueForOrigin(hostname);
-
-  std::string origin;
-  if (GetQuicReloadableFlag(quic_alps_include_scheme_in_origin)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_alps_include_scheme_in_origin);
-    origin = "https://";
-  }
-  origin.append(crypto_negotiated_params_->sni);
+  std::string origin = absl::StrCat("https://", hostname);
 
   if (!accept_ch_value.empty()) {
     AcceptChFrame frame{{{std::move(origin), std::move(accept_ch_value)}}};
