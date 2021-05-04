@@ -73,7 +73,6 @@ void WindowManager::MaybeNotifyListener() {
   }
   // For the sake of efficiency, we want to send window updates if less than
   // half of the max quota is available to the peer at any point in time.
-  // http://google3/gfe/gfe2/stubby/autobahn_fd_wrapper.cc?l=1180-1183&rcl=307416556
   const size_t kDesiredMinWindow = limit_ / 2;
   const size_t kDesiredMinDelta = limit_ / 3;
   const size_t delta = limit_ - (buffered_ + window_);
