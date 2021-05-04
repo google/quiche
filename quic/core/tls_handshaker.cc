@@ -12,8 +12,11 @@
 #include "quic/core/quic_crypto_stream.h"
 #include "quic/core/tls_client_handshaker.h"
 #include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_stack_trace.h"
 
 namespace quic {
+
+#define ENDPOINT (SSL_is_server(ssl()) ? "TlsServer: " : "TlsClient: ")
 
 TlsHandshaker::ProofVerifierCallbackImpl::ProofVerifierCallbackImpl(
     TlsHandshaker* parent)
@@ -93,8 +96,38 @@ void TlsHandshaker::AdvanceHandshake() {
     return;
   }
 
-  QUIC_VLOG(1) << "TlsHandshaker: continuing handshake";
+  QUIC_VLOG(1) << ENDPOINT << "Continuing handshake";
   int rv = SSL_do_handshake(ssl());
+
+  // If SSL_do_handshake return success(1) and we are in early data, it is
+  // possible that we have provided ServerHello to BoringSSL but it hasn't been
+  // processed. Retry SSL_do_handshake once will advance the handshake more in
+  // that case. If there are no unprocessed ServerHello, the retry will return a
+  // non-positive number.
+  if (retry_handshake_on_early_data_ && rv == 1 && SSL_in_early_data(ssl())) {
+    OnEnterEarlyData();
+    rv = SSL_do_handshake(ssl());
+    QUIC_VLOG(1) << ENDPOINT
+                 << "SSL_do_handshake returned when entering early data. After "
+                 << "retry, rv=" << rv
+                 << ", SSL_in_early_data=" << SSL_in_early_data(ssl());
+    // The retry should either
+    // - Return <= 0 if the handshake is still pending, likely still in early
+    //   data.
+    // - Return 1 if the handshake has _actually_ finished. i.e.
+    //   SSL_in_early_data should be false.
+    //
+    // In either case, it should not both return 1 and stay in early data.
+    if (rv == 1 && SSL_in_early_data(ssl()) && !is_connection_closed_) {
+      QUIC_BUG(quic_handshaker_stay_in_early_data)
+          << "The original and the retry of SSL_do_handshake both returned "
+             "success and in early data";
+      CloseConnection(QUIC_HANDSHAKE_FAILED,
+                      "TLS handshake failed: Still in early data after retry");
+      return;
+    }
+  }
+
   if (rv == 1) {
     FinishHandshake();
     return;
@@ -200,7 +233,7 @@ enum ssl_verify_result_t TlsHandshaker::VerifyCert(uint8_t* out_alert) {
 void TlsHandshaker::SetWriteSecret(EncryptionLevel level,
                                    const SSL_CIPHER* cipher,
                                    const std::vector<uint8_t>& write_secret) {
-  QUIC_DVLOG(1) << "SetWriteSecret level=" << level;
+  QUIC_DVLOG(1) << ENDPOINT << "SetWriteSecret level=" << level;
   std::unique_ptr<QuicEncrypter> encrypter =
       QuicEncrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
   const EVP_MD* prf = Prf(cipher);
@@ -223,7 +256,7 @@ void TlsHandshaker::SetWriteSecret(EncryptionLevel level,
 bool TlsHandshaker::SetReadSecret(EncryptionLevel level,
                                   const SSL_CIPHER* cipher,
                                   const std::vector<uint8_t>& read_secret) {
-  QUIC_DVLOG(1) << "SetReadSecret level=" << level;
+  QUIC_DVLOG(1) << ENDPOINT << "SetReadSecret level=" << level;
   std::unique_ptr<QuicDecrypter> decrypter =
       QuicDecrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
   const EVP_MD* prf = Prf(cipher);

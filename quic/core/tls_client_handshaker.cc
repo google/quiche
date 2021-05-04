@@ -446,26 +446,23 @@ void TlsClientHandshaker::OnProofVerifyDetailsAvailable(
 }
 
 void TlsClientHandshaker::FinishHandshake() {
-  // Fill crypto_negotiated_params_:
-  const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
-  if (cipher) {
-    crypto_negotiated_params_->cipher_suite =
-        SSL_CIPHER_get_protocol_id(cipher);
-  }
-  crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
-  crypto_negotiated_params_->peer_signature_algorithm =
-      SSL_get_peer_signature_algorithm(ssl());
-  if (SSL_in_early_data(ssl())) {
-    // SSL_do_handshake returns after sending the ClientHello if the session is
-    // 0-RTT-capable, which means that FinishHandshake will get called twice -
-    // the first time after sending the ClientHello, and the second time after
-    // the handshake is complete. If we're in the first time FinishHandshake is
-    // called, we can't do any end-of-handshake processing.
+  FillNegotiatedParams();
 
-    // If we're attempting a 0-RTT handshake, then we need to let the transport
-    // and application know what state to apply to early data.
-    PrepareZeroRttConfig(cached_state_.get());
-    return;
+  if (retry_handshake_on_early_data_) {
+    QUICHE_CHECK(!SSL_in_early_data(ssl()));
+  } else {
+    if (SSL_in_early_data(ssl())) {
+      // SSL_do_handshake returns after sending the ClientHello if the session
+      // is 0-RTT-capable, which means that FinishHandshake will get called
+      // twice - the first time after sending the ClientHello, and the second
+      // time after the handshake is complete. If we're in the first time
+      // FinishHandshake is called, we can't do any end-of-handshake processing.
+
+      // If we're attempting a 0-RTT handshake, then we need to let the
+      // transport and application know what state to apply to early data.
+      PrepareZeroRttConfig(cached_state_.get());
+      return;
+    }
   }
   QUIC_LOG(INFO) << "Client: handshake finished";
 
@@ -524,6 +521,30 @@ void TlsClientHandshaker::FinishHandshake() {
 
   state_ = HANDSHAKE_COMPLETE;
   handshaker_delegate()->OnTlsHandshakeComplete();
+}
+
+void TlsClientHandshaker::OnEnterEarlyData() {
+  QUICHE_DCHECK(retry_handshake_on_early_data_);
+  QUICHE_DCHECK(SSL_in_early_data(ssl()));
+
+  // TODO(wub): It might be unnecessary to FillNegotiatedParams() at this time,
+  // because we fill it again when handshake completes.
+  FillNegotiatedParams();
+
+  // If we're attempting a 0-RTT handshake, then we need to let the transport
+  // and application know what state to apply to early data.
+  PrepareZeroRttConfig(cached_state_.get());
+}
+
+void TlsClientHandshaker::FillNegotiatedParams() {
+  const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
+  if (cipher) {
+    crypto_negotiated_params_->cipher_suite =
+        SSL_CIPHER_get_protocol_id(cipher);
+  }
+  crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
+  crypto_negotiated_params_->peer_signature_algorithm =
+      SSL_get_peer_signature_algorithm(ssl());
 }
 
 void TlsClientHandshaker::ProcessPostHandshakeMessage() {

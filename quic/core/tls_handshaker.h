@@ -73,7 +73,19 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   // finished. Note that due to 0-RTT, the handshake may "finish" twice;
   // |SSL_in_early_data| can be used to determine whether the handshake is truly
   // done.
+  // TODO(wub): When --quic_tls_retry_handshake_on_early_data is true, this
+  // function will only be called once when the handshake actually finishes.
+  // Update comment when deprecating the flag.
   virtual void FinishHandshake() = 0;
+
+  // Called when |SSL_do_handshake| returns 1 and the connection is in early
+  // data. In that case, |AdvanceHandshake| will call |OnEnterEarlyData| and
+  // retry |SSL_do_handshake| once.
+  virtual void OnEnterEarlyData() {
+    // By default, do nothing but check the preconditions.
+    QUICHE_DCHECK(retry_handshake_on_early_data_);
+    QUICHE_DCHECK(SSL_in_early_data(ssl()));
+  }
 
   // Called when a handshake message is received after the handshake is
   // complete.
@@ -154,6 +166,9 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   // SendAlert causes this TlsHandshaker to close the QUIC connection with an
   // error code corresponding to the TLS alert description |desc|.
   void SendAlert(EncryptionLevel level, uint8_t desc) override;
+
+  const bool retry_handshake_on_early_data_ =
+      GetQuicReloadableFlag(quic_tls_retry_handshake_on_early_data);
 
  private:
   // ProofVerifierCallbackImpl handles the result of an asynchronous certificate
