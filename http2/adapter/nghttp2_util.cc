@@ -10,6 +10,27 @@
 namespace http2 {
 namespace adapter {
 
+namespace {
+
+void DeleteCallbacks(nghttp2_session_callbacks* callbacks) {
+  nghttp2_session_callbacks_del(callbacks);
+}
+
+void DeleteSession(nghttp2_session* session) {
+  nghttp2_session_del(session);
+}
+
+}  // namespace
+
+nghttp2_session_callbacks_unique_ptr MakeCallbacksPtr(
+    nghttp2_session_callbacks* callbacks) {
+  return nghttp2_session_callbacks_unique_ptr(callbacks, DeleteCallbacks);
+}
+
+nghttp2_session_unique_ptr MakeSessionPtr(nghttp2_session* session) {
+  return nghttp2_session_unique_ptr(session, DeleteSession);
+}
+
 uint8_t* ToUint8Ptr(char* str) { return reinterpret_cast<uint8_t*>(str); }
 uint8_t* ToUint8Ptr(const char* str) {
   return const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(str));

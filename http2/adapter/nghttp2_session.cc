@@ -6,10 +6,6 @@ namespace http2 {
 namespace adapter {
 namespace {
 
-void DeleteSession(nghttp2_session* session) {
-  nghttp2_session_del(session);
-}
-
 void DeleteOptions(nghttp2_option* options) {
   nghttp2_option_del(options);
 }
@@ -20,7 +16,7 @@ NgHttp2Session::NgHttp2Session(Perspective perspective,
                                nghttp2_session_callbacks* callbacks,
                                nghttp2_option* options,
                                void* userdata)
-    : session_(nullptr, DeleteSession),
+    : session_(MakeSessionPtr(nullptr)),
       options_(options, DeleteOptions),
       perspective_(perspective) {
   nghttp2_session* session;

@@ -2,6 +2,7 @@
 #define QUICHE_HTTP2_ADAPTER_NGHTTP2_SESSION_H_
 
 #include "http2/adapter/http2_session.h"
+#include "http2/adapter/nghttp2_util.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 
 namespace http2 {
@@ -27,10 +28,9 @@ class NgHttp2Session : public Http2Session {
   nghttp2_session* raw_ptr() const { return session_.get(); }
 
  private:
-  using SessionDeleter = void (&)(nghttp2_session*);
   using OptionsDeleter = void (&)(nghttp2_option*);
 
-  std::unique_ptr<nghttp2_session, SessionDeleter> session_;
+  nghttp2_session_unique_ptr session_;
   std::unique_ptr<nghttp2_option, OptionsDeleter> options_;
   Perspective perspective_;
 };

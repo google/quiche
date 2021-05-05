@@ -2,6 +2,7 @@
 #define QUICHE_HTTP2_ADAPTER_MOCK_NGHTTP2_CALLBACKS_H_
 
 #include "absl/strings/string_view.h"
+#include "http2/adapter/nghttp2_util.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 #include "common/platform/api/quiche_test.h"
 
@@ -16,7 +17,7 @@ class MockNghttp2Callbacks {
   MockNghttp2Callbacks() = default;
 
   // The caller takes ownership of the |nghttp2_session_callbacks|.
-  static nghttp2_session_callbacks* GetCallbacks();
+  static nghttp2_session_callbacks_unique_ptr GetCallbacks();
 
   MOCK_METHOD(ssize_t,
               Send,

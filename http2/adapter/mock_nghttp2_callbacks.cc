@@ -7,7 +7,7 @@ namespace adapter {
 namespace test {
 
 /* static */
-nghttp2_session_callbacks* MockNghttp2Callbacks::GetCallbacks() {
+nghttp2_session_callbacks_unique_ptr MockNghttp2Callbacks::GetCallbacks() {
   nghttp2_session_callbacks* callbacks;
   nghttp2_session_callbacks_new(&callbacks);
 
@@ -107,7 +107,7 @@ nghttp2_session_callbacks* MockNghttp2Callbacks::GetCallbacks() {
             ->OnInvalidFrameRecv(frame, error_code);
       });
 
-  return callbacks;
+  return MakeCallbacksPtr(callbacks);
 }
 
 }  // namespace test
