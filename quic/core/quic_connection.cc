@@ -715,6 +715,17 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 6, 6);
     validate_client_addresses_ = true;
   }
+  // Having connection_migration_use_new_cid_ depends on the same set of flags
+  // and connection option on both client and server sides has the advantage of:
+  // 1) Less chance of skew in using new connection ID or not between client
+  //    and server in unit tests with random flag combinations.
+  // 2) Client side's rollout can be protected by the same connection option.
+  connection_migration_use_new_cid_ =
+      support_multiple_connection_ids_ && validate_client_addresses_ &&
+      use_connection_id_on_default_path_ &&
+      group_path_response_and_challenge_sending_closer_ &&
+      GetQuicReloadableFlag(quic_drop_unsent_path_response) &&
+      GetQuicReloadableFlag(quic_connection_migration_use_new_cid);
   if (config.HasReceivedMaxPacketSize()) {
     peer_max_packet_size_ = config.ReceivedMaxPacketSize();
     MaybeUpdatePacketCreatorMaxPacketLengthAndPadding();
@@ -1816,7 +1827,7 @@ bool QuicConnection::OnPathChallengeFrameInternal(
                   << current_effective_peer_address;
     QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 2, 6);
     ValidatePath(std::make_unique<ReversePathValidationContext>(
-                     default_path_.self_address, current_effective_peer_address,
+                     default_path_.self_address, last_packet_source_address_,
                      current_effective_peer_address, this),
                  std::make_unique<ReversePathValidationResultDelegate>(
                      this, peer_address()));
@@ -2013,6 +2024,7 @@ bool QuicConnection::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
 }
 
 void QuicConnection::OnClientConnectionIdAvailable() {
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid, 3, 5);
   QUICHE_DCHECK(perspective_ == Perspective::IS_SERVER);
   if (!peer_issued_cid_manager_->HasUnusedConnectionId()) {
     return;
@@ -2102,7 +2114,8 @@ bool QuicConnection::OnRetireConnectionIdFrame(
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnRetireConnectionIdFrame(frame);
   }
-  if (use_connection_id_on_default_path_) {
+  if (use_connection_id_on_default_path_ &&
+      !connection_migration_use_new_cid_) {
     // Do not respond to RetireConnectionId frame.
     return true;
   }
@@ -4110,6 +4123,11 @@ void QuicConnection::MaybeSendConnectionIdToClient() {
 
 void QuicConnection::OnHandshakeComplete() {
   sent_packet_manager_.SetHandshakeConfirmed();
+  if (connection_migration_use_new_cid_ &&
+      perspective_ == Perspective::IS_SERVER &&
+      self_issued_cid_manager_ != nullptr) {
+    self_issued_cid_manager_->MaybeSendNewConnectionIds();
+  }
   if (send_ack_frequency_on_handshake_completion_ &&
       sent_packet_manager_.CanSendAckFrequency()) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 2, 3);
@@ -6439,6 +6457,7 @@ void QuicConnection::OnPeerIssuedConnectionIdRetired() {
       peer_issued_cid_manager_->ConsumeToBeRetiredConnectionIdSequenceNumbers();
   QUICHE_DCHECK(!retired_cid_sequence_numbers.empty());
   for (const auto& sequence_number : retired_cid_sequence_numbers) {
+    ++stats_.num_retire_connection_id_sent;
     visitor_->SendRetireConnectionId(sequence_number);
   }
 }
@@ -6446,6 +6465,7 @@ void QuicConnection::OnPeerIssuedConnectionIdRetired() {
 bool QuicConnection::SendNewConnectionId(
     const QuicNewConnectionIdFrame& frame) {
   visitor_->SendNewConnectionId(frame);
+  ++stats_.num_new_connection_id_sent;
   return connected_;
 }
 
@@ -6782,6 +6802,7 @@ bool QuicConnection::UpdateConnectionIdsOnClientMigration(
 }
 
 void QuicConnection::RetirePeerIssuedConnectionIdsNoLongerOnPath() {
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid, 4, 5);
   if (!connection_migration_use_new_cid_ ||
       peer_issued_cid_manager_ == nullptr) {
     return;

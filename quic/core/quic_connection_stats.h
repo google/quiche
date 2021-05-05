@@ -209,6 +209,10 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // which was canceled because the peer migrated again. Such migration is also
   // counted as invalid peer migration.
   size_t num_peer_migration_while_validating_default_path = 0;
+  // Number of NEW_CONNECTION_ID frames sent.
+  size_t num_new_connection_id_sent = 0;
+  // Number of RETIRE_CONNECTION_ID frames sent.
+  size_t num_retire_connection_id_sent = 0;
 
   struct QUIC_NO_EXPORT TlsServerOperationStats {
     bool success = false;

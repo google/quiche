@@ -1428,7 +1428,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_TRUE(connection_.connected());
   }
 
-  void PathProbeTestInit(Perspective perspective) {
+  void PathProbeTestInit(Perspective perspective,
+                         bool receive_new_server_connection_id = true) {
     set_perspective(perspective);
     connection_.CreateConnectionIdManager();
     EXPECT_EQ(connection_.perspective(), perspective);
@@ -1462,6 +1463,17 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                                     kPeerAddress, ENCRYPTION_FORWARD_SECURE);
     EXPECT_EQ(kPeerAddress, connection_.peer_address());
     EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+    if (perspective == Perspective::IS_CLIENT &&
+        receive_new_server_connection_id) {
+      QuicNewConnectionIdFrame frame;
+      frame.connection_id = TestConnectionId(1234);
+      ASSERT_NE(frame.connection_id, connection_.connection_id());
+      frame.stateless_reset_token =
+          QuicUtils::GenerateStatelessResetToken(frame.connection_id);
+      frame.retire_prior_to = 0u;
+      frame.sequence_number = 1u;
+      connection_.OnNewConnectionIdFrame(frame);
+    }
   }
 
   void TestClientRetryHandling(bool invalid_retry_tag,
@@ -1877,14 +1889,11 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
 
 TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
   set_perspective(Perspective::IS_SERVER);
-  if (!connection_.validate_client_address() ||
-      !connection_.use_connection_id_on_default_path() ||
-      !connection_.support_multiple_connection_ids()) {
+  if (!connection_.connection_migration_use_new_cid()) {
     return;
   }
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
-  QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
 
   QuicConnectionId client_cid0 = TestConnectionId(1);
   QuicConnectionId client_cid1 = TestConnectionId(3);
@@ -1896,14 +1905,13 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   QuicConnectionPeer::SetAddressValidated(&connection_);
-  connection_.OnHandshakeComplete();
 
   // Sends new server CID to client.
   EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_))
       .WillOnce(
           Invoke([&](const QuicConnectionId& cid) { server_cid1 = cid; }));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
-  connection_.MaybeSendConnectionIdToClient();
+  connection_.OnHandshakeComplete();
 
   // Clear direct_peer_address.
   QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
@@ -2073,14 +2081,11 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
 
 TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   set_perspective(Perspective::IS_SERVER);
-  if (!connection_.validate_client_address() ||
-      !connection_.use_connection_id_on_default_path() ||
-      !connection_.support_multiple_connection_ids()) {
+  if (!connection_.connection_migration_use_new_cid()) {
     return;
   }
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
-  QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
   SetClientConnectionId(TestConnectionId(1));
   connection_.CreateConnectionIdManager();
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -2088,7 +2093,6 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   QuicConnectionPeer::SetAddressValidated(&connection_);
-  connection_.OnHandshakeComplete();
 
   QuicConnectionId client_cid0 = connection_.client_connection_id();
   QuicConnectionId client_cid1 = TestConnectionId(2);
@@ -2099,7 +2103,7 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
       .WillOnce(
           Invoke([&](const QuicConnectionId& cid) { server_cid1 = cid; }));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
-  connection_.MaybeSendConnectionIdToClient();
+  connection_.OnHandshakeComplete();
   // Receives new client CID from client.
   QuicNewConnectionIdFrame new_cid_frame;
   new_cid_frame.connection_id = client_cid1;
@@ -11918,15 +11922,17 @@ TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
   const QuicSocketAddress kNewSelfAddress2(QuicIpAddress::Any4(), 12346);
   EXPECT_NE(kNewSelfAddress2, connection_.self_address());
   TestPacketWriter new_writer2(version(), &clock_, Perspective::IS_CLIENT);
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
-      .Times(AtLeast(1u))
-      .WillOnce(Invoke([&]() {
-        EXPECT_EQ(1u, new_writer2.packets_write_attempts());
-        EXPECT_EQ(1u, new_writer2.path_challenge_frames().size());
-        EXPECT_EQ(1u, new_writer2.padding_frames().size());
-        EXPECT_EQ(kNewSelfAddress2.host(),
-                  new_writer2.last_write_source_address());
-      }));
+  if (!connection_.connection_migration_use_new_cid()) {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+        .Times(AtLeast(1u))
+        .WillOnce(Invoke([&]() {
+          EXPECT_EQ(1u, new_writer2.packets_write_attempts());
+          EXPECT_EQ(1u, new_writer2.path_challenge_frames().size());
+          EXPECT_EQ(1u, new_writer2.padding_frames().size());
+          EXPECT_EQ(kNewSelfAddress2.host(),
+                    new_writer2.last_write_source_address());
+        }));
+  }
   bool success2 = false;
   connection_.ValidatePath(
       std::make_unique<TestQuicPathValidationContext>(
@@ -11935,7 +11941,13 @@ TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
           &connection_, kNewSelfAddress2, connection_.peer_address(),
           &success2));
   EXPECT_FALSE(success);
-  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  if (connection_.connection_migration_use_new_cid()) {
+    // There is no pening path validation as there is no available connection
+    // ID.
+    EXPECT_FALSE(connection_.HasPendingPathValidation());
+  } else {
+    EXPECT_TRUE(connection_.HasPendingPathValidation());
+  }
 }
 
 // Regression test for b/182571515.
@@ -13889,13 +13901,10 @@ TEST_P(QuicConnectionTest, TryToFlushAckWithAckQueued) {
 
 TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
   set_perspective(Perspective::IS_SERVER);
-  if (!connection_.validate_client_address() ||
-      !connection_.use_connection_id_on_default_path() ||
-      !connection_.support_multiple_connection_ids()) {
+  if (!connection_.connection_migration_use_new_cid()) {
     return;
   }
   PathProbeTestInit(Perspective::IS_SERVER);
-  QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
   SetClientConnectionId(TestConnectionId(1));
   connection_.CreateConnectionIdManager();
 
@@ -14039,13 +14048,10 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
 TEST_P(QuicConnectionTest,
        PathValidationSucceedsBeforePeerIpAddressChangeAtServer) {
   set_perspective(Perspective::IS_SERVER);
-  if (!connection_.validate_client_address() ||
-      !connection_.use_connection_id_on_default_path() ||
-      !connection_.support_multiple_connection_ids()) {
+  if (!connection_.connection_migration_use_new_cid()) {
     return;
   }
   PathProbeTestInit(Perspective::IS_SERVER);
-  QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
   connection_.CreateConnectionIdManager();
 
   QuicConnectionId server_cid0 = connection_.connection_id();
@@ -14220,13 +14226,15 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest,
        PathValidationFailedOnClientDueToLackOfServerConnectionId) {
-  if (!connection_.support_multiple_connection_ids() ||
-      !connection_.use_connection_id_on_default_path() ||
-      !connection_.use_path_validator()) {
+  QuicConfig config;
+  config.SetConnectionOptionsToSend({kRVCM});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  if (!connection_.connection_migration_use_new_cid()) {
     return;
   }
-  QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
-  PathProbeTestInit(Perspective::IS_CLIENT);
+  PathProbeTestInit(Perspective::IS_CLIENT,
+                    /*receive_new_server_connection_id=*/false);
 
   const QuicSocketAddress kNewSelfAddress(QuicIpAddress::Loopback4(),
                                           /*port=*/34567);
@@ -14243,14 +14251,15 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest,
        PathValidationFailedOnClientDueToLackOfClientConnectionIdTheSecondTime) {
-  if (!connection_.support_multiple_connection_ids() ||
-      !connection_.use_connection_id_on_default_path() ||
-      !connection_.use_path_validator()) {
+  QuicConfig config;
+  config.SetConnectionOptionsToSend({kRVCM});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  if (!connection_.connection_migration_use_new_cid()) {
     return;
   }
-
-  QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
-  PathProbeTestInit(Perspective::IS_CLIENT);
+  PathProbeTestInit(Perspective::IS_CLIENT,
+                    /*receive_new_server_connection_id=*/false);
   SetClientConnectionId(TestConnectionId(1));
 
   // Make sure server connection ID is available for the 1st validation.
@@ -14331,13 +14340,13 @@ TEST_P(QuicConnectionTest,
 }
 
 TEST_P(QuicConnectionTest, ServerConnectionIdRetiredUponPathValidationFailure) {
-  if (!connection_.support_multiple_connection_ids() ||
-      !connection_.use_connection_id_on_default_path() ||
-      !connection_.use_path_validator()) {
+  QuicConfig config;
+  config.SetConnectionOptionsToSend({kRVCM});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  if (!connection_.connection_migration_use_new_cid()) {
     return;
   }
-
-  QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
   PathProbeTestInit(Perspective::IS_CLIENT);
 
   // Make sure server connection ID is available for validation.
@@ -14378,12 +14387,15 @@ TEST_P(QuicConnectionTest, ServerConnectionIdRetiredUponPathValidationFailure) {
 
 TEST_P(QuicConnectionTest,
        MigratePathDirectlyFailedDueToLackOfServerConnectionId) {
-  if (!connection_.support_multiple_connection_ids() ||
-      !connection_.use_connection_id_on_default_path()) {
+  QuicConfig config;
+  config.SetConnectionOptionsToSend({kRVCM});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  if (!connection_.connection_migration_use_new_cid()) {
     return;
   }
-  QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
-  PathProbeTestInit(Perspective::IS_CLIENT);
+  PathProbeTestInit(Perspective::IS_CLIENT,
+                    /*receive_new_server_connection_id=*/false);
   const QuicSocketAddress kSelfAddress1(QuicIpAddress::Any4(), 12345);
   ASSERT_NE(kSelfAddress1, connection_.self_address());
 
@@ -14395,13 +14407,15 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest,
        MigratePathDirectlyFailedDueToLackOfClientConnectionIdTheSecondTime) {
-  if (!connection_.support_multiple_connection_ids() ||
-      !connection_.use_connection_id_on_default_path() ||
-      !connection_.use_path_validator()) {
+  QuicConfig config;
+  config.SetConnectionOptionsToSend({kRVCM});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  if (!connection_.connection_migration_use_new_cid()) {
     return;
   }
-  QuicConnectionPeer::EnableConnectionMigrationUseNewCID(&connection_);
-  PathProbeTestInit(Perspective::IS_CLIENT);
+  PathProbeTestInit(Perspective::IS_CLIENT,
+                    /*receive_new_server_connection_id=*/false);
   SetClientConnectionId(TestConnectionId(1));
 
   // Make sure server connection ID is available for the 1st migration.
@@ -14695,6 +14709,9 @@ TEST_P(QuicConnectionTest, RetireConnectionIdFrameResultsInError) {
 
 TEST_P(QuicConnectionTest,
        ServerRetireSelfIssuedConnectionIdWithoutSendingNewConnectionIdBefore) {
+  if (!connection_.support_multiple_connection_ids()) {
+    return;
+  }
   QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
   set_perspective(Perspective::IS_SERVER);
   connection_.CreateConnectionIdManager();
@@ -14706,7 +14723,8 @@ TEST_P(QuicConnectionTest,
   QuicConnectionId cid0 = connection_id_;
   QuicRetireConnectionIdFrame frame;
   frame.sequence_number = 0u;
-  if (!GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2)) {
+  if (!GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2) ||
+      connection_.connection_migration_use_new_cid()) {
     EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_)).Times(2);
     EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(2);
   }

@@ -199,9 +199,6 @@ class QuicConnectionPeer {
 
   static void EnableMultipleConnectionIdSupport(QuicConnection* connection);
 
-  // Remove this method once the boolean is enabled via reloadable flag.
-  static void EnableConnectionMigrationUseNewCID(QuicConnection* connection);
-
   static void ResetPeerIssuedConnectionIdManager(QuicConnection* connection);
 
   static QuicConnection::PathState* GetDefaultPath(QuicConnection* connection);
@@ -211,6 +208,11 @@ class QuicConnectionPeer {
 
   static void RetirePeerIssuedConnectionIdsNoLongerOnPath(
       QuicConnection* connection);
+
+  static bool HasUnusedPeerIssuedConnectionId(const QuicConnection* connection);
+
+  static bool HasSelfIssuedConnectionIdToConsume(
+      const QuicConnection* connection);
 };
 
 }  // namespace test

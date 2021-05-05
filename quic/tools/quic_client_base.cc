@@ -64,6 +64,7 @@ class QuicClientSocketMigrationValidationResultDelegate
       std::unique_ptr<QuicPathValidationContext> context) override {
     QUIC_LOG(WARNING) << "Fail to validate path " << *context
                       << ", stop migrating.";
+    client_->session()->connection()->OnPathValidationFailureAtClient();
   }
 
  private:
@@ -257,6 +258,8 @@ bool QuicClientBase::MigrateSocketWithSpecifiedPort(
     const QuicIpAddress& new_host,
     int port) {
   if (!connected()) {
+    QUICHE_DVLOG(1)
+        << "MigrateSocketWithSpecifiedPort failed as connection has closed";
     return false;
   }
 
@@ -264,11 +267,17 @@ bool QuicClientBase::MigrateSocketWithSpecifiedPort(
   std::unique_ptr<QuicPacketWriter> writer =
       CreateWriterForNewNetwork(new_host, port);
   if (writer == nullptr) {
+    QUICHE_DVLOG(1)
+        << "MigrateSocketWithSpecifiedPort failed from writer creation";
     return false;
   }
-  session()->MigratePath(network_helper_->GetLatestClientAddress(),
-                         session()->connection()->peer_address(), writer.get(),
-                         false);
+  if (!session()->MigratePath(network_helper_->GetLatestClientAddress(),
+                              session()->connection()->peer_address(),
+                              writer.get(), false)) {
+    QUICHE_DVLOG(1)
+        << "MigrateSocketWithSpecifiedPort failed from session()->MigratePath";
+    return false;
+  }
   set_writer(writer.release());
   return true;
 }

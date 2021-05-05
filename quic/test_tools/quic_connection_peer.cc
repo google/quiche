@@ -490,12 +490,6 @@ void QuicConnectionPeer::EnableMultipleConnectionIdSupport(
 }
 
 // static
-void QuicConnectionPeer::EnableConnectionMigrationUseNewCID(
-    QuicConnection* connection) {
-  connection->connection_migration_use_new_cid_ = true;
-}
-
-// static
 void QuicConnectionPeer::ResetPeerIssuedConnectionIdManager(
     QuicConnection* connection) {
   connection->peer_issued_cid_manager_ = nullptr;
@@ -517,6 +511,18 @@ QuicConnection::PathState* QuicConnectionPeer::GetAlternativePath(
 void QuicConnectionPeer::RetirePeerIssuedConnectionIdsNoLongerOnPath(
     QuicConnection* connection) {
   connection->RetirePeerIssuedConnectionIdsNoLongerOnPath();
+}
+
+// static
+bool QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(
+    const QuicConnection* connection) {
+  return connection->peer_issued_cid_manager_->HasUnusedConnectionId();
+}
+
+// static
+bool QuicConnectionPeer::HasSelfIssuedConnectionIdToConsume(
+    const QuicConnection* connection) {
+  return connection->self_issued_cid_manager_->HasConnectionIdToConsume();
 }
 
 }  // namespace test
