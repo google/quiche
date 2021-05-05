@@ -7,14 +7,12 @@
 
 #include "net/quic/platform/impl/quic_containers_impl.h"
 
+#include "absl/hash/hash.h"
+
 namespace quic {
 
-// The default hasher used by hash tables.
-template <typename Key>
-using QuicDefaultHasher = QuicDefaultHasherImpl<Key>;
-
 // A map which offers insertion-ordered iteration.
-template <typename Key, typename Value, typename Hash = QuicDefaultHasher<Key>>
+template <typename Key, typename Value, typename Hash = absl::Hash<Key>>
 using QuicLinkedHashMap = QuicLinkedHashMapImpl<Key, Value, Hash>;
 
 // A vector optimized for small sizes. Provides the same APIs as a std::vector.
