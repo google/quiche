@@ -5,6 +5,8 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "http2/adapter/http2_protocol.h"
+#include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 #include "common/platform/api/quiche_test.h"
 #include "spdy/core/spdy_protocol.h"
 
@@ -26,6 +28,42 @@ testing::Matcher<absl::string_view> EqualsFrames(
 // Requires that frames match the specified types.
 testing::Matcher<absl::string_view> EqualsFrames(
     std::vector<spdy::SpdyFrameType> types);
+
+testing::Matcher<const nghttp2_frame_hd*> HasFrameHeader(
+    uint32_t streamid,
+    uint8_t type,
+    const testing::Matcher<int> flags);
+
+testing::Matcher<const nghttp2_frame*> IsData(
+    const testing::Matcher<uint32_t> stream_id,
+    const testing::Matcher<size_t> length,
+    const testing::Matcher<int> flags);
+
+testing::Matcher<const nghttp2_frame*> IsHeaders(
+    const testing::Matcher<uint32_t> stream_id,
+    const testing::Matcher<int> flags,
+    const testing::Matcher<int> category);
+
+testing::Matcher<const nghttp2_frame*> IsRstStream(
+    const testing::Matcher<uint32_t> stream_id,
+    const testing::Matcher<uint32_t> error_code);
+
+testing::Matcher<const nghttp2_frame*> IsSettings(
+    const testing::Matcher<std::vector<Http2Setting>> values);
+
+testing::Matcher<const nghttp2_frame*> IsPing(
+    const testing::Matcher<uint64_t> id);
+
+testing::Matcher<const nghttp2_frame*> IsPingAck(
+    const testing::Matcher<uint64_t> id);
+
+testing::Matcher<const nghttp2_frame*> IsGoAway(
+    const testing::Matcher<uint32_t> last_stream_id,
+    const testing::Matcher<uint32_t> error_code,
+    const testing::Matcher<absl::string_view> opaque_data);
+
+testing::Matcher<const nghttp2_frame*> IsWindowUpdate(
+    const testing::Matcher<uint32_t> delta);
 
 }  // namespace test
 }  // namespace adapter
