@@ -356,7 +356,8 @@ int QuicToyClient::SendRequestsAndPrintResponses(
     if (sp.empty()) {
       continue;
     }
-    std::vector<absl::string_view> kv = absl::StrSplit(sp, ':');
+    std::vector<absl::string_view> kv =
+        absl::StrSplit(sp, absl::MaxSplits(':', 1));
     QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&kv[0]);
     QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&kv[1]);
     header_block[kv[0]] = kv[1];
