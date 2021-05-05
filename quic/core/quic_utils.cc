@@ -308,7 +308,6 @@ bool QuicUtils::IsRetransmittableFrame(QuicFrameType type) {
     case MTU_DISCOVERY_FRAME:
     case PATH_CHALLENGE_FRAME:
     case PATH_RESPONSE_FRAME:
-    case NEW_CONNECTION_ID_FRAME:
       return false;
     default:
       return true;
