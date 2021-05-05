@@ -49,23 +49,13 @@ class SimpleDataProducer : public QuicStreamFrameDataProducer {
                        QuicByteCount data_length,
                        QuicDataWriter* writer) override;
 
-  // TODO(wub): Allow QuicDefaultHasher to accept a pair. Then remove this.
-  class PairHash {
-   public:
-    template <class T1, class T2>
-    size_t operator()(const std::pair<T1, T2>& pair) const {
-      return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
-    }
-  };
-
  private:
   using SendBufferMap =
       absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStreamSendBuffer>>;
 
   using CryptoBufferMap =
       absl::flat_hash_map<std::pair<EncryptionLevel, QuicStreamOffset>,
-                          absl::string_view,
-                          PairHash>;
+                          absl::string_view>;
 
   SimpleBufferAllocator allocator_;
 
