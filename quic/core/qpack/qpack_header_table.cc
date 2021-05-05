@@ -10,7 +10,30 @@
 
 namespace quic {
 
-QpackHeaderTableBase::QpackHeaderTableBase()
+// Explicitly instantiate templated public non-virtual base class methods.
+
+template bool
+QpackHeaderTableBase<QpackEncoderDynamicTable>::EntryFitsDynamicTableCapacity(
+    absl::string_view name,
+    absl::string_view value) const;
+template bool QpackHeaderTableBase<
+    QpackEncoderDynamicTable>::SetDynamicTableCapacity(uint64_t capacity);
+template bool
+QpackHeaderTableBase<QpackEncoderDynamicTable>::SetMaximumDynamicTableCapacity(
+    uint64_t maximum_dynamic_table_capacity);
+
+template bool
+QpackHeaderTableBase<QpackDecoderDynamicTable>::EntryFitsDynamicTableCapacity(
+    absl::string_view name,
+    absl::string_view value) const;
+template bool QpackHeaderTableBase<
+    QpackDecoderDynamicTable>::SetDynamicTableCapacity(uint64_t capacity);
+template bool
+QpackHeaderTableBase<QpackDecoderDynamicTable>::SetMaximumDynamicTableCapacity(
+    uint64_t maximum_dynamic_table_capacity);
+
+template <typename DynamicEntryTable>
+QpackHeaderTableBase<DynamicEntryTable>::QpackHeaderTableBase()
     : dynamic_table_size_(0),
       dynamic_table_capacity_(0),
       maximum_dynamic_table_capacity_(0),
@@ -18,14 +41,17 @@ QpackHeaderTableBase::QpackHeaderTableBase()
       dropped_entry_count_(0),
       dynamic_table_entry_referenced_(false) {}
 
-bool QpackHeaderTableBase::EntryFitsDynamicTableCapacity(
+template <typename DynamicEntryTable>
+bool QpackHeaderTableBase<DynamicEntryTable>::EntryFitsDynamicTableCapacity(
     absl::string_view name,
     absl::string_view value) const {
   return QpackEntry::Size(name, value) <= dynamic_table_capacity_;
 }
 
-uint64_t QpackHeaderTableBase::InsertEntry(absl::string_view name,
-                                           absl::string_view value) {
+template <typename DynamicEntryTable>
+uint64_t QpackHeaderTableBase<DynamicEntryTable>::InsertEntry(
+    absl::string_view name,
+    absl::string_view value) {
   QUICHE_DCHECK(EntryFitsDynamicTableCapacity(name, value));
 
   const uint64_t index = dropped_entry_count_ + dynamic_entries_.size();
@@ -44,7 +70,9 @@ uint64_t QpackHeaderTableBase::InsertEntry(absl::string_view name,
   return index;
 }
 
-bool QpackHeaderTableBase::SetDynamicTableCapacity(uint64_t capacity) {
+template <typename DynamicEntryTable>
+bool QpackHeaderTableBase<DynamicEntryTable>::SetDynamicTableCapacity(
+    uint64_t capacity) {
   if (capacity > maximum_dynamic_table_capacity_) {
     return false;
   }
@@ -57,7 +85,8 @@ bool QpackHeaderTableBase::SetDynamicTableCapacity(uint64_t capacity) {
   return true;
 }
 
-bool QpackHeaderTableBase::SetMaximumDynamicTableCapacity(
+template <typename DynamicEntryTable>
+bool QpackHeaderTableBase<DynamicEntryTable>::SetMaximumDynamicTableCapacity(
     uint64_t maximum_dynamic_table_capacity) {
   if (maximum_dynamic_table_capacity_ == 0) {
     maximum_dynamic_table_capacity_ = maximum_dynamic_table_capacity;
@@ -68,7 +97,8 @@ bool QpackHeaderTableBase::SetMaximumDynamicTableCapacity(
   return maximum_dynamic_table_capacity == maximum_dynamic_table_capacity_;
 }
 
-void QpackHeaderTableBase::RemoveEntryFromEnd() {
+template <typename DynamicEntryTable>
+void QpackHeaderTableBase<DynamicEntryTable>::RemoveEntryFromEnd() {
   const uint64_t entry_size = dynamic_entries_.front().Size();
   QUICHE_DCHECK_GE(dynamic_table_size_, entry_size);
   dynamic_table_size_ -= entry_size;
@@ -77,7 +107,9 @@ void QpackHeaderTableBase::RemoveEntryFromEnd() {
   ++dropped_entry_count_;
 }
 
-void QpackHeaderTableBase::EvictDownToCapacity(uint64_t capacity) {
+template <typename DynamicEntryTable>
+void QpackHeaderTableBase<DynamicEntryTable>::EvictDownToCapacity(
+    uint64_t capacity) {
   while (dynamic_table_size_ > capacity) {
     QUICHE_DCHECK(!dynamic_entries_.empty());
     RemoveEntryFromEnd();
@@ -90,7 +122,8 @@ QpackEncoderHeaderTable::QpackEncoderHeaderTable()
 
 uint64_t QpackEncoderHeaderTable::InsertEntry(absl::string_view name,
                                               absl::string_view value) {
-  const uint64_t index = QpackHeaderTableBase::InsertEntry(name, value);
+  const uint64_t index =
+      QpackHeaderTableBase<QpackEncoderDynamicTable>::InsertEntry(name, value);
 
   // Make name and value point to the new entry.
   name = dynamic_entries().back().name();
@@ -235,7 +268,7 @@ void QpackEncoderHeaderTable::RemoveEntryFromEnd() {
     dynamic_name_index_.erase(name_it);
   }
 
-  QpackHeaderTableBase::RemoveEntryFromEnd();
+  QpackHeaderTableBase<QpackEncoderDynamicTable>::RemoveEntryFromEnd();
 }
 
 QpackDecoderHeaderTable::QpackDecoderHeaderTable()
@@ -249,7 +282,8 @@ QpackDecoderHeaderTable::~QpackDecoderHeaderTable() {
 
 uint64_t QpackDecoderHeaderTable::InsertEntry(absl::string_view name,
                                               absl::string_view value) {
-  const uint64_t index = QpackHeaderTableBase::InsertEntry(name, value);
+  const uint64_t index =
+      QpackHeaderTableBase<QpackDecoderDynamicTable>::InsertEntry(name, value);
 
   // Notify and deregister observers whose threshold is met, if any.
   while (!observers_.empty()) {

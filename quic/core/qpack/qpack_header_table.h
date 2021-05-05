@@ -21,10 +21,19 @@ using QpackEntry = spdy::HpackEntry;
 using QpackLookupEntry = spdy::HpackLookupEntry;
 constexpr size_t kQpackEntrySizeOverhead = spdy::kHpackEntrySizeOverhead;
 
+// Encoder needs pointer stability for |dynamic_index_| and
+// |dynamic_name_index_|.  However, it does not need random access.
+using QpackEncoderDynamicTable = spdy::HpackHeaderTable::DynamicEntryTable;
+
+// Decoder needs random access for LookupEntry().
+// However, it does not need pointer stability.
+using QpackDecoderDynamicTable = spdy::HpackHeaderTable::DynamicEntryTable;
+
 // This is a base class for encoder and decoder classes that manage the QPACK
 // static and dynamic tables.  For dynamic entries, it only has a concept of
 // absolute indices.  The caller needs to perform the necessary transformations
 // to and from relative indices and post-base indices.
+template <typename DynamicEntryTable>
 class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
  public:
   QpackHeaderTableBase();
@@ -91,7 +100,6 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   // |dynamic_table_size_| and |dropped_entry_count_|.
   virtual void RemoveEntryFromEnd();
 
-  using DynamicEntryTable = spdy::HpackHeaderTable::DynamicEntryTable;
   const DynamicEntryTable& dynamic_entries() const { return dynamic_entries_; }
 
  private:
@@ -131,7 +139,7 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
 };
 
 class QUIC_EXPORT_PRIVATE QpackEncoderHeaderTable
-    : public QpackHeaderTableBase {
+    : public QpackHeaderTableBase<QpackEncoderDynamicTable> {
  public:
   // Result of header table lookup.
   enum class MatchType { kNameAndValue, kName, kNoMatch };
@@ -198,7 +206,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoderHeaderTable
 };
 
 class QUIC_EXPORT_PRIVATE QpackDecoderHeaderTable
-    : public QpackHeaderTableBase {
+    : public QpackHeaderTableBase<QpackDecoderDynamicTable> {
  public:
   // Observer interface for dynamic table insertion.
   class QUIC_EXPORT_PRIVATE Observer {
