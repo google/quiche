@@ -354,8 +354,7 @@ class QuicCryptoServerStreamTestWithFakeProofSource
 };
 
 // Regression test for b/35422225, in which multiple CHLOs arriving on the same
-// connection in close succession could cause a crash, especially when the use
-// of Mentat signing meant that it took a while for each CHLO to be processed.
+// connection in close succession could cause a crash.
 TEST_F(QuicCryptoServerStreamTestWithFakeProofSource, MultipleChlo) {
   Initialize();
   GetFakeProofSource()->Activate();
