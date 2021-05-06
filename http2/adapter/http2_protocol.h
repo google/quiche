@@ -99,6 +99,11 @@ absl::string_view Http2SettingsIdToString(uint16_t id);
 // Section 7 definitions.
 absl::string_view Http2ErrorCodeToString(Http2ErrorCode error_code);
 
+enum class Perspective {
+  kClient,
+  kServer,
+};
+
 }  // namespace adapter
 }  // namespace http2
 

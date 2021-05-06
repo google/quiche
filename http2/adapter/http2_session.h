@@ -26,11 +26,6 @@ class Http2Session {
   virtual int GetRemoteWindowSize() const = 0;
 };
 
-enum class Perspective {
-  kClient,
-  kServer,
-};
-
 }  // namespace adapter
 }  // namespace http2
 

@@ -53,9 +53,9 @@ class MockNghttp2Callbacks {
 
   MOCK_METHOD(int, OnStreamClose, (int32_t stream_id, uint32_t error_code), ());
 
-  MOCK_METHOD(int, OnFrameSend, (const nghttp2_frame* frame), ());
-
   MOCK_METHOD(int, BeforeFrameSend, (const nghttp2_frame* frame), ());
+
+  MOCK_METHOD(int, OnFrameSend, (const nghttp2_frame* frame), ());
 
   MOCK_METHOD(int,
               OnFrameNotSend,
@@ -65,6 +65,11 @@ class MockNghttp2Callbacks {
   MOCK_METHOD(int,
               OnInvalidFrameRecv,
               (const nghttp2_frame* frame, int error_code),
+              ());
+
+  MOCK_METHOD(int,
+              OnErrorCallback2,
+              (int lib_error_code, const char* msg, size_t len),
               ());
 };
 
