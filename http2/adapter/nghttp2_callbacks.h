@@ -2,6 +2,7 @@
 #define QUICHE_HTTP2_ADAPTER_NGHTTP2_CALLBACKS_H_
 
 #include "http2/adapter/http2_protocol.h"
+#include "http2/adapter/nghttp2_util.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 
 namespace http2 {
@@ -47,7 +48,7 @@ ssize_t OnReadyToReadDataForStream(nghttp2_session* session,
                                    nghttp2_data_source* source,
                                    void* user_data);
 
-nghttp2_session_callbacks* Create();
+nghttp2_session_callbacks_unique_ptr Create();
 
 }  // namespace callbacks
 }  // namespace adapter

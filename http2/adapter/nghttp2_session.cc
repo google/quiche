@@ -13,7 +13,7 @@ void DeleteOptions(nghttp2_option* options) {
 }  // namespace
 
 NgHttp2Session::NgHttp2Session(Perspective perspective,
-                               nghttp2_session_callbacks* callbacks,
+                               nghttp2_session_callbacks_unique_ptr callbacks,
                                nghttp2_option* options,
                                void* userdata)
     : session_(MakeSessionPtr(nullptr)),
@@ -22,15 +22,14 @@ NgHttp2Session::NgHttp2Session(Perspective perspective,
   nghttp2_session* session;
   switch (perspective) {
     case Perspective::kClient:
-      nghttp2_session_client_new2(&session, callbacks, userdata,
+      nghttp2_session_client_new2(&session, callbacks.get(), userdata,
                                   options_.get());
       break;
     case Perspective::kServer:
-      nghttp2_session_server_new2(&session, callbacks, userdata,
+      nghttp2_session_server_new2(&session, callbacks.get(), userdata,
                                   options_.get());
       break;
   }
-  nghttp2_session_callbacks_del(callbacks);
   session_.reset(session);
 }
 

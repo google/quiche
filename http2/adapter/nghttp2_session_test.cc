@@ -56,9 +56,10 @@ class NgHttp2SessionTest : public testing::Test {
     return options;
   }
 
-  nghttp2_session_callbacks* CreateCallbacks() {
-    nghttp2_session_callbacks* callbacks = callbacks::Create();
-    nghttp2_session_callbacks_set_send_callback(callbacks, &SaveSessionOutput);
+  nghttp2_session_callbacks_unique_ptr CreateCallbacks() {
+    nghttp2_session_callbacks_unique_ptr callbacks = callbacks::Create();
+    nghttp2_session_callbacks_set_send_callback(callbacks.get(),
+                                                &SaveSessionOutput);
     return callbacks;
   }
 

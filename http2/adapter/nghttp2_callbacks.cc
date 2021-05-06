@@ -186,7 +186,7 @@ ssize_t OnReadyToReadDataForStream(nghttp2_session* /* session */,
   return bytes_to_send;
 }
 
-nghttp2_session_callbacks* Create() {
+nghttp2_session_callbacks_unique_ptr Create() {
   nghttp2_session_callbacks* callbacks;
   nghttp2_session_callbacks_new(&callbacks);
 
@@ -201,7 +201,7 @@ nghttp2_session_callbacks* Create() {
                                                             &OnDataChunk);
   nghttp2_session_callbacks_set_on_stream_close_callback(callbacks,
                                                          &OnStreamClosed);
-  return callbacks;
+  return MakeCallbacksPtr(callbacks);
 }
 
 }  // namespace callbacks

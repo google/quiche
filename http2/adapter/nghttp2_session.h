@@ -12,7 +12,7 @@ namespace adapter {
 class NgHttp2Session : public Http2Session {
  public:
   NgHttp2Session(Perspective perspective,
-                 nghttp2_session_callbacks* callbacks,
+                 nghttp2_session_callbacks_unique_ptr callbacks,
                  nghttp2_option* options,
                  void* userdata);
   ~NgHttp2Session() override;

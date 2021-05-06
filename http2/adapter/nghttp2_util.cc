@@ -13,11 +13,15 @@ namespace adapter {
 namespace {
 
 void DeleteCallbacks(nghttp2_session_callbacks* callbacks) {
-  nghttp2_session_callbacks_del(callbacks);
+  if (callbacks) {
+    nghttp2_session_callbacks_del(callbacks);
+  }
 }
 
 void DeleteSession(nghttp2_session* session) {
-  nghttp2_session_del(session);
+  if (session) {
+    nghttp2_session_del(session);
+  }
 }
 
 }  // namespace
