@@ -10,27 +10,43 @@
 
 namespace quic {
 
-// Explicitly instantiate templated public non-virtual base class methods.
+// Explicitly instantiate all possible templated non-inline base class methods.
 
+template QpackHeaderTableBase<QpackEncoderDynamicTable>::QpackHeaderTableBase();
 template bool
 QpackHeaderTableBase<QpackEncoderDynamicTable>::EntryFitsDynamicTableCapacity(
     absl::string_view name,
     absl::string_view value) const;
+template uint64_t QpackHeaderTableBase<QpackEncoderDynamicTable>::InsertEntry(
+    absl::string_view name,
+    absl::string_view value);
 template bool QpackHeaderTableBase<
     QpackEncoderDynamicTable>::SetDynamicTableCapacity(uint64_t capacity);
 template bool
 QpackHeaderTableBase<QpackEncoderDynamicTable>::SetMaximumDynamicTableCapacity(
     uint64_t maximum_dynamic_table_capacity);
+template void
+QpackHeaderTableBase<QpackEncoderDynamicTable>::RemoveEntryFromEnd();
+template void QpackHeaderTableBase<
+    QpackEncoderDynamicTable>::EvictDownToCapacity(uint64_t capacity);
 
+template QpackHeaderTableBase<QpackDecoderDynamicTable>::QpackHeaderTableBase();
 template bool
 QpackHeaderTableBase<QpackDecoderDynamicTable>::EntryFitsDynamicTableCapacity(
     absl::string_view name,
     absl::string_view value) const;
+template uint64_t QpackHeaderTableBase<QpackDecoderDynamicTable>::InsertEntry(
+    absl::string_view name,
+    absl::string_view value);
 template bool QpackHeaderTableBase<
     QpackDecoderDynamicTable>::SetDynamicTableCapacity(uint64_t capacity);
 template bool
 QpackHeaderTableBase<QpackDecoderDynamicTable>::SetMaximumDynamicTableCapacity(
     uint64_t maximum_dynamic_table_capacity);
+template void
+QpackHeaderTableBase<QpackDecoderDynamicTable>::RemoveEntryFromEnd();
+template void QpackHeaderTableBase<
+    QpackDecoderDynamicTable>::EvictDownToCapacity(uint64_t capacity);
 
 template <typename DynamicEntryTable>
 QpackHeaderTableBase<DynamicEntryTable>::QpackHeaderTableBase()
