@@ -376,9 +376,6 @@ QuicConnection::QuicConnection(
           GetQuicReloadableFlag(quic_use_encryption_level_context)),
       path_validator_(alarm_factory_, &arena_, this, random_generator_),
       most_recent_frame_type_(NUM_FRAME_TYPES) {
-  QUIC_BUG_IF(quic_bug_12714_1,
-              !start_peer_migration_earlier_ && send_path_response_);
-
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
 
@@ -2359,17 +2356,6 @@ void QuicConnection::MaybeRespondToConnectivityProbingOrMigration() {
                                  last_packet_source_address_,
                                  /*is_connectivity_probe=*/false);
       return;
-    }
-  }
-  // Server starts to migrate connection upon receiving of non-probing packet
-  // from a new peer address.
-  if (!start_peer_migration_earlier_ &&
-      last_header_.packet_number == GetLargestReceivedPacket()) {
-    direct_peer_address_ = last_packet_source_address_;
-    if (current_effective_peer_migration_type_ != NO_CHANGE) {
-      // TODO(fayang): When multiple packet number spaces is supported, only
-      // start peer migration for the application data.
-      StartEffectivePeerMigration(current_effective_peer_migration_type_);
     }
   }
 }
@@ -5713,10 +5699,6 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
 
 void QuicConnection::MaybeStartIetfPeerMigration() {
   QUICHE_DCHECK(version().HasIetfQuicFrames());
-  if (!start_peer_migration_earlier_) {
-    return;
-  }
-  QUIC_CODE_COUNT(quic_start_peer_migration_earlier);
   if (current_effective_peer_migration_type_ != NO_CHANGE &&
       !IsHandshakeConfirmed()) {
     QUIC_LOG_EVERY_N_SEC(INFO, 60)

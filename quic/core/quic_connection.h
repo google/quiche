@@ -2218,13 +2218,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   size_t anti_amplification_factor_ =
       GetQuicFlag(FLAGS_quic_anti_amplification_factor);
 
-  bool start_peer_migration_earlier_ =
-      GetQuicReloadableFlag(quic_start_peer_migration_earlier);
-
-  // latch --gfe2_reloadable_flag_quic_send_path_response and
-  // --gfe2_reloadable_flag_quic_start_peer_migration_earlier.
-  bool send_path_response_ = start_peer_migration_earlier_ &&
-                             GetQuicReloadableFlag(quic_send_path_response2);
+  // latch --gfe2_reloadable_flag_quic_send_path_response.
+  bool send_path_response_ = GetQuicReloadableFlag(quic_send_path_response2);
 
   bool use_path_validator_ =
       send_path_response_ &&

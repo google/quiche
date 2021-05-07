@@ -1712,13 +1712,8 @@ TEST_P(QuicConnectionTest, PeerPortChangeAtServer) {
   EXPECT_CALL(visitor_, OnStreamFrame(_))
       .WillOnce(Invoke(
           [=]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); }))
-      .WillOnce(Invoke([=]() {
-        EXPECT_EQ((GetQuicReloadableFlag(quic_start_peer_migration_earlier) ||
-                           !GetParam().version.HasIetfQuicFrames()
-                       ? kNewPeerAddress
-                       : kPeerAddress),
-                  connection_.peer_address());
-      }));
+      .WillOnce(Invoke(
+          [=]() { EXPECT_EQ(kNewPeerAddress, connection_.peer_address()); }));
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
@@ -1786,13 +1781,8 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
   EXPECT_CALL(visitor_, OnStreamFrame(_))
       .WillOnce(Invoke(
           [=]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); }))
-      .WillOnce(Invoke([=]() {
-        EXPECT_EQ((GetQuicReloadableFlag(quic_start_peer_migration_earlier) ||
-                           !GetParam().version.HasIetfQuicFrames()
-                       ? kNewPeerAddress
-                       : kPeerAddress),
-                  connection_.peer_address());
-      }));
+      .WillOnce(Invoke(
+          [=]() { EXPECT_EQ(kNewPeerAddress, connection_.peer_address()); }));
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
@@ -2127,13 +2117,8 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   EXPECT_CALL(visitor_, OnStreamFrame(_))
       .WillOnce(Invoke(
           [=]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); }))
-      .WillOnce(Invoke([=]() {
-        EXPECT_EQ((GetQuicReloadableFlag(quic_start_peer_migration_earlier) ||
-                           !GetParam().version.HasIetfQuicFrames()
-                       ? kNewPeerAddress
-                       : kPeerAddress),
-                  connection_.peer_address());
-      }));
+      .WillOnce(Invoke(
+          [=]() { EXPECT_EQ(kNewPeerAddress, connection_.peer_address()); }));
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
@@ -13832,8 +13817,7 @@ TEST_P(QuicConnectionTest,
 
 // Regression test for b/177312785
 TEST_P(QuicConnectionTest, PeerMigrateBeforeHandshakeConfirm) {
-  if (!VersionHasIetfQuicFrames(version().transport_version) ||
-      !GetQuicReloadableFlag(quic_start_peer_migration_earlier)) {
+  if (!VersionHasIetfQuicFrames(version().transport_version)) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
