@@ -43,11 +43,6 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   // HpackHeaderTable takes advantage of the deque property that references
   // remain valid, so long as insertions & deletions are at the head & tail.
   // This precludes the use of base::circular_deque.
-  //
-  // If this changes (we want to change to circular_deque or we start to drop
-  // entries from the middle of the table), this should to be a std::list, in
-  // which case |*_index_| can be trivially extended to map to list iterators.
-  //
   // TODO(b/182349990): Change to a more memory efficient container.
   using DynamicEntryTable = std::deque<HpackEntry>;
 

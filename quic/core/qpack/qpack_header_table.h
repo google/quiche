@@ -6,12 +6,11 @@
 #define QUICHE_QUIC_CORE_QPACK_QPACK_HEADER_TABLE_H_
 
 #include <cstdint>
-#include <functional>
-#include <queue>
-#include <vector>
+#include <deque>
 
 #include "absl/strings/string_view.h"
 #include "quic/platform/api/quic_export.h"
+#include "common/quiche_circular_deque.h"
 #include "spdy/core/hpack/hpack_entry.h"
 #include "spdy/core/hpack/hpack_header_table.h"
 
@@ -23,11 +22,12 @@ constexpr size_t kQpackEntrySizeOverhead = spdy::kHpackEntrySizeOverhead;
 
 // Encoder needs pointer stability for |dynamic_index_| and
 // |dynamic_name_index_|.  However, it does not need random access.
-using QpackEncoderDynamicTable = spdy::HpackHeaderTable::DynamicEntryTable;
+// TODO(b/182349990): Change to a more memory efficient container.
+using QpackEncoderDynamicTable = std::deque<QpackEntry>;
 
 // Decoder needs random access for LookupEntry().
 // However, it does not need pointer stability.
-using QpackDecoderDynamicTable = spdy::HpackHeaderTable::DynamicEntryTable;
+using QpackDecoderDynamicTable = quiche::QuicheCircularDeque<QpackEntry>;
 
 // This is a base class for encoder and decoder classes that manage the QPACK
 // static and dynamic tables.  For dynamic entries, it only has a concept of
