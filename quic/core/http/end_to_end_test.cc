@@ -3034,9 +3034,7 @@ TEST_P(EndToEndTest,
   QuicIpAddress host0 =
       client_->client()->network_helper()->GetLatestClientAddress().host();
   QuicConnection* client_connection = GetClientConnection();
-  const QuicConnection* server_connection = GetServerConnection();
   QuicConnectionId server_cid0 = client_connection->connection_id();
-  EXPECT_EQ(server_connection->connection_id(), server_cid0);
   // Server should have one new connection ID upon handshake completion.
   ASSERT_TRUE(
       QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(client_connection));
@@ -3059,7 +3057,6 @@ TEST_P(EndToEndTest,
 
   // Send a request using the new socket.
   SendSynchronousBarRequestAndCheckResponse();
-  EXPECT_EQ(server_connection->connection_id(), server_cid1);
 
   // Migrate socket to new IP address #2.
   WaitForNewConnectionIds();
@@ -3082,7 +3079,6 @@ TEST_P(EndToEndTest,
 
   // Send a request using the new socket.
   SendSynchronousBarRequestAndCheckResponse();
-  EXPECT_EQ(server_connection->connection_id(), server_cid2);
 
   // Migrate socket back to IP address #1.
   WaitForNewConnectionIds();
@@ -3104,10 +3100,13 @@ TEST_P(EndToEndTest,
 
   // Send a request using the new socket.
   SendSynchronousBarRequestAndCheckResponse();
+  server_thread_->Pause();
+  const QuicConnection* server_connection = GetServerConnection();
   EXPECT_EQ(server_connection->connection_id(), server_cid3);
   EXPECT_TRUE(QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
                   server_connection)
                   .IsEmpty());
+  server_thread_->Resume();
 
   // There should be 1 new connection ID issued by the server.
   WaitForNewConnectionIds();
@@ -5167,10 +5166,6 @@ TEST_P(EndToEndPacketReorderingTest, MigrateAgainAfterPathValidationFailure) {
                   client_connection)
                   .IsEmpty());
   EXPECT_EQ(kBarResponseBody, client_->SendSynchronousRequest("/bar"));
-  EXPECT_EQ(server_cid3, server_connection->connection_id());
-  EXPECT_TRUE(QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
-                  server_connection)
-                  .IsEmpty());
 
   // Server should send a new connection ID to client.
   WaitForNewConnectionIds();
@@ -5278,14 +5273,6 @@ TEST_P(EndToEndPacketReorderingTest,
                   client_connection)
                   .IsEmpty());
   EXPECT_EQ(kBarResponseBody, client_->SendSynchronousRequest("/bar"));
-  EXPECT_EQ(server_cid3, server_connection->connection_id());
-  EXPECT_EQ(client_cid3, server_connection->client_connection_id());
-  EXPECT_TRUE(QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
-                  server_connection)
-                  .IsEmpty());
-  EXPECT_TRUE(QuicConnectionPeer::GetClientConnectionIdOnAlternativePath(
-                  server_connection)
-                  .IsEmpty());
 
   // Server should send new server connection ID to client and retires old
   // client connection ID.
