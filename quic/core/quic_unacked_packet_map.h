@@ -7,7 +7,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <deque>
 
 #include "absl/strings/str_cat.h"
 #include "quic/core/quic_packets.h"
