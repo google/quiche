@@ -138,6 +138,90 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
   bool dynamic_table_entry_referenced_;
 };
 
+template <typename DynamicEntryTable>
+QpackHeaderTableBase<DynamicEntryTable>::QpackHeaderTableBase()
+    : dynamic_table_size_(0),
+      dynamic_table_capacity_(0),
+      maximum_dynamic_table_capacity_(0),
+      max_entries_(0),
+      dropped_entry_count_(0),
+      dynamic_table_entry_referenced_(false) {}
+
+template <typename DynamicEntryTable>
+bool QpackHeaderTableBase<DynamicEntryTable>::EntryFitsDynamicTableCapacity(
+    absl::string_view name,
+    absl::string_view value) const {
+  return QpackEntry::Size(name, value) <= dynamic_table_capacity_;
+}
+
+template <typename DynamicEntryTable>
+uint64_t QpackHeaderTableBase<DynamicEntryTable>::InsertEntry(
+    absl::string_view name,
+    absl::string_view value) {
+  QUICHE_DCHECK(EntryFitsDynamicTableCapacity(name, value));
+
+  const uint64_t index = dropped_entry_count_ + dynamic_entries_.size();
+
+  // Copy name and value before modifying the container, because evicting
+  // entries or even inserting a new one might invalidate |name| or |value| if
+  // they point to an entry.
+  QpackEntry new_entry((std::string(name)), (std::string(value)));
+  const size_t entry_size = new_entry.Size();
+
+  EvictDownToCapacity(dynamic_table_capacity_ - entry_size);
+
+  dynamic_table_size_ += entry_size;
+  dynamic_entries_.push_back(std::move(new_entry));
+
+  return index;
+}
+
+template <typename DynamicEntryTable>
+bool QpackHeaderTableBase<DynamicEntryTable>::SetDynamicTableCapacity(
+    uint64_t capacity) {
+  if (capacity > maximum_dynamic_table_capacity_) {
+    return false;
+  }
+
+  dynamic_table_capacity_ = capacity;
+  EvictDownToCapacity(capacity);
+
+  QUICHE_DCHECK_LE(dynamic_table_size_, dynamic_table_capacity_);
+
+  return true;
+}
+
+template <typename DynamicEntryTable>
+bool QpackHeaderTableBase<DynamicEntryTable>::SetMaximumDynamicTableCapacity(
+    uint64_t maximum_dynamic_table_capacity) {
+  if (maximum_dynamic_table_capacity_ == 0) {
+    maximum_dynamic_table_capacity_ = maximum_dynamic_table_capacity;
+    max_entries_ = maximum_dynamic_table_capacity / 32;
+    return true;
+  }
+  // If the value is already set, it should not be changed.
+  return maximum_dynamic_table_capacity == maximum_dynamic_table_capacity_;
+}
+
+template <typename DynamicEntryTable>
+void QpackHeaderTableBase<DynamicEntryTable>::RemoveEntryFromEnd() {
+  const uint64_t entry_size = dynamic_entries_.front().Size();
+  QUICHE_DCHECK_GE(dynamic_table_size_, entry_size);
+  dynamic_table_size_ -= entry_size;
+
+  dynamic_entries_.pop_front();
+  ++dropped_entry_count_;
+}
+
+template <typename DynamicEntryTable>
+void QpackHeaderTableBase<DynamicEntryTable>::EvictDownToCapacity(
+    uint64_t capacity) {
+  while (dynamic_table_size_ > capacity) {
+    QUICHE_DCHECK(!dynamic_entries_.empty());
+    RemoveEntryFromEnd();
+  }
+}
+
 class QUIC_EXPORT_PRIVATE QpackEncoderHeaderTable
     : public QpackHeaderTableBase<QpackEncoderDynamicTable> {
  public:
