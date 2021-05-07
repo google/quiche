@@ -59,6 +59,7 @@
 #include "quic/platform/api/quic_ip_address.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_system_event_loop.h"
+#include "quic/test_tools/simple_session_cache.h"
 #include "quic/tools/fake_proof_verifier.h"
 #include "quic/tools/quic_url.h"
 #include "common/quiche_text_utils.h"
@@ -194,6 +195,12 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
     false,
     "If true, do not change local port after each request.");
 
+DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
+                              one_connection_per_request,
+                              false,
+                              "If true, close the connection after each "
+                              "request. This allows testing 0-RTT.");
+
 DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
                               server_connection_id_length,
                               -1,
@@ -260,6 +267,10 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   } else {
     proof_verifier = quic::CreateDefaultProofVerifier(url.host());
   }
+  std::unique_ptr<quic::SessionCache> session_cache;
+  if (num_requests > 1 && GetQuicFlag(FLAGS_one_connection_per_request)) {
+    session_cache = std::make_unique<test::SimpleSessionCache>();
+  }
 
   QuicConfig config;
   std::string connection_options_string = GetQuicFlag(FLAGS_connection_options);
@@ -293,7 +304,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   // Build the client, and try to connect.
   std::unique_ptr<QuicSpdyClientBase> client = client_factory_->CreateClient(
       url.host(), host, address_family_for_lookup, port, versions, config,
-      std::move(proof_verifier));
+      std::move(proof_verifier), std::move(session_cache));
 
   if (client == nullptr) {
     std::cerr << "Failed to create client." << std::endl;
@@ -430,11 +441,26 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       return 1;
     }
 
-    // Change the ephemeral port if there are more requests to do.
-    if (!GetQuicFlag(FLAGS_disable_port_changes) && i + 1 < num_requests) {
-      if (!client->ChangeEphemeralPort()) {
-        std::cerr << "Failed to change ephemeral port." << std::endl;
-        return 1;
+    if (i + 1 < num_requests) {  // There are more requests to perform.
+      if (GetQuicFlag(FLAGS_one_connection_per_request)) {
+        std::cout << "Disconnecting client between requests." << std::endl;
+        client->Disconnect();
+        if (!client->Initialize()) {
+          std::cerr << "Failed to reinitialize client between requests."
+                    << std::endl;
+          return 1;
+        }
+        if (!client->Connect()) {
+          std::cerr << "Failed to reconnect client between requests."
+                    << std::endl;
+          return 1;
+        }
+      } else if (!GetQuicFlag(FLAGS_disable_port_changes)) {
+        // Change the ephemeral port.
+        if (!client->ChangeEphemeralPort()) {
+          std::cerr << "Failed to change ephemeral port." << std::endl;
+          return 1;
+        }
       }
     }
   }

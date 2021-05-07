@@ -29,7 +29,8 @@ class QuicToyClient {
         uint16_t port,
         ParsedQuicVersionVector versions,
         const QuicConfig& config,
-        std::unique_ptr<ProofVerifier> verifier) = 0;
+        std::unique_ptr<ProofVerifier> verifier,
+        std::unique_ptr<SessionCache> session_cache) = 0;
   };
 
   // Constructs a new toy client that will use |client_factory| to create the

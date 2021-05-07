@@ -20,7 +20,8 @@ class QuicEpollClientFactory : public QuicToyClient::ClientFactory {
       uint16_t port,
       ParsedQuicVersionVector versions,
       const QuicConfig& config,
-      std::unique_ptr<ProofVerifier> verifier) override;
+      std::unique_ptr<ProofVerifier> verifier,
+      std::unique_ptr<SessionCache> session_cache) override;
 
  private:
   QuicEpollServer epoll_server_;
