@@ -26,21 +26,10 @@ enum FrameType {
   WINDOW_UPDATE,
 };
 
-class DataSavingVisitor : public testing::StrictMock<MockHttp2Visitor> {
- public:
-  void Save(absl::string_view data) { absl::StrAppend(&data_, data); }
-
-  const std::string& data() { return data_; }
-  void Clear() { data_.clear(); }
-
- private:
-  std::string data_;
-};
-
-ssize_t SaveSessionOutput(nghttp2_session* session,
+ssize_t SaveSessionOutput(nghttp2_session* /* session*/,
                           const uint8_t* data,
                           size_t length,
-                          int flags,
+                          int /* flags */,
                           void* user_data) {
   auto visitor = static_cast<DataSavingVisitor*>(user_data);
   visitor->Save(ToStringView(data, length));

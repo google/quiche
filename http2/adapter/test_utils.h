@@ -6,6 +6,7 @@
 
 #include "absl/strings/string_view.h"
 #include "http2/adapter/http2_protocol.h"
+#include "http2/adapter/mock_http2_visitor.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 #include "common/platform/api/quiche_test.h"
 #include "spdy/core/spdy_protocol.h"
@@ -13,6 +14,17 @@
 namespace http2 {
 namespace adapter {
 namespace test {
+
+class DataSavingVisitor : public testing::StrictMock<MockHttp2Visitor> {
+ public:
+  void Save(absl::string_view data) { absl::StrAppend(&data_, data); }
+
+  const std::string& data() { return data_; }
+  void Clear() { data_.clear(); }
+
+ private:
+  std::string data_;
+};
 
 // These matchers check whether a string consists entirely of HTTP/2 frames of
 // the specified ordered sequence. This is useful in tests where we want to show

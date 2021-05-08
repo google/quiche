@@ -11,6 +11,7 @@ namespace adapter {
 // A C++ wrapper around common nghttp2_session operations.
 class NgHttp2Session : public Http2Session {
  public:
+  // Takes ownership of |options|.
   NgHttp2Session(Perspective perspective,
                  nghttp2_session_callbacks_unique_ptr callbacks,
                  nghttp2_option* options,

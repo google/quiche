@@ -7,7 +7,9 @@ namespace adapter {
 namespace {
 
 void DeleteOptions(nghttp2_option* options) {
-  nghttp2_option_del(options);
+  if (options) {
+    nghttp2_option_del(options);
+  }
 }
 
 }  // namespace
