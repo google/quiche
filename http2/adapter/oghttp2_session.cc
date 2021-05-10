@@ -1,5 +1,7 @@
 #include "http2/adapter/oghttp2_session.h"
 
+#include "absl/strings/escaping.h"
+
 namespace http2 {
 namespace adapter {
 
