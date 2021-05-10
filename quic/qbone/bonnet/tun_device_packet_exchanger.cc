@@ -11,12 +11,14 @@
 namespace quic {
 
 TunDevicePacketExchanger::TunDevicePacketExchanger(
+    int fd,
     size_t mtu,
     KernelInterface* kernel,
     QbonePacketExchanger::Visitor* visitor,
     size_t max_pending_packets,
     StatsInterface* stats)
     : QbonePacketExchanger(visitor, max_pending_packets),
+      fd_(fd),
       mtu_(mtu),
       kernel_(kernel),
       stats_(stats) {}
@@ -76,8 +78,8 @@ std::unique_ptr<QuicData> TunDevicePacketExchanger::ReadPacket(
   return std::make_unique<QuicData>(read_buffer.release(), result, true);
 }
 
-void TunDevicePacketExchanger::set_file_descriptor(int fd) {
-  fd_ = fd;
+int TunDevicePacketExchanger::file_descriptor() const {
+  return fd_;
 }
 
 const TunDevicePacketExchanger::StatsInterface*

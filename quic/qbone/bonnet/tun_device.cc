@@ -103,10 +103,6 @@ int TunDevice::GetFileDescriptor() const {
 }
 
 bool TunDevice::OpenDevice() {
-  if (file_descriptor_ != kInvalidFd) {
-    CleanUpFileDescriptor();
-  }
-
   struct ifreq if_request;
   memset(&if_request, 0, sizeof(if_request));
   // copy does not zero-terminate the result string, but we've memset the entire

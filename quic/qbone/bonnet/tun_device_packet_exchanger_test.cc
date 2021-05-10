@@ -30,15 +30,14 @@ class MockVisitor : public QbonePacketExchanger::Visitor {
 class TunDevicePacketExchangerTest : public QuicTest {
  protected:
   TunDevicePacketExchangerTest()
-      : exchanger_(kMtu,
+      : exchanger_(kFd,
+                   kMtu,
                    &mock_kernel_,
                    &mock_visitor_,
                    kMaxPendingPackets,
-                   &mock_stats_) {
-    exchanger_.set_file_descriptor(kFd);
-  }
+                   &mock_stats_) {}
 
-  ~TunDevicePacketExchangerTest() override = default;
+  ~TunDevicePacketExchangerTest() override {}
 
   MockKernel mock_kernel_;
   StrictMock<MockVisitor> mock_visitor_;
