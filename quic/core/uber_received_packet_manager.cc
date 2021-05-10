@@ -120,14 +120,11 @@ void UberReceivedPacketManager::EnableMultiplePacketNumberSpacesSupport(
   }
   // In IETF QUIC, the peer is expected to acknowledge packets in Initial and
   // Handshake packets with minimal delay.
-  if (!GetQuicReloadableFlag(quic_delay_initial_ack) ||
-      perspective == Perspective::IS_CLIENT) {
+  if (perspective == Perspective::IS_CLIENT) {
     // Delay the first server ACK, because server ACKs are padded to
     // full size and count towards the amplification limit.
     received_packet_managers_[INITIAL_DATA].set_local_max_ack_delay(
         kAlarmGranularity);
-  } else {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_delay_initial_ack);
   }
   received_packet_managers_[HANDSHAKE_DATA].set_local_max_ack_delay(
       kAlarmGranularity);
