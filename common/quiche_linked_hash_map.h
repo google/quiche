@@ -127,7 +127,8 @@ class QuicheLinkedHashMap {
   iterator erase(iterator position) {
     typename MapType::iterator found = map_.find(position->first);
     QUICHE_CHECK(found->second == position)
-        << "Inconsisent iterator for map and list, or the iterator is invalid.";
+        << "Inconsistent iterator for map and list, or the iterator is "
+           "invalid.";
 
     map_.erase(found);
     return list_.erase(position);
@@ -172,49 +173,12 @@ class QuicheLinkedHashMap {
 
   // Inserts an element into the map
   std::pair<iterator, bool> insert(const std::pair<Key, Value>& pair) {
-    // First make sure the map doesn't have a key with this value.  If it does,
-    // return a pair with an iterator to it, and false indicating that we
-    // didn't insert anything.
-    typename MapType::iterator found = map_.find(pair.first);
-    if (found != map_.end()) {
-      return std::make_pair(found->second, false);
-    }
-
-    // Otherwise, insert into the list first.
-    list_.push_back(pair);
-
-    // Obtain an iterator to the newly added element.  We do -- instead of -
-    // since list::iterator doesn't implement operator-().
-    typename ListType::iterator last = list_.end();
-    --last;
-
-    QUICHE_CHECK(map_.insert(std::make_pair(pair.first, last)).second)
-        << "Map and list are inconsistent";
-
-    return std::make_pair(last, true);
+    return InsertInternal(pair);
   }
 
   // Inserts an element into the map
   std::pair<iterator, bool> insert(std::pair<Key, Value>&& pair) {
-    // First make sure the map doesn't have a key with this value.  If it does,
-    // return a pair with an iterator to it, and false indicating that we
-    // didn't insert anything.
-    typename MapType::iterator found = map_.find(pair.first);
-    if (found != map_.end()) {
-      return std::make_pair(found->second, false);
-    }
-
-    // Otherwise, insert into the list first.
-    list_.push_back(std::move(pair));
-
-    // Obtain an iterator to the newly added element.  We do -- instead of -
-    // since list::iterator doesn't implement operator-().
-    typename ListType::iterator last = list_.end();
-    --last;
-
-    QUICHE_CHECK(map_.insert(std::make_pair(last->first, last)).second)
-        << "Map and list are inconsistent";
-    return std::make_pair(last, true);
+    return InsertInternal(std::move(pair));
   }
 
   // Derive size_ from map_, as list::size might be O(N).
@@ -240,6 +204,24 @@ class QuicheLinkedHashMap {
   }
 
  private:
+  template <typename U>
+  std::pair<iterator, bool> InsertInternal(U&& pair) {
+    auto insert_result = map_.try_emplace(pair.first);
+    auto map_iter = insert_result.first;
+
+    // If the map already contains this key, return a pair with an iterator to
+    // it, and false indicating that we didn't insert anything.
+    if (!insert_result.second) {
+      return {map_iter->second, false};
+    }
+
+    // Otherwise, insert into the list, and set value in map.
+    auto list_iter = list_.insert(list_.end(), std::forward<U>(pair));
+    map_iter->second = list_iter;
+
+    return {list_iter, true};
+  }
+
   // The map component, used for speedy lookups
   MapType map_;
 
