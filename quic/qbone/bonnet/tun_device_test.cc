@@ -139,6 +139,7 @@ TEST_F(TunDeviceTest, FailToOpenTunDevice) {
   TunDevice tun_device(kDeviceName, 1500, false, true, &mock_kernel_);
   EXPECT_FALSE(tun_device.Init());
   EXPECT_EQ(tun_device.GetFileDescriptor(), -1);
+  ExpectDown(false);
 }
 
 TEST_F(TunDeviceTest, FailToCheckFeature) {
@@ -147,6 +148,7 @@ TEST_F(TunDeviceTest, FailToCheckFeature) {
   TunDevice tun_device(kDeviceName, 1500, false, true, &mock_kernel_);
   EXPECT_FALSE(tun_device.Init());
   EXPECT_EQ(tun_device.GetFileDescriptor(), -1);
+  ExpectDown(false);
 }
 
 TEST_F(TunDeviceTest, TooFewFeature) {
@@ -160,6 +162,7 @@ TEST_F(TunDeviceTest, TooFewFeature) {
   TunDevice tun_device(kDeviceName, 1500, false, true, &mock_kernel_);
   EXPECT_FALSE(tun_device.Init());
   EXPECT_EQ(tun_device.GetFileDescriptor(), -1);
+  ExpectDown(false);
 }
 
 TEST_F(TunDeviceTest, FailToSetFlag) {

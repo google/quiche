@@ -18,6 +18,8 @@ class MockTunDevice : public TunDeviceInterface {
 
   MOCK_METHOD(bool, Down, (), (override));
 
+  MOCK_METHOD(void, CloseDevice, (), (override));
+
   MOCK_METHOD(int, GetFileDescriptor, (), (const, override));
 };
 

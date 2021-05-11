@@ -12,7 +12,7 @@ namespace quic {
 // An interface with methods for interacting with a TUN device.
 class TunDeviceInterface {
  public:
-  virtual ~TunDeviceInterface() {}
+  virtual ~TunDeviceInterface() = default;
 
   // Actually creates/reopens and configures the device.
   virtual bool Init() = 0;
@@ -22,6 +22,11 @@ class TunDeviceInterface {
 
   // Marks the interface down to stop receiving packets.
   virtual bool Down() = 0;
+
+  // Closes the open file descriptor for the TUN device (if one exists).
+  // It is safe to reinitialize and reuse this TunDevice after calling
+  // CloseDevice.
+  virtual void CloseDevice() = 0;
 
   // Gets the file descriptor that can be used to send/receive packets.
   // This returns -1 when the TUN device is in an invalid state.

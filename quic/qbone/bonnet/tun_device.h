@@ -49,6 +49,11 @@ class TunDevice : public TunDeviceInterface {
   // Marks the interface down to stop receiving packets.
   bool Down() override;
 
+  // Closes the open file descriptor for the TUN device (if one exists).
+  // It is safe to reinitialize and reuse this TunDevice after calling
+  // CloseDevice.
+  void CloseDevice() override;
+
   // Gets the file descriptor that can be used to send/receive packets.
   // This returns -1 when the TUN device is in an invalid state.
   int GetFileDescriptor() const override;
@@ -63,10 +68,6 @@ class TunDevice : public TunDeviceInterface {
   // Checks if the required kernel features exists.
   bool CheckFeatures(int tun_device_fd);
 
-  // Closes the opened file descriptor and makes sure the file descriptor
-  // is no longer available from GetFileDescriptor;
-  void CleanUpFileDescriptor();
-
   // Opens a socket and makes netdevice ioctl call
   bool NetdeviceIoctl(int request, void* argp);
 
@@ -76,7 +77,6 @@ class TunDevice : public TunDeviceInterface {
   const bool setup_tun_;
   int file_descriptor_;
   KernelInterface& kernel_;
-  bool is_interface_up_ = false;
 };
 
 }  // namespace quic

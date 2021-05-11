@@ -39,7 +39,7 @@ TunDevice::~TunDevice() {
   if (!persist_) {
     Down();
   }
-  CleanUpFileDescriptor();
+  CloseDevice();
 }
 
 bool TunDevice::Init() {
@@ -63,39 +63,33 @@ bool TunDevice::Init() {
 // TODO(pengg): might be better to use netlink socket, once we have a library to
 // use
 bool TunDevice::Up() {
-  if (setup_tun_ && !is_interface_up_) {
-    struct ifreq if_request;
-    memset(&if_request, 0, sizeof(if_request));
-    // copy does not zero-terminate the result string, but we've memset the
-    // entire struct.
-    interface_name_.copy(if_request.ifr_name, IFNAMSIZ);
-    if_request.ifr_flags = IFF_UP;
-
-    is_interface_up_ =
-        NetdeviceIoctl(SIOCSIFFLAGS, reinterpret_cast<void*>(&if_request));
-    return is_interface_up_;
-  } else {
+  if (!setup_tun_) {
     return true;
   }
+  struct ifreq if_request;
+  memset(&if_request, 0, sizeof(if_request));
+  // copy does not zero-terminate the result string, but we've memset the
+  // entire struct.
+  interface_name_.copy(if_request.ifr_name, IFNAMSIZ);
+  if_request.ifr_flags = IFF_UP;
+
+  return NetdeviceIoctl(SIOCSIFFLAGS, reinterpret_cast<void*>(&if_request));
 }
 
 // TODO(pengg): might be better to use netlink socket, once we have a library to
 // use
 bool TunDevice::Down() {
-  if (setup_tun_ && is_interface_up_) {
-    struct ifreq if_request;
-    memset(&if_request, 0, sizeof(if_request));
-    // copy does not zero-terminate the result string, but we've memset the
-    // entire struct.
-    interface_name_.copy(if_request.ifr_name, IFNAMSIZ);
-    if_request.ifr_flags = 0;
-
-    is_interface_up_ =
-        !NetdeviceIoctl(SIOCSIFFLAGS, reinterpret_cast<void*>(&if_request));
-    return !is_interface_up_;
-  } else {
+  if (!setup_tun_) {
     return true;
   }
+  struct ifreq if_request;
+  memset(&if_request, 0, sizeof(if_request));
+  // copy does not zero-terminate the result string, but we've memset the
+  // entire struct.
+  interface_name_.copy(if_request.ifr_name, IFNAMSIZ);
+  if_request.ifr_flags = 0;
+
+  return NetdeviceIoctl(SIOCSIFFLAGS, reinterpret_cast<void*>(&if_request));
 }
 
 int TunDevice::GetFileDescriptor() const {
@@ -103,6 +97,10 @@ int TunDevice::GetFileDescriptor() const {
 }
 
 bool TunDevice::OpenDevice() {
+  if (file_descriptor_ != kInvalidFd) {
+    CloseDevice();
+  }
+
   struct ifreq if_request;
   memset(&if_request, 0, sizeof(if_request));
   // copy does not zero-terminate the result string, but we've memset the entire
@@ -117,7 +115,7 @@ bool TunDevice::OpenDevice() {
   if_request.ifr_flags = IFF_TUN | IFF_MULTI_QUEUE | IFF_NO_PI;
 
   // TODO(pengg): port MakeCleanup to quic/platform? This makes the call to
-  // CleanUpFileDescriptor nicer and less error-prone.
+  // CloseDevice nicer and less error-prone.
   // When the device is running with IFF_MULTI_QUEUE set, each call to open will
   // create a queue which can be used to read/write packets from/to the device.
   const std::string tun_device_path =
@@ -125,18 +123,18 @@ bool TunDevice::OpenDevice() {
   int fd = kernel_.open(tun_device_path.c_str(), O_RDWR);
   if (fd < 0) {
     QUIC_PLOG(WARNING) << "Failed to open " << tun_device_path;
-    CleanUpFileDescriptor();
+    CloseDevice();
     return false;
   }
   file_descriptor_ = fd;
   if (!CheckFeatures(fd)) {
-    CleanUpFileDescriptor();
+    CloseDevice();
     return false;
   }
 
   if (kernel_.ioctl(fd, TUNSETIFF, reinterpret_cast<void*>(&if_request)) != 0) {
     QUIC_PLOG(WARNING) << "Failed to TUNSETIFF on fd(" << fd << ")";
-    CleanUpFileDescriptor();
+    CloseDevice();
     return false;
   }
 
@@ -144,7 +142,7 @@ bool TunDevice::OpenDevice() {
           fd, TUNSETPERSIST,
           persist_ ? reinterpret_cast<void*>(&if_request) : nullptr) != 0) {
     QUIC_PLOG(WARNING) << "Failed to TUNSETPERSIST on fd(" << fd << ")";
-    CleanUpFileDescriptor();
+    CloseDevice();
     return false;
   }
 
@@ -166,7 +164,7 @@ bool TunDevice::ConfigureInterface() {
   if_request.ifr_mtu = mtu_;
 
   if (!NetdeviceIoctl(SIOCSIFMTU, reinterpret_cast<void*>(&if_request))) {
-    CleanUpFileDescriptor();
+    CloseDevice();
     return false;
   }
 
@@ -206,7 +204,7 @@ bool TunDevice::NetdeviceIoctl(int request, void* argp) {
   return true;
 }
 
-void TunDevice::CleanUpFileDescriptor() {
+void TunDevice::CloseDevice() {
   if (file_descriptor_ != kInvalidFd) {
     kernel_.close(file_descriptor_);
     file_descriptor_ = kInvalidFd;

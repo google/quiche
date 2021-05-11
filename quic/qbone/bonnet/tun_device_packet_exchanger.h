@@ -35,8 +35,6 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
     ABSL_MUST_USE_RESULT virtual int64_t PacketsWritten() const = 0;
   };
 
-  // |fd| is a open file descriptor on a TUN device that's opened for both read
-  // and write.
   // |mtu| is the mtu of the TUN device.
   // |kernel| is not owned but should out live objects of this class.
   // |visitor| is not owned but should out live objects of this class.
@@ -44,14 +42,13 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
   // the TUN device become blocked.
   // |stats| is notified about packet read/write statistics. It is not owned,
   // but should outlive objects of this class.
-  TunDevicePacketExchanger(int fd,
-                           size_t mtu,
+  TunDevicePacketExchanger(size_t mtu,
                            KernelInterface* kernel,
                            QbonePacketExchanger::Visitor* visitor,
                            size_t max_pending_packets,
                            StatsInterface* stats);
 
-  ABSL_MUST_USE_RESULT int file_descriptor() const;
+  void set_file_descriptor(int fd);
 
   ABSL_MUST_USE_RESULT const StatsInterface* stats_interface() const;
 
