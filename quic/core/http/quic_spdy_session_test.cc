@@ -557,7 +557,6 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void ReceiveWebTransportSession(WebTransportSessionId session_id) {
-    SetQuicReloadableFlag(quic_accept_empty_stream_frame_with_no_fin, true);
     QuicStreamFrame frame(session_id, /*fin=*/false, /*offset=*/0,
                           absl::string_view());
     session_.OnStreamFrame(frame);
@@ -1916,12 +1915,6 @@ TEST_P(QuicSpdySessionTestClient, BadStreamFramePendingStream) {
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
   // A bad stream frame with no data and no fin.
   QuicStreamFrame data1(stream_id1, false, 0, 0);
-  if (!GetQuicReloadableFlag(quic_accept_empty_stream_frame_with_no_fin)) {
-    EXPECT_CALL(*connection_, CloseConnection(_, _, _))
-        .WillOnce(
-            Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-    EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
-  }
   session_.OnStreamFrame(data1);
 }
 

@@ -252,8 +252,7 @@ TEST_F(QuicStreamSequencerTest, BlockedThenFullFrameAndFinConsumed) {
 }
 
 TEST_F(QuicStreamSequencerTest, EmptyFrame) {
-  if (!GetQuicReloadableFlag(quic_accept_empty_stream_frame_with_no_fin) ||
-      !stream_.version().HasIetfQuicFrames()) {
+  if (!stream_.version().HasIetfQuicFrames()) {
     EXPECT_CALL(stream_,
                 OnUnrecoverableError(QUIC_EMPTY_STREAM_FRAME_NO_FIN, _));
   }

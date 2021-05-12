@@ -56,13 +56,10 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
       (!CloseStreamAtOffset(frame.offset + data_len) || data_len == 0)) {
     return;
   }
-  if (GetQuicReloadableFlag(quic_accept_empty_stream_frame_with_no_fin)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_accept_empty_stream_frame_with_no_fin);
-    if (stream_->version().HasIetfQuicFrames() && data_len == 0) {
-      QUICHE_DCHECK(!frame.fin);
-      // Ignore empty frame with no fin.
-      return;
-    }
+  if (stream_->version().HasIetfQuicFrames() && data_len == 0) {
+    QUICHE_DCHECK(!frame.fin);
+    // Ignore empty frame with no fin.
+    return;
   }
   OnFrameData(byte_offset, data_len, frame.data_buffer);
 }

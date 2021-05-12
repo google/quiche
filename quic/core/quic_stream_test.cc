@@ -1634,8 +1634,7 @@ TEST_P(QuicStreamTest, RstStreamFrameChangesCloseOffset) {
 TEST_P(QuicStreamTest, EmptyStreamFrameWithNoFin) {
   Initialize();
   QuicStreamFrame empty_stream_frame(stream_->id(), false, 0, "");
-  if (GetQuicReloadableFlag(quic_accept_empty_stream_frame_with_no_fin) &&
-      stream_->version().HasIetfQuicFrames()) {
+  if (stream_->version().HasIetfQuicFrames()) {
     EXPECT_CALL(*connection_,
                 CloseConnection(QUIC_EMPTY_STREAM_FRAME_NO_FIN, _, _))
         .Times(0);
