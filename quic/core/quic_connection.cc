@@ -1376,17 +1376,13 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   uber_received_packet_manager_.RecordPacketReceived(
       last_decrypted_packet_level_, last_header_,
       idle_network_detector_.time_of_last_received_packet());
-  if (GetQuicReloadableFlag(quic_enable_token_based_address_validation)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_token_based_address_validation, 2,
-                                 2);
-    if (EnforceAntiAmplificationLimit() && !IsHandshakeConfirmed() &&
-        !header.retry_token.empty() &&
-        visitor_->ValidateToken(header.retry_token)) {
-      QUIC_DLOG(INFO) << ENDPOINT << "Address validated via token.";
-      QUIC_CODE_COUNT(quic_address_validated_via_token);
-      default_path_.validated = true;
-      stats_.address_validated_via_token = true;
-    }
+  if (EnforceAntiAmplificationLimit() && !IsHandshakeConfirmed() &&
+      !header.retry_token.empty() &&
+      visitor_->ValidateToken(header.retry_token)) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Address validated via token.";
+    QUIC_CODE_COUNT(quic_address_validated_via_token);
+    default_path_.validated = true;
+    stats_.address_validated_via_token = true;
   }
   QUICHE_DCHECK(connected_);
   return true;
@@ -2149,17 +2145,14 @@ bool QuicConnection::OnNewTokenFrame(const QuicNewTokenFrame& frame) {
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnNewTokenFrame(frame);
   }
-  if (GetQuicReloadableFlag(quic_enable_token_based_address_validation)) {
-    if (perspective_ == Perspective::IS_SERVER) {
-      CloseConnection(QUIC_INVALID_NEW_TOKEN,
-                      "Server received new token frame.",
-                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return false;
-    }
-    // NEW_TOKEN frame should insitgate ACKs.
-    MaybeUpdateAckTimeout();
-    visitor_->OnNewTokenReceived(frame.token);
+  if (perspective_ == Perspective::IS_SERVER) {
+    CloseConnection(QUIC_INVALID_NEW_TOKEN, "Server received new token frame.",
+                    ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
   }
+  // NEW_TOKEN frame should insitgate ACKs.
+  MaybeUpdateAckTimeout();
+  visitor_->OnNewTokenReceived(frame.token);
   return true;
 }
 

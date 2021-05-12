@@ -13699,7 +13699,6 @@ TEST_P(QuicConnectionTest, NewTokenFrameInstigateAcks) {
   if (!version().HasIetfQuicFrames()) {
     return;
   }
-  SetQuicReloadableFlag(quic_enable_token_based_address_validation, true);
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   QuicNewTokenFrame* new_token = new QuicNewTokenFrame();
@@ -13714,7 +13713,6 @@ TEST_P(QuicConnectionTest, ServerClosesConnectionOnNewTokenFrame) {
   if (!version().HasIetfQuicFrames()) {
     return;
   }
-  SetQuicReloadableFlag(quic_enable_token_based_address_validation, true);
   set_perspective(Perspective::IS_SERVER);
   QuicNewTokenFrame* new_token = new QuicNewTokenFrame();
   EXPECT_CALL(visitor_, OnNewTokenReceived(_)).Times(0);

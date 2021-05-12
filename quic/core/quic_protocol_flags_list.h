@@ -249,4 +249,11 @@ QUIC_PROTOCOL_FLAG(
     true,
     "If true, QUIC QPACK decoder includes 32-bytes overheader per entry while "
     "comparing request/response header size against its upper limit.")
+
+QUIC_PROTOCOL_FLAG(
+    bool,
+    quic_reject_retry_token_in_initial_packet,
+    false,
+    "If true, always reject retry_token received in INITIAL packets")
+
 #endif

@@ -42,12 +42,10 @@ TlsClientHandshaker::TlsClientHandshaker(
       has_application_state_(has_application_state),
       crypto_config_(crypto_config),
       tls_connection_(crypto_config->ssl_ctx(), this) {
-  if (GetQuicReloadableFlag(quic_enable_token_based_address_validation)) {
-    std::string token =
-        crypto_config->LookupOrCreate(server_id)->source_address_token();
-    if (!token.empty()) {
-      session->SetSourceAddressTokenToSend(token);
-    }
+  std::string token =
+      crypto_config->LookupOrCreate(server_id)->source_address_token();
+  if (!token.empty()) {
+    session->SetSourceAddressTokenToSend(token);
   }
 }
 

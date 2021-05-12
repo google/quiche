@@ -1660,10 +1660,7 @@ void QuicSession::OnTlsHandshakeComplete() {
     // Server sends HANDSHAKE_DONE to signal confirmation of the handshake
     // to the client.
     control_frame_manager_.WriteOrBufferHandshakeDone();
-    if (GetQuicReloadableFlag(quic_enable_token_based_address_validation) &&
-        connection()->version().HasIetfQuicFrames()) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_token_based_address_validation,
-                                   1, 2);
+    if (connection()->version().HasIetfQuicFrames()) {
       MaybeSendAddressToken();
     }
   }
@@ -2615,6 +2612,9 @@ bool QuicSession::MigratePath(const QuicSocketAddress& self_address,
 
 bool QuicSession::ValidateToken(absl::string_view token) const {
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_SERVER);
+  if (GetQuicFlag(FLAGS_quic_reject_retry_token_in_initial_packet)) {
+    return false;
+  }
   if (token.empty() || token[0] != 0) {
     // Validate the prefix for token received in NEW_TOKEN frame.
     return false;

@@ -71,8 +71,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_drop_unsent_path_response, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_version_rfcv1, false)
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
-// If true, enable token based address validation in IETF QUIC.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_token_based_address_validation, true)
 // If true, include stream information in idle timeout connection close detail.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, increase the size of stream sequencer buffer block container on demand.

@@ -1565,17 +1565,11 @@ TEST_P(EndToEndTest, AddressToken) {
   server_thread_->Pause();
   QuicConnection* server_connection = GetServerConnection();
   if (server_connection != nullptr) {
-    if (GetQuicReloadableFlag(quic_enable_token_based_address_validation)) {
-      // Verify address is validated via validating token received in INITIAL
-      // packet.
-      EXPECT_FALSE(server_connection->GetStats()
-                       .address_validated_via_decrypting_packet);
-      EXPECT_TRUE(server_connection->GetStats().address_validated_via_token);
-    } else {
-      EXPECT_TRUE(server_connection->GetStats()
-                      .address_validated_via_decrypting_packet);
-      EXPECT_FALSE(server_connection->GetStats().address_validated_via_token);
-    }
+    // Verify address is validated via validating token received in INITIAL
+    // packet.
+    EXPECT_FALSE(
+        server_connection->GetStats().address_validated_via_decrypting_packet);
+    EXPECT_TRUE(server_connection->GetStats().address_validated_via_token);
   } else {
     ADD_FAILURE() << "Missing server connection";
   }
@@ -2490,10 +2484,7 @@ TEST_P(
     HalfRttResponseBlocksShloRetransmissionWithoutTokenBasedAddressValidation) {
   // Turn off token based address validation to make the server get constrained
   // by amplification factor during handshake.
-  // TODO(fayang): Keep this test while deprecating
-  // quic_enable_token_based_address_validation. For example, consider always
-  // rejecting the received address token.
-  SetQuicReloadableFlag(quic_enable_token_based_address_validation, false);
+  SetQuicFlag(FLAGS_quic_reject_retry_token_in_initial_packet, true);
   ASSERT_TRUE(Initialize());
   if (!version_.SupportsAntiAmplificationLimit()) {
     return;
@@ -2921,17 +2912,11 @@ TEST_P(EndToEndTest, ConnectionMigrationNewTokenForNewIp) {
   server_thread_->Pause();
   QuicConnection* server_connection = GetServerConnection();
   if (server_connection != nullptr) {
-    if (GetQuicReloadableFlag(quic_enable_token_based_address_validation)) {
-      // Verify address is validated via validating token received in INITIAL
-      // packet.
-      EXPECT_FALSE(server_connection->GetStats()
-                       .address_validated_via_decrypting_packet);
-      EXPECT_TRUE(server_connection->GetStats().address_validated_via_token);
-    } else {
-      EXPECT_TRUE(server_connection->GetStats()
-                      .address_validated_via_decrypting_packet);
-      EXPECT_FALSE(server_connection->GetStats().address_validated_via_token);
-    }
+    // Verify address is validated via validating token received in INITIAL
+    // packet.
+    EXPECT_FALSE(
+        server_connection->GetStats().address_validated_via_decrypting_packet);
+    EXPECT_TRUE(server_connection->GetStats().address_validated_via_token);
   } else {
     ADD_FAILURE() << "Missing server connection";
   }
