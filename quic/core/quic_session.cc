@@ -920,15 +920,12 @@ void QuicSession::SendGoAway(QuicErrorCode error_code,
                              const std::string& reason) {
   // GOAWAY frame is not supported in IETF QUIC.
   QUICHE_DCHECK(!VersionHasIetfQuicFrames(transport_version()));
-  if (GetQuicReloadableFlag(quic_encrypted_goaway)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_encrypted_goaway, 1, 2);
-    if (!IsEncryptionEstablished()) {
-      QUIC_CODE_COUNT(quic_goaway_before_encryption_established);
-      connection_->CloseConnection(
-          error_code, reason,
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return;
-    }
+  if (!IsEncryptionEstablished()) {
+    QUIC_CODE_COUNT(quic_goaway_before_encryption_established);
+    connection_->CloseConnection(
+        error_code, reason,
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
   }
   if (transport_goaway_sent_) {
     return;

@@ -796,15 +796,12 @@ void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
                                       const std::string& reason) {
   QUICHE_DCHECK_EQ(perspective(), Perspective::IS_SERVER);
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
-  if (GetQuicReloadableFlag(quic_encrypted_goaway)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_encrypted_goaway, 2, 2);
-    if (!IsEncryptionEstablished()) {
-      QUIC_CODE_COUNT(quic_h3_goaway_before_encryption_established);
-      connection()->CloseConnection(
-          error_code, reason,
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return;
-    }
+  if (!IsEncryptionEstablished()) {
+    QUIC_CODE_COUNT(quic_h3_goaway_before_encryption_established);
+    connection()->CloseConnection(
+        error_code, reason,
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
   }
   QuicStreamId stream_id;
 

@@ -1175,7 +1175,6 @@ TEST_P(QuicSpdySessionTestServer, SendGoAway) {
 }
 
 TEST_P(QuicSpdySessionTestServer, SendGoAwayWithoutEncryption) {
-  SetQuicReloadableFlag(quic_encrypted_goaway, true);
   if (VersionHasIetfQuicFrames(transport_version())) {
     // HTTP/3 GOAWAY has different semantic and thus has its own test.
     return;
@@ -1217,7 +1216,6 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
 }
 
 TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayWithoutEncryption) {
-  SetQuicReloadableFlag(quic_encrypted_goaway, true);
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
