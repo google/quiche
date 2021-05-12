@@ -776,9 +776,9 @@ QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
 
 void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
                                     QuicConnection* connection,
-                                    QuicErrorCode error,
-                                    const std::string& error_details,
-                                    ConnectionCloseSource source) {
+                                    QuicErrorCode /*error*/,
+                                    const std::string& /*error_details*/,
+                                    ConnectionCloseSource /*source*/) {
   write_blocked_list_.erase(connection);
   QuicTimeWaitListManager::TimeWaitAction action =
       QuicTimeWaitListManager::SEND_STATELESS_RESET;
@@ -787,14 +787,8 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
     action = QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS;
   } else {
     if (!connection->IsHandshakeComplete()) {
-      const bool fix_dispatcher_sent_error_code =
-          GetQuicReloadableFlag(quic_fix_dispatcher_sent_error_code) &&
-          source == ConnectionCloseSource::FROM_SELF;
       // TODO(fayang): Do not serialize connection close packet if the
       // connection is closed by the client.
-      if (fix_dispatcher_sent_error_code) {
-        QUIC_RELOADABLE_FLAG_COUNT(quic_fix_dispatcher_sent_error_code);
-      }
       if (!connection->version().HasIetfInvariantHeader()) {
         QUIC_CODE_COUNT(gquic_add_to_time_wait_list_with_handshake_failed);
       } else {
@@ -809,10 +803,8 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
             server_connection_id, connection->version(), helper_.get(),
             time_wait_list_manager_.get());
         terminator.CloseConnection(
-            fix_dispatcher_sent_error_code ? error : QUIC_HANDSHAKE_FAILED,
-            fix_dispatcher_sent_error_code
-                ? error_details
-                : "Connection is closed by server before handshake confirmed",
+            QUIC_HANDSHAKE_FAILED,
+            "Connection is closed by server before handshake confirmed",
             connection->version().HasIetfInvariantHeader(),
             connection->GetActiveServerConnectionIds());
       } else {
@@ -826,11 +818,8 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
                 : GOOGLE_QUIC_PACKET,
             /*version_flag=*/true,
             connection->version().HasLengthPrefixedConnectionIds(),
-            connection->version(),
-            fix_dispatcher_sent_error_code ? error : QUIC_HANDSHAKE_FAILED,
-            fix_dispatcher_sent_error_code
-                ? error_details
-                : "Connection is closed by server before handshake confirmed",
+            connection->version(), QUIC_HANDSHAKE_FAILED,
+            "Connection is closed by server before handshake confirmed",
             // Although it is our intention to send termination packets, the
             // |action| argument is not used by this call to
             // StatelesslyTerminateConnection().

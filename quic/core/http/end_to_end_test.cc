@@ -4513,11 +4513,7 @@ TEST_P(EndToEndTest,
 
   client_.reset(CreateQuicClient(client_writer_));
   EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
-  if (GetQuicReloadableFlag(quic_fix_dispatcher_sent_error_code)) {
-    EXPECT_THAT(client_->connection_error(), IsError(QUIC_PACKET_WRITE_ERROR));
-  } else {
-    EXPECT_THAT(client_->connection_error(), IsError(QUIC_HANDSHAKE_FAILED));
-  }
+  EXPECT_THAT(client_->connection_error(), IsError(QUIC_HANDSHAKE_FAILED));
 }
 
 // Regression test for b/116200989.
