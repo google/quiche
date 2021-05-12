@@ -686,11 +686,8 @@ bool QuicSession::WillingAndAbleToWrite() const {
     if (HasPendingHandshake()) {
       return true;
     }
-    if (GetQuicReloadableFlag(quic_fix_willing_and_able_to_write2)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_willing_and_able_to_write2);
-      if (!IsEncryptionEstablished()) {
-        return false;
-      }
+    if (!IsEncryptionEstablished()) {
+      return false;
     }
   }
   if (control_frame_manager_.WillingToWrite() ||
