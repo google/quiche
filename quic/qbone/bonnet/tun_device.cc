@@ -10,6 +10,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
+#include "absl/cleanup/cleanup.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/qbone/platform/kernel_interface.h"
@@ -114,39 +115,41 @@ bool TunDevice::OpenDevice() {
   // 'persist' bit ambiguous.
   if_request.ifr_flags = IFF_TUN | IFF_MULTI_QUEUE | IFF_NO_PI;
 
-  // TODO(pengg): port MakeCleanup to quic/platform? This makes the call to
-  // CloseDevice nicer and less error-prone.
   // When the device is running with IFF_MULTI_QUEUE set, each call to open will
   // create a queue which can be used to read/write packets from/to the device.
+  bool successfully_opened = false;
+  auto cleanup = absl::MakeCleanup([this, &successfully_opened]() {
+    if (!successfully_opened) {
+      CloseDevice();
+    }
+  });
+
   const std::string tun_device_path =
       absl::GetFlag(FLAGS_qbone_client_tun_device_path);
   int fd = kernel_.open(tun_device_path.c_str(), O_RDWR);
   if (fd < 0) {
     QUIC_PLOG(WARNING) << "Failed to open " << tun_device_path;
-    CloseDevice();
-    return false;
+    return successfully_opened;
   }
   file_descriptor_ = fd;
   if (!CheckFeatures(fd)) {
-    CloseDevice();
-    return false;
+    return successfully_opened;
   }
 
   if (kernel_.ioctl(fd, TUNSETIFF, reinterpret_cast<void*>(&if_request)) != 0) {
     QUIC_PLOG(WARNING) << "Failed to TUNSETIFF on fd(" << fd << ")";
-    CloseDevice();
-    return false;
+    return successfully_opened;
   }
 
   if (kernel_.ioctl(
           fd, TUNSETPERSIST,
           persist_ ? reinterpret_cast<void*>(&if_request) : nullptr) != 0) {
     QUIC_PLOG(WARNING) << "Failed to TUNSETPERSIST on fd(" << fd << ")";
-    CloseDevice();
-    return false;
+    return successfully_opened;
   }
 
-  return true;
+  successfully_opened = true;
+  return successfully_opened;
 }
 
 // TODO(pengg): might be better to use netlink socket, once we have a library to
