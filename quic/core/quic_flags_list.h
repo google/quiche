@@ -27,14 +27,20 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_batch_writer_fix_write_blocked, true)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_support_release_time_for_gso, false)
+// If true, TlsHandshaker::AdvanceHandshake will retry SSL_do_handshake when entered early data.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_retry_handshake_on_early_data, true)
 // If true, TlsServerHandshaker will install a packet flusher when async operation completes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_packet_flusher_on_async_op_done, true)
 // If true, TlsServerHandshaker will use handshake hints(if present) to speed up handshakes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_server_use_handshake_hints, true)
+// If true, abort async QPACK header decompression in QuicSpdyStream::Reset() and in QuicSpdyStream::OnStreamReset().
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_abort_qpack_on_stream_reset, true)
 // If true, ack frequency frame can be sent from server to client.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_can_send_ack_frequency, true)
 // If true, allow client to enable BBRv2 on server via connection option \'B2ON\'.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, false)
+// If true, close read side but not write side in QuicSpdyStream::OnStreamReset().
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_fix_on_stream_reset, true)
 // If true, default on PTO which unifies TLP + RTO loss recovery.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_on_pto, false)
 // If true, default-enable 5RTO blachole detection.
