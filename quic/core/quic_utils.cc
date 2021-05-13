@@ -21,8 +21,8 @@
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
-#include "quic/platform/api/quic_prefetch.h"
 #include "common/platform/api/quiche_logging.h"
+#include "common/platform/api/quiche_prefetch.h"
 #include "common/quiche_endian.h"
 
 namespace quic {
@@ -266,9 +266,9 @@ void QuicUtils::CopyToBuffer(const struct iovec* iov,
     char* next_base = static_cast<char*>(iov[iovnum + 1].iov_base);
     // Prefetch 2 cachelines worth of data to get the prefetcher started; leave
     // it to the hardware prefetcher after that.
-    QuicPrefetchT0(next_base);
+    quiche::QuichePrefetchT0(next_base);
     if (iov[iovnum + 1].iov_len >= 64) {
-      QuicPrefetchT0(next_base + ABSL_CACHELINE_SIZE);
+      quiche::QuichePrefetchT0(next_base + ABSL_CACHELINE_SIZE);
     }
   }
 

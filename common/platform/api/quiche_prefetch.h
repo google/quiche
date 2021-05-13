@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_PLATFORM_API_QUIC_PREFETCH_H_
-#define QUICHE_QUIC_PLATFORM_API_QUIC_PREFETCH_H_
+#ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_PREFETCH_H_
+#define QUICHE_COMMON_PLATFORM_API_QUICHE_PREFETCH_H_
 
-#include "net/quic/platform/impl/quic_prefetch_impl.h"
+#include "quiche_platform_impl/quiche_prefetch_impl.h"
 
-namespace quic {
+namespace quiche {
 
 // Move data into the cache before it is read, or "prefetch" it.
 //
@@ -30,10 +30,10 @@ namespace quic {
 // performance, so use them only when representative benchmarks show
 // an improvement.
 
-inline void QuicPrefetchT0(const void* addr) {
-  return QuicPrefetchT0Impl(addr);
+inline void QuichePrefetchT0(const void* addr) {
+  return QuichePrefetchT0Impl(addr);
 }
 
-}  // namespace quic
+}  // namespace quiche
 
-#endif  // QUICHE_QUIC_PLATFORM_API_QUIC_PREFETCH_H_
+#endif  // QUICHE_COMMON_PLATFORM_API_QUICHE_PREFETCH_H_
