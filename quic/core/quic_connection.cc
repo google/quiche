@@ -722,7 +722,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       use_connection_id_on_default_path_ &&
       group_path_response_and_challenge_sending_closer_ &&
       GetQuicReloadableFlag(quic_drop_unsent_path_response) &&
-      GetQuicReloadableFlag(quic_connection_migration_use_new_cid);
+      GetQuicReloadableFlag(quic_connection_migration_use_new_cid_v2);
   if (config.HasReceivedMaxPacketSize()) {
     peer_max_packet_size_ = config.ReceivedMaxPacketSize();
     MaybeUpdatePacketCreatorMaxPacketLengthAndPadding();
@@ -2017,7 +2017,7 @@ bool QuicConnection::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
 }
 
 void QuicConnection::OnClientConnectionIdAvailable() {
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid, 3, 5);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 3, 5);
   QUICHE_DCHECK(perspective_ == Perspective::IS_SERVER);
   if (!peer_issued_cid_manager_->HasUnusedConnectionId()) {
     return;
@@ -6732,18 +6732,12 @@ bool QuicConnection::UpdateConnectionIdsOnClientMigration(
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT);
   if (IsAlternativePath(self_address, peer_address)) {
     // Client migration is after path validation.
-    if (peer_issued_cid_manager_ != nullptr) {
-      QUICHE_DCHECK(!default_path_.server_connection_id.IsEmpty());
-      packet_creator_.FlushCurrentPacket();
-    }
     default_path_.client_connection_id = alternative_path_.client_connection_id;
     default_path_.server_connection_id = alternative_path_.server_connection_id;
     default_path_.stateless_reset_token =
         alternative_path_.stateless_reset_token;
     default_path_.stateless_reset_token_received =
         alternative_path_.stateless_reset_token_received;
-    packet_creator_.SetClientConnectionId(default_path_.client_connection_id);
-    packet_creator_.SetServerConnectionId(default_path_.server_connection_id);
     return true;
   }
   // Client migration is without path validation.
@@ -6771,13 +6765,11 @@ bool QuicConnection::UpdateConnectionIdsOnClientMigration(
     default_path_.stateless_reset_token =
         connection_id_data->stateless_reset_token;
   }
-  packet_creator_.SetClientConnectionId(default_path_.client_connection_id);
-  packet_creator_.SetServerConnectionId(default_path_.server_connection_id);
   return true;
 }
 
 void QuicConnection::RetirePeerIssuedConnectionIdsNoLongerOnPath() {
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid, 4, 5);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 4, 5);
   if (!connection_migration_use_new_cid_ ||
       peer_issued_cid_manager_ == nullptr) {
     return;
@@ -6800,10 +6792,18 @@ bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
   if (!connected_) {
     return false;
   }
+  QUICHE_DCHECK(!version().UsesHttp3() || IsHandshakeConfirmed());
 
-  if (connection_migration_use_new_cid_ &&
-      !UpdateConnectionIdsOnClientMigration(self_address, peer_address)) {
-    return false;
+  if (connection_migration_use_new_cid_) {
+    if (!UpdateConnectionIdsOnClientMigration(self_address, peer_address)) {
+      return false;
+    }
+    if (packet_creator_.GetServerConnectionId().length() !=
+        default_path_.server_connection_id.length()) {
+      packet_creator_.FlushCurrentPacket();
+    }
+    packet_creator_.SetClientConnectionId(default_path_.client_connection_id);
+    packet_creator_.SetServerConnectionId(default_path_.server_connection_id);
   }
 
   const auto self_address_change_type = QuicUtils::DetermineAddressChangeType(

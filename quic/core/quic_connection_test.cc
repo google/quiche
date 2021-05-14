@@ -13575,6 +13575,9 @@ TEST_P(QuicConnectionTest, ServerHelloGetsReordered) {
 }
 
 TEST_P(QuicConnectionTest, MigratePath) {
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .Times(testing::AtMost(1))
+      .WillOnce(Return(HANDSHAKE_CONFIRMED));
   EXPECT_CALL(visitor_, OnPathDegrading());
   connection_.OnPathDegradingDetected();
   const QuicSocketAddress kNewSelfAddress(QuicIpAddress::Any4(), 12345);

@@ -1015,7 +1015,7 @@ void QuicDispatcher::OnNewConnectionIdSent(
         << server_connection_id << " new_connection_id: " << new_connection_id;
     return;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid, 5, 5);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 5, 5);
   auto insertion_result = reference_counted_session_map_.insert(
       std::make_pair(new_connection_id, it->second));
   QUICHE_DCHECK(insertion_result.second);
