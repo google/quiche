@@ -112,6 +112,7 @@ void TlsHandshaker::AdvanceHandshake() {
   // that case. If there are no unprocessed ServerHello, the retry will return a
   // non-positive number.
   if (retry_handshake_on_early_data_ && rv == 1 && SSL_in_early_data(ssl())) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_retry_handshake_on_early_data, 1, 2);
     OnEnterEarlyData();
     rv = SSL_do_handshake(ssl());
     QUIC_VLOG(1) << ENDPOINT

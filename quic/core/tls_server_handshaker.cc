@@ -521,6 +521,7 @@ std::string TlsServerHandshaker::GetAcceptChValueForOrigin(
 
 void TlsServerHandshaker::FinishHandshake() {
   if (retry_handshake_on_early_data_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_retry_handshake_on_early_data, 2, 2);
     QUICHE_DCHECK(!SSL_in_early_data(ssl()));
   } else {
     if (SSL_in_early_data(ssl())) {
