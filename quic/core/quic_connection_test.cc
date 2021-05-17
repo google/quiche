@@ -14980,8 +14980,7 @@ TEST_P(QuicConnectionTest, PtoSendStreamData) {
 
   ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
   connection_.GetRetransmissionAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_preempt_stream_data_with_handshake_packet) &&
-      GetQuicReloadableFlag(quic_donot_pto_half_rtt_data)) {
+  if (GetQuicReloadableFlag(quic_donot_pto_half_rtt_data)) {
     // Verify INITIAL and HANDSHAKE get retransmitted.
     EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
   } else {

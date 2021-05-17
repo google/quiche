@@ -2506,17 +2506,8 @@ TEST_P(
   // Large response (100KB) for 0-RTT request.
   std::string large_body(102400, 'a');
   AddToCache("/large_response", 200, large_body);
-  if (GetQuicReloadableFlag(quic_preempt_stream_data_with_handshake_packet)) {
-    SendSynchronousRequestAndCheckResponse(client_.get(), "/large_response",
-                                           large_body);
-  } else {
-    // Server consistently gets constrained by amplification factor, hence PTO
-    // never gets armed. The CHLO retransmission would trigger the
-    // retransmission of SHLO, however, the ENCRYPTION_HANDSHAKE packet NEVER
-    // gets retransmitted since half RTT data consumes the remaining space in
-    // the coalescer.
-    EXPECT_EQ("", client_->SendSynchronousRequest("/large_response"));
-  }
+  SendSynchronousRequestAndCheckResponse(client_.get(), "/large_response",
+                                         large_body);
 }
 
 TEST_P(EndToEndTest, MaxStreamsUberTest) {

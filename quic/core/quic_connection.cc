@@ -2567,11 +2567,8 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
       QuicUtils::IsCryptoStreamId(transport_version(), id)) {
     MaybeActivateLegacyVersionEncapsulation();
   }
-  if (GetQuicReloadableFlag(quic_preempt_stream_data_with_handshake_packet) &&
-      perspective_ == Perspective::IS_SERVER &&
+  if (perspective_ == Perspective::IS_SERVER &&
       version().CanSendCoalescedPackets() && !IsHandshakeConfirmed()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_preempt_stream_data_with_handshake_packet,
-                                 1, 2);
     if (GetQuicReloadableFlag(quic_donot_pto_half_rtt_data)) {
       QUIC_RELOADABLE_FLAG_COUNT(quic_donot_pto_half_rtt_data);
       if (in_on_retransmission_time_out_ &&
@@ -2587,8 +2584,6 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
       // Handshake is not confirmed yet, if there is only an initial packet in
       // the coalescer, try to bundle an ENCRYPTION_HANDSHAKE packet before
       // sending stream data.
-      QUIC_RELOADABLE_FLAG_COUNT_N(
-          quic_preempt_stream_data_with_handshake_packet, 2, 2);
       sent_packet_manager_.RetransmitDataOfSpaceIfAny(HANDSHAKE_DATA);
     }
   }
