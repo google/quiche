@@ -65,22 +65,25 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   EXPECT_THAT(serialized, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
                                         spdy::SpdyFrameType::PING}));
 
-  const std::vector<Header> headers1 = {{":method", "GET"},
-                                        {":scheme", "http"},
-                                        {":authority", "example.com"},
-                                        {":path", "/this/is/request/one"}};
+  const std::vector<const Header> headers1 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
   const auto nvs1 = GetRequestNghttp2Nvs(headers1);
 
-  const std::vector<Header> headers2 = {{":method", "GET"},
-                                        {":scheme", "http"},
-                                        {":authority", "example.com"},
-                                        {":path", "/this/is/request/two"}};
+  const std::vector<const Header> headers2 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/two"}});
   const auto nvs2 = GetRequestNghttp2Nvs(headers2);
 
-  const std::vector<Header> headers3 = {{":method", "GET"},
-                                        {":scheme", "http"},
-                                        {":authority", "example.com"},
-                                        {":path", "/this/is/request/three"}};
+  const std::vector<const Header> headers3 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/three"}});
   const auto nvs3 = GetRequestNghttp2Nvs(headers3);
 
   const int32_t stream_id1 =

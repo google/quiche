@@ -12,6 +12,15 @@ const char kHttp2AuthorityPseudoHeader[] = ":authority";
 const char kHttp2PathPseudoHeader[] = ":path";
 const char kHttp2StatusPseudoHeader[] = ":status";
 
+std::pair<absl::string_view, bool> GetStringView(const HeaderRep& rep) {
+  if (absl::holds_alternative<absl::string_view>(rep)) {
+    return std::make_pair(absl::get<absl::string_view>(rep), true);
+  } else {
+    absl::string_view view = absl::get<std::string>(rep);
+    return std::make_pair(view, false);
+  }
+}
+
 absl::string_view Http2SettingsIdToString(uint16_t id) {
   switch (id) {
     case Http2KnownSettingsId::HEADER_TABLE_SIZE:

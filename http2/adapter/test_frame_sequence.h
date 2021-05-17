@@ -12,6 +12,9 @@ namespace http2 {
 namespace adapter {
 namespace test {
 
+std::vector<const Header> ToHeaders(
+    absl::Span<const std::pair<absl::string_view, absl::string_view>> headers);
+
 class TestFrameSequence {
  public:
   TestFrameSequence() = default;
@@ -30,6 +33,10 @@ class TestFrameSequence {
   TestFrameSequence& GoAway(Http2StreamId last_good_stream_id,
                             Http2ErrorCode error,
                             absl::string_view payload = "");
+  TestFrameSequence& Headers(
+      Http2StreamId stream_id,
+      absl::Span<const std::pair<absl::string_view, absl::string_view>> headers,
+      bool fin = false);
   TestFrameSequence& Headers(Http2StreamId stream_id,
                              spdy::Http2HeaderBlock block,
                              bool fin = false);

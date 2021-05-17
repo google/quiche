@@ -8,6 +8,7 @@
 #include "base/integral_types.h"
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/variant.h"
 
 namespace http2 {
 namespace adapter {
@@ -21,9 +22,16 @@ using Http2SettingsId = uint16_t;
 // Represents the payload of an HTTP/2 PING frame.
 using Http2PingId = uint64_t;
 
+// Represents a single header name or value.
+using HeaderRep = absl::variant<absl::string_view, std::string>;
+
+// Boolean return value is true if |rep| holds a string_view, which is assumed
+// to have an indefinite lifetime.
+std::pair<absl::string_view, bool> GetStringView(const HeaderRep& rep);
+
 // Represents an HTTP/2 header field. A header field is a key-value pair with
 // lowercase keys (as specified in RFC 7540 Section 8.1.2).
-using Header = std::pair<std::string, std::string>;
+using Header = std::pair<HeaderRep, HeaderRep>;
 
 // Represents an HTTP/2 SETTINGS key-value parameter.
 struct Http2Setting {

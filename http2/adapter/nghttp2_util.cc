@@ -59,11 +59,21 @@ std::vector<nghttp2_nv> GetRequestNghttp2Nvs(absl::Span<const Header> headers) {
   auto nghttp2_nvs = std::vector<nghttp2_nv>(num_headers);
   for (int i = 0; i < num_headers; ++i) {
     nghttp2_nv header;
-    header.name = ToUint8Ptr(&headers[i].first[0]);
-    header.namelen = headers[i].first.size();
-    header.value = ToUint8Ptr(&headers[i].second[0]);
-    header.valuelen = headers[i].second.size();
-    header.flags = NGHTTP2_FLAG_NONE;
+    uint8_t flags = NGHTTP2_NV_FLAG_NONE;
+
+    const auto [name, no_copy_name] = GetStringView(headers[i].first);
+    header.name = ToUint8Ptr(name.data());
+    header.namelen = name.size();
+    if (no_copy_name) {
+      flags |= NGHTTP2_NV_FLAG_NO_COPY_NAME;
+    }
+    const auto [value, no_copy_value] = GetStringView(headers[i].second);
+    header.value = ToUint8Ptr(value.data());
+    header.valuelen = value.size();
+    if (no_copy_value) {
+      flags |= NGHTTP2_NV_FLAG_NO_COPY_VALUE;
+    }
+    header.flags = flags;
     nghttp2_nvs.push_back(std::move(header));
   }
 

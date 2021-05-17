@@ -7,6 +7,15 @@ namespace http2 {
 namespace adapter {
 namespace test {
 
+std::vector<const Header> ToHeaders(
+    absl::Span<const std::pair<absl::string_view, absl::string_view>> headers) {
+  std::vector<const Header> out;
+  for (auto [name, value] : headers) {
+    out.push_back(std::make_pair(HeaderRep(name), HeaderRep(value)));
+  }
+  return out;
+}
+
 TestFrameSequence& TestFrameSequence::ClientPreface() {
   preface_ = spdy::kHttp2ConnectionHeaderPrefix;
   frames_.push_back(absl::make_unique<spdy::SpdySettingsIR>());
@@ -75,6 +84,13 @@ TestFrameSequence& TestFrameSequence::GoAway(Http2StreamId last_good_stream_id,
   return *this;
 }
 
+TestFrameSequence& TestFrameSequence::Headers(
+    Http2StreamId stream_id,
+    absl::Span<const std::pair<absl::string_view, absl::string_view>> headers,
+    bool fin) {
+  return Headers(stream_id, ToHeaders(headers), fin);
+}
+
 TestFrameSequence& TestFrameSequence::Headers(Http2StreamId stream_id,
                                               spdy::Http2HeaderBlock block,
                                               bool fin) {
@@ -90,7 +106,9 @@ TestFrameSequence& TestFrameSequence::Headers(Http2StreamId stream_id,
                                               bool fin) {
   spdy::SpdyHeaderBlock block;
   for (const Header& header : headers) {
-    block[header.first] = header.second;
+    absl::string_view name = GetStringView(header.first).first;
+    absl::string_view value = GetStringView(header.second).first;
+    block[name] = value;
   }
   return Headers(stream_id, std::move(block), fin);
 }
