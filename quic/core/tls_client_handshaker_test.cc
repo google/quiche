@@ -279,11 +279,7 @@ TEST_P(TlsClientHandshakerTest, ConnectedAfterHandshake) {
 TEST_P(TlsClientHandshakerTest, ConnectionClosedOnTlsError) {
   // Have client send ClientHello.
   stream()->CryptoConnect();
-  if (GetQuicReloadableFlag(quic_send_tls_crypto_error_code)) {
-    EXPECT_CALL(*connection_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _, _));
-  } else {
-    EXPECT_CALL(*connection_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _));
-  }
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _, _));
 
   // Send a zero-length ServerHello from server to client.
   char bogus_handshake_message[] = {
@@ -621,23 +617,14 @@ TEST_P(TlsClientHandshakerTest, ServerRequiresCustomALPN) {
       .WillOnce([kTestAlpn](const std::vector<absl::string_view>& alpns) {
         return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
       });
-  if (GetQuicReloadableFlag(quic_send_tls_crypto_error_code)) {
-    EXPECT_CALL(
-        *server_connection_,
-        CloseConnection(
-            QUIC_HANDSHAKE_FAILED,
-            static_cast<QuicIetfTransportErrorCodes>(CRYPTO_ERROR_FIRST + 120),
-            "TLS handshake failure (ENCRYPTION_INITIAL) 120: "
-            "no application protocol",
-            _));
-  } else {
-    EXPECT_CALL(
-        *server_connection_,
-        CloseConnection(QUIC_HANDSHAKE_FAILED,
-                        "TLS handshake failure (ENCRYPTION_INITIAL) 120: "
-                        "no application protocol",
-                        _));
-  }
+
+  EXPECT_CALL(*server_connection_,
+              CloseConnection(QUIC_HANDSHAKE_FAILED,
+                              static_cast<QuicIetfTransportErrorCodes>(
+                                  CRYPTO_ERROR_FIRST + 120),
+                              "TLS handshake failure (ENCRYPTION_INITIAL) 120: "
+                              "no application protocol",
+                              _));
 
   stream()->CryptoConnect();
   crypto_test_utils::AdvanceHandshake(connection_, stream(), 0,

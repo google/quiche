@@ -343,15 +343,10 @@ void TlsHandshaker::SendAlert(EncryptionLevel level, uint8_t desc) {
       "TLS handshake failure (", EncryptionLevelToString(level), ") ",
       static_cast<int>(desc), ": ", SSL_alert_desc_string_long(desc));
   QUIC_DLOG(ERROR) << error_details;
-  if (GetQuicReloadableFlag(quic_send_tls_crypto_error_code)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_send_tls_crypto_error_code);
-    CloseConnection(
-        TlsAlertToQuicErrorCode(desc),
-        static_cast<QuicIetfTransportErrorCodes>(CRYPTO_ERROR_FIRST + desc),
-        error_details);
-  } else {
-    CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
-  }
+  CloseConnection(
+      TlsAlertToQuicErrorCode(desc),
+      static_cast<QuicIetfTransportErrorCodes>(CRYPTO_ERROR_FIRST + desc),
+      error_details);
 }
 
 }  // namespace quic

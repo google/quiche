@@ -121,8 +121,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, fa
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_server_reverse_validate_new_path3, false)
 // If ture, replace the incoming_connection_ids check with original_destination_connection_id check.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_deprecate_incoming_connection_ids, true)
-// Send correct QUIC CRYPTO_ERROR code for TLS errors instead of PROTOCOL_VIOLATION
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_send_tls_crypto_error_code, true)
 // When the STMP connection option is sent by the client, timestamps in the QUIC ACK frame are sent and processed.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_send_timestamps, false)
 // When true, QuicSpdySession supports draft-ietf-masque-h3-datagram.
