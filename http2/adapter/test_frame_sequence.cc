@@ -1,6 +1,7 @@
 #include "http2/adapter/test_frame_sequence.h"
 
 #include "http2/adapter/http2_util.h"
+#include "http2/adapter/oghttp2_util.h"
 #include "spdy/core/spdy_framer.h"
 
 namespace http2 {
@@ -104,13 +105,7 @@ TestFrameSequence& TestFrameSequence::Headers(Http2StreamId stream_id,
 TestFrameSequence& TestFrameSequence::Headers(Http2StreamId stream_id,
                                               absl::Span<const Header> headers,
                                               bool fin) {
-  spdy::SpdyHeaderBlock block;
-  for (const Header& header : headers) {
-    absl::string_view name = GetStringView(header.first).first;
-    absl::string_view value = GetStringView(header.second).first;
-    block[name] = value;
-  }
-  return Headers(stream_id, std::move(block), fin);
+  return Headers(stream_id, ToHeaderBlock(headers), fin);
 }
 
 TestFrameSequence& TestFrameSequence::WindowUpdate(Http2StreamId stream_id,
