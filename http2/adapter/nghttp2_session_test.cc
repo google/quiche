@@ -108,21 +108,21 @@ TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
                  {":scheme", "http"},
                  {":authority", "example.com"},
                  {":path", "/this/is/request/one"}});
-  const auto nvs1 = GetRequestNghttp2Nvs(headers1);
+  const auto nvs1 = GetNghttp2Nvs(headers1);
 
   const std::vector<const Header> headers2 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
                  {":path", "/this/is/request/two"}});
-  const auto nvs2 = GetRequestNghttp2Nvs(headers2);
+  const auto nvs2 = GetNghttp2Nvs(headers2);
 
   const std::vector<const Header> headers3 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
                  {":path", "/this/is/request/three"}});
-  const auto nvs3 = GetRequestNghttp2Nvs(headers3);
+  const auto nvs3 = GetNghttp2Nvs(headers3);
 
   const int32_t stream_id1 = nghttp2_submit_request(
       session.raw_ptr(), nullptr, nvs1.data(), nvs1.size(), nullptr, nullptr);
