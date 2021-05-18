@@ -6,7 +6,8 @@
 #define QUICHE_QUIC_PLATFORM_API_QUIC_SLEEP_H_
 
 #include "quic/core/quic_time.h"
-#include "net/quic/platform/impl/quic_sleep_impl.h"
+// TODO(b/178613777): move into the common QUICHE platform.
+#include "quiche_platform_impl/quiche_sleep_impl.h"
 
 namespace quic {
 
