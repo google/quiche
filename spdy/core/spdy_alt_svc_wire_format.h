@@ -66,21 +66,40 @@ class QUICHE_EXPORT_PRIVATE SpdyAltSvcWireFormat {
       const AlternativeServiceVector& altsvc_vector);
 
  private:
+  // Forward |*c| over space and tab or until |end| is reached.
   static void SkipWhiteSpace(absl::string_view::const_iterator* c,
                              absl::string_view::const_iterator end);
+  // Decode percent-decoded string between |c| and |end| into |*output|.
+  // Return true on success, false if input is invalid.
   static bool PercentDecode(absl::string_view::const_iterator c,
                             absl::string_view::const_iterator end,
                             std::string* output);
+  // Parse the authority part of Alt-Svc between |c| and |end| into |*host| and
+  // |*port|.  Return true on success, false if input is invalid.
   static bool ParseAltAuthority(absl::string_view::const_iterator c,
                                 absl::string_view::const_iterator end,
                                 std::string* host,
                                 uint16_t* port);
+  // Parse a positive integer between |c| and |end| into |*value|.
+  // Return true on success, false if input is not a positive integer or it
+  // cannot be represented on uint16_t.
   static bool ParsePositiveInteger16(absl::string_view::const_iterator c,
                                      absl::string_view::const_iterator end,
                                      uint16_t* value);
+  // Parse a positive integer between |c| and |end| into |*value|.
+  // Return true on success, false if input is not a positive integer or it
+  // cannot be represented on uint32_t.
   static bool ParsePositiveInteger32(absl::string_view::const_iterator c,
                                      absl::string_view::const_iterator end,
                                      uint32_t* value);
+  // Parse |c| as hexadecimal digit, case insensitive.  |c| must be [0-9a-fA-F].
+  // Output is between 0 and 15.
+  static char HexDigitToInt(char c);
+  // Parse |data| as hexadecimal number into |*value|.  |data| must only contain
+  // hexadecimal digits, no "0x" prefix.
+  // Return true on success, false if input is empty, not valid hexadecimal
+  // number, or cannot be represented on uint32_t.
+  static bool HexDecodeToUInt32(absl::string_view data, uint32_t* value);
 };
 
 }  // namespace spdy

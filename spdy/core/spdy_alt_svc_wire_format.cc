@@ -196,9 +196,9 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
         // hq=":443";quic=51303338
         // ... will be stored in |versions| as 0x51303338.
         uint32_t quic_version;
-        if (!SpdyHexDecodeToUInt32(absl::string_view(&*parameter_value_begin,
-                                                     c - parameter_value_begin),
-                                   &quic_version) ||
+        if (!HexDecodeToUInt32(absl::string_view(&*parameter_value_begin,
+                                                 c - parameter_value_begin),
+                               &quic_version) ||
             quic_version == 0) {
           return false;
         }
@@ -315,12 +315,12 @@ bool SpdyAltSvcWireFormat::PercentDecode(absl::string_view::const_iterator c,
       return false;
     }
     // Network byte order is big-endian.
-    char decoded = SpdyHexDigitToInt(*c) << 4;
+    char decoded = HexDigitToInt(*c) << 4;
     ++c;
     if (c == end || !std::isxdigit(*c)) {
       return false;
     }
-    decoded += SpdyHexDigitToInt(*c);
+    decoded += HexDigitToInt(*c);
     output->push_back(decoded);
   }
   return true;
@@ -387,6 +387,43 @@ bool SpdyAltSvcWireFormat::ParsePositiveInteger32(
     absl::string_view::const_iterator end,
     uint32_t* value) {
   return ParsePositiveIntegerImpl<uint32_t>(c, end, value);
+}
+
+// static
+char SpdyAltSvcWireFormat::HexDigitToInt(char c) {
+  QUICHE_DCHECK(std::isxdigit(c));
+
+  if (std::isdigit(c)) {
+    return c - '0';
+  }
+  if (c >= 'A' && c <= 'F') {
+    return c - 'A' + 10;
+  }
+  if (c >= 'a' && c <= 'f') {
+    return c - 'a' + 10;
+  }
+
+  return 0;
+}
+
+// static
+bool SpdyAltSvcWireFormat::HexDecodeToUInt32(absl::string_view data,
+                                             uint32_t* value) {
+  if (data.empty() || data.length() > 8u) {
+    return false;
+  }
+
+  *value = 0;
+  for (char c : data) {
+    if (!std::isxdigit(c)) {
+      return false;
+    }
+
+    *value <<= 4;
+    *value += HexDigitToInt(c);
+  }
+
+  return true;
 }
 
 }  // namespace spdy

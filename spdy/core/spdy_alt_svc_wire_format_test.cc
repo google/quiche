@@ -38,9 +38,13 @@ class SpdyAltSvcWireFormatPeer {
                                      uint32_t* max_age) {
     return SpdyAltSvcWireFormat::ParsePositiveInteger32(c, end, max_age);
   }
+  static char HexDigitToInt(char c) {
+    return SpdyAltSvcWireFormat::HexDigitToInt(c);
+  }
+  static bool HexDecodeToUInt32(absl::string_view data, uint32_t* value) {
+    return SpdyAltSvcWireFormat::HexDecodeToUInt32(data, value);
+  }
 };
-
-}  // namespace test
 
 namespace {
 
@@ -388,13 +392,13 @@ TEST(SpdyAltSvcWireFormatTest, ParseTruncatedHeaderFieldValue) {
 TEST(SpdyAltSvcWireFormatTest, SkipWhiteSpace) {
   absl::string_view input("a \tb  ");
   absl::string_view::const_iterator c = input.begin();
-  test::SpdyAltSvcWireFormatPeer::SkipWhiteSpace(&c, input.end());
+  SpdyAltSvcWireFormatPeer::SkipWhiteSpace(&c, input.end());
   ASSERT_EQ(input.begin(), c);
   ++c;
-  test::SpdyAltSvcWireFormatPeer::SkipWhiteSpace(&c, input.end());
+  SpdyAltSvcWireFormatPeer::SkipWhiteSpace(&c, input.end());
   ASSERT_EQ(input.begin() + 3, c);
   ++c;
-  test::SpdyAltSvcWireFormatPeer::SkipWhiteSpace(&c, input.end());
+  SpdyAltSvcWireFormatPeer::SkipWhiteSpace(&c, input.end());
   ASSERT_EQ(input.end(), c);
 }
 
@@ -402,20 +406,20 @@ TEST(SpdyAltSvcWireFormatTest, SkipWhiteSpace) {
 TEST(SpdyAltSvcWireFormatTest, PercentDecodeValid) {
   absl::string_view input("");
   std::string output;
-  ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::PercentDecode(
-      input.begin(), input.end(), &output));
+  ASSERT_TRUE(SpdyAltSvcWireFormatPeer::PercentDecode(input.begin(),
+                                                      input.end(), &output));
   EXPECT_EQ("", output);
 
   input = absl::string_view("foo");
   output.clear();
-  ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::PercentDecode(
-      input.begin(), input.end(), &output));
+  ASSERT_TRUE(SpdyAltSvcWireFormatPeer::PercentDecode(input.begin(),
+                                                      input.end(), &output));
   EXPECT_EQ("foo", output);
 
   input = absl::string_view("%2ca%5Cb");
   output.clear();
-  ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::PercentDecode(
-      input.begin(), input.end(), &output));
+  ASSERT_TRUE(SpdyAltSvcWireFormatPeer::PercentDecode(input.begin(),
+                                                      input.end(), &output));
   EXPECT_EQ(",a\\b", output);
 }
 
@@ -425,8 +429,8 @@ TEST(SpdyAltSvcWireFormatTest, PercentDecodeInvalid) {
   for (const char* invalid_input : invalid_input_array) {
     absl::string_view input(invalid_input);
     std::string output;
-    EXPECT_FALSE(test::SpdyAltSvcWireFormatPeer::PercentDecode(
-        input.begin(), input.end(), &output))
+    EXPECT_FALSE(SpdyAltSvcWireFormatPeer::PercentDecode(input.begin(),
+                                                         input.end(), &output))
         << input;
   }
 }
@@ -436,19 +440,19 @@ TEST(SpdyAltSvcWireFormatTest, ParseAltAuthorityValid) {
   absl::string_view input(":42");
   std::string host;
   uint16_t port;
-  ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParseAltAuthority(
+  ASSERT_TRUE(SpdyAltSvcWireFormatPeer::ParseAltAuthority(
       input.begin(), input.end(), &host, &port));
   EXPECT_TRUE(host.empty());
   EXPECT_EQ(42, port);
 
   input = absl::string_view("foo:137");
-  ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParseAltAuthority(
+  ASSERT_TRUE(SpdyAltSvcWireFormatPeer::ParseAltAuthority(
       input.begin(), input.end(), &host, &port));
   EXPECT_EQ("foo", host);
   EXPECT_EQ(137, port);
 
   input = absl::string_view("[2003:8:0:16::509d:9615]:443");
-  ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParseAltAuthority(
+  ASSERT_TRUE(SpdyAltSvcWireFormatPeer::ParseAltAuthority(
       input.begin(), input.end(), &host, &port));
   EXPECT_EQ("[2003:8:0:16::509d:9615]", host);
   EXPECT_EQ(443, port);
@@ -477,7 +481,7 @@ TEST(SpdyAltSvcWireFormatTest, ParseAltAuthorityInvalid) {
     absl::string_view input(invalid_input);
     std::string host;
     uint16_t port;
-    EXPECT_FALSE(test::SpdyAltSvcWireFormatPeer::ParseAltAuthority(
+    EXPECT_FALSE(SpdyAltSvcWireFormatPeer::ParseAltAuthority(
         input.begin(), input.end(), &host, &port))
         << input;
   }
@@ -487,12 +491,12 @@ TEST(SpdyAltSvcWireFormatTest, ParseAltAuthorityInvalid) {
 TEST(SpdyAltSvcWireFormatTest, ParseIntegerValid) {
   absl::string_view input("3");
   uint16_t value;
-  ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
+  ASSERT_TRUE(SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
       input.begin(), input.end(), &value));
   EXPECT_EQ(3, value);
 
   input = absl::string_view("1337");
-  ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
+  ASSERT_TRUE(SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
       input.begin(), input.end(), &value));
   EXPECT_EQ(1337, value);
 }
@@ -504,7 +508,7 @@ TEST(SpdyAltSvcWireFormatTest, ParseIntegerInvalid) {
   for (const char* invalid_input : invalid_input_array) {
     absl::string_view input(invalid_input);
     uint16_t value;
-    EXPECT_FALSE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
+    EXPECT_FALSE(SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
         input.begin(), input.end(), &value))
         << input;
   }
@@ -515,38 +519,38 @@ TEST(SpdyAltSvcWireFormatTest, ParseIntegerOverflow) {
   // Largest possible uint16_t value.
   absl::string_view input("65535");
   uint16_t value16;
-  ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
+  ASSERT_TRUE(SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
       input.begin(), input.end(), &value16));
   EXPECT_EQ(65535, value16);
 
   // Overflow uint16_t, ParsePositiveInteger16() should return false.
   input = absl::string_view("65536");
-  ASSERT_FALSE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
+  ASSERT_FALSE(SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
       input.begin(), input.end(), &value16));
 
   // However, even if overflow is not checked for, 65536 overflows to 0, which
   // returns false anyway.  Check for a larger number which overflows to 1.
   input = absl::string_view("65537");
-  ASSERT_FALSE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
+  ASSERT_FALSE(SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
       input.begin(), input.end(), &value16));
 
   // Largest possible uint32_t value.
   input = absl::string_view("4294967295");
   uint32_t value32;
-  ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger32(
+  ASSERT_TRUE(SpdyAltSvcWireFormatPeer::ParsePositiveInteger32(
       input.begin(), input.end(), &value32));
   EXPECT_EQ(4294967295, value32);
 
   // Overflow uint32_t, ParsePositiveInteger32() should return false.
   input = absl::string_view("4294967296");
-  ASSERT_FALSE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger32(
+  ASSERT_FALSE(SpdyAltSvcWireFormatPeer::ParsePositiveInteger32(
       input.begin(), input.end(), &value32));
 
   // However, even if overflow is not checked for, 4294967296 overflows to 0,
   // which returns false anyway.  Check for a larger number which overflows to
   // 1.
   input = absl::string_view("4294967297");
-  ASSERT_FALSE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger32(
+  ASSERT_FALSE(SpdyAltSvcWireFormatPeer::ParsePositiveInteger32(
       input.begin(), input.end(), &value32));
 }
 
@@ -566,6 +570,64 @@ TEST(SpdyAltSvcWireFormatTest, ParseIPLiteral) {
   EXPECT_THAT(altsvc_vector[0].version, ::testing::ElementsAre(36, 35));
 }
 
+TEST(SpdyAltSvcWireFormatTest, HexDigitToInt) {
+  EXPECT_EQ(0, SpdyAltSvcWireFormatPeer::HexDigitToInt('0'));
+  EXPECT_EQ(1, SpdyAltSvcWireFormatPeer::HexDigitToInt('1'));
+  EXPECT_EQ(2, SpdyAltSvcWireFormatPeer::HexDigitToInt('2'));
+  EXPECT_EQ(3, SpdyAltSvcWireFormatPeer::HexDigitToInt('3'));
+  EXPECT_EQ(4, SpdyAltSvcWireFormatPeer::HexDigitToInt('4'));
+  EXPECT_EQ(5, SpdyAltSvcWireFormatPeer::HexDigitToInt('5'));
+  EXPECT_EQ(6, SpdyAltSvcWireFormatPeer::HexDigitToInt('6'));
+  EXPECT_EQ(7, SpdyAltSvcWireFormatPeer::HexDigitToInt('7'));
+  EXPECT_EQ(8, SpdyAltSvcWireFormatPeer::HexDigitToInt('8'));
+  EXPECT_EQ(9, SpdyAltSvcWireFormatPeer::HexDigitToInt('9'));
+
+  EXPECT_EQ(10, SpdyAltSvcWireFormatPeer::HexDigitToInt('a'));
+  EXPECT_EQ(11, SpdyAltSvcWireFormatPeer::HexDigitToInt('b'));
+  EXPECT_EQ(12, SpdyAltSvcWireFormatPeer::HexDigitToInt('c'));
+  EXPECT_EQ(13, SpdyAltSvcWireFormatPeer::HexDigitToInt('d'));
+  EXPECT_EQ(14, SpdyAltSvcWireFormatPeer::HexDigitToInt('e'));
+  EXPECT_EQ(15, SpdyAltSvcWireFormatPeer::HexDigitToInt('f'));
+
+  EXPECT_EQ(10, SpdyAltSvcWireFormatPeer::HexDigitToInt('A'));
+  EXPECT_EQ(11, SpdyAltSvcWireFormatPeer::HexDigitToInt('B'));
+  EXPECT_EQ(12, SpdyAltSvcWireFormatPeer::HexDigitToInt('C'));
+  EXPECT_EQ(13, SpdyAltSvcWireFormatPeer::HexDigitToInt('D'));
+  EXPECT_EQ(14, SpdyAltSvcWireFormatPeer::HexDigitToInt('E'));
+  EXPECT_EQ(15, SpdyAltSvcWireFormatPeer::HexDigitToInt('F'));
+}
+
+TEST(SpdyAltSvcWireFormatTest, HexDecodeToUInt32) {
+  uint32_t out;
+  EXPECT_TRUE(SpdyAltSvcWireFormatPeer::HexDecodeToUInt32("0", &out));
+  EXPECT_EQ(0u, out);
+  EXPECT_TRUE(SpdyAltSvcWireFormatPeer::HexDecodeToUInt32("00", &out));
+  EXPECT_EQ(0u, out);
+  EXPECT_TRUE(SpdyAltSvcWireFormatPeer::HexDecodeToUInt32("0000000", &out));
+  EXPECT_EQ(0u, out);
+  EXPECT_TRUE(SpdyAltSvcWireFormatPeer::HexDecodeToUInt32("00000000", &out));
+  EXPECT_EQ(0u, out);
+  EXPECT_TRUE(SpdyAltSvcWireFormatPeer::HexDecodeToUInt32("1", &out));
+  EXPECT_EQ(1u, out);
+  EXPECT_TRUE(SpdyAltSvcWireFormatPeer::HexDecodeToUInt32("ffffFFF", &out));
+  EXPECT_EQ(0xFFFFFFFu, out);
+  EXPECT_TRUE(SpdyAltSvcWireFormatPeer::HexDecodeToUInt32("fFfFffFf", &out));
+  EXPECT_EQ(0xFFFFFFFFu, out);
+  EXPECT_TRUE(SpdyAltSvcWireFormatPeer::HexDecodeToUInt32("01AEF", &out));
+  EXPECT_EQ(0x1AEFu, out);
+  EXPECT_TRUE(SpdyAltSvcWireFormatPeer::HexDecodeToUInt32("abcde", &out));
+  EXPECT_EQ(0xABCDEu, out);
+  EXPECT_TRUE(SpdyAltSvcWireFormatPeer::HexDecodeToUInt32("1234abcd", &out));
+  EXPECT_EQ(0x1234ABCDu, out);
+
+  EXPECT_FALSE(SpdyAltSvcWireFormatPeer::HexDecodeToUInt32("", &out));
+  EXPECT_FALSE(SpdyAltSvcWireFormatPeer::HexDecodeToUInt32("111111111", &out));
+  EXPECT_FALSE(SpdyAltSvcWireFormatPeer::HexDecodeToUInt32("1111111111", &out));
+  EXPECT_FALSE(SpdyAltSvcWireFormatPeer::HexDecodeToUInt32("0x1111", &out));
+}
+
 }  // namespace
+
+}  // namespace test
 
 }  // namespace spdy
