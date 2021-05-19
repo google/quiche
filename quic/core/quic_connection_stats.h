@@ -103,9 +103,13 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   int64_t min_rtt_us = 0;  // Minimum RTT in microseconds.
   int64_t srtt_us = 0;     // Smoothed RTT in microseconds.
   int64_t cwnd_bootstrapping_rtt_us = 0;  // RTT used in cwnd_bootstrapping.
-  // The connection's |long_term_mtu_| used for sending packets.
+  // The connection's |long_term_mtu_| used for sending packets, populated by
+  // QuicConnection::GetStats().
   QuicByteCount egress_mtu = 0;
-  // Size of the largest packet received from the peer.
+  // The maximum |long_term_mtu_| the connection ever used.
+  QuicByteCount max_egress_mtu = 0;
+  // Size of the largest packet received from the peer, populated by
+  // QuicConnection::GetStats().
   QuicByteCount ingress_mtu = 0;
   QuicBandwidth estimated_bandwidth = QuicBandwidth::Zero();
 

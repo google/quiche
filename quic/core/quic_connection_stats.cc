@@ -35,6 +35,7 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {
   os << " min_rtt_us: " << s.min_rtt_us;
   os << " srtt_us: " << s.srtt_us;
   os << " egress_mtu: " << s.egress_mtu;
+  os << " max_egress_mtu: " << s.max_egress_mtu;
   os << " ingress_mtu: " << s.ingress_mtu;
   os << " estimated_bandwidth: " << s.estimated_bandwidth;
   os << " packets_reordered: " << s.packets_reordered;

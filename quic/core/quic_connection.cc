@@ -448,6 +448,7 @@ void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
 }
 
 QuicConnection::~QuicConnection() {
+  QUICHE_DCHECK_GE(stats_.max_egress_mtu, long_term_mtu_);
   if (owns_writer_) {
     delete writer_;
   }
@@ -4729,6 +4730,7 @@ QuicByteCount QuicConnection::max_packet_length() const {
 
 void QuicConnection::SetMaxPacketLength(QuicByteCount length) {
   long_term_mtu_ = length;
+  stats_.max_egress_mtu = std::max(stats_.max_egress_mtu, long_term_mtu_);
   MaybeUpdatePacketCreatorMaxPacketLengthAndPadding();
 }
 
