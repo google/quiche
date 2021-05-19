@@ -17,6 +17,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_testonly_default_true, true)
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_testonly_default_false, false)
 // A testonly restart flag that will always default to true.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_testonly_default_true, true)
+// Fix QUIC BBRv2\'s bandwidth_lo modes to better approximate packet conservation.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_fix_bw_lo_mode2, false)
 // If true, GFE will consider SNI values which do not contain dots (instead of throwing them away - see b/176998377).
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_and_tls_allow_sni_without_dots, true)
 // If true, QUIC BBRv2\'s PROBE_BW mode will not reduce cwnd below BDP+ack_height.

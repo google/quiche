@@ -116,9 +116,9 @@ void Bbr2NetworkModel::OnCongestionEventStart(
         << total_bytes_acked() - prior_bytes_acked << " bytes from "
         << acked_packets.size()
         << " packets have been acked, but sample_max_bandwidth is zero.";
+    congestion_event->sample_max_bandwidth = sample.sample_max_bandwidth;
     if (!sample.sample_is_app_limited ||
         sample.sample_max_bandwidth > MaxBandwidth()) {
-      congestion_event->sample_max_bandwidth = sample.sample_max_bandwidth;
       max_bandwidth_filter_.Update(congestion_event->sample_max_bandwidth);
     }
   }
@@ -188,99 +188,112 @@ void Bbr2NetworkModel::OnCongestionEventStart(
 
 void Bbr2NetworkModel::AdaptLowerBounds(
     const Bbr2CongestionEvent& congestion_event) {
-  if (Params().bw_lo_mode_ != Bbr2Params::DEFAULT) {
-    if (congestion_event.bytes_lost == 0) {
+  if (Params().bw_lo_mode_ == Bbr2Params::DEFAULT) {
+    if (!congestion_event.end_of_round_trip ||
+        congestion_event.is_probing_for_bandwidth) {
       return;
     }
-    // Ignore losses from packets sent when probing for more bandwidth in
-    // STARTUP or PROBE_UP when they're lost in DRAIN or PROBE_DOWN.
-    if (pacing_gain_ < 1) {
-      return;
-    }
-    // Decrease bandwidth_lo whenever there is loss.
-    // Set bandwidth_lo_ if it is not yet set.
-    if (bandwidth_lo_.IsInfinite()) {
-      bandwidth_lo_ = MaxBandwidth();
-    }
-    // Save bandwidth_lo_ if it hasn't already been saved.
-    if (prior_bandwidth_lo_.IsZero()) {
-      prior_bandwidth_lo_ = bandwidth_lo_;
-    }
-    switch (Params().bw_lo_mode_) {
-      case Bbr2Params::MIN_RTT_REDUCTION:
-        bandwidth_lo_ =
-            bandwidth_lo_ - QuicBandwidth::FromBytesAndTimeDelta(
-                                congestion_event.bytes_lost, MinRtt());
-        break;
-      case Bbr2Params::INFLIGHT_REDUCTION: {
-        // Use a max of BDP and inflight to avoid starving app-limited flows.
-        const QuicByteCount effective_inflight =
-            std::max(BDP(), congestion_event.prior_bytes_in_flight);
-        // This could use bytes_lost_in_round if the bandwidth_lo_ was saved
-        // when entering 'recovery', but this BBRv2 implementation doesn't have
-        // recovery defined.
-        bandwidth_lo_ = bandwidth_lo_ *
-                        ((effective_inflight - congestion_event.bytes_lost) /
-                         static_cast<double>(effective_inflight));
-        break;
+
+    if (bytes_lost_in_round_ > 0) {
+      if (bandwidth_lo_.IsInfinite()) {
+        bandwidth_lo_ = MaxBandwidth();
       }
-      case Bbr2Params::CWND_REDUCTION:
-        bandwidth_lo_ =
-            bandwidth_lo_ *
-            ((congestion_event.prior_cwnd - congestion_event.bytes_lost) /
-             static_cast<double>(congestion_event.prior_cwnd));
-        break;
-      case Bbr2Params::DEFAULT:
-        QUIC_BUG(quic_bug_10466_1) << "Unreachable case DEFAULT.";
-    }
-    if (pacing_gain_ > Params().startup_full_bw_threshold) {
-      // In STARTUP, pacing_gain_ is applied to bandwidth_lo_ in
-      // UpdatePacingRate, so this backs that multiplication out to allow the
-      // pacing rate to decrease, but not below
-      // bandwidth_latest_ * startup_full_bw_threshold.
       bandwidth_lo_ =
-          std::max(bandwidth_lo_,
-                   bandwidth_latest_ *
-                       (Params().startup_full_bw_threshold / pacing_gain_));
-    } else {
-      // Ensure bandwidth_lo isn't lower than bandwidth_latest_.
-      bandwidth_lo_ = std::max(bandwidth_lo_, bandwidth_latest_);
+          std::max(bandwidth_latest_, bandwidth_lo_ * (1.0 - Params().beta));
+      QUIC_DVLOG(3) << "bandwidth_lo_ updated to " << bandwidth_lo_
+                    << ", bandwidth_latest_ is " << bandwidth_latest_;
+
+      if (Params().ignore_inflight_lo) {
+        return;
+      }
+      if (inflight_lo_ == inflight_lo_default()) {
+        inflight_lo_ = congestion_event.prior_cwnd;
+      }
+      inflight_lo_ = std::max<QuicByteCount>(
+          inflight_latest_, inflight_lo_ * (1.0 - Params().beta));
     }
-    // If it's the end of the round, ensure bandwidth_lo doesn't decrease more
-    // than beta.
-    if (GetQuicReloadableFlag(quic_bbr2_fix_bw_lo_mode) &&
-        congestion_event.end_of_round_trip) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_fix_bw_lo_mode, 2, 2);
-      bandwidth_lo_ =
-          std::max(bandwidth_lo_, prior_bandwidth_lo_ * (1.0 - Params().beta));
-      prior_bandwidth_lo_ = QuicBandwidth::Zero();
-    }
-    // This early return ignores inflight_lo as well.
-    return;
-  }
-  if (!congestion_event.end_of_round_trip ||
-      congestion_event.is_probing_for_bandwidth) {
     return;
   }
 
-  if (bytes_lost_in_round_ > 0) {
-    if (bandwidth_lo_.IsInfinite()) {
-      bandwidth_lo_ = MaxBandwidth();
+  // Params().bw_lo_mode_ != Bbr2Params::DEFAULT
+  if (congestion_event.bytes_lost == 0) {
+    return;
+  }
+  // Ignore losses from packets sent when probing for more bandwidth in
+  // STARTUP or PROBE_UP when they're lost in DRAIN or PROBE_DOWN.
+  if (pacing_gain_ < 1) {
+    return;
+  }
+  // Decrease bandwidth_lo whenever there is loss.
+  // Set bandwidth_lo_ if it is not yet set.
+  if (bandwidth_lo_.IsInfinite()) {
+    bandwidth_lo_ = MaxBandwidth();
+  }
+  // Save bandwidth_lo_ if it hasn't already been saved.
+  if (prior_bandwidth_lo_.IsZero()) {
+    prior_bandwidth_lo_ = bandwidth_lo_;
+  }
+  switch (Params().bw_lo_mode_) {
+    case Bbr2Params::MIN_RTT_REDUCTION:
+      bandwidth_lo_ =
+          bandwidth_lo_ - QuicBandwidth::FromBytesAndTimeDelta(
+                              congestion_event.bytes_lost, MinRtt());
+      break;
+    case Bbr2Params::INFLIGHT_REDUCTION: {
+      // Use a max of BDP and inflight to avoid starving app-limited flows.
+      const QuicByteCount effective_inflight =
+          std::max(BDP(), congestion_event.prior_bytes_in_flight);
+      // This could use bytes_lost_in_round if the bandwidth_lo_ was saved
+      // when entering 'recovery', but this BBRv2 implementation doesn't have
+      // recovery defined.
+      bandwidth_lo_ =
+          bandwidth_lo_ * ((effective_inflight - congestion_event.bytes_lost) /
+                           static_cast<double>(effective_inflight));
+      break;
     }
+    case Bbr2Params::CWND_REDUCTION:
+      bandwidth_lo_ =
+          bandwidth_lo_ *
+          ((congestion_event.prior_cwnd - congestion_event.bytes_lost) /
+           static_cast<double>(congestion_event.prior_cwnd));
+      break;
+    case Bbr2Params::DEFAULT:
+      QUIC_BUG(quic_bug_10466_1) << "Unreachable case DEFAULT.";
+  }
+  QuicBandwidth last_bandwidth = bandwidth_latest_;
+  // sample_max_bandwidth will be Zero() if the loss is triggered by a timer
+  // expiring.  Ideally we'd use the most recent bandwidth sample,
+  // but bandwidth_latest is safer than Zero().
+  if (GetQuicReloadableFlag(quic_bbr2_fix_bw_lo_mode2) &&
+      !congestion_event.sample_max_bandwidth.IsZero()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_fix_bw_lo_mode2, 1, 2);
+    // bandwidth_latest_ is the max bandwidth for the round, but to allow
+    // fast, conservation style response to loss, use the last sample.
+    last_bandwidth = congestion_event.sample_max_bandwidth;
+  }
+  if (pacing_gain_ > Params().startup_full_bw_threshold) {
+    // In STARTUP, pacing_gain_ is applied to bandwidth_lo_ in
+    // UpdatePacingRate, so this backs that multiplication out to allow the
+    // pacing rate to decrease, but not below
+    // last_bandwidth * startup_full_bw_threshold.
+    // TODO(ianswett): Consider altering pacing_gain_ when in STARTUP instead.
+    bandwidth_lo_ = std::max(
+        bandwidth_lo_,
+        last_bandwidth * (Params().startup_full_bw_threshold / pacing_gain_));
+  } else {
+    // Ensure bandwidth_lo isn't lower than last_bandwidth.
+    bandwidth_lo_ = std::max(bandwidth_lo_, last_bandwidth);
+  }
+  // If it's the end of the round, ensure bandwidth_lo doesn't decrease more
+  // than beta.
+  if (GetQuicReloadableFlag(quic_bbr2_fix_bw_lo_mode) &&
+      congestion_event.end_of_round_trip) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_fix_bw_lo_mode, 2, 2);
     bandwidth_lo_ =
-        std::max(bandwidth_latest_, bandwidth_lo_ * (1.0 - Params().beta));
-    QUIC_DVLOG(3) << "bandwidth_lo_ updated to " << bandwidth_lo_
-                  << ", bandwidth_latest_ is " << bandwidth_latest_;
-
-    if (Params().ignore_inflight_lo) {
-      return;
-    }
-    if (inflight_lo_ == inflight_lo_default()) {
-      inflight_lo_ = congestion_event.prior_cwnd;
-    }
-    inflight_lo_ = std::max<QuicByteCount>(
-        inflight_latest_, inflight_lo_ * (1.0 - Params().beta));
+        std::max(bandwidth_lo_, prior_bandwidth_lo_ * (1.0 - Params().beta));
+    prior_bandwidth_lo_ = QuicBandwidth::Zero();
   }
+  // These modes ignore inflight_lo as well.
 }
 
 void Bbr2NetworkModel::OnCongestionEventFinish(

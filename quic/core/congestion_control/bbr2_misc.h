@@ -313,6 +313,8 @@ struct QUIC_EXPORT_PRIVATE Bbr2CongestionEvent {
   QuicTime::Delta sample_min_rtt = QuicTime::Delta::Infinite();
 
   // Maximum bandwidth of all bandwidth samples from acked_packets.
+  // This sample may be app-limited, and will be Zero() if there are no newly
+  // acknowledged inflight packets.
   QuicBandwidth sample_max_bandwidth = QuicBandwidth::Zero();
 
   // The send state of the largest packet in acked_packets, unless it is empty.
