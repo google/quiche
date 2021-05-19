@@ -278,10 +278,11 @@ TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
   EXPECT_TRUE(session_->CreateOutgoingBidirectionalStream() == nullptr);
   // Verify that no data may be send on existing streams.
   char data[] = "hello world";
-  EXPECT_QUIC_BUG(
+  QuicConsumedData consumed =
       session_->WritevData(stream->id(), ABSL_ARRAYSIZE(data), 0, NO_FIN,
-                           NOT_RETRANSMISSION, ENCRYPTION_INITIAL),
-      "Client: Try to send data of stream");
+                           NOT_RETRANSMISSION, ENCRYPTION_INITIAL);
+  EXPECT_EQ(0u, consumed.bytes_consumed);
+  EXPECT_FALSE(consumed.fin_consumed);
 }
 
 TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithNoFinOrRst) {

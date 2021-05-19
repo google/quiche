@@ -770,10 +770,24 @@ QuicConsumedData QuicSession::WritevData(
                     perspective() == Perspective::IS_CLIENT);
       QUIC_BUG_IF(quic_bug_12435_3, type == NOT_RETRANSMISSION)
           << ENDPOINT << "Try to send new data on stream " << id
-          << "before 1-RTT keys are available while 0-RTT is rejected.";
+          << "before 1-RTT keys are available while 0-RTT is rejected. "
+             "Version: "
+          << ParsedQuicVersionToString(version());
+    } else if (version().UsesTls() || perspective() == Perspective::IS_SERVER) {
+      QUIC_BUG(quic_bug_10866_2)
+          << ENDPOINT << "Try to send data of stream " << id
+          << " before encryption is established. Version: "
+          << ParsedQuicVersionToString(version());
     } else {
-      QUIC_BUG(quic_bug_10866_2) << ENDPOINT << "Try to send data of stream "
-                                 << id << " before encryption is established.";
+      // In QUIC crypto, this could happen when the client sends full CHLO and
+      // 0-RTT request, then receives an inchoate REJ and sends an inchoate
+      // CHLO. The client then gets the ACK of the inchoate CHLO or the client
+      // gets the full REJ and needs to verify the proof (before it sends the
+      // full CHLO), such that there is no outstanding crypto data.
+      // Retransmission alarm fires in TLP mode which tries to retransmit the
+      // 0-RTT request (without encryption).
+      QUIC_DLOG(INFO) << ENDPOINT << "Try to send data of stream " << id
+                      << " before encryption is established.";
     }
     return QuicConsumedData(0, false);
   }
