@@ -312,7 +312,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // nullopt means select cert hasn't started.
   absl::optional<QuicAsyncStatus> select_cert_status_;
 
-  std::string hostname_;
   std::string cert_verify_sig_;
   std::unique_ptr<ProofSource::Details> proof_source_details_;
 

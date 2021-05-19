@@ -787,18 +787,17 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
   // function do not work at this point, but SSL_get_servername does.
   const char* hostname = SSL_get_servername(ssl(), TLSEXT_NAMETYPE_host_name);
   if (hostname) {
-    hostname_ = hostname;
     crypto_negotiated_params_->sni =
-        QuicHostnameUtils::NormalizeHostname(hostname_);
-    if (!ValidateHostname(hostname_)) {
+        QuicHostnameUtils::NormalizeHostname(hostname);
+    if (!ValidateHostname(hostname)) {
       return ssl_select_cert_error;
     }
-    if (hostname_ != crypto_negotiated_params_->sni) {
+    if (hostname != crypto_negotiated_params_->sni) {
       QUIC_CODE_COUNT(quic_tls_server_hostname_diff);
       QUIC_LOG_EVERY_N_SEC(WARNING, 300)
           << "Raw and normalized hostnames differ, but both are valid SNIs. "
              "raw hostname:"
-          << hostname_ << ", normalized:" << crypto_negotiated_params_->sni;
+          << hostname << ", normalized:" << crypto_negotiated_params_->sni;
     } else {
       QUIC_CODE_COUNT(quic_tls_server_hostname_same);
     }
@@ -902,7 +901,9 @@ void TlsServerHandshaker::OnSelectCertificateDone(
       }
       select_cert_status_ = QUIC_SUCCESS;
     } else {
-      QUIC_LOG(ERROR) << "No certs provided for host '" << hostname_ << "'";
+      QUIC_LOG(ERROR) << "No certs provided for host '"
+                      << crypto_negotiated_params_->sni << "', server_address:"
+                      << session()->connection()->self_address();
     }
   }
 
