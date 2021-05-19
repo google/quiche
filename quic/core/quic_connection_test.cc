@@ -7200,7 +7200,7 @@ TEST_P(QuicConnectionTest, CheckSendStats) {
             stats.bytes_retransmitted);
   EXPECT_EQ(3u, stats.packets_retransmitted);
   EXPECT_EQ(1u, stats.rto_count);
-  EXPECT_EQ(kDefaultMaxPacketSize, stats.max_packet_size);
+  EXPECT_EQ(kDefaultMaxPacketSize, stats.egress_mtu);
 }
 
 TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {

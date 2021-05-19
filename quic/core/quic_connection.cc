@@ -2668,8 +2668,8 @@ const QuicConnectionStats& QuicConnection::GetStats() {
 
   stats_.estimated_bandwidth = sent_packet_manager_.BandwidthEstimate();
   sent_packet_manager_.GetSendAlgorithm()->PopulateConnectionStats(&stats_);
-  stats_.max_packet_size = packet_creator_.max_packet_length();
-  stats_.max_received_packet_size = largest_received_packet_size_;
+  stats_.egress_mtu = long_term_mtu_;
+  stats_.ingress_mtu = largest_received_packet_size_;
   return stats_;
 }
 
