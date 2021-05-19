@@ -1305,9 +1305,9 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
     size_t received_packet_length,
     StatelessResetToken stateless_reset_token) {
   QUIC_DVLOG(1) << "Building IETF stateless reset packet.";
-  if (GetQuicReloadableFlag(quic_fix_stateless_reset)) {
+  if (GetQuicRestartFlag(quic_fix_stateless_reset2)) {
     if (received_packet_length <= GetMinStatelessResetPacketLength()) {
-      QUIC_BUG(362045737_1)
+      QUICHE_DLOG(ERROR)
           << "Tried to build stateless reset packet with received packet "
              "length "
           << received_packet_length;
@@ -1340,7 +1340,7 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
       QUIC_BUG(362045737_3) << "Failed to write stateless reset token";
       return nullptr;
     }
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_stateless_reset);
+    QUIC_RESTART_FLAG_COUNT(quic_fix_stateless_reset2);
     return std::make_unique<QuicEncryptedPacket>(buffer.release(), len,
                                                  /*owns_buffer=*/true);
   }
