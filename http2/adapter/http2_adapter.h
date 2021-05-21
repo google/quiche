@@ -56,6 +56,10 @@ class Http2Adapter {
   virtual void SubmitWindowUpdate(Http2StreamId stream_id,
                                   int window_increment) = 0;
 
+  // Submits a RST_STREAM for the given |stream_id| and |error_code|.
+  virtual void SubmitRst(Http2StreamId stream_id,
+                         Http2ErrorCode error_code) = 0;
+
   // Submits a METADATA frame for the given stream (a |stream_id| of 0 indicates
   // connection-level METADATA). If |fin|, the frame will also have the
   // END_METADATA flag set.
@@ -73,10 +77,6 @@ class Http2Adapter {
   // enables the nghttp2 layer to trigger WINDOW_UPDATEs as appropriate.
   virtual void MarkDataConsumedForStream(Http2StreamId stream_id,
                                          size_t num_bytes) = 0;
-
-  // Submits a RST_STREAM for the given stream.
-  virtual void SubmitRst(Http2StreamId stream_id,
-                         Http2ErrorCode error_code) = 0;
 
  protected:
   // Subclasses should expose a public factory method for constructing and

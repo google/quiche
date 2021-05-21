@@ -54,6 +54,9 @@ class NgHttp2Adapter : public Http2Adapter {
   void SubmitWindowUpdate(Http2StreamId stream_id,
                           int window_increment) override;
 
+  // Submits a RST_STREAM for the given |stream_id| and |error_code|.
+  void SubmitRst(Http2StreamId stream_id, Http2ErrorCode error_code) override;
+
   // Submits a METADATA frame for the given stream (a |stream_id| of 0 indicates
   // connection-level METADATA). If |end_metadata|, the frame will also have the
   // END_METADATA flag set.
@@ -71,9 +74,6 @@ class NgHttp2Adapter : public Http2Adapter {
   // enables the nghttp2 layer to trigger WINDOW_UPDATEs as appropriate.
   void MarkDataConsumedForStream(Http2StreamId stream_id,
                                  size_t num_bytes) override;
-
-  // Submits a RST_STREAM with the desired |error_code|.
-  void SubmitRst(Http2StreamId stream_id, Http2ErrorCode error_code) override;
 
   // TODO(b/181586191): Temporary accessor until equivalent functionality is
   // available in this adapter class.
