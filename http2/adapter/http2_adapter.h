@@ -65,10 +65,8 @@ class Http2Adapter {
   // END_METADATA flag set.
   virtual void SubmitMetadata(Http2StreamId stream_id, bool fin) = 0;
 
-  // Returns serialized bytes for writing to the wire.
-  // Writes should be submitted to Http2Adapter first, so that Http2Adapter
-  // has data to serialize and return in this method.
-  virtual std::string GetBytesToWrite(absl::optional<size_t> max_bytes) = 0;
+  // Invokes the visitor's OnReadyToSend() method for serialized frame data.
+  virtual void Send() = 0;
 
   // Returns the connection-level flow control window for the peer.
   virtual int GetPeerConnectionWindow() const = 0;

@@ -62,10 +62,8 @@ class NgHttp2Adapter : public Http2Adapter {
   // END_METADATA flag set.
   void SubmitMetadata(Http2StreamId stream_id, bool end_metadata) override;
 
-  // Returns serialized bytes for writing to the wire. Writes should be
-  // submitted to Nghttp2Adapter first, so that Nghttp2Adapter has data to
-  // serialize and return in this method.
-  std::string GetBytesToWrite(absl::optional<size_t> max_bytes) override;
+  // Invokes the visitor's OnReadyToSend() method for serialized frame data.
+  void Send() override;
 
   // Returns the connection-level flow control window for the peer.
   int GetPeerConnectionWindow() const override;

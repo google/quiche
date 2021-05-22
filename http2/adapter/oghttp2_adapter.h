@@ -32,7 +32,7 @@ class OgHttp2Adapter : public Http2Adapter {
   void SubmitWindowUpdate(Http2StreamId stream_id,
                           int window_increment) override;
   void SubmitMetadata(Http2StreamId stream_id, bool fin) override;
-  std::string GetBytesToWrite(absl::optional<size_t> max_bytes) override;
+  void Send() override;
   int GetPeerConnectionWindow() const override;
   void MarkDataConsumedForStream(Http2StreamId stream_id,
                                  size_t num_bytes) override;

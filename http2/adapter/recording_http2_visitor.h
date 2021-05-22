@@ -18,6 +18,7 @@ class RecordingHttp2Visitor : public Http2VisitorInterface {
   using EventSequence = std::list<Event>;
 
   // From Http2VisitorInterface
+  ssize_t OnReadyToSend(absl::string_view serialized) override;
   void OnConnectionError() override;
   void OnFrameHeader(Http2StreamId stream_id,
                      size_t length,

@@ -28,9 +28,8 @@ class OgHttp2Session : public Http2Session,
   // Enqueues a frame for transmission to the peer.
   void EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame);
 
-  // If |want_write()| returns true, this method will return a non-empty string
-  // containing serialized HTTP/2 frames to write to the peer.
-  std::string GetBytesToWrite(absl::optional<size_t> max_bytes);
+  // Invokes the visitor's OnReadyToSend() method for serialized frame data.
+  void Send();
 
   // From Http2Session.
   ssize_t ProcessBytes(absl::string_view bytes) override;

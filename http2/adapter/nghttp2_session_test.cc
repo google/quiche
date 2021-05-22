@@ -26,16 +26,6 @@ enum FrameType {
   WINDOW_UPDATE,
 };
 
-ssize_t SaveSessionOutput(nghttp2_session* /* session*/,
-                          const uint8_t* data,
-                          size_t length,
-                          int /* flags */,
-                          void* user_data) {
-  auto visitor = static_cast<DataSavingVisitor*>(user_data);
-  visitor->Save(ToStringView(data, length));
-  return length;
-}
-
 class NgHttp2SessionTest : public testing::Test {
  public:
   nghttp2_option* CreateOptions() {
@@ -47,8 +37,6 @@ class NgHttp2SessionTest : public testing::Test {
 
   nghttp2_session_callbacks_unique_ptr CreateCallbacks() {
     nghttp2_session_callbacks_unique_ptr callbacks = callbacks::Create();
-    nghttp2_session_callbacks_set_send_callback(callbacks.get(),
-                                                &SaveSessionOutput);
     return callbacks;
   }
 

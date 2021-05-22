@@ -84,21 +84,11 @@ void NgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
   QUICHE_LOG(DFATAL) << "Not implemented";
 }
 
-std::string NgHttp2Adapter::GetBytesToWrite(absl::optional<size_t> max_bytes) {
-  ssize_t num_bytes = 0;
-  std::string result;
-  do {
-    const uint8_t* data = nullptr;
-    num_bytes = nghttp2_session_mem_send(session_->raw_ptr(), &data);
-    if (num_bytes > 0) {
-      absl::StrAppend(
-          &result,
-          absl::string_view(reinterpret_cast<const char*>(data), num_bytes));
-    } else if (num_bytes < 0) {
-      visitor_.OnConnectionError();
-    }
-  } while (num_bytes > 0);
-  return result;
+void NgHttp2Adapter::Send() {
+  const int result = nghttp2_session_send(session_->raw_ptr());
+  if (result != 0) {
+    visitor_.OnConnectionError();
+  }
 }
 
 int NgHttp2Adapter::GetPeerConnectionWindow() const {

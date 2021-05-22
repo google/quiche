@@ -75,20 +75,28 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
   frames_.push_back(std::move(frame));
 }
 
-std::string OgHttp2Session::GetBytesToWrite(absl::optional<size_t> max_bytes) {
-  const size_t serialized_max =
-      max_bytes ? max_bytes.value() : std::numeric_limits<size_t>::max();
-  std::string serialized = std::move(serialized_prefix_);
-  while (serialized.size() < serialized_max && !frames_.empty()) {
+void OgHttp2Session::Send() {
+  ssize_t result = std::numeric_limits<ssize_t>::max();
+  // Flush any serialized prefix.
+  while (result > 0 && !serialized_prefix_.empty()) {
+    result = visitor_.OnReadyToSend(serialized_prefix_);
+    if (result > 0) {
+      serialized_prefix_.erase(0, result);
+    }
+  }
+  // Serialize and send frames in the queue.
+  // TODO(birenroy): wake streams for DATA frame writes
+  while (result > 0 && !frames_.empty()) {
     spdy::SpdySerializedFrame frame = framer_.SerializeFrame(*frames_.front());
-    absl::StrAppend(&serialized, absl::string_view(frame));
     frames_.pop_front();
+    result = visitor_.OnReadyToSend(absl::string_view(frame));
+    if (result < 0) {
+      visitor_.OnConnectionError();
+    } else if (result < frame.size()) {
+      serialized_prefix_.assign(frame.data() + result, frame.size() - result);
+      break;
+    }
   }
-  if (serialized.size() > serialized_max) {
-    serialized_prefix_ = serialized.substr(serialized_max);
-    serialized.resize(serialized_max);
-  }
-  return serialized;
 }
 
 void OgHttp2Session::OnError(http2::Http2DecoderAdapter::SpdyFramerError error,

@@ -17,13 +17,20 @@ namespace test {
 
 class DataSavingVisitor : public testing::StrictMock<MockHttp2Visitor> {
  public:
-  void Save(absl::string_view data) { absl::StrAppend(&data_, data); }
+  ssize_t OnReadyToSend(absl::string_view data) override {
+    const size_t to_accept = std::min(send_limit_, data.size());
+    absl::StrAppend(&data_, data.substr(0, to_accept));
+    return to_accept;
+  }
 
   const std::string& data() { return data_; }
   void Clear() { data_.clear(); }
 
+  void set_send_limit(size_t limit) { send_limit_ = limit; }
+
  private:
   std::string data_;
+  size_t send_limit_ = std::numeric_limits<size_t>::max();
 };
 
 // These matchers check whether a string consists entirely of HTTP/2 frames of

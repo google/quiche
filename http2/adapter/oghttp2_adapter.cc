@@ -71,8 +71,8 @@ void OgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id, bool fin) {
   QUICHE_BUG(oghttp2_submit_metadata) << "Not implemented";
 }
 
-std::string OgHttp2Adapter::GetBytesToWrite(absl::optional<size_t> max_bytes) {
-  return session_->GetBytesToWrite(max_bytes);
+void OgHttp2Adapter::Send() {
+  session_->Send();
 }
 
 int OgHttp2Adapter::GetPeerConnectionWindow() const {

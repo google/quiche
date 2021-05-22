@@ -33,10 +33,12 @@ TEST(NgHttp2AdapterTest, ClientConstruction) {
 }
 
 TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
-  testing::StrictMock<MockHttp2Visitor> visitor;
+  DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
-  std::string serialized = adapter->GetBytesToWrite(absl::nullopt);
-  EXPECT_THAT(serialized, testing::StrEq(spdy::kHttp2ConnectionHeaderPrefix));
+  adapter->Send();
+  EXPECT_THAT(visitor.data(),
+              testing::StrEq(spdy::kHttp2ConnectionHeaderPrefix));
+  visitor.Clear();
 
   const std::string initial_frames = TestFrameSequence()
                                          .ServerPreface()
@@ -61,9 +63,10 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   EXPECT_EQ(adapter->GetPeerConnectionWindow(),
             kDefaultInitialStreamWindowSize + 1000);
   // Some bytes should have been serialized.
-  serialized = adapter->GetBytesToWrite(absl::nullopt);
-  EXPECT_THAT(serialized, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                        spdy::SpdyFrameType::PING}));
+  adapter->Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::PING}));
+  visitor.Clear();
 
   const std::vector<const Header> headers1 =
       ToHeaders({{":method", "GET"},
@@ -104,10 +107,11 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   ASSERT_GT(stream_id3, 0);
   QUICHE_LOG(INFO) << "Created stream: " << stream_id3;
 
-  serialized = adapter->GetBytesToWrite(absl::nullopt);
-  EXPECT_THAT(serialized, EqualsFrames({spdy::SpdyFrameType::HEADERS,
-                                        spdy::SpdyFrameType::HEADERS,
-                                        spdy::SpdyFrameType::HEADERS}));
+  adapter->Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
+                                            spdy::SpdyFrameType::HEADERS,
+                                            spdy::SpdyFrameType::HEADERS}));
+  visitor.Clear();
 
   const std::string stream_frames =
       TestFrameSequence()
@@ -160,8 +164,8 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
 
   // Client will not have anything else to write.
   EXPECT_FALSE(adapter->session().want_write());
-  serialized = adapter->GetBytesToWrite(absl::nullopt);
-  EXPECT_THAT(serialized, testing::IsEmpty());
+  adapter->Send();
+  EXPECT_THAT(visitor.data(), testing::IsEmpty());
 }
 
 TEST(NgHttp2AdapterTest, ServerConstruction) {
@@ -173,7 +177,7 @@ TEST(NgHttp2AdapterTest, ServerConstruction) {
 }
 
 TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
-  testing::StrictMock<MockHttp2Visitor> visitor;
+  DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
 
   const std::string frames = TestFrameSequence()
@@ -242,11 +246,11 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
 
   EXPECT_TRUE(adapter->session().want_write());
   // Some bytes should have been serialized.
-  std::string serialized = adapter->GetBytesToWrite(absl::nullopt);
+  adapter->Send();
   // SETTINGS ack, two PING acks.
-  EXPECT_THAT(serialized, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                        spdy::SpdyFrameType::PING,
-                                        spdy::SpdyFrameType::PING}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::PING,
+                                            spdy::SpdyFrameType::PING}));
 }
 
 }  // namespace

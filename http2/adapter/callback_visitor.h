@@ -23,6 +23,7 @@ class CallbackVisitor : public Http2VisitorInterface {
         callbacks_(std::move(callbacks)),
         user_data_(user_data) {}
 
+  ssize_t OnReadyToSend(absl::string_view serialized) override;
   void OnConnectionError() override;
   void OnFrameHeader(Http2StreamId stream_id,
                      size_t length,

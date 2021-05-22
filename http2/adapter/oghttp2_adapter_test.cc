@@ -18,7 +18,7 @@ class OgHttp2AdapterTest : public testing::Test {
     adapter_ = OgHttp2Adapter::Create(http2_visitor_, options);
   }
 
-  testing::StrictMock<MockHttp2Visitor> http2_visitor_;
+  DataSavingVisitor http2_visitor_;
   std::unique_ptr<OgHttp2Adapter> adapter_;
 };
 
@@ -62,8 +62,9 @@ TEST_F(OgHttp2AdapterTest, TestSerialize) {
   adapter_->SubmitWindowUpdate(3, 127);
   EXPECT_TRUE(adapter_->session().want_write());
 
+  adapter_->Send();
   EXPECT_THAT(
-      adapter_->GetBytesToWrite(absl::nullopt),
+      http2_visitor_.data(),
       EqualsFrames(
           {spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::PRIORITY,
            spdy::SpdyFrameType::RST_STREAM, spdy::SpdyFrameType::PING,
@@ -80,12 +81,15 @@ TEST_F(OgHttp2AdapterTest, TestPartialSerialize) {
   adapter_->SubmitPing(42);
   EXPECT_TRUE(adapter_->session().want_write());
 
-  const std::string first_part = adapter_->GetBytesToWrite(10);
+  http2_visitor_.set_send_limit(20);
+  adapter_->Send();
   EXPECT_TRUE(adapter_->session().want_write());
-  const std::string second_part = adapter_->GetBytesToWrite(absl::nullopt);
+  adapter_->Send();
+  EXPECT_TRUE(adapter_->session().want_write());
+  adapter_->Send();
   EXPECT_FALSE(adapter_->session().want_write());
   EXPECT_THAT(
-      absl::StrCat(first_part, second_part),
+      http2_visitor_.data(),
       EqualsFrames({spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::GOAWAY,
                     spdy::SpdyFrameType::PING}));
 }

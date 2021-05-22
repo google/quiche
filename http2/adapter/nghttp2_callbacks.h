@@ -13,6 +13,13 @@ namespace callbacks {
 // beginning of its lifetime. It is expected that |user_data| holds an
 // Http2VisitorInterface.
 
+// Callback once the library is ready to send serialized frames.
+ssize_t OnReadyToSend(nghttp2_session* session,
+                      const uint8_t* data,
+                      size_t length,
+                      int flags,
+                      void* user_data);
+
 // Callback once a frame header has been received.
 int OnBeginFrame(nghttp2_session* session, const nghttp2_frame_hd* header,
                  void* user_data);

@@ -16,6 +16,22 @@ namespace http2 {
 namespace adapter {
 namespace callbacks {
 
+ssize_t OnReadyToSend(nghttp2_session* /* session */,
+                      const uint8_t* data,
+                      size_t length,
+                      int flags,
+                      void* user_data) {
+  auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
+  const ssize_t result = visitor->OnReadyToSend(ToStringView(data, length));
+  if (result < 0) {
+    return NGHTTP2_ERR_CALLBACK_FAILURE;
+  } else if (result == 0) {
+    return NGHTTP2_ERR_WOULDBLOCK;
+  } else {
+    return result;
+  }
+}
+
 int OnBeginFrame(nghttp2_session* /* session */,
                  const nghttp2_frame_hd* header,
                  void* user_data) {
@@ -190,6 +206,7 @@ nghttp2_session_callbacks_unique_ptr Create() {
   nghttp2_session_callbacks* callbacks;
   nghttp2_session_callbacks_new(&callbacks);
 
+  nghttp2_session_callbacks_set_send_callback(callbacks, &OnReadyToSend);
   nghttp2_session_callbacks_set_on_begin_frame_callback(callbacks,
                                                         &OnBeginFrame);
   nghttp2_session_callbacks_set_on_frame_recv_callback(callbacks,

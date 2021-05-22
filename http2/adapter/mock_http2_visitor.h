@@ -13,6 +13,10 @@ class MockHttp2Visitor : public Http2VisitorInterface {
  public:
   MockHttp2Visitor() = default;
 
+  MOCK_METHOD(ssize_t,
+              OnReadyToSend,
+              (absl::string_view serialized),
+              (override));
   MOCK_METHOD(void, OnConnectionError, (), (override));
   MOCK_METHOD(
       void,

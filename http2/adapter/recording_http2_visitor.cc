@@ -7,6 +7,11 @@ namespace http2 {
 namespace adapter {
 namespace test {
 
+ssize_t RecordingHttp2Visitor::OnReadyToSend(absl::string_view serialized) {
+  events_.push_back(absl::StrFormat("OnReadyToSend %d", serialized.size()));
+  return serialized.size();
+}
+
 void RecordingHttp2Visitor::OnConnectionError() {
   events_.push_back("OnConnectionError");
 }

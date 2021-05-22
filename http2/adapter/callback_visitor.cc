@@ -36,6 +36,11 @@ struct nghttp2_session_callbacks {
 namespace http2 {
 namespace adapter {
 
+ssize_t CallbackVisitor::OnReadyToSend(absl::string_view serialized) {
+  return callbacks_->send_callback(nullptr, ToUint8Ptr(serialized.data()),
+                                   serialized.size(), 0, user_data_);
+}
+
 void CallbackVisitor::OnConnectionError() {
   QUICHE_LOG(FATAL) << "Not implemented";
 }

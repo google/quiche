@@ -50,6 +50,11 @@ class Http2VisitorInterface {
   Http2VisitorInterface& operator=(const Http2VisitorInterface&) = delete;
   virtual ~Http2VisitorInterface() = default;
 
+  // Called when there are serialized frames to send. Should return how many
+  // bytes were actually sent. Returning 0 indicates that sending is blocked.
+  // Returning -1 indicates an error.
+  virtual ssize_t OnReadyToSend(absl::string_view serialized) = 0;
+
   // Called when a connection-level processing error has been encountered.
   virtual void OnConnectionError() = 0;
 
