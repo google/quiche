@@ -237,6 +237,11 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
 
   // Return true if this frame is an IETF probing frame.
   static bool IsProbingFrame(QuicFrameType type);
+
+  // Return true if the two stateless reset tokens are equal. Performs the
+  // comparison in constant time.
+  static bool AreStatelessResetTokensEqual(const StatelessResetToken& token1,
+                                           const StatelessResetToken& token2);
 };
 
 // Returns true if the specific ID is a valid WebTransport session ID that our

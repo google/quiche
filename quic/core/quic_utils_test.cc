@@ -320,6 +320,8 @@ TEST_F(QuicUtilsTest, StatelessResetToken) {
       QuicUtils::GenerateStatelessResetToken(connection_id2);
   EXPECT_EQ(token1a, token1b);
   EXPECT_NE(token1a, token2);
+  EXPECT_TRUE(QuicUtils::AreStatelessResetTokensEqual(token1a, token1b));
+  EXPECT_FALSE(QuicUtils::AreStatelessResetTokensEqual(token1a, token2));
 }
 
 enum class TestEnumClassBit : uint8_t {

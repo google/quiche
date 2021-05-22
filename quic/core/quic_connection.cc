@@ -2356,12 +2356,15 @@ void QuicConnection::MaybeRespondToConnectivityProbingOrMigration() {
 
 bool QuicConnection::IsValidStatelessResetToken(
     const StatelessResetToken& token) const {
+  QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
   if (use_connection_id_on_default_path_) {
     return default_path_.stateless_reset_token_received &&
-           token == default_path_.stateless_reset_token;
+           QuicUtils::AreStatelessResetTokensEqual(
+               token, default_path_.stateless_reset_token);
   }
   return stateless_reset_token_received_ &&
-         token == received_stateless_reset_token_;
+         QuicUtils::AreStatelessResetTokensEqual(
+             token, received_stateless_reset_token_);
 }
 
 void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(

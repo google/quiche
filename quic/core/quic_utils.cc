@@ -693,6 +693,19 @@ bool QuicUtils::IsProbingFrame(QuicFrameType type) {
   }
 }
 
+// static
+bool QuicUtils::AreStatelessResetTokensEqual(
+    const StatelessResetToken& token1,
+    const StatelessResetToken& token2) {
+  char byte = 0;
+  for (size_t i = 0; i < kStatelessResetTokenLength; i++) {
+    // This avoids compiler optimizations that could make us stop comparing
+    // after we find a byte that doesn't match.
+    byte |= (token1[i] ^ token2[i]);
+  }
+  return byte == 0;
+}
+
 bool IsValidWebTransportSessionId(WebTransportSessionId id,
                                   ParsedQuicVersion version) {
   QUICHE_DCHECK(version.UsesHttp3());
