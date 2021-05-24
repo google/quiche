@@ -5,8 +5,11 @@
 
 namespace http2 {
 namespace adapter {
+namespace callbacks {
 
+namespace {
 const size_t kFrameHeaderSize = 9;
+}
 
 ssize_t DataFrameSourceReadCallback(nghttp2_session* /* session */,
                                     int32_t /* stream_id */,
@@ -43,10 +46,16 @@ int DataFrameSourceSendCallback(nghttp2_session* /* session */,
   return 0;
 }
 
-nghttp2_data_provider MakeDataProvider(DataFrameSource* source) {
-  nghttp2_data_provider provider;
-  provider.source.ptr = source;
-  provider.read_callback = &DataFrameSourceReadCallback;
+}  // namespace callbacks
+
+std::unique_ptr<nghttp2_data_provider> MakeDataProvider(
+    DataFrameSource* source) {
+  if (source == nullptr) {
+    return nullptr;
+  }
+  auto provider = absl::make_unique<nghttp2_data_provider>();
+  provider->source.ptr = source;
+  provider->read_callback = &callbacks::DataFrameSourceReadCallback;
   return provider;
 }
 

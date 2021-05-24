@@ -6,6 +6,7 @@
 
 namespace http2 {
 namespace adapter {
+namespace callbacks {
 
 // Assumes |source| is a DataFrameSource.
 ssize_t DataFrameSourceReadCallback(nghttp2_session* /*session */,
@@ -23,8 +24,12 @@ int DataFrameSourceSendCallback(nghttp2_session* /* session */,
                                 nghttp2_data_source* source,
                                 void* /* user_data */);
 
-// Does not take ownership of |source|.
-nghttp2_data_provider MakeDataProvider(DataFrameSource* source);
+}  // namespace callbacks
+
+// Transforms a DataFrameSource into a nghttp2_data_provider. Does not take
+// ownership of |source|. Returns nullptr if |source| is nullptr.
+std::unique_ptr<nghttp2_data_provider> MakeDataProvider(
+    DataFrameSource* source);
 
 }  // namespace adapter
 }  // namespace http2

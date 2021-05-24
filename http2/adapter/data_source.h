@@ -18,12 +18,13 @@ class DataFrameSource {
   static constexpr ssize_t kError = -1;
 
   // Returns the number of bytes to send in the next DATA frame, and whether
-  // this frame indicates the end of the data. Returns kBlocked if blocked,
-  // kError on error.
+  // this frame indicates the end of the data. Returns {kBlocked, false} if
+  // blocked, {kError, false} on error.
   virtual std::pair<ssize_t, bool> SelectPayloadLength(size_t max_length) = 0;
 
   // This method is called with a frame header and a payload length to send. The
   // source should send or buffer the entire frame.
+  // TODO(birenroy): Consider adding a return value to indicate write blockage.
   virtual void Send(absl::string_view frame_header, size_t payload_length) = 0;
 
   // If true, the end of this data source indicates the end of the stream.

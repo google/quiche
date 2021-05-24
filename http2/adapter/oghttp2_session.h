@@ -121,15 +121,34 @@ class OgHttp2Session : public Http2Session,
     Http2StreamId stream_id_ = 0;
   };
 
+  // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
+
+  // Encodes outbound frames.
   spdy::SpdyFramer framer_{spdy::SpdyFramer::ENABLE_COMPRESSION};
+
+  // Decodes inbound frames.
   http2::Http2DecoderAdapter decoder_;
+
+  // Maintains the state of all streams known to this session.
   absl::flat_hash_map<Http2StreamId, StreamState> stream_map_;
+
+  // Maintains the queue of outbound frames, and any serialized bytes that have
+  // not yet been consumed.
   std::list<std::unique_ptr<spdy::SpdyFrameIR>> frames_;
-  PassthroughHeadersHandler headers_handler_;
   std::string serialized_prefix_;
+
+  // Delivers header name-value pairs to the visitor.
+  PassthroughHeadersHandler headers_handler_;
+
+  // Tracks the remaining client connection preface, in the case of a server
+  // session.
   absl::string_view remaining_preface_;
+
+  Http2StreamId next_stream_id_ = 1;
   int peer_window_ = 65535;
+  int stream_receive_window_limit_ = 65535;
+  int max_frame_payload_ = 16384;
   Options options_;
   bool received_goaway_ = false;
 };

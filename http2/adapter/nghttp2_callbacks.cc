@@ -6,6 +6,7 @@
 #include "absl/strings/string_view.h"
 #include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/http2_visitor_interface.h"
+#include "http2/adapter/nghttp2_data_provider.h"
 #include "http2/adapter/nghttp2_util.h"
 #include "third_party/nghttp2/nghttp2.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
@@ -218,6 +219,8 @@ nghttp2_session_callbacks_unique_ptr Create() {
                                                             &OnDataChunk);
   nghttp2_session_callbacks_set_on_stream_close_callback(callbacks,
                                                          &OnStreamClosed);
+  nghttp2_session_callbacks_set_send_data_callback(
+      callbacks, &DataFrameSourceSendCallback);
   return MakeCallbacksPtr(callbacks);
 }
 
