@@ -63,9 +63,10 @@ FakeProofSourceHandle::FakeProofSourceHandle(
       select_cert_action_(select_cert_action),
       compute_signature_action_(compute_signature_action) {}
 
-void FakeProofSourceHandle::CancelPendingOperation() {
+void FakeProofSourceHandle::CloseHandle() {
   select_cert_op_.reset();
   compute_signature_op_.reset();
+  closed_ = true;
 }
 
 QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
@@ -78,6 +79,7 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
     absl::optional<std::string> alps,
     const std::vector<uint8_t>& quic_transport_params,
     const absl::optional<std::vector<uint8_t>>& early_data_context) {
+  QUICHE_CHECK(!closed_);
   all_select_cert_args_.push_back(SelectCertArgs(
       server_address, client_address, ssl_capabilities, hostname, client_hello,
       alpn, alps, quic_transport_params, early_data_context));
@@ -111,6 +113,7 @@ QuicAsyncStatus FakeProofSourceHandle::ComputeSignature(
     uint16_t signature_algorithm,
     absl::string_view in,
     size_t max_signature_size) {
+  QUICHE_CHECK(!closed_);
   all_compute_signature_args_.push_back(
       ComputeSignatureArgs(server_address, client_address, hostname,
                            signature_algorithm, in, max_signature_size));

@@ -40,11 +40,11 @@ TlsServerHandshaker::DefaultProofSourceHandle::DefaultProofSourceHandle(
     : handshaker_(handshaker), proof_source_(proof_source) {}
 
 TlsServerHandshaker::DefaultProofSourceHandle::~DefaultProofSourceHandle() {
-  CancelPendingOperation();
+  CloseHandle();
 }
 
-void TlsServerHandshaker::DefaultProofSourceHandle::CancelPendingOperation() {
-  QUIC_DVLOG(1) << "CancelPendingOperation. is_signature_pending="
+void TlsServerHandshaker::DefaultProofSourceHandle::CloseHandle() {
+  QUIC_DVLOG(1) << "CloseHandle. is_signature_pending="
                 << (signature_callback_ != nullptr);
   if (signature_callback_) {
     signature_callback_->Cancel();
@@ -190,7 +190,7 @@ TlsServerHandshaker::~TlsServerHandshaker() {
 
 void TlsServerHandshaker::CancelOutstandingCallbacks() {
   if (proof_source_handle_) {
-    proof_source_handle_->CancelPendingOperation();
+    proof_source_handle_->CloseHandle();
   }
   if (ticket_decryption_callback_) {
     ticket_decryption_callback_->Cancel();
@@ -927,6 +927,15 @@ void TlsServerHandshaker::OnSelectCertificateDone(
     QUICHE_DCHECK_EQ(last_expected_ssl_error, SSL_ERROR_PENDING_CERTIFICATE);
     AdvanceHandshakeFromCallback();
   }
+}
+
+bool TlsServerHandshaker::WillNotCallComputeSignature() const {
+  if (!close_proof_source_handle_promptly_) {
+    return false;
+  }
+
+  QUIC_RELOADABLE_FLAG_COUNT(quic_tls_close_proof_source_handle_promptly);
+  return SSL_can_release_private_key(ssl());
 }
 
 bool TlsServerHandshaker::ValidateHostname(const std::string& hostname) const {

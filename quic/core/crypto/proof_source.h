@@ -245,6 +245,10 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandleCallback {
       bool is_sync,
       std::string signature,
       std::unique_ptr<ProofSource::Details> details) = 0;
+
+  // Return true iff ProofSourceHandle::ComputeSignature won't be called later.
+  // The handle can use this function to release resources promptly.
+  virtual bool WillNotCallComputeSignature() const = 0;
 };
 
 // ProofSourceHandle is an interface by which a TlsServerHandshaker can obtain
@@ -264,9 +268,10 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandle {
  public:
   virtual ~ProofSourceHandle() = default;
 
-  // Cancel the pending operation, if any.
-  // Once called, any completion method on |callback()| won't be invoked.
-  virtual void CancelPendingOperation() = 0;
+  // Close the handle. Cancel the pending operation, if any.
+  // Once called, any completion method on |callback()| won't be invoked, and
+  // future SelectCertificate and ComputeSignature calls should return failure.
+  virtual void CloseHandle() = 0;
 
   // Starts a select certificate operation. If the operation is not cancelled
   // when it completes, callback()->OnSelectCertificateDone will be invoked.

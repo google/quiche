@@ -176,6 +176,11 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       std::string signature,
       std::unique_ptr<ProofSource::Details> details) override;
 
+  bool WillNotCallComputeSignature() const override;
+
+  const bool close_proof_source_handle_promptly_ =
+      GetQuicReloadableFlag(quic_tls_close_proof_source_handle_promptly);
+
  private:
   class QUIC_EXPORT_PRIVATE DecryptCallback
       : public ProofSource::DecryptCallback {
@@ -200,8 +205,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
     ~DefaultProofSourceHandle() override;
 
-    // Cancel the pending signature operation, if any.
-    void CancelPendingOperation() override;
+    // Close the handle. Cancel the pending signature operation, if any.
+    void CloseHandle() override;
 
     // Delegates to proof_source_->GetCertChain.
     // Returns QUIC_SUCCESS or QUIC_FAILURE. Never returns QUIC_PENDING.

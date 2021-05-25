@@ -35,7 +35,7 @@ class FakeProofSourceHandle : public ProofSourceHandle {
 
   ~FakeProofSourceHandle() override = default;
 
-  void CancelPendingOperation() override;
+  void CloseHandle() override;
 
   QuicAsyncStatus SelectCertificate(
       const QuicSocketAddress& server_address,
@@ -171,6 +171,7 @@ class FakeProofSourceHandle : public ProofSourceHandle {
  private:
   int NumPendingOperations() const;
 
+  bool closed_ = false;
   ProofSource* delegate_;
   ProofSourceHandleCallback* callback_;
   // Action for the next select cert operation.
