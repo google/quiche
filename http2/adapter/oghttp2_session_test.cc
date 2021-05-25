@@ -2,6 +2,7 @@
 
 #include "http2/adapter/mock_http2_visitor.h"
 #include "http2/adapter/test_frame_sequence.h"
+#include "http2/adapter/test_utils.h"
 #include "common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -9,6 +10,7 @@ namespace adapter {
 namespace test {
 namespace {
 
+using spdy::SpdyFrameType;
 using testing::_;
 
 enum FrameType {
@@ -95,6 +97,56 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
   EXPECT_EQ(stream_frames.size(), stream_result);
 }
 
+// Verifies that a client session enqueues initial SETTINGS if Send() is called
+// before any frames are explicitly queued.
+TEST(OgHttp2SessionTest, ClientEnqueuesSettingsOnSend) {
+  DataSavingVisitor visitor;
+  OgHttp2Session session(
+      visitor, OgHttp2Session::Options{.perspective = Perspective::kClient});
+  EXPECT_FALSE(session.want_write());
+  session.Send();
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized, EqualsFrames({SpdyFrameType::SETTINGS}));
+}
+
+// Verifies that a client session enqueues initial SETTINGS before whatever
+// frame type is passed to the first invocation of EnqueueFrame().
+TEST(OgHttp2SessionTest, ClientEnqueuesSettingsBeforeOtherFrame) {
+  DataSavingVisitor visitor;
+  OgHttp2Session session(
+      visitor, OgHttp2Session::Options{.perspective = Perspective::kClient});
+  EXPECT_FALSE(session.want_write());
+  session.EnqueueFrame(absl::make_unique<spdy::SpdyPingIR>(42));
+  EXPECT_TRUE(session.want_write());
+  session.Send();
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::PING}));
+}
+
+// Verifies that if the first call to EnqueueFrame() passes a SETTINGS frame,
+// the client session will not enqueue an additional SETTINGS frame.
+TEST(OgHttp2SessionTest, ClientEnqueuesSettingsOnce) {
+  DataSavingVisitor visitor;
+  OgHttp2Session session(
+      visitor, OgHttp2Session::Options{.perspective = Perspective::kClient});
+  EXPECT_FALSE(session.want_write());
+  session.EnqueueFrame(absl::make_unique<spdy::SpdySettingsIR>());
+  EXPECT_TRUE(session.want_write());
+  session.Send();
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized, EqualsFrames({SpdyFrameType::SETTINGS}));
+}
+
 TEST(OgHttp2SessionTest, ServerConstruction) {
   testing::StrictMock<MockHttp2Visitor> visitor;
   OgHttp2Session session(
@@ -172,6 +224,33 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
 
   EXPECT_EQ(session.GetRemoteWindowSize(),
             kDefaultInitialStreamWindowSize + 1000);
+}
+
+// Verifies that a server session enqueues initial SETTINGS before whatever
+// frame type is passed to the first invocation of EnqueueFrame().
+TEST(OgHttp2SessionTest, ServerEnqueuesSettingsBeforeOtherFrame) {
+  DataSavingVisitor visitor;
+  OgHttp2Session session(
+      visitor, OgHttp2Session::Options{.perspective = Perspective::kServer});
+  EXPECT_FALSE(session.want_write());
+  session.EnqueueFrame(absl::make_unique<spdy::SpdyPingIR>(42));
+  EXPECT_TRUE(session.want_write());
+  session.Send();
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::PING}));
+}
+
+// Verifies that if the first call to EnqueueFrame() passes a SETTINGS frame,
+// the server session will not enqueue an additional SETTINGS frame.
+TEST(OgHttp2SessionTest, ServerEnqueuesSettingsOnce) {
+  DataSavingVisitor visitor;
+  OgHttp2Session session(
+      visitor, OgHttp2Session::Options{.perspective = Perspective::kServer});
+  EXPECT_FALSE(session.want_write());
+  session.EnqueueFrame(absl::make_unique<spdy::SpdySettingsIR>());
+  EXPECT_TRUE(session.want_write());
+  session.Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
 }  // namespace test

@@ -121,6 +121,9 @@ class OgHttp2Session : public Http2Session,
     Http2StreamId stream_id_ = 0;
   };
 
+  // Queues the connection preface, if not already done.
+  void MaybeSetupPreface();
+
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
 
@@ -151,6 +154,7 @@ class OgHttp2Session : public Http2Session,
   int max_frame_payload_ = 16384;
   Options options_;
   bool received_goaway_ = false;
+  bool queued_preface_ = false;
 };
 
 }  // namespace adapter

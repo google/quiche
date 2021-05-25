@@ -76,6 +76,7 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
 }
 
 void OgHttp2Session::Send() {
+  MaybeSetupPreface();
   ssize_t result = std::numeric_limits<ssize_t>::max();
   // Flush any serialized prefix.
   while (result > 0 && !serialized_prefix_.empty()) {
@@ -233,6 +234,23 @@ void OgHttp2Session::OnPriorityUpdate(spdy::SpdyStreamId prioritized_stream_id,
 bool OgHttp2Session::OnUnknownFrame(spdy::SpdyStreamId stream_id,
                                     uint8_t frame_type) {
   return true;
+}
+
+void OgHttp2Session::MaybeSetupPreface() {
+  if (!queued_preface_) {
+    if (options_.perspective == Perspective::kClient) {
+      serialized_prefix_.assign(spdy::kHttp2ConnectionHeaderPrefix,
+                                spdy::kHttp2ConnectionHeaderPrefixSize);
+    }
+    // First frame must be a non-ack SETTINGS.
+    if (frames_.empty() ||
+        frames_.front()->frame_type() != spdy::SpdyFrameType::SETTINGS ||
+        reinterpret_cast<spdy::SpdySettingsIR*>(frames_.front().get())
+            ->is_ack()) {
+      frames_.push_front(absl::make_unique<spdy::SpdySettingsIR>());
+    }
+    queued_preface_ = true;
+  }
 }
 
 }  // namespace adapter
