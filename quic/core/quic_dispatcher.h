@@ -371,6 +371,19 @@ class QUIC_NO_EXPORT QuicDispatcher
   // ProcessValidatedPacketWithUnknownConnectionId.
   void ProcessHeader(ReceivedPacketInfo* packet_info);
 
+  // Try to extract information(sni, alpns, ...) if the full Client Hello has
+  // been parsed.
+  //
+  // If the full Client Hello has been parsed, return true and set |sni|,
+  // |alpns| and |legacy_version_encapsulation_inner_packet|.
+  //
+  // Otherwise return false and either buffer or (rarely) drop the packet.
+  bool TryExtractChloOrBufferEarlyPacket(
+      const ReceivedPacketInfo& packet_info,
+      std::string* sni,
+      std::vector<std::string>* alpns,
+      std::string* legacy_version_encapsulation_inner_packet);
+
   // Deliver |packets| to |session| for further processing.
   void DeliverPacketsToSession(
       const std::list<QuicBufferedPacketStore::BufferedPacket>& packets,

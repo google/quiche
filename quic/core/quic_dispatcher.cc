@@ -229,10 +229,8 @@ class ChloAlpnSniExtractor : public ChloExtractor::Delegate {
 
 bool MaybeHandleLegacyVersionEncapsulation(
     QuicDispatcher* dispatcher,
-    ChloAlpnSniExtractor* alpn_extractor,
+    std::string legacy_version_encapsulation_inner_packet,
     const ReceivedPacketInfo& packet_info) {
-  std::string legacy_version_encapsulation_inner_packet =
-      alpn_extractor->ConsumeLegacyVersionEncapsulationInnerPacket();
   if (legacy_version_encapsulation_inner_packet.empty()) {
     // This CHLO did not contain the Legacy Version Encapsulation tag.
     return false;
@@ -532,8 +530,10 @@ bool QuicDispatcher::MaybeDispatchPacket(
                                  config_->create_session_tag_indicators(),
                                  &alpn_extractor,
                                  server_connection_id.length())) {
-        if (MaybeHandleLegacyVersionEncapsulation(this, &alpn_extractor,
-                                                  packet_info)) {
+        if (MaybeHandleLegacyVersionEncapsulation(
+                this,
+                alpn_extractor.ConsumeLegacyVersionEncapsulationInnerPacket(),
+                packet_info)) {
           return true;
         }
       }
@@ -647,76 +647,34 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
       packet_info->destination_connection_id;
   // Packet's connection ID is unknown.  Apply the validity checks.
   QuicPacketFate fate = ValidityChecks(*packet_info);
-  ChloAlpnSniExtractor alpn_extractor;
+
+  if (fate == kFateProcess) {
+    std::string sni, legacy_version_encapsulation_inner_packet;
+    std::vector<std::string> alpns;
+    if (!TryExtractChloOrBufferEarlyPacket(
+            *packet_info, &sni, &alpns,
+            &legacy_version_encapsulation_inner_packet)) {
+      // Client Hello incomplete. Packet has been buffered or (rarely) dropped.
+      return;
+    }
+
+    // Client Hello fully received.
+    QUICHE_DCHECK(legacy_version_encapsulation_inner_packet.empty() ||
+                  !packet_info->version.UsesTls());
+    if (MaybeHandleLegacyVersionEncapsulation(
+            this, legacy_version_encapsulation_inner_packet, *packet_info)) {
+      return;
+    }
+
+    ProcessChlo(alpns, sni, packet_info);
+    return;
+  }
+
   switch (fate) {
-    case kFateProcess: {
-      if (packet_info->version.handshake_protocol == PROTOCOL_TLS1_3) {
-        bool has_full_tls_chlo = false;
-        std::string sni;
-        std::vector<std::string> alpns;
-        if (buffered_packets_.HasBufferedPackets(
-                packet_info->destination_connection_id)) {
-          // If we already have buffered packets for this connection ID,
-          // use the associated TlsChloExtractor to parse this packet.
-          has_full_tls_chlo =
-              buffered_packets_.IngestPacketForTlsChloExtraction(
-                  packet_info->destination_connection_id, packet_info->version,
-                  packet_info->packet, &alpns, &sni);
-        } else {
-          // If we do not have a BufferedPacketList for this connection ID,
-          // create a single-use one to check whether this packet contains a
-          // full single-packet CHLO.
-          TlsChloExtractor tls_chlo_extractor;
-          tls_chlo_extractor.IngestPacket(packet_info->version,
-                                          packet_info->packet);
-          if (tls_chlo_extractor.HasParsedFullChlo()) {
-            // This packet contains a full single-packet CHLO.
-            has_full_tls_chlo = true;
-            alpns = tls_chlo_extractor.alpns();
-            sni = tls_chlo_extractor.server_name();
-          }
-        }
-        if (has_full_tls_chlo) {
-          ProcessChlo(alpns, sni, packet_info);
-        } else {
-          // This packet does not contain a full CHLO. It could be a 0-RTT
-          // packet that arrived before the CHLO (due to loss or reordering),
-          // or it could be a fragment of a multi-packet CHLO.
-          BufferEarlyPacket(*packet_info);
-        }
-        break;
-      }
-      if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
-          !ChloExtractor::Extract(packet_info->packet, packet_info->version,
-                                  config_->create_session_tag_indicators(),
-                                  &alpn_extractor,
-                                  server_connection_id.length())) {
-        // Buffer non-CHLO packets.
-        BufferEarlyPacket(*packet_info);
-        break;
-      }
-
-      // We only apply this check for versions that do not use the IETF
-      // invariant header because those versions are already checked in
-      // QuicDispatcher::MaybeDispatchPacket.
-      if (packet_info->version_flag &&
-          !packet_info->version.HasIetfInvariantHeader() &&
-          crypto_config()->validate_chlo_size() &&
-          packet_info->packet.length() < kMinClientInitialPacketLength) {
-        QUIC_DVLOG(1) << "Dropping CHLO packet which is too short, length: "
-                      << packet_info->packet.length();
-        QUIC_CODE_COUNT(quic_drop_small_chlo_packets);
-        break;
-      }
-
-      if (MaybeHandleLegacyVersionEncapsulation(this, &alpn_extractor,
-                                                *packet_info)) {
-        break;
-      }
-
-      ProcessChlo({alpn_extractor.ConsumeAlpn()}, alpn_extractor.ConsumeSni(),
-                  packet_info);
-    } break;
+    case kFateProcess:
+      // kFateProcess have been processed above.
+      QUIC_BUG(quic_dispatcher_bad_packet_fate) << fate;
+      break;
     case kFateTimeWait:
       // Add this connection_id to the time-wait state, to safely reject
       // future packets.
@@ -741,6 +699,78 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
     case kFateDrop:
       break;
   }
+}
+
+bool QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
+    const ReceivedPacketInfo& packet_info,
+    std::string* sni,
+    std::vector<std::string>* alpns,
+    std::string* legacy_version_encapsulation_inner_packet) {
+  sni->clear();
+  alpns->clear();
+  legacy_version_encapsulation_inner_packet->clear();
+
+  if (packet_info.version.UsesTls()) {
+    bool has_full_tls_chlo = false;
+    if (buffered_packets_.HasBufferedPackets(
+            packet_info.destination_connection_id)) {
+      // If we already have buffered packets for this connection ID,
+      // use the associated TlsChloExtractor to parse this packet.
+      has_full_tls_chlo = buffered_packets_.IngestPacketForTlsChloExtraction(
+          packet_info.destination_connection_id, packet_info.version,
+          packet_info.packet, alpns, sni);
+    } else {
+      // If we do not have a BufferedPacketList for this connection ID,
+      // create a single-use one to check whether this packet contains a
+      // full single-packet CHLO.
+      TlsChloExtractor tls_chlo_extractor;
+      tls_chlo_extractor.IngestPacket(packet_info.version, packet_info.packet);
+      if (tls_chlo_extractor.HasParsedFullChlo()) {
+        // This packet contains a full single-packet CHLO.
+        has_full_tls_chlo = true;
+        *alpns = tls_chlo_extractor.alpns();
+        *sni = tls_chlo_extractor.server_name();
+      }
+    }
+    if (!has_full_tls_chlo) {
+      // This packet does not contain a full CHLO. It could be a 0-RTT
+      // packet that arrived before the CHLO (due to loss or reordering),
+      // or it could be a fragment of a multi-packet CHLO.
+      BufferEarlyPacket(packet_info);
+    }
+
+    return has_full_tls_chlo;
+  }
+
+  ChloAlpnSniExtractor alpn_extractor;
+  if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
+      !ChloExtractor::Extract(packet_info.packet, packet_info.version,
+                              config_->create_session_tag_indicators(),
+                              &alpn_extractor,
+                              packet_info.destination_connection_id.length())) {
+    // Buffer non-CHLO packets.
+    BufferEarlyPacket(packet_info);
+    return false;
+  }
+
+  // We only apply this check for versions that do not use the IETF
+  // invariant header because those versions are already checked in
+  // QuicDispatcher::MaybeDispatchPacket.
+  if (packet_info.version_flag &&
+      !packet_info.version.HasIetfInvariantHeader() &&
+      crypto_config()->validate_chlo_size() &&
+      packet_info.packet.length() < kMinClientInitialPacketLength) {
+    QUIC_DVLOG(1) << "Dropping CHLO packet which is too short, length: "
+                  << packet_info.packet.length();
+    QUIC_CODE_COUNT(quic_drop_small_chlo_packets);
+    return false;
+  }
+
+  *legacy_version_encapsulation_inner_packet =
+      alpn_extractor.ConsumeLegacyVersionEncapsulationInnerPacket();
+  *sni = alpn_extractor.ConsumeSni();
+  *alpns = {alpn_extractor.ConsumeAlpn()};
+  return true;
 }
 
 std::string QuicDispatcher::SelectAlpn(const std::vector<std::string>& alpns) {
