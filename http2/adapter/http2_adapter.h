@@ -36,17 +36,12 @@ class Http2Adapter {
                                        int weight,
                                        bool exclusive) = 0;
 
-  // Submits a PING on the connection. Note that nghttp2 automatically submits
-  // PING acks upon receiving non-ack PINGs from the peer, so callers only use
-  // this method to originate PINGs. See nghttp2_option_set_no_auto_ping_ack().
+  // Submits a PING on the connection.
   virtual void SubmitPing(Http2PingId ping_id) = 0;
 
   // Submits a GOAWAY on the connection. Note that |last_accepted_stream_id|
-  // refers to stream IDs initiated by the peer. For client-side, this last
-  // stream ID must be even (or 0); for server-side, this last stream ID must be
-  // odd (or 0). To submit a GOAWAY with |last_accepted_stream_id| with the
-  // maximum stream ID, signaling imminent connection termination, call
-  // SubmitShutdownNotice() instead (though this is only possible server-side).
+  // refers to stream IDs initiated by the peer. For a server sending this
+  // frame, this last stream ID must be odd (or 0).
   virtual void SubmitGoAway(Http2StreamId last_accepted_stream_id,
                             Http2ErrorCode error_code,
                             absl::string_view opaque_data) = 0;
@@ -72,7 +67,7 @@ class Http2Adapter {
   virtual int GetPeerConnectionWindow() const = 0;
 
   // Marks the given amount of data as consumed for the given stream, which
-  // enables the nghttp2 layer to trigger WINDOW_UPDATEs as appropriate.
+  // enables the implementation layer to send WINDOW_UPDATEs as appropriate.
   virtual void MarkDataConsumedForStream(Http2StreamId stream_id,
                                          size_t num_bytes) = 0;
 

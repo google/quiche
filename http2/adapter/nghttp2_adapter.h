@@ -21,15 +21,8 @@ class NgHttp2Adapter : public Http2Adapter {
   static std::unique_ptr<NgHttp2Adapter> CreateServerAdapter(
       Http2VisitorInterface& visitor);
 
-  // Processes the incoming |bytes| as HTTP/2 and invokes callbacks on the
-  // |visitor_| as appropriate.
   ssize_t ProcessBytes(absl::string_view bytes) override;
-
-  // Submits the |settings| to be written to the peer, e.g., as part of the
-  // HTTP/2 connection preface.
   void SubmitSettings(absl::Span<const Http2Setting> settings) override;
-
-  // Submits a PRIORITY frame for the given stream.
   void SubmitPriorityForStream(Http2StreamId stream_id,
                                Http2StreamId parent_stream_id,
                                int weight,
@@ -40,36 +33,22 @@ class NgHttp2Adapter : public Http2Adapter {
   // this method to originate PINGs. See nghttp2_option_set_no_auto_ping_ack().
   void SubmitPing(Http2PingId ping_id) override;
 
-  // Submits a GOAWAY on the connection. Note that |last_accepted_stream_id|
-  // refers to stream IDs initiated by the peer. For client-side, this last
-  // stream ID must be even (or 0); for server-side, this last stream ID must be
-  // odd (or 0).
   // TODO(birenroy): Add a graceful shutdown behavior to the API.
   void SubmitGoAway(Http2StreamId last_accepted_stream_id,
                     Http2ErrorCode error_code,
                     absl::string_view opaque_data) override;
 
-  // Submits a WINDOW_UPDATE for the given stream (a |stream_id| of 0 indicates
-  // a connection-level WINDOW_UPDATE).
   void SubmitWindowUpdate(Http2StreamId stream_id,
                           int window_increment) override;
 
-  // Submits a RST_STREAM for the given |stream_id| and |error_code|.
   void SubmitRst(Http2StreamId stream_id, Http2ErrorCode error_code) override;
 
-  // Submits a METADATA frame for the given stream (a |stream_id| of 0 indicates
-  // connection-level METADATA). If |end_metadata|, the frame will also have the
-  // END_METADATA flag set.
   void SubmitMetadata(Http2StreamId stream_id, bool end_metadata) override;
 
-  // Invokes the visitor's OnReadyToSend() method for serialized frame data.
   void Send() override;
 
-  // Returns the connection-level flow control window for the peer.
   int GetPeerConnectionWindow() const override;
 
-  // Marks the given amount of data as consumed for the given stream, which
-  // enables the nghttp2 layer to trigger WINDOW_UPDATEs as appropriate.
   void MarkDataConsumedForStream(Http2StreamId stream_id,
                                  size_t num_bytes) override;
 
