@@ -11,6 +11,8 @@ namespace adapter {
 namespace test {
 namespace {
 
+using spdy::SpdyFrameType;
+
 class OgHttp2AdapterTest : public testing::Test {
  protected:
   void SetUp() override {
@@ -65,10 +67,9 @@ TEST_F(OgHttp2AdapterTest, TestSerialize) {
   adapter_->Send();
   EXPECT_THAT(
       http2_visitor_.data(),
-      EqualsFrames(
-          {spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::PRIORITY,
-           spdy::SpdyFrameType::RST_STREAM, spdy::SpdyFrameType::PING,
-           spdy::SpdyFrameType::GOAWAY, spdy::SpdyFrameType::WINDOW_UPDATE}));
+      EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::PRIORITY,
+                    SpdyFrameType::RST_STREAM, SpdyFrameType::PING,
+                    SpdyFrameType::GOAWAY, SpdyFrameType::WINDOW_UPDATE}));
   EXPECT_FALSE(adapter_->session().want_write());
 }
 
@@ -88,10 +89,9 @@ TEST_F(OgHttp2AdapterTest, TestPartialSerialize) {
   EXPECT_TRUE(adapter_->session().want_write());
   adapter_->Send();
   EXPECT_FALSE(adapter_->session().want_write());
-  EXPECT_THAT(
-      http2_visitor_.data(),
-      EqualsFrames({spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::GOAWAY,
-                    spdy::SpdyFrameType::PING}));
+  EXPECT_THAT(http2_visitor_.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY,
+                            SpdyFrameType::PING}));
 }
 
 }  // namespace

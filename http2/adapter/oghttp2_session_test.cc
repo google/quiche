@@ -147,6 +147,58 @@ TEST(OgHttp2SessionTest, ClientEnqueuesSettingsOnce) {
   EXPECT_THAT(serialized, EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
+TEST(OgHttp2SessionTest, ClientSubmitRequest) {
+  DataSavingVisitor visitor;
+  OgHttp2Session session(
+      visitor, OgHttp2Session::Options{.perspective = Perspective::kClient});
+
+  EXPECT_FALSE(session.want_write());
+
+  // Even though the user has not queued any frames for the session, it should
+  // still send the connection preface.
+  session.Send();
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  // Initial SETTINGS.
+  EXPECT_THAT(serialized, EqualsFrames({SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  const std::string initial_frames =
+      TestFrameSequence().ServerPreface().Serialize();
+  testing::InSequence s;
+
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const ssize_t initial_result = session.ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), initial_result);
+
+  // Session will want to write a SETTINGS ack.
+  EXPECT_TRUE(session.want_write());
+  session.Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  const char* kSentinel = "";
+  TestDataFrameSource body1(visitor, "This is an example request body.", true);
+  int stream_id =
+      session.SubmitRequest(ToHeaders({{":method", "POST"},
+                                       {":scheme", "http"},
+                                       {":authority", "example.com"},
+                                       {":path", "/this/is/request/one"}}),
+                            &body1, const_cast<char*>(kSentinel));
+  EXPECT_GT(stream_id, 0);
+  EXPECT_TRUE(session.want_write());
+  session.Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
+                                            spdy::SpdyFrameType::DATA}));
+  EXPECT_FALSE(session.want_write());
+}
+
 TEST(OgHttp2SessionTest, ServerConstruction) {
   testing::StrictMock<MockHttp2Visitor> visitor;
   OgHttp2Session session(
@@ -251,6 +303,64 @@ TEST(OgHttp2SessionTest, ServerEnqueuesSettingsOnce) {
   EXPECT_TRUE(session.want_write());
   session.Send();
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
+}
+
+TEST(OgHttp2SessionTest, ServerSubmitResponse) {
+  DataSavingVisitor visitor;
+  OgHttp2Session session(
+      visitor, OgHttp2Session::Options{.perspective = Perspective::kServer});
+
+  EXPECT_FALSE(session.want_write());
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "GET"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  const ssize_t result = session.ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), result);
+
+  // Server will want to send initial SETTINGS, and a SETTINGS ack.
+  EXPECT_TRUE(session.want_write());
+  session.Send();
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  EXPECT_FALSE(session.want_write());
+  TestDataFrameSource body1(visitor, "This is an example response body.", true);
+  int submit_result = session.SubmitResponse(
+      1,
+      ToHeaders({{":status", "404"},
+                 {"x-comment", "I have no idea what you're talking about."}}),
+      &body1);
+  EXPECT_EQ(submit_result, 0);
+  EXPECT_TRUE(session.want_write());
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  session.Send();
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
+  EXPECT_FALSE(session.want_write());
 }
 
 }  // namespace test

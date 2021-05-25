@@ -1,6 +1,7 @@
 #include "http2/adapter/oghttp2_session.h"
 
 #include "absl/strings/escaping.h"
+#include "http2/adapter/oghttp2_util.h"
 
 namespace http2 {
 namespace adapter {
@@ -86,7 +87,6 @@ void OgHttp2Session::Send() {
     }
   }
   // Serialize and send frames in the queue.
-  // TODO(birenroy): wake streams for DATA frame writes
   while (result > 0 && !frames_.empty()) {
     spdy::SpdySerializedFrame frame = framer_.SerializeFrame(*frames_.front());
     frames_.pop_front();
@@ -98,6 +98,122 @@ void OgHttp2Session::Send() {
       break;
     }
   }
+  // Wake streams for writes.
+  while (result > 0 && write_scheduler_.HasReadyStreams() && peer_window_ > 0) {
+    const Http2StreamId stream_id = write_scheduler_.PopNextReadyStream();
+    auto it = stream_map_.find(stream_id);
+    if (it == stream_map_.end()) {
+      QUICHE_LOG(ERROR) << "Can't find stream " << stream_id
+                        << " which is ready to write!";
+      continue;
+    }
+    StreamState& state = it->second;
+    if (state.outbound_body == nullptr) {
+      // No data to send.
+      continue;
+    }
+    int32_t available_window =
+        std::min(std::min(peer_window_, state.send_window), max_frame_payload_);
+    while (available_window > 0 && state.outbound_body != nullptr) {
+      QUICHE_LOG(INFO) << "Peer window: " << peer_window_
+                       << " send window: " << state.send_window
+                       << " max_payload: " << max_frame_payload_;
+      auto [length, fin] =
+          state.outbound_body->SelectPayloadLength(available_window);
+      QUICHE_LOG(INFO) << "Payload length: " << length << " fin: " << fin;
+      spdy::SpdyDataIR data(stream_id);
+      data.set_fin(fin);
+      data.SetDataShallow(length);
+      spdy::SpdySerializedFrame header =
+          spdy::SpdyFramer::SerializeDataFrameHeaderWithPaddingLengthField(
+              data);
+      state.outbound_body->Send(absl::string_view(header), length);
+      peer_window_ -= length;
+      state.send_window -= length;
+      available_window = std::min(std::min(peer_window_, state.send_window),
+                                  max_frame_payload_);
+      if (fin) {
+        state.half_closed_local = true;
+        state.outbound_body = nullptr;
+        if (options_.perspective == Perspective::kServer) {
+          if (!state.half_closed_remote) {
+            // Since the peer has not yet ended the stream, this endpoint should
+            // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
+            EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+                stream_id, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
+          }
+          visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+        }
+      }
+    }
+    // If the stream still has data to send, it should be marked as ready in the
+    // write scheduler.
+    if (state.send_window > 0 && state.outbound_body != nullptr) {
+      write_scheduler_.MarkStreamReady(stream_id, false);
+    }
+  }
+}
+
+int32_t OgHttp2Session::SubmitRequest(absl::Span<const Header> headers,
+                                      DataFrameSource* data_source,
+                                      void* user_data) {
+  // TODO(birenroy): return an error for the incorrect perspective
+  const Http2StreamId stream_id = next_stream_id_;
+  next_stream_id_ += 2;
+  // Convert headers to header block, create headers frame.
+  auto frame =
+      absl::make_unique<spdy::SpdyHeadersIR>(stream_id, ToHeaderBlock(headers));
+  // Add data source and user data to stream state
+  WindowManager::WindowUpdateListener listener =
+      [this, stream_id](size_t window_update_delta) {
+        SendWindowUpdate(stream_id, window_update_delta);
+      };
+  auto [iter, inserted] = stream_map_.try_emplace(
+      stream_id,
+      StreamState(stream_receive_window_limit_, std::move(listener)));
+  if (!inserted) {
+    QUICHE_LOG(DFATAL) << "Stream " << stream_id << " already exists!";
+    return -501;  // NGHTTP2_ERR_INVALID_ARGUMENT
+  }
+  iter->second.outbound_body = data_source;
+  iter->second.user_data = user_data;
+  if (data_source == nullptr) {
+    frame->set_fin(true);
+    iter->second.half_closed_local = true;
+  }
+  // Add the stream to the write scheduler.
+  const WriteScheduler::StreamPrecedenceType precedence(3);
+  write_scheduler_.RegisterStream(stream_id, precedence);
+  write_scheduler_.MarkStreamReady(stream_id, false);
+  // Enqueue headers frame
+  EnqueueFrame(std::move(frame));
+  return stream_id;
+}
+
+int32_t OgHttp2Session::SubmitResponse(Http2StreamId stream_id,
+                                       absl::Span<const Header> headers,
+                                       DataFrameSource* data_source) {
+  // TODO(birenroy): return an error for the incorrect perspective
+  auto iter = stream_map_.find(stream_id);
+  if (iter == stream_map_.end()) {
+    QUICHE_LOG(ERROR) << "Unable to find stream " << stream_id;
+    return -501;  // NGHTTP2_ERR_INVALID_ARGUMENT
+  }
+  // Convert headers to header block, create headers frame
+  auto frame =
+      absl::make_unique<spdy::SpdyHeadersIR>(stream_id, ToHeaderBlock(headers));
+  if (data_source == nullptr) {
+    frame->set_fin(true);
+    if (iter->second.half_closed_remote) {
+      visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+    }
+  } else {
+    // Add data source to stream state
+    iter->second.outbound_body = data_source;
+    write_scheduler_.MarkStreamReady(stream_id, false);
+  }
+  EnqueueFrame(std::move(frame));
+  return 0;
 }
 
 void OgHttp2Session::OnError(http2::Http2DecoderAdapter::SpdyFramerError error,
@@ -128,6 +244,10 @@ void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,
 }
 
 void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
+  auto iter = stream_map_.find(stream_id);
+  if (iter != stream_map_.end()) {
+    iter->second.half_closed_remote = true;
+  }
   visitor_.OnEndStream(stream_id);
 }
 
@@ -152,7 +272,15 @@ void OgHttp2Session::OnHeaderFrameEnd(spdy::SpdyStreamId stream_id) {
 
 void OgHttp2Session::OnRstStream(spdy::SpdyStreamId stream_id,
                                  spdy::SpdyErrorCode error_code) {
+  auto iter = stream_map_.find(stream_id);
+  if (iter != stream_map_.end()) {
+    iter->second.half_closed_remote = true;
+    iter->second.outbound_body = nullptr;
+    write_scheduler_.UnregisterStream(stream_id);
+  }
   visitor_.OnRstStream(stream_id, TranslateErrorCode(error_code));
+  // TODO(birenroy): Consider bundling "close stream" behavior into a dedicated
+  // method that also cleans up the stream map.
   visitor_.OnCloseStream(stream_id, TranslateErrorCode(error_code));
 }
 
@@ -166,6 +294,9 @@ void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
 
 void OgHttp2Session::OnSettingsEnd() {
   visitor_.OnSettingsEnd();
+  auto settings = absl::make_unique<spdy::SpdySettingsIR>();
+  settings->set_is_ack(true);
+  EnqueueFrame(std::move(settings));
 }
 
 void OgHttp2Session::OnSettingsAck() {
@@ -194,7 +325,21 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
                                spdy::SpdyStreamId parent_stream_id,
                                bool exclusive,
                                bool fin,
-                               bool end) {}
+                               bool end) {
+  if (options_.perspective == Perspective::kServer) {
+    WindowManager::WindowUpdateListener listener =
+        [this, stream_id](size_t window_update_delta) {
+          SendWindowUpdate(stream_id, window_update_delta);
+        };
+    // TODO(birenroy): Factor out a CreateStream() method from here and
+    // SubmitRequest().
+    stream_map_.try_emplace(stream_id, StreamState(stream_receive_window_limit_,
+                                                   std::move(listener)));
+    // Add the stream to the write scheduler.
+    const WriteScheduler::StreamPrecedenceType precedence(3);
+    write_scheduler_.RegisterStream(stream_id, precedence);
+  }
+}
 
 void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
                                     int delta_window_size) {
@@ -205,6 +350,10 @@ void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
     if (it == stream_map_.end()) {
       QUICHE_VLOG(1) << "Stream " << stream_id << " not found!";
     } else {
+      if (it->second.send_window == 0) {
+        // The stream was blocked on flow control.
+        write_scheduler_.MarkStreamReady(stream_id, false);
+      }
       it->second.send_window += delta_window_size;
     }
   }
@@ -251,6 +400,12 @@ void OgHttp2Session::MaybeSetupPreface() {
     }
     queued_preface_ = true;
   }
+}
+
+void OgHttp2Session::SendWindowUpdate(Http2StreamId stream_id,
+                                      size_t update_delta) {
+  EnqueueFrame(
+      absl::make_unique<spdy::SpdyWindowUpdateIR>(stream_id, update_delta));
 }
 
 }  // namespace adapter

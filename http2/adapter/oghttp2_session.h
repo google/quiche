@@ -3,10 +3,12 @@
 
 #include <list>
 
+#include "http2/adapter/data_source.h"
 #include "http2/adapter/http2_session.h"
 #include "http2/adapter/http2_util.h"
 #include "http2/adapter/http2_visitor_interface.h"
 #include "http2/adapter/window_manager.h"
+#include "http2/core/priority_write_scheduler.h"
 #include "common/platform/api/quiche_bug_tracker.h"
 #include "spdy/core/http2_frame_decoder_adapter.h"
 #include "spdy/core/spdy_framer.h"
@@ -31,12 +33,20 @@ class OgHttp2Session : public Http2Session,
   // Invokes the visitor's OnReadyToSend() method for serialized frame data.
   void Send();
 
+  int32_t SubmitRequest(absl::Span<const Header> headers,
+                        DataFrameSource* data_source,
+                        void* user_data);
+  int32_t SubmitResponse(Http2StreamId stream_id,
+                         absl::Span<const Header> headers,
+                         DataFrameSource* data_source);
+
   // From Http2Session.
   ssize_t ProcessBytes(absl::string_view bytes) override;
   int Consume(Http2StreamId stream_id, size_t num_bytes) override;
   bool want_read() const override { return !received_goaway_; }
   bool want_write() const override {
-    return !frames_.empty() || !serialized_prefix_.empty();
+    return !frames_.empty() || !serialized_prefix_.empty() ||
+           write_scheduler_.HasReadyStreams();
   }
   int GetRemoteWindowSize() const override {
     return peer_window_;
@@ -100,7 +110,13 @@ class OgHttp2Session : public Http2Session,
 
  private:
   struct StreamState {
+    StreamState(int32_t stream_receive_window,
+                WindowManager::WindowUpdateListener listener)
+        : window_manager(stream_receive_window, std::move(listener)) {}
+
     WindowManager window_manager;
+    DataFrameSource* outbound_body = nullptr;
+    void* user_data = nullptr;
     int32_t send_window = 65535;
     bool half_closed_local = false;
     bool half_closed_remote = false;
@@ -124,6 +140,8 @@ class OgHttp2Session : public Http2Session,
   // Queues the connection preface, if not already done.
   void MaybeSetupPreface();
 
+  void SendWindowUpdate(Http2StreamId stream_id, size_t update_delta);
+
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
 
@@ -140,6 +158,10 @@ class OgHttp2Session : public Http2Session,
   // not yet been consumed.
   std::list<std::unique_ptr<spdy::SpdyFrameIR>> frames_;
   std::string serialized_prefix_;
+
+  // Maintains the set of streams ready to write data to the peer.
+  using WriteScheduler = PriorityWriteScheduler<Http2StreamId>;
+  WriteScheduler write_scheduler_;
 
   // Delivers header name-value pairs to the visitor.
   PassthroughHeadersHandler headers_handler_;

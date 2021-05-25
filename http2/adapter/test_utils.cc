@@ -7,6 +7,69 @@
 namespace http2 {
 namespace adapter {
 namespace test {
+
+TestDataFrameSource::TestDataFrameSource(Http2VisitorInterface& visitor,
+                                         absl::string_view data_payload,
+                                         bool has_fin)
+    : visitor_(visitor), has_fin_(has_fin) {
+  if (!data_payload.empty()) {
+    payload_fragments_.push_back(std::string(data_payload));
+    current_fragment_ = payload_fragments_.front();
+  }
+}
+
+TestDataFrameSource::TestDataFrameSource(
+    Http2VisitorInterface& visitor,
+    absl::Span<absl::string_view> payload_fragments,
+    bool has_fin)
+    : visitor_(visitor), has_fin_(has_fin) {
+  payload_fragments_.reserve(payload_fragments.size());
+  for (absl::string_view fragment : payload_fragments) {
+    if (!fragment.empty()) {
+      payload_fragments_.push_back(std::string(fragment));
+    }
+  }
+  if (!payload_fragments_.empty()) {
+    current_fragment_ = payload_fragments_.front();
+  }
+}
+
+std::pair<ssize_t, bool> TestDataFrameSource::SelectPayloadLength(
+    size_t max_length) {
+  // The stream is done if there's no more data, or if |max_length| is at least
+  // as large as the remaining data.
+  const bool end_data =
+      current_fragment_.empty() || (payload_fragments_.size() == 1 &&
+                                    max_length >= current_fragment_.size());
+  const ssize_t length = std::min(max_length, current_fragment_.size());
+  return std::make_pair(length, end_data);
+}
+
+void TestDataFrameSource::Send(absl::string_view frame_header,
+                               size_t payload_length) {
+  QUICHE_LOG_IF(DFATAL, payload_length > current_fragment_.size())
+      << "payload_length: " << payload_length
+      << " current_fragment_size: " << current_fragment_.size();
+  const std::string concatenated =
+      absl::StrCat(frame_header, current_fragment_.substr(0, payload_length));
+  const ssize_t result = visitor_.OnReadyToSend(concatenated);
+  if (result < concatenated.size()) {
+    QUICHE_LOG(ERROR)
+        << "DATA frame not fully flushed. Connection will be corrupt!";
+    visitor_.OnConnectionError();
+    current_fragment_ = {};
+    payload_fragments_.clear();
+    return;
+  }
+  current_fragment_.remove_prefix(payload_length);
+  if (current_fragment_.empty()) {
+    payload_fragments_.erase(payload_fragments_.begin());
+    if (!payload_fragments_.empty()) {
+      current_fragment_ = payload_fragments_.front();
+    }
+  }
+}
+
 namespace {
 
 using TypeAndOptionalLength =

@@ -90,6 +90,18 @@ void OgHttp2Adapter::SubmitRst(Http2StreamId stream_id,
       stream_id, TranslateErrorCode(error_code)));
 }
 
+int32_t OgHttp2Adapter::SubmitRequest(absl::Span<const Header> headers,
+                                      DataFrameSource* data_source,
+                                      void* user_data) {
+  return session_->SubmitRequest(headers, data_source, user_data);
+}
+
+int32_t OgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
+                                       absl::Span<const Header> headers,
+                                       DataFrameSource* data_source) {
+  return session_->SubmitResponse(stream_id, headers, data_source);
+}
+
 const Http2Session& OgHttp2Adapter::session() const {
   return *session_;
 }

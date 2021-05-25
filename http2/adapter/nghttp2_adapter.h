@@ -52,6 +52,14 @@ class NgHttp2Adapter : public Http2Adapter {
   void MarkDataConsumedForStream(Http2StreamId stream_id,
                                  size_t num_bytes) override;
 
+  int32_t SubmitRequest(absl::Span<const Header> headers,
+                        DataFrameSource* data_source,
+                        void* user_data) override;
+
+  int32_t SubmitResponse(Http2StreamId stream_id,
+                         absl::Span<const Header> headers,
+                         DataFrameSource* data_source) override;
+
   // TODO(b/181586191): Temporary accessor until equivalent functionality is
   // available in this adapter class.
   NgHttp2Session& session() { return *session_; }

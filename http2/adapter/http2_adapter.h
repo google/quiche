@@ -4,6 +4,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "absl/types/span.h"
+#include "http2/adapter/data_source.h"
 #include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/http2_session.h"
 #include "http2/adapter/http2_visitor_interface.h"
@@ -70,6 +71,22 @@ class Http2Adapter {
   // enables the implementation layer to send WINDOW_UPDATEs as appropriate.
   virtual void MarkDataConsumedForStream(Http2StreamId stream_id,
                                          size_t num_bytes) = 0;
+
+  // Returns the assigned stream ID if the operation succeeds. Otherwise,
+  // returns a negative integer indicating an error code. |data_source| may be
+  // nullptr if the request does not have a body. Does not take ownership of
+  // |data_source|, which should be deleted by the caller when the stream is
+  // closed.
+  virtual int32_t SubmitRequest(absl::Span<const Header> headers,
+                                DataFrameSource* data_source,
+                                void* user_data) = 0;
+
+  // Returns 0 on success. |data_source| may be nullptr if the response does not
+  // have a body. Does not take ownership of |data_source|, which should be
+  // deleted by the caller when the stream is closed.
+  virtual int32_t SubmitResponse(Http2StreamId stream_id,
+                                 absl::Span<const Header> headers,
+                                 DataFrameSource* data_source) = 0;
 
  protected:
   // Subclasses should expose a public factory method for constructing and

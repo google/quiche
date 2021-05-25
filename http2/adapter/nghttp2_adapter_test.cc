@@ -168,6 +168,51 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   EXPECT_THAT(visitor.data(), testing::IsEmpty());
 }
 
+TEST(NgHttp2AdapterTest, ClientSubmitRequest) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+  adapter->Send();
+  // Client preface does not appear to include the mandatory SETTINGS frame.
+  EXPECT_THAT(visitor.data(),
+              testing::StrEq(spdy::kHttp2ConnectionHeaderPrefix));
+  visitor.Clear();
+
+  const std::string initial_frames =
+      TestFrameSequence().ServerPreface().Serialize();
+  testing::InSequence s;
+
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const ssize_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), initial_result);
+
+  EXPECT_TRUE(adapter->session().want_write());
+  adapter->Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  EXPECT_FALSE(adapter->session().want_write());
+  const char* kSentinel = "";
+  const absl::string_view kBody = "This is an example request body.";
+  TestDataFrameSource body1(visitor, kBody, true);
+  int stream_id =
+      adapter->SubmitRequest(ToHeaders({{":method", "POST"},
+                                        {":scheme", "http"},
+                                        {":authority", "example.com"},
+                                        {":path", "/this/is/request/one"}}),
+                             &body1, const_cast<char*>(kSentinel));
+  EXPECT_GT(stream_id, 0);
+  EXPECT_TRUE(adapter->session().want_write());
+  adapter->Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
+                                            spdy::SpdyFrameType::DATA}));
+  EXPECT_THAT(visitor.data(), testing::HasSubstr(kBody));
+  EXPECT_FALSE(adapter->session().want_write());
+}
+
 TEST(NgHttp2AdapterTest, ServerConstruction) {
   testing::StrictMock<MockHttp2Visitor> visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
@@ -251,6 +296,63 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
                                             spdy::SpdyFrameType::PING,
                                             spdy::SpdyFrameType::PING}));
+}
+
+TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+  EXPECT_FALSE(adapter->session().want_write());
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "GET"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  const ssize_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), result);
+
+  // Server will want to send a SETTINGS ack.
+  EXPECT_TRUE(adapter->session().want_write());
+  adapter->Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  EXPECT_FALSE(adapter->session().want_write());
+  const absl::string_view kBody = "This is an example response body.";
+  TestDataFrameSource body1(visitor, kBody, true);
+  int submit_result = adapter->SubmitResponse(
+      1,
+      ToHeaders({{":status", "404"},
+                 {"x-comment", "I have no idea what you're talking about."}}),
+      &body1);
+  EXPECT_EQ(submit_result, 0);
+  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  adapter->Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
+                                            spdy::SpdyFrameType::DATA}));
+  EXPECT_THAT(visitor.data(), testing::HasSubstr(kBody));
+  EXPECT_FALSE(adapter->session().want_write());
 }
 
 }  // namespace

@@ -4,6 +4,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "http2/adapter/nghttp2_callbacks.h"
+#include "http2/adapter/nghttp2_data_provider.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 #include "common/platform/api/quiche_logging.h"
 #include "common/quiche_endian.h"
@@ -113,6 +114,26 @@ void NgHttp2Adapter::SubmitRst(Http2StreamId stream_id,
     QUICHE_LOG(WARNING) << "Reset stream failed: " << stream_id
                         << " with status code " << status;
   }
+}
+
+int32_t NgHttp2Adapter::SubmitRequest(absl::Span<const Header> headers,
+                                      DataFrameSource* data_source,
+                                      void* user_data) {
+  auto nvs = GetNghttp2Nvs(headers);
+  std::unique_ptr<nghttp2_data_provider> provider =
+      MakeDataProvider(data_source);
+  return nghttp2_submit_request(session_->raw_ptr(), nullptr, nvs.data(),
+                                nvs.size(), provider.get(), user_data);
+}
+
+int32_t NgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
+                                       absl::Span<const Header> headers,
+                                       DataFrameSource* data_source) {
+  auto nvs = GetNghttp2Nvs(headers);
+  std::unique_ptr<nghttp2_data_provider> provider =
+      MakeDataProvider(data_source);
+  return nghttp2_submit_response(session_->raw_ptr(), stream_id, nvs.data(),
+                                 nvs.size(), provider.get());
 }
 
 NgHttp2Adapter::NgHttp2Adapter(Http2VisitorInterface& visitor,

@@ -37,6 +37,12 @@ class OgHttp2Adapter : public Http2Adapter {
   void MarkDataConsumedForStream(Http2StreamId stream_id,
                                  size_t num_bytes) override;
   void SubmitRst(Http2StreamId stream_id, Http2ErrorCode error_code) override;
+  int32_t SubmitRequest(absl::Span<const Header> headers,
+                        DataFrameSource* data_source,
+                        void* user_data) override;
+  int32_t SubmitResponse(Http2StreamId stream_id,
+                         absl::Span<const Header> headers,
+                         DataFrameSource* data_source) override;
 
   const Http2Session& session() const;
 

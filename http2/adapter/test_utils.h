@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "http2/adapter/data_source.h"
 #include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/mock_http2_visitor.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
@@ -31,6 +32,29 @@ class DataSavingVisitor : public testing::StrictMock<MockHttp2Visitor> {
  private:
   std::string data_;
   size_t send_limit_ = std::numeric_limits<size_t>::max();
+};
+
+// A test DataFrameSource that can be initialized with a single string payload,
+// or a chunked payload.
+class TestDataFrameSource : public DataFrameSource {
+ public:
+  TestDataFrameSource(Http2VisitorInterface& visitor,
+                      absl::string_view data_payload,
+                      bool has_fin = true);
+
+  TestDataFrameSource(Http2VisitorInterface& visitor,
+                      absl::Span<absl::string_view> payload_fragments,
+                      bool has_fin = true);
+
+  std::pair<ssize_t, bool> SelectPayloadLength(size_t max_length) override;
+  void Send(absl::string_view frame_header, size_t payload_length) override;
+  bool send_fin() const override { return has_fin_; }
+
+ private:
+  Http2VisitorInterface& visitor_;
+  std::vector<std::string> payload_fragments_;
+  absl::string_view current_fragment_;
+  const bool has_fin_;
 };
 
 // These matchers check whether a string consists entirely of HTTP/2 frames of
