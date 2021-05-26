@@ -567,7 +567,9 @@ ReceivedPacketInfo::ReceivedPacketInfo(const QuicSocketAddress& self_address,
       version_label(0),
       version(ParsedQuicVersion::Unsupported()),
       destination_connection_id(EmptyQuicConnectionId()),
-      source_connection_id(EmptyQuicConnectionId()) {}
+      source_connection_id(EmptyQuicConnectionId()),
+      validity_check_on_full_chlo(
+          GetQuicReloadableFlag(quic_tls_validity_check_on_full_chlo)) {}
 
 ReceivedPacketInfo::~ReceivedPacketInfo() {}
 

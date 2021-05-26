@@ -229,6 +229,17 @@ class QUIC_NO_EXPORT QuicDispatcher
   // TODO(fayang): Merge ValidityChecks into MaybeDispatchPacket.
   virtual QuicPacketFate ValidityChecks(const ReceivedPacketInfo& packet_info);
 
+  // Extra validity checks after the full Client Hello is parsed, this allows
+  // subclasses to reject a connection based on sni or alpn.
+  // Only called if ValidityChecks returns kFateProcess.
+  virtual QuicPacketFate ValidityChecksOnFullChlo(
+      const ReceivedPacketInfo& /*packet_info*/,
+      const std::string& /*sni*/,
+      const std::string& /*uaid*/,
+      const std::vector<std::string>& /*alpns*/) const {
+    return kFateProcess;
+  }
+
   // Create and return the time wait list manager for this dispatcher, which
   // will be owned by the dispatcher as time_wait_list_manager_
   virtual QuicTimeWaitListManager* CreateQuicTimeWaitListManager();
@@ -265,6 +276,10 @@ class QUIC_NO_EXPORT QuicDispatcher
   QuicConnectionHelperInterface* helper() { return helper_.get(); }
 
   QuicCryptoServerStreamBase::Helper* session_helper() {
+    return session_helper_.get();
+  }
+
+  const QuicCryptoServerStreamBase::Helper* session_helper() const {
     return session_helper_.get();
   }
 
@@ -375,12 +390,14 @@ class QUIC_NO_EXPORT QuicDispatcher
   // been parsed.
   //
   // If the full Client Hello has been parsed, return true and set |sni|,
-  // |alpns| and |legacy_version_encapsulation_inner_packet|.
+  // |alpns| and |legacy_version_encapsulation_inner_packet|. |uaid| will be
+  // populated for QUIC_CRYPTO only.
   //
   // Otherwise return false and either buffer or (rarely) drop the packet.
   bool TryExtractChloOrBufferEarlyPacket(
       const ReceivedPacketInfo& packet_info,
       std::string* sni,
+      std::string* uaid,
       std::vector<std::string>* alpns,
       std::string* legacy_version_encapsulation_inner_packet);
 
