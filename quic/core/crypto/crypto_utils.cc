@@ -713,35 +713,15 @@ const char* CryptoUtils::HandshakeFailureReasonToString(
   return "INVALID_HANDSHAKE_FAILURE_REASON";
 }
 
+#undef RETURN_STRING_LITERAL  // undef for jumbo builds
+
 // static
 std::string CryptoUtils::EarlyDataReasonToString(
     ssl_early_data_reason_t reason) {
-#if BORINGSSL_API_VERSION >= 12
   const char* reason_string = SSL_early_data_reason_string(reason);
   if (reason_string != nullptr) {
     return std::string("ssl_early_data_") + reason_string;
   }
-#else
-  // TODO(davidben): Remove this logic once
-  // https://boringssl-review.googlesource.com/c/boringssl/+/43724 has landed in
-  // downstream repositories.
-  switch (reason) {
-    RETURN_STRING_LITERAL(ssl_early_data_unknown);
-    RETURN_STRING_LITERAL(ssl_early_data_disabled);
-    RETURN_STRING_LITERAL(ssl_early_data_accepted);
-    RETURN_STRING_LITERAL(ssl_early_data_protocol_version);
-    RETURN_STRING_LITERAL(ssl_early_data_peer_declined);
-    RETURN_STRING_LITERAL(ssl_early_data_no_session_offered);
-    RETURN_STRING_LITERAL(ssl_early_data_session_not_resumed);
-    RETURN_STRING_LITERAL(ssl_early_data_unsupported_for_session);
-    RETURN_STRING_LITERAL(ssl_early_data_hello_retry_request);
-    RETURN_STRING_LITERAL(ssl_early_data_alpn_mismatch);
-    RETURN_STRING_LITERAL(ssl_early_data_channel_id);
-    RETURN_STRING_LITERAL(ssl_early_data_token_binding);
-    RETURN_STRING_LITERAL(ssl_early_data_ticket_age_skew);
-    RETURN_STRING_LITERAL(ssl_early_data_quic_parameter_mismatch);
-  }
-#endif
   QUIC_BUG_IF(quic_bug_12871_3,
               reason < 0 || reason > ssl_early_data_reason_max_value)
       << "Unknown ssl_early_data_reason_t " << reason;
@@ -760,8 +740,6 @@ std::string CryptoUtils::HashHandshakeMessage(
   output.assign(reinterpret_cast<const char*>(digest), sizeof(digest));
   return output;
 }
-
-#undef RETURN_STRING_LITERAL  // undef for jumbo builds
 
 // static
 bool CryptoUtils::GetSSLCapabilities(const SSL* ssl,
