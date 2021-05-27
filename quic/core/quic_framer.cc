@@ -1503,6 +1503,7 @@ QuicFramer::BuildIetfVersionNegotiationPacket(
 }
 
 bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
+  QUICHE_DCHECK(!is_processing_packet_) << ENDPOINT << "Nested ProcessPacket";
   is_processing_packet_ = true;
   bool result = ProcessPacketInternal(packet);
   is_processing_packet_ = false;

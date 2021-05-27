@@ -1423,15 +1423,28 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     const QuicSocketAddress peer_address;
   };
 
-  // UndecrytablePacket comprises a undecryptable packet and the its encryption
-  // level.
+  // UndecrytablePacket comprises a undecryptable packet and related
+  // information.
   struct QUIC_EXPORT_PRIVATE UndecryptablePacket {
     UndecryptablePacket(const QuicEncryptedPacket& packet,
-                        EncryptionLevel encryption_level)
-        : packet(packet.Clone()), encryption_level(encryption_level) {}
+                        EncryptionLevel encryption_level,
+                        bool received_bytes_counted,
+                        const QuicSocketAddress& destination_address,
+                        const QuicSocketAddress& source_address,
+                        QuicTime receipt_time)
+        : packet(packet.Clone()),
+          encryption_level(encryption_level),
+          received_bytes_counted(received_bytes_counted),
+          destination_address(destination_address),
+          source_address(source_address),
+          receipt_time(receipt_time) {}
 
     std::unique_ptr<QuicEncryptedPacket> packet;
     EncryptionLevel encryption_level;
+    bool received_bytes_counted;
+    QuicSocketAddress destination_address;
+    QuicSocketAddress source_address;
+    QuicTime receipt_time;
   };
 
   // Handles the reverse path validation result depending on connection state:
@@ -2302,6 +2315,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   const bool quic_deprecate_incoming_connection_ids_ =
       GetQuicReloadableFlag(quic_deprecate_incoming_connection_ids);
+
+  const bool reset_per_packet_state_for_undecryptable_packets_ =
+      GetQuicReloadableFlag(
+          quic_reset_per_packet_state_for_undecryptable_packets);
 };
 
 }  // namespace quic

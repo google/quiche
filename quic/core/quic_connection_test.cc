@@ -11572,6 +11572,67 @@ TEST_P(QuicConnectionTest, CoalscingPacketCausesInfiniteLoop) {
   connection_.GetRetransmissionAlarm()->Fire();
 }
 
+TEST_P(QuicConnectionTest, ClientAckDelayForAsyncPacketProcessing) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  // SetFromConfig is always called after construction from InitializeSession.
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(AnyNumber());
+  QuicConfig config;
+  connection_.SetFromConfig(config);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  peer_framer_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                            std::make_unique<TaggingEncrypter>(0x01));
+  EXPECT_EQ(0u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
+
+  // Received undecryptable HANDSHAKE 2.
+  ProcessDataPacketAtLevel(2, !kHasStopWaiting, ENCRYPTION_HANDSHAKE);
+  ASSERT_EQ(1u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
+  // Received INITIAL 4 (which is retransmission of INITIAL 1) after 100ms.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(100));
+  ProcessDataPacketAtLevel(4, !kHasStopWaiting, ENCRYPTION_INITIAL);
+  // Generate HANDSHAKE key.
+  SetDecrypter(ENCRYPTION_HANDSHAKE,
+               std::make_unique<StrictTaggingDecrypter>(0x01));
+  EXPECT_TRUE(connection_.GetProcessUndecryptablePacketsAlarm()->IsSet());
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  // Verify HANDSHAKE packet gets processed.
+  connection_.GetProcessUndecryptablePacketsAlarm()->Fire();
+  ASSERT_TRUE(connection_.HasPendingAcks());
+  // Send ACKs.
+  clock_.AdvanceTime(connection_.GetAckAlarm()->deadline() - clock_.Now());
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  connection_.GetAckAlarm()->Fire();
+  ASSERT_FALSE(writer_->ack_frames().empty());
+  // Verify the ack_delay_time in the INITIAL ACK frame is 1ms.
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(1),
+            writer_->ack_frames()[0].ack_delay_time);
+  // Process the coalesced HANDSHAKE packet.
+  ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
+  auto packet = writer_->coalesced_packet()->Clone();
+  writer_->framer()->ProcessPacket(*packet);
+  ASSERT_FALSE(writer_->ack_frames().empty());
+  if (GetQuicReloadableFlag(
+          quic_reset_per_packet_state_for_undecryptable_packets)) {
+    // Verify the ack_delay_time in the HANDSHAKE ACK frame includes the
+    // buffering time.
+    EXPECT_EQ(QuicTime::Delta::FromMilliseconds(101),
+              writer_->ack_frames()[0].ack_delay_time);
+  } else {
+    // This ack_delay_time is wrong.
+    EXPECT_EQ(QuicTime::Delta::FromMilliseconds(1),
+              writer_->ack_frames()[0].ack_delay_time);
+  }
+  ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
+}
+
 TEST_P(QuicConnectionTest, TestingLiveness) {
   const size_t kMinRttMs = 40;
   RttStats* rtt_stats = const_cast<RttStats*>(manager_->GetRttStats());

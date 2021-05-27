@@ -1374,9 +1374,15 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
 
   // Record packet receipt to populate ack info before processing stream
   // frames, since the processing may result in sending a bundled ack.
+  QuicTime receipt_time = idle_network_detector_.time_of_last_received_packet();
+  if (reset_per_packet_state_for_undecryptable_packets_ &&
+      SupportsMultiplePacketNumberSpaces()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_reset_per_packet_state_for_undecryptable_packets, 2, 2);
+    receipt_time = time_of_last_received_packet_;
+  }
   uber_received_packet_manager_.RecordPacketReceived(
-      last_decrypted_packet_level_, last_header_,
-      idle_network_detector_.time_of_last_received_packet());
+      last_decrypted_packet_level_, last_header_, receipt_time);
   if (EnforceAntiAmplificationLimit() && !IsHandshakeConfirmed() &&
       !header.retry_token.empty() &&
       visitor_->ValidateToken(header.retry_token)) {
@@ -4420,7 +4426,10 @@ void QuicConnection::QueueUndecryptablePacket(
     }
   }
   QUIC_DVLOG(1) << ENDPOINT << "Queueing undecryptable packet.";
-  undecryptable_packets_.emplace_back(packet, decryption_level);
+  undecryptable_packets_.emplace_back(
+      packet, decryption_level, current_incoming_packet_received_bytes_counted_,
+      last_packet_destination_address_, last_packet_source_address_,
+      time_of_last_received_packet_);
   if (perspective_ == Perspective::IS_CLIENT) {
     SetRetransmissionAlarm();
   }
@@ -4448,7 +4457,24 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
       debug_visitor_->OnAttemptingToProcessUndecryptablePacket(
           undecryptable_packet->encryption_level);
     }
-    if (framer_.ProcessPacket(*undecryptable_packet->packet)) {
+    bool processed = false;
+    if (reset_per_packet_state_for_undecryptable_packets_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(
+          quic_reset_per_packet_state_for_undecryptable_packets, 1, 2);
+      current_incoming_packet_received_bytes_counted_ =
+          undecryptable_packet->received_bytes_counted;
+      last_size_ = undecryptable_packet->packet->length();
+      current_packet_data_ = undecryptable_packet->packet->data();
+      last_packet_destination_address_ =
+          undecryptable_packet->destination_address;
+      last_packet_source_address_ = undecryptable_packet->source_address;
+      time_of_last_received_packet_ = undecryptable_packet->receipt_time;
+      processed = framer_.ProcessPacket(*undecryptable_packet->packet);
+      current_packet_data_ = nullptr;
+    } else {
+      processed = framer_.ProcessPacket(*undecryptable_packet->packet);
+    }
+    if (processed) {
       QUIC_DVLOG(1) << ENDPOINT << "Processed undecryptable packet!";
       iter = undecryptable_packets_.erase(iter);
       ++stats_.packets_processed;
