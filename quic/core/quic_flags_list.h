@@ -78,7 +78,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_write_mid_packet_processing, tru
 // If true, drop unsent PATH_RESPONSEs and rely on peer\'s retry.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_drop_unsent_path_response, true)
 // If true, enable QUIC version h3 (RFCv1).
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_version_rfcv1, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_version_rfcv1, true)
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 // If true, include stream information in idle timeout connection close detail.
