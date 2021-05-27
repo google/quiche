@@ -117,7 +117,8 @@ QuicSentPacketManager::QuicSentPacketManager(
       use_standard_deviation_for_pto_(false),
       pto_multiplier_without_rtt_samples_(3),
       num_ptos_for_path_degrading_(0),
-      ignore_pings_(false) {
+      ignore_pings_(false),
+      ignore_ack_delay_(false) {
   SetSendAlgorithm(congestion_control_type);
   if (pto_enabled_) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_default_on_pto, 1, 2);
@@ -158,7 +159,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     }
   }
   if (config.HasClientSentConnectionOption(kMAD0, perspective)) {
-    rtt_stats_.set_ignore_max_ack_delay(true);
+    ignore_ack_delay_ = true;
   }
   if (config.HasClientSentConnectionOption(kMAD2, perspective)) {
     // Set the minimum to the alarm granularity.
@@ -1528,6 +1529,9 @@ void QuicSentPacketManager::OnAckFrameStart(QuicPacketNumber largest_acked,
   QUICHE_DCHECK_LE(largest_acked, unacked_packets_.largest_sent_packet());
   if (ack_delay_time > peer_max_ack_delay()) {
     ack_delay_time = peer_max_ack_delay();
+  }
+  if (ignore_ack_delay_) {
+    ack_delay_time = QuicTime::Delta::Zero();
   }
   rtt_updated_ =
       MaybeUpdateRTT(largest_acked, ack_delay_time, ack_receive_time);

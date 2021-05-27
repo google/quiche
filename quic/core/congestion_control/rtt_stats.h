@@ -101,12 +101,6 @@ class QUIC_EXPORT_PRIVATE RttStats {
 
   QuicTime last_update_time() const { return last_update_time_; }
 
-  bool ignore_max_ack_delay() const { return ignore_max_ack_delay_; }
-
-  void set_ignore_max_ack_delay(bool ignore_max_ack_delay) {
-    ignore_max_ack_delay_ = ignore_max_ack_delay;
-  }
-
   void EnableStandardDeviationCalculation() {
     calculate_standard_deviation_ = true;
   }
@@ -130,8 +124,6 @@ class QUIC_EXPORT_PRIVATE RttStats {
   bool calculate_standard_deviation_;
   QuicTime::Delta initial_rtt_;
   QuicTime last_update_time_;
-  // Whether to ignore the peer's max ack delay.
-  bool ignore_max_ack_delay_;
 };
 
 }  // namespace quic

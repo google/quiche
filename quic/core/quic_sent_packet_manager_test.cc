@@ -4684,6 +4684,84 @@ TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrame) {
   EXPECT_EQ(frame.packet_tolerance, 10u);
 }
 
+TEST_F(QuicSentPacketManagerTest, SmoothedRttIgnoreAckDelay) {
+  QuicConfig config;
+  QuicTagVector options;
+  options.push_back(kMAD0);
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
+  manager_.SetFromConfig(config);
+
+  SendDataPacket(1);
+  // Ack 1.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(300));
+  ExpectAck(1);
+  manager_.OnAckFrameStart(QuicPacketNumber(1),
+                           QuicTime::Delta::FromMilliseconds(100),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
+  // Verify that ack_delay is ignored in the first measurement.
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300),
+            manager_.GetRttStats()->latest_rtt());
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300),
+            manager_.GetRttStats()->smoothed_rtt());
+
+  SendDataPacket(2);
+  // Ack 2.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(300));
+  ExpectAck(2);
+  manager_.OnAckFrameStart(QuicPacketNumber(2),
+                           QuicTime::Delta::FromMilliseconds(100),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(3));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_INITIAL));
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300),
+            manager_.GetRttStats()->latest_rtt());
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300),
+            manager_.GetRttStats()->smoothed_rtt());
+
+  SendDataPacket(3);
+  // Ack 3.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(300));
+  ExpectAck(3);
+  manager_.OnAckFrameStart(QuicPacketNumber(3),
+                           QuicTime::Delta::FromMilliseconds(50), clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(4));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(3),
+                                   ENCRYPTION_INITIAL));
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300),
+            manager_.GetRttStats()->latest_rtt());
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300),
+            manager_.GetRttStats()->smoothed_rtt());
+
+  SendDataPacket(4);
+  // Ack 4.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(200));
+  ExpectAck(4);
+  manager_.OnAckFrameStart(QuicPacketNumber(4),
+                           QuicTime::Delta::FromMilliseconds(300),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(5));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(4),
+                                   ENCRYPTION_INITIAL));
+  // Verify that large erroneous ack_delay does not change Smoothed RTT.
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(200),
+            manager_.GetRttStats()->latest_rtt());
+  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(287500),
+            manager_.GetRttStats()->smoothed_rtt());
+}
+
 TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrameWithSRTT) {
   SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));

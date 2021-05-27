@@ -745,6 +745,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // If true, do not use PING only packets for RTT measurement or congestion
   // control.
   bool ignore_pings_;
+
+  // Whether to ignore the ack_delay in received ACKs.
+  bool ignore_ack_delay_;
 };
 
 }  // namespace quic
