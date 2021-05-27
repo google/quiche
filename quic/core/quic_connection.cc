@@ -6858,6 +6858,12 @@ void QuicConnection::OnPathValidationFailureAtClient() {
     QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT);
     alternative_path_.Clear();
   }
+  // The alarm to retire connection IDs no longer on paths is scheduled at the
+  // end of writing and reading packet. On path validation failure, there could
+  // be no packet to write or read. Hence the retirement alarm for the
+  // connection ID associated with the failed path needs to be proactively
+  // scheduled here.
+  RetirePeerIssuedConnectionIdsNoLongerOnPath();
 }
 
 std::vector<QuicConnectionId> QuicConnection::GetActiveServerConnectionIds()
