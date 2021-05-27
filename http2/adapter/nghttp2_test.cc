@@ -1,5 +1,7 @@
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
+#include "absl/strings/str_cat.h"
 #include "http2/adapter/mock_nghttp2_callbacks.h"
+#include "http2/adapter/nghttp2_util.h"
 #include "http2/adapter/test_frame_sequence.h"
 #include "http2/adapter/test_utils.h"
 #include "common/platform/api/quiche_test.h"
@@ -34,17 +36,82 @@ nghttp2_option* GetOptions() {
   return options;
 }
 
+class TestDataSource {
+ public:
+  explicit TestDataSource(std::string data) : data_(std::move(data)) {}
+
+  absl::string_view ReadNext(size_t size) {
+    const size_t to_send = std::min(size, remaining_.size());
+    auto ret = remaining_.substr(0, to_send);
+    remaining_.remove_prefix(to_send);
+    return ret;
+  }
+
+  size_t SelectPayloadLength(size_t max_length) {
+    return std::min(max_length, remaining_.size());
+  }
+
+  bool empty() const { return remaining_.empty(); }
+
+ private:
+  const std::string data_;
+  absl::string_view remaining_ = data_;
+};
+
+class Nghttp2Test : public testing::Test {
+ public:
+  Nghttp2Test() : session_(MakeSessionPtr(nullptr)) {}
+
+  void SetUp() override { InitializeSession(); }
+
+  virtual Perspective GetPerspective() = 0;
+
+  void InitializeSession() {
+    auto nghttp2_callbacks = MockNghttp2Callbacks::GetCallbacks();
+    nghttp2_option* options = GetOptions();
+    nghttp2_session* ptr;
+    if (GetPerspective() == Perspective::kClient) {
+      nghttp2_session_client_new2(&ptr, nghttp2_callbacks.get(),
+                                  &mock_callbacks_, options);
+    } else {
+      nghttp2_session_server_new2(&ptr, nghttp2_callbacks.get(),
+                                  &mock_callbacks_, options);
+    }
+    nghttp2_option_del(options);
+
+    // Sets up the Send() callback to append to |serialized_|.
+    EXPECT_CALL(mock_callbacks_, Send(_, _, _))
+        .WillRepeatedly([this](const uint8_t* data, size_t length, int flags) {
+          absl::StrAppend(&serialized_, ToStringView(data, length));
+          return length;
+        });
+    // Sets up the SendData() callback to fetch and append data from a
+    // TestDataSource.
+    EXPECT_CALL(mock_callbacks_, SendData(_, _, _, _))
+        .WillRepeatedly([this](nghttp2_frame* frame, const uint8_t* framehd,
+                               size_t length, nghttp2_data_source* source) {
+          QUICHE_LOG(INFO) << "Appending frame header and " << length
+                           << " bytes of data";
+          auto* s = static_cast<TestDataSource*>(source->ptr);
+          absl::StrAppend(&serialized_, ToStringView(framehd, 9),
+                          s->ReadNext(length));
+          return 0;
+        });
+    session_.reset(ptr);
+  }
+
+  testing::StrictMock<MockNghttp2Callbacks> mock_callbacks_;
+  nghttp2_session_unique_ptr session_;
+  std::string serialized_;
+};
+
+class Nghttp2ClientTest : public Nghttp2Test {
+ public:
+  Perspective GetPerspective() override { return Perspective::kClient; }
+};
+
 // Verifies nghttp2 behavior when acting as a client.
-TEST(Nghttp2ClientTest, ClientReceivesUnexpectedHeaders) {
-  testing::StrictMock<MockNghttp2Callbacks> mock_callbacks;
-  auto nghttp2_callbacks = MockNghttp2Callbacks::GetCallbacks();
-  nghttp2_option* options = GetOptions();
-  nghttp2_session* ptr;
-  nghttp2_session_client_new2(&ptr, nghttp2_callbacks.get(), &mock_callbacks,
-                              options);
-
-  auto client_session = MakeSessionPtr(ptr);
-
+TEST_F(Nghttp2ClientTest, ClientReceivesUnexpectedHeaders) {
   const std::string initial_frames = TestFrameSequence()
                                          .ServerPreface()
                                          .Ping(42)
@@ -52,17 +119,17 @@ TEST(Nghttp2ClientTest, ClientReceivesUnexpectedHeaders) {
                                          .Serialize();
 
   testing::InSequence seq;
-  EXPECT_CALL(mock_callbacks, OnBeginFrame(HasFrameHeader(0, SETTINGS, 0)));
-  EXPECT_CALL(mock_callbacks, OnFrameRecv(IsSettings(testing::IsEmpty())));
-  EXPECT_CALL(mock_callbacks, OnBeginFrame(HasFrameHeader(0, PING, 0)));
-  EXPECT_CALL(mock_callbacks, OnFrameRecv(IsPing(42)));
-  EXPECT_CALL(mock_callbacks,
+  EXPECT_CALL(mock_callbacks_, OnBeginFrame(HasFrameHeader(0, SETTINGS, 0)));
+  EXPECT_CALL(mock_callbacks_, OnFrameRecv(IsSettings(testing::IsEmpty())));
+  EXPECT_CALL(mock_callbacks_, OnBeginFrame(HasFrameHeader(0, PING, 0)));
+  EXPECT_CALL(mock_callbacks_, OnFrameRecv(IsPing(42)));
+  EXPECT_CALL(mock_callbacks_,
               OnBeginFrame(HasFrameHeader(0, WINDOW_UPDATE, 0)));
-  EXPECT_CALL(mock_callbacks, OnFrameRecv(IsWindowUpdate(1000)));
+  EXPECT_CALL(mock_callbacks_, OnFrameRecv(IsWindowUpdate(1000)));
 
-  nghttp2_session_mem_recv(client_session.get(),
-                           ToUint8Ptr(initial_frames.data()),
-                           initial_frames.size());
+  ssize_t result = nghttp2_session_mem_recv(
+      session_.get(), ToUint8Ptr(initial_frames.data()), initial_frames.size());
+  ASSERT_EQ(result, initial_frames.size());
 
   const std::string unexpected_stream_frames =
       TestFrameSequence()
@@ -76,15 +143,91 @@ TEST(Nghttp2ClientTest, ClientReceivesUnexpectedHeaders) {
           .GoAway(5, Http2ErrorCode::ENHANCE_YOUR_CALM, "calm down!!")
           .Serialize();
 
-  EXPECT_CALL(mock_callbacks, OnBeginFrame(HasFrameHeader(1, HEADERS, _)));
-  EXPECT_CALL(mock_callbacks, OnInvalidFrameRecv(IsHeaders(1, _, _), _));
+  EXPECT_CALL(mock_callbacks_, OnBeginFrame(HasFrameHeader(1, HEADERS, _)));
+  EXPECT_CALL(mock_callbacks_, OnInvalidFrameRecv(IsHeaders(1, _, _), _));
   // No events from the DATA, RST_STREAM or GOAWAY.
 
-  nghttp2_session_mem_recv(client_session.get(),
+  nghttp2_session_mem_recv(session_.get(),
                            ToUint8Ptr(unexpected_stream_frames.data()),
                            unexpected_stream_frames.size());
+}
 
-  nghttp2_option_del(options);
+// Tests the request-sending behavior of nghttp2 when acting as a client.
+TEST_F(Nghttp2ClientTest, ClientSendsRequest) {
+  int result = nghttp2_session_send(session_.get());
+  ASSERT_EQ(result, 0);
+
+  EXPECT_THAT(serialized_, testing::StrEq(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized_.clear();
+
+  const std::string initial_frames =
+      TestFrameSequence().ServerPreface().Serialize();
+  testing::InSequence s;
+
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(mock_callbacks_, OnBeginFrame(HasFrameHeader(0, SETTINGS, 0)));
+  EXPECT_CALL(mock_callbacks_, OnFrameRecv(IsSettings(testing::IsEmpty())));
+
+  ssize_t recv_result = nghttp2_session_mem_recv(
+      session_.get(), ToUint8Ptr(initial_frames.data()), initial_frames.size());
+  EXPECT_EQ(initial_frames.size(), recv_result);
+
+  // Client wants to send a SETTINGS ack.
+  EXPECT_CALL(mock_callbacks_, BeforeFrameSend(IsSettings(testing::IsEmpty())));
+  EXPECT_CALL(mock_callbacks_, OnFrameSend(IsSettings(testing::IsEmpty())));
+  EXPECT_TRUE(nghttp2_session_want_write(session_.get()));
+  result = nghttp2_session_send(session_.get());
+  EXPECT_THAT(serialized_, EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  serialized_.clear();
+
+  EXPECT_FALSE(nghttp2_session_want_write(session_.get()));
+
+  // The following sets up the client request.
+  std::vector<std::pair<absl::string_view, absl::string_view>> headers = {
+      {":method", "POST"},
+      {":scheme", "http"},
+      {":authority", "example.com"},
+      {":path", "/this/is/request/one"}};
+  std::vector<nghttp2_nv> nvs;
+  for (const auto& h : headers) {
+    nvs.push_back({.name = ToUint8Ptr(h.first.data()),
+                   .value = ToUint8Ptr(h.second.data()),
+                   .namelen = h.first.size(),
+                   .valuelen = h.second.size()});
+  }
+  const absl::string_view kBody = "This is an example request body.";
+  TestDataSource source{std::string(kBody)};
+  nghttp2_data_provider provider{
+      .source = {.ptr = &source},
+      .read_callback = [](nghttp2_session*, int32_t, uint8_t*, size_t length,
+                          uint32_t* data_flags, nghttp2_data_source* source,
+                          void*) {
+        auto* s = static_cast<TestDataSource*>(source->ptr);
+        const ssize_t ret = s->SelectPayloadLength(length);
+        if (ret < length) {
+          *data_flags |= NGHTTP2_DATA_FLAG_EOF;
+        }
+        *data_flags |= NGHTTP2_DATA_FLAG_NO_COPY;
+        return ret;
+      }};
+  // After submitting the request, the client will want to write.
+  int stream_id =
+      nghttp2_submit_request(session_.get(), nullptr /* pri_spec */, nvs.data(),
+                             nvs.size(), &provider, nullptr /* stream_data */);
+  EXPECT_GT(stream_id, 0);
+  EXPECT_TRUE(nghttp2_session_want_write(session_.get()));
+
+  // We expect that the client will want to write HEADERS, then DATA.
+  EXPECT_CALL(mock_callbacks_, BeforeFrameSend(IsHeaders(stream_id, _, _)));
+  EXPECT_CALL(mock_callbacks_, OnFrameSend(IsHeaders(stream_id, _, _)));
+  EXPECT_CALL(mock_callbacks_, OnFrameSend(IsData(stream_id, kBody.size(), _)));
+  nghttp2_session_send(session_.get());
+  EXPECT_THAT(serialized_, EqualsFrames({spdy::SpdyFrameType::HEADERS,
+                                         spdy::SpdyFrameType::DATA}));
+  EXPECT_THAT(serialized_, testing::HasSubstr(kBody));
+
+  // Once the request is flushed, the client no longer wants to write.
+  EXPECT_FALSE(nghttp2_session_want_write(session_.get()));
 }
 
 }  // namespace
