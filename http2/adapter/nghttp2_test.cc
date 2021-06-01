@@ -36,28 +36,6 @@ nghttp2_option* GetOptions() {
   return options;
 }
 
-class TestDataSource {
- public:
-  explicit TestDataSource(std::string data) : data_(std::move(data)) {}
-
-  absl::string_view ReadNext(size_t size) {
-    const size_t to_send = std::min(size, remaining_.size());
-    auto ret = remaining_.substr(0, to_send);
-    remaining_.remove_prefix(to_send);
-    return ret;
-  }
-
-  size_t SelectPayloadLength(size_t max_length) {
-    return std::min(max_length, remaining_.size());
-  }
-
-  bool empty() const { return remaining_.empty(); }
-
- private:
-  const std::string data_;
-  absl::string_view remaining_ = data_;
-};
-
 class Nghttp2Test : public testing::Test {
  public:
   Nghttp2Test() : session_(MakeSessionPtr(nullptr)) {}
@@ -196,20 +174,8 @@ TEST_F(Nghttp2ClientTest, ClientSendsRequest) {
                    .valuelen = h.second.size()});
   }
   const absl::string_view kBody = "This is an example request body.";
-  TestDataSource source{std::string(kBody)};
-  nghttp2_data_provider provider{
-      .source = {.ptr = &source},
-      .read_callback = [](nghttp2_session*, int32_t, uint8_t*, size_t length,
-                          uint32_t* data_flags, nghttp2_data_source* source,
-                          void*) {
-        auto* s = static_cast<TestDataSource*>(source->ptr);
-        const ssize_t ret = s->SelectPayloadLength(length);
-        if (ret < length) {
-          *data_flags |= NGHTTP2_DATA_FLAG_EOF;
-        }
-        *data_flags |= NGHTTP2_DATA_FLAG_NO_COPY;
-        return ret;
-      }};
+  TestDataSource source{kBody};
+  nghttp2_data_provider provider = source.MakeDataProvider();
   // After submitting the request, the client will want to write.
   int stream_id =
       nghttp2_submit_request(session_.get(), nullptr /* pri_spec */, nvs.data(),

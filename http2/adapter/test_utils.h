@@ -57,6 +57,43 @@ class TestDataFrameSource : public DataFrameSource {
   const bool has_fin_;
 };
 
+// A simple class that can easily be adapted to act as a nghttp2_data_source.
+class TestDataSource {
+ public:
+  explicit TestDataSource(absl::string_view data) : data_(std::string(data)) {}
+
+  absl::string_view ReadNext(size_t size) {
+    const size_t to_send = std::min(size, remaining_.size());
+    auto ret = remaining_.substr(0, to_send);
+    remaining_.remove_prefix(to_send);
+    return ret;
+  }
+
+  size_t SelectPayloadLength(size_t max_length) {
+    return std::min(max_length, remaining_.size());
+  }
+
+  nghttp2_data_provider MakeDataProvider() {
+    return nghttp2_data_provider{
+        .source = {.ptr = this},
+        .read_callback = [](nghttp2_session*, int32_t, uint8_t*, size_t length,
+                            uint32_t* data_flags, nghttp2_data_source* source,
+                            void*) {
+          auto* s = static_cast<TestDataSource*>(source->ptr);
+          const ssize_t ret = s->SelectPayloadLength(length);
+          if (ret < length) {
+            *data_flags |= NGHTTP2_DATA_FLAG_EOF;
+          }
+          *data_flags |= NGHTTP2_DATA_FLAG_NO_COPY;
+          return ret;
+        }};
+  }
+
+ private:
+  const std::string data_;
+  absl::string_view remaining_ = data_;
+};
+
 // These matchers check whether a string consists entirely of HTTP/2 frames of
 // the specified ordered sequence. This is useful in tests where we want to show
 // that one or more particular frame types are serialized for sending to the
