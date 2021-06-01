@@ -117,5 +117,58 @@ Http2ErrorCode ToHttp2ErrorCode(uint32_t wire_error_code) {
   return static_cast<Http2ErrorCode>(wire_error_code);
 }
 
+class Nghttp2DataFrameSource : public DataFrameSource {
+ public:
+  Nghttp2DataFrameSource(nghttp2_data_provider provider,
+                         nghttp2_send_data_callback send_data,
+                         void* user_data)
+      : provider_(std::move(provider)),
+        send_data_(std::move(send_data)),
+        user_data_(user_data) {}
+
+  std::pair<ssize_t, bool> SelectPayloadLength(size_t max_length) override {
+    const int32_t stream_id = 0;
+    uint32_t data_flags = 0;
+    QUICHE_LOG(INFO) << "Invoking read callback";
+    ssize_t result = provider_.read_callback(
+        nullptr /* session */, stream_id, nullptr /* buf */, max_length,
+        &data_flags, &provider_.source, nullptr /* user_data */);
+    if (result < 0) {
+      return {-1, false};
+    } else if ((data_flags & NGHTTP2_DATA_FLAG_NO_COPY) == 0) {
+      QUICHE_LOG(ERROR) << "Source did not use the zero-copy API!";
+      return {-1, false};
+    } else {
+      if (data_flags & NGHTTP2_DATA_FLAG_NO_END_STREAM) {
+        send_fin_ = false;
+      }
+      const bool eof = data_flags & NGHTTP2_DATA_FLAG_EOF;
+      return {result, eof};
+    }
+  }
+
+  void Send(absl::string_view frame_header, size_t payload_length) override {
+    send_data_(nullptr /* session */, nullptr /* frame */,
+               ToUint8Ptr(frame_header.data()), payload_length,
+               &provider_.source, user_data_);
+  }
+
+  bool send_fin() const override { return send_fin_; }
+
+ private:
+  nghttp2_data_provider provider_;
+  nghttp2_send_data_callback send_data_;
+  void* user_data_;
+  bool send_fin_ = true;
+};
+
+std::unique_ptr<DataFrameSource> MakeZeroCopyDataFrameSource(
+    nghttp2_data_provider provider,
+    void* user_data,
+    nghttp2_send_data_callback send_data) {
+  return absl::make_unique<Nghttp2DataFrameSource>(
+      std::move(provider), std::move(send_data), user_data);
+}
+
 }  // namespace adapter
 }  // namespace http2
