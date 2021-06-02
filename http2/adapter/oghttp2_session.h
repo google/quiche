@@ -146,6 +146,8 @@ class OgHttp2Session : public Http2Session,
 
   void SendWindowUpdate(Http2StreamId stream_id, size_t update_delta);
 
+  void WriteForStream(Http2StreamId stream_id);
+
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
 

@@ -116,56 +116,59 @@ void OgHttp2Session::Send() {
   // Wake streams for writes.
   while (result > 0 && write_scheduler_.HasReadyStreams() && peer_window_ > 0) {
     const Http2StreamId stream_id = write_scheduler_.PopNextReadyStream();
-    auto it = stream_map_.find(stream_id);
-    if (it == stream_map_.end()) {
-      QUICHE_LOG(ERROR) << "Can't find stream " << stream_id
-                        << " which is ready to write!";
-      continue;
-    }
-    StreamState& state = it->second;
-    if (state.outbound_body == nullptr) {
-      // No data to send.
-      continue;
-    }
-    int32_t available_window =
+    WriteForStream(stream_id);
+  }
+}
+
+void OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
+  auto it = stream_map_.find(stream_id);
+  if (it == stream_map_.end()) {
+    QUICHE_LOG(ERROR) << "Can't find stream " << stream_id
+                      << " which is ready to write!";
+    return;
+  }
+  StreamState& state = it->second;
+  if (state.outbound_body == nullptr) {
+    // No data to send.
+    return;
+  }
+  int32_t available_window =
+      std::min(std::min(peer_window_, state.send_window), max_frame_payload_);
+  while (available_window > 0 && state.outbound_body != nullptr) {
+    QUICHE_LOG(INFO) << "Peer window: " << peer_window_
+                     << " send window: " << state.send_window
+                     << " max_payload: " << max_frame_payload_;
+    auto [length, fin] =
+        state.outbound_body->SelectPayloadLength(available_window);
+    QUICHE_LOG(INFO) << "Payload length: " << length << " fin: " << fin;
+    spdy::SpdyDataIR data(stream_id);
+    data.set_fin(fin);
+    data.SetDataShallow(length);
+    spdy::SpdySerializedFrame header =
+        spdy::SpdyFramer::SerializeDataFrameHeaderWithPaddingLengthField(data);
+    state.outbound_body->Send(absl::string_view(header), length);
+    peer_window_ -= length;
+    state.send_window -= length;
+    available_window =
         std::min(std::min(peer_window_, state.send_window), max_frame_payload_);
-    while (available_window > 0 && state.outbound_body != nullptr) {
-      QUICHE_LOG(INFO) << "Peer window: " << peer_window_
-                       << " send window: " << state.send_window
-                       << " max_payload: " << max_frame_payload_;
-      auto [length, fin] =
-          state.outbound_body->SelectPayloadLength(available_window);
-      QUICHE_LOG(INFO) << "Payload length: " << length << " fin: " << fin;
-      spdy::SpdyDataIR data(stream_id);
-      data.set_fin(fin);
-      data.SetDataShallow(length);
-      spdy::SpdySerializedFrame header =
-          spdy::SpdyFramer::SerializeDataFrameHeaderWithPaddingLengthField(
-              data);
-      state.outbound_body->Send(absl::string_view(header), length);
-      peer_window_ -= length;
-      state.send_window -= length;
-      available_window = std::min(std::min(peer_window_, state.send_window),
-                                  max_frame_payload_);
-      if (fin) {
-        state.half_closed_local = true;
-        state.outbound_body = nullptr;
-        if (options_.perspective == Perspective::kServer) {
-          if (!state.half_closed_remote) {
-            // Since the peer has not yet ended the stream, this endpoint should
-            // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
-            EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
-                stream_id, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
-          }
-          visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+    if (fin) {
+      state.half_closed_local = true;
+      state.outbound_body = nullptr;
+      if (options_.perspective == Perspective::kServer) {
+        if (!state.half_closed_remote) {
+          // Since the peer has not yet ended the stream, this endpoint should
+          // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
+          EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+              stream_id, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
         }
+        visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
       }
     }
-    // If the stream still has data to send, it should be marked as ready in the
-    // write scheduler.
-    if (state.send_window > 0 && state.outbound_body != nullptr) {
-      write_scheduler_.MarkStreamReady(stream_id, false);
-    }
+  }
+  // If the stream still has data to send, it should be marked as ready in the
+  // write scheduler.
+  if (state.send_window > 0 && state.outbound_body != nullptr) {
+    write_scheduler_.MarkStreamReady(stream_id, false);
   }
 }
 
