@@ -14514,9 +14514,11 @@ TEST_P(QuicConnectionTest,
   // would fail due to lack of client connection ID.
   const QuicSocketAddress kSelfAddress2(QuicIpAddress::Loopback4(),
                                         /*port=*/45678);
-  ASSERT_FALSE(connection_.MigratePath(kSelfAddress2,
-                                       connection_.peer_address(), &new_writer,
-                                       /*owns_writer=*/false));
+  auto new_writer2 = std::make_unique<TestPacketWriter>(version(), &clock_,
+                                                        Perspective::IS_CLIENT);
+  ASSERT_FALSE(connection_.MigratePath(
+      kSelfAddress2, connection_.peer_address(), new_writer2.release(),
+      /*owns_writer=*/true));
 }
 
 TEST_P(QuicConnectionTest,

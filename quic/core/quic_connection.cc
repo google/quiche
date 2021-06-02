@@ -6819,13 +6819,20 @@ bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
                                  const QuicSocketAddress& peer_address,
                                  QuicPacketWriter* writer,
                                  bool owns_writer) {
+  QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT);
   if (!connected_) {
+    if (owns_writer) {
+      delete writer;
+    }
     return false;
   }
   QUICHE_DCHECK(!version().UsesHttp3() || IsHandshakeConfirmed());
 
   if (connection_migration_use_new_cid_) {
     if (!UpdateConnectionIdsOnClientMigration(self_address, peer_address)) {
+      if (owns_writer) {
+        delete writer;
+      }
       return false;
     }
     if (packet_creator_.GetServerConnectionId().length() !=
