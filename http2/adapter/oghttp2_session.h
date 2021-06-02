@@ -30,6 +30,10 @@ class OgHttp2Session : public Http2Session,
   // Enqueues a frame for transmission to the peer.
   void EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame);
 
+  // Starts a graceful shutdown sequence. No-op if a GOAWAY has already been
+  // sent.
+  void StartGracefulShutdown();
+
   // Invokes the visitor's OnReadyToSend() method for serialized frame data.
   void Send();
 
@@ -177,6 +181,9 @@ class OgHttp2Session : public Http2Session,
   Options options_;
   bool received_goaway_ = false;
   bool queued_preface_ = false;
+
+  // Replace this with a stream ID, for multiple GOAWAY support.
+  bool queued_goaway_ = false;
 };
 
 }  // namespace adapter

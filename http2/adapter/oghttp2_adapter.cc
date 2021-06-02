@@ -54,6 +54,10 @@ void OgHttp2Adapter::SubmitPing(Http2PingId ping_id) {
   session_->EnqueueFrame(absl::make_unique<SpdyPingIR>(ping_id));
 }
 
+void OgHttp2Adapter::SubmitShutdownNotice() {
+  session_->StartGracefulShutdown();
+}
+
 void OgHttp2Adapter::SubmitGoAway(Http2StreamId last_accepted_stream_id,
                                   Http2ErrorCode error_code,
                                   absl::string_view opaque_data) {

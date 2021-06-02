@@ -33,7 +33,7 @@ class NgHttp2Adapter : public Http2Adapter {
   // this method to originate PINGs. See nghttp2_option_set_no_auto_ping_ack().
   void SubmitPing(Http2PingId ping_id) override;
 
-  // TODO(birenroy): Add a graceful shutdown behavior to the API.
+  void SubmitShutdownNotice() override;
   void SubmitGoAway(Http2StreamId last_accepted_stream_id,
                     Http2ErrorCode error_code,
                     absl::string_view opaque_data) override;

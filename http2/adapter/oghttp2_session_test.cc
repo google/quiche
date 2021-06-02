@@ -199,6 +199,25 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
   EXPECT_FALSE(session.want_write());
 }
 
+TEST(OgHttp2SessionTest, ClientStartShutdown) {
+  DataSavingVisitor visitor;
+  OgHttp2Session session(
+      visitor, OgHttp2Session::Options{.perspective = Perspective::kClient});
+
+  EXPECT_FALSE(session.want_write());
+
+  // No-op (except for logging) for a client implementation.
+  session.StartGracefulShutdown();
+  EXPECT_FALSE(session.want_write());
+
+  session.Send();
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized, EqualsFrames({SpdyFrameType::SETTINGS}));
+}
+
 TEST(OgHttp2SessionTest, ServerConstruction) {
   testing::StrictMock<MockHttp2Visitor> visitor;
   OgHttp2Session session(
@@ -360,6 +379,42 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   session.Send();
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
+  EXPECT_FALSE(session.want_write());
+}
+
+TEST(OgHttp2SessionTest, ServerStartShutdown) {
+  DataSavingVisitor visitor;
+  OgHttp2Session session(
+      visitor, OgHttp2Session::Options{.perspective = Perspective::kServer});
+
+  EXPECT_FALSE(session.want_write());
+
+  session.StartGracefulShutdown();
+  EXPECT_TRUE(session.want_write());
+
+  session.Send();
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
+}
+
+TEST(OgHttp2SessionTest, ServerStartShutdownAfterGoaway) {
+  DataSavingVisitor visitor;
+  OgHttp2Session session(
+      visitor, OgHttp2Session::Options{.perspective = Perspective::kServer});
+
+  EXPECT_FALSE(session.want_write());
+
+  auto goaway = absl::make_unique<spdy::SpdyGoAwayIR>(
+      1, spdy::ERROR_CODE_NO_ERROR, "and don't come back!");
+  session.EnqueueFrame(std::move(goaway));
+  EXPECT_TRUE(session.want_write());
+
+  session.Send();
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
+
+  // No-op, since a GOAWAY has previously been enqueued.
+  session.StartGracefulShutdown();
   EXPECT_FALSE(session.want_write());
 }
 

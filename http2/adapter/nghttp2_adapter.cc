@@ -65,6 +65,10 @@ void NgHttp2Adapter::SubmitPing(Http2PingId ping_id) {
   nghttp2_submit_ping(session_->raw_ptr(), NGHTTP2_FLAG_NONE, opaque_data);
 }
 
+void NgHttp2Adapter::SubmitShutdownNotice() {
+  nghttp2_submit_shutdown_notice(session_->raw_ptr());
+}
+
 void NgHttp2Adapter::SubmitGoAway(Http2StreamId last_accepted_stream_id,
                                   Http2ErrorCode error_code,
                                   absl::string_view opaque_data) {

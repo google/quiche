@@ -72,7 +72,22 @@ int OgHttp2Session::Consume(Http2StreamId stream_id, size_t num_bytes) {
   return 0;  // Remove?
 }
 
+void OgHttp2Session::StartGracefulShutdown() {
+  if (options_.perspective == Perspective::kServer) {
+    if (!queued_goaway_) {
+      EnqueueFrame(absl::make_unique<spdy::SpdyGoAwayIR>(
+          std::numeric_limits<int32_t>::max(), spdy::ERROR_CODE_NO_ERROR,
+          "graceful_shutdown"));
+    }
+  } else {
+    QUICHE_LOG(ERROR) << "Graceful shutdown not needed for clients.";
+  }
+}
+
 void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
+  if (frame->frame_type() == spdy::SpdyFrameType::GOAWAY) {
+    queued_goaway_ = true;
+  }
   frames_.push_back(std::move(frame));
 }
 

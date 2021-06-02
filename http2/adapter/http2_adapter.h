@@ -40,6 +40,9 @@ class Http2Adapter {
   // Submits a PING on the connection.
   virtual void SubmitPing(Http2PingId ping_id) = 0;
 
+  // Starts a graceful shutdown. A no-op for clients.
+  virtual void SubmitShutdownNotice() = 0;
+
   // Submits a GOAWAY on the connection. Note that |last_accepted_stream_id|
   // refers to stream IDs initiated by the peer. For a server sending this
   // frame, this last stream ID must be odd (or 0).
