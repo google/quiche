@@ -335,7 +335,7 @@ QuicConnection::QuicConnection(
       visitor_(nullptr),
       debug_visitor_(nullptr),
       packet_creator_(server_connection_id, &framer_, random_generator_, this),
-      time_of_last_received_packet_(clock_->ApproximateNow()),
+      last_received_packet_info_(clock_->ApproximateNow()),
       sent_packet_manager_(perspective,
                            clock_,
                            random_generator_,
@@ -1261,7 +1261,8 @@ void QuicConnection::OnDecryptedPacket(size_t /*length*/,
     default_path_.validated = true;
     stats_.address_validated_via_decrypting_packet = true;
   }
-  idle_network_detector_.OnPacketReceived(time_of_last_received_packet_);
+  idle_network_detector_.OnPacketReceived(
+      last_received_packet_info_.receipt_time);
 
   visitor_->OnPacketDecrypted(level);
 }
@@ -1270,7 +1271,7 @@ QuicSocketAddress QuicConnection::GetEffectivePeerAddressFromCurrentPacket()
     const {
   // By default, the connection is not proxied, and the effective peer address
   // is the packet's source address, i.e. the direct peer address.
-  return last_packet_source_address_;
+  return last_received_packet_info_.source_address;
 }
 
 bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
@@ -1300,7 +1301,7 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
       // for client connections.
       // TODO(fayang): only change peer addresses in application data packet
       // number space.
-      UpdatePeerAddress(last_packet_source_address_);
+      UpdatePeerAddress(last_received_packet_info_.source_address);
       default_path_.peer_address = GetEffectivePeerAddressFromCurrentPacket();
     }
   } else {
@@ -1338,12 +1339,13 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
       // last_packet_destination_connection_id_ has the advantage that it is
       // still present in the session map since the packet can be routed here
       // regardless of packet reordering.
-      if (IsDefaultPath(last_packet_destination_address_,
+      if (IsDefaultPath(last_received_packet_info_.destination_address,
                         effective_peer_address)) {
         default_path_.server_connection_id =
             last_packet_destination_connection_id_;
-      } else if (IsAlternativePath(last_packet_destination_address_,
-                                   effective_peer_address)) {
+      } else if (IsAlternativePath(
+                     last_received_packet_info_.destination_address,
+                     effective_peer_address)) {
         alternative_path_.server_connection_id =
             last_packet_destination_connection_id_;
       }
@@ -1379,7 +1381,7 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
       SupportsMultiplePacketNumberSpaces()) {
     QUIC_RELOADABLE_FLAG_COUNT_N(
         quic_reset_per_packet_state_for_undecryptable_packets, 2, 2);
-    receipt_time = time_of_last_received_packet_;
+    receipt_time = last_received_packet_info_.receipt_time;
   }
   uber_received_packet_manager_.RecordPacketReceived(
       last_decrypted_packet_level_, last_header_, receipt_time);
@@ -1783,7 +1785,7 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
         group_path_response_and_challenge_sending_closer_
             ? nullptr
             : std::make_unique<QuicPacketCreator::ScopedPeerAddressContext>(
-                  &packet_creator_, last_packet_source_address_,
+                  &packet_creator_, last_received_packet_info_.source_address,
                   /*update_connection_id=*/false);
     if (!OnPathChallengeFrameInternal(frame)) {
       return false;
@@ -1808,12 +1810,12 @@ bool QuicConnection::OnPathChallengeFrameInternal(
       GetEffectivePeerAddressFromCurrentPacket();
   if (group_path_response_and_challenge_sending_closer_) {
     QuicConnectionId client_cid, server_cid;
-    FindOnPathConnectionIds(last_packet_destination_address_,
+    FindOnPathConnectionIds(last_received_packet_info_.destination_address,
                             current_effective_peer_address, &client_cid,
                             &server_cid);
     context = std::make_unique<QuicPacketCreator::ScopedPeerAddressContext>(
-        &packet_creator_, last_packet_source_address_, client_cid, server_cid,
-        connection_migration_use_new_cid_);
+        &packet_creator_, last_received_packet_info_.source_address, client_cid,
+        server_cid, connection_migration_use_new_cid_);
   }
   if (should_proactively_validate_peer_address_on_path_challenge_) {
     QUIC_RELOADABLE_FLAG_COUNT(
@@ -1827,7 +1829,8 @@ bool QuicConnection::OnPathChallengeFrameInternal(
                   << current_effective_peer_address;
     QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 2, 6);
     ValidatePath(std::make_unique<ReversePathValidationContext>(
-                     default_path_.self_address, last_packet_source_address_,
+                     default_path_.self_address,
+                     last_received_packet_info_.source_address,
                      current_effective_peer_address, this),
                  std::make_unique<ReversePathValidationResultDelegate>(
                      this, peer_address()));
@@ -1846,9 +1849,9 @@ bool QuicConnection::OnPathChallengeFrameInternal(
   // Queue or send PATH_RESPONSE. Send PATH_RESPONSE to the source address of
   // the current incoming packet, even if it's not the default path or the
   // alternative path.
-  const bool success =
-      SendPathResponse(frame.data_buffer, last_packet_source_address_,
-                       current_effective_peer_address);
+  const bool success = SendPathResponse(
+      frame.data_buffer, last_received_packet_info_.source_address,
+      current_effective_peer_address);
   if (GetQuicReloadableFlag(quic_drop_unsent_path_response)) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_drop_unsent_path_response);
   }
@@ -1857,7 +1860,7 @@ bool QuicConnection::OnPathChallengeFrameInternal(
     if (!GetQuicReloadableFlag(quic_drop_unsent_path_response)) {
       // Queue the payloads to re-try later.
       pending_path_challenge_payloads_.push_back(
-          {frame.data_buffer, last_packet_source_address_});
+          {frame.data_buffer, last_received_packet_info_.source_address});
     }
   }
   // TODO(b/150095588): change the stats to
@@ -1882,8 +1885,8 @@ bool QuicConnection::OnPathResponseFrame(const QuicPathResponseFrame& frame) {
   MaybeUpdateAckTimeout();
   if (use_path_validator_) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_pass_path_response_to_validator, 1, 4);
-    path_validator_.OnPathResponse(frame.data_buffer,
-                                   last_packet_destination_address_);
+    path_validator_.OnPathResponse(
+        frame.data_buffer, last_received_packet_info_.destination_address);
   } else {
     if (!transmitted_connectivity_probe_payload_ ||
         *transmitted_connectivity_probe_payload_ != frame.data_buffer) {
@@ -2317,8 +2320,8 @@ void QuicConnection::MaybeRespondToConnectivityProbingOrMigration() {
     if (perspective_ == Perspective::IS_CLIENT) {
       // This node is a client, notify that a speculative connectivity probing
       // packet has been received anyway.
-      visitor_->OnPacketReceived(last_packet_destination_address_,
-                                 last_packet_source_address_,
+      visitor_->OnPacketReceived(last_received_packet_info_.destination_address,
+                                 last_received_packet_info_.source_address,
                                  /*is_connectivity_probe=*/false);
       return;
     }
@@ -2331,29 +2334,31 @@ void QuicConnection::MaybeRespondToConnectivityProbingOrMigration() {
       // If the packet contains PATH CHALLENGE, send appropriate RESPONSE.
       // There was at least one PATH CHALLENGE in the received packet,
       // Generate the required PATH RESPONSE.
-      SendGenericPathProbePacket(nullptr, last_packet_source_address_,
+      SendGenericPathProbePacket(nullptr,
+                                 last_received_packet_info_.source_address,
                                  /* is_response=*/true);
       return;
     }
   } else {
     if (IsCurrentPacketConnectivityProbing()) {
-      visitor_->OnPacketReceived(last_packet_destination_address_,
-                                 last_packet_source_address_,
+      visitor_->OnPacketReceived(last_received_packet_info_.destination_address,
+                                 last_received_packet_info_.source_address,
                                  /*is_connectivity_probe=*/true);
       return;
     }
     if (perspective_ == Perspective::IS_CLIENT) {
       // This node is a client, notify that a speculative connectivity probing
       // packet has been received anyway.
-      QUIC_DVLOG(1) << ENDPOINT
-                    << "Received a speculative connectivity probing packet for "
-                    << GetServerConnectionIdAsRecipient(last_header_,
-                                                        perspective_)
-                    << " from ip:port: "
-                    << last_packet_source_address_.ToString() << " to ip:port: "
-                    << last_packet_destination_address_.ToString();
-      visitor_->OnPacketReceived(last_packet_destination_address_,
-                                 last_packet_source_address_,
+      QUIC_DVLOG(1)
+          << ENDPOINT
+          << "Received a speculative connectivity probing packet for "
+          << GetServerConnectionIdAsRecipient(last_header_, perspective_)
+          << " from ip:port: "
+          << last_received_packet_info_.source_address.ToString()
+          << " to ip:port: "
+          << last_received_packet_info_.destination_address.ToString();
+      visitor_->OnPacketReceived(last_received_packet_info_.destination_address,
+                                 last_received_packet_info_.source_address,
                                  /*is_connectivity_probe=*/false);
       return;
     }
@@ -2382,10 +2387,10 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
 
   if (use_path_validator_) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_pass_path_response_to_validator, 4, 4);
-    if (!IsDefaultPath(last_packet_destination_address_,
-                       last_packet_source_address_)) {
+    if (!IsDefaultPath(last_received_packet_info_.destination_address,
+                       last_received_packet_info_.source_address)) {
       // This packet is received on a probing path. Do not close connection.
-      if (IsAlternativePath(last_packet_destination_address_,
+      if (IsAlternativePath(last_received_packet_info_.destination_address,
                             GetEffectivePeerAddressFromCurrentPacket())) {
         QUIC_BUG_IF(quic_bug_12714_18, alternative_path_.validated)
             << "STATELESS_RESET received on alternate path after it's "
@@ -2397,8 +2402,9 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
       }
       return;
     }
-  } else if (!visitor_->ValidateStatelessReset(last_packet_destination_address_,
-                                               last_packet_source_address_)) {
+  } else if (!visitor_->ValidateStatelessReset(
+                 last_received_packet_info_.destination_address,
+                 last_received_packet_info_.source_address)) {
     // This packet is received on a probing path. Do not close connection.
     return;
   }
@@ -2821,18 +2827,17 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPacketReceived(self_address, peer_address, packet);
   }
-  current_incoming_packet_received_bytes_counted_ = false;
+  last_received_packet_info_ =
+      ReceivedPacketInfo(self_address, peer_address, packet.receipt_time());
   last_size_ = packet.length();
   current_packet_data_ = packet.data();
 
-  last_packet_destination_address_ = self_address;
-  last_packet_source_address_ = peer_address;
   if (!default_path_.self_address.IsInitialized()) {
-    default_path_.self_address = last_packet_destination_address_;
+    default_path_.self_address = last_received_packet_info_.destination_address;
   }
 
   if (!direct_peer_address_.IsInitialized()) {
-    UpdatePeerAddress(last_packet_source_address_);
+    UpdatePeerAddress(last_received_packet_info_.source_address);
   }
 
   if (!default_path_.peer_address.IsInitialized()) {
@@ -2853,11 +2858,11 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
     if (EnforceAntiAmplificationLimit()) {
       default_path_.bytes_received_before_address_validation += last_size_;
     }
-  } else if (IsDefaultPath(last_packet_destination_address_,
-                           last_packet_source_address_) &&
+  } else if (IsDefaultPath(last_received_packet_info_.destination_address,
+                           last_received_packet_info_.source_address) &&
              EnforceAntiAmplificationLimit()) {
     QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 1, 5);
-    current_incoming_packet_received_bytes_counted_ = true;
+    last_received_packet_info_.received_bytes_counted = true;
     default_path_.bytes_received_before_address_validation += last_size_;
   }
 
@@ -2869,10 +2874,9 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
         << " too far from current time:"
         << clock_->ApproximateNow().ToDebuggingValue();
   }
-  time_of_last_received_packet_ = packet.receipt_time();
   QUIC_DVLOG(1) << ENDPOINT << "time of last received packet: "
                 << packet.receipt_time().ToDebuggingValue() << " from peer "
-                << last_packet_source_address_;
+                << last_received_packet_info_.source_address;
 
   ScopedPacketFlusher flusher(this);
   if (!framer_.ProcessPacket(packet)) {
@@ -3106,9 +3110,10 @@ void QuicConnection::SetDefaultPathState(PathState new_path_state) {
 bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
   if (perspective_ == Perspective::IS_CLIENT && version().HasIetfQuicFrames() &&
       direct_peer_address_.IsInitialized() &&
-      last_packet_source_address_.IsInitialized() &&
-      direct_peer_address_ != last_packet_source_address_ &&
-      !visitor_->IsKnownServerAddress(last_packet_source_address_)) {
+      last_received_packet_info_.source_address.IsInitialized() &&
+      direct_peer_address_ != last_received_packet_info_.source_address &&
+      !visitor_->IsKnownServerAddress(
+          last_received_packet_info_.source_address)) {
     // TODO(haoyuewang) Revisit this when preferred_address transport parameter
     // is used on the client side.
     // Discard packets received from unseen server addresses.
@@ -3117,13 +3122,15 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
 
   if (perspective_ == Perspective::IS_SERVER &&
       default_path_.self_address.IsInitialized() &&
-      last_packet_destination_address_.IsInitialized() &&
-      default_path_.self_address != last_packet_destination_address_) {
+      last_received_packet_info_.destination_address.IsInitialized() &&
+      default_path_.self_address !=
+          last_received_packet_info_.destination_address) {
     // Allow change between pure IPv4 and equivalent mapped IPv4 address.
     if (default_path_.self_address.port() !=
-            last_packet_destination_address_.port() ||
+            last_received_packet_info_.destination_address.port() ||
         default_path_.self_address.host().Normalized() !=
-            last_packet_destination_address_.host().Normalized()) {
+            last_received_packet_info_.destination_address.host()
+                .Normalized()) {
       if (!visitor_->AllowSelfAddressChange()) {
         CloseConnection(
             QUIC_ERROR_MIGRATING_ADDRESS,
@@ -3132,7 +3139,7 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
         return false;
       }
     }
-    default_path_.self_address = last_packet_destination_address_;
+    default_path_.self_address = last_received_packet_info_.destination_address;
   }
 
   if (PacketCanReplaceServerConnectionId(header, perspective_) &&
@@ -4426,10 +4433,8 @@ void QuicConnection::QueueUndecryptablePacket(
     }
   }
   QUIC_DVLOG(1) << ENDPOINT << "Queueing undecryptable packet.";
-  undecryptable_packets_.emplace_back(
-      packet, decryption_level, current_incoming_packet_received_bytes_counted_,
-      last_packet_destination_address_, last_packet_source_address_,
-      time_of_last_received_packet_);
+  undecryptable_packets_.emplace_back(packet, decryption_level,
+                                      last_received_packet_info_);
   if (perspective_ == Perspective::IS_CLIENT) {
     SetRetransmissionAlarm();
   }
@@ -4461,14 +4466,9 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
     if (reset_per_packet_state_for_undecryptable_packets_) {
       QUIC_RELOADABLE_FLAG_COUNT_N(
           quic_reset_per_packet_state_for_undecryptable_packets, 1, 2);
-      current_incoming_packet_received_bytes_counted_ =
-          undecryptable_packet->received_bytes_counted;
+      last_received_packet_info_ = undecryptable_packet->packet_info;
       last_size_ = undecryptable_packet->packet->length();
       current_packet_data_ = undecryptable_packet->packet->data();
-      last_packet_destination_address_ =
-          undecryptable_packet->destination_address;
-      last_packet_source_address_ = undecryptable_packet->source_address;
-      time_of_last_received_packet_ = undecryptable_packet->receipt_time;
       processed = framer_.ProcessPacket(*undecryptable_packet->packet);
       current_packet_data_ = nullptr;
     } else {
@@ -5306,7 +5306,7 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
 
   QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 3, 6);
   if (type == NO_CHANGE) {
-    UpdatePeerAddress(last_packet_source_address_);
+    UpdatePeerAddress(last_received_packet_info_.source_address);
     QUIC_BUG(quic_bug_10511_36)
         << "EffectivePeerMigration started without address change.";
     return;
@@ -5367,9 +5367,9 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
   }
 
   // Update to the new peer address.
-  UpdatePeerAddress(last_packet_source_address_);
+  UpdatePeerAddress(last_received_packet_info_.source_address);
   // Update the default path.
-  if (IsAlternativePath(last_packet_destination_address_,
+  if (IsAlternativePath(last_received_packet_info_.destination_address,
                         current_effective_peer_address)) {
     SetDefaultPathState(std::move(alternative_path_));
   } else {
@@ -5380,10 +5380,11 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
         previous_default_path, alternative_path_,
         last_packet_destination_connection_id_, &client_connection_id,
         &stateless_reset_token_received, &stateless_reset_token);
-    SetDefaultPathState(PathState(
-        last_packet_destination_address_, current_effective_peer_address,
-        client_connection_id, last_packet_destination_connection_id_,
-        stateless_reset_token_received, stateless_reset_token));
+    SetDefaultPathState(
+        PathState(last_received_packet_info_.destination_address,
+                  current_effective_peer_address, client_connection_id,
+                  last_packet_destination_connection_id_,
+                  stateless_reset_token_received, stateless_reset_token));
     // The path is considered validated if its peer IP address matches any
     // validated path's peer IP address.
     default_path_.validated =
@@ -5392,10 +5393,10 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
          alternative_path_.validated) ||
         (previous_default_path.validated && type == PORT_CHANGE);
   }
-  if (!current_incoming_packet_received_bytes_counted_) {
+  if (!last_received_packet_info_.received_bytes_counted) {
     // Increment bytes counting on the new default path.
     default_path_.bytes_received_before_address_validation += last_size_;
-    current_incoming_packet_received_bytes_counted_ = true;
+    last_received_packet_info_.received_bytes_counted = true;
   }
 
   if (!previous_default_path.validated) {
@@ -5576,19 +5577,19 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
     QuicSocketAddress current_effective_peer_address =
         GetEffectivePeerAddressFromCurrentPacket();
     if (!count_bytes_on_alternative_path_separately_ ||
-        IsDefaultPath(last_packet_destination_address_,
-                      last_packet_source_address_)) {
+        IsDefaultPath(last_received_packet_info_.destination_address,
+                      last_received_packet_info_.source_address)) {
       return connected_;
     }
     QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 3, 5);
     if (perspective_ == Perspective::IS_SERVER &&
         type == PATH_CHALLENGE_FRAME &&
-        !IsAlternativePath(last_packet_destination_address_,
+        !IsAlternativePath(last_received_packet_info_.destination_address,
                            current_effective_peer_address)) {
       QUIC_DVLOG(1)
           << "The peer is probing a new path with effective peer address "
           << current_effective_peer_address << ",  self address "
-          << last_packet_destination_address_;
+          << last_received_packet_info_.destination_address;
       if (!validate_client_addresses_) {
         QuicConnectionId client_cid;
         bool stateless_reset_token_received = false;
@@ -5597,10 +5598,11 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
             default_path_, alternative_path_,
             last_packet_destination_connection_id_, &client_cid,
             &stateless_reset_token_received, &stateless_reset_token);
-        alternative_path_ = PathState(
-            last_packet_destination_address_, current_effective_peer_address,
-            client_cid, last_packet_destination_connection_id_,
-            stateless_reset_token_received, stateless_reset_token);
+        alternative_path_ =
+            PathState(last_received_packet_info_.destination_address,
+                      current_effective_peer_address, client_cid,
+                      last_packet_destination_connection_id_,
+                      stateless_reset_token_received, stateless_reset_token);
       } else if (!default_path_.validated) {
         QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 4, 6);
         // Skip reverse path validation because either handshake hasn't
@@ -5627,10 +5629,11 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
         // Only override alternative path state upon receiving a PATH_CHALLENGE
         // from an unvalidated peer address, and the connection isn't validating
         // a recent peer migration.
-        alternative_path_ = PathState(
-            last_packet_destination_address_, current_effective_peer_address,
-            client_connection_id, last_packet_destination_connection_id_,
-            stateless_reset_token_received, stateless_reset_token);
+        alternative_path_ =
+            PathState(last_received_packet_info_.destination_address,
+                      current_effective_peer_address, client_connection_id,
+                      last_packet_destination_connection_id_,
+                      stateless_reset_token_received, stateless_reset_token);
         if (group_path_response_and_challenge_sending_closer_) {
           should_proactively_validate_peer_address_on_path_challenge_ = true;
         } else {
@@ -5642,12 +5645,12 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
           QUIC_DVLOG(1) << "Proactively validate the effective peer address "
                         << current_effective_peer_address;
           QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 1, 6);
-          ValidatePath(
-              std::make_unique<ReversePathValidationContext>(
-                  default_path_.self_address, last_packet_source_address_,
-                  current_effective_peer_address, this),
-              std::make_unique<ReversePathValidationResultDelegate>(
-                  this, peer_address()));
+          ValidatePath(std::make_unique<ReversePathValidationContext>(
+                           default_path_.self_address,
+                           last_received_packet_info_.source_address,
+                           current_effective_peer_address, this),
+                       std::make_unique<ReversePathValidationResultDelegate>(
+                           this, peer_address()));
         }
       }
     }
@@ -5688,15 +5691,17 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
           << current_effective_peer_migration_type_;
     } else {
       is_current_packet_connectivity_probing_ =
-          (last_packet_source_address_ != peer_address()) ||
-          (last_packet_destination_address_ != default_path_.self_address);
+          (last_received_packet_info_.source_address != peer_address()) ||
+          (last_received_packet_info_.destination_address !=
+           default_path_.self_address);
       QUIC_DLOG_IF(INFO, is_current_packet_connectivity_probing_)
           << ENDPOINT
           << "Detected connectivity probing packet. "
-             "last_packet_source_address_:"
-          << last_packet_source_address_ << ", peer_address_:" << peer_address()
-          << ", last_packet_destination_address_:"
-          << last_packet_destination_address_
+             "last_packet_source_address:"
+          << last_received_packet_info_.source_address
+          << ", peer_address_:" << peer_address()
+          << ", last_packet_destination_address:"
+          << last_received_packet_info_.destination_address
           << ", default path self_address :" << default_path_.self_address;
     }
     return connected_;
@@ -5705,7 +5710,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
   current_packet_content_ = NOT_PADDED_PING;
   if (GetLargestReceivedPacket().IsInitialized() &&
       last_header_.packet_number == GetLargestReceivedPacket()) {
-    UpdatePeerAddress(last_packet_source_address_);
+    UpdatePeerAddress(last_received_packet_info_.source_address);
     if (current_effective_peer_migration_type_ != NO_CHANGE) {
       // Start effective peer migration immediately when the current packet is
       // confirmed not a connectivity probing packet.
@@ -5744,11 +5749,11 @@ void QuicConnection::MaybeStartIetfPeerMigration() {
       // TODO(fayang): When multiple packet number spaces is supported, only
       // start peer migration for the application data.
       if (!validate_client_addresses_) {
-        UpdatePeerAddress(last_packet_source_address_);
+        UpdatePeerAddress(last_received_packet_info_.source_address);
       }
       StartEffectivePeerMigration(current_effective_peer_migration_type_);
     } else {
-      UpdatePeerAddress(last_packet_source_address_);
+      UpdatePeerAddress(last_received_packet_info_.source_address);
     }
   }
   current_effective_peer_migration_type_ = NO_CHANGE;
@@ -6688,7 +6693,7 @@ bool QuicConnection::SendPathResponse(
     const QuicSocketAddress& effective_peer_address) {
   QuicConnectionId client_cid, server_cid;
   if (connection_migration_use_new_cid_) {
-    FindOnPathConnectionIds(last_packet_destination_address_,
+    FindOnPathConnectionIds(last_received_packet_info_.destination_address,
                             effective_peer_address, &client_cid, &server_cid);
   }
   // Send PATH_RESPONSE using the provided peer address. If the creator has been
@@ -6698,7 +6703,8 @@ bool QuicConnection::SendPathResponse(
       &packet_creator_, peer_address_to_send, client_cid, server_cid,
       connection_migration_use_new_cid_);
   QUIC_DVLOG(1) << ENDPOINT << "Send PATH_RESPONSE to " << peer_address_to_send;
-  if (default_path_.self_address == last_packet_destination_address_) {
+  if (default_path_.self_address ==
+      last_received_packet_info_.destination_address) {
     // The PATH_CHALLENGE is received on the default socket. Respond on the same
     // socket.
     return packet_creator_.AddPathResponseFrame(data_buffer);
@@ -6709,8 +6715,9 @@ bool QuicConnection::SendPathResponse(
   // used to send PATH_RESPONSE.
   if (!path_validator_.HasPendingPathValidation() ||
       path_validator_.GetContext()->self_address() !=
-          last_packet_destination_address_) {
-    // Ignore this PATH_CHALLENGE if it's received from an uninteresting socket.
+          last_received_packet_info_.destination_address) {
+    // Ignore this PATH_CHALLENGE if it's received from an uninteresting
+    // socket.
     return true;
   }
   QuicPacketWriter* writer = path_validator_.GetContext()->WriterToUse();
@@ -6721,12 +6728,13 @@ bool QuicConnection::SendPathResponse(
   QUICHE_DCHECK_EQ(IsRetransmittable(*probing_packet), NO_RETRANSMITTABLE_DATA);
   QUIC_DVLOG(1) << ENDPOINT
                 << "Send PATH_RESPONSE from alternative socket with address "
-                << last_packet_destination_address_;
+                << last_received_packet_info_.destination_address;
   // Ignore the return value to treat write error on the alternative writer as
   // part of network error. If the writer becomes blocked, wait for the peer to
   // send another PATH_CHALLENGE.
   WritePacketUsingWriter(std::move(probing_packet), writer,
-                         last_packet_destination_address_, peer_address_to_send,
+                         last_received_packet_info_.destination_address,
+                         peer_address_to_send,
                          /*measure_rtt=*/false);
   return true;
 }
@@ -6951,20 +6959,20 @@ void QuicConnection::MaybeUpdateBytesReceivedFromAlternativeAddress(
     QuicByteCount received_packet_size) {
   if (!version().SupportsAntiAmplificationLimit() ||
       perspective_ != Perspective::IS_SERVER ||
-      !IsAlternativePath(last_packet_destination_address_,
+      !IsAlternativePath(last_received_packet_info_.destination_address,
                          GetEffectivePeerAddressFromCurrentPacket()) ||
-      current_incoming_packet_received_bytes_counted_) {
+      last_received_packet_info_.received_bytes_counted) {
     return;
   }
   // Only update bytes received if this probing frame is received on the most
   // recent alternative path.
-  QUICHE_DCHECK(!IsDefaultPath(last_packet_destination_address_,
+  QUICHE_DCHECK(!IsDefaultPath(last_received_packet_info_.destination_address,
                                GetEffectivePeerAddressFromCurrentPacket()));
   if (!alternative_path_.validated) {
     alternative_path_.bytes_received_before_address_validation +=
         received_packet_size;
   }
-  current_incoming_packet_received_bytes_counted_ = true;
+  last_received_packet_info_.received_bytes_counted = true;
 }
 
 bool QuicConnection::IsDefaultPath(

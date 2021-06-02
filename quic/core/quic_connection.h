@@ -1028,7 +1028,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   }
 
   const QuicSocketAddress& last_packet_source_address() const {
-    return last_packet_source_address_;
+    return last_received_packet_info_.source_address;
   }
 
   bool fill_up_link_during_probing() const {
@@ -1423,28 +1423,38 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     const QuicSocketAddress peer_address;
   };
 
+  // ReceivedPacketInfo comprises the received packet information, which can be
+  // retrieved before the packet gets successfully decrypted.
+  struct QUIC_EXPORT_PRIVATE ReceivedPacketInfo {
+    explicit ReceivedPacketInfo(QuicTime receipt_time)
+        : received_bytes_counted(false), receipt_time(receipt_time) {}
+    ReceivedPacketInfo(const QuicSocketAddress& destination_address,
+                       const QuicSocketAddress& source_address,
+                       QuicTime receipt_time)
+        : received_bytes_counted(false),
+          destination_address(destination_address),
+          source_address(source_address),
+          receipt_time(receipt_time) {}
+
+    bool received_bytes_counted;
+    QuicSocketAddress destination_address;
+    QuicSocketAddress source_address;
+    QuicTime receipt_time;
+  };
+
   // UndecrytablePacket comprises a undecryptable packet and related
   // information.
   struct QUIC_EXPORT_PRIVATE UndecryptablePacket {
     UndecryptablePacket(const QuicEncryptedPacket& packet,
                         EncryptionLevel encryption_level,
-                        bool received_bytes_counted,
-                        const QuicSocketAddress& destination_address,
-                        const QuicSocketAddress& source_address,
-                        QuicTime receipt_time)
+                        const ReceivedPacketInfo& packet_info)
         : packet(packet.Clone()),
           encryption_level(encryption_level),
-          received_bytes_counted(received_bytes_counted),
-          destination_address(destination_address),
-          source_address(source_address),
-          receipt_time(receipt_time) {}
+          packet_info(packet_info) {}
 
     std::unique_ptr<QuicEncryptedPacket> packet;
     EncryptionLevel encryption_level;
-    bool received_bytes_counted;
-    QuicSocketAddress destination_address;
-    QuicSocketAddress source_address;
-    QuicTime receipt_time;
+    ReceivedPacketInfo packet_info;
   };
 
   // Handles the reverse path validation result depending on connection state:
@@ -2035,10 +2045,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   QuicPacketCreator packet_creator_;
 
-  // The time that a packet is received for this connection. Initialized to
-  // connection creation time.
-  // This does not indicate the packet was processed.
-  QuicTime time_of_last_received_packet_;
+  // Information about the last received QUIC packet, which may not have been
+  // successfully decrypted and processed.
+  ReceivedPacketInfo last_received_packet_info_;
 
   // Sent packet manager which tracks the status of packets sent by this
   // connection and contains the send and receive algorithms to determine when
@@ -2055,12 +2064,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // True by default.  False if we've received or sent an explicit connection
   // close.
   bool connected_;
-
-  // Destination address of the last received packet.
-  QuicSocketAddress last_packet_destination_address_;
-
-  // Source address of the last received packet.
-  QuicSocketAddress last_packet_source_address_;
 
   // Destination connection ID of the last received packet. If this ID is the
   // original server connection ID chosen by client and server replaces it with
@@ -2285,8 +2288,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // This field is used to debug b/177312785.
   QuicFrameType most_recent_frame_type_;
-
-  bool current_incoming_packet_received_bytes_counted_ = false;
 
   bool count_bytes_on_alternative_path_separately_ =
       GetQuicReloadableFlag(quic_count_bytes_on_alternative_path_seperately);

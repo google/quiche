@@ -430,7 +430,7 @@ void QuicConnectionPeer::SendPing(QuicConnection* connection) {
 void QuicConnectionPeer::SetLastPacketDestinationAddress(
     QuicConnection* connection,
     const QuicSocketAddress& address) {
-  connection->last_packet_destination_address_ = address;
+  connection->last_received_packet_info_.destination_address = address;
 }
 
 // static
