@@ -1653,11 +1653,11 @@ QuicDatagramFlowId QuicSpdySession::GetNextDatagramFlowId() {
 
 MessageStatus QuicSpdySession::SendHttp3Datagram(QuicDatagramFlowId flow_id,
                                                  absl::string_view payload) {
-  size_t slice_length =
+  const size_t slice_length =
       QuicDataWriter::GetVarInt62Len(flow_id) + payload.length();
-  QuicUniqueBufferPtr buffer = MakeUniqueBuffer(
-      connection()->helper()->GetStreamSendBufferAllocator(), slice_length);
-  QuicDataWriter writer(slice_length, buffer.get());
+  QuicBuffer buffer(connection()->helper()->GetStreamSendBufferAllocator(),
+                    slice_length);
+  QuicDataWriter writer(slice_length, buffer.data());
   if (!writer.WriteVarInt62(flow_id)) {
     QUIC_BUG(quic_bug_10360_10) << "Failed to write HTTP/3 datagram flow ID";
     return MESSAGE_STATUS_INTERNAL_ERROR;
@@ -1667,7 +1667,7 @@ MessageStatus QuicSpdySession::SendHttp3Datagram(QuicDatagramFlowId flow_id,
     return MESSAGE_STATUS_INTERNAL_ERROR;
   }
 
-  QuicMemSlice slice(std::move(buffer), slice_length);
+  QuicMemSlice slice(std::move(buffer));
   return datagram_queue()->SendOrQueueDatagram(std::move(slice));
 }
 

@@ -6,6 +6,8 @@
 #define QUICHE_QUIC_PLATFORM_API_QUIC_MEM_SLICE_H_
 
 #include <memory>
+
+#include "absl/strings/string_view.h"
 #include "quic/platform/api/quic_export.h"
 #include "net/quic/platform/impl/quic_mem_slice_impl.h"
 
@@ -31,8 +33,19 @@ class QUIC_EXPORT_PRIVATE QuicMemSlice {
   // Constructs a QuicMemSlice that takes ownership of |buffer|.  |length| must
   // not be zero.  To construct an empty QuicMemSlice, use the zero-argument
   // constructor instead.
+  // TODO(vasilvv): switch all users to QuicBuffer version, and make this
+  // private.
   QuicMemSlice(QuicUniqueBufferPtr buffer, size_t length)
       : impl_(std::move(buffer), length) {}
+
+  // Constructs a QuicMemSlice that takes ownership of |buffer|.  The length of
+  // the |buffer| must not be zero.  To construct an empty QuicMemSlice, use the
+  // zero-argument constructor instead.
+  explicit QuicMemSlice(QuicBuffer buffer) : QuicMemSlice() {
+    // Store the size of the buffer *before* calling buffer.Release().
+    const size_t size = buffer.size();
+    *this = QuicMemSlice(buffer.Release(), size);
+  }
 
   // Constructs a QuicMemSlice that takes ownership of |buffer| allocated on
   // heap.  |length| must not be zero.
@@ -61,6 +74,10 @@ class QUIC_EXPORT_PRIVATE QuicMemSlice {
   const char* data() const { return impl_.data(); }
   // Returns the length of underlying data buffer.
   size_t length() const { return impl_.length(); }
+  // Returns the representation of the underlying data as a string view.
+  absl::string_view AsStringView() const {
+    return absl::string_view(data(), length());
+  }
 
   bool empty() const { return impl_.empty(); }
 

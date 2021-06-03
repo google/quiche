@@ -5,6 +5,9 @@
 #include "quic/platform/api/quic_mem_slice.h"
 
 #include <memory>
+
+#include "absl/strings/string_view.h"
+#include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/platform/api/quic_test.h"
 
@@ -54,6 +57,18 @@ TEST_F(QuicMemSliceTest, SliceAllocatedOnHeap) {
   QuicMemSlice moved = std::move(slice);
   EXPECT_EQ(moved.data(), orig_data);
   EXPECT_EQ(moved.length(), used_length);
+}
+
+TEST_F(QuicMemSliceTest, SliceFromBuffer) {
+  const absl::string_view kTestString =
+      "RFC 9000 Release Celebration Memorial Test String";
+  auto buffer = QuicBuffer::Copy(&allocator_, kTestString);
+  QuicMemSlice slice(std::move(buffer));
+
+  EXPECT_EQ(buffer.data(), nullptr);  // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(buffer.size(), 0u);
+  EXPECT_EQ(slice.AsStringView(), kTestString);
+  EXPECT_EQ(slice.length(), kTestString.length());
 }
 
 }  // namespace

@@ -39,12 +39,12 @@ class QuicStreamSendBufferTest : public QuicTest {
     iov[0] = MakeIovec(absl::string_view(data1));
     iov[1] = MakeIovec(absl::string_view(data2));
 
-    QuicUniqueBufferPtr buffer1 = MakeUniqueBuffer(&allocator_, 1024);
-    memset(buffer1.get(), 'c', 1024);
-    QuicMemSlice slice1(std::move(buffer1), 1024);
-    QuicUniqueBufferPtr buffer2 = MakeUniqueBuffer(&allocator_, 768);
-    memset(buffer2.get(), 'd', 768);
-    QuicMemSlice slice2(std::move(buffer2), 768);
+    QuicBuffer buffer1(&allocator_, 1024);
+    memset(buffer1.data(), 'c', buffer1.size());
+    QuicMemSlice slice1(std::move(buffer1));
+    QuicBuffer buffer2(&allocator_, 768);
+    memset(buffer2.data(), 'd', buffer2.size());
+    QuicMemSlice slice2(std::move(buffer2));
 
     // The stream offset should be 0 since nothing is written.
     EXPECT_EQ(0u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
@@ -309,9 +309,9 @@ TEST_F(QuicStreamSendBufferTest, EndOffset) {
 
   // Last offset is end offset of last slice.
   EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-  QuicUniqueBufferPtr buffer = MakeUniqueBuffer(&allocator_, 60);
-  memset(buffer.get(), 'e', 60);
-  QuicMemSlice slice(std::move(buffer), 60);
+  QuicBuffer buffer(&allocator_, 60);
+  memset(buffer.data(), 'e', buffer.size());
+  QuicMemSlice slice(std::move(buffer));
   send_buffer_.SaveMemSlice(std::move(slice));
 
   EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));

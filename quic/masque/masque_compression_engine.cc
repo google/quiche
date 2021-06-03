@@ -276,10 +276,10 @@ void MasqueCompressionEngine::CompressAndSendPacket(
                     sizeof(server_address.port()) + sizeof(uint8_t) +
                     server_address.host().ToPackedString().length();
   }
-  QuicUniqueBufferPtr buffer = MakeUniqueBuffer(
+  QuicBuffer buffer(
       masque_session_->connection()->helper()->GetStreamSendBufferAllocator(),
       slice_length);
-  QuicDataWriter writer(slice_length, buffer.get());
+  QuicDataWriter writer(buffer.size(), buffer.data());
 
   if (!WriteCompressedPacketToSlice(
           client_connection_id, server_connection_id, server_address,
@@ -288,7 +288,7 @@ void MasqueCompressionEngine::CompressAndSendPacket(
     return;
   }
 
-  QuicMemSlice slice(std::move(buffer), slice_length);
+  QuicMemSlice slice(std::move(buffer));
   MessageResult message_result =
       masque_session_->SendMessage(QuicMemSliceSpan(&slice));
 

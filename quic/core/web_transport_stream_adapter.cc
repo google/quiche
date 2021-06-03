@@ -42,11 +42,8 @@ bool WebTransportStreamAdapter::Write(absl::string_view data) {
     return false;
   }
 
-  QuicUniqueBufferPtr buffer = MakeUniqueBuffer(
-      session_->connection()->helper()->GetStreamSendBufferAllocator(),
-      data.size());
-  memcpy(buffer.get(), data.data(), data.size());
-  QuicMemSlice memslice(std::move(buffer), data.size());
+  QuicMemSlice memslice(QuicBuffer::Copy(
+      session_->connection()->helper()->GetStreamSendBufferAllocator(), data));
   QuicConsumedData consumed =
       stream_->WriteMemSlices(QuicMemSliceSpan(&memslice), /*fin=*/false);
 

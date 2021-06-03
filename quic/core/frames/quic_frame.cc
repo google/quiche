@@ -391,11 +391,9 @@ QuicFrame CopyQuicFrame(QuicBufferAllocator* allocator,
       copy.message_frame->data = frame.message_frame->data;
       copy.message_frame->message_length = frame.message_frame->message_length;
       for (const auto& slice : frame.message_frame->message_data) {
-        QuicUniqueBufferPtr buffer =
-            MakeUniqueBuffer(allocator, slice.length());
-        memcpy(buffer.get(), slice.data(), slice.length());
+        QuicBuffer buffer = QuicBuffer::Copy(allocator, slice.AsStringView());
         copy.message_frame->message_data.push_back(
-            QuicMemSlice(std::move(buffer), slice.length()));
+            QuicMemSlice(std::move(buffer)));
       }
       break;
     case NEW_TOKEN_FRAME:
