@@ -1513,6 +1513,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   }
   void SetServerConnectionId(const QuicConnectionId& server_connection_id);
 
+  // If peer uses non-empty connection ID, discards any buffered packets on path
+  // change in IETF QUIC.
+  void MaybeClearQueuedPacketsOnPathChange();
+
   // Notifies the visitor of the close and marks the connection as disconnected.
   // Does not send a connection close frame to the peer. It should only be
   // called by CloseConnection or OnConnectionCloseFrame, OnPublicResetPacket,

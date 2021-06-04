@@ -3014,6 +3014,17 @@ void QuicConnection::SetServerConnectionId(
   }
 }
 
+void QuicConnection::MaybeClearQueuedPacketsOnPathChange() {
+  if (connection_migration_use_new_cid_ &&
+      peer_issued_cid_manager_ != nullptr && HasQueuedPackets()) {
+    // Discard packets serialized with the connection ID on the old code path.
+    // It is possible to clear queued packets only if connection ID changes.
+    // However, the case where connection ID is unchanged and queued packets are
+    // non-empty is quite rare.
+    ClearQueuedPackets();
+  }
+}
+
 void QuicConnection::ReplaceInitialServerConnectionId(
     const QuicConnectionId& new_server_connection_id) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT);
@@ -5331,6 +5342,7 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
   const QuicSocketAddress previous_direct_peer_address = direct_peer_address_;
   PathState previous_default_path = std::move(default_path_);
   active_effective_peer_migration_type_ = type;
+  MaybeClearQueuedPacketsOnPathChange();
   OnConnectionMigration();
 
   // Update congestion controller if the address change type is not PORT_CHANGE.
@@ -6864,6 +6876,7 @@ bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
   SetSelfAddress(self_address);
   UpdatePeerAddress(peer_address);
   SetQuicPacketWriter(writer, owns_writer);
+  MaybeClearQueuedPacketsOnPathChange();
   OnSuccessfulMigration(is_port_change);
   return true;
 }
@@ -7115,6 +7128,7 @@ void QuicConnection::RestoreToLastValidatedPath(
                     ConnectionCloseBehavior::SILENT_CLOSE);
     return;
   }
+  MaybeClearQueuedPacketsOnPathChange();
 
   // Revert congestion control context to old state.
   OnPeerIpAddressChanged();

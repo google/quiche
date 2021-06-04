@@ -13637,19 +13637,33 @@ TEST_P(QuicConnectionTest, ServerHelloGetsReordered) {
 
 TEST_P(QuicConnectionTest, MigratePath) {
   EXPECT_CALL(visitor_, GetHandshakeState())
-      .Times(testing::AtMost(1))
-      .WillOnce(Return(HANDSHAKE_CONFIRMED));
+      .Times(testing::AtMost(2))
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   EXPECT_CALL(visitor_, OnPathDegrading());
   connection_.OnPathDegradingDetected();
   const QuicSocketAddress kNewSelfAddress(QuicIpAddress::Any4(), 12345);
   EXPECT_NE(kNewSelfAddress, connection_.self_address());
+
+  // Buffer a packet.
+  EXPECT_CALL(visitor_, OnWriteBlocked()).Times(1);
+  writer_->SetWriteBlocked();
+  connection_.SendMtuDiscoveryPacket(kMaxOutgoingPacketSize);
+  EXPECT_EQ(1u, connection_.NumQueuedPackets());
+
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
   EXPECT_CALL(visitor_, OnForwardProgressMadeAfterPathDegrading());
   connection_.MigratePath(kNewSelfAddress, connection_.peer_address(),
                           &new_writer, /*owns_writer=*/false);
+
   EXPECT_EQ(kNewSelfAddress, connection_.self_address());
   EXPECT_EQ(&new_writer, QuicConnectionPeer::GetWriter(&connection_));
   EXPECT_FALSE(connection_.IsPathDegrading());
+  // Buffered packet on the old path should be discarded.
+  if (connection_.connection_migration_use_new_cid()) {
+    EXPECT_EQ(0u, connection_.NumQueuedPackets());
+  } else {
+    EXPECT_EQ(1u, connection_.NumQueuedPackets());
+  }
 }
 
 TEST_P(QuicConnectionTest, MigrateToNewPathDuringProbing) {
