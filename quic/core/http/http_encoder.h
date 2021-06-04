@@ -7,6 +7,7 @@
 
 #include <memory>
 #include "quic/core/http/http_frames.h"
+#include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
@@ -21,11 +22,10 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
  public:
   HttpEncoder() = delete;
 
-  // Serializes a DATA frame header into a new buffer stored in |output|.
-  // Returns the length of the buffer on success, or 0 otherwise.
-  static QuicByteCount SerializeDataFrameHeader(
-      QuicByteCount payload_length,
-      std::unique_ptr<char[]>* output);
+  // Serializes a DATA frame header into a QuicBuffer; returns said QuicBuffer
+  // on success, empty buffer otherwise.
+  static QuicBuffer SerializeDataFrameHeader(QuicByteCount payload_length,
+                                             QuicBufferAllocator* allocator);
 
   // Serializes a HEADERS frame header into a new buffer stored in |output|.
   // Returns the length of the buffer on success, or 0 otherwise.

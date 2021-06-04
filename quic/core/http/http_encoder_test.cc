@@ -5,6 +5,7 @@
 #include "quic/core/http/http_encoder.h"
 
 #include "absl/base/macros.h"
+#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_test_utils.h"
@@ -14,16 +15,15 @@ namespace quic {
 namespace test {
 
 TEST(HttpEncoderTest, SerializeDataFrameHeader) {
-  std::unique_ptr<char[]> buffer;
-  uint64_t length =
-      HttpEncoder::SerializeDataFrameHeader(/* payload_length = */ 5, &buffer);
+  QuicBuffer buffer = HttpEncoder::SerializeDataFrameHeader(
+      /* payload_length = */ 5, SimpleBufferAllocator::Get());
   char output[] = {// type (DATA)
                    0x00,
                    // length
                    0x05};
-  EXPECT_EQ(ABSL_ARRAYSIZE(output), length);
-  quiche::test::CompareCharArraysWithHexError("DATA", buffer.get(), length,
-                                              output, ABSL_ARRAYSIZE(output));
+  EXPECT_EQ(ABSL_ARRAYSIZE(output), buffer.size());
+  quiche::test::CompareCharArraysWithHexError(
+      "DATA", buffer.data(), buffer.size(), output, ABSL_ARRAYSIZE(output));
 }
 
 TEST(HttpEncoderTest, SerializeHeadersFrameHeader) {

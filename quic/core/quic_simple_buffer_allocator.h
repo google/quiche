@@ -12,6 +12,11 @@ namespace quic {
 
 class QUIC_EXPORT_PRIVATE SimpleBufferAllocator : public QuicBufferAllocator {
  public:
+  static SimpleBufferAllocator* Get() {
+    static SimpleBufferAllocator* singleton = new SimpleBufferAllocator();
+    return singleton;
+  }
+
   char* New(size_t size) override;
   char* New(size_t size, bool flag_enable) override;
   void Delete(char* buffer) override;

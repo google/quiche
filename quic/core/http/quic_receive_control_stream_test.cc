@@ -9,6 +9,7 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/http/http_constants.h"
 #include "quic/core/qpack/qpack_header_table.h"
+#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/test_tools/qpack/qpack_encoder_peer.h"
@@ -239,12 +240,11 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsFragments) {
 
 TEST_P(QuicReceiveControlStreamTest, ReceiveWrongFrame) {
   // DATA frame header without payload.
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount header_length =
-      HttpEncoder::SerializeDataFrameHeader(/* payload_length = */ 2, &buffer);
-  std::string data = std::string(buffer.get(), header_length);
+  QuicBuffer data = HttpEncoder::SerializeDataFrameHeader(
+      /* payload_length = */ 2, SimpleBufferAllocator::Get());
 
-  QuicStreamFrame frame(receive_control_stream_->id(), false, 1, data);
+  QuicStreamFrame frame(receive_control_stream_->id(), false, 1,
+                        data.AsStringView());
   EXPECT_CALL(
       *connection_,
       CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM, _, _));

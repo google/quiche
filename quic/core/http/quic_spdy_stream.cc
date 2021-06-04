@@ -343,17 +343,16 @@ void QuicSpdyStream::WriteOrBufferBody(absl::string_view data, bool fin) {
   }
 
   // Write frame header.
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount header_length =
-      HttpEncoder::SerializeDataFrameHeader(data.length(), &buffer);
+  const QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
+      data.length(),
+      spdy_session_->connection()->helper()->GetStreamSendBufferAllocator());
   unacked_frame_headers_offsets_.Add(
       send_buffer().stream_offset(),
-      send_buffer().stream_offset() + header_length);
+      send_buffer().stream_offset() + header.size());
   QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing DATA frame header of length "
-                  << header_length;
-  WriteOrBufferData(absl::string_view(buffer.get(), header_length), false,
-                    nullptr);
+                  << header.size();
+  WriteOrBufferData(header.AsStringView(), false, nullptr);
 
   // Write body.
   QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
@@ -419,10 +418,10 @@ QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
     return WriteMemSlices(slices, fin);
   }
 
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount header_length =
-      HttpEncoder::SerializeDataFrameHeader(slices.total_length(), &buffer);
-  if (!CanWriteNewDataAfterData(header_length)) {
+  QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
+      slices.total_length(),
+      spdy_session_->connection()->helper()->GetStreamSendBufferAllocator());
+  if (!CanWriteNewDataAfterData(header.size())) {
     return {0, false};
   }
 
@@ -434,23 +433,14 @@ QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
   QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
 
   // Write frame header.
-#if !defined(__ANDROID__)
-  struct iovec header_iov = {static_cast<void*>(buffer.get()), header_length};
-#else
-  struct iovec header_iov = {static_cast<void*>(buffer.get()),
-                             static_cast<__kernel_size_t>(header_length)};
-#endif
-  QuicMemSliceStorage storage(
-      &header_iov, 1,
-      spdy_session_->connection()->helper()->GetStreamSendBufferAllocator(),
-      GetQuicFlag(FLAGS_quic_send_buffer_max_data_slice_size));
   unacked_frame_headers_offsets_.Add(
       send_buffer().stream_offset(),
-      send_buffer().stream_offset() + header_length);
+      send_buffer().stream_offset() + header.size());
   QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing DATA frame header of length "
-                  << header_length;
-  WriteMemSlices(storage.ToSpan(), false);
+                  << header.size();
+  QuicMemSlice header_slice(std::move(header));
+  WriteMemSlices(QuicMemSliceSpan(&header_slice), false);
 
   // Write body.
   QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()

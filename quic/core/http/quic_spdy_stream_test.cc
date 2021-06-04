@@ -19,6 +19,7 @@
 #include "quic/core/http/spdy_utils.h"
 #include "quic/core/http/web_transport_http3.h"
 #include "quic/core/quic_connection.h"
+#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_stream_sequencer_buffer.h"
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
@@ -475,12 +476,9 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   std::string DataFrame(absl::string_view payload) {
-    std::unique_ptr<char[]> data_buffer;
-    QuicByteCount data_frame_header_length =
-        HttpEncoder::SerializeDataFrameHeader(payload.length(), &data_buffer);
-    absl::string_view data_frame_header(data_buffer.get(),
-                                        data_frame_header_length);
-    return absl::StrCat(data_frame_header, payload);
+    QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
+        payload.length(), SimpleBufferAllocator::Get());
+    return absl::StrCat(header.AsStringView(), payload);
   }
 
   std::string UnknownFrame(uint64_t frame_type, absl::string_view payload) {
@@ -1005,11 +1003,10 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlNoWindowUpdateIfNotConsumed) {
   std::string data;
 
   if (UsesHttp3()) {
-    std::unique_ptr<char[]> buffer;
-    header_length =
-        HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
-    std::string header = std::string(buffer.get(), header_length);
-    data = header + body;
+    QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
+        body.length(), SimpleBufferAllocator::Get());
+    data = absl::StrCat(header.AsStringView(), body);
+    header_length = header.size();
   } else {
     data = body;
   }
@@ -1049,11 +1046,10 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlWindowUpdate) {
   std::string data;
 
   if (UsesHttp3()) {
-    std::unique_ptr<char[]> buffer;
-    header_length =
-        HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
-    std::string header = std::string(buffer.get(), header_length);
-    data = header + body;
+    QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
+        body.length(), SimpleBufferAllocator::Get());
+    data = absl::StrCat(header.AsStringView(), body);
+    header_length = header.size();
   } else {
     data = body;
   }
@@ -1115,16 +1111,13 @@ TEST_P(QuicSpdyStreamTest, ConnectionFlowControlWindowUpdate) {
 
   if (UsesHttp3()) {
     body = std::string(kWindow / 4 - 2, 'a');
-    std::unique_ptr<char[]> buffer;
-    header_length =
-        HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
-    std::string header = std::string(buffer.get(), header_length);
-    data = header + body;
-    std::unique_ptr<char[]> buffer2;
-    QuicByteCount header_length2 =
-        HttpEncoder::SerializeDataFrameHeader(body2.length(), &buffer2);
-    std::string header2 = std::string(buffer2.get(), header_length2);
-    data2 = header2 + body2;
+    QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
+        body.length(), SimpleBufferAllocator::Get());
+    data = absl::StrCat(header.AsStringView(), body);
+    header_length = header.size();
+    QuicBuffer header2 = HttpEncoder::SerializeDataFrameHeader(
+        body.length(), SimpleBufferAllocator::Get());
+    data2 = absl::StrCat(header2.AsStringView(), body2);
   } else {
     body = std::string(kWindow / 4, 'a');
     data = body;
@@ -1595,8 +1588,9 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
   std::string body(1024, 'x');  // 1 kB
   QuicByteCount header_length = 0;
   if (UsesHttp3()) {
-    std::unique_ptr<char[]> buf;
-    header_length = HttpEncoder::SerializeDataFrameHeader(body.length(), &buf);
+    header_length = HttpEncoder::SerializeDataFrameHeader(
+                        body.length(), SimpleBufferAllocator::Get())
+                        .size();
   }
 
   stream_->WriteOrBufferBody(body, false);
@@ -1939,30 +1933,26 @@ TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteOrBufferBody) {
   stream_->WriteOrBufferBody(body, false);
   stream_->WriteOrBufferBody(body2, true);
 
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount header_length =
-      HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
-  std::string header = std::string(buffer.get(), header_length);
-
-  header_length =
-      HttpEncoder::SerializeDataFrameHeader(body2.length(), &buffer);
-  std::string header2 = std::string(buffer.get(), header_length);
+  QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
+      body.length(), SimpleBufferAllocator::Get());
+  QuicBuffer header2 = HttpEncoder::SerializeDataFrameHeader(
+      body2.length(), SimpleBufferAllocator::Get());
 
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(body.length(), _));
-  QuicStreamFrame frame(stream_->id(), false, 0, header + body);
+  QuicStreamFrame frame(stream_->id(), false, 0,
+                        absl::StrCat(header.AsStringView(), body));
   EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame), QuicTime::Delta::Zero(),
                                      QuicTime::Zero()));
 
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(0, _));
-  QuicStreamFrame frame2(stream_->id(), false, header.length() + body.length(),
-                         header2);
+  QuicStreamFrame frame2(stream_->id(), false, header.size() + body.length(),
+                         header2.AsStringView());
   EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame2), QuicTime::Delta::Zero(),
                                      QuicTime::Zero()));
 
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(body2.length(), _));
   QuicStreamFrame frame3(stream_->id(), true,
-                         header.length() + body.length() + header2.length(),
-                         body2);
+                         header.size() + body.length() + header2.size(), body2);
   EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame3), QuicTime::Delta::Zero(),
                                      QuicTime::Zero()));
 
