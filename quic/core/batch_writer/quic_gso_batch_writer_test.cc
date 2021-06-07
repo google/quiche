@@ -322,11 +322,9 @@ TEST_F(QuicGsoBatchWriterTest, WriteBlockDataBuffered) {
       }));
   ASSERT_EQ(WriteResult(WRITE_STATUS_BLOCKED_DATA_BUFFERED, EWOULDBLOCK),
             WritePacket(&writer, 50));
-  if (GetQuicReloadableFlag(quic_batch_writer_fix_write_blocked)) {
-    EXPECT_TRUE(writer.IsWriteBlocked());
-  } else {
-    EXPECT_FALSE(writer.IsWriteBlocked());
-  }
+
+  EXPECT_TRUE(writer.IsWriteBlocked());
+
   ASSERT_EQ(250u, writer.batch_buffer().SizeInUse());
   ASSERT_EQ(3u, writer.buffered_writes().size());
 }

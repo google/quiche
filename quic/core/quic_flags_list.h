@@ -23,8 +23,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_fix_bw_lo_mode2, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_and_tls_allow_sni_without_dots, true)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
-// If true, QuicBatchWriterBase will mark the writer as blocked when the write status is WRITE_STATUS_BLOCKED_DATA_BUFFERED.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_batch_writer_fix_write_blocked, true)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_support_release_time_for_gso, false)
 // If true, TlsHandshaker::AdvanceHandshake will retry SSL_do_handshake when entered early data.

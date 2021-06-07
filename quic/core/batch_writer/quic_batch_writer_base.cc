@@ -24,20 +24,10 @@ WriteResult QuicBatchWriterBase::WritePacket(
   const WriteResult result =
       InternalWritePacket(buffer, buf_len, self_address, peer_address, options);
 
-  if (GetQuicReloadableFlag(quic_batch_writer_fix_write_blocked)) {
-    if (IsWriteBlockedStatus(result.status)) {
-      if (result.status == WRITE_STATUS_BLOCKED_DATA_BUFFERED) {
-        QUIC_CODE_COUNT(quic_batch_writer_fix_write_blocked_data_buffered);
-      } else {
-        QUIC_CODE_COUNT(quic_batch_writer_fix_write_blocked_data_not_buffered);
-      }
-      write_blocked_ = true;
-    }
-  } else {
-    if (result.status == WRITE_STATUS_BLOCKED) {
-      write_blocked_ = true;
-    }
+  if (IsWriteBlockedStatus(result.status)) {
+    write_blocked_ = true;
   }
+
   return result;
 }
 
