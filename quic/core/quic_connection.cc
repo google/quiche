@@ -6819,7 +6819,6 @@ bool QuicConnection::UpdateConnectionIdsOnClientMigration(
 }
 
 void QuicConnection::RetirePeerIssuedConnectionIdsNoLongerOnPath() {
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 4, 5);
   if (!connection_migration_use_new_cid_ ||
       peer_issued_cid_manager_ == nullptr) {
     return;
@@ -6829,6 +6828,8 @@ void QuicConnection::RetirePeerIssuedConnectionIdsNoLongerOnPath() {
         {default_path_.server_connection_id,
          alternative_path_.server_connection_id});
   } else {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 4,
+                                 5);
     peer_issued_cid_manager_->MaybeRetireUnusedConnectionIds(
         {default_path_.client_connection_id,
          alternative_path_.client_connection_id});
