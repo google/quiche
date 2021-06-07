@@ -168,9 +168,6 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   // error code corresponding to the TLS alert description |desc|.
   void SendAlert(EncryptionLevel level, uint8_t desc) override;
 
-  const bool add_packet_flusher_on_async_op_done_ =
-      GetQuicReloadableFlag(quic_add_packet_flusher_on_async_op_done);
-
   const bool retry_handshake_on_early_data_ =
       GetQuicReloadableFlag(quic_tls_retry_handshake_on_early_data);
 
