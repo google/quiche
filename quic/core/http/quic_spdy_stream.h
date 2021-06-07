@@ -16,6 +16,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/http/http_decoder.h"
 #include "quic/core/http/http_encoder.h"
@@ -313,6 +314,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   void MaybeProcessSentWebTransportHeaders(spdy::SpdyHeaderBlock& headers);
   void MaybeProcessReceivedWebTransportHeaders();
+
+  // Writes HTTP/3 DATA frame header.
+  ABSL_MUST_USE_RESULT bool WriteDataFrameHeader(QuicByteCount data_length);
 
   QuicSpdySession* spdy_session_;
 

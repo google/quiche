@@ -412,27 +412,20 @@ QuicConsumedData QuicSpdyStream::WritevBody(const struct iovec* iov,
   return WriteBodySlices(storage.ToSpan(), fin);
 }
 
-QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
-                                                 bool fin) {
-  if (!VersionUsesHttp3(transport_version()) || slices.empty()) {
-    return WriteMemSlices(slices, fin);
-  }
-
+bool QuicSpdyStream::WriteDataFrameHeader(QuicByteCount data_length) {
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK_GT(data_length, 0u);
   QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
-      slices.total_length(),
+      data_length,
       spdy_session_->connection()->helper()->GetStreamSendBufferAllocator());
   if (!CanWriteNewDataAfterData(header.size())) {
-    return {0, false};
+    return false;
   }
 
   if (spdy_session_->debug_visitor()) {
-    spdy_session_->debug_visitor()->OnDataFrameSent(id(),
-                                                    slices.total_length());
+    spdy_session_->debug_visitor()->OnDataFrameSent(id(), data_length);
   }
 
-  QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
-
-  // Write frame header.
   unacked_frame_headers_offsets_.Add(
       send_buffer().stream_offset(),
       send_buffer().stream_offset() + header.size());
@@ -441,8 +434,20 @@ QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
                   << header.size();
   QuicMemSlice header_slice(std::move(header));
   WriteMemSlices(QuicMemSliceSpan(&header_slice), false);
+  return true;
+}
 
-  // Write body.
+QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
+                                                 bool fin) {
+  if (!VersionUsesHttp3(transport_version()) || slices.empty()) {
+    return WriteMemSlices(slices, fin);
+  }
+
+  QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
+  if (!WriteDataFrameHeader(slices.total_length())) {
+    return {0, false};
+  }
+
   QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing DATA frame payload of length "
                   << slices.total_length();
