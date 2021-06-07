@@ -286,9 +286,7 @@ void Bbr2NetworkModel::AdaptLowerBounds(
   }
   // If it's the end of the round, ensure bandwidth_lo doesn't decrease more
   // than beta.
-  if (GetQuicReloadableFlag(quic_bbr2_fix_bw_lo_mode) &&
-      congestion_event.end_of_round_trip) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_fix_bw_lo_mode, 2, 2);
+  if (congestion_event.end_of_round_trip) {
     bandwidth_lo_ =
         std::max(bandwidth_lo_, prior_bandwidth_lo_ * (1.0 - Params().beta));
     prior_bandwidth_lo_ = QuicBandwidth::Zero();

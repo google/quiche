@@ -135,8 +135,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_send_timestamps, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_h3_datagram, false)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr, false)
-// When true, makes the QUIC BBRv2 bw_lo modes more similar to standard BBRv2.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_fix_bw_lo_mode, true)
 // When true, set the initial congestion control window from connection options in QuicSentPacketManager rather than TcpCubicSenderBytes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_unified_iw_options, false)
 
