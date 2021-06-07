@@ -184,7 +184,7 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
   visitor.Clear();
 
   const char* kSentinel = "";
-  TestDataFrameSource body1(visitor, "This is an example request body.", true);
+  TestDataFrameSource body1(visitor, "This is an example request body.");
   int stream_id =
       session.SubmitRequest(ToHeaders({{":method", "POST"},
                                        {":scheme", "http"},
@@ -367,7 +367,7 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   visitor.Clear();
 
   EXPECT_FALSE(session.want_write());
-  TestDataFrameSource body1(visitor, "This is an example response body.", true);
+  TestDataFrameSource body1(visitor, "This is an example response body.");
   int submit_result = session.SubmitResponse(
       1,
       ToHeaders({{":status", "404"},
@@ -416,6 +416,149 @@ TEST(OgHttp2SessionTest, ServerStartShutdownAfterGoaway) {
   // No-op, since a GOAWAY has previously been enqueued.
   session.StartGracefulShutdown();
   EXPECT_FALSE(session.want_write());
+}
+
+// Tests the case where the server queues trailers after the data stream is
+// exhausted.
+TEST(OgHttp2SessionTest, ServerSendsTrailers) {
+  DataSavingVisitor visitor;
+  OgHttp2Session session(
+      visitor, OgHttp2Session::Options{.perspective = Perspective::kServer});
+
+  EXPECT_FALSE(session.want_write());
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "GET"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  const ssize_t result = session.ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), result);
+
+  // Server will want to send initial SETTINGS, and a SETTINGS ack.
+  EXPECT_TRUE(session.want_write());
+  session.Send();
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  EXPECT_FALSE(session.want_write());
+
+  // The body source must indicate that the end of the body is not the end of
+  // the stream.
+  TestDataFrameSource body1(visitor, "This is an example response body.",
+                            /*has_fin=*/false);
+  int submit_result = session.SubmitResponse(
+      1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
+      &body1);
+  EXPECT_EQ(submit_result, 0);
+  EXPECT_TRUE(session.want_write());
+  session.Send();
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
+  visitor.Clear();
+  EXPECT_FALSE(session.want_write());
+
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  // The body source has been exhausted by the call to Send() above.
+  int trailer_result = session.SubmitTrailer(
+      1, ToHeaders({{"final-status", "a-ok"},
+                    {"x-comment", "trailers sure are cool"}}));
+  ASSERT_EQ(trailer_result, 0);
+  EXPECT_TRUE(session.want_write());
+
+  session.Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
+}
+
+// Tests the case where the server queues trailers immediately after headers and
+// data, and before any writes have taken place.
+TEST(OgHttp2SessionTest, ServerQueuesTrailersWithResponse) {
+  DataSavingVisitor visitor;
+  OgHttp2Session session(
+      visitor, OgHttp2Session::Options{.perspective = Perspective::kServer});
+
+  EXPECT_FALSE(session.want_write());
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "GET"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  const ssize_t result = session.ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), result);
+
+  // Server will want to send initial SETTINGS, and a SETTINGS ack.
+  EXPECT_TRUE(session.want_write());
+  session.Send();
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  EXPECT_FALSE(session.want_write());
+
+  // The body source must indicate that the end of the body is not the end of
+  // the stream.
+  TestDataFrameSource body1(visitor, "This is an example response body.",
+                            /*has_fin=*/false);
+  int submit_result = session.SubmitResponse(
+      1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
+      &body1);
+  EXPECT_EQ(submit_result, 0);
+  EXPECT_TRUE(session.want_write());
+  // There has not been a call to Send() yet, so neither headers nor body have
+  // been written.
+  int trailer_result = session.SubmitTrailer(
+      1, ToHeaders({{"final-status", "a-ok"},
+                    {"x-comment", "trailers sure are cool"}}));
+  ASSERT_EQ(trailer_result, 0);
+  EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  session.Send();
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA,
+                            SpdyFrameType::HEADERS}));
 }
 
 }  // namespace test

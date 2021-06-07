@@ -101,23 +101,39 @@ void OgHttp2Session::Send() {
       serialized_prefix_.erase(0, result);
     }
   }
-  // Serialize and send frames in the queue.
-  while (result > 0 && !frames_.empty()) {
-    spdy::SpdySerializedFrame frame = framer_.SerializeFrame(*frames_.front());
-    frames_.pop_front();
-    result = visitor_.OnReadyToSend(absl::string_view(frame));
-    if (result < 0) {
-      visitor_.OnConnectionError();
-    } else if (result < frame.size()) {
-      serialized_prefix_.assign(frame.data() + result, frame.size() - result);
-      break;
-    }
+  if (!serialized_prefix_.empty()) {
+    return;
   }
+  bool continue_writing = SendQueuedFrames();
   // Wake streams for writes.
-  while (result > 0 && write_scheduler_.HasReadyStreams() && peer_window_ > 0) {
+  while (continue_writing && write_scheduler_.HasReadyStreams() &&
+         peer_window_ > 0) {
     const Http2StreamId stream_id = write_scheduler_.PopNextReadyStream();
+    // TODO(birenroy): Add a return value to indicate write blockage, so streams
+    // aren't woken unnecessarily.
     WriteForStream(stream_id);
   }
+  if (continue_writing) {
+    SendQueuedFrames();
+  }
+}
+
+bool OgHttp2Session::SendQueuedFrames() {
+  // Serialize and send frames in the queue.
+  while (!frames_.empty()) {
+    spdy::SpdySerializedFrame frame = framer_.SerializeFrame(*frames_.front());
+    frames_.pop_front();
+    const ssize_t result = visitor_.OnReadyToSend(absl::string_view(frame));
+    if (result < 0) {
+      visitor_.OnConnectionError();
+      return false;
+    }
+    if (result < frame.size()) {
+      serialized_prefix_.assign(frame.data() + result, frame.size() - result);
+      return false;
+    }
+  }
+  return true;
 }
 
 void OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
@@ -129,18 +145,24 @@ void OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
   }
   StreamState& state = it->second;
   if (state.outbound_body == nullptr) {
-    // No data to send.
+    // No data to send, but there might be trailers.
+    if (state.trailers != nullptr) {
+      auto block_ptr = std::move(state.trailers);
+      if (state.half_closed_local) {
+        QUICHE_LOG(ERROR) << "Sent fin; can't send trailers.";
+      } else {
+        SendTrailers(stream_id, std::move(*block_ptr));
+        MaybeCloseWithRstStream(stream_id, state);
+      }
+    }
     return;
   }
   int32_t available_window =
       std::min(std::min(peer_window_, state.send_window), max_frame_payload_);
   while (available_window > 0 && state.outbound_body != nullptr) {
-    QUICHE_LOG(INFO) << "Peer window: " << peer_window_
-                     << " send window: " << state.send_window
-                     << " max_payload: " << max_frame_payload_;
-    auto [length, fin] =
+    auto [length, end_data] =
         state.outbound_body->SelectPayloadLength(available_window);
-    QUICHE_LOG(INFO) << "Payload length: " << length << " fin: " << fin;
+    const bool fin = end_data ? state.outbound_body->send_fin() : false;
     spdy::SpdyDataIR data(stream_id);
     data.set_fin(fin);
     data.SetDataShallow(length);
@@ -151,17 +173,20 @@ void OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
     state.send_window -= length;
     available_window =
         std::min(std::min(peer_window_, state.send_window), max_frame_payload_);
-    if (fin) {
-      state.half_closed_local = true;
-      state.outbound_body = nullptr;
-      if (options_.perspective == Perspective::kServer) {
-        if (!state.half_closed_remote) {
-          // Since the peer has not yet ended the stream, this endpoint should
-          // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
-          EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
-              stream_id, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
+    if (end_data) {
+      bool sent_trailers = false;
+      if (state.trailers != nullptr) {
+        auto block_ptr = std::move(state.trailers);
+        if (fin) {
+          QUICHE_LOG(ERROR) << "Sent fin; can't send trailers.";
+        } else {
+          SendTrailers(stream_id, std::move(*block_ptr));
+          sent_trailers = true;
         }
-        visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+      }
+      state.outbound_body = nullptr;
+      if (fin || sent_trailers) {
+        MaybeCloseWithRstStream(stream_id, state);
       }
     }
   }
@@ -231,6 +256,39 @@ int32_t OgHttp2Session::SubmitResponse(Http2StreamId stream_id,
     write_scheduler_.MarkStreamReady(stream_id, false);
   }
   EnqueueFrame(std::move(frame));
+  return 0;
+}
+
+int OgHttp2Session::SubmitTrailer(Http2StreamId stream_id,
+                                  absl::Span<const Header> trailers) {
+  // TODO(birenroy): Reject trailers when acting as a client?
+  auto iter = stream_map_.find(stream_id);
+  if (iter == stream_map_.end()) {
+    QUICHE_LOG(ERROR) << "Unable to find stream " << stream_id;
+    return -501;  // NGHTTP2_ERR_INVALID_ARGUMENT
+  }
+  StreamState& state = iter->second;
+  if (state.half_closed_local) {
+    QUICHE_LOG(ERROR) << "Stream " << stream_id << " is half closed (local)";
+    return -514;  // NGHTTP2_ERR_INVALID_STREAM_STATE
+  }
+  if (state.trailers != nullptr) {
+    QUICHE_LOG(ERROR) << "Stream " << stream_id
+                      << " already has trailers queued";
+    return -514;  // NGHTTP2_ERR_INVALID_STREAM_STATE
+  }
+  if (state.outbound_body == nullptr) {
+    // Enqueue trailers immediately.
+    SendTrailers(stream_id, ToHeaderBlock(trailers));
+    MaybeCloseWithRstStream(stream_id, state);
+  } else {
+    QUICHE_LOG_IF(ERROR, state.outbound_body->send_fin())
+        << "DataFrameSource will send fin, preventing trailers!";
+    // Save trailers so they can be written once data is done.
+    state.trailers =
+        absl::make_unique<spdy::SpdyHeaderBlock>(ToHeaderBlock(trailers));
+    write_scheduler_.MarkStreamReady(stream_id, false);
+  }
   return 0;
 }
 
@@ -424,6 +482,28 @@ void OgHttp2Session::SendWindowUpdate(Http2StreamId stream_id,
                                       size_t update_delta) {
   EnqueueFrame(
       absl::make_unique<spdy::SpdyWindowUpdateIR>(stream_id, update_delta));
+}
+
+void OgHttp2Session::SendTrailers(Http2StreamId stream_id,
+                                  spdy::SpdyHeaderBlock trailers) {
+  auto frame =
+      absl::make_unique<spdy::SpdyHeadersIR>(stream_id, std::move(trailers));
+  frame->set_fin(true);
+  EnqueueFrame(std::move(frame));
+}
+
+void OgHttp2Session::MaybeCloseWithRstStream(Http2StreamId stream_id,
+                                             StreamState& state) {
+  state.half_closed_local = true;
+  if (options_.perspective == Perspective::kServer) {
+    if (!state.half_closed_remote) {
+      // Since the peer has not yet ended the stream, this endpoint should
+      // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
+      EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+          stream_id, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
+    }
+    visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+  }
 }
 
 }  // namespace adapter

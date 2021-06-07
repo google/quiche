@@ -91,6 +91,11 @@ class Http2Adapter {
                                  absl::Span<const Header> headers,
                                  DataFrameSource* data_source) = 0;
 
+  // Queues trailers to be sent after any outstanding data on the stream with ID
+  // |stream_id|. Returns 0 on success.
+  virtual int SubmitTrailer(Http2StreamId stream_id,
+                            absl::Span<const Header> trailers) = 0;
+
  protected:
   // Subclasses should expose a public factory method for constructing and
   // initializing (via Initialize()) adapter instances.

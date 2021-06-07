@@ -140,6 +140,13 @@ int32_t NgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
                                  nvs.size(), provider.get());
 }
 
+int NgHttp2Adapter::SubmitTrailer(Http2StreamId stream_id,
+                                  absl::Span<const Header> trailers) {
+  auto nvs = GetNghttp2Nvs(trailers);
+  return nghttp2_submit_trailer(session_->raw_ptr(), stream_id, nvs.data(),
+                                nvs.size());
+}
+
 NgHttp2Adapter::NgHttp2Adapter(Http2VisitorInterface& visitor,
                                Perspective perspective)
     : Http2Adapter(visitor), visitor_(visitor), perspective_(perspective) {}

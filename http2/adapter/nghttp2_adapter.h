@@ -60,6 +60,9 @@ class NgHttp2Adapter : public Http2Adapter {
                          absl::Span<const Header> headers,
                          DataFrameSource* data_source) override;
 
+  int SubmitTrailer(Http2StreamId stream_id,
+                    absl::Span<const Header> trailers) override;
+
   // TODO(b/181586191): Temporary accessor until equivalent functionality is
   // available in this adapter class.
   NgHttp2Session& session() { return *session_; }

@@ -106,6 +106,11 @@ int32_t OgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
   return session_->SubmitResponse(stream_id, headers, data_source);
 }
 
+int OgHttp2Adapter::SubmitTrailer(Http2StreamId stream_id,
+                                  absl::Span<const Header> trailers) {
+  return session_->SubmitTrailer(stream_id, trailers);
+}
+
 const Http2Session& OgHttp2Adapter::session() const {
   return *session_;
 }

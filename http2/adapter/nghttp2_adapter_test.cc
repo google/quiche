@@ -197,7 +197,7 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequest) {
   EXPECT_FALSE(adapter->session().want_write());
   const char* kSentinel = "";
   const absl::string_view kBody = "This is an example request body.";
-  TestDataFrameSource body1(visitor, kBody, true);
+  TestDataFrameSource body1(visitor, kBody);
   int stream_id =
       adapter->SubmitRequest(ToHeaders({{":method", "POST"},
                                         {":scheme", "http"},
@@ -408,7 +408,7 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
 
   EXPECT_FALSE(adapter->session().want_write());
   const absl::string_view kBody = "This is an example response body.";
-  TestDataFrameSource body1(visitor, kBody, true);
+  TestDataFrameSource body1(visitor, kBody);
   int submit_result = adapter->SubmitResponse(
       1,
       ToHeaders({{":status", "404"},
@@ -463,6 +463,75 @@ TEST(NgHttp2AdapterTest, ServerSendsShutdown) {
   adapter->Send();
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
                                             spdy::SpdyFrameType::GOAWAY}));
+}
+
+TEST(NgHttp2AdapterTest, ServerSendsTrailers) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+  EXPECT_FALSE(adapter->session().want_write());
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "GET"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  const ssize_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), result);
+
+  // Server will want to send a SETTINGS ack.
+  EXPECT_TRUE(adapter->session().want_write());
+  adapter->Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  EXPECT_FALSE(adapter->session().want_write());
+  const absl::string_view kBody = "This is an example response body.";
+
+  // The body source must indicate that the end of the body is not the end of
+  // the stream.
+  TestDataFrameSource body1(visitor, kBody, /*has_fin=*/false);
+  int submit_result = adapter->SubmitResponse(
+      1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
+      &body1);
+  EXPECT_EQ(submit_result, 0);
+  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  adapter->Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
+                                            spdy::SpdyFrameType::DATA}));
+  EXPECT_THAT(visitor.data(), testing::HasSubstr(kBody));
+  visitor.Clear();
+  EXPECT_FALSE(adapter->session().want_write());
+
+  // The body source has been exhausted by the call to Send() above.
+  int trailer_result = adapter->SubmitTrailer(
+      1, ToHeaders({{"final-status", "a-ok"},
+                    {"x-comment", "trailers sure are cool"}}));
+  ASSERT_EQ(trailer_result, 0);
+  EXPECT_TRUE(adapter->session().want_write());
+
+  adapter->Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
 }
 
 }  // namespace

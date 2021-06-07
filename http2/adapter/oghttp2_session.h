@@ -43,6 +43,7 @@ class OgHttp2Session : public Http2Session,
   int32_t SubmitResponse(Http2StreamId stream_id,
                          absl::Span<const Header> headers,
                          DataFrameSource* data_source);
+  int SubmitTrailer(Http2StreamId stream_id, absl::Span<const Header> trailers);
 
   // From Http2Session.
   ssize_t ProcessBytes(absl::string_view bytes) override;
@@ -120,6 +121,7 @@ class OgHttp2Session : public Http2Session,
 
     WindowManager window_manager;
     DataFrameSource* outbound_body = nullptr;
+    std::unique_ptr<spdy::SpdyHeaderBlock> trailers;
     void* user_data = nullptr;
     int32_t send_window = 65535;
     bool half_closed_local = false;
@@ -146,7 +148,15 @@ class OgHttp2Session : public Http2Session,
 
   void SendWindowUpdate(Http2StreamId stream_id, size_t update_delta);
 
+  // Sends queued frames, returning true if all frames were flushed.
+  bool SendQueuedFrames();
+
   void WriteForStream(Http2StreamId stream_id);
+  void SendTrailers(Http2StreamId stream_id, spdy::SpdyHeaderBlock trailers);
+
+  // Encapsulates the RST_STREAM NO_ERROR behavior described in RFC 7540
+  // Section 8.1.
+  void MaybeCloseWithRstStream(Http2StreamId stream_id, StreamState& state);
 
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
