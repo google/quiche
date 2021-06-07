@@ -5,7 +5,7 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_BUG_TRACKER_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_BUG_TRACKER_H_
 
-#include "net/quiche/common/platform/impl/quiche_bug_tracker_impl.h"
+#include "quiche_platform_impl/quiche_bug_tracker_impl.h"
 
 #define QUICHE_BUG QUICHE_BUG_IMPL
 #define QUICHE_BUG_IF QUICHE_BUG_IF_IMPL
