@@ -342,17 +342,9 @@ void QuicSpdyStream::WriteOrBufferBody(absl::string_view data, bool fin) {
     spdy_session_->debug_visitor()->OnDataFrameSent(id(), data.length());
   }
 
-  // Write frame header.
-  const QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
-      data.length(),
-      spdy_session_->connection()->helper()->GetStreamSendBufferAllocator());
-  unacked_frame_headers_offsets_.Add(
-      send_buffer().stream_offset(),
-      send_buffer().stream_offset() + header.size());
-  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
-                  << " is writing DATA frame header of length "
-                  << header.size();
-  WriteOrBufferData(header.AsStringView(), false, nullptr);
+  const bool success =
+      WriteDataFrameHeader(data.length(), /*force_write=*/true);
+  QUICHE_DCHECK(success);
 
   // Write body.
   QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
@@ -412,13 +404,15 @@ QuicConsumedData QuicSpdyStream::WritevBody(const struct iovec* iov,
   return WriteBodySlices(storage.ToSpan(), fin);
 }
 
-bool QuicSpdyStream::WriteDataFrameHeader(QuicByteCount data_length) {
+bool QuicSpdyStream::WriteDataFrameHeader(QuicByteCount data_length,
+                                          bool force_write) {
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
   QUICHE_DCHECK_GT(data_length, 0u);
   QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
       data_length,
       spdy_session_->connection()->helper()->GetStreamSendBufferAllocator());
-  if (!CanWriteNewDataAfterData(header.size())) {
+  const bool can_write = CanWriteNewDataAfterData(header.size());
+  if (!can_write && !force_write) {
     return false;
   }
 
@@ -432,8 +426,14 @@ bool QuicSpdyStream::WriteDataFrameHeader(QuicByteCount data_length) {
   QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing DATA frame header of length "
                   << header.size();
-  QuicMemSlice header_slice(std::move(header));
-  WriteMemSlices(QuicMemSliceSpan(&header_slice), false);
+  if (can_write) {
+    // Save one copy and allocation if send buffer can accomodate the header.
+    QuicMemSlice header_slice(std::move(header));
+    WriteMemSlices(QuicMemSliceSpan(&header_slice), false);
+  } else {
+    QUICHE_DCHECK(force_write);
+    WriteOrBufferData(header.AsStringView(), false, nullptr);
+  }
   return true;
 }
 
@@ -444,7 +444,7 @@ QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
   }
 
   QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
-  if (!WriteDataFrameHeader(slices.total_length())) {
+  if (!WriteDataFrameHeader(slices.total_length(), /*force_write=*/false)) {
     return {0, false};
   }
 

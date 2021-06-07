@@ -315,8 +315,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   void MaybeProcessSentWebTransportHeaders(spdy::SpdyHeaderBlock& headers);
   void MaybeProcessReceivedWebTransportHeaders();
 
-  // Writes HTTP/3 DATA frame header.
-  ABSL_MUST_USE_RESULT bool WriteDataFrameHeader(QuicByteCount data_length);
+  // Writes HTTP/3 DATA frame header. If |force_write| is true, use
+  // WriteOrBufferData if send buffer cannot accomodate the header + data.
+  ABSL_MUST_USE_RESULT bool WriteDataFrameHeader(QuicByteCount data_length,
+                                                 bool force_write);
 
   QuicSpdySession* spdy_session_;
 
