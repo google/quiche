@@ -17,11 +17,8 @@ namespace adapter {
 class CallbackVisitor : public Http2VisitorInterface {
  public:
   explicit CallbackVisitor(Perspective perspective,
-                           nghttp2_session_callbacks_unique_ptr callbacks,
-                           void* user_data)
-      : perspective_(perspective),
-        callbacks_(std::move(callbacks)),
-        user_data_(user_data) {}
+                           const nghttp2_session_callbacks& callbacks,
+                           void* user_data);
 
   ssize_t OnReadyToSend(absl::string_view serialized) override;
   void OnConnectionError() override;

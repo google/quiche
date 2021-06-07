@@ -27,7 +27,7 @@ enum FrameType {
 TEST(ClientCallbackVisitorUnitTest, ConnectionFrames) {
   testing::StrictMock<MockNghttp2Callbacks> callbacks;
   CallbackVisitor visitor(Perspective::kClient,
-                          MockNghttp2Callbacks::GetCallbacks(), &callbacks);
+                          *MockNghttp2Callbacks::GetCallbacks(), &callbacks);
 
   testing::InSequence seq;
 
@@ -73,7 +73,7 @@ TEST(ClientCallbackVisitorUnitTest, ConnectionFrames) {
 TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
   testing::StrictMock<MockNghttp2Callbacks> callbacks;
   CallbackVisitor visitor(Perspective::kClient,
-                          MockNghttp2Callbacks::GetCallbacks(), &callbacks);
+                          *MockNghttp2Callbacks::GetCallbacks(), &callbacks);
 
   testing::InSequence seq;
 
@@ -158,7 +158,7 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
 TEST(ServerCallbackVisitorUnitTest, ConnectionFrames) {
   testing::StrictMock<MockNghttp2Callbacks> callbacks;
   CallbackVisitor visitor(Perspective::kServer,
-                          MockNghttp2Callbacks::GetCallbacks(), &callbacks);
+                          *MockNghttp2Callbacks::GetCallbacks(), &callbacks);
 
   testing::InSequence seq;
 
@@ -196,7 +196,7 @@ TEST(ServerCallbackVisitorUnitTest, ConnectionFrames) {
 TEST(ServerCallbackVisitorUnitTest, StreamFrames) {
   testing::StrictMock<MockNghttp2Callbacks> callbacks;
   CallbackVisitor visitor(Perspective::kServer,
-                          MockNghttp2Callbacks::GetCallbacks(), &callbacks);
+                          *MockNghttp2Callbacks::GetCallbacks(), &callbacks);
 
   testing::InSequence seq;
 

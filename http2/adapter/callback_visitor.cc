@@ -36,6 +36,18 @@ struct nghttp2_session_callbacks {
 namespace http2 {
 namespace adapter {
 
+CallbackVisitor::CallbackVisitor(Perspective perspective,
+                                 const nghttp2_session_callbacks& callbacks,
+                                 void* user_data)
+    : perspective_(perspective),
+      callbacks_(MakeCallbacksPtr(nullptr)),
+      user_data_(user_data) {
+  nghttp2_session_callbacks* c;
+  nghttp2_session_callbacks_new(&c);
+  *c = callbacks;
+  callbacks_.reset(c);
+}
+
 ssize_t CallbackVisitor::OnReadyToSend(absl::string_view serialized) {
   return callbacks_->send_callback(nullptr, ToUint8Ptr(serialized.data()),
                                    serialized.size(), 0, user_data_);
