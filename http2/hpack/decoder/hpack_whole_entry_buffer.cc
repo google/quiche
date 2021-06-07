@@ -5,7 +5,6 @@
 #include "http2/hpack/decoder/hpack_whole_entry_buffer.h"
 
 #include "absl/strings/str_cat.h"
-#include "http2/platform/api/http2_estimate_memory_usage.h"
 #include "http2/platform/api/http2_flag_utils.h"
 #include "http2/platform/api/http2_flags.h"
 #include "http2/platform/api/http2_logging.h"
@@ -33,10 +32,6 @@ void HpackWholeEntryBuffer::set_max_string_size_bytes(
 void HpackWholeEntryBuffer::BufferStringsIfUnbuffered() {
   name_.BufferStringIfUnbuffered();
   value_.BufferStringIfUnbuffered();
-}
-
-size_t HpackWholeEntryBuffer::EstimateMemoryUsage() const {
-  return Http2EstimateMemoryUsage(name_) + Http2EstimateMemoryUsage(value_);
 }
 
 void HpackWholeEntryBuffer::OnIndexedHeader(size_t index) {

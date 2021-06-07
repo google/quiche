@@ -43,9 +43,6 @@ class QUICHE_EXPORT_PRIVATE HpackStaticTable {
     return static_name_index_;
   }
 
-  // Returns the estimate of dynamically allocated memory in bytes.
-  size_t EstimateMemoryUsage() const;
-
  private:
   HpackHeaderTable::StaticEntryTable static_entries_;
   // The following two members have string_views that point to strings stored in

@@ -5,7 +5,6 @@
 #include "http2/hpack/decoder/hpack_decoder.h"
 
 #include "http2/decoder/decode_status.h"
-#include "http2/platform/api/http2_estimate_memory_usage.h"
 #include "http2/platform/api/http2_flag_utils.h"
 #include "http2/platform/api/http2_flags.h"
 #include "http2/platform/api/http2_logging.h"
@@ -108,10 +107,6 @@ bool HpackDecoder::DetectError() {
   }
 
   return error_ != HpackDecodingError::kOk;
-}
-
-size_t HpackDecoder::EstimateMemoryUsage() const {
-  return Http2EstimateMemoryUsage(entry_buffer_);
 }
 
 void HpackDecoder::ReportError(HpackDecodingError error,

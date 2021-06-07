@@ -33,8 +33,6 @@ class QUIC_EXPORT_PRIVATE QuicServerId {
 
   bool privacy_mode_enabled() const { return privacy_mode_enabled_; }
 
-  size_t EstimateMemoryUsage() const;
-
  private:
   std::string host_;
   uint16_t port_;

@@ -262,9 +262,6 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
   // Allows either lookup or mutation of the value associated with a key.
   ABSL_MUST_USE_RESULT ValueProxy operator[](const absl::string_view key);
 
-  // Returns the estimate of dynamically allocated memory in bytes.
-  size_t EstimateMemoryUsage() const;
-
   size_t TotalBytesUsed() const { return key_size_ + value_size_; }
 
  private:

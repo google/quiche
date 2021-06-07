@@ -30,7 +30,6 @@
 #include "spdy/core/spdy_header_block.h"
 #include "spdy/core/spdy_headers_handler_interface.h"
 #include "spdy/core/spdy_protocol.h"
-#include "spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "spdy/platform/api/spdy_string_utils.h"
 
 using ::spdy::ExtensionVisitorInterface;
@@ -40,7 +39,6 @@ using ::spdy::ParseErrorCode;
 using ::spdy::ParseFrameType;
 using ::spdy::SpdyAltSvcWireFormat;
 using ::spdy::SpdyErrorCode;
-using ::spdy::SpdyEstimateMemoryUsage;
 using ::spdy::SpdyFramerDebugVisitorInterface;
 using ::spdy::SpdyFramerVisitorInterface;
 using ::spdy::SpdyFrameType;
@@ -318,13 +316,6 @@ Http2DecoderAdapter::SpdyFramerError Http2DecoderAdapter::spdy_framer_error()
 
 bool Http2DecoderAdapter::probable_http_response() const {
   return latched_probable_http_response_;
-}
-
-size_t Http2DecoderAdapter::EstimateMemoryUsage() const {
-  // Skip |frame_decoder_|, |frame_header_| and |hpack_first_frame_header_| as
-  // they don't allocate.
-  return SpdyEstimateMemoryUsage(alt_svc_origin_) +
-         SpdyEstimateMemoryUsage(alt_svc_value_);
 }
 
 // ===========================================================================

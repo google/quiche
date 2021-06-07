@@ -18,7 +18,6 @@
 #include "spdy/core/spdy_bitmasks.h"
 #include "spdy/core/spdy_frame_builder.h"
 #include "spdy/core/spdy_frame_reader.h"
-#include "spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
@@ -1378,10 +1377,6 @@ size_t SpdyFramer::header_encoder_table_size() const {
   } else {
     return hpack_encoder_->CurrentHeaderTableSizeSetting();
   }
-}
-
-size_t SpdyFramer::EstimateMemoryUsage() const {
-  return SpdyEstimateMemoryUsage(hpack_encoder_);
 }
 
 }  // namespace spdy

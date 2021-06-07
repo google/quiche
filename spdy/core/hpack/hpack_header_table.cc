@@ -9,7 +9,6 @@
 #include "common/platform/api/quiche_logging.h"
 #include "spdy/core/hpack/hpack_constants.h"
 #include "spdy/core/hpack/hpack_static_table.h"
-#include "spdy/platform/api/spdy_estimate_memory_usage.h"
 
 namespace spdy {
 
@@ -184,12 +183,6 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
   ++dynamic_table_insertions_;
 
   return &dynamic_entries_.front();
-}
-
-size_t HpackHeaderTable::EstimateMemoryUsage() const {
-  return SpdyEstimateMemoryUsage(dynamic_entries_) +
-         SpdyEstimateMemoryUsage(dynamic_index_) +
-         SpdyEstimateMemoryUsage(dynamic_name_index_);
 }
 
 }  // namespace spdy

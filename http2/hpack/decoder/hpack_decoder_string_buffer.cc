@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "http2/platform/api/http2_bug_tracker.h"
-#include "http2/platform/api/http2_estimate_memory_usage.h"
 #include "http2/platform/api/http2_logging.h"
 
 namespace http2 {
@@ -230,10 +229,6 @@ void HpackDecoderStringBuffer::OutputDebugStringTo(std::ostream& out) const {
     }
   }
   out << "}";
-}
-
-size_t HpackDecoderStringBuffer::EstimateMemoryUsage() const {
-  return Http2EstimateMemoryUsage(buffer_);
 }
 
 std::ostream& operator<<(std::ostream& out, const HpackDecoderStringBuffer& v) {

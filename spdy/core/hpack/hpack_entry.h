@@ -71,9 +71,6 @@ class QUICHE_EXPORT_PRIVATE HpackEntry {
 
   std::string GetDebugString() const;
 
-  // Returns the estimate of dynamically allocated memory in bytes.
-  size_t EstimateMemoryUsage() const;
-
  private:
   std::string name_;
   std::string value_;

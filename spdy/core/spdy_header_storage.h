@@ -43,8 +43,6 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderStorage {
 
   size_t bytes_allocated() const { return arena_.status().bytes_allocated(); }
 
-  size_t EstimateMemoryUsage() const { return bytes_allocated(); }
-
  private:
   SpdySimpleArena arena_;
 };

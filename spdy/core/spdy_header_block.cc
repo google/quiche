@@ -11,7 +11,6 @@
 
 #include "absl/strings/str_cat.h"
 #include "common/platform/api/quiche_logging.h"
-#include "spdy/platform/api/spdy_estimate_memory_usage.h"
 
 namespace spdy {
 namespace {
@@ -297,12 +296,6 @@ void Http2HeaderBlock::AppendValueOrAddHeader(const absl::string_view key,
                   << "; appending value: " << value;
   value_size_ += SeparatorForKey(key).size();
   iter->second.Append(storage_.Write(value));
-}
-
-size_t Http2HeaderBlock::EstimateMemoryUsage() const {
-  // TODO(xunjieli): https://crbug.com/669108. Also include |map_| when EMU()
-  // supports linked_hash_map.
-  return SpdyEstimateMemoryUsage(storage_);
 }
 
 void Http2HeaderBlock::AppendHeader(const absl::string_view key,

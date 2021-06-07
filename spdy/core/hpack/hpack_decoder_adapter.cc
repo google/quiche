@@ -7,7 +7,6 @@
 #include "http2/decoder/decode_buffer.h"
 #include "http2/decoder/decode_status.h"
 #include "common/platform/api/quiche_logging.h"
-#include "spdy/platform/api/spdy_estimate_memory_usage.h"
 
 using ::http2::DecodeBuffer;
 
@@ -116,10 +115,6 @@ void HpackDecoderAdapter::set_max_decode_buffer_size_bytes(
 void HpackDecoderAdapter::set_max_header_block_bytes(
     size_t max_header_block_bytes) {
   max_header_block_bytes_ = max_header_block_bytes;
-}
-
-size_t HpackDecoderAdapter::EstimateMemoryUsage() const {
-  return SpdyEstimateMemoryUsage(hpack_decoder_);
 }
 
 HpackDecoderAdapter::ListenerAdapter::ListenerAdapter() : handler_(nullptr) {}

@@ -153,9 +153,6 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
   // has responded with an HTTP/1.1 (or earlier) response.
   bool probable_http_response() const;
 
-  // Returns the estimate of dynamically allocated memory in bytes.
-  size_t EstimateMemoryUsage() const;
-
   spdy::HpackDecoderAdapter* GetHpackDecoder();
 
   bool HasError() const;

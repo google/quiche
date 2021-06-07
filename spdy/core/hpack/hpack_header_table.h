@@ -98,9 +98,6 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   const HpackEntry* TryAddEntry(absl::string_view name,
                                 absl::string_view value);
 
-  // Returns the estimate of dynamically allocated memory in bytes.
-  size_t EstimateMemoryUsage() const;
-
  private:
   // Returns number of evictions required to enter |name| & |value|.
   size_t EvictionCountForEntry(absl::string_view name,

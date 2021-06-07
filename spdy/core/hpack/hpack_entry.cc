@@ -5,7 +5,6 @@
 #include "spdy/core/hpack/hpack_entry.h"
 
 #include "absl/strings/str_cat.h"
-#include "spdy/platform/api/spdy_estimate_memory_usage.h"
 
 namespace spdy {
 
@@ -22,10 +21,6 @@ size_t HpackEntry::Size() const {
 
 std::string HpackEntry::GetDebugString() const {
   return absl::StrCat("{ name: \"", name_, "\", value: \"", value_, "\" }");
-}
-
-size_t HpackEntry::EstimateMemoryUsage() const {
-  return SpdyEstimateMemoryUsage(name_) + SpdyEstimateMemoryUsage(value_);
 }
 
 }  // namespace spdy

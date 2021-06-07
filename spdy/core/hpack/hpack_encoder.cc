@@ -14,7 +14,6 @@
 #include "spdy/core/hpack/hpack_constants.h"
 #include "spdy/core/hpack/hpack_header_table.h"
 #include "spdy/core/hpack/hpack_output_stream.h"
-#include "spdy/platform/api/spdy_estimate_memory_usage.h"
 
 namespace spdy {
 
@@ -122,11 +121,6 @@ void HpackEncoder::ApplyHeaderTableSizeSetting(size_t size_setting) {
   }
   header_table_.SetSettingsHeaderTableSize(size_setting);
   should_emit_table_size_ = true;
-}
-
-size_t HpackEncoder::EstimateMemoryUsage() const {
-  return SpdyEstimateMemoryUsage(header_table_) +
-         SpdyEstimateMemoryUsage(output_stream_);
 }
 
 void HpackEncoder::EncodeRepresentations(RepresentationIterator* iter,

@@ -79,8 +79,6 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderAdapter {
   // accepted.
   void set_max_header_block_bytes(size_t max_header_block_bytes);
 
-  size_t EstimateMemoryUsage() const;
-
   // Error code if an error has occurred, Error::kOk otherwise.
   http2::HpackDecodingError error() const { return error_; }
 
