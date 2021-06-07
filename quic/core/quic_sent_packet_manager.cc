@@ -1527,11 +1527,18 @@ void QuicSentPacketManager::OnAckFrameStart(QuicPacketNumber largest_acked,
                                             QuicTime ack_receive_time) {
   QUICHE_DCHECK(packets_acked_.empty());
   QUICHE_DCHECK_LE(largest_acked, unacked_packets_.largest_sent_packet());
-  if (ack_delay_time > peer_max_ack_delay()) {
-    ack_delay_time = peer_max_ack_delay();
-  }
-  if (ignore_ack_delay_) {
-    ack_delay_time = QuicTime::Delta::Zero();
+  if (GetQuicReloadableFlag(quic_ignore_peer_max_ack_delay_during_handshake) &&
+      supports_multiple_packet_number_spaces() && !handshake_finished_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_ignore_peer_max_ack_delay_during_handshake);
+    // Ignore peer_max_ack_delay and use received ack_delay during
+    // handshake.
+  } else {
+    if (ack_delay_time > peer_max_ack_delay()) {
+      ack_delay_time = peer_max_ack_delay();
+    }
+    if (ignore_ack_delay_) {
+      ack_delay_time = QuicTime::Delta::Zero();
+    }
   }
   rtt_updated_ =
       MaybeUpdateRTT(largest_acked, ack_delay_time, ack_receive_time);

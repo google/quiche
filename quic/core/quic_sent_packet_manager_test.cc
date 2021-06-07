@@ -4762,6 +4762,47 @@ TEST_F(QuicSentPacketManagerTest, SmoothedRttIgnoreAckDelay) {
             manager_.GetRttStats()->smoothed_rtt());
 }
 
+TEST_F(QuicSentPacketManagerTest, IgnorePeerMaxAckDelayDuringHandshake) {
+  manager_.EnableMultiplePacketNumberSpacesSupport();
+  // 100ms RTT.
+  const QuicTime::Delta kTestRTT = QuicTime::Delta::FromMilliseconds(100);
+
+  // Server sends INITIAL 1 and HANDSHAKE 2.
+  SendDataPacket(1, ENCRYPTION_INITIAL);
+  SendDataPacket(2, ENCRYPTION_HANDSHAKE);
+
+  // Receive client ACK for INITIAL 1 after one RTT.
+  clock_.AdvanceTime(kTestRTT);
+  ExpectAck(1);
+  manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
+  EXPECT_EQ(kTestRTT, manager_.GetRttStats()->latest_rtt());
+
+  // Assume the cert verification on client takes 50ms, such that the HANDSHAKE
+  // packet is queued for 50ms.
+  const QuicTime::Delta queuing_delay = QuicTime::Delta::FromMilliseconds(50);
+  clock_.AdvanceTime(queuing_delay);
+  // Ack 2.
+  ExpectAck(2);
+  manager_.OnAckFrameStart(QuicPacketNumber(2), queuing_delay, clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(3));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_HANDSHAKE));
+  if (GetQuicReloadableFlag(quic_ignore_peer_max_ack_delay_during_handshake)) {
+    EXPECT_EQ(kTestRTT, manager_.GetRttStats()->latest_rtt());
+  } else {
+    // Verify the ack_delay gets capped by the peer_max_ack_delay.
+    EXPECT_EQ(kTestRTT + queuing_delay -
+                  QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs),
+              manager_.GetRttStats()->latest_rtt());
+  }
+}
+
 TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrameWithSRTT) {
   SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));

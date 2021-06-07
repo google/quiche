@@ -75,6 +75,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_drop_unsent_path_response, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_version_rfcv1, true)
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
+// If true, ignore peer_max_ack_delay during handshake.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_peer_max_ack_delay_during_handshake, false)
 // If true, include stream information in idle timeout connection close detail.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, increase the size of stream sequencer buffer block container on demand.

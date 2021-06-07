@@ -65,10 +65,16 @@ void RttStats::UpdateRtt(QuicTime::Delta send_delta,
   // Correct for ack_delay if information received from the peer results in a
   // an RTT sample at least as large as min_rtt. Otherwise, only use the
   // send_delta.
+  // TODO(fayang): consider to ignore rtt_sample if rtt_sample < ack_delay and
+  // ack_delay is relatively large.
   if (rtt_sample > ack_delay) {
     if (rtt_sample - min_rtt_ >= ack_delay) {
       rtt_sample = rtt_sample - ack_delay;
+    } else {
+      QUIC_CODE_COUNT(quic_ack_delay_makes_rtt_sample_smaller_than_min_rtt);
     }
+  } else {
+    QUIC_CODE_COUNT(quic_ack_delay_greater_than_rtt_sample);
   }
   latest_rtt_ = rtt_sample;
   if (calculate_standard_deviation_) {
