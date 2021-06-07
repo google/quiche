@@ -101,10 +101,6 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
   if (config.HasClientRequestedIndependentOption(kB2RP, perspective)) {
     params_.avoid_unnecessary_probe_rtt = false;
   }
-  if (GetQuicReloadableFlag(quic_bbr2_avoid_too_low_probe_bw_cwnd) &&
-      config.HasClientRequestedIndependentOption(kB2CL, perspective)) {
-    params_.avoid_too_low_probe_bw_cwnd = false;
-  }
   if (config.HasClientRequestedIndependentOption(k1RTT, perspective)) {
     params_.startup_full_bw_rounds = 1;
   }

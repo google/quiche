@@ -176,10 +176,6 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   // Can be disabled by connection option 'B2RP'.
   bool avoid_unnecessary_probe_rtt = true;
 
-  // Can be disabled by connection option 'B2CL'.
-  bool avoid_too_low_probe_bw_cwnd =
-      GetQuicReloadableFlag(quic_bbr2_avoid_too_low_probe_bw_cwnd);
-
   // Can be enabled by connection option 'B2LO'.
   bool ignore_inflight_lo = false;
 

@@ -28,7 +28,7 @@ using ServerConfigID = std::string;
 
 // The following tags have been deprecated and should not be reused:
 // "1CON", "BBQ4", "NCON", "RCID", "SREJ", "TBKP", "TB10", "SCLS", "SMHL",
-// "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS", "QNSP"
+// "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS", "QNSP", "B2CL"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
@@ -133,9 +133,6 @@ const QuicTag kB2NE = TAG('B', '2', 'N', 'E');   // For BBRv2, always exit
                                                  // threshold.
 const QuicTag kB2RP = TAG('B', '2', 'R', 'P');   // For BBRv2, run PROBE_RTT on
                                                  // the regular schedule
-const QuicTag kB2CL = TAG('B', '2', 'C', 'L');   // For BBRv2, allow PROBE_BW
-                                                 // cwnd to be below BDP + ack
-                                                 // height.
 const QuicTag kB2LO = TAG('B', '2', 'L', 'O');   // Ignore inflight_lo in BBR2
 const QuicTag kB2HR = TAG('B', '2', 'H', 'R');   // 15% inflight_hi headroom.
 const QuicTag kB2SL = TAG('B', '2', 'S', 'L');   // When exiting STARTUP due to

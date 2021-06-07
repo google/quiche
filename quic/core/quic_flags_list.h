@@ -21,8 +21,6 @@ QUIC_FLAG(FLAGS_quic_restart_flag_quic_testonly_default_true, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_fix_bw_lo_mode2, true)
 // If true, GFE will consider SNI values which do not contain dots (instead of throwing them away - see b/176998377).
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_and_tls_allow_sni_without_dots, true)
-// If true, QUIC BBRv2\'s PROBE_BW mode will not reduce cwnd below BDP+ack_height.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_avoid_too_low_probe_bw_cwnd, false)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 // If true, QuicBatchWriterBase will mark the writer as blocked when the write status is WRITE_STATUS_BLOCKED_DATA_BUFFERED.
