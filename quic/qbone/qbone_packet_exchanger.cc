@@ -33,8 +33,11 @@ void QbonePacketExchanger::WritePacketToNetwork(const char* packet,
     }
     if (blocked) {
       write_blocked_ = true;
-    } else if (visitor_) {
-      visitor_->OnWriteError(error);
+    } else {
+      QUIC_LOG_EVERY_N_SEC(ERROR, 60) << "Packet write failed: " << error;
+      if (visitor_) {
+        visitor_->OnWriteError(error);
+      }
     }
   }
 
