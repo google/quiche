@@ -176,6 +176,10 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       std::string signature,
       std::unique_ptr<ProofSource::Details> details) override;
 
+  void set_encryption_established(bool encryption_established) {
+    encryption_established_ = encryption_established;
+  }
+
   bool WillNotCallComputeSignature() const override;
 
   const bool close_proof_source_handle_promptly_ =
