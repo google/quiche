@@ -14,7 +14,7 @@ bool QbonePacketExchanger::ReadAndDeliverPacket(
   std::string error;
   std::unique_ptr<QuicData> packet = ReadPacket(&blocked, &error);
   if (packet == nullptr) {
-    if (!blocked) {
+    if (!blocked && visitor_) {
       visitor_->OnReadError(error);
     }
     return false;
@@ -31,11 +31,11 @@ void QbonePacketExchanger::WritePacketToNetwork(const char* packet,
     if (WritePacket(packet, size, &blocked, &error)) {
       return;
     }
-    if (!blocked) {
+    if (blocked) {
+      write_blocked_ = true;
+    } else if (visitor_) {
       visitor_->OnWriteError(error);
-      return;
     }
-    write_blocked_ = true;
   }
 
   // Drop the packet on the floor if the queue if full.
@@ -58,7 +58,7 @@ void QbonePacketExchanger::SetWritable() {
                     packet_queue_.front()->length(), &blocked, &error)) {
       packet_queue_.pop_front();
     } else {
-      if (!blocked) {
+      if (!blocked && visitor_) {
         visitor_->OnWriteError(error);
       }
       write_blocked_ = blocked;

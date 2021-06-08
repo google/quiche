@@ -251,5 +251,21 @@ TEST(QbonePacketExchangerTest, WriteErrorsGetNotified) {
   ASSERT_TRUE(exchanger.packets_written().empty());
 }
 
+TEST(QbonePacketExchangerTest, NullVisitorDoesntCrash) {
+  FakeQbonePacketExchanger exchanger(nullptr, kMaxPendingPackets);
+  MockQboneClient client;
+  std::string packet = "data";
+
+  // Force read error.
+  std::string io_error = "I/O error";
+  exchanger.SetReadError(io_error);
+  EXPECT_FALSE(exchanger.ReadAndDeliverPacket(&client));
+
+  // Force write error
+  exchanger.ForceWriteFailure(false, io_error);
+  exchanger.WritePacketToNetwork(packet.data(), packet.length());
+  EXPECT_TRUE(exchanger.packets_written().empty());
+}
+
 }  // namespace
 }  // namespace quic
