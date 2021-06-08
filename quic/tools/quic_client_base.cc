@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "quic/tools/quic_client_base.h"
+
+#include <algorithm>
 #include <memory>
 
 #include "quic/core/crypto/quic_random.h"
@@ -442,13 +444,20 @@ QuicConnectionId QuicClientBase::GetClientConnectionId() {
 bool QuicClientBase::CanReconnectWithDifferentVersion(
     ParsedQuicVersion* version) const {
   if (session_ == nullptr || session_->connection() == nullptr ||
-      session_->error() != QUIC_INVALID_VERSION ||
-      session_->connection()->server_supported_versions().empty()) {
+      session_->error() != QUIC_INVALID_VERSION) {
     return false;
   }
+
+  const auto& server_supported_versions =
+      session_->connection()->server_supported_versions();
+  if (server_supported_versions.empty()) {
+    return false;
+  }
+
   for (const auto& client_version : supported_versions_) {
-    if (QuicContainsValue(session_->connection()->server_supported_versions(),
-                          client_version)) {
+    if (std::find(server_supported_versions.begin(),
+                  server_supported_versions.end(),
+                  client_version) != server_supported_versions.end()) {
       *version = client_version;
       return true;
     }

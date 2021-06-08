@@ -45,7 +45,6 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_hostname_utils.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_map_util.h"
 #include "quic/platform/api/quic_server_stats.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "common/quiche_text_utils.h"
@@ -858,7 +857,8 @@ bool QuicConnection::SelectMutualVersion(
       framer_.supported_versions();
   for (size_t i = 0; i < supported_versions.size(); ++i) {
     const ParsedQuicVersion& version = supported_versions[i];
-    if (QuicContainsValue(available_versions, version)) {
+    if (std::find(available_versions.begin(), available_versions.end(),
+                  version) != available_versions.end()) {
       framer_.set_version(version);
       return true;
     }
@@ -942,7 +942,8 @@ void QuicConnection::OnVersionNegotiationPacket(
     return;
   }
 
-  if (QuicContainsValue(packet.versions, version())) {
+  if (std::find(packet.versions.begin(), packet.versions.end(), version()) !=
+      packet.versions.end()) {
     const std::string error_details = absl::StrCat(
         "Server already supports client's version ",
         ParsedQuicVersionToString(version()),
