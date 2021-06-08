@@ -11,9 +11,9 @@
 #include "http2/decoder/decode_status.h"
 #include "http2/hpack/huffman/hpack_huffman_decoder.h"
 #include "http2/hpack/huffman/hpack_huffman_encoder.h"
-#include "http2/platform/api/http2_string_utils.h"
 #include "http2/tools/random_decoder_test.h"
 #include "common/platform/api/quiche_test.h"
+#include "common/quiche_text_utils.h"
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
@@ -114,8 +114,8 @@ TEST_F(HpackHuffmanTranscoderTest, RoundTripRandomAsciiNonControlString) {
     const std::string s = RandomAsciiNonControlString(length);
     ASSERT_TRUE(TranscodeAndValidateSeveralWays(s))
         << "Unable to decode:\n\n"
-        << Http2HexDump(s) << "\n\noutput_buffer_:\n"
-        << Http2HexDump(output_buffer_);
+        << quiche::QuicheTextUtils::HexDump(s) << "\n\noutput_buffer_:\n"
+        << quiche::QuicheTextUtils::HexDump(output_buffer_);
   }
 }
 
@@ -124,8 +124,8 @@ TEST_F(HpackHuffmanTranscoderTest, RoundTripRandomBytes) {
     const std::string s = RandomBytes(length);
     ASSERT_TRUE(TranscodeAndValidateSeveralWays(s))
         << "Unable to decode:\n\n"
-        << Http2HexDump(s) << "\n\noutput_buffer_:\n"
-        << Http2HexDump(output_buffer_);
+        << quiche::QuicheTextUtils::HexDump(s) << "\n\noutput_buffer_:\n"
+        << quiche::QuicheTextUtils::HexDump(output_buffer_);
   }
 }
 

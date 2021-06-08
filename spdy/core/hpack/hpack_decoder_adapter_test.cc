@@ -21,12 +21,12 @@
 #include "http2/test_tools/http2_random.h"
 #include "common/platform/api/quiche_logging.h"
 #include "common/platform/api/quiche_test.h"
+#include "common/quiche_text_utils.h"
 #include "spdy/core/hpack/hpack_constants.h"
 #include "spdy/core/hpack/hpack_encoder.h"
 #include "spdy/core/hpack/hpack_output_stream.h"
 #include "spdy/core/recording_headers_handler.h"
 #include "spdy/core/spdy_test_utils.h"
-#include "spdy/platform/api/spdy_string_utils.h"
 
 using ::http2::HpackEntryType;
 using ::http2::HpackStringPair;
@@ -135,7 +135,8 @@ class HpackDecoderAdapterTest
   }
 
   bool HandleControlFrameHeadersData(absl::string_view str) {
-    QUICHE_VLOG(3) << "HandleControlFrameHeadersData:\n" << SpdyHexDump(str);
+    QUICHE_VLOG(3) << "HandleControlFrameHeadersData:\n"
+                   << quiche::QuicheTextUtils::HexDump(str);
     bytes_passed_in_ += str.size();
     return decoder_.HandleControlFrameHeadersData(str.data(), str.size());
   }

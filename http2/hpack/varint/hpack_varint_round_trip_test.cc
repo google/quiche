@@ -18,9 +18,9 @@
 #include "absl/strings/string_view.h"
 #include "http2/hpack/tools/hpack_block_builder.h"
 #include "http2/platform/api/http2_logging.h"
-#include "http2/platform/api/http2_string_utils.h"
 #include "http2/tools/random_decoder_test.h"
 #include "common/platform/api/quiche_test.h"
+#include "common/quiche_text_utils.h"
 
 using ::testing::AssertionFailure;
 using ::testing::AssertionSuccess;
@@ -166,7 +166,7 @@ class HpackVarintRoundTripTest : public RandomDecoderTest {
       std::string msg = absl::StrCat("value=", value, " (0x", absl::Hex(value),
                                      "), prefix_length=", prefix_length,
                                      ", expected_bytes=", expected_bytes, "\n",
-                                     Http2HexDump(buffer_));
+                                     quiche::QuicheTextUtils::HexDump(buffer_));
 
       if (value == minimum) {
         HTTP2_LOG(INFO) << "Checking minimum; " << msg;
@@ -221,7 +221,8 @@ class HpackVarintRoundTripTest : public RandomDecoderTest {
     if (expected_bytes < 11) {
       // Confirm the claim that beyond requires more bytes.
       Encode(beyond, prefix_length);
-      EXPECT_EQ(expected_bytes + 1, buffer_.size()) << Http2HexDump(buffer_);
+      EXPECT_EQ(expected_bytes + 1, buffer_.size())
+          << quiche::QuicheTextUtils::HexDump(buffer_);
     }
 
     std::set<uint64_t> values;
@@ -285,9 +286,9 @@ TEST_F(HpackVarintRoundTripTest, Encode) {
 
     for (uint64_t value : values) {
       EncodeNoRandom(value, prefix_length);
-      std::string dump = Http2HexDump(buffer_);
+      std::string dump = quiche::QuicheTextUtils::HexDump(buffer_);
       HTTP2_LOG(INFO) << absl::StrFormat("%10llu %0#18x ", value, value)
-                      << Http2HexDump(buffer_).substr(7);
+                      << quiche::QuicheTextUtils::HexDump(buffer_).substr(7);
     }
   }
 }

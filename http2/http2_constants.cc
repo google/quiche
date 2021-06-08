@@ -8,7 +8,6 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "http2/platform/api/http2_logging.h"
-#include "http2/platform/api/http2_string_utils.h"
 
 namespace http2 {
 

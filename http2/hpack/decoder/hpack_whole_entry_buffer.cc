@@ -9,7 +9,7 @@
 #include "http2/platform/api/http2_flags.h"
 #include "http2/platform/api/http2_logging.h"
 #include "http2/platform/api/http2_macros.h"
-#include "http2/platform/api/http2_string_utils.h"
+#include "common/quiche_text_utils.h"
 
 namespace http2 {
 
@@ -66,7 +66,8 @@ void HpackWholeEntryBuffer::OnNameStart(bool huffman_encoded, size_t len) {
 void HpackWholeEntryBuffer::OnNameData(const char* data, size_t len) {
   HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnNameData: len=" << len
                  << " data:\n"
-                 << Http2HexDump(absl::string_view(data, len));
+                 << quiche::QuicheTextUtils::HexDump(
+                        absl::string_view(data, len));
   QUICHE_DCHECK_EQ(maybe_name_index_, 0u);
   if (!error_detected_ && !name_.OnData(data, len)) {
     ReportError(HpackDecodingError::kNameHuffmanError, "");
@@ -103,7 +104,8 @@ void HpackWholeEntryBuffer::OnValueStart(bool huffman_encoded, size_t len) {
 void HpackWholeEntryBuffer::OnValueData(const char* data, size_t len) {
   HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnValueData: len=" << len
                  << " data:\n"
-                 << Http2HexDump(absl::string_view(data, len));
+                 << quiche::QuicheTextUtils::HexDump(
+                        absl::string_view(data, len));
   if (!error_detected_ && !value_.OnData(data, len)) {
     ReportError(HpackDecodingError::kValueHuffmanError, "");
     HTTP2_CODE_COUNT_N(decompress_failure_3, 22, 23);

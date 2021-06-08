@@ -30,7 +30,6 @@
 #include "spdy/core/spdy_header_block.h"
 #include "spdy/core/spdy_headers_handler_interface.h"
 #include "spdy/core/spdy_protocol.h"
-#include "spdy/platform/api/spdy_string_utils.h"
 
 using ::spdy::ExtensionVisitorInterface;
 using ::spdy::HpackDecoderAdapter;

@@ -11,7 +11,6 @@
 #include "absl/strings/str_cat.h"
 
 #include "common/platform/api/quiche_logging.h"
-#include "spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
 

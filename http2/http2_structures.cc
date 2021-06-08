@@ -9,7 +9,6 @@
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
-#include "http2/platform/api/http2_string_utils.h"
 
 namespace http2 {
 

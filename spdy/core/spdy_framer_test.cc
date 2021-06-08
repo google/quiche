@@ -16,6 +16,7 @@
 #include "absl/base/macros.h"
 #include "common/platform/api/quiche_logging.h"
 #include "common/platform/api/quiche_test.h"
+#include "common/quiche_text_utils.h"
 #include "spdy/core/array_output_buffer.h"
 #include "spdy/core/mock_spdy_framer_visitor.h"
 #include "spdy/core/recording_headers_handler.h"
@@ -24,7 +25,6 @@
 #include "spdy/core/spdy_frame_reader.h"
 #include "spdy/core/spdy_protocol.h"
 #include "spdy/core/spdy_test_utils.h"
-#include "spdy/platform/api/spdy_string_utils.h"
 
 using ::http2::Http2DecoderAdapter;
 using ::testing::_;
@@ -287,7 +287,8 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
     QUICHE_VLOG(1) << "OnStreamFrameData(" << stream_id << ", data, " << len
                    << ", "
                    << ")   data:\n"
-                   << SpdyHexDump(absl::string_view(data, len));
+                   << quiche::QuicheTextUtils::HexDump(
+                          absl::string_view(data, len));
     EXPECT_EQ(header_stream_id_, stream_id);
 
     data_bytes_ += len;

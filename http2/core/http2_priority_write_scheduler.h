@@ -24,7 +24,6 @@
 #include "common/platform/api/quiche_logging.h"
 #include "spdy/core/spdy_intrusive_list.h"
 #include "spdy/core/spdy_protocol.h"
-#include "spdy/platform/api/spdy_string_utils.h"
 
 namespace http2 {
 
