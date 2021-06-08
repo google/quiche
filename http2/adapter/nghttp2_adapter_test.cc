@@ -30,6 +30,7 @@ TEST(NgHttp2AdapterTest, ClientConstruction) {
   ASSERT_NE(nullptr, adapter);
   EXPECT_TRUE(adapter->session().want_read());
   EXPECT_FALSE(adapter->session().want_write());
+  EXPECT_FALSE(adapter->IsServerSession());
 }
 
 TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
@@ -288,6 +289,7 @@ TEST(NgHttp2AdapterTest, ServerConstruction) {
   ASSERT_NE(nullptr, adapter);
   EXPECT_TRUE(adapter->session().want_read());
   EXPECT_FALSE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->IsServerSession());
 }
 
 TEST(NgHttp2AdapterTest, ServerHandlesFrames) {

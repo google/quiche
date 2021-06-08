@@ -24,6 +24,10 @@ class OgHttp2AdapterTest : public testing::Test {
   std::unique_ptr<OgHttp2Adapter> adapter_;
 };
 
+TEST_F(OgHttp2AdapterTest, IsServerSession) {
+  EXPECT_TRUE(adapter_->IsServerSession());
+}
+
 TEST_F(OgHttp2AdapterTest, ProcessBytes) {
   testing::InSequence seq;
   EXPECT_CALL(http2_visitor_, OnFrameHeader(0, 0, 4, 0));

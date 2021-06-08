@@ -28,6 +28,12 @@ std::unique_ptr<NgHttp2Adapter> NgHttp2Adapter::CreateServerAdapter(
   return absl::WrapUnique(adapter);
 }
 
+bool NgHttp2Adapter::IsServerSession() const {
+  int result = nghttp2_session_check_server_session(session_->raw_ptr());
+  QUICHE_DCHECK_EQ(perspective_ == Perspective::kServer, result > 0);
+  return result > 0;
+}
+
 ssize_t NgHttp2Adapter::ProcessBytes(absl::string_view bytes) {
   const ssize_t processed_bytes = session_->ProcessBytes(bytes);
   if (processed_bytes < 0) {

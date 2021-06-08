@@ -34,6 +34,7 @@ TEST(OgHttp2SessionTest, ClientConstruction) {
   EXPECT_TRUE(session.want_read());
   EXPECT_FALSE(session.want_write());
   EXPECT_EQ(session.GetRemoteWindowSize(), kDefaultInitialStreamWindowSize);
+  EXPECT_FALSE(session.IsServerSession());
 }
 
 TEST(OgHttp2SessionTest, ClientHandlesFrames) {
@@ -225,6 +226,7 @@ TEST(OgHttp2SessionTest, ServerConstruction) {
   EXPECT_TRUE(session.want_read());
   EXPECT_FALSE(session.want_write());
   EXPECT_EQ(session.GetRemoteWindowSize(), kDefaultInitialStreamWindowSize);
+  EXPECT_TRUE(session.IsServerSession());
 }
 
 TEST(OgHttp2SessionTest, ServerHandlesFrames) {

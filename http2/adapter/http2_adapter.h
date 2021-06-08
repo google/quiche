@@ -23,6 +23,8 @@ class Http2Adapter {
   Http2Adapter(const Http2Adapter&) = delete;
   Http2Adapter& operator=(const Http2Adapter&) = delete;
 
+  virtual bool IsServerSession() const = 0;
+
   // Processes the incoming |bytes| as HTTP/2 and invokes callbacks on the
   // |visitor_| as appropriate.
   virtual ssize_t ProcessBytes(absl::string_view bytes) = 0;

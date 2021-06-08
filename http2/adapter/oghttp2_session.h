@@ -24,7 +24,7 @@ class OgHttp2Session : public Http2Session,
     Perspective perspective = Perspective::kClient;
   };
 
-  OgHttp2Session(Http2VisitorInterface& visitor, Options /*options*/);
+  OgHttp2Session(Http2VisitorInterface& visitor, Options options);
   ~OgHttp2Session() override;
 
   // Enqueues a frame for transmission to the peer.
@@ -44,6 +44,10 @@ class OgHttp2Session : public Http2Session,
                          absl::Span<const Header> headers,
                          DataFrameSource* data_source);
   int SubmitTrailer(Http2StreamId stream_id, absl::Span<const Header> trailers);
+
+  bool IsServerSession() const {
+    return options_.perspective == Perspective::kServer;
+  }
 
   // From Http2Session.
   ssize_t ProcessBytes(absl::string_view bytes) override;

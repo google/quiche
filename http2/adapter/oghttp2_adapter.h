@@ -19,6 +19,7 @@ class OgHttp2Adapter : public Http2Adapter {
   ~OgHttp2Adapter();
 
   // From Http2Adapter.
+  bool IsServerSession() const override;
   ssize_t ProcessBytes(absl::string_view bytes) override;
   void SubmitSettings(absl::Span<const Http2Setting> settings) override;
   void SubmitPriorityForStream(Http2StreamId stream_id,

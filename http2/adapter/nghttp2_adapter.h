@@ -21,6 +21,8 @@ class NgHttp2Adapter : public Http2Adapter {
   static std::unique_ptr<NgHttp2Adapter> CreateServerAdapter(
       Http2VisitorInterface& visitor);
 
+  bool IsServerSession() const override;
+
   ssize_t ProcessBytes(absl::string_view bytes) override;
   void SubmitSettings(absl::Span<const Http2Setting> settings) override;
   void SubmitPriorityForStream(Http2StreamId stream_id,

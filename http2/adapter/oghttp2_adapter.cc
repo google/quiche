@@ -30,6 +30,10 @@ std::unique_ptr<OgHttp2Adapter> OgHttp2Adapter::Create(
 
 OgHttp2Adapter::~OgHttp2Adapter() {}
 
+bool OgHttp2Adapter::IsServerSession() const {
+  return session_->IsServerSession();
+}
+
 ssize_t OgHttp2Adapter::ProcessBytes(absl::string_view bytes) {
   return session_->ProcessBytes(bytes);
 }
