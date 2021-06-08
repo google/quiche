@@ -201,6 +201,7 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
   const_iterator find(absl::string_view key) const {
     return wrap_const_iterator(map_.find(key));
   }
+  bool contains(absl::string_view key) const { return find(key) != end(); }
   void erase(absl::string_view key);
 
   // Clears both our MapType member and the memory used to hold headers.

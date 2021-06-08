@@ -16,7 +16,6 @@
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_map_util.h"
 #include "common/quiche_text_utils.h"
 #include "spdy/core/spdy_protocol.h"
 
@@ -78,7 +77,7 @@ bool SpdyUtils::CopyAndValidateHeaders(const QuicHeaderList& header_list,
     headers->AppendValueOrAddHeader(name, p.second);
   }
 
-  if (QuicContainsKey(*headers, "content-length") &&
+  if (headers->contains("content-length") &&
       !ExtractContentLengthFromHeaders(content_length, headers)) {
     return false;
   }

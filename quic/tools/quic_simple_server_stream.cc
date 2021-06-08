@@ -18,7 +18,6 @@
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_map_util.h"
 #include "quic/tools/quic_simple_server_session.h"
 #include "spdy/core/spdy_protocol.h"
 
@@ -155,13 +154,13 @@ void QuicSimpleServerStream::SendResponse() {
     return;
   }
 
-  if (!QuicContainsKey(request_headers_, ":authority")) {
+  if (!request_headers_.contains(":authority")) {
     QUIC_DVLOG(1) << "Request headers do not contain :authority.";
     SendErrorResponse();
     return;
   }
 
-  if (!QuicContainsKey(request_headers_, ":path")) {
+  if (!request_headers_.contains(":path")) {
     // CONNECT and other CONNECT-like methods (such as CONNECT-UDP) do not all
     // require :path to be present.
     auto it = request_headers_.find(":method");

@@ -33,6 +33,7 @@ TEST(Http2HeaderBlockTest, EmptyBlock) {
   EXPECT_TRUE(block.empty());
   EXPECT_EQ(0u, block.size());
   EXPECT_EQ(block.end(), block.find("foo"));
+  EXPECT_FALSE(block.contains("foo"));
   EXPECT_TRUE(block.end() == block.begin());
 
   // Should have no effect.
@@ -83,6 +84,7 @@ TEST(Http2HeaderBlockTest, AddHeaders) {
   std::string qux("qux");
   EXPECT_EQ("qux2", block[qux]);
   ASSERT_NE(block.end(), block.find("key"));
+  ASSERT_TRUE(block.contains("key"));
   EXPECT_EQ(Pair("key", "value"), *block.find("key"));
 
   block.erase("key");
