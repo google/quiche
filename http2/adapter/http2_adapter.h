@@ -72,6 +72,10 @@ class Http2Adapter {
   // Returns the connection-level flow control window for the peer.
   virtual int GetPeerConnectionWindow() const = 0;
 
+  // Gets the highest stream ID value seen in a frame received by this endpoint.
+  // This method is only guaranteed to work for server endpoints.
+  virtual Http2StreamId GetHighestReceivedStreamId() const = 0;
+
   // Marks the given amount of data as consumed for the given stream, which
   // enables the implementation layer to send WINDOW_UPDATEs as appropriate.
   virtual void MarkDataConsumedForStream(Http2StreamId stream_id,

@@ -106,6 +106,10 @@ int NgHttp2Adapter::GetPeerConnectionWindow() const {
   return session_->GetRemoteWindowSize();
 }
 
+Http2StreamId NgHttp2Adapter::GetHighestReceivedStreamId() const {
+  return nghttp2_session_get_last_proc_stream_id(session_->raw_ptr());
+}
+
 void NgHttp2Adapter::MarkDataConsumedForStream(Http2StreamId stream_id,
                                                size_t num_bytes) {
   int rc = session_->Consume(stream_id, num_bytes);

@@ -48,6 +48,9 @@ class OgHttp2Session : public Http2Session,
   bool IsServerSession() const {
     return options_.perspective == Perspective::kServer;
   }
+  Http2StreamId GetHighestReceivedStreamId() const {
+    return highest_received_stream_id_;
+  }
 
   // From Http2Session.
   ssize_t ProcessBytes(absl::string_view bytes) override;
@@ -191,6 +194,7 @@ class OgHttp2Session : public Http2Session,
   absl::string_view remaining_preface_;
 
   Http2StreamId next_stream_id_ = 1;
+  Http2StreamId highest_received_stream_id_ = 0;
   int peer_window_ = 65535;
   int stream_receive_window_limit_ = 65535;
   int max_frame_payload_ = 16384;

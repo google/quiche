@@ -87,6 +87,10 @@ int OgHttp2Adapter::GetPeerConnectionWindow() const {
   return session_->GetRemoteWindowSize();
 }
 
+Http2StreamId OgHttp2Adapter::GetHighestReceivedStreamId() const {
+  return session_->GetHighestReceivedStreamId();
+}
+
 void OgHttp2Adapter::MarkDataConsumedForStream(Http2StreamId stream_id,
                                                size_t num_bytes) {
   session_->Consume(stream_id, num_bytes);

@@ -41,6 +41,8 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
               testing::StrEq(spdy::kHttp2ConnectionHeaderPrefix));
   visitor.Clear();
 
+  EXPECT_EQ(0, adapter->GetHighestReceivedStreamId());
+
   const std::string initial_frames = TestFrameSequence()
                                          .ServerPreface()
                                          .Ping(42)
@@ -114,6 +116,8 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
                                             spdy::SpdyFrameType::HEADERS}));
   visitor.Clear();
 
+  EXPECT_EQ(0, adapter->GetHighestReceivedStreamId());
+
   const std::string stream_frames =
       TestFrameSequence()
           .Headers(1,
@@ -145,6 +149,9 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
+  // Should be 3, but this method only works for server adapters.
+  EXPECT_EQ(0, adapter->GetHighestReceivedStreamId());
+
   // Even though the client recieved a GOAWAY, streams 1 and 5 are still active.
   EXPECT_TRUE(adapter->session().want_read());
 
@@ -159,6 +166,10 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
                             .Data(1, "", true)
                             .RstStream(5, Http2ErrorCode::REFUSED_STREAM)
                             .Serialize());
+
+  // Should be 5, but this method only works for server adapters.
+  EXPECT_EQ(0, adapter->GetHighestReceivedStreamId());
+
   // After receiving END_STREAM for 1 and RST_STREAM for 5, the session no
   // longer expects reads.
   EXPECT_FALSE(adapter->session().want_read());
@@ -296,6 +307,8 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
 
+  EXPECT_EQ(0, adapter->GetHighestReceivedStreamId());
+
   const std::string frames = TestFrameSequence()
                                  .ClientPreface()
                                  .Ping(42)
@@ -357,6 +370,8 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
   const ssize_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
 
+  EXPECT_EQ(3, adapter->GetHighestReceivedStreamId());
+
   EXPECT_EQ(adapter->GetPeerConnectionWindow(),
             kDefaultInitialStreamWindowSize + 1000);
 
@@ -401,6 +416,8 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
 
   const ssize_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
+
+  EXPECT_EQ(1, adapter->GetHighestReceivedStreamId());
 
   // Server will want to send a SETTINGS ack.
   EXPECT_TRUE(adapter->session().want_write());

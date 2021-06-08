@@ -35,6 +35,7 @@ TEST(OgHttp2SessionTest, ClientConstruction) {
   EXPECT_FALSE(session.want_write());
   EXPECT_EQ(session.GetRemoteWindowSize(), kDefaultInitialStreamWindowSize);
   EXPECT_FALSE(session.IsServerSession());
+  EXPECT_EQ(0, session.GetHighestReceivedStreamId());
 }
 
 TEST(OgHttp2SessionTest, ClientHandlesFrames) {
@@ -64,6 +65,7 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
 
   EXPECT_EQ(session.GetRemoteWindowSize(),
             kDefaultInitialStreamWindowSize + 1000);
+  EXPECT_EQ(0, session.GetHighestReceivedStreamId());
 
   // Should OgHttp2Session require that streams 1 and 3 have been created?
 
@@ -96,6 +98,7 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
   EXPECT_CALL(visitor, OnGoAway(5, Http2ErrorCode::ENHANCE_YOUR_CALM, ""));
   const ssize_t stream_result = session.ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
+  EXPECT_EQ(3, session.GetHighestReceivedStreamId());
 }
 
 // Verifies that a client session enqueues initial SETTINGS if Send() is called
@@ -227,6 +230,7 @@ TEST(OgHttp2SessionTest, ServerConstruction) {
   EXPECT_FALSE(session.want_write());
   EXPECT_EQ(session.GetRemoteWindowSize(), kDefaultInitialStreamWindowSize);
   EXPECT_TRUE(session.IsServerSession());
+  EXPECT_EQ(0, session.GetHighestReceivedStreamId());
 }
 
 TEST(OgHttp2SessionTest, ServerHandlesFrames) {
@@ -297,6 +301,7 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
 
   EXPECT_EQ(session.GetRemoteWindowSize(),
             kDefaultInitialStreamWindowSize + 1000);
+  EXPECT_EQ(3, session.GetHighestReceivedStreamId());
 }
 
 // Verifies that a server session enqueues initial SETTINGS before whatever
@@ -360,6 +365,8 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
 
   const ssize_t result = session.ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
+
+  EXPECT_EQ(1, session.GetHighestReceivedStreamId());
 
   // Server will want to send initial SETTINGS, and a SETTINGS ack.
   EXPECT_TRUE(session.want_write());

@@ -36,6 +36,7 @@ class OgHttp2Adapter : public Http2Adapter {
   void SubmitMetadata(Http2StreamId stream_id, bool fin) override;
   void Send() override;
   int GetPeerConnectionWindow() const override;
+  Http2StreamId GetHighestReceivedStreamId() const override;
   void MarkDataConsumedForStream(Http2StreamId stream_id,
                                  size_t num_bytes) override;
   void SubmitRst(Http2StreamId stream_id, Http2ErrorCode error_code) override;

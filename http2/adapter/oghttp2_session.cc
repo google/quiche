@@ -304,6 +304,8 @@ void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
                                     size_t length,
                                     uint8_t type,
                                     uint8_t flags) {
+  highest_received_stream_id_ = std::max(static_cast<Http2StreamId>(stream_id),
+                                         highest_received_stream_id_);
   visitor_.OnFrameHeader(stream_id, length, type, flags);
 }
 

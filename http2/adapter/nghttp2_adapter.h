@@ -51,6 +51,8 @@ class NgHttp2Adapter : public Http2Adapter {
 
   int GetPeerConnectionWindow() const override;
 
+  Http2StreamId GetHighestReceivedStreamId() const override;
+
   void MarkDataConsumedForStream(Http2StreamId stream_id,
                                  size_t num_bytes) override;
 
