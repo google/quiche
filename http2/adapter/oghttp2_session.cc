@@ -33,6 +33,22 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
 
 OgHttp2Session::~OgHttp2Session() {}
 
+void OgHttp2Session::SetStreamUserData(Http2StreamId stream_id,
+                                       void* user_data) {
+  auto it = stream_map_.find(stream_id);
+  if (it != stream_map_.end()) {
+    it->second.user_data = user_data;
+  }
+}
+
+void* OgHttp2Session::GetStreamUserData(Http2StreamId stream_id) {
+  auto it = stream_map_.find(stream_id);
+  if (it != stream_map_.end()) {
+    return it->second.user_data;
+  }
+  return nullptr;
+}
+
 ssize_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
   ssize_t preface_consumed = 0;
   if (!remaining_preface_.empty()) {

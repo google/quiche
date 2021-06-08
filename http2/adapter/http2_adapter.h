@@ -102,6 +102,15 @@ class Http2Adapter {
   virtual int SubmitTrailer(Http2StreamId stream_id,
                             absl::Span<const Header> trailers) = 0;
 
+  // Sets a user data pointer for the given stream. Can be called after
+  // SubmitRequest/SubmitResponse, or after receiving any frame for a given
+  // stream.
+  virtual void SetStreamUserData(Http2StreamId stream_id, void* user_data) = 0;
+
+  // Returns nullptr if the stream does not exist, or if stream user data has
+  // not been set.
+  virtual void* GetStreamUserData(Http2StreamId stream_id) = 0;
+
  protected:
   // Subclasses should expose a public factory method for constructing and
   // initializing (via Initialize()) adapter instances.

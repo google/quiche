@@ -157,6 +157,16 @@ int NgHttp2Adapter::SubmitTrailer(Http2StreamId stream_id,
                                 nvs.size());
 }
 
+void NgHttp2Adapter::SetStreamUserData(Http2StreamId stream_id,
+                                       void* user_data) {
+  nghttp2_session_set_stream_user_data(session_->raw_ptr(), stream_id,
+                                       user_data);
+}
+
+void* NgHttp2Adapter::GetStreamUserData(Http2StreamId stream_id) {
+  return nghttp2_session_get_stream_user_data(session_->raw_ptr(), stream_id);
+}
+
 NgHttp2Adapter::NgHttp2Adapter(Http2VisitorInterface& visitor,
                                Perspective perspective)
     : Http2Adapter(visitor), visitor_(visitor), perspective_(perspective) {}

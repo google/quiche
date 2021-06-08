@@ -92,9 +92,11 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
                  {":path", "/this/is/request/three"}});
   const auto nvs3 = GetNghttp2Nvs(headers3);
 
-  const int32_t stream_id1 =
-      nghttp2_submit_request(adapter->session().raw_ptr(), nullptr, nvs1.data(),
-                             nvs1.size(), nullptr, nullptr);
+  const char* kSentinel1 = "arbitrary pointer 1";
+  const char* kSentinel3 = "arbitrary pointer 3";
+  const int32_t stream_id1 = nghttp2_submit_request(
+      adapter->session().raw_ptr(), nullptr, nvs1.data(), nvs1.size(), nullptr,
+      const_cast<char*>(kSentinel1));
   ASSERT_GT(stream_id1, 0);
   QUICHE_LOG(INFO) << "Created stream: " << stream_id1;
 
@@ -104,11 +106,15 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   ASSERT_GT(stream_id2, 0);
   QUICHE_LOG(INFO) << "Created stream: " << stream_id2;
 
-  const int32_t stream_id3 =
-      nghttp2_submit_request(adapter->session().raw_ptr(), nullptr, nvs3.data(),
-                             nvs3.size(), nullptr, nullptr);
+  const int32_t stream_id3 = nghttp2_submit_request(
+      adapter->session().raw_ptr(), nullptr, nvs3.data(), nvs3.size(), nullptr,
+      const_cast<char*>(kSentinel3));
   ASSERT_GT(stream_id3, 0);
   QUICHE_LOG(INFO) << "Created stream: " << stream_id3;
+
+  const char* kSentinel2 = "arbitrary pointer 2";
+  adapter->SetStreamUserData(stream_id2, const_cast<char*>(kSentinel2));
+  adapter->SetStreamUserData(stream_id3, nullptr);
 
   adapter->Send();
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
@@ -117,6 +123,10 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   visitor.Clear();
 
   EXPECT_EQ(0, adapter->GetHighestReceivedStreamId());
+
+  EXPECT_EQ(kSentinel1, adapter->GetStreamUserData(stream_id1));
+  EXPECT_EQ(kSentinel2, adapter->GetStreamUserData(stream_id2));
+  EXPECT_EQ(nullptr, adapter->GetStreamUserData(stream_id3));
 
   const std::string stream_frames =
       TestFrameSequence()
@@ -332,6 +342,8 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
                                  .Serialize();
   testing::InSequence s;
 
+  const char* kSentinel1 = "arbitrary pointer 1";
+
   // Client preface (empty SETTINGS)
   EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
   EXPECT_CALL(visitor, OnSettingsStart());
@@ -347,7 +359,10 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
-  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1))
+      .WillOnce(testing::InvokeWithoutArgs([&adapter, kSentinel1]() {
+        adapter->SetStreamUserData(1, const_cast<char*>(kSentinel1));
+      }));
   EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor, OnWindowUpdate(1, 2000));
   EXPECT_CALL(visitor, OnFrameHeader(1, 25, DATA, 0));
@@ -369,6 +384,14 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
 
   const ssize_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
+
+  EXPECT_EQ(kSentinel1, adapter->GetStreamUserData(1));
+
+  // Because stream 3 has already been closed, it's not possible to set user
+  // data.
+  const char* kSentinel3 = "another arbitrary pointer";
+  adapter->SetStreamUserData(3, const_cast<char*>(kSentinel3));
+  EXPECT_EQ(nullptr, adapter->GetStreamUserData(3));
 
   EXPECT_EQ(3, adapter->GetHighestReceivedStreamId());
 
@@ -400,6 +423,8 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
                                  .Serialize();
   testing::InSequence s;
 
+  const char* kSentinel1 = "arbitrary pointer 1";
+
   // Client preface (empty SETTINGS)
   EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
   EXPECT_CALL(visitor, OnSettingsStart());
@@ -411,7 +436,10 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
-  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1))
+      .WillOnce(testing::InvokeWithoutArgs([&adapter, kSentinel1]() {
+        adapter->SetStreamUserData(1, const_cast<char*>(kSentinel1));
+      }));
   EXPECT_CALL(visitor, OnEndStream(1));
 
   const ssize_t result = adapter->ProcessBytes(frames);
@@ -435,8 +463,15 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
       &body1);
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(adapter->session().want_write());
+
+  // Stream user data should have been set successfully after receiving headers.
+  EXPECT_EQ(kSentinel1, adapter->GetStreamUserData(1));
+  adapter->SetStreamUserData(1, nullptr);
+  EXPECT_EQ(nullptr, adapter->GetStreamUserData(1));
+
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
   adapter->Send();
+
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
                                             spdy::SpdyFrameType::DATA}));
   EXPECT_THAT(visitor.data(), testing::HasSubstr(kBody));

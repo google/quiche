@@ -187,20 +187,38 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
   visitor.Clear();
 
-  const char* kSentinel = "";
+  const char* kSentinel1 = "arbitrary pointer 1";
   TestDataFrameSource body1(visitor, "This is an example request body.");
   int stream_id =
       session.SubmitRequest(ToHeaders({{":method", "POST"},
                                        {":scheme", "http"},
                                        {":authority", "example.com"},
                                        {":path", "/this/is/request/one"}}),
-                            &body1, const_cast<char*>(kSentinel));
+                            &body1, const_cast<char*>(kSentinel1));
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(session.want_write());
+  EXPECT_EQ(kSentinel1, session.GetStreamUserData(stream_id));
   session.Send();
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
                                             spdy::SpdyFrameType::DATA}));
+  visitor.Clear();
   EXPECT_FALSE(session.want_write());
+
+  stream_id =
+      session.SubmitRequest(ToHeaders({{":method", "POST"},
+                                       {":scheme", "http"},
+                                       {":authority", "example.com"},
+                                       {":path", "/this/is/request/one"}}),
+                            nullptr, nullptr);
+  EXPECT_GT(stream_id, 0);
+  EXPECT_TRUE(session.want_write());
+  const char* kSentinel2 = "arbitrary pointer 2";
+  EXPECT_EQ(nullptr, session.GetStreamUserData(stream_id));
+  session.SetStreamUserData(stream_id, const_cast<char*>(kSentinel2));
+  EXPECT_EQ(kSentinel2, session.GetStreamUserData(stream_id));
+
+  session.Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
 }
 
 TEST(OgHttp2SessionTest, ClientStartShutdown) {
@@ -234,7 +252,7 @@ TEST(OgHttp2SessionTest, ServerConstruction) {
 }
 
 TEST(OgHttp2SessionTest, ServerHandlesFrames) {
-  testing::StrictMock<MockHttp2Visitor> visitor;
+  DataSavingVisitor visitor;
   OgHttp2Session session(
       visitor, OgHttp2Session::Options{.perspective = Perspective::kServer});
 
@@ -261,6 +279,8 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
                                  .Serialize();
   testing::InSequence s;
 
+  const char* kSentinel1 = "arbitrary pointer 1";
+
   // Client preface (empty SETTINGS)
   EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
   EXPECT_CALL(visitor, OnSettingsStart());
@@ -276,7 +296,10 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
-  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1))
+      .WillOnce(testing::InvokeWithoutArgs([&session, kSentinel1]() {
+        session.SetStreamUserData(1, const_cast<char*>(kSentinel1));
+      }));
   EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor, OnWindowUpdate(1, 2000));
   EXPECT_CALL(visitor, OnFrameHeader(1, 25, DATA, 0));
@@ -299,9 +322,25 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
   const ssize_t result = session.ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
 
+  EXPECT_EQ(kSentinel1, session.GetStreamUserData(1));
+
+  // TODO(birenroy): drop stream state when streams are closed. It should no
+  // longer be possible to set user data.
+  const char* kSentinel3 = "another arbitrary pointer";
+  session.SetStreamUserData(3, const_cast<char*>(kSentinel3));
+  EXPECT_EQ(kSentinel3, session.GetStreamUserData(3));
+
   EXPECT_EQ(session.GetRemoteWindowSize(),
             kDefaultInitialStreamWindowSize + 1000);
   EXPECT_EQ(3, session.GetHighestReceivedStreamId());
+
+  EXPECT_TRUE(session.want_write());
+  // Some bytes should have been serialized.
+  session.Send();
+  // Initial SETTINGS, SETTINGS ack.
+  // TODO(birenroy): automatically queue PING acks.
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::SETTINGS}));
 }
 
 // Verifies that a server session enqueues initial SETTINGS before whatever
@@ -349,6 +388,8 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
                                  .Serialize();
   testing::InSequence s;
 
+  const char* kSentinel1 = "arbitrary pointer 1";
+
   // Client preface (empty SETTINGS)
   EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
   EXPECT_CALL(visitor, OnSettingsStart());
@@ -360,7 +401,10 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
-  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1))
+      .WillOnce(testing::InvokeWithoutArgs([&session, kSentinel1]() {
+        session.SetStreamUserData(1, const_cast<char*>(kSentinel1));
+      }));
   EXPECT_CALL(visitor, OnEndStream(1));
 
   const ssize_t result = session.ProcessBytes(frames);
@@ -384,6 +428,12 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
       &body1);
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(session.want_write());
+
+  // Stream user data should have been set successfully after receiving headers.
+  EXPECT_EQ(kSentinel1, session.GetStreamUserData(1));
+  session.SetStreamUserData(1, nullptr);
+  EXPECT_EQ(nullptr, session.GetStreamUserData(1));
+
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
   session.Send();
   EXPECT_THAT(visitor.data(),

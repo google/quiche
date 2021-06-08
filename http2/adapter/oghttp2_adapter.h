@@ -50,6 +50,9 @@ class OgHttp2Adapter : public Http2Adapter {
   int SubmitTrailer(Http2StreamId stream_id,
                     absl::Span<const Header> trailers) override;
 
+  void SetStreamUserData(Http2StreamId stream_id, void* user_data) override;
+  void* GetStreamUserData(Http2StreamId stream_id) override;
+
   const Http2Session& session() const;
 
  private:

@@ -119,6 +119,15 @@ int OgHttp2Adapter::SubmitTrailer(Http2StreamId stream_id,
   return session_->SubmitTrailer(stream_id, trailers);
 }
 
+void OgHttp2Adapter::SetStreamUserData(Http2StreamId stream_id,
+                                       void* user_data) {
+  session_->SetStreamUserData(stream_id, user_data);
+}
+
+void* OgHttp2Adapter::GetStreamUserData(Http2StreamId stream_id) {
+  return session_->GetStreamUserData(stream_id);
+}
+
 const Http2Session& OgHttp2Adapter::session() const {
   return *session_;
 }
