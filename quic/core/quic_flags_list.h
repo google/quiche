@@ -44,7 +44,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_on_pto, false)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, determine stateless reset packet length based on the received packet length.
-QUIC_FLAG(FLAGS_quic_restart_flag_quic_fix_stateless_reset2, false)
+QUIC_FLAG(FLAGS_quic_restart_flag_quic_fix_stateless_reset2, true)
 // If true, disable QUIC version Q043.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_q043, false)
 // If true, disable QUIC version Q046.
