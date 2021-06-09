@@ -294,7 +294,8 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandle {
       const std::string& alpn,
       absl::optional<std::string> alps,
       const std::vector<uint8_t>& quic_transport_params,
-      const absl::optional<std::vector<uint8_t>>& early_data_context) = 0;
+      const absl::optional<std::vector<uint8_t>>& early_data_context,
+      const QuicSSLConfig& ssl_config) = 0;
 
   // Starts a compute signature operation. If the operation is not cancelled
   // when it completes, callback()->OnComputeSignatureDone will be invoked.

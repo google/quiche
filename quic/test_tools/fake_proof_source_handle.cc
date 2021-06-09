@@ -78,11 +78,12 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
     const std::string& alpn,
     absl::optional<std::string> alps,
     const std::vector<uint8_t>& quic_transport_params,
-    const absl::optional<std::vector<uint8_t>>& early_data_context) {
+    const absl::optional<std::vector<uint8_t>>& early_data_context,
+    const QuicSSLConfig& ssl_config) {
   QUICHE_CHECK(!closed_);
   all_select_cert_args_.push_back(SelectCertArgs(
       server_address, client_address, ssl_capabilities, hostname, client_hello,
-      alpn, alps, quic_transport_params, early_data_context));
+      alpn, alps, quic_transport_params, early_data_context, ssl_config));
 
   if (select_cert_action_ == Action::DELEGATE_ASYNC ||
       select_cert_action_ == Action::FAIL_ASYNC) {

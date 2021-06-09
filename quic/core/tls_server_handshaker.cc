@@ -62,7 +62,8 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
     const std::string& /*alpn*/,
     absl::optional<std::string> /*alps*/,
     const std::vector<uint8_t>& /*quic_transport_params*/,
-    const absl::optional<std::vector<uint8_t>>& /*early_data_context*/) {
+    const absl::optional<std::vector<uint8_t>>& /*early_data_context*/,
+    const QuicSSLConfig& /*ssl_config*/) {
   if (!handshaker_ || !proof_source_) {
     QUIC_BUG(quic_bug_10341_1)
         << "SelectCertificate called on a detached handle";
@@ -164,7 +165,7 @@ TlsServerHandshaker::TlsServerHandshaker(
       proof_source_(crypto_config->proof_source()),
       pre_shared_key_(crypto_config->pre_shared_key()),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
-      tls_connection_(crypto_config->ssl_ctx(), this),
+      tls_connection_(crypto_config->ssl_ctx(), this, session->GetSSLConfig()),
       crypto_config_(crypto_config) {
   QUICHE_DCHECK_EQ(PROTOCOL_TLS1_3,
                    session->connection()->version().handshake_protocol);
@@ -843,7 +844,8 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
           client_hello->client_hello_len),
       AlpnForVersion(session()->version()), std::move(alps),
       set_transport_params_result.quic_transport_params,
-      set_transport_params_result.early_data_context);
+      set_transport_params_result.early_data_context,
+      tls_connection_.ssl_config());
 
   QUICHE_DCHECK_EQ(status, select_cert_status().value());
 

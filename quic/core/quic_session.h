@@ -17,6 +17,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "quic/core/crypto/tls_connection.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
 #include "quic/core/handshaker_delegate_interface.h"
 #include "quic/core/legacy_quic_stream_id_manager.h"
@@ -618,6 +619,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return connection_->use_encryption_level_context() &&
            use_write_or_buffer_data_at_level_;
   }
+
+  virtual QuicSSLConfig GetSSLConfig() const { return QuicSSLConfig(); }
 
  protected:
   using StreamMap =

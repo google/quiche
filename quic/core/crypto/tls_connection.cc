@@ -88,12 +88,20 @@ enum ssl_encryption_level_t TlsConnection::BoringEncryptionLevel(
 }
 
 TlsConnection::TlsConnection(SSL_CTX* ssl_ctx,
-                             TlsConnection::Delegate* delegate)
-    : delegate_(delegate), ssl_(SSL_new(ssl_ctx)) {
+                             TlsConnection::Delegate* delegate,
+                             QuicSSLConfig ssl_config)
+    : delegate_(delegate),
+      ssl_(SSL_new(ssl_ctx)),
+      ssl_config_(std::move(ssl_config)) {
   SSL_set_ex_data(
       ssl(), SslIndexSingleton::GetInstance()->ssl_ex_data_index_connection(),
       this);
+  if (ssl_config_.early_data_enabled.has_value()) {
+    const int early_data_enabled = *ssl_config_.early_data_enabled ? 1 : 0;
+    SSL_set_early_data_enabled(ssl(), early_data_enabled);
+  }
 }
+
 // static
 bssl::UniquePtr<SSL_CTX> TlsConnection::CreateSslCtx(int cert_verify_mode) {
   CRYPTO_library_init();

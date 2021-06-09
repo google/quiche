@@ -1241,9 +1241,14 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
 
   MockQuicCryptoServerStreamHelper* helper() { return &helper_; }
 
+  QuicSSLConfig GetSSLConfig() const override { return ssl_config_; }
+
+  QuicSSLConfig* ssl_config() { return &ssl_config_; }
+
  private:
   MockQuicSessionVisitor visitor_;
   MockQuicCryptoServerStreamHelper helper_;
+  QuicSSLConfig ssl_config_;
 };
 
 // A test implementation of QuicClientPushPromiseIndex::Delegate.

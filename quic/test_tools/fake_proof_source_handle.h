@@ -46,7 +46,8 @@ class FakeProofSourceHandle : public ProofSourceHandle {
       const std::string& alpn,
       absl::optional<std::string> alps,
       const std::vector<uint8_t>& quic_transport_params,
-      const absl::optional<std::vector<uint8_t>>& early_data_context) override;
+      const absl::optional<std::vector<uint8_t>>& early_data_context,
+      const QuicSSLConfig& ssl_config) override;
 
   QuicAsyncStatus ComputeSignature(const QuicSocketAddress& server_address,
                                    const QuicSocketAddress& client_address,
@@ -70,7 +71,8 @@ class FakeProofSourceHandle : public ProofSourceHandle {
                    std::string alpn,
                    absl::optional<std::string> alps,
                    std::vector<uint8_t> quic_transport_params,
-                   absl::optional<std::vector<uint8_t>> early_data_context)
+                   absl::optional<std::vector<uint8_t>> early_data_context,
+                   QuicSSLConfig ssl_config)
         : server_address(server_address),
           client_address(client_address),
           ssl_capabilities(ssl_capabilities),
@@ -79,7 +81,8 @@ class FakeProofSourceHandle : public ProofSourceHandle {
           alpn(alpn),
           alps(alps),
           quic_transport_params(quic_transport_params),
-          early_data_context(early_data_context) {}
+          early_data_context(early_data_context),
+          ssl_config(ssl_config) {}
 
     QuicSocketAddress server_address;
     QuicSocketAddress client_address;
@@ -90,6 +93,7 @@ class FakeProofSourceHandle : public ProofSourceHandle {
     absl::optional<std::string> alps;
     std::vector<uint8_t> quic_transport_params;
     absl::optional<std::vector<uint8_t>> early_data_context;
+    QuicSSLConfig ssl_config;
   };
 
   struct ComputeSignatureArgs {

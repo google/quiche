@@ -12,8 +12,12 @@
 
 namespace quic {
 
-TlsServerConnection::TlsServerConnection(SSL_CTX* ssl_ctx, Delegate* delegate)
-    : TlsConnection(ssl_ctx, delegate->ConnectionDelegate()),
+TlsServerConnection::TlsServerConnection(SSL_CTX* ssl_ctx,
+                                         Delegate* delegate,
+                                         QuicSSLConfig ssl_config)
+    : TlsConnection(ssl_ctx,
+                    delegate->ConnectionDelegate(),
+                    std::move(ssl_config)),
       delegate_(delegate) {}
 
 // static

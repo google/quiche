@@ -120,7 +120,9 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
     friend class TlsServerConnection;
   };
 
-  TlsServerConnection(SSL_CTX* ssl_ctx, Delegate* delegate);
+  TlsServerConnection(SSL_CTX* ssl_ctx,
+                      Delegate* delegate,
+                      QuicSSLConfig ssl_config);
 
   // Creates and configures an SSL_CTX that is appropriate for servers to use.
   static bssl::UniquePtr<SSL_CTX> CreateSslCtx(ProofSource* proof_source);

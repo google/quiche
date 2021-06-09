@@ -561,6 +561,23 @@ TEST_P(TlsServerHandshakerTest, HostnameForCertSelectionAndComputeSignature) {
   EXPECT_EQ(last_compute_signature_args().hostname, "test.example.com");
 }
 
+TEST_P(TlsServerHandshakerTest, SSLConfigForCertSelection) {
+  InitializeServerWithFakeProofSourceHandle();
+
+  // Disable early data.
+  server_session_->ssl_config()->early_data_enabled = false;
+
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::
+          DELEGATE_SYNC);
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  EXPECT_FALSE(last_select_cert_args().ssl_config.early_data_enabled);
+}
+
 TEST_P(TlsServerHandshakerTest, ConnectionClosedOnTlsError) {
   EXPECT_CALL(*server_connection_,
               CloseConnection(QUIC_HANDSHAKE_FAILED, _, _, _));

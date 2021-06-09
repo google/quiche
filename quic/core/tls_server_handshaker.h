@@ -223,8 +223,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
         const std::string& alpn,
         absl::optional<std::string> alps,
         const std::vector<uint8_t>& quic_transport_params,
-        const absl::optional<std::vector<uint8_t>>& early_data_context)
-        override;
+        const absl::optional<std::vector<uint8_t>>& early_data_context,
+        const QuicSSLConfig& ssl_config) override;
 
     // Delegates to proof_source_->ComputeTlsSignature.
     // Returns QUIC_SUCCESS, QUIC_FAILURE or QUIC_PENDING.

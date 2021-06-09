@@ -826,6 +826,13 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 QUIC_EXPORT_PRIVATE std::string KeyUpdateReasonString(KeyUpdateReason reason);
 
+// QuicSSLConfig contains configurations to be applied on a SSL object, which
+// overrides the configurations in SSL_CTX.
+struct QUIC_NO_EXPORT QuicSSLConfig {
+  // Whether TLS early data should be enabled. If not set, default to enabled.
+  absl::optional<bool> early_data_enabled;
+};
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_TYPES_H_

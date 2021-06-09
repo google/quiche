@@ -6,8 +6,12 @@
 
 namespace quic {
 
-TlsClientConnection::TlsClientConnection(SSL_CTX* ssl_ctx, Delegate* delegate)
-    : TlsConnection(ssl_ctx, delegate->ConnectionDelegate()),
+TlsClientConnection::TlsClientConnection(SSL_CTX* ssl_ctx,
+                                         Delegate* delegate,
+                                         QuicSSLConfig ssl_config)
+    : TlsConnection(ssl_ctx,
+                    delegate->ConnectionDelegate(),
+                    std::move(ssl_config)),
       delegate_(delegate) {}
 
 // static
@@ -24,6 +28,8 @@ bssl::UniquePtr<SSL_CTX> TlsClientConnection::CreateSslCtx(
       ssl_ctx.get(), SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL);
   SSL_CTX_sess_set_new_cb(ssl_ctx.get(), NewSessionCallback);
 
+  // TODO(wub): Always enable early data on the SSL_CTX, but allow it to be
+  // overridden on the SSL object, via QuicSSLConfig.
   SSL_CTX_set_early_data_enabled(ssl_ctx.get(), enable_early_data);
   return ssl_ctx;
 }

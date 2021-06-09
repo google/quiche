@@ -41,7 +41,7 @@ TlsClientHandshaker::TlsClientHandshaker(
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
       has_application_state_(has_application_state),
       crypto_config_(crypto_config),
-      tls_connection_(crypto_config->ssl_ctx(), this) {
+      tls_connection_(crypto_config->ssl_ctx(), this, session->GetSSLConfig()) {
   std::string token =
       crypto_config->LookupOrCreate(server_id)->source_address_token();
   if (!token.empty()) {
