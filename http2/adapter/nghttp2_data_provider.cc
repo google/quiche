@@ -18,6 +18,7 @@ ssize_t DataFrameSourceReadCallback(nghttp2_session* /* session */,
                                     uint32_t* data_flags,
                                     nghttp2_data_source* source,
                                     void* /* user_data */) {
+  *data_flags |= NGHTTP2_DATA_FLAG_NO_COPY;
   auto* frame_source = static_cast<DataFrameSource*>(source->ptr);
   auto [result_length, done] = frame_source->SelectPayloadLength(length);
   if (result_length == DataFrameSource::kBlocked) {
@@ -25,7 +26,6 @@ ssize_t DataFrameSourceReadCallback(nghttp2_session* /* session */,
   } else if (result_length == DataFrameSource::kError) {
     return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
   }
-  *data_flags |= NGHTTP2_DATA_FLAG_NO_COPY;
   if (done) {
     *data_flags |= NGHTTP2_DATA_FLAG_EOF;
   }

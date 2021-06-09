@@ -160,7 +160,10 @@ class OgHttp2Session : public Http2Session,
   // Sends queued frames, returning true if all frames were flushed.
   bool SendQueuedFrames();
 
-  void WriteForStream(Http2StreamId stream_id);
+  // Returns false if the connection is write-blocked (due to flow control or
+  // some other reason).
+  bool WriteForStream(Http2StreamId stream_id);
+
   void SendTrailers(Http2StreamId stream_id, spdy::SpdyHeaderBlock trailers);
 
   // Encapsulates the RST_STREAM NO_ERROR behavior described in RFC 7540

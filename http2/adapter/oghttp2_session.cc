@@ -127,7 +127,7 @@ void OgHttp2Session::Send() {
     const Http2StreamId stream_id = write_scheduler_.PopNextReadyStream();
     // TODO(birenroy): Add a return value to indicate write blockage, so streams
     // aren't woken unnecessarily.
-    WriteForStream(stream_id);
+    continue_writing = WriteForStream(stream_id);
   }
   if (continue_writing) {
     SendQueuedFrames();
@@ -152,12 +152,12 @@ bool OgHttp2Session::SendQueuedFrames() {
   return true;
 }
 
-void OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
+bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
   auto it = stream_map_.find(stream_id);
   if (it == stream_map_.end()) {
     QUICHE_LOG(ERROR) << "Can't find stream " << stream_id
                       << " which is ready to write!";
-    return;
+    return true;
   }
   StreamState& state = it->second;
   if (state.outbound_body == nullptr) {
@@ -171,13 +171,22 @@ void OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
         MaybeCloseWithRstStream(stream_id, state);
       }
     }
-    return;
+    return true;
   }
+  bool source_can_produce = true;
   int32_t available_window =
       std::min(std::min(peer_window_, state.send_window), max_frame_payload_);
   while (available_window > 0 && state.outbound_body != nullptr) {
     auto [length, end_data] =
         state.outbound_body->SelectPayloadLength(available_window);
+    if (length == DataFrameSource::kBlocked) {
+      source_can_produce = false;
+      break;
+    } else if (length == DataFrameSource::kError) {
+      source_can_produce = false;
+      visitor_.OnCloseStream(stream_id, Http2ErrorCode::INTERNAL_ERROR);
+      break;
+    }
     const bool fin = end_data ? state.outbound_body->send_fin() : false;
     spdy::SpdyDataIR data(stream_id);
     data.set_fin(fin);
@@ -208,9 +217,11 @@ void OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
   }
   // If the stream still has data to send, it should be marked as ready in the
   // write scheduler.
-  if (state.send_window > 0 && state.outbound_body != nullptr) {
+  if (source_can_produce && state.send_window > 0 &&
+      state.outbound_body != nullptr) {
     write_scheduler_.MarkStreamReady(stream_id, false);
   }
+  return available_window > 0;
 }
 
 int32_t OgHttp2Session::SubmitRequest(absl::Span<const Header> headers,

@@ -24,6 +24,24 @@ enum FrameType {
   WINDOW_UPDATE,
 };
 
+// This send callback assumes |source|'s pointer is a TestDataSource, and
+// |user_data| is a Http2VisitorInterface.
+int TestSendCallback(nghttp2_session*,
+                     nghttp2_frame* frame,
+                     const uint8_t* framehd,
+                     size_t length,
+                     nghttp2_data_source* source,
+                     void* user_data) {
+  auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
+  // Send the frame header via the visitor.
+  visitor->OnReadyToSend(ToStringView(framehd, 9));
+  auto* test_source = static_cast<TestDataSource*>(source->ptr);
+  absl::string_view payload = test_source->ReadNext(length);
+  // Send the frame payload via the visitor.
+  visitor->OnReadyToSend(payload);
+  return 0;
+}
+
 TEST(NgHttp2AdapterTest, ClientConstruction) {
   testing::StrictMock<MockHttp2Visitor> visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
@@ -269,22 +287,8 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProvider) {
   TestDataSource body1{kBody};
   // The TestDataSource is wrapped in the nghttp2_data_provider data type.
   nghttp2_data_provider provider = body1.MakeDataProvider();
+  nghttp2_send_data_callback send_callback = &TestSendCallback;
 
-  // This send callback assumes |source|'s pointer is a TestDataSource, which we
-  // know is true because we just converted |body1| into a nghttp2_data_provider
-  // above.
-  nghttp2_send_data_callback send_callback =
-      [](nghttp2_session*, nghttp2_frame* frame, const uint8_t* framehd,
-         size_t length, nghttp2_data_source* source, void* user_data) {
-        auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
-        // Send the frame header via the visitor.
-        visitor->OnReadyToSend(ToStringView(framehd, 9));
-        auto* test_source = static_cast<TestDataSource*>(source->ptr);
-        absl::string_view payload = test_source->ReadNext(length);
-        // Send the frame payload via the visitor.
-        visitor->OnReadyToSend(payload);
-        return 0;
-      };
   // This call transforms it back into a DataFrameSource, which is compatible
   // with the Http2Adapter API.
   std::unique_ptr<DataFrameSource> frame_source =
@@ -301,6 +305,53 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProvider) {
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
                                             spdy::SpdyFrameType::DATA}));
   EXPECT_THAT(visitor.data(), testing::HasSubstr(kBody));
+  EXPECT_FALSE(adapter->session().want_write());
+}
+
+// This test verifies how nghttp2 behaves when a data source becomes
+// read-blocked.
+TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProviderAndReadBlock) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  const absl::string_view kBody = "This is an example request body.";
+  // This test will use TestDataSource as the source of the body payload data.
+  TestDataSource body1{kBody};
+  body1.set_is_data_available(false);
+  // The TestDataSource is wrapped in the nghttp2_data_provider data type.
+  nghttp2_data_provider provider = body1.MakeDataProvider();
+  nghttp2_send_data_callback send_callback = &TestSendCallback;
+
+  // This call transforms it back into a DataFrameSource, which is compatible
+  // with the Http2Adapter API.
+  std::unique_ptr<DataFrameSource> frame_source =
+      MakeZeroCopyDataFrameSource(provider, &visitor, std::move(send_callback));
+  int stream_id =
+      adapter->SubmitRequest(ToHeaders({{":method", "POST"},
+                                        {":scheme", "http"},
+                                        {":authority", "example.com"},
+                                        {":path", "/this/is/request/one"}}),
+                             frame_source.get(), nullptr);
+  EXPECT_GT(stream_id, 0);
+  EXPECT_TRUE(adapter->session().want_write());
+
+  adapter->Send();
+  // Client preface does not appear to include the mandatory SETTINGS frame.
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized, EqualsFrames({spdy::SpdyFrameType::HEADERS}));
+  visitor.Clear();
+  EXPECT_FALSE(adapter->session().want_write());
+
+  // Resume the deferred stream.
+  body1.set_is_data_available(true);
+  nghttp2_session_resume_data(adapter->session().raw_ptr(), stream_id);
+  EXPECT_TRUE(adapter->session().want_write());
+
+  adapter->Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::DATA}));
   EXPECT_FALSE(adapter->session().want_write());
 }
 

@@ -133,11 +133,13 @@ class Nghttp2DataFrameSource : public DataFrameSource {
     ssize_t result = provider_.read_callback(
         nullptr /* session */, stream_id, nullptr /* buf */, max_length,
         &data_flags, &provider_.source, nullptr /* user_data */);
-    if (result < 0) {
-      return {-1, false};
+    if (result == NGHTTP2_ERR_DEFERRED) {
+      return {kBlocked, false};
+    } else if (result < 0) {
+      return {kError, false};
     } else if ((data_flags & NGHTTP2_DATA_FLAG_NO_COPY) == 0) {
       QUICHE_LOG(ERROR) << "Source did not use the zero-copy API!";
-      return {-1, false};
+      return {kError, false};
     } else {
       if (data_flags & NGHTTP2_DATA_FLAG_NO_END_STREAM) {
         send_fin_ = false;

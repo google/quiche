@@ -36,13 +36,16 @@ TestDataFrameSource::TestDataFrameSource(
 
 std::pair<ssize_t, bool> TestDataFrameSource::SelectPayloadLength(
     size_t max_length) {
+  if (!is_data_available_) {
+    return {kBlocked, false};
+  }
   // The stream is done if there's no more data, or if |max_length| is at least
   // as large as the remaining data.
   const bool end_data =
       current_fragment_.empty() || (payload_fragments_.size() == 1 &&
                                     max_length >= current_fragment_.size());
   const ssize_t length = std::min(max_length, current_fragment_.size());
-  return std::make_pair(length, end_data);
+  return {length, end_data};
 }
 
 void TestDataFrameSource::Send(absl::string_view frame_header,

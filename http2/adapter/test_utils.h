@@ -50,11 +50,14 @@ class TestDataFrameSource : public DataFrameSource {
   void Send(absl::string_view frame_header, size_t payload_length) override;
   bool send_fin() const override { return has_fin_; }
 
+  void set_is_data_available(bool value) { is_data_available_ = value; }
+
  private:
   Http2VisitorInterface& visitor_;
   std::vector<std::string> payload_fragments_;
   absl::string_view current_fragment_;
   const bool has_fin_;
+  bool is_data_available_ = true;
 };
 
 // A simple class that can easily be adapted to act as a nghttp2_data_source.
@@ -78,20 +81,27 @@ class TestDataSource {
         .source = {.ptr = this},
         .read_callback = [](nghttp2_session*, int32_t, uint8_t*, size_t length,
                             uint32_t* data_flags, nghttp2_data_source* source,
-                            void*) {
+                            void*) -> ssize_t {
+          *data_flags |= NGHTTP2_DATA_FLAG_NO_COPY;
           auto* s = static_cast<TestDataSource*>(source->ptr);
+          if (!s->is_data_available()) {
+            return NGHTTP2_ERR_DEFERRED;
+          }
           const ssize_t ret = s->SelectPayloadLength(length);
           if (ret < length) {
             *data_flags |= NGHTTP2_DATA_FLAG_EOF;
           }
-          *data_flags |= NGHTTP2_DATA_FLAG_NO_COPY;
           return ret;
         }};
   }
 
+  bool is_data_available() const { return is_data_available_; }
+  void set_is_data_available(bool value) { is_data_available_ = value; }
+
  private:
   const std::string data_;
   absl::string_view remaining_ = data_;
+  bool is_data_available_ = true;
 };
 
 // These matchers check whether a string consists entirely of HTTP/2 frames of
