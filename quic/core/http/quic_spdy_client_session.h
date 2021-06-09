@@ -61,6 +61,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSession
   // than the number of round-trips needed for the handshake.
   int GetNumSentClientHellos() const;
 
+  // Return true if the handshake performed is a TLS resumption.
+  // Always return false for QUIC Crypto.
+  bool IsResumption() const;
+
   // Returns true if early data (0-RTT data) was sent and the server accepted
   // it.
   bool EarlyDataAccepted() const;
