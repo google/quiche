@@ -61,9 +61,10 @@ QuicConnectionId FramerTestConnectionIdPlusOne() {
 }
 
 QuicConnectionId FramerTestConnectionIdNineBytes() {
-  char connection_id_bytes[9] = {0xFE, 0xDC, 0xBA, 0x98, 0x76,
-                                 0x54, 0x32, 0x10, 0x42};
-  return QuicConnectionId(connection_id_bytes, sizeof(connection_id_bytes));
+  uint8_t connection_id_bytes[9] = {0xFE, 0xDC, 0xBA, 0x98, 0x76,
+                                    0x54, 0x32, 0x10, 0x42};
+  return QuicConnectionId(reinterpret_cast<char*>(connection_id_bytes),
+                          sizeof(connection_id_bytes));
 }
 
 const QuicPacketNumber kPacketNumber = QuicPacketNumber(UINT64_C(0x12345678));
@@ -13730,9 +13731,9 @@ TEST_P(QuicFramerTest, PacketHeaderWithVariableLengthConnectionId) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
-  char connection_id_bytes[9] = {0xFE, 0xDC, 0xBA, 0x98, 0x76,
-                                 0x54, 0x32, 0x10, 0x42};
-  QuicConnectionId connection_id(connection_id_bytes,
+  uint8_t connection_id_bytes[9] = {0xFE, 0xDC, 0xBA, 0x98, 0x76,
+                                    0x54, 0x32, 0x10, 0x42};
+  QuicConnectionId connection_id(reinterpret_cast<char*>(connection_id_bytes),
                                  sizeof(connection_id_bytes));
   QuicFramerPeer::SetLargestPacketNumber(&framer_, kPacketNumber - 2);
   QuicFramerPeer::SetExpectedServerConnectionIDLength(&framer_,
@@ -14031,7 +14032,7 @@ TEST_P(QuicFramerTest, ProcessMismatchedHeaderVersion) {
 
 TEST_P(QuicFramerTest, WriteClientVersionNegotiationProbePacket) {
   // clang-format off
-  static const char expected_packet[1200] = {
+  static const uint8_t expected_packet[1200] = {
     // IETF long header with fixed bit set, type initial, all-0 encrypted bits.
     0xc0,
     // Version, part of the IETF space reserved for negotiation.
@@ -14080,9 +14081,9 @@ TEST_P(QuicFramerTest, WriteClientVersionNegotiationProbePacket) {
   EXPECT_TRUE(QuicFramer::WriteClientVersionNegotiationProbePacket(
       packet, sizeof(packet), destination_connection_id_bytes,
       sizeof(destination_connection_id_bytes)));
-  quiche::test::CompareCharArraysWithHexError("constructed packet", packet,
-                                              sizeof(packet), expected_packet,
-                                              sizeof(expected_packet));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", packet, sizeof(packet),
+      reinterpret_cast<const char*>(expected_packet), sizeof(expected_packet));
   QuicEncryptedPacket encrypted(reinterpret_cast<const char*>(packet),
                                 sizeof(packet), false);
   if (!framer_.version().HasLengthPrefixedConnectionIds()) {
@@ -14102,7 +14103,7 @@ TEST_P(QuicFramerTest, WriteClientVersionNegotiationProbePacket) {
 
 TEST_P(QuicFramerTest, DispatcherParseOldClientVersionNegotiationProbePacket) {
   // clang-format off
-  static const char packet[1200] = {
+  static const uint8_t packet[1200] = {
     // IETF long header with fixed bit set, type initial, all-0 encrypted bits.
     0xc0,
     // Version, part of the IETF space reserved for negotiation.
@@ -14179,7 +14180,7 @@ TEST_P(QuicFramerTest, DispatcherParseOldClientVersionNegotiationProbePacket) {
 
 TEST_P(QuicFramerTest, DispatcherParseClientVersionNegotiationProbePacket) {
   // clang-format off
-  static const char packet[1200] = {
+  static const uint8_t packet[1200] = {
     // IETF long header with fixed bit set, type initial, all-0 encrypted bits.
     0xc0,
     // Version, part of the IETF space reserved for negotiation.
@@ -14257,7 +14258,7 @@ TEST_P(QuicFramerTest, DispatcherParseClientVersionNegotiationProbePacket) {
 
 TEST_P(QuicFramerTest, ParseServerVersionNegotiationProbeResponse) {
   // clang-format off
-  const char packet[] = {
+  const uint8_t packet[] = {
     // IETF long header with fixed bit set, type initial, all-0 encrypted bits.
     0xc0,
     // Version of 0, indicating version negotiation.

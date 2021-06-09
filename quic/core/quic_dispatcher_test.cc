@@ -924,10 +924,12 @@ TEST_P(QuicDispatcherTestAllVersions,
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
 
-  char short_packet[21] = {0x70, 0xa7, 0x02, 0x6b};
-  QuicReceivedPacket packet(short_packet, 21, QuicTime::Zero());
-  char valid_size_packet[23] = {0x70, 0xa7, 0x02, 0x6c};
-  QuicReceivedPacket packet2(valid_size_packet, 23, QuicTime::Zero());
+  uint8_t short_packet[21] = {0x70, 0xa7, 0x02, 0x6b};
+  QuicReceivedPacket packet(reinterpret_cast<char*>(short_packet), 21,
+                            QuicTime::Zero());
+  uint8_t valid_size_packet[23] = {0x70, 0xa7, 0x02, 0x6c};
+  QuicReceivedPacket packet2(reinterpret_cast<char*>(valid_size_packet), 23,
+                             QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
       .Times(0);
@@ -1186,10 +1188,10 @@ TEST_P(QuicDispatcherTestOneVersion,
        RejectDeprecatedVersionDraft28WithVersionNegotiation) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
-  char packet[kMinPacketSizeForVersionNegotiation] = {
+  uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 0xFF, 0x00, 0x00, 28, /*destination connection ID length*/ 0x08};
-  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
-                                     QuicTime::Zero());
+  QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
+                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
@@ -1203,10 +1205,10 @@ TEST_P(QuicDispatcherTestOneVersion,
        RejectDeprecatedVersionDraft27WithVersionNegotiation) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
-  char packet[kMinPacketSizeForVersionNegotiation] = {
+  uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 0xFF, 0x00, 0x00, 27, /*destination connection ID length*/ 0x08};
-  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
-                                     QuicTime::Zero());
+  QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
+                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
@@ -1220,10 +1222,10 @@ TEST_P(QuicDispatcherTestOneVersion,
        RejectDeprecatedVersionDraft25WithVersionNegotiation) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
-  char packet[kMinPacketSizeForVersionNegotiation] = {
+  uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 0xFF, 0x00, 0x00, 25, /*destination connection ID length*/ 0x08};
-  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
-                                     QuicTime::Zero());
+  QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
+                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
@@ -1237,10 +1239,10 @@ TEST_P(QuicDispatcherTestOneVersion,
        RejectDeprecatedVersionT050WithVersionNegotiation) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
-  char packet[kMinPacketSizeForVersionNegotiation] = {
+  uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 'T', '0', '5', '0', /*destination connection ID length*/ 0x08};
-  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
-                                     QuicTime::Zero());
+  QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
+                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
@@ -1254,10 +1256,10 @@ TEST_P(QuicDispatcherTestOneVersion,
        RejectDeprecatedVersionQ049WithVersionNegotiation) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
-  char packet[kMinPacketSizeForVersionNegotiation] = {
+  uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 'Q', '0', '4', '9', /*destination connection ID length*/ 0x08};
-  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
-                                     QuicTime::Zero());
+  QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
+                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
@@ -1271,10 +1273,10 @@ TEST_P(QuicDispatcherTestOneVersion,
        RejectDeprecatedVersionQ048WithVersionNegotiation) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
-  char packet[kMinPacketSizeForVersionNegotiation] = {
+  uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 'Q', '0', '4', '8', /*connection ID length byte*/ 0x50};
-  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
-                                     QuicTime::Zero());
+  QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
+                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
@@ -1288,10 +1290,10 @@ TEST_P(QuicDispatcherTestOneVersion,
        RejectDeprecatedVersionQ047WithVersionNegotiation) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
-  char packet[kMinPacketSizeForVersionNegotiation] = {
+  uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 'Q', '0', '4', '7', /*connection ID length byte*/ 0x50};
-  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
-                                     QuicTime::Zero());
+  QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
+                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
@@ -1305,10 +1307,10 @@ TEST_P(QuicDispatcherTestOneVersion,
        RejectDeprecatedVersionQ045WithVersionNegotiation) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
-  char packet[kMinPacketSizeForVersionNegotiation] = {
+  uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 'Q', '0', '4', '5', /*connection ID length byte*/ 0x50};
-  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
-                                     QuicTime::Zero());
+  QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
+                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
@@ -1322,10 +1324,11 @@ TEST_P(QuicDispatcherTestOneVersion,
        RejectDeprecatedVersionQ044WithVersionNegotiation) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
-  char packet44[kMinPacketSizeForVersionNegotiation] = {
+  uint8_t packet44[kMinPacketSizeForVersionNegotiation] = {
       0xFF, 'Q', '0', '4', '4', /*connection ID length byte*/ 0x50};
-  QuicReceivedPacket received_packet44(
-      packet44, kMinPacketSizeForVersionNegotiation, QuicTime::Zero());
+  QuicReceivedPacket received_packet44(reinterpret_cast<char*>(packet44),
+                                       kMinPacketSizeForVersionNegotiation,
+                                       QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
@@ -1549,7 +1552,7 @@ TEST_P(QuicDispatcherTestAllVersions, ProcessSmallCoalescedPacket) {
   EXPECT_CALL(*time_wait_list_manager_, SendPacket(_, _, _)).Times(0);
 
   // clang-format off
-  char coalesced_packet[1200] = {
+  uint8_t coalesced_packet[1200] = {
     // first coalesced packet
       // public flags (long header with packet type INITIAL and
       // 4-byte packet number)
@@ -1586,7 +1589,8 @@ TEST_P(QuicDispatcherTestAllVersions, ProcessSmallCoalescedPacket) {
       0x12, 0x34, 0x56, 0x79,
   };
   // clang-format on
-  QuicReceivedPacket packet(coalesced_packet, 1200, QuicTime::Zero());
+  QuicReceivedPacket packet(reinterpret_cast<char*>(coalesced_packet), 1200,
+                            QuicTime::Zero());
   dispatcher_->ProcessPacket(server_address_, client_address, packet);
 }
 

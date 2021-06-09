@@ -87,40 +87,42 @@ TEST(HttpEncoderTest, SerializePriorityUpdateFrame) {
   PriorityUpdateFrame priority_update1;
   priority_update1.prioritized_element_type = REQUEST_STREAM;
   priority_update1.prioritized_element_id = 0x03;
-  char output1[] = {0x80, 0x0f, 0x07, 0x00,  // type (PRIORITY_UPDATE)
-                    0x01,                    // length
-                    0x03};                   // prioritized element id
+  uint8_t output1[] = {0x80, 0x0f, 0x07, 0x00,  // type (PRIORITY_UPDATE)
+                       0x01,                    // length
+                       0x03};                   // prioritized element id
 
   std::unique_ptr<char[]> buffer;
   uint64_t length =
       HttpEncoder::SerializePriorityUpdateFrame(priority_update1, &buffer);
   EXPECT_EQ(ABSL_ARRAYSIZE(output1), length);
-  quiche::test::CompareCharArraysWithHexError("PRIORITY_UPDATE", buffer.get(),
-                                              length, output1,
-                                              ABSL_ARRAYSIZE(output1));
+  quiche::test::CompareCharArraysWithHexError(
+      "PRIORITY_UPDATE", buffer.get(), length, reinterpret_cast<char*>(output1),
+      ABSL_ARRAYSIZE(output1));
 }
 
 TEST(HttpEncoderTest, SerializeAcceptChFrame) {
   AcceptChFrame accept_ch;
-  char output1[] = {0x40, 0x89,  // type (ACCEPT_CH)
-                    0x00};       // length
+  uint8_t output1[] = {0x40, 0x89,  // type (ACCEPT_CH)
+                       0x00};       // length
 
   std::unique_ptr<char[]> buffer;
   uint64_t length = HttpEncoder::SerializeAcceptChFrame(accept_ch, &buffer);
   EXPECT_EQ(ABSL_ARRAYSIZE(output1), length);
   quiche::test::CompareCharArraysWithHexError("ACCEPT_CH", buffer.get(), length,
-                                              output1, ABSL_ARRAYSIZE(output1));
+                                              reinterpret_cast<char*>(output1),
+                                              ABSL_ARRAYSIZE(output1));
 
   accept_ch.entries.push_back({"foo", "bar"});
-  char output2[] = {0x40, 0x89,               // type (ACCEPT_CH)
-                    0x08,                     // payload length
-                    0x03, 0x66, 0x6f, 0x6f,   // length of "foo"; "foo"
-                    0x03, 0x62, 0x61, 0x72};  // length of "bar"; "bar"
+  uint8_t output2[] = {0x40, 0x89,               // type (ACCEPT_CH)
+                       0x08,                     // payload length
+                       0x03, 0x66, 0x6f, 0x6f,   // length of "foo"; "foo"
+                       0x03, 0x62, 0x61, 0x72};  // length of "bar"; "bar"
 
   length = HttpEncoder::SerializeAcceptChFrame(accept_ch, &buffer);
   EXPECT_EQ(ABSL_ARRAYSIZE(output2), length);
   quiche::test::CompareCharArraysWithHexError("ACCEPT_CH", buffer.get(), length,
-                                              output2, ABSL_ARRAYSIZE(output2));
+                                              reinterpret_cast<char*>(output2),
+                                              ABSL_ARRAYSIZE(output2));
 }
 
 TEST(HttpEncoderTest, SerializeWebTransportStreamFrameHeader) {

@@ -10545,16 +10545,16 @@ void QuicConnectionTest::TestClientRetryHandling(
   }
 
   // These values come from draft-ietf-quic-tls Appendix A.4.
-  char retry_packet_rfcv1[] = {
+  uint8_t retry_packet_rfcv1[] = {
       0xff, 0x00, 0x00, 0x00, 0x01, 0x00, 0x08, 0xf0, 0x67, 0xa5, 0x50, 0x2a,
       0x42, 0x62, 0xb5, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x04, 0xa2, 0x65, 0xba,
       0x2e, 0xff, 0x4d, 0x82, 0x90, 0x58, 0xfb, 0x3f, 0x0f, 0x24, 0x96, 0xba};
-  char retry_packet29[] = {
+  uint8_t retry_packet29[] = {
       0xff, 0xff, 0x00, 0x00, 0x1d, 0x00, 0x08, 0xf0, 0x67, 0xa5, 0x50, 0x2a,
       0x42, 0x62, 0xb5, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0xd1, 0x69, 0x26, 0xd8,
       0x1f, 0x6f, 0x9c, 0xa2, 0x95, 0x3a, 0x8a, 0xa4, 0x57, 0x5e, 0x1e, 0x49};
 
-  char* retry_packet;
+  uint8_t* retry_packet;
   size_t retry_packet_length;
   if (version() == ParsedQuicVersion::RFCv1()) {
     retry_packet = retry_packet_rfcv1;
@@ -10568,19 +10568,21 @@ void QuicConnectionTest::TestClientRetryHandling(
     return;
   }
 
-  char original_connection_id_bytes[] = {0x83, 0x94, 0xc8, 0xf0,
-                                         0x3e, 0x51, 0x57, 0x08};
-  char new_connection_id_bytes[] = {0xf0, 0x67, 0xa5, 0x50,
-                                    0x2a, 0x42, 0x62, 0xb5};
-  char retry_token_bytes[] = {0x74, 0x6f, 0x6b, 0x65, 0x6e};
+  uint8_t original_connection_id_bytes[] = {0x83, 0x94, 0xc8, 0xf0,
+                                            0x3e, 0x51, 0x57, 0x08};
+  uint8_t new_connection_id_bytes[] = {0xf0, 0x67, 0xa5, 0x50,
+                                       0x2a, 0x42, 0x62, 0xb5};
+  uint8_t retry_token_bytes[] = {0x74, 0x6f, 0x6b, 0x65, 0x6e};
 
   QuicConnectionId original_connection_id(
-      original_connection_id_bytes,
+      reinterpret_cast<char*>(original_connection_id_bytes),
       ABSL_ARRAYSIZE(original_connection_id_bytes));
-  QuicConnectionId new_connection_id(new_connection_id_bytes,
-                                     ABSL_ARRAYSIZE(new_connection_id_bytes));
+  QuicConnectionId new_connection_id(
+      reinterpret_cast<char*>(new_connection_id_bytes),
+      ABSL_ARRAYSIZE(new_connection_id_bytes));
 
-  std::string retry_token(retry_token_bytes, ABSL_ARRAYSIZE(retry_token_bytes));
+  std::string retry_token(reinterpret_cast<char*>(retry_token_bytes),
+                          ABSL_ARRAYSIZE(retry_token_bytes));
 
   if (invalid_retry_tag) {
     // Flip the last bit of the retry packet to prevent the integrity tag
@@ -10611,7 +10613,8 @@ void QuicConnectionTest::TestClientRetryHandling(
   // Process the RETRY packet.
   connection_.ProcessUdpPacket(
       kSelfAddress, kPeerAddress,
-      QuicReceivedPacket(retry_packet, retry_packet_length, clock_.Now()));
+      QuicReceivedPacket(reinterpret_cast<char*>(retry_packet),
+                         retry_packet_length, clock_.Now()));
 
   if (invalid_retry_tag) {
     // Make sure we refuse to process a RETRY with invalid tag.
