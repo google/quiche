@@ -21,6 +21,7 @@
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
+#include "quic/platform/api/quic_mem_slice.h"
 #include "common/platform/api/quiche_logging.h"
 #include "common/platform/api/quiche_prefetch.h"
 #include "common/quiche_endian.h"
@@ -712,6 +713,14 @@ bool IsValidWebTransportSessionId(WebTransportSessionId id,
   return (id <= std::numeric_limits<QuicStreamId>::max()) &&
          QuicUtils::IsBidirectionalStreamId(id, version) &&
          QuicUtils::IsClientInitiatedStreamId(version.transport_version, id);
+}
+
+QuicByteCount MemSliceSpanTotalSize(absl::Span<QuicMemSlice> span) {
+  QuicByteCount total = 0;
+  for (const QuicMemSlice& slice : span) {
+    total += slice.length();
+  }
+  return total;
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds

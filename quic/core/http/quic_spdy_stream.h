@@ -18,6 +18,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quic/core/http/http_decoder.h"
 #include "quic/core/http/http_encoder.h"
 #include "quic/core/http/quic_header_list.h"
@@ -159,6 +160,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Does the same thing as WriteOrBufferBody except this method takes
   // memslicespan as the data input. Right now it only calls WriteMemSlices.
   QuicConsumedData WriteBodySlices(QuicMemSliceSpan slices, bool fin);
+  QuicConsumedData WriteBodySlices(absl::Span<QuicMemSlice> slices, bool fin);
 
   // Marks the trailers as consumed. This applies to the case where this object
   // receives headers and trailers as QuicHeaderLists via calls to

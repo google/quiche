@@ -454,6 +454,24 @@ QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
   return WriteMemSlices(slices, fin);
 }
 
+QuicConsumedData QuicSpdyStream::WriteBodySlices(
+    absl::Span<QuicMemSlice> slices,
+    bool fin) {
+  if (!VersionUsesHttp3(transport_version()) || slices.empty()) {
+    return WriteMemSlices(slices, fin);
+  }
+
+  QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
+  const QuicByteCount data_size = MemSliceSpanTotalSize(slices);
+  if (!WriteDataFrameHeader(data_size, /*force_write=*/false)) {
+    return {0, false};
+  }
+
+  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
+                  << " is writing DATA frame payload of length " << data_size;
+  return WriteMemSlices(slices, fin);
+}
+
 size_t QuicSpdyStream::Readv(const struct iovec* iov, size_t iov_len) {
   QUICHE_DCHECK(FinishedReadingHeaders());
   if (!VersionUsesHttp3(transport_version())) {
