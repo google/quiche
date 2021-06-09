@@ -477,7 +477,11 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytes) {
   EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
                    sender_->ExportDebugState().bandwidth_hi, 0.01f);
 
-  EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
+  if (GetQuicReloadableFlag(quic_fix_pacing_sender_bursts)) {
+    EXPECT_EQ(sender_loss_rate_in_packets(), 0);
+  } else {
+    EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
+  }
   // The margin here is high, because both link level aggregation and ack
   // decimation can greatly increase smoothed rtt.
   EXPECT_GE(params.RTT() * 5, rtt_stats()->smoothed_rtt());
@@ -558,6 +562,9 @@ TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncrease)) {
       [this]() { return sender_endpoint_.bytes_to_transfer() == 0; },
       QuicTime::Delta::FromSeconds(50));
   EXPECT_TRUE(simulator_result);
+  // Ensure the full bandwidth is discovered.
+  EXPECT_APPROX_EQ(params.test_link.bandwidth,
+                   sender_->ExportDebugState().bandwidth_hi, 0.02f);
 }
 
 // Test the number of losses incurred by the startup phase in a situation when

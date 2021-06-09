@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "quic/core/quic_constants.h"
 #include "quic/core/quic_packets.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
@@ -96,7 +97,6 @@ class PacingSenderTest : public QuicTest {
                 OnPacketSent(clock_.Now(), prior_in_flight, packet_number_,
                              kMaxOutgoingPacketSize, retransmittable_data));
     EXPECT_CALL(*mock_sender_, GetCongestionWindow())
-        .Times(AtMost(1))
         .WillRepeatedly(Return(cwnd * kDefaultTCPMSS));
     EXPECT_CALL(*mock_sender_,
                 CanSend(prior_in_flight + kMaxOutgoingPacketSize))
@@ -459,7 +459,7 @@ TEST_F(PacingSenderTest, LumpyPacingWithInitialBurstToken) {
 }
 
 TEST_F(PacingSenderTest, NoLumpyPacingForLowBandwidthFlows) {
-  // Set lumpy size to be 3, and cwnd faction to 0.5
+  // Set lumpy size to be 3, and cwnd fraction to 0.5
   SetQuicFlag(FLAGS_quic_lumpy_pacing_size, 3);
   SetQuicFlag(FLAGS_quic_lumpy_pacing_cwnd_fraction, 0.5f);
 
@@ -481,6 +481,43 @@ TEST_F(PacingSenderTest, NoLumpyPacingForLowBandwidthFlows) {
 
   for (int i = 0; i < 200; ++i) {
     CheckPacketIsDelayed(inter_packet_delay);
+  }
+}
+
+// Regression test for b/184471302 to ensure that ACKs received back-to-back
+// don't cause bursts in sending.
+TEST_F(PacingSenderTest, NoBurstsForLumpyPacingWithAckAggregation) {
+  // Configure pacing rate of 1 packet per millisecond.
+  QuicTime::Delta inter_packet_delay = QuicTime::Delta::FromMilliseconds(1);
+  InitPacingRate(kInitialBurstPackets,
+                 QuicBandwidth::FromBytesAndTimeDelta(kMaxOutgoingPacketSize,
+                                                      inter_packet_delay));
+  UpdateRtt();
+
+  // Send kInitialBurstPackets packets, and verify that they are not paced.
+  for (int i = 0; i < kInitialBurstPackets; ++i) {
+    CheckPacketIsSentImmediately();
+  }
+  // The last packet of the burst causes the sender to be CWND limited.
+  CheckPacketIsSentImmediately(HAS_RETRANSMITTABLE_DATA,
+                               10 * kMaxOutgoingPacketSize, false, 10);
+
+  if (GetQuicReloadableFlag(quic_fix_pacing_sender_bursts)) {
+    // The last sent packet made the connection CWND limited, so no lumpy tokens
+    // should be available.
+    EXPECT_EQ(0u, pacing_sender_->lumpy_tokens());
+    CheckPacketIsSentImmediately(HAS_RETRANSMITTABLE_DATA,
+                                 10 * kMaxOutgoingPacketSize, false, 10);
+    EXPECT_EQ(0u, pacing_sender_->lumpy_tokens());
+    CheckPacketIsDelayed(2 * inter_packet_delay);
+  } else {
+    EXPECT_EQ(1u, pacing_sender_->lumpy_tokens());
+    // Repeatedly send single packets to make the sender CWND limited and
+    // observe that there's no pacing without the fix.
+    for (int i = 0; i < 10; ++i) {
+      CheckPacketIsSentImmediately(HAS_RETRANSMITTABLE_DATA,
+                                   10 * kMaxOutgoingPacketSize, false, 10);
+    }
   }
 }
 
