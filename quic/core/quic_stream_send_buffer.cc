@@ -12,6 +12,7 @@
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
+#include "quic/platform/api/quic_mem_slice.h"
 
 namespace quic {
 
@@ -94,6 +95,20 @@ void QuicStreamSendBuffer::SaveMemSlice(QuicMemSlice slice) {
 QuicByteCount QuicStreamSendBuffer::SaveMemSliceSpan(QuicMemSliceSpan span) {
   return span.ConsumeAll(
       [&](QuicMemSlice slice) { SaveMemSlice(std::move(slice)); });
+}
+
+QuicByteCount QuicStreamSendBuffer::SaveMemSliceSpan(
+    absl::Span<QuicMemSlice> span) {
+  QuicByteCount total = 0;
+  for (QuicMemSlice& slice : span) {
+    if (slice.length() == 0) {
+      // Skip empty slices.
+      continue;
+    }
+    total += slice.length();
+    SaveMemSlice(std::move(slice));
+  }
+  return total;
 }
 
 void QuicStreamSendBuffer::OnStreamDataConsumed(size_t bytes_consumed) {

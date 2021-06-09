@@ -1178,14 +1178,17 @@ TEST_P(QuicStreamTest, WriteMemSlices) {
   SetQuicFlag(FLAGS_quic_buffered_data_threshold, 100);
 
   Initialize();
-  char data[1024];
-  std::vector<std::pair<char*, size_t>> buffers;
-  buffers.push_back(std::make_pair(data, ABSL_ARRAYSIZE(data)));
-  buffers.push_back(std::make_pair(data, ABSL_ARRAYSIZE(data)));
-  QuicTestMemSliceVector vector1(buffers);
-  QuicTestMemSliceVector vector2(buffers);
-  QuicMemSliceSpan span1 = vector1.span();
-  QuicMemSliceSpan span2 = vector2.span();
+  constexpr QuicByteCount kDataSize = 1024;
+  QuicBufferAllocator* allocator =
+      connection_->helper()->GetStreamSendBufferAllocator();
+  std::vector<QuicMemSlice> vector1;
+  vector1.push_back(QuicMemSlice(QuicBuffer(allocator, kDataSize)));
+  vector1.push_back(QuicMemSlice(QuicBuffer(allocator, kDataSize)));
+  std::vector<QuicMemSlice> vector2;
+  vector2.push_back(QuicMemSlice(QuicBuffer(allocator, kDataSize)));
+  vector2.push_back(QuicMemSlice(QuicBuffer(allocator, kDataSize)));
+  absl::Span<QuicMemSlice> span1(vector1);
+  absl::Span<QuicMemSlice> span2(vector2);
 
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(InvokeWithoutArgs([this]() {
@@ -1196,7 +1199,7 @@ TEST_P(QuicStreamTest, WriteMemSlices) {
   QuicConsumedData consumed = stream_->WriteMemSlices(span1, false);
   EXPECT_EQ(2048u, consumed.bytes_consumed);
   EXPECT_FALSE(consumed.fin_consumed);
-  EXPECT_EQ(2 * ABSL_ARRAYSIZE(data) - 100, stream_->BufferedDataBytes());
+  EXPECT_EQ(2 * kDataSize - 100, stream_->BufferedDataBytes());
   EXPECT_FALSE(stream_->fin_buffered());
 
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(0);
@@ -1204,12 +1207,11 @@ TEST_P(QuicStreamTest, WriteMemSlices) {
   consumed = stream_->WriteMemSlices(span2, true);
   EXPECT_EQ(0u, consumed.bytes_consumed);
   EXPECT_FALSE(consumed.fin_consumed);
-  EXPECT_EQ(2 * ABSL_ARRAYSIZE(data) - 100, stream_->BufferedDataBytes());
+  EXPECT_EQ(2 * kDataSize - 100, stream_->BufferedDataBytes());
   EXPECT_FALSE(stream_->fin_buffered());
 
   QuicByteCount data_to_write =
-      2 * ABSL_ARRAYSIZE(data) - 100 -
-      GetQuicFlag(FLAGS_quic_buffered_data_threshold) + 1;
+      2 * kDataSize - 100 - GetQuicFlag(FLAGS_quic_buffered_data_threshold) + 1;
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(InvokeWithoutArgs([this, data_to_write]() {
         return session_->ConsumeData(stream_->id(), data_to_write, 100u, NO_FIN,
@@ -1225,8 +1227,7 @@ TEST_P(QuicStreamTest, WriteMemSlices) {
   consumed = stream_->WriteMemSlices(span2, true);
   EXPECT_EQ(2048u, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
-  EXPECT_EQ(2 * ABSL_ARRAYSIZE(data) +
-                GetQuicFlag(FLAGS_quic_buffered_data_threshold) - 1,
+  EXPECT_EQ(2 * kDataSize + GetQuicFlag(FLAGS_quic_buffered_data_threshold) - 1,
             stream_->BufferedDataBytes());
   EXPECT_TRUE(stream_->fin_buffered());
 

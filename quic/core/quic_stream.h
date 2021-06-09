@@ -24,6 +24,7 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "absl/types/span.h"
 #include "quic/core/quic_flow_controller.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_stream_send_buffer.h"
@@ -32,6 +33,7 @@
 #include "quic/core/session_notifier_interface.h"
 #include "quic/core/stream_delegate_interface.h"
 #include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_mem_slice.h"
 #include "quic/platform/api/quic_mem_slice_span.h"
 #include "quic/platform/api/quic_reference_counted.h"
 #include "spdy/core/spdy_protocol.h"
@@ -343,9 +345,13 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // succeeds.
   bool MaybeSetTtl(QuicTime::Delta ttl);
 
-  // Same as WritevData except data is provided in reference counted memory so
-  // that data copy is avoided.
+  // Commits data into the stream write buffer, and potentially sends it over
+  // the wire.  This method has all-or-nothing semantics: if the write buffer is
+  // not full, all of the memslices in |span| are moved into it; otherwise,
+  // nothing happens.
+  // TODO(vasilvv): deprecate and remove QuicMemSliceSpan version.
   QuicConsumedData WriteMemSlices(QuicMemSliceSpan span, bool fin);
+  QuicConsumedData WriteMemSlices(absl::Span<QuicMemSlice> span, bool fin);
 
   // Returns true if any stream data is lost (including fin) and needs to be
   // retransmitted.
@@ -464,6 +470,26 @@ class QUIC_EXPORT_PRIVATE QuicStream
   friend class test::QuicStreamPeer;
   friend class QuicStreamUtils;
 
+  // Wraps around either QuicMemSliceSpan or absl::Span<QuicMemSlice>.
+  // TODO(vasilvv): delete this after QuicMemSliceSpan is gone.
+  class QUIC_EXPORT_PRIVATE MemSliceSpanWrapper {
+   public:
+    explicit MemSliceSpanWrapper(QuicMemSliceSpan span) : old_(span) {}
+    explicit MemSliceSpanWrapper(absl::Span<QuicMemSlice> span) : new_(span) {}
+
+    bool empty() { return old_.has_value() ? old_->empty() : new_.empty(); }
+    size_t SaveTo(QuicStreamSendBuffer& send_buffer) {
+      if (old_.has_value()) {
+        return send_buffer.SaveMemSliceSpan(*old_);
+      }
+      return send_buffer.SaveMemSliceSpan(new_);
+    }
+
+   private:
+    absl::optional<QuicMemSliceSpan> old_;
+    absl::Span<QuicMemSlice> new_;
+  };
+
   QuicStream(QuicStreamId id,
              QuicSession* session,
              QuicStreamSequencer sequencer,
@@ -501,6 +527,8 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   // Returns true if deadline_ has passed.
   bool HasDeadlinePassed() const;
+
+  QuicConsumedData WriteMemSlicesInner(MemSliceSpanWrapper span, bool fin);
 
   QuicStreamSequencer sequencer_;
   QuicStreamId id_;
