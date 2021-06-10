@@ -65,9 +65,7 @@ class OgHttp2Session : public Http2Session,
     return !frames_.empty() || !serialized_prefix_.empty() ||
            write_scheduler_.HasReadyStreams();
   }
-  int GetRemoteWindowSize() const override {
-    return peer_window_;
-  }
+  int GetRemoteWindowSize() const override { return connection_send_window_; }
 
   // From SpdyFramerVisitorInterface
   void OnError(http2::Http2DecoderAdapter::SpdyFramerError error,
@@ -135,7 +133,7 @@ class OgHttp2Session : public Http2Session,
     DataFrameSource* outbound_body = nullptr;
     std::unique_ptr<spdy::SpdyHeaderBlock> trailers;
     void* user_data = nullptr;
-    int32_t send_window = 65535;
+    int32_t send_window = kInitialFlowControlWindowSize;
     bool half_closed_local = false;
     bool half_closed_remote = false;
   };
@@ -203,8 +201,9 @@ class OgHttp2Session : public Http2Session,
 
   Http2StreamId next_stream_id_ = 1;
   Http2StreamId highest_received_stream_id_ = 0;
-  int peer_window_ = 65535;
-  int stream_receive_window_limit_ = 65535;
+  int connection_send_window_ = kInitialFlowControlWindowSize;
+  // The initial flow control receive window size for any newly created streams.
+  int stream_receive_window_limit_ = kInitialFlowControlWindowSize;
   int max_frame_payload_ = 16384;
   Options options_;
   bool received_goaway_ = false;

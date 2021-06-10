@@ -50,9 +50,9 @@ const Http2StreamId kConnectionStreamId = 0;
 // 7540 Section 6.5.2 (SETTINGS_MAX_FRAME_SIZE).
 const int kDefaultFramePayloadSizeLimit = 16 * 1024;
 
-// The default value for the initial stream flow control window size, according
-// to RFC 7540 Section 6.9.2.
-const int kDefaultInitialStreamWindowSize = 64 * 1024 - 1;
+// The default value for the initial stream and connection flow control window
+// size, according to RFC 7540 Section 6.9.2.
+const int kInitialFlowControlWindowSize = 64 * 1024 - 1;
 
 // The pseudo-header fields as specified in RFC 7540 Section 8.1.2.3 (request)
 // and Section 8.1.2.4 (response).

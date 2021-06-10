@@ -133,7 +133,7 @@ void OgHttp2Session::Send() {
   bool continue_writing = SendQueuedFrames();
   // Wake streams for writes.
   while (continue_writing && write_scheduler_.HasReadyStreams() &&
-         peer_window_ > 0) {
+         connection_send_window_ > 0) {
     const Http2StreamId stream_id = write_scheduler_.PopNextReadyStream();
     // TODO(birenroy): Add a return value to indicate write blockage, so streams
     // aren't woken unnecessarily.
@@ -190,8 +190,8 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
   }
   bool source_can_produce = true;
   bool connection_can_write = true;
-  int32_t available_window =
-      std::min(std::min(peer_window_, state.send_window), max_frame_payload_);
+  int32_t available_window = std::min(
+      std::min(connection_send_window_, state.send_window), max_frame_payload_);
   while (available_window > 0 && state.outbound_body != nullptr) {
     auto [length, end_data] =
         state.outbound_body->SelectPayloadLength(available_window);
@@ -215,10 +215,11 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
       connection_can_write = false;
       break;
     }
-    peer_window_ -= length;
+    connection_send_window_ -= length;
     state.send_window -= length;
     available_window =
-        std::min(std::min(peer_window_, state.send_window), max_frame_payload_);
+        std::min(std::min(connection_send_window_, state.send_window),
+                 max_frame_payload_);
     if (end_data) {
       bool sent_trailers = false;
       if (state.trailers != nullptr) {
@@ -472,7 +473,7 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
 void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
                                     int delta_window_size) {
   if (stream_id == 0) {
-    peer_window_ += delta_window_size;
+    connection_send_window_ += delta_window_size;
   } else {
     auto it = stream_map_.find(stream_id);
     if (it == stream_map_.end()) {

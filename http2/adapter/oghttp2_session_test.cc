@@ -33,7 +33,7 @@ TEST(OgHttp2SessionTest, ClientConstruction) {
       visitor, OgHttp2Session::Options{.perspective = Perspective::kClient});
   EXPECT_TRUE(session.want_read());
   EXPECT_FALSE(session.want_write());
-  EXPECT_EQ(session.GetRemoteWindowSize(), kDefaultInitialStreamWindowSize);
+  EXPECT_EQ(session.GetRemoteWindowSize(), kInitialFlowControlWindowSize);
   EXPECT_FALSE(session.IsServerSession());
   EXPECT_EQ(0, session.GetHighestReceivedStreamId());
 }
@@ -64,7 +64,7 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
   EXPECT_EQ(initial_frames.size(), initial_result);
 
   EXPECT_EQ(session.GetRemoteWindowSize(),
-            kDefaultInitialStreamWindowSize + 1000);
+            kInitialFlowControlWindowSize + 1000);
   EXPECT_EQ(0, session.GetHighestReceivedStreamId());
 
   // Should OgHttp2Session require that streams 1 and 3 have been created?
@@ -326,7 +326,7 @@ TEST(OgHttp2SessionTest, ServerConstruction) {
       visitor, OgHttp2Session::Options{.perspective = Perspective::kServer});
   EXPECT_TRUE(session.want_read());
   EXPECT_FALSE(session.want_write());
-  EXPECT_EQ(session.GetRemoteWindowSize(), kDefaultInitialStreamWindowSize);
+  EXPECT_EQ(session.GetRemoteWindowSize(), kInitialFlowControlWindowSize);
   EXPECT_TRUE(session.IsServerSession());
   EXPECT_EQ(0, session.GetHighestReceivedStreamId());
 }
@@ -411,7 +411,7 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
   EXPECT_EQ(kSentinel3, session.GetStreamUserData(3));
 
   EXPECT_EQ(session.GetRemoteWindowSize(),
-            kDefaultInitialStreamWindowSize + 1000);
+            kInitialFlowControlWindowSize + 1000);
   EXPECT_EQ(3, session.GetHighestReceivedStreamId());
 
   EXPECT_TRUE(session.want_write());

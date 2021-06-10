@@ -85,7 +85,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   EXPECT_EQ(initial_frames.size(), initial_result);
 
   EXPECT_EQ(adapter->GetPeerConnectionWindow(),
-            kDefaultInitialStreamWindowSize + 1000);
+            kInitialFlowControlWindowSize + 1000);
   // Some bytes should have been serialized.
   adapter->Send();
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
@@ -498,7 +498,7 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
   EXPECT_EQ(3, adapter->GetHighestReceivedStreamId());
 
   EXPECT_EQ(adapter->GetPeerConnectionWindow(),
-            kDefaultInitialStreamWindowSize + 1000);
+            kInitialFlowControlWindowSize + 1000);
 
   EXPECT_TRUE(adapter->session().want_write());
   // Some bytes should have been serialized.

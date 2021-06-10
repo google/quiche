@@ -48,7 +48,7 @@ TEST_F(NgHttp2SessionTest, ClientConstruction) {
                          CreateOptions(), &visitor_);
   EXPECT_TRUE(session.want_read());
   EXPECT_FALSE(session.want_write());
-  EXPECT_EQ(session.GetRemoteWindowSize(), kDefaultInitialStreamWindowSize);
+  EXPECT_EQ(session.GetRemoteWindowSize(), kInitialFlowControlWindowSize);
   EXPECT_NE(session.raw_ptr(), nullptr);
 }
 
@@ -80,7 +80,7 @@ TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
   EXPECT_EQ(initial_frames.size(), initial_result);
 
   EXPECT_EQ(session.GetRemoteWindowSize(),
-            kDefaultInitialStreamWindowSize + 1000);
+            kInitialFlowControlWindowSize + 1000);
   ASSERT_EQ(0, nghttp2_session_send(session.raw_ptr()));
   // Some bytes should have been serialized.
   absl::string_view serialized = visitor_.data();
@@ -195,7 +195,7 @@ TEST_F(NgHttp2SessionTest, ServerConstruction) {
                          CreateOptions(), &visitor_);
   EXPECT_TRUE(session.want_read());
   EXPECT_FALSE(session.want_write());
-  EXPECT_EQ(session.GetRemoteWindowSize(), kDefaultInitialStreamWindowSize);
+  EXPECT_EQ(session.GetRemoteWindowSize(), kInitialFlowControlWindowSize);
   EXPECT_NE(session.raw_ptr(), nullptr);
 }
 
@@ -265,7 +265,7 @@ TEST_F(NgHttp2SessionTest, ServerHandlesFrames) {
   EXPECT_EQ(frames.size(), result);
 
   EXPECT_EQ(session.GetRemoteWindowSize(),
-            kDefaultInitialStreamWindowSize + 1000);
+            kInitialFlowControlWindowSize + 1000);
 
   EXPECT_TRUE(session.want_write());
   ASSERT_EQ(0, nghttp2_session_send(session.raw_ptr()));
