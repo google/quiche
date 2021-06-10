@@ -84,8 +84,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   const ssize_t initial_result = adapter->ProcessBytes(initial_frames);
   EXPECT_EQ(initial_frames.size(), initial_result);
 
-  EXPECT_EQ(adapter->GetPeerConnectionWindow(),
-            kInitialFlowControlWindowSize + 1000);
+  EXPECT_EQ(adapter->GetSendWindowSize(), kInitialFlowControlWindowSize + 1000);
   // Some bytes should have been serialized.
   adapter->Send();
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
@@ -143,6 +142,18 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
                                             spdy::SpdyFrameType::HEADERS}));
   visitor.Clear();
 
+  // All streams are active and have not yet received any data, so the receive
+  // window should be at the initial value.
+  EXPECT_EQ(kInitialFlowControlWindowSize,
+            adapter->GetStreamReceiveWindowSize(stream_id1));
+  EXPECT_EQ(kInitialFlowControlWindowSize,
+            adapter->GetStreamReceiveWindowSize(stream_id2));
+  EXPECT_EQ(kInitialFlowControlWindowSize,
+            adapter->GetStreamReceiveWindowSize(stream_id3));
+
+  // Connection has not yet received any data.
+  EXPECT_EQ(kInitialFlowControlWindowSize, adapter->GetReceiveWindowSize());
+
   EXPECT_EQ(0, adapter->GetHighestReceivedStreamId());
 
   EXPECT_EQ(kSentinel1, adapter->GetStreamUserData(stream_id1));
@@ -179,6 +190,19 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
               OnGoAway(5, Http2ErrorCode::ENHANCE_YOUR_CALM, "calm down!!"));
   const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
+
+  // First stream has received some data.
+  EXPECT_GT(kInitialFlowControlWindowSize,
+            adapter->GetStreamReceiveWindowSize(stream_id1));
+  // Second stream was closed.
+  EXPECT_EQ(-1, adapter->GetStreamReceiveWindowSize(stream_id2));
+  // Third stream has not received any data.
+  EXPECT_EQ(kInitialFlowControlWindowSize,
+            adapter->GetStreamReceiveWindowSize(stream_id3));
+
+  // Connection window should be the same as the first stream.
+  EXPECT_EQ(adapter->GetReceiveWindowSize(),
+            adapter->GetStreamReceiveWindowSize(stream_id1));
 
   // Should be 3, but this method only works for server adapters.
   EXPECT_EQ(0, adapter->GetHighestReceivedStreamId());
@@ -250,6 +274,11 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequest) {
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(adapter->session().want_write());
   adapter->Send();
+
+  EXPECT_EQ(kInitialFlowControlWindowSize,
+            adapter->GetStreamReceiveWindowSize(stream_id));
+  EXPECT_EQ(kInitialFlowControlWindowSize, adapter->GetReceiveWindowSize());
+
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
                                             spdy::SpdyFrameType::DATA}));
   EXPECT_THAT(visitor.data(), testing::HasSubstr(kBody));
@@ -489,6 +518,11 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
 
   EXPECT_EQ(kSentinel1, adapter->GetStreamUserData(1));
 
+  EXPECT_GT(kInitialFlowControlWindowSize,
+            adapter->GetStreamReceiveWindowSize(1));
+  EXPECT_EQ(adapter->GetStreamReceiveWindowSize(1),
+            adapter->GetReceiveWindowSize());
+
   // Because stream 3 has already been closed, it's not possible to set user
   // data.
   const char* kSentinel3 = "another arbitrary pointer";
@@ -497,8 +531,7 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
 
   EXPECT_EQ(3, adapter->GetHighestReceivedStreamId());
 
-  EXPECT_EQ(adapter->GetPeerConnectionWindow(),
-            kInitialFlowControlWindowSize + 1000);
+  EXPECT_EQ(adapter->GetSendWindowSize(), kInitialFlowControlWindowSize + 1000);
 
   EXPECT_TRUE(adapter->session().want_write());
   // Some bytes should have been serialized.

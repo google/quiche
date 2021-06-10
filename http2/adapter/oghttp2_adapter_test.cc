@@ -43,9 +43,9 @@ TEST_F(OgHttp2AdapterTest, SubmitMetadata) {
   EXPECT_QUICHE_BUG(adapter_->SubmitMetadata(3, true), "Not implemented");
 }
 
-TEST_F(OgHttp2AdapterTest, GetPeerConnectionWindow) {
-  const int peer_window = adapter_->GetPeerConnectionWindow();
-  EXPECT_GT(peer_window, 0);
+TEST_F(OgHttp2AdapterTest, GetSendWindowSize) {
+  const int peer_window = adapter_->GetSendWindowSize();
+  EXPECT_EQ(peer_window, kInitialFlowControlWindowSize);
 }
 
 TEST_F(OgHttp2AdapterTest, MarkDataConsumedForStream) {

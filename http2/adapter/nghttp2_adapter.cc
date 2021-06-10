@@ -102,8 +102,17 @@ void NgHttp2Adapter::Send() {
   }
 }
 
-int NgHttp2Adapter::GetPeerConnectionWindow() const {
+int NgHttp2Adapter::GetSendWindowSize() const {
   return session_->GetRemoteWindowSize();
+}
+
+int NgHttp2Adapter::GetStreamReceiveWindowSize(Http2StreamId stream_id) const {
+  return nghttp2_session_get_stream_local_window_size(session_->raw_ptr(),
+                                                      stream_id);
+}
+
+int NgHttp2Adapter::GetReceiveWindowSize() const {
+  return nghttp2_session_get_local_window_size(session_->raw_ptr());
 }
 
 Http2StreamId NgHttp2Adapter::GetHighestReceivedStreamId() const {

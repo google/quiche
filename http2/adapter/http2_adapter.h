@@ -69,8 +69,16 @@ class Http2Adapter {
   // Invokes the visitor's OnReadyToSend() method for serialized frame data.
   virtual void Send() = 0;
 
-  // Returns the connection-level flow control window for the peer.
-  virtual int GetPeerConnectionWindow() const = 0;
+  // Returns the connection-level flow control window advertised by the peer.
+  virtual int GetSendWindowSize() const = 0;
+
+  // Returns the amount of data a peer could send on a given stream. This is
+  // the outstanding stream receive window.
+  virtual int GetStreamReceiveWindowSize(Http2StreamId stream_id) const = 0;
+
+  // Returns the total amount of data a peer could send on the connection. This
+  // is the outstanding connection receive window.
+  virtual int GetReceiveWindowSize() const = 0;
 
   // Gets the highest stream ID value seen in a frame received by this endpoint.
   // This method is only guaranteed to work for server endpoints.

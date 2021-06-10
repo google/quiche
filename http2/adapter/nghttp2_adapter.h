@@ -49,7 +49,9 @@ class NgHttp2Adapter : public Http2Adapter {
 
   void Send() override;
 
-  int GetPeerConnectionWindow() const override;
+  int GetSendWindowSize() const override;
+  int GetStreamReceiveWindowSize(Http2StreamId stream_id) const override;
+  int GetReceiveWindowSize() const override;
 
   Http2StreamId GetHighestReceivedStreamId() const override;
 

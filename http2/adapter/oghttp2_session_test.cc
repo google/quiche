@@ -67,30 +67,46 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
             kInitialFlowControlWindowSize + 1000);
   EXPECT_EQ(0, session.GetHighestReceivedStreamId());
 
+  // Connection has not yet received any data.
+  EXPECT_EQ(kInitialFlowControlWindowSize, session.GetReceiveWindowSize());
+
   // Should OgHttp2Session require that streams 1 and 3 have been created?
+
+  // Submit a request to ensure the first stream is created.
+  const char* kSentinel1 = "arbitrary pointer 1";
+  TestDataFrameSource body1(visitor, "This is an example request body.");
+  int stream_id =
+      session.SubmitRequest(ToHeaders({{":method", "POST"},
+                                       {":scheme", "http"},
+                                       {":authority", "example.com"},
+                                       {":path", "/this/is/request/one"}}),
+                            &body1, const_cast<char*>(kSentinel1));
+  EXPECT_EQ(stream_id, 1);
 
   const std::string stream_frames =
       TestFrameSequence()
-          .Headers(1,
+          .Headers(stream_id,
                    {{":status", "200"},
                     {"server", "my-fake-server"},
                     {"date", "Tue, 6 Apr 2021 12:54:01 GMT"}},
                    /*fin=*/false)
-          .Data(1, "This is the response body.")
+          .Data(stream_id, "This is the response body.")
           .RstStream(3, Http2ErrorCode::INTERNAL_ERROR)
           .GoAway(5, Http2ErrorCode::ENHANCE_YOUR_CALM, "calm down!!")
           .Serialize();
 
-  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
-  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
-  EXPECT_CALL(visitor, OnHeaderForStream(1, ":status", "200"));
-  EXPECT_CALL(visitor, OnHeaderForStream(1, "server", "my-fake-server"));
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(stream_id));
+  EXPECT_CALL(visitor, OnHeaderForStream(stream_id, ":status", "200"));
   EXPECT_CALL(visitor,
-              OnHeaderForStream(1, "date", "Tue, 6 Apr 2021 12:54:01 GMT"));
-  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
-  EXPECT_CALL(visitor, OnFrameHeader(1, 26, DATA, 0));
-  EXPECT_CALL(visitor, OnBeginDataForStream(1, 26));
-  EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
+              OnHeaderForStream(stream_id, "server", "my-fake-server"));
+  EXPECT_CALL(visitor, OnHeaderForStream(stream_id, "date",
+                                         "Tue, 6 Apr 2021 12:54:01 GMT"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(stream_id));
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, 26, DATA, 0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(stream_id, 26));
+  EXPECT_CALL(visitor,
+              OnDataForStream(stream_id, "This is the response body."));
   EXPECT_CALL(visitor, OnFrameHeader(3, 4, RST_STREAM, 0));
   EXPECT_CALL(visitor, OnRstStream(3, Http2ErrorCode::INTERNAL_ERROR));
   EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::INTERNAL_ERROR));
@@ -99,6 +115,13 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
   const ssize_t stream_result = session.ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
   EXPECT_EQ(3, session.GetHighestReceivedStreamId());
+
+  // The first stream is active and has received some data.
+  EXPECT_GT(kInitialFlowControlWindowSize,
+            session.GetStreamReceiveWindowSize(stream_id));
+  // Connection receive window is equivalent to the first stream's.
+  EXPECT_EQ(session.GetReceiveWindowSize(),
+            session.GetStreamReceiveWindowSize(stream_id));
 }
 
 // Verifies that a client session enqueues initial SETTINGS if Send() is called
@@ -403,6 +426,13 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
   EXPECT_EQ(frames.size(), result);
 
   EXPECT_EQ(kSentinel1, session.GetStreamUserData(1));
+
+  // The first stream is active and has received some data.
+  EXPECT_GT(kInitialFlowControlWindowSize,
+            session.GetStreamReceiveWindowSize(1));
+  // Connection receive window is equivalent to the first stream's.
+  EXPECT_EQ(session.GetReceiveWindowSize(),
+            session.GetStreamReceiveWindowSize(1));
 
   // TODO(birenroy): drop stream state when streams are closed. It should no
   // longer be possible to set user data.

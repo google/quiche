@@ -23,7 +23,14 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
 }
 
 OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
-    : visitor_(visitor), headers_handler_(visitor), options_(options) {
+    : visitor_(visitor),
+      headers_handler_(visitor),
+      connection_window_manager_(kInitialFlowControlWindowSize,
+                                 [this](size_t window_update_delta) {
+                                   SendWindowUpdate(kConnectionStreamId,
+                                                    window_update_delta);
+                                 }),
+      options_(options) {
   decoder_.set_visitor(this);
   if (options_.perspective == Perspective::kServer) {
     remaining_preface_ = {spdy::kHttp2ConnectionHeaderPrefix,
@@ -57,6 +64,18 @@ bool OgHttp2Session::ResumeStream(Http2StreamId stream_id) {
   }
   write_scheduler_.MarkStreamReady(stream_id, /*add_to_front=*/false);
   return true;
+}
+
+int OgHttp2Session::GetStreamReceiveWindowSize(Http2StreamId stream_id) const {
+  auto it = stream_map_.find(stream_id);
+  if (it != stream_map_.end()) {
+    return it->second.window_manager.CurrentWindowSize();
+  }
+  return -1;
+}
+
+int OgHttp2Session::GetReceiveWindowSize() const {
+  return connection_window_manager_.CurrentWindowSize();
 }
 
 ssize_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
@@ -95,6 +114,7 @@ int OgHttp2Session::Consume(Http2StreamId stream_id, size_t num_bytes) {
   } else {
     it->second.window_manager.MarkDataFlushed(num_bytes);
   }
+  connection_window_manager_.MarkDataFlushed(num_bytes);
   return 0;  // Remove?
 }
 
@@ -369,6 +389,7 @@ void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
 void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                        const char* data,
                                        size_t len) {
+  MarkDataBuffered(stream_id, len);
   visitor_.OnDataForStream(stream_id, absl::string_view(data, len));
 }
 
@@ -380,13 +401,15 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
   visitor_.OnEndStream(stream_id);
 }
 
-void OgHttp2Session::OnStreamPadLength(spdy::SpdyStreamId /*stream_id*/,
-                                       size_t /*value*/) {
-  // TODO(181586191): handle padding
+void OgHttp2Session::OnStreamPadLength(spdy::SpdyStreamId stream_id,
+                                       size_t value) {
+  MarkDataBuffered(stream_id, 1 + value);
+  // TODO(181586191): Pass padding to the visitor?
 }
 
 void OgHttp2Session::OnStreamPadding(spdy::SpdyStreamId stream_id, size_t len) {
-  // TODO(181586191): handle padding
+  // Flow control was accounted for in OnStreamPadLength().
+  // TODO(181586191): Pass padding to the visitor?
 }
 
 spdy::SpdyHeadersHandlerInterface* OgHttp2Session::OnHeaderFrameStart(
@@ -556,6 +579,13 @@ void OgHttp2Session::MaybeCloseWithRstStream(Http2StreamId stream_id,
           stream_id, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
     }
     visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+  }
+}
+
+void OgHttp2Session::MarkDataBuffered(Http2StreamId stream_id, size_t bytes) {
+  connection_window_manager_.MarkDataBuffered(bytes);
+  if (auto it = stream_map_.find(stream_id); it != stream_map_.end()) {
+    it->second.window_manager.MarkDataBuffered(bytes);
   }
 }
 

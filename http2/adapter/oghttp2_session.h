@@ -57,6 +57,13 @@ class OgHttp2Session : public Http2Session,
   // Resumes a stream that was previously blocked. Returns true on success.
   bool ResumeStream(Http2StreamId stream_id);
 
+  // Returns the outstanding stream receive window, or -1 if the stream does not
+  // exist.
+  int GetStreamReceiveWindowSize(Http2StreamId stream_id) const;
+
+  // Returns the outstanding connection receive window.
+  int GetReceiveWindowSize() const;
+
   // From Http2Session.
   ssize_t ProcessBytes(absl::string_view bytes) override;
   int Consume(Http2StreamId stream_id, size_t num_bytes) override;
@@ -171,6 +178,9 @@ class OgHttp2Session : public Http2Session,
   // Section 8.1.
   void MaybeCloseWithRstStream(Http2StreamId stream_id, StreamState& state);
 
+  // Performs flow control accounting for data sent by the peer.
+  void MarkDataBuffered(Http2StreamId stream_id, size_t bytes);
+
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
 
@@ -198,6 +208,8 @@ class OgHttp2Session : public Http2Session,
   // Tracks the remaining client connection preface, in the case of a server
   // session.
   absl::string_view remaining_preface_;
+
+  WindowManager connection_window_manager_;
 
   Http2StreamId next_stream_id_ = 1;
   Http2StreamId highest_received_stream_id_ = 0;

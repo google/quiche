@@ -83,8 +83,16 @@ void OgHttp2Adapter::Send() {
   session_->Send();
 }
 
-int OgHttp2Adapter::GetPeerConnectionWindow() const {
+int OgHttp2Adapter::GetSendWindowSize() const {
   return session_->GetRemoteWindowSize();
+}
+
+int OgHttp2Adapter::GetStreamReceiveWindowSize(Http2StreamId stream_id) const {
+  return session_->GetStreamReceiveWindowSize(stream_id);
+}
+
+int OgHttp2Adapter::GetReceiveWindowSize() const {
+  return session_->GetReceiveWindowSize();
 }
 
 Http2StreamId OgHttp2Adapter::GetHighestReceivedStreamId() const {
