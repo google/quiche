@@ -252,8 +252,16 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithReadBlock) {
   visitor.Clear();
   EXPECT_FALSE(session.want_write());
 
-  // Currently there is no way to indicate that the first stream is no longer
-  // read blocked.
+  body1.set_is_data_available(true);
+  EXPECT_TRUE(session.ResumeStream(stream_id));
+  EXPECT_TRUE(session.want_write());
+  session.Send();
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::DATA}));
+  EXPECT_FALSE(session.want_write());
+
+  // Stream data is done, so this stream cannot be resumed.
+  EXPECT_FALSE(session.ResumeStream(stream_id));
+  EXPECT_FALSE(session.want_write());
 }
 
 // This test exercises the case where the connection to the peer is write

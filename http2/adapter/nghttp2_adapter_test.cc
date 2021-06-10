@@ -350,11 +350,15 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProviderAndReadBlock) {
 
   // Resume the deferred stream.
   body1.set_is_data_available(true);
-  nghttp2_session_resume_data(adapter->session().raw_ptr(), stream_id);
+  EXPECT_TRUE(adapter->ResumeStream(stream_id));
   EXPECT_TRUE(adapter->session().want_write());
 
   adapter->Send();
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::DATA}));
+  EXPECT_FALSE(adapter->session().want_write());
+
+  // Stream data is done, so this stream cannot be resumed.
+  EXPECT_FALSE(adapter->ResumeStream(stream_id));
   EXPECT_FALSE(adapter->session().want_write());
 }
 

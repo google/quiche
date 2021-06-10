@@ -70,6 +70,8 @@ class NgHttp2Adapter : public Http2Adapter {
   void SetStreamUserData(Http2StreamId stream_id, void* user_data) override;
   void* GetStreamUserData(Http2StreamId stream_id) override;
 
+  bool ResumeStream(Http2StreamId stream_id) override;
+
   // TODO(b/181586191): Temporary accessor until equivalent functionality is
   // available in this adapter class.
   NgHttp2Session& session() { return *session_; }

@@ -167,6 +167,10 @@ void* NgHttp2Adapter::GetStreamUserData(Http2StreamId stream_id) {
   return nghttp2_session_get_stream_user_data(session_->raw_ptr(), stream_id);
 }
 
+bool NgHttp2Adapter::ResumeStream(Http2StreamId stream_id) {
+  return 0 == nghttp2_session_resume_data(session_->raw_ptr(), stream_id);
+}
+
 NgHttp2Adapter::NgHttp2Adapter(Http2VisitorInterface& visitor,
                                Perspective perspective)
     : Http2Adapter(visitor), visitor_(visitor), perspective_(perspective) {}

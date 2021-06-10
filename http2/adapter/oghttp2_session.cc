@@ -49,6 +49,16 @@ void* OgHttp2Session::GetStreamUserData(Http2StreamId stream_id) {
   return nullptr;
 }
 
+bool OgHttp2Session::ResumeStream(Http2StreamId stream_id) {
+  if (auto it = stream_map_.find(stream_id);
+      it->second.outbound_body == nullptr ||
+      !write_scheduler_.StreamRegistered(stream_id)) {
+    return false;
+  }
+  write_scheduler_.MarkStreamReady(stream_id, /*add_to_front=*/false);
+  return true;
+}
+
 ssize_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
   ssize_t preface_consumed = 0;
   if (!remaining_preface_.empty()) {

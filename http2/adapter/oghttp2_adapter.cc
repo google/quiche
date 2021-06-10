@@ -128,6 +128,10 @@ void* OgHttp2Adapter::GetStreamUserData(Http2StreamId stream_id) {
   return session_->GetStreamUserData(stream_id);
 }
 
+bool OgHttp2Adapter::ResumeStream(Http2StreamId stream_id) {
+  return session_->ResumeStream(stream_id);
+}
+
 const Http2Session& OgHttp2Adapter::session() const {
   return *session_;
 }

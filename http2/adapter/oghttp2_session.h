@@ -54,6 +54,9 @@ class OgHttp2Session : public Http2Session,
   void SetStreamUserData(Http2StreamId stream_id, void* user_data);
   void* GetStreamUserData(Http2StreamId stream_id);
 
+  // Resumes a stream that was previously blocked. Returns true on success.
+  bool ResumeStream(Http2StreamId stream_id);
+
   // From Http2Session.
   ssize_t ProcessBytes(absl::string_view bytes) override;
   int Consume(Http2StreamId stream_id, size_t num_bytes) override;

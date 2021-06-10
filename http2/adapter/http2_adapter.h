@@ -111,6 +111,11 @@ class Http2Adapter {
   // not been set.
   virtual void* GetStreamUserData(Http2StreamId stream_id) = 0;
 
+  // Resumes a stream that was previously blocked (for example, due to
+  // DataFrameSource::SelectPayloadLength() returning kBlocked). Returns true if
+  // the stream was successfully resumed.
+  virtual bool ResumeStream(Http2StreamId stream_id) = 0;
+
  protected:
   // Subclasses should expose a public factory method for constructing and
   // initializing (via Initialize()) adapter instances.
