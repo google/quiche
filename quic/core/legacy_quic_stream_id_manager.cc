@@ -7,7 +7,6 @@
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
-#include "quic/platform/api/quic_map_util.h"
 
 namespace quic {
 
@@ -125,7 +124,7 @@ bool LegacyQuicStreamIdManager::IsAvailableStream(QuicStreamId id) const {
   return largest_peer_created_stream_id_ ==
              QuicUtils::GetInvalidStreamId(transport_version_) ||
          id > largest_peer_created_stream_id_ ||
-         QuicContainsKey(available_streams_, id);
+         available_streams_.contains(id);
 }
 
 bool LegacyQuicStreamIdManager::IsIncomingStream(QuicStreamId id) const {

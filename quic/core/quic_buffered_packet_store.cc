@@ -8,7 +8,6 @@
 
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flags.h"
-#include "quic/platform/api/quic_map_util.h"
 
 namespace quic {
 
@@ -92,15 +91,14 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
   QUIC_BUG_IF(quic_bug_12410_1, !GetQuicFlag(FLAGS_quic_allow_chlo_buffering))
       << "Shouldn't buffer packets if disabled via flag.";
   QUIC_BUG_IF(quic_bug_12410_2,
-              is_chlo && QuicContainsKey(connections_with_chlo_, connection_id))
+              is_chlo && connections_with_chlo_.contains(connection_id))
       << "Shouldn't buffer duplicated CHLO on connection " << connection_id;
   QUIC_BUG_IF(quic_bug_12410_3, !is_chlo && !alpns.empty())
       << "Shouldn't have an ALPN defined for a non-CHLO packet.";
   QUIC_BUG_IF(quic_bug_12410_4, is_chlo && !version.IsKnown())
       << "Should have version for CHLO packet.";
 
-  const bool is_first_packet =
-      !QuicContainsKey(undecryptable_packets_, connection_id);
+  const bool is_first_packet = !undecryptable_packets_.contains(connection_id);
   if (is_first_packet) {
     if (ShouldNotBufferPacket(is_chlo)) {
       // Drop the packet if the upper limit of undecryptable packets has been
@@ -112,17 +110,16 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     undecryptable_packets_.back().second.ietf_quic = ietf_quic;
     undecryptable_packets_.back().second.version = version;
   }
-  QUICHE_CHECK(QuicContainsKey(undecryptable_packets_, connection_id));
+  QUICHE_CHECK(undecryptable_packets_.contains(connection_id));
   BufferedPacketList& queue =
       undecryptable_packets_.find(connection_id)->second;
 
   if (!is_chlo) {
     // If current packet is not CHLO, it might not be buffered because store
     // only buffers certain number of undecryptable packets per connection.
-    size_t num_non_chlo_packets =
-        QuicContainsKey(connections_with_chlo_, connection_id)
-            ? (queue.buffered_packets.size() - 1)
-            : queue.buffered_packets.size();
+    size_t num_non_chlo_packets = connections_with_chlo_.contains(connection_id)
+                                      ? (queue.buffered_packets.size() - 1)
+                                      : queue.buffered_packets.size();
     if (num_non_chlo_packets >= kDefaultMaxUndecryptablePackets) {
       // If there are kMaxBufferedPacketsPerConnection packets buffered up for
       // this connection, drop the current packet.
@@ -169,7 +166,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
 
 bool QuicBufferedPacketStore::HasBufferedPackets(
     QuicConnectionId connection_id) const {
-  return QuicContainsKey(undecryptable_packets_, connection_id);
+  return undecryptable_packets_.contains(connection_id);
 }
 
 bool QuicBufferedPacketStore::HasChlosBuffered() const {
@@ -254,7 +251,7 @@ BufferedPacketList QuicBufferedPacketStore::DeliverPacketsForNextConnection(
 
 bool QuicBufferedPacketStore::HasChloForConnection(
     QuicConnectionId connection_id) {
-  return QuicContainsKey(connections_with_chlo_, connection_id);
+  return connections_with_chlo_.contains(connection_id);
 }
 
 bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(

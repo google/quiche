@@ -6,7 +6,6 @@
 
 #include "quic/core/quic_framer.h"
 #include "quic/core/quic_packets.h"
-#include "quic/platform/api/quic_map_util.h"
 
 namespace quic {
 namespace test {

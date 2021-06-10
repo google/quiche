@@ -217,7 +217,7 @@ bool QuicStreamIdManager::IsAvailableStream(QuicStreamId id) const {
   return largest_peer_created_stream_id_ ==
              QuicUtils::GetInvalidStreamId(version_.transport_version) ||
          id > largest_peer_created_stream_id_ ||
-         QuicContainsKey(available_streams_, id);
+         available_streams_.contains(id);
 }
 
 QuicStreamId QuicStreamIdManager::GetFirstOutgoingStreamId() const {

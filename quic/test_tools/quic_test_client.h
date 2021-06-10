@@ -16,7 +16,6 @@
 #include "quic/core/quic_packets.h"
 #include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_epoll.h"
-#include "quic/platform/api/quic_map_util.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/tools/quic_client.h"
 

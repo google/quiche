@@ -27,7 +27,6 @@
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
-#include "quic/platform/api/quic_map_util.h"
 #include "quic/platform/api/quic_mem_slice_storage.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/platform/api/quic_test_mem_slice_vector.h"
@@ -452,7 +451,7 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
           QuicUtils::GetCryptoStreamId(connection_->transport_version());
     }
     for (QuicStreamId i = first_stream_id; i < 100; i++) {
-      if (!QuicContainsKey(closed_streams_, i)) {
+      if (closed_streams_.find(i) == closed_streams_.end()) {
         EXPECT_FALSE(session_.IsClosedStream(i)) << " stream id: " << i;
       } else {
         EXPECT_TRUE(session_.IsClosedStream(i)) << " stream id: " << i;
@@ -2507,7 +2506,7 @@ TEST_P(QuicSessionTestServer, LocallyResetZombieStreams) {
   EXPECT_TRUE(stream2->IsWaitingForAcks());
   // Verify stream2 is a zombie streams.
   auto& stream_map = QuicSessionPeer::stream_map(&session_);
-  ASSERT_TRUE(QuicContainsKey(stream_map, stream2->id()));
+  ASSERT_TRUE(stream_map.contains(stream2->id()));
   auto* stream = stream_map.find(stream2->id())->second.get();
   EXPECT_TRUE(stream->IsZombie());
 
@@ -2556,7 +2555,7 @@ TEST_P(QuicSessionTestServer, WriteUnidirectionalStream) {
   stream4->WriteOrBufferData(body, false, nullptr);
   stream4->WriteOrBufferData(body, true, nullptr);
   auto& stream_map = QuicSessionPeer::stream_map(&session_);
-  ASSERT_TRUE(QuicContainsKey(stream_map, stream4->id()));
+  ASSERT_TRUE(stream_map.contains(stream4->id()));
   auto* stream = stream_map.find(stream4->id())->second.get();
   EXPECT_TRUE(stream->IsZombie());
 }

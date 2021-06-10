@@ -17,7 +17,6 @@
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flag_utils.h"
-#include "quic/platform/api/quic_map_util.h"
 
 namespace quic {
 
@@ -167,14 +166,14 @@ void QuicControlFrameManager::OnControlFrameSent(const QuicFrame& frame) {
   }
   if (frame.type == WINDOW_UPDATE_FRAME) {
     QuicStreamId stream_id = frame.window_update_frame->stream_id;
-    if (QuicContainsKey(window_update_frames_, stream_id) &&
+    if (window_update_frames_.contains(stream_id) &&
         id > window_update_frames_[stream_id]) {
       // Consider the older window update of the same stream as acked.
       OnControlFrameIdAcked(window_update_frames_[stream_id]);
     }
     window_update_frames_[stream_id] = id;
   }
-  if (QuicContainsKey(pending_retransmissions_, id)) {
+  if (pending_retransmissions_.contains(id)) {
     // This is retransmitted control frame.
     pending_retransmissions_.erase(id);
     return;
@@ -197,7 +196,7 @@ bool QuicControlFrameManager::OnControlFrameAcked(const QuicFrame& frame) {
   }
   if (frame.type == WINDOW_UPDATE_FRAME) {
     QuicStreamId stream_id = frame.window_update_frame->stream_id;
-    if (QuicContainsKey(window_update_frames_, stream_id) &&
+    if (window_update_frames_.contains(stream_id) &&
         window_update_frames_[stream_id] == id) {
       window_update_frames_.erase(stream_id);
     }
@@ -223,7 +222,7 @@ void QuicControlFrameManager::OnControlFrameLost(const QuicFrame& frame) {
     // This frame has already been acked.
     return;
   }
-  if (!QuicContainsKey(pending_retransmissions_, id)) {
+  if (!pending_retransmissions_.contains(id)) {
     pending_retransmissions_[id] = true;
     QUIC_BUG_IF(quic_bug_12727_2,
                 pending_retransmissions_.size() > control_frames_.size())

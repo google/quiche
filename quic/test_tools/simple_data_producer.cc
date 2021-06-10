@@ -10,7 +10,6 @@
 #include "quic/core/quic_data_writer.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flags.h"
-#include "quic/platform/api/quic_map_util.h"
 
 namespace quic {
 
@@ -28,7 +27,7 @@ void SimpleDataProducer::SaveStreamData(QuicStreamId id,
   if (data_length == 0) {
     return;
   }
-  if (!QuicContainsKey(send_buffer_map_, id)) {
+  if (!send_buffer_map_.contains(id)) {
     send_buffer_map_[id] = std::make_unique<QuicStreamSendBuffer>(&allocator_);
   }
   send_buffer_map_[id]->SaveStreamData(iov, iov_count, iov_offset, data_length);

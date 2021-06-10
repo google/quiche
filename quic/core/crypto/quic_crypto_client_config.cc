@@ -33,7 +33,6 @@
 #include "quic/platform/api/quic_client_stats.h"
 #include "quic/platform/api/quic_hostname_utils.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_map_util.h"
 
 namespace quic {
 
@@ -848,7 +847,8 @@ bool QuicCryptoClientConfig::PopulateFromCanonicalConfig(
 
   QuicServerId suffix_server_id(canonical_suffixes_[i], server_id.port(),
                                 server_id.privacy_mode_enabled());
-  if (!QuicContainsKey(canonical_server_map_, suffix_server_id)) {
+  if (canonical_server_map_.find(suffix_server_id) ==
+      canonical_server_map_.end()) {
     // This is the first host we've seen which matches the suffix, so make it
     // canonical.
     canonical_server_map_[suffix_server_id] = server_id;

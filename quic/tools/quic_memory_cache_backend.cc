@@ -14,7 +14,6 @@
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_file_utils.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_map_util.h"
 #include "quic/tools/web_transport_test_visitors.h"
 #include "common/quiche_text_utils.h"
 
@@ -414,7 +413,7 @@ void QuicMemoryCacheBackend::AddResponseImpl(
   QUICHE_DCHECK(!host.empty())
       << "Host must be populated, e.g. \"www.google.com\"";
   std::string key = GetKey(host, path);
-  if (QuicContainsKey(responses_, key)) {
+  if (responses_.contains(key)) {
     QUIC_BUG(quic_bug_10932_3)
         << "Response for '" << key << "' already exists!";
     return;
@@ -468,7 +467,7 @@ void QuicMemoryCacheBackend::MaybeAddServerPushResources(
     bool found_existing_response = false;
     {
       QuicWriterMutexLock lock(&response_mutex_);
-      found_existing_response = QuicContainsKey(responses_, GetKey(host, path));
+      found_existing_response = responses_.contains(GetKey(host, path));
     }
     if (!found_existing_response) {
       // Add a server push response to responses map, if it is not in the map.

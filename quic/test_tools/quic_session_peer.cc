@@ -8,7 +8,6 @@
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_stream.h"
 #include "quic/core/quic_utils.h"
-#include "quic/platform/api/quic_map_util.h"
 
 namespace quic {
 namespace test {
@@ -152,24 +151,20 @@ bool QuicSessionPeer::IsStreamClosed(QuicSession* session, QuicStreamId id) {
 
 // static
 bool QuicSessionPeer::IsStreamCreated(QuicSession* session, QuicStreamId id) {
-  return QuicContainsKey(session->stream_map_, id);
+  return session->stream_map_.contains(id);
 }
 
 // static
 bool QuicSessionPeer::IsStreamAvailable(QuicSession* session, QuicStreamId id) {
   if (VersionHasIetfQuicFrames(session->transport_version())) {
     if (id % QuicUtils::StreamIdDelta(session->transport_version()) < 2) {
-      return QuicContainsKey(
-          session->ietf_streamid_manager_.bidirectional_stream_id_manager_
-              .available_streams_,
-          id);
+      return session->ietf_streamid_manager_.bidirectional_stream_id_manager_
+          .available_streams_.contains(id);
     }
-    return QuicContainsKey(
-        session->ietf_streamid_manager_.unidirectional_stream_id_manager_
-            .available_streams_,
-        id);
+    return session->ietf_streamid_manager_.unidirectional_stream_id_manager_
+        .available_streams_.contains(id);
   }
-  return QuicContainsKey(session->stream_id_manager_.available_streams_, id);
+  return session->stream_id_manager_.available_streams_.contains(id);
 }
 
 // static

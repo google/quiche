@@ -786,7 +786,7 @@ void QuicTestClient::OnClose(QuicSpdyStream* stream) {
   // written.
   client()->OnClose(stream);
   ++num_responses_;
-  if (!QuicContainsKey(open_streams_, stream->id())) {
+  if (open_streams_.find(stream->id()) == open_streams_.end()) {
     return;
   }
   if (latest_created_stream_ == stream) {

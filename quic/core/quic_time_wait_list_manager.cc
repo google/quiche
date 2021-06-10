@@ -22,7 +22,6 @@
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_map_util.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "common/quiche_text_utils.h"
 
@@ -174,7 +173,7 @@ bool QuicTimeWaitListManager::IsConnectionIdInTimeWait(
   if (use_indirect_connection_id_map_) {
     return indirect_connection_id_map_.contains(connection_id);
   }
-  return QuicContainsKey(connection_id_map_, connection_id);
+  return connection_id_map_.contains(connection_id);
 }
 
 void QuicTimeWaitListManager::OnBlockedWriterCanWrite() {
