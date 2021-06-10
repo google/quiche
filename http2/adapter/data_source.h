@@ -23,9 +23,9 @@ class DataFrameSource {
   virtual std::pair<ssize_t, bool> SelectPayloadLength(size_t max_length) = 0;
 
   // This method is called with a frame header and a payload length to send. The
-  // source should send or buffer the entire frame.
-  // TODO(birenroy): Consider adding a return value to indicate write blockage.
-  virtual void Send(absl::string_view frame_header, size_t payload_length) = 0;
+  // source should send or buffer the entire frame and return true, or return
+  // false without sending or buffering anything.
+  virtual bool Send(absl::string_view frame_header, size_t payload_length) = 0;
 
   // If true, the end of this data source indicates the end of the stream.
   // Otherwise, this data will be followed by trailers.

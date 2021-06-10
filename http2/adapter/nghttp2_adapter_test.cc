@@ -34,7 +34,10 @@ int TestSendCallback(nghttp2_session*,
                      void* user_data) {
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   // Send the frame header via the visitor.
-  visitor->OnReadyToSend(ToStringView(framehd, 9));
+  ssize_t result = visitor->OnReadyToSend(ToStringView(framehd, 9));
+  if (result == 0) {
+    return NGHTTP2_ERR_WOULDBLOCK;
+  }
   auto* test_source = static_cast<TestDataSource*>(source->ptr);
   absl::string_view payload = test_source->ReadNext(length);
   // Send the frame payload via the visitor.
@@ -352,6 +355,50 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProviderAndReadBlock) {
 
   adapter->Send();
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::DATA}));
+  EXPECT_FALSE(adapter->session().want_write());
+}
+
+// This test verifies how nghttp2 behaves when a connection becomes
+// write-blocked.
+TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProviderAndWriteBlock) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  const absl::string_view kBody = "This is an example request body.";
+  // This test will use TestDataSource as the source of the body payload data.
+  TestDataSource body1{kBody};
+  // The TestDataSource is wrapped in the nghttp2_data_provider data type.
+  nghttp2_data_provider provider = body1.MakeDataProvider();
+  nghttp2_send_data_callback send_callback = &TestSendCallback;
+
+  // This call transforms it back into a DataFrameSource, which is compatible
+  // with the Http2Adapter API.
+  std::unique_ptr<DataFrameSource> frame_source =
+      MakeZeroCopyDataFrameSource(provider, &visitor, std::move(send_callback));
+  int stream_id =
+      adapter->SubmitRequest(ToHeaders({{":method", "POST"},
+                                        {":scheme", "http"},
+                                        {":authority", "example.com"},
+                                        {":path", "/this/is/request/one"}}),
+                             frame_source.get(), nullptr);
+  EXPECT_GT(stream_id, 0);
+  EXPECT_TRUE(adapter->session().want_write());
+
+  visitor.set_is_write_blocked(true);
+  adapter->Send();
+  EXPECT_THAT(visitor.data(), testing::IsEmpty());
+  EXPECT_TRUE(adapter->session().want_write());
+
+  visitor.set_is_write_blocked(false);
+  adapter->Send();
+
+  // Client preface does not appear to include the mandatory SETTINGS frame.
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized, EqualsFrames({spdy::SpdyFrameType::HEADERS,
+                                        spdy::SpdyFrameType::DATA}));
   EXPECT_FALSE(adapter->session().want_write());
 }
 

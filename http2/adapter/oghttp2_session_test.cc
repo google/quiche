@@ -256,6 +256,43 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithReadBlock) {
   // read blocked.
 }
 
+// This test exercises the case where the connection to the peer is write
+// blocked.
+TEST(OgHttp2SessionTest, ClientSubmitRequestWithWriteBlock) {
+  DataSavingVisitor visitor;
+  OgHttp2Session session(
+      visitor, OgHttp2Session::Options{.perspective = Perspective::kClient});
+  EXPECT_FALSE(session.want_write());
+
+  const char* kSentinel1 = "arbitrary pointer 1";
+  TestDataFrameSource body1(visitor, "This is an example request body.");
+  int stream_id =
+      session.SubmitRequest(ToHeaders({{":method", "POST"},
+                                       {":scheme", "http"},
+                                       {":authority", "example.com"},
+                                       {":path", "/this/is/request/one"}}),
+                            &body1, const_cast<char*>(kSentinel1));
+  EXPECT_GT(stream_id, 0);
+  EXPECT_TRUE(session.want_write());
+  EXPECT_EQ(kSentinel1, session.GetStreamUserData(stream_id));
+  visitor.set_is_write_blocked(true);
+  session.Send();
+
+  EXPECT_THAT(visitor.data(), testing::IsEmpty());
+  EXPECT_TRUE(session.want_write());
+  visitor.set_is_write_blocked(false);
+  session.Send();
+
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS,
+                            SpdyFrameType::DATA}));
+  EXPECT_FALSE(session.want_write());
+}
+
 TEST(OgHttp2SessionTest, ClientStartShutdown) {
   DataSavingVisitor visitor;
   OgHttp2Session session(

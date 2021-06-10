@@ -48,7 +48,7 @@ std::pair<ssize_t, bool> TestDataFrameSource::SelectPayloadLength(
   return {length, end_data};
 }
 
-void TestDataFrameSource::Send(absl::string_view frame_header,
+bool TestDataFrameSource::Send(absl::string_view frame_header,
                                size_t payload_length) {
   QUICHE_LOG_IF(DFATAL, payload_length > current_fragment_.size())
       << "payload_length: " << payload_length
@@ -56,13 +56,23 @@ void TestDataFrameSource::Send(absl::string_view frame_header,
   const std::string concatenated =
       absl::StrCat(frame_header, current_fragment_.substr(0, payload_length));
   const ssize_t result = visitor_.OnReadyToSend(concatenated);
-  if (result < concatenated.size()) {
-    QUICHE_LOG(ERROR)
+  if (result < 0) {
+    // Write encountered error.
+    visitor_.OnConnectionError();
+    current_fragment_ = {};
+    payload_fragments_.clear();
+    return false;
+  } else if (result == 0) {
+    // Write blocked.
+    return false;
+  } else if (result < concatenated.size()) {
+    // Probably need to handle this better within this test class.
+    QUICHE_LOG(DFATAL)
         << "DATA frame not fully flushed. Connection will be corrupt!";
     visitor_.OnConnectionError();
     current_fragment_ = {};
     payload_fragments_.clear();
-    return;
+    return false;
   }
   current_fragment_.remove_prefix(payload_length);
   if (current_fragment_.empty()) {
@@ -71,6 +81,7 @@ void TestDataFrameSource::Send(absl::string_view frame_header,
       current_fragment_ = payload_fragments_.front();
     }
   }
+  return true;
 }
 
 namespace {

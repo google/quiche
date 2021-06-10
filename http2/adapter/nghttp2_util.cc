@@ -149,10 +149,14 @@ class Nghttp2DataFrameSource : public DataFrameSource {
     }
   }
 
-  void Send(absl::string_view frame_header, size_t payload_length) override {
-    send_data_(nullptr /* session */, nullptr /* frame */,
-               ToUint8Ptr(frame_header.data()), payload_length,
-               &provider_.source, user_data_);
+  bool Send(absl::string_view frame_header, size_t payload_length) override {
+    const int result =
+        send_data_(nullptr /* session */, nullptr /* frame */,
+                   ToUint8Ptr(frame_header.data()), payload_length,
+                   &provider_.source, user_data_);
+    QUICHE_LOG_IF(ERROR, result < 0 && result != NGHTTP2_ERR_WOULDBLOCK)
+        << "Unexpected error code from send: " << result;
+    return result == 0;
   }
 
   bool send_fin() const override { return send_fin_; }

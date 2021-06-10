@@ -138,15 +138,20 @@ bool OgHttp2Session::SendQueuedFrames() {
   // Serialize and send frames in the queue.
   while (!frames_.empty()) {
     spdy::SpdySerializedFrame frame = framer_.SerializeFrame(*frames_.front());
-    frames_.pop_front();
     const ssize_t result = visitor_.OnReadyToSend(absl::string_view(frame));
     if (result < 0) {
       visitor_.OnConnectionError();
       return false;
-    }
-    if (result < frame.size()) {
-      serialized_prefix_.assign(frame.data() + result, frame.size() - result);
+    } else if (result == 0) {
+      // Write blocked.
       return false;
+    } else {
+      frames_.pop_front();
+      if (result < frame.size()) {
+        // The frame was partially written, so the rest must be buffered.
+        serialized_prefix_.assign(frame.data() + result, frame.size() - result);
+        return false;
+      }
     }
   }
   return true;
@@ -174,6 +179,7 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
     return true;
   }
   bool source_can_produce = true;
+  bool connection_can_write = true;
   int32_t available_window =
       std::min(std::min(peer_window_, state.send_window), max_frame_payload_);
   while (available_window > 0 && state.outbound_body != nullptr) {
@@ -193,7 +199,12 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
     data.SetDataShallow(length);
     spdy::SpdySerializedFrame header =
         spdy::SpdyFramer::SerializeDataFrameHeaderWithPaddingLengthField(data);
-    state.outbound_body->Send(absl::string_view(header), length);
+    const bool success =
+        state.outbound_body->Send(absl::string_view(header), length);
+    if (!success) {
+      connection_can_write = false;
+      break;
+    }
     peer_window_ -= length;
     state.send_window -= length;
     available_window =
@@ -221,7 +232,9 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
       state.outbound_body != nullptr) {
     write_scheduler_.MarkStreamReady(stream_id, false);
   }
-  return available_window > 0;
+  // Streams can continue writing as long as the connection is not write-blocked
+  // and there is additional flow control quota available.
+  return connection_can_write && available_window > 0;
 }
 
 int32_t OgHttp2Session::SubmitRequest(absl::Span<const Header> headers,

@@ -19,6 +19,9 @@ namespace test {
 class DataSavingVisitor : public testing::StrictMock<MockHttp2Visitor> {
  public:
   ssize_t OnReadyToSend(absl::string_view data) override {
+    if (is_write_blocked_) {
+      return 0;
+    }
     const size_t to_accept = std::min(send_limit_, data.size());
     absl::StrAppend(&data_, data.substr(0, to_accept));
     return to_accept;
@@ -29,9 +32,13 @@ class DataSavingVisitor : public testing::StrictMock<MockHttp2Visitor> {
 
   void set_send_limit(size_t limit) { send_limit_ = limit; }
 
+  bool is_write_blocked() const { return is_write_blocked_; }
+  void set_is_write_blocked(bool value) { is_write_blocked_ = value; }
+
  private:
   std::string data_;
   size_t send_limit_ = std::numeric_limits<size_t>::max();
+  bool is_write_blocked_ = false;
 };
 
 // A test DataFrameSource that can be initialized with a single string payload,
@@ -47,7 +54,7 @@ class TestDataFrameSource : public DataFrameSource {
                       bool has_fin = true);
 
   std::pair<ssize_t, bool> SelectPayloadLength(size_t max_length) override;
-  void Send(absl::string_view frame_header, size_t payload_length) override;
+  bool Send(absl::string_view frame_header, size_t payload_length) override;
   bool send_fin() const override { return has_fin_; }
 
   void set_is_data_available(bool value) { is_data_available_ = value; }
