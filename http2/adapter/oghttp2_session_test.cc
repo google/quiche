@@ -213,6 +213,8 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
   visitor.Clear();
 
+  EXPECT_EQ(0, session.GetHpackEncoderDynamicTableSize());
+
   const char* kSentinel1 = "arbitrary pointer 1";
   TestDataFrameSource body1(visitor, "This is an example request body.");
   int stream_id =
@@ -238,11 +240,13 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
   // Send window for a nonexistent stream is not available.
   EXPECT_EQ(-1, session.GetStreamSendWindowSize(stream_id + 2));
 
+  EXPECT_GT(session.GetHpackEncoderDynamicTableSize(), 0);
+
   stream_id =
       session.SubmitRequest(ToHeaders({{":method", "POST"},
                                        {":scheme", "http"},
                                        {":authority", "example.com"},
-                                       {":path", "/this/is/request/one"}}),
+                                       {":path", "/this/is/request/two"}}),
                             nullptr, nullptr);
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(session.want_write());
@@ -541,6 +545,8 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
 
   EXPECT_EQ(1, session.GetHighestReceivedStreamId());
 
+  EXPECT_EQ(0, session.GetHpackEncoderDynamicTableSize());
+
   // Server will want to send initial SETTINGS, and a SETTINGS ack.
   EXPECT_TRUE(session.want_write());
   session.Send();
@@ -574,6 +580,8 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   EXPECT_LT(session.GetStreamSendWindowSize(1), kInitialFlowControlWindowSize);
   // Send window for a nonexistent stream is not available.
   EXPECT_EQ(session.GetStreamSendWindowSize(3), -1);
+
+  EXPECT_GT(session.GetHpackEncoderDynamicTableSize(), 0);
 }
 
 TEST(OgHttp2SessionTest, ServerStartShutdown) {

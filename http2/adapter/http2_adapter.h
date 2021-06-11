@@ -87,6 +87,10 @@ class Http2Adapter {
   // is the outstanding connection receive window.
   virtual int GetReceiveWindowSize() const = 0;
 
+  // Returns the size of the HPACK encoder's dynamic table, including the
+  // per-entry overhead from the specification.
+  virtual int GetHpackEncoderDynamicTableSize() const = 0;
+
   // Gets the highest stream ID value seen in a frame received by this endpoint.
   // This method is only guaranteed to work for server endpoints.
   virtual Http2StreamId GetHighestReceivedStreamId() const = 0;

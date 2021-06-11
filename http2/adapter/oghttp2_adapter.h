@@ -40,6 +40,7 @@ class OgHttp2Adapter : public Http2Adapter {
   int GetStreamReceiveWindowLimit(Http2StreamId stream_id) const override;
   int GetStreamReceiveWindowSize(Http2StreamId stream_id) const override;
   int GetReceiveWindowSize() const override;
+  int GetHpackEncoderDynamicTableSize() const override;
   Http2StreamId GetHighestReceivedStreamId() const override;
   void MarkDataConsumedForStream(Http2StreamId stream_id,
                                  size_t num_bytes) override;

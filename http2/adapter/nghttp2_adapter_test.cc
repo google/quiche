@@ -270,6 +270,7 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequest) {
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
   visitor.Clear();
 
+  EXPECT_EQ(0, adapter->GetHpackEncoderDynamicTableSize());
   EXPECT_FALSE(adapter->session().want_write());
   const char* kSentinel = "";
   const absl::string_view kBody = "This is an example request body.";
@@ -289,6 +290,8 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequest) {
   EXPECT_EQ(kInitialFlowControlWindowSize, adapter->GetReceiveWindowSize());
   EXPECT_EQ(kInitialFlowControlWindowSize,
             adapter->GetStreamReceiveWindowLimit(stream_id));
+
+  EXPECT_GT(adapter->GetHpackEncoderDynamicTableSize(), 0);
 
   // Some data was sent, so the remaining send window size should be less than
   // the default.
@@ -633,6 +636,8 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
   visitor.Clear();
 
+  EXPECT_EQ(0, adapter->GetHpackEncoderDynamicTableSize());
+
   EXPECT_FALSE(adapter->session().want_write());
   const absl::string_view kBody = "This is an example response body.";
   TestDataFrameSource body1(visitor, kBody, /*has_fin=*/false);
@@ -662,6 +667,8 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
   EXPECT_GT(adapter->GetStreamSendWindowSize(1), 0);
   // Send window for a nonexistent stream is not available.
   EXPECT_EQ(adapter->GetStreamSendWindowSize(3), -1);
+
+  EXPECT_GT(adapter->GetHpackEncoderDynamicTableSize(), 0);
 }
 
 // Should also test: client attempts shutdown, server attempts shutdown after an

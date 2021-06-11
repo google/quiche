@@ -94,6 +94,11 @@ int OgHttp2Session::GetReceiveWindowSize() const {
   return connection_window_manager_.CurrentWindowSize();
 }
 
+int OgHttp2Session::GetHpackEncoderDynamicTableSize() const {
+  const spdy::HpackEncoder* encoder = framer_.GetHpackEncoder();
+  return encoder == nullptr ? 0 : encoder->GetDynamicTableSize();
+}
+
 ssize_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
   ssize_t preface_consumed = 0;
   if (!remaining_preface_.empty()) {

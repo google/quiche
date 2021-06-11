@@ -236,6 +236,10 @@ class QUICHE_EXPORT_PRIVATE SpdyFramer {
   // Get (and lazily initialize) the HPACK encoder state.
   HpackEncoder* GetHpackEncoder();
 
+  // Gets the HPACK encoder state. Returns nullptr if the encoder has not been
+  // initialized.
+  const HpackEncoder* GetHpackEncoder() const { return hpack_encoder_.get(); }
+
  protected:
   friend class test::SpdyFramerPeer;
   friend class test::SpdyFramerTest_MultipleContinuationFramesWithIterator_Test;

@@ -103,6 +103,10 @@ int OgHttp2Adapter::GetReceiveWindowSize() const {
   return session_->GetReceiveWindowSize();
 }
 
+int OgHttp2Adapter::GetHpackEncoderDynamicTableSize() const {
+  return session_->GetHpackEncoderDynamicTableSize();
+}
+
 Http2StreamId OgHttp2Adapter::GetHighestReceivedStreamId() const {
   return session_->GetHighestReceivedStreamId();
 }

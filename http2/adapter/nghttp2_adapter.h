@@ -56,6 +56,8 @@ class NgHttp2Adapter : public Http2Adapter {
   int GetStreamReceiveWindowSize(Http2StreamId stream_id) const override;
   int GetReceiveWindowSize() const override;
 
+  int GetHpackEncoderDynamicTableSize() const override;
+
   Http2StreamId GetHighestReceivedStreamId() const override;
 
   void MarkDataConsumedForStream(Http2StreamId stream_id,

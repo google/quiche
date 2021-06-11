@@ -71,6 +71,10 @@ class OgHttp2Session : public Http2Session,
   // Returns the outstanding connection receive window.
   int GetReceiveWindowSize() const;
 
+  // Returns the size of the HPACK encoder's dynamic table, including the
+  // per-entry overhead from the specification.
+  int GetHpackEncoderDynamicTableSize() const;
+
   // From Http2Session.
   ssize_t ProcessBytes(absl::string_view bytes) override;
   int Consume(Http2StreamId stream_id, size_t num_bytes) override;
