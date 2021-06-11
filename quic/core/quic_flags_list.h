@@ -29,8 +29,6 @@ QUIC_FLAG(FLAGS_quic_restart_flag_quic_support_release_time_for_gso, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_retry_handshake_on_early_data, true)
 // If true, TlsServerHandshaker will allow proof_source_handle_ to be closed promptly.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_close_proof_source_handle_promptly, true)
-// If true, TlsServerHandshaker will use handshake hints(if present) to speed up handshakes.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_server_use_handshake_hints, true)
 // If true, abort async QPACK header decompression in QuicSpdyStream::Reset() and in QuicSpdyStream::OnStreamReset().
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_abort_qpack_on_stream_reset, true)
 // If true, ack frequency frame can be sent from server to client.

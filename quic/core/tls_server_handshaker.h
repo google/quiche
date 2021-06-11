@@ -339,8 +339,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       crypto_negotiated_params_;
   TlsServerConnection tls_connection_;
   const QuicCryptoServerConfig* crypto_config_;  // Unowned.
-  const bool use_handshake_hints_ =
-      GetQuicReloadableFlag(quic_tls_server_use_handshake_hints);
 };
 
 }  // namespace quic
