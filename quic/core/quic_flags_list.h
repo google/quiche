@@ -82,7 +82,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, 
 // If true, increase the size of stream sequencer buffer block container on demand.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_allocate_stream_sequencer_buffer_blocks_on_demand, false)
 // If true, pass the received PATH_RESPONSE payload to path validator to move forward the path validation.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_pass_path_response_to_validator, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_pass_path_response_to_validator, true)
 // If true, quic connection sends/recieives NewConnectionId & RetireConnectionId frames.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_connection_support_multiple_cids_v4, true)
 // If true, quic dispatcher discards packets with invalid server connection ID.
@@ -106,7 +106,7 @@ QUIC_FLAG(FLAGS_quic_restart_flag_quic_time_wait_list_support_multiple_cid_v2, t
 // If true, treat old (pre-draft02) PRIORITY_UPDATE frame as unknown frame.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_old_priority_update_frame, true)
 // If true, upon receiving path challenge, send path response and reverse path challenge in the same function.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_group_path_response_and_challenge_sending_closer, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_group_path_response_and_challenge_sending_closer, true)
 // If true, use BBRv2 as the default congestion controller. Takes precedence over --quic_default_to_bbr.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr_v2, false)
 // If true, use ScopedEncryptionLevelContext when sending data.
@@ -114,13 +114,13 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_encryption_level_context, true)
 // If true, use WriteOrBufferDataAtLevel to send crypto data. Existing WriteOrBufferData is used to send application data.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_write_or_buffer_data_at_level, false)
 // If true, use new connection ID in connection migration.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, true)
 // If true, use the connection ID and stateless reset token on default PathState.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_connection_id_on_default_path_v2, true)
 // If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // If true, validate that peer owns the new address once the server detects peer migration or is probed from that address, and also apply anti-amplification limit while sending to that address.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_server_reverse_validate_new_path3, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_server_reverse_validate_new_path3, true)
 // If ture, TLS QUIC will add a validity check after full CHLO is extracted, connections failing the check will be rejected. Also, the existing check for QUIC crypto is moved to ValidityChecksOnFullChlo.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_validity_check_on_full_chlo, true)
 // If ture, replace the incoming_connection_ids check with original_destination_connection_id check.

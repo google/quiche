@@ -33,6 +33,7 @@
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
+#include "quic/platform/api/quic_error_code_wrappers.h"
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_ip_address.h"
@@ -2171,6 +2172,10 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   EXPECT_EQ(IPV6_TO_IPV4_CHANGE,
             connection_.active_effective_peer_migration_type());
 
+  // Make sure anti-amplification limit is not reached.
+  ProcessFramesPacketWithAddresses(
+      {QuicFrame(QuicPingFrame()), QuicFrame(QuicPaddingFrame())}, kSelfAddress,
+      kNewPeerAddress, ENCRYPTION_FORWARD_SECURE);
   SendStreamDataToPeer(1, "foo", 0, NO_FIN, nullptr);
   EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
 
@@ -12298,7 +12303,7 @@ TEST_P(QuicConnectionTest,
   PathProbeTestInit(Perspective::IS_CLIENT);
 
   writer_->SetShouldWriteFail();
-  writer_->SetWriteError(EMSGSIZE);
+  writer_->SetWriteError(QUIC_EMSGSIZE);
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Any4(), 12345);
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .Times(0u);
