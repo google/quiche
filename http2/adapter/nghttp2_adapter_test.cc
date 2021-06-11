@@ -151,6 +151,10 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   EXPECT_EQ(kInitialFlowControlWindowSize,
             adapter->GetStreamReceiveWindowSize(stream_id3));
 
+  // Upper bound on the flow control receive window should be the initial value.
+  EXPECT_EQ(kInitialFlowControlWindowSize,
+            adapter->GetStreamReceiveWindowLimit(stream_id1));
+
   // Connection has not yet received any data.
   EXPECT_EQ(kInitialFlowControlWindowSize, adapter->GetReceiveWindowSize());
 
@@ -203,6 +207,11 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   // Connection window should be the same as the first stream.
   EXPECT_EQ(adapter->GetReceiveWindowSize(),
             adapter->GetStreamReceiveWindowSize(stream_id1));
+
+  // Upper bound on the flow control receive window should still be the initial
+  // value.
+  EXPECT_EQ(kInitialFlowControlWindowSize,
+            adapter->GetStreamReceiveWindowLimit(stream_id1));
 
   // Should be 3, but this method only works for server adapters.
   EXPECT_EQ(0, adapter->GetHighestReceivedStreamId());
@@ -278,6 +287,8 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequest) {
   EXPECT_EQ(kInitialFlowControlWindowSize,
             adapter->GetStreamReceiveWindowSize(stream_id));
   EXPECT_EQ(kInitialFlowControlWindowSize, adapter->GetReceiveWindowSize());
+  EXPECT_EQ(kInitialFlowControlWindowSize,
+            adapter->GetStreamReceiveWindowLimit(stream_id));
 
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
                                             spdy::SpdyFrameType::DATA}));
@@ -522,6 +533,9 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
             adapter->GetStreamReceiveWindowSize(1));
   EXPECT_EQ(adapter->GetStreamReceiveWindowSize(1),
             adapter->GetReceiveWindowSize());
+  // Upper bound should still be the original value.
+  EXPECT_EQ(kInitialFlowControlWindowSize,
+            adapter->GetStreamReceiveWindowLimit(1));
 
   // Because stream 3 has already been closed, it's not possible to set user
   // data.

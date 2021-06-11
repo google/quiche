@@ -57,6 +57,10 @@ class OgHttp2Session : public Http2Session,
   // Resumes a stream that was previously blocked. Returns true on success.
   bool ResumeStream(Http2StreamId stream_id);
 
+  // Returns the current upper bound on the flow control receive window for this
+  // stream.
+  int GetStreamReceiveWindowLimit(Http2StreamId stream_id) const;
+
   // Returns the outstanding stream receive window, or -1 if the stream does not
   // exist.
   int GetStreamReceiveWindowSize(Http2StreamId stream_id) const;

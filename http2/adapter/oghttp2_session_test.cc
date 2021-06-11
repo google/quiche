@@ -122,6 +122,9 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
   // Connection receive window is equivalent to the first stream's.
   EXPECT_EQ(session.GetReceiveWindowSize(),
             session.GetStreamReceiveWindowSize(stream_id));
+  // Receive window upper bound is still the initial value.
+  EXPECT_EQ(kInitialFlowControlWindowSize,
+            session.GetStreamReceiveWindowLimit(stream_id));
 }
 
 // Verifies that a client session enqueues initial SETTINGS if Send() is called
@@ -433,6 +436,9 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
   // Connection receive window is equivalent to the first stream's.
   EXPECT_EQ(session.GetReceiveWindowSize(),
             session.GetStreamReceiveWindowSize(1));
+  // Receive window upper bound is still the initial value.
+  EXPECT_EQ(kInitialFlowControlWindowSize,
+            session.GetStreamReceiveWindowLimit(1));
 
   // TODO(birenroy): drop stream state when streams are closed. It should no
   // longer be possible to set user data.

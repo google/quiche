@@ -72,6 +72,10 @@ class Http2Adapter {
   // Returns the connection-level flow control window advertised by the peer.
   virtual int GetSendWindowSize() const = 0;
 
+  // Returns the current upper bound on the flow control receive window for this
+  // stream. This value does not account for data received from the peer.
+  virtual int GetStreamReceiveWindowLimit(Http2StreamId stream_id) const = 0;
+
   // Returns the amount of data a peer could send on a given stream. This is
   // the outstanding stream receive window.
   virtual int GetStreamReceiveWindowSize(Http2StreamId stream_id) const = 0;

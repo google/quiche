@@ -36,6 +36,7 @@ class OgHttp2Adapter : public Http2Adapter {
   void SubmitMetadata(Http2StreamId stream_id, bool fin) override;
   void Send() override;
   int GetSendWindowSize() const override;
+  int GetStreamReceiveWindowLimit(Http2StreamId stream_id) const override;
   int GetStreamReceiveWindowSize(Http2StreamId stream_id) const override;
   int GetReceiveWindowSize() const override;
   Http2StreamId GetHighestReceivedStreamId() const override;

@@ -66,6 +66,14 @@ bool OgHttp2Session::ResumeStream(Http2StreamId stream_id) {
   return true;
 }
 
+int OgHttp2Session::GetStreamReceiveWindowLimit(Http2StreamId stream_id) const {
+  auto it = stream_map_.find(stream_id);
+  if (it != stream_map_.end()) {
+    return it->second.window_manager.WindowSizeLimit();
+  }
+  return -1;
+}
+
 int OgHttp2Session::GetStreamReceiveWindowSize(Http2StreamId stream_id) const {
   auto it = stream_map_.find(stream_id);
   if (it != stream_map_.end()) {
