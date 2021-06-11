@@ -86,6 +86,10 @@ TEST_F(QuicServerIdTest, Equals) {
     QuicServerId b_10_https_right_private("b.com", 10, right_privacy);
     QuicServerId b_11_https_right_private("b.com", 11, right_privacy);
 
+    EXPECT_NE(a_10_https_right_private, a_11_https_right_private);
+    EXPECT_NE(a_10_https_right_private, b_10_https_right_private);
+    EXPECT_NE(a_10_https_right_private, b_11_https_right_private);
+
     QuicServerId new_a_10_https_left_private("a.com", 10, left_privacy);
     QuicServerId new_a_11_https_left_private("a.com", 11, left_privacy);
     QuicServerId new_b_10_https_left_private("b.com", 10, left_privacy);
@@ -106,13 +110,13 @@ TEST_F(QuicServerIdTest, Equals) {
 
     QuicServerId new_a_10_https_left_private("a.com", 10, false);
 
-    EXPECT_FALSE(new_a_10_https_left_private == a_11_https_right_private);
-    EXPECT_FALSE(new_a_10_https_left_private == b_10_https_right_private);
-    EXPECT_FALSE(new_a_10_https_left_private == b_11_https_right_private);
+    EXPECT_NE(new_a_10_https_left_private, a_11_https_right_private);
+    EXPECT_NE(new_a_10_https_left_private, b_10_https_right_private);
+    EXPECT_NE(new_a_10_https_left_private, b_11_https_right_private);
   }
   QuicServerId a_10_https_private("a.com", 10, true);
   QuicServerId new_a_10_https_no_private("a.com", 10, false);
-  EXPECT_FALSE(new_a_10_https_no_private == a_10_https_private);
+  EXPECT_NE(new_a_10_https_no_private, a_10_https_private);
 }
 
 }  // namespace

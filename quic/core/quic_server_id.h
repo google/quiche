@@ -23,9 +23,11 @@ class QUIC_EXPORT_PRIVATE QuicServerId {
                bool privacy_mode_enabled);
   ~QuicServerId();
 
-  // Needed to be an element of std::set.
+  // Needed to be an element of an ordered container.
   bool operator<(const QuicServerId& other) const;
   bool operator==(const QuicServerId& other) const;
+
+  bool operator!=(const QuicServerId& other) const;
 
   const std::string& host() const { return host_; }
 

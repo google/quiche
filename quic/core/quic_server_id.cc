@@ -31,4 +31,8 @@ bool QuicServerId::operator==(const QuicServerId& other) const {
          host_ == other.host_ && port_ == other.port_;
 }
 
+bool QuicServerId::operator!=(const QuicServerId& other) const {
+  return !(*this == other);
+}
+
 }  // namespace quic
