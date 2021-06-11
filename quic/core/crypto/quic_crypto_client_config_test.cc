@@ -179,6 +179,7 @@ TEST_F(QuicCryptoClientConfigTest, InchoateChloSecureWithSCIDNoEXPY) {
   QuicWallTime expiry = QuicWallTime::FromUNIXSeconds(2);
   state.SetServerConfig(scfg.GetSerialized().AsStringPiece(), now, expiry,
                         &details);
+  EXPECT_FALSE(state.IsEmpty());
 
   QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting());
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params(
@@ -205,6 +206,7 @@ TEST_F(QuicCryptoClientConfigTest, InchoateChloSecureWithSCID) {
   state.SetServerConfig(scfg.GetSerialized().AsStringPiece(),
                         QuicWallTime::FromUNIXSeconds(1),
                         QuicWallTime::FromUNIXSeconds(0), &details);
+  EXPECT_FALSE(state.IsEmpty());
 
   QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting());
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params(
@@ -501,6 +503,47 @@ TEST_F(QuicCryptoClientConfigTest, ServerNonceinSHLO) {
                                         &error_details),
               IsError(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER));
   EXPECT_EQ("server hello missing server nonce", error_details);
+}
+
+// Test that PopulateFromCanonicalConfig() handles the case of multiple entries
+// in |canonical_server_map_|.
+TEST_F(QuicCryptoClientConfigTest, MultipleCanonicalEntries) {
+  QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting());
+  config.AddCanonicalSuffix(".google.com");
+  QuicServerId canonical_server_id1("www.google.com", 443, false);
+  QuicCryptoClientConfig::CachedState* state1 =
+      config.LookupOrCreate(canonical_server_id1);
+
+  CryptoHandshakeMessage scfg;
+  scfg.set_tag(kSCFG);
+  scfg.SetStringPiece(kSCID, "12345678");
+  std::string details;
+  QuicWallTime now = QuicWallTime::FromUNIXSeconds(1);
+  QuicWallTime expiry = QuicWallTime::FromUNIXSeconds(2);
+  state1->SetServerConfig(scfg.GetSerialized().AsStringPiece(), now, expiry,
+                          &details);
+  state1->set_source_address_token("TOKEN");
+  state1->SetProofValid();
+  EXPECT_FALSE(state1->IsEmpty());
+
+  // This will have the same |suffix_server_id| as |canonical_server_id1|,
+  // therefore |*state2| will be initialized from |*state1|.
+  QuicServerId canonical_server_id2("mail.google.com", 443, false);
+  QuicCryptoClientConfig::CachedState* state2 =
+      config.LookupOrCreate(canonical_server_id2);
+  EXPECT_FALSE(state2->IsEmpty());
+  const CryptoHandshakeMessage* const scfg2 = state2->GetServerConfig();
+  ASSERT_TRUE(scfg2);
+  EXPECT_EQ(kSCFG, scfg2->tag());
+
+  // With a different |suffix_server_id|, this will return an empty CachedState.
+  config.AddCanonicalSuffix(".example.com");
+  QuicServerId canonical_server_id3("www.example.com", 443, false);
+  QuicCryptoClientConfig::CachedState* state3 =
+      config.LookupOrCreate(canonical_server_id3);
+  EXPECT_TRUE(state3->IsEmpty());
+  const CryptoHandshakeMessage* const scfg3 = state3->GetServerConfig();
+  EXPECT_FALSE(scfg3);
 }
 
 }  // namespace test
