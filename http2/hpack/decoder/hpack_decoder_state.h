@@ -83,6 +83,10 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderState : public HpackWholeEntryListener {
   // No further callbacks will be made to the listener.
   HpackDecodingError error() const { return error_; }
 
+  size_t GetDynamicTableSize() const {
+    return decoder_tables_.current_header_table_size();
+  }
+
   const HpackDecoderTables& decoder_tables_for_test() const {
     return decoder_tables_;
   }

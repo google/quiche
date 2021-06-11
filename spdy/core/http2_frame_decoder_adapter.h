@@ -154,6 +154,9 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
   bool probable_http_response() const;
 
   spdy::HpackDecoderAdapter* GetHpackDecoder();
+  const spdy::HpackDecoderAdapter* GetHpackDecoder() const {
+    return hpack_decoder_.get();
+  }
 
   bool HasError() const;
 

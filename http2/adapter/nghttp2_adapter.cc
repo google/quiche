@@ -129,6 +129,10 @@ int NgHttp2Adapter::GetHpackEncoderDynamicTableSize() const {
   return nghttp2_session_get_hd_deflate_dynamic_table_size(session_->raw_ptr());
 }
 
+int NgHttp2Adapter::GetHpackDecoderDynamicTableSize() const {
+  return nghttp2_session_get_hd_inflate_dynamic_table_size(session_->raw_ptr());
+}
+
 Http2StreamId NgHttp2Adapter::GetHighestReceivedStreamId() const {
   return nghttp2_session_get_last_proc_stream_id(session_->raw_ptr());
 }

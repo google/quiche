@@ -70,6 +70,8 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
   // Connection has not yet received any data.
   EXPECT_EQ(kInitialFlowControlWindowSize, session.GetReceiveWindowSize());
 
+  EXPECT_EQ(0, session.GetHpackDecoderDynamicTableSize());
+
   // Should OgHttp2Session require that streams 1 and 3 have been created?
 
   // Submit a request to ensure the first stream is created.
@@ -125,6 +127,8 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
   // Receive window upper bound is still the initial value.
   EXPECT_EQ(kInitialFlowControlWindowSize,
             session.GetStreamReceiveWindowLimit(stream_id));
+
+  EXPECT_GT(session.GetHpackDecoderDynamicTableSize(), 0);
 }
 
 // Verifies that a client session enqueues initial SETTINGS if Send() is called
@@ -379,6 +383,8 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
   OgHttp2Session session(
       visitor, OgHttp2Session::Options{.perspective = Perspective::kServer});
 
+  EXPECT_EQ(0, session.GetHpackDecoderDynamicTableSize());
+
   const std::string frames = TestFrameSequence()
                                  .ClientPreface()
                                  .Ping(42)
@@ -456,6 +462,8 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
   // Receive window upper bound is still the initial value.
   EXPECT_EQ(kInitialFlowControlWindowSize,
             session.GetStreamReceiveWindowLimit(1));
+
+  EXPECT_GT(session.GetHpackDecoderDynamicTableSize(), 0);
 
   // TODO(birenroy): drop stream state when streams are closed. It should no
   // longer be possible to set user data.

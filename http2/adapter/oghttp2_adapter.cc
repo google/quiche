@@ -107,6 +107,10 @@ int OgHttp2Adapter::GetHpackEncoderDynamicTableSize() const {
   return session_->GetHpackEncoderDynamicTableSize();
 }
 
+int OgHttp2Adapter::GetHpackDecoderDynamicTableSize() const {
+  return session_->GetHpackDecoderDynamicTableSize();
+}
+
 Http2StreamId OgHttp2Adapter::GetHighestReceivedStreamId() const {
   return session_->GetHighestReceivedStreamId();
 }

@@ -99,6 +99,11 @@ int OgHttp2Session::GetHpackEncoderDynamicTableSize() const {
   return encoder == nullptr ? 0 : encoder->GetDynamicTableSize();
 }
 
+int OgHttp2Session::GetHpackDecoderDynamicTableSize() const {
+  const spdy::HpackDecoderAdapter* decoder = decoder_.GetHpackDecoder();
+  return decoder == nullptr ? 0 : decoder->GetDynamicTableSize();
+}
+
 ssize_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
   ssize_t preface_consumed = 0;
   if (!remaining_preface_.empty()) {

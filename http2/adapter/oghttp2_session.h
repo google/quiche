@@ -75,6 +75,10 @@ class OgHttp2Session : public Http2Session,
   // per-entry overhead from the specification.
   int GetHpackEncoderDynamicTableSize() const;
 
+  // Returns the size of the HPACK decoder's dynamic table, including the
+  // per-entry overhead from the specification.
+  int GetHpackDecoderDynamicTableSize() const;
+
   // From Http2Session.
   ssize_t ProcessBytes(absl::string_view bytes) override;
   int Consume(Http2StreamId stream_id, size_t num_bytes) override;

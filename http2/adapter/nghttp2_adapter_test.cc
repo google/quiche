@@ -164,6 +164,8 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   EXPECT_EQ(kSentinel2, adapter->GetStreamUserData(stream_id2));
   EXPECT_EQ(nullptr, adapter->GetStreamUserData(stream_id3));
 
+  EXPECT_EQ(0, adapter->GetHpackDecoderDynamicTableSize());
+
   const std::string stream_frames =
       TestFrameSequence()
           .Headers(1,
@@ -212,6 +214,8 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   // value.
   EXPECT_EQ(kInitialFlowControlWindowSize,
             adapter->GetStreamReceiveWindowLimit(stream_id1));
+
+  EXPECT_GT(adapter->GetHpackDecoderDynamicTableSize(), 0);
 
   // Should be 3, but this method only works for server adapters.
   EXPECT_EQ(0, adapter->GetHighestReceivedStreamId());
@@ -494,6 +498,7 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
 
   EXPECT_EQ(0, adapter->GetHighestReceivedStreamId());
+  EXPECT_EQ(0, adapter->GetHpackDecoderDynamicTableSize());
 
   const std::string frames = TestFrameSequence()
                                  .ClientPreface()
@@ -570,6 +575,8 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
   // Upper bound should still be the original value.
   EXPECT_EQ(kInitialFlowControlWindowSize,
             adapter->GetStreamReceiveWindowLimit(1));
+
+  EXPECT_GT(adapter->GetHpackDecoderDynamicTableSize(), 0);
 
   // Because stream 3 has already been closed, it's not possible to set user
   // data.
