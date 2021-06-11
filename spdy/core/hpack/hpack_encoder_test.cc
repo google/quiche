@@ -155,6 +155,7 @@ class HpackEncoderTest : public QuicheTestWithParam<EncodeStrategy> {
 
     // No further insertions may occur without evictions.
     peer_.table()->SetMaxSize(peer_.table()->size());
+    QUICHE_CHECK_EQ(kInitialDynamicTableSize, peer_.table()->size());
   }
 
   void SaveHeaders(absl::string_view name, absl::string_view value) {
@@ -254,6 +255,9 @@ class HpackEncoderTest : public QuicheTestWithParam<EncodeStrategy> {
   HpackEncoder encoder_;
   test::HpackEncoderPeer peer_;
 
+  // Calculated based on the names and values inserted in SetUp(), above.
+  const size_t kInitialDynamicTableSize = 4 * (10 + 32);
+
   const HpackEntry* static_;
   const HpackEntry* key_1_;
   const HpackEntry* key_2_;
@@ -280,6 +284,7 @@ INSTANTIATE_TEST_SUITE_P(HpackEncoderTests,
                          ::testing::Values(kDefault));
 
 TEST_P(HpackEncoderTestWithDefaultStrategy, EncodeRepresentations) {
+  EXPECT_EQ(kInitialDynamicTableSize, encoder_.GetDynamicTableSize());
   encoder_.SetHeaderListener(
       [this](absl::string_view name, absl::string_view value) {
         this->SaveHeaders(name, value);
@@ -308,6 +313,30 @@ TEST_P(HpackEncoderTestWithDefaultStrategy, EncodeRepresentations) {
                   Pair("accept", "text/html, text/plain,application/xml"),
                   Pair("cookie", "val4"),
                   Pair("withnul", absl::string_view("one\0two", 7))));
+  // Insertions and evictions have happened over the course of the test.
+  EXPECT_GE(kInitialDynamicTableSize, encoder_.GetDynamicTableSize());
+}
+
+TEST_P(HpackEncoderTestWithDefaultStrategy, DynamicTableGrows) {
+  EXPECT_EQ(kInitialDynamicTableSize, encoder_.GetDynamicTableSize());
+  peer_.table()->SetMaxSize(4096);
+  encoder_.SetHeaderListener(
+      [this](absl::string_view name, absl::string_view value) {
+        this->SaveHeaders(name, value);
+      });
+  const std::vector<std::pair<absl::string_view, absl::string_view>>
+      header_list = {{"cookie", "val1; val2;val3"},
+                     {":path", "/home"},
+                     {"accept", "text/html, text/plain,application/xml"},
+                     {"cookie", "val4"},
+                     {"withnul", absl::string_view("one\0two", 7)}};
+  std::string out;
+  EXPECT_TRUE(test::HpackEncoderPeer::EncodeRepresentations(&encoder_,
+                                                            header_list, &out));
+
+  EXPECT_FALSE(out.empty());
+  // Insertions have happened over the course of the test.
+  EXPECT_GT(encoder_.GetDynamicTableSize(), kInitialDynamicTableSize);
 }
 
 INSTANTIATE_TEST_SUITE_P(HpackEncoderTests,
@@ -479,6 +508,7 @@ TEST_P(HpackEncoderTest, EncodingWithoutCompression) {
                     Pair("hello", "aloha"),
                     Pair("multivalue", "value1, value2")));
   }
+  EXPECT_EQ(kInitialDynamicTableSize, encoder_.GetDynamicTableSize());
 }
 
 TEST_P(HpackEncoderTest, MultipleEncodingPasses) {
