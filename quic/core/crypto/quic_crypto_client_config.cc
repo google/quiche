@@ -847,23 +847,23 @@ bool QuicCryptoClientConfig::PopulateFromCanonicalConfig(
 
   QuicServerId suffix_server_id(canonical_suffixes_[i], server_id.port(),
                                 server_id.privacy_mode_enabled());
-  if (canonical_server_map_.find(suffix_server_id) ==
-      canonical_server_map_.end()) {
+  auto it = canonical_server_map_.lower_bound(suffix_server_id);
+  if (it == canonical_server_map_.end() || !(it->first == suffix_server_id)) {
     // This is the first host we've seen which matches the suffix, so make it
-    // canonical.
-    canonical_server_map_[suffix_server_id] = server_id;
+    // canonical.  Use |it| as position hint for faster insertion.
+    canonical_server_map_.insert(
+        it, std::make_pair(std::move(suffix_server_id), std::move(server_id)));
     return false;
   }
 
-  const QuicServerId& canonical_server_id =
-      canonical_server_map_[suffix_server_id];
+  const QuicServerId& canonical_server_id = it->second;
   CachedState* canonical_state = cached_states_[canonical_server_id].get();
   if (!canonical_state->proof_valid()) {
     return false;
   }
 
   // Update canonical version to point at the "most recent" entry.
-  canonical_server_map_[suffix_server_id] = server_id;
+  it->second = server_id;
 
   server_state->InitializeFrom(*canonical_state);
   return true;
