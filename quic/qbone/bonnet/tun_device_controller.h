@@ -39,6 +39,17 @@ class TunDeviceController {
   virtual bool UpdateRoutes(const IpRange& desired_range,
                             const std::vector<IpRange>& desired_routes);
 
+  // Same as UpdateRoutes, but will wait and retry up to the number of times
+  // given by |retries| before giving up. This is an unpleasant workaround to
+  // deal with older kernels that aren't always able to set a route with a
+  // source address immediately after adding the address to the interface.
+  //
+  // TODO(b/179430548): Remove this once we've root-caused the underlying issue.
+  virtual bool UpdateRoutesWithRetries(
+      const IpRange& desired_range,
+      const std::vector<IpRange>& desired_routes,
+      int retries);
+
   virtual QuicIpAddress current_address();
 
  private:

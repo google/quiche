@@ -110,6 +110,19 @@ bool TunDeviceController::UpdateRoutes(
   return true;
 }
 
+bool TunDeviceController::UpdateRoutesWithRetries(
+    const IpRange& desired_range,
+    const std::vector<IpRange>& desired_routes,
+    int retries) {
+  while (retries-- > 0) {
+    if (UpdateRoutes(desired_range, desired_routes)) {
+      return true;
+    }
+    absl::SleepFor(absl::Milliseconds(100));
+  }
+  return false;
+}
+
 bool TunDeviceController::UpdateRules(IpRange desired_range) {
   if (!absl::GetFlag(FLAGS_qbone_tun_device_replace_default_routing_rules)) {
     return true;
