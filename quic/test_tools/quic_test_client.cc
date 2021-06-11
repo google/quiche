@@ -618,16 +618,12 @@ const std::string& QuicTestClient::cert_sct() const {
       ->cert_sct();
 }
 
-QuicTagValueMap QuicTestClient::GetServerConfig() const {
+const QuicTagValueMap& QuicTestClient::GetServerConfig() const {
   QuicCryptoClientConfig* config = client_->crypto_config();
-  QuicCryptoClientConfig::CachedState* state =
+  const QuicCryptoClientConfig::CachedState* state =
       config->LookupOrCreate(client_->server_id());
   const CryptoHandshakeMessage* handshake_msg = state->GetServerConfig();
-  if (handshake_msg != nullptr) {
-    return handshake_msg->tag_value_map();
-  } else {
-    return QuicTagValueMap();
-  }
+  return handshake_msg->tag_value_map();
 }
 
 bool QuicTestClient::connected() const {

@@ -507,9 +507,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     // one-to-one, with the tags in |kexs| from the parent class.
     std::vector<std::unique_ptr<AsynchronousKeyExchange>> key_exchanges;
 
-    // tag_value_map contains the raw key/value pairs for the config.
-    QuicTagValueMap tag_value_map;
-
     // channel_id_enabled is true if the config in |serialized| specifies that
     // ChannelIDs are supported.
     bool channel_id_enabled;

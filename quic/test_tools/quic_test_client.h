@@ -281,8 +281,8 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // or the empty std::string if no signed timestamp was presented.
   const std::string& cert_sct() const;
 
-  // Get the server config map.
-  QuicTagValueMap GetServerConfig() const;
+  // Get the server config map.  Server config must exist.
+  const QuicTagValueMap& GetServerConfig() const;
 
   void set_auto_reconnect(bool reconnect) { auto_reconnect_ = reconnect; }
 
