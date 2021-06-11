@@ -66,6 +66,14 @@ bool OgHttp2Session::ResumeStream(Http2StreamId stream_id) {
   return true;
 }
 
+int OgHttp2Session::GetStreamSendWindowSize(Http2StreamId stream_id) const {
+  auto it = stream_map_.find(stream_id);
+  if (it != stream_map_.end()) {
+    return it->second.send_window;
+  }
+  return -1;
+}
+
 int OgHttp2Session::GetStreamReceiveWindowLimit(Http2StreamId stream_id) const {
   auto it = stream_map_.find(stream_id);
   if (it != stream_map_.end()) {
@@ -329,6 +337,8 @@ int32_t OgHttp2Session::SubmitResponse(Http2StreamId stream_id,
     if (iter->second.half_closed_remote) {
       visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
     }
+    // TODO(birenroy): the server adapter should probably delete stream state
+    // when calling visitor_.OnCloseStream.
   } else {
     // Add data source to stream state
     iter->second.outbound_body = data_source;
@@ -587,6 +597,8 @@ void OgHttp2Session::MaybeCloseWithRstStream(Http2StreamId stream_id,
           stream_id, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
     }
     visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+    // TODO(birenroy): the server adapter should probably delete stream state
+    // when calling visitor_.OnCloseStream.
   }
 }
 

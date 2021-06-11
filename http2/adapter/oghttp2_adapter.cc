@@ -87,6 +87,10 @@ int OgHttp2Adapter::GetSendWindowSize() const {
   return session_->GetRemoteWindowSize();
 }
 
+int OgHttp2Adapter::GetStreamSendWindowSize(Http2StreamId stream_id) const {
+  return session_->GetStreamSendWindowSize(stream_id);
+}
+
 int OgHttp2Adapter::GetStreamReceiveWindowLimit(Http2StreamId stream_id) const {
   return session_->GetStreamReceiveWindowLimit(stream_id);
 }

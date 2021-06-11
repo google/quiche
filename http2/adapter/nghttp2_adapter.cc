@@ -106,6 +106,11 @@ int NgHttp2Adapter::GetSendWindowSize() const {
   return session_->GetRemoteWindowSize();
 }
 
+int NgHttp2Adapter::GetStreamSendWindowSize(Http2StreamId stream_id) const {
+  return nghttp2_session_get_stream_remote_window_size(session_->raw_ptr(),
+                                                       stream_id);
+}
+
 int NgHttp2Adapter::GetStreamReceiveWindowLimit(Http2StreamId stream_id) const {
   return nghttp2_session_get_stream_effective_local_window_size(
       session_->raw_ptr(), stream_id);

@@ -50,6 +50,8 @@ class NgHttp2Adapter : public Http2Adapter {
   void Send() override;
 
   int GetSendWindowSize() const override;
+  int GetStreamSendWindowSize(Http2StreamId stream_id) const override;
+
   int GetStreamReceiveWindowLimit(Http2StreamId stream_id) const override;
   int GetStreamReceiveWindowSize(Http2StreamId stream_id) const override;
   int GetReceiveWindowSize() const override;

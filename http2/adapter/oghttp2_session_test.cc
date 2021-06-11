@@ -230,6 +230,14 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
   visitor.Clear();
   EXPECT_FALSE(session.want_write());
 
+  // Some data was sent, so the remaining send window size should be less than
+  // the default.
+  EXPECT_LT(session.GetStreamSendWindowSize(stream_id),
+            kInitialFlowControlWindowSize);
+  EXPECT_GT(session.GetStreamSendWindowSize(stream_id), 0);
+  // Send window for a nonexistent stream is not available.
+  EXPECT_EQ(-1, session.GetStreamSendWindowSize(stream_id + 2));
+
   stream_id =
       session.SubmitRequest(ToHeaders({{":method", "POST"},
                                        {":scheme", "http"},
@@ -245,6 +253,11 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
 
   session.Send();
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
+
+  // No data was sent (just HEADERS), so the remaining send window size should
+  // still be the default.
+  EXPECT_EQ(session.GetStreamSendWindowSize(stream_id),
+            kInitialFlowControlWindowSize);
 }
 
 // This test exercises the case where the client request body source is read
@@ -536,7 +549,8 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   visitor.Clear();
 
   EXPECT_FALSE(session.want_write());
-  TestDataFrameSource body1(visitor, "This is an example response body.");
+  TestDataFrameSource body1(visitor, "This is an example response body.",
+                            /*has_fin=*/false);
   int submit_result = session.SubmitResponse(
       1,
       ToHeaders({{":status", "404"},
@@ -550,11 +564,16 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   session.SetStreamUserData(1, nullptr);
   EXPECT_EQ(nullptr, session.GetStreamUserData(1));
 
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
   session.Send();
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
   EXPECT_FALSE(session.want_write());
+
+  // Some data was sent, so the remaining send window size should be less than
+  // the default.
+  EXPECT_LT(session.GetStreamSendWindowSize(1), kInitialFlowControlWindowSize);
+  // Send window for a nonexistent stream is not available.
+  EXPECT_EQ(session.GetStreamSendWindowSize(3), -1);
 }
 
 TEST(OgHttp2SessionTest, ServerStartShutdown) {
