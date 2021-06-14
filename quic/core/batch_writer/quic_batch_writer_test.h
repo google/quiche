@@ -12,6 +12,7 @@
 #include <iostream>
 #include <utility>
 
+#include "absl/base/optimization.h"
 #include "quic/core/batch_writer/quic_batch_writer_base.h"
 #include "quic/core/quic_udp_socket.h"
 #include "quic/platform/api/quic_test.h"
@@ -259,8 +260,9 @@ class QUIC_EXPORT_PRIVATE QuicUdpBatchWriterIOTest
 
   QuicSocketAddress self_address_;
   QuicSocketAddress peer_address_;
-  char packet_buffer_[1500];
-  char control_buffer_[kDefaultUdpPacketControlBufferSize];
+  ABSL_CACHELINE_ALIGNED char packet_buffer_[1500];
+  ABSL_CACHELINE_ALIGNED char
+      control_buffer_[kDefaultUdpPacketControlBufferSize];
   int address_family_;
   const size_t data_size_;
   const size_t packet_size_;
