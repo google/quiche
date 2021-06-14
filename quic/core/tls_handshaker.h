@@ -57,7 +57,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
  protected:
   // Called when a new message is received on the crypto stream and is available
   // for the TLS stack to read.
-  void AdvanceHandshake();
+  virtual void AdvanceHandshake();
 
   void CloseConnection(QuicErrorCode error, const std::string& reason_phrase);
   // Closes the connection, specifying the wire error code |ietf_error|
