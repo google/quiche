@@ -478,7 +478,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
     explicit MemSliceSpanWrapper(absl::Span<QuicMemSlice> span) : new_(span) {}
 
     bool empty() { return old_.has_value() ? old_->empty() : new_.empty(); }
-    size_t SaveTo(QuicStreamSendBuffer& send_buffer) {
+    QuicByteCount SaveTo(QuicStreamSendBuffer& send_buffer) {
       if (old_.has_value()) {
         return send_buffer.SaveMemSliceSpan(*old_);
       }
