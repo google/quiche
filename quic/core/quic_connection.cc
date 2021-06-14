@@ -2028,12 +2028,14 @@ bool QuicConnection::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
 }
 
 void QuicConnection::OnClientConnectionIdAvailable() {
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 3, 5);
   QUICHE_DCHECK(perspective_ == Perspective::IS_SERVER);
   if (!peer_issued_cid_manager_->HasUnusedConnectionId()) {
     return;
   }
   if (default_path_.client_connection_id.IsEmpty()) {
+    // Count client connection ID patched onto the default path.
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 3,
+                                 6);
     const QuicConnectionIdData* unused_cid_data =
         peer_issued_cid_manager_->ConsumeOneUnusedConnectionId();
     QUIC_DVLOG(1) << ENDPOINT << "Patch connection ID "
@@ -2049,6 +2051,9 @@ void QuicConnection::OnClientConnectionIdAvailable() {
   }
   if (alternative_path_.peer_address.IsInitialized() &&
       alternative_path_.client_connection_id.IsEmpty()) {
+    // Count client connection ID patched onto the alternative path.
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 4,
+                                 6);
     const QuicConnectionIdData* unused_cid_data =
         peer_issued_cid_manager_->ConsumeOneUnusedConnectionId();
     QUIC_DVLOG(1) << ENDPOINT << "Patch connection ID "
@@ -2142,6 +2147,8 @@ bool QuicConnection::OnRetireConnectionIdFrame(
     return false;
   }
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v4, 2, 2);
+  // Count successfully received RETIRE_CONNECTION_ID frames.
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 5, 6);
   return true;
 }
 
@@ -6829,8 +6836,6 @@ void QuicConnection::RetirePeerIssuedConnectionIdsNoLongerOnPath() {
         {default_path_.server_connection_id,
          alternative_path_.server_connection_id});
   } else {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 4,
-                                 5);
     peer_issued_cid_manager_->MaybeRetireUnusedConnectionIds(
         {default_path_.client_connection_id,
          alternative_path_.client_connection_id});
