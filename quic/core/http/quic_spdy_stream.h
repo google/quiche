@@ -247,6 +247,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // error, and returns false.
   bool AssertNotWebTransportDataStream(absl::string_view operation);
 
+  // Indicates whether a call to WriteBodySlices will be successful and not
+  // rejected due to buffer being full.  |write_size| must be non-zero.
+  bool CanWriteNewBodyData(QuicByteCount write_size) const;
+
  protected:
   // Called when the received headers are too large. By default this will
   // reset the stream.

@@ -1250,6 +1250,16 @@ size_t QuicSpdyStream::WriteHeadersImpl(
   return encoded_headers.size();
 }
 
+bool QuicSpdyStream::CanWriteNewBodyData(QuicByteCount write_size) const {
+  QUICHE_DCHECK_NE(0u, write_size);
+  if (!VersionUsesHttp3(transport_version())) {
+    return CanWriteNewData();
+  }
+
+  return CanWriteNewDataAfterData(
+      HttpEncoder::GetDataFrameHeaderLength(write_size));
+}
+
 void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
   if (!spdy_session_->SupportsWebTransport()) {
     return;

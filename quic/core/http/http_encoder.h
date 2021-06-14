@@ -22,6 +22,9 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
  public:
   HttpEncoder() = delete;
 
+  // Returns the length of the header for a DATA frame.
+  static QuicByteCount GetDataFrameHeaderLength(QuicByteCount payload_length);
+
   // Serializes a DATA frame header into a QuicBuffer; returns said QuicBuffer
   // on success, empty buffer otherwise.
   static QuicBuffer SerializeDataFrameHeader(QuicByteCount payload_length,

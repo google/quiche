@@ -34,13 +34,20 @@ QuicByteCount GetTotalLength(QuicByteCount payload_length, HttpFrameType type) {
 }  // namespace
 
 // static
+QuicByteCount HttpEncoder::GetDataFrameHeaderLength(
+    QuicByteCount payload_length) {
+  QUICHE_DCHECK_NE(0u, payload_length);
+  return QuicDataWriter::GetVarInt62Len(payload_length) +
+         QuicDataWriter::GetVarInt62Len(
+             static_cast<uint64_t>(HttpFrameType::DATA));
+}
+
+// static
 QuicBuffer HttpEncoder::SerializeDataFrameHeader(
     QuicByteCount payload_length,
     QuicBufferAllocator* allocator) {
   QUICHE_DCHECK_NE(0u, payload_length);
-  QuicByteCount header_length = QuicDataWriter::GetVarInt62Len(payload_length) +
-                                QuicDataWriter::GetVarInt62Len(
-                                    static_cast<uint64_t>(HttpFrameType::DATA));
+  QuicByteCount header_length = GetDataFrameHeaderLength(payload_length);
 
   QuicBuffer header(allocator, header_length);
   QuicDataWriter writer(header.size(), header.data());
