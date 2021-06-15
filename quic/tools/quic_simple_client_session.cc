@@ -54,4 +54,8 @@ bool QuicSimpleClientSession::ShouldNegotiateWebTransport() {
   return enable_web_transport_;
 }
 
+bool QuicSimpleClientSession::ShouldNegotiateHttp3Datagram() {
+  return enable_web_transport_;
+}
+
 }  // namespace quic

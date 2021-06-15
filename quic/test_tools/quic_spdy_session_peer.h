@@ -52,6 +52,7 @@ class QuicSpdySessionPeer {
       QuicSpdySession* session);
   static void SetH3DatagramSupported(QuicSpdySession* session,
                                      bool h3_datagram_supported);
+  static bool ShouldNegotiateHttp3Datagram(QuicSpdySession* session);
   static void EnableWebTransport(QuicSpdySession& session);
 };
 

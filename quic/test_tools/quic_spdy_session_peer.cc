@@ -106,8 +106,13 @@ void QuicSpdySessionPeer::SetH3DatagramSupported(QuicSpdySession* session,
 }
 
 // static
+bool QuicSpdySessionPeer::ShouldNegotiateHttp3Datagram(
+    QuicSpdySession* session) {
+  return session->ShouldNegotiateHttp3Datagram();
+}
+
+// static
 void QuicSpdySessionPeer::EnableWebTransport(QuicSpdySession& session) {
-  SetQuicReloadableFlag(quic_h3_datagram, true);
   QUICHE_DCHECK(session.WillNegotiateWebTransport());
   session.h3_datagram_supported_ = true;
   session.peer_supports_webtransport_ = true;

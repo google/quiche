@@ -123,8 +123,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_validity_check_on_full_chlo, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_deprecate_incoming_connection_ids, true)
 // When the STMP connection option is sent by the client, timestamps in the QUIC ACK frame are sent and processed.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_send_timestamps, false)
-// When true, QuicSpdySession supports draft-ietf-masque-h3-datagram.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_h3_datagram, false)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr, false)
 // When true, prevents QUIC\'s PacingSender from generating bursts when the congestion controller is CWND limited and not pacing limited.

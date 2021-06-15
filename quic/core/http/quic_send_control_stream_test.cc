@@ -133,7 +133,7 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
       "4040"  // 0x40 as the reserved frame type
       "01"    // 1 byte frame length
       "61");  //  payload "a"
-  if (GetQuicReloadableFlag(quic_h3_datagram)) {
+  if (QuicSpdySessionPeer::ShouldNegotiateHttp3Datagram(&session_)) {
     expected_write_data = absl::HexStringToBytes(
         "00"    // stream type: control stream
         "04"    // frame type: SETTINGS frame

@@ -129,6 +129,8 @@ class QUIC_NO_EXPORT MasqueServerSession
     MasqueServerSession* masque_session_;  // Unowned.
   };
 
+  bool ShouldNegotiateHttp3Datagram() override { return true; }
+
   MasqueServerBackend* masque_server_backend_;  // Unowned.
   Visitor* owner_;                              // Unowned.
   QuicEpollServer* epoll_server_;               // Unowned.

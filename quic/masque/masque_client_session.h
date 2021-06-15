@@ -144,6 +144,8 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
     QuicSocketAddress target_server_address_;
   };
 
+  bool ShouldNegotiateHttp3Datagram() override { return true; }
+
   const ConnectUdpClientState* GetOrCreateConnectUdpClientState(
       const QuicSocketAddress& target_server_address,
       EncapsulatedClientSession* encapsulated_client_session);

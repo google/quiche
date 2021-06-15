@@ -30,6 +30,7 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
 
   std::unique_ptr<QuicSpdyClientStream> CreateClientStream() override;
   bool ShouldNegotiateWebTransport() override;
+  bool ShouldNegotiateHttp3Datagram() override;
 
  private:
   const bool drop_response_body_;

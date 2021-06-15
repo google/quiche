@@ -259,8 +259,16 @@ class TestSession : public MockQuicSpdySession {
   bool ShouldNegotiateWebTransport() override { return enable_webtransport_; }
   void EnableWebTransport() { enable_webtransport_ = true; }
 
+  bool ShouldNegotiateHttp3Datagram() override {
+    return should_negotiate_h3_datagram_;
+  }
+  void set_should_negotiate_h3_datagram(bool value) {
+    should_negotiate_h3_datagram_ = value;
+  }
+
  private:
   bool enable_webtransport_ = false;
+  bool should_negotiate_h3_datagram_ = false;
   StrictMock<TestCryptoStream> crypto_stream_;
 };
 
@@ -3107,6 +3115,7 @@ TEST_P(QuicSpdyStreamTest, ProcessOutgoingWebTransportHeaders) {
   }
 
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+  session_->set_should_negotiate_h3_datagram(true);
   session_->EnableWebTransport();
   QuicSpdySessionPeer::EnableWebTransport(*session_);
 
@@ -3129,6 +3138,7 @@ TEST_P(QuicSpdyStreamTest, ProcessIncomingWebTransportHeaders) {
   }
 
   Initialize(kShouldProcessData);
+  session_->set_should_negotiate_h3_datagram(true);
   session_->EnableWebTransport();
   QuicSpdySessionPeer::EnableWebTransport(*session_);
 

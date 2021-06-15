@@ -553,7 +553,6 @@ void QuicSpdySession::FillSettingsFrame() {
   settings_.values[SETTINGS_MAX_FIELD_SECTION_SIZE] =
       max_inbound_header_list_size_;
   if (ShouldNegotiateHttp3Datagram() && version().UsesHttp3()) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_h3_datagram);
     settings_.values[SETTINGS_H3_DATAGRAM] = 1;
   }
   if (WillNegotiateWebTransport()) {
@@ -1850,7 +1849,7 @@ void QuicSpdySession::DatagramObserver::OnDatagramProcessed(
 }
 
 bool QuicSpdySession::ShouldNegotiateHttp3Datagram() {
-  return GetQuicReloadableFlag(quic_h3_datagram);
+  return false;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

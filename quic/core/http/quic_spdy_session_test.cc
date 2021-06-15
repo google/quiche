@@ -355,6 +355,13 @@ class TestSession : public QuicSpdySession {
   bool ShouldNegotiateWebTransport() override { return supports_webtransport_; }
   void set_supports_webtransport(bool value) { supports_webtransport_ = value; }
 
+  bool ShouldNegotiateHttp3Datagram() override {
+    return should_negotiate_h3_datagram_;
+  }
+  void set_should_negotiate_h3_datagram(bool value) {
+    should_negotiate_h3_datagram_ = value;
+  }
+
   MOCK_METHOD(void, OnAcceptChFrame, (const AcceptChFrame&), (override));
 
   using QuicSession::closed_streams;
@@ -367,6 +374,7 @@ class TestSession : public QuicSpdySession {
 
   bool writev_consumes_all_data_;
   bool supports_webtransport_ = false;
+  bool should_negotiate_h3_datagram_ = false;
 };
 
 class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
@@ -3486,7 +3494,7 @@ TEST_P(QuicSpdySessionTestClient, H3DatagramSetting) {
   if (!version().UsesHttp3()) {
     return;
   }
-  SetQuicReloadableFlag(quic_h3_datagram, true);
+  session_.set_should_negotiate_h3_datagram(true);
   // HTTP/3 datagrams aren't supported before SETTINGS are received.
   EXPECT_FALSE(session_.h3_datagram_supported());
   // Receive SETTINGS.
@@ -3510,7 +3518,7 @@ TEST_P(QuicSpdySessionTestClient, H3DatagramRegistration) {
     return;
   }
   CompleteHandshake();
-  SetQuicReloadableFlag(quic_h3_datagram, true);
+  session_.set_should_negotiate_h3_datagram(true);
   QuicSpdySessionPeer::SetH3DatagramSupported(&session_, true);
   SavingHttp3DatagramVisitor h3_datagram_visitor;
   QuicDatagramFlowId flow_id = session_.GetNextDatagramFlowId();
@@ -3536,7 +3544,7 @@ TEST_P(QuicSpdySessionTestClient, SendHttp3Datagram) {
     return;
   }
   CompleteHandshake();
-  SetQuicReloadableFlag(quic_h3_datagram, true);
+  session_.set_should_negotiate_h3_datagram(true);
   QuicSpdySessionPeer::SetH3DatagramSupported(&session_, true);
   QuicDatagramFlowId flow_id = session_.GetNextDatagramFlowId();
   std::string h3_datagram_payload = {1, 2, 3, 4, 5, 6};
@@ -3550,7 +3558,7 @@ TEST_P(QuicSpdySessionTestClient, WebTransportSetting) {
   if (!version().UsesHttp3()) {
     return;
   }
-  SetQuicReloadableFlag(quic_h3_datagram, true);
+  session_.set_should_negotiate_h3_datagram(true);
   session_.set_supports_webtransport(true);
 
   EXPECT_FALSE(session_.SupportsWebTransport());
@@ -3580,7 +3588,7 @@ TEST_P(QuicSpdySessionTestClient, WebTransportSettingSetToZero) {
   if (!version().UsesHttp3()) {
     return;
   }
-  SetQuicReloadableFlag(quic_h3_datagram, true);
+  session_.set_should_negotiate_h3_datagram(true);
   session_.set_supports_webtransport(true);
 
   EXPECT_FALSE(session_.SupportsWebTransport());
@@ -3610,7 +3618,7 @@ TEST_P(QuicSpdySessionTestServer, WebTransportSetting) {
   if (!version().UsesHttp3()) {
     return;
   }
-  SetQuicReloadableFlag(quic_h3_datagram, true);
+  session_.set_should_negotiate_h3_datagram(true);
   session_.set_supports_webtransport(true);
 
   EXPECT_FALSE(session_.SupportsWebTransport());
@@ -3627,7 +3635,7 @@ TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreams) {
   if (!version().UsesHttp3()) {
     return;
   }
-  SetQuicReloadableFlag(quic_h3_datagram, true);
+  session_.set_should_negotiate_h3_datagram(true);
   session_.set_supports_webtransport(true);
 
   CompleteHandshake();
@@ -3660,7 +3668,7 @@ TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreamsLimit) {
   if (!version().UsesHttp3()) {
     return;
   }
-  SetQuicReloadableFlag(quic_h3_datagram, true);
+  session_.set_should_negotiate_h3_datagram(true);
   session_.set_supports_webtransport(true);
 
   CompleteHandshake();
@@ -3701,7 +3709,7 @@ TEST_P(QuicSpdySessionTestServer, ResetOutgoingWebTransportStreams) {
   if (!version().UsesHttp3()) {
     return;
   }
-  SetQuicReloadableFlag(quic_h3_datagram, true);
+  session_.set_should_negotiate_h3_datagram(true);
   session_.set_supports_webtransport(true);
 
   CompleteHandshake();

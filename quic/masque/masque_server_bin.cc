@@ -52,8 +52,6 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  SetQuicReloadableFlag(quic_h3_datagram, true);
-
   quic::MasqueMode masque_mode = quic::MasqueMode::kOpen;
   std::string mode_string = GetQuicFlag(FLAGS_masque_mode);
   if (mode_string == "legacy") {

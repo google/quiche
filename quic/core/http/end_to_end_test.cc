@@ -363,7 +363,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 
   bool Initialize() {
     if (enable_web_transport_) {
-      SetQuicReloadableFlag(quic_h3_datagram, true);
       memory_cache_backend_.set_enable_webtransport(true);
     }
 
@@ -6043,6 +6042,7 @@ TEST_P(EndToEndTest, WebTransportSessionSetup) {
 
   WebTransportHttp3* web_transport =
       CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(web_transport, nullptr);
 
   server_thread_->Pause();
   QuicSpdySession* server_session = GetServerSession();
@@ -6064,6 +6064,7 @@ TEST_P(EndToEndTest, WebTransportSessionWithLoss) {
 
   WebTransportHttp3* web_transport =
       CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(web_transport, nullptr);
 
   server_thread_->Pause();
   QuicSpdySession* server_session = GetServerSession();
