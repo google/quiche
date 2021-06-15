@@ -233,6 +233,19 @@ void MasqueClientSession::OnStreamClosed(QuicStreamId stream_id) {
   QuicSpdyClientSession::OnStreamClosed(stream_id);
 }
 
+bool MasqueClientSession::OnSettingsFrame(const SettingsFrame& frame) {
+  if (!QuicSpdyClientSession::OnSettingsFrame(frame)) {
+    QUIC_DLOG(ERROR) << "Failed to parse received settings";
+    return false;
+  }
+  if (!SupportsH3Datagram()) {
+    QUIC_DLOG(ERROR) << "Refusing to use MASQUE without HTTP/3 Datagrams";
+    return false;
+  }
+  owner_->OnSettingsReceived();
+  return true;
+}
+
 MasqueClientSession::ConnectUdpClientState::ConnectUdpClientState(
     QuicSpdyClientStream* stream,
     EncapsulatedClientSession* encapsulated_client_session,

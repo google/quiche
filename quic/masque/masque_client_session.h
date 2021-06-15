@@ -31,6 +31,9 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
     // Notifies the owner that the client connection ID is no longer in use.
     virtual void UnregisterClientConnectionId(
         QuicConnectionId client_connection_id) = 0;
+
+    // Notifies the owner that a settings frame has been received.
+    virtual void OnSettingsReceived() = 0;
   };
   // Interface meant to be implemented by encapsulated client sessions, i.e.
   // the end-to-end QUIC client sessions that run inside MASQUE encapsulation.
@@ -74,6 +77,9 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
   void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
   void OnStreamClosed(QuicStreamId stream_id) override;
+
+  // From QuicSpdySession.
+  bool OnSettingsFrame(const SettingsFrame& frame) override;
 
   // Send encapsulated packet.
   void SendPacket(QuicConnectionId client_connection_id,

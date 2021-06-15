@@ -81,6 +81,11 @@ std::unique_ptr<MasqueEpollClient> MasqueEpollClient::Create(
     return nullptr;
   }
 
+  if (!masque_client->WaitUntilSettingsReceived()) {
+    QUIC_LOG(ERROR) << "Failed to receive settings";
+    return nullptr;
+  }
+
   if (masque_client->masque_mode() == MasqueMode::kLegacy) {
     // Construct the legacy mode init request.
     spdy::Http2HeaderBlock header_block;
@@ -112,6 +117,17 @@ std::unique_ptr<MasqueEpollClient> MasqueEpollClient::Create(
     }
   }
   return masque_client;
+}
+
+void MasqueEpollClient::OnSettingsReceived() {
+  settings_received_ = true;
+}
+
+bool MasqueEpollClient::WaitUntilSettingsReceived() {
+  while (connected() && !settings_received_) {
+    network_helper()->RunEventLoop();
+  }
+  return connected() && settings_received_;
 }
 
 void MasqueEpollClient::UnregisterClientConnectionId(

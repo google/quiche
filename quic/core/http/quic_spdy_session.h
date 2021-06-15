@@ -433,6 +433,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Indicates whether the HTTP/3 session supports WebTransport.
   bool SupportsWebTransport();
 
+  // Indicates whether both the peer and us support HTTP/3 Datagrams.
+  bool SupportsH3Datagram() { return h3_datagram_supported_; }
+
   // Indicates whether the HTTP/3 session will indicate WebTransport support to
   // the peer.
   bool WillNegotiateWebTransport();
@@ -445,7 +448,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // until the SETTINGS are received.  Only works for HTTP/3.
   bool ShouldBufferRequestsUntilSettings() {
     return version().UsesHttp3() && perspective() == Perspective::IS_SERVER &&
-           WillNegotiateWebTransport();
+           ShouldNegotiateHttp3Datagram();
   }
 
   // Returns if the incoming bidirectional streams should process data.  This is

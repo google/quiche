@@ -255,9 +255,12 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
       QUIC_DLOG(ERROR) << "Socket creation failed";
       return CreateBackendErrorResponse("500", "Socket creation failed");
     }
-    QuicSocketAddress any_v6_address(QuicIpAddress::Any6(), 0);
+    QuicSocketAddress empty_address(QuicIpAddress::Any6(), 0);
+    if (target_server_address.host().IsIPv4()) {
+      empty_address = QuicSocketAddress(QuicIpAddress::Any4(), 0);
+    }
     QuicUdpSocketApi socket_api;
-    if (!socket_api.Bind(fd_wrapper.fd(), any_v6_address)) {
+    if (!socket_api.Bind(fd_wrapper.fd(), empty_address)) {
       QUIC_DLOG(ERROR) << "Socket bind failed";
       return CreateBackendErrorResponse("500", "Socket bind failed");
     }

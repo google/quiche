@@ -35,6 +35,8 @@ class QUIC_NO_EXPORT MasqueEpollClient : public QuicClient,
   // Convenience accessor for the underlying connection ID.
   QuicConnectionId connection_id();
 
+  // From MasqueClientSession::Owner.
+  void OnSettingsReceived() override;
   // Send a MASQUE client connection ID unregister command to the server.
   void UnregisterClientConnectionId(
       QuicConnectionId client_connection_id) override;
@@ -50,12 +52,17 @@ class QUIC_NO_EXPORT MasqueEpollClient : public QuicClient,
                     std::unique_ptr<ProofVerifier> proof_verifier,
                     const std::string& authority);
 
+  // Wait synchronously until we receive the peer's settings. Returns whether
+  // they were received.
+  bool WaitUntilSettingsReceived();
+
   // Disallow copy and assign.
   MasqueEpollClient(const MasqueEpollClient&) = delete;
   MasqueEpollClient& operator=(const MasqueEpollClient&) = delete;
 
   MasqueMode masque_mode_;
   std::string authority_;
+  bool settings_received_ = false;
 };
 
 }  // namespace quic
