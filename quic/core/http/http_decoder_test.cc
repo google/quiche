@@ -1118,97 +1118,8 @@ TEST_F(HttpDecoderTest, LargeStreamIdInGoAway) {
   EXPECT_EQ("", decoder_.error_detail());
 }
 
-TEST_F(HttpDecoderTest, OldPriorityUpdateFrame) {
-  if (GetQuicReloadableFlag(quic_ignore_old_priority_update_frame)) {
-    return;
-  }
-
-  InSequence s;
-  std::string input1 = absl::HexStringToBytes(
-      "0f"    // type (PRIORITY_UPDATE)
-      "02"    // length
-      "00"    // prioritized element type: REQUEST_STREAM
-      "03");  // prioritized element id
-
-  PriorityUpdateFrame priority_update1;
-  priority_update1.prioritized_element_type = REQUEST_STREAM;
-  priority_update1.prioritized_element_id = 0x03;
-
-  // Visitor pauses processing.
-  EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(2)).WillOnce(Return(false));
-  absl::string_view remaining_input(input1);
-  QuicByteCount processed_bytes =
-      ProcessInputWithGarbageAppended(remaining_input);
-  EXPECT_EQ(2u, processed_bytes);
-  remaining_input = remaining_input.substr(processed_bytes);
-
-  EXPECT_CALL(visitor_, OnPriorityUpdateFrame(priority_update1))
-      .WillOnce(Return(false));
-  processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
-  EXPECT_EQ(remaining_input.size(), processed_bytes);
-  EXPECT_THAT(decoder_.error(), IsQuicNoError());
-  EXPECT_EQ("", decoder_.error_detail());
-
-  // Process the full frame.
-  EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(2));
-  EXPECT_CALL(visitor_, OnPriorityUpdateFrame(priority_update1));
-  EXPECT_EQ(input1.size(), ProcessInput(input1));
-  EXPECT_THAT(decoder_.error(), IsQuicNoError());
-  EXPECT_EQ("", decoder_.error_detail());
-
-  // Process the frame incrementally.
-  EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(2));
-  EXPECT_CALL(visitor_, OnPriorityUpdateFrame(priority_update1));
-  ProcessInputCharByChar(input1);
-  EXPECT_THAT(decoder_.error(), IsQuicNoError());
-  EXPECT_EQ("", decoder_.error_detail());
-
-  std::string input2 = absl::HexStringToBytes(
-      "0f"        // type (PRIORITY_UPDATE)
-      "05"        // length
-      "80"        // prioritized element type: PUSH_STREAM
-      "05"        // prioritized element id
-      "666f6f");  // priority field value: "foo"
-
-  PriorityUpdateFrame priority_update2;
-  priority_update2.prioritized_element_type = PUSH_STREAM;
-  priority_update2.prioritized_element_id = 0x05;
-  priority_update2.priority_field_value = "foo";
-
-  // Visitor pauses processing.
-  EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(2)).WillOnce(Return(false));
-  remaining_input = input2;
-  processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
-  EXPECT_EQ(2u, processed_bytes);
-  remaining_input = remaining_input.substr(processed_bytes);
-
-  EXPECT_CALL(visitor_, OnPriorityUpdateFrame(priority_update2))
-      .WillOnce(Return(false));
-  processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
-  EXPECT_EQ(remaining_input.size(), processed_bytes);
-  EXPECT_THAT(decoder_.error(), IsQuicNoError());
-  EXPECT_EQ("", decoder_.error_detail());
-
-  // Process the full frame.
-  EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(2));
-  EXPECT_CALL(visitor_, OnPriorityUpdateFrame(priority_update2));
-  EXPECT_EQ(input2.size(), ProcessInput(input2));
-  EXPECT_THAT(decoder_.error(), IsQuicNoError());
-  EXPECT_EQ("", decoder_.error_detail());
-
-  // Process the frame incrementally.
-  EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(2));
-  EXPECT_CALL(visitor_, OnPriorityUpdateFrame(priority_update2));
-  ProcessInputCharByChar(input2);
-  EXPECT_THAT(decoder_.error(), IsQuicNoError());
-  EXPECT_EQ("", decoder_.error_detail());
-}
-
+// Old PRIORITY_UPDATE frame is parsed as unknown frame.
 TEST_F(HttpDecoderTest, ObsoletePriorityUpdateFrame) {
-  if (!GetQuicReloadableFlag(quic_ignore_old_priority_update_frame)) {
-    return;
-  }
-
   const QuicByteCount header_length = 2;
   const QuicByteCount payload_length = 3;
   InSequence s;
@@ -1322,46 +1233,6 @@ TEST_F(HttpDecoderTest, PriorityUpdateFrame) {
 }
 
 TEST_F(HttpDecoderTest, CorruptPriorityUpdateFrame) {
-  if (GetQuicReloadableFlag(quic_ignore_old_priority_update_frame)) {
-    return;
-  }
-
-  std::string payload1 = absl::HexStringToBytes(
-      "80"      // prioritized element type: PUSH_STREAM
-      "4005");  // prioritized element id
-  std::string payload2 =
-      absl::HexStringToBytes("42");  // invalid prioritized element type
-  struct {
-    const char* const payload;
-    size_t payload_length;
-    const char* const error_message;
-  } kTestData[] = {
-      {payload1.data(), 0, "Unable to read prioritized element type."},
-      {payload1.data(), 1, "Unable to read prioritized element id."},
-      {payload1.data(), 2, "Unable to read prioritized element id."},
-      {payload2.data(), 1, "Invalid prioritized element type."},
-  };
-
-  for (const auto& test_data : kTestData) {
-    std::string input;
-    input.push_back(15u);  // type PRIORITY_UPDATE
-    input.push_back(test_data.payload_length);
-    size_t header_length = input.size();
-    input.append(test_data.payload, test_data.payload_length);
-
-    HttpDecoder decoder(&visitor_);
-    EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(header_length));
-    EXPECT_CALL(visitor_, OnError(&decoder));
-
-    QuicByteCount processed_bytes =
-        decoder.ProcessInput(input.data(), input.size());
-    EXPECT_EQ(input.size(), processed_bytes);
-    EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
-    EXPECT_EQ(test_data.error_message, decoder.error_detail());
-  }
-}
-
-TEST_F(HttpDecoderTest, CorruptNewPriorityUpdateFrame) {
   std::string payload =
       absl::HexStringToBytes("4005");  // prioritized element id
   struct {

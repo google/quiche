@@ -99,8 +99,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_error_on_http3_push, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_reset_ideal_next_packet_send_time, false)
 // If true, time_wait_list can support multiple connection IDs.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_time_wait_list_support_multiple_cid_v2, true)
-// If true, treat old (pre-draft02) PRIORITY_UPDATE frame as unknown frame.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_old_priority_update_frame, true)
 // If true, upon receiving path challenge, send path response and reverse path challenge in the same function.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_group_path_response_and_challenge_sending_closer, true)
 // If true, use BBRv2 as the default congestion controller. Takes precedence over --quic_default_to_bbr.

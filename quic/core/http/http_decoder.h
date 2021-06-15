@@ -300,10 +300,6 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   std::array<char, sizeof(uint64_t)> push_id_buffer_;
 
   // Latched value of
-  // gfe2_reloadable_flag_quic_ignore_old_priority_update_frame.
-  const bool ignore_old_priority_update_;
-
-  // Latched value of
   // gfe2_reloadable_flag_quic_error_on_http3_push.
   const bool error_on_http3_push_;
 };
