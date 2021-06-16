@@ -170,7 +170,7 @@ bool QuicReceiveControlStream::OnPushPromiseFrameEnd() {
 
 bool QuicReceiveControlStream::OnPriorityUpdateFrameStart(
     QuicByteCount /*header_length*/) {
-  return ValidateFrameType(HttpFrameType::PRIORITY_UPDATE);
+  return ValidateFrameType(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM);
 }
 
 bool QuicReceiveControlStream::OnPriorityUpdateFrame(

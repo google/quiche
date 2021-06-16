@@ -803,9 +803,6 @@ QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID):
       // TODO(b/171463363): Remove.
       return sizeof(PushId);
-    case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE):
-      // This limit is arbitrary.
-      return 1024 * 1024;
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM):
       // This limit is arbitrary.
       return 1024 * 1024;

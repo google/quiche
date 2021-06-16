@@ -260,7 +260,7 @@ TEST_P(QuicReceiveControlStreamTest,
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_HTTP_MISSING_SETTINGS_FRAME,
                               "First frame received on control stream is type "
-                              "15, but it must be SETTINGS.",
+                              "984832, but it must be SETTINGS.",
                               _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
