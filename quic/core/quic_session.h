@@ -36,10 +36,10 @@
 #include "quic/core/session_notifier_interface.h"
 #include "quic/core/stream_delegate_interface.h"
 #include "quic/core/uber_quic_stream_id_manager.h"
-#include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_socket_address.h"
+#include "common/quiche_linked_hash_map.h"
 
 namespace quic {
 
@@ -928,7 +928,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // TODO(fayang): switch to linked_hash_set when chromium supports it. The bool
   // is not used here.
   // List of streams with pending retransmissions.
-  QuicLinkedHashMap<QuicStreamId, bool> streams_with_pending_retransmission_;
+  quiche::QuicheLinkedHashMap<QuicStreamId, bool>
+      streams_with_pending_retransmission_;
 
   // Clean up closed_streams_ when this alarm fires.
   std::unique_ptr<QuicAlarm> closed_streams_clean_up_alarm_;

@@ -14,9 +14,9 @@
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_time.h"
 #include "quic/core/tls_chlo_extractor.h"
-#include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_socket_address.h"
+#include "common/quiche_linked_hash_map.h"
 
 namespace quic {
 
@@ -78,9 +78,9 @@ class QUIC_NO_EXPORT QuicBufferedPacketStore {
     TlsChloExtractor tls_chlo_extractor;
   };
 
-  using BufferedPacketMap = QuicLinkedHashMap<QuicConnectionId,
-                                              BufferedPacketList,
-                                              QuicConnectionIdHash>;
+  using BufferedPacketMap = quiche::QuicheLinkedHashMap<QuicConnectionId,
+                                                        BufferedPacketList,
+                                                        QuicConnectionIdHash>;
 
   class QUIC_NO_EXPORT VisitorInterface {
    public:
@@ -186,7 +186,7 @@ class QUIC_NO_EXPORT QuicBufferedPacketStore {
 
   // Keeps track of connection with CHLO buffered up already and the order they
   // arrive.
-  QuicLinkedHashMap<QuicConnectionId, bool, QuicConnectionIdHash>
+  quiche::QuicheLinkedHashMap<QuicConnectionId, bool, QuicConnectionIdHash>
       connections_with_chlo_;
 };
 

@@ -10,6 +10,7 @@
 #include "quic/core/session_notifier_interface.h"
 #include "quic/platform/api/quic_test.h"
 #include "common/quiche_circular_deque.h"
+#include "common/quiche_linked_hash_map.h"
 
 namespace quic {
 
@@ -134,7 +135,7 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
 
   quiche::QuicheCircularDeque<QuicFrame> control_frames_;
 
-  QuicLinkedHashMap<QuicControlFrameId, bool> lost_control_frames_;
+  quiche::QuicheLinkedHashMap<QuicControlFrameId, bool> lost_control_frames_;
 
   // Id of latest saved control frame. 0 if no control frame has been saved.
   QuicControlFrameId last_control_frame_id_;

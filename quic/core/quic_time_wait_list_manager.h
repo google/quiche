@@ -19,8 +19,8 @@
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_types.h"
-#include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_flags.h"
+#include "common/quiche_linked_hash_map.h"
 
 namespace quic {
 
@@ -285,10 +285,11 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
     TimeWaitConnectionInfo info;
   };
 
-  // QuicLinkedHashMap allows lookup by ConnectionId and traversal in add order.
-  using ConnectionIdMap = QuicLinkedHashMap<QuicConnectionId,
-                                            ConnectionIdData,
-                                            QuicConnectionIdHash>;
+  // QuicheLinkedHashMap allows lookup by ConnectionId
+  // and traversal in add order.
+  using ConnectionIdMap = quiche::QuicheLinkedHashMap<QuicConnectionId,
+                                                      ConnectionIdData,
+                                                      QuicConnectionIdHash>;
   // Do not use find/emplace/erase on this map directly. Use
   // FindConnectionIdDataInMap, AddConnectionIdDateToMap,
   // RemoveConnectionDataFromMap instead.

@@ -15,9 +15,9 @@
 #include "quic/core/http/quic_client_push_promise_index.h"
 #include "quic/core/quic_config.h"
 #include "quic/core/quic_packet_reader.h"
-#include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_epoll.h"
 #include "quic/tools/quic_client_base.h"
+#include "common/quiche_linked_hash_map.h"
 
 namespace quic {
 
@@ -73,7 +73,8 @@ class QuicClientEpollNetworkHelper : public QuicClientBase::NetworkHelper,
 
   QuicEpollServer* epoll_server() { return epoll_server_; }
 
-  const QuicLinkedHashMap<int, QuicSocketAddress>& fd_address_map() const {
+  const quiche::QuicheLinkedHashMap<int, QuicSocketAddress>& fd_address_map()
+      const {
     return fd_address_map_;
   }
 
@@ -110,7 +111,7 @@ class QuicClientEpollNetworkHelper : public QuicClientBase::NetworkHelper,
 
   // Map mapping created UDP sockets to their addresses. By using linked hash
   // map, the order of socket creation can be recorded.
-  QuicLinkedHashMap<int, QuicSocketAddress> fd_address_map_;
+  quiche::QuicheLinkedHashMap<int, QuicSocketAddress> fd_address_map_;
 
   // If overflow_supported_ is true, this will be the number of packets dropped
   // during the lifetime of the server.

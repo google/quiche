@@ -7,11 +7,11 @@
 
 #include <memory>
 
-#include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
+#include "common/quiche_linked_hash_map.h"
 
 namespace quic {
 
@@ -67,7 +67,7 @@ class QUIC_NO_EXPORT QuicLRUCache {
   size_t Size() const { return cache_.size(); }
 
  private:
-  QuicLinkedHashMap<K, std::unique_ptr<V>> cache_;
+  quiche::QuicheLinkedHashMap<K, std::unique_ptr<V>> cache_;
   const size_t capacity_;
 };
 

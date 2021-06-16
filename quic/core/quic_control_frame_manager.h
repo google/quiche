@@ -13,6 +13,7 @@
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_types.h"
 #include "common/quiche_circular_deque.h"
+#include "common/quiche_linked_hash_map.h"
 
 namespace quic {
 
@@ -178,7 +179,8 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // TODO(fayang): switch to linked_hash_set when chromium supports it. The bool
   // is not used here.
   // Lost control frames waiting to be retransmitted.
-  QuicLinkedHashMap<QuicControlFrameId, bool> pending_retransmissions_;
+  quiche::QuicheLinkedHashMap<QuicControlFrameId, bool>
+      pending_retransmissions_;
 
   DelegateInterface* delegate_;
 

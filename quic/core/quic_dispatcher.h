@@ -27,9 +27,9 @@
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_time_wait_list_manager.h"
 #include "quic/core/quic_version_manager.h"
-#include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_reference_counted.h"
 #include "quic/platform/api/quic_socket_address.h"
+#include "common/quiche_linked_hash_map.h"
 
 namespace quic {
 namespace test {
@@ -45,7 +45,8 @@ class QUIC_NO_EXPORT QuicDispatcher
       public QuicBufferedPacketStore::VisitorInterface {
  public:
   // Ideally we'd have a linked_hash_set: the  boolean is unused.
-  using WriteBlockedList = QuicLinkedHashMap<QuicBlockedWriterInterface*, bool>;
+  using WriteBlockedList =
+      quiche::QuicheLinkedHashMap<QuicBlockedWriterInterface*, bool>;
 
   QuicDispatcher(
       const QuicConfig* config,

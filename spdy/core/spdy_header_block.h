@@ -20,8 +20,8 @@
 #include "absl/strings/string_view.h"
 #include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_logging.h"
+#include "common/quiche_linked_hash_map.h"
 #include "spdy/core/spdy_header_storage.h"
-#include "spdy/platform/api/spdy_containers.h"
 
 namespace spdy {
 
@@ -108,10 +108,10 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
     }
   };
 
-  typedef SpdyLinkedHashMap<absl::string_view,
-                            HeaderValue,
-                            StringPieceCaseHash,
-                            StringPieceCaseEqual>
+  typedef quiche::QuicheLinkedHashMap<absl::string_view,
+                                      HeaderValue,
+                                      StringPieceCaseHash,
+                                      StringPieceCaseEqual>
       MapType;
 
  public:
