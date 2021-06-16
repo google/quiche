@@ -4,6 +4,8 @@
 
 #include "quic/qbone/qbone_control_stream.h"
 
+#include <cstdint>
+#include <limits>
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_session.h"
 #include "quic/platform/api/quic_bug_tracker.h"
@@ -51,10 +53,10 @@ bool QboneControlStreamBase::SendMessage(const proto2::Message& proto) {
     QUIC_BUG(quic_bug_11023_1) << "Failed to serialize QboneControlRequest";
     return false;
   }
-  if (tmp.size() > kuint16max) {
+  if (tmp.size() > std::numeric_limits<uint16_t>::max()) {
     QUIC_BUG(quic_bug_11023_2)
         << "QboneControlRequest too large: " << tmp.size() << " > "
-        << kuint16max;
+        << std::numeric_limits<uint16_t>::max();
     return false;
   }
   uint16_t size = tmp.size();
