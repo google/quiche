@@ -6590,6 +6590,9 @@ bool QuicConnection::SendPathChallenge(
     const QuicSocketAddress& peer_address,
     const QuicSocketAddress& effective_peer_address,
     QuicPacketWriter* writer) {
+  if (!framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_FORWARD_SECURE)) {
+    return connected_;
+  }
   if (connection_migration_use_new_cid_) {
     {
       QuicConnectionId client_cid, server_cid;
@@ -6711,6 +6714,9 @@ bool QuicConnection::SendPathResponse(
     const QuicPathFrameBuffer& data_buffer,
     const QuicSocketAddress& peer_address_to_send,
     const QuicSocketAddress& effective_peer_address) {
+  if (!framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_FORWARD_SECURE)) {
+    return false;
+  }
   QuicConnectionId client_cid, server_cid;
   if (connection_migration_use_new_cid_) {
     FindOnPathConnectionIds(last_received_packet_info_.destination_address,
