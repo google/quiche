@@ -13,13 +13,13 @@ namespace quic {
 template <typename T, size_t N, typename A = std::allocator<T>>
 using QuicInlinedVector = QuicInlinedVectorImpl<T, N, A>;
 
-// An ordered set of values.
+// An ordered container optimized for small sets.
+// An implementation with O(n) mutations might be chosen
+// in case it has better memory usage and/or faster access.
 //
 // DOES NOT GUARANTEE POINTER OR ITERATOR STABILITY!
-template <typename Key,
-          typename Compare = std::less<Key>,
-          typename Rep = std::vector<Key>>
-using QuicOrderedSet = QuicOrderedSetImpl<Key, Compare, Rep>;
+template <typename Key, typename Compare = std::less<Key>>
+using QuicSmallOrderedSet = QuicSmallOrderedSetImpl<Key, Compare>;
 
 }  // namespace quic
 

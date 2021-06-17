@@ -85,9 +85,7 @@ class QUIC_NO_EXPORT QuicIntervalSet {
     bool operator()(T&& point, const value_type& a) const;
   };
 
-  using Set = QuicOrderedSet<value_type,
-                             IntervalLess,
-                             QuicInlinedVector<value_type, 10>>;
+  using Set = QuicSmallOrderedSet<value_type, IntervalLess>;
 
  public:
   using const_iterator = typename Set::const_iterator;
