@@ -138,7 +138,8 @@ TEST(OgHttp2SessionTest, ClientEnqueuesSettingsOnSend) {
   OgHttp2Session session(
       visitor, OgHttp2Session::Options{.perspective = Perspective::kClient});
   EXPECT_FALSE(session.want_write());
-  session.Send();
+  int result = session.Send();
+  EXPECT_EQ(0, result);
   absl::string_view serialized = visitor.data();
   EXPECT_THAT(serialized,
               testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
@@ -155,7 +156,8 @@ TEST(OgHttp2SessionTest, ClientEnqueuesSettingsBeforeOtherFrame) {
   EXPECT_FALSE(session.want_write());
   session.EnqueueFrame(absl::make_unique<spdy::SpdyPingIR>(42));
   EXPECT_TRUE(session.want_write());
-  session.Send();
+  int result = session.Send();
+  EXPECT_EQ(0, result);
   absl::string_view serialized = visitor.data();
   EXPECT_THAT(serialized,
               testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
@@ -173,7 +175,8 @@ TEST(OgHttp2SessionTest, ClientEnqueuesSettingsOnce) {
   EXPECT_FALSE(session.want_write());
   session.EnqueueFrame(absl::make_unique<spdy::SpdySettingsIR>());
   EXPECT_TRUE(session.want_write());
-  session.Send();
+  int result = session.Send();
+  EXPECT_EQ(0, result);
   absl::string_view serialized = visitor.data();
   EXPECT_THAT(serialized,
               testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
@@ -190,7 +193,8 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
 
   // Even though the user has not queued any frames for the session, it should
   // still send the connection preface.
-  session.Send();
+  int result = session.Send();
+  EXPECT_EQ(0, result);
   absl::string_view serialized = visitor.data();
   EXPECT_THAT(serialized,
               testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
@@ -213,7 +217,8 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
 
   // Session will want to write a SETTINGS ack.
   EXPECT_TRUE(session.want_write());
-  session.Send();
+  result = session.Send();
+  EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
   visitor.Clear();
 
@@ -230,7 +235,8 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(session.want_write());
   EXPECT_EQ(kSentinel1, session.GetStreamUserData(stream_id));
-  session.Send();
+  result = session.Send();
+  EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
                                             spdy::SpdyFrameType::DATA}));
   visitor.Clear();
@@ -259,7 +265,8 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
   session.SetStreamUserData(stream_id, const_cast<char*>(kSentinel2));
   EXPECT_EQ(kSentinel2, session.GetStreamUserData(stream_id));
 
-  session.Send();
+  result = session.Send();
+  EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
 
   // No data was sent (just HEADERS), so the remaining send window size should
@@ -288,7 +295,8 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithReadBlock) {
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(session.want_write());
   EXPECT_EQ(kSentinel1, session.GetStreamUserData(stream_id));
-  session.Send();
+  int result = session.Send();
+  EXPECT_EQ(0, result);
   absl::string_view serialized = visitor.data();
   EXPECT_THAT(serialized,
               testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
@@ -302,7 +310,8 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithReadBlock) {
   body1.set_is_data_available(true);
   EXPECT_TRUE(session.ResumeStream(stream_id));
   EXPECT_TRUE(session.want_write());
-  session.Send();
+  result = session.Send();
+  EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::DATA}));
   EXPECT_FALSE(session.want_write());
 
@@ -331,12 +340,14 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithWriteBlock) {
   EXPECT_TRUE(session.want_write());
   EXPECT_EQ(kSentinel1, session.GetStreamUserData(stream_id));
   visitor.set_is_write_blocked(true);
-  session.Send();
+  int result = session.Send();
+  EXPECT_EQ(0, result);
 
   EXPECT_THAT(visitor.data(), testing::IsEmpty());
   EXPECT_TRUE(session.want_write());
   visitor.set_is_write_blocked(false);
-  session.Send();
+  result = session.Send();
+  EXPECT_EQ(0, result);
 
   absl::string_view serialized = visitor.data();
   EXPECT_THAT(serialized,
@@ -359,7 +370,9 @@ TEST(OgHttp2SessionTest, ClientStartShutdown) {
   session.StartGracefulShutdown();
   EXPECT_FALSE(session.want_write());
 
-  session.Send();
+  int result = session.Send();
+  EXPECT_EQ(0, result);
+
   absl::string_view serialized = visitor.data();
   EXPECT_THAT(serialized,
               testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
@@ -477,7 +490,8 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
 
   EXPECT_TRUE(session.want_write());
   // Some bytes should have been serialized.
-  session.Send();
+  int send_result = session.Send();
+  EXPECT_EQ(0, send_result);
   // Initial SETTINGS, SETTINGS ack.
   // TODO(birenroy): automatically queue PING acks.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
@@ -493,7 +507,8 @@ TEST(OgHttp2SessionTest, ServerEnqueuesSettingsBeforeOtherFrame) {
   EXPECT_FALSE(session.want_write());
   session.EnqueueFrame(absl::make_unique<spdy::SpdyPingIR>(42));
   EXPECT_TRUE(session.want_write());
-  session.Send();
+  int result = session.Send();
+  EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::PING}));
 }
@@ -507,7 +522,8 @@ TEST(OgHttp2SessionTest, ServerEnqueuesSettingsOnce) {
   EXPECT_FALSE(session.want_write());
   session.EnqueueFrame(absl::make_unique<spdy::SpdySettingsIR>());
   EXPECT_TRUE(session.want_write());
-  session.Send();
+  int result = session.Send();
+  EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
@@ -557,7 +573,8 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
 
   // Server will want to send initial SETTINGS, and a SETTINGS ack.
   EXPECT_TRUE(session.want_write());
-  session.Send();
+  int send_result = session.Send();
+  EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
   visitor.Clear();
@@ -578,7 +595,8 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   session.SetStreamUserData(1, nullptr);
   EXPECT_EQ(nullptr, session.GetStreamUserData(1));
 
-  session.Send();
+  send_result = session.Send();
+  EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
   EXPECT_FALSE(session.want_write());
@@ -602,7 +620,8 @@ TEST(OgHttp2SessionTest, ServerStartShutdown) {
   session.StartGracefulShutdown();
   EXPECT_TRUE(session.want_write());
 
-  session.Send();
+  int result = session.Send();
+  EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
 }
@@ -619,7 +638,8 @@ TEST(OgHttp2SessionTest, ServerStartShutdownAfterGoaway) {
   session.EnqueueFrame(std::move(goaway));
   EXPECT_TRUE(session.want_write());
 
-  session.Send();
+  int result = session.Send();
+  EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
 
@@ -667,7 +687,8 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
 
   // Server will want to send initial SETTINGS, and a SETTINGS ack.
   EXPECT_TRUE(session.want_write());
-  session.Send();
+  int send_result = session.Send();
+  EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
   visitor.Clear();
@@ -683,7 +704,8 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
       &body1);
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(session.want_write());
-  session.Send();
+  send_result = session.Send();
+  EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
   visitor.Clear();
@@ -697,7 +719,8 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
   ASSERT_EQ(trailer_result, 0);
   EXPECT_TRUE(session.want_write());
 
-  session.Send();
+  send_result = session.Send();
+  EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
 }
 
@@ -740,7 +763,8 @@ TEST(OgHttp2SessionTest, ServerQueuesTrailersWithResponse) {
 
   // Server will want to send initial SETTINGS, and a SETTINGS ack.
   EXPECT_TRUE(session.want_write());
-  session.Send();
+  int send_result = session.Send();
+  EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
   visitor.Clear();
@@ -765,7 +789,8 @@ TEST(OgHttp2SessionTest, ServerQueuesTrailersWithResponse) {
   EXPECT_TRUE(session.want_write());
 
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
-  session.Send();
+  send_result = session.Send();
+  EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA,
                             SpdyFrameType::HEADERS}));

@@ -68,7 +68,8 @@ TEST_F(OgHttp2AdapterTest, TestSerialize) {
   adapter_->SubmitWindowUpdate(3, 127);
   EXPECT_TRUE(adapter_->session().want_write());
 
-  adapter_->Send();
+  int result = adapter_->Send();
+  EXPECT_EQ(0, result);
   EXPECT_THAT(
       http2_visitor_.data(),
       EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::PRIORITY,
@@ -87,11 +88,14 @@ TEST_F(OgHttp2AdapterTest, TestPartialSerialize) {
   EXPECT_TRUE(adapter_->session().want_write());
 
   http2_visitor_.set_send_limit(20);
-  adapter_->Send();
+  int result = adapter_->Send();
+  EXPECT_EQ(0, result);
   EXPECT_TRUE(adapter_->session().want_write());
-  adapter_->Send();
+  result = adapter_->Send();
+  EXPECT_EQ(0, result);
   EXPECT_TRUE(adapter_->session().want_write());
-  adapter_->Send();
+  result = adapter_->Send();
+  EXPECT_EQ(0, result);
   EXPECT_FALSE(adapter_->session().want_write());
   EXPECT_THAT(http2_visitor_.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY,

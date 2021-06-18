@@ -35,7 +35,7 @@ class OgHttp2Session : public Http2Session,
   void StartGracefulShutdown();
 
   // Invokes the visitor's OnReadyToSend() method for serialized frame data.
-  void Send();
+  int Send();
 
   int32_t SubmitRequest(absl::Span<const Header> headers,
                         DataFrameSource* data_source,
@@ -180,7 +180,8 @@ class OgHttp2Session : public Http2Session,
 
   void SendWindowUpdate(Http2StreamId stream_id, size_t update_delta);
 
-  // Sends queued frames, returning true if all frames were flushed.
+  // Sends queued frames, returning true if all frames were flushed
+  // successfully.
   bool SendQueuedFrames();
 
   // Returns false if the connection is write-blocked (due to flow control or

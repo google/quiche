@@ -67,7 +67,8 @@ class Http2Adapter {
   virtual void SubmitMetadata(Http2StreamId stream_id, bool fin) = 0;
 
   // Invokes the visitor's OnReadyToSend() method for serialized frame data.
-  virtual void Send() = 0;
+  // Returns 0 on success.
+  virtual int Send() = 0;
 
   // Returns the connection-level flow control window advertised by the peer.
   virtual int GetSendWindowSize() const = 0;

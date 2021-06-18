@@ -163,7 +163,7 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
   frames_.push_back(std::move(frame));
 }
 
-void OgHttp2Session::Send() {
+int OgHttp2Session::Send() {
   MaybeSetupPreface();
   ssize_t result = std::numeric_limits<ssize_t>::max();
   // Flush any serialized prefix.
@@ -174,7 +174,7 @@ void OgHttp2Session::Send() {
     }
   }
   if (!serialized_prefix_.empty()) {
-    return;
+    return result < 0 ? result : 0;
   }
   bool continue_writing = SendQueuedFrames();
   // Wake streams for writes.
@@ -188,6 +188,7 @@ void OgHttp2Session::Send() {
   if (continue_writing) {
     SendQueuedFrames();
   }
+  return 0;
 }
 
 bool OgHttp2Session::SendQueuedFrames() {

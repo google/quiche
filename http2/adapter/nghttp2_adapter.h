@@ -47,7 +47,7 @@ class NgHttp2Adapter : public Http2Adapter {
 
   void SubmitMetadata(Http2StreamId stream_id, bool end_metadata) override;
 
-  void Send() override;
+  int Send() override;
 
   int GetSendWindowSize() const override;
   int GetStreamSendWindowSize(Http2StreamId stream_id) const override;

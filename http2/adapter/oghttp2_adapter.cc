@@ -79,9 +79,7 @@ void OgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id, bool fin) {
   QUICHE_BUG(oghttp2_submit_metadata) << "Not implemented";
 }
 
-void OgHttp2Adapter::Send() {
-  session_->Send();
-}
+int OgHttp2Adapter::Send() { return session_->Send(); }
 
 int OgHttp2Adapter::GetSendWindowSize() const {
   return session_->GetRemoteWindowSize();

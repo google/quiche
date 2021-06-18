@@ -95,11 +95,12 @@ void NgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
   QUICHE_LOG(DFATAL) << "Not implemented";
 }
 
-void NgHttp2Adapter::Send() {
+int NgHttp2Adapter::Send() {
   const int result = nghttp2_session_send(session_->raw_ptr());
   if (result != 0) {
     visitor_.OnConnectionError();
   }
+  return result;
 }
 
 int NgHttp2Adapter::GetSendWindowSize() const {
