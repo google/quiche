@@ -47,13 +47,6 @@ int OnDataChunk(nghttp2_session* session, uint8_t flags,
 int OnStreamClosed(nghttp2_session* session, Http2StreamId stream_id,
                    uint32_t error_code, void* user_data);
 
-// Callback once nghttp2 is ready to read data from |source| into |dest_buffer|.
-ssize_t OnReadyToReadDataForStream(nghttp2_session* session,
-                                   Http2StreamId stream_id,
-                                   uint8_t* dest_buffer, size_t max_length,
-                                   uint32_t* data_flags,
-                                   nghttp2_data_source* source,
-                                   void* user_data);
 
 nghttp2_session_callbacks_unique_ptr Create();
 

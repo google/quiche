@@ -22,6 +22,7 @@ ssize_t OnReadyToSend(nghttp2_session* /* session */,
                       size_t length,
                       int flags,
                       void* user_data) {
+  QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   const ssize_t result = visitor->OnReadyToSend(ToStringView(data, length));
   if (result < 0) {
@@ -36,6 +37,7 @@ ssize_t OnReadyToSend(nghttp2_session* /* session */,
 int OnBeginFrame(nghttp2_session* /* session */,
                  const nghttp2_frame_hd* header,
                  void* user_data) {
+  QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   visitor->OnFrameHeader(header->stream_id, header->length, header->type,
                          header->flags);
@@ -48,10 +50,9 @@ int OnBeginFrame(nghttp2_session* /* session */,
 int OnFrameReceived(nghttp2_session* /* session */,
                     const nghttp2_frame* frame,
                     void* user_data) {
+  QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   const Http2StreamId stream_id = frame->hd.stream_id;
-  QUICHE_VLOG(2) << "Frame " << static_cast<int>(frame->hd.type)
-                 << " for stream " << stream_id;
   switch (frame->hd.type) {
     // The beginning of the DATA frame is handled in OnBeginFrame(), and the
     // beginning of the header block is handled in client/server-specific
@@ -146,6 +147,7 @@ int OnFrameReceived(nghttp2_session* /* session */,
 int OnBeginHeaders(nghttp2_session* /* session */,
                    const nghttp2_frame* frame,
                    void* user_data) {
+  QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   visitor->OnBeginHeadersForStream(frame->hd.stream_id);
   return 0;
@@ -157,6 +159,7 @@ int OnHeader(nghttp2_session* /* session */,
              nghttp2_rcbuf* value,
              uint8_t flags,
              void* user_data) {
+  QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   visitor->OnHeaderForStream(frame->hd.stream_id, ToStringView(name),
                              ToStringView(value));
@@ -169,6 +172,7 @@ int OnDataChunk(nghttp2_session* /* session */,
                 const uint8_t* data,
                 size_t len,
                 void* user_data) {
+  QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   visitor->OnDataForStream(
       stream_id, absl::string_view(reinterpret_cast<const char*>(data), len));
@@ -179,28 +183,10 @@ int OnStreamClosed(nghttp2_session* /* session */,
                    Http2StreamId stream_id,
                    uint32_t error_code,
                    void* user_data) {
+  QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   visitor->OnCloseStream(stream_id, ToHttp2ErrorCode(error_code));
   return 0;
-}
-
-ssize_t OnReadyToReadDataForStream(nghttp2_session* /* session */,
-                                   Http2StreamId stream_id,
-                                   uint8_t* dest_buffer,
-                                   size_t max_length,
-                                   uint32_t* data_flags,
-                                   nghttp2_data_source* source,
-                                   void* user_data) {
-  auto* visitor = static_cast<Http2VisitorInterface*>(source->ptr);
-  ssize_t bytes_to_send = 0;
-  bool end_stream = false;
-  visitor->OnReadyToSendDataForStream(stream_id,
-                                      reinterpret_cast<char*>(dest_buffer),
-                                      max_length, &bytes_to_send, &end_stream);
-  if (bytes_to_send >= 0 && end_stream) {
-    *data_flags |= NGHTTP2_DATA_FLAG_EOF;
-  }
-  return bytes_to_send;
 }
 
 nghttp2_session_callbacks_unique_ptr Create() {
