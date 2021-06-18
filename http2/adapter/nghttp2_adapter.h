@@ -1,6 +1,7 @@
 #ifndef QUICHE_HTTP2_ADAPTER_NGHTTP2_ADAPTER_H_
 #define QUICHE_HTTP2_ADAPTER_NGHTTP2_ADAPTER_H_
 
+#include "absl/container/flat_hash_map.h"
 #include "http2/adapter/http2_adapter.h"
 #include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/nghttp2_session.h"
@@ -65,12 +66,11 @@ class NgHttp2Adapter : public Http2Adapter {
                                  size_t num_bytes) override;
 
   int32_t SubmitRequest(absl::Span<const Header> headers,
-                        DataFrameSource* data_source,
+                        std::unique_ptr<DataFrameSource> data_source,
                         void* user_data) override;
 
-  int32_t SubmitResponse(Http2StreamId stream_id,
-                         absl::Span<const Header> headers,
-                         DataFrameSource* data_source) override;
+  int SubmitResponse(Http2StreamId stream_id, absl::Span<const Header> headers,
+                     std::unique_ptr<DataFrameSource> data_source) override;
 
   int SubmitTrailer(Http2StreamId stream_id,
                     absl::Span<const Header> trailers) override;
@@ -94,6 +94,8 @@ class NgHttp2Adapter : public Http2Adapter {
   std::unique_ptr<NgHttp2Session> session_;
   Http2VisitorInterface& visitor_;
   Perspective perspective_;
+
+  absl::flat_hash_map<int32_t, std::unique_ptr<DataFrameSource>> sources_;
 };
 
 }  // namespace adapter

@@ -76,13 +76,14 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
 
   // Submit a request to ensure the first stream is created.
   const char* kSentinel1 = "arbitrary pointer 1";
-  TestDataFrameSource body1(visitor, "This is an example request body.");
+  auto body1 = absl::make_unique<TestDataFrameSource>(
+      visitor, "This is an example request body.");
   int stream_id =
       session.SubmitRequest(ToHeaders({{":method", "POST"},
                                        {":scheme", "http"},
                                        {":authority", "example.com"},
                                        {":path", "/this/is/request/one"}}),
-                            &body1, const_cast<char*>(kSentinel1));
+                            std::move(body1), const_cast<char*>(kSentinel1));
   EXPECT_EQ(stream_id, 1);
 
   const std::string stream_frames =
@@ -225,13 +226,14 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
   EXPECT_EQ(0, session.GetHpackEncoderDynamicTableSize());
 
   const char* kSentinel1 = "arbitrary pointer 1";
-  TestDataFrameSource body1(visitor, "This is an example request body.");
+  auto body1 = absl::make_unique<TestDataFrameSource>(
+      visitor, "This is an example request body.");
   int stream_id =
       session.SubmitRequest(ToHeaders({{":method", "POST"},
                                        {":scheme", "http"},
                                        {":authority", "example.com"},
                                        {":path", "/this/is/request/one"}}),
-                            &body1, const_cast<char*>(kSentinel1));
+                            std::move(body1), const_cast<char*>(kSentinel1));
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(session.want_write());
   EXPECT_EQ(kSentinel1, session.GetStreamUserData(stream_id));
@@ -284,14 +286,16 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithReadBlock) {
   EXPECT_FALSE(session.want_write());
 
   const char* kSentinel1 = "arbitrary pointer 1";
-  TestDataFrameSource body1(visitor, "This is an example request body.");
-  body1.set_is_data_available(false);
+  auto body1 = absl::make_unique<TestDataFrameSource>(
+      visitor, "This is an example request body.");
+  TestDataFrameSource* body_ref = body1.get();
+  body_ref->set_is_data_available(false);
   int stream_id =
       session.SubmitRequest(ToHeaders({{":method", "POST"},
                                        {":scheme", "http"},
                                        {":authority", "example.com"},
                                        {":path", "/this/is/request/one"}}),
-                            &body1, const_cast<char*>(kSentinel1));
+                            std::move(body1), const_cast<char*>(kSentinel1));
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(session.want_write());
   EXPECT_EQ(kSentinel1, session.GetStreamUserData(stream_id));
@@ -307,7 +311,7 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithReadBlock) {
   visitor.Clear();
   EXPECT_FALSE(session.want_write());
 
-  body1.set_is_data_available(true);
+  body_ref->set_is_data_available(true);
   EXPECT_TRUE(session.ResumeStream(stream_id));
   EXPECT_TRUE(session.want_write());
   result = session.Send();
@@ -329,13 +333,14 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithWriteBlock) {
   EXPECT_FALSE(session.want_write());
 
   const char* kSentinel1 = "arbitrary pointer 1";
-  TestDataFrameSource body1(visitor, "This is an example request body.");
+  auto body1 = absl::make_unique<TestDataFrameSource>(
+      visitor, "This is an example request body.");
   int stream_id =
       session.SubmitRequest(ToHeaders({{":method", "POST"},
                                        {":scheme", "http"},
                                        {":authority", "example.com"},
                                        {":path", "/this/is/request/one"}}),
-                            &body1, const_cast<char*>(kSentinel1));
+                            std::move(body1), const_cast<char*>(kSentinel1));
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(session.want_write());
   EXPECT_EQ(kSentinel1, session.GetStreamUserData(stream_id));
@@ -580,13 +585,14 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   visitor.Clear();
 
   EXPECT_FALSE(session.want_write());
-  TestDataFrameSource body1(visitor, "This is an example response body.",
-                            /*has_fin=*/false);
+  auto body1 = absl::make_unique<TestDataFrameSource>(
+      visitor, "This is an example response body.",
+      /*has_fin=*/false);
   int submit_result = session.SubmitResponse(
       1,
       ToHeaders({{":status", "404"},
                  {"x-comment", "I have no idea what you're talking about."}}),
-      &body1);
+      std::move(body1));
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(session.want_write());
 
@@ -697,11 +703,12 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
 
   // The body source must indicate that the end of the body is not the end of
   // the stream.
-  TestDataFrameSource body1(visitor, "This is an example response body.",
-                            /*has_fin=*/false);
+  auto body1 = absl::make_unique<TestDataFrameSource>(
+      visitor, "This is an example response body.",
+      /*has_fin=*/false);
   int submit_result = session.SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
-      &body1);
+      std::move(body1));
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(session.want_write());
   send_result = session.Send();
@@ -773,11 +780,12 @@ TEST(OgHttp2SessionTest, ServerQueuesTrailersWithResponse) {
 
   // The body source must indicate that the end of the body is not the end of
   // the stream.
-  TestDataFrameSource body1(visitor, "This is an example response body.",
-                            /*has_fin=*/false);
+  auto body1 = absl::make_unique<TestDataFrameSource>(
+      visitor, "This is an example response body.",
+      /*has_fin=*/false);
   int submit_result = session.SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
-      &body1);
+      std::move(body1));
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(session.want_write());
   // There has not been a call to Send() yet, so neither headers nor body have

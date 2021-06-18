@@ -295,9 +295,9 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
   return connection_can_write && available_window > 0;
 }
 
-int32_t OgHttp2Session::SubmitRequest(absl::Span<const Header> headers,
-                                      DataFrameSource* data_source,
-                                      void* user_data) {
+int32_t OgHttp2Session::SubmitRequest(
+    absl::Span<const Header> headers,
+    std::unique_ptr<DataFrameSource> data_source, void* user_data) {
   // TODO(birenroy): return an error for the incorrect perspective
   const Http2StreamId stream_id = next_stream_id_;
   next_stream_id_ += 2;
@@ -316,7 +316,7 @@ int32_t OgHttp2Session::SubmitRequest(absl::Span<const Header> headers,
     QUICHE_LOG(DFATAL) << "Stream " << stream_id << " already exists!";
     return -501;  // NGHTTP2_ERR_INVALID_ARGUMENT
   }
-  iter->second.outbound_body = data_source;
+  iter->second.outbound_body = std::move(data_source);
   iter->second.user_data = user_data;
   if (data_source == nullptr) {
     frame->set_fin(true);
@@ -331,9 +331,9 @@ int32_t OgHttp2Session::SubmitRequest(absl::Span<const Header> headers,
   return stream_id;
 }
 
-int32_t OgHttp2Session::SubmitResponse(Http2StreamId stream_id,
-                                       absl::Span<const Header> headers,
-                                       DataFrameSource* data_source) {
+int OgHttp2Session::SubmitResponse(
+    Http2StreamId stream_id, absl::Span<const Header> headers,
+    std::unique_ptr<DataFrameSource> data_source) {
   // TODO(birenroy): return an error for the incorrect perspective
   auto iter = stream_map_.find(stream_id);
   if (iter == stream_map_.end()) {
@@ -352,7 +352,7 @@ int32_t OgHttp2Session::SubmitResponse(Http2StreamId stream_id,
     // when calling visitor_.OnCloseStream.
   } else {
     // Add data source to stream state
-    iter->second.outbound_body = data_source;
+    iter->second.outbound_body = std::move(data_source);
     write_scheduler_.MarkStreamReady(stream_id, false);
   }
   EnqueueFrame(std::move(frame));

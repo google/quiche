@@ -38,11 +38,10 @@ class OgHttp2Session : public Http2Session,
   int Send();
 
   int32_t SubmitRequest(absl::Span<const Header> headers,
-                        DataFrameSource* data_source,
+                        std::unique_ptr<DataFrameSource> data_source,
                         void* user_data);
-  int32_t SubmitResponse(Http2StreamId stream_id,
-                         absl::Span<const Header> headers,
-                         DataFrameSource* data_source);
+  int SubmitResponse(Http2StreamId stream_id, absl::Span<const Header> headers,
+                     std::unique_ptr<DataFrameSource> data_source);
   int SubmitTrailer(Http2StreamId stream_id, absl::Span<const Header> trailers);
 
   bool IsServerSession() const {
@@ -152,7 +151,7 @@ class OgHttp2Session : public Http2Session,
         : window_manager(stream_receive_window, std::move(listener)) {}
 
     WindowManager window_manager;
-    DataFrameSource* outbound_body = nullptr;
+    std::unique_ptr<DataFrameSource> outbound_body;
     std::unique_ptr<spdy::SpdyHeaderBlock> trailers;
     void* user_data = nullptr;
     int32_t send_window = kInitialFlowControlWindowSize;

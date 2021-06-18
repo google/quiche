@@ -284,13 +284,13 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequest) {
   EXPECT_FALSE(adapter->session().want_write());
   const char* kSentinel = "";
   const absl::string_view kBody = "This is an example request body.";
-  TestDataFrameSource body1(visitor, kBody);
+  auto body1 = absl::make_unique<TestDataFrameSource>(visitor, kBody);
   int stream_id =
       adapter->SubmitRequest(ToHeaders({{":method", "POST"},
                                         {":scheme", "http"},
                                         {":authority", "example.com"},
                                         {":path", "/this/is/request/one"}}),
-                             &body1, const_cast<char*>(kSentinel));
+                             std::move(body1), const_cast<char*>(kSentinel));
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(adapter->session().want_write());
   result = adapter->Send();
@@ -389,7 +389,7 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProvider) {
                                         {":scheme", "http"},
                                         {":authority", "example.com"},
                                         {":path", "/this/is/request/one"}}),
-                             frame_source.get(), nullptr);
+                             std::move(frame_source), nullptr);
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(adapter->session().want_write());
   result = adapter->Send();
@@ -423,7 +423,7 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProviderAndReadBlock) {
                                         {":scheme", "http"},
                                         {":authority", "example.com"},
                                         {":path", "/this/is/request/one"}}),
-                             frame_source.get(), nullptr);
+                             std::move(frame_source), nullptr);
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(adapter->session().want_write());
 
@@ -475,7 +475,7 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProviderAndWriteBlock) {
                                         {":scheme", "http"},
                                         {":authority", "example.com"},
                                         {":path", "/this/is/request/one"}}),
-                             frame_source.get(), nullptr);
+                             std::move(frame_source), nullptr);
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(adapter->session().want_write());
 
@@ -664,12 +664,13 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
 
   EXPECT_FALSE(adapter->session().want_write());
   const absl::string_view kBody = "This is an example response body.";
-  TestDataFrameSource body1(visitor, kBody, /*has_fin=*/false);
+  auto body1 =
+      absl::make_unique<TestDataFrameSource>(visitor, kBody, /*has_fin=*/false);
   int submit_result = adapter->SubmitResponse(
       1,
       ToHeaders({{":status", "404"},
                  {"x-comment", "I have no idea what you're talking about."}}),
-      &body1);
+      std::move(body1));
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(adapter->session().want_write());
 
@@ -783,10 +784,11 @@ TEST(NgHttp2AdapterTest, ServerSendsTrailers) {
 
   // The body source must indicate that the end of the body is not the end of
   // the stream.
-  TestDataFrameSource body1(visitor, kBody, /*has_fin=*/false);
+  auto body1 =
+      absl::make_unique<TestDataFrameSource>(visitor, kBody, /*has_fin=*/false);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
-      &body1);
+      std::move(body1));
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(adapter->session().want_write());
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));

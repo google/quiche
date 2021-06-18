@@ -47,11 +47,10 @@ class OgHttp2Adapter : public Http2Adapter {
                                  size_t num_bytes) override;
   void SubmitRst(Http2StreamId stream_id, Http2ErrorCode error_code) override;
   int32_t SubmitRequest(absl::Span<const Header> headers,
-                        DataFrameSource* data_source,
+                        std::unique_ptr<DataFrameSource> data_source,
                         void* user_data) override;
-  int32_t SubmitResponse(Http2StreamId stream_id,
-                         absl::Span<const Header> headers,
-                         DataFrameSource* data_source) override;
+  int SubmitResponse(Http2StreamId stream_id, absl::Span<const Header> headers,
+                     std::unique_ptr<DataFrameSource> data_source) override;
 
   int SubmitTrailer(Http2StreamId stream_id,
                     absl::Span<const Header> trailers) override;

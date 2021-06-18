@@ -107,19 +107,16 @@ class Http2Adapter {
 
   // Returns the assigned stream ID if the operation succeeds. Otherwise,
   // returns a negative integer indicating an error code. |data_source| may be
-  // nullptr if the request does not have a body. Does not take ownership of
-  // |data_source|, which should be deleted by the caller when the stream is
-  // closed.
+  // nullptr if the request does not have a body.
   virtual int32_t SubmitRequest(absl::Span<const Header> headers,
-                                DataFrameSource* data_source,
+                                std::unique_ptr<DataFrameSource> data_source,
                                 void* user_data) = 0;
 
   // Returns 0 on success. |data_source| may be nullptr if the response does not
-  // have a body. Does not take ownership of |data_source|, which should be
-  // deleted by the caller when the stream is closed.
-  virtual int32_t SubmitResponse(Http2StreamId stream_id,
-                                 absl::Span<const Header> headers,
-                                 DataFrameSource* data_source) = 0;
+  // have a body.
+  virtual int SubmitResponse(Http2StreamId stream_id,
+                             absl::Span<const Header> headers,
+                             std::unique_ptr<DataFrameSource> data_source) = 0;
 
   // Queues trailers to be sent after any outstanding data on the stream with ID
   // |stream_id|. Returns 0 on success.

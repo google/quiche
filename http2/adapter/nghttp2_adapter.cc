@@ -158,37 +158,55 @@ void NgHttp2Adapter::SubmitRst(Http2StreamId stream_id,
   }
 }
 
-int32_t NgHttp2Adapter::SubmitRequest(absl::Span<const Header> headers,
-                                      DataFrameSource* data_source,
-                                      void* user_data) {
+int32_t NgHttp2Adapter::SubmitRequest(
+    absl::Span<const Header> headers,
+    std::unique_ptr<DataFrameSource> data_source, void* stream_user_data) {
   auto nvs = GetNghttp2Nvs(headers);
   std::unique_ptr<nghttp2_data_provider> provider =
-      MakeDataProvider(data_source);
-  return nghttp2_submit_request(session_->raw_ptr(), nullptr, nvs.data(),
-                                nvs.size(), provider.get(), user_data);
+      MakeDataProvider(data_source.get());
+
+  int32_t stream_id =
+      nghttp2_submit_request(session_->raw_ptr(), nullptr, nvs.data(),
+                             nvs.size(), provider.get(), stream_user_data);
+  // TODO(birenroy): clean up data source on stream close
+  sources_.emplace(stream_id, std::move(data_source));
+  QUICHE_VLOG(1) << "Submitted request with " << nvs.size()
+                 << " request headers and user data " << stream_user_data
+                 << "; resulted in stream " << stream_id;
+  return stream_id;
 }
 
-int32_t NgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
-                                       absl::Span<const Header> headers,
-                                       DataFrameSource* data_source) {
+int NgHttp2Adapter::SubmitResponse(
+    Http2StreamId stream_id, absl::Span<const Header> headers,
+    std::unique_ptr<DataFrameSource> data_source) {
   auto nvs = GetNghttp2Nvs(headers);
   std::unique_ptr<nghttp2_data_provider> provider =
-      MakeDataProvider(data_source);
-  return nghttp2_submit_response(session_->raw_ptr(), stream_id, nvs.data(),
-                                 nvs.size(), provider.get());
+      MakeDataProvider(data_source.get());
+
+  // TODO(birenroy): clean up data source on stream close
+  sources_.emplace(stream_id, std::move(data_source));
+
+  int result = nghttp2_submit_response(session_->raw_ptr(), stream_id,
+                                       nvs.data(), nvs.size(), provider.get());
+  QUICHE_VLOG(1) << "Submitted response with " << nvs.size()
+                 << " response headers; result = " << result;
+  return result;
 }
 
 int NgHttp2Adapter::SubmitTrailer(Http2StreamId stream_id,
                                   absl::Span<const Header> trailers) {
   auto nvs = GetNghttp2Nvs(trailers);
-  return nghttp2_submit_trailer(session_->raw_ptr(), stream_id, nvs.data(),
-                                nvs.size());
+  int result = nghttp2_submit_trailer(session_->raw_ptr(), stream_id,
+                                      nvs.data(), nvs.size());
+  QUICHE_VLOG(1) << "Submitted trailers with " << nvs.size()
+                 << " response trailers; result = " << result;
+  return result;
 }
 
 void NgHttp2Adapter::SetStreamUserData(Http2StreamId stream_id,
-                                       void* user_data) {
+                                       void* stream_user_data) {
   nghttp2_session_set_stream_user_data(session_->raw_ptr(), stream_id,
-                                       user_data);
+                                       stream_user_data);
 }
 
 void* NgHttp2Adapter::GetStreamUserData(Http2StreamId stream_id) {
