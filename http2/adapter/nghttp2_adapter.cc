@@ -14,16 +14,16 @@ namespace adapter {
 
 /* static */
 std::unique_ptr<NgHttp2Adapter> NgHttp2Adapter::CreateClientAdapter(
-    Http2VisitorInterface& visitor) {
-  auto adapter = new NgHttp2Adapter(visitor, Perspective::kClient);
+    Http2VisitorInterface& visitor, const nghttp2_option* options) {
+  auto adapter = new NgHttp2Adapter(visitor, Perspective::kClient, options);
   adapter->Initialize();
   return absl::WrapUnique(adapter);
 }
 
 /* static */
 std::unique_ptr<NgHttp2Adapter> NgHttp2Adapter::CreateServerAdapter(
-    Http2VisitorInterface& visitor) {
-  auto adapter = new NgHttp2Adapter(visitor, Perspective::kServer);
+    Http2VisitorInterface& visitor, const nghttp2_option* options) {
+  auto adapter = new NgHttp2Adapter(visitor, Perspective::kServer, options);
   adapter->Initialize();
   return absl::WrapUnique(adapter);
 }
@@ -218,23 +218,34 @@ bool NgHttp2Adapter::ResumeStream(Http2StreamId stream_id) {
 }
 
 NgHttp2Adapter::NgHttp2Adapter(Http2VisitorInterface& visitor,
-                               Perspective perspective)
-    : Http2Adapter(visitor), visitor_(visitor), perspective_(perspective) {}
+                               Perspective perspective,
+                               const nghttp2_option* options)
+    : Http2Adapter(visitor),
+      visitor_(visitor),
+      options_(options),
+      perspective_(perspective) {}
 
 NgHttp2Adapter::~NgHttp2Adapter() {}
 
 void NgHttp2Adapter::Initialize() {
-  nghttp2_option* options;
-  nghttp2_option_new(&options);
-  // Set some common options for compatibility.
-  nghttp2_option_set_no_closed_streams(options, 1);
-  nghttp2_option_set_no_auto_window_update(options, 1);
-  nghttp2_option_set_max_send_header_block_length(options, 0x2000000);
-  nghttp2_option_set_max_outbound_ack(options, 10000);
+  nghttp2_option* owned_options = nullptr;
+  if (options_ == nullptr) {
+    nghttp2_option_new(&owned_options);
+    // Set some common options for compatibility.
+    nghttp2_option_set_no_closed_streams(owned_options, 1);
+    nghttp2_option_set_no_auto_window_update(owned_options, 1);
+    nghttp2_option_set_max_send_header_block_length(owned_options, 0x2000000);
+    nghttp2_option_set_max_outbound_ack(owned_options, 10000);
+    options_ = owned_options;
+  }
 
-  session_ =
-      absl::make_unique<NgHttp2Session>(perspective_, callbacks::Create(),
-                                        options, static_cast<void*>(&visitor_));
+  session_ = absl::make_unique<NgHttp2Session>(perspective_,
+                                               callbacks::Create(), options_,
+                                               static_cast<void*>(&visitor_));
+  if (owned_options != nullptr) {
+    nghttp2_option_del(owned_options);
+  }
+  options_ = nullptr;
 }
 
 }  // namespace adapter

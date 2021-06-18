@@ -14,13 +14,15 @@ class NgHttp2Adapter : public Http2Adapter {
  public:
   ~NgHttp2Adapter() override;
 
-  // Creates an adapter that functions as a client.
+  // Creates an adapter that functions as a client. Does not take ownership of
+  // |options|.
   static std::unique_ptr<NgHttp2Adapter> CreateClientAdapter(
-      Http2VisitorInterface& visitor);
+      Http2VisitorInterface& visitor, const nghttp2_option* options = nullptr);
 
-  // Creates an adapter that functions as a server.
+  // Creates an adapter that functions as a server. Does not take ownership of
+  // |options|.
   static std::unique_ptr<NgHttp2Adapter> CreateServerAdapter(
-      Http2VisitorInterface& visitor);
+      Http2VisitorInterface& visitor, const nghttp2_option* options = nullptr);
 
   bool IsServerSession() const override;
 
@@ -85,7 +87,8 @@ class NgHttp2Adapter : public Http2Adapter {
   NgHttp2Session& session() { return *session_; }
 
  private:
-  NgHttp2Adapter(Http2VisitorInterface& visitor, Perspective perspective);
+  NgHttp2Adapter(Http2VisitorInterface& visitor, Perspective perspective,
+                 const nghttp2_option* options);
 
   // Performs any necessary initialization of the underlying HTTP/2 session,
   // such as preparing initial SETTINGS.
@@ -93,6 +96,7 @@ class NgHttp2Adapter : public Http2Adapter {
 
   std::unique_ptr<NgHttp2Session> session_;
   Http2VisitorInterface& visitor_;
+  const nghttp2_option* options_;
   Perspective perspective_;
 
   absl::flat_hash_map<int32_t, std::unique_ptr<DataFrameSource>> sources_;

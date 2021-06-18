@@ -28,12 +28,12 @@ enum FrameType {
 
 class NgHttp2SessionTest : public testing::Test {
  public:
-  nghttp2_option* CreateOptions() {
-    nghttp2_option* options;
-    nghttp2_option_new(&options);
-    nghttp2_option_set_no_auto_window_update(options, 1);
-    return options;
+  void SetUp() override {
+    nghttp2_option_new(&options_);
+    nghttp2_option_set_no_auto_window_update(options_, 1);
   }
+
+  void TearDown() override { nghttp2_option_del(options_); }
 
   nghttp2_session_callbacks_unique_ptr CreateCallbacks() {
     nghttp2_session_callbacks_unique_ptr callbacks = callbacks::Create();
@@ -41,11 +41,12 @@ class NgHttp2SessionTest : public testing::Test {
   }
 
   DataSavingVisitor visitor_;
+  nghttp2_option* options_ = nullptr;
 };
 
 TEST_F(NgHttp2SessionTest, ClientConstruction) {
-  NgHttp2Session session(Perspective::kClient, CreateCallbacks(),
-                         CreateOptions(), &visitor_);
+  NgHttp2Session session(Perspective::kClient, CreateCallbacks(), options_,
+                         &visitor_);
   EXPECT_TRUE(session.want_read());
   EXPECT_FALSE(session.want_write());
   EXPECT_EQ(session.GetRemoteWindowSize(), kInitialFlowControlWindowSize);
@@ -53,8 +54,8 @@ TEST_F(NgHttp2SessionTest, ClientConstruction) {
 }
 
 TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
-  NgHttp2Session session(Perspective::kClient, CreateCallbacks(),
-                         CreateOptions(), &visitor_);
+  NgHttp2Session session(Perspective::kClient, CreateCallbacks(), options_,
+                         &visitor_);
 
   ASSERT_EQ(0, nghttp2_session_send(session.raw_ptr()));
   ASSERT_GT(visitor_.data().size(), 0);
@@ -191,8 +192,8 @@ TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
 }
 
 TEST_F(NgHttp2SessionTest, ServerConstruction) {
-  NgHttp2Session session(Perspective::kServer, CreateCallbacks(),
-                         CreateOptions(), &visitor_);
+  NgHttp2Session session(Perspective::kServer, CreateCallbacks(), options_,
+                         &visitor_);
   EXPECT_TRUE(session.want_read());
   EXPECT_FALSE(session.want_write());
   EXPECT_EQ(session.GetRemoteWindowSize(), kInitialFlowControlWindowSize);
@@ -200,8 +201,8 @@ TEST_F(NgHttp2SessionTest, ServerConstruction) {
 }
 
 TEST_F(NgHttp2SessionTest, ServerHandlesFrames) {
-  NgHttp2Session session(Perspective::kServer, CreateCallbacks(),
-                         CreateOptions(), &visitor_);
+  NgHttp2Session session(Perspective::kServer, CreateCallbacks(), options_,
+                         &visitor_);
 
   const std::string frames = TestFrameSequence()
                                  .ClientPreface()
