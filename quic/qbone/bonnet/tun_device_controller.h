@@ -50,6 +50,9 @@ class TunDeviceController {
       const std::vector<IpRange>& desired_routes,
       int retries);
 
+  virtual void RegisterAddressUpdateCallback(
+      const std::function<void(QuicIpAddress)>& cb);
+
   virtual QuicIpAddress current_address();
 
  private:
@@ -62,6 +65,8 @@ class TunDeviceController {
   NetlinkInterface* netlink_;
 
   QuicIpAddress current_address_;
+
+  std::vector<std::function<void(QuicIpAddress)>> address_update_cbs_;
 };
 
 }  // namespace quic

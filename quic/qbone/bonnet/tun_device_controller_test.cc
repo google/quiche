@@ -44,8 +44,10 @@ class TunDeviceControllerTest : public QuicTest {
  public:
   TunDeviceControllerTest()
       : controller_(kIfname, true, &netlink_),
-        link_local_range_(
-            *QboneConstants::TerminatorLocalAddressRange()) {}
+        link_local_range_(*QboneConstants::TerminatorLocalAddressRange()) {
+    controller_.RegisterAddressUpdateCallback(
+        [this](QuicIpAddress address) { notified_address_ = address; });
+  }
 
  protected:
   void ExpectLinkInfo(const std::string& interface_name, int ifindex) {
@@ -60,6 +62,7 @@ class TunDeviceControllerTest : public QuicTest {
 
   MockNetlink netlink_;
   TunDeviceController controller_;
+  QuicIpAddress notified_address_;
 
   IpRange link_local_range_;
 };
@@ -77,6 +80,7 @@ TEST_F(TunDeviceControllerTest, AddressAppliedWhenNoneExisted) {
       .WillOnce(Return(true));
 
   EXPECT_TRUE(controller_.UpdateAddress(kIpRange));
+  EXPECT_THAT(notified_address_, Eq(kIpRange.FirstAddressInRange()));
 }
 
 TEST_F(TunDeviceControllerTest, OldAddressesAreRemoved) {
@@ -110,6 +114,7 @@ TEST_F(TunDeviceControllerTest, OldAddressesAreRemoved) {
       .WillOnce(Return(true));
 
   EXPECT_TRUE(controller_.UpdateAddress(kIpRange));
+  EXPECT_THAT(notified_address_, Eq(kIpRange.FirstAddressInRange()));
 }
 
 TEST_F(TunDeviceControllerTest, UpdateRoutesRemovedOldRoutes) {

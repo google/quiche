@@ -49,6 +49,10 @@ bool TunDeviceController::UpdateAddress(const IpRange& desired_range) {
 
   if (address_updated) {
     current_address_ = desired_address;
+
+    for (const auto& cb : address_update_cbs_) {
+      cb(current_address_);
+    }
   }
 
   return address_updated;
@@ -159,6 +163,11 @@ bool TunDeviceController::UpdateRules(IpRange desired_range) {
 
 QuicIpAddress TunDeviceController::current_address() {
   return current_address_;
+}
+
+void TunDeviceController::RegisterAddressUpdateCallback(
+    const std::function<void(QuicIpAddress)>& cb) {
+  address_update_cbs_.push_back(cb);
 }
 
 }  // namespace quic
