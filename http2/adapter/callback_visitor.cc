@@ -113,12 +113,16 @@ void CallbackVisitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
   it->second->received_headers = true;
 }
 
-void CallbackVisitor::OnHeaderForStream(Http2StreamId stream_id,
+bool CallbackVisitor::OnHeaderForStream(Http2StreamId stream_id,
                                         absl::string_view name,
                                         absl::string_view value) {
-  callbacks_->on_header_callback(
-      nullptr, &current_frame_, ToUint8Ptr(name.data()), name.size(),
-      ToUint8Ptr(value.data()), value.size(), NGHTTP2_NV_FLAG_NONE, user_data_);
+  if (callbacks_->on_header_callback) {
+    return 0 == callbacks_->on_header_callback(
+                    nullptr, &current_frame_, ToUint8Ptr(name.data()),
+                    name.size(), ToUint8Ptr(value.data()), value.size(),
+                    NGHTTP2_NV_FLAG_NONE, user_data_);
+  }
+  return true;
 }
 
 void CallbackVisitor::OnEndHeadersForStream(Http2StreamId stream_id) {

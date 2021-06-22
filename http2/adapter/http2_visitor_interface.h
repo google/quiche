@@ -83,8 +83,10 @@ class Http2VisitorInterface {
   // Called when the connection receives the header |key| and |value| for a
   // stream. The HTTP/2 pseudo-headers defined in RFC 7540 Sections 8.1.2.3 and
   // 8.1.2.4 are also conveyed in this callback. This method is called after
-  // OnBeginHeadersForStream().
-  virtual void OnHeaderForStream(Http2StreamId stream_id, absl::string_view key,
+  // OnBeginHeadersForStream(). Should return "false" to indicate that the
+  // header name or value should be rejected. This will cause the HTTP
+  // transaction to fail.
+  virtual bool OnHeaderForStream(Http2StreamId stream_id, absl::string_view key,
                                  absl::string_view value) = 0;
 
   // Called when the connection has received the complete header block for a

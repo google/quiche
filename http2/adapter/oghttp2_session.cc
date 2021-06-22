@@ -428,6 +428,12 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
     iter->second.half_closed_remote = true;
   }
   visitor_.OnEndStream(stream_id);
+  if (iter != stream_map_.end() && iter->second.half_closed_local &&
+      options_.perspective == Perspective::kClient) {
+    // From the client's perspective, the stream can be closed if it's already
+    // half_closed_local.
+    visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+  }
 }
 
 void OgHttp2Session::OnStreamPadLength(spdy::SpdyStreamId stream_id,

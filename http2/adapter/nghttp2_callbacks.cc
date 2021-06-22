@@ -161,9 +161,9 @@ int OnHeader(nghttp2_session* /* session */,
              void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
-  visitor->OnHeaderForStream(frame->hd.stream_id, ToStringView(name),
-                             ToStringView(value));
-  return 0;
+  const bool success = visitor->OnHeaderForStream(
+      frame->hd.stream_id, ToStringView(name), ToStringView(value));
+  return success ? 0 : NGHTTP2_ERR_HTTP_HEADER;
 }
 
 int OnDataChunk(nghttp2_session* /* session */,

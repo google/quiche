@@ -45,11 +45,12 @@ void RecordingHttp2Visitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
   events_.push_back(absl::StrFormat("OnBeginHeadersForStream %d", stream_id));
 }
 
-void RecordingHttp2Visitor::OnHeaderForStream(Http2StreamId stream_id,
+bool RecordingHttp2Visitor::OnHeaderForStream(Http2StreamId stream_id,
                                               absl::string_view name,
                                               absl::string_view value) {
   events_.push_back(
       absl::StrFormat("OnHeaderForStream %d %s %s", stream_id, name, value));
+  return true;
 }
 
 void RecordingHttp2Visitor::OnEndHeadersForStream(Http2StreamId stream_id) {

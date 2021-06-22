@@ -11,7 +11,9 @@ namespace test {
 // A mock visitor class, for use in tests.
 class MockHttp2Visitor : public Http2VisitorInterface {
  public:
-  MockHttp2Visitor() = default;
+  MockHttp2Visitor() {
+    ON_CALL(*this, OnHeaderForStream).WillByDefault(testing::Return(true));
+  }
 
   MOCK_METHOD(ssize_t,
               OnReadyToSend,
@@ -32,10 +34,8 @@ class MockHttp2Visitor : public Http2VisitorInterface {
               (Http2StreamId stream_id),
               (override));
 
-  MOCK_METHOD(void,
-              OnHeaderForStream,
-              (Http2StreamId stream_id,
-               absl::string_view key,
+  MOCK_METHOD(bool, OnHeaderForStream,
+              (Http2StreamId stream_id, absl::string_view key,
                absl::string_view value),
               (override));
 
