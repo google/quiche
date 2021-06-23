@@ -82,6 +82,12 @@ TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
 
   EXPECT_EQ(session.GetRemoteWindowSize(),
             kInitialFlowControlWindowSize + 1000);
+
+  EXPECT_CALL(visitor_, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor_, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor_, OnBeforeFrameSent(PING, 0, 8, 0x1));
+  EXPECT_CALL(visitor_, OnFrameSent(PING, 0, 8, 0x1, 0));
+
   ASSERT_EQ(0, nghttp2_session_send(session.raw_ptr()));
   // Some bytes should have been serialized.
   absl::string_view serialized = visitor_.data();
@@ -127,6 +133,13 @@ TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
       session.raw_ptr(), nullptr, nvs3.data(), nvs3.size(), nullptr, nullptr);
   ASSERT_GT(stream_id3, 0);
   QUICHE_LOG(INFO) << "Created stream: " << stream_id3;
+
+  EXPECT_CALL(visitor_, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
+  EXPECT_CALL(visitor_, OnFrameSent(HEADERS, 1, _, 0x5, 0));
+  EXPECT_CALL(visitor_, OnBeforeFrameSent(HEADERS, 3, _, 0x5));
+  EXPECT_CALL(visitor_, OnFrameSent(HEADERS, 3, _, 0x5, 0));
+  EXPECT_CALL(visitor_, OnBeforeFrameSent(HEADERS, 5, _, 0x5));
+  EXPECT_CALL(visitor_, OnFrameSent(HEADERS, 5, _, 0x5, 0));
 
   ASSERT_EQ(0, nghttp2_session_send(session.raw_ptr()));
   serialized = visitor_.data();
@@ -267,6 +280,13 @@ TEST_F(NgHttp2SessionTest, ServerHandlesFrames) {
 
   EXPECT_EQ(session.GetRemoteWindowSize(),
             kInitialFlowControlWindowSize + 1000);
+
+  EXPECT_CALL(visitor_, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor_, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor_, OnBeforeFrameSent(PING, 0, 8, 0x1));
+  EXPECT_CALL(visitor_, OnFrameSent(PING, 0, 8, 0x1, 0));
+  EXPECT_CALL(visitor_, OnBeforeFrameSent(PING, 0, 8, 0x1));
+  EXPECT_CALL(visitor_, OnFrameSent(PING, 0, 8, 0x1, 0));
 
   EXPECT_TRUE(session.want_write());
   ASSERT_EQ(0, nghttp2_session_send(session.raw_ptr()));

@@ -53,6 +53,10 @@ class CallbackVisitor : public Http2VisitorInterface {
                 Http2ErrorCode error_code,
                 absl::string_view opaque_data) override;
   void OnWindowUpdate(Http2StreamId stream_id, int window_increment) override;
+  int OnBeforeFrameSent(uint8_t frame_type, Http2StreamId stream_id,
+                        size_t length, uint8_t flags) override;
+  int OnFrameSent(uint8_t frame_type, Http2StreamId stream_id, size_t length,
+                  uint8_t flags, uint32_t error_code) override;
   void OnReadyToSendDataForStream(Http2StreamId stream_id,
                                   char* destination_buffer,
                                   size_t length,
@@ -69,6 +73,21 @@ class CallbackVisitor : public Http2VisitorInterface {
   void OnMetadataEndForStream(Http2StreamId stream_id) override;
 
  private:
+  struct StreamInfo {
+    bool before_sent_headers = false;
+    bool sent_headers = false;
+    bool received_headers = false;
+  };
+
+  using StreamInfoMap =
+      absl::flat_hash_map<Http2StreamId, std::unique_ptr<StreamInfo>>;
+
+  void PopulateFrame(nghttp2_frame& frame, uint8_t frame_type,
+                     Http2StreamId stream_id, size_t length, uint8_t flags,
+                     uint32_t error_code, bool sent_headers);
+  // Creates the StreamInfoMap entry if it doesn't exist.
+  StreamInfoMap::iterator GetStreamInfo(Http2StreamId stream_id);
+
   Perspective perspective_;
   nghttp2_session_callbacks_unique_ptr callbacks_;
   void* user_data_;
@@ -77,10 +96,7 @@ class CallbackVisitor : public Http2VisitorInterface {
   std::vector<nghttp2_settings_entry> settings_;
   size_t remaining_data_ = 0;
 
-  struct StreamInfo {
-    bool received_headers = false;
-  };
-  absl::flat_hash_map<Http2StreamId, std::unique_ptr<StreamInfo>> stream_map_;
+  StreamInfoMap stream_map_;
 };
 
 }  // namespace adapter

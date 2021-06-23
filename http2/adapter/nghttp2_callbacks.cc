@@ -166,6 +166,28 @@ int OnHeader(nghttp2_session* /* session */,
   return success ? 0 : NGHTTP2_ERR_HTTP_HEADER;
 }
 
+int OnBeforeFrameSent(nghttp2_session* /* session */,
+                      const nghttp2_frame* frame, void* user_data) {
+  QUICHE_CHECK_NE(user_data, nullptr);
+  auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
+  return visitor->OnBeforeFrameSent(frame->hd.type, frame->hd.stream_id,
+                                    frame->hd.length, frame->hd.flags);
+}
+
+int OnFrameSent(nghttp2_session* /* session */, const nghttp2_frame* frame,
+                void* user_data) {
+  QUICHE_CHECK_NE(user_data, nullptr);
+  auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
+  uint32_t error_code = 0;
+  if (frame->hd.type == NGHTTP2_RST_STREAM) {
+    error_code = frame->rst_stream.error_code;
+  } else if (frame->hd.type == NGHTTP2_GOAWAY) {
+    error_code = frame->goaway.error_code;
+  }
+  return visitor->OnFrameSent(frame->hd.type, frame->hd.stream_id,
+                              frame->hd.length, frame->hd.flags, error_code);
+}
+
 int OnDataChunk(nghttp2_session* /* session */,
                 uint8_t flags,
                 Http2StreamId stream_id,
@@ -205,6 +227,9 @@ nghttp2_session_callbacks_unique_ptr Create() {
                                                             &OnDataChunk);
   nghttp2_session_callbacks_set_on_stream_close_callback(callbacks,
                                                          &OnStreamClosed);
+  nghttp2_session_callbacks_set_before_frame_send_callback(callbacks,
+                                                           &OnBeforeFrameSent);
+  nghttp2_session_callbacks_set_on_frame_send_callback(callbacks, &OnFrameSent);
   nghttp2_session_callbacks_set_send_data_callback(
       callbacks, &DataFrameSourceSendCallback);
   return MakeCallbacksPtr(callbacks);

@@ -51,6 +51,10 @@ class RecordingHttp2Visitor : public Http2VisitorInterface {
                 Http2ErrorCode error_code,
                 absl::string_view opaque_data) override;
   void OnWindowUpdate(Http2StreamId stream_id, int window_increment) override;
+  int OnBeforeFrameSent(uint8_t frame_type, Http2StreamId stream_id,
+                        size_t length, uint8_t flags) override;
+  int OnFrameSent(uint8_t frame_type, Http2StreamId stream_id, size_t length,
+                  uint8_t flags, uint32_t error_code) override;
   void OnReadyToSendDataForStream(Http2StreamId stream_id,
                                   char* destination_buffer,
                                   size_t length,

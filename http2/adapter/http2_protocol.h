@@ -62,6 +62,19 @@ ABSL_CONST_INIT extern const char kHttp2AuthorityPseudoHeader[];
 ABSL_CONST_INIT extern const char kHttp2PathPseudoHeader[];
 ABSL_CONST_INIT extern const char kHttp2StatusPseudoHeader[];
 
+enum class FrameType : uint8_t {
+  DATA = 0x0,
+  HEADERS,
+  PRIORITY,
+  RST_STREAM,
+  SETTINGS,
+  PUSH_PROMISE,
+  PING,
+  GOAWAY,
+  WINDOW_UPDATE,
+  CONTINUATION,
+};
+
 // HTTP/2 error codes as specified in RFC 7540 Section 7.
 enum class Http2ErrorCode {
   NO_ERROR = 0x0,

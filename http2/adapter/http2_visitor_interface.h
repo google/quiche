@@ -140,6 +140,18 @@ class Http2VisitorInterface {
   virtual void OnWindowUpdate(Http2StreamId stream_id,
                               int window_increment) = 0;
 
+  // Called immediately before a frame of the given type is sent. Should return
+  // 0 on success.
+  virtual int OnBeforeFrameSent(uint8_t frame_type, Http2StreamId stream_id,
+                                size_t length, uint8_t flags) = 0;
+
+  // Called immediately after a frame of the given type is sent. Should return 0
+  // on success. |error_code| is only populated for RST_STREAM and GOAWAY frame
+  // types.
+  virtual int OnFrameSent(uint8_t frame_type, Http2StreamId stream_id,
+                          size_t length, uint8_t flags,
+                          uint32_t error_code) = 0;
+
   // Called when the connection is ready to send data for a stream. The
   // implementation should write at most |length| bytes of the data payload to
   // the |destination_buffer| and set |end_stream| to true IFF there will be no

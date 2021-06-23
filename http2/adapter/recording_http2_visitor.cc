@@ -118,6 +118,22 @@ void RecordingHttp2Visitor::OnWindowUpdate(Http2StreamId stream_id,
       absl::StrFormat("OnWindowUpdate %d %d", stream_id, window_increment));
 }
 
+int RecordingHttp2Visitor::OnBeforeFrameSent(uint8_t frame_type,
+                                             Http2StreamId stream_id,
+                                             size_t length, uint8_t flags) {
+  events_.push_back(absl::StrFormat("OnBeforeFrameSent %d %d %d %d", frame_type,
+                                    stream_id, length, flags));
+  return 0;
+}
+
+int RecordingHttp2Visitor::OnFrameSent(uint8_t frame_type,
+                                       Http2StreamId stream_id, size_t length,
+                                       uint8_t flags, uint32_t error_code) {
+  events_.push_back(absl::StrFormat("OnFrameSent %d %d %d %d %d", frame_type,
+                                    stream_id, length, flags, error_code));
+  return 0;
+}
+
 void RecordingHttp2Visitor::OnReadyToSendDataForStream(Http2StreamId stream_id,
                                                        char* destination_buffer,
                                                        size_t length,

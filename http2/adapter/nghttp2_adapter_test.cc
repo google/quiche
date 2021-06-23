@@ -86,8 +86,14 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   EXPECT_EQ(initial_frames.size(), initial_result);
 
   EXPECT_EQ(adapter->GetSendWindowSize(), kInitialFlowControlWindowSize + 1000);
-  // Some bytes should have been serialized.
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(PING, 0, 8, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(PING, 0, 8, 0x1, 0));
+
   result = adapter->Send();
+  // Some bytes should have been serialized.
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
                                             spdy::SpdyFrameType::PING}));
@@ -130,6 +136,13 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   const char* kSentinel2 = "arbitrary pointer 2";
   adapter->SetStreamUserData(stream_id2, const_cast<char*>(kSentinel2));
   adapter->SetStreamUserData(stream_id3, nullptr);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id2, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id2, _, 0x5, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id3, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id3, _, 0x5, 0));
 
   result = adapter->Send();
   EXPECT_EQ(0, result);
@@ -263,6 +276,9 @@ TEST(NgHttp2AdapterTest, ClientHandlesTrailers) {
   ASSERT_GT(stream_id1, 0);
   QUICHE_LOG(INFO) << "Created stream: " << stream_id1;
 
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+
   int result = adapter->Send();
   EXPECT_EQ(0, result);
   absl::string_view data = visitor.data();
@@ -309,6 +325,9 @@ TEST(NgHttp2AdapterTest, ClientHandlesTrailers) {
   const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
   EXPECT_TRUE(adapter->session().want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
@@ -332,6 +351,9 @@ TEST(NgHttp2AdapterTest, ClientHandlesInvalidTrailers) {
       adapter->SubmitRequest(headers1, nullptr, const_cast<char*>(kSentinel1));
   ASSERT_GT(stream_id1, 0);
   QUICHE_LOG(INFO) << "Created stream: " << stream_id1;
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
 
   int result = adapter->Send();
   EXPECT_EQ(0, result);
@@ -374,10 +396,15 @@ TEST(NgHttp2AdapterTest, ClientHandlesInvalidTrailers) {
 
   // Bad status trailer will cause a PROTOCOL_ERROR. The header is never
   // delivered in an OnHeaderForStream callback.
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::PROTOCOL_ERROR));
 
   const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, stream_id1, 4, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(RST_STREAM, stream_id1, 4, 0x0, 1));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::PROTOCOL_ERROR));
 
   EXPECT_TRUE(adapter->session().want_write());
   result = adapter->Send();
@@ -409,6 +436,10 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequest) {
   EXPECT_EQ(initial_frames.size(), initial_result);
 
   EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
@@ -427,6 +458,11 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequest) {
                              std::move(body1), const_cast<char*>(kSentinel));
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, _, 0x1, 0));
+
   result = adapter->Send();
   EXPECT_EQ(0, result);
 
@@ -463,6 +499,9 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequest) {
   const char* kSentinel2 = "arbitrary pointer 2";
   EXPECT_EQ(nullptr, adapter->GetStreamUserData(stream_id));
   adapter->SetStreamUserData(stream_id, const_cast<char*>(kSentinel2));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x5, 0));
 
   result = adapter->Send();
   EXPECT_EQ(0, result);
@@ -501,6 +540,10 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProvider) {
   EXPECT_EQ(initial_frames.size(), initial_result);
 
   EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
@@ -526,6 +569,11 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProvider) {
                              std::move(frame_source), nullptr);
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, _, 0x1, 0));
+
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
@@ -561,6 +609,9 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProviderAndReadBlock) {
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(adapter->session().want_write());
 
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
+
   int result = adapter->Send();
   EXPECT_EQ(0, result);
   // Client preface does not appear to include the mandatory SETTINGS frame.
@@ -576,6 +627,8 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProviderAndReadBlock) {
   body1.set_is_data_available(true);
   EXPECT_TRUE(adapter->ResumeStream(stream_id));
   EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, _, 0x1, 0));
 
   result = adapter->Send();
   EXPECT_EQ(0, result);
@@ -618,6 +671,10 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProviderAndWriteBlock) {
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), testing::IsEmpty());
   EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, _, 0x1, 0));
 
   visitor.set_is_write_blocked(false);
   result = adapter->Send();
@@ -738,8 +795,16 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
   EXPECT_EQ(adapter->GetSendWindowSize(), kInitialFlowControlWindowSize + 1000);
 
   EXPECT_TRUE(adapter->session().want_write());
-  // Some bytes should have been serialized.
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(PING, 0, 8, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(PING, 0, 8, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(PING, 0, 8, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(PING, 0, 8, 0x1, 0));
+
   int send_result = adapter->Send();
+  // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
   // SETTINGS ack, two PING acks.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
@@ -789,6 +854,10 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
 
   // Server will want to send a SETTINGS ack.
   EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
@@ -812,6 +881,10 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
   EXPECT_EQ(kSentinel1, adapter->GetStreamUserData(1));
   adapter->SetStreamUserData(1, nullptr);
   EXPECT_EQ(nullptr, adapter->GetStreamUserData(1));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
@@ -867,6 +940,12 @@ TEST(NgHttp2AdapterTest, ServerSendsShutdown) {
   adapter->SubmitShutdownNotice();
 
   EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(GOAWAY, 0, _, 0x0, 0));
+
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
@@ -908,6 +987,10 @@ TEST(NgHttp2AdapterTest, ServerSendsTrailers) {
 
   // Server will want to send a SETTINGS ack.
   EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
@@ -925,7 +1008,11 @@ TEST(NgHttp2AdapterTest, ServerSendsTrailers) {
       std::move(body1));
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(adapter->session().want_write());
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
+
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
@@ -940,6 +1027,10 @@ TEST(NgHttp2AdapterTest, ServerSendsTrailers) {
                     {"x-comment", "trailers sure are cool"}}));
   ASSERT_EQ(trailer_result, 0);
   EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
@@ -990,7 +1081,13 @@ TEST(NgHttp2AdapterTest, ServerSendsInvalidTrailers) {
       std::move(body1));
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(adapter->session().want_write());
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
+
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
@@ -1005,6 +1102,10 @@ TEST(NgHttp2AdapterTest, ServerSendsInvalidTrailers) {
       adapter->SubmitTrailer(1, ToHeaders({{":final-status", "a-ok"}}));
   ASSERT_EQ(trailer_result, 0);
   EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);

@@ -38,7 +38,15 @@ int OnHeader(nghttp2_session* session, const nghttp2_frame* frame,
              nghttp2_rcbuf* name, nghttp2_rcbuf* value, uint8_t flags,
              void* user_data);
 
-// Callback once a chunk of data (from a DATA frame payload) has been received.
+// Invoked immediately before sending a frame.
+int OnBeforeFrameSent(nghttp2_session* session, const nghttp2_frame* frame,
+                      void* user_data);
+
+// Invoked immediately after a frame is sent.
+int OnFrameSent(nghttp2_session* session, const nghttp2_frame* frame,
+                void* user_data);
+
+// Invoked when a chunk of data (from a DATA frame payload) has been received.
 int OnDataChunk(nghttp2_session* session, uint8_t flags,
                 Http2StreamId stream_id, const uint8_t* data, size_t len,
                 void* user_data);

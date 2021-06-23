@@ -6,6 +6,99 @@
 namespace http2 {
 namespace adapter {
 
+namespace {
+
+// TODO(birenroy): Consider incorporating spdy::FlagsSerializionVisitor here.
+class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
+ public:
+  FrameAttributeCollector() = default;
+  void VisitData(const spdy::SpdyDataIR& data) override {
+    frame_type_ = static_cast<uint8_t>(data.frame_type());
+    stream_id_ = data.stream_id();
+    length_ =
+        data.data_len() + (data.padded() ? 1 : 0) + data.padding_payload_len();
+    flags_ = (data.fin() ? 0x1 : 0) | (data.padded() ? 0x8 : 0);
+  }
+  void VisitHeaders(const spdy::SpdyHeadersIR& headers) override {
+    frame_type_ = static_cast<uint8_t>(headers.frame_type());
+    stream_id_ = headers.stream_id();
+    length_ = headers.size() - spdy::kFrameHeaderSize;
+    flags_ = 0x4 | (headers.fin() ? 0x1 : 0) | (headers.padded() ? 0x8 : 0) |
+             (headers.has_priority() ? 0x20 : 0);
+  }
+  void VisitPriority(const spdy::SpdyPriorityIR& priority) override {
+    frame_type_ = static_cast<uint8_t>(priority.frame_type());
+    frame_type_ = 2;
+    length_ = 5;
+    stream_id_ = priority.stream_id();
+  }
+  void VisitRstStream(const spdy::SpdyRstStreamIR& rst_stream) override {
+    frame_type_ = static_cast<uint8_t>(rst_stream.frame_type());
+    frame_type_ = 3;
+    length_ = 4;
+    stream_id_ = rst_stream.stream_id();
+    error_code_ = rst_stream.error_code();
+  }
+  void VisitSettings(const spdy::SpdySettingsIR& settings) override {
+    frame_type_ = static_cast<uint8_t>(settings.frame_type());
+    frame_type_ = 4;
+    length_ = 6 * settings.values().size();
+    flags_ = (settings.is_ack() ? 0x1 : 0);
+  }
+  void VisitPushPromise(const spdy::SpdyPushPromiseIR& push_promise) override {
+    frame_type_ = static_cast<uint8_t>(push_promise.frame_type());
+    frame_type_ = 5;
+    length_ = push_promise.size() - spdy::kFrameHeaderSize;
+    stream_id_ = push_promise.stream_id();
+    flags_ = (push_promise.padded() ? 0x8 : 0);
+  }
+  void VisitPing(const spdy::SpdyPingIR& ping) override {
+    frame_type_ = static_cast<uint8_t>(ping.frame_type());
+    frame_type_ = 6;
+    length_ = 8;
+    flags_ = (ping.is_ack() ? 0x1 : 0);
+  }
+  void VisitGoAway(const spdy::SpdyGoAwayIR& goaway) override {
+    frame_type_ = static_cast<uint8_t>(goaway.frame_type());
+    frame_type_ = 7;
+    length_ = goaway.size() - spdy::kFrameHeaderSize;
+    error_code_ = goaway.error_code();
+  }
+  void VisitWindowUpdate(
+      const spdy::SpdyWindowUpdateIR& window_update) override {
+    frame_type_ = static_cast<uint8_t>(window_update.frame_type());
+    frame_type_ = 8;
+    length_ = 4;
+    stream_id_ = window_update.stream_id();
+  }
+  void VisitContinuation(
+      const spdy::SpdyContinuationIR& continuation) override {
+    frame_type_ = static_cast<uint8_t>(continuation.frame_type());
+    stream_id_ = continuation.stream_id();
+    flags_ = continuation.end_headers() ? 0x4 : 0;
+    length_ = continuation.size() - spdy::kFrameHeaderSize;
+  }
+  void VisitAltSvc(const spdy::SpdyAltSvcIR& altsvc) override {}
+  void VisitPriorityUpdate(
+      const spdy::SpdyPriorityUpdateIR& priority_update) override {}
+  void VisitAcceptCh(const spdy::SpdyAcceptChIR& accept_ch) override {}
+
+  uint32_t stream_id() { return stream_id_; }
+  uint32_t length() { return length_; }
+  uint32_t error_code() { return error_code_; }
+  uint8_t frame_type() { return frame_type_; }
+  uint8_t flags() { return flags_; }
+
+ private:
+  uint32_t stream_id_ = 0;
+  uint32_t length_ = 0;
+  uint32_t error_code_ = 0;
+  uint8_t frame_type_ = 0;
+  uint8_t flags_ = 0;
+};
+
+}  // namespace
+
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
   visitor_.OnBeginHeadersForStream(stream_id_);
 }
@@ -194,7 +287,12 @@ int OgHttp2Session::Send() {
 bool OgHttp2Session::SendQueuedFrames() {
   // Serialize and send frames in the queue.
   while (!frames_.empty()) {
-    spdy::SpdySerializedFrame frame = framer_.SerializeFrame(*frames_.front());
+    const auto& frame_ptr = frames_.front();
+    FrameAttributeCollector c;
+    frame_ptr->Visit(&c);
+    visitor_.OnBeforeFrameSent(c.frame_type(), c.stream_id(), c.length(),
+                               c.flags());
+    spdy::SpdySerializedFrame frame = framer_.SerializeFrame(*frame_ptr);
     const ssize_t result = visitor_.OnReadyToSend(absl::string_view(frame));
     if (result < 0) {
       visitor_.OnConnectionError();
@@ -203,6 +301,8 @@ bool OgHttp2Session::SendQueuedFrames() {
       // Write blocked.
       return false;
     } else {
+      visitor_.OnFrameSent(c.frame_type(), c.stream_id(), c.length(), c.flags(),
+                           c.error_code());
       frames_.pop_front();
       if (result < frame.size()) {
         // The frame was partially written, so the rest must be buffered.
@@ -262,6 +362,7 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
       connection_can_write = false;
       break;
     }
+    visitor_.OnFrameSent(/* DATA */ 0, stream_id, length, fin ? 0x1 : 0x0, 0);
     connection_send_window_ -= length;
     state.send_window -= length;
     available_window =
@@ -316,12 +417,13 @@ int32_t OgHttp2Session::SubmitRequest(
     QUICHE_LOG(DFATAL) << "Stream " << stream_id << " already exists!";
     return -501;  // NGHTTP2_ERR_INVALID_ARGUMENT
   }
-  iter->second.outbound_body = std::move(data_source);
-  iter->second.user_data = user_data;
   if (data_source == nullptr) {
     frame->set_fin(true);
     iter->second.half_closed_local = true;
+  } else {
+    iter->second.outbound_body = std::move(data_source);
   }
+  iter->second.user_data = user_data;
   // Add the stream to the write scheduler.
   const WriteScheduler::StreamPrecedenceType precedence(3);
   write_scheduler_.RegisterStream(stream_id, precedence);

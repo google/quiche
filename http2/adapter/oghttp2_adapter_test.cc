@@ -72,6 +72,11 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesTrailers) {
   ASSERT_GT(stream_id1, 0);
   QUICHE_LOG(INFO) << "Created stream: " << stream_id1;
 
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+
   int result = adapter->Send();
   EXPECT_EQ(0, result);
   absl::string_view data = visitor.data();
@@ -119,6 +124,9 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesTrailers) {
   const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
   EXPECT_TRUE(adapter->session().want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
@@ -144,6 +152,9 @@ TEST(OgHttp2AdapterClientTest, DISABLED_ClientHandlesInvalidTrailers) {
       adapter->SubmitRequest(headers1, nullptr, const_cast<char*>(kSentinel1));
   ASSERT_GT(stream_id1, 0);
   QUICHE_LOG(INFO) << "Created stream: " << stream_id1;
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
 
   int result = adapter->Send();
   EXPECT_EQ(0, result);
@@ -187,10 +198,15 @@ TEST(OgHttp2AdapterClientTest, DISABLED_ClientHandlesInvalidTrailers) {
 
   // Bad status trailer will cause a PROTOCOL_ERROR. The header is never
   // delivered in an OnHeaderForStream callback.
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::PROTOCOL_ERROR));
 
   const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, stream_id1, 4, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(RST_STREAM, stream_id1, 4, 0x0, 1));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::PROTOCOL_ERROR));
 
   EXPECT_TRUE(adapter->session().want_write());
   result = adapter->Send();
@@ -228,6 +244,19 @@ TEST_F(OgHttp2AdapterTest, TestSerialize) {
   adapter_->SubmitWindowUpdate(3, 127);
   EXPECT_TRUE(adapter_->session().want_write());
 
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(PRIORITY, 3, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(PRIORITY, 3, _, 0x0, 0));
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(RST_STREAM, 3, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(RST_STREAM, 3, _, 0x0, 0x8));
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(PING, 0, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(PING, 0, _, 0x0, 0));
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(GOAWAY, 0, _, 0x0, 0));
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(WINDOW_UPDATE, 3, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(WINDOW_UPDATE, 3, _, 0x0, 0));
+
   int result = adapter_->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(
@@ -248,12 +277,18 @@ TEST_F(OgHttp2AdapterTest, TestPartialSerialize) {
   EXPECT_TRUE(adapter_->session().want_write());
 
   http2_visitor_.set_send_limit(20);
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   int result = adapter_->Send();
   EXPECT_EQ(0, result);
   EXPECT_TRUE(adapter_->session().want_write());
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(GOAWAY, 0, _, 0x0, 0));
   result = adapter_->Send();
   EXPECT_EQ(0, result);
   EXPECT_TRUE(adapter_->session().want_write());
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(PING, 0, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(PING, 0, _, 0x0, 0));
   result = adapter_->Send();
   EXPECT_EQ(0, result);
   EXPECT_FALSE(adapter_->session().want_write());
@@ -307,7 +342,15 @@ TEST(OgHttp2AdapterServerTest, ServerSendsInvalidTrailers) {
       std::move(body1));
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(adapter->session().want_write());
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
+
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),
@@ -319,10 +362,14 @@ TEST(OgHttp2AdapterServerTest, ServerSendsInvalidTrailers) {
   EXPECT_FALSE(adapter->session().want_write());
 
   // The body source has been exhausted by the call to Send() above.
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
   int trailer_result =
       adapter->SubmitTrailer(1, ToHeaders({{":final-status", "a-ok"}}));
   ASSERT_EQ(trailer_result, 0);
   EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);

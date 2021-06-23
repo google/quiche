@@ -139,6 +139,10 @@ TEST(OgHttp2SessionTest, ClientEnqueuesSettingsOnSend) {
   OgHttp2Session session(
       visitor, OgHttp2Session::Options{.perspective = Perspective::kClient});
   EXPECT_FALSE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+
   int result = session.Send();
   EXPECT_EQ(0, result);
   absl::string_view serialized = visitor.data();
@@ -157,6 +161,12 @@ TEST(OgHttp2SessionTest, ClientEnqueuesSettingsBeforeOtherFrame) {
   EXPECT_FALSE(session.want_write());
   session.EnqueueFrame(absl::make_unique<spdy::SpdyPingIR>(42));
   EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(PING, 0, 8, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(PING, 0, 8, 0x0, 0));
+
   int result = session.Send();
   EXPECT_EQ(0, result);
   absl::string_view serialized = visitor.data();
@@ -176,6 +186,10 @@ TEST(OgHttp2SessionTest, ClientEnqueuesSettingsOnce) {
   EXPECT_FALSE(session.want_write());
   session.EnqueueFrame(absl::make_unique<spdy::SpdySettingsIR>());
   EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+
   int result = session.Send();
   EXPECT_EQ(0, result);
   absl::string_view serialized = visitor.data();
@@ -191,6 +205,9 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
       visitor, OgHttp2Session::Options{.perspective = Perspective::kClient});
 
   EXPECT_FALSE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
 
   // Even though the user has not queued any frames for the session, it should
   // still send the connection preface.
@@ -218,6 +235,10 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
 
   // Session will want to write a SETTINGS ack.
   EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
   result = session.Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
@@ -237,6 +258,11 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(session.want_write());
   EXPECT_EQ(kSentinel1, session.GetStreamUserData(stream_id));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, _, 0x1, 0));
+
   result = session.Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
@@ -266,6 +292,9 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
   EXPECT_EQ(nullptr, session.GetStreamUserData(stream_id));
   session.SetStreamUserData(stream_id, const_cast<char*>(kSentinel2));
   EXPECT_EQ(kSentinel2, session.GetStreamUserData(stream_id));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x5, 0));
 
   result = session.Send();
   EXPECT_EQ(0, result);
@@ -299,6 +328,12 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithReadBlock) {
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(session.want_write());
   EXPECT_EQ(kSentinel1, session.GetStreamUserData(stream_id));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
+
   int result = session.Send();
   EXPECT_EQ(0, result);
   absl::string_view serialized = visitor.data();
@@ -314,6 +349,9 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithReadBlock) {
   body_ref->set_is_data_available(true);
   EXPECT_TRUE(session.ResumeStream(stream_id));
   EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, _, 0x1, 0));
+
   result = session.Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::DATA}));
@@ -351,6 +389,13 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithWriteBlock) {
   EXPECT_THAT(visitor.data(), testing::IsEmpty());
   EXPECT_TRUE(session.want_write());
   visitor.set_is_write_blocked(false);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, _, 0x1, 0));
+
   result = session.Send();
   EXPECT_EQ(0, result);
 
@@ -374,6 +419,9 @@ TEST(OgHttp2SessionTest, ClientStartShutdown) {
   // No-op (except for logging) for a client implementation.
   session.StartGracefulShutdown();
   EXPECT_FALSE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
 
   int result = session.Send();
   EXPECT_EQ(0, result);
@@ -494,6 +542,12 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
   EXPECT_EQ(3, session.GetHighestReceivedStreamId());
 
   EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
   // Some bytes should have been serialized.
   int send_result = session.Send();
   EXPECT_EQ(0, send_result);
@@ -512,6 +566,12 @@ TEST(OgHttp2SessionTest, ServerEnqueuesSettingsBeforeOtherFrame) {
   EXPECT_FALSE(session.want_write());
   session.EnqueueFrame(absl::make_unique<spdy::SpdyPingIR>(42));
   EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(PING, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(PING, 0, _, 0x0, 0));
+
   int result = session.Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(),
@@ -527,6 +587,10 @@ TEST(OgHttp2SessionTest, ServerEnqueuesSettingsOnce) {
   EXPECT_FALSE(session.want_write());
   session.EnqueueFrame(absl::make_unique<spdy::SpdySettingsIR>());
   EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+
   int result = session.Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
@@ -578,6 +642,12 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
 
   // Server will want to send initial SETTINGS, and a SETTINGS ack.
   EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
   int send_result = session.Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),
@@ -600,6 +670,10 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   EXPECT_EQ(kSentinel1, session.GetStreamUserData(1));
   session.SetStreamUserData(1, nullptr);
   EXPECT_EQ(nullptr, session.GetStreamUserData(1));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
 
   send_result = session.Send();
   EXPECT_EQ(0, send_result);
@@ -626,6 +700,11 @@ TEST(OgHttp2SessionTest, ServerStartShutdown) {
   session.StartGracefulShutdown();
   EXPECT_TRUE(session.want_write());
 
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(GOAWAY, 0, _, 0x0, 0));
+
   int result = session.Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(),
@@ -643,6 +722,11 @@ TEST(OgHttp2SessionTest, ServerStartShutdownAfterGoaway) {
       1, spdy::ERROR_CODE_NO_ERROR, "and don't come back!");
   session.EnqueueFrame(std::move(goaway));
   EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(GOAWAY, 0, _, 0x0, 0));
 
   int result = session.Send();
   EXPECT_EQ(0, result);
@@ -693,6 +777,12 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
 
   // Server will want to send initial SETTINGS, and a SETTINGS ack.
   EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
   int send_result = session.Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),
@@ -711,6 +801,11 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
       std::move(body1));
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
+
   send_result = session.Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),
@@ -718,13 +813,17 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
   visitor.Clear();
   EXPECT_FALSE(session.want_write());
 
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
   // The body source has been exhausted by the call to Send() above.
+  // TODO(birenroy): Fix this strange ordering.
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
   int trailer_result = session.SubmitTrailer(
       1, ToHeaders({{"final-status", "a-ok"},
                     {"x-comment", "trailers sure are cool"}}));
   ASSERT_EQ(trailer_result, 0);
   EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
 
   send_result = session.Send();
   EXPECT_EQ(0, send_result);
@@ -770,6 +869,12 @@ TEST(OgHttp2SessionTest, ServerQueuesTrailersWithResponse) {
 
   // Server will want to send initial SETTINGS, and a SETTINGS ack.
   EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
   int send_result = session.Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),
@@ -796,7 +901,16 @@ TEST(OgHttp2SessionTest, ServerQueuesTrailersWithResponse) {
   ASSERT_EQ(trailer_result, 0);
   EXPECT_TRUE(session.want_write());
 
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
+
+  // TODO(birenroy): Fix this strange ordering.
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
+
   send_result = session.Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),

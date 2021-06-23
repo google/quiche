@@ -93,6 +93,15 @@ class MockHttp2Visitor : public Http2VisitorInterface {
               (Http2StreamId stream_id, int window_increment),
               (override));
 
+  MOCK_METHOD(int, OnBeforeFrameSent,
+              (uint8_t frame_type, Http2StreamId stream_id, size_t length,
+               uint8_t flags),
+              (override));
+  MOCK_METHOD(int, OnFrameSent,
+              (uint8_t frame_type, Http2StreamId stream_id, size_t length,
+               uint8_t flags, uint32_t error_code),
+              (override));
+
   MOCK_METHOD(void,
               OnReadyToSendDataForStream,
               (Http2StreamId stream_id,
