@@ -679,8 +679,18 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
     absl::string_view in) {
   QUICHE_DCHECK(proof_source_->GetTicketCrypter());
 
+  if (allow_ignore_ticket_open_ && ignore_ticket_open_) {
+    // SetIgnoreTicketOpen has been called. Typically this means the caller is
+    // using handshake hints and expect the hints to contain ticket decryption
+    // results.
+    QUIC_CODE_COUNT(quic_tls_server_handshaker_tickets_ignored_1);
+    return ssl_ticket_aead_ignore_ticket;
+  }
+
   if (!ticket_decryption_callback_) {
-    ticket_received_ = true;
+    if (!allow_ignore_ticket_open_) {
+      ticket_received_ = true;
+    }
     ticket_decryption_callback_ = new DecryptCallback(this);
     proof_source_->GetTicketCrypter()->Decrypt(
         in, std::unique_ptr<DecryptCallback>(ticket_decryption_callback_));
@@ -732,7 +742,7 @@ ssl_ticket_aead_result_t TlsServerHandshaker::FinalizeSessionTicketOpen(
   if (decrypted_session_ticket_.empty()) {
     QUIC_DLOG(ERROR) << "Session ticket decryption failed; ignoring ticket";
     // Ticket decryption failed. Ignore the ticket.
-    QUIC_CODE_COUNT(quic_tls_server_handshaker_tickets_ignored);
+    QUIC_CODE_COUNT(quic_tls_server_handshaker_tickets_ignored_2);
     return ssl_ticket_aead_ignore_ticket;
   }
   if (max_out_len < decrypted_session_ticket_.size()) {
@@ -771,6 +781,14 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     QUIC_BUG(quic_bug_10341_6)
         << "QUIC server pre-shared keys not yet supported with TLS";
     return ssl_select_cert_error;
+  }
+
+  if (allow_ignore_ticket_open_) {
+    const uint8_t* unused_extension_bytes;
+    size_t unused_extension_len;
+    ticket_received_ = SSL_early_callback_ctx_extension_get(
+        client_hello, TLSEXT_TYPE_pre_shared_key, &unused_extension_bytes,
+        &unused_extension_len);
   }
 
   // This callback is called very early by Boring SSL, most of the SSL_get_foo

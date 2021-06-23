@@ -33,6 +33,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_abort_qpack_on_stream_reset, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_can_send_ack_frequency, true)
 // If true, allow client to enable BBRv2 on server via connection option \'B2ON\'.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, false)
+// If true, allow ticket open to be ignored in TlsServerHandshaker. Also fixes TlsServerHandshaker::ResumptionAttempted when handshake hints is used.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_allow_ignore_ticket_open, false)
 // If true, close read side but not write side in QuicSpdyStream::OnStreamReset().
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_fix_on_stream_reset, true)
 // If true, default on PTO which unifies TLP + RTO loss recovery.

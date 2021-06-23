@@ -182,8 +182,13 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   bool WillNotCallComputeSignature() const override;
 
+  void SetIgnoreTicketOpen(bool value) { ignore_ticket_open_ = value; }
+
   const bool close_proof_source_handle_promptly_ =
       GetQuicReloadableFlag(quic_tls_close_proof_source_handle_promptly);
+
+  const bool allow_ignore_ticket_open_ =
+      GetQuicReloadableFlag(quic_tls_allow_ignore_ticket_open);
 
  private:
   class QUIC_EXPORT_PRIVATE DecryptCallback
@@ -317,6 +322,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // if we actually resumed a session with it - the presence of this ticket
   // indicates that the client attempted a resumption.
   bool ticket_received_ = false;
+
+  // Force SessionTicketOpen to return ssl_ticket_aead_ignore_ticket if called.
+  bool ignore_ticket_open_ = false;
 
   // nullopt means select cert hasn't started.
   absl::optional<QuicAsyncStatus> select_cert_status_;
