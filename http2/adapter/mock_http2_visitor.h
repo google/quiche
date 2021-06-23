@@ -131,6 +131,8 @@ class MockHttp2Visitor : public Http2VisitorInterface {
               OnMetadataEndForStream,
               (Http2StreamId stream_id),
               (override));
+
+  MOCK_METHOD(void, OnErrorDebug, (absl::string_view message), (override));
 };
 
 }  // namespace test

@@ -300,6 +300,13 @@ void CallbackVisitor::OnMetadataEndForStream(Http2StreamId stream_id) {
   QUICHE_LOG(FATAL) << "Not implemented";
 }
 
+void CallbackVisitor::OnErrorDebug(absl::string_view message) {
+  if (callbacks_->error_callback2) {
+    callbacks_->error_callback2(nullptr, -1, message.data(), message.size(),
+                                user_data_);
+  }
+}
+
 CallbackVisitor::StreamInfoMap::iterator CallbackVisitor::GetStreamInfo(
     Http2StreamId stream_id) {
   auto it = stream_map_.find(stream_id);

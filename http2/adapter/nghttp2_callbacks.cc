@@ -211,6 +211,14 @@ int OnStreamClosed(nghttp2_session* /* session */,
   return 0;
 }
 
+int OnError(nghttp2_session* session, int lib_error_code, const char* msg,
+            size_t len, void* user_data) {
+  QUICHE_CHECK_NE(user_data, nullptr);
+  auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
+  visitor->OnErrorDebug(absl::string_view(msg, len));
+  return 0;
+}
+
 nghttp2_session_callbacks_unique_ptr Create() {
   nghttp2_session_callbacks* callbacks;
   nghttp2_session_callbacks_new(&callbacks);
@@ -230,6 +238,7 @@ nghttp2_session_callbacks_unique_ptr Create() {
   nghttp2_session_callbacks_set_before_frame_send_callback(callbacks,
                                                            &OnBeforeFrameSent);
   nghttp2_session_callbacks_set_on_frame_send_callback(callbacks, &OnFrameSent);
+  nghttp2_session_callbacks_set_error_callback2(callbacks, &OnError);
   nghttp2_session_callbacks_set_send_data_callback(
       callbacks, &DataFrameSourceSendCallback);
   return MakeCallbacksPtr(callbacks);

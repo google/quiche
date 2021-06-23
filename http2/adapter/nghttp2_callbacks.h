@@ -55,6 +55,9 @@ int OnDataChunk(nghttp2_session* session, uint8_t flags,
 int OnStreamClosed(nghttp2_session* session, Http2StreamId stream_id,
                    uint32_t error_code, void* user_data);
 
+// Invoked when the library has an error message to deliver.
+int OnError(nghttp2_session* session, int lib_error_code, const char* msg,
+            size_t len, void* user_data);
 
 nghttp2_session_callbacks_unique_ptr Create();
 

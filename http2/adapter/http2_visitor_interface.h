@@ -186,6 +186,9 @@ class Http2VisitorInterface {
   // for a stream. Note that there may be multiple metadata blocks for a stream.
   virtual void OnMetadataEndForStream(Http2StreamId stream_id) = 0;
 
+  // Invoked with an error message from the application.
+  virtual void OnErrorDebug(absl::string_view message) = 0;
+
  protected:
   Http2VisitorInterface() = default;
 };

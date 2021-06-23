@@ -393,6 +393,10 @@ TEST(NgHttp2AdapterTest, ClientHandlesInvalidTrailers) {
   EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
   EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 5));
   EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(
+      visitor,
+      OnErrorDebug("Invalid HTTP header field was received: frame type: 1, "
+                   "stream: 1, name: [:bad-status], value: [9000]"));
 
   // Bad status trailer will cause a PROTOCOL_ERROR. The header is never
   // delivered in an OnHeaderForStream callback.

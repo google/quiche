@@ -172,6 +172,10 @@ void RecordingHttp2Visitor::OnMetadataEndForStream(Http2StreamId stream_id) {
   events_.push_back(absl::StrFormat("OnMetadataEndForStream %d", stream_id));
 }
 
+void RecordingHttp2Visitor::OnErrorDebug(absl::string_view message) {
+  events_.push_back(absl::StrFormat("OnErrorDebug %s", message));
+}
+
 }  // namespace test
 }  // namespace adapter
 }  // namespace http2

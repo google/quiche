@@ -71,6 +71,7 @@ class CallbackVisitor : public Http2VisitorInterface {
   void OnMetadataForStream(Http2StreamId stream_id,
                            absl::string_view metadata) override;
   void OnMetadataEndForStream(Http2StreamId stream_id) override;
+  void OnErrorDebug(absl::string_view message) override;
 
  private:
   struct StreamInfo {
