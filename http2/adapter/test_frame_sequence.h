@@ -48,6 +48,8 @@ class TestFrameSequence {
                               Http2StreamId parent_stream_id,
                               int weight,
                               bool exclusive);
+  TestFrameSequence& Metadata(Http2StreamId stream_id,
+                              absl::string_view payload);
 
   std::string Serialize();
 

@@ -125,6 +125,9 @@ enum class Perspective {
   kServer,
 };
 
+const uint8_t kMetadataFrameType = 0x4d;
+const uint8_t kMetadataEndFlag = 0x04;
+
 }  // namespace adapter
 }  // namespace http2
 

@@ -2,6 +2,7 @@
 
 #include "http2/adapter/http2_util.h"
 #include "http2/adapter/oghttp2_util.h"
+#include "spdy/core/hpack/hpack_encoder.h"
 #include "spdy/core/spdy_framer.h"
 
 namespace http2 {
@@ -121,6 +122,21 @@ TestFrameSequence& TestFrameSequence::Priority(Http2StreamId stream_id,
                                                bool exclusive) {
   frames_.push_back(absl::make_unique<spdy::SpdyPriorityIR>(
       stream_id, parent_stream_id, weight, exclusive));
+  return *this;
+}
+
+TestFrameSequence& TestFrameSequence::Metadata(Http2StreamId stream_id,
+                                               absl::string_view payload) {
+  // Encode the payload using a header block.
+  spdy::SpdyHeaderBlock block;
+  block["example-payload"] = payload;
+  spdy::HpackEncoder encoder;
+  encoder.DisableCompression();
+  std::string encoded_payload;
+  encoder.EncodeHeaderSet(block, &encoded_payload);
+  frames_.push_back(absl::make_unique<spdy::SpdyUnknownIR>(
+      stream_id, kMetadataFrameType, kMetadataEndFlag,
+      std::move(encoded_payload)));
   return *this;
 }
 
