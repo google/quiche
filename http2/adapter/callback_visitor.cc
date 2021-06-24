@@ -279,6 +279,17 @@ void CallbackVisitor::OnReadyToSendDataForStream(Http2StreamId stream_id,
   QUICHE_LOG(FATAL) << "Not implemented";
 }
 
+bool CallbackVisitor::OnInvalidFrame(Http2StreamId stream_id, int error_code) {
+  QUICHE_LOG(INFO) << "OnInvalidFrame(" << stream_id << ", " << error_code
+                   << ")";
+  QUICHE_DCHECK_EQ(stream_id, current_frame_.hd.stream_id);
+  if (callbacks_->on_invalid_frame_recv_callback) {
+    return 0 == callbacks_->on_invalid_frame_recv_callback(
+                    nullptr, &current_frame_, error_code, user_data_);
+  }
+  return true;
+}
+
 void CallbackVisitor::OnReadyToSendMetadataForStream(Http2StreamId stream_id,
                                                      char* buffer,
                                                      size_t length,

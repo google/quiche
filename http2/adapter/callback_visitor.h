@@ -62,6 +62,7 @@ class CallbackVisitor : public Http2VisitorInterface {
                                   size_t length,
                                   ssize_t* written,
                                   bool* end_stream) override;
+  bool OnInvalidFrame(Http2StreamId stream_id, int error_code) override;
   void OnReadyToSendMetadataForStream(Http2StreamId stream_id,
                                       char* buffer,
                                       size_t length,

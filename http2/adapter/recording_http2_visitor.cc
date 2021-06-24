@@ -134,6 +134,13 @@ int RecordingHttp2Visitor::OnFrameSent(uint8_t frame_type,
   return 0;
 }
 
+bool RecordingHttp2Visitor::OnInvalidFrame(Http2StreamId stream_id,
+                                           int error_code) {
+  events_.push_back(
+      absl::StrFormat("OnInvalidFrame %d %d", stream_id, error_code));
+  return true;
+}
+
 void RecordingHttp2Visitor::OnReadyToSendDataForStream(Http2StreamId stream_id,
                                                        char* destination_buffer,
                                                        size_t length,

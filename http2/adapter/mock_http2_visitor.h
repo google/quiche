@@ -13,6 +13,7 @@ class MockHttp2Visitor : public Http2VisitorInterface {
  public:
   MockHttp2Visitor() {
     ON_CALL(*this, OnHeaderForStream).WillByDefault(testing::Return(true));
+    ON_CALL(*this, OnInvalidFrame).WillByDefault(testing::Return(true));
   }
 
   MOCK_METHOD(ssize_t,
@@ -97,9 +98,13 @@ class MockHttp2Visitor : public Http2VisitorInterface {
               (uint8_t frame_type, Http2StreamId stream_id, size_t length,
                uint8_t flags),
               (override));
+
   MOCK_METHOD(int, OnFrameSent,
               (uint8_t frame_type, Http2StreamId stream_id, size_t length,
                uint8_t flags, uint32_t error_code),
+              (override));
+
+  MOCK_METHOD(bool, OnInvalidFrame, (Http2StreamId stream_id, int error_code),
               (override));
 
   MOCK_METHOD(void,

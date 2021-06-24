@@ -134,7 +134,8 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesTrailers) {
 }
 
 // TODO(birenroy): Validate headers and re-enable this test. The library should
-// invoke OnErrorDebug() with an error message for the invalid header.
+// invoke OnErrorDebug() with an error message for the invalid header. The
+// library should also invoke OnInvalidFrame() for the invalid HEADERS frame.
 TEST(OgHttp2AdapterClientTest, DISABLED_ClientHandlesInvalidTrailers) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kClient};

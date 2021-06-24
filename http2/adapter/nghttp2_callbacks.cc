@@ -188,6 +188,16 @@ int OnFrameSent(nghttp2_session* /* session */, const nghttp2_frame* frame,
                               frame->hd.length, frame->hd.flags, error_code);
 }
 
+int OnInvalidFrameReceived(nghttp2_session* /* session */,
+                           const nghttp2_frame* frame, int lib_error_code,
+                           void* user_data) {
+  QUICHE_CHECK_NE(user_data, nullptr);
+  auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
+  const bool result =
+      visitor->OnInvalidFrame(frame->hd.stream_id, lib_error_code);
+  return result ? 0 : NGHTTP2_ERR_CALLBACK_FAILURE;
+}
+
 int OnDataChunk(nghttp2_session* /* session */,
                 uint8_t flags,
                 Http2StreamId stream_id,
@@ -238,9 +248,12 @@ nghttp2_session_callbacks_unique_ptr Create() {
   nghttp2_session_callbacks_set_before_frame_send_callback(callbacks,
                                                            &OnBeforeFrameSent);
   nghttp2_session_callbacks_set_on_frame_send_callback(callbacks, &OnFrameSent);
+  nghttp2_session_callbacks_set_on_invalid_frame_recv_callback(
+      callbacks, &OnInvalidFrameReceived);
   nghttp2_session_callbacks_set_error_callback2(callbacks, &OnError);
   nghttp2_session_callbacks_set_send_data_callback(
       callbacks, &DataFrameSourceSendCallback);
+
   return MakeCallbacksPtr(callbacks);
 }
 

@@ -46,6 +46,10 @@ int OnBeforeFrameSent(nghttp2_session* session, const nghttp2_frame* frame,
 int OnFrameSent(nghttp2_session* session, const nghttp2_frame* frame,
                 void* user_data);
 
+// Invoked when an invalid frame is received.
+int OnInvalidFrameReceived(nghttp2_session* session, const nghttp2_frame* frame,
+                           int lib_error_code, void* user_data);
+
 // Invoked when a chunk of data (from a DATA frame payload) has been received.
 int OnDataChunk(nghttp2_session* session, uint8_t flags,
                 Http2StreamId stream_id, const uint8_t* data, size_t len,
