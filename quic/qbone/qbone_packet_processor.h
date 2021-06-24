@@ -46,6 +46,8 @@ class QbonePacketProcessor {
     // RST requires information from the current connection state to be
     // well-formed.
     ICMP_AND_TCP_RESET = 4,
+    // Send a TCP RST.
+    TCP_RESET = 5,
   };
 
   class OutputInterface {

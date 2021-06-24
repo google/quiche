@@ -103,6 +103,10 @@ void QbonePacketProcessor::ProcessPacket(std::string* packet,
       SendTcpReset(*packet, direction);
       stats_->OnPacketDroppedWithTcpReset(direction);
       break;
+    case ProcessingResult::TCP_RESET:
+      SendTcpReset(*packet, direction);
+      stats_->OnPacketDroppedWithTcpReset(direction);
+      break;
   }
 }
 
