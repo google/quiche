@@ -236,6 +236,8 @@ void NgHttp2Adapter::Initialize() {
     nghttp2_option_set_no_auto_window_update(owned_options, 1);
     nghttp2_option_set_max_send_header_block_length(owned_options, 0x2000000);
     nghttp2_option_set_max_outbound_ack(owned_options, 10000);
+    nghttp2_option_set_user_recv_extension_type(owned_options,
+                                                kMetadataFrameType);
     options_ = owned_options;
   }
 

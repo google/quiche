@@ -221,6 +221,44 @@ int OnStreamClosed(nghttp2_session* /* session */,
   return 0;
 }
 
+int OnExtensionChunkReceived(nghttp2_session* session,
+                             const nghttp2_frame_hd* hd, const uint8_t* data,
+                             size_t len, void* user_data) {
+  QUICHE_CHECK_NE(user_data, nullptr);
+  auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
+  if (hd->type != kMetadataFrameType) {
+    QUICHE_LOG(ERROR) << "Unexpected frame type: "
+                      << static_cast<int>(hd->type);
+    return NGHTTP2_ERR_CANCEL;
+  }
+  visitor->OnMetadataForStream(hd->stream_id, ToStringView(data, len));
+  return 0;
+}
+
+int OnUnpackExtensionCallback(nghttp2_session* session, void** payload,
+                              const nghttp2_frame_hd* hd, void* user_data) {
+  QUICHE_CHECK_NE(user_data, nullptr);
+  auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
+  if (hd->flags == kMetadataEndFlag) {
+    const bool result = visitor->OnMetadataEndForStream(hd->stream_id);
+    if (!result) {
+      return NGHTTP2_ERR_CALLBACK_FAILURE;
+    }
+  }
+  return 0;
+}
+
+ssize_t OnPackExtensionCallback(nghttp2_session* session, uint8_t* buf,
+                                size_t len, const nghttp2_frame* frame,
+                                void* user_data) {
+  QUICHE_CHECK_NE(user_data, nullptr);
+  auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
+  ssize_t written = 0;
+  visitor->OnReadyToSendMetadataForStream(
+      frame->hd.stream_id, reinterpret_cast<char*>(buf), len, &written);
+  return written;
+}
+
 int OnError(nghttp2_session* session, int lib_error_code, const char* msg,
             size_t len, void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
@@ -251,9 +289,15 @@ nghttp2_session_callbacks_unique_ptr Create() {
   nghttp2_session_callbacks_set_on_invalid_frame_recv_callback(
       callbacks, &OnInvalidFrameReceived);
   nghttp2_session_callbacks_set_error_callback2(callbacks, &OnError);
+  // on_frame_not_send_callback <- just ignored
   nghttp2_session_callbacks_set_send_data_callback(
       callbacks, &DataFrameSourceSendCallback);
-
+  nghttp2_session_callbacks_set_pack_extension_callback(
+      callbacks, &OnPackExtensionCallback);
+  nghttp2_session_callbacks_set_unpack_extension_callback(
+      callbacks, &OnUnpackExtensionCallback);
+  nghttp2_session_callbacks_set_on_extension_chunk_recv_callback(
+      callbacks, &OnExtensionChunkReceived);
   return MakeCallbacksPtr(callbacks);
 }
 

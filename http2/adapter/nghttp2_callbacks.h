@@ -59,6 +59,22 @@ int OnDataChunk(nghttp2_session* session, uint8_t flags,
 int OnStreamClosed(nghttp2_session* session, Http2StreamId stream_id,
                    uint32_t error_code, void* user_data);
 
+// Invoked when nghttp2 has a chunk of extension frame data to pass to the
+// application.
+int OnExtensionChunkReceived(nghttp2_session* session,
+                             const nghttp2_frame_hd* hd, const uint8_t* data,
+                             size_t len, void* user_data);
+
+// Invoked when nghttp2 wants the application to unpack an extension payload.
+int OnUnpackExtensionCallback(nghttp2_session* session, void** payload,
+                              const nghttp2_frame_hd* hd, void* user_data);
+
+// Invoked when nghttp2 is ready to pack an extension payload. Returns the
+// number of bytes serialized to |buf|.
+ssize_t OnPackExtensionCallback(nghttp2_session* session, uint8_t* buf,
+                                size_t len, const nghttp2_frame* frame,
+                                void* user_data);
+
 // Invoked when the library has an error message to deliver.
 int OnError(nghttp2_session* session, int lib_error_code, const char* msg,
             size_t len, void* user_data);

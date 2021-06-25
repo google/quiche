@@ -299,16 +299,36 @@ void CallbackVisitor::OnReadyToSendMetadataForStream(Http2StreamId stream_id,
 
 void CallbackVisitor::OnBeginMetadataForStream(Http2StreamId stream_id,
                                                size_t payload_length) {
-  QUICHE_LOG(FATAL) << "Not implemented";
+  QUICHE_VLOG(1) << "OnBeginMetadataForStream(stream_id=" << stream_id
+                 << ", payload_length=" << payload_length << ")";
 }
 
 void CallbackVisitor::OnMetadataForStream(Http2StreamId stream_id,
                                           absl::string_view metadata) {
-  QUICHE_LOG(FATAL) << "Not implemented";
+  QUICHE_VLOG(1) << "OnMetadataForStream(stream_id=" << stream_id
+                 << ", len=" << metadata.size() << ")";
+  if (callbacks_->on_extension_chunk_recv_callback) {
+    int result = callbacks_->on_extension_chunk_recv_callback(
+        nullptr, &current_frame_.hd, ToUint8Ptr(metadata.data()),
+        metadata.size(), user_data_);
+    QUICHE_DCHECK_EQ(0, result);
+  }
 }
 
-void CallbackVisitor::OnMetadataEndForStream(Http2StreamId stream_id) {
-  QUICHE_LOG(FATAL) << "Not implemented";
+bool CallbackVisitor::OnMetadataEndForStream(Http2StreamId stream_id) {
+  QUICHE_LOG_IF(DFATAL, current_frame_.hd.flags != kMetadataEndFlag);
+  QUICHE_VLOG(1) << "OnMetadataEndForStream(stream_id=" << stream_id << ")";
+  if (callbacks_->unpack_extension_callback) {
+    void* payload;
+    int result = callbacks_->unpack_extension_callback(
+        nullptr, &payload, &current_frame_.hd, user_data_);
+    if (callbacks_->on_frame_recv_callback) {
+      current_frame_.ext.payload = payload;
+      callbacks_->on_frame_recv_callback(nullptr, &current_frame_, user_data_);
+    }
+    return (result == 0);
+  }
+  return true;
 }
 
 void CallbackVisitor::OnErrorDebug(absl::string_view message) {

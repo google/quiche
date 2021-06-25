@@ -14,6 +14,7 @@ class MockHttp2Visitor : public Http2VisitorInterface {
   MockHttp2Visitor() {
     ON_CALL(*this, OnHeaderForStream).WillByDefault(testing::Return(true));
     ON_CALL(*this, OnInvalidFrame).WillByDefault(testing::Return(true));
+    ON_CALL(*this, OnMetadataEndForStream).WillByDefault(testing::Return(true));
   }
 
   MOCK_METHOD(ssize_t,
@@ -132,9 +133,7 @@ class MockHttp2Visitor : public Http2VisitorInterface {
               (Http2StreamId stream_id, absl::string_view metadata),
               (override));
 
-  MOCK_METHOD(void,
-              OnMetadataEndForStream,
-              (Http2StreamId stream_id),
+  MOCK_METHOD(bool, OnMetadataEndForStream, (Http2StreamId stream_id),
               (override));
 
   MOCK_METHOD(void, OnErrorDebug, (absl::string_view message), (override));

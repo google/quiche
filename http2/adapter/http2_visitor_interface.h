@@ -180,6 +180,7 @@ class Http2VisitorInterface {
   // Called when the connection receives the beginning of a METADATA frame
   // (which may itself be the middle of a logical metadata block). The metadata
   // payload will be provided via subsequent calls to OnMetadataForStream().
+  // TODO(birenroy): Consider removing this unnecessary method.
   virtual void OnBeginMetadataForStream(Http2StreamId stream_id,
                                         size_t payload_length) = 0;
 
@@ -190,7 +191,8 @@ class Http2VisitorInterface {
 
   // Called when the connection has finished receiving a logical metadata block
   // for a stream. Note that there may be multiple metadata blocks for a stream.
-  virtual void OnMetadataEndForStream(Http2StreamId stream_id) = 0;
+  // Returns false if there was an error unpacking the metadata payload.
+  virtual bool OnMetadataEndForStream(Http2StreamId stream_id) = 0;
 
   // Invoked with an error message from the application.
   virtual void OnErrorDebug(absl::string_view message) = 0;
