@@ -47,6 +47,7 @@ struct QUIC_EXPORT_PRIVATE SendTimeState {
         bytes_in_flight(bytes_in_flight) {}
 
   SendTimeState(const SendTimeState& other) = default;
+  SendTimeState& operator=(const SendTimeState& other) = default;
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                                       const SendTimeState& s);
