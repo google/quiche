@@ -774,12 +774,12 @@ void Http2DecoderAdapter::OnFrameSizeError(const Http2FrameHeader& header) {
   QUICHE_DVLOG(1) << "OnFrameSizeError: " << header;
   size_t recv_limit = recv_frame_size_limit_;
   if (header.payload_length > recv_limit) {
-    SetSpdyErrorAndNotify(SpdyFramerError::SPDY_OVERSIZED_PAYLOAD, "");
-    return;
-  }
-  if (header.type != Http2FrameType::DATA &&
-      header.payload_length > recv_limit) {
-    SetSpdyErrorAndNotify(SpdyFramerError::SPDY_CONTROL_PAYLOAD_TOO_LARGE, "");
+    if (header.type == Http2FrameType::DATA) {
+      SetSpdyErrorAndNotify(SpdyFramerError::SPDY_OVERSIZED_PAYLOAD, "");
+    } else {
+      SetSpdyErrorAndNotify(SpdyFramerError::SPDY_CONTROL_PAYLOAD_TOO_LARGE,
+                            "");
+    }
     return;
   }
   switch (header.type) {
