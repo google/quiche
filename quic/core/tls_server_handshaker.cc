@@ -504,8 +504,8 @@ void TlsServerHandshaker::SetWriteSecret(
   TlsHandshaker::SetWriteSecret(level, cipher, write_secret);
 }
 
-std::string TlsServerHandshaker::GetAcceptChValueForOrigin(
-    const std::string& /*origin*/) const {
+std::string TlsServerHandshaker::GetAcceptChValueForHostname(
+    const std::string& /*hostname*/) const {
   return {};
 }
 
@@ -1013,7 +1013,7 @@ TlsServerHandshaker::SetApplicationSettings(absl::string_view alpn) {
   const uint8_t* alps_data = nullptr;
 
   const std::string& hostname = crypto_negotiated_params_->sni;
-  std::string accept_ch_value = GetAcceptChValueForOrigin(hostname);
+  std::string accept_ch_value = GetAcceptChValueForHostname(hostname);
   std::string origin = absl::StrCat("https://", hostname);
 
   if (!accept_ch_value.empty()) {
