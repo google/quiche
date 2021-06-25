@@ -61,6 +61,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_discard_initial_packet_with_key_droppe
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_single_ack_in_packet2, false)
 // If true, do not count bytes sent/received on the alternative path into the bytes sent/received on the default path.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_count_bytes_on_alternative_path_seperately, true)
+// If true, do not re-arm PTO while sending application data during handshake.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_rearm_pto_on_application_data_during_handshake, true)
 // If true, do not send control frames before encryption is established.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_encrypted_control_frames, false)
 // If true, do not send stream data when PTO fires.

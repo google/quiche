@@ -2065,6 +2065,28 @@ void QuicConnection::OnClientConnectionIdAvailable() {
   }
 }
 
+bool QuicConnection::ShouldSetRetransmissionAlarmOnPacketSent(
+    bool in_flight, EncryptionLevel level) const {
+  if (!retransmission_alarm_->IsSet()) {
+    return true;
+  }
+  if (!in_flight) {
+    return false;
+  }
+
+  if (!SupportsMultiplePacketNumberSpaces()) {
+    return true;
+  }
+  // Before handshake gets confirmed, do not re-arm PTO timer on application
+  // data. Think about this scenario: on the client side, the CHLO gets
+  // acknowledged and the SHLO is not received yet. The PTO alarm is set when
+  // the CHLO acknowledge is received (and there is no in flight INITIAL
+  // packet). Re-arming PTO alarm on 0-RTT packet would keep postponing the PTO
+  // alarm.
+  return IsHandshakeConfirmed() || level == ENCRYPTION_INITIAL ||
+         level == ENCRYPTION_HANDSHAKE;
+}
+
 bool QuicConnection::OnNewConnectionIdFrameInner(
     const QuicNewConnectionIdFrame& frame) {
   QUICHE_DCHECK(support_multiple_connection_ids_);
@@ -2779,6 +2801,15 @@ bool QuicConnection::ShouldEnqueueUnDecryptablePacket(
   }
   if (version().KnowsWhichDecrypterToUse() &&
       decryption_level <= encryption_level_) {
+    if (decryption_level == ENCRYPTION_HANDSHAKE &&
+        encryption_level_ == ENCRYPTION_ZERO_RTT) {
+      // This is cient side only since only clients have
+      // encryption_level_ == ENCRYPTION_ZERO_RTT.
+      QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
+      // Make sure we enqueue undecryptable HANDSHAKE packets when the
+      // encryption level is 0-RTT and we have not install HANDSHAKE key yet.
+      return true;
+    }
     // On versions that know which decrypter to use, we install keys in order
     // so we will not get newer keys for lower encryption levels.
     return false;
@@ -3794,8 +3825,15 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       return true;
     }
   }
-
-  if (in_flight || !retransmission_alarm_->IsSet()) {
+  if (GetQuicReloadableFlag(
+          quic_donot_rearm_pto_on_application_data_during_handshake)) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_donot_rearm_pto_on_application_data_during_handshake);
+    if (ShouldSetRetransmissionAlarmOnPacketSent(in_flight,
+                                                 packet->encryption_level)) {
+      SetRetransmissionAlarm();
+    }
+  } else if (in_flight || !retransmission_alarm_->IsSet()) {
     SetRetransmissionAlarm();
   }
   SetPingAlarm();
@@ -4286,11 +4324,23 @@ void QuicConnection::OnRetransmissionTimeout() {
                      sent_packet_manager_.pending_timer_transmission_count());
     EncryptionLevel level = encryption_level_;
     PacketNumberSpace packet_number_space = NUM_PACKET_NUMBER_SPACES;
-    if (SupportsMultiplePacketNumberSpaces() &&
-        sent_packet_manager_
-            .GetEarliestPacketSentTimeForPto(&packet_number_space)
-            .IsInitialized()) {
-      level = QuicUtils::GetEncryptionLevel(packet_number_space);
+    if (SupportsMultiplePacketNumberSpaces()) {
+      if (sent_packet_manager_
+              .GetEarliestPacketSentTimeForPto(&packet_number_space)
+              .IsInitialized()) {
+        level = QuicUtils::GetEncryptionLevel(packet_number_space);
+      }
+      if (level == ENCRYPTION_ZERO_RTT) {
+        QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
+        // Do not send 0-RTT PING since it will only elicit (unprocessable)
+        // 1-RTT acknowledgement from server, which does not speed up recovery.
+        if (framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL)) {
+          level = ENCRYPTION_INITIAL;
+        } else if (framer_.HasEncrypterOfEncryptionLevel(
+                       ENCRYPTION_HANDSHAKE)) {
+          level = ENCRYPTION_HANDSHAKE;
+        }
+      }
     }
     SendPingAtLevel(level);
   }
@@ -4455,7 +4505,11 @@ void QuicConnection::QueueUndecryptablePacket(
   undecryptable_packets_.emplace_back(packet, decryption_level,
                                       last_received_packet_info_);
   if (perspective_ == Perspective::IS_CLIENT) {
-    SetRetransmissionAlarm();
+    if (!retransmission_alarm_->IsSet() ||
+        GetRetransmissionDeadline() < retransmission_alarm_->deadline()) {
+      // Re-arm PTO only if we can make it sooner to speed up recovery.
+      SetRetransmissionAlarm();
+    }
   }
 }
 
@@ -4527,7 +4581,14 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
     undecryptable_packets_.clear();
   }
   if (perspective_ == Perspective::IS_CLIENT) {
-    SetRetransmissionAlarm();
+    if (!retransmission_alarm_->IsSet() || undecryptable_packets_.empty() ||
+        GetRetransmissionDeadline() < retransmission_alarm_->deadline()) {
+      // 1) If there is still undecryptable packet, only re-arm PTO to make it
+      // sooner to speed up recovery.
+      // 2) If all undecryptable packets get processed, re-arm (which may
+      // postpone) PTO since no immediate recovery is needed.
+      SetRetransmissionAlarm();
+    }
   }
 }
 

@@ -15074,6 +15074,166 @@ TEST_P(QuicConnectionTest, PtoSendStreamData) {
   }
 }
 
+TEST_P(QuicConnectionTest, SendingZeroRttPacketsDoesNotPostponePTO) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  // Send CHLO.
+  connection_.SendCryptoStreamData();
+  ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  // Install 0-RTT keys.
+  connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+
+  // CHLO gets acknowledged after 10ms.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  QuicAckFrame frame1 = InitAckFrame(1);
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
+  ProcessFramePacketAtLevel(1, QuicFrame(&frame1), ENCRYPTION_INITIAL);
+  // Verify PTO is still armed since address validation is not finished yet.
+  ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  QuicTime pto_deadline = connection_.GetRetransmissionAlarm()->deadline();
+
+  // Send 0-RTT packet.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+  connection_.SendStreamDataWithString(2, "foo", 0, NO_FIN);
+  ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  if (GetQuicReloadableFlag(
+          quic_donot_rearm_pto_on_application_data_during_handshake)) {
+    // PTO deadline should be unchanged.
+    EXPECT_EQ(pto_deadline, connection_.GetRetransmissionAlarm()->deadline());
+  } else {
+    // PTO gets re-armed.
+    EXPECT_NE(pto_deadline, connection_.GetRetransmissionAlarm()->deadline());
+  }
+}
+
+TEST_P(QuicConnectionTest, QueueingUndecryptablePacketsDoesntPostponePTO) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  QuicConfig config;
+  config.set_max_undecryptable_packets(3);
+  connection_.SetFromConfig(config);
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  connection_.RemoveDecrypter(ENCRYPTION_FORWARD_SECURE);
+  // Send CHLO.
+  connection_.SendCryptoStreamData();
+
+  // Send 0-RTT packet.
+  connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+  connection_.SendStreamDataWithString(2, "foo", 0, NO_FIN);
+
+  // CHLO gets acknowledged after 10ms.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  QuicAckFrame frame1 = InitAckFrame(1);
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
+  ProcessFramePacketAtLevel(1, QuicFrame(&frame1), ENCRYPTION_INITIAL);
+  // Verify PTO is still armed since address validation is not finished yet.
+  ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  QuicTime pto_deadline = connection_.GetRetransmissionAlarm()->deadline();
+
+  // Receive an undecryptable packets.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            std::make_unique<TaggingEncrypter>(0xFF));
+  ProcessDataPacketAtLevel(3, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+  // Verify PTO deadline is sooner.
+  EXPECT_GT(pto_deadline, connection_.GetRetransmissionAlarm()->deadline());
+  pto_deadline = connection_.GetRetransmissionAlarm()->deadline();
+
+  // PTO fires.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  clock_.AdvanceTime(pto_deadline - clock_.ApproximateNow());
+  connection_.GetRetransmissionAlarm()->Fire();
+  // Verify PTO is still armed since address validation is not finished yet.
+  ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  pto_deadline = connection_.GetRetransmissionAlarm()->deadline();
+
+  // Verify PTO deadline does not change.
+  ProcessDataPacketAtLevel(4, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(pto_deadline, connection_.GetRetransmissionAlarm()->deadline());
+}
+
+TEST_P(QuicConnectionTest, QueueUndecryptableHandshakePackets) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  QuicConfig config;
+  config.set_max_undecryptable_packets(3);
+  connection_.SetFromConfig(config);
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  connection_.RemoveDecrypter(ENCRYPTION_HANDSHAKE);
+  // Send CHLO.
+  connection_.SendCryptoStreamData();
+
+  // Send 0-RTT packet.
+  connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+  connection_.SendStreamDataWithString(2, "foo", 0, NO_FIN);
+  EXPECT_EQ(0u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
+
+  // Receive an undecryptable handshake packet.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  peer_framer_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                            std::make_unique<TaggingEncrypter>(0xFF));
+  ProcessDataPacketAtLevel(3, !kHasStopWaiting, ENCRYPTION_HANDSHAKE);
+  // Verify this handshake packet gets queued.
+  EXPECT_EQ(1u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
+}
+
+TEST_P(QuicConnectionTest, PingNotSentAt0RTTLevelWhenInitialAvailable) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  // Send CHLO.
+  connection_.SendCryptoStreamData();
+  // Send 0-RTT packet.
+  connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+  connection_.SendStreamDataWithString(2, "foo", 0, NO_FIN);
+
+  // CHLO gets acknowledged after 10ms.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  QuicAckFrame frame1 = InitAckFrame(1);
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
+  ProcessFramePacketAtLevel(1, QuicFrame(&frame1), ENCRYPTION_INITIAL);
+  // Verify PTO is still armed since address validation is not finished yet.
+  ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  QuicTime pto_deadline = connection_.GetRetransmissionAlarm()->deadline();
+
+  // PTO fires.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  clock_.AdvanceTime(pto_deadline - clock_.ApproximateNow());
+  connection_.GetRetransmissionAlarm()->Fire();
+  // Verify the PING gets sent in ENCRYPTION_INITIAL.
+  EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

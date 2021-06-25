@@ -1873,6 +1873,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // when a new client connection ID is received.
   void OnClientConnectionIdAvailable();
 
+  // Returns true if connection needs to set retransmission alarm after a packet
+  // gets sent.
+  bool ShouldSetRetransmissionAlarmOnPacketSent(bool in_flight,
+                                                EncryptionLevel level) const;
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify
