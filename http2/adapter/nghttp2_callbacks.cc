@@ -169,6 +169,7 @@ int OnHeader(nghttp2_session* /* session */,
 int OnBeforeFrameSent(nghttp2_session* /* session */,
                       const nghttp2_frame* frame, void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
+  LogBeforeSend(*frame);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   return visitor->OnBeforeFrameSent(frame->hd.type, frame->hd.stream_id,
                                     frame->hd.length, frame->hd.flags);

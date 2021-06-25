@@ -2,10 +2,13 @@
 
 #include <cstdint>
 
+#include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "http2/adapter/http2_protocol.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 #include "common/platform/api/quiche_logging.h"
+#include "common/quiche_endian.h"
 
 namespace http2 {
 namespace adapter {
@@ -175,6 +178,85 @@ std::unique_ptr<DataFrameSource> MakeZeroCopyDataFrameSource(
   return absl::make_unique<Nghttp2DataFrameSource>(
       std::move(provider), std::move(send_data), user_data);
 }
+
+absl::string_view ErrorString(uint32_t error_code) {
+  return Http2ErrorCodeToString(static_cast<Http2ErrorCode>(error_code));
+}
+
+size_t PaddingLength(uint8_t flags, size_t padlen) {
+  return (flags & 0x8 ? 1 : 0) + padlen;
+}
+
+struct NvFormatter {
+  void operator()(std::string* out, const nghttp2_nv& nv) {
+    absl::StrAppend(out, ToStringView(nv.name, nv.namelen), ": ",
+                    ToStringView(nv.value, nv.valuelen));
+  }
+};
+
+std::string NvsAsString(nghttp2_nv* nva, size_t nvlen) {
+  return absl::StrJoin(absl::MakeConstSpan(nva, nvlen), ", ", NvFormatter());
+}
+
+#define HTTP2_FRAME_SEND_LOG QUICHE_VLOG(1)
+
+void LogBeforeSend(const nghttp2_frame& frame) {
+  switch (static_cast<FrameType>(frame.hd.type)) {
+    case FrameType::DATA:
+      HTTP2_FRAME_SEND_LOG << "Sending DATA on stream " << frame.hd.stream_id
+                           << " with length "
+                           << frame.hd.length - PaddingLength(frame.hd.flags,
+                                                              frame.data.padlen)
+                           << " and padding "
+                           << PaddingLength(frame.hd.flags, frame.data.padlen);
+      break;
+    case FrameType::HEADERS:
+      HTTP2_FRAME_SEND_LOG << "Sending HEADERS on stream " << frame.hd.stream_id
+                           << " with headers ["
+                           << NvsAsString(frame.headers.nva,
+                                          frame.headers.nvlen)
+                           << "]";
+      break;
+    case FrameType::PRIORITY:
+      HTTP2_FRAME_SEND_LOG << "Sending PRIORITY";
+      break;
+    case FrameType::RST_STREAM:
+      HTTP2_FRAME_SEND_LOG << "Sending RST_STREAM on stream "
+                           << frame.hd.stream_id << " with error code "
+                           << ErrorString(frame.rst_stream.error_code);
+      break;
+    case FrameType::SETTINGS:
+      HTTP2_FRAME_SEND_LOG << "Sending SETTINGS with " << frame.settings.niv
+                           << " entries, is_ack: " << (frame.hd.flags & 0x01);
+      break;
+    case FrameType::PUSH_PROMISE:
+      HTTP2_FRAME_SEND_LOG << "Sending PUSH_PROMISE";
+      break;
+    case FrameType::PING: {
+      Http2PingId ping_id;
+      std::memcpy(&ping_id, frame.ping.opaque_data, sizeof(Http2PingId));
+      HTTP2_FRAME_SEND_LOG << "Sending PING with unique_id "
+                           << quiche::QuicheEndian::NetToHost64(ping_id)
+                           << ", is_ack: " << (frame.hd.flags & 0x01);
+      break;
+    }
+    case FrameType::GOAWAY:
+      HTTP2_FRAME_SEND_LOG << "Sending GOAWAY with last_stream: "
+                           << frame.goaway.last_stream_id << " and error "
+                           << ErrorString(frame.goaway.error_code);
+      break;
+    case FrameType::WINDOW_UPDATE:
+      HTTP2_FRAME_SEND_LOG << "Sending WINDOW_UPDATE on stream "
+                           << frame.hd.stream_id << " with update delta "
+                           << frame.window_update.window_size_increment;
+      break;
+    case FrameType::CONTINUATION:
+      HTTP2_FRAME_SEND_LOG << "Sending CONTINUATION, which is unexpected";
+      break;
+  }
+}
+
+#undef HTTP2_FRAME_SEND_LOG
 
 }  // namespace adapter
 }  // namespace http2

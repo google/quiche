@@ -64,6 +64,8 @@ std::unique_ptr<DataFrameSource> MakeZeroCopyDataFrameSource(
     void* user_data,
     nghttp2_send_data_callback send_data);
 
+void LogBeforeSend(const nghttp2_frame& frame);
+
 }  // namespace adapter
 }  // namespace http2
 
