@@ -59,7 +59,8 @@ absl::string_view ToStringView(const uint8_t* pointer, size_t length) {
 
 std::vector<nghttp2_nv> GetNghttp2Nvs(absl::Span<const Header> headers) {
   const int num_headers = headers.size();
-  auto nghttp2_nvs = std::vector<nghttp2_nv>(num_headers);
+  std::vector<nghttp2_nv> nghttp2_nvs;
+  nghttp2_nvs.reserve(num_headers);
   for (int i = 0; i < num_headers; ++i) {
     nghttp2_nv header;
     uint8_t flags = NGHTTP2_NV_FLAG_NONE;
@@ -88,7 +89,8 @@ std::vector<nghttp2_nv> GetResponseNghttp2Nvs(
     absl::string_view response_code) {
   // Allocate enough for all headers and also the :status pseudoheader.
   const int num_headers = headers.size();
-  auto nghttp2_nvs = std::vector<nghttp2_nv>(num_headers + 1);
+  std::vector<nghttp2_nv> nghttp2_nvs;
+  nghttp2_nvs.reserve(num_headers + 1);
 
   // Add the :status pseudoheader first.
   nghttp2_nv status;
@@ -153,10 +155,15 @@ class Nghttp2DataFrameSource : public DataFrameSource {
   }
 
   bool Send(absl::string_view frame_header, size_t payload_length) override {
-    const int result =
-        send_data_(nullptr /* session */, nullptr /* frame */,
-                   ToUint8Ptr(frame_header.data()), payload_length,
-                   &provider_.source, user_data_);
+    nghttp2_frame frame;
+    frame.hd.type = 0;
+    frame.hd.length = payload_length;
+    frame.hd.flags = 0;
+    frame.hd.stream_id = 0;
+    frame.data.padlen = 0;
+    const int result = send_data_(
+        nullptr /* session */, &frame, ToUint8Ptr(frame_header.data()),
+        payload_length, &provider_.source, user_data_);
     QUICHE_LOG_IF(ERROR, result < 0 && result != NGHTTP2_ERR_WOULDBLOCK)
         << "Unexpected error code from send: " << result;
     return result == 0;
