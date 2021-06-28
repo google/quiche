@@ -107,7 +107,8 @@ enum Http2KnownSettingsId : Http2SettingsId {
   INITIAL_WINDOW_SIZE = 0x4,
   MAX_FRAME_SIZE = 0x5,
   MAX_HEADER_LIST_SIZE = 0x6,
-  MAX_SETTING = MAX_HEADER_LIST_SIZE
+  ENABLE_CONNECT_PROTOCOL = 0x8,  // See RFC 8441
+  MAX_SETTING = ENABLE_CONNECT_PROTOCOL
 };
 
 // Returns a human-readable string representation of the given SETTINGS |id| for
