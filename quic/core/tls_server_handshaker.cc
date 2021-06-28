@@ -517,21 +517,8 @@ std::string TlsServerHandshaker::GetAcceptChValueForHostname(
 }
 
 void TlsServerHandshaker::FinishHandshake() {
-  if (retry_handshake_on_early_data_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_retry_handshake_on_early_data, 2, 2);
-    QUICHE_DCHECK(!SSL_in_early_data(ssl()));
-  } else {
-    if (SSL_in_early_data(ssl())) {
-      // If the server accepts early data, SSL_do_handshake returns success
-      // twice: once after processing the ClientHello and sending the server's
-      // first flight, and then again after the handshake is complete. This
-      // results in FinishHandshake getting called twice. On the first call to
-      // FinishHandshake, we don't have any confirmation that the client is
-      // live, so all end of handshake processing is deferred until the
-      // handshake is actually complete.
-      return;
-    }
-  }
+  QUICHE_DCHECK(!SSL_in_early_data(ssl()));
+
   if (!valid_alpn_received_) {
     QUIC_DLOG(ERROR)
         << "Server: handshake finished without receiving a known ALPN";

@@ -458,13 +458,6 @@ TEST_P(TlsClientHandshakerTest, ZeroRttResumptionWithAyncProofVerifier) {
   proof_verifier->InvokePendingCallback(0);
 
   QuicFramer* framer = QuicConnectionPeer::GetFramer(connection_);
-  if (!GetQuicReloadableFlag(quic_tls_retry_handshake_on_early_data)) {
-    // Client does not have HANDSHAKE key due to b/186438140.
-    EXPECT_EQ(nullptr,
-              QuicFramerPeer::GetEncrypter(framer, ENCRYPTION_HANDSHAKE));
-    return;
-  }
-
   // Verify client has derived HANDSHAKE key.
   EXPECT_NE(nullptr,
             QuicFramerPeer::GetEncrypter(framer, ENCRYPTION_HANDSHAKE));

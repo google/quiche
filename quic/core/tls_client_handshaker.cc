@@ -444,22 +444,8 @@ void TlsClientHandshaker::OnProofVerifyDetailsAvailable(
 void TlsClientHandshaker::FinishHandshake() {
   FillNegotiatedParams();
 
-  if (retry_handshake_on_early_data_) {
-    QUICHE_CHECK(!SSL_in_early_data(ssl()));
-  } else {
-    if (SSL_in_early_data(ssl())) {
-      // SSL_do_handshake returns after sending the ClientHello if the session
-      // is 0-RTT-capable, which means that FinishHandshake will get called
-      // twice - the first time after sending the ClientHello, and the second
-      // time after the handshake is complete. If we're in the first time
-      // FinishHandshake is called, we can't do any end-of-handshake processing.
+  QUICHE_CHECK(!SSL_in_early_data(ssl()));
 
-      // If we're attempting a 0-RTT handshake, then we need to let the
-      // transport and application know what state to apply to early data.
-      PrepareZeroRttConfig(cached_state_.get());
-      return;
-    }
-  }
   QUIC_LOG(INFO) << "Client: handshake finished";
 
   std::string error_details;
@@ -518,7 +504,6 @@ void TlsClientHandshaker::FinishHandshake() {
 }
 
 void TlsClientHandshaker::OnEnterEarlyData() {
-  QUICHE_DCHECK(retry_handshake_on_early_data_);
   QUICHE_DCHECK(SSL_in_early_data(ssl()));
 
   // TODO(wub): It might be unnecessary to FillNegotiatedParams() at this time,
