@@ -184,9 +184,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   void SetIgnoreTicketOpen(bool value) { ignore_ticket_open_ = value; }
 
-  const bool close_proof_source_handle_promptly_ =
-      GetQuicReloadableFlag(quic_tls_close_proof_source_handle_promptly);
-
   const bool allow_ignore_ticket_open_ =
       GetQuicReloadableFlag(quic_tls_allow_ignore_ticket_open);
 

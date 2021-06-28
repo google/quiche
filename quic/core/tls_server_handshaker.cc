@@ -942,11 +942,6 @@ void TlsServerHandshaker::OnSelectCertificateDone(
 }
 
 bool TlsServerHandshaker::WillNotCallComputeSignature() const {
-  if (!close_proof_source_handle_promptly_) {
-    return false;
-  }
-
-  QUIC_RELOADABLE_FLAG_COUNT(quic_tls_close_proof_source_handle_promptly);
   return SSL_can_release_private_key(ssl());
 }
 
