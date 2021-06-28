@@ -206,8 +206,7 @@ class ChloAlpnSniExtractor : public ChloExtractor::Delegate {
       sni_ = std::string(sni);
     }
     absl::string_view uaid_value;
-    if (validity_check_on_full_chlo_ &&
-        chlo.GetStringPiece(quic::kUAID, &uaid_value)) {
+    if (chlo.GetStringPiece(quic::kUAID, &uaid_value)) {
       uaid_ = std::string(uaid_value);
     }
     if (version == LegacyVersionForEncapsulation().transport_version) {
@@ -228,16 +227,11 @@ class ChloAlpnSniExtractor : public ChloExtractor::Delegate {
     return std::move(legacy_version_encapsulation_inner_packet_);
   }
 
-  void set_validity_check_on_full_chlo(bool value) {
-    validity_check_on_full_chlo_ = value;
-  }
-
  private:
   std::string alpn_;
   std::string sni_;
   std::string uaid_;
   std::string legacy_version_encapsulation_inner_packet_;
-  bool validity_check_on_full_chlo_ = false;
 };
 
 bool MaybeHandleLegacyVersionEncapsulation(
@@ -672,9 +666,7 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
     }
 
     // Client Hello fully received.
-    if (packet_info->validity_check_on_full_chlo) {
-      fate = ValidityChecksOnFullChlo(*packet_info, sni, uaid, alpns);
-    }
+    fate = ValidityChecksOnFullChlo(*packet_info, sni, uaid, alpns);
 
     if (fate == kFateProcess) {
       QUICHE_DCHECK(legacy_version_encapsulation_inner_packet.empty() ||
@@ -764,9 +756,6 @@ bool QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
   }
 
   ChloAlpnSniExtractor alpn_extractor;
-  alpn_extractor.set_validity_check_on_full_chlo(
-      packet_info.validity_check_on_full_chlo);
-
   if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
       !ChloExtractor::Extract(packet_info.packet, packet_info.version,
                               config_->create_session_tag_indicators(),

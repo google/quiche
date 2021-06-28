@@ -455,8 +455,6 @@ struct QUIC_EXPORT_PRIVATE ReceivedPacketInfo {
   ParsedQuicVersion version;
   QuicConnectionId destination_connection_id;
   QuicConnectionId source_connection_id;
-  // Latched --quic_tls_validity_check_on_full_chlo.
-  const bool validity_check_on_full_chlo;
 };
 
 }  // namespace quic

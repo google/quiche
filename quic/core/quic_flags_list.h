@@ -121,8 +121,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_connection_id_on_default_path_v2, 
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // If true, validate that peer owns the new address once the server detects peer migration or is probed from that address, and also apply anti-amplification limit while sending to that address.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_server_reverse_validate_new_path3, true)
-// If ture, TLS QUIC will add a validity check after full CHLO is extracted, connections failing the check will be rejected. Also, the existing check for QUIC crypto is moved to ValidityChecksOnFullChlo.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_validity_check_on_full_chlo, true)
 // If ture, replace the incoming_connection_ids check with original_destination_connection_id check.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_deprecate_incoming_connection_ids, true)
 // When the STMP connection option is sent by the client, timestamps in the QUIC ACK frame are sent and processed.
