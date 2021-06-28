@@ -18,7 +18,7 @@ NgHttp2Session::NgHttp2Session(Perspective perspective,
       nghttp2_session_server_new2(&session, callbacks.get(), userdata, options);
       break;
   }
-  session_.reset(session);
+  session_ = MakeSessionPtr(session);
 }
 
 NgHttp2Session::~NgHttp2Session() {

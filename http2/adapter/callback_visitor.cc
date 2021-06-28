@@ -45,7 +45,7 @@ CallbackVisitor::CallbackVisitor(Perspective perspective,
   nghttp2_session_callbacks* c;
   nghttp2_session_callbacks_new(&c);
   *c = callbacks;
-  callbacks_.reset(c);
+  callbacks_ = MakeCallbacksPtr(c);
 }
 
 ssize_t CallbackVisitor::OnReadyToSend(absl::string_view serialized) {

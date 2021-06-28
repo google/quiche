@@ -75,7 +75,7 @@ class Nghttp2Test : public testing::Test {
                           s->ReadNext(length));
           return 0;
         });
-    session_.reset(ptr);
+    session_ = MakeSessionPtr(ptr);
   }
 
   testing::StrictMock<MockNghttp2Callbacks> mock_callbacks_;

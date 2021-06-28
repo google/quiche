@@ -21,8 +21,8 @@ inline constexpr int kStreamCallbackFailureStatus =
     NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
 inline constexpr int kCancelStatus = NGHTTP2_ERR_CANCEL;
 
-using CallbacksDeleter = void (&)(nghttp2_session_callbacks*);
-using SessionDeleter = void (&)(nghttp2_session*);
+using CallbacksDeleter = void (*)(nghttp2_session_callbacks*);
+using SessionDeleter = void (*)(nghttp2_session*);
 
 using nghttp2_session_callbacks_unique_ptr =
     std::unique_ptr<nghttp2_session_callbacks, CallbacksDeleter>;

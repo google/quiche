@@ -31,11 +31,11 @@ void DeleteSession(nghttp2_session* session) {
 
 nghttp2_session_callbacks_unique_ptr MakeCallbacksPtr(
     nghttp2_session_callbacks* callbacks) {
-  return nghttp2_session_callbacks_unique_ptr(callbacks, DeleteCallbacks);
+  return nghttp2_session_callbacks_unique_ptr(callbacks, &DeleteCallbacks);
 }
 
 nghttp2_session_unique_ptr MakeSessionPtr(nghttp2_session* session) {
-  return nghttp2_session_unique_ptr(session, DeleteSession);
+  return nghttp2_session_unique_ptr(session, &DeleteSession);
 }
 
 uint8_t* ToUint8Ptr(char* str) { return reinterpret_cast<uint8_t*>(str); }
