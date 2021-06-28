@@ -161,9 +161,17 @@ int OnHeader(nghttp2_session* /* session */,
              void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
-  const bool success = visitor->OnHeaderForStream(
-      frame->hd.stream_id, ToStringView(name), ToStringView(value));
-  return success ? 0 : NGHTTP2_ERR_HTTP_HEADER;
+  const Http2VisitorInterface::OnHeaderResult result =
+      visitor->OnHeaderForStream(frame->hd.stream_id, ToStringView(name),
+                                 ToStringView(value));
+  switch (result) {
+    case Http2VisitorInterface::HEADER_OK:
+      return 0;
+    case Http2VisitorInterface::HEADER_CONNECTION_ERROR:
+      return NGHTTP2_ERR_CALLBACK_FAILURE;
+    case Http2VisitorInterface::HEADER_RST_STREAM:
+      return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
+  }
 }
 
 int OnBeforeFrameSent(nghttp2_session* /* session */,

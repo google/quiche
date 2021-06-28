@@ -144,6 +144,11 @@ class OgHttp2Session : public Http2Session,
   bool OnUnknownFrame(spdy::SpdyStreamId stream_id,
                       uint8_t frame_type) override;
 
+  // Invoked when header processing encounters an invalid or otherwise
+  // problematic header.
+  void OnHeaderStatus(Http2StreamId stream_id,
+                      Http2VisitorInterface::OnHeaderResult result);
+
  private:
   struct StreamState {
     StreamState(int32_t stream_receive_window,
@@ -161,17 +166,24 @@ class OgHttp2Session : public Http2Session,
 
   class PassthroughHeadersHandler : public spdy::SpdyHeadersHandlerInterface {
    public:
-    explicit PassthroughHeadersHandler(Http2VisitorInterface& visitor)
-        : visitor_(visitor) {}
-    void set_stream_id(Http2StreamId stream_id) { stream_id_ = stream_id; }
+    explicit PassthroughHeadersHandler(OgHttp2Session& session,
+                                       Http2VisitorInterface& visitor)
+        : session_(session), visitor_(visitor) {}
+    void set_stream_id(Http2StreamId stream_id) {
+      stream_id_ = stream_id;
+      result_ = Http2VisitorInterface::HEADER_OK;
+    }
     void OnHeaderBlockStart() override;
     void OnHeader(absl::string_view key, absl::string_view value) override;
     void OnHeaderBlockEnd(size_t /* uncompressed_header_bytes */,
                           size_t /* compressed_header_bytes */) override;
 
    private:
+    OgHttp2Session& session_;
     Http2VisitorInterface& visitor_;
     Http2StreamId stream_id_ = 0;
+    Http2VisitorInterface::OnHeaderResult result_ =
+        Http2VisitorInterface::HEADER_OK;
   };
 
   // Queues the connection preface, if not already done.
@@ -225,6 +237,8 @@ class OgHttp2Session : public Http2Session,
   absl::string_view remaining_preface_;
 
   WindowManager connection_window_manager_;
+
+  absl::flat_hash_set<Http2StreamId> streams_reset_;
 
   Http2StreamId next_stream_id_ = 1;
   Http2StreamId highest_received_stream_id_ = 0;

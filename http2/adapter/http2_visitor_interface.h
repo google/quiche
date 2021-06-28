@@ -83,11 +83,21 @@ class Http2VisitorInterface {
   // Called when the connection receives the header |key| and |value| for a
   // stream. The HTTP/2 pseudo-headers defined in RFC 7540 Sections 8.1.2.3 and
   // 8.1.2.4 are also conveyed in this callback. This method is called after
-  // OnBeginHeadersForStream(). Should return "false" to indicate that the
-  // header name or value should be rejected. This will cause the HTTP
-  // transaction to fail.
-  virtual bool OnHeaderForStream(Http2StreamId stream_id, absl::string_view key,
-                                 absl::string_view value) = 0;
+  // OnBeginHeadersForStream(). May return HEADER_RST_STREAM to indicate the
+  // header block should be rejected. This will cause the library to queue a
+  // RST_STREAM frame, which will have a default error code of INTERNAL_ERROR.
+  // The visitor implementation may choose to queue a RST_STREAM with a
+  // different error code instead, which should be done before returning
+  // HEADER_RST_STREAM. Returning HEADER_CONNECTION_ERROR will lead to a
+  // non-recoverable error on the connection.
+  enum OnHeaderResult {
+    HEADER_OK,
+    HEADER_CONNECTION_ERROR,
+    HEADER_RST_STREAM,
+  };
+  virtual OnHeaderResult OnHeaderForStream(Http2StreamId stream_id,
+                                           absl::string_view key,
+                                           absl::string_view value) = 0;
 
   // Called when the connection has received the complete header block for a
   // logical HEADERS frame on a stream (which may contain CONTINUATION frames,

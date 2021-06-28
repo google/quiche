@@ -29,8 +29,9 @@ class RecordingHttp2Visitor : public Http2VisitorInterface {
   void OnSettingsEnd() override;
   void OnSettingsAck() override;
   void OnBeginHeadersForStream(Http2StreamId stream_id) override;
-  bool OnHeaderForStream(Http2StreamId stream_id, absl::string_view name,
-                         absl::string_view value) override;
+  OnHeaderResult OnHeaderForStream(Http2StreamId stream_id,
+                                   absl::string_view name,
+                                   absl::string_view value) override;
   void OnEndHeadersForStream(Http2StreamId stream_id) override;
   void OnBeginDataForStream(Http2StreamId stream_id,
                             size_t payload_length) override;

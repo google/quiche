@@ -106,18 +106,24 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
 void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
     absl::string_view key,
     absl::string_view value) {
-  visitor_.OnHeaderForStream(stream_id_, key, value);
+  if (result_ == Http2VisitorInterface::HEADER_OK) {
+    result_ = visitor_.OnHeaderForStream(stream_id_, key, value);
+  }
 }
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
     size_t /* uncompressed_header_bytes */,
     size_t /* compressed_header_bytes */) {
-  visitor_.OnEndHeadersForStream(stream_id_);
+  if (result_ == Http2VisitorInterface::HEADER_OK) {
+    visitor_.OnEndHeadersForStream(stream_id_);
+  } else {
+    session_.OnHeaderStatus(stream_id_, result_);
+  }
 }
 
 OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
     : visitor_(visitor),
-      headers_handler_(visitor),
+      headers_handler_(*this, visitor),
       connection_window_manager_(kInitialFlowControlWindowSize,
                                  [this](size_t window_update_delta) {
                                    SendWindowUpdate(kConnectionStreamId,
@@ -252,6 +258,12 @@ void OgHttp2Session::StartGracefulShutdown() {
 void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
   if (frame->frame_type() == spdy::SpdyFrameType::GOAWAY) {
     queued_goaway_ = true;
+  } else if (frame->frame_type() == spdy::SpdyFrameType::RST_STREAM) {
+    streams_reset_.insert(frame->stream_id());
+    auto iter = stream_map_.find(frame->stream_id());
+    if (iter != stream_map_.end()) {
+      iter->second.half_closed_local = true;
+    }
   }
   frames_.push_back(std::move(frame));
 }
@@ -303,6 +315,13 @@ bool OgHttp2Session::SendQueuedFrames() {
     } else {
       visitor_.OnFrameSent(c.frame_type(), c.stream_id(), c.length(), c.flags(),
                            c.error_code());
+      if (static_cast<FrameType>(c.frame_type()) == FrameType::RST_STREAM) {
+        // If this endpoint is resetting the stream, the stream should be
+        // closed. This endpoint is already aware of the outbound RST_STREAM and
+        // its error code, so close with NO_ERROR.
+        visitor_.OnCloseStream(c.stream_id(), Http2ErrorCode::NO_ERROR);
+      }
+
       frames_.pop_front();
       if (result < frame.size()) {
         // The frame was partially written, so the rest must be buffered.
@@ -674,6 +693,20 @@ bool OgHttp2Session::OnUnknownFrame(spdy::SpdyStreamId stream_id,
   return true;
 }
 
+void OgHttp2Session::OnHeaderStatus(
+    Http2StreamId stream_id, Http2VisitorInterface::OnHeaderResult result) {
+  QUICHE_DCHECK_NE(result, Http2VisitorInterface::HEADER_OK);
+  if (result == Http2VisitorInterface::HEADER_RST_STREAM) {
+    auto it = streams_reset_.find(stream_id);
+    if (it == streams_reset_.end()) {
+      EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+          stream_id, spdy::ERROR_CODE_INTERNAL_ERROR));
+    }
+  } else if (result == Http2VisitorInterface::HEADER_CONNECTION_ERROR) {
+    visitor_.OnConnectionError();
+  }
+}
+
 void OgHttp2Session::MaybeSetupPreface() {
   if (!queued_preface_) {
     if (options_.perspective == Perspective::kClient) {
@@ -709,13 +742,15 @@ void OgHttp2Session::MaybeCloseWithRstStream(Http2StreamId stream_id,
                                              StreamState& state) {
   state.half_closed_local = true;
   if (options_.perspective == Perspective::kServer) {
-    if (!state.half_closed_remote) {
+    if (state.half_closed_remote) {
+      visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+    } else {
       // Since the peer has not yet ended the stream, this endpoint should
       // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
       EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
           stream_id, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
+      // Enqueuing the RST_STREAM also invokes OnCloseStream.
     }
-    visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
     // TODO(birenroy): the server adapter should probably delete stream state
     // when calling visitor_.OnCloseStream.
   }

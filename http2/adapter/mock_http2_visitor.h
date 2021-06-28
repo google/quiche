@@ -12,7 +12,7 @@ namespace test {
 class MockHttp2Visitor : public Http2VisitorInterface {
  public:
   MockHttp2Visitor() {
-    ON_CALL(*this, OnHeaderForStream).WillByDefault(testing::Return(true));
+    ON_CALL(*this, OnHeaderForStream).WillByDefault(testing::Return(HEADER_OK));
     ON_CALL(*this, OnInvalidFrame).WillByDefault(testing::Return(true));
     ON_CALL(*this, OnMetadataEndForStream).WillByDefault(testing::Return(true));
   }
@@ -36,7 +36,7 @@ class MockHttp2Visitor : public Http2VisitorInterface {
               (Http2StreamId stream_id),
               (override));
 
-  MOCK_METHOD(bool, OnHeaderForStream,
+  MOCK_METHOD(OnHeaderResult, OnHeaderForStream,
               (Http2StreamId stream_id, absl::string_view key,
                absl::string_view value),
               (override));

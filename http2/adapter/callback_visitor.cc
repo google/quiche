@@ -109,16 +109,23 @@ void CallbackVisitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
   it->second->received_headers = true;
 }
 
-bool CallbackVisitor::OnHeaderForStream(Http2StreamId stream_id,
-                                        absl::string_view name,
-                                        absl::string_view value) {
+Http2VisitorInterface::OnHeaderResult CallbackVisitor::OnHeaderForStream(
+    Http2StreamId stream_id, absl::string_view name, absl::string_view value) {
   if (callbacks_->on_header_callback) {
-    return 0 == callbacks_->on_header_callback(
-                    nullptr, &current_frame_, ToUint8Ptr(name.data()),
-                    name.size(), ToUint8Ptr(value.data()), value.size(),
-                    NGHTTP2_NV_FLAG_NONE, user_data_);
+    const int result = callbacks_->on_header_callback(
+        nullptr, &current_frame_, ToUint8Ptr(name.data()), name.size(),
+        ToUint8Ptr(value.data()), value.size(), NGHTTP2_NV_FLAG_NONE,
+        user_data_);
+    if (result == 0) {
+      return HEADER_OK;
+    } else if (result == NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE) {
+      return HEADER_RST_STREAM;
+    } else {
+      // Assume NGHTTP2_ERR_CALLBACK_FAILURE.
+      return HEADER_CONNECTION_ERROR;
+    }
   }
-  return true;
+  return HEADER_OK;
 }
 
 void CallbackVisitor::OnEndHeadersForStream(Http2StreamId stream_id) {
