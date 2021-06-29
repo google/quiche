@@ -4322,27 +4322,28 @@ void QuicConnection::OnRetransmissionTimeout() {
                     << retransmission_mode << ", send PING";
     QUICHE_DCHECK_LT(0u,
                      sent_packet_manager_.pending_timer_transmission_count());
-    EncryptionLevel level = encryption_level_;
-    PacketNumberSpace packet_number_space = NUM_PACKET_NUMBER_SPACES;
     if (SupportsMultiplePacketNumberSpaces()) {
+      // Based on https://datatracker.ietf.org/doc/html/rfc9002#appendix-A.9
+      PacketNumberSpace packet_number_space;
       if (sent_packet_manager_
               .GetEarliestPacketSentTimeForPto(&packet_number_space)
               .IsInitialized()) {
-        level = QuicUtils::GetEncryptionLevel(packet_number_space);
-      }
-      if (level == ENCRYPTION_ZERO_RTT) {
+        SendPingAtLevel(QuicUtils::GetEncryptionLevel(packet_number_space));
+      } else {
+        // The client must PTO when there is nothing in flight if the server
+        // could be blocked from sending by the amplification limit
         QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
-        // Do not send 0-RTT PING since it will only elicit (unprocessable)
-        // 1-RTT acknowledgement from server, which does not speed up recovery.
-        if (framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL)) {
-          level = ENCRYPTION_INITIAL;
-        } else if (framer_.HasEncrypterOfEncryptionLevel(
-                       ENCRYPTION_HANDSHAKE)) {
-          level = ENCRYPTION_HANDSHAKE;
+        if (framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_HANDSHAKE)) {
+          SendPingAtLevel(ENCRYPTION_HANDSHAKE);
+        } else if (framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL)) {
+          SendPingAtLevel(ENCRYPTION_INITIAL);
+        } else {
+          QUIC_BUG(quic_bug_no_pto) << "PTO fired but nothing was sent.";
         }
       }
+    } else {
+      SendPingAtLevel(encryption_level_);
     }
-    SendPingAtLevel(level);
   }
   if (retransmission_mode == QuicSentPacketManager::PTO_MODE) {
     sent_packet_manager_.AdjustPendingTimerTransmissions();
