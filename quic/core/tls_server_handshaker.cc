@@ -778,6 +778,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
   }
 
   if (allow_ignore_ticket_open_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_tls_allow_ignore_ticket_open);
     const uint8_t* unused_extension_bytes;
     size_t unused_extension_len;
     ticket_received_ = SSL_early_callback_ctx_extension_get(
