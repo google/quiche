@@ -31,10 +31,8 @@ std::unique_ptr<SynchronousKeyExchange> CreateLocalSynchronousKeyExchange(
   switch (type) {
     case kC255:
       return Curve25519KeyExchange::New(rand);
-      break;
     case kP256:
       return P256KeyExchange::New();
-      break;
     default:
       QUIC_BUG(quic_bug_10712_2)
           << "Unknown key exchange method: " << QuicTagToString(type);

@@ -86,8 +86,6 @@ bool QpackInstructionDecoder::Decode(absl::string_view data) {
       return true;
     }
   }
-
-  return true;
 }
 
 bool QpackInstructionDecoder::AtInstructionBoundary() const {
