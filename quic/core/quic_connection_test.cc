@@ -14672,7 +14672,6 @@ TEST_P(
     QuicConnectionTest,
     ReplacePeerIssuedConnectionIdOnBothPathsTriggeredByNewConnectionIdFrame) {
   if (!version().HasIetfQuicFrames() || !connection_.use_path_validator() ||
-      !connection_.use_connection_id_on_default_path() ||
       !connection_.count_bytes_on_alternative_path_separately()) {
     return;
   }
@@ -14732,7 +14731,7 @@ TEST_P(
 TEST_P(QuicConnectionTest,
        CloseConnectionAfterReceiveRetireConnectionIdWhenNoCIDIssued) {
   if (!version().HasIetfQuicFrames() ||
-      GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2)) {
+      !connection_.connection_migration_use_new_cid()) {
     return;
   }
   QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
@@ -14753,7 +14752,7 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest, RetireConnectionIdFrameResultsInError) {
   if (!version().HasIetfQuicFrames() ||
-      GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2)) {
+      !connection_.connection_migration_use_new_cid()) {
     return;
   }
   QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
@@ -14793,24 +14792,16 @@ TEST_P(QuicConnectionTest,
   QuicConnectionId cid0 = connection_id_;
   QuicRetireConnectionIdFrame frame;
   frame.sequence_number = 0u;
-  if (!GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2) ||
-      connection_.connection_migration_use_new_cid()) {
+  if (connection_.connection_migration_use_new_cid()) {
     EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_)).Times(2);
     EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(2);
   }
   EXPECT_TRUE(connection_.OnRetireConnectionIdFrame(frame));
-  if (!GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2)) {
-    ASSERT_TRUE(retire_self_issued_cid_alarm->IsSet());
-    // cid0 is retired when the retire CID alarm fires.
-    if (!GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2))
-      EXPECT_CALL(visitor_, OnServerConnectionIdRetired(cid0));
-    retire_self_issued_cid_alarm->Fire();
-  }
 }
 
 TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
   if (!version().HasIetfQuicFrames() ||
-      GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2)) {
+      !connection_.connection_migration_use_new_cid()) {
     return;
   }
   QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
@@ -14855,8 +14846,7 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
 
 TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoAlternativePath) {
   if (!version().HasIetfQuicFrames() ||
-      !connection_.support_multiple_connection_ids() ||
-      !connection_.use_connection_id_on_default_path()) {
+      !connection_.support_multiple_connection_ids()) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
@@ -14892,8 +14882,7 @@ TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoAlternativePath) {
 
 TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoDefaultPath) {
   if (!version().HasIetfQuicFrames() ||
-      !connection_.support_multiple_connection_ids() ||
-      !connection_.use_connection_id_on_default_path()) {
+      !connection_.support_multiple_connection_ids()) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);

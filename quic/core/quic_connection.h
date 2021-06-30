@@ -777,9 +777,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const QuicSocketAddress& effective_peer_address() const {
     return default_path_.peer_address;
   }
-  const QuicConnectionId& connection_id() const { return ServerConnectionId(); }
+  const QuicConnectionId& connection_id() const {
+    return default_path_.server_connection_id;
+  }
   const QuicConnectionId& client_connection_id() const {
-    return ClientConnectionId();
+    return default_path_.client_connection_id;
   }
   void set_client_connection_id(QuicConnectionId client_connection_id);
   const QuicClock* clock() const { return clock_; }
@@ -1238,10 +1240,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return support_multiple_connection_ids_;
   }
 
-  bool use_connection_id_on_default_path() const {
-    return use_connection_id_on_default_path_;
-  }
-
   bool connection_migration_use_new_cid() const {
     return connection_migration_use_new_cid_;
   }
@@ -1490,28 +1488,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
    private:
     QuicConnection* connection_;  // Not owned.
   };
-
-  QuicConnectionId& ClientConnectionId() {
-    return use_connection_id_on_default_path_
-               ? default_path_.client_connection_id
-               : client_connection_id_;
-  }
-  const QuicConnectionId& ClientConnectionId() const {
-    return use_connection_id_on_default_path_
-               ? default_path_.client_connection_id
-               : client_connection_id_;
-  }
-  QuicConnectionId& ServerConnectionId() {
-    return use_connection_id_on_default_path_
-               ? default_path_.server_connection_id
-               : server_connection_id_;
-  }
-  const QuicConnectionId& ServerConnectionId() const {
-    return use_connection_id_on_default_path_
-               ? default_path_.server_connection_id
-               : server_connection_id_;
-  }
-  void SetServerConnectionId(const QuicConnectionId& server_connection_id);
 
   // If peer uses non-empty connection ID, discards any buffered packets on path
   // change in IETF QUIC.
@@ -1905,8 +1881,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const QuicClock* clock_;
   QuicRandom* random_generator_;
 
-  QuicConnectionId server_connection_id_;
-  QuicConnectionId client_connection_id_;
   // On the server, the connection ID is set when receiving the first packet.
   // This variable ensures we only set it this way once.
   bool client_connection_id_is_set_;
@@ -2143,12 +2117,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // retransmission code.
   bool probing_retransmission_pending_;
 
-  // Indicates whether a stateless reset token has been received from peer.
-  bool stateless_reset_token_received_;
-  // Stores received stateless reset token from peer. Used to verify whether a
-  // packet is a stateless reset packet.
-  StatelessResetToken received_stateless_reset_token_;
-
   // Id of latest sent control frame. 0 if no control frame has been sent.
   QuicControlFrameId last_control_frame_id_;
 
@@ -2308,9 +2276,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   const bool donot_write_mid_packet_processing_ =
       GetQuicReloadableFlag(quic_donot_write_mid_packet_processing);
-
-  bool use_connection_id_on_default_path_ =
-      GetQuicReloadableFlag(quic_use_connection_id_on_default_path_v2);
 
   // Indicates whether we should proactively validate peer address on a
   // PATH_CHALLENGE received.

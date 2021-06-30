@@ -277,8 +277,6 @@ QuicConnection::QuicConnection(
       encryption_level_(ENCRYPTION_INITIAL),
       clock_(helper->GetClock()),
       random_generator_(helper->GetRandomGenerator()),
-      server_connection_id_(server_connection_id),
-      client_connection_id_(EmptyQuicConnectionId()),
       client_connection_id_is_set_(false),
       direct_peer_address_(initial_peer_address),
       default_path_(initial_self_address,
@@ -356,8 +354,6 @@ QuicConnection::QuicConnection(
       bundle_retransmittable_with_pto_ack_(false),
       fill_up_link_during_probing_(false),
       probing_retransmission_pending_(false),
-      stateless_reset_token_received_(false),
-      received_stateless_reset_token_({}),
       last_control_frame_id_(kInvalidControlFrameId),
       is_path_degrading_(false),
       processing_ack_frame_(false),
@@ -416,7 +412,7 @@ QuicConnection::QuicConnection(
   MaybeEnableMultiplePacketNumberSpacesSupport();
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 supported_versions.size() == 1);
-  InstallInitialCrypters(ServerConnectionId());
+  InstallInitialCrypters(default_path_.server_connection_id);
 
   // On the server side, version negotiation has been done by the dispatcher,
   // and the server connection is created with the right version.
@@ -481,9 +477,9 @@ bool QuicConnection::ValidateConfigConnectionIds(const QuicConfig& config) {
   // Validate initial_source_connection_id.
   QuicConnectionId expected_initial_source_connection_id;
   if (perspective_ == Perspective::IS_CLIENT) {
-    expected_initial_source_connection_id = ServerConnectionId();
+    expected_initial_source_connection_id = default_path_.server_connection_id;
   } else {
-    expected_initial_source_connection_id = ClientConnectionId();
+    expected_initial_source_connection_id = default_path_.client_connection_id;
   }
   if (!config.HasReceivedInitialSourceConnectionId() ||
       config.ReceivedInitialSourceConnectionId() !=
@@ -681,14 +677,8 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     no_stop_waiting_frames_ = true;
   }
   if (config.HasReceivedStatelessResetToken()) {
-    if (use_connection_id_on_default_path_) {
-      default_path_.stateless_reset_token_received = true;
-      default_path_.stateless_reset_token =
-          config.ReceivedStatelessResetToken();
-    } else {
-      stateless_reset_token_received_ = true;
-      received_stateless_reset_token_ = config.ReceivedStatelessResetToken();
-    }
+    default_path_.stateless_reset_token_received = true;
+    default_path_.stateless_reset_token = config.ReceivedStatelessResetToken();
   }
   if (config.HasReceivedAckDelayExponent()) {
     framer_.set_peer_ack_delay_exponent(config.ReceivedAckDelayExponent());
@@ -719,7 +709,6 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   // 2) Client side's rollout can be protected by the same connection option.
   connection_migration_use_new_cid_ =
       support_multiple_connection_ids_ && validate_client_addresses_ &&
-      use_connection_id_on_default_path_ &&
       group_path_response_and_challenge_sending_closer_ &&
       GetQuicReloadableFlag(quic_drop_unsent_path_response) &&
       GetQuicReloadableFlag(quic_connection_migration_use_new_cid_v2);
@@ -885,7 +874,7 @@ void QuicConnection::OnPublicResetPacket(const QuicPublicResetPacket& packet) {
   // Check that any public reset packet with a different connection ID that was
   // routed to this QuicConnection has been redirected before control reaches
   // here.  (Check for a bug regression.)
-  QUICHE_DCHECK_EQ(ServerConnectionId(), packet.connection_id);
+  QUICHE_DCHECK_EQ(default_path_.server_connection_id, packet.connection_id);
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
   QUICHE_DCHECK(!version().HasIetfInvariantHeader());
   if (debug_visitor_ != nullptr) {
@@ -923,7 +912,7 @@ void QuicConnection::OnVersionNegotiationPacket(
   // Check that any public reset packet with a different connection ID that was
   // routed to this QuicConnection has been redirected before control reaches
   // here.  (Check for a bug regression.)
-  QUICHE_DCHECK_EQ(ServerConnectionId(), packet.connection_id);
+  QUICHE_DCHECK_EQ(default_path_.server_connection_id, packet.connection_id);
   if (perspective_ == Perspective::IS_SERVER) {
     const std::string error_details =
         "Server received version negotiation packet.";
@@ -975,17 +964,17 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
                                    absl::string_view retry_without_tag) {
   QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
   if (version().UsesTls()) {
-    if (!CryptoUtils::ValidateRetryIntegrityTag(version(), ServerConnectionId(),
-                                                retry_without_tag,
-                                                retry_integrity_tag)) {
+    if (!CryptoUtils::ValidateRetryIntegrityTag(
+            version(), default_path_.server_connection_id, retry_without_tag,
+            retry_integrity_tag)) {
       QUIC_DLOG(ERROR) << "Ignoring RETRY with invalid integrity tag";
       return;
     }
   } else {
-    if (original_connection_id != ServerConnectionId()) {
+    if (original_connection_id != default_path_.server_connection_id) {
       QUIC_DLOG(ERROR) << "Ignoring RETRY with original connection ID "
                        << original_connection_id << " not matching expected "
-                       << ServerConnectionId() << " token "
+                       << default_path_.server_connection_id << " token "
                        << absl::BytesToHexString(retry_token);
       return;
     }
@@ -993,10 +982,11 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
   framer_.set_drop_incoming_retry_packets(true);
   stats_.retry_packet_processed = true;
   QUIC_DLOG(INFO) << "Received RETRY, replacing connection ID "
-                  << ServerConnectionId() << " with " << new_connection_id
-                  << ", received token " << absl::BytesToHexString(retry_token);
+                  << default_path_.server_connection_id << " with "
+                  << new_connection_id << ", received token "
+                  << absl::BytesToHexString(retry_token);
   if (!original_destination_connection_id_.has_value()) {
-    original_destination_connection_id_ = ServerConnectionId();
+    original_destination_connection_id_ = default_path_.server_connection_id;
   }
   QUICHE_DCHECK(!retry_source_connection_id_.has_value())
       << retry_source_connection_id_.value();
@@ -1005,7 +995,7 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
   packet_creator_.SetRetryToken(retry_token);
 
   // Reinstall initial crypters because the connection ID changed.
-  InstallInitialCrypters(ServerConnectionId());
+  InstallInitialCrypters(default_path_.server_connection_id);
 
   sent_packet_manager_.MarkInitialPacketsForRetransmission();
 }
@@ -1031,8 +1021,9 @@ void QuicConnection::SetOriginalDestinationConnectionId(
   QUIC_DLOG(INFO) << "Setting original_destination_connection_id to "
                   << original_destination_connection_id
                   << " on connection with server_connection_id "
-                  << ServerConnectionId();
-  QUICHE_DCHECK_NE(original_destination_connection_id, ServerConnectionId());
+                  << default_path_.server_connection_id;
+  QUICHE_DCHECK_NE(original_destination_connection_id,
+                   default_path_.server_connection_id);
   if (!quic_deprecate_incoming_connection_ids_) {
     if (!HasIncomingConnectionId(original_destination_connection_id)) {
       incoming_connection_ids_.push_back(original_destination_connection_id);
@@ -1042,14 +1033,15 @@ void QuicConnection::SetOriginalDestinationConnectionId(
   QUICHE_DCHECK(!original_destination_connection_id_.has_value())
       << original_destination_connection_id_.value();
   original_destination_connection_id_ = original_destination_connection_id;
-  original_destination_connection_id_replacement_ = ServerConnectionId();
+  original_destination_connection_id_replacement_ =
+      default_path_.server_connection_id;
 }
 
 QuicConnectionId QuicConnection::GetOriginalDestinationConnectionId() {
   if (original_destination_connection_id_.has_value()) {
     return original_destination_connection_id_.value();
   }
-  return ServerConnectionId();
+  return default_path_.server_connection_id;
 }
 
 bool QuicConnection::ValidateServerConnectionId(
@@ -1062,7 +1054,7 @@ bool QuicConnection::ValidateServerConnectionId(
   QuicConnectionId server_connection_id =
       GetServerConnectionIdAsRecipient(header, perspective_);
 
-  if (server_connection_id == ServerConnectionId() ||
+  if (server_connection_id == default_path_.server_connection_id ||
       HasIncomingConnectionId(server_connection_id)) {
     return true;
   }
@@ -1070,7 +1062,7 @@ bool QuicConnection::ValidateServerConnectionId(
   if (PacketCanReplaceServerConnectionId(header, perspective_)) {
     QUIC_DLOG(INFO) << ENDPOINT << "Accepting packet with new connection ID "
                     << server_connection_id << " instead of "
-                    << ServerConnectionId();
+                    << default_path_.server_connection_id;
     return true;
   }
 
@@ -1090,13 +1082,10 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
   // If last packet destination connection ID is the original server
   // connection ID chosen by client, replaces it with the connection ID chosen
   // by server.
-  if (use_connection_id_on_default_path_ &&
-      perspective_ == Perspective::IS_SERVER &&
+  if (perspective_ == Perspective::IS_SERVER &&
       original_destination_connection_id_.has_value() &&
       last_packet_destination_connection_id_ ==
           *original_destination_connection_id_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_connection_id_on_default_path_v2, 3,
-                                 3);
     last_packet_destination_connection_id_ =
         original_destination_connection_id_replacement_;
   }
@@ -1113,7 +1102,7 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Ignoring packet from unexpected server connection ID "
                     << server_connection_id << " instead of "
-                    << ServerConnectionId();
+                    << default_path_.server_connection_id;
     if (debug_visitor_ != nullptr) {
       debug_visitor_->OnIncorrectConnectionId(server_connection_id);
     }
@@ -1136,7 +1125,7 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
   QuicConnectionId client_connection_id =
       GetClientConnectionIdAsRecipient(header, perspective_);
 
-  if (client_connection_id == ClientConnectionId()) {
+  if (client_connection_id == default_path_.client_connection_id) {
     return true;
   }
 
@@ -1159,7 +1148,7 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
   QUIC_DLOG(INFO) << ENDPOINT
                   << "Ignoring packet from unexpected client connection ID "
                   << client_connection_id << " instead of "
-                  << ClientConnectionId();
+                  << default_path_.client_connection_id;
   return false;
 }
 
@@ -1352,8 +1341,8 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
       }
     }
 
-    if (use_connection_id_on_default_path_ &&
-        last_packet_destination_connection_id_ != ServerConnectionId() &&
+    if (last_packet_destination_connection_id_ !=
+            default_path_.server_connection_id &&
         (!original_destination_connection_id_.has_value() ||
          last_packet_destination_connection_id_ !=
              *original_destination_connection_id_)) {
@@ -2105,8 +2094,7 @@ bool QuicConnection::OnNewConnectionIdFrameInner(
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
-  if (use_connection_id_on_default_path_ &&
-      perspective_ == Perspective::IS_SERVER) {
+  if (perspective_ == Perspective::IS_SERVER) {
     OnClientConnectionIdAvailable();
   }
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v4, 1, 2);
@@ -2145,8 +2133,7 @@ bool QuicConnection::OnRetireConnectionIdFrame(
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnRetireConnectionIdFrame(frame);
   }
-  if (use_connection_id_on_default_path_ &&
-      !connection_migration_use_new_cid_) {
+  if (!connection_migration_use_new_cid_) {
     // Do not respond to RetireConnectionId frame.
     return true;
   }
@@ -2398,14 +2385,9 @@ void QuicConnection::MaybeRespondToConnectivityProbingOrMigration() {
 bool QuicConnection::IsValidStatelessResetToken(
     const StatelessResetToken& token) const {
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
-  if (use_connection_id_on_default_path_) {
     return default_path_.stateless_reset_token_received &&
            QuicUtils::AreStatelessResetTokensEqual(
                token, default_path_.stateless_reset_token);
-  }
-  return stateless_reset_token_received_ &&
-         QuicUtils::AreStatelessResetTokensEqual(
-             token, received_stateless_reset_token_);
 }
 
 void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
@@ -3040,17 +3022,6 @@ void QuicConnection::WriteIfNotBlocked() {
   }
 }
 
-void QuicConnection::SetServerConnectionId(
-    const QuicConnectionId& server_connection_id) {
-  if (use_connection_id_on_default_path_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_connection_id_on_default_path_v2, 2,
-                                 3);
-    default_path_.server_connection_id = server_connection_id;
-  } else {
-    server_connection_id_ = server_connection_id;
-  }
-}
-
 void QuicConnection::MaybeClearQueuedPacketsOnPathChange() {
   if (connection_migration_use_new_cid_ &&
       peer_issued_cid_manager_ != nullptr && HasQueuedPackets()) {
@@ -3072,11 +3043,12 @@ void QuicConnection::ReplaceInitialServerConnectionId(
       if (peer_issued_cid_manager_ != nullptr) {
         QUIC_BUG_IF(quic_bug_12714_22,
                     !peer_issued_cid_manager_->IsConnectionIdActive(
-                        ServerConnectionId()))
+                        default_path_.server_connection_id))
             << "Connection ID replaced header is no longer active. old id: "
-            << ServerConnectionId() << " new_id: " << new_server_connection_id;
-        peer_issued_cid_manager_->ReplaceConnectionId(ServerConnectionId(),
-                                                      new_server_connection_id);
+            << default_path_.server_connection_id
+            << " new_id: " << new_server_connection_id;
+        peer_issued_cid_manager_->ReplaceConnectionId(
+            default_path_.server_connection_id, new_server_connection_id);
       } else {
         peer_issued_cid_manager_ =
             std::make_unique<QuicPeerIssuedConnectionIdManager>(
@@ -3085,8 +3057,8 @@ void QuicConnection::ReplaceInitialServerConnectionId(
       }
     }
   }
-  SetServerConnectionId(new_server_connection_id);
-  packet_creator_.SetServerConnectionId(ServerConnectionId());
+  default_path_.server_connection_id = new_server_connection_id;
+  packet_creator_.SetServerConnectionId(default_path_.server_connection_id);
 }
 
 void QuicConnection::FindMatchingOrNewClientConnectionIdOrToken(
@@ -3096,9 +3068,6 @@ void QuicConnection::FindMatchingOrNewClientConnectionIdOrToken(
     QuicConnectionId* client_connection_id,
     bool* stateless_reset_token_received,
     StatelessResetToken* stateless_reset_token) {
-  if (!use_connection_id_on_default_path_) {
-    return;
-  }
   QUICHE_DCHECK(perspective_ == Perspective::IS_SERVER);
   if (peer_issued_cid_manager_ == nullptr ||
       server_connection_id == default_path.server_connection_id) {
@@ -3191,20 +3160,20 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
   }
 
   if (PacketCanReplaceServerConnectionId(header, perspective_) &&
-      ServerConnectionId() != header.source_connection_id) {
+      default_path_.server_connection_id != header.source_connection_id) {
     QUICHE_DCHECK_EQ(header.long_packet_type, INITIAL);
     if (server_connection_id_replaced_by_initial_) {
       QUIC_DLOG(ERROR) << ENDPOINT << "Refusing to replace connection ID "
-                       << ServerConnectionId() << " with "
+                       << default_path_.server_connection_id << " with "
                        << header.source_connection_id;
       return false;
     }
     server_connection_id_replaced_by_initial_ = true;
     QUIC_DLOG(INFO) << ENDPOINT << "Replacing connection ID "
-                    << ServerConnectionId() << " with "
+                    << default_path_.server_connection_id << " with "
                     << header.source_connection_id;
     if (!original_destination_connection_id_.has_value()) {
-      original_destination_connection_id_ = ServerConnectionId();
+      original_destination_connection_id_ = default_path_.server_connection_id;
     }
     ReplaceInitialServerConnectionId(header.source_connection_id);
   }
@@ -3633,7 +3602,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
               legacy_version_encapsulation_sni_,
               absl::string_view(packet->encrypted_buffer,
                                 packet->encrypted_length),
-              ServerConnectionId(), framer_.creation_time(),
+              default_path_.server_connection_id, framer_.creation_time(),
               GetLimitedMaxPacketSize(long_term_mtu_),
               const_cast<char*>(packet->encrypted_buffer));
       if (encapsulated_length != 0) {
@@ -4149,13 +4118,14 @@ void QuicConnection::OnPathMtuIncreased(QuicPacketLength packet_size) {
 std::unique_ptr<QuicSelfIssuedConnectionIdManager>
 QuicConnection::MakeSelfIssuedConnectionIdManager() {
   QUICHE_DCHECK((perspective_ == Perspective::IS_CLIENT &&
-                 !ClientConnectionId().IsEmpty()) ||
+                 !default_path_.client_connection_id.IsEmpty()) ||
                 (perspective_ == Perspective::IS_SERVER &&
-                 !ServerConnectionId().IsEmpty()));
+                 !default_path_.server_connection_id.IsEmpty()));
   return std::make_unique<QuicSelfIssuedConnectionIdManager>(
       kMinNumOfActiveConnectionIds,
-      perspective_ == Perspective::IS_CLIENT ? ClientConnectionId()
-                                             : ServerConnectionId(),
+      perspective_ == Perspective::IS_CLIENT
+          ? default_path_.client_connection_id
+          : default_path_.server_connection_id,
       clock_, alarm_factory_, this);
 }
 
@@ -5205,7 +5175,7 @@ bool QuicConnection::SendGenericPathProbePacket(
 
   QUIC_DLOG(INFO) << ENDPOINT
                   << "Sending path probe packet for connection_id = "
-                  << ServerConnectionId();
+                  << default_path_.server_connection_id;
 
   std::unique_ptr<SerializedPacket> probing_packet;
   if (!version().HasIetfQuicFrames()) {
@@ -5250,7 +5220,7 @@ bool QuicConnection::WritePacketUsingWriter(
   const QuicTime packet_send_time = clock_->Now();
   QUIC_DVLOG(2) << ENDPOINT
                 << "Sending path probe packet for server connection ID "
-                << ServerConnectionId() << std::endl
+                << default_path_.server_connection_id << std::endl
                 << quiche::QuicheTextUtils::HexDump(absl::string_view(
                        packet->encrypted_buffer, packet->encrypted_length));
   WriteResult result = writer->WritePacket(
@@ -6371,13 +6341,7 @@ void QuicConnection::set_client_connection_id(
         << client_connection_id << " with unsupported version " << version();
     return;
   }
-  if (use_connection_id_on_default_path_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_connection_id_on_default_path_v2, 1,
-                                 3);
-    default_path_.client_connection_id = client_connection_id;
-  } else {
-    client_connection_id_ = client_connection_id;
-  }
+  default_path_.client_connection_id = client_connection_id;
 
   client_connection_id_is_set_ = true;
   if (support_multiple_connection_ids_ && !client_connection_id.IsEmpty()) {
@@ -6394,11 +6358,12 @@ void QuicConnection::set_client_connection_id(
     }
   }
   QUIC_DLOG(INFO) << ENDPOINT << "setting client connection ID to "
-                  << ClientConnectionId()
+                  << default_path_.client_connection_id
                   << " for connection with server connection ID "
-                  << ServerConnectionId();
-  packet_creator_.SetClientConnectionId(ClientConnectionId());
-  framer_.SetExpectedClientConnectionIdLength(ClientConnectionId().length());
+                  << default_path_.server_connection_id;
+  packet_creator_.SetClientConnectionId(default_path_.client_connection_id);
+  framer_.SetExpectedClientConnectionIdLength(
+      default_path_.client_connection_id.length());
 }
 
 void QuicConnection::OnPathDegradingDetected() {
@@ -6480,9 +6445,10 @@ void QuicConnection::OnIdleNetworkDetected() {
 
 void QuicConnection::OnPeerIssuedConnectionIdRetired() {
   QUICHE_DCHECK(peer_issued_cid_manager_ != nullptr);
-  QuicConnectionId* default_path_cid = perspective_ == Perspective::IS_CLIENT
-                                           ? &ServerConnectionId()
-                                           : &ClientConnectionId();
+  QuicConnectionId* default_path_cid =
+      perspective_ == Perspective::IS_CLIENT
+          ? &default_path_.server_connection_id
+          : &default_path_.client_connection_id;
   QuicConnectionId* alternative_path_cid =
       perspective_ == Perspective::IS_CLIENT
           ? &alternative_path_.server_connection_id
@@ -6494,8 +6460,7 @@ void QuicConnection::OnPeerIssuedConnectionIdRetired() {
     *default_path_cid = QuicConnectionId();
   }
   // TODO(haoyuewang) Handle the change for default_path_ & alternatvie_path_
-  // via the same helper function after use_connection_id_on_default_path_ is
-  // default true.
+  // via the same helper function.
   if (default_path_cid->IsEmpty()) {
     // Try setting a new connection ID now such that subsequent
     // RetireConnectionId frames can be sent on the default path.
@@ -6503,15 +6468,9 @@ void QuicConnection::OnPeerIssuedConnectionIdRetired() {
         peer_issued_cid_manager_->ConsumeOneUnusedConnectionId();
     if (unused_connection_id_data != nullptr) {
       *default_path_cid = unused_connection_id_data->connection_id;
-      if (use_connection_id_on_default_path_) {
-        default_path_.stateless_reset_token =
-            unused_connection_id_data->stateless_reset_token;
-        default_path_.stateless_reset_token_received = true;
-      } else {
-        received_stateless_reset_token_ =
-            unused_connection_id_data->stateless_reset_token;
-        stateless_reset_token_received_ = true;
-      }
+      default_path_.stateless_reset_token =
+          unused_connection_id_data->stateless_reset_token;
+      default_path_.stateless_reset_token_received = true;
       if (perspective_ == Perspective::IS_CLIENT) {
         packet_creator_.SetServerConnectionId(
             unused_connection_id_data->connection_id);
@@ -6521,25 +6480,23 @@ void QuicConnection::OnPeerIssuedConnectionIdRetired() {
       }
     }
   }
-  if (use_connection_id_on_default_path_) {
-    if (default_path_and_alternative_path_use_the_same_peer_connection_id) {
-      *alternative_path_cid = *default_path_cid;
-      alternative_path_.stateless_reset_token_received =
-          default_path_.stateless_reset_token_received;
+  if (default_path_and_alternative_path_use_the_same_peer_connection_id) {
+    *alternative_path_cid = *default_path_cid;
+    alternative_path_.stateless_reset_token_received =
+        default_path_.stateless_reset_token_received;
+    alternative_path_.stateless_reset_token =
+        default_path_.stateless_reset_token;
+  } else if (!alternative_path_cid->IsEmpty() &&
+             !peer_issued_cid_manager_->IsConnectionIdActive(
+                 *alternative_path_cid)) {
+    *alternative_path_cid = EmptyQuicConnectionId();
+    const QuicConnectionIdData* unused_connection_id_data =
+        peer_issued_cid_manager_->ConsumeOneUnusedConnectionId();
+    if (unused_connection_id_data != nullptr) {
+      *alternative_path_cid = unused_connection_id_data->connection_id;
       alternative_path_.stateless_reset_token =
-          default_path_.stateless_reset_token;
-    } else if (!alternative_path_cid->IsEmpty() &&
-               !peer_issued_cid_manager_->IsConnectionIdActive(
-                   *alternative_path_cid)) {
-      *alternative_path_cid = EmptyQuicConnectionId();
-      const QuicConnectionIdData* unused_connection_id_data =
-          peer_issued_cid_manager_->ConsumeOneUnusedConnectionId();
-      if (unused_connection_id_data != nullptr) {
-        *alternative_path_cid = unused_connection_id_data->connection_id;
-        alternative_path_.stateless_reset_token =
-            unused_connection_id_data->stateless_reset_token;
-        alternative_path_.stateless_reset_token_received = true;
-      }
+          unused_connection_id_data->stateless_reset_token;
+      alternative_path_.stateless_reset_token_received = true;
     }
   }
 
@@ -6971,7 +6928,7 @@ std::vector<QuicConnectionId> QuicConnection::GetActiveServerConnectionIds()
     const {
   if (!support_multiple_connection_ids_ ||
       self_issued_cid_manager_ == nullptr) {
-    return {ServerConnectionId()};
+    return {default_path_.server_connection_id};
   }
   return self_issued_cid_manager_->GetUnretiredConnectionIds();
 }
@@ -6982,14 +6939,14 @@ void QuicConnection::CreateConnectionIdManager() {
   }
 
   if (perspective_ == Perspective::IS_CLIENT) {
-    if (!ServerConnectionId().IsEmpty()) {
+    if (!default_path_.server_connection_id.IsEmpty()) {
       peer_issued_cid_manager_ =
           std::make_unique<QuicPeerIssuedConnectionIdManager>(
-              kMinNumOfActiveConnectionIds, ServerConnectionId(), clock_,
-              alarm_factory_, this);
+              kMinNumOfActiveConnectionIds, default_path_.server_connection_id,
+              clock_, alarm_factory_, this);
     }
   } else {
-    if (!ServerConnectionId().IsEmpty()) {
+    if (!default_path_.server_connection_id.IsEmpty()) {
       self_issued_cid_manager_ = MakeSelfIssuedConnectionIdManager();
     }
   }

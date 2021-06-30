@@ -111,8 +111,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_encryption_level_context, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_write_or_buffer_data_at_level, false)
 // If true, use new connection ID in connection migration.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, true)
-// If true, use the connection ID and stateless reset token on default PathState.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_connection_id_on_default_path_v2, true)
 // If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // If true, validate that peer owns the new address once the server detects peer migration or is probed from that address, and also apply anti-amplification limit while sending to that address.

@@ -398,11 +398,7 @@ QuicIdleNetworkDetector& QuicConnectionPeer::GetIdleNetworkDetector(
 void QuicConnectionPeer::SetServerConnectionId(
     QuicConnection* connection,
     const QuicConnectionId& server_connection_id) {
-  if (connection->use_connection_id_on_default_path_) {
-    connection->default_path_.server_connection_id = server_connection_id;
-  } else {
-    connection->server_connection_id_ = server_connection_id;
-  }
+  connection->default_path_.server_connection_id = server_connection_id;
   connection->InstallInitialCrypters(server_connection_id);
 }
 
