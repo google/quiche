@@ -2800,18 +2800,16 @@ bool QuicConnection::ShouldEnqueueUnDecryptablePacket(
     return false;
   }
   if (version().KnowsWhichDecrypterToUse() &&
-      decryption_level <= encryption_level_) {
-    if (decryption_level == ENCRYPTION_HANDSHAKE &&
-        encryption_level_ == ENCRYPTION_ZERO_RTT) {
-      // This is cient side only since only clients have
-      // encryption_level_ == ENCRYPTION_ZERO_RTT.
-      QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
-      // Make sure we enqueue undecryptable HANDSHAKE packets when the
-      // encryption level is 0-RTT and we have not install HANDSHAKE key yet.
-      return true;
-    }
-    // On versions that know which decrypter to use, we install keys in order
-    // so we will not get newer keys for lower encryption levels.
+      decryption_level == ENCRYPTION_INITIAL) {
+    // When the corresponding decryption key is not available, all
+    // non-Initial packets should be buffered until the handshake is complete.
+    return false;
+  }
+  if (perspective_ == Perspective::IS_CLIENT && version().UsesTls() &&
+      decryption_level == ENCRYPTION_ZERO_RTT) {
+    // Only clients send Zero RTT packets in IETF QUIC.
+    QUIC_PEER_BUG(quic_peer_bug_client_received_zero_rtt)
+        << "Client received a Zero RTT packet, not buffering.";
     return false;
   }
   return true;
