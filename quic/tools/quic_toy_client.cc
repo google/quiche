@@ -211,6 +211,10 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
                               -1,
                               "Length of the client connection ID used.");
 
+DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t, max_time_before_crypto_handshake_ms,
+                              10000,
+                              "Max time to wait before handshake completes.");
+
 namespace quic {
 
 QuicToyClient::QuicToyClient(ClientFactory* client_factory)
@@ -293,6 +297,8 @@ int QuicToyClient::SendRequestsAndPrintResponses(
     config.custom_transport_parameters_to_send()[kCustomParameter] =
         custom_value;
   }
+  config.set_max_time_before_crypto_handshake(QuicTime::Delta::FromMilliseconds(
+      GetQuicFlag(FLAGS_max_time_before_crypto_handshake_ms)));
 
   int address_family_for_lookup = AF_UNSPEC;
   if (GetQuicFlag(FLAGS_ip_version_for_host_lookup) == "4") {
