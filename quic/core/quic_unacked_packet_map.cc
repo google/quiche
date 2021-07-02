@@ -174,7 +174,7 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* mutable_packet,
     last_inflight_packet_sent_time_ = sent_time;
     last_inflight_packets_sent_time_[packet_number_space] = sent_time;
   }
-  unacked_packets_.push_back(info);
+  unacked_packets_.push_back(std::move(info));
   // Swap the retransmittable frames to avoid allocations.
   // TODO(ianswett): Could use emplace_back when Chromium can.
   if (has_crypto_handshake) {
