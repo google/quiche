@@ -35,9 +35,9 @@
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_types.h"
-#include "quic/platform/api/quic_file_utils.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/test_tools/qpack/qpack_test_utils.h"
+#include "common/platform/api/quiche_file_utils.h"
 #include "common/quiche_endian.h"
 
 namespace quic {
@@ -69,8 +69,7 @@ bool QpackOfflineDecoder::DecodeAndVerifyOfflineData(
 }
 
 void QpackOfflineDecoder::OnEncoderStreamError(
-    QuicErrorCode error_code,
-    absl::string_view error_message) {
+    QuicErrorCode error_code, absl::string_view error_message) {
   QUIC_LOG(ERROR) << "Encoder stream error: "
                   << QuicErrorCodeToString(error_code) << " " << error_message;
   encoder_stream_error_detected_ = true;
@@ -136,9 +135,10 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
     absl::string_view input_filename) {
   // Store data in |input_data_storage|; use a absl::string_view to
   // efficiently keep track of remaining portion yet to be decoded.
-  std::string input_data_storage;
-  ReadFileContents(input_filename, &input_data_storage);
-  absl::string_view input_data(input_data_storage);
+  absl::optional<std::string> input_data_storage =
+      quiche::ReadFileContents(input_filename);
+  QUICHE_DCHECK(input_data_storage.has_value());
+  absl::string_view input_data(*input_data_storage);
 
   while (!input_data.empty()) {
     // Parse stream_id and length.
@@ -233,9 +233,10 @@ bool QpackOfflineDecoder::VerifyDecodedHeaderLists(
   // Store data in |expected_headers_data_storage|; use a
   // absl::string_view to efficiently keep track of remaining portion
   // yet to be decoded.
-  std::string expected_headers_data_storage;
-  ReadFileContents(expected_headers_filename, &expected_headers_data_storage);
-  absl::string_view expected_headers_data(expected_headers_data_storage);
+  absl::optional<std::string> expected_headers_data_storage =
+      quiche::ReadFileContents(expected_headers_filename);
+  QUICHE_DCHECK(expected_headers_data_storage.has_value());
+  absl::string_view expected_headers_data(*expected_headers_data_storage);
 
   while (!decoded_header_lists_.empty()) {
     spdy::Http2HeaderBlock decoded_header_list =

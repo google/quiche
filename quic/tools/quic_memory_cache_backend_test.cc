@@ -4,11 +4,13 @@
 
 #include "quic/tools/quic_memory_cache_backend.h"
 
+#include <vector>
+
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
-#include "quic/platform/api/quic_file_utils.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/tools/quic_backend_response.h"
+#include "common/platform/api/quiche_file_utils.h"
 
 namespace quic {
 namespace test {
@@ -20,8 +22,7 @@ using ServerPushInfo = QuicBackendResponse::ServerPushInfo;
 
 class QuicMemoryCacheBackendTest : public QuicTest {
  protected:
-  void CreateRequest(std::string host,
-                     std::string path,
+  void CreateRequest(std::string host, std::string path,
                      spdy::Http2HeaderBlock* headers) {
     (*headers)[":method"] = "GET";
     (*headers)[":path"] = path;
@@ -120,7 +121,9 @@ TEST_F(QuicMemoryCacheBackendTest, UsesOriginalUrlOnly) {
   // X-Original-Url header's value will be used.
   std::string dir;
   std::string path = "map.html";
-  for (const std::string& file : ReadFileContents(CacheDirectory())) {
+  std::vector<std::string> files;
+  ASSERT_TRUE(quiche::EnumerateDirectoryRecursively(CacheDirectory(), files));
+  for (const std::string& file : files) {
     if (absl::EndsWithIgnoreCase(file, "map.html")) {
       dir = file;
       dir.erase(dir.length() - path.length() - 1);

@@ -12,6 +12,18 @@ using QuicheTest = quiche::test::QuicheTest;
 template <class T>
 using QuicheTestWithParam = quiche::test::QuicheTestWithParamImpl<T>;
 
+namespace quiche {
+namespace test {
+
+// Returns the path to quiche/common directory where the test data could be
+// located.
+inline std::string QuicheGetCommonSourcePath() {
+  return QuicheGetCommonSourcePathImpl();
+}
+
+}  // namespace test
+}  // namespace quiche
+
 #define EXPECT_QUICHE_DEBUG_DEATH(condition, message) \
   EXPECT_QUICHE_DEBUG_DEATH_IMPL(condition, message)
 

@@ -12,9 +12,9 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/http/spdy_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
-#include "quic/platform/api/quic_file_utils.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/tools/web_transport_test_visitors.h"
+#include "common/platform/api/quiche_file_utils.h"
 #include "common/quiche_text_utils.h"
 
 using spdy::Http2HeaderBlock;
@@ -28,7 +28,14 @@ QuicMemoryCacheBackend::ResourceFile::ResourceFile(const std::string& file_name)
 QuicMemoryCacheBackend::ResourceFile::~ResourceFile() = default;
 
 void QuicMemoryCacheBackend::ResourceFile::Read() {
-  ReadFileContents(file_name_, &file_contents_);
+  absl::optional<std::string> maybe_file_contents =
+      quiche::ReadFileContents(file_name_);
+  if (!maybe_file_contents) {
+    QUIC_LOG(DFATAL) << "Failed to read file for the memory cache backend: "
+                     << file_name_;
+    return;
+  }
+  file_contents_ = *maybe_file_contents;
 
   // First read the headers.
   size_t start = 0;
@@ -139,8 +146,7 @@ void QuicMemoryCacheBackend::ResourceFile::HandleXOriginalUrl() {
 }
 
 const QuicBackendResponse* QuicMemoryCacheBackend::GetResponse(
-    absl::string_view host,
-    absl::string_view path) const {
+    absl::string_view host, absl::string_view path) const {
   QuicWriterMutexLock lock(&response_mutex_);
 
   auto it = responses_.find(GetKey(host, path));
@@ -178,11 +184,8 @@ void QuicMemoryCacheBackend::AddSimpleResponse(absl::string_view host,
 }
 
 void QuicMemoryCacheBackend::AddSimpleResponseWithServerPushResources(
-    absl::string_view host,
-    absl::string_view path,
-    int response_code,
-    absl::string_view body,
-    std::list<ServerPushInfo> push_resources) {
+    absl::string_view host, absl::string_view path, int response_code,
+    absl::string_view body, std::list<ServerPushInfo> push_resources) {
   AddSimpleResponse(host, path, response_code, body);
   MaybeAddServerPushResources(host, path, push_resources);
 }
@@ -213,10 +216,8 @@ void QuicMemoryCacheBackend::AddResponse(absl::string_view host,
 }
 
 void QuicMemoryCacheBackend::AddResponseWithEarlyHints(
-    absl::string_view host,
-    absl::string_view path,
-    spdy::Http2HeaderBlock response_headers,
-    absl::string_view response_body,
+    absl::string_view host, absl::string_view path,
+    spdy::Http2HeaderBlock response_headers, absl::string_view response_body,
     const std::vector<spdy::Http2HeaderBlock>& early_hints) {
   AddResponseImpl(host, path, QuicBackendResponse::REGULAR_RESPONSE,
                   std::move(response_headers), response_body,
@@ -224,18 +225,15 @@ void QuicMemoryCacheBackend::AddResponseWithEarlyHints(
 }
 
 void QuicMemoryCacheBackend::AddSpecialResponse(
-    absl::string_view host,
-    absl::string_view path,
+    absl::string_view host, absl::string_view path,
     SpecialResponseType response_type) {
   AddResponseImpl(host, path, response_type, Http2HeaderBlock(), "",
                   Http2HeaderBlock(), std::vector<spdy::Http2HeaderBlock>());
 }
 
 void QuicMemoryCacheBackend::AddSpecialResponse(
-    absl::string_view host,
-    absl::string_view path,
-    spdy::Http2HeaderBlock response_headers,
-    absl::string_view response_body,
+    absl::string_view host, absl::string_view path,
+    spdy::Http2HeaderBlock response_headers, absl::string_view response_body,
     SpecialResponseType response_type) {
   AddResponseImpl(host, path, response_type, std::move(response_headers),
                   response_body, Http2HeaderBlock(),
@@ -253,7 +251,12 @@ bool QuicMemoryCacheBackend::InitializeBackend(
   QUIC_LOG(INFO)
       << "Attempting to initialize QuicMemoryCacheBackend from directory: "
       << cache_directory;
-  std::vector<std::string> files = ReadFileContents(cache_directory);
+  std::vector<std::string> files;
+  if (!quiche::EnumerateDirectoryRecursively(cache_directory, files)) {
+    QUIC_BUG(QuicMemoryCacheBackend unreadable directory)
+        << "Can't read QuicMemoryCacheBackend directory: " << cache_directory;
+    return false;
+  }
   std::list<std::unique_ptr<ResourceFile>> resource_files;
   for (const auto& filename : files) {
     std::unique_ptr<ResourceFile> resource_file(new ResourceFile(filename));
@@ -401,12 +404,9 @@ QuicMemoryCacheBackend::~QuicMemoryCacheBackend() {
 }
 
 void QuicMemoryCacheBackend::AddResponseImpl(
-    absl::string_view host,
-    absl::string_view path,
-    SpecialResponseType response_type,
-    Http2HeaderBlock response_headers,
-    absl::string_view response_body,
-    Http2HeaderBlock response_trailers,
+    absl::string_view host, absl::string_view path,
+    SpecialResponseType response_type, Http2HeaderBlock response_headers,
+    absl::string_view response_body, Http2HeaderBlock response_trailers,
     const std::vector<spdy::Http2HeaderBlock>& early_hints) {
   QuicWriterMutexLock lock(&response_mutex_);
 
@@ -440,8 +440,7 @@ std::string QuicMemoryCacheBackend::GetKey(absl::string_view host,
 }
 
 void QuicMemoryCacheBackend::MaybeAddServerPushResources(
-    absl::string_view request_host,
-    absl::string_view request_path,
+    absl::string_view request_host, absl::string_view request_path,
     std::list<ServerPushInfo> push_resources) {
   std::string request_url = GetKey(request_host, request_path);
 
@@ -480,8 +479,7 @@ void QuicMemoryCacheBackend::MaybeAddServerPushResources(
 }
 
 bool QuicMemoryCacheBackend::PushResourceExistsInCache(
-    std::string original_request_url,
-    ServerPushInfo resource) {
+    std::string original_request_url, ServerPushInfo resource) {
   QuicWriterMutexLock lock(&response_mutex_);
   auto resource_range =
       server_push_resources_.equal_range(original_request_url);
