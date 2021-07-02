@@ -446,6 +446,10 @@ QUIC_EXPORT_PRIVATE ParsedQuicVersionVector AllSupportedVersionsWithTls();
 // PROTOCOL_TLS1_3.
 QUIC_EXPORT_PRIVATE ParsedQuicVersionVector CurrentSupportedVersionsWithTls();
 
+// Returns a subset of CurrentSupportedVersions() using HTTP/3 at the HTTP
+// layer.
+QUIC_EXPORT_PRIVATE ParsedQuicVersionVector CurrentSupportedHttp3Versions();
+
 // Returns QUIC version of |index| in result of |versions|. Returns
 // UnsupportedQuicVersion() if |index| is out of bounds.
 QUIC_EXPORT_PRIVATE ParsedQuicVersionVector

@@ -445,6 +445,25 @@ TEST_F(QuicVersionsTest, SupportedVersionsAllDistinct) {
   }
 }
 
+TEST_F(QuicVersionsTest, CurrentSupportedHttp3Versions) {
+  ParsedQuicVersionVector h3_versions = CurrentSupportedHttp3Versions();
+  ParsedQuicVersionVector all_current_supported_versions =
+      CurrentSupportedVersions();
+  for (auto& version : all_current_supported_versions) {
+    bool version_is_h3 = false;
+    for (auto& h3_version : h3_versions) {
+      if (version == h3_version) {
+        EXPECT_TRUE(version.UsesHttp3());
+        version_is_h3 = true;
+        break;
+      }
+    }
+    if (!version_is_h3) {
+      EXPECT_FALSE(version.UsesHttp3());
+    }
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

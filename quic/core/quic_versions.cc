@@ -297,6 +297,18 @@ ParsedQuicVersionVector CurrentSupportedVersionsWithTls() {
   return versions;
 }
 
+ParsedQuicVersionVector CurrentSupportedHttp3Versions() {
+  ParsedQuicVersionVector versions;
+  for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
+    if (version.UsesHttp3()) {
+      versions.push_back(version);
+    }
+  }
+  QUIC_BUG_IF(no_version_uses_http3, versions.empty())
+      << "No version speaking Http3 found.";
+  return versions;
+}
+
 ParsedQuicVersion ParseQuicVersionLabel(QuicVersionLabel version_label) {
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     if (version_label == CreateQuicVersionLabel(version)) {
