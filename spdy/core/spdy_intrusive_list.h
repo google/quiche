@@ -267,9 +267,10 @@ template <typename T, typename ListID = void> class SpdyIntrusiveList {
    public:
     typedef std::iterator<std::bidirectional_iterator_tag, QualifiedT> base;
 
-    iterator_impl() : link_(nullptr) {}
+    iterator_impl() = default;
     iterator_impl(QualifiedLinkT* link) : link_(link) {}
-    iterator_impl(const iterator_impl& x) : link_(x.link_) {}
+    iterator_impl(const iterator_impl& x) = default;
+    iterator_impl& operator=(const iterator_impl& x) = default;
 
     // Allow converting and comparing across iterators where the pointer
     // assignment and comparisons (respectively) are allowed.
@@ -310,7 +311,7 @@ template <typename T, typename ListID = void> class SpdyIntrusiveList {
     // Ensure iterators can access other iterators node directly.
     template <typename U, typename V> friend class iterator_impl;
 
-    QualifiedLinkT* link_;
+    QualifiedLinkT* link_ = nullptr;
   };
 
   // This bare link acts as the sentinel node.
