@@ -45,6 +45,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_q043, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_q046, false)
 // If true, disable QUIC version Q050.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_q050, false)
+// If true, disable QUIC version h3 (RFCv1).
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_rfcv1, false)
 // If true, disable QUIC version h3-29.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_draft_29, false)
 // If true, disable QUIC version h3-T051.
@@ -67,8 +69,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_pto_half_rtt_data, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_write_mid_packet_processing, true)
 // If true, drop unsent PATH_RESPONSEs and rely on peer\'s retry.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_drop_unsent_path_response, true)
-// If true, enable QUIC version h3 (RFCv1).
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_version_rfcv1, true)
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 // If true, ignore peer_max_ack_delay during handshake.

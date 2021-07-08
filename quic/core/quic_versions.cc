@@ -47,7 +47,7 @@ void SetVersionFlag(const ParsedQuicVersion& version, bool should_enable) {
   const bool enable = should_enable;
   const bool disable = !should_enable;
   if (version == ParsedQuicVersion::RFCv1()) {
-    SetQuicReloadableFlag(quic_enable_version_rfcv1, enable);
+    SetQuicReloadableFlag(quic_disable_version_rfcv1, disable);
   } else if (version == ParsedQuicVersion::Draft29()) {
     SetQuicReloadableFlag(quic_disable_version_draft_29, disable);
   } else if (version == ParsedQuicVersion::T051()) {
@@ -407,7 +407,7 @@ ParsedQuicVersionVector FilterSupportedVersions(
   filtered_versions.reserve(versions.size());
   for (const ParsedQuicVersion& version : versions) {
     if (version == ParsedQuicVersion::RFCv1()) {
-      if (GetQuicReloadableFlag(quic_enable_version_rfcv1)) {
+      if (!GetQuicReloadableFlag(quic_disable_version_rfcv1)) {
         filtered_versions.push_back(version);
       }
     } else if (version == ParsedQuicVersion::Draft29()) {
