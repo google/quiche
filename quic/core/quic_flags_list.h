@@ -115,8 +115,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, t
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // If true, validate that peer owns the new address once the server detects peer migration or is probed from that address, and also apply anti-amplification limit while sending to that address.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_server_reverse_validate_new_path3, true)
-// If ture, replace the incoming_connection_ids check with original_destination_connection_id check.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_deprecate_incoming_connection_ids, true)
 // Queue packets to attempt decryption later until the handshake is complete.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_queue_until_handshake_complete, false)
 // When the STMP connection option is sent by the client, timestamps in the QUIC ACK frame are sent and processed.

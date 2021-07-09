@@ -1707,9 +1707,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns the largest sent packet number that has been ACKed by peer.
   QuicPacketNumber GetLargestAckedPacket() const;
 
-  // Whether incoming_connection_ids_ contains connection_id.
-  bool HasIncomingConnectionId(QuicConnectionId connection_id) const;
-
   // Whether connection is limited by amplification factor.
   bool LimitedByAmplificationFactor() const;
 
@@ -2157,11 +2154,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   quiche::QuicheCircularDeque<PendingPathChallenge>
       pending_path_challenge_payloads_;
 
-  // Set of connection IDs that should be accepted as destination on
-  // received packets. This is conceptually a set but is implemented as a
-  // vector to improve performance since it is expected to be very small.
-  std::vector<QuicConnectionId> incoming_connection_ids_;
-
   // When we receive a RETRY packet or some INITIAL packets, we replace
   // |server_connection_id_| with the value from that packet and save off the
   // original value of |server_connection_id_| into
@@ -2287,9 +2279,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const bool group_path_response_and_challenge_sending_closer_ =
       GetQuicReloadableFlag(
           quic_group_path_response_and_challenge_sending_closer);
-
-  const bool quic_deprecate_incoming_connection_ids_ =
-      GetQuicReloadableFlag(quic_deprecate_incoming_connection_ids);
 
   const bool reset_per_packet_state_for_undecryptable_packets_ =
       GetQuicReloadableFlag(
