@@ -12,7 +12,6 @@
 #include "quic/core/crypto/quic_random.h"
 #include "quic/platform/api/quic_ip_address.h"
 #include "quic/platform/api/quic_logging.h"
-#include "net/quic/platform/impl/quic_ip_address_impl.h"
 #include "quic/qbone/platform/rtnetlink_message.h"
 
 namespace quic {
