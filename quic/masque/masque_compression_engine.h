@@ -63,8 +63,7 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
                           QuicConnectionId* client_connection_id,
                           QuicConnectionId* server_connection_id,
                           QuicSocketAddress* server_address,
-                          std::vector<char>* packet,
-                          bool* version_present);
+                          std::vector<char>* packet, bool* version_present);
 
   // Clears all entries referencing |client_connection_id| from the
   // compression table.
@@ -83,12 +82,11 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
   // whether the corresponding connection ID is present in the current packet.
   // |validated| will contain whether the compression context that matches
   // these arguments is currently validated or not.
-  QuicDatagramFlowId FindOrCreateCompressionContext(
+  QuicDatagramStreamId FindOrCreateCompressionContext(
       QuicConnectionId client_connection_id,
       QuicConnectionId server_connection_id,
       const QuicSocketAddress& server_address,
-      bool client_connection_id_present,
-      bool server_connection_id_present,
+      bool client_connection_id_present, bool server_connection_id_present,
       bool* validated);
 
   // Writes compressed packet to |slice| during compression.
@@ -97,11 +95,9 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
                                     const QuicSocketAddress& server_address,
                                     QuicConnectionId destination_connection_id,
                                     QuicConnectionId source_connection_id,
-                                    QuicDatagramFlowId flow_id,
-                                    bool validated,
-                                    uint8_t first_byte,
-                                    bool long_header,
-                                    QuicDataReader* reader,
+                                    QuicDatagramStreamId flow_id,
+                                    bool validated, uint8_t first_byte,
+                                    bool long_header, QuicDataReader* reader,
                                     QuicDataWriter* writer);
 
   // Parses compression context from flow ID 0 during decompression.
@@ -115,7 +111,8 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
                                bool* version_present);
 
   QuicSpdySession* masque_session_;  // Unowned.
-  absl::flat_hash_map<QuicDatagramFlowId, MasqueCompressionContext> contexts_;
+  absl::flat_hash_map<QuicDatagramStreamId, MasqueCompressionContext> contexts_;
+  QuicDatagramStreamId next_available_flow_id_;
 };
 
 }  // namespace quic

@@ -55,12 +55,12 @@ class QUIC_EXPORT_PRIVATE SpdyUtils {
 
   // Parses the "datagram-flow-id" header, returns the flow ID on success, or
   // returns absl::nullopt if the header was not present or failed to parse.
-  static absl::optional<QuicDatagramFlowId> ParseDatagramFlowIdHeader(
+  static absl::optional<QuicDatagramStreamId> ParseDatagramFlowIdHeader(
       const spdy::SpdyHeaderBlock& headers);
 
   // Adds the "datagram-flow-id" header.
   static void AddDatagramFlowIdHeader(spdy::SpdyHeaderBlock* headers,
-                                      QuicDatagramFlowId flow_id);
+                                      QuicDatagramStreamId flow_id);
 };
 
 }  // namespace quic

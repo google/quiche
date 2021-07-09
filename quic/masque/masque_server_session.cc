@@ -58,8 +58,7 @@ class FdWrapper {
 };
 
 std::unique_ptr<QuicBackendResponse> CreateBackendErrorResponse(
-    absl::string_view status,
-    absl::string_view error_details) {
+    absl::string_view status, absl::string_view error_details) {
   spdy::Http2HeaderBlock response_headers;
   response_headers[":status"] = status;
   response_headers["masque-debug-info"] = error_details;
@@ -72,24 +71,15 @@ std::unique_ptr<QuicBackendResponse> CreateBackendErrorResponse(
 }  // namespace
 
 MasqueServerSession::MasqueServerSession(
-    MasqueMode masque_mode,
-    const QuicConfig& config,
+    MasqueMode masque_mode, const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
-    QuicConnection* connection,
-    QuicSession::Visitor* visitor,
-    Visitor* owner,
-    QuicEpollServer* epoll_server,
-    QuicCryptoServerStreamBase::Helper* helper,
+    QuicConnection* connection, QuicSession::Visitor* visitor, Visitor* owner,
+    QuicEpollServer* epoll_server, QuicCryptoServerStreamBase::Helper* helper,
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     MasqueServerBackend* masque_server_backend)
-    : QuicSimpleServerSession(config,
-                              supported_versions,
-                              connection,
-                              visitor,
-                              helper,
-                              crypto_config,
-                              compressed_certs_cache,
+    : QuicSimpleServerSession(config, supported_versions, connection, visitor,
+                              helper, crypto_config, compressed_certs_cache,
                               masque_server_backend),
       masque_server_backend_(masque_server_backend),
       owner_(owner),
@@ -153,8 +143,7 @@ void MasqueServerSession::OnMessageLost(QuicMessageId message_id) {
 }
 
 void MasqueServerSession::OnConnectionClosed(
-    const QuicConnectionCloseFrame& frame,
-    ConnectionCloseSource source) {
+    const QuicConnectionCloseFrame& frame, ConnectionCloseSource source) {
   QuicSimpleServerSession::OnConnectionClosed(frame, source);
   QUIC_DLOG(INFO) << "Closing connection for " << connection_id();
   masque_server_backend_->RemoveBackendClient(connection_id());
@@ -165,7 +154,7 @@ void MasqueServerSession::OnConnectionClosed(
 void MasqueServerSession::OnStreamClosed(QuicStreamId stream_id) {
   connect_udp_server_states_.remove_if(
       [stream_id](const ConnectUdpServerState& connect_udp) {
-        return connect_udp.stream_id() == stream_id;
+        return connect_udp.stream()->id() == stream_id;
       });
 
   QuicSimpleServerSession::OnStreamClosed(stream_id);
@@ -213,7 +202,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
       QUIC_DLOG(ERROR) << "MASQUE request with bad method \"" << method << "\"";
       return CreateBackendErrorResponse("400", "Bad method");
     }
-    absl::optional<QuicDatagramFlowId> flow_id =
+    absl::optional<QuicDatagramStreamId> flow_id =
         SpdyUtils::ParseDatagramFlowIdHeader(request_headers);
     if (!flow_id.has_value()) {
       QUIC_DLOG(ERROR)
@@ -266,9 +255,25 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     }
     epoll_server_->RegisterFDForRead(fd_wrapper.fd(), this);
 
-    connect_udp_server_states_.emplace_back(ConnectUdpServerState(
-        *flow_id, request_handler->stream_id(), target_server_address,
-        fd_wrapper.extract_fd(), this));
+    absl::optional<QuicDatagramContextId> context_id;
+    QuicSpdyStream* stream = static_cast<QuicSpdyStream*>(
+        GetActiveStream(request_handler->stream_id()));
+    if (stream == nullptr) {
+      QUIC_BUG(bad masque server stream type)
+          << "Unexpected stream type for stream ID "
+          << request_handler->stream_id();
+      return CreateBackendErrorResponse("500", "Bad stream type");
+    }
+    stream->RegisterHttp3DatagramFlowId(*flow_id);
+    connect_udp_server_states_.push_back(
+        ConnectUdpServerState(stream, context_id, target_server_address,
+                              fd_wrapper.extract_fd(), this));
+
+    // TODO(b/181256914) remove this when we drop support for
+    // draft-ietf-masque-h3-datagram-00 in favor of later drafts.
+    Http3DatagramContextExtensions extensions;
+    stream->RegisterHttp3DatagramContextId(context_id, extensions,
+                                           &connect_udp_server_states_.back());
 
     spdy::Http2HeaderBlock response_headers;
     response_headers[":status"] = "200";
@@ -329,8 +334,7 @@ void MasqueServerSession::HandlePacketFromServer(
 }
 
 void MasqueServerSession::OnRegistration(QuicEpollServer* /*eps*/,
-                                         QuicUdpSocketFd fd,
-                                         int event_mask) {
+                                         QuicUdpSocketFd fd, int event_mask) {
   QUIC_DVLOG(1) << "OnRegistration " << fd << " event_mask " << event_mask;
 }
 
@@ -353,13 +357,12 @@ void MasqueServerSession::OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) {
                                << event->in_events << " on unknown fd " << fd;
     return;
   }
-  QuicDatagramFlowId flow_id = it->flow_id();
   QuicSocketAddress expected_target_server_address =
       it->target_server_address();
   QUICHE_DCHECK(expected_target_server_address.IsInitialized());
   QUIC_DVLOG(1) << "Received readable event on fd " << fd << " (mask "
-                << event->in_events << ") flow_id " << flow_id << " server "
-                << expected_target_server_address;
+                << event->in_events << ") stream ID " << it->stream()->id()
+                << " server " << expected_target_server_address;
   QuicUdpSocketApi socket_api;
   BitMask64 packet_info_interested(QuicUdpPacketInfoBit::PEER_ADDRESS);
   char packet_buffer[kMaxIncomingPacketSize];
@@ -395,12 +398,14 @@ void MasqueServerSession::OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) {
       return;
     }
     // The packet is valid, send it to the client in a DATAGRAM frame.
-    MessageStatus message_status = SendHttp3Datagram(
-        flow_id, absl::string_view(read_result.packet_buffer.buffer,
-                                   read_result.packet_buffer.buffer_len));
+    MessageStatus message_status = it->stream()->SendHttp3Datagram(
+        it->context_id(),
+        absl::string_view(read_result.packet_buffer.buffer,
+                          read_result.packet_buffer.buffer_len));
     QUIC_DVLOG(1) << "Sent UDP packet from " << expected_target_server_address
                   << " of length " << read_result.packet_buffer.buffer_len
-                  << " with flow ID " << flow_id << " and got message status "
+                  << " with stream ID " << it->stream()->id()
+                  << " and got message status "
                   << MessageStatusToString(message_status);
   }
 }
@@ -420,24 +425,25 @@ std::string MasqueServerSession::Name() const {
 }
 
 MasqueServerSession::ConnectUdpServerState::ConnectUdpServerState(
-    QuicDatagramFlowId flow_id,
-    QuicStreamId stream_id,
-    const QuicSocketAddress& target_server_address,
-    QuicUdpSocketFd fd,
+    QuicSpdyStream* stream, absl::optional<QuicDatagramContextId> context_id,
+    const QuicSocketAddress& target_server_address, QuicUdpSocketFd fd,
     MasqueServerSession* masque_session)
-    : flow_id_(flow_id),
-      stream_id_(stream_id),
+    : stream_(stream),
+      context_id_(context_id),
       target_server_address_(target_server_address),
       fd_(fd),
       masque_session_(masque_session) {
   QUICHE_DCHECK_NE(fd_, kQuicInvalidSocketFd);
   QUICHE_DCHECK_NE(masque_session_, nullptr);
-  masque_session_->RegisterHttp3FlowId(this->flow_id(), this);
+  this->stream()->RegisterHttp3DatagramRegistrationVisitor(this);
 }
 
 MasqueServerSession::ConnectUdpServerState::~ConnectUdpServerState() {
-  if (flow_id_.has_value()) {
-    masque_session_->UnregisterHttp3FlowId(flow_id());
+  if (stream() != nullptr) {
+    stream()->UnregisterHttp3DatagramRegistrationVisitor();
+    if (context_registered_) {
+      stream()->UnregisterHttp3DatagramContextId(context_id());
+    }
   }
   if (fd_ == kQuicInvalidSocketFd) {
     return;
@@ -463,24 +469,29 @@ MasqueServerSession::ConnectUdpServerState::operator=(
     masque_session_->epoll_server()->UnregisterFD(fd_);
     socket_api.Destroy(fd_);
   }
-  flow_id_ = other.flow_id_;
-  stream_id_ = other.stream_id_;
+  stream_ = other.stream_;
+  other.stream_ = nullptr;
+  context_id_ = other.context_id_;
   target_server_address_ = other.target_server_address_;
   fd_ = other.fd_;
   masque_session_ = other.masque_session_;
   other.fd_ = kQuicInvalidSocketFd;
-  other.flow_id_.reset();
-  if (flow_id_.has_value()) {
-    masque_session_->UnregisterHttp3FlowId(flow_id());
-    masque_session_->RegisterHttp3FlowId(flow_id(), this);
+  context_registered_ = other.context_registered_;
+  other.context_registered_ = false;
+  if (stream() != nullptr) {
+    stream()->MoveHttp3DatagramRegistration(this);
+    if (context_registered_) {
+      stream()->MoveHttp3DatagramContextIdRegistration(context_id(), this);
+    }
   }
   return *this;
 }
 
 void MasqueServerSession::ConnectUdpServerState::OnHttp3Datagram(
-    QuicDatagramFlowId flow_id,
+    QuicStreamId stream_id, absl::optional<QuicDatagramContextId> context_id,
     absl::string_view payload) {
-  QUICHE_DCHECK_EQ(flow_id, this->flow_id());
+  QUICHE_DCHECK_EQ(stream_id, stream()->id());
+  QUICHE_DCHECK(context_id == context_id_);
   QuicUdpSocketApi socket_api;
   QuicUdpPacketInfo packet_info;
   packet_info.SetPeerAddress(target_server_address_);
@@ -488,6 +499,60 @@ void MasqueServerSession::ConnectUdpServerState::OnHttp3Datagram(
       fd_, payload.data(), payload.length(), packet_info);
   QUIC_DVLOG(1) << "Wrote packet of length " << payload.length() << " to "
                 << target_server_address_ << " with result " << write_result;
+}
+
+void MasqueServerSession::ConnectUdpServerState::OnContextReceived(
+    QuicStreamId stream_id, absl::optional<QuicDatagramContextId> context_id,
+    const Http3DatagramContextExtensions& /*extensions*/) {
+  if (stream_id != stream()->id()) {
+    QUIC_BUG(MASQUE server bad datagram context registration)
+        << "Registered stream ID " << stream_id << ", expected "
+        << stream()->id();
+    return;
+  }
+  if (!context_received_) {
+    context_received_ = true;
+    context_id_ = context_id;
+  }
+  if (context_id != context_id_) {
+    QUIC_DLOG(INFO) << "Ignoring unexpected context ID "
+                    << (context_id.has_value() ? context_id.value() : 0)
+                    << " instead of "
+                    << (context_id_.has_value() ? context_id_.value() : 0)
+                    << " on stream ID " << stream()->id();
+    return;
+  }
+  if (context_registered_) {
+    QUIC_BUG(MASQUE server double datagram context registration)
+        << "Try to re-register stream ID " << stream_id << " context ID "
+        << (context_id_.has_value() ? context_id_.value() : 0);
+    return;
+  }
+  context_registered_ = true;
+  Http3DatagramContextExtensions reply_extensions;
+  stream()->RegisterHttp3DatagramContextId(context_id_, reply_extensions, this);
+}
+
+void MasqueServerSession::ConnectUdpServerState::OnContextClosed(
+    QuicStreamId stream_id, absl::optional<QuicDatagramContextId> context_id,
+    const Http3DatagramContextExtensions& /*extensions*/) {
+  if (stream_id != stream()->id()) {
+    QUIC_BUG(MASQUE server bad datagram context registration)
+        << "Closed context on stream ID " << stream_id << ", expected "
+        << stream()->id();
+    return;
+  }
+  if (context_id != context_id_) {
+    QUIC_DLOG(INFO) << "Ignoring unexpected close of context ID "
+                    << (context_id.has_value() ? context_id.value() : 0)
+                    << " instead of "
+                    << (context_id_.has_value() ? context_id_.value() : 0)
+                    << " on stream ID " << stream()->id();
+    return;
+  }
+  QUIC_DLOG(INFO) << "Received datagram context close on stream ID "
+                  << stream()->id() << ", closing stream";
+  masque_session_->ResetStream(stream()->id(), QUIC_STREAM_CANCELLED);
 }
 
 }  // namespace quic

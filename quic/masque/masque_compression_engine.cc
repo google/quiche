@@ -21,7 +21,7 @@ namespace quic {
 
 namespace {
 // |kFlowId0| is used to indicate creation of a new compression context.
-const QuicDatagramFlowId kFlowId0 = 0;
+const QuicDatagramStreamId kFlowId0 = 0;
 
 enum MasqueAddressFamily : uint8_t {
   MasqueAddressFamilyIPv4 = 4,
@@ -32,16 +32,16 @@ enum MasqueAddressFamily : uint8_t {
 
 MasqueCompressionEngine::MasqueCompressionEngine(
     QuicSpdySession* masque_session)
-    : masque_session_(masque_session) {}
+    : masque_session_(masque_session),
+      next_available_flow_id_(
+          masque_session_->perspective() == Perspective::IS_CLIENT ? 0 : 1) {}
 
-QuicDatagramFlowId MasqueCompressionEngine::FindOrCreateCompressionContext(
+QuicDatagramStreamId MasqueCompressionEngine::FindOrCreateCompressionContext(
     QuicConnectionId client_connection_id,
     QuicConnectionId server_connection_id,
-    const QuicSocketAddress& server_address,
-    bool client_connection_id_present,
-    bool server_connection_id_present,
-    bool* validated) {
-  QuicDatagramFlowId flow_id = kFlowId0;
+    const QuicSocketAddress& server_address, bool client_connection_id_present,
+    bool server_connection_id_present, bool* validated) {
+  QuicDatagramStreamId flow_id = kFlowId0;
   *validated = false;
   for (const auto& kv : contexts_) {
     const MasqueCompressionContext& context = kv.second;
@@ -74,11 +74,8 @@ QuicDatagramFlowId MasqueCompressionEngine::FindOrCreateCompressionContext(
   }
 
   // Create new compression context.
-  flow_id = masque_session_->GetNextDatagramFlowId();
-  if (flow_id == kFlowId0) {
-    // Do not use value zero which is reserved in this mode.
-    flow_id = masque_session_->GetNextDatagramFlowId();
-  }
+  next_available_flow_id_ += 2;
+  flow_id = next_available_flow_id_;
   QUIC_DVLOG(1) << "Compression assigning new flow_id " << flow_id << " to "
                 << server_address << " client " << client_connection_id
                 << " server " << server_connection_id;
@@ -96,13 +93,9 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
     QuicConnectionId server_connection_id,
     const QuicSocketAddress& server_address,
     QuicConnectionId destination_connection_id,
-    QuicConnectionId source_connection_id,
-    QuicDatagramFlowId flow_id,
-    bool validated,
-    uint8_t first_byte,
-    bool long_header,
-    QuicDataReader* reader,
-    QuicDataWriter* writer) {
+    QuicConnectionId source_connection_id, QuicDatagramStreamId flow_id,
+    bool validated, uint8_t first_byte, bool long_header,
+    QuicDataReader* reader, QuicDataWriter* writer) {
   if (validated) {
     QUIC_DVLOG(1) << "Compressing using validated flow_id " << flow_id;
     if (!writer->WriteVarInt62(flow_id)) {
@@ -222,8 +215,7 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
 }
 
 void MasqueCompressionEngine::CompressAndSendPacket(
-    absl::string_view packet,
-    QuicConnectionId client_connection_id,
+    absl::string_view packet, QuicConnectionId client_connection_id,
     QuicConnectionId server_connection_id,
     const QuicSocketAddress& server_address) {
   QUIC_DVLOG(2) << "Compressing client " << client_connection_id << " server "
@@ -258,7 +250,7 @@ void MasqueCompressionEngine::CompressAndSendPacket(
   }
 
   bool validated = false;
-  QuicDatagramFlowId flow_id = FindOrCreateCompressionContext(
+  QuicDatagramStreamId flow_id = FindOrCreateCompressionContext(
       client_connection_id, server_connection_id, server_address,
       client_connection_id_present, server_connection_id_present, &validated);
 
@@ -297,9 +289,8 @@ void MasqueCompressionEngine::CompressAndSendPacket(
 }
 
 bool MasqueCompressionEngine::ParseCompressionContext(
-    QuicDataReader* reader,
-    MasqueCompressionContext* context) {
-  QuicDatagramFlowId new_flow_id;
+    QuicDataReader* reader, MasqueCompressionContext* context) {
+  QuicDatagramStreamId new_flow_id;
   if (!reader->ReadVarInt62(&new_flow_id)) {
     QUIC_DLOG(ERROR) << "Could not read new_flow_id";
     return false;
@@ -398,10 +389,8 @@ bool MasqueCompressionEngine::ParseCompressionContext(
 }
 
 bool MasqueCompressionEngine::WriteDecompressedPacket(
-    QuicDataReader* reader,
-    const MasqueCompressionContext& context,
-    std::vector<char>* packet,
-    bool* version_present) {
+    QuicDataReader* reader, const MasqueCompressionContext& context,
+    std::vector<char>* packet, bool* version_present) {
   QuicConnectionId destination_connection_id, source_connection_id;
   if (masque_session_->perspective() == Perspective::IS_SERVER) {
     destination_connection_id = context.server_connection_id;
@@ -464,16 +453,13 @@ bool MasqueCompressionEngine::WriteDecompressedPacket(
 }
 
 bool MasqueCompressionEngine::DecompressDatagram(
-    absl::string_view datagram,
-    QuicConnectionId* client_connection_id,
-    QuicConnectionId* server_connection_id,
-    QuicSocketAddress* server_address,
-    std::vector<char>* packet,
-    bool* version_present) {
+    absl::string_view datagram, QuicConnectionId* client_connection_id,
+    QuicConnectionId* server_connection_id, QuicSocketAddress* server_address,
+    std::vector<char>* packet, bool* version_present) {
   QUIC_DVLOG(1) << "Decompressing DATAGRAM frame of length "
                 << datagram.length();
   QuicDataReader reader(datagram);
-  QuicDatagramFlowId flow_id;
+  QuicDatagramStreamId flow_id;
   if (!reader.ReadVarInt62(&flow_id)) {
     QUIC_DLOG(ERROR) << "Could not read flow_id";
     return false;
@@ -525,14 +511,14 @@ bool MasqueCompressionEngine::DecompressDatagram(
 
 void MasqueCompressionEngine::UnregisterClientConnectionId(
     QuicConnectionId client_connection_id) {
-  std::vector<QuicDatagramFlowId> flow_ids_to_remove;
+  std::vector<QuicDatagramStreamId> flow_ids_to_remove;
   for (const auto& kv : contexts_) {
     const MasqueCompressionContext& context = kv.second;
     if (context.client_connection_id == client_connection_id) {
       flow_ids_to_remove.push_back(kv.first);
     }
   }
-  for (QuicDatagramFlowId flow_id : flow_ids_to_remove) {
+  for (QuicDatagramStreamId flow_id : flow_ids_to_remove) {
     contexts_.erase(flow_id);
   }
 }

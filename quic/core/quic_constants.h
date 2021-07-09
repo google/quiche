@@ -295,10 +295,10 @@ QUIC_EXPORT_PRIVATE extern const char* const kEPIDGoogleFrontEnd;
 QUIC_EXPORT_PRIVATE extern const char* const kEPIDGoogleFrontEnd0;
 
 // HTTP/3 Datagrams.
-enum : QuicDatagramFlowId {
-  kFirstDatagramFlowIdClient = 0,
-  kFirstDatagramFlowIdServer = 1,
-  kDatagramFlowIdIncrement = 2,
+enum : QuicDatagramContextId {
+  kFirstDatagramContextIdClient = 0,
+  kFirstDatagramContextIdServer = 1,
+  kDatagramContextIdIncrement = 2,
 };
 
 }  // namespace quic

@@ -46,6 +46,8 @@ class QuicStreamPeer;
 class QuicSpdySession;
 class WebTransportHttp3;
 
+class QUIC_EXPORT_PRIVATE Http3DatagramContextExtensions {};
+
 // A QUIC stream that can send and receive HTTP2 (SPDY) headers.
 class QUIC_EXPORT_PRIVATE QuicSpdyStream
     : public QuicStream,
@@ -251,6 +253,94 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // rejected due to buffer being full.  |write_size| must be non-zero.
   bool CanWriteNewBodyData(QuicByteCount write_size) const;
 
+  // Sends an HTTP/3 datagram. The stream and context IDs are not part of
+  // |payload|.
+  MessageStatus SendHttp3Datagram(
+      absl::optional<QuicDatagramContextId> context_id,
+      absl::string_view payload);
+
+  class QUIC_EXPORT_PRIVATE Http3DatagramVisitor {
+   public:
+    virtual ~Http3DatagramVisitor() {}
+
+    // Called when an HTTP/3 datagram is received. |payload| does not contain
+    // the stream or context IDs. Note that this contains the stream ID even if
+    // flow IDs from draft-ietf-masque-h3-datagram-00 are in use.
+    virtual void OnHttp3Datagram(
+        QuicStreamId stream_id,
+        absl::optional<QuicDatagramContextId> context_id,
+        absl::string_view payload) = 0;
+  };
+
+  class QUIC_EXPORT_PRIVATE Http3DatagramRegistrationVisitor {
+   public:
+    virtual ~Http3DatagramRegistrationVisitor() {}
+
+    // Called when a REGISTER_DATAGRAM_CONTEXT or REGISTER_DATAGRAM_NO_CONTEXT
+    // capsule is received. Note that this contains the stream ID even if flow
+    // IDs from draft-ietf-masque-h3-datagram-00 are in use.
+    virtual void OnContextReceived(
+        QuicStreamId stream_id,
+        absl::optional<QuicDatagramContextId> context_id,
+        const Http3DatagramContextExtensions& extensions) = 0;
+
+    // Called when a CLOSE_DATAGRAM_CONTEXT capsule is received. Note that this
+    // contains the stream ID even if flow IDs from
+    // draft-ietf-masque-h3-datagram-00 are in use.
+    virtual void OnContextClosed(
+        QuicStreamId stream_id,
+        absl::optional<QuicDatagramContextId> context_id,
+        const Http3DatagramContextExtensions& extensions) = 0;
+  };
+
+  // Registers |visitor| to receive HTTP/3 datagram context registrations. This
+  // must not be called without first calling
+  // UnregisterHttp3DatagramRegistrationVisitor. |visitor| must be valid until a
+  // corresponding call to UnregisterHttp3DatagramRegistrationVisitor.
+  void RegisterHttp3DatagramRegistrationVisitor(
+      Http3DatagramRegistrationVisitor* visitor);
+
+  // Unregisters for HTTP/3 datagram context registrations. Must not be called
+  // unless previously registered.
+  void UnregisterHttp3DatagramRegistrationVisitor();
+
+  // Moves an HTTP/3 datagram registration to a different visitor. Mainly meant
+  // to be used by the visitors' move operators.
+  void MoveHttp3DatagramRegistration(Http3DatagramRegistrationVisitor* visitor);
+
+  // Registers |visitor| to receive HTTP/3 datagrams for optional context ID
+  // |context_id|. This must not be called on a previously registered context ID
+  // without first calling UnregisterHttp3DatagramContextId. |visitor| must be
+  // valid until a corresponding call to UnregisterHttp3DatagramContextId. If
+  // this method is called multiple times, the context ID MUST either be always
+  // present, or always absent.
+  void RegisterHttp3DatagramContextId(
+      absl::optional<QuicDatagramContextId> context_id,
+      const Http3DatagramContextExtensions& extensions,
+      Http3DatagramVisitor* visitor);
+
+  // Unregisters an HTTP/3 datagram context ID. Must be called on a previously
+  // registered context.
+  void UnregisterHttp3DatagramContextId(
+      absl::optional<QuicDatagramContextId> context_id);
+
+  // Moves an HTTP/3 datagram context ID to a different visitor. Mainly meant
+  // to be used by the visitors' move operators.
+  void MoveHttp3DatagramContextIdRegistration(
+      absl::optional<QuicDatagramContextId> context_id,
+      Http3DatagramVisitor* visitor);
+
+  // Sets max datagram time in queue.
+  void SetMaxDatagramTimeInQueue(QuicTime::Delta max_time_in_queue);
+
+  // Generates a new HTTP/3 datagram context ID for this stream. A datagram
+  // registration visitor must be currently registered on this stream.
+  QuicDatagramContextId GetNextDatagramContextId();
+
+  void OnDatagramReceived(QuicDataReader* reader);
+
+  void RegisterHttp3DatagramFlowId(QuicDatagramStreamId flow_id);
+
  protected:
   // Called when the received headers are too large. By default this will
   // reset the stream.
@@ -394,6 +484,14 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // If this stream is a WebTransport data stream, |web_transport_data_|
   // contains all of the associated metadata.
   std::unique_ptr<WebTransportDataStream> web_transport_data_;
+
+  // HTTP/3 Datagram support.
+  Http3DatagramRegistrationVisitor* datagram_registration_visitor_ = nullptr;
+  Http3DatagramVisitor* datagram_no_context_visitor_ = nullptr;
+  absl::optional<QuicDatagramStreamId> datagram_flow_id_;
+  QuicDatagramContextId datagram_next_available_context_id_;
+  absl::flat_hash_map<QuicDatagramContextId, Http3DatagramVisitor*>
+      datagram_context_visitors_;
 };
 
 }  // namespace quic

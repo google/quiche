@@ -38,14 +38,10 @@ class QUIC_NO_EXPORT MasqueServerSession
   };
 
   explicit MasqueServerSession(
-      MasqueMode masque_mode,
-      const QuicConfig& config,
+      MasqueMode masque_mode, const QuicConfig& config,
       const ParsedQuicVersionVector& supported_versions,
-      QuicConnection* connection,
-      QuicSession::Visitor* visitor,
-      Visitor* owner,
-      QuicEpollServer* epoll_server,
-      QuicCryptoServerStreamBase::Helper* helper,
+      QuicConnection* connection, QuicSession::Visitor* visitor, Visitor* owner,
+      QuicEpollServer* epoll_server, QuicCryptoServerStreamBase::Helper* helper,
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       MasqueServerBackend* masque_server_backend);
@@ -71,8 +67,7 @@ class QUIC_NO_EXPORT MasqueServerSession
       QuicSimpleServerBackend::RequestHandler* request_handler) override;
 
   // From QuicEpollCallbackInterface.
-  void OnRegistration(QuicEpollServer* eps,
-                      QuicUdpSocketFd fd,
+  void OnRegistration(QuicEpollServer* eps, QuicUdpSocketFd fd,
                       int event_mask) override;
   void OnModification(QuicUdpSocketFd fd, int event_mask) override;
   void OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) override;
@@ -88,15 +83,15 @@ class QUIC_NO_EXPORT MasqueServerSession
  private:
   // State that the MasqueServerSession keeps for each CONNECT-UDP request.
   class QUIC_NO_EXPORT ConnectUdpServerState
-      : public QuicSpdySession::Http3DatagramVisitor {
+      : public QuicSpdyStream::Http3DatagramRegistrationVisitor,
+        public QuicSpdyStream::Http3DatagramVisitor {
    public:
     // ConnectUdpServerState takes ownership of |fd|. It will unregister it
     // from |epoll_server| and close the file descriptor when destructed.
     explicit ConnectUdpServerState(
-        QuicDatagramFlowId flow_id,
-        QuicStreamId stream_id,
-        const QuicSocketAddress& target_server_address,
-        QuicUdpSocketFd fd,
+        QuicSpdyStream* stream,
+        absl::optional<QuicDatagramContextId> context_id,
+        const QuicSocketAddress& target_server_address, QuicUdpSocketFd fd,
         MasqueServerSession* masque_session);
 
     ~ConnectUdpServerState();
@@ -107,26 +102,38 @@ class QUIC_NO_EXPORT MasqueServerSession
     ConnectUdpServerState& operator=(const ConnectUdpServerState&) = delete;
     ConnectUdpServerState& operator=(ConnectUdpServerState&&);
 
-    QuicDatagramFlowId flow_id() const {
-      QUICHE_DCHECK(flow_id_.has_value());
-      return *flow_id_;
+    QuicSpdyStream* stream() const { return stream_; }
+    absl::optional<QuicDatagramContextId> context_id() const {
+      return context_id_;
     }
-    QuicStreamId stream_id() const { return stream_id_; }
     const QuicSocketAddress& target_server_address() const {
       return target_server_address_;
     }
     QuicUdpSocketFd fd() const { return fd_; }
 
-    // From QuicSpdySession::Http3DatagramVisitor.
-    void OnHttp3Datagram(QuicDatagramFlowId flow_id,
+    // From QuicSpdyStream::Http3DatagramVisitor.
+    void OnHttp3Datagram(QuicStreamId stream_id,
+                         absl::optional<QuicDatagramContextId> context_id,
                          absl::string_view payload) override;
 
+    // From QuicSpdyStream::Http3DatagramRegistrationVisitor.
+    void OnContextReceived(
+        QuicStreamId stream_id,
+        absl::optional<QuicDatagramContextId> context_id,
+        const Http3DatagramContextExtensions& extensions) override;
+    void OnContextClosed(
+        QuicStreamId stream_id,
+        absl::optional<QuicDatagramContextId> context_id,
+        const Http3DatagramContextExtensions& extensions) override;
+
    private:
-    absl::optional<QuicDatagramFlowId> flow_id_;
-    QuicStreamId stream_id_;
+    QuicSpdyStream* stream_;
+    absl::optional<QuicDatagramContextId> context_id_;
     QuicSocketAddress target_server_address_;
-    QuicUdpSocketFd fd_;             // Owned.
+    QuicUdpSocketFd fd_;                   // Owned.
     MasqueServerSession* masque_session_;  // Unowned.
+    bool context_received_ = false;
+    bool context_registered_ = false;
   };
 
   bool ShouldNegotiateHttp3Datagram() override { return true; }

@@ -573,8 +573,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     headers.OnHeaderBlockStart();
     headers.OnHeader(":method", "CONNECT");
     headers.OnHeader(":protocol", "webtransport");
-    headers.OnHeader("datagram-flow-id",
-                     absl::StrCat(session_.GetNextDatagramFlowId()));
+    headers.OnHeader("datagram-flow-id", absl::StrCat(session_id));
     stream->OnStreamHeaderList(/*fin=*/true, 0, headers);
     WebTransportHttp3* web_transport =
         session_.GetWebTransportSession(session_id);
@@ -3470,26 +3469,6 @@ TEST_P(QuicSpdySessionTestClient, AlpsTwoSettingsFrame) {
   EXPECT_EQ("multiple SETTINGS frames", error.value());
 }
 
-TEST_P(QuicSpdySessionTestClient, GetNextDatagramFlowId) {
-  if (!version().UsesHttp3()) {
-    return;
-  }
-  EXPECT_EQ(session_.GetNextDatagramFlowId(), 0u);
-  EXPECT_EQ(session_.GetNextDatagramFlowId(), 2u);
-  EXPECT_EQ(session_.GetNextDatagramFlowId(), 4u);
-  EXPECT_EQ(session_.GetNextDatagramFlowId(), 6u);
-}
-
-TEST_P(QuicSpdySessionTestServer, GetNextDatagramFlowId) {
-  if (!version().UsesHttp3()) {
-    return;
-  }
-  EXPECT_EQ(session_.GetNextDatagramFlowId(), 1u);
-  EXPECT_EQ(session_.GetNextDatagramFlowId(), 3u);
-  EXPECT_EQ(session_.GetNextDatagramFlowId(), 5u);
-  EXPECT_EQ(session_.GetNextDatagramFlowId(), 7u);
-}
-
 TEST_P(QuicSpdySessionTestClient, H3DatagramSetting) {
   if (!version().UsesHttp3()) {
     return;
@@ -3511,47 +3490,6 @@ TEST_P(QuicSpdySessionTestClient, H3DatagramSetting) {
   session_.OnStreamFrame(frame);
   // HTTP/3 datagrams are now supported.
   EXPECT_TRUE(session_.h3_datagram_supported());
-}
-
-TEST_P(QuicSpdySessionTestClient, H3DatagramRegistration) {
-  if (!version().UsesHttp3()) {
-    return;
-  }
-  CompleteHandshake();
-  session_.set_should_negotiate_h3_datagram(true);
-  QuicSpdySessionPeer::SetH3DatagramSupported(&session_, true);
-  SavingHttp3DatagramVisitor h3_datagram_visitor;
-  QuicDatagramFlowId flow_id = session_.GetNextDatagramFlowId();
-  ASSERT_EQ(QuicDataWriter::GetVarInt62Len(flow_id), 1);
-  uint8_t datagram[256];
-  datagram[0] = flow_id;
-  for (size_t i = 1; i < ABSL_ARRAYSIZE(datagram); i++) {
-    datagram[i] = i;
-  }
-  session_.RegisterHttp3FlowId(flow_id, &h3_datagram_visitor);
-  session_.OnMessageReceived(absl::string_view(
-      reinterpret_cast<const char*>(datagram), sizeof(datagram)));
-  EXPECT_THAT(
-      h3_datagram_visitor.received_h3_datagrams(),
-      ElementsAre(SavingHttp3DatagramVisitor::SavedHttp3Datagram{
-          flow_id, std::string(reinterpret_cast<const char*>(datagram + 1),
-                               sizeof(datagram) - 1)}));
-  session_.UnregisterHttp3FlowId(flow_id);
-}
-
-TEST_P(QuicSpdySessionTestClient, SendHttp3Datagram) {
-  if (!version().UsesHttp3()) {
-    return;
-  }
-  CompleteHandshake();
-  session_.set_should_negotiate_h3_datagram(true);
-  QuicSpdySessionPeer::SetH3DatagramSupported(&session_, true);
-  QuicDatagramFlowId flow_id = session_.GetNextDatagramFlowId();
-  std::string h3_datagram_payload = {1, 2, 3, 4, 5, 6};
-  EXPECT_CALL(*connection_, SendMessage(1, _, false))
-      .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
-  EXPECT_EQ(session_.SendHttp3Datagram(flow_id, h3_datagram_payload),
-            MESSAGE_STATUS_SUCCESS);
 }
 
 TEST_P(QuicSpdySessionTestClient, WebTransportSetting) {

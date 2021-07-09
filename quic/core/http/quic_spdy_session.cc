@@ -461,14 +461,9 @@ Http3DebugVisitor::~Http3DebugVisitor() {}
 // Expected unidirectional static streams Requirement can be found at
 // https://tools.ietf.org/html/draft-ietf-quic-http-22#section-6.2.
 QuicSpdySession::QuicSpdySession(
-    QuicConnection* connection,
-    QuicSession::Visitor* visitor,
-    const QuicConfig& config,
-    const ParsedQuicVersionVector& supported_versions)
-    : QuicSession(connection,
-                  visitor,
-                  config,
-                  supported_versions,
+    QuicConnection* connection, QuicSession::Visitor* visitor,
+    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions)
+    : QuicSession(connection, visitor, config, supported_versions,
                   /*num_expected_unidirectional_static_streams = */
                   VersionUsesHttp3(connection->transport_version())
                       ? static_cast<QuicStreamCount>(
@@ -495,10 +490,7 @@ QuicSpdySession::QuicSpdySession(
       spdy_framer_(SpdyFramer::ENABLE_COMPRESSION),
       spdy_framer_visitor_(new SpdyFramerVisitor(this)),
       debug_visitor_(nullptr),
-      destruction_indicator_(123456789),
-      next_available_datagram_flow_id_(perspective() == Perspective::IS_SERVER
-                                           ? kFirstDatagramFlowIdServer
-                                           : kFirstDatagramFlowIdClient) {
+      destruction_indicator_(123456789) {
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
@@ -1644,25 +1636,33 @@ void QuicSpdySession::LogHeaderCompressionRatioHistogram(
   }
 }
 
-QuicDatagramFlowId QuicSpdySession::GetNextDatagramFlowId() {
-  QuicDatagramFlowId result = next_available_datagram_flow_id_;
-  next_available_datagram_flow_id_ += kDatagramFlowIdIncrement;
-  return result;
-}
-
-MessageStatus QuicSpdySession::SendHttp3Datagram(QuicDatagramFlowId flow_id,
-                                                 absl::string_view payload) {
-  const size_t slice_length =
-      QuicDataWriter::GetVarInt62Len(flow_id) + payload.length();
+MessageStatus QuicSpdySession::SendHttp3Datagram(
+    QuicDatagramStreamId stream_id,
+    absl::optional<QuicDatagramContextId> context_id,
+    absl::string_view payload) {
+  size_t slice_length =
+      QuicDataWriter::GetVarInt62Len(stream_id) + payload.length();
+  if (context_id.has_value()) {
+    slice_length += QuicDataWriter::GetVarInt62Len(context_id.value());
+  }
   QuicBuffer buffer(connection()->helper()->GetStreamSendBufferAllocator(),
                     slice_length);
   QuicDataWriter writer(slice_length, buffer.data());
-  if (!writer.WriteVarInt62(flow_id)) {
-    QUIC_BUG(quic_bug_10360_10) << "Failed to write HTTP/3 datagram flow ID";
+  if (!writer.WriteVarInt62(stream_id)) {
+    QUIC_BUG(h3 datagram stream ID write fail)
+        << "Failed to write HTTP/3 datagram stream ID";
     return MESSAGE_STATUS_INTERNAL_ERROR;
   }
+  if (context_id.has_value()) {
+    if (!writer.WriteVarInt62(context_id.value())) {
+      QUIC_BUG(h3 datagram context ID write fail)
+          << "Failed to write HTTP/3 datagram context ID";
+      return MESSAGE_STATUS_INTERNAL_ERROR;
+    }
+  }
   if (!writer.WriteBytes(payload.data(), payload.length())) {
-    QUIC_BUG(quic_bug_10360_11) << "Failed to write HTTP/3 datagram payload";
+    QUIC_BUG(h3 datagram payload write fail)
+        << "Failed to write HTTP/3 datagram payload";
     return MESSAGE_STATUS_INTERNAL_ERROR;
   }
 
@@ -1670,27 +1670,21 @@ MessageStatus QuicSpdySession::SendHttp3Datagram(QuicDatagramFlowId flow_id,
   return datagram_queue()->SendOrQueueDatagram(std::move(slice));
 }
 
-void QuicSpdySession::RegisterHttp3FlowId(
-    QuicDatagramFlowId flow_id,
-    QuicSpdySession::Http3DatagramVisitor* visitor) {
-  QUICHE_DCHECK_NE(visitor, nullptr);
-  auto insertion_result = h3_datagram_registrations_.insert({flow_id, visitor});
-  QUIC_BUG_IF(quic_bug_12477_7, !insertion_result.second)
-      << "Attempted to doubly register HTTP/3 flow ID " << flow_id;
-}
-
-void QuicSpdySession::UnregisterHttp3FlowId(QuicDatagramFlowId flow_id) {
-  size_t num_erased = h3_datagram_registrations_.erase(flow_id);
-  QUIC_BUG_IF(quic_bug_12477_8, num_erased != 1)
-      << "Attempted to unregister unknown HTTP/3 flow ID " << flow_id;
-}
-
-void QuicSpdySession::SetMaxTimeInQueueForFlowId(
-    QuicDatagramFlowId /*flow_id*/,
-    QuicTime::Delta max_time_in_queue) {
+void QuicSpdySession::SetMaxDatagramTimeInQueueForStreamId(
+    QuicStreamId /*stream_id*/, QuicTime::Delta max_time_in_queue) {
   // TODO(b/184598230): implement this in a way that works for multiple sessions
   // on a same connection.
   datagram_queue()->SetMaxTimeInQueue(max_time_in_queue);
+}
+
+void QuicSpdySession::RegisterHttp3DatagramFlowId(QuicDatagramStreamId flow_id,
+                                                  QuicStreamId stream_id) {
+  h3_datagram_flow_id_to_stream_id_map_[flow_id] = stream_id;
+}
+
+void QuicSpdySession::UnregisterHttp3DatagramFlowId(
+    QuicDatagramStreamId flow_id) {
+  h3_datagram_flow_id_to_stream_id_map_.erase(flow_id);
 }
 
 void QuicSpdySession::OnMessageReceived(absl::string_view message) {
@@ -1700,20 +1694,38 @@ void QuicSpdySession::OnMessageReceived(absl::string_view message) {
     return;
   }
   QuicDataReader reader(message);
-  QuicDatagramFlowId flow_id;
-  if (!reader.ReadVarInt62(&flow_id)) {
-    QUIC_DLOG(ERROR) << "Failed to parse flow ID in received HTTP/3 datagram";
+  uint64_t stream_id64;
+  if (!reader.ReadVarInt62(&stream_id64)) {
+    QUIC_DLOG(ERROR) << "Failed to parse stream ID in received HTTP/3 datagram";
     return;
   }
-  auto it = h3_datagram_registrations_.find(flow_id);
-  if (it == h3_datagram_registrations_.end()) {
-    // TODO(dschinazi) buffer unknown HTTP/3 datagram flow IDs for a short
+  if (perspective() == Perspective::IS_SERVER) {
+    auto it = h3_datagram_flow_id_to_stream_id_map_.find(stream_id64);
+    if (it == h3_datagram_flow_id_to_stream_id_map_.end()) {
+      QUIC_DLOG(INFO) << "Received unknown HTTP/3 datagram flow ID "
+                      << stream_id64;
+      return;
+    }
+    stream_id64 = it->second;
+  }
+  if (stream_id64 > std::numeric_limits<QuicStreamId>::max()) {
+    // TODO(b/181256914) make this a connection close once we deprecate
+    // draft-ietf-masque-h3-datagram-00 in favor of later drafts.
+    QUIC_DLOG(ERROR) << "Received unexpectedly high HTTP/3 datagram stream ID "
+                     << stream_id64;
+    return;
+  }
+  QuicStreamId stream_id = static_cast<QuicStreamId>(stream_id64);
+  QuicSpdyStream* stream =
+      static_cast<QuicSpdyStream*>(GetActiveStream(stream_id));
+  if (stream == nullptr) {
+    QUIC_DLOG(INFO) << "Received HTTP/3 datagram for unknown stream ID "
+                    << stream_id;
+    // TODO(b/181256914) buffer unknown HTTP/3 datagram flow IDs for a short
     // period of time in case they were reordered.
-    QUIC_DLOG(ERROR) << "Received unknown HTTP/3 datagram flow ID " << flow_id;
     return;
   }
-  absl::string_view payload = reader.ReadRemainingPayload();
-  it->second->OnHttp3Datagram(flow_id, payload);
+  stream->OnDatagramReceived(&reader);
 }
 
 bool QuicSpdySession::SupportsWebTransport() {
