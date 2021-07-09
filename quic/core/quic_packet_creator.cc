@@ -34,6 +34,7 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_server_stats.h"
+#include "common/print_elements.h"
 
 namespace quic {
 namespace {
@@ -1522,7 +1523,7 @@ bool QuicPacketCreator::FlushAckFrame(const QuicFrames& frames) {
   QUIC_BUG_IF(quic_bug_12398_18,
               GetQuicReloadableFlag(quic_single_ack_in_packet2) &&
                   !frames.empty() && has_ack())
-      << ENDPOINT << "Trying to flush " << frames
+      << ENDPOINT << "Trying to flush " << quiche::PrintElements(frames)
       << " when there is ACK queued";
   for (const auto& frame : frames) {
     QUICHE_DCHECK(frame.type == ACK_FRAME || frame.type == STOP_WAITING_FRAME)

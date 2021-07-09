@@ -24,6 +24,7 @@
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
+#include "common/print_elements.h"
 
 namespace quic {
 
@@ -1611,7 +1612,7 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
             << acked_packet.packet_number
             << ", last_ack_frame_: " << last_ack_frame_
             << ", least_unacked: " << unacked_packets_.GetLeastUnacked()
-            << ", packets_acked_: " << packets_acked_;
+            << ", packets_acked_: " << quiche::PrintElements(packets_acked_);
       } else {
         QUIC_PEER_BUG(quic_peer_bug_10750_6)
             << "Received " << ack_decrypted_level

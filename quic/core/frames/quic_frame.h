@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "absl/container/inlined_vector.h"
 #include "quic/core/frames/quic_ack_frame.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
 #include "quic/core/frames/quic_blocked_frame.h"
@@ -133,7 +134,7 @@ static_assert(offsetof(QuicStreamFrame, type) == offsetof(QuicFrame, type),
 
 // A inline size of 1 is chosen to optimize the typical use case of
 // 1-stream-frame in QuicTransmissionInfo.retransmittable_frames.
-using QuicFrames = QuicInlinedVector<QuicFrame, 1>;
+using QuicFrames = absl::InlinedVector<QuicFrame, 1>;
 
 // Deletes all the sub-frames contained in |frames|.
 QUIC_EXPORT_PRIVATE void DeleteFrames(QuicFrames* frames);

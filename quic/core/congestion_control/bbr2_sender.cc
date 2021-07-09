@@ -16,6 +16,7 @@
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
+#include "common/print_elements.h"
 
 namespace quic {
 
@@ -283,7 +284,8 @@ void Bbr2Sender::OnCongestionEvent(bool /*rtt_updated*/,
   }
 
   QUIC_DVLOG(3)
-      << this << " END CongestionEvent(acked:" << acked_packets
+      << this
+      << " END CongestionEvent(acked:" << quiche::PrintElements(acked_packets)
       << ", lost:" << lost_packets.size() << ") "
       << ", Mode:" << mode_ << ", RttCount:" << model_.RoundTripCount()
       << ", BytesInFlight:" << congestion_event.bytes_in_flight

@@ -7,6 +7,7 @@
 
 #include <ostream>
 
+#include "absl/container/inlined_vector.h"
 #include "quic/core/crypto/quic_random.h"
 #include "quic/core/quic_alarm.h"
 #include "quic/core/quic_alarm_factory.h"
@@ -145,7 +146,7 @@ class QUIC_EXPORT_PRIVATE QuicPathValidator {
   void ResetPathValidation();
 
   // Has at most 3 entries due to validation timeout.
-  QuicInlinedVector<QuicPathFrameBuffer, 3> probing_data_;
+  absl::InlinedVector<QuicPathFrameBuffer, 3> probing_data_;
   SendDelegate* send_delegate_;
   QuicRandom* random_;
   std::unique_ptr<QuicPathValidationContext> path_context_;

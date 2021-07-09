@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <utility>
 
+#include "absl/container/inlined_vector.h"
 #include "http2/core/priority_write_scheduler.h"
 #include "quic/core/quic_packets.h"
 #include "quic/platform/api/quic_bug_tracker.h"
@@ -101,7 +102,7 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
     };
 
     // Optimized for the typical case of 2 static streams per session.
-    using StreamsVector = QuicInlinedVector<StreamIdBlockedPair, 2>;
+    using StreamsVector = absl::InlinedVector<StreamIdBlockedPair, 2>;
 
     StreamsVector::const_iterator begin() const { return streams_.cbegin(); }
 

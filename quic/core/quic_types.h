@@ -12,6 +12,7 @@
 #include <ostream>
 #include <vector>
 
+#include "absl/container/inlined_vector.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_packet_number.h"
@@ -586,7 +587,7 @@ struct QUIC_EXPORT_PRIVATE AckedPacket {
 };
 
 // A vector of acked packets.
-using AckedPacketVector = QuicInlinedVector<AckedPacket, 2>;
+using AckedPacketVector = absl::InlinedVector<AckedPacket, 2>;
 
 // Information about a newly lost packet.
 struct QUIC_EXPORT_PRIVATE LostPacket {
@@ -603,7 +604,7 @@ struct QUIC_EXPORT_PRIVATE LostPacket {
 };
 
 // A vector of lost packets.
-using LostPacketVector = QuicInlinedVector<LostPacket, 2>;
+using LostPacketVector = absl::InlinedVector<LostPacket, 2>;
 
 // Please note, this value cannot used directly for packet serialization.
 enum QuicLongHeaderType : uint8_t {

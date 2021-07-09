@@ -9,10 +9,6 @@
 
 namespace quic {
 
-// A vector optimized for small sizes. Provides the same APIs as a std::vector.
-template <typename T, size_t N, typename A = std::allocator<T>>
-using QuicInlinedVector = QuicInlinedVectorImpl<T, N, A>;
-
 // An ordered container optimized for small sets.
 // An implementation with O(n) mutations might be chosen
 // in case it has better memory usage and/or faster access.

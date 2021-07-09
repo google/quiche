@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "absl/container/inlined_vector.h"
 #include "absl/strings/str_cat.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_transmission_info.h"
@@ -69,12 +70,12 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
 
   // Called to neuter all unencrypted packets to ensure they do not get
   // retransmitted. Returns a vector of neutered packet numbers.
-  QuicInlinedVector<QuicPacketNumber, 2> NeuterUnencryptedPackets();
+  absl::InlinedVector<QuicPacketNumber, 2> NeuterUnencryptedPackets();
 
   // Called to neuter packets in handshake packet number space to ensure they do
   // not get retransmitted. Returns a vector of neutered packet numbers.
   // TODO(fayang): Consider to combine this with NeuterUnencryptedPackets.
-  QuicInlinedVector<QuicPacketNumber, 2> NeuterHandshakePackets();
+  absl::InlinedVector<QuicPacketNumber, 2> NeuterHandshakePackets();
 
   // Returns true if |packet_number| has retransmittable frames. This will
   // return false if all frames of this packet are either non-retransmittable or
