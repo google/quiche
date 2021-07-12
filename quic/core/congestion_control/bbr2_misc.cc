@@ -264,9 +264,7 @@ void Bbr2NetworkModel::AdaptLowerBounds(
   // sample_max_bandwidth will be Zero() if the loss is triggered by a timer
   // expiring.  Ideally we'd use the most recent bandwidth sample,
   // but bandwidth_latest is safer than Zero().
-  if (GetQuicReloadableFlag(quic_bbr2_fix_bw_lo_mode2) &&
-      !congestion_event.sample_max_bandwidth.IsZero()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_fix_bw_lo_mode2, 1, 2);
+  if (!congestion_event.sample_max_bandwidth.IsZero()) {
     // bandwidth_latest_ is the max bandwidth for the round, but to allow
     // fast, conservation style response to loss, use the last sample.
     last_bandwidth = congestion_event.sample_max_bandwidth;

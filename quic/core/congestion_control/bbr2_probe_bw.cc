@@ -476,9 +476,7 @@ void Bbr2ProbeBwMode::EnterProbeDown(bool probed_too_high,
   cycle_.rounds_in_phase = 0;
   cycle_.phase_start_time = now;
   ++sender_->connection_stats_->bbr_num_cycles;
-  if (GetQuicReloadableFlag(quic_bbr2_fix_bw_lo_mode2) &&
-      Params().bw_lo_mode_ != Bbr2Params::QuicBandwidthLoMode::DEFAULT) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_fix_bw_lo_mode2, 2, 2);
+  if (Params().bw_lo_mode_ != Bbr2Params::QuicBandwidthLoMode::DEFAULT) {
     // Clear bandwidth lo if it was set in PROBE_UP, because losses in PROBE_UP
     // should not permanently change bandwidth_lo.
     // It's possible for bandwidth_lo to be set during REFILL, but if that was
