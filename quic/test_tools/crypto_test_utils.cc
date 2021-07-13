@@ -743,6 +743,12 @@ void MovePackets(PacketSavingConnection* source_conn,
 
   size_t index = *inout_packet_index;
   for (; index < source_conn->encrypted_packets_.size(); index++) {
+    if (!dest_conn->connected()) {
+      QUIC_LOG(INFO)
+          << "Destination connection disconnected. Skipping packet at index "
+          << index;
+      continue;
+    }
     // In order to properly test the code we need to perform encryption and
     // decryption so that the crypters latch when expected. The crypters are in
     // |dest_conn|, but we don't want to try and use them there. Instead we swap

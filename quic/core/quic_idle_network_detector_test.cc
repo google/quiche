@@ -5,6 +5,7 @@
 #include "quic/core/quic_idle_network_detector.h"
 
 #include "quic/core/quic_one_block_arena.h"
+#include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_test_utils.h"
 
@@ -179,6 +180,25 @@ TEST_F(QuicIdleNetworkDetectorTest, ShorterIdleTimeoutOnSentPacket) {
   EXPECT_TRUE(alarm_->IsSet());
   // Verify idle timeout gets extended by 1s.
   EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(2), alarm_->deadline());
+}
+
+TEST_F(QuicIdleNetworkDetectorTest, NoAlarmAfterStopped) {
+  detector_->StopDetection();
+
+  if (GetQuicReloadableFlag(
+          quic_idle_network_detector_no_alarm_after_stopped)) {
+    EXPECT_QUIC_BUG(
+        detector_->SetTimeouts(
+            /*handshake_timeout=*/QuicTime::Delta::FromSeconds(30),
+            /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20)),
+        "SetAlarm called after stopped");
+    EXPECT_FALSE(alarm_->IsSet());
+  } else {
+    detector_->SetTimeouts(
+        /*handshake_timeout=*/QuicTime::Delta::FromSeconds(30),
+        /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20));
+    EXPECT_TRUE(alarm_->IsSet());
+  }
 }
 
 }  // namespace

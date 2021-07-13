@@ -5,6 +5,7 @@
 #include "quic/core/quic_idle_network_detector.h"
 
 #include "quic/core/quic_constants.h"
+#include "quic/platform/api/quic_flag_utils.h"
 
 namespace quic {
 
@@ -26,9 +27,7 @@ class AlarmDelegate : public QuicAlarm::Delegate {
 }  // namespace
 
 QuicIdleNetworkDetector::QuicIdleNetworkDetector(
-    Delegate* delegate,
-    QuicTime now,
-    QuicConnectionArena* arena,
+    Delegate* delegate, QuicTime now, QuicConnectionArena* arena,
     QuicAlarmFactory* alarm_factory)
     : delegate_(delegate),
       start_time_(now),
@@ -37,7 +36,12 @@ QuicIdleNetworkDetector::QuicIdleNetworkDetector(
       time_of_first_packet_sent_after_receiving_(QuicTime::Zero()),
       idle_network_timeout_(QuicTime::Delta::Infinite()),
       alarm_(
-          alarm_factory->CreateAlarm(arena->New<AlarmDelegate>(this), arena)) {}
+          alarm_factory->CreateAlarm(arena->New<AlarmDelegate>(this), arena)) {
+  if (no_alarm_after_stopped_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_idle_network_detector_no_alarm_after_stopped, 1, 2);
+  }
+}
 
 void QuicIdleNetworkDetector::OnAlarm() {
   if (handshake_timeout_.IsInfinite()) {
@@ -69,6 +73,7 @@ void QuicIdleNetworkDetector::StopDetection() {
   alarm_->Cancel();
   handshake_timeout_ = QuicTime::Delta::Infinite();
   idle_network_timeout_ = QuicTime::Delta::Infinite();
+  stopped_ = true;
 }
 
 void QuicIdleNetworkDetector::OnPacketSent(QuicTime now,
@@ -94,6 +99,17 @@ void QuicIdleNetworkDetector::OnPacketReceived(QuicTime now) {
 }
 
 void QuicIdleNetworkDetector::SetAlarm() {
+  if (no_alarm_after_stopped_ && stopped_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_idle_network_detector_no_alarm_after_stopped, 2, 2);
+
+    // TODO(wub): If this QUIC_BUG fires, it indicates a problem in the
+    // QuicConnection, which somehow called this function while disconnected.
+    // That problem needs to be fixed.
+    QUIC_BUG(quic_idle_detector_set_alarm_after_stopped)
+        << "SetAlarm called after stopped";
+    return;
+  }
   // Set alarm to the nearer deadline.
   QuicTime new_deadline = QuicTime::Zero();
   if (!handshake_timeout_.IsInfinite()) {

@@ -10,6 +10,7 @@
 #include "quic/core/quic_one_block_arena.h"
 #include "quic/core/quic_time.h"
 #include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_flags.h"
 
 namespace quic {
 
@@ -46,6 +47,7 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
   void SetTimeouts(QuicTime::Delta handshake_timeout,
                    QuicTime::Delta idle_network_timeout);
 
+  // Stop the detection once and for all.
   void StopDetection();
 
   // Called when a packet gets sent.
@@ -106,6 +108,12 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
   QuicArenaScopedPtr<QuicAlarm> alarm_;
 
   bool shorter_idle_timeout_on_sent_packet_ = false;
+
+  // Whether |StopDetection| has been called.
+  bool stopped_ = false;
+
+  const bool no_alarm_after_stopped_ =
+      GetQuicReloadableFlag(quic_idle_network_detector_no_alarm_after_stopped);
 };
 
 }  // namespace quic
