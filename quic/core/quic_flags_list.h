@@ -72,7 +72,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 // If true, ignore peer_max_ack_delay during handshake.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_peer_max_ack_delay_during_handshake, true)
 // If true, include non-default port in the origin field of the ACCEPT_CH frame in ALPS.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_include_port_in_alps_origin, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_include_port_in_alps_origin, true)
 // If true, include stream information in idle timeout connection close detail.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, increase the size of stream sequencer buffer block container on demand.
