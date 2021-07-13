@@ -455,33 +455,6 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     return absl::StrCat(headers_frame_header, payload);
   }
 
-  // Construct PUSH_PROMISE frame with given payload.
-  // TODO(b/171463363): Remove.
-  std::string SerializePushPromiseFrame(PushId push_id,
-                                        absl::string_view headers) {
-    const QuicByteCount payload_length =
-        QuicDataWriter::GetVarInt62Len(push_id) + headers.length();
-
-    const QuicByteCount length_without_headers =
-        QuicDataWriter::GetVarInt62Len(
-            static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE)) +
-        QuicDataWriter::GetVarInt62Len(payload_length) +
-        QuicDataWriter::GetVarInt62Len(push_id);
-
-    std::string push_promise_frame(length_without_headers, '\0');
-    QuicDataWriter writer(length_without_headers, &*push_promise_frame.begin());
-
-    QUICHE_CHECK(writer.WriteVarInt62(
-        static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE)));
-    QUICHE_CHECK(writer.WriteVarInt62(payload_length));
-    QUICHE_CHECK(writer.WriteVarInt62(push_id));
-    QUICHE_CHECK_EQ(0u, writer.remaining());
-
-    absl::StrAppend(&push_promise_frame, headers);
-
-    return push_promise_frame;
-  }
-
   std::string DataFrame(absl::string_view payload) {
     QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
         payload.length(), SimpleBufferAllocator::Get());
@@ -2764,71 +2737,6 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, UnknownFramesInterleaved) {
   std::string unknown_frame4 = UnknownFrame(0x40, "");
   OnStreamFrame(unknown_frame4);
   EXPECT_EQ(unknown_frame4.size(), NewlyConsumedBytes());
-}
-
-// TODO(b/171463363): Remove.
-TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStream) {
-  Initialize(kShouldProcessData);
-  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
-    return;
-  }
-  if (!UsesHttp3()) {
-    return;
-  }
-
-  StrictMock<MockHttp3DebugVisitor> debug_visitor;
-  session_->set_debug_visitor(&debug_visitor);
-
-  SpdyHeaderBlock pushed_headers;
-  pushed_headers["foo"] = "bar";
-  std::string headers = EncodeQpackHeaders(pushed_headers);
-
-  const QuicStreamId push_id = 1;
-  std::string data = SerializePushPromiseFrame(push_id, headers);
-  QuicStreamFrame frame(stream_->id(), false, 0, data);
-
-  EXPECT_CALL(debug_visitor, OnPushPromiseFrameReceived(stream_->id(), push_id,
-                                                        headers.length()));
-  EXPECT_CALL(debug_visitor,
-              OnPushPromiseDecoded(stream_->id(), push_id,
-                                   AsHeaderList(pushed_headers)));
-  EXPECT_CALL(*session_,
-              OnPromiseHeaderList(stream_->id(), push_id, headers.length(), _));
-  stream_->OnStreamFrame(frame);
-}
-
-// Regression test for b/152518220.
-// TODO(b/171463363): Remove.
-TEST_P(QuicSpdyStreamTest,
-       OnStreamHeaderBlockArgumentDoesNotIncludePushedHeaderBlock) {
-  Initialize(kShouldProcessData);
-  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
-    return;
-  }
-  if (!UsesHttp3()) {
-    return;
-  }
-
-  std::string pushed_headers = EncodeQpackHeaders({{"foo", "bar"}});
-  const QuicStreamId push_id = 1;
-  std::string push_promise_frame =
-      SerializePushPromiseFrame(push_id, pushed_headers);
-  QuicStreamOffset offset = 0;
-  QuicStreamFrame frame1(stream_->id(), /* fin = */ false, offset,
-                         push_promise_frame);
-  offset += push_promise_frame.length();
-
-  EXPECT_CALL(*session_, OnPromiseHeaderList(stream_->id(), push_id,
-                                             pushed_headers.length(), _));
-  stream_->OnStreamFrame(frame1);
-
-  std::string headers =
-      EncodeQpackHeaders({{":method", "GET"}, {":path", "/"}});
-  std::string headers_frame = HeadersFrame(headers);
-  QuicStreamFrame frame2(stream_->id(), /* fin = */ false, offset,
-                         headers_frame);
-  stream_->OnStreamFrame(frame2);
-  EXPECT_EQ(headers.length(), stream_->headers_payload_length());
 }
 
 // Close connection if a DATA frame is received before a HEADERS frame.

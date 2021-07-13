@@ -231,10 +231,6 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // Buffers any remaining frame type field from |reader| into |type_buffer_|.
   void BufferFrameType(QuicDataReader* reader);
 
-  // Buffers at most |remaining_push_id_length_| from |reader| to
-  // |push_id_buffer_|.  TODO(b/171463363): Remove.
-  void BufferPushId(QuicDataReader* reader);
-
   // Sets |error_| and |error_detail_| accordingly.
   void RaiseError(QuicErrorCode error, std::string error_detail);
 
@@ -279,12 +275,6 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   QuicByteCount current_type_field_length_;
   // Remaining length that's needed for the frame's type field.
   QuicByteCount remaining_type_field_length_;
-  // Length of PUSH_PROMISE frame's push id.
-  // TODO(b/171463363): Remove.
-  QuicByteCount current_push_id_length_;
-  // Remaining length that's needed for PUSH_PROMISE frame's push id field.
-  // TODO(b/171463363): Remove.
-  QuicByteCount remaining_push_id_length_;
   // Last error.
   QuicErrorCode error_;
   // The issue which caused |error_|
@@ -295,13 +285,6 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   std::array<char, sizeof(uint64_t)> length_buffer_;
   // Remaining unparsed type field data.
   std::array<char, sizeof(uint64_t)> type_buffer_;
-  // Remaining unparsed push id data.
-  // TODO(b/171463363): Remove.
-  std::array<char, sizeof(uint64_t)> push_id_buffer_;
-
-  // Latched value of
-  // gfe2_reloadable_flag_quic_error_on_http3_push.
-  const bool error_on_http3_push_;
 };
 
 }  // namespace quic

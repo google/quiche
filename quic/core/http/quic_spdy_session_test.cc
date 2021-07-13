@@ -2927,18 +2927,13 @@ TEST_P(QuicSpdySessionTestClient, CloseConnectionOnCancelPush) {
       "00");  // push ID
   QuicStreamFrame data3(receive_control_stream_id, /* fin = */ false, offset,
                         cancel_push_frame);
-  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
-    EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_FRAME_ERROR,
-                                              "CANCEL_PUSH frame received.", _))
-        .WillOnce(
-            Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-    EXPECT_CALL(*connection_,
-                SendConnectionClosePacket(QUIC_HTTP_FRAME_ERROR, _,
-                                          "CANCEL_PUSH frame received."));
-  } else {
-    // CANCEL_PUSH is ignored.
-    EXPECT_CALL(debug_visitor, OnCancelPushFrameReceived(_));
-  }
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_FRAME_ERROR,
+                                            "CANCEL_PUSH frame received.", _))
+      .WillOnce(
+          Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+  EXPECT_CALL(*connection_,
+              SendConnectionClosePacket(QUIC_HTTP_FRAME_ERROR, _,
+                                        "CANCEL_PUSH frame received."));
   session_.OnStreamFrame(data3);
 }
 
@@ -3134,18 +3129,13 @@ TEST_P(QuicSpdySessionTestServer, CloseConnectionOnCancelPush) {
       "00");  // push ID
   QuicStreamFrame data3(receive_control_stream_id, /* fin = */ false, offset,
                         cancel_push_frame);
-  if (GetQuicReloadableFlag(quic_error_on_http3_push)) {
-    EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_FRAME_ERROR,
-                                              "CANCEL_PUSH frame received.", _))
-        .WillOnce(
-            Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-    EXPECT_CALL(*connection_,
-                SendConnectionClosePacket(QUIC_HTTP_FRAME_ERROR, _,
-                                          "CANCEL_PUSH frame received."));
-  } else {
-    // CANCEL_PUSH is ignored.
-    EXPECT_CALL(debug_visitor, OnCancelPushFrameReceived(_));
-  }
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_FRAME_ERROR,
+                                            "CANCEL_PUSH frame received.", _))
+      .WillOnce(
+          Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+  EXPECT_CALL(*connection_,
+              SendConnectionClosePacket(QUIC_HTTP_FRAME_ERROR, _,
+                                        "CANCEL_PUSH frame received."));
   session_.OnStreamFrame(data3);
 }
 

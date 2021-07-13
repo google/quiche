@@ -93,8 +93,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_reset_per_packet_state_for_undecryptab
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_send_path_response2, true)
 // If true, set burst token to 2 in cwnd bootstrapping experiment.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_bursts, false)
-// If true, signal error in HttpDecoder upon receiving a PUSH_PROMISE or CANCEL_PUSH frame.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_error_on_http3_push, true)
 // If true, stop resetting ideal_next_packet_send_time_ in pacing sender.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_reset_ideal_next_packet_send_time, false)
 // If true, time_wait_list can support multiple connection IDs.
