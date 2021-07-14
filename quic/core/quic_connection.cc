@@ -378,6 +378,10 @@ QuicConnection::QuicConnection(
     QUIC_RELOADABLE_FLAG_COUNT(quic_use_encryption_level_context);
   }
 
+  if (add_missing_update_ack_timeout_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_add_missing_update_ack_timeout);
+  }
+
   support_multiple_connection_ids_ =
       version().HasIetfQuicFrames() &&
       GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2) &&
@@ -1399,6 +1403,9 @@ bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
+  // TODO(fayang): Consider moving UpdatePacketContent and
+  // MaybeUpdateAckTimeout to a stand-alone function instead of calling them for
+  // all frames.
   MaybeUpdateAckTimeout();
   visitor_->OnStreamFrame(frame);
   stats_.stream_bytes_received += frame.data_length;
@@ -1707,7 +1714,9 @@ bool QuicConnection::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
   QUIC_DLOG(INFO) << ENDPOINT << "STOP_SENDING frame received for stream: "
                   << frame.stream_id
                   << " with error: " << frame.ietf_error_code;
-
+  if (add_missing_update_ack_timeout_) {
+    MaybeUpdateAckTimeout();
+  }
   visitor_->OnStopSendingFrame(frame);
   return connected_;
 }
@@ -1931,6 +1940,9 @@ bool QuicConnection::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnMaxStreamsFrame(frame);
   }
+  if (add_missing_update_ack_timeout_) {
+    MaybeUpdateAckTimeout();
+  }
   return visitor_->OnMaxStreamsFrame(frame) && connected_;
 }
 
@@ -1946,6 +1958,9 @@ bool QuicConnection::OnStreamsBlockedFrame(
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnStreamsBlockedFrame(frame);
+  }
+  if (add_missing_update_ack_timeout_) {
+    MaybeUpdateAckTimeout();
   }
   return visitor_->OnStreamsBlockedFrame(frame) && connected_;
 }
@@ -2077,6 +2092,9 @@ bool QuicConnection::OnNewConnectionIdFrameInner(
     OnClientConnectionIdAvailable();
   }
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v4, 1, 2);
+  if (add_missing_update_ack_timeout_) {
+    MaybeUpdateAckTimeout();
+  }
   return true;
 }
 
@@ -2137,6 +2155,9 @@ bool QuicConnection::OnRetireConnectionIdFrame(
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v4, 2, 2);
   // Count successfully received RETIRE_CONNECTION_ID frames.
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 5, 6);
+  if (add_missing_update_ack_timeout_) {
+    MaybeUpdateAckTimeout();
+  }
   return true;
 }
 

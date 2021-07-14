@@ -23,6 +23,7 @@
 #include "quic/core/frames/quic_connection_close_frame.h"
 #include "quic/core/frames/quic_new_connection_id_frame.h"
 #include "quic/core/frames/quic_path_response_frame.h"
+#include "quic/core/frames/quic_rst_stream_frame.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_error_codes.h"
@@ -12079,6 +12080,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
   new_writer.BlockOnNextWrite();
   EXPECT_CALL(visitor_, OnWriteBlocked()).Times(0);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1))
       .WillOnce(Invoke([&]() {
         // Even though the socket is blocked, the PATH_CHALLENGE should still be
         // treated as sent.
@@ -12099,7 +12101,11 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
   new_writer.SetWritable();
   // Write event on the default socket shouldn't make any difference.
   connection_.OnCanWrite();
-  EXPECT_EQ(0u, writer_->packets_write_attempts());
+  if (GetQuicReloadableFlag(quic_add_missing_update_ack_timeout)) {
+    EXPECT_EQ(1u, writer_->packets_write_attempts());
+  } else {
+    EXPECT_EQ(0u, writer_->packets_write_attempts());
+  }
   EXPECT_EQ(1u, new_writer.packets_write_attempts());
 }
 
@@ -15204,6 +15210,149 @@ TEST_P(QuicConnectionTest, PingNotSentAt0RTTLevelWhenInitialAvailable) {
   connection_.GetRetransmissionAlarm()->Fire();
   // Verify the PING gets sent in ENCRYPTION_INITIAL.
   EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
+}
+
+TEST_P(QuicConnectionTest, AckElicitingFrames) {
+  if (!version().HasIetfQuicFrames() ||
+      !connection_.support_multiple_connection_ids() ||
+      !GetQuicReloadableFlag(quic_add_missing_update_ack_timeout)) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnRstStream(_));
+  EXPECT_CALL(visitor_, OnWindowUpdateFrame(_));
+  EXPECT_CALL(visitor_, OnBlockedFrame(_));
+  EXPECT_CALL(visitor_, OnHandshakeDoneReceived());
+  EXPECT_CALL(visitor_, OnStreamFrame(_));
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
+  EXPECT_CALL(visitor_, OnMaxStreamsFrame(_));
+  EXPECT_CALL(visitor_, OnStreamsBlockedFrame(_));
+  EXPECT_CALL(visitor_, OnStopSendingFrame(_));
+  EXPECT_CALL(visitor_, OnMessageReceived(""));
+  EXPECT_CALL(visitor_, OnNewTokenReceived(""));
+
+  connection_.CreateConnectionIdManager();
+  connection_.set_can_receive_ack_frequency_frame();
+
+  QuicAckFrame ack_frame = InitAckFrame(1);
+  QuicRstStreamFrame rst_stream_frame;
+  QuicWindowUpdateFrame window_update_frame;
+  QuicPathChallengeFrame path_challenge_frame;
+  QuicStopSendingFrame stop_sending_frame;
+  QuicNewConnectionIdFrame new_connection_id_frame;
+  QuicPathResponseFrame path_response_frame;
+  QuicMessageFrame message_frame;
+  QuicNewTokenFrame new_token_frame;
+  QuicAckFrequencyFrame ack_frequency_frame;
+  QuicBlockedFrame blocked_frame;
+  size_t packet_number = 1;
+
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+
+  for (uint8_t i = 0; i < NUM_FRAME_TYPES; ++i) {
+    QuicFrameType frame_type = static_cast<QuicFrameType>(i);
+    bool skipped = false;
+    QuicFrame frame;
+    QuicFrames frames;
+    // Add some padding to fullfill the min size requirement of header
+    // protection.
+    frames.push_back(QuicFrame(QuicPaddingFrame(10)));
+    switch (frame_type) {
+      case PADDING_FRAME:
+        frame = QuicFrame(QuicPaddingFrame(10));
+        break;
+      case MTU_DISCOVERY_FRAME:
+        frame = QuicFrame(QuicMtuDiscoveryFrame());
+        break;
+      case PING_FRAME:
+        frame = QuicFrame(QuicPingFrame());
+        break;
+      case MAX_STREAMS_FRAME:
+        frame = QuicFrame(QuicMaxStreamsFrame());
+        break;
+      case STOP_WAITING_FRAME:
+        // Not supported.
+        skipped = true;
+        break;
+      case STREAMS_BLOCKED_FRAME:
+        frame = QuicFrame(QuicStreamsBlockedFrame());
+        break;
+      case STREAM_FRAME:
+        frame = QuicFrame(QuicStreamFrame());
+        break;
+      case HANDSHAKE_DONE_FRAME:
+        frame = QuicFrame(QuicHandshakeDoneFrame());
+        break;
+      case ACK_FRAME:
+        frame = QuicFrame(&ack_frame);
+        break;
+      case RST_STREAM_FRAME:
+        frame = QuicFrame(&rst_stream_frame);
+        break;
+      case CONNECTION_CLOSE_FRAME:
+        // Do not test connection close.
+        skipped = true;
+        break;
+      case GOAWAY_FRAME:
+        // Does not exist in IETF QUIC.
+        skipped = true;
+        break;
+      case BLOCKED_FRAME:
+        frame = QuicFrame(&blocked_frame);
+        break;
+      case WINDOW_UPDATE_FRAME:
+        frame = QuicFrame(&window_update_frame);
+        break;
+      case PATH_CHALLENGE_FRAME:
+        frame = QuicFrame(&path_challenge_frame);
+        break;
+      case STOP_SENDING_FRAME:
+        frame = QuicFrame(&stop_sending_frame);
+        break;
+      case NEW_CONNECTION_ID_FRAME:
+        frame = QuicFrame(&new_connection_id_frame);
+        break;
+      case RETIRE_CONNECTION_ID_FRAME:
+        // TODO(haoyuewang): add test coverage for RETIRE_CONNECTION_ID_FRAME.
+        skipped = true;
+        break;
+      case PATH_RESPONSE_FRAME:
+        frame = QuicFrame(&path_response_frame);
+        break;
+      case MESSAGE_FRAME:
+        frame = QuicFrame(&message_frame);
+        break;
+      case CRYPTO_FRAME:
+        // CRYPTO_FRAME is ack eliciting is covered by other tests.
+        skipped = true;
+        break;
+      case NEW_TOKEN_FRAME:
+        frame = QuicFrame(&new_token_frame);
+        break;
+      case ACK_FREQUENCY_FRAME:
+        frame = QuicFrame(&ack_frequency_frame);
+        break;
+      case NUM_FRAME_TYPES:
+        skipped = true;
+        break;
+    }
+    if (skipped) {
+      continue;
+    }
+    ASSERT_EQ(frame_type, frame.type);
+    frames.push_back(frame);
+    EXPECT_FALSE(connection_.HasPendingAcks());
+    // Process frame.
+    ProcessFramesPacketAtLevel(packet_number++, frames,
+                               ENCRYPTION_FORWARD_SECURE);
+    if (QuicUtils::IsAckElicitingFrame(frame_type)) {
+      ASSERT_TRUE(connection_.HasPendingAcks()) << frame;
+      // Flush ACK.
+      clock_.AdvanceTime(DefaultDelayedAckTime());
+      connection_.GetAckAlarm()->Fire();
+    }
+    EXPECT_FALSE(connection_.HasPendingAcks());
+    ASSERT_TRUE(connection_.connected());
+  }
 }
 
 }  // namespace

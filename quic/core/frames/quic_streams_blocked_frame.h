@@ -35,7 +35,7 @@ struct QUIC_EXPORT_PRIVATE QuicStreamsBlockedFrame
   QuicControlFrameId control_frame_id = kInvalidControlFrameId;
 
   // The number of streams that the sender wishes to exceed
-  QuicStreamCount stream_count;
+  QuicStreamCount stream_count = 0;
 
   // Whether uni- or bi-directional streams
   bool unidirectional = false;

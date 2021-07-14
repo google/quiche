@@ -695,6 +695,19 @@ bool QuicUtils::IsProbingFrame(QuicFrameType type) {
 }
 
 // static
+bool QuicUtils::IsAckElicitingFrame(QuicFrameType type) {
+  switch (type) {
+    case PADDING_FRAME:
+    case STOP_WAITING_FRAME:
+    case ACK_FRAME:
+    case CONNECTION_CLOSE_FRAME:
+      return false;
+    default:
+      return true;
+  }
+}
+
+// static
 bool QuicUtils::AreStatelessResetTokensEqual(
     const StatelessResetToken& token1,
     const StatelessResetToken& token2) {

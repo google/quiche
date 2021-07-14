@@ -244,6 +244,9 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // comparison in constant time.
   static bool AreStatelessResetTokensEqual(const StatelessResetToken& token1,
                                            const StatelessResetToken& token2);
+
+  // Return ture if this frame is an ack-eliciting frame.
+  static bool IsAckElicitingFrame(QuicFrameType type);
 };
 
 // Returns true if the specific ID is a valid WebTransport session ID that our

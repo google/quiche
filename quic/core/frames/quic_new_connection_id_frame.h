@@ -32,7 +32,7 @@ struct QUIC_EXPORT_PRIVATE QuicNewConnectionIdFrame {
   QuicConnectionId connection_id = EmptyQuicConnectionId();
   QuicConnectionIdSequenceNumber sequence_number = 0;
   StatelessResetToken stateless_reset_token;
-  uint64_t retire_prior_to;
+  uint64_t retire_prior_to = 0;
 };
 
 }  // namespace quic
