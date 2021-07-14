@@ -1082,7 +1082,6 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeBwAfterQuiescencePostponeMinRttTimestamp) {
             min_rtt_timestamp_after_idle);
 }
 
-// Regression test for http://go/switchtobbr2midconnection.
 TEST_F(Bbr2DefaultTopologyTest, SwitchToBbr2MidConnection) {
   QuicTime now = QuicTime::Zero();
   BbrSender old_sender(sender_connection()->clock()->Now(),

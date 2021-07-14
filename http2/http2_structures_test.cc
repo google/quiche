@@ -9,7 +9,7 @@
 // Note that EXPECT.*DEATH tests are slow (a fork is probably involved).
 
 // And in case you're wondering, yes, these are ridiculously thorough tests,
-// but believe it or not, I've found stupid bugs this way.
+// but believe it or not, I've found silly bugs this way.
 
 #include <memory>
 #include <ostream>
