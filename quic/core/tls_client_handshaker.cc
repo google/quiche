@@ -68,6 +68,16 @@ bool TlsClientHandshaker::CryptoConnect() {
   }
   SSL_set_quic_use_legacy_codepoint(ssl(), use_legacy_extension);
 
+  // TODO(b/193650832) Add SetFromConfig to QUIC handshakers and remove reliance
+  // on session pointer.
+  if (session()->permutes_tls_extensions()) {
+    // Ask BoringSSL to randomize the order of TLS extensions.
+#if BORINGSSL_API_VERSION >= 16
+    QUIC_DLOG(INFO) << "Enabling TLS extension permutation";
+    SSL_set_permute_extensions(ssl(), true);
+#endif  // BORINGSSL_API_VERSION
+  }
+
   // Set the SNI to send, if any.
   SSL_set_connect_state(ssl());
   if (QUIC_DLOG_INFO_IS_ON() &&

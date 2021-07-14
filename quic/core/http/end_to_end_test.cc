@@ -5697,6 +5697,18 @@ TEST_P(EndToEndTest, ChaosProtectionWithMultiPacketChlo) {
   SendSynchronousFooRequestAndCheckResponse();
 }
 
+TEST_P(EndToEndTest, PermuteTlsExtensions) {
+  if (!version_.UsesTls()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  // Enable TLS extension permutation and perform an HTTP request.
+  client_config_.SetClientConnectionOptions(QuicTagVector{kBPTE});
+  ASSERT_TRUE(Initialize());
+  EXPECT_TRUE(GetClientSession()->permutes_tls_extensions());
+  SendSynchronousFooRequestAndCheckResponse();
+}
+
 TEST_P(EndToEndTest, KeyUpdateInitiatedByClient) {
   if (!version_.UsesTls()) {
     // Key Update is only supported in TLS handshake.

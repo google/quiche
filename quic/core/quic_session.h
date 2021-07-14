@@ -620,6 +620,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
            use_write_or_buffer_data_at_level_;
   }
 
+  bool permutes_tls_extensions() const { return permutes_tls_extensions_; }
+
   virtual QuicSSLConfig GetSSLConfig() const { return QuicSSLConfig(); }
 
  protected:
@@ -950,6 +952,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // This indicates a liveness testing is in progress, and push back the
   // creation of new outgoing bidirectional streams.
   bool liveness_testing_in_progress_;
+
+  // Whether BoringSSL randomizes the order of TLS extensions.
+  bool permutes_tls_extensions_ = false;
 
   const bool use_write_or_buffer_data_at_level_ =
       GetQuicReloadableFlag(quic_use_write_or_buffer_data_at_level);
