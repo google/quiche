@@ -20,6 +20,9 @@
 
 namespace quic {
 
+// TODO(b/171463363): Remove.
+using PushId = uint64_t;
+
 enum class HttpFrameType {
   DATA = 0x0,
   HEADERS = 0x1,
@@ -52,20 +55,6 @@ struct QUIC_EXPORT_PRIVATE HeadersFrame {
   absl::string_view headers;
 };
 
-// 7.2.3.  CANCEL_PUSH
-//
-//   The CANCEL_PUSH frame (type=0x3) is used to request cancellation of
-//   server push prior to the push stream being created.
-using PushId = uint64_t;
-
-struct QUIC_EXPORT_PRIVATE CancelPushFrame {
-  PushId push_id;
-
-  bool operator==(const CancelPushFrame& rhs) const {
-    return push_id == rhs.push_id;
-  }
-};
-
 // 7.2.4.  SETTINGS
 //
 //   The SETTINGS frame (type=0x4) conveys configuration parameters that
@@ -96,20 +85,6 @@ struct QUIC_EXPORT_PRIVATE SettingsFrame {
                                                       const SettingsFrame& s) {
     os << s.ToString();
     return os;
-  }
-};
-
-// 7.2.5.  PUSH_PROMISE
-//
-//   The PUSH_PROMISE frame (type=0x05) is used to carry a request header
-//   set from server to client, as in HTTP/2.
-// TODO(b/171463363): Remove.
-struct QUIC_EXPORT_PRIVATE PushPromiseFrame {
-  PushId push_id;
-  absl::string_view headers;
-
-  bool operator==(const PushPromiseFrame& rhs) const {
-    return push_id == rhs.push_id && headers == rhs.headers;
   }
 };
 

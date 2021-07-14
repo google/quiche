@@ -12,17 +12,6 @@
 namespace quic {
 namespace test {
 
-TEST(HttpFramesTest, CancelPushFrame) {
-  CancelPushFrame a{1};
-  EXPECT_TRUE(a == a);
-
-  CancelPushFrame b{1};
-  EXPECT_TRUE(a == b);
-
-  b.push_id = 2;
-  EXPECT_FALSE(a == b);
-}
-
 TEST(HttpFramesTest, SettingsFrame) {
   SettingsFrame a;
   EXPECT_TRUE(a == a);
@@ -42,21 +31,6 @@ TEST(HttpFramesTest, SettingsFrame) {
   std::stringstream s;
   s << b;
   EXPECT_EQ("SETTINGS_QPACK_MAX_TABLE_CAPACITY = 1; ", s.str());
-}
-
-TEST(HttpFramesTest, PushPromiseFrame) {
-  PushPromiseFrame a{1, ""};
-  EXPECT_TRUE(a == a);
-
-  PushPromiseFrame b{2, ""};
-  EXPECT_FALSE(a == b);
-
-  b.push_id = 1;
-  EXPECT_TRUE(a == b);
-
-  b.headers = "foo";
-  EXPECT_FALSE(a == b);
-  EXPECT_TRUE(b == b);
 }
 
 TEST(HttpFramesTest, GoAwayFrame) {

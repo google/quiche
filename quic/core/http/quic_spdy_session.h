@@ -114,12 +114,6 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   virtual void OnHeadersFrameSent(
       QuicStreamId /*stream_id*/,
       const spdy::SpdyHeaderBlock& /*header_block*/) {}
-  // TODO(b/171463363): Remove.
-  virtual void OnPushPromiseFrameSent(
-      QuicStreamId /*stream_id*/,
-      QuicStreamId
-      /*push_id*/,
-      const spdy::SpdyHeaderBlock& /*header_block*/) {}
 
   // 0-RTT related events.
   virtual void OnSettingsFrameResumed(const SettingsFrame& /*frame*/) {}

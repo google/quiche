@@ -389,12 +389,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
                            QuicByteCount payload_length);
   bool OnHeadersFramePayload(absl::string_view payload);
   bool OnHeadersFrameEnd();
-  bool OnPushPromiseFrameStart(QuicByteCount header_length);
-  bool OnPushPromiseFramePushId(PushId push_id,
-                                QuicByteCount push_id_length,
-                                QuicByteCount header_block_length);
-  bool OnPushPromiseFramePayload(absl::string_view payload);
-  bool OnPushPromiseFrameEnd();
   void OnWebTransportStreamFrameType(QuicByteCount header_length,
                                      WebTransportSessionId session_id);
   bool OnUnknownFrameStart(uint64_t frame_type,

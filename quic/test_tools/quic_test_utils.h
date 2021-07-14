@@ -1177,10 +1177,6 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
               OnHeadersFrameSent,
               (QuicStreamId, const spdy::SpdyHeaderBlock&),
               (override));
-  MOCK_METHOD(void,
-              OnPushPromiseFrameSent,
-              (QuicStreamId, QuicStreamId, const spdy::SpdyHeaderBlock&),
-              (override));
 };
 
 class TestQuicSpdyServerSession : public QuicServerSessionBase {
