@@ -8947,10 +8947,9 @@ TEST_P(QuicFramerTest, BuildMessagePacket) {
   header.reset_flag = false;
   header.version_flag = false;
   header.packet_number = kPacketNumber;
-  QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
 
-  QuicMessageFrame frame(1, MakeSpan(&allocator_, "message", &storage));
-  QuicMessageFrame frame2(2, MakeSpan(&allocator_, "message2", &storage));
+  QuicMessageFrame frame(1, MemSliceFromString("message"));
+  QuicMessageFrame frame2(2, MemSliceFromString("message2"));
   QuicFrames frames = {QuicFrame(&frame), QuicFrame(&frame2)};
 
   // clang-format off

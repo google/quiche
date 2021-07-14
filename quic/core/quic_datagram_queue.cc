@@ -4,6 +4,7 @@
 
 #include "quic/core/quic_datagram_queue.h"
 
+#include "absl/types/span.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_time.h"
@@ -30,8 +31,7 @@ MessageStatus QuicDatagramQueue::SendOrQueueDatagram(QuicMemSlice datagram) {
   // the datagrams are sent in the same order that they were sent by the
   // application.
   if (queue_.empty()) {
-    QuicMemSliceSpan span(&datagram);
-    MessageResult result = session_->SendMessage(span);
+    MessageResult result = session_->SendMessage(absl::MakeSpan(&datagram, 1));
     if (result.status != MESSAGE_STATUS_BLOCKED) {
       if (observer_) {
         observer_->OnDatagramProcessed(result.status);
@@ -51,8 +51,8 @@ absl::optional<MessageStatus> QuicDatagramQueue::TrySendingNextDatagram() {
     return absl::nullopt;
   }
 
-  QuicMemSliceSpan span(&queue_.front().datagram);
-  MessageResult result = session_->SendMessage(span);
+  MessageResult result =
+      session_->SendMessage(absl::MakeSpan(&queue_.front().datagram, 1));
   if (result.status != MESSAGE_STATUS_BLOCKED) {
     queue_.pop_front();
     if (observer_) {

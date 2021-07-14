@@ -280,9 +280,8 @@ void MasqueCompressionEngine::CompressAndSendPacket(
     return;
   }
 
-  QuicMemSlice slice(std::move(buffer));
   MessageResult message_result =
-      masque_session_->SendMessage(QuicMemSliceSpan(&slice));
+      masque_session_->SendMessage(QuicMemSlice(std::move(buffer)));
 
   QUIC_DVLOG(1) << "Sent packet compressed with flow ID " << flow_id
                 << " and got message result " << message_result;

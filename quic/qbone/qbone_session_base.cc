@@ -140,11 +140,9 @@ void QboneSessionBase::SendPacketToPeer(absl::string_view packet) {
   }
 
   if (send_packets_as_messages_) {
-    QuicUniqueBufferPtr buffer = MakeUniqueBuffer(
-        connection()->helper()->GetStreamSendBufferAllocator(), packet.size());
-    memcpy(buffer.get(), packet.data(), packet.size());
-    QuicMemSlice slice(std::move(buffer), packet.size());
-    switch (SendMessage(QuicMemSliceSpan(&slice), /*flush=*/true).status) {
+    QuicMemSlice slice(QuicBuffer::Copy(
+        connection()->helper()->GetStreamSendBufferAllocator(), packet));
+    switch (SendMessage(absl::MakeSpan(&slice, 1), /*flush=*/true).status) {
       case MESSAGE_STATUS_SUCCESS:
         break;
       case MESSAGE_STATUS_TOO_LARGE: {

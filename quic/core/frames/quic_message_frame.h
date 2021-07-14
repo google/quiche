@@ -6,11 +6,11 @@
 #define QUICHE_QUIC_CORE_FRAMES_QUIC_MESSAGE_FRAME_H_
 
 #include "absl/container/inlined_vector.h"
+#include "absl/types/span.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_mem_slice.h"
-#include "quic/platform/api/quic_mem_slice_span.h"
 
 namespace quic {
 
@@ -19,7 +19,8 @@ using QuicMessageData = absl::InlinedVector<QuicMemSlice, 1>;
 struct QUIC_EXPORT_PRIVATE QuicMessageFrame {
   QuicMessageFrame() = default;
   explicit QuicMessageFrame(QuicMessageId message_id);
-  QuicMessageFrame(QuicMessageId message_id, QuicMemSliceSpan span);
+  QuicMessageFrame(QuicMessageId message_id, absl::Span<QuicMemSlice> span);
+  QuicMessageFrame(QuicMessageId message_id, QuicMemSlice slice);
   QuicMessageFrame(const char* data, QuicPacketLength length);
 
   QuicMessageFrame(const QuicMessageFrame& other) = delete;

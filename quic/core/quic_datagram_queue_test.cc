@@ -176,8 +176,9 @@ TEST_F(QuicDatagramQueueTest, Expiry) {
   std::vector<std::string> messages;
   EXPECT_CALL(*connection_, SendMessage(_, _, _))
       .WillRepeatedly([&messages](QuicMessageId /*id*/,
-                                  QuicMemSliceSpan message, bool /*flush*/) {
-        messages.push_back(std::string(message.GetData(0)));
+                                  absl::Span<QuicMemSlice> message,
+                                  bool /*flush*/) {
+        messages.push_back(std::string(message[0].AsStringView()));
         return MESSAGE_STATUS_SUCCESS;
       });
   EXPECT_EQ(2u, queue_.SendDatagrams());

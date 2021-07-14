@@ -417,7 +417,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Tries to add a message frame containing |message| and returns the status.
   MessageStatus AddMessageFrame(QuicMessageId message_id,
-                                QuicMemSliceSpan message);
+                                absl::Span<QuicMemSlice> message);
 
   // Returns the largest payload that will fit into a single MESSAGE frame.
   QuicPacketLength GetCurrentLargestMessagePayload() const;

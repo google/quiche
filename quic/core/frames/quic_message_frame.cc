@@ -14,13 +14,18 @@ QuicMessageFrame::QuicMessageFrame(QuicMessageId message_id)
     : message_id(message_id), data(nullptr), message_length(0) {}
 
 QuicMessageFrame::QuicMessageFrame(QuicMessageId message_id,
-                                   QuicMemSliceSpan span)
+                                   absl::Span<QuicMemSlice> span)
     : message_id(message_id), data(nullptr), message_length(0) {
-  span.ConsumeAll([&](QuicMemSlice slice) {
+  for (QuicMemSlice& slice : span) {
+    if (slice.empty()) {
+      continue;
+    }
     message_length += slice.length();
     message_data.push_back(std::move(slice));
-  });
+  }
 }
+QuicMessageFrame::QuicMessageFrame(QuicMessageId message_id, QuicMemSlice slice)
+    : QuicMessageFrame(message_id, absl::MakeSpan(&slice, 1)) {}
 
 QuicMessageFrame::QuicMessageFrame(const char* data, QuicPacketLength length)
     : message_id(0), data(data), message_length(length) {}

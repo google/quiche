@@ -763,10 +763,8 @@ class MockQuicConnection : public QuicConnection {
               (QuicStreamId, QuicRstStreamErrorCode),
               (override));
   MOCK_METHOD(bool, SendControlFrame, (const QuicFrame& frame), (override));
-  MOCK_METHOD(MessageStatus,
-              SendMessage,
-              (QuicMessageId, QuicMemSliceSpan, bool),
-              (override));
+  MOCK_METHOD(MessageStatus, SendMessage,
+              (QuicMessageId, absl::Span<QuicMemSlice>, bool), (override));
   MOCK_METHOD(bool,
               SendPathChallenge,
               (const QuicPathFrameBuffer&,

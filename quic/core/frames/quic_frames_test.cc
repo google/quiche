@@ -543,10 +543,8 @@ TEST_F(QuicFramesTest, RemoveSmallestInterval) {
 
 TEST_F(QuicFramesTest, CopyQuicFrames) {
   QuicFrames frames;
-  SimpleBufferAllocator allocator;
-  QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
   QuicMessageFrame* message_frame =
-      new QuicMessageFrame(1, MakeSpan(&allocator, "message", &storage));
+      new QuicMessageFrame(1, MemSliceFromString("message"));
   // Construct a frame list.
   for (uint8_t i = 0; i < NUM_FRAME_TYPES; ++i) {
     switch (i) {
@@ -626,7 +624,7 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
     }
   }
 
-  QuicFrames copy = CopyQuicFrames(&allocator, frames);
+  QuicFrames copy = CopyQuicFrames(SimpleBufferAllocator::Get(), frames);
   ASSERT_EQ(NUM_FRAME_TYPES, copy.size());
   for (uint8_t i = 0; i < NUM_FRAME_TYPES; ++i) {
     EXPECT_EQ(i, copy[i].type);

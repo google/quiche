@@ -987,7 +987,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // If |flush| is false, this will return a MESSAGE_STATUS_BLOCKED
   // when the connection is deemed unwritable.
   virtual MessageStatus SendMessage(QuicMessageId message_id,
-                                    QuicMemSliceSpan message,
+                                    absl::Span<QuicMemSlice> message,
                                     bool flush);
 
   // Returns the largest payload that will fit into a single MESSAGE frame.

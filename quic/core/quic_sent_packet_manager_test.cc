@@ -4637,8 +4637,7 @@ TEST_F(QuicSentPacketManagerTest, ClearDataInMessageFrameAfterPacketSent) {
   QuicMessageFrame* message_frame = nullptr;
   {
     QuicMemSlice slice(MakeUniqueBuffer(&allocator_, 1024), 1024);
-    message_frame =
-        new QuicMessageFrame(/*message_id=*/1, QuicMemSliceSpan(&slice));
+    message_frame = new QuicMessageFrame(/*message_id=*/1, std::move(slice));
     EXPECT_FALSE(message_frame->message_data.empty());
     EXPECT_EQ(message_frame->message_length, 1024);
 

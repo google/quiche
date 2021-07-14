@@ -1103,12 +1103,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   MessageStatus SendMessage(absl::string_view message) {
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-    QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
-    return connection_.SendMessage(
-        1,
-        MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(), message,
-                 &storage),
-        false);
+    QuicMemSlice slice(QuicBuffer::Copy(
+        connection_.helper()->GetStreamSendBufferAllocator(), message));
+    return connection_.SendMessage(1, absl::MakeSpan(&slice, 1), false);
   }
 
   void ProcessAckPacket(uint64_t packet_number, QuicAckFrame* frame) {
@@ -8780,8 +8777,7 @@ TEST_P(QuicConnectionTest, SendMessage) {
     connection_.SetFromConfig(config);
   }
   std::string message(connection_.GetCurrentLargestMessagePayload() * 2, 'a');
-  absl::string_view message_data(message);
-  QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
+  QuicMemSlice slice;
   {
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
     connection_.SendStreamData3();
@@ -8789,36 +8785,23 @@ TEST_P(QuicConnectionTest, SendMessage) {
     // get sent, one contains stream frame, and the other only contains the
     // message frame.
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+    slice = MemSliceFromString(absl::string_view(
+        message.data(), connection_.GetCurrentLargestMessagePayload()));
     EXPECT_EQ(MESSAGE_STATUS_SUCCESS,
-              connection_.SendMessage(
-                  1,
-                  MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
-                           absl::string_view(
-                               message_data.data(),
-                               connection_.GetCurrentLargestMessagePayload()),
-                           &storage),
-                  false));
+              connection_.SendMessage(1, absl::MakeSpan(&slice, 1), false));
   }
   // Fail to send a message if connection is congestion control blocked.
   EXPECT_CALL(*send_algorithm_, CanSend(_)).WillOnce(Return(false));
+  slice = MemSliceFromString("message");
   EXPECT_EQ(MESSAGE_STATUS_BLOCKED,
-            connection_.SendMessage(
-                2,
-                MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
-                         "message", &storage),
-                false));
+            connection_.SendMessage(2, absl::MakeSpan(&slice, 1), false));
 
   // Always fail to send a message which cannot fit into one packet.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  slice = MemSliceFromString(absl::string_view(
+      message.data(), connection_.GetCurrentLargestMessagePayload() + 1));
   EXPECT_EQ(MESSAGE_STATUS_TOO_LARGE,
-            connection_.SendMessage(
-                3,
-                MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
-                         absl::string_view(
-                             message_data.data(),
-                             connection_.GetCurrentLargestMessagePayload() + 1),
-                         &storage),
-                false));
+            connection_.SendMessage(3, absl::MakeSpan(&slice, 1), false));
 }
 
 TEST_P(QuicConnectionTest, GetCurrentLargestMessagePayload) {

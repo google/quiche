@@ -4738,20 +4738,15 @@ TEST_P(EndToEndTest, SendMessages) {
   ASSERT_LT(0, client_session->GetCurrentLargestMessagePayload());
 
   std::string message_string(kMaxOutgoingPacketSize, 'a');
-  absl::string_view message_buffer(message_string);
   QuicRandom* random =
       QuicConnectionPeer::GetHelper(client_connection)->GetRandomGenerator();
-  QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
   {
     QuicConnection::ScopedPacketFlusher flusher(client_session->connection());
     // Verify the largest message gets successfully sent.
     EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, 1),
-              client_session->SendMessage(MakeSpan(
-                  client_connection->helper()->GetStreamSendBufferAllocator(),
-                  absl::string_view(
-                      message_buffer.data(),
-                      client_session->GetCurrentLargestMessagePayload()),
-                  &storage)));
+              client_session->SendMessage(MemSliceFromString(absl::string_view(
+                  message_string.data(),
+                  client_session->GetCurrentLargestMessagePayload()))));
     // Send more messages with size (0, largest_payload] until connection is
     // write blocked.
     const int kTestMaxNumberOfMessages = 100;
@@ -4760,9 +4755,8 @@ TEST_P(EndToEndTest, SendMessages) {
           random->RandUint64() %
               client_session->GetGuaranteedLargestMessagePayload() +
           1;
-      MessageResult result = client_session->SendMessage(MakeSpan(
-          client_connection->helper()->GetStreamSendBufferAllocator(),
-          absl::string_view(message_buffer.data(), message_length), &storage));
+      MessageResult result = client_session->SendMessage(MemSliceFromString(
+          absl::string_view(message_string.data(), message_length)));
       if (result.status == MESSAGE_STATUS_BLOCKED) {
         // Connection is write blocked.
         break;
@@ -4774,12 +4768,9 @@ TEST_P(EndToEndTest, SendMessages) {
   client_->WaitForDelayedAcks();
   EXPECT_EQ(MESSAGE_STATUS_TOO_LARGE,
             client_session
-                ->SendMessage(MakeSpan(
-                    client_connection->helper()->GetStreamSendBufferAllocator(),
-                    absl::string_view(
-                        message_buffer.data(),
-                        client_session->GetCurrentLargestMessagePayload() + 1),
-                    &storage))
+                ->SendMessage(MemSliceFromString(absl::string_view(
+                    message_string.data(),
+                    client_session->GetCurrentLargestMessagePayload() + 1)))
                 .status);
   EXPECT_THAT(client_->connection_error(), IsQuicNoError());
 }

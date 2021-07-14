@@ -2450,36 +2450,26 @@ TEST_P(QuicSessionTestServer, RetransmitLostDataCausesConnectionClose) {
 TEST_P(QuicSessionTestServer, SendMessage) {
   // Cannot send message when encryption is not established.
   EXPECT_FALSE(session_.OneRttKeysAvailable());
-  quic::QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
   EXPECT_EQ(MessageResult(MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED, 0),
-            session_.SendMessage(
-                MakeSpan(connection_->helper()->GetStreamSendBufferAllocator(),
-                         "", &storage)));
+            session_.SendMessage(MemSliceFromString("")));
 
   CompleteHandshake();
   EXPECT_TRUE(session_.OneRttKeysAvailable());
 
-  absl::string_view message;
   EXPECT_CALL(*connection_, SendMessage(1, _, false))
       .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
   EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, 1),
-            session_.SendMessage(
-                MakeSpan(connection_->helper()->GetStreamSendBufferAllocator(),
-                         message, &storage)));
+            session_.SendMessage(MemSliceFromString("")));
   // Verify message_id increases.
   EXPECT_CALL(*connection_, SendMessage(2, _, false))
       .WillOnce(Return(MESSAGE_STATUS_TOO_LARGE));
   EXPECT_EQ(MessageResult(MESSAGE_STATUS_TOO_LARGE, 0),
-            session_.SendMessage(
-                MakeSpan(connection_->helper()->GetStreamSendBufferAllocator(),
-                         message, &storage)));
+            session_.SendMessage(MemSliceFromString("")));
   // Verify unsent message does not consume a message_id.
   EXPECT_CALL(*connection_, SendMessage(2, _, false))
       .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
   EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, 2),
-            session_.SendMessage(
-                MakeSpan(connection_->helper()->GetStreamSendBufferAllocator(),
-                         message, &storage)));
+            session_.SendMessage(MemSliceFromString("")));
 
   QuicMessageFrame frame(1);
   QuicMessageFrame frame2(2);

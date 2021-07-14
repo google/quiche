@@ -1323,6 +1323,10 @@ QuicMemSliceSpan MakeSpan(QuicBufferAllocator* allocator,
 }
 
 QuicMemSlice MemSliceFromString(absl::string_view data) {
+  if (data.empty()) {
+    return QuicMemSlice();
+  }
+
   static SimpleBufferAllocator* allocator = new SimpleBufferAllocator();
   return QuicMemSlice(QuicBuffer::Copy(allocator, data));
 }
