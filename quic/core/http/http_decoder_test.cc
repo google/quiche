@@ -45,10 +45,6 @@ class MockVisitor : public HttpDecoder::Visitor {
   MOCK_METHOD(void, OnError, (HttpDecoder*), (override));
 
   MOCK_METHOD(bool,
-              OnCancelPushFrame,
-              (const CancelPushFrame& frame),
-              (override));
-  MOCK_METHOD(bool,
               OnMaxPushIdFrame,
               (const MaxPushIdFrame& frame),
               (override));
@@ -78,22 +74,6 @@ class MockVisitor : public HttpDecoder::Visitor {
               (absl::string_view payload),
               (override));
   MOCK_METHOD(bool, OnHeadersFrameEnd, (), (override));
-
-  MOCK_METHOD(bool,
-              OnPushPromiseFrameStart,
-              (QuicByteCount header_length),
-              (override));
-  MOCK_METHOD(bool,
-              OnPushPromiseFramePushId,
-              (PushId push_id,
-               QuicByteCount push_id_length,
-               QuicByteCount header_block_length),
-              (override));
-  MOCK_METHOD(bool,
-              OnPushPromiseFramePayload,
-              (absl::string_view payload),
-              (override));
-  MOCK_METHOD(bool, OnPushPromiseFrameEnd, (), (override));
 
   MOCK_METHOD(bool,
               OnPriorityUpdateFrameStart,
@@ -130,7 +110,6 @@ class MockVisitor : public HttpDecoder::Visitor {
 class HttpDecoderTest : public QuicTest {
  public:
   HttpDecoderTest() : decoder_(&visitor_) {
-    ON_CALL(visitor_, OnCancelPushFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnMaxPushIdFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnGoAwayFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnSettingsFrameStart(_)).WillByDefault(Return(true));
@@ -141,11 +120,6 @@ class HttpDecoderTest : public QuicTest {
     ON_CALL(visitor_, OnHeadersFrameStart(_, _)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnHeadersFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnHeadersFrameEnd()).WillByDefault(Return(true));
-    ON_CALL(visitor_, OnPushPromiseFrameStart(_)).WillByDefault(Return(true));
-    ON_CALL(visitor_, OnPushPromiseFramePushId(_, _, _))
-        .WillByDefault(Return(true));
-    ON_CALL(visitor_, OnPushPromiseFramePayload(_)).WillByDefault(Return(true));
-    ON_CALL(visitor_, OnPushPromiseFrameEnd()).WillByDefault(Return(true));
     ON_CALL(visitor_, OnPriorityUpdateFrameStart(_))
         .WillByDefault(Return(true));
     ON_CALL(visitor_, OnPriorityUpdateFrame(_)).WillByDefault(Return(true));

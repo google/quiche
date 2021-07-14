@@ -1132,10 +1132,6 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
               (override));
 
   MOCK_METHOD(void,
-              OnCancelPushFrameReceived,
-              (const CancelPushFrame&),
-              (override));
-  MOCK_METHOD(void,
               OnSettingsFrameReceived,
               (const SettingsFrame&),
               (override));
@@ -1164,14 +1160,6 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
   MOCK_METHOD(void,
               OnHeadersDecoded,
               (QuicStreamId, QuicHeaderList),
-              (override));
-  MOCK_METHOD(void,
-              OnPushPromiseFrameReceived,
-              (QuicStreamId, QuicStreamId, QuicByteCount),
-              (override));
-  MOCK_METHOD(void,
-              OnPushPromiseDecoded,
-              (QuicStreamId, QuicStreamId, QuicHeaderList),
               (override));
   MOCK_METHOD(void,
               OnUnknownFrameReceived,

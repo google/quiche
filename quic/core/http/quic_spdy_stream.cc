@@ -50,11 +50,6 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     stream_->OnUnrecoverableError(decoder->error(), decoder->error_detail());
   }
 
-  bool OnCancelPushFrame(const CancelPushFrame& /*frame*/) override {
-    CloseConnectionOnWrongFrame("Cancel Push");
-    return false;
-  }
-
   bool OnMaxPushIdFrame(const MaxPushIdFrame& /*frame*/) override {
     CloseConnectionOnWrongFrame("Max Push Id");
     return false;
@@ -111,42 +106,6 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
       return false;
     }
     return stream_->OnHeadersFrameEnd();
-  }
-
-  bool OnPushPromiseFrameStart(QuicByteCount header_length) override {
-    if (!VersionUsesHttp3(stream_->transport_version())) {
-      CloseConnectionOnWrongFrame("Push Promise");
-      return false;
-    }
-    return stream_->OnPushPromiseFrameStart(header_length);
-  }
-
-  bool OnPushPromiseFramePushId(PushId push_id,
-                                QuicByteCount push_id_length,
-                                QuicByteCount header_block_length) override {
-    if (!VersionUsesHttp3(stream_->transport_version())) {
-      CloseConnectionOnWrongFrame("Push Promise");
-      return false;
-    }
-    return stream_->OnPushPromiseFramePushId(push_id, push_id_length,
-                                             header_block_length);
-  }
-
-  bool OnPushPromiseFramePayload(absl::string_view payload) override {
-    QUICHE_DCHECK(!payload.empty());
-    if (!VersionUsesHttp3(stream_->transport_version())) {
-      CloseConnectionOnWrongFrame("Push Promise");
-      return false;
-    }
-    return stream_->OnPushPromiseFramePayload(payload);
-  }
-
-  bool OnPushPromiseFrameEnd() override {
-    if (!VersionUsesHttp3(stream_->transport_version())) {
-      CloseConnectionOnWrongFrame("Push Promise");
-      return false;
-    }
-    return stream_->OnPushPromiseFrameEnd();
   }
 
   bool OnPriorityUpdateFrameStart(QuicByteCount /*header_length*/) override {
@@ -614,10 +573,6 @@ void QuicSpdyStream::OnHeadersDecoded(QuicHeaderList headers,
 
     OnStreamHeaderList(/* fin = */ false, headers_payload_length_, headers);
   } else {
-    if (debug_visitor) {
-      debug_visitor->OnPushPromiseDecoded(id(), promised_stream_id, headers);
-    }
-
     spdy_session_->OnHeaderList(headers);
   }
 
@@ -1103,50 +1058,6 @@ bool QuicSpdyStream::OnHeadersFrameEnd() {
   }
 
   return !sequencer()->IsClosed() && !reading_stopped();
-}
-
-bool QuicSpdyStream::OnPushPromiseFrameStart(QuicByteCount header_length) {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
-  QUICHE_DCHECK(!qpack_decoded_headers_accumulator_);
-
-  sequencer()->MarkConsumed(body_manager_.OnNonBody(header_length));
-
-  return true;
-}
-
-bool QuicSpdyStream::OnPushPromiseFramePushId(
-    PushId push_id,
-    QuicByteCount push_id_length,
-    QuicByteCount header_block_length) {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
-  QUICHE_DCHECK(!qpack_decoded_headers_accumulator_);
-
-  if (spdy_session_->debug_visitor()) {
-    spdy_session_->debug_visitor()->OnPushPromiseFrameReceived(
-        id(), push_id, header_block_length);
-  }
-
-  // TODO(b/151749109): Check max push id and handle errors.
-  spdy_session_->OnPushPromise(id(), push_id);
-  sequencer()->MarkConsumed(body_manager_.OnNonBody(push_id_length));
-
-  qpack_decoded_headers_accumulator_ =
-      std::make_unique<QpackDecodedHeadersAccumulator>(
-          id(), spdy_session_->qpack_decoder(), this,
-          spdy_session_->max_inbound_header_list_size());
-
-  return true;
-}
-
-bool QuicSpdyStream::OnPushPromiseFramePayload(absl::string_view payload) {
-  spdy_session_->OnCompressedFrameSize(payload.length());
-  return OnHeadersFramePayload(payload);
-}
-
-bool QuicSpdyStream::OnPushPromiseFrameEnd() {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
-
-  return OnHeadersFrameEnd();
 }
 
 void QuicSpdyStream::OnWebTransportStreamFrameType(

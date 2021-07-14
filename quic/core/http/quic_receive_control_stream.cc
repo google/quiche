@@ -65,14 +65,6 @@ void QuicReceiveControlStream::OnError(HttpDecoder* decoder) {
   stream_delegate()->OnStreamError(decoder->error(), decoder->error_detail());
 }
 
-bool QuicReceiveControlStream::OnCancelPushFrame(const CancelPushFrame& frame) {
-  if (spdy_session()->debug_visitor()) {
-    spdy_session()->debug_visitor()->OnCancelPushFrameReceived(frame);
-  }
-
-  return ValidateFrameType(HttpFrameType::CANCEL_PUSH);
-}
-
 bool QuicReceiveControlStream::OnMaxPushIdFrame(const MaxPushIdFrame& frame) {
   if (spdy_session()->debug_visitor()) {
     spdy_session()->debug_visitor()->OnMaxPushIdFrameReceived(frame);
@@ -140,30 +132,6 @@ bool QuicReceiveControlStream::OnHeadersFramePayload(
 }
 
 bool QuicReceiveControlStream::OnHeadersFrameEnd() {
-  QUICHE_NOTREACHED();
-  return false;
-}
-
-bool QuicReceiveControlStream::OnPushPromiseFrameStart(
-    QuicByteCount /*header_length*/) {
-  return ValidateFrameType(HttpFrameType::PUSH_PROMISE);
-}
-
-bool QuicReceiveControlStream::OnPushPromiseFramePushId(
-    PushId /*push_id*/,
-    QuicByteCount /*push_id_length*/,
-    QuicByteCount /*header_block_length*/) {
-  QUICHE_NOTREACHED();
-  return false;
-}
-
-bool QuicReceiveControlStream::OnPushPromiseFramePayload(
-    absl::string_view /*payload*/) {
-  QUICHE_NOTREACHED();
-  return false;
-}
-
-bool QuicReceiveControlStream::OnPushPromiseFrameEnd() {
   QUICHE_NOTREACHED();
   return false;
 }
@@ -264,9 +232,8 @@ bool QuicReceiveControlStream::OnUnknownFrameEnd() {
 
 bool QuicReceiveControlStream::ValidateFrameType(HttpFrameType frame_type) {
   // Certain frame types are forbidden.
-  if ((frame_type == HttpFrameType::DATA ||
-       frame_type == HttpFrameType::HEADERS ||
-       frame_type == HttpFrameType::PUSH_PROMISE) ||
+  if (frame_type == HttpFrameType::DATA ||
+      frame_type == HttpFrameType::HEADERS ||
       (spdy_session()->perspective() == Perspective::IS_CLIENT &&
        frame_type == HttpFrameType::MAX_PUSH_ID) ||
       (spdy_session()->perspective() == Perspective::IS_SERVER &&

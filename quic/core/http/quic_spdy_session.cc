@@ -72,10 +72,6 @@ class AlpsFrameDecoder : public HttpDecoder::Visitor {
 
   // HttpDecoder::Visitor implementation.
   void OnError(HttpDecoder* /*decoder*/) override {}
-  bool OnCancelPushFrame(const CancelPushFrame& /*frame*/) override {
-    error_detail_ = "CANCEL_PUSH frame forbidden";
-    return false;
-  }
   bool OnMaxPushIdFrame(const MaxPushIdFrame& /*frame*/) override {
     error_detail_ = "MAX_PUSH_ID frame forbidden";
     return false;
@@ -121,26 +117,6 @@ class AlpsFrameDecoder : public HttpDecoder::Visitor {
     return false;
   }
   bool OnHeadersFrameEnd() override {
-    QUICHE_NOTREACHED();
-    return false;
-  }
-  bool OnPushPromiseFrameStart(QuicByteCount /*header_length*/) override {
-    error_detail_ = "PUSH_PROMISE frame forbidden";
-    return false;
-  }
-  bool OnPushPromiseFramePushId(
-      PushId /*push_id*/,
-      QuicByteCount
-      /*push_id_length*/,
-      QuicByteCount /*header_block_length*/) override {
-    QUICHE_NOTREACHED();
-    return false;
-  }
-  bool OnPushPromiseFramePayload(absl::string_view /*payload*/) override {
-    QUICHE_NOTREACHED();
-    return false;
-  }
-  bool OnPushPromiseFrameEnd() override {
     QUICHE_NOTREACHED();
     return false;
   }

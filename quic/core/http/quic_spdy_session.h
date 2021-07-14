@@ -78,8 +78,6 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   virtual void OnAcceptChFrameReceivedViaAlps(const AcceptChFrame& /*frame*/) {}
 
   // Incoming HTTP/3 frames on the control stream.
-  // TODO(b/171463363): Remove.
-  virtual void OnCancelPushFrameReceived(const CancelPushFrame& /*frame*/) {}
   virtual void OnSettingsFrameReceived(const SettingsFrame& /*frame*/) = 0;
   virtual void OnGoAwayFrameReceived(const GoAwayFrame& /*frame*/) {}
   // TODO(b/171463363): Remove.
@@ -96,15 +94,6 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
       QuicByteCount /*compressed_headers_length*/) {}
   virtual void OnHeadersDecoded(QuicStreamId /*stream_id*/,
                                 QuicHeaderList /*headers*/) {}
-  // TODO(b/171463363): Remove.
-  virtual void OnPushPromiseFrameReceived(QuicStreamId /*stream_id*/,
-                                          QuicStreamId /*push_id*/,
-                                          QuicByteCount
-                                          /*compressed_headers_length*/) {}
-  // TODO(b/171463363): Remove.
-  virtual void OnPushPromiseDecoded(QuicStreamId /*stream_id*/,
-                                    QuicStreamId /*push_id*/,
-                                    QuicHeaderList /*headers*/) {}
 
   // Incoming HTTP/3 frames of unknown type on any stream.
   virtual void OnUnknownFrameReceived(QuicStreamId /*stream_id*/,
