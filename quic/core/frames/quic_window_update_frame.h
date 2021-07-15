@@ -31,11 +31,11 @@ struct QUIC_EXPORT_PRIVATE QuicWindowUpdateFrame {
 
   // The stream this frame applies to.  0 is a special case meaning the overall
   // connection rather than a specific stream.
-  QuicStreamId stream_id;
+  QuicStreamId stream_id = 0;
 
   // Maximum data allowed in the stream or connection. The receiver of this
   // frame must not send data which would exceedes this restriction.
-  QuicByteCount max_data;
+  QuicByteCount max_data = 0;
 };
 
 }  // namespace quic
