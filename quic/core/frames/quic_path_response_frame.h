@@ -27,7 +27,7 @@ struct QUIC_EXPORT_PRIVATE QuicPathResponseFrame {
   // and non-zero when sent.
   QuicControlFrameId control_frame_id = kInvalidControlFrameId;
 
-  QuicPathFrameBuffer data_buffer;
+  QuicPathFrameBuffer data_buffer{};
 };
 }  // namespace quic
 
