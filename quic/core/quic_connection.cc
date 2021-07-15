@@ -2092,9 +2092,7 @@ bool QuicConnection::OnNewConnectionIdFrameInner(
     OnClientConnectionIdAvailable();
   }
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v4, 1, 2);
-  if (add_missing_update_ack_timeout_) {
-    MaybeUpdateAckTimeout();
-  }
+  // TODO(haoyuewang): update ACK timeout for RETIRE_CONNECTION_ID_FRAME.
   return true;
 }
 
@@ -2155,9 +2153,7 @@ bool QuicConnection::OnRetireConnectionIdFrame(
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v4, 2, 2);
   // Count successfully received RETIRE_CONNECTION_ID frames.
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 5, 6);
-  if (add_missing_update_ack_timeout_) {
-    MaybeUpdateAckTimeout();
-  }
+  // TODO(haoyuewang): update ACK timeout for RETIRE_CONNECTION_ID_FRAME.
   return true;
 }
 

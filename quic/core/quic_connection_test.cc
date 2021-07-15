@@ -12101,11 +12101,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
   new_writer.SetWritable();
   // Write event on the default socket shouldn't make any difference.
   connection_.OnCanWrite();
-  if (GetQuicReloadableFlag(quic_add_missing_update_ack_timeout)) {
-    EXPECT_EQ(1u, writer_->packets_write_attempts());
-  } else {
-    EXPECT_EQ(0u, writer_->packets_write_attempts());
-  }
+  EXPECT_EQ(0u, writer_->packets_write_attempts());
   EXPECT_EQ(1u, new_writer.packets_write_attempts());
 }
 
@@ -15238,7 +15234,6 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
   QuicWindowUpdateFrame window_update_frame;
   QuicPathChallengeFrame path_challenge_frame;
   QuicStopSendingFrame stop_sending_frame;
-  QuicNewConnectionIdFrame new_connection_id_frame;
   QuicPathResponseFrame path_response_frame;
   QuicMessageFrame message_frame;
   QuicNewTokenFrame new_token_frame;
@@ -15309,7 +15304,8 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
         frame = QuicFrame(&stop_sending_frame);
         break;
       case NEW_CONNECTION_ID_FRAME:
-        frame = QuicFrame(&new_connection_id_frame);
+        // TODO(haoyuewang): add test coverage for RETIRE_CONNECTION_ID_FRAME.
+        skipped = true;
         break;
       case RETIRE_CONNECTION_ID_FRAME:
         // TODO(haoyuewang): add test coverage for RETIRE_CONNECTION_ID_FRAME.
