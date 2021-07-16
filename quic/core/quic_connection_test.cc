@@ -12106,7 +12106,13 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
   new_writer.SetWritable();
   // Write event on the default socket shouldn't make any difference.
   connection_.OnCanWrite();
-  EXPECT_EQ(0u, writer_->packets_write_attempts());
+  if (GetQuicReloadableFlag(quic_ack_cid_frames)) {
+    // A NEW_CONNECTION_ID frame is received in PathProbeTestInit and OnCanWrite
+    // will write a acking packet.
+    EXPECT_EQ(1u, writer_->packets_write_attempts());
+  } else {
+    EXPECT_EQ(0u, writer_->packets_write_attempts());
+  }
   EXPECT_EQ(1u, new_writer.packets_write_attempts());
 }
 
@@ -12291,6 +12297,9 @@ TEST_P(QuicConnectionTest,
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
+  // Make sure there is no outstanding ACK_FRAME to write.
+  connection_.OnCanWrite();
+  uint num_packets_write_attempts = writer_->packets_write_attempts();
 
   writer_->SetShouldWriteFail();
   writer_->SetWriteError(QUIC_EMSGSIZE);
@@ -12309,7 +12318,7 @@ TEST_P(QuicConnectionTest,
   EXPECT_TRUE(connection_.HasPendingPathValidation());
   // Connection shouldn't be closed.
   EXPECT_TRUE(connection_.connected());
-  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  EXPECT_EQ(++num_packets_write_attempts, writer_->packets_write_attempts());
   EXPECT_EQ(1u, writer_->path_challenge_frames().size());
   EXPECT_EQ(1u, writer_->padding_frames().size());
   EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
