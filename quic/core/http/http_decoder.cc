@@ -669,6 +669,13 @@ QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
       return 1024 * 1024;
     case static_cast<uint64_t>(HttpFrameType::GOAWAY):
       return VARIABLE_LENGTH_INTEGER_LENGTH_8;
+    case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID):
+      if (GetQuicReloadableFlag(quic_reject_large_max_push_id)) {
+        QUIC_RELOADABLE_FLAG_COUNT(quic_reject_large_max_push_id);
+        return VARIABLE_LENGTH_INTEGER_LENGTH_8;
+      } else {
+        return std::numeric_limits<QuicByteCount>::max();
+      }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM):
       // This limit is arbitrary.
       return 1024 * 1024;

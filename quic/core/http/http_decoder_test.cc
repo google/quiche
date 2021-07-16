@@ -603,7 +603,7 @@ TEST_F(HttpDecoderTest, EmptyHeadersFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 }
 
-TEST_F(HttpDecoderTest, MalformedFrameWithOverlyLargePayload) {
+TEST_F(HttpDecoderTest, GoawayWithOverlyLargePayload) {
   std::string input = absl::HexStringToBytes(
       "07"    // type (GOAWAY)
       "10");  // length exceeding the maximum possible length for GOAWAY frame
@@ -612,6 +612,24 @@ TEST_F(HttpDecoderTest, MalformedFrameWithOverlyLargePayload) {
   EXPECT_EQ(2u, ProcessInput(input));
   EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_TOO_LARGE));
   EXPECT_EQ("Frame is too large.", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, MaxPushIdWithOverlyLargePayload) {
+  std::string input = absl::HexStringToBytes(
+      "0d"    // type (MAX_PUSH_ID)
+      "10");  // length exceeding the maximum possible length for MAX_PUSH_ID
+              // frame
+  // Process all data at once.
+  if (GetQuicReloadableFlag(quic_reject_large_max_push_id)) {
+    EXPECT_CALL(visitor_, OnError(&decoder_));
+    EXPECT_EQ(2u, ProcessInput(input));
+    EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_TOO_LARGE));
+    EXPECT_EQ("Frame is too large.", decoder_.error_detail());
+  } else {
+    EXPECT_EQ(2u, ProcessInput(input));
+    EXPECT_THAT(decoder_.error(), IsQuicNoError());
+    EXPECT_EQ("", decoder_.error_detail());
+  }
 }
 
 TEST_F(HttpDecoderTest, MalformedSettingsFrame) {
