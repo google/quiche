@@ -165,10 +165,10 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   bool HasValidSignature(size_t max_signature_size) const;
 
   // ProofSourceHandleCallback implementation:
-  void OnSelectCertificateDone(bool ok,
-                               bool is_sync,
-                               const ProofSource::Chain* chain,
-                               absl::string_view handshake_hints) override;
+  void OnSelectCertificateDone(
+      bool ok, bool is_sync, const ProofSource::Chain* chain,
+      absl::string_view handshake_hints,
+      absl::string_view ticket_encryption_key) override;
 
   void OnComputeSignatureDone(
       bool ok,
@@ -336,6 +336,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   // Pre-shared key used during the handshake.
   std::string pre_shared_key_;
+
+  // (optional) Key to use for encrypting TLS resumption tickets.
+  std::string ticket_encryption_key_;
 
   HandshakeState state_ = HANDSHAKE_START;
   bool encryption_established_ = false;

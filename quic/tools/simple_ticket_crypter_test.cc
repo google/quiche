@@ -42,7 +42,7 @@ class SimpleTicketCrypterTest : public QuicTest {
 TEST_F(SimpleTicketCrypterTest, EncryptDecrypt) {
   std::vector<uint8_t> plaintext = {1, 2, 3, 4, 5};
   std::vector<uint8_t> ciphertext =
-      ticket_crypter_.Encrypt(StringPiece(plaintext));
+      ticket_crypter_.Encrypt(StringPiece(plaintext), {});
   EXPECT_NE(plaintext, ciphertext);
 
   std::vector<uint8_t> out_plaintext;
@@ -54,16 +54,16 @@ TEST_F(SimpleTicketCrypterTest, EncryptDecrypt) {
 TEST_F(SimpleTicketCrypterTest, CiphertextsDiffer) {
   std::vector<uint8_t> plaintext = {1, 2, 3, 4, 5};
   std::vector<uint8_t> ciphertext1 =
-      ticket_crypter_.Encrypt(StringPiece(plaintext));
+      ticket_crypter_.Encrypt(StringPiece(plaintext), {});
   std::vector<uint8_t> ciphertext2 =
-      ticket_crypter_.Encrypt(StringPiece(plaintext));
+      ticket_crypter_.Encrypt(StringPiece(plaintext), {});
   EXPECT_NE(ciphertext1, ciphertext2);
 }
 
 TEST_F(SimpleTicketCrypterTest, DecryptionFailureWithModifiedCiphertext) {
   std::vector<uint8_t> plaintext = {1, 2, 3, 4, 5};
   std::vector<uint8_t> ciphertext =
-      ticket_crypter_.Encrypt(StringPiece(plaintext));
+      ticket_crypter_.Encrypt(StringPiece(plaintext), {});
   EXPECT_NE(plaintext, ciphertext);
 
   // Check that a bit flip in any byte will cause a decryption failure.
@@ -88,7 +88,7 @@ TEST_F(SimpleTicketCrypterTest, DecryptionFailureWithEmptyCiphertext) {
 TEST_F(SimpleTicketCrypterTest, KeyRotation) {
   std::vector<uint8_t> plaintext = {1, 2, 3};
   std::vector<uint8_t> ciphertext =
-      ticket_crypter_.Encrypt(StringPiece(plaintext));
+      ticket_crypter_.Encrypt(StringPiece(plaintext), {});
   EXPECT_FALSE(ciphertext.empty());
 
   // Advance the clock 8 days, so the key used for |ciphertext| is now the

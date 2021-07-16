@@ -24,7 +24,8 @@ class QUIC_NO_EXPORT SimpleTicketCrypter
   ~SimpleTicketCrypter() override;
 
   size_t MaxOverhead() override;
-  std::vector<uint8_t> Encrypt(absl::string_view in) override;
+  std::vector<uint8_t> Encrypt(absl::string_view in,
+                               absl::string_view encryption_key) override;
   void Decrypt(
       absl::string_view in,
       std::unique_ptr<quic::ProofSource::DecryptCallback> callback) override;

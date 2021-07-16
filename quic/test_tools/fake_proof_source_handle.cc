@@ -93,7 +93,8 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
   } else if (select_cert_action_ == Action::FAIL_SYNC) {
     callback()->OnSelectCertificateDone(
         /*ok=*/false,
-        /*is_sync=*/true, nullptr, /*handshake_hints=*/absl::string_view());
+        /*is_sync=*/true, nullptr, /*handshake_hints=*/absl::string_view(),
+        /*ticket_encryption_key=*/absl::string_view());
     return QUIC_FAILURE;
   }
 
@@ -102,8 +103,10 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
       delegate_->GetCertChain(server_address, client_address, hostname);
 
   bool ok = chain && !chain->certs.empty();
-  callback_->OnSelectCertificateDone(ok, /*is_sync=*/true, chain.get(),
-                                     /*handshake_hints=*/absl::string_view());
+  callback_->OnSelectCertificateDone(
+      ok, /*is_sync=*/true, chain.get(),
+      /*handshake_hints=*/absl::string_view(),
+      /*ticket_encryption_key=*/absl::string_view());
   return ok ? QUIC_SUCCESS : QUIC_FAILURE;
 }
 
@@ -175,16 +178,20 @@ FakeProofSourceHandle::SelectCertOperation::SelectCertOperation(
 
 void FakeProofSourceHandle::SelectCertOperation::Run() {
   if (action_ == Action::FAIL_ASYNC) {
-    callback_->OnSelectCertificateDone(/*ok=*/false,
-                                       /*is_sync=*/false, nullptr,
-                                       /*handshake_hints=*/absl::string_view());
+    callback_->OnSelectCertificateDone(
+        /*ok=*/false,
+        /*is_sync=*/false, nullptr,
+        /*handshake_hints=*/absl::string_view(),
+        /*ticket_encryption_key=*/absl::string_view());
   } else if (action_ == Action::DELEGATE_ASYNC) {
     QuicReferenceCountedPointer<ProofSource::Chain> chain =
         delegate_->GetCertChain(args_.server_address, args_.client_address,
                                 args_.hostname);
     bool ok = chain && !chain->certs.empty();
-    callback_->OnSelectCertificateDone(ok, /*is_sync=*/false, chain.get(),
-                                       /*handshake_hints=*/absl::string_view());
+    callback_->OnSelectCertificateDone(
+        ok, /*is_sync=*/false, chain.get(),
+        /*handshake_hints=*/absl::string_view(),
+        /*ticket_encryption_key=*/absl::string_view());
   } else {
     QUIC_BUG(quic_bug_10139_1)
         << "Unexpected action: " << static_cast<int>(action_);

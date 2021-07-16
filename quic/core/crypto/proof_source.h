@@ -197,7 +197,12 @@ class QUIC_EXPORT_PRIVATE ProofSource {
     // returns the encrypted ticket. The resulting value must not be larger than
     // MaxOverhead bytes larger than |in|. If encryption fails, this method
     // returns an empty vector.
-    virtual std::vector<uint8_t> Encrypt(absl::string_view in) = 0;
+    //
+    // If |encryption_key| is nonempty, this method should use it for minting
+    // TLS resumption tickets.  If it is empty, this method may use an
+    // internally cached encryption key, if available.
+    virtual std::vector<uint8_t> Encrypt(absl::string_view in,
+                                         absl::string_view encryption_key) = 0;
 
     // Decrypt takes an encrypted ticket |in|, decrypts it, and calls
     // |callback->Run| with the decrypted ticket, which must not be larger than
@@ -231,13 +236,15 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandleCallback {
   // |chain| the certificate chain in leaf-first order.
   // |handshake_hints| (optional) handshake hints that can be used by
   //      SSL_set_handshake_hints.
+  // |ticket_encryption_key| (optional) encryption key to be used for minting
+  //      TLS resumption tickets.
   //
   // When called asynchronously(is_sync=false), this method will be responsible
   // to continue the handshake from where it left off.
-  virtual void OnSelectCertificateDone(bool ok,
-                                       bool is_sync,
-                                       const ProofSource::Chain* chain,
-                                       absl::string_view handshake_hints) = 0;
+  virtual void OnSelectCertificateDone(
+      bool ok, bool is_sync, const ProofSource::Chain* chain,
+      absl::string_view handshake_hints,
+      absl::string_view ticket_encryption_key) = 0;
 
   // Called when a ProofSourceHandle::ComputeSignature operation completes.
   virtual void OnComputeSignatureDone(

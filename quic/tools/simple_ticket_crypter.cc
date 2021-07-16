@@ -38,7 +38,12 @@ size_t SimpleTicketCrypter::MaxOverhead() {
   return kEpochSize + kIVSize + kAuthTagSize;
 }
 
-std::vector<uint8_t> SimpleTicketCrypter::Encrypt(absl::string_view in) {
+std::vector<uint8_t> SimpleTicketCrypter::Encrypt(
+    absl::string_view in, absl::string_view encryption_key) {
+  // This class is only used in Chromium, in which the |encryption_key| argument
+  // will never be populated and an internally-cached key should be used for
+  // encrypting tickets.
+  QUICHE_DCHECK(encryption_key.empty());
   MaybeRotateKeys();
   std::vector<uint8_t> out(in.size() + MaxOverhead());
   out[0] = key_epoch_;

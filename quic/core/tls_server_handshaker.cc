@@ -82,7 +82,8 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
 
   handshaker_->OnSelectCertificateDone(
       /*ok=*/true, /*is_sync=*/true, chain.get(),
-      /*handshake_hints=*/absl::string_view());
+      /*handshake_hints=*/absl::string_view(),
+      /*ticket_encryption_key=*/absl::string_view());
   if (!handshaker_->select_cert_status().has_value()) {
     QUIC_BUG(quic_bug_12423_1)
         << "select_cert_status() has no value after a synchronous select cert";
@@ -652,7 +653,8 @@ int TlsServerHandshaker::SessionTicketSeal(uint8_t* out,
                                            size_t max_out_len,
                                            absl::string_view in) {
   QUICHE_DCHECK(proof_source_->GetTicketCrypter());
-  std::vector<uint8_t> ticket = proof_source_->GetTicketCrypter()->Encrypt(in);
+  std::vector<uint8_t> ticket =
+      proof_source_->GetTicketCrypter()->Encrypt(in, ticket_encryption_key_);
   if (max_out_len < ticket.size()) {
     QUIC_BUG(quic_bug_12423_2)
         << "TicketCrypter returned " << ticket.size()
@@ -878,13 +880,15 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
 }
 
 void TlsServerHandshaker::OnSelectCertificateDone(
-    bool ok,
-    bool is_sync,
-    const ProofSource::Chain* chain,
-    absl::string_view handshake_hints) {
+    bool ok, bool is_sync, const ProofSource::Chain* chain,
+    absl::string_view handshake_hints,
+    absl::string_view ticket_encryption_key) {
   QUIC_DVLOG(1) << "OnSelectCertificateDone. ok:" << ok
                 << ", is_sync:" << is_sync
-                << ", len(handshake_hints):" << handshake_hints.size();
+                << ", len(handshake_hints):" << handshake_hints.size()
+                << ", len(ticket_encryption_key):"
+                << ticket_encryption_key.size();
+  ticket_encryption_key_ = std::string(ticket_encryption_key);
   select_cert_status_ = QUIC_FAILURE;
   if (ok) {
     if (chain && !chain->certs.empty()) {
