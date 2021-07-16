@@ -1201,8 +1201,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool is_processing_packet() const { return framer_.is_processing_packet(); }
 
-  bool encrypted_control_frames() const { return encrypted_control_frames_; }
-
   bool use_encryption_level_context() const {
     return use_encryption_level_context_;
   }
@@ -2236,8 +2234,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // True if we are currently processing OnRetransmissionTimeout.
   bool in_on_retransmission_time_out_ = false;
-
-  const bool encrypted_control_frames_;
 
   const bool use_encryption_level_context_;
 

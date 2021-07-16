@@ -1528,56 +1528,6 @@ TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
 }
 
-TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedCryptoStream) {
-  if (QuicVersionUsesCryptoFrames(GetParam().transport_version) ||
-      connection_->encrypted_control_frames()) {
-    // QUIC version 47 onwards uses CRYPTO frames for the handshake, so this
-    // test doesn't make sense for those versions since CRYPTO frames aren't
-    // flow controlled.
-    return;
-  }
-  // Test that if the crypto stream is flow control blocked, then if the SHLO
-  // contains a larger send window offset, the stream becomes unblocked.
-  session_.set_writev_consumes_all_data(true);
-  TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
-  EXPECT_FALSE(crypto_stream->IsFlowControlBlocked());
-  EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
-  EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
-  EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
-  EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&ClearControlFrame));
-  for (QuicStreamId i = 0; !crypto_stream->IsFlowControlBlocked() && i < 1000u;
-       i++) {
-    EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
-    EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
-    QuicStreamOffset offset = crypto_stream->stream_bytes_written();
-    QuicConfig config;
-    CryptoHandshakeMessage crypto_message;
-    config.ToHandshakeMessage(&crypto_message, transport_version());
-    crypto_stream->SendHandshakeMessage(crypto_message, ENCRYPTION_INITIAL);
-    char buf[1000];
-    QuicDataWriter writer(1000, buf, quiche::NETWORK_BYTE_ORDER);
-    crypto_stream->WriteStreamData(offset, crypto_message.size(), &writer);
-  }
-  EXPECT_TRUE(crypto_stream->IsFlowControlBlocked());
-  EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
-  EXPECT_TRUE(session_.IsStreamFlowControlBlocked());
-  EXPECT_FALSE(session_.HasDataToWrite());
-  EXPECT_TRUE(crypto_stream->HasBufferedData());
-
-  // Now complete the crypto handshake, resulting in an increased flow control
-  // send window.
-  CompleteHandshake();
-  EXPECT_TRUE(QuicSessionPeer::IsStreamWriteBlocked(
-      &session_,
-      QuicUtils::GetCryptoStreamId(connection_->transport_version())));
-  // Stream is now unblocked and will no longer have buffered data.
-  EXPECT_FALSE(crypto_stream->IsFlowControlBlocked());
-  EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
-  EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
-}
-
 TEST_P(QuicSessionTestServer, ConnectionFlowControlAccountingRstOutOfOrder) {
   CompleteHandshake();
   // Test that when we receive an out of order stream RST we correctly adjust

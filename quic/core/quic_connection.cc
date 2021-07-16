@@ -364,10 +364,7 @@ QuicConnection::QuicConnection(
                              clock_->ApproximateNow(),
                              &arena_,
                              alarm_factory_),
-      encrypted_control_frames_(
-          GetQuicReloadableFlag(quic_encrypted_control_frames)),
       use_encryption_level_context_(
-          encrypted_control_frames_ &&
           GetQuicReloadableFlag(quic_use_encryption_level_context)),
       path_validator_(alarm_factory_, &arena_, this, random_generator_),
       most_recent_frame_type_(NUM_FRAME_TYPES) {
