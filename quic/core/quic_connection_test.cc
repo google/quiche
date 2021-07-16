@@ -1178,7 +1178,12 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     }
     if (peer_framer_.version().HasIetfInvariantHeader() &&
         peer_framer_.perspective() == Perspective::IS_SERVER) {
-      header.destination_connection_id_included = CONNECTION_ID_ABSENT;
+      if (!connection_.client_connection_id().IsEmpty()) {
+        header.destination_connection_id = connection_.client_connection_id();
+        header.destination_connection_id_included = CONNECTION_ID_PRESENT;
+      } else {
+        header.destination_connection_id_included = CONNECTION_ID_ABSENT;
+      }
       if (header.version_flag) {
         header.source_connection_id = connection_id_;
         header.source_connection_id_included = CONNECTION_ID_PRESENT;
@@ -15209,11 +15214,17 @@ TEST_P(QuicConnectionTest, PingNotSentAt0RTTLevelWhenInitialAvailable) {
 }
 
 TEST_P(QuicConnectionTest, AckElicitingFrames) {
+  QuicConfig config;
+  config.SetConnectionOptionsToSend({kRVCM});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
   if (!version().HasIetfQuicFrames() ||
-      !connection_.support_multiple_connection_ids() ||
+      !connection_.connection_migration_use_new_cid() ||
+      !GetQuicReloadableFlag(quic_ack_cid_frames) ||
       !GetQuicReloadableFlag(quic_add_missing_update_ack_timeout)) {
     return;
   }
+  EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(2);
   EXPECT_CALL(visitor_, OnRstStream(_));
   EXPECT_CALL(visitor_, OnWindowUpdateFrame(_));
   EXPECT_CALL(visitor_, OnBlockedFrame(_));
@@ -15226,13 +15237,19 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
   EXPECT_CALL(visitor_, OnMessageReceived(""));
   EXPECT_CALL(visitor_, OnNewTokenReceived(""));
 
+  SetClientConnectionId(TestConnectionId(12));
   connection_.CreateConnectionIdManager();
+  QuicConnectionPeer::GetSelfIssuedConnectionIdManager(&connection_)
+      ->MaybeSendNewConnectionIds();
   connection_.set_can_receive_ack_frequency_frame();
 
   QuicAckFrame ack_frame = InitAckFrame(1);
   QuicRstStreamFrame rst_stream_frame;
   QuicWindowUpdateFrame window_update_frame;
   QuicPathChallengeFrame path_challenge_frame;
+  QuicNewConnectionIdFrame new_connection_id_frame;
+  QuicRetireConnectionIdFrame retire_connection_id_frame;
+  retire_connection_id_frame.sequence_number = 1u;
   QuicStopSendingFrame stop_sending_frame;
   QuicPathResponseFrame path_response_frame;
   QuicMessageFrame message_frame;
@@ -15304,12 +15321,10 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
         frame = QuicFrame(&stop_sending_frame);
         break;
       case NEW_CONNECTION_ID_FRAME:
-        // TODO(haoyuewang): add test coverage for RETIRE_CONNECTION_ID_FRAME.
-        skipped = true;
+        frame = QuicFrame(&new_connection_id_frame);
         break;
       case RETIRE_CONNECTION_ID_FRAME:
-        // TODO(haoyuewang): add test coverage for RETIRE_CONNECTION_ID_FRAME.
-        skipped = true;
+        frame = QuicFrame(&retire_connection_id_frame);
         break;
       case PATH_RESPONSE_FRAME:
         frame = QuicFrame(&path_response_frame);

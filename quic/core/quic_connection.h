@@ -2286,6 +2286,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   const bool add_missing_update_ack_timeout_ =
       GetQuicReloadableFlag(quic_add_missing_update_ack_timeout);
+
+  const bool ack_cid_frames_ = GetQuicReloadableFlag(quic_ack_cid_frames);
 };
 
 }  // namespace quic

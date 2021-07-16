@@ -213,6 +213,9 @@ class QuicConnectionPeer {
 
   static bool HasSelfIssuedConnectionIdToConsume(
       const QuicConnection* connection);
+
+  static QuicSelfIssuedConnectionIdManager* GetSelfIssuedConnectionIdManager(
+      QuicConnection* connection);
 };
 
 }  // namespace test

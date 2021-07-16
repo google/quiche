@@ -521,5 +521,12 @@ bool QuicConnectionPeer::HasSelfIssuedConnectionIdToConsume(
   return connection->self_issued_cid_manager_->HasConnectionIdToConsume();
 }
 
+// static
+QuicSelfIssuedConnectionIdManager*
+QuicConnectionPeer::GetSelfIssuedConnectionIdManager(
+    QuicConnection* connection) {
+  return connection->self_issued_cid_manager_.get();
+}
+
 }  // namespace test
 }  // namespace quic
