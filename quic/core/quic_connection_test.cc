@@ -12299,7 +12299,7 @@ TEST_P(QuicConnectionTest,
   PathProbeTestInit(Perspective::IS_CLIENT);
   // Make sure there is no outstanding ACK_FRAME to write.
   connection_.OnCanWrite();
-  uint num_packets_write_attempts = writer_->packets_write_attempts();
+  uint32_t num_packets_write_attempts = writer_->packets_write_attempts();
 
   writer_->SetShouldWriteFail();
   writer_->SetWriteError(QUIC_EMSGSIZE);
