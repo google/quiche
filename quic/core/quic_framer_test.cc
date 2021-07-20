@@ -9237,7 +9237,9 @@ TEST_P(QuicFramerTest, BuildPublicResetPacketWithEndpointId) {
   }
 }
 
-TEST_P(QuicFramerTest, BuildIetfStatelessResetPacket) {
+// TODO(b/194177024): re-enable this test.
+TEST_P(QuicFramerTest,
+       QUIC_TEST_DISABLED_IN_CHROME(BuildIetfStatelessResetPacket)) {
   if (GetQuicRestartFlag(quic_fix_stateless_reset2)) {
     // clang-format off
     unsigned char packet[] = {

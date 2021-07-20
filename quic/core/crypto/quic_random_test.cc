@@ -30,7 +30,8 @@ TEST_F(QuicRandomTest, RandUint64) {
   EXPECT_NE(value1, value2);
 }
 
-TEST_F(QuicRandomTest, InsecureRandBytes) {
+// TODO(b/194177024): re-enable this test.
+TEST_F(QuicRandomTest, QUIC_TEST_DISABLED_IN_CHROME(InsecureRandBytes)) {
   unsigned char buf1[16];
   unsigned char buf2[16];
   memset(buf1, 0xaf, sizeof(buf1));
@@ -42,7 +43,8 @@ TEST_F(QuicRandomTest, InsecureRandBytes) {
   EXPECT_NE(0, memcmp(buf1, buf2, sizeof(buf1)));
 }
 
-TEST_F(QuicRandomTest, InsecureRandUint64) {
+// TODO(b/194177024): re-enable this test.
+TEST_F(QuicRandomTest, QUIC_TEST_DISABLED_IN_CHROME(InsecureRandUint64)) {
   QuicRandom* rng = QuicRandom::GetInstance();
   uint64_t value1 = rng->InsecureRandUint64();
   uint64_t value2 = rng->InsecureRandUint64();

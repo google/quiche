@@ -7026,7 +7026,8 @@ TEST_P(QuicConnectionTest, PublicReset) {
               IsError(QUIC_PUBLIC_RESET));
 }
 
-TEST_P(QuicConnectionTest, IetfStatelessReset) {
+// TODO(b/194177024): re-enable this test.
+TEST_P(QuicConnectionTest, QUIC_TEST_DISABLED_IN_CHROME(IetfStatelessReset)) {
   if (!GetParam().version.HasIetfInvariantHeader()) {
     return;
   }
@@ -12027,7 +12028,9 @@ TEST_P(QuicConnectionTest, PathValidationRetry) {
   EXPECT_EQ(2u, writer_->packets_write_attempts());
 }
 
-TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
+// TODO(b/194177024): re-enable this test.
+TEST_P(QuicConnectionTest,
+       QUIC_TEST_DISABLED_IN_CHROME(PathValidationReceivesStatelessReset)) {
   if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
       !connection_.use_path_validator()) {
     return;
