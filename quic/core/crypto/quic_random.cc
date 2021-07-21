@@ -24,6 +24,7 @@ inline uint64_t Xoshiro256PlusPlusRotLeft(uint64_t x, int k) {
 }
 
 uint64_t Xoshiro256PlusPlus() {
+  // no op comment change.
   static thread_local uint64_t rng_state[4];
   static thread_local bool rng_state_initialized = false;
   if (QUIC_PREDICT_FALSE(!rng_state_initialized)) {
