@@ -188,9 +188,6 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // false if it should be paused.
   bool HandleUnknownFramePayload(QuicDataReader* reader);
 
-  // Discards any remaining frame payload from |reader|.
-  void DiscardFramePayload(QuicDataReader* reader);
-
   // Buffers any remaining frame payload from |*reader| into |buffer_| if
   // necessary.  Parses the frame payload if complete.  Parses out of |*reader|
   // without unnecessary copy if |*reader| has entire payload.
@@ -215,17 +212,10 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // Parses the payload of a SETTINGS frame from |reader| into |frame|.
   bool ParseSettingsFrame(QuicDataReader* reader, SettingsFrame* frame);
 
-  // Parses the payload of a PRIORITY_UPDATE frame (draft-01, type 0x0f)
-  // from |reader| into |frame|.
-  // TODO(b/147306124): Remove.
-  bool ParsePriorityUpdateFrame(QuicDataReader* reader,
-                                PriorityUpdateFrame* frame);
-
   // Parses the payload of a PRIORITY_UPDATE frame (draft-02, type 0xf0700)
   // from |reader| into |frame|.
-  // TODO(b/147306124): Rename to ParsePriorityUpdateFrame().
-  bool ParseNewPriorityUpdateFrame(QuicDataReader* reader,
-                                   PriorityUpdateFrame* frame);
+  bool ParsePriorityUpdateFrame(QuicDataReader* reader,
+                                PriorityUpdateFrame* frame);
 
   // Parses the payload of an ACCEPT_CH frame from |reader| into |frame|.
   bool ParseAcceptChFrame(QuicDataReader* reader, AcceptChFrame* frame);

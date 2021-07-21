@@ -422,20 +422,6 @@ bool HttpDecoder::HandleUnknownFramePayload(QuicDataReader* reader) {
   return visitor_->OnUnknownFramePayload(payload);
 }
 
-void HttpDecoder::DiscardFramePayload(QuicDataReader* reader) {
-  QuicByteCount bytes_to_read = std::min<QuicByteCount>(
-      remaining_frame_length_, reader->BytesRemaining());
-  absl::string_view payload;
-  bool success = reader->ReadStringPiece(&payload, bytes_to_read);
-  QUICHE_DCHECK(success);
-  remaining_frame_length_ -= payload.length();
-  if (remaining_frame_length_ == 0) {
-    state_ = STATE_READING_FRAME_TYPE;
-    current_length_field_length_ = 0;
-    current_type_field_length_ = 0;
-  }
-}
-
 bool HttpDecoder::BufferOrParsePayload(QuicDataReader* reader) {
   QUICHE_DCHECK_EQ(current_frame_length_,
                    buffer_.size() + remaining_frame_length_);
@@ -525,7 +511,7 @@ bool HttpDecoder::ParseEntirePayload(QuicDataReader* reader) {
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM): {
       PriorityUpdateFrame frame;
-      if (!ParseNewPriorityUpdateFrame(reader, &frame)) {
+      if (!ParsePriorityUpdateFrame(reader, &frame)) {
         return false;
       }
       return visitor_->OnPriorityUpdateFrame(frame);
@@ -597,36 +583,6 @@ bool HttpDecoder::ParseSettingsFrame(QuicDataReader* reader,
 }
 
 bool HttpDecoder::ParsePriorityUpdateFrame(QuicDataReader* reader,
-                                           PriorityUpdateFrame* frame) {
-  uint8_t prioritized_element_type;
-  if (!reader->ReadUInt8(&prioritized_element_type)) {
-    RaiseError(QUIC_HTTP_FRAME_ERROR,
-               "Unable to read prioritized element type.");
-    return false;
-  }
-
-  if (prioritized_element_type != REQUEST_STREAM &&
-      prioritized_element_type != PUSH_STREAM) {
-    RaiseError(QUIC_HTTP_FRAME_ERROR, "Invalid prioritized element type.");
-    return false;
-  }
-
-  frame->prioritized_element_type =
-      static_cast<PrioritizedElementType>(prioritized_element_type);
-
-  if (!reader->ReadVarInt62(&frame->prioritized_element_id)) {
-    RaiseError(QUIC_HTTP_FRAME_ERROR, "Unable to read prioritized element id.");
-    return false;
-  }
-
-  absl::string_view priority_field_value = reader->ReadRemainingPayload();
-  frame->priority_field_value =
-      std::string(priority_field_value.data(), priority_field_value.size());
-
-  return true;
-}
-
-bool HttpDecoder::ParseNewPriorityUpdateFrame(QuicDataReader* reader,
                                               PriorityUpdateFrame* frame) {
   frame->prioritized_element_type = REQUEST_STREAM;
 
