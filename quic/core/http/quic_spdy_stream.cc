@@ -1381,20 +1381,24 @@ bool QuicSpdyStream::OnCapsuleFrame(const CapsuleFrame& frame) {
           Http3DatagramContextExtensions());
       break;
     case CapsuleType::DATAGRAM: {
-      Http3DatagramVisitor* visitor = nullptr;
+      Http3DatagramVisitor* visitor;
       if (frame.datagram_capsule.context_id.has_value()) {
         auto it = datagram_context_visitors_.find(
             frame.datagram_capsule.context_id.value());
-        if (it != datagram_context_visitors_.end()) {
-          visitor = it->second;
+        if (it == datagram_context_visitors_.end()) {
+          QUIC_DLOG(ERROR) << ENDPOINT << "Received capsule " << frame
+                           << " without any visitor for context "
+                           << frame.datagram_capsule.context_id.value();
+          return true;
         }
+        visitor = it->second;
       } else {
+        if (datagram_no_context_visitor_ == nullptr) {
+          QUIC_DLOG(ERROR) << ENDPOINT << "Received capsule " << frame
+                           << " without any visitor for no context";
+          return true;
+        }
         visitor = datagram_no_context_visitor_;
-      }
-      if (visitor == nullptr) {
-        QUIC_DLOG(ERROR) << ENDPOINT << "Received capsule " << frame
-                         << " without any registration visitor";
-        return true;
       }
       visitor->OnHttp3Datagram(id(), frame.datagram_capsule.context_id,
                                frame.datagram_capsule.http_datagram_payload);
@@ -1501,6 +1505,7 @@ void QuicSpdyStream::RegisterHttp3DatagramContextId(
           << id() << " context ID " << context_id.value();
       return;
     }
+    decoder_.set_datagram_context_id_present(true);
   } else {
     // Registration without a context ID.
     if (!datagram_context_visitors_.empty()) {
@@ -1518,6 +1523,7 @@ void QuicSpdyStream::RegisterHttp3DatagramContextId(
       return;
     }
     datagram_no_context_visitor_ = visitor;
+    decoder_.set_datagram_context_id_present(false);
   }
   if (spdy_session_->http_datagram_support() == HttpDatagramSupport::kDraft03) {
     const bool is_client = session()->perspective() == Perspective::IS_CLIENT;
