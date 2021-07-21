@@ -36,7 +36,6 @@ uint64_t Xoshiro256PlusPlus() {
   rng_state[2] ^= rng_state[0];
   rng_state[3] ^= rng_state[1];
   rng_state[1] ^= rng_state[2];
-  rng_state[0] ^= rng_state[3];
   rng_state[2] ^= t;
   rng_state[3] = Xoshiro256PlusPlusRotLeft(rng_state[3], 45);
   return result;
