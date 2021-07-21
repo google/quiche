@@ -89,6 +89,7 @@ class MockVisitor : public HttpDecoder::Visitor {
               (QuicByteCount header_length),
               (override));
   MOCK_METHOD(bool, OnAcceptChFrame, (const AcceptChFrame& frame), (override));
+  MOCK_METHOD(bool, OnCapsuleFrame, (const CapsuleFrame& frame), (override));
   MOCK_METHOD(void,
               OnWebTransportStreamFrameType,
               (QuicByteCount header_length, WebTransportSessionId session_id),
@@ -125,6 +126,7 @@ class HttpDecoderTest : public QuicTest {
     ON_CALL(visitor_, OnPriorityUpdateFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnAcceptChFrameStart(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnAcceptChFrame(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnCapsuleFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnUnknownFrameStart(_, _, _)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnUnknownFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnUnknownFrameEnd()).WillByDefault(Return(true));
@@ -1041,6 +1043,88 @@ TEST_F(HttpDecoderTest, AcceptChFrame) {
   ProcessInputCharByChar(input2);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, RegisterDatagramContextCapsuleFrame) {
+  std::string input = absl::HexStringToBytes(
+      "80ffcab5"    // type (CAPSULE)
+      "06"          // length
+      "00"          // capsule type (REGISTER_DATAGRAM_CONTEXT)
+      "08"          // context ID
+      "01020304");  // context extensions
+
+  CapsuleFrame frame(CapsuleType::REGISTER_DATAGRAM_CONTEXT);
+  frame.register_datagram_context_capsule.context_id = 8;
+  std::array<char, 4> context_extensions = {1, 2, 3, 4};
+  frame.register_datagram_context_capsule.context_extensions =
+      absl::string_view(context_extensions.data(), context_extensions.size());
+  EXPECT_CALL(visitor_, OnCapsuleFrame(frame));
+  EXPECT_EQ(ProcessInput(input), input.size());
+}
+
+TEST_F(HttpDecoderTest, CloseDatagramContextCapsuleFrame) {
+  std::string input = absl::HexStringToBytes(
+      "80ffcab5"    // type (CAPSULE)
+      "06"          // length
+      "01"          // capsule type (CLOSE_DATAGRAM_CONTEXT)
+      "08"          // context ID
+      "01020304");  // context extensions
+
+  CapsuleFrame frame(CapsuleType::CLOSE_DATAGRAM_CONTEXT);
+  frame.close_datagram_context_capsule.context_id = 8;
+  std::array<char, 4> context_extensions = {1, 2, 3, 4};
+  frame.close_datagram_context_capsule.context_extensions =
+      absl::string_view(context_extensions.data(), context_extensions.size());
+  EXPECT_CALL(visitor_, OnCapsuleFrame(frame));
+  EXPECT_EQ(ProcessInput(input), input.size());
+}
+
+TEST_F(HttpDecoderTest, DatagramWithoutContextCapsuleFrame) {
+  std::string input = absl::HexStringToBytes(
+      "80ffcab5"    // type (CAPSULE)
+      "05"          // length
+      "02"          // capsule type (DATAGRAM)
+      "01020304");  // context extensions
+
+  CapsuleFrame frame(CapsuleType::DATAGRAM);
+  std::array<char, 4> datagram_payload = {1, 2, 3, 4};
+  frame.datagram_capsule.http_datagram_payload =
+      absl::string_view(datagram_payload.data(), datagram_payload.size());
+  EXPECT_CALL(visitor_, OnCapsuleFrame(frame));
+  EXPECT_EQ(ProcessInput(input), input.size());
+}
+
+TEST_F(HttpDecoderTest, DatagramWithContextCapsuleFrame) {
+  decoder_.set_datagram_context_id_present(true);
+  std::string input = absl::HexStringToBytes(
+      "80ffcab5"    // type (CAPSULE)
+      "06"          // length
+      "02"          // capsule type (DATAGRAM)
+      "08"          // context ID
+      "01020304");  // context extensions
+
+  CapsuleFrame frame(CapsuleType::DATAGRAM);
+  frame.datagram_capsule.context_id = 8;
+  std::array<char, 4> datagram_payload = {1, 2, 3, 4};
+  frame.datagram_capsule.http_datagram_payload =
+      absl::string_view(datagram_payload.data(), datagram_payload.size());
+  EXPECT_CALL(visitor_, OnCapsuleFrame(frame));
+  EXPECT_EQ(ProcessInput(input), input.size());
+}
+
+TEST_F(HttpDecoderTest, RegisterDatagramNoContextCapsuleFrame) {
+  std::string input = absl::HexStringToBytes(
+      "80ffcab5"    // type (CAPSULE)
+      "05"          // length
+      "03"          // capsule type (REGISTER_DATAGRAM_NO_CONTEXT)
+      "01020304");  // context extensions
+
+  CapsuleFrame frame(CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT);
+  std::array<char, 4> context_extensions = {1, 2, 3, 4};
+  frame.register_datagram_no_context_capsule.context_extensions =
+      absl::string_view(context_extensions.data(), context_extensions.size());
+  EXPECT_CALL(visitor_, OnCapsuleFrame(frame));
+  EXPECT_EQ(ProcessInput(input), input.size());
 }
 
 TEST_F(HttpDecoderTest, WebTransportStreamDisabled) {

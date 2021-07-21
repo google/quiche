@@ -549,7 +549,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
 
   void ReceiveWebTransportSettings() {
     SettingsFrame settings;
-    settings.values[SETTINGS_H3_DATAGRAM] = 1;
+    settings.values[SETTINGS_H3_DATAGRAM_DRAFT03] = 1;
     settings.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
     std::string data =
         std::string(1, kControlStream) + EncodeSettings(settings);
@@ -573,8 +573,14 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     headers.OnHeaderBlockStart();
     headers.OnHeader(":method", "CONNECT");
     headers.OnHeader(":protocol", "webtransport");
-    headers.OnHeader("datagram-flow-id", absl::StrCat(session_id));
+    if (session_.http_datagram_support() == HttpDatagramSupport::kDraft00) {
+      headers.OnHeader("datagram-flow-id", absl::StrCat(session_id));
+    }
     stream->OnStreamHeaderList(/*fin=*/true, 0, headers);
+    if (session_.http_datagram_support() == HttpDatagramSupport::kDraft03) {
+      stream->OnCapsuleFrame(
+          CapsuleFrame(CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT));
+    }
     WebTransportHttp3* web_transport =
         session_.GetWebTransportSession(session_id);
     ASSERT_TRUE(web_transport != nullptr);
@@ -3404,16 +3410,17 @@ TEST_P(QuicSpdySessionTestClient, AlpsTwoSettingsFrame) {
   EXPECT_EQ("multiple SETTINGS frames", error.value());
 }
 
-TEST_P(QuicSpdySessionTestClient, H3DatagramSetting) {
+TEST_P(QuicSpdySessionTestClient, HttpDatagramSettingDraft00) {
   if (!version().UsesHttp3()) {
     return;
   }
   session_.set_should_negotiate_h3_datagram(true);
   // HTTP/3 datagrams aren't supported before SETTINGS are received.
-  EXPECT_FALSE(session_.h3_datagram_supported());
+  EXPECT_FALSE(session_.SupportsH3Datagram());
+  EXPECT_EQ(session_.http_datagram_support(), HttpDatagramSupport::kNone);
   // Receive SETTINGS.
   SettingsFrame settings;
-  settings.values[SETTINGS_H3_DATAGRAM] = 1;
+  settings.values[SETTINGS_H3_DATAGRAM_DRAFT00] = 1;
   std::string data = std::string(1, kControlStream) + EncodeSettings(settings);
   QuicStreamId stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
@@ -3424,7 +3431,59 @@ TEST_P(QuicSpdySessionTestClient, H3DatagramSetting) {
   EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
   session_.OnStreamFrame(frame);
   // HTTP/3 datagrams are now supported.
-  EXPECT_TRUE(session_.h3_datagram_supported());
+  EXPECT_TRUE(session_.SupportsH3Datagram());
+  EXPECT_EQ(session_.http_datagram_support(), HttpDatagramSupport::kDraft00);
+}
+
+TEST_P(QuicSpdySessionTestClient, HttpDatagramSettingDraft03) {
+  if (!version().UsesHttp3()) {
+    return;
+  }
+  session_.set_should_negotiate_h3_datagram(true);
+  // HTTP/3 datagrams aren't supported before SETTINGS are received.
+  EXPECT_FALSE(session_.SupportsH3Datagram());
+  EXPECT_EQ(session_.http_datagram_support(), HttpDatagramSupport::kNone);
+  // Receive SETTINGS.
+  SettingsFrame settings;
+  settings.values[SETTINGS_H3_DATAGRAM_DRAFT03] = 1;
+  std::string data = std::string(1, kControlStream) + EncodeSettings(settings);
+  QuicStreamId stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
+  QuicStreamFrame frame(stream_id, /*fin=*/false, /*offset=*/0, data);
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+  EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(stream_id));
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
+  session_.OnStreamFrame(frame);
+  // HTTP/3 datagrams are now supported.
+  EXPECT_TRUE(session_.SupportsH3Datagram());
+  EXPECT_EQ(session_.http_datagram_support(), HttpDatagramSupport::kDraft03);
+}
+
+TEST_P(QuicSpdySessionTestClient, HttpDatagramSettingDraft00And03) {
+  if (!version().UsesHttp3()) {
+    return;
+  }
+  session_.set_should_negotiate_h3_datagram(true);
+  // HTTP/3 datagrams aren't supported before SETTINGS are received.
+  EXPECT_FALSE(session_.SupportsH3Datagram());
+  EXPECT_EQ(session_.http_datagram_support(), HttpDatagramSupport::kNone);
+  // Receive SETTINGS.
+  SettingsFrame settings;
+  settings.values[SETTINGS_H3_DATAGRAM_DRAFT00] = 1;
+  settings.values[SETTINGS_H3_DATAGRAM_DRAFT03] = 1;
+  std::string data = std::string(1, kControlStream) + EncodeSettings(settings);
+  QuicStreamId stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
+  QuicStreamFrame frame(stream_id, /*fin=*/false, /*offset=*/0, data);
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+  EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(stream_id));
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
+  session_.OnStreamFrame(frame);
+  // HTTP/3 datagrams are now supported.
+  EXPECT_TRUE(session_.SupportsH3Datagram());
+  EXPECT_EQ(session_.http_datagram_support(), HttpDatagramSupport::kDraft03);
 }
 
 TEST_P(QuicSpdySessionTestClient, WebTransportSetting) {
@@ -3444,7 +3503,7 @@ TEST_P(QuicSpdySessionTestClient, WebTransportSetting) {
   CompleteHandshake();
 
   SettingsFrame server_settings;
-  server_settings.values[SETTINGS_H3_DATAGRAM] = 1;
+  server_settings.values[SETTINGS_H3_DATAGRAM_DRAFT03] = 1;
   server_settings.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
   std::string data =
       std::string(1, kControlStream) + EncodeSettings(server_settings);
@@ -3474,7 +3533,7 @@ TEST_P(QuicSpdySessionTestClient, WebTransportSettingSetToZero) {
   CompleteHandshake();
 
   SettingsFrame server_settings;
-  server_settings.values[SETTINGS_H3_DATAGRAM] = 1;
+  server_settings.values[SETTINGS_H3_DATAGRAM_DRAFT03] = 1;
   server_settings.values[SETTINGS_WEBTRANS_DRAFT00] = 0;
   std::string data =
       std::string(1, kControlStream) + EncodeSettings(server_settings);

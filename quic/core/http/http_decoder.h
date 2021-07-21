@@ -94,6 +94,9 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when an ACCEPT_CH frame has been successfully parsed.
     virtual bool OnAcceptChFrame(const AcceptChFrame& frame) = 0;
 
+    // Called when a CAPSULE frame has been successfully parsed.
+    virtual bool OnCapsuleFrame(const CapsuleFrame& frame) = 0;
+
     // Called when a WEBTRANSPORT_STREAM frame type and the session ID varint
     // immediately following it has been received.  Any further parsing should
     // be done by the stream itself, and not the parser. Note that this does not
@@ -147,6 +150,10 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
   // Returns true if input data processed so far ends on a frame boundary.
   bool AtFrameBoundary() const { return state_ == STATE_READING_FRAME_TYPE; }
+
+  void set_datagram_context_id_present(bool datagram_context_id_present) {
+    datagram_context_id_present_ = datagram_context_id_present;
+  }
 
  private:
   friend test::HttpDecoderPeer;
@@ -230,6 +237,9 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // Parses the payload of an ACCEPT_CH frame from |reader| into |frame|.
   bool ParseAcceptChFrame(QuicDataReader* reader, AcceptChFrame* frame);
 
+  // Parses the payload of an CAPSULE frame from |reader| into |frame|.
+  bool ParseCapsuleFrame(QuicDataReader* reader, CapsuleFrame* frame);
+
   // Returns the max frame size of a given |frame_type|.
   QuicByteCount MaxFrameLength(uint64_t frame_type);
 
@@ -237,6 +247,8 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   Visitor* const visitor_;  // Unowned.
   // Whether WEBTRANSPORT_STREAM should be parsed.
   bool allow_web_transport_stream_;
+  // Whether HTTP Datagram Context IDs are present.
+  bool datagram_context_id_present_ = false;
   // Current state of the parsing.
   HttpDecoderState state_;
   // Type of the frame currently being parsed.

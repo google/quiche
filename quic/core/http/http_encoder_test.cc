@@ -5,6 +5,7 @@
 #include "quic/core/http/http_encoder.h"
 
 #include "absl/base/macros.h"
+#include "quic/core/http/http_frames.h"
 #include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_test.h"
@@ -136,6 +137,63 @@ TEST(HttpEncoderTest, SerializeWebTransportStreamFrameHeader) {
   EXPECT_EQ(sizeof(output), length);
   quiche::test::CompareCharArraysWithHexError(
       "WEBTRANSPORT_STREAM", buffer.get(), length, output, sizeof(output));
+}
+
+TEST(HttpEncoderTest, SerializeRegisterDatagramContextCapsule) {
+  CapsuleFrame capsule_frame(CapsuleType::REGISTER_DATAGRAM_CONTEXT);
+  capsule_frame.register_datagram_context_capsule.context_id = 4;
+  uint8_t output[] = {0x80, 0xff, 0xca, 0xb5,  // type (CAPSULE)
+                      0x02,                    // frame length.
+                      0x00,   // capsule type (REGISTER_DATAGRAM_CONTEXT).
+                      0x04};  // context ID.
+  std::unique_ptr<char[]> buffer;
+  uint64_t length = HttpEncoder::SerializeCapsuleFrame(capsule_frame, &buffer);
+  quiche::test::CompareCharArraysWithHexError(
+      "REGISTER_DATAGRAM_CONTEXT", buffer.get(), length,
+      reinterpret_cast<char*>(output), sizeof(output));
+}
+
+TEST(HttpEncoderTest, SerializeCloseDatagramContextCapsule) {
+  CapsuleFrame capsule_frame(CapsuleType::CLOSE_DATAGRAM_CONTEXT);
+  capsule_frame.close_datagram_context_capsule.context_id = 4;
+  uint8_t output[] = {0x80, 0xff, 0xca, 0xb5,  // type (CAPSULE)
+                      0x02,                    // frame length.
+                      0x01,   // capsule type (CLOSE_DATAGRAM_CONTEXT).
+                      0x04};  // context ID.
+  std::unique_ptr<char[]> buffer;
+  uint64_t length = HttpEncoder::SerializeCapsuleFrame(capsule_frame, &buffer);
+  quiche::test::CompareCharArraysWithHexError(
+      "CLOSE_DATAGRAM_CONTEXT", buffer.get(), length,
+      reinterpret_cast<char*>(output), sizeof(output));
+}
+
+TEST(HttpEncoderTest, SerializeDatagramCapsule) {
+  uint8_t http_datagram_payload[5] = {0x21, 0x22, 0x23, 0x24, 0x25};
+  CapsuleFrame capsule_frame(CapsuleType::DATAGRAM);
+  capsule_frame.datagram_capsule.http_datagram_payload =
+      absl::string_view(reinterpret_cast<char*>(http_datagram_payload),
+                        sizeof(http_datagram_payload));
+  uint8_t output[] = {0x80, 0xff, 0xca, 0xb5,  // type (CAPSULE)
+                      0x06,                    // frame length.
+                      0x02,                    // capsule type (DATAGRAM).
+                      0x21, 0x22, 0x23, 0x24, 0x25};  // payload.
+  std::unique_ptr<char[]> buffer;
+  uint64_t length = HttpEncoder::SerializeCapsuleFrame(capsule_frame, &buffer);
+  quiche::test::CompareCharArraysWithHexError("DATAGRAM", buffer.get(), length,
+                                              reinterpret_cast<char*>(output),
+                                              sizeof(output));
+}
+
+TEST(HttpEncoderTest, SerializeRegisterDatagramNoContextCapsule) {
+  CapsuleFrame capsule_frame(CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT);
+  uint8_t output[] = {0x80, 0xff, 0xca, 0xb5,  // type (CAPSULE)
+                      0x01,                    // frame length.
+                      0x03};  // capsule type (REGISTER_DATAGRAM_NO_CONTEXT).
+  std::unique_ptr<char[]> buffer;
+  uint64_t length = HttpEncoder::SerializeCapsuleFrame(capsule_frame, &buffer);
+  quiche::test::CompareCharArraysWithHexError(
+      "REGISTER_DATAGRAM_NO_CONTEXT", buffer.get(), length,
+      reinterpret_cast<char*>(output), sizeof(output));
 }
 
 }  // namespace test

@@ -7,6 +7,7 @@
 
 #include "quic/core/http/quic_receive_control_stream.h"
 #include "quic/core/http/quic_send_control_stream.h"
+#include "quic/core/http/quic_spdy_session.h"
 #include "quic/core/qpack/qpack_receive_stream.h"
 #include "quic/core/qpack/qpack_send_stream.h"
 #include "quic/core/quic_packets.h"
@@ -16,7 +17,6 @@
 namespace quic {
 
 class QuicHeadersStream;
-class QuicSpdySession;
 
 namespace test {
 
@@ -50,10 +50,10 @@ class QuicSpdySessionPeer {
       QuicSpdySession* session);
   static QpackReceiveStream* GetQpackEncoderReceiveStream(
       QuicSpdySession* session);
-  static void SetH3DatagramSupported(QuicSpdySession* session,
-                                     bool h3_datagram_supported);
+  static void SetHttpDatagramSupport(QuicSpdySession* session,
+                                     HttpDatagramSupport http_datagram_support);
   static bool ShouldNegotiateHttp3Datagram(QuicSpdySession* session);
-  static void EnableWebTransport(QuicSpdySession& session);
+  static void EnableWebTransport(QuicSpdySession* session);
 };
 
 }  // namespace test

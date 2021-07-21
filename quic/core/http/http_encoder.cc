@@ -276,4 +276,143 @@ QuicByteCount HttpEncoder::SerializeWebTransportStreamFrameHeader(
   return 0;
 }
 
+// static
+QuicByteCount HttpEncoder::SerializeCapsuleFrame(
+    const CapsuleFrame& capsule_frame, std::unique_ptr<char[]>* output) {
+  QuicByteCount capsule_type_length = QuicDataWriter::GetVarInt62Len(
+      static_cast<uint64_t>(capsule_frame.capsule_type));
+  QuicByteCount capsule_data_length;
+  switch (capsule_frame.capsule_type) {
+    case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
+      capsule_data_length =
+          QuicDataWriter::GetVarInt62Len(
+              capsule_frame.register_datagram_context_capsule.context_id) +
+          capsule_frame.register_datagram_context_capsule.context_extensions
+              .length();
+      break;
+    case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
+      capsule_data_length =
+          QuicDataWriter::GetVarInt62Len(
+              capsule_frame.close_datagram_context_capsule.context_id) +
+          capsule_frame.close_datagram_context_capsule.context_extensions
+              .length();
+      break;
+    case CapsuleType::DATAGRAM:
+      capsule_data_length =
+          capsule_frame.datagram_capsule.http_datagram_payload.length();
+      if (capsule_frame.datagram_capsule.context_id.has_value()) {
+        capsule_data_length += QuicDataWriter::GetVarInt62Len(
+            capsule_frame.datagram_capsule.context_id.value());
+      }
+      break;
+    case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
+      capsule_data_length = capsule_frame.register_datagram_no_context_capsule
+                                .context_extensions.length();
+      break;
+    default:
+      capsule_data_length = capsule_frame.unknown_capsule_data.length();
+      break;
+  }
+  QuicByteCount frame_length_field_value =
+      capsule_type_length + capsule_data_length;
+  QuicByteCount total_frame_length =
+      QuicDataWriter::GetVarInt62Len(
+          static_cast<uint64_t>(HttpFrameType::CAPSULE)) +
+      QuicDataWriter::GetVarInt62Len(frame_length_field_value) +
+      capsule_type_length + capsule_data_length;
+  *output = std::make_unique<char[]>(total_frame_length);
+  QuicDataWriter writer(total_frame_length, output->get());
+  if (!writer.WriteVarInt62(static_cast<uint64_t>(HttpFrameType::CAPSULE))) {
+    QUIC_BUG(capsule frame type write fail)
+        << "Failed to write CAPSULE frame type";
+    return 0;
+  }
+  if (!writer.WriteVarInt62(frame_length_field_value)) {
+    QUIC_BUG(capsule frame length write fail)
+        << "Failed to write CAPSULE frame length";
+    return 0;
+  }
+  if (!writer.WriteVarInt62(
+          static_cast<uint64_t>(capsule_frame.capsule_type))) {
+    QUIC_BUG(capsule type write fail) << "Failed to write CAPSULE type";
+    return 0;
+  }
+  switch (capsule_frame.capsule_type) {
+    case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
+      if (!writer.WriteVarInt62(
+              capsule_frame.register_datagram_context_capsule.context_id)) {
+        QUIC_BUG(register context capsule context ID write fail)
+            << "Failed to write REGISTER_DATAGRAM_CONTEXT CAPSULE context ID";
+        return 0;
+      }
+      if (!writer.WriteBytes(capsule_frame.register_datagram_context_capsule
+                                 .context_extensions.data(),
+                             capsule_frame.register_datagram_context_capsule
+                                 .context_extensions.length())) {
+        QUIC_BUG(register context capsule extensions write fail)
+            << "Failed to write REGISTER_DATAGRAM_CONTEXT CAPSULE extensions";
+        return 0;
+      }
+      break;
+    case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
+      if (!writer.WriteVarInt62(
+              capsule_frame.close_datagram_context_capsule.context_id)) {
+        QUIC_BUG(close context capsule context ID write fail)
+            << "Failed to write CLOSE_DATAGRAM_CONTEXT CAPSULE context ID";
+        return 0;
+      }
+      if (!writer.WriteBytes(capsule_frame.close_datagram_context_capsule
+                                 .context_extensions.data(),
+                             capsule_frame.close_datagram_context_capsule
+                                 .context_extensions.length())) {
+        QUIC_BUG(close context capsule extensions write fail)
+            << "Failed to write CLOSE_DATAGRAM_CONTEXT CAPSULE extensions";
+        return 0;
+      }
+      break;
+    case CapsuleType::DATAGRAM:
+      if (capsule_frame.datagram_capsule.context_id.has_value()) {
+        if (!writer.WriteVarInt62(
+                capsule_frame.datagram_capsule.context_id.value())) {
+          QUIC_BUG(datagram capsule context ID write fail)
+              << "Failed to write DATAGRAM CAPSULE context ID";
+          return 0;
+        }
+      }
+      if (!writer.WriteBytes(
+              capsule_frame.datagram_capsule.http_datagram_payload.data(),
+              capsule_frame.datagram_capsule.http_datagram_payload.length())) {
+        QUIC_BUG(datagram capsule payload write fail)
+            << "Failed to write DATAGRAM CAPSULE payload";
+        return 0;
+      }
+      break;
+    case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
+      if (!writer.WriteBytes(capsule_frame.register_datagram_no_context_capsule
+                                 .context_extensions.data(),
+                             capsule_frame.register_datagram_no_context_capsule
+                                 .context_extensions.length())) {
+        QUIC_BUG(register no context capsule extensions write fail)
+            << "Failed to write REGISTER_DATAGRAM_NO_CONTEXT CAPSULE "
+               "extensions";
+        return 0;
+      }
+      break;
+    default:
+      if (!writer.WriteBytes(capsule_frame.unknown_capsule_data.data(),
+                             capsule_frame.unknown_capsule_data.length())) {
+        QUIC_BUG(capsule data write fail) << "Failed to write CAPSULE data";
+        return 0;
+      }
+      break;
+  }
+  if (writer.remaining() != 0) {
+    QUIC_BUG(capsule write length mismatch)
+        << "CAPSULE serialization wrote " << writer.length() << " instead of "
+        << writer.capacity();
+    return 0;
+  }
+  return total_frame_length;
+}
+
 }  // namespace quic

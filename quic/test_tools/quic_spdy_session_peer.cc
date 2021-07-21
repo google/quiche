@@ -100,9 +100,9 @@ QpackReceiveStream* QuicSpdySessionPeer::GetQpackEncoderReceiveStream(
 }
 
 // static
-void QuicSpdySessionPeer::SetH3DatagramSupported(QuicSpdySession* session,
-                                                 bool h3_datagram_supported) {
-  session->h3_datagram_supported_ = h3_datagram_supported;
+void QuicSpdySessionPeer::SetHttpDatagramSupport(
+    QuicSpdySession* session, HttpDatagramSupport http_datagram_support) {
+  session->http_datagram_support_ = http_datagram_support;
 }
 
 // static
@@ -112,10 +112,10 @@ bool QuicSpdySessionPeer::ShouldNegotiateHttp3Datagram(
 }
 
 // static
-void QuicSpdySessionPeer::EnableWebTransport(QuicSpdySession& session) {
-  QUICHE_DCHECK(session.WillNegotiateWebTransport());
-  session.h3_datagram_supported_ = true;
-  session.peer_supports_webtransport_ = true;
+void QuicSpdySessionPeer::EnableWebTransport(QuicSpdySession* session) {
+  QUICHE_DCHECK(session->WillNegotiateWebTransport());
+  SetHttpDatagramSupport(session, HttpDatagramSupport::kDraft03);
+  session->peer_supports_webtransport_ = true;
 }
 
 }  // namespace test

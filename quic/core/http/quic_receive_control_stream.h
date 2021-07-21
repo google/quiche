@@ -51,6 +51,7 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream
   bool OnPriorityUpdateFrame(const PriorityUpdateFrame& frame) override;
   bool OnAcceptChFrameStart(QuicByteCount header_length) override;
   bool OnAcceptChFrame(const AcceptChFrame& frame) override;
+  bool OnCapsuleFrame(const CapsuleFrame& frame) override;
   void OnWebTransportStreamFrameType(QuicByteCount header_length,
                                      WebTransportSessionId session_id) override;
   bool OnUnknownFrameStart(uint64_t frame_type,

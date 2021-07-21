@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "quic/masque/masque_client_session.h"
+
 #include "absl/algorithm/container.h"
+#include "absl/strings/str_cat.h"
 #include "quic/core/http/spdy_utils.h"
 #include "quic/core/quic_data_reader.h"
 #include "quic/core/quic_utils.h"
@@ -101,7 +103,9 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   headers[":scheme"] = "masque";
   headers[":path"] = "/";
   headers[":authority"] = target_server_address.ToString();
-  SpdyUtils::AddDatagramFlowIdHeader(&headers, stream->id());
+  if (http_datagram_support() == HttpDatagramSupport::kDraft00) {
+    SpdyUtils::AddDatagramFlowIdHeader(&headers, stream->id());
+  }
   size_t bytes_sent =
       stream->SendRequest(std::move(headers), /*body=*/"", /*fin=*/false);
   if (bytes_sent == 0) {
@@ -142,8 +146,8 @@ void MasqueClientSession::SendPacket(
                 << " compressed with stream ID " << connect_udp->stream()->id()
                 << " context ID "
                 << (connect_udp->context_id().has_value()
-                        ? connect_udp->context_id().value()
-                        : 0)
+                        ? absl::StrCat(connect_udp->context_id().value())
+                        : "none")
                 << " and got message status "
                 << MessageStatusToString(message_status);
 }
@@ -182,8 +186,8 @@ void MasqueClientSession::UnregisterConnectionId(
       QUIC_DLOG(INFO) << "Removing state for stream ID " << it->stream()->id()
                       << " context ID "
                       << (it->context_id().has_value()
-                              ? it->context_id().value()
-                              : 0);
+                              ? absl::StrCat(it->context_id().value())
+                              : "none");
       auto* stream = it->stream();
       it = connect_udp_client_states_.erase(it);
       if (!stream->write_side_closed()) {
@@ -224,8 +228,8 @@ void MasqueClientSession::OnStreamClosed(QuicStreamId stream_id) {
       QUIC_DLOG(INFO) << "Stream " << stream_id
                       << " was closed, removing state for context ID "
                       << (it->context_id().has_value()
-                              ? it->context_id().value()
-                              : 0);
+                              ? absl::StrCat(it->context_id().value())
+                              : "none");
       auto* encapsulated_client_session = it->encapsulated_client_session();
       it = connect_udp_client_states_.erase(it);
       encapsulated_client_session->CloseConnection(
@@ -241,6 +245,7 @@ void MasqueClientSession::OnStreamClosed(QuicStreamId stream_id) {
 }
 
 bool MasqueClientSession::OnSettingsFrame(const SettingsFrame& frame) {
+  QUIC_DLOG(INFO) << "Received SETTINGS: " << frame;
   if (!QuicSpdyClientSession::OnSettingsFrame(frame)) {
     QUIC_DLOG(ERROR) << "Failed to parse received settings";
     return false;
@@ -249,6 +254,7 @@ bool MasqueClientSession::OnSettingsFrame(const SettingsFrame& frame) {
     QUIC_DLOG(ERROR) << "Refusing to use MASQUE without HTTP/3 Datagrams";
     return false;
   }
+  QUIC_DLOG(INFO) << "Using HTTP Datagram: " << http_datagram_support();
   owner_->OnSettingsReceived();
   return true;
 }
@@ -308,7 +314,8 @@ void MasqueClientSession::ConnectUdpClientState::OnHttp3Datagram(
   QUIC_DVLOG(1) << "Sent " << payload.size()
                 << " bytes to connection for stream ID " << stream_id
                 << " context ID "
-                << (context_id.has_value() ? context_id.value() : 0);
+                << (context_id.has_value() ? absl::StrCat(context_id.value())
+                                           : "none");
 }
 
 void MasqueClientSession::ConnectUdpClientState::OnContextReceived(
@@ -321,11 +328,13 @@ void MasqueClientSession::ConnectUdpClientState::OnContextReceived(
     return;
   }
   if (context_id != context_id_) {
-    QUIC_DLOG(INFO) << "Ignoring unexpected context ID "
-                    << (context_id.has_value() ? context_id.value() : 0)
-                    << " instead of "
-                    << (context_id_.has_value() ? context_id_.value() : 0)
-                    << " on stream ID " << stream_->id();
+    QUIC_DLOG(INFO)
+        << "Ignoring unexpected context ID "
+        << (context_id.has_value() ? absl::StrCat(context_id.value()) : "none")
+        << " instead of "
+        << (context_id_.has_value() ? absl::StrCat(context_id_.value())
+                                    : "none")
+        << " on stream ID " << stream_->id();
     return;
   }
   // Do nothing since the client registers first and we currently ignore
@@ -342,11 +351,13 @@ void MasqueClientSession::ConnectUdpClientState::OnContextClosed(
     return;
   }
   if (context_id != context_id_) {
-    QUIC_DLOG(INFO) << "Ignoring unexpected close of context ID "
-                    << (context_id.has_value() ? context_id.value() : 0)
-                    << " instead of "
-                    << (context_id_.has_value() ? context_id_.value() : 0)
-                    << " on stream ID " << stream_->id();
+    QUIC_DLOG(INFO)
+        << "Ignoring unexpected close of context ID "
+        << (context_id.has_value() ? absl::StrCat(context_id.value()) : "none")
+        << " instead of "
+        << (context_id_.has_value() ? absl::StrCat(context_id_.value())
+                                    : "none")
+        << " on stream ID " << stream_->id();
     return;
   }
   QUIC_DLOG(INFO) << "Received datagram context close on stream ID "

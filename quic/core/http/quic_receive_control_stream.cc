@@ -200,6 +200,10 @@ bool QuicReceiveControlStream::OnAcceptChFrame(const AcceptChFrame& frame) {
   return true;
 }
 
+bool QuicReceiveControlStream::OnCapsuleFrame(const CapsuleFrame& /*frame*/) {
+  return ValidateFrameType(HttpFrameType::CAPSULE);
+}
+
 void QuicReceiveControlStream::OnWebTransportStreamFrameType(
     QuicByteCount /*header_length*/,
     WebTransportSessionId /*session_id*/) {
@@ -237,7 +241,8 @@ bool QuicReceiveControlStream::ValidateFrameType(HttpFrameType frame_type) {
       (spdy_session()->perspective() == Perspective::IS_CLIENT &&
        frame_type == HttpFrameType::MAX_PUSH_ID) ||
       (spdy_session()->perspective() == Perspective::IS_SERVER &&
-       frame_type == HttpFrameType::ACCEPT_CH)) {
+       frame_type == HttpFrameType::ACCEPT_CH) ||
+      frame_type == HttpFrameType::CAPSULE) {
     stream_delegate()->OnStreamError(
         QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM,
         absl::StrCat("Invalid frame type ", static_cast<int>(frame_type),

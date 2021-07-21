@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <ostream>
 #include <sstream>
@@ -14,6 +15,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quic/core/http/http_constants.h"
 #include "quic/core/quic_types.h"
 #include "spdy/core/spdy_protocol.h"
@@ -37,6 +39,8 @@ enum class HttpFrameType {
   PRIORITY_UPDATE_REQUEST_STREAM = 0xF0700,
   // https://www.ietf.org/archive/id/draft-ietf-webtrans-http3-00.html
   WEBTRANSPORT_STREAM = 0x41,
+  // https://datatracker.ietf.org/doc/html/draft-ietf-masque-h3-datagram-03
+  CAPSULE = 0xffcab5,
 };
 
 // 7.2.1.  DATA
@@ -178,6 +182,179 @@ struct QUIC_EXPORT_PRIVATE AcceptChFrame {
     for (auto& entry : frame.entries) {
       os << "origin: " << entry.origin << "; value: " << entry.value;
     }
+    return os;
+  }
+};
+
+enum class CapsuleType : uint64_t {
+  // Casing in this enum matches the IETF specification.
+  REGISTER_DATAGRAM_CONTEXT = 0x00,
+  CLOSE_DATAGRAM_CONTEXT = 0x01,
+  DATAGRAM = 0x02,
+  REGISTER_DATAGRAM_NO_CONTEXT = 0x03,
+};
+
+inline std::string CapsuleTypeToString(CapsuleType capsule_type) {
+  switch (capsule_type) {
+    case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
+      return "REGISTER_DATAGRAM_CONTEXT";
+    case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
+      return "CLOSE_DATAGRAM_CONTEXT";
+    case CapsuleType::DATAGRAM:
+      return "DATAGRAM";
+    case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
+      return "REGISTER_DATAGRAM_NO_CONTEXT";
+  }
+  return absl::StrCat("Unknown(", static_cast<uint64_t>(capsule_type), ")");
+}
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const CapsuleType& capsule_type) {
+  os << CapsuleTypeToString(capsule_type);
+  return os;
+}
+
+// CAPSULE HTTP frame from draft-ietf-masque-h3-datagram.
+struct QUIC_EXPORT_PRIVATE CapsuleFrame {
+  CapsuleType capsule_type;
+  union {
+    struct {
+      QuicDatagramContextId context_id;
+      absl::string_view context_extensions;
+    } register_datagram_context_capsule;
+    struct {
+      QuicDatagramContextId context_id;
+      absl::string_view context_extensions;
+    } close_datagram_context_capsule;
+    struct {
+      absl::optional<QuicDatagramContextId> context_id;
+      absl::string_view http_datagram_payload;
+    } datagram_capsule;
+    struct {
+      absl::string_view context_extensions;
+    } register_datagram_no_context_capsule;
+    absl::string_view unknown_capsule_data;
+  };
+
+  explicit CapsuleFrame(CapsuleType capsule_type) : capsule_type(capsule_type) {
+    switch (capsule_type) {
+      case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
+        register_datagram_context_capsule.context_id = 0;
+        register_datagram_context_capsule.context_extensions =
+            absl::string_view();
+        break;
+      case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
+        close_datagram_context_capsule.context_id = 0;
+        close_datagram_context_capsule.context_extensions = absl::string_view();
+        break;
+      case CapsuleType::DATAGRAM:
+        datagram_capsule.context_id = absl::nullopt;
+        datagram_capsule.http_datagram_payload = absl::string_view();
+        break;
+      case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
+        register_datagram_no_context_capsule.context_extensions =
+            absl::string_view();
+        break;
+      default:
+        unknown_capsule_data = absl::string_view();
+        break;
+    }
+  }
+
+  CapsuleFrame()
+      : CapsuleFrame(
+            static_cast<CapsuleType>(std::numeric_limits<uint64_t>::max())) {}
+
+  CapsuleFrame& operator=(const CapsuleFrame& other) {
+    capsule_type = other.capsule_type;
+    switch (capsule_type) {
+      case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
+        register_datagram_context_capsule.context_id =
+            other.register_datagram_context_capsule.context_id;
+        register_datagram_context_capsule.context_extensions =
+            other.register_datagram_context_capsule.context_extensions;
+        break;
+      case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
+        close_datagram_context_capsule.context_id =
+            other.close_datagram_context_capsule.context_id;
+        close_datagram_context_capsule.context_extensions =
+            other.close_datagram_context_capsule.context_extensions;
+        break;
+      case CapsuleType::DATAGRAM:
+        datagram_capsule.context_id = other.datagram_capsule.context_id;
+        datagram_capsule.http_datagram_payload =
+            other.datagram_capsule.http_datagram_payload;
+        break;
+      case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
+        register_datagram_no_context_capsule.context_extensions =
+            other.register_datagram_no_context_capsule.context_extensions;
+        break;
+      default:
+        unknown_capsule_data = other.unknown_capsule_data;
+        break;
+    }
+    return *this;
+  }
+
+  CapsuleFrame(const CapsuleFrame& other) : CapsuleFrame(other.capsule_type) {
+    *this = other;
+  }
+
+  bool operator==(const CapsuleFrame& other) const {
+    if (capsule_type != other.capsule_type) {
+      return false;
+    }
+    switch (capsule_type) {
+      case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
+        return register_datagram_context_capsule.context_id ==
+                   other.register_datagram_context_capsule.context_id &&
+               register_datagram_context_capsule.context_extensions ==
+                   other.register_datagram_context_capsule.context_extensions;
+      case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
+        return close_datagram_context_capsule.context_id ==
+                   other.close_datagram_context_capsule.context_id &&
+               close_datagram_context_capsule.context_extensions ==
+                   other.close_datagram_context_capsule.context_extensions;
+      case CapsuleType::DATAGRAM:
+        return datagram_capsule.context_id ==
+                   other.datagram_capsule.context_id &&
+               datagram_capsule.http_datagram_payload ==
+                   other.datagram_capsule.http_datagram_payload;
+      case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
+        return register_datagram_no_context_capsule.context_extensions ==
+               other.register_datagram_no_context_capsule.context_extensions;
+      default:
+        return unknown_capsule_data == other.unknown_capsule_data;
+    }
+  }
+
+  std::string ToString() const {
+    std::string rv = CapsuleTypeToString(capsule_type);
+    switch (capsule_type) {
+      case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
+        absl::StrAppend(&rv, "(", register_datagram_context_capsule.context_id,
+                        ")");
+        break;
+      case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
+        absl::StrAppend(&rv, "(", close_datagram_context_capsule.context_id,
+                        ")");
+        break;
+      case CapsuleType::DATAGRAM:
+        if (datagram_capsule.context_id.has_value()) {
+          absl::StrAppend(&rv, "(", datagram_capsule.context_id.value(), ")");
+        }
+        break;
+      case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
+        break;
+      default:
+        break;
+    }
+    return rv;
+  }
+
+  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+      std::ostream& os, const CapsuleFrame& frame) {
+    os << frame.ToString();
     return os;
   }
 };

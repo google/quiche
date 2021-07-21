@@ -136,6 +136,8 @@ class QUIC_NO_EXPORT MasqueServerSession
     bool context_registered_ = false;
   };
 
+  // From QuicSpdySession.
+  bool OnSettingsFrame(const SettingsFrame& frame) override;
   bool ShouldNegotiateHttp3Datagram() override { return true; }
 
   MasqueServerBackend* masque_server_backend_;  // Unowned.

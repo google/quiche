@@ -16,6 +16,7 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/http/http_encoder.h"
+#include "quic/core/http/quic_spdy_session.h"
 #include "quic/core/http/spdy_utils.h"
 #include "quic/core/http/web_transport_http3.h"
 #include "quic/core/quic_connection.h"
@@ -3017,7 +3018,7 @@ TEST_P(QuicSpdyStreamTest, TwoResetStreamFrames) {
   }
 }
 
-TEST_P(QuicSpdyStreamTest, ProcessOutgoingWebTransportHeaders) {
+TEST_P(QuicSpdyStreamTest, ProcessOutgoingWebTransportHeadersDatagramDraft00) {
   if (!UsesHttp3()) {
     return;
   }
@@ -3025,7 +3026,9 @@ TEST_P(QuicSpdyStreamTest, ProcessOutgoingWebTransportHeaders) {
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
   session_->set_should_negotiate_h3_datagram(true);
   session_->EnableWebTransport();
-  QuicSpdySessionPeer::EnableWebTransport(*session_);
+  QuicSpdySessionPeer::EnableWebTransport(session_.get());
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kDraft00);
 
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _))
@@ -3040,7 +3043,31 @@ TEST_P(QuicSpdyStreamTest, ProcessOutgoingWebTransportHeaders) {
   EXPECT_EQ(stream_->id(), stream_->web_transport()->id());
 }
 
-TEST_P(QuicSpdyStreamTest, ProcessIncomingWebTransportHeaders) {
+TEST_P(QuicSpdyStreamTest, ProcessOutgoingWebTransportHeadersDatagramDraft03) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+  session_->set_should_negotiate_h3_datagram(true);
+  session_->EnableWebTransport();
+  QuicSpdySessionPeer::EnableWebTransport(session_.get());
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kDraft03);
+
+  EXPECT_CALL(*stream_, WriteHeadersMock(false));
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _))
+      .Times(AnyNumber());
+
+  spdy::SpdyHeaderBlock headers;
+  headers[":method"] = "CONNECT";
+  headers[":protocol"] = "webtransport";
+  stream_->WriteHeaders(std::move(headers), /*fin=*/false, nullptr);
+  ASSERT_TRUE(stream_->web_transport() != nullptr);
+  EXPECT_EQ(stream_->id(), stream_->web_transport()->id());
+}
+
+TEST_P(QuicSpdyStreamTest, ProcessIncomingWebTransportHeadersDraft03) {
   if (!UsesHttp3()) {
     return;
   }
@@ -3048,7 +3075,36 @@ TEST_P(QuicSpdyStreamTest, ProcessIncomingWebTransportHeaders) {
   Initialize(kShouldProcessData);
   session_->set_should_negotiate_h3_datagram(true);
   session_->EnableWebTransport();
-  QuicSpdySessionPeer::EnableWebTransport(*session_);
+  QuicSpdySessionPeer::EnableWebTransport(session_.get());
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kDraft03);
+
+  headers_[":method"] = "CONNECT";
+  headers_[":protocol"] = "webtransport";
+
+  stream_->OnStreamHeadersPriority(
+      spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  ProcessHeaders(false, headers_);
+  CapsuleFrame capsule_frame(CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT);
+  stream_->OnCapsuleFrame(capsule_frame);
+  EXPECT_EQ("", stream_->data());
+  EXPECT_FALSE(stream_->header_list().empty());
+  EXPECT_FALSE(stream_->IsDoneReading());
+  ASSERT_TRUE(stream_->web_transport() != nullptr);
+  EXPECT_EQ(stream_->id(), stream_->web_transport()->id());
+}
+
+TEST_P(QuicSpdyStreamTest, ProcessIncomingWebTransportHeadersDraft00) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  session_->set_should_negotiate_h3_datagram(true);
+  session_->EnableWebTransport();
+  QuicSpdySessionPeer::EnableWebTransport(session_.get());
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kDraft00);
 
   headers_[":method"] = "CONNECT";
   headers_[":protocol"] = "webtransport";
@@ -3075,7 +3131,9 @@ TEST_P(QuicSpdyStreamTest,
   Initialize(kShouldProcessData);
   session_->set_should_negotiate_h3_datagram(true);
   session_->EnableWebTransport();
-  QuicSpdySessionPeer::EnableWebTransport(*session_);
+  QuicSpdySessionPeer::EnableWebTransport(session_.get());
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kDraft00);
 
   headers_[":method"] = "CONNECT";
   headers_[":protocol"] = "webtransport";
@@ -3119,13 +3177,14 @@ TEST_P(QuicSpdyStreamTest, GetNextDatagramContextIdServer) {
   stream_->UnregisterHttp3DatagramRegistrationVisitor();
 }
 
-TEST_P(QuicSpdyStreamTest, H3DatagramRegistrationWithoutContext) {
+TEST_P(QuicSpdyStreamTest, HttpDatagramRegistrationWithoutContextDraft00) {
   if (!UsesHttp3()) {
     return;
   }
-  Initialize(kShouldProcessData);
+  InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
   session_->set_should_negotiate_h3_datagram(true);
-  QuicSpdySessionPeer::SetH3DatagramSupported(session_.get(), true);
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kDraft00);
   session_->RegisterHttp3DatagramFlowId(stream_->id(), stream_->id());
   ::testing::NiceMock<MockHttp3DatagramRegistrationVisitor>
       h3_datagram_registration_visitor;
@@ -3168,23 +3227,39 @@ TEST_P(QuicSpdyStreamTest, H3DatagramRegistrationWithoutContext) {
   session_->UnregisterHttp3DatagramFlowId(stream_->id());
 }
 
-TEST_P(QuicSpdyStreamTest, H3DatagramRegistrationWithContext) {
+TEST_P(QuicSpdyStreamTest, H3DatagramRegistrationWithoutContextDraft03) {
   if (!UsesHttp3()) {
     return;
   }
-  Initialize(kShouldProcessData);
+  InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
   session_->set_should_negotiate_h3_datagram(true);
-  QuicSpdySessionPeer::SetH3DatagramSupported(session_.get(), true);
-  session_->RegisterHttp3DatagramFlowId(stream_->id(), stream_->id());
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kDraft03);
   ::testing::NiceMock<MockHttp3DatagramRegistrationVisitor>
       h3_datagram_registration_visitor;
   SavingHttp3DatagramVisitor h3_datagram_visitor;
-  absl::optional<QuicDatagramContextId> context_id = 42;
+  absl::optional<QuicDatagramContextId> context_id;
   Http3DatagramContextExtensions extensions;
+  ASSERT_EQ(QuicDataWriter::GetVarInt62Len(stream_->id()), 1);
+  std::array<char, 256> datagram;
+  datagram[0] = stream_->id();
+  for (size_t i = 1; i < datagram.size(); i++) {
+    datagram[i] = i;
+  }
   stream_->RegisterHttp3DatagramRegistrationVisitor(
       &h3_datagram_registration_visitor);
+
+  // Expect us to send a REGISTER_DATAGRAM_NO_CONTEXT capsule.
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _));
+
   stream_->RegisterHttp3DatagramContextId(context_id, extensions,
                                           &h3_datagram_visitor);
+  session_->OnMessageReceived(
+      absl::string_view(datagram.data(), datagram.size()));
+  EXPECT_THAT(h3_datagram_visitor.received_h3_datagrams(),
+              ElementsAre(SavingHttp3DatagramVisitor::SavedHttp3Datagram{
+                  stream_->id(), context_id,
+                  std::string(&datagram[1], datagram.size() - 1)}));
   // Test move.
   ::testing::NiceMock<MockHttp3DatagramRegistrationVisitor>
       h3_datagram_registration_visitor2;
@@ -3192,7 +3267,70 @@ TEST_P(QuicSpdyStreamTest, H3DatagramRegistrationWithContext) {
   SavingHttp3DatagramVisitor h3_datagram_visitor2;
   stream_->MoveHttp3DatagramContextIdRegistration(context_id,
                                                   &h3_datagram_visitor2);
+  EXPECT_TRUE(h3_datagram_visitor2.received_h3_datagrams().empty());
+  session_->OnMessageReceived(
+      absl::string_view(datagram.data(), datagram.size()));
+  EXPECT_THAT(h3_datagram_visitor2.received_h3_datagrams(),
+              ElementsAre(SavingHttp3DatagramVisitor::SavedHttp3Datagram{
+                  stream_->id(), context_id,
+                  std::string(&datagram[1], datagram.size() - 1)}));
   // Cleanup.
+  stream_->UnregisterHttp3DatagramContextId(context_id);
+  stream_->UnregisterHttp3DatagramRegistrationVisitor();
+}
+
+TEST_P(QuicSpdyStreamTest, HttpDatagramRegistrationWithContext) {
+  if (!UsesHttp3()) {
+    return;
+  }
+  InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+  session_->set_should_negotiate_h3_datagram(true);
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kDraft03);
+  ::testing::NiceMock<MockHttp3DatagramRegistrationVisitor>
+      h3_datagram_registration_visitor;
+  SavingHttp3DatagramVisitor h3_datagram_visitor;
+  absl::optional<QuicDatagramContextId> context_id = 42;
+  Http3DatagramContextExtensions extensions;
+  ASSERT_EQ(QuicDataWriter::GetVarInt62Len(stream_->id()), 1);
+  std::array<char, 256> datagram;
+  datagram[0] = stream_->id();
+  datagram[1] = context_id.value();
+  for (size_t i = 2; i < datagram.size(); i++) {
+    datagram[i] = i;
+  }
+  stream_->RegisterHttp3DatagramRegistrationVisitor(
+      &h3_datagram_registration_visitor);
+
+  // Expect us to send a REGISTER_DATAGRAM_CONTEXT capsule.
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _));
+
+  stream_->RegisterHttp3DatagramContextId(context_id, extensions,
+                                          &h3_datagram_visitor);
+  session_->OnMessageReceived(
+      absl::string_view(datagram.data(), datagram.size()));
+  EXPECT_THAT(h3_datagram_visitor.received_h3_datagrams(),
+              ElementsAre(SavingHttp3DatagramVisitor::SavedHttp3Datagram{
+                  stream_->id(), context_id,
+                  std::string(&datagram[2], datagram.size() - 2)}));
+  // Test move.
+  ::testing::NiceMock<MockHttp3DatagramRegistrationVisitor>
+      h3_datagram_registration_visitor2;
+  stream_->MoveHttp3DatagramRegistration(&h3_datagram_registration_visitor2);
+  SavingHttp3DatagramVisitor h3_datagram_visitor2;
+  stream_->MoveHttp3DatagramContextIdRegistration(context_id,
+                                                  &h3_datagram_visitor2);
+  EXPECT_TRUE(h3_datagram_visitor2.received_h3_datagrams().empty());
+  session_->OnMessageReceived(
+      absl::string_view(datagram.data(), datagram.size()));
+  EXPECT_THAT(h3_datagram_visitor2.received_h3_datagrams(),
+              ElementsAre(SavingHttp3DatagramVisitor::SavedHttp3Datagram{
+                  stream_->id(), context_id,
+                  std::string(&datagram[2], datagram.size() - 2)}));
+  // Cleanup.
+
+  // Expect us to send a CLOSE_DATAGRAM_CONTEXT capsule.
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _));
   stream_->UnregisterHttp3DatagramContextId(context_id);
   stream_->UnregisterHttp3DatagramRegistrationVisitor();
   session_->UnregisterHttp3DatagramFlowId(stream_->id());
@@ -3204,7 +3342,8 @@ TEST_P(QuicSpdyStreamTest, SendHttp3Datagram) {
   }
   Initialize(kShouldProcessData);
   session_->set_should_negotiate_h3_datagram(true);
-  QuicSpdySessionPeer::SetH3DatagramSupported(session_.get(), true);
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kDraft03);
   absl::optional<QuicDatagramContextId> context_id;
   std::string h3_datagram_payload = {1, 2, 3, 4, 5, 6};
   EXPECT_CALL(*connection_, SendMessage(1, _, false))

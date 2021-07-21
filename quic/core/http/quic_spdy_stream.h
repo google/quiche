@@ -21,6 +21,7 @@
 #include "absl/types/span.h"
 #include "quic/core/http/http_decoder.h"
 #include "quic/core/http/http_encoder.h"
+#include "quic/core/http/http_frames.h"
 #include "quic/core/http/quic_header_list.h"
 #include "quic/core/http/quic_spdy_stream_body_manager.h"
 #include "quic/core/qpack/qpack_decoded_headers_accumulator.h"
@@ -253,6 +254,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // rejected due to buffer being full.  |write_size| must be non-zero.
   bool CanWriteNewBodyData(QuicByteCount write_size) const;
 
+  bool OnCapsuleFrame(const CapsuleFrame& frame);
+
   // Sends an HTTP/3 datagram. The stream and context IDs are not part of
   // |payload|.
   MessageStatus SendHttp3Datagram(
@@ -409,6 +412,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // WriteOrBufferData if send buffer cannot accomodate the header + data.
   ABSL_MUST_USE_RESULT bool WriteDataFrameHeader(QuicByteCount data_length,
                                                  bool force_write);
+
+  void WriteCapsuleFrame(const CapsuleFrame& frame);
 
   QuicSpdySession* spdy_session_;
 

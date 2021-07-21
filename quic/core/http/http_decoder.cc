@@ -266,6 +266,8 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH):
       continue_processing = visitor_->OnAcceptChFrameStart(header_length);
       break;
+    case static_cast<uint64_t>(HttpFrameType::CAPSULE):
+      break;
     default:
       continue_processing = visitor_->OnUnknownFrameStart(
           current_frame_type_, header_length, current_frame_length_);
@@ -335,6 +337,10 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       continue_processing = BufferOrParsePayload(reader);
       break;
     }
+    case static_cast<uint64_t>(HttpFrameType::CAPSULE): {
+      continue_processing = BufferOrParsePayload(reader);
+      break;
+    }
     default: {
       continue_processing = HandleUnknownFramePayload(reader);
       break;
@@ -396,6 +402,12 @@ bool HttpDecoder::FinishParsing(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH): {
+      // If frame payload is not empty, FinishParsing() is skipped.
+      QUICHE_DCHECK_EQ(0u, current_frame_length_);
+      continue_processing = BufferOrParsePayload(reader);
+      break;
+    }
+    case static_cast<uint64_t>(HttpFrameType::CAPSULE): {
       // If frame payload is not empty, FinishParsing() is skipped.
       QUICHE_DCHECK_EQ(0u, current_frame_length_);
       continue_processing = BufferOrParsePayload(reader);
@@ -537,6 +549,13 @@ bool HttpDecoder::ParseEntirePayload(QuicDataReader* reader) {
       }
       return visitor_->OnAcceptChFrame(frame);
     }
+    case static_cast<uint64_t>(HttpFrameType::CAPSULE): {
+      CapsuleFrame frame;
+      if (!ParseCapsuleFrame(reader, &frame)) {
+        return false;
+      }
+      return visitor_->OnCapsuleFrame(frame);
+    }
     default:
       // Only above frame types are parsed by ParseEntirePayload().
       QUICHE_NOTREACHED();
@@ -662,6 +681,59 @@ bool HttpDecoder::ParseAcceptChFrame(QuicDataReader* reader,
   return true;
 }
 
+bool HttpDecoder::ParseCapsuleFrame(QuicDataReader* reader,
+                                    CapsuleFrame* frame) {
+  uint64_t capsule_type64;
+  if (!reader->ReadVarInt62(&capsule_type64)) {
+    RaiseError(QUIC_HTTP_FRAME_ERROR, "Unable to parse capsule type");
+    return false;
+  }
+  *frame = CapsuleFrame(static_cast<CapsuleType>(capsule_type64));
+  switch (frame->capsule_type) {
+    case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
+      if (!reader->ReadVarInt62(
+              &frame->register_datagram_context_capsule.context_id)) {
+        RaiseError(
+            QUIC_HTTP_FRAME_ERROR,
+            "Unable to parse capsule REGISTER_DATAGRAM_CONTEXT context ID");
+        return false;
+      }
+      frame->register_datagram_context_capsule.context_extensions =
+          reader->ReadRemainingPayload();
+      break;
+    case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
+      if (!reader->ReadVarInt62(
+              &frame->close_datagram_context_capsule.context_id)) {
+        RaiseError(QUIC_HTTP_FRAME_ERROR,
+                   "Unable to parse capsule CLOSE_DATAGRAM_CONTEXT context ID");
+        return false;
+      }
+      frame->close_datagram_context_capsule.context_extensions =
+          reader->ReadRemainingPayload();
+      break;
+    case CapsuleType::DATAGRAM:
+      if (datagram_context_id_present_) {
+        uint64_t context_id;
+        if (!reader->ReadVarInt62(&context_id)) {
+          RaiseError(QUIC_HTTP_FRAME_ERROR,
+                     "Unable to parse capsule DATAGRAM context ID");
+          return false;
+        }
+        frame->datagram_capsule.context_id = context_id;
+      }
+      frame->datagram_capsule.http_datagram_payload =
+          reader->ReadRemainingPayload();
+      break;
+    case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
+      frame->register_datagram_no_context_capsule.context_extensions =
+          reader->ReadRemainingPayload();
+      break;
+    default:
+      frame->unknown_capsule_data = reader->ReadRemainingPayload();
+  }
+  return true;
+}
+
 QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
   switch (frame_type) {
     case static_cast<uint64_t>(HttpFrameType::SETTINGS):
@@ -680,6 +752,9 @@ QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
       // This limit is arbitrary.
       return 1024 * 1024;
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH):
+      // This limit is arbitrary.
+      return 1024 * 1024;
+    case static_cast<uint64_t>(HttpFrameType::CAPSULE):
       // This limit is arbitrary.
       return 1024 * 1024;
     default:

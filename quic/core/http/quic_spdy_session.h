@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_SESSION_H_
 
 #include <cstddef>
+#include <cstdint>
 #include <list>
 #include <memory>
 #include <string>
@@ -118,6 +119,19 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   // 0-RTT related events.
   virtual void OnSettingsFrameResumed(const SettingsFrame& /*frame*/) {}
 };
+
+// Whether draft-ietf-masque-h3-datagram is supported on this session and if so
+// which draft is currently in use.
+enum class HttpDatagramSupport : uint8_t {
+  kNone = 0,  // HTTP Datagrams are not supported for this session.
+  kDraft00 = 1,
+  kDraft03 = 2,
+};
+
+QUIC_EXPORT_PRIVATE std::string HttpDatagramSupportToString(
+    HttpDatagramSupport http_datagram_support);
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, const HttpDatagramSupport& http_datagram_support);
 
 // A QUIC session for HTTP.
 class QUIC_EXPORT_PRIVATE QuicSpdySession
@@ -374,9 +388,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // extension.
   virtual void OnAcceptChFrameReceivedViaAlps(const AcceptChFrame& /*frame*/);
 
-  // Whether HTTP/3 datagrams are supported on this session, based on received
-  // SETTINGS.
-  bool h3_datagram_supported() const { return h3_datagram_supported_; }
+  // Whether HTTP datagrams are supported on this session and which draft is in
+  // use, based on received SETTINGS.
+  HttpDatagramSupport http_datagram_support() const {
+    return http_datagram_support_;
+  }
 
   // This must not be used except by QuicSpdyStream::SendHttp3Datagram.
   MessageStatus SendHttp3Datagram(
@@ -400,7 +416,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   bool SupportsWebTransport();
 
   // Indicates whether both the peer and us support HTTP/3 Datagrams.
-  bool SupportsH3Datagram() { return h3_datagram_supported_; }
+  bool SupportsH3Datagram() const;
 
   // Indicates whether the HTTP/3 session will indicate WebTransport support to
   // the peer.
@@ -654,8 +670,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // frame has been sent yet.
   absl::optional<uint64_t> last_sent_http3_goaway_id_;
 
-  // Whether both this endpoint and our peer support HTTP/3 datagrams.
-  bool h3_datagram_supported_ = false;
+  // Whether both this endpoint and our peer support HTTP datagrams and which
+  // draft is in use for this session.
+  HttpDatagramSupport http_datagram_support_ = HttpDatagramSupport::kNone;
 
   // Whether the peer has indicated WebTransport support.
   bool peer_supports_webtransport_ = false;

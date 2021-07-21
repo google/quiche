@@ -66,6 +66,10 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
   static QuicByteCount SerializeWebTransportStreamFrameHeader(
       WebTransportSessionId session_id,
       std::unique_ptr<char[]>* output);
+
+  // Serializes a CAPSULE frame as specified in draft-ietf-masque-h3-datagram.
+  static QuicByteCount SerializeCapsuleFrame(const CapsuleFrame& capsule_frame,
+                                             std::unique_ptr<char[]>* output);
 };
 
 }  // namespace quic
