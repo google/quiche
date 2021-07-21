@@ -362,6 +362,14 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // handshake message.
   const std::string& user_agent_id() const { return user_agent_id_; }
 
+  void set_tls_signature_algorithms(std::string signature_algorithms) {
+    tls_signature_algorithms_ = std::move(signature_algorithms);
+  }
+
+  const absl::optional<std::string>& tls_signature_algorithms() const {
+    return tls_signature_algorithms_;
+  }
+
   // Saves the |alpn| that will be passed in QUIC's CHLO message.
   void set_alpn(const std::string& alpn) { alpn_ = alpn; }
 
@@ -434,6 +442,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // If non-empty, the client will operate in the pre-shared key mode by
   // incorporating |pre_shared_key_| into the key schedule.
   std::string pre_shared_key_;
+
+  // If set, configure the client to use the specified signature algorithms, via
+  // SSL_set1_sigalgs_list. TLS only.
+  absl::optional<std::string> tls_signature_algorithms_;
 
   // In QUIC, technically, client hello should be fully padded.
   // However, fully padding on slow network connection (e.g. 50kbps) can add

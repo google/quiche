@@ -145,6 +145,11 @@ class QuicClientBase {
     crypto_config_.set_user_agent_id(user_agent_id);
   }
 
+  void SetTlsSignatureAlgorithms(std::string signature_algorithms) {
+    crypto_config_.set_tls_signature_algorithms(
+        std::move(signature_algorithms));
+  }
+
   const ParsedQuicVersionVector& supported_versions() const {
     return supported_versions_;
   }

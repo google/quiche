@@ -47,6 +47,10 @@ TlsClientHandshaker::TlsClientHandshaker(
   if (!token.empty()) {
     session->SetSourceAddressTokenToSend(token);
   }
+  if (crypto_config->tls_signature_algorithms().has_value()) {
+    SSL_set1_sigalgs_list(ssl(),
+                          crypto_config->tls_signature_algorithms()->c_str());
+  }
 }
 
 TlsClientHandshaker::~TlsClientHandshaker() {}
