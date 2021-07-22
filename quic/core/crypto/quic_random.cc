@@ -30,6 +30,7 @@ uint64_t Xoshiro256PlusPlus() {
     RAND_bytes(reinterpret_cast<uint8_t*>(&rng_state), sizeof(rng_state));
     rng_state_initialized = true;
   }
+  QUIC_LOG(ERROR) << "ds33 array " << &rng_state << " zero " << &rng_state[0] << " one " << &rng_state[1] << " two " << &rng_state[2] << " three " << &rng_state[3] << " bool " << &rng_state_initialized;
   const uint64_t result =
       Xoshiro256PlusPlusRotLeft(rng_state[0] + rng_state[3], 23) + rng_state[0];
   const uint64_t t = rng_state[1] << 17;
