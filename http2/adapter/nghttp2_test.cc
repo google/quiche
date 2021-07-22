@@ -1,6 +1,8 @@
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
+
 #include "absl/strings/str_cat.h"
 #include "http2/adapter/mock_nghttp2_callbacks.h"
+#include "http2/adapter/nghttp2_test_utils.h"
 #include "http2/adapter/nghttp2_util.h"
 #include "http2/adapter/test_frame_sequence.h"
 #include "http2/adapter/test_utils.h"

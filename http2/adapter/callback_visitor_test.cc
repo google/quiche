@@ -1,6 +1,7 @@
 #include "http2/adapter/callback_visitor.h"
 
 #include "http2/adapter/mock_nghttp2_callbacks.h"
+#include "http2/adapter/nghttp2_test_utils.h"
 #include "http2/adapter/test_utils.h"
 #include "common/platform/api/quiche_test.h"
 
