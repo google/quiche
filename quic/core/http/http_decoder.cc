@@ -228,6 +228,10 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
   }
 
   if (current_frame_length_ > MaxFrameLength(current_frame_type_)) {
+    // MaxFrameLength() returns numeric_limits::max()
+    // if IsFrameBuffered() is false.
+    QUICHE_DCHECK(IsFrameBuffered());
+
     RaiseError(QUIC_HTTP_FRAME_TOO_LARGE, "Frame is too large.");
     return false;
   }
@@ -276,6 +280,24 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
   state_ = (remaining_frame_length_ == 0) ? STATE_FINISH_PARSING
                                           : STATE_READING_FRAME_PAYLOAD;
   return continue_processing;
+}
+
+bool HttpDecoder::IsFrameBuffered() {
+  switch (current_frame_type_) {
+    case static_cast<uint64_t>(HttpFrameType::SETTINGS):
+      return true;
+    case static_cast<uint64_t>(HttpFrameType::GOAWAY):
+      return true;
+    case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID):
+      return true;
+    case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM):
+      return true;
+    case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH):
+      return true;
+  }
+
+  // Other defined frame types as well as unknown frames are not buffered.
+  return false;
 }
 
 bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
@@ -339,6 +361,17 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       continue_processing = HandleUnknownFramePayload(reader);
       break;
     }
+  }
+
+  if (IsFrameBuffered()) {
+    if (state_ != STATE_READING_FRAME_PAYLOAD) {
+      // BufferOrParsePayload() has advanced |state_|.
+      // TODO(bnc): Simplify state transitions.
+      QUICHE_DCHECK_EQ(STATE_READING_FRAME_TYPE, state_);
+      QUICHE_DCHECK_EQ(0u, remaining_frame_length_);
+    }
+  } else {
+    QUICHE_DCHECK(state_ == STATE_READING_FRAME_PAYLOAD);
   }
 
   // BufferOrParsePayload() may have advanced |state_|.
@@ -423,6 +456,7 @@ bool HttpDecoder::HandleUnknownFramePayload(QuicDataReader* reader) {
 }
 
 bool HttpDecoder::BufferOrParsePayload(QuicDataReader* reader) {
+  QUICHE_DCHECK(IsFrameBuffered());
   QUICHE_DCHECK_EQ(current_frame_length_,
                    buffer_.size() + remaining_frame_length_);
 
@@ -468,6 +502,7 @@ bool HttpDecoder::BufferOrParsePayload(QuicDataReader* reader) {
 }
 
 bool HttpDecoder::ParseEntirePayload(QuicDataReader* reader) {
+  QUICHE_DCHECK(IsFrameBuffered());
   QUICHE_DCHECK_EQ(current_frame_length_, reader->BytesRemaining());
   QUICHE_DCHECK_EQ(0u, remaining_frame_length_);
 

@@ -171,16 +171,23 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // if there are any errors.  Returns whether processing should continue.
   bool ReadFrameLength(QuicDataReader* reader);
 
-  // Depending on the frame type, reads and processes the payload of the current
-  // frame from |reader| and calls visitor methods, or calls
-  // BufferOrParsePayload().  Returns whether processing should continue.
+  // Returns whether the current frame is of a buffered type.
+  // The payload of buffered frames is buffered by HttpDecoder, and parsed by
+  // HttpDecoder after the entire frame has been received.  (Copying to the
+  // buffer is skipped if the ProcessInput() call covers the entire payload.)
+  // Frames that are not buffered have every payload fragment synchronously
+  // passed to the Visitor without buffering.
+  bool IsFrameBuffered();
+
+  // For buffered frame types, calls BufferOrParsePayload().  For other frame
+  // types, reads the payload of the current frame from |reader| and calls
+  // visitor methods.  Returns whether processing should continue.
   bool ReadFramePayload(QuicDataReader* reader);
 
-  // For frame types parsed by BufferOrParsePayload(), this method is only
-  // called if frame payload is empty, at it calls BufferOrParsePayload().  For
-  // other frame types, this method directly calls visitor methods to signal
-  // that frame had been parsed completely.  Returns whether processing should
-  // continue.
+  // For buffered frame types, this method is only called if frame payload is
+  // empty, and it calls BufferOrParsePayload().  For other frame types, this
+  // method directly calls visitor methods to signal that frame had been
+  // received completely.  Returns whether processing should continue.
   bool FinishParsing(QuicDataReader* reader);
 
   // Read payload of unknown frame from |reader| and call
@@ -190,13 +197,15 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
   // Buffers any remaining frame payload from |*reader| into |buffer_| if
   // necessary.  Parses the frame payload if complete.  Parses out of |*reader|
-  // without unnecessary copy if |*reader| has entire payload.
+  // without unnecessary copy if |*reader| contains entire payload.
   // Returns whether processing should continue.
+  // Must only be called when current frame type is buffered.
   bool BufferOrParsePayload(QuicDataReader* reader);
 
   // Parses the entire payload of certain kinds of frames that are parsed in a
   // single pass.  |reader| must have at least |current_frame_length_| bytes.
   // Returns whether processing should continue.
+  // Must only be called when current frame type is buffered.
   bool ParseEntirePayload(QuicDataReader* reader);
 
   // Buffers any remaining frame length field from |reader| into
