@@ -36,6 +36,7 @@
 #include "quic/core/quic_alarm.h"
 #include "quic/core/quic_alarm_factory.h"
 #include "quic/core/quic_blocked_writer_interface.h"
+#include "quic/core/quic_connection_context.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_connection_id_manager.h"
 #include "quic/core/quic_connection_stats.h"
@@ -1253,6 +1254,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return donot_write_mid_packet_processing_;
   }
 
+  QuicConnectionContext* context() { return &context_; }
+  const QuicConnectionContext* context() const { return &context_; }
+
+  void set_tracer(std::unique_ptr<QuicConnectionTracer> tracer) {
+    context_.tracer.swap(tracer);
+  }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1848,6 +1856,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // gets sent.
   bool ShouldSetRetransmissionAlarmOnPacketSent(bool in_flight,
                                                 EncryptionLevel level) const;
+
+  QuicConnectionContext context_;
 
   QuicFramer framer_;
 

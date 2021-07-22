@@ -33,6 +33,23 @@ class QUIC_EXPORT_PRIVATE QuicConnectionTracer {
     std::string s = absl::StrFormat(format, args...);
     PrintString(s);
   }
+
+ private:
+  friend class QuicConnectionContextSwitcher;
+
+  // Called by QuicConnectionContextSwitcher, when |this| becomes the current
+  // thread's QUIC connection tracer.
+  //
+  // Activate/Deactivate are only called by QuicConnectionContextSwitcher's
+  // constructor/destructor, they always come in pairs.
+  virtual void Activate() {}
+
+  // Called by QuicConnectionContextSwitcher, when |this| stops from being the
+  // current thread's QUIC connection tracer.
+  //
+  // Activate/Deactivate are only called by QuicConnectionContextSwitcher's
+  // constructor/destructor, they always come in pairs.
+  virtual void Deactivate() {}
 };
 
 // QuicConnectionContext is a per-QuicConnection context that includes

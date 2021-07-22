@@ -13,6 +13,7 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
 #include "quic/core/quic_connection.h"
+#include "quic/core/quic_connection_context.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_flow_controller.h"
 #include "quic/core/quic_types.h"
@@ -751,6 +752,7 @@ bool QuicSession::HasPendingHandshake() const {
 void QuicSession::ProcessUdpPacket(const QuicSocketAddress& self_address,
                                    const QuicSocketAddress& peer_address,
                                    const QuicReceivedPacket& packet) {
+  QuicConnectionContextSwitcher cs(connection_->context());
   connection_->ProcessUdpPacket(self_address, peer_address, packet);
 }
 

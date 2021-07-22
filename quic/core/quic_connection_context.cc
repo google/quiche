@@ -20,9 +20,16 @@ QuicConnectionContextSwitcher::QuicConnectionContextSwitcher(
     QuicConnectionContext* new_context)
     : old_context_(QuicConnectionContext::Current()) {
   SET_QUICHE_THREAD_LOCAL_POINTER(CurrentContext, new_context);
+  if (new_context && new_context->tracer) {
+    new_context->tracer->Activate();
+  }
 }
 
 QuicConnectionContextSwitcher::~QuicConnectionContextSwitcher() {
+  QuicConnectionContext* current = QuicConnectionContext::Current();
+  if (current && current->tracer) {
+    current->tracer->Deactivate();
+  }
   SET_QUICHE_THREAD_LOCAL_POINTER(CurrentContext, old_context_);
 }
 
