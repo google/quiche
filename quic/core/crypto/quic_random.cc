@@ -23,13 +23,18 @@ inline uint64_t Xoshiro256PlusPlusRotLeft(uint64_t x, int k) {
   return (x << k) | (x >> (64 - k));
 }
 
+inline uint64_t Xoshiro256InitializeRngStateMember() {
+  uint64_t result;
+  RAND_bytes(reinterpret_cast<uint8_t*>(&result), sizeof(result));
+  return result;
+}
+
 uint64_t Xoshiro256PlusPlus() {
-  static thread_local uint64_t rng_state[4];
-  static thread_local bool rng_state_initialized = false;
-  if (QUIC_PREDICT_FALSE(!rng_state_initialized)) {
-    RAND_bytes(reinterpret_cast<uint8_t*>(&rng_state), sizeof(rng_state));
-    rng_state_initialized = true;
-  }
+  static thread_local uint64_t rng_state[4] = {
+    Xoshiro256InitializeRngStateMember(),
+    Xoshiro256InitializeRngStateMember(),
+    Xoshiro256InitializeRngStateMember(),
+    Xoshiro256InitializeRngStateMember()};
   const uint64_t result =
       Xoshiro256PlusPlusRotLeft(rng_state[0] + rng_state[3], 23) + rng_state[0];
   const uint64_t t = rng_state[1] << 17;
