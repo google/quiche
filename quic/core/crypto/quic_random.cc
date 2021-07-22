@@ -24,10 +24,10 @@ inline uint64_t Xoshiro256PlusPlusRotLeft(uint64_t x, int k) {
 }
 
 uint64_t Xoshiro256PlusPlus() {
-  static thread_local uint64_t rng_state[4];
+  static thread_local uint64_t rng_state[4] = {};
   static thread_local bool rng_state_initialized = false;
   if (QUIC_PREDICT_FALSE(!rng_state_initialized)) {
-    RAND_bytes(reinterpret_cast<uint8_t*>(&rng_state), sizeof(rng_state));
+    //RAND_bytes(reinterpret_cast<uint8_t*>(&rng_state), sizeof(rng_state));
     rng_state_initialized = true;
   }
   const uint64_t result =
