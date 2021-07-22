@@ -100,6 +100,11 @@ TlsConnection::TlsConnection(SSL_CTX* ssl_ctx,
     const int early_data_enabled = *ssl_config_.early_data_enabled ? 1 : 0;
     SSL_set_early_data_enabled(ssl(), early_data_enabled);
   }
+  if (ssl_config_.signing_algorithm_prefs.has_value()) {
+    SSL_set_signing_algorithm_prefs(
+        ssl(), ssl_config_.signing_algorithm_prefs->data(),
+        ssl_config_.signing_algorithm_prefs->size());
+  }
 }
 
 // static
