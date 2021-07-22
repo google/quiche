@@ -27,7 +27,15 @@ uint64_t Xoshiro256PlusPlus() {
   static thread_local uint64_t rng_state[4];
   static thread_local bool rng_state_initialized = false;
   if (QUIC_PREDICT_FALSE(!rng_state_initialized)) {
-    RAND_bytes(reinterpret_cast<uint8_t*>(&rng_state), sizeof(rng_state));
+    uint64_t rng_state_init;
+    RAND_bytes(reinterpret_cast<uint8_t*>(&rng_state_init), sizeof(rng_state_init));
+    rng_state[0] = rng_state_init;
+    RAND_bytes(reinterpret_cast<uint8_t*>(&rng_state_init), sizeof(rng_state_init));
+    rng_state[1] = rng_state_init;
+    RAND_bytes(reinterpret_cast<uint8_t*>(&rng_state_init), sizeof(rng_state_init));
+    rng_state[2] = rng_state_init;
+    RAND_bytes(reinterpret_cast<uint8_t*>(&rng_state_init), sizeof(rng_state_init));
+    rng_state[3] = rng_state_init;
     rng_state_initialized = true;
   }
   const uint64_t result =
