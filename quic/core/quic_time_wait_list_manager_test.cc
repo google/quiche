@@ -358,9 +358,7 @@ TEST_F(QuicTimeWaitListManagerTest, SendTwoConnectionCloses) {
   ProcessPacket(connection_id_);
 }
 
-// TODO(b/194177024): re-enable this test.
-TEST_F(QuicTimeWaitListManagerTest,
-       QUIC_TEST_DISABLED_IN_CHROME(SendPublicReset)) {
+TEST_F(QuicTimeWaitListManagerTest, SendPublicReset) {
   EXPECT_CALL(visitor_, OnConnectionAddedToTimeWaitList(connection_id_));
   AddConnectionId(connection_id_,
                   QuicTimeWaitListManager::SEND_STATELESS_RESET);
