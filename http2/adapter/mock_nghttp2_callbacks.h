@@ -71,6 +71,9 @@ class MockNghttp2Callbacks {
               OnErrorCallback2,
               (int lib_error_code, const char* msg, size_t len),
               ());
+
+  MOCK_METHOD(ssize_t, OnPackExtension,
+              (uint8_t * buf, size_t len, const nghttp2_frame* frame), ());
 };
 
 }  // namespace test

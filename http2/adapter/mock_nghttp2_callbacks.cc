@@ -115,6 +115,13 @@ nghttp2_session_callbacks_unique_ptr MockNghttp2Callbacks::GetCallbacks() {
             lib_error_code, msg, len);
       });
 
+  nghttp2_session_callbacks_set_pack_extension_callback(
+      callbacks,
+      [](nghttp2_session*, uint8_t* buf, size_t len, const nghttp2_frame* frame,
+         void* user_data) -> ssize_t {
+        return static_cast<MockNghttp2Callbacks*>(user_data)->OnPackExtension(
+            buf, len, frame);
+      });
   return MakeCallbacksPtr(callbacks);
 }
 

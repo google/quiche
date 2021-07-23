@@ -154,6 +154,28 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
 
   EXPECT_CALL(callbacks, OnStreamClose(5, NGHTTP2_REFUSED_STREAM));
   visitor.OnCloseStream(5, Http2ErrorCode::REFUSED_STREAM);
+
+  // Metadata events
+  constexpr size_t kMetadataBufferSize = 256;
+  char metadata_dest[kMetadataBufferSize];
+  ssize_t written = 0;
+
+  const absl::string_view kExampleFrame = "This is supposed to be metadata.";
+  EXPECT_CALL(
+      callbacks,
+      OnPackExtension(_, kMetadataBufferSize,
+                      Field(&nghttp2_frame::hd,
+                            HasFrameHeaderRef(7, kMetadataFrameType, _))))
+      .WillOnce(testing::Invoke(
+          [kExampleFrame](uint8_t* buf, size_t len,
+                          const nghttp2_frame* frame) -> ssize_t {
+            std::memcpy(buf, kExampleFrame.data(), kExampleFrame.size());
+            return kExampleFrame.size();
+          }));
+  visitor.OnReadyToSendMetadataForStream(7, metadata_dest, kMetadataBufferSize,
+                                         &written);
+  ASSERT_EQ(written, kExampleFrame.size());
+  EXPECT_EQ(absl::string_view(metadata_dest, written), kExampleFrame);
 }
 
 TEST(ServerCallbackVisitorUnitTest, ConnectionFrames) {
@@ -253,6 +275,28 @@ TEST(ServerCallbackVisitorUnitTest, StreamFrames) {
 
   EXPECT_CALL(callbacks, OnStreamClose(3, NGHTTP2_INTERNAL_ERROR));
   visitor.OnCloseStream(3, Http2ErrorCode::INTERNAL_ERROR);
+
+  // Metadata events
+  constexpr size_t kMetadataBufferSize = 256;
+  char metadata_dest[kMetadataBufferSize];
+  ssize_t written = 0;
+
+  const absl::string_view kExampleFrame = "This is supposed to be metadata.";
+  EXPECT_CALL(
+      callbacks,
+      OnPackExtension(_, kMetadataBufferSize,
+                      Field(&nghttp2_frame::hd,
+                            HasFrameHeaderRef(5, kMetadataFrameType, _))))
+      .WillOnce(testing::Invoke(
+          [kExampleFrame](uint8_t* buf, size_t len,
+                          const nghttp2_frame* frame) -> ssize_t {
+            std::memcpy(buf, kExampleFrame.data(), kExampleFrame.size());
+            return kExampleFrame.size();
+          }));
+  visitor.OnReadyToSendMetadataForStream(5, metadata_dest, kMetadataBufferSize,
+                                         &written);
+  ASSERT_EQ(written, kExampleFrame.size());
+  EXPECT_EQ(absl::string_view(metadata_dest, written), kExampleFrame);
 }
 
 }  // namespace

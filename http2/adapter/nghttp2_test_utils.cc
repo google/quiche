@@ -10,39 +10,38 @@ namespace test {
 namespace {
 
 // Custom gMock matcher, used to implement HasFrameHeader().
-class FrameHeaderMatcher
-    : public testing::MatcherInterface<const nghttp2_frame_hd*> {
+class FrameHeaderMatcher {
  public:
   FrameHeaderMatcher(int32_t streamid, uint8_t type,
                      const testing::Matcher<int> flags)
       : stream_id_(streamid), type_(type), flags_(flags) {}
 
-  bool MatchAndExplain(const nghttp2_frame_hd* frame,
-                       testing::MatchResultListener* listener) const override {
+  bool Match(const nghttp2_frame_hd& frame,
+             testing::MatchResultListener* listener) const {
     bool matched = true;
-    if (stream_id_ != frame->stream_id) {
+    if (stream_id_ != frame.stream_id) {
       *listener << "; expected stream " << stream_id_ << ", saw "
-                << frame->stream_id;
+                << frame.stream_id;
       matched = false;
     }
-    if (type_ != frame->type) {
+    if (type_ != frame.type) {
       *listener << "; expected frame type " << type_ << ", saw "
-                << static_cast<int>(frame->type);
+                << static_cast<int>(frame.type);
       matched = false;
     }
-    if (!flags_.MatchAndExplain(frame->flags, listener)) {
+    if (!flags_.MatchAndExplain(frame.flags, listener)) {
       matched = false;
     }
     return matched;
   }
 
-  void DescribeTo(std::ostream* os) const override {
+  void DescribeTo(std::ostream* os) const {
     *os << "contains a frame header with stream " << stream_id_ << ", type "
         << type_ << ", ";
     flags_.DescribeTo(os);
   }
 
-  void DescribeNegationTo(std::ostream* os) const override {
+  void DescribeNegationTo(std::ostream* os) const {
     *os << "does not contain a frame header with stream " << stream_id_
         << ", type " << type_ << ", ";
     flags_.DescribeNegationTo(os);
@@ -52,6 +51,50 @@ class FrameHeaderMatcher
   const int32_t stream_id_;
   const int type_;
   const testing::Matcher<int> flags_;
+};
+
+class PointerToFrameHeaderMatcher
+    : public FrameHeaderMatcher,
+      public testing::MatcherInterface<const nghttp2_frame_hd*> {
+ public:
+  PointerToFrameHeaderMatcher(int32_t streamid, uint8_t type,
+                              const testing::Matcher<int> flags)
+      : FrameHeaderMatcher(streamid, type, flags) {}
+
+  bool MatchAndExplain(const nghttp2_frame_hd* frame,
+                       testing::MatchResultListener* listener) const override {
+    return FrameHeaderMatcher::Match(*frame, listener);
+  }
+
+  void DescribeTo(std::ostream* os) const override {
+    FrameHeaderMatcher::DescribeTo(os);
+  }
+
+  void DescribeNegationTo(std::ostream* os) const override {
+    FrameHeaderMatcher::DescribeNegationTo(os);
+  }
+};
+
+class ReferenceToFrameHeaderMatcher
+    : public FrameHeaderMatcher,
+      public testing::MatcherInterface<const nghttp2_frame_hd&> {
+ public:
+  ReferenceToFrameHeaderMatcher(int32_t streamid, uint8_t type,
+                                const testing::Matcher<int> flags)
+      : FrameHeaderMatcher(streamid, type, flags) {}
+
+  bool MatchAndExplain(const nghttp2_frame_hd& frame,
+                       testing::MatchResultListener* listener) const override {
+    return FrameHeaderMatcher::Match(frame, listener);
+  }
+
+  void DescribeTo(std::ostream* os) const override {
+    FrameHeaderMatcher::DescribeTo(os);
+  }
+
+  void DescribeNegationTo(std::ostream* os) const override {
+    FrameHeaderMatcher::DescribeNegationTo(os);
+  }
 };
 
 class DataMatcher : public testing::MatcherInterface<const nghttp2_frame*> {
@@ -352,7 +395,12 @@ class WindowUpdateMatcher
 
 testing::Matcher<const nghttp2_frame_hd*> HasFrameHeader(
     uint32_t streamid, uint8_t type, const testing::Matcher<int> flags) {
-  return MakeMatcher(new FrameHeaderMatcher(streamid, type, flags));
+  return MakeMatcher(new PointerToFrameHeaderMatcher(streamid, type, flags));
+}
+
+testing::Matcher<const nghttp2_frame_hd&> HasFrameHeaderRef(
+    uint32_t streamid, uint8_t type, const testing::Matcher<int> flags) {
+  return MakeMatcher(new ReferenceToFrameHeaderMatcher(streamid, type, flags));
 }
 
 testing::Matcher<const nghttp2_frame*> IsData(

@@ -59,6 +59,8 @@ class TestDataSource {
 // Matchers for nghttp2 data types.
 testing::Matcher<const nghttp2_frame_hd*> HasFrameHeader(
     uint32_t streamid, uint8_t type, const testing::Matcher<int> flags);
+testing::Matcher<const nghttp2_frame_hd&> HasFrameHeaderRef(
+    uint32_t streamid, uint8_t type, const testing::Matcher<int> flags);
 
 testing::Matcher<const nghttp2_frame*> IsData(
     const testing::Matcher<uint32_t> stream_id,
