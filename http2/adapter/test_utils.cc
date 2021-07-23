@@ -73,8 +73,10 @@ bool TestDataFrameSource::Send(absl::string_view frame_header,
     payload_fragments_.clear();
     return false;
   }
-  current_fragment_.remove_prefix(payload_length);
-  if (current_fragment_.empty()) {
+  if (payload_length > 0) {
+    current_fragment_.remove_prefix(payload_length);
+  }
+  if (current_fragment_.empty() && !payload_fragments_.empty()) {
     payload_fragments_.erase(payload_fragments_.begin());
     if (!payload_fragments_.empty()) {
       current_fragment_ = payload_fragments_.front();
