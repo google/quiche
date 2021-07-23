@@ -5,6 +5,7 @@
 #include "quic/core/crypto/quic_random.h"
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 
 #include "third_party/boringssl/src/include/openssl/rand.h"
 #include "quic/platform/api/quic_bug_tracker.h"
@@ -39,6 +40,16 @@ uint64_t Xoshiro256PlusPlus() {
   rng_state[0] ^= rng_state[3];
   rng_state[2] ^= t;
   rng_state[3] = Xoshiro256PlusPlusRotLeft(rng_state[3], 45);
+
+  for (int i = 0; i < 4; ++i) {
+    std::cerr << "Xoshiro256PlusPlus &rng_state[" << i << "]: " << &rng_state[i]
+              << std::endl;
+  }
+  for (int i = 0; i < 4; ++i) {
+    std::cerr << "Xoshiro256PlusPlus delta: " << i << ": "
+              << (intptr_t)(&rng_state[i]) - (intptr_t)(&rng_state[0])
+              << std::endl;
+  }
   return result;
 }
 
