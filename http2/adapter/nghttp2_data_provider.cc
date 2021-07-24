@@ -21,7 +21,7 @@ ssize_t DataFrameSourceReadCallback(nghttp2_session* /* session */,
   *data_flags |= NGHTTP2_DATA_FLAG_NO_COPY;
   auto* frame_source = static_cast<DataFrameSource*>(source->ptr);
   auto [result_length, done] = frame_source->SelectPayloadLength(length);
-  if (result_length == DataFrameSource::kBlocked) {
+  if (result_length == 0 && !done) {
     return NGHTTP2_ERR_DEFERRED;
   } else if (result_length == DataFrameSource::kError) {
     return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;

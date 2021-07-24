@@ -98,8 +98,16 @@ TEST(DataProviderTest, ReadFromZeroLengthSource) {
   ssize_t result =
       provider->read_callback(nullptr, kStreamId, nullptr, kReadLength,
                               &data_flags, &provider->source, nullptr);
-  // BUG: should return a zero-length read and EOF.
-  ASSERT_EQ(NGHTTP2_ERR_DEFERRED, result);
+  ASSERT_EQ(0, result);
+  EXPECT_EQ(NGHTTP2_DATA_FLAG_NO_COPY | NGHTTP2_DATA_FLAG_EOF, data_flags);
+
+  const uint8_t framehd[kFrameHeaderSize] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+  int send_result = callbacks::DataFrameSourceSendCallback(
+      nullptr, nullptr, framehd, result, &provider->source, nullptr);
+  EXPECT_EQ(0, send_result);
+  // Data accepted by the visitor includes a frame header with fin and zero
+  // bytes of payload.
+  EXPECT_EQ(visitor.data().size(), kFrameHeaderSize);
 }
 
 }  // namespace test
