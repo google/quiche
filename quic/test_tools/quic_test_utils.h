@@ -282,7 +282,7 @@ class SimpleRandom : public QuicRandom {
 
  private:
   uint8_t buffer_[4096];
-  size_t buffer_offset_;
+  size_t buffer_offset_ = 0;
   uint8_t key_[32];
 
   void FillBuffer();
