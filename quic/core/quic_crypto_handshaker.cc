@@ -27,10 +27,7 @@ void QuicCryptoHandshaker::SendHandshakeMessage(
   session()->OnCryptoHandshakeMessageSent(message);
   last_sent_handshake_message_tag_ = message.tag();
   const QuicData& data = message.GetSerialized();
-  stream_->WriteCryptoData(session_->use_write_or_buffer_data_at_level()
-                               ? level
-                               : session_->connection()->encryption_level(),
-                           data.AsStringPiece());
+  stream_->WriteCryptoData(level, data.AsStringPiece());
 }
 
 void QuicCryptoHandshaker::OnError(CryptoFramer* framer) {

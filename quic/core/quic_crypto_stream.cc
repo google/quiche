@@ -144,15 +144,8 @@ bool QuicCryptoStream::ExportKeyingMaterial(absl::string_view label,
 void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
                                        absl::string_view data) {
   if (!QuicVersionUsesCryptoFrames(session()->transport_version())) {
-    if (session()->use_write_or_buffer_data_at_level()) {
-      WriteOrBufferDataAtLevel(data, /*fin=*/false, level,
-                               /*ack_listener=*/nullptr);
-      return;
-    }
-    // The QUIC crypto handshake takes care of setting the appropriate
-    // encryption level before writing data. Since that is the only handshake
-    // supported in versions less than 47, |level| can be ignored here.
-    WriteOrBufferData(data, /* fin */ false, /* ack_listener */ nullptr);
+    WriteOrBufferDataAtLevel(data, /*fin=*/false, level,
+                             /*ack_listener=*/nullptr);
     return;
   }
   if (data.empty()) {

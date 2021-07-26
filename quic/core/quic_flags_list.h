@@ -111,8 +111,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_group_path_response_and_challenge_send
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr_v2, false)
 // If true, use ScopedEncryptionLevelContext when sending data.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_encryption_level_context, true)
-// If true, use WriteOrBufferDataAtLevel to send crypto data. Existing WriteOrBufferData is used to send application data.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_write_or_buffer_data_at_level, false)
 // If true, use new connection ID in connection migration.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, true)
 // If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.

@@ -287,15 +287,8 @@ void QuicCryptoServerStream::FinishSendServerConfigUpdate(
   QUIC_DVLOG(1) << "Server: Sending server config update: "
                 << message.DebugString();
 
-  if (!session()->use_write_or_buffer_data_at_level() &&
-      !QuicVersionUsesCryptoFrames(transport_version())) {
-    const QuicData& data = message.GetSerialized();
-    WriteOrBufferData(absl::string_view(data.data(), data.length()), false,
-                      nullptr);
-  } else {
-    // Send server config update in ENCRYPTION_FORWARD_SECURE.
-    SendHandshakeMessage(message, ENCRYPTION_FORWARD_SECURE);
-  }
+  // Send server config update in ENCRYPTION_FORWARD_SECURE.
+  SendHandshakeMessage(message, ENCRYPTION_FORWARD_SECURE);
 
   ++num_server_config_update_messages_sent_;
 }

@@ -28,18 +28,13 @@ class QUIC_EXPORT_PRIVATE StreamDelegateInterface {
   virtual void OnStreamError(QuicErrorCode error_code,
                              QuicIetfTransportErrorCodes ietf_error,
                              std::string error_details) = 0;
-  // Called when the stream needs to write data. If |level| is present, the data
-  // will be written at the specified |level|. The data will be written
-  // at specified transmission |type|.
-  // TODO(fayang): Change absl::optional<EncryptionLevel> to EncryptionLevel
-  // when deprecating quic_use_write_or_buffer_data_at_level.
-  virtual QuicConsumedData WritevData(
-      QuicStreamId id,
-      size_t write_length,
-      QuicStreamOffset offset,
-      StreamSendingState state,
-      TransmissionType type,
-      absl::optional<EncryptionLevel> level) = 0;
+  // Called when the stream needs to write data at specified |level| and
+  // transmission |type|.
+  virtual QuicConsumedData WritevData(QuicStreamId id, size_t write_length,
+                                      QuicStreamOffset offset,
+                                      StreamSendingState state,
+                                      TransmissionType type,
+                                      EncryptionLevel level) = 0;
   // Called to write crypto data.
   virtual size_t SendCryptoData(EncryptionLevel level,
                                 size_t write_length,

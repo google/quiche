@@ -338,12 +338,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // indicating if the fin bit was consumed.  This does not indicate the data
   // has been sent on the wire: it may have been turned into a packet and queued
   // if the socket was unexpectedly blocked.
-  QuicConsumedData WritevData(QuicStreamId id,
-                              size_t write_length,
-                              QuicStreamOffset offset,
-                              StreamSendingState state,
+  QuicConsumedData WritevData(QuicStreamId id, size_t write_length,
+                              QuicStreamOffset offset, StreamSendingState state,
                               TransmissionType type,
-                              absl::optional<EncryptionLevel> level) override;
+                              EncryptionLevel level) override;
 
   size_t SendCryptoData(EncryptionLevel level,
                         size_t write_length,
@@ -621,13 +619,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return liveness_testing_in_progress_;
   }
 
-  bool use_write_or_buffer_data_at_level() const {
-    return use_write_or_buffer_data_at_level_;
-  }
-
   bool use_encryption_level_context() const {
-    return connection_->use_encryption_level_context() &&
-           use_write_or_buffer_data_at_level_;
+    return connection_->use_encryption_level_context();
   }
 
   bool permutes_tls_extensions() const { return permutes_tls_extensions_; }
@@ -965,9 +958,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Whether BoringSSL randomizes the order of TLS extensions.
   bool permutes_tls_extensions_ = false;
-
-  const bool use_write_or_buffer_data_at_level_ =
-      GetQuicReloadableFlag(quic_use_write_or_buffer_data_at_level);
 };
 
 }  // namespace quic

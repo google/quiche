@@ -756,16 +756,13 @@ void QuicSession::ProcessUdpPacket(const QuicSocketAddress& self_address,
   connection_->ProcessUdpPacket(self_address, peer_address, packet);
 }
 
-QuicConsumedData QuicSession::WritevData(
-    QuicStreamId id,
-    size_t write_length,
-    QuicStreamOffset offset,
-    StreamSendingState state,
-    TransmissionType type,
-    absl::optional<EncryptionLevel> level) {
+QuicConsumedData QuicSession::WritevData(QuicStreamId id, size_t write_length,
+                                         QuicStreamOffset offset,
+                                         StreamSendingState state,
+                                         TransmissionType type,
+                                         EncryptionLevel level) {
   QUICHE_DCHECK(connection_->connected())
       << ENDPOINT << "Try to write stream data when connection is closed.";
-  QUICHE_DCHECK(!use_write_or_buffer_data_at_level_ || level.has_value());
   if (!IsEncryptionEstablished() &&
       !QuicUtils::IsCryptoStreamId(transport_version(), id)) {
     // Do not let streams write without encryption. The calling stream will end
@@ -799,13 +796,11 @@ QuicConsumedData QuicSession::WritevData(
   SetTransmissionType(type);
   const auto current_level = connection()->encryption_level();
   if (!use_encryption_level_context()) {
-    if (level.has_value()) {
-      connection()->SetDefaultEncryptionLevel(level.value());
-    }
+    connection()->SetDefaultEncryptionLevel(level);
   }
   QuicConnection::ScopedEncryptionLevelContext context(
       use_encryption_level_context() ? connection() : nullptr,
-      use_encryption_level_context() ? level.value() : NUM_ENCRYPTION_LEVELS);
+      use_encryption_level_context() ? level : NUM_ENCRYPTION_LEVELS);
 
   QuicConsumedData data =
       connection_->SendStreamData(id, write_length, offset, state);
@@ -817,9 +812,7 @@ QuicConsumedData QuicSession::WritevData(
   // Restore the encryption level.
   if (!use_encryption_level_context()) {
     // Restore the encryption level.
-    if (level.has_value()) {
-      connection()->SetDefaultEncryptionLevel(current_level);
-    }
+    connection()->SetDefaultEncryptionLevel(current_level);
   }
 
   return data;

@@ -506,24 +506,14 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // controller, marks this stream as connection-level write blocked.
   void MaybeSendBlocked();
 
-  // Write buffered data in send buffer.
-  // TODO(fayang): Change absl::optional<EncryptionLevel> to EncryptionLevel
-  // when deprecating quic_use_write_or_buffer_data_at_level.
-  void WriteBufferedData(absl::optional<EncryptionLevel> level);
+  // Write buffered data (in send buffer) at |level|.
+  void WriteBufferedData(EncryptionLevel level);
 
   // Close the read side of the stream.  May cause the stream to be closed.
   void CloseReadSide();
 
   // Called when bytes are sent to the peer.
   void AddBytesSent(QuicByteCount bytes);
-
-  // TODO(fayang): Inline this function when deprecating
-  // quic_use_write_or_buffer_data_at_level.
-  void WriteOrBufferDataInner(
-      absl::string_view data,
-      bool fin,
-      absl::optional<EncryptionLevel> level,
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   // Returns true if deadline_ has passed.
   bool HasDeadlinePassed() const;

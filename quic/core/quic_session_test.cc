@@ -313,12 +313,10 @@ class TestSession : public QuicSession {
     return GetNumActiveStreams() > 0;
   }
 
-  QuicConsumedData WritevData(QuicStreamId id,
-                              size_t write_length,
-                              QuicStreamOffset offset,
-                              StreamSendingState state,
+  QuicConsumedData WritevData(QuicStreamId id, size_t write_length,
+                              QuicStreamOffset offset, StreamSendingState state,
                               TransmissionType type,
-                              absl::optional<EncryptionLevel> level) override {
+                              EncryptionLevel level) override {
     bool fin = state != NO_FIN;
     QuicConsumedData consumed(write_length, fin);
     if (!writev_consumes_all_data_) {
