@@ -12075,7 +12075,7 @@ TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
 // writer.
 TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
   if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.use_path_validator()) {
+      !connection_.connection_migration_use_new_cid()) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
