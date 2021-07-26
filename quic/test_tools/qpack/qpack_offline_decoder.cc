@@ -86,12 +86,7 @@ bool QpackOfflineDecoder::ParseInputFilename(absl::string_view input_filename) {
   auto piece_it = pieces.rbegin();
 
   // Acknowledgement mode: 1 for immediate, 0 for none.
-  bool immediate_acknowledgement = false;
-  if (*piece_it == "0") {
-    immediate_acknowledgement = false;
-  } else if (*piece_it == "1") {
-    immediate_acknowledgement = true;
-  } else {
+  if (*piece_it != "0" && *piece_it != "1") {
     QUIC_LOG(ERROR)
         << "Header acknowledgement field must be 0 or 1 in input filename "
         << input_filename;

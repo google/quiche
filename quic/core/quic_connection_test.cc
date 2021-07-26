@@ -3762,11 +3762,9 @@ TEST_P(QuicConnectionTest, OnCanWrite) {
 
 TEST_P(QuicConnectionTest, RetransmitOnNack) {
   QuicPacketNumber last_packet;
-  QuicByteCount second_packet_size;
-  SendStreamDataToPeer(3, "foo", 0, NO_FIN, &last_packet);  // Packet 1
-  second_packet_size =
-      SendStreamDataToPeer(3, "foos", 3, NO_FIN, &last_packet);  // Packet 2
-  SendStreamDataToPeer(3, "fooos", 7, NO_FIN, &last_packet);     // Packet 3
+  SendStreamDataToPeer(3, "foo", 0, NO_FIN, &last_packet);
+  SendStreamDataToPeer(3, "foos", 3, NO_FIN, &last_packet);
+  SendStreamDataToPeer(3, "fooos", 7, NO_FIN, &last_packet);
 
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
