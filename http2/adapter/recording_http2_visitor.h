@@ -5,6 +5,7 @@
 #include <string>
 
 #include "http2/adapter/http2_visitor_interface.h"
+#include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -12,7 +13,7 @@ namespace adapter {
 namespace test {
 
 // A visitor implementation that records the sequence of callbacks it receives.
-class RecordingHttp2Visitor : public Http2VisitorInterface {
+class QUICHE_NO_EXPORT RecordingHttp2Visitor : public Http2VisitorInterface {
  public:
   using Event = std::string;
   using EventSequence = std::list<Event>;

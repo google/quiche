@@ -8,6 +8,7 @@
 #include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/http2_session.h"
 #include "http2/adapter/http2_visitor_interface.h"
+#include "common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace adapter {
@@ -18,7 +19,7 @@ namespace adapter {
 // invokes corresponding callbacks on its passed-in Http2VisitorInterface.
 // Http2Adapter is a base class shared between client-side and server-side
 // implementations.
-class Http2Adapter {
+class QUICHE_EXPORT_PRIVATE Http2Adapter {
  public:
   Http2Adapter(const Http2Adapter&) = delete;
   Http2Adapter& operator=(const Http2Adapter&) = delete;

@@ -6,11 +6,12 @@
 #include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/nghttp2_session.h"
 #include "http2/adapter/nghttp2_util.h"
+#include "common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace adapter {
 
-class NgHttp2Adapter : public Http2Adapter {
+class QUICHE_EXPORT_PRIVATE NgHttp2Adapter : public Http2Adapter {
  public:
   ~NgHttp2Adapter() override;
 

@@ -6,6 +6,7 @@
 #include "absl/strings/string_view.h"
 #include "http2/adapter/http2_protocol.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
+#include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -13,7 +14,7 @@ namespace adapter {
 namespace test {
 
 // A simple class that can easily be adapted to act as a nghttp2_data_source.
-class TestDataSource {
+class QUICHE_NO_EXPORT TestDataSource {
  public:
   explicit TestDataSource(absl::string_view data) : data_(std::string(data)) {}
 

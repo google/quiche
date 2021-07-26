@@ -5,14 +5,15 @@
 
 #include "absl/strings/string_view.h"
 #include "http2/adapter/http2_protocol.h"
+#include "common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace adapter {
 
-struct Http2SessionCallbacks {};
+QUICHE_EXPORT_PRIVATE struct Http2SessionCallbacks {};
 
 // A class to represent the state of a single HTTP/2 connection.
-class Http2Session {
+class QUICHE_EXPORT_PRIVATE Http2Session {
  public:
   Http2Session() = default;
   virtual ~Http2Session() {}

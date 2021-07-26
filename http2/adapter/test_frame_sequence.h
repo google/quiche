@@ -6,16 +6,17 @@
 #include <vector>
 
 #include "http2/adapter/http2_protocol.h"
+#include "common/platform/api/quiche_export.h"
 #include "spdy/core/spdy_protocol.h"
 
 namespace http2 {
 namespace adapter {
 namespace test {
 
-std::vector<const Header> ToHeaders(
+std::vector<const Header> QUICHE_NO_EXPORT ToHeaders(
     absl::Span<const std::pair<absl::string_view, absl::string_view>> headers);
 
-class TestFrameSequence {
+class QUICHE_NO_EXPORT TestFrameSequence {
  public:
   TestFrameSequence() = default;
 

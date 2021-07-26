@@ -8,6 +8,7 @@
 #include "http2/adapter/data_source.h"
 #include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/mock_http2_visitor.h"
+#include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_test.h"
 #include "spdy/core/spdy_protocol.h"
 
@@ -15,7 +16,8 @@ namespace http2 {
 namespace adapter {
 namespace test {
 
-class DataSavingVisitor : public testing::StrictMock<MockHttp2Visitor> {
+class QUICHE_NO_EXPORT DataSavingVisitor
+    : public testing::StrictMock<MockHttp2Visitor> {
  public:
   ssize_t OnReadyToSend(absl::string_view data) override {
     if (is_write_blocked_) {
@@ -42,7 +44,7 @@ class DataSavingVisitor : public testing::StrictMock<MockHttp2Visitor> {
 
 // A test DataFrameSource that can be initialized with a single string payload,
 // or a chunked payload.
-class TestDataFrameSource : public DataFrameSource {
+class QUICHE_NO_EXPORT TestDataFrameSource : public DataFrameSource {
  public:
   TestDataFrameSource(Http2VisitorInterface& visitor,
                       absl::string_view data_payload,

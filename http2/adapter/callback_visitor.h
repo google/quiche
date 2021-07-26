@@ -8,13 +8,14 @@
 #include "http2/adapter/http2_visitor_interface.h"
 #include "http2/adapter/nghttp2_util.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
+#include "common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace adapter {
 
 // This visitor implementation accepts a set of nghttp2 callbacks and a "user
 // data" pointer, and invokes the callbacks according to HTTP/2 events received.
-class CallbackVisitor : public Http2VisitorInterface {
+class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
  public:
   explicit CallbackVisitor(Perspective perspective,
                            const nghttp2_session_callbacks& callbacks,
@@ -76,7 +77,7 @@ class CallbackVisitor : public Http2VisitorInterface {
   void OnErrorDebug(absl::string_view message) override;
 
  private:
-  struct StreamInfo {
+  QUICHE_EXPORT_PRIVATE struct StreamInfo {
     bool before_sent_headers = false;
     bool sent_headers = false;
     bool received_headers = false;

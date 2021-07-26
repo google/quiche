@@ -2,6 +2,7 @@
 #define QUICHE_HTTP2_ADAPTER_MOCK_HTTP2_VISITOR_INTERFACE_H_
 
 #include "http2/adapter/http2_visitor_interface.h"
+#include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -9,7 +10,7 @@ namespace adapter {
 namespace test {
 
 // A mock visitor class, for use in tests.
-class MockHttp2Visitor : public Http2VisitorInterface {
+class QUICHE_NO_EXPORT MockHttp2Visitor : public Http2VisitorInterface {
  public:
   MockHttp2Visitor() {
     ON_CALL(*this, OnHeaderForStream).WillByDefault(testing::Return(HEADER_OK));

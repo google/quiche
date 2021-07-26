@@ -10,6 +10,7 @@
 #include "http2/adapter/window_manager.h"
 #include "http2/core/priority_write_scheduler.h"
 #include "common/platform/api/quiche_bug_tracker.h"
+#include "common/platform/api/quiche_export.h"
 #include "spdy/core/http2_frame_decoder_adapter.h"
 #include "spdy/core/spdy_framer.h"
 
@@ -17,10 +18,11 @@ namespace http2 {
 namespace adapter {
 
 // This class manages state associated with a single multiplexed HTTP/2 session.
-class OgHttp2Session : public Http2Session,
-                       public spdy::SpdyFramerVisitorInterface {
+class QUICHE_EXPORT_PRIVATE OgHttp2Session
+    : public Http2Session,
+      public spdy::SpdyFramerVisitorInterface {
  public:
-  struct Options {
+  QUICHE_EXPORT_PRIVATE struct Options {
     Perspective perspective = Perspective::kClient;
   };
 
@@ -150,7 +152,7 @@ class OgHttp2Session : public Http2Session,
                       Http2VisitorInterface::OnHeaderResult result);
 
  private:
-  struct StreamState {
+  QUICHE_EXPORT_PRIVATE struct StreamState {
     StreamState(int32_t stream_receive_window,
                 WindowManager::WindowUpdateListener listener)
         : window_manager(stream_receive_window, std::move(listener)) {}
@@ -164,7 +166,8 @@ class OgHttp2Session : public Http2Session,
     bool half_closed_remote = false;
   };
 
-  class PassthroughHeadersHandler : public spdy::SpdyHeadersHandlerInterface {
+  class QUICHE_EXPORT_PRIVATE PassthroughHeadersHandler
+      : public spdy::SpdyHeadersHandlerInterface {
    public:
     explicit PassthroughHeadersHandler(OgHttp2Session& session,
                                        Http2VisitorInterface& visitor)

@@ -5,12 +5,13 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
+#include "common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace adapter {
 
 // Represents a source of DATA frames for transmission to the peer.
-class DataFrameSource {
+class QUICHE_EXPORT_PRIVATE DataFrameSource {
  public:
   virtual ~DataFrameSource() {}
 
