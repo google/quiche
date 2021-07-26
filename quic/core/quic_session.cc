@@ -773,11 +773,10 @@ QuicConsumedData QuicSession::WritevData(
     if (was_zero_rtt_rejected_ && !OneRttKeysAvailable()) {
       QUICHE_DCHECK(version().UsesTls() &&
                     perspective() == Perspective::IS_CLIENT);
-      QUIC_BUG_IF(quic_bug_12435_3, type == NOT_RETRANSMISSION)
-          << ENDPOINT << "Try to send new data on stream " << id
-          << "before 1-RTT keys are available while 0-RTT is rejected. "
-             "Version: "
-          << ParsedQuicVersionToString(version());
+      QUIC_DLOG(INFO) << ENDPOINT
+                      << "Suppress the write while 0-RTT gets rejected and "
+                         "1-RTT keys are not available. Version: "
+                      << ParsedQuicVersionToString(version());
     } else if (version().UsesTls() || perspective() == Perspective::IS_SERVER) {
       QUIC_BUG(quic_bug_10866_2)
           << ENDPOINT << "Try to send data of stream " << id
@@ -869,10 +868,7 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame,
   QUICHE_DCHECK(connection()->connected())
       << ENDPOINT << "Try to write control frames when connection is closed.";
   if (!IsEncryptionEstablished()) {
-    QUIC_BUG(quic_bug_10866_4)
-        << ENDPOINT << "Tried to send control frame " << frame
-        << " before encryption is established. Last decrypted level: "
-        << EncryptionLevelToString(connection_->last_decrypted_level());
+    // Suppress the write before encryption gets established.
     return false;
   }
   SetTransmissionType(type);
