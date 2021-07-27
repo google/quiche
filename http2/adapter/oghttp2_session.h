@@ -119,7 +119,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   void OnPing(spdy::SpdyPingId unique_id, bool is_ack) override;
   void OnGoAway(spdy::SpdyStreamId last_accepted_stream_id,
                 spdy::SpdyErrorCode error_code) override;
-  bool OnGoAwayFrameData(const char* goaway_data, size_t len);
+  bool OnGoAwayFrameData(const char* goaway_data, size_t len) override;
   void OnHeaders(spdy::SpdyStreamId stream_id,
                  bool has_priority,
                  int weight,
@@ -133,10 +133,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
                      spdy::SpdyStreamId promised_stream_id,
                      bool end) override;
   void OnContinuation(spdy::SpdyStreamId stream_id, bool end) override;
-  void OnAltSvc(spdy::SpdyStreamId /*stream_id*/,
-                absl::string_view /*origin*/,
+  void OnAltSvc(spdy::SpdyStreamId /*stream_id*/, absl::string_view /*origin*/,
                 const spdy::SpdyAltSvcWireFormat::
-                    AlternativeServiceVector& /*altsvc_vector*/);
+                    AlternativeServiceVector& /*altsvc_vector*/) override;
   void OnPriority(spdy::SpdyStreamId stream_id,
                   spdy::SpdyStreamId parent_stream_id,
                   int weight,

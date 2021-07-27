@@ -94,7 +94,7 @@ std::vector<std::pair<const char*, std::string>> LogFriendly(
     const std::vector<TypeAndOptionalLength>& types_and_lengths) {
   std::vector<std::pair<const char*, std::string>> out;
   out.reserve(types_and_lengths.size());
-  for (const auto type_and_length : types_and_lengths) {
+  for (const auto& type_and_length : types_and_lengths) {
     out.push_back({spdy::FrameTypeToString(type_and_length.first),
                    type_and_length.second
                        ? absl::StrCat(type_and_length.second.value())

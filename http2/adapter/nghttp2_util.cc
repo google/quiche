@@ -102,7 +102,7 @@ std::vector<nghttp2_nv> GetResponseNghttp2Nvs(
   nghttp2_nvs.push_back(std::move(status));
 
   // Add the remaining headers.
-  for (const auto header_pair : headers) {
+  for (const auto& header_pair : headers) {
     nghttp2_nv header;
     header.name = ToUint8Ptr(header_pair.first.data());
     header.namelen = header_pair.first.size();
