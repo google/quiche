@@ -17,11 +17,8 @@ namespace http2 {
 namespace adapter {
 namespace callbacks {
 
-ssize_t OnReadyToSend(nghttp2_session* /* session */,
-                      const uint8_t* data,
-                      size_t length,
-                      int flags,
-                      void* user_data) {
+ssize_t OnReadyToSend(nghttp2_session* /* session */, const uint8_t* data,
+                      size_t length, int /*flags*/, void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   const ssize_t result = visitor->OnReadyToSend(ToStringView(data, length));
@@ -153,11 +150,8 @@ int OnBeginHeaders(nghttp2_session* /* session */,
   return 0;
 }
 
-int OnHeader(nghttp2_session* /* session */,
-             const nghttp2_frame* frame,
-             nghttp2_rcbuf* name,
-             nghttp2_rcbuf* value,
-             uint8_t flags,
+int OnHeader(nghttp2_session* /* session */, const nghttp2_frame* frame,
+             nghttp2_rcbuf* name, nghttp2_rcbuf* value, uint8_t /*flags*/,
              void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
@@ -207,11 +201,8 @@ int OnInvalidFrameReceived(nghttp2_session* /* session */,
   return result ? 0 : NGHTTP2_ERR_CALLBACK_FAILURE;
 }
 
-int OnDataChunk(nghttp2_session* /* session */,
-                uint8_t flags,
-                Http2StreamId stream_id,
-                const uint8_t* data,
-                size_t len,
+int OnDataChunk(nghttp2_session* /* session */, uint8_t /*flags*/,
+                Http2StreamId stream_id, const uint8_t* data, size_t len,
                 void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
@@ -230,7 +221,7 @@ int OnStreamClosed(nghttp2_session* /* session */,
   return 0;
 }
 
-int OnExtensionChunkReceived(nghttp2_session* session,
+int OnExtensionChunkReceived(nghttp2_session* /*session*/,
                              const nghttp2_frame_hd* hd, const uint8_t* data,
                              size_t len, void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
@@ -244,7 +235,7 @@ int OnExtensionChunkReceived(nghttp2_session* session,
   return 0;
 }
 
-int OnUnpackExtensionCallback(nghttp2_session* session, void** payload,
+int OnUnpackExtensionCallback(nghttp2_session* /*session*/, void** /*payload*/,
                               const nghttp2_frame_hd* hd, void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
@@ -257,7 +248,7 @@ int OnUnpackExtensionCallback(nghttp2_session* session, void** payload,
   return 0;
 }
 
-ssize_t OnPackExtensionCallback(nghttp2_session* session, uint8_t* buf,
+ssize_t OnPackExtensionCallback(nghttp2_session* /*session*/, uint8_t* buf,
                                 size_t len, const nghttp2_frame* frame,
                                 void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
@@ -268,8 +259,8 @@ ssize_t OnPackExtensionCallback(nghttp2_session* session, uint8_t* buf,
   return written;
 }
 
-int OnError(nghttp2_session* session, int lib_error_code, const char* msg,
-            size_t len, void* user_data) {
+int OnError(nghttp2_session* /*session*/, int /*lib_error_code*/,
+            const char* msg, size_t len, void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   visitor->OnErrorDebug(absl::string_view(msg, len));

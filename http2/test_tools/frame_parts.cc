@@ -126,7 +126,7 @@ void FrameParts::SetAltSvcExpected(absl::string_view origin,
   opt_altsvc_value_length_ = value.size();
 }
 
-bool FrameParts::OnFrameHeader(const Http2FrameHeader& header) {
+bool FrameParts::OnFrameHeader(const Http2FrameHeader& /*header*/) {
   ADD_FAILURE() << "OnFrameHeader: " << *this;
   return true;
 }

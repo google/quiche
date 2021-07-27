@@ -11,12 +11,9 @@ namespace {
 
 // This send callback assumes |source|'s pointer is a TestDataSource, and
 // |user_data| is a std::string.
-int FakeSendCallback(nghttp2_session*,
-                     nghttp2_frame* frame,
-                     const uint8_t* framehd,
-                     size_t length,
-                     nghttp2_data_source* source,
-                     void* user_data) {
+int FakeSendCallback(nghttp2_session*, nghttp2_frame* /*frame*/,
+                     const uint8_t* framehd, size_t length,
+                     nghttp2_data_source* source, void* user_data) {
   auto* dest = static_cast<std::string*>(user_data);
   // Appends the frame header to the string.
   absl::StrAppend(dest, ToStringView(framehd, 9));

@@ -90,8 +90,8 @@ void NgHttp2Adapter::SubmitWindowUpdate(Http2StreamId stream_id,
                                stream_id, window_increment);
 }
 
-void NgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
-                                    bool end_metadata) {
+void NgHttp2Adapter::SubmitMetadata(Http2StreamId /*stream_id*/,
+                                    bool /*end_metadata*/) {
   QUICHE_LOG(DFATAL) << "Not implemented";
 }
 

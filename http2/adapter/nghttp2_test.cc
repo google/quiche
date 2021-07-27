@@ -61,14 +61,15 @@ class Nghttp2Test : public testing::Test {
 
     // Sets up the Send() callback to append to |serialized_|.
     EXPECT_CALL(mock_callbacks_, Send(_, _, _))
-        .WillRepeatedly([this](const uint8_t* data, size_t length, int flags) {
-          absl::StrAppend(&serialized_, ToStringView(data, length));
-          return length;
-        });
+        .WillRepeatedly(
+            [this](const uint8_t* data, size_t length, int /*flags*/) {
+              absl::StrAppend(&serialized_, ToStringView(data, length));
+              return length;
+            });
     // Sets up the SendData() callback to fetch and append data from a
     // TestDataSource.
     EXPECT_CALL(mock_callbacks_, SendData(_, _, _, _))
-        .WillRepeatedly([this](nghttp2_frame* frame, const uint8_t* framehd,
+        .WillRepeatedly([this](nghttp2_frame* /*frame*/, const uint8_t* framehd,
                                size_t length, nghttp2_data_source* source) {
           QUICHE_LOG(INFO) << "Appending frame header and " << length
                            << " bytes of data";

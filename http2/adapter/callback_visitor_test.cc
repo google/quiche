@@ -167,8 +167,8 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
                       Field(&nghttp2_frame::hd,
                             HasFrameHeaderRef(7, kMetadataFrameType, _))))
       .WillOnce(testing::Invoke(
-          [kExampleFrame](uint8_t* buf, size_t len,
-                          const nghttp2_frame* frame) -> ssize_t {
+          [kExampleFrame](uint8_t* buf, size_t /*len*/,
+                          const nghttp2_frame* /*frame*/) -> ssize_t {
             std::memcpy(buf, kExampleFrame.data(), kExampleFrame.size());
             return kExampleFrame.size();
           }));
@@ -288,8 +288,8 @@ TEST(ServerCallbackVisitorUnitTest, StreamFrames) {
                       Field(&nghttp2_frame::hd,
                             HasFrameHeaderRef(5, kMetadataFrameType, _))))
       .WillOnce(testing::Invoke(
-          [kExampleFrame](uint8_t* buf, size_t len,
-                          const nghttp2_frame* frame) -> ssize_t {
+          [kExampleFrame](uint8_t* buf, size_t /*len*/,
+                          const nghttp2_frame* /*frame*/) -> ssize_t {
             std::memcpy(buf, kExampleFrame.data(), kExampleFrame.size());
             return kExampleFrame.size();
           }));

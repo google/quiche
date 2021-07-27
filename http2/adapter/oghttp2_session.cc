@@ -78,10 +78,10 @@ class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
     flags_ = continuation.end_headers() ? 0x4 : 0;
     length_ = continuation.size() - spdy::kFrameHeaderSize;
   }
-  void VisitAltSvc(const spdy::SpdyAltSvcIR& altsvc) override {}
+  void VisitAltSvc(const spdy::SpdyAltSvcIR& /*altsvc*/) override {}
   void VisitPriorityUpdate(
-      const spdy::SpdyPriorityUpdateIR& priority_update) override {}
-  void VisitAcceptCh(const spdy::SpdyAcceptChIR& accept_ch) override {}
+      const spdy::SpdyPriorityUpdateIR& /*priority_update*/) override {}
+  void VisitAcceptCh(const spdy::SpdyAcceptChIR& /*accept_ch*/) override {}
 
   uint32_t stream_id() { return stream_id_; }
   uint32_t length() { return length_; }
@@ -531,8 +531,7 @@ void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
 }
 
 void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
-                                       size_t length,
-                                       bool fin) {
+                                       size_t length, bool /*fin*/) {
   visitor_.OnBeginDataForStream(stream_id, length);
 }
 
@@ -563,7 +562,8 @@ void OgHttp2Session::OnStreamPadLength(spdy::SpdyStreamId stream_id,
   // TODO(181586191): Pass padding to the visitor?
 }
 
-void OgHttp2Session::OnStreamPadding(spdy::SpdyStreamId stream_id, size_t len) {
+void OgHttp2Session::OnStreamPadding(spdy::SpdyStreamId /*stream_id*/, size_t
+                                     /*len*/) {
   // Flow control was accounted for in OnStreamPadLength().
   // TODO(181586191): Pass padding to the visitor?
 }
@@ -574,7 +574,7 @@ spdy::SpdyHeadersHandlerInterface* OgHttp2Session::OnHeaderFrameStart(
   return &headers_handler_;
 }
 
-void OgHttp2Session::OnHeaderFrameEnd(spdy::SpdyStreamId stream_id) {
+void OgHttp2Session::OnHeaderFrameEnd(spdy::SpdyStreamId /*stream_id*/) {
   headers_handler_.set_stream_id(0);
 }
 
@@ -622,18 +622,16 @@ void OgHttp2Session::OnGoAway(spdy::SpdyStreamId last_accepted_stream_id,
                     "");
 }
 
-bool OgHttp2Session::OnGoAwayFrameData(const char* goaway_data, size_t len) {
+bool OgHttp2Session::OnGoAwayFrameData(const char* /*goaway_data*/, size_t
+                                       /*len*/) {
   // Opaque data is currently ignored.
   return true;
 }
 
 void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
-                               bool has_priority,
-                               int weight,
-                               spdy::SpdyStreamId parent_stream_id,
-                               bool exclusive,
-                               bool fin,
-                               bool end) {
+                               bool /*has_priority*/, int /*weight*/,
+                               spdy::SpdyStreamId /*parent_stream_id*/,
+                               bool /*exclusive*/, bool /*fin*/, bool /*end*/) {
   if (options_.perspective == Perspective::kServer) {
     WindowManager::WindowUpdateListener listener =
         [this, stream_id](size_t window_update_delta) {
@@ -668,11 +666,12 @@ void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
   visitor_.OnWindowUpdate(stream_id, delta_window_size);
 }
 
-void OgHttp2Session::OnPushPromise(spdy::SpdyStreamId stream_id,
-                                   spdy::SpdyStreamId promised_stream_id,
-                                   bool end) {}
+void OgHttp2Session::OnPushPromise(spdy::SpdyStreamId /*stream_id*/,
+                                   spdy::SpdyStreamId /*promised_stream_id*/,
+                                   bool /*end*/) {}
 
-void OgHttp2Session::OnContinuation(spdy::SpdyStreamId stream_id, bool end) {}
+void OgHttp2Session::OnContinuation(spdy::SpdyStreamId /*stream_id*/, bool
+                                    /*end*/) {}
 
 void OgHttp2Session::OnAltSvc(spdy::SpdyStreamId /*stream_id*/,
                               absl::string_view /*origin*/,
@@ -680,16 +679,16 @@ void OgHttp2Session::OnAltSvc(spdy::SpdyStreamId /*stream_id*/,
                                   AlternativeServiceVector& /*altsvc_vector*/) {
 }
 
-void OgHttp2Session::OnPriority(spdy::SpdyStreamId stream_id,
-                                spdy::SpdyStreamId parent_stream_id,
-                                int weight,
-                                bool exclusive) {}
+void OgHttp2Session::OnPriority(spdy::SpdyStreamId /*stream_id*/,
+                                spdy::SpdyStreamId /*parent_stream_id*/,
+                                int /*weight*/, bool /*exclusive*/) {}
 
-void OgHttp2Session::OnPriorityUpdate(spdy::SpdyStreamId prioritized_stream_id,
-                                      absl::string_view priority_field_value) {}
+void OgHttp2Session::OnPriorityUpdate(
+    spdy::SpdyStreamId /*prioritized_stream_id*/,
+    absl::string_view /*priority_field_value*/) {}
 
-bool OgHttp2Session::OnUnknownFrame(spdy::SpdyStreamId stream_id,
-                                    uint8_t frame_type) {
+bool OgHttp2Session::OnUnknownFrame(spdy::SpdyStreamId /*stream_id*/,
+                                    uint8_t /*frame_type*/) {
   return true;
 }
 

@@ -27,12 +27,9 @@ enum FrameType {
 
 // This send callback assumes |source|'s pointer is a TestDataSource, and
 // |user_data| is a Http2VisitorInterface.
-int TestSendCallback(nghttp2_session*,
-                     nghttp2_frame* frame,
-                     const uint8_t* framehd,
-                     size_t length,
-                     nghttp2_data_source* source,
-                     void* user_data) {
+int TestSendCallback(nghttp2_session*, nghttp2_frame* /*frame*/,
+                     const uint8_t* framehd, size_t length,
+                     nghttp2_data_source* source, void* user_data) {
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   // Send the frame header via the visitor.
   ssize_t result = visitor->OnReadyToSend(ToStringView(framehd, 9));

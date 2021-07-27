@@ -145,7 +145,8 @@ void CallbackVisitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
 }
 
 Http2VisitorInterface::OnHeaderResult CallbackVisitor::OnHeaderForStream(
-    Http2StreamId stream_id, absl::string_view name, absl::string_view value) {
+    Http2StreamId /*stream_id*/, absl::string_view name,
+    absl::string_view value) {
   if (callbacks_->on_header_callback) {
     const int result = callbacks_->on_header_callback(
         nullptr, &current_frame_, ToUint8Ptr(name.data()), name.size(),
@@ -163,7 +164,7 @@ Http2VisitorInterface::OnHeaderResult CallbackVisitor::OnHeaderForStream(
   return HEADER_OK;
 }
 
-void CallbackVisitor::OnEndHeadersForStream(Http2StreamId stream_id) {
+void CallbackVisitor::OnEndHeadersForStream(Http2StreamId /*stream_id*/) {
   if (callbacks_->on_frame_recv_callback) {
     const int result = callbacks_->on_frame_recv_callback(
         nullptr, &current_frame_, user_data_);
@@ -171,7 +172,7 @@ void CallbackVisitor::OnEndHeadersForStream(Http2StreamId stream_id) {
   }
 }
 
-void CallbackVisitor::OnBeginDataForStream(Http2StreamId stream_id,
+void CallbackVisitor::OnBeginDataForStream(Http2StreamId /*stream_id*/,
                                            size_t payload_length) {
   // TODO(b/181586191): Interpret padding, subtract padding from
   // |remaining_data_|.
@@ -194,9 +195,9 @@ void CallbackVisitor::OnDataForStream(Http2StreamId stream_id,
   }
 }
 
-void CallbackVisitor::OnEndStream(Http2StreamId stream_id) {}
+void CallbackVisitor::OnEndStream(Http2StreamId /*stream_id*/) {}
 
-void CallbackVisitor::OnRstStream(Http2StreamId stream_id,
+void CallbackVisitor::OnRstStream(Http2StreamId /*stream_id*/,
                                   Http2ErrorCode error_code) {
   current_frame_.rst_stream.error_code = static_cast<uint32_t>(error_code);
   if (callbacks_->on_frame_recv_callback) {
@@ -214,10 +215,9 @@ void CallbackVisitor::OnCloseStream(Http2StreamId stream_id,
   }
 }
 
-void CallbackVisitor::OnPriorityForStream(Http2StreamId stream_id,
+void CallbackVisitor::OnPriorityForStream(Http2StreamId /*stream_id*/,
                                           Http2StreamId parent_stream_id,
-                                          int weight,
-                                          bool exclusive) {
+                                          int weight, bool exclusive) {
   current_frame_.priority.pri_spec.stream_id = parent_stream_id;
   current_frame_.priority.pri_spec.weight = weight;
   current_frame_.priority.pri_spec.exclusive = exclusive;
@@ -226,7 +226,7 @@ void CallbackVisitor::OnPriorityForStream(Http2StreamId stream_id,
   }
 }
 
-void CallbackVisitor::OnPing(Http2PingId ping_id, bool is_ack) {
+void CallbackVisitor::OnPing(Http2PingId ping_id, bool /*is_ack*/) {
   uint64_t network_order_opaque_data =
       quiche::QuicheEndian::HostToNet64(ping_id);
   std::memcpy(current_frame_.ping.opaque_data, &network_order_opaque_data,
@@ -236,8 +236,8 @@ void CallbackVisitor::OnPing(Http2PingId ping_id, bool is_ack) {
   }
 }
 
-void CallbackVisitor::OnPushPromiseForStream(Http2StreamId stream_id,
-                                             Http2StreamId promised_stream_id) {
+void CallbackVisitor::OnPushPromiseForStream(
+    Http2StreamId /*stream_id*/, Http2StreamId /*promised_stream_id*/) {
   QUICHE_LOG(DFATAL) << "Not implemented";
 }
 
@@ -253,7 +253,7 @@ void CallbackVisitor::OnGoAway(Http2StreamId last_accepted_stream_id,
   }
 }
 
-void CallbackVisitor::OnWindowUpdate(Http2StreamId stream_id,
+void CallbackVisitor::OnWindowUpdate(Http2StreamId /*stream_id*/,
                                      int window_increment) {
   current_frame_.window_update.window_size_increment = window_increment;
   if (callbacks_->on_frame_recv_callback) {
@@ -331,11 +331,11 @@ int CallbackVisitor::OnFrameSent(uint8_t frame_type, Http2StreamId stream_id,
   return 0;
 }
 
-void CallbackVisitor::OnReadyToSendDataForStream(Http2StreamId stream_id,
-                                                 char* destination_buffer,
-                                                 size_t length,
-                                                 ssize_t* written,
-                                                 bool* end_stream) {
+void CallbackVisitor::OnReadyToSendDataForStream(Http2StreamId /*stream_id*/,
+                                                 char* /*destination_buffer*/,
+                                                 size_t /*length*/,
+                                                 ssize_t* /*written*/,
+                                                 bool* /*end_stream*/) {
   QUICHE_LOG(DFATAL) << "Not implemented";
 }
 

@@ -109,7 +109,7 @@ nghttp2_session_callbacks_unique_ptr MockNghttp2Callbacks::GetCallbacks() {
 
   nghttp2_session_callbacks_set_error_callback2(
       callbacks,
-      [](nghttp2_session* session, int lib_error_code, const char* msg,
+      [](nghttp2_session* /*session*/, int lib_error_code, const char* msg,
          size_t len, void* user_data) -> int {
         return static_cast<MockNghttp2Callbacks*>(user_data)->OnErrorCallback2(
             lib_error_code, msg, len);
