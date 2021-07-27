@@ -120,7 +120,7 @@ void CallbackVisitor::OnSettingsAck() {
   }
 }
 
-void CallbackVisitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
+bool CallbackVisitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
   auto it = GetStreamInfo(stream_id);
   if (it->second->received_headers) {
     // At least one headers frame has already been received.
@@ -142,12 +142,13 @@ void CallbackVisitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
         break;
     }
   }
+  it->second->received_headers = true;
   if (callbacks_->on_begin_headers_callback) {
     const int result = callbacks_->on_begin_headers_callback(
         nullptr, &current_frame_, user_data_);
-    QUICHE_DCHECK_EQ(0, result);
+    return result == 0;
   }
-  it->second->received_headers = true;
+  return true;
 }
 
 Http2VisitorInterface::OnHeaderResult CallbackVisitor::OnHeaderForStream(

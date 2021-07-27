@@ -77,8 +77,9 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
   virtual void OnSettingsAck() = 0;
 
   // Called when the connection receives the header block for a HEADERS frame on
-  // a stream but has not yet parsed individual headers.
-  virtual void OnBeginHeadersForStream(Http2StreamId stream_id) = 0;
+  // a stream but has not yet parsed individual headers. Returns false if a
+  // fatal error has occurred.
+  virtual bool OnBeginHeadersForStream(Http2StreamId stream_id) = 0;
 
   // Called when the connection receives the header |key| and |value| for a
   // stream. The HTTP/2 pseudo-headers defined in RFC 7540 Sections 8.1.2.3 and

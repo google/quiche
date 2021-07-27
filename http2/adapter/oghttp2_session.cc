@@ -100,7 +100,10 @@ class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
 }  // namespace
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
-  visitor_.OnBeginHeadersForStream(stream_id_);
+  const bool status = visitor_.OnBeginHeadersForStream(stream_id_);
+  if (!status) {
+    result_ = Http2VisitorInterface::HEADER_CONNECTION_ERROR;
+  }
 }
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeader(

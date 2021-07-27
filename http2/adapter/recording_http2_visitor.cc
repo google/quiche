@@ -41,8 +41,9 @@ void RecordingHttp2Visitor::OnSettingsAck() {
   events_.push_back("OnSettingsAck");
 }
 
-void RecordingHttp2Visitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
+bool RecordingHttp2Visitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
   events_.push_back(absl::StrFormat("OnBeginHeadersForStream %d", stream_id));
+  return true;
 }
 
 Http2VisitorInterface::OnHeaderResult RecordingHttp2Visitor::OnHeaderForStream(

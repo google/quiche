@@ -29,7 +29,7 @@ class QUICHE_NO_EXPORT RecordingHttp2Visitor : public Http2VisitorInterface {
   void OnSetting(Http2Setting setting) override;
   void OnSettingsEnd() override;
   void OnSettingsAck() override;
-  void OnBeginHeadersForStream(Http2StreamId stream_id) override;
+  bool OnBeginHeadersForStream(Http2StreamId stream_id) override;
   OnHeaderResult OnHeaderForStream(Http2StreamId stream_id,
                                    absl::string_view name,
                                    absl::string_view value) override;

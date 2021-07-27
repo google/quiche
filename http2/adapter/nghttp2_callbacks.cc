@@ -148,8 +148,8 @@ int OnBeginHeaders(nghttp2_session* /* session */,
                    void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
-  visitor->OnBeginHeadersForStream(frame->hd.stream_id);
-  return 0;
+  const bool result = visitor->OnBeginHeadersForStream(frame->hd.stream_id);
+  return result ? 0 : NGHTTP2_ERR_CALLBACK_FAILURE;
 }
 
 int OnHeader(nghttp2_session* /* session */, const nghttp2_frame* frame,
