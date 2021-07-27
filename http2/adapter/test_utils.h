@@ -21,9 +21,12 @@ class QUICHE_NO_EXPORT DataSavingVisitor
  public:
   ssize_t OnReadyToSend(absl::string_view data) override {
     if (is_write_blocked_) {
-      return 0;
+      return kSendBlocked;
     }
     const size_t to_accept = std::min(send_limit_, data.size());
+    if (to_accept == 0) {
+      return kSendBlocked;
+    }
     absl::StrAppend(&data_, data.substr(0, to_accept));
     return to_accept;
   }

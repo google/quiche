@@ -18,16 +18,18 @@ namespace adapter {
 namespace callbacks {
 
 ssize_t OnReadyToSend(nghttp2_session* /* session */, const uint8_t* data,
-                      size_t length, int /*flags*/, void* user_data) {
+                      size_t length, int flags, void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   const ssize_t result = visitor->OnReadyToSend(ToStringView(data, length));
-  if (result < 0) {
-    return NGHTTP2_ERR_CALLBACK_FAILURE;
-  } else if (result == 0) {
-    return NGHTTP2_ERR_WOULDBLOCK;
-  } else {
+  QUICHE_VLOG(1) << "OnReadyToSend(length=" << length << ", flags=" << flags
+                 << ") returning " << result;
+  if (result > 0) {
     return result;
+  } else if (result == Http2VisitorInterface::kSendBlocked) {
+    return -504;  // NGHTTP2_ERR_WOULDBLOCK
+  } else {
+    return -902;  // NGHTTP2_ERR_CALLBACK_FAILURE
   }
 }
 

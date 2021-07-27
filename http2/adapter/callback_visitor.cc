@@ -50,12 +50,18 @@ CallbackVisitor::CallbackVisitor(Perspective perspective,
 
 ssize_t CallbackVisitor::OnReadyToSend(absl::string_view serialized) {
   if (!callbacks_->send_callback) {
-    return -902;  // NGHTTP2_ERR_CALLBACK_FAILURE
+    return kSendError;
   }
   ssize_t result = callbacks_->send_callback(
       nullptr, ToUint8Ptr(serialized.data()), serialized.size(), 0, user_data_);
   QUICHE_VLOG(1) << "CallbackVisitor::OnReadyToSend returning " << result;
-  return result;
+  if (result > 0) {
+    return result;
+  } else if (result == NGHTTP2_ERR_WOULDBLOCK) {
+    return kSendBlocked;
+  } else {
+    return kSendError;
+  }
 }
 
 void CallbackVisitor::OnConnectionError() {

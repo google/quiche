@@ -51,9 +51,10 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
   Http2VisitorInterface& operator=(const Http2VisitorInterface&) = delete;
   virtual ~Http2VisitorInterface() = default;
 
+  static const ssize_t kSendBlocked = 0;
+  static const ssize_t kSendError = -1;
   // Called when there are serialized frames to send. Should return how many
-  // bytes were actually sent. Returning 0 indicates that sending is blocked.
-  // Returning -1 indicates an error.
+  // bytes were actually sent. May return kSendBlocked or kSendError.
   virtual ssize_t OnReadyToSend(absl::string_view serialized) = 0;
 
   // Called when a connection-level processing error has been encountered.
