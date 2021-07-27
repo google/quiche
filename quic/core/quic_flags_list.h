@@ -109,8 +109,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ack_cid_frames, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_group_path_response_and_challenge_sending_closer, true)
 // If true, use BBRv2 as the default congestion controller. Takes precedence over --quic_default_to_bbr.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr_v2, false)
-// If true, use ScopedEncryptionLevelContext when sending data.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_encryption_level_context, true)
 // If true, use new connection ID in connection migration.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, true)
 // If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.

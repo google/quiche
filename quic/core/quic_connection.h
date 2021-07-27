@@ -1202,10 +1202,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool is_processing_packet() const { return framer_.is_processing_packet(); }
 
-  bool use_encryption_level_context() const {
-    return use_encryption_level_context_;
-  }
-
   bool HasPendingPathValidation() const;
 
   QuicPathValidationContext* GetPathValidationContext() const;
@@ -1226,9 +1222,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void SetSourceAddressTokenToSend(absl::string_view token);
 
   void SendPing() {
-    SendPingAtLevel(use_encryption_level_context_
-                        ? framer().GetEncryptionLevelToSendApplicationData()
-                        : encryption_level_);
+    SendPingAtLevel(framer().GetEncryptionLevelToSendApplicationData());
   }
 
   virtual std::vector<QuicConnectionId> GetActiveServerConnectionIds() const;
@@ -2244,8 +2238,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // True if we are currently processing OnRetransmissionTimeout.
   bool in_on_retransmission_time_out_ = false;
-
-  const bool use_encryption_level_context_;
 
   QuicPathValidator path_validator_;
 

@@ -619,10 +619,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return liveness_testing_in_progress_;
   }
 
-  bool use_encryption_level_context() const {
-    return connection_->use_encryption_level_context();
-  }
-
   bool permutes_tls_extensions() const { return permutes_tls_extensions_; }
 
   virtual QuicSSLConfig GetSSLConfig() const { return QuicSSLConfig(); }
