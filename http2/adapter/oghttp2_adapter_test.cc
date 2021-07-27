@@ -121,7 +121,7 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesTrailers) {
   EXPECT_CALL(visitor, OnEndStream(1));
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
 
-  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  const size_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
@@ -203,7 +203,7 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesMetadata) {
   EXPECT_CALL(visitor, OnEndStream(1));
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
 
-  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  const size_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
@@ -279,7 +279,7 @@ TEST(OgHttp2AdapterClientTest, ClientRstStreamWhileHandlingHeaders) {
   EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
   EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
 
-  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  const size_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
@@ -361,7 +361,7 @@ TEST(NgHttp2AdapterTest, ClientConnectionErrorWhileHandlingHeaders) {
   EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
   EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
 
-  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  const size_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
@@ -441,7 +441,7 @@ TEST(OgHttp2AdapterClientTest, DISABLED_ClientHandlesInvalidTrailers) {
   // Bad status trailer will cause a PROTOCOL_ERROR. The header is never
   // delivered in an OnHeaderForStream callback.
 
-  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  const size_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
@@ -571,7 +571,7 @@ TEST(OgHttp2AdapterServerTest, ServerSendsInvalidTrailers) {
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
   EXPECT_CALL(visitor, OnEndStream(1));
 
-  const ssize_t result = adapter->ProcessBytes(frames);
+  const size_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
 
   const absl::string_view kBody = "This is an example response body.";
@@ -660,7 +660,7 @@ TEST(OgHttp2AdapterServerTest, ServerErrorWhileHandlingHeaders) {
   EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor, OnWindowUpdate(0, 2000));
 
-  const ssize_t result = adapter->ProcessBytes(frames);
+  const size_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
 
   EXPECT_TRUE(adapter->session().want_write());

@@ -90,21 +90,21 @@ TEST_F(WindowManagerTest, AvoidWindowUnderflow) {
   EXPECT_EQ(wm_.CurrentWindowSize(), wm_.WindowSizeLimit());
   // Don't buffer more than the total window!
   wm_.MarkDataBuffered(wm_.WindowSizeLimit() + 1);
-  EXPECT_EQ(wm_.CurrentWindowSize(), 0);
+  EXPECT_EQ(wm_.CurrentWindowSize(), 0u);
 }
 
 // Window manager should GFE_BUG and avoid buffered underflow.
 TEST_F(WindowManagerTest, AvoidBufferedUnderflow) {
-  EXPECT_EQ(peer_.buffered(), 0);
+  EXPECT_EQ(peer_.buffered(), 0u);
   // Don't flush more than has been buffered!
   EXPECT_QUICHE_BUG(wm_.MarkDataFlushed(1), "buffered underflow");
-  EXPECT_EQ(peer_.buffered(), 0);
+  EXPECT_EQ(peer_.buffered(), 0u);
 
   wm_.MarkDataBuffered(42);
-  EXPECT_EQ(peer_.buffered(), 42);
+  EXPECT_EQ(peer_.buffered(), 42u);
   // Don't flush more than has been buffered!
   EXPECT_QUICHE_BUG(wm_.MarkDataFlushed(43), "buffered underflow");
-  EXPECT_EQ(peer_.buffered(), 0);
+  EXPECT_EQ(peer_.buffered(), 0u);
 }
 
 // This test verifies that WindowManager notifies its listener when window is

@@ -246,7 +246,7 @@ class SettingsMatcher : public testing::MatcherInterface<const nghttp2_frame*> {
     }
     std::vector<Http2Setting> settings;
     settings.reserve(frame->settings.niv);
-    for (int i = 0; i < frame->settings.niv; ++i) {
+    for (size_t i = 0; i < frame->settings.niv; ++i) {
       const auto& p = frame->settings.iv[i];
       settings.push_back({static_cast<uint16_t>(p.settings_id), p.value});
     }

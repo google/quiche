@@ -323,7 +323,7 @@ bool OgHttp2Session::SendQueuedFrames() {
       }
 
       frames_.pop_front();
-      if (result < frame.size()) {
+      if (static_cast<size_t>(result) < frame.size()) {
         // The frame was partially written, so the rest must be buffered.
         serialized_prefix_.assign(frame.data() + result, frame.size() - result);
         return false;

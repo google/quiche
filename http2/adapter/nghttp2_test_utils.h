@@ -41,7 +41,7 @@ class QUICHE_NO_EXPORT TestDataSource {
             return NGHTTP2_ERR_DEFERRED;
           }
           const ssize_t ret = s->SelectPayloadLength(length);
-          if (ret < length) {
+          if (ret < static_cast<ssize_t>(length)) {
             *data_flags |= NGHTTP2_DATA_FLAG_EOF;
           }
           return ret;

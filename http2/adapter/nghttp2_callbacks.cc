@@ -89,7 +89,7 @@ int OnFrameReceived(nghttp2_session* /* session */,
         visitor->OnSettingsAck();
       } else {
         visitor->OnSettingsStart();
-        for (int i = 0; i < frame->settings.niv; ++i) {
+        for (size_t i = 0; i < frame->settings.niv; ++i) {
           nghttp2_settings_entry entry = frame->settings.iv[i];
           // The nghttp2_settings_entry uses int32_t for the ID; we must cast.
           visitor->OnSetting(Http2Setting{

@@ -64,7 +64,7 @@ bool TestDataFrameSource::Send(absl::string_view frame_header,
   } else if (result == 0) {
     // Write blocked.
     return false;
-  } else if (result < concatenated.size()) {
+  } else if (static_cast<const size_t>(result) < concatenated.size()) {
     // Probably need to handle this better within this test class.
     QUICHE_LOG(DFATAL)
         << "DATA frame not fully flushed. Connection will be corrupt!";
