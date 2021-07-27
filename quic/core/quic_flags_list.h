@@ -67,8 +67,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_single_ack_in_packet2, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_count_bytes_on_alternative_path_seperately, true)
 // If true, do not re-arm PTO while sending application data during handshake.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_rearm_pto_on_application_data_during_handshake, true)
-// If true, do not send stream data when PTO fires.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_pto_half_rtt_data, true)
 // If true, do not write stream data and control frames in the middle of packet processing. 
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_write_mid_packet_processing, true)
 // If true, drop unsent PATH_RESPONSEs and rely on peer\'s retry.

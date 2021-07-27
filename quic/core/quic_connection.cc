@@ -2590,15 +2590,12 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
   }
   if (perspective_ == Perspective::IS_SERVER &&
       version().CanSendCoalescedPackets() && !IsHandshakeConfirmed()) {
-    if (GetQuicReloadableFlag(quic_donot_pto_half_rtt_data)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_donot_pto_half_rtt_data);
-      if (in_on_retransmission_time_out_ &&
-          coalesced_packet_.NumberOfPackets() == 0u) {
-        // PTO fires while handshake is not confirmed. Do not preempt handshake
-        // data with stream data.
-        QUIC_CODE_COUNT(quic_try_to_send_half_rtt_data_when_pto_fires);
-        return QuicConsumedData(0, false);
-      }
+    if (in_on_retransmission_time_out_ &&
+        coalesced_packet_.NumberOfPackets() == 0u) {
+      // PTO fires while handshake is not confirmed. Do not preempt handshake
+      // data with stream data.
+      QUIC_CODE_COUNT(quic_try_to_send_half_rtt_data_when_pto_fires);
+      return QuicConsumedData(0, false);
     }
     if (coalesced_packet_.ContainsPacketOfEncryptionLevel(ENCRYPTION_INITIAL) &&
         coalesced_packet_.NumberOfPackets() == 1u) {
