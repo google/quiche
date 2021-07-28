@@ -15,8 +15,7 @@ class QUICHE_EXPORT_PRIVATE DataFrameSource {
  public:
   virtual ~DataFrameSource() {}
 
-  static constexpr ssize_t kBlocked = 0;
-  static constexpr ssize_t kError = -1;
+  enum : ssize_t { kBlocked = 0, kError = -1 };
 
   // Returns the number of bytes to send in the next DATA frame, and whether
   // this frame indicates the end of the data. Returns {kBlocked, false} if

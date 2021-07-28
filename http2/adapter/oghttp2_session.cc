@@ -1,5 +1,7 @@
 #include "http2/adapter/oghttp2_session.h"
 
+#include <tuple>
+
 #include "absl/strings/escaping.h"
 #include "http2/adapter/oghttp2_util.h"
 
@@ -159,8 +161,8 @@ void* OgHttp2Session::GetStreamUserData(Http2StreamId stream_id) {
 }
 
 bool OgHttp2Session::ResumeStream(Http2StreamId stream_id) {
-  if (auto it = stream_map_.find(stream_id);
-      it->second.outbound_body == nullptr ||
+  auto it = stream_map_.find(stream_id);
+  if (it->second.outbound_body == nullptr ||
       !write_scheduler_.StreamRegistered(stream_id)) {
     return false;
   }
@@ -362,7 +364,9 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
   int32_t available_window = std::min(
       std::min(connection_send_window_, state.send_window), max_frame_payload_);
   while (available_window > 0 && state.outbound_body != nullptr) {
-    auto [length, end_data] =
+    ssize_t length;
+    bool end_data;
+    std::tie(length, end_data) =
         state.outbound_body->SelectPayloadLength(available_window);
     if (length == DataFrameSource::kBlocked) {
       source_can_produce = false;
@@ -432,7 +436,9 @@ int32_t OgHttp2Session::SubmitRequest(
       [this, stream_id](size_t window_update_delta) {
         SendWindowUpdate(stream_id, window_update_delta);
       };
-  auto [iter, inserted] = stream_map_.try_emplace(
+  absl::flat_hash_map<Http2StreamId, StreamState>::iterator iter;
+  bool inserted;
+  std::tie(iter, inserted) = stream_map_.try_emplace(
       stream_id,
       StreamState(stream_receive_window_limit_, std::move(listener)));
   if (!inserted) {
@@ -760,7 +766,8 @@ void OgHttp2Session::MaybeCloseWithRstStream(Http2StreamId stream_id,
 
 void OgHttp2Session::MarkDataBuffered(Http2StreamId stream_id, size_t bytes) {
   connection_window_manager_.MarkDataBuffered(bytes);
-  if (auto it = stream_map_.find(stream_id); it != stream_map_.end()) {
+  auto it = stream_map_.find(stream_id);
+  if (it != stream_map_.end()) {
     it->second.window_manager.MarkDataBuffered(bytes);
   }
 }

@@ -5,7 +5,6 @@
 #include <string>
 #include <utility>
 
-#include "base/integral_types.h"
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/variant.h"
