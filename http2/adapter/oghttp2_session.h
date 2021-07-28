@@ -22,7 +22,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     : public Http2Session,
       public spdy::SpdyFramerVisitorInterface {
  public:
-  QUICHE_EXPORT_PRIVATE struct Options {
+  struct QUICHE_EXPORT_PRIVATE Options {
     Perspective perspective = Perspective::kClient;
   };
 
@@ -151,7 +151,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
                       Http2VisitorInterface::OnHeaderResult result);
 
  private:
-  QUICHE_EXPORT_PRIVATE struct StreamState {
+  struct QUICHE_EXPORT_PRIVATE StreamState {
     StreamState(int32_t stream_receive_window,
                 WindowManager::WindowUpdateListener listener)
         : window_manager(stream_receive_window, std::move(listener)) {}

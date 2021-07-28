@@ -77,7 +77,7 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
   void OnErrorDebug(absl::string_view message) override;
 
  private:
-  QUICHE_EXPORT_PRIVATE struct StreamInfo {
+  struct QUICHE_EXPORT_PRIVATE StreamInfo {
     bool before_sent_headers = false;
     bool sent_headers = false;
     bool received_headers = false;

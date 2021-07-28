@@ -10,7 +10,7 @@
 namespace http2 {
 namespace adapter {
 
-QUICHE_EXPORT_PRIVATE struct Http2SessionCallbacks {};
+struct QUICHE_EXPORT_PRIVATE Http2SessionCallbacks {};
 
 // A class to represent the state of a single HTTP/2 connection.
 class QUICHE_EXPORT_PRIVATE Http2Session {

@@ -35,7 +35,7 @@ std::pair<absl::string_view, bool> GetStringView(const HeaderRep& rep);
 using Header = std::pair<HeaderRep, HeaderRep>;
 
 // Represents an HTTP/2 SETTINGS key-value parameter.
-QUICHE_EXPORT_PRIVATE struct Http2Setting {
+struct QUICHE_EXPORT_PRIVATE Http2Setting {
   Http2SettingsId id;
   uint32_t value;
 };

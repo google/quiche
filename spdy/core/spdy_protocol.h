@@ -351,7 +351,7 @@ QUICHE_EXPORT_PRIVATE size_t GetNumberRequiredContinuationFrames(size_t size);
 // exclusive bit}. Templated to allow for use by QUIC code; SPDY and HTTP/2
 // code should use the concrete type instantiation SpdyStreamPrecedence.
 template <typename StreamIdType>
-QUICHE_EXPORT_PRIVATE class StreamPrecedence {
+class QUICHE_EXPORT_PRIVATE StreamPrecedence {
  public:
   // Constructs instance that is a SPDY 3.x priority. Clamps priority value to
   // the valid range [0, 7].
@@ -427,7 +427,7 @@ QUICHE_EXPORT_PRIVATE class StreamPrecedence {
   }
 
  private:
-  QUICHE_EXPORT_PRIVATE struct Http2StreamDependency {
+  struct QUICHE_EXPORT_PRIVATE Http2StreamDependency {
     StreamIdType parent_id;
     int weight;
     bool is_exclusive;
@@ -920,7 +920,7 @@ class QUICHE_EXPORT_PRIVATE SpdyPriorityUpdateIR : public SpdyFrameIR {
   std::string priority_field_value_;
 };
 
-QUICHE_EXPORT_PRIVATE struct AcceptChOriginValuePair {
+struct QUICHE_EXPORT_PRIVATE AcceptChOriginValuePair {
   std::string origin;
   std::string value;
   bool operator==(const AcceptChOriginValuePair& rhs) const {
