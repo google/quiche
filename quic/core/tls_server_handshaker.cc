@@ -849,9 +849,9 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
           : std::string();
 
   const QuicAsyncStatus status = proof_source_handle_->SelectCertificate(
-      session()->connection()->self_address(),
-      session()->connection()->peer_address(), ssl_capabilities_view,
-      crypto_negotiated_params_->sni,
+      session()->connection()->self_address().Normalized(),
+      session()->connection()->peer_address().Normalized(),
+      ssl_capabilities_view, crypto_negotiated_params_->sni,
       absl::string_view(
           reinterpret_cast<const char*>(client_hello->client_hello),
           client_hello->client_hello_len),

@@ -283,6 +283,9 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandle {
   // Starts a select certificate operation. If the operation is not cancelled
   // when it completes, callback()->OnSelectCertificateDone will be invoked.
   //
+  // server_address and client_address should be normalized by the caller before
+  // sending down to this function.
+  //
   // If the operation is handled synchronously:
   // - QUIC_SUCCESS or QUIC_FAILURE will be returned.
   // - callback()->OnSelectCertificateDone should be invoked before the function
