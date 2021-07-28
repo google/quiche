@@ -123,6 +123,11 @@ void FakeProofSource::ComputeTlsSignature(
       std::move(callback), delegate_.get()));
 }
 
+absl::InlinedVector<uint16_t, 8>
+FakeProofSource::SupportedTlsSignatureAlgorithms() const {
+  return delegate_->SupportedTlsSignatureAlgorithms();
+}
+
 ProofSource::TicketCrypter* FakeProofSource::GetTicketCrypter() {
   if (ticket_crypter_) {
     return ticket_crypter_.get();

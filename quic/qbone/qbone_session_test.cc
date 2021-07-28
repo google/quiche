@@ -117,6 +117,14 @@ class IndirectionProofSource : public ProofSource {
                                        std::move(callback));
   }
 
+  absl::InlinedVector<uint16_t, 8> SupportedTlsSignatureAlgorithms()
+      const override {
+    if (!proof_source_) {
+      return {};
+    }
+    return proof_source_->SupportedTlsSignatureAlgorithms();
+  }
+
   TicketCrypter* GetTicketCrypter() override { return nullptr; }
 
  private:

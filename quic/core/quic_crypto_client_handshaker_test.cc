@@ -105,6 +105,11 @@ class DummyProofSource : public ProofSource {
     callback->Run(true, "Dummy signature", /*details=*/nullptr);
   }
 
+  absl::InlinedVector<uint16_t, 8> SupportedTlsSignatureAlgorithms()
+      const override {
+    return {};
+  }
+
   TicketCrypter* GetTicketCrypter() override { return nullptr; }
 };
 

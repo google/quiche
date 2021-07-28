@@ -840,7 +840,7 @@ struct QUIC_NO_EXPORT QuicSSLConfig {
   absl::optional<bool> early_data_enabled;
   // If set, used to configure the SSL object with
   // SSL_set_signing_algorithm_prefs.
-  absl::optional<absl::InlinedVector<uint16_t, 4>> signing_algorithm_prefs;
+  absl::optional<absl::InlinedVector<uint16_t, 8>> signing_algorithm_prefs;
 };
 
 }  // namespace quic

@@ -52,6 +52,8 @@ class FakeProofSource : public ProofSource {
       uint16_t signature_algorithm,
       absl::string_view in,
       std::unique_ptr<ProofSource::SignatureCallback> callback) override;
+  absl::InlinedVector<uint16_t, 8> SupportedTlsSignatureAlgorithms()
+      const override;
   TicketCrypter* GetTicketCrypter() override;
 
   // Sets the TicketCrypter to use. If nullptr, the TicketCrypter from

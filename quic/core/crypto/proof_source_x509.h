@@ -41,11 +41,11 @@ class QUIC_EXPORT_PRIVATE ProofSourceX509 : public ProofSource {
       const std::string& hostname) override;
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
-      const QuicSocketAddress& client_address,
-      const std::string& hostname,
-      uint16_t signature_algorithm,
-      absl::string_view in,
+      const QuicSocketAddress& client_address, const std::string& hostname,
+      uint16_t signature_algorithm, absl::string_view in,
       std::unique_ptr<SignatureCallback> callback) override;
+  absl::InlinedVector<uint16_t, 8> SupportedTlsSignatureAlgorithms()
+      const override;
   TicketCrypter* GetTicketCrypter() override;
 
   // Adds a certificate chain to the verifier.  Returns false if the chain is

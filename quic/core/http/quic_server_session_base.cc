@@ -282,4 +282,23 @@ void QuicServerSessionBase::SendSettingsToCryptoStream() {
       std::move(serialized_settings));
 }
 
+QuicSSLConfig QuicServerSessionBase::GetSSLConfig() const {
+  QUICHE_DCHECK(crypto_config_ && crypto_config_->proof_source());
+
+  QuicSSLConfig ssl_config = QuicSpdySession::GetSSLConfig();
+  if (!GetQuicReloadableFlag(quic_tls_set_signature_algorithm_prefs) ||
+      !crypto_config_ || !crypto_config_->proof_source()) {
+    return ssl_config;
+  }
+
+  absl::InlinedVector<uint16_t, 8> signature_algorithms =
+      crypto_config_->proof_source()->SupportedTlsSignatureAlgorithms();
+  if (!signature_algorithms.empty()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_set_signature_algorithm_prefs, 1, 2);
+    ssl_config.signing_algorithm_prefs = std::move(signature_algorithms);
+  }
+
+  return ssl_config;
+}
+
 }  // namespace quic

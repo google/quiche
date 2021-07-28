@@ -68,6 +68,8 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
     serving_region_ = serving_region;
   }
 
+  QuicSSLConfig GetSSLConfig() const override;
+
  protected:
   // QuicSession methods(override them with return type of QuicSpdyStream*):
   QuicCryptoServerStreamBase* GetMutableCryptoStream() override;

@@ -166,6 +166,15 @@ class QUIC_EXPORT_PRIVATE ProofSource {
       absl::string_view in,
       std::unique_ptr<SignatureCallback> callback) = 0;
 
+  // Return the list of TLS signature algorithms that is acceptable by the
+  // ComputeTlsSignature method. If the entire BoringSSL's default list of
+  // supported signature algorithms are acceptable, return an empty list.
+  //
+  // If returns a non-empty list, ComputeTlsSignature will only be called with a
+  // algorithm in the list.
+  virtual absl::InlinedVector<uint16_t, 8> SupportedTlsSignatureAlgorithms()
+      const = 0;
+
   class QUIC_EXPORT_PRIVATE DecryptCallback {
    public:
     DecryptCallback() = default;

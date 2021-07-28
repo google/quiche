@@ -80,6 +80,13 @@ void ProofSourceX509::ComputeTlsSignature(
   callback->Run(/*ok=*/!signature.empty(), signature, nullptr);
 }
 
+absl::InlinedVector<uint16_t, 8>
+ProofSourceX509::SupportedTlsSignatureAlgorithms() const {
+  // Let ComputeTlsSignature() report an error if a bad signature algorithm is
+  // requested.
+  return {};
+}
+
 ProofSource::TicketCrypter* ProofSourceX509::GetTicketCrypter() {
   return nullptr;
 }
