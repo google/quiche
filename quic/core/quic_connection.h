@@ -1244,10 +1244,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Instantiates connection ID manager.
   void CreateConnectionIdManager();
 
-  bool donot_write_mid_packet_processing() const {
-    return donot_write_mid_packet_processing_;
-  }
-
   QuicConnectionContext* context() { return &context_; }
   const QuicConnectionContext* context() const { return &context_; }
 
@@ -2263,9 +2259,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool validate_client_addresses_ = false;
 
   bool support_multiple_connection_ids_ = false;
-
-  const bool donot_write_mid_packet_processing_ =
-      GetQuicReloadableFlag(quic_donot_write_mid_packet_processing);
 
   // Indicates whether we should proactively validate peer address on a
   // PATH_CHALLENGE received.

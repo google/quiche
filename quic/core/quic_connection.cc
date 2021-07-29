@@ -2925,9 +2925,7 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
     }
   }
 
-  const bool processed = MaybeProcessCoalescedPackets();
-  if (!donot_write_mid_packet_processing_ || !processed) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_donot_write_mid_packet_processing, 3, 3);
+  if (!MaybeProcessCoalescedPackets()) {
     MaybeProcessUndecryptablePackets();
     MaybeSendInResponseToPacket();
   }
@@ -3008,7 +3006,7 @@ void QuicConnection::OnCanWrite() {
 }
 
 void QuicConnection::WriteIfNotBlocked() {
-  if (donot_write_mid_packet_processing_ && framer().is_processing_packet()) {
+  if (framer().is_processing_packet()) {
     QUIC_BUG(connection_write_mid_packet_processing)
         << ENDPOINT << "Tried to write in mid of packet processing";
     return;
@@ -4586,11 +4584,7 @@ bool QuicConnection::MaybeProcessCoalescedPackets() {
   }
   if (processed) {
     MaybeProcessUndecryptablePackets();
-    if (donot_write_mid_packet_processing_) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_donot_write_mid_packet_processing, 2,
-                                   3);
-      MaybeSendInResponseToPacket();
-    }
+    MaybeSendInResponseToPacket();
   }
   return processed;
 }

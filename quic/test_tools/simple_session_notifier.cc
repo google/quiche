@@ -162,16 +162,14 @@ void SimpleSessionNotifier::NeuterUnencryptedData() {
 }
 
 void SimpleSessionNotifier::OnCanWrite() {
-  if (connection_->donot_write_mid_packet_processing()) {
-    if (connection_->framer().is_processing_packet()) {
-      // Do not write data in the middle of packet processing because rest
-      // frames in the packet may change the data to write. For example, lost
-      // data could be acknowledged. Also, connection is going to emit
-      // OnCanWrite signal post packet processing.
-      QUIC_BUG(simple_notifier_write_mid_packet_processing)
-          << "Try to write mid packet processing.";
-      return;
-    }
+  if (connection_->framer().is_processing_packet()) {
+    // Do not write data in the middle of packet processing because rest
+    // frames in the packet may change the data to write. For example, lost
+    // data could be acknowledged. Also, connection is going to emit
+    // OnCanWrite signal post packet processing.
+    QUIC_BUG(simple_notifier_write_mid_packet_processing)
+        << "Try to write mid packet processing.";
+    return;
   }
   if (!RetransmitLostCryptoData() || !RetransmitLostControlFrames() ||
       !RetransmitLostStreamData()) {

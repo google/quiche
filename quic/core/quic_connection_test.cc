@@ -12722,10 +12722,6 @@ TEST_P(QuicConnectionTest, ZeroRttRejectionAndMissingInitialKeys) {
           connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                                    std::make_unique<TaggingEncrypter>(0x04));
           connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-          if (!GetQuicReloadableFlag(quic_donot_write_mid_packet_processing)) {
-            // Retransmit rejected 0-RTT packets.
-            connection_.OnCanWrite();
-          }
           // Advance INITIAL ack delay to trigger initial ACK to be sent AFTER
           // the retransmission of rejected 0-RTT packets while the HANDSHAKE
           // packet is still in the coalescer, such that the INITIAL key gets
@@ -14994,23 +14990,13 @@ TEST_P(QuicConnectionTest, LostDataThenGetAcknowledged) {
           InvokeWithoutArgs(&notifier_, &SimpleSessionNotifier::OnCanWrite));
   QuicIpAddress ip_address;
   ASSERT_TRUE(ip_address.FromString("127.0.52.223"));
-  if (GetQuicReloadableFlag(quic_donot_write_mid_packet_processing)) {
-    EXPECT_QUIC_BUG(
-        ProcessFramesPacketWithAddresses(frames, kSelfAddress,
-                                         QuicSocketAddress(ip_address, 1000),
-                                         ENCRYPTION_FORWARD_SECURE),
-        "Try to write mid packet processing");
-    EXPECT_EQ(1u, writer_->path_challenge_frames().size());
-    // Verify stream frame will not be retransmitted.
-    EXPECT_TRUE(writer_->stream_frames().empty());
-  } else {
-    ProcessFramesPacketWithAddresses(frames, kSelfAddress,
-                                     QuicSocketAddress(ip_address, 1000),
-                                     ENCRYPTION_FORWARD_SECURE);
-    // In prod, this would cause FAILED_TO_SERIALIZE_PACKET since the stream
-    // data has been freed, but simple_data_producer does not free data.
-    EXPECT_EQ(1u, writer_->stream_frames().size());
-  }
+  EXPECT_QUIC_BUG(ProcessFramesPacketWithAddresses(
+                      frames, kSelfAddress, QuicSocketAddress(ip_address, 1000),
+                      ENCRYPTION_FORWARD_SECURE),
+                  "Try to write mid packet processing");
+  EXPECT_EQ(1u, writer_->path_challenge_frames().size());
+  // Verify stream frame will not be retransmitted.
+  EXPECT_TRUE(writer_->stream_frames().empty());
 }
 
 TEST_P(QuicConnectionTest, PtoSendStreamData) {
