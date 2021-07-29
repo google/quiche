@@ -121,18 +121,12 @@ class QUIC_NO_EXPORT QuicDispatcher
   void OnConnectionAddedToTimeWaitList(
       QuicConnectionId server_connection_id) override;
 
-  using SessionMap = absl::flat_hash_map<QuicConnectionId,
-                                         std::unique_ptr<QuicSession>,
-                                         QuicConnectionIdHash>;
-
   using ReferenceCountedSessionMap =
       absl::flat_hash_map<QuicConnectionId,
                           std::shared_ptr<QuicSession>,
                           QuicConnectionIdHash>;
 
   size_t NumSessions() const;
-
-  const SessionMap& session_map() const { return session_map_; }
 
   // Deletes all sessions on the closed session list and clears the list.
   virtual void DeleteSessions();
@@ -420,7 +414,6 @@ class QUIC_NO_EXPORT QuicDispatcher
   // The list of connections waiting to write.
   WriteBlockedList write_blocked_list_;
 
-  SessionMap session_map_;
   ReferenceCountedSessionMap reference_counted_session_map_;
 
   // Entity that manages connection_ids in time wait state.
