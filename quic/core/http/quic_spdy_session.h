@@ -678,6 +678,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Limited to kMaxUnassociatedWebTransportStreams; when the list is full,
   // oldest streams are evicated first.
   std::list<BufferedWebTransportStream> buffered_streams_;
+
+  // Latched value of flag_quic_decline_server_push_stream.
+  const bool decline_server_push_stream_ =
+      GetQuicReloadableFlag(quic_decline_server_push_stream);
 };
 
 }  // namespace quic

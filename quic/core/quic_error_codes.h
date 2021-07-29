@@ -510,6 +510,9 @@ enum QuicErrorCode {
   QUIC_HTTP_RECEIVE_SPDY_SETTING = 169,
   // HTTP/3 session received an HTTP/2 only frame.
   QUIC_HTTP_RECEIVE_SPDY_FRAME = 171,
+  // HTTP/3 session received SERVER_PUSH stream, which is an error because
+  // PUSH_PROMISE is not accepted.
+  QUIC_HTTP_RECEIVE_SERVER_PUSH = 205,
 
   // HPACK header block decoding errors.
   // Index varint beyond implementation limit.
@@ -597,7 +600,7 @@ enum QuicErrorCode {
   QUIC_TLS_CERTIFICATE_REQUIRED = 202,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 205,
+  QUIC_LAST_ERROR = 206,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

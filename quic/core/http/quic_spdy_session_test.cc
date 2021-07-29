@@ -2007,25 +2007,33 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPush) {
   std::string frame_type1 = absl::HexStringToBytes("01");
   QuicStreamId stream_id1 =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
-  session_.OnStreamFrame(QuicStreamFrame(stream_id1, /* fin = */ false,
-                                         /* offset = */ 0, frame_type1));
+  if (!GetQuicReloadableFlag(quic_decline_server_push_stream)) {
+    session_.OnStreamFrame(QuicStreamFrame(stream_id1, /* fin = */ false,
+                                           /* offset = */ 0, frame_type1));
 
-  EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
-  QuicStream* stream = session_.GetOrCreateStream(stream_id1);
-  EXPECT_EQ(1u, QuicStreamPeer::bytes_consumed(stream));
-  EXPECT_EQ(1u, session_.flow_controller()->bytes_consumed());
+    EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
+    QuicStream* stream = session_.GetOrCreateStream(stream_id1);
+    EXPECT_EQ(1u, QuicStreamPeer::bytes_consumed(stream));
+    EXPECT_EQ(1u, session_.flow_controller()->bytes_consumed());
 
-  // The same stream type can be encoded differently.
-  std::string frame_type2 = absl::HexStringToBytes("80000001");
-  QuicStreamId stream_id2 =
-      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 1);
-  session_.OnStreamFrame(QuicStreamFrame(stream_id2, /* fin = */ false,
-                                         /* offset = */ 0, frame_type2));
+    // The same stream type can be encoded differently.
+    std::string frame_type2 = absl::HexStringToBytes("80000001");
+    QuicStreamId stream_id2 =
+        GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 1);
+    session_.OnStreamFrame(QuicStreamFrame(stream_id2, /* fin = */ false,
+                                           /* offset = */ 0, frame_type2));
 
-  EXPECT_EQ(2u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
-  stream = session_.GetOrCreateStream(stream_id2);
-  EXPECT_EQ(4u, QuicStreamPeer::bytes_consumed(stream));
-  EXPECT_EQ(5u, session_.flow_controller()->bytes_consumed());
+    EXPECT_EQ(2u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
+    stream = session_.GetOrCreateStream(stream_id2);
+    EXPECT_EQ(4u, QuicStreamPeer::bytes_consumed(stream));
+    EXPECT_EQ(5u, session_.flow_controller()->bytes_consumed());
+  } else {
+    EXPECT_CALL(*connection_,
+                CloseConnection(QUIC_HTTP_RECEIVE_SERVER_PUSH, _, _))
+        .Times(1);
+    session_.OnStreamFrame(QuicStreamFrame(stream_id1, /* fin = */ false,
+                                           /* offset = */ 0, frame_type1));
+  }
 }
 
 TEST_P(QuicSpdySessionTestClient, Http3ServerPushOutofOrderFrame) {
@@ -2053,10 +2061,17 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPushOutofOrderFrame) {
   session_.OnStreamFrame(data2);
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
 
-  session_.OnStreamFrame(data1);
-  EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
-  QuicStream* stream = session_.GetOrCreateStream(stream_id);
-  EXPECT_EQ(3u, stream->highest_received_byte_offset());
+  if (!GetQuicReloadableFlag(quic_decline_server_push_stream)) {
+    session_.OnStreamFrame(data1);
+    EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
+    QuicStream* stream = session_.GetOrCreateStream(stream_id);
+    EXPECT_EQ(3u, stream->highest_received_byte_offset());
+  } else {
+    EXPECT_CALL(*connection_,
+                CloseConnection(QUIC_HTTP_RECEIVE_SERVER_PUSH, _, _))
+        .Times(1);
+    session_.OnStreamFrame(data1);
+  }
 }
 
 TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
