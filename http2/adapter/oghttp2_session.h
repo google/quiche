@@ -164,6 +164,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     bool half_closed_local = false;
     bool half_closed_remote = false;
   };
+  using StreamStateMap = absl::flat_hash_map<Http2StreamId, StreamState>;
 
   class QUICHE_EXPORT_PRIVATE PassthroughHeadersHandler
       : public spdy::SpdyHeadersHandlerInterface {
@@ -210,6 +211,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Performs flow control accounting for data sent by the peer.
   void MarkDataBuffered(Http2StreamId stream_id, size_t bytes);
 
+  // Creates a stream and returns an iterator pointing to it.
+  StreamStateMap::iterator CreateStream(Http2StreamId stream_id);
+
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
 
@@ -220,7 +224,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   http2::Http2DecoderAdapter decoder_;
 
   // Maintains the state of all streams known to this session.
-  absl::flat_hash_map<Http2StreamId, StreamState> stream_map_;
+  StreamStateMap stream_map_;
 
   // Maintains the queue of outbound frames, and any serialized bytes that have
   // not yet been consumed.

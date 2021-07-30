@@ -432,19 +432,8 @@ int32_t OgHttp2Session::SubmitRequest(
   auto frame =
       absl::make_unique<spdy::SpdyHeadersIR>(stream_id, ToHeaderBlock(headers));
   // Add data source and user data to stream state
-  WindowManager::WindowUpdateListener listener =
-      [this, stream_id](size_t window_update_delta) {
-        SendWindowUpdate(stream_id, window_update_delta);
-      };
-  absl::flat_hash_map<Http2StreamId, StreamState>::iterator iter;
-  bool inserted;
-  std::tie(iter, inserted) = stream_map_.try_emplace(
-      stream_id,
-      StreamState(stream_receive_window_limit_, std::move(listener)));
-  if (!inserted) {
-    QUICHE_LOG(DFATAL) << "Stream " << stream_id << " already exists!";
-    return -501;  // NGHTTP2_ERR_INVALID_ARGUMENT
-  }
+  auto iter = CreateStream(stream_id);
+  write_scheduler_.MarkStreamReady(stream_id, false);
   if (data_source == nullptr) {
     frame->set_fin(true);
     iter->second.half_closed_local = true;
@@ -452,10 +441,6 @@ int32_t OgHttp2Session::SubmitRequest(
     iter->second.outbound_body = std::move(data_source);
   }
   iter->second.user_data = user_data;
-  // Add the stream to the write scheduler.
-  const WriteScheduler::StreamPrecedenceType precedence(3);
-  write_scheduler_.RegisterStream(stream_id, precedence);
-  write_scheduler_.MarkStreamReady(stream_id, false);
   // Enqueue headers frame
   EnqueueFrame(std::move(frame));
   return stream_id;
@@ -642,17 +627,7 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
                                spdy::SpdyStreamId /*parent_stream_id*/,
                                bool /*exclusive*/, bool /*fin*/, bool /*end*/) {
   if (options_.perspective == Perspective::kServer) {
-    WindowManager::WindowUpdateListener listener =
-        [this, stream_id](size_t window_update_delta) {
-          SendWindowUpdate(stream_id, window_update_delta);
-        };
-    // TODO(birenroy): Factor out a CreateStream() method from here and
-    // SubmitRequest().
-    stream_map_.try_emplace(stream_id, StreamState(stream_receive_window_limit_,
-                                                   std::move(listener)));
-    // Add the stream to the write scheduler.
-    const WriteScheduler::StreamPrecedenceType precedence(3);
-    write_scheduler_.RegisterStream(stream_id, precedence);
+    CreateStream(stream_id);
   }
 }
 
@@ -770,6 +745,25 @@ void OgHttp2Session::MarkDataBuffered(Http2StreamId stream_id, size_t bytes) {
   if (it != stream_map_.end()) {
     it->second.window_manager.MarkDataBuffered(bytes);
   }
+}
+
+OgHttp2Session::StreamStateMap::iterator OgHttp2Session::CreateStream(
+    Http2StreamId stream_id) {
+  WindowManager::WindowUpdateListener listener =
+      [this, stream_id](size_t window_update_delta) {
+        SendWindowUpdate(stream_id, window_update_delta);
+      };
+  absl::flat_hash_map<Http2StreamId, StreamState>::iterator iter;
+  bool inserted;
+  std::tie(iter, inserted) = stream_map_.try_emplace(
+      stream_id,
+      StreamState(stream_receive_window_limit_, std::move(listener)));
+  if (inserted) {
+    // Add the stream to the write scheduler.
+    const WriteScheduler::StreamPrecedenceType precedence(3);
+    write_scheduler_.RegisterStream(stream_id, precedence);
+  }
+  return iter;
 }
 
 }  // namespace adapter
