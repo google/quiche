@@ -37,13 +37,13 @@ class QUICHE_NO_EXPORT TestFrameSequence {
   TestFrameSequence& Headers(
       Http2StreamId stream_id,
       absl::Span<const std::pair<absl::string_view, absl::string_view>> headers,
-      bool fin = false);
+      bool fin = false, bool add_continuation = false);
   TestFrameSequence& Headers(Http2StreamId stream_id,
-                             spdy::Http2HeaderBlock block,
-                             bool fin = false);
+                             spdy::Http2HeaderBlock block, bool fin = false,
+                             bool add_continuation = false);
   TestFrameSequence& Headers(Http2StreamId stream_id,
-                             absl::Span<const Header> headers,
-                             bool fin = false);
+                             absl::Span<const Header> headers, bool fin = false,
+                             bool add_continuation = false);
   TestFrameSequence& WindowUpdate(Http2StreamId stream_id, int32_t delta);
   TestFrameSequence& Priority(Http2StreamId stream_id,
                               Http2StreamId parent_stream_id,

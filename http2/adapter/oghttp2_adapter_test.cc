@@ -23,6 +23,7 @@ enum FrameType {
   PING,
   GOAWAY,
   WINDOW_UPDATE,
+  CONTINUATION,
 };
 
 using spdy::SpdyFrameType;
@@ -610,6 +611,43 @@ TEST_F(OgHttp2AdapterTest, TestPartialSerialize) {
   EXPECT_THAT(http2_visitor_.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY,
                             SpdyFrameType::PING}));
+}
+
+TEST(OgHttp2AdapterServerTest, ClientSendsContinuation) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+  EXPECT_FALSE(adapter->session().want_write());
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/true,
+                                          /*add_continuation=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 1));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "GET"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, CONTINUATION, 4));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  const size_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), result);
 }
 
 TEST(OgHttp2AdapterServerTest, ServerSendsInvalidTrailers) {
