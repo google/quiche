@@ -72,11 +72,25 @@ void CallbackVisitor::OnFrameHeader(Http2StreamId stream_id,
                                     size_t length,
                                     uint8_t type,
                                     uint8_t flags) {
+  QUICHE_VLOG(1) << "CallbackVisitor::OnFrameHeader(stream_id: " << stream_id
+                 << ", len: " << length << ", type: " << int(type)
+                 << ", flags: " << int(flags) << ")";
   if (static_cast<FrameType>(type) == FrameType::CONTINUATION) {
     // Treat CONTINUATION as HEADERS
     QUICHE_DCHECK_EQ(current_frame_.hd.stream_id, stream_id);
     current_frame_.hd.length += length;
     current_frame_.hd.flags |= flags;
+    QUICHE_DLOG_IF(ERROR, length == 0) << "Empty CONTINUATION!";
+    // Still need to deliver the CONTINUATION to the begin frame callback.
+    nghttp2_frame_hd hd;
+    memset(&hd, 0, sizeof(hd));
+    hd.stream_id = stream_id;
+    hd.length = length;
+    hd.type = type;
+    hd.flags = flags;
+    if (callbacks_->on_begin_frame_callback) {
+      callbacks_->on_begin_frame_callback(nullptr, &hd, user_data_);
+    }
     return;
   }
   // The general strategy is to clear |current_frame_| at the start of a new
@@ -88,9 +102,6 @@ void CallbackVisitor::OnFrameHeader(Http2StreamId stream_id,
   current_frame_.hd.type = type;
   current_frame_.hd.flags = flags;
   if (callbacks_->on_begin_frame_callback) {
-    QUICHE_VLOG(1) << "CallbackVisitor::OnFrameHeader(stream_id: " << stream_id
-                   << ", len: " << length << ", type: " << int(type)
-                   << ", flags: " << int(flags) << ")";
     callbacks_->on_begin_frame_callback(nullptr, &current_frame_.hd,
                                         user_data_);
   }

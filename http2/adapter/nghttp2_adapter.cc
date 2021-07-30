@@ -98,6 +98,7 @@ void NgHttp2Adapter::SubmitMetadata(Http2StreamId /*stream_id*/,
 int NgHttp2Adapter::Send() {
   const int result = nghttp2_session_send(session_->raw_ptr());
   if (result != 0) {
+    QUICHE_VLOG(1) << "nghttp2_session_send returned " << result;
     visitor_.OnConnectionError();
   }
   return result;

@@ -22,6 +22,7 @@ enum FrameType {
   PING,
   GOAWAY,
   WINDOW_UPDATE,
+  CONTINUATION,
 };
 
 // Tests connection-level events.
@@ -176,6 +177,41 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
                                          &written);
   ASSERT_EQ(written, kExampleFrame.size());
   EXPECT_EQ(absl::string_view(metadata_dest, written), kExampleFrame);
+}
+
+TEST(ClientCallbackVisitorUnitTest, HeadersWithContinuation) {
+  testing::StrictMock<MockNghttp2Callbacks> callbacks;
+  CallbackVisitor visitor(Perspective::kClient,
+                          *MockNghttp2Callbacks::GetCallbacks(), &callbacks);
+
+  testing::InSequence seq;
+
+  // HEADERS on stream 1
+  EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(1, HEADERS, 0x0)));
+  visitor.OnFrameHeader(1, 23, HEADERS, 0x0);
+
+  EXPECT_CALL(callbacks,
+              OnBeginHeaders(IsHeaders(1, _, NGHTTP2_HCAT_RESPONSE)));
+  visitor.OnBeginHeadersForStream(1);
+
+  EXPECT_CALL(callbacks, OnHeader(_, ":status", "200", _));
+  visitor.OnHeaderForStream(1, ":status", "200");
+
+  EXPECT_CALL(callbacks, OnHeader(_, "server", "my-fake-server", _));
+  visitor.OnHeaderForStream(1, "server", "my-fake-server");
+
+  EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(1, CONTINUATION, 0x4)));
+  visitor.OnFrameHeader(1, 23, CONTINUATION, 0x4);
+
+  EXPECT_CALL(callbacks,
+              OnHeader(_, "date", "Tue, 6 Apr 2021 12:54:01 GMT", _));
+  visitor.OnHeaderForStream(1, "date", "Tue, 6 Apr 2021 12:54:01 GMT");
+
+  EXPECT_CALL(callbacks, OnHeader(_, "trailer", "x-server-status", _));
+  visitor.OnHeaderForStream(1, "trailer", "x-server-status");
+
+  EXPECT_CALL(callbacks, OnFrameRecv(IsHeaders(1, _, NGHTTP2_HCAT_RESPONSE)));
+  visitor.OnEndHeadersForStream(1);
 }
 
 TEST(ServerCallbackVisitorUnitTest, ConnectionFrames) {
