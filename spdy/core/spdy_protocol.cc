@@ -446,7 +446,6 @@ size_t SpdyGoAwayIR::size() const {
 
 SpdyContinuationIR::SpdyContinuationIR(SpdyStreamId stream_id)
     : SpdyFrameIR(stream_id), end_headers_(false) {
-  encoding_ = std::make_unique<std::string>();
 }
 
 SpdyContinuationIR::~SpdyContinuationIR() = default;

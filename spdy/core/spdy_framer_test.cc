@@ -1041,8 +1041,7 @@ TEST_P(SpdyFramerTest, ContinuationWithStreamIdZero) {
   deframer_.set_visitor(&visitor);
 
   SpdyContinuationIR continuation(/* stream_id = */ 0);
-  auto some_nonsense_encoding =
-      std::make_unique<std::string>("some nonsense encoding");
+  std::string some_nonsense_encoding = "some nonsense encoding";
   continuation.take_encoding(std::move(some_nonsense_encoding));
   continuation.set_end_headers(true);
   SpdySerializedFrame frame(framer_.SerializeContinuation(continuation));
@@ -2316,10 +2315,10 @@ TEST_P(SpdyFramerTest, CreateContinuationUncompressed) {
   Http2HeaderBlock header_block;
   header_block["bar"] = "foo";
   header_block["foo"] = "bar";
-  auto buffer = std::make_unique<std::string>();
+  std::string buffer;
   HpackEncoder encoder;
   encoder.DisableCompression();
-  encoder.EncodeHeaderSet(header_block, buffer.get());
+  encoder.EncodeHeaderSet(header_block, &buffer);
 
   SpdyContinuationIR continuation(/* stream_id = */ 42);
   continuation.take_encoding(std::move(buffer));

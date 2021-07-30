@@ -827,14 +827,12 @@ class QUICHE_EXPORT_PRIVATE SpdyContinuationIR : public SpdyFrameIR {
 
   bool end_headers() const { return end_headers_; }
   void set_end_headers(bool end_headers) { end_headers_ = end_headers; }
-  const std::string& encoding() const { return *encoding_; }
-  void take_encoding(std::unique_ptr<std::string> encoding) {
-    encoding_ = std::move(encoding);
-  }
+  const std::string& encoding() const { return encoding_; }
+  void take_encoding(std::string encoding) { encoding_ = std::move(encoding); }
   size_t size() const override;
 
  private:
-  std::unique_ptr<std::string> encoding_;
+  std::string encoding_;
   bool end_headers_;
 };
 
