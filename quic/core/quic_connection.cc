@@ -4251,7 +4251,7 @@ void QuicConnection::OnRetransmissionTimeout() {
       blackhole_detector_.IsDetectionInProgress()) {
     // Stop detection in quiescence.
     QUICHE_DCHECK_EQ(QuicSentPacketManager::LOSS_MODE, retransmission_mode);
-    blackhole_detector_.StopDetection();
+    blackhole_detector_.StopDetection(/*permanent=*/false);
   }
   WriteIfNotBlocked();
 
@@ -4766,15 +4766,15 @@ void QuicConnection::TearDownLocalConnectionState(
 void QuicConnection::CancelAllAlarms() {
   QUIC_DVLOG(1) << "Cancelling all QuicConnection alarms.";
 
-  ack_alarm_->Cancel();
-  ping_alarm_->Cancel();
-  retransmission_alarm_->Cancel();
-  send_alarm_->Cancel();
-  mtu_discovery_alarm_->Cancel();
-  process_undecryptable_packets_alarm_->Cancel();
-  discard_previous_one_rtt_keys_alarm_->Cancel();
-  discard_zero_rtt_decryption_keys_alarm_->Cancel();
-  blackhole_detector_.StopDetection();
+  ack_alarm_->PermanentCancel();
+  ping_alarm_->PermanentCancel();
+  retransmission_alarm_->PermanentCancel();
+  send_alarm_->PermanentCancel();
+  mtu_discovery_alarm_->PermanentCancel();
+  process_undecryptable_packets_alarm_->PermanentCancel();
+  discard_previous_one_rtt_keys_alarm_->PermanentCancel();
+  discard_zero_rtt_decryption_keys_alarm_->PermanentCancel();
+  blackhole_detector_.StopDetection(/*permanent=*/true);
   idle_network_detector_.StopDetection();
 }
 
@@ -4808,6 +4808,9 @@ void QuicConnection::SetNetworkTimeouts(QuicTime::Delta handshake_timeout,
 }
 
 void QuicConnection::SetPingAlarm() {
+  if (!connected_) {
+    return;
+  }
   if (perspective_ == Perspective::IS_SERVER &&
       initial_retransmittable_on_wire_timeout_.IsInfinite()) {
     // The PING alarm exists to support two features:
@@ -5806,7 +5809,7 @@ void QuicConnection::PostProcessAfterAckFrame(bool send_stop_waiting,
     // In case no new packets get acknowledged, it is possible packets are
     // detected lost because of time based loss detection. Cancel blackhole
     // detection if there is no packets in flight.
-    blackhole_detector_.StopDetection();
+    blackhole_detector_.StopDetection(/*permanent=*/false);
   }
 
   if (send_stop_waiting) {
@@ -6186,6 +6189,9 @@ void QuicConnection::SetLargestReceivedPacketWithAck(
 }
 
 void QuicConnection::OnForwardProgressMade() {
+  if (GetQuicRestartFlag(quic_alarm_add_permanent_cancel) && !connected_) {
+    return;
+  }
   if (is_path_degrading_) {
     visitor_->OnForwardProgressMadeAfterPathDegrading();
     is_path_degrading_ = false;
@@ -6197,7 +6203,7 @@ void QuicConnection::OnForwardProgressMade() {
                                          GetPathMtuReductionDeadline());
   } else {
     // Stop detections in quiecense.
-    blackhole_detector_.StopDetection();
+    blackhole_detector_.StopDetection(/*permanent=*/false);
   }
   QUIC_BUG_IF(quic_bug_12714_35,
               default_enable_5rto_blackhole_detection_ &&
@@ -7159,7 +7165,7 @@ QuicConnection::OnPeerIpAddressChanged() {
   // re-arm it.
   SetRetransmissionAlarm();
   // Stop detections in quiecense.
-  blackhole_detector_.StopDetection();
+  blackhole_detector_.StopDetection(/*permanent=*/false);
   return old_send_algorithm;
 }
 

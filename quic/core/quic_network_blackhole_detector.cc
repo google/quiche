@@ -64,8 +64,12 @@ void QuicNetworkBlackholeDetector::OnAlarm() {
   UpdateAlarm();
 }
 
-void QuicNetworkBlackholeDetector::StopDetection() {
-  alarm_->Cancel();
+void QuicNetworkBlackholeDetector::StopDetection(bool permanent) {
+  if (permanent) {
+    alarm_->PermanentCancel();
+  } else {
+    alarm_->Cancel();
+  }
   path_degrading_deadline_ = QuicTime::Zero();
   blackhole_deadline_ = QuicTime::Zero();
   path_mtu_reduction_deadline_ = QuicTime::Zero();
@@ -108,6 +112,12 @@ QuicTime QuicNetworkBlackholeDetector::GetLastDeadline() const {
 }
 
 void QuicNetworkBlackholeDetector::UpdateAlarm() const {
+  // If called after OnBlackholeDetected(), the alarm may have been permanently
+  // cancelled and is not safe to be armed again.
+  if (alarm_->IsPermanentlyCancelled()) {
+    return;
+  }
+
   QuicTime next_deadline = GetEarliestDeadline();
 
   QUIC_DVLOG(1) << "Updating alarm. next_deadline:" << next_deadline

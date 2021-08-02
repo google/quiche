@@ -166,7 +166,12 @@ void QuicSession::Initialize() {
                    GetMutableCryptoStream()->id());
 }
 
-QuicSession::~QuicSession() {}
+QuicSession::~QuicSession() {
+  if (GetQuicRestartFlag(quic_alarm_add_permanent_cancel) &&
+      closed_streams_clean_up_alarm_ != nullptr) {
+    closed_streams_clean_up_alarm_->PermanentCancel();
+  }
+}
 
 void QuicSession::PendingStreamOnStreamFrame(const QuicStreamFrame& frame) {
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));

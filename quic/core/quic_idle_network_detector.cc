@@ -70,7 +70,7 @@ void QuicIdleNetworkDetector::SetTimeouts(
 }
 
 void QuicIdleNetworkDetector::StopDetection() {
-  alarm_->Cancel();
+  alarm_->PermanentCancel();
   handshake_timeout_ = QuicTime::Delta::Infinite();
   idle_network_timeout_ = QuicTime::Delta::Infinite();
   stopped_ = true;

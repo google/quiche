@@ -68,7 +68,14 @@ PacketDroppingTestWriter::PacketDroppingTestWriter()
   simple_random_.set_seed(seed);
 }
 
-PacketDroppingTestWriter::~PacketDroppingTestWriter() = default;
+PacketDroppingTestWriter::~PacketDroppingTestWriter() {
+  if (write_unblocked_alarm_ != nullptr) {
+    write_unblocked_alarm_->PermanentCancel();
+  }
+  if (delay_alarm_ != nullptr) {
+    delay_alarm_->PermanentCancel();
+  }
+}
 
 void PacketDroppingTestWriter::Initialize(
     QuicConnectionHelperInterface* helper,

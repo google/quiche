@@ -106,7 +106,7 @@ TEST_F(QuicNetworkBlackholeDetectorTest, RestartAndStop) {
   RestartDetection();
   EXPECT_EQ(clock_.Now() + path_degrading_delay_, alarm_->deadline());
 
-  detector_.StopDetection();
+  detector_.StopDetection(/*permanent=*/false);
   EXPECT_FALSE(detector_.IsDetectionInProgress());
 }
 

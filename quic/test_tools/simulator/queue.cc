@@ -26,7 +26,7 @@ Queue::Queue(Simulator* simulator, std::string name, QuicByteCount capacity)
       new AggregationAlarmDelegate(this)));
 }
 
-Queue::~Queue() {}
+Queue::~Queue() { aggregation_timeout_alarm_->PermanentCancel(); }
 
 void Queue::set_tx_port(ConstrainedPortInterface* port) {
   tx_port_ = port;

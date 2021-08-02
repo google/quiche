@@ -4,30 +4,70 @@
 
 #include "quic/core/quic_alarm.h"
 
+#include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_flags.h"
+#include "quic/platform/api/quic_stack_trace.h"
+
 namespace quic {
 
 QuicAlarm::QuicAlarm(QuicArenaScopedPtr<Delegate> delegate)
     : delegate_(std::move(delegate)), deadline_(QuicTime::Zero()) {}
 
-QuicAlarm::~QuicAlarm() {}
+QuicAlarm::~QuicAlarm() {
+  if (IsSet()) {
+    QUIC_LOG_EVERY_N_SEC(ERROR, 10 * 60)
+        << "QuicAlarm not cancelled at destruction. This message is rate "
+           "limited to once every 10 minutes. "
+        << QuicStackTrace();
+  }
+}
 
 void QuicAlarm::Set(QuicTime new_deadline) {
   QUICHE_DCHECK(!IsSet());
   QUICHE_DCHECK(new_deadline.IsInitialized());
+
+  if (IsPermanentlyCancelled()) {
+    QUIC_BUG(quic_alarm_illegal_set)
+        << "Set called after alarm is permanently cancelled. new_deadline:"
+        << new_deadline;
+    return;
+  }
+
   deadline_ = new_deadline;
   SetImpl();
 }
 
-void QuicAlarm::Cancel() {
-  if (!IsSet()) {
-    // Don't try to cancel an alarm that hasn't been set.
+void QuicAlarm::CancelInternal(bool permanent) {
+  if (!GetQuicRestartFlag(quic_alarm_add_permanent_cancel)) {
+    if (!IsSet()) {
+      // Don't try to cancel an alarm that hasn't been set.
+      return;
+    }
+    deadline_ = QuicTime::Zero();
+    CancelImpl();
     return;
   }
-  deadline_ = QuicTime::Zero();
-  CancelImpl();
+
+  if (IsSet()) {
+    deadline_ = QuicTime::Zero();
+    CancelImpl();
+  }
+
+  if (permanent) {
+    delegate_.reset();
+  }
 }
 
+bool QuicAlarm::IsPermanentlyCancelled() const { return delegate_ == nullptr; }
+
 void QuicAlarm::Update(QuicTime new_deadline, QuicTime::Delta granularity) {
+  if (IsPermanentlyCancelled()) {
+    QUIC_BUG(quic_alarm_illegal_update)
+        << "Update called after alarm is permanently cancelled. new_deadline:"
+        << new_deadline << ", granularity:" << granularity;
+    return;
+  }
+
   if (!new_deadline.IsInitialized()) {
     Cancel();
     return;
@@ -55,7 +95,9 @@ void QuicAlarm::Fire() {
   }
 
   deadline_ = QuicTime::Zero();
-  delegate_->OnAlarm();
+  if (!IsPermanentlyCancelled()) {
+    delegate_->OnAlarm();
+  }
 }
 
 void QuicAlarm::UpdateImpl() {

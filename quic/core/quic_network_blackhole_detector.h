@@ -44,8 +44,9 @@ class QUIC_EXPORT_PRIVATE QuicNetworkBlackholeDetector {
                                QuicConnectionArena* arena,
                                QuicAlarmFactory* alarm_factory);
 
-  // Called to stop all detections.
-  void StopDetection();
+  // Called to stop all detections. If |permanent|, the alarm will be cancelled
+  // permanently and future calls to RestartDetection will be no-op.
+  void StopDetection(bool permanent);
 
   // Called to restart path degrading, path mtu reduction and blackhole
   // detections. Please note, if |blackhole_deadline| is set, it must be the

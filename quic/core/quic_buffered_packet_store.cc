@@ -76,7 +76,12 @@ QuicBufferedPacketStore::QuicBufferedPacketStore(
       expiration_alarm_(
           alarm_factory->CreateAlarm(new ConnectionExpireAlarm(this))) {}
 
-QuicBufferedPacketStore::~QuicBufferedPacketStore() {}
+QuicBufferedPacketStore::~QuicBufferedPacketStore() {
+  if (GetQuicRestartFlag(quic_alarm_add_permanent_cancel) &&
+      expiration_alarm_ != nullptr) {
+    expiration_alarm_->PermanentCancel();
+  }
+}
 
 EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     QuicConnectionId connection_id,
