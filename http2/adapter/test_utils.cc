@@ -1,6 +1,7 @@
 #include "http2/adapter/test_utils.h"
 
 #include "common/quiche_endian.h"
+#include "spdy/core/hpack/hpack_encoder.h"
 #include "spdy/core/spdy_frame_reader.h"
 
 namespace http2 {
@@ -85,6 +86,27 @@ bool TestDataFrameSource::Send(absl::string_view frame_header,
   return true;
 }
 
+std::string EncodeHeaders(const spdy::SpdyHeaderBlock& entries) {
+  spdy::HpackEncoder encoder;
+  encoder.DisableCompression();
+  std::string result;
+  QUICHE_CHECK(encoder.EncodeHeaderSet(entries, &result));
+  return result;
+}
+
+TestMetadataSource::TestMetadataSource(const spdy::SpdyHeaderBlock& entries)
+    : encoded_entries_(EncodeHeaders(entries)) {
+  remaining_ = encoded_entries_;
+}
+
+std::pair<ssize_t, bool> TestMetadataSource::Pack(uint8_t* dest,
+                                                  size_t dest_len) {
+  const size_t copied = std::min(dest_len, remaining_.size());
+  std::memcpy(dest, remaining_.data(), copied);
+  remaining_.remove_prefix(copied);
+  return std::make_pair(copied, remaining_.empty());
+}
+
 namespace {
 
 using TypeAndOptionalLength =
@@ -101,6 +123,14 @@ std::vector<std::pair<const char*, std::string>> LogFriendly(
                        : "<unspecified>"});
   }
   return out;
+}
+
+std::string FrameTypeToString(uint8_t frame_type) {
+  if (spdy::IsDefinedFrameType(frame_type)) {
+    return spdy::FrameTypeToString(spdy::ParseFrameType(frame_type));
+  } else {
+    return absl::StrFormat("0x%x", static_cast<int>(frame_type));
+  }
 }
 
 // Custom gMock matcher, used to implement EqualsFrames().
@@ -153,16 +183,8 @@ class SpdyControlFrameMatcher
       return false;
     }
 
-    if (!spdy::IsDefinedFrameType(raw_type)) {
-      *listener << "; expected type " << FrameTypeToString(expected_type)
-                << " but raw type " << static_cast<int>(raw_type)
-                << " is not a defined frame type!";
-      return false;
-    }
-
-    spdy::SpdyFrameType actual_type = spdy::ParseFrameType(raw_type);
-    if (actual_type != expected_type) {
-      *listener << "; actual type: " << FrameTypeToString(actual_type)
+    if (raw_type != static_cast<uint8_t>(expected_type)) {
+      *listener << "; actual type: " << FrameTypeToString(raw_type)
                 << " but expected type: " << FrameTypeToString(expected_type);
       return false;
     }

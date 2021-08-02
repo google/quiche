@@ -10,6 +10,7 @@
 #include "http2/adapter/mock_http2_visitor.h"
 #include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_test.h"
+#include "spdy/core/spdy_header_block.h"
 #include "spdy/core/spdy_protocol.h"
 
 namespace http2 {
@@ -69,6 +70,17 @@ class QUICHE_NO_EXPORT TestDataFrameSource : public DataFrameSource {
   absl::string_view current_fragment_;
   const bool has_fin_;
   bool is_data_available_ = true;
+};
+
+class QUICHE_NO_EXPORT TestMetadataSource : public MetadataSource {
+ public:
+  explicit TestMetadataSource(const spdy::SpdyHeaderBlock& entries);
+
+  std::pair<ssize_t, bool> Pack(uint8_t* dest, size_t dest_len) override;
+
+ private:
+  const std::string encoded_entries_;
+  absl::string_view remaining_;
 };
 
 // These matchers check whether a string consists entirely of HTTP/2 frames of

@@ -45,6 +45,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   int SubmitResponse(Http2StreamId stream_id, absl::Span<const Header> headers,
                      std::unique_ptr<DataFrameSource> data_source);
   int SubmitTrailer(Http2StreamId stream_id, absl::Span<const Header> trailers);
+  void SubmitMetadata(Http2StreamId stream_id,
+                      std::unique_ptr<MetadataSource> source);
 
   bool IsServerSession() const {
     return options_.perspective == Perspective::kServer;
@@ -86,7 +88,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   bool want_read() const override { return !received_goaway_; }
   bool want_write() const override {
     return !frames_.empty() || !serialized_prefix_.empty() ||
-           write_scheduler_.HasReadyStreams();
+           write_scheduler_.HasReadyStreams() || !connection_metadata_.empty();
   }
   int GetRemoteWindowSize() const override { return connection_send_window_; }
 
@@ -151,6 +153,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
                       Http2VisitorInterface::OnHeaderResult result);
 
  private:
+  using MetadataSequence = std::vector<std::unique_ptr<MetadataSource>>;
   struct QUICHE_EXPORT_PRIVATE StreamState {
     StreamState(int32_t stream_receive_window,
                 WindowManager::WindowUpdateListener listener)
@@ -158,6 +161,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
     WindowManager window_manager;
     std::unique_ptr<DataFrameSource> outbound_body;
+    MetadataSequence outbound_metadata;
     std::unique_ptr<spdy::SpdyHeaderBlock> trailers;
     void* user_data = nullptr;
     int32_t send_window = kInitialFlowControlWindowSize;
@@ -202,6 +206,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // some other reason).
   bool WriteForStream(Http2StreamId stream_id);
 
+  bool SendMetadata(Http2StreamId stream_id, MetadataSequence& sequence);
+
   void SendTrailers(Http2StreamId stream_id, spdy::SpdyHeaderBlock trailers);
 
   // Encapsulates the RST_STREAM NO_ERROR behavior described in RFC 7540
@@ -245,6 +251,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   WindowManager connection_window_manager_;
 
   absl::flat_hash_set<Http2StreamId> streams_reset_;
+
+  MetadataSequence connection_metadata_;
 
   Http2StreamId next_stream_id_ = 1;
   Http2StreamId highest_received_stream_id_ = 0;

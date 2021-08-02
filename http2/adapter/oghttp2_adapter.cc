@@ -75,8 +75,9 @@ void OgHttp2Adapter::SubmitWindowUpdate(Http2StreamId stream_id,
       absl::make_unique<SpdyWindowUpdateIR>(stream_id, window_increment));
 }
 
-void OgHttp2Adapter::SubmitMetadata(Http2StreamId /*stream_id*/, bool /*fin*/) {
-  QUICHE_BUG(oghttp2_submit_metadata) << "Not implemented";
+void OgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
+                                    std::unique_ptr<MetadataSource> source) {
+  session_->SubmitMetadata(stream_id, std::move(source));
 }
 
 int OgHttp2Adapter::Send() { return session_->Send(); }

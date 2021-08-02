@@ -62,10 +62,10 @@ class QUICHE_EXPORT_PRIVATE Http2Adapter {
   virtual void SubmitRst(Http2StreamId stream_id,
                          Http2ErrorCode error_code) = 0;
 
-  // Submits a METADATA frame for the given stream (a |stream_id| of 0 indicates
-  // connection-level METADATA). If |fin|, the frame will also have the
-  // END_METADATA flag set.
-  virtual void SubmitMetadata(Http2StreamId stream_id, bool fin) = 0;
+  // Submits a sequence of METADATA frames for the given stream. A |stream_id|
+  // of 0 indicates connection-level METADATA.
+  virtual void SubmitMetadata(Http2StreamId stream_id,
+                              std::unique_ptr<MetadataSource> source) = 0;
 
   // Invokes the visitor's OnReadyToSend() method for serialized frame data.
   // Returns 0 on success.

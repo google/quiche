@@ -32,6 +32,18 @@ class QUICHE_EXPORT_PRIVATE DataFrameSource {
   virtual bool send_fin() const = 0;
 };
 
+// Represents a source of metadata frames for transmission to the peer.
+class QUICHE_EXPORT_PRIVATE MetadataSource {
+ public:
+  virtual ~MetadataSource() {}
+
+  // This method is called with a destination buffer and length. It should
+  // return the number of payload bytes copied to |dest|, or a negative integer
+  // to indicate an error, as well as a boolean indicating whether the metadata
+  // has been completely copied.
+  virtual std::pair<ssize_t, bool> Pack(uint8_t* dest, size_t dest_len) = 0;
+};
+
 }  // namespace adapter
 }  // namespace http2
 

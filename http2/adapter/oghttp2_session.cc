@@ -10,6 +10,8 @@ namespace adapter {
 
 namespace {
 
+const size_t kMaxMetadataFrameSize = 16384;
+
 // TODO(birenroy): Consider incorporating spdy::FlagsSerializionVisitor here.
 class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
  public:
@@ -79,6 +81,12 @@ class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
     stream_id_ = continuation.stream_id();
     flags_ = continuation.end_headers() ? 0x4 : 0;
     length_ = continuation.size() - spdy::kFrameHeaderSize;
+  }
+  void VisitUnknown(const spdy::SpdyUnknownIR& unknown) override {
+    frame_type_ = static_cast<uint8_t>(unknown.frame_type());
+    stream_id_ = unknown.stream_id();
+    flags_ = unknown.flags();
+    length_ = unknown.size() - spdy::kFrameHeaderSize;
   }
   void VisitAltSvc(const spdy::SpdyAltSvcIR& /*altsvc*/) override {}
   void VisitPriorityUpdate(
@@ -287,6 +295,9 @@ int OgHttp2Session::Send() {
     return result < 0 ? result : 0;
   }
   bool continue_writing = SendQueuedFrames();
+  while (continue_writing && !connection_metadata_.empty()) {
+    continue_writing = SendMetadata(0, connection_metadata_);
+  }
   // Wake streams for writes.
   while (continue_writing && write_scheduler_.HasReadyStreams() &&
          connection_send_window_ > 0) {
@@ -346,6 +357,11 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
     return true;
   }
   StreamState& state = it->second;
+  bool connection_can_write = true;
+  if (!state.outbound_metadata.empty()) {
+    connection_can_write = SendMetadata(stream_id, state.outbound_metadata);
+  }
+
   if (state.outbound_body == nullptr) {
     // No data to send, but there might be trailers.
     if (state.trailers != nullptr) {
@@ -360,10 +376,10 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
     return true;
   }
   bool source_can_produce = true;
-  bool connection_can_write = true;
   int32_t available_window = std::min(
       std::min(connection_send_window_, state.send_window), max_frame_payload_);
-  while (available_window > 0 && state.outbound_body != nullptr) {
+  while (connection_can_write && available_window > 0 &&
+         state.outbound_body != nullptr) {
     ssize_t length;
     bool end_data;
     std::tie(length, end_data) =
@@ -382,6 +398,7 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
     data.SetDataShallow(length);
     spdy::SpdySerializedFrame header =
         spdy::SpdyFramer::SerializeDataFrameHeaderWithPaddingLengthField(data);
+    QUICHE_DCHECK(serialized_prefix_.empty() && frames_.empty());
     const bool success =
         state.outbound_body->Send(absl::string_view(header), length);
     if (!success) {
@@ -420,6 +437,33 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
   // Streams can continue writing as long as the connection is not write-blocked
   // and there is additional flow control quota available.
   return connection_can_write && available_window > 0;
+}
+
+bool OgHttp2Session::SendMetadata(Http2StreamId stream_id,
+                                  OgHttp2Session::MetadataSequence& sequence) {
+  auto payload_buffer = absl::make_unique<uint8_t[]>(kMaxMetadataFrameSize);
+  while (!sequence.empty()) {
+    MetadataSource& source = *sequence.front();
+
+    ssize_t written;
+    bool end_metadata;
+    std::tie(written, end_metadata) =
+        source.Pack(payload_buffer.get(), kMaxMetadataFrameSize);
+    if (written < 0) {
+      // Did not touch the connection, so perhaps writes are still possible.
+      return true;
+    }
+    QUICHE_DCHECK_LE(static_cast<size_t>(written), kMaxMetadataFrameSize);
+    auto payload = absl::string_view(
+        reinterpret_cast<const char*>(payload_buffer.get()), written);
+    EnqueueFrame(absl::make_unique<spdy::SpdyUnknownIR>(
+        stream_id, kMetadataFrameType, end_metadata ? kMetadataEndFlag : 0u,
+        std::string(payload)));
+    if (end_metadata) {
+      sequence.erase(sequence.begin());
+    }
+  }
+  return SendQueuedFrames();
 }
 
 int32_t OgHttp2Session::SubmitRequest(
@@ -505,6 +549,17 @@ int OgHttp2Session::SubmitTrailer(Http2StreamId stream_id,
     write_scheduler_.MarkStreamReady(stream_id, false);
   }
   return 0;
+}
+
+void OgHttp2Session::SubmitMetadata(Http2StreamId stream_id,
+                                    std::unique_ptr<MetadataSource> source) {
+  if (stream_id == 0) {
+    connection_metadata_.push_back(std::move(source));
+  } else {
+    auto iter = CreateStream(stream_id);
+    iter->second.outbound_metadata.push_back(std::move(source));
+    write_scheduler_.MarkStreamReady(stream_id, false);
+  }
 }
 
 void OgHttp2Session::OnError(http2::Http2DecoderAdapter::SpdyFramerError error,
