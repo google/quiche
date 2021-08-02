@@ -24,7 +24,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_support_release_time_for_gso, false)
 // If true, QuicIdleNetworkDetector::SetAlarm will become a noop if dectection has been stopped by QuicIdleNetworkDetector::StopDetection.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_idle_network_detector_no_alarm_after_stopped, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_idle_network_detector_no_alarm_after_stopped, true)
 // If true, TlsServerHandshaker::DefaultProofSourceHandle::DefaultSignatureCallback will run at most once.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_run_default_signature_callback_once, true)
 // If true, abort async QPACK header decompression in QuicSpdyStream::Reset() and in QuicSpdyStream::OnStreamReset().
