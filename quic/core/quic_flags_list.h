@@ -37,8 +37,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_missing_update_ack_timeout, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, false)
 // If true, allow ticket open to be ignored in TlsServerHandshaker. Also fixes TlsServerHandshaker::ResumptionAttempted when handshake hints is used.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_allow_ignore_ticket_open, true)
-// If true, close connection if a MAX_PUSH_ID header with length field exceeding maximum valid payload length of 8 bytes is received.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_reject_large_max_push_id, true)
 // If true, close read side but not write side in QuicSpdyStream::OnStreamReset().
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_fix_on_stream_reset, true)
 // If true, default on PTO which unifies TLP + RTO loss recovery.
