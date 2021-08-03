@@ -14,7 +14,7 @@ QuicAlarm::QuicAlarm(QuicArenaScopedPtr<Delegate> delegate)
     : delegate_(std::move(delegate)), deadline_(QuicTime::Zero()) {}
 
 QuicAlarm::~QuicAlarm() {
-  if (IsSet()) {
+  if (GetQuicRestartFlag(quic_alarm_add_permanent_cancel) && IsSet()) {
     QUIC_LOG_EVERY_N_SEC(ERROR, 10 * 60)
         << "QuicAlarm not cancelled at destruction. This message is rate "
            "limited to once every 10 minutes. "
