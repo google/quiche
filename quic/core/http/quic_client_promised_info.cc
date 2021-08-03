@@ -24,7 +24,11 @@ QuicClientPromisedInfo::QuicClientPromisedInfo(
       url_(std::move(url)),
       client_request_delegate_(nullptr) {}
 
-QuicClientPromisedInfo::~QuicClientPromisedInfo() {}
+QuicClientPromisedInfo::~QuicClientPromisedInfo() {
+  if (cleanup_alarm_ != nullptr) {
+    cleanup_alarm_->PermanentCancel();
+  }
+}
 
 void QuicClientPromisedInfo::CleanupAlarm::OnAlarm() {
   QUIC_DVLOG(1) << "self GC alarm for stream " << promised_->id_;
