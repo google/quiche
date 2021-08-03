@@ -5339,6 +5339,15 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
         << "EffectivePeerMigration started without address change.";
     return;
   }
+  if (packet_creator_.HasPendingFrames()) {
+    QUIC_BUG(bug_731_2)
+        << "Starts effective peer migration with pending frame types: "
+        << packet_creator_.GetPendingFramesInfo() << ". Address change type is "
+        << AddressChangeTypeToString(type)
+        << ". Current frame type: " << framer_.current_received_frame_type()
+        << ". Previous frame type: "
+        << framer_.previously_received_frame_type();
+  }
 
   // Action items:
   //   1. Switch congestion controller;
@@ -5396,6 +5405,15 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
   }
 
   // Update to the new peer address.
+  if (packet_creator_.HasPendingFrames()) {
+    QUIC_BUG(bug_731_1)
+        << "Starts effective peer migration with pending frame types: "
+        << packet_creator_.GetPendingFramesInfo() << ". Address change type is "
+        << AddressChangeTypeToString(type)
+        << ". Current frame type: " << framer_.current_received_frame_type()
+        << ". Previous frame type: "
+        << framer_.previously_received_frame_type();
+  }
   UpdatePeerAddress(last_received_packet_info_.source_address);
   // Update the default path.
   if (IsAlternativePath(last_received_packet_info_.destination_address,

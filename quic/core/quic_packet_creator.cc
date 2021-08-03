@@ -697,6 +697,10 @@ bool QuicPacketCreator::HasPendingFrames() const {
   return !queued_frames_.empty();
 }
 
+std::string QuicPacketCreator::GetPendingFramesInfo() const {
+  return QuicFramesToString(queued_frames_);
+}
+
 bool QuicPacketCreator::HasPendingRetransmittableFrames() const {
   return !packet_.retransmittable_frames.empty();
 }

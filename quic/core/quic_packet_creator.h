@@ -205,6 +205,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Returns true if there are frames pending to be serialized.
   bool HasPendingFrames() const;
 
+  // TODO(haoyuewang) Remove this debug utility.
+  // Returns the information of pending frames as a string.
+  std::string GetPendingFramesInfo() const;
+
   // Returns true if there are retransmittable frames pending to be serialized.
   bool HasPendingRetransmittableFrames() const;
 

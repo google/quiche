@@ -398,8 +398,7 @@ std::string GenerateErrorString(std::string initial_error_string,
 }  // namespace
 
 QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
-                       QuicTime creation_time,
-                       Perspective perspective,
+                       QuicTime creation_time, Perspective perspective,
                        uint8_t expected_server_connection_id_length)
     : visitor_(nullptr),
       error_(QUIC_NO_ERROR),
@@ -429,7 +428,8 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       last_written_packet_number_length_(0),
       peer_ack_delay_exponent_(kDefaultAckDelayExponent),
       local_ack_delay_exponent_(kDefaultAckDelayExponent),
-      current_received_frame_type_(0) {
+      current_received_frame_type_(0),
+      previously_received_frame_type_(0) {
   QUICHE_DCHECK(!supported_versions.empty());
   version_ = supported_versions_[0];
   QUICHE_DCHECK(version_.IsKnown())
@@ -1964,8 +1964,10 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
   // Handle the payload.
   if (VersionHasIetfQuicFrames(version_.transport_version)) {
     current_received_frame_type_ = 0;
+    previously_received_frame_type_ = 0;
     if (!ProcessIetfFrameData(&reader, *header, decrypted_level)) {
       current_received_frame_type_ = 0;
+      previously_received_frame_type_ = 0;
       QUICHE_DCHECK_NE(QUIC_NO_ERROR,
                        error_);  // ProcessIetfFrameData sets the error.
       QUICHE_DCHECK_NE("", detailed_error_);
@@ -1974,6 +1976,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
       return false;
     }
     current_received_frame_type_ = 0;
+    previously_received_frame_type_ = 0;
   } else {
     if (!ProcessFrameData(&reader, *header)) {
       QUICHE_DCHECK_NE(QUIC_NO_ERROR,
@@ -3215,6 +3218,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           EncryptionLevelToString(decrypted_level)));
       return RaiseError(IETF_QUIC_PROTOCOL_VIOLATION);
     }
+    previously_received_frame_type_ = current_received_frame_type_;
     current_received_frame_type_ = frame_type;
 
     // Is now the number of bytes into which the frame type was encoded.

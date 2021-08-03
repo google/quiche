@@ -423,6 +423,8 @@ TEST_P(QuicPacketCreatorTest, ConsumeDataFinOnly) {
   EXPECT_EQ(0u, consumed);
   CheckStreamFrame(frame, stream_id, std::string(), 0u, true);
   EXPECT_TRUE(creator_.HasPendingFrames());
+  EXPECT_TRUE(absl::StartsWith(creator_.GetPendingFramesInfo(),
+                               "type { STREAM_FRAME }"));
 }
 
 TEST_P(QuicPacketCreatorTest, CreateAllFreeBytesForStreamFrames) {

@@ -650,6 +650,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     return current_received_frame_type_;
   }
 
+  uint64_t previously_received_frame_type() const {
+    return previously_received_frame_type_;
+  }
+
   // The connection ID length the framer expects on incoming IETF short headers
   // on the server.
   uint8_t GetExpectedServerConnectionIdLength() {
@@ -1190,6 +1194,11 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // the Transport Connection Close when there is an error during frame
   // processing.
   uint64_t current_received_frame_type_;
+
+  // TODO(haoyuewang) Remove this debug utility.
+  // The type of the IETF frame preceding the frame currently being processed. 0
+  // when not processing a frame or only 1 frame has been processed.
+  uint64_t previously_received_frame_type_;
 };
 
 // Look for and parse the error code from the "<quic_error_code>:" text that
