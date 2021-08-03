@@ -5,6 +5,7 @@
 #include "quic/core/crypto/tls_connection.h"
 
 #include "absl/strings/string_view.h"
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {
@@ -105,6 +106,13 @@ TlsConnection::TlsConnection(SSL_CTX* ssl_ctx,
         ssl(), ssl_config_.signing_algorithm_prefs->data(),
         ssl_config_.signing_algorithm_prefs->size());
   }
+}
+
+void TlsConnection::EnableInfoCallback() {
+  SSL_set_info_callback(
+      ssl(), +[](const SSL* ssl, int type, int value) {
+        ConnectionFromSsl(ssl)->delegate_->InfoCallback(type, value);
+      });
 }
 
 // static

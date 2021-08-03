@@ -191,11 +191,15 @@ TlsServerHandshaker::TlsServerHandshaker(
   if (GetQuicFlag(FLAGS_quic_disable_server_tls_resumption)) {
     SSL_set_options(ssl(), SSL_OP_NO_TICKET);
   }
+
+  if (GetQuicReloadableFlag(quic_trace_ssl_events) &&
+      session->connection()->context()->tracer) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_trace_ssl_events);
+    tls_connection_.EnableInfoCallback();
+  }
 }
 
-TlsServerHandshaker::~TlsServerHandshaker() {
-  CancelOutstandingCallbacks();
-}
+TlsServerHandshaker::~TlsServerHandshaker() { CancelOutstandingCallbacks(); }
 
 void TlsServerHandshaker::CancelOutstandingCallbacks() {
   if (proof_source_handle_) {
@@ -204,6 +208,40 @@ void TlsServerHandshaker::CancelOutstandingCallbacks() {
   if (ticket_decryption_callback_) {
     ticket_decryption_callback_->Cancel();
     ticket_decryption_callback_ = nullptr;
+  }
+}
+
+void TlsServerHandshaker::InfoCallback(int type, int value) {
+  QuicConnectionTracer* tracer =
+      session()->connection()->context()->tracer.get();
+
+  if (tracer == nullptr) {
+    return;
+  }
+
+  if (type & SSL_CB_LOOP) {
+    tracer->PrintString(
+        absl::StrCat("SSL:ACCEPT_LOOP:", SSL_state_string_long(ssl())));
+  } else if (type & SSL_CB_ALERT) {
+    const char* prefix =
+        (type & SSL_CB_READ) ? "SSL:READ_ALERT:" : "SSL:WRITE_ALERT:";
+    tracer->PrintString(absl::StrCat(prefix, SSL_alert_type_string_long(value),
+                                     ":", SSL_alert_desc_string_long(value)));
+  } else if (type & SSL_CB_EXIT) {
+    const char* prefix =
+        (value == 1) ? "SSL:ACCEPT_EXIT_OK:" : "SSL:ACCEPT_EXIT_FAIL:";
+    tracer->PrintString(absl::StrCat(prefix, SSL_state_string_long(ssl())));
+  } else if (type & SSL_CB_HANDSHAKE_START) {
+    tracer->PrintString(
+        absl::StrCat("SSL:HANDSHAKE_START:", SSL_state_string_long(ssl())));
+  } else if (type & SSL_CB_HANDSHAKE_DONE) {
+    tracer->PrintString(
+        absl::StrCat("SSL:HANDSHAKE_DONE:", SSL_state_string_long(ssl())));
+  } else {
+    QUIC_DLOG(INFO) << "Unknown event type " << type << ": "
+                    << SSL_state_string_long(ssl());
+    tracer->PrintString(
+        absl::StrCat("SSL:unknown:", value, ":", SSL_state_string_long(ssl())));
   }
 }
 

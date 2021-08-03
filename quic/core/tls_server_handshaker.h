@@ -89,6 +89,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       const std::string& hostname) const;
 
  protected:
+  // Override for tracing.
+  void InfoCallback(int type, int value) override;
+
   // Creates a proof source handle for selecting cert and computing signature.
   virtual std::unique_ptr<ProofSourceHandle> MaybeCreateProofSourceHandle();
 

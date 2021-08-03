@@ -163,6 +163,11 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   // error code corresponding to the TLS alert description |desc|.
   void SendAlert(EncryptionLevel level, uint8_t desc) override;
 
+  // Informational callback from BoringSSL. Subclasses can override it to do
+  // logging, tracing, etc.
+  // See |SSL_CTX_set_info_callback| for the meaning of |type| and |value|.
+  void InfoCallback(int /*type*/, int /*value*/) override {}
+
  private:
   // ProofVerifierCallbackImpl handles the result of an asynchronous certificate
   // verification operation.
