@@ -46,30 +46,26 @@ class QUICHE_NO_EXPORT DataSavingVisitor
   bool is_write_blocked_ = false;
 };
 
-// A test DataFrameSource that can be initialized with a single string payload,
-// or a chunked payload.
+// A test DataFrameSource. Starts out in the empty, blocked state.
 class QUICHE_NO_EXPORT TestDataFrameSource : public DataFrameSource {
  public:
-  TestDataFrameSource(Http2VisitorInterface& visitor,
-                      absl::string_view data_payload,
-                      bool has_fin = true);
+  TestDataFrameSource(Http2VisitorInterface& visitor, bool has_fin);
 
-  TestDataFrameSource(Http2VisitorInterface& visitor,
-                      absl::Span<absl::string_view> payload_fragments,
-                      bool has_fin = true);
+  void AppendPayload(absl::string_view payload);
+  void EndData();
 
   std::pair<ssize_t, bool> SelectPayloadLength(size_t max_length) override;
   bool Send(absl::string_view frame_header, size_t payload_length) override;
   bool send_fin() const override { return has_fin_; }
 
-  void set_is_data_available(bool value) { is_data_available_ = value; }
-
  private:
   Http2VisitorInterface& visitor_;
   std::vector<std::string> payload_fragments_;
   absl::string_view current_fragment_;
+  // Whether the stream should end with the final frame of data.
   const bool has_fin_;
-  bool is_data_available_ = true;
+  // Whether |payload_fragments_| contains the final segment of data.
+  bool end_data_ = false;
 };
 
 class QUICHE_NO_EXPORT TestMetadataSource : public MetadataSource {

@@ -725,8 +725,9 @@ TEST(OgHttp2AdapterServerTest, ServerSendsInvalidTrailers) {
 
   // The body source must indicate that the end of the body is not the end of
   // the stream.
-  auto body1 =
-      absl::make_unique<TestDataFrameSource>(visitor, kBody, /*has_fin=*/false);
+  auto body1 = absl::make_unique<TestDataFrameSource>(visitor, false);
+  body1->AppendPayload(kBody);
+  body1->EndData();
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
       std::move(body1));

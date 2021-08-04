@@ -14,7 +14,9 @@ const size_t kFrameHeaderSize = 9;
 // than what the source provides.
 TEST(DataProviderTest, ReadLessThanSourceProvides) {
   DataSavingVisitor visitor;
-  TestDataFrameSource source(visitor, "Example payload");
+  TestDataFrameSource source(visitor, true);
+  source.AppendPayload("Example payload");
+  source.EndData();
   auto provider = MakeDataProvider(&source);
   uint32_t data_flags = 0;
   const int32_t kStreamId = 1;
@@ -42,7 +44,9 @@ TEST(DataProviderTest, ReadLessThanSourceProvides) {
 TEST(DataProviderTest, ReadMoreThanSourceProvides) {
   DataSavingVisitor visitor;
   const absl::string_view kPayload = "Example payload";
-  TestDataFrameSource source(visitor, kPayload);
+  TestDataFrameSource source(visitor, true);
+  source.AppendPayload(kPayload);
+  source.EndData();
   auto provider = MakeDataProvider(&source);
   uint32_t data_flags = 0;
   const int32_t kStreamId = 1;
@@ -68,10 +72,8 @@ TEST(DataProviderTest, ReadMoreThanSourceProvides) {
 // correctly with nghttp2-style callbacks when the source is blocked.
 TEST(DataProviderTest, ReadFromBlockedSource) {
   DataSavingVisitor visitor;
-  const absl::string_view kPayload = "This source is blocked.";
-  TestDataFrameSource source(visitor, kPayload);
-  // Setting is_data_available(false) indicates the source is blocked.
-  source.set_is_data_available(false);
+  // Source has no payload, but also no fin, so it's blocked.
+  TestDataFrameSource source(visitor, false);
   auto provider = MakeDataProvider(&source);
   uint32_t data_flags = 0;
   const int32_t kStreamId = 1;
@@ -88,9 +90,9 @@ TEST(DataProviderTest, ReadFromBlockedSource) {
 // no data.
 TEST(DataProviderTest, ReadFromZeroLengthSource) {
   DataSavingVisitor visitor;
-  const absl::string_view kPayload = "";
   // Empty payload and fin=true indicates the source is done.
-  TestDataFrameSource source(visitor, kPayload);
+  TestDataFrameSource source(visitor, true);
+  source.EndData();
   auto provider = MakeDataProvider(&source);
   uint32_t data_flags = 0;
   const int32_t kStreamId = 1;

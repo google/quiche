@@ -736,7 +736,9 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequest) {
   EXPECT_FALSE(adapter->session().want_write());
   const char* kSentinel = "";
   const absl::string_view kBody = "This is an example request body.";
-  auto body1 = absl::make_unique<TestDataFrameSource>(visitor, kBody);
+  auto body1 = absl::make_unique<TestDataFrameSource>(visitor, true);
+  body1->AppendPayload(kBody);
+  body1->EndData();
   int stream_id =
       adapter->SubmitRequest(ToHeaders({{":method", "POST"},
                                         {":scheme", "http"},
@@ -1213,8 +1215,10 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
 
   EXPECT_FALSE(adapter->session().want_write());
   const absl::string_view kBody = "This is an example response body.";
-  auto body1 =
-      absl::make_unique<TestDataFrameSource>(visitor, kBody, /*has_fin=*/false);
+  // A data fin is not sent so that the stream remains open, and the flow
+  // control state can be verified.
+  auto body1 = absl::make_unique<TestDataFrameSource>(visitor, false);
+  body1->AppendPayload(kBody);
   int submit_result = adapter->SubmitResponse(
       1,
       ToHeaders({{":status", "404"},
@@ -1347,8 +1351,9 @@ TEST(NgHttp2AdapterTest, ServerSendsTrailers) {
 
   // The body source must indicate that the end of the body is not the end of
   // the stream.
-  auto body1 =
-      absl::make_unique<TestDataFrameSource>(visitor, kBody, /*has_fin=*/false);
+  auto body1 = absl::make_unique<TestDataFrameSource>(visitor, false);
+  body1->AppendPayload(kBody);
+  body1->EndData();
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
       std::move(body1));
@@ -1456,8 +1461,9 @@ TEST(NgHttp2AdapterTest, ServerSendsInvalidTrailers) {
 
   // The body source must indicate that the end of the body is not the end of
   // the stream.
-  auto body1 =
-      absl::make_unique<TestDataFrameSource>(visitor, kBody, /*has_fin=*/false);
+  auto body1 = absl::make_unique<TestDataFrameSource>(visitor, false);
+  body1->AppendPayload(kBody);
+  body1->EndData();
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
       std::move(body1));

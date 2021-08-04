@@ -9,41 +9,26 @@ namespace adapter {
 namespace test {
 
 TestDataFrameSource::TestDataFrameSource(Http2VisitorInterface& visitor,
-                                         absl::string_view data_payload,
                                          bool has_fin)
-    : visitor_(visitor), has_fin_(has_fin) {
-  if (!data_payload.empty()) {
-    payload_fragments_.push_back(std::string(data_payload));
+    : visitor_(visitor), has_fin_(has_fin) {}
+
+void TestDataFrameSource::AppendPayload(absl::string_view payload) {
+  QUICHE_CHECK(!end_data_);
+  if (!payload.empty()) {
+    payload_fragments_.push_back(std::string(payload));
     current_fragment_ = payload_fragments_.front();
   }
 }
 
-TestDataFrameSource::TestDataFrameSource(
-    Http2VisitorInterface& visitor,
-    absl::Span<absl::string_view> payload_fragments,
-    bool has_fin)
-    : visitor_(visitor), has_fin_(has_fin) {
-  payload_fragments_.reserve(payload_fragments.size());
-  for (absl::string_view fragment : payload_fragments) {
-    if (!fragment.empty()) {
-      payload_fragments_.push_back(std::string(fragment));
-    }
-  }
-  if (!payload_fragments_.empty()) {
-    current_fragment_ = payload_fragments_.front();
-  }
-}
+void TestDataFrameSource::EndData() { end_data_ = true; }
 
 std::pair<ssize_t, bool> TestDataFrameSource::SelectPayloadLength(
     size_t max_length) {
-  if (!is_data_available_) {
-    return {kBlocked, false};
-  }
   // The stream is done if there's no more data, or if |max_length| is at least
   // as large as the remaining data.
-  const bool end_data =
-      current_fragment_.empty() || (payload_fragments_.size() == 1 &&
-                                    max_length >= current_fragment_.size());
+  const bool end_data = end_data_ && (current_fragment_.empty() ||
+                                      (payload_fragments_.size() == 1 &&
+                                       max_length >= current_fragment_.size()));
   const ssize_t length = std::min(max_length, current_fragment_.size());
   return {length, end_data};
 }
