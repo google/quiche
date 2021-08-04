@@ -20,12 +20,13 @@ again.
 The QUICHE repository is currently not set up to accept pull requests directly.
 If you would like to make a contribution, please follow these steps:
 
-1. Sign the Contributor License Agreement (see above).
-2. Create a Gerrit pull request at <https://quiche-review.googlesource.com>.
-3. Email a link to your pull request to <quiche-contribution@google.com>.
-4. An engineer will review your pull request and merge it internally.
+1.  Sign the Contributor License Agreement (see above).
+2.  Create a Gerrit pull request at <https://quiche-review.googlesource.com>, or
+    a GitHub pull request at <https://github.com/google/quiche/pulls>.
+3.  Email a link to your pull request to <quiche-contribution@google.com>.
+4.  An engineer will review your pull request and merge it internally.
 
 ## Community Guidelines
 
-This project follows [Google's Open Source Community
-Guidelines](https://opensource.google.com/conduct/).
+This project follows
+[Google's Open Source Community Guidelines](https://opensource.google.com/conduct/).

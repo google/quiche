@@ -5,8 +5,11 @@ implementation of QUIC, HTTP/2, HTTP/3, and related protocols and tools. It
 powers Google's servers, Chromium, Envoy, and other projects. It is actively
 developed and maintained.
 
-The canonical open-source QUICHE repository is at
-https://quiche.googlesource.com/quiche.
+There are two public QUICHE repositories. Either one may be used by embedders,
+as they are automatically kept in sync:
+
+*   https://quiche.googlesource.com/quiche
+*   https://github.com/google/quiche
 
 To embed QUICHE in your project, platform APIs need to be implemented and build
 files need to be created. Note that it is on the QUICHE team's roadmap to
