@@ -435,7 +435,7 @@ TEST(OgHttp2AdapterClientTest, ClientRejectsHeaders) {
   EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
   EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
 
-  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  const size_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_result, stream_frames.size());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));

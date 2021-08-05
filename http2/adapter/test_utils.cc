@@ -1,5 +1,8 @@
 #include "http2/adapter/test_utils.h"
 
+#include <ostream>
+
+#include "absl/strings/str_format.h"
 #include "common/quiche_endian.h"
 #include "spdy/core/hpack/hpack_encoder.h"
 #include "spdy/core/spdy_frame_reader.h"
@@ -97,17 +100,16 @@ namespace {
 using TypeAndOptionalLength =
     std::pair<spdy::SpdyFrameType, absl::optional<size_t>>;
 
-std::vector<std::pair<const char*, std::string>> LogFriendly(
+std::ostream& operator<<(
+    std::ostream& os,
     const std::vector<TypeAndOptionalLength>& types_and_lengths) {
-  std::vector<std::pair<const char*, std::string>> out;
-  out.reserve(types_and_lengths.size());
   for (const auto& type_and_length : types_and_lengths) {
-    out.push_back({spdy::FrameTypeToString(type_and_length.first),
-                   type_and_length.second
-                       ? absl::StrCat(type_and_length.second.value())
-                       : "<unspecified>"});
+    os << "(" << spdy::FrameTypeToString(type_and_length.first) << ", "
+       << (type_and_length.second ? absl::StrCat(type_and_length.second.value())
+                                  : "<unspecified>")
+       << ") ";
   }
-  return out;
+  return os;
 }
 
 std::string FrameTypeToString(uint8_t frame_type) {
@@ -181,12 +183,12 @@ class SpdyControlFrameMatcher
 
   void DescribeTo(std::ostream* os) const override {
     *os << "Data contains frames of types in sequence "
-        << LogFriendly(expected_types_and_lengths_);
+        << expected_types_and_lengths_;
   }
 
   void DescribeNegationTo(std::ostream* os) const override {
     *os << "Data does not contain frames of types in sequence "
-        << LogFriendly(expected_types_and_lengths_);
+        << expected_types_and_lengths_;
   }
 
  private:
