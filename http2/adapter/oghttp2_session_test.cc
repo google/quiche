@@ -363,6 +363,60 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithReadBlock) {
   EXPECT_FALSE(session.want_write());
 }
 
+// This test exercises the case where the client request body source is read
+// blocked, then ends with an empty DATA frame.
+TEST(OgHttp2SessionTest, ClientSubmitRequestEmptyDataWithFin) {
+  DataSavingVisitor visitor;
+  OgHttp2Session session(
+      visitor, OgHttp2Session::Options{.perspective = Perspective::kClient});
+  EXPECT_FALSE(session.want_write());
+
+  const char* kSentinel1 = "arbitrary pointer 1";
+  auto body1 = absl::make_unique<TestDataFrameSource>(visitor, true);
+  TestDataFrameSource* body_ref = body1.get();
+  int stream_id =
+      session.SubmitRequest(ToHeaders({{":method", "POST"},
+                                       {":scheme", "http"},
+                                       {":authority", "example.com"},
+                                       {":path", "/this/is/request/one"}}),
+                            std::move(body1), const_cast<char*>(kSentinel1));
+  EXPECT_GT(stream_id, 0);
+  EXPECT_TRUE(session.want_write());
+  EXPECT_EQ(kSentinel1, session.GetStreamUserData(stream_id));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
+
+  int result = session.Send();
+  EXPECT_EQ(0, result);
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS}));
+  // No data frame, as body1 was read blocked.
+  visitor.Clear();
+  EXPECT_FALSE(session.want_write());
+
+  body_ref->EndData();
+  EXPECT_TRUE(session.ResumeStream(stream_id));
+  EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, 0, 0x1, 0));
+
+  result = session.Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::DATA}));
+  EXPECT_FALSE(session.want_write());
+
+  // Stream data is done, so this stream cannot be resumed.
+  EXPECT_FALSE(session.ResumeStream(stream_id));
+  EXPECT_FALSE(session.want_write());
+}
+
 // This test exercises the case where the connection to the peer is write
 // blocked.
 TEST(OgHttp2SessionTest, ClientSubmitRequestWithWriteBlock) {

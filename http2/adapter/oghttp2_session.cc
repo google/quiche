@@ -384,7 +384,7 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
     bool end_data;
     std::tie(length, end_data) =
         state.outbound_body->SelectPayloadLength(available_window);
-    if (length == DataFrameSource::kBlocked) {
+    if (length == 0 && !end_data) {
       source_can_produce = false;
       break;
     } else if (length == DataFrameSource::kError) {
@@ -393,24 +393,27 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
       break;
     }
     const bool fin = end_data ? state.outbound_body->send_fin() : false;
-    spdy::SpdyDataIR data(stream_id);
-    data.set_fin(fin);
-    data.SetDataShallow(length);
-    spdy::SpdySerializedFrame header =
-        spdy::SpdyFramer::SerializeDataFrameHeaderWithPaddingLengthField(data);
-    QUICHE_DCHECK(serialized_prefix_.empty() && frames_.empty());
-    const bool success =
-        state.outbound_body->Send(absl::string_view(header), length);
-    if (!success) {
-      connection_can_write = false;
-      break;
+    if (length > 0 || fin) {
+      spdy::SpdyDataIR data(stream_id);
+      data.set_fin(fin);
+      data.SetDataShallow(length);
+      spdy::SpdySerializedFrame header =
+          spdy::SpdyFramer::SerializeDataFrameHeaderWithPaddingLengthField(
+              data);
+      QUICHE_DCHECK(serialized_prefix_.empty() && frames_.empty());
+      const bool success =
+          state.outbound_body->Send(absl::string_view(header), length);
+      if (!success) {
+        connection_can_write = false;
+        break;
+      }
+      visitor_.OnFrameSent(/* DATA */ 0, stream_id, length, fin ? 0x1 : 0x0, 0);
+      connection_send_window_ -= length;
+      state.send_window -= length;
+      available_window =
+          std::min(std::min(connection_send_window_, state.send_window),
+                   max_frame_payload_);
     }
-    visitor_.OnFrameSent(/* DATA */ 0, stream_id, length, fin ? 0x1 : 0x0, 0);
-    connection_send_window_ -= length;
-    state.send_window -= length;
-    available_window =
-        std::min(std::min(connection_send_window_, state.send_window),
-                 max_frame_payload_);
     if (end_data) {
       bool sent_trailers = false;
       if (state.trailers != nullptr) {
