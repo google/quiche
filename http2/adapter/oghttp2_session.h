@@ -20,7 +20,8 @@ namespace adapter {
 // This class manages state associated with a single multiplexed HTTP/2 session.
 class QUICHE_EXPORT_PRIVATE OgHttp2Session
     : public Http2Session,
-      public spdy::SpdyFramerVisitorInterface {
+      public spdy::SpdyFramerVisitorInterface,
+      public spdy::ExtensionVisitorInterface {
  public:
   struct QUICHE_EXPORT_PRIVATE Options {
     Perspective perspective = Perspective::kClient;
@@ -152,6 +153,13 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   void OnHeaderStatus(Http2StreamId stream_id,
                       Http2VisitorInterface::OnHeaderResult result);
 
+  // Returns true if a recognized extension frame is received.
+  bool OnFrameHeader(spdy::SpdyStreamId stream_id, size_t length, uint8_t type,
+                     uint8_t flags) override;
+
+  // Handles the payload for a recognized extension frame.
+  void OnFramePayload(const char* data, size_t len) override;
+
  private:
   using MetadataSequence = std::vector<std::unique_ptr<MetadataSource>>;
   struct QUICHE_EXPORT_PRIVATE StreamState {
@@ -256,6 +264,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   Http2StreamId next_stream_id_ = 1;
   Http2StreamId highest_received_stream_id_ = 0;
+  Http2StreamId metadata_stream_id_ = 0;
+  size_t metadata_length_ = 0;
   int connection_send_window_ = kInitialFlowControlWindowSize;
   // The initial flow control receive window size for any newly created streams.
   int stream_receive_window_limit_ = kInitialFlowControlWindowSize;
@@ -263,6 +273,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   Options options_;
   bool received_goaway_ = false;
   bool queued_preface_ = false;
+  bool peer_supports_metadata_ = false;
+  bool end_metadata_ = false;
 
   // Replace this with a stream ID, for multiple GOAWAY support.
   bool queued_goaway_ = false;

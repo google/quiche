@@ -50,9 +50,12 @@ class QUICHE_NO_EXPORT TestFrameSequence {
                               int weight,
                               bool exclusive);
   TestFrameSequence& Metadata(Http2StreamId stream_id,
-                              absl::string_view payload);
+                              absl::string_view payload,
+                              bool multiple_frames = false);
 
   std::string Serialize();
+
+  static std::string MetadataBlockForPayload(absl::string_view);
 
  private:
   std::string preface_;

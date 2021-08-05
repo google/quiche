@@ -388,9 +388,6 @@ void CallbackVisitor::OnBeginMetadataForStream(Http2StreamId stream_id,
                                                size_t payload_length) {
   QUICHE_VLOG(1) << "OnBeginMetadataForStream(stream_id=" << stream_id
                  << ", payload_length=" << payload_length << ")";
-  if (callbacks_->on_frame_recv_callback) {
-    callbacks_->on_frame_recv_callback(nullptr, &current_frame_, user_data_);
-  }
 }
 
 void CallbackVisitor::OnMetadataForStream(Http2StreamId stream_id,

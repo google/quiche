@@ -32,6 +32,24 @@ class QUICHE_NO_EXPORT DataSavingVisitor
     return to_accept;
   }
 
+  void OnMetadataForStream(Http2StreamId stream_id,
+                           absl::string_view metadata) override {
+    testing::StrictMock<MockHttp2Visitor>::OnMetadataForStream(stream_id,
+                                                               metadata);
+    auto result =
+        metadata_map_.try_emplace(stream_id, std::vector<std::string>());
+    result.first->second.push_back(std::string(metadata));
+  }
+
+  const std::vector<std::string> GetMetadata(Http2StreamId stream_id) {
+    auto it = metadata_map_.find(stream_id);
+    if (it == metadata_map_.end()) {
+      return {};
+    } else {
+      return it->second;
+    }
+  }
+
   const std::string& data() { return data_; }
   void Clear() { data_.clear(); }
 
@@ -42,6 +60,7 @@ class QUICHE_NO_EXPORT DataSavingVisitor
 
  private:
   std::string data_;
+  absl::flat_hash_map<Http2StreamId, std::vector<std::string>> metadata_map_;
   size_t send_limit_ = std::numeric_limits<size_t>::max();
   bool is_write_blocked_ = false;
 };

@@ -42,6 +42,8 @@ int OnBeginFrame(nghttp2_session* /* session */,
                          header->flags);
   if (header->type == NGHTTP2_DATA) {
     visitor->OnBeginDataForStream(header->stream_id, header->length);
+  } else if (header->type == kMetadataFrameType) {
+    visitor->OnBeginMetadataForStream(header->stream_id, header->length);
   }
   return 0;
 }

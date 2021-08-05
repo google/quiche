@@ -381,6 +381,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesMetadata) {
   EXPECT_CALL(visitor, OnSettingsEnd());
 
   EXPECT_CALL(visitor, OnFrameHeader(0, _, kMetadataFrameType, 4));
+  EXPECT_CALL(visitor, OnBeginMetadataForStream(0, _));
   EXPECT_CALL(visitor, OnMetadataForStream(0, _));
   EXPECT_CALL(visitor, OnMetadataEndForStream(0));
   EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
@@ -391,6 +392,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesMetadata) {
               OnHeaderForStream(1, "date", "Tue, 6 Apr 2021 12:54:01 GMT"));
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
   EXPECT_CALL(visitor, OnFrameHeader(1, _, kMetadataFrameType, 4));
+  EXPECT_CALL(visitor, OnBeginMetadataForStream(1, _));
   EXPECT_CALL(visitor, OnMetadataForStream(1, _));
   EXPECT_CALL(visitor, OnMetadataEndForStream(1));
   EXPECT_CALL(visitor, OnFrameHeader(1, 26, DATA, 1));
@@ -1480,6 +1482,69 @@ TEST(NgHttp2AdapterTest, ClientSendsContinuation) {
 
   const size_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
+}
+
+TEST(NgHttp2AdapterTest, ClientSendsMetadataWithContinuation) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+  EXPECT_FALSE(adapter->session().want_write());
+
+  const std::string frames =
+      TestFrameSequence()
+          .ClientPreface()
+          .Metadata(0, "Example connection metadata in multiple frames", true)
+          .Headers(1,
+                   {{":method", "GET"},
+                    {":scheme", "https"},
+                    {":authority", "example.com"},
+                    {":path", "/this/is/request/one"}},
+                   /*fin=*/false,
+                   /*add_continuation=*/true)
+          .Metadata(1,
+                    "Some stream metadata that's also sent in multiple frames",
+                    true)
+          .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Metadata on stream 0
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, kMetadataFrameType, 0));
+  EXPECT_CALL(visitor, OnBeginMetadataForStream(0, _));
+  EXPECT_CALL(visitor, OnMetadataForStream(0, _));
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, kMetadataFrameType, 4));
+  EXPECT_CALL(visitor, OnBeginMetadataForStream(0, _));
+  EXPECT_CALL(visitor, OnMetadataForStream(0, _));
+  EXPECT_CALL(visitor, OnMetadataEndForStream(0));
+
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 0));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "GET"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, CONTINUATION, 4));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  // Metadata on stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, kMetadataFrameType, 0));
+  EXPECT_CALL(visitor, OnBeginMetadataForStream(1, _));
+  EXPECT_CALL(visitor, OnMetadataForStream(1, _));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, kMetadataFrameType, 4));
+  EXPECT_CALL(visitor, OnBeginMetadataForStream(1, _));
+  EXPECT_CALL(visitor, OnMetadataForStream(1, _));
+  EXPECT_CALL(visitor, OnMetadataEndForStream(1));
+
+  const size_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), result);
+  EXPECT_EQ(TestFrameSequence::MetadataBlockForPayload(
+                "Example connection metadata in multiple frames"),
+            absl::StrJoin(visitor.GetMetadata(0), ""));
+  EXPECT_EQ(TestFrameSequence::MetadataBlockForPayload(
+                "Some stream metadata that's also sent in multiple frames"),
+            absl::StrJoin(visitor.GetMetadata(1), ""));
 }
 
 TEST(NgHttp2AdapterTest, ServerSendsInvalidTrailers) {

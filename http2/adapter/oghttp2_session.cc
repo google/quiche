@@ -144,6 +144,7 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
                                  }),
       options_(options) {
   decoder_.set_visitor(this);
+  decoder_.set_extension_visitor(this);
   if (options_.perspective == Perspective::kServer) {
     remaining_preface_ = {spdy::kHttp2ConnectionHeaderPrefix,
                           spdy::kHttp2ConnectionHeaderPrefixSize};
@@ -650,6 +651,9 @@ void OgHttp2Session::OnSettings() {
 
 void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
   visitor_.OnSetting({id, value});
+  if (id == kMetadataExtensionId) {
+    peer_supports_metadata_ = (value != 0);
+  }
 }
 
 void OgHttp2Session::OnSettingsEnd() {
@@ -745,6 +749,39 @@ void OgHttp2Session::OnHeaderStatus(
     }
   } else if (result == Http2VisitorInterface::HEADER_CONNECTION_ERROR) {
     visitor_.OnConnectionError();
+  }
+}
+
+bool OgHttp2Session::OnFrameHeader(spdy::SpdyStreamId stream_id, size_t length,
+                                   uint8_t type, uint8_t flags) {
+  if (type == kMetadataFrameType) {
+    QUICHE_DCHECK_EQ(metadata_length_, 0u);
+    visitor_.OnBeginMetadataForStream(stream_id, length);
+    metadata_stream_id_ = stream_id;
+    metadata_length_ = length;
+    end_metadata_ = flags & kMetadataEndFlag;
+    return true;
+  } else {
+    QUICHE_DLOG(INFO) << "Unexpected frame type " << static_cast<int>(type)
+                      << " received by the extension visitor.";
+    return false;
+  }
+}
+
+void OgHttp2Session::OnFramePayload(const char* data, size_t len) {
+  if (metadata_length_ > 0) {
+    QUICHE_DCHECK_LE(len, metadata_length_);
+    visitor_.OnMetadataForStream(metadata_stream_id_,
+                                 absl::string_view(data, len));
+    metadata_length_ -= len;
+    if (metadata_length_ == 0 && end_metadata_) {
+      visitor_.OnMetadataEndForStream(metadata_stream_id_);
+      metadata_stream_id_ = 0;
+      end_metadata_ = false;
+    }
+  } else {
+    QUICHE_DLOG(INFO) << "Unexpected metadata payload for stream "
+                      << metadata_stream_id_;
   }
 }
 
