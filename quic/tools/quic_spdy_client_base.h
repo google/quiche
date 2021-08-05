@@ -149,6 +149,10 @@ class QuicSpdyClientBase : public QuicClientBase,
   bool EarlyDataAccepted() override;
   bool ReceivedInchoateReject() override;
 
+  void set_max_inbound_header_list_size(size_t size) {
+    max_inbound_header_list_size_ = size;
+  }
+
  protected:
   int GetNumSentClientHellosFromSession() override;
   int GetNumReceivedServerConfigUpdatesFromSession() override;
@@ -223,6 +227,9 @@ class QuicSpdyClientBase : public QuicClientBase,
 
   bool drop_response_body_ = false;
   bool enable_web_transport_ = false;
+  // If not zero, used to set client's max inbound header size before session
+  // initialize.
+  size_t max_inbound_header_list_size_ = 0;
 };
 
 }  // namespace quic

@@ -67,6 +67,10 @@ const QuicSpdyClientSession* QuicSpdyClientBase::client_session() const {
 }
 
 void QuicSpdyClientBase::InitializeSession() {
+  if (max_inbound_header_list_size_ > 0) {
+    client_session()->set_max_inbound_header_list_size(
+        max_inbound_header_list_size_);
+  }
   client_session()->Initialize();
   client_session()->CryptoConnect();
 }
