@@ -67,6 +67,11 @@ ABSL_CONST_INIT QUICHE_EXPORT_PRIVATE extern const char
 ABSL_CONST_INIT QUICHE_EXPORT_PRIVATE extern const char
     kHttp2StatusPseudoHeader[];
 
+ABSL_CONST_INIT QUICHE_EXPORT_PRIVATE extern const uint8_t kMetadataFrameType;
+ABSL_CONST_INIT QUICHE_EXPORT_PRIVATE extern const uint8_t kMetadataEndFlag;
+ABSL_CONST_INIT QUICHE_EXPORT_PRIVATE extern const uint16_t
+    kMetadataExtensionId;
+
 enum class FrameType : uint8_t {
   DATA = 0x0,
   HEADERS,
@@ -130,10 +135,6 @@ enum class Perspective {
   kClient,
   kServer,
 };
-
-inline constexpr uint8_t kMetadataFrameType = 0x4d;
-inline constexpr uint8_t kMetadataEndFlag = 0x04;
-inline constexpr uint16_t kMetadataExtensionId = 0x4d44;
 
 }  // namespace adapter
 }  // namespace http2

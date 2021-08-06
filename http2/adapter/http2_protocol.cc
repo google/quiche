@@ -12,6 +12,10 @@ const char kHttp2AuthorityPseudoHeader[] = ":authority";
 const char kHttp2PathPseudoHeader[] = ":path";
 const char kHttp2StatusPseudoHeader[] = ":status";
 
+const uint8_t kMetadataFrameType = 0x4d;
+const uint8_t kMetadataEndFlag = 0x04;
+const uint16_t kMetadataExtensionId = 0x4d44;
+
 std::pair<absl::string_view, bool> GetStringView(const HeaderRep& rep) {
   if (absl::holds_alternative<absl::string_view>(rep)) {
     return std::make_pair(absl::get<absl::string_view>(rep), true);
