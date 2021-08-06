@@ -771,13 +771,17 @@ bool OgHttp2Session::OnFrameHeader(spdy::SpdyStreamId stream_id, size_t length,
 void OgHttp2Session::OnFramePayload(const char* data, size_t len) {
   if (metadata_length_ > 0) {
     QUICHE_DCHECK_LE(len, metadata_length_);
-    visitor_.OnMetadataForStream(metadata_stream_id_,
-                                 absl::string_view(data, len));
-    metadata_length_ -= len;
-    if (metadata_length_ == 0 && end_metadata_) {
-      visitor_.OnMetadataEndForStream(metadata_stream_id_);
-      metadata_stream_id_ = 0;
-      end_metadata_ = false;
+    const bool success = visitor_.OnMetadataForStream(
+        metadata_stream_id_, absl::string_view(data, len));
+    if (success) {
+      metadata_length_ -= len;
+      if (metadata_length_ == 0 && end_metadata_) {
+        visitor_.OnMetadataEndForStream(metadata_stream_id_);
+        metadata_stream_id_ = 0;
+        end_metadata_ = false;
+      }
+    } else {
+      decoder_.StopProcessing();
     }
   } else {
     QUICHE_DLOG(INFO) << "Unexpected metadata payload for stream "

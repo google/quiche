@@ -165,10 +165,11 @@ void RecordingHttp2Visitor::OnBeginMetadataForStream(Http2StreamId stream_id,
                                     payload_length));
 }
 
-void RecordingHttp2Visitor::OnMetadataForStream(Http2StreamId stream_id,
+bool RecordingHttp2Visitor::OnMetadataForStream(Http2StreamId stream_id,
                                                 absl::string_view metadata) {
   events_.push_back(
       absl::StrFormat("OnMetadataForStream %d %s", stream_id, metadata));
+  return true;
 }
 
 bool RecordingHttp2Visitor::OnMetadataEndForStream(Http2StreamId stream_id) {

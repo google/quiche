@@ -71,7 +71,7 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
                                       ssize_t* written) override;
   void OnBeginMetadataForStream(Http2StreamId stream_id,
                                 size_t payload_length) override;
-  void OnMetadataForStream(Http2StreamId stream_id,
+  bool OnMetadataForStream(Http2StreamId stream_id,
                            absl::string_view metadata) override;
   bool OnMetadataEndForStream(Http2StreamId stream_id) override;
   void OnErrorDebug(absl::string_view message) override;

@@ -86,7 +86,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // From Http2Session.
   ssize_t ProcessBytes(absl::string_view bytes) override;
   int Consume(Http2StreamId stream_id, size_t num_bytes) override;
-  bool want_read() const override { return !received_goaway_; }
+  bool want_read() const override {
+    return !received_goaway_ && !decoder_.HasError();
+  }
   bool want_write() const override {
     return !frames_.empty() || !serialized_prefix_.empty() ||
            write_scheduler_.HasReadyStreams() || !connection_metadata_.empty();

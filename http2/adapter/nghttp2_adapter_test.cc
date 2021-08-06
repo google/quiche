@@ -413,6 +413,81 @@ TEST(NgHttp2AdapterTest, ClientHandlesMetadata) {
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
 }
 
+TEST(NgHttp2AdapterTest, ClientHandlesMetadataWithError) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  testing::InSequence s;
+
+  const std::vector<const Header> headers1 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+
+  const char* kSentinel1 = "arbitrary pointer 1";
+  const int32_t stream_id1 =
+      adapter->SubmitRequest(headers1, nullptr, const_cast<char*>(kSentinel1));
+  ASSERT_GT(stream_id1, 0);
+  QUICHE_LOG(INFO) << "Created stream: " << stream_id1;
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  visitor.Clear();
+
+  const std::string stream_frames =
+      TestFrameSequence()
+          .ServerPreface()
+          .Metadata(0, "Example connection metadata")
+          .Headers(1,
+                   {{":status", "200"},
+                    {"server", "my-fake-server"},
+                    {"date", "Tue, 6 Apr 2021 12:54:01 GMT"}},
+                   /*fin=*/false)
+          .Metadata(1, "Example stream metadata")
+          .Data(1, "This is the response body.", true)
+          .Serialize();
+
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, kMetadataFrameType, 4));
+  EXPECT_CALL(visitor, OnBeginMetadataForStream(0, _));
+  EXPECT_CALL(visitor, OnMetadataForStream(0, _));
+  EXPECT_CALL(visitor, OnMetadataEndForStream(0));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":status", "200"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, "server", "my-fake-server"));
+  EXPECT_CALL(visitor,
+              OnHeaderForStream(1, "date", "Tue, 6 Apr 2021 12:54:01 GMT"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, kMetadataFrameType, 4));
+  EXPECT_CALL(visitor, OnBeginMetadataForStream(1, _));
+  EXPECT_CALL(visitor, OnMetadataForStream(1, _))
+      .WillOnce(testing::Return(false));
+  // Remaining frames are not processed due to the error.
+  EXPECT_CALL(visitor, OnConnectionError());
+
+  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  // The false return from OnMetadataForStream() results in a connection error.
+  EXPECT_EQ(stream_result, NGHTTP2_ERR_CALLBACK_FAILURE);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
+  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->session().want_read());  // Even after an error. Why?
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+}
+
 TEST(NgHttp2AdapterTest, ClientHandlesInvalidTrailers) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);

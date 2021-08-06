@@ -235,8 +235,9 @@ int OnExtensionChunkReceived(nghttp2_session* /*session*/,
                       << static_cast<int>(hd->type);
     return NGHTTP2_ERR_CANCEL;
   }
-  visitor->OnMetadataForStream(hd->stream_id, ToStringView(data, len));
-  return 0;
+  const bool result =
+      visitor->OnMetadataForStream(hd->stream_id, ToStringView(data, len));
+  return result ? 0 : NGHTTP2_ERR_CALLBACK_FAILURE;
 }
 
 int OnUnpackExtensionCallback(nghttp2_session* /*session*/, void** /*payload*/,

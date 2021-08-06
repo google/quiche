@@ -33,13 +33,16 @@ class QUICHE_NO_EXPORT DataSavingVisitor
     return to_accept;
   }
 
-  void OnMetadataForStream(Http2StreamId stream_id,
+  bool OnMetadataForStream(Http2StreamId stream_id,
                            absl::string_view metadata) override {
-    testing::StrictMock<MockHttp2Visitor>::OnMetadataForStream(stream_id,
-                                                               metadata);
-    auto result =
-        metadata_map_.try_emplace(stream_id, std::vector<std::string>());
-    result.first->second.push_back(std::string(metadata));
+    const bool ret = testing::StrictMock<MockHttp2Visitor>::OnMetadataForStream(
+        stream_id, metadata);
+    if (ret) {
+      auto result =
+          metadata_map_.try_emplace(stream_id, std::vector<std::string>());
+      result.first->second.push_back(std::string(metadata));
+    }
+    return ret;
   }
 
   const std::vector<std::string> GetMetadata(Http2StreamId stream_id) {

@@ -196,8 +196,8 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
                                         size_t payload_length) = 0;
 
   // Called when the connection receives |metadata| as part of a METADATA frame
-  // payload for a stream.
-  virtual void OnMetadataForStream(Http2StreamId stream_id,
+  // payload for a stream. Returns false if a fatal error has occurred.
+  virtual bool OnMetadataForStream(Http2StreamId stream_id,
                                    absl::string_view metadata) = 0;
 
   // Called when the connection has finished receiving a logical metadata block

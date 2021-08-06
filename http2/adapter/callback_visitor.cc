@@ -390,7 +390,7 @@ void CallbackVisitor::OnBeginMetadataForStream(Http2StreamId stream_id,
                  << ", payload_length=" << payload_length << ")";
 }
 
-void CallbackVisitor::OnMetadataForStream(Http2StreamId stream_id,
+bool CallbackVisitor::OnMetadataForStream(Http2StreamId stream_id,
                                           absl::string_view metadata) {
   QUICHE_VLOG(1) << "OnMetadataForStream(stream_id=" << stream_id
                  << ", len=" << metadata.size() << ")";
@@ -398,8 +398,9 @@ void CallbackVisitor::OnMetadataForStream(Http2StreamId stream_id,
     int result = callbacks_->on_extension_chunk_recv_callback(
         nullptr, &current_frame_.hd, ToUint8Ptr(metadata.data()),
         metadata.size(), user_data_);
-    QUICHE_DCHECK_EQ(0, result);
+    return result == 0;
   }
+  return true;
 }
 
 bool CallbackVisitor::OnMetadataEndForStream(Http2StreamId stream_id) {
