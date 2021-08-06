@@ -62,13 +62,23 @@ const QuicPacketCount kMaxConsecutiveNonRetransmittablePackets = 19;
 // The minimum release time into future in ms.
 const int kMinReleaseTimeIntoFutureMs = 1;
 
-// An alarm that is scheduled to send an ack if a timeout occurs.
-class AckAlarmDelegate : public QuicAlarm::Delegate {
+// Base class of all alarms owned by a QuicConnection.
+class QuicConnectionAlarmDelegate : public QuicAlarm::Delegate {
  public:
-  explicit AckAlarmDelegate(QuicConnection* connection)
+  explicit QuicConnectionAlarmDelegate(QuicConnection* connection)
       : connection_(connection) {}
-  AckAlarmDelegate(const AckAlarmDelegate&) = delete;
-  AckAlarmDelegate& operator=(const AckAlarmDelegate&) = delete;
+  QuicConnectionAlarmDelegate(const QuicConnectionAlarmDelegate&) = delete;
+  QuicConnectionAlarmDelegate& operator=(const QuicConnectionAlarmDelegate&) =
+      delete;
+
+ protected:
+  QuicConnection* connection_;
+};
+
+// An alarm that is scheduled to send an ack if a timeout occurs.
+class AckAlarmDelegate : public QuicConnectionAlarmDelegate {
+ public:
+  using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
   void OnAlarm() override {
     QUICHE_DCHECK(connection_->ack_frame_updated());
@@ -80,136 +90,86 @@ class AckAlarmDelegate : public QuicAlarm::Delegate {
       connection_->SendAck();
     }
   }
-
- private:
-  QuicConnection* connection_;
 };
 
 // This alarm will be scheduled any time a data-bearing packet is sent out.
 // When the alarm goes off, the connection checks to see if the oldest packets
 // have been acked, and retransmit them if they have not.
-class RetransmissionAlarmDelegate : public QuicAlarm::Delegate {
+class RetransmissionAlarmDelegate : public QuicConnectionAlarmDelegate {
  public:
-  explicit RetransmissionAlarmDelegate(QuicConnection* connection)
-      : connection_(connection) {}
-  RetransmissionAlarmDelegate(const RetransmissionAlarmDelegate&) = delete;
-  RetransmissionAlarmDelegate& operator=(const RetransmissionAlarmDelegate&) =
-      delete;
+  using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
   void OnAlarm() override {
     QUICHE_DCHECK(connection_->connected());
     connection_->OnRetransmissionTimeout();
   }
-
- private:
-  QuicConnection* connection_;
 };
 
 // An alarm that is scheduled when the SentPacketManager requires a delay
 // before sending packets and fires when the packet may be sent.
-class SendAlarmDelegate : public QuicAlarm::Delegate {
+class SendAlarmDelegate : public QuicConnectionAlarmDelegate {
  public:
-  explicit SendAlarmDelegate(QuicConnection* connection)
-      : connection_(connection) {}
-  SendAlarmDelegate(const SendAlarmDelegate&) = delete;
-  SendAlarmDelegate& operator=(const SendAlarmDelegate&) = delete;
+  using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
   void OnAlarm() override {
     QUICHE_DCHECK(connection_->connected());
     connection_->WriteIfNotBlocked();
   }
-
- private:
-  QuicConnection* connection_;
 };
 
-class PingAlarmDelegate : public QuicAlarm::Delegate {
+class PingAlarmDelegate : public QuicConnectionAlarmDelegate {
  public:
-  explicit PingAlarmDelegate(QuicConnection* connection)
-      : connection_(connection) {}
-  PingAlarmDelegate(const PingAlarmDelegate&) = delete;
-  PingAlarmDelegate& operator=(const PingAlarmDelegate&) = delete;
+  using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
   void OnAlarm() override {
     QUICHE_DCHECK(connection_->connected());
     connection_->OnPingTimeout();
   }
-
- private:
-  QuicConnection* connection_;
 };
 
-class MtuDiscoveryAlarmDelegate : public QuicAlarm::Delegate {
+class MtuDiscoveryAlarmDelegate : public QuicConnectionAlarmDelegate {
  public:
-  explicit MtuDiscoveryAlarmDelegate(QuicConnection* connection)
-      : connection_(connection) {}
-  MtuDiscoveryAlarmDelegate(const MtuDiscoveryAlarmDelegate&) = delete;
-  MtuDiscoveryAlarmDelegate& operator=(const MtuDiscoveryAlarmDelegate&) =
-      delete;
+  using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
   void OnAlarm() override {
     QUICHE_DCHECK(connection_->connected());
     connection_->DiscoverMtu();
   }
-
- private:
-  QuicConnection* connection_;
 };
 
-class ProcessUndecryptablePacketsAlarmDelegate : public QuicAlarm::Delegate {
+class ProcessUndecryptablePacketsAlarmDelegate
+    : public QuicConnectionAlarmDelegate {
  public:
-  explicit ProcessUndecryptablePacketsAlarmDelegate(QuicConnection* connection)
-      : connection_(connection) {}
-  ProcessUndecryptablePacketsAlarmDelegate(
-      const ProcessUndecryptablePacketsAlarmDelegate&) = delete;
-  ProcessUndecryptablePacketsAlarmDelegate& operator=(
-      const ProcessUndecryptablePacketsAlarmDelegate&) = delete;
+  using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
   void OnAlarm() override {
     QUICHE_DCHECK(connection_->connected());
     QuicConnection::ScopedPacketFlusher flusher(connection_);
     connection_->MaybeProcessUndecryptablePackets();
   }
-
- private:
-  QuicConnection* connection_;
 };
 
-class DiscardPreviousOneRttKeysAlarmDelegate : public QuicAlarm::Delegate {
+class DiscardPreviousOneRttKeysAlarmDelegate
+    : public QuicConnectionAlarmDelegate {
  public:
-  explicit DiscardPreviousOneRttKeysAlarmDelegate(QuicConnection* connection)
-      : connection_(connection) {}
-  DiscardPreviousOneRttKeysAlarmDelegate(
-      const DiscardPreviousOneRttKeysAlarmDelegate&) = delete;
-  DiscardPreviousOneRttKeysAlarmDelegate& operator=(
-      const DiscardPreviousOneRttKeysAlarmDelegate&) = delete;
+  using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
   void OnAlarm() override {
     QUICHE_DCHECK(connection_->connected());
     connection_->DiscardPreviousOneRttKeys();
   }
-
- private:
-  QuicConnection* connection_;
 };
 
-class DiscardZeroRttDecryptionKeysAlarmDelegate : public QuicAlarm::Delegate {
+class DiscardZeroRttDecryptionKeysAlarmDelegate
+    : public QuicConnectionAlarmDelegate {
  public:
-  explicit DiscardZeroRttDecryptionKeysAlarmDelegate(QuicConnection* connection)
-      : connection_(connection) {}
-  DiscardZeroRttDecryptionKeysAlarmDelegate(
-      const DiscardZeroRttDecryptionKeysAlarmDelegate&) = delete;
-  DiscardZeroRttDecryptionKeysAlarmDelegate& operator=(
-      const DiscardZeroRttDecryptionKeysAlarmDelegate&) = delete;
+  using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
   void OnAlarm() override {
     QUICHE_DCHECK(connection_->connected());
     QUIC_DLOG(INFO) << "0-RTT discard alarm fired";
     connection_->RemoveDecrypter(ENCRYPTION_ZERO_RTT);
   }
-
- private:
-  QuicConnection* connection_;
 };
 
 // When the clearer goes out of scope, the coalesced packet gets cleared.
