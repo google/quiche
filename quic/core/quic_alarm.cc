@@ -5,6 +5,7 @@
 #include "quic/core/quic_alarm.h"
 
 #include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_stack_trace.h"
 
@@ -15,10 +16,13 @@ QuicAlarm::QuicAlarm(QuicArenaScopedPtr<Delegate> delegate)
 
 QuicAlarm::~QuicAlarm() {
   if (GetQuicRestartFlag(quic_alarm_add_permanent_cancel) && IsSet()) {
-    QUIC_LOG_EVERY_N_SEC(ERROR, 10 * 60)
-        << "QuicAlarm not cancelled at destruction. This message is rate "
-           "limited to once every 10 minutes. "
-        << QuicStackTrace();
+    QUIC_CODE_COUNT(quic_alarm_not_cancelled_in_dtor);
+    static uint64_t hit_count = 0;
+    ++hit_count;
+    if ((hit_count & (hit_count - 1)) == 0) {
+      QUIC_LOG(ERROR) << "QuicAlarm not cancelled at destruction. "
+                      << QuicStackTrace();
+    }
   }
 }
 
