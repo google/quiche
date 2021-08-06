@@ -246,6 +246,8 @@ const char* Http2DecoderAdapter::SpdyFramerErrorToString(
       return "HPACK_FRAGMENT_TOO_LONG";
     case SPDY_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT:
       return "HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT";
+    case SPDY_STOP_PROCESSING:
+      return "STOP_PROCESSING";
     case LAST_ERROR:
       return "UNKNOWN_ERROR";
   }
@@ -315,6 +317,11 @@ Http2DecoderAdapter::SpdyFramerError Http2DecoderAdapter::spdy_framer_error()
 
 bool Http2DecoderAdapter::probable_http_response() const {
   return latched_probable_http_response_;
+}
+
+void Http2DecoderAdapter::StopProcessing() {
+  SetSpdyErrorAndNotify(SpdyFramerError::SPDY_STOP_PROCESSING,
+                        "Ignoring further events on this connection.");
 }
 
 // ===========================================================================

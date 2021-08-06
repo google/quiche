@@ -1230,6 +1230,92 @@ TEST_P(SpdyFramerTest, Basic) {
   EXPECT_EQ(4, visitor.data_frame_count_);
 }
 
+// Verifies that the decoder stops delivering events after a user error.
+TEST_P(SpdyFramerTest, BasicWithError) {
+  // Send HEADERS frames with PRIORITY and END_HEADERS set.
+  // frame-format off
+  const unsigned char kH2Input[] = {
+      0x00, 0x00, 0x01,        // Length: 1
+      0x01,                    //   Type: HEADERS
+      0x04,                    //  Flags: END_HEADERS
+      0x00, 0x00, 0x00, 0x01,  // Stream: 1
+      0x8c,                    // :status: 200
+
+      0x00, 0x00, 0x0c,        // Length: 12
+      0x00,                    //   Type: DATA
+      0x00,                    //  Flags: none
+      0x00, 0x00, 0x00, 0x01,  // Stream: 1
+      0xde, 0xad, 0xbe, 0xef,  // Payload
+      0xde, 0xad, 0xbe, 0xef,  //
+      0xde, 0xad, 0xbe, 0xef,  //
+
+      0x00, 0x00, 0x06,        // Length: 5
+      0x01,                    //   Type: HEADERS
+      0x24,                    //  Flags: END_HEADERS|PRIORITY
+      0x00, 0x00, 0x00, 0x03,  // Stream: 3
+      0x00, 0x00, 0x00, 0x00,  // Parent: 0
+      0x82,                    // Weight: 131
+      0x8c,                    // :status: 200
+
+      0x00, 0x00, 0x08,        // Length: 8
+      0x00,                    //   Type: DATA
+      0x00,                    //  Flags: none
+      0x00, 0x00, 0x00, 0x03,  // Stream: 3
+      0xde, 0xad, 0xbe, 0xef,  // Payload
+      0xde, 0xad, 0xbe, 0xef,  //
+
+      0x00, 0x00, 0x04,        // Length: 4
+      0x00,                    //   Type: DATA
+      0x00,                    //  Flags: none
+      0x00, 0x00, 0x00, 0x01,  // Stream: 1
+      0xde, 0xad, 0xbe, 0xef,  // Payload
+
+      0x00, 0x00, 0x04,        // Length: 4
+      0x03,                    //   Type: RST_STREAM
+      0x00,                    //  Flags: none
+      0x00, 0x00, 0x00, 0x01,  // Stream: 1
+      0x00, 0x00, 0x00, 0x08,  //  Error: CANCEL
+
+      0x00, 0x00, 0x00,        // Length: 0
+      0x00,                    //   Type: DATA
+      0x00,                    //  Flags: none
+      0x00, 0x00, 0x00, 0x03,  // Stream: 3
+
+      0x00, 0x00, 0x04,        // Length: 4
+      0x03,                    //   Type: RST_STREAM
+      0x00,                    //  Flags: none
+      0x00, 0x00, 0x00, 0x03,  // Stream: 3
+      0x00, 0x00, 0x00, 0x08,  //  Error: CANCEL
+  };
+  // frame-format on
+
+  testing::StrictMock<test::MockSpdyFramerVisitor> visitor;
+
+  deframer_.set_visitor(&visitor);
+
+  testing::InSequence s;
+  EXPECT_CALL(visitor, OnHeaders(1, false, 0, 0, false, false, true));
+  EXPECT_CALL(visitor, OnHeaderFrameStart(1));
+  EXPECT_CALL(visitor, OnHeaderFrameEnd(1));
+  EXPECT_CALL(visitor, OnDataFrameHeader(1, 12, false));
+  EXPECT_CALL(visitor, OnStreamFrameData(1, _, 12));
+  EXPECT_CALL(visitor, OnHeaders(3, true, 131, 0, false, false, true));
+  EXPECT_CALL(visitor, OnHeaderFrameStart(3));
+  EXPECT_CALL(visitor, OnHeaderFrameEnd(3));
+  EXPECT_CALL(visitor, OnDataFrameHeader(3, 8, false))
+      .WillOnce(
+          testing::InvokeWithoutArgs([this]() { deframer_.StopProcessing(); }));
+  // Remaining frames are not processed due to the error.
+  EXPECT_CALL(
+      visitor,
+      OnError(http2::Http2DecoderAdapter::SpdyFramerError::SPDY_STOP_PROCESSING,
+              "Ignoring further events on this connection."));
+
+  size_t processed = deframer_.ProcessInput(
+      reinterpret_cast<const char*>(kH2Input), sizeof(kH2Input));
+  EXPECT_LT(processed, sizeof(kH2Input));
+}
+
 // Test that the FIN flag on a data frame signifies EOF.
 TEST_P(SpdyFramerTest, FinOnDataFrame) {
   // Send HEADERS frames with END_HEADERS set.
