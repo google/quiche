@@ -215,7 +215,7 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t, max_time_before_crypto_handshake_ms,
                               10000,
                               "Max time to wait before handshake completes.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(size_t, max_inbound_header_list_size, 128 * 1024,
+DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t, max_inbound_header_list_size, 128 * 1024,
                               "Max inbound header list size. 0 means default.");
 
 namespace quic {
