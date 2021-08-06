@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "http2/adapter/data_source.h"
 #include "http2/adapter/http2_protocol.h"

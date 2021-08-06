@@ -1,5 +1,6 @@
 #include "http2/adapter/oghttp2_adapter.h"
 
+#include "absl/strings/str_join.h"
 #include "http2/adapter/mock_http2_visitor.h"
 #include "http2/adapter/oghttp2_util.h"
 #include "http2/adapter/test_frame_sequence.h"
