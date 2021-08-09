@@ -1047,14 +1047,11 @@ TlsServerHandshaker::SetApplicationSettings(absl::string_view alpn) {
   const std::string& hostname = crypto_negotiated_params_->sni;
   std::string accept_ch_value = GetAcceptChValueForHostname(hostname);
   std::string origin = absl::StrCat("https://", hostname);
-  if (GetQuicReloadableFlag(quic_include_port_in_alps_origin)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_include_port_in_alps_origin);
-    uint16_t port = session()->self_address().port();
-    if (port != kDefaultPort) {
-      // This should be rare in production, but useful for test servers.
-      QUIC_CODE_COUNT(quic_server_alps_non_default_port);
-      absl::StrAppend(&origin, ":", port);
-    }
+  uint16_t port = session()->self_address().port();
+  if (port != kDefaultPort) {
+    // This should be rare in production, but useful for test servers.
+    QUIC_CODE_COUNT(quic_server_alps_non_default_port);
+    absl::StrAppend(&origin, ":", port);
   }
 
   if (!accept_ch_value.empty()) {
