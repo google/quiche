@@ -259,22 +259,12 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
           return;
         }
 
-        if (GetQuicReloadableFlag(quic_run_default_signature_callback_once)) {
-          QUIC_RELOADABLE_FLAG_COUNT(quic_run_default_signature_callback_once);
-          DefaultProofSourceHandle* handle = handle_;
-          handle_ = nullptr;
+        DefaultProofSourceHandle* handle = handle_;
+        handle_ = nullptr;
 
-          handle->signature_callback_ = nullptr;
-          if (handle->handshaker_ != nullptr) {
-            handle->handshaker_->OnComputeSignatureDone(
-                ok, is_sync_, std::move(signature), std::move(details));
-          }
-          return;
-        }
-
-        handle_->signature_callback_ = nullptr;
-        if (handle_->handshaker_ != nullptr) {
-          handle_->handshaker_->OnComputeSignatureDone(
+        handle->signature_callback_ = nullptr;
+        if (handle->handshaker_ != nullptr) {
+          handle->handshaker_->OnComputeSignatureDone(
               ok, is_sync_, std::move(signature), std::move(details));
         }
       }
