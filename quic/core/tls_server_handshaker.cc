@@ -713,7 +713,7 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
     absl::string_view in) {
   QUICHE_DCHECK(proof_source_->GetTicketCrypter());
 
-  if (allow_ignore_ticket_open_ && ignore_ticket_open_) {
+  if (ignore_ticket_open_) {
     // SetIgnoreTicketOpen has been called. Typically this means the caller is
     // using handshake hints and expect the hints to contain ticket decryption
     // results.
@@ -722,9 +722,6 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
   }
 
   if (!ticket_decryption_callback_) {
-    if (!allow_ignore_ticket_open_) {
-      ticket_received_ = true;
-    }
     ticket_decryption_callback_ = new DecryptCallback(this);
     proof_source_->GetTicketCrypter()->Decrypt(
         in, std::unique_ptr<DecryptCallback>(ticket_decryption_callback_));
@@ -817,8 +814,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     return ssl_select_cert_error;
   }
 
-  if (allow_ignore_ticket_open_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_tls_allow_ignore_ticket_open);
+  {
     const uint8_t* unused_extension_bytes;
     size_t unused_extension_len;
     ticket_received_ = SSL_early_callback_ctx_extension_get(

@@ -188,9 +188,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   void SetIgnoreTicketOpen(bool value) { ignore_ticket_open_ = value; }
 
-  const bool allow_ignore_ticket_open_ =
-      GetQuicReloadableFlag(quic_tls_allow_ignore_ticket_open);
-
  private:
   class QUIC_EXPORT_PRIVATE DecryptCallback
       : public ProofSource::DecryptCallback {
