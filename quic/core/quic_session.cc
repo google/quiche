@@ -444,7 +444,7 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
   closed_streams_clean_up_alarm_->Cancel();
 
   if (visitor_) {
-    visitor_->OnConnectionClosed(connection_->connection_id(),
+    visitor_->OnConnectionClosed(connection_->GetOneActiveServerConnectionId(),
                                  frame.quic_error_code, frame.error_details,
                                  source);
   }
@@ -2089,7 +2089,7 @@ void QuicSession::SendRetireConnectionId(uint64_t sequence_number) {
 
 void QuicSession::OnServerConnectionIdIssued(
     const QuicConnectionId& server_connection_id) {
-  visitor_->OnNewConnectionIdSent(connection_->connection_id(),
+  visitor_->OnNewConnectionIdSent(connection_->GetOneActiveServerConnectionId(),
                                   server_connection_id);
 }
 

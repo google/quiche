@@ -3,12 +3,14 @@
 // found in the LICENSE file.
 
 #include "quic/core/quic_connection_id_manager.h"
+
 #include <cstdio>
 
 #include "quic/core/quic_clock.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_utils.h"
+#include "common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -370,6 +372,12 @@ QuicSelfIssuedConnectionIdManager::GetUnretiredConnectionIds() const {
     unretired_ids.push_back(cid_pair.first);
   }
   return unretired_ids;
+}
+
+QuicConnectionId QuicSelfIssuedConnectionIdManager::GetOneActiveConnectionId()
+    const {
+  QUICHE_DCHECK(!active_connection_ids_.empty());
+  return active_connection_ids_.front().first;
 }
 
 void QuicSelfIssuedConnectionIdManager::RetireConnectionId() {

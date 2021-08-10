@@ -47,6 +47,7 @@
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_server_stats.h"
 #include "quic/platform/api/quic_socket_address.h"
+#include "common/platform/api/quiche_flag_utils.h"
 #include "common/quiche_text_utils.h"
 
 namespace quic {
@@ -6870,6 +6871,25 @@ void QuicConnection::OnPathValidationFailureAtClient() {
   // connection ID associated with the failed path needs to be proactively
   // scheduled here.
   RetirePeerIssuedConnectionIdsNoLongerOnPath();
+}
+
+QuicConnectionId QuicConnection::GetOneActiveServerConnectionId() const {
+  if (perspective_ == Perspective::IS_CLIENT ||
+      self_issued_cid_manager_ == nullptr ||
+      !use_active_cid_for_session_lookup_) {
+    return connection_id();
+  }
+  auto active_connection_ids = GetActiveServerConnectionIds();
+  QUIC_BUG_IF(quic_bug_6944, active_connection_ids.empty());
+  if (active_connection_ids.empty() ||
+      std::find(active_connection_ids.begin(), active_connection_ids.end(),
+                connection_id()) != active_connection_ids.end()) {
+    return connection_id();
+  }
+  QUICHE_CODE_COUNT(connection_id_on_default_path_has_been_retired);
+  auto active_connection_id =
+      self_issued_cid_manager_->GetOneActiveConnectionId();
+  return active_connection_id;
 }
 
 std::vector<QuicConnectionId> QuicConnection::GetActiveServerConnectionIds()

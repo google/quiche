@@ -77,6 +77,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_peer_max_ack_delay_during_hands
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, increase the size of stream sequencer buffer block container on demand.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_allocate_stream_sequencer_buffer_blocks_on_demand, false)
+// If true, looks up session to close via connection ID managed by self_issued_connection_id_manager instead of the one on default path.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_active_cid_for_session_lookup, true)
 // If true, pass the received PATH_RESPONSE payload to path validator to move forward the path validation.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_pass_path_response_to_validator, true)
 // If true, quic connection sends/recieives NewConnectionId & RetireConnectionId frames.

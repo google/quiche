@@ -778,9 +778,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const QuicSocketAddress& effective_peer_address() const {
     return default_path_.peer_address;
   }
+
+  // Returns the server connection ID used on the default path.
   const QuicConnectionId& connection_id() const {
     return default_path_.server_connection_id;
   }
+
   const QuicConnectionId& client_connection_id() const {
     return default_path_.client_connection_id;
   }
@@ -1225,6 +1228,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     SendPingAtLevel(framer().GetEncryptionLevelToSendApplicationData());
   }
 
+  // Returns one server connection ID that associates the current session in the
+  // session map.
+  virtual QuicConnectionId GetOneActiveServerConnectionId() const;
+
+  // Returns all server connection IDs that have not been removed from the
+  // session map.
   virtual std::vector<QuicConnectionId> GetActiveServerConnectionIds() const;
 
   bool validate_client_address() const { return validate_client_addresses_; }
@@ -1235,6 +1244,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool connection_migration_use_new_cid() const {
     return connection_migration_use_new_cid_;
+  }
+
+  bool use_active_cid_for_session_lookup() const {
+    return use_active_cid_for_session_lookup_;
   }
 
   bool count_bytes_on_alternative_path_separately() const {
@@ -2279,6 +2292,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       GetQuicReloadableFlag(quic_add_missing_update_ack_timeout);
 
   const bool ack_cid_frames_ = GetQuicReloadableFlag(quic_ack_cid_frames);
+
+  const bool use_active_cid_for_session_lookup_ =
+      GetQuicReloadableFlag(quic_use_active_cid_for_session_lookup);
 };
 
 }  // namespace quic

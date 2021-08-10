@@ -139,6 +139,8 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
 
   std::vector<QuicConnectionId> GetUnretiredConnectionIds() const;
 
+  QuicConnectionId GetOneActiveConnectionId() const;
+
   // Called when the retire_connection_id alarm_ fires. Removes the to be
   // retired connection ID locally.
   void RetireConnectionId();
