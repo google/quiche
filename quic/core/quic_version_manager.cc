@@ -15,17 +15,25 @@ namespace quic {
 
 QuicVersionManager::QuicVersionManager(
     ParsedQuicVersionVector supported_versions)
-    : disable_version_rfcv1_(GetQuicReloadableFlag(quic_disable_version_rfcv1)),
+    : lazy_(GetQuicRestartFlag(quic_lazy_quic_version_manager)),
+      disable_version_rfcv1_(
+          lazy_ ? true : GetQuicReloadableFlag(quic_disable_version_rfcv1)),
       disable_version_draft_29_(
-          GetQuicReloadableFlag(quic_disable_version_draft_29)),
-      disable_version_t051_(GetQuicReloadableFlag(quic_disable_version_t051)),
-      disable_version_q050_(GetQuicReloadableFlag(quic_disable_version_q050)),
-      disable_version_q046_(GetQuicReloadableFlag(quic_disable_version_q046)),
-      disable_version_q043_(GetQuicReloadableFlag(quic_disable_version_q043)),
+          lazy_ ? true : GetQuicReloadableFlag(quic_disable_version_draft_29)),
+      disable_version_t051_(
+          lazy_ ? true : GetQuicReloadableFlag(quic_disable_version_t051)),
+      disable_version_q050_(
+          lazy_ ? true : GetQuicReloadableFlag(quic_disable_version_q050)),
+      disable_version_q046_(
+          lazy_ ? true : GetQuicReloadableFlag(quic_disable_version_q046)),
+      disable_version_q043_(
+          lazy_ ? true : GetQuicReloadableFlag(quic_disable_version_q043)),
       allowed_supported_versions_(std::move(supported_versions)) {
   static_assert(SupportedVersions().size() == 6u,
                 "Supported versions out of sync");
-  RefilterSupportedVersions();
+  if (!lazy_) {
+    RefilterSupportedVersions();
+  }
 }
 
 QuicVersionManager::~QuicVersionManager() {}
@@ -95,6 +103,11 @@ void QuicVersionManager::RefilterSupportedVersions() {
 
 void QuicVersionManager::AddCustomAlpn(const std::string& alpn) {
   filtered_supported_alpns_.push_back(alpn);
+}
+
+bool QuicVersionManager::disable_version_q050() const {
+  return lazy_ ? GetQuicReloadableFlag(quic_disable_version_q050)
+               : disable_version_q050_;
 }
 
 }  // namespace quic

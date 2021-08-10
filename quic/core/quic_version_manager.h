@@ -33,22 +33,35 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   // If the value of any reloadable flag is different from the cached value,
   // re-filter |filtered_supported_versions_| and update the cached flag values.
   // Otherwise, does nothing.
+  // TODO(dschinazi): Make private when deprecating
+  // FLAGS_gfe2_restart_flag_quic_disable_old_alt_svc_format.
   void MaybeRefilterSupportedVersions();
 
   // Refilters filtered_supported_versions_.
   virtual void RefilterSupportedVersions();
 
+  // RefilterSupportedVersions() must be called before calling this method.
+  // TODO(dschinazi): Remove when deprecating
+  // FLAGS_gfe2_restart_flag_quic_disable_old_alt_svc_format.
   const QuicTransportVersionVector& filtered_transport_versions() const {
     return filtered_transport_versions_;
   }
 
-  // Mechanism for subclasses to add custom ALPNs to the supported list.
-  // Should be called in constructor and RefilterSupportedVersions.
+  // Subclasses may add custom ALPNs to the supported list by overriding
+  // RefilterSupportedVersions() to first call
+  // QuicVersionManager::RefilterSupportedVersions() then AddCustomAlpn().
+  // Must not be called elsewhere.
   void AddCustomAlpn(const std::string& alpn);
 
-  bool disable_version_q050() const { return disable_version_q050_; }
+  // TODO(dschinazi): Remove when deprecating
+  // FLAGS_gfe2_restart_flag_quic_disable_old_alt_svc_format.
+  bool disable_version_q050() const;
 
  private:
+  // Cached value of gfe2_restart_flag_quic_lazy_quic_version_manager for
+  // brevity.
+  const bool lazy_;
+
   // Cached value of reloadable flags.
   // quic_disable_version_rfcv1 flag
   bool disable_version_rfcv1_;
@@ -64,7 +77,13 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   bool disable_version_q043_;
 
   // The list of versions that may be supported.
-  ParsedQuicVersionVector allowed_supported_versions_;
+  const ParsedQuicVersionVector allowed_supported_versions_;
+
+  // The following vectors are calculated from reloadable flags by
+  // RefilterSupportedVersions().  It is performed lazily when first needed, and
+  // after that, since the calculation is relatively expensive, only if the flag
+  // values change.
+
   // This vector contains QUIC versions which are currently supported based on
   // flags.
   ParsedQuicVersionVector filtered_supported_versions_;
