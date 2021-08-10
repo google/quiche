@@ -626,6 +626,25 @@ TEST_F(HttpDecoderTest, MaxPushIdWithOverlyLargePayload) {
   EXPECT_EQ("Frame is too large.", decoder_.error_detail());
 }
 
+TEST_F(HttpDecoderTest, FrameWithOverlyLargePayload) {
+  // Regression test for b/193919867: Ensure that reading frames with incredibly
+  // large payload lengths does not lead to allocating unbounded memory.
+  constexpr size_t max_input_length =
+      /*max frame type varint length*/ sizeof(uint64_t) +
+      /*max frame length varint length*/ sizeof(uint64_t) +
+      /*one byte of payload*/ sizeof(uint8_t);
+  char input[max_input_length];
+  for (uint64_t frame_type = 0; frame_type < 1025; frame_type++) {
+    ::testing::NiceMock<MockVisitor> visitor;
+    HttpDecoder decoder(&visitor);
+    QuicDataWriter writer(max_input_length, input);
+    ASSERT_TRUE(writer.WriteVarInt62(frame_type));         // frame type.
+    ASSERT_TRUE(writer.WriteVarInt62(kVarInt62MaxValue));  // frame length.
+    ASSERT_TRUE(writer.WriteUInt8(0x00));  // one byte of payload.
+    EXPECT_NE(decoder.ProcessInput(input, writer.length()), 0u) << frame_type;
+  }
+}
+
 TEST_F(HttpDecoderTest, MalformedSettingsFrame) {
   char input[30];
   QuicDataWriter writer(30, input);
