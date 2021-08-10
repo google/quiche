@@ -101,6 +101,7 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
     return fake_proof_source_handle_;
   }
 
+  using TlsServerHandshaker::AdvanceHandshake;
   using TlsServerHandshaker::expected_ssl_error;
 
  private:
@@ -706,6 +707,43 @@ TEST_P(TlsServerHandshakerTest, ResumptionWithAsyncDecryptCallback) {
   EXPECT_TRUE(client_stream()->IsResumption());
   EXPECT_TRUE(server_stream()->IsResumption());
   EXPECT_TRUE(server_stream()->ResumptionAttempted());
+}
+
+TEST_P(TlsServerHandshakerTest, AdvanceHandshakeDuringAsyncDecryptCallback) {
+  if (GetParam().disable_resumption) {
+    return;
+  }
+
+  // Do the first handshake
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  ticket_crypter_->SetRunCallbacksAsync(true);
+  // Now do another handshake
+  InitializeServerWithFakeProofSourceHandle();
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::
+          DELEGATE_SYNC);
+  InitializeFakeClient();
+
+  AdvanceHandshakeWithFakeClient();
+
+  // Ensure an async DecryptCallback is now pending.
+  ASSERT_EQ(ticket_crypter_->NumPendingCallbacks(), 1u);
+
+  {
+    QuicConnection::ScopedPacketFlusher flusher(server_connection_);
+    server_handshaker_->AdvanceHandshake();
+  }
+
+  // This will delete |server_handshaker_|.
+  server_session_ = nullptr;
+
+  if (GetQuicReloadableFlag(quic_tls_fix_ticket_decrypt)) {
+    ticket_crypter_->RunPendingCallback(0);  // Should not crash.
+  }
 }
 
 TEST_P(TlsServerHandshakerTest, ResumptionWithFailingDecryptCallback) {

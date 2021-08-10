@@ -198,6 +198,11 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     // If called, Cancel causes the pending callback to be a no-op.
     void Cancel();
 
+    // Return true if either
+    // - Cancel() has been called.
+    // - Run() has been called, or is in the middle of it.
+    bool IsDone() const { return handshaker_ == nullptr; }
+
    private:
     TlsServerHandshaker* handshaker_;
   };
@@ -348,6 +353,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   HandshakeState state_ = HANDSHAKE_START;
   bool encryption_established_ = false;
   bool valid_alpn_received_ = false;
+  const bool fix_ticket_decrypt_ =
+      GetQuicReloadableFlag(quic_tls_fix_ticket_decrypt);
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
   TlsServerConnection tls_connection_;
