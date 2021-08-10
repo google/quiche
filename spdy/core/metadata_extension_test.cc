@@ -106,7 +106,7 @@ TEST_F(MetadataExtensionTest, MetadataIgnoredWithoutExtension) {
   ASSERT_TRUE(frame != nullptr);
   while (frame != nullptr) {
     const size_t frame_size = framer.SerializeFrame(*frame, &test_buffer_);
-    ASSERT_GT(frame_size, 0);
+    ASSERT_GT(frame_size, 0u);
     ASSERT_FALSE(deframer.HasError());
     ASSERT_EQ(frame_size, test_buffer_.Size());
     EXPECT_EQ(frame_size, deframer.ProcessInput(kBuffer, frame_size));
@@ -151,14 +151,14 @@ TEST_F(MetadataExtensionTest, MetadataPayloadEndToEnd) {
     ASSERT_TRUE(frame != nullptr);
     while (frame != nullptr) {
       const size_t frame_size = framer.SerializeFrame(*frame, &test_buffer_);
-      ASSERT_GT(frame_size, 0);
+      ASSERT_GT(frame_size, 0u);
       ASSERT_FALSE(deframer.HasError());
       ASSERT_EQ(frame_size, test_buffer_.Size());
       EXPECT_EQ(frame_size, deframer.ProcessInput(kBuffer, frame_size));
       test_buffer_.Reset();
       frame = sequence->Next();
     }
-    EXPECT_EQ(1, received_count_);
+    EXPECT_EQ(1u, received_count_);
     auto it = received_payload_map_.find(3);
     ASSERT_TRUE(it != received_payload_map_.end());
     EXPECT_EQ(payload_block, it->second);
@@ -201,7 +201,7 @@ TEST_F(MetadataExtensionTest, MetadataPayloadInterleaved) {
     for (auto frame : {frame1.get(), frame2.get()}) {
       if (frame != nullptr) {
         const size_t frame_size = framer.SerializeFrame(*frame, &test_buffer_);
-        ASSERT_GT(frame_size, 0);
+        ASSERT_GT(frame_size, 0u);
         ASSERT_FALSE(deframer.HasError());
         ASSERT_EQ(frame_size, test_buffer_.Size());
         EXPECT_EQ(frame_size, deframer.ProcessInput(kBuffer, frame_size));
@@ -211,7 +211,7 @@ TEST_F(MetadataExtensionTest, MetadataPayloadInterleaved) {
     frame1 = sequence1->Next();
     frame2 = sequence2->Next();
   }
-  EXPECT_EQ(2, received_count_);
+  EXPECT_EQ(2u, received_count_);
   auto it = received_payload_map_.find(3);
   ASSERT_TRUE(it != received_payload_map_.end());
   EXPECT_EQ(payload1, it->second);
