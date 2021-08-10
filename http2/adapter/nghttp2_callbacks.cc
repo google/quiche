@@ -253,15 +253,12 @@ int OnUnpackExtensionCallback(nghttp2_session* /*session*/, void** /*payload*/,
   return 0;
 }
 
-ssize_t OnPackExtensionCallback(nghttp2_session* /*session*/, uint8_t* buf,
-                                size_t len, const nghttp2_frame* frame,
+ssize_t OnPackExtensionCallback(nghttp2_session* /*session*/, uint8_t* /*buf*/,
+                                size_t /*len*/, const nghttp2_frame* /*frame*/,
                                 void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
-  auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
-  int64_t written = 0;
-  visitor->OnReadyToSendMetadataForStream(
-      frame->hd.stream_id, reinterpret_cast<char*>(buf), len, &written);
-  return written;
+  QUICHE_LOG(DFATAL) << "Not implemented";
+  return NGHTTP2_ERR_CALLBACK_FAILURE;
 }
 
 int OnError(nghttp2_session* /*session*/, int /*lib_error_code*/,

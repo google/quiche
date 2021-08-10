@@ -59,11 +59,6 @@ class QUICHE_NO_EXPORT RecordingHttp2Visitor : public Http2VisitorInterface {
   int OnFrameSent(uint8_t frame_type, Http2StreamId stream_id, size_t length,
                   uint8_t flags, uint32_t error_code) override;
   bool OnInvalidFrame(Http2StreamId stream_id, int error_code) override;
-  void OnReadyToSendDataForStream(Http2StreamId stream_id,
-                                  char* destination_buffer, size_t length,
-                                  int64_t* written, bool* end_stream) override;
-  void OnReadyToSendMetadataForStream(Http2StreamId stream_id, char* buffer,
-                                      size_t length, int64_t* written) override;
   void OnBeginMetadataForStream(Http2StreamId stream_id,
                                 size_t payload_length) override;
   bool OnMetadataForStream(Http2StreamId stream_id,

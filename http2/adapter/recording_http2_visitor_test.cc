@@ -85,11 +85,6 @@ TEST(RecordingHttp2VisitorTest, SameEventsProduceSameSequence) {
     visitor->OnPushPromiseForStream(stream_id, another_stream_id);
     visitor->OnGoAway(stream_id, error_code, some_string);
     visitor->OnWindowUpdate(stream_id, some_int);
-    visitor->OnReadyToSendDataForStream(
-        stream_id, /*destination_buffer=*/nullptr, length, /*written=*/nullptr,
-        /*end_stream=*/nullptr);
-    visitor->OnReadyToSendMetadataForStream(stream_id, /*buffer=*/nullptr,
-                                            length, /*written=*/nullptr);
     visitor->OnBeginMetadataForStream(stream_id, length);
     visitor->OnMetadataForStream(stream_id, some_string);
     visitor->OnMetadataForStream(stream_id, another_string);

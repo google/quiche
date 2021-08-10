@@ -349,14 +349,6 @@ int CallbackVisitor::OnFrameSent(uint8_t frame_type, Http2StreamId stream_id,
   return 0;
 }
 
-void CallbackVisitor::OnReadyToSendDataForStream(Http2StreamId /*stream_id*/,
-                                                 char* /*destination_buffer*/,
-                                                 size_t /*length*/,
-                                                 int64_t* /*written*/,
-                                                 bool* /*end_stream*/) {
-  QUICHE_LOG(DFATAL) << "Not implemented";
-}
-
 bool CallbackVisitor::OnInvalidFrame(Http2StreamId stream_id, int error_code) {
   QUICHE_VLOG(1) << "OnInvalidFrame(" << stream_id << ", " << error_code << ")";
   QUICHE_DCHECK_EQ(stream_id, current_frame_.hd.stream_id);
@@ -365,23 +357,6 @@ bool CallbackVisitor::OnInvalidFrame(Http2StreamId stream_id, int error_code) {
                     nullptr, &current_frame_, error_code, user_data_);
   }
   return true;
-}
-
-void CallbackVisitor::OnReadyToSendMetadataForStream(Http2StreamId stream_id,
-                                                     char* buffer,
-                                                     size_t length,
-                                                     int64_t* written) {
-  if (callbacks_->pack_extension_callback) {
-    nghttp2_frame frame;
-    frame.hd.type = kMetadataFrameType;
-    frame.hd.stream_id = stream_id;
-    frame.hd.flags = 0;
-    frame.hd.length = 0;
-    *written = callbacks_->pack_extension_callback(nullptr, ToUint8Ptr(buffer),
-                                                   length, &frame, user_data_);
-  }
-  QUICHE_VLOG(1) << "OnReadyToSendMetadataForStream(stream_id=" << stream_id
-                 << ", length=" << length << ", written=" << *written << ")";
 }
 
 void CallbackVisitor::OnBeginMetadataForStream(Http2StreamId stream_id,

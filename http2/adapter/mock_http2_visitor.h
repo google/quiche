@@ -110,16 +110,6 @@ class QUICHE_NO_EXPORT MockHttp2Visitor : public Http2VisitorInterface {
   MOCK_METHOD(bool, OnInvalidFrame, (Http2StreamId stream_id, int error_code),
               (override));
 
-  MOCK_METHOD(void, OnReadyToSendDataForStream,
-              (Http2StreamId stream_id, char* destination_buffer, size_t length,
-               int64_t* written, bool* end_stream),
-              (override));
-
-  MOCK_METHOD(void, OnReadyToSendMetadataForStream,
-              (Http2StreamId stream_id, char* buffer, size_t length,
-               int64_t* written),
-              (override));
-
   MOCK_METHOD(void,
               OnBeginMetadataForStream,
               (Http2StreamId stream_id, size_t payload_length),

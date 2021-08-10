@@ -141,24 +141,6 @@ bool RecordingHttp2Visitor::OnInvalidFrame(Http2StreamId stream_id,
   return true;
 }
 
-void RecordingHttp2Visitor::OnReadyToSendDataForStream(
-    Http2StreamId stream_id, char* /*destination_buffer*/, size_t length,
-    int64_t* /*written*/, bool* /*end_stream*/) {
-  // TODO(b/181586191): Revisit this. The visitor is expected to write to the
-  // |destination_buffer| and set the other pointer values appropriately.
-  events_.push_back(
-      absl::StrFormat("OnReadyToSendDataForStream %d %d", stream_id, length));
-}
-
-void RecordingHttp2Visitor::OnReadyToSendMetadataForStream(
-    Http2StreamId stream_id, char* /*buffer*/, size_t length,
-    int64_t* /*written*/) {
-  // TODO(b/181586191): Revisit this. The visitor is expected to write to the
-  // |buffer| and set *written appropriately.
-  events_.push_back(absl::StrFormat("OnReadyToSendMetadataForStream %d %d",
-                                    stream_id, length));
-}
-
 void RecordingHttp2Visitor::OnBeginMetadataForStream(Http2StreamId stream_id,
                                                      size_t payload_length) {
   events_.push_back(absl::StrFormat("OnBeginMetadataForStream %d %d", stream_id,
