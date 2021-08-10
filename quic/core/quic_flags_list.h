@@ -81,8 +81,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_allocate_stream_sequencer_buffer_block
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_active_cid_for_session_lookup, true)
 // If true, pass the received PATH_RESPONSE payload to path validator to move forward the path validation.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_pass_path_response_to_validator, true)
-// If true, quic connection sends/recieives NewConnectionId & RetireConnectionId frames.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_connection_support_multiple_cids_v4, true)
 // If true, quic dispatcher discards packets with invalid server connection ID.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_discard_packets_with_invalid_cid, true)
 // If true, quic dispatcher supports one connection to use multiple connection IDs. 

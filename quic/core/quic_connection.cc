@@ -338,8 +338,7 @@ QuicConnection::QuicConnection(
       version().HasIetfQuicFrames() &&
       GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2) &&
       GetQuicRestartFlag(
-          quic_dispatcher_support_multiple_cid_per_connection_v2) &&
-      GetQuicReloadableFlag(quic_connection_support_multiple_cids_v4);
+          quic_dispatcher_support_multiple_cid_per_connection_v2);
 
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
@@ -2043,7 +2042,6 @@ bool QuicConnection::OnNewConnectionIdFrameInner(
   if (perspective_ == Perspective::IS_SERVER) {
     OnClientConnectionIdAvailable();
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v4, 1, 2);
   if (ack_cid_frames_) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_ack_cid_frames, 1, 2);
     MaybeUpdateAckTimeout();
@@ -2105,7 +2103,6 @@ bool QuicConnection::OnRetireConnectionIdFrame(
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_support_multiple_cids_v4, 2, 2);
   // Count successfully received RETIRE_CONNECTION_ID frames.
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 5, 6);
   if (ack_cid_frames_) {
