@@ -740,17 +740,12 @@ void QuicStream::MaybeSendBlocked() {
   }
 }
 
-QuicConsumedData QuicStream::WriteMemSlices(QuicMemSliceSpan span, bool fin) {
-  return WriteMemSlicesInner(MemSliceSpanWrapper(span), fin);
+QuicConsumedData QuicStream::WriteMemSlice(QuicMemSlice span, bool fin) {
+  return WriteMemSlices(absl::MakeSpan(&span, 1), fin);
 }
 
 QuicConsumedData QuicStream::WriteMemSlices(absl::Span<QuicMemSlice> span,
                                             bool fin) {
-  return WriteMemSlicesInner(MemSliceSpanWrapper(span), fin);
-}
-
-QuicConsumedData QuicStream::WriteMemSlicesInner(MemSliceSpanWrapper span,
-                                                 bool fin) {
   QuicConsumedData consumed_data(0, false);
   if (span.empty() && !fin) {
     QUIC_BUG(quic_bug_10586_6) << "span.empty() && !fin";
@@ -778,7 +773,7 @@ QuicConsumedData QuicStream::WriteMemSlicesInner(MemSliceSpanWrapper span,
     if (!span.empty()) {
       // Buffer all data if buffered data size is below limit.
       QuicStreamOffset offset = send_buffer_.stream_offset();
-      consumed_data.bytes_consumed = span.SaveTo(send_buffer_);
+      consumed_data.bytes_consumed = send_buffer_.SaveMemSliceSpan(span);
       if (offset > send_buffer_.stream_offset() ||
           kMaxStreamLength < send_buffer_.stream_offset()) {
         QUIC_BUG(quic_bug_10586_8) << "Write too many data via stream " << id_;

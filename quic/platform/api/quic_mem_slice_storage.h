@@ -5,8 +5,14 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_MEM_SLICE_STORAGE_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_MEM_SLICE_STORAGE_H_
 
+#include <vector>
+
+#include "absl/types/span.h"
+#include "quic/core/quic_buffer_allocator.h"
+#include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
-#include "net/quic/platform/impl/quic_mem_slice_storage_impl.h"
+#include "quic/platform/api/quic_iovec.h"
+#include "quic/platform/api/quic_mem_slice.h"
 
 namespace quic {
 
@@ -14,11 +20,9 @@ namespace quic {
 // use cases such as turning into QuicMemSliceSpan.
 class QUIC_EXPORT_PRIVATE QuicMemSliceStorage {
  public:
-  QuicMemSliceStorage(const struct iovec* iov,
-                      int iov_count,
+  QuicMemSliceStorage(const struct iovec* iov, int iov_count,
                       QuicBufferAllocator* allocator,
-                      const QuicByteCount max_slice_len)
-      : impl_(iov, iov_count, allocator, max_slice_len) {}
+                      const QuicByteCount max_slice_len);
 
   QuicMemSliceStorage(const QuicMemSliceStorage& other) = default;
   QuicMemSliceStorage& operator=(const QuicMemSliceStorage& other) = default;
@@ -28,12 +32,10 @@ class QUIC_EXPORT_PRIVATE QuicMemSliceStorage {
   ~QuicMemSliceStorage() = default;
 
   // Return a QuicMemSliceSpan form of the storage.
-  QuicMemSliceSpan ToSpan() { return impl_.ToSpan(); }
-
-  void Append(QuicMemSlice slice) { impl_.Append(std::move(*slice.impl())); }
+  absl::Span<QuicMemSlice> ToSpan() { return absl::MakeSpan(storage_); }
 
  private:
-  QuicMemSliceStorageImpl impl_;
+  std::vector<QuicMemSlice> storage_;
 };
 
 }  // namespace quic

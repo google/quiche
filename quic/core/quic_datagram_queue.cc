@@ -9,7 +9,6 @@
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_time.h"
 #include "quic/core/quic_types.h"
-#include "quic/platform/api/quic_mem_slice_span.h"
 
 namespace quic {
 

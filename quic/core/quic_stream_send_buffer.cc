@@ -92,11 +92,6 @@ void QuicStreamSendBuffer::SaveMemSlice(QuicMemSlice slice) {
   stream_offset_ += length;
 }
 
-QuicByteCount QuicStreamSendBuffer::SaveMemSliceSpan(QuicMemSliceSpan span) {
-  return span.ConsumeAll(
-      [&](QuicMemSlice slice) { SaveMemSlice(std::move(slice)); });
-}
-
 QuicByteCount QuicStreamSendBuffer::SaveMemSliceSpan(
     absl::Span<QuicMemSlice> span) {
   QuicByteCount total = 0;

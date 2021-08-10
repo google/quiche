@@ -6,7 +6,6 @@
 
 #include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/platform/api/quic_test.h"
-#include "quic/platform/api/quic_test_mem_slice_vector.h"
 
 namespace quic {
 namespace test {
@@ -28,8 +27,8 @@ TEST_F(QuicMemSliceStorageImplTest, SingleIov) {
   struct iovec iov = {const_cast<char*>(body.data()), body.length()};
   QuicMemSliceStorage storage(&iov, 1, &allocator, 1024);
   auto span = storage.ToSpan();
-  EXPECT_EQ("ccc", span.GetData(0));
-  EXPECT_NE(static_cast<const void*>(span.GetData(0).data()), body.data());
+  EXPECT_EQ("ccc", span[0].AsStringView());
+  EXPECT_NE(static_cast<const void*>(span[0].data()), body.data());
 }
 
 TEST_F(QuicMemSliceStorageImplTest, MultipleIovInSingleSlice) {
@@ -41,7 +40,7 @@ TEST_F(QuicMemSliceStorageImplTest, MultipleIovInSingleSlice) {
 
   QuicMemSliceStorage storage(iov, 2, &allocator, 1024);
   auto span = storage.ToSpan();
-  EXPECT_EQ("aaabbbb", span.GetData(0));
+  EXPECT_EQ("aaabbbb", span[0].AsStringView());
 }
 
 TEST_F(QuicMemSliceStorageImplTest, MultipleIovInMultipleSlice) {
@@ -53,26 +52,8 @@ TEST_F(QuicMemSliceStorageImplTest, MultipleIovInMultipleSlice) {
 
   QuicMemSliceStorage storage(iov, 2, &allocator, 4);
   auto span = storage.ToSpan();
-  EXPECT_EQ("aaaa", span.GetData(0));
-  EXPECT_EQ("bbbb", span.GetData(1));
-}
-
-TEST_F(QuicMemSliceStorageImplTest, AppendMemSlices) {
-  std::string body1(3, 'a');
-  std::string body2(4, 'b');
-  std::vector<std::pair<char*, size_t>> buffers;
-  buffers.push_back(
-      std::make_pair(const_cast<char*>(body1.data()), body1.length()));
-  buffers.push_back(
-      std::make_pair(const_cast<char*>(body2.data()), body2.length()));
-  QuicTestMemSliceVector mem_slices(buffers);
-
-  QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
-  mem_slices.span().ConsumeAll(
-      [&storage](QuicMemSlice slice) { storage.Append(std::move(slice)); });
-
-  EXPECT_EQ("aaa", storage.ToSpan().GetData(0));
-  EXPECT_EQ("bbbb", storage.ToSpan().GetData(1));
+  EXPECT_EQ("aaaa", span[0].AsStringView());
+  EXPECT_EQ("bbbb", span[1].AsStringView());
 }
 
 }  // namespace

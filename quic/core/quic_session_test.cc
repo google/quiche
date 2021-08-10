@@ -29,7 +29,6 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_mem_slice_storage.h"
 #include "quic/platform/api/quic_test.h"
-#include "quic/platform/api/quic_test_mem_slice_vector.h"
 #include "quic/test_tools/mock_quic_session_visitor.h"
 #include "quic/test_tools/quic_config_peer.h"
 #include "quic/test_tools/quic_connection_peer.h"
@@ -2571,12 +2570,11 @@ TEST_P(QuicSessionTestServer, WriteMemSlicesOnReadUnidirectionalStream) {
               CloseConnection(
                   QUIC_TRY_TO_WRITE_DATA_ON_READ_UNIDIRECTIONAL_STREAM, _, _))
       .Times(1);
-  char data[1024];
-  std::vector<std::pair<char*, size_t>> buffers;
-  buffers.push_back(std::make_pair(data, ABSL_ARRAYSIZE(data)));
-  buffers.push_back(std::make_pair(data, ABSL_ARRAYSIZE(data)));
-  QuicTestMemSliceVector vector(buffers);
-  stream4->WriteMemSlices(vector.span(), false);
+  std::string data(1024, 'a');
+  std::vector<QuicMemSlice> buffers;
+  buffers.push_back(MemSliceFromString(data));
+  buffers.push_back(MemSliceFromString(data));
+  stream4->WriteMemSlices(absl::MakeSpan(buffers), false);
 }
 
 // Test code that tests that an incoming stream frame with a new (not previously

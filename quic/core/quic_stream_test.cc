@@ -26,7 +26,6 @@
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_mem_slice_storage.h"
 #include "quic/platform/api/quic_test.h"
-#include "quic/platform/api/quic_test_mem_slice_vector.h"
 #include "quic/test_tools/quic_config_peer.h"
 #include "quic/test_tools/quic_connection_peer.h"
 #include "quic/test_tools/quic_flow_controller_peer.h"
@@ -1243,26 +1242,20 @@ TEST_P(QuicStreamTest, WriteMemSlices) {
 TEST_P(QuicStreamTest, WriteMemSlicesReachStreamLimit) {
   Initialize();
   QuicStreamPeer::SetStreamBytesWritten(kMaxStreamLength - 5u, stream_);
-  char data[5];
   std::vector<std::pair<char*, size_t>> buffers;
-  buffers.push_back(std::make_pair(data, ABSL_ARRAYSIZE(data)));
-  QuicTestMemSliceVector vector1(buffers);
-  QuicMemSliceSpan span1 = vector1.span();
+  QuicMemSlice slice1 = MemSliceFromString("12345");
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(InvokeWithoutArgs([this]() {
         return session_->ConsumeData(stream_->id(), 5u, 0u, NO_FIN,
                                      NOT_RETRANSMISSION, absl::nullopt);
       }));
   // There is no buffered data before, all data should be consumed.
-  QuicConsumedData consumed = stream_->WriteMemSlices(span1, false);
+  QuicConsumedData consumed = stream_->WriteMemSlice(std::move(slice1), false);
   EXPECT_EQ(5u, consumed.bytes_consumed);
 
-  std::vector<std::pair<char*, size_t>> buffers2;
-  buffers2.push_back(std::make_pair(data, 1u));
-  QuicTestMemSliceVector vector2(buffers);
-  QuicMemSliceSpan span2 = vector2.span();
+  QuicMemSlice slice2 = MemSliceFromString("6");
   EXPECT_CALL(*connection_, CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _));
-  EXPECT_QUIC_BUG(stream_->WriteMemSlices(span2, false),
+  EXPECT_QUIC_BUG(stream_->WriteMemSlice(std::move(slice2), false),
                   "Write too many data via stream");
 }
 

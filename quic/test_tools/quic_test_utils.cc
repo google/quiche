@@ -1312,20 +1312,6 @@ StreamType DetermineStreamType(QuicStreamId id,
              : default_type;
 }
 
-QuicMemSliceSpan MakeSpan(QuicBufferAllocator* allocator,
-                          absl::string_view message_data,
-                          QuicMemSliceStorage* storage) {
-  if (message_data.length() == 0) {
-    *storage =
-        QuicMemSliceStorage(nullptr, 0, allocator, kMaxOutgoingPacketSize);
-    return storage->ToSpan();
-  }
-  struct iovec iov = {const_cast<char*>(message_data.data()),
-                      message_data.length()};
-  *storage = QuicMemSliceStorage(&iov, 1, allocator, kMaxOutgoingPacketSize);
-  return storage->ToSpan();
-}
-
 QuicMemSlice MemSliceFromString(absl::string_view data) {
   if (data.empty()) {
     return QuicMemSlice();

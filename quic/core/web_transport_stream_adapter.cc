@@ -45,7 +45,7 @@ bool WebTransportStreamAdapter::Write(absl::string_view data) {
   QuicMemSlice memslice(QuicBuffer::Copy(
       session_->connection()->helper()->GetStreamSendBufferAllocator(), data));
   QuicConsumedData consumed =
-      stream_->WriteMemSlices(QuicMemSliceSpan(&memslice), /*fin=*/false);
+      stream_->WriteMemSlices(absl::MakeSpan(&memslice, 1), /*fin=*/false);
 
   if (consumed.bytes_consumed == data.size()) {
     return true;
@@ -75,7 +75,7 @@ bool WebTransportStreamAdapter::SendFin() {
 
   QuicMemSlice empty;
   QuicConsumedData consumed =
-      stream_->WriteMemSlices(QuicMemSliceSpan(&empty), /*fin=*/true);
+      stream_->WriteMemSlices(absl::MakeSpan(&empty, 1), /*fin=*/true);
   QUICHE_DCHECK_EQ(consumed.bytes_consumed, 0u);
   return consumed.fin_consumed;
 }

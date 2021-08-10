@@ -13,7 +13,6 @@
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_test.h"
-#include "quic/platform/api/quic_test_mem_slice_vector.h"
 #include "quic/test_tools/quic_stream_send_buffer_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
 
@@ -321,14 +320,13 @@ TEST_F(QuicStreamSendBufferTest, SaveMemSliceSpan) {
   SimpleBufferAllocator allocator;
   QuicStreamSendBuffer send_buffer(&allocator);
 
-  char data[1024];
-  std::vector<std::pair<char*, size_t>> buffers;
+  std::string data(1024, 'a');
+  std::vector<QuicMemSlice> buffers;
   for (size_t i = 0; i < 10; ++i) {
-    buffers.push_back(std::make_pair(data, 1024));
+    buffers.push_back(MemSliceFromString(data));
   }
-  QuicTestMemSliceVector vector(buffers);
 
-  EXPECT_EQ(10 * 1024u, send_buffer.SaveMemSliceSpan(vector.span()));
+  EXPECT_EQ(10 * 1024u, send_buffer.SaveMemSliceSpan(absl::MakeSpan(buffers)));
   EXPECT_EQ(10u, send_buffer.size());
 }
 
@@ -336,15 +334,13 @@ TEST_F(QuicStreamSendBufferTest, SaveEmptyMemSliceSpan) {
   SimpleBufferAllocator allocator;
   QuicStreamSendBuffer send_buffer(&allocator);
 
-  char data[1024];
-  std::vector<std::pair<char*, size_t>> buffers;
+  std::string data(1024, 'a');
+  std::vector<QuicMemSlice> buffers;
   for (size_t i = 0; i < 10; ++i) {
-    buffers.push_back(std::make_pair(data, 1024));
+    buffers.push_back(MemSliceFromString(data));
   }
-  buffers.push_back(std::make_pair(nullptr, 0));
-  QuicTestMemSliceVector vector(buffers);
 
-  EXPECT_EQ(10 * 1024u, send_buffer.SaveMemSliceSpan(vector.span()));
+  EXPECT_EQ(10 * 1024u, send_buffer.SaveMemSliceSpan(absl::MakeSpan(buffers)));
   // Verify the empty slice does not get saved.
   EXPECT_EQ(10u, send_buffer.size());
 }

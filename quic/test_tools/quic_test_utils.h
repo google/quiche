@@ -1823,12 +1823,6 @@ StreamType DetermineStreamType(QuicStreamId id,
                                bool is_incoming,
                                StreamType default_type);
 
-// Utility function that stores message_data in |storage| and returns a
-// QuicMemSliceSpan.
-QuicMemSliceSpan MakeSpan(QuicBufferAllocator* allocator,
-                          absl::string_view message_data,
-                          QuicMemSliceStorage* storage);
-
 // Creates a MemSlice using a singleton trivial buffer allocator.  Performs a
 // copy.
 QuicMemSlice MemSliceFromString(absl::string_view data);

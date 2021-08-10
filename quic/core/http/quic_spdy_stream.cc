@@ -391,29 +391,12 @@ bool QuicSpdyStream::WriteDataFrameHeader(QuicByteCount data_length,
   if (can_write) {
     // Save one copy and allocation if send buffer can accomodate the header.
     QuicMemSlice header_slice(std::move(header));
-    WriteMemSlices(QuicMemSliceSpan(&header_slice), false);
+    WriteMemSlices(absl::MakeSpan(&header_slice, 1), false);
   } else {
     QUICHE_DCHECK(force_write);
     WriteOrBufferData(header.AsStringView(), false, nullptr);
   }
   return true;
-}
-
-QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
-                                                 bool fin) {
-  if (!VersionUsesHttp3(transport_version()) || slices.empty()) {
-    return WriteMemSlices(slices, fin);
-  }
-
-  QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
-  if (!WriteDataFrameHeader(slices.total_length(), /*force_write=*/false)) {
-    return {0, false};
-  }
-
-  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
-                  << " is writing DATA frame payload of length "
-                  << slices.total_length();
-  return WriteMemSlices(slices, fin);
 }
 
 QuicConsumedData QuicSpdyStream::WriteBodySlices(

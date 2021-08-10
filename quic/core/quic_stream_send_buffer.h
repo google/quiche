@@ -12,7 +12,6 @@
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_iovec.h"
 #include "quic/platform/api/quic_mem_slice.h"
-#include "quic/platform/api/quic_mem_slice_span.h"
 #include "common/quiche_circular_deque.h"
 
 namespace quic {
@@ -80,7 +79,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
   void SaveMemSlice(QuicMemSlice slice);
 
   // Save all slices in |span| to send buffer. Return total bytes saved.
-  QuicByteCount SaveMemSliceSpan(QuicMemSliceSpan span);
   QuicByteCount SaveMemSliceSpan(absl::Span<QuicMemSlice> span);
 
   // Called when |bytes_consumed| bytes has been consumed by the stream.
