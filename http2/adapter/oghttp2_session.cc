@@ -217,8 +217,8 @@ int OgHttp2Session::GetHpackDecoderDynamicTableSize() const {
   return decoder == nullptr ? 0 : decoder->GetDynamicTableSize();
 }
 
-ssize_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
-  ssize_t preface_consumed = 0;
+int64_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
+  int64_t preface_consumed = 0;
   if (!remaining_preface_.empty()) {
     QUICHE_VLOG(2) << "Preface bytes remaining: " << remaining_preface_.size();
     // decoder_ does not understand the client connection preface.
@@ -240,7 +240,7 @@ ssize_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
     }
     preface_consumed = min_size;
   }
-  ssize_t result = decoder_.ProcessInput(bytes.data(), bytes.size());
+  int64_t result = decoder_.ProcessInput(bytes.data(), bytes.size());
   return result < 0 ? result : result + preface_consumed;
 }
 
@@ -284,7 +284,7 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
 
 int OgHttp2Session::Send() {
   MaybeSetupPreface();
-  ssize_t result = std::numeric_limits<ssize_t>::max();
+  int64_t result = std::numeric_limits<int64_t>::max();
   // Flush any serialized prefix.
   while (result > 0 && !serialized_prefix_.empty()) {
     result = visitor_.OnReadyToSend(serialized_prefix_);
@@ -322,7 +322,7 @@ bool OgHttp2Session::SendQueuedFrames() {
     visitor_.OnBeforeFrameSent(c.frame_type(), c.stream_id(), c.length(),
                                c.flags());
     spdy::SpdySerializedFrame frame = framer_.SerializeFrame(*frame_ptr);
-    const ssize_t result = visitor_.OnReadyToSend(absl::string_view(frame));
+    const int64_t result = visitor_.OnReadyToSend(absl::string_view(frame));
     if (result < 0) {
       visitor_.OnConnectionError();
       return false;
@@ -381,7 +381,7 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
       std::min(connection_send_window_, state.send_window), max_frame_payload_);
   while (connection_can_write && available_window > 0 &&
          state.outbound_body != nullptr) {
-    ssize_t length;
+    int64_t length;
     bool end_data;
     std::tie(length, end_data) =
         state.outbound_body->SelectPayloadLength(available_window);
@@ -449,7 +449,7 @@ bool OgHttp2Session::SendMetadata(Http2StreamId stream_id,
   while (!sequence.empty()) {
     MetadataSource& source = *sequence.front();
 
-    ssize_t written;
+    int64_t written;
     bool end_metadata;
     std::tie(written, end_metadata) =
         source.Pack(payload_buffer.get(), kMaxMetadataFrameSize);

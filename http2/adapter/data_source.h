@@ -1,6 +1,7 @@
 #ifndef QUICHE_HTTP2_ADAPTER_DATA_SOURCE_H_
 #define QUICHE_HTTP2_ADAPTER_DATA_SOURCE_H_
 
+#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -15,12 +16,12 @@ class QUICHE_EXPORT_PRIVATE DataFrameSource {
  public:
   virtual ~DataFrameSource() {}
 
-  enum : ssize_t { kBlocked = 0, kError = -1 };
+  enum : int64_t { kBlocked = 0, kError = -1 };
 
   // Returns the number of bytes to send in the next DATA frame, and whether
   // this frame indicates the end of the data. Returns {kBlocked, false} if
   // blocked, {kError, false} on error.
-  virtual std::pair<ssize_t, bool> SelectPayloadLength(size_t max_length) = 0;
+  virtual std::pair<int64_t, bool> SelectPayloadLength(size_t max_length) = 0;
 
   // This method is called with a frame header and a payload length to send. The
   // source should send or buffer the entire frame and return true, or return
@@ -41,7 +42,7 @@ class QUICHE_EXPORT_PRIVATE MetadataSource {
   // return the number of payload bytes copied to |dest|, or a negative integer
   // to indicate an error, as well as a boolean indicating whether the metadata
   // has been completely copied.
-  virtual std::pair<ssize_t, bool> Pack(uint8_t* dest, size_t dest_len) = 0;
+  virtual std::pair<int64_t, bool> Pack(uint8_t* dest, size_t dest_len) = 0;
 };
 
 }  // namespace adapter

@@ -1,6 +1,8 @@
 #ifndef QUICHE_HTTP2_ADAPTER_NGHTTP2_DATA_PROVIDER_H_
 #define QUICHE_HTTP2_ADAPTER_NGHTTP2_DATA_PROVIDER_H_
 
+#include <cstdint>
+
 #include "http2/adapter/data_source.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 

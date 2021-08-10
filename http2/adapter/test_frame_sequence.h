@@ -1,6 +1,7 @@
 #ifndef QUICHE_HTTP2_ADAPTER_TEST_FRAME_SEQUENCE_H_
 #define QUICHE_HTTP2_ADAPTER_TEST_FRAME_SEQUENCE_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>

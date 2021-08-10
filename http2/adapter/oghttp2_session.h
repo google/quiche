@@ -1,6 +1,7 @@
 #ifndef QUICHE_HTTP2_ADAPTER_OGHTTP2_SESSION_H_
 #define QUICHE_HTTP2_ADAPTER_OGHTTP2_SESSION_H_
 
+#include <cstdint>
 #include <list>
 
 #include "http2/adapter/data_source.h"
@@ -84,7 +85,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   int GetHpackDecoderDynamicTableSize() const;
 
   // From Http2Session.
-  ssize_t ProcessBytes(absl::string_view bytes) override;
+  int64_t ProcessBytes(absl::string_view bytes) override;
   int Consume(Http2StreamId stream_id, size_t num_bytes) override;
   bool want_read() const override {
     return !received_goaway_ && !decoder_.HasError();

@@ -25,14 +25,14 @@ void TestDataFrameSource::AppendPayload(absl::string_view payload) {
 
 void TestDataFrameSource::EndData() { end_data_ = true; }
 
-std::pair<ssize_t, bool> TestDataFrameSource::SelectPayloadLength(
+std::pair<int64_t, bool> TestDataFrameSource::SelectPayloadLength(
     size_t max_length) {
   // The stream is done if there's no more data, or if |max_length| is at least
   // as large as the remaining data.
   const bool end_data = end_data_ && (current_fragment_.empty() ||
                                       (payload_fragments_.size() == 1 &&
                                        max_length >= current_fragment_.size()));
-  const ssize_t length = std::min(max_length, current_fragment_.size());
+  const int64_t length = std::min(max_length, current_fragment_.size());
   return {length, end_data};
 }
 
@@ -43,7 +43,7 @@ bool TestDataFrameSource::Send(absl::string_view frame_header,
       << " current_fragment_size: " << current_fragment_.size();
   const std::string concatenated =
       absl::StrCat(frame_header, current_fragment_.substr(0, payload_length));
-  const ssize_t result = visitor_.OnReadyToSend(concatenated);
+  const int64_t result = visitor_.OnReadyToSend(concatenated);
   if (result < 0) {
     // Write encountered error.
     visitor_.OnConnectionError();
@@ -87,7 +87,7 @@ TestMetadataSource::TestMetadataSource(const spdy::SpdyHeaderBlock& entries)
   remaining_ = encoded_entries_;
 }
 
-std::pair<ssize_t, bool> TestMetadataSource::Pack(uint8_t* dest,
+std::pair<int64_t, bool> TestMetadataSource::Pack(uint8_t* dest,
                                                   size_t dest_len) {
   const size_t copied = std::min(dest_len, remaining_.size());
   std::memcpy(dest, remaining_.data(), copied);

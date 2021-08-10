@@ -18,7 +18,7 @@ class QUICHE_EXPORT_PRIVATE Http2Session {
   Http2Session() = default;
   virtual ~Http2Session() {}
 
-  virtual ssize_t ProcessBytes(absl::string_view bytes) = 0;
+  virtual int64_t ProcessBytes(absl::string_view bytes) = 0;
 
   virtual int Consume(Http2StreamId stream_id, size_t num_bytes) = 0;
 

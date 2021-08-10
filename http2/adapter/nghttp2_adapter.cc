@@ -34,8 +34,8 @@ bool NgHttp2Adapter::IsServerSession() const {
   return result > 0;
 }
 
-ssize_t NgHttp2Adapter::ProcessBytes(absl::string_view bytes) {
-  const ssize_t processed_bytes = session_->ProcessBytes(bytes);
+int64_t NgHttp2Adapter::ProcessBytes(absl::string_view bytes) {
+  const int64_t processed_bytes = session_->ProcessBytes(bytes);
   if (processed_bytes < 0) {
     visitor_.OnConnectionError();
   }

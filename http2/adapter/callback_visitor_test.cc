@@ -159,7 +159,7 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
   // Metadata events
   constexpr size_t kMetadataBufferSize = 256;
   char metadata_dest[kMetadataBufferSize];
-  ssize_t written = 0;
+  int64_t written = 0;
 
   const absl::string_view kExampleFrame = "This is supposed to be metadata.";
   EXPECT_CALL(
@@ -169,7 +169,7 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
                             HasFrameHeaderRef(7, kMetadataFrameType, _))))
       .WillOnce(testing::Invoke(
           [kExampleFrame](uint8_t* buf, size_t /*len*/,
-                          const nghttp2_frame* /*frame*/) -> ssize_t {
+                          const nghttp2_frame* /*frame*/) -> int64_t {
             std::memcpy(buf, kExampleFrame.data(), kExampleFrame.size());
             return kExampleFrame.size();
           }));
@@ -315,7 +315,7 @@ TEST(ServerCallbackVisitorUnitTest, StreamFrames) {
   // Metadata events
   constexpr size_t kMetadataBufferSize = 256;
   char metadata_dest[kMetadataBufferSize];
-  ssize_t written = 0;
+  int64_t written = 0;
 
   const absl::string_view kExampleFrame = "This is supposed to be metadata.";
   EXPECT_CALL(
@@ -325,7 +325,7 @@ TEST(ServerCallbackVisitorUnitTest, StreamFrames) {
                             HasFrameHeaderRef(5, kMetadataFrameType, _))))
       .WillOnce(testing::Invoke(
           [kExampleFrame](uint8_t* buf, size_t /*len*/,
-                          const nghttp2_frame* /*frame*/) -> ssize_t {
+                          const nghttp2_frame* /*frame*/) -> int64_t {
             std::memcpy(buf, kExampleFrame.data(), kExampleFrame.size());
             return kExampleFrame.size();
           }));

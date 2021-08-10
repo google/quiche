@@ -1,6 +1,8 @@
 #ifndef QUICHE_HTTP2_ADAPTER_HTTP2_ADAPTER_H_
 #define QUICHE_HTTP2_ADAPTER_HTTP2_ADAPTER_H_
 
+#include <cstdint>
+
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "absl/types/span.h"
@@ -28,7 +30,7 @@ class QUICHE_EXPORT_PRIVATE Http2Adapter {
 
   // Processes the incoming |bytes| as HTTP/2 and invokes callbacks on the
   // |visitor_| as appropriate.
-  virtual ssize_t ProcessBytes(absl::string_view bytes) = 0;
+  virtual int64_t ProcessBytes(absl::string_view bytes) = 0;
 
   // Submits the |settings| to be written to the peer, e.g., as part of the
   // HTTP/2 connection preface.

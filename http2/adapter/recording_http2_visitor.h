@@ -1,6 +1,7 @@
 #ifndef QUICHE_HTTP2_ADAPTER_RECORDING_HTTP2_VISITOR_H_
 #define QUICHE_HTTP2_ADAPTER_RECORDING_HTTP2_VISITOR_H_
 
+#include <cstdint>
 #include <list>
 #include <string>
 
@@ -19,7 +20,7 @@ class QUICHE_NO_EXPORT RecordingHttp2Visitor : public Http2VisitorInterface {
   using EventSequence = std::list<Event>;
 
   // From Http2VisitorInterface
-  ssize_t OnReadyToSend(absl::string_view serialized) override;
+  int64_t OnReadyToSend(absl::string_view serialized) override;
   void OnConnectionError() override;
   void OnFrameHeader(Http2StreamId stream_id,
                      size_t length,
@@ -59,14 +60,10 @@ class QUICHE_NO_EXPORT RecordingHttp2Visitor : public Http2VisitorInterface {
                   uint8_t flags, uint32_t error_code) override;
   bool OnInvalidFrame(Http2StreamId stream_id, int error_code) override;
   void OnReadyToSendDataForStream(Http2StreamId stream_id,
-                                  char* destination_buffer,
-                                  size_t length,
-                                  ssize_t* written,
-                                  bool* end_stream) override;
-  void OnReadyToSendMetadataForStream(Http2StreamId stream_id,
-                                      char* buffer,
-                                      size_t length,
-                                      ssize_t* written) override;
+                                  char* destination_buffer, size_t length,
+                                  int64_t* written, bool* end_stream) override;
+  void OnReadyToSendMetadataForStream(Http2StreamId stream_id, char* buffer,
+                                      size_t length, int64_t* written) override;
   void OnBeginMetadataForStream(Http2StreamId stream_id,
                                 size_t payload_length) override;
   bool OnMetadataForStream(Http2StreamId stream_id,

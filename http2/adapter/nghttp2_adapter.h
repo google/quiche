@@ -1,6 +1,8 @@
 #ifndef QUICHE_HTTP2_ADAPTER_NGHTTP2_ADAPTER_H_
 #define QUICHE_HTTP2_ADAPTER_NGHTTP2_ADAPTER_H_
 
+#include <cstdint>
+
 #include "absl/container/flat_hash_map.h"
 #include "http2/adapter/http2_adapter.h"
 #include "http2/adapter/http2_protocol.h"
@@ -27,7 +29,7 @@ class QUICHE_EXPORT_PRIVATE NgHttp2Adapter : public Http2Adapter {
 
   bool IsServerSession() const override;
 
-  ssize_t ProcessBytes(absl::string_view bytes) override;
+  int64_t ProcessBytes(absl::string_view bytes) override;
   void SubmitSettings(absl::Span<const Http2Setting> settings) override;
   void SubmitPriorityForStream(Http2StreamId stream_id,
                                Http2StreamId parent_stream_id,

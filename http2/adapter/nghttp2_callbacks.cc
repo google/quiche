@@ -21,7 +21,7 @@ ssize_t OnReadyToSend(nghttp2_session* /* session */, const uint8_t* data,
                       size_t length, int flags, void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
-  const ssize_t result = visitor->OnReadyToSend(ToStringView(data, length));
+  const int64_t result = visitor->OnReadyToSend(ToStringView(data, length));
   QUICHE_VLOG(1) << "OnReadyToSend(length=" << length << ", flags=" << flags
                  << ") returning " << result;
   if (result > 0) {
@@ -258,7 +258,7 @@ ssize_t OnPackExtensionCallback(nghttp2_session* /*session*/, uint8_t* buf,
                                 void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
-  ssize_t written = 0;
+  int64_t written = 0;
   visitor->OnReadyToSendMetadataForStream(
       frame->hd.stream_id, reinterpret_cast<char*>(buf), len, &written);
   return written;

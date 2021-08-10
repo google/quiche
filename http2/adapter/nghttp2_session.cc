@@ -30,7 +30,7 @@ NgHttp2Session::~NgHttp2Session() {
       << " or pending writes: " << pending_writes;
 }
 
-ssize_t NgHttp2Session::ProcessBytes(absl::string_view bytes) {
+int64_t NgHttp2Session::ProcessBytes(absl::string_view bytes) {
   return nghttp2_session_mem_recv(
       session_.get(), reinterpret_cast<const uint8_t*>(bytes.data()),
       bytes.size());

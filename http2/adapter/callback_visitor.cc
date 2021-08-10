@@ -48,11 +48,11 @@ CallbackVisitor::CallbackVisitor(Perspective perspective,
   callbacks_ = MakeCallbacksPtr(c);
 }
 
-ssize_t CallbackVisitor::OnReadyToSend(absl::string_view serialized) {
+int64_t CallbackVisitor::OnReadyToSend(absl::string_view serialized) {
   if (!callbacks_->send_callback) {
     return kSendError;
   }
-  ssize_t result = callbacks_->send_callback(
+  int64_t result = callbacks_->send_callback(
       nullptr, ToUint8Ptr(serialized.data()), serialized.size(), 0, user_data_);
   QUICHE_VLOG(1) << "CallbackVisitor::OnReadyToSend returning " << result;
   if (result > 0) {
@@ -352,7 +352,7 @@ int CallbackVisitor::OnFrameSent(uint8_t frame_type, Http2StreamId stream_id,
 void CallbackVisitor::OnReadyToSendDataForStream(Http2StreamId /*stream_id*/,
                                                  char* /*destination_buffer*/,
                                                  size_t /*length*/,
-                                                 ssize_t* /*written*/,
+                                                 int64_t* /*written*/,
                                                  bool* /*end_stream*/) {
   QUICHE_LOG(DFATAL) << "Not implemented";
 }
@@ -370,7 +370,7 @@ bool CallbackVisitor::OnInvalidFrame(Http2StreamId stream_id, int error_code) {
 void CallbackVisitor::OnReadyToSendMetadataForStream(Http2StreamId stream_id,
                                                      char* buffer,
                                                      size_t length,
-                                                     ssize_t* written) {
+                                                     int64_t* written) {
   if (callbacks_->pack_extension_callback) {
     nghttp2_frame frame;
     frame.hd.type = kMetadataFrameType;

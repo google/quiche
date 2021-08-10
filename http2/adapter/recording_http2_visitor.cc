@@ -7,7 +7,7 @@ namespace http2 {
 namespace adapter {
 namespace test {
 
-ssize_t RecordingHttp2Visitor::OnReadyToSend(absl::string_view serialized) {
+int64_t RecordingHttp2Visitor::OnReadyToSend(absl::string_view serialized) {
   events_.push_back(absl::StrFormat("OnReadyToSend %d", serialized.size()));
   return serialized.size();
 }
@@ -143,7 +143,7 @@ bool RecordingHttp2Visitor::OnInvalidFrame(Http2StreamId stream_id,
 
 void RecordingHttp2Visitor::OnReadyToSendDataForStream(
     Http2StreamId stream_id, char* /*destination_buffer*/, size_t length,
-    ssize_t* /*written*/, bool* /*end_stream*/) {
+    int64_t* /*written*/, bool* /*end_stream*/) {
   // TODO(b/181586191): Revisit this. The visitor is expected to write to the
   // |destination_buffer| and set the other pointer values appropriately.
   events_.push_back(
@@ -152,7 +152,7 @@ void RecordingHttp2Visitor::OnReadyToSendDataForStream(
 
 void RecordingHttp2Visitor::OnReadyToSendMetadataForStream(
     Http2StreamId stream_id, char* /*buffer*/, size_t length,
-    ssize_t* /*written*/) {
+    int64_t* /*written*/) {
   // TODO(b/181586191): Revisit this. The visitor is expected to write to the
   // |buffer| and set *written appropriately.
   events_.push_back(absl::StrFormat("OnReadyToSendMetadataForStream %d %d",

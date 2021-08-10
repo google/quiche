@@ -1,6 +1,8 @@
 #ifndef QUICHE_HTTP2_ADAPTER_MOCK_HTTP2_VISITOR_INTERFACE_H_
 #define QUICHE_HTTP2_ADAPTER_MOCK_HTTP2_VISITOR_INTERFACE_H_
 
+#include <cstdint>
+
 #include "http2/adapter/http2_visitor_interface.h"
 #include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_test.h"
@@ -21,9 +23,7 @@ class QUICHE_NO_EXPORT MockHttp2Visitor : public Http2VisitorInterface {
     ON_CALL(*this, OnMetadataEndForStream).WillByDefault(testing::Return(true));
   }
 
-  MOCK_METHOD(ssize_t,
-              OnReadyToSend,
-              (absl::string_view serialized),
+  MOCK_METHOD(int64_t, OnReadyToSend, (absl::string_view serialized),
               (override));
   MOCK_METHOD(void, OnConnectionError, (), (override));
   MOCK_METHOD(
@@ -110,20 +110,15 @@ class QUICHE_NO_EXPORT MockHttp2Visitor : public Http2VisitorInterface {
   MOCK_METHOD(bool, OnInvalidFrame, (Http2StreamId stream_id, int error_code),
               (override));
 
-  MOCK_METHOD(void,
-              OnReadyToSendDataForStream,
-              (Http2StreamId stream_id,
-               char* destination_buffer,
-               size_t length,
-               ssize_t* written,
-               bool* end_stream),
+  MOCK_METHOD(void, OnReadyToSendDataForStream,
+              (Http2StreamId stream_id, char* destination_buffer, size_t length,
+               int64_t* written, bool* end_stream),
               (override));
 
-  MOCK_METHOD(
-      void,
-      OnReadyToSendMetadataForStream,
-      (Http2StreamId stream_id, char* buffer, size_t length, ssize_t* written),
-      (override));
+  MOCK_METHOD(void, OnReadyToSendMetadataForStream,
+              (Http2StreamId stream_id, char* buffer, size_t length,
+               int64_t* written),
+              (override));
 
   MOCK_METHOD(void,
               OnBeginMetadataForStream,

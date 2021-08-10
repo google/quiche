@@ -1,6 +1,7 @@
 #ifndef QUICHE_HTTP2_ADAPTER_CALLBACK_VISITOR_H_
 #define QUICHE_HTTP2_ADAPTER_CALLBACK_VISITOR_H_
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -21,7 +22,7 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
                            const nghttp2_session_callbacks& callbacks,
                            void* user_data);
 
-  ssize_t OnReadyToSend(absl::string_view serialized) override;
+  int64_t OnReadyToSend(absl::string_view serialized) override;
   void OnConnectionError() override;
   void OnFrameHeader(Http2StreamId stream_id,
                      size_t length,
@@ -60,15 +61,11 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
   int OnFrameSent(uint8_t frame_type, Http2StreamId stream_id, size_t length,
                   uint8_t flags, uint32_t error_code) override;
   void OnReadyToSendDataForStream(Http2StreamId stream_id,
-                                  char* destination_buffer,
-                                  size_t length,
-                                  ssize_t* written,
-                                  bool* end_stream) override;
+                                  char* destination_buffer, size_t length,
+                                  int64_t* written, bool* end_stream) override;
   bool OnInvalidFrame(Http2StreamId stream_id, int error_code) override;
-  void OnReadyToSendMetadataForStream(Http2StreamId stream_id,
-                                      char* buffer,
-                                      size_t length,
-                                      ssize_t* written) override;
+  void OnReadyToSendMetadataForStream(Http2StreamId stream_id, char* buffer,
+                                      size_t length, int64_t* written) override;
   void OnBeginMetadataForStream(Http2StreamId stream_id,
                                 size_t payload_length) override;
   bool OnMetadataForStream(Http2StreamId stream_id,

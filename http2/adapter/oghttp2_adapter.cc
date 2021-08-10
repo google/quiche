@@ -34,7 +34,7 @@ bool OgHttp2Adapter::IsServerSession() const {
   return session_->IsServerSession();
 }
 
-ssize_t OgHttp2Adapter::ProcessBytes(absl::string_view bytes) {
+int64_t OgHttp2Adapter::ProcessBytes(absl::string_view bytes) {
   return session_->ProcessBytes(bytes);
 }
 

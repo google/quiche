@@ -1,6 +1,7 @@
 #ifndef QUICHE_HTTP2_ADAPTER_NGHTTP2_TEST_UTILS_H_
 #define QUICHE_HTTP2_ADAPTER_NGHTTP2_TEST_UTILS_H_
 
+#include <cstdint>
 #include <vector>
 
 #include "absl/strings/string_view.h"
