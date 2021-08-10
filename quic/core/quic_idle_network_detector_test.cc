@@ -30,6 +30,8 @@ class MockDelegate : public QuicIdleNetworkDetector::Delegate {
 class QuicIdleNetworkDetectorTest : public QuicTest {
  public:
   QuicIdleNetworkDetectorTest() {
+    SetQuicReloadableFlag(quic_idle_network_detector_no_alarm_after_stopped,
+                          true);
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     detector_ = std::make_unique<QuicIdleNetworkDetector>(
         &delegate_, clock_.Now(), &arena_, &alarm_factory_);
@@ -185,20 +187,12 @@ TEST_F(QuicIdleNetworkDetectorTest, ShorterIdleTimeoutOnSentPacket) {
 TEST_F(QuicIdleNetworkDetectorTest, NoAlarmAfterStopped) {
   detector_->StopDetection();
 
-  if (GetQuicReloadableFlag(
-          quic_idle_network_detector_no_alarm_after_stopped)) {
-    EXPECT_QUIC_BUG(
-        detector_->SetTimeouts(
-            /*handshake_timeout=*/QuicTime::Delta::FromSeconds(30),
-            /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20)),
-        "SetAlarm called after stopped");
-    EXPECT_FALSE(alarm_->IsSet());
-  } else {
-    detector_->SetTimeouts(
-        /*handshake_timeout=*/QuicTime::Delta::FromSeconds(30),
-        /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20));
-    EXPECT_TRUE(alarm_->IsSet());
-  }
+  EXPECT_QUIC_BUG(
+      detector_->SetTimeouts(
+          /*handshake_timeout=*/QuicTime::Delta::FromSeconds(30),
+          /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20)),
+      "SetAlarm called after stopped");
+  EXPECT_FALSE(alarm_->IsSet());
 }
 
 }  // namespace
