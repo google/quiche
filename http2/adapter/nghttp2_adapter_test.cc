@@ -81,7 +81,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor, OnWindowUpdate(0, 1000));
 
-  const ssize_t initial_result = adapter->ProcessBytes(initial_frames);
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
   EXPECT_EQ(initial_frames.size(), initial_result);
 
   EXPECT_EQ(adapter->GetSendWindowSize(), kInitialFlowControlWindowSize + 1000);
@@ -202,7 +202,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   EXPECT_CALL(visitor, OnFrameHeader(0, 19, GOAWAY, 0));
   EXPECT_CALL(visitor,
               OnGoAway(5, Http2ErrorCode::ENHANCE_YOUR_CALM, "calm down!!"));
-  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
   // First stream has received some data.
@@ -321,7 +321,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesTrailers) {
   EXPECT_CALL(visitor, OnEndStream(1));
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
 
-  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
@@ -401,7 +401,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesMetadata) {
   EXPECT_CALL(visitor, OnEndStream(1));
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
 
-  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
@@ -474,7 +474,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesMetadataWithError) {
   // Remaining frames are not processed due to the error.
   EXPECT_CALL(visitor, OnConnectionError());
 
-  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   // The false return from OnMetadataForStream() results in a connection error.
   EXPECT_EQ(stream_result, NGHTTP2_ERR_CALLBACK_FAILURE);
 
@@ -556,7 +556,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesInvalidTrailers) {
   // Bad status trailer will cause a PROTOCOL_ERROR. The header is never
   // delivered in an OnHeaderForStream callback.
 
-  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
@@ -629,7 +629,7 @@ TEST(NgHttp2AdapterTest, ClientRstStreamWhileHandlingHeaders) {
           }),
           testing::Return(Http2VisitorInterface::HEADER_RST_STREAM)));
 
-  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
@@ -702,7 +702,7 @@ TEST(NgHttp2AdapterTest, ClientConnectionErrorWhileHandlingHeaders) {
           testing::Return(Http2VisitorInterface::HEADER_CONNECTION_ERROR));
   EXPECT_CALL(visitor, OnConnectionError());
 
-  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(-902 /* NGHTTP2_ERR_CALLBACK_FAILURE */, stream_result);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
@@ -765,7 +765,7 @@ TEST(NgHttp2AdapterTest, ClientRejectsHeaders) {
   // Rejecting headers leads to a connection error.
   EXPECT_CALL(visitor, OnConnectionError());
 
-  const ssize_t stream_result = adapter->ProcessBytes(stream_frames);
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(NGHTTP2_ERR_CALLBACK_FAILURE, stream_result);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
@@ -796,7 +796,7 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequest) {
   EXPECT_CALL(visitor, OnSettingsStart());
   EXPECT_CALL(visitor, OnSettingsEnd());
 
-  const ssize_t initial_result = adapter->ProcessBytes(initial_frames);
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
   EXPECT_EQ(initial_frames.size(), initial_result);
 
   EXPECT_TRUE(adapter->session().want_write());
@@ -902,7 +902,7 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProvider) {
   EXPECT_CALL(visitor, OnSettingsStart());
   EXPECT_CALL(visitor, OnSettingsEnd());
 
-  const ssize_t initial_result = adapter->ProcessBytes(initial_frames);
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
   EXPECT_EQ(initial_frames.size(), initial_result);
 
   EXPECT_TRUE(adapter->session().want_write());
@@ -1193,7 +1193,7 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
   EXPECT_CALL(visitor, OnFrameHeader(0, 8, PING, 0));
   EXPECT_CALL(visitor, OnPing(47, false));
 
-  const ssize_t result = adapter->ProcessBytes(frames);
+  const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
 
   EXPECT_EQ(kSentinel1, adapter->GetStreamUserData(1));
@@ -1274,7 +1274,7 @@ TEST(NgHttp2AdapterTest, ServerErrorWhileHandlingHeaders) {
   EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor, OnWindowUpdate(0, 2000));
 
-  const ssize_t result = adapter->ProcessBytes(frames);
+  const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
 
   EXPECT_TRUE(adapter->session().want_write());
@@ -1330,7 +1330,7 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
       }));
   EXPECT_CALL(visitor, OnEndStream(1));
 
-  const ssize_t result = adapter->ProcessBytes(frames);
+  const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
 
   EXPECT_EQ(1, adapter->GetHighestReceivedStreamId());
@@ -1419,7 +1419,7 @@ TEST(NgHttp2AdapterTest, ServerSendsShutdown) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
 
-  const ssize_t result = adapter->ProcessBytes(frames);
+  const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
 
   adapter->SubmitShutdownNotice();
@@ -1467,7 +1467,7 @@ TEST(NgHttp2AdapterTest, ServerSendsTrailers) {
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
   EXPECT_CALL(visitor, OnEndStream(1));
 
-  const ssize_t result = adapter->ProcessBytes(frames);
+  const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
 
   // Server will want to send a SETTINGS ack.
@@ -1555,7 +1555,7 @@ TEST(NgHttp2AdapterTest, ClientSendsContinuation) {
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
   EXPECT_CALL(visitor, OnEndStream(1));
 
-  const size_t result = adapter->ProcessBytes(frames);
+  const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
 }
 
@@ -1612,7 +1612,7 @@ TEST(NgHttp2AdapterTest, ClientSendsMetadataWithContinuation) {
   EXPECT_CALL(visitor, OnMetadataForStream(1, _));
   EXPECT_CALL(visitor, OnMetadataEndForStream(1));
 
-  const size_t result = adapter->ProcessBytes(frames);
+  const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
   EXPECT_EQ(TestFrameSequence::MetadataBlockForPayload(
                 "Example connection metadata in multiple frames"),
@@ -1652,7 +1652,7 @@ TEST(NgHttp2AdapterTest, ServerSendsInvalidTrailers) {
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
   EXPECT_CALL(visitor, OnEndStream(1));
 
-  const ssize_t result = adapter->ProcessBytes(frames);
+  const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
 
   const absl::string_view kBody = "This is an example response body.";

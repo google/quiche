@@ -124,8 +124,8 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesTrailers) {
   EXPECT_CALL(visitor, OnEndStream(1));
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
 
-  const size_t stream_result = adapter->ProcessBytes(stream_frames);
-  EXPECT_EQ(stream_frames.size(), stream_result);
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
@@ -208,8 +208,8 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesMetadata) {
   EXPECT_CALL(visitor, OnEndStream(1));
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
 
-  const size_t stream_result = adapter->ProcessBytes(stream_frames);
-  EXPECT_EQ(stream_frames.size(), stream_result);
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
@@ -284,10 +284,10 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesMetadataWithError) {
   // Remaining frames are not processed due to the error.
   EXPECT_CALL(visitor, OnConnectionError());
 
-  const size_t stream_result = adapter->ProcessBytes(stream_frames);
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   // Unlike nghttp2, this adapter implementation returns the number of bytes
   // actually processed.
-  EXPECT_LT(stream_result, stream_frames.size());
+  EXPECT_LT(static_cast<size_t>(stream_result), stream_frames.size());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
@@ -363,8 +363,8 @@ TEST(OgHttp2AdapterClientTest, ClientRstStreamWhileHandlingHeaders) {
   EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
   EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
 
-  const size_t stream_result = adapter->ProcessBytes(stream_frames);
-  EXPECT_EQ(stream_frames.size(), stream_result);
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
@@ -445,8 +445,8 @@ TEST(OgHttp2AdapterClientTest, ClientConnectionErrorWhileHandlingHeaders) {
   EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
   EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
 
-  const size_t stream_result = adapter->ProcessBytes(stream_frames);
-  EXPECT_EQ(stream_frames.size(), stream_result);
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
@@ -517,8 +517,8 @@ TEST(OgHttp2AdapterClientTest, ClientRejectsHeaders) {
   EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
   EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
 
-  const size_t stream_result = adapter->ProcessBytes(stream_frames);
-  EXPECT_EQ(stream_result, stream_frames.size());
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(static_cast<size_t>(stream_result), stream_frames.size());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
@@ -597,8 +597,8 @@ TEST(OgHttp2AdapterClientTest, DISABLED_ClientHandlesInvalidTrailers) {
   // Bad status trailer will cause a PROTOCOL_ERROR. The header is never
   // delivered in an OnHeaderForStream callback.
 
-  const size_t stream_result = adapter->ProcessBytes(stream_frames);
-  EXPECT_EQ(stream_frames.size(), stream_result);
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
@@ -765,8 +765,8 @@ TEST(OgHttp2AdapterServerTest, ClientSendsContinuation) {
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
   EXPECT_CALL(visitor, OnEndStream(1));
 
-  const size_t result = adapter->ProcessBytes(frames);
-  EXPECT_EQ(frames.size(), result);
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 }
 
 TEST(OgHttp2AdapterServerTest, ClientSendsMetadataWithContinuation) {
@@ -823,8 +823,8 @@ TEST(OgHttp2AdapterServerTest, ClientSendsMetadataWithContinuation) {
   EXPECT_CALL(visitor, OnMetadataForStream(1, _));
   EXPECT_CALL(visitor, OnMetadataEndForStream(1));
 
-  const size_t result = adapter->ProcessBytes(frames);
-  EXPECT_EQ(frames.size(), result);
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
   EXPECT_EQ(TestFrameSequence::MetadataBlockForPayload(
                 "Example connection metadata in multiple frames"),
             absl::StrJoin(visitor.GetMetadata(0), ""));
@@ -864,8 +864,8 @@ TEST(OgHttp2AdapterServerTest, ServerSendsInvalidTrailers) {
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
   EXPECT_CALL(visitor, OnEndStream(1));
 
-  const size_t result = adapter->ProcessBytes(frames);
-  EXPECT_EQ(frames.size(), result);
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 
   const absl::string_view kBody = "This is an example response body.";
 
@@ -954,8 +954,8 @@ TEST(OgHttp2AdapterServerTest, ServerErrorWhileHandlingHeaders) {
   EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor, OnWindowUpdate(0, 2000));
 
-  const size_t result = adapter->ProcessBytes(frames);
-  EXPECT_EQ(frames.size(), result);
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 
   EXPECT_TRUE(adapter->session().want_write());
 

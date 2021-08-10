@@ -77,7 +77,7 @@ TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
   EXPECT_CALL(visitor_, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor_, OnWindowUpdate(0, 1000));
 
-  const ssize_t initial_result = session.ProcessBytes(initial_frames);
+  const int64_t initial_result = session.ProcessBytes(initial_frames);
   EXPECT_EQ(initial_frames.size(), initial_result);
 
   EXPECT_EQ(session.GetRemoteWindowSize(),
@@ -176,7 +176,7 @@ TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
   EXPECT_CALL(visitor_, OnFrameHeader(0, 19, GOAWAY, 0));
   EXPECT_CALL(visitor_,
               OnGoAway(5, Http2ErrorCode::ENHANCE_YOUR_CALM, "calm down!!"));
-  const ssize_t stream_result = session.ProcessBytes(stream_frames);
+  const int64_t stream_result = session.ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
   // Even though the client recieved a GOAWAY, streams 1 and 5 are still active.
@@ -275,7 +275,7 @@ TEST_F(NgHttp2SessionTest, ServerHandlesFrames) {
   EXPECT_CALL(visitor_, OnFrameHeader(0, 8, PING, 0));
   EXPECT_CALL(visitor_, OnPing(47, false));
 
-  const ssize_t result = session.ProcessBytes(frames);
+  const int64_t result = session.ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
 
   EXPECT_EQ(session.GetRemoteWindowSize(),

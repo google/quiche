@@ -60,8 +60,8 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
   EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor, OnWindowUpdate(0, 1000));
 
-  const size_t initial_result = session.ProcessBytes(initial_frames);
-  EXPECT_EQ(initial_frames.size(), initial_result);
+  const int64_t initial_result = session.ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), static_cast<size_t>(initial_result));
 
   EXPECT_EQ(session.GetRemoteWindowSize(),
             kInitialFlowControlWindowSize + 1000);
@@ -116,8 +116,8 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
   EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::INTERNAL_ERROR));
   EXPECT_CALL(visitor, OnFrameHeader(0, 19, GOAWAY, 0));
   EXPECT_CALL(visitor, OnGoAway(5, Http2ErrorCode::ENHANCE_YOUR_CALM, ""));
-  const size_t stream_result = session.ProcessBytes(stream_frames);
-  EXPECT_EQ(stream_frames.size(), stream_result);
+  const int64_t stream_result = session.ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
   EXPECT_EQ(3, session.GetHighestReceivedStreamId());
 
   // The first stream is active and has received some data.
@@ -231,8 +231,8 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
   EXPECT_CALL(visitor, OnSettingsStart());
   EXPECT_CALL(visitor, OnSettingsEnd());
 
-  const size_t initial_result = session.ProcessBytes(initial_frames);
-  EXPECT_EQ(initial_frames.size(), initial_result);
+  const int64_t initial_result = session.ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), static_cast<size_t>(initial_result));
 
   // Session will want to write a SETTINGS ack.
   EXPECT_TRUE(session.want_write());
@@ -570,8 +570,8 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
   EXPECT_CALL(visitor, OnFrameHeader(0, 8, PING, 0));
   EXPECT_CALL(visitor, OnPing(47, false));
 
-  const size_t result = session.ProcessBytes(frames);
-  EXPECT_EQ(frames.size(), result);
+  const int64_t result = session.ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 
   EXPECT_EQ(kSentinel1, session.GetStreamUserData(1));
 
@@ -689,8 +689,8 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
       }));
   EXPECT_CALL(visitor, OnEndStream(1));
 
-  const size_t result = session.ProcessBytes(frames);
-  EXPECT_EQ(frames.size(), result);
+  const int64_t result = session.ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 
   EXPECT_EQ(1, session.GetHighestReceivedStreamId());
 
@@ -830,8 +830,8 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
   EXPECT_CALL(visitor, OnEndStream(1));
 
-  const size_t result = session.ProcessBytes(frames);
-  EXPECT_EQ(frames.size(), result);
+  const int64_t result = session.ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 
   // Server will want to send initial SETTINGS, and a SETTINGS ack.
   EXPECT_TRUE(session.want_write());
@@ -922,8 +922,8 @@ TEST(OgHttp2SessionTest, ServerQueuesTrailersWithResponse) {
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
   EXPECT_CALL(visitor, OnEndStream(1));
 
-  const size_t result = session.ProcessBytes(frames);
-  EXPECT_EQ(frames.size(), result);
+  const int64_t result = session.ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 
   // Server will want to send initial SETTINGS, and a SETTINGS ack.
   EXPECT_TRUE(session.want_write());
