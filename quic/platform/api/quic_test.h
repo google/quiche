@@ -7,6 +7,7 @@
 
 #include "quic/platform/api/quic_logging.h"
 #include "net/quic/platform/impl/quic_test_impl.h"
+#include "common/platform/api/quiche_test.h"
 
 using QuicFlagSaver = QuicFlagSaverImpl;
 
