@@ -58,8 +58,7 @@ TEST_F(ProofSourceX509Test, AddCertificateKeyMismatch) {
       ProofSourceX509::Create(test_chain_, std::move(*test_key_));
   ASSERT_TRUE(proof_source != nullptr);
   test_key_ = CertificatePrivateKey::LoadFromDer(kTestCertificatePrivateKey);
-  bool result;
-  EXPECT_QUIC_BUG(result = proof_source->AddCertificateChain(
+  EXPECT_QUIC_BUG((void)proof_source->AddCertificateChain(
                       wildcard_chain_, std::move(*test_key_)),
                   "Private key does not match");
 }
