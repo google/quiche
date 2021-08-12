@@ -5297,14 +5297,17 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
         << "EffectivePeerMigration started without address change.";
     return;
   }
-  if (packet_creator_.HasPendingFrames()) {
-    QUIC_BUG(bug_731_2)
-        << "Starts effective peer migration with pending frame types: "
-        << packet_creator_.GetPendingFramesInfo() << ". Address change type is "
-        << AddressChangeTypeToString(type)
-        << ". Current frame type: " << framer_.current_received_frame_type()
-        << ". Previous frame type: "
-        << framer_.previously_received_frame_type();
+  // There could be pending NEW_TOKEN_FRAME triggered by non-probing
+  // PATH_RESPONSE_FRAME in the same packet.
+  if (GetQuicReloadableFlag(
+          quic_flush_pending_frame_before_updating_default_path) &&
+      packet_creator_.HasPendingFrames()) {
+    QUICHE_RELOADABLE_FLAG_COUNT(
+        quic_flush_pending_frame_before_updating_default_path);
+    packet_creator_.FlushCurrentPacket();
+    if (!connected_) {
+      return;
+    }
   }
 
   // Action items:
@@ -5361,17 +5364,7 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
           std::move(alternative_path_.rtt_stats).value());
     }
   }
-
   // Update to the new peer address.
-  if (packet_creator_.HasPendingFrames()) {
-    QUIC_BUG(bug_731_1)
-        << "Starts effective peer migration with pending frame types: "
-        << packet_creator_.GetPendingFramesInfo() << ". Address change type is "
-        << AddressChangeTypeToString(type)
-        << ". Current frame type: " << framer_.current_received_frame_type()
-        << ". Previous frame type: "
-        << framer_.previously_received_frame_type();
-  }
   UpdatePeerAddress(last_received_packet_info_.source_address);
   // Update the default path.
   if (IsAlternativePath(last_received_packet_info_.destination_address,

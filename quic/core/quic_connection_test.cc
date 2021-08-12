@@ -2079,6 +2079,65 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
   }
 }
 
+// Regression test for b/196208556.
+TEST_P(QuicConnectionTest,
+       ReversePathValidationResponseReceivedFromUnexpectedPeerAddress) {
+  set_perspective(Perspective::IS_SERVER);
+  if (!GetQuicReloadableFlag(
+          quic_flush_pending_frame_before_updating_default_path) ||
+      !connection_.connection_migration_use_new_cid()) {
+    return;
+  }
+  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+  connection_.CreateConnectionIdManager();
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  QuicConnectionPeer::SetPeerAddress(&connection_, kPeerAddress);
+  QuicConnectionPeer::SetEffectivePeerAddress(&connection_, kPeerAddress);
+  QuicConnectionPeer::SetAddressValidated(&connection_);
+  EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+
+  // Sends new server CID to client.
+  QuicConnectionId new_cid;
+  EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_))
+      .WillOnce(Invoke([&](const QuicConnectionId& cid) { new_cid = cid; }));
+  EXPECT_CALL(visitor_, SendNewConnectionId(_));
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+
+  // Process a non-probing packet to migrate to path 2 and kick off reverse path
+  // validation.
+  EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE)).Times(1);
+  const QuicSocketAddress kPeerAddress2 =
+      QuicSocketAddress(QuicIpAddress::Loopback4(), /*port=*/23456);
+  peer_creator_.SetServerConnectionId(new_cid);
+  ProcessFramesPacketWithAddresses({QuicFrame(QuicPingFrame())}, kSelfAddress,
+                                   kPeerAddress2, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(writer_->path_challenge_frames().empty());
+  QuicPathFrameBuffer reverse_path_challenge_payload =
+      writer_->path_challenge_frames().front().data_buffer;
+
+  // Receiveds a packet from path 3 with PATH_RESPONSE frame intended to
+  // validate path 2 and a non-probing frame.
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    const QuicSocketAddress kPeerAddress3 =
+        QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/56789);
+    auto ack_frame = InitAckFrame(1);
+    EXPECT_CALL(visitor_, OnConnectionMigration(IPV4_TO_IPV6_CHANGE)).Times(1);
+    EXPECT_CALL(visitor_, MaybeSendAddressToken()).WillOnce(Invoke([this]() {
+      connection_.SendControlFrame(
+          QuicFrame(new QuicNewTokenFrame(1, "new_token")));
+    }));
+    ProcessFramesPacketWithAddresses({QuicFrame(new QuicPathResponseFrame(
+                                          0, reverse_path_challenge_payload)),
+                                      QuicFrame(&ack_frame)},
+                                     kSelfAddress, kPeerAddress3,
+                                     ENCRYPTION_FORWARD_SECURE);
+  }
+}
+
 TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   set_perspective(Perspective::IS_SERVER);
   if (!connection_.connection_migration_use_new_cid()) {
