@@ -838,6 +838,9 @@ QUIC_EXPORT_PRIVATE std::string KeyUpdateReasonString(KeyUpdateReason reason);
 struct QUIC_NO_EXPORT QuicSSLConfig {
   // Whether TLS early data should be enabled. If not set, default to enabled.
   absl::optional<bool> early_data_enabled;
+  // Whether TLS session tickets are supported. If not set, default to
+  // supported.
+  absl::optional<bool> disable_ticket_support;
   // If set, used to configure the SSL object with
   // SSL_set_signing_algorithm_prefs.
   absl::optional<absl::InlinedVector<uint16_t, 8>> signing_algorithm_prefs;
