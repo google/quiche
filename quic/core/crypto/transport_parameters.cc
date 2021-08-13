@@ -609,14 +609,24 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
                                   std::vector<uint8_t>* out) {
   std::string error_details;
   if (!in.AreValid(&error_details)) {
-    QUIC_BUG(quic_bug_10743_5)
+    QUIC_BUG(invalid transport parameters)
         << "Not serializing invalid transport parameters: " << error_details;
     return false;
   }
   if (in.version == 0 || (in.perspective == Perspective::IS_SERVER &&
                           in.supported_versions.empty())) {
-    QUIC_BUG(quic_bug_10743_6) << "Refusing to serialize without versions";
+    QUIC_BUG(missing versions) << "Refusing to serialize without versions";
     return false;
+  }
+  TransportParameters::ParameterMap custom_parameters = in.custom_parameters;
+  for (const auto& kv : custom_parameters) {
+    if (kv.first % 31 == 27) {
+      // See the "Reserved Transport Parameters" section of RFC 9000.
+      QUIC_BUG(custom_parameters with GREASE)
+          << "Serializing custom_parameters with GREASE ID " << kv.first
+          << " is not allowed";
+      return false;
+    }
   }
 
   // Maximum length of the GREASE transport parameter (see below).
@@ -637,8 +647,6 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
       kTypeAndValueLength + 4 /*IPv4 address */ + 2 /* IPv4 port */ +
       16 /* IPv6 address */ + 1 /* Connection ID length */ +
       255 /* maximum connection ID length */ + 16 /* stateless reset token */;
-  static constexpr size_t kGreaseParameterLength =
-      kTypeAndValueLength + kMaxGreaseLength;
   static constexpr size_t kKnownTransportParamLength =
       kConnectionIdParameterLength +      // original_destination_connection_id
       kIntegerParameterLength +           // max_idle_timeout
@@ -663,8 +671,34 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
       kTypeAndValueLength +               // google_connection_options
       kTypeAndValueLength +               // user_agent_id
       kTypeAndValueLength +               // key_update_not_yet_supported
-      kTypeAndValueLength +               // google-version
-      kGreaseParameterLength;             // GREASE
+      kTypeAndValueLength;                // google-version
+
+  std::vector<TransportParameters::TransportParameterId> parameter_ids = {
+      TransportParameters::kOriginalDestinationConnectionId,
+      TransportParameters::kMaxIdleTimeout,
+      TransportParameters::kStatelessResetToken,
+      TransportParameters::kMaxPacketSize,
+      TransportParameters::kInitialMaxData,
+      TransportParameters::kInitialMaxStreamDataBidiLocal,
+      TransportParameters::kInitialMaxStreamDataBidiRemote,
+      TransportParameters::kInitialMaxStreamDataUni,
+      TransportParameters::kInitialMaxStreamsBidi,
+      TransportParameters::kInitialMaxStreamsUni,
+      TransportParameters::kAckDelayExponent,
+      TransportParameters::kMaxAckDelay,
+      TransportParameters::kMinAckDelay,
+      TransportParameters::kActiveConnectionIdLimit,
+      TransportParameters::kMaxDatagramFrameSize,
+      TransportParameters::kInitialRoundTripTime,
+      TransportParameters::kDisableActiveMigration,
+      TransportParameters::kPreferredAddress,
+      TransportParameters::kInitialSourceConnectionId,
+      TransportParameters::kRetrySourceConnectionId,
+      TransportParameters::kGoogleConnectionOptions,
+      TransportParameters::kGoogleUserAgentId,
+      TransportParameters::kGoogleKeyUpdateNotYetSupported,
+      TransportParameters::kGoogleQuicVersion,
+  };
 
   size_t max_transport_param_length = kKnownTransportParamLength;
   // google_connection_options.
@@ -680,269 +714,379 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
   max_transport_param_length +=
       sizeof(in.version) + 1 /* versions length */ +
       in.supported_versions.size() * sizeof(QuicVersionLabel);
+
+  // Add a random GREASE transport parameter, as defined in the
+  // "Reserved Transport Parameters" section of RFC 9000.
+  // This forces receivers to support unexpected input.
+  QuicRandom* random = QuicRandom::GetInstance();
+  // Transport parameter identifiers are 62 bits long so we need to
+  // ensure that the output of the computation below fits in 62 bits.
+  uint64_t grease_id64 = random->RandUint64() % ((1ULL << 62) - 31);
+  // Make sure grease_id % 31 == 27. Note that this is not uniformely
+  // distributed but is acceptable since no security depends on this
+  // randomness.
+  grease_id64 = (grease_id64 / 31) * 31 + 27;
+  TransportParameters::TransportParameterId grease_id =
+      static_cast<TransportParameters::TransportParameterId>(grease_id64);
+  const size_t grease_length = random->RandUint64() % kMaxGreaseLength;
+  QUICHE_DCHECK_GE(kMaxGreaseLength, grease_length);
+  char grease_contents[kMaxGreaseLength];
+  random->RandBytes(grease_contents, grease_length);
+  custom_parameters[grease_id] = std::string(grease_contents, grease_length);
+
   // Custom parameters.
-  for (const auto& kv : in.custom_parameters) {
+  for (const auto& kv : custom_parameters) {
     max_transport_param_length += kTypeAndValueLength + kv.second.length();
+    parameter_ids.push_back(kv.first);
   }
 
   out->resize(max_transport_param_length);
   QuicDataWriter writer(out->size(), reinterpret_cast<char*>(out->data()));
 
-  // original_destination_connection_id
-  if (in.original_destination_connection_id.has_value()) {
-    QUICHE_DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
-    QuicConnectionId original_destination_connection_id =
-        in.original_destination_connection_id.value();
-    if (!writer.WriteVarInt62(
-            TransportParameters::kOriginalDestinationConnectionId) ||
-        !writer.WriteStringPieceVarInt62(
-            absl::string_view(original_destination_connection_id.data(),
-                              original_destination_connection_id.length()))) {
-      QUIC_BUG(quic_bug_10743_7)
-          << "Failed to write original_destination_connection_id "
-          << original_destination_connection_id << " for " << in;
-      return false;
-    }
-  }
-
-  if (!in.max_idle_timeout_ms.Write(&writer)) {
-    QUIC_BUG(quic_bug_10743_8) << "Failed to write idle_timeout for " << in;
-    return false;
-  }
-
-  // stateless_reset_token
-  if (!in.stateless_reset_token.empty()) {
-    QUICHE_DCHECK_EQ(kStatelessResetTokenLength,
-                     in.stateless_reset_token.size());
-    QUICHE_DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
-    if (!writer.WriteVarInt62(TransportParameters::kStatelessResetToken) ||
-        !writer.WriteStringPieceVarInt62(absl::string_view(
-            reinterpret_cast<const char*>(in.stateless_reset_token.data()),
-            in.stateless_reset_token.size()))) {
-      QUIC_BUG(quic_bug_10743_9)
-          << "Failed to write stateless_reset_token of length "
-          << in.stateless_reset_token.size() << " for " << in;
-      return false;
-    }
-  }
-
-  if (!in.max_udp_payload_size.Write(&writer) ||
-      !in.initial_max_data.Write(&writer) ||
-      !in.initial_max_stream_data_bidi_local.Write(&writer) ||
-      !in.initial_max_stream_data_bidi_remote.Write(&writer) ||
-      !in.initial_max_stream_data_uni.Write(&writer) ||
-      !in.initial_max_streams_bidi.Write(&writer) ||
-      !in.initial_max_streams_uni.Write(&writer) ||
-      !in.ack_delay_exponent.Write(&writer) ||
-      !in.max_ack_delay.Write(&writer) || !in.min_ack_delay_us.Write(&writer) ||
-      !in.active_connection_id_limit.Write(&writer) ||
-      !in.max_datagram_frame_size.Write(&writer) ||
-      !in.initial_round_trip_time_us.Write(&writer)) {
-    QUIC_BUG(quic_bug_10743_10) << "Failed to write integers for " << in;
-    return false;
-  }
-
-  // disable_active_migration
-  if (in.disable_active_migration) {
-    if (!writer.WriteVarInt62(TransportParameters::kDisableActiveMigration) ||
-        !writer.WriteVarInt62(/* transport parameter length */ 0)) {
-      QUIC_BUG(quic_bug_10743_11)
-          << "Failed to write disable_active_migration for " << in;
-      return false;
-    }
-  }
-
-  // preferred_address
-  if (in.preferred_address) {
-    std::string v4_address_bytes =
-        in.preferred_address->ipv4_socket_address.host().ToPackedString();
-    std::string v6_address_bytes =
-        in.preferred_address->ipv6_socket_address.host().ToPackedString();
-    if (v4_address_bytes.length() != 4 || v6_address_bytes.length() != 16 ||
-        in.preferred_address->stateless_reset_token.size() !=
-            kStatelessResetTokenLength) {
-      QUIC_BUG(quic_bug_10743_12) << "Bad lengths " << *in.preferred_address;
-      return false;
-    }
-    const uint64_t preferred_address_length =
-        v4_address_bytes.length() + /* IPv4 port */ sizeof(uint16_t) +
-        v6_address_bytes.length() + /* IPv6 port */ sizeof(uint16_t) +
-        /* connection ID length byte */ sizeof(uint8_t) +
-        in.preferred_address->connection_id.length() +
-        in.preferred_address->stateless_reset_token.size();
-    if (!writer.WriteVarInt62(TransportParameters::kPreferredAddress) ||
-        !writer.WriteVarInt62(
-            /* transport parameter length */ preferred_address_length) ||
-        !writer.WriteStringPiece(v4_address_bytes) ||
-        !writer.WriteUInt16(in.preferred_address->ipv4_socket_address.port()) ||
-        !writer.WriteStringPiece(v6_address_bytes) ||
-        !writer.WriteUInt16(in.preferred_address->ipv6_socket_address.port()) ||
-        !writer.WriteUInt8(in.preferred_address->connection_id.length()) ||
-        !writer.WriteBytes(in.preferred_address->connection_id.data(),
-                           in.preferred_address->connection_id.length()) ||
-        !writer.WriteBytes(
-            in.preferred_address->stateless_reset_token.data(),
-            in.preferred_address->stateless_reset_token.size())) {
-      QUIC_BUG(quic_bug_10743_13)
-          << "Failed to write preferred_address for " << in;
-      return false;
-    }
-  }
-
-  // initial_source_connection_id
-  if (in.initial_source_connection_id.has_value()) {
-    QuicConnectionId initial_source_connection_id =
-        in.initial_source_connection_id.value();
-    if (!writer.WriteVarInt62(
-            TransportParameters::kInitialSourceConnectionId) ||
-        !writer.WriteStringPieceVarInt62(
-            absl::string_view(initial_source_connection_id.data(),
-                              initial_source_connection_id.length()))) {
-      QUIC_BUG(quic_bug_10743_14)
-          << "Failed to write initial_source_connection_id "
-          << initial_source_connection_id << " for " << in;
-      return false;
-    }
-  }
-
-  // retry_source_connection_id
-  if (in.retry_source_connection_id.has_value()) {
-    QUICHE_DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
-    QuicConnectionId retry_source_connection_id =
-        in.retry_source_connection_id.value();
-    if (!writer.WriteVarInt62(TransportParameters::kRetrySourceConnectionId) ||
-        !writer.WriteStringPieceVarInt62(
-            absl::string_view(retry_source_connection_id.data(),
-                              retry_source_connection_id.length()))) {
-      QUIC_BUG(quic_bug_10743_15)
-          << "Failed to write retry_source_connection_id "
-          << retry_source_connection_id << " for " << in;
-      return false;
-    }
-  }
-
-  // Google-specific connection options.
-  if (in.google_connection_options.has_value()) {
-    static_assert(sizeof(in.google_connection_options.value().front()) == 4,
-                  "bad size");
-    uint64_t connection_options_length =
-        in.google_connection_options.value().size() * 4;
-    if (!writer.WriteVarInt62(TransportParameters::kGoogleConnectionOptions) ||
-        !writer.WriteVarInt62(
-            /* transport parameter length */ connection_options_length)) {
-      QUIC_BUG(quic_bug_10743_16)
-          << "Failed to write google_connection_options of length "
-          << connection_options_length << " for " << in;
-      return false;
-    }
-    for (const QuicTag& connection_option :
-         in.google_connection_options.value()) {
-      if (!writer.WriteTag(connection_option)) {
-        QUIC_BUG(quic_bug_10743_17)
-            << "Failed to write google_connection_option "
-            << QuicTagToString(connection_option) << " for " << in;
-        return false;
-      }
-    }
-  }
-
-  // Google-specific user agent identifier.
-  if (in.user_agent_id.has_value()) {
-    if (!writer.WriteVarInt62(TransportParameters::kGoogleUserAgentId) ||
-        !writer.WriteStringPieceVarInt62(in.user_agent_id.value())) {
-      QUIC_BUG(quic_bug_10743_18)
-          << "Failed to write Google user agent ID \""
-          << in.user_agent_id.value() << "\" for " << in;
-      return false;
-    }
-  }
-
-  // Google-specific indicator for key update not yet supported.
-  if (in.key_update_not_yet_supported) {
-    if (!writer.WriteVarInt62(
-            TransportParameters::kGoogleKeyUpdateNotYetSupported) ||
-        !writer.WriteVarInt62(/* transport parameter length */ 0)) {
-      QUIC_BUG(quic_bug_10743_19)
-          << "Failed to write key_update_not_yet_supported for " << in;
-      return false;
-    }
-  }
-
-  // Google-specific version extension.
-  static_assert(sizeof(QuicVersionLabel) == sizeof(uint32_t), "bad length");
-  uint64_t google_version_length = sizeof(in.version);
-  if (in.perspective == Perspective::IS_SERVER) {
-    google_version_length +=
-        /* versions length */ sizeof(uint8_t) +
-        sizeof(QuicVersionLabel) * in.supported_versions.size();
-  }
-  if (!writer.WriteVarInt62(TransportParameters::kGoogleQuicVersion) ||
-      !writer.WriteVarInt62(
-          /* transport parameter length */ google_version_length) ||
-      !writer.WriteUInt32(in.version)) {
-    QUIC_BUG(quic_bug_10743_20)
-        << "Failed to write Google version extension for " << in;
-    return false;
-  }
-  if (in.perspective == Perspective::IS_SERVER) {
-    if (!writer.WriteUInt8(sizeof(QuicVersionLabel) *
-                           in.supported_versions.size())) {
-      QUIC_BUG(quic_bug_10743_21)
-          << "Failed to write versions length for " << in;
-      return false;
-    }
-    for (QuicVersionLabel version_label : in.supported_versions) {
-      if (!writer.WriteUInt32(version_label)) {
-        QUIC_BUG(quic_bug_10743_22)
-            << "Failed to write supported version for " << in;
-        return false;
-      }
-    }
-  }
-
-  for (const auto& kv : in.custom_parameters) {
-    const TransportParameters::TransportParameterId param_id = kv.first;
-    if (param_id % 31 == 27) {
-      // See the "Reserved Transport Parameters" section of
-      // draft-ietf-quic-transport.
-      QUIC_BUG(quic_bug_10743_23)
-          << "Serializing custom_parameters with GREASE ID " << param_id
-          << " is not allowed";
-      return false;
-    }
-    if (!writer.WriteVarInt62(param_id) ||
-        !writer.WriteStringPieceVarInt62(kv.second)) {
-      QUIC_BUG(quic_bug_10743_24)
-          << "Failed to write custom parameter " << param_id;
-      return false;
-    }
-  }
-
-  {
-    // Add a random GREASE transport parameter, as defined in the
-    // "Reserved Transport Parameters" section of draft-ietf-quic-transport.
-    // https://quicwg.org/base-drafts/draft-ietf-quic-transport.html
-    // This forces receivers to support unexpected input.
-    QuicRandom* random = QuicRandom::GetInstance();
-    // Transport parameter identifiers are 62 bits long so we need to ensure
-    // that the output of the computation below fits in 62 bits.
-    uint64_t grease_id64 = random->RandUint64() % ((1ULL << 62) - 31);
-    // Make sure grease_id % 31 == 27. Note that this is not uniformely
-    // distributed but is acceptable since no security depends on this
-    // randomness.
-    grease_id64 = (grease_id64 / 31) * 31 + 27;
-    TransportParameters::TransportParameterId grease_id =
-        static_cast<TransportParameters::TransportParameterId>(grease_id64);
-    const size_t grease_length = random->RandUint64() % kMaxGreaseLength;
-    QUICHE_DCHECK_GE(kMaxGreaseLength, grease_length);
-    char grease_contents[kMaxGreaseLength];
-    random->RandBytes(grease_contents, grease_length);
-    if (!writer.WriteVarInt62(grease_id) ||
-        !writer.WriteStringPieceVarInt62(
-            absl::string_view(grease_contents, grease_length))) {
-      QUIC_BUG(quic_bug_10743_25) << "Failed to write GREASE parameter "
-                                  << TransportParameterIdToString(grease_id);
-      return false;
+  for (TransportParameters::TransportParameterId parameter_id : parameter_ids) {
+    switch (parameter_id) {
+      // original_destination_connection_id
+      case TransportParameters::kOriginalDestinationConnectionId: {
+        if (in.original_destination_connection_id.has_value()) {
+          QUICHE_DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
+          QuicConnectionId original_destination_connection_id =
+              in.original_destination_connection_id.value();
+          if (!writer.WriteVarInt62(
+                  TransportParameters::kOriginalDestinationConnectionId) ||
+              !writer.WriteStringPieceVarInt62(absl::string_view(
+                  original_destination_connection_id.data(),
+                  original_destination_connection_id.length()))) {
+            QUIC_BUG(Failed to write original_destination_connection_id)
+                << "Failed to write original_destination_connection_id "
+                << original_destination_connection_id << " for " << in;
+            return false;
+          }
+        }
+      } break;
+      // max_idle_timeout
+      case TransportParameters::kMaxIdleTimeout: {
+        if (!in.max_idle_timeout_ms.Write(&writer)) {
+          QUIC_BUG(Failed to write idle_timeout)
+              << "Failed to write idle_timeout for " << in;
+          return false;
+        }
+      } break;
+      // stateless_reset_token
+      case TransportParameters::kStatelessResetToken: {
+        if (!in.stateless_reset_token.empty()) {
+          QUICHE_DCHECK_EQ(kStatelessResetTokenLength,
+                           in.stateless_reset_token.size());
+          QUICHE_DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
+          if (!writer.WriteVarInt62(
+                  TransportParameters::kStatelessResetToken) ||
+              !writer.WriteStringPieceVarInt62(
+                  absl::string_view(reinterpret_cast<const char*>(
+                                        in.stateless_reset_token.data()),
+                                    in.stateless_reset_token.size()))) {
+            QUIC_BUG(Failed to write stateless_reset_token)
+                << "Failed to write stateless_reset_token of length "
+                << in.stateless_reset_token.size() << " for " << in;
+            return false;
+          }
+        }
+      } break;
+      // max_udp_payload_size
+      case TransportParameters::kMaxPacketSize: {
+        if (!in.max_udp_payload_size.Write(&writer)) {
+          QUIC_BUG(Failed to write max_udp_payload_size)
+              << "Failed to write max_udp_payload_size for " << in;
+          return false;
+        }
+      } break;
+      // initial_max_data
+      case TransportParameters::kInitialMaxData: {
+        if (!in.initial_max_data.Write(&writer)) {
+          QUIC_BUG(Failed to write initial_max_data)
+              << "Failed to write initial_max_data for " << in;
+          return false;
+        }
+      } break;
+      // initial_max_stream_data_bidi_local
+      case TransportParameters::kInitialMaxStreamDataBidiLocal: {
+        if (!in.initial_max_stream_data_bidi_local.Write(&writer)) {
+          QUIC_BUG(Failed to write initial_max_stream_data_bidi_local)
+              << "Failed to write initial_max_stream_data_bidi_local for "
+              << in;
+          return false;
+        }
+      } break;
+      // initial_max_stream_data_bidi_remote
+      case TransportParameters::kInitialMaxStreamDataBidiRemote: {
+        if (!in.initial_max_stream_data_bidi_remote.Write(&writer)) {
+          QUIC_BUG(Failed to write initial_max_stream_data_bidi_remote)
+              << "Failed to write initial_max_stream_data_bidi_remote for "
+              << in;
+          return false;
+        }
+      } break;
+      // initial_max_stream_data_uni
+      case TransportParameters::kInitialMaxStreamDataUni: {
+        if (!in.initial_max_stream_data_uni.Write(&writer)) {
+          QUIC_BUG(Failed to write initial_max_stream_data_uni)
+              << "Failed to write initial_max_stream_data_uni for " << in;
+          return false;
+        }
+      } break;
+      // initial_max_streams_bidi
+      case TransportParameters::kInitialMaxStreamsBidi: {
+        if (!in.initial_max_streams_bidi.Write(&writer)) {
+          QUIC_BUG(Failed to write initial_max_streams_bidi)
+              << "Failed to write initial_max_streams_bidi for " << in;
+          return false;
+        }
+      } break;
+      // initial_max_streams_uni
+      case TransportParameters::kInitialMaxStreamsUni: {
+        if (!in.initial_max_streams_uni.Write(&writer)) {
+          QUIC_BUG(Failed to write initial_max_streams_uni)
+              << "Failed to write initial_max_streams_uni for " << in;
+          return false;
+        }
+      } break;
+      // ack_delay_exponent
+      case TransportParameters::kAckDelayExponent: {
+        if (!in.ack_delay_exponent.Write(&writer)) {
+          QUIC_BUG(Failed to write ack_delay_exponent)
+              << "Failed to write ack_delay_exponent for " << in;
+          return false;
+        }
+      } break;
+      // max_ack_delay
+      case TransportParameters::kMaxAckDelay: {
+        if (!in.max_ack_delay.Write(&writer)) {
+          QUIC_BUG(Failed to write max_ack_delay)
+              << "Failed to write max_ack_delay for " << in;
+          return false;
+        }
+      } break;
+      // min_ack_delay_us
+      case TransportParameters::kMinAckDelay: {
+        if (!in.min_ack_delay_us.Write(&writer)) {
+          QUIC_BUG(Failed to write min_ack_delay_us)
+              << "Failed to write min_ack_delay_us for " << in;
+          return false;
+        }
+      } break;
+      // active_connection_id_limit
+      case TransportParameters::kActiveConnectionIdLimit: {
+        if (!in.active_connection_id_limit.Write(&writer)) {
+          QUIC_BUG(Failed to write active_connection_id_limit)
+              << "Failed to write active_connection_id_limit for " << in;
+          return false;
+        }
+      } break;
+      // max_datagram_frame_size
+      case TransportParameters::kMaxDatagramFrameSize: {
+        if (!in.max_datagram_frame_size.Write(&writer)) {
+          QUIC_BUG(Failed to write max_datagram_frame_size)
+              << "Failed to write max_datagram_frame_size for " << in;
+          return false;
+        }
+      } break;
+      // initial_round_trip_time_us
+      case TransportParameters::kInitialRoundTripTime: {
+        if (!in.initial_round_trip_time_us.Write(&writer)) {
+          QUIC_BUG(Failed to write initial_round_trip_time_us)
+              << "Failed to write initial_round_trip_time_us for " << in;
+          return false;
+        }
+      } break;
+      // disable_active_migration
+      case TransportParameters::kDisableActiveMigration: {
+        if (in.disable_active_migration) {
+          if (!writer.WriteVarInt62(
+                  TransportParameters::kDisableActiveMigration) ||
+              !writer.WriteVarInt62(/* transport parameter length */ 0)) {
+            QUIC_BUG(Failed to write disable_active_migration)
+                << "Failed to write disable_active_migration for " << in;
+            return false;
+          }
+        }
+      } break;
+      // preferred_address
+      case TransportParameters::kPreferredAddress: {
+        if (in.preferred_address) {
+          std::string v4_address_bytes =
+              in.preferred_address->ipv4_socket_address.host().ToPackedString();
+          std::string v6_address_bytes =
+              in.preferred_address->ipv6_socket_address.host().ToPackedString();
+          if (v4_address_bytes.length() != 4 ||
+              v6_address_bytes.length() != 16 ||
+              in.preferred_address->stateless_reset_token.size() !=
+                  kStatelessResetTokenLength) {
+            QUIC_BUG(quic_bug_10743_12)
+                << "Bad lengths " << *in.preferred_address;
+            return false;
+          }
+          const uint64_t preferred_address_length =
+              v4_address_bytes.length() + /* IPv4 port */ sizeof(uint16_t) +
+              v6_address_bytes.length() + /* IPv6 port */ sizeof(uint16_t) +
+              /* connection ID length byte */ sizeof(uint8_t) +
+              in.preferred_address->connection_id.length() +
+              in.preferred_address->stateless_reset_token.size();
+          if (!writer.WriteVarInt62(TransportParameters::kPreferredAddress) ||
+              !writer.WriteVarInt62(
+                  /* transport parameter length */ preferred_address_length) ||
+              !writer.WriteStringPiece(v4_address_bytes) ||
+              !writer.WriteUInt16(
+                  in.preferred_address->ipv4_socket_address.port()) ||
+              !writer.WriteStringPiece(v6_address_bytes) ||
+              !writer.WriteUInt16(
+                  in.preferred_address->ipv6_socket_address.port()) ||
+              !writer.WriteUInt8(
+                  in.preferred_address->connection_id.length()) ||
+              !writer.WriteBytes(
+                  in.preferred_address->connection_id.data(),
+                  in.preferred_address->connection_id.length()) ||
+              !writer.WriteBytes(
+                  in.preferred_address->stateless_reset_token.data(),
+                  in.preferred_address->stateless_reset_token.size())) {
+            QUIC_BUG(Failed to write preferred_address)
+                << "Failed to write preferred_address for " << in;
+            return false;
+          }
+        }
+      } break;
+      // initial_source_connection_id
+      case TransportParameters::kInitialSourceConnectionId: {
+        if (in.initial_source_connection_id.has_value()) {
+          QuicConnectionId initial_source_connection_id =
+              in.initial_source_connection_id.value();
+          if (!writer.WriteVarInt62(
+                  TransportParameters::kInitialSourceConnectionId) ||
+              !writer.WriteStringPieceVarInt62(
+                  absl::string_view(initial_source_connection_id.data(),
+                                    initial_source_connection_id.length()))) {
+            QUIC_BUG(Failed to write initial_source_connection_id)
+                << "Failed to write initial_source_connection_id "
+                << initial_source_connection_id << " for " << in;
+            return false;
+          }
+        }
+      } break;
+      // retry_source_connection_id
+      case TransportParameters::kRetrySourceConnectionId: {
+        if (in.retry_source_connection_id.has_value()) {
+          QUICHE_DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
+          QuicConnectionId retry_source_connection_id =
+              in.retry_source_connection_id.value();
+          if (!writer.WriteVarInt62(
+                  TransportParameters::kRetrySourceConnectionId) ||
+              !writer.WriteStringPieceVarInt62(
+                  absl::string_view(retry_source_connection_id.data(),
+                                    retry_source_connection_id.length()))) {
+            QUIC_BUG(Failed to write retry_source_connection_id)
+                << "Failed to write retry_source_connection_id "
+                << retry_source_connection_id << " for " << in;
+            return false;
+          }
+        }
+      } break;
+      // Google-specific connection options.
+      case TransportParameters::kGoogleConnectionOptions: {
+        if (in.google_connection_options.has_value()) {
+          static_assert(
+              sizeof(in.google_connection_options.value().front()) == 4,
+              "bad size");
+          uint64_t connection_options_length =
+              in.google_connection_options.value().size() * 4;
+          if (!writer.WriteVarInt62(
+                  TransportParameters::kGoogleConnectionOptions) ||
+              !writer.WriteVarInt62(
+                  /* transport parameter length */ connection_options_length)) {
+            QUIC_BUG(Failed to write google_connection_options)
+                << "Failed to write google_connection_options of length "
+                << connection_options_length << " for " << in;
+            return false;
+          }
+          for (const QuicTag& connection_option :
+               in.google_connection_options.value()) {
+            if (!writer.WriteTag(connection_option)) {
+              QUIC_BUG(Failed to write google_connection_option)
+                  << "Failed to write google_connection_option "
+                  << QuicTagToString(connection_option) << " for " << in;
+              return false;
+            }
+          }
+        }
+      } break;
+      // Google-specific user agent identifier.
+      case TransportParameters::kGoogleUserAgentId: {
+        if (in.user_agent_id.has_value()) {
+          if (!writer.WriteVarInt62(TransportParameters::kGoogleUserAgentId) ||
+              !writer.WriteStringPieceVarInt62(in.user_agent_id.value())) {
+            QUIC_BUG(Failed to write Google user agent ID)
+                << "Failed to write Google user agent ID \""
+                << in.user_agent_id.value() << "\" for " << in;
+            return false;
+          }
+        }
+      } break;
+      // Google-specific indicator for key update not yet supported.
+      case TransportParameters::kGoogleKeyUpdateNotYetSupported: {
+        if (in.key_update_not_yet_supported) {
+          if (!writer.WriteVarInt62(
+                  TransportParameters::kGoogleKeyUpdateNotYetSupported) ||
+              !writer.WriteVarInt62(/* transport parameter length */ 0)) {
+            QUIC_BUG(Failed to write key_update_not_yet_supported)
+                << "Failed to write key_update_not_yet_supported for " << in;
+            return false;
+          }
+        }
+      } break;
+      // Google-specific version extension.
+      case TransportParameters::kGoogleQuicVersion: {
+        static_assert(sizeof(QuicVersionLabel) == sizeof(uint32_t),
+                      "bad length");
+        uint64_t google_version_length = sizeof(in.version);
+        if (in.perspective == Perspective::IS_SERVER) {
+          google_version_length +=
+              /* versions length */ sizeof(uint8_t) +
+              sizeof(QuicVersionLabel) * in.supported_versions.size();
+        }
+        if (!writer.WriteVarInt62(TransportParameters::kGoogleQuicVersion) ||
+            !writer.WriteVarInt62(
+                /* transport parameter length */ google_version_length) ||
+            !writer.WriteUInt32(in.version)) {
+          QUIC_BUG(Failed to write Google version extension)
+              << "Failed to write Google version extension for " << in;
+          return false;
+        }
+        if (in.perspective == Perspective::IS_SERVER) {
+          if (!writer.WriteUInt8(sizeof(QuicVersionLabel) *
+                                 in.supported_versions.size())) {
+            QUIC_BUG(Failed to write versions length)
+                << "Failed to write versions length for " << in;
+            return false;
+          }
+          for (QuicVersionLabel version_label : in.supported_versions) {
+            if (!writer.WriteUInt32(version_label)) {
+              QUIC_BUG(Failed to write supported version)
+                  << "Failed to write supported version for " << in;
+              return false;
+            }
+          }
+        }
+      } break;
+      // Custom parameters and GREASE.
+      default: {
+        auto it = custom_parameters.find(parameter_id);
+        if (it == custom_parameters.end()) {
+          QUIC_BUG(Unknown parameter) << "Unknown parameter " << parameter_id;
+          return false;
+        }
+        if (!writer.WriteVarInt62(parameter_id) ||
+            !writer.WriteStringPieceVarInt62(it->second)) {
+          QUIC_BUG(Failed to write custom parameter)
+              << "Failed to write custom parameter " << parameter_id;
+          return false;
+        }
+      } break;
     }
   }
 
