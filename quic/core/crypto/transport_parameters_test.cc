@@ -932,6 +932,53 @@ TEST_P(TransportParametersTest, VeryLongCustomParameter) {
   EXPECT_EQ(new_params, orig_params);
 }
 
+TEST_P(TransportParametersTest, SerializationOrderIsRandom) {
+  SetQuicReloadableFlag(quic_randomize_transport_parameter_order, true);
+  TransportParameters orig_params;
+  orig_params.perspective = Perspective::IS_CLIENT;
+  orig_params.version = kFakeVersionLabel;
+  orig_params.max_idle_timeout_ms.set_value(kFakeIdleTimeoutMilliseconds);
+  orig_params.max_udp_payload_size.set_value(kMaxPacketSizeForTest);
+  orig_params.initial_max_data.set_value(kFakeInitialMaxData);
+  orig_params.initial_max_stream_data_bidi_local.set_value(
+      kFakeInitialMaxStreamDataBidiLocal);
+  orig_params.initial_max_stream_data_bidi_remote.set_value(
+      kFakeInitialMaxStreamDataBidiRemote);
+  orig_params.initial_max_stream_data_uni.set_value(
+      kFakeInitialMaxStreamDataUni);
+  orig_params.initial_max_streams_bidi.set_value(kFakeInitialMaxStreamsBidi);
+  orig_params.initial_max_streams_uni.set_value(kFakeInitialMaxStreamsUni);
+  orig_params.ack_delay_exponent.set_value(kAckDelayExponentForTest);
+  orig_params.max_ack_delay.set_value(kMaxAckDelayForTest);
+  orig_params.min_ack_delay_us.set_value(kMinAckDelayUsForTest);
+  orig_params.disable_active_migration = kFakeDisableMigration;
+  orig_params.active_connection_id_limit.set_value(
+      kActiveConnectionIdLimitForTest);
+  orig_params.initial_source_connection_id =
+      CreateFakeInitialSourceConnectionId();
+  orig_params.initial_round_trip_time_us.set_value(kFakeInitialRoundTripTime);
+  orig_params.google_connection_options = CreateFakeGoogleConnectionOptions();
+  orig_params.user_agent_id = CreateFakeUserAgentId();
+  orig_params.key_update_not_yet_supported = kFakeKeyUpdateNotYetSupported;
+  orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
+  orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
+
+  std::vector<uint8_t> first_serialized;
+  ASSERT_TRUE(
+      SerializeTransportParameters(version_, orig_params, &first_serialized));
+  // Test that a subsequent serialization is different from the first.
+  // Run in a loop to avoid a failure in the unlikely event that randomization
+  // produces the same result multiple times.
+  for (int i = 0; i < 1000; i++) {
+    std::vector<uint8_t> serialized;
+    ASSERT_TRUE(
+        SerializeTransportParameters(version_, orig_params, &serialized));
+    if (serialized != first_serialized) {
+      return;
+    }
+  }
+}
+
 class TransportParametersTicketSerializationTest : public QuicTest {
  protected:
   void SetUp() override {
