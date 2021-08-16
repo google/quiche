@@ -51,7 +51,7 @@ class QUICHE_EXPORT_PRIVATE NgHttp2Adapter : public Http2Adapter {
 
   void SubmitRst(Http2StreamId stream_id, Http2ErrorCode error_code) override;
 
-  void SubmitMetadata(Http2StreamId stream_id,
+  void SubmitMetadata(Http2StreamId stream_id, size_t max_frame_size,
                       std::unique_ptr<MetadataSource> source) override;
 
   int Send() override;

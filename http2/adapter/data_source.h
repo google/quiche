@@ -38,6 +38,11 @@ class QUICHE_EXPORT_PRIVATE MetadataSource {
  public:
   virtual ~MetadataSource() {}
 
+  // Returns the number of frames of at most |max_frame_size| required to
+  // serialize the metadata for this source. Only required by the nghttp2
+  // implementation.
+  virtual size_t NumFrames(size_t max_frame_size) const = 0;
+
   // This method is called with a destination buffer and length. It should
   // return the number of payload bytes copied to |dest|, or a negative integer
   // to indicate an error, as well as a boolean indicating whether the metadata

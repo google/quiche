@@ -66,7 +66,7 @@ class QUICHE_EXPORT_PRIVATE Http2Adapter {
 
   // Submits a sequence of METADATA frames for the given stream. A |stream_id|
   // of 0 indicates connection-level METADATA.
-  virtual void SubmitMetadata(Http2StreamId stream_id,
+  virtual void SubmitMetadata(Http2StreamId stream_id, size_t max_frame_size,
                               std::unique_ptr<MetadataSource> source) = 0;
 
   // Invokes the visitor's OnReadyToSend() method for serialized frame data.

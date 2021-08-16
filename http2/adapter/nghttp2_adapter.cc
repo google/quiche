@@ -12,6 +12,32 @@
 namespace http2 {
 namespace adapter {
 
+namespace {
+
+// A metadata source that deletes itself upon completion.
+class SelfDeletingMetadataSource : public MetadataSource {
+ public:
+  explicit SelfDeletingMetadataSource(std::unique_ptr<MetadataSource> source)
+      : source_(std::move(source)) {}
+
+  size_t NumFrames(size_t max_frame_size) const override {
+    return source_->NumFrames(max_frame_size);
+  }
+
+  std::pair<int64_t, bool> Pack(uint8_t* dest, size_t dest_len) override {
+    const auto result = source_->Pack(dest, dest_len);
+    if (result.first < 0 || result.second) {
+      delete this;
+    }
+    return result;
+  }
+
+ private:
+  std::unique_ptr<MetadataSource> source_;
+};
+
+}  // anonymous namespace
+
 /* static */
 std::unique_ptr<NgHttp2Adapter> NgHttp2Adapter::CreateClientAdapter(
     Http2VisitorInterface& visitor, const nghttp2_option* options) {
@@ -90,9 +116,26 @@ void NgHttp2Adapter::SubmitWindowUpdate(Http2StreamId stream_id,
                                stream_id, window_increment);
 }
 
-void NgHttp2Adapter::SubmitMetadata(
-    Http2StreamId /*stream_id*/, std::unique_ptr<MetadataSource> /*source*/) {
-  QUICHE_LOG(DFATAL) << "Not implemented";
+void NgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
+                                    size_t max_frame_size,
+                                    std::unique_ptr<MetadataSource> source) {
+  auto* wrapped_source = new SelfDeletingMetadataSource(std::move(source));
+  const size_t num_frames = wrapped_source->NumFrames(max_frame_size);
+  size_t num_successes = 0;
+  for (size_t i = 1; i <= num_frames; ++i) {
+    const int result = nghttp2_submit_extension(
+        session_->raw_ptr(), kMetadataFrameType,
+        i == num_frames ? kMetadataEndFlag : 0, stream_id, wrapped_source);
+    if (result != 0) {
+      QUICHE_LOG(DFATAL) << "Failed to submit extension frame " << i << " of "
+                         << num_frames;
+      break;
+    }
+    ++num_successes;
+  }
+  if (num_successes == 0) {
+    delete wrapped_source;
+  }
 }
 
 int NgHttp2Adapter::Send() {

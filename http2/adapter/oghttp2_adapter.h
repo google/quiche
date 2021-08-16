@@ -35,7 +35,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Adapter : public Http2Adapter {
                     absl::string_view opaque_data) override;
   void SubmitWindowUpdate(Http2StreamId stream_id,
                           int window_increment) override;
-  void SubmitMetadata(Http2StreamId stream_id,
+  void SubmitMetadata(Http2StreamId stream_id, size_t max_frame_size,
                       std::unique_ptr<MetadataSource> source) override;
   int Send() override;
   int GetSendWindowSize() const override;

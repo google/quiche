@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "absl/strings/string_view.h"
+#include "http2/adapter/data_source.h"
 #include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/http2_visitor_interface.h"
 #include "http2/adapter/nghttp2_data_provider.h"
@@ -253,12 +254,20 @@ int OnUnpackExtensionCallback(nghttp2_session* /*session*/, void** /*payload*/,
   return 0;
 }
 
-ssize_t OnPackExtensionCallback(nghttp2_session* /*session*/, uint8_t* /*buf*/,
-                                size_t /*len*/, const nghttp2_frame* /*frame*/,
+ssize_t OnPackExtensionCallback(nghttp2_session* /*session*/, uint8_t* buf,
+                                size_t len, const nghttp2_frame* frame,
                                 void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
-  QUICHE_LOG(DFATAL) << "Not implemented";
-  return NGHTTP2_ERR_CALLBACK_FAILURE;
+  auto* source = static_cast<MetadataSource*>(frame->ext.payload);
+  const std::pair<int64_t, bool> result = source->Pack(buf, len);
+  if (result.first < 0) {
+    return NGHTTP2_ERR_CALLBACK_FAILURE;
+  }
+  const bool end_metadata_flag = (frame->hd.flags & kMetadataEndFlag);
+  QUICHE_LOG_IF(DFATAL, result.second != end_metadata_flag)
+      << "Metadata ends: " << result.second
+      << " has kMetadataEndFlag: " << end_metadata_flag;
+  return result.first;
 }
 
 int OnError(nghttp2_session* /*session*/, int /*lib_error_code*/,

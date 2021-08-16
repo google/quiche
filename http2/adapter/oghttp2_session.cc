@@ -10,7 +10,7 @@ namespace adapter {
 
 namespace {
 
-const size_t kMaxMetadataFrameSize = 16384;
+const uint32_t kMaxAllowedMetadataFrameSize = 65536u;
 
 // TODO(birenroy): Consider incorporating spdy::FlagsSerializionVisitor here.
 class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
@@ -377,8 +377,9 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
     return true;
   }
   bool source_can_produce = true;
-  int32_t available_window = std::min(
-      std::min(connection_send_window_, state.send_window), max_frame_payload_);
+  int32_t available_window =
+      std::min({connection_send_window_, state.send_window,
+                static_cast<int32_t>(max_frame_payload_)});
   while (connection_can_write && available_window > 0 &&
          state.outbound_body != nullptr) {
     int64_t length;
@@ -411,9 +412,8 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
       visitor_.OnFrameSent(/* DATA */ 0, stream_id, length, fin ? 0x1 : 0x0, 0);
       connection_send_window_ -= length;
       state.send_window -= length;
-      available_window =
-          std::min(std::min(connection_send_window_, state.send_window),
-                   max_frame_payload_);
+      available_window = std::min({connection_send_window_, state.send_window,
+                                   static_cast<int32_t>(max_frame_payload_)});
     }
     if (end_data) {
       bool sent_trailers = false;
@@ -445,19 +445,21 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
 
 bool OgHttp2Session::SendMetadata(Http2StreamId stream_id,
                                   OgHttp2Session::MetadataSequence& sequence) {
-  auto payload_buffer = absl::make_unique<uint8_t[]>(kMaxMetadataFrameSize);
+  const uint32_t max_payload_size =
+      std::min(kMaxAllowedMetadataFrameSize, max_frame_payload_);
+  auto payload_buffer = absl::make_unique<uint8_t[]>(max_payload_size);
   while (!sequence.empty()) {
     MetadataSource& source = *sequence.front();
 
     int64_t written;
     bool end_metadata;
     std::tie(written, end_metadata) =
-        source.Pack(payload_buffer.get(), kMaxMetadataFrameSize);
+        source.Pack(payload_buffer.get(), max_payload_size);
     if (written < 0) {
       // Did not touch the connection, so perhaps writes are still possible.
       return true;
     }
-    QUICHE_DCHECK_LE(static_cast<size_t>(written), kMaxMetadataFrameSize);
+    QUICHE_DCHECK_LE(static_cast<size_t>(written), max_payload_size);
     auto payload = absl::string_view(
         reinterpret_cast<const char*>(payload_buffer.get()), written);
     EnqueueFrame(absl::make_unique<spdy::SpdyUnknownIR>(
@@ -653,6 +655,8 @@ void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
   visitor_.OnSetting({id, value});
   if (id == kMetadataExtensionId) {
     peer_supports_metadata_ = (value != 0);
+  } else if (id == MAX_FRAME_SIZE) {
+    max_frame_payload_ = value;
   }
 }
 

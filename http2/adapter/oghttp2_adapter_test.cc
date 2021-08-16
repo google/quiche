@@ -616,7 +616,7 @@ TEST(OgHttp2AdapterClientTest, DISABLED_ClientHandlesInvalidTrailers) {
 TEST_F(OgHttp2AdapterTest, SubmitMetadata) {
   auto source = absl::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
       {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));
-  adapter_->SubmitMetadata(1, std::move(source));
+  adapter_->SubmitMetadata(1, 16384u, std::move(source));
   EXPECT_TRUE(adapter_->session().want_write());
 
   EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -633,10 +633,42 @@ TEST_F(OgHttp2AdapterTest, SubmitMetadata) {
   EXPECT_FALSE(adapter_->session().want_write());
 }
 
+TEST_F(OgHttp2AdapterTest, SubmitMetadataMultipleFrames) {
+  const auto kLargeValue = std::string(63 * 1024, 'a');
+  auto source = absl::make_unique<TestMetadataSource>(
+      ToHeaderBlock(ToHeaders({{"large-value", kLargeValue}})));
+  adapter_->SubmitMetadata(1, 16384u, std::move(source));
+  EXPECT_TRUE(adapter_->session().want_write());
+
+  testing::InSequence seq;
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(kMetadataFrameType, 1, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(kMetadataFrameType, 1, _, 0x0, 0));
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(kMetadataFrameType, 1, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(kMetadataFrameType, 1, _, 0x0, 0));
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(kMetadataFrameType, 1, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(kMetadataFrameType, 1, _, 0x0, 0));
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(kMetadataFrameType, 1, _, 0x4));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(kMetadataFrameType, 1, _, 0x4, 0));
+
+  int result = adapter_->Send();
+  EXPECT_EQ(0, result);
+  absl::string_view serialized = http2_visitor_.data();
+  EXPECT_THAT(
+      serialized,
+      EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                    static_cast<spdy::SpdyFrameType>(kMetadataFrameType),
+                    static_cast<spdy::SpdyFrameType>(kMetadataFrameType),
+                    static_cast<spdy::SpdyFrameType>(kMetadataFrameType),
+                    static_cast<spdy::SpdyFrameType>(kMetadataFrameType)}));
+  EXPECT_FALSE(adapter_->session().want_write());
+}
+
 TEST_F(OgHttp2AdapterTest, SubmitConnectionMetadata) {
   auto source = absl::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
       {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));
-  adapter_->SubmitMetadata(0, std::move(source));
+  adapter_->SubmitMetadata(0, 16384u, std::move(source));
   EXPECT_TRUE(adapter_->session().want_write());
 
   EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));

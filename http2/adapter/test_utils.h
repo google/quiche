@@ -96,6 +96,10 @@ class QUICHE_NO_EXPORT TestMetadataSource : public MetadataSource {
  public:
   explicit TestMetadataSource(const spdy::SpdyHeaderBlock& entries);
 
+  size_t NumFrames(size_t max_frame_size) const override {
+    // Round up to the next frame.
+    return (encoded_entries_.size() + max_frame_size - 1) / max_frame_size;
+  }
   std::pair<int64_t, bool> Pack(uint8_t* dest, size_t dest_len) override;
 
  private:
