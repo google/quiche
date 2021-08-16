@@ -196,7 +196,6 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     }
     if (scheme.empty()) {
       return CreateBackendErrorResponse("400", "Empty scheme");
-      return nullptr;
     }
     if (method != "CONNECT-UDP") {
       QUIC_DLOG(ERROR) << "MASQUE request with bad method \"" << method << "\"";
