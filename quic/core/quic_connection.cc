@@ -664,7 +664,6 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   // 2) Client side's rollout can be protected by the same connection option.
   connection_migration_use_new_cid_ =
       support_multiple_connection_ids_ && validate_client_addresses_ &&
-      group_path_response_and_challenge_sending_closer_ &&
       GetQuicReloadableFlag(quic_drop_unsent_path_response) &&
       GetQuicReloadableFlag(quic_connection_migration_use_new_cid_v2);
   if (config.HasReceivedMaxPacketSize()) {
@@ -1705,17 +1704,8 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
   }
   QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 1, 6);
   {
-    // UpdatePacketStateAndReplyPathChallenge() may start reverse path
-    // validation, if so bundle the PATH_CHALLENGE together with the
-    // PATH_RESPONSE. This context needs to be out of scope before returning.
     // TODO(danzh) inline OnPathChallengeFrameInternal() once
-    // support_reverse_path_validation_ is deprecated.
-    auto context =
-        group_path_response_and_challenge_sending_closer_
-            ? nullptr
-            : std::make_unique<QuicPacketCreator::ScopedPeerAddressContext>(
-                  &packet_creator_, last_received_packet_info_.source_address,
-                  /*update_connection_id=*/false);
+    // validate_client_addresses_ is deprecated.
     if (!OnPathChallengeFrameInternal(frame)) {
       return false;
     }
@@ -1734,21 +1724,16 @@ bool QuicConnection::OnPathChallengeFrameInternal(
     debug_visitor_->OnPathChallengeFrame(frame);
   }
 
-  std::unique_ptr<QuicPacketCreator::ScopedPeerAddressContext> context;
   const QuicSocketAddress current_effective_peer_address =
       GetEffectivePeerAddressFromCurrentPacket();
-  if (group_path_response_and_challenge_sending_closer_) {
-    QuicConnectionId client_cid, server_cid;
-    FindOnPathConnectionIds(last_received_packet_info_.destination_address,
-                            current_effective_peer_address, &client_cid,
-                            &server_cid);
-    context = std::make_unique<QuicPacketCreator::ScopedPeerAddressContext>(
-        &packet_creator_, last_received_packet_info_.source_address, client_cid,
-        server_cid, connection_migration_use_new_cid_);
-  }
+  QuicConnectionId client_cid, server_cid;
+  FindOnPathConnectionIds(last_received_packet_info_.destination_address,
+                          current_effective_peer_address, &client_cid,
+                          &server_cid);
+  QuicPacketCreator::ScopedPeerAddressContext context(
+      &packet_creator_, last_received_packet_info_.source_address, client_cid,
+      server_cid, connection_migration_use_new_cid_);
   if (should_proactively_validate_peer_address_on_path_challenge_) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_group_path_response_and_challenge_sending_closer);
     // Conditions to proactively validate peer address:
     // The perspective is server
     // The PATH_CHALLENGE is received on an unvalidated alternative path.
@@ -5632,24 +5617,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
                       current_effective_peer_address, client_connection_id,
                       last_packet_destination_connection_id_,
                       stateless_reset_token_received, stateless_reset_token);
-        if (group_path_response_and_challenge_sending_closer_) {
-          should_proactively_validate_peer_address_on_path_challenge_ = true;
-        } else {
-          // Conditions to proactively validate peer address:
-          // The perspective is server
-          // The PATH_CHALLENGE is received on an unvalidated alternative path.
-          // The connection isn't validating migrated peer address, which is of
-          // higher prority.
-          QUIC_DVLOG(1) << "Proactively validate the effective peer address "
-                        << current_effective_peer_address;
-          QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 1, 6);
-          ValidatePath(std::make_unique<ReversePathValidationContext>(
-                           default_path_.self_address,
-                           last_received_packet_info_.source_address,
-                           current_effective_peer_address, this),
-                       std::make_unique<ReversePathValidationResultDelegate>(
-                           this, peer_address()));
-        }
+        should_proactively_validate_peer_address_on_path_challenge_ = true;
       }
     }
     MaybeUpdateBytesReceivedFromAlternativeAddress(last_size_);
