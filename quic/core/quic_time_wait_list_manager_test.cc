@@ -768,6 +768,37 @@ TEST_F(QuicTimeWaitListManagerTest, SendOrQueueNullPacket) {
                                                  nullptr, nullptr);
 }
 
+TEST_F(QuicTimeWaitListManagerTest, TooManyPendingPackets) {
+  SetQuicFlag(FLAGS_quic_time_wait_list_max_pending_packets, 5);
+  const size_t kNumOfUnProcessablePackets = 2048;
+  EXPECT_CALL(visitor_, OnWriteBlocked(&time_wait_list_manager_))
+      .Times(testing::AnyNumber());
+  // Write block for the next packets.
+  EXPECT_CALL(writer_,
+              WritePacket(_, _, self_address_.host(), peer_address_, _))
+      .With(Args<0, 1>(PublicResetPacketEq(TestConnectionId(1))))
+      .WillOnce(DoAll(Assign(&writer_is_blocked_, true),
+                      Return(WriteResult(WRITE_STATUS_BLOCKED, EAGAIN))));
+  for (size_t i = 0; i < kNumOfUnProcessablePackets; ++i) {
+    time_wait_list_manager_.SendPublicReset(
+        self_address_, peer_address_, TestConnectionId(1),
+        /*ietf_quic=*/true,
+        /*received_packet_length=*/
+        QuicFramer::GetMinStatelessResetPacketLength() + 1,
+        /*packet_context=*/nullptr);
+  }
+  if (GetQuicReloadableFlag(quic_add_upperbound_for_queued_packets)) {
+    // Verify pending packet queue size is limited.
+    EXPECT_EQ(5u, QuicTimeWaitListManagerPeer::PendingPacketsQueueSize(
+                      &time_wait_list_manager_));
+  } else {
+    // The pending packet queue grows unbounded.
+    EXPECT_EQ(kNumOfUnProcessablePackets,
+              QuicTimeWaitListManagerPeer::PendingPacketsQueueSize(
+                  &time_wait_list_manager_));
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

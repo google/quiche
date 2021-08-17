@@ -36,5 +36,11 @@ bool QuicTimeWaitListManagerPeer::SendOrQueuePacket(
   return manager->SendOrQueuePacket(std::move(packet), packet_context);
 }
 
+// static
+size_t QuicTimeWaitListManagerPeer::PendingPacketsQueueSize(
+    QuicTimeWaitListManager* manager) {
+  return manager->pending_packets_queue_.size();
+}
+
 }  // namespace test
 }  // namespace quic

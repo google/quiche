@@ -44,6 +44,12 @@ QUIC_PROTOCOL_FLAG(int64_t,
                    "Time period for which a given connection_id should live in "
                    "the time-wait state.")
 
+// This number is relatively conservative. For example, there are at most 1K
+// queued stateless resets, which consume 1K * 21B = 21KB.
+QUIC_PROTOCOL_FLAG(
+    uint64_t, quic_time_wait_list_max_pending_packets, 1024,
+    "Upper limit of pending packets in time wait list when writer is blocked.")
+
 QUIC_PROTOCOL_FLAG(double,
                    quic_bbr_cwnd_gain,
                    2.0f,

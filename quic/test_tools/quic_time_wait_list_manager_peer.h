@@ -26,6 +26,8 @@ class QuicTimeWaitListManagerPeer {
       QuicTimeWaitListManager* manager,
       std::unique_ptr<QuicTimeWaitListManager::QueuedPacket> packet,
       const QuicPerPacketContext* packet_context);
+
+  static size_t PendingPacketsQueueSize(QuicTimeWaitListManager* manager);
 };
 
 }  // namespace test
