@@ -123,6 +123,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_server_reverse_validate_new_path3, tru
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_queue_until_handshake_complete, true)
 // When the STMP connection option is sent by the client, timestamps in the QUIC ACK frame are sent and processed.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_send_timestamps, false)
+// When true, QuicDispatcher will silently drop QUIC packets that have invalid flags.
+QUIC_FLAG(FLAGS_quic_restart_flag_quic_drop_invalid_flags, false)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr, false)
 // When true, prevents QUIC\'s PacingSender from generating bursts when the congestion controller is CWND limited and not pacing limited.

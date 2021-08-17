@@ -944,6 +944,27 @@ TEST_P(QuicDispatcherTestAllVersions,
   dispatcher_->ProcessPacket(server_address_, client_address, packet2);
 }
 
+TEST_P(QuicDispatcherTestOneVersion, DropPacketWithInvalidFlags) {
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  CreateTimeWaitListManager();
+  uint8_t all_zero_packet[1200] = {};
+  QuicReceivedPacket packet(reinterpret_cast<char*>(all_zero_packet),
+                            sizeof(all_zero_packet), QuicTime::Zero());
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
+      .Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _, _))
+      .Times(0);
+  if (GetQuicRestartFlag(quic_drop_invalid_flags)) {
+    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+        .Times(0);
+  } else {
+    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+        .Times(1);
+  }
+  dispatcher_->ProcessPacket(server_address_, client_address, packet);
+}
+
 // Makes sure nine-byte connection IDs are replaced by 8-byte ones.
 TEST_P(QuicDispatcherTestAllVersions, LongConnectionIdLengthReplaced) {
   if (!version_.AllowsVariableLengthConnectionIds()) {

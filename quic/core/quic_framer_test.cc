@@ -1286,6 +1286,28 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
   EXPECT_EQ(FramerTestConnectionIdPlusOne(), source_connection_id);
 }
 
+TEST_P(QuicFramerTest, AllZeroPacketParsingFails) {
+  SetQuicRestartFlag(quic_drop_invalid_flags, true);
+  unsigned char packet[1200] = {};
+  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  PacketHeaderFormat format = GOOGLE_QUIC_PACKET;
+  QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
+  bool version_flag = false;
+  QuicConnectionId destination_connection_id, source_connection_id;
+  QuicVersionLabel version_label = 0;
+  std::string detailed_error = "";
+  bool retry_token_present, use_length_prefix;
+  absl::string_view retry_token;
+  ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
+  const QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
+      encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
+      &version_flag, &use_length_prefix, &version_label, &parsed_version,
+      &destination_connection_id, &source_connection_id, &retry_token_present,
+      &retry_token, &detailed_error);
+  EXPECT_EQ(error_code, QUIC_INVALID_PACKET_HEADER);
+  EXPECT_EQ(detailed_error, "Invalid flags.");
+}
+
 TEST_P(QuicFramerTest, ParsePublicHeader) {
   // clang-format off
   unsigned char packet[] = {
