@@ -68,31 +68,32 @@ std::string* HpackOutputStream::MutableString() {
   return &buffer_;
 }
 
-void HpackOutputStream::TakeString(std::string* output) {
+std::string HpackOutputStream::TakeString() {
   // This must hold, since all public functions cause the buffer to
   // end on a byte boundary.
   QUICHE_DCHECK_EQ(bit_offset_, 0u);
-  buffer_.swap(*output);
-  buffer_.clear();
+  std::string out = std::move(buffer_);
+  buffer_ = {};
   bit_offset_ = 0;
+  return out;
 }
 
-void HpackOutputStream::BoundedTakeString(size_t max_size,
-                                          std::string* output) {
+std::string HpackOutputStream::BoundedTakeString(size_t max_size) {
   if (buffer_.size() > max_size) {
     // Save off overflow bytes to temporary string (causes a copy).
-    std::string overflow(buffer_.data() + max_size, buffer_.size() - max_size);
+    std::string overflow = buffer_.substr(max_size);
 
     // Resize buffer down to the given limit.
     buffer_.resize(max_size);
 
     // Give buffer to output string.
-    *output = std::move(buffer_);
+    std::string out = std::move(buffer_);
 
     // Reset to contain overflow.
     buffer_ = std::move(overflow);
+    return out;
   } else {
-    TakeString(output);
+    return TakeString();
   }
 }
 

@@ -60,9 +60,8 @@ class QUICHE_EXPORT_PRIVATE HpackEncoder {
     // Returns true iff more remains to encode.
     virtual bool HasNext() const = 0;
 
-    // Encodes up to max_encoded_bytes of the current header block into the
-    // given output string.
-    virtual void Next(size_t max_encoded_bytes, std::string* output) = 0;
+    // Encodes and returns up to max_encoded_bytes of the current header block.
+    virtual std::string Next(size_t max_encoded_bytes) = 0;
   };
 
   // Returns a ProgressiveEncoder which must be outlived by both the given

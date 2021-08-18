@@ -493,8 +493,8 @@ TEST_P(HpackDecoderAdapterTest, ContextUpdateMaximumSize) {
     output_stream.AppendPrefix(kHeaderTableSizeUpdateOpcode);
     output_stream.AppendUint32(126);
 
-    output_stream.TakeString(&input);
-    EXPECT_TRUE(DecodeHeaderBlock(absl::string_view(input)));
+    input = output_stream.TakeString();
+    EXPECT_TRUE(DecodeHeaderBlock(input));
     EXPECT_EQ(126u, decoder_peer_.header_table_size_limit());
   }
   {
@@ -503,8 +503,8 @@ TEST_P(HpackDecoderAdapterTest, ContextUpdateMaximumSize) {
     output_stream.AppendPrefix(kHeaderTableSizeUpdateOpcode);
     output_stream.AppendUint32(kDefaultHeaderTableSizeSetting);
 
-    output_stream.TakeString(&input);
-    EXPECT_TRUE(DecodeHeaderBlock(absl::string_view(input)));
+    input = output_stream.TakeString();
+    EXPECT_TRUE(DecodeHeaderBlock(input));
     EXPECT_EQ(kDefaultHeaderTableSizeSetting,
               decoder_peer_.header_table_size_limit());
   }
@@ -514,8 +514,8 @@ TEST_P(HpackDecoderAdapterTest, ContextUpdateMaximumSize) {
     output_stream.AppendPrefix(kHeaderTableSizeUpdateOpcode);
     output_stream.AppendUint32(kDefaultHeaderTableSizeSetting + 1);
 
-    output_stream.TakeString(&input);
-    EXPECT_FALSE(DecodeHeaderBlock(absl::string_view(input)));
+    input = output_stream.TakeString();
+    EXPECT_FALSE(DecodeHeaderBlock(input));
     EXPECT_EQ(kDefaultHeaderTableSizeSetting,
               decoder_peer_.header_table_size_limit());
   }
@@ -532,8 +532,8 @@ TEST_P(HpackDecoderAdapterTest, TwoTableSizeUpdates) {
     output_stream.AppendPrefix(kHeaderTableSizeUpdateOpcode);
     output_stream.AppendUint32(122);
 
-    output_stream.TakeString(&input);
-    EXPECT_TRUE(DecodeHeaderBlock(absl::string_view(input)));
+    input = output_stream.TakeString();
+    EXPECT_TRUE(DecodeHeaderBlock(input));
     EXPECT_EQ(122u, decoder_peer_.header_table_size_limit());
   }
 }
@@ -551,9 +551,9 @@ TEST_P(HpackDecoderAdapterTest, ThreeTableSizeUpdatesError) {
     output_stream.AppendPrefix(kHeaderTableSizeUpdateOpcode);
     output_stream.AppendUint32(15);
 
-    output_stream.TakeString(&input);
+    input = output_stream.TakeString();
 
-    EXPECT_FALSE(DecodeHeaderBlock(absl::string_view(input)));
+    EXPECT_FALSE(DecodeHeaderBlock(input));
     EXPECT_EQ(10u, decoder_peer_.header_table_size_limit());
   }
 }
@@ -570,9 +570,9 @@ TEST_P(HpackDecoderAdapterTest, TableSizeUpdateSecondError) {
     output_stream.AppendPrefix(kHeaderTableSizeUpdateOpcode);
     output_stream.AppendUint32(123);
 
-    output_stream.TakeString(&input);
+    input = output_stream.TakeString();
 
-    EXPECT_FALSE(DecodeHeaderBlock(absl::string_view(input)));
+    EXPECT_FALSE(DecodeHeaderBlock(input));
     EXPECT_EQ(kDefaultHeaderTableSizeSetting,
               decoder_peer_.header_table_size_limit());
   }
@@ -593,9 +593,9 @@ TEST_P(HpackDecoderAdapterTest, TableSizeUpdateFirstThirdError) {
     output_stream.AppendPrefix(kHeaderTableSizeUpdateOpcode);
     output_stream.AppendUint32(125);
 
-    output_stream.TakeString(&input);
+    input = output_stream.TakeString();
 
-    EXPECT_FALSE(DecodeHeaderBlock(absl::string_view(input)));
+    EXPECT_FALSE(DecodeHeaderBlock(input));
     EXPECT_EQ(60u, decoder_peer_.header_table_size_limit());
   }
 }

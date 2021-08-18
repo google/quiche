@@ -51,12 +51,12 @@ class QUICHE_EXPORT_PRIVATE HpackOutputStream {
   // Return pointer to internal buffer.  |bit_offset_| needs to be zero.
   std::string* MutableString();
 
-  // Swaps the internal buffer with |output|, then resets state.
-  void TakeString(std::string* output);
+  // Returns the internal buffer as a string, then resets state.
+  std::string TakeString();
 
-  // Gives up to |max_size| bytes of the internal buffer to |output|. Resets
+  // Returns up to |max_size| bytes of the internal buffer. Resets
   // internal state with the overflow.
-  void BoundedTakeString(size_t max_size, std::string* output);
+  std::string BoundedTakeString(size_t max_size);
 
   // Size in bytes of stream's internal buffer.
   size_t size() const { return buffer_.size(); }

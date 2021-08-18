@@ -37,8 +37,7 @@ TEST(HpackOutputStreamTest, AppendBits) {
 
   output_stream.AppendBits(0x0, 7);
 
-  std::string str;
-  output_stream.TakeString(&str);
+  std::string str = output_stream.TakeString();
   EXPECT_EQ(expected_str, str);
 }
 
@@ -50,8 +49,7 @@ std::string EncodeUint32(uint8_t N, uint32_t I) {
     output_stream.AppendBits(0x00, 8 - N);
   }
   output_stream.AppendUint32(I);
-  std::string str;
-  output_stream.TakeString(&str);
+  std::string str = output_stream.TakeString();
   return str;
 }
 
@@ -236,8 +234,7 @@ TEST(HpackOutputStreamTest, AppendUint32PreservesUpperBits) {
   HpackOutputStream output_stream;
   output_stream.AppendBits(0x7f, 7);
   output_stream.AppendUint32(0x01);
-  std::string str;
-  output_stream.TakeString(&str);
+  std::string str = output_stream.TakeString();
   EXPECT_EQ(std::string("\xff\x00", 2), str);
 }
 
@@ -247,8 +244,7 @@ TEST(HpackOutputStreamTest, AppendBytes) {
   output_stream.AppendBytes("buffer1");
   output_stream.AppendBytes("buffer2");
 
-  std::string str;
-  output_stream.TakeString(&str);
+  std::string str = output_stream.TakeString();
   EXPECT_EQ("buffer1buffer2", str);
 }
 
@@ -258,16 +254,15 @@ TEST(HpackOutputStreamTest, BoundedTakeString) {
   output_stream.AppendBytes("buffer12");
   output_stream.AppendBytes("buffer456");
 
-  std::string str;
-  output_stream.BoundedTakeString(9, &str);
+  std::string str = output_stream.BoundedTakeString(9);
   EXPECT_EQ("buffer12b", str);
 
   output_stream.AppendBits(0x7f, 7);
   output_stream.AppendUint32(0x11);
-  output_stream.BoundedTakeString(9, &str);
+  str = output_stream.BoundedTakeString(9);
   EXPECT_EQ("uffer456\xff", str);
 
-  output_stream.BoundedTakeString(9, &str);
+  str = output_stream.BoundedTakeString(9);
   EXPECT_EQ("\x10", str);
 }
 
@@ -280,8 +275,7 @@ TEST(HpackOutputStreamTest, MutableString) {
   output_stream.AppendBytes("foo");
   output_stream.MutableString()->append("bar");
 
-  std::string str;
-  output_stream.TakeString(&str);
+  std::string str = output_stream.TakeString();
   EXPECT_EQ("12foobar", str);
 }
 

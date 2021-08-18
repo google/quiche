@@ -144,7 +144,7 @@ void HpackEncoder::EncodeRepresentations(RepresentationIterator* iter,
     }
   }
 
-  output_stream_.TakeString(output);
+  *output = output_stream_.TakeString();
 }
 
 void HpackEncoder::EmitIndex(size_t index) {
@@ -283,9 +283,8 @@ class HpackEncoder::Encoderator : public ProgressiveEncoder {
   // Returns true iff more remains to encode.
   bool HasNext() const override { return has_next_; }
 
-  // Encodes up to max_encoded_bytes of the current header block into the
-  // given output string.
-  void Next(size_t max_encoded_bytes, std::string* output) override;
+  // Encodes and returns up to max_encoded_bytes of the current header block.
+  std::string Next(size_t max_encoded_bytes) override;
 
  private:
   HpackEncoder* encoder_;
@@ -338,8 +337,7 @@ HpackEncoder::Encoderator::Encoderator(const Representations& representations,
   encoder_->MaybeEmitTableSize();
 }
 
-void HpackEncoder::Encoderator::Next(size_t max_encoded_bytes,
-                                     std::string* output) {
+std::string HpackEncoder::Encoderator::Next(size_t max_encoded_bytes) {
   QUICHE_BUG_IF(spdy_bug_61_1, !has_next_)
       << "Encoderator::Next called with nothing left to encode.";
   const bool enable_compression = encoder_->enable_compression_;
@@ -365,7 +363,7 @@ void HpackEncoder::Encoderator::Next(size_t max_encoded_bytes,
   }
 
   has_next_ = encoder_->output_stream_.size() > max_encoded_bytes;
-  encoder_->output_stream_.BoundedTakeString(max_encoded_bytes, output);
+  return encoder_->output_stream_.BoundedTakeString(max_encoded_bytes);
 }
 
 std::unique_ptr<HpackEncoder::ProgressiveEncoder> HpackEncoder::EncodeHeaderSet(

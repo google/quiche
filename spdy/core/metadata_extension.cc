@@ -55,9 +55,9 @@ std::unique_ptr<spdy::SpdyFrameIR> MetadataFrameSequence::Next() {
   if (!progressive_encoder_->HasNext()) {
     return nullptr;
   }
-  std::string payload;
   // METADATA frames obey the HTTP/2 maximum frame size.
-  progressive_encoder_->Next(spdy::kHttp2DefaultFramePayloadLimit, &payload);
+  std::string payload =
+      progressive_encoder_->Next(spdy::kHttp2DefaultFramePayloadLimit);
   const bool end_metadata = (!progressive_encoder_->HasNext());
   const uint8_t flags = end_metadata ? MetadataVisitor::kEndMetadataFlag : 0;
   return absl::make_unique<spdy::SpdyUnknownIR>(

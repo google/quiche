@@ -301,8 +301,8 @@ size_t SpdyFramer::SpdyFrameIterator::NextFrame(ZeroCopyOutputBuffer* output) {
 
   const size_t size_without_block =
       is_first_frame_ ? GetFrameSizeSansBlock() : kContinuationFrameMinimumSize;
-  std::string encoding;
-  encoder_->Next(kHttp2MaxControlFrameSendSize - size_without_block, &encoding);
+  std::string encoding =
+      encoder_->Next(kHttp2MaxControlFrameSendSize - size_without_block);
   has_next_frame_ = encoder_->HasNext();
 
   if (framer_->debug_visitor_ != nullptr) {
