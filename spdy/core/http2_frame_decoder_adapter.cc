@@ -1104,7 +1104,7 @@ void Http2DecoderAdapter::CommonHpackFragmentEnd() {
         << frame_header();
     has_expected_frame_type_ = false;
     auto* decoder = GetHpackDecoder();
-    if (decoder->HandleControlFrameHeadersComplete(nullptr)) {
+    if (decoder->HandleControlFrameHeadersComplete()) {
       visitor()->OnHeaderFrameEnd(stream_id());
     } else {
       SetSpdyErrorAndNotify(

@@ -141,11 +141,8 @@ class HpackDecoderAdapterTest
     return decoder_.HandleControlFrameHeadersData(str.data(), str.size());
   }
 
-  bool HandleControlFrameHeadersComplete(size_t* size) {
-    bool rc = decoder_.HandleControlFrameHeadersComplete(size);
-    if (size != nullptr) {
-      EXPECT_EQ(*size, bytes_passed_in_);
-    }
+  bool HandleControlFrameHeadersComplete() {
+    bool rc = decoder_.HandleControlFrameHeadersComplete();
     return rc;
   }
 
@@ -172,22 +169,18 @@ class HpackDecoderAdapterTest
       decode_has_failed_ = true;
       return false;
     }
-    // Want to get out the number of compressed bytes that were decoded,
-    // so pass in a pointer if no handler.
-    size_t total_hpack_bytes = 0;
     if (start_choice_ == START_WITH_HANDLER) {
-      if (!HandleControlFrameHeadersComplete(nullptr)) {
+      if (!HandleControlFrameHeadersComplete()) {
         decode_has_failed_ = true;
         return false;
       }
-      total_hpack_bytes = handler_.compressed_header_bytes();
+      EXPECT_EQ(handler_.compressed_header_bytes(), bytes_passed_in_);
     } else {
-      if (!HandleControlFrameHeadersComplete(&total_hpack_bytes)) {
+      if (!HandleControlFrameHeadersComplete()) {
         decode_has_failed_ = true;
         return false;
       }
     }
-    EXPECT_EQ(total_hpack_bytes, bytes_passed_in_);
     if (check_decoded_size && start_choice_ == START_WITH_HANDLER) {
       EXPECT_EQ(handler_.uncompressed_header_bytes(),
                 SizeOfHeaders(decoded_block()));
@@ -352,8 +345,7 @@ TEST_P(HpackDecoderAdapterTest, HeaderBlockTooLong) {
   // entire block successfully.
   HandleControlFrameHeadersStart();
   EXPECT_TRUE(HandleControlFrameHeadersData(hbb.buffer()));
-  size_t total_bytes;
-  EXPECT_TRUE(HandleControlFrameHeadersComplete(&total_bytes));
+  EXPECT_TRUE(HandleControlFrameHeadersComplete());
 
   // When a total byte limit is imposed, the decoder bails before the end of the
   // block.
@@ -387,9 +379,7 @@ TEST_P(HpackDecoderAdapterTest, DecodeWithIncompleteData) {
   // Add the needed data.
   EXPECT_TRUE(HandleControlFrameHeadersData("\x04gggs"));
 
-  size_t size = 0;
-  EXPECT_TRUE(HandleControlFrameHeadersComplete(&size));
-  EXPECT_EQ(24u, size);
+  EXPECT_TRUE(HandleControlFrameHeadersComplete());
 
   expected_headers.push_back({"spam", "gggs"});
 
@@ -429,7 +419,7 @@ TEST_P(HpackDecoderAdapterTest, HandleHeaderRepresentation) {
   decoder_peer_.HandleHeaderRepresentation("cookie", " fin!");
 
   // Finish and emit all headers.
-  decoder_.HandleControlFrameHeadersComplete(nullptr);
+  decoder_.HandleControlFrameHeadersComplete();
 
   // Resulting decoded headers are in the same order as the inputs.
   EXPECT_THAT(

@@ -56,10 +56,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderAdapter {
   // buffered block that was accumulated in HandleControlFrameHeadersData(),
   // to support subsequent calculation of compression percentage.
   // Discards the handler supplied at the start of decoding the block.
-  // TODO(jamessynge): Determine if compressed_len is needed; it is used to
-  // produce UUMA stat Net.SpdyHpackDecompressionPercentage, but only for
-  // deprecated SPDY3.
-  bool HandleControlFrameHeadersComplete(size_t* compressed_len);
+  bool HandleControlFrameHeadersComplete();
 
   // Accessor for the most recently decoded headers block. Valid until the next
   // call to HandleControlFrameHeadersData().

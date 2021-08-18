@@ -58,7 +58,7 @@ class HpackRoundTripTest : public QuicheTestWithParam<InputSizeParam> {
     }
 
     if (success) {
-      success = decoder_.HandleControlFrameHeadersComplete(nullptr);
+      success = decoder_.HandleControlFrameHeadersComplete();
     }
 
     EXPECT_EQ(header_set, decoder_.decoded_block());
