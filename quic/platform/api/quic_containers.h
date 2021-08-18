@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_CONTAINERS_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_CONTAINERS_H_
 
-#include "net/quic/platform/impl/quic_containers_impl.h"
+#include "quiche_platform_impl/quiche_containers_impl.h"
 
 namespace quic {
 
@@ -15,7 +15,7 @@ namespace quic {
 //
 // DOES NOT GUARANTEE POINTER OR ITERATOR STABILITY!
 template <typename Key, typename Compare = std::less<Key>>
-using QuicSmallOrderedSet = QuicSmallOrderedSetImpl<Key, Compare>;
+using QuicSmallOrderedSet = ::quiche::QuicheSmallOrderedSetImpl<Key, Compare>;
 
 }  // namespace quic
 
