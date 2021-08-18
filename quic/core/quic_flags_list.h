@@ -92,7 +92,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_discard_packets_with_invalid_cid, true
 // If true, quic dispatcher supports one connection to use multiple connection IDs. 
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_dispatcher_support_multiple_cid_per_connection_v2, true)
 // If true, receiving server push stream will trigger QUIC connection close.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_decline_server_push_stream, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_decline_server_push_stream, true)
 // If true, require handshake confirmation for QUIC connections, functionally disabling 0-rtt handshakes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_require_handshake_confirmation, false)
 // If true, reset per packet state before processing undecryptable packets.
