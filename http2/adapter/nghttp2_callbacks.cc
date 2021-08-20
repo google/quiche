@@ -67,7 +67,10 @@ int OnFrameReceived(nghttp2_session* /* session */,
       break;
     case NGHTTP2_HEADERS: {
       if (frame->hd.flags & NGHTTP2_FLAG_END_HEADERS) {
-        visitor->OnEndHeadersForStream(stream_id);
+        const bool result = visitor->OnEndHeadersForStream(stream_id);
+        if (!result) {
+          return NGHTTP2_ERR_CALLBACK_FAILURE;
+        }
       }
       if (frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
         visitor->OnEndStream(stream_id);

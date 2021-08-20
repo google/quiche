@@ -104,7 +104,7 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
   // Called when the connection has received the complete header block for a
   // logical HEADERS frame on a stream (which may contain CONTINUATION frames,
   // transparent to the user).
-  virtual void OnEndHeadersForStream(Http2StreamId stream_id) = 0;
+  virtual bool OnEndHeadersForStream(Http2StreamId stream_id) = 0;
 
   // Called when the connection receives the beginning of a DATA frame. The data
   // payload will be provided via subsequent calls to OnDataForStream().

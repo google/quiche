@@ -53,8 +53,9 @@ Http2VisitorInterface::OnHeaderResult RecordingHttp2Visitor::OnHeaderForStream(
   return HEADER_OK;
 }
 
-void RecordingHttp2Visitor::OnEndHeadersForStream(Http2StreamId stream_id) {
+bool RecordingHttp2Visitor::OnEndHeadersForStream(Http2StreamId stream_id) {
   events_.push_back(absl::StrFormat("OnEndHeadersForStream %d", stream_id));
+  return true;
 }
 
 void RecordingHttp2Visitor::OnBeginDataForStream(Http2StreamId stream_id,

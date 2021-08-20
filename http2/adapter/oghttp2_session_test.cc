@@ -550,6 +550,7 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
   EXPECT_CALL(visitor, OnEndHeadersForStream(1))
       .WillOnce(testing::InvokeWithoutArgs([&session, kSentinel1]() {
         session.SetStreamUserData(1, const_cast<char*>(kSentinel1));
+        return true;
       }));
   EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor, OnWindowUpdate(1, 2000));
@@ -686,6 +687,7 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   EXPECT_CALL(visitor, OnEndHeadersForStream(1))
       .WillOnce(testing::InvokeWithoutArgs([&session, kSentinel1]() {
         session.SetStreamUserData(1, const_cast<char*>(kSentinel1));
+        return true;
       }));
   EXPECT_CALL(visitor, OnEndStream(1));
 

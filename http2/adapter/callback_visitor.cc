@@ -182,12 +182,13 @@ Http2VisitorInterface::OnHeaderResult CallbackVisitor::OnHeaderForStream(
   return HEADER_OK;
 }
 
-void CallbackVisitor::OnEndHeadersForStream(Http2StreamId /*stream_id*/) {
+bool CallbackVisitor::OnEndHeadersForStream(Http2StreamId /*stream_id*/) {
   if (callbacks_->on_frame_recv_callback) {
     const int result = callbacks_->on_frame_recv_callback(
         nullptr, &current_frame_, user_data_);
-    QUICHE_DCHECK_EQ(0, result);
+    return result == 0;
   }
+  return true;
 }
 
 void CallbackVisitor::OnBeginDataForStream(Http2StreamId /*stream_id*/,

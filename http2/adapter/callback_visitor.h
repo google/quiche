@@ -36,7 +36,7 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
   OnHeaderResult OnHeaderForStream(Http2StreamId stream_id,
                                    absl::string_view name,
                                    absl::string_view value) override;
-  void OnEndHeadersForStream(Http2StreamId stream_id) override;
+  bool OnEndHeadersForStream(Http2StreamId stream_id) override;
   void OnBeginDataForStream(Http2StreamId stream_id,
                             size_t payload_length) override;
   void OnDataForStream(Http2StreamId stream_id,

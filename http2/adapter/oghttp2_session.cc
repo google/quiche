@@ -128,7 +128,10 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
     size_t /* uncompressed_header_bytes */,
     size_t /* compressed_header_bytes */) {
   if (result_ == Http2VisitorInterface::HEADER_OK) {
-    visitor_.OnEndHeadersForStream(stream_id_);
+    const bool result = visitor_.OnEndHeadersForStream(stream_id_);
+    if (!result) {
+      session_.decoder_.StopProcessing();
+    }
   } else {
     session_.OnHeaderStatus(stream_id_, result_);
   }
