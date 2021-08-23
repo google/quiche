@@ -115,7 +115,7 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
 
   // Called when the connection receives some |data| (as part of a DATA frame
   // payload) for a stream.
-  virtual void OnDataForStream(Http2StreamId stream_id,
+  virtual bool OnDataForStream(Http2StreamId stream_id,
                                absl::string_view data) = 0;
 
   // Called when the peer sends the END_STREAM flag on a stream, indicating that

@@ -220,9 +220,9 @@ int OnDataChunk(nghttp2_session* /* session */, uint8_t /*flags*/,
                 void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
-  visitor->OnDataForStream(
+  const bool result = visitor->OnDataForStream(
       stream_id, absl::string_view(reinterpret_cast<const char*>(data), len));
-  return 0;
+  return result ? 0 : NGHTTP2_ERR_CALLBACK_FAILURE;
 }
 
 int OnStreamClosed(nghttp2_session* /* session */,

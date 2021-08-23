@@ -210,17 +210,21 @@ bool CallbackVisitor::OnBeginDataForStream(Http2StreamId /*stream_id*/,
   return true;
 }
 
-void CallbackVisitor::OnDataForStream(Http2StreamId stream_id,
+bool CallbackVisitor::OnDataForStream(Http2StreamId stream_id,
                                       absl::string_view data) {
+  int result = 0;
   if (callbacks_->on_data_chunk_recv_callback) {
-    callbacks_->on_data_chunk_recv_callback(nullptr, current_frame_.hd.flags,
-                                            stream_id, ToUint8Ptr(data.data()),
-                                            data.size(), user_data_);
+    result = callbacks_->on_data_chunk_recv_callback(
+        nullptr, current_frame_.hd.flags, stream_id, ToUint8Ptr(data.data()),
+        data.size(), user_data_);
   }
   remaining_data_ -= data.size();
-  if (remaining_data_ == 0 && callbacks_->on_frame_recv_callback) {
-    callbacks_->on_frame_recv_callback(nullptr, &current_frame_, user_data_);
+  if (result == 0 && remaining_data_ == 0 &&
+      callbacks_->on_frame_recv_callback) {
+    result = callbacks_->on_frame_recv_callback(nullptr, &current_frame_,
+                                                user_data_);
   }
+  return result == 0;
 }
 
 void CallbackVisitor::OnEndStream(Http2StreamId /*stream_id*/) {}

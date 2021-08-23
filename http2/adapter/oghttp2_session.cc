@@ -603,7 +603,11 @@ void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                        const char* data,
                                        size_t len) {
   MarkDataBuffered(stream_id, len);
-  visitor_.OnDataForStream(stream_id, absl::string_view(data, len));
+  const bool result =
+      visitor_.OnDataForStream(stream_id, absl::string_view(data, len));
+  if (!result) {
+    decoder_.StopProcessing();
+  }
 }
 
 void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {

@@ -65,9 +65,10 @@ bool RecordingHttp2Visitor::OnBeginDataForStream(Http2StreamId stream_id,
   return true;
 }
 
-void RecordingHttp2Visitor::OnDataForStream(Http2StreamId stream_id,
+bool RecordingHttp2Visitor::OnDataForStream(Http2StreamId stream_id,
                                             absl::string_view data) {
   events_.push_back(absl::StrFormat("OnDataForStream %d %s", stream_id, data));
+  return true;
 }
 
 void RecordingHttp2Visitor::OnEndStream(Http2StreamId stream_id) {
