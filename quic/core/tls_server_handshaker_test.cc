@@ -566,7 +566,7 @@ TEST_P(TlsServerHandshakerTest, SSLConfigForCertSelection) {
   InitializeServerWithFakeProofSourceHandle();
 
   // Disable early data.
-  server_session_->ssl_config()->early_data_enabled = false;
+  server_session_->set_early_data_enabled(false);
 
   server_handshaker_->SetupProofSourceHandle(
       /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,

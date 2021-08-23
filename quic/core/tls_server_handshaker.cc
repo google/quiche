@@ -211,8 +211,12 @@ TlsServerHandshaker::TlsServerHandshaker(
   }
   SSL_set_quic_use_legacy_codepoint(ssl(), use_legacy_extension);
 
-  if (GetQuicFlag(FLAGS_quic_disable_server_tls_resumption)) {
-    SSL_set_options(ssl(), SSL_OP_NO_TICKET);
+  if (!session->quic_tls_disable_resumption_refactor()) {
+    if (GetQuicFlag(FLAGS_quic_disable_server_tls_resumption)) {
+      SSL_set_options(ssl(), SSL_OP_NO_TICKET);
+    }
+  } else {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_tls_disable_resumption_refactor);
   }
 
   if (GetQuicReloadableFlag(quic_trace_ssl_events) &&

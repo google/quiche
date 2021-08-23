@@ -286,6 +286,12 @@ QuicSSLConfig QuicServerSessionBase::GetSSLConfig() const {
   QUICHE_DCHECK(crypto_config_ && crypto_config_->proof_source());
 
   QuicSSLConfig ssl_config = QuicSpdySession::GetSSLConfig();
+
+  if (quic_tls_disable_resumption_refactor()) {
+    ssl_config.disable_ticket_support =
+        GetQuicFlag(FLAGS_quic_disable_server_tls_resumption);
+  }
+
   if (!GetQuicReloadableFlag(quic_tls_set_signature_algorithm_prefs) ||
       !crypto_config_ || !crypto_config_->proof_source()) {
     return ssl_config;

@@ -1215,14 +1215,22 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
 
   MockQuicCryptoServerStreamHelper* helper() { return &helper_; }
 
-  QuicSSLConfig GetSSLConfig() const override { return ssl_config_; }
+  QuicSSLConfig GetSSLConfig() const override {
+    QuicSSLConfig ssl_config = QuicServerSessionBase::GetSSLConfig();
+    if (early_data_enabled_.has_value()) {
+      ssl_config.early_data_enabled = *early_data_enabled_;
+    }
+    return ssl_config;
+  }
 
-  QuicSSLConfig* ssl_config() { return &ssl_config_; }
+  void set_early_data_enabled(bool enabled) { early_data_enabled_ = enabled; }
 
  private:
   MockQuicSessionVisitor visitor_;
   MockQuicCryptoServerStreamHelper helper_;
-  QuicSSLConfig ssl_config_;
+  // If not nullopt, override the early_data_enabled value from base class'
+  // ssl_config.
+  absl::optional<bool> early_data_enabled_;
 };
 
 // A test implementation of QuicClientPushPromiseIndex::Delegate.
