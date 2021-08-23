@@ -593,7 +593,10 @@ void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
 
 void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
                                        size_t length, bool /*fin*/) {
-  visitor_.OnBeginDataForStream(stream_id, length);
+  const bool result = visitor_.OnBeginDataForStream(stream_id, length);
+  if (!result) {
+    decoder_.StopProcessing();
+  }
 }
 
 void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,

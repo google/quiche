@@ -193,14 +193,17 @@ bool CallbackVisitor::OnEndHeadersForStream(Http2StreamId /*stream_id*/) {
   return true;
 }
 
-void CallbackVisitor::OnBeginDataForStream(Http2StreamId /*stream_id*/,
+bool CallbackVisitor::OnBeginDataForStream(Http2StreamId /*stream_id*/,
                                            size_t payload_length) {
   // TODO(b/181586191): Interpret padding, subtract padding from
   // |remaining_data_|.
   remaining_data_ = payload_length;
   if (remaining_data_ == 0 && callbacks_->on_frame_recv_callback) {
-    callbacks_->on_frame_recv_callback(nullptr, &current_frame_, user_data_);
+    const int result = callbacks_->on_frame_recv_callback(
+        nullptr, &current_frame_, user_data_);
+    return result == 0;
   }
+  return true;
 }
 
 void CallbackVisitor::OnDataForStream(Http2StreamId stream_id,

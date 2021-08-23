@@ -45,11 +45,11 @@ int OnBeginFrame(nghttp2_session* /* session */,
     return NGHTTP2_ERR_CALLBACK_FAILURE;
   }
   if (header->type == NGHTTP2_DATA) {
-    visitor->OnBeginDataForStream(header->stream_id, header->length);
+    result = visitor->OnBeginDataForStream(header->stream_id, header->length);
   } else if (header->type == kMetadataFrameType) {
     visitor->OnBeginMetadataForStream(header->stream_id, header->length);
   }
-  return 0;
+  return result ? 0 : NGHTTP2_ERR_CALLBACK_FAILURE;
 }
 
 int OnFrameReceived(nghttp2_session* /* session */,

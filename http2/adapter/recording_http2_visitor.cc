@@ -58,10 +58,11 @@ bool RecordingHttp2Visitor::OnEndHeadersForStream(Http2StreamId stream_id) {
   return true;
 }
 
-void RecordingHttp2Visitor::OnBeginDataForStream(Http2StreamId stream_id,
+bool RecordingHttp2Visitor::OnBeginDataForStream(Http2StreamId stream_id,
                                                  size_t payload_length) {
   events_.push_back(
       absl::StrFormat("OnBeginDataForStream %d %d", stream_id, payload_length));
+  return true;
 }
 
 void RecordingHttp2Visitor::OnDataForStream(Http2StreamId stream_id,

@@ -110,7 +110,7 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
 
   // Called when the connection receives the beginning of a DATA frame. The data
   // payload will be provided via subsequent calls to OnDataForStream().
-  virtual void OnBeginDataForStream(Http2StreamId stream_id,
+  virtual bool OnBeginDataForStream(Http2StreamId stream_id,
                                     size_t payload_length) = 0;
 
   // Called when the connection receives some |data| (as part of a DATA frame
