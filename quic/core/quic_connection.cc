@@ -2700,19 +2700,12 @@ void QuicConnection::OnUndecryptablePacket(const QuicEncryptedPacket& packet,
 
 bool QuicConnection::ShouldEnqueueUnDecryptablePacket(
     EncryptionLevel decryption_level, bool has_decryption_key) const {
-  if (!GetQuicReloadableFlag(quic_queue_until_handshake_complete) &&
-      encryption_level_ == ENCRYPTION_FORWARD_SECURE) {
-    // We do not expect to install any further keys.
-    return false;
-  }
   if (has_decryption_key) {
     // We already have the key for this decryption level, therefore no
     // future keys will allow it be decrypted.
     return false;
   }
-  if (GetQuicReloadableFlag(quic_queue_until_handshake_complete) &&
-      IsHandshakeComplete()) {
-    QUICHE_RELOADABLE_FLAG_COUNT(quic_queue_until_handshake_complete);
+  if (IsHandshakeComplete()) {
     // We do not expect to install any further keys.
     return false;
   }
