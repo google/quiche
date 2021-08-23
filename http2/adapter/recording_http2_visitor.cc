@@ -16,12 +16,12 @@ void RecordingHttp2Visitor::OnConnectionError() {
   events_.push_back("OnConnectionError");
 }
 
-void RecordingHttp2Visitor::OnFrameHeader(Http2StreamId stream_id,
-                                          size_t length,
-                                          uint8_t type,
+bool RecordingHttp2Visitor::OnFrameHeader(Http2StreamId stream_id,
+                                          size_t length, uint8_t type,
                                           uint8_t flags) {
   events_.push_back(absl::StrFormat("OnFrameHeader %d %d %d %d", stream_id,
                                     length, type, flags));
+  return true;
 }
 
 void RecordingHttp2Visitor::OnSettingsStart() {

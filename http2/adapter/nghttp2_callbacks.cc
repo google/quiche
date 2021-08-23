@@ -39,8 +39,11 @@ int OnBeginFrame(nghttp2_session* /* session */,
                  void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
-  visitor->OnFrameHeader(header->stream_id, header->length, header->type,
-                         header->flags);
+  bool result = visitor->OnFrameHeader(header->stream_id, header->length,
+                                       header->type, header->flags);
+  if (!result) {
+    return NGHTTP2_ERR_CALLBACK_FAILURE;
+  }
   if (header->type == NGHTTP2_DATA) {
     visitor->OnBeginDataForStream(header->stream_id, header->length);
   } else if (header->type == kMetadataFrameType) {

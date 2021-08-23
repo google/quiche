@@ -68,10 +68,8 @@ void CallbackVisitor::OnConnectionError() {
   QUICHE_LOG(ERROR) << "OnConnectionError not implemented";
 }
 
-void CallbackVisitor::OnFrameHeader(Http2StreamId stream_id,
-                                    size_t length,
-                                    uint8_t type,
-                                    uint8_t flags) {
+bool CallbackVisitor::OnFrameHeader(Http2StreamId stream_id, size_t length,
+                                    uint8_t type, uint8_t flags) {
   QUICHE_VLOG(1) << "CallbackVisitor::OnFrameHeader(stream_id: " << stream_id
                  << ", len: " << length << ", type: " << int(type)
                  << ", flags: " << int(flags) << ")";
@@ -89,9 +87,11 @@ void CallbackVisitor::OnFrameHeader(Http2StreamId stream_id,
     hd.type = type;
     hd.flags = flags;
     if (callbacks_->on_begin_frame_callback) {
-      callbacks_->on_begin_frame_callback(nullptr, &hd, user_data_);
+      const int result =
+          callbacks_->on_begin_frame_callback(nullptr, &hd, user_data_);
+      return result == 0;
     }
-    return;
+    return true;
   }
   // The general strategy is to clear |current_frame_| at the start of a new
   // frame, accumulate frame information from the various callback events, then
@@ -102,9 +102,11 @@ void CallbackVisitor::OnFrameHeader(Http2StreamId stream_id,
   current_frame_.hd.type = type;
   current_frame_.hd.flags = flags;
   if (callbacks_->on_begin_frame_callback) {
-    callbacks_->on_begin_frame_callback(nullptr, &current_frame_.hd,
-                                        user_data_);
+    const int result = callbacks_->on_begin_frame_callback(
+        nullptr, &current_frame_.hd, user_data_);
+    return result == 0;
   }
+  return true;
 }
 
 void CallbackVisitor::OnSettingsStart() {}

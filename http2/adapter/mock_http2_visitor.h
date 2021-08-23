@@ -15,6 +15,7 @@ namespace test {
 class QUICHE_NO_EXPORT MockHttp2Visitor : public Http2VisitorInterface {
  public:
   MockHttp2Visitor() {
+    ON_CALL(*this, OnFrameHeader).WillByDefault(testing::Return(true));
     ON_CALL(*this, OnBeginHeadersForStream)
         .WillByDefault(testing::Return(true));
     ON_CALL(*this, OnHeaderForStream).WillByDefault(testing::Return(HEADER_OK));
@@ -27,11 +28,10 @@ class QUICHE_NO_EXPORT MockHttp2Visitor : public Http2VisitorInterface {
   MOCK_METHOD(int64_t, OnReadyToSend, (absl::string_view serialized),
               (override));
   MOCK_METHOD(void, OnConnectionError, (), (override));
-  MOCK_METHOD(
-      void,
-      OnFrameHeader,
-      (Http2StreamId stream_id, size_t length, uint8_t type, uint8_t flags),
-      (override));
+  MOCK_METHOD(bool, OnFrameHeader,
+              (Http2StreamId stream_id, size_t length, uint8_t type,
+               uint8_t flags),
+              (override));
   MOCK_METHOD(void, OnSettingsStart, (), (override));
   MOCK_METHOD(void, OnSetting, (Http2Setting setting), (override));
   MOCK_METHOD(void, OnSettingsEnd, (), (override));

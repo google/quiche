@@ -585,7 +585,10 @@ void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
                                     uint8_t flags) {
   highest_received_stream_id_ = std::max(static_cast<Http2StreamId>(stream_id),
                                          highest_received_stream_id_);
-  visitor_.OnFrameHeader(stream_id, length, type, flags);
+  const bool result = visitor_.OnFrameHeader(stream_id, length, type, flags);
+  if (!result) {
+    decoder_.StopProcessing();
+  }
 }
 
 void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,

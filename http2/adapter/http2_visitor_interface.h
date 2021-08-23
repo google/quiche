@@ -62,8 +62,10 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
   virtual void OnConnectionError() = 0;
 
   // Called when the header for a frame is received.
-  virtual void OnFrameHeader(Http2StreamId /*stream_id*/, size_t /*length*/,
-                             uint8_t /*type*/, uint8_t /*flags*/) {}
+  virtual bool OnFrameHeader(Http2StreamId /*stream_id*/, size_t /*length*/,
+                             uint8_t /*type*/, uint8_t /*flags*/) {
+    return true;
+  }
 
   // Called when a non-ack SETTINGS frame is received.
   virtual void OnSettingsStart() = 0;

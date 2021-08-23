@@ -24,9 +24,7 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
 
   int64_t OnReadyToSend(absl::string_view serialized) override;
   void OnConnectionError() override;
-  void OnFrameHeader(Http2StreamId stream_id,
-                     size_t length,
-                     uint8_t type,
+  bool OnFrameHeader(Http2StreamId stream_id, size_t length, uint8_t type,
                      uint8_t flags) override;
   void OnSettingsStart() override;
   void OnSetting(Http2Setting setting) override;
