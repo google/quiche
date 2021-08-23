@@ -121,7 +121,9 @@ void CallbackVisitor::OnSettingsEnd() {
   QUICHE_VLOG(1) << "OnSettingsEnd, received settings of size "
                  << current_frame_.settings.niv;
   if (callbacks_->on_frame_recv_callback) {
-    callbacks_->on_frame_recv_callback(nullptr, &current_frame_, user_data_);
+    const int result = callbacks_->on_frame_recv_callback(
+        nullptr, &current_frame_, user_data_);
+    QUICHE_DCHECK_EQ(0, result);
   }
   settings_.clear();
 }
@@ -129,7 +131,9 @@ void CallbackVisitor::OnSettingsEnd() {
 void CallbackVisitor::OnSettingsAck() {
   // ACK is part of the flags, which were set in OnFrameHeader().
   if (callbacks_->on_frame_recv_callback) {
-    callbacks_->on_frame_recv_callback(nullptr, &current_frame_, user_data_);
+    const int result = callbacks_->on_frame_recv_callback(
+        nullptr, &current_frame_, user_data_);
+    QUICHE_DCHECK_EQ(0, result);
   }
 }
 
@@ -225,7 +229,9 @@ void CallbackVisitor::OnRstStream(Http2StreamId /*stream_id*/,
                                   Http2ErrorCode error_code) {
   current_frame_.rst_stream.error_code = static_cast<uint32_t>(error_code);
   if (callbacks_->on_frame_recv_callback) {
-    callbacks_->on_frame_recv_callback(nullptr, &current_frame_, user_data_);
+    const int result = callbacks_->on_frame_recv_callback(
+        nullptr, &current_frame_, user_data_);
+    QUICHE_DCHECK_EQ(0, result);
   }
 }
 
@@ -246,7 +252,9 @@ void CallbackVisitor::OnPriorityForStream(Http2StreamId /*stream_id*/,
   current_frame_.priority.pri_spec.weight = weight;
   current_frame_.priority.pri_spec.exclusive = exclusive;
   if (callbacks_->on_frame_recv_callback) {
-    callbacks_->on_frame_recv_callback(nullptr, &current_frame_, user_data_);
+    const int result = callbacks_->on_frame_recv_callback(
+        nullptr, &current_frame_, user_data_);
+    QUICHE_DCHECK_EQ(0, result);
   }
 }
 
@@ -256,7 +264,9 @@ void CallbackVisitor::OnPing(Http2PingId ping_id, bool /*is_ack*/) {
   std::memcpy(current_frame_.ping.opaque_data, &network_order_opaque_data,
               sizeof(network_order_opaque_data));
   if (callbacks_->on_frame_recv_callback) {
-    callbacks_->on_frame_recv_callback(nullptr, &current_frame_, user_data_);
+    const int result = callbacks_->on_frame_recv_callback(
+        nullptr, &current_frame_, user_data_);
+    QUICHE_DCHECK_EQ(0, result);
   }
 }
 
@@ -284,7 +294,9 @@ void CallbackVisitor::OnWindowUpdate(Http2StreamId /*stream_id*/,
                                      int window_increment) {
   current_frame_.window_update.window_size_increment = window_increment;
   if (callbacks_->on_frame_recv_callback) {
-    callbacks_->on_frame_recv_callback(nullptr, &current_frame_, user_data_);
+    const int result = callbacks_->on_frame_recv_callback(
+        nullptr, &current_frame_, user_data_);
+    QUICHE_DCHECK_EQ(0, result);
   }
 }
 
