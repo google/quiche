@@ -145,7 +145,7 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
                                       Http2StreamId promised_stream_id) = 0;
 
   // Called when the connection receives a GOAWAY frame.
-  virtual void OnGoAway(Http2StreamId last_accepted_stream_id,
+  virtual bool OnGoAway(Http2StreamId last_accepted_stream_id,
                         Http2ErrorCode error_code,
                         absl::string_view opaque_data) = 0;
 

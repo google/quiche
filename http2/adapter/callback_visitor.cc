@@ -262,7 +262,7 @@ void CallbackVisitor::OnPushPromiseForStream(
   QUICHE_LOG(DFATAL) << "Not implemented";
 }
 
-void CallbackVisitor::OnGoAway(Http2StreamId last_accepted_stream_id,
+bool CallbackVisitor::OnGoAway(Http2StreamId last_accepted_stream_id,
                                Http2ErrorCode error_code,
                                absl::string_view opaque_data) {
   current_frame_.goaway.last_stream_id = last_accepted_stream_id;
@@ -270,8 +270,11 @@ void CallbackVisitor::OnGoAway(Http2StreamId last_accepted_stream_id,
   current_frame_.goaway.opaque_data = ToUint8Ptr(opaque_data.data());
   current_frame_.goaway.opaque_data_len = opaque_data.size();
   if (callbacks_->on_frame_recv_callback) {
-    callbacks_->on_frame_recv_callback(nullptr, &current_frame_, user_data_);
+    const int result = callbacks_->on_frame_recv_callback(
+        nullptr, &current_frame_, user_data_);
+    return result == 0;
   }
+  return true;
 }
 
 void CallbackVisitor::OnWindowUpdate(Http2StreamId /*stream_id*/,

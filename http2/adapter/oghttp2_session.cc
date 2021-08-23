@@ -684,8 +684,11 @@ void OgHttp2Session::OnPing(spdy::SpdyPingId unique_id, bool is_ack) {
 void OgHttp2Session::OnGoAway(spdy::SpdyStreamId last_accepted_stream_id,
                               spdy::SpdyErrorCode error_code) {
   received_goaway_ = true;
-  visitor_.OnGoAway(last_accepted_stream_id, TranslateErrorCode(error_code),
-                    "");
+  const bool result = visitor_.OnGoAway(last_accepted_stream_id,
+                                        TranslateErrorCode(error_code), "");
+  if (!result) {
+    decoder_.StopProcessing();
+  }
 }
 
 bool OgHttp2Session::OnGoAwayFrameData(const char* /*goaway_data*/, size_t

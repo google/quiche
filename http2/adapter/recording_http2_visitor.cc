@@ -105,12 +105,13 @@ void RecordingHttp2Visitor::OnPushPromiseForStream(
                                     promised_stream_id));
 }
 
-void RecordingHttp2Visitor::OnGoAway(Http2StreamId last_accepted_stream_id,
+bool RecordingHttp2Visitor::OnGoAway(Http2StreamId last_accepted_stream_id,
                                      Http2ErrorCode error_code,
                                      absl::string_view opaque_data) {
   events_.push_back(
       absl::StrFormat("OnGoAway %d %s %s", last_accepted_stream_id,
                       Http2ErrorCodeToString(error_code), opaque_data));
+  return true;
 }
 
 void RecordingHttp2Visitor::OnWindowUpdate(Http2StreamId stream_id,

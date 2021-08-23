@@ -48,7 +48,7 @@ class QUICHE_NO_EXPORT RecordingHttp2Visitor : public Http2VisitorInterface {
   void OnPing(Http2PingId ping_id, bool is_ack) override;
   void OnPushPromiseForStream(Http2StreamId stream_id,
                               Http2StreamId promised_stream_id) override;
-  void OnGoAway(Http2StreamId last_accepted_stream_id,
+  bool OnGoAway(Http2StreamId last_accepted_stream_id,
                 Http2ErrorCode error_code,
                 absl::string_view opaque_data) override;
   void OnWindowUpdate(Http2StreamId stream_id, int window_increment) override;

@@ -128,9 +128,12 @@ int OnFrameReceived(nghttp2_session* /* session */,
       absl::string_view opaque_data(
           reinterpret_cast<const char*>(frame->goaway.opaque_data),
           frame->goaway.opaque_data_len);
-      visitor->OnGoAway(frame->goaway.last_stream_id,
-                        ToHttp2ErrorCode(frame->goaway.error_code),
-                        opaque_data);
+      const bool result = visitor->OnGoAway(
+          frame->goaway.last_stream_id,
+          ToHttp2ErrorCode(frame->goaway.error_code), opaque_data);
+      if (!result) {
+        return NGHTTP2_ERR_CALLBACK_FAILURE;
+      }
       break;
     }
     case NGHTTP2_WINDOW_UPDATE: {
