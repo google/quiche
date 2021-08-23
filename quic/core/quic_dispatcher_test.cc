@@ -1127,7 +1127,6 @@ TEST_P(QuicDispatcherTestAllVersions,
 
 TEST_P(QuicDispatcherTestAllVersions,
        DropPacketWithKnownVersionAndInvalidInitialConnectionId) {
-  SetQuicReloadableFlag(quic_discard_packets_with_invalid_cid, true);
   CreateTimeWaitListManager();
 
   QuicSocketAddress server_address;
