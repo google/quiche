@@ -85,11 +85,19 @@ void WebTransportHttp3::CloseAllAssociatedStreams() {
 
 void WebTransportHttp3::HeadersReceived(const spdy::SpdyHeaderBlock& headers) {
   if (session_->perspective() == Perspective::IS_CLIENT) {
-    auto it = headers.find(":status");
-    if (it == headers.end() || it->second != "200") {
+    int status_code;
+    if (!QuicSpdyStream::ParseHeaderStatusCode(headers, &status_code)) {
       QUIC_DVLOG(1) << ENDPOINT
                     << "Received WebTransport headers from server without "
-                       "status 200, rejecting.";
+                       "a valid status code, rejecting.";
+      return;
+    }
+    bool valid_status = status_code >= 200 && status_code <= 299;
+    if (!valid_status) {
+      QUIC_DVLOG(1) << ENDPOINT
+                    << "Received WebTransport headers from server with "
+                       "status code "
+                    << status_code << ", rejecting.";
       return;
     }
   }
