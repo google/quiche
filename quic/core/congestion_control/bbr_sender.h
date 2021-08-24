@@ -185,16 +185,10 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
                                             QuicRoundTripCount,
                                             QuicRoundTripCount>;
 
-  // Returns whether the connection has achieved full bandwidth required to exit
-  // the slow start.
-  bool IsAtFullBandwidth() const;
   // Computes the target congestion window using the specified gain.
   QuicByteCount GetTargetCongestionWindow(float gain) const;
   // The target congestion window during PROBE_RTT.
   QuicByteCount ProbeRttCongestionWindow() const;
-  // Returns true if the current min_rtt should be kept and we should not enter
-  // PROBE_RTT immediately.
-  bool ShouldExtendMinRttExpiry() const;
   bool MaybeUpdateMinRtt(QuicTime now, QuicTime::Delta sample_min_rtt);
 
   // Enters the STARTUP mode.
