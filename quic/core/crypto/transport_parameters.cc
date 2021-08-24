@@ -22,6 +22,7 @@
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_flag_utils.h"
 
 namespace quic {
 
