@@ -826,8 +826,10 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                                             level);
   }
 
-  QuicReceivedPacket ConstructPacket(QuicFrames frames, EncryptionLevel level,
-                                     char* buffer, size_t buffer_len) {
+  std::unique_ptr<QuicReceivedPacket> ConstructPacket(QuicFrames frames,
+                                                      EncryptionLevel level,
+                                                      char* buffer,
+                                                      size_t buffer_len) {
     QUICHE_DCHECK(peer_framer_.HasEncrypterOfEncryptionLevel(level));
     peer_creator_.set_encryption_level(level);
     QuicPacketCreatorPeer::SetSendVersionInPacket(
@@ -838,8 +840,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     SerializedPacket serialized_packet =
         QuicPacketCreatorPeer::SerializeAllFrames(&peer_creator_, frames,
                                                   buffer, buffer_len);
-    return QuicReceivedPacket(serialized_packet.encrypted_buffer,
-                              serialized_packet.encrypted_length, clock_.Now());
+    return std::make_unique<QuicReceivedPacket>(
+        serialized_packet.encrypted_buffer, serialized_packet.encrypted_length,
+        clock_.Now());
   }
 
   void ProcessFramesPacketWithAddresses(QuicFrames frames,
@@ -849,8 +852,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     char buffer[kMaxOutgoingPacketSize];
     connection_.ProcessUdpPacket(
         self_address, peer_address,
-        ConstructPacket(std::move(frames), level, buffer,
-                        kMaxOutgoingPacketSize));
+        *ConstructPacket(std::move(frames), level, buffer,
+                         kMaxOutgoingPacketSize));
     if (connection_.GetSendAlarm()->IsSet()) {
       connection_.GetSendAlarm()->Fire();
     }
@@ -14913,7 +14916,7 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
       .WillOnce(Invoke(cid_recorder));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   peer_creator_.SetServerConnectionId(cid1);
-  connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, packet2);
+  connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *packet2);
   cid2 = recorded_cid;
   // cid0 is not retired immediately.
   EXPECT_THAT(connection_.GetActiveServerConnectionIds(),
@@ -14926,7 +14929,7 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
 
   // Packet1 updates the connection ID on the default path but not the active
   // connection ID.
-  connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, packet1);
+  connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *packet1);
   EXPECT_EQ(connection_.connection_id(), cid0);
   if (connection_.use_active_cid_for_session_lookup()) {
     EXPECT_TRUE(connection_.GetOneActiveServerConnectionId() == cid0 ||
@@ -14949,7 +14952,7 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
   }
 
   // Packet3 updates the connection ID on the default path.
-  connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, packet3);
+  connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *packet3);
   EXPECT_EQ(connection_.connection_id(), cid1);
   EXPECT_TRUE(connection_.GetOneActiveServerConnectionId() == cid1 ||
               connection_.GetOneActiveServerConnectionId() == cid2);
