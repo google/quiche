@@ -3310,6 +3310,20 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     return false;
   }
 
+  if (GetQuicReloadableFlag(quic_suppress_write_mid_packet_processing) &&
+      version().CanSendCoalescedPackets() &&
+      framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL) &&
+      framer_.is_processing_packet()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_suppress_write_mid_packet_processing);
+    // While we still have initial keys, suppress sending in mid of packet
+    // processing.
+    // TODO(fayang): always suppress sending while in the mid of packet
+    // processing.
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Suppress sending in the mid of packet processing";
+    return false;
+  }
+
   if (fill_coalesced_packet_) {
     // Try to coalesce packet, only allow to write when creator is on soft max
     // packet length. Given the next created packet is going to fill current

@@ -34,6 +34,10 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
   void WriteOrBufferRstStream(QuicStreamId id,
                               QuicRstStreamErrorCode error,
                               QuicStreamOffset bytes_written);
+
+  // Tries to write WINDOW_UPDATE.
+  void WriteOrBufferWindowUpate(QuicStreamId id, QuicStreamOffset byte_offset);
+
   // Tries to write PING.
   void WriteOrBufferPing();
 
@@ -126,6 +130,8 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
   bool RetransmitLostStreamData();
 
   bool WriteBufferedControlFrames();
+
+  bool WriteBufferedCryptoData();
 
   bool IsControlFrameOutstanding(const QuicFrame& frame) const;
 

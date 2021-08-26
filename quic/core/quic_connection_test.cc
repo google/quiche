@@ -1451,6 +1451,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     }
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     peer_creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+    // Discard INITIAL key.
+    connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+    connection_.NeuterUnencryptedPackets();
     // Prevent packets from being coalesced.
     EXPECT_CALL(visitor_, GetHandshakeState())
         .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
@@ -10094,12 +10097,13 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // Receives packet 1.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
 
   const size_t anti_amplification_factor =
       GetQuicFlag(FLAGS_quic_anti_amplification_factor);
   // Verify now packets can be sent.
-  for (size_t i = 0; i < anti_amplification_factor; ++i) {
+  for (size_t i = 1; i < anti_amplification_factor; ++i) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
     connection_.SendCryptoDataWithString("foo", i * 3);
     // Verify retransmission alarm is not set if throttled by anti-amplification
@@ -10112,10 +10116,11 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
   connection_.SendCryptoDataWithString("foo", anti_amplification_factor * 3);
 
   // Receives packet 2.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
   // Verify more packets can be sent.
-  for (size_t i = anti_amplification_factor; i < anti_amplification_factor * 2;
-       ++i) {
+  for (size_t i = anti_amplification_factor + 1;
+       i < anti_amplification_factor * 2; ++i) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
     connection_.SendCryptoDataWithString("foo", i * 3);
   }
@@ -10124,6 +10129,7 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
   connection_.SendCryptoDataWithString("foo",
                                        2 * anti_amplification_factor * 3);
 
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessPacket(3);
   // Verify anti-amplification limit is gone after address validation.
   for (size_t i = 0; i < 100; ++i) {
@@ -10160,11 +10166,12 @@ TEST_P(QuicConnectionTest, 3AntiAmplificationLimit) {
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // Receives packet 1.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
 
   const size_t anti_amplification_factor = 3;
   // Verify now packets can be sent.
-  for (size_t i = 0; i < anti_amplification_factor; ++i) {
+  for (size_t i = 1; i < anti_amplification_factor; ++i) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
     connection_.SendCryptoDataWithString("foo", i * 3);
     // Verify retransmission alarm is not set if throttled by anti-amplification
@@ -10177,10 +10184,11 @@ TEST_P(QuicConnectionTest, 3AntiAmplificationLimit) {
   connection_.SendCryptoDataWithString("foo", anti_amplification_factor * 3);
 
   // Receives packet 2.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
   // Verify more packets can be sent.
-  for (size_t i = anti_amplification_factor; i < anti_amplification_factor * 2;
-       ++i) {
+  for (size_t i = anti_amplification_factor + 1;
+       i < anti_amplification_factor * 2; ++i) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
     connection_.SendCryptoDataWithString("foo", i * 3);
   }
@@ -10189,6 +10197,7 @@ TEST_P(QuicConnectionTest, 3AntiAmplificationLimit) {
   connection_.SendCryptoDataWithString("foo",
                                        2 * anti_amplification_factor * 3);
 
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessPacket(3);
   // Verify anti-amplification limit is gone after address validation.
   for (size_t i = 0; i < 100; ++i) {
@@ -10225,11 +10234,12 @@ TEST_P(QuicConnectionTest, 10AntiAmplificationLimit) {
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // Receives packet 1.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
 
   const size_t anti_amplification_factor = 10;
   // Verify now packets can be sent.
-  for (size_t i = 0; i < anti_amplification_factor; ++i) {
+  for (size_t i = 1; i < anti_amplification_factor; ++i) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
     connection_.SendCryptoDataWithString("foo", i * 3);
     // Verify retransmission alarm is not set if throttled by anti-amplification
@@ -10242,10 +10252,11 @@ TEST_P(QuicConnectionTest, 10AntiAmplificationLimit) {
   connection_.SendCryptoDataWithString("foo", anti_amplification_factor * 3);
 
   // Receives packet 2.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
   // Verify more packets can be sent.
-  for (size_t i = anti_amplification_factor; i < anti_amplification_factor * 2;
-       ++i) {
+  for (size_t i = anti_amplification_factor + 1;
+       i < anti_amplification_factor * 2; ++i) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
     connection_.SendCryptoDataWithString("foo", i * 3);
   }
@@ -10254,6 +10265,7 @@ TEST_P(QuicConnectionTest, 10AntiAmplificationLimit) {
   connection_.SendCryptoDataWithString("foo",
                                        2 * anti_amplification_factor * 3);
 
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessPacket(3);
   // Verify anti-amplification limit is gone after address validation.
   for (size_t i = 0; i < 100; ++i) {
@@ -11009,6 +11021,11 @@ TEST_P(QuicConnectionTest, DonotChangeQueuedAcks) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  // Discard INITIAL key.
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.NeuterUnencryptedPackets();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
 
   ProcessPacket(2);
   ProcessPacket(3);
@@ -11064,7 +11081,7 @@ TEST_P(QuicConnectionTest, BundleAckWithImmediateResponse) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
   EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([this]() {
-    connection_.SendControlFrame(QuicFrame(new QuicWindowUpdateFrame(1, 0, 0)));
+    notifier_.WriteOrBufferWindowUpate(0, 0);
   }));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessDataPacket(1);
@@ -12786,7 +12803,7 @@ TEST_P(QuicConnectionTest, ZeroRttRejectionAndMissingInitialKeys) {
           connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
                                    std::make_unique<TaggingEncrypter>(0x03));
           connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
-          connection_.SendCryptoStreamData();
+          connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
           connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                                    std::make_unique<TaggingEncrypter>(0x04));
           connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -12801,7 +12818,7 @@ TEST_P(QuicConnectionTest, ZeroRttRejectionAndMissingInitialKeys) {
   use_tagging_decrypter();
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            std::make_unique<TaggingEncrypter>(0x01));
-  connection_.SendCryptoStreamData();
+  connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_INITIAL);
   // Send 0-RTT packet.
   connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
                            std::make_unique<TaggingEncrypter>(0x02));
@@ -13770,6 +13787,8 @@ TEST_P(QuicConnectionTest, SingleAckInPacket) {
   connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
   connection_.NeuterUnencryptedPackets();
   connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
 
   EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([=]() {
     connection_.SendStreamData3();

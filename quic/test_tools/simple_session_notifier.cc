@@ -111,6 +111,21 @@ void SimpleSessionNotifier::WriteOrBufferRstStream(
   WriteBufferedControlFrames();
 }
 
+void SimpleSessionNotifier::WriteOrBufferWindowUpate(
+    QuicStreamId id, QuicStreamOffset byte_offset) {
+  QUIC_DVLOG(1) << "Writing WINDOW_UPDATE";
+  const bool had_buffered_data =
+      HasBufferedStreamData() || HasBufferedControlFrames();
+  QuicControlFrameId control_frame_id = ++last_control_frame_id_;
+  control_frames_.emplace_back((
+      QuicFrame(new QuicWindowUpdateFrame(control_frame_id, id, byte_offset))));
+  if (had_buffered_data) {
+    QUIC_DLOG(WARNING) << "Connection is write blocked";
+    return;
+  }
+  WriteBufferedControlFrames();
+}
+
 void SimpleSessionNotifier::WriteOrBufferPing() {
   QUIC_DVLOG(1) << "Writing PING_FRAME";
   const bool had_buffered_data =
@@ -175,8 +190,7 @@ void SimpleSessionNotifier::OnCanWrite() {
       !RetransmitLostStreamData()) {
     return;
   }
-  // Write buffered control frames.
-  if (!WriteBufferedControlFrames()) {
+  if (!WriteBufferedCryptoData() || !WriteBufferedControlFrames()) {
     return;
   }
   // Write new data.
@@ -664,6 +678,26 @@ bool SimpleSessionNotifier::RetransmitLostStreamData() {
     }
   }
   return !HasLostStreamData();
+}
+
+bool SimpleSessionNotifier::WriteBufferedCryptoData() {
+  for (size_t i = 0; i < NUM_ENCRYPTION_LEVELS; ++i) {
+    const StreamState& state = crypto_state_[i];
+    QuicIntervalSet<QuicStreamOffset> buffered_crypto_data(0,
+                                                           state.bytes_total);
+    buffered_crypto_data.Difference(crypto_bytes_transferred_[i]);
+    for (const auto& interval : buffered_crypto_data) {
+      size_t bytes_written = connection_->SendCryptoData(
+          static_cast<EncryptionLevel>(i), interval.Length(), interval.min());
+      crypto_state_[i].bytes_sent += bytes_written;
+      crypto_bytes_transferred_[i].Add(interval.min(),
+                                       interval.min() + bytes_written);
+      if (bytes_written < interval.Length()) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 bool SimpleSessionNotifier::WriteBufferedControlFrames() {

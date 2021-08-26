@@ -105,6 +105,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_send_path_response2, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_bursts, false)
 // If true, stop resetting ideal_next_packet_send_time_ in pacing sender.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_reset_ideal_next_packet_send_time, false)
+// If true, suppress crypto data write in mid of packet processing.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_suppress_write_mid_packet_processing, false)
 // If true, time_wait_list can support multiple connection IDs.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_time_wait_list_support_multiple_cid_v2, true)
 // If true, update ACK timeout for NEW_CONNECTION_ID and RETIRE_CONNECTION_ID frames.
