@@ -20,7 +20,7 @@ QUIC_FLAG(FLAGS_quic_restart_flag_quic_testonly_default_true, true)
 // If true and a QUIC connection is traced, add ssl events to the trace.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_trace_ssl_events, true)
 // If true, GFE will explicitly configure its signature algorithm preference.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_set_signature_algorithm_prefs, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_set_signature_algorithm_prefs, true)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
