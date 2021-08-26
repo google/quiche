@@ -1765,6 +1765,9 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  // Discard INITIAL key.
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.NeuterUnencryptedPackets();
   // Prevent packets from being coalesced.
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
@@ -1978,6 +1981,9 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
     QuicConnectionPeer::SetAddressValidated(&connection_);
   }
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  // Discard INITIAL key.
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.NeuterUnencryptedPackets();
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
 
@@ -2108,6 +2114,9 @@ TEST_P(QuicConnectionTest,
   EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_))
       .WillOnce(Invoke([&](const QuicConnectionId& cid) { new_cid = cid; }));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
+  // Discard INITIAL key.
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.NeuterUnencryptedPackets();
   connection_.OnHandshakeComplete();
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
@@ -2154,6 +2163,9 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   SetClientConnectionId(TestConnectionId(1));
   connection_.CreateConnectionIdManager();
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  // Discard INITIAL key.
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.NeuterUnencryptedPackets();
   // Prevent packets from being coalesced.
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
@@ -14189,6 +14201,8 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
   // Verify the anti-amplification limit is lifted by sending a packet larger
   // than the anti-amplification limit.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
   connection_.SendCryptoDataWithString(std::string(1200, 'a'), 0);
   EXPECT_EQ(1u, connection_.GetStats().num_validated_peer_migration);
 }
@@ -15102,6 +15116,9 @@ TEST_P(QuicConnectionTest, LostDataThenGetAcknowledged) {
     QuicConnectionPeer::SetAddressValidated(&connection_);
   }
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  // Discard INITIAL key.
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.NeuterUnencryptedPackets();
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
 
