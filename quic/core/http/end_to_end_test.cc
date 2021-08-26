@@ -5884,7 +5884,7 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByBoth) {
 }
 
 TEST_P(EndToEndTest, KeyUpdateInitiatedByConfidentialityLimit) {
-  SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 4U);
+  SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 16U);
 
   if (!version_.UsesTls()) {
     // Key Update is only supported in TLS handshake.
@@ -5910,9 +5910,11 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByConfidentialityLimit) {
       },
       QuicTime::Delta::FromSeconds(5));
 
-  SendSynchronousFooRequestAndCheckResponse();
-  SendSynchronousFooRequestAndCheckResponse();
-  SendSynchronousFooRequestAndCheckResponse();
+  for (uint64_t i = 0;
+       i < GetQuicFlag(FLAGS_quic_key_update_confidentiality_limit); ++i) {
+    SendSynchronousFooRequestAndCheckResponse();
+  }
+
   // Don't know exactly how many packets will be sent in each request/response,
   // so just test that at least one key update occurred.
   EXPECT_LE(1u, client_connection->GetStats().key_update_count);
