@@ -97,7 +97,8 @@ void PacingSender::OnPacketSent(
                           GetQuicFlag(FLAGS_quic_lumpy_pacing_cwnd_fraction)) /
                          kDefaultTCPMSS)));
     if (sender_->BandwidthEstimate() <
-        QuicBandwidth::FromKBitsPerSecond(1200)) {
+        QuicBandwidth::FromKBitsPerSecond(
+            GetQuicFlag(FLAGS_quic_lumpy_pacing_min_bandwidth_kbps))) {
       // Below 1.2Mbps, send 1 packet at once, because one full-sized packet
       // is about 10ms of queueing.
       lumpy_tokens_ = 1u;

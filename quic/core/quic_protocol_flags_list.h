@@ -83,6 +83,11 @@ QUIC_PROTOCOL_FLAG(
     "Congestion window fraction that the pacing sender allows in bursts "
     "during pacing.")
 
+QUIC_PROTOCOL_FLAG(
+    int32_t, quic_lumpy_pacing_min_bandwidth_kbps, 1200,
+    "The minimum estimated client bandwidth below which the pacing sender will "
+    "not allow bursts.")
+
 QUIC_PROTOCOL_FLAG(int32_t,
                    quic_max_pace_time_into_future_ms,
                    10,
