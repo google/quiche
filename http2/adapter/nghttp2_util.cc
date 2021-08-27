@@ -134,7 +134,6 @@ class Nghttp2DataFrameSource : public DataFrameSource {
   std::pair<int64_t, bool> SelectPayloadLength(size_t max_length) override {
     const int32_t stream_id = 0;
     uint32_t data_flags = 0;
-    QUICHE_LOG(INFO) << "Invoking read callback";
     int64_t result = provider_.read_callback(
         nullptr /* session */, stream_id, nullptr /* buf */, max_length,
         &data_flags, &provider_.source, nullptr /* user_data */);
