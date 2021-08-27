@@ -577,7 +577,8 @@ void SpdyFramer::SerializeHeadersBuilderHelper(const SpdyHeadersIR& headers,
     *size = *size + 5;
   }
 
-  GetHpackEncoder()->EncodeHeaderSet(headers.header_block(), hpack_encoding);
+  *hpack_encoding =
+      GetHpackEncoder()->EncodeHeaderBlock(headers.header_block());
   *size = *size + hpack_encoding->size();
   if (*size > kHttp2MaxControlFrameSendSize) {
     *size = *size + GetNumberRequiredContinuationFrames(*size) *
@@ -670,8 +671,8 @@ void SpdyFramer::SerializePushPromiseBuilderHelper(
     *size = *size + push_promise.padding_payload_len();
   }
 
-  GetHpackEncoder()->EncodeHeaderSet(push_promise.header_block(),
-                                     hpack_encoding);
+  *hpack_encoding =
+      GetHpackEncoder()->EncodeHeaderBlock(push_promise.header_block());
   *size = *size + hpack_encoding->size();
   if (*size > kHttp2MaxControlFrameSendSize) {
     *size = *size + GetNumberRequiredContinuationFrames(*size) *

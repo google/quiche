@@ -1112,10 +1112,9 @@ TEST_P(SpdyFramerTest, MultiValueHeader) {
   // TODO(jgraettinger): If this pattern appears again, move to test class.
   Http2HeaderBlock header_set;
   header_set["name"] = value;
-  std::string buffer;
   HpackEncoder encoder;
   encoder.DisableCompression();
-  encoder.EncodeHeaderSet(header_set, &buffer);
+  std::string buffer = encoder.EncodeHeaderBlock(header_set);
   // Frame builder with plentiful buffer size.
   SpdyFrameBuilder frame(1024);
   frame.BeginNewFrame(SpdyFrameType::HEADERS,
@@ -2401,10 +2400,9 @@ TEST_P(SpdyFramerTest, CreateContinuationUncompressed) {
   Http2HeaderBlock header_block;
   header_block["bar"] = "foo";
   header_block["foo"] = "bar";
-  std::string buffer;
   HpackEncoder encoder;
   encoder.DisableCompression();
-  encoder.EncodeHeaderSet(header_block, &buffer);
+  std::string buffer = encoder.EncodeHeaderBlock(header_block);
 
   SpdyContinuationIR continuation(/* stream_id = */ 42);
   continuation.take_encoding(std::move(buffer));

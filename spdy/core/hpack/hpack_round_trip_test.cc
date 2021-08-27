@@ -31,8 +31,7 @@ class HpackRoundTripTest : public QuicheTestWithParam<InputSizeParam> {
   }
 
   bool RoundTrip(const SpdyHeaderBlock& header_set) {
-    std::string encoded;
-    encoder_.EncodeHeaderSet(header_set, &encoded);
+    std::string encoded = encoder_.EncodeHeaderBlock(header_set);
 
     bool success = true;
     if (GetParam() == ALL_INPUT) {

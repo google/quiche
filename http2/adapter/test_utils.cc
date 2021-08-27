@@ -77,9 +77,7 @@ bool TestDataFrameSource::Send(absl::string_view frame_header,
 std::string EncodeHeaders(const spdy::SpdyHeaderBlock& entries) {
   spdy::HpackEncoder encoder;
   encoder.DisableCompression();
-  std::string result;
-  QUICHE_CHECK(encoder.EncodeHeaderSet(entries, &result));
-  return result;
+  return encoder.EncodeHeaderBlock(entries);
 }
 
 TestMetadataSource::TestMetadataSource(const spdy::SpdyHeaderBlock& entries)

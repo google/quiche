@@ -102,10 +102,9 @@ TestFrameSequence& TestFrameSequence::Headers(Http2StreamId stream_id,
     // nonterminal HEADERS frame explicitly, so we'll need to use
     // SpdyUnknownIRs. For simplicity, and in order not to mess up HPACK state,
     // the payload will be uncompressed.
-    std::string encoded_block;
     spdy::HpackEncoder encoder;
     encoder.DisableCompression();
-    encoder.EncodeHeaderSet(block, &encoded_block);
+    std::string encoded_block = encoder.EncodeHeaderBlock(block);
     const size_t pos = encoded_block.size() / 2;
     const uint8_t flags = fin ? 0x1 : 0x0;
     frames_.push_back(absl::make_unique<spdy::SpdyUnknownIR>(
@@ -186,9 +185,7 @@ std::string TestFrameSequence::MetadataBlockForPayload(
   block["example-payload"] = payload;
   spdy::HpackEncoder encoder;
   encoder.DisableCompression();
-  std::string encoded_payload;
-  encoder.EncodeHeaderSet(block, &encoded_payload);
-  return encoded_payload;
+  return encoder.EncodeHeaderBlock(block);
 }
 
 }  // namespace test

@@ -84,8 +84,7 @@ HpackEncoder::HpackEncoder()
 
 HpackEncoder::~HpackEncoder() = default;
 
-bool HpackEncoder::EncodeHeaderSet(const SpdyHeaderBlock& header_set,
-                                   std::string* output) {
+std::string HpackEncoder::EncodeHeaderBlock(const SpdyHeaderBlock& header_set) {
   // Separate header set into pseudo-headers and regular headers.
   Representations pseudo_headers;
   Representations regular_headers;
@@ -104,11 +103,8 @@ bool HpackEncoder::EncodeHeaderSet(const SpdyHeaderBlock& header_set,
     }
   }
 
-  {
-    RepresentationIterator iter(pseudo_headers, regular_headers);
-    EncodeRepresentations(&iter, output);
-  }
-  return true;
+  RepresentationIterator iter(pseudo_headers, regular_headers);
+  return EncodeRepresentations(&iter);
 }
 
 void HpackEncoder::ApplyHeaderTableSizeSetting(size_t size_setting) {
@@ -123,8 +119,7 @@ void HpackEncoder::ApplyHeaderTableSizeSetting(size_t size_setting) {
   should_emit_table_size_ = true;
 }
 
-void HpackEncoder::EncodeRepresentations(RepresentationIterator* iter,
-                                         std::string* output) {
+std::string HpackEncoder::EncodeRepresentations(RepresentationIterator* iter) {
   MaybeEmitTableSize();
   while (iter->HasNext()) {
     const auto header = iter->Next();
@@ -144,7 +139,7 @@ void HpackEncoder::EncodeRepresentations(RepresentationIterator* iter,
     }
   }
 
-  *output = output_stream_.TakeString();
+  return output_stream_.TakeString();
 }
 
 void HpackEncoder::EmitIndex(size_t index) {

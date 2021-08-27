@@ -71,10 +71,9 @@ class HpackEncoderPeer {
 
   // TODO(dahollings): Remove or clean up these methods when deprecating
   // non-incremental encoding path.
-  static bool EncodeHeaderSet(HpackEncoder* encoder,
-                              const SpdyHeaderBlock& header_set,
-                              std::string* output) {
-    return encoder->EncodeHeaderSet(header_set, output);
+  static std::string EncodeHeaderBlock(HpackEncoder* encoder,
+                                       const SpdyHeaderBlock& header_set) {
+    return encoder->EncodeHeaderBlock(header_set);
   }
 
   static bool EncodeIncremental(HpackEncoder* encoder,
@@ -221,8 +220,8 @@ class HpackEncoderTest : public QuicheTestWithParam<EncodeStrategy> {
     std::string expected_out = expected_.TakeString();
     switch (strategy_) {
       case kDefault:
-        EXPECT_TRUE(test::HpackEncoderPeer::EncodeHeaderSet(
-            &encoder_, header_set, &actual_out));
+        actual_out =
+            test::HpackEncoderPeer::EncodeHeaderBlock(&encoder_, header_set);
         break;
       case kIncremental:
         EXPECT_TRUE(test::HpackEncoderPeer::EncodeIncremental(

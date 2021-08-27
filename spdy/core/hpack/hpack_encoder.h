@@ -49,9 +49,8 @@ class QUICHE_EXPORT_PRIVATE HpackEncoder {
   HpackEncoder& operator=(const HpackEncoder&) = delete;
   ~HpackEncoder();
 
-  // Encodes the given header set into the given string. Returns
-  // whether or not the encoding was successful.
-  bool EncodeHeaderSet(const SpdyHeaderBlock& header_set, std::string* output);
+  // Encodes and returns the given header set as a string.
+  std::string EncodeHeaderBlock(const SpdyHeaderBlock& header_set);
 
   class QUICHE_EXPORT_PRIVATE ProgressiveEncoder {
    public:
@@ -105,7 +104,7 @@ class QUICHE_EXPORT_PRIVATE HpackEncoder {
   class Encoderator;
 
   // Encodes a sequence of header name-value pairs as a single header block.
-  void EncodeRepresentations(RepresentationIterator* iter, std::string* output);
+  std::string EncodeRepresentations(RepresentationIterator* iter);
 
   // Emits a static/dynamic indexed representation (Section 7.1).
   void EmitIndex(size_t index);

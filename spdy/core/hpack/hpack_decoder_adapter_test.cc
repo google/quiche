@@ -709,9 +709,8 @@ TEST_P(HpackDecoderAdapterTest, BasicC31) {
   expected_header_set[":path"] = "/";
   expected_header_set[":authority"] = "www.example.com";
 
-  std::string encoded_header_set;
-  EXPECT_TRUE(
-      encoder.EncodeHeaderSet(expected_header_set, &encoded_header_set));
+  std::string encoded_header_set =
+      encoder.EncodeHeaderBlock(expected_header_set);
 
   EXPECT_TRUE(DecodeHeaderBlock(encoded_header_set));
   EXPECT_EQ(expected_header_set, decoded_block());
