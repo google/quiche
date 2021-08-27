@@ -11,6 +11,7 @@
 #include "http2/adapter/nghttp2_util.h"
 #include "third_party/nghttp2/nghttp2.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
+#include "common/platform/api/quiche_bug_tracker.h"
 #include "common/platform/api/quiche_logging.h"
 #include "common/quiche_endian.h"
 
@@ -268,6 +269,11 @@ ssize_t OnPackExtensionCallback(nghttp2_session* /*session*/, uint8_t* buf,
                                 void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* source = static_cast<MetadataSource*>(frame->ext.payload);
+  if (source == nullptr) {
+    QUICHE_BUG(payload_is_nullptr) << "Extension frame payload for stream "
+                                   << frame->hd.stream_id << " is null!";
+    return NGHTTP2_ERR_CALLBACK_FAILURE;
+  }
   const std::pair<int64_t, bool> result = source->Pack(buf, len);
   if (result.first < 0) {
     return NGHTTP2_ERR_CALLBACK_FAILURE;

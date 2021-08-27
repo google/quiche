@@ -6,6 +6,7 @@
 #include "http2/adapter/test_frame_sequence.h"
 #include "http2/adapter/test_utils.h"
 #include "common/platform/api/quiche_test.h"
+#include "common/platform/api/quiche_test_helpers.h"
 
 namespace http2 {
 namespace adapter {
@@ -296,6 +297,23 @@ TEST_F(NgHttp2SessionTest, ServerHandlesFrames) {
   EXPECT_THAT(serialized, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
                                         spdy::SpdyFrameType::PING,
                                         spdy::SpdyFrameType::PING}));
+}
+
+// Verifies that a null payload is caught by the OnPackExtensionCallback
+// implementation.
+TEST_F(NgHttp2SessionTest, NullPayload) {
+  NgHttp2Session session(Perspective::kClient, CreateCallbacks(), options_,
+                         &visitor_);
+
+  void* payload = nullptr;
+  const int result = nghttp2_submit_extension(
+      session.raw_ptr(), kMetadataFrameType, 0, 1, payload);
+  ASSERT_EQ(0, result);
+  EXPECT_TRUE(session.want_write());
+  int send_result = -1;
+  EXPECT_QUICHE_BUG(send_result = nghttp2_session_send(session.raw_ptr()),
+                    "Extension frame payload for stream 1 is null!");
+  EXPECT_EQ(NGHTTP2_ERR_CALLBACK_FAILURE, send_result);
 }
 
 }  // namespace
