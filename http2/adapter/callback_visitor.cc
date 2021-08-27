@@ -410,9 +410,10 @@ bool CallbackVisitor::OnMetadataEndForStream(Http2StreamId stream_id) {
     void* payload;
     int result = callbacks_->unpack_extension_callback(
         nullptr, &payload, &current_frame_.hd, user_data_);
-    if (callbacks_->on_frame_recv_callback) {
+    if (result == 0 && callbacks_->on_frame_recv_callback) {
       current_frame_.ext.payload = payload;
-      callbacks_->on_frame_recv_callback(nullptr, &current_frame_, user_data_);
+      result = callbacks_->on_frame_recv_callback(nullptr, &current_frame_,
+                                                  user_data_);
     }
     return (result == 0);
   }
