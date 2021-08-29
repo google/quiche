@@ -87,8 +87,11 @@ TEST_F(QuicTimeDeltaTest, DebuggingValue) {
   const QuicTime::Delta one_ms = QuicTime::Delta::FromMilliseconds(1);
   const QuicTime::Delta one_s = QuicTime::Delta::FromSeconds(1);
 
+  EXPECT_EQ("1s", one_s.ToDebuggingValue());
   EXPECT_EQ("3s", (3 * one_s).ToDebuggingValue());
+  EXPECT_EQ("1ms", one_ms.ToDebuggingValue());
   EXPECT_EQ("3ms", (3 * one_ms).ToDebuggingValue());
+  EXPECT_EQ("1us", one_us.ToDebuggingValue());
   EXPECT_EQ("3us", (3 * one_us).ToDebuggingValue());
 
   EXPECT_EQ("3001us", (3 * one_ms + one_us).ToDebuggingValue());
