@@ -56,6 +56,8 @@ using StatelessResetToken = std::array<char, kStatelessResetTokenLength>;
 
 // WebTransport session IDs are stream IDs.
 using WebTransportSessionId = uint64_t;
+// WebTransport stream reset codes are 8-bit.
+using WebTransportStreamError = uint8_t;
 
 enum : size_t { kQuicPathFrameBufferSize = 8 };
 using QuicPathFrameBuffer = std::array<uint8_t, kQuicPathFrameBufferSize>;
@@ -79,8 +81,7 @@ struct QUIC_EXPORT_PRIVATE QuicConsumedData {
   // default gtest object printer to read uninitialize memory. So we need
   // to teach gtest how to print this object.
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
-      std::ostream& os,
-      const QuicConsumedData& s);
+      std::ostream& os, const QuicConsumedData& s);
 
   // How many bytes were consumed.
   size_t bytes_consumed;
@@ -198,8 +199,7 @@ QUIC_EXPORT_PRIVATE std::string TransmissionTypeToString(
     TransmissionType transmission_type);
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os,
-    TransmissionType transmission_type);
+    std::ostream& os, TransmissionType transmission_type);
 
 enum HasRetransmittableData : uint8_t {
   NO_RETRANSMITTABLE_DATA,
@@ -220,8 +220,7 @@ enum class ConnectionCloseSource { FROM_PEER, FROM_SELF };
 QUIC_EXPORT_PRIVATE std::string ConnectionCloseSourceToString(
     ConnectionCloseSource connection_close_source);
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os,
-    const ConnectionCloseSource& connection_close_source);
+    std::ostream& os, const ConnectionCloseSource& connection_close_source);
 
 // Should a connection be closed silently or not.
 enum class ConnectionCloseBehavior {
@@ -233,8 +232,7 @@ enum class ConnectionCloseBehavior {
 QUIC_EXPORT_PRIVATE std::string ConnectionCloseBehaviorToString(
     ConnectionCloseBehavior connection_close_behavior);
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os,
-    const ConnectionCloseBehavior& connection_close_behavior);
+    std::ostream& os, const ConnectionCloseBehavior& connection_close_behavior);
 
 enum QuicFrameType : uint8_t {
   // Regular frame types. The values set here cannot change without the
@@ -574,8 +572,7 @@ struct QUIC_EXPORT_PRIVATE AckedPacket {
         receive_timestamp(receive_timestamp) {}
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const AckedPacket& acked_packet);
+      std::ostream& os, const AckedPacket& acked_packet);
 
   QuicPacketNumber packet_number;
   // Number of bytes sent in the packet that was acknowledged.
@@ -595,8 +592,7 @@ struct QUIC_EXPORT_PRIVATE LostPacket {
       : packet_number(packet_number), bytes_lost(bytes_lost) {}
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const LostPacket& lost_packet);
+      std::ostream& os, const LostPacket& lost_packet);
 
   QuicPacketNumber packet_number;
   // Number of bytes sent in the packet that was lost.
@@ -744,8 +740,7 @@ enum QuicConnectionCloseType {
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os,
-    const QuicConnectionCloseType type);
+    std::ostream& os, const QuicConnectionCloseType type);
 
 QUIC_EXPORT_PRIVATE std::string QuicConnectionCloseTypeString(
     QuicConnectionCloseType type);

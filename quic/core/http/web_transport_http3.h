@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "absl/base/attributes.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/types/optional.h"
 #include "quic/core/http/quic_spdy_session.h"
@@ -129,6 +130,15 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3UnidirectionalStream
   // Closes the stream if all of the data has been received.
   void MaybeCloseIncompleteStream();
 };
+
+// Remaps HTTP/3 error code into a WebTransport error code.  Returns nullopt if
+// the provided code is outside of valid range.
+QUIC_EXPORT_PRIVATE absl::optional<WebTransportStreamError>
+Http3ErrorToWebTransport(uint64_t http3_error_code);
+
+// Remaps WebTransport error code into an HTTP/3 error code.
+QUIC_EXPORT_PRIVATE uint64_t
+WebTransportErrorToHttp3(WebTransportStreamError webtransport_error_code);
 
 }  // namespace quic
 
