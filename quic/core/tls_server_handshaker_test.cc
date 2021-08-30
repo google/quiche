@@ -741,9 +741,7 @@ TEST_P(TlsServerHandshakerTest, AdvanceHandshakeDuringAsyncDecryptCallback) {
   // This will delete |server_handshaker_|.
   server_session_ = nullptr;
 
-  if (GetQuicReloadableFlag(quic_tls_fix_ticket_decrypt)) {
-    ticket_crypter_->RunPendingCallback(0);  // Should not crash.
-  }
+  ticket_crypter_->RunPendingCallback(0);  // Should not crash.
 }
 
 TEST_P(TlsServerHandshakerTest, ResumptionWithFailingDecryptCallback) {

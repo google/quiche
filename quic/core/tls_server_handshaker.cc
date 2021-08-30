@@ -138,49 +138,27 @@ void TlsServerHandshaker::DecryptCallback::Run(std::vector<uint8_t> plaintext) {
     // The callback was cancelled before we could run.
     return;
   }
-  if (handshaker_->fix_ticket_decrypt_) {
-    TlsServerHandshaker* handshaker = handshaker_;
-    handshaker_ = nullptr;
 
-    handshaker->decrypted_session_ticket_ = std::move(plaintext);
-    // DecryptCallback::Run could be called synchronously. When that happens, we
-    // are currently in the middle of a call to AdvanceHandshake.
-    // (AdvanceHandshake called SSL_do_handshake, which through some layers
-    // called SessionTicketOpen, which called TicketCrypter::Decrypt, which
-    // synchronously called this function.) In that case, the handshake will
-    // continue to be processed when this function returns.
-    //
-    // When this callback is called asynchronously (i.e. the ticket decryption
-    // is pending), TlsServerHandshaker is not actively processing handshake
-    // messages. We need to have it resume processing handshake messages by
-    // calling AdvanceHandshake.
-    if (handshaker->expected_ssl_error() == SSL_ERROR_PENDING_TICKET) {
-      handshaker->AdvanceHandshakeFromCallback();
-    }
+  TlsServerHandshaker* handshaker = handshaker_;
+  handshaker_ = nullptr;
 
-    handshaker->ticket_decryption_callback_ = nullptr;
-    return;
-  }
-  handshaker_->decrypted_session_ticket_ = std::move(plaintext);
+  handshaker->decrypted_session_ticket_ = std::move(plaintext);
   // DecryptCallback::Run could be called synchronously. When that happens, we
   // are currently in the middle of a call to AdvanceHandshake.
-  // (AdvanceHandshake called SSL_do_handshake, which through some layers called
-  // SessionTicketOpen, which called TicketCrypter::Decrypt, which synchronously
-  // called this function.) In that case, the handshake will continue to be
-  // processed when this function returns.
+  // (AdvanceHandshake called SSL_do_handshake, which through some layers
+  // called SessionTicketOpen, which called TicketCrypter::Decrypt, which
+  // synchronously called this function.) In that case, the handshake will
+  // continue to be processed when this function returns.
   //
-  // When this callback is called asynchronously (i.e. the ticket decryption is
-  // pending), TlsServerHandshaker is not actively processing handshake
+  // When this callback is called asynchronously (i.e. the ticket decryption
+  // is pending), TlsServerHandshaker is not actively processing handshake
   // messages. We need to have it resume processing handshake messages by
   // calling AdvanceHandshake.
-  if (handshaker_->expected_ssl_error() == SSL_ERROR_PENDING_TICKET) {
-    handshaker_->AdvanceHandshakeFromCallback();
+  if (handshaker->expected_ssl_error() == SSL_ERROR_PENDING_TICKET) {
+    handshaker->AdvanceHandshakeFromCallback();
   }
-  // The TicketDecrypter took ownership of this callback when Decrypt was
-  // called. Once the callback returns, it will be deleted. Remove the
-  // (non-owning) pointer to the callback from the handshaker so the handshaker
-  // doesn't have an invalid pointer hanging around.
-  handshaker_->ticket_decryption_callback_ = nullptr;
+
+  handshaker->ticket_decryption_callback_ = nullptr;
 }
 
 void TlsServerHandshaker::DecryptCallback::Cancel() {
@@ -770,20 +748,14 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
       }
       async_op_timer_ = QuicTimeAccumulator();
       async_op_timer_->Start(now());
-
-      if (!fix_ticket_decrypt_) {
-        return ssl_ticket_aead_retry;
-      }
     }
   }
 
-  if (fix_ticket_decrypt_) {
-    // If the async ticket decryption is pending, either started by this
-    // SessionTicketOpen call or one that happened earlier, return
-    // ssl_ticket_aead_retry.
-    if (ticket_decryption_callback_ && !ticket_decryption_callback_->IsDone()) {
-      return ssl_ticket_aead_retry;
-    }
+  // If the async ticket decryption is pending, either started by this
+  // SessionTicketOpen call or one that happened earlier, return
+  // ssl_ticket_aead_retry.
+  if (ticket_decryption_callback_ && !ticket_decryption_callback_->IsDone()) {
+    return ssl_ticket_aead_retry;
   }
 
   ssl_ticket_aead_result_t result =

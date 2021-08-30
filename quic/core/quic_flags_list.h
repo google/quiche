@@ -71,8 +71,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_rearm_pto_on_application_data_du
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_drop_unsent_path_response, true)
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
-// If true, fix a bug in TlsServerHandshaker where the ticket decrypt callback is cleared without being cancelled first.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_fix_ticket_decrypt, true)
 // If true, flush any pending frame before default path is about to be updated.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_flush_pending_frame_before_updating_default_path, true)
 // If true, ignore peer_max_ack_delay during handshake.
