@@ -111,9 +111,6 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
 
   // Whether |StopDetection| has been called.
   bool stopped_ = false;
-
-  const bool no_alarm_after_stopped_ =
-      GetQuicReloadableFlag(quic_idle_network_detector_no_alarm_after_stopped);
 };
 
 }  // namespace quic

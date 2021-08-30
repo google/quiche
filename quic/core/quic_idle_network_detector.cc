@@ -36,12 +36,7 @@ QuicIdleNetworkDetector::QuicIdleNetworkDetector(
       time_of_first_packet_sent_after_receiving_(QuicTime::Zero()),
       idle_network_timeout_(QuicTime::Delta::Infinite()),
       alarm_(
-          alarm_factory->CreateAlarm(arena->New<AlarmDelegate>(this), arena)) {
-  if (no_alarm_after_stopped_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_idle_network_detector_no_alarm_after_stopped, 1, 2);
-  }
-}
+          alarm_factory->CreateAlarm(arena->New<AlarmDelegate>(this), arena)) {}
 
 void QuicIdleNetworkDetector::OnAlarm() {
   if (handshake_timeout_.IsInfinite()) {
@@ -99,10 +94,7 @@ void QuicIdleNetworkDetector::OnPacketReceived(QuicTime now) {
 }
 
 void QuicIdleNetworkDetector::SetAlarm() {
-  if (no_alarm_after_stopped_ && stopped_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_idle_network_detector_no_alarm_after_stopped, 2, 2);
-
+  if (stopped_) {
     // TODO(wub): If this QUIC_BUG fires, it indicates a problem in the
     // QuicConnection, which somehow called this function while disconnected.
     // That problem needs to be fixed.

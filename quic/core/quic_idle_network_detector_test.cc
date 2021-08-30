@@ -30,8 +30,6 @@ class MockDelegate : public QuicIdleNetworkDetector::Delegate {
 class QuicIdleNetworkDetectorTest : public QuicTest {
  public:
   QuicIdleNetworkDetectorTest() {
-    SetQuicReloadableFlag(quic_idle_network_detector_no_alarm_after_stopped,
-                          true);
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     detector_ = std::make_unique<QuicIdleNetworkDetector>(
         &delegate_, clock_.Now(), &arena_, &alarm_factory_);
