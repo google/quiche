@@ -60,9 +60,9 @@ class QUIC_EXPORT_PRIVATE QuicPeerIssuedConnectionIdManager {
   QuicPeerIssuedConnectionIdManager(
       size_t active_connection_id_limit,
       const QuicConnectionId& initial_peer_issued_connection_id,
-      const QuicClock* clock,
-      QuicAlarmFactory* alarm_factory,
-      QuicConnectionIdManagerVisitorInterface* visitor);
+      const QuicClock* clock, QuicAlarmFactory* alarm_factory,
+      QuicConnectionIdManagerVisitorInterface* visitor,
+      QuicConnectionContext* context);
 
   ~QuicPeerIssuedConnectionIdManager();
 
@@ -123,10 +123,10 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
  public:
   QuicSelfIssuedConnectionIdManager(
       size_t active_connection_id_limit,
-      const QuicConnectionId& initial_connection_id,
-      const QuicClock* clock,
+      const QuicConnectionId& initial_connection_id, const QuicClock* clock,
       QuicAlarmFactory* alarm_factory,
-      QuicConnectionIdManagerVisitorInterface* visitor);
+      QuicConnectionIdManagerVisitorInterface* visitor,
+      QuicConnectionContext* context);
 
   virtual ~QuicSelfIssuedConnectionIdManager();
 

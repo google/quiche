@@ -10,10 +10,11 @@ namespace quic {
 
 namespace {
 
-class AlarmDelegate : public QuicAlarm::Delegate {
+class AlarmDelegate : public QuicAlarm::DelegateWithContext {
  public:
-  explicit AlarmDelegate(QuicNetworkBlackholeDetector* detector)
-      : detector_(detector) {}
+  explicit AlarmDelegate(QuicNetworkBlackholeDetector* detector,
+                         QuicConnectionContext* context)
+      : QuicAlarm::DelegateWithContext(context), detector_(detector) {}
   AlarmDelegate(const AlarmDelegate&) = delete;
   AlarmDelegate& operator=(const AlarmDelegate&) = delete;
 
@@ -26,12 +27,11 @@ class AlarmDelegate : public QuicAlarm::Delegate {
 }  // namespace
 
 QuicNetworkBlackholeDetector::QuicNetworkBlackholeDetector(
-    Delegate* delegate,
-    QuicConnectionArena* arena,
-    QuicAlarmFactory* alarm_factory)
+    Delegate* delegate, QuicConnectionArena* arena,
+    QuicAlarmFactory* alarm_factory, QuicConnectionContext* context)
     : delegate_(delegate),
-      alarm_(
-          alarm_factory->CreateAlarm(arena->New<AlarmDelegate>(this), arena)) {}
+      alarm_(alarm_factory->CreateAlarm(
+          arena->New<AlarmDelegate>(this, context), arena)) {}
 
 void QuicNetworkBlackholeDetector::OnAlarm() {
   QuicTime next_deadline = GetEarliestDeadline();

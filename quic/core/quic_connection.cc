@@ -72,6 +72,10 @@ class QuicConnectionAlarmDelegate : public QuicAlarm::Delegate {
   QuicConnectionAlarmDelegate& operator=(const QuicConnectionAlarmDelegate&) =
       delete;
 
+  QuicConnectionContext* GetConnectionContext() override {
+    return (connection_ == nullptr) ? nullptr : connection_->context();
+  }
+
  protected:
   QuicConnection* connection_;
 };
@@ -216,16 +220,11 @@ QuicConnection::QuicConnection(
     QuicConnectionId server_connection_id,
     QuicSocketAddress initial_self_address,
     QuicSocketAddress initial_peer_address,
-    QuicConnectionHelperInterface* helper,
-    QuicAlarmFactory* alarm_factory,
-    QuicPacketWriter* writer,
-    bool owns_writer,
-    Perspective perspective,
+    QuicConnectionHelperInterface* helper, QuicAlarmFactory* alarm_factory,
+    QuicPacketWriter* writer, bool owns_writer, Perspective perspective,
     const ParsedQuicVersionVector& supported_versions)
-    : framer_(supported_versions,
-              helper->GetClock()->ApproximateNow(),
-              perspective,
-              server_connection_id.length()),
+    : framer_(supported_versions, helper->GetClock()->ApproximateNow(),
+              perspective, server_connection_id.length()),
       current_packet_content_(NO_FRAMES_RECEIVED),
       is_current_packet_connectivity_probing_(false),
       has_path_challenge_in_current_packet_(false),
@@ -240,8 +239,7 @@ QuicConnection::QuicConnection(
       random_generator_(helper->GetRandomGenerator()),
       client_connection_id_is_set_(false),
       direct_peer_address_(initial_peer_address),
-      default_path_(initial_self_address,
-                    QuicSocketAddress(),
+      default_path_(initial_self_address, QuicSocketAddress(),
                     /*client_connection_id=*/EmptyQuicConnectionId(),
                     server_connection_id,
                     /*stateless_reset_token_received=*/false,
@@ -270,23 +268,17 @@ QuicConnection::QuicConnection(
       ack_alarm_(alarm_factory_->CreateAlarm(arena_.New<AckAlarmDelegate>(this),
                                              &arena_)),
       retransmission_alarm_(alarm_factory_->CreateAlarm(
-          arena_.New<RetransmissionAlarmDelegate>(this),
-          &arena_)),
-      send_alarm_(
-          alarm_factory_->CreateAlarm(arena_.New<SendAlarmDelegate>(this),
-                                      &arena_)),
-      ping_alarm_(
-          alarm_factory_->CreateAlarm(arena_.New<PingAlarmDelegate>(this),
-                                      &arena_)),
+          arena_.New<RetransmissionAlarmDelegate>(this), &arena_)),
+      send_alarm_(alarm_factory_->CreateAlarm(
+          arena_.New<SendAlarmDelegate>(this), &arena_)),
+      ping_alarm_(alarm_factory_->CreateAlarm(
+          arena_.New<PingAlarmDelegate>(this), &arena_)),
       mtu_discovery_alarm_(alarm_factory_->CreateAlarm(
-          arena_.New<MtuDiscoveryAlarmDelegate>(this),
-          &arena_)),
+          arena_.New<MtuDiscoveryAlarmDelegate>(this), &arena_)),
       process_undecryptable_packets_alarm_(alarm_factory_->CreateAlarm(
-          arena_.New<ProcessUndecryptablePacketsAlarmDelegate>(this),
-          &arena_)),
+          arena_.New<ProcessUndecryptablePacketsAlarmDelegate>(this), &arena_)),
       discard_previous_one_rtt_keys_alarm_(alarm_factory_->CreateAlarm(
-          arena_.New<DiscardPreviousOneRttKeysAlarmDelegate>(this),
-          &arena_)),
+          arena_.New<DiscardPreviousOneRttKeysAlarmDelegate>(this), &arena_)),
       discard_zero_rtt_decryption_keys_alarm_(alarm_factory_->CreateAlarm(
           arena_.New<DiscardZeroRttDecryptionKeysAlarmDelegate>(this),
           &arena_)),
@@ -294,10 +286,7 @@ QuicConnection::QuicConnection(
       debug_visitor_(nullptr),
       packet_creator_(server_connection_id, &framer_, random_generator_, this),
       last_received_packet_info_(clock_->ApproximateNow()),
-      sent_packet_manager_(perspective,
-                           clock_,
-                           random_generator_,
-                           &stats_,
+      sent_packet_manager_(perspective, clock_, random_generator_, &stats_,
                            GetDefaultCongestionControlType()),
       version_negotiated_(false),
       perspective_(perspective),
@@ -320,12 +309,11 @@ QuicConnection::QuicConnection(
       processing_ack_frame_(false),
       supports_release_time_(false),
       release_time_into_future_(QuicTime::Delta::Zero()),
-      blackhole_detector_(this, &arena_, alarm_factory_),
-      idle_network_detector_(this,
-                             clock_->ApproximateNow(),
-                             &arena_,
-                             alarm_factory_),
-      path_validator_(alarm_factory_, &arena_, this, random_generator_),
+      blackhole_detector_(this, &arena_, alarm_factory_, &context_),
+      idle_network_detector_(this, clock_->ApproximateNow(), &arena_,
+                             alarm_factory_, &context_),
+      path_validator_(alarm_factory_, &arena_, this, random_generator_,
+                      &context_),
       most_recent_frame_type_(NUM_FRAME_TYPES) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
@@ -2983,7 +2971,7 @@ void QuicConnection::ReplaceInitialServerConnectionId(
         peer_issued_cid_manager_ =
             std::make_unique<QuicPeerIssuedConnectionIdManager>(
                 kMinNumOfActiveConnectionIds, new_server_connection_id, clock_,
-                alarm_factory_, this);
+                alarm_factory_, this, context());
       }
     }
   }
@@ -4070,7 +4058,7 @@ QuicConnection::MakeSelfIssuedConnectionIdManager() {
       perspective_ == Perspective::IS_CLIENT
           ? default_path_.client_connection_id
           : default_path_.server_connection_id,
-      clock_, alarm_factory_, this);
+      clock_, alarm_factory_, this, context());
 }
 
 void QuicConnection::MaybeSendConnectionIdToClient() {
@@ -6264,7 +6252,7 @@ void QuicConnection::set_client_connection_id(
       peer_issued_cid_manager_ =
           std::make_unique<QuicPeerIssuedConnectionIdManager>(
               kMinNumOfActiveConnectionIds, client_connection_id, clock_,
-              alarm_factory_, this);
+              alarm_factory_, this, context());
     } else {
       // Note in Chromium client, set_client_connection_id is not called and
       // thus self_issued_cid_manager_ should be null.
@@ -6876,7 +6864,7 @@ void QuicConnection::CreateConnectionIdManager() {
       peer_issued_cid_manager_ =
           std::make_unique<QuicPeerIssuedConnectionIdManager>(
               kMinNumOfActiveConnectionIds, default_path_.server_connection_id,
-              clock_, alarm_factory_, this);
+              clock_, alarm_factory_, this, context());
     }
   } else {
     if (!default_path_.server_connection_id.IsEmpty()) {

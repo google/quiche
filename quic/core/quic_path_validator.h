@@ -13,6 +13,7 @@
 #include "quic/core/quic_alarm_factory.h"
 #include "quic/core/quic_arena_scoped_ptr.h"
 #include "quic/core/quic_clock.h"
+#include "quic/core/quic_connection_context.h"
 #include "quic/core/quic_one_block_arena.h"
 #include "quic/core/quic_packet_writer.h"
 #include "quic/core/quic_types.h"
@@ -107,10 +108,9 @@ class QUIC_EXPORT_PRIVATE QuicPathValidator {
         std::unique_ptr<QuicPathValidationContext> context) = 0;
   };
 
-  QuicPathValidator(QuicAlarmFactory* alarm_factory,
-                    QuicConnectionArena* arena,
-                    SendDelegate* delegate,
-                    QuicRandom* random);
+  QuicPathValidator(QuicAlarmFactory* alarm_factory, QuicConnectionArena* arena,
+                    SendDelegate* delegate, QuicRandom* random,
+                    QuicConnectionContext* context);
 
   // Send PATH_CHALLENGE and start the retry timer.
   void StartPathValidation(std::unique_ptr<QuicPathValidationContext> context,

@@ -30,7 +30,7 @@ namespace quic {
 // A very simple alarm that just informs the QuicTimeWaitListManager to clean
 // up old connection_ids. This alarm should be cancelled and deleted before
 // the QuicTimeWaitListManager is deleted.
-class ConnectionIdCleanUpAlarm : public QuicAlarm::Delegate {
+class ConnectionIdCleanUpAlarm : public QuicAlarm::DelegateWithoutContext {
  public:
   explicit ConnectionIdCleanUpAlarm(
       QuicTimeWaitListManager* time_wait_list_manager)

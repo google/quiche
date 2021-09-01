@@ -48,11 +48,10 @@ class MockSendDelegate : public QuicPathValidator::SendDelegate {
 class QuicPathValidatorTest : public QuicTest {
  public:
   QuicPathValidatorTest()
-      : path_validator_(&alarm_factory_, &arena_, &send_delegate_, &random_),
-        context_(new MockQuicPathValidationContext(self_address_,
-                                                   peer_address_,
-                                                   effective_peer_address_,
-                                                   &writer_)),
+      : path_validator_(&alarm_factory_, &arena_, &send_delegate_, &random_,
+                        /*context=*/nullptr),
+        context_(new MockQuicPathValidationContext(
+            self_address_, peer_address_, effective_peer_address_, &writer_)),
         result_delegate_(
             new testing::StrictMock<MockQuicPathValidationResultDelegate>()) {
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1));

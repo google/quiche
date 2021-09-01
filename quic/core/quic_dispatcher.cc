@@ -40,7 +40,7 @@ namespace {
 const QuicPacketLength kMinClientInitialPacketLength = 1200;
 
 // An alarm that informs the QuicDispatcher to delete old sessions.
-class DeleteSessionsAlarm : public QuicAlarm::Delegate {
+class DeleteSessionsAlarm : public QuicAlarm::DelegateWithoutContext {
  public:
   explicit DeleteSessionsAlarm(QuicDispatcher* dispatcher)
       : dispatcher_(dispatcher) {}

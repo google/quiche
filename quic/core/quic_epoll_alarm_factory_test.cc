@@ -12,7 +12,7 @@ namespace quic {
 namespace test {
 namespace {
 
-class TestDelegate : public QuicAlarm::Delegate {
+class TestDelegate : public QuicAlarm::DelegateWithoutContext {
  public:
   TestDelegate() : fired_(false) {}
 

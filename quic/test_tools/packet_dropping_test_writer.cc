@@ -18,7 +18,7 @@ const int32_t kMinSuccesfulWritesAfterPacketLoss = 2;
 
 // An alarm that is scheduled if a blocked socket is simulated to indicate
 // it's writable again.
-class WriteUnblockedAlarm : public QuicAlarm::Delegate {
+class WriteUnblockedAlarm : public QuicAlarm::DelegateWithoutContext {
  public:
   explicit WriteUnblockedAlarm(PacketDroppingTestWriter* writer)
       : writer_(writer) {}
@@ -34,7 +34,7 @@ class WriteUnblockedAlarm : public QuicAlarm::Delegate {
 
 // An alarm that is scheduled every time a new packet is to be written at a
 // later point.
-class DelayAlarm : public QuicAlarm::Delegate {
+class DelayAlarm : public QuicAlarm::DelegateWithoutContext {
  public:
   explicit DelayAlarm(PacketDroppingTestWriter* writer) : writer_(writer) {}
 

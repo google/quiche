@@ -24,11 +24,13 @@ QuicConnectionIdData::QuicConnectionIdData(
 
 namespace {
 
-class RetirePeerIssuedConnectionIdAlarm : public QuicAlarm::Delegate {
+class RetirePeerIssuedConnectionIdAlarm
+    : public QuicAlarm::DelegateWithContext {
  public:
   explicit RetirePeerIssuedConnectionIdAlarm(
-      QuicConnectionIdManagerVisitorInterface* visitor)
-      : visitor_(visitor) {}
+      QuicConnectionIdManagerVisitorInterface* visitor,
+      QuicConnectionContext* context)
+      : QuicAlarm::DelegateWithContext(context), visitor_(visitor) {}
   RetirePeerIssuedConnectionIdAlarm(const RetirePeerIssuedConnectionIdAlarm&) =
       delete;
   RetirePeerIssuedConnectionIdAlarm& operator=(
@@ -63,13 +65,13 @@ std::vector<QuicConnectionIdData>::iterator FindConnectionIdData(
 QuicPeerIssuedConnectionIdManager::QuicPeerIssuedConnectionIdManager(
     size_t active_connection_id_limit,
     const QuicConnectionId& initial_peer_issued_connection_id,
-    const QuicClock* clock,
-    QuicAlarmFactory* alarm_factory,
-    QuicConnectionIdManagerVisitorInterface* visitor)
+    const QuicClock* clock, QuicAlarmFactory* alarm_factory,
+    QuicConnectionIdManagerVisitorInterface* visitor,
+    QuicConnectionContext* context)
     : active_connection_id_limit_(active_connection_id_limit),
       clock_(clock),
       retire_connection_id_alarm_(alarm_factory->CreateAlarm(
-          new RetirePeerIssuedConnectionIdAlarm(visitor))) {
+          new RetirePeerIssuedConnectionIdAlarm(visitor, context))) {
   QUICHE_DCHECK_GE(active_connection_id_limit_, 2u);
   QUICHE_DCHECK(!initial_peer_issued_connection_id.IsEmpty());
   active_connection_id_data_.emplace_back<const QuicConnectionId&, uint64_t,
@@ -251,11 +253,14 @@ void QuicPeerIssuedConnectionIdManager::ReplaceConnectionId(
 
 namespace {
 
-class RetireSelfIssuedConnectionIdAlarmDelegate : public QuicAlarm::Delegate {
+class RetireSelfIssuedConnectionIdAlarmDelegate
+    : public QuicAlarm::DelegateWithContext {
  public:
   explicit RetireSelfIssuedConnectionIdAlarmDelegate(
-      QuicSelfIssuedConnectionIdManager* connection_id_manager)
-      : connection_id_manager_(connection_id_manager) {}
+      QuicSelfIssuedConnectionIdManager* connection_id_manager,
+      QuicConnectionContext* context)
+      : QuicAlarm::DelegateWithContext(context),
+        connection_id_manager_(connection_id_manager) {}
   RetireSelfIssuedConnectionIdAlarmDelegate(
       const RetireSelfIssuedConnectionIdAlarmDelegate&) = delete;
   RetireSelfIssuedConnectionIdAlarmDelegate& operator=(
@@ -271,15 +276,15 @@ class RetireSelfIssuedConnectionIdAlarmDelegate : public QuicAlarm::Delegate {
 
 QuicSelfIssuedConnectionIdManager::QuicSelfIssuedConnectionIdManager(
     size_t active_connection_id_limit,
-    const QuicConnectionId& initial_connection_id,
-    const QuicClock* clock,
+    const QuicConnectionId& initial_connection_id, const QuicClock* clock,
     QuicAlarmFactory* alarm_factory,
-    QuicConnectionIdManagerVisitorInterface* visitor)
+    QuicConnectionIdManagerVisitorInterface* visitor,
+    QuicConnectionContext* context)
     : active_connection_id_limit_(active_connection_id_limit),
       clock_(clock),
       visitor_(visitor),
       retire_connection_id_alarm_(alarm_factory->CreateAlarm(
-          new RetireSelfIssuedConnectionIdAlarmDelegate(this))),
+          new RetireSelfIssuedConnectionIdAlarmDelegate(this, context))),
       last_connection_id_(initial_connection_id),
       next_connection_id_sequence_number_(1u),
       last_connection_id_consumed_by_self_sequence_number_(0u) {

@@ -73,7 +73,7 @@ class Queue : public Actor, public UnconstrainedPortInterface {
   };
 
   // Alarm handler for aggregation timeout.
-  class AggregationAlarmDelegate : public QuicAlarm::Delegate {
+  class AggregationAlarmDelegate : public QuicAlarm::DelegateWithoutContext {
    public:
     explicit AggregationAlarmDelegate(Queue* queue);
 

@@ -41,6 +41,12 @@ class ClosedStreamsCleanUpDelegate : public QuicAlarm::Delegate {
   ClosedStreamsCleanUpDelegate& operator=(const ClosedStreamsCleanUpDelegate&) =
       delete;
 
+  QuicConnectionContext* GetConnectionContext() override {
+    return (session_->connection() == nullptr)
+               ? nullptr
+               : session_->connection()->context();
+  }
+
   void OnAlarm() override { session_->CleanUpClosedStreams(); }
 
  private:

@@ -78,11 +78,9 @@ class TestPeerIssuedConnectionIdManagerVisitor
 class QuicPeerIssuedConnectionIdManagerTest : public QuicTest {
  public:
   QuicPeerIssuedConnectionIdManagerTest()
-      : peer_issued_cid_manager_(/*active_connection_id_limit=*/2,
-                                 initial_connection_id_,
-                                 &clock_,
-                                 &alarm_factory_,
-                                 &cid_manager_visitor_) {
+      : peer_issued_cid_manager_(
+            /*active_connection_id_limit=*/2, initial_connection_id_, &clock_,
+            &alarm_factory_, &cid_manager_visitor_, /*context=*/nullptr) {
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
     cid_manager_visitor_.SetPeerIssuedConnectionIdManager(
         &peer_issued_cid_manager_);
@@ -538,11 +536,9 @@ class TestSelfIssuedConnectionIdManagerVisitor
 class QuicSelfIssuedConnectionIdManagerTest : public QuicTest {
  public:
   QuicSelfIssuedConnectionIdManagerTest()
-      : cid_manager_(/*active_connection_id_limit*/ 2,
-                     initial_connection_id_,
-                     &clock_,
-                     &alarm_factory_,
-                     &cid_manager_visitor_) {
+      : cid_manager_(/*active_connection_id_limit*/ 2, initial_connection_id_,
+                     &clock_, &alarm_factory_, &cid_manager_visitor_,
+                     /*context=*/nullptr) {
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
     retire_self_issued_cid_alarm_ =
         QuicConnectionIdManagerPeer::GetRetireSelfIssuedConnectionIdAlarm(

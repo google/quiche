@@ -36,10 +36,10 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
     virtual void OnIdleNetworkDetected() = 0;
   };
 
-  QuicIdleNetworkDetector(Delegate* delegate,
-                          QuicTime now,
+  QuicIdleNetworkDetector(Delegate* delegate, QuicTime now,
                           QuicConnectionArena* arena,
-                          QuicAlarmFactory* alarm_factory);
+                          QuicAlarmFactory* alarm_factory,
+                          QuicConnectionContext* context);
 
   void OnAlarm();
 

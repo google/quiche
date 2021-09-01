@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_QUIC_ALARM_H_
 
 #include "quic/core/quic_arena_scoped_ptr.h"
+#include "quic/core/quic_connection_context.h"
 #include "quic/core/quic_time.h"
 #include "quic/platform/api/quic_export.h"
 
@@ -22,8 +23,37 @@ class QUIC_EXPORT_PRIVATE QuicAlarm {
    public:
     virtual ~Delegate() {}
 
+    // If the alarm belongs to a single QuicConnection, return the corresponding
+    // QuicConnection.context_. Note the context_ is the first member of
+    // QuicConnection, so it should outlive the delegate.
+    // Otherwise return nullptr.
+    // The OnAlarm function will be called under the connection context, if any.
+    virtual QuicConnectionContext* GetConnectionContext() = 0;
+
     // Invoked when the alarm fires.
     virtual void OnAlarm() = 0;
+  };
+
+  // DelegateWithContext is a Delegate with a QuicConnectionContext* stored as a
+  // member variable.
+  class QUIC_EXPORT_PRIVATE DelegateWithContext : public Delegate {
+   public:
+    explicit DelegateWithContext(QuicConnectionContext* context)
+        : context_(context) {}
+    ~DelegateWithContext() override {}
+    QuicConnectionContext* GetConnectionContext() override { return context_; }
+
+   private:
+    QuicConnectionContext* context_;
+  };
+
+  // DelegateWithoutContext is a Delegate that does not have a corresponding
+  // context. Typically this means one object of the child class deals with many
+  // connections.
+  class QUIC_EXPORT_PRIVATE DelegateWithoutContext : public Delegate {
+   public:
+    ~DelegateWithoutContext() override {}
+    QuicConnectionContext* GetConnectionContext() override { return nullptr; }
   };
 
   explicit QuicAlarm(QuicArenaScopedPtr<Delegate> delegate);

@@ -32,7 +32,8 @@ class QuicIdleNetworkDetectorTest : public QuicTest {
   QuicIdleNetworkDetectorTest() {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     detector_ = std::make_unique<QuicIdleNetworkDetector>(
-        &delegate_, clock_.Now(), &arena_, &alarm_factory_);
+        &delegate_, clock_.Now(), &arena_, &alarm_factory_,
+        /*context=*/nullptr);
     alarm_ = static_cast<MockAlarmFactory::TestAlarm*>(
         QuicIdleNetworkDetectorTestPeer::GetAlarm(detector_.get()));
   }

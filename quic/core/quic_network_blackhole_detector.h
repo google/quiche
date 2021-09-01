@@ -40,9 +40,9 @@ class QUIC_EXPORT_PRIVATE QuicNetworkBlackholeDetector {
     virtual void OnPathMtuReductionDetected() = 0;
   };
 
-  QuicNetworkBlackholeDetector(Delegate* delegate,
-                               QuicConnectionArena* arena,
-                               QuicAlarmFactory* alarm_factory);
+  QuicNetworkBlackholeDetector(Delegate* delegate, QuicConnectionArena* arena,
+                               QuicAlarmFactory* alarm_factory,
+                               QuicConnectionContext* context);
 
   // Called to stop all detections. If |permanent|, the alarm will be cancelled
   // permanently and future calls to RestartDetection will be no-op.

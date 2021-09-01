@@ -23,6 +23,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_trace_ssl_events, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_set_signature_algorithm_prefs, true)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
+// If true, QuicAlarms that belong to a single QuicConnection will fire under the corresponding QuicConnectionContext.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_restore_connection_context_in_alarms, true)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_support_release_time_for_gso, false)
 // If true, abort async QPACK header decompression in QuicSpdyStream::Reset() and in QuicSpdyStream::OnStreamReset().

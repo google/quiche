@@ -88,7 +88,7 @@ class Simulator : public QuicConnectionHelperInterface {
   };
 
   // The delegate used for RunFor().
-  class RunForDelegate : public QuicAlarm::Delegate {
+  class RunForDelegate : public QuicAlarm::DelegateWithoutContext {
    public:
     explicit RunForDelegate(bool* run_for_should_stop);
     void OnAlarm() override;

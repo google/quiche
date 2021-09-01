@@ -33,7 +33,7 @@ const size_t kBlackholeDelayInSeconds = 10;
 class QuicNetworkBlackholeDetectorTest : public QuicTest {
  public:
   QuicNetworkBlackholeDetectorTest()
-      : detector_(&delegate_, &arena_, &alarm_factory_),
+      : detector_(&delegate_, &arena_, &alarm_factory_, /*context=*/nullptr),
         alarm_(static_cast<MockAlarmFactory::TestAlarm*>(
             QuicNetworkBlackholeDetectorPeer::GetAlarm(&detector_))),
         path_degrading_delay_(

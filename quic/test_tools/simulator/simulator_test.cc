@@ -475,7 +475,7 @@ class AlarmToggler : public Actor {
 };
 
 // Counts the number of times an alarm has fired.
-class CounterDelegate : public QuicAlarm::Delegate {
+class CounterDelegate : public QuicAlarm::DelegateWithoutContext {
  public:
   explicit CounterDelegate(size_t* counter) : counter_(counter) {}
 

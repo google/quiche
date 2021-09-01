@@ -10,10 +10,12 @@
 
 namespace quic {
 
-class RetryAlarmDelegate : public QuicAlarm::Delegate {
+class RetryAlarmDelegate : public QuicAlarm::DelegateWithContext {
  public:
-  explicit RetryAlarmDelegate(QuicPathValidator* path_validator)
-      : path_validator_(path_validator) {}
+  explicit RetryAlarmDelegate(QuicPathValidator* path_validator,
+                              QuicConnectionContext* context)
+      : QuicAlarm::DelegateWithContext(context),
+        path_validator_(path_validator) {}
   RetryAlarmDelegate(const RetryAlarmDelegate&) = delete;
   RetryAlarmDelegate& operator=(const RetryAlarmDelegate&) = delete;
 
@@ -32,12 +34,12 @@ std::ostream& operator<<(std::ostream& os,
 QuicPathValidator::QuicPathValidator(QuicAlarmFactory* alarm_factory,
                                      QuicConnectionArena* arena,
                                      SendDelegate* send_delegate,
-                                     QuicRandom* random)
+                                     QuicRandom* random,
+                                     QuicConnectionContext* context)
     : send_delegate_(send_delegate),
       random_(random),
-      retry_timer_(
-          alarm_factory->CreateAlarm(arena->New<RetryAlarmDelegate>(this),
-                                     arena)),
+      retry_timer_(alarm_factory->CreateAlarm(
+          arena->New<RetryAlarmDelegate>(this, context), arena)),
       retry_count_(0u) {}
 
 void QuicPathValidator::OnPathResponse(const QuicPathFrameBuffer& probing_data,
