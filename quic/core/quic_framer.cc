@@ -1300,81 +1300,45 @@ size_t QuicFramer::GetMinStatelessResetPacketLength() {
 
 // static
 std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
-    QuicConnectionId /*connection_id*/,
-    size_t received_packet_length,
+    QuicConnectionId /*connection_id*/, size_t received_packet_length,
     StatelessResetToken stateless_reset_token) {
   QUIC_DVLOG(1) << "Building IETF stateless reset packet.";
-  if (GetQuicRestartFlag(quic_fix_stateless_reset2)) {
-    if (received_packet_length <= GetMinStatelessResetPacketLength()) {
-      QUICHE_DLOG(ERROR)
-          << "Tried to build stateless reset packet with received packet "
-             "length "
-          << received_packet_length;
-      return nullptr;
-    }
-    // To ensure stateless reset is indistinguishable from a valid packet,
-    // include the max connection ID length.
-    size_t len = std::min(received_packet_length - 1,
-                          GetMinStatelessResetPacketLength() + 1 +
-                              kQuicMaxConnectionIdWithLengthPrefixLength);
-    std::unique_ptr<char[]> buffer(new char[len]);
-    QuicDataWriter writer(len, buffer.get());
-    // Append random bytes. This randomness only exists to prevent middleboxes
-    // from comparing the entire packet to a known value. Therefore it has no
-    // cryptographic use, and does not need a secure cryptographic pseudo-random
-    // number generator. It's therefore safe to use WriteInsecureRandomBytes.
-    if (!writer.WriteInsecureRandomBytes(QuicRandom::GetInstance(),
-                                         len - kStatelessResetTokenLength)) {
-      QUIC_BUG(362045737_2) << "Failed to append random bytes of length: "
-                            << len - kStatelessResetTokenLength;
-      return nullptr;
-    }
-    // Change first 2 fixed bits to 01.
-    buffer[0] &= ~FLAGS_LONG_HEADER;
-    buffer[0] |= FLAGS_FIXED_BIT;
-
-    // Append stateless reset token.
-    if (!writer.WriteBytes(&stateless_reset_token,
-                           sizeof(stateless_reset_token))) {
-      QUIC_BUG(362045737_3) << "Failed to write stateless reset token";
-      return nullptr;
-    }
-    QUIC_RESTART_FLAG_COUNT(quic_fix_stateless_reset2);
-    return std::make_unique<QuicEncryptedPacket>(buffer.release(), len,
-                                                 /*owns_buffer=*/true);
-  }
-
-  size_t len = kPacketHeaderTypeSize + kMinRandomBytesLengthInStatelessReset +
-               sizeof(stateless_reset_token);
-  std::unique_ptr<char[]> buffer(new char[len]);
-  QuicDataWriter writer(len, buffer.get());
-
-  uint8_t type = 0;
-  type |= FLAGS_FIXED_BIT;
-  type |= FLAGS_SHORT_HEADER_RESERVED_1;
-  type |= FLAGS_SHORT_HEADER_RESERVED_2;
-  type |= PacketNumberLengthToOnWireValue(PACKET_1BYTE_PACKET_NUMBER);
-
-  // Append type byte.
-  if (!writer.WriteUInt8(type)) {
+  if (received_packet_length <= GetMinStatelessResetPacketLength()) {
+    QUICHE_DLOG(ERROR)
+        << "Tried to build stateless reset packet with received packet "
+           "length "
+        << received_packet_length;
     return nullptr;
   }
-
+  // To ensure stateless reset is indistinguishable from a valid packet,
+  // include the max connection ID length.
+  size_t len = std::min(received_packet_length - 1,
+                        GetMinStatelessResetPacketLength() + 1 +
+                            kQuicMaxConnectionIdWithLengthPrefixLength);
+  std::unique_ptr<char[]> buffer(new char[len]);
+  QuicDataWriter writer(len, buffer.get());
   // Append random bytes. This randomness only exists to prevent middleboxes
   // from comparing the entire packet to a known value. Therefore it has no
   // cryptographic use, and does not need a secure cryptographic pseudo-random
   // number generator. It's therefore safe to use WriteInsecureRandomBytes.
   if (!writer.WriteInsecureRandomBytes(QuicRandom::GetInstance(),
-                                       kMinRandomBytesLengthInStatelessReset)) {
+                                       len - kStatelessResetTokenLength)) {
+    QUIC_BUG(362045737_2) << "Failed to append random bytes of length: "
+                          << len - kStatelessResetTokenLength;
     return nullptr;
   }
+  // Change first 2 fixed bits to 01.
+  buffer[0] &= ~FLAGS_LONG_HEADER;
+  buffer[0] |= FLAGS_FIXED_BIT;
 
   // Append stateless reset token.
   if (!writer.WriteBytes(&stateless_reset_token,
                          sizeof(stateless_reset_token))) {
+    QUIC_BUG(362045737_3) << "Failed to write stateless reset token";
     return nullptr;
   }
-  return std::make_unique<QuicEncryptedPacket>(buffer.release(), len, true);
+  return std::make_unique<QuicEncryptedPacket>(buffer.release(), len,
+                                               /*owns_buffer=*/true);
 }
 
 // static

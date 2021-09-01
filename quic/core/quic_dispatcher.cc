@@ -1366,8 +1366,7 @@ bool QuicDispatcher::IsSupportedVersion(const ParsedQuicVersion version) {
 void QuicDispatcher::MaybeResetPacketsWithNoVersion(
     const ReceivedPacketInfo& packet_info) {
   QUICHE_DCHECK(!packet_info.version_flag);
-  if (GetQuicRestartFlag(quic_fix_stateless_reset2) &&
-      packet_info.form != GOOGLE_QUIC_PACKET) {
+  if (packet_info.form != GOOGLE_QUIC_PACKET) {
     // Drop IETF packets smaller than the minimal stateless reset length.
     if (packet_info.packet.length() <=
         QuicFramer::GetMinStatelessResetPacketLength()) {

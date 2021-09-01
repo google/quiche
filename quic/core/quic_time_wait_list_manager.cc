@@ -324,8 +324,7 @@ void QuicTimeWaitListManager::SendPublicReset(
   if (ietf_quic) {
     std::unique_ptr<QuicEncryptedPacket> ietf_reset_packet =
         BuildIetfStatelessResetPacket(connection_id, received_packet_length);
-    if (GetQuicRestartFlag(quic_fix_stateless_reset2) &&
-        ietf_reset_packet == nullptr) {
+    if (ietf_reset_packet == nullptr) {
       // This could happen when trying to reject a short header packet of
       // a connection which is in the time wait list (and with no termination
       // packet).
