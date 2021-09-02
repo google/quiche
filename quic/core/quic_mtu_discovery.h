@@ -27,9 +27,9 @@ static_assert(kMtuDiscoveryAttempts + 8 < 8 * sizeof(QuicPacketNumber),
 static_assert(kPacketsBetweenMtuProbesBase < (1 << 8),
               "The initial number of packets between MTU probes is too high");
 
-// The incresed packet size targeted when doing path MTU discovery.
-const QuicByteCount kMtuDiscoveryTargetPacketSizeHigh = 1450;
-const QuicByteCount kMtuDiscoveryTargetPacketSizeLow = 1430;
+// The increased packet size targeted when doing path MTU discovery.
+const QuicByteCount kMtuDiscoveryTargetPacketSizeHigh = 1400;
+const QuicByteCount kMtuDiscoveryTargetPacketSizeLow = 1380;
 
 static_assert(kMtuDiscoveryTargetPacketSizeLow <= kMaxOutgoingPacketSize,
               "MTU discovery target is too large");
