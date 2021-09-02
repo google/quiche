@@ -15,6 +15,23 @@
 
 namespace quic {
 
+namespace {
+
+uint32_t HashIP(const QuicIpAddress& ip) {
+  if (ip.IsIPv4()) {
+    return ip.GetIPv4().s_addr;
+  }
+  if (ip.IsIPv6()) {
+    auto v6addr = ip.GetIPv6();
+    const uint32_t* v6_as_ints =
+        reinterpret_cast<const uint32_t*>(&v6addr.s6_addr);
+    return v6_as_ints[0] ^ v6_as_ints[1] ^ v6_as_ints[2] ^ v6_as_ints[3];
+  }
+  return 0;
+}
+
+}  // namespace
+
 QuicSocketAddress::QuicSocketAddress(QuicIpAddress address, uint16_t port)
     : host_(address), port_(port) {}
 
@@ -129,6 +146,13 @@ sockaddr_storage QuicSocketAddress::generic_address() const {
       break;
   }
   return result.storage;
+}
+
+uint32_t QuicSocketAddress::Hash() const {
+  uint32_t value = 0;
+  value ^= HashIP(host_);
+  value ^= port_ | (port_ << 16);
+  return value;
 }
 
 }  // namespace quic

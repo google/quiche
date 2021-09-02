@@ -121,15 +121,12 @@ class TestDispatcher : public QuicDispatcher {
  public:
   TestDispatcher(const QuicConfig* config,
                  const QuicCryptoServerConfig* crypto_config,
-                 QuicVersionManager* version_manager,
-                 QuicRandom* random)
-      : QuicDispatcher(config,
-                       crypto_config,
-                       version_manager,
+                 QuicVersionManager* version_manager, QuicRandom* random)
+      : QuicDispatcher(config, crypto_config, version_manager,
                        std::make_unique<MockQuicConnectionHelper>(),
                        std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
                            new QuicSimpleCryptoServerStreamHelper()),
-                       std::make_unique<MockAlarmFactory>(),
+                       std::make_unique<TestAlarmFactory>(),
                        kQuicDefaultConnectionIdLength),
         random_(random) {}
 
@@ -499,6 +496,11 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   void TestVersionNegotiationForUnknownVersionInvalidShortInitialConnectionId(
       const QuicConnectionId& server_connection_id,
       const QuicConnectionId& client_connection_id);
+
+  TestAlarmFactory::TestAlarm* GetClearResetAddressesAlarm() {
+    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
+        QuicDispatcherPeer::GetClearResetAddressesAlarm(dispatcher_.get()));
+  }
 
   ParsedQuicVersion version_;
   MockQuicConnectionHelper mock_helper_;
@@ -963,6 +965,104 @@ TEST_P(QuicDispatcherTestOneVersion, DropPacketWithInvalidFlags) {
         .Times(1);
   }
   dispatcher_->ProcessPacket(server_address_, client_address, packet);
+}
+
+TEST_P(QuicDispatcherTestAllVersions, LimitResetsToSameClientAddress) {
+  CreateTimeWaitListManager();
+
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  QuicSocketAddress client_address2(QuicIpAddress::Loopback4(), 2);
+  QuicSocketAddress client_address3(QuicIpAddress::Loopback6(), 1);
+  QuicConnectionId connection_id = TestConnectionId(1);
+
+  if (GetQuicRestartFlag(quic_use_recent_reset_addresses)) {
+    // Verify only one reset is sent to the address, although multiple packets
+    // are received.
+    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+        .Times(1);
+  } else {
+    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+        .Times(3);
+  }
+  ProcessPacket(client_address, connection_id, /*has_version_flag=*/false,
+                "data");
+  ProcessPacket(client_address, connection_id, /*has_version_flag=*/false,
+                "data2");
+  ProcessPacket(client_address, connection_id, /*has_version_flag=*/false,
+                "data3");
+
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+      .Times(2);
+  ProcessPacket(client_address2, connection_id, /*has_version_flag=*/false,
+                "data");
+  ProcessPacket(client_address3, connection_id, /*has_version_flag=*/false,
+                "data");
+}
+
+TEST_P(QuicDispatcherTestAllVersions,
+       StopSendingResetOnTooManyRecentAddresses) {
+  SetQuicFlag(FLAGS_quic_max_recent_stateless_reset_addresses, 2);
+  const size_t kTestLifeTimeMs = 10;
+  SetQuicFlag(FLAGS_quic_recent_stateless_reset_addresses_lifetime_ms,
+              kTestLifeTimeMs);
+  CreateTimeWaitListManager();
+
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  QuicSocketAddress client_address2(QuicIpAddress::Loopback4(), 2);
+  QuicSocketAddress client_address3(QuicIpAddress::Loopback6(), 1);
+  QuicConnectionId connection_id = TestConnectionId(1);
+
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+      .Times(2);
+  EXPECT_FALSE(GetClearResetAddressesAlarm()->IsSet());
+  ProcessPacket(client_address, connection_id, /*has_version_flag=*/false,
+                "data");
+  const QuicTime expected_deadline =
+      mock_helper_.GetClock()->Now() +
+      QuicTime::Delta::FromMilliseconds(kTestLifeTimeMs);
+  if (GetQuicRestartFlag(quic_use_recent_reset_addresses)) {
+    ASSERT_TRUE(GetClearResetAddressesAlarm()->IsSet());
+    EXPECT_EQ(expected_deadline, GetClearResetAddressesAlarm()->deadline());
+  } else {
+    EXPECT_FALSE(GetClearResetAddressesAlarm()->IsSet());
+  }
+  // Received no version packet 2 after 5ms.
+  mock_helper_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  ProcessPacket(client_address2, connection_id, /*has_version_flag=*/false,
+                "data");
+  if (GetQuicRestartFlag(quic_use_recent_reset_addresses)) {
+    ASSERT_TRUE(GetClearResetAddressesAlarm()->IsSet());
+    // Verify deadline does not change.
+    EXPECT_EQ(expected_deadline, GetClearResetAddressesAlarm()->deadline());
+  } else {
+    EXPECT_FALSE(GetClearResetAddressesAlarm()->IsSet());
+  }
+  if (GetQuicRestartFlag(quic_use_recent_reset_addresses)) {
+    // Verify reset gets throttled since there are too many recent addresses.
+    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+        .Times(0);
+  } else {
+    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+        .Times(1);
+  }
+  ProcessPacket(client_address3, connection_id, /*has_version_flag=*/false,
+                "data");
+
+  mock_helper_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  if (GetQuicRestartFlag(quic_use_recent_reset_addresses)) {
+    GetClearResetAddressesAlarm()->Fire();
+    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+        .Times(2);
+  } else {
+    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+        .Times(3);
+  }
+  ProcessPacket(client_address, connection_id, /*has_version_flag=*/false,
+                "data");
+  ProcessPacket(client_address2, connection_id, /*has_version_flag=*/false,
+                "data");
+  ProcessPacket(client_address3, connection_id, /*has_version_flag=*/false,
+                "data");
 }
 
 // Makes sure nine-byte connection IDs are replaced by 8-byte ones.

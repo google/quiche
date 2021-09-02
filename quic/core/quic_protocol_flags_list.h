@@ -50,6 +50,20 @@ QUIC_PROTOCOL_FLAG(
     uint64_t, quic_time_wait_list_max_pending_packets, 1024,
     "Upper limit of pending packets in time wait list when writer is blocked.")
 
+// Stop sending a reset if the recorded number of addresses that server has
+// recently sent stateless reset to exceeds this limit.
+QUIC_PROTOCOL_FLAG(uint64_t, quic_max_recent_stateless_reset_addresses, 1024,
+                   "Max number of recorded recent reset addresses.");
+
+// After this timeout, recent reset addresses will be cleared.
+// FLAGS_quic_max_recent_stateless_reset_addresses * (1000ms /
+// FLAGS_quic_recent_stateless_reset_addresses_lifetime_ms) is roughly the max
+// reset per second. For example, 1024 * (1000ms / 1000ms) = 1K reset per
+// second.
+QUIC_PROTOCOL_FLAG(
+    uint64_t, quic_recent_stateless_reset_addresses_lifetime_ms, 1000,
+    "Max time that a client address lives in recent reset addresses set.");
+
 QUIC_PROTOCOL_FLAG(double,
                    quic_bbr_cwnd_gain,
                    2.0f,

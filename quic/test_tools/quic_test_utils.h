@@ -672,6 +672,33 @@ class MockAlarmFactory : public QuicAlarmFactory {
   }
 };
 
+class TestAlarmFactory : public QuicAlarmFactory {
+ public:
+  class TestAlarm : public QuicAlarm {
+   public:
+    explicit TestAlarm(QuicArenaScopedPtr<QuicAlarm::Delegate> delegate)
+        : QuicAlarm(std::move(delegate)) {}
+
+    void SetImpl() override {}
+    void CancelImpl() override {}
+    using QuicAlarm::Fire;
+  };
+
+  TestAlarmFactory() {}
+  TestAlarmFactory(const TestAlarmFactory&) = delete;
+  TestAlarmFactory& operator=(const TestAlarmFactory&) = delete;
+
+  QuicAlarm* CreateAlarm(QuicAlarm::Delegate* delegate) override {
+    return new TestAlarm(QuicArenaScopedPtr<QuicAlarm::Delegate>(delegate));
+  }
+
+  QuicArenaScopedPtr<QuicAlarm> CreateAlarm(
+      QuicArenaScopedPtr<QuicAlarm::Delegate> delegate,
+      QuicConnectionArena* arena) override {
+    return arena->New<TestAlarm>(std::move(delegate));
+  }
+};
+
 class MockQuicConnection : public QuicConnection {
  public:
   // Uses a ConnectionId of 42 and 127.0.0.1:123.

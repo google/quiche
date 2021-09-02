@@ -133,5 +133,11 @@ const QuicSession* QuicDispatcherPeer::FindSession(
              : it->second.get();
 }
 
+// static
+QuicAlarm* QuicDispatcherPeer::GetClearResetAddressesAlarm(
+    QuicDispatcher* dispatcher) {
+  return dispatcher->clear_stateless_reset_addresses_alarm_.get();
+}
+
 }  // namespace test
 }  // namespace quic

@@ -76,6 +76,8 @@ class QuicDispatcherPeer {
   // Find the corresponding session if exsits.
   static const QuicSession* FindSession(const QuicDispatcher* dispatcher,
                                         QuicConnectionId id);
+
+  static QuicAlarm* GetClearResetAddressesAlarm(QuicDispatcher* dispatcher);
 };
 
 }  // namespace test

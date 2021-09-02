@@ -179,33 +179,6 @@ class TestConnectionHelper : public QuicConnectionHelperInterface {
   SimpleBufferAllocator buffer_allocator_;
 };
 
-class TestAlarmFactory : public QuicAlarmFactory {
- public:
-  class TestAlarm : public QuicAlarm {
-   public:
-    explicit TestAlarm(QuicArenaScopedPtr<QuicAlarm::Delegate> delegate)
-        : QuicAlarm(std::move(delegate)) {}
-
-    void SetImpl() override {}
-    void CancelImpl() override {}
-    using QuicAlarm::Fire;
-  };
-
-  TestAlarmFactory() {}
-  TestAlarmFactory(const TestAlarmFactory&) = delete;
-  TestAlarmFactory& operator=(const TestAlarmFactory&) = delete;
-
-  QuicAlarm* CreateAlarm(QuicAlarm::Delegate* delegate) override {
-    return new TestAlarm(QuicArenaScopedPtr<QuicAlarm::Delegate>(delegate));
-  }
-
-  QuicArenaScopedPtr<QuicAlarm> CreateAlarm(
-      QuicArenaScopedPtr<QuicAlarm::Delegate> delegate,
-      QuicConnectionArena* arena) override {
-    return arena->New<TestAlarm>(std::move(delegate));
-  }
-};
-
 class TestConnection : public QuicConnection {
  public:
   TestConnection(QuicConnectionId connection_id,

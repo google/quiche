@@ -37,6 +37,9 @@ class QUIC_EXPORT_PRIVATE QuicSocketAddress {
   uint16_t port() const;
   sockaddr_storage generic_address() const;
 
+  // Hashes this address to an uint32_t.
+  uint32_t Hash() const;
+
  private:
   QuicIpAddress host_;
   uint16_t port_ = 0;
@@ -47,6 +50,13 @@ inline std::ostream& operator<<(std::ostream& os,
   os << address.ToString();
   return os;
 }
+
+class QUIC_EXPORT_PRIVATE QuicSocketAddressHash {
+ public:
+  size_t operator()(QuicSocketAddress const& address) const noexcept {
+    return address.Hash();
+  }
+};
 
 }  // namespace quic
 

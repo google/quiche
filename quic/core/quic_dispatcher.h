@@ -131,6 +131,9 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Deletes all sessions on the closed session list and clears the list.
   virtual void DeleteSessions();
 
+  // Clear recent_stateless_reset_addresses_.
+  void ClearStatelessResetAddresses();
+
   using ConnectionIdMap = absl::
       flat_hash_map<QuicConnectionId, QuicConnectionId, QuicConnectionIdHash>;
 
@@ -473,9 +476,19 @@ class QUIC_NO_EXPORT QuicDispatcher
   // version does not allow variable length connection ID.
   uint8_t expected_server_connection_id_length_;
 
+  // Records client addresses that have been recently reset.
+  absl::flat_hash_set<QuicSocketAddress, QuicSocketAddressHash>
+      recent_stateless_reset_addresses_;
+
+  // An alarm which clear recent_stateless_reset_addresses_.
+  std::unique_ptr<QuicAlarm> clear_stateless_reset_addresses_alarm_;
+
   // If true, change expected_server_connection_id_length_ to be the received
   // destination connection ID length of all IETF long headers.
   bool should_update_expected_server_connection_id_length_;
+
+  const bool use_recent_reset_addresses_ =
+      GetQuicRestartFlag(quic_use_recent_reset_addresses);
 
   const bool support_multiple_cid_per_connection_ =
       GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2) &&
