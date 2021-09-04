@@ -4,6 +4,8 @@
 
 #include "quic/core/quic_alarm.h"
 
+#include <atomic>
+
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
@@ -17,9 +19,9 @@ QuicAlarm::QuicAlarm(QuicArenaScopedPtr<Delegate> delegate)
 QuicAlarm::~QuicAlarm() {
   if (GetQuicRestartFlag(quic_alarm_add_permanent_cancel) && IsSet()) {
     QUIC_CODE_COUNT(quic_alarm_not_cancelled_in_dtor);
-    static uint64_t hit_count = 0;
-    ++hit_count;
-    if ((hit_count & (hit_count - 1)) == 0) {
+    static std::atomic<uint64_t> hit_count{0};
+    uint64_t old_count = hit_count.fetch_add(1, std::memory_order_relaxed);
+    if ((old_count & (old_count + 1)) == 0) {
       QUIC_LOG(ERROR) << "QuicAlarm not cancelled at destruction. "
                       << QuicStackTrace();
     }
