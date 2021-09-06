@@ -27,7 +27,7 @@ namespace quic {
 
 namespace {
 class QUIC_NO_EXPORT NoopWebTransportVisitor : public WebTransportVisitor {
-  void OnSessionReady() override {}
+  void OnSessionReady(const spdy::SpdyHeaderBlock&) override {}
   void OnIncomingBidirectionalStreamAvailable() override {}
   void OnIncomingUnidirectionalStreamAvailable() override {}
   void OnDatagramReceived(absl::string_view /*datagram*/) override {}
@@ -106,7 +106,7 @@ void WebTransportHttp3::HeadersReceived(const spdy::SpdyHeaderBlock& headers) {
 
   QUIC_DVLOG(1) << ENDPOINT << "WebTransport session " << id_ << " ready.";
   ready_ = true;
-  visitor_->OnSessionReady();
+  visitor_->OnSessionReady(headers);
   session_->ProcessBufferedWebTransportStreamsForSession(this);
 }
 

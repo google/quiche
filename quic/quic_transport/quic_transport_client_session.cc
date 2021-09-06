@@ -242,7 +242,7 @@ void QuicTransportClientSession::SendClientIndication() {
   }
 
   ready_ = true;
-  visitor_->OnSessionReady();
+  visitor_->OnSessionReady(spdy::SpdyHeaderBlock());
 }
 
 void QuicTransportClientSession::OnMessageReceived(absl::string_view message) {

@@ -141,7 +141,7 @@ class EchoWebTransportSessionVisitor : public WebTransportVisitor {
   EchoWebTransportSessionVisitor(WebTransportSession* session)
       : session_(session) {}
 
-  void OnSessionReady() override {
+  void OnSessionReady(const spdy::SpdyHeaderBlock&) override {
     if (session_->CanOpenNextOutgoingBidirectionalStream()) {
       OnCanCreateNewOutgoingBidirectionalStream();
     }

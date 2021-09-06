@@ -212,7 +212,7 @@ class QuicTransportIntegrationTest : public QuicTest {
 TEST_F(QuicTransportIntegrationTest, SuccessfulHandshake) {
   CreateDefaultEndpoints("/discard");
   WireUpEndpoints();
-  EXPECT_CALL(*client_->visitor(), OnSessionReady());
+  EXPECT_CALL(*client_->visitor(), OnSessionReady(_));
   RunHandshake();
   EXPECT_TRUE(client_->session()->IsSessionReady());
   EXPECT_TRUE(server_->session()->IsSessionReady());

@@ -16,6 +16,7 @@
 #include "quic/core/quic_datagram_queue.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
+#include "spdy/core/spdy_header_block.h"
 
 namespace quic {
 
@@ -84,7 +85,7 @@ class QUIC_EXPORT_PRIVATE WebTransportVisitor {
 
   // Notifies the visitor when the session is ready to exchange application
   // data.
-  virtual void OnSessionReady() = 0;
+  virtual void OnSessionReady(const spdy::SpdyHeaderBlock& headers) = 0;
 
   // Notifies the visitor when a new stream has been received.  The stream in
   // question can be retrieved using AcceptIncomingBidirectionalStream() or
