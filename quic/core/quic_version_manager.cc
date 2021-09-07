@@ -31,7 +31,9 @@ QuicVersionManager::QuicVersionManager(
       allowed_supported_versions_(std::move(supported_versions)) {
   static_assert(SupportedVersions().size() == 6u,
                 "Supported versions out of sync");
-  if (!lazy_) {
+  if (lazy_) {
+    QUIC_RESTART_FLAG_COUNT(quic_lazy_quic_version_manager);
+  } else {
     RefilterSupportedVersions();
   }
 }
