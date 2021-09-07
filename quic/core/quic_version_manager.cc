@@ -105,9 +105,4 @@ void QuicVersionManager::AddCustomAlpn(const std::string& alpn) {
   filtered_supported_alpns_.push_back(alpn);
 }
 
-bool QuicVersionManager::disable_version_q050() const {
-  return lazy_ ? GetQuicReloadableFlag(quic_disable_version_q050)
-               : disable_version_q050_;
-}
-
 }  // namespace quic

@@ -53,10 +53,6 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   // Must not be called elsewhere.
   void AddCustomAlpn(const std::string& alpn);
 
-  // TODO(dschinazi): Remove when deprecating
-  // FLAGS_gfe2_restart_flag_quic_disable_old_alt_svc_format.
-  bool disable_version_q050() const;
-
  private:
   // Cached value of gfe2_restart_flag_quic_lazy_quic_version_manager for
   // brevity.
