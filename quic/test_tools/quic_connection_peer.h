@@ -216,6 +216,9 @@ class QuicConnectionPeer {
 
   static QuicSelfIssuedConnectionIdManager* GetSelfIssuedConnectionIdManager(
       QuicConnection* connection);
+
+  static std::unique_ptr<QuicSelfIssuedConnectionIdManager>
+  MakeSelfIssuedConnectionIdManager(QuicConnection* connection);
 };
 
 }  // namespace test

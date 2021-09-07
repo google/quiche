@@ -528,5 +528,12 @@ QuicConnectionPeer::GetSelfIssuedConnectionIdManager(
   return connection->self_issued_cid_manager_.get();
 }
 
+// static
+std::unique_ptr<QuicSelfIssuedConnectionIdManager>
+QuicConnectionPeer::MakeSelfIssuedConnectionIdManager(
+    QuicConnection* connection) {
+  return connection->MakeSelfIssuedConnectionIdManager();
+}
+
 }  // namespace test
 }  // namespace quic
