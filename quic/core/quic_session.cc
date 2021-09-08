@@ -147,8 +147,8 @@ void QuicSession::Initialize() {
       connection_->set_can_receive_ack_frequency_frame();
       config_.SetMinAckDelayMs(kDefaultMinAckDelayTimeMs);
     }
-    if (config_.HasClientRequestedIndependentOption(kBPTE, perspective_)) {
-      permutes_tls_extensions_ = true;
+    if (config_.HasClientRequestedIndependentOption(kNBPE, perspective_)) {
+      permutes_tls_extensions_ = false;
     }
   }
 

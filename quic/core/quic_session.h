@@ -958,7 +958,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool liveness_testing_in_progress_;
 
   // Whether BoringSSL randomizes the order of TLS extensions.
-  bool permutes_tls_extensions_ = false;
+  bool permutes_tls_extensions_ = true;
 
   const bool quic_tls_disable_resumption_refactor_ =
       GetQuicReloadableFlag(quic_tls_disable_resumption_refactor);

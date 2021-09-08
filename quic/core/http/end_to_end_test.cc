@@ -5644,7 +5644,7 @@ class CopyingPacketWriter : public PacketDroppingTestWriter {
   std::vector<std::unique_ptr<QuicEncryptedPacket>> packets_;
 };
 
-TEST_P(EndToEndTest, ChaosProtection) {
+TEST_P(EndToEndTest, ChaosProtectionDisabled) {
   if (!version_.UsesCryptoFrames()) {
     ASSERT_TRUE(Initialize());
     return;
@@ -5653,8 +5653,8 @@ TEST_P(EndToEndTest, ChaosProtection) {
   auto copying_writer = new CopyingPacketWriter(1);
   delete client_writer_;
   client_writer_ = copying_writer;
-  // Enable chaos protection and perform an HTTP request.
-  client_config_.SetClientConnectionOptions(QuicTagVector{kCHSP});
+  // Disable chaos protection and perform an HTTP request.
+  client_config_.SetClientConnectionOptions(QuicTagVector{kNCHP});
   ASSERT_TRUE(Initialize());
   SendSynchronousFooRequestAndCheckResponse();
   // Parse the saved packet to make sure it's valid.
@@ -5667,31 +5667,15 @@ TEST_P(EndToEndTest, ChaosProtection) {
   // can inspect the contents of this packet.
 }
 
-TEST_P(EndToEndTest, ChaosProtectionWithMultiPacketChlo) {
-  if (!version_.UsesCryptoFrames()) {
-    ASSERT_TRUE(Initialize());
-    return;
-  }
-  // Enable chaos protection.
-  client_config_.SetClientConnectionOptions(QuicTagVector{kCHSP});
-  // Add a transport parameter to make the client hello span multiple packets.
-  constexpr auto kCustomParameter =
-      static_cast<TransportParameters::TransportParameterId>(0xff34);
-  client_config_.custom_transport_parameters_to_send()[kCustomParameter] =
-      std::string(2000, '?');
-  ASSERT_TRUE(Initialize());
-  SendSynchronousFooRequestAndCheckResponse();
-}
-
-TEST_P(EndToEndTest, PermuteTlsExtensions) {
+TEST_P(EndToEndTest, DisablePermuteTlsExtensions) {
   if (!version_.UsesTls()) {
     ASSERT_TRUE(Initialize());
     return;
   }
-  // Enable TLS extension permutation and perform an HTTP request.
-  client_config_.SetClientConnectionOptions(QuicTagVector{kBPTE});
+  // Disable TLS extension permutation and perform an HTTP request.
+  client_config_.SetClientConnectionOptions(QuicTagVector{kNBPE});
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(GetClientSession()->permutes_tls_extensions());
+  EXPECT_FALSE(GetClientSession()->permutes_tls_extensions());
   SendSynchronousFooRequestAndCheckResponse();
 }
 

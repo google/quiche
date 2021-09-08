@@ -74,13 +74,14 @@ bool TlsClientHandshaker::CryptoConnect() {
 
   // TODO(b/193650832) Add SetFromConfig to QUIC handshakers and remove reliance
   // on session pointer.
-  if (session()->permutes_tls_extensions()) {
-    // Ask BoringSSL to randomize the order of TLS extensions.
-#if BORINGSSL_API_VERSION >= 16
-    QUIC_DLOG(INFO) << "Enabling TLS extension permutation";
-    SSL_set_permute_extensions(ssl(), true);
-#endif  // BORINGSSL_API_VERSION
+  const bool permutes_tls_extensions = session()->permutes_tls_extensions();
+  if (!permutes_tls_extensions) {
+    QUIC_DLOG(INFO) << "Disabling TLS extension permutation";
   }
+#if BORINGSSL_API_VERSION >= 16
+  // Ask BoringSSL to randomize the order of TLS extensions.
+  SSL_set_permute_extensions(ssl(), permutes_tls_extensions);
+#endif  // BORINGSSL_API_VERSION
 
   // Set the SNI to send, if any.
   SSL_set_connect_state(ssl());

@@ -109,8 +109,7 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
                         delegate) {}
 
 QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
-                                     QuicFramer* framer,
-                                     QuicRandom* random,
+                                     QuicFramer* framer, QuicRandom* random,
                                      DelegateInterface* delegate)
     : delegate_(delegate),
       debug_delegate_(nullptr),
@@ -123,11 +122,7 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       packet_size_(0),
       server_connection_id_(server_connection_id),
       client_connection_id_(EmptyQuicConnectionId()),
-      packet_(QuicPacketNumber(),
-              PACKET_1BYTE_PACKET_NUMBER,
-              nullptr,
-              0,
-              false,
+      packet_(QuicPacketNumber(), PACKET_1BYTE_PACKET_NUMBER, nullptr, 0, false,
               false),
       pending_padding_bytes_(0),
       needs_full_padding_(false),
@@ -136,7 +131,8 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       fully_pad_crypto_handshake_packets_(true),
       latched_hard_max_packet_length_(0),
       max_datagram_frame_size_(0),
-      chaos_protection_enabled_(false) {
+      chaos_protection_enabled_(framer->perspective() ==
+                                Perspective::IS_CLIENT) {
   SetMaxPacketLength(kDefaultMaxPacketSize);
   if (!framer_->version().UsesTls()) {
     // QUIC+TLS negotiates the maximum datagram frame size via the

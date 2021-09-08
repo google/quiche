@@ -28,7 +28,8 @@ using ServerConfigID = std::string;
 
 // The following tags have been deprecated and should not be reused:
 // "1CON", "BBQ4", "NCON", "RCID", "SREJ", "TBKP", "TB10", "SCLS", "SMHL",
-// "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS", "QNSP", "B2CL"
+// "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS", "QNSP", "B2CL", "CHSP",
+// "BPTE"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
@@ -340,8 +341,8 @@ const QuicTag kMTUL = TAG('M', 'T', 'U', 'L');  // Low-target MTU discovery.
 
 const QuicTag kNSLC = TAG('N', 'S', 'L', 'C');  // Always send connection close
                                                 // for idle timeout.
-const QuicTag kCHSP = TAG('C', 'H', 'S', 'P');  // Chaos protection.
-const QuicTag kBPTE = TAG('B', 'P', 'T', 'E');  // BoringSSL Permutes
+const QuicTag kNCHP = TAG('N', 'C', 'H', 'P');  // No chaos protection.
+const QuicTag kNBPE = TAG('N', 'B', 'P', 'E');  // No BoringSSL Permutes
                                                 // TLS Extensions.
 
 // Proof types (i.e. certificate types)
