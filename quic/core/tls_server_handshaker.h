@@ -313,6 +313,11 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   }
   QuicTime now() const { return session()->GetClock()->Now(); }
 
+  QuicConnectionContext* connection_context() {
+    QUICHE_DCHECK(restore_connection_context_in_callbacks_);
+    return session()->connection()->context();
+  }
+
   std::unique_ptr<ProofSourceHandle> proof_source_handle_;
   ProofSource* proof_source_;
 
@@ -357,6 +362,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       crypto_negotiated_params_;
   TlsServerConnection tls_connection_;
   const QuicCryptoServerConfig* crypto_config_;  // Unowned.
+  const bool restore_connection_context_in_callbacks_ =
+      GetQuicReloadableFlag(quic_tls_restore_connection_context_in_callbacks);
 };
 
 }  // namespace quic

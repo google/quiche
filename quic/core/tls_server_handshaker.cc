@@ -143,6 +143,21 @@ void TlsServerHandshaker::DecryptCallback::Run(std::vector<uint8_t> plaintext) {
   handshaker_ = nullptr;
 
   handshaker->decrypted_session_ticket_ = std::move(plaintext);
+  const bool is_async =
+      (handshaker->expected_ssl_error() == SSL_ERROR_PENDING_TICKET);
+
+  absl::optional<QuicConnectionContextSwitcher> context_switcher;
+  if (handshaker->restore_connection_context_in_callbacks_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_tls_restore_connection_context_in_callbacks, 1, 3);
+    if (is_async) {
+      context_switcher.emplace(handshaker->connection_context());
+    }
+    QUIC_TRACESTRING(
+        absl::StrCat("TLS ticket decryption done. len(decrypted_ticket):",
+                     handshaker->decrypted_session_ticket_.size()));
+  }
+
   // DecryptCallback::Run could be called synchronously. When that happens, we
   // are currently in the middle of a call to AdvanceHandshake.
   // (AdvanceHandshake called SSL_do_handshake, which through some layers
@@ -154,7 +169,7 @@ void TlsServerHandshaker::DecryptCallback::Run(std::vector<uint8_t> plaintext) {
   // is pending), TlsServerHandshaker is not actively processing handshake
   // messages. We need to have it resume processing handshake messages by
   // calling AdvanceHandshake.
-  if (handshaker->expected_ssl_error() == SSL_ERROR_PENDING_TICKET) {
+  if (is_async) {
     handshaker->AdvanceHandshakeFromCallback();
   }
 
@@ -668,6 +683,19 @@ void TlsServerHandshaker::OnComputeSignatureDone(
   QUIC_DVLOG(1) << "OnComputeSignatureDone. ok:" << ok
                 << ", is_sync:" << is_sync
                 << ", len(signature):" << signature.size();
+  absl::optional<QuicConnectionContextSwitcher> context_switcher;
+  if (restore_connection_context_in_callbacks_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_tls_restore_connection_context_in_callbacks, 2, 3);
+
+    if (!is_sync) {
+      context_switcher.emplace(connection_context());
+    }
+
+    QUIC_TRACESTRING(absl::StrCat("TLS compute signature done. ok:", ok,
+                                  ", len(signature):", signature.size()));
+  }
+
   if (ok) {
     cert_verify_sig_ = std::move(signature);
     proof_source_details_ = std::move(details);
@@ -935,6 +963,20 @@ void TlsServerHandshaker::OnSelectCertificateDone(
                 << ", len(handshake_hints):" << handshake_hints.size()
                 << ", len(ticket_encryption_key):"
                 << ticket_encryption_key.size();
+  absl::optional<QuicConnectionContextSwitcher> context_switcher;
+  if (restore_connection_context_in_callbacks_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_tls_restore_connection_context_in_callbacks, 3, 3);
+
+    if (!is_sync) {
+      context_switcher.emplace(connection_context());
+    }
+
+    QUIC_TRACESTRING(absl::StrCat(
+        "TLS select certificate done: ok:", ok,
+        ", len(handshake_hints):", handshake_hints.size(),
+        ", len(ticket_encryption_key):", ticket_encryption_key.size()));
+  }
   ticket_encryption_key_ = std::string(ticket_encryption_key);
   select_cert_status_ = QUIC_FAILURE;
   if (ok) {
