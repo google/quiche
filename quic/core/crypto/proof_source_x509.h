@@ -37,8 +37,8 @@ class QUIC_EXPORT_PRIVATE ProofSourceX509 : public ProofSource {
                 std::unique_ptr<Callback> callback) override;
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
-      const QuicSocketAddress& client_address,
-      const std::string& hostname) override;
+      const QuicSocketAddress& client_address, const std::string& hostname,
+      bool* cert_matched_sni) override;
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
       const QuicSocketAddress& client_address, const std::string& hostname,
@@ -65,7 +65,8 @@ class QUIC_EXPORT_PRIVATE ProofSourceX509 : public ProofSource {
 
   // Looks up certficiate for hostname, returns the default if no certificate is
   // found.
-  Certificate* GetCertificate(const std::string& hostname) const;
+  Certificate* GetCertificate(const std::string& hostname,
+                              bool* cert_matched_sni) const;
 
   std::forward_list<Certificate> certificates_;
   Certificate* default_certificate_;

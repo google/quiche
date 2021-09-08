@@ -77,13 +77,15 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
     return QUIC_FAILURE;
   }
 
+  bool cert_matched_sni;
   QuicReferenceCountedPointer<ProofSource::Chain> chain =
-      proof_source_->GetCertChain(server_address, client_address, hostname);
+      proof_source_->GetCertChain(server_address, client_address, hostname,
+                                  &cert_matched_sni);
 
   handshaker_->OnSelectCertificateDone(
       /*ok=*/true, /*is_sync=*/true, chain.get(),
       /*handshake_hints=*/absl::string_view(),
-      /*ticket_encryption_key=*/absl::string_view());
+      /*ticket_encryption_key=*/absl::string_view(), cert_matched_sni);
   if (!handshaker_->select_cert_status().has_value()) {
     QUIC_BUG(quic_bug_12423_1)
         << "select_cert_status() has no value after a synchronous select cert";
@@ -356,6 +358,8 @@ bool TlsServerHandshaker::ValidateAddressToken(absl::string_view token) const {
 bool TlsServerHandshaker::ShouldSendExpectCTHeader() const {
   return false;
 }
+
+bool TlsServerHandshaker::DidCertMatchSni() const { return cert_matched_sni_; }
 
 const ProofSource::Details* TlsServerHandshaker::ProofSourceDetails() const {
   return proof_source_details_.get();
@@ -956,8 +960,8 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
 
 void TlsServerHandshaker::OnSelectCertificateDone(
     bool ok, bool is_sync, const ProofSource::Chain* chain,
-    absl::string_view handshake_hints,
-    absl::string_view ticket_encryption_key) {
+    absl::string_view handshake_hints, absl::string_view ticket_encryption_key,
+    bool cert_matched_sni) {
   QUIC_DVLOG(1) << "OnSelectCertificateDone. ok:" << ok
                 << ", is_sync:" << is_sync
                 << ", len(handshake_hints):" << handshake_hints.size()
@@ -979,6 +983,7 @@ void TlsServerHandshaker::OnSelectCertificateDone(
   }
   ticket_encryption_key_ = std::string(ticket_encryption_key);
   select_cert_status_ = QUIC_FAILURE;
+  cert_matched_sni_ = cert_matched_sni;
   if (ok) {
     if (chain && !chain->certs.empty()) {
       tls_connection_.SetCertChain(chain->ToCryptoBuffers().value);

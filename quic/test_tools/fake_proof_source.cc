@@ -96,9 +96,10 @@ void FakeProofSource::GetProof(
 
 QuicReferenceCountedPointer<ProofSource::Chain> FakeProofSource::GetCertChain(
     const QuicSocketAddress& server_address,
-    const QuicSocketAddress& client_address,
-    const std::string& hostname) {
-  return delegate_->GetCertChain(server_address, client_address, hostname);
+    const QuicSocketAddress& client_address, const std::string& hostname,
+    bool* cert_matched_sni) {
+  return delegate_->GetCertChain(server_address, client_address, hostname,
+                                 cert_matched_sni);
 }
 
 void FakeProofSource::ComputeTlsSignature(

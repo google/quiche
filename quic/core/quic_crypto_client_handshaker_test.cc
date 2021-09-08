@@ -77,18 +77,20 @@ class DummyProofSource : public ProofSource {
                 QuicTransportVersion /*transport_version*/,
                 absl::string_view /*chlo_hash*/,
                 std::unique_ptr<Callback> callback) override {
-    QuicReferenceCountedPointer<ProofSource::Chain> chain =
-        GetCertChain(server_address, client_address, hostname);
+    bool cert_matched_sni;
+    QuicReferenceCountedPointer<ProofSource::Chain> chain = GetCertChain(
+        server_address, client_address, hostname, &cert_matched_sni);
     QuicCryptoProof proof;
     proof.signature = "Dummy signature";
     proof.leaf_cert_scts = "Dummy timestamp";
+    proof.cert_matched_sni = cert_matched_sni;
     callback->Run(true, chain, proof, /*details=*/nullptr);
   }
 
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& /*server_address*/,
       const QuicSocketAddress& /*client_address*/,
-      const std::string& /*hostname*/) override {
+      const std::string& /*hostname*/, bool* /*cert_matched_sni*/) override {
     std::vector<std::string> certs;
     certs.push_back("Dummy cert");
     return QuicReferenceCountedPointer<ProofSource::Chain>(

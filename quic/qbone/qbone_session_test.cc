@@ -79,9 +79,9 @@ class IndirectionProofSource : public ProofSource {
                 absl::string_view chlo_hash,
                 std::unique_ptr<Callback> callback) override {
     if (!proof_source_) {
-      QuicReferenceCountedPointer<ProofSource::Chain> chain =
-          GetCertChain(server_address, client_address, hostname);
       QuicCryptoProof proof;
+      QuicReferenceCountedPointer<ProofSource::Chain> chain = GetCertChain(
+          server_address, client_address, hostname, &proof.cert_matched_sni);
       callback->Run(/*ok=*/false, chain, proof, /*details=*/nullptr);
       return;
     }
@@ -92,13 +92,13 @@ class IndirectionProofSource : public ProofSource {
 
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
-      const QuicSocketAddress& client_address,
-      const std::string& hostname) override {
+      const QuicSocketAddress& client_address, const std::string& hostname,
+      bool* cert_matched_sni) override {
     if (!proof_source_) {
       return QuicReferenceCountedPointer<Chain>();
     }
-    return proof_source_->GetCertChain(server_address, client_address,
-                                       hostname);
+    return proof_source_->GetCertChain(server_address, client_address, hostname,
+                                       cert_matched_sni);
   }
 
   void ComputeTlsSignature(

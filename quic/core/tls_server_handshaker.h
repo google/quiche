@@ -62,6 +62,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   bool ValidateAddressToken(absl::string_view token) const override;
   void OnNewTokenReceived(absl::string_view token) override;
   bool ShouldSendExpectCTHeader() const override;
+  bool DidCertMatchSni() const override;
   const ProofSource::Details* ProofSourceDetails() const override;
 
   // From QuicCryptoServerStreamBase and TlsHandshaker
@@ -169,10 +170,11 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   bool HasValidSignature(size_t max_signature_size) const;
 
   // ProofSourceHandleCallback implementation:
-  void OnSelectCertificateDone(
-      bool ok, bool is_sync, const ProofSource::Chain* chain,
-      absl::string_view handshake_hints,
-      absl::string_view ticket_encryption_key) override;
+  void OnSelectCertificateDone(bool ok, bool is_sync,
+                               const ProofSource::Chain* chain,
+                               absl::string_view handshake_hints,
+                               absl::string_view ticket_encryption_key,
+                               bool cert_matched_sni) override;
 
   void OnComputeSignatureDone(
       bool ok,
@@ -364,6 +366,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   const QuicCryptoServerConfig* crypto_config_;  // Unowned.
   const bool restore_connection_context_in_callbacks_ =
       GetQuicReloadableFlag(quic_tls_restore_connection_context_in_callbacks);
+
+  bool cert_matched_sni_ = false;
 };
 
 }  // namespace quic

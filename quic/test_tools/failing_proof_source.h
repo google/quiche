@@ -23,8 +23,8 @@ class FailingProofSource : public ProofSource {
 
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
-      const QuicSocketAddress& client_address,
-      const std::string& hostname) override;
+      const QuicSocketAddress& client_address, const std::string& hostname,
+      bool* cert_matched_sni) override;
 
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,

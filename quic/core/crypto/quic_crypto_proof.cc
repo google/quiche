@@ -6,6 +6,7 @@
 
 namespace quic {
 
-QuicCryptoProof::QuicCryptoProof() : send_expect_ct_header(false) {}
+QuicCryptoProof::QuicCryptoProof()
+    : send_expect_ct_header(false), cert_matched_sni(false) {}
 
 }  // namespace quic

@@ -145,10 +145,13 @@ class QUIC_EXPORT_PRIVATE ProofSource {
                         std::unique_ptr<Callback> callback) = 0;
 
   // Returns the certificate chain for |hostname| in leaf-first order.
+  //
+  // Sets *cert_matched_sni to true if the certificate matched the given
+  // hostname, false if a default cert not matching the hostname was used.
   virtual QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
-      const QuicSocketAddress& client_address,
-      const std::string& hostname) = 0;
+      const QuicSocketAddress& client_address, const std::string& hostname,
+      bool* cert_matched_sni) = 0;
 
   // Computes a signature using the private key of the certificate for
   // |hostname|. The value in |in| is signed using the algorithm specified by
@@ -247,13 +250,16 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandleCallback {
   //      SSL_set_handshake_hints.
   // |ticket_encryption_key| (optional) encryption key to be used for minting
   //      TLS resumption tickets.
+  // |cert_matched_sni| is true if the certificate matched the SNI hostname,
+  //      false if a non-matching default cert was used.
   //
   // When called asynchronously(is_sync=false), this method will be responsible
   // to continue the handshake from where it left off.
-  virtual void OnSelectCertificateDone(
-      bool ok, bool is_sync, const ProofSource::Chain* chain,
-      absl::string_view handshake_hints,
-      absl::string_view ticket_encryption_key) = 0;
+  virtual void OnSelectCertificateDone(bool ok, bool is_sync,
+                                       const ProofSource::Chain* chain,
+                                       absl::string_view handshake_hints,
+                                       absl::string_view ticket_encryption_key,
+                                       bool cert_matched_sni) = 0;
 
   // Called when a ProofSourceHandle::ComputeSignature operation completes.
   virtual void OnComputeSignatureDone(

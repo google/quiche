@@ -352,6 +352,10 @@ bool QuicCryptoServerStream::ShouldSendExpectCTHeader() const {
   return signed_config_->proof.send_expect_ct_header;
 }
 
+bool QuicCryptoServerStream::DidCertMatchSni() const {
+  return signed_config_->proof.cert_matched_sni;
+}
+
 const ProofSource::Details* QuicCryptoServerStream::ProofSourceDetails() const {
   return proof_source_details_.get();
 }

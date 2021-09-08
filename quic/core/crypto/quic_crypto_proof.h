@@ -22,6 +22,9 @@ struct QUIC_EXPORT_PRIVATE QuicCryptoProof {
   // Should the Expect-CT header be sent on the connection where the
   // certificate is used.
   bool send_expect_ct_header;
+  // Did the selected leaf certificate contain a SubjectAltName that included
+  // the requested SNI.
+  bool cert_matched_sni;
 };
 
 }  // namespace quic

@@ -71,40 +71,47 @@ TEST_F(ProofSourceX509Test, CertificateSelection) {
                                                 std::move(*wildcard_key_)));
 
   // Default certificate.
+  bool cert_matched_sni;
   EXPECT_EQ(proof_source
                 ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
-                               "unknown.test")
+                               "unknown.test", &cert_matched_sni)
                 ->certs[0],
             kTestCertificate);
+  EXPECT_FALSE(cert_matched_sni);
   // mail.example.org is explicitly a SubjectAltName in kTestCertificate.
   EXPECT_EQ(proof_source
                 ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
-                               "mail.example.org")
+                               "mail.example.org", &cert_matched_sni)
                 ->certs[0],
             kTestCertificate);
+  EXPECT_TRUE(cert_matched_sni);
   // www.foo.test is in kWildcardCertificate.
   EXPECT_EQ(proof_source
                 ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
-                               "www.foo.test")
+                               "www.foo.test", &cert_matched_sni)
                 ->certs[0],
             kWildcardCertificate);
+  EXPECT_TRUE(cert_matched_sni);
   // *.wildcard.test is in kWildcardCertificate.
   EXPECT_EQ(proof_source
                 ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
-                               "www.wildcard.test")
+                               "www.wildcard.test", &cert_matched_sni)
                 ->certs[0],
             kWildcardCertificate);
+  EXPECT_TRUE(cert_matched_sni);
   EXPECT_EQ(proof_source
                 ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
-                               "etc.wildcard.test")
+                               "etc.wildcard.test", &cert_matched_sni)
                 ->certs[0],
             kWildcardCertificate);
+  EXPECT_TRUE(cert_matched_sni);
   // wildcard.test itself is not in kWildcardCertificate.
   EXPECT_EQ(proof_source
                 ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
-                               "wildcard.test")
+                               "wildcard.test", &cert_matched_sni)
                 ->certs[0],
             kTestCertificate);
+  EXPECT_FALSE(cert_matched_sni);
 }
 
 TEST_F(ProofSourceX509Test, TlsSignature) {

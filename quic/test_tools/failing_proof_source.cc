@@ -22,7 +22,8 @@ void FailingProofSource::GetProof(const QuicSocketAddress& /*server_address*/,
 QuicReferenceCountedPointer<ProofSource::Chain>
 FailingProofSource::GetCertChain(const QuicSocketAddress& /*server_address*/,
                                  const QuicSocketAddress& /*client_address*/,
-                                 const std::string& /*hostname*/) {
+                                 const std::string& /*hostname*/,
+                                 bool* /*cert_matched_sni*/) {
   return QuicReferenceCountedPointer<Chain>();
 }
 

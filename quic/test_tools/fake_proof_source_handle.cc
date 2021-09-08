@@ -94,19 +94,23 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
     callback()->OnSelectCertificateDone(
         /*ok=*/false,
         /*is_sync=*/true, nullptr, /*handshake_hints=*/absl::string_view(),
-        /*ticket_encryption_key=*/absl::string_view());
+        /*ticket_encryption_key=*/absl::string_view(),
+        /*cert_matched_sni=*/false);
     return QUIC_FAILURE;
   }
 
   QUICHE_DCHECK(select_cert_action_ == Action::DELEGATE_SYNC);
+  bool cert_matched_sni;
   QuicReferenceCountedPointer<ProofSource::Chain> chain =
-      delegate_->GetCertChain(server_address, client_address, hostname);
+      delegate_->GetCertChain(server_address, client_address, hostname,
+                              &cert_matched_sni);
 
   bool ok = chain && !chain->certs.empty();
   callback_->OnSelectCertificateDone(
       ok, /*is_sync=*/true, chain.get(),
       /*handshake_hints=*/absl::string_view(),
-      /*ticket_encryption_key=*/absl::string_view());
+      /*ticket_encryption_key=*/absl::string_view(),
+      /*cert_matched_sni=*/cert_matched_sni);
   return ok ? QUIC_SUCCESS : QUIC_FAILURE;
 }
 
@@ -182,16 +186,19 @@ void FakeProofSourceHandle::SelectCertOperation::Run() {
         /*ok=*/false,
         /*is_sync=*/false, nullptr,
         /*handshake_hints=*/absl::string_view(),
-        /*ticket_encryption_key=*/absl::string_view());
+        /*ticket_encryption_key=*/absl::string_view(),
+        /*cert_matched_sni=*/false);
   } else if (action_ == Action::DELEGATE_ASYNC) {
+    bool cert_matched_sni;
     QuicReferenceCountedPointer<ProofSource::Chain> chain =
         delegate_->GetCertChain(args_.server_address, args_.client_address,
-                                args_.hostname);
+                                args_.hostname, &cert_matched_sni);
     bool ok = chain && !chain->certs.empty();
     callback_->OnSelectCertificateDone(
         ok, /*is_sync=*/false, chain.get(),
         /*handshake_hints=*/absl::string_view(),
-        /*ticket_encryption_key=*/absl::string_view());
+        /*ticket_encryption_key=*/absl::string_view(),
+        /*cert_matched_sni=*/cert_matched_sni);
   } else {
     QUIC_BUG(quic_bug_10139_1)
         << "Unexpected action: " << static_cast<int>(action_);

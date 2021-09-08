@@ -53,7 +53,7 @@ void ProofSourceX509::GetProof(
     return;
   }
 
-  Certificate* certificate = GetCertificate(hostname);
+  Certificate* certificate = GetCertificate(hostname, &proof.cert_matched_sni);
   proof.signature =
       certificate->key.Sign(absl::string_view(payload.get(), payload_size),
                             SSL_SIGN_RSA_PSS_RSAE_SHA256);
@@ -63,9 +63,9 @@ void ProofSourceX509::GetProof(
 
 QuicReferenceCountedPointer<ProofSource::Chain> ProofSourceX509::GetCertChain(
     const QuicSocketAddress& /*server_address*/,
-    const QuicSocketAddress& /*client_address*/,
-    const std::string& hostname) {
-  return GetCertificate(hostname)->chain;
+    const QuicSocketAddress& /*client_address*/, const std::string& hostname,
+    bool* cert_matched_sni) {
+  return GetCertificate(hostname, cert_matched_sni)->chain;
 }
 
 void ProofSourceX509::ComputeTlsSignature(
@@ -75,8 +75,9 @@ void ProofSourceX509::ComputeTlsSignature(
     uint16_t signature_algorithm,
     absl::string_view in,
     std::unique_ptr<ProofSource::SignatureCallback> callback) {
-  std::string signature =
-      GetCertificate(hostname)->key.Sign(in, signature_algorithm);
+  bool cert_matched_sni;
+  std::string signature = GetCertificate(hostname, &cert_matched_sni)
+                              ->key.Sign(in, signature_algorithm);
   callback->Run(/*ok=*/!signature.empty(), signature, nullptr);
 }
 
@@ -125,9 +126,10 @@ bool ProofSourceX509::AddCertificateChain(
 }
 
 ProofSourceX509::Certificate* ProofSourceX509::GetCertificate(
-    const std::string& hostname) const {
+    const std::string& hostname, bool* cert_matched_sni) const {
   auto it = certificate_map_.find(hostname);
   if (it != certificate_map_.end()) {
+    *cert_matched_sni = true;
     return it->second;
   }
   auto dot_pos = hostname.find('.');
@@ -135,9 +137,11 @@ ProofSourceX509::Certificate* ProofSourceX509::GetCertificate(
     std::string wildcard = absl::StrCat("*", hostname.substr(dot_pos));
     it = certificate_map_.find(wildcard);
     if (it != certificate_map_.end()) {
+      *cert_matched_sni = true;
       return it->second;
     }
   }
+  *cert_matched_sni = false;
   return default_certificate_;
 }
 
