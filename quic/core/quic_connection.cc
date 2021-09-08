@@ -3122,7 +3122,11 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
   if (perspective_ == Perspective::IS_SERVER &&
       encryption_level_ == ENCRYPTION_INITIAL &&
       last_size_ > packet_creator_.max_packet_length()) {
-    SetMaxPacketLength(last_size_);
+    if (GetQuicFlag(FLAGS_quic_use_lower_server_response_mtu_for_test)) {
+      SetMaxPacketLength(std::min(last_size_, QuicByteCount(1250)));
+    } else {
+      SetMaxPacketLength(last_size_);
+    }
   }
   return true;
 }

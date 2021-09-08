@@ -2832,6 +2832,18 @@ TEST_P(QuicConnectionTest, SmallerServerMaxPacketSize) {
   EXPECT_EQ(1000u, connection.max_packet_length());
 }
 
+TEST_P(QuicConnectionTest, LowerServerResponseMtuTest) {
+  set_perspective(Perspective::IS_SERVER);
+  connection_.SetMaxPacketLength(1000);
+  EXPECT_EQ(1000u, connection_.max_packet_length());
+
+  SetQuicFlag(FLAGS_quic_use_lower_server_response_mtu_for_test, true);
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(::testing::AtMost(1));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(::testing::AtMost(1));
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+  EXPECT_EQ(1250u, connection_.max_packet_length());
+}
+
 TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
   set_perspective(Perspective::IS_SERVER);
   connection_.SetMaxPacketLength(1000);

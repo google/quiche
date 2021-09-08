@@ -281,4 +281,6 @@ QUIC_PROTOCOL_FLAG(
     false,
     "If true, always reject retry_token received in INITIAL packets")
 
+QUIC_PROTOCOL_FLAG(bool, quic_use_lower_server_response_mtu_for_test, false,
+                   "If true, cap server response packet size at 1250.")
 #endif
