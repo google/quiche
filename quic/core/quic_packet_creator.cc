@@ -131,8 +131,9 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       fully_pad_crypto_handshake_packets_(true),
       latched_hard_max_packet_length_(0),
       max_datagram_frame_size_(0),
-      chaos_protection_enabled_(framer->perspective() ==
-                                Perspective::IS_CLIENT) {
+      chaos_protection_enabled_(
+          GetQuicFlag(FLAGS_quic_enable_chaos_protection) &&
+          framer->perspective() == Perspective::IS_CLIENT) {
   SetMaxPacketLength(kDefaultMaxPacketSize);
   if (!framer_->version().UsesTls()) {
     // QUIC+TLS negotiates the maximum datagram frame size via the
