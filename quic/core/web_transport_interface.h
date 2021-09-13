@@ -87,6 +87,10 @@ class QUIC_EXPORT_PRIVATE WebTransportVisitor {
   // data.
   virtual void OnSessionReady(const spdy::SpdyHeaderBlock& headers) = 0;
 
+  // Notifies the visitor when the session has been closed.
+  virtual void OnSessionClosed(WebTransportSessionError error_code,
+                               const std::string& error_message) = 0;
+
   // Notifies the visitor when a new stream has been received.  The stream in
   // question can be retrieved using AcceptIncomingBidirectionalStream() or
   // AcceptIncomingUnidirectionalStream().
@@ -105,6 +109,11 @@ class QUIC_EXPORT_PRIVATE WebTransportVisitor {
 class QUIC_EXPORT_PRIVATE WebTransportSession {
  public:
   virtual ~WebTransportSession() {}
+
+  // Closes the WebTransport session in question with the specified |error_code|
+  // and |error_message|.
+  virtual void CloseSession(WebTransportSessionError error_code,
+                            absl::string_view error_message) = 0;
 
   // Return the earliest incoming stream that has been received by the session
   // but has not been accepted.  Returns nullptr if there are no incoming

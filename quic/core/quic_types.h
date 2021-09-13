@@ -58,6 +58,8 @@ using StatelessResetToken = std::array<char, kStatelessResetTokenLength>;
 using WebTransportSessionId = uint64_t;
 // WebTransport stream reset codes are 8-bit.
 using WebTransportStreamError = uint8_t;
+// WebTransport session error codes are 32-bit.
+using WebTransportSessionError = uint32_t;
 
 enum : size_t { kQuicPathFrameBufferSize = 8 };
 using QuicPathFrameBuffer = std::array<uint8_t, kQuicPathFrameBufferSize>;

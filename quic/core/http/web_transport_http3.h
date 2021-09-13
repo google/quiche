@@ -48,9 +48,12 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
 
   void AssociateStream(QuicStreamId stream_id);
   void OnStreamClosed(QuicStreamId stream_id) { streams_.erase(stream_id); }
-  void CloseAllAssociatedStreams();
+  void OnConnectStreamClosing();
 
   size_t NumberOfAssociatedStreams() { return streams_.size(); }
+
+  void CloseSession(WebTransportSessionError error_code,
+                    absl::string_view error_message) override;
 
   // Return the earliest incoming stream that has been received by the session
   // but has not been accepted.  Returns nullptr if there are no incoming
@@ -96,6 +99,11 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   absl::flat_hash_set<QuicStreamId> streams_;
   quiche::QuicheCircularDeque<QuicStreamId> incoming_bidirectional_streams_;
   quiche::QuicheCircularDeque<QuicStreamId> incoming_unidirectional_streams_;
+
+  // Those are set to default values, which are used if the session is not
+  // closed cleanly using an appropriate capsule.
+  WebTransportSessionError error_code_ = 0;
+  std::string error_message_ = "";
 };
 
 class QUIC_EXPORT_PRIVATE WebTransportHttp3UnidirectionalStream

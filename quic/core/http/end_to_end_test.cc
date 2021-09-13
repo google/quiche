@@ -6225,6 +6225,39 @@ TEST_P(EndToEndTest, WebTransportDatagrams) {
   EXPECT_GT(received, 0);
 }
 
+TEST_P(EndToEndTest, WebTransportSessionClose) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_TRUE(session != nullptr);
+  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+
+  WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+  QuicStreamId stream_id = stream->GetStreamId();
+  EXPECT_TRUE(stream->Write("test"));
+  // Keep stream open.
+
+  bool close_received = false;
+  // TODO(vasilvv): once we have capsule support, actually check the error code
+  // and the error message returned.
+  EXPECT_CALL(visitor, OnSessionClosed(_, _))
+      .WillOnce(Assign(&close_received, true));
+  session->CloseSession(42, "test error");
+  client_->WaitUntil(2000, [&]() { return close_received; });
+  EXPECT_TRUE(close_received);
+
+  QuicSpdyStream* spdy_stream =
+      GetClientSession()->GetOrCreateSpdyDataStream(stream_id);
+  EXPECT_TRUE(spdy_stream == nullptr);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

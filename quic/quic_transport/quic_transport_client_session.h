@@ -17,6 +17,7 @@
 #include "quic/core/quic_crypto_client_stream.h"
 #include "quic/core/quic_crypto_stream.h"
 #include "quic/core/quic_datagram_queue.h"
+#include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_server_id.h"
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_stream.h"
@@ -112,6 +113,13 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   void OnProofValid(const QuicCryptoClientConfig::CachedState& cached) override;
   void OnProofVerifyDetailsAvailable(
       const ProofVerifyDetails& verify_details) override;
+
+  void CloseSession(WebTransportSessionError /*error_code*/,
+                    absl::string_view error_message) override {
+    connection()->CloseConnection(
+        QUIC_NO_ERROR, std::string(error_message),
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  }
 
  protected:
   class QUIC_EXPORT_PRIVATE ClientIndication : public QuicStream {

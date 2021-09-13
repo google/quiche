@@ -13,6 +13,7 @@
 #include "quic/core/http/quic_spdy_stream.h"
 #include "quic/core/quic_data_reader.h"
 #include "quic/core/quic_data_writer.h"
+#include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_stream.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
@@ -28,6 +29,8 @@ namespace quic {
 namespace {
 class QUIC_NO_EXPORT NoopWebTransportVisitor : public WebTransportVisitor {
   void OnSessionReady(const spdy::SpdyHeaderBlock&) override {}
+  void OnSessionClosed(WebTransportSessionError /*error_code*/,
+                       const std::string& /*error_message*/) override {}
   void OnIncomingBidirectionalStreamAvailable() override {}
   void OnIncomingUnidirectionalStreamAvailable() override {}
   void OnDatagramReceived(absl::string_view /*datagram*/) override {}
@@ -70,7 +73,7 @@ void WebTransportHttp3::AssociateStream(QuicStreamId stream_id) {
   }
 }
 
-void WebTransportHttp3::CloseAllAssociatedStreams() {
+void WebTransportHttp3::OnConnectStreamClosing() {
   // Copy the stream list before iterating over it, as calls to ResetStream()
   // can potentially mutate the |session_| list.
   std::vector<QuicStreamId> streams(streams_.begin(), streams_.end());
@@ -83,6 +86,16 @@ void WebTransportHttp3::CloseAllAssociatedStreams() {
     connect_stream_->UnregisterHttp3DatagramContextId(context_id_);
   }
   connect_stream_->UnregisterHttp3DatagramRegistrationVisitor();
+
+  visitor_->OnSessionClosed(error_code_, error_message_);
+}
+
+void WebTransportHttp3::CloseSession(WebTransportSessionError /*error_code*/,
+                                     absl::string_view /*error_message*/) {
+  // TODO(vasilvv): this should write a capsule and send FIN instead, but since
+  // we currently don't handle capsules, this is the next most meaningful
+  // choice.
+  connect_stream_->Reset(QUIC_STREAM_CANCELLED);
 }
 
 void WebTransportHttp3::HeadersReceived(const spdy::SpdyHeaderBlock& headers) {

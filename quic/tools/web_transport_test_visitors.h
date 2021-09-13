@@ -147,6 +147,9 @@ class EchoWebTransportSessionVisitor : public WebTransportVisitor {
     }
   }
 
+  void OnSessionClosed(WebTransportSessionError /*error_code*/,
+                       const std::string& /*error_message*/) override {}
+
   void OnIncomingBidirectionalStreamAvailable() override {
     while (true) {
       WebTransportStream* stream =

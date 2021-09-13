@@ -15,6 +15,8 @@ namespace test {
 class MockClientVisitor : public WebTransportVisitor {
  public:
   MOCK_METHOD(void, OnSessionReady, (const spdy::SpdyHeaderBlock&), (override));
+  MOCK_METHOD(void, OnSessionClosed,
+              (WebTransportSessionError, const std::string&), (override));
   MOCK_METHOD(void, OnIncomingBidirectionalStreamAvailable, (), (override));
   MOCK_METHOD(void, OnIncomingUnidirectionalStreamAvailable, (), (override));
   MOCK_METHOD(void, OnDatagramReceived, (absl::string_view), (override));

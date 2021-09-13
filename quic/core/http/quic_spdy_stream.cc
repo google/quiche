@@ -832,7 +832,7 @@ void QuicSpdyStream::OnClose() {
   }
 
   if (web_transport_ != nullptr) {
-    web_transport_->CloseAllAssociatedStreams();
+    web_transport_->OnConnectStreamClosing();
   }
   if (web_transport_data_ != nullptr) {
     WebTransportHttp3* web_transport =
