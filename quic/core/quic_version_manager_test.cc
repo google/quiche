@@ -37,6 +37,7 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
 
   EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
             manager.GetSupportedVersions());
+  EXPECT_TRUE(manager.GetSupportedVersionsWithOnlyHttp3().empty());
   EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
             manager.GetSupportedVersionsWithQuicCrypto());
   EXPECT_THAT(manager.GetSupportedAlpns(),
@@ -51,6 +52,9 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
             manager.GetSupportedVersionsWithQuicCrypto().size());
   EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
             manager.GetSupportedVersions());
+  EXPECT_EQ(1u, manager.GetSupportedVersionsWithOnlyHttp3().size());
+  EXPECT_EQ(CurrentSupportedHttp3Versions(),
+            manager.GetSupportedVersionsWithOnlyHttp3());
   EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
             manager.GetSupportedVersionsWithQuicCrypto());
   EXPECT_THAT(manager.GetSupportedAlpns(),
@@ -65,6 +69,9 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
             manager.GetSupportedVersionsWithQuicCrypto().size());
   EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
             manager.GetSupportedVersions());
+  EXPECT_EQ(1u, manager.GetSupportedVersionsWithOnlyHttp3().size());
+  EXPECT_EQ(CurrentSupportedHttp3Versions(),
+            manager.GetSupportedVersionsWithOnlyHttp3());
   EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
             manager.GetSupportedVersionsWithQuicCrypto());
   EXPECT_THAT(manager.GetSupportedAlpns(),

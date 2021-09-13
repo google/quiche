@@ -22,6 +22,9 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   // as the versions passed to the constructor.
   const ParsedQuicVersionVector& GetSupportedVersions();
 
+  // Returns currently supported versions using HTTP/3.
+  const ParsedQuicVersionVector& GetSupportedVersionsWithOnlyHttp3();
+
   // Returns currently supported versions using QUIC crypto.
   const ParsedQuicVersionVector& GetSupportedVersionsWithQuicCrypto();
 
@@ -83,6 +86,8 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   // This vector contains QUIC versions which are currently supported based on
   // flags.
   ParsedQuicVersionVector filtered_supported_versions_;
+  // Currently supported versions using HTTP/3.
+  ParsedQuicVersionVector filtered_supported_versions_with_http3_;
   // Currently supported versions using QUIC crypto.
   ParsedQuicVersionVector filtered_supported_versions_with_quic_crypto_;
   // This vector contains the transport versions from
