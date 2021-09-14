@@ -434,7 +434,6 @@ TEST_F(QuicReceivedPacketManagerTest,
   EXPECT_FALSE(HasPendingAck());
   QuicConfig config;
   QuicTagVector connection_options;
-  connection_options.push_back(kACKD);
   // No limit on the number of packets received before sending an ack.
   connection_options.push_back(kAKDU);
   config.SetConnectionOptionsToSend(connection_options);

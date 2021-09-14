@@ -29,7 +29,7 @@ using ServerConfigID = std::string;
 // The following tags have been deprecated and should not be reused:
 // "1CON", "BBQ4", "NCON", "RCID", "SREJ", "TBKP", "TB10", "SCLS", "SMHL",
 // "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS", "QNSP", "B2CL", "CHSP",
-// "BPTE"
+// "BPTE", "ACKD"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
@@ -170,7 +170,6 @@ const QuicTag kMAD4 = TAG('M', 'A', 'D', '4');   // IETF style TLP
 const QuicTag kMAD5 = TAG('M', 'A', 'D', '5');   // IETF style TLP with 2x mult
 const QuicTag k1ACK = TAG('1', 'A', 'C', 'K');   // 1 fast ack for reordering
 const QuicTag kACD0 = TAG('A', 'D', 'D', '0');   // Disable ack decimation
-const QuicTag kACKD = TAG('A', 'C', 'K', 'D');   // Ack decimation style acking.
 const QuicTag kAKD2 = TAG('A', 'K', 'D', '2');   // Ack decimation tolerating
                                                  // out of order packets.
 const QuicTag kAKD3 = TAG('A', 'K', 'D', '3');   // Ack decimation style acking
