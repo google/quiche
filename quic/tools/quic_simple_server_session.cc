@@ -18,30 +18,21 @@
 namespace quic {
 
 QuicSimpleServerSession::QuicSimpleServerSession(
-    const QuicConfig& config,
-    const ParsedQuicVersionVector& supported_versions,
-    QuicConnection* connection,
-    QuicSession::Visitor* visitor,
+    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
+    QuicConnection* connection, QuicSession::Visitor* visitor,
     QuicCryptoServerStreamBase::Helper* helper,
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSimpleServerBackend* quic_simple_server_backend)
-    : QuicServerSessionBase(config,
-                            supported_versions,
-                            connection,
-                            visitor,
-                            helper,
-                            crypto_config,
-                            compressed_certs_cache),
+    : QuicServerSessionBase(config, supported_versions, connection, visitor,
+                            helper, crypto_config, compressed_certs_cache),
       highest_promised_stream_id_(
           QuicUtils::GetInvalidStreamId(connection->transport_version())),
       quic_simple_server_backend_(quic_simple_server_backend) {
   QUICHE_DCHECK(quic_simple_server_backend_);
 }
 
-QuicSimpleServerSession::~QuicSimpleServerSession() {
-  DeleteConnection();
-}
+QuicSimpleServerSession::~QuicSimpleServerSession() { DeleteConnection(); }
 
 std::unique_ptr<QuicCryptoServerStreamBase>
 QuicSimpleServerSession::CreateQuicCryptoServerStream(
@@ -151,8 +142,7 @@ void QuicSimpleServerSession::HandleRstOnValidNonexistentStream(
 }
 
 spdy::Http2HeaderBlock QuicSimpleServerSession::SynthesizePushRequestHeaders(
-    std::string request_url,
-    QuicBackendResponse::ServerPushInfo resource,
+    std::string request_url, QuicBackendResponse::ServerPushInfo resource,
     const spdy::Http2HeaderBlock& original_request_headers) {
   QuicUrl push_request_url = resource.request_url;
 

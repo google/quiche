@@ -177,8 +177,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
 
 class TestStream : public QuicSpdyStream {
  public:
-  TestStream(QuicStreamId id,
-             QuicSpdySession* session,
+  TestStream(QuicStreamId id, QuicSpdySession* session,
              bool should_process_data)
       : QuicSpdyStream(id, session, BIDIRECTIONAL),
         should_process_data_(should_process_data),
@@ -203,8 +202,7 @@ class TestStream : public QuicSpdyStream {
 
   MOCK_METHOD(void, WriteHeadersMock, (bool fin), ());
 
-  size_t WriteHeadersImpl(spdy::SpdyHeaderBlock header_block,
-                          bool fin,
+  size_t WriteHeadersImpl(spdy::SpdyHeaderBlock header_block, bool fin,
                           QuicReferenceCountedPointer<QuicAckListenerInterface>
                           /*ack_listener*/) override {
     saved_headers_ = std::move(header_block);
@@ -226,8 +224,7 @@ class TestStream : public QuicSpdyStream {
     return QuicStream::sequencer();
   }
 
-  void OnStreamHeaderList(bool fin,
-                          size_t frame_len,
+  void OnStreamHeaderList(bool fin, size_t frame_len,
                           const QuicHeaderList& header_list) override {
     headers_payload_length_ = frame_len;
     QuicSpdyStream::OnStreamHeaderList(fin, frame_len, header_list);
@@ -280,8 +277,7 @@ class TestMockUpdateStreamSession : public MockQuicSpdySession {
             spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority)) {}
 
   void UpdateStreamPriority(
-      QuicStreamId id,
-      const spdy::SpdyStreamPrecedence& precedence) override {
+      QuicStreamId id, const spdy::SpdyStreamPrecedence& precedence) override {
     EXPECT_EQ(id, expected_stream_->id());
     EXPECT_EQ(expected_precedence_, precedence);
     EXPECT_EQ(expected_precedence_, expected_stream_->precedence());
@@ -491,8 +487,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   SpdyHeaderBlock headers_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicSpdyStreamTest,
+INSTANTIATE_TEST_SUITE_P(Tests, QuicSpdyStreamTest,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 
@@ -2575,8 +2570,7 @@ class QuicSpdyStreamIncrementalConsumptionTest : public QuicSpdyStreamTest {
   QuicStreamOffset consumed_bytes_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicSpdyStreamIncrementalConsumptionTest,
+INSTANTIATE_TEST_SUITE_P(Tests, QuicSpdyStreamIncrementalConsumptionTest,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 

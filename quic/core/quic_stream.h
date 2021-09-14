@@ -135,13 +135,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // |type| indicates whether the stream is bidirectional, read unidirectional
   // or write unidirectional.
   // TODO(fayang): Remove |type| when IETF stream ID numbering fully kicks in.
-  QuicStream(QuicStreamId id,
-             QuicSession* session,
-             bool is_static,
+  QuicStream(QuicStreamId id, QuicSession* session, bool is_static,
              StreamType type);
-  QuicStream(PendingStream* pending,
-             QuicSession* session,
-             StreamType type,
+  QuicStream(PendingStream* pending, QuicSession* session, StreamType type,
              bool is_static);
   QuicStream(const QuicStream&) = delete;
   QuicStream& operator=(const QuicStream&) = delete;
@@ -291,31 +287,26 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // session, write_side_closed() becomes true, otherwise fin_buffered_ becomes
   // true.
   void WriteOrBufferData(
-      absl::string_view data,
-      bool fin,
+      absl::string_view data, bool fin,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   // Sends |data| to connection with specified |level|.
   void WriteOrBufferDataAtLevel(
-      absl::string_view data,
-      bool fin,
-      EncryptionLevel level,
+      absl::string_view data, bool fin, EncryptionLevel level,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   // Adds random padding after the fin is consumed for this stream.
   void AddRandomPaddingAfterFin();
 
   // Write |data_length| of data starts at |offset| from send buffer.
-  bool WriteStreamData(QuicStreamOffset offset,
-                       QuicByteCount data_length,
+  bool WriteStreamData(QuicStreamOffset offset, QuicByteCount data_length,
                        QuicDataWriter* writer);
 
   // Called when data [offset, offset + data_length) is acked. |fin_acked|
   // indicates whether the fin is acked. Returns true and updates
   // |newly_acked_length| if any new stream data (including fin) gets acked.
   virtual bool OnStreamFrameAcked(QuicStreamOffset offset,
-                                  QuicByteCount data_length,
-                                  bool fin_acked,
+                                  QuicByteCount data_length, bool fin_acked,
                                   QuicTime::Delta ack_delay_time,
                                   QuicTime receive_timestamp,
                                   QuicByteCount* newly_acked_length);
@@ -329,15 +320,13 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Called when data [offset, offset + data_length) is considered as lost.
   // |fin_lost| indicates whether the fin is considered as lost.
   virtual void OnStreamFrameLost(QuicStreamOffset offset,
-                                 QuicByteCount data_length,
-                                 bool fin_lost);
+                                 QuicByteCount data_length, bool fin_lost);
 
   // Called to retransmit outstanding portion in data [offset, offset +
   // data_length) and |fin| with Transmission |type|.
   // Returns true if all data gets retransmitted.
   virtual bool RetransmitStreamData(QuicStreamOffset offset,
-                                    QuicByteCount data_length,
-                                    bool fin,
+                                    QuicByteCount data_length, bool fin,
                                     TransmissionType type);
 
   // Sets deadline of this stream to be now + |ttl|, returns true if the setting
@@ -359,8 +348,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // outstanding or fin is outstanding (if |fin| is true). Returns false
   // otherwise.
   bool IsStreamFrameOutstanding(QuicStreamOffset offset,
-                                QuicByteCount data_length,
-                                bool fin) const;
+                                QuicByteCount data_length, bool fin) const;
 
   StreamType type() const { return type_; }
 
@@ -391,8 +379,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Called when data of [offset, offset + data_length] is buffered in send
   // buffer.
   virtual void OnDataBuffered(
-      QuicStreamOffset /*offset*/,
-      QuicByteCount /*data_length*/,
+      QuicStreamOffset /*offset*/, QuicByteCount /*data_length*/,
       const QuicReferenceCountedPointer<QuicAckListenerInterface>&
       /*ack_listener*/) {}
 
@@ -468,13 +455,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
   friend class test::QuicStreamPeer;
   friend class QuicStreamUtils;
 
-  QuicStream(QuicStreamId id,
-             QuicSession* session,
-             QuicStreamSequencer sequencer,
-             bool is_static,
-             StreamType type,
-             uint64_t stream_bytes_read,
-             bool fin_received,
+  QuicStream(QuicStreamId id, QuicSession* session,
+             QuicStreamSequencer sequencer, bool is_static, StreamType type,
+             uint64_t stream_bytes_read, bool fin_received,
              absl::optional<QuicFlowController> flow_controller,
              QuicFlowController* connection_flow_controller);
 

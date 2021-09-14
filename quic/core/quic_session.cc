@@ -59,22 +59,14 @@ class ClosedStreamsCleanUpDelegate : public QuicAlarm::Delegate {
   (perspective() == Perspective::IS_SERVER ? "Server: " : "Client: ")
 
 QuicSession::QuicSession(
-    QuicConnection* connection,
-    Visitor* owner,
-    const QuicConfig& config,
+    QuicConnection* connection, Visitor* owner, const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
     QuicStreamCount num_expected_unidirectional_static_streams)
-    : QuicSession(connection,
-                  owner,
-                  config,
-                  supported_versions,
-                  num_expected_unidirectional_static_streams,
-                  nullptr) {}
+    : QuicSession(connection, owner, config, supported_versions,
+                  num_expected_unidirectional_static_streams, nullptr) {}
 
 QuicSession::QuicSession(
-    QuicConnection* connection,
-    Visitor* owner,
-    const QuicConfig& config,
+    QuicConnection* connection, Visitor* owner, const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
     QuicStreamCount num_expected_unidirectional_static_streams,
     std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer)
@@ -83,14 +75,10 @@ QuicSession::QuicSession(
       visitor_(owner),
       write_blocked_streams_(connection->transport_version()),
       config_(config),
-      stream_id_manager_(perspective(),
-                         connection->transport_version(),
+      stream_id_manager_(perspective(), connection->transport_version(),
                          kDefaultMaxStreamsPerConnection,
                          config_.GetMaxBidirectionalStreamsToSend()),
-      ietf_streamid_manager_(perspective(),
-                             connection->version(),
-                             this,
-                             0,
+      ietf_streamid_manager_(perspective(), connection->version(), this, 0,
                              num_expected_unidirectional_static_streams,
                              config_.GetMaxBidirectionalStreamsToSend(),
                              config_.GetMaxUnidirectionalStreamsToSend() +
@@ -100,15 +88,13 @@ QuicSession::QuicSession(
       num_static_streams_(0),
       num_zombie_streams_(0),
       flow_controller_(
-          this,
-          QuicUtils::GetInvalidStreamId(connection->transport_version()),
+          this, QuicUtils::GetInvalidStreamId(connection->transport_version()),
           /*is_connection_flow_controller*/ true,
           connection->version().AllowsLowFlowControlLimits()
               ? 0
               : kMinimumFlowControlSendWindow,
           config_.GetInitialSessionFlowControlWindowToSend(),
-          kSessionReceiveWindowLimit,
-          perspective() == Perspective::IS_SERVER,
+          kSessionReceiveWindowLimit, perspective() == Perspective::IS_SERVER,
           nullptr),
       currently_writing_stream_id_(0),
       transport_goaway_sent_(false),
@@ -489,9 +475,7 @@ void QuicSession::OnPathDegrading() {}
 
 void QuicSession::OnForwardProgressMadeAfterPathDegrading() {}
 
-bool QuicSession::AllowSelfAddressChange() const {
-  return false;
-}
+bool QuicSession::AllowSelfAddressChange() const { return false; }
 
 void QuicSession::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
   // Stream may be closed by the time we receive a WINDOW_UPDATE, so we can't
@@ -814,8 +798,7 @@ QuicConsumedData QuicSession::WritevData(QuicStreamId id, size_t write_length,
   return data;
 }
 
-size_t QuicSession::SendCryptoData(EncryptionLevel level,
-                                   size_t write_length,
+size_t QuicSession::SendCryptoData(EncryptionLevel level, size_t write_length,
                                    QuicStreamOffset offset,
                                    TransmissionType type) {
   QUICHE_DCHECK(QuicVersionUsesCryptoFrames(transport_version()));
@@ -962,8 +945,7 @@ void QuicSession::SendMaxStreams(QuicStreamCount stream_count,
 }
 
 void QuicSession::InsertLocallyClosedStreamsHighestOffset(
-    const QuicStreamId id,
-    QuicStreamOffset offset) {
+    const QuicStreamId id, QuicStreamOffset offset) {
   locally_closed_streams_highest_offset_[id] = offset;
 }
 
@@ -1052,8 +1034,7 @@ void QuicSession::ClosePendingStream(QuicStreamId stream_id) {
 }
 
 void QuicSession::OnFinalByteOffsetReceived(
-    QuicStreamId stream_id,
-    QuicStreamOffset final_byte_offset) {
+    QuicStreamId stream_id, QuicStreamOffset final_byte_offset) {
   auto it = locally_closed_streams_highest_offset_.find(stream_id);
   if (it == locally_closed_streams_highest_offset_.end()) {
     return;
@@ -1314,8 +1295,7 @@ void QuicSession::OnConfigNegotiated() {
 }
 
 absl::optional<std::string> QuicSession::OnAlpsData(
-    const uint8_t* /*alps_data*/,
-    size_t /*alps_length*/) {
+    const uint8_t* /*alps_data*/, size_t /*alps_length*/) {
   return absl::nullopt;
 }
 
@@ -1543,10 +1523,8 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
 }
 
 bool QuicSession::OnNewDecryptionKeyAvailable(
-    EncryptionLevel level,
-    std::unique_ptr<QuicDecrypter> decrypter,
-    bool set_alternative_decrypter,
-    bool latch_once_used) {
+    EncryptionLevel level, std::unique_ptr<QuicDecrypter> decrypter,
+    bool set_alternative_decrypter, bool latch_once_used) {
   if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3 &&
       !connection()->framer().HasEncrypterOfEncryptionLevel(
           QuicUtils::GetEncryptionLevel(
@@ -1569,8 +1547,7 @@ bool QuicSession::OnNewDecryptionKeyAvailable(
 }
 
 void QuicSession::OnNewEncryptionKeyAvailable(
-    EncryptionLevel level,
-    std::unique_ptr<QuicEncrypter> encrypter) {
+    EncryptionLevel level, std::unique_ptr<QuicEncrypter> encrypter) {
   connection()->SetEncrypter(level, std::move(encrypter));
   if (connection_->version().handshake_protocol != PROTOCOL_TLS1_3) {
     return;
@@ -1737,8 +1714,7 @@ bool QuicSession::FillTransportParameters(TransportParameters* params) {
 }
 
 QuicErrorCode QuicSession::ProcessTransportParameters(
-    const TransportParameters& params,
-    bool is_resumption,
+    const TransportParameters& params, bool is_resumption,
     std::string* error_details) {
   return config_.ProcessTransportParameters(params, is_resumption,
                                             error_details);
@@ -1766,8 +1742,7 @@ void QuicSession::OnCryptoHandshakeMessageReceived(
     const CryptoHandshakeMessage& /*message*/) {}
 
 void QuicSession::RegisterStreamPriority(
-    QuicStreamId id,
-    bool is_static,
+    QuicStreamId id, bool is_static,
     const spdy::SpdyStreamPrecedence& precedence) {
   write_blocked_streams()->RegisterStream(id, is_static, precedence);
 }
@@ -1777,14 +1752,11 @@ void QuicSession::UnregisterStreamPriority(QuicStreamId id, bool is_static) {
 }
 
 void QuicSession::UpdateStreamPriority(
-    QuicStreamId id,
-    const spdy::SpdyStreamPrecedence& new_precedence) {
+    QuicStreamId id, const spdy::SpdyStreamPrecedence& new_precedence) {
   write_blocked_streams()->UpdateStreamPriority(id, new_precedence);
 }
 
-QuicConfig* QuicSession::config() {
-  return &config_;
-}
+QuicConfig* QuicSession::config() { return &config_; }
 
 void QuicSession::ActivateStream(std::unique_ptr<QuicStream> stream) {
   QuicStreamId stream_id = stream->id();
@@ -1995,8 +1967,7 @@ void QuicSession::DeleteConnection() {
 }
 
 bool QuicSession::MaybeSetStreamPriority(
-    QuicStreamId stream_id,
-    const spdy::SpdyStreamPrecedence& precedence) {
+    QuicStreamId stream_id, const spdy::SpdyStreamPrecedence& precedence) {
   auto active_stream = stream_map_.find(stream_id);
   if (active_stream != stream_map_.end()) {
     active_stream->second->SetPriority(precedence);
@@ -2474,9 +2445,7 @@ void QuicSession::OnMessageLost(QuicMessageId message_id) {
                 << " is considered lost";
 }
 
-void QuicSession::CleanUpClosedStreams() {
-  closed_streams_.clear();
-}
+void QuicSession::CleanUpClosedStreams() { closed_streams_.clear(); }
 
 QuicPacketLength QuicSession::GetCurrentLargestMessagePayload() const {
   return connection_->GetCurrentLargestMessagePayload();
@@ -2597,8 +2566,7 @@ bool QuicSession::HasPendingPathValidation() const {
 
 bool QuicSession::MigratePath(const QuicSocketAddress& self_address,
                               const QuicSocketAddress& peer_address,
-                              QuicPacketWriter* writer,
-                              bool owns_writer) {
+                              QuicPacketWriter* writer, bool owns_writer) {
   return connection_->MigratePath(self_address, peer_address, writer,
                                   owns_writer);
 }

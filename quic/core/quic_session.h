@@ -97,13 +97,11 @@ class QUIC_EXPORT_PRIVATE QuicSession
   };
 
   // Does not take ownership of |connection| or |visitor|.
-  QuicSession(QuicConnection* connection,
-              Visitor* owner,
+  QuicSession(QuicConnection* connection, Visitor* owner,
               const QuicConfig& config,
               const ParsedQuicVersionVector& supported_versions,
               QuicStreamCount num_expected_unidirectional_static_streams);
-  QuicSession(QuicConnection* connection,
-              Visitor* owner,
+  QuicSession(QuicConnection* connection, Visitor* owner,
               const QuicConfig& config,
               const ParsedQuicVersionVector& supported_versions,
               QuicStreamCount num_expected_unidirectional_static_streams,
@@ -183,14 +181,12 @@ class QUIC_EXPORT_PRIVATE QuicSession
                                         QuicStreamOffset offset,
                                         QuicByteCount data_length,
                                         QuicDataWriter* writer) override;
-  bool WriteCryptoData(EncryptionLevel level,
-                       QuicStreamOffset offset,
+  bool WriteCryptoData(EncryptionLevel level, QuicStreamOffset offset,
                        QuicByteCount data_length,
                        QuicDataWriter* writer) override;
 
   // SessionNotifierInterface methods:
-  bool OnFrameAcked(const QuicFrame& frame,
-                    QuicTime::Delta ack_delay_time,
+  bool OnFrameAcked(const QuicFrame& frame, QuicTime::Delta ack_delay_time,
                     QuicTime receive_timestamp) override;
   void OnStreamFrameRetransmitted(const QuicStreamFrame& frame) override;
   void OnFrameLost(const QuicFrame& frame) override;
@@ -299,8 +295,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
                                    bool set_alternative_decrypter,
                                    bool latch_once_used) override;
   void OnNewEncryptionKeyAvailable(
-      EncryptionLevel level,
-      std::unique_ptr<QuicEncrypter> encrypter) override;
+      EncryptionLevel level, std::unique_ptr<QuicEncrypter> encrypter) override;
   void SetDefaultEncryptionLevel(EncryptionLevel level) override;
   void OnTlsHandshakeComplete() override;
   void DiscardOldDecryptionKey(EncryptionLevel level) override;
@@ -323,8 +318,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
                      std::string error_details) override;
   // Sets priority in the write blocked list.
   void RegisterStreamPriority(
-      QuicStreamId id,
-      bool is_static,
+      QuicStreamId id, bool is_static,
       const spdy::SpdyStreamPrecedence& precedence) override;
   // Clears priority from the write blocked list.
   void UnregisterStreamPriority(QuicStreamId id, bool is_static) override;
@@ -343,8 +337,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
                               TransmissionType type,
                               EncryptionLevel level) override;
 
-  size_t SendCryptoData(EncryptionLevel level,
-                        size_t write_length,
+  size_t SendCryptoData(EncryptionLevel level, size_t write_length,
                         QuicStreamOffset offset,
                         TransmissionType type) override;
 
@@ -466,8 +459,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Switch to the path described in |context| without validating the path.
   bool MigratePath(const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address,
-                   QuicPacketWriter* writer,
-                   bool owns_writer);
+                   QuicPacketWriter* writer, bool owns_writer);
 
   // Returns the largest payload that will fit into a single MESSAGE frame.
   // Because overhead can vary during a connection, this method should be

@@ -19,8 +19,7 @@ namespace {
 
 class TestQuicSpdyServerStream : public QuicSpdyServerStreamBase {
  public:
-  TestQuicSpdyServerStream(QuicStreamId id,
-                           QuicSpdySession* session,
+  TestQuicSpdyServerStream(QuicStreamId id, QuicSpdySession* session,
                            StreamType type)
       : QuicSpdyServerStreamBase(id, session, type) {}
 
@@ -30,8 +29,7 @@ class TestQuicSpdyServerStream : public QuicSpdyServerStreamBase {
 class QuicSpdyServerStreamBaseTest : public QuicTest {
  protected:
   QuicSpdyServerStreamBaseTest()
-      : session_(new MockQuicConnection(&helper_,
-                                        &alarm_factory_,
+      : session_(new MockQuicConnection(&helper_, &alarm_factory_,
                                         Perspective::IS_SERVER)) {
     session_.Initialize();
     session_.connection()->SetEncrypter(

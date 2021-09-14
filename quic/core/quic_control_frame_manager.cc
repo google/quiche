@@ -59,8 +59,7 @@ void QuicControlFrameManager::WriteOrBufferQuicFrame(QuicFrame frame) {
 }
 
 void QuicControlFrameManager::WriteOrBufferRstStream(
-    QuicStreamId id,
-    QuicRstStreamErrorCode error,
+    QuicStreamId id, QuicRstStreamErrorCode error,
     QuicStreamOffset bytes_written) {
   QUIC_DVLOG(1) << "Writing RST_STREAM_FRAME";
   WriteOrBufferQuicFrame((QuicFrame(new QuicRstStreamFrame(
@@ -68,8 +67,7 @@ void QuicControlFrameManager::WriteOrBufferRstStream(
 }
 
 void QuicControlFrameManager::WriteOrBufferGoAway(
-    QuicErrorCode error,
-    QuicStreamId last_good_stream_id,
+    QuicErrorCode error, QuicStreamId last_good_stream_id,
     const std::string& reason) {
   QUIC_DVLOG(1) << "Writing GOAWAY_FRAME";
   WriteOrBufferQuicFrame(QuicFrame(new QuicGoAwayFrame(
@@ -77,8 +75,7 @@ void QuicControlFrameManager::WriteOrBufferGoAway(
 }
 
 void QuicControlFrameManager::WriteOrBufferWindowUpdate(
-    QuicStreamId id,
-    QuicStreamOffset byte_offset) {
+    QuicStreamId id, QuicStreamOffset byte_offset) {
   QUIC_DVLOG(1) << "Writing WINDOW_UPDATE_FRAME";
   WriteOrBufferQuicFrame(QuicFrame(
       new QuicWindowUpdateFrame(++last_control_frame_id_, id, byte_offset)));
@@ -107,8 +104,7 @@ void QuicControlFrameManager::WriteOrBufferMaxStreams(QuicStreamCount count,
 }
 
 void QuicControlFrameManager::WriteOrBufferStopSending(
-    QuicRstStreamErrorCode code,
-    QuicStreamId stream_id) {
+    QuicRstStreamErrorCode code, QuicStreamId stream_id) {
   QUIC_DVLOG(1) << "Writing STOP_SENDING_FRAME";
   WriteOrBufferQuicFrame(QuicFrame(
       new QuicStopSendingFrame(++last_control_frame_id_, stream_id, code)));
@@ -134,8 +130,7 @@ void QuicControlFrameManager::WriteOrBufferAckFrequency(
 }
 
 void QuicControlFrameManager::WriteOrBufferNewConnectionId(
-    const QuicConnectionId& connection_id,
-    uint64_t sequence_number,
+    const QuicConnectionId& connection_id, uint64_t sequence_number,
     uint64_t retire_prior_to,
     const StatelessResetToken& stateless_reset_token) {
   QUIC_DVLOG(1) << "Writing NEW_CONNECTION_ID frame";
