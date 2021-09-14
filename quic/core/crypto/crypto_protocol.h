@@ -29,7 +29,7 @@ using ServerConfigID = std::string;
 // The following tags have been deprecated and should not be reused:
 // "1CON", "BBQ4", "NCON", "RCID", "SREJ", "TBKP", "TB10", "SCLS", "SMHL",
 // "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS", "QNSP", "B2CL", "CHSP",
-// "BPTE", "ACKD"
+// "BPTE", "ACKD", "AKD2", "AKD4", "MAD1", "MAD4", "MAD5", "ACD0", "ACKQ"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
@@ -163,23 +163,13 @@ const QuicTag kMIN4 = TAG('M', 'I', 'N', '4');   // Min CWND of 4 packets,
 const QuicTag kTLPR = TAG('T', 'L', 'P', 'R');   // Tail loss probe delay of
                                                  // 0.5RTT.
 const QuicTag kMAD0 = TAG('M', 'A', 'D', '0');   // Ignore ack delay
-const QuicTag kMAD1 = TAG('M', 'A', 'D', '1');   // 25ms initial max ack delay
 const QuicTag kMAD2 = TAG('M', 'A', 'D', '2');   // No min TLP
 const QuicTag kMAD3 = TAG('M', 'A', 'D', '3');   // No min RTO
-const QuicTag kMAD4 = TAG('M', 'A', 'D', '4');   // IETF style TLP
-const QuicTag kMAD5 = TAG('M', 'A', 'D', '5');   // IETF style TLP with 2x mult
 const QuicTag k1ACK = TAG('1', 'A', 'C', 'K');   // 1 fast ack for reordering
-const QuicTag kACD0 = TAG('A', 'D', 'D', '0');   // Disable ack decimation
-const QuicTag kAKD2 = TAG('A', 'K', 'D', '2');   // Ack decimation tolerating
-                                                 // out of order packets.
 const QuicTag kAKD3 = TAG('A', 'K', 'D', '3');   // Ack decimation style acking
                                                  // with 1/8 RTT acks.
-const QuicTag kAKD4 = TAG('A', 'K', 'D', '4');   // Ack decimation with 1/8 RTT
-                                                 // tolerating out of order.
 const QuicTag kAKDU = TAG('A', 'K', 'D', 'U');   // Unlimited number of packets
                                                  // received before acking
-const QuicTag kACKQ = TAG('A', 'C', 'K', 'Q');   // Send an immediate ack after
-                                                 // 1 RTT of not receiving.
 const QuicTag kAFFE = TAG('A', 'F', 'F', 'E');   // Enable client receiving
                                                  // AckFrequencyFrame.
 const QuicTag kAFF1 = TAG('A', 'F', 'F', '1');   // Use SRTT in building
