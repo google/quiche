@@ -1001,7 +1001,9 @@ void TlsServerHandshaker::OnSelectCertificateDone(
     } else {
       QUIC_LOG(ERROR) << "No certs provided for host '"
                       << crypto_negotiated_params_->sni << "', server_address:"
-                      << session()->connection()->self_address();
+                      << session()->connection()->self_address()
+                      << ", client_address:"
+                      << session()->connection()->peer_address();
     }
   }
 
