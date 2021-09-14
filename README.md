@@ -25,4 +25,7 @@ Envoy to get started:
 *   [Platform implementations in Envoy](https://github.com/envoyproxy/envoy/tree/master/source/common/quic/platform)
 *   [Build file in Envoy](https://github.com/envoyproxy/envoy/blob/main/bazel/external/quiche.BUILD)
 
+To contribute to QUICHE, follow instructions at
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
 QUICHE is only supported on little-endian platforms.
