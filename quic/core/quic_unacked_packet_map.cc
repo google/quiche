@@ -159,7 +159,13 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* mutable_packet,
   largest_sent_largest_acked_.UpdateMax(packet.largest_acked);
 
   if (!measure_rtt) {
-    QUIC_BUG_IF(quic_bug_12645_2, set_in_flight);
+    QUIC_BUG_IF(quic_bug_12645_2, set_in_flight)
+        << "Packet " << mutable_packet->packet_number << ", transmission type "
+        << TransmissionTypeToString(mutable_packet->transmission_type)
+        << ", retransmittable frames: "
+        << QuicFramesToString(mutable_packet->retransmittable_frames)
+        << ", nonretransmittable_frames: "
+        << QuicFramesToString(mutable_packet->nonretransmittable_frames);
     info.state = NOT_CONTRIBUTING_RTT;
   }
 
