@@ -21,11 +21,11 @@ std::string QuicTime::Delta::ToDebuggingValue() const {
 
   // For debugging purposes, always display the value with the highest precision
   // available.
-  if (absolute_value > kSecondInMicroseconds &&
+  if (absolute_value >= kSecondInMicroseconds &&
       absolute_value % kSecondInMicroseconds == 0) {
     return absl::StrCat(time_offset_ / kSecondInMicroseconds, "s");
   }
-  if (absolute_value > kMillisecondInMicroseconds &&
+  if (absolute_value >= kMillisecondInMicroseconds &&
       absolute_value % kMillisecondInMicroseconds == 0) {
     return absl::StrCat(time_offset_ / kMillisecondInMicroseconds, "ms");
   }
