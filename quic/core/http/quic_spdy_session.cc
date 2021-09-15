@@ -33,8 +33,6 @@
 #include "spdy/core/http2_frame_decoder_adapter.h"
 
 using http2::Http2DecoderAdapter;
-using spdy::HpackEntry;
-using spdy::HpackHeaderTable;
 using spdy::Http2WeightToSpdy3Priority;
 using spdy::Spdy3PriorityToHttp2Weight;
 using spdy::SpdyErrorCode;
@@ -470,9 +468,6 @@ QuicSpdySession::QuicSpdySession(
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
-  if (decline_server_push_stream_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_decline_server_push_stream);
-  }
 }
 
 QuicSpdySession::~QuicSpdySession() {
@@ -1361,13 +1356,9 @@ QuicStream* QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       return receive_control_stream_;
     }
     case kServerPushStream: {  // Push Stream.
-      if (decline_server_push_stream_) {
-        CloseConnectionWithDetails(QUIC_HTTP_RECEIVE_SERVER_PUSH,
-                                   "Received server push stream");
-        return nullptr;
-      }
-      QuicSpdyStream* stream = CreateIncomingStream(pending);
-      return stream;
+      CloseConnectionWithDetails(QUIC_HTTP_RECEIVE_SERVER_PUSH,
+                                 "Received server push stream");
+      return nullptr;
     }
     case kQpackEncoderStream: {  // QPACK encoder stream.
       if (qpack_encoder_receive_stream_) {
