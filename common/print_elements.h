@@ -20,11 +20,13 @@ QUICHE_EXPORT_PRIVATE inline std::string PrintElements(const T& container) {
   std::stringstream debug_string;
   debug_string << "{";
   auto it = container.cbegin();
-  debug_string << *it;
-  ++it;
-  while (it != container.cend()) {
-    debug_string << ", " << *it;
+  if (it != container.cend()) {
+    debug_string << *it;
     ++it;
+    while (it != container.cend()) {
+      debug_string << ", " << *it;
+      ++it;
+    }
   }
   debug_string << "}";
   return debug_string.str();
