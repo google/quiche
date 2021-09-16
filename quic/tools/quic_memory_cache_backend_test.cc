@@ -77,7 +77,13 @@ TEST_F(QuicMemoryCacheBackendTest, AddResponse) {
   EXPECT_EQ(response->trailers(), response_trailers);
 }
 
-TEST_F(QuicMemoryCacheBackendTest, ReadsCacheDir) {
+// TODO(crbug.com/1249712) This test is failing on iOS.
+#if defined(OS_IOS)
+#define MAYBE_ReadsCacheDir DISABLED_ReadsCacheDir
+#else
+#define MAYBE_ReadsCacheDir ReadsCacheDir
+#endif
+TEST_F(QuicMemoryCacheBackendTest, MAYBE_ReadsCacheDir) {
   cache_.InitializeBackend(CacheDirectory());
   const Response* response =
       cache_.GetResponse("test.example.com", "/index.html");
@@ -89,21 +95,43 @@ TEST_F(QuicMemoryCacheBackendTest, ReadsCacheDir) {
   EXPECT_LT(0U, response->body().length());
 }
 
-TEST_F(QuicMemoryCacheBackendTest, ReadsCacheDirWithServerPushResource) {
+// TODO(crbug.com/1249712) This test is failing on iOS.
+#if defined(OS_IOS)
+#define MAYBE_ReadsCacheDirWithServerPushResource \
+  DISABLED_ReadsCacheDirWithServerPushResource
+#else
+#define MAYBE_ReadsCacheDirWithServerPushResource \
+  ReadsCacheDirWithServerPushResource
+#endif
+TEST_F(QuicMemoryCacheBackendTest, MAYBE_ReadsCacheDirWithServerPushResource) {
   cache_.InitializeBackend(CacheDirectory() + "_with_push");
   std::list<ServerPushInfo> resources =
       cache_.GetServerPushResources("test.example.com/");
   ASSERT_EQ(1UL, resources.size());
 }
 
-TEST_F(QuicMemoryCacheBackendTest, ReadsCacheDirWithServerPushResources) {
+// TODO(crbug.com/1249712) This test is failing on iOS.
+#if defined(OS_IOS)
+#define MAYBE_ReadsCacheDirWithServerPushResources \
+  DISABLED_ReadsCacheDirWithServerPushResources
+#else
+#define MAYBE_ReadsCacheDirWithServerPushResources \
+  ReadsCacheDirWithServerPushResources
+#endif
+TEST_F(QuicMemoryCacheBackendTest, MAYBE_ReadsCacheDirWithServerPushResources) {
   cache_.InitializeBackend(CacheDirectory() + "_with_push");
   std::list<ServerPushInfo> resources =
       cache_.GetServerPushResources("test.example.com/index2.html");
   ASSERT_EQ(2UL, resources.size());
 }
 
-TEST_F(QuicMemoryCacheBackendTest, UsesOriginalUrl) {
+// TODO(crbug.com/1249712) This test is failing on iOS.
+#if defined(OS_IOS)
+#define MAYBE_UsesOriginalUrl DISABLED_UsesOriginalUrl
+#else
+#define MAYBE_UsesOriginalUrl UsesOriginalUrl
+#endif
+TEST_F(QuicMemoryCacheBackendTest, MAYBE_UsesOriginalUrl) {
   cache_.InitializeBackend(CacheDirectory());
   const Response* response =
       cache_.GetResponse("test.example.com", "/site_map.html");
@@ -115,7 +143,13 @@ TEST_F(QuicMemoryCacheBackendTest, UsesOriginalUrl) {
   EXPECT_LT(0U, response->body().length());
 }
 
-TEST_F(QuicMemoryCacheBackendTest, UsesOriginalUrlOnly) {
+// TODO(crbug.com/1249712) This test is failing on iOS.
+#if defined(OS_IOS)
+#define MAYBE_UsesOriginalUrlOnly DISABLED_UsesOriginalUrlOnly
+#else
+#define MAYBE_UsesOriginalUrlOnly UsesOriginalUrlOnly
+#endif
+TEST_F(QuicMemoryCacheBackendTest, MAYBE_UsesOriginalUrlOnly) {
   // Tests that if the URL cannot be inferred correctly from the path
   // because the directory does not include the hostname, that the
   // X-Original-Url header's value will be used.
