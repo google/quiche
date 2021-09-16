@@ -1091,8 +1091,6 @@ TEST_F(QuicStreamSequencerBufferRandomIOTest, RandomWriteAndConsumeInPlace) {
 }
 
 TEST_F(QuicStreamSequencerBufferTest, GrowBlockSizeOnDemand) {
-  SetQuicReloadableFlag(quic_allocate_stream_sequencer_buffer_blocks_on_demand,
-                        true);
   max_capacity_bytes_ = 1024 * kBlockSizeBytes;
   std::string source_of_one_block(kBlockSizeBytes, 'a');
   Initialize();

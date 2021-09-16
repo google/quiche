@@ -46,8 +46,7 @@ bool QuicStreamSequencerBufferPeer::IsBlockArrayEmpty() {
     return true;
   }
 
-  size_t count = buffer_->allocate_blocks_on_demand_ ? current_blocks_count()
-                                                     : max_blocks_count();
+  size_t count = current_blocks_count();
   for (size_t i = 0; i < count; i++) {
     if (buffer_->blocks_[i] != nullptr) {
       return false;

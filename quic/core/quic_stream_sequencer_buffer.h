@@ -229,10 +229,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   // Number of bytes read out of buffer.
   QuicStreamOffset total_bytes_read_;
 
-  // Whether size of blocks_ grows on demand.
-  bool allocate_blocks_on_demand_ = GetQuicReloadableFlag(
-      quic_allocate_stream_sequencer_buffer_blocks_on_demand);
-
   // An ordered, variable-length list of blocks, with the length limited
   // such that the number of blocks never exceeds max_blocks_count_.
   // Each list entry can hold up to kBlockSizeBytes bytes.
