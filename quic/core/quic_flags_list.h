@@ -86,7 +86,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_pass_path_response_to_validator, true)
 // If true, quic dispatcher supports one connection to use multiple connection IDs. 
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_dispatcher_support_multiple_cid_per_connection_v2, true)
 // If true, record addresses that server has sent reset to recently, and do not send reset if the address lives in the set.
-QUIC_FLAG(FLAGS_quic_restart_flag_quic_use_recent_reset_addresses, false)
+QUIC_FLAG(FLAGS_quic_restart_flag_quic_use_recent_reset_addresses, true)
 // If true, refactor how QUIC TLS server disables resumption. No behavior change.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_disable_resumption_refactor, false)
 // If true, require handshake confirmation for QUIC connections, functionally disabling 0-rtt handshakes.
