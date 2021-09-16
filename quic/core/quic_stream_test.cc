@@ -177,11 +177,12 @@ TEST_P(QuicStreamTest, PendingStreamStaticness) {
   Initialize();
 
   PendingStream pending(kTestStreamId + 2, session_.get());
-  TestStream stream(&pending, session_.get(), StreamType::BIDIRECTIONAL, false);
+  TestStream stream(&pending, session_.get(), StreamType::READ_UNIDIRECTIONAL,
+                    false);
   EXPECT_FALSE(stream.is_static());
 
   PendingStream pending2(kTestStreamId + 3, session_.get());
-  TestStream stream2(&pending2, session_.get(), StreamType::BIDIRECTIONAL,
+  TestStream stream2(&pending2, session_.get(), StreamType::READ_UNIDIRECTIONAL,
                      true);
   EXPECT_TRUE(stream2.is_static());
 }

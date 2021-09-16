@@ -10,6 +10,7 @@
 #include "quic/core/http/quic_server_initiated_spdy_stream.h"
 #include "quic/core/http/quic_spdy_session.h"
 #include "quic/core/quic_connection.h"
+#include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
@@ -67,7 +68,7 @@ QuicSpdyStream* QuicSimpleServerSession::CreateIncomingStream(QuicStreamId id) {
 QuicSpdyStream* QuicSimpleServerSession::CreateIncomingStream(
     PendingStream* pending) {
   QuicSpdyStream* stream = new QuicSimpleServerStream(
-      pending, this, BIDIRECTIONAL, quic_simple_server_backend_);
+      pending, this, READ_UNIDIRECTIONAL, quic_simple_server_backend_);
   ActivateStream(absl::WrapUnique(stream));
   return stream;
 }
