@@ -25,8 +25,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientStream : public QuicSpdyStream {
                        QuicSpdyClientSession* session,
                        StreamType type);
   QuicSpdyClientStream(PendingStream* pending,
-                       QuicSpdyClientSession* spdy_session,
-                       StreamType type);
+                       QuicSpdyClientSession* spdy_session);
   QuicSpdyClientStream(const QuicSpdyClientStream&) = delete;
   QuicSpdyClientStream& operator=(const QuicSpdyClientStream&) = delete;
   ~QuicSpdyClientStream() override;

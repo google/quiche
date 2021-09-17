@@ -11,8 +11,7 @@ namespace quic {
 QpackReceiveStream::QpackReceiveStream(PendingStream* pending,
                                        QuicSession* session,
                                        QpackStreamReceiver* receiver)
-    : QuicStream(pending, session, READ_UNIDIRECTIONAL, /*is_static=*/true),
-      receiver_(receiver) {}
+    : QuicStream(pending, session, /*is_static=*/true), receiver_(receiver) {}
 
 void QpackReceiveStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
   stream_delegate()->OnStreamError(

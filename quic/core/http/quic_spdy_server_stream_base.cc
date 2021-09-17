@@ -16,9 +16,8 @@ QuicSpdyServerStreamBase::QuicSpdyServerStreamBase(QuicStreamId id,
     : QuicSpdyStream(id, session, type) {}
 
 QuicSpdyServerStreamBase::QuicSpdyServerStreamBase(PendingStream* pending,
-                                                   QuicSpdySession* session,
-                                                   StreamType type)
-    : QuicSpdyStream(pending, session, type) {}
+                                                   QuicSpdySession* session)
+    : QuicSpdyStream(pending, session) {}
 
 void QuicSpdyServerStreamBase::CloseWriteSide() {
   if (!fin_received() && !rst_received() && sequencer()->ignore_read_data() &&

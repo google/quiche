@@ -20,6 +20,7 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_mem_slice.h"
+#include "common/platform/api/quiche_logging.h"
 
 using spdy::SpdyPriority;
 
@@ -271,11 +272,19 @@ void PendingStream::StopReading() {
 }
 
 QuicStream::QuicStream(PendingStream* pending, QuicSession* session,
-                       StreamType type, bool is_static)
+                       bool is_static)
     : QuicStream(pending->id_, session, std::move(pending->sequencer_),
-                 is_static, type, pending->stream_bytes_read_,
-                 pending->fin_received_, std::move(pending->flow_controller_),
+                 is_static,
+                 QuicUtils::GetStreamType(pending->id_, session->perspective(),
+                                          /*peer_initiated = */ true,
+                                          session->version()),
+                 pending->stream_bytes_read_, pending->fin_received_,
+                 std::move(pending->flow_controller_),
                  pending->connection_flow_controller_) {
+  QUICHE_DCHECK(session->version().HasIetfQuicFrames());
+  // TODO(haoyuewang) Remove this check once bidirectional pending stream is
+  // supported.
+  QUICHE_DCHECK(type_ == READ_UNIDIRECTIONAL);
   sequencer_.set_stream(this);
 }
 

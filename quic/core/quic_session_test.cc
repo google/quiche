@@ -186,8 +186,8 @@ class TestStream : public QuicStream {
              StreamType type)
       : QuicStream(id, session, is_static, type) {}
 
-  TestStream(PendingStream* pending, QuicSession* session, StreamType type)
-      : QuicStream(pending, session, type, /*is_static=*/false) {}
+  TestStream(PendingStream* pending, QuicSession* session)
+      : QuicStream(pending, session, /*is_static=*/false) {}
 
   using QuicStream::CloseWriteSide;
   using QuicStream::WriteMemSlices;
@@ -278,11 +278,7 @@ class TestSession : public QuicSession {
   }
 
   TestStream* CreateIncomingStream(PendingStream* pending) override {
-    QuicStreamId id = pending->id();
-    TestStream* stream = new TestStream(
-        pending, this,
-        DetermineStreamType(id, connection()->version(), perspective(),
-                            /*is_incoming=*/true, BIDIRECTIONAL));
+    TestStream* stream = new TestStream(pending, this);
     ActivateStream(absl::WrapUnique(stream));
     ++num_incoming_streams_created_;
     return stream;

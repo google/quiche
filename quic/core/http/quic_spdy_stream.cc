@@ -213,9 +213,8 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id, QuicSpdySession* spdy_session,
 }
 
 QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
-                               QuicSpdySession* spdy_session,
-                               StreamType type)
-    : QuicStream(pending, spdy_session, type, /*is_static=*/false),
+                               QuicSpdySession* spdy_session)
+    : QuicStream(pending, spdy_session, /*is_static=*/false),
       spdy_session_(spdy_session),
       on_body_available_called_because_sequencer_is_closed_(false),
       visitor_(nullptr),

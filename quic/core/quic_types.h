@@ -679,7 +679,7 @@ enum WriteStreamDataResult {
   WRITE_FAILED,    // Trying to write nonexistent data of a stream
 };
 
-enum StreamType {
+enum StreamType : uint8_t {
   // Bidirectional streams allow for data to be sent in both directions.
   BIDIRECTIONAL,
 

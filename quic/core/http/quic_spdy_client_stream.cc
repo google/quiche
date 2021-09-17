@@ -31,9 +31,8 @@ QuicSpdyClientStream::QuicSpdyClientStream(QuicStreamId id,
       has_preliminary_headers_(false) {}
 
 QuicSpdyClientStream::QuicSpdyClientStream(PendingStream* pending,
-                                           QuicSpdyClientSession* session,
-                                           StreamType type)
-    : QuicSpdyStream(pending, session, type),
+                                           QuicSpdyClientSession* session)
+    : QuicSpdyStream(pending, session),
       content_length_(-1),
       response_code_(0),
       header_bytes_read_(0),

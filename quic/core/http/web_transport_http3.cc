@@ -259,7 +259,7 @@ void WebTransportHttp3::OnContextClosed(
 
 WebTransportHttp3UnidirectionalStream::WebTransportHttp3UnidirectionalStream(
     PendingStream* pending, QuicSpdySession* session)
-    : QuicStream(pending, session, READ_UNIDIRECTIONAL, /*is_static=*/false),
+    : QuicStream(pending, session, /*is_static=*/false),
       session_(session),
       adapter_(session, this, sequencer()),
       needs_to_send_preamble_(false) {}

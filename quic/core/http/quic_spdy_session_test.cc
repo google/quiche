@@ -208,8 +208,8 @@ class TestStream : public QuicSpdyStream {
   TestStream(QuicStreamId id, QuicSpdySession* session, StreamType type)
       : QuicSpdyStream(id, session, type) {}
 
-  TestStream(PendingStream* pending, QuicSpdySession* session, StreamType type)
-      : QuicSpdyStream(pending, session, type) {}
+  TestStream(PendingStream* pending, QuicSpdySession* session)
+      : QuicSpdyStream(pending, session) {}
 
   using QuicStream::CloseWriteSide;
 
@@ -286,11 +286,7 @@ class TestSession : public QuicSpdySession {
   }
 
   TestStream* CreateIncomingStream(PendingStream* pending) override {
-    QuicStreamId id = pending->id();
-    TestStream* stream = new TestStream(
-        pending, this,
-        DetermineStreamType(id, connection()->version(), perspective(),
-                            /*is_incoming=*/true, BIDIRECTIONAL));
+    TestStream* stream = new TestStream(pending, this);
     ActivateStream(absl::WrapUnique(stream));
     return stream;
   }

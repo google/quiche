@@ -24,7 +24,6 @@ QuicReceiveControlStream::QuicReceiveControlStream(
     QuicSpdySession* spdy_session)
     : QuicStream(pending,
                  spdy_session,
-                 READ_UNIDIRECTIONAL,
                  /*is_static=*/true),
       settings_frame_received_(false),
       decoder_(this),

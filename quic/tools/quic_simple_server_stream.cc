@@ -38,11 +38,9 @@ QuicSimpleServerStream::QuicSimpleServerStream(
 }
 
 QuicSimpleServerStream::QuicSimpleServerStream(
-    PendingStream* pending,
-    QuicSpdySession* session,
-    StreamType type,
+    PendingStream* pending, QuicSpdySession* session,
     QuicSimpleServerBackend* quic_simple_server_backend)
-    : QuicSpdyServerStreamBase(pending, session, type),
+    : QuicSpdyServerStreamBase(pending, session),
       content_length_(-1),
       generate_bytes_length_(0),
       quic_simple_server_backend_(quic_simple_server_backend) {
