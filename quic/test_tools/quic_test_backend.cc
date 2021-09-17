@@ -33,7 +33,8 @@ QuicTestBackend::ProcessWebTransportRequest(
     return response;
   }
   absl::string_view path = path_it->second;
-  if (path == "/echo") {
+  // Match any "/echo.*" pass, e.g. "/echo_foobar"
+  if (absl::StartsWith(path, "/echo")) {
     WebTransportResponse response;
     response.response_headers[":status"] = "200";
     response.visitor =

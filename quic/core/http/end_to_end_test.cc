@@ -6035,6 +6035,26 @@ TEST_P(EndToEndTest, WebTransportSessionSetup) {
   server_thread_->Resume();
 }
 
+TEST_P(EndToEndTest, WebTransportSessionSetupWithEchoWithSuffix) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  // "/echoFoo" should be accepted as "echo"
+  WebTransportHttp3* web_transport =
+      CreateWebTransportSession("/echoFoo", /*wait_for_server_response=*/true);
+  ASSERT_NE(web_transport, nullptr);
+
+  server_thread_->Pause();
+  QuicSpdySession* server_session = GetServerSession();
+  EXPECT_TRUE(server_session->GetWebTransportSession(web_transport->id()) !=
+              nullptr);
+  server_thread_->Resume();
+}
+
 TEST_P(EndToEndTest, WebTransportSessionWithLoss) {
   enable_web_transport_ = true;
   // Enable loss to verify all permutations of receiving SETTINGS and
