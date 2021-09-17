@@ -57,6 +57,11 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderState : public HpackWholeEntryListener {
   // decoding the SETTINGS ACK, and before the next HPACK block is decoded.
   void ApplyHeaderTableSizeSetting(uint32_t max_header_table_size);
 
+  // Returns the most recently applied value of SETTINGS_HEADER_TABLE_SIZE.
+  size_t GetCurrentHeaderTableSizeSetting() const {
+    return final_header_table_size_;
+  }
+
   // OnHeaderBlockStart notifies this object that we're starting to decode the
   // HPACK payload of a HEADERS or PUSH_PROMISE frame.
   void OnHeaderBlockStart();

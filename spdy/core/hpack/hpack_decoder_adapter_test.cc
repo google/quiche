@@ -267,6 +267,12 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(START_WITH_HANDLER),
                        ::testing::Bool()));
 
+TEST_P(HpackDecoderAdapterTest, ApplyHeaderTableSizeSetting) {
+  EXPECT_EQ(4096u, decoder_.GetCurrentHeaderTableSizeSetting());
+  decoder_.ApplyHeaderTableSizeSetting(12 * 1024);
+  EXPECT_EQ(12288u, decoder_.GetCurrentHeaderTableSizeSetting());
+}
+
 TEST_P(HpackDecoderAdapterTest,
        AddHeaderDataWithHandleControlFrameHeadersData) {
   // The hpack decode buffer size is limited in size. This test verifies that

@@ -427,8 +427,10 @@ TEST_F(HpackDecoderStateTest, OptionalTableSizeChanges) {
 
 // Confirm that required size updates are indeed required before headers.
 TEST_F(HpackDecoderStateTest, RequiredTableSizeChangeBeforeHeader) {
+  EXPECT_EQ(4096u, decoder_state_.GetCurrentHeaderTableSizeSetting());
   decoder_state_.ApplyHeaderTableSizeSetting(1024);
   decoder_state_.ApplyHeaderTableSizeSetting(2048);
+  EXPECT_EQ(2048u, decoder_state_.GetCurrentHeaderTableSizeSetting());
 
   // First provide the required update, and an allowed second update.
   SendStartAndVerifyCallback();
@@ -442,6 +444,7 @@ TEST_F(HpackDecoderStateTest, RequiredTableSizeChangeBeforeHeader) {
 
   // Another HPACK block, but this time missing the required size update.
   decoder_state_.ApplyHeaderTableSizeSetting(1024);
+  EXPECT_EQ(1024u, decoder_state_.GetCurrentHeaderTableSizeSetting());
   SendStartAndVerifyCallback();
   EXPECT_CALL(listener_,
               OnHeaderErrorDetected(Eq("Missing dynamic table size update")));

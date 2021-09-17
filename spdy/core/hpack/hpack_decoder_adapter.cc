@@ -29,6 +29,10 @@ void HpackDecoderAdapter::ApplyHeaderTableSizeSetting(size_t size_setting) {
   hpack_decoder_.ApplyHeaderTableSizeSetting(size_setting);
 }
 
+size_t HpackDecoderAdapter::GetCurrentHeaderTableSizeSetting() const {
+  return hpack_decoder_.GetCurrentHeaderTableSizeSetting();
+}
+
 void HpackDecoderAdapter::HandleControlFrameHeadersStart(
     SpdyHeadersHandlerInterface* handler) {
   QUICHE_DVLOG(2) << "HpackDecoderAdapter::HandleControlFrameHeadersStart";

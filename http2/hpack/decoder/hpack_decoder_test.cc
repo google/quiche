@@ -961,11 +961,13 @@ TEST_P(HpackDecoderTest, ProcessesOptionalTableSizeUpdates) {
 
 // Confirm that the table size can be changed when required, but at most twice.
 TEST_P(HpackDecoderTest, ProcessesRequiredTableSizeUpdate) {
+  EXPECT_EQ(4096u, decoder_.GetCurrentHeaderTableSizeSetting());
   // One update required, two allowed, one provided, followed by a header.
   decoder_.ApplyHeaderTableSizeSetting(1024);
   decoder_.ApplyHeaderTableSizeSetting(2048);
   EXPECT_EQ(Http2SettingsInfo::DefaultHeaderTableSize(),
             header_table_size_limit());
+  EXPECT_EQ(2048u, decoder_.GetCurrentHeaderTableSizeSetting());
   {
     HpackBlockBuilder hbb;
     hbb.AppendDynamicTableSizeUpdate(1024);
@@ -979,6 +981,7 @@ TEST_P(HpackDecoderTest, ProcessesRequiredTableSizeUpdate) {
   // One update required, two allowed, two provided, followed by a header.
   decoder_.ApplyHeaderTableSizeSetting(1000);
   decoder_.ApplyHeaderTableSizeSetting(1500);
+  EXPECT_EQ(1500u, decoder_.GetCurrentHeaderTableSizeSetting());
   {
     HpackBlockBuilder hbb;
     hbb.AppendDynamicTableSizeUpdate(500);
@@ -994,6 +997,7 @@ TEST_P(HpackDecoderTest, ProcessesRequiredTableSizeUpdate) {
   // The third update is rejected, so the final size is 1000, not 500.
   decoder_.ApplyHeaderTableSizeSetting(500);
   decoder_.ApplyHeaderTableSizeSetting(1000);
+  EXPECT_EQ(1000u, decoder_.GetCurrentHeaderTableSizeSetting());
   {
     HpackBlockBuilder hbb;
     hbb.AppendDynamicTableSizeUpdate(200);
@@ -1011,6 +1015,7 @@ TEST_P(HpackDecoderTest, ProcessesRequiredTableSizeUpdate) {
     EXPECT_EQ(0u, current_header_table_size());
     EXPECT_TRUE(header_entries_.empty());
   }
+  EXPECT_EQ(1000u, decoder_.GetCurrentHeaderTableSizeSetting());
   // Now that an error has been detected, StartDecodingBlock should return
   // false.
   EXPECT_FALSE(decoder_.StartDecodingBlock());

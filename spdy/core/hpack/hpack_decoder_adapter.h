@@ -39,6 +39,9 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderAdapter {
   // Called upon acknowledgement of SETTINGS_HEADER_TABLE_SIZE.
   void ApplyHeaderTableSizeSetting(size_t size_setting);
 
+  // Returns the most recently applied value of SETTINGS_HEADER_TABLE_SIZE.
+  size_t GetCurrentHeaderTableSizeSetting() const;
+
   // If a SpdyHeadersHandlerInterface is provided, the decoder will emit
   // headers to it rather than accumulating them in a SpdyHeaderBlock.
   // Does not take ownership of the handler, but does use the pointer until

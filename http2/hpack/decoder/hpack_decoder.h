@@ -69,6 +69,11 @@ class QUICHE_EXPORT_PRIVATE HpackDecoder {
   // decoding the SETTINGS ACK, and before the next HPACK block is decoded.
   void ApplyHeaderTableSizeSetting(uint32_t max_header_table_size);
 
+  // Returns the most recently applied value of SETTINGS_HEADER_TABLE_SIZE.
+  size_t GetCurrentHeaderTableSizeSetting() const {
+    return decoder_state_.GetCurrentHeaderTableSizeSetting();
+  }
+
   // Prepares the decoder for decoding a new HPACK block, and announces this to
   // its listener. Returns true if OK to continue with decoding, false if an
   // error has been detected, which for StartDecodingBlock means the error was
