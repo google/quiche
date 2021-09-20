@@ -14944,25 +14944,17 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
   // connection ID.
   connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *packet1);
   EXPECT_EQ(connection_.connection_id(), cid0);
-  if (connection_.use_active_cid_for_session_lookup()) {
-    EXPECT_TRUE(connection_.GetOneActiveServerConnectionId() == cid0 ||
-                connection_.GetOneActiveServerConnectionId() == cid1 ||
-                connection_.GetOneActiveServerConnectionId() == cid2);
-  } else {
-    EXPECT_EQ(connection_.GetOneActiveServerConnectionId(), cid0);
-  }
+  EXPECT_TRUE(connection_.GetOneActiveServerConnectionId() == cid0 ||
+              connection_.GetOneActiveServerConnectionId() == cid1 ||
+              connection_.GetOneActiveServerConnectionId() == cid2);
 
   // cid0 is retired when the retire CID alarm fires.
   EXPECT_CALL(visitor_, OnServerConnectionIdRetired(cid0));
   retire_self_issued_cid_alarm->Fire();
   EXPECT_THAT(connection_.GetActiveServerConnectionIds(),
               ElementsAre(cid1, cid2));
-  if (connection_.use_active_cid_for_session_lookup()) {
-    EXPECT_TRUE(connection_.GetOneActiveServerConnectionId() == cid1 ||
-                connection_.GetOneActiveServerConnectionId() == cid2);
-  } else {
-    EXPECT_EQ(connection_.GetOneActiveServerConnectionId(), cid0);
-  }
+  EXPECT_TRUE(connection_.GetOneActiveServerConnectionId() == cid1 ||
+              connection_.GetOneActiveServerConnectionId() == cid2);
 
   // Packet3 updates the connection ID on the default path.
   connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *packet3);

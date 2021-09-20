@@ -6844,8 +6844,7 @@ void QuicConnection::OnPathValidationFailureAtClient() {
 
 QuicConnectionId QuicConnection::GetOneActiveServerConnectionId() const {
   if (perspective_ == Perspective::IS_CLIENT ||
-      self_issued_cid_manager_ == nullptr ||
-      !use_active_cid_for_session_lookup_) {
+      self_issued_cid_manager_ == nullptr) {
     return connection_id();
   }
   auto active_connection_ids = GetActiveServerConnectionIds();
