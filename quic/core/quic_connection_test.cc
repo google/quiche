@@ -2068,9 +2068,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
 TEST_P(QuicConnectionTest,
        ReversePathValidationResponseReceivedFromUnexpectedPeerAddress) {
   set_perspective(Perspective::IS_SERVER);
-  if (!GetQuicReloadableFlag(
-          quic_flush_pending_frame_before_updating_default_path) ||
-      !connection_.connection_migration_use_new_cid()) {
+  if (!connection_.connection_migration_use_new_cid()) {
     return;
   }
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);

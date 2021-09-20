@@ -5284,11 +5284,7 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
   }
   // There could be pending NEW_TOKEN_FRAME triggered by non-probing
   // PATH_RESPONSE_FRAME in the same packet.
-  if (GetQuicReloadableFlag(
-          quic_flush_pending_frame_before_updating_default_path) &&
-      packet_creator_.HasPendingFrames()) {
-    QUICHE_RELOADABLE_FLAG_COUNT(
-        quic_flush_pending_frame_before_updating_default_path);
+  if (packet_creator_.HasPendingFrames()) {
     packet_creator_.FlushCurrentPacket();
     if (!connected_) {
       return;
