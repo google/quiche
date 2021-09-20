@@ -1628,15 +1628,6 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
   static_assert(sizeof(config->orbit) == kOrbitSize, "incorrect orbit size");
   memcpy(config->orbit, orbit.data(), sizeof(config->orbit));
 
-  if ((kexs_tags.size() != static_cast<size_t>(protobuf.key_size())) &&
-      (!GetQuicRestartFlag(dont_fetch_quic_private_keys_from_leto) &&
-       protobuf.key_size() == 0)) {
-    QUIC_LOG(WARNING) << "Server config has " << kexs_tags.size()
-                      << " key exchange methods configured, but "
-                      << protobuf.key_size() << " private keys";
-    return nullptr;
-  }
-
   QuicTagVector proof_demand_tags;
   if (msg->GetTaglist(kPDMD, &proof_demand_tags) == QUIC_NO_ERROR) {
     for (QuicTag tag : proof_demand_tags) {
