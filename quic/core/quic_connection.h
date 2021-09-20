@@ -2287,8 +2287,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const bool add_missing_update_ack_timeout_ =
       GetQuicReloadableFlag(quic_add_missing_update_ack_timeout);
 
-  const bool ack_cid_frames_ = GetQuicReloadableFlag(quic_ack_cid_frames);
-
   const bool use_active_cid_for_session_lookup_ =
       GetQuicReloadableFlag(quic_use_active_cid_for_session_lookup);
 };

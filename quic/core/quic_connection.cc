@@ -2015,10 +2015,7 @@ bool QuicConnection::OnNewConnectionIdFrameInner(
   if (perspective_ == Perspective::IS_SERVER) {
     OnClientConnectionIdAvailable();
   }
-  if (ack_cid_frames_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_ack_cid_frames, 1, 2);
-    MaybeUpdateAckTimeout();
-  }
+  MaybeUpdateAckTimeout();
   return true;
 }
 
@@ -2078,10 +2075,7 @@ bool QuicConnection::OnRetireConnectionIdFrame(
   }
   // Count successfully received RETIRE_CONNECTION_ID frames.
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 5, 6);
-  if (ack_cid_frames_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_ack_cid_frames, 2, 2);
-    MaybeUpdateAckTimeout();
-  }
+  MaybeUpdateAckTimeout();
   return true;
 }
 

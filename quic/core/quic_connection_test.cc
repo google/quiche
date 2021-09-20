@@ -12185,13 +12185,9 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
   new_writer.SetWritable();
   // Write event on the default socket shouldn't make any difference.
   connection_.OnCanWrite();
-  if (GetQuicReloadableFlag(quic_ack_cid_frames)) {
-    // A NEW_CONNECTION_ID frame is received in PathProbeTestInit and OnCanWrite
-    // will write a acking packet.
-    EXPECT_EQ(1u, writer_->packets_write_attempts());
-  } else {
-    EXPECT_EQ(0u, writer_->packets_write_attempts());
-  }
+  // A NEW_CONNECTION_ID frame is received in PathProbeTestInit and OnCanWrite
+  // will write a acking packet.
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
   EXPECT_EQ(1u, new_writer.packets_write_attempts());
 }
 
@@ -15349,7 +15345,6 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
   connection_.SetFromConfig(config);
   if (!version().HasIetfQuicFrames() ||
       !connection_.connection_migration_use_new_cid() ||
-      !GetQuicReloadableFlag(quic_ack_cid_frames) ||
       !GetQuicReloadableFlag(quic_add_missing_update_ack_timeout)) {
     return;
   }

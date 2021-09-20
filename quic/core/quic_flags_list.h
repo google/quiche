@@ -105,8 +105,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_reset_ideal_next_packet_send_tim
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_suppress_write_mid_packet_processing, true)
 // If true, time_wait_list can support multiple connection IDs.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_time_wait_list_support_multiple_cid_v2, true)
-// If true, update ACK timeout for NEW_CONNECTION_ID and RETIRE_CONNECTION_ID frames.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ack_cid_frames, true)
 // If true, use BBRv2 as the default congestion controller. Takes precedence over --quic_default_to_bbr.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr_v2, false)
 // If true, use new connection ID in connection migration.
