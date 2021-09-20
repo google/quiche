@@ -257,18 +257,22 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   // Initial window.
   if (GetQuicReloadableFlag(quic_unified_iw_options)) {
     if (config.HasClientRequestedIndependentOption(kIW03, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_unified_iw_options, 1, 4);
       initial_congestion_window_ = 3;
       send_algorithm_->SetInitialCongestionWindowInPackets(3);
     }
     if (config.HasClientRequestedIndependentOption(kIW10, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_unified_iw_options, 2, 4);
       initial_congestion_window_ = 10;
       send_algorithm_->SetInitialCongestionWindowInPackets(10);
     }
     if (config.HasClientRequestedIndependentOption(kIW20, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_unified_iw_options, 3, 4);
       initial_congestion_window_ = 20;
       send_algorithm_->SetInitialCongestionWindowInPackets(20);
     }
     if (config.HasClientRequestedIndependentOption(kIW50, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_unified_iw_options, 4, 4);
       initial_congestion_window_ = 50;
       send_algorithm_->SetInitialCongestionWindowInPackets(50);
     }
