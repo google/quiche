@@ -759,7 +759,6 @@ bool QuicSpdySession::OnStreamsBlockedFrame(
 
 void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
                                       const std::string& reason) {
-  QUICHE_DCHECK_EQ(perspective(), Perspective::IS_SERVER);
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
   if (!IsEncryptionEstablished()) {
     QUIC_CODE_COUNT(quic_h3_goaway_before_encryption_established);
