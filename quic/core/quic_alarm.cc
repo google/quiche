@@ -17,7 +17,7 @@ QuicAlarm::QuicAlarm(QuicArenaScopedPtr<Delegate> delegate)
     : delegate_(std::move(delegate)), deadline_(QuicTime::Zero()) {}
 
 QuicAlarm::~QuicAlarm() {
-  if (GetQuicRestartFlag(quic_alarm_add_permanent_cancel) && IsSet()) {
+  if (IsSet()) {
     QUIC_CODE_COUNT(quic_alarm_not_cancelled_in_dtor);
     static std::atomic<uint64_t> hit_count{0};
     uint64_t old_count = hit_count.fetch_add(1, std::memory_order_relaxed);
@@ -44,16 +44,6 @@ void QuicAlarm::Set(QuicTime new_deadline) {
 }
 
 void QuicAlarm::CancelInternal(bool permanent) {
-  if (!GetQuicRestartFlag(quic_alarm_add_permanent_cancel)) {
-    if (!IsSet()) {
-      // Don't try to cancel an alarm that hasn't been set.
-      return;
-    }
-    deadline_ = QuicTime::Zero();
-    CancelImpl();
-    return;
-  }
-
   if (IsSet()) {
     deadline_ = QuicTime::Zero();
     CancelImpl();

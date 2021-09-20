@@ -77,8 +77,7 @@ QuicBufferedPacketStore::QuicBufferedPacketStore(
           alarm_factory->CreateAlarm(new ConnectionExpireAlarm(this))) {}
 
 QuicBufferedPacketStore::~QuicBufferedPacketStore() {
-  if (GetQuicRestartFlag(quic_alarm_add_permanent_cancel) &&
-      expiration_alarm_ != nullptr) {
+  if (expiration_alarm_ != nullptr) {
     expiration_alarm_->PermanentCancel();
   }
 }

@@ -140,35 +140,16 @@ TEST_F(QuicAlarmTest, PermanentCancel) {
   EXPECT_FALSE(alarm_.scheduled());
   EXPECT_EQ(QuicTime::Zero(), alarm_.deadline());
 
-  if (!GetQuicRestartFlag(quic_alarm_add_permanent_cancel)) {
-    alarm_.Set(deadline);
-    // When flag is false, PermanentCancel should work like a normal Cancel.
-    EXPECT_TRUE(alarm_.IsSet());
-    EXPECT_TRUE(alarm_.scheduled());
-    EXPECT_EQ(deadline, alarm_.deadline());
-    EXPECT_FALSE(alarm_.IsPermanentlyCancelled());
-    alarm_.PermanentCancel();
-  } else {
-    EXPECT_QUIC_BUG(alarm_.Set(deadline),
-                    "Set called after alarm is permanently cancelled");
-    EXPECT_TRUE(alarm_.IsPermanentlyCancelled());
-  }
+  EXPECT_QUIC_BUG(alarm_.Set(deadline),
+                  "Set called after alarm is permanently cancelled");
+  EXPECT_TRUE(alarm_.IsPermanentlyCancelled());
   EXPECT_FALSE(alarm_.IsSet());
   EXPECT_FALSE(alarm_.scheduled());
   EXPECT_EQ(QuicTime::Zero(), alarm_.deadline());
 
-  if (!GetQuicRestartFlag(quic_alarm_add_permanent_cancel)) {
-    alarm_.Update(deadline, QuicTime::Delta::Zero());
-    EXPECT_TRUE(alarm_.IsSet());
-    EXPECT_TRUE(alarm_.scheduled());
-    EXPECT_EQ(deadline, alarm_.deadline());
-    EXPECT_FALSE(alarm_.IsPermanentlyCancelled());
-    alarm_.PermanentCancel();
-  } else {
-    EXPECT_QUIC_BUG(alarm_.Update(deadline, QuicTime::Delta::Zero()),
-                    "Update called after alarm is permanently cancelled");
-    EXPECT_TRUE(alarm_.IsPermanentlyCancelled());
-  }
+  EXPECT_QUIC_BUG(alarm_.Update(deadline, QuicTime::Delta::Zero()),
+                  "Update called after alarm is permanently cancelled");
+  EXPECT_TRUE(alarm_.IsPermanentlyCancelled());
   EXPECT_FALSE(alarm_.IsSet());
   EXPECT_FALSE(alarm_.scheduled());
   EXPECT_EQ(QuicTime::Zero(), alarm_.deadline());

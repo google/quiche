@@ -159,8 +159,7 @@ void QuicSession::Initialize() {
 }
 
 QuicSession::~QuicSession() {
-  if (GetQuicRestartFlag(quic_alarm_add_permanent_cancel) &&
-      closed_streams_clean_up_alarm_ != nullptr) {
+  if (closed_streams_clean_up_alarm_ != nullptr) {
     closed_streams_clean_up_alarm_->PermanentCancel();
   }
 }

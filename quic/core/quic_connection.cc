@@ -6137,7 +6137,7 @@ void QuicConnection::SetLargestReceivedPacketWithAck(
 }
 
 void QuicConnection::OnForwardProgressMade() {
-  if (GetQuicRestartFlag(quic_alarm_add_permanent_cancel) && !connected_) {
+  if (!connected_) {
     return;
   }
   if (is_path_degrading_) {

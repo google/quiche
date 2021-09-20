@@ -359,12 +359,10 @@ QuicDispatcher::QuicDispatcher(
       << "Trying to create dispatcher without any supported versions";
   QUIC_DLOG(INFO) << "Created QuicDispatcher with versions: "
                   << ParsedQuicVersionVectorToString(GetSupportedVersions());
-  QUIC_RESTART_FLAG_COUNT(quic_alarm_add_permanent_cancel);
 }
 
 QuicDispatcher::~QuicDispatcher() {
-  if (GetQuicRestartFlag(quic_alarm_add_permanent_cancel) &&
-      delete_sessions_alarm_ != nullptr) {
+  if (delete_sessions_alarm_ != nullptr) {
     delete_sessions_alarm_->PermanentCancel();
   }
   if (clear_stateless_reset_addresses_alarm_ != nullptr) {
