@@ -1,6 +1,8 @@
 #ifndef QUICHE_HTTP2_ADAPTER_WINDOW_MANAGER_H_
 #define QUICHE_HTTP2_ADAPTER_WINDOW_MANAGER_H_
 
+#include <stddef.h>
+
 #include <functional>
 
 #include "common/platform/api/quiche_export.h"
