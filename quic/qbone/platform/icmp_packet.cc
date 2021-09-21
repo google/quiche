@@ -17,7 +17,10 @@ constexpr size_t kIPv6AddressSize = sizeof(in6_addr);
 constexpr size_t kIPv6HeaderSize = sizeof(ip6_hdr);
 constexpr size_t kICMPv6HeaderSize = sizeof(icmp6_hdr);
 constexpr size_t kIPv6MinPacketSize = 1280;
-constexpr size_t kIcmpTtl = 64;
+
+// Hop limit set to 255 to satisfy:
+// https://datatracker.ietf.org/doc/html/rfc4861#section-11.2
+constexpr size_t kIcmpTtl = 255;
 constexpr size_t kICMPv6BodyMaxSize =
     kIPv6MinPacketSize - kIPv6HeaderSize - kICMPv6HeaderSize;
 

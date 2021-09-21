@@ -24,7 +24,7 @@ class TunDeviceInterface {
   virtual bool Down() = 0;
 
   // Closes the open file descriptor for the TUN device (if one exists).
-  // It is safe to reinitialize and reuse this TunDevice after calling
+  // It is safe to reinitialize and reuse this TunTapDevice after calling
   // CloseDevice.
   virtual void CloseDevice() = 0;
 

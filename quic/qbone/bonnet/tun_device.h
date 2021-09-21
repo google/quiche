@@ -13,7 +13,7 @@
 
 namespace quic {
 
-class TunDevice : public TunDeviceInterface {
+class TunTapDevice : public TunDeviceInterface {
  public:
   // This represents a tun device created in the OS kernel, which is a virtual
   // network interface that any packets sent to it can be read by a user space
@@ -32,13 +32,10 @@ class TunDevice : public TunDeviceInterface {
   // routing rules go away.
   //
   // The caller should own kernel and make sure it outlives this.
-  TunDevice(const std::string& interface_name,
-            int mtu,
-            bool persist,
-            bool setup_tun,
-            KernelInterface* kernel);
+  TunTapDevice(const std::string& interface_name, int mtu, bool persist,
+               bool setup_tun, bool is_tap, KernelInterface* kernel);
 
-  ~TunDevice() override;
+  ~TunTapDevice() override;
 
   // Actually creates/reopens and configures the device.
   bool Init() override;
@@ -50,7 +47,7 @@ class TunDevice : public TunDeviceInterface {
   bool Down() override;
 
   // Closes the open file descriptor for the TUN device (if one exists).
-  // It is safe to reinitialize and reuse this TunDevice after calling
+  // It is safe to reinitialize and reuse this TunTapDevice after calling
   // CloseDevice.
   void CloseDevice() override;
 
@@ -75,6 +72,7 @@ class TunDevice : public TunDeviceInterface {
   const int mtu_;
   const bool persist_;
   const bool setup_tun_;
+  const bool is_tap_;
   int file_descriptor_;
   KernelInterface& kernel_;
 };

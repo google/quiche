@@ -5,8 +5,11 @@
 #ifndef QUICHE_QUIC_QBONE_BONNET_TUN_DEVICE_PACKET_EXCHANGER_H_
 #define QUICHE_QUIC_QBONE_BONNET_TUN_DEVICE_PACKET_EXCHANGER_H_
 
+#include <linux/if_ether.h>
+
 #include "quic/core/quic_packets.h"
 #include "quic/qbone/platform/kernel_interface.h"
+#include "quic/qbone/platform/netlink_interface.h"
 #include "quic/qbone/qbone_client_interface.h"
 #include "quic/qbone/qbone_packet_exchanger.h"
 
@@ -42,11 +45,11 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
   // the TUN device become blocked.
   // |stats| is notified about packet read/write statistics. It is not owned,
   // but should outlive objects of this class.
-  TunDevicePacketExchanger(size_t mtu,
-                           KernelInterface* kernel,
+  TunDevicePacketExchanger(size_t mtu, KernelInterface* kernel,
+                           NetlinkInterface* netlink,
                            QbonePacketExchanger::Visitor* visitor,
-                           size_t max_pending_packets,
-                           StatsInterface* stats);
+                           size_t max_pending_packets, bool is_tap,
+                           StatsInterface* stats, absl::string_view ifname);
 
   void set_file_descriptor(int fd);
 
@@ -63,9 +66,19 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
                    bool* blocked,
                    std::string* error) override;
 
+  std::unique_ptr<QuicData> ApplyL2Headers(const QuicData& l3_packet);
+
+  std::unique_ptr<QuicData> ConsumeL2Headers(const QuicData& l2_packet);
+
   int fd_ = -1;
   size_t mtu_;
   KernelInterface* kernel_;
+  NetlinkInterface* netlink_;
+  const std::string ifname_;
+
+  const bool is_tap_;
+  uint8_t tap_mac_[ETH_ALEN]{};
+  bool mac_initialized_ = false;
 
   StatsInterface* stats_;
 };

@@ -24,26 +24,25 @@ namespace quic {
 
 const int kInvalidFd = -1;
 
-TunDevice::TunDevice(const std::string& interface_name,
-                     int mtu,
-                     bool persist,
-                     bool setup_tun,
-                     KernelInterface* kernel)
+TunTapDevice::TunTapDevice(const std::string& interface_name, int mtu,
+                           bool persist, bool setup_tun, bool is_tap,
+                           KernelInterface* kernel)
     : interface_name_(interface_name),
       mtu_(mtu),
       persist_(persist),
       setup_tun_(setup_tun),
+      is_tap_(is_tap),
       file_descriptor_(kInvalidFd),
       kernel_(*kernel) {}
 
-TunDevice::~TunDevice() {
+TunTapDevice::~TunTapDevice() {
   if (!persist_) {
     Down();
   }
   CloseDevice();
 }
 
-bool TunDevice::Init() {
+bool TunTapDevice::Init() {
   if (interface_name_.empty() || interface_name_.size() >= IFNAMSIZ) {
     QUIC_BUG(quic_bug_10995_1)
         << "interface_name must be nonempty and shorter than " << IFNAMSIZ;
@@ -63,7 +62,7 @@ bool TunDevice::Init() {
 
 // TODO(pengg): might be better to use netlink socket, once we have a library to
 // use
-bool TunDevice::Up() {
+bool TunTapDevice::Up() {
   if (!setup_tun_) {
     return true;
   }
@@ -79,7 +78,7 @@ bool TunDevice::Up() {
 
 // TODO(pengg): might be better to use netlink socket, once we have a library to
 // use
-bool TunDevice::Down() {
+bool TunTapDevice::Down() {
   if (!setup_tun_) {
     return true;
   }
@@ -93,11 +92,9 @@ bool TunDevice::Down() {
   return NetdeviceIoctl(SIOCSIFFLAGS, reinterpret_cast<void*>(&if_request));
 }
 
-int TunDevice::GetFileDescriptor() const {
-  return file_descriptor_;
-}
+int TunTapDevice::GetFileDescriptor() const { return file_descriptor_; }
 
-bool TunDevice::OpenDevice() {
+bool TunTapDevice::OpenDevice() {
   if (file_descriptor_ != kInvalidFd) {
     CloseDevice();
   }
@@ -113,7 +110,12 @@ bool TunDevice::OpenDevice() {
   // destroy the device and create a new one, but that deletes any existing
   // routing associated with the interface, which makes the meaning of the
   // 'persist' bit ambiguous.
-  if_request.ifr_flags = IFF_TUN | IFF_MULTI_QUEUE | IFF_NO_PI;
+  if_request.ifr_flags = IFF_MULTI_QUEUE | IFF_NO_PI;
+  if (is_tap_) {
+    if_request.ifr_flags |= IFF_TAP;
+  } else {
+    if_request.ifr_flags |= IFF_TUN;
+  }
 
   // When the device is running with IFF_MULTI_QUEUE set, each call to open will
   // create a queue which can be used to read/write packets from/to the device.
@@ -154,7 +156,7 @@ bool TunDevice::OpenDevice() {
 
 // TODO(pengg): might be better to use netlink socket, once we have a library to
 // use
-bool TunDevice::ConfigureInterface() {
+bool TunTapDevice::ConfigureInterface() {
   if (!setup_tun_) {
     return true;
   }
@@ -174,7 +176,7 @@ bool TunDevice::ConfigureInterface() {
   return true;
 }
 
-bool TunDevice::CheckFeatures(int tun_device_fd) {
+bool TunTapDevice::CheckFeatures(int tun_device_fd) {
   unsigned int actual_features;
   if (kernel_.ioctl(tun_device_fd, TUNGETFEATURES, &actual_features) != 0) {
     QUIC_PLOG(WARNING) << "Failed to TUNGETFEATURES";
@@ -191,7 +193,7 @@ bool TunDevice::CheckFeatures(int tun_device_fd) {
   return true;
 }
 
-bool TunDevice::NetdeviceIoctl(int request, void* argp) {
+bool TunTapDevice::NetdeviceIoctl(int request, void* argp) {
   int fd = kernel_.socket(AF_INET6, SOCK_DGRAM, 0);
   if (fd < 0) {
     QUIC_PLOG(WARNING) << "Failed to create AF_INET6 socket.";
@@ -207,7 +209,7 @@ bool TunDevice::NetdeviceIoctl(int request, void* argp) {
   return true;
 }
 
-void TunDevice::CloseDevice() {
+void TunTapDevice::CloseDevice() {
   if (file_descriptor_ != kInvalidFd) {
     kernel_.close(file_descriptor_);
     file_descriptor_ = kInvalidFd;
