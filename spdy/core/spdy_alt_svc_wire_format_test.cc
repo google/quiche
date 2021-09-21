@@ -30,13 +30,15 @@ class SpdyAltSvcWireFormatPeer {
   }
   static bool ParsePositiveInteger16(absl::string_view::const_iterator c,
                                      absl::string_view::const_iterator end,
-                                     uint16_t* max_age) {
-    return SpdyAltSvcWireFormat::ParsePositiveInteger16(c, end, max_age);
+                                     uint16_t* max_age_seconds) {
+    return SpdyAltSvcWireFormat::ParsePositiveInteger16(c, end,
+                                                        max_age_seconds);
   }
   static bool ParsePositiveInteger32(absl::string_view::const_iterator c,
                                      absl::string_view::const_iterator end,
-                                     uint32_t* max_age) {
-    return SpdyAltSvcWireFormat::ParsePositiveInteger32(c, end, max_age);
+                                     uint32_t* max_age_seconds) {
+    return SpdyAltSvcWireFormat::ParsePositiveInteger32(c, end,
+                                                        max_age_seconds);
   }
   static char HexDigitToInt(char c) {
     return SpdyAltSvcWireFormat::HexDigitToInt(c);
@@ -79,7 +81,7 @@ void FuzzHeaderFieldValue(
     header_field_value->append(" ");
   }
   if (i & 3 << 3) {
-    expected_altsvc->max_age = 1111;
+    expected_altsvc->max_age_seconds = 1111;
     header_field_value->append(";");
     if (i & 1 << 3) {
       header_field_value->append(" ");
@@ -114,7 +116,7 @@ void FuzzHeaderFieldValue(
     }
   }
   if (i & 1 << 8) {
-    expected_altsvc->max_age = 999999999;
+    expected_altsvc->max_age_seconds = 999999999;
     header_field_value->append("; Ma=999999999");
   }
   if (i & 1 << 9) {
@@ -148,7 +150,7 @@ void FuzzAlternativeService(int i,
   }
   expected_header_field_value->append(":42\"");
   if (i & 1 << 1) {
-    altsvc->max_age = 1111;
+    altsvc->max_age_seconds = 1111;
     expected_header_field_value->append("; ma=1111");
   }
   if (i & 1 << 2) {
@@ -165,7 +167,7 @@ TEST(SpdyAltSvcWireFormatTest, DefaultValues) {
   EXPECT_EQ("", altsvc.protocol_id);
   EXPECT_EQ("", altsvc.host);
   EXPECT_EQ(0u, altsvc.port);
-  EXPECT_EQ(86400u, altsvc.max_age);
+  EXPECT_EQ(86400u, altsvc.max_age_seconds);
   EXPECT_TRUE(altsvc.version.empty());
 }
 
@@ -196,7 +198,8 @@ TEST(SpdyAltSvcWireFormatTest, ParseHeaderFieldValue) {
     EXPECT_EQ(expected_altsvc.protocol_id, altsvc_vector[0].protocol_id);
     EXPECT_EQ(expected_altsvc.host, altsvc_vector[0].host);
     EXPECT_EQ(expected_altsvc.port, altsvc_vector[0].port);
-    EXPECT_EQ(expected_altsvc.max_age, altsvc_vector[0].max_age);
+    EXPECT_EQ(expected_altsvc.max_age_seconds,
+              altsvc_vector[0].max_age_seconds);
     EXPECT_EQ(expected_altsvc.version, altsvc_vector[0].version);
 
     // Roundtrip test starting with |altsvc_vector|.
@@ -210,7 +213,8 @@ TEST(SpdyAltSvcWireFormatTest, ParseHeaderFieldValue) {
               roundtrip_altsvc_vector[0].protocol_id);
     EXPECT_EQ(expected_altsvc.host, roundtrip_altsvc_vector[0].host);
     EXPECT_EQ(expected_altsvc.port, roundtrip_altsvc_vector[0].port);
-    EXPECT_EQ(expected_altsvc.max_age, roundtrip_altsvc_vector[0].max_age);
+    EXPECT_EQ(expected_altsvc.max_age_seconds,
+              roundtrip_altsvc_vector[0].max_age_seconds);
     EXPECT_EQ(expected_altsvc.version, roundtrip_altsvc_vector[0].version);
   }
 }
@@ -240,7 +244,8 @@ TEST(SpdyAltSvcWireFormatTest, ParseHeaderFieldValueMultiple) {
                 altsvc_vector[j].protocol_id);
       EXPECT_EQ(expected_altsvc_vector[j].host, altsvc_vector[j].host);
       EXPECT_EQ(expected_altsvc_vector[j].port, altsvc_vector[j].port);
-      EXPECT_EQ(expected_altsvc_vector[j].max_age, altsvc_vector[j].max_age);
+      EXPECT_EQ(expected_altsvc_vector[j].max_age_seconds,
+                altsvc_vector[j].max_age_seconds);
       EXPECT_EQ(expected_altsvc_vector[j].version, altsvc_vector[j].version);
     }
 
@@ -258,8 +263,8 @@ TEST(SpdyAltSvcWireFormatTest, ParseHeaderFieldValueMultiple) {
                 roundtrip_altsvc_vector[j].host);
       EXPECT_EQ(expected_altsvc_vector[j].port,
                 roundtrip_altsvc_vector[j].port);
-      EXPECT_EQ(expected_altsvc_vector[j].max_age,
-                roundtrip_altsvc_vector[j].max_age);
+      EXPECT_EQ(expected_altsvc_vector[j].max_age_seconds,
+                roundtrip_altsvc_vector[j].max_age_seconds);
       EXPECT_EQ(expected_altsvc_vector[j].version,
                 roundtrip_altsvc_vector[j].version);
     }
@@ -290,7 +295,7 @@ TEST(SpdyAltSvcWireFormatTest, RoundTrip) {
     EXPECT_EQ(altsvc.protocol_id, parsed_altsvc_vector[0].protocol_id);
     EXPECT_EQ(altsvc.host, parsed_altsvc_vector[0].host);
     EXPECT_EQ(altsvc.port, parsed_altsvc_vector[0].port);
-    EXPECT_EQ(altsvc.max_age, parsed_altsvc_vector[0].max_age);
+    EXPECT_EQ(altsvc.max_age_seconds, parsed_altsvc_vector[0].max_age_seconds);
     EXPECT_EQ(altsvc.version, parsed_altsvc_vector[0].version);
 
     // Test SerializeHeaderFieldValue().
@@ -325,7 +330,7 @@ TEST(SpdyAltSvcWireFormatTest, RoundTripMultiple) {
     EXPECT_EQ(expected_it->protocol_id, parsed_it->protocol_id);
     EXPECT_EQ(expected_it->host, parsed_it->host);
     EXPECT_EQ(expected_it->port, parsed_it->port);
-    EXPECT_EQ(expected_it->max_age, parsed_it->max_age);
+    EXPECT_EQ(expected_it->max_age_seconds, parsed_it->max_age_seconds);
     EXPECT_EQ(expected_it->version, parsed_it->version);
   }
 
@@ -566,7 +571,7 @@ TEST(SpdyAltSvcWireFormatTest, ParseIPLiteral) {
   EXPECT_EQ("quic", altsvc_vector[0].protocol_id);
   EXPECT_EQ("[2003:8:0:16::509d:9615]", altsvc_vector[0].host);
   EXPECT_EQ(443u, altsvc_vector[0].port);
-  EXPECT_EQ(60u, altsvc_vector[0].max_age);
+  EXPECT_EQ(60u, altsvc_vector[0].max_age_seconds);
   EXPECT_THAT(altsvc_vector[0].version, ::testing::ElementsAre(36, 35));
 }
 

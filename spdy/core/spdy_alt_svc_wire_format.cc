@@ -39,15 +39,12 @@ bool ParsePositiveIntegerImpl(absl::string_view::const_iterator c,
 SpdyAltSvcWireFormat::AlternativeService::AlternativeService() = default;
 
 SpdyAltSvcWireFormat::AlternativeService::AlternativeService(
-    const std::string& protocol_id,
-    const std::string& host,
-    uint16_t port,
-    uint32_t max_age,
-    VersionVector version)
+    const std::string& protocol_id, const std::string& host, uint16_t port,
+    uint32_t max_age_seconds, VersionVector version)
     : protocol_id(protocol_id),
       host(host),
       port(port),
-      max_age(max_age),
+      max_age_seconds(max_age_seconds),
       version(std::move(version)) {}
 
 SpdyAltSvcWireFormat::AlternativeService::~AlternativeService() = default;
@@ -113,7 +110,7 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
     }
     ++c;
     // Parse parameters.
-    uint32_t max_age = 86400;
+    uint32_t max_age_seconds = 86400;
     VersionVector version;
     absl::string_view::const_iterator parameters_end =
         std::find(c, value.end(), ',');
@@ -147,7 +144,8 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
         return false;
       }
       if (parameter_name == "ma") {
-        if (!ParsePositiveInteger32(parameter_value_begin, c, &max_age)) {
+        if (!ParsePositiveInteger32(parameter_value_begin, c,
+                                    &max_age_seconds)) {
           return false;
         }
       } else if (!is_ietf_format_quic && parameter_name == "v") {
@@ -204,7 +202,8 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
         version.push_back(quic_version);
       }
     }
-    altsvc_vector->emplace_back(protocol_id, host, port, max_age, version);
+    altsvc_vector->emplace_back(protocol_id, host, port, max_age_seconds,
+                                version);
     for (; c != value.end() && (*c == ' ' || *c == '\t' || *c == ','); ++c) {
     }
   }
@@ -266,8 +265,8 @@ std::string SpdyAltSvcWireFormat::SerializeHeaderFieldValue(
       value.push_back(c);
     }
     absl::StrAppend(&value, ":", altsvc.port, "\"");
-    if (altsvc.max_age != 86400) {
-      absl::StrAppend(&value, "; ma=", altsvc.max_age);
+    if (altsvc.max_age_seconds != 86400) {
+      absl::StrAppend(&value, "; ma=", altsvc.max_age_seconds);
     }
     if (!altsvc.version.empty()) {
       if (is_ietf_format_quic) {

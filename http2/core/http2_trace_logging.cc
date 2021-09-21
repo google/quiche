@@ -99,8 +99,8 @@ struct LogAlternativeService {
       const {  // NOLINT
     out << "{"
         << "protocol_id=" << altsvc.protocol_id << " host=" << altsvc.host
-        << " port=" << altsvc.port << " max_age=" << altsvc.max_age
-        << " version=";
+        << " port=" << altsvc.port
+        << " max_age_seconds=" << altsvc.max_age_seconds << " version=";
     for (auto v : altsvc.version) {
       out << v << ",";
     }

@@ -35,15 +35,13 @@ class QUICHE_EXPORT_PRIVATE SpdyAltSvcWireFormat {
     // Default is 0: invalid port.
     uint16_t port = 0;
     // Default is one day.
-    uint32_t max_age = 86400;
+    uint32_t max_age_seconds = 86400;
     // Default is empty: unspecified version.
     VersionVector version;
 
     AlternativeService();
-    AlternativeService(const std::string& protocol_id,
-                       const std::string& host,
-                       uint16_t port,
-                       uint32_t max_age,
+    AlternativeService(const std::string& protocol_id, const std::string& host,
+                       uint16_t port, uint32_t max_age_seconds,
                        VersionVector version);
     AlternativeService(const AlternativeService& other);
     ~AlternativeService();
@@ -51,7 +49,7 @@ class QUICHE_EXPORT_PRIVATE SpdyAltSvcWireFormat {
     bool operator==(const AlternativeService& other) const {
       return protocol_id == other.protocol_id && host == other.host &&
              port == other.port && version == other.version &&
-             max_age == other.max_age;
+             max_age_seconds == other.max_age_seconds;
     }
   };
   // An empty vector means alternative services should be cleared for given
