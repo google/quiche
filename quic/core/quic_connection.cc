@@ -6041,6 +6041,9 @@ bool QuicConnection::FlushCoalescedPacket() {
   if (length == 0) {
     return false;
   }
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnCoalescedPacketSent(coalesced_packet_, length);
+  }
   QUIC_DVLOG(1) << ENDPOINT << "Sending coalesced packet "
                 << coalesced_packet_.ToString(length);
 
@@ -6050,9 +6053,6 @@ bool QuicConnection::FlushCoalescedPacket() {
     buffered_packets_.emplace_back(
         buffer, static_cast<QuicPacketLength>(length),
         coalesced_packet_.self_address(), coalesced_packet_.peer_address());
-    if (debug_visitor_ != nullptr) {
-      debug_visitor_->OnCoalescedPacketSent(coalesced_packet_, length);
-    }
     return true;
   }
 
@@ -6072,9 +6072,6 @@ bool QuicConnection::FlushCoalescedPacket() {
           buffer, static_cast<QuicPacketLength>(length),
           coalesced_packet_.self_address(), coalesced_packet_.peer_address());
     }
-  }
-  if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnCoalescedPacketSent(coalesced_packet_, length);
   }
   // Account for added padding.
   if (length > coalesced_packet_.length()) {

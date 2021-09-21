@@ -263,10 +263,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
                             const QuicFrames& /*nonretransmittable_frames*/,
                             QuicTime /*sent_time*/) {}
 
-  // Called when a coalesced packet has been sent.
+  // Called when a coalesced packet is successfully serialized.
   virtual void OnCoalescedPacketSent(
-      const QuicCoalescedPacket& /*coalesced_packet*/,
-      size_t /*length*/) {}
+      const QuicCoalescedPacket& /*coalesced_packet*/, size_t /*length*/) {}
 
   // Called when a PING frame has been sent.
   virtual void OnPingSent() {}
