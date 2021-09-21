@@ -17,12 +17,12 @@ Bbr2StartupMode::Bbr2StartupMode(const Bbr2Sender* sender,
                                  Bbr2NetworkModel* model,
                                  QuicTime now)
     : Bbr2ModeBase(sender, model) {
-  // Clear some startup stats if |sender_->connection_stats_| has been used by
-  // another sender, which happens e.g. when QuicConnection switch send
-  // algorithms.
-  sender_->connection_stats_->slowstart_count = 1;
-  sender_->connection_stats_->slowstart_duration = QuicTimeAccumulator();
-  sender_->connection_stats_->slowstart_duration.Start(now);
+  // Increment, instead of reset startup stats, so we don't lose data recorded
+  // before QuicConnection switched send algorithm to BBRv2.
+  ++sender_->connection_stats_->slowstart_count;
+  if (!sender_->connection_stats_->slowstart_duration.IsRunning()) {
+    sender_->connection_stats_->slowstart_duration.Start(now);
+  }
   // Enter() is never called for Startup, so the gains needs to be set here.
   model_->set_pacing_gain(Params().startup_pacing_gain);
   model_->set_cwnd_gain(Params().startup_cwnd_gain);
