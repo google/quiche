@@ -21,14 +21,16 @@ class QUICHE_NO_EXPORT TestFrameSequence {
  public:
   TestFrameSequence() = default;
 
-  TestFrameSequence& ClientPreface();
-  TestFrameSequence& ServerPreface();
+  TestFrameSequence& ClientPreface(
+      absl::Span<const Http2Setting> settings = {});
+  TestFrameSequence& ServerPreface(
+      absl::Span<const Http2Setting> settings = {});
   TestFrameSequence& Data(Http2StreamId stream_id,
                           absl::string_view payload,
                           bool fin = false,
                           absl::optional<int> padding_length = absl::nullopt);
   TestFrameSequence& RstStream(Http2StreamId stream_id, Http2ErrorCode error);
-  TestFrameSequence& Settings(absl::Span<Http2Setting> values);
+  TestFrameSequence& Settings(absl::Span<const Http2Setting> settings);
   TestFrameSequence& SettingsAck();
   TestFrameSequence& Ping(Http2PingId id);
   TestFrameSequence& PingAck(Http2PingId id);

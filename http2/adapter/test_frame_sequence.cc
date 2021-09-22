@@ -19,15 +19,15 @@ std::vector<const Header> ToHeaders(
   return out;
 }
 
-TestFrameSequence& TestFrameSequence::ClientPreface() {
+TestFrameSequence& TestFrameSequence::ClientPreface(
+    absl::Span<const Http2Setting> settings) {
   preface_ = spdy::kHttp2ConnectionHeaderPrefix;
-  frames_.push_back(absl::make_unique<spdy::SpdySettingsIR>());
-  return *this;
+  return Settings(settings);
 }
 
-TestFrameSequence& TestFrameSequence::ServerPreface() {
-  frames_.push_back(absl::make_unique<spdy::SpdySettingsIR>());
-  return *this;
+TestFrameSequence& TestFrameSequence::ServerPreface(
+    absl::Span<const Http2Setting> settings) {
+  return Settings(settings);
 }
 
 TestFrameSequence& TestFrameSequence::Data(Http2StreamId stream_id,
@@ -51,12 +51,12 @@ TestFrameSequence& TestFrameSequence::RstStream(Http2StreamId stream_id,
 }
 
 TestFrameSequence& TestFrameSequence::Settings(
-    absl::Span<Http2Setting> values) {
-  auto settings = absl::make_unique<spdy::SpdySettingsIR>();
-  for (const Http2Setting& setting : values) {
-    settings->AddSetting(setting.id, setting.value);
+    absl::Span<const Http2Setting> settings) {
+  auto settings_frame = absl::make_unique<spdy::SpdySettingsIR>();
+  for (const Http2Setting& setting : settings) {
+    settings_frame->AddSetting(setting.id, setting.value);
   }
-  frames_.push_back(std::move(settings));
+  frames_.push_back(std::move(settings_frame));
   return *this;
 }
 
