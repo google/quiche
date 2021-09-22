@@ -11,6 +11,7 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/http/quic_header_list.h"
 #include "quic/core/qpack/qpack_progressive_decoder.h"
+#include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
 
@@ -45,7 +46,8 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
                                   bool header_list_size_limit_exceeded) = 0;
 
     // Called when an error has occurred.
-    virtual void OnHeaderDecodingError(absl::string_view error_message) = 0;
+    virtual void OnHeaderDecodingError(QuicErrorCode error_code,
+                                       absl::string_view error_message) = 0;
   };
 
   QpackDecodedHeadersAccumulator(QuicStreamId id,
@@ -59,7 +61,8 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
   void OnHeaderDecoded(absl::string_view name,
                        absl::string_view value) override;
   void OnDecodingCompleted() override;
-  void OnDecodingErrorDetected(absl::string_view error_message) override;
+  void OnDecodingErrorDetected(QuicErrorCode error_code,
+                               absl::string_view error_message) override;
 
   // Decode payload data.
   // Must not be called if an error has been detected.

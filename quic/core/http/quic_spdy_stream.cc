@@ -20,7 +20,6 @@
 #include "quic/core/http/web_transport_http3.h"
 #include "quic/core/qpack/qpack_decoder.h"
 #include "quic/core/qpack/qpack_encoder.h"
-#include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
@@ -565,14 +564,14 @@ void QuicSpdyStream::OnHeadersDecoded(QuicHeaderList headers,
   }
 }
 
-void QuicSpdyStream::OnHeaderDecodingError(absl::string_view error_message) {
+void QuicSpdyStream::OnHeaderDecodingError(QuicErrorCode error_code,
+                                           absl::string_view error_message) {
   qpack_decoded_headers_accumulator_.reset();
 
   std::string connection_close_error_message = absl::StrCat(
       "Error decoding ", headers_decompressed_ ? "trailers" : "headers",
       " on stream ", id(), ": ", error_message);
-  OnUnrecoverableError(QUIC_QPACK_DECOMPRESSION_FAILED,
-                       connection_close_error_message);
+  OnUnrecoverableError(error_code, connection_close_error_message);
 }
 
 void QuicSpdyStream::MaybeSendPriorityUpdateFrame() {

@@ -49,8 +49,9 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
   void SetUp() override {
     // Destroy QpackProgressiveDecoder on error to test that it does not crash.
     // See https://crbug.com/1025209.
-    ON_CALL(handler_, OnDecodingErrorDetected(_))
-        .WillByDefault(Invoke([this](absl::string_view /* error_message */) {
+    ON_CALL(handler_, OnDecodingErrorDetected(_, _))
+        .WillByDefault(Invoke([this](QuicErrorCode /* error_code */,
+                                     absl::string_view /* error_message */) {
           progressive_decoder_.reset();
         }));
   }
@@ -114,7 +115,8 @@ INSTANTIATE_TEST_SUITE_P(All,
 
 TEST_P(QpackDecoderTest, NoPrefix) {
   EXPECT_CALL(handler_,
-              OnDecodingErrorDetected(Eq("Incomplete header data prefix.")));
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Incomplete header data prefix.")));
 
   // Header Data Prefix is at least two bytes long.
   DecodeHeaderBlock(absl::HexStringToBytes("00"));
@@ -126,7 +128,8 @@ TEST_P(QpackDecoderTest, InvalidPrefix) {
   StartDecoding();
 
   EXPECT_CALL(handler_,
-              OnDecodingErrorDetected(Eq("Encoded integer too large.")));
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Encoded integer too large.")));
 
   // Encoded Required Insert Count in Header Data Prefix is too large.
   DecodeData(absl::HexStringToBytes("ffffffffffffffffffffffffffff"));
@@ -188,7 +191,8 @@ TEST_P(QpackDecoderTest, MultipleLiteralEntries) {
 // Name Length value is too large for varint decoder to decode.
 TEST_P(QpackDecoderTest, NameLenTooLargeForVarintDecoder) {
   EXPECT_CALL(handler_,
-              OnDecodingErrorDetected(Eq("Encoded integer too large.")));
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Encoded integer too large.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes("000027ffffffffffffffffffff"));
 }
@@ -196,7 +200,8 @@ TEST_P(QpackDecoderTest, NameLenTooLargeForVarintDecoder) {
 // Name Length value can be decoded by varint decoder but exceeds 1 MB limit.
 TEST_P(QpackDecoderTest, NameLenExceedsLimit) {
   EXPECT_CALL(handler_,
-              OnDecodingErrorDetected(Eq("String literal too long.")));
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("String literal too long.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes("000027ffff7f"));
 }
@@ -204,7 +209,8 @@ TEST_P(QpackDecoderTest, NameLenExceedsLimit) {
 // Value Length value is too large for varint decoder to decode.
 TEST_P(QpackDecoderTest, ValueLenTooLargeForVarintDecoder) {
   EXPECT_CALL(handler_,
-              OnDecodingErrorDetected(Eq("Encoded integer too large.")));
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Encoded integer too large.")));
 
   DecodeHeaderBlock(
       absl::HexStringToBytes("000023666f6f7fffffffffffffffffffff"));
@@ -213,14 +219,29 @@ TEST_P(QpackDecoderTest, ValueLenTooLargeForVarintDecoder) {
 // Value Length value can be decoded by varint decoder but exceeds 1 MB limit.
 TEST_P(QpackDecoderTest, ValueLenExceedsLimit) {
   EXPECT_CALL(handler_,
-              OnDecodingErrorDetected(Eq("String literal too long.")));
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("String literal too long.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes("000023666f6f7fffff7f"));
 }
 
+TEST_P(QpackDecoderTest, LineFeedInValue) {
+  if (GetQuicReloadableFlag(quic_reject_invalid_chars_in_field_value)) {
+    EXPECT_CALL(handler_,
+                OnDecodingErrorDetected(QUIC_INVALID_CHARACTER_IN_FIELD_VALUE,
+                                        "Invalid character in field value."));
+  } else {
+    EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("ba\nr")));
+    EXPECT_CALL(handler_, OnDecodingCompleted());
+  }
+
+  DecodeHeaderBlock(absl::HexStringToBytes("000023666f6f0462610a72"));
+}
+
 TEST_P(QpackDecoderTest, IncompleteHeaderBlock) {
   EXPECT_CALL(handler_,
-              OnDecodingErrorDetected(Eq("Incomplete header block.")));
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Incomplete header block.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes("00002366"));
 }
@@ -251,8 +272,9 @@ TEST_P(QpackDecoderTest, AlternatingHuffmanNonHuffman) {
 }
 
 TEST_P(QpackDecoderTest, HuffmanNameDoesNotHaveEOSPrefix) {
-  EXPECT_CALL(handler_, OnDecodingErrorDetected(absl::string_view(
-                            "Error in Huffman-encoded string.")));
+  EXPECT_CALL(handler_,
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Error in Huffman-encoded string.")));
 
   // 'y' ends in 0b0 on the most significant bit of the last byte.
   // The remaining 7 bits must be a prefix of EOS, which is all 1s.
@@ -261,8 +283,9 @@ TEST_P(QpackDecoderTest, HuffmanNameDoesNotHaveEOSPrefix) {
 }
 
 TEST_P(QpackDecoderTest, HuffmanValueDoesNotHaveEOSPrefix) {
-  EXPECT_CALL(handler_, OnDecodingErrorDetected(absl::string_view(
-                            "Error in Huffman-encoded string.")));
+  EXPECT_CALL(handler_,
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Error in Huffman-encoded string.")));
 
   // 'e' ends in 0b101, taking up the 3 most significant bits of the last byte.
   // The remaining 5 bits must be a prefix of EOS, which is all 1s.
@@ -271,8 +294,9 @@ TEST_P(QpackDecoderTest, HuffmanValueDoesNotHaveEOSPrefix) {
 }
 
 TEST_P(QpackDecoderTest, HuffmanNameEOSPrefixTooLong) {
-  EXPECT_CALL(handler_, OnDecodingErrorDetected(absl::string_view(
-                            "Error in Huffman-encoded string.")));
+  EXPECT_CALL(handler_,
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Error in Huffman-encoded string.")));
 
   // The trailing EOS prefix must be at most 7 bits long.  Appending one octet
   // with value 0xff is invalid, even though 0b111111111111111 (15 bits) is a
@@ -282,8 +306,9 @@ TEST_P(QpackDecoderTest, HuffmanNameEOSPrefixTooLong) {
 }
 
 TEST_P(QpackDecoderTest, HuffmanValueEOSPrefixTooLong) {
-  EXPECT_CALL(handler_, OnDecodingErrorDetected(absl::string_view(
-                            "Error in Huffman-encoded string.")));
+  EXPECT_CALL(handler_,
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Error in Huffman-encoded string.")));
 
   // The trailing EOS prefix must be at most 7 bits long.  Appending one octet
   // with value 0xff is invalid, even though 0b1111111111111 (13 bits) is a
@@ -321,7 +346,8 @@ TEST_P(QpackDecoderTest, TooHighStaticTableIndex) {
 
   // Addressing entry 99 should trigger an error.
   EXPECT_CALL(handler_,
-              OnDecodingErrorDetected(Eq("Static table entry not found.")));
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Static table entry not found.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes("0000ff23ff24"));
 }
@@ -430,6 +456,7 @@ TEST_P(QpackDecoderTest, DecreasingDynamicTableCapacityEvictsEntries) {
   DecodeEncoderStreamData(absl::HexStringToBytes("3f01"));
 
   EXPECT_CALL(handler_, OnDecodingErrorDetected(
+                            QUIC_QPACK_DECOMPRESSION_FAILED,
                             Eq("Dynamic table entry already evicted.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
@@ -497,7 +524,8 @@ TEST_P(QpackDecoderTest, EncoderStreamErrorTooLargeInteger) {
 }
 
 TEST_P(QpackDecoderTest, InvalidDynamicEntryWhenBaseIsZero) {
-  EXPECT_CALL(handler_, OnDecodingErrorDetected(Eq("Invalid relative index.")));
+  EXPECT_CALL(handler_, OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                                Eq("Invalid relative index.")));
 
   // Set dynamic table capacity to 1024.
   DecodeEncoderStreamData(absl::HexStringToBytes("3fe107"));
@@ -512,7 +540,8 @@ TEST_P(QpackDecoderTest, InvalidDynamicEntryWhenBaseIsZero) {
 }
 
 TEST_P(QpackDecoderTest, InvalidNegativeBase) {
-  EXPECT_CALL(handler_, OnDecodingErrorDetected(Eq("Error calculating Base.")));
+  EXPECT_CALL(handler_, OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                                Eq("Error calculating Base.")));
 
   // Required Insert Count 1, Delta Base 1 with sign bit set, Base would
   // be 1 - 1 - 1 = -1, but it is not allowed to be negative.
@@ -525,7 +554,8 @@ TEST_P(QpackDecoderTest, InvalidDynamicEntryByRelativeIndex) {
   // Add literal entry with name "foo" and value "bar".
   DecodeEncoderStreamData(absl::HexStringToBytes("6294e703626172"));
 
-  EXPECT_CALL(handler_, OnDecodingErrorDetected(Eq("Invalid relative index.")));
+  EXPECT_CALL(handler_, OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                                Eq("Invalid relative index.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
       "0200"   // Required Insert Count 1 and Delta Base 0.
@@ -533,7 +563,8 @@ TEST_P(QpackDecoderTest, InvalidDynamicEntryByRelativeIndex) {
       "81"));  // Indexed Header Field instruction addressing relative index 1.
                // This is absolute index -1, which is invalid.
 
-  EXPECT_CALL(handler_, OnDecodingErrorDetected(Eq("Invalid relative index.")));
+  EXPECT_CALL(handler_, OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                                Eq("Invalid relative index.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
       "0200"     // Required Insert Count 1 and Delta Base 0.
@@ -554,6 +585,7 @@ TEST_P(QpackDecoderTest, EvictedDynamicTableEntry) {
   DecodeEncoderStreamData(absl::HexStringToBytes("00000000"));
 
   EXPECT_CALL(handler_, OnDecodingErrorDetected(
+                            QUIC_QPACK_DECOMPRESSION_FAILED,
                             Eq("Dynamic table entry already evicted.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
@@ -563,6 +595,7 @@ TEST_P(QpackDecoderTest, EvictedDynamicTableEntry) {
                // This is absolute index 1. Such entry does not exist.
 
   EXPECT_CALL(handler_, OnDecodingErrorDetected(
+                            QUIC_QPACK_DECOMPRESSION_FAILED,
                             Eq("Dynamic table entry already evicted.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
@@ -573,6 +606,7 @@ TEST_P(QpackDecoderTest, EvictedDynamicTableEntry) {
                  // entry does not exist.
 
   EXPECT_CALL(handler_, OnDecodingErrorDetected(
+                            QUIC_QPACK_DECOMPRESSION_FAILED,
                             Eq("Dynamic table entry already evicted.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
@@ -583,6 +617,7 @@ TEST_P(QpackDecoderTest, EvictedDynamicTableEntry) {
                // does not exist.
 
   EXPECT_CALL(handler_, OnDecodingErrorDetected(
+                            QUIC_QPACK_DECOMPRESSION_FAILED,
                             Eq("Dynamic table entry already evicted.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
@@ -614,6 +649,7 @@ TEST_P(QpackDecoderTest, InvalidEncodedRequiredInsertCount) {
   // Required Insert Count is decoded modulo 2 * MaxEntries, that is, modulo 64.
   // A value of 1 cannot be encoded as 65 even though it has the same remainder.
   EXPECT_CALL(handler_, OnDecodingErrorDetected(
+                            QUIC_QPACK_DECOMPRESSION_FAILED,
                             Eq("Error decoding Required Insert Count.")));
   DecodeHeaderBlock(absl::HexStringToBytes("4100"));
 }
@@ -622,6 +658,7 @@ TEST_P(QpackDecoderTest, InvalidEncodedRequiredInsertCount) {
 // after a Header Block Prefix with an invalid Encoded Required Insert Count.
 TEST_P(QpackDecoderTest, DataAfterInvalidEncodedRequiredInsertCount) {
   EXPECT_CALL(handler_, OnDecodingErrorDetected(
+                            QUIC_QPACK_DECOMPRESSION_FAILED,
                             Eq("Error decoding Required Insert Count.")));
   // Header Block Prefix followed by some extra data.
   DecodeHeaderBlock(absl::HexStringToBytes("410000"));
@@ -666,7 +703,8 @@ TEST_P(QpackDecoderTest, NonZeroRequiredInsertCountButNoDynamicEntries) {
 
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq(":method"), Eq("GET")));
   EXPECT_CALL(handler_,
-              OnDecodingErrorDetected(Eq("Required Insert Count too large.")));
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Required Insert Count too large.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
       "0200"   // Required Insert Count is 1.
@@ -682,6 +720,7 @@ TEST_P(QpackDecoderTest, AddressEntryNotAllowedByRequiredInsertCount) {
   EXPECT_CALL(
       handler_,
       OnDecodingErrorDetected(
+          QUIC_QPACK_DECOMPRESSION_FAILED,
           Eq("Absolute Index must be smaller than Required Insert Count.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
@@ -694,6 +733,7 @@ TEST_P(QpackDecoderTest, AddressEntryNotAllowedByRequiredInsertCount) {
   EXPECT_CALL(
       handler_,
       OnDecodingErrorDetected(
+          QUIC_QPACK_DECOMPRESSION_FAILED,
           Eq("Absolute Index must be smaller than Required Insert Count.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
@@ -707,6 +747,7 @@ TEST_P(QpackDecoderTest, AddressEntryNotAllowedByRequiredInsertCount) {
   EXPECT_CALL(
       handler_,
       OnDecodingErrorDetected(
+          QUIC_QPACK_DECOMPRESSION_FAILED,
           Eq("Absolute Index must be smaller than Required Insert Count.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
@@ -720,6 +761,7 @@ TEST_P(QpackDecoderTest, AddressEntryNotAllowedByRequiredInsertCount) {
   EXPECT_CALL(
       handler_,
       OnDecodingErrorDetected(
+          QUIC_QPACK_DECOMPRESSION_FAILED,
           Eq("Absolute Index must be smaller than Required Insert Count.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
@@ -743,7 +785,8 @@ TEST_P(QpackDecoderTest, PromisedRequiredInsertCountLargerThanActual) {
 
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("bar")));
   EXPECT_CALL(handler_,
-              OnDecodingErrorDetected(Eq("Required Insert Count too large.")));
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Required Insert Count too large.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
       "0300"   // Required Insert Count 2 and Delta Base 0.
@@ -755,7 +798,8 @@ TEST_P(QpackDecoderTest, PromisedRequiredInsertCountLargerThanActual) {
 
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("")));
   EXPECT_CALL(handler_,
-              OnDecodingErrorDetected(Eq("Required Insert Count too large.")));
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Required Insert Count too large.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
       "0300"     // Required Insert Count 2 and Delta Base 0.
@@ -767,7 +811,8 @@ TEST_P(QpackDecoderTest, PromisedRequiredInsertCountLargerThanActual) {
 
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("bar")));
   EXPECT_CALL(handler_,
-              OnDecodingErrorDetected(Eq("Required Insert Count too large.")));
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Required Insert Count too large.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
       "0481"   // Required Insert Count 3 and Delta Base 1 with sign bit set.
@@ -779,7 +824,8 @@ TEST_P(QpackDecoderTest, PromisedRequiredInsertCountLargerThanActual) {
 
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("")));
   EXPECT_CALL(handler_,
-              OnDecodingErrorDetected(Eq("Required Insert Count too large.")));
+              OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                      Eq("Required Insert Count too large.")));
 
   DecodeHeaderBlock(absl::HexStringToBytes(
       "0481"     // Required Insert Count 3 and Delta Base 1 with sign bit set.
@@ -864,7 +910,8 @@ TEST_P(QpackDecoderTest,
   // Count of the header block.  |handler_| methods are called immediately for
   // the already consumed part of the header block.
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("bar")));
-  EXPECT_CALL(handler_, OnDecodingErrorDetected(Eq("Invalid relative index.")));
+  EXPECT_CALL(handler_, OnDecodingErrorDetected(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                                Eq("Invalid relative index.")));
   DecodeEncoderStreamData(absl::HexStringToBytes("6294e703626172"));
 }
 
@@ -905,8 +952,10 @@ TEST_P(QpackDecoderTest, TooManyBlockedStreams) {
   auto progressive_decoder1 = CreateProgressiveDecoder(/* stream_id = */ 1);
   progressive_decoder1->Decode(data);
 
-  EXPECT_CALL(handler_, OnDecodingErrorDetected(Eq(
-                            "Limit on number of blocked streams exceeded.")));
+  EXPECT_CALL(handler_,
+              OnDecodingErrorDetected(
+                  QUIC_QPACK_DECOMPRESSION_FAILED,
+                  Eq("Limit on number of blocked streams exceeded.")));
 
   auto progressive_decoder2 = CreateProgressiveDecoder(/* stream_id = */ 2);
   progressive_decoder2->Decode(data);

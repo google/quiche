@@ -46,9 +46,8 @@ class MockVisitor : public QpackDecodedHeadersAccumulator::Visitor {
               OnHeadersDecoded,
               (QuicHeaderList headers, bool header_list_size_limit_exceeded),
               (override));
-  MOCK_METHOD(void,
-              OnHeaderDecodingError,
-              (absl::string_view error_message),
+  MOCK_METHOD(void, OnHeaderDecodingError,
+              (QuicErrorCode error_code, absl::string_view error_message),
               (override));
 };
 
@@ -78,7 +77,8 @@ class QpackDecodedHeadersAccumulatorTest : public QuicTest {
 // HEADERS frame payload must have a complete Header Block Prefix.
 TEST_F(QpackDecodedHeadersAccumulatorTest, EmptyPayload) {
   EXPECT_CALL(visitor_,
-              OnHeaderDecodingError(Eq("Incomplete header data prefix.")));
+              OnHeaderDecodingError(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                    Eq("Incomplete header data prefix.")));
   accumulator_.EndHeaderBlock();
 }
 
@@ -87,7 +87,8 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, TruncatedHeaderBlockPrefix) {
   accumulator_.Decode(absl::HexStringToBytes("00"));
 
   EXPECT_CALL(visitor_,
-              OnHeaderDecodingError(Eq("Incomplete header data prefix.")));
+              OnHeaderDecodingError(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                    Eq("Incomplete header data prefix.")));
   accumulator_.EndHeaderBlock();
 }
 
@@ -110,14 +111,16 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, EmptyHeaderList) {
 TEST_F(QpackDecodedHeadersAccumulatorTest, TruncatedPayload) {
   accumulator_.Decode(absl::HexStringToBytes("00002366"));
 
-  EXPECT_CALL(visitor_, OnHeaderDecodingError(Eq("Incomplete header block.")));
+  EXPECT_CALL(visitor_, OnHeaderDecodingError(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                              Eq("Incomplete header block.")));
   accumulator_.EndHeaderBlock();
 }
 
 // This payload is invalid because it refers to a non-existing static entry.
 TEST_F(QpackDecodedHeadersAccumulatorTest, InvalidPayload) {
   EXPECT_CALL(visitor_,
-              OnHeaderDecodingError(Eq("Static table entry not found.")));
+              OnHeaderDecodingError(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                    Eq("Static table entry not found.")));
   accumulator_.Decode(absl::HexStringToBytes("0000ff23ff24"));
 }
 
@@ -241,7 +244,8 @@ TEST_F(QpackDecodedHeadersAccumulatorTest,
   qpack_decoder_.OnSetDynamicTableCapacity(kMaxDynamicTableCapacity);
 
   // Adding dynamic table entry unblocks decoding.  Error is detected.
-  EXPECT_CALL(visitor_, OnHeaderDecodingError(Eq("Invalid relative index.")));
+  EXPECT_CALL(visitor_, OnHeaderDecodingError(QUIC_QPACK_DECOMPRESSION_FAILED,
+                                              Eq("Invalid relative index.")));
   qpack_decoder_.OnInsertWithoutNameReference("foo", "bar");
 }
 

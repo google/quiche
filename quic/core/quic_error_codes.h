@@ -599,8 +599,11 @@ enum QuicErrorCode {
   QUIC_TLS_UNRECOGNIZED_NAME = 201,
   QUIC_TLS_CERTIFICATE_REQUIRED = 202,
 
+  // An HTTP field value containing an invalid character has been received.
+  QUIC_INVALID_CHARACTER_IN_FIELD_VALUE = 206,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 206,
+  QUIC_LAST_ERROR = 207,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
@@ -716,6 +719,7 @@ enum class QuicHttp3ErrorCode {
   REQUEST_REJECTED = 0x10B,
   REQUEST_CANCELLED = 0x10C,
   REQUEST_INCOMPLETE = 0x10D,
+  MESSAGE_ERROR = 0x10E,
   CONNECT_ERROR = 0x10F,
   VERSION_FALLBACK = 0x110,
 };

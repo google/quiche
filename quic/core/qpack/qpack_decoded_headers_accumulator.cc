@@ -67,13 +67,13 @@ void QpackDecodedHeadersAccumulator::OnDecodingCompleted() {
 }
 
 void QpackDecodedHeadersAccumulator::OnDecodingErrorDetected(
-    absl::string_view error_message) {
+    QuicErrorCode error_code, absl::string_view error_message) {
   QUICHE_DCHECK(!error_detected_);
   QUICHE_DCHECK(!headers_decoded_);
 
   error_detected_ = true;
   // Might destroy |this|.
-  visitor_->OnHeaderDecodingError(error_message);
+  visitor_->OnHeaderDecodingError(error_code, error_message);
 }
 
 void QpackDecodedHeadersAccumulator::Decode(absl::string_view data) {

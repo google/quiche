@@ -12,20 +12,27 @@
 #include "quic/core/qpack/qpack_index_conversions.h"
 #include "quic/core/qpack/qpack_instructions.h"
 #include "quic/core/qpack/qpack_required_insert_count.h"
+#include "quic/platform/api/quic_flag_utils.h"
+#include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 
 namespace quic {
 
+namespace {
+
+// The value argument passed to OnHeaderDecoded() is from an entry in the static
+// table.
+constexpr bool kValueFromStaticTable = true;
+
+}  // anonymous namespace
+
 QpackProgressiveDecoder::QpackProgressiveDecoder(
-    QuicStreamId stream_id,
-    BlockedStreamLimitEnforcer* enforcer,
-    DecodingCompletedVisitor* visitor,
-    QpackDecoderHeaderTable* header_table,
+    QuicStreamId stream_id, BlockedStreamLimitEnforcer* enforcer,
+    DecodingCompletedVisitor* visitor, QpackDecoderHeaderTable* header_table,
     HeadersHandlerInterface* handler)
     : stream_id_(stream_id),
-      prefix_decoder_(
-          std::make_unique<QpackInstructionDecoder>(QpackPrefixLanguage(),
-                                                    this)),
+      prefix_decoder_(std::make_unique<QpackInstructionDecoder>(
+          QpackPrefixLanguage(), this)),
       instruction_decoder_(QpackRequestStreamLanguage(), this),
       enforcer_(enforcer),
       visitor_(visitor),
@@ -38,7 +45,13 @@ QpackProgressiveDecoder::QpackProgressiveDecoder(
       blocked_(false),
       decoding_(true),
       error_detected_(false),
-      cancelled_(false) {}
+      cancelled_(false),
+      reject_invalid_chars_in_field_value_(
+          GetQuicReloadableFlag(quic_reject_invalid_chars_in_field_value)) {
+  if (reject_invalid_chars_in_field_value_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_reject_invalid_chars_in_field_value);
+  }
+}
 
 QpackProgressiveDecoder::~QpackProgressiveDecoder() {
   if (blocked_ && !cancelled_) {
@@ -89,14 +102,6 @@ void QpackProgressiveDecoder::EndHeaderBlock() {
   }
 }
 
-void QpackProgressiveDecoder::OnError(absl::string_view error_message) {
-  QUICHE_DCHECK(!error_detected_);
-
-  error_detected_ = true;
-  // Might destroy |this|.
-  handler_->OnDecodingErrorDetected(error_message);
-}
-
 bool QpackProgressiveDecoder::OnInstructionDecoded(
     const QpackInstruction* instruction) {
   if (instruction == QpackPrefixInstruction()) {
@@ -126,10 +131,9 @@ bool QpackProgressiveDecoder::OnInstructionDecoded(
 void QpackProgressiveDecoder::OnInstructionDecodingError(
     QpackInstructionDecoder::ErrorCode /* error_code */,
     absl::string_view error_message) {
-  // Ignore |error_code|, because header block decoding errors trigger a
-  // RESET_STREAM frame which cannot carry an error code more granular than
-  // QPACK_DECOMPRESSION_FAILED.
-  OnError(error_message);
+  // Ignore |error_code| and always use QUIC_QPACK_DECOMPRESSION_FAILED to avoid
+  // having to define a new QuicErrorCode for every instruction decoder error.
+  OnError(QUIC_QPACK_DECOMPRESSION_FAILED, error_message);
 }
 
 void QpackProgressiveDecoder::OnInsertCountReachedThreshold() {
@@ -164,12 +168,13 @@ bool QpackProgressiveDecoder::DoIndexedHeaderFieldInstruction() {
     uint64_t absolute_index;
     if (!QpackRequestStreamRelativeIndexToAbsoluteIndex(
             instruction_decoder_.varint(), base_, &absolute_index)) {
-      OnError("Invalid relative index.");
+      OnError(QUIC_QPACK_DECOMPRESSION_FAILED, "Invalid relative index.");
       return false;
     }
 
     if (absolute_index >= required_insert_count_) {
-      OnError("Absolute Index must be smaller than Required Insert Count.");
+      OnError(QUIC_QPACK_DECOMPRESSION_FAILED,
+              "Absolute Index must be smaller than Required Insert Count.");
       return false;
     }
 
@@ -180,36 +185,37 @@ bool QpackProgressiveDecoder::DoIndexedHeaderFieldInstruction() {
     auto entry =
         header_table_->LookupEntry(/* is_static = */ false, absolute_index);
     if (!entry) {
-      OnError("Dynamic table entry already evicted.");
+      OnError(QUIC_QPACK_DECOMPRESSION_FAILED,
+              "Dynamic table entry already evicted.");
       return false;
     }
 
     header_table_->set_dynamic_table_entry_referenced();
-    handler_->OnHeaderDecoded(entry->name(), entry->value());
-    return true;
+    return OnHeaderDecoded(!kValueFromStaticTable, entry->name(),
+                           entry->value());
   }
 
   auto entry = header_table_->LookupEntry(/* is_static = */ true,
                                           instruction_decoder_.varint());
   if (!entry) {
-    OnError("Static table entry not found.");
+    OnError(QUIC_QPACK_DECOMPRESSION_FAILED, "Static table entry not found.");
     return false;
   }
 
-  handler_->OnHeaderDecoded(entry->name(), entry->value());
-  return true;
+  return OnHeaderDecoded(kValueFromStaticTable, entry->name(), entry->value());
 }
 
 bool QpackProgressiveDecoder::DoIndexedHeaderFieldPostBaseInstruction() {
   uint64_t absolute_index;
   if (!QpackPostBaseIndexToAbsoluteIndex(instruction_decoder_.varint(), base_,
                                          &absolute_index)) {
-    OnError("Invalid post-base index.");
+    OnError(QUIC_QPACK_DECOMPRESSION_FAILED, "Invalid post-base index.");
     return false;
   }
 
   if (absolute_index >= required_insert_count_) {
-    OnError("Absolute Index must be smaller than Required Insert Count.");
+    OnError(QUIC_QPACK_DECOMPRESSION_FAILED,
+            "Absolute Index must be smaller than Required Insert Count.");
     return false;
   }
 
@@ -220,13 +226,13 @@ bool QpackProgressiveDecoder::DoIndexedHeaderFieldPostBaseInstruction() {
   auto entry =
       header_table_->LookupEntry(/* is_static = */ false, absolute_index);
   if (!entry) {
-    OnError("Dynamic table entry already evicted.");
+    OnError(QUIC_QPACK_DECOMPRESSION_FAILED,
+            "Dynamic table entry already evicted.");
     return false;
   }
 
   header_table_->set_dynamic_table_entry_referenced();
-  handler_->OnHeaderDecoded(entry->name(), entry->value());
-  return true;
+  return OnHeaderDecoded(!kValueFromStaticTable, entry->name(), entry->value());
 }
 
 bool QpackProgressiveDecoder::DoLiteralHeaderFieldNameReferenceInstruction() {
@@ -234,12 +240,13 @@ bool QpackProgressiveDecoder::DoLiteralHeaderFieldNameReferenceInstruction() {
     uint64_t absolute_index;
     if (!QpackRequestStreamRelativeIndexToAbsoluteIndex(
             instruction_decoder_.varint(), base_, &absolute_index)) {
-      OnError("Invalid relative index.");
+      OnError(QUIC_QPACK_DECOMPRESSION_FAILED, "Invalid relative index.");
       return false;
     }
 
     if (absolute_index >= required_insert_count_) {
-      OnError("Absolute Index must be smaller than Required Insert Count.");
+      OnError(QUIC_QPACK_DECOMPRESSION_FAILED,
+              "Absolute Index must be smaller than Required Insert Count.");
       return false;
     }
 
@@ -250,36 +257,38 @@ bool QpackProgressiveDecoder::DoLiteralHeaderFieldNameReferenceInstruction() {
     auto entry =
         header_table_->LookupEntry(/* is_static = */ false, absolute_index);
     if (!entry) {
-      OnError("Dynamic table entry already evicted.");
+      OnError(QUIC_QPACK_DECOMPRESSION_FAILED,
+              "Dynamic table entry already evicted.");
       return false;
     }
 
     header_table_->set_dynamic_table_entry_referenced();
-    handler_->OnHeaderDecoded(entry->name(), instruction_decoder_.value());
-    return true;
+    return OnHeaderDecoded(!kValueFromStaticTable, entry->name(),
+                           instruction_decoder_.value());
   }
 
   auto entry = header_table_->LookupEntry(/* is_static = */ true,
                                           instruction_decoder_.varint());
   if (!entry) {
-    OnError("Static table entry not found.");
+    OnError(QUIC_QPACK_DECOMPRESSION_FAILED, "Static table entry not found.");
     return false;
   }
 
-  handler_->OnHeaderDecoded(entry->name(), instruction_decoder_.value());
-  return true;
+  return OnHeaderDecoded(kValueFromStaticTable, entry->name(),
+                         instruction_decoder_.value());
 }
 
 bool QpackProgressiveDecoder::DoLiteralHeaderFieldPostBaseInstruction() {
   uint64_t absolute_index;
   if (!QpackPostBaseIndexToAbsoluteIndex(instruction_decoder_.varint(), base_,
                                          &absolute_index)) {
-    OnError("Invalid post-base index.");
+    OnError(QUIC_QPACK_DECOMPRESSION_FAILED, "Invalid post-base index.");
     return false;
   }
 
   if (absolute_index >= required_insert_count_) {
-    OnError("Absolute Index must be smaller than Required Insert Count.");
+    OnError(QUIC_QPACK_DECOMPRESSION_FAILED,
+            "Absolute Index must be smaller than Required Insert Count.");
     return false;
   }
 
@@ -290,20 +299,19 @@ bool QpackProgressiveDecoder::DoLiteralHeaderFieldPostBaseInstruction() {
   auto entry =
       header_table_->LookupEntry(/* is_static = */ false, absolute_index);
   if (!entry) {
-    OnError("Dynamic table entry already evicted.");
+    OnError(QUIC_QPACK_DECOMPRESSION_FAILED,
+            "Dynamic table entry already evicted.");
     return false;
   }
 
   header_table_->set_dynamic_table_entry_referenced();
-  handler_->OnHeaderDecoded(entry->name(), instruction_decoder_.value());
-  return true;
+  return OnHeaderDecoded(!kValueFromStaticTable, entry->name(),
+                         instruction_decoder_.value());
 }
 
 bool QpackProgressiveDecoder::DoLiteralHeaderFieldInstruction() {
-  handler_->OnHeaderDecoded(instruction_decoder_.name(),
-                            instruction_decoder_.value());
-
-  return true;
+  return OnHeaderDecoded(!kValueFromStaticTable, instruction_decoder_.name(),
+                         instruction_decoder_.value());
 }
 
 bool QpackProgressiveDecoder::DoPrefixInstruction() {
@@ -312,14 +320,15 @@ bool QpackProgressiveDecoder::DoPrefixInstruction() {
   if (!QpackDecodeRequiredInsertCount(
           prefix_decoder_->varint(), header_table_->max_entries(),
           header_table_->inserted_entry_count(), &required_insert_count_)) {
-    OnError("Error decoding Required Insert Count.");
+    OnError(QUIC_QPACK_DECOMPRESSION_FAILED,
+            "Error decoding Required Insert Count.");
     return false;
   }
 
   const bool sign = prefix_decoder_->s_bit();
   const uint64_t delta_base = prefix_decoder_->varint2();
   if (!DeltaBaseToBase(sign, delta_base, &base_)) {
-    OnError("Error calculating Base.");
+    OnError(QUIC_QPACK_DECOMPRESSION_FAILED, "Error calculating Base.");
     return false;
   }
 
@@ -327,13 +336,40 @@ bool QpackProgressiveDecoder::DoPrefixInstruction() {
 
   if (required_insert_count_ > header_table_->inserted_entry_count()) {
     if (!enforcer_->OnStreamBlocked(stream_id_)) {
-      OnError("Limit on number of blocked streams exceeded.");
+      OnError(QUIC_QPACK_DECOMPRESSION_FAILED,
+              "Limit on number of blocked streams exceeded.");
       return false;
     }
     blocked_ = true;
     header_table_->RegisterObserver(required_insert_count_, this);
   }
 
+  return true;
+}
+
+bool QpackProgressiveDecoder::OnHeaderDecoded(bool value_from_static_table,
+                                              absl::string_view name,
+                                              absl::string_view value) {
+  // Skip test for static table entries as they are all known to be valid.
+  if (reject_invalid_chars_in_field_value_ && !value_from_static_table) {
+    // According to Section 10.3 of
+    // https://quicwg.org/base-drafts/draft-ietf-quic-http.html,
+    // "[...] HTTP/3 can transport field values that are not valid. While most
+    // values that can be encoded will not alter field parsing, carriage return
+    // (CR, ASCII 0x0d), line feed (LF, ASCII 0x0a), and the zero character
+    // (NUL, ASCII 0x00) might be exploited by an attacker if they are
+    // translated verbatim. Any request or response that contains a character
+    // not permitted in a field value MUST be treated as malformed [...]"
+    for (const auto c : value) {
+      if (c == '\0' || c == '\n' || c == '\r') {
+        OnError(QUIC_INVALID_CHARACTER_IN_FIELD_VALUE,
+                "Invalid character in field value.");
+        return false;
+      }
+    }
+  }
+
+  handler_->OnHeaderDecoded(name, value);
   return true;
 }
 
@@ -347,22 +383,32 @@ void QpackProgressiveDecoder::FinishDecoding() {
   }
 
   if (!instruction_decoder_.AtInstructionBoundary()) {
-    OnError("Incomplete header block.");
+    OnError(QUIC_QPACK_DECOMPRESSION_FAILED, "Incomplete header block.");
     return;
   }
 
   if (!prefix_decoded_) {
-    OnError("Incomplete header data prefix.");
+    OnError(QUIC_QPACK_DECOMPRESSION_FAILED, "Incomplete header data prefix.");
     return;
   }
 
   if (required_insert_count_ != required_insert_count_so_far_) {
-    OnError("Required Insert Count too large.");
+    OnError(QUIC_QPACK_DECOMPRESSION_FAILED,
+            "Required Insert Count too large.");
     return;
   }
 
   visitor_->OnDecodingCompleted(stream_id_, required_insert_count_);
   handler_->OnDecodingCompleted();
+}
+
+void QpackProgressiveDecoder::OnError(QuicErrorCode error_code,
+                                      absl::string_view error_message) {
+  QUICHE_DCHECK(!error_detected_);
+
+  error_detected_ = true;
+  // Might destroy |this|.
+  handler_->OnDecodingErrorDetected(error_code, error_message);
 }
 
 bool QpackProgressiveDecoder::DeltaBaseToBase(bool sign,

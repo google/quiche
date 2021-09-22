@@ -24,6 +24,20 @@
 
 namespace quic {
 namespace test {
+namespace {
+
+// Find the first occurrence of invalid characters NUL, LF, CR in |*value| and
+// remove that and the remaining of the string.
+void TruncateValueOnInvalidChars(std::string* value) {
+  for (auto it = value->begin(); it != value->end(); ++it) {
+    if (*it == '\0' || *it == '\n' || *it == '\r') {
+      value->erase(it, value->end());
+      return;
+    }
+  }
+}
+
+}  // anonymous namespace
 
 // Class to hold QpackEncoder and its DecoderStreamErrorDelegate.
 class EncodingEndpoint {
@@ -278,8 +292,10 @@ class VerifyingDecoder : public QpackDecodedHeadersAccumulator::Visitor {
     visitor_->OnHeaderBlockDecoded(stream_id_);
   }
 
-  void OnHeaderDecodingError(absl::string_view error_message) override {
-    QUICHE_CHECK(false) << error_message;
+  void OnHeaderDecodingError(QuicErrorCode error_code,
+                             absl::string_view error_message) override {
+    QUICHE_CHECK(false) << QuicErrorCodeToString(error_code) << " "
+                        << error_message;
   }
 
   void Decode(absl::string_view data) { accumulator_.Decode(data); }
@@ -509,6 +525,7 @@ spdy::Http2HeaderBlock GenerateHeaderList(QuicFuzzedDataProvider* provider) {
         // Header name not in the static table, fuzzed header value.
         name = "foo";
         value = provider->ConsumeRandomLengthString(128);
+        TruncateValueOnInvalidChars(&value);
         break;
       case 11:
         // Another header name not in the static table, empty header value.
@@ -525,11 +542,13 @@ spdy::Http2HeaderBlock GenerateHeaderList(QuicFuzzedDataProvider* provider) {
         // Another header name not in the static table, fuzzed header value.
         name = "bar";
         value = provider->ConsumeRandomLengthString(128);
+        TruncateValueOnInvalidChars(&value);
         break;
       default:
         // Fuzzed header name and header value.
         name = provider->ConsumeRandomLengthString(128);
         value = provider->ConsumeRandomLengthString(128);
+        TruncateValueOnInvalidChars(&value);
     }
 
     header_list.AppendValueOrAddHeader(name, value);

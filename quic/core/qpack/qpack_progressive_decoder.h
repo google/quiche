@@ -13,6 +13,7 @@
 #include "quic/core/qpack/qpack_encoder_stream_receiver.h"
 #include "quic/core/qpack/qpack_header_table.h"
 #include "quic/core/qpack/qpack_instruction_decoder.h"
+#include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
 
@@ -46,7 +47,8 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
     // Called when a decoding error has occurred.  No other methods will be
     // called afterwards.  Implementations are allowed to destroy
     // the QpackProgressiveDecoder instance synchronously.
-    virtual void OnDecodingErrorDetected(absl::string_view error_message) = 0;
+    virtual void OnDecodingErrorDetected(QuicErrorCode error_code,
+                                         absl::string_view error_message) = 0;
   };
 
   // Interface for keeping track of blocked streams for the purpose of enforcing
@@ -95,9 +97,6 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   // through Decode().  No methods must be called afterwards.
   void EndHeaderBlock();
 
-  // Called on error.
-  void OnError(absl::string_view error_message);
-
   // QpackInstructionDecoder::Delegate implementation.
   bool OnInstructionDecoded(const QpackInstruction* instruction) override;
   void OnInstructionDecodingError(QpackInstructionDecoder::ErrorCode error_code,
@@ -115,8 +114,19 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   bool DoLiteralHeaderFieldInstruction();
   bool DoPrefixInstruction();
 
+  // Called when an entry is decoded.  Performs validation and calls
+  // HeadersHandlerInterface::OnHeaderDecoded() or OnError() as needed.  Returns
+  // true if header value is valid, false otherwise.  Skips validation if
+  // |value_from_static_table| is true, because static table entries are always
+  // valid.
+  bool OnHeaderDecoded(bool value_from_static_table, absl::string_view name,
+                       absl::string_view value);
+
   // Called as soon as EndHeaderBlock() is called and decoding is not blocked.
   void FinishDecoding();
+
+  // Called on error.
+  void OnError(QuicErrorCode error_code, absl::string_view error_message);
 
   // Calculates Base from |required_insert_count_|, which must be set before
   // calling this method, and sign bit and Delta Base in the Header Data Prefix,
@@ -166,6 +176,10 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   // True if QpackDecoderHeaderTable has been destroyed
   // while decoding is still blocked.
   bool cancelled_;
+
+  // Latched value of
+  // gfe2_reloadable_flag_quic_reject_invalid_chars_in_field_value
+  const bool reject_invalid_chars_in_field_value_;
 };
 
 }  // namespace quic

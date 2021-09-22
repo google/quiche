@@ -24,6 +24,7 @@
 #include "quic/core/http/quic_header_list.h"
 #include "quic/core/http/quic_spdy_stream_body_manager.h"
 #include "quic/core/qpack/qpack_decoded_headers_accumulator.h"
+#include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_stream.h"
 #include "quic/core/quic_stream_sequencer.h"
@@ -217,7 +218,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // QpackDecodedHeadersAccumulator::Visitor implementation.
   void OnHeadersDecoded(QuicHeaderList headers,
                         bool header_list_size_limit_exceeded) override;
-  void OnHeaderDecodingError(absl::string_view error_message) override;
+  void OnHeaderDecodingError(QuicErrorCode error_code,
+                             absl::string_view error_message) override;
 
   QuicSpdySession* spdy_session() const { return spdy_session_; }
 

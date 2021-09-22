@@ -21,6 +21,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_trace_ssl_events, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_check_cwnd_limited_before_aggregation_epoch, true)
 // If true, GFE will explicitly configure its signature algorithm preference.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_set_signature_algorithm_prefs, true)
+// If true, QPACK decoder rejects CR, LF, and NULL in field (header) values, and causes the stream to be reset with H3_MESSAGE_ERROR.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_reject_invalid_chars_in_field_value, true)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 // If true, QuicAlarms that belong to a single QuicConnection will fire under the corresponding QuicConnectionContext.

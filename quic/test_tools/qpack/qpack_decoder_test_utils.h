@@ -10,6 +10,7 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/qpack/qpack_decoder.h"
 #include "quic/core/qpack/qpack_progressive_decoder.h"
+#include "quic/core/quic_error_codes.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/qpack/qpack_test_utils.h"
 #include "spdy/core/spdy_header_block.h"
@@ -51,7 +52,8 @@ class TestHeadersHandler
   void OnHeaderDecoded(absl::string_view name,
                        absl::string_view value) override;
   void OnDecodingCompleted() override;
-  void OnDecodingErrorDetected(absl::string_view error_message) override;
+  void OnDecodingErrorDetected(QuicErrorCode error_code,
+                               absl::string_view error_message) override;
 
   // Release decoded header list.  Must only be called if decoding is complete
   // and no errors have been detected.
@@ -81,9 +83,8 @@ class MockHeadersHandler
               (absl::string_view name, absl::string_view value),
               (override));
   MOCK_METHOD(void, OnDecodingCompleted, (), (override));
-  MOCK_METHOD(void,
-              OnDecodingErrorDetected,
-              (absl::string_view error_message),
+  MOCK_METHOD(void, OnDecodingErrorDetected,
+              (QuicErrorCode error_code, absl::string_view error_message),
               (override));
 };
 
@@ -95,7 +96,8 @@ class NoOpHeadersHandler
   void OnHeaderDecoded(absl::string_view /*name*/,
                        absl::string_view /*value*/) override {}
   void OnDecodingCompleted() override {}
-  void OnDecodingErrorDetected(absl::string_view /*error_message*/) override {}
+  void OnDecodingErrorDetected(QuicErrorCode /*error_code*/,
+                               absl::string_view /*error_message*/) override {}
 };
 
 void QpackDecode(

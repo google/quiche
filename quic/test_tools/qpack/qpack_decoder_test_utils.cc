@@ -37,7 +37,7 @@ void TestHeadersHandler::OnDecodingCompleted() {
 }
 
 void TestHeadersHandler::OnDecodingErrorDetected(
-    absl::string_view error_message) {
+    QuicErrorCode /*error_code*/, absl::string_view error_message) {
   ASSERT_FALSE(decoding_completed_);
   ASSERT_FALSE(decoding_error_detected_);
 

@@ -9,6 +9,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quic/core/qpack/qpack_decoder.h"
+#include "quic/core/quic_error_codes.h"
 #include "quic/platform/api/quic_fuzzed_data_provider.h"
 #include "quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "quic/test_tools/qpack/qpack_test_utils.h"
@@ -61,7 +62,8 @@ class HeadersHandler : public QpackProgressiveDecoder::HeadersHandlerInterface {
     QUICHE_CHECK_EQ(1u, result);
   }
 
-  void OnDecodingErrorDetected(absl::string_view /*error_message*/) override {
+  void OnDecodingErrorDetected(QuicErrorCode /*error_code*/,
+                               absl::string_view /*error_message*/) override {
     *error_detected_ = true;
   }
 
