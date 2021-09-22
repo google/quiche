@@ -102,6 +102,11 @@ void Bbr2NetworkModel::OnCongestionEventStart(
                                            lost_packets, MaxBandwidth(),
                                            bandwidth_lo(), RoundTripCount());
 
+  if (sample.extra_acked == 0) {
+    cwnd_limited_before_aggregation_epoch_ =
+        congestion_event->prior_bytes_in_flight >= congestion_event->prior_cwnd;
+  }
+
   if (sample.last_packet_send_state.is_valid) {
     congestion_event->last_packet_send_state = sample.last_packet_send_state;
     congestion_event->last_sample_is_app_limited =

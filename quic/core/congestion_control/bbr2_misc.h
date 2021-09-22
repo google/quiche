@@ -130,6 +130,11 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   // Multiplier to get target inflight (as multiple of BDP) for PROBE_UP phase.
   float probe_bw_probe_inflight_gain = 1.25;
 
+  // When attempting to grow inflight_hi in PROBE_UP, check whether we are cwnd
+  // limited before the current aggregation epoch, instead of before the current
+  // ack event.
+  bool probe_bw_check_cwnd_limited_before_aggregation_epoch = false;
+
   // Pacing gains.
   float probe_bw_probe_up_pacing_gain = 1.25;
   float probe_bw_probe_down_pacing_gain = 0.75;
@@ -386,6 +391,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     return bandwidth_sampler_.max_ack_height();
   }
 
+  bool cwnd_limited_before_aggregation_epoch() const {
+    return cwnd_limited_before_aggregation_epoch_;
+  }
+
   void EnableOverestimateAvoidance() {
     bandwidth_sampler_.EnableOverestimateAvoidance();
   }
@@ -545,6 +554,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   float cwnd_gain_;
   float pacing_gain_;
+
+  // Whether we are cwnd limited prior to the start of the current aggregation
+  // epoch.
+  bool cwnd_limited_before_aggregation_epoch_ = false;
 
   // STARTUP-centric fields which experimentally used by PROBE_UP.
   bool full_bandwidth_reached_ = false;

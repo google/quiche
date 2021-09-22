@@ -339,11 +339,21 @@ void Bbr2ProbeBwMode::RaiseInflightHighSlope() {
 void Bbr2ProbeBwMode::ProbeInflightHighUpward(
     const Bbr2CongestionEvent& congestion_event) {
   QUICHE_DCHECK_EQ(cycle_.phase, CyclePhase::PROBE_UP);
-  if (!model_->IsCongestionWindowLimited(congestion_event)) {
-    QUIC_DVLOG(3) << sender_
-                  << " Raising inflight_hi early return: Not cwnd limited.";
-    // Not fully utilizing cwnd, so can't safely grow.
-    return;
+  if (Params().probe_bw_check_cwnd_limited_before_aggregation_epoch) {
+    if (!model_->cwnd_limited_before_aggregation_epoch()) {
+      QUIC_DVLOG(3) << sender_
+                    << " Raising inflight_hi early return: Not cwnd limited "
+                       "before aggregation epoch.";
+      // Not fully utilizing cwnd, so can't safely grow.
+      return;
+    }
+  } else {
+    if (!model_->IsCongestionWindowLimited(congestion_event)) {
+      QUIC_DVLOG(3) << sender_
+                    << " Raising inflight_hi early return: Not cwnd limited.";
+      // Not fully utilizing cwnd, so can't safely grow.
+      return;
+    }
   }
 
   if (congestion_event.prior_cwnd < model_->inflight_hi()) {

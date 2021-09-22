@@ -201,6 +201,12 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
         GetUnackedMap(endpoint->connection()), kDefaultInitialCwndPackets,
         GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
         QuicConnectionPeer::GetStats(endpoint->connection()), old_sender);
+    if (GetQuicReloadableFlag(
+            quic_bbr2_check_cwnd_limited_before_aggregation_epoch)) {
+      // TODO(wub): Remove this option when deprecating the flag. There are
+      // dedicated tests for this option.
+      SetConnectionOption(kB201, sender);
+    }
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();
     return sender;
@@ -308,11 +314,15 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
   }
 
   void SetConnectionOption(QuicTag option) {
+    SetConnectionOption(std::move(option), sender_);
+  }
+
+  void SetConnectionOption(QuicTag option, Bbr2Sender* sender) {
     QuicConfig config;
     QuicTagVector options;
     options.push_back(option);
     QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
-    sender_->SetFromConfig(config, Perspective::IS_SERVER);
+    sender->SetFromConfig(config, Perspective::IS_SERVER);
   }
 
   bool Bbr2ModeIsOneOf(const std::vector<Bbr2Mode>& expected_modes) const {
@@ -436,6 +446,25 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB2RC) {
   EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
 }
 
+TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB201) {
+  SetConnectionOption(kB201);
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  // Transfer 12MB.
+  DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
+  EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
+
+  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
+                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
+
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
+  // The margin here is high, because the aggregation greatly increases
+  // smoothed rtt.
+  EXPECT_GE(params.RTT() * 4, rtt_stats()->smoothed_rtt());
+  EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
+}
+
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransferSmallBuffer) {
   DefaultTopologyParams params;
   params.switch_queue_capacity_in_bdp = 0.5;
@@ -476,6 +505,32 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytes) {
 
   EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
                    sender_->ExportDebugState().bandwidth_hi, 0.01f);
+
+  if (GetQuicReloadableFlag(quic_fix_pacing_sender_bursts)) {
+    EXPECT_EQ(sender_loss_rate_in_packets(), 0);
+  } else {
+    EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
+  }
+  // The margin here is high, because both link level aggregation and ack
+  // decimation can greatly increase smoothed rtt.
+  EXPECT_GE(params.RTT() * 5, rtt_stats()->smoothed_rtt());
+  EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
+}
+
+TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytesB201) {
+  SetConnectionOption(kB201);
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+  // 2 RTTs of aggregation, with a max of 10kb.
+  EnableAggregation(10 * 1024, 2 * params.RTT());
+
+  // Transfer 12MB.
+  DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
+  EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
+
+  // TODO(wub): Tighten the error bound once BSAO is default enabled.
+  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
+                   sender_->ExportDebugState().bandwidth_hi, 0.5f);
 
   if (GetQuicReloadableFlag(quic_fix_pacing_sender_bursts)) {
     EXPECT_EQ(sender_loss_rate_in_packets(), 0);

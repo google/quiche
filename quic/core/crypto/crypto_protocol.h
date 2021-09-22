@@ -151,6 +151,9 @@ const QuicTag kBSAO = TAG('B', 'S', 'A', 'O');   // Avoid Overestimation in
                                                  // aggregation
 const QuicTag kB2DL = TAG('B', '2', 'D', 'L');   // Increase inflight_hi based
                                                  // on delievered, not inflight.
+const QuicTag kB201 = TAG('B', '2', '0', '1');   // In PROBE_UP, check if cwnd
+                                                 // limited before aggregation
+                                                 // epoch, instead of ack event.
 const QuicTag kNTLP = TAG('N', 'T', 'L', 'P');   // No tail loss probe
 const QuicTag k1TLP = TAG('1', 'T', 'L', 'P');   // 1 tail loss probe
 const QuicTag k1RTO = TAG('1', 'R', 'T', 'O');   // Send 1 packet upon RTO

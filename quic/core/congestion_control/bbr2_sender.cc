@@ -158,6 +158,13 @@ void Bbr2Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kBBQ9)) {
     params_.bw_lo_mode_ = Bbr2Params::QuicBandwidthLoMode::CWND_REDUCTION;
   }
+  if (GetQuicReloadableFlag(
+          quic_bbr2_check_cwnd_limited_before_aggregation_epoch) &&
+      ContainsQuicTag(connection_options, kB201)) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_bbr2_check_cwnd_limited_before_aggregation_epoch);
+    params_.probe_bw_check_cwnd_limited_before_aggregation_epoch = true;
+  }
 }
 
 Limits<QuicByteCount> Bbr2Sender::GetCwndLimitsByMode() const {
