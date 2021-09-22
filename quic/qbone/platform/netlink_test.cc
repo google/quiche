@@ -564,6 +564,15 @@ TEST_F(NetlinkTest, ChangeRouteAdd) {
               EXPECT_EQ(preferred_ip, address);
               break;
             }
+            case RTA_GATEWAY: {
+              const auto* raw_address =
+                  reinterpret_cast<const char*>(RTA_DATA(rta));
+              ASSERT_EQ(sizeof(struct in6_addr), RTA_PAYLOAD(rta));
+              QuicIpAddress address;
+              address.FromPackedString(raw_address, RTA_PAYLOAD(rta));
+              EXPECT_EQ(*QboneConstants::GatewayAddress(), address);
+              break;
+            }
             case RTA_OIF: {
               ASSERT_EQ(sizeof(int), RTA_PAYLOAD(rta));
               const auto* interface_index =
@@ -591,7 +600,7 @@ TEST_F(NetlinkTest, ChangeRouteAdd) {
           }
           ++num_rta;
         }
-        EXPECT_EQ(4, num_rta);
+        EXPECT_EQ(5, num_rta);
       });
   EXPECT_TRUE(netlink->ChangeRoute(
       Netlink::Verb::kAdd, QboneConstants::kQboneRouteTableId, subnet,
@@ -728,6 +737,15 @@ TEST_F(NetlinkTest, ChangeRouteReplace) {
               EXPECT_EQ(preferred_ip, address);
               break;
             }
+            case RTA_GATEWAY: {
+              const auto* raw_address =
+                  reinterpret_cast<const char*>(RTA_DATA(rta));
+              ASSERT_EQ(sizeof(struct in6_addr), RTA_PAYLOAD(rta));
+              QuicIpAddress address;
+              address.FromPackedString(raw_address, RTA_PAYLOAD(rta));
+              EXPECT_EQ(*QboneConstants::GatewayAddress(), address);
+              break;
+            }
             case RTA_OIF: {
               ASSERT_EQ(sizeof(int), RTA_PAYLOAD(rta));
               const auto* interface_index =
@@ -755,7 +773,7 @@ TEST_F(NetlinkTest, ChangeRouteReplace) {
           }
           ++num_rta;
         }
-        EXPECT_EQ(4, num_rta);
+        EXPECT_EQ(5, num_rta);
       });
   EXPECT_TRUE(netlink->ChangeRoute(
       Netlink::Verb::kReplace, QboneConstants::kQboneRouteTableId, subnet,

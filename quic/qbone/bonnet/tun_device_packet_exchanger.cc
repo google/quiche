@@ -12,6 +12,7 @@
 #include "absl/strings/str_cat.h"
 #include "quic/qbone/platform/icmp_packet.h"
 #include "quic/qbone/platform/netlink_interface.h"
+#include "quic/qbone/qbone_constants.h"
 
 namespace quic {
 
@@ -166,6 +167,13 @@ std::unique_ptr<QuicData> TunDevicePacketExchanger::ConsumeL2Headers(
     // If we've received a neighbor solicitation, craft an advertisement to
     // respond with and write it back to the local interface.
     auto* icmp6_payload = l2_packet.data() + kIcmp6PrefixLen;
+
+    QuicIpAddress target_address(
+        *reinterpret_cast<const in6_addr*>(icmp6_payload));
+    if (target_address != *QboneConstants::GatewayAddress()) {
+      // Only respond to solicitations for our gateway address
+      return nullptr;
+    }
 
     // Neighbor Advertisement crafted per:
     // https://datatracker.ietf.org/doc/html/rfc4861#section-4.4

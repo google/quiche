@@ -5,6 +5,7 @@
 #include "quic/qbone/platform/netlink.h"
 
 #include <linux/fib_rules.h>
+
 #include <utility>
 
 #include "absl/base/attributes.h"
@@ -13,6 +14,7 @@
 #include "quic/platform/api/quic_ip_address.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/qbone/platform/rtnetlink_message.h"
+#include "quic/qbone/qbone_constants.h"
 
 namespace quic {
 
@@ -570,10 +572,17 @@ bool Netlink::ChangeRoute(Netlink::Verb verb,
   // This is the source address to use in the IP packet should this routing rule
   // is used.
   if (preferred_source.IsInitialized()) {
+    auto src_str = preferred_source.ToPackedString();
     message.AppendAttribute(RTA_PREFSRC,
-                            reinterpret_cast<const void*>(
-                                preferred_source.ToPackedString().c_str()),
-                            preferred_source.ToPackedString().size());
+                            reinterpret_cast<const void*>(src_str.c_str()),
+                            src_str.size());
+  }
+
+  if (verb != Verb::kRemove) {
+    auto gateway_str = QboneConstants::GatewayAddress()->ToPackedString();
+    message.AppendAttribute(RTA_GATEWAY,
+                            reinterpret_cast<const void*>(gateway_str.c_str()),
+                            gateway_str.size());
   }
 
   if (!Send(message.BuildIoVec().get(), message.IoVecSize())) {

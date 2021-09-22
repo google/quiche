@@ -19,7 +19,7 @@ QuicStreamId QboneConstants::GetControlStreamId(QuicTransportVersion version) {
 
 const QuicIpAddress* QboneConstants::TerminatorLocalAddress() {
   static auto* terminator_address = []() {
-    QuicIpAddress* address = new QuicIpAddress;
+    auto* address = new QuicIpAddress;
     // 0x71 0x62 0x6f 0x6e 0x65 is 'qbone' in ascii.
     address->FromString("fe80::71:626f:6e65");
     return address;
@@ -31,6 +31,15 @@ const IpRange* QboneConstants::TerminatorLocalAddressRange() {
   static auto* range =
       new quic::IpRange(*quic::QboneConstants::TerminatorLocalAddress(), 128);
   return range;
+}
+
+const QuicIpAddress* QboneConstants::GatewayAddress() {
+  static auto* gateway_address = []() {
+    auto* address = new QuicIpAddress;
+    address->FromString("fe80::1");
+    return address;
+  }();
+  return gateway_address;
 }
 
 }  // namespace quic

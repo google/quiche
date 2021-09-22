@@ -25,6 +25,9 @@ struct QboneConstants {
   static const QuicIpAddress* TerminatorLocalAddress();
   // The IPRange containing the TerminatorLocalAddress
   static const IpRange* TerminatorLocalAddressRange();
+  // The gateway address to provide when configuring routes to the QBONE
+  // interface
+  static const QuicIpAddress* GatewayAddress();
 };
 
 }  // namespace quic
