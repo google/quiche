@@ -54,10 +54,15 @@ TEST_F(QuicSpdyServerStreamBaseTest,
   stream_->StopReading();
 
   if (session_.version().UsesHttp3()) {
-    EXPECT_CALL(session_, MaybeSendStopSendingFrame(_, QUIC_STREAM_NO_ERROR))
+    EXPECT_CALL(session_,
+                MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
+                                                 QUIC_STREAM_NO_ERROR)))
         .Times(1);
   } else {
-    EXPECT_CALL(session_, MaybeSendRstStreamFrame(_, QUIC_STREAM_NO_ERROR, _))
+    EXPECT_CALL(
+        session_,
+        MaybeSendRstStreamFrame(
+            _, QuicResetStreamError::FromInternal(QUIC_STREAM_NO_ERROR), _))
         .Times(1);
   }
   QuicStreamPeer::SetFinSent(stream_);
@@ -71,9 +76,10 @@ TEST_F(QuicSpdyServerStreamBaseTest,
   EXPECT_CALL(session_,
               MaybeSendRstStreamFrame(
                   _,
-                  VersionHasIetfQuicFrames(session_.transport_version())
-                      ? QUIC_STREAM_CANCELLED
-                      : QUIC_RST_ACKNOWLEDGEMENT,
+                  QuicResetStreamError::FromInternal(
+                      VersionHasIetfQuicFrames(session_.transport_version())
+                          ? QUIC_STREAM_CANCELLED
+                          : QUIC_RST_ACKNOWLEDGEMENT),
                   _))
       .Times(1);
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),

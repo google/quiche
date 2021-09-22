@@ -177,7 +177,7 @@ class QUIC_NO_EXPORT TlsChloExtractor
   void OnDataAvailable() override;
   void OnFinRead() override {}
   void AddBytesConsumed(QuicByteCount /*bytes*/) override {}
-  void Reset(QuicRstStreamErrorCode /*error*/) override {}
+  void ResetWithError(QuicResetStreamError /*error*/) override {}
   void OnUnrecoverableError(QuicErrorCode error,
                             const std::string& details) override;
   void OnUnrecoverableError(QuicErrorCode error,

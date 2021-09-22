@@ -107,6 +107,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, t
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // If true, validate that peer owns the new address once the server detects peer migration or is probed from that address, and also apply anti-amplification limit while sending to that address.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_server_reverse_validate_new_path3, true)
+// When receiving STOP_SENDING, send a RESET_STREAM with a matching error code.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_match_ietf_reset_code, false)
 // When the STMP connection option is sent by the client, timestamps in the QUIC ACK frame are sent and processed.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_send_timestamps, false)
 // When true, QuicDispatcher will silently drop QUIC packets that have invalid flags.

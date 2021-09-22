@@ -24,6 +24,7 @@
 #include "quic/core/http/quic_spdy_session.h"
 #include "quic/core/quic_connection.h"
 #include "quic/core/quic_connection_id.h"
+#include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_framer.h"
 #include "quic/core/quic_packet_writer.h"
 #include "quic/core/quic_path_validator.h"
@@ -777,12 +778,11 @@ class MockQuicSession : public QuicSession {
   MOCK_METHOD(bool, WriteControlFrame,
               (const QuicFrame& frame, TransmissionType type), (override));
   MOCK_METHOD(void, MaybeSendRstStreamFrame,
-              (QuicStreamId stream_id, QuicRstStreamErrorCode error,
+              (QuicStreamId stream_id, QuicResetStreamError error,
                QuicStreamOffset bytes_written),
               (override));
   MOCK_METHOD(void, MaybeSendStopSendingFrame,
-              (QuicStreamId stream_id, QuicRstStreamErrorCode error),
-              (override));
+              (QuicStreamId stream_id, QuicResetStreamError error), (override));
 
   MOCK_METHOD(bool, ShouldKeepConnectionAlive, (), (const, override));
   MOCK_METHOD(std::vector<std::string>, GetAlpnsToOffer, (), (const, override));
@@ -802,7 +802,8 @@ class MockQuicSession : public QuicSession {
   void ReallyMaybeSendRstStreamFrame(QuicStreamId id,
                                      QuicRstStreamErrorCode error,
                                      QuicStreamOffset bytes_written) {
-    QuicSession::MaybeSendRstStreamFrame(id, error, bytes_written);
+    QuicSession::MaybeSendRstStreamFrame(
+        id, QuicResetStreamError::FromInternal(error), bytes_written);
   }
 
  private:
@@ -891,12 +892,11 @@ class MockQuicSpdySession : public QuicSpdySession {
                EncryptionLevel level),
               (override));
   MOCK_METHOD(void, MaybeSendRstStreamFrame,
-              (QuicStreamId stream_id, QuicRstStreamErrorCode error,
+              (QuicStreamId stream_id, QuicResetStreamError error,
                QuicStreamOffset bytes_written),
               (override));
   MOCK_METHOD(void, MaybeSendStopSendingFrame,
-              (QuicStreamId stream_id, QuicRstStreamErrorCode error),
-              (override));
+              (QuicStreamId stream_id, QuicResetStreamError error), (override));
   MOCK_METHOD(void, SendWindowUpdate,
               (QuicStreamId id, QuicStreamOffset byte_offset), (override));
   MOCK_METHOD(void, SendBlocked, (QuicStreamId id), (override));

@@ -939,6 +939,19 @@ QuicRstStreamErrorCode IetfResetStreamErrorCodeToRstStreamErrorCode(
   return QUIC_STREAM_UNKNOWN_APPLICATION_ERROR_CODE;
 }
 
+// static
+QuicResetStreamError QuicResetStreamError::FromInternal(
+    QuicRstStreamErrorCode code) {
+  return QuicResetStreamError(
+      code, RstStreamErrorCodeToIetfResetStreamErrorCode(code));
+}
+
+// static
+QuicResetStreamError QuicResetStreamError::FromIetf(uint64_t code) {
+  return QuicResetStreamError(
+      IetfResetStreamErrorCodeToRstStreamErrorCode(code), code);
+}
+
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
 
 }  // namespace quic

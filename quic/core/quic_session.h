@@ -580,12 +580,12 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Does actual work of sending RESET_STREAM, if the stream type allows.
   // Also informs the connection so that pending stream frames can be flushed.
   virtual void MaybeSendRstStreamFrame(QuicStreamId id,
-                                       QuicRstStreamErrorCode error,
+                                       QuicResetStreamError error,
                                        QuicStreamOffset bytes_written);
 
   // Sends a STOP_SENDING frame if the stream type allows.
   virtual void MaybeSendStopSendingFrame(QuicStreamId id,
-                                         QuicRstStreamErrorCode error);
+                                         QuicResetStreamError error);
 
   // Returns the encryption level to send application data.
   EncryptionLevel GetEncryptionLevelToSendApplicationData() const;

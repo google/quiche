@@ -37,7 +37,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
     virtual void AddBytesConsumed(QuicByteCount bytes) = 0;
     // Called when an error has occurred which should result in the stream
     // being reset.
-    virtual void Reset(QuicRstStreamErrorCode error) = 0;
+    virtual void ResetWithError(QuicResetStreamError error) = 0;
     // Called when an error has occurred which should result in the connection
     // being closed.
     virtual void OnUnrecoverableError(QuicErrorCode error,

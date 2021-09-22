@@ -25,6 +25,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "absl/types/span.h"
+#include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_flow_controller.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_stream_send_buffer.h"
@@ -59,7 +60,7 @@ class QUIC_EXPORT_PRIVATE PendingStream
   void OnDataAvailable() override;
   void OnFinRead() override;
   void AddBytesConsumed(QuicByteCount bytes) override;
-  void Reset(QuicRstStreamErrorCode error) override;
+  void ResetWithError(QuicResetStreamError error) override;
   void OnUnrecoverableError(QuicErrorCode error,
                             const std::string& details) override;
   void OnUnrecoverableError(QuicErrorCode error,
@@ -156,7 +157,11 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   // Called by the subclass or the sequencer to reset the stream from this
   // end.
-  void Reset(QuicRstStreamErrorCode error) override;
+  void ResetWithError(QuicResetStreamError error) override;
+  // Convenience wrapper for the method above.
+  // TODO(b/200606367): switch all calls to using QuicResetStreamError
+  // interface.
+  void Reset(QuicRstStreamErrorCode error);
 
   // Called by the subclass or the sequencer to close the entire connection from
   // this end.
@@ -204,7 +209,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Number of bytes available to read.
   QuicByteCount ReadableBytes() const;
 
-  QuicRstStreamErrorCode stream_error() const { return stream_error_; }
+  QuicRstStreamErrorCode stream_error() const {
+    return stream_error_.internal_code();
+  }
   QuicErrorCode connection_error() const { return connection_error_; }
 
   bool reading_stopped() const {
@@ -353,7 +360,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   // Handle received StopSending frame. Returns true if the processing finishes
   // gracefully.
-  virtual bool OnStopSending(QuicRstStreamErrorCode code);
+  virtual bool OnStopSending(QuicResetStreamError error);
 
   // Returns true if the stream is static.
   bool is_static() const { return is_static_; }
@@ -415,10 +422,18 @@ class QUIC_EXPORT_PRIVATE QuicStream
   void SetFinSent();
 
   // Send STOP_SENDING if it hasn't been sent yet.
-  void MaybeSendStopSending(QuicRstStreamErrorCode error);
+  void MaybeSendStopSending(QuicResetStreamError error);
 
   // Send RESET_STREAM if it hasn't been sent yet.
-  void MaybeSendRstStream(QuicRstStreamErrorCode error);
+  void MaybeSendRstStream(QuicResetStreamError error);
+
+  // Convenience warppers for two methods above.
+  void MaybeSendRstStream(QuicRstStreamErrorCode error) {
+    MaybeSendRstStream(QuicResetStreamError::FromInternal(error));
+  }
+  void MaybeSendStopSending(QuicRstStreamErrorCode error) {
+    MaybeSendStopSending(QuicResetStreamError::FromInternal(error));
+  }
 
   // Close the write side of the socket.  Further writes will fail.
   // Can be called by the subclass or internally.
@@ -426,7 +441,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   virtual void CloseWriteSide();
 
   void set_rst_received(bool rst_received) { rst_received_ = rst_received; }
-  void set_stream_error(QuicRstStreamErrorCode error) { stream_error_ = error; }
+  void set_stream_error(QuicResetStreamError error) { stream_error_ = error; }
 
   StreamDelegateInterface* stream_delegate() { return stream_delegate_; }
 
@@ -492,7 +507,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   // Stream error code received from a RstStreamFrame or error code sent by the
   // visitor or sequencer in the RstStreamFrame.
-  QuicRstStreamErrorCode stream_error_;
+  QuicResetStreamError stream_error_;
   // Connection error code due to which the stream was closed. |stream_error_|
   // is set to |QUIC_STREAM_CONNECTION_ERROR| when this happens and consumers
   // should check |connection_error_|.

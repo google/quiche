@@ -18,12 +18,23 @@ QuicRstStreamFrame::QuicRstStreamFrame(QuicControlFrameId control_frame_id,
       ietf_error_code(RstStreamErrorCodeToIetfResetStreamErrorCode(error_code)),
       byte_offset(bytes_written) {}
 
+QuicRstStreamFrame::QuicRstStreamFrame(QuicControlFrameId control_frame_id,
+                                       QuicStreamId stream_id,
+                                       QuicResetStreamError error,
+                                       QuicStreamOffset bytes_written)
+    : control_frame_id(control_frame_id),
+      stream_id(stream_id),
+      error_code(error.internal_code()),
+      ietf_error_code(error.ietf_application_code()),
+      byte_offset(bytes_written) {}
+
 std::ostream& operator<<(std::ostream& os,
                          const QuicRstStreamFrame& rst_frame) {
   os << "{ control_frame_id: " << rst_frame.control_frame_id
      << ", stream_id: " << rst_frame.stream_id
      << ", byte_offset: " << rst_frame.byte_offset
-     << ", error_code: " << rst_frame.error_code << " }\n";
+     << ", error_code: " << rst_frame.error_code
+     << ", ietf_error_code: " << rst_frame.ietf_error_code << " }\n";
   return os;
 }
 

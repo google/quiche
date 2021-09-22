@@ -726,11 +726,11 @@ void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
                 << "Received QUIC_STREAM_NO_ERROR, not discarding response";
   set_rst_received(true);
   MaybeIncreaseHighestReceivedOffset(frame.byte_offset);
-  set_stream_error(frame.error_code);
+  set_stream_error(frame.error());
   CloseWriteSide();
 }
 
-void QuicSpdyStream::Reset(QuicRstStreamErrorCode error) {
+void QuicSpdyStream::ResetWithError(QuicResetStreamError error) {
   if (VersionUsesHttp3(transport_version()) && !fin_received() &&
       spdy_session_->qpack_decoder() && web_transport_data_ == nullptr) {
     QUIC_CODE_COUNT_N(quic_abort_qpack_on_stream_reset, 2, 2);
@@ -741,7 +741,7 @@ void QuicSpdyStream::Reset(QuicRstStreamErrorCode error) {
     }
   }
 
-  QuicStream::Reset(error);
+  QuicStream::ResetWithError(error);
 }
 
 void QuicSpdyStream::OnDataAvailable() {

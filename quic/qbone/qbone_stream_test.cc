@@ -31,11 +31,8 @@ using ::testing::StrictMock;
 class MockQuicSession : public QboneSessionBase {
  public:
   MockQuicSession(QuicConnection* connection, const QuicConfig& config)
-      : QboneSessionBase(connection,
-                         nullptr /*visitor*/,
-                         config,
-                         CurrentSupportedVersions(),
-                         nullptr /*writer*/) {}
+      : QboneSessionBase(connection, nullptr /*visitor*/, config,
+                         CurrentSupportedVersions(), nullptr /*writer*/) {}
 
   ~MockQuicSession() override {}
 
@@ -56,16 +53,12 @@ class MockQuicSession : public QboneSessionBase {
   }
 
   // Called by QuicStream when they want to close stream.
-  MOCK_METHOD(void,
-              MaybeSendRstStreamFrame,
-              (QuicStreamId stream_id,
-               QuicRstStreamErrorCode error,
+  MOCK_METHOD(void, MaybeSendRstStreamFrame,
+              (QuicStreamId stream_id, QuicResetStreamError error,
                QuicStreamOffset bytes_written),
               (override));
-  MOCK_METHOD(void,
-              MaybeSendStopSendingFrame,
-              (QuicStreamId stream_id, QuicRstStreamErrorCode error),
-              (override));
+  MOCK_METHOD(void, MaybeSendStopSendingFrame,
+              (QuicStreamId stream_id, QuicResetStreamError error), (override));
 
   // Sets whether data is written to buffer, or else if this is write blocked.
   void set_writable(bool writable) { writable_ = writable; }
@@ -104,8 +97,7 @@ class DummyPacketWriter : public QuicPacketWriter {
   DummyPacketWriter() {}
 
   // QuicPacketWriter overrides.
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           PerPacketOptions* options) override {
@@ -181,8 +173,7 @@ class QboneReadOnlyStreamTest : public ::testing::Test,
   SimpleBufferAllocator buffer_allocator_;
   MockClock clock_;
   const QuicStreamId kStreamId = QuicUtils::GetFirstUnidirectionalStreamId(
-      CurrentSupportedVersions()[0].transport_version,
-      Perspective::IS_CLIENT);
+      CurrentSupportedVersions()[0].transport_version, Perspective::IS_CLIENT);
 };
 
 // Read an entire string.
@@ -240,9 +231,13 @@ TEST_F(QboneReadOnlyStreamTest, ReadBufferedTooLarge) {
   std::string packet = "0123456789";
   int iterations = (QboneConstants::kMaxQbonePacketBytes / packet.size()) + 2;
   EXPECT_CALL(*session_, MaybeSendStopSendingFrame(
-                             kStreamId, QUIC_BAD_APPLICATION_PAYLOAD));
-  EXPECT_CALL(*session_, MaybeSendRstStreamFrame(
-                             kStreamId, QUIC_BAD_APPLICATION_PAYLOAD, _));
+                             kStreamId, QuicResetStreamError::FromInternal(
+                                            QUIC_BAD_APPLICATION_PAYLOAD)));
+  EXPECT_CALL(
+      *session_,
+      MaybeSendRstStreamFrame(
+          kStreamId,
+          QuicResetStreamError::FromInternal(QUIC_BAD_APPLICATION_PAYLOAD), _));
   for (int i = 0; i < iterations; ++i) {
     QuicStreamFrame frame(kStreamId, i == (iterations - 1), i * packet.size(),
                           packet);

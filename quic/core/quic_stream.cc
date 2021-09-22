@@ -142,7 +142,7 @@ void PendingStream::AddBytesConsumed(QuicByteCount bytes) {
   connection_flow_controller_->AddBytesConsumed(bytes);
 }
 
-void PendingStream::Reset(QuicRstStreamErrorCode /*error*/) {
+void PendingStream::ResetWithError(QuicResetStreamError /*error*/) {
   // Currently PendingStream is only read-unidirectional. It shouldn't send
   // Reset.
   QUIC_NOTREACHED();
@@ -330,7 +330,7 @@ QuicStream::QuicStream(QuicStreamId id, QuicSession* session,
       stream_delegate_(session),
       precedence_(CalculateDefaultPriority(session)),
       stream_bytes_read_(stream_bytes_read),
-      stream_error_(QUIC_STREAM_NO_ERROR),
+      stream_error_(QuicResetStreamError::NoError()),
       connection_error_(QUIC_NO_ERROR),
       read_side_closed_(false),
       write_side_closed_(false),
@@ -472,7 +472,7 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
   sequencer_.OnStreamFrame(frame);
 }
 
-bool QuicStream::OnStopSending(QuicRstStreamErrorCode code) {
+bool QuicStream::OnStopSending(QuicResetStreamError error) {
   // Do not reset the stream if all data has been sent and acknowledged.
   if (write_side_closed() && !IsWaitingForAcks()) {
     QUIC_DVLOG(1) << ENDPOINT
@@ -490,8 +490,14 @@ bool QuicStream::OnStopSending(QuicRstStreamErrorCode code) {
     return false;
   }
 
-  stream_error_ = code;
-  MaybeSendRstStream(code);
+  stream_error_ = error;
+  if (GetQuicReloadableFlag(quic_match_ietf_reset_code)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_match_ietf_reset_code);
+    MaybeSendRstStream(error);
+  } else {
+    MaybeSendRstStream(
+        QuicResetStreamError::FromInternal(error.internal_code()));
+  }
   return true;
 }
 
@@ -536,7 +542,7 @@ void QuicStream::OnStreamReset(const QuicRstStreamFrame& frame) {
     return;
   }
 
-  stream_error_ = frame.error_code;
+  stream_error_ = frame.error();
   // Google QUIC closes both sides of the stream in response to a
   // RESET_STREAM, IETF QUIC closes only the read side.
   if (!VersionHasIetfQuicFrames(transport_version())) {
@@ -551,7 +557,8 @@ void QuicStream::OnConnectionClosed(QuicErrorCode error,
     return;
   }
   if (error != QUIC_NO_ERROR) {
-    stream_error_ = QUIC_STREAM_CONNECTION_ERROR;
+    stream_error_ =
+        QuicResetStreamError::FromInternal(QUIC_STREAM_CONNECTION_ERROR);
     connection_error_ = error;
   }
 
@@ -576,6 +583,10 @@ void QuicStream::SetFinSent() {
 }
 
 void QuicStream::Reset(QuicRstStreamErrorCode error) {
+  ResetWithError(QuicResetStreamError::FromInternal(error));
+}
+
+void QuicStream::ResetWithError(QuicResetStreamError error) {
   stream_error_ = error;
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   MaybeSendStopSending(error);
@@ -818,12 +829,12 @@ void QuicStream::CloseWriteSide() {
   }
 }
 
-void QuicStream::MaybeSendStopSending(QuicRstStreamErrorCode error) {
+void QuicStream::MaybeSendStopSending(QuicResetStreamError error) {
   if (stop_sending_sent_) {
     return;
   }
 
-  if (!session()->version().UsesHttp3() && error != QUIC_STREAM_NO_ERROR) {
+  if (!session()->version().UsesHttp3() && !error.ok()) {
     // In gQUIC, RST with error closes both read and write side.
     return;
   }
@@ -831,21 +842,21 @@ void QuicStream::MaybeSendStopSending(QuicRstStreamErrorCode error) {
   if (session()->version().UsesHttp3()) {
     session()->MaybeSendStopSendingFrame(id(), error);
   } else {
-    QUICHE_DCHECK_EQ(QUIC_STREAM_NO_ERROR, error);
-    session()->MaybeSendRstStreamFrame(id(), QUIC_STREAM_NO_ERROR,
+    QUICHE_DCHECK_EQ(QUIC_STREAM_NO_ERROR, error.internal_code());
+    session()->MaybeSendRstStreamFrame(id(), QuicResetStreamError::NoError(),
                                        stream_bytes_written());
   }
   stop_sending_sent_ = true;
   CloseReadSide();
 }
 
-void QuicStream::MaybeSendRstStream(QuicRstStreamErrorCode error) {
+void QuicStream::MaybeSendRstStream(QuicResetStreamError error) {
   if (rst_sent_) {
     return;
   }
 
   if (!session()->version().UsesHttp3()) {
-    QUIC_BUG_IF(quic_bug_12570_5, error == QUIC_STREAM_NO_ERROR);
+    QUIC_BUG_IF(quic_bug_12570_5, error.ok());
     stop_sending_sent_ = true;
     CloseReadSide();
   }
@@ -1150,7 +1161,7 @@ bool QuicStream::RetransmitStreamData(QuicStreamOffset offset,
 }
 
 bool QuicStream::IsWaitingForAcks() const {
-  return (!rst_sent_ || stream_error_ == QUIC_STREAM_NO_ERROR) &&
+  return (!rst_sent_ || stream_error_.ok()) &&
          (send_buffer_.stream_bytes_outstanding() || fin_outstanding_);
 }
 

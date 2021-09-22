@@ -158,12 +158,11 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
                const spdy::SpdyStreamPrecedence& precedence),
               (override));
   MOCK_METHOD(void, MaybeSendRstStreamFrame,
-              (QuicStreamId stream_id, QuicRstStreamErrorCode error,
+              (QuicStreamId stream_id, QuicResetStreamError error,
                QuicStreamOffset bytes_written),
               (override));
   MOCK_METHOD(void, MaybeSendStopSendingFrame,
-              (QuicStreamId stream_id, QuicRstStreamErrorCode error),
-              (override));
+              (QuicStreamId stream_id, QuicResetStreamError error), (override));
 
   using QuicSession::ActivateStream;
 
@@ -322,10 +321,15 @@ TEST_P(QuicSimpleServerStreamTest, SendQuicRstStreamNoErrorInStopReading) {
   stream_->CloseWriteSide();
 
   if (session_.version().UsesHttp3()) {
-    EXPECT_CALL(session_, MaybeSendStopSendingFrame(_, QUIC_STREAM_NO_ERROR))
+    EXPECT_CALL(session_,
+                MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
+                                                 QUIC_STREAM_NO_ERROR)))
         .Times(1);
   } else {
-    EXPECT_CALL(session_, MaybeSendRstStreamFrame(_, QUIC_STREAM_NO_ERROR, _))
+    EXPECT_CALL(
+        session_,
+        MaybeSendRstStreamFrame(
+            _, QuicResetStreamError::FromInternal(QUIC_STREAM_NO_ERROR), _))
         .Times(1);
   }
   stream_->StopReading();
@@ -452,11 +456,16 @@ TEST_P(QuicSimpleServerStreamTest, SendPushResponseWith404Response) {
 
   InSequence s;
   if (session_.version().UsesHttp3()) {
-    EXPECT_CALL(session_, MaybeSendStopSendingFrame(promised_stream->id(),
-                                                    QUIC_STREAM_CANCELLED));
+    EXPECT_CALL(session_,
+                MaybeSendStopSendingFrame(
+                    promised_stream->id(),
+                    QuicResetStreamError::FromInternal(QUIC_STREAM_CANCELLED)));
   }
-  EXPECT_CALL(session_, MaybeSendRstStreamFrame(promised_stream->id(),
-                                                QUIC_STREAM_CANCELLED, 0));
+  EXPECT_CALL(
+      session_,
+      MaybeSendRstStreamFrame(
+          promised_stream->id(),
+          QuicResetStreamError::FromInternal(QUIC_STREAM_CANCELLED), 0));
 
   promised_stream->DoSendResponse();
 }
@@ -667,11 +676,14 @@ TEST_P(QuicSimpleServerStreamTest,
         .Times(AnyNumber());
   }
 
-  EXPECT_CALL(session_, MaybeSendRstStreamFrame(_,
-                                                session_.version().UsesHttp3()
-                                                    ? QUIC_STREAM_CANCELLED
-                                                    : QUIC_RST_ACKNOWLEDGEMENT,
-                                                _))
+  EXPECT_CALL(
+      session_,
+      MaybeSendRstStreamFrame(
+          _,
+          session_.version().UsesHttp3()
+              ? QuicResetStreamError::FromInternal(QUIC_STREAM_CANCELLED)
+              : QuicResetStreamError::FromInternal(QUIC_RST_ACKNOWLEDGEMENT),
+          _))
       .Times(1);
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);

@@ -66,12 +66,16 @@ class QuicControlFrameManagerTest : public QuicTest {
     EXPECT_FALSE(manager_->WillingToWrite());
 
     EXPECT_CALL(*session_, WriteControlFrame(_, _)).WillOnce(Return(false));
-    manager_->WriteOrBufferRstStream(kTestStreamId, QUIC_STREAM_CANCELLED, 0);
+    manager_->WriteOrBufferRstStream(
+        kTestStreamId,
+        QuicResetStreamError::FromInternal(QUIC_STREAM_CANCELLED), 0);
     manager_->WriteOrBufferGoAway(QUIC_PEER_GOING_AWAY, kTestStreamId,
                                   "Going away.");
     manager_->WriteOrBufferWindowUpdate(kTestStreamId, 100);
     manager_->WriteOrBufferBlocked(kTestStreamId);
-    manager_->WriteOrBufferStopSending(kTestStopSendingCode, kTestStreamId);
+    manager_->WriteOrBufferStopSending(
+        QuicResetStreamError::FromInternal(kTestStopSendingCode),
+        kTestStreamId);
     number_of_frames_ = 5u;
     EXPECT_EQ(number_of_frames_,
               QuicControlFrameManagerPeer::QueueSize(manager_.get()));
@@ -341,14 +345,18 @@ TEST_F(QuicControlFrameManagerTest, TooManyBufferedControlFrames) {
   // Write 995 control frames.
   EXPECT_CALL(*session_, WriteControlFrame(_, _)).WillOnce(Return(false));
   for (size_t i = 0; i < 995; ++i) {
-    manager_->WriteOrBufferRstStream(kTestStreamId, QUIC_STREAM_CANCELLED, 0);
+    manager_->WriteOrBufferRstStream(
+        kTestStreamId,
+        QuicResetStreamError::FromInternal(QUIC_STREAM_CANCELLED), 0);
   }
   // Verify write one more control frame causes connection close.
   EXPECT_CALL(
       *connection_,
       CloseConnection(QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES, _,
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
-  manager_->WriteOrBufferRstStream(kTestStreamId, QUIC_STREAM_CANCELLED, 0);
+  manager_->WriteOrBufferRstStream(
+      kTestStreamId, QuicResetStreamError::FromInternal(QUIC_STREAM_CANCELLED),
+      0);
 }
 
 }  // namespace

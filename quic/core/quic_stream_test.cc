@@ -129,12 +129,9 @@ class QuicStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   QuicConsumedData CloseStreamOnWriteError(
-      QuicStreamId id,
-      QuicByteCount /*write_length*/,
-      QuicStreamOffset /*offset*/,
-      StreamSendingState /*state*/,
-      TransmissionType /*type*/,
-      absl::optional<EncryptionLevel> /*level*/) {
+      QuicStreamId id, QuicByteCount /*write_length*/,
+      QuicStreamOffset /*offset*/, StreamSendingState /*state*/,
+      TransmissionType /*type*/, absl::optional<EncryptionLevel> /*level*/) {
     session_->ResetStream(id, QUIC_STREAM_CANCELLED);
     return QuicConsumedData(1, false);
   }
@@ -168,8 +165,7 @@ class QuicStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
                                                   1);
 };
 
-INSTANTIATE_TEST_SUITE_P(QuicStreamTests,
-                         QuicStreamTest,
+INSTANTIATE_TEST_SUITE_P(QuicStreamTests, QuicStreamTest,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 
@@ -998,8 +994,11 @@ TEST_P(QuicStreamTest, RstFrameReceivedStreamNotFinishSending) {
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 9);
 
-  EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream_->id(),
-                                                 QUIC_RST_ACKNOWLEDGEMENT, 9));
+  EXPECT_CALL(
+      *session_,
+      MaybeSendRstStreamFrame(
+          stream_->id(),
+          QuicResetStreamError::FromInternal(QUIC_RST_ACKNOWLEDGEMENT), 9));
   stream_->OnStreamReset(rst_frame);
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
   // Stream stops waiting for acks as it does not finish sending and rst is
@@ -1041,8 +1040,11 @@ TEST_P(QuicStreamTest, ConnectionClosed) {
   stream_->WriteOrBufferData(kData1, false, nullptr);
   EXPECT_TRUE(stream_->IsWaitingForAcks());
   EXPECT_TRUE(session_->HasUnackedStreamData());
-  EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream_->id(),
-                                                 QUIC_RST_ACKNOWLEDGEMENT, 9));
+  EXPECT_CALL(
+      *session_,
+      MaybeSendRstStreamFrame(
+          stream_->id(),
+          QuicResetStreamError::FromInternal(QUIC_RST_ACKNOWLEDGEMENT), 9));
   QuicConnectionPeer::SetConnectionClose(connection_);
   stream_->OnConnectionClosed(QUIC_INTERNAL_ERROR,
                               ConnectionCloseSource::FROM_SELF);
@@ -1564,10 +1566,14 @@ TEST_P(QuicStreamTest, ResetStreamOnTtlExpiresRetransmitLostData) {
   // Verify stream gets reset because TTL expires.
   if (session_->version().UsesHttp3()) {
     EXPECT_CALL(*session_,
-                MaybeSendStopSendingFrame(_, QUIC_STREAM_TTL_EXPIRED))
+                MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
+                                                 QUIC_STREAM_TTL_EXPIRED)))
         .Times(1);
   }
-  EXPECT_CALL(*session_, MaybeSendRstStreamFrame(_, QUIC_STREAM_TTL_EXPIRED, _))
+  EXPECT_CALL(
+      *session_,
+      MaybeSendRstStreamFrame(
+          _, QuicResetStreamError::FromInternal(QUIC_STREAM_TTL_EXPIRED), _))
       .Times(1);
   stream_->OnCanWrite();
 }
@@ -1588,10 +1594,14 @@ TEST_P(QuicStreamTest, ResetStreamOnTtlExpiresEarlyRetransmitData) {
   // Verify stream gets reset because TTL expires.
   if (session_->version().UsesHttp3()) {
     EXPECT_CALL(*session_,
-                MaybeSendStopSendingFrame(_, QUIC_STREAM_TTL_EXPIRED))
+                MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
+                                                 QUIC_STREAM_TTL_EXPIRED)))
         .Times(1);
   }
-  EXPECT_CALL(*session_, MaybeSendRstStreamFrame(_, QUIC_STREAM_TTL_EXPIRED, _))
+  EXPECT_CALL(
+      *session_,
+      MaybeSendRstStreamFrame(
+          _, QuicResetStreamError::FromInternal(QUIC_STREAM_TTL_EXPIRED), _))
       .Times(1);
   stream_->RetransmitStreamData(0, 100, false, PTO_RETRANSMISSION);
 }
@@ -1660,6 +1670,15 @@ TEST_P(QuicStreamTest, EmptyStreamFrameWithNoFin) {
   }
   EXPECT_CALL(*stream_, OnDataAvailable()).Times(0);
   stream_->OnStreamFrame(empty_stream_frame);
+}
+
+TEST_P(QuicStreamTest, SendRstWithCustomIetfCode) {
+  Initialize();
+  QuicResetStreamError error(QUIC_STREAM_CANCELLED, 0x1234abcd);
+  EXPECT_CALL(*session_, MaybeSendRstStreamFrame(kTestStreamId, error, _))
+      .Times(1);
+  stream_->ResetWithError(error);
+  EXPECT_TRUE(rst_sent());
 }
 
 }  // namespace

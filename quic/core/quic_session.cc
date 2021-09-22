@@ -276,7 +276,7 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     return;
   }
 
-  stream->OnStopSending(frame.error_code);
+  stream->OnStopSending(frame.error());
 }
 
 void QuicSession::OnPacketDecrypted(EncryptionLevel level) {
@@ -854,12 +854,12 @@ void QuicSession::ResetStream(QuicStreamId id, QuicRstStreamErrorCode error) {
   }
 
   QuicConnection::ScopedPacketFlusher flusher(connection());
-  MaybeSendStopSendingFrame(id, error);
-  MaybeSendRstStreamFrame(id, error, 0);
+  MaybeSendStopSendingFrame(id, QuicResetStreamError::FromInternal(error));
+  MaybeSendRstStreamFrame(id, QuicResetStreamError::FromInternal(error), 0);
 }
 
 void QuicSession::MaybeSendRstStreamFrame(QuicStreamId id,
-                                          QuicRstStreamErrorCode error,
+                                          QuicResetStreamError error,
                                           QuicStreamOffset bytes_written) {
   if (!connection()->connected()) {
     return;
@@ -870,11 +870,11 @@ void QuicSession::MaybeSendRstStreamFrame(QuicStreamId id,
     control_frame_manager_.WriteOrBufferRstStream(id, error, bytes_written);
   }
 
-  connection_->OnStreamReset(id, error);
+  connection_->OnStreamReset(id, error.internal_code());
 }
 
 void QuicSession::MaybeSendStopSendingFrame(QuicStreamId id,
-                                            QuicRstStreamErrorCode error) {
+                                            QuicResetStreamError error) {
   if (!connection()->connected()) {
     return;
   }

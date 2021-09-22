@@ -510,8 +510,11 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
     stream_->OnStreamHeadersPriority(
         spdy::SpdyStreamPrecedence(kV3HighestPriority));
 
-    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream_->id(),
-                                                   QUIC_HEADERS_TOO_LARGE, 0));
+    EXPECT_CALL(
+        *session_,
+        MaybeSendRstStreamFrame(
+            stream_->id(),
+            QuicResetStreamError::FromInternal(QUIC_HEADERS_TOO_LARGE), 0));
     stream_->OnStreamHeaderList(false, 1 << 20, headers);
 
     EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_HEADERS_TOO_LARGE));
@@ -526,10 +529,14 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
 
   QuicStreamFrame frame(stream_->id(), false, 0, headers);
 
-  EXPECT_CALL(*session_,
-              MaybeSendStopSendingFrame(stream_->id(), QUIC_HEADERS_TOO_LARGE));
-  EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream_->id(),
-                                                 QUIC_HEADERS_TOO_LARGE, 0));
+  EXPECT_CALL(*session_, MaybeSendStopSendingFrame(
+                             stream_->id(), QuicResetStreamError::FromInternal(
+                                                QUIC_HEADERS_TOO_LARGE)));
+  EXPECT_CALL(
+      *session_,
+      MaybeSendRstStreamFrame(
+          stream_->id(),
+          QuicResetStreamError::FromInternal(QUIC_HEADERS_TOO_LARGE), 0));
 
   auto qpack_decoder_stream =
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
@@ -2462,10 +2469,14 @@ TEST_P(QuicSpdyStreamTest, HeaderDecodingUnblockedAfterStreamClosed) {
                          /* offset = */ 1, _, _, _));
 
   // Reset stream by this endpoint, for example, due to stream cancellation.
-  EXPECT_CALL(*session_,
-              MaybeSendStopSendingFrame(stream_->id(), QUIC_STREAM_CANCELLED));
-  EXPECT_CALL(*session_,
-              MaybeSendRstStreamFrame(stream_->id(), QUIC_STREAM_CANCELLED, _));
+  EXPECT_CALL(*session_, MaybeSendStopSendingFrame(
+                             stream_->id(), QuicResetStreamError::FromInternal(
+                                                QUIC_STREAM_CANCELLED)));
+  EXPECT_CALL(
+      *session_,
+      MaybeSendRstStreamFrame(
+          stream_->id(),
+          QuicResetStreamError::FromInternal(QUIC_STREAM_CANCELLED), _));
   stream_->Reset(QUIC_STREAM_CANCELLED);
 
   // Deliver dynamic table entry to decoder.
@@ -2908,10 +2919,14 @@ TEST_P(QuicSpdyStreamTest, StreamCancellationWhenStreamReset) {
   EXPECT_CALL(*session_,
               WritevData(qpack_decoder_stream->id(), /* write_length = */ 1,
                          /* offset = */ 1, _, _, _));
-  EXPECT_CALL(*session_,
-              MaybeSendStopSendingFrame(stream_->id(), QUIC_STREAM_CANCELLED));
-  EXPECT_CALL(*session_,
-              MaybeSendRstStreamFrame(stream_->id(), QUIC_STREAM_CANCELLED, _));
+  EXPECT_CALL(*session_, MaybeSendStopSendingFrame(
+                             stream_->id(), QuicResetStreamError::FromInternal(
+                                                QUIC_STREAM_CANCELLED)));
+  EXPECT_CALL(
+      *session_,
+      MaybeSendRstStreamFrame(
+          stream_->id(),
+          QuicResetStreamError::FromInternal(QUIC_STREAM_CANCELLED), _));
 
   stream_->Reset(QUIC_STREAM_CANCELLED);
 }
@@ -3003,8 +3018,11 @@ TEST_P(QuicSpdyStreamTest, TwoResetStreamFrames) {
     EXPECT_TRUE(stream_->read_side_closed());
     EXPECT_FALSE(stream_->write_side_closed());
   } else {
-    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(
-                               stream_->id(), QUIC_RST_ACKNOWLEDGEMENT, _));
+    EXPECT_CALL(
+        *session_,
+        MaybeSendRstStreamFrame(
+            stream_->id(),
+            QuicResetStreamError::FromInternal(QUIC_RST_ACKNOWLEDGEMENT), _));
     EXPECT_QUIC_BUG(
         stream_->OnStreamReset(rst_frame2),
         "The stream should've already sent RST in response to STOP_SENDING");

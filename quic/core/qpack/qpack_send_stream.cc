@@ -21,7 +21,7 @@ void QpackSendStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
       << "OnStreamReset() called for write unidirectional stream.";
 }
 
-bool QpackSendStream::OnStopSending(QuicRstStreamErrorCode /* code */) {
+bool QpackSendStream::OnStopSending(QuicResetStreamError /* code */) {
   stream_delegate()->OnStreamError(
       QUIC_HTTP_CLOSED_CRITICAL_STREAM,
       "STOP_SENDING received for QPACK send stream");

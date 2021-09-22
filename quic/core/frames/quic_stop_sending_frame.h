@@ -18,6 +18,8 @@ struct QUIC_EXPORT_PRIVATE QuicStopSendingFrame {
   QuicStopSendingFrame(QuicControlFrameId control_frame_id,
                        QuicStreamId stream_id,
                        QuicRstStreamErrorCode error_code);
+  QuicStopSendingFrame(QuicControlFrameId control_frame_id,
+                       QuicStreamId stream_id, QuicResetStreamError error);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os,
@@ -35,6 +37,11 @@ struct QUIC_EXPORT_PRIVATE QuicStopSendingFrame {
 
   // On-the-wire application error code of the frame.
   uint64_t ietf_error_code = 0;
+
+  // Returns a tuple of both |error_code| and |ietf_error_code|.
+  QuicResetStreamError error() const {
+    return QuicResetStreamError(error_code, ietf_error_code);
+  }
 };
 
 }  // namespace quic

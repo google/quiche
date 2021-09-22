@@ -119,7 +119,8 @@ TEST_P(QpackSendStreamTest, WriteStreamTypeOnlyFirstTime) {
 TEST_P(QpackSendStreamTest, StopSendingQpackStream) {
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_HTTP_CLOSED_CRITICAL_STREAM, _, _));
-  qpack_send_stream_->OnStopSending(QUIC_STREAM_CANCELLED);
+  qpack_send_stream_->OnStopSending(
+      QuicResetStreamError::FromInternal(QUIC_STREAM_CANCELLED));
 }
 
 TEST_P(QpackSendStreamTest, ReceiveDataOnSendStream) {

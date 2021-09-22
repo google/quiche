@@ -85,7 +85,8 @@ TEST_F(QuicFramesTest, RstStreamFrameToString) {
   std::ostringstream stream;
   stream << rst_stream;
   EXPECT_EQ(
-      "{ control_frame_id: 1, stream_id: 1, byte_offset: 3, error_code: 6 }\n",
+      "{ control_frame_id: 1, stream_id: 1, byte_offset: 3, error_code: 6, "
+      "ietf_error_code: 0 }\n",
       stream.str());
   EXPECT_TRUE(IsControlFrame(frame.type));
 }

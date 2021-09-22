@@ -16,13 +16,14 @@ namespace quic {
 struct QUIC_EXPORT_PRIVATE QuicRstStreamFrame {
   QuicRstStreamFrame() = default;
   QuicRstStreamFrame(QuicControlFrameId control_frame_id,
-                     QuicStreamId stream_id,
-                     QuicRstStreamErrorCode error_code,
+                     QuicStreamId stream_id, QuicRstStreamErrorCode error_code,
+                     QuicStreamOffset bytes_written);
+  QuicRstStreamFrame(QuicControlFrameId control_frame_id,
+                     QuicStreamId stream_id, QuicResetStreamError error,
                      QuicStreamOffset bytes_written);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicRstStreamFrame& r);
+      std::ostream& os, const QuicRstStreamFrame& r);
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.
@@ -45,6 +46,11 @@ struct QUIC_EXPORT_PRIVATE QuicRstStreamFrame {
   // that stream. This can be done through normal termination (data packet with
   // FIN) or through a RST.
   QuicStreamOffset byte_offset = 0;
+
+  // Returns a tuple of both |error_code| and |ietf_error_code|.
+  QuicResetStreamError error() const {
+    return QuicResetStreamError(error_code, ietf_error_code);
+  }
 };
 
 }  // namespace quic

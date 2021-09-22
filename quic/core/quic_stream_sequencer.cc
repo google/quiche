@@ -236,7 +236,8 @@ void QuicStreamSequencer::MarkConsumed(size_t num_bytes_consumed) {
         << "Invalid argument to MarkConsumed."
         << " expect to consume: " << num_bytes_consumed
         << ", but not enough bytes available. " << DebugString();
-    stream_->Reset(QUIC_ERROR_PROCESSING_STREAM);
+    stream_->ResetWithError(
+        QuicResetStreamError::FromInternal(QUIC_ERROR_PROCESSING_STREAM));
     return;
   }
   stream_->AddBytesConsumed(num_bytes_consumed);

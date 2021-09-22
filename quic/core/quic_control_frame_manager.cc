@@ -59,7 +59,7 @@ void QuicControlFrameManager::WriteOrBufferQuicFrame(QuicFrame frame) {
 }
 
 void QuicControlFrameManager::WriteOrBufferRstStream(
-    QuicStreamId id, QuicRstStreamErrorCode error,
+    QuicStreamId id, QuicResetStreamError error,
     QuicStreamOffset bytes_written) {
   QUIC_DVLOG(1) << "Writing RST_STREAM_FRAME";
   WriteOrBufferQuicFrame((QuicFrame(new QuicRstStreamFrame(
@@ -104,10 +104,10 @@ void QuicControlFrameManager::WriteOrBufferMaxStreams(QuicStreamCount count,
 }
 
 void QuicControlFrameManager::WriteOrBufferStopSending(
-    QuicRstStreamErrorCode code, QuicStreamId stream_id) {
+    QuicResetStreamError error, QuicStreamId stream_id) {
   QUIC_DVLOG(1) << "Writing STOP_SENDING_FRAME";
   WriteOrBufferQuicFrame(QuicFrame(
-      new QuicStopSendingFrame(++last_control_frame_id_, stream_id, code)));
+      new QuicStopSendingFrame(++last_control_frame_id_, stream_id, error)));
 }
 
 void QuicControlFrameManager::WriteOrBufferHandshakeDone() {

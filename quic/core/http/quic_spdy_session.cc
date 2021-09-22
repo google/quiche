@@ -1413,7 +1413,9 @@ QuicStream* QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
     default:
       break;
   }
-  MaybeSendStopSendingFrame(pending->id(), QUIC_STREAM_STREAM_CREATION_ERROR);
+  MaybeSendStopSendingFrame(
+      pending->id(),
+      QuicResetStreamError::FromInternal(QUIC_STREAM_STREAM_CREATION_ERROR));
   pending->StopReading();
   return nullptr;
 }

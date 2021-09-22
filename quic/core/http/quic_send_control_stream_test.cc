@@ -216,7 +216,8 @@ TEST_P(QuicSendControlStreamTest, CloseControlStream) {
   Initialize();
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_HTTP_CLOSED_CRITICAL_STREAM, _, _));
-  send_control_stream_->OnStopSending(QUIC_STREAM_CANCELLED);
+  send_control_stream_->OnStopSending(
+      QuicResetStreamError::FromInternal(QUIC_STREAM_CANCELLED));
 }
 
 TEST_P(QuicSendControlStreamTest, ReceiveDataOnSendControlStream) {
