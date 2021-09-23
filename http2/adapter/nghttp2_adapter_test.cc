@@ -1,5 +1,6 @@
 #include "http2/adapter/nghttp2_adapter.h"
 
+#include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/mock_http2_visitor.h"
 #include "http2/adapter/nghttp2_test_utils.h"
 #include "http2/adapter/oghttp2_util.h"
@@ -1266,6 +1267,122 @@ TEST(NgHttp2AdapterTest, SubmitConnectionMetadata) {
   EXPECT_THAT(
       serialized,
       EqualsFrames({static_cast<spdy::SpdyFrameType>(kMetadataFrameType)}));
+  EXPECT_FALSE(adapter->session().want_write());
+}
+
+TEST(NgHttp2AdapterTest, ClientObeysMaxConcurrentStreams) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  // Client preface does not appear to include the mandatory SETTINGS frame.
+  EXPECT_THAT(visitor.data(),
+              testing::StrEq(spdy::kHttp2ConnectionHeaderPrefix));
+  visitor.Clear();
+
+  const std::string initial_frames =
+      TestFrameSequence()
+          .ServerPreface({{.id = MAX_CONCURRENT_STREAMS, .value = 1}})
+          .Serialize();
+  testing::InSequence s;
+
+  // Server preface (SETTINGS with MAX_CONCURRENT_STREAMS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSetting);
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), initial_result);
+
+  EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  EXPECT_FALSE(adapter->session().want_write());
+  const absl::string_view kBody = "This is an example request body.";
+  auto body1 = absl::make_unique<TestDataFrameSource>(visitor, true);
+  body1->AppendPayload(kBody);
+  body1->EndData();
+  const int stream_id =
+      adapter->SubmitRequest(ToHeaders({{":method", "POST"},
+                                        {":scheme", "http"},
+                                        {":authority", "example.com"},
+                                        {":path", "/this/is/request/one"}}),
+                             std::move(body1), nullptr);
+  EXPECT_GT(stream_id, 0);
+  EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, _, 0x1, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
+                                            spdy::SpdyFrameType::DATA}));
+  EXPECT_THAT(visitor.data(), testing::HasSubstr(kBody));
+  visitor.Clear();
+  EXPECT_FALSE(adapter->session().want_write());
+
+  const int next_stream_id =
+      adapter->SubmitRequest(ToHeaders({{":method", "POST"},
+                                        {":scheme", "http"},
+                                        {":authority", "example.com"},
+                                        {":path", "/this/is/request/two"}}),
+                             nullptr, nullptr);
+
+  // A new pending stream is created, but because of MAX_CONCURRENT_STREAMS, the
+  // session should not want to write it at the moment.
+  EXPECT_GT(next_stream_id, stream_id);
+  EXPECT_FALSE(adapter->session().want_write());
+
+  const std::string stream_frames =
+      TestFrameSequence()
+          .Headers(stream_id,
+                   {{":status", "200"},
+                    {"server", "my-fake-server"},
+                    {"date", "Tue, 6 Apr 2021 12:54:01 GMT"}},
+                   /*fin=*/false)
+          .Data(stream_id, "This is the response body.", /*fin=*/true)
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(stream_id));
+  EXPECT_CALL(visitor, OnHeaderForStream(stream_id, ":status", "200"));
+  EXPECT_CALL(visitor,
+              OnHeaderForStream(stream_id, "server", "my-fake-server"));
+  EXPECT_CALL(visitor, OnHeaderForStream(stream_id, "date",
+                                         "Tue, 6 Apr 2021 12:54:01 GMT"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(stream_id));
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, 26, DATA, 0x1));
+  EXPECT_CALL(visitor, OnBeginDataForStream(stream_id, 26));
+  EXPECT_CALL(visitor,
+              OnDataForStream(stream_id, "This is the response body."));
+  EXPECT_CALL(visitor, OnEndStream(stream_id));
+  EXPECT_CALL(visitor, OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR));
+
+  // The first stream should close, which should make the session want to write
+  // the next stream.
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), stream_result);
+  EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, next_stream_id, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, next_stream_id, _, 0x5, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
+  visitor.Clear();
   EXPECT_FALSE(adapter->session().want_write());
 }
 

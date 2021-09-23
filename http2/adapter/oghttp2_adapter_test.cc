@@ -1,6 +1,9 @@
 #include "http2/adapter/oghttp2_adapter.h"
 
+#include <string>
+
 #include "absl/strings/str_join.h"
+#include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/mock_http2_visitor.h"
 #include "http2/adapter/oghttp2_util.h"
 #include "http2/adapter/test_frame_sequence.h"
@@ -687,6 +690,105 @@ TEST(OgHttp2AdapterClientTest, ClientFailsOnGoAway) {
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+}
+
+TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  EXPECT_FALSE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+
+  // Even though the user has not queued any frames for the session, it should
+  // still send the connection preface.
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  // Initial SETTINGS.
+  EXPECT_THAT(serialized, EqualsFrames({SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  const std::string initial_frames =
+      TestFrameSequence()
+          .ServerPreface({{.id = MAX_CONCURRENT_STREAMS, .value = 1}})
+          .Serialize();
+  testing::InSequence s;
+
+  // Server preface (SETTINGS with MAX_CONCURRENT_STREAMS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSetting);
+  // TODO(diannahu): Remove this duplicate call with a separate
+  // ExtensionVisitorInterface implementation.
+  EXPECT_CALL(visitor, OnSetting);
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), static_cast<size_t>(initial_result));
+
+  // Session will want to write a SETTINGS ack.
+  EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  const std::string kBody = "This is an example request body.";
+  auto body1 = absl::make_unique<TestDataFrameSource>(visitor, true);
+  body1->AppendPayload(kBody);
+  body1->EndData();
+  const int stream_id =
+      adapter->SubmitRequest(ToHeaders({{":method", "POST"},
+                                        {":scheme", "http"},
+                                        {":authority", "example.com"},
+                                        {":path", "/this/is/request/one"}}),
+                             std::move(body1), nullptr);
+  EXPECT_GT(stream_id, 0);
+  EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, _, 0x1, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
+                                            spdy::SpdyFrameType::DATA}));
+  EXPECT_THAT(visitor.data(), testing::HasSubstr(kBody));
+  visitor.Clear();
+  EXPECT_FALSE(adapter->session().want_write());
+
+  const int next_stream_id =
+      adapter->SubmitRequest(ToHeaders({{":method", "POST"},
+                                        {":scheme", "http"},
+                                        {":authority", "example.com"},
+                                        {":path", "/this/is/request/two"}}),
+                             nullptr, nullptr);
+
+  // A new stream is created and the session wants to write, despite
+  // MAX_CONCURRENT_STREAMS.
+  // TODO(diannahu): Respect the peer's MAX_CONCURRENT_STREAMS value.
+  EXPECT_GT(next_stream_id, stream_id);
+  EXPECT_TRUE(adapter->session().want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, next_stream_id, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, next_stream_id, _, 0x5, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
+  visitor.Clear();
+  EXPECT_FALSE(adapter->session().want_write());
 }
 
 TEST_F(OgHttp2AdapterTest, SubmitMetadata) {
