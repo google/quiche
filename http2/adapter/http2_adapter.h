@@ -26,7 +26,12 @@ class QUICHE_EXPORT_PRIVATE Http2Adapter {
   Http2Adapter(const Http2Adapter&) = delete;
   Http2Adapter& operator=(const Http2Adapter&) = delete;
 
+  virtual ~Http2Adapter() {}
+
   virtual bool IsServerSession() const = 0;
+
+  virtual bool want_read() const = 0;
+  virtual bool want_write() const = 0;
 
   // Processes the incoming |bytes| as HTTP/2 and invokes callbacks on the
   // |visitor_| as appropriate.
@@ -144,7 +149,6 @@ class QUICHE_EXPORT_PRIVATE Http2Adapter {
   // Subclasses should expose a public factory method for constructing and
   // initializing (via Initialize()) adapter instances.
   explicit Http2Adapter(Http2VisitorInterface& visitor) : visitor_(visitor) {}
-  virtual ~Http2Adapter() {}
 
   // Accessors. Do not transfer ownership.
   Http2VisitorInterface& visitor() { return visitor_; }

@@ -133,7 +133,7 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesTrailers) {
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
 
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
@@ -217,7 +217,7 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesMetadata) {
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
 
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
@@ -295,8 +295,8 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesMetadataWithError) {
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
 
-  EXPECT_FALSE(adapter->session().want_read());
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_FALSE(adapter->want_read());
+  EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
@@ -377,7 +377,7 @@ TEST(OgHttp2AdapterClientTest, ClientRstStreamWhileHandlingHeaders) {
                           static_cast<int>(Http2ErrorCode::REFUSED_STREAM)));
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
 
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
@@ -454,7 +454,7 @@ TEST(OgHttp2AdapterClientTest, ClientConnectionErrorWhileHandlingHeaders) {
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
 
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
@@ -526,7 +526,7 @@ TEST(OgHttp2AdapterClientTest, ClientRejectsHeaders) {
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
 
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
@@ -609,7 +609,7 @@ TEST(OgHttp2AdapterClientTest, DISABLED_ClientHandlesInvalidTrailers) {
   EXPECT_CALL(visitor, OnFrameSent(RST_STREAM, stream_id1, 4, 0x0, 1));
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::PROTOCOL_ERROR));
 
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
@@ -686,7 +686,7 @@ TEST(OgHttp2AdapterClientTest, ClientFailsOnGoAway) {
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
 
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
@@ -697,7 +697,7 @@ TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
   OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
   auto adapter = OgHttp2Adapter::Create(visitor, options);
 
-  EXPECT_FALSE(adapter->session().want_write());
+  EXPECT_FALSE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
@@ -733,7 +733,7 @@ TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
   EXPECT_EQ(initial_frames.size(), static_cast<size_t>(initial_result));
 
   // Session will want to write a SETTINGS ack.
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
@@ -754,7 +754,7 @@ TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
                                         {":path", "/this/is/request/one"}}),
                              std::move(body1), nullptr);
   EXPECT_GT(stream_id, 0);
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
@@ -766,7 +766,7 @@ TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
                                             spdy::SpdyFrameType::DATA}));
   EXPECT_THAT(visitor.data(), testing::HasSubstr(kBody));
   visitor.Clear();
-  EXPECT_FALSE(adapter->session().want_write());
+  EXPECT_FALSE(adapter->want_write());
 
   const int next_stream_id =
       adapter->SubmitRequest(ToHeaders({{":method", "POST"},
@@ -778,7 +778,7 @@ TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
   // A new pending stream is created, but because of MAX_CONCURRENT_STREAMS, the
   // session should not want to write it at the moment.
   EXPECT_GT(next_stream_id, stream_id);
-  EXPECT_FALSE(adapter->session().want_write());
+  EXPECT_FALSE(adapter->want_write());
 
   const std::string stream_frames =
       TestFrameSequence()
@@ -809,7 +809,7 @@ TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
   // the next stream.
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, next_stream_id, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, next_stream_id, _, 0x5, 0));
@@ -819,14 +819,14 @@ TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
 
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
   visitor.Clear();
-  EXPECT_FALSE(adapter->session().want_write());
+  EXPECT_FALSE(adapter->want_write());
 }
 
 TEST_F(OgHttp2AdapterTest, SubmitMetadata) {
   auto source = absl::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
       {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));
   adapter_->SubmitMetadata(1, 16384u, std::move(source));
-  EXPECT_TRUE(adapter_->session().want_write());
+  EXPECT_TRUE(adapter_->want_write());
 
   EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(http2_visitor_, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
@@ -839,7 +839,7 @@ TEST_F(OgHttp2AdapterTest, SubmitMetadata) {
       http2_visitor_.data(),
       EqualsFrames({spdy::SpdyFrameType::SETTINGS,
                     static_cast<spdy::SpdyFrameType>(kMetadataFrameType)}));
-  EXPECT_FALSE(adapter_->session().want_write());
+  EXPECT_FALSE(adapter_->want_write());
 }
 
 TEST_F(OgHttp2AdapterTest, SubmitMetadataMultipleFrames) {
@@ -847,7 +847,7 @@ TEST_F(OgHttp2AdapterTest, SubmitMetadataMultipleFrames) {
   auto source = absl::make_unique<TestMetadataSource>(
       ToHeaderBlock(ToHeaders({{"large-value", kLargeValue}})));
   adapter_->SubmitMetadata(1, 16384u, std::move(source));
-  EXPECT_TRUE(adapter_->session().want_write());
+  EXPECT_TRUE(adapter_->want_write());
 
   testing::InSequence seq;
   EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -871,14 +871,14 @@ TEST_F(OgHttp2AdapterTest, SubmitMetadataMultipleFrames) {
                     static_cast<spdy::SpdyFrameType>(kMetadataFrameType),
                     static_cast<spdy::SpdyFrameType>(kMetadataFrameType),
                     static_cast<spdy::SpdyFrameType>(kMetadataFrameType)}));
-  EXPECT_FALSE(adapter_->session().want_write());
+  EXPECT_FALSE(adapter_->want_write());
 }
 
 TEST_F(OgHttp2AdapterTest, SubmitConnectionMetadata) {
   auto source = absl::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
       {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));
   adapter_->SubmitMetadata(0, 16384u, std::move(source));
-  EXPECT_TRUE(adapter_->session().want_write());
+  EXPECT_TRUE(adapter_->want_write());
 
   EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(http2_visitor_, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
@@ -891,7 +891,7 @@ TEST_F(OgHttp2AdapterTest, SubmitConnectionMetadata) {
       http2_visitor_.data(),
       EqualsFrames({spdy::SpdyFrameType::SETTINGS,
                     static_cast<spdy::SpdyFrameType>(kMetadataFrameType)}));
-  EXPECT_FALSE(adapter_->session().want_write());
+  EXPECT_FALSE(adapter_->want_write());
 }
 
 TEST_F(OgHttp2AdapterTest, GetSendWindowSize) {
@@ -905,19 +905,19 @@ TEST_F(OgHttp2AdapterTest, MarkDataConsumedForStream) {
 }
 
 TEST_F(OgHttp2AdapterTest, TestSerialize) {
-  EXPECT_TRUE(adapter_->session().want_read());
-  EXPECT_FALSE(adapter_->session().want_write());
+  EXPECT_TRUE(adapter_->want_read());
+  EXPECT_FALSE(adapter_->want_write());
 
   adapter_->SubmitSettings(
       {{HEADER_TABLE_SIZE, 128}, {MAX_FRAME_SIZE, 128 << 10}});
-  EXPECT_TRUE(adapter_->session().want_write());
+  EXPECT_TRUE(adapter_->want_write());
 
   adapter_->SubmitPriorityForStream(3, 1, 255, true);
   adapter_->SubmitRst(3, Http2ErrorCode::CANCEL);
   adapter_->SubmitPing(42);
   adapter_->SubmitGoAway(13, Http2ErrorCode::NO_ERROR, "");
   adapter_->SubmitWindowUpdate(3, 127);
-  EXPECT_TRUE(adapter_->session().want_write());
+  EXPECT_TRUE(adapter_->want_write());
 
   EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(http2_visitor_, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
@@ -940,34 +940,34 @@ TEST_F(OgHttp2AdapterTest, TestSerialize) {
       EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::PRIORITY,
                     SpdyFrameType::RST_STREAM, SpdyFrameType::PING,
                     SpdyFrameType::GOAWAY, SpdyFrameType::WINDOW_UPDATE}));
-  EXPECT_FALSE(adapter_->session().want_write());
+  EXPECT_FALSE(adapter_->want_write());
 }
 
 TEST_F(OgHttp2AdapterTest, TestPartialSerialize) {
-  EXPECT_FALSE(adapter_->session().want_write());
+  EXPECT_FALSE(adapter_->want_write());
 
   adapter_->SubmitSettings(
       {{HEADER_TABLE_SIZE, 128}, {MAX_FRAME_SIZE, 128 << 10}});
   adapter_->SubmitGoAway(13, Http2ErrorCode::NO_ERROR, "And don't come back!");
   adapter_->SubmitPing(42);
-  EXPECT_TRUE(adapter_->session().want_write());
+  EXPECT_TRUE(adapter_->want_write());
 
   http2_visitor_.set_send_limit(20);
   EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(http2_visitor_, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   int result = adapter_->Send();
   EXPECT_EQ(0, result);
-  EXPECT_TRUE(adapter_->session().want_write());
+  EXPECT_TRUE(adapter_->want_write());
   EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
   EXPECT_CALL(http2_visitor_, OnFrameSent(GOAWAY, 0, _, 0x0, 0));
   result = adapter_->Send();
   EXPECT_EQ(0, result);
-  EXPECT_TRUE(adapter_->session().want_write());
+  EXPECT_TRUE(adapter_->want_write());
   EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(PING, 0, _, 0x0));
   EXPECT_CALL(http2_visitor_, OnFrameSent(PING, 0, _, 0x0, 0));
   result = adapter_->Send();
   EXPECT_EQ(0, result);
-  EXPECT_FALSE(adapter_->session().want_write());
+  EXPECT_FALSE(adapter_->want_write());
   EXPECT_THAT(http2_visitor_.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY,
                             SpdyFrameType::PING}));
@@ -977,7 +977,7 @@ TEST(OgHttp2AdapterServerTest, ClientSendsContinuation) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
   auto adapter = OgHttp2Adapter::Create(visitor, options);
-  EXPECT_FALSE(adapter->session().want_write());
+  EXPECT_FALSE(adapter->want_write());
 
   const std::string frames = TestFrameSequence()
                                  .ClientPreface()
@@ -1014,7 +1014,7 @@ TEST(OgHttp2AdapterServerTest, ClientSendsMetadataWithContinuation) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
   auto adapter = OgHttp2Adapter::Create(visitor, options);
-  EXPECT_FALSE(adapter->session().want_write());
+  EXPECT_FALSE(adapter->want_write());
 
   const std::string frames =
       TestFrameSequence()
@@ -1078,7 +1078,7 @@ TEST(OgHttp2AdapterServerTest, ServerSendsInvalidTrailers) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
   auto adapter = OgHttp2Adapter::Create(visitor, options);
-  EXPECT_FALSE(adapter->session().want_write());
+  EXPECT_FALSE(adapter->want_write());
 
   const std::string frames = TestFrameSequence()
                                  .ClientPreface()
@@ -1119,7 +1119,7 @@ TEST(OgHttp2AdapterServerTest, ServerSendsInvalidTrailers) {
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
       std::move(body1));
   EXPECT_EQ(submit_result, 0);
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
@@ -1137,14 +1137,14 @@ TEST(OgHttp2AdapterServerTest, ServerSendsInvalidTrailers) {
                    spdy::SpdyFrameType::HEADERS, spdy::SpdyFrameType::DATA}));
   EXPECT_THAT(visitor.data(), testing::HasSubstr(kBody));
   visitor.Clear();
-  EXPECT_FALSE(adapter->session().want_write());
+  EXPECT_FALSE(adapter->want_write());
 
   // The body source has been exhausted by the call to Send() above.
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
   int trailer_result =
       adapter->SubmitTrailer(1, ToHeaders({{":final-status", "a-ok"}}));
   ASSERT_EQ(trailer_result, 0);
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
@@ -1198,7 +1198,7 @@ TEST(OgHttp2AdapterServerTest, ServerErrorWhileHandlingHeaders) {
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
@@ -1257,7 +1257,7 @@ TEST(OgHttp2AdapterServerTest, ServerErrorAfterHandlingHeaders) {
   EXPECT_GT(result, 0);
   EXPECT_LT(result, static_cast<int64_t>(frames.size()));
 
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
@@ -1307,7 +1307,7 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsFrameHeader) {
   EXPECT_GT(result, 0);
   EXPECT_LT(result, static_cast<int64_t>(frames.size()));
 
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
@@ -1368,7 +1368,7 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsBeginningOfData) {
   EXPECT_GT(result, 0);
   EXPECT_LT(result, static_cast<int64_t>(frames.size()));
 
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
@@ -1429,7 +1429,7 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsStreamData) {
   EXPECT_GT(result, 0);
   EXPECT_LT(result, static_cast<int64_t>(frames.size()));
 
-  EXPECT_TRUE(adapter->session().want_write());
+  EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));

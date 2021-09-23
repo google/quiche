@@ -28,6 +28,8 @@ class QUICHE_EXPORT_PRIVATE NgHttp2Adapter : public Http2Adapter {
       Http2VisitorInterface& visitor, const nghttp2_option* options = nullptr);
 
   bool IsServerSession() const override;
+  bool want_read() const override { return session_->want_read(); }
+  bool want_write() const override { return session_->want_write(); }
 
   int64_t ProcessBytes(absl::string_view bytes) override;
   void SubmitSettings(absl::Span<const Http2Setting> settings) override;
@@ -85,10 +87,6 @@ class QUICHE_EXPORT_PRIVATE NgHttp2Adapter : public Http2Adapter {
   void* GetStreamUserData(Http2StreamId stream_id) override;
 
   bool ResumeStream(Http2StreamId stream_id) override;
-
-  // TODO(b/181586191): Temporary accessor until equivalent functionality is
-  // available in this adapter class.
-  NgHttp2Session& session() { return *session_; }
 
  private:
   NgHttp2Adapter(Http2VisitorInterface& visitor, Perspective perspective,

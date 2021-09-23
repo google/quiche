@@ -158,10 +158,6 @@ bool OgHttp2Adapter::ResumeStream(Http2StreamId stream_id) {
   return session_->ResumeStream(stream_id);
 }
 
-const Http2Session& OgHttp2Adapter::session() const {
-  return *session_;
-}
-
 OgHttp2Adapter::OgHttp2Adapter(Http2VisitorInterface& visitor, Options options)
     : Http2Adapter(visitor),
       session_(absl::make_unique<OgHttp2Session>(visitor, std::move(options))) {
