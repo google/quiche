@@ -5,6 +5,7 @@
 #include <list>
 
 #include "http2/adapter/data_source.h"
+#include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/http2_session.h"
 #include "http2/adapter/http2_util.h"
 #include "http2/adapter/http2_visitor_interface.h"
@@ -14,6 +15,7 @@
 #include "common/platform/api/quiche_export.h"
 #include "spdy/core/http2_frame_decoder_adapter.h"
 #include "spdy/core/spdy_framer.h"
+#include "spdy/core/spdy_header_block.h"
 
 namespace http2 {
 namespace adapter {
@@ -219,6 +221,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   bool SendMetadata(Http2StreamId stream_id, MetadataSequence& sequence);
 
+  void SendHeaders(Http2StreamId stream_id, spdy::SpdyHeaderBlock headers,
+                   bool end_stream);
+
   void SendTrailers(Http2StreamId stream_id, spdy::SpdyHeaderBlock trailers);
 
   // Encapsulates the RST_STREAM NO_ERROR behavior described in RFC 7540
@@ -228,8 +233,15 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Performs flow control accounting for data sent by the peer.
   void MarkDataBuffered(Http2StreamId stream_id, size_t bytes);
 
-  // Creates a stream and returns an iterator pointing to it.
+  // Creates a stream for `stream_id` if not already present and returns an
+  // iterator pointing to it.
   StreamStateMap::iterator CreateStream(Http2StreamId stream_id);
+
+  // Creates a stream for `stream_id`, stores the `data_source` and `user_data`
+  // in the stream state, and sends the `headers`.
+  void StartRequest(Http2StreamId stream_id, spdy::SpdyHeaderBlock headers,
+                    std::unique_ptr<DataFrameSource> data_source,
+                    void* user_data);
 
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;

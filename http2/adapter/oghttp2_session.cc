@@ -1,9 +1,12 @@
 #include "http2/adapter/oghttp2_session.h"
 
 #include <tuple>
+#include <utility>
 
+#include "absl/memory/memory.h"
 #include "absl/strings/escaping.h"
 #include "http2/adapter/oghttp2_util.h"
+#include "spdy/core/spdy_protocol.h"
 
 namespace http2 {
 namespace adapter {
@@ -481,21 +484,8 @@ int32_t OgHttp2Session::SubmitRequest(
   // TODO(birenroy): return an error for the incorrect perspective
   const Http2StreamId stream_id = next_stream_id_;
   next_stream_id_ += 2;
-  // Convert headers to header block, create headers frame.
-  auto frame =
-      absl::make_unique<spdy::SpdyHeadersIR>(stream_id, ToHeaderBlock(headers));
-  // Add data source and user data to stream state
-  auto iter = CreateStream(stream_id);
-  write_scheduler_.MarkStreamReady(stream_id, false);
-  if (data_source == nullptr) {
-    frame->set_fin(true);
-    iter->second.half_closed_local = true;
-  } else {
-    iter->second.outbound_body = std::move(data_source);
-  }
-  iter->second.user_data = user_data;
-  // Enqueue headers frame
-  EnqueueFrame(std::move(frame));
+  StartRequest(stream_id, ToHeaderBlock(headers), std::move(data_source),
+               user_data);
   return stream_id;
 }
 
@@ -508,11 +498,8 @@ int OgHttp2Session::SubmitResponse(
     QUICHE_LOG(ERROR) << "Unable to find stream " << stream_id;
     return -501;  // NGHTTP2_ERR_INVALID_ARGUMENT
   }
-  // Convert headers to header block, create headers frame
-  auto frame =
-      absl::make_unique<spdy::SpdyHeadersIR>(stream_id, ToHeaderBlock(headers));
-  if (data_source == nullptr) {
-    frame->set_fin(true);
+  const bool end_stream = data_source == nullptr;
+  if (end_stream) {
     if (iter->second.half_closed_remote) {
       visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
     }
@@ -523,7 +510,7 @@ int OgHttp2Session::SubmitResponse(
     iter->second.outbound_body = std::move(data_source);
     write_scheduler_.MarkStreamReady(stream_id, false);
   }
-  EnqueueFrame(std::move(frame));
+  SendHeaders(stream_id, ToHeaderBlock(headers), end_stream);
   return 0;
 }
 
@@ -832,6 +819,15 @@ void OgHttp2Session::SendWindowUpdate(Http2StreamId stream_id,
       absl::make_unique<spdy::SpdyWindowUpdateIR>(stream_id, update_delta));
 }
 
+void OgHttp2Session::SendHeaders(Http2StreamId stream_id,
+                                 spdy::SpdyHeaderBlock headers,
+                                 bool end_stream) {
+  auto frame =
+      absl::make_unique<spdy::SpdyHeadersIR>(stream_id, std::move(headers));
+  frame->set_fin(end_stream);
+  EnqueueFrame(std::move(frame));
+}
+
 void OgHttp2Session::SendTrailers(Http2StreamId stream_id,
                                   spdy::SpdyHeaderBlock trailers) {
   auto frame =
@@ -883,6 +879,22 @@ OgHttp2Session::StreamStateMap::iterator OgHttp2Session::CreateStream(
     write_scheduler_.RegisterStream(stream_id, precedence);
   }
   return iter;
+}
+
+void OgHttp2Session::StartRequest(Http2StreamId stream_id,
+                                  spdy::SpdyHeaderBlock headers,
+                                  std::unique_ptr<DataFrameSource> data_source,
+                                  void* user_data) {
+  auto iter = CreateStream(stream_id);
+  write_scheduler_.MarkStreamReady(stream_id, false);
+  const bool end_stream = data_source == nullptr;
+  if (end_stream) {
+    iter->second.half_closed_local = true;
+  } else {
+    iter->second.outbound_body = std::move(data_source);
+  }
+  iter->second.user_data = user_data;
+  SendHeaders(stream_id, std::move(headers), end_stream);
 }
 
 }  // namespace adapter
