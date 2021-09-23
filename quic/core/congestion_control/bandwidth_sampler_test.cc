@@ -685,22 +685,23 @@ TEST_P(BandwidthSamplerTest, AckHeightRespectBandwidthEstimateUpperBound) {
       QuicBandwidth::FromBytesAndTimeDelta(kRegularPacketSize,
                                            time_between_packets);
 
-  // Send and ack packet 1.
+  // Send packets 1 to 4 and ack packet 1.
   SendPacket(1);
   clock_.AdvanceTime(time_between_packets);
+  SendPacket(2);
+  SendPacket(3);
+  SendPacket(4);
   BandwidthSampler::CongestionEventSample sample = OnCongestionEvent({1}, {});
   EXPECT_EQ(first_packet_sending_rate, sample.sample_max_bandwidth);
   EXPECT_EQ(first_packet_sending_rate, max_bandwidth_);
 
-  // Send and ack packet 2, 3 and 4.
+  // Ack packet 2, 3 and 4, all of which uses S(1) to calculate ack rate since
+  // there were no acks at the time they were sent.
   round_trip_count_++;
   est_bandwidth_upper_bound_ = first_packet_sending_rate * 0.3;
-  SendPacket(2);
-  SendPacket(3);
-  SendPacket(4);
   clock_.AdvanceTime(time_between_packets);
   sample = OnCongestionEvent({2, 3, 4}, {});
-  EXPECT_EQ(first_packet_sending_rate * 3, sample.sample_max_bandwidth);
+  EXPECT_EQ(first_packet_sending_rate * 2, sample.sample_max_bandwidth);
   EXPECT_EQ(max_bandwidth_, sample.sample_max_bandwidth);
 
   EXPECT_LT(2 * kRegularPacketSize, sample.extra_acked);
@@ -710,6 +711,11 @@ class MaxAckHeightTrackerTest : public QuicTest {
  protected:
   MaxAckHeightTrackerTest() : tracker_(/*initial_filter_window=*/10) {
     tracker_.SetAckAggregationBandwidthThreshold(1.8);
+
+    if (GetQuicReloadableFlag(
+            quic_bbr_start_new_aggregation_epoch_after_a_full_round)) {
+      tracker_.SetStartNewAggregationEpochAfterFullRound(true);
+    }
   }
 
   // Run a full aggregation episode, which is one or more aggregated acks,
@@ -749,8 +755,9 @@ class MaxAckHeightTrackerTest : public QuicTest {
     QuicByteCount last_extra_acked = 0;
     for (QuicByteCount bytes = 0; bytes < aggregation_bytes;
          bytes += bytes_per_ack) {
-      QuicByteCount extra_acked =
-          tracker_.Update(bandwidth_, RoundTripCount(), now_, bytes_per_ack);
+      QuicByteCount extra_acked = tracker_.Update(
+          bandwidth_, RoundTripCount(), last_sent_packet_number_,
+          last_acked_packet_number_, now_, bytes_per_ack);
       QUIC_VLOG(1) << "T" << now_ << ": Update after " << bytes_per_ack
                    << " bytes acked, " << extra_acked << " extra bytes acked";
       // |extra_acked| should be 0 if either
@@ -784,6 +791,8 @@ class MaxAckHeightTrackerTest : public QuicTest {
   QuicBandwidth bandwidth_ = QuicBandwidth::FromBytesPerSecond(10 * 1000);
   QuicTime now_ = QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1);
   QuicTime::Delta rtt_ = QuicTime::Delta::FromMilliseconds(60);
+  QuicPacketNumber last_sent_packet_number_;
+  QuicPacketNumber last_acked_packet_number_;
 };
 
 TEST_F(MaxAckHeightTrackerTest, VeryAggregatedLargeAck) {
@@ -862,6 +871,26 @@ TEST_F(MaxAckHeightTrackerTest, NotAggregated) {
   AggregationEpisode(bandwidth_, QuicTime::Delta::FromMilliseconds(100), 100,
                      true);
   EXPECT_LT(2u, tracker_.num_ack_aggregation_epochs());
+}
+
+TEST_F(MaxAckHeightTrackerTest, StartNewEpochAfterAFullRound) {
+  last_sent_packet_number_ = QuicPacketNumber(10);
+  AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50), 100,
+                     true);
+
+  last_acked_packet_number_ = QuicPacketNumber(11);
+  // Update with a tiny bandwidth causes a very low expected bytes acked, which
+  // in turn causes the current epoch to continue if the |tracker_| doesn't
+  // check the packet numbers.
+  tracker_.Update(bandwidth_ * 0.1, RoundTripCount(), last_sent_packet_number_,
+                  last_acked_packet_number_, now_, 100);
+
+  if (GetQuicReloadableFlag(
+          quic_bbr_start_new_aggregation_epoch_after_a_full_round)) {
+    EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
+  } else {
+    EXPECT_EQ(1u, tracker_.num_ack_aggregation_epochs());
+  }
 }
 
 }  // namespace test

@@ -23,13 +23,31 @@ std::ostream& operator<<(std::ostream& os, const SendTimeState& s) {
   return os;
 }
 
-QuicByteCount MaxAckHeightTracker::Update(QuicBandwidth bandwidth_estimate,
-                                          QuicRoundTripCount round_trip_count,
-                                          QuicTime ack_time,
-                                          QuicByteCount bytes_acked) {
-  if (aggregation_epoch_start_time_ == QuicTime::Zero()) {
+QuicByteCount MaxAckHeightTracker::Update(
+    QuicBandwidth bandwidth_estimate, QuicRoundTripCount round_trip_count,
+    QuicPacketNumber last_sent_packet_number,
+    QuicPacketNumber last_acked_packet_number, QuicTime ack_time,
+    QuicByteCount bytes_acked) {
+  bool force_new_epoch = false;
+
+  // If any packet sent after the start of the epoch has been acked, start a new
+  // epoch.
+  if (start_new_aggregation_epoch_after_full_round_ &&
+      last_sent_packet_number_before_epoch_.IsInitialized() &&
+      last_acked_packet_number.IsInitialized() &&
+      last_acked_packet_number > last_sent_packet_number_before_epoch_) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_bbr_start_new_aggregation_epoch_after_a_full_round);
+    QUIC_DVLOG(3) << "Force starting a new aggregation epoch. "
+                     "last_sent_packet_number_before_epoch_:"
+                  << last_sent_packet_number_before_epoch_
+                  << ", last_acked_packet_number:" << last_acked_packet_number;
+    force_new_epoch = true;
+  }
+  if (aggregation_epoch_start_time_ == QuicTime::Zero() || force_new_epoch) {
     aggregation_epoch_bytes_ = bytes_acked;
     aggregation_epoch_start_time_ = ack_time;
+    last_sent_packet_number_before_epoch_ = last_sent_packet_number;
     ++num_ack_aggregation_epochs_;
     return 0;
   }
@@ -57,6 +75,7 @@ QuicByteCount MaxAckHeightTracker::Update(QuicBandwidth bandwidth_estimate,
     // Reset to start measuring a new aggregation epoch.
     aggregation_epoch_bytes_ = bytes_acked;
     aggregation_epoch_start_time_ = ack_time;
+    last_sent_packet_number_before_epoch_ = last_sent_packet_number;
     ++num_ack_aggregation_epochs_;
     return 0;
   }
@@ -67,7 +86,7 @@ QuicByteCount MaxAckHeightTracker::Update(QuicBandwidth bandwidth_estimate,
   QuicByteCount extra_bytes_acked =
       aggregation_epoch_bytes_ - expected_bytes_acked;
   QUIC_DVLOG(3) << "Updating MaxAckHeight. ack_time:" << ack_time
-                << ", round trip count:" << round_trip_count
+                << ", last sent packet:" << last_sent_packet_number
                 << ", bandwidth_estimate:" << bandwidth_estimate
                 << ", bytes_acked:" << bytes_acked
                 << ", expected_bytes_acked:" << expected_bytes_acked
@@ -105,6 +124,7 @@ BandwidthSampler::BandwidthSampler(const BandwidthSampler& other)
       last_acked_packet_sent_time_(other.last_acked_packet_sent_time_),
       last_acked_packet_ack_time_(other.last_acked_packet_ack_time_),
       last_sent_packet_(other.last_sent_packet_),
+      last_acked_packet_(other.last_acked_packet_),
       is_app_limited_(other.is_app_limited_),
       end_of_app_limited_phase_(other.end_of_app_limited_phase_),
       connection_state_map_(other.connection_state_map_),
@@ -301,8 +321,8 @@ QuicByteCount BandwidthSampler::OnAckEventEnd(
   total_bytes_acked_after_last_ack_event_ = total_bytes_acked_;
 
   QuicByteCount extra_acked = max_ack_height_tracker_.Update(
-      bandwidth_estimate, round_trip_count, last_acked_packet_ack_time_,
-      newly_acked_bytes);
+      bandwidth_estimate, round_trip_count, last_sent_packet_,
+      last_acked_packet_, last_acked_packet_ack_time_, newly_acked_bytes);
   // If |extra_acked| is zero, i.e. this ack event marks the start of a new ack
   // aggregation epoch, save LessRecentPoint, which is the last ack point of the
   // previous epoch, as a A0 candidate.
@@ -316,6 +336,7 @@ QuicByteCount BandwidthSampler::OnAckEventEnd(
 BandwidthSample BandwidthSampler::OnPacketAcknowledged(
     QuicTime ack_time,
     QuicPacketNumber packet_number) {
+  last_acked_packet_ = packet_number;
   ConnectionStateOnSentPacket* sent_packet_pointer =
       connection_state_map_.GetEntry(packet_number);
   if (sent_packet_pointer == nullptr) {

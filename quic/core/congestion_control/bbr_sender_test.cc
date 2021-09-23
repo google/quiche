@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "quic/core/congestion_control/rtt_stats.h"
+#include "quic/core/crypto/crypto_protocol.h"
 #include "quic/core/quic_bandwidth.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_types.h"
@@ -110,6 +111,10 @@ class BbrSenderTest : public QuicTest {
                               {&receiver_, &competing_receiver_}) {
     rtt_stats_ = bbr_sender_.connection()->sent_packet_manager().GetRttStats();
     sender_ = SetupBbrSender(&bbr_sender_);
+    if (GetQuicReloadableFlag(
+            quic_bbr_start_new_aggregation_epoch_after_a_full_round)) {
+      SetConnectionOption(kBBRA);
+    }
 
     clock_ = simulator_.GetClock();
   }

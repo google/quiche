@@ -165,6 +165,11 @@ void Bbr2Sender::ApplyConnectionOptions(
         quic_bbr2_check_cwnd_limited_before_aggregation_epoch);
     params_.probe_bw_check_cwnd_limited_before_aggregation_epoch = true;
   }
+  if (GetQuicReloadableFlag(
+          quic_bbr_start_new_aggregation_epoch_after_a_full_round) &&
+      ContainsQuicTag(connection_options, kBBRA)) {
+    model_.SetStartNewAggregationEpochAfterFullRound(true);
+  }
 }
 
 Limits<QuicByteCount> Bbr2Sender::GetCwndLimitsByMode() const {

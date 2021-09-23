@@ -9,6 +9,7 @@
 #include "quic/core/congestion_control/windowed_filter.h"
 #include "quic/core/packet_number_indexed_queue.h"
 #include "quic/core/quic_bandwidth.h"
+#include "quic/core/quic_packet_number.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_time.h"
 #include "quic/core/quic_types.h"
@@ -104,8 +105,9 @@ class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
 
   QuicByteCount Update(QuicBandwidth bandwidth_estimate,
                        QuicRoundTripCount round_trip_count,
-                       QuicTime ack_time,
-                       QuicByteCount bytes_acked);
+                       QuicPacketNumber last_sent_packet_number,
+                       QuicPacketNumber last_acked_packet_number,
+                       QuicTime ack_time, QuicByteCount bytes_acked);
 
   void SetFilterWindowLength(QuicRoundTripCount length) {
     max_ack_height_filter_.SetWindowLength(length);
@@ -117,6 +119,10 @@ class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
 
   void SetAckAggregationBandwidthThreshold(double threshold) {
     ack_aggregation_bandwidth_threshold_ = threshold;
+  }
+
+  void SetStartNewAggregationEpochAfterFullRound(bool value) {
+    start_new_aggregation_epoch_after_full_round_ = value;
   }
 
   double ack_aggregation_bandwidth_threshold() const {
@@ -139,11 +145,14 @@ class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
   // The time this aggregation started and the number of bytes acked during it.
   QuicTime aggregation_epoch_start_time_ = QuicTime::Zero();
   QuicByteCount aggregation_epoch_bytes_ = 0;
+  // The last sent packet number before the current aggregation epoch started.
+  QuicPacketNumber last_sent_packet_number_before_epoch_;
   // The number of ack aggregation epochs ever started, including the ongoing
   // one. Stats only.
   uint64_t num_ack_aggregation_epochs_ = 0;
   double ack_aggregation_bandwidth_threshold_ =
       GetQuicFlag(FLAGS_quic_ack_aggregation_bandwidth_threshold);
+  bool start_new_aggregation_epoch_after_full_round_ = false;
 };
 
 // An interface common to any class that can provide bandwidth samples from the
@@ -355,6 +364,10 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
     max_ack_height_tracker_.Reset(new_height, new_time);
   }
 
+  void SetStartNewAggregationEpochAfterFullRound(bool value) {
+    max_ack_height_tracker_.SetStartNewAggregationEpochAfterFullRound(value);
+  }
+
   // AckPoint represents a point on the ack line.
   struct QUIC_NO_EXPORT AckPoint {
     QuicTime ack_time = QuicTime::Zero();
@@ -527,6 +540,9 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
 
   // The most recently sent packet.
   QuicPacketNumber last_sent_packet_;
+
+  // The most recently acked packet.
+  QuicPacketNumber last_acked_packet_;
 
   // Indicates whether the bandwidth sampler is currently in an app-limited
   // phase.

@@ -207,6 +207,10 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
       // dedicated tests for this option.
       SetConnectionOption(kB201, sender);
     }
+    if (GetQuicReloadableFlag(
+            quic_bbr_start_new_aggregation_epoch_after_a_full_round)) {
+      SetConnectionOption(kBBRA, sender);
+    }
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();
     return sender;
