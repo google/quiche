@@ -167,6 +167,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
  private:
   using MetadataSequence = std::vector<std::unique_ptr<MetadataSource>>;
+
   struct QUICHE_EXPORT_PRIVATE StreamState {
     StreamState(int32_t stream_receive_window,
                 WindowManager::WindowUpdateListener listener)
@@ -182,6 +183,13 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     bool half_closed_remote = false;
   };
   using StreamStateMap = absl::flat_hash_map<Http2StreamId, StreamState>;
+
+  struct QUICHE_EXPORT_PRIVATE PendingStreamState {
+    Http2StreamId stream_id;
+    spdy::SpdyHeaderBlock headers;
+    std::unique_ptr<DataFrameSource> data_source;
+    void* user_data = nullptr;
+  };
 
   class QUICHE_EXPORT_PRIVATE PassthroughHeadersHandler
       : public spdy::SpdyHeadersHandlerInterface {
@@ -246,6 +254,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Closes the given `stream_id` with the given `error_code`.
   void CloseStream(Http2StreamId stream_id, Http2ErrorCode error_code);
 
+  // Returns true if the session can create a new stream.
+  bool CanCreateStream() const;
+
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
 
@@ -255,8 +266,13 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Decodes inbound frames.
   http2::Http2DecoderAdapter decoder_;
 
-  // Maintains the state of all streams known to this session.
+  // Maintains the state of active streams known to this session.
   StreamStateMap stream_map_;
+
+  // Maintains the state of pending streams known to this session. A pending
+  // stream is kept in this list until it can be created while complying with
+  // `max_outbound_concurrent_streams_`.
+  std::list<PendingStreamState> pending_streams_;
 
   // Maintains the queue of outbound frames, and any serialized bytes that have
   // not yet been consumed.
@@ -288,6 +304,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // The initial flow control receive window size for any newly created streams.
   int32_t stream_receive_window_limit_ = kInitialFlowControlWindowSize;
   uint32_t max_frame_payload_ = 16384u;
+  // The spec encourages a value of at least 100 concurrent streams.
+  uint32_t max_outbound_concurrent_streams_ = 100u;
   Options options_;
   bool received_goaway_ = false;
   bool queued_preface_ = false;

@@ -775,10 +775,40 @@ TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
                                         {":path", "/this/is/request/two"}}),
                              nullptr, nullptr);
 
-  // A new stream is created and the session wants to write, despite
-  // MAX_CONCURRENT_STREAMS.
-  // TODO(diannahu): Respect the peer's MAX_CONCURRENT_STREAMS value.
+  // A new pending stream is created, but because of MAX_CONCURRENT_STREAMS, the
+  // session should not want to write it at the moment.
   EXPECT_GT(next_stream_id, stream_id);
+  EXPECT_FALSE(adapter->session().want_write());
+
+  const std::string stream_frames =
+      TestFrameSequence()
+          .Headers(stream_id,
+                   {{":status", "200"},
+                    {"server", "my-fake-server"},
+                    {"date", "Tue, 6 Apr 2021 12:54:01 GMT"}},
+                   /*fin=*/false)
+          .Data(stream_id, "This is the response body.", /*fin=*/true)
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(stream_id));
+  EXPECT_CALL(visitor, OnHeaderForStream(stream_id, ":status", "200"));
+  EXPECT_CALL(visitor,
+              OnHeaderForStream(stream_id, "server", "my-fake-server"));
+  EXPECT_CALL(visitor, OnHeaderForStream(stream_id, "date",
+                                         "Tue, 6 Apr 2021 12:54:01 GMT"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(stream_id));
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, 26, DATA, 0x1));
+  EXPECT_CALL(visitor, OnBeginDataForStream(stream_id, 26));
+  EXPECT_CALL(visitor,
+              OnDataForStream(stream_id, "This is the response body."));
+  EXPECT_CALL(visitor, OnEndStream(stream_id));
+  EXPECT_CALL(visitor, OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR));
+
+  // The first stream should close, which should make the session want to write
+  // the next stream.
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
   EXPECT_TRUE(adapter->session().want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, next_stream_id, _, 0x5));
@@ -786,6 +816,7 @@ TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
 
   result = adapter->Send();
   EXPECT_EQ(0, result);
+
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
   visitor.Clear();
   EXPECT_FALSE(adapter->session().want_write());
