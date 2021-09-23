@@ -588,11 +588,10 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
 
   EXPECT_GT(session.GetHpackDecoderDynamicTableSize(), 0);
 
-  // TODO(birenroy): drop stream state when streams are closed. It should no
-  // longer be possible to set user data.
+  // It should no longer be possible to set user data on a closed stream.
   const char* kSentinel3 = "another arbitrary pointer";
   session.SetStreamUserData(3, const_cast<char*>(kSentinel3));
-  EXPECT_EQ(kSentinel3, session.GetStreamUserData(3));
+  EXPECT_EQ(nullptr, session.GetStreamUserData(3));
 
   EXPECT_EQ(session.GetRemoteWindowSize(),
             kInitialFlowControlWindowSize + 1000);

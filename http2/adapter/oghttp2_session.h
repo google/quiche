@@ -243,6 +243,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
                     std::unique_ptr<DataFrameSource> data_source,
                     void* user_data);
 
+  // Closes the given `stream_id` with the given `error_code`.
+  void CloseStream(Http2StreamId stream_id, Http2ErrorCode error_code);
+
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
 

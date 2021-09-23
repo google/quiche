@@ -5,6 +5,7 @@
 
 #include "absl/memory/memory.h"
 #include "absl/strings/escaping.h"
+#include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/oghttp2_util.h"
 #include "spdy/core/spdy_protocol.h"
 
@@ -342,7 +343,7 @@ bool OgHttp2Session::SendQueuedFrames() {
         // If this endpoint is resetting the stream, the stream should be
         // closed. This endpoint is already aware of the outbound RST_STREAM and
         // its error code, so close with NO_ERROR.
-        visitor_.OnCloseStream(c.stream_id(), Http2ErrorCode::NO_ERROR);
+        CloseStream(c.stream_id(), Http2ErrorCode::NO_ERROR);
       }
 
       frames_.pop_front();
@@ -397,7 +398,7 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
       break;
     } else if (length == DataFrameSource::kError) {
       source_can_produce = false;
-      visitor_.OnCloseStream(stream_id, Http2ErrorCode::INTERNAL_ERROR);
+      CloseStream(stream_id, Http2ErrorCode::INTERNAL_ERROR);
       break;
     }
     const bool fin = end_data ? state.outbound_body->send_fin() : false;
@@ -501,10 +502,8 @@ int OgHttp2Session::SubmitResponse(
   const bool end_stream = data_source == nullptr;
   if (end_stream) {
     if (iter->second.half_closed_remote) {
-      visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+      CloseStream(stream_id, Http2ErrorCode::NO_ERROR);
     }
-    // TODO(birenroy): the server adapter should probably delete stream state
-    // when calling visitor_.OnCloseStream.
   } else {
     // Add data source to stream state
     iter->second.outbound_body = std::move(data_source);
@@ -607,7 +606,7 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
       options_.perspective == Perspective::kClient) {
     // From the client's perspective, the stream can be closed if it's already
     // half_closed_local.
-    visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+    CloseStream(stream_id, Http2ErrorCode::NO_ERROR);
   }
 }
 
@@ -642,9 +641,7 @@ void OgHttp2Session::OnRstStream(spdy::SpdyStreamId stream_id,
     write_scheduler_.UnregisterStream(stream_id);
   }
   visitor_.OnRstStream(stream_id, TranslateErrorCode(error_code));
-  // TODO(birenroy): Consider bundling "close stream" behavior into a dedicated
-  // method that also cleans up the stream map.
-  visitor_.OnCloseStream(stream_id, TranslateErrorCode(error_code));
+  CloseStream(stream_id, TranslateErrorCode(error_code));
 }
 
 void OgHttp2Session::OnSettings() {
@@ -841,7 +838,7 @@ void OgHttp2Session::MaybeCloseWithRstStream(Http2StreamId stream_id,
   state.half_closed_local = true;
   if (options_.perspective == Perspective::kServer) {
     if (state.half_closed_remote) {
-      visitor_.OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+      CloseStream(stream_id, Http2ErrorCode::NO_ERROR);
     } else {
       // Since the peer has not yet ended the stream, this endpoint should
       // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
@@ -849,8 +846,6 @@ void OgHttp2Session::MaybeCloseWithRstStream(Http2StreamId stream_id,
           stream_id, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
       // Enqueuing the RST_STREAM also invokes OnCloseStream.
     }
-    // TODO(birenroy): the server adapter should probably delete stream state
-    // when calling visitor_.OnCloseStream.
   }
 }
 
@@ -895,6 +890,12 @@ void OgHttp2Session::StartRequest(Http2StreamId stream_id,
   }
   iter->second.user_data = user_data;
   SendHeaders(stream_id, std::move(headers), end_stream);
+}
+
+void OgHttp2Session::CloseStream(Http2StreamId stream_id,
+                                 Http2ErrorCode error_code) {
+  visitor_.OnCloseStream(stream_id, error_code);
+  stream_map_.erase(stream_id);
 }
 
 }  // namespace adapter
