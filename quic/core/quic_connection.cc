@@ -638,10 +638,17 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(kDFER, perspective_)) {
     defer_send_in_response_to_packets_ = false;
   }
+  const bool remove_connection_migration_connection_option =
+      GetQuicReloadableFlag(quic_remove_connection_migration_connection_option);
+  if (remove_connection_migration_connection_option) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_remove_connection_migration_connection_option);
+  }
   if (framer_.version().HasIetfQuicFrames() && use_path_validator_ &&
       count_bytes_on_alternative_path_separately_ &&
       GetQuicReloadableFlag(quic_server_reverse_validate_new_path3) &&
-      config.HasClientSentConnectionOption(kRVCM, perspective_)) {
+      (remove_connection_migration_connection_option ||
+       config.HasClientSentConnectionOption(kRVCM, perspective_))) {
     QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 6, 6);
     validate_client_addresses_ = true;
   }

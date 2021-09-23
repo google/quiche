@@ -378,7 +378,10 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       copt.push_back(kILD0);
     }
     copt.push_back(kPLE1);
-    copt.push_back(kRVCM);
+    if (!GetQuicReloadableFlag(
+            quic_remove_connection_migration_connection_option)) {
+      copt.push_back(kRVCM);
+    }
     client_config_.SetConnectionOptionsToSend(copt);
 
     // Start the server first, because CreateQuicClient() attempts

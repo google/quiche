@@ -73,6 +73,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_rearm_pto_on_application_data_du
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_drop_unsent_path_response, true)
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
+// If true, ietf connection migration is no longer conditioned on connection option RVCM.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_remove_connection_migration_connection_option, true)
 // If true, ignore peer_max_ack_delay during handshake.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_peer_max_ack_delay_during_handshake, true)
 // If true, include stream information in idle timeout connection close detail.
