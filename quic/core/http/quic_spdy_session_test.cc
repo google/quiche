@@ -361,7 +361,7 @@ class TestSession : public QuicSpdySession {
   using QuicSession::closed_streams;
   using QuicSession::ShouldKeepConnectionAlive;
   using QuicSpdySession::ProcessPendingStream;
-  using QuicSpdySession::UsesPendingStreams;
+  using QuicSpdySession::UsesPendingStreamForFrame;
 
  private:
   StrictMock<TestCryptoStream> crypto_stream_;
@@ -607,11 +607,25 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 
-TEST_P(QuicSpdySessionTestServer, UsesPendingStreams) {
+TEST_P(QuicSpdySessionTestServer, UsesPendingStreamsForFrame) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
-  EXPECT_TRUE(session_.UsesPendingStreams());
+  EXPECT_TRUE(session_.UsesPendingStreamForFrame(
+      STREAM_FRAME, QuicUtils::GetFirstUnidirectionalStreamId(
+                        transport_version(), Perspective::IS_CLIENT)));
+  EXPECT_TRUE(session_.UsesPendingStreamForFrame(
+      RST_STREAM_FRAME, QuicUtils::GetFirstUnidirectionalStreamId(
+                            transport_version(), Perspective::IS_CLIENT)));
+  EXPECT_FALSE(session_.UsesPendingStreamForFrame(
+      RST_STREAM_FRAME, QuicUtils::GetFirstUnidirectionalStreamId(
+                            transport_version(), Perspective::IS_SERVER)));
+  EXPECT_FALSE(session_.UsesPendingStreamForFrame(
+      STOP_SENDING_FRAME, QuicUtils::GetFirstUnidirectionalStreamId(
+                              transport_version(), Perspective::IS_CLIENT)));
+  EXPECT_FALSE(session_.UsesPendingStreamForFrame(
+      RST_STREAM_FRAME, QuicUtils::GetFirstBidirectionalStreamId(
+                            transport_version(), Perspective::IS_CLIENT)));
 }
 
 TEST_P(QuicSpdySessionTestServer, PeerAddress) {
@@ -1840,11 +1854,25 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 
-TEST_P(QuicSpdySessionTestClient, UsesPendingStreams) {
+TEST_P(QuicSpdySessionTestClient, UsesPendingStreamsForFrame) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
-  EXPECT_TRUE(session_.UsesPendingStreams());
+  EXPECT_TRUE(session_.UsesPendingStreamForFrame(
+      STREAM_FRAME, QuicUtils::GetFirstUnidirectionalStreamId(
+                        transport_version(), Perspective::IS_SERVER)));
+  EXPECT_TRUE(session_.UsesPendingStreamForFrame(
+      RST_STREAM_FRAME, QuicUtils::GetFirstUnidirectionalStreamId(
+                            transport_version(), Perspective::IS_SERVER)));
+  EXPECT_FALSE(session_.UsesPendingStreamForFrame(
+      RST_STREAM_FRAME, QuicUtils::GetFirstUnidirectionalStreamId(
+                            transport_version(), Perspective::IS_CLIENT)));
+  EXPECT_FALSE(session_.UsesPendingStreamForFrame(
+      STOP_SENDING_FRAME, QuicUtils::GetFirstUnidirectionalStreamId(
+                              transport_version(), Perspective::IS_SERVER)));
+  EXPECT_FALSE(session_.UsesPendingStreamForFrame(
+      RST_STREAM_FRAME, QuicUtils::GetFirstBidirectionalStreamId(
+                            transport_version(), Perspective::IS_SERVER)));
 }
 
 // Regression test for crbug.com/977581.
@@ -2546,10 +2574,10 @@ TEST_P(QuicSpdySessionTestClient, ResetAfterInvalidIncomingStreamType) {
     return;
   }
   CompleteHandshake();
-  ASSERT_TRUE(session_.UsesPendingStreams());
 
   const QuicStreamId stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+  ASSERT_TRUE(session_.UsesPendingStreamForFrame(STREAM_FRAME, stream_id));
 
   // Payload consists of two bytes.  The first byte is an unknown unidirectional
   // stream type.  The second one would be the type of a push stream, but it
@@ -2593,10 +2621,10 @@ TEST_P(QuicSpdySessionTestClient, FinAfterInvalidIncomingStreamType) {
     return;
   }
   CompleteHandshake();
-  ASSERT_TRUE(session_.UsesPendingStreams());
 
   const QuicStreamId stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+  ASSERT_TRUE(session_.UsesPendingStreamForFrame(STREAM_FRAME, stream_id));
 
   // Payload consists of two bytes.  The first byte is an unknown unidirectional
   // stream type.  The second one would be the type of a push stream, but it
@@ -2632,10 +2660,10 @@ TEST_P(QuicSpdySessionTestClient, ResetInMiddleOfStreamType) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
-  ASSERT_TRUE(session_.UsesPendingStreams());
 
   const QuicStreamId stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+  ASSERT_TRUE(session_.UsesPendingStreamForFrame(STREAM_FRAME, stream_id));
 
   // Payload is the first byte of a two byte varint encoding.
   std::string payload = absl::HexStringToBytes("40");
@@ -2660,10 +2688,10 @@ TEST_P(QuicSpdySessionTestClient, FinInMiddleOfStreamType) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
-  ASSERT_TRUE(session_.UsesPendingStreams());
 
   const QuicStreamId stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+  ASSERT_TRUE(session_.UsesPendingStreamForFrame(STREAM_FRAME, stream_id));
 
   // Payload is the first byte of a two byte varint encoding with a FIN.
   std::string payload = absl::HexStringToBytes("40");

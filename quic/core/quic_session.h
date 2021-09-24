@@ -672,11 +672,17 @@ class QUIC_EXPORT_PRIVATE QuicSession
   virtual void OnFinalByteOffsetReceived(QuicStreamId id,
                                          QuicStreamOffset final_byte_offset);
 
-  // Returns true if incoming unidirectional streams should be buffered until
-  // the first byte of the stream arrives.
-  // If a subclass returns true here, it should make sure to implement
-  // ProcessPendingStream().
-  virtual bool UsesPendingStreams() const { return false; }
+  // Returns true if a frame with the given type and id can be prcoessed by a
+  // PendingStream. However, the frame will always be processed by a QuicStream
+  // if one exists with the given stream_id.
+  virtual bool UsesPendingStreamForFrame(QuicFrameType /*type*/,
+                                         QuicStreamId /*stream_id*/) const {
+    return false;
+  }
+
+  // Returns true if a pending stream should be converted to a real stream after
+  // a corresponding STREAM_FRAME is received.
+  virtual bool ShouldProcessPendingStreamImmediately() const { return true; }
 
   spdy::SpdyPriority GetSpdyPriorityofStream(QuicStreamId stream_id) const {
     return write_blocked_streams_.GetSpdyPriorityofStream(stream_id);
@@ -834,9 +840,17 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Closes the pending stream |stream_id| before it has been created.
   void ClosePendingStream(QuicStreamId stream_id);
 
-  // Creates or gets pending stream, feeds it with |frame|, and processes the
-  // pending stream.
-  void PendingStreamOnStreamFrame(const QuicStreamFrame& frame);
+  // Whether the frame with given type and id should be feed to a pending
+  // stream.
+  bool ShouldProcessFrameByPendingStream(QuicFrameType type,
+                                         QuicStreamId id) const;
+
+  // Process the pending stream if possible.
+  void MaybeProcessPendingStream(PendingStream* pending);
+
+  // Creates or gets pending stream, feeds it with |frame|, and returns the
+  // pending stream. Can return NULL, e.g., if the stream ID is invalid.
+  PendingStream* PendingStreamOnStreamFrame(const QuicStreamFrame& frame);
 
   // Creates or gets pending strea, feed it with |frame|, and closes the pending
   // stream.

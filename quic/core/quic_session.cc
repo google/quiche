@@ -164,7 +164,8 @@ QuicSession::~QuicSession() {
   }
 }
 
-void QuicSession::PendingStreamOnStreamFrame(const QuicStreamFrame& frame) {
+PendingStream* QuicSession::PendingStreamOnStreamFrame(
+    const QuicStreamFrame& frame) {
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
   QuicStreamId stream_id = frame.stream_id;
 
@@ -175,14 +176,20 @@ void QuicSession::PendingStreamOnStreamFrame(const QuicStreamFrame& frame) {
       QuicStreamOffset final_byte_offset = frame.offset + frame.data_length;
       OnFinalByteOffsetReceived(stream_id, final_byte_offset);
     }
-    return;
+    return nullptr;
   }
 
   pending->OnStreamFrame(frame);
   if (!connection()->connected()) {
-    return;
+    return nullptr;
   }
+  return pending;
+}
+
+void QuicSession::MaybeProcessPendingStream(PendingStream* pending) {
+  QUICHE_DCHECK(pending != nullptr);
   QuicStream* stream = ProcessPendingStream(pending);
+  QuicStreamId stream_id = pending->id();
   if (stream != nullptr) {
     // The pending stream should now be in the scope of normal streams.
     QUICHE_DCHECK(IsClosedStream(stream_id) || IsOpenStream(stream_id))
@@ -205,12 +212,11 @@ void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
     return;
   }
 
-  if (UsesPendingStreams() &&
-      QuicUtils::GetStreamType(stream_id, perspective(),
-                               IsIncomingStream(stream_id),
-                               version()) == READ_UNIDIRECTIONAL &&
-      stream_map_.find(stream_id) == stream_map_.end()) {
-    PendingStreamOnStreamFrame(frame);
+  if (ShouldProcessFrameByPendingStream(STREAM_FRAME, stream_id)) {
+    PendingStream* pending = PendingStreamOnStreamFrame(frame);
+    if (pending != nullptr && ShouldProcessPendingStreamImmediately()) {
+      MaybeProcessPendingStream(pending);
+    }
     return;
   }
 
@@ -347,11 +353,7 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
     visitor_->OnRstStreamReceived(frame);
   }
 
-  if (UsesPendingStreams() &&
-      QuicUtils::GetStreamType(stream_id, perspective(),
-                               IsIncomingStream(stream_id),
-                               version()) == READ_UNIDIRECTIONAL &&
-      stream_map_.find(stream_id) == stream_map_.end()) {
+  if (ShouldProcessFrameByPendingStream(RST_STREAM_FRAME, stream_id)) {
     PendingStreamOnRstStream(frame);
     return;
   }
@@ -1030,6 +1032,12 @@ void QuicSession::ClosePendingStream(QuicStreamId stream_id) {
   if (connection_->connected()) {
     ietf_streamid_manager_.OnStreamClosed(stream_id);
   }
+}
+
+bool QuicSession::ShouldProcessFrameByPendingStream(QuicFrameType type,
+                                                    QuicStreamId id) const {
+  return UsesPendingStreamForFrame(type, id) &&
+         stream_map_.find(id) == stream_map_.end();
 }
 
 void QuicSession::OnFinalByteOffsetReceived(

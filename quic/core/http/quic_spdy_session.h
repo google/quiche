@@ -478,7 +478,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   bool ShouldKeepConnectionAlive() const override;
 
   // Overridden to buffer incoming unidirectional streams for version 99.
-  bool UsesPendingStreams() const override;
+  bool UsesPendingStreamForFrame(QuicFrameType type,
+                                 QuicStreamId stream_id) const override;
 
   // Processes incoming unidirectional streams; parses the stream type, and
   // creates a new stream of the corresponding type.  Returns the pointer to the

@@ -23,6 +23,7 @@
 #include "quic/core/quic_data_writer.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_stream.h"
+#include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_expect_bug.h"
@@ -363,7 +364,22 @@ class TestSession : public QuicSession {
                       GetEncryptionLevelToSendApplicationData());
   }
 
-  bool UsesPendingStreams() const override { return uses_pending_streams_; }
+  bool UsesPendingStreamForFrame(QuicFrameType type,
+                                 QuicStreamId stream_id) const override {
+    if (!uses_pending_streams_) {
+      return false;
+    }
+    StreamType stream_type = QuicUtils::GetStreamType(
+        stream_id, perspective(), IsIncomingStream(stream_id), version());
+    switch (type) {
+      case STREAM_FRAME:
+        ABSL_FALLTHROUGH_INTENDED;
+      case RST_STREAM_FRAME:
+        return stream_type == READ_UNIDIRECTIONAL;
+      default:
+        return false;
+    }
+  }
 
   void set_uses_pending_streams(bool uses_pending_streams) {
     uses_pending_streams_ = uses_pending_streams;

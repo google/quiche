@@ -890,11 +890,15 @@ bool QuicSpdySession::ShouldKeepConnectionAlive() const {
   return GetNumActiveStreams() + pending_streams_size() > 0;
 }
 
-bool QuicSpdySession::UsesPendingStreams() const {
-  // QuicSpdySession supports PendingStreams, therefore this method should
-  // eventually just return true.  However, pending streams can only be used if
-  // unidirectional stream type is supported.
-  return VersionUsesHttp3(transport_version());
+bool QuicSpdySession::UsesPendingStreamForFrame(QuicFrameType type,
+                                                QuicStreamId stream_id) const {
+  // Pending streams can only be used to handle unidirectional stream with
+  // STREAM & RESET_STREAM frames in IETF QUIC.
+  return VersionUsesHttp3(transport_version()) &&
+         (type == STREAM_FRAME || type == RST_STREAM_FRAME) &&
+         QuicUtils::GetStreamType(stream_id, perspective(),
+                                  IsIncomingStream(stream_id),
+                                  version()) == READ_UNIDIRECTIONAL;
 }
 
 size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
