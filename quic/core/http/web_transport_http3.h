@@ -11,6 +11,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/types/optional.h"
 #include "quic/core/http/quic_spdy_session.h"
+#include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_stream.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/web_transport_interface.h"
@@ -124,6 +125,9 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3UnidirectionalStream
   void OnDataAvailable() override;
   void OnCanWriteNewData() override;
   void OnClose() override;
+  void OnStreamReset(const QuicRstStreamFrame& frame) override;
+  bool OnStopSending(QuicResetStreamError error) override;
+  void OnWriteSideInDataRecvdState() override;
 
   WebTransportStream* interface() { return &adapter_; }
   void SetUnblocked() { sequencer()->SetUnblocked(); }
@@ -143,6 +147,11 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3UnidirectionalStream
 // the provided code is outside of valid range.
 QUIC_EXPORT_PRIVATE absl::optional<WebTransportStreamError>
 Http3ErrorToWebTransport(uint64_t http3_error_code);
+
+// Same as above, but returns default error value (zero) when none could be
+// mapped.
+QUIC_EXPORT_PRIVATE WebTransportStreamError
+Http3ErrorToWebTransportOrDefault(uint64_t http3_error_code);
 
 // Remaps WebTransport error code into an HTTP/3 error code.
 QUIC_EXPORT_PRIVATE uint64_t

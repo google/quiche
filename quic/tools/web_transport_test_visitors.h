@@ -29,6 +29,10 @@ class WebTransportDiscardVisitor : public WebTransportStreamVisitor {
 
   void OnCanWrite() override {}
 
+  void OnResetStreamReceived(WebTransportStreamError /*error*/) override {}
+  void OnStopSendingReceived(WebTransportStreamError /*error*/) override {}
+  void OnWriteSideInDataRecvdState() override {}
+
  private:
   WebTransportStream* stream_;
 };
@@ -69,6 +73,10 @@ class WebTransportBidirectionalEchoVisitor : public WebTransportStreamVisitor {
     }
   }
 
+  void OnResetStreamReceived(WebTransportStreamError /*error*/) override {}
+  void OnStopSendingReceived(WebTransportStreamError /*error*/) override {}
+  void OnWriteSideInDataRecvdState() override {}
+
  private:
   WebTransportStream* stream_;
   std::string buffer_;
@@ -100,6 +108,10 @@ class WebTransportUnidirectionalEchoReadVisitor
 
   void OnCanWrite() override { QUIC_NOTREACHED(); }
 
+  void OnResetStreamReceived(WebTransportStreamError /*error*/) override {}
+  void OnStopSendingReceived(WebTransportStreamError /*error*/) override {}
+  void OnWriteSideInDataRecvdState() override {}
+
  private:
   WebTransportStream* stream_;
   std::string buffer_;
@@ -128,6 +140,10 @@ class WebTransportUnidirectionalEchoWriteVisitor
         << "WebTransportUnidirectionalEchoWriteVisitor finished sending data.";
     QUICHE_DCHECK(fin_sent);
   }
+
+  void OnResetStreamReceived(WebTransportStreamError /*error*/) override {}
+  void OnStopSendingReceived(WebTransportStreamError /*error*/) override {}
+  void OnWriteSideInDataRecvdState() override {}
 
  private:
   WebTransportStream* stream_;

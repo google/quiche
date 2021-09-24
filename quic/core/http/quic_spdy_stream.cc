@@ -24,6 +24,7 @@
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
 #include "quic/core/quic_write_blocked_list.h"
+#include "quic/core/web_transport_interface.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
@@ -687,6 +688,12 @@ void QuicSpdyStream::OnPriorityFrame(
 
 void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
   if (web_transport_data_ != nullptr) {
+    WebTransportStreamVisitor* webtransport_visitor =
+        web_transport_data_->adapter.visitor();
+    if (webtransport_visitor != nullptr) {
+      webtransport_visitor->OnResetStreamReceived(
+          Http3ErrorToWebTransportOrDefault(frame.ietf_error_code));
+    }
     QuicStream::OnStreamReset(frame);
     return;
   }
@@ -741,6 +748,29 @@ void QuicSpdyStream::ResetWithError(QuicResetStreamError error) {
   }
 
   QuicStream::ResetWithError(error);
+}
+
+bool QuicSpdyStream::OnStopSending(QuicResetStreamError error) {
+  if (web_transport_data_ != nullptr) {
+    WebTransportStreamVisitor* visitor = web_transport_data_->adapter.visitor();
+    if (visitor != nullptr) {
+      visitor->OnStopSendingReceived(
+          Http3ErrorToWebTransportOrDefault(error.ietf_application_code()));
+    }
+  }
+
+  return QuicStream::OnStopSending(error);
+}
+
+void QuicSpdyStream::OnWriteSideInDataRecvdState() {
+  if (web_transport_data_ != nullptr) {
+    WebTransportStreamVisitor* visitor = web_transport_data_->adapter.visitor();
+    if (visitor != nullptr) {
+      visitor->OnWriteSideInDataRecvdState();
+    }
+  }
+
+  QuicStream::OnWriteSideInDataRecvdState();
 }
 
 void QuicSpdyStream::OnDataAvailable() {

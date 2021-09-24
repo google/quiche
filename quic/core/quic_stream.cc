@@ -334,6 +334,7 @@ QuicStream::QuicStream(QuicStreamId id, QuicSession* session,
       connection_error_(QUIC_NO_ERROR),
       read_side_closed_(false),
       write_side_closed_(false),
+      write_side_data_recvd_state_notified_(false),
       fin_buffered_(false),
       fin_sent_(false),
       fin_outstanding_(false),
@@ -1074,6 +1075,11 @@ bool QuicStream::OnStreamFrameAcked(QuicStreamOffset offset,
   if (fin_acked) {
     fin_outstanding_ = false;
     fin_lost_ = false;
+  }
+  if (!IsWaitingForAcks() && write_side_closed_ &&
+      !write_side_data_recvd_state_notified_) {
+    OnWriteSideInDataRecvdState();
+    write_side_data_recvd_state_notified_ = true;
   }
   if (!IsWaitingForAcks() && read_side_closed_ && write_side_closed_) {
     session_->MaybeCloseZombieStream(id_);

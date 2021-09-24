@@ -111,8 +111,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Override the base class to not discard response when receiving
   // QUIC_STREAM_NO_ERROR.
   void OnStreamReset(const QuicRstStreamFrame& frame) override;
-
   void ResetWithError(QuicResetStreamError error) override;
+  bool OnStopSending(QuicResetStreamError error) override;
 
   // Called by the sequencer when new data is available. Decodes the data and
   // calls OnBodyAvailable() to pass to the upper layer.
@@ -364,6 +364,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
     ack_listener_ = std::move(ack_listener);
   }
+
+  void OnWriteSideInDataRecvdState() override;
 
  private:
   friend class test::QuicSpdyStreamPeer;

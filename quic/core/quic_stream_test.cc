@@ -65,6 +65,8 @@ class TestStream : public QuicStream {
 
   MOCK_METHOD(void, OnCanWriteNewData, (), (override));
 
+  MOCK_METHOD(void, OnWriteSideInDataRecvdState, (), (override));
+
   using QuicStream::CanWriteNewData;
   using QuicStream::CanWriteNewDataAfterData;
   using QuicStream::CloseWriteSide;
@@ -882,6 +884,7 @@ TEST_P(QuicStreamTest, StreamWaitsForAcks) {
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
 
   // FIN is acked.
+  EXPECT_CALL(*stream_, OnWriteSideInDataRecvdState());
   EXPECT_TRUE(stream_->OnStreamFrameAcked(18, 0, true, QuicTime::Delta::Zero(),
                                           QuicTime::Zero(),
                                           &newly_acked_length));
@@ -925,6 +928,7 @@ TEST_P(QuicStreamTest, StreamDataGetAckedOutOfOrder) {
   // FIN is not acked yet.
   EXPECT_TRUE(stream_->IsWaitingForAcks());
   EXPECT_TRUE(session_->HasUnackedStreamData());
+  EXPECT_CALL(*stream_, OnWriteSideInDataRecvdState());
   EXPECT_TRUE(stream_->OnStreamFrameAcked(27, 0, true, QuicTime::Delta::Zero(),
                                           QuicTime::Zero(),
                                           &newly_acked_length));
@@ -1330,6 +1334,7 @@ TEST_P(QuicStreamTest, StreamDataGetAckedMultipleTimes) {
   EXPECT_TRUE(session_->HasUnackedStreamData());
 
   // Ack Fin.
+  EXPECT_CALL(*stream_, OnWriteSideInDataRecvdState()).Times(1);
   EXPECT_TRUE(stream_->OnStreamFrameAcked(27, 0, true, QuicTime::Delta::Zero(),
                                           QuicTime::Zero(),
                                           &newly_acked_length));

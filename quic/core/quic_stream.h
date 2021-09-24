@@ -461,6 +461,11 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   QuicStreamSendBuffer& send_buffer() { return send_buffer_; }
 
+  // Called when the write side of the stream is closed, and all of the outgoing
+  // data has been acknowledged.  This corresponds to the "Data Recvd" state of
+  // RFC 9000.
+  virtual void OnWriteSideInDataRecvdState() {}
+
   // Return the current flow control send window in bytes.
   absl::optional<QuicByteCount> GetSendWindow() const;
   absl::optional<QuicByteCount> GetReceiveWindow() const;
@@ -517,6 +522,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
   bool read_side_closed_;
   // True if the write side is closed, and further writes should fail.
   bool write_side_closed_;
+
+  // True if OnWriteSideInDataRecvdState() has already been called.
+  bool write_side_data_recvd_state_notified_;
 
   // True if the subclass has written a FIN with WriteOrBufferData, but it was
   // buffered in queued_data_ rather than being sent to the session.

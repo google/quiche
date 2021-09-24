@@ -34,6 +34,12 @@ class MockStreamVisitor : public WebTransportStreamVisitor {
  public:
   MOCK_METHOD(void, OnCanRead, (), (override));
   MOCK_METHOD(void, OnCanWrite, (), (override));
+
+  MOCK_METHOD(void, OnResetStreamReceived, (WebTransportStreamError error),
+              (override));
+  MOCK_METHOD(void, OnStopSendingReceived, (WebTransportStreamError error),
+              (override));
+  MOCK_METHOD(void, OnWriteSideInDataRecvdState, (), (override));
 };
 
 }  // namespace test

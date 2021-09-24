@@ -354,9 +354,34 @@ void WebTransportHttp3UnidirectionalStream::OnClose() {
   session->OnStreamClosed(id());
 }
 
+void WebTransportHttp3UnidirectionalStream::OnStreamReset(
+    const QuicRstStreamFrame& frame) {
+  if (adapter_.visitor() != nullptr) {
+    adapter_.visitor()->OnResetStreamReceived(
+        Http3ErrorToWebTransportOrDefault(frame.ietf_error_code));
+  }
+  QuicStream::OnStreamReset(frame);
+}
+bool WebTransportHttp3UnidirectionalStream::OnStopSending(
+    QuicResetStreamError error) {
+  if (adapter_.visitor() != nullptr) {
+    adapter_.visitor()->OnStopSendingReceived(
+        Http3ErrorToWebTransportOrDefault(error.ietf_application_code()));
+  }
+  return QuicStream::OnStopSending(error);
+}
+void WebTransportHttp3UnidirectionalStream::OnWriteSideInDataRecvdState() {
+  if (adapter_.visitor() != nullptr) {
+    adapter_.visitor()->OnWriteSideInDataRecvdState();
+  }
+
+  QuicStream::OnWriteSideInDataRecvdState();
+}
+
 namespace {
 constexpr uint64_t kWebTransportMappedErrorCodeFirst = 0x52e4a40fa8db;
 constexpr uint64_t kWebTransportMappedErrorCodeLast = 0x52e4a40fa9e2;
+constexpr WebTransportStreamError kDefaultWebTransportError = 0;
 }  // namespace
 
 absl::optional<WebTransportStreamError> Http3ErrorToWebTransport(
@@ -375,6 +400,13 @@ absl::optional<WebTransportStreamError> Http3ErrorToWebTransport(
   uint64_t result = shifted - shifted / 0x1f;
   QUICHE_DCHECK_LE(result, std::numeric_limits<uint8_t>::max());
   return result;
+}
+
+WebTransportStreamError Http3ErrorToWebTransportOrDefault(
+    uint64_t http3_error_code) {
+  absl::optional<WebTransportStreamError> result =
+      Http3ErrorToWebTransport(http3_error_code);
+  return result.has_value() ? *result : kDefaultWebTransportError;
 }
 
 uint64_t WebTransportErrorToHttp3(

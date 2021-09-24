@@ -727,13 +727,16 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   std::string ReadDataFromWebTransportStreamUntilFin(
-      WebTransportStream* stream) {
+      WebTransportStream* stream, MockStreamVisitor* visitor = nullptr) {
     std::string buffer;
     while (true) {
       bool can_read = false;
-      auto visitor = std::make_unique<MockStreamVisitor>();
+      if (visitor == nullptr) {
+        auto visitor_owned = std::make_unique<MockStreamVisitor>();
+        visitor = visitor_owned.get();
+        stream->SetVisitor(std::move(visitor_owned));
+      }
       EXPECT_CALL(*visitor, OnCanRead()).WillOnce(Assign(&can_read, true));
-      stream->SetVisitor(std::move(visitor));
       client_->WaitUntil(5000 /*ms*/, [&can_read]() { return can_read; });
       if (!can_read) {
         ADD_FAILURE() << "Waiting for readable data on stream "
@@ -6096,6 +6099,13 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStream) {
   WebTransportStream* outgoing_stream =
       session->OpenOutgoingUnidirectionalStream();
   ASSERT_TRUE(outgoing_stream != nullptr);
+
+  auto stream_visitor = std::make_unique<NiceMock<MockStreamVisitor>>();
+  bool data_acknowledged = false;
+  EXPECT_CALL(*stream_visitor, OnWriteSideInDataRecvdState())
+      .WillOnce(Assign(&data_acknowledged, true));
+  outgoing_stream->SetVisitor(std::move(stream_visitor));
+
   EXPECT_TRUE(outgoing_stream->Write("test"));
   EXPECT_TRUE(outgoing_stream->SendFin());
 
@@ -6111,6 +6121,10 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStream) {
   WebTransportStream::ReadResult result = received_stream->Read(&received_data);
   EXPECT_EQ(received_data, "test");
   EXPECT_TRUE(result.fin);
+
+  client_->WaitUntil(2000,
+                     [&data_acknowledged]() { return data_acknowledged; });
+  EXPECT_TRUE(data_acknowledged);
 }
 
 TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStreamSentEarly) {
@@ -6161,11 +6175,24 @@ TEST_P(EndToEndTest, WebTransportSessionBidirectionalStream) {
 
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
+
+  auto stream_visitor_owned = std::make_unique<NiceMock<MockStreamVisitor>>();
+  MockStreamVisitor* stream_visitor = stream_visitor_owned.get();
+  bool data_acknowledged = false;
+  EXPECT_CALL(*stream_visitor, OnWriteSideInDataRecvdState())
+      .WillOnce(Assign(&data_acknowledged, true));
+  stream->SetVisitor(std::move(stream_visitor_owned));
+
   EXPECT_TRUE(stream->Write("test"));
   EXPECT_TRUE(stream->SendFin());
 
-  std::string received_data = ReadDataFromWebTransportStreamUntilFin(stream);
+  std::string received_data =
+      ReadDataFromWebTransportStreamUntilFin(stream, stream_visitor);
   EXPECT_EQ(received_data, "test");
+
+  client_->WaitUntil(2000,
+                     [&data_acknowledged]() { return data_acknowledged; });
+  EXPECT_TRUE(data_acknowledged);
 }
 
 TEST_P(EndToEndTest, WebTransportSessionBidirectionalStreamWithBuffering) {

@@ -29,6 +29,14 @@ class QUIC_EXPORT_PRIVATE WebTransportStreamVisitor {
   virtual void OnCanRead() = 0;
   // Called whenever the stream is not write-blocked and can accept new data.
   virtual void OnCanWrite() = 0;
+
+  // Called when RESET_STREAM is received for the stream.
+  virtual void OnResetStreamReceived(WebTransportStreamError error) = 0;
+  // Called when STOP_SENDING is received for the stream.
+  virtual void OnStopSendingReceived(WebTransportStreamError error) = 0;
+  // Called when the write side of the stream is closed and all of the data sent
+  // has been acknowledged ("Data Recvd" state of RFC 9000).
+  virtual void OnWriteSideInDataRecvdState() = 0;
 };
 
 // A stream (either bidirectional or unidirectional) that is contained within a
