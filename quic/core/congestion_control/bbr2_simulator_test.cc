@@ -201,16 +201,6 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
         GetUnackedMap(endpoint->connection()), kDefaultInitialCwndPackets,
         GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
         QuicConnectionPeer::GetStats(endpoint->connection()), old_sender);
-    if (GetQuicReloadableFlag(
-            quic_bbr2_check_cwnd_limited_before_aggregation_epoch)) {
-      // TODO(wub): Remove this option when deprecating the flag. There are
-      // dedicated tests for this option.
-      SetConnectionOption(kB201, sender);
-    }
-    if (GetQuicReloadableFlag(
-            quic_bbr_start_new_aggregation_epoch_after_a_full_round)) {
-      SetConnectionOption(kBBRA, sender);
-    }
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();
     return sender;
@@ -451,6 +441,8 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB2RC) {
 }
 
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB201) {
+  SetQuicReloadableFlag(quic_bbr2_check_cwnd_limited_before_aggregation_epoch,
+                        true);
   SetConnectionOption(kB201);
   DefaultTopologyParams params;
   CreateNetwork(params);
@@ -522,6 +514,8 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytes) {
 }
 
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytesB201) {
+  SetQuicReloadableFlag(quic_bbr2_check_cwnd_limited_before_aggregation_epoch,
+                        true);
   SetConnectionOption(kB201);
   DefaultTopologyParams params;
   CreateNetwork(params);
@@ -624,6 +618,81 @@ TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncrease)) {
   // Ensure the full bandwidth is discovered.
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
                    sender_->ExportDebugState().bandwidth_hi, 0.02f);
+}
+
+// Test Bbr2's reaction to a 100x bandwidth increase during a transfer with BBQ0
+TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseBBQ0)) {
+  SetQuicReloadableFlag(quic_bbr2_add_bytes_acked_after_inflight_hi_limited,
+                        true);
+  SetConnectionOption(kBBQ0);
+  DefaultTopologyParams params;
+  params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);
+  params.test_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(100);
+  CreateNetwork(params);
+
+  sender_endpoint_.AddBytesToTransfer(10 * 1024 * 1024);
+
+  simulator_.RunFor(QuicTime::Delta::FromSeconds(15));
+  EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
+  QUIC_LOG(INFO) << "Bandwidth increasing at time " << SimulatedNow();
+
+  EXPECT_APPROX_EQ(params.test_link.bandwidth,
+                   sender_->ExportDebugState().bandwidth_est, 0.1f);
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.30);
+
+  // Now increase the bottleneck bandwidth from 100Kbps to 10Mbps.
+  params.test_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(10000);
+  TestLink()->set_bandwidth(params.test_link.bandwidth);
+
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [this]() { return sender_endpoint_.bytes_to_transfer() == 0; },
+      QuicTime::Delta::FromSeconds(50));
+  EXPECT_TRUE(simulator_result);
+  // Ensure the full bandwidth is discovered.
+  EXPECT_APPROX_EQ(params.test_link.bandwidth,
+                   sender_->ExportDebugState().bandwidth_hi, 0.02f);
+}
+
+// Test Bbr2's reaction to a 100x bandwidth increase during a transfer with BBQ0
+// in the presence of ACK aggregation.
+TEST_F(Bbr2DefaultTopologyTest,
+       QUIC_SLOW_TEST(BandwidthIncreaseBBQ0Aggregation)) {
+  SetQuicReloadableFlag(quic_bbr2_add_bytes_acked_after_inflight_hi_limited,
+                        true);
+  SetConnectionOption(kBBQ0);
+  DefaultTopologyParams params;
+  params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);
+  params.test_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(100);
+  CreateNetwork(params);
+
+  // 2 RTTs of aggregation, with a max of 10kb.
+  EnableAggregation(10 * 1024, 2 * params.RTT());
+
+  // Reduce the payload to 2MB because 10MB takes too long.
+  sender_endpoint_.AddBytesToTransfer(2 * 1024 * 1024);
+
+  simulator_.RunFor(QuicTime::Delta::FromSeconds(15));
+  EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
+  QUIC_LOG(INFO) << "Bandwidth increasing at time " << SimulatedNow();
+
+  // This is much farther off when aggregation is present,
+  // Ideally BSAO or another option would fix this.
+  // TODO(ianswett) Make these bound tighter once overestimation is reduced.
+  EXPECT_APPROX_EQ(params.test_link.bandwidth,
+                   sender_->ExportDebugState().bandwidth_est, 0.6f);
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.35);
+
+  // Now increase the bottleneck bandwidth from 100Kbps to 1Mbps.
+  params.test_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(10000);
+  TestLink()->set_bandwidth(params.test_link.bandwidth);
+
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [this]() { return sender_endpoint_.bytes_to_transfer() == 0; },
+      QuicTime::Delta::FromSeconds(50));
+  EXPECT_TRUE(simulator_result);
+  // Ensure at least 15% of full bandwidth is discovered.
+  EXPECT_APPROX_EQ(params.test_link.bandwidth,
+                   sender_->ExportDebugState().bandwidth_hi, 0.90f);
 }
 
 // Test the number of losses incurred by the startup phase in a situation when
@@ -1443,6 +1512,12 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
         kDefaultInitialCwndPackets,
         GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
         QuicConnectionPeer::GetStats(endpoint->connection()), nullptr);
+    if (GetQuicReloadableFlag(
+            quic_bbr_start_new_aggregation_epoch_after_a_full_round)) {
+      // TODO(ianswett): Add dedicated tests for this option until it becomes
+      // the default behavior.
+      SetConnectionOption(sender, kBBRA);
+    }
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();
     return sender;

@@ -118,6 +118,7 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeBwMode final : public Bbr2ModeBase {
     uint64_t probe_up_rounds = 0;
     QuicByteCount probe_up_bytes = std::numeric_limits<QuicByteCount>::max();
     QuicByteCount probe_up_acked = 0;
+    bool probe_up_app_limited_since_inflight_hi_limited_ = false;
     // Whether max bandwidth filter window has advanced in this cycle. It is
     // advanced once per cycle.
     bool has_advanced_max_bw = false;

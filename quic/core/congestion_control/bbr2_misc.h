@@ -143,6 +143,11 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   float probe_bw_cwnd_gain = 2.0;
 
   /*
+   * PROBE_UP parameters.
+   */
+  bool probe_up_includes_acks_after_cwnd_limited = false;
+
+  /*
    * PROBE_RTT parameters.
    */
   float probe_rtt_inflight_target_bdp_fraction = 0.5;

@@ -347,6 +347,32 @@ void Bbr2ProbeBwMode::ProbeInflightHighUpward(
       // Not fully utilizing cwnd, so can't safely grow.
       return;
     }
+  } else if (Params().probe_up_includes_acks_after_cwnd_limited) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_bbr2_add_bytes_acked_after_inflight_hi_limited);
+    // Don't continue adding bytes to probe_up_acked if the sender was not
+    // app-limited after being inflight_hi limited at least once.
+    if (!cycle_.probe_up_app_limited_since_inflight_hi_limited_ ||
+        congestion_event.last_sample_is_app_limited) {
+      cycle_.probe_up_app_limited_since_inflight_hi_limited_ = false;
+      if (congestion_event.prior_bytes_in_flight <
+          congestion_event.prior_cwnd) {
+        QUIC_DVLOG(3) << sender_
+                      << " Raising inflight_hi early return: Not cwnd limited.";
+        // Not fully utilizing cwnd, so can't safely grow.
+        return;
+      }
+
+      if (congestion_event.prior_cwnd < model_->inflight_hi()) {
+        QUIC_DVLOG(3)
+            << sender_
+            << " Raising inflight_hi early return: inflight_hi not fully used.";
+        // Not fully using inflight_hi, so don't grow it.
+        return;
+      }
+    }
+    // Start a new period of adding bytes_acked, because inflight_hi limited.
+    cycle_.probe_up_app_limited_since_inflight_hi_limited_ = true;
   } else {
     if (congestion_event.prior_bytes_in_flight < congestion_event.prior_cwnd) {
       QUIC_DVLOG(3) << sender_
@@ -503,6 +529,7 @@ void Bbr2ProbeBwMode::EnterProbeDown(bool probed_too_high,
           Params().probe_bw_probe_max_rand_duration.ToMicroseconds()));
 
   cycle_.probe_up_bytes = std::numeric_limits<QuicByteCount>::max();
+  cycle_.probe_up_app_limited_since_inflight_hi_limited_ = false;
   cycle_.has_advanced_max_bw = false;
   model_->RestartRoundEarly();
 }
