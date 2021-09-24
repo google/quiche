@@ -348,7 +348,7 @@ void Bbr2ProbeBwMode::ProbeInflightHighUpward(
       return;
     }
   } else {
-    if (!model_->IsCongestionWindowLimited(congestion_event)) {
+    if (congestion_event.prior_bytes_in_flight < congestion_event.prior_cwnd) {
       QUIC_DVLOG(3) << sender_
                     << " Raising inflight_hi early return: Not cwnd limited.";
       // Not fully utilizing cwnd, so can't safely grow.

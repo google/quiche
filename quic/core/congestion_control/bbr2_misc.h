@@ -425,9 +425,6 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     return round_trip_counter_.Count();
   }
 
-  bool IsCongestionWindowLimited(
-      const Bbr2CongestionEvent& congestion_event) const;
-
   // Return true if the number of loss events exceeds max_loss_events and
   // fraction of bytes lost exceed the loss threshold.
   bool IsInflightTooHigh(const Bbr2CongestionEvent& congestion_event,

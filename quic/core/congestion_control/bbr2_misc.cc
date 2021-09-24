@@ -330,14 +330,6 @@ bool Bbr2NetworkModel::MaybeExpireMinRtt(
   return true;
 }
 
-bool Bbr2NetworkModel::IsCongestionWindowLimited(
-    const Bbr2CongestionEvent& congestion_event) const {
-  QuicByteCount prior_bytes_in_flight = congestion_event.bytes_in_flight +
-                                        congestion_event.bytes_acked +
-                                        congestion_event.bytes_lost;
-  return prior_bytes_in_flight >= congestion_event.prior_cwnd;
-}
-
 bool Bbr2NetworkModel::IsInflightTooHigh(
     const Bbr2CongestionEvent& congestion_event,
     int64_t max_loss_events) const {
