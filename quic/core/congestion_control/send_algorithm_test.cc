@@ -175,6 +175,8 @@ class SendAlgorithmTest : public QuicTestWithParam<TestParams> {
     quic_sender_.RecordTrace();
 
     QuicConnectionPeer::SetSendAlgorithm(quic_sender_.connection(), sender_);
+    const int kTestMaxPacketSize = 1350;
+    quic_sender_.connection()->SetMaxPacketLength(kTestMaxPacketSize);
     clock_ = simulator_.GetClock();
     simulator_.set_random_generator(&random_);
 

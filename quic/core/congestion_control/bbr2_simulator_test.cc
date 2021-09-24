@@ -202,6 +202,8 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
         GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
         QuicConnectionPeer::GetStats(endpoint->connection()), old_sender);
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
+    const int kTestMaxPacketSize = 1350;
+    endpoint->connection()->SetMaxPacketLength(kTestMaxPacketSize);
     endpoint->RecordTrace();
     return sender;
   }

@@ -28,7 +28,7 @@ const uint64_t kNumMicrosPerSecond = kNumMicrosPerMilli * kNumMillisPerSecond;
 // Default number of connections for N-connection emulation.
 const uint32_t kDefaultNumConnections = 2;
 // Default initial maximum size in bytes of a QUIC packet.
-const QuicByteCount kDefaultMaxPacketSize = 1350;
+const QuicByteCount kDefaultMaxPacketSize = 1250;
 // Default initial maximum size in bytes of a QUIC packet for servers.
 const QuicByteCount kDefaultServerMaxPacketSize = 1000;
 // Maximum transmission unit on Ethernet.

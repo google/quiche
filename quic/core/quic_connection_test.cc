@@ -2796,7 +2796,7 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtClient) {
 
 TEST_P(QuicConnectionTest, MaxPacketSize) {
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
-  EXPECT_EQ(1350u, connection_.max_packet_length());
+  EXPECT_EQ(1250u, connection_.max_packet_length());
 }
 
 TEST_P(QuicConnectionTest, PeerLowersMaxPacketSize) {
@@ -3775,7 +3775,7 @@ TEST_P(QuicConnectionTest, LargeSendWithPendingAck) {
   EXPECT_TRUE(connection_.HasPendingAcks());
 
   // Send data and ensure the ack is bundled.
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(8);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(9);
   size_t len = 10000;
   std::unique_ptr<char[]> data_array(new char[len]);
   memset(data_array.get(), '?', len);
@@ -8884,7 +8884,7 @@ TEST_P(QuicConnectionTest, GetCurrentLargestMessagePayload) {
   // that the encryption overhead is constant across versions.
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            std::make_unique<TaggingEncrypter>(0x00));
-  QuicPacketLength expected_largest_payload = 1319;
+  QuicPacketLength expected_largest_payload = 1219;
   if (connection_.version().SendsVariableLengthPacketNumberInLongHeader()) {
     expected_largest_payload += 3;
   }
@@ -8919,7 +8919,7 @@ TEST_P(QuicConnectionTest, GetGuaranteedLargestMessagePayload) {
   // that the encryption overhead is constant across versions.
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            std::make_unique<TaggingEncrypter>(0x00));
-  QuicPacketLength expected_largest_payload = 1319;
+  QuicPacketLength expected_largest_payload = 1219;
   if (connection_.version().HasLongHeaderLengths()) {
     expected_largest_payload -= 2;
   }
@@ -12769,7 +12769,7 @@ TEST_P(QuicConnectionTest, CoalescerHandlesInitialKeyDiscard) {
     connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
                              std::make_unique<TaggingEncrypter>(0x02));
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
-    connection_.SendCryptoDataWithString(std::string(1300, 'a'), 0);
+    connection_.SendCryptoDataWithString(std::string(1200, 'a'), 0);
     // Verify this packet is on hold.
     EXPECT_EQ(0u, writer_->packets_write_attempts());
   }

@@ -110,6 +110,8 @@ class BbrSenderTest : public QuicTest {
         receiver_multiplexer_("Receiver multiplexer",
                               {&receiver_, &competing_receiver_}) {
     rtt_stats_ = bbr_sender_.connection()->sent_packet_manager().GetRttStats();
+    const int kTestMaxPacketSize = 1350;
+    bbr_sender_.connection()->SetMaxPacketLength(kTestMaxPacketSize);
     sender_ = SetupBbrSender(&bbr_sender_);
     if (GetQuicReloadableFlag(
             quic_bbr_start_new_aggregation_epoch_after_a_full_round)) {

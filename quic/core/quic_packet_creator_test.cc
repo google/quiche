@@ -1863,7 +1863,7 @@ TEST_P(QuicPacketCreatorTest, GetGuaranteedLargestMessagePayload) {
   if (version.UsesTls()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
-  QuicPacketLength expected_largest_payload = 1319;
+  QuicPacketLength expected_largest_payload = 1219;
   if (version.HasLongHeaderLengths()) {
     expected_largest_payload -= 2;
   }
@@ -1914,7 +1914,7 @@ TEST_P(QuicPacketCreatorTest, GetCurrentLargestMessagePayload) {
   if (version.UsesTls()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
-  QuicPacketLength expected_largest_payload = 1319;
+  QuicPacketLength expected_largest_payload = 1219;
   if (version.SendsVariableLengthPacketNumberInLongHeader()) {
     expected_largest_payload += 3;
   }
@@ -3249,7 +3249,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, PacketTransmissionType) {
   // The first ConsumeData will fill the packet without flush.
   creator_.SetTransmissionType(LOSS_RETRANSMISSION);
 
-  size_t data_len = 1324;
+  size_t data_len = 1224;
   CreateData(data_len);
   QuicStreamId stream1_id = QuicUtils::GetFirstBidirectionalStreamId(
       framer_.transport_version(), Perspective::IS_CLIENT);
