@@ -2073,13 +2073,17 @@ void QuicSession::SendRetireConnectionId(uint64_t sequence_number) {
 
 void QuicSession::OnServerConnectionIdIssued(
     const QuicConnectionId& server_connection_id) {
-  visitor_->OnNewConnectionIdSent(connection_->GetOneActiveServerConnectionId(),
-                                  server_connection_id);
+  if (visitor_) {
+    visitor_->OnNewConnectionIdSent(
+        connection_->GetOneActiveServerConnectionId(), server_connection_id);
+  }
 }
 
 void QuicSession::OnServerConnectionIdRetired(
     const QuicConnectionId& server_connection_id) {
-  visitor_->OnConnectionIdRetired(server_connection_id);
+  if (visitor_) {
+    visitor_->OnConnectionIdRetired(server_connection_id);
+  }
 }
 
 bool QuicSession::IsConnectionFlowControlBlocked() const {
