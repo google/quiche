@@ -214,9 +214,7 @@ TlsServerHandshaker::TlsServerHandshaker(
     QUIC_RELOADABLE_FLAG_COUNT(quic_tls_disable_resumption_refactor);
   }
 
-  if (GetQuicReloadableFlag(quic_trace_ssl_events) &&
-      session->connection()->context()->tracer) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_trace_ssl_events);
+  if (session->connection()->context()->tracer) {
     tls_connection_.EnableInfoCallback();
   }
 }

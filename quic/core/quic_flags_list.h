@@ -15,8 +15,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_testonly_default_true, true)
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_testonly_default_false, false)
 // A testonly restart flag that will always default to true.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_testonly_default_true, true)
-// If true and a QUIC connection is traced, add ssl events to the trace.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_trace_ssl_events, true)
 // If true and connection option B201 is used, check if cwnd limited before aggregation epoch, instead of ack event, in PROBE_UP phase.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_check_cwnd_limited_before_aggregation_epoch, true)
 // If true, GFE will explicitly configure its signature algorithm preference.
