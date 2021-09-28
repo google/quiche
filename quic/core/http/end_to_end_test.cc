@@ -6049,9 +6049,9 @@ TEST_P(EndToEndTest, WebTransportSessionSetupWithEchoWithSuffix) {
     return;
   }
 
-  // "/echoFoo" should be accepted as "echo"
-  WebTransportHttp3* web_transport =
-      CreateWebTransportSession("/echoFoo", /*wait_for_server_response=*/true);
+  // "/echoFoo" should be accepted as "echo" with "set-header" query.
+  WebTransportHttp3* web_transport = CreateWebTransportSession(
+      "/echoFoo?set-header=bar:baz", /*wait_for_server_response=*/true);
   ASSERT_NE(web_transport, nullptr);
 
   server_thread_->Pause();
@@ -6059,6 +6059,10 @@ TEST_P(EndToEndTest, WebTransportSessionSetupWithEchoWithSuffix) {
   EXPECT_TRUE(server_session->GetWebTransportSession(web_transport->id()) !=
               nullptr);
   server_thread_->Resume();
+  const spdy::SpdyHeaderBlock* response_headers = client_->response_headers();
+  auto it = response_headers->find("bar");
+  EXPECT_NE(it, response_headers->end());
+  EXPECT_EQ(it->second, "baz");
 }
 
 TEST_P(EndToEndTest, WebTransportSessionWithLoss) {
