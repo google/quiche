@@ -175,6 +175,10 @@ void Bbr2Sender::ApplyConnectionOptions(
       ContainsQuicTag(connection_options, kBBQ0)) {
     params_.probe_up_includes_acks_after_cwnd_limited = true;
   }
+  if (GetQuicReloadableFlag(quic_bbr2_no_probe_up_exit_if_no_queue) &&
+      ContainsQuicTag(connection_options, kB202)) {
+    params_.probe_up_dont_exit_if_no_queue_ = true;
+  }
 }
 
 Limits<QuicByteCount> Bbr2Sender::GetCwndLimitsByMode() const {

@@ -36,8 +36,7 @@ void Bbr2ProbeBwMode::Enter(QuicTime now,
 }
 
 Bbr2Mode Bbr2ProbeBwMode::OnCongestionEvent(
-    QuicByteCount prior_in_flight,
-    QuicTime event_time,
+    QuicByteCount prior_in_flight, QuicTime event_time,
     const AckedPacketVector& /*acked_packets*/,
     const LostPacketVector& /*lost_packets*/,
     const Bbr2CongestionEvent& congestion_event) {
@@ -187,12 +186,20 @@ Bbr2ProbeBwMode::AdaptUpperBoundsResult Bbr2ProbeBwMode::MaybeAdaptUpperBounds(
           << congestion_event.last_packet_send_state.total_bytes_acked << ")";
     }
   }
+  // TODO(ianswett): Inflight too high is really checking for loss, not
+  // inflight.
   if (model_->IsInflightTooHigh(congestion_event,
                                 Params().probe_bw_full_loss_count)) {
     if (cycle_.is_sample_from_probing) {
       cycle_.is_sample_from_probing = false;
-
-      if (!send_state.is_app_limited) {
+      if (!send_state.is_app_limited ||
+          Params().probe_up_dont_exit_if_no_queue_) {
+        if (send_state.is_app_limited) {
+          // If there's excess loss or a queue is building, exit even if the
+          // last sample was app limited.
+          QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_no_probe_up_exit_if_no_queue,
+                                       2, 2);
+        }
         const QuicByteCount inflight_target =
             sender_->GetTargetBytesInflight() * (1.0 - Params().beta);
         if (inflight_at_send >= inflight_target) {
@@ -469,23 +476,32 @@ void Bbr2ProbeBwMode::UpdateProbeUp(
   } else if (cycle_.rounds_in_phase > 0) {
     const QuicByteCount bdp = model_->BDP();
     QuicByteCount queuing_threshold_extra_bytes = 2 * kDefaultTCPMSS;
-    if (Params().add_ack_height_to_queueing_threshold) {
-      queuing_threshold_extra_bytes += model_->MaxAckHeight();
+    if (Params().probe_up_dont_exit_if_no_queue_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_no_probe_up_exit_if_no_queue, 1,
+                                   2);
+      is_queuing = congestion_event.end_of_round_trip &&
+                   model_->min_bytes_in_flight_in_round() >
+                       (bdp * Params().probe_bw_probe_inflight_gain +
+                        queuing_threshold_extra_bytes);
+    } else {
+      if (Params().add_ack_height_to_queueing_threshold) {
+        queuing_threshold_extra_bytes += model_->MaxAckHeight();
+      }
+      QuicByteCount queuing_threshold =
+          (Params().probe_bw_probe_inflight_gain * bdp) +
+          queuing_threshold_extra_bytes;
+
+      is_queuing = congestion_event.bytes_in_flight >= queuing_threshold;
+
+      QUIC_DVLOG(3) << sender_
+                    << " Checking if building up a queue. prior_in_flight:"
+                    << prior_in_flight
+                    << ", post_in_flight:" << congestion_event.bytes_in_flight
+                    << ", threshold:" << queuing_threshold
+                    << ", is_queuing:" << is_queuing
+                    << ", max_bw:" << model_->MaxBandwidth()
+                    << ", min_rtt:" << model_->MinRtt();
     }
-    QuicByteCount queuing_threshold =
-        (Params().probe_bw_probe_inflight_gain * bdp) +
-        queuing_threshold_extra_bytes;
-
-    is_queuing = congestion_event.bytes_in_flight >= queuing_threshold;
-
-    QUIC_DVLOG(3) << sender_
-                  << " Checking if building up a queue. prior_in_flight:"
-                  << prior_in_flight
-                  << ", post_in_flight:" << congestion_event.bytes_in_flight
-                  << ", threshold:" << queuing_threshold
-                  << ", is_queuing:" << is_queuing
-                  << ", max_bw:" << model_->MaxBandwidth()
-                  << ", min_rtt:" << model_->MinRtt();
   }
 
   if (is_risky || is_queuing) {
@@ -495,8 +511,7 @@ void Bbr2ProbeBwMode::UpdateProbeUp(
 }
 
 void Bbr2ProbeBwMode::EnterProbeDown(bool probed_too_high,
-                                     bool stopped_risky_probe,
-                                     QuicTime now) {
+                                     bool stopped_risky_probe, QuicTime now) {
   QUIC_DVLOG(2) << sender_ << " Phase change: " << cycle_.phase << " ==> "
                 << CyclePhase::PROBE_DOWN << " after "
                 << now - cycle_.phase_start_time << ", or "
@@ -637,9 +652,7 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-const Bbr2Params& Bbr2ProbeBwMode::Params() const {
-  return sender_->Params();
-}
+const Bbr2Params& Bbr2ProbeBwMode::Params() const { return sender_->Params(); }
 
 float Bbr2ProbeBwMode::PacingGainForPhase(
     Bbr2ProbeBwMode::CyclePhase phase) const {

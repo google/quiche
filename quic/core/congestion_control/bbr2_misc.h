@@ -146,6 +146,7 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
    * PROBE_UP parameters.
    */
   bool probe_up_includes_acks_after_cwnd_limited = false;
+  bool probe_up_dont_exit_if_no_queue_ = false;
 
   /*
    * PROBE_RTT parameters.
@@ -474,6 +475,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     return max_bytes_delivered_in_round_;
   }
 
+  QuicByteCount min_bytes_in_flight_in_round() const {
+    return min_bytes_in_flight_in_round_;
+  }
+
   QuicPacketNumber end_of_app_limited_phase() const {
     return bandwidth_sampler_.end_of_app_limited_phase();
   }
@@ -543,6 +548,9 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   // Ts and Ta, which is the time when the largest acked packet(within the
   // congestion event) was sent and acked, respectively.
   QuicByteCount max_bytes_delivered_in_round_ = 0;
+
+  // The minimum bytes in flight during this round.
+  QuicByteCount min_bytes_in_flight_in_round_ = 0;
 
   // Max bandwidth in the current round. Updated once per congestion event.
   QuicBandwidth bandwidth_latest_ = QuicBandwidth::Zero();

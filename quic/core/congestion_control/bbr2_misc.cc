@@ -164,6 +164,10 @@ void Bbr2NetworkModel::OnCongestionEventStart(
         congestion_event->last_packet_send_state.total_bytes_acked;
     max_bytes_delivered_in_round_ =
         std::max(max_bytes_delivered_in_round_, bytes_delivered);
+    if (min_bytes_in_flight_in_round_ == 0 ||
+        congestion_event->bytes_in_flight < min_bytes_in_flight_in_round_) {
+      min_bytes_in_flight_in_round_ = congestion_event->bytes_in_flight;
+    }
   }
 
   // |bandwidth_latest_| and |inflight_latest_| only increased within a round.
@@ -376,6 +380,7 @@ void Bbr2NetworkModel::OnNewRound() {
   bytes_lost_in_round_ = 0;
   loss_events_in_round_ = 0;
   max_bytes_delivered_in_round_ = 0;
+  min_bytes_in_flight_in_round_ = 0;
 }
 
 void Bbr2NetworkModel::cap_inflight_lo(QuicByteCount cap) {
