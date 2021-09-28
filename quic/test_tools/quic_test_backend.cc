@@ -45,7 +45,7 @@ QuicTestBackend::ProcessWebTransportRequest(
     for (const auto& param : params) {
       absl::string_view param_view = param;
       if (absl::ConsumePrefix(&param_view, "set-header=")) {
-        const std::vector<std::string_view> header_value =
+        const std::vector<absl::string_view> header_value =
             absl::StrSplit(param_view, ':');
         if (header_value.size() == 2 &&
             !absl::StartsWith(header_value[0], ":")) {
