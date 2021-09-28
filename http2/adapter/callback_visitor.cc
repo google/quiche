@@ -112,7 +112,7 @@ bool CallbackVisitor::OnFrameHeader(Http2StreamId stream_id, size_t length,
 void CallbackVisitor::OnSettingsStart() {}
 
 void CallbackVisitor::OnSetting(Http2Setting setting) {
-  settings_.push_back({.settings_id = setting.id, .value = setting.value});
+  settings_.push_back({setting.id, setting.value});
 }
 
 void CallbackVisitor::OnSettingsEnd() {
