@@ -100,8 +100,11 @@ QuicByteCount HttpDecoder::ProcessInput(const char* data, QuicByteCount len) {
 
   QuicDataReader reader(data, len);
   bool continue_processing = true;
-  while (continue_processing &&
-         (reader.BytesRemaining() != 0 || state_ == STATE_FINISH_PARSING)) {
+  // BufferOrParsePayload() and FinishParsing() may need to be called even if
+  // there is no more data so that they can finish processing the current frame.
+  while (continue_processing && (reader.BytesRemaining() != 0 ||
+                                 state_ == STATE_BUFFER_OR_PARSE_PAYLOAD ||
+                                 state_ == STATE_FINISH_PARSING)) {
     // |continue_processing| must have been set to false upon error.
     QUICHE_DCHECK_EQ(QUIC_NO_ERROR, error_);
     QUICHE_DCHECK_NE(STATE_ERROR, state_);
@@ -113,11 +116,14 @@ QuicByteCount HttpDecoder::ProcessInput(const char* data, QuicByteCount len) {
       case STATE_READING_FRAME_LENGTH:
         continue_processing = ReadFrameLength(&reader);
         break;
+      case STATE_BUFFER_OR_PARSE_PAYLOAD:
+        continue_processing = BufferOrParsePayload(&reader);
+        break;
       case STATE_READING_FRAME_PAYLOAD:
         continue_processing = ReadFramePayload(&reader);
         break;
       case STATE_FINISH_PARSING:
-        continue_processing = FinishParsing(&reader);
+        continue_processing = FinishParsing();
         break;
       case STATE_PARSING_NO_LONGER_POSSIBLE:
         continue_processing = false;
@@ -284,6 +290,12 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
   }
 
   remaining_frame_length_ = current_frame_length_;
+
+  if (IsFrameBuffered()) {
+    state_ = STATE_BUFFER_OR_PARSE_PAYLOAD;
+    return continue_processing;
+  }
+
   state_ = (remaining_frame_length_ == 0) ? STATE_FINISH_PARSING
                                           : STATE_READING_FRAME_PAYLOAD;
   return continue_processing;
@@ -308,6 +320,7 @@ bool HttpDecoder::IsFrameBuffered() {
 }
 
 bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
+  QUICHE_DCHECK(!IsFrameBuffered());
   QUICHE_DCHECK_NE(0u, reader->BytesRemaining());
   QUICHE_DCHECK_NE(0u, remaining_frame_length_);
 
@@ -341,7 +354,7 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::SETTINGS): {
-      continue_processing = BufferOrParsePayload(reader);
+      QUICHE_NOTREACHED();
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE): {
@@ -349,19 +362,19 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::GOAWAY): {
-      continue_processing = BufferOrParsePayload(reader);
+      QUICHE_NOTREACHED();
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID): {
-      continue_processing = BufferOrParsePayload(reader);
+      QUICHE_NOTREACHED();
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM): {
-      continue_processing = BufferOrParsePayload(reader);
+      QUICHE_NOTREACHED();
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH): {
-      continue_processing = BufferOrParsePayload(reader);
+      QUICHE_NOTREACHED();
       break;
     }
     default: {
@@ -370,26 +383,15 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
     }
   }
 
-  if (IsFrameBuffered()) {
-    if (state_ != STATE_READING_FRAME_PAYLOAD) {
-      // BufferOrParsePayload() has advanced |state_|.
-      // TODO(bnc): Simplify state transitions.
-      QUICHE_DCHECK_EQ(STATE_READING_FRAME_TYPE, state_);
-      QUICHE_DCHECK_EQ(0u, remaining_frame_length_);
-    }
-  } else {
-    QUICHE_DCHECK(state_ == STATE_READING_FRAME_PAYLOAD);
-  }
-
-  // BufferOrParsePayload() may have advanced |state_|.
-  if (state_ == STATE_READING_FRAME_PAYLOAD && remaining_frame_length_ == 0) {
+  if (remaining_frame_length_ == 0) {
     state_ = STATE_FINISH_PARSING;
   }
 
   return continue_processing;
 }
 
-bool HttpDecoder::FinishParsing(QuicDataReader* reader) {
+bool HttpDecoder::FinishParsing() {
+  QUICHE_DCHECK(!IsFrameBuffered());
   QUICHE_DCHECK_EQ(0u, remaining_frame_length_);
 
   bool continue_processing = true;
@@ -408,9 +410,7 @@ bool HttpDecoder::FinishParsing(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::SETTINGS): {
-      // If frame payload is not empty, FinishParsing() is skipped.
-      QUICHE_DCHECK_EQ(0u, current_frame_length_);
-      continue_processing = BufferOrParsePayload(reader);
+      QUICHE_NOTREACHED();
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE): {
@@ -418,37 +418,33 @@ bool HttpDecoder::FinishParsing(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::GOAWAY): {
-      // If frame payload is not empty, FinishParsing() is skipped.
-      QUICHE_DCHECK_EQ(0u, current_frame_length_);
-      continue_processing = BufferOrParsePayload(reader);
+      QUICHE_NOTREACHED();
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID): {
-      // If frame payload is not empty, FinishParsing() is skipped.
-      QUICHE_DCHECK_EQ(0u, current_frame_length_);
-      continue_processing = BufferOrParsePayload(reader);
+      QUICHE_NOTREACHED();
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM): {
-      // If frame payload is not empty, FinishParsing() is skipped.
-      QUICHE_DCHECK_EQ(0u, current_frame_length_);
-      continue_processing = BufferOrParsePayload(reader);
+      QUICHE_NOTREACHED();
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH): {
-      // If frame payload is not empty, FinishParsing() is skipped.
-      QUICHE_DCHECK_EQ(0u, current_frame_length_);
-      continue_processing = BufferOrParsePayload(reader);
+      QUICHE_NOTREACHED();
       break;
     }
     default:
       continue_processing = visitor_->OnUnknownFrameEnd();
   }
 
+  ResetForNextFrame();
+  return continue_processing;
+}
+
+void HttpDecoder::ResetForNextFrame() {
   current_length_field_length_ = 0;
   current_type_field_length_ = 0;
   state_ = STATE_READING_FRAME_TYPE;
-  return continue_processing;
 }
 
 bool HttpDecoder::HandleUnknownFramePayload(QuicDataReader* reader) {
@@ -467,40 +463,39 @@ bool HttpDecoder::BufferOrParsePayload(QuicDataReader* reader) {
   QUICHE_DCHECK_EQ(current_frame_length_,
                    buffer_.size() + remaining_frame_length_);
 
-  bool continue_processing = true;
-
   if (buffer_.empty() && reader->BytesRemaining() >= current_frame_length_) {
     // |*reader| contains entire payload, which might be empty.
     remaining_frame_length_ = 0;
     QuicDataReader current_payload_reader(reader->PeekRemainingPayload().data(),
                                           current_frame_length_);
-    continue_processing = ParseEntirePayload(&current_payload_reader);
+    bool continue_processing = ParseEntirePayload(&current_payload_reader);
+
     reader->Seek(current_frame_length_);
-  } else {
-    // Buffer as much of the payload as |*reader| contains.
-    QuicByteCount bytes_to_read = std::min<QuicByteCount>(
-        remaining_frame_length_, reader->BytesRemaining());
-    absl::StrAppend(&buffer_, reader->PeekRemainingPayload().substr(
-                                  /* pos = */ 0, bytes_to_read));
-    reader->Seek(bytes_to_read);
-    remaining_frame_length_ -= bytes_to_read;
-
-    QUICHE_DCHECK_EQ(current_frame_length_,
-                     buffer_.size() + remaining_frame_length_);
-
-    if (remaining_frame_length_ > 0) {
-      QUICHE_DCHECK(reader->IsDoneReading());
-      return true;
-    }
-
-    QuicDataReader buffer_reader(buffer_);
-    continue_processing = ParseEntirePayload(&buffer_reader);
-    buffer_.clear();
+    ResetForNextFrame();
+    return continue_processing;
   }
 
-  current_length_field_length_ = 0;
-  current_type_field_length_ = 0;
-  state_ = STATE_READING_FRAME_TYPE;
+  // Buffer as much of the payload as |*reader| contains.
+  QuicByteCount bytes_to_read = std::min<QuicByteCount>(
+      remaining_frame_length_, reader->BytesRemaining());
+  absl::StrAppend(&buffer_, reader->PeekRemainingPayload().substr(
+                                /* pos = */ 0, bytes_to_read));
+  reader->Seek(bytes_to_read);
+  remaining_frame_length_ -= bytes_to_read;
+
+  QUICHE_DCHECK_EQ(current_frame_length_,
+                   buffer_.size() + remaining_frame_length_);
+
+  if (remaining_frame_length_ > 0) {
+    QUICHE_DCHECK(reader->IsDoneReading());
+    return false;
+  }
+
+  QuicDataReader buffer_reader(buffer_);
+  bool continue_processing = ParseEntirePayload(&buffer_reader);
+  buffer_.clear();
+
+  ResetForNextFrame();
   return continue_processing;
 }
 

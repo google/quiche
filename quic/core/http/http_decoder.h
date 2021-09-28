@@ -155,8 +155,14 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   enum HttpDecoderState {
     STATE_READING_FRAME_LENGTH,
     STATE_READING_FRAME_TYPE,
+
+    // States used for buffered frame types
+    STATE_BUFFER_OR_PARSE_PAYLOAD,
+
+    // States used for non-buffered frame types
     STATE_READING_FRAME_PAYLOAD,
     STATE_FINISH_PARSING,
+
     STATE_PARSING_NO_LONGER_POSSIBLE,
     STATE_ERROR
   };
@@ -188,7 +194,10 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // empty, and it calls BufferOrParsePayload().  For other frame types, this
   // method directly calls visitor methods to signal that frame had been
   // received completely.  Returns whether processing should continue.
-  bool FinishParsing(QuicDataReader* reader);
+  bool FinishParsing();
+
+  // Reset internal fields to prepare for reading next frame.
+  void ResetForNextFrame();
 
   // Read payload of unknown frame from |reader| and call
   // Visitor::OnUnknownFramePayload().  Returns true decoding should continue,
