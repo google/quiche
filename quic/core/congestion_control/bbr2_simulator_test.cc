@@ -533,7 +533,7 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytesB201) {
                    sender_->ExportDebugState().bandwidth_hi, 0.5f);
 
   if (GetQuicReloadableFlag(quic_fix_pacing_sender_bursts)) {
-    EXPECT_EQ(sender_loss_rate_in_packets(), 0);
+    EXPECT_LE(sender_loss_rate_in_packets(), 0.01);
   } else {
     EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
   }
