@@ -235,8 +235,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   void SendTrailers(Http2StreamId stream_id, spdy::SpdyHeaderBlock trailers);
 
   // Encapsulates the RST_STREAM NO_ERROR behavior described in RFC 7540
-  // Section 8.1.
-  void MaybeCloseWithRstStream(Http2StreamId stream_id, StreamState& state);
+  // Section 8.1. Returns true if the stream is closed.
+  bool MaybeCloseWithRstStream(Http2StreamId stream_id, StreamState& state);
 
   // Performs flow control accounting for data sent by the peer.
   void MarkDataBuffered(Http2StreamId stream_id, size_t bytes);

@@ -399,6 +399,7 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
     } else if (length == DataFrameSource::kError) {
       source_can_produce = false;
       CloseStream(stream_id, Http2ErrorCode::INTERNAL_ERROR);
+      // No more work on the stream; it has been closed.
       break;
     }
     const bool fin = end_data ? state.outbound_body->send_fin() : false;
@@ -435,14 +436,17 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
       }
       state.outbound_body = nullptr;
       if (fin || sent_trailers) {
-        MaybeCloseWithRstStream(stream_id, state);
+        if (MaybeCloseWithRstStream(stream_id, state)) {
+          // No more work on the stream; it has been closed.
+          break;
+        }
       }
     }
   }
-  // If the stream still has data to send, it should be marked as ready in the
-  // write scheduler.
-  if (source_can_produce && state.send_window > 0 &&
-      state.outbound_body != nullptr) {
+  // If the stream still exists and has data to send, it should be marked as
+  // ready in the write scheduler.
+  if (stream_map_.contains(stream_id) && source_can_produce &&
+      state.send_window > 0 && state.outbound_body != nullptr) {
     write_scheduler_.MarkStreamReady(stream_id, false);
   }
   // Streams can continue writing as long as the connection is not write-blocked
@@ -842,20 +846,22 @@ void OgHttp2Session::SendTrailers(Http2StreamId stream_id,
   EnqueueFrame(std::move(frame));
 }
 
-void OgHttp2Session::MaybeCloseWithRstStream(Http2StreamId stream_id,
+bool OgHttp2Session::MaybeCloseWithRstStream(Http2StreamId stream_id,
                                              StreamState& state) {
   state.half_closed_local = true;
   if (options_.perspective == Perspective::kServer) {
     if (state.half_closed_remote) {
       CloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+      return true;
     } else {
       // Since the peer has not yet ended the stream, this endpoint should
       // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
       EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
           stream_id, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
-      // Enqueuing the RST_STREAM also invokes OnCloseStream.
+      // Sending the RST_STREAM also invokes OnCloseStream.
     }
   }
+  return false;
 }
 
 void OgHttp2Session::MarkDataBuffered(Http2StreamId stream_id, size_t bytes) {
