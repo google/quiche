@@ -9,7 +9,6 @@
 #include "http2/adapter/http2_visitor_interface.h"
 #include "http2/adapter/nghttp2_data_provider.h"
 #include "http2/adapter/nghttp2_util.h"
-#include "third_party/nghttp2/nghttp2.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 #include "common/platform/api/quiche_bug_tracker.h"
 #include "common/platform/api/quiche_logging.h"
