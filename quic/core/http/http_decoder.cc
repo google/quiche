@@ -5,7 +5,6 @@
 #include "quic/core/http/http_decoder.h"
 
 #include <cstdint>
-#include <limits>
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
@@ -20,6 +19,17 @@
 #include "quic/platform/api/quic_logging.h"
 
 namespace quic {
+
+namespace {
+
+// Limit on the payload length for frames that are buffered by HttpDecoder.
+// If a frame header indicating a payload length exceeding this limit is
+// received, HttpDecoder closes the connection.  Does not apply to frames that
+// are not buffered here but each payload fragment is immediately passed to
+// Visitor, like HEADERS, DATA, and unknown frames.
+constexpr QuicByteCount kPayloadLengthLimit = 1024 * 1024;
+
+}  // anonymous namespace
 
 HttpDecoder::HttpDecoder(Visitor* visitor) : HttpDecoder(visitor, Options()) {}
 HttpDecoder::HttpDecoder(Visitor* visitor, Options options)
@@ -227,11 +237,8 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
     return false;
   }
 
-  if (current_frame_length_ > MaxFrameLength(current_frame_type_)) {
-    // MaxFrameLength() returns numeric_limits::max()
-    // if IsFrameBuffered() is false.
-    QUICHE_DCHECK(IsFrameBuffered());
-
+  if (IsFrameBuffered() &&
+      current_frame_length_ > MaxFrameLength(current_frame_type_)) {
     RaiseError(QUIC_HTTP_FRAME_TOO_LARGE, "Frame is too large.");
     return false;
   }
@@ -470,10 +477,6 @@ bool HttpDecoder::BufferOrParsePayload(QuicDataReader* reader) {
     continue_processing = ParseEntirePayload(&current_payload_reader);
     reader->Seek(current_frame_length_);
   } else {
-    if (buffer_.empty()) {
-      buffer_.reserve(current_frame_length_);
-    }
-
     // Buffer as much of the payload as |*reader| contains.
     QuicByteCount bytes_to_read = std::min<QuicByteCount>(
         remaining_frame_length_, reader->BytesRemaining());
@@ -654,23 +657,22 @@ bool HttpDecoder::ParseAcceptChFrame(QuicDataReader* reader,
 }
 
 QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
+  QUICHE_DCHECK(IsFrameBuffered());
+
   switch (frame_type) {
     case static_cast<uint64_t>(HttpFrameType::SETTINGS):
-      // This limit is arbitrary.
-      return 1024 * 1024;
+      return kPayloadLengthLimit;
     case static_cast<uint64_t>(HttpFrameType::GOAWAY):
       return VARIABLE_LENGTH_INTEGER_LENGTH_8;
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID):
       return VARIABLE_LENGTH_INTEGER_LENGTH_8;
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM):
-      // This limit is arbitrary.
-      return 1024 * 1024;
+      return kPayloadLengthLimit;
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH):
-      // This limit is arbitrary.
-      return 1024 * 1024;
+      return kPayloadLengthLimit;
     default:
-      // Other frames require no data buffering, so it's safe to have no limit.
-      return std::numeric_limits<QuicByteCount>::max();
+      QUICHE_NOTREACHED();
+      return 0;
   }
 }
 
