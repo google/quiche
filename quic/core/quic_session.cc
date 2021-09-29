@@ -12,6 +12,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
+#include "quic/core/frames/quic_window_update_frame.h"
 #include "quic/core/quic_connection.h"
 #include "quic/core/quic_connection_context.h"
 #include "quic/core/quic_error_codes.h"
@@ -188,18 +189,48 @@ PendingStream* QuicSession::PendingStreamOnStreamFrame(
 
 void QuicSession::MaybeProcessPendingStream(PendingStream* pending) {
   QUICHE_DCHECK(pending != nullptr);
-  QuicStream* stream = ProcessPendingStream(pending);
   QuicStreamId stream_id = pending->id();
+  absl::optional<QuicResetStreamError> stop_sending_error_code =
+      pending->GetStopSendingErrorCode();
+  QuicStream* stream = ProcessPendingStream(pending);
   if (stream != nullptr) {
     // The pending stream should now be in the scope of normal streams.
     QUICHE_DCHECK(IsClosedStream(stream_id) || IsOpenStream(stream_id))
         << "Stream " << stream_id << " not created";
     pending_stream_map_.erase(stream_id);
+    if (stop_sending_error_code) {
+      stream->OnStopSending(*stop_sending_error_code);
+      if (!connection()->connected()) {
+        return;
+      }
+    }
     stream->OnStreamCreatedFromPendingStream();
     return;
   }
+  // At this point, none of the bytes has been successfully consumed by the
+  // application layer. We should close the pending stream even if it is
+  // bidirectionl as no application will be able to write in a bidirectional
+  // stream with zero byte as input.
   if (pending->sequencer()->IsClosed()) {
     ClosePendingStream(stream_id);
+  }
+}
+
+void QuicSession::PendingStreamOnWindowUpdateFrame(
+    const QuicWindowUpdateFrame& frame) {
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  PendingStream* pending = GetOrCreatePendingStream(frame.stream_id);
+  if (pending) {
+    pending->OnWindowUpdateFrame(frame);
+  }
+}
+
+void QuicSession::PendingStreamOnStopSendingFrame(
+    const QuicStopSendingFrame& frame) {
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  PendingStream* pending = GetOrCreatePendingStream(frame.stream_id);
+  if (pending) {
+    pending->OnStopSending(frame.error());
   }
 }
 
@@ -275,6 +306,10 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
   if (visitor_) {
     visitor_->OnStopSendingReceived(frame);
   }
+  if (ShouldProcessFrameByPendingStream(STOP_SENDING_FRAME, stream_id)) {
+    PendingStreamOnStopSendingFrame(frame);
+    return;
+  }
 
   QuicStream* stream = GetOrCreateStream(stream_id);
   if (!stream) {
@@ -322,11 +357,10 @@ void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {
   }
 
   pending->OnRstStreamFrame(frame);
-  // Pending stream is currently read only. We can safely close the stream.
-  QUICHE_DCHECK_EQ(
-      READ_UNIDIRECTIONAL,
-      QuicUtils::GetStreamType(pending->id(), perspective(),
-                               /*peer_initiated = */ true, version()));
+  // At this point, none of the bytes has been consumed by the application
+  // layer. It is safe to close the pending stream even if it is bidirectionl as
+  // no application will be able to write in a bidirectional stream with zero
+  // byte as input.
   ClosePendingStream(stream_id);
 }
 
@@ -501,6 +535,11 @@ void QuicSession::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
         QUIC_WINDOW_UPDATE_RECEIVED_ON_READ_UNIDIRECTIONAL_STREAM,
         "WindowUpdateFrame received on READ_UNIDIRECTIONAL stream.",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+
+  if (ShouldProcessFrameByPendingStream(WINDOW_UPDATE_FRAME, stream_id)) {
+    PendingStreamOnWindowUpdateFrame(frame);
     return;
   }
 
@@ -2563,6 +2602,21 @@ void QuicSession::PerformActionOnActiveStreams(
 
 EncryptionLevel QuicSession::GetEncryptionLevelToSendApplicationData() const {
   return connection_->framer().GetEncryptionLevelToSendApplicationData();
+}
+
+void QuicSession::ProcessAllPendingStreams() {
+  std::vector<PendingStream*> pending_streams;
+  pending_streams.reserve(pending_stream_map_.size());
+  for (auto it = pending_stream_map_.cbegin(); it != pending_stream_map_.cend();
+       ++it) {
+    pending_streams.push_back(it->second.get());
+  }
+  for (auto* pending_stream : pending_streams) {
+    MaybeProcessPendingStream(pending_stream);
+    if (!connection()->connected()) {
+      return;
+    }
+  }
 }
 
 void QuicSession::ValidatePath(

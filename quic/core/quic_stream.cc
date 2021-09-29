@@ -15,6 +15,7 @@
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
+#include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
@@ -119,6 +120,10 @@ PendingStream::PendingStream(QuicStreamId id, QuicSession* session)
       stream_delegate_(session),
       stream_bytes_read_(0),
       fin_received_(false),
+      is_bidirectional_(QuicUtils::GetStreamType(id, session->perspective(),
+                                                 /*peer_initiated = */ true,
+                                                 session->version()) ==
+                        BIDIRECTIONAL),
       connection_flow_controller_(session->flow_controller()),
       flow_controller_(session, id,
                        /*is_connection_flow_controller*/ false,
@@ -246,6 +251,11 @@ void PendingStream::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
   }
 }
 
+void PendingStream::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
+  QUICHE_DCHECK(is_bidirectional_);
+  flow_controller_.UpdateSendWindowOffset(frame.max_data);
+}
+
 bool PendingStream::MaybeIncreaseHighestReceivedOffset(
     QuicStreamOffset new_offset) {
   uint64_t increment =
@@ -260,6 +270,13 @@ bool PendingStream::MaybeIncreaseHighestReceivedOffset(
   connection_flow_controller_->UpdateHighestReceivedOffset(
       connection_flow_controller_->highest_received_byte_offset() + increment);
   return true;
+}
+
+void PendingStream::OnStopSending(
+    QuicResetStreamError stop_sending_error_code) {
+  if (!stop_sending_error_code_) {
+    stop_sending_error_code_ = stop_sending_error_code;
+  }
 }
 
 void PendingStream::MarkConsumed(QuicByteCount num_bytes) {
@@ -282,9 +299,6 @@ QuicStream::QuicStream(PendingStream* pending, QuicSession* session,
                  std::move(pending->flow_controller_),
                  pending->connection_flow_controller_) {
   QUICHE_DCHECK(session->version().HasIetfQuicFrames());
-  // TODO(haoyuewang) Remove this check once bidirectional pending stream is
-  // supported.
-  QUICHE_DCHECK(type_ == READ_UNIDIRECTIONAL);
   sequencer_.set_stream(this);
 }
 

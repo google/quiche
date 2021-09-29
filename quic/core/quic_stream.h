@@ -25,6 +25,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "absl/types/span.h"
+#include "quic/core/frames/quic_rst_stream_frame.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_flow_controller.h"
 #include "quic/core/quic_packets.h"
@@ -73,9 +74,20 @@ class QUIC_EXPORT_PRIVATE PendingStream
   // If the data violates flow control, the connection will be closed.
   void OnStreamFrame(const QuicStreamFrame& frame);
 
+  bool is_bidirectional() const { return is_bidirectional_; }
+
   // Stores the final byte offset from |frame|.
   // If the final offset violates flow control, the connection will be closed.
   void OnRstStreamFrame(const QuicRstStreamFrame& frame);
+
+  void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame);
+
+  void OnStopSending(QuicResetStreamError stop_sending_error_code);
+
+  // The error code received from QuicStopSendingFrame (if any).
+  const absl::optional<QuicResetStreamError>& GetStopSendingErrorCode() const {
+    return stop_sending_error_code_;
+  }
 
   // Returns the number of bytes read on this stream.
   uint64_t stream_bytes_read() { return stream_bytes_read_; }
@@ -109,12 +121,17 @@ class QUIC_EXPORT_PRIVATE PendingStream
   // True if a frame containing a fin has been received.
   bool fin_received_;
 
+  // True if this pending stream is backing a bidirectional stream.
+  bool is_bidirectional_;
+
   // Connection-level flow controller. Owned by the session.
   QuicFlowController* connection_flow_controller_;
   // Stream-level flow controller.
   QuicFlowController flow_controller_;
   // Stores the buffered frames.
   QuicStreamSequencer sequencer_;
+  // The error code received from QuicStopSendingFrame (if any).
+  absl::optional<QuicResetStreamError> stop_sending_error_code_;
 };
 
 class QUIC_EXPORT_PRIVATE QuicStream

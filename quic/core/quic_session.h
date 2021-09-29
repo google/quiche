@@ -20,6 +20,8 @@
 #include "absl/types/span.h"
 #include "quic/core/crypto/tls_connection.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
+#include "quic/core/frames/quic_stop_sending_frame.h"
+#include "quic/core/frames/quic_window_update_frame.h"
 #include "quic/core/handshaker_delegate_interface.h"
 #include "quic/core/legacy_quic_stream_id_manager.h"
 #include "quic/core/quic_connection.h"
@@ -620,6 +622,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return quic_tls_disable_resumption_refactor_;
   }
 
+  // Try converting all pending streams to normal streams.
+  void ProcessAllPendingStreams();
+
  protected:
   using StreamMap =
       absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStream>>;
@@ -828,6 +833,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // closed.
   QuicStream* GetStream(QuicStreamId id) const;
 
+  // Can return NULL, e.g., if the stream has been closed before.
   PendingStream* GetOrCreatePendingStream(QuicStreamId stream_id);
 
   // Let streams and control frame managers retransmit lost data, returns true
@@ -855,6 +861,14 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Creates or gets pending strea, feed it with |frame|, and closes the pending
   // stream.
   void PendingStreamOnRstStream(const QuicRstStreamFrame& frame);
+
+  // Creates or gets pending stream, feeds it with |frame|, and records the
+  // max_data in the pending stream.
+  void PendingStreamOnWindowUpdateFrame(const QuicWindowUpdateFrame& frame);
+
+  // Creates or gets pending stream, feeds it with |frame|, and records the
+  // ietf_error_code in the pending stream.
+  void PendingStreamOnStopSendingFrame(const QuicStopSendingFrame& frame);
 
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.

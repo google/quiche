@@ -226,18 +226,32 @@ TEST_P(PendingStreamTest, PendingStreamTooMuchData) {
 TEST_P(PendingStreamTest, PendingStreamTooMuchDataInRstStream) {
   Initialize();
 
-  PendingStream pending(kTestPendingStreamId, session_.get());
+  PendingStream pending1(kTestPendingStreamId, session_.get());
   // Receive a rst stream frame that violates flow control: the byte offset is
   // higher than the receive window offset.
-  QuicRstStreamFrame frame(kInvalidControlFrameId, kTestPendingStreamId,
-                           QUIC_STREAM_CANCELLED,
-                           kInitialSessionFlowControlWindowForTest + 1);
+  QuicRstStreamFrame frame1(kInvalidControlFrameId, kTestPendingStreamId,
+                            QUIC_STREAM_CANCELLED,
+                            kInitialSessionFlowControlWindowForTest + 1);
 
   // Pending stream should not accept the frame, and the connection should be
   // closed.
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA, _, _));
-  pending.OnRstStreamFrame(frame);
+  pending1.OnRstStreamFrame(frame1);
+
+  QuicStreamId bidirection_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      session_->transport_version(), Perspective::IS_CLIENT);
+  PendingStream pending2(bidirection_stream_id, session_.get());
+  // Receive a rst stream frame that violates flow control: the byte offset is
+  // higher than the receive window offset.
+  QuicRstStreamFrame frame2(kInvalidControlFrameId, bidirection_stream_id,
+                            QUIC_STREAM_CANCELLED,
+                            kInitialSessionFlowControlWindowForTest + 1);
+  // Bidirectional Pending stream should not accept the frame, and the
+  // connection should be closed.
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA, _, _));
+  pending2.OnRstStreamFrame(frame2);
 }
 
 TEST_P(PendingStreamTest, PendingStreamRstStream) {
@@ -251,6 +265,35 @@ TEST_P(PendingStreamTest, PendingStreamRstStream) {
   // Pending stream should accept the frame and not close the connection.
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   pending.OnRstStreamFrame(frame);
+}
+
+TEST_P(PendingStreamTest, PendingStreamWindowUpdate) {
+  Initialize();
+
+  QuicStreamId bidirection_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      session_->transport_version(), Perspective::IS_CLIENT);
+  PendingStream pending(bidirection_stream_id, session_.get());
+  QuicWindowUpdateFrame frame(kInvalidControlFrameId, bidirection_stream_id,
+                              kDefaultFlowControlSendWindow * 2);
+  pending.OnWindowUpdateFrame(frame);
+  TestStream stream(&pending, session_.get(), false);
+
+  EXPECT_EQ(QuicStreamPeer::SendWindowSize(&stream),
+            kDefaultFlowControlSendWindow * 2);
+}
+
+TEST_P(PendingStreamTest, PendingStreamStopSending) {
+  Initialize();
+
+  QuicStreamId bidirection_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      session_->transport_version(), Perspective::IS_CLIENT);
+  PendingStream pending(bidirection_stream_id, session_.get());
+  QuicResetStreamError error =
+      QuicResetStreamError::FromInternal(QUIC_STREAM_INTERNAL_ERROR);
+  pending.OnStopSending(error);
+  EXPECT_TRUE(pending.GetStopSendingErrorCode());
+  auto actual_error = *pending.GetStopSendingErrorCode();
+  EXPECT_EQ(actual_error, error);
 }
 
 TEST_P(PendingStreamTest, FromPendingStream) {
