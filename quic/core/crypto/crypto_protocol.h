@@ -161,6 +161,8 @@ const QuicTag kB201 = TAG('B', '2', '0', '1');   // In PROBE_UP, check if cwnd
                                                  // epoch, instead of ack event.
 const QuicTag kB202 = TAG('B', '2', '0', '2');   // Do not exit PROBE_UP if
                                                  // inflight dips below 1.25*BW.
+const QuicTag kB203 = TAG('B', '2', '0', '3');   // Ignore inflight_hi until
+                                                 // PROBE_UP is exited.
 const QuicTag kNTLP = TAG('N', 'T', 'L', 'P');   // No tail loss probe
 const QuicTag k1TLP = TAG('1', 'T', 'L', 'P');   // 1 tail loss probe
 const QuicTag k1RTO = TAG('1', 'R', 'T', 'O');   // Send 1 packet upon RTO

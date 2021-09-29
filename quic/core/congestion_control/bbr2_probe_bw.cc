@@ -83,6 +83,11 @@ Limits<QuicByteCount> Bbr2ProbeBwMode::GetCwndLimits() const {
     return NoGreaterThan(
         std::min(model_->inflight_lo(), model_->inflight_hi_with_headroom()));
   }
+  if (Params().probe_up_ignore_inflight_hi &&
+      cycle_.phase == CyclePhase::PROBE_UP) {
+    // Similar to STARTUP.
+    return NoGreaterThan(model_->inflight_lo());
+  }
 
   return NoGreaterThan(std::min(model_->inflight_lo(), model_->inflight_hi()));
 }
@@ -346,6 +351,11 @@ void Bbr2ProbeBwMode::RaiseInflightHighSlope() {
 void Bbr2ProbeBwMode::ProbeInflightHighUpward(
     const Bbr2CongestionEvent& congestion_event) {
   QUICHE_DCHECK_EQ(cycle_.phase, CyclePhase::PROBE_UP);
+  if (Params().probe_up_ignore_inflight_hi) {
+    // When inflight_hi is disabled in PROBE_UP, it increases when
+    // the number of bytes delivered in a round is larger inflight_hi.
+    return;
+  }
   if (Params().probe_bw_check_cwnd_limited_before_aggregation_epoch) {
     if (!model_->cwnd_limited_before_aggregation_epoch()) {
       QUIC_DVLOG(3) << sender_

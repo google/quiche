@@ -129,6 +129,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_fix_pacing_sender_bursts, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_randomize_transport_parameter_order, true)
 // When true, set the initial congestion control window from connection options in QuicSentPacketManager rather than TcpCubicSenderBytes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_unified_iw_options, true)
+// When true, the B203 connection option causes the Bbr2Sender to ignore inflight_hi during PROBE_UP and increase it when the bytes delivered without loss are higher.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_ignore_inflight_hi_in_probe_up, true)
 // When true, the BBQ0 connection option causes QUIC BBR2 to add bytes_acked to probe_up_acked if the connection hasn\'t been app-limited since inflight_hi was utilized.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_add_bytes_acked_after_inflight_hi_limited, true)
 
