@@ -301,6 +301,10 @@ enum : QuicDatagramContextId {
   kDatagramContextIdIncrement = 2,
 };
 
+enum : uint64_t {
+  kHttpDatagramStreamIdDivisor = 4,
+};
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_CONSTANTS_H_

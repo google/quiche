@@ -9,6 +9,7 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "quic/core/http/capsule.h"
 #include "quic/core/http/quic_spdy_session.h"
 #include "quic/core/http/quic_spdy_stream.h"
 #include "quic/core/quic_data_reader.h"
@@ -201,11 +202,25 @@ void WebTransportHttp3::OnHttp3Datagram(
 
 void WebTransportHttp3::OnContextReceived(
     QuicStreamId stream_id, absl::optional<QuicDatagramContextId> context_id,
-    const Http3DatagramContextExtensions& /*extensions*/) {
+    DatagramFormatType format_type, absl::string_view format_additional_data) {
   if (stream_id != connect_stream_->id()) {
     QUIC_BUG(WT3 bad datagram context registration)
         << ENDPOINT << "Registered stream ID " << stream_id << ", expected "
         << connect_stream_->id();
+    return;
+  }
+  if (format_type != DatagramFormatType::WEBTRANSPORT) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Ignoring unexpected datagram format type "
+                    << DatagramFormatTypeToString(format_type);
+    return;
+  }
+  if (!format_additional_data.empty()) {
+    QUIC_DLOG(ERROR)
+        << ENDPOINT
+        << "Received non-empty format additional data for context ID "
+        << (context_id_.has_value() ? context_id_.value() : 0)
+        << " on stream ID " << connect_stream_->id();
+    session_->ResetStream(connect_stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD);
     return;
   }
   if (!context_is_known_) {
@@ -229,15 +244,14 @@ void WebTransportHttp3::OnContextReceived(
       return;
     }
     context_currently_registered_ = true;
-    Http3DatagramContextExtensions reply_extensions;
-    connect_stream_->RegisterHttp3DatagramContextId(context_id_,
-                                                    reply_extensions, this);
+    connect_stream_->RegisterHttp3DatagramContextId(
+        context_id_, format_type, format_additional_data, this);
   }
 }
 
 void WebTransportHttp3::OnContextClosed(
     QuicStreamId stream_id, absl::optional<QuicDatagramContextId> context_id,
-    const Http3DatagramContextExtensions& /*extensions*/) {
+    ContextCloseCode close_code, absl::string_view close_details) {
   if (stream_id != connect_stream_->id()) {
     QUIC_BUG(WT3 bad datagram context registration)
         << ENDPOINT << "Closed context on stream ID " << stream_id
@@ -252,9 +266,12 @@ void WebTransportHttp3::OnContextClosed(
                     << " on stream ID " << connect_stream_->id();
     return;
   }
-  QUIC_DLOG(INFO) << ENDPOINT << "Received datagram context close on stream ID "
-                  << connect_stream_->id() << ", resetting stream";
-  session_->ResetStream(connect_stream_->id(), QUIC_STREAM_CANCELLED);
+  QUIC_DLOG(INFO) << ENDPOINT
+                  << "Received datagram context close with close code "
+                  << close_code << " close details \"" << close_details
+                  << "\" on stream ID " << connect_stream_->id()
+                  << ", resetting stream";
+  session_->ResetStream(connect_stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD);
 }
 
 WebTransportHttp3UnidirectionalStream::WebTransportHttp3UnidirectionalStream(

@@ -76,12 +76,14 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
                        absl::string_view payload) override;
 
   // From QuicSpdyStream::Http3DatagramRegistrationVisitor.
-  void OnContextReceived(
-      QuicStreamId stream_id, absl::optional<QuicDatagramContextId> context_id,
-      const Http3DatagramContextExtensions& extensions) override;
-  void OnContextClosed(
-      QuicStreamId stream_id, absl::optional<QuicDatagramContextId> context_id,
-      const Http3DatagramContextExtensions& extensions) override;
+  void OnContextReceived(QuicStreamId stream_id,
+                         absl::optional<QuicDatagramContextId> context_id,
+                         DatagramFormatType format_type,
+                         absl::string_view format_additional_data) override;
+  void OnContextClosed(QuicStreamId stream_id,
+                       absl::optional<QuicDatagramContextId> context_id,
+                       ContextCloseCode close_code,
+                       absl::string_view close_details) override;
 
  private:
   QuicSpdySession* const session_;        // Unowned.

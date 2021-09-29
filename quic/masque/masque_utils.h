@@ -18,7 +18,10 @@ QUIC_NO_EXPORT ParsedQuicVersionVector MasqueSupportedVersions();
 QUIC_NO_EXPORT QuicConfig MasqueEncapsulatedConfig();
 
 // Maximum packet size for encapsulated connections.
-enum : QuicByteCount { kMasqueMaxEncapsulatedPacketSize = 1300 };
+enum : QuicByteCount {
+  kMasqueMaxEncapsulatedPacketSize = 1300,
+  kMasqueMaxOuterPacketSize = 1350,
+};
 
 // Mode that MASQUE is operating in.
 enum class MasqueMode : uint8_t {

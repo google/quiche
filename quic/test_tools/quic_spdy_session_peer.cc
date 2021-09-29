@@ -40,18 +40,14 @@ spdy::SpdyFramer* QuicSpdySessionPeer::GetSpdyFramer(QuicSpdySession* session) {
 }
 
 void QuicSpdySessionPeer::SetMaxInboundHeaderListSize(
-    QuicSpdySession* session,
-    size_t max_inbound_header_size) {
+    QuicSpdySession* session, size_t max_inbound_header_size) {
   session->set_max_inbound_header_list_size(max_inbound_header_size);
 }
 
 // static
 size_t QuicSpdySessionPeer::WriteHeadersOnHeadersStream(
-    QuicSpdySession* session,
-    QuicStreamId id,
-    spdy::SpdyHeaderBlock headers,
-    bool fin,
-    const spdy::SpdyStreamPrecedence& precedence,
+    QuicSpdySession* session, QuicStreamId id, spdy::SpdyHeaderBlock headers,
+    bool fin, const spdy::SpdyStreamPrecedence& precedence,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
   return session->WriteHeadersOnHeadersStream(
       id, std::move(headers), fin, precedence, std::move(ack_listener));
@@ -100,22 +96,22 @@ QpackReceiveStream* QuicSpdySessionPeer::GetQpackEncoderReceiveStream(
 }
 
 // static
-void QuicSpdySessionPeer::SetH3DatagramSupported(QuicSpdySession* session,
-                                                 bool h3_datagram_supported) {
-  session->h3_datagram_supported_ = h3_datagram_supported;
+void QuicSpdySessionPeer::SetHttpDatagramSupport(
+    QuicSpdySession* session, HttpDatagramSupport http_datagram_support) {
+  session->http_datagram_support_ = http_datagram_support;
 }
 
 // static
-bool QuicSpdySessionPeer::ShouldNegotiateHttp3Datagram(
+HttpDatagramSupport QuicSpdySessionPeer::LocalHttpDatagramSupport(
     QuicSpdySession* session) {
-  return session->ShouldNegotiateHttp3Datagram();
+  return session->LocalHttpDatagramSupport();
 }
 
 // static
-void QuicSpdySessionPeer::EnableWebTransport(QuicSpdySession& session) {
-  QUICHE_DCHECK(session.WillNegotiateWebTransport());
-  session.h3_datagram_supported_ = true;
-  session.peer_supports_webtransport_ = true;
+void QuicSpdySessionPeer::EnableWebTransport(QuicSpdySession* session) {
+  QUICHE_DCHECK(session->WillNegotiateWebTransport());
+  SetHttpDatagramSupport(session, HttpDatagramSupport::kDraft04);
+  session->peer_supports_webtransport_ = true;
 }
 
 }  // namespace test

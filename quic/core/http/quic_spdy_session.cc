@@ -193,8 +193,7 @@ class QuicSpdySession::SpdyFramerVisitor
     header_list_.Clear();
   }
 
-  void OnStreamFrameData(SpdyStreamId /*stream_id*/,
-                         const char* /*data*/,
+  void OnStreamFrameData(SpdyStreamId /*stream_id*/, const char* /*data*/,
                          size_t /*len*/) override {
     QUICHE_DCHECK(!VersionUsesHttp3(session_->transport_version()));
     CloseConnection("SPDY DATA frame received.",
@@ -282,8 +281,7 @@ class QuicSpdySession::SpdyFramerVisitor
         code);
   }
 
-  void OnDataFrameHeader(SpdyStreamId /*stream_id*/,
-                         size_t /*length*/,
+  void OnDataFrameHeader(SpdyStreamId /*stream_id*/, size_t /*length*/,
                          bool /*fin*/) override {
     QUICHE_DCHECK(!VersionUsesHttp3(session_->transport_version()));
     CloseConnection("SPDY DATA frame received.",
@@ -316,13 +314,9 @@ class QuicSpdySession::SpdyFramerVisitor
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
 
-  void OnHeaders(SpdyStreamId stream_id,
-                 bool has_priority,
-                 int weight,
-                 SpdyStreamId /* parent_stream_id */,
-                 bool /* exclusive */,
-                 bool fin,
-                 bool /*end*/) override {
+  void OnHeaders(SpdyStreamId stream_id, bool has_priority, int weight,
+                 SpdyStreamId /* parent_stream_id */, bool /* exclusive */,
+                 bool fin, bool /*end*/) override {
     if (!session_->IsConnected()) {
       return;
     }
@@ -350,8 +344,7 @@ class QuicSpdySession::SpdyFramerVisitor
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
 
-  void OnPushPromise(SpdyStreamId stream_id,
-                     SpdyStreamId promised_stream_id,
+  void OnPushPromise(SpdyStreamId stream_id, SpdyStreamId promised_stream_id,
                      bool /*end*/) override {
     QUICHE_DCHECK(!VersionUsesHttp3(session_->transport_version()));
     if (session_->perspective() != Perspective::IS_CLIENT) {
@@ -367,10 +360,8 @@ class QuicSpdySession::SpdyFramerVisitor
 
   void OnContinuation(SpdyStreamId /*stream_id*/, bool /*end*/) override {}
 
-  void OnPriority(SpdyStreamId stream_id,
-                  SpdyStreamId /* parent_id */,
-                  int weight,
-                  bool /* exclusive */) override {
+  void OnPriority(SpdyStreamId stream_id, SpdyStreamId /* parent_id */,
+                  int weight, bool /* exclusive */) override {
     QUICHE_DCHECK(!VersionUsesHttp3(session_->transport_version()));
     if (!session_->IsConnected()) {
       return;
@@ -393,10 +384,8 @@ class QuicSpdySession::SpdyFramerVisitor
   }
 
   // SpdyFramerDebugVisitorInterface implementation
-  void OnSendCompressedFrame(SpdyStreamId /*stream_id*/,
-                             SpdyFrameType /*type*/,
-                             size_t payload_len,
-                             size_t frame_len) override {
+  void OnSendCompressedFrame(SpdyStreamId /*stream_id*/, SpdyFrameType /*type*/,
+                             size_t payload_len, size_t frame_len) override {
     if (payload_len == 0) {
       QUIC_BUG(quic_bug_10360_1) << "Zero payload length.";
       return;
@@ -518,8 +507,17 @@ void QuicSpdySession::FillSettingsFrame() {
       qpack_maximum_blocked_streams_;
   settings_.values[SETTINGS_MAX_FIELD_SECTION_SIZE] =
       max_inbound_header_list_size_;
-  if (ShouldNegotiateHttp3Datagram() && version().UsesHttp3()) {
-    settings_.values[SETTINGS_H3_DATAGRAM] = 1;
+  if (version().UsesHttp3()) {
+    HttpDatagramSupport local_http_datagram_support =
+        LocalHttpDatagramSupport();
+    if (local_http_datagram_support == HttpDatagramSupport::kDraft00 ||
+        local_http_datagram_support == HttpDatagramSupport::kDraft00And04) {
+      settings_.values[SETTINGS_H3_DATAGRAM_DRAFT00] = 1;
+    }
+    if (local_http_datagram_support == HttpDatagramSupport::kDraft04 ||
+        local_http_datagram_support == HttpDatagramSupport::kDraft00And04) {
+      settings_.values[SETTINGS_H3_DATAGRAM_DRAFT04] = 1;
+    }
   }
   if (WillNegotiateWebTransport()) {
     settings_.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
@@ -543,8 +541,7 @@ void QuicSpdySession::OnEncoderStreamError(QuicErrorCode error_code,
 }
 
 void QuicSpdySession::OnStreamHeadersPriority(
-    QuicStreamId stream_id,
-    const spdy::SpdyStreamPrecedence& precedence) {
+    QuicStreamId stream_id, const spdy::SpdyStreamPrecedence& precedence) {
   QuicSpdyStream* stream = GetOrCreateSpdyDataStream(stream_id);
   if (!stream) {
     // It's quite possible to receive headers after a stream has been reset.
@@ -553,8 +550,7 @@ void QuicSpdySession::OnStreamHeadersPriority(
   stream->OnStreamHeadersPriority(precedence);
 }
 
-void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id,
-                                         bool fin,
+void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id, bool fin,
                                          size_t frame_len,
                                          const QuicHeaderList& header_list) {
   if (IsStaticStream(stream_id)) {
@@ -593,8 +589,7 @@ void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id,
 }
 
 void QuicSpdySession::OnPriorityFrame(
-    QuicStreamId stream_id,
-    const spdy::SpdyStreamPrecedence& precedence) {
+    QuicStreamId stream_id, const spdy::SpdyStreamPrecedence& precedence) {
   QuicSpdyStream* stream = GetOrCreateSpdyDataStream(stream_id);
   if (!stream) {
     // It's quite possible to receive a PRIORITY frame after a stream has been
@@ -671,9 +666,7 @@ size_t QuicSpdySession::ProcessHeaderData(const struct iovec& iov) {
 }
 
 size_t QuicSpdySession::WriteHeadersOnHeadersStream(
-    QuicStreamId id,
-    SpdyHeaderBlock headers,
-    bool fin,
+    QuicStreamId id, SpdyHeaderBlock headers, bool fin,
     const spdy::SpdyStreamPrecedence& precedence,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
   QUICHE_DCHECK(!VersionUsesHttp3(transport_version()));
@@ -686,8 +679,7 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStream(
 }
 
 size_t QuicSpdySession::WritePriority(QuicStreamId id,
-                                      QuicStreamId parent_stream_id,
-                                      int weight,
+                                      QuicStreamId parent_stream_id, int weight,
                                       bool exclusive) {
   QUICHE_DCHECK(!VersionUsesHttp3(transport_version()));
   SpdyPriorityIR priority_frame(id, parent_stream_id, weight, exclusive);
@@ -865,8 +857,7 @@ QuicSpdyStream* QuicSpdySession::GetOrCreateSpdyDataStream(
 }
 
 void QuicSpdySession::OnNewEncryptionKeyAvailable(
-    EncryptionLevel level,
-    std::unique_ptr<QuicEncrypter> encrypter) {
+    EncryptionLevel level, std::unique_ptr<QuicEncrypter> encrypter) {
   QuicSession::OnNewEncryptionKeyAvailable(level, std::move(encrypter));
   if (IsEncryptionEstablished()) {
     // Send H3 SETTINGs once encryption is established.
@@ -874,13 +865,11 @@ void QuicSpdySession::OnNewEncryptionKeyAvailable(
   }
 }
 
-bool QuicSpdySession::ShouldNegotiateWebTransport() {
-  return false;
-}
+bool QuicSpdySession::ShouldNegotiateWebTransport() { return false; }
 
 bool QuicSpdySession::WillNegotiateWebTransport() {
-  return ShouldNegotiateHttp3Datagram() && version().UsesHttp3() &&
-         ShouldNegotiateWebTransport();
+  return LocalHttpDatagramSupport() != HttpDatagramSupport::kNone &&
+         version().UsesHttp3() && ShouldNegotiateWebTransport();
 }
 
 // True if there are open HTTP requests.
@@ -902,12 +891,8 @@ bool QuicSpdySession::UsesPendingStreamForFrame(QuicFrameType type,
 }
 
 size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
-    QuicStreamId id,
-    spdy::SpdyHeaderBlock headers,
-    bool fin,
-    QuicStreamId parent_stream_id,
-    int weight,
-    bool exclusive,
+    QuicStreamId id, spdy::SpdyHeaderBlock headers, bool fin,
+    QuicStreamId parent_stream_id, int weight, bool exclusive,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
   QUICHE_DCHECK(!VersionUsesHttp3(transport_version()));
 
@@ -941,10 +926,8 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
 }
 
 void QuicSpdySession::OnPromiseHeaderList(
-    QuicStreamId /*stream_id*/,
-    QuicStreamId /*promised_stream_id*/,
-    size_t /*frame_len*/,
-    const QuicHeaderList& /*header_list*/) {
+    QuicStreamId /*stream_id*/, QuicStreamId /*promised_stream_id*/,
+    size_t /*frame_len*/, const QuicHeaderList& /*header_list*/) {
   std::string error =
       "OnPromiseHeaderList should be overridden in client code.";
   QUIC_BUG(quic_bug_10360_6) << error;
@@ -974,8 +957,7 @@ bool QuicSpdySession::ResumeApplicationState(ApplicationState* cached_state) {
 }
 
 absl::optional<std::string> QuicSpdySession::OnAlpsData(
-    const uint8_t* alps_data,
-    size_t alps_length) {
+    const uint8_t* alps_data, size_t alps_length) {
   AlpsFrameDecoder alps_frame_decoder(this);
   HttpDecoder decoder(&alps_frame_decoder);
   decoder.ProcessInput(reinterpret_cast<const char*>(alps_data), alps_length);
@@ -1041,6 +1023,21 @@ absl::optional<std::string> QuicSpdySession::OnSettingsFrameViaAlps(
     }
   }
   return absl::nullopt;
+}
+
+bool QuicSpdySession::VerifySettingIsZeroOrOne(uint64_t id, uint64_t value) {
+  if (value == 0 || value == 1) {
+    return true;
+  }
+  std::string error_details = absl::StrCat(
+      "Received ",
+      H3SettingsToString(static_cast<Http3AndQpackSettingsIdentifiers>(id)),
+      " with invalid value ", value);
+  QUIC_PEER_BUG(bad received setting) << ENDPOINT << error_details;
+  // TODO(dschinazi) use QUIC_HTTP_INVALID_SETTING_VALUE instead of
+  // QUIC_HTTP_RECEIVE_SPDY_SETTING once cl/396439351 lands.
+  CloseConnectionWithDetails(QUIC_HTTP_RECEIVE_SPDY_SETTING, error_details);
+  return false;
 }
 
 bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
@@ -1127,24 +1124,47 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
             absl::StrCat("received HTTP/2 specific setting in HTTP/3 session: ",
                          id));
         return false;
-      case SETTINGS_H3_DATAGRAM: {
-        if (!ShouldNegotiateHttp3Datagram()) {
+      case SETTINGS_H3_DATAGRAM_DRAFT00: {
+        HttpDatagramSupport local_http_datagram_support =
+            LocalHttpDatagramSupport();
+        if (local_http_datagram_support != HttpDatagramSupport::kDraft00 &&
+            local_http_datagram_support != HttpDatagramSupport::kDraft00And04) {
           break;
         }
-        QUIC_DVLOG(1) << ENDPOINT << "SETTINGS_H3_DATAGRAM received with value "
+        QUIC_DVLOG(1) << ENDPOINT
+                      << "SETTINGS_H3_DATAGRAM_DRAFT00 received with value "
                       << value;
         if (!version().UsesHttp3()) {
           break;
         }
-        if (value != 0 && value != 1) {
-          std::string error_details = absl::StrCat(
-              "received SETTINGS_H3_DATAGRAM with invalid value ", value);
-          QUIC_PEER_BUG(quic_peer_bug_10360_7) << ENDPOINT << error_details;
-          CloseConnectionWithDetails(QUIC_HTTP_RECEIVE_SPDY_SETTING,
-                                     error_details);
+        if (!VerifySettingIsZeroOrOne(id, value)) {
           return false;
         }
-        h3_datagram_supported_ = !!value;
+        if (value && http_datagram_support_ != HttpDatagramSupport::kDraft04) {
+          // If both draft-00 and draft-04 are supported, use draft-04.
+          http_datagram_support_ = HttpDatagramSupport::kDraft00;
+        }
+        break;
+      }
+      case SETTINGS_H3_DATAGRAM_DRAFT04: {
+        HttpDatagramSupport local_http_datagram_support =
+            LocalHttpDatagramSupport();
+        if (local_http_datagram_support != HttpDatagramSupport::kDraft04 &&
+            local_http_datagram_support != HttpDatagramSupport::kDraft00And04) {
+          break;
+        }
+        QUIC_DVLOG(1) << ENDPOINT
+                      << "SETTINGS_H3_DATAGRAM_DRAFT04 received with value "
+                      << value;
+        if (!version().UsesHttp3()) {
+          break;
+        }
+        if (!VerifySettingIsZeroOrOne(id, value)) {
+          return false;
+        }
+        if (value) {
+          http_datagram_support_ = HttpDatagramSupport::kDraft04;
+        }
         break;
       }
       case SETTINGS_WEBTRANS_DRAFT00:
@@ -1154,14 +1174,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         QUIC_DVLOG(1) << ENDPOINT
                       << "SETTINGS_ENABLE_WEBTRANSPORT received with value "
                       << value;
-        if (value != 0 && value != 1) {
-          std::string error_details = absl::StrCat(
-              "received SETTINGS_ENABLE_WEBTRANSPORT with invalid value ",
-              value);
-          QUIC_PEER_BUG(invalid SETTINGS_ENABLE_WEBTRANSPORT value)
-              << ENDPOINT << error_details;
-          CloseConnectionWithDetails(QUIC_HTTP_RECEIVE_SPDY_SETTING,
-                                     error_details);
+        if (!VerifySettingIsZeroOrOne(id, value)) {
           return false;
         }
         peer_supports_webtransport_ = (value == 1);
@@ -1234,8 +1247,7 @@ bool QuicSpdySession::ShouldReleaseHeadersStreamSequencerBuffer() {
   return false;
 }
 
-void QuicSpdySession::OnHeaders(SpdyStreamId stream_id,
-                                bool has_priority,
+void QuicSpdySession::OnHeaders(SpdyStreamId stream_id, bool has_priority,
                                 const spdy::SpdyStreamPrecedence& precedence,
                                 bool fin) {
   if (has_priority) {
@@ -1572,9 +1584,7 @@ void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
 
 // static
 void QuicSpdySession::LogHeaderCompressionRatioHistogram(
-    bool using_qpack,
-    bool is_sent,
-    QuicByteCount compressed,
+    bool using_qpack, bool is_sent, QuicByteCount compressed,
     QuicByteCount uncompressed) {
   if (compressed <= 0 || uncompressed <= 0) {
     return;
@@ -1620,15 +1630,25 @@ MessageStatus QuicSpdySession::SendHttp3Datagram(
     QuicDatagramStreamId stream_id,
     absl::optional<QuicDatagramContextId> context_id,
     absl::string_view payload) {
+  if (!SupportsH3Datagram()) {
+    QUIC_BUG(send http datagram too early)
+        << "Refusing to send HTTP Datagram before SETTINGS received";
+    return MESSAGE_STATUS_INTERNAL_ERROR;
+  }
+  uint64_t stream_id_to_write = stream_id;
+  if (http_datagram_support_ != HttpDatagramSupport::kDraft00) {
+    // Stream ID is sent divided by four as per the specification.
+    stream_id_to_write /= kHttpDatagramStreamIdDivisor;
+  }
   size_t slice_length =
-      QuicDataWriter::GetVarInt62Len(stream_id) + payload.length();
+      QuicDataWriter::GetVarInt62Len(stream_id_to_write) + payload.length();
   if (context_id.has_value()) {
     slice_length += QuicDataWriter::GetVarInt62Len(context_id.value());
   }
   QuicBuffer buffer(connection()->helper()->GetStreamSendBufferAllocator(),
                     slice_length);
   QuicDataWriter writer(slice_length, buffer.data());
-  if (!writer.WriteVarInt62(stream_id)) {
+  if (!writer.WriteVarInt62(stream_id_to_write)) {
     QUIC_BUG(h3 datagram stream ID write fail)
         << "Failed to write HTTP/3 datagram stream ID";
     return MESSAGE_STATUS_INTERNAL_ERROR;
@@ -1669,8 +1689,8 @@ void QuicSpdySession::UnregisterHttp3DatagramFlowId(
 
 void QuicSpdySession::OnMessageReceived(absl::string_view message) {
   QuicSession::OnMessageReceived(message);
-  if (!h3_datagram_supported_) {
-    QUIC_DLOG(ERROR) << "Ignoring unexpected received HTTP/3 datagram";
+  if (!SupportsH3Datagram()) {
+    QUIC_DLOG(INFO) << "Ignoring unexpected received HTTP/3 datagram";
     return;
   }
   QuicDataReader reader(message);
@@ -1679,7 +1699,12 @@ void QuicSpdySession::OnMessageReceived(absl::string_view message) {
     QUIC_DLOG(ERROR) << "Failed to parse stream ID in received HTTP/3 datagram";
     return;
   }
-  if (perspective() == Perspective::IS_SERVER) {
+  if (http_datagram_support_ != HttpDatagramSupport::kDraft00) {
+    // Stream ID is sent divided by four as per the specification.
+    stream_id64 *= kHttpDatagramStreamIdDivisor;
+  }
+  if (perspective() == Perspective::IS_SERVER &&
+      http_datagram_support_ == HttpDatagramSupport::kDraft00) {
     auto it = h3_datagram_flow_id_to_stream_id_map_.find(stream_id64);
     if (it == h3_datagram_flow_id_to_stream_id_map_.end()) {
       QUIC_DLOG(INFO) << "Received unknown HTTP/3 datagram flow ID "
@@ -1709,8 +1734,12 @@ void QuicSpdySession::OnMessageReceived(absl::string_view message) {
 }
 
 bool QuicSpdySession::SupportsWebTransport() {
-  return WillNegotiateWebTransport() && h3_datagram_supported_ &&
+  return WillNegotiateWebTransport() && SupportsH3Datagram() &&
          peer_supports_webtransport_;
+}
+
+bool QuicSpdySession::SupportsH3Datagram() const {
+  return http_datagram_support_ != HttpDatagramSupport::kNone;
 }
 
 WebTransportHttp3* QuicSpdySession::GetWebTransportSession(
@@ -1743,8 +1772,7 @@ void QuicSpdySession::OnStreamWaitingForClientSettings(QuicStreamId id) {
 }
 
 void QuicSpdySession::AssociateIncomingWebTransportStreamWithSession(
-    WebTransportSessionId session_id,
-    QuicStreamId stream_id) {
+    WebTransportSessionId session_id, QuicStreamId stream_id) {
   if (QuicUtils::IsOutgoingStreamId(version(), stream_id, perspective())) {
     QUIC_BUG(AssociateIncomingWebTransportStreamWithSession got outgoing stream)
         << ENDPOINT
@@ -1840,8 +1868,29 @@ void QuicSpdySession::DatagramObserver::OnDatagramProcessed(
   session_->OnDatagramProcessed(status);
 }
 
-bool QuicSpdySession::ShouldNegotiateHttp3Datagram() {
-  return false;
+HttpDatagramSupport QuicSpdySession::LocalHttpDatagramSupport() {
+  return HttpDatagramSupport::kNone;
+}
+
+std::string HttpDatagramSupportToString(
+    HttpDatagramSupport http_datagram_support) {
+  switch (http_datagram_support) {
+    case HttpDatagramSupport::kNone:
+      return "None";
+    case HttpDatagramSupport::kDraft00:
+      return "Draft00";
+    case HttpDatagramSupport::kDraft04:
+      return "Draft04";
+    case HttpDatagramSupport::kDraft00And04:
+      return "Draft00And04";
+  }
+  return absl::StrCat("Unknown(", static_cast<int>(http_datagram_support), ")");
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const HttpDatagramSupport& http_datagram_support) {
+  os << HttpDatagramSupportToString(http_datagram_support);
+  return os;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

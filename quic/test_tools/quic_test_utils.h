@@ -1995,13 +1995,14 @@ class MockHttp3DatagramRegistrationVisitor
   MOCK_METHOD(void, OnContextReceived,
               (QuicStreamId stream_id,
                absl::optional<QuicDatagramContextId> context_id,
-               const Http3DatagramContextExtensions& extensions),
+               DatagramFormatType format_type,
+               absl::string_view format_additional_data),
               (override));
 
   MOCK_METHOD(void, OnContextClosed,
               (QuicStreamId stream_id,
                absl::optional<QuicDatagramContextId> context_id,
-               const Http3DatagramContextExtensions& extensions),
+               ContextCloseCode close_code, absl::string_view close_details),
               (override));
 };
 

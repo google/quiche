@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_SESSION_H_
 
 #include <cstddef>
+#include <cstdint>
 #include <list>
 #include <memory>
 #include <string>
@@ -90,8 +91,8 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   virtual void OnDataFrameReceived(QuicStreamId /*stream_id*/,
                                    QuicByteCount /*payload_length*/) {}
   virtual void OnHeadersFrameReceived(
-      QuicStreamId /*stream_id*/,
-      QuicByteCount /*compressed_headers_length*/) {}
+      QuicStreamId /*stream_id*/, QuicByteCount /*compressed_headers_length*/) {
+  }
   virtual void OnHeadersDecoded(QuicStreamId /*stream_id*/,
                                 QuicHeaderList /*headers*/) {}
 
@@ -119,6 +120,20 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   virtual void OnSettingsFrameResumed(const SettingsFrame& /*frame*/) {}
 };
 
+// Whether draft-ietf-masque-h3-datagram is supported on this session and if so
+// which draft is currently in use.
+enum class HttpDatagramSupport : uint8_t {
+  kNone = 0,  // HTTP Datagrams are not supported for this session.
+  kDraft00 = 1,
+  kDraft04 = 2,
+  kDraft00And04 = 3,  // only used locally, we only negotiate one draft.
+};
+
+QUIC_EXPORT_PRIVATE std::string HttpDatagramSupportToString(
+    HttpDatagramSupport http_datagram_support);
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, const HttpDatagramSupport& http_datagram_support);
+
 // A QUIC session for HTTP.
 class QUIC_EXPORT_PRIVATE QuicSpdySession
     : public QuicSession,
@@ -126,8 +141,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
       public QpackDecoder::EncoderStreamErrorDelegate {
  public:
   // Does not take ownership of |connection| or |visitor|.
-  QuicSpdySession(QuicConnection* connection,
-                  QuicSession::Visitor* visitor,
+  QuicSpdySession(QuicConnection* connection, QuicSession::Visitor* visitor,
                   const QuicConfig& config,
                   const ParsedQuicVersionVector& supported_versions);
   QuicSpdySession(const QuicSpdySession&) = delete;
@@ -148,14 +162,12 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Called by |headers_stream_| when headers with a priority have been
   // received for a stream.  This method will only be called for server streams.
   virtual void OnStreamHeadersPriority(
-      QuicStreamId stream_id,
-      const spdy::SpdyStreamPrecedence& precedence);
+      QuicStreamId stream_id, const spdy::SpdyStreamPrecedence& precedence);
 
   // Called by |headers_stream_| when headers have been completely received
   // for a stream.  |fin| will be true if the fin flag was set in the headers
   // frame.
-  virtual void OnStreamHeaderList(QuicStreamId stream_id,
-                                  bool fin,
+  virtual void OnStreamHeaderList(QuicStreamId stream_id, bool fin,
                                   size_t frame_len,
                                   const QuicHeaderList& header_list);
 
@@ -192,18 +204,14 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // If provided, |ack_notifier_delegate| will be registered to be notified when
   // we have seen ACKs for all packets resulting from this call.
   virtual size_t WriteHeadersOnHeadersStream(
-      QuicStreamId id,
-      spdy::SpdyHeaderBlock headers,
-      bool fin,
+      QuicStreamId id, spdy::SpdyHeaderBlock headers, bool fin,
       const spdy::SpdyStreamPrecedence& precedence,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   // Writes an HTTP/2 PRIORITY frame the to peer. Returns the size in bytes of
   // the resulting PRIORITY frame.
-  size_t WritePriority(QuicStreamId id,
-                       QuicStreamId parent_stream_id,
-                       int weight,
-                       bool exclusive);
+  size_t WritePriority(QuicStreamId id, QuicStreamId parent_stream_id,
+                       int weight, bool exclusive);
 
   // Writes an HTTP/3 PRIORITY_UPDATE frame to the peer.
   void WriteHttp3PriorityUpdate(const PriorityUpdateFrame& priority_update);
@@ -349,8 +357,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // In order for measurements for different protocol to be comparable, the
   // caller must ensure that uncompressed size is the total length of header
   // names and values without any overhead.
-  static void LogHeaderCompressionRatioHistogram(bool using_qpack,
-                                                 bool is_sent,
+  static void LogHeaderCompressionRatioHistogram(bool using_qpack, bool is_sent,
                                                  QuicByteCount compressed,
                                                  QuicByteCount uncompressed);
 
@@ -374,9 +381,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // extension.
   virtual void OnAcceptChFrameReceivedViaAlps(const AcceptChFrame& /*frame*/);
 
-  // Whether HTTP/3 datagrams are supported on this session, based on received
-  // SETTINGS.
-  bool h3_datagram_supported() const { return h3_datagram_supported_; }
+  // Whether HTTP datagrams are supported on this session and which draft is in
+  // use, based on received SETTINGS.
+  HttpDatagramSupport http_datagram_support() const {
+    return http_datagram_support_;
+  }
 
   // This must not be used except by QuicSpdyStream::SendHttp3Datagram.
   MessageStatus SendHttp3Datagram(
@@ -400,7 +409,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   bool SupportsWebTransport();
 
   // Indicates whether both the peer and us support HTTP/3 Datagrams.
-  bool SupportsH3Datagram() { return h3_datagram_supported_; }
+  bool SupportsH3Datagram() const;
 
   // Indicates whether the HTTP/3 session will indicate WebTransport support to
   // the peer.
@@ -414,7 +423,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // until the SETTINGS are received.  Only works for HTTP/3.
   bool ShouldBufferRequestsUntilSettings() {
     return version().UsesHttp3() && perspective() == Perspective::IS_SERVER &&
-           ShouldNegotiateHttp3Datagram();
+           LocalHttpDatagramSupport() != HttpDatagramSupport::kNone;
   }
 
   // Returns if the incoming bidirectional streams should process data.  This is
@@ -427,8 +436,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Links the specified stream with a WebTransport session.  If the session is
   // not present, it is buffered until a corresponding stream is found.
   void AssociateIncomingWebTransportStreamWithSession(
-      WebTransportSessionId session_id,
-      QuicStreamId stream_id);
+      WebTransportSessionId session_id, QuicStreamId stream_id);
 
   void ProcessBufferedWebTransportStreamsForSession(WebTransportHttp3* session);
 
@@ -487,17 +495,12 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   QuicStream* ProcessPendingStream(PendingStream* pending) override;
 
   size_t WriteHeadersOnHeadersStreamImpl(
-      QuicStreamId id,
-      spdy::SpdyHeaderBlock headers,
-      bool fin,
-      QuicStreamId parent_stream_id,
-      int weight,
-      bool exclusive,
+      QuicStreamId id, spdy::SpdyHeaderBlock headers, bool fin,
+      QuicStreamId parent_stream_id, int weight, bool exclusive,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   void OnNewEncryptionKeyAvailable(
-      EncryptionLevel level,
-      std::unique_ptr<QuicEncrypter> encrypter) override;
+      EncryptionLevel level, std::unique_ptr<QuicEncrypter> encrypter) override;
 
   // Sets the maximum size of the header compression table spdy_framer_ is
   // willing to use to encode header blocks.
@@ -520,8 +523,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Called whenever a datagram is dequeued or dropped from datagram_queue().
   virtual void OnDatagramProcessed(absl::optional<MessageStatus> status);
 
-  // Returns true if HTTP/3 datagram extension should be supported.
-  virtual bool ShouldNegotiateHttp3Datagram();
+  // Returns which version of the HTTP/3 datagram extension we should advertise
+  // in settings and accept remote settings for.
+  virtual HttpDatagramSupport LocalHttpDatagramSupport();
 
  private:
   friend class test::QuicSpdySessionPeer;
@@ -547,10 +551,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // The following methods are called by the SimpleVisitor.
 
   // Called when a HEADERS frame has been received.
-  void OnHeaders(spdy::SpdyStreamId stream_id,
-                 bool has_priority,
-                 const spdy::SpdyStreamPrecedence& precedence,
-                 bool fin);
+  void OnHeaders(spdy::SpdyStreamId stream_id, bool has_priority,
+                 const spdy::SpdyStreamPrecedence& precedence, bool fin);
 
   // Called when a PRIORITY frame has been received.
   void OnPriority(spdy::SpdyStreamId stream_id,
@@ -567,6 +569,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   void SendInitialData();
 
   void FillSettingsFrame();
+
+  bool VerifySettingIsZeroOrOne(uint64_t id, uint64_t value);
 
   std::unique_ptr<QpackEncoder> qpack_encoder_;
   std::unique_ptr<QpackDecoder> qpack_decoder_;
@@ -655,8 +659,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // frame has been sent yet.
   absl::optional<uint64_t> last_sent_http3_goaway_id_;
 
-  // Whether both this endpoint and our peer support HTTP/3 datagrams.
-  bool h3_datagram_supported_ = false;
+  // Whether both this endpoint and our peer support HTTP datagrams and which
+  // draft is in use for this session.
+  HttpDatagramSupport http_datagram_support_ = HttpDatagramSupport::kNone;
 
   // Whether the peer has indicated WebTransport support.
   bool peer_supports_webtransport_ = false;

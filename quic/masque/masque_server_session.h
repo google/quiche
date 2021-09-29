@@ -117,14 +117,14 @@ class QUIC_NO_EXPORT MasqueServerSession
                          absl::string_view payload) override;
 
     // From QuicSpdyStream::Http3DatagramRegistrationVisitor.
-    void OnContextReceived(
-        QuicStreamId stream_id,
-        absl::optional<QuicDatagramContextId> context_id,
-        const Http3DatagramContextExtensions& extensions) override;
-    void OnContextClosed(
-        QuicStreamId stream_id,
-        absl::optional<QuicDatagramContextId> context_id,
-        const Http3DatagramContextExtensions& extensions) override;
+    void OnContextReceived(QuicStreamId stream_id,
+                           absl::optional<QuicDatagramContextId> context_id,
+                           DatagramFormatType format_type,
+                           absl::string_view format_additional_data) override;
+    void OnContextClosed(QuicStreamId stream_id,
+                         absl::optional<QuicDatagramContextId> context_id,
+                         ContextCloseCode close_code,
+                         absl::string_view close_details) override;
 
    private:
     QuicSpdyStream* stream_;
@@ -136,7 +136,11 @@ class QUIC_NO_EXPORT MasqueServerSession
     bool context_registered_ = false;
   };
 
-  bool ShouldNegotiateHttp3Datagram() override { return true; }
+  // From QuicSpdySession.
+  bool OnSettingsFrame(const SettingsFrame& frame) override;
+  HttpDatagramSupport LocalHttpDatagramSupport() override {
+    return HttpDatagramSupport::kDraft00And04;
+  }
 
   MasqueServerBackend* masque_server_backend_;  // Unowned.
   Visitor* owner_;                              // Unowned.

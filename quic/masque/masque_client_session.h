@@ -144,14 +144,14 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
                          absl::string_view payload) override;
 
     // From QuicSpdyStream::Http3DatagramRegistrationVisitor.
-    void OnContextReceived(
-        QuicStreamId stream_id,
-        absl::optional<QuicDatagramContextId> context_id,
-        const Http3DatagramContextExtensions& extensions) override;
-    void OnContextClosed(
-        QuicStreamId stream_id,
-        absl::optional<QuicDatagramContextId> context_id,
-        const Http3DatagramContextExtensions& extensions) override;
+    void OnContextReceived(QuicStreamId stream_id,
+                           absl::optional<QuicDatagramContextId> context_id,
+                           DatagramFormatType format_type,
+                           absl::string_view format_additional_data) override;
+    void OnContextClosed(QuicStreamId stream_id,
+                         absl::optional<QuicDatagramContextId> context_id,
+                         ContextCloseCode close_code,
+                         absl::string_view close_details) override;
 
    private:
     QuicSpdyClientStream* stream_;                            // Unowned.
@@ -161,7 +161,9 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
     QuicSocketAddress target_server_address_;
   };
 
-  bool ShouldNegotiateHttp3Datagram() override { return true; }
+  HttpDatagramSupport LocalHttpDatagramSupport() override {
+    return HttpDatagramSupport::kDraft00And04;
+  }
 
   const ConnectUdpClientState* GetOrCreateConnectUdpClientState(
       const QuicSocketAddress& target_server_address,

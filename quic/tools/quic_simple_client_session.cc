@@ -54,8 +54,9 @@ bool QuicSimpleClientSession::ShouldNegotiateWebTransport() {
   return enable_web_transport_;
 }
 
-bool QuicSimpleClientSession::ShouldNegotiateHttp3Datagram() {
-  return enable_web_transport_;
+HttpDatagramSupport QuicSimpleClientSession::LocalHttpDatagramSupport() {
+  return enable_web_transport_ ? HttpDatagramSupport::kDraft04
+                               : HttpDatagramSupport::kNone;
 }
 
 }  // namespace quic
