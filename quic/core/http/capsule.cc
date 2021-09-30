@@ -55,7 +55,7 @@ std::ostream& operator<<(std::ostream& os,
 
 std::string ContextCloseCodeToString(ContextCloseCode context_close_code) {
   switch (context_close_code) {
-    case ContextCloseCode::NO_ERROR:
+    case ContextCloseCode::CLOSE_NO_ERROR:
       return "NO_ERROR";
     case ContextCloseCode::UNKNOWN_FORMAT:
       return "UNKNOWN_FORMAT";

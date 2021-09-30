@@ -43,7 +43,7 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(
 
 enum class ContextCloseCode : uint64_t {
   // Casing in this enum matches the IETF specification.
-  NO_ERROR = 0xff78a0,
+  CLOSE_NO_ERROR = 0xff78a0,  // NO_ERROR already exists in winerror.h.
   UNKNOWN_FORMAT = 0xff78a1,
   DENIED = 0xff78a2,
   RESOURCE_LIMIT = 0xff78a3,
@@ -91,7 +91,7 @@ class QUIC_EXPORT_PRIVATE Capsule {
       absl::string_view format_additional_data = absl::string_view());
   static Capsule CloseDatagramContext(
       QuicDatagramContextId context_id,
-      ContextCloseCode close_code = ContextCloseCode::NO_ERROR,
+      ContextCloseCode close_code = ContextCloseCode::CLOSE_NO_ERROR,
       absl::string_view close_details = absl::string_view());
   static Capsule Unknown(
       uint64_t capsule_type,
