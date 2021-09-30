@@ -324,7 +324,6 @@ QuicConnection::QuicConnection(
 
   support_multiple_connection_ids_ =
       version().HasIetfQuicFrames() &&
-      GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2) &&
       GetQuicRestartFlag(
           quic_dispatcher_support_multiple_cid_per_connection_v2);
 

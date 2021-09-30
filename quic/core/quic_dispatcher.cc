@@ -177,7 +177,6 @@ class StatelessConnectionTerminator {
     SerializeConnectionClosePacket(error_code, error_details);
 
     time_wait_list_manager_->AddConnectionIdToTimeWait(
-        server_connection_id_,
         QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
         TimeWaitConnectionInfo(ietf_quic, collector_.packets(),
                                std::move(active_connection_ids),
@@ -896,7 +895,7 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
     QUIC_CODE_COUNT(quic_v44_add_to_time_wait_list_with_stateless_reset);
   }
   time_wait_list_manager_->AddConnectionIdToTimeWait(
-      server_connection_id, action,
+      action,
       TimeWaitConnectionInfo(
           connection->version().HasIetfInvariantHeader(),
           connection->termination_packets(),
@@ -1119,9 +1118,8 @@ void QuicDispatcher::StatelesslyTerminateConnection(
                   << ", error_code:" << error_code
                   << ", error_details:" << error_details;
     time_wait_list_manager_->AddConnectionIdToTimeWait(
-        server_connection_id, action,
-        TimeWaitConnectionInfo(format != GOOGLE_QUIC_PACKET, nullptr,
-                               {server_connection_id}));
+        action, TimeWaitConnectionInfo(format != GOOGLE_QUIC_PACKET, nullptr,
+                                       {server_connection_id}));
     return;
   }
 
@@ -1159,7 +1157,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
       /*ietf_quic=*/format != GOOGLE_QUIC_PACKET, use_length_prefix,
       /*versions=*/{}));
   time_wait_list_manager()->AddConnectionIdToTimeWait(
-      server_connection_id, QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
+      QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
       TimeWaitConnectionInfo(/*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
                              &termination_packets, {server_connection_id}));
 }

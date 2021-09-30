@@ -491,7 +491,6 @@ class QUIC_NO_EXPORT QuicDispatcher
       GetQuicRestartFlag(quic_use_recent_reset_addresses);
 
   const bool support_multiple_cid_per_connection_ =
-      GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2) &&
       GetQuicRestartFlag(
           quic_dispatcher_support_multiple_cid_per_connection_v2);
 };

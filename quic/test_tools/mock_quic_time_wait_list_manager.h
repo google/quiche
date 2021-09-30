@@ -19,19 +19,15 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
                           QuicAlarmFactory* alarm_factory);
   ~MockTimeWaitListManager() override;
 
-  MOCK_METHOD(void,
-              AddConnectionIdToTimeWait,
-              (QuicConnectionId connection_id,
-               QuicTimeWaitListManager::TimeWaitAction action,
+  MOCK_METHOD(void, AddConnectionIdToTimeWait,
+              (QuicTimeWaitListManager::TimeWaitAction action,
                quic::TimeWaitConnectionInfo info),
               (override));
 
   void QuicTimeWaitListManager_AddConnectionIdToTimeWait(
-      QuicConnectionId connection_id,
       QuicTimeWaitListManager::TimeWaitAction action,
       quic::TimeWaitConnectionInfo info) {
-    QuicTimeWaitListManager::AddConnectionIdToTimeWait(connection_id, action,
-                                                       std::move(info));
+    QuicTimeWaitListManager::AddConnectionIdToTimeWait(action, std::move(info));
   }
 
   MOCK_METHOD(void,

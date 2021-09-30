@@ -18,9 +18,9 @@ MockTimeWaitListManager::MockTimeWaitListManager(
     : QuicTimeWaitListManager(writer, visitor, clock, alarm_factory) {
   // Though AddConnectionIdToTimeWait is mocked, we want to retain its
   // functionality.
-  EXPECT_CALL(*this, AddConnectionIdToTimeWait(_, _, _))
+  EXPECT_CALL(*this, AddConnectionIdToTimeWait(_, _))
       .Times(testing::AnyNumber());
-  ON_CALL(*this, AddConnectionIdToTimeWait(_, _, _))
+  ON_CALL(*this, AddConnectionIdToTimeWait(_, _))
       .WillByDefault(
           Invoke(this, &MockTimeWaitListManager::
                            QuicTimeWaitListManager_AddConnectionIdToTimeWait));

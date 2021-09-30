@@ -897,7 +897,7 @@ TEST_P(QuicDispatcherTestAllVersions, TimeWaitListManager) {
   EXPECT_CALL(*time_wait_list_manager_,
               ProcessPacket(_, _, connection_id, _, _, _))
       .Times(1);
-  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   ProcessPacket(client_address, connection_id, true, "data");
 }
@@ -913,7 +913,7 @@ TEST_P(QuicDispatcherTestAllVersions, NoVersionPacketToTimeWaitListManager) {
   EXPECT_CALL(*time_wait_list_manager_,
               ProcessPacket(_, _, connection_id, _, _, _))
       .Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
       .Times(1);
@@ -935,7 +935,7 @@ TEST_P(QuicDispatcherTestAllVersions,
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
       .Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   // Verify small packet is silently dropped.
   EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
@@ -955,7 +955,7 @@ TEST_P(QuicDispatcherTestOneVersion, DropPacketWithInvalidFlags) {
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
       .Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   if (GetQuicRestartFlag(quic_drop_invalid_flags)) {
     EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
@@ -1201,7 +1201,7 @@ TEST_P(QuicDispatcherTestAllVersions, ProcessPacketWithZeroPort) {
       .Times(0);
   EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
       .Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   ProcessPacket(client_address, TestConnectionId(1), /*has_version_flag=*/true,
                 "data");
@@ -1220,7 +1220,7 @@ TEST_P(QuicDispatcherTestAllVersions,
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
       .Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   ProcessFirstFlight(client_address, EmptyQuicConnectionId());
 }
@@ -1236,7 +1236,7 @@ TEST_P(QuicDispatcherTestAllVersions,
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
       .Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   absl::string_view cid_str = "123456789abcdefg123456789abcdefg";
   QuicConnectionId invalid_connection_id(cid_str.data(), cid_str.length());
@@ -1658,7 +1658,7 @@ TEST_P(QuicDispatcherTestAllVersions, DoNotProcessSmallPacket) {
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, SendPacket(_, _, _)).Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   ProcessPacket(client_address, TestConnectionId(1), /*has_version_flag=*/true,
                 version_, SerializeCHLO(), /*full_padding=*/false,
@@ -1811,7 +1811,7 @@ TEST_P(QuicDispatcherTestStrayPacketConnectionId,
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
       .Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
 
   ProcessPacket(client_address, connection_id, true, "data",
@@ -2126,7 +2126,6 @@ class QuicDispatcherSupportMultipleConnectionIdPerConnectionTest
  public:
   QuicDispatcherSupportMultipleConnectionIdPerConnectionTest()
       : QuicDispatcherTestBase(crypto_test_utils::ProofSourceForTesting()) {
-    SetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2, true);
     SetQuicRestartFlag(quic_dispatcher_support_multiple_cid_per_connection_v2,
                        true);
     dispatcher_ = std::make_unique<NiceMock<TestDispatcher>>(

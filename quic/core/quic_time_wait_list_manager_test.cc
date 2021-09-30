@@ -157,7 +157,7 @@ class QuicTimeWaitListManagerTest : public QuicTest {
     termination_packets.push_back(std::unique_ptr<QuicEncryptedPacket>(
         new QuicEncryptedPacket(nullptr, 0, false)));
     time_wait_list_manager_.AddConnectionIdToTimeWait(
-        connection_id, QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
+        QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
         TimeWaitConnectionInfo(false, &termination_packets, {connection_id}));
   }
 
@@ -167,9 +167,8 @@ class QuicTimeWaitListManagerTest : public QuicTest {
       QuicTimeWaitListManager::TimeWaitAction action,
       std::vector<std::unique_ptr<QuicEncryptedPacket>>* packets) {
     time_wait_list_manager_.AddConnectionIdToTimeWait(
-        connection_id, action,
-        TimeWaitConnectionInfo(version.HasIetfInvariantHeader(), packets,
-                               {connection_id}));
+        action, TimeWaitConnectionInfo(version.HasIetfInvariantHeader(),
+                                       packets, {connection_id}));
   }
 
   bool IsConnectionIdInTimeWait(QuicConnectionId connection_id) {
@@ -450,10 +449,6 @@ TEST_F(QuicTimeWaitListManagerTest, CleanUpOldConnectionIds) {
 
 TEST_F(QuicTimeWaitListManagerTest,
        CleanUpOldConnectionIdsForMultipleConnectionIdsPerConnection) {
-  if (!GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2)) {
-    return;
-  }
-
   connection_id_ = TestConnectionId(7);
   const size_t kConnectionCloseLength = 100;
   EXPECT_CALL(visitor_, OnConnectionAddedToTimeWaitList(connection_id_));
@@ -467,7 +462,7 @@ TEST_F(QuicTimeWaitListManagerTest,
   std::vector<QuicConnectionId> active_connection_ids{connection_id_,
                                                       TestConnectionId(8)};
   time_wait_list_manager_.AddConnectionIdToTimeWait(
-      connection_id_, QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS,
+      QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS,
       TimeWaitConnectionInfo(/*ietf_quic=*/true, &termination_packets,
                              active_connection_ids, QuicTime::Delta::Zero()));
 
@@ -675,7 +670,7 @@ TEST_F(QuicTimeWaitListManagerTest,
       std::unique_ptr<QuicEncryptedPacket>(new QuicEncryptedPacket(
           new char[kConnectionCloseLength], kConnectionCloseLength, true)));
   time_wait_list_manager_.AddConnectionIdToTimeWait(
-      connection_id_, QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
+      QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
       TimeWaitConnectionInfo(/*ietf_quic=*/true, &termination_packets,
                              {connection_id_}));
 
@@ -701,7 +696,7 @@ TEST_F(QuicTimeWaitListManagerTest,
           new char[kConnectionCloseLength], kConnectionCloseLength, true)));
   // Add a CONNECTION_CLOSE termination packet.
   time_wait_list_manager_.AddConnectionIdToTimeWait(
-      connection_id_, QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS,
+      QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS,
       TimeWaitConnectionInfo(/*ietf_quic=*/true, &termination_packets,
                              {connection_id_}));
   EXPECT_CALL(writer_, WritePacket(_, kConnectionCloseLength,
@@ -717,10 +712,6 @@ TEST_F(QuicTimeWaitListManagerTest,
 
 TEST_F(QuicTimeWaitListManagerTest,
        SendConnectionClosePacketsForMultipleConnectionIds) {
-  if (!GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2)) {
-    return;
-  }
-
   connection_id_ = TestConnectionId(7);
   const size_t kConnectionCloseLength = 100;
   EXPECT_CALL(visitor_, OnConnectionAddedToTimeWaitList(connection_id_));
@@ -734,7 +725,7 @@ TEST_F(QuicTimeWaitListManagerTest,
   std::vector<QuicConnectionId> active_connection_ids{connection_id_,
                                                       TestConnectionId(8)};
   time_wait_list_manager_.AddConnectionIdToTimeWait(
-      connection_id_, QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS,
+      QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS,
       TimeWaitConnectionInfo(/*ietf_quic=*/true, &termination_packets,
                              active_connection_ids, QuicTime::Delta::Zero()));
 
