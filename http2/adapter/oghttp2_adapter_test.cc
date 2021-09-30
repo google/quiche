@@ -4,6 +4,7 @@
 
 #include "absl/strings/str_join.h"
 #include "http2/adapter/http2_protocol.h"
+#include "http2/adapter/http2_visitor_interface.h"
 #include "http2/adapter/mock_http2_visitor.h"
 #include "http2/adapter/oghttp2_util.h"
 #include "http2/adapter/test_frame_sequence.h"
@@ -820,6 +821,18 @@ TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
   visitor.Clear();
   EXPECT_FALSE(adapter->want_write());
+}
+
+TEST(OgHttp2AdapterClientTest, FailureSendingConnectionPreface) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  visitor.set_has_write_error();
+  EXPECT_CALL(visitor, OnConnectionError);
+
+  int result = adapter->Send();
+  EXPECT_EQ(result, Http2VisitorInterface::kSendError);
 }
 
 TEST_F(OgHttp2AdapterTest, SubmitMetadata) {

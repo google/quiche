@@ -1386,6 +1386,17 @@ TEST(NgHttp2AdapterTest, ClientObeysMaxConcurrentStreams) {
   EXPECT_FALSE(adapter->want_write());
 }
 
+TEST(NgHttp2AdapterTest, FailureSendingConnectionPreface) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  visitor.set_has_write_error();
+  EXPECT_CALL(visitor, OnConnectionError);
+
+  int result = adapter->Send();
+  EXPECT_EQ(result, NGHTTP2_ERR_CALLBACK_FAILURE);
+}
+
 TEST(NgHttp2AdapterTest, ServerConstruction) {
   testing::StrictMock<MockHttp2Visitor> visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);

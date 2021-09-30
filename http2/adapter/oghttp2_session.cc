@@ -299,9 +299,13 @@ int OgHttp2Session::Send() {
       serialized_prefix_.erase(0, result);
     }
   }
-  if (!serialized_prefix_.empty()) {
-    return result < 0 ? result : 0;
+  if (result < 0) {
+    visitor_.OnConnectionError();
+    return result;
+  } else if (!serialized_prefix_.empty()) {
+    return 0;
   }
+
   bool continue_writing = SendQueuedFrames();
   while (continue_writing && !connection_metadata_.empty()) {
     continue_writing = SendMetadata(0, connection_metadata_);

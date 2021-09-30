@@ -23,6 +23,9 @@ class QUICHE_NO_EXPORT DataSavingVisitor
     : public testing::StrictMock<MockHttp2Visitor> {
  public:
   int64_t OnReadyToSend(absl::string_view data) override {
+    if (has_write_error_) {
+      return kSendError;
+    }
     if (is_write_blocked_) {
       return kSendBlocked;
     }
@@ -63,11 +66,14 @@ class QUICHE_NO_EXPORT DataSavingVisitor
   bool is_write_blocked() const { return is_write_blocked_; }
   void set_is_write_blocked(bool value) { is_write_blocked_ = value; }
 
+  void set_has_write_error() { has_write_error_ = true; }
+
  private:
   std::string data_;
   absl::flat_hash_map<Http2StreamId, std::vector<std::string>> metadata_map_;
   size_t send_limit_ = std::numeric_limits<size_t>::max();
   bool is_write_blocked_ = false;
+  bool has_write_error_ = false;
 };
 
 // A test DataFrameSource. Starts out in the empty, blocked state.
