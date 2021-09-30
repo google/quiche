@@ -27,7 +27,6 @@ using ::testing::InSequence;
 using ::testing::Return;
 
 namespace quic {
-
 namespace test {
 
 class HttpDecoderPeer {
@@ -37,9 +36,11 @@ class HttpDecoderPeer {
   }
 };
 
-class MockVisitor : public HttpDecoder::Visitor {
+namespace {
+
+class MockHttpDecoderVisitor : public HttpDecoder::Visitor {
  public:
-  ~MockVisitor() override = default;
+  ~MockHttpDecoderVisitor() override = default;
 
   // Called if an error is detected.
   MOCK_METHOD(void, OnError, (HttpDecoder*), (override));
@@ -164,7 +165,7 @@ class HttpDecoderTest : public QuicTest {
     return processed_bytes;
   }
 
-  testing::StrictMock<MockVisitor> visitor_;
+  testing::StrictMock<MockHttpDecoderVisitor> visitor_;
   HttpDecoder decoder_;
 };
 
@@ -635,7 +636,7 @@ TEST_F(HttpDecoderTest, FrameWithOverlyLargePayload) {
       /*one byte of payload*/ sizeof(uint8_t);
   char input[max_input_length];
   for (uint64_t frame_type = 0; frame_type < 1025; frame_type++) {
-    ::testing::NiceMock<MockVisitor> visitor;
+    ::testing::NiceMock<MockHttpDecoderVisitor> visitor;
     HttpDecoder decoder(&visitor);
     QuicDataWriter writer(max_input_length, input);
     ASSERT_TRUE(writer.WriteVarInt62(frame_type));         // frame type.
@@ -1068,7 +1069,7 @@ TEST_F(HttpDecoderTest, WebTransportStreamDisabled) {
 TEST(HttpDecoderTestNoFixture, WebTransportStream) {
   HttpDecoder::Options options;
   options.allow_web_transport_stream = true;
-  testing::StrictMock<MockVisitor> visitor;
+  testing::StrictMock<MockHttpDecoderVisitor> visitor;
   HttpDecoder decoder(&visitor, options);
 
   // WebTransport stream for session ID 0x104, with four bytes of extra data.
@@ -1081,7 +1082,7 @@ TEST(HttpDecoderTestNoFixture, WebTransportStream) {
 TEST(HttpDecoderTestNoFixture, WebTransportStreamError) {
   HttpDecoder::Options options;
   options.allow_web_transport_stream = true;
-  testing::StrictMock<MockVisitor> visitor;
+  testing::StrictMock<MockHttpDecoderVisitor> visitor;
   HttpDecoder decoder(&visitor, options);
 
   std::string input = absl::HexStringToBytes("404100");
@@ -1130,6 +1131,6 @@ TEST_F(HttpDecoderTest, DecodeSettings) {
   EXPECT_FALSE(HttpDecoder::DecodeSettings(input.data(), input.size(), &out));
 }
 
+}  // namespace
 }  // namespace test
-
 }  // namespace quic

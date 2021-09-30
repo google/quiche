@@ -22,13 +22,6 @@ using ::testing::Return;
 namespace quic {
 namespace test {
 
-namespace {
-constexpr DatagramFormatType kFakeFormatType =
-    static_cast<DatagramFormatType>(0x123456);
-constexpr ContextCloseCode kFakeCloseCode =
-    static_cast<ContextCloseCode>(0x654321);
-}  // namespace
-
 class CapsuleParserPeer {
  public:
   static std::string* buffered_data(CapsuleParser* capsule_parser) {
@@ -36,10 +29,19 @@ class CapsuleParserPeer {
   }
 };
 
-class MockVisitor : public CapsuleParser::Visitor {
+namespace {
+
+constexpr DatagramFormatType kFakeFormatType =
+    static_cast<DatagramFormatType>(0x123456);
+constexpr ContextCloseCode kFakeCloseCode =
+    static_cast<ContextCloseCode>(0x654321);
+
+class MockCapsuleParserVisitor : public CapsuleParser::Visitor {
  public:
-  MockVisitor() { ON_CALL(*this, OnCapsule(_)).WillByDefault(Return(true)); }
-  ~MockVisitor() override = default;
+  MockCapsuleParserVisitor() {
+    ON_CALL(*this, OnCapsule(_)).WillByDefault(Return(true));
+  }
+  ~MockCapsuleParserVisitor() override = default;
   MOCK_METHOD(bool, OnCapsule, (const Capsule& capsule), (override));
   MOCK_METHOD(void, OnCapsuleParseFailure, (const std::string& error_message),
               (override));
@@ -66,7 +68,7 @@ class CapsuleTest : public QuicTest {
         expected_bytes.size());
   }
 
-  ::testing::StrictMock<MockVisitor> visitor_;
+  ::testing::StrictMock<MockCapsuleParserVisitor> visitor_;
   CapsuleParser capsule_parser_;
 };
 
@@ -295,5 +297,6 @@ TEST_F(CapsuleTest, PartialCapsuleThenError) {
   }
 }
 
+}  // namespace
 }  // namespace test
 }  // namespace quic
