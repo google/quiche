@@ -436,7 +436,7 @@ bool CapsuleParser::IngestCapsuleFragment(absl::string_view capsule_fragment) {
   if (parsing_error_occurred_) {
     return false;
   }
-  buffered_data_.append(capsule_fragment);
+  absl::StrAppend(&buffered_data_, capsule_fragment);
   while (true) {
     const size_t buffered_data_read = AttemptParseCapsule();
     if (parsing_error_occurred_) {
