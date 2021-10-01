@@ -412,6 +412,7 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       perspective_(perspective),
       validate_flags_(true),
       process_timestamps_(false),
+      receive_timestamps_exponent_(0),
       creation_time_(creation_time),
       last_timestamp_(QuicTime::Delta::Zero()),
       support_key_update_for_connection_(false),
@@ -3136,11 +3137,14 @@ bool QuicFramer::IsIetfFrameTypeExpectedForEncryptionLevel(
     case ENCRYPTION_INITIAL:
     case ENCRYPTION_HANDSHAKE:
       return frame_type == IETF_CRYPTO || frame_type == IETF_ACK ||
+             frame_type == IETF_ACK_ECN ||
+             frame_type == IETF_ACK_RECEIVE_TIMESTAMPS ||
              frame_type == IETF_PING || frame_type == IETF_PADDING ||
              frame_type == IETF_CONNECTION_CLOSE;
     case ENCRYPTION_ZERO_RTT:
-      return !(frame_type == IETF_ACK || frame_type == IETF_CRYPTO ||
-               frame_type == IETF_HANDSHAKE_DONE ||
+      return !(frame_type == IETF_ACK || frame_type == IETF_ACK_ECN ||
+               frame_type == IETF_ACK_RECEIVE_TIMESTAMPS ||
+               frame_type == IETF_CRYPTO || frame_type == IETF_HANDSHAKE_DONE ||
                frame_type == IETF_NEW_TOKEN ||
                frame_type == IETF_PATH_RESPONSE ||
                frame_type == IETF_RETIRE_CONNECTION_ID);
@@ -3412,6 +3416,14 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           }
           break;
         }
+        case IETF_ACK_RECEIVE_TIMESTAMPS:
+          if (!process_timestamps_) {
+            set_detailed_error("Unsupported frame type.");
+            QUIC_DLOG(WARNING)
+                << ENDPOINT << "IETF_ACK_RECEIVE_TIMESTAMPS not supported";
+            return RaiseError(QUIC_INVALID_FRAME_DATA);
+          }
+          ABSL_FALLTHROUGH_INTENDED;
         case IETF_ACK_ECN:
         case IETF_ACK: {
           QuicAckFrame frame;
@@ -4079,7 +4091,12 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
     ack_block_count--;
   }
 
-  if (frame_type == IETF_ACK_ECN) {
+  if (frame_type == IETF_ACK_RECEIVE_TIMESTAMPS) {
+    QUICHE_DCHECK(process_timestamps_);
+    if (!ProcessIetfTimestampsInAckFrame(ack_frame->largest_acked, reader)) {
+      return false;
+    }
+  } else if (frame_type == IETF_ACK_ECN) {
     ack_frame->ecn_counters_populated = true;
     if (!reader->ReadVarInt62(&ack_frame->ect_0_count)) {
       set_detailed_error("Unable to read ack ect_0_count.");
@@ -4106,6 +4123,76 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
     return false;
   }
 
+  return true;
+}
+
+bool QuicFramer::ProcessIetfTimestampsInAckFrame(QuicPacketNumber largest_acked,
+                                                 QuicDataReader* reader) {
+  uint64_t timestamp_range_count;
+  if (!reader->ReadVarInt62(&timestamp_range_count)) {
+    set_detailed_error("Unable to read receive timestamp range count.");
+    return false;
+  }
+  if (timestamp_range_count == 0) {
+    return true;
+  }
+
+  QuicPacketNumber packet_number = largest_acked;
+
+  // Iterate through all timestamp ranges, each of which represents a block of
+  // contiguous packets for which receive timestamps are being reported. Each
+  // range is of the form:
+  //
+  // Timestamp Range {
+  //    Gap (i),
+  //    Timestamp Delta Count (i),
+  //    Timestamp Delta (i) ...,
+  //  }
+  for (uint64_t i = 0; i < timestamp_range_count; i++) {
+    uint64_t gap;
+    if (!reader->ReadVarInt62(&gap)) {
+      set_detailed_error("Unable to read receive timestamp gap.");
+      return false;
+    }
+    if (packet_number.ToUint64() < gap) {
+      set_detailed_error("Receive timestamp gap too high.");
+      return false;
+    }
+    packet_number = packet_number - gap;
+    uint64_t timestamp_count;
+    if (!reader->ReadVarInt62(&timestamp_count)) {
+      set_detailed_error("Unable to read receive timestamp count.");
+      return false;
+    }
+    if (packet_number.ToUint64() < timestamp_count) {
+      set_detailed_error("Receive timestamp count too high.");
+      return false;
+    }
+    for (uint64_t j = 0; j < timestamp_count; j++) {
+      uint64_t timestamp_delta;
+      if (!reader->ReadVarInt62(&timestamp_delta)) {
+        set_detailed_error("Unable to read receive timestamp delta.");
+        return false;
+      }
+      // The first timestamp delta is relative to framer creation time; whereas
+      // subsequent deltas are relative to the previous delta in decreasing
+      // packet order.
+      timestamp_delta = timestamp_delta << receive_timestamps_exponent_;
+      if (i == 0 && j == 0) {
+        last_timestamp_ = CalculateTimestampFromWire(timestamp_delta);
+      } else {
+        last_timestamp_ = last_timestamp_ -
+                          QuicTime::Delta::FromMicroseconds(timestamp_delta);
+        if (last_timestamp_ < QuicTime::Delta::Zero()) {
+          set_detailed_error("Receive timestamp delta too high.");
+          return false;
+        }
+      }
+      visitor_->OnAckTimestamp(packet_number - j,
+                               creation_time_ + last_timestamp_);
+    }
+    packet_number = packet_number - (timestamp_count - 1);
+  }
   return true;
 }
 

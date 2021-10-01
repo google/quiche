@@ -338,7 +338,12 @@ enum QuicIetfFrameType : uint64_t {
   IETF_EXTENSION_MESSAGE_V99 = 0x31,
 
   // An QUIC extension frame for sender control of acknowledgement delays
-  IETF_ACK_FREQUENCY = 0xaf
+  IETF_ACK_FREQUENCY = 0xaf,
+
+  // A QUIC extension frame which augments the IETF_ACK frame definition with
+  // packet receive timestamps.
+  // TODO(ianswett): Determine a proper value to replace this temporary value.
+  IETF_ACK_RECEIVE_TIMESTAMPS = 0x22,
 };
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                              const QuicIetfFrameType& c);

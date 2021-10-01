@@ -37,6 +37,7 @@
 #include "common/test_tools/quiche_test_utils.h"
 
 using testing::_;
+using testing::ContainerEq;
 using testing::Return;
 
 namespace quic {
@@ -358,7 +359,9 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     ack_frames_.push_back(std::make_unique<QuicAckFrame>(ack_frame));
     if (VersionHasIetfQuicFrames(transport_version_)) {
       EXPECT_TRUE(IETF_ACK == framer_->current_received_frame_type() ||
-                  IETF_ACK_ECN == framer_->current_received_frame_type());
+                  IETF_ACK_ECN == framer_->current_received_frame_type() ||
+                  IETF_ACK_RECEIVE_TIMESTAMPS ==
+                      framer_->current_received_frame_type());
     } else {
       EXPECT_EQ(0u, framer_->current_received_frame_type());
     }
@@ -370,7 +373,9 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     ack_frames_[ack_frames_.size() - 1]->packets.AddRange(start, end);
     if (VersionHasIetfQuicFrames(transport_version_)) {
       EXPECT_TRUE(IETF_ACK == framer_->current_received_frame_type() ||
-                  IETF_ACK_ECN == framer_->current_received_frame_type());
+                  IETF_ACK_ECN == framer_->current_received_frame_type() ||
+                  IETF_ACK_RECEIVE_TIMESTAMPS ==
+                      framer_->current_received_frame_type());
     } else {
       EXPECT_EQ(0u, framer_->current_received_frame_type());
     }
@@ -381,7 +386,14 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
                       QuicTime timestamp) override {
     ack_frames_[ack_frames_.size() - 1]->received_packet_times.push_back(
         std::make_pair(packet_number, timestamp));
-    EXPECT_EQ(0u, framer_->current_received_frame_type());
+    if (VersionHasIetfQuicFrames(transport_version_)) {
+      EXPECT_TRUE(IETF_ACK == framer_->current_received_frame_type() ||
+                  IETF_ACK_ECN == framer_->current_received_frame_type() ||
+                  IETF_ACK_RECEIVE_TIMESTAMPS ==
+                      framer_->current_received_frame_type());
+    } else {
+      EXPECT_EQ(0u, framer_->current_received_frame_type());
+    }
     return true;
   }
 
@@ -894,6 +906,11 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
     return QuicUtils::GetFirstUnidirectionalStreamId(transport_version,
                                                      perspective) +
            ((n - 1) * QuicUtils::StreamIdDelta(transport_version));
+  }
+
+  QuicTime CreationTimePlus(uint64_t offset_us) {
+    return framer_.creation_time() +
+           QuicTime::Delta::FromMicroseconds(offset_us);
   }
 
   test::TestEncrypter* encrypter_;
@@ -3962,9 +3979,9 @@ TEST_P(QuicFramerTest, AckFrameTwoTimeStampsMultipleAckBlocks) {
       {"",
        { 0x12, 0x34, 0x56, 0x78 }},
 
-      // frame type (IETF_ACK frame)
+      // frame type (IETF_ACK_RECEIVE_TIMESTAMPS frame)
       {"",
-       { 0x02 }},
+       { 0x22 }},
        // largest acked
        {"Unable to read largest acked.",
         { kVarInt62TwoBytes + 0x12, 0x34 }},   // = 4660
@@ -4005,6 +4022,18 @@ TEST_P(QuicFramerTest, AckFrameTwoTimeStampsMultipleAckBlocks) {
        // ack block length.
        { "Unable to read ack block value.",
          { kVarInt62OneByte + 0x03 }},   // block is 3 packets.
+
+       // Receive Timestamps.
+       { "Unable to read receive timestamp range count.",
+         { kVarInt62OneByte + 0x01 }},
+       { "Unable to read receive timestamp gap.",
+         { kVarInt62OneByte + 0x01 }},
+       { "Unable to read receive timestamp count.",
+         { kVarInt62OneByte + 0x02 }},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62FourBytes + 0x36, 0x54, 0x32, 0x10 }},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62TwoBytes + 0x32, 0x10 }},
   };
 
   // clang-format on
@@ -4031,12 +4060,331 @@ TEST_P(QuicFramerTest, AckFrameTwoTimeStampsMultipleAckBlocks) {
   EXPECT_EQ(kSmallLargestObserved, LargestAcked(frame));
   ASSERT_EQ(4254u, frame.packets.NumPacketsSlow());
   EXPECT_EQ(4u, frame.packets.NumIntervals());
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
-    EXPECT_EQ(0u, frame.received_packet_times.size());
-  } else {
-    EXPECT_EQ(2u, frame.received_packet_times.size());
+  EXPECT_EQ(2u, frame.received_packet_times.size());
+}
+
+TEST_P(QuicFramerTest, AckFrameMultipleReceiveTimestampRanges) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
   }
-  CheckFramingBoundaries(fragments, QUIC_INVALID_ACK_DATA);
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  PacketFragments packet_ietf = {
+      // type (short header, 4 byte packet number)
+      {"",
+       { 0x43 }},
+      // connection_id
+      {"",
+       { 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10 }},
+      // packet number
+      {"",
+       { 0x12, 0x34, 0x56, 0x78 }},
+
+      // frame type (IETF_ACK_RECEIVE_TIMESTAMPS frame)
+      {"",
+       { 0x22 }},
+       // largest acked
+       {"Unable to read largest acked.",
+        { kVarInt62TwoBytes + 0x12, 0x34 }},   // = 4660
+       // Zero delta time.
+       {"Unable to read ack delay time.",
+        { kVarInt62OneByte + 0x00 }},
+       // number of additional ack blocks
+       {"Unable to read ack block count.",
+        { kVarInt62OneByte + 0x00 }},
+       // first ack block length.
+       {"Unable to read first ack block length.",
+        { kVarInt62OneByte + 0x00 }},  // 1st block length = 1
+
+       // Receive Timestamps.
+       { "Unable to read receive timestamp range count.",
+         { kVarInt62OneByte + 0x03 }},
+
+       // Timestamp range 1 (three packets).
+       { "Unable to read receive timestamp gap.",
+         { kVarInt62OneByte + 0x02 }},
+       { "Unable to read receive timestamp count.",
+         { kVarInt62OneByte + 0x03 }},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62FourBytes + 0x29, 0xff, 0xff, 0xff}},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62TwoBytes + 0x11, 0x11 }},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62OneByte + 0x01}},
+
+       // Timestamp range 2 (one packet).
+       { "Unable to read receive timestamp gap.",
+         { kVarInt62OneByte + 0x07 }},
+       { "Unable to read receive timestamp count.",
+         { kVarInt62OneByte + 0x01 }},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62TwoBytes + 0x10, 0x00 }},
+
+       // Timestamp range 3 (two packets).
+       { "Unable to read receive timestamp gap.",
+         { kVarInt62OneByte + 0x0a }},
+       { "Unable to read receive timestamp count.",
+         { kVarInt62OneByte + 0x02 }},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62OneByte + 0x10 }},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62TwoBytes + 0x01, 0x00 }},
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet_ietf));
+
+  framer_.set_process_timestamps(true);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+  ASSERT_TRUE(visitor_.header_.get());
+  const QuicAckFrame& frame = *visitor_.ack_frames_[0];
+
+  EXPECT_THAT(frame.received_packet_times,
+              ContainerEq(PacketTimeVector{
+                  // Timestamp Range 1.
+                  {LargestAcked(frame) - 2, CreationTimePlus(0x29ffffff)},
+                  {LargestAcked(frame) - 3, CreationTimePlus(0x29ffeeee)},
+                  {LargestAcked(frame) - 4, CreationTimePlus(0x29ffeeed)},
+                  // Timestamp Range 2.
+                  {LargestAcked(frame) - 11, CreationTimePlus(0x29ffdeed)},
+                  // Timestamp Range 3.
+                  {LargestAcked(frame) - 21, CreationTimePlus(0x29ffdedd)},
+                  {LargestAcked(frame) - 22, CreationTimePlus(0x29ffdddd)},
+              }));
+}
+
+TEST_P(QuicFramerTest, AckFrameReceiveTimestampWithExponent) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  PacketFragments packet_ietf = {
+      // type (short header, 4 byte packet number)
+      {"",
+       { 0x43 }},
+      // connection_id
+      {"",
+       { 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10 }},
+      // packet number
+      {"",
+       { 0x12, 0x34, 0x56, 0x78 }},
+
+      // frame type (IETF_ACK_RECEIVE_TIMESTAMPS frame)
+      {"",
+       { 0x22 }},
+       // largest acked
+       {"Unable to read largest acked.",
+        { kVarInt62TwoBytes + 0x12, 0x34 }},   // = 4660
+       // Zero delta time.
+       {"Unable to read ack delay time.",
+        { kVarInt62OneByte + 0x00 }},
+       // number of additional ack blocks
+       {"Unable to read ack block count.",
+        { kVarInt62OneByte + 0x00 }},
+       // first ack block length.
+       {"Unable to read first ack block length.",
+        { kVarInt62OneByte + 0x00 }},  // 1st block length = 1
+
+       // Receive Timestamps.
+       { "Unable to read receive timestamp range count.",
+         { kVarInt62OneByte + 0x01 }},
+       { "Unable to read receive timestamp gap.",
+         { kVarInt62OneByte + 0x00 }},
+       { "Unable to read receive timestamp count.",
+         { kVarInt62OneByte + 0x03 }},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62TwoBytes + 0x29, 0xff}},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62TwoBytes + 0x11, 0x11 }},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62OneByte + 0x01}},
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet_ietf));
+
+  framer_.set_receive_timestamps_exponent(3);
+  framer_.set_process_timestamps(true);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+  ASSERT_TRUE(visitor_.header_.get());
+  const QuicAckFrame& frame = *visitor_.ack_frames_[0];
+
+  EXPECT_THAT(frame.received_packet_times,
+              ContainerEq(PacketTimeVector{
+                  // Timestamp Range 1.
+                  {LargestAcked(frame), CreationTimePlus(0x29ff << 3)},
+                  {LargestAcked(frame) - 1, CreationTimePlus(0x18ee << 3)},
+                  {LargestAcked(frame) - 2, CreationTimePlus(0x18ed << 3)},
+              }));
+}
+
+TEST_P(QuicFramerTest, AckFrameReceiveTimestampGapTooHigh) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  PacketFragments packet_ietf = {
+      // type (short header, 4 byte packet number)
+      {"",
+       { 0x43 }},
+      // connection_id
+      {"",
+       { 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10 }},
+      // packet number
+      {"",
+       { 0x12, 0x34, 0x56, 0x78 }},
+
+      // frame type (IETF_ACK_RECEIVE_TIMESTAMPS frame)
+      {"",
+       { 0x22 }},
+       // largest acked
+       {"Unable to read largest acked.",
+        { kVarInt62TwoBytes + 0x12, 0x34 }},   // = 4660
+       // Zero delta time.
+       {"Unable to read ack delay time.",
+        { kVarInt62OneByte + 0x00 }},
+       // number of additional ack blocks
+       {"Unable to read ack block count.",
+        { kVarInt62OneByte + 0x00 }},
+       // first ack block length.
+       {"Unable to read first ack block length.",
+        { kVarInt62OneByte + 0x00 }},  // 1st block length = 1
+
+       // Receive Timestamps.
+       { "Unable to read receive timestamp range count.",
+         { kVarInt62OneByte + 0x01 }},
+       { "Unable to read receive timestamp gap.",
+         { kVarInt62FourBytes + 0x12, 0x34, 0x56, 0x79 }},
+       { "Unable to read receive timestamp count.",
+         { kVarInt62OneByte + 0x01 }},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62TwoBytes + 0x29, 0xff}},
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet_ietf));
+
+  framer_.set_process_timestamps(true);
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_TRUE(absl::StartsWith(framer_.detailed_error(),
+                               "Receive timestamp gap too high."));
+}
+
+TEST_P(QuicFramerTest, AckFrameReceiveTimestampCountTooHigh) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  PacketFragments packet_ietf = {
+      // type (short header, 4 byte packet number)
+      {"",
+       { 0x43 }},
+      // connection_id
+      {"",
+       { 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10 }},
+      // packet number
+      {"",
+       { 0x12, 0x34, 0x56, 0x78 }},
+
+      // frame type (IETF_ACK_RECEIVE_TIMESTAMPS frame)
+      {"",
+       { 0x22 }},
+       // largest acked
+       {"Unable to read largest acked.",
+        { kVarInt62TwoBytes + 0x12, 0x34 }},   // = 4660
+       // Zero delta time.
+       {"Unable to read ack delay time.",
+        { kVarInt62OneByte + 0x00 }},
+       // number of additional ack blocks
+       {"Unable to read ack block count.",
+        { kVarInt62OneByte + 0x00 }},
+       // first ack block length.
+       {"Unable to read first ack block length.",
+        { kVarInt62OneByte + 0x00 }},  // 1st block length = 1
+
+       // Receive Timestamps.
+       { "Unable to read receive timestamp range count.",
+         { kVarInt62OneByte + 0x01 }},
+       { "Unable to read receive timestamp gap.",
+         { kVarInt62OneByte + 0x02 }},
+       { "Unable to read receive timestamp count.",
+         { kVarInt62OneByte + 0x02 }},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62OneByte + 0x0a}},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62OneByte + 0x0b}},
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet_ietf));
+
+  framer_.set_process_timestamps(true);
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_TRUE(absl::StartsWith(framer_.detailed_error(),
+                               "Receive timestamp delta too high."));
+}
+
+TEST_P(QuicFramerTest, AckFrameReceiveTimestampDeltaTooHigh) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  PacketFragments packet_ietf = {
+      // type (short header, 4 byte packet number)
+      {"",
+       { 0x43 }},
+      // connection_id
+      {"",
+       { 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10 }},
+      // packet number
+      {"",
+       { 0x12, 0x34, 0x56, 0x78 }},
+
+      // frame type (IETF_ACK_RECEIVE_TIMESTAMPS frame)
+      {"",
+       { 0x22 }},
+       // largest acked
+       {"Unable to read largest acked.",
+        { kVarInt62TwoBytes + 0x12, 0x34 }},   // = 4660
+       // Zero delta time.
+       {"Unable to read ack delay time.",
+        { kVarInt62OneByte + 0x00 }},
+       // number of additional ack blocks
+       {"Unable to read ack block count.",
+        { kVarInt62OneByte + 0x00 }},
+       // first ack block length.
+       {"Unable to read first ack block length.",
+        { kVarInt62OneByte + 0x00 }},  // 1st block length = 1
+
+       // Receive Timestamps.
+       { "Unable to read receive timestamp range count.",
+         { kVarInt62OneByte + 0x01 }},
+       { "Unable to read receive timestamp gap.",
+         { kVarInt62OneByte + 0x02 }},
+       { "Unable to read receive timestamp count.",
+         { kVarInt62FourBytes + 0x12, 0x34, 0x56, 0x77 }},
+       { "Unable to read receive timestamp delta.",
+         { kVarInt62TwoBytes + 0x29, 0xff}},
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet_ietf));
+
+  framer_.set_process_timestamps(true);
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_TRUE(absl::StartsWith(framer_.detailed_error(),
+                               "Receive timestamp count too high."));
 }
 
 TEST_P(QuicFramerTest, AckFrameTimeStampDeltaTooHigh) {

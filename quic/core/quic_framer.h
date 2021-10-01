@@ -313,6 +313,11 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     process_timestamps_ = process_timestamps;
   }
 
+  // Sets the exponent to use when writing/reading ACK receive timestamps.
+  void set_receive_timestamps_exponent(uint32_t exponent) {
+    receive_timestamps_exponent_ = exponent;
+  }
+
   // Pass a UDP packet into the framer for parsing.
   // Return true if the packet was processed successfully. |packet| must be a
   // single, complete UDP packet (not a frame of a packet).  This packet
@@ -854,6 +859,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   bool ProcessIetfAckFrame(QuicDataReader* reader,
                            uint64_t frame_type,
                            QuicAckFrame* ack_frame);
+  bool ProcessIetfTimestampsInAckFrame(QuicPacketNumber largest_acked,
+                                       QuicDataReader* reader);
   bool ProcessStopWaitingFrame(QuicDataReader* reader,
                                const QuicPacketHeader& header,
                                QuicStopWaitingFrame* stop_waiting);
@@ -1118,6 +1125,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   DiversificationNonce last_nonce_;
   // If true, send and process timestamps in the ACK frame.
   bool process_timestamps_;
+  // The exponent to use when writing/reading ACK receive timestamps.
+  uint32_t receive_timestamps_exponent_;
   // The creation time of the connection, used to calculate timestamps.
   QuicTime creation_time_;
   // The last timestamp received if process_timestamps_ is true.
