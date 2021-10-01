@@ -10,7 +10,7 @@ NgHttp2Session::NgHttp2Session(Perspective perspective,
                                const nghttp2_option* options, void* userdata)
     : session_(MakeSessionPtr(nullptr)), perspective_(perspective) {
   nghttp2_session* session;
-  switch (perspective) {
+  switch (perspective_) {
     case Perspective::kClient:
       nghttp2_session_client_new2(&session, callbacks.get(), userdata, options);
       break;
