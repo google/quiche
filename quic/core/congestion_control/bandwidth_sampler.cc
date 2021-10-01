@@ -112,7 +112,8 @@ BandwidthSampler::BandwidthSampler(
       unacked_packet_map_(unacked_packet_map),
       max_ack_height_tracker_(max_height_tracker_window_length),
       total_bytes_acked_after_last_ack_event_(0),
-      overestimate_avoidance_(false) {}
+      overestimate_avoidance_(false),
+      limit_max_ack_height_tracker_by_send_rate_(false) {}
 
 BandwidthSampler::BandwidthSampler(const BandwidthSampler& other)
     : total_bytes_sent_(other.total_bytes_sent_),
@@ -135,7 +136,9 @@ BandwidthSampler::BandwidthSampler(const BandwidthSampler& other)
       max_ack_height_tracker_(other.max_ack_height_tracker_),
       total_bytes_acked_after_last_ack_event_(
           other.total_bytes_acked_after_last_ack_event_),
-      overestimate_avoidance_(other.overestimate_avoidance_) {}
+      overestimate_avoidance_(other.overestimate_avoidance_),
+      limit_max_ack_height_tracker_by_send_rate_(
+          other.limit_max_ack_height_tracker_by_send_rate_) {}
 
 void BandwidthSampler::EnableOverestimateAvoidance() {
   if (overestimate_avoidance_) {
@@ -264,6 +267,7 @@ BandwidthSampler::OnCongestionEvent(QuicTime ack_time,
   }
 
   SendTimeState last_acked_packet_send_state;
+  QuicBandwidth max_send_rate = QuicBandwidth::Zero();
   for (const auto& packet : acked_packets) {
     BandwidthSample sample =
         OnPacketAcknowledged(ack_time, packet.packet_number);
@@ -279,6 +283,9 @@ BandwidthSampler::OnCongestionEvent(QuicTime ack_time,
     if (sample.bandwidth > event_sample.sample_max_bandwidth) {
       event_sample.sample_max_bandwidth = sample.bandwidth;
       event_sample.sample_is_app_limited = sample.state_at_send.is_app_limited;
+    }
+    if (!sample.send_rate.IsInfinite()) {
+      max_send_rate = std::max(max_send_rate, sample.send_rate);
     }
     const QuicByteCount inflight_sample =
         total_bytes_acked() - last_acked_packet_send_state.total_bytes_acked;
@@ -303,6 +310,9 @@ BandwidthSampler::OnCongestionEvent(QuicTime ack_time,
   }
 
   max_bandwidth = std::max(max_bandwidth, event_sample.sample_max_bandwidth);
+  if (limit_max_ack_height_tracker_by_send_rate_) {
+    max_bandwidth = std::max(max_bandwidth, max_send_rate);
+  }
   event_sample.extra_acked = OnAckEventEnd(
       std::min(est_bandwidth_upper_bound, max_bandwidth), round_trip_count);
 
@@ -433,6 +443,7 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   // means that the RTT measurements here can be artificially high, especially
   // on low bandwidth connections.
   sample.rtt = ack_time - sent_packet.sent_time;
+  sample.send_rate = send_rate;
   SentPacketToSendTimeState(sent_packet, &sample.state_at_send);
 
   if (sample.bandwidth.IsZero()) {

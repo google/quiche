@@ -422,6 +422,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     bandwidth_sampler_.SetStartNewAggregationEpochAfterFullRound(value);
   }
 
+  void SetLimitMaxAckHeightTrackerBySendRate(bool value) {
+    bandwidth_sampler_.SetLimitMaxAckHeightTrackerBySendRate(value);
+  }
+
   bool MaybeExpireMinRtt(const Bbr2CongestionEvent& congestion_event);
 
   QuicBandwidth BandwidthEstimate() const {

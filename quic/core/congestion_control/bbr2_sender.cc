@@ -170,6 +170,12 @@ void Bbr2Sender::ApplyConnectionOptions(
       ContainsQuicTag(connection_options, kBBRA)) {
     model_.SetStartNewAggregationEpochAfterFullRound(true);
   }
+  if (GetQuicReloadableFlag(quic_bbr_use_send_rate_in_max_ack_height_tracker) &&
+      ContainsQuicTag(connection_options, kBBRB)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_bbr_use_send_rate_in_max_ack_height_tracker, 2, 2);
+    model_.SetLimitMaxAckHeightTrackerBySendRate(true);
+  }
   if (GetQuicReloadableFlag(
           quic_bbr2_add_bytes_acked_after_inflight_hi_limited) &&
       ContainsQuicTag(connection_options, kBBQ0)) {

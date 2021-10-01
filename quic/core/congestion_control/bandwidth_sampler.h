@@ -81,17 +81,18 @@ struct QUIC_EXPORT_PRIVATE SendTimeState {
 struct QUIC_EXPORT_PRIVATE BandwidthSample {
   // The bandwidth at that particular sample. Zero if no valid bandwidth sample
   // is available.
-  QuicBandwidth bandwidth;
+  QuicBandwidth bandwidth = QuicBandwidth::Zero();
 
   // The RTT measurement at this particular sample.  Zero if no RTT sample is
   // available.  Does not correct for delayed ack time.
-  QuicTime::Delta rtt;
+  QuicTime::Delta rtt = QuicTime::Delta::Zero();
+
+  // |send_rate| is computed from the current packet being acked('P') and an
+  // earlier packet that is acked before P was sent.
+  QuicBandwidth send_rate = QuicBandwidth::Infinite();
 
   // States captured when the packet was sent.
   SendTimeState state_at_send;
-
-  BandwidthSample()
-      : bandwidth(QuicBandwidth::Zero()), rtt(QuicTime::Delta::Zero()) {}
 };
 
 // MaxAckHeightTracker is part of the BandwidthSampler. It is called after every
@@ -368,6 +369,10 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
     max_ack_height_tracker_.SetStartNewAggregationEpochAfterFullRound(value);
   }
 
+  void SetLimitMaxAckHeightTrackerBySendRate(bool value) {
+    limit_max_ack_height_tracker_by_send_rate_ = value;
+  }
+
   // AckPoint represents a point on the ack line.
   struct QUIC_NO_EXPORT AckPoint {
     QuicTime ack_time = QuicTime::Zero();
@@ -579,6 +584,9 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
 
   // True if connection option 'BSAO' is set.
   bool overestimate_avoidance_;
+
+  // True if connection option 'BBRB' is set.
+  bool limit_max_ack_height_tracker_by_send_rate_;
 };
 
 }  // namespace quic
