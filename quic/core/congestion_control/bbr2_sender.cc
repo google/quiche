@@ -120,6 +120,16 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
 
 void Bbr2Sender::ApplyConnectionOptions(
     const QuicTagVector& connection_options) {
+  if (GetQuicReloadableFlag(quic_bbr2_extra_acked_window) &&
+      ContainsQuicTag(connection_options, kBBR4)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_extra_acked_window, 1, 2);
+    model_.SetMaxAckHeightTrackerWindowLength(20);
+  }
+  if (GetQuicReloadableFlag(quic_bbr2_extra_acked_window) &&
+      ContainsQuicTag(connection_options, kBBR5)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_extra_acked_window, 2, 2);
+    model_.SetMaxAckHeightTrackerWindowLength(40);
+  }
   if (ContainsQuicTag(connection_options, kBBQ2)) {
     params_.startup_cwnd_gain = 2.885;
     params_.drain_cwnd_gain = 2.885;

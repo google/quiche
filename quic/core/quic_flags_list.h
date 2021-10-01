@@ -135,6 +135,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_unified_iw_options, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_ignore_inflight_hi_in_probe_up, true)
 // When true, the BBQ0 connection option causes QUIC BBR2 to add bytes_acked to probe_up_acked if the connection hasn\'t been app-limited since inflight_hi was utilized.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_add_bytes_acked_after_inflight_hi_limited, true)
+// When true, the BBR4 copt sets the extra_acked window to 20 RTTs and BBR5 sets it to 40 RTTs.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_extra_acked_window, true)
 
 #endif
 

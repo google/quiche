@@ -9,6 +9,7 @@
 #include <limits>
 
 #include "quic/core/congestion_control/bandwidth_sampler.h"
+#include "quic/core/congestion_control/send_algorithm_interface.h"
 #include "quic/core/congestion_control/windowed_filter.h"
 #include "quic/core/quic_bandwidth.h"
 #include "quic/core/quic_packet_number.h"
@@ -424,6 +425,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   void SetLimitMaxAckHeightTrackerBySendRate(bool value) {
     bandwidth_sampler_.SetLimitMaxAckHeightTrackerBySendRate(value);
+  }
+
+  void SetMaxAckHeightTrackerWindowLength(QuicRoundTripCount value) {
+    bandwidth_sampler_.SetMaxAckHeightTrackerWindowLength(value);
   }
 
   bool MaybeExpireMinRtt(const Bbr2CongestionEvent& congestion_event);
