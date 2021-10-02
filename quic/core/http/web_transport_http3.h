@@ -68,6 +68,7 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   WebTransportStream* OpenOutgoingUnidirectionalStream() override;
 
   MessageStatus SendOrQueueDatagram(QuicMemSlice datagram) override;
+  QuicByteCount GetMaxDatagramSize() const override;
   void SetDatagramMaxTimeInQueue(QuicTime::Delta max_time_in_queue) override;
 
   // From QuicSpdyStream::Http3DatagramVisitor.

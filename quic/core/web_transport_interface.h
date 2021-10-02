@@ -138,6 +138,9 @@ class QUIC_EXPORT_PRIVATE WebTransportSession {
   virtual WebTransportStream* OpenOutgoingUnidirectionalStream() = 0;
 
   virtual MessageStatus SendOrQueueDatagram(QuicMemSlice datagram) = 0;
+  // Returns a conservative estimate of the largest datagram size that the
+  // session would be able to send.
+  virtual QuicByteCount GetMaxDatagramSize() const = 0;
   // Sets the largest duration that a datagram can spend in the queue before
   // being silently dropped.
   virtual void SetDatagramMaxTimeInQueue(QuicTime::Delta max_time_in_queue) = 0;

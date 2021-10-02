@@ -187,6 +187,10 @@ MessageStatus WebTransportHttp3::SendOrQueueDatagram(QuicMemSlice datagram) {
       context_id_, absl::string_view(datagram.data(), datagram.length()));
 }
 
+QuicByteCount WebTransportHttp3::GetMaxDatagramSize() const {
+  return connect_stream_->GetMaxDatagramSize(context_id_);
+}
+
 void WebTransportHttp3::SetDatagramMaxTimeInQueue(
     QuicTime::Delta max_time_in_queue) {
   connect_stream_->SetMaxDatagramTimeInQueue(max_time_in_queue);

@@ -339,6 +339,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   void RegisterHttp3DatagramFlowId(QuicDatagramStreamId flow_id);
 
+  QuicByteCount GetMaxDatagramSize(
+      absl::optional<QuicDatagramContextId> context_id) const;
+
  protected:
   // Called when the received headers are too large. By default this will
   // reset the stream.

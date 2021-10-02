@@ -3370,6 +3370,22 @@ TEST_P(QuicSpdyStreamTest, SendHttp3Datagram) {
             MESSAGE_STATUS_SUCCESS);
 }
 
+TEST_P(QuicSpdyStreamTest, GetMaxDatagramSize) {
+  if (!UsesHttp3()) {
+    return;
+  }
+  Initialize(kShouldProcessData);
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kDraft00And04);
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kDraft04);
+
+  QuicByteCount size = stream_->GetMaxDatagramSize(absl::nullopt);
+  QuicByteCount size_with_context =
+      stream_->GetMaxDatagramSize(/*context_id=*/1);
+  EXPECT_GT(size, 512u);
+  EXPECT_EQ(size - 1, size_with_context);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

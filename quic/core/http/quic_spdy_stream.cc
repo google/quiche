@@ -1640,6 +1640,55 @@ void QuicSpdyStream::OnDatagramReceived(QuicDataReader* reader) {
   HandleReceivedDatagram(context_id, payload);
 }
 
+QuicByteCount QuicSpdyStream::GetMaxDatagramSize(
+    absl::optional<QuicDatagramContextId> context_id) const {
+  QuicByteCount prefix_size = 0;
+  switch (spdy_session_->http_datagram_support()) {
+    case HttpDatagramSupport::kDraft00:
+      if (!datagram_flow_id_.has_value()) {
+        QUIC_BUG(GetMaxDatagramSize with no flow ID)
+            << "GetMaxDatagramSize() called when no flow ID available";
+        break;
+      }
+      prefix_size = QuicDataWriter::GetVarInt62Len(*datagram_flow_id_);
+      break;
+    case HttpDatagramSupport::kDraft04:
+      prefix_size =
+          QuicDataWriter::GetVarInt62Len(id() / kHttpDatagramStreamIdDivisor);
+      break;
+    case HttpDatagramSupport::kNone:
+    case HttpDatagramSupport::kDraft00And04:
+      QUIC_BUG(GetMaxDatagramSize called with no datagram support)
+          << "GetMaxDatagramSize() called when no HTTP/3 datagram support has "
+             "been negotiated.  Support value: "
+          << spdy_session_->http_datagram_support();
+      break;
+  }
+  // If the logic above fails, use the largest possible value as the safe one.
+  if (prefix_size == 0) {
+    prefix_size = 8;
+  }
+
+  if (context_id.has_value()) {
+    QUIC_BUG_IF(
+        context_id with draft00 in GetMaxDatagramSize,
+        spdy_session_->http_datagram_support() == HttpDatagramSupport::kDraft00)
+        << "GetMaxDatagramSize() called with a context ID specified, but "
+           "draft00 does not support contexts.";
+    prefix_size += QuicDataWriter::GetVarInt62Len(*context_id);
+  }
+
+  QuicByteCount max_datagram_size =
+      session()->GetGuaranteedLargestMessagePayload();
+  if (max_datagram_size < prefix_size) {
+    QUIC_BUG(max_datagram_size smaller than prefix_size)
+        << "GetGuaranteedLargestMessagePayload() returned a datagram size that "
+           "is not sufficient to fit stream and/or context ID into it.";
+    return 0;
+  }
+  return max_datagram_size - prefix_size;
+}
+
 void QuicSpdyStream::RegisterHttp3DatagramFlowId(QuicDatagramStreamId flow_id) {
   datagram_flow_id_ = flow_id;
   spdy_session_->RegisterHttp3DatagramFlowId(datagram_flow_id_.value(), id());

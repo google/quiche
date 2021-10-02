@@ -121,6 +121,10 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 
+  QuicByteCount GetMaxDatagramSize() const override {
+    return GetGuaranteedLargestMessagePayload();
+  }
+
  protected:
   class QUIC_EXPORT_PRIVATE ClientIndication : public QuicStream {
    public:
