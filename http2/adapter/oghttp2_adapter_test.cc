@@ -289,9 +289,8 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesMetadataWithError) {
   EXPECT_CALL(visitor, OnConnectionError());
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
-  // Unlike nghttp2, this adapter implementation returns the number of bytes
-  // actually processed.
-  EXPECT_LT(static_cast<size_t>(stream_result), stream_frames.size());
+  // Negative integer returned to indicate an error.
+  EXPECT_LT(stream_result, 0);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
@@ -450,7 +449,7 @@ TEST(OgHttp2AdapterClientTest, ClientConnectionErrorWhileHandlingHeaders) {
   EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
-  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
+  EXPECT_LT(stream_result, 0);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
@@ -522,7 +521,7 @@ TEST(OgHttp2AdapterClientTest, ClientRejectsHeaders) {
   EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
-  EXPECT_EQ(static_cast<size_t>(stream_result), stream_frames.size());
+  EXPECT_LT(stream_result, 0);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
@@ -681,8 +680,7 @@ TEST(OgHttp2AdapterClientTest, ClientFailsOnGoAway) {
   EXPECT_CALL(visitor, OnConnectionError());
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
-  EXPECT_GT(stream_result, 0);
-  EXPECT_LT(stream_result, static_cast<int64_t>(stream_frames.size()));
+  EXPECT_LT(stream_result, 0);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
@@ -1267,8 +1265,7 @@ TEST(OgHttp2AdapterServerTest, ServerErrorAfterHandlingHeaders) {
   EXPECT_CALL(visitor, OnConnectionError());
 
   const int64_t result = adapter->ProcessBytes(frames);
-  EXPECT_GT(result, 0);
-  EXPECT_LT(result, static_cast<int64_t>(frames.size()));
+  EXPECT_LT(result, 0);
 
   EXPECT_TRUE(adapter->want_write());
 
@@ -1317,8 +1314,7 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsFrameHeader) {
   EXPECT_CALL(visitor, OnConnectionError());
 
   const int64_t result = adapter->ProcessBytes(frames);
-  EXPECT_GT(result, 0);
-  EXPECT_LT(result, static_cast<int64_t>(frames.size()));
+  EXPECT_LT(result, 0);
 
   EXPECT_TRUE(adapter->want_write());
 
@@ -1378,8 +1374,7 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsBeginningOfData) {
   EXPECT_CALL(visitor, OnConnectionError());
 
   const int64_t result = adapter->ProcessBytes(frames);
-  EXPECT_GT(result, 0);
-  EXPECT_LT(result, static_cast<int64_t>(frames.size()));
+  EXPECT_LT(result, 0);
 
   EXPECT_TRUE(adapter->want_write());
 
@@ -1439,8 +1434,7 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsStreamData) {
   EXPECT_CALL(visitor, OnConnectionError());
 
   const int64_t result = adapter->ProcessBytes(frames);
-  EXPECT_GT(result, 0);
-  EXPECT_LT(result, static_cast<int64_t>(frames.size()));
+  EXPECT_LT(result, 0);
 
   EXPECT_TRUE(adapter->want_write());
 

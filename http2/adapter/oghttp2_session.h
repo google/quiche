@@ -259,6 +259,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Returns true if the session can create a new stream.
   bool CanCreateStream() const;
 
+  void LatchErrorAndNotify();
+
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
 
@@ -321,6 +323,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   // Replace this with a stream ID, for multiple GOAWAY support.
   bool queued_goaway_ = false;
+  bool latched_error_ = false;
 };
 
 }  // namespace adapter

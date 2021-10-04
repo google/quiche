@@ -258,7 +258,7 @@ int64_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
       QUICHE_DLOG(INFO) << "Preface doesn't match! Expected: ["
                         << absl::CEscape(remaining_preface_) << "], actual: ["
                         << absl::CEscape(bytes) << "]";
-      visitor_.OnConnectionError();
+      LatchErrorAndNotify();
       return -1;
     }
     remaining_preface_.remove_prefix(min_size);
@@ -271,7 +271,13 @@ int64_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
     preface_consumed = min_size;
   }
   int64_t result = decoder_.ProcessInput(bytes.data(), bytes.size());
-  return result < 0 ? result : result + preface_consumed;
+  if (latched_error_) {
+    QUICHE_VLOG(2) << "ProcessBytes encountered an error.";
+    return -1;
+  }
+  const int64_t ret = result < 0 ? result : result + preface_consumed;
+  QUICHE_VLOG(2) << "ProcessBytes returning: " << ret;
+  return ret;
 }
 
 int OgHttp2Session::Consume(Http2StreamId stream_id, size_t num_bytes) {
@@ -323,7 +329,7 @@ int OgHttp2Session::Send() {
     }
   }
   if (result < 0) {
-    visitor_.OnConnectionError();
+    LatchErrorAndNotify();
     return result;
   } else if (!serialized_prefix_.empty()) {
     return 0;
@@ -359,7 +365,7 @@ bool OgHttp2Session::SendQueuedFrames() {
     spdy::SpdySerializedFrame frame = framer_.SerializeFrame(*frame_ptr);
     const int64_t result = visitor_.OnReadyToSend(absl::string_view(frame));
     if (result < 0) {
-      visitor_.OnConnectionError();
+      LatchErrorAndNotify();
       return false;
     } else if (result == 0) {
       // Write blocked.
@@ -601,7 +607,7 @@ void OgHttp2Session::OnError(http2::Http2DecoderAdapter::SpdyFramerError error,
   QUICHE_VLOG(1) << "Error: "
                  << http2::Http2DecoderAdapter::SpdyFramerErrorToString(error)
                  << " details: " << detailed_error;
-  visitor_.OnConnectionError();
+  LatchErrorAndNotify();
 }
 
 void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
@@ -793,7 +799,7 @@ void OgHttp2Session::OnHeaderStatus(
           stream_id, spdy::ERROR_CODE_INTERNAL_ERROR));
     }
   } else if (result == Http2VisitorInterface::HEADER_CONNECTION_ERROR) {
-    visitor_.OnConnectionError();
+    LatchErrorAndNotify();
   }
 }
 
@@ -951,6 +957,11 @@ void OgHttp2Session::CloseStream(Http2StreamId stream_id,
 
 bool OgHttp2Session::CanCreateStream() const {
   return stream_map_.size() < max_outbound_concurrent_streams_;
+}
+
+void OgHttp2Session::LatchErrorAndNotify() {
+  latched_error_ = true;
+  visitor_.OnConnectionError();
 }
 
 }  // namespace adapter
