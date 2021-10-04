@@ -1373,6 +1373,12 @@ bool QuicSpdyStream::OnCapsule(const Capsule& capsule) {
         << " before headers";
     return false;
   }
+  if (web_transport_ != nullptr && web_transport_->close_received()) {
+    QUIC_PEER_BUG(capsule after close)
+        << ENDPOINT << "Stream " << id() << " received capsule " << capsule
+        << " after CLOSE_WEBTRANSPORT_SESSION.";
+    return false;
+  }
   switch (capsule.capsule_type()) {
     case CapsuleType::DATAGRAM: {
       HandleReceivedDatagram(capsule.datagram_capsule().context_id,
@@ -1412,6 +1418,16 @@ bool QuicSpdyStream::OnCapsule(const Capsule& capsule) {
           capsule.close_datagram_context_capsule().close_code,
           capsule.close_datagram_context_capsule().close_details);
       break;
+    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
+      if (web_transport_ == nullptr) {
+        QUIC_DLOG(ERROR) << ENDPOINT << "Received capsule " << capsule
+                         << " for a non-WebTransport stream.";
+        return false;
+      }
+      web_transport_->OnCloseReceived(
+          capsule.close_web_transport_session_capsule().error_code,
+          capsule.close_web_transport_session_capsule().error_message);
+      break;
   }
   return true;
 }
@@ -1421,14 +1437,14 @@ void QuicSpdyStream::OnCapsuleParseFailure(const std::string& error_message) {
   Reset(QUIC_BAD_APPLICATION_PAYLOAD);
 }
 
-void QuicSpdyStream::WriteCapsule(const Capsule& capsule) {
+void QuicSpdyStream::WriteCapsule(const Capsule& capsule, bool fin) {
   QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id() << " sending capsule "
                   << capsule;
   QuicBuffer serialized_capsule = SerializeCapsule(
       capsule,
       spdy_session_->connection()->helper()->GetStreamSendBufferAllocator());
   QUICHE_DCHECK_GT(serialized_capsule.size(), 0u);
-  WriteOrBufferBody(serialized_capsule.AsStringView(), /*fin=*/false);
+  WriteOrBufferBody(serialized_capsule.AsStringView(), /*fin=*/fin);
 }
 
 MessageStatus QuicSpdyStream::SendHttp3Datagram(
@@ -1715,6 +1731,7 @@ void QuicSpdyStream::HandleBodyAvailable() {
   // in the capsule parser.
   if (sequencer()->IsClosed()) {
     capsule_parser_->ErrorIfThereIsRemainingBufferedData();
+    OnFinRead();
   }
 }
 

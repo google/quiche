@@ -342,6 +342,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   QuicByteCount GetMaxDatagramSize(
       absl::optional<QuicDatagramContextId> context_id) const;
 
+  // Writes |capsule| onto the DATA stream.
+  void WriteCapsule(const Capsule& capsule, bool fin = false);
+
  protected:
   // Called when the received headers are too large. By default this will
   // reset the stream.
@@ -416,9 +419,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Called when a datagram frame or capsule is received.
   void HandleReceivedDatagram(absl::optional<QuicDatagramContextId> context_id,
                               absl::string_view payload);
-
-  // Writes |capsule| onto the DATA stream.
-  void WriteCapsule(const Capsule& capsule);
 
   QuicSpdySession* spdy_session_;
 

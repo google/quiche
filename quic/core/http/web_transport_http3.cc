@@ -88,15 +88,56 @@ void WebTransportHttp3::OnConnectStreamClosing() {
   }
   connect_stream_->UnregisterHttp3DatagramRegistrationVisitor();
 
-  visitor_->OnSessionClosed(error_code_, error_message_);
+  MaybeNotifyClose();
 }
 
-void WebTransportHttp3::CloseSession(WebTransportSessionError /*error_code*/,
-                                     absl::string_view /*error_message*/) {
-  // TODO(vasilvv): this should write a capsule and send FIN instead, but since
-  // we currently don't handle capsules, this is the next most meaningful
-  // choice.
-  connect_stream_->Reset(QUIC_STREAM_CANCELLED);
+void WebTransportHttp3::CloseSession(WebTransportSessionError error_code,
+                                     absl::string_view error_message) {
+  if (close_sent_) {
+    QUIC_BUG(WebTransportHttp3 close sent twice)
+        << "Calling WebTransportHttp3::CloseSession() more than once is not "
+           "allowed.";
+    return;
+  }
+  close_sent_ = true;
+
+  // There can be a race between us trying to send our close and peer sending
+  // one.  If we received a close, however, we cannot send ours since we already
+  // closed the stream in response.
+  if (close_received_) {
+    QUIC_DLOG(INFO) << "Not sending CLOSE_WEBTRANSPORT_SESSION as we've "
+                       "already sent one from peer.";
+    return;
+  }
+
+  error_code_ = error_code;
+  error_message_ = std::string(error_message);
+  QuicConnection::ScopedPacketFlusher flusher(
+      connect_stream_->spdy_session()->connection());
+  connect_stream_->WriteCapsule(
+      Capsule::CloseWebTransportSession(error_code, error_message),
+      /*fin=*/true);
+}
+
+void WebTransportHttp3::OnCloseReceived(WebTransportSessionError error_code,
+                                        absl::string_view error_message) {
+  if (close_received_) {
+    QUIC_BUG(WebTransportHttp3 notified of close received twice)
+        << "WebTransportHttp3::OnCloseReceived() may be only called once.";
+  }
+  close_received_ = true;
+
+  // If the peer has sent a close after we sent our own, keep the local error.
+  if (close_sent_) {
+    QUIC_DLOG(INFO) << "Ignoring received CLOSE_WEBTRANSPORT_SESSION as we've "
+                       "already sent our own.";
+    return;
+  }
+
+  error_code_ = error_code;
+  error_message_ = std::string(error_message);
+  connect_stream_->WriteOrBufferBody("", /*fin=*/true);
+  MaybeNotifyClose();
 }
 
 void WebTransportHttp3::HeadersReceived(const spdy::SpdyHeaderBlock& headers) {
@@ -276,6 +317,14 @@ void WebTransportHttp3::OnContextClosed(
                   << "\" on stream ID " << connect_stream_->id()
                   << ", resetting stream";
   session_->ResetStream(connect_stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD);
+}
+
+void WebTransportHttp3::MaybeNotifyClose() {
+  if (close_notified_) {
+    return;
+  }
+  close_notified_ = true;
+  visitor_->OnSessionClosed(error_code_, error_message_);
 }
 
 WebTransportHttp3UnidirectionalStream::WebTransportHttp3UnidirectionalStream(

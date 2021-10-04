@@ -55,6 +55,8 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
 
   void CloseSession(WebTransportSessionError error_code,
                     absl::string_view error_message) override;
+  void OnCloseReceived(WebTransportSessionError error_code,
+                       absl::string_view error_message);
 
   // Return the earliest incoming stream that has been received by the session
   // but has not been accepted.  Returns nullptr if there are no incoming
@@ -86,7 +88,13 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
                        ContextCloseCode close_code,
                        absl::string_view close_details) override;
 
+  bool close_received() const { return close_received_; }
+
  private:
+  // Notifies the visitor that the connection has been closed.  Ensures that the
+  // visitor is only ever called once.
+  void MaybeNotifyClose();
+
   QuicSpdySession* const session_;        // Unowned.
   QuicSpdyStream* const connect_stream_;  // Unowned.
   const WebTransportSessionId id_;
@@ -103,6 +111,10 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   absl::flat_hash_set<QuicStreamId> streams_;
   quiche::QuicheCircularDeque<QuicStreamId> incoming_bidirectional_streams_;
   quiche::QuicheCircularDeque<QuicStreamId> incoming_unidirectional_streams_;
+
+  bool close_sent_ = false;
+  bool close_received_ = false;
+  bool close_notified_ = false;
 
   // Those are set to default values, which are used if the session is not
   // closed cleanly using an appropriate capsule.

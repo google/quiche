@@ -166,6 +166,23 @@ TEST_F(CapsuleTest, CloseContextCapsule) {
   TestSerialization(expected_capsule, capsule_fragment);
 }
 
+TEST_F(CapsuleTest, CloseWebTransportStreamCapsule) {
+  std::string capsule_fragment = absl::HexStringToBytes(
+      "6843"        // CLOSE_WEBTRANSPORT_STREAM capsule type
+      "09"          // capsule length
+      "00001234"    // 0x1234 error code
+      "68656c6c6f"  // "hello" error message
+  );
+  Capsule expected_capsule = Capsule::CloseWebTransportSession(
+      /*error_code=*/0x1234, /*error_message=*/"hello");
+  {
+    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
+    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+  }
+  ValidateParserIsEmpty();
+  TestSerialization(expected_capsule, capsule_fragment);
+}
+
 TEST_F(CapsuleTest, UnknownCapsule) {
   std::string capsule_fragment = absl::HexStringToBytes(
       "33"                // unknown capsule type of 0x33

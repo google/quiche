@@ -24,6 +24,7 @@ enum class CapsuleType : uint64_t {
   REGISTER_DATAGRAM_CONTEXT = 0xff37a1,
   REGISTER_DATAGRAM_NO_CONTEXT = 0xff37a2,
   CLOSE_DATAGRAM_CONTEXT = 0xff37a3,
+  CLOSE_WEBTRANSPORT_SESSION = 0x2843,
 };
 
 QUIC_EXPORT_PRIVATE std::string CapsuleTypeToString(CapsuleType capsule_type);
@@ -72,6 +73,10 @@ struct QUIC_EXPORT_PRIVATE CloseDatagramContextCapsule {
   ContextCloseCode close_code;
   absl::string_view close_details;
 };
+struct QUIC_EXPORT_PRIVATE CloseWebTransportSessionCapsule {
+  WebTransportSessionError error_code;
+  absl::string_view error_message;
+};
 
 // Capsule from draft-ietf-masque-h3-datagram.
 // IMPORTANT NOTE: Capsule does not own any of the absl::string_view memory it
@@ -93,6 +98,9 @@ class QUIC_EXPORT_PRIVATE Capsule {
       QuicDatagramContextId context_id,
       ContextCloseCode close_code = ContextCloseCode::CLOSE_NO_ERROR,
       absl::string_view close_details = absl::string_view());
+  static Capsule CloseWebTransportSession(
+      WebTransportSessionError error_code = 0,
+      absl::string_view error_message = "");
   static Capsule Unknown(
       uint64_t capsule_type,
       absl::string_view unknown_capsule_data = absl::string_view());
@@ -142,11 +150,21 @@ class QUIC_EXPORT_PRIVATE Capsule {
     QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::CLOSE_DATAGRAM_CONTEXT);
     return close_datagram_context_capsule_;
   }
+  CloseWebTransportSessionCapsule& close_web_transport_session_capsule() {
+    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::CLOSE_WEBTRANSPORT_SESSION);
+    return close_web_transport_session_capsule_;
+  }
+  const CloseWebTransportSessionCapsule& close_web_transport_session_capsule()
+      const {
+    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::CLOSE_WEBTRANSPORT_SESSION);
+    return close_web_transport_session_capsule_;
+  }
   absl::string_view& unknown_capsule_data() {
     QUICHE_DCHECK(capsule_type_ != CapsuleType::DATAGRAM &&
                   capsule_type_ != CapsuleType::REGISTER_DATAGRAM_CONTEXT &&
                   capsule_type_ != CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT &&
-                  capsule_type_ != CapsuleType::CLOSE_DATAGRAM_CONTEXT)
+                  capsule_type_ != CapsuleType::CLOSE_DATAGRAM_CONTEXT &&
+                  capsule_type_ != CapsuleType::CLOSE_WEBTRANSPORT_SESSION)
         << capsule_type_;
     return unknown_capsule_data_;
   }
@@ -154,7 +172,8 @@ class QUIC_EXPORT_PRIVATE Capsule {
     QUICHE_DCHECK(capsule_type_ != CapsuleType::DATAGRAM &&
                   capsule_type_ != CapsuleType::REGISTER_DATAGRAM_CONTEXT &&
                   capsule_type_ != CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT &&
-                  capsule_type_ != CapsuleType::CLOSE_DATAGRAM_CONTEXT)
+                  capsule_type_ != CapsuleType::CLOSE_DATAGRAM_CONTEXT &&
+                  capsule_type_ != CapsuleType::CLOSE_WEBTRANSPORT_SESSION)
         << capsule_type_;
     return unknown_capsule_data_;
   }
@@ -166,6 +185,7 @@ class QUIC_EXPORT_PRIVATE Capsule {
     RegisterDatagramContextCapsule register_datagram_context_capsule_;
     RegisterDatagramNoContextCapsule register_datagram_no_context_capsule_;
     CloseDatagramContextCapsule close_datagram_context_capsule_;
+    CloseWebTransportSessionCapsule close_web_transport_session_capsule_;
     absl::string_view unknown_capsule_data_;
   };
 };

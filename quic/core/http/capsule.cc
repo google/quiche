@@ -7,10 +7,12 @@
 #include <type_traits>
 
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/http/http_frames.h"
 #include "quic/core/quic_data_reader.h"
 #include "quic/core/quic_data_writer.h"
+#include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "common/platform/api/quiche_logging.h"
 
@@ -26,6 +28,8 @@ std::string CapsuleTypeToString(CapsuleType capsule_type) {
       return "DATAGRAM";
     case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
       return "REGISTER_DATAGRAM_NO_CONTEXT";
+    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
+      return "CLOSE_WEBTRANSPORT_SESSION";
   }
   return absl::StrCat("Unknown(", static_cast<uint64_t>(capsule_type), ")");
 }
@@ -107,6 +111,14 @@ Capsule::Capsule(CapsuleType capsule_type) : capsule_type_(capsule_type) {
           "All capsule structs must have these properties");
       close_datagram_context_capsule_ = CloseDatagramContextCapsule();
       break;
+    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
+      static_assert(
+          std::is_standard_layout<CloseWebTransportSessionCapsule>::value &&
+              std::is_trivially_destructible<
+                  CloseWebTransportSessionCapsule>::value,
+          "All capsule structs must have these properties");
+      close_web_transport_session_capsule_ = CloseWebTransportSessionCapsule();
+      break;
     default:
       unknown_capsule_data_ = absl::string_view();
       break;
@@ -156,6 +168,15 @@ Capsule Capsule::CloseDatagramContext(QuicDatagramContextId context_id,
 }
 
 // static
+Capsule Capsule::CloseWebTransportSession(WebTransportSessionError error_code,
+                                          absl::string_view error_message) {
+  Capsule capsule(CapsuleType::CLOSE_WEBTRANSPORT_SESSION);
+  capsule.close_web_transport_session_capsule().error_code = error_code;
+  capsule.close_web_transport_session_capsule().error_message = error_message;
+  return capsule;
+}
+
+// static
 Capsule Capsule::Unknown(uint64_t capsule_type,
                          absl::string_view unknown_capsule_data) {
   Capsule capsule(static_cast<CapsuleType>(capsule_type));
@@ -179,6 +200,10 @@ Capsule& Capsule::operator=(const Capsule& other) {
       break;
     case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
       close_datagram_context_capsule_ = other.close_datagram_context_capsule_;
+      break;
+    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
+      close_web_transport_session_capsule_ =
+          other.close_web_transport_session_capsule_;
       break;
     default:
       unknown_capsule_data_ = other.unknown_capsule_data_;
@@ -222,6 +247,11 @@ bool Capsule::operator==(const Capsule& other) const {
                  other.close_datagram_context_capsule_.close_code &&
              close_datagram_context_capsule_.close_details ==
                  other.close_datagram_context_capsule_.close_details;
+    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
+      return close_web_transport_session_capsule_.error_code ==
+                 other.close_web_transport_session_capsule_.error_code &&
+             close_web_transport_session_capsule_.error_message ==
+                 other.close_web_transport_session_capsule_.error_message;
     default:
       return unknown_capsule_data_ == other.unknown_capsule_data_;
   }
@@ -267,6 +297,12 @@ std::string Capsule::ToString() const {
           ",close_details=\"",
           absl::BytesToHexString(close_datagram_context_capsule_.close_details),
           "\")");
+      break;
+    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
+      absl::StrAppend(
+          &rv, "(error_code=", close_web_transport_session_capsule_.error_code,
+          ",error_message=\"",
+          close_web_transport_session_capsule_.error_message, "\")");
       break;
     default:
       absl::StrAppend(&rv, "[", absl::BytesToHexString(unknown_capsule_data_),
@@ -322,6 +358,11 @@ QuicBuffer SerializeCapsule(const Capsule& capsule,
           QuicDataWriter::GetVarInt62Len(static_cast<uint64_t>(
               capsule.close_datagram_context_capsule().close_code)) +
           capsule.close_datagram_context_capsule().close_details.length();
+      break;
+    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
+      capsule_data_length =
+          sizeof(WebTransportSessionError) +
+          capsule.close_web_transport_session_capsule().error_message.size();
       break;
     default:
       capsule_data_length = capsule.unknown_capsule_data().length();
@@ -413,6 +454,20 @@ QuicBuffer SerializeCapsule(const Capsule& capsule,
               capsule.close_datagram_context_capsule().close_details)) {
         QUIC_BUG(close context capsule close details write fail)
             << "Failed to write CLOSE_DATAGRAM_CONTEXT CAPSULE close details";
+        return QuicBuffer();
+      }
+      break;
+    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
+      if (!writer.WriteUInt32(
+              capsule.close_web_transport_session_capsule().error_code)) {
+        QUIC_BUG(close webtransport session capsule error code write fail)
+            << "Failed to write CLOSE_WEBTRANSPORT_SESSION error code";
+        return QuicBuffer();
+      }
+      if (!writer.WriteStringPiece(
+              capsule.close_web_transport_session_capsule().error_message)) {
+        QUIC_BUG(close webtransport session capsule error message write fail)
+            << "Failed to write CLOSE_WEBTRANSPORT_SESSION error message";
         return QuicBuffer();
       }
       break;
@@ -524,6 +579,16 @@ size_t CapsuleParser::AttemptParseCapsule() {
         return 0;
       }
       capsule.close_datagram_context_capsule().close_details =
+          capsule_data_reader.ReadRemainingPayload();
+      break;
+    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
+      if (!capsule_data_reader.ReadUInt32(
+              &capsule.close_web_transport_session_capsule().error_code)) {
+        ReportParseFailure(
+            "Unable to parse capsule CLOSE_WEBTRANSPORT_SESSION error code");
+        return 0;
+      }
+      capsule.close_web_transport_session_capsule().error_message =
           capsule_data_reader.ReadRemainingPayload();
       break;
     default:

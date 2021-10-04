@@ -6299,9 +6299,7 @@ TEST_P(EndToEndTest, WebTransportSessionClose) {
   // Keep stream open.
 
   bool close_received = false;
-  // TODO(vasilvv): once we have capsule support, actually check the error code
-  // and the error message returned.
-  EXPECT_CALL(visitor, OnSessionClosed(_, _))
+  EXPECT_CALL(visitor, OnSessionClosed(42, "test error"))
       .WillOnce(Assign(&close_received, true));
   session->CloseSession(42, "test error");
   client_->WaitUntil(2000, [&]() { return close_received; });
