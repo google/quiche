@@ -933,7 +933,6 @@ TEST_P(TransportParametersTest, VeryLongCustomParameter) {
 }
 
 TEST_P(TransportParametersTest, SerializationOrderIsRandom) {
-  SetQuicReloadableFlag(quic_randomize_transport_parameter_order, true);
   TransportParameters orig_params;
   orig_params.perspective = Perspective::IS_CLIENT;
   orig_params.version = kFakeVersionLabel;

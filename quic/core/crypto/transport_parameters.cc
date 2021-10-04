@@ -741,14 +741,11 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
     parameter_ids.push_back(kv.first);
   }
 
-  if (GetQuicReloadableFlag(quic_randomize_transport_parameter_order)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_randomize_transport_parameter_order);
-    // Randomize order of sent transport parameters by walking the array
-    // backwards and swapping each element with a random earlier one.
-    for (size_t i = parameter_ids.size() - 1; i > 0; i--) {
-      std::swap(parameter_ids[i],
-                parameter_ids[random->InsecureRandUint64() % (i + 1)]);
-    }
+  // Randomize order of sent transport parameters by walking the array
+  // backwards and swapping each element with a random earlier one.
+  for (size_t i = parameter_ids.size() - 1; i > 0; i--) {
+    std::swap(parameter_ids[i],
+              parameter_ids[random->InsecureRandUint64() % (i + 1)]);
   }
 
   out->resize(max_transport_param_length);

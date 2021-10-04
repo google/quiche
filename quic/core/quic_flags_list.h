@@ -127,8 +127,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_blocked_ports, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr, false)
 // When true, prevents QUIC\'s PacingSender from generating bursts when the congestion controller is CWND limited and not pacing limited.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_fix_pacing_sender_bursts, false)
-// When true, randomizes the order of sent transport parameters in QUIC+TLS.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_randomize_transport_parameter_order, true)
 // When true, set the initial congestion control window from connection options in QuicSentPacketManager rather than TcpCubicSenderBytes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_unified_iw_options, true)
 // When true, the B203 connection option causes the Bbr2Sender to ignore inflight_hi during PROBE_UP and increase it when the bytes delivered without loss are higher.
