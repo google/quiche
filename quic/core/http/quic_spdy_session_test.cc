@@ -186,6 +186,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
 
   void OnConnectionClosed(QuicErrorCode /*error*/,
                           ConnectionCloseSource /*source*/) override {}
+  SSL* GetSsl() const override { return nullptr; }
 
  private:
   using QuicCryptoStream::session;

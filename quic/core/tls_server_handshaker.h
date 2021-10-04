@@ -64,6 +64,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   bool ShouldSendExpectCTHeader() const override;
   bool DidCertMatchSni() const override;
   const ProofSource::Details* ProofSourceDetails() const override;
+  SSL* GetSsl() const override;
 
   // From QuicCryptoServerStreamBase and TlsHandshaker
   ssl_early_data_reason_t EarlyDataReason() const override;

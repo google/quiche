@@ -69,6 +69,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
       override;
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
+  SSL* GetSsl() const override;
 
   // From QuicCryptoHandshaker
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override;

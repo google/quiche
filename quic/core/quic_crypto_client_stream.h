@@ -25,6 +25,8 @@ namespace test {
 class QuicCryptoClientStreamPeer;
 }  // namespace test
 
+class TlsClientHandshaker;
+
 class QUIC_EXPORT_PRIVATE QuicCryptoClientStreamBase : public QuicCryptoStream {
  public:
   explicit QuicCryptoClientStreamBase(QuicSession* session);
@@ -250,6 +252,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
       override;
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
+  SSL* GetSsl() const override;
 
   std::string chlo_hash() const;
 
@@ -261,6 +264,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
  private:
   friend class test::QuicCryptoClientStreamPeer;
   std::unique_ptr<HandshakerInterface> handshaker_;
+  // Points to |handshaker_| if it uses TLS1.3. Otherwise, nullptr.
+  // TODO(danzh) change the type of |handshaker_| to TlsClientHandshaker after
+  // deprecating Google QUIC.
+  TlsClientHandshaker* tls_handshaker_{nullptr};
 };
 
 }  // namespace quic

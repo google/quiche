@@ -79,6 +79,7 @@ class MockQuicCryptoStream : public QuicCryptoStream,
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override {
     return nullptr;
   }
+  SSL* GetSsl() const override { return nullptr; }
 
  private:
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;

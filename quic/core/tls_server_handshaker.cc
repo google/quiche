@@ -1128,4 +1128,6 @@ TlsServerHandshaker::SetApplicationSettings(absl::string_view alpn) {
   return result;
 }
 
+SSL* TlsServerHandshaker::GetSsl() const { return ssl(); }
+
 }  // namespace quic

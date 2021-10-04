@@ -147,6 +147,11 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // decrypter returned by AdvanceKeysAndCreateCurrentOneRttDecrypter().
   virtual std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() = 0;
 
+  // Return the SSL struct object created by BoringSSL if the stream is using
+  // TLS1.3. Otherwise, return nullptr.
+  // This method is used in Envoy.
+  virtual SSL* GetSsl() const = 0;
+
   // Called to cancel retransmission of unencrypted crypto stream data.
   void NeuterUnencryptedStreamData();
 

@@ -511,4 +511,6 @@ const QuicSocketAddress QuicCryptoServerStream::GetClientAddress() {
   return session()->connection()->peer_address();
 }
 
+SSL* QuicCryptoServerStream::GetSsl() const { return nullptr; }
+
 }  // namespace quic

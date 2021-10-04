@@ -168,6 +168,8 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
 
   MOCK_METHOD(bool, HasPendingRetransmission, (), (const, override));
 
+  SSL* GetSsl() const override { return nullptr; }
+
  private:
   using QuicCryptoStream::session;
 

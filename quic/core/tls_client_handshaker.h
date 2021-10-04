@@ -81,8 +81,9 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
 
   void AllowEmptyAlpnForTests() { allow_empty_alpn_for_tests_ = true; }
   void AllowInvalidSNIForTests() { allow_invalid_sni_for_tests_ = true; }
-  SSL* GetSslForTests() { return tls_connection_.ssl(); }
-  const SSL* GetSslForTests() const { return tls_connection_.ssl(); }
+
+  // Make the SSL object from BoringSSL publicly accessible.
+  using TlsHandshaker::ssl;
 
  protected:
   const TlsConnection* tls_connection() const override {
