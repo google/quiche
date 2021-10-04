@@ -11,11 +11,11 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/types/optional.h"
 #include "quic/core/http/quic_spdy_session.h"
+#include "quic/core/http/web_transport_stream_adapter.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_stream.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/web_transport_interface.h"
-#include "quic/core/web_transport_stream_adapter.h"
 #include "spdy/core/spdy_header_block.h"
 
 namespace quic {

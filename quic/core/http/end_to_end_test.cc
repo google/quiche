@@ -80,7 +80,7 @@ using ::testing::_;
 using ::testing::Assign;
 using ::testing::Invoke;
 using ::testing::NiceMock;
-using testing::NotNull;
+using ::testing::UnorderedElementsAreArray;
 
 namespace quic {
 namespace test {
@@ -728,7 +728,15 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 
   std::string ReadDataFromWebTransportStreamUntilFin(
       WebTransportStream* stream, MockStreamVisitor* visitor = nullptr) {
+    QuicStreamId id = stream->GetStreamId();
     std::string buffer;
+
+    // Try reading data if immediately available.
+    WebTransportStream::ReadResult result = stream->Read(&buffer);
+    if (result.fin) {
+      return buffer;
+    }
+
     while (true) {
       bool can_read = false;
       if (visitor == nullptr) {
@@ -739,12 +747,17 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       EXPECT_CALL(*visitor, OnCanRead()).WillOnce(Assign(&can_read, true));
       client_->WaitUntil(5000 /*ms*/, [&can_read]() { return can_read; });
       if (!can_read) {
-        ADD_FAILURE() << "Waiting for readable data on stream "
-                      << stream->GetStreamId() << " timed out";
+        ADD_FAILURE() << "Waiting for readable data on stream " << id
+                      << " timed out";
+        return buffer;
+      }
+      if (GetClientSession()->GetOrCreateSpdyDataStream(id) == nullptr) {
+        ADD_FAILURE() << "Stream " << id
+                      << " was deleted while waiting for incoming data";
         return buffer;
       }
 
-      WebTransportStream::ReadResult result = stream->Read(&buffer);
+      result = stream->Read(&buffer);
       if (result.fin) {
         return buffer;
       }
@@ -753,6 +766,19 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
                       << stream->GetStreamId();
         return buffer;
       }
+    }
+  }
+
+  void ReadAllIncomingWebTransportUnidirectionalStreams(
+      WebTransportSession* session) {
+    while (true) {
+      WebTransportStream* received_stream =
+          session->AcceptIncomingUnidirectionalStream();
+      if (received_stream == nullptr) {
+        break;
+      }
+      received_webtransport_unidirectional_streams_.push_back(
+          ReadDataFromWebTransportStreamUntilFin(received_stream));
     }
   }
 
@@ -796,6 +822,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   int override_client_connection_id_length_ = -1;
   uint8_t expected_server_connection_id_length_;
   bool enable_web_transport_ = false;
+  std::vector<std::string> received_webtransport_unidirectional_streams_;
 };
 
 // Run all end to end tests with all supported versions.
@@ -6353,6 +6380,62 @@ TEST_P(EndToEndTest, WebTransportSessionClose) {
   QuicSpdyStream* spdy_stream =
       GetClientSession()->GetOrCreateSpdyDataStream(stream_id);
   EXPECT_TRUE(spdy_stream == nullptr);
+}
+
+TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/resets", /*wait_for_server_response=*/true);
+  ASSERT_TRUE(session != nullptr);
+
+  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+  EXPECT_CALL(visitor, OnIncomingUnidirectionalStreamAvailable())
+      .WillRepeatedly([this, session]() {
+        ReadAllIncomingWebTransportUnidirectionalStreams(session);
+      });
+
+  WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
+  QuicStreamId id1 = stream->GetStreamId();
+  ASSERT_TRUE(stream != nullptr);
+  EXPECT_TRUE(stream->Write("test"));
+  stream->ResetWithUserCode(42);
+
+  // This read fails if the stream is closed in both directions, since that
+  // results in stream object being deleted.
+  std::string received_data = ReadDataFromWebTransportStreamUntilFin(stream);
+  EXPECT_LE(received_data.size(), 4u);
+
+  stream = session->OpenOutgoingBidirectionalStream();
+  QuicStreamId id2 = stream->GetStreamId();
+  ASSERT_TRUE(stream != nullptr);
+  EXPECT_TRUE(stream->Write("test"));
+  stream->SendStopSending(24);
+
+  std::array<std::string, 2> expected_log = {
+      absl::StrCat("Received reset for stream ", id1, " with error code 42"),
+      absl::StrCat("Received stop sending for stream ", id2,
+                   " with error code 24"),
+  };
+  client_->WaitUntil(2000, [this, &expected_log]() {
+    return received_webtransport_unidirectional_streams_.size() >=
+           expected_log.size();
+  });
+  EXPECT_THAT(received_webtransport_unidirectional_streams_,
+              UnorderedElementsAreArray(expected_log));
+
+  // Since we closed the read side, cleanly closing the write side should result
+  // in the stream getting deleted.
+  ASSERT_TRUE(GetClientSession()->GetOrCreateSpdyDataStream(id2) != nullptr);
+  EXPECT_TRUE(stream->SendFin());
+  EXPECT_TRUE(client_->WaitUntil(2000, [this, id2]() {
+    return GetClientSession()->GetOrCreateSpdyDataStream(id2) == nullptr;
+  }));
 }
 
 }  // namespace

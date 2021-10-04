@@ -180,6 +180,11 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // interface.
   void Reset(QuicRstStreamErrorCode error);
 
+  // Reset() sends both RESET_STREAM and STOP_SENDING; the two methods below
+  // allow to send only one of those.
+  void ResetWriteSide(QuicResetStreamError error);
+  void SendStopSending(QuicResetStreamError error);
+
   // Called by the subclass or the sequencer to close the entire connection from
   // this end.
   void OnUnrecoverableError(QuicErrorCode error,

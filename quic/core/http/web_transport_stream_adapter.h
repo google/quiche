@@ -8,6 +8,7 @@
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_stream.h"
 #include "quic/core/quic_stream_sequencer.h"
+#include "quic/core/quic_types.h"
 #include "quic/core/web_transport_interface.h"
 
 namespace quic {
@@ -34,12 +35,11 @@ class QUIC_EXPORT_PRIVATE WebTransportStreamAdapter
   }
   QuicStreamId GetStreamId() const override { return stream_->id(); }
 
-  void ResetWithUserCode(QuicRstStreamErrorCode error) override {
-    stream_->Reset(error);
-  }
+  void ResetWithUserCode(WebTransportStreamError error) override;
   void ResetDueToInternalError() override {
     stream_->Reset(QUIC_STREAM_INTERNAL_ERROR);
   }
+  void SendStopSending(WebTransportStreamError error) override;
   void MaybeResetDueToStreamObjectGone() override {
     if (stream_->write_side_closed() && stream_->read_side_closed()) {
       return;

@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quic/core/web_transport_stream_adapter.h"
+#include "quic/core/http/web_transport_stream_adapter.h"
+
+#include "quic/core/http/web_transport_http3.h"
+#include "quic/core/quic_error_codes.h"
 
 namespace quic {
 
@@ -108,6 +111,17 @@ void WebTransportStreamAdapter::OnCanWriteNewData() {
   if (visitor_ != nullptr) {
     visitor_->OnCanWrite();
   }
+}
+
+void WebTransportStreamAdapter::ResetWithUserCode(
+    WebTransportStreamError error) {
+  stream_->ResetWriteSide(QuicResetStreamError(
+      QUIC_STREAM_CANCELLED, WebTransportErrorToHttp3(error)));
+}
+
+void WebTransportStreamAdapter::SendStopSending(WebTransportStreamError error) {
+  stream_->SendStopSending(QuicResetStreamError(
+      QUIC_STREAM_CANCELLED, WebTransportErrorToHttp3(error)));
 }
 
 }  // namespace quic

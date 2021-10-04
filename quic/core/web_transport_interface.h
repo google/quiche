@@ -75,9 +75,9 @@ class QUIC_EXPORT_PRIVATE WebTransportStream {
   virtual QuicStreamId GetStreamId() const = 0;
 
   // Resets the stream with the specified error code.
-  // TODO(b/184048994): change the error code type based on IETF consensus.
-  virtual void ResetWithUserCode(QuicRstStreamErrorCode error) = 0;
+  virtual void ResetWithUserCode(WebTransportStreamError error) = 0;
   virtual void ResetDueToInternalError() = 0;
+  virtual void SendStopSending(WebTransportStreamError error) = 0;
   // Called when the owning object has been garbage-collected.
   virtual void MaybeResetDueToStreamObjectGone() = 0;
 

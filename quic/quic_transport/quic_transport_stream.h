@@ -10,11 +10,11 @@
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
+#include "quic/core/http/web_transport_stream_adapter.h"
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_stream.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/web_transport_interface.h"
-#include "quic/core/web_transport_stream_adapter.h"
 #include "quic/quic_transport/quic_transport_session_interface.h"
 
 namespace quic {
@@ -50,11 +50,14 @@ class QUIC_EXPORT_PRIVATE QuicTransportStream : public QuicStream,
 
   QuicStreamId GetStreamId() const override { return id(); }
 
-  void ResetWithUserCode(QuicRstStreamErrorCode error) override {
-    adapter_.ResetWithUserCode(error);
+  void ResetWithUserCode(WebTransportStreamError /*error*/) override {
+    adapter_.ResetWithUserCode(0);
   }
   void ResetDueToInternalError() override {
     adapter_.ResetDueToInternalError();
+  }
+  void SendStopSending(WebTransportStreamError /*error*/) override {
+    adapter_.SendStopSending(0);
   }
   void MaybeResetDueToStreamObjectGone() override {
     adapter_.MaybeResetDueToStreamObjectGone();

@@ -609,7 +609,24 @@ void QuicStream::ResetWithError(QuicResetStreamError error) {
 
   if (read_side_closed_ && write_side_closed_ && !IsWaitingForAcks()) {
     session()->MaybeCloseZombieStream(id_);
-    return;
+  }
+}
+
+void QuicStream::ResetWriteSide(QuicResetStreamError error) {
+  stream_error_ = error;
+  MaybeSendRstStream(error);
+
+  if (read_side_closed_ && write_side_closed_ && !IsWaitingForAcks()) {
+    session()->MaybeCloseZombieStream(id_);
+  }
+}
+
+void QuicStream::SendStopSending(QuicResetStreamError error) {
+  stream_error_ = error;
+  MaybeSendStopSending(error);
+
+  if (read_side_closed_ && write_side_closed_ && !IsWaitingForAcks()) {
+    session()->MaybeCloseZombieStream(id_);
   }
 }
 
