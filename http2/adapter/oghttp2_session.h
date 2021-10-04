@@ -40,7 +40,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // sent.
   void StartGracefulShutdown();
 
-  // Invokes the visitor's OnReadyToSend() method for serialized frame data.
+  // Invokes the visitor's OnReadyToSend() method for serialized frames and
+  // DataFrameSource::Send() for data frames.
   int Send();
 
   int32_t SubmitRequest(absl::Span<const Header> headers,
