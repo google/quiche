@@ -1,5 +1,6 @@
 #include "http2/adapter/callback_visitor.h"
 
+#include "absl/strings/escaping.h"
 #include "http2/adapter/nghttp2_util.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 #include "common/quiche_endian.h"
@@ -54,7 +55,10 @@ int64_t CallbackVisitor::OnReadyToSend(absl::string_view serialized) {
   }
   int64_t result = callbacks_->send_callback(
       nullptr, ToUint8Ptr(serialized.data()), serialized.size(), 0, user_data_);
-  QUICHE_VLOG(1) << "CallbackVisitor::OnReadyToSend returning " << result;
+  QUICHE_VLOG(1) << "CallbackVisitor::OnReadyToSend called with "
+                 << serialized.size() << " bytes, returning " << result;
+  QUICHE_VLOG(2) << (perspective_ == Perspective::kClient ? "Client" : "Server")
+                 << " sending: [" << absl::CEscape(serialized) << "]";
   if (result > 0) {
     return result;
   } else if (result == NGHTTP2_ERR_WOULDBLOCK) {
@@ -70,9 +74,9 @@ void CallbackVisitor::OnConnectionError() {
 
 bool CallbackVisitor::OnFrameHeader(Http2StreamId stream_id, size_t length,
                                     uint8_t type, uint8_t flags) {
-  QUICHE_VLOG(1) << "CallbackVisitor::OnFrameHeader(stream_id: " << stream_id
-                 << ", len: " << length << ", type: " << int(type)
-                 << ", flags: " << int(flags) << ")";
+  QUICHE_VLOG(1) << "CallbackVisitor::OnFrameHeader(stream_id=" << stream_id
+                 << ", type=" << int(type) << ", length=" << length
+                 << ", flags=" << int(flags) << ")";
   if (static_cast<FrameType>(type) == FrameType::CONTINUATION) {
     // Treat CONTINUATION as HEADERS
     QUICHE_DCHECK_EQ(current_frame_.hd.stream_id, stream_id);
@@ -341,8 +345,8 @@ int CallbackVisitor::OnBeforeFrameSent(uint8_t frame_type,
                                        Http2StreamId stream_id, size_t length,
                                        uint8_t flags) {
   if (callbacks_->before_frame_send_callback) {
-    QUICHE_VLOG(1) << "OnBeforeFrameSent(type=" << int(frame_type)
-                   << ", stream_id=" << stream_id << ", length=" << length
+    QUICHE_VLOG(1) << "OnBeforeFrameSent(stream_id=" << stream_id
+                   << ", type=" << int(frame_type) << ", length=" << length
                    << ", flags=" << int(flags) << ")";
     nghttp2_frame frame;
     auto it = GetStreamInfo(stream_id);
@@ -360,8 +364,8 @@ int CallbackVisitor::OnFrameSent(uint8_t frame_type, Http2StreamId stream_id,
                                  size_t length, uint8_t flags,
                                  uint32_t error_code) {
   if (callbacks_->on_frame_send_callback) {
-    QUICHE_VLOG(1) << "OnFrameSent(type=" << int(frame_type)
-                   << ", stream_id=" << stream_id << ", length=" << length
+    QUICHE_VLOG(1) << "OnFrameSent(stream_id=" << stream_id
+                   << ", type=" << int(frame_type) << ", length=" << length
                    << ", flags=" << int(flags) << ", error_code=" << error_code
                    << ")";
     nghttp2_frame frame;
