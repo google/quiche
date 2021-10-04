@@ -314,6 +314,17 @@ TEST_F(CapsuleTest, PartialCapsuleThenError) {
   }
 }
 
+TEST_F(CapsuleTest, RejectOverlyLongCapsule) {
+  std::string capsule_fragment = absl::HexStringToBytes(
+                                     "33"        // unknown capsule type of 0x33
+                                     "80123456"  // capsule length
+                                     ) +
+                                 std::string(1111111, '?');
+  EXPECT_CALL(visitor_, OnCapsuleParseFailure(
+                            "Refusing to buffer too much capsule data"));
+  EXPECT_FALSE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

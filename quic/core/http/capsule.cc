@@ -504,6 +504,12 @@ bool CapsuleParser::IngestCapsuleFragment(absl::string_view capsule_fragment) {
     }
     buffered_data_.erase(0, buffered_data_read);
   }
+  static constexpr size_t kMaxCapsuleBufferSize = 1024 * 1024;
+  if (buffered_data_.size() > kMaxCapsuleBufferSize) {
+    buffered_data_.clear();
+    ReportParseFailure("Refusing to buffer too much capsule data");
+    return false;
+  }
   return true;
 }
 
