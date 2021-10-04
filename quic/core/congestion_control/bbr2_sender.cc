@@ -200,6 +200,12 @@ void Bbr2Sender::ApplyConnectionOptions(
     QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_ignore_inflight_hi_in_probe_up);
     params_.probe_up_ignore_inflight_hi = true;
   }
+
+  if (GetQuicReloadableFlag(quic_bbr2_startup_probe_up_loss_events) &&
+      ContainsQuicTag(connection_options, kB206)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_startup_probe_up_loss_events);
+    params_.startup_full_loss_count = params_.probe_bw_full_loss_count;
+  }
 }
 
 Limits<QuicByteCount> Bbr2Sender::GetCwndLimitsByMode() const {
