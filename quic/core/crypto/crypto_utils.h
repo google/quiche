@@ -166,16 +166,6 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
                          CrypterPair* crypters,
                          std::string* subkey_secret);
 
-  // Performs key extraction to derive a new secret of |result_len| bytes
-  // dependent on |subkey_secret|, |label|, and |context|. Returns false if the
-  // parameters are invalid (e.g. |label| contains null bytes); returns true on
-  // success.
-  static bool ExportKeyingMaterial(absl::string_view subkey_secret,
-                                   absl::string_view label,
-                                   absl::string_view context,
-                                   size_t result_len,
-                                   std::string* result);
-
   // Computes the FNV-1a hash of the provided DER-encoded cert for use in the
   // XLCT tag.
   static uint64_t ComputeLeafCertHash(absl::string_view cert);

@@ -53,6 +53,9 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter();
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter();
   virtual HandshakeState GetHandshakeState() const = 0;
+  bool ExportKeyingMaterialForLabel(absl::string_view label,
+                                    absl::string_view context,
+                                    size_t result_len, std::string* result);
 
  protected:
   // Called when a new message is received on the crypto stream and is available

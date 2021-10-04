@@ -64,6 +64,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   bool ShouldSendExpectCTHeader() const override;
   bool DidCertMatchSni() const override;
   const ProofSource::Details* ProofSourceDetails() const override;
+  bool ExportKeyingMaterial(absl::string_view label, absl::string_view context,
+                            size_t result_len, std::string* result) override;
   SSL* GetSsl() const override;
 
   // From QuicCryptoServerStreamBase and TlsHandshaker

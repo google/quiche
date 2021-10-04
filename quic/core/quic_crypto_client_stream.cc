@@ -128,6 +128,13 @@ QuicCryptoClientStream::CreateCurrentOneRttEncrypter() {
   return handshaker_->CreateCurrentOneRttEncrypter();
 }
 
+bool QuicCryptoClientStream::ExportKeyingMaterial(absl::string_view label,
+                                                  absl::string_view context,
+                                                  size_t result_len,
+                                                  std::string* result) {
+  return handshaker_->ExportKeyingMaterial(label, context, result_len, result);
+}
+
 std::string QuicCryptoClientStream::chlo_hash() const {
   return handshaker_->chlo_hash();
 }

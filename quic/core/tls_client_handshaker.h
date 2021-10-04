@@ -50,6 +50,8 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   bool ReceivedInchoateReject() const override;
   int num_scup_messages_received() const override;
   std::string chlo_hash() const override;
+  bool ExportKeyingMaterial(absl::string_view label, absl::string_view context,
+                            size_t result_len, std::string* result) override;
 
   // From QuicCryptoClientStream::HandshakerInterface and TlsHandshaker
   bool encryption_established() const override;

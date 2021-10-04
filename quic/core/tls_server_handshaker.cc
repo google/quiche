@@ -363,6 +363,13 @@ const ProofSource::Details* TlsServerHandshaker::ProofSourceDetails() const {
   return proof_source_details_.get();
 }
 
+bool TlsServerHandshaker::ExportKeyingMaterial(absl::string_view label,
+                                               absl::string_view context,
+                                               size_t result_len,
+                                               std::string* result) {
+  return ExportKeyingMaterialForLabel(label, context, result_len, result);
+}
+
 void TlsServerHandshaker::OnConnectionClosed(QuicErrorCode error,
                                              ConnectionCloseSource source) {
   TlsHandshaker::OnConnectionClosed(error, source);

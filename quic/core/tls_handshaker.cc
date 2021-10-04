@@ -328,6 +328,23 @@ std::unique_ptr<QuicEncrypter> TlsHandshaker::CreateCurrentOneRttEncrypter() {
   return encrypter;
 }
 
+bool TlsHandshaker::ExportKeyingMaterialForLabel(absl::string_view label,
+                                                 absl::string_view context,
+                                                 size_t result_len,
+                                                 std::string* result) {
+  // TODO(haoyuewang) Adding support of keying material export when 0-RTT is
+  // accepted.
+  if (SSL_in_init(ssl())) {
+    return false;
+  }
+  result->resize(result_len);
+  return SSL_export_keying_material(
+             ssl(), reinterpret_cast<uint8_t*>(result->data()), result_len,
+             label.data(), label.size(),
+             reinterpret_cast<const uint8_t*>(context.data()), context.size(),
+             !context.empty()) == 1;
+}
+
 void TlsHandshaker::WriteMessage(EncryptionLevel level,
                                  absl::string_view data) {
   stream_->WriteCryptoData(level, data);

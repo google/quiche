@@ -188,6 +188,13 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
                           ConnectionCloseSource /*source*/) override {}
   SSL* GetSsl() const override { return nullptr; }
 
+  bool ExportKeyingMaterial(absl::string_view /*label*/,
+                            absl::string_view /*context*/,
+                            size_t /*result_len*/,
+                            std::string* /*result*/) override {
+    return false;
+  }
+
  private:
   using QuicCryptoStream::session;
 

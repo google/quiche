@@ -65,6 +65,14 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStreamBase : public QuicCryptoStream {
   // client.  Does not count update messages that were received prior
   // to handshake confirmation.
   virtual int num_scup_messages_received() const = 0;
+
+  bool ExportKeyingMaterial(absl::string_view /*label*/,
+                            absl::string_view /*context*/,
+                            size_t /*result_len*/,
+                            std::string* /*result*/) override {
+    QUICHE_NOTREACHED();
+    return false;
+  }
 };
 
 class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
@@ -187,6 +195,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     // Called when application state is received.
     virtual void SetServerApplicationStateForResumption(
         std::unique_ptr<ApplicationState> application_state) = 0;
+
+    // Called to obtain keying material export of length |result_len| with the
+    // given |label| and |context|. Returns false on failure.
+    virtual bool ExportKeyingMaterial(absl::string_view label,
+                                      absl::string_view context,
+                                      size_t result_len,
+                                      std::string* result) = 0;
   };
 
   // ProofHandler is an interface that handles callbacks from the crypto
@@ -253,7 +268,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
       override;
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
   SSL* GetSsl() const override;
-
+  bool ExportKeyingMaterial(absl::string_view label, absl::string_view context,
+                            size_t result_len, std::string* result) override;
   std::string chlo_hash() const;
 
  protected:

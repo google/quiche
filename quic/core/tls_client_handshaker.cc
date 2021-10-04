@@ -326,6 +326,13 @@ std::string TlsClientHandshaker::chlo_hash() const {
   return "";
 }
 
+bool TlsClientHandshaker::ExportKeyingMaterial(absl::string_view label,
+                                               absl::string_view context,
+                                               size_t result_len,
+                                               std::string* result) {
+  return ExportKeyingMaterialForLabel(label, context, result_len, result);
+}
+
 bool TlsClientHandshaker::encryption_established() const {
   return encryption_established_;
 }

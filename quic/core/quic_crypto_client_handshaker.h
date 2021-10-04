@@ -65,6 +65,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
       std::unique_ptr<ApplicationState> /*application_state*/) override {
     QUICHE_NOTREACHED();
   }
+  bool ExportKeyingMaterial(absl::string_view /*label*/,
+                            absl::string_view /*context*/,
+                            size_t /*result_len*/,
+                            std::string* /*result*/) override {
+    QUICHE_NOTREACHED();
+    return false;
+  }
 
   // From QuicCryptoHandshaker
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override;

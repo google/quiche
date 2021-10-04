@@ -79,6 +79,12 @@ class MockQuicCryptoStream : public QuicCryptoStream,
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override {
     return nullptr;
   }
+  bool ExportKeyingMaterial(absl::string_view /*label*/,
+                            absl::string_view /*context*/,
+                            size_t /*result_len*/,
+                            std::string* /*result*/) override {
+    return false;
+  }
   SSL* GetSsl() const override { return nullptr; }
 
  private:

@@ -542,35 +542,6 @@ bool CryptoUtils::DeriveKeys(const ParsedQuicVersion& version,
 }
 
 // static
-bool CryptoUtils::ExportKeyingMaterial(absl::string_view subkey_secret,
-                                       absl::string_view label,
-                                       absl::string_view context,
-                                       size_t result_len,
-                                       std::string* result) {
-  for (size_t i = 0; i < label.length(); i++) {
-    if (label[i] == '\0') {
-      QUIC_LOG(ERROR) << "ExportKeyingMaterial label may not contain NULs";
-      return false;
-    }
-  }
-  // Create HKDF info input: null-terminated label + length-prefixed context
-  if (context.length() >= std::numeric_limits<uint32_t>::max()) {
-    QUIC_LOG(ERROR) << "Context value longer than 2^32";
-    return false;
-  }
-  uint32_t context_length = static_cast<uint32_t>(context.length());
-  std::string info = std::string(label);
-  info.push_back('\0');
-  info.append(reinterpret_cast<char*>(&context_length), sizeof(context_length));
-  info.append(context.data(), context.length());
-
-  QuicHKDF hkdf(subkey_secret, absl::string_view() /* no salt */, info,
-                result_len, 0 /* no fixed IV */, 0 /* no subkey secret */);
-  *result = std::string(hkdf.client_write_key());
-  return true;
-}
-
-// static
 uint64_t CryptoUtils::ComputeLeafCertHash(absl::string_view cert) {
   return QuicUtils::FNV1a_64_Hash(cert);
 }

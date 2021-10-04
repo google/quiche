@@ -860,6 +860,51 @@ TEST_P(EndToEndTest, HandshakeSuccessful) {
   server_thread_->Resume();
 }
 
+TEST_P(EndToEndTest, ExportKeyingMaterial) {
+  ASSERT_TRUE(Initialize());
+  if (!version_.UsesTls()) {
+    return;
+  }
+  const char* kExportLabel = "label";
+  const int kExportLen = 30;
+  std::string client_keying_material_export, server_keying_material_export;
+
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  ASSERT_TRUE(server_thread_);
+  server_thread_->WaitForCryptoHandshakeConfirmed();
+
+  server_thread_->Pause();
+  QuicSpdySession* server_session = GetServerSession();
+  QuicCryptoStream* server_crypto_stream = nullptr;
+  if (server_session != nullptr) {
+    server_crypto_stream =
+        QuicSessionPeer::GetMutableCryptoStream(server_session);
+  } else {
+    ADD_FAILURE() << "Missing server session";
+  }
+  if (server_crypto_stream != nullptr) {
+    ASSERT_TRUE(server_crypto_stream->ExportKeyingMaterial(
+        kExportLabel, /*context=*/"", kExportLen,
+        &server_keying_material_export));
+
+  } else {
+    ADD_FAILURE() << "Missing server crypto stream";
+  }
+  server_thread_->Resume();
+
+  QuicSpdyClientSession* client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  QuicCryptoStream* client_crypto_stream =
+      QuicSessionPeer::GetMutableCryptoStream(client_session);
+  ASSERT_TRUE(client_crypto_stream);
+  ASSERT_TRUE(client_crypto_stream->ExportKeyingMaterial(
+      kExportLabel, /*context=*/"", kExportLen,
+      &client_keying_material_export));
+  ASSERT_EQ(client_keying_material_export.size(),
+            static_cast<size_t>(kExportLen));
+  EXPECT_EQ(client_keying_material_export, server_keying_material_export);
+}
+
 TEST_P(EndToEndTest, SimpleRequestResponse) {
   ASSERT_TRUE(Initialize());
 

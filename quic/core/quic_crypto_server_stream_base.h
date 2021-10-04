@@ -93,6 +93,14 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
   // made. The Details are owned by the QuicCryptoServerStreamBase and the
   // pointer is only valid while the owning object is still valid.
   virtual const ProofSource::Details* ProofSourceDetails() const = 0;
+
+  bool ExportKeyingMaterial(absl::string_view /*label*/,
+                            absl::string_view /*context*/,
+                            size_t /*result_len*/,
+                            std::string* /*result*/) override {
+    QUICHE_NOTREACHED();
+    return false;
+  }
 };
 
 // Creates an appropriate QuicCryptoServerStream for the provided parameters,

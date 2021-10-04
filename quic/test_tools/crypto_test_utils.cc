@@ -634,22 +634,6 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
       "subkey secret", client_subkey_secret.data(),
       client_subkey_secret.length(), server_subkey_secret.data(),
       server_subkey_secret.length());
-
-  const char kSampleLabel[] = "label";
-  const char kSampleContext[] = "context";
-  const size_t kSampleOutputLength = 32;
-  std::string client_key_extraction;
-  std::string server_key_extraction;
-  EXPECT_TRUE(client->ExportKeyingMaterial(kSampleLabel, kSampleContext,
-                                           kSampleOutputLength,
-                                           &client_key_extraction));
-  EXPECT_TRUE(server->ExportKeyingMaterial(kSampleLabel, kSampleContext,
-                                           kSampleOutputLength,
-                                           &server_key_extraction));
-  quiche::test::CompareCharArraysWithHexError(
-      "sample key extraction", client_key_extraction.data(),
-      client_key_extraction.length(), server_key_extraction.data(),
-      server_key_extraction.length());
 }
 
 QuicTag ParseTag(const char* tagstr) {
