@@ -957,13 +957,8 @@ TEST_P(QuicDispatcherTestOneVersion, DropPacketWithInvalidFlags) {
       .Times(0);
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
-  if (GetQuicRestartFlag(quic_drop_invalid_flags)) {
-    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
-        .Times(0);
-  } else {
-    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
-        .Times(1);
-  }
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+      .Times(0);
   dispatcher_->ProcessPacket(server_address_, client_address, packet);
 }
 

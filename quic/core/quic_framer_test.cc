@@ -1304,7 +1304,6 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
 }
 
 TEST_P(QuicFramerTest, AllZeroPacketParsingFails) {
-  SetQuicRestartFlag(quic_drop_invalid_flags, true);
   unsigned char packet[1200] = {};
   QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
   PacketHeaderFormat format = GOOGLE_QUIC_PACKET;

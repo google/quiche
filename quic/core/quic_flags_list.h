@@ -121,8 +121,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_match_ietf_reset_code, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_send_timestamps, false)
 // When the flag is true, exit STARTUP after the same number of loss events as PROBE_UP.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_startup_probe_up_loss_events, true)
-// When true, QuicDispatcher will silently drop QUIC packets that have invalid flags.
-QUIC_FLAG(FLAGS_quic_restart_flag_quic_drop_invalid_flags, true)
 // When true, QuicDispatcher will silently drop incoming packets whose UDP source port is on the blocklist.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_blocked_ports, false)
 // When true, defaults to BBR congestion control instead of Cubic.

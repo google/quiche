@@ -6608,26 +6608,23 @@ QuicErrorCode QuicFramer::ParsePublicHeaderDispatcher(
     return QUIC_INVALID_PACKET_HEADER;
   }
   const uint8_t first_byte = reader.PeekByte();
-  if (GetQuicRestartFlag(quic_drop_invalid_flags)) {
-    QUIC_RESTART_FLAG_COUNT(quic_drop_invalid_flags);
-    if ((first_byte & FLAGS_LONG_HEADER) == 0 &&
-        (first_byte & FLAGS_FIXED_BIT) == 0 &&
-        (first_byte & FLAGS_DEMULTIPLEXING_BIT) == 0) {
-      // All versions of Google QUIC up to and including Q043 set
-      // FLAGS_DEMULTIPLEXING_BIT to one on all client-to-server packets. Q044
-      // and Q045 were never default-enabled in production. All subsequent
-      // versions of Google QUIC (starting with Q046) require FLAGS_FIXED_BIT to
-      // be set to one on all packets. All versions of IETF QUIC (since
-      // draft-ietf-quic-transport-17 which was earlier than the first IETF QUIC
-      // version that was deployed in production by any implementation) also
-      // require FLAGS_FIXED_BIT to be set to one on all packets. If a packet
-      // has the FLAGS_LONG_HEADER bit set to one, it could be a first flight
-      // from an unknown future version that allows the other two bits to be set
-      // to zero. Based on this, packets that have all three of those bits set
-      // to zero are known to be invalid.
-      *detailed_error = "Invalid flags.";
-      return QUIC_INVALID_PACKET_HEADER;
-    }
+  if ((first_byte & FLAGS_LONG_HEADER) == 0 &&
+      (first_byte & FLAGS_FIXED_BIT) == 0 &&
+      (first_byte & FLAGS_DEMULTIPLEXING_BIT) == 0) {
+    // All versions of Google QUIC up to and including Q043 set
+    // FLAGS_DEMULTIPLEXING_BIT to one on all client-to-server packets. Q044
+    // and Q045 were never default-enabled in production. All subsequent
+    // versions of Google QUIC (starting with Q046) require FLAGS_FIXED_BIT to
+    // be set to one on all packets. All versions of IETF QUIC (since
+    // draft-ietf-quic-transport-17 which was earlier than the first IETF QUIC
+    // version that was deployed in production by any implementation) also
+    // require FLAGS_FIXED_BIT to be set to one on all packets. If a packet
+    // has the FLAGS_LONG_HEADER bit set to one, it could be a first flight
+    // from an unknown future version that allows the other two bits to be set
+    // to zero. Based on this, packets that have all three of those bits set
+    // to zero are known to be invalid.
+    *detailed_error = "Invalid flags.";
+    return QUIC_INVALID_PACKET_HEADER;
   }
   const bool ietf_format = QuicUtils::IsIetfPacketHeader(first_byte);
   uint8_t unused_first_byte;
