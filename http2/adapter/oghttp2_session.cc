@@ -14,6 +14,14 @@ namespace adapter {
 
 namespace {
 
+// #define OGHTTP2_DEBUG_TRACE 1
+
+#ifdef OGHTTP2_DEBUG_TRACE
+const bool kTraceLoggingEnabled = true;
+#else
+const bool kTraceLoggingEnabled = false;
+#endif
+
 const uint32_t kMaxAllowedMetadataFrameSize = 65536u;
 
 // TODO(birenroy): Consider incorporating spdy::FlagsSerializionVisitor here.
@@ -111,6 +119,15 @@ class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
   uint8_t flags_ = 0;
 };
 
+absl::string_view TracePerspectiveAsString(Perspective p) {
+  switch (p) {
+    case Perspective::kClient:
+      return "OGHTTP2_CLIENT";
+    case Perspective::kServer:
+      return "OGHTTP2_SERVER";
+  }
+}
+
 }  // namespace
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
@@ -143,6 +160,12 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
 
 OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
     : visitor_(visitor),
+      receive_logger_(
+          this, TracePerspectiveAsString(options.perspective),
+          []() { return kTraceLoggingEnabled; }, this),
+      send_logger_(
+          TracePerspectiveAsString(options.perspective),
+          []() { return kTraceLoggingEnabled; }, this),
       headers_handler_(*this, visitor),
       connection_window_manager_(kInitialFlowControlWindowSize,
                                  [this](size_t window_update_delta) {
@@ -150,7 +173,7 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
                                                     window_update_delta);
                                  }),
       options_(options) {
-  decoder_.set_visitor(this);
+  decoder_.set_visitor(&receive_logger_);
   decoder_.set_extension_visitor(this);
   if (options_.perspective == Perspective::kServer) {
     remaining_preface_ = {spdy::kHttp2ConnectionHeaderPrefix,
@@ -332,6 +355,7 @@ bool OgHttp2Session::SendQueuedFrames() {
     frame_ptr->Visit(&c);
     visitor_.OnBeforeFrameSent(c.frame_type(), c.stream_id(), c.length(),
                                c.flags());
+    frame_ptr->Visit(&send_logger_);
     spdy::SpdySerializedFrame frame = framer_.SerializeFrame(*frame_ptr);
     const int64_t result = visitor_.OnReadyToSend(absl::string_view(frame));
     if (result < 0) {

@@ -10,6 +10,7 @@
 #include "http2/adapter/http2_util.h"
 #include "http2/adapter/http2_visitor_interface.h"
 #include "http2/adapter/window_manager.h"
+#include "http2/core/http2_trace_logging.h"
 #include "http2/core/priority_write_scheduler.h"
 #include "common/platform/api/quiche_bug_tracker.h"
 #include "common/platform/api/quiche_export.h"
@@ -260,6 +261,11 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
+
+  // Logs received frames when enabled.
+  Http2TraceLogger receive_logger_;
+  // Logs sent frames when enabled.
+  Http2FrameLogger send_logger_;
 
   // Encodes outbound frames.
   spdy::SpdyFramer framer_{spdy::SpdyFramer::ENABLE_COMPRESSION};
