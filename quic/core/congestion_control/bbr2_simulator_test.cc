@@ -939,6 +939,7 @@ TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseB204)) {
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
                    sender_->ExportDebugState().bandwidth_est, 0.1f);
   EXPECT_LE(sender_loss_rate_in_packets(), 0.25);
+  EXPECT_LE(sender_->ExportDebugState().max_ack_height, 2000u);
 
   // Now increase the bottleneck bandwidth from 100Kbps to 10Mbps.
   params.test_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(10000);
@@ -979,6 +980,7 @@ TEST_F(Bbr2DefaultTopologyTest,
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
                    sender_->ExportDebugState().bandwidth_est, 0.50f);
   EXPECT_LE(sender_loss_rate_in_packets(), 0.35);
+  EXPECT_LE(sender_->ExportDebugState().max_ack_height, 10000u);
 
   // Now increase the bottleneck bandwidth from 100Kbps to 10Mbps.
   params.test_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(10000);
