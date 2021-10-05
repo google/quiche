@@ -978,7 +978,7 @@ TEST_F(Bbr2DefaultTopologyTest,
   // This is much farther off when aggregation is present,
   // Ideally BSAO or another option would fix this.
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_est, 0.50f);
+                   sender_->ExportDebugState().bandwidth_est, 0.55f);
   EXPECT_LE(sender_loss_rate_in_packets(), 0.35);
   EXPECT_LE(sender_->ExportDebugState().max_ack_height, 10000u);
 
