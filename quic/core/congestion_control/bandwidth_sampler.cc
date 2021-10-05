@@ -24,11 +24,39 @@ std::ostream& operator<<(std::ostream& os, const SendTimeState& s) {
 }
 
 QuicByteCount MaxAckHeightTracker::Update(
-    QuicBandwidth bandwidth_estimate, QuicRoundTripCount round_trip_count,
+    QuicBandwidth bandwidth_estimate, bool is_new_max_bandwidth,
+    QuicRoundTripCount round_trip_count,
     QuicPacketNumber last_sent_packet_number,
     QuicPacketNumber last_acked_packet_number, QuicTime ack_time,
     QuicByteCount bytes_acked) {
   bool force_new_epoch = false;
+
+  if (reduce_extra_acked_on_bandwidth_increase_ && is_new_max_bandwidth) {
+    // Save and clear existing entries.
+    ExtraAckedEvent best = max_ack_height_filter_.GetBest();
+    ExtraAckedEvent second_best = max_ack_height_filter_.GetSecondBest();
+    ExtraAckedEvent third_best = max_ack_height_filter_.GetThirdBest();
+    max_ack_height_filter_.Clear();
+
+    // Reinsert the heights into the filter after recalculating.
+    QuicByteCount expected_bytes_acked = bandwidth_estimate * best.time_delta;
+    if (expected_bytes_acked < best.bytes_acked) {
+      best.extra_acked = best.bytes_acked - expected_bytes_acked;
+      max_ack_height_filter_.Update(best, best.round);
+    }
+    expected_bytes_acked = bandwidth_estimate * second_best.time_delta;
+    if (expected_bytes_acked < second_best.bytes_acked) {
+      QUICHE_DCHECK_LE(best.round, second_best.round);
+      second_best.extra_acked = second_best.bytes_acked - expected_bytes_acked;
+      max_ack_height_filter_.Update(second_best, second_best.round);
+    }
+    expected_bytes_acked = bandwidth_estimate * third_best.time_delta;
+    if (expected_bytes_acked < third_best.bytes_acked) {
+      QUICHE_DCHECK_LE(second_best.round, third_best.round);
+      third_best.extra_acked = third_best.bytes_acked - expected_bytes_acked;
+      max_ack_height_filter_.Update(third_best, third_best.round);
+    }
+  }
 
   // If any packet sent after the start of the epoch has been acked, start a new
   // epoch.
@@ -42,6 +70,11 @@ QuicByteCount MaxAckHeightTracker::Update(
                      "last_sent_packet_number_before_epoch_:"
                   << last_sent_packet_number_before_epoch_
                   << ", last_acked_packet_number:" << last_acked_packet_number;
+    if (reduce_extra_acked_on_bandwidth_increase_) {
+      QUIC_BUG(quic_bwsampler_46)
+          << "A full round of aggregation should never "
+          << "pass with startup_include_extra_acked(B204) enabled.";
+    }
     force_new_epoch = true;
   }
   if (aggregation_epoch_start_time_ == QuicTime::Zero() || force_new_epoch) {
@@ -54,8 +87,8 @@ QuicByteCount MaxAckHeightTracker::Update(
 
   // Compute how many bytes are expected to be delivered, assuming max bandwidth
   // is correct.
-  QuicByteCount expected_bytes_acked =
-      bandwidth_estimate * (ack_time - aggregation_epoch_start_time_);
+  QuicTime::Delta aggregation_delta = ack_time - aggregation_epoch_start_time_;
+  QuicByteCount expected_bytes_acked = bandwidth_estimate * aggregation_delta;
   // Reset the current aggregation epoch as soon as the ack arrival rate is less
   // than or equal to the max bandwidth.
   if (aggregation_epoch_bytes_ <=
@@ -68,8 +101,7 @@ QuicByteCount MaxAckHeightTracker::Update(
                   << ack_aggregation_bandwidth_threshold_
                   << ", expected_bytes_acked:" << expected_bytes_acked
                   << ", bandwidth_estimate:" << bandwidth_estimate
-                  << ", aggregation_duration:"
-                  << (ack_time - aggregation_epoch_start_time_)
+                  << ", aggregation_duration:" << aggregation_delta
                   << ", new_aggregation_epoch:" << ack_time
                   << ", new_aggregation_bytes_acked:" << bytes_acked;
     // Reset to start measuring a new aggregation epoch.
@@ -92,7 +124,11 @@ QuicByteCount MaxAckHeightTracker::Update(
                 << ", expected_bytes_acked:" << expected_bytes_acked
                 << ", aggregation_epoch_bytes_:" << aggregation_epoch_bytes_
                 << ", extra_bytes_acked:" << extra_bytes_acked;
-  max_ack_height_filter_.Update(extra_bytes_acked, round_trip_count);
+  ExtraAckedEvent new_event;
+  new_event.extra_acked = extra_bytes_acked;
+  new_event.bytes_acked = aggregation_epoch_bytes_;
+  new_event.time_delta = aggregation_delta;
+  max_ack_height_filter_.Update(new_event, round_trip_count);
   return extra_bytes_acked;
 }
 
@@ -309,18 +345,21 @@ BandwidthSampler::OnCongestionEvent(QuicTime ack_time,
             : last_acked_packet_send_state;
   }
 
+  bool is_new_max_bandwidth = event_sample.sample_max_bandwidth > max_bandwidth;
   max_bandwidth = std::max(max_bandwidth, event_sample.sample_max_bandwidth);
   if (limit_max_ack_height_tracker_by_send_rate_) {
     max_bandwidth = std::max(max_bandwidth, max_send_rate);
   }
-  event_sample.extra_acked = OnAckEventEnd(
-      std::min(est_bandwidth_upper_bound, max_bandwidth), round_trip_count);
+  // TODO(ianswett): Why is the min being passed in here?
+  event_sample.extra_acked =
+      OnAckEventEnd(std::min(est_bandwidth_upper_bound, max_bandwidth),
+                    is_new_max_bandwidth, round_trip_count);
 
   return event_sample;
 }
 
 QuicByteCount BandwidthSampler::OnAckEventEnd(
-    QuicBandwidth bandwidth_estimate,
+    QuicBandwidth bandwidth_estimate, bool is_new_max_bandwidth,
     QuicRoundTripCount round_trip_count) {
   const QuicByteCount newly_acked_bytes =
       total_bytes_acked_ - total_bytes_acked_after_last_ack_event_;
@@ -329,10 +368,10 @@ QuicByteCount BandwidthSampler::OnAckEventEnd(
     return 0;
   }
   total_bytes_acked_after_last_ack_event_ = total_bytes_acked_;
-
   QuicByteCount extra_acked = max_ack_height_tracker_.Update(
-      bandwidth_estimate, round_trip_count, last_sent_packet_,
-      last_acked_packet_, last_acked_packet_ack_time_, newly_acked_bytes);
+      bandwidth_estimate, is_new_max_bandwidth, round_trip_count,
+      last_sent_packet_, last_acked_packet_, last_acked_packet_ack_time_,
+      newly_acked_bytes);
   // If |extra_acked| is zero, i.e. this ack event marks the start of a new ack
   // aggregation epoch, save LessRecentPoint, which is the last ack point of the
   // previous epoch, as a A0 candidate.

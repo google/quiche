@@ -756,7 +756,7 @@ class MaxAckHeightTrackerTest : public QuicTest {
     for (QuicByteCount bytes = 0; bytes < aggregation_bytes;
          bytes += bytes_per_ack) {
       QuicByteCount extra_acked = tracker_.Update(
-          bandwidth_, RoundTripCount(), last_sent_packet_number_,
+          bandwidth_, true, RoundTripCount(), last_sent_packet_number_,
           last_acked_packet_number_, now_, bytes_per_ack);
       QUIC_VLOG(1) << "T" << now_ << ": Update after " << bytes_per_ack
                    << " bytes acked, " << extra_acked << " extra bytes acked";
@@ -882,8 +882,9 @@ TEST_F(MaxAckHeightTrackerTest, StartNewEpochAfterAFullRound) {
   // Update with a tiny bandwidth causes a very low expected bytes acked, which
   // in turn causes the current epoch to continue if the |tracker_| doesn't
   // check the packet numbers.
-  tracker_.Update(bandwidth_ * 0.1, RoundTripCount(), last_sent_packet_number_,
-                  last_acked_packet_number_, now_, 100);
+  tracker_.Update(bandwidth_ * 0.1, true, RoundTripCount(),
+                  last_sent_packet_number_, last_acked_packet_number_, now_,
+                  100);
 
   if (GetQuicReloadableFlag(
           quic_bbr_start_new_aggregation_epoch_after_a_full_round)) {

@@ -78,6 +78,24 @@ struct QUIC_EXPORT_PRIVATE SendTimeState {
   QuicByteCount bytes_in_flight;
 };
 
+struct QUIC_NO_EXPORT ExtraAckedEvent {
+  // The excess bytes acknowlwedged in the time delta for this event.
+  QuicByteCount extra_acked = 0;
+
+  // The bytes acknowledged and time delta from the event.
+  QuicByteCount bytes_acked = 0;
+  QuicTime::Delta time_delta = QuicTime::Delta::Zero();
+  // The round trip of the event.
+  QuicRoundTripCount round = 0;
+
+  inline bool operator>=(const ExtraAckedEvent& other) const {
+    return extra_acked >= other.extra_acked;
+  }
+  inline bool operator==(const ExtraAckedEvent& other) const {
+    return extra_acked == other.extra_acked;
+  }
+};
+
 struct QUIC_EXPORT_PRIVATE BandwidthSample {
   // The bandwidth at that particular sample. Zero if no valid bandwidth sample
   // is available.
@@ -100,11 +118,14 @@ struct QUIC_EXPORT_PRIVATE BandwidthSample {
 class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
  public:
   explicit MaxAckHeightTracker(QuicRoundTripCount initial_filter_window)
-      : max_ack_height_filter_(initial_filter_window, 0, 0) {}
+      : max_ack_height_filter_(initial_filter_window, ExtraAckedEvent(), 0) {}
 
-  QuicByteCount Get() const { return max_ack_height_filter_.GetBest(); }
+  QuicByteCount Get() const {
+    return max_ack_height_filter_.GetBest().extra_acked;
+  }
 
   QuicByteCount Update(QuicBandwidth bandwidth_estimate,
+                       bool is_new_max_bandwidth,
                        QuicRoundTripCount round_trip_count,
                        QuicPacketNumber last_sent_packet_number,
                        QuicPacketNumber last_acked_packet_number,
@@ -115,7 +136,10 @@ class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
   }
 
   void Reset(QuicByteCount new_height, QuicRoundTripCount new_time) {
-    max_ack_height_filter_.Reset(new_height, new_time);
+    ExtraAckedEvent new_event;
+    new_event.extra_acked = new_height;
+    new_event.round = new_time;
+    max_ack_height_filter_.Reset(new_event, new_time);
   }
 
   void SetAckAggregationBandwidthThreshold(double threshold) {
@@ -124,6 +148,10 @@ class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
 
   void SetStartNewAggregationEpochAfterFullRound(bool value) {
     start_new_aggregation_epoch_after_full_round_ = value;
+  }
+
+  void SetReduceExtraAckedOnBandwidthIncrease(bool value) {
+    reduce_extra_acked_on_bandwidth_increase_ = value;
   }
 
   double ack_aggregation_bandwidth_threshold() const {
@@ -137,10 +165,9 @@ class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
  private:
   // Tracks the maximum number of bytes acked faster than the estimated
   // bandwidth.
-  using MaxAckHeightFilter = WindowedFilter<QuicByteCount,
-                                            MaxFilter<QuicByteCount>,
-                                            QuicRoundTripCount,
-                                            QuicRoundTripCount>;
+  using MaxAckHeightFilter =
+      WindowedFilter<ExtraAckedEvent, MaxFilter<ExtraAckedEvent>,
+                     QuicRoundTripCount, QuicRoundTripCount>;
   MaxAckHeightFilter max_ack_height_filter_;
 
   // The time this aggregation started and the number of bytes acked during it.
@@ -154,6 +181,7 @@ class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
   double ack_aggregation_bandwidth_threshold_ =
       GetQuicFlag(FLAGS_quic_ack_aggregation_bandwidth_threshold);
   bool start_new_aggregation_epoch_after_full_round_ = false;
+  bool reduce_extra_acked_on_bandwidth_increase_ = false;
 };
 
 // An interface common to any class that can provide bandwidth samples from the
@@ -335,6 +363,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
       QuicBandwidth est_bandwidth_upper_bound,
       QuicRoundTripCount round_trip_count) override;
   QuicByteCount OnAckEventEnd(QuicBandwidth bandwidth_estimate,
+                              bool is_new_max_bandwidth,
                               QuicRoundTripCount round_trip_count);
 
   void OnAppLimited() override;
@@ -371,6 +400,10 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
 
   void SetLimitMaxAckHeightTrackerBySendRate(bool value) {
     limit_max_ack_height_tracker_by_send_rate_ = value;
+  }
+
+  void SetReduceExtraAckedOnBandwidthIncrease(bool value) {
+    max_ack_height_tracker_.SetReduceExtraAckedOnBandwidthIncrease(value);
   }
 
   // AckPoint represents a point on the ack line.

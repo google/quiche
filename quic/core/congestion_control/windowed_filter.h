@@ -71,6 +71,7 @@ class QUIC_EXPORT_PRIVATE WindowedFilter {
   WindowedFilter(TimeDeltaT window_length, T zero_value, TimeT zero_time)
       : window_length_(window_length),
         zero_value_(zero_value),
+        zero_time_(zero_time),
         estimates_{Sample(zero_value_, zero_time),
                    Sample(zero_value_, zero_time),
                    Sample(zero_value_, zero_time)} {}
@@ -138,6 +139,8 @@ class QUIC_EXPORT_PRIVATE WindowedFilter {
         Sample(new_sample, new_time);
   }
 
+  void Clear() { Reset(zero_value_, zero_time_); }
+
   T GetBest() const { return estimates_[0].sample; }
   T GetSecondBest() const { return estimates_[1].sample; }
   T GetThirdBest() const { return estimates_[2].sample; }
@@ -152,6 +155,7 @@ class QUIC_EXPORT_PRIVATE WindowedFilter {
 
   TimeDeltaT window_length_;  // Time length of window.
   T zero_value_;              // Uninitialized value of T.
+  TimeT zero_time_;           // Uninitialized value of TimeT.
   Sample estimates_[3];       // Best estimate is element 0.
 };
 

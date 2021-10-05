@@ -95,6 +95,10 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   // If false, exit STARTUP on loss only if bandwidth is below threshold.
   bool always_exit_startup_on_excess_loss = false;
 
+  // If true, inclue extra acked during STARTUP and proactively reduce extra
+  // acked when bandwidth increases.
+  bool startup_include_extra_acked = false;
+
   /*
    * DRAIN parameters.
    */
@@ -429,6 +433,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   void SetMaxAckHeightTrackerWindowLength(QuicRoundTripCount value) {
     bandwidth_sampler_.SetMaxAckHeightTrackerWindowLength(value);
+  }
+
+  void SetReduceExtraAckedOnBandwidthIncrease(bool value) {
+    bandwidth_sampler_.SetReduceExtraAckedOnBandwidthIncrease(value);
   }
 
   bool MaybeExpireMinRtt(const Bbr2CongestionEvent& congestion_event);
