@@ -121,15 +121,12 @@ void TlsConnection::EnableInfoCallback() {
 }
 
 // static
-bssl::UniquePtr<SSL_CTX> TlsConnection::CreateSslCtx(int cert_verify_mode) {
+bssl::UniquePtr<SSL_CTX> TlsConnection::CreateSslCtx() {
   CRYPTO_library_init();
   bssl::UniquePtr<SSL_CTX> ssl_ctx(SSL_CTX_new(TLS_with_buffers_method()));
   SSL_CTX_set_min_proto_version(ssl_ctx.get(), TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(ssl_ctx.get(), TLS1_3_VERSION);
   SSL_CTX_set_quic_method(ssl_ctx.get(), &kSslQuicMethod);
-  if (cert_verify_mode != SSL_VERIFY_NONE) {
-    SSL_CTX_set_custom_verify(ssl_ctx.get(), cert_verify_mode, &VerifyCallback);
-  }
   return ssl_ctx;
 }
 

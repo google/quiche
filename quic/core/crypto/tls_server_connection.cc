@@ -23,8 +23,12 @@ TlsServerConnection::TlsServerConnection(SSL_CTX* ssl_ctx,
 // static
 bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
     ProofSource* proof_source) {
-  bssl::UniquePtr<SSL_CTX> ssl_ctx =
-      TlsConnection::CreateSslCtx(SSL_VERIFY_NONE);
+  bssl::UniquePtr<SSL_CTX> ssl_ctx = TlsConnection::CreateSslCtx();
+
+  // Server does not request/verify client certs by default. Individual server
+  // connections may call SSL_set_custom_verify on their SSL object to request
+  // client certs.
+
   SSL_CTX_set_tlsext_servername_callback(ssl_ctx.get(),
                                          &TlsExtServernameCallback);
   SSL_CTX_set_alpn_select_cb(ssl_ctx.get(), &SelectAlpnCallback, nullptr);
