@@ -339,7 +339,7 @@ bool TlsHandshaker::ExportKeyingMaterialForLabel(absl::string_view label,
   }
   result->resize(result_len);
   return SSL_export_keying_material(
-             ssl(), reinterpret_cast<uint8_t*>(result->data()), result_len,
+             ssl(), reinterpret_cast<uint8_t*>(&*result->begin()), result_len,
              label.data(), label.size(),
              reinterpret_cast<const uint8_t*>(context.data()), context.size(),
              !context.empty()) == 1;
