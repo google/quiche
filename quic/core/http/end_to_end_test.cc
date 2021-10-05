@@ -6382,6 +6382,71 @@ TEST_P(EndToEndTest, WebTransportSessionClose) {
   EXPECT_TRUE(spdy_stream == nullptr);
 }
 
+TEST_P(EndToEndTest, WebTransportSessionCloseWithoutCapsule) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_TRUE(session != nullptr);
+  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+
+  WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+  QuicStreamId stream_id = stream->GetStreamId();
+  EXPECT_TRUE(stream->Write("test"));
+  // Keep stream open.
+
+  bool close_received = false;
+  EXPECT_CALL(visitor, OnSessionClosed(0, ""))
+      .WillOnce(Assign(&close_received, true));
+  session->CloseSessionWithFinOnlyForTests();
+  client_->WaitUntil(2000, [&]() { return close_received; });
+  EXPECT_TRUE(close_received);
+
+  QuicSpdyStream* spdy_stream =
+      GetClientSession()->GetOrCreateSpdyDataStream(stream_id);
+  EXPECT_TRUE(spdy_stream == nullptr);
+}
+
+TEST_P(EndToEndTest, WebTransportSessionReceiveClose) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* session = CreateWebTransportSession(
+      "/session-close", /*wait_for_server_response=*/true);
+  ASSERT_TRUE(session != nullptr);
+  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+
+  WebTransportStream* stream = session->OpenOutgoingUnidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+  QuicStreamId stream_id = stream->GetStreamId();
+  EXPECT_TRUE(stream->Write("42 test error"));
+  EXPECT_TRUE(stream->SendFin());
+
+  // Have some other streams open pending, to ensure they are closed properly.
+  stream = session->OpenOutgoingUnidirectionalStream();
+  stream = session->OpenOutgoingBidirectionalStream();
+
+  bool close_received = false;
+  EXPECT_CALL(visitor, OnSessionClosed(42, "test error"))
+      .WillOnce(Assign(&close_received, true));
+  client_->WaitUntil(2000, [&]() { return close_received; });
+  EXPECT_TRUE(close_received);
+
+  QuicSpdyStream* spdy_stream =
+      GetClientSession()->GetOrCreateSpdyDataStream(stream_id);
+  EXPECT_TRUE(spdy_stream == nullptr);
+}
+
 TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());

@@ -57,6 +57,12 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
                     absl::string_view error_message) override;
   void OnCloseReceived(WebTransportSessionError error_code,
                        absl::string_view error_message);
+  void OnConnectStreamFinReceived();
+
+  // It is legal for WebTransport to be closed without a
+  // CLOSE_WEBTRANSPORT_SESSION capsule.  We always send a capsule, but we still
+  // need to ensure we handle this case correctly.
+  void CloseSessionWithFinOnlyForTests();
 
   // Return the earliest incoming stream that has been received by the session
   // but has not been accepted.  Returns nullptr if there are no incoming

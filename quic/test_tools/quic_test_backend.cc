@@ -20,6 +20,51 @@
 namespace quic {
 namespace test {
 
+namespace {
+
+// SessionCloseVisitor implements the "/session-close" endpoint.  If the client
+// sends a unidirectional stream of format "code message" to this endpoint, it
+// will close the session with the corresponding error code and error message.
+// For instance, sending "42 test error" will cause it to be closed with code 42
+// and message "test error".
+class SessionCloseVisitor : public WebTransportVisitor {
+ public:
+  SessionCloseVisitor(WebTransportSession* session) : session_(session) {}
+
+  void OnSessionReady(const spdy::SpdyHeaderBlock& /*headers*/) override {}
+  void OnSessionClosed(WebTransportSessionError /*error_code*/,
+                       const std::string& /*error_message*/) override {}
+
+  void OnIncomingBidirectionalStreamAvailable() override {}
+  void OnIncomingUnidirectionalStreamAvailable() override {
+    WebTransportStream* stream = session_->AcceptIncomingUnidirectionalStream();
+    if (stream == nullptr) {
+      return;
+    }
+    stream->SetVisitor(
+        std::make_unique<WebTransportUnidirectionalEchoReadVisitor>(
+            stream, [this](const std::string& data) {
+              std::pair<absl::string_view, absl::string_view> parsed =
+                  absl::StrSplit(data, absl::MaxSplits(' ', 1));
+              WebTransportSessionError error_code = 0;
+              bool success = absl::SimpleAtoi(parsed.first, &error_code);
+              QUICHE_DCHECK(success) << data;
+              session_->CloseSession(error_code, parsed.second);
+            }));
+    stream->visitor()->OnCanRead();
+  }
+
+  void OnDatagramReceived(absl::string_view /*datagram*/) override {}
+
+  void OnCanCreateNewOutgoingBidirectionalStream() override {}
+  void OnCanCreateNewOutgoingUnidirectionalStream() override {}
+
+ private:
+  WebTransportSession* session_;  // Not owned.
+};
+
+}  // namespace
+
 QuicSimpleServerBackend::WebTransportResponse
 QuicTestBackend::ProcessWebTransportRequest(
     const spdy::Http2HeaderBlock& request_headers,
@@ -61,6 +106,12 @@ QuicTestBackend::ProcessWebTransportRequest(
   }
   if (path == "/resets") {
     return WebTransportResetsBackend(request_headers, session);
+  }
+  if (path == "/session-close") {
+    WebTransportResponse response;
+    response.response_headers[":status"] = "200";
+    response.visitor = std::make_unique<SessionCloseVisitor>(session);
+    return response;
   }
 
   WebTransportResponse response;

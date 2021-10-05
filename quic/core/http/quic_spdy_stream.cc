@@ -1731,6 +1731,9 @@ void QuicSpdyStream::HandleBodyAvailable() {
   // in the capsule parser.
   if (sequencer()->IsClosed()) {
     capsule_parser_->ErrorIfThereIsRemainingBufferedData();
+    if (web_transport_ != nullptr) {
+      web_transport_->OnConnectStreamFinReceived();
+    }
     OnFinRead();
   }
 }

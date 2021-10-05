@@ -140,6 +140,33 @@ void WebTransportHttp3::OnCloseReceived(WebTransportSessionError error_code,
   MaybeNotifyClose();
 }
 
+void WebTransportHttp3::OnConnectStreamFinReceived() {
+  // If we already received a CLOSE_WEBTRANSPORT_SESSION capsule, we don't need
+  // to do anything about receiving a FIN, since we already sent one in
+  // response.
+  if (close_received_) {
+    return;
+  }
+  close_received_ = true;
+  if (close_sent_) {
+    QUIC_DLOG(INFO) << "Ignoring received FIN as we've already sent our close.";
+    return;
+  }
+
+  connect_stream_->WriteOrBufferBody("", /*fin=*/true);
+  MaybeNotifyClose();
+}
+
+void WebTransportHttp3::CloseSessionWithFinOnlyForTests() {
+  QUICHE_DCHECK(!close_sent_);
+  close_sent_ = true;
+  if (close_received_) {
+    return;
+  }
+
+  connect_stream_->WriteOrBufferBody("", /*fin=*/true);
+}
+
 void WebTransportHttp3::HeadersReceived(const spdy::SpdyHeaderBlock& headers) {
   if (session_->perspective() == Perspective::IS_CLIENT) {
     int status_code;
