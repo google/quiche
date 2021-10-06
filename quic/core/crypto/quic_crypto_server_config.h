@@ -20,10 +20,8 @@
 #include "quic/core/crypto/crypto_secret_boxer.h"
 #include "quic/core/crypto/key_exchange.h"
 #include "quic/core/crypto/proof_source.h"
-#include "quic/core/crypto/proof_verifier.h"
 #include "quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quic/core/crypto/quic_crypto_proof.h"
-#include "quic/core/crypto/server_proof_verifier.h"
 #include "quic/core/proto/cached_network_parameters_proto.h"
 #include "quic/core/proto/source_address_token_proto.h"
 #include "quic/core/quic_time.h"
@@ -455,11 +453,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   }
 
   ProofSource* proof_source() const;
-  ServerProofVerifier* proof_verifier() const;
-  void set_proof_verifier(std::unique_ptr<ServerProofVerifier> proof_verifier);
-
-  ClientCertMode client_cert_mode() const;
-  void set_client_cert_mode(ClientCertMode client_cert_mode);
 
   SSL_CTX* ssl_ctx() const;
 
@@ -920,8 +913,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // proof_source_ contains an object that can provide certificate chains and
   // signatures.
   std::unique_ptr<ProofSource> proof_source_;
-  std::unique_ptr<ServerProofVerifier> proof_verifier_;
-  ClientCertMode client_cert_mode_;
 
   // key_exchange_source_ contains an object that can provide key exchange
   // objects.

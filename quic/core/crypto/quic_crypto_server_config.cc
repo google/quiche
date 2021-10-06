@@ -29,12 +29,10 @@
 #include "quic/core/crypto/key_exchange.h"
 #include "quic/core/crypto/p256_key_exchange.h"
 #include "quic/core/crypto/proof_source.h"
-#include "quic/core/crypto/proof_verifier.h"
 #include "quic/core/crypto/quic_decrypter.h"
 #include "quic/core/crypto/quic_encrypter.h"
 #include "quic/core/crypto/quic_hkdf.h"
 #include "quic/core/crypto/quic_random.h"
-#include "quic/core/crypto/server_proof_verifier.h"
 #include "quic/core/crypto/tls_server_connection.h"
 #include "quic/core/proto/crypto_server_config_proto.h"
 #include "quic/core/proto/source_address_token_proto.h"
@@ -244,7 +242,6 @@ QuicCryptoServerConfig::QuicCryptoServerConfig(
       primary_config_(nullptr),
       next_config_promotion_time_(QuicWallTime::Zero()),
       proof_source_(std::move(proof_source)),
-      client_cert_mode_(ClientCertMode::kNone),
       key_exchange_source_(std::move(key_exchange_source)),
       ssl_ctx_(TlsServerConnection::CreateSslCtx(proof_source_.get())),
       source_address_token_future_secs_(3600),
@@ -1750,23 +1747,6 @@ int QuicCryptoServerConfig::NumberOfConfigs() const {
 
 ProofSource* QuicCryptoServerConfig::proof_source() const {
   return proof_source_.get();
-}
-
-ServerProofVerifier* QuicCryptoServerConfig::proof_verifier() const {
-  return proof_verifier_.get();
-}
-
-void QuicCryptoServerConfig::set_proof_verifier(
-    std::unique_ptr<ServerProofVerifier> proof_verifier) {
-  proof_verifier_ = std::move(proof_verifier);
-}
-
-ClientCertMode QuicCryptoServerConfig::client_cert_mode() const {
-  return client_cert_mode_;
-}
-
-void QuicCryptoServerConfig::set_client_cert_mode(ClientCertMode mode) {
-  client_cert_mode_ = mode;
 }
 
 SSL_CTX* QuicCryptoServerConfig::ssl_ctx() const {
