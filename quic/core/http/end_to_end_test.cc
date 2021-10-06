@@ -6522,11 +6522,10 @@ TEST_P(EndToEndTest, WebTransportSession404) {
   EXPECT_TRUE(stream->Write("test"));
   EXPECT_TRUE(stream->SendFin());
 
-  client_->WaitUntil(-1, [connect_stream]() {
-    return connect_stream->headers_decompressed();
-  });
-  EXPECT_TRUE(GetClientSession()->GetOrCreateSpdyDataStream(
-                  connect_stream_id) == nullptr);
+  EXPECT_TRUE(client_->WaitUntil(-1, [this, connect_stream_id]() {
+    return GetClientSession()->GetOrCreateSpdyDataStream(connect_stream_id) ==
+           nullptr;
+  }));
 }
 
 }  // namespace
