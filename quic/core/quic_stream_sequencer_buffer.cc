@@ -125,7 +125,9 @@ QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
     *error_details = "Received data beyond available range.";
     return QUIC_INTERNAL_ERROR;
   }
-  MaybeAddMoreBlocks(starting_offset + size);
+  if (!delay_allocation_until_new_data_) {
+    MaybeAddMoreBlocks(starting_offset + size);
+  }
 
   if (bytes_received_.Empty() ||
       starting_offset >= bytes_received_.rbegin()->max() ||
@@ -139,6 +141,11 @@ QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
       // processing.
       *error_details = "Too many data intervals received for this stream.";
       return QUIC_TOO_MANY_STREAM_DATA_INTERVALS;
+    }
+    if (delay_allocation_until_new_data_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(
+          quic_delay_sequencer_buffer_allocation_until_new_data, 1, 2);
+      MaybeAddMoreBlocks(starting_offset + size);
     }
 
     size_t bytes_copy = 0;
@@ -162,6 +169,11 @@ QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
     // processing.
     *error_details = "Too many data intervals received for this stream.";
     return QUIC_TOO_MANY_STREAM_DATA_INTERVALS;
+  }
+  if (delay_allocation_until_new_data_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_delay_sequencer_buffer_allocation_until_new_data, 2, 2);
+    MaybeAddMoreBlocks(starting_offset + size);
   }
   for (const auto& interval : newly_received) {
     const QuicStreamOffset copy_offset = interval.min();

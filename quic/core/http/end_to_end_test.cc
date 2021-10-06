@@ -832,6 +832,8 @@ INSTANTIATE_TEST_SUITE_P(EndToEndTests,
                          ::testing::PrintToStringParamName());
 
 TEST_P(EndToEndTest, HandshakeSuccessful) {
+  SetQuicReloadableFlag(quic_delay_sequencer_buffer_allocation_until_new_data,
+                        true);
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   ASSERT_TRUE(server_thread_);
