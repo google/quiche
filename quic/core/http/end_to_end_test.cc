@@ -6503,6 +6503,32 @@ TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
   }));
 }
 
+TEST_P(EndToEndTest, WebTransportSession404) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* session = CreateWebTransportSession(
+      "/does-not-exist", /*wait_for_server_response=*/false);
+  ASSERT_TRUE(session != nullptr);
+  QuicSpdyStream* connect_stream = client_->latest_created_stream();
+  QuicStreamId connect_stream_id = connect_stream->id();
+
+  WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+  EXPECT_TRUE(stream->Write("test"));
+  EXPECT_TRUE(stream->SendFin());
+
+  client_->WaitUntil(-1, [connect_stream]() {
+    return connect_stream->headers_decompressed();
+  });
+  EXPECT_TRUE(GetClientSession()->GetOrCreateSpdyDataStream(
+                  connect_stream_id) == nullptr);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

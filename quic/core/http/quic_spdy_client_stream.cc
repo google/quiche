@@ -61,8 +61,13 @@ void QuicSpdyClientStream::OnInitialHeadersComplete(
   if (web_transport() != nullptr) {
     web_transport()->HeadersReceived(response_headers_);
     if (!web_transport()->ready()) {
-      // Rejected due to status not being 200, or other reason.
-      WriteOrBufferData("", /*fin=*/true, nullptr);
+      // The request was rejected by WebTransport, typically due to not having a
+      // 2xx status.  The reason we're using Reset() here rather than closing
+      // cleanly is that even if the server attempts to send us any form of body
+      // with a 4xx request, we've already set up the capsule parser, and we
+      // don't have any way to process anything from the response body in
+      // question.
+      Reset(QUIC_STREAM_CANCELLED);
       return;
     }
   }
