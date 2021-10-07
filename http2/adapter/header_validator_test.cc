@@ -1,5 +1,6 @@
 #include "http2/adapter/header_validator.h"
 
+#include "absl/strings/str_cat.h"
 #include "common/platform/api/quiche_test.h"
 
 namespace http2 {
