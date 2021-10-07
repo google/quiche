@@ -23,18 +23,16 @@ const absl::string_view kHttp2StatusValueAllowedChars = "0123456789";
 // TODO(birenroy): Support websocket requests, which contain an extra
 // `:protocol` pseudo-header.
 bool ValidateRequestHeaders(const std::vector<std::string>& pseudo_headers) {
-  static const std::vector<std::string> kRequiredHeaders = []() {
-    return std::vector<std::string>(
-        {":authority", ":method", ":path", ":scheme"});
-  }();
-  return pseudo_headers == kRequiredHeaders;
+  static const std::vector<std::string>* kRequiredHeaders =
+      new std::vector<std::string>(
+          {":authority", ":method", ":path", ":scheme"});
+  return pseudo_headers == *kRequiredHeaders;
 }
 
 bool ValidateResponseHeaders(const std::vector<std::string>& pseudo_headers) {
-  static const std::vector<std::string> kRequiredHeaders = []() {
-    return std::vector<std::string>({":status"});
-  }();
-  return pseudo_headers == kRequiredHeaders;
+  static const std::vector<std::string>* kRequiredHeaders =
+      new std::vector<std::string>({":status"});
+  return pseudo_headers == *kRequiredHeaders;
 }
 
 bool ValidateResponseTrailers(const std::vector<std::string>& pseudo_headers) {
