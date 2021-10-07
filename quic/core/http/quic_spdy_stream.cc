@@ -1447,6 +1447,21 @@ void QuicSpdyStream::WriteCapsule(const Capsule& capsule, bool fin) {
   WriteOrBufferBody(serialized_capsule.AsStringView(), /*fin=*/fin);
 }
 
+void QuicSpdyStream::WriteGreaseCapsule() {
+  // GREASE capsulde IDs have a form of 41 * N + 23.
+  QuicRandom* random = spdy_session_->connection()->random_generator();
+  uint64_t type = random->InsecureRandUint64() >> 4;
+  type = (type / 41) * 41 + 23;
+  QUICHE_DCHECK_EQ((type - 23) % 41, 0u);
+
+  constexpr size_t kMaxLength = 64;
+  size_t length = random->InsecureRandUint64() % kMaxLength;
+  std::string bytes(length, '\0');
+  random->InsecureRandBytes(&bytes[0], bytes.size());
+  Capsule capsule = Capsule::Unknown(type, bytes);
+  WriteCapsule(capsule, /*fin=*/false);
+}
+
 MessageStatus QuicSpdyStream::SendHttp3Datagram(
     absl::optional<QuicDatagramContextId> context_id,
     absl::string_view payload) {
@@ -1557,12 +1572,19 @@ void QuicSpdyStream::RegisterHttp3DatagramContextId(
     if (context_id.has_value()) {
       const bool is_client_context = context_id.value() % 2 == 0;
       if (is_client == is_client_context) {
+        QuicConnection::ScopedPacketFlusher flusher(
+            spdy_session_->connection());
+        WriteGreaseCapsule();
         WriteCapsule(Capsule::RegisterDatagramContext(
             context_id.value(), format_type, format_additional_data));
+        WriteGreaseCapsule();
       }
     } else if (is_client) {
+      QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
+      WriteGreaseCapsule();
       WriteCapsule(Capsule::RegisterDatagramNoContext(format_type,
                                                       format_additional_data));
+      WriteGreaseCapsule();
     }
   }
 }

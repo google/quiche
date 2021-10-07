@@ -345,6 +345,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Writes |capsule| onto the DATA stream.
   void WriteCapsule(const Capsule& capsule, bool fin = false);
 
+  void WriteGreaseCapsule();
+
  protected:
   // Called when the received headers are too large. By default this will
   // reset the stream.
