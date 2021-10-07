@@ -19,12 +19,6 @@ QuicAlarm::QuicAlarm(QuicArenaScopedPtr<Delegate> delegate)
 QuicAlarm::~QuicAlarm() {
   if (IsSet()) {
     QUIC_CODE_COUNT(quic_alarm_not_cancelled_in_dtor);
-    static std::atomic<uint64_t> hit_count{0};
-    uint64_t old_count = hit_count.fetch_add(1, std::memory_order_relaxed);
-    if ((old_count & (old_count + 1)) == 0) {
-      QUIC_LOG(ERROR) << "QuicAlarm not cancelled at destruction. "
-                      << QuicStackTrace();
-    }
   }
 }
 
