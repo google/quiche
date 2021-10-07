@@ -5,6 +5,7 @@
 #include <list>
 
 #include "http2/adapter/data_source.h"
+#include "http2/adapter/header_validator.h"
 #include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/http2_session.h"
 #include "http2/adapter/http2_util.h"
@@ -181,6 +182,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     std::unique_ptr<spdy::SpdyHeaderBlock> trailers;
     void* user_data = nullptr;
     int32_t send_window = kInitialFlowControlWindowSize;
+    absl::optional<HeaderType> received_header_type;
     bool half_closed_local = false;
     bool half_closed_remote = false;
   };
@@ -199,14 +201,24 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     explicit PassthroughHeadersHandler(OgHttp2Session& session,
                                        Http2VisitorInterface& visitor)
         : session_(session), visitor_(visitor) {}
+
     void set_stream_id(Http2StreamId stream_id) {
       stream_id_ = stream_id;
       result_ = Http2VisitorInterface::HEADER_OK;
     }
+
+    void set_header_type(HeaderType type) { type_ = type; }
+    HeaderType header_type() const { return type_; }
+
     void OnHeaderBlockStart() override;
     void OnHeader(absl::string_view key, absl::string_view value) override;
     void OnHeaderBlockEnd(size_t /* uncompressed_header_bytes */,
                           size_t /* compressed_header_bytes */) override;
+    absl::string_view status_header() {
+      QUICHE_DCHECK(type_ == HeaderType::RESPONSE ||
+                    type_ == HeaderType::RESPONSE_100);
+      return validator_.status_header();
+    }
 
    private:
     OgHttp2Session& session_;
@@ -214,6 +226,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     Http2StreamId stream_id_ = 0;
     Http2VisitorInterface::OnHeaderResult result_ =
         Http2VisitorInterface::HEADER_OK;
+    // Validates header blocks according to the HTTP/2 specification.
+    HeaderValidator validator_;
+    HeaderType type_ = HeaderType::RESPONSE;
   };
 
   // Queues the connection preface, if not already done.
@@ -255,6 +270,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   // Closes the given `stream_id` with the given `error_code`.
   void CloseStream(Http2StreamId stream_id, Http2ErrorCode error_code);
+
+  // Calculates the next expected header type for a stream in a given state.
+  HeaderType NextHeaderType(absl::optional<HeaderType> current_type);
 
   // Returns true if the session can create a new stream.
   bool CanCreateStream() const;

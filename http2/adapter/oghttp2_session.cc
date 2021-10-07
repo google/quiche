@@ -131,23 +131,38 @@ absl::string_view TracePerspectiveAsString(Perspective p) {
 }  // namespace
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
+  result_ = Http2VisitorInterface::HEADER_OK;
   const bool status = visitor_.OnBeginHeadersForStream(stream_id_);
   if (!status) {
     result_ = Http2VisitorInterface::HEADER_CONNECTION_ERROR;
   }
+  validator_.StartHeaderBlock();
 }
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
     absl::string_view key,
     absl::string_view value) {
-  if (result_ == Http2VisitorInterface::HEADER_OK) {
-    result_ = visitor_.OnHeaderForStream(stream_id_, key, value);
+  if (result_ != Http2VisitorInterface::HEADER_OK) {
+    QUICHE_VLOG(2) << "Early return; status not HEADER_OK";
+    return;
   }
+  const auto validation_result = validator_.ValidateSingleHeader(key, value);
+  if (validation_result != HeaderValidator::HEADER_OK) {
+    QUICHE_VLOG(2) << "RST_STREAM: invalid header found";
+    result_ = Http2VisitorInterface::HEADER_RST_STREAM;
+    return;
+  }
+  result_ = visitor_.OnHeaderForStream(stream_id_, key, value);
 }
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
     size_t /* uncompressed_header_bytes */,
     size_t /* compressed_header_bytes */) {
+  if (result_ == Http2VisitorInterface::HEADER_OK) {
+    if (!validator_.FinishHeaderBlock(type_)) {
+      result_ = Http2VisitorInterface::HEADER_RST_STREAM;
+    }
+  }
   if (result_ == Http2VisitorInterface::HEADER_OK) {
     const bool result = visitor_.OnEndHeadersForStream(stream_id_);
     if (!result) {
@@ -670,10 +685,27 @@ void OgHttp2Session::OnStreamPadding(spdy::SpdyStreamId /*stream_id*/, size_t
 spdy::SpdyHeadersHandlerInterface* OgHttp2Session::OnHeaderFrameStart(
     spdy::SpdyStreamId stream_id) {
   headers_handler_.set_stream_id(stream_id);
+  auto it = stream_map_.find(stream_id);
+  if (it != stream_map_.end()) {
+    headers_handler_.set_header_type(
+        NextHeaderType(it->second.received_header_type));
+  }
   return &headers_handler_;
 }
 
-void OgHttp2Session::OnHeaderFrameEnd(spdy::SpdyStreamId /*stream_id*/) {
+void OgHttp2Session::OnHeaderFrameEnd(spdy::SpdyStreamId stream_id) {
+  auto it = stream_map_.find(stream_id);
+  if (it != stream_map_.end()) {
+    if (headers_handler_.header_type() == HeaderType::RESPONSE &&
+        !headers_handler_.status_header().empty() &&
+        headers_handler_.status_header()[0] == '1') {
+      // If response headers carried a 1xx response code, final response headers
+      // should still be forthcoming.
+      it->second.received_header_type = HeaderType::RESPONSE_100;
+    } else {
+      it->second.received_header_type = headers_handler_.header_type();
+    }
+  }
   headers_handler_.set_stream_id(0);
 }
 
@@ -957,6 +989,18 @@ void OgHttp2Session::CloseStream(Http2StreamId stream_id,
 
 bool OgHttp2Session::CanCreateStream() const {
   return stream_map_.size() < max_outbound_concurrent_streams_;
+}
+
+HeaderType OgHttp2Session::NextHeaderType(
+    absl::optional<HeaderType> current_type) {
+  if (IsServerSession()) {
+    return HeaderType::REQUEST;
+  } else if (!current_type ||
+             current_type.value() == HeaderType::RESPONSE_100) {
+    return HeaderType::RESPONSE;
+  } else {
+    return HeaderType::RESPONSE_TRAILER;
+  }
 }
 
 void OgHttp2Session::LatchErrorAndNotify() {
