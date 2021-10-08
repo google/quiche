@@ -625,12 +625,6 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasReceivedAckDelayExponent()) {
     framer_.set_peer_ack_delay_exponent(config.ReceivedAckDelayExponent());
   }
-  if (GetQuicReloadableFlag(quic_send_timestamps) &&
-      config.HasClientSentConnectionOption(kSTMP, perspective_)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_send_timestamps);
-    framer_.set_process_timestamps(true);
-    uber_received_packet_manager_.set_save_timestamps(true);
-  }
   if (config.HasClientSentConnectionOption(kEACK, perspective_)) {
     bundle_retransmittable_with_pto_ack_ = true;
   }

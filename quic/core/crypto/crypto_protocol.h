@@ -209,7 +209,7 @@ const QuicTag kCONH = TAG('C', 'O', 'N', 'H');   // Conservative Handshake
                                                  // Retransmissions.
 const QuicTag kLFAK = TAG('L', 'F', 'A', 'K');   // Don't invoke FACK on the
                                                  // first ack.
-const QuicTag kSTMP = TAG('S', 'T', 'M', 'P');   // Send and process timestamps
+const QuicTag kSTMP = TAG('S', 'T', 'M', 'P');   // DEPRECATED
 const QuicTag kEACK = TAG('E', 'A', 'C', 'K');   // Bundle ack-eliciting frame
                                                  // with an ACK after PTO/RTO
 

@@ -117,8 +117,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, fa
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_server_reverse_validate_new_path3, true)
 // When receiving STOP_SENDING, send a RESET_STREAM with a matching error code.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_match_ietf_reset_code, false)
-// When the STMP connection option is sent by the client, timestamps in the QUIC ACK frame are sent and processed.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_send_timestamps, false)
 // When the flag is true, exit STARTUP after the same number of loss events as PROBE_UP.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_startup_probe_up_loss_events, true)
 // When true, QuicDispatcher will silently drop incoming packets whose UDP source port is on the blocklist.

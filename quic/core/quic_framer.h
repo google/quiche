@@ -309,7 +309,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   QuicErrorCode error() const { return error_; }
 
   // Allows enabling or disabling of timestamp processing and serialization.
-  void set_process_timestamps(bool process_timestamps) {
+  // TODO(ianswett): Remove the const once timestamps are negotiated via
+  // transport params.
+  void set_process_timestamps(bool process_timestamps) const {
     process_timestamps_ = process_timestamps;
   }
 
@@ -1124,7 +1126,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // The diversification nonce from the last received packet.
   DiversificationNonce last_nonce_;
   // If true, send and process timestamps in the ACK frame.
-  bool process_timestamps_;
+  // TODO(ianswett): Remove the mutable once set_process_timestamps isn't const.
+  mutable bool process_timestamps_;
   // The exponent to use when writing/reading ACK receive timestamps.
   uint32_t receive_timestamps_exponent_;
   // The creation time of the connection, used to calculate timestamps.
