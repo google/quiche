@@ -27,6 +27,9 @@ void TestDataFrameSource::EndData() { end_data_ = true; }
 
 std::pair<int64_t, bool> TestDataFrameSource::SelectPayloadLength(
     size_t max_length) {
+  if (return_error_) {
+    return {DataFrameSource::kError, false};
+  }
   // The stream is done if there's no more data, or if |max_length| is at least
   // as large as the remaining data.
   const bool end_data = end_data_ && (current_fragment_.empty() ||

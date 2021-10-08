@@ -83,6 +83,7 @@ class QUICHE_NO_EXPORT TestDataFrameSource : public DataFrameSource {
 
   void AppendPayload(absl::string_view payload);
   void EndData();
+  void SimulateError() { return_error_ = true; }
 
   std::pair<int64_t, bool> SelectPayloadLength(size_t max_length) override;
   bool Send(absl::string_view frame_header, size_t payload_length) override;
@@ -96,6 +97,8 @@ class QUICHE_NO_EXPORT TestDataFrameSource : public DataFrameSource {
   const bool has_fin_;
   // Whether |payload_fragments_| contains the final segment of data.
   bool end_data_ = false;
+  // Whether SelectPayloadLength() should return an error.
+  bool return_error_ = false;
 };
 
 class QUICHE_NO_EXPORT TestMetadataSource : public MetadataSource {
