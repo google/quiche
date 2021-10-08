@@ -185,6 +185,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     absl::optional<HeaderType> received_header_type;
     bool half_closed_local = false;
     bool half_closed_remote = false;
+    // Indicates that `outbound_body` temporarily cannot produce data.
+    bool data_deferred = false;
   };
   using StreamStateMap = absl::flat_hash_map<Http2StreamId, StreamState>;
 

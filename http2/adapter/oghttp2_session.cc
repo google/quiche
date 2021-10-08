@@ -216,10 +216,11 @@ void* OgHttp2Session::GetStreamUserData(Http2StreamId stream_id) {
 
 bool OgHttp2Session::ResumeStream(Http2StreamId stream_id) {
   auto it = stream_map_.find(stream_id);
-  if (it->second.outbound_body == nullptr ||
+  if (it == stream_map_.end() || it->second.outbound_body == nullptr ||
       !write_scheduler_.StreamRegistered(stream_id)) {
     return false;
   }
+  it->second.data_deferred = false;
   write_scheduler_.MarkStreamReady(stream_id, /*add_to_front=*/false);
   return true;
 }
@@ -432,7 +433,6 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
     }
     return true;
   }
-  bool source_can_produce = true;
   int32_t available_window =
       std::min({connection_send_window_, state.send_window,
                 static_cast<int32_t>(max_frame_payload_)});
@@ -443,10 +443,9 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
     std::tie(length, end_data) =
         state.outbound_body->SelectPayloadLength(available_window);
     if (length == 0 && !end_data) {
-      source_can_produce = false;
+      state.data_deferred = true;
       break;
     } else if (length == DataFrameSource::kError) {
-      source_can_produce = false;
       CloseStream(stream_id, Http2ErrorCode::INTERNAL_ERROR);
       // No more work on the stream; it has been closed.
       break;
@@ -494,7 +493,7 @@ bool OgHttp2Session::WriteForStream(Http2StreamId stream_id) {
   }
   // If the stream still exists and has data to send, it should be marked as
   // ready in the write scheduler.
-  if (stream_map_.contains(stream_id) && source_can_produce &&
+  if (stream_map_.contains(stream_id) && !state.data_deferred &&
       state.send_window > 0 && state.outbound_body != nullptr) {
     write_scheduler_.MarkStreamReady(stream_id, false);
   }
@@ -601,7 +600,9 @@ int OgHttp2Session::SubmitTrailer(Http2StreamId stream_id,
     // Save trailers so they can be written once data is done.
     state.trailers =
         absl::make_unique<spdy::SpdyHeaderBlock>(ToHeaderBlock(trailers));
-    write_scheduler_.MarkStreamReady(stream_id, false);
+    if (!iter->second.data_deferred) {
+      write_scheduler_.MarkStreamReady(stream_id, false);
+    }
   }
   return 0;
 }
