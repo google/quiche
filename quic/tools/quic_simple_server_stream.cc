@@ -59,7 +59,11 @@ void QuicSimpleServerStream::OnInitialHeadersComplete(
   if (!SpdyUtils::CopyAndValidateHeaders(header_list, &content_length_,
                                          &request_headers_)) {
     QUIC_DVLOG(1) << "Invalid headers";
-    SendErrorResponse();
+    if (!response_sent_) {
+      // QuicSpdyStream::OnInitialHeadersComplete() may have already sent error
+      // response.
+      SendErrorResponse();
+    }
   }
   ConsumeHeaderList();
   if (!fin && !response_sent_) {
@@ -344,6 +348,9 @@ void QuicSimpleServerStream::SendErrorResponse() {
 
 void QuicSimpleServerStream::SendErrorResponse(int resp_code) {
   QUIC_DVLOG(1) << "Stream " << id() << " sending error response.";
+  if (!reading_stopped()) {
+    StopReading();
+  }
   Http2HeaderBlock headers;
   if (resp_code <= 0) {
     headers[":status"] = "500";
@@ -409,6 +416,11 @@ void QuicSimpleServerStream::SendHeadersAndBodyAndTrailers(
   QUIC_DLOG(INFO) << "Stream " << id() << " writing trailers (fin = true): "
                   << response_trailers.DebugString();
   WriteTrailers(std::move(response_trailers), nullptr);
+}
+
+void QuicSimpleServerStream::OnInvalidHeaders() {
+  QUIC_DVLOG(1) << "Invalid headers";
+  SendErrorResponse(400);
 }
 
 const char* const QuicSimpleServerStream::kErrorResponseBody = "bad";

@@ -67,6 +67,7 @@ class QuicSimpleServerBackend {
     return response;
   }
   virtual bool SupportsWebTransport() { return false; }
+  virtual bool SupportsExtendedConnect() { return true; }
 };
 
 }  // namespace quic

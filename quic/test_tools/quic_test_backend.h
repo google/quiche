@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_TEST_BACKEND_H_
 
 #include "quic/tools/quic_memory_cache_backend.h"
+#include "common/platform/api/quiche_logging.h"
 
 namespace quic {
 namespace test {
@@ -21,11 +22,19 @@ class QuicTestBackend : public QuicMemoryCacheBackend {
   bool SupportsWebTransport() override { return enable_webtransport_; }
 
   void set_enable_webtransport(bool enable_webtransport) {
+    QUICHE_DCHECK(!enable_webtransport || enable_extended_connect_);
     enable_webtransport_ = enable_webtransport;
+  }
+
+  bool SupportsExtendedConnect() override { return enable_extended_connect_; }
+
+  void set_enable_extended_connect(bool enable_extended_connect) {
+    enable_extended_connect_ = enable_extended_connect;
   }
 
  private:
   bool enable_webtransport_ = false;
+  bool enable_extended_connect_ = true;
 };
 
 }  // namespace test

@@ -13,6 +13,7 @@
 #include "quic/core/http/web_transport_http3.h"
 #include "quic/core/quic_alarm.h"
 #include "quic/platform/api/quic_logging.h"
+#include "common/quiche_text_utils.h"
 #include "spdy/core/spdy_protocol.h"
 
 using spdy::SpdyHeaderBlock;
@@ -186,6 +187,27 @@ size_t QuicSpdyClientStream::SendRequest(SpdyHeaderBlock headers,
   }
 
   return bytes_sent;
+}
+
+bool QuicSpdyClientStream::AreHeadersValid(
+    const QuicHeaderList& header_list) const {
+  if (!GetQuicReloadableFlag(quic_verify_request_headers)) {
+    return true;
+  }
+  if (!QuicSpdyStream::AreHeadersValid(header_list)) {
+    return false;
+  }
+  // Verify the presence of :status header.
+  bool saw_status = false;
+  for (const std::pair<std::string, std::string>& pair : header_list) {
+    if (pair.first == ":status") {
+      saw_status = true;
+    } else if (absl::StrContains(pair.first, ":")) {
+      QUIC_DLOG(ERROR) << "Unexpected ':' in header " << pair.first << ".";
+      return false;
+    }
+  }
+  return saw_status;
 }
 
 }  // namespace quic

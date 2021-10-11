@@ -6,7 +6,9 @@
 
 #include "absl/memory/memory.h"
 #include "quic/core/crypto/null_encrypter.h"
+#include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_test.h"
+#include "quic/test_tools/qpack/qpack_encoder_test_utils.h"
 #include "quic/test_tools/quic_spdy_session_peer.h"
 #include "quic/test_tools/quic_stream_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
@@ -95,6 +97,230 @@ TEST_F(QuicSpdyServerStreamBaseTest,
 
   EXPECT_TRUE(stream_->reading_stopped());
   EXPECT_TRUE(stream_->write_side_closed());
+}
+
+TEST_F(QuicSpdyServerStreamBaseTest, AllowExtendedConnect) {
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":method", "CONNECT");
+  header_list.OnHeader(":protocol", "webtransport");
+  header_list.OnHeader(":path", "/path");
+  header_list.OnHeader(":scheme", "http");
+  header_list.OnHeaderBlockEnd(128, 128);
+  stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
+  EXPECT_EQ(GetQuicReloadableFlag(quic_verify_request_headers) &&
+                !session_.allow_extended_connect(),
+            stream_->rst_sent());
+}
+
+TEST_F(QuicSpdyServerStreamBaseTest, AllowExtendedConnectProtocolFirst) {
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":protocol", "webtransport");
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":method", "CONNECT");
+  header_list.OnHeader(":path", "/path");
+  header_list.OnHeader(":scheme", "http");
+  header_list.OnHeaderBlockEnd(128, 128);
+  stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
+  EXPECT_EQ(GetQuicReloadableFlag(quic_verify_request_headers) &&
+                !session_.allow_extended_connect(),
+            stream_->rst_sent());
+}
+
+TEST_F(QuicSpdyServerStreamBaseTest, InvalidExtendedConnect) {
+  if (!session_.version().UsesHttp3()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":method", "CONNECT");
+  header_list.OnHeader(":protocol", "webtransport");
+  header_list.OnHeader(":scheme", "http");
+  header_list.OnHeaderBlockEnd(128, 128);
+
+  EXPECT_CALL(
+      session_,
+      MaybeSendRstStreamFrame(
+          _, QuicResetStreamError::FromInternal(QUIC_BAD_APPLICATION_PAYLOAD),
+          _));
+  stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
+  EXPECT_TRUE(stream_->rst_sent());
+}
+
+TEST_F(QuicSpdyServerStreamBaseTest, VanillaConnectAllowed) {
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":method", "CONNECT");
+  header_list.OnHeaderBlockEnd(128, 128);
+  stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
+  EXPECT_FALSE(stream_->rst_sent());
+}
+
+TEST_F(QuicSpdyServerStreamBaseTest, InvalidVanillaConnect) {
+  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":method", "CONNECT");
+  header_list.OnHeader(":scheme", "http");
+  header_list.OnHeaderBlockEnd(128, 128);
+
+  EXPECT_CALL(
+      session_,
+      MaybeSendRstStreamFrame(
+          _, QuicResetStreamError::FromInternal(QUIC_BAD_APPLICATION_PAYLOAD),
+          _));
+  stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
+  EXPECT_TRUE(stream_->rst_sent());
+}
+
+TEST_F(QuicSpdyServerStreamBaseTest, InvalidNonConnectWithProtocol) {
+  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":method", "GET");
+  header_list.OnHeader(":scheme", "http");
+  header_list.OnHeader(":path", "/path");
+  header_list.OnHeader(":protocol", "webtransport");
+  header_list.OnHeaderBlockEnd(128, 128);
+
+  EXPECT_CALL(
+      session_,
+      MaybeSendRstStreamFrame(
+          _, QuicResetStreamError::FromInternal(QUIC_BAD_APPLICATION_PAYLOAD),
+          _));
+  stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
+  EXPECT_TRUE(stream_->rst_sent());
+}
+
+TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutScheme) {
+  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  // A request without :scheme should be rejected.
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":method", "GET");
+  header_list.OnHeader(":path", "/path");
+  header_list.OnHeaderBlockEnd(128, 128);
+
+  EXPECT_CALL(
+      session_,
+      MaybeSendRstStreamFrame(
+          _, QuicResetStreamError::FromInternal(QUIC_BAD_APPLICATION_PAYLOAD),
+          _));
+  stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
+  EXPECT_TRUE(stream_->rst_sent());
+}
+
+TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutAuthority) {
+  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  // A request without :authority should be rejected.
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":scheme", "http");
+  header_list.OnHeader(":method", "GET");
+  header_list.OnHeader(":path", "/path");
+  header_list.OnHeaderBlockEnd(128, 128);
+
+  EXPECT_CALL(
+      session_,
+      MaybeSendRstStreamFrame(
+          _, QuicResetStreamError::FromInternal(QUIC_BAD_APPLICATION_PAYLOAD),
+          _));
+  stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
+  EXPECT_TRUE(stream_->rst_sent());
+}
+
+TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutMethod) {
+  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  // A request without :method should be rejected.
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":scheme", "http");
+  header_list.OnHeader(":path", "/path");
+  header_list.OnHeaderBlockEnd(128, 128);
+
+  EXPECT_CALL(
+      session_,
+      MaybeSendRstStreamFrame(
+          _, QuicResetStreamError::FromInternal(QUIC_BAD_APPLICATION_PAYLOAD),
+          _));
+  stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
+  EXPECT_TRUE(stream_->rst_sent());
+}
+
+TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutPath) {
+  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  // A request without :path should be rejected.
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":scheme", "http");
+  header_list.OnHeader(":method", "POST");
+  header_list.OnHeaderBlockEnd(128, 128);
+
+  EXPECT_CALL(
+      session_,
+      MaybeSendRstStreamFrame(
+          _, QuicResetStreamError::FromInternal(QUIC_BAD_APPLICATION_PAYLOAD),
+          _));
+  stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
+  EXPECT_TRUE(stream_->rst_sent());
+}
+
+TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestHeader) {
+  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  // A request without :path should be rejected.
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":scheme", "http");
+  header_list.OnHeader(":method", "POST");
+  header_list.OnHeader("invalid:header", "value");
+  header_list.OnHeaderBlockEnd(128, 128);
+
+  EXPECT_CALL(
+      session_,
+      MaybeSendRstStreamFrame(
+          _, QuicResetStreamError::FromInternal(QUIC_BAD_APPLICATION_PAYLOAD),
+          _));
+  stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
+  EXPECT_TRUE(stream_->rst_sent());
+}
+
+TEST_F(QuicSpdyServerStreamBaseTest, EmptyHeaders) {
+  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  spdy::SpdyHeaderBlock empty_header;
+  quic::test::NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
+  quic::test::NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
+  auto qpack_encoder =
+      std::make_unique<quic::QpackEncoder>(&decoder_stream_error_delegate);
+  qpack_encoder->set_qpack_stream_sender_delegate(
+      &encoder_stream_sender_delegate);
+  std::string payload =
+      qpack_encoder->EncodeHeaderList(stream_->id(), empty_header, nullptr);
+  std::unique_ptr<char[]> headers_buffer;
+  quic::QuicByteCount headers_frame_header_length =
+      quic::HttpEncoder::SerializeHeadersFrameHeader(payload.length(),
+                                                     &headers_buffer);
+  absl::string_view headers_frame_header(headers_buffer.get(),
+                                         headers_frame_header_length);
+
+  EXPECT_CALL(
+      session_,
+      MaybeSendRstStreamFrame(
+          _, QuicResetStreamError::FromInternal(QUIC_BAD_APPLICATION_PAYLOAD),
+          _));
+  stream_->OnStreamFrame(QuicStreamFrame(
+      stream_->id(), true, 0, absl::StrCat(headers_frame_header, payload)));
+  EXPECT_TRUE(stream_->rst_sent());
 }
 
 }  // namespace

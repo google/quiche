@@ -94,25 +94,24 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
         crypto_stream_factory_(nullptr) {}
 
   std::unique_ptr<QuicSession> CreateQuicSession(
-      QuicConnectionId id,
-      const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address,
-      absl::string_view alpn,
-      const ParsedQuicVersion& version,
-      absl::string_view sni) override {
+      QuicConnectionId id, const QuicSocketAddress& self_address,
+      const QuicSocketAddress& peer_address, absl::string_view /*alpn*/,
+      const ParsedQuicVersion& version, absl::string_view /*sni*/) override {
     QuicReaderMutexLock lock(&factory_lock_);
-    if (session_factory_ == nullptr && stream_factory_ == nullptr &&
-        crypto_stream_factory_ == nullptr) {
-      return QuicSimpleDispatcher::CreateQuicSession(
-          id, self_address, peer_address, alpn, version, sni);
-    }
+    // The QuicServerSessionBase takes ownership of |connection| below.
     QuicConnection* connection = new QuicConnection(
         id, self_address, peer_address, helper(), alarm_factory(), writer(),
         /* owns_writer= */ false, Perspective::IS_SERVER,
         ParsedQuicVersionVector{version});
 
     std::unique_ptr<QuicServerSessionBase> session;
-    if (stream_factory_ != nullptr || crypto_stream_factory_ != nullptr) {
+    if (session_factory_ == nullptr && stream_factory_ == nullptr &&
+        crypto_stream_factory_ == nullptr) {
+      session = std::make_unique<QuicSimpleServerSession>(
+          config(), GetSupportedVersions(), connection, this, session_helper(),
+          crypto_config(), compressed_certs_cache(), server_backend());
+    } else if (stream_factory_ != nullptr ||
+               crypto_stream_factory_ != nullptr) {
       session = std::make_unique<CustomStreamSession>(
           config(), GetSupportedVersions(), connection, this, session_helper(),
           crypto_config(), compressed_certs_cache(), stream_factory_,
@@ -121,6 +120,14 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
       session = session_factory_->CreateSession(
           config(), connection, this, session_helper(), crypto_config(),
           compressed_certs_cache(), server_backend());
+    }
+    if (VersionUsesHttp3(version.transport_version) &&
+        GetQuicReloadableFlag(quic_verify_request_headers)) {
+      QUICHE_DCHECK(session->allow_extended_connect());
+      // Do not allow extended CONNECT request if the backend doesn't support
+      // it.
+      session->set_allow_extended_connect(
+          server_backend()->SupportsExtendedConnect());
     }
     session->Initialize();
     return session;

@@ -3047,6 +3047,7 @@ TEST_P(QuicSpdyStreamTest, ProcessOutgoingWebTransportHeadersDatagramDraft00) {
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
   session_->set_local_http_datagram_support(HttpDatagramSupport::kDraft00And04);
   session_->EnableWebTransport();
+  session_->OnSetting(SETTINGS_ENABLE_CONNECT_PROTOCOL, 1);
   QuicSpdySessionPeer::EnableWebTransport(session_.get());
   QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
                                               HttpDatagramSupport::kDraft00);
@@ -3072,6 +3073,7 @@ TEST_P(QuicSpdyStreamTest, ProcessOutgoingWebTransportHeadersDatagramDraft04) {
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
   session_->set_local_http_datagram_support(HttpDatagramSupport::kDraft00And04);
   session_->EnableWebTransport();
+  session_->OnSetting(SETTINGS_ENABLE_CONNECT_PROTOCOL, 1);
   QuicSpdySessionPeer::EnableWebTransport(session_.get());
   QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
                                               HttpDatagramSupport::kDraft04);

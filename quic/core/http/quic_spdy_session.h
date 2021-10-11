@@ -283,11 +283,15 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
     qpack_maximum_blocked_streams_ = qpack_maximum_blocked_streams;
   }
 
+  // Should only be used by IETF QUIC server side.
   // Must not be called after Initialize().
   // TODO(bnc): Move to constructor argument.
   void set_max_inbound_header_list_size(size_t max_inbound_header_list_size) {
     max_inbound_header_list_size_ = max_inbound_header_list_size;
   }
+
+  // Must not be called after Initialize().
+  void set_allow_extended_connect(bool allow_extended_connect);
 
   size_t max_outbound_header_list_size() const {
     return max_outbound_header_list_size_;
@@ -296,6 +300,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   size_t max_inbound_header_list_size() const {
     return max_inbound_header_list_size_;
   }
+
+  bool allow_extended_connect() const { return allow_extended_connect_; }
 
   // Returns true if the session has active request streams.
   bool HasActiveRequestStreams() const;
@@ -684,6 +690,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Limited to kMaxUnassociatedWebTransportStreams; when the list is full,
   // oldest streams are evicated first.
   std::list<BufferedWebTransportStream> buffered_streams_;
+
+  // On the server side, if true, advertise and accept extended CONNECT method.
+  // On the client side, true if the peer advertised extended CONNECT.
+  bool allow_extended_connect_;
 };
 
 }  // namespace quic

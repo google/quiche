@@ -371,6 +371,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   void OnWriteSideInDataRecvdState() override;
 
+  virtual bool AreHeadersValid(const QuicHeaderList& header_list) const;
+
+  // Reset stream upon invalid request headers.
+  virtual void OnInvalidHeaders();
+
  private:
   friend class test::QuicSpdyStreamPeer;
   friend class test::QuicStreamPeer;

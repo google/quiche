@@ -43,6 +43,8 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
   // data (or a FIN) to be read.
   void OnBodyAvailable() override;
 
+  void OnInvalidHeaders() override;
+
   // Make this stream start from as if it just finished parsing an incoming
   // request whose headers are equivalent to |push_request_headers|.
   // Doing so will trigger this toy stream to fetch response and send it back.
@@ -66,7 +68,7 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
   // Sends a basic 500 response using SendHeaders for the headers and WriteData
   // for the body.
   virtual void SendErrorResponse();
-  void SendErrorResponse(int resp_code);
+  virtual void SendErrorResponse(int resp_code);
 
   // Sends a basic 404 response using SendHeaders for the headers and WriteData
   // for the body.

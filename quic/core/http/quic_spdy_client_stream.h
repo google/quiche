@@ -74,6 +74,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientStream : public QuicSpdyStream {
   // of client-side streams should be able to set the priority.
   using QuicSpdyStream::SetPriority;
 
+ protected:
+  bool AreHeadersValid(const QuicHeaderList& header_list) const override;
+
  private:
   // The parsed headers received from the server.
   spdy::SpdyHeaderBlock response_headers_;

@@ -136,7 +136,10 @@ void WriteHeadersOnStream(QuicSpdyStream* stream) {
   // Since QuicSpdyStream uses QuicHeaderList::empty() to detect too large
   // headers, it also fails when receiving empty headers.
   SpdyHeaderBlock headers;
-  headers["foo"] = "bar";
+  headers[":authority"] = "test.example.com:443";
+  headers[":path"] = "/path";
+  headers[":method"] = "GET";
+  headers[":scheme"] = "https";
   stream->WriteHeaders(std::move(headers), /* fin = */ false, nullptr);
 }
 
@@ -6528,6 +6531,58 @@ TEST_P(EndToEndTest, WebTransportSession404) {
     return GetClientSession()->GetOrCreateSpdyDataStream(connect_stream_id) ==
            nullptr;
   }));
+}
+
+TEST_P(EndToEndTest, InvalidExtendedConnect) {
+  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+  // Missing :path header.
+  spdy::SpdyHeaderBlock headers;
+  headers[":scheme"] = "https";
+  headers[":authority"] = "localhost";
+  headers[":method"] = "CONNECT";
+  headers[":protocol"] = "webtransport";
+
+  client_->SendMessage(headers, "", /*fin=*/false);
+  client_->WaitForResponse();
+  // An early response should be received.
+  CheckResponseHeaders("400");
+}
+
+TEST_P(EndToEndTest, RejectExtendedConnect) {
+  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  // Disable extended CONNECT.
+  memory_cache_backend_.set_enable_extended_connect(false);
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+  // This extended CONNECT should be rejected.
+  spdy::SpdyHeaderBlock headers;
+  headers[":scheme"] = "https";
+  headers[":authority"] = "localhost";
+  headers[":method"] = "CONNECT";
+  headers[":path"] = "/echo";
+  headers[":protocol"] = "webtransport";
+
+  client_->SendMessage(headers, "", /*fin=*/false);
+  client_->WaitForResponse();
+  CheckResponseHeaders("400");
+
+  // Vanilla CONNECT should be accepted.
+  spdy::SpdyHeaderBlock headers2;
+  headers2[":authority"] = "localhost";
+  headers2[":method"] = "CONNECT";
+
+  client_->SendMessage(headers2, "body", /*fin=*/true);
+  client_->WaitForResponse();
+  // No :path header, so 404.
+  CheckResponseHeaders("404");
 }
 
 }  // namespace

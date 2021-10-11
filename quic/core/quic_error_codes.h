@@ -513,6 +513,8 @@ enum QuicErrorCode {
   // HTTP/3 session received SERVER_PUSH stream, which is an error because
   // PUSH_PROMISE is not accepted.
   QUIC_HTTP_RECEIVE_SERVER_PUSH = 205,
+  // HTTP/3 session received invalid SETTING value.
+  QUIC_HTTP_INVALID_SETTING_VALUE = 207,
 
   // HPACK header block decoding errors.
   // Index varint beyond implementation limit.
@@ -603,7 +605,7 @@ enum QuicErrorCode {
   QUIC_INVALID_CHARACTER_IN_FIELD_VALUE = 206,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 207,
+  QUIC_LAST_ERROR = 208,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

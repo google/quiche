@@ -71,7 +71,7 @@ class TestStream : public QuicSimpleServerStream {
 
   // Expose protected QuicSimpleServerStream methods.
   void DoSendResponse() { SendResponse(); }
-  void DoSendErrorResponse() { SendErrorResponse(); }
+  void DoSendErrorResponse() { QuicSimpleServerStream::SendErrorResponse(); }
 
   spdy::Http2HeaderBlock* mutable_headers() { return &request_headers_; }
   void set_body(std::string body) { body_ = std::move(body); }
@@ -94,9 +94,9 @@ class TestStream : public QuicSimpleServerStream {
     QuicSimpleServerStream::SendResponse();
   }
 
-  void SendErrorResponse() override {
+  void SendErrorResponse(int resp_code) override {
     send_error_response_was_called_ = true;
-    QuicSimpleServerStream::SendErrorResponse();
+    QuicSimpleServerStream::SendErrorResponse(resp_code);
   }
 
  private:
@@ -208,6 +208,7 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     header_list_.OnHeader(":authority", "www.google.com");
     header_list_.OnHeader(":path", "/");
     header_list_.OnHeader(":method", "POST");
+    header_list_.OnHeader(":scheme", "https");
     header_list_.OnHeader("content-length", "11");
 
     header_list_.OnHeaderBlockEnd(128, 128);
@@ -737,7 +738,7 @@ TEST_P(QuicSimpleServerStreamTest, ConnectSendsResponseBeforeFinReceived) {
   QuicHeaderList header_list;
   header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
-  header_list.OnHeader(":method", "CONNECT-SILLY");
+  header_list.OnHeader(":method", "CONNECT");
   header_list.OnHeaderBlockEnd(128, 128);
   EXPECT_CALL(*stream_, WriteHeadersMock(/*fin=*/false));
   stream_->OnStreamHeaderList(/*fin=*/false, kFakeFrameLen, header_list);
@@ -747,7 +748,7 @@ TEST_P(QuicSimpleServerStreamTest, ConnectSendsResponseBeforeFinReceived) {
       UsesHttp3() ? absl::StrCat(header.AsStringView(), body_) : body_;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
-  EXPECT_EQ("CONNECT-SILLY", StreamHeadersValue(":method"));
+  EXPECT_EQ("CONNECT", StreamHeadersValue(":method"));
   EXPECT_EQ(body_, StreamBody());
   EXPECT_TRUE(stream_->send_response_was_called());
   EXPECT_FALSE(stream_->send_error_response_was_called());
@@ -760,20 +761,25 @@ TEST_P(QuicSimpleServerStreamTest, ConnectWithInvalidHeader) {
   QuicHeaderList header_list;
   header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
-  header_list.OnHeader(":method", "CONNECT-SILLY");
+  header_list.OnHeader(":method", "CONNECT");
   // QUIC requires lower-case header names.
   header_list.OnHeader("InVaLiD-HeAdEr", "Well that's just wrong!");
   header_list.OnHeaderBlockEnd(128, 128);
+
+  if (UsesHttp3()) {
+    EXPECT_CALL(session_,
+                MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
+                                                 QUIC_STREAM_NO_ERROR)))
+        .Times(1);
+  } else {
+    EXPECT_CALL(
+        session_,
+        MaybeSendRstStreamFrame(
+            _, QuicResetStreamError::FromInternal(QUIC_STREAM_NO_ERROR), _))
+        .Times(1);
+  }
   EXPECT_CALL(*stream_, WriteHeadersMock(/*fin=*/false));
   stream_->OnStreamHeaderList(/*fin=*/false, kFakeFrameLen, header_list);
-  QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
-      body_.length(), SimpleBufferAllocator::Get());
-  std::string data =
-      UsesHttp3() ? absl::StrCat(header.AsStringView(), body_) : body_;
-  stream_->OnStreamFrame(
-      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
-  EXPECT_EQ("CONNECT-SILLY", StreamHeadersValue(":method"));
-  EXPECT_EQ(body_, StreamBody());
   EXPECT_FALSE(stream_->send_response_was_called());
   EXPECT_TRUE(stream_->send_error_response_was_called());
 }

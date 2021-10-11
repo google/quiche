@@ -606,8 +606,22 @@ void QuicSpdyStream::OnInitialHeadersComplete(
   // TODO(b/134706391): remove |fin| argument.
   headers_decompressed_ = true;
   header_list_ = header_list;
+  bool header_too_large = VersionUsesHttp3(transport_version())
+                              ? header_list_size_limit_exceeded_
+                              : header_list.empty();
+  // Validate request headers if it did not exceed size limit. If it did,
+  // OnHeadersTooLarge() should have already handled it previously.
+  if (!header_too_large && !AreHeadersValid(header_list)) {
+    QUIC_CODE_COUNT_N(quic_validate_request_header, 1, 2);
+    OnInvalidHeaders();
+    return;
+  }
+  QUIC_CODE_COUNT_N(quic_validate_request_header, 2, 2);
 
-  MaybeProcessReceivedWebTransportHeaders();
+  if (!GetQuicReloadableFlag(quic_verify_request_headers) ||
+      !header_too_large) {
+    MaybeProcessReceivedWebTransportHeaders();
+  }
 
   if (VersionUsesHttp3(transport_version())) {
     if (fin) {
@@ -1759,6 +1773,15 @@ void QuicSpdyStream::HandleBodyAvailable() {
     OnFinRead();
   }
 }
+
+bool QuicSpdyStream::AreHeadersValid(
+    const QuicHeaderList& /*header_list*/) const {
+  // TODO(b/202433856) check each header name to be valid token and isn't a
+  // disallowed header.
+  return true;
+}
+
+void QuicSpdyStream::OnInvalidHeaders() { Reset(QUIC_BAD_APPLICATION_PAYLOAD); }
 
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

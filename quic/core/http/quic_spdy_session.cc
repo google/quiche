@@ -453,7 +453,11 @@ QuicSpdySession::QuicSpdySession(
       spdy_framer_(SpdyFramer::ENABLE_COMPRESSION),
       spdy_framer_visitor_(new SpdyFramerVisitor(this)),
       debug_visitor_(nullptr),
-      destruction_indicator_(123456789) {
+      destruction_indicator_(123456789),
+      allow_extended_connect_(
+          GetQuicReloadableFlag(quic_verify_request_headers) &&
+          perspective() == Perspective::IS_SERVER &&
+          VersionUsesHttp3(transport_version())) {
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
@@ -521,6 +525,10 @@ void QuicSpdySession::FillSettingsFrame() {
   }
   if (WillNegotiateWebTransport()) {
     settings_.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
+  }
+  if (allow_extended_connect()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_verify_request_headers, 1, 3);
+    settings_.values[SETTINGS_ENABLE_CONNECT_PROTOCOL] = 1;
   }
 }
 
@@ -1034,9 +1042,7 @@ bool QuicSpdySession::VerifySettingIsZeroOrOne(uint64_t id, uint64_t value) {
       H3SettingsToString(static_cast<Http3AndQpackSettingsIdentifiers>(id)),
       " with invalid value ", value);
   QUIC_PEER_BUG(bad received setting) << ENDPOINT << error_details;
-  // TODO(dschinazi) use QUIC_HTTP_INVALID_SETTING_VALUE instead of
-  // QUIC_HTTP_RECEIVE_SPDY_SETTING once cl/396439351 lands.
-  CloseConnectionWithDetails(QUIC_HTTP_RECEIVE_SPDY_SETTING, error_details);
+  CloseConnectionWithDetails(QUIC_HTTP_INVALID_SETTING_VALUE, error_details);
   return false;
 }
 
@@ -1109,6 +1115,18 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
                            value, " which reduces current value: ",
                            qpack_encoder_->maximum_blocked_streams()));
           return false;
+        }
+        break;
+      }
+      case SETTINGS_ENABLE_CONNECT_PROTOCOL: {
+        QUIC_DVLOG(1) << ENDPOINT
+                      << "SETTINGS_ENABLE_CONNECT_PROTOCOL received with value "
+                      << value;
+        if (!VerifySettingIsZeroOrOne(id, value)) {
+          return false;
+        }
+        if (perspective() == Perspective::IS_CLIENT) {
+          allow_extended_connect_ = value != 0;
         }
         break;
       }
@@ -1735,7 +1753,9 @@ void QuicSpdySession::OnMessageReceived(absl::string_view message) {
 
 bool QuicSpdySession::SupportsWebTransport() {
   return WillNegotiateWebTransport() && SupportsH3Datagram() &&
-         peer_supports_webtransport_;
+         peer_supports_webtransport_ &&
+         (!GetQuicReloadableFlag(quic_verify_request_headers) ||
+          allow_extended_connect_);
 }
 
 bool QuicSpdySession::SupportsH3Datagram() const {
@@ -1891,6 +1911,25 @@ std::ostream& operator<<(std::ostream& os,
                          const HttpDatagramSupport& http_datagram_support) {
   os << HttpDatagramSupportToString(http_datagram_support);
   return os;
+}
+
+// Must not be called after Initialize().
+void QuicSpdySession::set_allow_extended_connect(bool allow_extended_connect) {
+  QUIC_BUG_IF(extended connect wrong version,
+              !GetQuicReloadableFlag(quic_verify_request_headers) ||
+                  !VersionUsesHttp3(transport_version()))
+      << "Try to enable/disable extended CONNECT in Google QUIC";
+  QUIC_BUG_IF(extended connect on client,
+              !GetQuicReloadableFlag(quic_verify_request_headers) ||
+                  perspective() == Perspective::IS_CLIENT)
+      << "Enabling/disabling extended CONNECT on the client side has no effect";
+  if (ShouldNegotiateWebTransport()) {
+    QUIC_BUG_IF(disable extended connect, !allow_extended_connect)
+        << "Disabling extended CONNECT with web transport enabled has no "
+           "effect.";
+    return;
+  }
+  allow_extended_connect_ = allow_extended_connect;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

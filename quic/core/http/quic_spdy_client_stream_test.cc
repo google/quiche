@@ -128,6 +128,30 @@ TEST_P(QuicSpdyClientStreamTest, TestReceivingIllegalResponseStatusCode) {
               IsStreamError(QUIC_BAD_APPLICATION_PAYLOAD));
 }
 
+TEST_P(QuicSpdyClientStreamTest, InvalidResponseHeader) {
+  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  auto headers = AsHeaderList(std::vector<std::pair<std::string, std::string>>{
+      {":status", "200"}, {":path", "/foo"}});
+  EXPECT_CALL(*connection_,
+              OnStreamReset(stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD));
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  EXPECT_THAT(stream_->stream_error(),
+              IsStreamError(QUIC_BAD_APPLICATION_PAYLOAD));
+}
+
+TEST_P(QuicSpdyClientStreamTest, MissingStatusCode) {
+  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  auto headers = AsHeaderList(
+      std::vector<std::pair<std::string, std::string>>{{"key", "value"}});
+  EXPECT_CALL(*connection_,
+              OnStreamReset(stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD));
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  EXPECT_THAT(stream_->stream_error(),
+              IsStreamError(QUIC_BAD_APPLICATION_PAYLOAD));
+}
+
 TEST_P(QuicSpdyClientStreamTest, TestFraming) {
   auto headers = AsHeaderList(headers_);
   stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
