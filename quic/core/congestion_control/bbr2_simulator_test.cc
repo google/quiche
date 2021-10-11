@@ -975,10 +975,11 @@ TEST_F(Bbr2DefaultTopologyTest,
   EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
   QUIC_LOG(INFO) << "Bandwidth increasing at time " << SimulatedNow();
 
-  // This is much farther off when aggregation is present,
+  // This is much farther off when aggregation is present, and B204 actually
+  // is increasing overestimation, which is surprising.
   // Ideally BSAO or another option would fix this.
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_est, 0.55f);
+                   sender_->ExportDebugState().bandwidth_est, 0.60f);
   EXPECT_LE(sender_loss_rate_in_packets(), 0.35);
   EXPECT_LE(sender_->ExportDebugState().max_ack_height, 10000u);
 
