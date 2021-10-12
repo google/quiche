@@ -156,12 +156,13 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kMaxDatagramFrameSize:
     case TransportParameters::kInitialRoundTripTime:
     case TransportParameters::kGoogleConnectionOptions:
-    case TransportParameters::kGoogleKeyUpdateNotYetSupported:
     case TransportParameters::kGoogleQuicVersion:
     case TransportParameters::kMinAckDelay:
       return true;
     case TransportParameters::kGoogleUserAgentId:
       return !GetQuicReloadableFlag(quic_ignore_user_agent_transport_parameter);
+    case TransportParameters::kGoogleKeyUpdateNotYetSupported:
+      return !GetQuicReloadableFlag(quic_ignore_key_update_not_yet_supported);
   }
   return false;
 }
@@ -1351,6 +1352,24 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         out->user_agent_id = std::string(value_reader.ReadRemainingPayload());
         break;
       case TransportParameters::kGoogleKeyUpdateNotYetSupported:
+        if (GetQuicReloadableFlag(quic_ignore_key_update_not_yet_supported)) {
+          QUIC_RELOADABLE_FLAG_COUNT_N(quic_ignore_key_update_not_yet_supported,
+                                       1, 2);
+          QUIC_CODE_COUNT(quic_ignore_key_update_not_yet_supported_ignored);
+          // This is a copy of the default switch statement below.
+          // TODO(dschinazi) remove this case entirely when deprecating the
+          // quic_ignore_key_update_not_yet_supported flag.
+          if (out->custom_parameters.find(param_id) !=
+              out->custom_parameters.end()) {
+            *error_details = "Received a second unknown parameter" +
+                             TransportParameterIdToString(param_id);
+            return false;
+          }
+          out->custom_parameters[param_id] =
+              std::string(value_reader.ReadRemainingPayload());
+          break;
+        }
+        QUIC_CODE_COUNT(quic_ignore_key_update_not_yet_supported_received);
         if (out->key_update_not_yet_supported) {
           *error_details = "Received a second key_update_not_yet_supported";
           return false;

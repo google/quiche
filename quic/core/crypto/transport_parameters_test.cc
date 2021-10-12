@@ -285,7 +285,9 @@ TEST_P(TransportParametersTest, RoundTripClient) {
   if (!GetQuicReloadableFlag(quic_ignore_user_agent_transport_parameter)) {
     orig_params.user_agent_id = CreateFakeUserAgentId();
   }
-  orig_params.key_update_not_yet_supported = kFakeKeyUpdateNotYetSupported;
+  if (!GetQuicReloadableFlag(quic_ignore_key_update_not_yet_supported)) {
+    orig_params.key_update_not_yet_supported = kFakeKeyUpdateNotYetSupported;
+  }
   orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
 
@@ -589,7 +591,9 @@ TEST_P(TransportParametersTest, ParseClientParams) {
   } else {
     EXPECT_FALSE(new_params.user_agent_id.has_value());
   }
-  EXPECT_TRUE(new_params.key_update_not_yet_supported);
+  if (!GetQuicReloadableFlag(quic_ignore_key_update_not_yet_supported)) {
+    EXPECT_TRUE(new_params.key_update_not_yet_supported);
+  }
 }
 
 TEST_P(TransportParametersTest,
@@ -847,7 +851,9 @@ TEST_P(TransportParametersTest, ParseServerParams) {
   EXPECT_EQ(CreateFakeGoogleConnectionOptions(),
             new_params.google_connection_options.value());
   EXPECT_FALSE(new_params.user_agent_id.has_value());
-  EXPECT_TRUE(new_params.key_update_not_yet_supported);
+  if (!GetQuicReloadableFlag(quic_ignore_key_update_not_yet_supported)) {
+    EXPECT_TRUE(new_params.key_update_not_yet_supported);
+  }
 }
 
 TEST_P(TransportParametersTest, ParseServerParametersRepeated) {

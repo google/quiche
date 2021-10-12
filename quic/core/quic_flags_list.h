@@ -121,6 +121,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_server_reverse_validate_new_path3, tru
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_match_ietf_reset_code, false)
 // When the flag is true, exit STARTUP after the same number of loss events as PROBE_UP.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_startup_probe_up_loss_events, true)
+// When true, QUIC server will ignore received key_update_not_yet_supported transport parameter.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_key_update_not_yet_supported, false)
 // When true, QUIC server will ignore received user agent transport parameter and rely on getting that information from HTTP headers.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_user_agent_transport_parameter, false)
 // When true, QuicDispatcher will silently drop incoming packets whose UDP source port is on the blocklist.
