@@ -3,6 +3,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "http2/adapter/http2_visitor_interface.h"
 #include "http2/adapter/nghttp2_callbacks.h"
 #include "http2/adapter/nghttp2_data_provider.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
@@ -13,6 +14,8 @@ namespace http2 {
 namespace adapter {
 
 namespace {
+
+using ConnectionError = Http2VisitorInterface::ConnectionError;
 
 // A metadata source that deletes itself upon completion.
 class SelfDeletingMetadataSource : public MetadataSource {
@@ -63,7 +66,7 @@ bool NgHttp2Adapter::IsServerSession() const {
 int64_t NgHttp2Adapter::ProcessBytes(absl::string_view bytes) {
   const int64_t processed_bytes = session_->ProcessBytes(bytes);
   if (processed_bytes < 0) {
-    visitor_.OnConnectionError();
+    visitor_.OnConnectionError(ConnectionError::kParseError);
   }
   return processed_bytes;
 }
@@ -142,7 +145,7 @@ int NgHttp2Adapter::Send() {
   const int result = nghttp2_session_send(session_->raw_ptr());
   if (result != 0) {
     QUICHE_VLOG(1) << "nghttp2_session_send returned " << result;
-    visitor_.OnConnectionError();
+    visitor_.OnConnectionError(ConnectionError::kSendError);
   }
   return result;
 }

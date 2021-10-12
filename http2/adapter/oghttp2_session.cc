@@ -6,6 +6,7 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/escaping.h"
 #include "http2/adapter/http2_protocol.h"
+#include "http2/adapter/http2_visitor_interface.h"
 #include "http2/adapter/oghttp2_util.h"
 #include "spdy/core/spdy_protocol.h"
 
@@ -13,6 +14,8 @@ namespace http2 {
 namespace adapter {
 
 namespace {
+
+using ConnectionError = Http2VisitorInterface::ConnectionError;
 
 // #define OGHTTP2_DEBUG_TRACE 1
 
@@ -274,7 +277,7 @@ int64_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
       QUICHE_DLOG(INFO) << "Preface doesn't match! Expected: ["
                         << absl::CEscape(remaining_preface_) << "], actual: ["
                         << absl::CEscape(bytes) << "]";
-      LatchErrorAndNotify();
+      LatchErrorAndNotify(ConnectionError::kInvalidConnectionPreface);
       return -1;
     }
     remaining_preface_.remove_prefix(min_size);
@@ -345,7 +348,7 @@ int OgHttp2Session::Send() {
     }
   }
   if (result < 0) {
-    LatchErrorAndNotify();
+    LatchErrorAndNotify(ConnectionError::kSendError);
     return result;
   } else if (!serialized_prefix_.empty()) {
     return 0;
@@ -381,7 +384,7 @@ bool OgHttp2Session::SendQueuedFrames() {
     spdy::SpdySerializedFrame frame = framer_.SerializeFrame(*frame_ptr);
     const int64_t result = visitor_.OnReadyToSend(absl::string_view(frame));
     if (result < 0) {
-      LatchErrorAndNotify();
+      LatchErrorAndNotify(ConnectionError::kSendError);
       return false;
     } else if (result == 0) {
       // Write blocked.
@@ -623,7 +626,7 @@ void OgHttp2Session::OnError(http2::Http2DecoderAdapter::SpdyFramerError error,
   QUICHE_VLOG(1) << "Error: "
                  << http2::Http2DecoderAdapter::SpdyFramerErrorToString(error)
                  << " details: " << detailed_error;
-  LatchErrorAndNotify();
+  LatchErrorAndNotify(ConnectionError::kParseError);
 }
 
 void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
@@ -832,7 +835,7 @@ void OgHttp2Session::OnHeaderStatus(
           stream_id, spdy::ERROR_CODE_INTERNAL_ERROR));
     }
   } else if (result == Http2VisitorInterface::HEADER_CONNECTION_ERROR) {
-    LatchErrorAndNotify();
+    LatchErrorAndNotify(ConnectionError::kHeaderError);
   }
 }
 
@@ -1004,9 +1007,9 @@ HeaderType OgHttp2Session::NextHeaderType(
   }
 }
 
-void OgHttp2Session::LatchErrorAndNotify() {
+void OgHttp2Session::LatchErrorAndNotify(ConnectionError error) {
   latched_error_ = true;
-  visitor_.OnConnectionError();
+  visitor_.OnConnectionError(error);
 }
 
 }  // namespace adapter

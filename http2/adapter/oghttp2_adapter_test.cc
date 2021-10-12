@@ -17,6 +17,8 @@ namespace adapter {
 namespace test {
 namespace {
 
+using ConnectionError = Http2VisitorInterface::ConnectionError;
+
 using testing::_;
 
 enum FrameType {
@@ -286,7 +288,7 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesMetadataWithError) {
   EXPECT_CALL(visitor, OnMetadataForStream(1, _))
       .WillOnce(testing::Return(false));
   // Remaining frames are not processed due to the error.
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   // Negative integer returned to indicate an error.
@@ -441,7 +443,7 @@ TEST(OgHttp2AdapterClientTest, ClientConnectionErrorWhileHandlingHeaders) {
               OnHeaderForStream(1, "date", "Tue, 6 Apr 2021 12:54:01 GMT"))
       .WillOnce(
           testing::Return(Http2VisitorInterface::HEADER_CONNECTION_ERROR));
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kHeaderError));
   // Note: OgHttp2Adapter continues processing bytes until the input is
   // complete.
   EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 0));
@@ -513,7 +515,7 @@ TEST(OgHttp2AdapterClientTest, ClientRejectsHeaders) {
   EXPECT_CALL(visitor, OnBeginHeadersForStream(1))
       .WillOnce(testing::Return(false));
   // Rejecting headers leads to a connection error.
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kHeaderError));
   // Note: OgHttp2Adapter continues processing bytes until the input is
   // complete.
   EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 0));
@@ -677,7 +679,7 @@ TEST(OgHttp2AdapterClientTest, ClientFailsOnGoAway) {
   // TODO(birenroy): Pass the GOAWAY opaque data through the oghttp2 stack.
   EXPECT_CALL(visitor, OnGoAway(1, Http2ErrorCode::INTERNAL_ERROR, ""))
       .WillOnce(testing::Return(false));
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_LT(stream_result, 0);
@@ -827,7 +829,7 @@ TEST(OgHttp2AdapterClientTest, FailureSendingConnectionPreface) {
   auto adapter = OgHttp2Adapter::Create(visitor, options);
 
   visitor.set_has_write_error();
-  EXPECT_CALL(visitor, OnConnectionError);
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kSendError));
 
   int result = adapter->Send();
   EXPECT_EQ(result, Http2VisitorInterface::kSendError);
@@ -1435,7 +1437,7 @@ TEST(OgHttp2AdapterServerTest, ServerErrorAfterHandlingHeaders) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
   EXPECT_CALL(visitor, OnEndHeadersForStream(1))
       .WillOnce(testing::Return(false));
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_LT(result, 0);
@@ -1484,7 +1486,7 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsFrameHeader) {
 
   EXPECT_CALL(visitor, OnFrameHeader(0, 8, PING, 0))
       .WillOnce(testing::Return(false));
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_LT(result, 0);
@@ -1544,7 +1546,7 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsBeginningOfData) {
   EXPECT_CALL(visitor, OnFrameHeader(1, 25, DATA, 0));
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 25))
       .WillOnce(testing::Return(false));
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_LT(result, 0);
@@ -1604,7 +1606,7 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsStreamData) {
   EXPECT_CALL(visitor, OnFrameHeader(1, 25, DATA, 0));
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 25));
   EXPECT_CALL(visitor, OnDataForStream(1, _)).WillOnce(testing::Return(false));
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_LT(result, 0);

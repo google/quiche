@@ -68,7 +68,7 @@ int64_t CallbackVisitor::OnReadyToSend(absl::string_view serialized) {
   }
 }
 
-void CallbackVisitor::OnConnectionError() {
+void CallbackVisitor::OnConnectionError(ConnectionError /*error*/) {
   QUICHE_LOG(ERROR) << "OnConnectionError not implemented";
 }
 

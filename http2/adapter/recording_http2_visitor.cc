@@ -2,6 +2,7 @@
 
 #include "absl/strings/str_format.h"
 #include "http2/adapter/http2_protocol.h"
+#include "http2/adapter/http2_util.h"
 
 namespace http2 {
 namespace adapter {
@@ -12,8 +13,9 @@ int64_t RecordingHttp2Visitor::OnReadyToSend(absl::string_view serialized) {
   return serialized.size();
 }
 
-void RecordingHttp2Visitor::OnConnectionError() {
-  events_.push_back("OnConnectionError");
+void RecordingHttp2Visitor::OnConnectionError(ConnectionError error) {
+  events_.push_back(
+      absl::StrFormat("OnConnectionError %s", ConnectionErrorToString(error)));
 }
 
 bool RecordingHttp2Visitor::OnFrameHeader(Http2StreamId stream_id,

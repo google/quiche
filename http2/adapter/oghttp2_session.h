@@ -279,7 +279,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Returns true if the session can create a new stream.
   bool CanCreateStream() const;
 
-  void LatchErrorAndNotify();
+  void LatchErrorAndNotify(Http2VisitorInterface::ConnectionError error);
 
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;

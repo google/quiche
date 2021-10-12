@@ -3,6 +3,7 @@
 #include <list>
 
 #include "http2/adapter/http2_protocol.h"
+#include "http2/adapter/http2_visitor_interface.h"
 #include "http2/test_tools/http2_random.h"
 #include "common/platform/api/quiche_test.h"
 
@@ -64,7 +65,8 @@ TEST(RecordingHttp2VisitorTest, SameEventsProduceSameSequence) {
   std::list<RecordingHttp2Visitor*> visitors = {&chocolate_visitor,
                                                 &vanilla_visitor};
   for (RecordingHttp2Visitor* visitor : visitors) {
-    visitor->OnConnectionError();
+    visitor->OnConnectionError(
+        Http2VisitorInterface::ConnectionError::kSendError);
     visitor->OnFrameHeader(stream_id, length, type, flags);
     visitor->OnSettingsStart();
     visitor->OnSetting(setting);

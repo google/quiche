@@ -13,6 +13,8 @@ namespace adapter {
 namespace test {
 namespace {
 
+using ConnectionError = Http2VisitorInterface::ConnectionError;
+
 using testing::_;
 
 enum FrameType {
@@ -474,7 +476,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesMetadataWithError) {
   EXPECT_CALL(visitor, OnMetadataForStream(1, _))
       .WillOnce(testing::Return(false));
   // Remaining frames are not processed due to the error.
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   // The false return from OnMetadataForStream() results in a connection error.
@@ -702,7 +704,8 @@ TEST(NgHttp2AdapterTest, ClientConnectionErrorWhileHandlingHeaders) {
               OnHeaderForStream(1, "date", "Tue, 6 Apr 2021 12:54:01 GMT"))
       .WillOnce(
           testing::Return(Http2VisitorInterface::HEADER_CONNECTION_ERROR));
-  EXPECT_CALL(visitor, OnConnectionError());
+  // Translation to nghttp2 treats this error as a general parsing error.
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(-902 /* NGHTTP2_ERR_CALLBACK_FAILURE */, stream_result);
@@ -765,7 +768,7 @@ TEST(NgHttp2AdapterTest, ClientRejectsHeaders) {
   EXPECT_CALL(visitor, OnBeginHeadersForStream(1))
       .WillOnce(testing::Return(false));
   // Rejecting headers leads to a connection error.
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(NGHTTP2_ERR_CALLBACK_FAILURE, stream_result);
@@ -836,7 +839,7 @@ TEST(NgHttp2AdapterTest, ClientFailsOnGoAway) {
   EXPECT_CALL(visitor,
               OnGoAway(1, Http2ErrorCode::INTERNAL_ERROR, "indigestion"))
       .WillOnce(testing::Return(false));
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(NGHTTP2_ERR_CALLBACK_FAILURE, stream_result);
@@ -1391,7 +1394,7 @@ TEST(NgHttp2AdapterTest, FailureSendingConnectionPreface) {
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
 
   visitor.set_has_write_error();
-  EXPECT_CALL(visitor, OnConnectionError);
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kSendError));
 
   int result = adapter->Send();
   EXPECT_EQ(result, NGHTTP2_ERR_CALLBACK_FAILURE);
@@ -1721,7 +1724,7 @@ TEST(NgHttp2AdapterTest, ServerErrorAfterHandlingHeaders) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
   EXPECT_CALL(visitor, OnEndHeadersForStream(1))
       .WillOnce(testing::Return(false));
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(-902, result);
@@ -1766,7 +1769,7 @@ TEST(NgHttp2AdapterTest, ServerRejectsFrameHeader) {
 
   EXPECT_CALL(visitor, OnFrameHeader(0, 8, PING, 0))
       .WillOnce(testing::Return(false));
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(-902, result);
@@ -1822,7 +1825,7 @@ TEST(NgHttp2AdapterTest, ServerRejectsBeginningOfData) {
   EXPECT_CALL(visitor, OnFrameHeader(1, 25, DATA, 0));
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 25))
       .WillOnce(testing::Return(false));
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(NGHTTP2_ERR_CALLBACK_FAILURE, result);
@@ -1878,7 +1881,7 @@ TEST(NgHttp2AdapterTest, ServerRejectsStreamData) {
   EXPECT_CALL(visitor, OnFrameHeader(1, 25, DATA, 0));
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 25));
   EXPECT_CALL(visitor, OnDataForStream(1, _)).WillOnce(testing::Return(false));
-  EXPECT_CALL(visitor, OnConnectionError());
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(NGHTTP2_ERR_CALLBACK_FAILURE, result);

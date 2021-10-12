@@ -2,6 +2,11 @@
 
 namespace http2 {
 namespace adapter {
+namespace {
+
+using ConnectionError = Http2VisitorInterface::ConnectionError;
+
+}  // anonymous namespace
 
 spdy::SpdyErrorCode TranslateErrorCode(Http2ErrorCode code) {
   switch (code) {
@@ -66,6 +71,19 @@ Http2ErrorCode TranslateErrorCode(spdy::SpdyErrorCode code) {
       return Http2ErrorCode::INADEQUATE_SECURITY;
     case spdy::ERROR_CODE_HTTP_1_1_REQUIRED:
       return Http2ErrorCode::HTTP_1_1_REQUIRED;
+  }
+}
+
+absl::string_view ConnectionErrorToString(ConnectionError error) {
+  switch (error) {
+    case ConnectionError::kInvalidConnectionPreface:
+      return "InvalidConnectionPreface";
+    case ConnectionError::kSendError:
+      return "SendError";
+    case ConnectionError::kParseError:
+      return "ParseError";
+    case ConnectionError::kHeaderError:
+      return "HeaderError";
   }
 }
 

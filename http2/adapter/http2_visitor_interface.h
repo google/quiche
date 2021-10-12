@@ -60,8 +60,18 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
   // bytes were actually sent. May return kSendBlocked or kSendError.
   virtual int64_t OnReadyToSend(absl::string_view serialized) = 0;
 
-  // Called when a connection-level processing error has been encountered.
-  virtual void OnConnectionError() = 0;
+  // Called when a connection-level error has occurred.
+  enum class ConnectionError {
+    // The peer sent an invalid connection preface.
+    kInvalidConnectionPreface,
+    // The visitor encountered an error sending bytes to the peer.
+    kSendError,
+    // There was an error reading and framing bytes from the peer.
+    kParseError,
+    // The visitor considered a received header to be a connection error.
+    kHeaderError,
+  };
+  virtual void OnConnectionError(ConnectionError error) = 0;
 
   // Called when the header for a frame is received.
   virtual bool OnFrameHeader(Http2StreamId /*stream_id*/, size_t /*length*/,
