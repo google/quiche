@@ -156,11 +156,12 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kMaxDatagramFrameSize:
     case TransportParameters::kInitialRoundTripTime:
     case TransportParameters::kGoogleConnectionOptions:
-    case TransportParameters::kGoogleUserAgentId:
     case TransportParameters::kGoogleKeyUpdateNotYetSupported:
     case TransportParameters::kGoogleQuicVersion:
     case TransportParameters::kMinAckDelay:
       return true;
+    case TransportParameters::kGoogleUserAgentId:
+      return !GetQuicReloadableFlag(quic_ignore_user_agent_transport_parameter);
   }
   return false;
 }
@@ -1327,6 +1328,22 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         }
       } break;
       case TransportParameters::kGoogleUserAgentId:
+        if (GetQuicReloadableFlag(quic_ignore_user_agent_transport_parameter)) {
+          QUIC_RELOADABLE_FLAG_COUNT(
+              quic_ignore_user_agent_transport_parameter);
+          // This is a copy of the default switch statement below.
+          // TODO(dschinazi) remove this case entirely when deprecating the
+          // quic_ignore_user_agent_transport_parameter flag.
+          if (out->custom_parameters.find(param_id) !=
+              out->custom_parameters.end()) {
+            *error_details = "Received a second unknown parameter" +
+                             TransportParameterIdToString(param_id);
+            return false;
+          }
+          out->custom_parameters[param_id] =
+              std::string(value_reader.ReadRemainingPayload());
+          break;
+        }
         if (out->user_agent_id.has_value()) {
           *error_details = "Received a second user_agent_id";
           return false;

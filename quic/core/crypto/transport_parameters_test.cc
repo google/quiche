@@ -282,7 +282,9 @@ TEST_P(TransportParametersTest, RoundTripClient) {
       CreateFakeInitialSourceConnectionId();
   orig_params.initial_round_trip_time_us.set_value(kFakeInitialRoundTripTime);
   orig_params.google_connection_options = CreateFakeGoogleConnectionOptions();
-  orig_params.user_agent_id = CreateFakeUserAgentId();
+  if (!GetQuicReloadableFlag(quic_ignore_user_agent_transport_parameter)) {
+    orig_params.user_agent_id = CreateFakeUserAgentId();
+  }
   orig_params.key_update_not_yet_supported = kFakeKeyUpdateNotYetSupported;
   orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
@@ -581,8 +583,12 @@ TEST_P(TransportParametersTest, ParseClientParams) {
   ASSERT_TRUE(new_params.google_connection_options.has_value());
   EXPECT_EQ(CreateFakeGoogleConnectionOptions(),
             new_params.google_connection_options.value());
-  ASSERT_TRUE(new_params.user_agent_id.has_value());
-  EXPECT_EQ(CreateFakeUserAgentId(), new_params.user_agent_id.value());
+  if (!GetQuicReloadableFlag(quic_ignore_user_agent_transport_parameter)) {
+    ASSERT_TRUE(new_params.user_agent_id.has_value());
+    EXPECT_EQ(CreateFakeUserAgentId(), new_params.user_agent_id.value());
+  } else {
+    EXPECT_FALSE(new_params.user_agent_id.has_value());
+  }
   EXPECT_TRUE(new_params.key_update_not_yet_supported);
 }
 
