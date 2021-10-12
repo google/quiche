@@ -107,7 +107,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSession
   // CreateOutgoingBidirectionalStream.
   virtual std::unique_ptr<QuicSpdyClientStream> CreateClientStream();
 
-  const QuicServerId& server_id() { return server_id_; }
+  const QuicServerId& server_id() const { return server_id_; }
   QuicCryptoClientConfig* crypto_config() { return crypto_config_; }
 
  private:
