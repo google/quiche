@@ -131,6 +131,20 @@ absl::string_view TracePerspectiveAsString(Perspective p) {
   }
 }
 
+class RunOnExit {
+ public:
+  explicit RunOnExit(std::function<void()> f) : f_(std::move(f)) {}
+  ~RunOnExit() {
+    if (f_) {
+      f_();
+    }
+    f_ = {};
+  }
+
+ private:
+  std::function<void()> f_;
+};
+
 }  // namespace
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
@@ -267,6 +281,15 @@ int OgHttp2Session::GetHpackDecoderDynamicTableSize() const {
 }
 
 int64_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
+  QUICHE_VLOG(2) << TracePerspectiveAsString(options_.perspective)
+                 << " processing [" << absl::CEscape(bytes) << "]";
+  if (processing_bytes_) {
+    QUICHE_VLOG(1) << "Returning early; already processing bytes.";
+    return 0;
+  }
+  processing_bytes_ = true;
+  RunOnExit r{[this]() { processing_bytes_ = false; }};
+
   int64_t preface_consumed = 0;
   if (!remaining_preface_.empty()) {
     QUICHE_VLOG(2) << "Preface bytes remaining: " << remaining_preface_.size();
@@ -338,6 +361,14 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
 }
 
 int OgHttp2Session::Send() {
+  if (sending_) {
+    QUICHE_VLOG(1) << TracePerspectiveAsString(options_.perspective)
+                   << " returning early; already sending.";
+    return 0;
+  }
+  sending_ = true;
+  RunOnExit r{[this]() { sending_ = false; }};
+
   MaybeSetupPreface();
   int64_t result = std::numeric_limits<int64_t>::max();
   // Flush any serialized prefix.

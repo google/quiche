@@ -1626,6 +1626,68 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsStreamData) {
                                             spdy::SpdyFrameType::SETTINGS}));
 }
 
+// Exercises a naive mutually recursive test client and server. This test fails
+// without recursion guards in OgHttp2Session.
+TEST(OgHttp2AdapterInteractionTest, ClientServerInteractionTest) {
+  MockHttp2Visitor client_visitor;
+  auto client_adapter =
+      OgHttp2Adapter::Create(client_visitor, {Perspective::kClient});
+  MockHttp2Visitor server_visitor;
+  auto server_adapter =
+      OgHttp2Adapter::Create(server_visitor, {Perspective::kServer});
+
+  // Feeds bytes sent from the client into the server's ProcessBytes.
+  EXPECT_CALL(client_visitor, OnReadyToSend(_))
+      .WillRepeatedly(
+          testing::Invoke(server_adapter.get(), &OgHttp2Adapter::ProcessBytes));
+  // Feeds bytes sent from the server into the client's ProcessBytes.
+  EXPECT_CALL(server_visitor, OnReadyToSend(_))
+      .WillRepeatedly(
+          testing::Invoke(client_adapter.get(), &OgHttp2Adapter::ProcessBytes));
+  // Sets up the server to respond automatically to a request from a client.
+  EXPECT_CALL(server_visitor, OnEndHeadersForStream(_))
+      .WillRepeatedly([&server_adapter](Http2StreamId stream_id) {
+        server_adapter->SubmitResponse(
+            stream_id, ToHeaders({{":status", "200"}}), nullptr);
+        server_adapter->Send();
+        return true;
+      });
+  // Sets up the client to create a new stream automatically when receiving a
+  // response.
+  EXPECT_CALL(client_visitor, OnEndHeadersForStream(_))
+      .WillRepeatedly([&client_adapter,
+                       &client_visitor](Http2StreamId stream_id) {
+        if (stream_id < 10) {
+          const Http2StreamId new_stream_id = stream_id + 2;
+          auto body =
+              absl::make_unique<TestDataFrameSource>(client_visitor, true);
+          body->AppendPayload("This is an example request body.");
+          body->EndData();
+          const int created_stream_id = client_adapter->SubmitRequest(
+              ToHeaders({{":method", "GET"},
+                         {":scheme", "http"},
+                         {":authority", "example.com"},
+                         {":path",
+                          absl::StrCat("/this/is/request/", new_stream_id)}}),
+              std::move(body), nullptr);
+          EXPECT_EQ(new_stream_id, created_stream_id);
+          client_adapter->Send();
+        }
+        return true;
+      });
+
+  // Submit a request to ensure the first stream is created.
+  int stream_id = client_adapter->SubmitRequest(
+      ToHeaders({{":method", "POST"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}}),
+      nullptr, nullptr);
+  EXPECT_EQ(stream_id, 1);
+
+  client_adapter->Send();
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace adapter

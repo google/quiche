@@ -341,6 +341,11 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   bool peer_supports_metadata_ = false;
   bool end_metadata_ = false;
 
+  // Recursion guard for ProcessBytes().
+  bool processing_bytes_ = false;
+  // Recursion guard for Send().
+  bool sending_ = false;
+
   // Replace this with a stream ID, for multiple GOAWAY support.
   bool queued_goaway_ = false;
   bool latched_error_ = false;
