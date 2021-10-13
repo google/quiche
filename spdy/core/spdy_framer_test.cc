@@ -3920,33 +3920,15 @@ TEST_P(SpdyFramerTest, SpdyFramerErrorToStringTest) {
   EXPECT_STREQ("CONTROL_PAYLOAD_TOO_LARGE",
                Http2DecoderAdapter::SpdyFramerErrorToString(
                    Http2DecoderAdapter::SPDY_CONTROL_PAYLOAD_TOO_LARGE));
-  EXPECT_STREQ("ZLIB_INIT_FAILURE",
-               Http2DecoderAdapter::SpdyFramerErrorToString(
-                   Http2DecoderAdapter::SPDY_ZLIB_INIT_FAILURE));
-  EXPECT_STREQ("UNSUPPORTED_VERSION",
-               Http2DecoderAdapter::SpdyFramerErrorToString(
-                   Http2DecoderAdapter::SPDY_UNSUPPORTED_VERSION));
   EXPECT_STREQ("DECOMPRESS_FAILURE",
                Http2DecoderAdapter::SpdyFramerErrorToString(
                    Http2DecoderAdapter::SPDY_DECOMPRESS_FAILURE));
-  EXPECT_STREQ("COMPRESS_FAILURE",
-               Http2DecoderAdapter::SpdyFramerErrorToString(
-                   Http2DecoderAdapter::SPDY_COMPRESS_FAILURE));
-  EXPECT_STREQ("GOAWAY_FRAME_CORRUPT",
-               Http2DecoderAdapter::SpdyFramerErrorToString(
-                   Http2DecoderAdapter::SPDY_GOAWAY_FRAME_CORRUPT));
-  EXPECT_STREQ("RST_STREAM_FRAME_CORRUPT",
-               Http2DecoderAdapter::SpdyFramerErrorToString(
-                   Http2DecoderAdapter::SPDY_RST_STREAM_FRAME_CORRUPT));
   EXPECT_STREQ("INVALID_PADDING",
                Http2DecoderAdapter::SpdyFramerErrorToString(
                    Http2DecoderAdapter::SPDY_INVALID_PADDING));
   EXPECT_STREQ("INVALID_DATA_FRAME_FLAGS",
                Http2DecoderAdapter::SpdyFramerErrorToString(
                    Http2DecoderAdapter::SPDY_INVALID_DATA_FRAME_FLAGS));
-  EXPECT_STREQ("INVALID_CONTROL_FRAME_FLAGS",
-               Http2DecoderAdapter::SpdyFramerErrorToString(
-                   Http2DecoderAdapter::SPDY_INVALID_CONTROL_FRAME_FLAGS));
   EXPECT_STREQ("UNEXPECTED_FRAME",
                Http2DecoderAdapter::SpdyFramerErrorToString(
                    Http2DecoderAdapter::SPDY_UNEXPECTED_FRAME));

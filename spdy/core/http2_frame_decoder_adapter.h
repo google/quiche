@@ -62,15 +62,9 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
     SPDY_INVALID_STREAM_ID,            // Stream ID is invalid
     SPDY_INVALID_CONTROL_FRAME,        // Control frame is mal-formatted.
     SPDY_CONTROL_PAYLOAD_TOO_LARGE,    // Control frame payload was too large.
-    SPDY_ZLIB_INIT_FAILURE,            // The Zlib library could not initialize.
-    SPDY_UNSUPPORTED_VERSION,          // Control frame has unsupported version.
     SPDY_DECOMPRESS_FAILURE,           // There was an error decompressing.
-    SPDY_COMPRESS_FAILURE,             // There was an error compressing.
-    SPDY_GOAWAY_FRAME_CORRUPT,         // GOAWAY frame could not be parsed.
-    SPDY_RST_STREAM_FRAME_CORRUPT,     // RST_STREAM frame could not be parsed.
     SPDY_INVALID_PADDING,              // HEADERS or DATA frame padding invalid
     SPDY_INVALID_DATA_FRAME_FLAGS,     // Data frame has invalid flags.
-    SPDY_INVALID_CONTROL_FRAME_FLAGS,  // Control frame has invalid flags.
     SPDY_UNEXPECTED_FRAME,             // Frame received out of order.
     SPDY_INTERNAL_FRAMER_ERROR,        // SpdyFramer was used incorrectly.
     SPDY_INVALID_CONTROL_FRAME_SIZE,   // Control frame not sized to spec
