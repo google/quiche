@@ -86,6 +86,8 @@ absl::string_view ConnectionErrorToString(ConnectionError error) {
       return "HeaderError";
     case ConnectionError::kInvalidNewStreamId:
       return "InvalidNewStreamId";
+    case ConnectionError::kWrongFrameSequence:
+      return "kWrongFrameSequence";
   }
 }
 

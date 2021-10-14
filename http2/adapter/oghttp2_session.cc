@@ -721,6 +721,12 @@ void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
 
 void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
                                        size_t length, bool /*fin*/) {
+  if (static_cast<Http2StreamId>(stream_id) > highest_processed_stream_id_) {
+    // Receiving DATA before HEADERS is a connection error.
+    LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
+                        ConnectionError::kWrongFrameSequence);
+    return;
+  }
   const bool result = visitor_.OnBeginDataForStream(stream_id, length);
   if (!result) {
     decoder_.StopProcessing();
@@ -730,7 +736,15 @@ void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
 void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                        const char* data,
                                        size_t len) {
+  // Count the data against flow control, even if the stream is unknown.
   MarkDataBuffered(stream_id, len);
+
+  if (static_cast<Http2StreamId>(stream_id) > highest_processed_stream_id_) {
+    // Receiving DATA before HEADERS is a connection error; the visitor was
+    // informed in OnDataFrameHeader().
+    return;
+  }
+
   const bool result =
       visitor_.OnDataForStream(stream_id, absl::string_view(data, len));
   if (!result) {
@@ -798,6 +812,12 @@ void OgHttp2Session::OnRstStream(spdy::SpdyStreamId stream_id,
     iter->second.half_closed_remote = true;
     iter->second.outbound_body = nullptr;
     write_scheduler_.UnregisterStream(stream_id);
+  } else if (static_cast<Http2StreamId>(stream_id) >
+             highest_processed_stream_id_) {
+    // Receiving RST_STREAM before HEADERS is a connection error.
+    LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
+                        ConnectionError::kWrongFrameSequence);
+    return;
   }
   visitor_.OnRstStream(stream_id, TranslateErrorCode(error_code));
   CloseStream(stream_id, TranslateErrorCode(error_code));
@@ -873,6 +893,13 @@ void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
     auto it = stream_map_.find(stream_id);
     if (it == stream_map_.end()) {
       QUICHE_VLOG(1) << "Stream " << stream_id << " not found!";
+      if (static_cast<Http2StreamId>(stream_id) >
+          highest_processed_stream_id_) {
+        // Receiving WINDOW_UPDATE before HEADERS is a connection error.
+        LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
+                            ConnectionError::kWrongFrameSequence);
+        return;
+      }
     } else {
       if (it->second.send_window == 0) {
         // The stream was blocked on flow control.

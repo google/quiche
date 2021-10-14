@@ -72,6 +72,8 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
     kHeaderError,
     // The peer attempted to open a stream with an invalid stream ID.
     kInvalidNewStreamId,
+    // The peer sent a frame that is invalid on an idle stream (before HEADERS).
+    kWrongFrameSequence,
   };
   virtual void OnConnectionError(ConnectionError error) = 0;
 

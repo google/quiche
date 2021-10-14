@@ -72,8 +72,6 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
 
   EXPECT_EQ(0, session.GetHpackDecoderDynamicTableSize());
 
-  // Should OgHttp2Session require that streams 1 and 3 have been created?
-
   // Submit a request to ensure the first stream is created.
   const char* kSentinel1 = "arbitrary pointer 1";
   auto body1 = absl::make_unique<TestDataFrameSource>(visitor, true);
@@ -87,6 +85,15 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
                             std::move(body1), const_cast<char*>(kSentinel1));
   EXPECT_EQ(stream_id, 1);
 
+  // Submit another request to ensure the next stream is created.
+  int stream_id2 =
+      session.SubmitRequest(ToHeaders({{":method", "GET"},
+                                       {":scheme", "http"},
+                                       {":authority", "example.com"},
+                                       {":path", "/this/is/request/two"}}),
+                            nullptr, nullptr);
+  EXPECT_EQ(stream_id2, 3);
+
   const std::string stream_frames =
       TestFrameSequence()
           .Headers(stream_id,
@@ -95,7 +102,7 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
                     {"date", "Tue, 6 Apr 2021 12:54:01 GMT"}},
                    /*fin=*/false)
           .Data(stream_id, "This is the response body.")
-          .RstStream(3, Http2ErrorCode::INTERNAL_ERROR)
+          .RstStream(stream_id2, Http2ErrorCode::INTERNAL_ERROR)
           .GoAway(5, Http2ErrorCode::ENHANCE_YOUR_CALM, "calm down!!")
           .Serialize();
 
@@ -111,14 +118,15 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
   EXPECT_CALL(visitor, OnBeginDataForStream(stream_id, 26));
   EXPECT_CALL(visitor,
               OnDataForStream(stream_id, "This is the response body."));
-  EXPECT_CALL(visitor, OnFrameHeader(3, 4, RST_STREAM, 0));
-  EXPECT_CALL(visitor, OnRstStream(3, Http2ErrorCode::INTERNAL_ERROR));
-  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::INTERNAL_ERROR));
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id2, 4, RST_STREAM, 0));
+  EXPECT_CALL(visitor, OnRstStream(stream_id2, Http2ErrorCode::INTERNAL_ERROR));
+  EXPECT_CALL(visitor,
+              OnCloseStream(stream_id2, Http2ErrorCode::INTERNAL_ERROR));
   EXPECT_CALL(visitor, OnFrameHeader(0, 19, GOAWAY, 0));
   EXPECT_CALL(visitor, OnGoAway(5, Http2ErrorCode::ENHANCE_YOUR_CALM, ""));
   const int64_t stream_result = session.ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
-  EXPECT_EQ(3, session.GetHighestReceivedStreamId());
+  EXPECT_EQ(stream_id2, session.GetHighestReceivedStreamId());
 
   // The first stream is active and has received some data.
   EXPECT_GT(kInitialFlowControlWindowSize,
