@@ -1438,13 +1438,18 @@ TEST(OgHttp2AdapterServerTest, ServerErrorAfterHandlingHeaders) {
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(GOAWAY, 0, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::INTERNAL_ERROR)));
 
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS and SETTINGS ack
+  // SETTINGS, SETTINGS ack, and GOAWAY
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS}));
+                                            spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::GOAWAY}));
 }
 
 // Exercises the case when a visitor chooses to reject a frame based solely on
@@ -1487,13 +1492,18 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsFrameHeader) {
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(GOAWAY, 0, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::INTERNAL_ERROR)));
 
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS and SETTINGS ack
+  // SETTINGS, SETTINGS ack, and GOAWAY
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS}));
+                                            spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::GOAWAY}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerRejectsBeginningOfData) {
@@ -1547,13 +1557,18 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsBeginningOfData) {
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(GOAWAY, 0, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::INTERNAL_ERROR)));
 
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS and SETTINGS ack.
+  // SETTINGS, SETTINGS ack, and GOAWAY.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS}));
+                                            spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::GOAWAY}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerRejectsStreamData) {
@@ -1607,13 +1622,18 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsStreamData) {
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(GOAWAY, 0, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::INTERNAL_ERROR)));
 
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS and SETTINGS ack.
+  // SETTINGS, SETTINGS ack, and GOAWAY.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS}));
+                                            spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::GOAWAY}));
 }
 
 // Exercises a naive mutually recursive test client and server. This test fails
@@ -1732,13 +1752,18 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsNewStreamBelowWatermark) {
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(GOAWAY, 0, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
 
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS and SETTINGS ack.
+  // SETTINGS, SETTINGS ack, and GOAWAY.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS}));
+                                            spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::GOAWAY}));
 }
 
 }  // namespace

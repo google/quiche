@@ -17,6 +17,7 @@ namespace adapter {
 namespace {
 
 using ConnectionError = Http2VisitorInterface::ConnectionError;
+using SpdyFramerError = Http2DecoderAdapter::SpdyFramerError;
 
 // #define OGHTTP2_DEBUG_TRACE 1
 
@@ -145,6 +146,47 @@ class RunOnExit {
  private:
   std::function<void()> f_;
 };
+
+Http2ErrorCode GetHttp2ErrorCode(SpdyFramerError error) {
+  switch (error) {
+    case SpdyFramerError::SPDY_NO_ERROR:
+      return Http2ErrorCode::NO_ERROR;
+    case SpdyFramerError::SPDY_INVALID_STREAM_ID:
+    case SpdyFramerError::SPDY_INVALID_CONTROL_FRAME:
+    case SpdyFramerError::SPDY_INVALID_PADDING:
+    case SpdyFramerError::SPDY_INVALID_DATA_FRAME_FLAGS:
+    case SpdyFramerError::SPDY_UNEXPECTED_FRAME:
+      return Http2ErrorCode::PROTOCOL_ERROR;
+    case SpdyFramerError::SPDY_CONTROL_PAYLOAD_TOO_LARGE:
+    case SpdyFramerError::SPDY_INVALID_CONTROL_FRAME_SIZE:
+    case SpdyFramerError::SPDY_OVERSIZED_PAYLOAD:
+      return Http2ErrorCode::FRAME_SIZE_ERROR;
+    case SpdyFramerError::SPDY_DECOMPRESS_FAILURE:
+    case SpdyFramerError::SPDY_HPACK_INDEX_VARINT_ERROR:
+    case SpdyFramerError::SPDY_HPACK_NAME_LENGTH_VARINT_ERROR:
+    case SpdyFramerError::SPDY_HPACK_VALUE_LENGTH_VARINT_ERROR:
+    case SpdyFramerError::SPDY_HPACK_NAME_TOO_LONG:
+    case SpdyFramerError::SPDY_HPACK_VALUE_TOO_LONG:
+    case SpdyFramerError::SPDY_HPACK_NAME_HUFFMAN_ERROR:
+    case SpdyFramerError::SPDY_HPACK_VALUE_HUFFMAN_ERROR:
+    case SpdyFramerError::SPDY_HPACK_MISSING_DYNAMIC_TABLE_SIZE_UPDATE:
+    case SpdyFramerError::SPDY_HPACK_INVALID_INDEX:
+    case SpdyFramerError::SPDY_HPACK_INVALID_NAME_INDEX:
+    case SpdyFramerError::SPDY_HPACK_DYNAMIC_TABLE_SIZE_UPDATE_NOT_ALLOWED:
+    case SpdyFramerError::
+        SPDY_HPACK_INITIAL_DYNAMIC_TABLE_SIZE_UPDATE_IS_ABOVE_LOW_WATER_MARK:
+    case SpdyFramerError::
+        SPDY_HPACK_DYNAMIC_TABLE_SIZE_UPDATE_IS_ABOVE_ACKNOWLEDGED_SETTING:
+    case SpdyFramerError::SPDY_HPACK_TRUNCATED_BLOCK:
+    case SpdyFramerError::SPDY_HPACK_FRAGMENT_TOO_LONG:
+    case SpdyFramerError::SPDY_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT:
+      return Http2ErrorCode::COMPRESSION_ERROR;
+    case SpdyFramerError::SPDY_INTERNAL_FRAMER_ERROR:
+    case SpdyFramerError::SPDY_STOP_PROCESSING:
+    case SpdyFramerError::LAST_ERROR:
+      return Http2ErrorCode::INTERNAL_ERROR;
+  }
+}
 
 }  // namespace
 
@@ -301,7 +343,8 @@ int64_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
       QUICHE_DLOG(INFO) << "Preface doesn't match! Expected: ["
                         << absl::CEscape(remaining_preface_) << "], actual: ["
                         << absl::CEscape(bytes) << "]";
-      LatchErrorAndNotify(ConnectionError::kInvalidConnectionPreface);
+      LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
+                          ConnectionError::kInvalidConnectionPreface);
       return -1;
     }
     remaining_preface_.remove_prefix(min_size);
@@ -380,7 +423,8 @@ int OgHttp2Session::Send() {
     }
   }
   if (result < 0) {
-    LatchErrorAndNotify(ConnectionError::kSendError);
+    LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
+                        ConnectionError::kSendError);
     return result;
   } else if (!serialized_prefix_.empty()) {
     return 0;
@@ -416,7 +460,8 @@ bool OgHttp2Session::SendQueuedFrames() {
     spdy::SpdySerializedFrame frame = framer_.SerializeFrame(*frame_ptr);
     const int64_t result = visitor_.OnReadyToSend(absl::string_view(frame));
     if (result < 0) {
-      LatchErrorAndNotify(ConnectionError::kSendError);
+      LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
+                          ConnectionError::kSendError);
       return false;
     } else if (result == 0) {
       // Write blocked.
@@ -653,12 +698,13 @@ void OgHttp2Session::SubmitMetadata(Http2StreamId stream_id,
   }
 }
 
-void OgHttp2Session::OnError(http2::Http2DecoderAdapter::SpdyFramerError error,
+void OgHttp2Session::OnError(SpdyFramerError error,
                              std::string detailed_error) {
   QUICHE_VLOG(1) << "Error: "
                  << http2::Http2DecoderAdapter::SpdyFramerErrorToString(error)
                  << " details: " << detailed_error;
-  LatchErrorAndNotify(ConnectionError::kParseError);
+  // TODO(diannahu): Consider propagating `detailed_error`.
+  LatchErrorAndNotify(GetHttp2ErrorCode(error), ConnectionError::kParseError);
 }
 
 void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
@@ -811,7 +857,8 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
     const auto new_stream_id = static_cast<Http2StreamId>(stream_id);
     if (new_stream_id <= highest_processed_stream_id_) {
       // A new stream ID lower than the watermark is a connection error.
-      LatchErrorAndNotify(ConnectionError::kInvalidNewStreamId);
+      LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
+                          ConnectionError::kInvalidNewStreamId);
       return;
     }
     CreateStream(stream_id);
@@ -873,7 +920,8 @@ void OgHttp2Session::OnHeaderStatus(
           stream_id, spdy::ERROR_CODE_INTERNAL_ERROR));
     }
   } else if (result == Http2VisitorInterface::HEADER_CONNECTION_ERROR) {
-    LatchErrorAndNotify(ConnectionError::kHeaderError);
+    LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
+                        ConnectionError::kHeaderError);
   }
 }
 
@@ -1048,7 +1096,8 @@ HeaderType OgHttp2Session::NextHeaderType(
   }
 }
 
-void OgHttp2Session::LatchErrorAndNotify(ConnectionError error) {
+void OgHttp2Session::LatchErrorAndNotify(Http2ErrorCode error_code,
+                                         ConnectionError error) {
   if (latched_error_) {
     // Do not kick a connection when it is down.
     return;
@@ -1057,6 +1106,11 @@ void OgHttp2Session::LatchErrorAndNotify(ConnectionError error) {
   latched_error_ = true;
   visitor_.OnConnectionError(error);
   decoder_.StopProcessing();
+  if (IsServerSession()) {
+    EnqueueFrame(absl::make_unique<spdy::SpdyGoAwayIR>(
+        highest_processed_stream_id_, TranslateErrorCode(error_code),
+        ConnectionErrorToString(error)));
+  }
 }
 
 }  // namespace adapter
