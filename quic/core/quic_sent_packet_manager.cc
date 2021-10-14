@@ -209,8 +209,12 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
       QUIC_CODE_COUNT(two_aggressive_ptos);
       num_tlp_timeout_ptos_ = 2;
     }
+    if (GetQuicReloadableFlag(quic_deprecate_tlpr)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_deprecate_tlpr, 2, 2);
+    }
     if (config.HasClientSentConnectionOption(kPLE1, perspective) ||
-        config.HasClientSentConnectionOption(kTLPR, perspective)) {
+        (config.HasClientSentConnectionOption(kTLPR, perspective) &&
+         !GetQuicReloadableFlag(quic_deprecate_tlpr))) {
       first_pto_srtt_multiplier_ = 0.5;
     } else if (config.HasClientSentConnectionOption(kPLE2, perspective)) {
       first_pto_srtt_multiplier_ = 1.5;
@@ -297,10 +301,15 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(k1RTO, perspective)) {
     max_rto_packets_ = 1;
   }
-  if (config.HasClientSentConnectionOption(kTLPR, perspective)) {
+  if (GetQuicReloadableFlag(quic_deprecate_tlpr)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_deprecate_tlpr, 1, 2);
+  }
+  if (config.HasClientSentConnectionOption(kTLPR, perspective) &&
+      !GetQuicReloadableFlag(quic_deprecate_tlpr)) {
     enable_half_rtt_tail_loss_probe_ = true;
   }
-  if (config.HasClientRequestedIndependentOption(kTLPR, perspective)) {
+  if (config.HasClientRequestedIndependentOption(kTLPR, perspective) &&
+      !GetQuicReloadableFlag(quic_deprecate_tlpr)) {
     enable_half_rtt_tail_loss_probe_ = true;
   }
   if (config.HasClientSentConnectionOption(kNRTO, perspective)) {

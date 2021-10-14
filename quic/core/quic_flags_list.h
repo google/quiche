@@ -23,6 +23,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_check_cwnd_limited_before_aggrega
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_reject_invalid_chars_in_field_value, true)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
+// If true, QUIC won\'t honor the connection option TLPR
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_deprecate_tlpr, false)
 // If true, QuicAlarms that belong to a single QuicConnection will fire under the corresponding QuicConnectionContext.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_restore_connection_context_in_alarms, true)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.

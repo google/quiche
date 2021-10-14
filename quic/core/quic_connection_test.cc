@@ -4483,7 +4483,7 @@ TEST_P(QuicConnectionTest, TLP) {
 }
 
 TEST_P(QuicConnectionTest, TailLossProbeDelayForStreamDataInTLPR) {
-  if (connection_.PtoEnabled()) {
+  if (connection_.PtoEnabled() || GetQuicReloadableFlag(quic_deprecate_tlpr)) {
     return;
   }
 
@@ -4518,7 +4518,7 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForStreamDataInTLPR) {
 }
 
 TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
-  if (connection_.PtoEnabled()) {
+  if (connection_.PtoEnabled() || GetQuicReloadableFlag(quic_deprecate_tlpr)) {
     return;
   }
 

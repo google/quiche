@@ -41,8 +41,7 @@ const QuicStreamId kStreamId = 7;
 
 // Matcher to check that the packet number matches the second argument.
 MATCHER(PacketNumberEq, "") {
-  return ::testing::get<0>(arg).packet_number ==
-         QuicPacketNumber(::testing::get<1>(arg));
+  return std::get<0>(arg).packet_number == QuicPacketNumber(std::get<1>(arg));
 }
 
 class MockDebugDelegate : public QuicSentPacketManager::DebugDelegate {
@@ -1465,7 +1464,8 @@ TEST_F(QuicSentPacketManagerTest, GetTransmissionTimeTailLossProbe) {
 }
 
 TEST_F(QuicSentPacketManagerTest, TLPRWithPendingStreamData) {
-  if (GetQuicReloadableFlag(quic_default_on_pto)) {
+  if (GetQuicReloadableFlag(quic_default_on_pto) ||
+      GetQuicReloadableFlag(quic_deprecate_tlpr)) {
     return;
   }
   QuicConfig config;
@@ -1518,7 +1518,8 @@ TEST_F(QuicSentPacketManagerTest, TLPRWithPendingStreamData) {
 }
 
 TEST_F(QuicSentPacketManagerTest, TLPRWithoutPendingStreamData) {
-  if (GetQuicReloadableFlag(quic_default_on_pto)) {
+  if (GetQuicReloadableFlag(quic_default_on_pto) ||
+      GetQuicReloadableFlag(quic_deprecate_tlpr)) {
     return;
   }
   QuicConfig config;
@@ -2125,7 +2126,8 @@ TEST_F(QuicSentPacketManagerTest, Negotiate1TLPFromOptionsAtClient) {
 }
 
 TEST_F(QuicSentPacketManagerTest, NegotiateTLPRttFromOptionsAtServer) {
-  if (GetQuicReloadableFlag(quic_default_on_pto)) {
+  if (GetQuicReloadableFlag(quic_default_on_pto) ||
+      GetQuicReloadableFlag(quic_deprecate_tlpr)) {
     return;
   }
   QuicConfig config;
@@ -2141,7 +2143,8 @@ TEST_F(QuicSentPacketManagerTest, NegotiateTLPRttFromOptionsAtServer) {
 }
 
 TEST_F(QuicSentPacketManagerTest, NegotiateTLPRttFromOptionsAtClient) {
-  if (GetQuicReloadableFlag(quic_default_on_pto)) {
+  if (GetQuicReloadableFlag(quic_default_on_pto) ||
+      GetQuicReloadableFlag(quic_deprecate_tlpr)) {
     return;
   }
   QuicConfig client_config;
@@ -4352,6 +4355,9 @@ TEST_F(QuicSentPacketManagerTest,
 }
 
 TEST_F(QuicSentPacketManagerTest, ClientOnlyTLPRServer) {
+  if (GetQuicReloadableFlag(quic_deprecate_tlpr)) {
+    return;
+  }
   QuicConfig config;
   QuicTagVector options;
 
@@ -4366,6 +4372,9 @@ TEST_F(QuicSentPacketManagerTest, ClientOnlyTLPRServer) {
 }
 
 TEST_F(QuicSentPacketManagerTest, ClientOnlyTLPR) {
+  if (GetQuicReloadableFlag(quic_deprecate_tlpr)) {
+    return;
+  }
   QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
   QuicConfig config;
   QuicTagVector options;
@@ -4380,6 +4389,9 @@ TEST_F(QuicSentPacketManagerTest, ClientOnlyTLPR) {
 }
 
 TEST_F(QuicSentPacketManagerTest, PtoWithTlpr) {
+  if (GetQuicReloadableFlag(quic_deprecate_tlpr)) {
+    return;
+  }
   QuicConfig config;
   QuicTagVector options;
 
