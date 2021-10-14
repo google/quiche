@@ -19,6 +19,7 @@
 #include "spdy/core/http2_frame_decoder_adapter.h"
 #include "spdy/core/spdy_framer.h"
 #include "spdy/core/spdy_header_block.h"
+#include "spdy/core/spdy_protocol.h"
 
 namespace http2 {
 namespace adapter {
@@ -236,6 +237,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   // Queues the connection preface, if not already done.
   void MaybeSetupPreface();
+
+  // Fills the initial SETTINGS frame sent as part of the connection preface.
+  void FillInitialSettingsFrame(spdy::SpdySettingsIR& settings);
 
   void SendWindowUpdate(Http2StreamId stream_id, size_t update_delta);
 

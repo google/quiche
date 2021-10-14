@@ -1000,9 +1000,19 @@ void OgHttp2Session::MaybeSetupPreface() {
         frames_.front()->frame_type() != spdy::SpdyFrameType::SETTINGS ||
         reinterpret_cast<spdy::SpdySettingsIR*>(frames_.front().get())
             ->is_ack()) {
-      frames_.push_front(absl::make_unique<spdy::SpdySettingsIR>());
+      auto settings = absl::make_unique<spdy::SpdySettingsIR>();
+      FillInitialSettingsFrame(*settings);
+      frames_.push_front(std::move(settings));
     }
     queued_preface_ = true;
+  }
+}
+
+void OgHttp2Session::FillInitialSettingsFrame(spdy::SpdySettingsIR& settings) {
+  if (!IsServerSession()) {
+    // Disable server push. Note that server push from clients is already
+    // disabled, so the server does not need to send this disabling setting.
+    settings.AddSetting(spdy::SETTINGS_ENABLE_PUSH, false);
   }
 }
 

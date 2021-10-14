@@ -62,6 +62,64 @@ TEST_F(OgHttp2AdapterTest, ProcessBytes) {
       TestFrameSequence().ClientPreface().Ping(17).Serialize());
 }
 
+TEST_F(OgHttp2AdapterTest, InitialSettings) {
+  DataSavingVisitor client_visitor;
+  OgHttp2Adapter::Options client_options{.perspective = Perspective::kClient};
+  auto client_adapter = OgHttp2Adapter::Create(client_visitor, client_options);
+
+  DataSavingVisitor server_visitor;
+  OgHttp2Adapter::Options server_options{.perspective = Perspective::kServer};
+  auto server_adapter = OgHttp2Adapter::Create(server_visitor, server_options);
+
+  testing::InSequence s;
+
+  // Client sends the connection preface, including the initial SETTINGS.
+  EXPECT_CALL(client_visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(client_visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
+  {
+    int result = client_adapter->Send();
+    EXPECT_EQ(0, result);
+    absl::string_view data = client_visitor.data();
+    EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+    data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+    EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  }
+
+  // Server sends the connection preface, including the initial SETTINGS.
+  EXPECT_CALL(server_visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
+  EXPECT_CALL(server_visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
+  {
+    int result = server_adapter->Send();
+    EXPECT_EQ(0, result);
+    absl::string_view data = server_visitor.data();
+    EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  }
+
+  // Client processes the server's initial bytes, including initial SETTINGS.
+  EXPECT_CALL(client_visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(client_visitor, OnSettingsStart());
+  EXPECT_CALL(client_visitor, OnSettingsEnd());
+  {
+    const int64_t result = client_adapter->ProcessBytes(server_visitor.data());
+    EXPECT_EQ(server_visitor.data().size(), static_cast<size_t>(result));
+  }
+
+  // Server processes the client's initial bytes, including initial SETTINGS.
+  EXPECT_CALL(server_visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(server_visitor, OnSettingsStart());
+  EXPECT_CALL(
+      server_visitor,
+      OnSetting(testing::AllOf(
+          testing::Field(&Http2Setting::id, Http2KnownSettingsId::ENABLE_PUSH),
+          testing::Field(&Http2Setting::value, 0))))
+      .Times(2);
+  EXPECT_CALL(server_visitor, OnSettingsEnd());
+  {
+    const int64_t result = server_adapter->ProcessBytes(client_visitor.data());
+    EXPECT_EQ(client_visitor.data().size(), static_cast<size_t>(result));
+  }
+}
+
 TEST(OgHttp2AdapterClientTest, ClientHandlesTrailers) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
@@ -627,8 +685,8 @@ TEST(OgHttp2AdapterClientTest, ClientFailsOnGoAway) {
   ASSERT_GT(stream_id1, 0);
   QUICHE_LOG(INFO) << "Created stream: " << stream_id1;
 
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
 
@@ -1434,8 +1492,8 @@ TEST(OgHttp2AdapterServerTest, ServerErrorAfterHandlingHeaders) {
 
   EXPECT_TRUE(adapter->want_write());
 
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
@@ -1488,8 +1546,8 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsFrameHeader) {
 
   EXPECT_TRUE(adapter->want_write());
 
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
@@ -1553,8 +1611,8 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsBeginningOfData) {
 
   EXPECT_TRUE(adapter->want_write());
 
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
@@ -1618,8 +1676,8 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsStreamData) {
 
   EXPECT_TRUE(adapter->want_write());
 
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
@@ -1748,8 +1806,8 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsNewStreamBelowWatermark) {
 
   EXPECT_TRUE(adapter->want_write());
 
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
