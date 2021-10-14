@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <list>
 
+#include "absl/strings/string_view.h"
 #include "http2/adapter/data_source.h"
 #include "http2/adapter/header_validator.h"
 #include "http2/adapter/http2_protocol.h"
@@ -326,7 +327,11 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   MetadataSequence connection_metadata_;
 
   Http2StreamId next_stream_id_ = 1;
+  // The highest received stream ID is the highest stream ID in any frame read
+  // from the peer. The highest processed stream ID is the highest stream ID for
+  // which this endpoint created a stream in the stream map.
   Http2StreamId highest_received_stream_id_ = 0;
+  Http2StreamId highest_processed_stream_id_ = 0;
   Http2StreamId metadata_stream_id_ = 0;
   size_t metadata_length_ = 0;
   int32_t connection_send_window_ = kInitialFlowControlWindowSize;

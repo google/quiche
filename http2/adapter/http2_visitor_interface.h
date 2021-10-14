@@ -70,6 +70,8 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
     kParseError,
     // The visitor considered a received header to be a connection error.
     kHeaderError,
+    // The peer attempted to open a stream with an invalid stream ID.
+    kInvalidNewStreamId,
   };
   virtual void OnConnectionError(ConnectionError error) = 0;
 

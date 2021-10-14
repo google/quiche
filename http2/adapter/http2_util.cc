@@ -84,6 +84,8 @@ absl::string_view ConnectionErrorToString(ConnectionError error) {
       return "ParseError";
     case ConnectionError::kHeaderError:
       return "HeaderError";
+    case ConnectionError::kInvalidNewStreamId:
+      return "InvalidNewStreamId";
   }
 }
 

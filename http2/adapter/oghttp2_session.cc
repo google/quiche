@@ -6,6 +6,7 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/escaping.h"
 #include "http2/adapter/http2_protocol.h"
+#include "http2/adapter/http2_util.h"
 #include "http2/adapter/http2_visitor_interface.h"
 #include "http2/adapter/oghttp2_util.h"
 #include "spdy/core/spdy_protocol.h"
@@ -807,6 +808,12 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
                                spdy::SpdyStreamId /*parent_stream_id*/,
                                bool /*exclusive*/, bool /*fin*/, bool /*end*/) {
   if (options_.perspective == Perspective::kServer) {
+    const auto new_stream_id = static_cast<Http2StreamId>(stream_id);
+    if (new_stream_id <= highest_processed_stream_id_) {
+      // A new stream ID lower than the watermark is a connection error.
+      LatchErrorAndNotify(ConnectionError::kInvalidNewStreamId);
+      return;
+    }
     CreateStream(stream_id);
   }
 }
@@ -988,6 +995,9 @@ OgHttp2Session::StreamStateMap::iterator OgHttp2Session::CreateStream(
     // Add the stream to the write scheduler.
     const WriteScheduler::StreamPrecedenceType precedence(3);
     write_scheduler_.RegisterStream(stream_id, precedence);
+
+    highest_processed_stream_id_ =
+        std::max(highest_processed_stream_id_, stream_id);
   }
   return iter;
 }
