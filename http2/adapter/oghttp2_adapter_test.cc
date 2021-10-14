@@ -444,11 +444,6 @@ TEST(OgHttp2AdapterClientTest, ClientConnectionErrorWhileHandlingHeaders) {
       .WillOnce(
           testing::Return(Http2VisitorInterface::HEADER_CONNECTION_ERROR));
   EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kHeaderError));
-  // Note: OgHttp2Adapter continues processing bytes until the input is
-  // complete.
-  EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 0));
-  EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
-  EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_LT(stream_result, 0);
@@ -516,11 +511,6 @@ TEST(OgHttp2AdapterClientTest, ClientRejectsHeaders) {
       .WillOnce(testing::Return(false));
   // Rejecting headers leads to a connection error.
   EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kHeaderError));
-  // Note: OgHttp2Adapter continues processing bytes until the input is
-  // complete.
-  EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 0));
-  EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
-  EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_LT(stream_result, 0);

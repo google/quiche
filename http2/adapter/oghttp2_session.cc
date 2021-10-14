@@ -1039,8 +1039,14 @@ HeaderType OgHttp2Session::NextHeaderType(
 }
 
 void OgHttp2Session::LatchErrorAndNotify(ConnectionError error) {
+  if (latched_error_) {
+    // Do not kick a connection when it is down.
+    return;
+  }
+
   latched_error_ = true;
   visitor_.OnConnectionError(error);
+  decoder_.StopProcessing();
 }
 
 }  // namespace adapter
