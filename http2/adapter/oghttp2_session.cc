@@ -873,6 +873,12 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
                                bool /*has_priority*/, int /*weight*/,
                                spdy::SpdyStreamId /*parent_stream_id*/,
                                bool /*exclusive*/, bool /*fin*/, bool /*end*/) {
+  if (stream_id % 2 == 0) {
+    // Server push is disabled; receiving push HEADERS is a connection error.
+    LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
+                        ConnectionError::kInvalidNewStreamId);
+    return;
+  }
   if (options_.perspective == Perspective::kServer) {
     const auto new_stream_id = static_cast<Http2StreamId>(stream_id);
     if (new_stream_id <= highest_processed_stream_id_) {
@@ -913,7 +919,11 @@ void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
 
 void OgHttp2Session::OnPushPromise(spdy::SpdyStreamId /*stream_id*/,
                                    spdy::SpdyStreamId /*promised_stream_id*/,
-                                   bool /*end*/) {}
+                                   bool /*end*/) {
+  // Server push is disabled; PUSH_PROMISE is an invalid frame.
+  LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
+                      ConnectionError::kInvalidPushPromise);
+}
 
 void OgHttp2Session::OnContinuation(spdy::SpdyStreamId /*stream_id*/, bool
                                     /*end*/) {}
@@ -1012,6 +1022,7 @@ void OgHttp2Session::FillInitialSettingsFrame(spdy::SpdySettingsIR& settings) {
   if (!IsServerSession()) {
     // Disable server push. Note that server push from clients is already
     // disabled, so the server does not need to send this disabling setting.
+    // TODO(diannahu): Consider applying server push disabling on SETTINGS ack.
     settings.AddSetting(spdy::SETTINGS_ENABLE_PUSH, false);
   }
 }

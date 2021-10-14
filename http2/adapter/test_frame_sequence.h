@@ -32,6 +32,9 @@ class QUICHE_NO_EXPORT TestFrameSequence {
   TestFrameSequence& RstStream(Http2StreamId stream_id, Http2ErrorCode error);
   TestFrameSequence& Settings(absl::Span<const Http2Setting> settings);
   TestFrameSequence& SettingsAck();
+  TestFrameSequence& PushPromise(Http2StreamId stream_id,
+                                 Http2StreamId promised_stream_id,
+                                 absl::Span<const Header> headers);
   TestFrameSequence& Ping(Http2PingId id);
   TestFrameSequence& PingAck(Http2PingId id);
   TestFrameSequence& GoAway(Http2StreamId last_good_stream_id,

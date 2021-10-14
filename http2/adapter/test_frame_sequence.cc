@@ -67,6 +67,14 @@ TestFrameSequence& TestFrameSequence::SettingsAck() {
   return *this;
 }
 
+TestFrameSequence& TestFrameSequence::PushPromise(
+    Http2StreamId stream_id, Http2StreamId promised_stream_id,
+    absl::Span<const Header> headers) {
+  frames_.push_back(absl::make_unique<spdy::SpdyPushPromiseIR>(
+      stream_id, promised_stream_id, ToHeaderBlock(headers)));
+  return *this;
+}
+
 TestFrameSequence& TestFrameSequence::Ping(Http2PingId id) {
   frames_.push_back(absl::make_unique<spdy::SpdyPingIR>(id));
   return *this;

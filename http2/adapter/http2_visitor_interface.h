@@ -74,6 +74,8 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
     kInvalidNewStreamId,
     // The peer sent a frame that is invalid on an idle stream (before HEADERS).
     kWrongFrameSequence,
+    // The peer sent an invalid PUSH_PROMISE frame.
+    kInvalidPushPromise,
   };
   virtual void OnConnectionError(ConnectionError error) = 0;
 
