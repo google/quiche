@@ -178,6 +178,9 @@ int OnHeader(nghttp2_session* /* session */, const nghttp2_frame* frame,
       return NGHTTP2_ERR_CALLBACK_FAILURE;
     case Http2VisitorInterface::HEADER_RST_STREAM:
       return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
+    default:
+      // Unexpected value.
+      return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
   }
 }
 
