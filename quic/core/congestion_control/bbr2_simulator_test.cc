@@ -811,8 +811,8 @@ TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseB202)) {
 
 // Test Bbr2's reaction to a 100x bandwidth increase during a transfer with B202
 // in the presence of ACK aggregation.
-TEST_F(Bbr2DefaultTopologyTest, DISABLED_BandwidthIncreaseB202Aggregation) {
-  // TODO(b/201532297) Reenable this test.
+TEST_F(Bbr2DefaultTopologyTest,
+       QUIC_SLOW_TEST(BandwidthIncreaseB202Aggregation)) {
   SetQuicReloadableFlag(quic_bbr2_no_probe_up_exit_if_no_queue, true);
   SetConnectionOption(kB202);
   DefaultTopologyParams params;
@@ -833,7 +833,7 @@ TEST_F(Bbr2DefaultTopologyTest, DISABLED_BandwidthIncreaseB202Aggregation) {
   // This is much farther off when aggregation is present,
   // Ideally BSAO or another option would fix this.
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_est, 0.45f);
+                   sender_->ExportDebugState().bandwidth_est, 0.6f);
   EXPECT_LE(sender_loss_rate_in_packets(), 0.35);
 
   // Now increase the bottleneck bandwidth from 100Kbps to 10Mbps.
