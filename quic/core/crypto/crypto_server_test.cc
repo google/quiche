@@ -12,6 +12,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
@@ -273,7 +274,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
       } else {
         ASSERT_NE(error, QUIC_NO_ERROR)
             << "Message didn't fail: " << result_->client_hello.DebugString();
-        EXPECT_TRUE(error_details.find(error_substr_) != std::string::npos)
+        EXPECT_TRUE(absl::StrContains(error_details, error_substr_))
             << error_substr_ << " not in " << error_details;
       }
       if (message != nullptr) {
