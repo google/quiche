@@ -344,7 +344,7 @@ SpdyFramer::SpdyHeaderFrameIterator::SpdyHeaderFrameIterator(
 SpdyFramer::SpdyHeaderFrameIterator::~SpdyHeaderFrameIterator() = default;
 
 const SpdyFrameIR& SpdyFramer::SpdyHeaderFrameIterator::GetIR() const {
-  return *(headers_ir_.get());
+  return *headers_ir_;
 }
 
 size_t SpdyFramer::SpdyHeaderFrameIterator::GetFrameSizeSansBlock() const {
@@ -369,7 +369,7 @@ SpdyFramer::SpdyPushPromiseFrameIterator::~SpdyPushPromiseFrameIterator() =
     default;
 
 const SpdyFrameIR& SpdyFramer::SpdyPushPromiseFrameIterator::GetIR() const {
-  return *(push_promise_ir_.get());
+  return *push_promise_ir_;
 }
 
 size_t SpdyFramer::SpdyPushPromiseFrameIterator::GetFrameSizeSansBlock() const {
@@ -402,7 +402,7 @@ bool SpdyFramer::SpdyControlFrameIterator::HasNextFrame() const {
 }
 
 const SpdyFrameIR& SpdyFramer::SpdyControlFrameIterator::GetIR() const {
-  return *(frame_ir_.get());
+  return *frame_ir_;
 }
 
 std::unique_ptr<SpdyFrameSequence> SpdyFramer::CreateIterator(
