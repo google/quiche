@@ -142,7 +142,7 @@ bool SpdyUtils::PopulateHeaderBlockFromUrl(const std::string url,
   }
   (*headers)[":scheme"] = url.substr(0, pos);
   size_t start = pos + 3;
-  pos = url.find("/", start);
+  pos = url.find('/', start);
   if (pos == std::string::npos) {
     (*headers)[":authority"] = url.substr(start);
     (*headers)[":path"] = "/";

@@ -40,7 +40,7 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
   // First read the headers.
   size_t start = 0;
   while (start < file_contents_.length()) {
-    size_t pos = file_contents_.find("\n", start);
+    size_t pos = file_contents_.find('\n', start);
     if (pos == std::string::npos) {
       QUIC_LOG(DFATAL) << "Headers invalid or empty, ignoring: " << file_name_;
       return;
@@ -58,7 +58,7 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
     }
     // Extract the status from the HTTP first line.
     if (line.substr(0, 4) == "HTTP") {
-      pos = line.find(" ");
+      pos = line.find(' ');
       if (pos == std::string::npos) {
         QUIC_LOG(DFATAL) << "Headers invalid or empty, ignoring: "
                          << file_name_;

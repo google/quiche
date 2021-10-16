@@ -233,7 +233,7 @@ void HpackEncoder::CookieToCrumbs(const Representation& cookie,
     cookie_value = cookie_value.substr(first, (last - first) + 1);
   }
   for (size_t pos = 0;;) {
-    size_t end = cookie_value.find(";", pos);
+    size_t end = cookie_value.find(';', pos);
 
     if (end == absl::string_view::npos) {
       out->push_back(std::make_pair(cookie.first, cookie_value.substr(pos)));
