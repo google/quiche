@@ -390,6 +390,34 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartup) {
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
 }
 
+TEST_F(Bbr2DefaultTopologyTest, NormalStartupB207) {
+  SetQuicReloadableFlag(quic_bbr2_exit_startup_on_persistent_queue, true);
+  SetConnectionOption(kB207);
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  // Run until the full bandwidth is reached and check how many rounds it was.
+  sender_endpoint_.AddBytesToTransfer(12 * 1024 * 1024);
+  QuicRoundTripCount max_bw_round = 0;
+  QuicBandwidth max_bw(QuicBandwidth::Zero());
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [this, &max_bw, &max_bw_round]() {
+        if (max_bw < sender_->ExportDebugState().bandwidth_hi) {
+          max_bw = sender_->ExportDebugState().bandwidth_hi;
+          max_bw_round = sender_->ExportDebugState().round_trip_count;
+        }
+        return sender_->ExportDebugState().startup.full_bandwidth_reached;
+      },
+      QuicTime::Delta::FromSeconds(5));
+  ASSERT_TRUE(simulator_result);
+  EXPECT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
+  EXPECT_EQ(0u, sender_->ExportDebugState().round_trip_count - max_bw_round);
+  EXPECT_EQ(
+      0u,
+      sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
+  EXPECT_EQ(0u, sender_connection_stats().packets_lost);
+}
+
 // Test a simple long data transfer in the default setup.
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer) {
   DefaultTopologyParams params;
@@ -466,6 +494,26 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB201) {
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB206) {
   SetQuicReloadableFlag(quic_bbr2_startup_probe_up_loss_events, true);
   SetConnectionOption(kB206);
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  // Transfer 12MB.
+  DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
+  EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
+
+  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
+                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
+
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
+  // The margin here is high, because the aggregation greatly increases
+  // smoothed rtt.
+  EXPECT_GE(params.RTT() * 4, rtt_stats()->smoothed_rtt());
+  EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
+}
+
+TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB207) {
+  SetQuicReloadableFlag(quic_bbr2_exit_startup_on_persistent_queue, true);
+  SetConnectionOption(kB207);
   DefaultTopologyParams params;
   CreateNetwork(params);
 

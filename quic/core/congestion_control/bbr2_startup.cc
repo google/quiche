@@ -8,6 +8,7 @@
 #include "quic/core/congestion_control/bbr2_sender.h"
 #include "quic/core/quic_bandwidth.h"
 #include "quic/core/quic_types.h"
+#include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 
@@ -46,8 +47,12 @@ Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
     const AckedPacketVector& /*acked_packets*/,
     const LostPacketVector& /*lost_packets*/,
     const Bbr2CongestionEvent& congestion_event) {
+  if (Params().exit_startup_on_persistent_queue) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_exit_startup_on_persistent_queue);
+    model_->CheckPersistentQueue(congestion_event);
+  }
   if (!model_->full_bandwidth_reached() && congestion_event.end_of_round_trip) {
-    // TCP BBR always exits upon excessive losses. QUIC BBRv1 does not exits
+    // TCP BBR always exits upon excessive losses. QUIC BBRv1 does not exit
     // upon excessive losses, if enough bandwidth growth is observed.
     Bbr2NetworkModel::BandwidthGrowth bw_growth =
         model_->CheckBandwidthGrowth(congestion_event);

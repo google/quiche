@@ -95,9 +95,13 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   // If false, exit STARTUP on loss only if bandwidth is below threshold.
   bool always_exit_startup_on_excess_loss = false;
 
-  // If true, inclue extra acked during STARTUP and proactively reduce extra
+  // If true, include extra acked during STARTUP and proactively reduce extra
   // acked when bandwidth increases.
   bool startup_include_extra_acked = false;
+
+  // If true, exit STARTUP if bytes in flight has not gone below 2 * BDP at
+  // any point in the last round.
+  bool exit_startup_on_persistent_queue = false;
 
   /*
    * DRAIN parameters.
@@ -397,6 +401,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     return bandwidth_sampler_.max_ack_height();
   }
 
+  QuicByteCount QueueingThresholdExtraBytes() const {
+    return 2 * kDefaultTCPMSS;
+  }
+
   bool cwnd_limited_before_aggregation_epoch() const {
     return cwnd_limited_before_aggregation_epoch_;
   }
@@ -464,6 +472,8 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   // growth, also sets |full_bandwidth_reached_| to true.
   BandwidthGrowth CheckBandwidthGrowth(
       const Bbr2CongestionEvent& congestion_event);
+
+  void CheckPersistentQueue(const Bbr2CongestionEvent& congestion_event);
 
   QuicPacketNumber last_sent_packet() const {
     return round_trip_counter_.last_sent_packet();

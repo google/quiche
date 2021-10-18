@@ -485,7 +485,8 @@ void Bbr2ProbeBwMode::UpdateProbeUp(
     //   HasPhaseLasted(model_->MinRtt(), congestion_event)
   } else if (cycle_.rounds_in_phase > 0) {
     const QuicByteCount bdp = model_->BDP();
-    QuicByteCount queuing_threshold_extra_bytes = 2 * kDefaultTCPMSS;
+    QuicByteCount queuing_threshold_extra_bytes =
+        model_->QueueingThresholdExtraBytes();
     if (Params().probe_up_dont_exit_if_no_queue_) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_no_probe_up_exit_if_no_queue, 1,
                                    2);

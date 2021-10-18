@@ -194,6 +194,11 @@ void Bbr2Sender::ApplyConnectionOptions(
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_startup_extra_acked, 2, 2);
     params_.startup_include_extra_acked = true;
   }
+  if (GetQuicReloadableFlag(quic_bbr2_exit_startup_on_persistent_queue) &&
+      ContainsQuicTag(connection_options, kB207)) {
+    params_.exit_startup_on_persistent_queue = true;
+  }
+
   if (GetQuicReloadableFlag(
           quic_bbr_start_new_aggregation_epoch_after_a_full_round) &&
       ContainsQuicTag(connection_options, kBBRA)) {
