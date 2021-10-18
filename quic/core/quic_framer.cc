@@ -4179,7 +4179,7 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(QuicPacketNumber largest_acked,
       // packet order.
       timestamp_delta = timestamp_delta << receive_timestamps_exponent_;
       if (i == 0 && j == 0) {
-        last_timestamp_ = CalculateTimestampFromWire(timestamp_delta);
+        last_timestamp_ = QuicTime::Delta::FromMicroseconds(timestamp_delta);
       } else {
         last_timestamp_ = last_timestamp_ -
                           QuicTime::Delta::FromMicroseconds(timestamp_delta);
