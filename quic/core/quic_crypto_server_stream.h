@@ -254,6 +254,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   bool encryption_established_;
   bool one_rtt_keys_available_;
   bool one_rtt_packet_decrypted_;
+  const bool noop_if_disconnected_after_process_chlo_ = GetQuicReloadableFlag(
+      quic_crypto_noop_if_disconnected_after_process_chlo);
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
 };

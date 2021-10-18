@@ -11,6 +11,7 @@
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "quic/platform/api/quic_flag_utils.h"
+#include "quic/platform/api/quic_testvalue.h"
 #include "common/quiche_text_utils.h"
 
 namespace quic {
@@ -163,6 +164,21 @@ void QuicCryptoServerStream::
   QUICHE_DCHECK(validate_client_hello_cb_ == nullptr);
   process_client_hello_cb_ = nullptr;
   proof_source_details_ = std::move(proof_source_details);
+
+  AdjustTestValue("quic::QuicCryptoServerStream::after_process_client_hello",
+                  session());
+
+  if (noop_if_disconnected_after_process_chlo_) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_crypto_noop_if_disconnected_after_process_chlo);
+    if (!session()->connection()->connected()) {
+      QUIC_CODE_COUNT(quic_crypto_disconnected_after_process_client_hello);
+      QUIC_LOG_FIRST_N(INFO, 10)
+          << "After processing CHLO, QUIC connection has been closed with code "
+          << session()->error() << ", details: " << session()->error_details();
+      return;
+    }
+  }
 
   const CryptoHandshakeMessage& message = result.client_hello;
   if (error != QUIC_NO_ERROR) {
