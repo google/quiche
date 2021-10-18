@@ -14,6 +14,7 @@
 
 #include "http2/platform/api/http2_flags.h"
 #include "common/platform/api/quiche_export.h"
+#include "common/quiche_text_utils.h"
 
 namespace http2 {
 
@@ -234,7 +235,7 @@ inline std::ostream& operator<<(std::ostream& out, Http2SettingsParameter v) {
 
 // Information about the initial, minimum and maximum value of settings (not
 // applicable to all settings parameters).
-class Http2SettingsInfo {
+QUICHE_EXPORT_PRIVATE class Http2SettingsInfo {
  public:
   // Default value for HEADER_TABLE_SIZE.
   static constexpr uint32_t DefaultHeaderTableSize() { return 4096; }
@@ -258,6 +259,15 @@ class Http2SettingsInfo {
   // Maximum value for MAX_FRAME_SIZE.
   static constexpr uint32_t MaximumMaxFrameSize() { return (1 << 24) - 1; }
 };
+
+// Http3 early fails upper case request headers, but Http2 still needs case
+// insensitive comparison.
+using InvalidHeaderSet =
+    absl::flat_hash_set<absl::string_view, quiche::StringPieceCaseHash,
+                        quiche::StringPieceCaseEqual>;
+
+// Returns all disallowed HTTP/2 headers.
+QUICHE_EXPORT_PRIVATE const InvalidHeaderSet& GetInvalidHttp2HeaderSet();
 
 }  // namespace http2
 

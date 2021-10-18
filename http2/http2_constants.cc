@@ -150,4 +150,18 @@ std::string Http2SettingsParameterToString(Http2SettingsParameter v) {
   return Http2SettingsParameterToString(static_cast<uint32_t>(v));
 }
 
+// Invalid HTTP/2 header names according to
+// https://datatracker.ietf.org/doc/html/rfc7540#section-8.1.2.2.
+// TODO(birenroy): Consider adding "upgrade" to this set.
+constexpr char const* kHttp2InvalidHeaderNames[] = {
+    "connection", "host", "keep-alive", "proxy-connection", "transfer-encoding",
+};
+
+const InvalidHeaderSet& GetInvalidHttp2HeaderSet() {
+  static const auto* invalid_header_set =
+      new InvalidHeaderSet(std::begin(http2::kHttp2InvalidHeaderNames),
+                           std::end(http2::kHttp2InvalidHeaderNames));
+  return *invalid_header_set;
+}
+
 }  // namespace http2

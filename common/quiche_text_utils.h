@@ -7,16 +7,32 @@
 
 #include <string>
 
+#include "absl/hash/hash.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "common/platform/api/quiche_export.h"
 
 namespace quiche {
 
+QUICHE_EXPORT_PRIVATE struct StringPieceCaseHash {
+  size_t operator()(absl::string_view data) const {
+    std::string lower = absl::AsciiStrToLower(data);
+    absl::Hash<absl::string_view> hasher;
+    return hasher(lower);
+  }
+};
+
+QUICHE_EXPORT_PRIVATE struct StringPieceCaseEqual {
+  bool operator()(absl::string_view piece1, absl::string_view piece2) const {
+    return absl::EqualsIgnoreCase(piece1, piece2);
+  }
+};
+
 // Various utilities for manipulating text.
-class QUICHE_EXPORT QuicheTextUtils {
+class QUICHE_EXPORT_PRIVATE QuicheTextUtils {
  public:
   // Returns a new string in which |data| has been converted to lower case.
   static std::string ToLower(absl::string_view data) {
