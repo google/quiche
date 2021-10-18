@@ -115,7 +115,7 @@ void Bbr2ProbeBwMode::UpdateProbeDown(
   if (cycle_.rounds_in_phase == 1 && congestion_event.end_of_round_trip) {
     cycle_.is_sample_from_probing = false;
 
-    if (!congestion_event.last_sample_is_app_limited) {
+    if (!congestion_event.last_packet_send_state.is_app_limited) {
       QUIC_DVLOG(2)
           << sender_
           << " Advancing max bw filter after one round in PROBE_DOWN.";
@@ -370,7 +370,7 @@ void Bbr2ProbeBwMode::ProbeInflightHighUpward(
     // Don't continue adding bytes to probe_up_acked if the sender was not
     // app-limited after being inflight_hi limited at least once.
     if (!cycle_.probe_up_app_limited_since_inflight_hi_limited_ ||
-        congestion_event.last_sample_is_app_limited) {
+        congestion_event.last_packet_send_state.is_app_limited) {
       cycle_.probe_up_app_limited_since_inflight_hi_limited_ = false;
       if (congestion_event.prior_bytes_in_flight <
           congestion_event.prior_cwnd) {

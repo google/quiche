@@ -62,7 +62,7 @@ Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
   if (Params().decrease_startup_pacing_at_end_of_round) {
     QUICHE_DCHECK_GT(model_->pacing_gain(), 0);
     if (congestion_event.end_of_round_trip &&
-        !congestion_event.last_sample_is_app_limited) {
+        !congestion_event.last_packet_send_state.is_app_limited) {
       // Multiply by startup_pacing_gain, so if the bandwidth doubles,
       // the pacing gain will be the full startup_pacing_gain.
       if (max_bw_at_round_beginning_ > QuicBandwidth::Zero()) {

@@ -312,12 +312,6 @@ struct QUIC_EXPORT_PRIVATE Bbr2CongestionEvent {
   // Whether acked_packets indicates the end of a round trip.
   bool end_of_round_trip = false;
 
-  // TODO(wub): After deprecating --quic_one_bw_sample_per_ack_event, use
-  // last_packet_send_state.is_app_limited instead of this field.
-  // Whether the last bandwidth sample from acked_packets is app limited.
-  // false if acked_packets is empty.
-  bool last_sample_is_app_limited = false;
-
   // When the event happened, whether the sender is probing for bandwidth.
   bool is_probing_for_bandwidth = false;
 

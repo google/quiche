@@ -109,8 +109,6 @@ void Bbr2NetworkModel::OnCongestionEventStart(
 
   if (sample.last_packet_send_state.is_valid) {
     congestion_event->last_packet_send_state = sample.last_packet_send_state;
-    congestion_event->last_sample_is_app_limited =
-        sample.last_packet_send_state.is_app_limited;
   }
 
   // Avoid updating |max_bandwidth_filter_| if a) this is a loss-only event, or
@@ -402,7 +400,7 @@ Bbr2NetworkModel::BandwidthGrowth Bbr2NetworkModel::CheckBandwidthGrowth(
     const Bbr2CongestionEvent& congestion_event) {
   QUICHE_DCHECK(!full_bandwidth_reached_);
   QUICHE_DCHECK(congestion_event.end_of_round_trip);
-  if (congestion_event.last_sample_is_app_limited) {
+  if (congestion_event.last_packet_send_state.is_app_limited) {
     return APP_LIMITED;
   }
 
