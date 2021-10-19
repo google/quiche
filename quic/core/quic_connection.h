@@ -2278,9 +2278,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const bool reset_per_packet_state_for_undecryptable_packets_ =
       GetQuicReloadableFlag(
           quic_reset_per_packet_state_for_undecryptable_packets);
-
-  const bool add_missing_update_ack_timeout_ =
-      GetQuicReloadableFlag(quic_add_missing_update_ack_timeout);
 };
 
 }  // namespace quic

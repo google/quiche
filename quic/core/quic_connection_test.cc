@@ -15358,8 +15358,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
     connection_.SetFromConfig(config);
   }
   if (!version().HasIetfQuicFrames() ||
-      !connection_.connection_migration_use_new_cid() ||
-      !GetQuicReloadableFlag(quic_add_missing_update_ack_timeout)) {
+      !connection_.connection_migration_use_new_cid()) {
     return;
   }
   EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(2);

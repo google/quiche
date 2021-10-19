@@ -318,10 +318,6 @@ QuicConnection::QuicConnection(
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
 
-  if (add_missing_update_ack_timeout_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_add_missing_update_ack_timeout);
-  }
-
   support_multiple_connection_ids_ =
       version().HasIetfQuicFrames() &&
       GetQuicRestartFlag(
@@ -1652,9 +1648,7 @@ bool QuicConnection::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
   QUIC_DLOG(INFO) << ENDPOINT << "STOP_SENDING frame received for stream: "
                   << frame.stream_id
                   << " with error: " << frame.ietf_error_code;
-  if (add_missing_update_ack_timeout_) {
-    MaybeUpdateAckTimeout();
-  }
+  MaybeUpdateAckTimeout();
   visitor_->OnStopSendingFrame(frame);
   return connected_;
 }
@@ -1864,9 +1858,7 @@ bool QuicConnection::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnMaxStreamsFrame(frame);
   }
-  if (add_missing_update_ack_timeout_) {
-    MaybeUpdateAckTimeout();
-  }
+  MaybeUpdateAckTimeout();
   return visitor_->OnMaxStreamsFrame(frame) && connected_;
 }
 
@@ -1883,9 +1875,7 @@ bool QuicConnection::OnStreamsBlockedFrame(
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnStreamsBlockedFrame(frame);
   }
-  if (add_missing_update_ack_timeout_) {
-    MaybeUpdateAckTimeout();
-  }
+  MaybeUpdateAckTimeout();
   return visitor_->OnStreamsBlockedFrame(frame) && connected_;
 }
 
