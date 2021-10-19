@@ -12,6 +12,8 @@
 #include <ostream>
 #include <string>
 
+#include "absl/container/flat_hash_set.h"
+#include "absl/strings/string_view.h"
 #include "http2/platform/api/http2_flags.h"
 #include "common/platform/api/quiche_export.h"
 #include "common/quiche_text_utils.h"
