@@ -801,12 +801,12 @@ SessionCache* QuicCryptoClientConfig::session_cache() const {
   return session_cache_.get();
 }
 
-ProofSource* QuicCryptoClientConfig::proof_source() const {
+ClientProofSource* QuicCryptoClientConfig::proof_source() const {
   return proof_source_.get();
 }
 
 void QuicCryptoClientConfig::set_proof_source(
-    std::unique_ptr<ProofSource> proof_source) {
+    std::unique_ptr<ClientProofSource> proof_source) {
   proof_source_ = std::move(proof_source);
 }
 

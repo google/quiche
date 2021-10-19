@@ -34,6 +34,12 @@ bssl::UniquePtr<SSL_CTX> TlsClientConnection::CreateSslCtx(
   return ssl_ctx;
 }
 
+void TlsClientConnection::SetCertChain(
+    const std::vector<CRYPTO_BUFFER*>& cert_chain, EVP_PKEY* privkey) {
+  SSL_set_chain_and_key(ssl(), cert_chain.data(), cert_chain.size(), privkey,
+                        /*privkey_method=*/nullptr);
+}
+
 // static
 int TlsClientConnection::NewSessionCallback(SSL* ssl, SSL_SESSION* session) {
   static_cast<TlsClientConnection*>(ConnectionFromSsl(ssl))

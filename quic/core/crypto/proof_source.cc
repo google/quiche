@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "quic/core/crypto/proof_source.h"
+
 #include <string>
 
-#include "quic/core/crypto/proof_source.h"
+#include "quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {
 
@@ -28,6 +30,30 @@ CryptoBuffers ProofSource::Chain::ToCryptoBuffers() const {
                           certs[i].length(), nullptr));
   }
   return crypto_buffers;
+}
+
+bool ValidateCertAndKey(
+    const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
+    const CertificatePrivateKey& key) {
+  if (chain.get() == nullptr || chain->certs.empty()) {
+    QUIC_BUG(quic_proof_source_empty_chain) << "Certificate chain is empty";
+    return false;
+  }
+
+  std::unique_ptr<CertificateView> leaf =
+      CertificateView::ParseSingleCertificate(chain->certs[0]);
+  if (leaf == nullptr) {
+    QUIC_BUG(quic_proof_source_unparsable_leaf_cert)
+        << "Unabled to parse leaf certificate";
+    return false;
+  }
+
+  if (!key.MatchesPublicKey(*leaf)) {
+    QUIC_BUG(quic_proof_source_key_mismatch)
+        << "Private key does not match the leaf certificate";
+    return false;
+  }
+  return true;
 }
 
 }  // namespace quic

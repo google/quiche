@@ -51,6 +51,15 @@ TlsClientHandshaker::TlsClientHandshaker(
     SSL_set1_sigalgs_list(ssl(),
                           crypto_config->tls_signature_algorithms()->c_str());
   }
+  if (crypto_config->proof_source() != nullptr) {
+    const ClientProofSource::CertAndKey* cert_and_key =
+        crypto_config->proof_source()->GetCertAndKey(server_id.host());
+    if (cert_and_key != nullptr) {
+      QUIC_DVLOG(1) << "Setting client cert and key for " << server_id.host();
+      tls_connection_.SetCertChain(cert_and_key->chain->ToCryptoBuffers().value,
+                                   cert_and_key->private_key.private_key());
+    }
+  }
 }
 
 TlsClientHandshaker::~TlsClientHandshaker() {}

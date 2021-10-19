@@ -105,17 +105,17 @@ class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
       std::istream* input);
 
   // |signature_algorithm| is a TLS signature algorithm ID.
-  std::string Sign(absl::string_view input, uint16_t signature_algorithm);
+  std::string Sign(absl::string_view input, uint16_t signature_algorithm) const;
 
   // Verifies that the private key in question matches the public key of the
   // certificate |view|.
-  bool MatchesPublicKey(const CertificateView& view);
+  bool MatchesPublicKey(const CertificateView& view) const;
 
   // Verifies that the private key can be used with the specified TLS signature
   // algorithm.
-  bool ValidForSignatureAlgorithm(uint16_t signature_algorithm);
+  bool ValidForSignatureAlgorithm(uint16_t signature_algorithm) const;
 
-  EVP_PKEY* private_key() { return private_key_.get(); }
+  EVP_PKEY* private_key() const { return private_key_.get(); }
 
  private:
   CertificatePrivateKey() = default;

@@ -14,9 +14,9 @@
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "quic/core/crypto/client_proof_source.h"
 #include "quic/core/crypto/crypto_handshake.h"
 #include "quic/core/crypto/crypto_protocol.h"
-#include "quic/core/crypto/proof_source.h"
 #include "quic/core/crypto/transport_parameters.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_server_id.h"
@@ -336,8 +336,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
 
   ProofVerifier* proof_verifier() const;
   SessionCache* session_cache() const;
-  ProofSource* proof_source() const;
-  void set_proof_source(std::unique_ptr<ProofSource> proof_source);
+  ClientProofSource* proof_source() const;
+  void set_proof_source(std::unique_ptr<ClientProofSource> proof_source);
   SSL_CTX* ssl_ctx() const;
 
   // Initialize the CachedState from |canonical_crypto_config| for the
@@ -429,7 +429,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
 
   std::unique_ptr<ProofVerifier> proof_verifier_;
   std::unique_ptr<SessionCache> session_cache_;
-  std::unique_ptr<ProofSource> proof_source_;
+  std::unique_ptr<ClientProofSource> proof_source_;
 
   bssl::UniquePtr<SSL_CTX> ssl_ctx_;
 

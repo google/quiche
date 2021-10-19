@@ -11,6 +11,7 @@
 
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "quic/core/crypto/certificate_view.h"
 #include "quic/core/crypto/quic_crypto_proof.h"
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_export.h"
@@ -341,6 +342,12 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandle {
  private:
   friend class test::FakeProofSourceHandle;
 };
+
+// Returns true if |chain| contains a parsable DER-encoded X.509 leaf cert and
+// it matches with |key|.
+QUIC_EXPORT_PRIVATE bool ValidateCertAndKey(
+    const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
+    const CertificatePrivateKey& key);
 
 }  // namespace quic
 
