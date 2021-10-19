@@ -431,15 +431,16 @@ Bbr2NetworkModel::BandwidthGrowth Bbr2NetworkModel::CheckBandwidthGrowth(
   return return_value;
 }
 
-void Bbr2NetworkModel::CheckPersistentQueue(
-    const Bbr2CongestionEvent& congestion_event) {
-  QUICHE_DCHECK(!full_bandwidth_reached_);
+bool Bbr2NetworkModel::CheckPersistentQueue(
+    const Bbr2CongestionEvent& congestion_event, float bdp_gain) {
   QUICHE_DCHECK(congestion_event.end_of_round_trip);
   QUICHE_DCHECK_NE(0u, min_bytes_in_flight_in_round_);
   if (min_bytes_in_flight_in_round_ >
-      (params_->startup_cwnd_gain * BDP() + QueueingThresholdExtraBytes())) {
+      (bdp_gain * BDP() + QueueingThresholdExtraBytes())) {
     full_bandwidth_reached_ = true;
+    return true;
   }
+  return false;
 }
 
 }  // namespace quic

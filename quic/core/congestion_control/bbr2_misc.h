@@ -473,7 +473,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   BandwidthGrowth CheckBandwidthGrowth(
       const Bbr2CongestionEvent& congestion_event);
 
-  void CheckPersistentQueue(const Bbr2CongestionEvent& congestion_event);
+  // Returns true if the minimum bytes in flight during the round is greater
+  // than the BDP * |bdp_gain|.
+  bool CheckPersistentQueue(const Bbr2CongestionEvent& congestion_event,
+                            float bdp_gain);
 
   QuicPacketNumber last_sent_packet() const {
     return round_trip_counter_.last_sent_packet();

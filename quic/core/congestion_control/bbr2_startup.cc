@@ -47,11 +47,18 @@ Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
     const AckedPacketVector& /*acked_packets*/,
     const LostPacketVector& /*lost_packets*/,
     const Bbr2CongestionEvent& congestion_event) {
+  if (model_->full_bandwidth_reached()) {
+    QUIC_BUG() << "In STARTUP, but full_bandwidth_reached is true.";
+    return Bbr2Mode::DRAIN;
+  }
+  if (!congestion_event.end_of_round_trip) {
+    return Bbr2Mode::STARTUP;
+  }
   if (Params().exit_startup_on_persistent_queue) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_exit_startup_on_persistent_queue);
-    model_->CheckPersistentQueue(congestion_event);
+    model_->CheckPersistentQueue(congestion_event, Params().startup_cwnd_gain);
   }
-  if (!model_->full_bandwidth_reached() && congestion_event.end_of_round_trip) {
+  if (!model_->full_bandwidth_reached()) {
     // TCP BBR always exits upon excessive losses. QUIC BBRv1 does not exit
     // upon excessive losses, if enough bandwidth growth is observed.
     Bbr2NetworkModel::BandwidthGrowth bw_growth =
@@ -66,8 +73,7 @@ Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
 
   if (Params().decrease_startup_pacing_at_end_of_round) {
     QUICHE_DCHECK_GT(model_->pacing_gain(), 0);
-    if (congestion_event.end_of_round_trip &&
-        !congestion_event.last_packet_send_state.is_app_limited) {
+    if (!congestion_event.last_packet_send_state.is_app_limited) {
       // Multiply by startup_pacing_gain, so if the bandwidth doubles,
       // the pacing gain will be the full startup_pacing_gain.
       if (max_bw_at_round_beginning_ > QuicBandwidth::Zero()) {
