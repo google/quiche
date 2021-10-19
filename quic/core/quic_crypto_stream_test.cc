@@ -696,6 +696,21 @@ TEST_F(QuicCryptoStreamTest, RetransmitCryptoFramesAndPartialWrite) {
   EXPECT_FALSE(stream_->HasPendingCryptoRetransmission());
 }
 
+// Regression test for b/203199510
+TEST_F(QuicCryptoStreamTest, EmptyCryptoFrame) {
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    return;
+  }
+  if (GetQuicReloadableFlag(quic_accept_empty_crypto_frame)) {
+    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
+  } else {
+    EXPECT_CALL(*connection_,
+                CloseConnection(QUIC_EMPTY_STREAM_FRAME_NO_FIN, _, _));
+  }
+  QuicCryptoFrame empty_crypto_frame(ENCRYPTION_INITIAL, 0, nullptr, 0);
+  stream_->OnCryptoFrame(empty_crypto_frame);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
