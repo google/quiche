@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <fuzzer/FuzzedDataProvider.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <string>
 
 #include "quic/core/qpack/qpack_encoder_stream_sender.h"
-#include "quic/platform/api/quic_fuzzed_data_provider.h"
 #include "quic/test_tools/qpack/qpack_encoder_test_utils.h"
 #include "quic/test_tools/qpack/qpack_test_utils.h"
 
@@ -24,7 +25,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   QpackEncoderStreamSender sender;
   sender.set_qpack_stream_sender_delegate(&delegate);
 
-  QuicFuzzedDataProvider provider(data, size);
+  FuzzedDataProvider provider(data, size);
   // Limit string literal length to 2 kB for efficiency.
   const uint16_t kMaxStringLength = 2048;
 

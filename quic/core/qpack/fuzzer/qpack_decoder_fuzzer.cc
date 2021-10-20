@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <fuzzer/FuzzedDataProvider.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -10,7 +12,6 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/qpack/qpack_decoder.h"
 #include "quic/core/quic_error_codes.h"
-#include "quic/platform/api/quic_fuzzed_data_provider.h"
 #include "quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "quic/test_tools/qpack/qpack_test_utils.h"
 
@@ -79,7 +80,7 @@ class HeadersHandler : public QpackProgressiveDecoder::HeadersHandlerInterface {
 // different ways, so the output could not be expected to match the original
 // input.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  QuicFuzzedDataProvider provider(data, size);
+  FuzzedDataProvider provider(data, size);
 
   // Maximum 256 byte dynamic table.  Such a small size helps test draining
   // entries and eviction.

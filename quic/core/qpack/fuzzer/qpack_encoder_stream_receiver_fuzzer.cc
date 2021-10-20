@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quic/core/qpack/qpack_encoder_stream_receiver.h"
+#include <fuzzer/FuzzedDataProvider.h>
 
 #include <cstddef>
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
-#include "quic/platform/api/quic_fuzzed_data_provider.h"
+#include "quic/core/qpack/qpack_encoder_stream_receiver.h"
 #include "quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -51,7 +51,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   NoOpDelegate delegate;
   QpackEncoderStreamReceiver receiver(&delegate);
 
-  QuicFuzzedDataProvider provider(data, size);
+  FuzzedDataProvider provider(data, size);
 
   while (!delegate.error_detected() && provider.remaining_bytes() != 0) {
     // Process up to 64 kB fragments at a time.  Too small upper bound might not

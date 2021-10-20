@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <fuzzer/FuzzedDataProvider.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -16,7 +18,6 @@
 #include "quic/core/qpack/qpack_stream_sender_delegate.h"
 #include "quic/core/qpack/value_splitting_header_list.h"
 #include "quic/core/quic_error_codes.h"
-#include "quic/platform/api/quic_fuzzed_data_provider.h"
 #include "quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "quic/test_tools/qpack/qpack_encoder_peer.h"
 #include "common/quiche_circular_deque.h"
@@ -113,8 +114,7 @@ class DelayedHeaderBlockTransmitter {
     virtual void OnHeaderBlockEnd(QuicStreamId stream_id) = 0;
   };
 
-  DelayedHeaderBlockTransmitter(Visitor* visitor,
-                                QuicFuzzedDataProvider* provider)
+  DelayedHeaderBlockTransmitter(Visitor* visitor, FuzzedDataProvider* provider)
       : visitor_(visitor), provider_(provider) {}
 
   ~DelayedHeaderBlockTransmitter() { QUICHE_CHECK(header_blocks_.empty()); }
@@ -241,7 +241,7 @@ class DelayedHeaderBlockTransmitter {
   };
 
   Visitor* const visitor_;
-  QuicFuzzedDataProvider* const provider_;
+  FuzzedDataProvider* const provider_;
 
   std::map<QuicStreamId, std::queue<HeaderBlock>> header_blocks_;
 };
@@ -422,7 +422,7 @@ class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor,
 class DelayedStreamDataTransmitter : public QpackStreamSenderDelegate {
  public:
   DelayedStreamDataTransmitter(QpackStreamReceiver* receiver,
-                               QuicFuzzedDataProvider* provider)
+                               FuzzedDataProvider* provider)
       : receiver_(receiver), provider_(provider) {}
 
   ~DelayedStreamDataTransmitter() { QUICHE_CHECK(stream_data.empty()); }
@@ -452,12 +452,12 @@ class DelayedStreamDataTransmitter : public QpackStreamSenderDelegate {
 
  private:
   QpackStreamReceiver* const receiver_;
-  QuicFuzzedDataProvider* const provider_;
+  FuzzedDataProvider* const provider_;
   quiche::QuicheCircularDeque<std::string> stream_data;
 };
 
 // Generate header list using fuzzer data.
-spdy::Http2HeaderBlock GenerateHeaderList(QuicFuzzedDataProvider* provider) {
+spdy::Http2HeaderBlock GenerateHeaderList(FuzzedDataProvider* provider) {
   spdy::Http2HeaderBlock header_list;
   uint8_t header_count = provider->ConsumeIntegral<uint8_t>();
   for (uint8_t header_index = 0; header_index < header_count; ++header_index) {
@@ -581,7 +581,7 @@ QuicHeaderList SplitHeaderList(const spdy::Http2HeaderBlock& header_list) {
 // encoding then decoding is expected to result in the original header list, and
 // this fuzzer checks for that.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  QuicFuzzedDataProvider provider(data, size);
+  FuzzedDataProvider provider(data, size);
 
   // Maximum 256 byte dynamic table.  Such a small size helps test draining
   // entries and eviction.
