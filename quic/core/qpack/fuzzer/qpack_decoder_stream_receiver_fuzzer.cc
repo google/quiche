@@ -6,29 +6,27 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 
 #include "absl/strings/string_view.h"
-#include "quic/core/qpack/qpack_encoder_stream_receiver.h"
-#include "quic/platform/api/quic_logging.h"
+#include "quic/core/qpack/qpack_decoder_stream_receiver.h"
+#include "quic/core/quic_error_codes.h"
+#include "quic/core/quic_stream.h"
 
 namespace quic {
 namespace test {
 namespace {
 
-// A QpackEncoderStreamReceiver::Delegate implementation that ignores all
+// A QpackDecoderStreamReceiver::Delegate implementation that ignores all
 // decoded instructions but keeps track of whether an error has been detected.
-class NoOpDelegate : public QpackEncoderStreamReceiver::Delegate {
+class NoOpDelegate : public QpackDecoderStreamReceiver::Delegate {
  public:
   NoOpDelegate() : error_detected_(false) {}
   ~NoOpDelegate() override = default;
 
-  void OnInsertWithNameReference(bool /*is_static*/,
-                                 uint64_t /*name_index*/,
-                                 absl::string_view /*value*/) override {}
-  void OnInsertWithoutNameReference(absl::string_view /*name*/,
-                                    absl::string_view /*value*/) override {}
-  void OnDuplicate(uint64_t /*index*/) override {}
-  void OnSetDynamicTableCapacity(uint64_t /*capacity*/) override {}
+  void OnInsertCountIncrement(uint64_t /*increment*/) override {}
+  void OnHeaderAcknowledgement(QuicStreamId /*stream_id*/) override {}
+  void OnStreamCancellation(QuicStreamId /*stream_id*/) override {}
   void OnErrorDetected(QuicErrorCode /*error_code*/,
                        absl::string_view /*error_message*/) override {
     error_detected_ = true;
@@ -42,14 +40,10 @@ class NoOpDelegate : public QpackEncoderStreamReceiver::Delegate {
 
 }  // namespace
 
-// This fuzzer exercises QpackEncoderStreamReceiver.
-// Note that since string literals may be encoded with or without Huffman
-// encoding, one could not expect identical encoded data if the decoded
-// instructions were fed into QpackEncoderStreamSender.  Therefore there is no
-// point in extending this fuzzer into a round-trip test.
+// This fuzzer exercises QpackDecoderStreamReceiver.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   NoOpDelegate delegate;
-  QpackEncoderStreamReceiver receiver(&delegate);
+  QpackDecoderStreamReceiver receiver(&delegate);
 
   FuzzedDataProvider provider(data, size);
 
