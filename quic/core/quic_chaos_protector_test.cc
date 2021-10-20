@@ -30,9 +30,7 @@ class QuicChaosProtectorTest : public QuicTestWithParam<ParsedQuicVersion>,
  public:
   QuicChaosProtectorTest()
       : version_(GetParam()),
-        framer_({version_},
-                QuicTime::Zero(),
-                Perspective::IS_CLIENT,
+        framer_({version_}, QuicTime::Zero(), Perspective::IS_CLIENT,
                 kQuicDefaultConnectionIdLength),
         validation_framer_({version_}),
         random_(/*base=*/3),
@@ -42,12 +40,15 @@ class QuicChaosProtectorTest : public QuicTestWithParam<ParsedQuicVersion>,
         crypto_frame_(level_, crypto_offset_, crypto_data_length_),
         num_padding_bytes_(50),
         packet_size_(1000),
-        packet_buffer_(std::make_unique<char[]>(packet_size_)),
-        chaos_protector_(crypto_frame_,
-                         num_padding_bytes_,
-                         packet_size_,
-                         SetupHeaderAndFramers(),
-                         &random_) {}
+        packet_buffer_(std::make_unique<char[]>(packet_size_)) {
+    ReCreateChaosProtector();
+  }
+
+  void ReCreateChaosProtector() {
+    chaos_protector_ = std::make_unique<QuicChaosProtector>(
+        crypto_frame_, num_padding_bytes_, packet_size_,
+        SetupHeaderAndFramers(), &random_);
+  }
 
   // From QuicStreamFrameDataProducer.
   WriteStreamDataResult WriteStreamData(QuicStreamId /*id*/,
@@ -100,7 +101,7 @@ class QuicChaosProtectorTest : public QuicTestWithParam<ParsedQuicVersion>,
 
   void BuildEncryptAndParse() {
     absl::optional<size_t> length =
-        chaos_protector_.BuildDataPacket(header_, packet_buffer_.get());
+        chaos_protector_->BuildDataPacket(header_, packet_buffer_.get());
     ASSERT_TRUE(length.has_value());
     ASSERT_GT(length.value(), 0u);
     size_t encrypted_length = framer_.EncryptInPlace(
@@ -115,7 +116,13 @@ class QuicChaosProtectorTest : public QuicTestWithParam<ParsedQuicVersion>,
   void ResetOffset(QuicStreamOffset offset) {
     crypto_offset_ = offset;
     crypto_frame_.offset = offset;
-    chaos_protector_.crypto_buffer_offset_ = offset;
+    ReCreateChaosProtector();
+  }
+
+  void ResetLength(QuicByteCount length) {
+    crypto_data_length_ = length;
+    crypto_frame_.data_length = length;
+    ReCreateChaosProtector();
   }
 
   ParsedQuicVersion version_;
@@ -130,7 +137,7 @@ class QuicChaosProtectorTest : public QuicTestWithParam<ParsedQuicVersion>,
   int num_padding_bytes_;
   size_t packet_size_;
   std::unique_ptr<char[]> packet_buffer_;
-  QuicChaosProtector chaos_protector_;
+  std::unique_ptr<QuicChaosProtector> chaos_protector_;
 };
 
 namespace {
@@ -200,6 +207,22 @@ TEST_P(QuicChaosProtectorTest, OffsetAndRandomnessZero) {
             crypto_data_length_);
   ASSERT_EQ(validation_framer_.ping_frames().size(), 0u);
   ASSERT_EQ(validation_framer_.padding_frames().size(), 1u);
+}
+
+TEST_P(QuicChaosProtectorTest, ZeroRemainingBytesAfterSplit) {
+  QuicPacketLength new_length = 63;
+  num_padding_bytes_ = QuicFramer::GetMinCryptoFrameSize(
+      crypto_frame_.offset + new_length, new_length);
+  ResetLength(new_length);
+  BuildEncryptAndParse();
+
+  ASSERT_EQ(validation_framer_.crypto_frames().size(), 2u);
+  EXPECT_EQ(validation_framer_.crypto_frames()[0]->offset, crypto_offset_);
+  EXPECT_EQ(validation_framer_.crypto_frames()[0]->data_length, 4);
+  EXPECT_EQ(validation_framer_.crypto_frames()[1]->offset, crypto_offset_ + 4);
+  EXPECT_EQ(validation_framer_.crypto_frames()[1]->data_length,
+            crypto_data_length_ - 4);
+  ASSERT_EQ(validation_framer_.ping_frames().size(), 0u);
 }
 
 }  // namespace

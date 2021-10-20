@@ -175,6 +175,9 @@ void QuicChaosProtector::SplitCryptoFrame() {
 }
 
 void QuicChaosProtector::AddPingFrames() {
+  if (remaining_padding_bytes_ == 0) {
+    return;
+  }
   constexpr uint64_t kMaxAddedPingFrames = 10;
   const uint64_t num_ping_frames =
       random_->InsecureRandUint64() %
