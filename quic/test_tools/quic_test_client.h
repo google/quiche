@@ -268,7 +268,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   QuicRstStreamErrorCode stream_error() { return stream_error_; }
-  QuicErrorCode connection_error();
+  QuicErrorCode connection_error() const;
 
   MockableQuicClient* client() { return client_.get(); }
   const MockableQuicClient* client() const { return client_.get(); }

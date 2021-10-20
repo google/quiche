@@ -618,7 +618,7 @@ QuicSpdyClientStream* QuicTestClient::GetOrCreateStream() {
   return latest_created_stream_;
 }
 
-QuicErrorCode QuicTestClient::connection_error() {
+QuicErrorCode QuicTestClient::connection_error() const {
   return client()->connection_error();
 }
 
