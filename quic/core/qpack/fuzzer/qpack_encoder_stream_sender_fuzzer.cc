@@ -17,9 +17,6 @@ namespace quic {
 namespace test {
 
 // This fuzzer exercises QpackEncoderStreamSender.
-// TODO(bnc): Encoded data could be fed into QpackEncoderStreamReceiver and
-// decoded instructions directly compared to input.  Figure out how to get gMock
-// enabled for cc_fuzz_target target types.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   NoopQpackStreamSenderDelegate delegate;
   QpackEncoderStreamSender sender;
@@ -30,7 +27,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   const uint16_t kMaxStringLength = 2048;
 
   while (provider.remaining_bytes() != 0) {
-    switch (provider.ConsumeIntegral<uint8_t>() % 4) {
+    switch (provider.ConsumeIntegral<uint8_t>() % 5) {
       case 0: {
         bool is_static = provider.ConsumeBool();
         uint64_t name_index = provider.ConsumeIntegral<uint64_t>();
@@ -61,9 +58,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         sender.SendSetDynamicTableCapacity(capacity);
         break;
       }
+      case 4: {
+        sender.Flush();
+        break;
+      }
     }
   }
 
+  sender.Flush();
   return 0;
 }
 
