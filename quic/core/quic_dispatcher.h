@@ -169,6 +169,15 @@ class QUIC_NO_EXPORT QuicDispatcher
   }
 
  protected:
+  // ParsedClientHello contains client hello information extracted from a fully
+  // received client hello.
+  struct QUIC_NO_EXPORT ParsedClientHello {
+    std::string sni;                 // QUIC crypto and TLS.
+    std::string uaid;                // QUIC crypto only.
+    std::vector<std::string> alpns;  // QUIC crypto and TLS.
+    std::string legacy_version_encapsulation_inner_packet;  // QUIC crypto only.
+  };
+
   virtual std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId server_connection_id,
       const QuicSocketAddress& self_address,
@@ -232,9 +241,7 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Only called if ValidityChecks returns kFateProcess.
   virtual QuicPacketFate ValidityChecksOnFullChlo(
       const ReceivedPacketInfo& /*packet_info*/,
-      const std::string& /*sni*/,
-      const std::string& /*uaid*/,
-      const std::vector<std::string>& /*alpns*/) const {
+      const ParsedClientHello& /*parsed_chlo*/) const {
     return kFateProcess;
   }
 
@@ -245,10 +252,10 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Buffers packet until it can be delivered to a connection.
   void BufferEarlyPacket(const ReceivedPacketInfo& packet_info);
 
-  // Called when |packet_info| is a CHLO packet. Creates a new connection and
-  // delivers any buffered packets for that connection id.
-  void ProcessChlo(const std::vector<std::string>& alpns,
-                   absl::string_view sni,
+  // Called when |packet_info| is the last received packet of the client hello.
+  // |parsed_chlo| is the parsed version of the client hello. Creates a new
+  // connection and delivers any buffered packets for that connection id.
+  void ProcessChlo(const ParsedClientHello& parsed_chlo,
                    ReceivedPacketInfo* packet_info);
 
   // Return true if dispatcher wants to destroy session outside of
@@ -387,17 +394,13 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Try to extract information(sni, alpns, ...) if the full Client Hello has
   // been parsed.
   //
-  // If the full Client Hello has been parsed, return true and set |sni|,
-  // |alpns| and |legacy_version_encapsulation_inner_packet|. |uaid| will be
-  // populated for QUIC_CRYPTO only.
+  // Return the parsed client hello if the full Client Hello has been
+  // successfully parsed.
   //
-  // Otherwise return false and either buffer or (rarely) drop the packet.
-  bool TryExtractChloOrBufferEarlyPacket(
-      const ReceivedPacketInfo& packet_info,
-      std::string* sni,
-      std::string* uaid,
-      std::vector<std::string>* alpns,
-      std::string* legacy_version_encapsulation_inner_packet);
+  // Otherwise return absl::nullopt and either buffer or (rarely) drop the
+  // packet.
+  absl::optional<ParsedClientHello> TryExtractChloOrBufferEarlyPacket(
+      const ReceivedPacketInfo& packet_info);
 
   // Deliver |packets| to |session| for further processing.
   void DeliverPacketsToSession(
