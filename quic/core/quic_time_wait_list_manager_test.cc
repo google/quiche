@@ -778,16 +778,9 @@ TEST_F(QuicTimeWaitListManagerTest, TooManyPendingPackets) {
         QuicFramer::GetMinStatelessResetPacketLength() + 1,
         /*packet_context=*/nullptr);
   }
-  if (GetQuicReloadableFlag(quic_add_upperbound_for_queued_packets)) {
-    // Verify pending packet queue size is limited.
-    EXPECT_EQ(5u, QuicTimeWaitListManagerPeer::PendingPacketsQueueSize(
-                      &time_wait_list_manager_));
-  } else {
-    // The pending packet queue grows unbounded.
-    EXPECT_EQ(kNumOfUnProcessablePackets,
-              QuicTimeWaitListManagerPeer::PendingPacketsQueueSize(
-                  &time_wait_list_manager_));
-  }
+  // Verify pending packet queue size is limited.
+  EXPECT_EQ(5u, QuicTimeWaitListManagerPeer::PendingPacketsQueueSize(
+                    &time_wait_list_manager_));
 }
 
 }  // namespace

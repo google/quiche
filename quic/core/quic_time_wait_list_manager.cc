@@ -370,9 +370,8 @@ bool QuicTimeWaitListManager::SendOrQueuePacket(
     QUIC_LOG(ERROR) << "Tried to send or queue a null packet";
     return true;
   }
-  if (GetQuicReloadableFlag(quic_add_upperbound_for_queued_packets) &&
-      pending_packets_queue_.size() >=
-          GetQuicFlag(FLAGS_quic_time_wait_list_max_pending_packets)) {
+  if (pending_packets_queue_.size() >=
+      GetQuicFlag(FLAGS_quic_time_wait_list_max_pending_packets)) {
     // There are too many pending packets.
     QUIC_CODE_COUNT(quic_too_many_pending_packets_in_time_wait);
     return true;
