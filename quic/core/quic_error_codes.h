@@ -604,8 +604,13 @@ enum QuicErrorCode {
   // An HTTP field value containing an invalid character has been received.
   QUIC_INVALID_CHARACTER_IN_FIELD_VALUE = 206,
 
+  // Error code related to the usage of TLS keying material export.
+  QUIC_TLS_UNEXPECTED_KEYING_MATERIAL_EXPORT_LABEL = 208,
+  QUIC_TLS_KEYING_MATERIAL_EXPORTS_MISMATCH = 209,
+  QUIC_TLS_KEYING_MATERIAL_EXPORT_NOT_AVAILABLE = 210,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 208,
+  QUIC_LAST_ERROR = 211,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

@@ -535,5 +535,11 @@ QuicConnectionPeer::MakeSelfIssuedConnectionIdManager(
   return connection->MakeSelfIssuedConnectionIdManager();
 }
 
+// static
+void QuicConnectionPeer::SetLastDecryptedLevel(QuicConnection* connection,
+                                               EncryptionLevel level) {
+  connection->last_decrypted_packet_level_ = level;
+}
+
 }  // namespace test
 }  // namespace quic

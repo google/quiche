@@ -226,6 +226,12 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // data, and false if all data has been acked.
   bool IsWaitingForAcks() const;
 
+  // Helper method for OnDataAvailable. Calls CryptoMessageParser::ProcessInput
+  // with the data available in |sequencer| and |level|, and marks the data
+  // passed to ProcessInput as consumed.
+  virtual void OnDataAvailableInSequencer(QuicStreamSequencer* sequencer,
+                                          EncryptionLevel level);
+
  private:
   // Data sent and received in CRYPTO frames is sent at multiple encryption
   // levels. Some of the state for the single logical crypto stream is split
@@ -237,12 +243,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
     QuicStreamSequencer sequencer;
     QuicStreamSendBuffer send_buffer;
   };
-
-  // Helper method for OnDataAvailable. Calls CryptoMessageParser::ProcessInput
-  // with the data available in |sequencer| and |level|, and marks the data
-  // passed to ProcessInput as consumed.
-  void OnDataAvailableInSequencer(QuicStreamSequencer* sequencer,
-                                  EncryptionLevel level);
 
   // Consumed data according to encryption levels.
   // TODO(fayang): This is not needed once switching from QUIC crypto to

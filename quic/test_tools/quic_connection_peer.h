@@ -219,6 +219,9 @@ class QuicConnectionPeer {
 
   static std::unique_ptr<QuicSelfIssuedConnectionIdManager>
   MakeSelfIssuedConnectionIdManager(QuicConnection* connection);
+
+  static void SetLastDecryptedLevel(QuicConnection* connection,
+                                    EncryptionLevel level);
 };
 
 }  // namespace test
