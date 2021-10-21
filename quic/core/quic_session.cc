@@ -1939,7 +1939,9 @@ void QuicSession::StreamDraining(QuicStreamId stream_id, bool unidirectional) {
   ++num_draining_streams_;
   if (!IsIncomingStream(stream_id)) {
     ++num_outgoing_draining_streams_;
-    OnCanCreateNewOutgoingStream(unidirectional);
+    if (!VersionHasIetfQuicFrames(transport_version())) {
+      OnCanCreateNewOutgoingStream(unidirectional);
+    }
   }
 }
 

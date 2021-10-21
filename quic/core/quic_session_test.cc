@@ -1803,7 +1803,9 @@ TEST_P(QuicSessionTestServer, DrainingStreamsDoNotCountAsOpenedOutgoing) {
   QuicStreamId stream_id = stream->id();
   QuicStreamFrame data1(stream_id, true, 0, absl::string_view("HT"));
   session_.OnStreamFrame(data1);
-  EXPECT_CALL(session_, OnCanCreateNewOutgoingStream(false)).Times(1);
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    EXPECT_CALL(session_, OnCanCreateNewOutgoingStream(false)).Times(1);
+  }
   session_.StreamDraining(stream_id, /*unidirectional=*/false);
 }
 
