@@ -456,22 +456,11 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   bool IsInflightTooHigh(const Bbr2CongestionEvent& congestion_event,
                          int64_t max_loss_events) const;
 
-  enum BandwidthGrowth {
-    APP_LIMITED = 0,
-    NO_GROWTH = 1,
-    GROWTH = 2,
-    EXIT = 3,  // Too many rounds without bandwidth growth.
-  };
-
   // Check bandwidth growth in the past round. Must be called at the end of a
-  // round.
-  // Return APP_LIMITED if the bandwidth sample was app-limited.
-  // Return GROWTH if the bandwidth grew as expected.
-  // Return NO_GROWTH if the bandwidth didn't increase enough.
-  // Return TOO_MANY_ROUNDS_WITH_NO_GROWTH if enough rounds have elapsed without
-  // growth, also sets |full_bandwidth_reached_| to true.
-  BandwidthGrowth CheckBandwidthGrowth(
-      const Bbr2CongestionEvent& congestion_event);
+  // round. Returns true if there was sufficient bandwidth growth and false
+  // otherwise.  If it's been too many rounds without growth, also sets
+  // |full_bandwidth_reached_| to true.
+  bool HasBandwidthGrowth(const Bbr2CongestionEvent& congestion_event);
 
   // Returns true if the minimum bytes in flight during the round is greater
   // than the BDP * |bdp_gain|.

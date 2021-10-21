@@ -391,7 +391,7 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartup) {
 }
 
 TEST_F(Bbr2DefaultTopologyTest, NormalStartupB207) {
-  SetQuicReloadableFlag(quic_bbr2_exit_startup_on_persistent_queue, true);
+  SetQuicReloadableFlag(quic_bbr2_exit_startup_on_persistent_queue2, true);
   SetConnectionOption(kB207);
   DefaultTopologyParams params;
   CreateNetwork(params);
@@ -411,9 +411,9 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartupB207) {
       QuicTime::Delta::FromSeconds(5));
   ASSERT_TRUE(simulator_result);
   EXPECT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
-  EXPECT_EQ(0u, sender_->ExportDebugState().round_trip_count - max_bw_round);
+  EXPECT_EQ(3u, sender_->ExportDebugState().round_trip_count - max_bw_round);
   EXPECT_EQ(
-      0u,
+      3u,
       sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
   EXPECT_EQ(0u, sender_connection_stats().packets_lost);
 }
@@ -512,7 +512,7 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB206) {
 }
 
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB207) {
-  SetQuicReloadableFlag(quic_bbr2_exit_startup_on_persistent_queue, true);
+  SetQuicReloadableFlag(quic_bbr2_exit_startup_on_persistent_queue2, true);
   SetConnectionOption(kB207);
   DefaultTopologyParams params;
   CreateNetwork(params);

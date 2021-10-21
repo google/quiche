@@ -54,21 +54,18 @@ Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
   if (!congestion_event.end_of_round_trip) {
     return Bbr2Mode::STARTUP;
   }
-  if (Params().exit_startup_on_persistent_queue) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_exit_startup_on_persistent_queue);
+  bool has_bandwidth_growth = model_->HasBandwidthGrowth(congestion_event);
+  if (Params().exit_startup_on_persistent_queue && !has_bandwidth_growth) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_exit_startup_on_persistent_queue2);
     model_->CheckPersistentQueue(congestion_event, Params().startup_cwnd_gain);
   }
-  if (!model_->full_bandwidth_reached()) {
-    // TCP BBR always exits upon excessive losses. QUIC BBRv1 does not exit
-    // upon excessive losses, if enough bandwidth growth is observed.
-    Bbr2NetworkModel::BandwidthGrowth bw_growth =
-        model_->CheckBandwidthGrowth(congestion_event);
-
-    if (Params().always_exit_startup_on_excess_loss ||
-        (bw_growth == Bbr2NetworkModel::NO_GROWTH ||
-         bw_growth == Bbr2NetworkModel::EXIT)) {
-      CheckExcessiveLosses(congestion_event);
-    }
+  // TCP BBR always exits upon excessive losses. QUIC BBRv1 does not exit
+  // upon excessive losses, if enough bandwidth growth is observed or if the
+  // sample was app limited.
+  if (Params().always_exit_startup_on_excess_loss ||
+      (!congestion_event.last_packet_send_state.is_app_limited &&
+       !has_bandwidth_growth)) {
+    CheckExcessiveLosses(congestion_event);
   }
 
   if (Params().decrease_startup_pacing_at_end_of_round) {
