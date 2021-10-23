@@ -4113,7 +4113,7 @@ TEST_P(QuicFramerTest, AckFrameMultipleReceiveTimestampRanges) {
 
        // Timestamp range 2 (one packet).
        { "Unable to read receive timestamp gap.",
-         { kVarInt62OneByte + 0x07 }},
+         { kVarInt62OneByte + 0x05 }},
        { "Unable to read receive timestamp count.",
          { kVarInt62OneByte + 0x01 }},
        { "Unable to read receive timestamp delta.",
@@ -4121,7 +4121,7 @@ TEST_P(QuicFramerTest, AckFrameMultipleReceiveTimestampRanges) {
 
        // Timestamp range 3 (two packets).
        { "Unable to read receive timestamp gap.",
-         { kVarInt62OneByte + 0x0a }},
+         { kVarInt62OneByte + 0x08 }},
        { "Unable to read receive timestamp count.",
          { kVarInt62OneByte + 0x02 }},
        { "Unable to read receive timestamp delta.",
