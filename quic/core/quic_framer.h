@@ -315,6 +315,11 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     process_timestamps_ = process_timestamps;
   }
 
+  // Sets the max number of receive timestamps to send per ACK frame.
+  void set_max_receive_timestamps_per_ack(uint32_t max_timestamps) {
+    max_receive_timestamps_per_ack_ = max_timestamps;
+  }
+
   // Sets the exponent to use when writing/reading ACK receive timestamps.
   void set_receive_timestamps_exponent(uint32_t exponent) {
     receive_timestamps_exponent_ = exponent;
@@ -900,6 +905,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Computes the wire size in bytes of time stamps in |ack|.
   size_t GetAckFrameTimeStampSize(const QuicAckFrame& ack);
+  size_t GetIetfAckFrameTimestampSize(const QuicAckFrame& ack);
 
   // Computes the wire size in bytes of the |ack| frame.
   size_t GetAckFrameSize(const QuicAckFrame& ack,
@@ -963,6 +969,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // of the frame.
   bool AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
                                      QuicDataWriter* writer);
+  bool AppendIetfTimestampsToAckFrame(const QuicAckFrame& frame,
+                                      QuicDataWriter* writer);
 
   bool AppendStopWaitingFrame(const QuicPacketHeader& header,
                               const QuicStopWaitingFrame& frame,
@@ -1128,6 +1136,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // If true, send and process timestamps in the ACK frame.
   // TODO(ianswett): Remove the mutable once set_process_timestamps isn't const.
   mutable bool process_timestamps_;
+  // The max number of receive timestamps to send per ACK frame.
+  uint32_t max_receive_timestamps_per_ack_;
   // The exponent to use when writing/reading ACK receive timestamps.
   uint32_t receive_timestamps_exponent_;
   // The creation time of the connection, used to calculate timestamps.
