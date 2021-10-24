@@ -4188,10 +4188,11 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(QuicPacketNumber largest_acked,
           return false;
         }
       }
-      visitor_->OnAckTimestamp(packet_number - j,
+      visitor_->OnAckTimestamp(packet_number,
                                creation_time_ + last_timestamp_);
+      packet_number--;
     }
-    packet_number = packet_number - (timestamp_count - 1);
+    packet_number--;
   }
   return true;
 }
