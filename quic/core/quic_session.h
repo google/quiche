@@ -789,6 +789,11 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // streams.
   QuicStream* GetActiveStream(QuicStreamId id) const;
 
+  const UberQuicStreamIdManager& ietf_streamid_manager() const {
+    QUICHE_DCHECK(VersionHasIetfQuicFrames(transport_version()));
+    return ietf_streamid_manager_;
+  }
+
  private:
   friend class test::QuicSessionPeer;
 
