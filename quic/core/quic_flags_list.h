@@ -25,8 +25,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_reject_invalid_chars_in_field_value, t
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 // If true, QUIC won\'t honor the connection option TLPR
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_deprecate_tlpr, false)
-// If true, QuicAlarms that belong to a single QuicConnection will fire under the corresponding QuicConnectionContext.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_restore_connection_context_in_alarms, true)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_support_release_time_for_gso, false)
 // If true, abort async QPACK header decompression in QuicSpdyStream::Reset() and in QuicSpdyStream::OnStreamReset().

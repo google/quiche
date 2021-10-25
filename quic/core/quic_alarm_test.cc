@@ -209,9 +209,7 @@ TEST_F(QuicAlarmTest, NullAlarmContext) {
   QuicTime deadline = QuicTime::Zero() + QuicTime::Delta::FromSeconds(7);
   alarm_.Set(deadline);
 
-  if (GetQuicReloadableFlag(quic_restore_connection_context_in_alarms)) {
-    EXPECT_CALL(*delegate_, GetConnectionContext()).WillOnce(Return(nullptr));
-  }
+  EXPECT_CALL(*delegate_, GetConnectionContext()).WillOnce(Return(nullptr));
 
   EXPECT_CALL(*delegate_, OnAlarm()).WillOnce(Invoke([] {
     QUIC_TRACELITERAL("Alarm fired.");
@@ -226,9 +224,7 @@ TEST_F(QuicAlarmTest, AlarmContextWithNullTracer) {
   QuicTime deadline = QuicTime::Zero() + QuicTime::Delta::FromSeconds(7);
   alarm_.Set(deadline);
 
-  if (GetQuicReloadableFlag(quic_restore_connection_context_in_alarms)) {
-    EXPECT_CALL(*delegate_, GetConnectionContext()).WillOnce(Return(&context));
-  }
+  EXPECT_CALL(*delegate_, GetConnectionContext()).WillOnce(Return(&context));
 
   EXPECT_CALL(*delegate_, OnAlarm()).WillOnce(Invoke([] {
     QUIC_TRACELITERAL("Alarm fired.");
@@ -245,9 +241,7 @@ TEST_F(QuicAlarmTest, AlarmContextWithTracer) {
   QuicTime deadline = QuicTime::Zero() + QuicTime::Delta::FromSeconds(7);
   alarm_.Set(deadline);
 
-  if (GetQuicReloadableFlag(quic_restore_connection_context_in_alarms)) {
-    EXPECT_CALL(*delegate_, GetConnectionContext()).WillOnce(Return(&context));
-  }
+  EXPECT_CALL(*delegate_, GetConnectionContext()).WillOnce(Return(&context));
 
   EXPECT_CALL(*delegate_, OnAlarm()).WillOnce(Invoke([] {
     QUIC_TRACELITERAL("Alarm fired.");
@@ -259,11 +253,7 @@ TEST_F(QuicAlarmTest, AlarmContextWithTracer) {
   alarm_.FireAlarm();
   QUIC_TRACELITERAL("Should not be collected after alarm.");
 
-  if (GetQuicReloadableFlag(quic_restore_connection_context_in_alarms)) {
-    EXPECT_THAT(tracer_ref.trace(), ElementsAre("Alarm fired."));
-  } else {
-    EXPECT_TRUE(tracer_ref.trace().empty());
-  }
+  EXPECT_THAT(tracer_ref.trace(), ElementsAre("Alarm fired."));
 }
 
 }  // namespace

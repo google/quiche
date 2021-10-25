@@ -86,11 +86,8 @@ void QuicAlarm::Fire() {
 
   deadline_ = QuicTime::Zero();
   if (!IsPermanentlyCancelled()) {
-    absl::optional<QuicConnectionContextSwitcher> context_switcher;
-    if (GetQuicReloadableFlag(quic_restore_connection_context_in_alarms)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_restore_connection_context_in_alarms);
-      context_switcher.emplace(delegate_->GetConnectionContext());
-    }
+    QuicConnectionContextSwitcher context_switcher(
+        delegate_->GetConnectionContext());
     delegate_->OnAlarm();
   }
 }
