@@ -266,16 +266,15 @@ bool MaybeHandleLegacyVersionEncapsulation(
   QuicVersionLabel version_label;
   ParsedQuicVersion parsed_version = ParsedQuicVersion::Unsupported();
   QuicConnectionId destination_connection_id, source_connection_id;
-  bool retry_token_present;
-  absl::string_view retry_token;
+  absl::optional<absl::string_view> retry_token;
   std::string detailed_error;
   const QuicErrorCode error = QuicFramer::ParsePublicHeaderDispatcher(
       QuicEncryptedPacket(legacy_version_encapsulation_inner_packet.data(),
                           legacy_version_encapsulation_inner_packet.length()),
       kQuicDefaultConnectionIdLength, &format, &long_packet_type,
       &version_present, &has_length_prefix, &version_label, &parsed_version,
-      &destination_connection_id, &source_connection_id, &retry_token_present,
-      &retry_token, &detailed_error);
+      &destination_connection_id, &source_connection_id, &retry_token,
+      &detailed_error);
   if (error != QUIC_NO_ERROR) {
     QUIC_DLOG(ERROR)
         << "Failed to parse Legacy Version Encapsulation inner packet:"
@@ -389,14 +388,12 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
                        absl::string_view(packet.data(), packet.length()));
   ReceivedPacketInfo packet_info(self_address, peer_address, packet);
   std::string detailed_error;
-  bool retry_token_present;
-  absl::string_view retry_token;
   const QuicErrorCode error = QuicFramer::ParsePublicHeaderDispatcher(
       packet, expected_server_connection_id_length_, &packet_info.form,
       &packet_info.long_packet_type, &packet_info.version_flag,
       &packet_info.use_length_prefix, &packet_info.version_label,
       &packet_info.version, &packet_info.destination_connection_id,
-      &packet_info.source_connection_id, &retry_token_present, &retry_token,
+      &packet_info.source_connection_id, &packet_info.retry_token,
       &detailed_error);
   if (error != QUIC_NO_ERROR) {
     // Packet has framing error.

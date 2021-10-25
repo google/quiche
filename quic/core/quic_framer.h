@@ -453,16 +453,12 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   static QuicErrorCode ParsePublicHeaderDispatcher(
       const QuicEncryptedPacket& packet,
       uint8_t expected_destination_connection_id_length,
-      PacketHeaderFormat* format,
-      QuicLongHeaderType* long_packet_type,
-      bool* version_present,
-      bool* has_length_prefix,
-      QuicVersionLabel* version_label,
-      ParsedQuicVersion* parsed_version,
+      PacketHeaderFormat* format, QuicLongHeaderType* long_packet_type,
+      bool* version_present, bool* has_length_prefix,
+      QuicVersionLabel* version_label, ParsedQuicVersion* parsed_version,
       QuicConnectionId* destination_connection_id,
       QuicConnectionId* source_connection_id,
-      bool* retry_token_present,
-      absl::string_view* retry_token,
+      absl::optional<absl::string_view>* retry_token,
       std::string* detailed_error);
 
   // Serializes a packet containing |frames| into |buffer|.

@@ -635,15 +635,14 @@ TEST_P(QuicDispatcherTestAllVersions, LegacyVersionEncapsulation) {
   QuicVersionLabel version_label;
   ParsedQuicVersion parsed_version = ParsedQuicVersion::Unsupported();
   QuicConnectionId destination_connection_id, source_connection_id;
-  bool retry_token_present;
-  absl::string_view retry_token;
+  absl::optional<absl::string_view> retry_token;
   std::string detailed_error;
   const QuicErrorCode error = QuicFramer::ParsePublicHeaderDispatcher(
       QuicEncryptedPacket(packets[0]->data(), packets[0]->length()),
       kQuicDefaultConnectionIdLength, &format, &long_packet_type,
       &version_present, &has_length_prefix, &version_label, &parsed_version,
-      &destination_connection_id, &source_connection_id, &retry_token_present,
-      &retry_token, &detailed_error);
+      &destination_connection_id, &source_connection_id, &retry_token,
+      &detailed_error);
   ASSERT_THAT(error, IsQuicNoError()) << detailed_error;
   EXPECT_EQ(format, GOOGLE_QUIC_PACKET);
   EXPECT_TRUE(version_present);
@@ -651,7 +650,7 @@ TEST_P(QuicDispatcherTestAllVersions, LegacyVersionEncapsulation) {
   EXPECT_EQ(parsed_version, LegacyVersionForEncapsulation());
   EXPECT_EQ(destination_connection_id, server_connection_id);
   EXPECT_EQ(source_connection_id, EmptyQuicConnectionId());
-  EXPECT_FALSE(retry_token_present);
+  EXPECT_FALSE(retry_token.has_value());
   EXPECT_TRUE(detailed_error.empty());
 
   // Processing the packet should create a new session.

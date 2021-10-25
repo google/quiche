@@ -455,6 +455,7 @@ struct QUIC_EXPORT_PRIVATE ReceivedPacketInfo {
   ParsedQuicVersion version;
   QuicConnectionId destination_connection_id;
   QuicConnectionId source_connection_id;
+  absl::optional<absl::string_view> retry_token;
 };
 
 }  // namespace quic

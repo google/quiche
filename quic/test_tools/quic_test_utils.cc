@@ -1583,18 +1583,18 @@ bool ParseClientVersionNegotiationProbePacket(
   QuicEncryptedPacket encrypted_packet(packet_bytes, packet_length);
   PacketHeaderFormat format;
   QuicLongHeaderType long_packet_type;
-  bool version_present, has_length_prefix, retry_token_present;
+  bool version_present, has_length_prefix;
   QuicVersionLabel version_label;
   ParsedQuicVersion parsed_version = ParsedQuicVersion::Unsupported();
   QuicConnectionId destination_connection_id, source_connection_id;
-  absl::string_view retry_token;
+  absl::optional<absl::string_view> retry_token;
   std::string detailed_error;
   QuicErrorCode error = QuicFramer::ParsePublicHeaderDispatcher(
       encrypted_packet,
       /*expected_destination_connection_id_length=*/0, &format,
       &long_packet_type, &version_present, &has_length_prefix, &version_label,
       &parsed_version, &destination_connection_id, &source_connection_id,
-      &retry_token_present, &retry_token, &detailed_error);
+      &retry_token, &detailed_error);
   if (error != QUIC_NO_ERROR) {
     QUIC_BUG(quic_bug_10256_9) << "Failed to parse packet: " << detailed_error;
     return false;

@@ -1139,15 +1139,15 @@ TEST_P(QuicFramerTest, PacketHeader) {
   QuicConnectionId destination_connection_id, source_connection_id;
   QuicVersionLabel version_label;
   std::string detailed_error;
-  bool retry_token_present, use_length_prefix;
-  absl::string_view retry_token;
+  bool use_length_prefix;
+  absl::optional<absl::string_view> retry_token;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   const QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
       *encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
       &version_flag, &use_length_prefix, &version_label, &parsed_version,
-      &destination_connection_id, &source_connection_id, &retry_token_present,
-      &retry_token, &detailed_error);
-  EXPECT_FALSE(retry_token_present);
+      &destination_connection_id, &source_connection_id, &retry_token,
+      &detailed_error);
+  EXPECT_FALSE(retry_token.has_value());
   EXPECT_FALSE(use_length_prefix);
   EXPECT_THAT(error_code, IsQuicNoError());
   EXPECT_EQ(GOOGLE_QUIC_PACKET, format);
@@ -1204,17 +1204,17 @@ TEST_P(QuicFramerTest, LongPacketHeader) {
   QuicConnectionId destination_connection_id, source_connection_id;
   QuicVersionLabel version_label;
   std::string detailed_error;
-  bool retry_token_present, use_length_prefix;
-  absl::string_view retry_token;
+  bool use_length_prefix;
+  absl::optional<absl::string_view> retry_token;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   const QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
       *encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
       &version_flag, &use_length_prefix, &version_label, &parsed_version,
-      &destination_connection_id, &source_connection_id, &retry_token_present,
-      &retry_token, &detailed_error);
+      &destination_connection_id, &source_connection_id, &retry_token,
+      &detailed_error);
   EXPECT_THAT(error_code, IsQuicNoError());
   EXPECT_EQ("", detailed_error);
-  EXPECT_FALSE(retry_token_present);
+  EXPECT_FALSE(retry_token.has_value());
   EXPECT_FALSE(use_length_prefix);
   EXPECT_EQ(IETF_QUIC_LONG_HEADER_PACKET, format);
   EXPECT_TRUE(version_flag);
@@ -1284,16 +1284,16 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
   QuicConnectionId destination_connection_id, source_connection_id;
   QuicVersionLabel version_label = 0;
   std::string detailed_error = "";
-  bool retry_token_present, use_length_prefix;
-  absl::string_view retry_token;
+  bool use_length_prefix;
+  absl::optional<absl::string_view> retry_token;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   const QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
       encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
       &version_flag, &use_length_prefix, &version_label, &parsed_version,
-      &destination_connection_id, &source_connection_id, &retry_token_present,
-      &retry_token, &detailed_error);
+      &destination_connection_id, &source_connection_id, &retry_token,
+      &detailed_error);
   EXPECT_THAT(error_code, IsQuicNoError());
-  EXPECT_FALSE(retry_token_present);
+  EXPECT_FALSE(retry_token.has_value());
   EXPECT_EQ(framer_.version().HasLengthPrefixedConnectionIds(),
             use_length_prefix);
   EXPECT_EQ("", detailed_error);
@@ -1312,14 +1312,14 @@ TEST_P(QuicFramerTest, AllZeroPacketParsingFails) {
   QuicConnectionId destination_connection_id, source_connection_id;
   QuicVersionLabel version_label = 0;
   std::string detailed_error = "";
-  bool retry_token_present, use_length_prefix;
-  absl::string_view retry_token;
+  bool use_length_prefix;
+  absl::optional<absl::string_view> retry_token;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   const QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
       encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
       &version_flag, &use_length_prefix, &version_label, &parsed_version,
-      &destination_connection_id, &source_connection_id, &retry_token_present,
-      &retry_token, &detailed_error);
+      &destination_connection_id, &source_connection_id, &retry_token,
+      &detailed_error);
   EXPECT_EQ(error_code, QUIC_INVALID_PACKET_HEADER);
   EXPECT_EQ(detailed_error, "Invalid flags.");
 }
@@ -14495,14 +14495,13 @@ TEST_P(QuicFramerTest, DispatcherParseOldClientVersionNegotiationProbePacket) {
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   QuicConnectionId destination_connection_id = TestConnectionId(1);
   QuicConnectionId source_connection_id = TestConnectionId(2);
-  bool retry_token_present = true;
-  absl::string_view retry_token;
+  absl::optional<absl::string_view> retry_token;
   std::string detailed_error = "foobar";
   QuicErrorCode header_parse_result = QuicFramer::ParsePublicHeaderDispatcher(
       encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
       &version_present, &has_length_prefix, &version_label, &parsed_version,
-      &destination_connection_id, &source_connection_id, &retry_token_present,
-      &retry_token, &detailed_error);
+      &destination_connection_id, &source_connection_id, &retry_token,
+      &detailed_error);
   EXPECT_THAT(header_parse_result, IsQuicNoError());
   EXPECT_EQ(IETF_QUIC_LONG_HEADER_PACKET, format);
   EXPECT_TRUE(version_present);
@@ -14510,7 +14509,7 @@ TEST_P(QuicFramerTest, DispatcherParseOldClientVersionNegotiationProbePacket) {
   EXPECT_EQ(0xcabadaba, version_label);
   EXPECT_EQ(expected_destination_connection_id, destination_connection_id);
   EXPECT_EQ(EmptyQuicConnectionId(), source_connection_id);
-  EXPECT_FALSE(retry_token_present);
+  EXPECT_FALSE(retry_token.has_value());
   EXPECT_EQ("", detailed_error);
 }
 
@@ -14574,14 +14573,13 @@ TEST_P(QuicFramerTest, DispatcherParseClientVersionNegotiationProbePacket) {
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   QuicConnectionId destination_connection_id = TestConnectionId(1);
   QuicConnectionId source_connection_id = TestConnectionId(2);
-  bool retry_token_present = true;
-  absl::string_view retry_token;
+  absl::optional<absl::string_view> retry_token;
   std::string detailed_error = "foobar";
   QuicErrorCode header_parse_result = QuicFramer::ParsePublicHeaderDispatcher(
       encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
       &version_present, &has_length_prefix, &version_label, &parsed_version,
-      &destination_connection_id, &source_connection_id, &retry_token_present,
-      &retry_token, &detailed_error);
+      &destination_connection_id, &source_connection_id, &retry_token,
+      &detailed_error);
   EXPECT_THAT(header_parse_result, IsQuicNoError());
   EXPECT_EQ(IETF_QUIC_LONG_HEADER_PACKET, format);
   EXPECT_TRUE(version_present);
