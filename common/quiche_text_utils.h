@@ -17,7 +17,7 @@
 
 namespace quiche {
 
-QUICHE_EXPORT_PRIVATE struct StringPieceCaseHash {
+struct QUICHE_EXPORT_PRIVATE StringPieceCaseHash {
   size_t operator()(absl::string_view data) const {
     std::string lower = absl::AsciiStrToLower(data);
     absl::Hash<absl::string_view> hasher;
@@ -25,7 +25,7 @@ QUICHE_EXPORT_PRIVATE struct StringPieceCaseHash {
   }
 };
 
-QUICHE_EXPORT_PRIVATE struct StringPieceCaseEqual {
+struct QUICHE_EXPORT_PRIVATE StringPieceCaseEqual {
   bool operator()(absl::string_view piece1, absl::string_view piece2) const {
     return absl::EqualsIgnoreCase(piece1, piece2);
   }
