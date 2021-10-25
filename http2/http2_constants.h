@@ -23,12 +23,8 @@ namespace http2 {
 // TODO(jamessynge): create http2_simple_types for types similar to
 // SpdyStreamId, but not for structures like Http2FrameHeader. Then will be
 // able to move these stream id functions there.
-constexpr uint32_t UInt31Mask() {
-  return 0x7fffffff;
-}
-constexpr uint32_t StreamIdMask() {
-  return UInt31Mask();
-}
+constexpr uint32_t UInt31Mask() { return 0x7fffffff; }
+constexpr uint32_t StreamIdMask() { return UInt31Mask(); }
 
 // The value used to identify types of frames. Upper case to match the RFC.
 // The comments indicate which flags are valid for that frame type.
@@ -237,7 +233,7 @@ inline std::ostream& operator<<(std::ostream& out, Http2SettingsParameter v) {
 
 // Information about the initial, minimum and maximum value of settings (not
 // applicable to all settings parameters).
-QUICHE_EXPORT_PRIVATE class Http2SettingsInfo {
+class QUICHE_EXPORT_PRIVATE Http2SettingsInfo {
  public:
   // Default value for HEADER_TABLE_SIZE.
   static constexpr uint32_t DefaultHeaderTableSize() { return 4096; }
