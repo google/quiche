@@ -387,6 +387,8 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartup) {
       3u,
       sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
   EXPECT_EQ(0u, sender_connection_stats().packets_lost);
+  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
+                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
 }
 
@@ -411,10 +413,45 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartupB207) {
       QuicTime::Delta::FromSeconds(5));
   ASSERT_TRUE(simulator_result);
   EXPECT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
-  EXPECT_EQ(3u, sender_->ExportDebugState().round_trip_count - max_bw_round);
+  EXPECT_EQ(1u, sender_->ExportDebugState().round_trip_count - max_bw_round);
   EXPECT_EQ(
-      3u,
+      1u,
       sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
+  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
+                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
+  EXPECT_EQ(0u, sender_connection_stats().packets_lost);
+}
+
+// Add extra_acked to CWND in STARTUP and exit STARTUP on a persistent queue.
+TEST_F(Bbr2DefaultTopologyTest, NormalStartupB207andB205) {
+  SetQuicReloadableFlag(quic_bbr2_startup_extra_acked, true);
+  SetQuicReloadableFlag(quic_bbr2_exit_startup_on_persistent_queue2, true);
+  SetConnectionOption(kB205);
+  SetConnectionOption(kB207);
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  // Run until the full bandwidth is reached and check how many rounds it was.
+  sender_endpoint_.AddBytesToTransfer(12 * 1024 * 1024);
+  QuicRoundTripCount max_bw_round = 0;
+  QuicBandwidth max_bw(QuicBandwidth::Zero());
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [this, &max_bw, &max_bw_round]() {
+        if (max_bw < sender_->ExportDebugState().bandwidth_hi) {
+          max_bw = sender_->ExportDebugState().bandwidth_hi;
+          max_bw_round = sender_->ExportDebugState().round_trip_count;
+        }
+        return sender_->ExportDebugState().startup.full_bandwidth_reached;
+      },
+      QuicTime::Delta::FromSeconds(5));
+  ASSERT_TRUE(simulator_result);
+  EXPECT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
+  EXPECT_EQ(1u, sender_->ExportDebugState().round_trip_count - max_bw_round);
+  EXPECT_EQ(
+      2u,
+      sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
+  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
+                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
   EXPECT_EQ(0u, sender_connection_stats().packets_lost);
 }
 

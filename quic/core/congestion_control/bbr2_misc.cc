@@ -162,6 +162,8 @@ void Bbr2NetworkModel::OnCongestionEventStart(
         congestion_event->last_packet_send_state.total_bytes_acked;
     max_bytes_delivered_in_round_ =
         std::max(max_bytes_delivered_in_round_, bytes_delivered);
+    // TODO(ianswett) Consider treating any bytes lost as decreasing inflight,
+    // because it's a sign of overutilization, not underutilization.
     if (min_bytes_in_flight_in_round_ == 0 ||
         congestion_event->bytes_in_flight < min_bytes_in_flight_in_round_) {
       min_bytes_in_flight_in_round_ = congestion_event->bytes_in_flight;
@@ -432,8 +434,17 @@ bool Bbr2NetworkModel::HasBandwidthGrowth(
 bool Bbr2NetworkModel::CheckPersistentQueue(
     const Bbr2CongestionEvent& congestion_event, float bdp_gain) {
   QUICHE_DCHECK(congestion_event.end_of_round_trip);
-  if (min_bytes_in_flight_in_round_ >
-      (bdp_gain * BDP() + QueueingThresholdExtraBytes())) {
+  QuicByteCount target = bdp_gain * BDP();
+  if (bdp_gain >= 2) {
+    // Use a more conservative threshold for STARTUP because CWND gain is 2.
+    if (target <= QueueingThresholdExtraBytes()) {
+      return false;
+    }
+    target -= QueueingThresholdExtraBytes();
+  } else {
+    target += QueueingThresholdExtraBytes();
+  }
+  if (min_bytes_in_flight_in_round_ > target) {
     full_bandwidth_reached_ = true;
     return true;
   }

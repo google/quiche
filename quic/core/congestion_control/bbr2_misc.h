@@ -401,6 +401,7 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     return bandwidth_sampler_.max_ack_height();
   }
 
+  // 2 packets.  Used to indicate the typical number of bytes ACKed at once.
   QuicByteCount QueueingThresholdExtraBytes() const {
     return 2 * kDefaultTCPMSS;
   }
