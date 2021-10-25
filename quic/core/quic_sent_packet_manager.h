@@ -467,6 +467,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   QuicTime GetEarliestPacketSentTimeForPto(
       PacketNumberSpace* packet_number_space) const;
 
+  void set_num_ptos_for_path_degrading(int num_ptos_for_path_degrading) {
+    num_ptos_for_path_degrading_ = num_ptos_for_path_degrading;
+  }
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
