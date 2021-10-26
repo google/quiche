@@ -98,6 +98,9 @@ class QuicSentPacketManagerPeer {
 
   static bool UsePacketThresholdForRuntPackets(
       QuicSentPacketManager* sent_packet_manager);
+
+  static int GetNumPtosForPathDegrading(
+      QuicSentPacketManager* sent_packet_manager);
 };
 
 }  // namespace test

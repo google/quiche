@@ -214,5 +214,11 @@ bool QuicSentPacketManagerPeer::UsePacketThresholdForRuntPackets(
       .use_packet_threshold_for_runt_packets();
 }
 
+// static
+int QuicSentPacketManagerPeer::GetNumPtosForPathDegrading(
+    QuicSentPacketManager* sent_packet_manager) {
+  return sent_packet_manager->num_ptos_for_path_degrading_;
+}
+
 }  // namespace test
 }  // namespace quic
