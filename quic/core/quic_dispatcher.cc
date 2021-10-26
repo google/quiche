@@ -544,6 +544,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
     const ReceivedPacketInfo& packet_info) {
   if (IsSourceUdpPortBlocked(packet_info.peer_address.port())) {
     // Silently drop the received packet.
+    QUIC_CODE_COUNT(quic_dropped_blocked_port);
     return true;
   }
 
