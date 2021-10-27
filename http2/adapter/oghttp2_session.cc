@@ -851,6 +851,11 @@ void OgHttp2Session::OnSettingsAck() {
 
 void OgHttp2Session::OnPing(spdy::SpdyPingId unique_id, bool is_ack) {
   visitor_.OnPing(unique_id, is_ack);
+  if (options_.auto_ping_ack && !is_ack) {
+    auto ping = absl::make_unique<spdy::SpdyPingIR>(unique_id);
+    ping->set_is_ack(true);
+    EnqueueFrame(std::move(ping));
+  }
 }
 
 void OgHttp2Session::OnGoAway(spdy::SpdyStreamId last_accepted_stream_id,

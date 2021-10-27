@@ -611,14 +611,19 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(PING, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(PING, 0, _, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(PING, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(PING, 0, _, 0x1, 0));
 
   // Some bytes should have been serialized.
   int send_result = session.Send();
   EXPECT_EQ(0, send_result);
-  // Initial SETTINGS, SETTINGS ack.
-  // TODO(birenroy): automatically queue PING acks.
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS}));
+  // Initial SETTINGS, SETTINGS ack, and PING acks (for PING IDs 42 and 47).
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames(
+                  {spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::SETTINGS,
+                   spdy::SpdyFrameType::PING, spdy::SpdyFrameType::PING}));
 }
 
 // Verifies that a server session enqueues initial SETTINGS before whatever

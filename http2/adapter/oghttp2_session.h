@@ -32,6 +32,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
  public:
   struct QUICHE_EXPORT_PRIVATE Options {
     Perspective perspective = Perspective::kClient;
+    // Whether to automatically send PING acks when receiving a PING.
+    bool auto_ping_ack = true;
   };
 
   OgHttp2Session(Http2VisitorInterface& visitor, Options options);

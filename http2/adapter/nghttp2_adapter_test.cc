@@ -6,6 +6,7 @@
 #include "http2/adapter/oghttp2_util.h"
 #include "http2/adapter/test_frame_sequence.h"
 #include "http2/adapter/test_utils.h"
+#include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 #include "common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -2689,6 +2690,76 @@ TEST(NgHttp2AdapterTest, ServerForbidsRstStreamOnIdleStream) {
   EXPECT_EQ(0, send_result);
   // The GOAWAY apparently causes the SETTINGS ack to be dropped.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::GOAWAY}));
+}
+
+TEST(NgHttp2AdapterTest, AutomaticSettingsAndPingAcks) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+  const std::string frames =
+      TestFrameSequence().ClientPreface().Ping(42).Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // PING
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, PING, 0));
+  EXPECT_CALL(visitor, OnPing(42, false));
+
+  const int64_t read_result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+
+  EXPECT_TRUE(adapter->want_write());
+
+  // Server preface does not appear to include the mandatory SETTINGS frame.
+  // SETTINGS ack
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  // PING ack
+  EXPECT_CALL(visitor, OnBeforeFrameSent(PING, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(PING, 0, _, 0x1, 0));
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::PING}));
+}
+
+TEST(NgHttp2AdapterTest, AutomaticPingAcksDisabled) {
+  DataSavingVisitor visitor;
+  nghttp2_option* options;
+  nghttp2_option_new(&options);
+  nghttp2_option_set_no_auto_ping_ack(options, 1);
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor, options);
+  nghttp2_option_del(options);
+
+  const std::string frames =
+      TestFrameSequence().ClientPreface().Ping(42).Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // PING
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, PING, 0));
+  EXPECT_CALL(visitor, OnPing(42, false));
+
+  const int64_t read_result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+
+  EXPECT_TRUE(adapter->want_write());
+
+  // Server preface does not appear to include the mandatory SETTINGS frame.
+  // SETTINGS ack
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  // No PING ack expected because automatic PING acks are disabled.
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
 }
 
 }  // namespace

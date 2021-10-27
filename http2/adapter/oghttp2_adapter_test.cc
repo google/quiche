@@ -120,6 +120,79 @@ TEST_F(OgHttp2AdapterTest, InitialSettings) {
   }
 }
 
+TEST_F(OgHttp2AdapterTest, AutomaticSettingsAndPingAcks) {
+  const std::string frames =
+      TestFrameSequence().ClientPreface().Ping(42).Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(http2_visitor_, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(http2_visitor_, OnSettingsStart());
+  EXPECT_CALL(http2_visitor_, OnSettingsEnd());
+  // PING
+  EXPECT_CALL(http2_visitor_, OnFrameHeader(0, _, PING, 0));
+  EXPECT_CALL(http2_visitor_, OnPing(42, false));
+
+  const int64_t read_result = adapter_->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+
+  EXPECT_TRUE(adapter_->want_write());
+
+  // Server preface (SETTINGS)
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  // SETTINGS ack
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  // PING ack
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(PING, 0, _, 0x1));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(PING, 0, _, 0x1, 0));
+
+  int send_result = adapter_->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(
+      http2_visitor_.data(),
+      EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                    spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::PING}));
+}
+
+TEST_F(OgHttp2AdapterTest, AutomaticPingAcksDisabled) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kServer,
+                                  .auto_ping_ack = false};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  const std::string frames =
+      TestFrameSequence().ClientPreface().Ping(42).Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // PING
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, PING, 0));
+  EXPECT_CALL(visitor, OnPing(42, false));
+
+  const int64_t read_result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+
+  EXPECT_TRUE(adapter->want_write());
+
+  // Server preface (SETTINGS)
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  // SETTINGS ack
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  // No PING ack expected because automatic PING acks are disabled.
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::SETTINGS}));
+}
+
 TEST(OgHttp2AdapterClientTest, ClientHandlesTrailers) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
