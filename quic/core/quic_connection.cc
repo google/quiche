@@ -5347,17 +5347,6 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
           std::move(alternative_path_.rtt_stats).value());
     }
   }
-  if (packet_creator_.HasPendingFrames() ||
-      packet_creator_.pending_padding_bytes() > 0) {
-    QUIC_BUG(quic_bug_5196)
-        << "Starts effective peer migration with pending frame types: "
-        << packet_creator_.GetPendingFramesInfo() << ". pending_padding_bytes: "
-        << packet_creator_.pending_padding_bytes()
-        << ". Address change type is " << AddressChangeTypeToString(type)
-        << ". Current frame type: " << framer_.current_received_frame_type()
-        << ". Previous frame type: "
-        << framer_.previously_received_frame_type();
-  }
   // Update to the new peer address.
   UpdatePeerAddress(last_received_packet_info_.source_address);
   // Update the default path.
