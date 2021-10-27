@@ -76,7 +76,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_drop_unsent_path_response, true)
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 // If true, flush pending frames as well as pending padding bytes on connection migration.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_flush_pending_frames_and_padding_bytes_on_migration, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_flush_pending_frames_and_padding_bytes_on_migration, true)
 // If true, ietf connection migration is no longer conditioned on connection option RVCM.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_remove_connection_migration_connection_option, true)
 // If true, ignore peer_max_ack_delay during handshake.

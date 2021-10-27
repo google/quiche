@@ -2078,7 +2078,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
 }
 
 // Regression test for b/200020764.
-TEST_P(QuicConnectionTest, ConnetcionMigrationWithPendingPaddingBytes) {
+TEST_P(QuicConnectionTest, ConnectionMigrationWithPendingPaddingBytes) {
   // TODO(haoyuewang) Move these test setup code to a common member function.
   set_perspective(Perspective::IS_SERVER);
   if (!connection_.connection_migration_use_new_cid()) {
