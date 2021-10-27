@@ -15,27 +15,9 @@ namespace quic {
 
 QuicVersionManager::QuicVersionManager(
     ParsedQuicVersionVector supported_versions)
-    : lazy_(GetQuicRestartFlag(quic_lazy_quic_version_manager)),
-      disable_version_rfcv1_(
-          lazy_ ? true : GetQuicReloadableFlag(quic_disable_version_rfcv1)),
-      disable_version_draft_29_(
-          lazy_ ? true : GetQuicReloadableFlag(quic_disable_version_draft_29)),
-      disable_version_t051_(
-          lazy_ ? true : GetQuicReloadableFlag(quic_disable_version_t051)),
-      disable_version_q050_(
-          lazy_ ? true : GetQuicReloadableFlag(quic_disable_version_q050)),
-      disable_version_q046_(
-          lazy_ ? true : GetQuicReloadableFlag(quic_disable_version_q046)),
-      disable_version_q043_(
-          lazy_ ? true : GetQuicReloadableFlag(quic_disable_version_q043)),
-      allowed_supported_versions_(std::move(supported_versions)) {
+    : allowed_supported_versions_(std::move(supported_versions)) {
   static_assert(SupportedVersions().size() == 6u,
                 "Supported versions out of sync");
-  if (lazy_) {
-    QUIC_RESTART_FLAG_COUNT(quic_lazy_quic_version_manager);
-  } else {
-    RefilterSupportedVersions();
-  }
 }
 
 QuicVersionManager::~QuicVersionManager() {}

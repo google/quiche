@@ -57,23 +57,19 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   void AddCustomAlpn(const std::string& alpn);
 
  private:
-  // Cached value of gfe2_restart_flag_quic_lazy_quic_version_manager for
-  // brevity.
-  const bool lazy_;
-
   // Cached value of reloadable flags.
   // quic_disable_version_rfcv1 flag
-  bool disable_version_rfcv1_;
+  bool disable_version_rfcv1_ = true;
   // quic_disable_version_draft_29 flag
-  bool disable_version_draft_29_;
+  bool disable_version_draft_29_ = true;
   // quic_disable_version_t051 flag
-  bool disable_version_t051_;
+  bool disable_version_t051_ = true;
   // quic_disable_version_q050 flag
-  bool disable_version_q050_;
+  bool disable_version_q050_ = true;
   // quic_disable_version_q046 flag
-  bool disable_version_q046_;
+  bool disable_version_q046_ = true;
   // quic_disable_version_q043 flag
-  bool disable_version_q043_;
+  bool disable_version_q043_ = true;
 
   // The list of versions that may be supported.
   const ParsedQuicVersionVector allowed_supported_versions_;

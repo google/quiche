@@ -37,8 +37,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_can_send_ack_frequency, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, false)
 // If true, always starts a new ack aggregation epoch if a full round has passed since the start of the current epoch.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr_start_new_aggregation_epoch_after_a_full_round, true)
-// If true, avoid calling reloadable flags in QuicVersionManager constructor by lazily initializing internal state.
-QUIC_FLAG(FLAGS_quic_restart_flag_quic_lazy_quic_version_manager, true)
 // If true, change QuicCryptoServerStream::FinishProcessingHandshakeMessageAfterProcessClientHello to noop if connection is disconnected.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_crypto_noop_if_disconnected_after_process_chlo, true)
 // If true, clear undecryptable packets on handshake complete.
