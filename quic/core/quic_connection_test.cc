@@ -512,6 +512,15 @@ class TestConnection : public QuicConnection {
     return false;
   }
 
+  void SendOrQueuePacket(SerializedPacket packet) override {
+    QuicConnection::SendOrQueuePacket(std::move(packet));
+    self_address_on_default_path_while_sending_packet_ = self_address();
+  }
+
+  QuicSocketAddress self_address_on_default_path_while_sending_packet() {
+    return self_address_on_default_path_while_sending_packet_;
+  }
+
   SimpleDataProducer* producer() { return &producer_; }
 
   using QuicConnection::active_effective_peer_migration_type;
@@ -538,6 +547,8 @@ class TestConnection : public QuicConnection {
   SimpleSessionNotifier* notifier_;
 
   std::unique_ptr<QuicSocketAddress> next_effective_peer_addr_;
+
+  QuicSocketAddress self_address_on_default_path_while_sending_packet_;
 };
 
 enum class AckResponse { kDefer, kImmediate };
@@ -1320,15 +1331,15 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   void set_perspective(Perspective perspective) {
     connection_.set_perspective(perspective);
     if (perspective == Perspective::IS_SERVER) {
+      QuicConfig config;
       if (!GetQuicReloadableFlag(
               quic_remove_connection_migration_connection_option)) {
-        QuicConfig config;
         QuicTagVector connection_options;
         connection_options.push_back(kRVCM);
         config.SetInitialReceivedConnectionOptions(connection_options);
-        EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
-        connection_.SetFromConfig(config);
       }
+      EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+      connection_.SetFromConfig(config);
 
       connection_.set_can_truncate_connection_ids(true);
       QuicConnectionPeer::SetNegotiatedVersion(&connection_);
@@ -1509,8 +1520,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 };
 
 // Run all end to end tests with all supported versions.
-INSTANTIATE_TEST_SUITE_P(QuicConnectionTests,
-                         QuicConnectionTest,
+INSTANTIATE_TEST_SUITE_P(QuicConnectionTests, QuicConnectionTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
@@ -2064,6 +2074,58 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
     EXPECT_EQ(0u, connection_.GetStats()
                       .num_peer_migration_while_validating_default_path);
     EXPECT_TRUE(connection_.HasPendingPathValidation());
+  }
+}
+
+// Regression test for b/200020764.
+TEST_P(QuicConnectionTest, ConnetcionMigrationWithPendingPaddingBytes) {
+  // TODO(haoyuewang) Move these test setup code to a common member function.
+  set_perspective(Perspective::IS_SERVER);
+  if (!connection_.connection_migration_use_new_cid()) {
+    return;
+  }
+  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+  connection_.CreateConnectionIdManager();
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  QuicConnectionPeer::SetPeerAddress(&connection_, kPeerAddress);
+  QuicConnectionPeer::SetEffectivePeerAddress(&connection_, kPeerAddress);
+  QuicConnectionPeer::SetAddressValidated(&connection_);
+
+  // Sends new server CID to client.
+  QuicConnectionId new_cid;
+  EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_))
+      .WillOnce(Invoke([&](const QuicConnectionId& cid) { new_cid = cid; }));
+  EXPECT_CALL(visitor_, SendNewConnectionId(_));
+  // Discard INITIAL key.
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.NeuterUnencryptedPackets();
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+
+  auto* packet_creator = QuicConnectionPeer::GetPacketCreator(&connection_);
+  packet_creator->FlushCurrentPacket();
+  packet_creator->AddPendingPadding(50u);
+  const QuicSocketAddress kPeerAddress3 =
+      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/56789);
+  auto ack_frame = InitAckFrame(1);
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
+  EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
+  ProcessFramesPacketWithAddresses({QuicFrame(&ack_frame)}, kSelfAddress,
+                                   kPeerAddress3, ENCRYPTION_FORWARD_SECURE);
+  if (GetQuicReloadableFlag(
+          quic_flush_pending_frames_and_padding_bytes_on_migration)) {
+    // Any pending frames/padding should be flushed before default_path_ is
+    // temporarily reset.
+    ASSERT_EQ(connection_.self_address_on_default_path_while_sending_packet()
+                  .host()
+                  .address_family(),
+              IpAddressFamily::IP_V6);
+  } else {
+    ASSERT_EQ(connection_.self_address_on_default_path_while_sending_packet()
+                  .host()
+                  .address_family(),
+              IpAddressFamily::IP_UNSPEC);
   }
 }
 
@@ -10595,10 +10657,8 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
 }
 
 void QuicConnectionTest::TestClientRetryHandling(
-    bool invalid_retry_tag,
-    bool missing_original_id_in_config,
-    bool wrong_original_id_in_config,
-    bool missing_retry_id_in_config,
+    bool invalid_retry_tag, bool missing_original_id_in_config,
+    bool wrong_original_id_in_config, bool missing_retry_id_in_config,
     bool wrong_retry_id_in_config) {
   if (invalid_retry_tag) {
     ASSERT_FALSE(missing_original_id_in_config);

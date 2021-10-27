@@ -5272,12 +5272,24 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
         << "EffectivePeerMigration started without address change.";
     return;
   }
-  // There could be pending NEW_TOKEN_FRAME triggered by non-probing
-  // PATH_RESPONSE_FRAME in the same packet.
-  if (packet_creator_.HasPendingFrames()) {
+  if (GetQuicReloadableFlag(
+          quic_flush_pending_frames_and_padding_bytes_on_migration)) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_flush_pending_frames_and_padding_bytes_on_migration);
+    // There could be pending NEW_TOKEN_FRAME triggered by non-probing
+    // PATH_RESPONSE_FRAME in the same packet or pending padding bytes in the
+    // packet creator.
     packet_creator_.FlushCurrentPacket();
+    packet_creator_.SendRemainingPendingPadding();
     if (!connected_) {
       return;
+    }
+  } else {
+    if (packet_creator_.HasPendingFrames()) {
+      packet_creator_.FlushCurrentPacket();
+      if (!connected_) {
+        return;
+      }
     }
   }
 
