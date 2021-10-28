@@ -137,7 +137,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_fix_pacing_sender_bursts, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_unified_iw_options, true)
 // When true, the B203 connection option causes the Bbr2Sender to ignore inflight_hi during PROBE_UP and increase it when the bytes delivered without loss are higher.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_ignore_inflight_hi_in_probe_up, true)
-// When true, the B204 connection option enables extra acked in STARTUP, but also adds new logic to decrease it whenever max bandwidth increases.
+// When true, the B205 connection option enables extra acked in STARTUP, and B204 adds new logic to decrease it whenever max bandwidth increases.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_startup_extra_acked, true)
 // When true, the B207 connection option causes BBR2 to exit STARTUP if a persistent queue of 2*BDP has existed for the entire round.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_exit_startup_on_persistent_queue2, true)
