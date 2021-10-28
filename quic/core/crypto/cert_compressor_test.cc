@@ -56,12 +56,18 @@ TEST_F(CertCompressorTest, Common) {
       absl::string_view(reinterpret_cast<const char*>(&set_hash),
                         sizeof(set_hash)),
       absl::string_view(), common_sets.get());
-  EXPECT_EQ(
-      "03"               /* common */
-      "2a00000000000000" /* set hash 42 */
-      "01000000"         /* index 1 */
-      "00" /* end of list */,
-      absl::BytesToHexString(compressed));
+  if (!GetQuicRestartFlag(quic_no_common_cert_set)) {
+    EXPECT_EQ(
+        "03"               /* common */
+        "2a00000000000000" /* set hash 42 */
+        "01000000"         /* index 1 */
+        "00" /* end of list */,
+        absl::BytesToHexString(compressed));
+  } else {
+    ASSERT_GE(compressed.size(), 2u);
+    // 01 is the prefix for a zlib "compressed" cert not common or cached.
+    EXPECT_EQ("0100", absl::BytesToHexString(compressed.substr(0, 2)));
+  }
 
   std::vector<std::string> chain2, cached_certs;
   ASSERT_TRUE(CertCompressor::DecompressChain(compressed, cached_certs,

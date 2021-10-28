@@ -439,7 +439,9 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
 
   out->SetVector(kPDMD, QuicTagVector{kX509});
 
-  if (common_cert_sets) {
+  if (GetQuicRestartFlag(quic_no_common_cert_set)) {
+    // Client only. No flag count.
+  } else if (common_cert_sets) {
     out->SetStringPiece(kCCS, common_cert_sets->GetCommonHashes());
   }
 

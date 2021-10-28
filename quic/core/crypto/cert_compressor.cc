@@ -11,6 +11,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_utils.h"
+#include "quic/platform/api/quic_bug_tracker.h"
 #include "third_party/zlib/zlib.h"
 
 namespace quic {
@@ -215,8 +216,11 @@ std::vector<CertEntry> MatchCerts(const std::vector<std::string>& certs,
       }
     }
 
-    if (common_sets && common_sets->MatchCert(*i, client_common_set_hashes,
-                                              &entry.set_hash, &entry.index)) {
+    if (GetQuicRestartFlag(quic_no_common_cert_set)) {
+      QUIC_RESTART_FLAG_COUNT(quic_no_common_cert_set);
+    } else if (common_sets &&
+               common_sets->MatchCert(*i, client_common_set_hashes,
+                                      &entry.set_hash, &entry.index)) {
       entry.type = CertEntry::COMMON;
       entries.push_back(entry);
       continue;
@@ -243,6 +247,8 @@ size_t CertEntriesSize(const std::vector<CertEntry>& entries) {
         entries_size += sizeof(uint64_t);
         break;
       case CertEntry::COMMON:
+        QUIC_BUG_IF(unexpected_common_cert_entry_1,
+                    GetQuicRestartFlag(quic_no_common_cert_set));
         entries_size += sizeof(uint64_t) + sizeof(uint32_t);
         break;
     }
@@ -266,6 +272,8 @@ void SerializeCertEntries(uint8_t* out, const std::vector<CertEntry>& entries) {
         out += sizeof(uint64_t);
         break;
       case CertEntry::COMMON:
+        QUIC_BUG_IF(unexpected_common_cert_entry_2,
+                    GetQuicRestartFlag(quic_no_common_cert_set));
         // Assumes a little-endian machine.
         memcpy(out, &i->set_hash, sizeof(i->set_hash));
         out += sizeof(i->set_hash);
@@ -382,6 +390,10 @@ bool ParseEntries(absl::string_view* in_out,
         break;
       }
       case CertEntry::COMMON: {
+        if (GetQuicRestartFlag(quic_no_common_cert_set)) {
+          // Client only. No flag count.
+          return false;
+        }
         if (!common_sets) {
           return false;
         }
@@ -628,7 +640,10 @@ bool CertCompressor::DecompressChain(
         uncompressed.remove_prefix(cert_len);
         break;
       case CertEntry::CACHED:
+        break;
       case CertEntry::COMMON:
+        QUIC_BUG_IF(unexpected_common_cert_entry_3,
+                    GetQuicRestartFlag(quic_no_common_cert_set));
         break;
     }
   }
