@@ -6,9 +6,13 @@
 
 #include <netdb.h>
 
+#include <cstddef>
+#include <limits>
+
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "url/url_util.h"
 #include "quic/core/http/spdy_utils.h"
 #include "quic/core/quic_data_reader.h"
 #include "quic/core/quic_udp_socket.h"
@@ -66,6 +70,23 @@ std::unique_ptr<QuicBackendResponse> CreateBackendErrorResponse(
   response->set_response_type(QuicBackendResponse::REGULAR_RESPONSE);
   response->set_headers(std::move(response_headers));
   return response;
+}
+
+absl::optional<std::string> AsciiUrlDecode(absl::string_view input) {
+  std::string input_encoded = std::string(input);
+  url::RawCanonOutputW<1024> canon_output;
+  DecodeURLEscapeSequences(input_encoded.c_str(), input_encoded.length(),
+                           &canon_output);
+  std::string output;
+  output.reserve(canon_output.length());
+  for (int i = 0; i < canon_output.length(); i++) {
+    const uint16_t c = reinterpret_cast<uint16_t*>(canon_output.data())[i];
+    if (c > std::numeric_limits<signed char>::max()) {
+      return absl::nullopt;
+    }
+    output += static_cast<char>(c);
+  }
+  return output;
 }
 
 }  // namespace
@@ -169,6 +190,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     auto path_pair = request_headers.find(":path");
     auto scheme_pair = request_headers.find(":scheme");
     auto method_pair = request_headers.find(":method");
+    auto protocol_pair = request_headers.find(":protocol");
     auto authority_pair = request_headers.find(":authority");
     if (path_pair == request_headers.end()) {
       QUIC_DLOG(ERROR) << "MASQUE request is missing :path";
@@ -182,6 +204,10 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
       QUIC_DLOG(ERROR) << "MASQUE request is missing :method";
       return CreateBackendErrorResponse("400", "Missing :method");
     }
+    if (protocol_pair == request_headers.end()) {
+      QUIC_DLOG(ERROR) << "MASQUE request is missing :protocol";
+      return CreateBackendErrorResponse("400", "Missing :protocol");
+    }
     if (authority_pair == request_headers.end()) {
       QUIC_DLOG(ERROR) << "MASQUE request is missing :authority";
       return CreateBackendErrorResponse("400", "Missing :authority");
@@ -189,6 +215,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     absl::string_view path = path_pair->second;
     absl::string_view scheme = scheme_pair->second;
     absl::string_view method = method_pair->second;
+    absl::string_view protocol = protocol_pair->second;
     absl::string_view authority = authority_pair->second;
     if (path.empty()) {
       QUIC_DLOG(ERROR) << "MASQUE request with empty path";
@@ -197,9 +224,14 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     if (scheme.empty()) {
       return CreateBackendErrorResponse("400", "Empty scheme");
     }
-    if (method != "CONNECT-UDP") {
+    if (method != "CONNECT") {
       QUIC_DLOG(ERROR) << "MASQUE request with bad method \"" << method << "\"";
       return CreateBackendErrorResponse("400", "Bad method");
+    }
+    if (protocol != "connect-udp") {
+      QUIC_DLOG(ERROR) << "MASQUE request with bad protocol \"" << protocol
+                       << "\"";
+      return CreateBackendErrorResponse("400", "Bad protocol");
     }
     absl::optional<QuicDatagramStreamId> flow_id;
     if (http_datagram_support() == HttpDatagramSupport::kDraft00) {
@@ -211,20 +243,32 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
             "400", "Bad or missing DatagramFlowId header");
       }
     }
-    QuicUrl url(absl::StrCat("https://", authority));
-    if (!url.IsValid() || url.PathParamsQuery() != "/") {
-      QUIC_DLOG(ERROR) << "MASQUE request with bad authority \"" << authority
-                       << "\"";
-      return CreateBackendErrorResponse("400", "Bad authority");
+    // Extract target host and port from path using default template.
+    std::vector<absl::string_view> path_split = absl::StrSplit(path, '/');
+    if (path_split.size() != 4 || !path_split[0].empty() ||
+        path_split[1].empty() || path_split[2].empty() ||
+        !path_split[3].empty()) {
+      QUIC_DLOG(ERROR) << "MASQUE request with bad path \"" << path << "\"";
+      return CreateBackendErrorResponse("400", "Bad path");
+    }
+    absl::optional<std::string> host = AsciiUrlDecode(path_split[1]);
+    if (!host.has_value()) {
+      QUIC_DLOG(ERROR) << "Failed to decode host \"" << path_split[1] << "\"";
+      return CreateBackendErrorResponse("500", "Failed to decode host");
+    }
+    absl::optional<std::string> port = AsciiUrlDecode(path_split[2]);
+    if (!port.has_value()) {
+      QUIC_DLOG(ERROR) << "Failed to decode port \"" << path_split[2] << "\"";
+      return CreateBackendErrorResponse("500", "Failed to decode port");
     }
 
-    std::string port = absl::StrCat(url.port());
+    // Perform DNS resolution.
     addrinfo hint = {};
     hint.ai_protocol = IPPROTO_UDP;
 
     addrinfo* info_list = nullptr;
-    int result =
-        getaddrinfo(url.host().c_str(), port.c_str(), &hint, &info_list);
+    int result = getaddrinfo(host.value().c_str(), port.value().c_str(), &hint,
+                             &info_list);
     if (result != 0) {
       QUIC_DLOG(ERROR) << "Failed to resolve " << authority << ": "
                        << gai_strerror(result);

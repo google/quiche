@@ -5,10 +5,13 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_EPOLL_CLIENT_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_EPOLL_CLIENT_H_
 
+#include <string>
+
 #include "quic/masque/masque_client_session.h"
 #include "quic/masque/masque_utils.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/tools/quic_client.h"
+#include "quic/tools/quic_url.h"
 
 namespace quic {
 
@@ -18,9 +21,7 @@ class QUIC_NO_EXPORT MasqueEpollClient : public QuicClient,
  public:
   // Constructs a MasqueEpollClient, performs a synchronous DNS lookup.
   static std::unique_ptr<MasqueEpollClient> Create(
-      const std::string& host,
-      int port,
-      MasqueMode masque_mode,
+      const std::string& uri_template, MasqueMode masque_mode,
       QuicEpollServer* epoll_server,
       std::unique_ptr<ProofVerifier> proof_verifier);
 
@@ -46,22 +47,23 @@ class QUIC_NO_EXPORT MasqueEpollClient : public QuicClient,
  private:
   // Constructor is private, use Create() instead.
   MasqueEpollClient(QuicSocketAddress server_address,
-                    const QuicServerId& server_id,
-                    MasqueMode masque_mode,
+                    const QuicServerId& server_id, MasqueMode masque_mode,
                     QuicEpollServer* epoll_server,
                     std::unique_ptr<ProofVerifier> proof_verifier,
-                    const std::string& authority);
+                    const std::string& uri_template);
 
   // Wait synchronously until we receive the peer's settings. Returns whether
   // they were received.
   bool WaitUntilSettingsReceived();
+
+  std::string authority() const;
 
   // Disallow copy and assign.
   MasqueEpollClient(const MasqueEpollClient&) = delete;
   MasqueEpollClient& operator=(const MasqueEpollClient&) = delete;
 
   MasqueMode masque_mode_;
-  std::string authority_;
+  std::string uri_template_;
   bool settings_received_ = false;
 };
 

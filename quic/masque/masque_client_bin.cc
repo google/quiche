@@ -8,9 +8,11 @@
 // e.g.: masque_client $PROXY_HOST:$PROXY_PORT $URL1 $URL2
 
 #include <memory>
+#include <string>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "url/third_party/mozilla/url_parse.h"
 #include "quic/core/quic_server_id.h"
 #include "quic/masque/masque_client_tools.h"
 #include "quic/masque/masque_encapsulated_epoll_client.h"
@@ -21,7 +23,6 @@
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_system_event_loop.h"
 #include "quic/tools/fake_proof_verifier.h"
-#include "quic/tools/quic_url.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
                               disable_certificate_verification,
@@ -42,8 +43,11 @@ int RunMasqueClient(int argc, char* argv[]) {
   QuicSystemEventLoop event_loop("masque_client");
   const char* usage = "Usage: masque_client [options] <url>";
 
-  // The first non-flag argument is the MASQUE server. All subsequent ones are
-  // interpreted as URLs to fetch via the MASQUE server.
+  // The first non-flag argument is the URI template of the MASQUE server.
+  // All subsequent ones are interpreted as URLs to fetch via the MASQUE server.
+  // Note that the URI template expansion currently only supports string
+  // replacement of {target_host} and {target_port}, not
+  // {?target_host,target_port}.
   std::vector<std::string> urls = QuicParseCommandLineFlags(usage, argc, argv);
   if (urls.empty()) {
     QuicPrintCommandLineFlagHelp(usage);
@@ -54,20 +58,29 @@ int RunMasqueClient(int argc, char* argv[]) {
       GetQuicFlag(FLAGS_disable_certificate_verification);
   QuicEpollServer epoll_server;
 
-  QuicUrl masque_url(urls[0], "https");
-  if (masque_url.host().empty()) {
-    masque_url = QuicUrl(absl::StrCat("https://", urls[0]), "https");
+  std::string uri_template = urls[0];
+  if (!absl::StrContains(uri_template, '/')) {
+    // Allow passing in authority instead of URI template.
+    uri_template =
+        absl::StrCat("https://", uri_template, "/{target_host}/{target_port}/");
   }
-  if (masque_url.host().empty()) {
-    std::cerr << "Failed to parse MASQUE server address \"" << urls[0] << "\""
+  url::Parsed parsed_uri_template;
+  url::ParseStandardURL(uri_template.c_str(), uri_template.length(),
+                        &parsed_uri_template);
+  if (!parsed_uri_template.scheme.is_nonempty() ||
+      !parsed_uri_template.host.is_nonempty() ||
+      !parsed_uri_template.path.is_nonempty()) {
+    std::cerr << "Failed to parse MASQUE URI template \"" << urls[0] << "\""
               << std::endl;
     return 1;
   }
+  std::string host = uri_template.substr(parsed_uri_template.host.begin,
+                                         parsed_uri_template.host.len);
   std::unique_ptr<ProofVerifier> proof_verifier;
   if (disable_certificate_verification) {
     proof_verifier = std::make_unique<FakeProofVerifier>();
   } else {
-    proof_verifier = CreateDefaultProofVerifier(masque_url.host());
+    proof_verifier = CreateDefaultProofVerifier(host);
   }
   MasqueMode masque_mode = MasqueMode::kOpen;
   std::string mode_string = GetQuicFlag(FLAGS_masque_mode);
@@ -78,8 +91,7 @@ int RunMasqueClient(int argc, char* argv[]) {
     return 1;
   }
   std::unique_ptr<MasqueEpollClient> masque_client = MasqueEpollClient::Create(
-      masque_url.host(), masque_url.port(), masque_mode, &epoll_server,
-      std::move(proof_verifier));
+      uri_template, masque_mode, &epoll_server, std::move(proof_verifier));
   if (masque_client == nullptr) {
     return 1;
   }

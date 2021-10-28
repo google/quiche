@@ -5,6 +5,8 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_CLIENT_SESSION_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_CLIENT_SESSION_H_
 
+#include <string>
+
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/http/quic_spdy_client_session.h"
@@ -56,11 +58,10 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
   // |push_promise_index| or |owner|. All pointers must be non-null. Caller
   // must ensure that |push_promise_index| and |owner| stay valid for the
   // lifetime of the newly created MasqueClientSession.
-  MasqueClientSession(MasqueMode masque_mode,
+  MasqueClientSession(MasqueMode masque_mode, const std::string& uri_template,
                       const QuicConfig& config,
                       const ParsedQuicVersionVector& supported_versions,
-                      QuicConnection* connection,
-                      const QuicServerId& server_id,
+                      QuicConnection* connection, const QuicServerId& server_id,
                       QuicCryptoClientConfig* crypto_config,
                       QuicClientPushPromiseIndex* push_promise_index,
                       Owner* owner);
@@ -170,6 +171,7 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
       EncapsulatedClientSession* encapsulated_client_session);
 
   MasqueMode masque_mode_;
+  std::string uri_template_;
   std::list<ConnectUdpClientState> connect_udp_client_states_;
   absl::flat_hash_map<QuicConnectionId,
                       EncapsulatedClientSession*,

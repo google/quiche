@@ -4,23 +4,32 @@
 
 #include "quic/masque/masque_client_session.h"
 
+#include <string>
+
 #include "absl/algorithm/container.h"
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_cat.h"
+#include "url/url_canon.h"
 #include "quic/core/http/spdy_utils.h"
 #include "quic/core/quic_data_reader.h"
 #include "quic/core/quic_utils.h"
+#include "quic/platform/api/quic_socket_address.h"
+#include "quic/tools/quic_url.h"
+#include "common/platform/api/quiche_url_utils.h"
 
 namespace quic {
 
 MasqueClientSession::MasqueClientSession(
-    MasqueMode masque_mode, const QuicConfig& config,
-    const ParsedQuicVersionVector& supported_versions,
+    MasqueMode masque_mode, const std::string& uri_template,
+    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection, const QuicServerId& server_id,
     QuicCryptoClientConfig* crypto_config,
     QuicClientPushPromiseIndex* push_promise_index, Owner* owner)
     : QuicSpdyClientSession(config, supported_versions, connection, server_id,
                             crypto_config, push_promise_index),
       masque_mode_(masque_mode),
+      uri_template_(uri_template),
       owner_(owner),
       compression_engine_(this) {}
 
@@ -80,6 +89,51 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
     }
   }
   // No CONNECT-UDP request found, create a new one.
+
+  url::Parsed parsed_uri_template;
+  url::ParseStandardURL(uri_template_.c_str(), uri_template_.length(),
+                        &parsed_uri_template);
+  if (!parsed_uri_template.path.is_nonempty()) {
+    QUIC_BUG(bad URI template path)
+        << "Cannot parse path from URI template " << uri_template_;
+    return nullptr;
+  }
+  std::string path = uri_template_.substr(parsed_uri_template.path.begin,
+                                          parsed_uri_template.path.len);
+  if (parsed_uri_template.query.is_valid()) {
+    absl::StrAppend(&path, "?",
+                    uri_template_.substr(parsed_uri_template.query.begin,
+                                         parsed_uri_template.query.len));
+  }
+  absl::flat_hash_map<std::string, std::string> parameters;
+  parameters["target_host"] = target_server_address.host().ToString();
+  parameters["target_port"] = absl::StrCat(target_server_address.port());
+  std::string expanded_path;
+  absl::flat_hash_set<std::string> vars_found;
+  bool expanded =
+      quiche::ExpandURITemplate(path, parameters, &expanded_path, &vars_found);
+  if (!expanded || vars_found.find("target_host") == vars_found.end() ||
+      vars_found.find("target_port") == vars_found.end()) {
+    QUIC_DLOG(ERROR) << "Failed to expand URI template \"" << uri_template_
+                     << "\" for " << target_server_address;
+    return nullptr;
+  }
+
+  url::Component expanded_path_component(0, expanded_path.length());
+  url::RawCanonOutput<1024> canonicalized_path_output;
+  url::Component canonicalized_path_component;
+  bool canonicalized = url::CanonicalizePath(
+      expanded_path.c_str(), expanded_path_component,
+      &canonicalized_path_output, &canonicalized_path_component);
+  if (!canonicalized || !canonicalized_path_component.is_nonempty()) {
+    QUIC_DLOG(ERROR) << "Failed to canonicalize URI template \""
+                     << uri_template_ << "\" for " << target_server_address;
+    return nullptr;
+  }
+  std::string canonicalized_path(
+      canonicalized_path_output.data() + canonicalized_path_component.begin,
+      canonicalized_path_component.len);
+
   QuicSpdyClientStream* stream = CreateOutgoingBidirectionalStream();
   if (stream == nullptr) {
     // Stream flow control limits prevented us from opening a new stream.
@@ -87,15 +141,23 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
     return nullptr;
   }
 
+  QuicUrl url(uri_template_);
+  std::string scheme = url.scheme();
+  std::string authority = url.HostPort();
+
   QUIC_DLOG(INFO) << "Sending CONNECT-UDP request for " << target_server_address
-                  << " on stream " << stream->id();
+                  << " on stream " << stream->id() << " scheme=\"" << scheme
+                  << "\" authority=\"" << authority << "\" path=\""
+                  << canonicalized_path << "\"";
 
   // Send the request.
   spdy::Http2HeaderBlock headers;
-  headers[":method"] = "CONNECT-UDP";
-  headers[":scheme"] = "masque";
-  headers[":path"] = "/";
-  headers[":authority"] = target_server_address.ToString();
+  headers[":method"] = "CONNECT";
+  headers[":protocol"] = "connect-udp";
+  headers[":scheme"] = scheme;
+  headers[":authority"] = authority;
+  headers[":path"] = canonicalized_path;
+  headers["connect-udp-version"] = "6";
   if (http_datagram_support() == HttpDatagramSupport::kDraft00) {
     SpdyUtils::AddDatagramFlowIdHeader(&headers, stream->id());
   }
