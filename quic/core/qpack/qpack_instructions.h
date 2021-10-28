@@ -194,10 +194,10 @@ class QUIC_EXPORT_PRIVATE QpackInstructionWithValues {
   QpackInstructionWithValues() = default;
 
   // |*instruction| is not owned.
-  const QpackInstruction* instruction_;
-  bool s_bit_;
-  uint64_t varint_;
-  uint64_t varint2_;
+  const QpackInstruction* instruction_ = nullptr;
+  bool s_bit_ = false;
+  uint64_t varint_ = 0;
+  uint64_t varint2_ = 0;
   absl::string_view name_;
   absl::string_view value_;
 };
