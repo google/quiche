@@ -1142,6 +1142,10 @@ bool QuicConnection::HasPendingAcks() const {
   return ack_alarm_->IsSet();
 }
 
+void QuicConnection::OnUserAgentIdKnown(const std::string& /*user_agent_id*/) {
+  sent_packet_manager_.OnUserAgentIdKnown();
+}
+
 void QuicConnection::OnDecryptedPacket(size_t /*length*/,
                                        EncryptionLevel level) {
   last_decrypted_packet_level_ = level;

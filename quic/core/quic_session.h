@@ -596,9 +596,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return user_agent_id_;
   }
 
+  // TODO(wub): remove saving user-agent to QuicSession.
   void SetUserAgentId(std::string user_agent_id) {
     user_agent_id_ = std::move(user_agent_id);
-    connection()->OnUserAgentIdKnown();
+    connection()->OnUserAgentIdKnown(user_agent_id_.value());
   }
 
   void SetSourceAddressTokenToSend(absl::string_view token) {

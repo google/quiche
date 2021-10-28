@@ -63,6 +63,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_draft_29, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_t051, true)
 // If true, disable blackhole detection on server side.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_server_blackhole_detection, false)
+// If true, disable reverse path validation for Apple mobile clients.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_reverse_path_validation_for_apple_mobile, false)
 // If true, discard INITIAL packet if the key has been dropped.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, true)
 // If true, do not bundle 2nd ACK with connection close if there is an ACK queued.

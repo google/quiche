@@ -1151,7 +1151,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns true if ack_alarm_ is set.
   bool HasPendingAcks() const;
 
-  void OnUserAgentIdKnown() { sent_packet_manager_.OnUserAgentIdKnown(); }
+  virtual void OnUserAgentIdKnown(const std::string& user_agent_id);
 
   // Enables Legacy Version Encapsulation using |server_name| as SNI.
   // Can only be set if this is a client connection.
@@ -1344,6 +1344,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   void AddBytesReceivedBeforeAddressValidation(size_t length) {
     default_path_.bytes_received_before_address_validation += length;
+  }
+
+  void set_validate_client_addresses(bool value) {
+    validate_client_addresses_ = value;
   }
 
  private:
