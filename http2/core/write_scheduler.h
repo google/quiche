@@ -22,14 +22,6 @@ namespace http2 {
 //     where (writable) higher-priority streams are always given precedence
 //     over lower-priority streams.
 //
-// Http2PriorityWriteScheduler: implements SPDY priority-based stream
-//     scheduling coupled with the HTTP/2 stream dependency model. This is only
-//     intended as a transitional step towards Http2WeightedWriteScheduler.
-//
-// Http2WeightedWriteScheduler (coming soon): implements the HTTP/2 stream
-//     dependency model with weighted stream scheduling, fully conforming to
-//     RFC 7540.
-//
 // The type used to represent stream IDs (StreamIdType) is templated in order
 // to allow for use by both SPDY and QUIC codebases. It must be a POD that
 // supports comparison (i.e., a numeric type).

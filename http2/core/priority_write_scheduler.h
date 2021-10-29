@@ -18,6 +18,7 @@
 #include "absl/strings/str_cat.h"
 #include "http2/core/write_scheduler.h"
 #include "common/platform/api/quiche_bug_tracker.h"
+#include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_logging.h"
 #include "spdy/core/spdy_protocol.h"
 
@@ -37,9 +38,9 @@ class PriorityWriteSchedulerPeer;
 // that priority that are ready to write, as well as a timestamp of the last
 // I/O event that occurred for a stream of that priority.
 //
-// DO NOT USE. Deprecated.
 template <typename StreamIdType>
-class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
+class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
+    : public WriteScheduler<StreamIdType> {
  public:
   using typename WriteScheduler<StreamIdType>::StreamPrecedenceType;
 
@@ -286,7 +287,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
 
   // State kept for all registered streams. All ready streams have ready = true
   // and should be present in priority_infos_[priority].ready_list.
-  struct StreamInfo {
+  struct QUICHE_EXPORT_PRIVATE StreamInfo {
     spdy::SpdyPriority priority;
     StreamIdType stream_id;
     bool ready;
@@ -296,7 +297,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   using ReadyList = std::deque<StreamInfo*>;
 
   // State kept for each priority level.
-  struct PriorityInfo {
+  struct QUICHE_EXPORT_PRIVATE PriorityInfo {
     // IDs of streams that are ready to write.
     ReadyList ready_list;
     // Time of latest write event for stream of this priority, in microseconds.
