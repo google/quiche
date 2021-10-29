@@ -12,6 +12,8 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_flag_utils.h"
+#include "quic/platform/api/quic_flags.h"
 #include "third_party/zlib/zlib.h"
 
 namespace quic {
