@@ -425,6 +425,9 @@ const QuicTag kSRWP = TAG('S', 'R', 'W', 'P');   // Enable retransmittable on
                                                  // wire PING (ROWP) on the
                                                  // server side.
 
+// Client Hints triggers.
+const QuicTag kGWCH = TAG('G', 'W', 'C', 'H');
+
 // Rejection tags
 const QuicTag kRREJ = TAG('R', 'R', 'E', 'J');   // Reasons for server sending
 
