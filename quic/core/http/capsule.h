@@ -20,10 +20,12 @@ namespace quic {
 
 enum class CapsuleType : uint64_t {
   // Casing in this enum matches the IETF specification.
-  DATAGRAM = 0xff37a0,
+  LEGACY_DATAGRAM = 0xff37a0,  // draft-ietf-masque-h3-datagram-04
   REGISTER_DATAGRAM_CONTEXT = 0xff37a1,
   REGISTER_DATAGRAM_NO_CONTEXT = 0xff37a2,
   CLOSE_DATAGRAM_CONTEXT = 0xff37a3,
+  DATAGRAM_WITH_CONTEXT = 0xff37a4,
+  DATAGRAM_WITHOUT_CONTEXT = 0xff37a5,
   CLOSE_WEBTRANSPORT_SESSION = 0x2843,
 };
 
@@ -55,8 +57,15 @@ QUIC_EXPORT_PRIVATE std::string ContextCloseCodeToString(
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os, const ContextCloseCode& context_close_code);
 
-struct QUIC_EXPORT_PRIVATE DatagramCapsule {
+struct QUIC_EXPORT_PRIVATE LegacyDatagramCapsule {
   absl::optional<QuicDatagramContextId> context_id;
+  absl::string_view http_datagram_payload;
+};
+struct QUIC_EXPORT_PRIVATE DatagramWithContextCapsule {
+  QuicDatagramContextId context_id;
+  absl::string_view http_datagram_payload;
+};
+struct QUIC_EXPORT_PRIVATE DatagramWithoutContextCapsule {
   absl::string_view http_datagram_payload;
 };
 struct QUIC_EXPORT_PRIVATE RegisterDatagramContextCapsule {
@@ -85,8 +94,13 @@ struct QUIC_EXPORT_PRIVATE CloseWebTransportSessionCapsule {
 // or perform its own deep copy.
 class QUIC_EXPORT_PRIVATE Capsule {
  public:
-  static Capsule Datagram(
+  static Capsule LegacyDatagram(
       absl::optional<QuicDatagramContextId> context_id = absl::nullopt,
+      absl::string_view http_datagram_payload = absl::string_view());
+  static Capsule DatagramWithContext(
+      QuicDatagramContextId context_id,
+      absl::string_view http_datagram_payload = absl::string_view());
+  static Capsule DatagramWithoutContext(
       absl::string_view http_datagram_payload = absl::string_view());
   static Capsule RegisterDatagramContext(
       QuicDatagramContextId context_id, DatagramFormatType format_type,
@@ -116,13 +130,30 @@ class QUIC_EXPORT_PRIVATE Capsule {
                                                       const Capsule& capsule);
 
   CapsuleType capsule_type() const { return capsule_type_; }
-  DatagramCapsule& datagram_capsule() {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::DATAGRAM);
-    return datagram_capsule_;
+  LegacyDatagramCapsule& legacy_datagram_capsule() {
+    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::LEGACY_DATAGRAM);
+    return legacy_datagram_capsule_;
   }
-  const DatagramCapsule& datagram_capsule() const {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::DATAGRAM);
-    return datagram_capsule_;
+  const LegacyDatagramCapsule& legacy_datagram_capsule() const {
+    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::LEGACY_DATAGRAM);
+    return legacy_datagram_capsule_;
+  }
+  DatagramWithContextCapsule& datagram_with_context_capsule() {
+    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::DATAGRAM_WITH_CONTEXT);
+    return datagram_with_context_capsule_;
+  }
+  const DatagramWithContextCapsule& datagram_with_context_capsule() const {
+    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::DATAGRAM_WITH_CONTEXT);
+    return datagram_with_context_capsule_;
+  }
+  DatagramWithoutContextCapsule& datagram_without_context_capsule() {
+    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::DATAGRAM_WITHOUT_CONTEXT);
+    return datagram_without_context_capsule_;
+  }
+  const DatagramWithoutContextCapsule& datagram_without_context_capsule()
+      const {
+    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::DATAGRAM_WITHOUT_CONTEXT);
+    return datagram_without_context_capsule_;
   }
   RegisterDatagramContextCapsule& register_datagram_context_capsule() {
     QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::REGISTER_DATAGRAM_CONTEXT);
@@ -160,7 +191,9 @@ class QUIC_EXPORT_PRIVATE Capsule {
     return close_web_transport_session_capsule_;
   }
   absl::string_view& unknown_capsule_data() {
-    QUICHE_DCHECK(capsule_type_ != CapsuleType::DATAGRAM &&
+    QUICHE_DCHECK(capsule_type_ != CapsuleType::LEGACY_DATAGRAM &&
+                  capsule_type_ != CapsuleType::DATAGRAM_WITH_CONTEXT &&
+                  capsule_type_ != CapsuleType::DATAGRAM_WITHOUT_CONTEXT &&
                   capsule_type_ != CapsuleType::REGISTER_DATAGRAM_CONTEXT &&
                   capsule_type_ != CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT &&
                   capsule_type_ != CapsuleType::CLOSE_DATAGRAM_CONTEXT &&
@@ -169,7 +202,9 @@ class QUIC_EXPORT_PRIVATE Capsule {
     return unknown_capsule_data_;
   }
   const absl::string_view& unknown_capsule_data() const {
-    QUICHE_DCHECK(capsule_type_ != CapsuleType::DATAGRAM &&
+    QUICHE_DCHECK(capsule_type_ != CapsuleType::LEGACY_DATAGRAM &&
+                  capsule_type_ != CapsuleType::DATAGRAM_WITH_CONTEXT &&
+                  capsule_type_ != CapsuleType::DATAGRAM_WITHOUT_CONTEXT &&
                   capsule_type_ != CapsuleType::REGISTER_DATAGRAM_CONTEXT &&
                   capsule_type_ != CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT &&
                   capsule_type_ != CapsuleType::CLOSE_DATAGRAM_CONTEXT &&
@@ -181,7 +216,9 @@ class QUIC_EXPORT_PRIVATE Capsule {
  private:
   CapsuleType capsule_type_;
   union {
-    DatagramCapsule datagram_capsule_;
+    LegacyDatagramCapsule legacy_datagram_capsule_;
+    DatagramWithContextCapsule datagram_with_context_capsule_;
+    DatagramWithoutContextCapsule datagram_without_context_capsule_;
     RegisterDatagramContextCapsule register_datagram_context_capsule_;
     RegisterDatagramNoContextCapsule register_datagram_no_context_capsule_;
     CloseDatagramContextCapsule close_datagram_context_capsule_;

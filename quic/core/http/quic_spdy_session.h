@@ -467,6 +467,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   QuicSpdyStream* GetOrCreateSpdyDataStream(const QuicStreamId stream_id);
 
+  // Indicates whether we will try to negotiate datagram contexts on newly
+  // created WebTransport sessions over HTTP/3.
+  virtual bool ShouldNegotiateDatagramContexts();
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to

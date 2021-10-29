@@ -25,16 +25,18 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
                           const QuicServerId& server_id,
                           QuicCryptoClientConfig* crypto_config,
                           QuicClientPushPromiseIndex* push_promise_index,
-                          bool drop_response_body,
-                          bool enable_web_transport);
+                          bool drop_response_body, bool enable_web_transport,
+                          bool use_datagram_contexts);
 
   std::unique_ptr<QuicSpdyClientStream> CreateClientStream() override;
   bool ShouldNegotiateWebTransport() override;
+  bool ShouldNegotiateDatagramContexts() override;
   HttpDatagramSupport LocalHttpDatagramSupport() override;
 
  private:
   const bool drop_response_body_;
   const bool enable_web_transport_;
+  const bool use_datagram_contexts_;
 };
 
 }  // namespace quic

@@ -42,7 +42,8 @@ class QUIC_NO_EXPORT NoopWebTransportVisitor : public WebTransportVisitor {
 
 WebTransportHttp3::WebTransportHttp3(QuicSpdySession* session,
                                      QuicSpdyStream* connect_stream,
-                                     WebTransportSessionId id)
+                                     WebTransportSessionId id,
+                                     bool attempt_to_use_datagram_contexts)
     : session_(session),
       connect_stream_(connect_stream),
       id_(id),
@@ -50,10 +51,14 @@ WebTransportHttp3::WebTransportHttp3(QuicSpdySession* session,
   QUICHE_DCHECK(session_->SupportsWebTransport());
   QUICHE_DCHECK(IsValidWebTransportSessionId(id, session_->version()));
   QUICHE_DCHECK_EQ(connect_stream_->id(), id);
-  connect_stream_->RegisterHttp3DatagramRegistrationVisitor(this);
+  connect_stream_->RegisterHttp3DatagramRegistrationVisitor(
+      this, attempt_to_use_datagram_contexts);
   if (session_->perspective() == Perspective::IS_CLIENT) {
     context_is_known_ = true;
     context_currently_registered_ = true;
+    if (attempt_to_use_datagram_contexts) {
+      context_id_ = connect_stream_->GetNextDatagramContextId();
+    }
   }
 }
 

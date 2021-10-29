@@ -3208,6 +3208,10 @@ TEST_P(QuicSpdyStreamTest, HttpDatagramRegistrationWithoutContextDraft00) {
   session_->set_local_http_datagram_support(HttpDatagramSupport::kDraft00And04);
   QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
                                               HttpDatagramSupport::kDraft00);
+  headers_[":method"] = "CONNECT";
+  headers_[":protocol"] = "webtransport";
+  headers_["datagram-flow-id"] = absl::StrCat(stream_->id());
+  ProcessHeaders(false, headers_);
   session_->RegisterHttp3DatagramFlowId(stream_->id(), stream_->id());
   ::testing::NiceMock<MockHttp3DatagramRegistrationVisitor>
       h3_datagram_registration_visitor;
@@ -3259,6 +3263,9 @@ TEST_P(QuicSpdyStreamTest, H3DatagramRegistrationWithoutContextDraft04) {
   session_->set_local_http_datagram_support(HttpDatagramSupport::kDraft04);
   QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
                                               HttpDatagramSupport::kDraft04);
+  headers_[":method"] = "CONNECT";
+  headers_[":protocol"] = "webtransport";
+  ProcessHeaders(false, headers_);
   ::testing::NiceMock<MockHttp3DatagramRegistrationVisitor>
       h3_datagram_registration_visitor;
   SavingHttp3DatagramVisitor h3_datagram_visitor;
@@ -3326,7 +3333,11 @@ TEST_P(QuicSpdyStreamTest, HttpDatagramRegistrationWithContext) {
     datagram[i] = i;
   }
   stream_->RegisterHttp3DatagramRegistrationVisitor(
-      &h3_datagram_registration_visitor);
+      &h3_datagram_registration_visitor, /*use_datagram_contexts=*/true);
+  headers_[":method"] = "CONNECT";
+  headers_[":protocol"] = "webtransport";
+  headers_["sec-use-datagram-contexts"] = "?1";
+  ProcessHeaders(false, headers_);
 
   // Expect us to send a REGISTER_DATAGRAM_CONTEXT capsule.
   EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _))

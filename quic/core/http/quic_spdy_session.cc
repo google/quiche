@@ -875,6 +875,8 @@ void QuicSpdySession::OnNewEncryptionKeyAvailable(
 
 bool QuicSpdySession::ShouldNegotiateWebTransport() { return false; }
 
+bool QuicSpdySession::ShouldNegotiateDatagramContexts() { return false; }
+
 bool QuicSpdySession::WillNegotiateWebTransport() {
   return LocalHttpDatagramSupport() != HttpDatagramSupport::kNone &&
          version().UsesHttp3() && ShouldNegotiateWebTransport();

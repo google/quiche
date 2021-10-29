@@ -34,7 +34,8 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
       public QuicSpdyStream::Http3DatagramVisitor {
  public:
   WebTransportHttp3(QuicSpdySession* session, QuicSpdyStream* connect_stream,
-                    WebTransportSessionId id);
+                    WebTransportSessionId id,
+                    bool attempt_to_use_datagram_contexts);
 
   void HeadersReceived(const spdy::SpdyHeaderBlock& headers);
   void SetVisitor(std::unique_ptr<WebTransportVisitor> visitor) {
@@ -109,7 +110,7 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   bool ready_ = false;
   // Whether we know which |context_id_| to use. On the client this is always
   // true, and on the server it becomes true when we receive a context
-  // registeration capsule.
+  // registration capsule.
   bool context_is_known_ = false;
   // Whether |context_id_| is currently registered with |connect_stream_|.
   bool context_currently_registered_ = false;
