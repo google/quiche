@@ -38,12 +38,10 @@ class QUIC_NO_EXPORT MasqueDispatcher : public QuicSimpleDispatcher,
 
   // From QuicSimpleDispatcher.
   std::unique_ptr<QuicSession> CreateQuicSession(
-      QuicConnectionId connection_id,
-      const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address,
-      absl::string_view alpn,
+      QuicConnectionId connection_id, const QuicSocketAddress& self_address,
+      const QuicSocketAddress& peer_address, absl::string_view alpn,
       const ParsedQuicVersion& version,
-      absl::string_view sni) override;
+      const quic::ParsedClientHello& parsed_chlo) override;
 
   bool OnFailedToDispatchPacket(const ReceivedPacketInfo& packet_info) override;
 

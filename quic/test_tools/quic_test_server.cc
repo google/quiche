@@ -96,7 +96,8 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
   std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId id, const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address, absl::string_view /*alpn*/,
-      const ParsedQuicVersion& version, absl::string_view /*sni*/) override {
+      const ParsedQuicVersion& version,
+      const ParsedClientHello& /*parsed_chlo*/) override {
     QuicReaderMutexLock lock(&factory_lock_);
     // The QuicServerSessionBase takes ownership of |connection| below.
     QuicConnection* connection = new QuicConnection(

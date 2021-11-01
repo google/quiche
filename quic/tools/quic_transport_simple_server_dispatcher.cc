@@ -37,10 +37,9 @@ std::unique_ptr<QuicSession>
 QuicTransportSimpleServerDispatcher::CreateQuicSession(
     QuicConnectionId server_connection_id,
     const QuicSocketAddress& self_address,
-    const QuicSocketAddress& peer_address,
-    absl::string_view /*alpn*/,
+    const QuicSocketAddress& peer_address, absl::string_view /*alpn*/,
     const ParsedQuicVersion& version,
-    absl::string_view /*sni*/) {
+    const ParsedClientHello& /*parsed_chlo*/) {
   auto connection = std::make_unique<QuicConnection>(
       server_connection_id, self_address, peer_address, helper(),
       alarm_factory(), writer(),

@@ -123,12 +123,10 @@ class QuicQboneDispatcher : public QuicDispatcher {
         writer_(writer) {}
 
   std::unique_ptr<QuicSession> CreateQuicSession(
-      QuicConnectionId id,
-      const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address,
-      absl::string_view alpn,
-      const quic::ParsedQuicVersion& version,
-      absl::string_view sni) override {
+      QuicConnectionId id, const QuicSocketAddress& self_address,
+      const QuicSocketAddress& peer_address, absl::string_view alpn,
+      const ParsedQuicVersion& version,
+      const ParsedClientHello& /*parsed_chlo*/) override {
     QUICHE_CHECK_EQ(alpn, "qbone");
     QuicConnection* connection = new QuicConnection(
         id, self_address, peer_address, helper(), alarm_factory(), writer(),

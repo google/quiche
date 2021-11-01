@@ -30,10 +30,9 @@ class QuicTransportSimpleServerDispatcher : public QuicDispatcher {
   std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId server_connection_id,
       const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address,
-      absl::string_view alpn,
+      const QuicSocketAddress& peer_address, absl::string_view alpn,
       const ParsedQuicVersion& version,
-      absl::string_view sni) override;
+      const ParsedClientHello& parsed_chlo) override;
 
   std::vector<url::Origin> accepted_origins_;
 };

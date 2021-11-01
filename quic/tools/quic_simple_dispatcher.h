@@ -32,12 +32,10 @@ class QuicSimpleDispatcher : public QuicDispatcher {
 
  protected:
   std::unique_ptr<QuicSession> CreateQuicSession(
-      QuicConnectionId connection_id,
-      const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address,
-      absl::string_view alpn,
+      QuicConnectionId connection_id, const QuicSocketAddress& self_address,
+      const QuicSocketAddress& peer_address, absl::string_view alpn,
       const ParsedQuicVersion& version,
-      absl::string_view sni) override;
+      const ParsedClientHello& parsed_chlo) override;
 
   QuicSimpleServerBackend* server_backend() {
     return quic_simple_server_backend_;

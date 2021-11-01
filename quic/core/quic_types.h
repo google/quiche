@@ -848,6 +848,21 @@ struct QUIC_NO_EXPORT QuicSSLConfig {
   absl::optional<absl::InlinedVector<uint16_t, 8>> signing_algorithm_prefs;
 };
 
+// ParsedClientHello contains client hello information extracted from a fully
+// received client hello.
+struct QUIC_NO_EXPORT ParsedClientHello {
+  std::string sni;                 // QUIC crypto and TLS.
+  std::string uaid;                // QUIC crypto only.
+  std::vector<std::string> alpns;  // QUIC crypto and TLS.
+  std::string legacy_version_encapsulation_inner_packet;  // QUIC crypto only.
+};
+
+QUIC_EXPORT_PRIVATE bool operator==(const ParsedClientHello& a,
+                                    const ParsedClientHello& b);
+
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, const ParsedClientHello& parsed_chlo);
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_TYPES_H_

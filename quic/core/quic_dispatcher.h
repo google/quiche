@@ -169,22 +169,14 @@ class QUIC_NO_EXPORT QuicDispatcher
   }
 
  protected:
-  // ParsedClientHello contains client hello information extracted from a fully
-  // received client hello.
-  struct QUIC_NO_EXPORT ParsedClientHello {
-    std::string sni;                 // QUIC crypto and TLS.
-    std::string uaid;                // QUIC crypto only.
-    std::vector<std::string> alpns;  // QUIC crypto and TLS.
-    std::string legacy_version_encapsulation_inner_packet;  // QUIC crypto only.
-  };
-
+  // Creates a QUIC session based on the given information.
+  // |alpn| is the selected ALPN from |parsed_chlo.alpns|.
   virtual std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId server_connection_id,
       const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address,
-      absl::string_view alpn,
+      const QuicSocketAddress& peer_address, absl::string_view alpn,
       const ParsedQuicVersion& version,
-      absl::string_view sni) = 0;
+      const ParsedClientHello& parsed_chlo) = 0;
 
   // Tries to validate and dispatch packet based on available information.
   // Returns true if packet is dropped or successfully dispatched (e.g.,
@@ -255,7 +247,7 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Called when |packet_info| is the last received packet of the client hello.
   // |parsed_chlo| is the parsed version of the client hello. Creates a new
   // connection and delivers any buffered packets for that connection id.
-  void ProcessChlo(const ParsedClientHello& parsed_chlo,
+  void ProcessChlo(ParsedClientHello parsed_chlo,
                    ReceivedPacketInfo* packet_info);
 
   // Return true if dispatcher wants to destroy session outside of

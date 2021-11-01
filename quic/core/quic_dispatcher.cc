@@ -737,7 +737,7 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
         return;
       }
 
-      ProcessChlo(*parsed_chlo, packet_info);
+      ProcessChlo(*std::move(parsed_chlo), packet_info);
       return;
     }
   }
@@ -773,7 +773,7 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
   }
 }
 
-absl::optional<QuicDispatcher::ParsedClientHello>
+absl::optional<ParsedClientHello>
 QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
     const ReceivedPacketInfo& packet_info) {
   if (packet_info.version.UsesTls()) {
@@ -1234,14 +1234,20 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
     if (packets.empty()) {
       return;
     }
+    if (!packet_list.parsed_chlo.has_value()) {
+      QUIC_BUG(quic_dispatcher_no_parsed_chlo_in_buffered_packets)
+          << "Buffered connection has no CHLO. connection_id:"
+          << server_connection_id;
+      continue;
+    }
+    const ParsedClientHello& parsed_chlo = *packet_list.parsed_chlo;
     QuicConnectionId original_connection_id = server_connection_id;
     server_connection_id = MaybeReplaceServerConnectionId(server_connection_id,
                                                           packet_list.version);
-    std::string alpn = SelectAlpn(packet_list.alpns);
-    std::unique_ptr<QuicSession> session =
-        CreateQuicSession(server_connection_id, packets.front().self_address,
-                          packets.front().peer_address, alpn,
-                          packet_list.version, packet_list.sni);
+    std::string alpn = SelectAlpn(parsed_chlo.alpns);
+    std::unique_ptr<QuicSession> session = CreateQuicSession(
+        server_connection_id, packets.front().self_address,
+        packets.front().peer_address, alpn, packet_list.version, parsed_chlo);
     if (original_connection_id != server_connection_id) {
       session->connection()->SetOriginalDestinationConnectionId(
           original_connection_id);
@@ -1302,14 +1308,14 @@ void QuicDispatcher::BufferEarlyPacket(const ReceivedPacketInfo& packet_info) {
   EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(
       packet_info.destination_connection_id,
       packet_info.form != GOOGLE_QUIC_PACKET, packet_info.packet,
-      packet_info.self_address, packet_info.peer_address, /*is_chlo=*/false,
-      /*alpns=*/{}, /*sni=*/absl::string_view(), packet_info.version);
+      packet_info.self_address, packet_info.peer_address, packet_info.version,
+      /*parsed_chlo=*/absl::nullopt);
   if (rs != EnqueuePacketResult::SUCCESS) {
     OnBufferPacketFailure(rs, packet_info.destination_connection_id);
   }
 }
 
-void QuicDispatcher::ProcessChlo(const ParsedClientHello& parsed_chlo,
+void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
                                  ReceivedPacketInfo* packet_info) {
   if (!buffered_packets_.HasBufferedPackets(
           packet_info->destination_connection_id) &&
@@ -1325,8 +1331,7 @@ void QuicDispatcher::ProcessChlo(const ParsedClientHello& parsed_chlo,
         packet_info->destination_connection_id,
         packet_info->form != GOOGLE_QUIC_PACKET, packet_info->packet,
         packet_info->self_address, packet_info->peer_address,
-        /*is_chlo=*/true, parsed_chlo.alpns, parsed_chlo.sni,
-        packet_info->version);
+        packet_info->version, std::move(parsed_chlo));
     if (rs != EnqueuePacketResult::SUCCESS) {
       OnBufferPacketFailure(rs, packet_info->destination_connection_id);
     }
@@ -1341,7 +1346,7 @@ void QuicDispatcher::ProcessChlo(const ParsedClientHello& parsed_chlo,
   std::string alpn = SelectAlpn(parsed_chlo.alpns);
   std::unique_ptr<QuicSession> session = CreateQuicSession(
       packet_info->destination_connection_id, packet_info->self_address,
-      packet_info->peer_address, alpn, packet_info->version, parsed_chlo.sni);
+      packet_info->peer_address, alpn, packet_info->version, parsed_chlo);
   if (QUIC_PREDICT_FALSE(session == nullptr)) {
     QUIC_BUG(quic_bug_10287_8)
         << "CreateQuicSession returned nullptr for "

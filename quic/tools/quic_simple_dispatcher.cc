@@ -49,12 +49,10 @@ void QuicSimpleDispatcher::OnRstStreamReceived(
 }
 
 std::unique_ptr<QuicSession> QuicSimpleDispatcher::CreateQuicSession(
-    QuicConnectionId connection_id,
-    const QuicSocketAddress& self_address,
-    const QuicSocketAddress& peer_address,
-    absl::string_view /*alpn*/,
+    QuicConnectionId connection_id, const QuicSocketAddress& self_address,
+    const QuicSocketAddress& peer_address, absl::string_view /*alpn*/,
     const ParsedQuicVersion& version,
-    absl::string_view /*sni*/) {
+    const ParsedClientHello& /*parsed_chlo*/) {
   // The QuicServerSessionBase takes ownership of |connection| below.
   QuicConnection* connection =
       new QuicConnection(connection_id, self_address, peer_address, helper(),

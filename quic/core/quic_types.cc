@@ -8,6 +8,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "quic/core/quic_error_codes.h"
+#include "common/print_elements.h"
 
 namespace quic {
 
@@ -379,6 +380,21 @@ std::string KeyUpdateReasonString(KeyUpdateReason reason) {
 
 std::ostream& operator<<(std::ostream& os, const KeyUpdateReason reason) {
   os << KeyUpdateReasonString(reason);
+  return os;
+}
+
+bool operator==(const ParsedClientHello& a, const ParsedClientHello& b) {
+  return a.sni == b.sni && a.uaid == b.uaid && a.alpns == b.alpns &&
+         a.legacy_version_encapsulation_inner_packet ==
+             b.legacy_version_encapsulation_inner_packet;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const ParsedClientHello& parsed_chlo) {
+  os << "{ sni:" << parsed_chlo.sni << ", uaid:" << parsed_chlo.uaid
+     << ", alpns:" << quiche::PrintElements(parsed_chlo.alpns)
+     << ", len(inner_packet):"
+     << parsed_chlo.legacy_version_encapsulation_inner_packet.size() << " }";
   return os;
 }
 

@@ -83,22 +83,16 @@ QuicBufferedPacketStore::~QuicBufferedPacketStore() {
 }
 
 EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
-    QuicConnectionId connection_id,
-    bool ietf_quic,
-    const QuicReceivedPacket& packet,
-    QuicSocketAddress self_address,
-    QuicSocketAddress peer_address,
-    bool is_chlo,
-    const std::vector<std::string>& alpns,
-    const absl::string_view sni,
-    const ParsedQuicVersion& version) {
+    QuicConnectionId connection_id, bool ietf_quic,
+    const QuicReceivedPacket& packet, QuicSocketAddress self_address,
+    QuicSocketAddress peer_address, const ParsedQuicVersion& version,
+    absl::optional<ParsedClientHello> parsed_chlo) {
+  const bool is_chlo = parsed_chlo.has_value();
   QUIC_BUG_IF(quic_bug_12410_1, !GetQuicFlag(FLAGS_quic_allow_chlo_buffering))
       << "Shouldn't buffer packets if disabled via flag.";
   QUIC_BUG_IF(quic_bug_12410_2,
               is_chlo && connections_with_chlo_.contains(connection_id))
       << "Shouldn't buffer duplicated CHLO on connection " << connection_id;
-  QUIC_BUG_IF(quic_bug_12410_3, !is_chlo && !alpns.empty())
-      << "Shouldn't have an ALPN defined for a non-CHLO packet.";
   QUIC_BUG_IF(quic_bug_12410_4, is_chlo && !version.IsKnown())
       << "Should have version for CHLO packet.";
 
@@ -143,8 +137,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     // Add CHLO to the beginning of buffered packets so that it can be delivered
     // first later.
     queue.buffered_packets.push_front(std::move(new_entry));
-    queue.alpns = alpns;
-    queue.sni = std::string(sni);
+    queue.parsed_chlo = std::move(parsed_chlo);
     connections_with_chlo_[connection_id] = false;  // Dummy value.
     // Set the version of buffered packets of this connection on CHLO.
     queue.version = version;
@@ -248,8 +241,11 @@ BufferedPacketList QuicBufferedPacketStore::DeliverPacketsForNextConnection(
   connections_with_chlo_.pop_front();
 
   BufferedPacketList packets = DeliverPackets(*connection_id);
-  QUICHE_DCHECK(!packets.buffered_packets.empty())
-      << "Try to deliver connectons without CHLO";
+  QUICHE_DCHECK(!packets.buffered_packets.empty() &&
+                packets.parsed_chlo.has_value())
+      << "Try to deliver connectons without CHLO. # packets:"
+      << packets.buffered_packets.size()
+      << ", has_parsed_chlo:" << packets.parsed_chlo.has_value();
   return packets;
 }
 

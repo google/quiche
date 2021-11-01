@@ -67,9 +67,8 @@ class QUIC_NO_EXPORT QuicBufferedPacketStore {
 
     std::list<BufferedPacket> buffered_packets;
     QuicTime creation_time;
-    // The ALPNs from the CHLO, if found.
-    std::vector<std::string> alpns;
-    std::string sni;
+    // |parsed_chlo| is set iff the entire CHLO has been received.
+    absl::optional<ParsedClientHello> parsed_chlo;
     // Indicating whether this is an IETF QUIC connection.
     bool ietf_quic;
     // If buffered_packets contains the CHLO, it is the version of the CHLO.
@@ -101,18 +100,14 @@ class QUIC_NO_EXPORT QuicBufferedPacketStore {
 
   QuicBufferedPacketStore& operator=(const QuicBufferedPacketStore&) = delete;
 
-  // Adds a copy of packet into packet queue for given connection.
-  // TODO(danzh): Consider to split this method to EnqueueChlo() and
-  // EnqueueDataPacket().
-  EnqueuePacketResult EnqueuePacket(QuicConnectionId connection_id,
-                                    bool ietf_quic,
-                                    const QuicReceivedPacket& packet,
-                                    QuicSocketAddress self_address,
-                                    QuicSocketAddress peer_address,
-                                    bool is_chlo,
-                                    const std::vector<std::string>& alpns,
-                                    const absl::string_view sni,
-                                    const ParsedQuicVersion& version);
+  // Adds a copy of packet into the packet queue for given connection. If the
+  // packet is the last one of the CHLO, |parsed_chlo| will contain a parsed
+  // version of the CHLO.
+  EnqueuePacketResult EnqueuePacket(
+      QuicConnectionId connection_id, bool ietf_quic,
+      const QuicReceivedPacket& packet, QuicSocketAddress self_address,
+      QuicSocketAddress peer_address, const ParsedQuicVersion& version,
+      absl::optional<ParsedClientHello> parsed_chlo);
 
   // Returns true if there are any packets buffered for |connection_id|.
   bool HasBufferedPackets(QuicConnectionId connection_id) const;
