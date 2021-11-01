@@ -9,6 +9,8 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quiche_platform_impl/quiche_url_utils_impl.h"
 
 namespace quiche {
@@ -23,6 +25,12 @@ inline bool ExpandURITemplate(
     std::string* target,
     absl::flat_hash_set<std::string>* vars_found = nullptr) {
   return ExpandURITemplateImpl(uri_template, parameters, target, vars_found);
+}
+
+// Decodes a URL-encoded string and converts it to ASCII. If the decoded input
+// contains non-ASCII characters, decoding fails and absl::nullopt is returned.
+inline absl::optional<std::string> AsciiUrlDecode(absl::string_view input) {
+  return AsciiUrlDecodeImpl(input);
 }
 
 }  // namespace quiche

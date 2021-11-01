@@ -9,6 +9,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/types/optional.h"
 #include "common/platform/api/quiche_test.h"
 
 namespace quiche {
@@ -34,12 +35,12 @@ TEST(QuicheUrlUtilsTest, Basic) {
 
 TEST(QuicheUrlUtilsTest, ExtraParameter) {
   ValidateExpansion("/{foo}/{bar}/{baz}/", {{"foo", "123"}, {"bar", "456"}},
-                    "/123/456/{baz}/", {"foo", "bar"});
+                    "/123/456//", {"foo", "bar"});
 }
 
 TEST(QuicheUrlUtilsTest, MissingParameter) {
-  ValidateExpansion("/{foo}/{baz}/", {{"foo", "123"}, {"bar", "456"}},
-                    "/123/{baz}/", {"foo"});
+  ValidateExpansion("/{foo}/{baz}/", {{"foo", "123"}, {"bar", "456"}}, "/123//",
+                    {"foo"});
 }
 
 TEST(QuicheUrlUtilsTest, RepeatedParameter) {
@@ -50,6 +51,29 @@ TEST(QuicheUrlUtilsTest, RepeatedParameter) {
 TEST(QuicheUrlUtilsTest, URLEncoding) {
   ValidateExpansion("/{foo}/{bar}/", {{"foo", "123"}, {"bar", ":"}},
                     "/123/%3A/", {"foo", "bar"});
+}
+
+void ValidateUrlDecode(const std::string& input,
+                       const absl::optional<std::string>& expected_output) {
+  absl::optional<std::string> decode_result = AsciiUrlDecode(input);
+  if (!expected_output.has_value()) {
+    EXPECT_FALSE(decode_result.has_value());
+    return;
+  }
+  ASSERT_TRUE(decode_result.has_value());
+  EXPECT_EQ(decode_result.value(), expected_output);
+}
+
+TEST(QuicheUrlUtilsTest, DecodeNoChange) {
+  ValidateUrlDecode("foobar", "foobar");
+}
+
+TEST(QuicheUrlUtilsTest, DecodeReplace) {
+  ValidateUrlDecode("%7Bfoobar%7D", "{foobar}");
+}
+
+TEST(QuicheUrlUtilsTest, DecodeFail) {
+  ValidateUrlDecode("%FF", absl::nullopt);
 }
 
 }  // namespace

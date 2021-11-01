@@ -10,13 +10,14 @@
 #include <limits>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
-#include "url/url_util.h"
 #include "quic/core/http/spdy_utils.h"
 #include "quic/core/quic_data_reader.h"
 #include "quic/core/quic_udp_socket.h"
 #include "quic/tools/quic_url.h"
+#include "common/platform/api/quiche_url_utils.h"
 
 namespace quic {
 
@@ -70,23 +71,6 @@ std::unique_ptr<QuicBackendResponse> CreateBackendErrorResponse(
   response->set_response_type(QuicBackendResponse::REGULAR_RESPONSE);
   response->set_headers(std::move(response_headers));
   return response;
-}
-
-absl::optional<std::string> AsciiUrlDecode(absl::string_view input) {
-  std::string input_encoded = std::string(input);
-  url::RawCanonOutputW<1024> canon_output;
-  DecodeURLEscapeSequences(input_encoded.c_str(), input_encoded.length(),
-                           &canon_output);
-  std::string output;
-  output.reserve(canon_output.length());
-  for (int i = 0; i < canon_output.length(); i++) {
-    const uint16_t c = reinterpret_cast<uint16_t*>(canon_output.data())[i];
-    if (c > std::numeric_limits<signed char>::max()) {
-      return absl::nullopt;
-    }
-    output += static_cast<char>(c);
-  }
-  return output;
 }
 
 }  // namespace
@@ -251,12 +235,12 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
       QUIC_DLOG(ERROR) << "MASQUE request with bad path \"" << path << "\"";
       return CreateBackendErrorResponse("400", "Bad path");
     }
-    absl::optional<std::string> host = AsciiUrlDecode(path_split[1]);
+    absl::optional<std::string> host = quiche::AsciiUrlDecode(path_split[1]);
     if (!host.has_value()) {
       QUIC_DLOG(ERROR) << "Failed to decode host \"" << path_split[1] << "\"";
       return CreateBackendErrorResponse("500", "Failed to decode host");
     }
-    absl::optional<std::string> port = AsciiUrlDecode(path_split[2]);
+    absl::optional<std::string> port = quiche::AsciiUrlDecode(path_split[2]);
     if (!port.has_value()) {
       QUIC_DLOG(ERROR) << "Failed to decode port \"" << path_split[2] << "\"";
       return CreateBackendErrorResponse("500", "Failed to decode port");
