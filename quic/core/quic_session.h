@@ -618,11 +618,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   virtual QuicSSLConfig GetSSLConfig() const { return QuicSSLConfig(); }
 
-  // Get latched flag value.
-  bool quic_tls_disable_resumption_refactor() const {
-    return quic_tls_disable_resumption_refactor_;
-  }
-
   // Try converting all pending streams to normal streams.
   void ProcessAllPendingStreams();
 
@@ -985,9 +980,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Whether BoringSSL randomizes the order of TLS extensions.
   bool permutes_tls_extensions_ = true;
-
-  const bool quic_tls_disable_resumption_refactor_ =
-      GetQuicReloadableFlag(quic_tls_disable_resumption_refactor);
 };
 
 }  // namespace quic
