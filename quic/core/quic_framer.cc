@@ -4457,6 +4457,26 @@ bool QuicFramer::DoKeyUpdate(KeyUpdateReason reason) {
   previous_decrypter_ = std::move(decrypter_[ENCRYPTION_FORWARD_SECURE]);
   decrypter_[ENCRYPTION_FORWARD_SECURE] = std::move(next_decrypter_);
   encrypter_[ENCRYPTION_FORWARD_SECURE] = std::move(next_encrypter);
+  switch (reason) {
+    case KeyUpdateReason::kInvalid:
+      QUIC_CODE_COUNT(quic_key_update_invalid);
+      break;
+    case KeyUpdateReason::kRemote:
+      QUIC_CODE_COUNT(quic_key_update_remote);
+      break;
+    case KeyUpdateReason::kLocalForTests:
+      QUIC_CODE_COUNT(quic_key_update_local_for_tests);
+      break;
+    case KeyUpdateReason::kLocalForInteropRunner:
+      QUIC_CODE_COUNT(quic_key_update_local_for_interop_runner);
+      break;
+    case KeyUpdateReason::kLocalAeadConfidentialityLimit:
+      QUIC_CODE_COUNT(quic_key_update_local_aead_confidentiality_limit);
+      break;
+    case KeyUpdateReason::kLocalKeyUpdateLimitOverride:
+      QUIC_CODE_COUNT(quic_key_update_local_limit_override);
+      break;
+  }
   visitor_->OnKeyUpdate(reason);
   return true;
 }
