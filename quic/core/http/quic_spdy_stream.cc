@@ -288,6 +288,12 @@ size_t QuicSpdyStream::WriteHeaders(
     header_block["sec-use-datagram-contexts"] = "?1";
   }
 
+  if (web_transport_ != nullptr &&
+      spdy_session_->http_datagram_support() != HttpDatagramSupport::kDraft00 &&
+      spdy_session_->perspective() == Perspective::IS_SERVER) {
+    header_block["sec-webtransport-http3-draft"] = "draft02";
+  }
+
   size_t bytes_written =
       WriteHeadersImpl(std::move(header_block), fin, std::move(ack_listener));
   if (!VersionUsesHttp3(transport_version()) && fin) {
@@ -1233,6 +1239,7 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
   std::string method;
   std::string protocol;
   absl::optional<QuicDatagramStreamId> flow_id;
+  bool version_indicated = false;
   for (const auto& header : header_list_) {
     const std::string& header_name = header.first;
     const std::string& header_value = header.second;
@@ -1265,9 +1272,26 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
       }
       flow_id = flow_id_out;
     }
+    if (header_name == "sec-webtransport-http3-draft02") {
+      if (header_value != "1") {
+        QUIC_DLOG(ERROR) << ENDPOINT
+                         << "Rejecting WebTransport due to invalid value of "
+                            "Sec-Webtransport-Http3-Draft02 header";
+        return;
+      }
+      version_indicated = true;
+    }
   }
 
   if (method != "CONNECT" || protocol != "webtransport") {
+    return;
+  }
+
+  if (!version_indicated &&
+      spdy_session_->http_datagram_support() != HttpDatagramSupport::kDraft00) {
+    QUIC_DLOG(ERROR)
+        << ENDPOINT
+        << "WebTransport request rejected due to missing version header.";
     return;
   }
 
@@ -1318,6 +1342,8 @@ void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
 
   if (spdy_session_->http_datagram_support() == HttpDatagramSupport::kDraft00) {
     headers["datagram-flow-id"] = absl::StrCat(id());
+  } else {
+    headers["sec-webtransport-http3-draft02"] = "1";
   }
 
   web_transport_ = std::make_unique<WebTransportHttp3>(

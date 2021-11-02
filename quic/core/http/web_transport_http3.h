@@ -23,6 +23,14 @@ namespace quic {
 class QuicSpdySession;
 class QuicSpdyStream;
 
+enum class WebTransportHttp3RejectionReason {
+  kNone,
+  kNoStatusCode,
+  kWrongStatusCode,
+  kMissingDraftVersion,
+  kUnsupportedDraftVersion,
+};
+
 // A session of WebTransport over HTTP/3.  The session is owned by
 // QuicSpdyStream object for the CONNECT stream that established it.
 //
@@ -96,6 +104,9 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
                        absl::string_view close_details) override;
 
   bool close_received() const { return close_received_; }
+  WebTransportHttp3RejectionReason rejection_reason() const {
+    return rejection_reason_;
+  }
 
  private:
   // Notifies the visitor that the connection has been closed.  Ensures that the
@@ -123,6 +134,8 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   bool close_received_ = false;
   bool close_notified_ = false;
 
+  WebTransportHttp3RejectionReason rejection_reason_ =
+      WebTransportHttp3RejectionReason::kNone;
   // Those are set to default values, which are used if the session is not
   // closed cleanly using an appropriate capsule.
   WebTransportSessionError error_code_ = 0;

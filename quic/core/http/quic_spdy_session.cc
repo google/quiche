@@ -877,6 +877,8 @@ bool QuicSpdySession::ShouldNegotiateWebTransport() { return false; }
 
 bool QuicSpdySession::ShouldNegotiateDatagramContexts() { return false; }
 
+bool QuicSpdySession::ShouldValidateWebTransportVersion() const { return true; }
+
 bool QuicSpdySession::WillNegotiateWebTransport() {
   return LocalHttpDatagramSupport() != HttpDatagramSupport::kNone &&
          version().UsesHttp3() && ShouldNegotiateWebTransport();

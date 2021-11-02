@@ -583,6 +583,8 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     headers.OnHeader(":protocol", "webtransport");
     if (session_.http_datagram_support() == HttpDatagramSupport::kDraft00) {
       headers.OnHeader("datagram-flow-id", absl::StrCat(session_id));
+    } else {
+      headers.OnHeader("sec-webtransport-http3-draft02", "1");
     }
     stream->OnStreamHeaderList(/*fin=*/true, 0, headers);
     if (session_.http_datagram_support() != HttpDatagramSupport::kDraft00) {
