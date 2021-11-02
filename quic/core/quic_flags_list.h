@@ -118,7 +118,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, fa
 // If true, validate that peer owns the new address once the server detects peer migration or is probed from that address, and also apply anti-amplification limit while sending to that address.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_server_reverse_validate_new_path3, true)
 // When receiving STOP_SENDING, send a RESET_STREAM with a matching error code.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_match_ietf_reset_code, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_match_ietf_reset_code, true)
 // When the flag is true, exit STARTUP after the same number of loss events as PROBE_UP.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_startup_probe_up_loss_events, true)
 // When true, QUIC server will ignore received key_update_not_yet_supported transport parameter.
