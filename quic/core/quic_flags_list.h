@@ -126,7 +126,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_startup_probe_up_loss_events, tru
 // When true, QUIC server will ignore received key_update_not_yet_supported transport parameter.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_key_update_not_yet_supported, false)
 // When true, QUIC server will ignore received user agent transport parameter and rely on getting that information from HTTP headers.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_user_agent_transport_parameter, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_user_agent_transport_parameter, true)
 // When true, QuicDispatcher will silently drop incoming packets whose UDP source port is on the blocklist.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_blocked_ports, true)
 // When true, defaults to BBR congestion control instead of Cubic.
