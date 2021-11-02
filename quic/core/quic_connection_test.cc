@@ -2318,7 +2318,7 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   EXPECT_EQ(default_path->client_connection_id, client_cid0);
   EXPECT_EQ(default_path->server_connection_id, server_cid0);
   EXPECT_TRUE(alternative_path->server_connection_id.IsEmpty());
-  EXPECT_FALSE(alternative_path->stateless_reset_token_received);
+  EXPECT_FALSE(alternative_path->stateless_reset_token.has_value());
   auto* retire_peer_issued_cid_alarm =
       connection_.GetRetirePeerIssuedConnectionIdAlarm();
   ASSERT_TRUE(retire_peer_issued_cid_alarm->IsSet());
@@ -14232,7 +14232,7 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
   // Verify that alternative_path_ is cleared and the peer CID is retired.
   EXPECT_TRUE(alternative_path->client_connection_id.IsEmpty());
   EXPECT_TRUE(alternative_path->server_connection_id.IsEmpty());
-  EXPECT_FALSE(alternative_path->stateless_reset_token_received);
+  EXPECT_FALSE(alternative_path->stateless_reset_token.has_value());
   auto* retire_peer_issued_cid_alarm =
       connection_.GetRetirePeerIssuedConnectionIdAlarm();
   ASSERT_TRUE(retire_peer_issued_cid_alarm->IsSet());
@@ -14341,7 +14341,7 @@ TEST_P(QuicConnectionTest,
   EXPECT_EQ(packet_creator->GetSourceConnectionId(), server_cid1);
   // Verify that alternative_path_ is cleared.
   EXPECT_TRUE(alternative_path->server_connection_id.IsEmpty());
-  EXPECT_FALSE(alternative_path->stateless_reset_token_received);
+  EXPECT_FALSE(alternative_path->stateless_reset_token.has_value());
 
   // Switch to use the mock send algorithm.
   send_algorithm_ = new StrictMock<MockSendAlgorithm>();
@@ -14511,12 +14511,11 @@ TEST_P(QuicConnectionTest,
   EXPECT_EQ(default_path->client_connection_id, client_cid1);
   EXPECT_EQ(default_path->server_connection_id, server_cid1);
   EXPECT_EQ(default_path->stateless_reset_token, frame1.stateless_reset_token);
-  EXPECT_TRUE(default_path->stateless_reset_token_received);
   const auto* alternative_path =
       QuicConnectionPeer::GetAlternativePath(&connection_);
   EXPECT_TRUE(alternative_path->client_connection_id.IsEmpty());
   EXPECT_TRUE(alternative_path->server_connection_id.IsEmpty());
-  EXPECT_FALSE(alternative_path->stateless_reset_token_received);
+  EXPECT_FALSE(alternative_path->stateless_reset_token.has_value());
   ASSERT_EQ(packet_creator->GetDestinationConnectionId(), server_cid1);
 
   // Client will retire server connection ID on old default_path.
@@ -14587,7 +14586,7 @@ TEST_P(QuicConnectionTest, ServerConnectionIdRetiredUponPathValidationFailure) {
       QuicConnectionPeer::GetAlternativePath(&connection_);
   EXPECT_TRUE(alternative_path->client_connection_id.IsEmpty());
   EXPECT_TRUE(alternative_path->server_connection_id.IsEmpty());
-  EXPECT_FALSE(alternative_path->stateless_reset_token_received);
+  EXPECT_FALSE(alternative_path->stateless_reset_token.has_value());
 
   // Client will retire server connection ID on alternative_path.
   auto* retire_peer_issued_cid_alarm =
@@ -14664,7 +14663,6 @@ TEST_P(QuicConnectionTest,
   EXPECT_EQ(default_path->client_connection_id, new_client_connection_id);
   EXPECT_EQ(default_path->server_connection_id, frame1.connection_id);
   EXPECT_EQ(default_path->stateless_reset_token, frame1.stateless_reset_token);
-  EXPECT_TRUE(default_path->stateless_reset_token_received);
 
   // Client will retire server connection ID on old default_path.
   auto* retire_peer_issued_cid_alarm =
@@ -15060,7 +15058,7 @@ TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoAlternativePath) {
   alternative_path->peer_address = QuicSocketAddress(new_host, 12345);
   alternative_path->server_connection_id = TestConnectionId(3);
   ASSERT_TRUE(alternative_path->client_connection_id.IsEmpty());
-  ASSERT_FALSE(alternative_path->stateless_reset_token_received);
+  ASSERT_FALSE(alternative_path->stateless_reset_token.has_value());
 
   QuicNewConnectionIdFrame frame;
   frame.sequence_number = 1u;
@@ -15075,7 +15073,6 @@ TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoAlternativePath) {
   ASSERT_EQ(alternative_path->client_connection_id, frame.connection_id);
   ASSERT_EQ(alternative_path->stateless_reset_token,
             frame.stateless_reset_token);
-  ASSERT_TRUE(alternative_path->stateless_reset_token_received);
 }
 
 TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoDefaultPath) {
@@ -15103,7 +15100,7 @@ TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoDefaultPath) {
 
   ASSERT_FALSE(default_path->validated);
   ASSERT_TRUE(default_path->client_connection_id.IsEmpty());
-  ASSERT_FALSE(default_path->stateless_reset_token_received);
+  ASSERT_FALSE(default_path->stateless_reset_token.has_value());
 
   QuicNewConnectionIdFrame frame;
   frame.sequence_number = 1u;
@@ -15117,7 +15114,6 @@ TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoDefaultPath) {
 
   ASSERT_EQ(default_path->client_connection_id, frame.connection_id);
   ASSERT_EQ(default_path->stateless_reset_token, frame.stateless_reset_token);
-  ASSERT_TRUE(default_path->stateless_reset_token_received);
   ASSERT_EQ(packet_creator->GetDestinationConnectionId(), frame.connection_id);
 }
 

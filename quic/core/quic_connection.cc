@@ -242,8 +242,7 @@ QuicConnection::QuicConnection(
       default_path_(initial_self_address, QuicSocketAddress(),
                     /*client_connection_id=*/EmptyQuicConnectionId(),
                     server_connection_id,
-                    /*stateless_reset_token_received=*/false,
-                    /*stateless_reset_token=*/{}),
+                    /*stateless_reset_token=*/absl::nullopt),
       active_effective_peer_migration_type_(NO_CHANGE),
       support_key_update_for_connection_(false),
       last_packet_decrypted_(false),
@@ -615,7 +614,6 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     no_stop_waiting_frames_ = true;
   }
   if (config.HasReceivedStatelessResetToken()) {
-    default_path_.stateless_reset_token_received = true;
     default_path_.stateless_reset_token = config.ReceivedStatelessResetToken();
   }
   if (config.HasReceivedAckDelayExponent()) {
@@ -1942,7 +1940,6 @@ void QuicConnection::OnClientConnectionIdAvailable() {
     QUIC_DVLOG(1) << ENDPOINT << "Patch connection ID "
                   << unused_cid_data->connection_id << " to default path";
     default_path_.client_connection_id = unused_cid_data->connection_id;
-    default_path_.stateless_reset_token_received = true;
     default_path_.stateless_reset_token =
         unused_cid_data->stateless_reset_token;
     QUICHE_DCHECK(!packet_creator_.HasPendingFrames());
@@ -1960,7 +1957,6 @@ void QuicConnection::OnClientConnectionIdAvailable() {
     QUIC_DVLOG(1) << ENDPOINT << "Patch connection ID "
                   << unused_cid_data->connection_id << " to alternative path";
     alternative_path_.client_connection_id = unused_cid_data->connection_id;
-    alternative_path_.stateless_reset_token_received = true;
     alternative_path_.stateless_reset_token =
         unused_cid_data->stateless_reset_token;
   }
@@ -2297,9 +2293,9 @@ void QuicConnection::MaybeRespondToConnectivityProbingOrMigration() {
 bool QuicConnection::IsValidStatelessResetToken(
     const StatelessResetToken& token) const {
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
-    return default_path_.stateless_reset_token_received &&
-           QuicUtils::AreStatelessResetTokensEqual(
-               token, default_path_.stateless_reset_token);
+  return default_path_.stateless_reset_token.has_value() &&
+         QuicUtils::AreStatelessResetTokensEqual(
+             token, *default_path_.stateless_reset_token);
 }
 
 void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
@@ -2968,25 +2964,19 @@ void QuicConnection::ReplaceInitialServerConnectionId(
 }
 
 void QuicConnection::FindMatchingOrNewClientConnectionIdOrToken(
-    const PathState& default_path,
-    const PathState& alternative_path,
+    const PathState& default_path, const PathState& alternative_path,
     const QuicConnectionId& server_connection_id,
     QuicConnectionId* client_connection_id,
-    bool* stateless_reset_token_received,
-    StatelessResetToken* stateless_reset_token) {
+    absl::optional<StatelessResetToken>* stateless_reset_token) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_SERVER);
   if (peer_issued_cid_manager_ == nullptr ||
       server_connection_id == default_path.server_connection_id) {
     *client_connection_id = default_path.client_connection_id;
-    *stateless_reset_token_received =
-        default_path.stateless_reset_token_received;
     *stateless_reset_token = default_path.stateless_reset_token;
     return;
   }
   if (server_connection_id == alternative_path_.server_connection_id) {
     *client_connection_id = alternative_path.client_connection_id;
-    *stateless_reset_token_received =
-        alternative_path.stateless_reset_token_received;
     *stateless_reset_token = alternative_path.stateless_reset_token;
     return;
   }
@@ -3001,7 +2991,6 @@ void QuicConnection::FindMatchingOrNewClientConnectionIdOrToken(
   }
   *client_connection_id = connection_id_data->connection_id;
   *stateless_reset_token = connection_id_data->stateless_reset_token;
-  *stateless_reset_token_received = true;
 }
 
 bool QuicConnection::FindOnPathConnectionIds(
@@ -5359,17 +5348,15 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
     SetDefaultPathState(std::move(alternative_path_));
   } else {
     QuicConnectionId client_connection_id;
-    bool stateless_reset_token_received = false;
-    StatelessResetToken stateless_reset_token;
+    absl::optional<StatelessResetToken> stateless_reset_token;
     FindMatchingOrNewClientConnectionIdOrToken(
         previous_default_path, alternative_path_,
         last_packet_destination_connection_id_, &client_connection_id,
-        &stateless_reset_token_received, &stateless_reset_token);
-    SetDefaultPathState(
-        PathState(last_received_packet_info_.destination_address,
-                  current_effective_peer_address, client_connection_id,
-                  last_packet_destination_connection_id_,
-                  stateless_reset_token_received, stateless_reset_token));
+        &stateless_reset_token);
+    SetDefaultPathState(PathState(
+        last_received_packet_info_.destination_address,
+        current_effective_peer_address, client_connection_id,
+        last_packet_destination_connection_id_, stateless_reset_token));
     // The path is considered validated if its peer IP address matches any
     // validated path's peer IP address.
     default_path_.validated =
@@ -5577,17 +5564,15 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
           << last_received_packet_info_.destination_address;
       if (!validate_client_addresses_) {
         QuicConnectionId client_cid;
-        bool stateless_reset_token_received = false;
-        StatelessResetToken stateless_reset_token;
+        absl::optional<StatelessResetToken> stateless_reset_token;
         FindMatchingOrNewClientConnectionIdOrToken(
             default_path_, alternative_path_,
             last_packet_destination_connection_id_, &client_cid,
-            &stateless_reset_token_received, &stateless_reset_token);
-        alternative_path_ =
-            PathState(last_received_packet_info_.destination_address,
-                      current_effective_peer_address, client_cid,
-                      last_packet_destination_connection_id_,
-                      stateless_reset_token_received, stateless_reset_token);
+            &stateless_reset_token);
+        alternative_path_ = PathState(
+            last_received_packet_info_.destination_address,
+            current_effective_peer_address, client_cid,
+            last_packet_destination_connection_id_, stateless_reset_token);
       } else if (!default_path_.validated) {
         QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 4, 6);
         // Skip reverse path validation because either handshake hasn't
@@ -5605,20 +5590,18 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
       } else if (!IsReceivedPeerAddressValidated()) {
         QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 5, 6);
         QuicConnectionId client_connection_id;
-        bool stateless_reset_token_received;
-        StatelessResetToken stateless_reset_token;
+        absl::optional<StatelessResetToken> stateless_reset_token;
         FindMatchingOrNewClientConnectionIdOrToken(
             default_path_, alternative_path_,
             last_packet_destination_connection_id_, &client_connection_id,
-            &stateless_reset_token_received, &stateless_reset_token);
+            &stateless_reset_token);
         // Only override alternative path state upon receiving a PATH_CHALLENGE
         // from an unvalidated peer address, and the connection isn't validating
         // a recent peer migration.
-        alternative_path_ =
-            PathState(last_received_packet_info_.destination_address,
-                      current_effective_peer_address, client_connection_id,
-                      last_packet_destination_connection_id_,
-                      stateless_reset_token_received, stateless_reset_token);
+        alternative_path_ = PathState(
+            last_received_packet_info_.destination_address,
+            current_effective_peer_address, client_connection_id,
+            last_packet_destination_connection_id_, stateless_reset_token);
         should_proactively_validate_peer_address_on_path_challenge_ = true;
       }
     }
@@ -6376,7 +6359,6 @@ void QuicConnection::OnPeerIssuedConnectionIdRetired() {
       *default_path_cid = unused_connection_id_data->connection_id;
       default_path_.stateless_reset_token =
           unused_connection_id_data->stateless_reset_token;
-      default_path_.stateless_reset_token_received = true;
       if (perspective_ == Perspective::IS_CLIENT) {
         packet_creator_.SetServerConnectionId(
             unused_connection_id_data->connection_id);
@@ -6388,8 +6370,6 @@ void QuicConnection::OnPeerIssuedConnectionIdRetired() {
   }
   if (default_path_and_alternative_path_use_the_same_peer_connection_id) {
     *alternative_path_cid = *default_path_cid;
-    alternative_path_.stateless_reset_token_received =
-        default_path_.stateless_reset_token_received;
     alternative_path_.stateless_reset_token =
         default_path_.stateless_reset_token;
   } else if (!alternative_path_cid->IsEmpty() &&
@@ -6402,7 +6382,6 @@ void QuicConnection::OnPeerIssuedConnectionIdRetired() {
       *alternative_path_cid = unused_connection_id_data->connection_id;
       alternative_path_.stateless_reset_token =
           unused_connection_id_data->stateless_reset_token;
-      alternative_path_.stateless_reset_token_received = true;
     }
   }
 
@@ -6585,7 +6564,6 @@ void QuicConnection::ValidatePath(
     alternative_path_ = PathState(
         context->self_address(), context->peer_address(),
         default_path_.client_connection_id, default_path_.server_connection_id,
-        default_path_.stateless_reset_token_received,
         default_path_.stateless_reset_token);
   }
   if (path_validator_.HasPendingPathValidation()) {
@@ -6611,8 +6589,7 @@ void QuicConnection::ValidatePath(
       return;
     }
     QuicConnectionId client_connection_id, server_connection_id;
-    StatelessResetToken stateless_reset_token;
-    bool stateless_reset_token_received = false;
+    absl::optional<StatelessResetToken> stateless_reset_token;
     if (self_issued_cid_manager_ != nullptr) {
       client_connection_id =
           *self_issued_cid_manager_->ConsumeOneConnectionId();
@@ -6621,13 +6598,11 @@ void QuicConnection::ValidatePath(
       const auto* connection_id_data =
           peer_issued_cid_manager_->ConsumeOneUnusedConnectionId();
       server_connection_id = connection_id_data->connection_id;
-      stateless_reset_token_received = true;
       stateless_reset_token = connection_id_data->stateless_reset_token;
     }
-    alternative_path_ =
-        PathState(context->self_address(), context->peer_address(),
-                  client_connection_id, server_connection_id,
-                  stateless_reset_token_received, stateless_reset_token);
+    alternative_path_ = PathState(context->self_address(),
+                                  context->peer_address(), client_connection_id,
+                                  server_connection_id, stateless_reset_token);
   }
   path_validator_.StartPathValidation(std::move(context),
                                       std::move(result_delegate));
@@ -6723,8 +6698,6 @@ bool QuicConnection::UpdateConnectionIdsOnClientMigration(
     default_path_.server_connection_id = alternative_path_.server_connection_id;
     default_path_.stateless_reset_token =
         alternative_path_.stateless_reset_token;
-    default_path_.stateless_reset_token_received =
-        alternative_path_.stateless_reset_token_received;
     return true;
   }
   // Client migration is without path validation.
@@ -6748,7 +6721,6 @@ bool QuicConnection::UpdateConnectionIdsOnClientMigration(
     const auto* connection_id_data =
         peer_issued_cid_manager_->ConsumeOneUnusedConnectionId();
     default_path_.server_connection_id = connection_id_data->connection_id;
-    default_path_.stateless_reset_token_received = true;
     default_path_.stateless_reset_token =
         connection_id_data->stateless_reset_token;
   }
@@ -6961,12 +6933,12 @@ void QuicConnection::PathState::Clear() {
   peer_address = QuicSocketAddress();
   client_connection_id = {};
   server_connection_id = {};
-  stateless_reset_token_received = false;
   validated = false;
   bytes_received_before_address_validation = 0;
   bytes_sent_before_address_validation = 0;
   send_algorithm = nullptr;
   rtt_stats = absl::nullopt;
+  stateless_reset_token.reset();
 }
 
 QuicConnection::PathState::PathState(PathState&& other) {
@@ -6980,7 +6952,6 @@ QuicConnection::PathState& QuicConnection::PathState::operator=(
     peer_address = other.peer_address;
     client_connection_id = other.client_connection_id;
     server_connection_id = other.server_connection_id;
-    stateless_reset_token_received = other.stateless_reset_token_received;
     stateless_reset_token = other.stateless_reset_token;
     validated = other.validated;
     bytes_received_before_address_validation =
