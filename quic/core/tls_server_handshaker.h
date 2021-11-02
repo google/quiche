@@ -92,6 +92,11 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   virtual std::string GetAcceptChValueForHostname(
       const std::string& hostname) const;
 
+  // Get the ClientCertMode that is currently in effect on this handshaker.
+  ClientCertMode client_cert_mode() const {
+    return tls_connection_.ssl_config().client_cert_mode;
+  }
+
  protected:
   // Override for tracing.
   void InfoCallback(int type, int value) override;
@@ -173,11 +178,11 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   bool HasValidSignature(size_t max_signature_size) const;
 
   // ProofSourceHandleCallback implementation:
-  void OnSelectCertificateDone(bool ok, bool is_sync,
-                               const ProofSource::Chain* chain,
-                               absl::string_view handshake_hints,
-                               absl::string_view ticket_encryption_key,
-                               bool cert_matched_sni) override;
+  void OnSelectCertificateDone(
+      bool ok, bool is_sync, const ProofSource::Chain* chain,
+      absl::string_view handshake_hints,
+      absl::string_view ticket_encryption_key, bool cert_matched_sni,
+      QuicDelayedSSLConfig delayed_ssl_config) override;
 
   void OnComputeSignatureDone(
       bool ok,

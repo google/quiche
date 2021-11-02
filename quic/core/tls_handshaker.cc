@@ -207,6 +207,7 @@ enum ssl_verify_result_t TlsHandshaker::VerifyCert(uint8_t* out_alert) {
         std::string(reinterpret_cast<const char*>(CRYPTO_BUFFER_data(cert)),
                     CRYPTO_BUFFER_len(cert)));
   }
+  QUIC_DVLOG(1) << "VerifyCert: peer cert_chain length: " << certs.size();
 
   ProofVerifierCallbackImpl* proof_verify_callback =
       new ProofVerifierCallbackImpl(this);

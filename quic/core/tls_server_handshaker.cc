@@ -85,7 +85,8 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
   handshaker_->OnSelectCertificateDone(
       /*ok=*/true, /*is_sync=*/true, chain.get(),
       /*handshake_hints=*/absl::string_view(),
-      /*ticket_encryption_key=*/absl::string_view(), cert_matched_sni);
+      /*ticket_encryption_key=*/absl::string_view(), cert_matched_sni,
+      QuicDelayedSSLConfig());
   if (!handshaker_->select_cert_status().has_value()) {
     QUIC_BUG(quic_bug_12423_1)
         << "select_cert_status() has no value after a synchronous select cert";
@@ -184,8 +185,7 @@ void TlsServerHandshaker::DecryptCallback::Cancel() {
 }
 
 TlsServerHandshaker::TlsServerHandshaker(
-    QuicSession* session,
-    const QuicCryptoServerConfig* crypto_config)
+    QuicSession* session, const QuicCryptoServerConfig* crypto_config)
     : TlsHandshaker(this, session),
       QuicCryptoServerStreamBase(session),
       proof_source_(crypto_config->proof_source()),
@@ -193,6 +193,10 @@ TlsServerHandshaker::TlsServerHandshaker(
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
       tls_connection_(crypto_config->ssl_ctx(), this, session->GetSSLConfig()),
       crypto_config_(crypto_config) {
+  QUIC_DVLOG(1) << "TlsServerHandshaker: support_client_cert:"
+                << session->support_client_cert()
+                << ", client_cert_mode initial value: " << client_cert_mode();
+
   QUICHE_DCHECK_EQ(PROTOCOL_TLS1_3,
                    session->connection()->version().handshake_protocol);
 
@@ -616,9 +620,18 @@ QuicAsyncStatus TlsServerHandshaker::VerifyCertChain(
     std::unique_ptr<ProofVerifyDetails>* /*details*/,
     uint8_t* /*out_alert*/,
     std::unique_ptr<ProofVerifierCallback> /*callback*/) {
-  QUIC_BUG(quic_bug_10341_5)
-      << "Client certificates are not yet supported on the server";
-  return QUIC_FAILURE;
+  if (!session()->support_client_cert()) {
+    QUIC_BUG(quic_bug_10341_5)
+        << "Client certificates are not yet supported on the server";
+    return QUIC_FAILURE;
+  }
+
+  QUIC_RESTART_FLAG_COUNT_N(quic_tls_server_support_client_cert, 2, 2);
+  QUIC_DVLOG(1) << "VerifyCertChain returning success";
+
+  // No real verification here. A subclass can override this function to verify
+  // the client cert if needed.
+  return QUIC_SUCCESS;
 }
 
 void TlsServerHandshaker::OnProofVerifyDetailsAvailable(
@@ -963,7 +976,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
 void TlsServerHandshaker::OnSelectCertificateDone(
     bool ok, bool is_sync, const ProofSource::Chain* chain,
     absl::string_view handshake_hints, absl::string_view ticket_encryption_key,
-    bool cert_matched_sni) {
+    bool cert_matched_sni, QuicDelayedSSLConfig delayed_ssl_config) {
   QUIC_DVLOG(1) << "OnSelectCertificateDone. ok:" << ok
                 << ", is_sync:" << is_sync
                 << ", len(handshake_hints):" << handshake_hints.size()
@@ -986,6 +999,13 @@ void TlsServerHandshaker::OnSelectCertificateDone(
   ticket_encryption_key_ = std::string(ticket_encryption_key);
   select_cert_status_ = QUIC_FAILURE;
   cert_matched_sni_ = cert_matched_sni;
+  if (session()->support_client_cert()) {
+    if (delayed_ssl_config.client_cert_mode.has_value()) {
+      tls_connection_.SetClientCertMode(*delayed_ssl_config.client_cert_mode);
+      QUIC_DVLOG(1) << "client_cert_mode after cert selection: "
+                    << client_cert_mode();
+    }
+  }
   if (ok) {
     if (chain && !chain->certs.empty()) {
       tls_connection_.SetCertChain(chain->ToCryptoBuffers().value);

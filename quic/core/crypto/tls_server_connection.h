@@ -129,6 +129,11 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
 
   void SetCertChain(const std::vector<CRYPTO_BUFFER*>& cert_chain);
 
+  // Set the client cert mode to be used on this connection. This should be
+  // called right after cert selection at the latest, otherwise it is too late
+  // to has an effect.
+  void SetClientCertMode(ClientCertMode client_cert_mode);
+
  private:
   // Specialization of TlsConnection::ConnectionFromSsl.
   static TlsServerConnection* ConnectionFromSsl(SSL* ssl);
@@ -182,6 +187,10 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
                                                          size_t max_out_len,
                                                          const uint8_t* in,
                                                          size_t in_len);
+
+  // Install custom verify callback on ssl() if |ssl_config().client_cert_mode|
+  // is not ClientCertMode::kNone. Uninstall otherwise.
+  void UpdateCertVerifyCallback();
 
   Delegate* delegate_;
 };

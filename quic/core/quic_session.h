@@ -618,6 +618,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   virtual QuicSSLConfig GetSSLConfig() const { return QuicSSLConfig(); }
 
+  // Latched value of flag --quic_tls_server_support_client_cert.
+  bool support_client_cert() const { return support_client_cert_; }
+
   // Try converting all pending streams to normal streams.
   void ProcessAllPendingStreams();
 
@@ -980,6 +983,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Whether BoringSSL randomizes the order of TLS extensions.
   bool permutes_tls_extensions_ = true;
+
+  const bool support_client_cert_ =
+      GetQuicRestartFlag(quic_tls_server_support_client_cert);
 };
 
 }  // namespace quic

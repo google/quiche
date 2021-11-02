@@ -253,14 +253,15 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandleCallback {
   //      TLS resumption tickets.
   // |cert_matched_sni| is true if the certificate matched the SNI hostname,
   //      false if a non-matching default cert was used.
+  // |delayed_ssl_config| contains SSL configs to be applied on the SSL object.
   //
   // When called asynchronously(is_sync=false), this method will be responsible
   // to continue the handshake from where it left off.
-  virtual void OnSelectCertificateDone(bool ok, bool is_sync,
-                                       const ProofSource::Chain* chain,
-                                       absl::string_view handshake_hints,
-                                       absl::string_view ticket_encryption_key,
-                                       bool cert_matched_sni) = 0;
+  virtual void OnSelectCertificateDone(
+      bool ok, bool is_sync, const ProofSource::Chain* chain,
+      absl::string_view handshake_hints,
+      absl::string_view ticket_encryption_key, bool cert_matched_sni,
+      QuicDelayedSSLConfig delayed_ssl_config) = 0;
 
   // Called when a ProofSourceHandle::ComputeSignature operation completes.
   virtual void OnComputeSignatureDone(

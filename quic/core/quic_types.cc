@@ -326,6 +326,25 @@ std::ostream& operator<<(std::ostream& os, EncryptionLevel level) {
   return os;
 }
 
+absl::string_view ClientCertModeToString(ClientCertMode mode) {
+#define RETURN_REASON_LITERAL(x) \
+  case ClientCertMode::x:        \
+    return #x
+  switch (mode) {
+    RETURN_REASON_LITERAL(kNone);
+    RETURN_REASON_LITERAL(kRequest);
+    RETURN_REASON_LITERAL(kRequire);
+    default:
+      return "<invalid>";
+  }
+#undef RETURN_REASON_LITERAL
+}
+
+std::ostream& operator<<(std::ostream& os, ClientCertMode mode) {
+  os << ClientCertModeToString(mode);
+  return os;
+}
+
 std::string QuicConnectionCloseTypeString(QuicConnectionCloseType type) {
   switch (type) {
     RETURN_STRING_LITERAL(GOOGLE_QUIC_CONNECTION_CLOSE);

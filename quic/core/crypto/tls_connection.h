@@ -120,6 +120,8 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
   // implementation is delegated to Delegate::VerifyCert.
   static enum ssl_verify_result_t VerifyCallback(SSL* ssl, uint8_t* out_alert);
 
+  QuicSSLConfig& mutable_ssl_config() { return ssl_config_; }
+
  private:
   // TlsConnection implements SSL_QUIC_METHOD, which provides the interface
   // between BoringSSL's TLS stack and a QUIC implementation.
@@ -147,7 +149,7 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
 
   Delegate* delegate_;
   bssl::UniquePtr<SSL> ssl_;
-  const QuicSSLConfig ssl_config_;
+  QuicSSLConfig ssl_config_;
 };
 
 }  // namespace quic

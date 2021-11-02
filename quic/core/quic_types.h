@@ -486,11 +486,17 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 // Enumeration of whether a server endpoint will request a client certificate,
 // and whether that endpoint requires a valid client certificate to establish a
 // connection.
-enum class ClientCertMode {
+enum class ClientCertMode : uint8_t {
   kNone,     // Do not request a client certificate.  Default server behavior.
   kRequest,  // Request a certificate, but allow unauthenticated connections.
   kRequire,  // Require clients to provide a valid certificate.
 };
+
+QUIC_EXPORT_PRIVATE absl::string_view ClientCertModeToString(
+    ClientCertMode mode);
+
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                             ClientCertMode mode);
 
 enum AddressChangeType : uint8_t {
   // IP address and port remain unchanged.
@@ -846,6 +852,17 @@ struct QUIC_NO_EXPORT QuicSSLConfig {
   // If set, used to configure the SSL object with
   // SSL_set_signing_algorithm_prefs.
   absl::optional<absl::InlinedVector<uint16_t, 8>> signing_algorithm_prefs;
+  // Client certificate mode for mTLS support. Only used at server side.
+  ClientCertMode client_cert_mode = ClientCertMode::kNone;
+};
+
+// QuicDelayedSSLConfig contains a subset of SSL config that can be applied
+// after BoringSSL's early select certificate callback. This overwrites all SSL
+// configs applied before cert selection.
+struct QUIC_NO_EXPORT QuicDelayedSSLConfig {
+  // Client certificate mode for mTLS support. Only used at server side.
+  // absl::nullopt means do not change client certificate mode.
+  absl::optional<ClientCertMode> client_cert_mode;
 };
 
 // ParsedClientHello contains client hello information extracted from a fully

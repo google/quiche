@@ -7,18 +7,23 @@
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "quic/core/crypto/proof_source.h"
+#include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 
 namespace quic {
 
-TlsServerConnection::TlsServerConnection(SSL_CTX* ssl_ctx,
-                                         Delegate* delegate,
+TlsServerConnection::TlsServerConnection(SSL_CTX* ssl_ctx, Delegate* delegate,
                                          QuicSSLConfig ssl_config)
-    : TlsConnection(ssl_ctx,
-                    delegate->ConnectionDelegate(),
+    : TlsConnection(ssl_ctx, delegate->ConnectionDelegate(),
                     std::move(ssl_config)),
-      delegate_(delegate) {}
+      delegate_(delegate) {
+  // By default, cert verify callback is not installed on ssl(), so only need to
+  // UpdateCertVerifyCallback() if client_cert_mode is not kNone.
+  if (TlsConnection::ssl_config().client_cert_mode != ClientCertMode::kNone) {
+    UpdateCertVerifyCallback();
+  }
+}
 
 // static
 bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
@@ -54,6 +59,31 @@ void TlsServerConnection::SetCertChain(
     const std::vector<CRYPTO_BUFFER*>& cert_chain) {
   SSL_set_chain_and_key(ssl(), cert_chain.data(), cert_chain.size(), nullptr,
                         &TlsServerConnection::kPrivateKeyMethod);
+}
+
+void TlsServerConnection::SetClientCertMode(ClientCertMode client_cert_mode) {
+  if (ssl_config().client_cert_mode == client_cert_mode) {
+    return;
+  }
+
+  mutable_ssl_config().client_cert_mode = client_cert_mode;
+  UpdateCertVerifyCallback();
+}
+
+void TlsServerConnection::UpdateCertVerifyCallback() {
+  const ClientCertMode client_cert_mode = ssl_config().client_cert_mode;
+  if (client_cert_mode == ClientCertMode::kNone) {
+    SSL_set_custom_verify(ssl(), SSL_VERIFY_NONE, nullptr);
+    return;
+  }
+
+  int mode = SSL_VERIFY_PEER;
+  if (client_cert_mode == ClientCertMode::kRequire) {
+    mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+  } else {
+    QUICHE_DCHECK_EQ(client_cert_mode, ClientCertMode::kRequest);
+  }
+  SSL_set_custom_verify(ssl(), mode, &VerifyCallback);
 }
 
 const SSL_PRIVATE_KEY_METHOD TlsServerConnection::kPrivateKeyMethod{
