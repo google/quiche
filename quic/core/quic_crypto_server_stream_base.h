@@ -73,11 +73,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
   // the resumption actually occurred.
   virtual bool ResumptionAttempted() const = 0;
 
-  virtual const CachedNetworkParameters* PreviousCachedNetworkParams()
-      const = 0;
-  virtual void SetPreviousCachedNetworkParams(
-      CachedNetworkParameters cached_network_params) = 0;
-
   // NOTE: Indicating that the Expect-CT header should be sent here presents
   // a layering violation to some extent. The Expect-CT header only applies to
   // HTTP connections, while this class can be used for non-HTTP applications.

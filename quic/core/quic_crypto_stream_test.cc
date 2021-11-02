@@ -68,6 +68,11 @@ class MockQuicCryptoStream : public QuicCryptoStream,
   bool ValidateAddressToken(absl::string_view /*token*/) const override {
     return true;
   }
+  const CachedNetworkParameters* PreviousCachedNetworkParams() const override {
+    return nullptr;
+  }
+  void SetPreviousCachedNetworkParams(
+      CachedNetworkParameters /*cached_network_params*/) override {}
   HandshakeState GetHandshakeState() const override { return HANDSHAKE_START; }
   void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> /*application_state*/) override {}

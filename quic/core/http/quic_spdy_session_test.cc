@@ -177,6 +177,11 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   bool ValidateAddressToken(absl::string_view /*token*/) const override {
     return true;
   }
+  const CachedNetworkParameters* PreviousCachedNetworkParams() const override {
+    return nullptr;
+  }
+  void SetPreviousCachedNetworkParams(
+      CachedNetworkParameters /*cached_network_params*/) override {}
 
   MOCK_METHOD(void, OnCanWrite, (), (override));
 

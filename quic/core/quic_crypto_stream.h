@@ -21,6 +21,7 @@
 
 namespace quic {
 
+class CachedNetworkParameters;
 class QuicSession;
 
 // Crypto handshake messages in QUIC take place over a reserved stream with the
@@ -113,6 +114,16 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
 
   // Called to validate |token|.
   virtual bool ValidateAddressToken(absl::string_view token) const = 0;
+
+  // Get the last CachedNetworkParameters received from a valid address token.
+  virtual const CachedNetworkParameters* PreviousCachedNetworkParams()
+      const = 0;
+
+  // Set the CachedNetworkParameters that will be returned by
+  // PreviousCachedNetworkParams.
+  // TODO(wub): This function is test only, move it to a test only library.
+  virtual void SetPreviousCachedNetworkParams(
+      CachedNetworkParameters cached_network_params) = 0;
 
   // Returns current handshake state.
   virtual HandshakeState GetHandshakeState() const = 0;

@@ -11,6 +11,7 @@
 
 #include "quic/core/crypto/proof_verifier.h"
 #include "quic/core/crypto/quic_crypto_client_config.h"
+#include "quic/core/proto/cached_network_parameters_proto.h"
 #include "quic/core/quic_config.h"
 #include "quic/core/quic_crypto_handshaker.h"
 #include "quic/core/quic_crypto_stream.h"
@@ -72,6 +73,26 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStreamBase : public QuicCryptoStream {
                             std::string* /*result*/) override {
     QUICHE_NOTREACHED();
     return false;
+  }
+
+  std::string GetAddressToken() const override {
+    QUICHE_DCHECK(false);
+    return "";
+  }
+
+  bool ValidateAddressToken(absl::string_view /*token*/) const override {
+    QUICHE_DCHECK(false);
+    return false;
+  }
+
+  const CachedNetworkParameters* PreviousCachedNetworkParams() const override {
+    QUICHE_DCHECK(false);
+    return nullptr;
+  }
+
+  void SetPreviousCachedNetworkParams(
+      CachedNetworkParameters /*cached_network_params*/) override {
+    QUICHE_DCHECK(false);
   }
 };
 
@@ -257,8 +278,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
                           ConnectionCloseSource source) override;
   void OnHandshakeDoneReceived() override;
   void OnNewTokenReceived(absl::string_view token) override;
-  std::string GetAddressToken() const override;
-  bool ValidateAddressToken(absl::string_view token) const override;
   HandshakeState GetHandshakeState() const override;
   void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> application_state) override;
