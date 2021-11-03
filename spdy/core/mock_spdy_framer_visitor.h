@@ -19,7 +19,8 @@ namespace spdy {
 
 namespace test {
 
-class MockSpdyFramerVisitor : public SpdyFramerVisitorInterface {
+class QUICHE_NO_EXPORT MockSpdyFramerVisitor
+    : public SpdyFramerVisitorInterface {
  public:
   MockSpdyFramerVisitor();
   ~MockSpdyFramerVisitor() override;
@@ -28,6 +29,10 @@ class MockSpdyFramerVisitor : public SpdyFramerVisitorInterface {
               OnError,
               (http2::Http2DecoderAdapter::SpdyFramerError error,
                std::string detailed_error),
+              (override));
+  MOCK_METHOD(void, OnCommonHeader,
+              (SpdyStreamId stream_id, size_t length, uint8_t type,
+               uint8_t flags),
               (override));
   MOCK_METHOD(void,
               OnDataFrameHeader,
@@ -59,9 +64,12 @@ class MockSpdyFramerVisitor : public SpdyFramerVisitorInterface {
   MOCK_METHOD(void, OnSetting, (SpdySettingsId id, uint32_t value), (override));
   MOCK_METHOD(void, OnPing, (SpdyPingId unique_id, bool is_ack), (override));
   MOCK_METHOD(void, OnSettingsEnd, (), (override));
+  MOCK_METHOD(void, OnSettingsAck, (), (override));
   MOCK_METHOD(void,
               OnGoAway,
               (SpdyStreamId last_accepted_stream_id, SpdyErrorCode error_code),
+              (override));
+  MOCK_METHOD(bool, OnGoAwayFrameData, (const char* goaway_data, size_t len),
               (override));
   MOCK_METHOD(void,
               OnHeaders,

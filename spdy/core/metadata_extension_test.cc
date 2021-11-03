@@ -20,6 +20,7 @@ using ::absl::bind_front;
 using ::spdy::SpdyFramer;
 using ::spdy::SpdyHeaderBlock;
 using ::spdy::test::MockSpdyFramerVisitor;
+using ::testing::_;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
 
@@ -97,6 +98,8 @@ TEST_F(MetadataExtensionTest, MetadataIgnoredWithoutExtension) {
   ::testing::StrictMock<MockSpdyFramerVisitor> visitor;
   deframer.set_visitor(&visitor);
 
+  EXPECT_CALL(visitor,
+              OnCommonHeader(3, _, MetadataVisitor::kMetadataFrameType, _));
   // The Return(true) should not be necessary. http://b/36023792
   EXPECT_CALL(visitor, OnUnknownFrame(3, MetadataVisitor::kMetadataFrameType))
       .WillOnce(::testing::Return(true));
