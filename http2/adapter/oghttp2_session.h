@@ -6,6 +6,7 @@
 
 #include "absl/strings/string_view.h"
 #include "http2/adapter/data_source.h"
+#include "http2/adapter/event_forwarder.h"
 #include "http2/adapter/header_validator.h"
 #include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/http2_session.h"
@@ -293,6 +294,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
+
+  // Forwards received events to the session if it can accept them.
+  EventForwarder event_forwarder_;
 
   // Logs received frames when enabled.
   Http2TraceLogger receive_logger_;

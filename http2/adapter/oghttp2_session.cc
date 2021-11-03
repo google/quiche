@@ -235,8 +235,9 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
 
 OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
     : visitor_(visitor),
+      event_forwarder_([this]() { return !latched_error_; }, *this),
       receive_logger_(
-          this, TracePerspectiveAsString(options.perspective),
+          &event_forwarder_, TracePerspectiveAsString(options.perspective),
           []() { return kTraceLoggingEnabled; }, this),
       send_logger_(
           TracePerspectiveAsString(options.perspective),
