@@ -1,6 +1,7 @@
 #include "http2/adapter/callback_visitor.h"
 
 #include "absl/strings/escaping.h"
+#include "http2/adapter/http2_util.h"
 #include "http2/adapter/nghttp2_util.h"
 #include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 #include "common/quiche_endian.h"
@@ -378,12 +379,15 @@ int CallbackVisitor::OnFrameSent(uint8_t frame_type, Http2StreamId stream_id,
   return 0;
 }
 
-bool CallbackVisitor::OnInvalidFrame(Http2StreamId stream_id, int error_code) {
-  QUICHE_VLOG(1) << "OnInvalidFrame(" << stream_id << ", " << error_code << ")";
+bool CallbackVisitor::OnInvalidFrame(Http2StreamId stream_id,
+                                     InvalidFrameError error) {
+  QUICHE_VLOG(1) << "OnInvalidFrame(" << stream_id << ", "
+                 << InvalidFrameErrorToString(error) << ")";
   QUICHE_DCHECK_EQ(stream_id, current_frame_.hd.stream_id);
   if (callbacks_->on_invalid_frame_recv_callback) {
-    return 0 == callbacks_->on_invalid_frame_recv_callback(
-                    nullptr, &current_frame_, error_code, user_data_);
+    return 0 ==
+           callbacks_->on_invalid_frame_recv_callback(
+               nullptr, &current_frame_, ToNgHttp2ErrorCode(error), user_data_);
   }
   return true;
 }

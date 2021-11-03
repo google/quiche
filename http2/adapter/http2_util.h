@@ -17,6 +17,9 @@ TranslateErrorCode(spdy::SpdyErrorCode code);
 QUICHE_EXPORT_PRIVATE absl::string_view ConnectionErrorToString(
     Http2VisitorInterface::ConnectionError error);
 
+QUICHE_EXPORT_PRIVATE absl::string_view InvalidFrameErrorToString(
+    Http2VisitorInterface::InvalidFrameError error);
+
 }  // namespace adapter
 }  // namespace http2
 

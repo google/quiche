@@ -15,6 +15,8 @@ namespace adapter {
 
 namespace {
 
+using InvalidFrameError = Http2VisitorInterface::InvalidFrameError;
+
 void DeleteCallbacks(nghttp2_session_callbacks* callbacks) {
   if (callbacks) {
     nghttp2_session_callbacks_del(callbacks);
@@ -120,6 +122,44 @@ Http2ErrorCode ToHttp2ErrorCode(uint32_t wire_error_code) {
     return Http2ErrorCode::INTERNAL_ERROR;
   }
   return static_cast<Http2ErrorCode>(wire_error_code);
+}
+
+int ToNgHttp2ErrorCode(InvalidFrameError error) {
+  switch (error) {
+    case InvalidFrameError::kProtocol:
+      return NGHTTP2_ERR_PROTO;
+    case InvalidFrameError::kRefusedStream:
+      return NGHTTP2_ERR_REFUSED_STREAM;
+    case InvalidFrameError::kHttpHeader:
+      return NGHTTP2_ERR_HTTP_HEADER;
+    case InvalidFrameError::kHttpMessaging:
+      return NGHTTP2_ERR_HTTP_MESSAGING;
+    case InvalidFrameError::kFlowControl:
+      return NGHTTP2_ERR_FLOW_CONTROL;
+    case InvalidFrameError::kStreamClosed:
+      return NGHTTP2_ERR_STREAM_CLOSED;
+  }
+  QUICHE_LOG(ERROR) << "Unknown InvalidFrameError " << static_cast<int>(error);
+  return NGHTTP2_ERR_PROTO;
+}
+
+InvalidFrameError ToInvalidFrameError(int error) {
+  switch (error) {
+    case NGHTTP2_ERR_PROTO:
+      return InvalidFrameError::kProtocol;
+    case NGHTTP2_ERR_REFUSED_STREAM:
+      return InvalidFrameError::kRefusedStream;
+    case NGHTTP2_ERR_HTTP_HEADER:
+      return InvalidFrameError::kHttpHeader;
+    case NGHTTP2_ERR_HTTP_MESSAGING:
+      return InvalidFrameError::kHttpMessaging;
+    case NGHTTP2_ERR_FLOW_CONTROL:
+      return InvalidFrameError::kFlowControl;
+    case NGHTTP2_ERR_STREAM_CLOSED:
+      return InvalidFrameError::kStreamClosed;
+  }
+  QUICHE_LOG(ERROR) << "Unknown error " << error;
+  return InvalidFrameError::kProtocol;
 }
 
 class Nghttp2DataFrameSource : public DataFrameSource {

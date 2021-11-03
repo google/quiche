@@ -212,8 +212,8 @@ int OnInvalidFrameReceived(nghttp2_session* /* session */,
                            void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
-  const bool result =
-      visitor->OnInvalidFrame(frame->hd.stream_id, lib_error_code);
+  const bool result = visitor->OnInvalidFrame(
+      frame->hd.stream_id, ToInvalidFrameError(lib_error_code));
   return result ? 0 : NGHTTP2_ERR_CALLBACK_FAILURE;
 }
 

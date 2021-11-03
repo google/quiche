@@ -5,6 +5,7 @@ namespace adapter {
 namespace {
 
 using ConnectionError = Http2VisitorInterface::ConnectionError;
+using InvalidFrameError = Http2VisitorInterface::InvalidFrameError;
 
 }  // anonymous namespace
 
@@ -91,6 +92,26 @@ absl::string_view ConnectionErrorToString(ConnectionError error) {
     case ConnectionError::kInvalidPushPromise:
       return "InvalidPushPromise";
   }
+}
+
+absl::string_view InvalidFrameErrorToString(
+    Http2VisitorInterface::InvalidFrameError error) {
+  switch (error) {
+    case InvalidFrameError::kProtocol:
+      return "Protocol";
+    case InvalidFrameError::kRefusedStream:
+      return "RefusedStream";
+    case InvalidFrameError::kHttpHeader:
+      return "HttpHeader";
+    case InvalidFrameError::kHttpMessaging:
+      return "HttpMessaging";
+    case InvalidFrameError::kFlowControl:
+      return "FlowControl";
+    case InvalidFrameError::kStreamClosed:
+      return "StreamClosed";
+  }
+  QUICHE_LOG(ERROR) << "Unknown InvalidFrameError " << static_cast<int>(error);
+  return "UnknownError";
 }
 
 }  // namespace adapter

@@ -1,6 +1,7 @@
 #include "http2/adapter/nghttp2_adapter.h"
 
 #include "http2/adapter/http2_protocol.h"
+#include "http2/adapter/http2_visitor_interface.h"
 #include "http2/adapter/mock_http2_visitor.h"
 #include "http2/adapter/nghttp2_test_utils.h"
 #include "http2/adapter/oghttp2_util.h"
@@ -556,7 +557,9 @@ TEST(NgHttp2AdapterTest, ClientHandlesInvalidTrailers) {
       visitor,
       OnErrorDebug("Invalid HTTP header field was received: frame type: 1, "
                    "stream: 1, name: [:bad-status], value: [9000]"));
-  EXPECT_CALL(visitor, OnInvalidFrame(1, -531));
+  EXPECT_CALL(
+      visitor,
+      OnInvalidFrame(1, Http2VisitorInterface::InvalidFrameError::kHttpHeader));
 
   // Bad status trailer will cause a PROTOCOL_ERROR. The header is never
   // delivered in an OnHeaderForStream callback.

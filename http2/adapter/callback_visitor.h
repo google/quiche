@@ -58,7 +58,8 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
                         size_t length, uint8_t flags) override;
   int OnFrameSent(uint8_t frame_type, Http2StreamId stream_id, size_t length,
                   uint8_t flags, uint32_t error_code) override;
-  bool OnInvalidFrame(Http2StreamId stream_id, int error_code) override;
+  bool OnInvalidFrame(Http2StreamId stream_id,
+                      InvalidFrameError error) override;
   void OnBeginMetadataForStream(Http2StreamId stream_id,
                                 size_t payload_length) override;
   bool OnMetadataForStream(Http2StreamId stream_id,

@@ -141,9 +141,9 @@ int RecordingHttp2Visitor::OnFrameSent(uint8_t frame_type,
 }
 
 bool RecordingHttp2Visitor::OnInvalidFrame(Http2StreamId stream_id,
-                                           int error_code) {
-  events_.push_back(
-      absl::StrFormat("OnInvalidFrame %d %d", stream_id, error_code));
+                                           InvalidFrameError error) {
+  events_.push_back(absl::StrFormat("OnInvalidFrame %d %s", stream_id,
+                                    InvalidFrameErrorToString(error)));
   return true;
 }
 
