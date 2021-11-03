@@ -1,5 +1,7 @@
 #include "http2/adapter/http2_util.h"
 
+#include "spdy/core/spdy_protocol.h"
+
 namespace http2 {
 namespace adapter {
 namespace {
@@ -40,6 +42,7 @@ spdy::SpdyErrorCode TranslateErrorCode(Http2ErrorCode code) {
     case Http2ErrorCode::HTTP_1_1_REQUIRED:
       return spdy::ERROR_CODE_HTTP_1_1_REQUIRED;
   }
+  return spdy::ERROR_CODE_INTERNAL_ERROR;
 }
 
 Http2ErrorCode TranslateErrorCode(spdy::SpdyErrorCode code) {
@@ -73,6 +76,7 @@ Http2ErrorCode TranslateErrorCode(spdy::SpdyErrorCode code) {
     case spdy::ERROR_CODE_HTTP_1_1_REQUIRED:
       return Http2ErrorCode::HTTP_1_1_REQUIRED;
   }
+  return Http2ErrorCode::INTERNAL_ERROR;
 }
 
 absl::string_view ConnectionErrorToString(ConnectionError error) {
@@ -92,6 +96,7 @@ absl::string_view ConnectionErrorToString(ConnectionError error) {
     case ConnectionError::kInvalidPushPromise:
       return "InvalidPushPromise";
   }
+  return "UnknownConnectionError";
 }
 
 absl::string_view InvalidFrameErrorToString(
@@ -110,8 +115,7 @@ absl::string_view InvalidFrameErrorToString(
     case InvalidFrameError::kStreamClosed:
       return "StreamClosed";
   }
-  QUICHE_LOG(ERROR) << "Unknown InvalidFrameError " << static_cast<int>(error);
-  return "UnknownError";
+  return "UnknownInvalidFrameError";
 }
 
 }  // namespace adapter

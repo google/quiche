@@ -139,7 +139,6 @@ int ToNgHttp2ErrorCode(InvalidFrameError error) {
     case InvalidFrameError::kStreamClosed:
       return NGHTTP2_ERR_STREAM_CLOSED;
   }
-  QUICHE_LOG(ERROR) << "Unknown InvalidFrameError " << static_cast<int>(error);
   return NGHTTP2_ERR_PROTO;
 }
 
@@ -158,7 +157,6 @@ InvalidFrameError ToInvalidFrameError(int error) {
     case NGHTTP2_ERR_STREAM_CLOSED:
       return InvalidFrameError::kStreamClosed;
   }
-  QUICHE_LOG(ERROR) << "Unknown error " << error;
   return InvalidFrameError::kProtocol;
 }
 

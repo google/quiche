@@ -131,6 +131,7 @@ absl::string_view TracePerspectiveAsString(Perspective p) {
     case Perspective::kServer:
       return "OGHTTP2_SERVER";
   }
+  return "OGHTTP2_SERVER";
 }
 
 class RunOnExit {
@@ -186,6 +187,7 @@ Http2ErrorCode GetHttp2ErrorCode(SpdyFramerError error) {
     case SpdyFramerError::LAST_ERROR:
       return Http2ErrorCode::INTERNAL_ERROR;
   }
+  return Http2ErrorCode::INTERNAL_ERROR;
 }
 
 }  // namespace
