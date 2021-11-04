@@ -401,6 +401,9 @@ const QuicTag kXLCT = TAG('X', 'L', 'C', 'T');   // Expected leaf certificate.
 const QuicTag kQLVE = TAG('Q', 'L', 'V', 'E');   // Legacy Version
                                                  // Encapsulation.
 
+const QuicTag kPDP1 = TAG('P', 'D', 'P', '1');   // Path degrading triggered
+                                                 // at 1PTO.
+
 const QuicTag kPDP2 = TAG('P', 'D', 'P', '2');   // Path degrading triggered
                                                  // at 2PTO.
 

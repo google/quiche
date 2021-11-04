@@ -226,6 +226,9 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
       use_standard_deviation_for_pto_ = true;
       rtt_stats_.EnableStandardDeviationCalculation();
     }
+    if (config.HasClientRequestedIndependentOption(kPDP1, perspective)) {
+      num_ptos_for_path_degrading_ = 1;
+    }
     if (config.HasClientRequestedIndependentOption(kPDP2, perspective)) {
       num_ptos_for_path_degrading_ = 2;
     }
