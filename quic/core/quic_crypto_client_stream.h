@@ -75,7 +75,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStreamBase : public QuicCryptoStream {
     return false;
   }
 
-  std::string GetAddressToken() const override {
+  std::string GetAddressToken(
+      const CachedNetworkParameters* /*cached_network_params*/) const override {
     QUICHE_DCHECK(false);
     return "";
   }

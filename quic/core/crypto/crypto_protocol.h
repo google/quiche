@@ -381,6 +381,9 @@ const QuicTag kMIUS = TAG('M', 'I', 'U', 'S');   // Max incoming unidi streams
 const QuicTag kADE  = TAG('A', 'D', 'E', 0);     // Ack Delay Exponent (IETF
                                                  // QUIC ACK Frame Only).
 const QuicTag kIRTT = TAG('I', 'R', 'T', 'T');   // Estimated initial RTT in us.
+const QuicTag kTRTT = TAG('T', 'R', 'T', 'T');   // If server receives an rtt
+                                                 // from an address token, set
+                                                 // it as the initial rtt.
 const QuicTag kSNI  = TAG('S', 'N', 'I', '\0');  // Server name
                                                  // indication
 const QuicTag kPUBS = TAG('P', 'U', 'B', 'S');   // Public key values

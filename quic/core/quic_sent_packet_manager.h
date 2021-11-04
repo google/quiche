@@ -471,6 +471,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     num_ptos_for_path_degrading_ = num_ptos_for_path_degrading;
   }
 
+  // Sets the initial RTT of the connection.
+  void SetInitialRtt(QuicTime::Delta rtt);
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
@@ -553,9 +556,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // QuicTransmissionInfo |info| is a spurious retransmission before calling
   // this function.
   void RecordOneSpuriousRetransmission(const QuicTransmissionInfo& info);
-
-  // Sets the initial RTT of the connection.
-  void SetInitialRtt(QuicTime::Delta rtt);
 
   // Called when handshake is confirmed to remove the retransmittable frames
   // from all packets of HANDSHAKE_DATA packet number space to ensure they don't

@@ -353,7 +353,8 @@ void QuicCryptoServerStream::OnNewTokenReceived(absl::string_view /*token*/) {
   QUICHE_DCHECK(false);
 }
 
-std::string QuicCryptoServerStream::GetAddressToken() const {
+std::string QuicCryptoServerStream::GetAddressToken(
+    const CachedNetworkParameters* /*cached_network_parameters*/) const {
   QUICHE_DCHECK(false);
   return "";
 }

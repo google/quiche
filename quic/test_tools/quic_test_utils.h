@@ -500,8 +500,8 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(std::unique_ptr<QuicEncrypter>, CreateCurrentOneRttEncrypter, (),
               (override));
   MOCK_METHOD(void, BeforeConnectionCloseSent, (), (override));
-  MOCK_METHOD(bool, ValidateToken, (absl::string_view), (const, override));
-  MOCK_METHOD(void, MaybeSendAddressToken, (), (override));
+  MOCK_METHOD(bool, ValidateToken, (absl::string_view), (override));
+  MOCK_METHOD(bool, MaybeSendAddressToken, (), (override));
 
   bool IsKnownServerAddress(
       const QuicSocketAddress& /*address*/) const override {
@@ -827,7 +827,11 @@ class MockQuicCryptoStream : public QuicCryptoStream {
   void OnHandshakePacketSent() override {}
   void OnHandshakeDoneReceived() override {}
   void OnNewTokenReceived(absl::string_view /*token*/) override {}
-  std::string GetAddressToken() const override { return ""; }
+  std::string GetAddressToken(
+      const CachedNetworkParameters* /*cached_network_parameters*/)
+      const override {
+    return "";
+  }
   bool ValidateAddressToken(absl::string_view /*token*/) const override {
     return true;
   }

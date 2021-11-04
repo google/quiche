@@ -296,11 +296,14 @@ int TlsServerHandshaker::NumServerConfigUpdateMessagesSent() const {
 
 const CachedNetworkParameters*
 TlsServerHandshaker::PreviousCachedNetworkParams() const {
-  return nullptr;
+  return last_received_cached_network_params_.get();
 }
 
 void TlsServerHandshaker::SetPreviousCachedNetworkParams(
-    CachedNetworkParameters /*cached_network_params*/) {}
+    CachedNetworkParameters cached_network_params) {
+  last_received_cached_network_params_ =
+      std::make_unique<CachedNetworkParameters>(cached_network_params);
+}
 
 void TlsServerHandshaker::OnPacketDecrypted(EncryptionLevel level) {
   if (level == ENCRYPTION_HANDSHAKE && state_ < HANDSHAKE_PROCESSED) {
@@ -318,14 +321,17 @@ void TlsServerHandshaker::OnNewTokenReceived(absl::string_view /*token*/) {
   QUICHE_DCHECK(false);
 }
 
-std::string TlsServerHandshaker::GetAddressToken() const {
+std::string TlsServerHandshaker::GetAddressToken(
+    const CachedNetworkParameters* cached_network_params) const {
   SourceAddressTokens empty_previous_tokens;
   const QuicConnection* connection = session()->connection();
   return crypto_config_->NewSourceAddressToken(
       crypto_config_->source_address_token_boxer(), empty_previous_tokens,
       connection->effective_peer_address().host(),
       connection->random_generator(), connection->clock()->WallNow(),
-      /*cached_network_params=*/nullptr);
+      session()->add_cached_network_parameters_to_address_token()
+          ? cached_network_params
+          : nullptr);
 }
 
 bool TlsServerHandshaker::ValidateAddressToken(absl::string_view token) const {
@@ -337,14 +343,20 @@ bool TlsServerHandshaker::ValidateAddressToken(absl::string_view token) const {
                        << CryptoUtils::HandshakeFailureReasonToString(reason);
     return false;
   }
+  auto cached_network_params = std::make_unique<CachedNetworkParameters>();
   reason = crypto_config_->ValidateSourceAddressTokens(
       tokens, session()->connection()->effective_peer_address().host(),
       session()->connection()->clock()->WallNow(),
-      /*cached_network_params=*/nullptr);
+      session()->add_cached_network_parameters_to_address_token()
+          ? cached_network_params.get()
+          : nullptr);
   if (reason != HANDSHAKE_OK) {
     QUIC_DLOG(WARNING) << "Failed to validate source address token: "
                        << CryptoUtils::HandshakeFailureReasonToString(reason);
     return false;
+  }
+  if (session()->add_cached_network_parameters_to_address_token()) {
+    last_received_cached_network_params_ = std::move(cached_network_params);
   }
   return true;
 }

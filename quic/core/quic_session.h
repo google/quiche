@@ -24,6 +24,7 @@
 #include "quic/core/frames/quic_window_update_frame.h"
 #include "quic/core/handshaker_delegate_interface.h"
 #include "quic/core/legacy_quic_stream_id_manager.h"
+#include "quic/core/proto/cached_network_parameters_proto.h"
 #include "quic/core/quic_connection.h"
 #include "quic/core/quic_control_frame_manager.h"
 #include "quic/core/quic_crypto_stream.h"
@@ -171,8 +172,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
       override;
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
   void BeforeConnectionCloseSent() override {}
-  bool ValidateToken(absl::string_view token) const override;
-  void MaybeSendAddressToken() override;
+  bool ValidateToken(absl::string_view token) override;
+  bool MaybeSendAddressToken() override;
   bool IsKnownServerAddress(
       const QuicSocketAddress& /*address*/) const override {
     return false;
@@ -621,6 +622,11 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Latched value of flag --quic_tls_server_support_client_cert.
   bool support_client_cert() const { return support_client_cert_; }
 
+  // Get latched flag value.
+  bool add_cached_network_parameters_to_address_token() const {
+    return add_cached_network_parameters_to_address_token_;
+  }
+
   // Try converting all pending streams to normal streams.
   void ProcessAllPendingStreams();
 
@@ -791,6 +797,15 @@ class QUIC_EXPORT_PRIVATE QuicSession
   const UberQuicStreamIdManager& ietf_streamid_manager() const {
     QUICHE_DCHECK(VersionHasIetfQuicFrames(transport_version()));
     return ietf_streamid_manager_;
+  }
+
+  // Only called at a server session. Generate a CachedNetworkParameters that
+  // can be sent to the client as part of the address token, based on the latest
+  // bandwidth/rtt information. If return absl::nullopt, address token will not
+  // contain the CachedNetworkParameters.
+  virtual absl::optional<CachedNetworkParameters>
+  GenerateCachedNetworkParameters() const {
+    return absl::nullopt;
   }
 
  private:
@@ -980,6 +995,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // This indicates a liveness testing is in progress, and push back the
   // creation of new outgoing bidirectional streams.
   bool liveness_testing_in_progress_;
+
+  const bool add_cached_network_parameters_to_address_token_ =
+      GetQuicReloadableFlag(
+          quic_add_cached_network_parameters_to_address_token);
 
   // Whether BoringSSL randomizes the order of TLS extensions.
   bool permutes_tls_extensions_ = true;

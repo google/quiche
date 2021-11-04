@@ -1677,12 +1677,18 @@ void QuicSession::OnTlsHandshakeComplete() {
   }
 }
 
-void QuicSession::MaybeSendAddressToken() {
+bool QuicSession::MaybeSendAddressToken() {
   QUICHE_DCHECK(perspective_ == Perspective::IS_SERVER &&
                 connection()->version().HasIetfQuicFrames());
-  std::string address_token = GetCryptoStream()->GetAddressToken();
+  absl::optional<CachedNetworkParameters> cached_network_params;
+  if (add_cached_network_parameters_to_address_token()) {
+    cached_network_params = GenerateCachedNetworkParameters();
+  }
+  std::string address_token = GetCryptoStream()->GetAddressToken(
+      cached_network_params.has_value() ? &cached_network_params.value()
+                                        : nullptr);
   if (address_token.empty()) {
-    return;
+    return false;
   }
   const size_t buf_len = address_token.length() + 1;
   auto buffer = std::make_unique<char[]>(buf_len);
@@ -1692,6 +1698,13 @@ void QuicSession::MaybeSendAddressToken() {
   writer.WriteBytes(address_token.data(), address_token.length());
   control_frame_manager_.WriteOrBufferNewToken(
       absl::string_view(buffer.get(), buf_len));
+  if (add_cached_network_parameters_to_address_token() &&
+      cached_network_params.has_value()) {
+    connection()->OnSendConnectionState(*cached_network_params);
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_add_cached_network_parameters_to_address_token, 1, 2);
+  }
+  return true;
 }
 
 void QuicSession::DiscardOldDecryptionKey(EncryptionLevel level) {
@@ -2638,7 +2651,7 @@ bool QuicSession::MigratePath(const QuicSocketAddress& self_address,
                                   owns_writer);
 }
 
-bool QuicSession::ValidateToken(absl::string_view token) const {
+bool QuicSession::ValidateToken(absl::string_view token) {
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_SERVER);
   if (GetQuicFlag(FLAGS_quic_reject_retry_token_in_initial_packet)) {
     return false;
@@ -2647,8 +2660,19 @@ bool QuicSession::ValidateToken(absl::string_view token) const {
     // Validate the prefix for token received in NEW_TOKEN frame.
     return false;
   }
-  return GetCryptoStream()->ValidateAddressToken(
+  const bool valid = GetCryptoStream()->ValidateAddressToken(
       absl::string_view(token.data() + 1, token.length() - 1));
+  if (add_cached_network_parameters_to_address_token() && valid) {
+    const CachedNetworkParameters* cached_network_params =
+        GetCryptoStream()->PreviousCachedNetworkParams();
+    if (cached_network_params != nullptr &&
+        cached_network_params->timestamp() > 0) {
+      connection()->OnReceiveConnectionState(*cached_network_params);
+      QUIC_RELOADABLE_FLAG_COUNT_N(
+          quic_add_cached_network_parameters_to_address_token, 2, 2);
+    }
+  }
+  return valid;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

@@ -235,11 +235,11 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Called by the server to validate |token| in received INITIAL packets.
   // Consider the client address gets validated (and therefore remove
   // amplification factor) once the |token| gets successfully validated.
-  virtual bool ValidateToken(absl::string_view token) const = 0;
+  virtual bool ValidateToken(absl::string_view token) = 0;
 
   // Called by the server to send another token.
   // Return false if the crypto stream fail to generate one.
-  virtual void MaybeSendAddressToken() = 0;
+  virtual bool MaybeSendAddressToken() = 0;
 
   // Whether the server address is known to the connection.
   virtual bool IsKnownServerAddress(const QuicSocketAddress& address) const = 0;

@@ -1632,6 +1632,7 @@ TEST_P(EndToEndTest, LargePostNoPacketLossWithDelayAndReordering) {
 }
 
 TEST_P(EndToEndTest, AddressToken) {
+  client_extra_copts_.push_back(kTRTT);
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames()) {
     return;
@@ -1659,13 +1660,41 @@ TEST_P(EndToEndTest, AddressToken) {
   EXPECT_TRUE(client_->client()->EarlyDataAccepted());
 
   server_thread_->Pause();
+  QuicSpdySession* server_session = GetServerSession();
   QuicConnection* server_connection = GetServerConnection();
-  if (server_connection != nullptr) {
+  if (server_session != nullptr && server_connection != nullptr) {
     // Verify address is validated via validating token received in INITIAL
     // packet.
     EXPECT_FALSE(
         server_connection->GetStats().address_validated_via_decrypting_packet);
     EXPECT_TRUE(server_connection->GetStats().address_validated_via_token);
+
+    // Verify the server received a cached min_rtt from the token and used it as
+    // the initial rtt.
+    const CachedNetworkParameters* server_received_network_params =
+        static_cast<const QuicCryptoServerStreamBase*>(
+            server_session->GetCryptoStream())
+            ->PreviousCachedNetworkParams();
+    if (GetQuicReloadableFlag(
+            quic_add_cached_network_parameters_to_address_token)) {
+      ASSERT_NE(server_received_network_params, nullptr);
+      // QuicSentPacketManager::SetInitialRtt clamps the initial_rtt to between
+      // [min_initial_rtt, max_initial_rtt].
+      const QuicTime::Delta min_initial_rtt =
+          QuicTime::Delta::FromMicroseconds(kMinInitialRoundTripTimeUs);
+      const QuicTime::Delta max_initial_rtt =
+          QuicTime::Delta::FromMicroseconds(kMaxInitialRoundTripTimeUs);
+      const QuicTime::Delta expected_initial_rtt =
+          std::max(min_initial_rtt,
+                   std::min(max_initial_rtt,
+                            QuicTime::Delta::FromMilliseconds(
+                                server_received_network_params->min_rtt_ms())));
+      EXPECT_EQ(
+          server_connection->sent_packet_manager().GetRttStats()->initial_rtt(),
+          expected_initial_rtt);
+    } else {
+      EXPECT_EQ(server_received_network_params, nullptr);
+    }
   } else {
     ADD_FAILURE() << "Missing server connection";
   }

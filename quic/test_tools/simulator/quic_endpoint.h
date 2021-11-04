@@ -110,10 +110,8 @@ class QuicEndpoint : public QuicEndpointBase,
     return nullptr;
   }
   void BeforeConnectionCloseSent() override {}
-  bool ValidateToken(absl::string_view /*token*/) const override {
-    return true;
-  }
-  void MaybeSendAddressToken() override {}
+  bool ValidateToken(absl::string_view /*token*/) override { return true; }
+  bool MaybeSendAddressToken() override { return false; }
   bool IsKnownServerAddress(
       const QuicSocketAddress& /*address*/) const override {
     return false;

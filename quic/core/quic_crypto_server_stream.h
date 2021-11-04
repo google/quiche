@@ -48,7 +48,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
                           ConnectionCloseSource /*source*/) override {}
   void OnHandshakeDoneReceived() override;
   void OnNewTokenReceived(absl::string_view token) override;
-  std::string GetAddressToken() const override;
+  std::string GetAddressToken(
+      const CachedNetworkParameters* /*cached_network_params*/) const override;
   bool ValidateAddressToken(absl::string_view token) const override;
   bool ShouldSendExpectCTHeader() const override;
   bool DidCertMatchSni() const override;

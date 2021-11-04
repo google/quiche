@@ -10,6 +10,7 @@
 #include "quic/core/quic_connection.h"
 #include "quic/core/quic_stream.h"
 #include "quic/core/quic_tag.h"
+#include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flag_utils.h"
@@ -50,6 +51,30 @@ void QuicServerSessionBase::OnConfigNegotiated() {
     return;
   }
 
+  const CachedNetworkParameters* cached_network_params =
+      crypto_stream_->PreviousCachedNetworkParams();
+
+  // Set the initial rtt from cached_network_params.min_rtt_ms, which comes from
+  // a validated address token. This will override the initial rtt that may have
+  // been set by the transport parameters.
+  if (add_cached_network_parameters_to_address_token() && version().UsesTls() &&
+      cached_network_params != nullptr) {
+    if (cached_network_params->serving_region() == serving_region_) {
+      QUIC_CODE_COUNT(quic_server_received_network_params_at_same_region);
+      if (ContainsQuicTag(config()->ReceivedConnectionOptions(), kTRTT)) {
+        QUIC_DLOG(INFO)
+            << "Server: Setting initial rtt to "
+            << cached_network_params->min_rtt_ms()
+            << "ms which is received from a validated address token";
+        connection()->sent_packet_manager().SetInitialRtt(
+            QuicTime::Delta::FromMilliseconds(
+                cached_network_params->min_rtt_ms()));
+      }
+    } else {
+      QUIC_CODE_COUNT(quic_server_received_network_params_at_different_region);
+    }
+  }
+
   // Enable bandwidth resumption if peer sent correct connection options.
   const bool last_bandwidth_resumption =
       ContainsQuicTag(config()->ReceivedConnectionOptions(), kBWRE);
@@ -61,13 +86,14 @@ void QuicServerSessionBase::OnConfigNegotiated() {
   // If the client has provided a bandwidth estimate from the same serving
   // region as this server, then decide whether to use the data for bandwidth
   // resumption.
-  const CachedNetworkParameters* cached_network_params =
-      crypto_stream_->PreviousCachedNetworkParams();
   if (cached_network_params != nullptr &&
       cached_network_params->serving_region() == serving_region_) {
-    // Log the received connection parameters, regardless of how they
-    // get used for bandwidth resumption.
-    connection()->OnReceiveConnectionState(*cached_network_params);
+    if (!add_cached_network_parameters_to_address_token() ||
+        !version().UsesTls()) {
+      // Log the received connection parameters, regardless of how they
+      // get used for bandwidth resumption.
+      connection()->OnReceiveConnectionState(*cached_network_params);
+    }
 
     if (bandwidth_resumption_enabled_) {
       // Only do bandwidth resumption if estimate is recent enough.
@@ -150,48 +176,75 @@ void QuicServerSessionBase::OnCongestionWindowChange(QuicTime now) {
     return;
   }
 
-  bandwidth_estimate_sent_to_client_ = new_bandwidth_estimate;
-  QUIC_DVLOG(1) << "Server: sending new bandwidth estimate (KBytes/s): "
-                << bandwidth_estimate_sent_to_client_.ToKBytesPerSecond();
+  if (add_cached_network_parameters_to_address_token()) {
+    if (version().UsesTls()) {
+      if (version().HasIetfQuicFrames() && MaybeSendAddressToken()) {
+        bandwidth_estimate_sent_to_client_ = new_bandwidth_estimate;
+      }
+    } else {
+      absl::optional<CachedNetworkParameters> cached_network_params =
+          GenerateCachedNetworkParameters();
 
-  // Include max bandwidth in the update.
-  QuicBandwidth max_bandwidth_estimate =
-      bandwidth_recorder->MaxBandwidthEstimate();
-  int32_t max_bandwidth_timestamp = bandwidth_recorder->MaxBandwidthTimestamp();
+      if (cached_network_params.has_value()) {
+        bandwidth_estimate_sent_to_client_ = new_bandwidth_estimate;
+        QUIC_DVLOG(1) << "Server: sending new bandwidth estimate (KBytes/s): "
+                      << bandwidth_estimate_sent_to_client_.ToKBytesPerSecond();
 
-  // Fill the proto before passing it to the crypto stream to send.
-  const int32_t bw_estimate_bytes_per_second =
-      BandwidthToCachedParameterBytesPerSecond(
-          bandwidth_estimate_sent_to_client_);
-  const int32_t max_bw_estimate_bytes_per_second =
-      BandwidthToCachedParameterBytesPerSecond(max_bandwidth_estimate);
-  QUIC_BUG_IF(quic_bug_12513_1, max_bw_estimate_bytes_per_second < 0)
-      << max_bw_estimate_bytes_per_second;
-  QUIC_BUG_IF(quic_bug_10393_1, bw_estimate_bytes_per_second < 0)
-      << bw_estimate_bytes_per_second;
+        QUICHE_DCHECK_EQ(
+            BandwidthToCachedParameterBytesPerSecond(
+                bandwidth_estimate_sent_to_client_),
+            cached_network_params->bandwidth_estimate_bytes_per_second());
 
-  CachedNetworkParameters cached_network_params;
-  cached_network_params.set_bandwidth_estimate_bytes_per_second(
-      bw_estimate_bytes_per_second);
-  cached_network_params.set_max_bandwidth_estimate_bytes_per_second(
-      max_bw_estimate_bytes_per_second);
-  cached_network_params.set_max_bandwidth_timestamp_seconds(
-      max_bandwidth_timestamp);
-  cached_network_params.set_min_rtt_ms(
-      sent_packet_manager.GetRttStats()->min_rtt().ToMilliseconds());
-  cached_network_params.set_previous_connection_state(
-      bandwidth_recorder->EstimateRecordedDuringSlowStart()
-          ? CachedNetworkParameters::SLOW_START
-          : CachedNetworkParameters::CONGESTION_AVOIDANCE);
-  cached_network_params.set_timestamp(
-      connection()->clock()->WallNow().ToUNIXSeconds());
-  if (!serving_region_.empty()) {
-    cached_network_params.set_serving_region(serving_region_);
+        crypto_stream_->SendServerConfigUpdate(&cached_network_params.value());
+
+        connection()->OnSendConnectionState(*cached_network_params);
+      }
+    }
+  } else {
+    bandwidth_estimate_sent_to_client_ = new_bandwidth_estimate;
+    QUIC_DVLOG(1) << "Server: sending new bandwidth estimate (KBytes/s): "
+                  << bandwidth_estimate_sent_to_client_.ToKBytesPerSecond();
+
+    // Include max bandwidth in the update.
+    QuicBandwidth max_bandwidth_estimate =
+        bandwidth_recorder->MaxBandwidthEstimate();
+    int32_t max_bandwidth_timestamp =
+        bandwidth_recorder->MaxBandwidthTimestamp();
+
+    // Fill the proto before passing it to the crypto stream to send.
+    const int32_t bw_estimate_bytes_per_second =
+        BandwidthToCachedParameterBytesPerSecond(
+            bandwidth_estimate_sent_to_client_);
+    const int32_t max_bw_estimate_bytes_per_second =
+        BandwidthToCachedParameterBytesPerSecond(max_bandwidth_estimate);
+    QUIC_BUG_IF(quic_bug_12513_1, max_bw_estimate_bytes_per_second < 0)
+        << max_bw_estimate_bytes_per_second;
+    QUIC_BUG_IF(quic_bug_10393_1, bw_estimate_bytes_per_second < 0)
+        << bw_estimate_bytes_per_second;
+
+    CachedNetworkParameters cached_network_params;
+    cached_network_params.set_bandwidth_estimate_bytes_per_second(
+        bw_estimate_bytes_per_second);
+    cached_network_params.set_max_bandwidth_estimate_bytes_per_second(
+        max_bw_estimate_bytes_per_second);
+    cached_network_params.set_max_bandwidth_timestamp_seconds(
+        max_bandwidth_timestamp);
+    cached_network_params.set_min_rtt_ms(
+        sent_packet_manager.GetRttStats()->min_rtt().ToMilliseconds());
+    cached_network_params.set_previous_connection_state(
+        bandwidth_recorder->EstimateRecordedDuringSlowStart()
+            ? CachedNetworkParameters::SLOW_START
+            : CachedNetworkParameters::CONGESTION_AVOIDANCE);
+    cached_network_params.set_timestamp(
+        connection()->clock()->WallNow().ToUNIXSeconds());
+    if (!serving_region_.empty()) {
+      cached_network_params.set_serving_region(serving_region_);
+    }
+
+    crypto_stream_->SendServerConfigUpdate(&cached_network_params);
+
+    connection()->OnSendConnectionState(cached_network_params);
   }
-
-  crypto_stream_->SendServerConfigUpdate(&cached_network_params);
-
-  connection()->OnSendConnectionState(cached_network_params);
 
   last_scup_time_ = now;
   last_scup_packet_number_ =
@@ -262,7 +315,7 @@ const QuicCryptoServerStreamBase* QuicServerSessionBase::GetCryptoStream()
 }
 
 int32_t QuicServerSessionBase::BandwidthToCachedParameterBytesPerSecond(
-    const QuicBandwidth& bandwidth) {
+    const QuicBandwidth& bandwidth) const {
   return static_cast<int32_t>(std::min<int64_t>(
       bandwidth.ToBytesPerSecond(), std::numeric_limits<uint32_t>::max()));
 }
@@ -301,6 +354,56 @@ QuicSSLConfig QuicServerSessionBase::GetSSLConfig() const {
   }
 
   return ssl_config;
+}
+
+absl::optional<CachedNetworkParameters>
+QuicServerSessionBase::GenerateCachedNetworkParameters() const {
+  QUICHE_DCHECK(add_cached_network_parameters_to_address_token());
+  const QuicSentPacketManager& sent_packet_manager =
+      connection()->sent_packet_manager();
+  const QuicSustainedBandwidthRecorder* bandwidth_recorder =
+      sent_packet_manager.SustainedBandwidthRecorder();
+
+  CachedNetworkParameters cached_network_params;
+  cached_network_params.set_timestamp(
+      connection()->clock()->WallNow().ToUNIXSeconds());
+
+  if (!sent_packet_manager.GetRttStats()->min_rtt().IsZero()) {
+    cached_network_params.set_min_rtt_ms(
+        sent_packet_manager.GetRttStats()->min_rtt().ToMilliseconds());
+  }
+
+  // Populate bandwidth estimates if any.
+  if (bandwidth_recorder != nullptr && bandwidth_recorder->HasEstimate()) {
+    const int32_t bw_estimate_bytes_per_second =
+        BandwidthToCachedParameterBytesPerSecond(
+            bandwidth_recorder->BandwidthEstimate());
+    const int32_t max_bw_estimate_bytes_per_second =
+        BandwidthToCachedParameterBytesPerSecond(
+            bandwidth_recorder->MaxBandwidthEstimate());
+    QUIC_BUG_IF(quic_bug_12513_1, max_bw_estimate_bytes_per_second < 0)
+        << max_bw_estimate_bytes_per_second;
+    QUIC_BUG_IF(quic_bug_10393_1, bw_estimate_bytes_per_second < 0)
+        << bw_estimate_bytes_per_second;
+
+    cached_network_params.set_bandwidth_estimate_bytes_per_second(
+        bw_estimate_bytes_per_second);
+    cached_network_params.set_max_bandwidth_estimate_bytes_per_second(
+        max_bw_estimate_bytes_per_second);
+    cached_network_params.set_max_bandwidth_timestamp_seconds(
+        bandwidth_recorder->MaxBandwidthTimestamp());
+
+    cached_network_params.set_previous_connection_state(
+        bandwidth_recorder->EstimateRecordedDuringSlowStart()
+            ? CachedNetworkParameters::SLOW_START
+            : CachedNetworkParameters::CONGESTION_AVOIDANCE);
+  }
+
+  if (!serving_region_.empty()) {
+    cached_network_params.set_serving_region(serving_region_);
+  }
+
+  return cached_network_params;
 }
 
 }  // namespace quic

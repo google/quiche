@@ -13,6 +13,7 @@
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "quic/core/crypto/crypto_framer.h"
 #include "quic/core/crypto/crypto_utils.h"
+#include "quic/core/proto/cached_network_parameters_proto.h"
 #include "quic/core/quic_config.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_stream.h"
@@ -110,7 +111,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   virtual void OnNewTokenReceived(absl::string_view token) = 0;
 
   // Called to get an address token.
-  virtual std::string GetAddressToken() const = 0;
+  virtual std::string GetAddressToken(
+      const CachedNetworkParameters* cached_network_params) const = 0;
 
   // Called to validate |token|.
   virtual bool ValidateAddressToken(absl::string_view token) const = 0;

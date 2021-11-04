@@ -503,13 +503,19 @@ class MockTlsServerHandshaker : public TlsServerHandshaker {
   MockTlsServerHandshaker& operator=(const MockTlsServerHandshaker&) = delete;
   ~MockTlsServerHandshaker() override {}
 
-  MOCK_METHOD(void,
-              SendServerConfigUpdate,
-              (const CachedNetworkParameters*),
+  MOCK_METHOD(void, SendServerConfigUpdate, (const CachedNetworkParameters*),
               (override));
+
+  MOCK_METHOD(std::string, GetAddressToken, (const CachedNetworkParameters*),
+              (const, override));
 };
 
 TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
+  if (version().UsesTls() && !version().HasIetfQuicFrames()) {
+    // Skip the Txxx versions.
+    return;
+  }
+
   // Test that bandwidth estimate updates are sent to the client, only when
   // bandwidth resumption is enabled, the bandwidth estimate has changed
   // sufficiently, enough time has passed,
@@ -637,22 +643,30 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
     EXPECT_CALL(*quic_crypto_stream,
                 SendServerConfigUpdate(EqualsProto(expected_network_params)))
         .Times(1);
-  } else {
+  } else if (!GetQuicReloadableFlag(
+                 quic_add_cached_network_parameters_to_address_token)) {
     EXPECT_CALL(*tls_server_stream,
                 SendServerConfigUpdate(EqualsProto(expected_network_params)))
         .Times(1);
+  } else {
+    EXPECT_CALL(*tls_server_stream,
+                GetAddressToken(EqualsProto(expected_network_params)))
+        .WillOnce(testing::Return("Test address token"));
   }
   EXPECT_CALL(*connection_, OnSendConnectionState(_)).Times(1);
   session_->OnCongestionWindowChange(now);
 }
 
 TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
-  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
-    // This test relies on resumption, which is not currently supported by the
-    // TLS handshake.
-    // TODO(nharper): Add support for resumption to the TLS handshake.
-    return;
+  if (version().UsesTls()) {
+    if (!version().HasIetfQuicFrames()) {
+      // Skip the Txxx versions.
+      return;
+    }
+    // Avoid a QUIC_BUG in QuicSession::OnConfigNegotiated.
+    connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   }
+
   // Test that if a client provides a CachedNetworkParameters with the same
   // serving region as the current server, and which was made within an hour of
   // now, that this data is passed down to the send algorithm.

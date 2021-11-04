@@ -2180,6 +2180,7 @@ TEST_P(QuicConnectionTest,
     EXPECT_CALL(visitor_, MaybeSendAddressToken()).WillOnce(Invoke([this]() {
       connection_.SendControlFrame(
           QuicFrame(new QuicNewTokenFrame(1, "new_token")));
+      return true;
     }));
     ProcessFramesPacketWithAddresses({QuicFrame(new QuicPathResponseFrame(
                                           0, reverse_path_challenge_payload)),
