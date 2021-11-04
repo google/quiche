@@ -6606,7 +6606,8 @@ TEST_P(EndToEndTest, WebTransportSession404) {
 }
 
 TEST_P(EndToEndTest, InvalidExtendedConnect) {
-  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
+  SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   ASSERT_TRUE(Initialize());
 
   if (!version_.UsesHttp3()) {
@@ -6626,7 +6627,8 @@ TEST_P(EndToEndTest, InvalidExtendedConnect) {
 }
 
 TEST_P(EndToEndTest, RejectExtendedConnect) {
-  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
+  SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   // Disable extended CONNECT.
   memory_cache_backend_.set_enable_extended_connect(false);
   ASSERT_TRUE(Initialize());
@@ -6655,6 +6657,79 @@ TEST_P(EndToEndTest, RejectExtendedConnect) {
   client_->WaitForResponse();
   // No :path header, so 404.
   CheckResponseHeaders("404");
+}
+
+TEST_P(EndToEndTest, RejectInvalidRequestHeader) {
+  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
+  SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
+  ASSERT_TRUE(Initialize());
+
+  spdy::SpdyHeaderBlock headers;
+  headers[":scheme"] = "https";
+  headers[":authority"] = "localhost";
+  headers[":method"] = "GET";
+  headers[":path"] = "/echo";
+  // transfer-encoding header is not allowed.
+  headers["transfer-encoding"] = "chunk";
+
+  client_->SendMessage(headers, "", /*fin=*/false);
+  client_->WaitForResponse();
+  CheckResponseHeaders("400");
+}
+
+TEST_P(EndToEndTest, RejectTransferEncodingResponse) {
+  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
+  SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
+  ASSERT_TRUE(Initialize());
+
+  // Add a response with transfer-encoding headers.
+  SpdyHeaderBlock headers;
+  headers[":status"] = "200";
+  headers["transfer-encoding"] = "gzip";
+
+  SpdyHeaderBlock trailers;
+  trailers["some-trailing-header"] = "trailing-header-value";
+
+  memory_cache_backend_.AddResponse(server_hostname_, "/eep",
+                                    std::move(headers), "", trailers.Clone());
+
+  std::string received_response = client_->SendSynchronousRequest("/eep");
+  EXPECT_THAT(client_->stream_error(),
+              IsStreamError(QUIC_BAD_APPLICATION_PAYLOAD));
+}
+
+TEST_P(EndToEndTest, RejectUpperCaseRequest) {
+  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
+  SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
+  ASSERT_TRUE(Initialize());
+
+  spdy::SpdyHeaderBlock headers;
+  headers[":scheme"] = "https";
+  headers[":authority"] = "localhost";
+  headers[":method"] = "GET";
+  headers[":path"] = "/echo";
+  headers["UpperCaseHeader"] = "foo";
+
+  client_->SendMessage(headers, "", /*fin=*/false);
+  client_->WaitForResponse();
+  CheckResponseHeaders("400");
+}
+
+TEST_P(EndToEndTest, RejectRequestWithInvalidToken) {
+  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
+  SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
+  ASSERT_TRUE(Initialize());
+
+  spdy::SpdyHeaderBlock headers;
+  headers[":scheme"] = "https";
+  headers[":authority"] = "localhost";
+  headers[":method"] = "GET";
+  headers[":path"] = "/echo";
+  headers["invalid,header"] = "foo";
+
+  client_->SendMessage(headers, "", /*fin=*/false);
+  client_->WaitForResponse();
+  CheckResponseHeaders("400");
 }
 
 }  // namespace

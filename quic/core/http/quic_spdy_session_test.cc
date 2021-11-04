@@ -237,6 +237,11 @@ class TestStream : public QuicSpdyStream {
               (override));
 
   MOCK_METHOD(bool, HasPendingRetransmission, (), (const, override));
+
+ protected:
+  bool AreHeadersValid(const QuicHeaderList& /*header_list*/) const override {
+    return true;
+  }
 };
 
 class TestSession : public QuicSpdySession {
@@ -402,7 +407,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         session_(connection_) {
     if (perspective == Perspective::IS_SERVER &&
         VersionUsesHttp3(transport_version()) &&
-        GetQuicReloadableFlag(quic_verify_request_headers)) {
+        GetQuicReloadableFlag(quic_verify_request_headers_2)) {
       session_.set_allow_extended_connect(allow_extended_connect);
     }
     session_.Initialize();
@@ -3764,7 +3769,8 @@ TEST_P(QuicSpdySessionTestServerNoExtendedConnect, BadExtendedConnectSetting) {
   if (!version().UsesHttp3()) {
     return;
   }
-  SetQuicReloadableFlag(quic_verify_request_headers, true);
+  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
+  SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
 
   EXPECT_FALSE(session_.SupportsWebTransport());
   EXPECT_TRUE(session_.ShouldProcessIncomingRequests());

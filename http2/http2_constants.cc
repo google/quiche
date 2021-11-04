@@ -7,6 +7,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+#include "http2/platform/api/http2_flag_utils.h"
 #include "http2/platform/api/http2_logging.h"
 
 namespace http2 {
@@ -152,12 +153,24 @@ std::string Http2SettingsParameterToString(Http2SettingsParameter v) {
 
 // Invalid HTTP/2 header names according to
 // https://datatracker.ietf.org/doc/html/rfc7540#section-8.1.2.2.
-// TODO(birenroy): Consider adding "upgrade" to this set.
+// TODO(b/78024822): Consider adding "upgrade" to this set.
 constexpr char const* kHttp2InvalidHeaderNames[] = {
+    "connection",        "host", "keep-alive", "proxy-connection",
+    "transfer-encoding", "",
+};
+
+constexpr char const* kHttp2InvalidHeaderNamesOld[] = {
     "connection", "host", "keep-alive", "proxy-connection", "transfer-encoding",
 };
 
 const InvalidHeaderSet& GetInvalidHttp2HeaderSet() {
+  if (!GetQuicheReloadableFlag(quic, quic_verify_request_headers_2)) {
+    static const auto* invalid_header_set_old =
+        new InvalidHeaderSet(std::begin(http2::kHttp2InvalidHeaderNamesOld),
+                             std::end(http2::kHttp2InvalidHeaderNamesOld));
+    return *invalid_header_set_old;
+  }
+  HTTP2_RELOADABLE_FLAG_COUNT_N(quic_verify_request_headers_2, 3, 3);
   static const auto* invalid_header_set =
       new InvalidHeaderSet(std::begin(http2::kHttp2InvalidHeaderNames),
                            std::end(http2::kHttp2InvalidHeaderNames));

@@ -13,6 +13,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "http2/http2_constants.h"
 #include "quic/core/http/capsule.h"
 #include "quic/core/http/http_constants.h"
 #include "quic/core/http/http_decoder.h"
@@ -632,12 +633,15 @@ void QuicSpdyStream::OnInitialHeadersComplete(
   // OnHeadersTooLarge() should have already handled it previously.
   if (!header_too_large && !AreHeadersValid(header_list)) {
     QUIC_CODE_COUNT_N(quic_validate_request_header, 1, 2);
-    OnInvalidHeaders();
-    return;
+    if (GetQuicReloadableFlag(quic_act_upon_invalid_header)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_act_upon_invalid_header);
+      OnInvalidHeaders();
+      return;
+    }
   }
   QUIC_CODE_COUNT_N(quic_validate_request_header, 2, 2);
 
-  if (!GetQuicReloadableFlag(quic_verify_request_headers) ||
+  if (!GetQuicReloadableFlag(quic_verify_request_headers_2) ||
       !header_too_large) {
     MaybeProcessReceivedWebTransportHeaders();
     if (ShouldUseDatagramContexts()) {
@@ -1865,10 +1869,39 @@ void QuicSpdyStream::HandleBodyAvailable() {
   }
 }
 
-bool QuicSpdyStream::AreHeadersValid(
-    const QuicHeaderList& /*header_list*/) const {
-  // TODO(b/202433856) check each header name to be valid token and isn't a
-  // disallowed header.
+namespace {
+// Return true if |c| is not allowed in an HTTP/3 wire-encoded header and
+// pseudo-header names according to
+// https://datatracker.ietf.org/doc/html/draft-ietf-quic-http#section-4.1.1 and
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-semantics-19#section-5.6.2
+constexpr bool isInvalidHeaderNameCharacter(unsigned char c) {
+  if (c == '!' || c == '|' || c == '~' || c == '*' || c == '+' || c == '-' ||
+      c == '.' ||
+      // #, $, %, &, '
+      (c >= '#' && c <= '\'') ||
+      // [0-9], :
+      (c >= '0' && c <= ':') ||
+      // ^, _, `, [a-z]
+      (c >= '^' && c <= 'z')) {
+    return false;
+  }
+  return true;
+}
+}  // namespace
+
+bool QuicSpdyStream::AreHeadersValid(const QuicHeaderList& header_list) const {
+  QUICHE_DCHECK(GetQuicReloadableFlag(quic_verify_request_headers_2));
+  for (const std::pair<std::string, std::string>& pair : header_list) {
+    const std::string& name = pair.first;
+    if (std::any_of(name.begin(), name.end(), isInvalidHeaderNameCharacter)) {
+      QUIC_DLOG(ERROR) << "Invalid request header " << name;
+      return false;
+    }
+    if (http2::GetInvalidHttp2HeaderSet().contains(name)) {
+      QUIC_DLOG(ERROR) << name << " header is not allowed";
+      return false;
+    }
+  }
   return true;
 }
 

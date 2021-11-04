@@ -51,6 +51,12 @@ void QuicSpdyClientStream::OnInitialHeadersComplete(
 
   QUICHE_DCHECK(headers_decompressed());
   header_bytes_read_ += frame_len;
+  if (rst_sent()) {
+    // QuicSpdyStream::OnInitialHeadersComplete already rejected invalid
+    // response header.
+    return;
+  }
+
   if (!SpdyUtils::CopyAndValidateHeaders(header_list, &content_length_,
                                          &response_headers_)) {
     QUIC_DLOG(ERROR) << "Failed to parse header list: "
@@ -191,7 +197,7 @@ size_t QuicSpdyClientStream::SendRequest(SpdyHeaderBlock headers,
 
 bool QuicSpdyClientStream::AreHeadersValid(
     const QuicHeaderList& header_list) const {
-  if (!GetQuicReloadableFlag(quic_verify_request_headers)) {
+  if (!GetQuicReloadableFlag(quic_verify_request_headers_2)) {
     return true;
   }
   if (!QuicSpdyStream::AreHeadersValid(header_list)) {

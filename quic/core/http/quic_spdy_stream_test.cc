@@ -26,6 +26,7 @@
 #include "quic/core/quic_versions.h"
 #include "quic/core/quic_write_blocked_list.h"
 #include "quic/platform/api/quic_expect_bug.h"
+#include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/qpack/qpack_test_utils.h"
 #include "quic/test_tools/quic_config_peer.h"
@@ -250,6 +251,11 @@ class TestStream : public QuicSpdyStream {
   }
 
   size_t headers_payload_length() const { return headers_payload_length_; }
+
+  bool AreHeadersValid(const QuicHeaderList& header_list) const override {
+    return !GetQuicReloadableFlag(quic_verify_request_headers_2) ||
+           QuicSpdyStream::AreHeadersValid(header_list);
+  }
 
  private:
   bool should_process_data_;

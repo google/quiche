@@ -130,7 +130,7 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
       "4040"  // 0x40 as the reserved frame type
       "01"    // 1 byte frame length
       "61");  //  payload "a"
-  if ((!GetQuicReloadableFlag(quic_verify_request_headers) ||
+  if ((!GetQuicReloadableFlag(quic_verify_request_headers_2) ||
        perspective() == Perspective::IS_CLIENT) &&
       QuicSpdySessionPeer::LocalHttpDatagramSupport(&session_) ==
           HttpDatagramSupport::kDraft00And04) {
@@ -154,7 +154,7 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
         "01"         // 1 byte frame length
         "61");       //  payload "a"
   }
-  if (GetQuicReloadableFlag(quic_verify_request_headers) &&
+  if (GetQuicReloadableFlag(quic_verify_request_headers_2) &&
       perspective() == Perspective::IS_SERVER &&
       QuicSpdySessionPeer::LocalHttpDatagramSupport(&session_) ==
           HttpDatagramSupport::kNone) {
@@ -176,7 +176,7 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
         "01"    // 1 byte frame length
         "61");  //  payload "a"
   }
-  if (GetQuicReloadableFlag(quic_verify_request_headers) &&
+  if (GetQuicReloadableFlag(quic_verify_request_headers_2) &&
       perspective() == Perspective::IS_SERVER &&
       QuicSpdySessionPeer::LocalHttpDatagramSupport(&session_) !=
           HttpDatagramSupport::kNone) {

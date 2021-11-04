@@ -56,14 +56,13 @@ void QuicSimpleServerStream::OnInitialHeadersComplete(
     size_t frame_len,
     const QuicHeaderList& header_list) {
   QuicSpdyStream::OnInitialHeadersComplete(fin, frame_len, header_list);
-  if (!SpdyUtils::CopyAndValidateHeaders(header_list, &content_length_,
+  // QuicSpdyStream::OnInitialHeadersComplete() may have already sent error
+  // response.
+  if (!response_sent_ &&
+      !SpdyUtils::CopyAndValidateHeaders(header_list, &content_length_,
                                          &request_headers_)) {
     QUIC_DVLOG(1) << "Invalid headers";
-    if (!response_sent_) {
-      // QuicSpdyStream::OnInitialHeadersComplete() may have already sent error
-      // response.
       SendErrorResponse();
-    }
   }
   ConsumeHeaderList();
   if (!fin && !response_sent_) {

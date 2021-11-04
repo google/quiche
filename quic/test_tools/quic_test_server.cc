@@ -123,7 +123,7 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
           compressed_certs_cache(), server_backend());
     }
     if (VersionUsesHttp3(version.transport_version) &&
-        GetQuicReloadableFlag(quic_verify_request_headers)) {
+        GetQuicReloadableFlag(quic_verify_request_headers_2)) {
       QUICHE_DCHECK(session->allow_extended_connect());
       // Do not allow extended CONNECT request if the backend doesn't support
       // it.
