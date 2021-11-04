@@ -963,6 +963,13 @@ void OgHttp2Session::OnHeaderStatus(
     if (it == streams_reset_.end()) {
       EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
           stream_id, spdy::ERROR_CODE_INTERNAL_ERROR));
+
+      const bool ok = visitor_.OnInvalidFrame(
+          stream_id, Http2VisitorInterface::InvalidFrameError::kHttpHeader);
+      if (!ok) {
+        LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
+                            ConnectionError::kHeaderError);
+      }
     }
   } else if (result == Http2VisitorInterface::HEADER_CONNECTION_ERROR) {
     LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
