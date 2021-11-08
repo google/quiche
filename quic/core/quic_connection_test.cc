@@ -763,7 +763,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                     std::unique_ptr<QuicDecrypter> decrypter) {
     if (connection_.version().KnowsWhichDecrypterToUse()) {
       connection_.InstallDecrypter(level, std::move(decrypter));
-      connection_.RemoveDecrypter(ENCRYPTION_INITIAL);
     } else {
       connection_.SetDecrypter(level, std::move(decrypter));
     }
@@ -898,7 +897,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         connection_.InstallDecrypter(
             QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_),
             std::make_unique<StrictTaggingDecrypter>(0x01));
-        connection_.RemoveDecrypter(ENCRYPTION_INITIAL);
       } else {
         connection_.SetDecrypter(
             QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_),
@@ -15557,6 +15555,94 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
     }
     EXPECT_FALSE(connection_.HasPendingAcks());
     ASSERT_TRUE(connection_.connected());
+  }
+}
+
+// Regression test for b/201643321.
+TEST_P(QuicConnectionTest, FailedToRetransmitShlo) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  use_tagging_decrypter();
+  // Received INITIAL 1.
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.HasPendingAcks());
+
+  peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                            std::make_unique<TaggingEncrypter>(0x02));
+
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x03));
+  SetDecrypter(ENCRYPTION_HANDSHAKE,
+               std::make_unique<StrictTaggingDecrypter>(0x02));
+  SetDecrypter(ENCRYPTION_ZERO_RTT,
+               std::make_unique<StrictTaggingDecrypter>(0x02));
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<TaggingEncrypter>(0x04));
+  // Received ENCRYPTION_ZERO_RTT 1.
+  ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    // Send INITIAL 1.
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+    connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_INITIAL);
+    // Send HANDSHAKE 2.
+    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+    connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    // Send half RTT data to exhaust amplification credit.
+    connection_.SendStreamDataWithString(0, std::string(100 * 1024, 'a'), 0,
+                                         NO_FIN);
+  }
+  // Received INITIAL 2.
+  ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
+  ASSERT_TRUE(connection_.HasPendingAcks());
+  // Verify ACK delay is 1ms.
+  EXPECT_EQ(clock_.Now() + kAlarmGranularity,
+            connection_.GetAckAlarm()->deadline());
+  if (!GetQuicReloadableFlag(
+          quic_donot_check_amplification_limit_with_pending_timer_credit)) {
+    // ACK is not sent because of amplification limit throttled.
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  } else {
+    // ACK is not throttled by amplification limit, and SHLO is bundled. Also
+    // HANDSHAKE packet gets coalesced.
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  }
+  // ACK alarm fires.
+  clock_.AdvanceTime(kAlarmGranularity);
+  connection_.GetAckAlarm()->Fire();
+  if (GetQuicReloadableFlag(
+          quic_donot_check_amplification_limit_with_pending_timer_credit)) {
+    // Verify HANDSHAKE packet is coalesced with INITIAL ACK + SHLO.
+    EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
+    // Only the first packet in the coalesced packet has been processed,
+    // verify SHLO is bundled with INITIAL ACK.
+    EXPECT_EQ(1u, writer_->ack_frames().size());
+    EXPECT_EQ(1u, writer_->crypto_frames().size());
+    // Process the coalesced HANDSHAKE packet.
+    ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
+    auto packet = writer_->coalesced_packet()->Clone();
+    writer_->framer()->ProcessPacket(*packet);
+    EXPECT_EQ(0u, writer_->ack_frames().size());
+    EXPECT_EQ(1u, writer_->crypto_frames().size());
+    ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
+  }
+
+  // Received INITIAL 3.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
+  ProcessCryptoPacketAtLevel(3, ENCRYPTION_INITIAL);
+  if (!GetQuicReloadableFlag(
+          quic_donot_check_amplification_limit_with_pending_timer_credit)) {
+    EXPECT_FALSE(connection_.HasPendingAcks());
+  } else {
+    EXPECT_TRUE(connection_.HasPendingAcks());
   }
 }
 
