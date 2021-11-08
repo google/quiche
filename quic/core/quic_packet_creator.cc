@@ -1454,13 +1454,14 @@ size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
       // The only pending data in the packet is non-retransmittable frames. I'm
       // assuming here that they won't occupy so much of the packet that a
       // CRYPTO frame won't fit.
-      QUIC_BUG(quic_bug_10752_26)
-          << ENDPOINT << "Failed to ConsumeCryptoData at level " << level
-          << ", pending_frames: " << GetPendingFramesInfo()
-          << ", has_soft_max_packet_length: " << HasSoftMaxPacketLength()
-          << ", max_packet_length: " << max_packet_length_
-          << ", transmission_type: "
-          << TransmissionTypeToString(next_transmission_type_);
+      const std::string error_message = absl::StrCat(
+          ENDPOINT, "Failed to ConsumeCryptoData at level ", level,
+          ", pending_frames: ", GetPendingFramesInfo(),
+          ", has_soft_max_packet_length: ", HasSoftMaxPacketLength(),
+          ", max_packet_length: ", max_packet_length_, ", transmission_type: ",
+          TransmissionTypeToString(next_transmission_type_),
+          ", packet_number: ", packet_number().ToString());
+      QUIC_BUG(quic_bug_10752_26) << error_message;
       return 0;
     }
     total_bytes_consumed += frame.crypto_frame->data_length;
