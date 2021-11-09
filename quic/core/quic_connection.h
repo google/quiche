@@ -1259,6 +1259,14 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     context_.tracer.swap(tracer);
   }
 
+  absl::optional<QuicWallTime> quic_bug_10511_43_timestamp() const {
+    return quic_bug_10511_43_timestamp_;
+  }
+
+  const std::string& quic_bug_10511_43_error_detail() const {
+    return quic_bug_10511_43_error_detail_;
+  }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1479,6 +1487,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
    private:
     QuicConnection* connection_;
     QuicSocketAddress original_direct_peer_address_;
+    // TODO(b/205023946) Debug-only fields, to be deprecated after the bug is
+    // fixed.
+    QuicSocketAddress peer_address_default_path_;
+    QuicSocketAddress peer_address_alternative_path_;
+    AddressChangeType active_effective_peer_migration_type_;
   };
 
   // A class which sets and clears in_on_retransmission_time_out_ when entering
@@ -2277,6 +2290,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const bool reset_per_packet_state_for_undecryptable_packets_ =
       GetQuicReloadableFlag(
           quic_reset_per_packet_state_for_undecryptable_packets);
+
+  // TODO(b/205023946) Debug-only fields, to be deprecated after the bug is
+  // fixed.
+  absl::optional<QuicWallTime> quic_bug_10511_43_timestamp_;
+  std::string quic_bug_10511_43_error_detail_;
 };
 
 }  // namespace quic

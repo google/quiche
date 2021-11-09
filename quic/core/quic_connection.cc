@@ -7013,7 +7013,12 @@ QuicConnection::ReversePathValidationResultDelegate::
         const QuicSocketAddress& direct_peer_address)
     : QuicPathValidator::ResultDelegate(),
       connection_(connection),
-      original_direct_peer_address_(direct_peer_address) {}
+      original_direct_peer_address_(direct_peer_address),
+      peer_address_default_path_(connection->direct_peer_address_),
+      peer_address_alternative_path_(
+          connection_->alternative_path_.peer_address),
+      active_effective_peer_migration_type_(
+          connection_->active_effective_peer_migration_type_) {}
 
 void QuicConnection::ReversePathValidationResultDelegate::
     OnPathValidationSuccess(
@@ -7022,6 +7027,30 @@ void QuicConnection::ReversePathValidationResultDelegate::
   if (connection_->IsDefaultPath(context->self_address(),
                                  context->peer_address())) {
     QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 3, 6);
+    if (connection_->active_effective_peer_migration_type_ == NO_CHANGE) {
+      connection_->quic_bug_10511_43_timestamp_ =
+          connection_->clock_->WallNow();
+      connection_->quic_bug_10511_43_error_detail_ = absl::StrCat(
+          "Reverse path validation on default path from ",
+          context->self_address().ToString(), " to ",
+          context->peer_address().ToString(),
+          " completed without active peer address change: current "
+          "peer address on default path ",
+          connection_->direct_peer_address_.ToString(),
+          ", peer address on default path when the reverse path "
+          "validation was kicked off ",
+          peer_address_default_path_.ToString(),
+          ", peer address on alternative path when the reverse "
+          "path validation was kicked off ",
+          peer_address_alternative_path_.ToString(),
+          ", with active_effective_peer_migration_type_ = ",
+          AddressChangeTypeToString(active_effective_peer_migration_type_),
+          ". The last received packet number ",
+          connection_->last_header_.packet_number.ToString(),
+          " Connection is connected: ", connection_->connected_);
+      QUIC_BUG(quic_bug_10511_43)
+          << connection_->quic_bug_10511_43_error_detail_;
+    }
     connection_->OnEffectivePeerMigrationValidated();
   } else {
     QUICHE_DCHECK(connection_->IsAlternativePath(
