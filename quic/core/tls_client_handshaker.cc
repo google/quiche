@@ -221,7 +221,9 @@ bool TlsClientHandshaker::SetAlpn() {
 bool TlsClientHandshaker::SetTransportParameters() {
   TransportParameters params;
   params.perspective = Perspective::IS_CLIENT;
-  params.version =
+  params.legacy_version_information =
+      TransportParameters::LegacyVersionInformation();
+  params.legacy_version_information.value().version =
       CreateQuicVersionLabel(session()->supported_versions().front());
 
   if (!handshaker_delegate()->FillTransportParameters(&params)) {
@@ -268,22 +270,31 @@ bool TlsClientHandshaker::ProcessTransportParameters(
 
   // When interoperating with non-Google implementations that do not send
   // the version extension, set it to what we expect.
-  if (received_transport_params_->version == 0) {
-    received_transport_params_->version =
+  if (!received_transport_params_->legacy_version_information.has_value()) {
+    received_transport_params_->legacy_version_information =
+        TransportParameters::LegacyVersionInformation();
+  }
+  if (received_transport_params_->legacy_version_information.value().version ==
+      0) {
+    received_transport_params_->legacy_version_information.value().version =
         CreateQuicVersionLabel(session()->connection()->version());
   }
-  if (received_transport_params_->supported_versions.empty()) {
-    received_transport_params_->supported_versions.push_back(
-        received_transport_params_->version);
+  if (received_transport_params_->legacy_version_information.value()
+          .supported_versions.empty()) {
+    received_transport_params_->legacy_version_information.value()
+        .supported_versions.push_back(
+            received_transport_params_->legacy_version_information.value()
+                .version);
   }
 
-  if (received_transport_params_->version !=
+  if (received_transport_params_->legacy_version_information.value().version !=
       CreateQuicVersionLabel(session()->connection()->version())) {
     *error_details = "Version mismatch detected";
     return false;
   }
   if (CryptoUtils::ValidateServerHelloVersions(
-          received_transport_params_->supported_versions,
+          received_transport_params_->legacy_version_information.value()
+              .supported_versions,
           session()->connection()->server_supported_versions(),
           error_details) != QUIC_NO_ERROR ||
       handshaker_delegate()->ProcessTransportParameters(

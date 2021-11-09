@@ -110,6 +110,38 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
         const TransportParameters& params);
   };
 
+  // LegacyVersionInformation represents the Google QUIC downgrade prevention
+  // mechanism ported to QUIC+TLS. It is exchanged using transport parameter ID
+  // 0x4752 and will eventually be deprecated in favor of
+  // draft-ietf-quic-version-negotiation.
+  struct QUIC_EXPORT_PRIVATE LegacyVersionInformation {
+    LegacyVersionInformation();
+    LegacyVersionInformation(const LegacyVersionInformation& other) = default;
+    LegacyVersionInformation& operator=(const LegacyVersionInformation& other) =
+        default;
+    LegacyVersionInformation& operator=(LegacyVersionInformation&& other) =
+        default;
+    LegacyVersionInformation(LegacyVersionInformation&& other) = default;
+    ~LegacyVersionInformation() = default;
+    bool operator==(const LegacyVersionInformation& rhs) const;
+    bool operator!=(const LegacyVersionInformation& rhs) const;
+    // When sent by the client, |version| is the initial version offered by the
+    // client (before any version negotiation packets) for this connection. When
+    // sent by the server, |version| is the version that is in use.
+    QuicVersionLabel version;
+
+    // When sent by the server, |supported_versions| contains a list of all
+    // versions that the server would send in a version negotiation packet. When
+    // sent by the client, this is empty.
+    QuicVersionLabelVector supported_versions;
+
+    // Allows easily logging.
+    std::string ToString() const;
+    friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+        std::ostream& os,
+        const LegacyVersionInformation& legacy_version_information);
+  };
+
   TransportParameters();
   TransportParameters(const TransportParameters& other);
   ~TransportParameters();
@@ -122,15 +154,8 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // the encrypted_extensions handshake message.
   Perspective perspective;
 
-  // When Perspective::IS_CLIENT, |version| is the initial version offered by
-  // the client (before any version negotiation packets) for this connection.
-  // When Perspective::IS_SERVER, |version| is the version that is in use.
-  QuicVersionLabel version;
-
-  // |supported_versions| contains a list of all versions that the server would
-  // send in a version negotiation packet. It is not used if |perspective ==
-  // Perspective::IS_CLIENT|.
-  QuicVersionLabelVector supported_versions;
+  // Google QUIC downgrade prevention mechanism sent over QUIC+TLS.
+  absl::optional<LegacyVersionInformation> legacy_version_information;
 
   // The value of the Destination Connection ID field from the first
   // Initial packet sent by the client.

@@ -502,14 +502,19 @@ bool TlsServerHandshaker::ProcessTransportParameters(
 
   // When interoperating with non-Google implementations that do not send
   // the version extension, set it to what we expect.
-  if (client_params.version == 0) {
-    client_params.version =
+  if (!client_params.legacy_version_information.has_value()) {
+    client_params.legacy_version_information =
+        TransportParameters::LegacyVersionInformation();
+  }
+  if (client_params.legacy_version_information.value().version == 0) {
+    client_params.legacy_version_information.value().version =
         CreateQuicVersionLabel(session()->connection()->version());
   }
 
   if (CryptoUtils::ValidateClientHelloVersion(
-          client_params.version, session()->connection()->version(),
-          session()->supported_versions(), error_details) != QUIC_NO_ERROR ||
+          client_params.legacy_version_information.value().version,
+          session()->connection()->version(), session()->supported_versions(),
+          error_details) != QUIC_NO_ERROR ||
       handshaker_delegate()->ProcessTransportParameters(
           client_params, /* is_resumption = */ false, error_details) !=
           QUIC_NO_ERROR) {
@@ -531,9 +536,11 @@ TlsServerHandshaker::SetTransportParameters() {
 
   TransportParameters server_params;
   server_params.perspective = Perspective::IS_SERVER;
-  server_params.supported_versions =
+  server_params.legacy_version_information =
+      TransportParameters::LegacyVersionInformation();
+  server_params.legacy_version_information.value().supported_versions =
       CreateQuicVersionLabelVector(session()->supported_versions());
-  server_params.version =
+  server_params.legacy_version_information.value().version =
       CreateQuicVersionLabel(session()->connection()->version());
 
   if (!handshaker_delegate()->FillTransportParameters(&server_params)) {
