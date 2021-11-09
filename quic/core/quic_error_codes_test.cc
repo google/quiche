@@ -20,10 +20,6 @@ TEST_F(QuicErrorCodesTest, QuicErrorCodeToString) {
 }
 
 TEST_F(QuicErrorCodesTest, QuicIetfTransportErrorCodeString) {
-  EXPECT_EQ("Private(65280)",
-            QuicIetfTransportErrorCodeString(
-                static_cast<quic::QuicIetfTransportErrorCodes>(0xff00u)));
-
   EXPECT_EQ("CRYPTO_ERROR(missing extension)",
             QuicIetfTransportErrorCodeString(
                 static_cast<quic::QuicIetfTransportErrorCodes>(

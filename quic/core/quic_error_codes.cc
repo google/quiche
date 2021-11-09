@@ -291,9 +291,6 @@ const char* QuicErrorCodeToString(QuicErrorCode error) {
 }
 
 std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
-  if (static_cast<uint64_t>(c) >= 0xff00u) {
-    return absl::StrCat("Private(", static_cast<uint64_t>(c), ")");
-  }
   if (c >= CRYPTO_ERROR_FIRST && c <= CRYPTO_ERROR_LAST) {
     const int tls_error = static_cast<int>(c - CRYPTO_ERROR_FIRST);
     const char* tls_error_description = SSL_alert_desc_string_long(tls_error);

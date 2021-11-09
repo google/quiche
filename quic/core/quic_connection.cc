@@ -1826,7 +1826,10 @@ bool QuicConnection::OnConnectionCloseFrame(
                       << connection_id() << ", with error: "
                       << QuicErrorCodeToString(frame.quic_error_code) << " ("
                       << frame.error_details << ")"
-                      << ", transport error code: " << frame.wire_error_code
+                      << ", transport error code: "
+                      << QuicIetfTransportErrorCodeString(
+                             static_cast<QuicIetfTransportErrorCodes>(
+                                 frame.wire_error_code))
                       << ", error frame type: "
                       << frame.transport_close_frame_type;
       break;
