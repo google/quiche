@@ -500,26 +500,20 @@ bool TlsServerHandshaker::ProcessTransportParameters(
     }
   }
 
-  // When interoperating with non-Google implementations that do not send
-  // the version extension, set it to what we expect.
-  if (!client_params.legacy_version_information.has_value()) {
-    client_params.legacy_version_information =
-        TransportParameters::LegacyVersionInformation();
-  }
-  if (client_params.legacy_version_information.value().version == 0) {
-    client_params.legacy_version_information.value().version =
-        CreateQuicVersionLabel(session()->connection()->version());
-  }
-
-  if (CryptoUtils::ValidateClientHelloVersion(
+  if (client_params.legacy_version_information.has_value() &&
+      CryptoUtils::ValidateClientHelloVersion(
           client_params.legacy_version_information.value().version,
           session()->connection()->version(), session()->supported_versions(),
-          error_details) != QUIC_NO_ERROR ||
-      handshaker_delegate()->ProcessTransportParameters(
-          client_params, /* is_resumption = */ false, error_details) !=
-          QUIC_NO_ERROR) {
+          error_details) != QUIC_NO_ERROR) {
     return false;
   }
+
+  if (handshaker_delegate()->ProcessTransportParameters(
+          client_params, /* is_resumption = */ false, error_details) !=
+      QUIC_NO_ERROR) {
+    return false;
+  }
+
   ProcessAdditionalTransportParameters(client_params);
   if (!session()->user_agent_id().has_value() &&
       client_params.user_agent_id.has_value()) {
