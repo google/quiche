@@ -500,21 +500,31 @@ bool TlsServerHandshaker::ProcessTransportParameters(
     }
   }
 
-  // When interoperating with non-Google implementations that do not send
-  // the version extension, set it to what we expect.
-  if (client_params.version == 0) {
-    client_params.version =
-        CreateQuicVersionLabel(session()->connection()->version());
-  }
-
-  if (CryptoUtils::ValidateClientHelloVersion(
-          client_params.version, session()->connection()->version(),
-          session()->supported_versions(), error_details) != QUIC_NO_ERROR ||
-      handshaker_delegate()->ProcessTransportParameters(
-          client_params, /* is_resumption = */ false, error_details) !=
-          QUIC_NO_ERROR) {
+  if (client_params.legacy_version_information.has_value() &&
+      CryptoUtils::ValidateClientHelloVersion(
+          client_params.legacy_version_information.value().version,
+          session()->connection()->version(), session()->supported_versions(),
+          error_details) != QUIC_NO_ERROR) {
     return false;
   }
+
+  if (GetQuicReloadableFlag(quic_version_information) &&
+      client_params.version_information.has_value()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_information, 2, 2);
+    if (!CryptoUtils::ValidateChosenVersion(
+            client_params.version_information.value().chosen_version,
+            session()->version(), error_details)) {
+      QUICHE_DCHECK(!error_details->empty());
+      return false;
+    }
+  }
+
+  if (handshaker_delegate()->ProcessTransportParameters(
+          client_params, /* is_resumption = */ false, error_details) !=
+      QUIC_NO_ERROR) {
+    return false;
+  }
+
   ProcessAdditionalTransportParameters(client_params);
   if (!session()->user_agent_id().has_value() &&
       client_params.user_agent_id.has_value()) {
@@ -531,10 +541,21 @@ TlsServerHandshaker::SetTransportParameters() {
 
   TransportParameters server_params;
   server_params.perspective = Perspective::IS_SERVER;
-  server_params.supported_versions =
+  server_params.legacy_version_information =
+      TransportParameters::LegacyVersionInformation();
+  server_params.legacy_version_information.value().supported_versions =
       CreateQuicVersionLabelVector(session()->supported_versions());
-  server_params.version =
+  server_params.legacy_version_information.value().version =
       CreateQuicVersionLabel(session()->connection()->version());
+  if (GetQuicReloadableFlag(quic_version_information)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_information, 1, 2);
+    server_params.version_information =
+        TransportParameters::VersionInformation();
+    server_params.version_information.value().chosen_version =
+        CreateQuicVersionLabel(session()->version());
+    server_params.version_information.value().other_versions =
+        CreateQuicVersionLabelVector(session()->supported_versions());
+  }
 
   if (!handshaker_delegate()->FillTransportParameters(&server_params)) {
     return result;

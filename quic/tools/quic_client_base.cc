@@ -185,6 +185,9 @@ void QuicClientBase::StartConnect() {
                          server_address(), helper(), alarm_factory(), writer,
                          /* owns_writer= */ false, Perspective::IS_CLIENT,
                          client_supported_versions));
+  if (can_reconnect_with_different_version) {
+    session()->set_client_original_supported_versions(supported_versions());
+  }
   if (connection_debug_visitor_ != nullptr) {
     session()->connection()->set_debug_visitor(connection_debug_visitor_);
   }
