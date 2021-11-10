@@ -3735,6 +3735,33 @@ TEST_P(QuicSpdySessionTestServer, ResetOutgoingWebTransportStreams) {
   EXPECT_EQ(web_transport->NumberOfAssociatedStreams(), 0u);
 }
 
+TEST_P(QuicSpdySessionTestClient, WebTransportWithoutExtendedConnect) {
+  if (!version().UsesHttp3()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
+  SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
+  session_.set_local_http_datagram_support(HttpDatagramSupport::kDraft00And04);
+  session_.set_supports_webtransport(true);
+
+  EXPECT_FALSE(session_.SupportsWebTransport());
+  CompleteHandshake();
+
+  SettingsFrame settings;
+  settings.values[SETTINGS_H3_DATAGRAM_DRAFT04] = 1;
+  settings.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
+  // No SETTINGS_ENABLE_CONNECT_PROTOCOL here.
+  std::string data = std::string(1, kControlStream) + EncodeSettings(settings);
+  QuicStreamId control_stream_id =
+      session_.perspective() == Perspective::IS_SERVER
+          ? GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3)
+          : GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
+  QuicStreamFrame frame(control_stream_id, /*fin=*/false, /*offset=*/0, data);
+  session_.OnStreamFrame(frame);
+
+  EXPECT_TRUE(session_.SupportsWebTransport());
+}
+
 class QuicSpdySessionTestServerNoExtendedConnect
     : public QuicSpdySessionTestBase {
  public:

@@ -1200,6 +1200,9 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
           return false;
         }
         peer_supports_webtransport_ = (value == 1);
+        if (perspective() == Perspective::IS_CLIENT && value == 1) {
+          allow_extended_connect_ = true;
+        }
         break;
       default:
         QUIC_DVLOG(1) << ENDPOINT << "Unknown setting identifier " << id
