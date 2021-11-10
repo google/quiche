@@ -3964,6 +3964,112 @@ TEST_P(EndToEndTest, ServerSendVersionNegotiationWithDifferentConnectionId) {
   client_connection->set_debug_visitor(nullptr);
 }
 
+// DowngradePacketWriter is a client writer which will intercept all the client
+// writes for |target_version| and reply to them with version negotiation
+// packets to attempt a version downgrade attack. Once the client has downgraded
+// to a different version, the writer stops intercepting. |server_thread| must
+// start off paused, and will be resumed once interception is done.
+class DowngradePacketWriter : public PacketDroppingTestWriter {
+ public:
+  explicit DowngradePacketWriter(
+      const ParsedQuicVersion& target_version,
+      const ParsedQuicVersionVector& supported_versions, QuicTestClient* client,
+      QuicPacketWriter* server_writer, ServerThread* server_thread)
+      : target_version_(target_version),
+        supported_versions_(supported_versions),
+        client_(client),
+        server_writer_(server_writer),
+        server_thread_(server_thread) {}
+  ~DowngradePacketWriter() override {}
+
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
+                          const QuicIpAddress& self_address,
+                          const QuicSocketAddress& peer_address,
+                          quic::PerPacketOptions* options) override {
+    if (!intercept_enabled_) {
+      return PacketDroppingTestWriter::WritePacket(
+          buffer, buf_len, self_address, peer_address, options);
+    }
+    PacketHeaderFormat format;
+    QuicLongHeaderType long_packet_type;
+    bool version_present, has_length_prefix;
+    QuicVersionLabel version_label;
+    ParsedQuicVersion parsed_version = ParsedQuicVersion::Unsupported();
+    QuicConnectionId destination_connection_id, source_connection_id;
+    absl::optional<absl::string_view> retry_token;
+    std::string detailed_error;
+    if (QuicFramer::ParsePublicHeaderDispatcher(
+            QuicEncryptedPacket(buffer, buf_len),
+            kQuicDefaultConnectionIdLength, &format, &long_packet_type,
+            &version_present, &has_length_prefix, &version_label,
+            &parsed_version, &destination_connection_id, &source_connection_id,
+            &retry_token, &detailed_error) != QUIC_NO_ERROR) {
+      ADD_FAILURE() << "Failed to parse our own packet: " << detailed_error;
+      return WriteResult(WRITE_STATUS_ERROR, 0);
+    }
+    if (!version_present || parsed_version != target_version_) {
+      // Client is sending with another version, the attack has succeeded so we
+      // can stop intercepting.
+      intercept_enabled_ = false;
+      server_thread_->Resume();
+      // Pass the client-sent packet through.
+      return WritePacket(buffer, buf_len, self_address, peer_address, options);
+    }
+    // Send a version negotiation packet.
+    std::unique_ptr<QuicEncryptedPacket> packet(
+        QuicFramer::BuildVersionNegotiationPacket(
+            destination_connection_id, source_connection_id,
+            parsed_version.HasIetfInvariantHeader(), has_length_prefix,
+            supported_versions_));
+    server_writer_->WritePacket(
+        packet->data(), packet->length(), peer_address.host(),
+        client_->client()->network_helper()->GetLatestClientAddress(), nullptr);
+    // Drop the client-sent packet but pretend it was sent.
+    return WriteResult(WRITE_STATUS_OK, buf_len);
+  }
+
+ private:
+  bool intercept_enabled_ = true;
+  ParsedQuicVersion target_version_;
+  ParsedQuicVersionVector supported_versions_;
+  QuicTestClient* client_;           // Unowned.
+  QuicPacketWriter* server_writer_;  // Unowned.
+  ServerThread* server_thread_;      // Unowned.
+};
+
+TEST_P(EndToEndTest, VersionNegotiationDowngradeAttackIsDetected) {
+  ParsedQuicVersion target_version = server_supported_versions_.back();
+  if (!version_.UsesTls() || target_version == version_) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  SetQuicReloadableFlag(quic_version_information, true);
+  connect_to_server_on_initialize_ = false;
+  client_supported_versions_.insert(client_supported_versions_.begin(),
+                                    target_version);
+  ParsedQuicVersionVector downgrade_versions{version_};
+  ASSERT_TRUE(Initialize());
+  ASSERT_TRUE(server_thread_);
+  // Pause the server thread to allow our DowngradePacketWriter to write version
+  // negotiation packets in a thread-safe manner. It will be resumed by the
+  // DowngradePacketWriter.
+  server_thread_->Pause();
+  client_.reset(new QuicTestClient(server_address_, server_hostname_,
+                                   client_config_, client_supported_versions_,
+                                   crypto_test_utils::ProofVerifierForTesting(),
+                                   std::make_unique<SimpleSessionCache>()));
+  delete client_writer_;
+  client_writer_ = new DowngradePacketWriter(target_version, downgrade_versions,
+                                             client_.get(), server_writer_,
+                                             server_thread_.get());
+  client_->UseWriter(client_writer_);
+  // Have the client attempt to send a request.
+  client_->Connect();
+  EXPECT_TRUE(client_->SendSynchronousRequest("/foo").empty());
+  // Make sure the downgrade is detected and the handshake fails.
+  EXPECT_THAT(client_->connection_error(), IsError(QUIC_HANDSHAKE_FAILED));
+}
+
 // A bad header shouldn't tear down the connection, because the receiver can't
 // tell the connection ID.
 TEST_P(EndToEndTest, BadPacketHeaderTruncated) {

@@ -462,6 +462,11 @@ ParsedVersionOfIndex(const ParsedQuicVersionVector& versions, int index);
 QUIC_EXPORT_PRIVATE ParsedQuicVersion
 ParseQuicVersionLabel(QuicVersionLabel version_label);
 
+// Helper function that translates from a QuicVersionLabelVector to a
+// ParsedQuicVersionVector.
+QUIC_EXPORT_PRIVATE ParsedQuicVersionVector
+ParseQuicVersionLabelVector(const QuicVersionLabelVector& version_labels);
+
 // Parses a QUIC version string such as "Q043" or "T051". Also supports parsing
 // ALPN such as "h3-29" or "h3-Q050". For PROTOCOL_QUIC_CRYPTO versions, also
 // supports parsing numbers such as "46".

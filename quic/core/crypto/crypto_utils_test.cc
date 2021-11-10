@@ -108,6 +108,63 @@ TEST_F(CryptoUtilsTest, AuthTagLengths) {
   }
 }
 
+TEST_F(CryptoUtilsTest, ValidateChosenVersion) {
+  for (const ParsedQuicVersion& v1 : AllSupportedVersions()) {
+    for (const ParsedQuicVersion& v2 : AllSupportedVersions()) {
+      std::string error_details;
+      bool success = CryptoUtils::ValidateChosenVersion(
+          CreateQuicVersionLabel(v1), v2, &error_details);
+      EXPECT_EQ(success, v1 == v2);
+      EXPECT_EQ(success, error_details.empty());
+    }
+  }
+}
+
+TEST_F(CryptoUtilsTest, ValidateServerVersionsNoVersionNegotiation) {
+  QuicVersionLabelVector version_information_other_versions;
+  ParsedQuicVersionVector client_original_supported_versions;
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    std::string error_details;
+    EXPECT_TRUE(CryptoUtils::ValidateServerVersions(
+        version_information_other_versions, version,
+        client_original_supported_versions, &error_details));
+    EXPECT_TRUE(error_details.empty());
+  }
+}
+
+TEST_F(CryptoUtilsTest, ValidateServerVersionsWithVersionNegotiation) {
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    QuicVersionLabelVector version_information_other_versions{
+        CreateQuicVersionLabel(version)};
+    ParsedQuicVersionVector client_original_supported_versions{
+        ParsedQuicVersion::ReservedForNegotiation(), version};
+    std::string error_details;
+    EXPECT_TRUE(CryptoUtils::ValidateServerVersions(
+        version_information_other_versions, version,
+        client_original_supported_versions, &error_details));
+    EXPECT_TRUE(error_details.empty());
+  }
+}
+
+TEST_F(CryptoUtilsTest, ValidateServerVersionsWithDowngrade) {
+  if (AllSupportedVersions().size() <= 1) {
+    // We are not vulnerable to downgrade if we only support one version.
+    return;
+  }
+  ParsedQuicVersion client_version = AllSupportedVersions().front();
+  ParsedQuicVersion server_version = AllSupportedVersions().back();
+  ASSERT_NE(client_version, server_version);
+  QuicVersionLabelVector version_information_other_versions{
+      CreateQuicVersionLabel(client_version)};
+  ParsedQuicVersionVector client_original_supported_versions{
+      ParsedQuicVersion::ReservedForNegotiation(), server_version};
+  std::string error_details;
+  EXPECT_FALSE(CryptoUtils::ValidateServerVersions(
+      version_information_other_versions, server_version,
+      client_original_supported_versions, &error_details));
+  EXPECT_FALSE(error_details.empty());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

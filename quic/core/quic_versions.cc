@@ -321,6 +321,18 @@ ParsedQuicVersion ParseQuicVersionLabel(QuicVersionLabel version_label) {
   return UnsupportedQuicVersion();
 }
 
+ParsedQuicVersionVector ParseQuicVersionLabelVector(
+    const QuicVersionLabelVector& version_labels) {
+  ParsedQuicVersionVector parsed_versions;
+  for (const QuicVersionLabel& version_label : version_labels) {
+    ParsedQuicVersion parsed_version = ParseQuicVersionLabel(version_label);
+    if (parsed_version.IsKnown()) {
+      parsed_versions.push_back(parsed_version);
+    }
+  }
+  return parsed_versions;
+}
+
 ParsedQuicVersion ParseQuicVersionString(absl::string_view version_string) {
   if (version_string.empty()) {
     return UnsupportedQuicVersion();
@@ -611,6 +623,7 @@ std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
 
 void QuicVersionInitializeSupportForIetfDraft() {
   // Enable necessary flags.
+  SetQuicReloadableFlag(quic_version_information, true);
 }
 
 void QuicEnableVersion(const ParsedQuicVersion& version) {

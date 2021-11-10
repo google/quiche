@@ -225,6 +225,10 @@ bool TlsClientHandshaker::SetTransportParameters() {
       TransportParameters::LegacyVersionInformation();
   params.legacy_version_information.value().version =
       CreateQuicVersionLabel(session()->supported_versions().front());
+  params.version_information = TransportParameters::VersionInformation();
+  const QuicVersionLabel version = CreateQuicVersionLabel(session()->version());
+  params.version_information.value().chosen_version = version;
+  params.version_information.value().other_versions.push_back(version);
 
   if (!handshaker_delegate()->FillTransportParameters(&params)) {
     return false;
@@ -280,6 +284,23 @@ bool TlsClientHandshaker::ProcessTransportParameters(
                 .supported_versions,
             session()->connection()->server_supported_versions(),
             error_details) != QUIC_NO_ERROR) {
+      QUICHE_DCHECK(!error_details->empty());
+      return false;
+    }
+  }
+  if (received_transport_params_->version_information.has_value()) {
+    if (!CryptoUtils::ValidateChosenVersion(
+            received_transport_params_->version_information.value()
+                .chosen_version,
+            session()->version(), error_details)) {
+      QUICHE_DCHECK(!error_details->empty());
+      return false;
+    }
+    if (!CryptoUtils::CryptoUtils::ValidateServerVersions(
+            received_transport_params_->version_information.value()
+                .other_versions,
+            session()->version(),
+            session()->client_original_supported_versions(), error_details)) {
       QUICHE_DCHECK(!error_details->empty());
       return false;
     }

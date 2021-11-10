@@ -641,6 +641,62 @@ QuicErrorCode CryptoUtils::ValidateClientHelloVersion(
   return QUIC_NO_ERROR;
 }
 
+// static
+bool CryptoUtils::ValidateChosenVersion(
+    const QuicVersionLabel& version_information_chosen_version,
+    const ParsedQuicVersion& session_version, std::string* error_details) {
+  if (version_information_chosen_version !=
+      CreateQuicVersionLabel(session_version)) {
+    *error_details = absl::StrCat(
+        "Detected version mismatch: version_information contained ",
+        QuicVersionLabelToString(version_information_chosen_version),
+        " instead of ", ParsedQuicVersionToString(session_version));
+    return false;
+  }
+  return true;
+}
+
+// static
+bool CryptoUtils::ValidateServerVersions(
+    const QuicVersionLabelVector& version_information_other_versions,
+    const ParsedQuicVersion& session_version,
+    const ParsedQuicVersionVector& client_original_supported_versions,
+    std::string* error_details) {
+  if (client_original_supported_versions.empty()) {
+    // We did not receive a version negotiation packet.
+    return true;
+  }
+  // Parse the server's other versions.
+  ParsedQuicVersionVector parsed_other_versions =
+      ParseQuicVersionLabelVector(version_information_other_versions);
+  // Find the first version that we originally supported that is listed in the
+  // server's other versions.
+  ParsedQuicVersion expected_version = ParsedQuicVersion::Unsupported();
+  for (const ParsedQuicVersion& client_version :
+       client_original_supported_versions) {
+    if (std::find(parsed_other_versions.begin(), parsed_other_versions.end(),
+                  client_version) != parsed_other_versions.end()) {
+      expected_version = client_version;
+      break;
+    }
+  }
+  if (expected_version != session_version) {
+    *error_details = absl::StrCat(
+        "Downgrade attack detected: used ",
+        ParsedQuicVersionToString(session_version), " but ServerVersions(",
+        version_information_other_versions.size(), ")[",
+        QuicVersionLabelVectorToString(version_information_other_versions, ",",
+                                       30),
+        "] ClientOriginalVersions(", client_original_supported_versions.size(),
+        ")[",
+        ParsedQuicVersionVectorToString(client_original_supported_versions, ",",
+                                        30),
+        "]");
+    return false;
+  }
+  return true;
+}
+
 #define RETURN_STRING_LITERAL(x) \
   case x:                        \
     return #x

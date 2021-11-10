@@ -121,6 +121,14 @@ TEST_F(QuicVersionsTest, ParseQuicVersionLabel) {
             ParseQuicVersionLabel(MakeVersionLabel('T', '0', '5', '1')));
   EXPECT_EQ(ParsedQuicVersion::Draft29(),
             ParseQuicVersionLabel(MakeVersionLabel(0xff, 0x00, 0x00, 0x1d)));
+  EXPECT_EQ(ParsedQuicVersion::RFCv1(),
+            ParseQuicVersionLabel(MakeVersionLabel(0x00, 0x00, 0x00, 0x01)));
+  EXPECT_EQ((ParsedQuicVersionVector{ParsedQuicVersion::RFCv1(),
+                                     ParsedQuicVersion::Draft29()}),
+            ParseQuicVersionLabelVector(QuicVersionLabelVector{
+                MakeVersionLabel(0x00, 0x00, 0x00, 0x01),
+                MakeVersionLabel(0xaa, 0xaa, 0xaa, 0xaa),
+                MakeVersionLabel(0xff, 0x00, 0x00, 0x1d)}));
 }
 
 TEST_F(QuicVersionsTest, ParseQuicVersionString) {

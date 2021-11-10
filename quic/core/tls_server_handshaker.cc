@@ -508,6 +508,14 @@ bool TlsServerHandshaker::ProcessTransportParameters(
     return false;
   }
 
+  if (client_params.version_information.has_value() &&
+      !CryptoUtils::ValidateChosenVersion(
+          client_params.version_information.value().chosen_version,
+          session()->version(), error_details)) {
+    QUICHE_DCHECK(!error_details->empty());
+    return false;
+  }
+
   if (handshaker_delegate()->ProcessTransportParameters(
           client_params, /* is_resumption = */ false, error_details) !=
       QUIC_NO_ERROR) {
@@ -536,6 +544,15 @@ TlsServerHandshaker::SetTransportParameters() {
       CreateQuicVersionLabelVector(session()->supported_versions());
   server_params.legacy_version_information.value().version =
       CreateQuicVersionLabel(session()->connection()->version());
+  if (GetQuicReloadableFlag(quic_version_information)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_information, 1, 2);
+    server_params.version_information =
+        TransportParameters::VersionInformation();
+    server_params.version_information.value().chosen_version =
+        CreateQuicVersionLabel(session()->version());
+    server_params.version_information.value().other_versions =
+        CreateQuicVersionLabelVector(session()->supported_versions());
+  }
 
   if (!handshaker_delegate()->FillTransportParameters(&server_params)) {
     return result;

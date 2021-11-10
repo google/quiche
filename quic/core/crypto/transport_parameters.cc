@@ -62,7 +62,8 @@ enum TransportParameters::TransportParameterId : uint64_t {
   kGoogleQuicVersion =
       0x4752,  // Used to transmit version and supported_versions.
 
-  kMinAckDelay = 0xDE1A,  // draft-iyengar-quic-delayed-ack.
+  kMinAckDelay = 0xDE1A,           // draft-iyengar-quic-delayed-ack.
+  kVersionInformation = 0xFF73DB,  // draft-ietf-quic-version-negotiation.
 };
 
 namespace {
@@ -129,6 +130,8 @@ std::string TransportParameterIdToString(
       return "google-version";
     case TransportParameters::kMinAckDelay:
       return "min_ack_delay_us";
+    case TransportParameters::kVersionInformation:
+      return "version_information";
   }
   return absl::StrCat("Unknown(", param_id, ")");
 }
@@ -159,6 +162,8 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kGoogleQuicVersion:
     case TransportParameters::kMinAckDelay:
       return true;
+    case TransportParameters::kVersionInformation:
+      return GetQuicReloadableFlag(quic_version_information);
     case TransportParameters::kGoogleUserAgentId:
       return !GetQuicReloadableFlag(quic_ignore_user_agent_transport_parameter);
     case TransportParameters::kGoogleKeyUpdateNotYetSupported:
@@ -341,6 +346,38 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+TransportParameters::VersionInformation::VersionInformation()
+    : chosen_version(0) {}
+
+bool TransportParameters::VersionInformation::operator==(
+    const VersionInformation& rhs) const {
+  return chosen_version == rhs.chosen_version &&
+         other_versions == rhs.other_versions;
+}
+
+bool TransportParameters::VersionInformation::operator!=(
+    const VersionInformation& rhs) const {
+  return !(*this == rhs);
+}
+
+std::string TransportParameters::VersionInformation::ToString() const {
+  std::string rv = absl::StrCat("[chosen_version ",
+                                QuicVersionLabelToString(chosen_version));
+  if (!other_versions.empty()) {
+    absl::StrAppend(&rv, " other_versions " +
+                             QuicVersionLabelVectorToString(other_versions));
+  }
+  absl::StrAppend(&rv, "]");
+  return rv;
+}
+
+std::ostream& operator<<(
+    std::ostream& os,
+    const TransportParameters::VersionInformation& version_information) {
+  os << version_information.ToString();
+  return os;
+}
+
 std::ostream& operator<<(std::ostream& os, const TransportParameters& params) {
   os << params.ToString();
   return os;
@@ -355,6 +392,9 @@ std::string TransportParameters::ToString() const {
   }
   if (legacy_version_information.has_value()) {
     rv += " " + legacy_version_information.value().ToString();
+  }
+  if (version_information.has_value()) {
+    rv += " " + version_information.value().ToString();
   }
   if (original_destination_connection_id.has_value()) {
     rv += " " + TransportParameterIdToString(kOriginalDestinationConnectionId) +
@@ -464,6 +504,7 @@ TransportParameters::TransportParameters()
 TransportParameters::TransportParameters(const TransportParameters& other)
     : perspective(other.perspective),
       legacy_version_information(other.legacy_version_information),
+      version_information(other.version_information),
       original_destination_connection_id(
           other.original_destination_connection_id),
       max_idle_timeout_ms(other.max_idle_timeout_ms),
@@ -499,6 +540,7 @@ TransportParameters::TransportParameters(const TransportParameters& other)
 bool TransportParameters::operator==(const TransportParameters& rhs) const {
   if (!(perspective == rhs.perspective &&
         legacy_version_information == rhs.legacy_version_information &&
+        version_information == rhs.version_information &&
         original_destination_connection_id ==
             rhs.original_destination_connection_id &&
         max_idle_timeout_ms.value() == rhs.max_idle_timeout_ms.value() &&
@@ -607,6 +649,29 @@ bool TransportParameters::AreValid(std::string* error_details) const {
   if (perspective == Perspective::IS_SERVER && user_agent_id.has_value()) {
     *error_details = "Server cannot send user agent ID";
     return false;
+  }
+  if (version_information.has_value()) {
+    const QuicVersionLabel& chosen_version =
+        version_information.value().chosen_version;
+    const QuicVersionLabelVector& other_versions =
+        version_information.value().other_versions;
+    if (chosen_version == 0) {
+      *error_details = "Invalid chosen version";
+      return false;
+    }
+    if (perspective == Perspective::IS_CLIENT &&
+        std::find(other_versions.begin(), other_versions.end(),
+                  chosen_version) == other_versions.end()) {
+      // When sent by the client, chosen_version needs to be present in
+      // other_versions because other_versions lists the compatible versions and
+      // the chosen version is part of that list. When sent by the server,
+      // other_version contains the list of fully-deployed versions which is
+      // generally equal to the list of supported versions but can slightly
+      // differ during removal of versions across a server fleet. See
+      // draft-ietf-quic-version-negotiation for details.
+      *error_details = "Client chosen version not in other versions";
+      return false;
+    }
   }
   const bool ok =
       max_idle_timeout_ms.IsValid() && max_udp_payload_size.IsValid() &&
@@ -722,6 +787,7 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
       TransportParameters::kGoogleUserAgentId,
       TransportParameters::kGoogleKeyUpdateNotYetSupported,
       TransportParameters::kGoogleQuicVersion,
+      TransportParameters::kVersionInformation,
   };
 
   size_t max_transport_param_length = kKnownTransportParamLength;
@@ -740,6 +806,14 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
         sizeof(in.legacy_version_information.value().version) +
         1 /* versions length */ +
         in.legacy_version_information.value().supported_versions.size() *
+            sizeof(QuicVersionLabel);
+  }
+  // version_information.
+  if (in.version_information.has_value()) {
+    max_transport_param_length +=
+        sizeof(in.version_information.value().chosen_version) +
+        // Add one for the added GREASE version.
+        (in.version_information.value().other_versions.size() + 1) *
             sizeof(QuicVersionLabel);
   }
 
@@ -1116,6 +1190,41 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
           }
         }
       } break;
+      // version_information.
+      case TransportParameters::kVersionInformation: {
+        if (!in.version_information.has_value()) {
+          break;
+        }
+        static_assert(sizeof(QuicVersionLabel) == sizeof(uint32_t),
+                      "bad length");
+        QuicVersionLabelVector other_versions =
+            in.version_information.value().other_versions;
+        // Insert one GREASE version at a random index.
+        const size_t grease_index =
+            random->InsecureRandUint64() % (other_versions.size() + 1);
+        other_versions.insert(
+            other_versions.begin() + grease_index,
+            CreateQuicVersionLabel(QuicVersionReservedForNegotiation()));
+        const uint64_t version_information_length =
+            sizeof(in.version_information.value().chosen_version) +
+            sizeof(QuicVersionLabel) * other_versions.size();
+        if (!writer.WriteVarInt62(TransportParameters::kVersionInformation) ||
+            !writer.WriteVarInt62(
+                /* transport parameter length */ version_information_length) ||
+            !writer.WriteUInt32(
+                in.version_information.value().chosen_version)) {
+          QUIC_BUG(Failed to write chosen version)
+              << "Failed to write chosen version for " << in;
+          return false;
+        }
+        for (QuicVersionLabel version_label : other_versions) {
+          if (!writer.WriteUInt32(version_label)) {
+            QUIC_BUG(Failed to write other version)
+                << "Failed to write other version for " << in;
+            return false;
+          }
+        }
+      } break;
       // Custom parameters and GREASE.
       default: {
         auto it = custom_parameters.find(parameter_id);
@@ -1435,6 +1544,41 @@ bool ParseTransportParameters(ParsedQuicVersion version,
             out->legacy_version_information.value()
                 .supported_versions.push_back(version);
           }
+        }
+      } break;
+      case TransportParameters::kVersionInformation: {
+        if (!GetQuicReloadableFlag(quic_version_information)) {
+          // This duplicates the default case and will be removed when this flag
+          // is deprecated.
+          if (out->custom_parameters.find(param_id) !=
+              out->custom_parameters.end()) {
+            *error_details = "Received a second unknown parameter" +
+                             TransportParameterIdToString(param_id);
+            return false;
+          }
+          out->custom_parameters[param_id] =
+              std::string(value_reader.ReadRemainingPayload());
+          break;
+        }
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_information, 2, 2);
+        if (out->version_information.has_value()) {
+          *error_details = "Received a second version_information";
+          return false;
+        }
+        out->version_information = TransportParameters::VersionInformation();
+        if (!value_reader.ReadUInt32(
+                &out->version_information.value().chosen_version)) {
+          *error_details = "Failed to read chosen version";
+          return false;
+        }
+        while (!value_reader.IsDoneReading()) {
+          QuicVersionLabel other_version;
+          if (!value_reader.ReadUInt32(&other_version)) {
+            *error_details = "Failed to parse other version";
+            return false;
+          }
+          out->version_information.value().other_versions.push_back(
+              other_version);
         }
       } break;
       case TransportParameters::kMinAckDelay:

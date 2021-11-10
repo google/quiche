@@ -142,6 +142,32 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
         const LegacyVersionInformation& legacy_version_information);
   };
 
+  // Version information used for version downgrade prevention and compatible
+  // version negotiation. See draft-ietf-quic-version-negotiation-05.
+  struct QUIC_EXPORT_PRIVATE VersionInformation {
+    VersionInformation();
+    VersionInformation(const VersionInformation& other) = default;
+    VersionInformation& operator=(const VersionInformation& other) = default;
+    VersionInformation& operator=(VersionInformation&& other) = default;
+    VersionInformation(VersionInformation&& other) = default;
+    ~VersionInformation() = default;
+    bool operator==(const VersionInformation& rhs) const;
+    bool operator!=(const VersionInformation& rhs) const;
+
+    // Version that the sender has chosen to use on this connection.
+    QuicVersionLabel chosen_version;
+
+    // When sent by the client, |other_versions| contains all the versions that
+    // this first flight is compatible with. When sent by the server,
+    // |other_versions| contains all of the versions supported by the server.
+    QuicVersionLabelVector other_versions;
+
+    // Allows easily logging.
+    std::string ToString() const;
+    friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+        std::ostream& os, const VersionInformation& version_information);
+  };
+
   TransportParameters();
   TransportParameters(const TransportParameters& other);
   ~TransportParameters();
@@ -156,6 +182,10 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
   // Google QUIC downgrade prevention mechanism sent over QUIC+TLS.
   absl::optional<LegacyVersionInformation> legacy_version_information;
+
+  // IETF downgrade prevention and compatible version negotiation, see
+  // draft-ietf-quic-version-negotiation.
+  absl::optional<VersionInformation> version_information;
 
   // The value of the Destination Connection ID field from the first
   // Initial packet sent by the client.

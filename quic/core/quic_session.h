@@ -630,6 +630,16 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Try converting all pending streams to normal streams.
   void ProcessAllPendingStreams();
 
+  const ParsedQuicVersionVector& client_original_supported_versions() const {
+    QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
+    return client_original_supported_versions_;
+  }
+  void set_client_original_supported_versions(
+      const ParsedQuicVersionVector& client_original_supported_versions) {
+    QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
+    client_original_supported_versions_ = client_original_supported_versions;
+  }
+
  protected:
   using StreamMap =
       absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStream>>;
@@ -982,6 +992,11 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Supported version list used by the crypto handshake only. Please note, this
   // list may be a superset of the connection framer's supported versions.
   ParsedQuicVersionVector supported_versions_;
+
+  // Only non-empty on the client after receiving a version negotiation packet,
+  // contains the configured versions from the original session before version
+  // negotiation was received.
+  ParsedQuicVersionVector client_original_supported_versions_;
 
   absl::optional<std::string> user_agent_id_;
 

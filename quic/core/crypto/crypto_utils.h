@@ -217,6 +217,27 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
       const ParsedQuicVersionVector& supported_versions,
       std::string* error_details);
 
+  // Validates that the chosen version from the version_information matches the
+  // version from the session. Returns true if they match, otherwise returns
+  // false and fills in |error_details|.
+  static bool ValidateChosenVersion(
+      const QuicVersionLabel& version_information_chosen_version,
+      const ParsedQuicVersion& session_version, std::string* error_details);
+
+  // Validates that there was no downgrade attack involving a version
+  // negotiation packet. This verifies that if the client was initially
+  // configured with |client_original_supported_versions| and it had received a
+  // version negotiation packet with |version_information_other_versions|, then
+  // it would have selected |session_version|. Returns true if they match (or if
+  // |client_original_supported_versions| is empty indicating no version
+  // negotiation packet was received), otherwise returns
+  // false and fills in |error_details|.
+  static bool ValidateServerVersions(
+      const QuicVersionLabelVector& version_information_other_versions,
+      const ParsedQuicVersion& session_version,
+      const ParsedQuicVersionVector& client_original_supported_versions,
+      std::string* error_details);
+
   // Returns the name of the HandshakeFailureReason as a char*
   static const char* HandshakeFailureReasonToString(
       HandshakeFailureReason reason);
