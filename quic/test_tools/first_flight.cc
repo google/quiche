@@ -32,18 +32,28 @@ class FirstFlightExtractor : public DelegatedPacketWriter::Delegate {
   FirstFlightExtractor(const ParsedQuicVersion& version,
                        const QuicConfig& config,
                        const QuicConnectionId& server_connection_id,
-                       const QuicConnectionId& client_connection_id)
+                       const QuicConnectionId& client_connection_id,
+                       std::unique_ptr<QuicCryptoClientConfig> crypto_config)
       : version_(version),
         server_connection_id_(server_connection_id),
         client_connection_id_(client_connection_id),
         writer_(this),
         config_(config),
-        crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {
+        crypto_config_(std::move(crypto_config)) {
     EXPECT_NE(version_, UnsupportedQuicVersion());
   }
 
+  FirstFlightExtractor(const ParsedQuicVersion& version,
+                       const QuicConfig& config,
+                       const QuicConnectionId& server_connection_id,
+                       const QuicConnectionId& client_connection_id)
+      : FirstFlightExtractor(
+            version, config, server_connection_id, client_connection_id,
+            std::make_unique<QuicCryptoClientConfig>(
+                crypto_test_utils::ProofVerifierForTesting())) {}
+
   void GenerateFirstFlight() {
-    crypto_config_.set_alpn(AlpnForVersion(version_));
+    crypto_config_->set_alpn(AlpnForVersion(version_));
     connection_ =
         new QuicConnection(server_connection_id_,
                            /*initial_self_address=*/QuicSocketAddress(),
@@ -55,7 +65,7 @@ class FirstFlightExtractor : public DelegatedPacketWriter::Delegate {
     session_ = std::make_unique<QuicSpdyClientSession>(
         config_, ParsedQuicVersionVector{version_},
         connection_,  // session_ takes ownership of connection_ here.
-        TestServerId(), &crypto_config_, &push_promise_index_);
+        TestServerId(), crypto_config_.get(), &push_promise_index_);
     session_->Initialize();
     session_->CryptoConnect();
   }
@@ -84,12 +94,24 @@ class FirstFlightExtractor : public DelegatedPacketWriter::Delegate {
   MockAlarmFactory alarm_factory_;
   DelegatedPacketWriter writer_;
   QuicConfig config_;
-  QuicCryptoClientConfig crypto_config_;
+  std::unique_ptr<QuicCryptoClientConfig> crypto_config_;
   QuicClientPushPromiseIndex push_promise_index_;
   QuicConnection* connection_;  // Owned by session_.
   std::unique_ptr<QuicSpdyClientSession> session_;
   std::vector<std::unique_ptr<QuicReceivedPacket>> packets_;
 };
+
+std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
+    const ParsedQuicVersion& version, const QuicConfig& config,
+    const QuicConnectionId& server_connection_id,
+    const QuicConnectionId& client_connection_id,
+    std::unique_ptr<QuicCryptoClientConfig> crypto_config) {
+  FirstFlightExtractor first_flight_extractor(
+      version, config, server_connection_id, client_connection_id,
+      std::move(crypto_config));
+  first_flight_extractor.GenerateFirstFlight();
+  return first_flight_extractor.ConsumePackets();
+}
 
 std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
     const ParsedQuicVersion& version,

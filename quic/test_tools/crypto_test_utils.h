@@ -78,7 +78,7 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
                             MockQuicConnectionHelper* helper,
                             MockAlarmFactory* alarm_factory,
                             PacketSavingConnection* client_conn,
-                            QuicCryptoClientStream* client,
+                            QuicCryptoClientStreamBase* client,
                             std::string alpn);
 
 // returns: the number of client hellos that the client sent.
@@ -195,7 +195,7 @@ void GenerateFullCHLO(
     QuicCompressedCertsCache* compressed_certs_cache,
     CryptoHandshakeMessage* out);
 
-void CompareClientAndServerKeys(QuicCryptoClientStream* client,
+void CompareClientAndServerKeys(QuicCryptoClientStreamBase* client,
                                 QuicCryptoServerStreamBase* server);
 
 // Return a CHLO nonce in hexadecimal.

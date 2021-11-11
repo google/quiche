@@ -228,7 +228,7 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
                             MockQuicConnectionHelper* helper,
                             MockAlarmFactory* alarm_factory,
                             PacketSavingConnection* client_conn,
-                            QuicCryptoClientStream* client,
+                            QuicCryptoClientStreamBase* client,
                             std::string alpn) {
   auto* server_conn = new testing::NiceMock<PacketSavingConnection>(
       helper, alarm_factory, Perspective::IS_SERVER,
@@ -593,7 +593,7 @@ void CompareCrypters(const QuicEncrypter* encrypter,
 
 }  // namespace
 
-void CompareClientAndServerKeys(QuicCryptoClientStream* client,
+void CompareClientAndServerKeys(QuicCryptoClientStreamBase* client,
                                 QuicCryptoServerStreamBase* server) {
   QuicFramer* client_framer = QuicConnectionPeer::GetFramer(
       QuicStreamPeer::session(client)->connection());

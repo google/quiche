@@ -405,13 +405,17 @@ std::ostream& operator<<(std::ostream& os, const KeyUpdateReason reason) {
 bool operator==(const ParsedClientHello& a, const ParsedClientHello& b) {
   return a.sni == b.sni && a.uaid == b.uaid && a.alpns == b.alpns &&
          a.legacy_version_encapsulation_inner_packet ==
-             b.legacy_version_encapsulation_inner_packet;
+             b.legacy_version_encapsulation_inner_packet &&
+         a.retry_token == b.retry_token &&
+         a.resumption_attempted == b.resumption_attempted &&
+         a.early_data_attempted == b.early_data_attempted;
 }
 
 std::ostream& operator<<(std::ostream& os,
                          const ParsedClientHello& parsed_chlo) {
   os << "{ sni:" << parsed_chlo.sni << ", uaid:" << parsed_chlo.uaid
      << ", alpns:" << quiche::PrintElements(parsed_chlo.alpns)
+     << ", len(retry_token):" << parsed_chlo.retry_token.size()
      << ", len(inner_packet):"
      << parsed_chlo.legacy_version_encapsulation_inner_packet.size() << " }";
   return os;

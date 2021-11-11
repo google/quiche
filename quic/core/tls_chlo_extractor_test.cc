@@ -3,26 +3,87 @@
 // found in the LICENSE file.
 
 #include "quic/core/tls_chlo_extractor.h"
+
 #include <memory>
 
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "quic/core/http/quic_spdy_client_session.h"
 #include "quic/core/quic_connection.h"
 #include "quic/core/quic_packet_writer_wrapper.h"
+#include "quic/core/quic_types.h"
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/crypto_test_utils.h"
 #include "quic/test_tools/first_flight.h"
 #include "quic/test_tools/quic_test_utils.h"
+#include "quic/test_tools/simple_session_cache.h"
 
 namespace quic {
 namespace test {
 namespace {
 
+using testing::_;
+using testing::AnyNumber;
+
 class TlsChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
  protected:
-  TlsChloExtractorTest() : version_(GetParam()) {}
+  TlsChloExtractorTest() : version_(GetParam()), server_id_(TestServerId()) {}
 
   void Initialize() { packets_ = GetFirstFlightOfPackets(version_, config_); }
+  void Initialize(std::unique_ptr<QuicCryptoClientConfig> crypto_config) {
+    packets_ = GetFirstFlightOfPackets(version_, config_, TestConnectionId(),
+                                       EmptyQuicConnectionId(),
+                                       std::move(crypto_config));
+  }
+
+  // Perform a full handshake in order to insert a SSL_SESSION into
+  // crypto_config->session_cache(), which can be used by a TLS resumption.
+  void PerformFullHandshake(QuicCryptoClientConfig* crypto_config) const {
+    ASSERT_NE(crypto_config->session_cache(), nullptr);
+    MockQuicConnectionHelper client_helper, server_helper;
+    MockAlarmFactory alarm_factory;
+    ParsedQuicVersionVector supported_versions = {version_};
+    PacketSavingConnection* client_connection =
+        new PacketSavingConnection(&client_helper, &alarm_factory,
+                                   Perspective::IS_CLIENT, supported_versions);
+    // Advance the time, because timers do not like uninitialized times.
+    client_connection->AdvanceTime(QuicTime::Delta::FromSeconds(1));
+    QuicClientPushPromiseIndex push_promise_index;
+    QuicSpdyClientSession client_session(config_, supported_versions,
+                                         client_connection, server_id_,
+                                         crypto_config, &push_promise_index);
+    client_session.Initialize();
+
+    std::unique_ptr<QuicCryptoServerConfig> server_crypto_config =
+        crypto_test_utils::CryptoServerConfigForTesting();
+    QuicConfig server_config;
+
+    EXPECT_CALL(*client_connection, SendCryptoData(_, _, _)).Times(AnyNumber());
+    client_session.GetMutableCryptoStream()->CryptoConnect();
+
+    crypto_test_utils::HandshakeWithFakeServer(
+        &server_config, server_crypto_config.get(), &server_helper,
+        &alarm_factory, client_connection,
+        client_session.GetMutableCryptoStream(),
+        AlpnForVersion(client_connection->version()));
+
+    // For some reason, the test client can not receive the server settings and
+    // the SSL_SESSION will not be inserted to client's session_cache. We create
+    // a dummy settings and call SetServerApplicationStateForResumption manually
+    // to ensure the SSL_SESSION is cached.
+    // TODO(wub): Fix crypto_test_utils::HandshakeWithFakeServer to make sure a
+    // SSL_SESSION is cached at the client, and remove the rest of the function.
+    SettingsFrame server_settings;
+    server_settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] =
+        kDefaultQpackMaxDynamicTableCapacity;
+    std::unique_ptr<char[]> buffer;
+    uint64_t length =
+        HttpEncoder::SerializeSettingsFrame(server_settings, &buffer);
+    client_session.GetMutableCryptoStream()
+        ->SetServerApplicationStateForResumption(
+            std::make_unique<ApplicationState>(buffer.get(),
+                                               buffer.get() + length));
+  }
 
   void IngestPackets() {
     for (const std::unique_ptr<QuicReceivedPacket>& packet : packets_) {
@@ -62,6 +123,7 @@ class TlsChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   ParsedQuicVersion version_;
+  QuicServerId server_id_;
   TlsChloExtractor tls_chlo_extractor_;
   QuicConfig config_;
   std::vector<std::unique_ptr<QuicReceivedPacket>> packets_;
@@ -79,6 +141,42 @@ TEST_P(TlsChloExtractorTest, Simple) {
   ValidateChloDetails();
   EXPECT_EQ(tls_chlo_extractor_.state(),
             TlsChloExtractor::State::kParsedFullSinglePacketChlo);
+  EXPECT_FALSE(tls_chlo_extractor_.resumption_attempted());
+  EXPECT_FALSE(tls_chlo_extractor_.early_data_attempted());
+}
+
+TEST_P(TlsChloExtractorTest, TlsExtentionInfo_ResumptionOnly) {
+  auto crypto_client_config = std::make_unique<QuicCryptoClientConfig>(
+      crypto_test_utils::ProofVerifierForTesting(),
+      std::make_unique<SimpleSessionCache>());
+  PerformFullHandshake(crypto_client_config.get());
+
+  SSL_CTX_set_early_data_enabled(crypto_client_config->ssl_ctx(), 0);
+  Initialize(std::move(crypto_client_config));
+  EXPECT_GE(packets_.size(), 1u);
+  IngestPackets();
+  ValidateChloDetails();
+  EXPECT_EQ(tls_chlo_extractor_.state(),
+            TlsChloExtractor::State::kParsedFullSinglePacketChlo);
+  EXPECT_TRUE(tls_chlo_extractor_.resumption_attempted());
+  EXPECT_FALSE(tls_chlo_extractor_.early_data_attempted());
+}
+
+TEST_P(TlsChloExtractorTest, TlsExtentionInfo_ZeroRtt) {
+  auto crypto_client_config = std::make_unique<QuicCryptoClientConfig>(
+      crypto_test_utils::ProofVerifierForTesting(),
+      std::make_unique<SimpleSessionCache>());
+  PerformFullHandshake(crypto_client_config.get());
+
+  IncreaseSizeOfChlo();
+  Initialize(std::move(crypto_client_config));
+  EXPECT_GE(packets_.size(), 1u);
+  IngestPackets();
+  ValidateChloDetails();
+  EXPECT_EQ(tls_chlo_extractor_.state(),
+            TlsChloExtractor::State::kParsedFullMultiPacketChlo);
+  EXPECT_TRUE(tls_chlo_extractor_.resumption_attempted());
+  EXPECT_TRUE(tls_chlo_extractor_.early_data_attempted());
 }
 
 TEST_P(TlsChloExtractorTest, MultiPacket) {

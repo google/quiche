@@ -88,9 +88,7 @@ std::vector<uint8_t> CreateStatelessResetTokenForTest() {
                                   sizeof(kStatelessResetTokenDataForTest));
 }
 
-std::string TestHostname() {
-  return "test.example.org";
-}
+std::string TestHostname() { return "test.example.com"; }
 
 QuicServerId TestServerId() {
   return QuicServerId(TestHostname(), kTestPort);

@@ -780,13 +780,15 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
     bool has_full_tls_chlo = false;
     std::string sni;
     std::vector<std::string> alpns;
+    bool resumption_attempted = false, early_data_attempted = false;
     if (buffered_packets_.HasBufferedPackets(
             packet_info.destination_connection_id)) {
       // If we already have buffered packets for this connection ID,
       // use the associated TlsChloExtractor to parse this packet.
       has_full_tls_chlo = buffered_packets_.IngestPacketForTlsChloExtraction(
           packet_info.destination_connection_id, packet_info.version,
-          packet_info.packet, &alpns, &sni);
+          packet_info.packet, &alpns, &sni, &resumption_attempted,
+          &early_data_attempted);
     } else {
       // If we do not have a BufferedPacketList for this connection ID,
       // create a single-use one to check whether this packet contains a
@@ -798,6 +800,8 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
         has_full_tls_chlo = true;
         alpns = tls_chlo_extractor.alpns();
         sni = tls_chlo_extractor.server_name();
+        resumption_attempted = tls_chlo_extractor.resumption_attempted();
+        early_data_attempted = tls_chlo_extractor.early_data_attempted();
       }
     }
     if (!has_full_tls_chlo) {
@@ -811,6 +815,11 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
     ParsedClientHello parsed_chlo;
     parsed_chlo.sni = std::move(sni);
     parsed_chlo.alpns = std::move(alpns);
+    if (packet_info.retry_token.has_value()) {
+      parsed_chlo.retry_token = std::string(*packet_info.retry_token);
+    }
+    parsed_chlo.resumption_attempted = resumption_attempted;
+    parsed_chlo.early_data_attempted = early_data_attempted;
     return parsed_chlo;
   }
 

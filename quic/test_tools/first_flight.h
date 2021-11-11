@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "quic/core/crypto/quic_crypto_client_config.h"
 #include "quic/core/quic_config.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_packet_writer.h"
@@ -74,16 +75,23 @@ class QUIC_NO_EXPORT DelegatedPacketWriter : public QuicPacketWriter {
 // HTTP/3 connection. In most cases, this array will only contain one packet
 // that carries the CHLO.
 std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
-    const ParsedQuicVersion& version,
-    const QuicConfig& config,
+    const ParsedQuicVersion& version, const QuicConfig& config,
     const QuicConnectionId& server_connection_id,
-    const QuicConnectionId& client_connection_id);
+    const QuicConnectionId& client_connection_id,
+    std::unique_ptr<QuicCryptoClientConfig> crypto_config);
 
 // Below are various convenience overloads that use default values for the
 // omitted parameters:
 // |config| = DefaultQuicConfig(),
 // |server_connection_id| = TestConnectionId(),
 // |client_connection_id| = EmptyQuicConnectionId().
+// |crypto_config| =
+//     QuicCryptoClientConfig(crypto_test_utils::ProofVerifierForTesting())
+std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
+    const ParsedQuicVersion& version, const QuicConfig& config,
+    const QuicConnectionId& server_connection_id,
+    const QuicConnectionId& client_connection_id);
+
 std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
     const ParsedQuicVersion& version,
     const QuicConfig& config,

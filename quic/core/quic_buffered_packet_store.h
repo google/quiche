@@ -117,11 +117,16 @@ class QUIC_NO_EXPORT QuicBufferedPacketStore {
   // Returns whether we've now parsed a full multi-packet TLS CHLO.
   // When this returns true, |out_alpns| is populated with the list of ALPNs
   // extracted from the CHLO. |out_sni| is populated with the SNI tag in CHLO.
+  // |out_resumption_attempted| is populated if the CHLO has the
+  // 'pre_shared_key' TLS extension. |out_early_data_attempted| is populated if
+  // the CHLO has the 'early_data' TLS extension.
   bool IngestPacketForTlsChloExtraction(const QuicConnectionId& connection_id,
                                         const ParsedQuicVersion& version,
                                         const QuicReceivedPacket& packet,
                                         std::vector<std::string>* out_alpns,
-                                        std::string* out_sni);
+                                        std::string* out_sni,
+                                        bool* out_resumption_attempted,
+                                        bool* out_early_data_attempted);
 
   // Returns the list of buffered packets for |connection_id| and removes them
   // from the store. Returns an empty list if no early arrived packets for this

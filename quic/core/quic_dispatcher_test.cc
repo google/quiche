@@ -68,12 +68,8 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
                             QuicConnection* connection,
                             const QuicCryptoServerConfig* crypto_config,
                             QuicCompressedCertsCache* compressed_certs_cache)
-      : QuicServerSessionBase(config,
-                              CurrentSupportedVersions(),
-                              connection,
-                              nullptr,
-                              nullptr,
-                              crypto_config,
+      : QuicServerSessionBase(config, CurrentSupportedVersions(), connection,
+                              nullptr, nullptr, crypto_config,
                               compressed_certs_cache) {
     Initialize();
   }
@@ -83,26 +79,17 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
 
   ~TestQuicSpdyServerSession() override { DeleteConnection(); }
 
-  MOCK_METHOD(void,
-              OnConnectionClosed,
+  MOCK_METHOD(void, OnConnectionClosed,
               (const QuicConnectionCloseFrame& frame,
                ConnectionCloseSource source),
               (override));
-  MOCK_METHOD(QuicSpdyStream*,
-              CreateIncomingStream,
-              (QuicStreamId id),
+  MOCK_METHOD(QuicSpdyStream*, CreateIncomingStream, (QuicStreamId id),
               (override));
-  MOCK_METHOD(QuicSpdyStream*,
-              CreateIncomingStream,
-              (PendingStream*),
+  MOCK_METHOD(QuicSpdyStream*, CreateIncomingStream, (PendingStream*),
               (override));
-  MOCK_METHOD(QuicSpdyStream*,
-              CreateOutgoingBidirectionalStream,
-              (),
+  MOCK_METHOD(QuicSpdyStream*, CreateOutgoingBidirectionalStream, (),
               (override));
-  MOCK_METHOD(QuicSpdyStream*,
-              CreateOutgoingUnidirectionalStream,
-              (),
+  MOCK_METHOD(QuicSpdyStream*, CreateOutgoingUnidirectionalStream, (),
               (override));
 
   std::unique_ptr<QuicCryptoServerStreamBase> CreateQuicCryptoServerStream(
@@ -138,10 +125,8 @@ class TestDispatcher : public QuicDispatcher {
                const ParsedClientHello& parsed_chlo),
               (override));
 
-  MOCK_METHOD(bool,
-              ShouldCreateOrBufferPacketForConnection,
-              (const ReceivedPacketInfo& packet_info),
-              (override));
+  MOCK_METHOD(bool, ShouldCreateOrBufferPacketForConnection,
+              (const ReceivedPacketInfo& packet_info), (override));
 
   struct TestQuicPerPacketContext : public QuicPerPacketContext {
     std::string custom_packet_context;
@@ -179,9 +164,7 @@ class MockServerConnection : public MockQuicConnection {
                        MockQuicConnectionHelper* helper,
                        MockAlarmFactory* alarm_factory,
                        QuicDispatcher* dispatcher)
-      : MockQuicConnection(connection_id,
-                           helper,
-                           alarm_factory,
+      : MockQuicConnection(connection_id, helper, alarm_factory,
                            Perspective::IS_SERVER),
         dispatcher_(dispatcher),
         active_connection_ids_({connection_id}) {}
@@ -225,15 +208,12 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       : version_(GetParam()),
         version_manager_(AllSupportedVersions()),
         crypto_config_(QuicCryptoServerConfig::TESTING,
-                       QuicRandom::GetInstance(),
-                       std::move(proof_source),
+                       QuicRandom::GetInstance(), std::move(proof_source),
                        KeyExchangeSource::Default()),
         server_address_(QuicIpAddress::Any4(), 5),
-        dispatcher_(
-            new NiceMock<TestDispatcher>(&config_,
-                                         &crypto_config_,
-                                         &version_manager_,
-                                         mock_helper_.GetRandomGenerator())),
+        dispatcher_(new NiceMock<TestDispatcher>(
+            &config_, &crypto_config_, &version_manager_,
+            mock_helper_.GetRandomGenerator())),
         time_wait_list_manager_(nullptr),
         session1_(nullptr),
         session2_(nullptr),
@@ -268,8 +248,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   // using the version under test.
   void ProcessPacket(QuicSocketAddress peer_address,
                      QuicConnectionId server_connection_id,
-                     bool has_version_flag,
-                     const std::string& data) {
+                     bool has_version_flag, const std::string& data) {
     ProcessPacket(peer_address, server_connection_id, has_version_flag, data,
                   CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER);
   }
@@ -278,8 +257,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   // using the version under test.
   void ProcessPacket(QuicSocketAddress peer_address,
                      QuicConnectionId server_connection_id,
-                     bool has_version_flag,
-                     const std::string& data,
+                     bool has_version_flag, const std::string& data,
                      QuicConnectionIdIncluded server_connection_id_included,
                      QuicPacketNumberLength packet_number_length) {
     ProcessPacket(peer_address, server_connection_id, has_version_flag, data,
@@ -289,8 +267,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   // Process a packet using the version under test.
   void ProcessPacket(QuicSocketAddress peer_address,
                      QuicConnectionId server_connection_id,
-                     bool has_version_flag,
-                     const std::string& data,
+                     bool has_version_flag, const std::string& data,
                      QuicConnectionIdIncluded server_connection_id_included,
                      QuicPacketNumberLength packet_number_length,
                      uint64_t packet_number) {
@@ -302,10 +279,8 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   // Processes a packet.
   void ProcessPacket(QuicSocketAddress peer_address,
                      QuicConnectionId server_connection_id,
-                     bool has_version_flag,
-                     ParsedQuicVersion version,
-                     const std::string& data,
-                     bool full_padding,
+                     bool has_version_flag, ParsedQuicVersion version,
+                     const std::string& data, bool full_padding,
                      QuicConnectionIdIncluded server_connection_id_included,
                      QuicPacketNumberLength packet_number_length,
                      uint64_t packet_number) {
@@ -319,10 +294,8 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   void ProcessPacket(QuicSocketAddress peer_address,
                      QuicConnectionId server_connection_id,
                      QuicConnectionId client_connection_id,
-                     bool has_version_flag,
-                     ParsedQuicVersion version,
-                     const std::string& data,
-                     bool full_padding,
+                     bool has_version_flag, ParsedQuicVersion version,
+                     const std::string& data, bool full_padding,
                      QuicConnectionIdIncluded server_connection_id_included,
                      QuicConnectionIdIncluded client_connection_id_included,
                      QuicPacketNumberLength packet_number_length,
@@ -340,8 +313,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
 
   void ProcessReceivedPacket(
       std::unique_ptr<QuicReceivedPacket> received_packet,
-      const QuicSocketAddress& peer_address,
-      const ParsedQuicVersion& version,
+      const QuicSocketAddress& peer_address, const ParsedQuicVersion& version,
       const QuicConnectionId& server_connection_id) {
     if (version.UsesQuicCrypto() &&
         ChloExtractor::Extract(*received_packet, version, {}, nullptr,
@@ -367,12 +339,9 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   std::unique_ptr<QuicSession> CreateSession(
-      TestDispatcher* dispatcher,
-      const QuicConfig& config,
-      QuicConnectionId connection_id,
-      const QuicSocketAddress& /*peer_address*/,
-      MockQuicConnectionHelper* helper,
-      MockAlarmFactory* alarm_factory,
+      TestDispatcher* dispatcher, const QuicConfig& config,
+      QuicConnectionId connection_id, const QuicSocketAddress& /*peer_address*/,
+      MockQuicConnectionHelper* helper, MockAlarmFactory* alarm_factory,
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       TestQuicSpdyServerSession** session_ptr) {
@@ -414,8 +383,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void ProcessUndecryptableEarlyPacket(
-      const ParsedQuicVersion& version,
-      const QuicSocketAddress& peer_address,
+      const ParsedQuicVersion& version, const QuicSocketAddress& peer_address,
       const QuicConnectionId& server_connection_id) {
     std::unique_ptr<QuicEncryptedPacket> encrypted_packet =
         GetUndecryptableEarlyPacket(version, server_connection_id);
@@ -441,13 +409,39 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
                           const QuicSocketAddress& peer_address,
                           const QuicConnectionId& server_connection_id,
                           const QuicConnectionId& client_connection_id) {
+    ProcessFirstFlight(version, peer_address, server_connection_id,
+                       client_connection_id, TestClientCryptoConfig());
+  }
+
+  void ProcessFirstFlight(
+      const ParsedQuicVersion& version, const QuicSocketAddress& peer_address,
+      const QuicConnectionId& server_connection_id,
+      const QuicConnectionId& client_connection_id,
+      std::unique_ptr<QuicCryptoClientConfig> client_crypto_config) {
     std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
-        GetFirstFlightOfPackets(version, server_connection_id,
-                                client_connection_id);
+        GetFirstFlightOfPackets(version, DefaultQuicConfig(),
+                                server_connection_id, client_connection_id,
+                                std::move(client_crypto_config));
     for (auto&& packet : packets) {
       ProcessReceivedPacket(std::move(packet), peer_address, version,
                             server_connection_id);
     }
+  }
+
+  std::unique_ptr<QuicCryptoClientConfig> TestClientCryptoConfig() {
+    auto client_crypto_config = std::make_unique<QuicCryptoClientConfig>(
+        crypto_test_utils::ProofVerifierForTesting());
+    if (address_token_.has_value()) {
+      client_crypto_config->LookupOrCreate(TestServerId())
+          ->set_source_address_token(*address_token_);
+    }
+    return client_crypto_config;
+  }
+
+  // If called, the first flight packets generated in |ProcessFirstFlight| will
+  // contain the given |address_token|.
+  void SetAddressToken(std::string address_token) {
+    address_token_ = std::move(address_token);
   }
 
   std::string ExpectedAlpnForVersion(ParsedQuicVersion version) {
@@ -460,6 +454,9 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     ParsedClientHello parsed_chlo;
     parsed_chlo.alpns = {ExpectedAlpn()};
     parsed_chlo.sni = TestHostname();
+    if (address_token_.has_value()) {
+      parsed_chlo.retry_token = *address_token_;
+    }
     return parsed_chlo;
   }
 
@@ -521,6 +518,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   std::map<QuicConnectionId, std::list<std::string>> data_connection_map_;
   QuicBufferedPacketStore* store_;
   uint64_t connection_id_;
+  absl::optional<std::string> address_token_;
 };
 
 class QuicDispatcherTestAllVersions : public QuicDispatcherTestBase {};
@@ -540,11 +538,14 @@ TEST_P(QuicDispatcherTestAllVersions, TlsClientHelloCreatesSession) {
   if (version_.UsesQuicCrypto()) {
     return;
   }
+  SetAddressToken("hsdifghdsaifnasdpfjdsk");
+
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
-  EXPECT_CALL(*dispatcher_,
-              CreateQuicSession(TestConnectionId(1), _, client_address,
-                                Eq(ExpectedAlpn()), _, _))
+  EXPECT_CALL(
+      *dispatcher_,
+      CreateQuicSession(TestConnectionId(1), _, client_address,
+                        Eq(ExpectedAlpn()), _, Eq(ParsedClientHelloForTest())))
       .WillOnce(Return(ByMove(CreateSession(
           dispatcher_.get(), config_, TestConnectionId(1), client_address,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
@@ -566,6 +567,8 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
   if (!version_.UsesTls()) {
     return;
   }
+  SetAddressToken("857293462398");
+
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   QuicConnectionId server_connection_id = TestConnectionId();
   QuicConfig client_config = DefaultQuicConfig();
@@ -576,7 +579,9 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
   client_config.custom_transport_parameters_to_send()[kCustomParameterId] =
       kCustomParameterValue;
   std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
-      GetFirstFlightOfPackets(version_, client_config, server_connection_id);
+      GetFirstFlightOfPackets(version_, client_config, server_connection_id,
+                              EmptyQuicConnectionId(),
+                              TestClientCryptoConfig());
   ASSERT_EQ(packets.size(), 2u);
   if (add_reordering) {
     std::swap(packets[0], packets[1]);
@@ -1533,8 +1538,7 @@ class SavingWriter : public QuicPacketWriterWrapper {
  public:
   bool IsWriteBlocked() const override { return false; }
 
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& /*self_client_address*/,
                           const QuicSocketAddress& /*peer_client_address*/,
                           PerPacketOptions* /*options*/) override {
@@ -1864,8 +1868,7 @@ class BlockingWriter : public QuicPacketWriterWrapper {
   bool IsWriteBlocked() const override { return write_blocked_; }
   void SetWritable() override { write_blocked_ = false; }
 
-  WriteResult WritePacket(const char* /*buffer*/,
-                          size_t /*buf_len*/,
+  WriteResult WritePacket(const char* /*buffer*/, size_t /*buf_len*/,
                           const QuicIpAddress& /*self_client_address*/,
                           const QuicSocketAddress& /*peer_client_address*/,
                           PerPacketOptions* /*options*/) override {
@@ -2370,8 +2373,7 @@ class BufferedPacketStoreTest : public QuicDispatcherTestBase {
   }
 
   void ProcessUndecryptableEarlyPacket(
-      const ParsedQuicVersion& version,
-      const QuicSocketAddress& peer_address,
+      const ParsedQuicVersion& version, const QuicSocketAddress& peer_address,
       const QuicConnectionId& server_connection_id) {
     QuicDispatcherTestBase::ProcessUndecryptableEarlyPacket(
         version, peer_address, server_connection_id);
@@ -2394,8 +2396,7 @@ class BufferedPacketStoreTest : public QuicDispatcherTestBase {
   QuicSocketAddress client_addr_;
 };
 
-INSTANTIATE_TEST_SUITE_P(BufferedPacketStoreTests,
-                         BufferedPacketStoreTest,
+INSTANTIATE_TEST_SUITE_P(BufferedPacketStoreTests, BufferedPacketStoreTest,
                          ::testing::ValuesIn(CurrentSupportedVersions()),
                          ::testing::PrintToStringParamName());
 

@@ -255,11 +255,10 @@ bool QuicBufferedPacketStore::HasChloForConnection(
 }
 
 bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
-    const QuicConnectionId& connection_id,
-    const ParsedQuicVersion& version,
-    const QuicReceivedPacket& packet,
-    std::vector<std::string>* out_alpns,
-    std::string* out_sni) {
+    const QuicConnectionId& connection_id, const ParsedQuicVersion& version,
+    const QuicReceivedPacket& packet, std::vector<std::string>* out_alpns,
+    std::string* out_sni, bool* out_resumption_attempted,
+    bool* out_early_data_attempted) {
   QUICHE_DCHECK_NE(out_alpns, nullptr);
   QUICHE_DCHECK_NE(out_sni, nullptr);
   QUICHE_DCHECK_EQ(version.handshake_protocol, PROTOCOL_TLS1_3);
@@ -273,8 +272,11 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
   if (!it->second.tls_chlo_extractor.HasParsedFullChlo()) {
     return false;
   }
-  *out_alpns = it->second.tls_chlo_extractor.alpns();
-  *out_sni = it->second.tls_chlo_extractor.server_name();
+  const TlsChloExtractor& tls_chlo_extractor = it->second.tls_chlo_extractor;
+  *out_alpns = tls_chlo_extractor.alpns();
+  *out_sni = tls_chlo_extractor.server_name();
+  *out_resumption_attempted = tls_chlo_extractor.resumption_attempted();
+  *out_early_data_attempted = tls_chlo_extractor.early_data_attempted();
   return true;
 }
 

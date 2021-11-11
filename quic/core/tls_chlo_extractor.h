@@ -45,6 +45,8 @@ class QUIC_NO_EXPORT TlsChloExtractor
   State state() const { return state_; }
   std::vector<std::string> alpns() const { return alpns_; }
   std::string server_name() const { return server_name_; }
+  bool resumption_attempted() const { return resumption_attempted_; }
+  bool early_data_attempted() const { return early_data_attempted_; }
 
   // Converts |state| to a human-readable string suitable for logging.
   static std::string StateToString(State state);
@@ -246,6 +248,12 @@ class QUIC_NO_EXPORT TlsChloExtractor
   std::vector<std::string> alpns_;
   // SNI parsed from the CHLO.
   std::string server_name_;
+  // Whether resumption is attempted from the CHLO, indicated by the
+  // 'pre_shared_key' TLS extension.
+  bool resumption_attempted_ = false;
+  // Whether early data is attempted from the CHLO, indicated by the
+  // 'early_data' TLS extension.
+  bool early_data_attempted_ = false;
 };
 
 // Convenience method to facilitate logging TlsChloExtractor::State.

@@ -20,6 +20,16 @@
 
 namespace quic {
 
+namespace {
+bool HasExtension(const SSL_CLIENT_HELLO* client_hello, uint16_t extension) {
+  const uint8_t* unused_extension_bytes;
+  size_t unused_extension_len;
+  return 1 == SSL_early_callback_ctx_extension_get(client_hello, extension,
+                                                   &unused_extension_bytes,
+                                                   &unused_extension_len);
+}
+}  // namespace
+
 TlsChloExtractor::TlsChloExtractor()
     : crypto_stream_sequencer_(this),
       state_(State::kInitial),
@@ -280,6 +290,11 @@ void TlsChloExtractor::HandleParsedChlo(const SSL_CLIENT_HELLO* client_hello) {
   if (server_name) {
     server_name_ = std::string(server_name);
   }
+
+  resumption_attempted_ =
+      HasExtension(client_hello, TLSEXT_TYPE_pre_shared_key);
+  early_data_attempted_ = HasExtension(client_hello, TLSEXT_TYPE_early_data);
+
   const uint8_t* alpn_data;
   size_t alpn_len;
   int rv = SSL_early_callback_ctx_extension_get(

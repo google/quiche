@@ -872,6 +872,11 @@ struct QUIC_NO_EXPORT ParsedClientHello {
   std::string uaid;                // QUIC crypto only.
   std::vector<std::string> alpns;  // QUIC crypto and TLS.
   std::string legacy_version_encapsulation_inner_packet;  // QUIC crypto only.
+  // The unvalidated retry token from the last received packet of a potentially
+  // multi-packet client hello. TLS only.
+  std::string retry_token;
+  bool resumption_attempted = false;  // TLS only.
+  bool early_data_attempted = false;  // TLS only.
 };
 
 QUIC_EXPORT_PRIVATE bool operator==(const ParsedClientHello& a,
