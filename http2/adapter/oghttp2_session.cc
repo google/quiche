@@ -1107,12 +1107,12 @@ void OgHttp2Session::StartRequest(Http2StreamId stream_id,
                                   std::unique_ptr<DataFrameSource> data_source,
                                   void* user_data) {
   auto iter = CreateStream(stream_id);
-  write_scheduler_.MarkStreamReady(stream_id, false);
   const bool end_stream = data_source == nullptr;
   if (end_stream) {
     iter->second.half_closed_local = true;
   } else {
     iter->second.outbound_body = std::move(data_source);
+    write_scheduler_.MarkStreamReady(stream_id, false);
   }
   iter->second.user_data = user_data;
   SendHeaders(stream_id, std::move(headers), end_stream);
