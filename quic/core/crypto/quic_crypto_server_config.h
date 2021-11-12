@@ -431,9 +431,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // Returns HANDSHAKE_OK if |token| could be parsed, or the reason for the
   // failure.
   HandshakeFailureReason ParseSourceAddressToken(
-      const CryptoSecretBoxer& crypto_secret_boxer,
-      absl::string_view token,
-      SourceAddressTokens* tokens) const;
+      const CryptoSecretBoxer& crypto_secret_boxer, absl::string_view token,
+      SourceAddressTokens& tokens) const;
 
   // ValidateSourceAddressTokens returns HANDSHAKE_OK if the source address
   // tokens in |tokens| contain a valid and timely token for the IP address

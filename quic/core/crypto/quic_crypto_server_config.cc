@@ -1247,7 +1247,7 @@ void QuicCryptoServerConfig::EvaluateClientHello(
           configs.requested != nullptr ? *configs.requested : *configs.primary;
       source_address_token_error =
           ParseSourceAddressToken(*config.source_address_token_boxer, srct,
-                                  &info->source_address_tokens);
+                                  info->source_address_tokens);
 
       if (source_address_token_error == HANDSHAKE_OK) {
         source_address_token_error = ValidateSourceAddressTokens(
@@ -1754,16 +1754,15 @@ SSL_CTX* QuicCryptoServerConfig::ssl_ctx() const {
 }
 
 HandshakeFailureReason QuicCryptoServerConfig::ParseSourceAddressToken(
-    const CryptoSecretBoxer& crypto_secret_boxer,
-    absl::string_view token,
-    SourceAddressTokens* tokens) const {
+    const CryptoSecretBoxer& crypto_secret_boxer, absl::string_view token,
+    SourceAddressTokens& tokens) const {
   std::string storage;
   absl::string_view plaintext;
   if (!crypto_secret_boxer.Unbox(token, &storage, &plaintext)) {
     return SOURCE_ADDRESS_TOKEN_DECRYPTION_FAILURE;
   }
 
-  if (!tokens->ParseFromArray(plaintext.data(), plaintext.size())) {
+  if (!tokens.ParseFromArray(plaintext.data(), plaintext.size())) {
     // Some clients might still be using the old source token format so
     // attempt to parse that format.
     // TODO(rch): remove this code once the new format is ubiquitous.
@@ -1771,7 +1770,7 @@ HandshakeFailureReason QuicCryptoServerConfig::ParseSourceAddressToken(
     if (!token.ParseFromArray(plaintext.data(), plaintext.size())) {
       return SOURCE_ADDRESS_TOKEN_PARSE_FAILURE;
     }
-    *tokens->add_tokens() = token;
+    *tokens.add_tokens() = token;
   }
 
   return HANDSHAKE_OK;

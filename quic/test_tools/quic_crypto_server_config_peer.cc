@@ -59,7 +59,7 @@ HandshakeFailureReason QuicCryptoServerConfigPeer::ValidateSourceAddressTokens(
     CachedNetworkParameters* cached_network_params) {
   SourceAddressTokens tokens;
   HandshakeFailureReason reason = server_config_->ParseSourceAddressToken(
-      *GetConfig(config_id)->source_address_token_boxer, srct, &tokens);
+      *GetConfig(config_id)->source_address_token_boxer, srct, tokens);
   if (reason != HANDSHAKE_OK) {
     return reason;
   }
@@ -75,7 +75,7 @@ QuicCryptoServerConfigPeer::ValidateSingleSourceAddressToken(
     QuicWallTime now) {
   SourceAddressTokens tokens;
   HandshakeFailureReason parse_status = server_config_->ParseSourceAddressToken(
-      *GetPrimaryConfig()->source_address_token_boxer, token, &tokens);
+      *GetPrimaryConfig()->source_address_token_boxer, token, tokens);
   if (HANDSHAKE_OK != parse_status) {
     return parse_status;
   }

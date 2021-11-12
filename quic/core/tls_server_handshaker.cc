@@ -337,7 +337,7 @@ std::string TlsServerHandshaker::GetAddressToken(
 bool TlsServerHandshaker::ValidateAddressToken(absl::string_view token) const {
   SourceAddressTokens tokens;
   HandshakeFailureReason reason = crypto_config_->ParseSourceAddressToken(
-      crypto_config_->source_address_token_boxer(), token, &tokens);
+      crypto_config_->source_address_token_boxer(), token, tokens);
   if (reason != HANDSHAKE_OK) {
     QUIC_DLOG(WARNING) << "Failed to parse source address token: "
                        << CryptoUtils::HandshakeFailureReasonToString(reason);
