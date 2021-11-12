@@ -101,7 +101,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     return !received_goaway_ && !decoder_.HasError();
   }
   bool want_write() const override {
-    return !frames_.empty() || !serialized_prefix_.empty() ||
+    return !frames_.empty() || !buffered_data_.empty() ||
            write_scheduler_.HasReadyStreams() || !connection_metadata_.empty();
   }
   int GetRemoteWindowSize() const override { return connection_send_window_; }
@@ -246,15 +246,25 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   void SendWindowUpdate(Http2StreamId stream_id, size_t update_delta);
 
-  // Sends queued frames, returning true if all frames were flushed
-  // successfully.
-  bool SendQueuedFrames();
+  enum class SendResult {
+    // All data was flushed.
+    SEND_OK,
+    // Not all data was flushed (due to flow control or TCP back pressure).
+    SEND_BLOCKED,
+    // An error occurred while sending data.
+    SEND_ERROR,
+  };
 
-  // Returns false if the connection is write-blocked (due to flow control or
-  // some other reason).
-  bool WriteForStream(Http2StreamId stream_id);
+  // Sends the buffered connection preface or serialized frame data, if any.
+  SendResult MaybeSendBufferedData();
 
-  bool SendMetadata(Http2StreamId stream_id, MetadataSequence& sequence);
+  // Serializes and sends queued frames.
+  SendResult SendQueuedFrames();
+
+  // Writes DATA frames for stream `stream_id`.
+  SendResult WriteForStream(Http2StreamId stream_id);
+
+  SendResult SendMetadata(Http2StreamId stream_id, MetadataSequence& sequence);
 
   void SendHeaders(Http2StreamId stream_id, spdy::SpdyHeaderBlock headers,
                    bool end_stream);
@@ -317,10 +327,11 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // `max_outbound_concurrent_streams_`.
   std::list<PendingStreamState> pending_streams_;
 
-  // Maintains the queue of outbound frames, and any serialized bytes that have
-  // not yet been consumed.
+  // The queue of outbound frames.
   std::list<std::unique_ptr<spdy::SpdyFrameIR>> frames_;
-  std::string serialized_prefix_;
+  // Buffered data (connection preface, serialized frames) that has not yet been
+  // sent.
+  std::string buffered_data_;
 
   // Maintains the set of streams ready to write data to the peer.
   using WriteScheduler = PriorityWriteScheduler<Http2StreamId>;
