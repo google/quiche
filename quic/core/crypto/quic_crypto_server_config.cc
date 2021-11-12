@@ -1787,7 +1787,8 @@ HandshakeFailureReason QuicCryptoServerConfig::ValidateSourceAddressTokens(
   for (const SourceAddressToken& token : source_address_tokens.tokens()) {
     reason = ValidateSingleSourceAddressToken(token, ip, now);
     if (reason == HANDSHAKE_OK) {
-      if (token.has_cached_network_parameters()) {
+      if (cached_network_params != nullptr &&
+          token.has_cached_network_parameters()) {
         *cached_network_params = token.cached_network_parameters();
       }
       break;
