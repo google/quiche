@@ -1704,6 +1704,91 @@ TEST_P(EndToEndTest, AddressToken) {
   client_->Disconnect();
 }
 
+TEST_P(EndToEndTest, AddressTokenRefreshedByServer) {
+  SetQuicReloadableFlag(quic_add_cached_network_parameters_to_address_token,
+                        true);
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
+
+  QuicCryptoClientConfig* client_crypto_config =
+      client_->client()->crypto_config();
+  QuicServerId server_id = client_->client()->server_id();
+
+  SendSynchronousFooRequestAndCheckResponse();
+  EXPECT_FALSE(GetClientSession()->EarlyDataAccepted());
+
+  client_->Disconnect();
+
+  std::string old_address_token =
+      client_crypto_config->LookupOrCreate(server_id)->source_address_token();
+  ASSERT_TRUE(!old_address_token.empty());
+
+  SetQuicReloadableFlag(quic_add_cached_network_parameters_to_address_token,
+                        false);
+
+  // The 0-RTT handshake should succeed.
+  client_->Connect();
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  ASSERT_TRUE(client_->client()->connected());
+  SendSynchronousFooRequestAndCheckResponse();
+
+  EXPECT_TRUE(GetClientSession()->EarlyDataAccepted());
+
+  server_thread_->Pause();
+  QuicSpdySession* server_session = GetServerSession();
+  QuicConnection* server_connection = GetServerConnection();
+  ASSERT_TRUE(server_session != nullptr && server_connection != nullptr);
+  // Verify address is validated via validating token received in INITIAL
+  // packet.
+  EXPECT_FALSE(
+      server_connection->GetStats().address_validated_via_decrypting_packet);
+  EXPECT_TRUE(server_connection->GetStats().address_validated_via_token);
+
+  server_thread_->Resume();
+
+  client_->Disconnect();
+
+  std::string new_address_token =
+      client_crypto_config->LookupOrCreate(server_id)->source_address_token();
+  ASSERT_TRUE(!new_address_token.empty());
+  ASSERT_NE(new_address_token, old_address_token);
+}
+
+// Verify that client does not reuse a source address token.
+TEST_P(EndToEndTest, AddressTokenNotReusedByClient) {
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
+
+  QuicCryptoClientConfig* client_crypto_config =
+      client_->client()->crypto_config();
+  QuicServerId server_id = client_->client()->server_id();
+
+  SendSynchronousFooRequestAndCheckResponse();
+  EXPECT_FALSE(GetClientSession()->EarlyDataAccepted());
+
+  client_->Disconnect();
+
+  std::string old_address_token =
+      client_crypto_config->LookupOrCreate(server_id)->source_address_token();
+  ASSERT_TRUE(!old_address_token.empty());
+
+  // Pause the server thread again to blackhole packets from client.
+  server_thread_->Pause();
+  client_->Connect();
+  EXPECT_FALSE(client_->client()->WaitForOneRttKeysAvailable());
+  EXPECT_FALSE(client_->client()->connected());
+
+  std::string new_address_token =
+      client_crypto_config->LookupOrCreate(server_id)->source_address_token();
+  // TODO(b/206087883): This currently fails, fix the client and uncomment it.
+  // ASSERT_TRUE(new_address_token.empty());
+  server_thread_->Resume();
+}
+
 TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
