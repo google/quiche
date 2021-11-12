@@ -815,7 +815,6 @@ void OgHttp2Session::OnRstStream(spdy::SpdyStreamId stream_id,
   if (iter != stream_map_.end()) {
     iter->second.half_closed_remote = true;
     iter->second.outbound_body = nullptr;
-    write_scheduler_.UnregisterStream(stream_id);
   } else if (static_cast<Http2StreamId>(stream_id) >
              highest_processed_stream_id_) {
     // Receiving RST_STREAM before HEADERS is a connection error.
@@ -1134,6 +1133,9 @@ void OgHttp2Session::CloseStream(Http2StreamId stream_id,
                                  Http2ErrorCode error_code) {
   visitor_.OnCloseStream(stream_id, error_code);
   stream_map_.erase(stream_id);
+  if (write_scheduler_.StreamRegistered(stream_id)) {
+    write_scheduler_.UnregisterStream(stream_id);
+  }
 
   if (!pending_streams_.empty() && CanCreateStream()) {
     PendingStreamState& pending_stream = pending_streams_.front();
