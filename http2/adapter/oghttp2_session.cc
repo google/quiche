@@ -383,11 +383,14 @@ void OgHttp2Session::StartGracefulShutdown() {
 void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
   if (frame->frame_type() == spdy::SpdyFrameType::GOAWAY) {
     queued_goaway_ = true;
-  } else if (frame->frame_type() == spdy::SpdyFrameType::RST_STREAM) {
-    streams_reset_.insert(frame->stream_id());
+  } else if (frame->fin() ||
+             frame->frame_type() == spdy::SpdyFrameType::RST_STREAM) {
     auto iter = stream_map_.find(frame->stream_id());
     if (iter != stream_map_.end()) {
       iter->second.half_closed_local = true;
+    }
+    if (frame->frame_type() == spdy::SpdyFrameType::RST_STREAM) {
+      streams_reset_.insert(frame->stream_id());
     }
   }
   frames_.push_back(std::move(frame));
@@ -527,6 +530,7 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
       state.data_deferred = true;
       break;
     } else if (length == DataFrameSource::kError) {
+      // TODO(birenroy): Consider queuing a RST_STREAM INTERNAL_ERROR instead.
       CloseStream(stream_id, Http2ErrorCode::INTERNAL_ERROR);
       // No more work on the stream; it has been closed.
       break;
@@ -565,6 +569,7 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
       }
       state.outbound_body = nullptr;
       if (fin || sent_trailers) {
+        state.half_closed_local = true;
         if (MaybeCloseWithRstStream(stream_id, state)) {
           // No more work on the stream; it has been closed.
           break;
@@ -1067,7 +1072,6 @@ void OgHttp2Session::SendTrailers(Http2StreamId stream_id,
 
 bool OgHttp2Session::MaybeCloseWithRstStream(Http2StreamId stream_id,
                                              StreamState& state) {
-  state.half_closed_local = true;
   if (options_.perspective == Perspective::kServer) {
     if (state.half_closed_remote) {
       CloseStream(stream_id, Http2ErrorCode::NO_ERROR);
@@ -1119,9 +1123,7 @@ void OgHttp2Session::StartRequest(Http2StreamId stream_id,
                                   void* user_data) {
   auto iter = CreateStream(stream_id);
   const bool end_stream = data_source == nullptr;
-  if (end_stream) {
-    iter->second.half_closed_local = true;
-  } else {
+  if (!end_stream) {
     iter->second.outbound_body = std::move(data_source);
     write_scheduler_.MarkStreamReady(stream_id, false);
   }
