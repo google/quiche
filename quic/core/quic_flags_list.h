@@ -19,8 +19,6 @@ QUIC_FLAG(FLAGS_quic_restart_flag_quic_testonly_default_true, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_check_amplification_limit_with_pending_timer_credit, false)
 // If bytes in flight has dipped below 1.25*MaxBW in the last round, do not exit PROBE_UP due to excess queue buildup.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_no_probe_up_exit_if_no_queue, true)
-// If true and connection option B201 is used, check if cwnd limited before aggregation epoch, instead of ack event, in PROBE_UP phase.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_check_cwnd_limited_before_aggregation_epoch, true)
 // If true, 1) NEW_TOKENs sent from a IETF QUIC session will include the cached network parameters proto, 2) A min_rtt received from a validated token will be used to set the initial rtt, 3) Enable bandwidth resumption for IETF QUIC when connection options BWRE or BWMX exists.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_cached_network_parameters_to_address_token, false)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.

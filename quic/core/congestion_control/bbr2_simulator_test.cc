@@ -508,8 +508,6 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB2RC) {
 }
 
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB201) {
-  SetQuicReloadableFlag(quic_bbr2_check_cwnd_limited_before_aggregation_epoch,
-                        true);
   SetConnectionOption(kB201);
   DefaultTopologyParams params;
   CreateNetwork(params);
@@ -681,8 +679,6 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytes) {
 }
 
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytesB201) {
-  SetQuicReloadableFlag(quic_bbr2_check_cwnd_limited_before_aggregation_epoch,
-                        true);
   SetConnectionOption(kB201);
   DefaultTopologyParams params;
   CreateNetwork(params);
