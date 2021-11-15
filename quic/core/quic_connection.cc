@@ -3697,7 +3697,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       packet, packet_send_time, packet->transmission_type,
       IsRetransmittable(*packet), /*measure_rtt=*/send_on_current_path);
   QUIC_BUG_IF(quic_bug_12714_25,
-              default_enable_5rto_blackhole_detection_ &&
+              perspective_ == Perspective::IS_SERVER &&
+                  default_enable_5rto_blackhole_detection_ &&
                   blackhole_detector_.IsDetectionInProgress() &&
                   !sent_packet_manager_.HasInFlightPackets())
       << ENDPOINT
@@ -6154,7 +6155,8 @@ void QuicConnection::OnForwardProgressMade() {
     blackhole_detector_.StopDetection(/*permanent=*/false);
   }
   QUIC_BUG_IF(quic_bug_12714_35,
-              default_enable_5rto_blackhole_detection_ &&
+              perspective_ == Perspective::IS_SERVER &&
+                  default_enable_5rto_blackhole_detection_ &&
                   blackhole_detector_.IsDetectionInProgress() &&
                   !sent_packet_manager_.HasInFlightPackets())
       << ENDPOINT
