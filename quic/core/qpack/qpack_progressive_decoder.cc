@@ -45,13 +45,7 @@ QpackProgressiveDecoder::QpackProgressiveDecoder(
       blocked_(false),
       decoding_(true),
       error_detected_(false),
-      cancelled_(false),
-      reject_invalid_chars_in_field_value_(
-          GetQuicReloadableFlag(quic_reject_invalid_chars_in_field_value)) {
-  if (reject_invalid_chars_in_field_value_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_reject_invalid_chars_in_field_value);
-  }
-}
+      cancelled_(false) {}
 
 QpackProgressiveDecoder::~QpackProgressiveDecoder() {
   if (blocked_ && !cancelled_) {
@@ -351,7 +345,7 @@ bool QpackProgressiveDecoder::OnHeaderDecoded(bool value_from_static_table,
                                               absl::string_view name,
                                               absl::string_view value) {
   // Skip test for static table entries as they are all known to be valid.
-  if (reject_invalid_chars_in_field_value_ && !value_from_static_table) {
+  if (!value_from_static_table) {
     // According to Section 10.3 of
     // https://quicwg.org/base-drafts/draft-ietf-quic-http.html,
     // "[...] HTTP/3 can transport field values that are not valid. While most

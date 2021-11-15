@@ -176,10 +176,6 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   // True if QpackDecoderHeaderTable has been destroyed
   // while decoding is still blocked.
   bool cancelled_;
-
-  // Latched value of
-  // gfe2_reloadable_flag_quic_reject_invalid_chars_in_field_value
-  const bool reject_invalid_chars_in_field_value_;
 };
 
 }  // namespace quic
