@@ -886,8 +886,6 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
   EXPECT_FALSE(session.want_write());
 
   // The body source has been exhausted by the call to Send() above.
-  // TODO(birenroy): Fix this strange ordering.
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
   int trailer_result = session.SubmitTrailer(
       1, ToHeaders({{"final-status", "a-ok"},
                     {"x-comment", "trailers sure are cool"}}));
@@ -896,6 +894,7 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
 
   send_result = session.Send();
   EXPECT_EQ(0, send_result);
@@ -977,11 +976,9 @@ TEST(OgHttp2SessionTest, ServerQueuesTrailersWithResponse) {
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
   EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
 
-  // TODO(birenroy): Fix this strange ordering.
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
-
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
 
   send_result = session.Send();
   EXPECT_EQ(0, send_result);

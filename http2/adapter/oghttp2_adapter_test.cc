@@ -1273,7 +1273,6 @@ TEST_F(OgHttp2AdapterTest, TestSerialize) {
   EXPECT_CALL(http2_visitor_, OnFrameSent(PRIORITY, 3, _, 0x0, 0));
   EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(RST_STREAM, 3, _, 0x0));
   EXPECT_CALL(http2_visitor_, OnFrameSent(RST_STREAM, 3, _, 0x0, 0x8));
-  EXPECT_CALL(http2_visitor_, OnCloseStream(3, Http2ErrorCode::NO_ERROR));
   EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(PING, 0, _, 0x0));
   EXPECT_CALL(http2_visitor_, OnFrameSent(PING, 0, _, 0x0, 0));
   EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
@@ -1525,9 +1524,6 @@ TEST(OgHttp2AdapterServerTest, CompleteRequestWithServerResponse) {
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 
-  // BUG: OnCloseStream() should be invoked after OnFrameSent() for the response
-  // headers.
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
   int submit_result =
       adapter->SubmitResponse(1, ToHeaders({{":status", "200"}}), nullptr);
   EXPECT_EQ(submit_result, 0);
@@ -1539,6 +1535,7 @@ TEST(OgHttp2AdapterServerTest, CompleteRequestWithServerResponse) {
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
@@ -1665,7 +1662,6 @@ TEST(OgHttp2AdapterServerTest, ServerSendsInvalidTrailers) {
   EXPECT_FALSE(adapter->want_write());
 
   // The body source has been exhausted by the call to Send() above.
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
   int trailer_result =
       adapter->SubmitTrailer(1, ToHeaders({{":final-status", "a-ok"}}));
   ASSERT_EQ(trailer_result, 0);
@@ -1673,6 +1669,7 @@ TEST(OgHttp2AdapterServerTest, ServerSendsInvalidTrailers) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
@@ -1777,9 +1774,6 @@ TEST(OgHttp2AdapterServerTest, ServerSubmitsTrailersWhileDataDeferred) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, _, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(RST_STREAM, 1, _, 0x0, 0));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);

@@ -261,6 +261,10 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Serializes and sends queued frames.
   SendResult SendQueuedFrames();
 
+  void AfterFrameSent(uint8_t frame_type, uint32_t stream_id,
+                      size_t payload_length, uint8_t flags,
+                      uint32_t error_code);
+
   // Writes DATA frames for stream `stream_id`.
   SendResult WriteForStream(Http2StreamId stream_id);
 
@@ -270,10 +274,6 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
                    bool end_stream);
 
   void SendTrailers(Http2StreamId stream_id, spdy::SpdyHeaderBlock trailers);
-
-  // Encapsulates the RST_STREAM NO_ERROR behavior described in RFC 7540
-  // Section 8.1. Returns true if the stream is closed.
-  bool MaybeCloseWithRstStream(Http2StreamId stream_id, StreamState& state);
 
   // Performs flow control accounting for data sent by the peer.
   void MarkDataBuffered(Http2StreamId stream_id, size_t bytes);
@@ -301,6 +301,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // connection. If server-side, also sends a GOAWAY with `error_code`.
   void LatchErrorAndNotify(Http2ErrorCode error_code,
                            Http2VisitorInterface::ConnectionError error);
+
+  void CloseStreamIfReady(uint8_t frame_type, uint32_t stream_id);
 
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
@@ -347,6 +349,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   WindowManager connection_window_manager_;
 
   absl::flat_hash_set<Http2StreamId> streams_reset_;
+  absl::flat_hash_map<Http2StreamId, int> queued_frames_;
 
   MetadataSequence connection_metadata_;
 

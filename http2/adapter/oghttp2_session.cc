@@ -122,7 +122,12 @@ absl::string_view TracePerspectiveAsString(Perspective p) {
 
 class RunOnExit {
  public:
+  RunOnExit() = default;
   explicit RunOnExit(std::function<void()> f) : f_(std::move(f)) {}
+
+  RunOnExit(RunOnExit&& other) = default;
+  RunOnExit& operator=(RunOnExit&& other) = default;
+
   ~RunOnExit() {
     if (f_) {
       f_();
@@ -393,6 +398,12 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
       streams_reset_.insert(frame->stream_id());
     }
   }
+  if (frame->stream_id() != 0) {
+    auto result = queued_frames_.insert({frame->stream_id(), 1});
+    if (!result.second) {
+      ++(result.first->second);
+    }
+  }
   frames_.push_back(std::move(frame));
 }
 
@@ -470,14 +481,8 @@ OgHttp2Session::SendResult OgHttp2Session::SendQueuedFrames() {
       // Write blocked.
       return SendResult::SEND_BLOCKED;
     } else {
-      visitor_.OnFrameSent(c.frame_type(), c.stream_id(), frame_payload_length,
-                           c.flags(), c.error_code());
-      if (static_cast<FrameType>(c.frame_type()) == FrameType::RST_STREAM) {
-        // If this endpoint is resetting the stream, the stream should be
-        // closed. This endpoint is already aware of the outbound RST_STREAM and
-        // its error code, so close with NO_ERROR.
-        CloseStream(c.stream_id(), Http2ErrorCode::NO_ERROR);
-      }
+      AfterFrameSent(c.frame_type(), c.stream_id(), frame_payload_length,
+                     c.flags(), c.error_code());
 
       frames_.pop_front();
       if (static_cast<size_t>(result) < frame.size()) {
@@ -488,6 +493,24 @@ OgHttp2Session::SendResult OgHttp2Session::SendQueuedFrames() {
     }
   }
   return SendResult::SEND_OK;
+}
+
+void OgHttp2Session::AfterFrameSent(uint8_t frame_type, uint32_t stream_id,
+                                    size_t payload_length, uint8_t flags,
+                                    uint32_t error_code) {
+  visitor_.OnFrameSent(frame_type, stream_id, payload_length, flags,
+                       error_code);
+  if (stream_id == 0) {
+    return;
+  }
+  auto iter = queued_frames_.find(stream_id);
+  if (frame_type != 0) {
+    --iter->second;
+  }
+  if (iter->second == 0) {
+    // TODO(birenroy): Consider passing through `error_code` here.
+    CloseStreamIfReady(frame_type, stream_id);
+  }
 }
 
 OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
@@ -512,7 +535,6 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
         QUICHE_LOG(ERROR) << "Sent fin; can't send trailers.";
       } else {
         SendTrailers(stream_id, std::move(*block_ptr));
-        MaybeCloseWithRstStream(stream_id, state);
       }
     }
     return SendResult::SEND_OK;
@@ -550,31 +572,29 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
         connection_can_write = SendResult::SEND_BLOCKED;
         break;
       }
-      visitor_.OnFrameSent(/* DATA */ 0, stream_id, length, fin ? 0x1 : 0x0, 0);
       connection_send_window_ -= length;
       state.send_window -= length;
       available_window = std::min({connection_send_window_, state.send_window,
                                    static_cast<int32_t>(max_frame_payload_)});
+      if (fin) {
+        state.half_closed_local = true;
+      }
+      AfterFrameSent(/* DATA */ 0, stream_id, length, fin ? 0x1 : 0x0, 0);
+      if (!stream_map_.contains(stream_id)) {
+        // Note: the stream may have been closed if `fin` is true.
+        break;
+      }
     }
     if (end_data) {
-      bool sent_trailers = false;
       if (state.trailers != nullptr) {
         auto block_ptr = std::move(state.trailers);
         if (fin) {
           QUICHE_LOG(ERROR) << "Sent fin; can't send trailers.";
         } else {
           SendTrailers(stream_id, std::move(*block_ptr));
-          sent_trailers = true;
         }
       }
       state.outbound_body = nullptr;
-      if (fin || sent_trailers) {
-        state.half_closed_local = true;
-        if (MaybeCloseWithRstStream(stream_id, state)) {
-          // No more work on the stream; it has been closed.
-          break;
-        }
-      }
     }
   }
   // If the stream still exists and has data to send, it should be marked as
@@ -648,11 +668,7 @@ int OgHttp2Session::SubmitResponse(
     return -501;  // NGHTTP2_ERR_INVALID_ARGUMENT
   }
   const bool end_stream = data_source == nullptr;
-  if (end_stream) {
-    if (iter->second.half_closed_remote) {
-      CloseStream(stream_id, Http2ErrorCode::NO_ERROR);
-    }
-  } else {
+  if (!end_stream) {
     // Add data source to stream state
     iter->second.outbound_body = std::move(data_source);
     write_scheduler_.MarkStreamReady(stream_id, false);
@@ -682,7 +698,6 @@ int OgHttp2Session::SubmitTrailer(Http2StreamId stream_id,
   if (state.outbound_body == nullptr) {
     // Enqueue trailers immediately.
     SendTrailers(stream_id, ToHeaderBlock(trailers));
-    MaybeCloseWithRstStream(stream_id, state);
   } else {
     QUICHE_LOG_IF(ERROR, state.outbound_body->send_fin())
         << "DataFrameSource will send fin, preventing trailers!";
@@ -771,6 +786,8 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
       options_.perspective == Perspective::kClient) {
     // From the client's perspective, the stream can be closed if it's already
     // half_closed_local.
+    // TODO(birenroy): consider whether there are outbound frames queued for the
+    // stream.
     CloseStream(stream_id, Http2ErrorCode::NO_ERROR);
   }
 }
@@ -828,6 +845,8 @@ void OgHttp2Session::OnRstStream(spdy::SpdyStreamId stream_id,
     return;
   }
   visitor_.OnRstStream(stream_id, TranslateErrorCode(error_code));
+  // TODO(birenroy): Consider whether there are outbound frames queued for the
+  // stream.
   CloseStream(stream_id, TranslateErrorCode(error_code));
 }
 
@@ -1070,23 +1089,6 @@ void OgHttp2Session::SendTrailers(Http2StreamId stream_id,
   EnqueueFrame(std::move(frame));
 }
 
-bool OgHttp2Session::MaybeCloseWithRstStream(Http2StreamId stream_id,
-                                             StreamState& state) {
-  if (options_.perspective == Perspective::kServer) {
-    if (state.half_closed_remote) {
-      CloseStream(stream_id, Http2ErrorCode::NO_ERROR);
-      return true;
-    } else {
-      // Since the peer has not yet ended the stream, this endpoint should
-      // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
-      EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
-          stream_id, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
-      // Sending the RST_STREAM also invokes OnCloseStream.
-    }
-  }
-  return false;
-}
-
 void OgHttp2Session::MarkDataBuffered(Http2StreamId stream_id, size_t bytes) {
   connection_window_manager_.MarkDataBuffered(bytes);
   auto it = stream_map_.find(stream_id);
@@ -1178,6 +1180,19 @@ void OgHttp2Session::LatchErrorAndNotify(Http2ErrorCode error_code,
     EnqueueFrame(absl::make_unique<spdy::SpdyGoAwayIR>(
         highest_processed_stream_id_, TranslateErrorCode(error_code),
         ConnectionErrorToString(error)));
+  }
+}
+
+void OgHttp2Session::CloseStreamIfReady(uint8_t frame_type,
+                                        uint32_t stream_id) {
+  auto iter = stream_map_.find(stream_id);
+  if (iter == stream_map_.end()) {
+    return;
+  }
+  const StreamState& state = iter->second;
+  if (static_cast<FrameType>(frame_type) == FrameType::RST_STREAM ||
+      (state.half_closed_local && state.half_closed_remote)) {
+    CloseStream(stream_id, Http2ErrorCode::NO_ERROR);
   }
 }
 
