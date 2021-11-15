@@ -113,11 +113,7 @@ class BbrSenderTest : public QuicTest {
     const int kTestMaxPacketSize = 1350;
     bbr_sender_.connection()->SetMaxPacketLength(kTestMaxPacketSize);
     sender_ = SetupBbrSender(&bbr_sender_);
-    if (GetQuicReloadableFlag(
-            quic_bbr_start_new_aggregation_epoch_after_a_full_round)) {
-      SetConnectionOption(kBBRA);
-    }
-
+    SetConnectionOption(kBBRA);
     clock_ = simulator_.GetClock();
   }
 

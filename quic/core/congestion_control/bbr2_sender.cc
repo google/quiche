@@ -195,9 +195,7 @@ void Bbr2Sender::ApplyConnectionOptions(
     params_.exit_startup_on_persistent_queue = true;
   }
 
-  if (GetQuicReloadableFlag(
-          quic_bbr_start_new_aggregation_epoch_after_a_full_round) &&
-      ContainsQuicTag(connection_options, kBBRA)) {
+  if (ContainsQuicTag(connection_options, kBBRA)) {
     model_.SetStartNewAggregationEpochAfterFullRound(true);
   }
   if (GetQuicReloadableFlag(quic_bbr_use_send_rate_in_max_ack_height_tracker) &&

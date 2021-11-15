@@ -278,9 +278,7 @@ void BbrSender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kBSAO)) {
     sampler_.EnableOverestimateAvoidance();
   }
-  if (GetQuicReloadableFlag(
-          quic_bbr_start_new_aggregation_epoch_after_a_full_round) &&
-      ContainsQuicTag(connection_options, kBBRA)) {
+  if (ContainsQuicTag(connection_options, kBBRA)) {
     sampler_.SetStartNewAggregationEpochAfterFullRound(true);
   }
   if (GetQuicReloadableFlag(quic_bbr_use_send_rate_in_max_ack_height_tracker) &&

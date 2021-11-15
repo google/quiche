@@ -37,8 +37,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_accept_empty_crypto_frame, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_can_send_ack_frequency, true)
 // If true, allow client to enable BBRv2 on server via connection option \'B2ON\'.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, false)
-// If true, always starts a new ack aggregation epoch if a full round has passed since the start of the current epoch.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr_start_new_aggregation_epoch_after_a_full_round, true)
 // If true, change QuicCryptoServerStream::FinishProcessingHandshakeMessageAfterProcessClientHello to noop if connection is disconnected.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_crypto_noop_if_disconnected_after_process_chlo, true)
 // If true, clear undecryptable packets on handshake complete.

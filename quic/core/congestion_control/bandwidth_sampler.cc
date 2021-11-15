@@ -64,8 +64,6 @@ QuicByteCount MaxAckHeightTracker::Update(
       last_sent_packet_number_before_epoch_.IsInitialized() &&
       last_acked_packet_number.IsInitialized() &&
       last_acked_packet_number > last_sent_packet_number_before_epoch_) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_bbr_start_new_aggregation_epoch_after_a_full_round);
     QUIC_DVLOG(3) << "Force starting a new aggregation epoch. "
                      "last_sent_packet_number_before_epoch_:"
                   << last_sent_packet_number_before_epoch_

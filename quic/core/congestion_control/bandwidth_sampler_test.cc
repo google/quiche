@@ -711,11 +711,7 @@ class MaxAckHeightTrackerTest : public QuicTest {
  protected:
   MaxAckHeightTrackerTest() : tracker_(/*initial_filter_window=*/10) {
     tracker_.SetAckAggregationBandwidthThreshold(1.8);
-
-    if (GetQuicReloadableFlag(
-            quic_bbr_start_new_aggregation_epoch_after_a_full_round)) {
-      tracker_.SetStartNewAggregationEpochAfterFullRound(true);
-    }
+    tracker_.SetStartNewAggregationEpochAfterFullRound(true);
   }
 
   // Run a full aggregation episode, which is one or more aggregated acks,
@@ -886,12 +882,7 @@ TEST_F(MaxAckHeightTrackerTest, StartNewEpochAfterAFullRound) {
                   last_sent_packet_number_, last_acked_packet_number_, now_,
                   100);
 
-  if (GetQuicReloadableFlag(
-          quic_bbr_start_new_aggregation_epoch_after_a_full_round)) {
-    EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
-  } else {
-    EXPECT_EQ(1u, tracker_.num_ack_aggregation_epochs());
-  }
+  EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
 }
 
 }  // namespace test

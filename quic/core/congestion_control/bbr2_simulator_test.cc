@@ -1966,12 +1966,10 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
         kDefaultInitialCwndPackets,
         GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
         QuicConnectionPeer::GetStats(endpoint->connection()), nullptr);
-    if (GetQuicReloadableFlag(
-            quic_bbr_start_new_aggregation_epoch_after_a_full_round)) {
-      // TODO(ianswett): Add dedicated tests for this option until it becomes
-      // the default behavior.
-      SetConnectionOption(sender, kBBRA);
-    }
+    // TODO(ianswett): Add dedicated tests for this option until it becomes
+    // the default behavior.
+    SetConnectionOption(sender, kBBRA);
+
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();
     return sender;
