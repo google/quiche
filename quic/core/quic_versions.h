@@ -118,14 +118,14 @@ enum QuicTransportVersion {
   // Version 49 added client connection IDs, long header lengths, and the IETF
   // header format from draft-ietf-quic-invariants-06
   QUIC_VERSION_50 = 50,  // Header protection and initial obfuscators.
-  QUIC_VERSION_51 = 51,  // draft-29 features but with GoogleQUIC frames.
+  // Number 51 was T051 which used draft-29 features but with GoogleQUIC frames.
   // Number 70 used to represent draft-ietf-quic-transport-25.
   // Number 71 used to represent draft-ietf-quic-transport-27.
   // Number 72 used to represent draft-ietf-quic-transport-28.
   QUIC_VERSION_IETF_DRAFT_29 = 73,  // draft-ietf-quic-transport-29.
-  QUIC_VERSION_IETF_RFC_V1 = 80,    // Not-yet-published RFC.
+  QUIC_VERSION_IETF_RFC_V1 = 80,    // RFC 9000.
   // Version 99 was a dumping ground for IETF QUIC changes which were not yet
-  // yet ready for production between 2018-02 and 2020-02.
+  // ready for production between 2018-02 and 2020-02.
 
   // QUIC_VERSION_RESERVED_FOR_NEGOTIATION is sent over the wire as ?a?a?a?a
   // which is part of a range reserved by the IETF for version negotiation
@@ -173,7 +173,6 @@ QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
   constexpr QuicTransportVersion valid_transport_versions[] = {
       QUIC_VERSION_IETF_RFC_V1,
       QUIC_VERSION_IETF_DRAFT_29,
-      QUIC_VERSION_51,
       QUIC_VERSION_50,
       QUIC_VERSION_46,
       QUIC_VERSION_43,
@@ -195,7 +194,6 @@ QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
     case PROTOCOL_QUIC_CRYPTO:
       return transport_version != QUIC_VERSION_UNSUPPORTED &&
              transport_version != QUIC_VERSION_RESERVED_FOR_NEGOTIATION &&
-             transport_version != QUIC_VERSION_51 &&
              transport_version != QUIC_VERSION_IETF_DRAFT_29 &&
              transport_version != QUIC_VERSION_IETF_RFC_V1;
     case PROTOCOL_TLS1_3:
@@ -253,10 +251,6 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
 
   static constexpr ParsedQuicVersion Draft29() {
     return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_29);
-  }
-
-  static constexpr ParsedQuicVersion T051() {
-    return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_51);
   }
 
   static constexpr ParsedQuicVersion Q050() {
@@ -400,11 +394,11 @@ constexpr std::array<HandshakeProtocol, 2> SupportedHandshakeProtocols() {
   return {PROTOCOL_TLS1_3, PROTOCOL_QUIC_CRYPTO};
 }
 
-constexpr std::array<ParsedQuicVersion, 6> SupportedVersions() {
+constexpr std::array<ParsedQuicVersion, 5> SupportedVersions() {
   return {
       ParsedQuicVersion::RFCv1(), ParsedQuicVersion::Draft29(),
-      ParsedQuicVersion::T051(),  ParsedQuicVersion::Q050(),
-      ParsedQuicVersion::Q046(),  ParsedQuicVersion::Q043(),
+      ParsedQuicVersion::Q050(),  ParsedQuicVersion::Q046(),
+      ParsedQuicVersion::Q043(),
   };
 }
 
@@ -571,7 +565,7 @@ QUIC_EXPORT_PRIVATE constexpr bool VersionSupportsMessageFrames(
 // * GOAWAY is moved to HTTP layer.
 QUIC_EXPORT_PRIVATE constexpr bool VersionUsesHttp3(
     QuicTransportVersion transport_version) {
-  return transport_version > QUIC_VERSION_51;
+  return transport_version >= QUIC_VERSION_IETF_DRAFT_29;
 }
 
 // Returns whether the transport_version supports the variable length integer

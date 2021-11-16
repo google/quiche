@@ -1503,7 +1503,25 @@ TEST_P(QuicDispatcherTestOneVersion,
                              received_packet44);
 }
 
-static_assert(quic::SupportedVersions().size() == 6u,
+TEST_P(QuicDispatcherTestOneVersion,
+       RejectDeprecatedVersionT051WithVersionNegotiation) {
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  CreateTimeWaitListManager();
+  uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
+      0xFF, 'T', '0', '5', '1', /*destination connection ID length*/ 0x08};
+  QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
+                                     kMinPacketSizeForVersionNegotiation,
+                                     QuicTime::Zero());
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(
+      *time_wait_list_manager_,
+      SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
+                                   /*use_length_prefix=*/true, _, _, _, _))
+      .Times(1);
+  dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
+}
+
+static_assert(quic::SupportedVersions().size() == 5u,
               "Please add new RejectDeprecatedVersion tests above this assert "
               "when deprecating versions");
 

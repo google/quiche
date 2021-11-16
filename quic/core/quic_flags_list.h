@@ -59,8 +59,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_q050, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_rfcv1, false)
 // If true, disable QUIC version h3-29.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_draft_29, false)
-// If true, disable QUIC version h3-T051.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_t051, true)
 // If true, disable blackhole detection on server side.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_server_blackhole_detection, false)
 // If true, discard INITIAL packet if the key has been dropped.
