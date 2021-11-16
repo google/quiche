@@ -4,9 +4,9 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "http2/adapter/http2_visitor_interface.h"
+#include "http2/adapter/nghttp2.h"
 #include "http2/adapter/nghttp2_callbacks.h"
 #include "http2/adapter/nghttp2_data_provider.h"
-#include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 #include "common/platform/api/quiche_logging.h"
 #include "common/quiche_endian.h"
 

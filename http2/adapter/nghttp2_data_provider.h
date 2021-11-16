@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "http2/adapter/data_source.h"
-#include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
+#include "http2/adapter/nghttp2.h"
 
 namespace http2 {
 namespace adapter {

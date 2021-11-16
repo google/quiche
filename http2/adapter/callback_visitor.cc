@@ -3,7 +3,6 @@
 #include "absl/strings/escaping.h"
 #include "http2/adapter/http2_util.h"
 #include "http2/adapter/nghttp2_util.h"
-#include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 #include "common/quiche_endian.h"
 
 // This visitor implementation needs visibility into the

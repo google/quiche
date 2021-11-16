@@ -6,7 +6,7 @@
 
 #include "absl/strings/string_view.h"
 #include "http2/adapter/http2_protocol.h"
-#include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
+#include "http2/adapter/nghttp2.h"
 #include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_test.h"
 

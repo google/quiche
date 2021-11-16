@@ -4,8 +4,8 @@
 #include <cstdint>
 
 #include "http2/adapter/http2_protocol.h"
+#include "http2/adapter/nghttp2.h"
 #include "http2/adapter/nghttp2_util.h"
-#include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 
 namespace http2 {
 namespace adapter {

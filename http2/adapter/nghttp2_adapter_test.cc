@@ -3,11 +3,11 @@
 #include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/http2_visitor_interface.h"
 #include "http2/adapter/mock_http2_visitor.h"
+#include "http2/adapter/nghttp2.h"
 #include "http2/adapter/nghttp2_test_utils.h"
 #include "http2/adapter/oghttp2_util.h"
 #include "http2/adapter/test_frame_sequence.h"
 #include "http2/adapter/test_utils.h"
-#include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
 #include "common/platform/api/quiche_test.h"
 
 namespace http2 {

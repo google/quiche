@@ -11,7 +11,7 @@
 #include "http2/adapter/data_source.h"
 #include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/http2_visitor_interface.h"
-#include "third_party/nghttp2/src/lib/includes/nghttp2/nghttp2.h"
+#include "http2/adapter/nghttp2.h"
 #include "spdy/core/spdy_header_block.h"
 
 namespace http2 {
