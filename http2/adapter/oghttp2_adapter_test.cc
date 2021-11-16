@@ -1251,11 +1251,8 @@ TEST(OgHttp2AdapterClientTest, ClientReceivesDataOnClosedStream) {
           .Serialize();
 
   // The visitor gets notified about the HEADERS frame and DATA frame for the
-  // closed stream with further processing for both.
+  // closed stream with further processing on the DATA frame.
   EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, HEADERS, 0x4));
-  EXPECT_CALL(visitor, OnBeginHeadersForStream(stream_id));
-  EXPECT_CALL(visitor, OnHeaderForStream(stream_id, _, _)).Times(3);
-  EXPECT_CALL(visitor, OnEndHeadersForStream(stream_id));
   EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, DATA, 0x1));
   EXPECT_CALL(visitor, OnBeginDataForStream(stream_id, _));
   EXPECT_CALL(visitor,

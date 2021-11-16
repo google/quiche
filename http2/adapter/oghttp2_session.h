@@ -18,6 +18,7 @@
 #include "common/platform/api/quiche_bug_tracker.h"
 #include "common/platform/api/quiche_export.h"
 #include "spdy/core/http2_frame_decoder_adapter.h"
+#include "spdy/core/no_op_headers_handler.h"
 #include "spdy/core/spdy_framer.h"
 #include "spdy/core/spdy_header_block.h"
 #include "spdy/core/spdy_protocol.h"
@@ -341,6 +342,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   // Delivers header name-value pairs to the visitor.
   PassthroughHeadersHandler headers_handler_;
+
+  // Ignores header data, e.g., for an unknown or rejected stream.
+  spdy::NoOpHeadersHandler noop_headers_handler_;
 
   // Tracks the remaining client connection preface, in the case of a server
   // session.

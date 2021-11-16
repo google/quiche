@@ -236,6 +236,7 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
           TracePerspectiveAsString(options.perspective),
           []() { return kTraceLoggingEnabled; }, this),
       headers_handler_(*this, visitor),
+      noop_headers_handler_(/*listener=*/nullptr),
       connection_window_manager_(kInitialFlowControlWindowSize,
                                  [this](size_t window_update_delta) {
                                    SendWindowUpdate(kConnectionStreamId,
@@ -806,13 +807,15 @@ void OgHttp2Session::OnStreamPadding(spdy::SpdyStreamId /*stream_id*/, size_t
 
 spdy::SpdyHeadersHandlerInterface* OgHttp2Session::OnHeaderFrameStart(
     spdy::SpdyStreamId stream_id) {
-  headers_handler_.set_stream_id(stream_id);
   auto it = stream_map_.find(stream_id);
   if (it != stream_map_.end()) {
+    headers_handler_.set_stream_id(stream_id);
     headers_handler_.set_header_type(
         NextHeaderType(it->second.received_header_type));
+    return &headers_handler_;
+  } else {
+    return &noop_headers_handler_;
   }
-  return &headers_handler_;
 }
 
 void OgHttp2Session::OnHeaderFrameEnd(spdy::SpdyStreamId stream_id) {
@@ -827,8 +830,8 @@ void OgHttp2Session::OnHeaderFrameEnd(spdy::SpdyStreamId stream_id) {
     } else {
       it->second.received_header_type = headers_handler_.header_type();
     }
+    headers_handler_.set_stream_id(0);
   }
-  headers_handler_.set_stream_id(0);
 }
 
 void OgHttp2Session::OnRstStream(spdy::SpdyStreamId stream_id,
