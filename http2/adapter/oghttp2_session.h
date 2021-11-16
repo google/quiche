@@ -36,6 +36,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     Perspective perspective = Perspective::kClient;
     // Whether to automatically send PING acks when receiving a PING.
     bool auto_ping_ack = true;
+    // Whether (as server) to send a RST_STREAM NO_ERROR when sending a fin on
+    // an incomplete stream.
+    bool rst_stream_no_error_when_incomplete = false;
   };
 
   OgHttp2Session(Http2VisitorInterface& visitor, Options options);
@@ -275,6 +278,10 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
                    bool end_stream);
 
   void SendTrailers(Http2StreamId stream_id, spdy::SpdyHeaderBlock trailers);
+
+  // Encapsulates the RST_STREAM NO_ERROR behavior described in RFC 7540
+  // Section 8.1.
+  void MaybeFinWithRstStream(StreamStateMap::iterator iter);
 
   // Performs flow control accounting for data sent by the peer.
   void MarkDataBuffered(Http2StreamId stream_id, size_t bytes);

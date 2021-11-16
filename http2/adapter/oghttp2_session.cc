@@ -387,6 +387,7 @@ void OgHttp2Session::StartGracefulShutdown() {
 }
 
 void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
+  RunOnExit r;
   if (frame->frame_type() == spdy::SpdyFrameType::GOAWAY) {
     queued_goaway_ = true;
   } else if (frame->fin() ||
@@ -397,6 +398,9 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
     }
     if (frame->frame_type() == spdy::SpdyFrameType::RST_STREAM) {
       streams_reset_.insert(frame->stream_id());
+    } else if (iter != stream_map_.end()) {
+      // Enqueue RST_STREAM NO_ERROR if appropriate.
+      r = RunOnExit{[this, iter]() { MaybeFinWithRstStream(iter); }};
     }
   }
   if (frame->stream_id() != 0) {
@@ -579,6 +583,7 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
                                    static_cast<int32_t>(max_frame_payload_)});
       if (fin) {
         state.half_closed_local = true;
+        MaybeFinWithRstStream(it);
       }
       AfterFrameSent(/* DATA */ 0, stream_id, length, fin ? 0x1 : 0x0, 0);
       if (!stream_map_.contains(stream_id)) {
@@ -1095,6 +1100,20 @@ void OgHttp2Session::SendTrailers(Http2StreamId stream_id,
       absl::make_unique<spdy::SpdyHeadersIR>(stream_id, std::move(trailers));
   frame->set_fin(true);
   EnqueueFrame(std::move(frame));
+}
+
+void OgHttp2Session::MaybeFinWithRstStream(StreamStateMap::iterator iter) {
+  QUICHE_DCHECK(iter != stream_map_.end() && iter->second.half_closed_local);
+
+  if (options_.rst_stream_no_error_when_incomplete &&
+      options_.perspective == Perspective::kServer &&
+      !iter->second.half_closed_remote) {
+    // Since the peer has not yet ended the stream, this endpoint should
+    // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
+    EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+        iter->first, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
+    iter->second.half_closed_remote = true;
+  }
 }
 
 void OgHttp2Session::MarkDataBuffered(Http2StreamId stream_id, size_t bytes) {
