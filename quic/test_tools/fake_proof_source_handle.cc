@@ -80,7 +80,9 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
     const std::vector<uint8_t>& quic_transport_params,
     const absl::optional<std::vector<uint8_t>>& early_data_context,
     const QuicSSLConfig& ssl_config) {
-  QUICHE_CHECK(!closed_);
+  if (select_cert_action_ != Action::FAIL_SYNC_DO_NOT_CHECK_CLOSED) {
+    QUICHE_CHECK(!closed_);
+  }
   all_select_cert_args_.push_back(SelectCertArgs(
       server_address, client_address, ssl_capabilities, hostname, client_hello,
       alpn, alps, quic_transport_params, early_data_context, ssl_config));
@@ -90,7 +92,8 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
     select_cert_op_.emplace(delegate_, callback_, select_cert_action_,
                             all_select_cert_args_.back(), dealyed_ssl_config_);
     return QUIC_PENDING;
-  } else if (select_cert_action_ == Action::FAIL_SYNC) {
+  } else if (select_cert_action_ == Action::FAIL_SYNC ||
+             select_cert_action_ == Action::FAIL_SYNC_DO_NOT_CHECK_CLOSED) {
     callback()->OnSelectCertificateDone(
         /*ok=*/false,
         /*is_sync=*/true, nullptr, /*handshake_hints=*/absl::string_view(),
@@ -121,7 +124,9 @@ QuicAsyncStatus FakeProofSourceHandle::ComputeSignature(
     uint16_t signature_algorithm,
     absl::string_view in,
     size_t max_signature_size) {
-  QUICHE_CHECK(!closed_);
+  if (compute_signature_action_ != Action::FAIL_SYNC_DO_NOT_CHECK_CLOSED) {
+    QUICHE_CHECK(!closed_);
+  }
   all_compute_signature_args_.push_back(
       ComputeSignatureArgs(server_address, client_address, hostname,
                            signature_algorithm, in, max_signature_size));
@@ -132,7 +137,9 @@ QuicAsyncStatus FakeProofSourceHandle::ComputeSignature(
                                   compute_signature_action_,
                                   all_compute_signature_args_.back());
     return QUIC_PENDING;
-  } else if (compute_signature_action_ == Action::FAIL_SYNC) {
+  } else if (compute_signature_action_ == Action::FAIL_SYNC ||
+             compute_signature_action_ ==
+                 Action::FAIL_SYNC_DO_NOT_CHECK_CLOSED) {
     callback()->OnComputeSignatureDone(/*ok=*/false, /*is_sync=*/true,
                                        /*signature=*/"", /*details=*/nullptr);
     return QUIC_FAILURE;

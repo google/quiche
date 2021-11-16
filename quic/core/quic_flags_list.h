@@ -65,6 +65,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_server_blackhole_detection, fa
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, true)
 // If true, do not bundle 2nd ACK with connection close if there is an ACK queued.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_single_ack_in_packet2, false)
+// If true, do not call ProofSourceHandle::SelectCertificate if QUIC connection has disconnected.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_no_select_cert_if_disconnected, true)
 // If true, do not count bytes sent/received on the alternative path into the bytes sent/received on the default path.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_count_bytes_on_alternative_path_seperately, true)
 // If true, do not re-arm PTO while sending application data during handshake.

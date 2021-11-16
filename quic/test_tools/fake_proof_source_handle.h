@@ -25,6 +25,8 @@ class FakeProofSourceHandle : public ProofSourceHandle {
     // Handle the operation asynchronously. Fail the operation when the caller
     // calls CompletePendingOperation().
     FAIL_ASYNC,
+    // Similar to FAIL_SYNC, but do not QUICHE_CHECK(!closed_) when invoked.
+    FAIL_SYNC_DO_NOT_CHECK_CLOSED,
   };
 
   // |delegate| must do cert selection and signature synchronously.

@@ -377,6 +377,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       last_received_cached_network_params_;
 
   bool cert_matched_sni_ = false;
+  const bool no_select_cert_if_disconnected_ =
+      GetQuicReloadableFlag(quic_tls_no_select_cert_if_disconnected);
 };
 
 }  // namespace quic

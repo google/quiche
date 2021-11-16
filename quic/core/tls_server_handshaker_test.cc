@@ -26,6 +26,7 @@
 #include "quic/test_tools/failing_proof_source.h"
 #include "quic/test_tools/fake_proof_source.h"
 #include "quic/test_tools/fake_proof_source_handle.h"
+#include "quic/test_tools/quic_config_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
 #include "quic/test_tools/simple_session_cache.h"
 #include "quic/test_tools/test_certificates.h"
@@ -95,11 +96,18 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
     ON_CALL(*this, MaybeCreateProofSourceHandle())
         .WillByDefault(testing::Invoke(
             this, &TestTlsServerHandshaker::RealMaybeCreateProofSourceHandle));
+
+    ON_CALL(*this, OverrideQuicConfigDefaults(_))
+        .WillByDefault(testing::Invoke(
+            this, &TestTlsServerHandshaker::RealOverrideQuicConfigDefaults));
   }
 
   MOCK_METHOD(std::unique_ptr<ProofSourceHandle>,
               MaybeCreateProofSourceHandle,
               (),
+              (override));
+
+  MOCK_METHOD(void, OverrideQuicConfigDefaults, (QuicConfig * config),
               (override));
 
   void SetupProofSourceHandle(
@@ -140,6 +148,10 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
  private:
   std::unique_ptr<ProofSourceHandle> RealMaybeCreateProofSourceHandle() {
     return TlsServerHandshaker::MaybeCreateProofSourceHandle();
+  }
+
+  void RealOverrideQuicConfigDefaults(QuicConfig* config) {
+    return TlsServerHandshaker::OverrideQuicConfigDefaults(config);
   }
 
   // Owned by TlsServerHandshaker.
@@ -1021,6 +1033,44 @@ TEST_P(TlsServerHandshakerTest, RequestAndRequireClientCert_NoCert) {
   AdvanceHandshakeWithFakeClient();
   AdvanceHandshakeWithFakeClient();
   EXPECT_FALSE(server_handshaker_->received_client_cert());
+}
+
+TEST_P(TlsServerHandshakerTest, CloseConnectionBeforeSelectCert) {
+  InitializeServerWithFakeProofSourceHandle();
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::
+          FAIL_SYNC_DO_NOT_CHECK_CLOSED,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::
+          FAIL_SYNC_DO_NOT_CHECK_CLOSED);
+
+  EXPECT_CALL(*server_handshaker_, OverrideQuicConfigDefaults(_))
+      .WillOnce(testing::Invoke([](QuicConfig* config) {
+        QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(config,
+                                                            /*max_streams=*/0);
+      }));
+
+  EXPECT_CALL(*server_connection_,
+              CloseConnection(QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED, _, _))
+      .WillOnce(testing::Invoke(
+          [this](QuicErrorCode error, const std::string& details,
+                 ConnectionCloseBehavior connection_close_behavior) {
+            server_connection_->ReallyCloseConnection(
+                error, details, connection_close_behavior);
+            ASSERT_FALSE(server_connection_->connected());
+          }));
+
+  AdvanceHandshakeWithFakeClient();
+  if (!GetQuicReloadableFlag(quic_tls_no_select_cert_if_disconnected)) {
+    // SelectCertificate is called when flag is false.
+    EXPECT_FALSE(server_handshaker_->fake_proof_source_handle()
+                     ->all_select_cert_args()
+                     .empty());
+    return;
+  }
+
+  EXPECT_TRUE(server_handshaker_->fake_proof_source_handle()
+                  ->all_select_cert_args()
+                  .empty());
 }
 
 }  // namespace
