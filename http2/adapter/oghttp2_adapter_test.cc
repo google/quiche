@@ -1170,6 +1170,107 @@ TEST(OgHttp2AdapterClientTest, ClientForbidsPushStream) {
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
 }
 
+TEST(OgHttp2AdapterClientTest, ClientReceivesDataOnClosedStream) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  absl::string_view data = visitor.data();
+  EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  const std::string initial_frames =
+      TestFrameSequence().ServerPreface().Serialize();
+  testing::InSequence s;
+
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), static_cast<size_t>(initial_result));
+
+  // Client SETTINGS ack
+  EXPECT_TRUE(adapter->want_write());
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  // Let the client open a stream with a request.
+  int stream_id =
+      adapter->SubmitRequest(ToHeaders({{":method", "GET"},
+                                        {":scheme", "http"},
+                                        {":authority", "example.com"},
+                                        {":path", "/this/is/request/one"}}),
+                             nullptr, nullptr);
+  EXPECT_GT(stream_id, 0);
+
+  EXPECT_TRUE(adapter->want_write());
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x5, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
+  visitor.Clear();
+
+  // Let the client RST_STREAM the stream it opened.
+  adapter->SubmitRst(stream_id, Http2ErrorCode::CANCEL);
+  EXPECT_TRUE(adapter->want_write());
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, stream_id, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(RST_STREAM, stream_id, _, 0x0,
+                                   static_cast<int>(Http2ErrorCode::CANCEL)));
+  EXPECT_CALL(visitor, OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::RST_STREAM}));
+  visitor.Clear();
+
+  // Let the server send a response on the stream. (It might not have received
+  // the RST_STREAM yet.)
+  const std::string response_frames =
+      TestFrameSequence()
+          .Headers(stream_id,
+                   {{":status", "200"},
+                    {"server", "my-fake-server"},
+                    {"date", "Tue, 6 Apr 2021 12:54:01 GMT"}},
+                   /*fin=*/false)
+          .Data(stream_id, "This is the response body.", /*fin=*/true)
+          .Serialize();
+
+  // The visitor gets notified about the HEADERS frame and DATA frame for the
+  // closed stream with further processing for both.
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, HEADERS, 0x4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(stream_id));
+  EXPECT_CALL(visitor, OnHeaderForStream(stream_id, _, _)).Times(3);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(stream_id));
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, DATA, 0x1));
+  EXPECT_CALL(visitor, OnBeginDataForStream(stream_id, _));
+  EXPECT_CALL(visitor,
+              OnDataForStream(stream_id, "This is the response body."));
+  EXPECT_CALL(visitor, OnEndStream(stream_id));
+  // This final OnCloseStream() is avoided because of a stream map check in
+  // OnEndStream().
+  EXPECT_CALL(visitor, OnCloseStream(stream_id, _)).Times(0);
+
+  const int64_t response_result = adapter->ProcessBytes(response_frames);
+  EXPECT_EQ(response_frames.size(), static_cast<size_t>(response_result));
+
+  EXPECT_FALSE(adapter->want_write());
+}
+
 TEST_F(OgHttp2AdapterTest, SubmitMetadata) {
   auto source = absl::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
       {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));

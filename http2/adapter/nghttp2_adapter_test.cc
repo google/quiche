@@ -1261,6 +1261,92 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProviderAndWriteBlock) {
   EXPECT_FALSE(adapter->want_write());
 }
 
+TEST(NgHttp2AdapterTest, ClientReceivesDataOnClosedStream) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  // Client preface does not appear to include the mandatory SETTINGS frame.
+  EXPECT_THAT(visitor.data(),
+              testing::StrEq(spdy::kHttp2ConnectionHeaderPrefix));
+  visitor.Clear();
+
+  const std::string initial_frames =
+      TestFrameSequence().ServerPreface().Serialize();
+  testing::InSequence s;
+
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), initial_result);
+
+  // Client SETTINGS ack
+  EXPECT_TRUE(adapter->want_write());
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  // Let the client open a stream with a request.
+  int stream_id =
+      adapter->SubmitRequest(ToHeaders({{":method", "GET"},
+                                        {":scheme", "http"},
+                                        {":authority", "example.com"},
+                                        {":path", "/this/is/request/one"}}),
+                             nullptr, nullptr);
+  EXPECT_GT(stream_id, 0);
+
+  EXPECT_TRUE(adapter->want_write());
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x5, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
+  visitor.Clear();
+
+  // Let the client RST_STREAM the stream it opened.
+  adapter->SubmitRst(stream_id, Http2ErrorCode::CANCEL);
+  EXPECT_TRUE(adapter->want_write());
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, stream_id, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(RST_STREAM, stream_id, _, 0x0,
+                                   static_cast<int>(Http2ErrorCode::CANCEL)));
+  EXPECT_CALL(visitor, OnCloseStream(stream_id, Http2ErrorCode::CANCEL));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::RST_STREAM}));
+  visitor.Clear();
+
+  // Let the server send a response on the stream. (It might not have received
+  // the RST_STREAM yet.)
+  const std::string response_frames =
+      TestFrameSequence()
+          .Headers(stream_id,
+                   {{":status", "200"},
+                    {"server", "my-fake-server"},
+                    {"date", "Tue, 6 Apr 2021 12:54:01 GMT"}},
+                   /*fin=*/false)
+          .Data(stream_id, "This is the response body.", /*fin=*/true)
+          .Serialize();
+
+  // The visitor gets notified about the HEADERS frame but not the DATA frame on
+  // the closed stream. No further processing for either frame occurs.
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, HEADERS, 0x4));
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, DATA, _)).Times(0);
+
+  const int64_t response_result = adapter->ProcessBytes(response_frames);
+  EXPECT_EQ(response_frames.size(), response_result);
+
+  EXPECT_FALSE(adapter->want_write());
+}
+
 TEST(NgHttp2AdapterTest, SubmitMetadata) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
