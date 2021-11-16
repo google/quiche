@@ -548,7 +548,7 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
       std::min({connection_send_window_, state.send_window,
                 static_cast<int32_t>(max_frame_payload_)});
   while (connection_can_write == SendResult::SEND_OK && available_window > 0 &&
-         state.outbound_body != nullptr) {
+         state.outbound_body != nullptr && !state.data_deferred) {
     int64_t length;
     bool end_data;
     std::tie(length, end_data) =
