@@ -142,7 +142,7 @@ class RunOnExit {
 Http2ErrorCode GetHttp2ErrorCode(SpdyFramerError error) {
   switch (error) {
     case SpdyFramerError::SPDY_NO_ERROR:
-      return Http2ErrorCode::NO_ERROR;
+      return Http2ErrorCode::HTTP2_NO_ERROR;
     case SpdyFramerError::SPDY_INVALID_STREAM_ID:
     case SpdyFramerError::SPDY_INVALID_CONTROL_FRAME:
     case SpdyFramerError::SPDY_INVALID_PADDING:
@@ -799,7 +799,7 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
     // half_closed_local.
     // TODO(birenroy): consider whether there are outbound frames queued for the
     // stream.
-    CloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+    CloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR);
   }
 }
 
@@ -1219,7 +1219,7 @@ void OgHttp2Session::CloseStreamIfReady(uint8_t frame_type,
   const StreamState& state = iter->second;
   if (static_cast<FrameType>(frame_type) == FrameType::RST_STREAM ||
       (state.half_closed_local && state.half_closed_remote)) {
-    CloseStream(stream_id, Http2ErrorCode::NO_ERROR);
+    CloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR);
   }
 }
 

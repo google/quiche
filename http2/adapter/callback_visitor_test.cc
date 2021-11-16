@@ -145,7 +145,7 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
   visitor.OnEndStream(1);
 
   EXPECT_CALL(callbacks, OnStreamClose(1, NGHTTP2_NO_ERROR));
-  visitor.OnCloseStream(1, Http2ErrorCode::NO_ERROR);
+  visitor.OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR);
 
   EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(5, RST_STREAM, _)));
   visitor.OnFrameHeader(5, 4, RST_STREAM, 0);
@@ -278,7 +278,7 @@ TEST(ServerCallbackVisitorUnitTest, StreamFrames) {
   visitor.OnEndStream(1);
 
   EXPECT_CALL(callbacks, OnStreamClose(1, NGHTTP2_NO_ERROR));
-  visitor.OnCloseStream(1, Http2ErrorCode::NO_ERROR);
+  visitor.OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR);
 
   // RST_STREAM on stream 3
   EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(3, RST_STREAM, 0)));

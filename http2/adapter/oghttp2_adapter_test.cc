@@ -259,7 +259,7 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesTrailers) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, "final-status", "A-OK"));
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
   EXPECT_CALL(visitor, OnEndStream(1));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
@@ -343,7 +343,7 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesMetadata) {
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 26));
   EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
   EXPECT_CALL(visitor, OnEndStream(1));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
@@ -508,7 +508,7 @@ TEST(OgHttp2AdapterClientTest, ClientRstStreamWhileHandlingHeaders) {
   EXPECT_CALL(visitor,
               OnFrameSent(RST_STREAM, stream_id1, 4, 0x0,
                           static_cast<int>(Http2ErrorCode::REFUSED_STREAM)));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
@@ -995,7 +995,8 @@ TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
   EXPECT_CALL(visitor,
               OnDataForStream(stream_id, "This is the response body."));
   EXPECT_CALL(visitor, OnEndStream(stream_id));
-  EXPECT_CALL(visitor, OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor,
+              OnCloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR));
 
   // The first stream should close, which should make the session want to write
   // the next stream.
@@ -1231,7 +1232,8 @@ TEST(OgHttp2AdapterClientTest, ClientReceivesDataOnClosedStream) {
   EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, stream_id, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(RST_STREAM, stream_id, _, 0x0,
                                    static_cast<int>(Http2ErrorCode::CANCEL)));
-  EXPECT_CALL(visitor, OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor,
+              OnCloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR));
 
   result = adapter->Send();
   EXPECT_EQ(0, result);
@@ -1354,7 +1356,7 @@ TEST_F(OgHttp2AdapterTest, TestSerialize) {
   adapter_->SubmitPriorityForStream(3, 1, 255, true);
   adapter_->SubmitRst(3, Http2ErrorCode::CANCEL);
   adapter_->SubmitPing(42);
-  adapter_->SubmitGoAway(13, Http2ErrorCode::NO_ERROR, "");
+  adapter_->SubmitGoAway(13, Http2ErrorCode::HTTP2_NO_ERROR, "");
   adapter_->SubmitWindowUpdate(3, 127);
   EXPECT_TRUE(adapter_->want_write());
 
@@ -1386,7 +1388,8 @@ TEST_F(OgHttp2AdapterTest, TestPartialSerialize) {
 
   adapter_->SubmitSettings(
       {{HEADER_TABLE_SIZE, 128}, {MAX_FRAME_SIZE, 128 << 10}});
-  adapter_->SubmitGoAway(13, Http2ErrorCode::NO_ERROR, "And don't come back!");
+  adapter_->SubmitGoAway(13, Http2ErrorCode::HTTP2_NO_ERROR,
+                         "And don't come back!");
   adapter_->SubmitPing(42);
   EXPECT_TRUE(adapter_->want_write());
 
@@ -1626,7 +1629,7 @@ TEST(OgHttp2AdapterServerTest, CompleteRequestWithServerResponse) {
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
@@ -1732,7 +1735,7 @@ TEST(OgHttp2AdapterServerTest,
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, 4, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(RST_STREAM, 1, 4, 0x0, 0));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
@@ -1816,7 +1819,7 @@ TEST(OgHttp2AdapterServerTest, ServerSendsInvalidTrailers) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
@@ -1983,7 +1986,7 @@ TEST(OgHttp2AdapterServerTest, ServerErrorWhileHandlingHeaders) {
   EXPECT_CALL(visitor,
               OnFrameSent(RST_STREAM, 1, 4, 0x0,
                           static_cast<int>(Http2ErrorCode::INTERNAL_ERROR)));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
@@ -2044,7 +2047,7 @@ TEST(OgHttp2AdapterServerTest, ServerConnectionErrorWhileHandlingHeaders) {
   EXPECT_CALL(visitor,
               OnFrameSent(RST_STREAM, 1, 4, 0x0,
                           static_cast<int>(Http2ErrorCode::INTERNAL_ERROR)));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(GOAWAY, 0, _, 0x0,

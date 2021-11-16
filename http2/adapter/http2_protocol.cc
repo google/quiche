@@ -45,8 +45,8 @@ absl::string_view Http2SettingsIdToString(uint16_t id) {
 
 absl::string_view Http2ErrorCodeToString(Http2ErrorCode error_code) {
   switch (error_code) {
-    case Http2ErrorCode::NO_ERROR:
-      return "NO_ERROR";
+    case Http2ErrorCode::HTTP2_NO_ERROR:
+      return "HTTP2_NO_ERROR";
     case Http2ErrorCode::PROTOCOL_ERROR:
       return "PROTOCOL_ERROR";
     case Http2ErrorCode::INTERNAL_ERROR:

@@ -186,7 +186,7 @@ TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
   EXPECT_CALL(visitor_, OnFrameHeader(1, 0, DATA, 1));
   EXPECT_CALL(visitor_, OnBeginDataForStream(1, 0));
   EXPECT_CALL(visitor_, OnEndStream(1));
-  EXPECT_CALL(visitor_, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor_, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
   EXPECT_CALL(visitor_, OnFrameHeader(5, 4, RST_STREAM, 0));
   EXPECT_CALL(visitor_, OnRstStream(5, Http2ErrorCode::REFUSED_STREAM));
   EXPECT_CALL(visitor_, OnCloseStream(5, Http2ErrorCode::REFUSED_STREAM));

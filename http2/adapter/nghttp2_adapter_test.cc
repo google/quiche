@@ -240,7 +240,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   EXPECT_CALL(visitor, OnFrameHeader(1, 0, DATA, 1));
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 0));
   EXPECT_CALL(visitor, OnEndStream(1));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
   EXPECT_CALL(visitor, OnFrameHeader(5, 4, RST_STREAM, 0));
   EXPECT_CALL(visitor, OnRstStream(5, Http2ErrorCode::REFUSED_STREAM));
   EXPECT_CALL(visitor, OnCloseStream(5, Http2ErrorCode::REFUSED_STREAM));
@@ -325,7 +325,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesTrailers) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, "final-status", "A-OK"));
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
   EXPECT_CALL(visitor, OnEndStream(1));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
@@ -405,7 +405,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesMetadata) {
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 26));
   EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
   EXPECT_CALL(visitor, OnEndStream(1));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
@@ -1527,7 +1527,8 @@ TEST(NgHttp2AdapterTest, ClientObeysMaxConcurrentStreams) {
   EXPECT_CALL(visitor,
               OnDataForStream(stream_id, "This is the response body."));
   EXPECT_CALL(visitor, OnEndStream(stream_id));
-  EXPECT_CALL(visitor, OnCloseStream(stream_id, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor,
+              OnCloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR));
 
   // The first stream should close, which should make the session want to write
   // the next stream.
@@ -2480,7 +2481,7 @@ TEST(NgHttp2AdapterTest, ServerSendsTrailers) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
@@ -2694,7 +2695,7 @@ TEST(NgHttp2AdapterTest, CompleteRequestWithServerResponse) {
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
@@ -2819,7 +2820,7 @@ TEST(NgHttp2AdapterTest, ServerSendsInvalidTrailers) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
