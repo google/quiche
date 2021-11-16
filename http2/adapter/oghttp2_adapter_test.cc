@@ -1251,16 +1251,9 @@ TEST(OgHttp2AdapterClientTest, ClientReceivesDataOnClosedStream) {
           .Serialize();
 
   // The visitor gets notified about the HEADERS frame and DATA frame for the
-  // closed stream with further processing on the DATA frame.
+  // closed stream with no further processing on either frame.
   EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, HEADERS, 0x4));
   EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, DATA, 0x1));
-  EXPECT_CALL(visitor, OnBeginDataForStream(stream_id, _));
-  EXPECT_CALL(visitor,
-              OnDataForStream(stream_id, "This is the response body."));
-  EXPECT_CALL(visitor, OnEndStream(stream_id));
-  // This final OnCloseStream() is avoided because of a stream map check in
-  // OnEndStream().
-  EXPECT_CALL(visitor, OnCloseStream(stream_id, _)).Times(0);
 
   const int64_t response_result = adapter->ProcessBytes(response_frames);
   EXPECT_EQ(response_frames.size(), static_cast<size_t>(response_result));

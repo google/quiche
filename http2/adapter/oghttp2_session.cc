@@ -746,12 +746,17 @@ void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
 
 void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
                                        size_t length, bool /*fin*/) {
-  if (static_cast<Http2StreamId>(stream_id) > highest_processed_stream_id_) {
-    // Receiving DATA before HEADERS is a connection error.
-    LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
-                        ConnectionError::kWrongFrameSequence);
+  if (!stream_map_.contains(stream_id)) {
+    // The stream does not exist; it could be an error or a benign close, e.g.,
+    // getting data for a stream this connection recently closed.
+    if (static_cast<Http2StreamId>(stream_id) > highest_processed_stream_id_) {
+      // Receiving DATA before HEADERS is a connection error.
+      LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
+                          ConnectionError::kWrongFrameSequence);
+    }
     return;
   }
+
   const bool result = visitor_.OnBeginDataForStream(stream_id, length);
   if (!result) {
     decoder_.StopProcessing();
@@ -764,8 +769,8 @@ void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,
   // Count the data against flow control, even if the stream is unknown.
   MarkDataBuffered(stream_id, len);
 
-  if (static_cast<Http2StreamId>(stream_id) > highest_processed_stream_id_) {
-    // Receiving DATA before HEADERS is a connection error; the visitor was
+  if (!stream_map_.contains(stream_id)) {
+    // If the stream was unknown due to a protocol error, the visitor was
     // informed in OnDataFrameHeader().
     return;
   }
@@ -781,8 +786,8 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
   auto iter = stream_map_.find(stream_id);
   if (iter != stream_map_.end()) {
     iter->second.half_closed_remote = true;
+    visitor_.OnEndStream(stream_id);
   }
-  visitor_.OnEndStream(stream_id);
   if (iter != stream_map_.end() && iter->second.half_closed_local &&
       options_.perspective == Perspective::kClient) {
     // From the client's perspective, the stream can be closed if it's already
