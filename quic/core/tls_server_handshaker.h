@@ -325,7 +325,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   QuicTime now() const { return session()->GetClock()->Now(); }
 
   QuicConnectionContext* connection_context() {
-    QUICHE_DCHECK(restore_connection_context_in_callbacks_);
     return session()->connection()->context();
   }
 
@@ -376,8 +375,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // The last received CachedNetworkParameters from a validated address token.
   mutable std::unique_ptr<CachedNetworkParameters>
       last_received_cached_network_params_;
-  const bool restore_connection_context_in_callbacks_ =
-      GetQuicReloadableFlag(quic_tls_restore_connection_context_in_callbacks);
 
   bool cert_matched_sni_ = false;
 };

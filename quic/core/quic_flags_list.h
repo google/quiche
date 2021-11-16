@@ -99,8 +99,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_act_upon_invalid_header, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_require_handshake_confirmation, false)
 // If true, reset per packet state before processing undecryptable packets.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_reset_per_packet_state_for_undecryptable_packets, true)
-// If true, restore connection context in various callbacks in TlsServerHandshaker.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_restore_connection_context_in_callbacks, true)
 // If true, send PATH_RESPONSE upon receiving PATH_CHALLENGE regardless of perspective. --gfe2_reloadable_flag_quic_start_peer_migration_earlier has to be true before turn on this flag.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_send_path_response2, true)
 // If true, set burst token to 2 in cwnd bootstrapping experiment.
