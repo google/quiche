@@ -87,8 +87,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_peer_max_ack_delay_during_hands
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, pass the received PATH_RESPONSE payload to path validator to move forward the path validation.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_pass_path_response_to_validator, true)
-// If true, quic dispatcher supports one connection to use multiple connection IDs. 
-QUIC_FLAG(FLAGS_quic_restart_flag_quic_dispatcher_support_multiple_cid_per_connection_v2, true)
 // If true, quic server will send ENABLE_CONNECT_PROTOCOL setting and and endpoint will validate required request/response headers and extended CONNECT mechanism and update code counts of valid/invalid headers.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_verify_request_headers_2, true)
 // If true, record addresses that server has sent reset to recently, and do not send reset if the address lives in the set.

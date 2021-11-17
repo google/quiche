@@ -2186,8 +2186,6 @@ class QuicDispatcherSupportMultipleConnectionIdPerConnectionTest
  public:
   QuicDispatcherSupportMultipleConnectionIdPerConnectionTest()
       : QuicDispatcherTestBase(crypto_test_utils::ProofSourceForTesting()) {
-    SetQuicRestartFlag(quic_dispatcher_support_multiple_cid_per_connection_v2,
-                       true);
     dispatcher_ = std::make_unique<NiceMock<TestDispatcher>>(
         &config_, &crypto_config_, &version_manager_,
         mock_helper_.GetRandomGenerator());

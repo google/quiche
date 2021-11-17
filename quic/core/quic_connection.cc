@@ -317,11 +317,6 @@ QuicConnection::QuicConnection(
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
 
-  support_multiple_connection_ids_ =
-      version().HasIetfQuicFrames() &&
-      GetQuicRestartFlag(
-          quic_dispatcher_support_multiple_cid_per_connection_v2);
-
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -522,7 +517,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     }
   }
 
-  if (support_multiple_connection_ids_ &&
+  if (version().HasIetfQuicFrames() &&
       config.HasReceivedPreferredAddressConnectionIdAndToken()) {
     QuicNewConnectionIdFrame frame;
     std::tie(frame.connection_id, frame.stateless_reset_token) =
@@ -645,7 +640,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   //    and server in unit tests with random flag combinations.
   // 2) Client side's rollout can be protected by the same connection option.
   connection_migration_use_new_cid_ =
-      support_multiple_connection_ids_ && validate_client_addresses_ &&
+      validate_client_addresses_ &&
       GetQuicReloadableFlag(quic_drop_unsent_path_response) &&
       GetQuicReloadableFlag(quic_connection_migration_use_new_cid_v2);
   if (config.HasReceivedMaxPacketSize()) {
@@ -1989,7 +1984,6 @@ bool QuicConnection::ShouldSetRetransmissionAlarmOnPacketSent(
 
 bool QuicConnection::OnNewConnectionIdFrameInner(
     const QuicNewConnectionIdFrame& frame) {
-  QUICHE_DCHECK(support_multiple_connection_ids_);
   if (peer_issued_cid_manager_ == nullptr) {
     CloseConnection(
         IETF_QUIC_PROTOCOL_VIOLATION,
@@ -2014,6 +2008,7 @@ bool QuicConnection::OnNewConnectionIdFrameInner(
 
 bool QuicConnection::OnNewConnectionIdFrame(
     const QuicNewConnectionIdFrame& frame) {
+  QUICHE_DCHECK(version().HasIetfQuicFrames());
   QUIC_BUG_IF(quic_bug_10511_13, !connected_)
       << "Processing NEW_CONNECTION_ID frame when "
          "connection is closed. Last frame: "
@@ -2025,14 +2020,12 @@ bool QuicConnection::OnNewConnectionIdFrame(
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnNewConnectionIdFrame(frame);
   }
-  if (!support_multiple_connection_ids_) {
-    return true;
-  }
   return OnNewConnectionIdFrameInner(frame);
 }
 
 bool QuicConnection::OnRetireConnectionIdFrame(
     const QuicRetireConnectionIdFrame& frame) {
+  QUICHE_DCHECK(version().HasIetfQuicFrames());
   QUIC_BUG_IF(quic_bug_10511_14, !connected_)
       << "Processing RETIRE_CONNECTION_ID frame when "
          "connection is closed. Last frame: "
@@ -2046,9 +2039,6 @@ bool QuicConnection::OnRetireConnectionIdFrame(
   }
   if (!connection_migration_use_new_cid_) {
     // Do not respond to RetireConnectionId frame.
-    return true;
-  }
-  if (!support_multiple_connection_ids_) {
     return true;
   }
   if (self_issued_cid_manager_ == nullptr) {
@@ -2941,7 +2931,7 @@ void QuicConnection::MaybeClearQueuedPacketsOnPathChange() {
 void QuicConnection::ReplaceInitialServerConnectionId(
     const QuicConnectionId& new_server_connection_id) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT);
-  if (support_multiple_connection_ids_) {
+  if (version().HasIetfQuicFrames()) {
     if (new_server_connection_id.IsEmpty()) {
       peer_issued_cid_manager_ = nullptr;
     } else {
@@ -3215,8 +3205,9 @@ bool QuicConnection::ShouldGeneratePacket(
                 QuicVersionUsesCryptoFrames(transport_version()))
       << ENDPOINT
       << "Handshake in STREAM frames should not check ShouldGeneratePacket";
-  if (support_multiple_connection_ids_ && peer_issued_cid_manager_ != nullptr &&
+  if (peer_issued_cid_manager_ != nullptr &&
       packet_creator_.GetDestinationConnectionId().IsEmpty()) {
+    QUICHE_DCHECK(version().HasIetfQuicFrames());
     QUIC_CODE_COUNT(quic_generate_packet_blocked_by_no_connection_id);
     QUIC_BUG_IF(quic_bug_90265_1, perspective_ == Perspective::IS_CLIENT);
     QUIC_DLOG(INFO) << ENDPOINT
@@ -6264,7 +6255,7 @@ void QuicConnection::set_client_connection_id(
   default_path_.client_connection_id = client_connection_id;
 
   client_connection_id_is_set_ = true;
-  if (support_multiple_connection_ids_ && !client_connection_id.IsEmpty()) {
+  if (version().HasIetfQuicFrames() && !client_connection_id.IsEmpty()) {
     if (perspective_ == Perspective::IS_SERVER) {
       QUICHE_DCHECK(peer_issued_cid_manager_ == nullptr);
       peer_issued_cid_manager_ =
@@ -6853,15 +6844,15 @@ QuicConnectionId QuicConnection::GetOneActiveServerConnectionId() const {
 
 std::vector<QuicConnectionId> QuicConnection::GetActiveServerConnectionIds()
     const {
-  if (!support_multiple_connection_ids_ ||
-      self_issued_cid_manager_ == nullptr) {
+  if (self_issued_cid_manager_ == nullptr) {
     return {default_path_.server_connection_id};
   }
+  QUICHE_DCHECK(version().HasIetfQuicFrames());
   return self_issued_cid_manager_->GetUnretiredConnectionIds();
 }
 
 void QuicConnection::CreateConnectionIdManager() {
-  if (!support_multiple_connection_ids_) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
 

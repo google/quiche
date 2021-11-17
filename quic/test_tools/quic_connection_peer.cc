@@ -480,12 +480,6 @@ QuicByteCount QuicConnectionPeer::BytesReceivedBeforeAddressValidation(
 }
 
 // static
-void QuicConnectionPeer::EnableMultipleConnectionIdSupport(
-    QuicConnection* connection) {
-  connection->support_multiple_connection_ids_ = true;
-}
-
-// static
 void QuicConnectionPeer::ResetPeerIssuedConnectionIdManager(
     QuicConnection* connection) {
   connection->peer_issued_cid_manager_ = nullptr;

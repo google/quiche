@@ -164,10 +164,6 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   bool accept_new_connections() const { return accept_new_connections_; }
 
-  bool support_multiple_cid_per_connection() const {
-    return support_multiple_cid_per_connection_;
-  }
-
  protected:
   // Creates a QUIC session based on the given information.
   // |alpn| is the selected ALPN from |parsed_chlo.alpns|.
@@ -484,10 +480,6 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   const bool use_recent_reset_addresses_ =
       GetQuicRestartFlag(quic_use_recent_reset_addresses);
-
-  const bool support_multiple_cid_per_connection_ =
-      GetQuicRestartFlag(
-          quic_dispatcher_support_multiple_cid_per_connection_v2);
 };
 
 }  // namespace quic

@@ -1465,7 +1465,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_EQ(kPeerAddress, connection_.peer_address());
     EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
     if (perspective == Perspective::IS_CLIENT &&
-        receive_new_server_connection_id) {
+        receive_new_server_connection_id && version().HasIetfQuicFrames()) {
       QuicNewConnectionIdFrame frame;
       frame.connection_id = TestConnectionId(1234);
       ASSERT_NE(frame.connection_id, connection_.connection_id());
@@ -14695,7 +14695,6 @@ TEST_P(QuicConnectionTest,
   if (!version().HasIetfQuicFrames()) {
     return;
   }
-  QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
   set_perspective(Perspective::IS_SERVER);
   ASSERT_TRUE(connection_.client_connection_id().IsEmpty());
 
@@ -14720,7 +14719,6 @@ TEST_P(QuicConnectionTest, NewConnectionIdFrameResultsInError) {
   if (!version().HasIetfQuicFrames()) {
     return;
   }
-  QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
   connection_.CreateConnectionIdManager();
   ASSERT_FALSE(connection_.connection_id().IsEmpty());
 
@@ -14745,7 +14743,6 @@ TEST_P(QuicConnectionTest,
   if (!version().HasIetfQuicFrames()) {
     return;
   }
-  QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
   connection_.CreateConnectionIdManager();
 
   QuicNewConnectionIdFrame frame;
@@ -14782,7 +14779,6 @@ TEST_P(QuicConnectionTest,
   if (!version().HasIetfQuicFrames()) {
     return;
   }
-  QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
   set_perspective(Perspective::IS_SERVER);
   SetClientConnectionId(TestConnectionId(0));
 
@@ -14822,7 +14818,6 @@ TEST_P(
       !connection_.count_bytes_on_alternative_path_separately()) {
     return;
   }
-  QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
   PathProbeTestInit(Perspective::IS_SERVER);
   SetClientConnectionId(TestConnectionId(0));
 
@@ -14881,7 +14876,6 @@ TEST_P(QuicConnectionTest,
       !connection_.connection_migration_use_new_cid()) {
     return;
   }
-  QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
   set_perspective(Perspective::IS_SERVER);
 
   EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
@@ -14902,7 +14896,6 @@ TEST_P(QuicConnectionTest, RetireConnectionIdFrameResultsInError) {
       !connection_.connection_migration_use_new_cid()) {
     return;
   }
-  QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
   set_perspective(Perspective::IS_SERVER);
   connection_.CreateConnectionIdManager();
 
@@ -14925,10 +14918,9 @@ TEST_P(QuicConnectionTest, RetireConnectionIdFrameResultsInError) {
 
 TEST_P(QuicConnectionTest,
        ServerRetireSelfIssuedConnectionIdWithoutSendingNewConnectionIdBefore) {
-  if (!connection_.support_multiple_connection_ids()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
-  QuicConnectionPeer::EnableMultipleConnectionIdSupport(&connection_);
   set_perspective(Perspective::IS_SERVER);
   connection_.CreateConnectionIdManager();
 
@@ -15040,8 +15032,7 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
 }
 
 TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoAlternativePath) {
-  if (!version().HasIetfQuicFrames() ||
-      !connection_.support_multiple_connection_ids()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
@@ -15075,8 +15066,7 @@ TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoAlternativePath) {
 }
 
 TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoDefaultPath) {
-  if (!version().HasIetfQuicFrames() ||
-      !connection_.support_multiple_connection_ids()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
@@ -15117,8 +15107,7 @@ TEST_P(QuicConnectionTest, PatchMissingClientConnectionIdOntoDefaultPath) {
 }
 
 TEST_P(QuicConnectionTest, ShouldGeneratePacketBlockedByMissingConnectionId) {
-  if (!version().HasIetfQuicFrames() ||
-      !connection_.support_multiple_connection_ids()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
