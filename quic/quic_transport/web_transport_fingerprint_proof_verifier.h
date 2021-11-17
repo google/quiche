@@ -11,11 +11,14 @@
 #include "quic/core/crypto/certificate_view.h"
 #include "quic/core/crypto/proof_verifier.h"
 #include "quic/core/quic_clock.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 
 // Represents a fingerprint of an X.509 certificate in a format based on
 // https://w3c.github.io/webrtc-pc/#dom-rtcdtlsfingerprint.
+// TODO(vasilvv): remove this once all consumers of this API use
+// WebTransportHash.
 struct QUIC_EXPORT_PRIVATE CertificateFingerprint {
   static constexpr char kSha256[] = "sha-256";
 
@@ -27,10 +30,17 @@ struct QUIC_EXPORT_PRIVATE CertificateFingerprint {
   std::string fingerprint;
 };
 
-// Computes a SHA-256 fingerprint of the specified input formatted in the same
-// format as CertificateFingerprint::fingerprint would contain.
-QUIC_EXPORT_PRIVATE std::string ComputeSha256Fingerprint(
-    absl::string_view input);
+// Represents a fingerprint of an X.509 certificate in a format based on
+// https://w3c.github.io/webtransport/#dictdef-webtransporthash.
+struct QUIC_EXPORT_PRIVATE WebTransportHash {
+  static constexpr char kSha256[] = "sha-256";
+
+  // An algorithm described by one of the names in
+  // https://www.iana.org/assignments/hash-function-text-names/hash-function-text-names.xhtml
+  std::string algorithm;
+  // Raw bytes of the hash.
+  std::string value;
+};
 
 // WebTransportFingerprintProofVerifier verifies the server leaf certificate
 // against a supplied list of certificate fingerprints following the procedure
@@ -76,6 +86,7 @@ class QUIC_EXPORT_PRIVATE WebTransportFingerprintProofVerifier
   // case-insensitive and are validated internally; the function returns true if
   // the validation passes.
   bool AddFingerprint(CertificateFingerprint fingerprint);
+  bool AddFingerprint(WebTransportHash hash);
 
   // ProofVerifier implementation.
   QuicAsyncStatus VerifyProof(
@@ -112,7 +123,7 @@ class QUIC_EXPORT_PRIVATE WebTransportFingerprintProofVerifier
   const QuicClock* clock_;  // Unowned.
   const int max_validity_days_;
   const QuicTime::Delta max_validity_;
-  std::vector<CertificateFingerprint> fingerprints_;
+  std::vector<WebTransportHash> hashes_;
 };
 
 }  // namespace quic

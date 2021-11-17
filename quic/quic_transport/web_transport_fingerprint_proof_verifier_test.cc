@@ -6,8 +6,10 @@
 
 #include <memory>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_types.h"
+#include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/mock_clock.h"
 #include "quic/test_tools/test_certificates.h"
@@ -56,9 +58,8 @@ class WebTransportFingerprintProofVerifierTest : public QuicTest {
   }
 
   void AddTestCertificate() {
-    EXPECT_TRUE(verifier_->AddFingerprint(
-        CertificateFingerprint{CertificateFingerprint::kSha256,
-                               ComputeSha256Fingerprint(kTestCertificate)}));
+    EXPECT_TRUE(verifier_->AddFingerprint(WebTransportHash{
+        WebTransportHash::kSha256, RawSha256(kTestCertificate)}));
   }
 
   MockClock clock_;
@@ -67,9 +68,9 @@ class WebTransportFingerprintProofVerifierTest : public QuicTest {
 
 TEST_F(WebTransportFingerprintProofVerifierTest, Sha256Fingerprint) {
   // Computed using `openssl x509 -fingerprint -sha256`.
-  EXPECT_EQ(ComputeSha256Fingerprint(kTestCertificate),
-            "f2:e5:46:5e:2b:f7:ec:d6:f6:30:66:a5:a3:75:11:73:4a:a0:eb:7c:47:01:"
-            "0e:86:d6:75:8e:d4:f4:fa:1b:0f");
+  EXPECT_EQ(absl::BytesToHexString(RawSha256(kTestCertificate)),
+            "f2e5465e2bf7ecd6f63066a5a37511734aa0eb7c4701"
+            "0e86d6758ed4f4fa1b0f");
 }
 
 TEST_F(WebTransportFingerprintProofVerifierTest, SimpleFingerprint) {
@@ -138,9 +139,8 @@ TEST_F(WebTransportFingerprintProofVerifierTest, MaxValidity) {
 
 TEST_F(WebTransportFingerprintProofVerifierTest, InvalidCertificate) {
   constexpr absl::string_view kInvalidCertificate = "Hello, world!";
-  ASSERT_TRUE(verifier_->AddFingerprint(
-      {CertificateFingerprint::kSha256,
-       ComputeSha256Fingerprint(kInvalidCertificate)}));
+  ASSERT_TRUE(verifier_->AddFingerprint(WebTransportHash{
+      WebTransportHash::kSha256, RawSha256(kInvalidCertificate)}));
 
   VerifyResult result = Verify(kInvalidCertificate);
   EXPECT_EQ(result.status, QUIC_FAILURE);
@@ -153,30 +153,29 @@ TEST_F(WebTransportFingerprintProofVerifierTest, AddCertificate) {
   // Accept all-uppercase fingerprints.
   verifier_ = std::make_unique<WebTransportFingerprintProofVerifier>(
       &clock_, /*max_validity_days=*/365);
-  EXPECT_TRUE(verifier_->AddFingerprint(
-      {CertificateFingerprint::kSha256,
-       "F2:E5:46:5E:2B:F7:EC:D6:F6:30:66:A5:A3:75:11:73:4A:A0:EB:"
-       "7C:47:01:0E:86:D6:75:8E:D4:F4:FA:1B:0F"}));
+  EXPECT_TRUE(verifier_->AddFingerprint(CertificateFingerprint{
+      CertificateFingerprint::kSha256,
+      "F2:E5:46:5E:2B:F7:EC:D6:F6:30:66:A5:A3:75:11:73:4A:A0:EB:"
+      "7C:47:01:0E:86:D6:75:8E:D4:F4:FA:1B:0F"}));
   EXPECT_EQ(Verify(kTestCertificate).detailed_status,
             WebTransportFingerprintProofVerifier::Status::kValidCertificate);
 
   // Reject unknown hash algorithms.
-  EXPECT_FALSE(verifier_->AddFingerprint(
-      {"sha-1",
-       "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"}));
+  EXPECT_FALSE(verifier_->AddFingerprint(CertificateFingerprint{
+      "sha-1", "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"}));
   // Reject invalid length.
   EXPECT_FALSE(verifier_->AddFingerprint(
-      {CertificateFingerprint::kSha256, "00:00:00:00"}));
+      CertificateFingerprint{CertificateFingerprint::kSha256, "00:00:00:00"}));
   // Reject missing colons.
-  EXPECT_FALSE(verifier_->AddFingerprint(
-      {CertificateFingerprint::kSha256,
-       "00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00."
-       "00.00.00.00.00.00.00.00.00.00.00.00.00"}));
+  EXPECT_FALSE(verifier_->AddFingerprint(CertificateFingerprint{
+      CertificateFingerprint::kSha256,
+      "00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00."
+      "00.00.00.00.00.00.00.00.00.00.00.00.00"}));
   // Reject non-hex symbols.
-  EXPECT_FALSE(verifier_->AddFingerprint(
-      {CertificateFingerprint::kSha256,
-       "zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:"
-       "zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz"}));
+  EXPECT_FALSE(verifier_->AddFingerprint(CertificateFingerprint{
+      CertificateFingerprint::kSha256,
+      "zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:"
+      "zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz"}));
 }
 
 }  // namespace

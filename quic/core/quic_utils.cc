@@ -14,6 +14,7 @@
 #include "absl/base/optimization.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
+#include "third_party/boringssl/src/include/openssl/sha.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_types.h"
@@ -734,6 +735,14 @@ QuicByteCount MemSliceSpanTotalSize(absl::Span<QuicMemSlice> span) {
     total += slice.length();
   }
   return total;
+}
+
+std::string RawSha256(absl::string_view input) {
+  std::string raw_hash;
+  raw_hash.resize(SHA256_DIGEST_LENGTH);
+  SHA256(reinterpret_cast<const uint8_t*>(input.data()), input.size(),
+         reinterpret_cast<uint8_t*>(&raw_hash[0]));
+  return raw_hash;
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds

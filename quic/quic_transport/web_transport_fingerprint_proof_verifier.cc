@@ -7,12 +7,15 @@
 #include <cstdint>
 #include <memory>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "quic/core/crypto/certificate_view.h"
 #include "quic/core/quic_time.h"
 #include "quic/core/quic_types.h"
+#include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "common/quiche_text_utils.h"
 
@@ -20,10 +23,6 @@ namespace quic {
 namespace {
 
 constexpr size_t kFingerprintLength = SHA256_DIGEST_LENGTH * 3 - 1;
-
-constexpr std::array<char, 16> kHexDigits = {'0', '1', '2', '3', '4', '5',
-                                             '6', '7', '8', '9', 'a', 'b',
-                                             'c', 'd', 'e', 'f'};
 
 // Assumes that the character is normalized to lowercase beforehand.
 bool IsNormalizedHexDigit(char c) {
@@ -38,31 +37,7 @@ void NormalizeFingerprint(CertificateFingerprint& fingerprint) {
 }  // namespace
 
 constexpr char CertificateFingerprint::kSha256[];
-
-std::string ComputeSha256Fingerprint(absl::string_view input) {
-  std::vector<uint8_t> raw_hash;
-  raw_hash.resize(SHA256_DIGEST_LENGTH);
-  SHA256(reinterpret_cast<const uint8_t*>(input.data()), input.size(),
-         raw_hash.data());
-
-  std::string output;
-  output.resize(kFingerprintLength);
-  for (size_t i = 0; i < output.size(); i++) {
-    uint8_t hash_byte = raw_hash[i / 3];
-    switch (i % 3) {
-      case 0:
-        output[i] = kHexDigits[hash_byte >> 4];
-        break;
-      case 1:
-        output[i] = kHexDigits[hash_byte & 0xf];
-        break;
-      case 2:
-        output[i] = ':';
-        break;
-    }
-  }
-  return output;
-}
+constexpr char WebTransportHash::kSha256[];
 
 ProofVerifyDetails* WebTransportFingerprintProofVerifier::Details::Clone()
     const {
@@ -70,8 +45,7 @@ ProofVerifyDetails* WebTransportFingerprintProofVerifier::Details::Clone()
 }
 
 WebTransportFingerprintProofVerifier::WebTransportFingerprintProofVerifier(
-    const QuicClock* clock,
-    int max_validity_days)
+    const QuicClock* clock, int max_validity_days)
     : clock_(clock),
       max_validity_days_(max_validity_days),
       // Add an extra second to max validity to accomodate various edge cases.
@@ -105,22 +79,34 @@ bool WebTransportFingerprintProofVerifier::AddFingerprint(
     }
   }
 
-  fingerprints_.push_back(fingerprint);
+  std::string normalized =
+      absl::StrReplaceAll(fingerprint.fingerprint, {{":", ""}});
+  hashes_.push_back(WebTransportHash{fingerprint.algorithm,
+                                     absl::HexStringToBytes(normalized)});
+  return true;
+}
+
+bool WebTransportFingerprintProofVerifier::AddFingerprint(
+    WebTransportHash hash) {
+  if (hash.algorithm != CertificateFingerprint::kSha256) {
+    QUIC_DLOG(WARNING) << "Algorithms other than SHA-256 are not supported";
+    return false;
+  }
+  if (hash.value.size() != SHA256_DIGEST_LENGTH) {
+    QUIC_DLOG(WARNING) << "Invalid fingerprint length";
+    return false;
+  }
+  hashes_.push_back(std::move(hash));
   return true;
 }
 
 QuicAsyncStatus WebTransportFingerprintProofVerifier::VerifyProof(
-    const std::string& /*hostname*/,
-    const uint16_t /*port*/,
+    const std::string& /*hostname*/, const uint16_t /*port*/,
     const std::string& /*server_config*/,
-    QuicTransportVersion /*transport_version*/,
-    absl::string_view /*chlo_hash*/,
-    const std::vector<std::string>& /*certs*/,
-    const std::string& /*cert_sct*/,
-    const std::string& /*signature*/,
-    const ProofVerifyContext* /*context*/,
-    std::string* error_details,
-    std::unique_ptr<ProofVerifyDetails>* details,
+    QuicTransportVersion /*transport_version*/, absl::string_view /*chlo_hash*/,
+    const std::vector<std::string>& /*certs*/, const std::string& /*cert_sct*/,
+    const std::string& /*signature*/, const ProofVerifyContext* /*context*/,
+    std::string* error_details, std::unique_ptr<ProofVerifyDetails>* details,
     std::unique_ptr<ProofVerifierCallback> /*callback*/) {
   *error_details =
       "QUIC crypto certificate verification is not supported in "
@@ -131,14 +117,10 @@ QuicAsyncStatus WebTransportFingerprintProofVerifier::VerifyProof(
 }
 
 QuicAsyncStatus WebTransportFingerprintProofVerifier::VerifyCertChain(
-    const std::string& /*hostname*/,
-    const uint16_t /*port*/,
-    const std::vector<std::string>& certs,
-    const std::string& /*ocsp_response*/,
-    const std::string& /*cert_sct*/,
-    const ProofVerifyContext* /*context*/,
-    std::string* error_details,
-    std::unique_ptr<ProofVerifyDetails>* details,
+    const std::string& /*hostname*/, const uint16_t /*port*/,
+    const std::vector<std::string>& certs, const std::string& /*ocsp_response*/,
+    const std::string& /*cert_sct*/, const ProofVerifyContext* /*context*/,
+    std::string* error_details, std::unique_ptr<ProofVerifyDetails>* details,
     uint8_t* /*out_alert*/,
     std::unique_ptr<ProofVerifierCallback> /*callback*/) {
   if (certs.empty()) {
@@ -187,14 +169,14 @@ WebTransportFingerprintProofVerifier::CreateDefaultContext() {
 
 bool WebTransportFingerprintProofVerifier::HasKnownFingerprint(
     absl::string_view der_certificate) {
-  // https://wicg.github.io/web-transport/#verify-a-certificate-fingerprint
-  const std::string fingerprint = ComputeSha256Fingerprint(der_certificate);
-  for (const CertificateFingerprint& reference : fingerprints_) {
-    if (reference.algorithm != CertificateFingerprint::kSha256) {
+  // https://w3c.github.io/webtransport/#verify-a-certificate-hash
+  const std::string hash = RawSha256(der_certificate);
+  for (const WebTransportHash& reference : hashes_) {
+    if (reference.algorithm != WebTransportHash::kSha256) {
       QUIC_BUG(quic_bug_10879_2) << "Unexpected non-SHA-256 hash";
       continue;
     }
-    if (fingerprint == reference.fingerprint) {
+    if (hash == reference.value) {
       return true;
     }
   }
