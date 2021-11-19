@@ -18,7 +18,7 @@ struct CachedItem {
 
 TEST(QuicLRUCacheTest, InsertAndLookup) {
   QuicLRUCache<int, CachedItem> cache(5);
-  EXPECT_EQ(nullptr, cache.Lookup(1));
+  EXPECT_EQ(cache.end(), cache.Lookup(1));
   EXPECT_EQ(0u, cache.Size());
   EXPECT_EQ(5u, cache.MaxSize());
 
@@ -26,18 +26,23 @@ TEST(QuicLRUCacheTest, InsertAndLookup) {
   std::unique_ptr<CachedItem> item1(new CachedItem(11));
   cache.Insert(1, std::move(item1));
   EXPECT_EQ(1u, cache.Size());
-  EXPECT_EQ(11u, cache.Lookup(1)->value);
+  EXPECT_EQ(11u, cache.Lookup(1)->second->value);
 
   // Check that item 2 overrides item 1.
   std::unique_ptr<CachedItem> item2(new CachedItem(12));
   cache.Insert(1, std::move(item2));
   EXPECT_EQ(1u, cache.Size());
-  EXPECT_EQ(12u, cache.Lookup(1)->value);
+  EXPECT_EQ(12u, cache.Lookup(1)->second->value);
 
   std::unique_ptr<CachedItem> item3(new CachedItem(13));
   cache.Insert(3, std::move(item3));
   EXPECT_EQ(2u, cache.Size());
-  EXPECT_EQ(13u, cache.Lookup(3)->value);
+  auto iter = cache.Lookup(3);
+  ASSERT_NE(cache.end(), iter);
+  EXPECT_EQ(13u, iter->second->value);
+  cache.Erase(iter);
+  ASSERT_EQ(cache.end(), cache.Lookup(3));
+  EXPECT_EQ(1u, cache.Size());
 
   // No memory leakage.
   cache.Clear();
@@ -56,15 +61,15 @@ TEST(QuicLRUCacheTest, Eviction) {
   EXPECT_EQ(3u, cache.MaxSize());
 
   // Make sure item 1 is evicted.
-  EXPECT_EQ(nullptr, cache.Lookup(1));
-  EXPECT_EQ(14u, cache.Lookup(4)->value);
+  EXPECT_EQ(cache.end(), cache.Lookup(1));
+  EXPECT_EQ(14u, cache.Lookup(4)->second->value);
 
-  EXPECT_EQ(12u, cache.Lookup(2)->value);
+  EXPECT_EQ(12u, cache.Lookup(2)->second->value);
   std::unique_ptr<CachedItem> item5(new CachedItem(15));
   cache.Insert(5, std::move(item5));
   // Make sure item 3 is evicted.
-  EXPECT_EQ(nullptr, cache.Lookup(3));
-  EXPECT_EQ(15u, cache.Lookup(5)->value);
+  EXPECT_EQ(cache.end(), cache.Lookup(3));
+  EXPECT_EQ(15u, cache.Lookup(5)->second->value);
 
   // No memory leakage.
   cache.Clear();

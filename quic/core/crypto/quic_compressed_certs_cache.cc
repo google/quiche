@@ -81,7 +81,11 @@ const std::string* QuicCompressedCertsCache::GetCompressedCert(
 
   uint64_t key = ComputeUncompressedCertsHash(uncompressed_certs);
 
-  CachedCerts* cached_value = certs_cache_.Lookup(key);
+  CachedCerts* cached_value = nullptr;
+  auto iter = certs_cache_.Lookup(key);
+  if (iter != certs_cache_.end()) {
+    cached_value = iter->second.get();
+  }
   if (cached_value != nullptr &&
       cached_value->MatchesUncompressedCerts(uncompressed_certs)) {
     return cached_value->compressed_cert();
