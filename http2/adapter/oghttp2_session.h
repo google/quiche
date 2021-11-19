@@ -218,6 +218,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
       result_ = Http2VisitorInterface::HEADER_OK;
     }
 
+    void set_frame_contains_fin() { frame_contains_fin_ = true; }
     void set_header_type(HeaderType type) { type_ = type; }
     HeaderType header_type() const { return type_; }
 
@@ -240,6 +241,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     // Validates header blocks according to the HTTP/2 specification.
     HeaderValidator validator_;
     HeaderType type_ = HeaderType::RESPONSE;
+    bool frame_contains_fin_ = false;
   };
 
   // Queues the connection preface, if not already done.

@@ -181,6 +181,14 @@ Http2ErrorCode GetHttp2ErrorCode(SpdyFramerError error) {
   return Http2ErrorCode::INTERNAL_ERROR;
 }
 
+bool IsResponse(HeaderType type) {
+  return type == HeaderType::RESPONSE_100 || type == HeaderType::RESPONSE;
+}
+
+bool StatusIs1xx(absl::string_view status) {
+  return status.size() == 3 && status[0] == '1';
+}
+
 }  // namespace
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
@@ -202,6 +210,7 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
   const auto validation_result = validator_.ValidateSingleHeader(key, value);
   if (validation_result != HeaderValidator::HEADER_OK) {
     QUICHE_VLOG(2) << "RST_STREAM: invalid header found";
+    // TODO(birenroy): consider updating this to return HEADER_HTTP_MESSAGING.
     result_ = Http2VisitorInterface::HEADER_RST_STREAM;
     return;
   }
@@ -216,6 +225,11 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
       result_ = Http2VisitorInterface::HEADER_RST_STREAM;
     }
   }
+  if (frame_contains_fin_ && IsResponse(type_) &&
+      StatusIs1xx(status_header())) {
+    // Unexpected end of stream without final headers.
+    result_ = Http2VisitorInterface::HEADER_HTTP_MESSAGING;
+  }
   if (result_ == Http2VisitorInterface::HEADER_OK) {
     const bool result = visitor_.OnEndHeadersForStream(stream_id_);
     if (!result) {
@@ -224,6 +238,7 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
   } else {
     session_.OnHeaderStatus(stream_id_, result_);
   }
+  frame_contains_fin_ = false;
 }
 
 OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
@@ -793,12 +808,13 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
     iter->second.half_closed_remote = true;
     visitor_.OnEndStream(stream_id);
   }
+  auto queued_frames_iter = queued_frames_.find(stream_id);
+  const bool no_queued_frames = queued_frames_iter == queued_frames_.end() ||
+                                queued_frames_iter->second == 0;
   if (iter != stream_map_.end() && iter->second.half_closed_local &&
-      options_.perspective == Perspective::kClient) {
+      options_.perspective == Perspective::kClient && no_queued_frames) {
     // From the client's perspective, the stream can be closed if it's already
     // half_closed_local.
-    // TODO(birenroy): consider whether there are outbound frames queued for the
-    // stream.
     CloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR);
   }
 }
@@ -917,12 +933,15 @@ bool OgHttp2Session::OnGoAwayFrameData(const char* /*goaway_data*/, size_t
 void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
                                bool /*has_priority*/, int /*weight*/,
                                spdy::SpdyStreamId /*parent_stream_id*/,
-                               bool /*exclusive*/, bool /*fin*/, bool /*end*/) {
+                               bool /*exclusive*/, bool fin, bool /*end*/) {
   if (stream_id % 2 == 0) {
     // Server push is disabled; receiving push HEADERS is a connection error.
     LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
                         ConnectionError::kInvalidNewStreamId);
     return;
+  }
+  if (fin) {
+    headers_handler_.set_frame_contains_fin();
   }
   if (options_.perspective == Perspective::kServer) {
     const auto new_stream_id = static_cast<Http2StreamId>(stream_id);
@@ -995,17 +1014,27 @@ bool OgHttp2Session::OnUnknownFrame(spdy::SpdyStreamId /*stream_id*/,
 void OgHttp2Session::OnHeaderStatus(
     Http2StreamId stream_id, Http2VisitorInterface::OnHeaderResult result) {
   QUICHE_DCHECK_NE(result, Http2VisitorInterface::HEADER_OK);
-  if (result == Http2VisitorInterface::HEADER_RST_STREAM) {
+  const bool should_reset_stream =
+      result == Http2VisitorInterface::HEADER_RST_STREAM ||
+      result == Http2VisitorInterface::HEADER_HTTP_MESSAGING;
+  if (should_reset_stream) {
+    const Http2ErrorCode error_code =
+        (result == Http2VisitorInterface::HEADER_RST_STREAM)
+            ? Http2ErrorCode::INTERNAL_ERROR
+            : Http2ErrorCode::PROTOCOL_ERROR;
+    const spdy::SpdyErrorCode spdy_error_code = TranslateErrorCode(error_code);
+    const Http2VisitorInterface::InvalidFrameError frame_error =
+        (result == Http2VisitorInterface::HEADER_RST_STREAM)
+            ? Http2VisitorInterface::InvalidFrameError::kHttpHeader
+            : Http2VisitorInterface::InvalidFrameError::kHttpMessaging;
     auto it = streams_reset_.find(stream_id);
     if (it == streams_reset_.end()) {
-      EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
-          stream_id, spdy::ERROR_CODE_INTERNAL_ERROR));
+      EnqueueFrame(
+          absl::make_unique<spdy::SpdyRstStreamIR>(stream_id, spdy_error_code));
 
-      const bool ok = visitor_.OnInvalidFrame(
-          stream_id, Http2VisitorInterface::InvalidFrameError::kHttpHeader);
+      const bool ok = visitor_.OnInvalidFrame(stream_id, frame_error);
       if (!ok) {
-        LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
-                            ConnectionError::kHeaderError);
+        LatchErrorAndNotify(error_code, ConnectionError::kHeaderError);
       }
     }
   } else if (result == Http2VisitorInterface::HEADER_CONNECTION_ERROR) {

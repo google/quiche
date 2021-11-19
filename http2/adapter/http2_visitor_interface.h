@@ -113,9 +113,15 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
   // HEADER_RST_STREAM. Returning HEADER_CONNECTION_ERROR will lead to a
   // non-recoverable error on the connection.
   enum OnHeaderResult {
+    // The header was accepted.
     HEADER_OK,
+    // The application considers the header a connection error.
     HEADER_CONNECTION_ERROR,
+    // The application rejects the header and requests the stream be reset.
     HEADER_RST_STREAM,
+    // The header is a violation of HTTP messaging semantics and will be reset
+    // with error code PROTOCOL_ERROR.
+    HEADER_HTTP_MESSAGING,
   };
   virtual OnHeaderResult OnHeaderForStream(Http2StreamId stream_id,
                                            absl::string_view key,
