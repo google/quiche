@@ -257,7 +257,7 @@ bool IsValidWebTransportSessionId(WebTransportSessionId id,
 QuicByteCount MemSliceSpanTotalSize(absl::Span<QuicMemSlice> span);
 
 // Computes a SHA-256 hash and returns the raw bytes of the hash.
-std::string RawSha256(absl::string_view input);
+QUIC_EXPORT_PRIVATE std::string RawSha256(absl::string_view input);
 
 template <typename Mask>
 class QUIC_EXPORT_PRIVATE BitMask {
