@@ -52,6 +52,7 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
+#include "quic/core/crypto/quic_client_session_cache.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_server_id.h"
 #include "quic/core/quic_utils.h"
@@ -60,7 +61,6 @@
 #include "quic/platform/api/quic_ip_address.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_system_event_loop.h"
-#include "quic/test_tools/simple_session_cache.h"
 #include "quic/tools/fake_proof_verifier.h"
 #include "quic/tools/quic_url.h"
 #include "common/quiche_text_utils.h"
@@ -323,7 +323,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   }
   std::unique_ptr<quic::SessionCache> session_cache;
   if (num_requests > 1 && GetQuicFlag(FLAGS_one_connection_per_request)) {
-    session_cache = std::make_unique<test::SimpleSessionCache>();
+    session_cache = std::make_unique<QuicClientSessionCache>();
   }
 
   QuicConfig config;

@@ -120,7 +120,8 @@ bool TlsClientHandshaker::CryptoConnect() {
 
   // Set a session to resume, if there is one.
   if (session_cache_) {
-    cached_state_ = session_cache_->Lookup(server_id_, SSL_get_SSL_CTX(ssl()));
+    cached_state_ = session_cache_->Lookup(
+        server_id_, session()->GetClock()->WallNow(), SSL_get_SSL_CTX(ssl()));
   }
   if (cached_state_) {
     SSL_set_session(ssl(), cached_state_->tls_session.get());

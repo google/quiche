@@ -28,7 +28,7 @@ void SimpleSessionCache::Insert(const QuicServerId& server_id,
 }
 
 std::unique_ptr<QuicResumptionState> SimpleSessionCache::Lookup(
-    const QuicServerId& server_id,
+    const QuicServerId& server_id, QuicWallTime /*now*/,
     const SSL_CTX* /*ctx*/) {
   auto it = cache_entries_.find(server_id);
   if (it == cache_entries_.end()) {
@@ -55,6 +55,12 @@ void SimpleSessionCache::ClearEarlyData(const QuicServerId& /*server_id*/) {
   // The simple session cache only stores 1 SSL ticket per entry, so no need to
   // do anything here.
 }
+
+void SimpleSessionCache::RemoveExpiredEntries(QuicWallTime /*now*/) {
+  // The simple session cache does not support removing expired entries.
+}
+
+void SimpleSessionCache::Clear() { cache_entries_.clear(); }
 
 }  // namespace test
 }  // namespace quic

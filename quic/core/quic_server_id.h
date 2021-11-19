@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/hash/hash.h"
 #include "quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -39,6 +40,14 @@ class QUIC_EXPORT_PRIVATE QuicServerId {
   std::string host_;
   uint16_t port_;
   bool privacy_mode_enabled_;
+};
+
+class QUIC_EXPORT_PRIVATE QuicServerIdHash {
+ public:
+  size_t operator()(const quic::QuicServerId& server_id) const noexcept {
+    return absl::HashOf(server_id.host(), server_id.port(),
+                        server_id.privacy_mode_enabled());
+  }
 };
 
 }  // namespace quic

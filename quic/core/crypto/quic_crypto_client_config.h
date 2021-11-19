@@ -74,12 +74,17 @@ class QUIC_EXPORT_PRIVATE SessionCache {
   // delete cache entries after returning them in Lookup so that session tickets
   // are used only once.
   virtual std::unique_ptr<QuicResumptionState> Lookup(
-      const QuicServerId& server_id,
-      const SSL_CTX* ctx) = 0;
+      const QuicServerId& server_id, QuicWallTime now, const SSL_CTX* ctx) = 0;
 
   // Called when 0-RTT is rejected. Disables early data for all the TLS tickets
   // associated with |server_id|.
   virtual void ClearEarlyData(const QuicServerId& server_id) = 0;
+
+  // Called to remove expired entries.
+  virtual void RemoveExpiredEntries(QuicWallTime now) = 0;
+
+  // Clear the session cache.
+  virtual void Clear() = 0;
 };
 
 // QuicCryptoClientConfig contains crypto-related configuration settings for a

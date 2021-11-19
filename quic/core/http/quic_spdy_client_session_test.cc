@@ -982,10 +982,10 @@ TEST_P(QuicSpdyClientSessionTest, OnSettingsFrame) {
   ApplicationState expected(std::begin(application_state),
                             std::end(application_state));
   session_->OnSettingsFrame(settings);
-  EXPECT_EQ(expected,
-            *client_session_cache_
-                 ->Lookup(QuicServerId(kServerHostname, kPort, false), nullptr)
-                 ->application_state);
+  EXPECT_EQ(expected, *client_session_cache_
+                           ->Lookup(QuicServerId(kServerHostname, kPort, false),
+                                    session_->GetClock()->WallNow(), nullptr)
+                           ->application_state);
 }
 
 TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
