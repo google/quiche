@@ -63,6 +63,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   int SubmitTrailer(Http2StreamId stream_id, absl::Span<const Header> trailers);
   void SubmitMetadata(Http2StreamId stream_id,
                       std::unique_ptr<MetadataSource> source);
+  void SubmitSettings(absl::Span<const Http2Setting> settings);
 
   bool IsServerSession() const {
     return options_.perspective == Perspective::kServer;

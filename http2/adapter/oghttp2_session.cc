@@ -19,6 +19,8 @@ namespace {
 using ConnectionError = Http2VisitorInterface::ConnectionError;
 using SpdyFramerError = Http2DecoderAdapter::SpdyFramerError;
 
+using ::spdy::SpdySettingsIR;
+
 // #define OGHTTP2_DEBUG_TRACE 1
 
 #ifdef OGHTTP2_DEBUG_TRACE
@@ -743,6 +745,14 @@ void OgHttp2Session::SubmitMetadata(Http2StreamId stream_id,
   }
 }
 
+void OgHttp2Session::SubmitSettings(absl::Span<const Http2Setting> settings) {
+  auto settings_ir = absl::make_unique<SpdySettingsIR>();
+  for (const Http2Setting& setting : settings) {
+    settings_ir->AddSetting(setting.id, setting.value);
+  }
+  EnqueueFrame(std::move(settings_ir));
+}
+
 void OgHttp2Session::OnError(SpdyFramerError error,
                              std::string detailed_error) {
   QUICHE_VLOG(1) << "Error: "
@@ -896,7 +906,7 @@ void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
 
 void OgHttp2Session::OnSettingsEnd() {
   visitor_.OnSettingsEnd();
-  auto settings = absl::make_unique<spdy::SpdySettingsIR>();
+  auto settings = absl::make_unique<SpdySettingsIR>();
   settings->set_is_ack(true);
   EnqueueFrame(std::move(settings));
 }
@@ -1089,9 +1099,8 @@ void OgHttp2Session::MaybeSetupPreface() {
     // First frame must be a non-ack SETTINGS.
     if (frames_.empty() ||
         frames_.front()->frame_type() != spdy::SpdyFrameType::SETTINGS ||
-        reinterpret_cast<spdy::SpdySettingsIR*>(frames_.front().get())
-            ->is_ack()) {
-      auto settings = absl::make_unique<spdy::SpdySettingsIR>();
+        reinterpret_cast<SpdySettingsIR&>(*frames_.front()).is_ack()) {
+      auto settings = absl::make_unique<SpdySettingsIR>();
       FillInitialSettingsFrame(*settings);
       frames_.push_front(std::move(settings));
     }
@@ -1099,7 +1108,7 @@ void OgHttp2Session::MaybeSetupPreface() {
   }
 }
 
-void OgHttp2Session::FillInitialSettingsFrame(spdy::SpdySettingsIR& settings) {
+void OgHttp2Session::FillInitialSettingsFrame(SpdySettingsIR& settings) {
   if (!IsServerSession()) {
     // Disable server push. Note that server push from clients is already
     // disabled, so the server does not need to send this disabling setting.
