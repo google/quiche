@@ -394,6 +394,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   bool pad_full_hello() const { return pad_full_hello_; }
   void set_pad_full_hello(bool new_value) { pad_full_hello_ = new_value; }
 
+  SessionCache* mutable_session_cache() { return session_cache_.get(); }
+
  private:
   // Sets the members to reasonable, default values.
   void SetDefaults();
