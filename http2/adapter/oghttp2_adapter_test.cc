@@ -1836,7 +1836,7 @@ TEST(OgHttp2AdapterServerTest, IncompleteRequestWithServerResponse) {
 }
 
 TEST(OgHttp2AdapterServerTest,
-     IncompleteRequestWithServerResponseRstStreamEnabled) {
+     DISABLED_IncompleteRequestWithServerResponseRstStreamEnabled) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kServer,
                                   .rst_stream_no_error_when_incomplete = true};
