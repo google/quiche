@@ -117,7 +117,7 @@ void QuicClientSessionCache::OnNewTokenReceived(const QuicServerId& server_id,
   if (iter == cache_.end()) {
     return;
   }
-  iter->second->token = token;
+  iter->second->token = std::string(token);
 }
 
 void QuicClientSessionCache::RemoveExpiredEntries(QuicWallTime now) {

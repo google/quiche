@@ -63,7 +63,7 @@ void SimpleSessionCache::OnNewTokenReceived(const QuicServerId& server_id,
   if (it == cache_entries_.end()) {
     return;
   }
-  it->second.token = token;
+  it->second.token = std::string(token);
 }
 
 void SimpleSessionCache::RemoveExpiredEntries(QuicWallTime /*now*/) {
