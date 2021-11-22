@@ -48,12 +48,22 @@ std::unique_ptr<QuicResumptionState> SimpleSessionCache::Lookup(
   }
   state->transport_params =
       std::make_unique<TransportParameters>(*it->second.params);
+  state->token = it->second.token;
   return state;
 }
 
 void SimpleSessionCache::ClearEarlyData(const QuicServerId& /*server_id*/) {
   // The simple session cache only stores 1 SSL ticket per entry, so no need to
   // do anything here.
+}
+
+void SimpleSessionCache::OnNewTokenReceived(const QuicServerId& server_id,
+                                            absl::string_view token) {
+  auto it = cache_entries_.find(server_id);
+  if (it == cache_entries_.end()) {
+    return;
+  }
+  it->second.token = token;
 }
 
 void SimpleSessionCache::RemoveExpiredEntries(QuicWallTime /*now*/) {

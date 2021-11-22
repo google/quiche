@@ -49,6 +49,9 @@ struct QUIC_EXPORT_PRIVATE QuicResumptionState {
   // client received from the server at the application layer that the client
   // needs to remember when performing a 0-RTT handshake.
   std::unique_ptr<ApplicationState> application_state = nullptr;
+
+  // Opaque token received in NEW_TOKEN frame if any.
+  std::string token;
 };
 
 // SessionCache is an interface for managing storing and retrieving
@@ -79,6 +82,10 @@ class QUIC_EXPORT_PRIVATE SessionCache {
   // Called when 0-RTT is rejected. Disables early data for all the TLS tickets
   // associated with |server_id|.
   virtual void ClearEarlyData(const QuicServerId& server_id) = 0;
+
+  // Called when NEW_TOKEN frame is received.
+  virtual void OnNewTokenReceived(const QuicServerId& server_id,
+                                  absl::string_view token) = 0;
 
   // Called to remove expired entries.
   virtual void RemoveExpiredEntries(QuicWallTime now) = 0;

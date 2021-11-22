@@ -31,6 +31,8 @@ class SimpleSessionCache : public SessionCache {
                                               QuicWallTime now,
                                               const SSL_CTX* ctx) override;
   void ClearEarlyData(const QuicServerId& server_id) override;
+  void OnNewTokenReceived(const QuicServerId& server_id,
+                          absl::string_view token) override;
   void RemoveExpiredEntries(QuicWallTime now) override;
   void Clear() override;
 
@@ -39,6 +41,7 @@ class SimpleSessionCache : public SessionCache {
     bssl::UniquePtr<SSL_SESSION> session;
     std::unique_ptr<TransportParameters> params;
     std::unique_ptr<ApplicationState> application_state;
+    std::string token;
   };
   std::map<QuicServerId, Entry> cache_entries_;
 };

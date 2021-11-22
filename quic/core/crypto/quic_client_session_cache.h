@@ -13,6 +13,10 @@
 
 namespace quic {
 
+namespace test {
+class QuicClientSessionCachePeer;
+}  // namespace test
+
 // QuicClientSessionCache maps from QuicServerId to information used to resume
 // TLS sessions for that server.
 class QUIC_EXPORT_PRIVATE QuicClientSessionCache : public SessionCache {
@@ -32,6 +36,9 @@ class QUIC_EXPORT_PRIVATE QuicClientSessionCache : public SessionCache {
 
   void ClearEarlyData(const QuicServerId& server_id) override;
 
+  void OnNewTokenReceived(const QuicServerId& server_id,
+                          absl::string_view token) override;
+
   void RemoveExpiredEntries(QuicWallTime now) override;
 
   void Clear() override;
@@ -39,6 +46,8 @@ class QUIC_EXPORT_PRIVATE QuicClientSessionCache : public SessionCache {
   size_t size() const { return cache_.Size(); }
 
  private:
+  friend class test::QuicClientSessionCachePeer;
+
   struct QUIC_EXPORT_PRIVATE Entry {
     Entry();
     Entry(Entry&&);
@@ -56,6 +65,7 @@ class QUIC_EXPORT_PRIVATE QuicClientSessionCache : public SessionCache {
     bssl::UniquePtr<SSL_SESSION> sessions[2];
     std::unique_ptr<TransportParameters> params;
     std::unique_ptr<ApplicationState> application_state;
+    std::string token;  // An opaque string received in NEW_TOKEN frame.
   };
 
   // Creates a new entry and insert into |cache_|.
