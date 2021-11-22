@@ -127,8 +127,10 @@ class RunOnExit {
   RunOnExit() = default;
   explicit RunOnExit(std::function<void()> f) : f_(std::move(f)) {}
 
-  RunOnExit(RunOnExit&& other) = default;
-  RunOnExit& operator=(RunOnExit&& other) = default;
+  RunOnExit(const RunOnExit& other) = delete;
+  RunOnExit& operator=(const RunOnExit& other) = delete;
+  RunOnExit(RunOnExit&& other) = delete;
+  RunOnExit& operator=(RunOnExit&& other) = delete;
 
   ~RunOnExit() {
     if (f_) {
@@ -136,6 +138,8 @@ class RunOnExit {
     }
     f_ = {};
   }
+
+  void emplace(std::function<void()> f) { f_ = std::move(f); }
 
  private:
   std::function<void()> f_;
@@ -417,7 +421,7 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
       streams_reset_.insert(frame->stream_id());
     } else if (iter != stream_map_.end()) {
       // Enqueue RST_STREAM NO_ERROR if appropriate.
-      r = RunOnExit{[this, iter]() { MaybeFinWithRstStream(iter); }};
+      r.emplace([this, iter]() { MaybeFinWithRstStream(iter); });
     }
   }
   if (frame->stream_id() != 0) {
