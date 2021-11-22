@@ -451,6 +451,7 @@ int OgHttp2Session::Send() {
     const Http2StreamId stream_id = write_scheduler_.PopNextReadyStream();
     // TODO(birenroy): Add a return value to indicate write blockage, so streams
     // aren't woken unnecessarily.
+    QUICHE_VLOG(1) << "Waking stream " << stream_id << " for writes.";
     continue_writing = WriteForStream(stream_id);
   }
   if (continue_writing == SendResult::SEND_OK) {
@@ -570,7 +571,14 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
     bool end_data;
     std::tie(length, end_data) =
         state.outbound_body->SelectPayloadLength(available_window);
-    if (length == 0 && !end_data) {
+    QUICHE_VLOG(2) << "WriteForStream | length: " << length
+                   << " end_data: " << end_data
+                   << " trailers: " << state.trailers.get();
+    if (length == 0 && !end_data &&
+        (options_.trailers_require_end_data || state.trailers == nullptr)) {
+      // An unproductive call to SelectPayloadLength() results in this stream
+      // entering the "deferred" state only if either no trailers are available
+      // to send, or trailers require an explicit end_data before being sent.
       state.data_deferred = true;
       break;
     } else if (length == DataFrameSource::kError) {
@@ -608,7 +616,11 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
         break;
       }
     }
-    if (end_data) {
+    if (end_data || (length == 0 && state.trailers != nullptr &&
+                     !options_.trailers_require_end_data)) {
+      // If SelectPayloadLength() returned {0, false}, and there are trailers to
+      // send, and the safety feature is disabled, it's okay to send the
+      // trailers.
       if (state.trailers != nullptr) {
         auto block_ptr = std::move(state.trailers);
         if (fin) {
@@ -727,6 +739,9 @@ int OgHttp2Session::SubmitTrailer(Http2StreamId stream_id,
     // Save trailers so they can be written once data is done.
     state.trailers =
         absl::make_unique<spdy::SpdyHeaderBlock>(ToHeaderBlock(trailers));
+    if (!options_.trailers_require_end_data) {
+      iter->second.data_deferred = false;
+    }
     if (!iter->second.data_deferred) {
       write_scheduler_.MarkStreamReady(stream_id, false);
     }

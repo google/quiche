@@ -182,10 +182,10 @@ class Nghttp2DataFrameSource : public DataFrameSource {
       QUICHE_LOG(ERROR) << "Source did not use the zero-copy API!";
       return {kError, false};
     } else {
-      if (data_flags & NGHTTP2_DATA_FLAG_NO_END_STREAM) {
-        send_fin_ = false;
-      }
       const bool eof = data_flags & NGHTTP2_DATA_FLAG_EOF;
+      if (eof && (data_flags & NGHTTP2_DATA_FLAG_NO_END_STREAM) == 0) {
+        send_fin_ = true;
+      }
       return {result, eof};
     }
   }
@@ -211,7 +211,7 @@ class Nghttp2DataFrameSource : public DataFrameSource {
   nghttp2_data_provider provider_;
   nghttp2_send_data_callback send_data_;
   void* user_data_;
-  bool send_fin_ = true;
+  bool send_fin_ = false;
 };
 
 std::unique_ptr<DataFrameSource> MakeZeroCopyDataFrameSource(

@@ -39,6 +39,10 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     // Whether (as server) to send a RST_STREAM NO_ERROR when sending a fin on
     // an incomplete stream.
     bool rst_stream_no_error_when_incomplete = false;
+    // Whether (as server) to queue trailers until after a stream's data source
+    // has indicated the end of data. If false, the server will assume that
+    // submitting trailers indicates the end of data.
+    bool trailers_require_end_data = false;
   };
 
   OgHttp2Session(Http2VisitorInterface& visitor, Options options);
