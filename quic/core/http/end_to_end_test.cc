@@ -1651,7 +1651,7 @@ TEST_P(EndToEndTest, AddressToken) {
 
   // The 0-RTT handshake should succeed.
   client_->Connect();
-  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   ASSERT_TRUE(client_->client()->connected());
   SendSynchronousFooRequestAndCheckResponse();
 
@@ -1722,7 +1722,7 @@ TEST_P(EndToEndTest, AddressToken) {
 
   // Client re-connect.
   client_->Connect();
-  ASSERT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  ASSERT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   client_->WaitForWriteToFlush();
   client_->WaitForResponse();
   ASSERT_TRUE(client_->client()->connected());
