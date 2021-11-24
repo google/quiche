@@ -1702,7 +1702,7 @@ bool QuicSession::MaybeSendAddressToken() {
       cached_network_params.has_value()) {
     connection()->OnSendConnectionState(*cached_network_params);
     QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_add_cached_network_parameters_to_address_token, 1, 2);
+        quic_add_cached_network_parameters_to_address_token2, 1, 2);
   }
   return true;
 }
@@ -2669,7 +2669,7 @@ bool QuicSession::ValidateToken(absl::string_view token) {
         cached_network_params->timestamp() > 0) {
       connection()->OnReceiveConnectionState(*cached_network_params);
       QUIC_RELOADABLE_FLAG_COUNT_N(
-          quic_add_cached_network_parameters_to_address_token, 2, 2);
+          quic_add_cached_network_parameters_to_address_token2, 2, 2);
     }
   }
   return valid;

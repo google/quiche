@@ -1677,7 +1677,7 @@ TEST_P(EndToEndTest, AddressToken) {
             server_session->GetCryptoStream())
             ->PreviousCachedNetworkParams();
     if (GetQuicReloadableFlag(
-            quic_add_cached_network_parameters_to_address_token)) {
+            quic_add_cached_network_parameters_to_address_token2)) {
       ASSERT_NE(server_received_network_params, nullptr);
       // QuicSentPacketManager::SetInitialRtt clamps the initial_rtt to between
       // [min_initial_rtt, max_initial_rtt].
@@ -1761,7 +1761,7 @@ TEST_P(EndToEndTest, AddressToken) {
 }
 
 TEST_P(EndToEndTest, AddressTokenRefreshedByServer) {
-  SetQuicReloadableFlag(quic_add_cached_network_parameters_to_address_token,
+  SetQuicReloadableFlag(quic_add_cached_network_parameters_to_address_token2,
                         true);
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames()) {
@@ -1789,7 +1789,7 @@ TEST_P(EndToEndTest, AddressTokenRefreshedByServer) {
   }
   ASSERT_TRUE(!old_address_token.empty());
 
-  SetQuicReloadableFlag(quic_add_cached_network_parameters_to_address_token,
+  SetQuicReloadableFlag(quic_add_cached_network_parameters_to_address_token2,
                         false);
 
   // The 0-RTT handshake should succeed.

@@ -1013,7 +1013,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   const bool add_cached_network_parameters_to_address_token_ =
       GetQuicReloadableFlag(
-          quic_add_cached_network_parameters_to_address_token);
+          quic_add_cached_network_parameters_to_address_token2);
 
   // Whether BoringSSL randomizes the order of TLS extensions.
   bool permutes_tls_extensions_ = true;
