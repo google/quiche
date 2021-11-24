@@ -127,8 +127,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_key_update_not_yet_supported, t
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_user_agent_transport_parameter, true)
 // When true, QUIC will both send and validate the version_information transport parameter.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_version_information, false)
-// When true, QuicDispatcher will silently drop incoming packets whose UDP source port is on the blocklist.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_blocked_ports, true)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr, false)
 // When true, prevents QUIC\'s PacingSender from generating bursts when the congestion controller is CWND limited and not pacing limited.

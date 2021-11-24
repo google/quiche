@@ -1216,7 +1216,6 @@ TEST_P(QuicDispatcherTestAllVersions, ProcessPacketWithZeroPort) {
 }
 
 TEST_P(QuicDispatcherTestAllVersions, ProcessPacketWithBlockedPort) {
-  SetQuicReloadableFlag(quic_blocked_ports, true);
   CreateTimeWaitListManager();
 
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 17);

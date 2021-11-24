@@ -495,13 +495,7 @@ QuicConnectionId QuicDispatcher::ReplaceLongServerConnectionId(
 }
 
 namespace {
-inline bool IsSourceUdpPortBlocked(uint16_t port) {
-  // TODO(dschinazi) make this function constexpr when we remove flag
-  // protection.
-  if (!GetQuicReloadableFlag(quic_blocked_ports)) {
-    return port == 0;
-  }
-  QUIC_RELOADABLE_FLAG_COUNT(quic_blocked_ports);
+constexpr bool IsSourceUdpPortBlocked(uint16_t port) {
   // These UDP source ports have been observed in large scale denial of service
   // attacks and are not expected to ever carry user traffic, they are therefore
   // blocked as a safety measure. See draft-ietf-quic-applicability for details.
