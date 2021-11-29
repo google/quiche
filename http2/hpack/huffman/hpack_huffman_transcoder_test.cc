@@ -17,7 +17,9 @@
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
-using ::testing::tuple;
+using ::testing::Combine;
+using ::testing::Range;
+using ::testing::Values;
 
 namespace http2 {
 namespace test {
@@ -77,7 +79,7 @@ class HpackHuffmanTranscoderTest : public RandomDecoderTest {
     std::string encoded;
     HuffmanEncode(plain, encoded_size, &encoded);
     VERIFY_EQ(encoded_size, encoded.size());
-    if (expected_huffman.size() > 0 || plain.empty()) {
+    if (!expected_huffman.empty() || plain.empty()) {
       VERIFY_EQ(encoded, expected_huffman);
     }
     input_bytes_expected_ = encoded.size();
@@ -132,7 +134,7 @@ TEST_F(HpackHuffmanTranscoderTest, RoundTripRandomBytes) {
 // Two parameters: decoder choice, and the character to round-trip.
 class HpackHuffmanTranscoderAdjacentCharTest
     : public HpackHuffmanTranscoderTest,
-      public ::testing::WithParamInterface<int> {
+      public testing::WithParamInterface<int> {
  protected:
   HpackHuffmanTranscoderAdjacentCharTest()
       : c_(static_cast<char>(GetParam())) {}
@@ -141,8 +143,7 @@ class HpackHuffmanTranscoderAdjacentCharTest
 };
 
 INSTANTIATE_TEST_SUITE_P(HpackHuffmanTranscoderAdjacentCharTest,
-                         HpackHuffmanTranscoderAdjacentCharTest,
-                         ::testing::Range(0, 256));
+                         HpackHuffmanTranscoderAdjacentCharTest, Range(0, 256));
 
 // Test c_ adjacent to every other character, both before and after.
 TEST_P(HpackHuffmanTranscoderAdjacentCharTest, RoundTripAdjacentChar) {
@@ -158,11 +159,11 @@ TEST_P(HpackHuffmanTranscoderAdjacentCharTest, RoundTripAdjacentChar) {
 // Two parameters: character to repeat, number of repeats.
 class HpackHuffmanTranscoderRepeatedCharTest
     : public HpackHuffmanTranscoderTest,
-      public ::testing::WithParamInterface<tuple<int, int>> {
+      public testing::WithParamInterface<std::tuple<int, int>> {
  protected:
   HpackHuffmanTranscoderRepeatedCharTest()
-      : c_(static_cast<char>(::testing::get<0>(GetParam()))),
-        length_(::testing::get<1>(GetParam())) {}
+      : c_(static_cast<char>(std::get<0>(GetParam()))),
+        length_(std::get<1>(GetParam())) {}
   std::string MakeString() { return std::string(length_, c_); }
 
  private:
@@ -172,9 +173,7 @@ class HpackHuffmanTranscoderRepeatedCharTest
 
 INSTANTIATE_TEST_SUITE_P(HpackHuffmanTranscoderRepeatedCharTest,
                          HpackHuffmanTranscoderRepeatedCharTest,
-                         ::testing::Combine(::testing::Range(0, 256),
-                                            ::testing::Values(1, 2, 3, 4, 8, 16,
-                                                              32)));
+                         Combine(Range(0, 256), Values(1, 2, 3, 4, 8, 16, 32)));
 
 TEST_P(HpackHuffmanTranscoderRepeatedCharTest, RoundTripRepeatedChar) {
   ASSERT_TRUE(TranscodeAndValidateSeveralWays(MakeString()));
