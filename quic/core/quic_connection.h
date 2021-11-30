@@ -1255,6 +1255,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     context_.tracer.swap(tracer);
   }
 
+  void set_bug_listener(std::unique_ptr<QuicBugListener> bug_listener) {
+    context_.bug_listener.swap(bug_listener);
+  }
+
   absl::optional<QuicWallTime> quic_bug_10511_43_timestamp() const {
     return quic_bug_10511_43_timestamp_;
   }

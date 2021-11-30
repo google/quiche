@@ -52,6 +52,15 @@ class QUIC_EXPORT_PRIVATE QuicConnectionTracer {
   virtual void Deactivate() {}
 };
 
+// QuicBugListener is a helper class for implementing QUIC_BUG. The QUIC_BUG
+// implementation can send the bug information into quic::CurrentBugListener().
+class QUIC_EXPORT_PRIVATE QuicBugListener {
+ public:
+  virtual ~QuicBugListener() = default;
+  virtual void OnQuicBug(const char* bug_id, const char* file, int line,
+                         absl::string_view bug_message) = 0;
+};
+
 // QuicConnectionContext is a per-QuicConnection context that includes
 // facilities useable by any part of a QuicConnection. A QuicConnectionContext
 // is owned by a QuicConnection.
@@ -68,6 +77,7 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionContext final {
   static QuicConnectionContext* Current();
 
   std::unique_ptr<QuicConnectionTracer> tracer;
+  std::unique_ptr<QuicBugListener> bug_listener;
 };
 
 // QuicConnectionContextSwitcher is a RAII object used for maintaining the
@@ -111,6 +121,11 @@ void QUIC_TRACEPRINTF(const absl::FormatSpec<Args...>& format,
   if (current && current->tracer) {
     current->tracer->Printf(format, args...);
   }
+}
+
+inline QuicBugListener* CurrentBugListener() {
+  QuicConnectionContext* current = QuicConnectionContext::Current();
+  return (current != nullptr) ? current->bug_listener.get() : nullptr;
 }
 
 }  // namespace quic
