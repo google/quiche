@@ -33,6 +33,8 @@ class QUIC_EXPORT_PRIVATE QboneClientSession
 
   // QuicSession overrides. This will initiate the crypto stream.
   void Initialize() override;
+  // Override to create control stream at FORWARD_SECURE encryption level.
+  void SetDefaultEncryptionLevel(quic::EncryptionLevel level) override;
 
   // Returns the number of client hello messages that have been sent on the
   // crypto stream. If the handshake has completed then this is one greater
@@ -65,6 +67,9 @@ class QUIC_EXPORT_PRIVATE QboneClientSession
   // QboneSessionBase interface implementation.
   std::unique_ptr<QuicCryptoStream> CreateCryptoStream() override;
 
+  // Instantiate QboneClientControlStream.
+  void CreateControlStream();
+
   // ProofHandler interface implementation.
   void OnProofValid(const QuicCryptoClientConfig::CachedState& cached) override;
   void OnProofVerifyDetailsAvailable(
@@ -82,7 +87,7 @@ class QUIC_EXPORT_PRIVATE QboneClientSession
   // Passed to the control stream.
   QboneClientControlStream::Handler* handler_;
   // The unowned control stream.
-  QboneClientControlStream* control_stream_;
+  QboneClientControlStream* control_stream_ = nullptr;
 };
 
 }  // namespace quic

@@ -4,6 +4,7 @@
 
 #include "quic/qbone/qbone_server_session.h"
 
+#include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"
@@ -11,6 +12,11 @@
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/qbone/qbone_constants.h"
+
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    bool, qbone_server_defer_control_stream_creation, true,
+    "If true, control stream in QBONE server session is created after "
+    "encryption established.");
 
 namespace quic {
 
@@ -55,13 +61,31 @@ std::unique_ptr<QuicCryptoStream> QboneServerSession::CreateCryptoStream() {
                                   &stream_helper_);
 }
 
-void QboneServerSession::Initialize() {
-  QboneSessionBase::Initialize();
+void QboneServerSession::CreateControlStream() {
+  if (control_stream_ != nullptr) {
+    return;
+  }
   // Register the reserved control stream.
   auto control_stream =
       std::make_unique<QboneServerControlStream>(this, handler_);
   control_stream_ = control_stream.get();
   ActivateStream(std::move(control_stream));
+}
+
+void QboneServerSession::Initialize() {
+  QboneSessionBase::Initialize();
+  if (!GetQuicFlag(FLAGS_qbone_server_defer_control_stream_creation)) {
+    CreateControlStream();
+  }
+}
+
+void QboneServerSession::SetDefaultEncryptionLevel(
+    quic::EncryptionLevel level) {
+  QboneSessionBase::SetDefaultEncryptionLevel(level);
+  if (GetQuicFlag(FLAGS_qbone_server_defer_control_stream_creation) &&
+      level == quic::ENCRYPTION_FORWARD_SECURE) {
+    CreateControlStream();
+  }
 }
 
 bool QboneServerSession::SendClientRequest(const QboneClientRequest& request) {

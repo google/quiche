@@ -10,6 +10,11 @@
 #include "quic/core/quic_types.h"
 #include "quic/qbone/qbone_constants.h"
 
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    bool, qbone_client_defer_control_stream_creation, true,
+    "If true, control stream in QBONE client session is created after "
+    "encryption established.");
+
 namespace quic {
 
 QboneClientSession::QboneClientSession(
@@ -34,12 +39,10 @@ std::unique_ptr<QuicCryptoStream> QboneClientSession::CreateCryptoStream() {
       /*has_application_state = */ true);
 }
 
-void QboneClientSession::Initialize() {
-  // Initialize must be called first, as that's what generates the crypto
-  // stream.
-  QboneSessionBase::Initialize();
-  static_cast<QuicCryptoClientStreamBase*>(GetMutableCryptoStream())
-      ->CryptoConnect();
+void QboneClientSession::CreateControlStream() {
+  if (control_stream_ != nullptr) {
+    return;
+  }
   // Register the reserved control stream.
   QuicStreamId next_id = GetNextOutgoingBidirectionalStreamId();
   QUICHE_DCHECK_EQ(next_id,
@@ -48,6 +51,26 @@ void QboneClientSession::Initialize() {
       std::make_unique<QboneClientControlStream>(this, handler_);
   control_stream_ = control_stream.get();
   ActivateStream(std::move(control_stream));
+}
+
+void QboneClientSession::Initialize() {
+  // Initialize must be called first, as that's what generates the crypto
+  // stream.
+  QboneSessionBase::Initialize();
+  static_cast<QuicCryptoClientStreamBase*>(GetMutableCryptoStream())
+      ->CryptoConnect();
+  if (!GetQuicFlag(FLAGS_qbone_client_defer_control_stream_creation)) {
+    CreateControlStream();
+  }
+}
+
+void QboneClientSession::SetDefaultEncryptionLevel(
+    quic::EncryptionLevel level) {
+  QboneSessionBase::SetDefaultEncryptionLevel(level);
+  if (GetQuicFlag(FLAGS_qbone_client_defer_control_stream_creation) &&
+      level == quic::ENCRYPTION_FORWARD_SECURE) {
+    CreateControlStream();
+  }
 }
 
 int QboneClientSession::GetNumSentClientHellos() const {
