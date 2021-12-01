@@ -765,11 +765,7 @@ void OgHttp2Session::SubmitMetadata(Http2StreamId stream_id,
 }
 
 void OgHttp2Session::SubmitSettings(absl::Span<const Http2Setting> settings) {
-  auto settings_ir = absl::make_unique<SpdySettingsIR>();
-  for (const Http2Setting& setting : settings) {
-    settings_ir->AddSetting(setting.id, setting.value);
-  }
-  EnqueueFrame(std::move(settings_ir));
+  EnqueueFrame(PrepareSettingsFrame(settings));
 }
 
 void OgHttp2Session::OnError(SpdyFramerError error,
@@ -1119,21 +1115,30 @@ void OgHttp2Session::MaybeSetupPreface() {
     if (frames_.empty() ||
         frames_.front()->frame_type() != spdy::SpdyFrameType::SETTINGS ||
         reinterpret_cast<SpdySettingsIR&>(*frames_.front()).is_ack()) {
-      auto settings = absl::make_unique<SpdySettingsIR>();
-      FillInitialSettingsFrame(*settings);
-      frames_.push_front(std::move(settings));
+      frames_.push_front(PrepareSettingsFrame(GetInitialSettings()));
     }
     queued_preface_ = true;
   }
 }
 
-void OgHttp2Session::FillInitialSettingsFrame(SpdySettingsIR& settings) {
+std::vector<Http2Setting> OgHttp2Session::GetInitialSettings() const {
+  std::vector<Http2Setting> settings;
   if (!IsServerSession()) {
     // Disable server push. Note that server push from clients is already
     // disabled, so the server does not need to send this disabling setting.
     // TODO(diannahu): Consider applying server push disabling on SETTINGS ack.
-    settings.AddSetting(spdy::SETTINGS_ENABLE_PUSH, false);
+    settings.push_back({Http2KnownSettingsId::ENABLE_PUSH, 0});
   }
+  return settings;
+}
+
+std::unique_ptr<SpdySettingsIR> OgHttp2Session::PrepareSettingsFrame(
+    absl::Span<const Http2Setting> settings) {
+  auto settings_ir = absl::make_unique<SpdySettingsIR>();
+  for (const Http2Setting& setting : settings) {
+    settings_ir->AddSetting(setting.id, setting.value);
+  }
+  return settings_ir;
 }
 
 void OgHttp2Session::SendWindowUpdate(Http2StreamId stream_id,

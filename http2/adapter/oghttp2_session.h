@@ -3,6 +3,8 @@
 
 #include <cstdint>
 #include <list>
+#include <memory>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "http2/adapter/data_source.h"
@@ -252,8 +254,14 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Queues the connection preface, if not already done.
   void MaybeSetupPreface();
 
-  // Fills the initial SETTINGS frame sent as part of the connection preface.
-  void FillInitialSettingsFrame(spdy::SpdySettingsIR& settings);
+  // Gets the settings to be sent in the initial SETTINGS frame sent as part of
+  // the connection preface.
+  std::vector<Http2Setting> GetInitialSettings() const;
+
+  // Prepares and returns a SETTINGS frame with the given `settings`.
+  // TODO(diannahu): Add the SETTINGS ack callback here.
+  std::unique_ptr<spdy::SpdySettingsIR> PrepareSettingsFrame(
+      absl::Span<const Http2Setting> settings);
 
   void SendWindowUpdate(Http2StreamId stream_id, size_t update_delta);
 
