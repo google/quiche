@@ -95,6 +95,8 @@ absl::string_view ConnectionErrorToString(ConnectionError error) {
       return "kWrongFrameSequence";
     case ConnectionError::kInvalidPushPromise:
       return "InvalidPushPromise";
+    case ConnectionError::kExceededMaxConcurrentStreams:
+      return "ExceededMaxConcurrentStreams";
   }
   return "UnknownConnectionError";
 }

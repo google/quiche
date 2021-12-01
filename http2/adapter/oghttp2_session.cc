@@ -927,6 +927,12 @@ void OgHttp2Session::OnSettingsEnd() {
 }
 
 void OgHttp2Session::OnSettingsAck() {
+  if (!settings_ack_callbacks_.empty()) {
+    SettingsAckCallback callback = std::move(settings_ack_callbacks_.front());
+    settings_ack_callbacks_.pop_front();
+    callback();
+  }
+
   visitor_.OnSettingsAck();
 }
 
@@ -976,6 +982,23 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
                           ConnectionError::kInvalidNewStreamId);
       return;
     }
+
+    if (stream_map_.size() >= max_inbound_concurrent_streams_) {
+      // The new stream would exceed our advertised MAX_CONCURRENT_STREAMS.
+      // Currently, use PROTOCOL_ERROR for behavior parity in Envoy.
+      // TODO(diannahu): Change to GOAWAY, and add RST_STREAM for exceeding the
+      // pending max inbound concurrent streams value.
+      EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+          stream_id, spdy::ERROR_CODE_PROTOCOL_ERROR));
+      const bool ok = visitor_.OnInvalidFrame(
+          stream_id, Http2VisitorInterface::InvalidFrameError::kProtocol);
+      if (!ok) {
+        LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
+                            ConnectionError::kExceededMaxConcurrentStreams);
+      }
+      return;
+    }
+
     CreateStream(stream_id);
   }
 }
@@ -1138,6 +1161,17 @@ std::unique_ptr<SpdySettingsIR> OgHttp2Session::PrepareSettingsFrame(
   for (const Http2Setting& setting : settings) {
     settings_ir->AddSetting(setting.id, setting.value);
   }
+
+  // Copy the (small) map of settings we are about to send so that we can set
+  // values in the SETTINGS ack callback.
+  settings_ack_callbacks_.push_back(
+      [this, settings_map = settings_ir->values()]() {
+        for (const auto id_and_value : settings_map) {
+          if (id_and_value.first == spdy::SETTINGS_MAX_CONCURRENT_STREAMS) {
+            max_inbound_concurrent_streams_ = id_and_value.second;
+          }
+        }
+      });
   return settings_ir;
 }
 

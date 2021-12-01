@@ -2,6 +2,7 @@
 #define QUICHE_HTTP2_ADAPTER_OGHTTP2_SESSION_H_
 
 #include <cstdint>
+#include <limits>
 #include <list>
 #include <memory>
 #include <vector>
@@ -259,7 +260,6 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   std::vector<Http2Setting> GetInitialSettings() const;
 
   // Prepares and returns a SETTINGS frame with the given `settings`.
-  // TODO(diannahu): Add the SETTINGS ack callback here.
   std::unique_ptr<spdy::SpdySettingsIR> PrepareSettingsFrame(
       absl::Span<const Http2Setting> settings);
 
@@ -362,6 +362,11 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   using WriteScheduler = PriorityWriteScheduler<Http2StreamId>;
   WriteScheduler write_scheduler_;
 
+  // Stores the queue of callbacks to invoke upon receiving SETTINGS acks. At
+  // most one callback is invoked for each SETTINGS ack.
+  using SettingsAckCallback = std::function<void()>;
+  std::list<SettingsAckCallback> settings_ack_callbacks_;
+
   // Delivers header name-value pairs to the visitor.
   PassthroughHeadersHandler headers_handler_;
 
@@ -391,8 +396,15 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // The initial flow control receive window size for any newly created streams.
   int32_t stream_receive_window_limit_ = kInitialFlowControlWindowSize;
   uint32_t max_frame_payload_ = 16384u;
-  // The spec encourages a value of at least 100 concurrent streams.
+  // The maximum number of concurrent streams that this connection can open to
+  // its peer and allow from its peer, respectively. Although the initial value
+  // is unlimited, the spec encourages a value of at least 100. We limit
+  // ourselves to opening 100 until told otherwise by the peer and allow an
+  // unlimited number from the peer until updated from SETTINGS we send.
+  // TODO(diannahu): Add a pending/unacked max inbound concurrent streams value.
   uint32_t max_outbound_concurrent_streams_ = 100u;
+  uint32_t max_inbound_concurrent_streams_ =
+      std::numeric_limits<uint32_t>::max();
   Options options_;
   bool received_goaway_ = false;
   bool queued_preface_ = false;

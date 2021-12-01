@@ -76,6 +76,8 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
     kWrongFrameSequence,
     // The peer sent an invalid PUSH_PROMISE frame.
     kInvalidPushPromise,
+    // The peer exceeded the max concurrent streams limit.
+    kExceededMaxConcurrentStreams,
   };
   virtual void OnConnectionError(ConnectionError error) = 0;
 
