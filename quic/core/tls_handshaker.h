@@ -100,12 +100,11 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   }
   int expected_ssl_error() const { return expected_ssl_error_; }
 
-  // Called to verify a cert chain. This is a simple wrapper around
-  // ProofVerifier or ServerProofVerifier, which optionally gathers additional
-  // arguments to pass into their VerifyCertChain method. This class retains a
-  // non-owning pointer to |callback|; the callback must live until this
-  // function returns QUIC_SUCCESS or QUIC_FAILURE, or until the callback is
-  // run.
+  // Called to verify a cert chain. This can be implemented as a simple wrapper
+  // around ProofVerifier, which optionally gathers additional arguments to pass
+  // into their VerifyCertChain method. This class retains a non-owning pointer
+  // to |callback|; the callback must live until this function returns
+  // QUIC_SUCCESS or QUIC_FAILURE, or until the callback is run.
   //
   // If certificate verification fails, |*out_alert| may be set to a TLS alert
   // that will be sent when closing the connection; it defaults to
