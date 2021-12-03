@@ -23,6 +23,8 @@
 #include <utility>
 
 #include "absl/container/node_hash_map.h"
+#include "absl/hash/hash.h"
+#include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_logging.h"
 
 namespace quiche {
@@ -34,11 +36,12 @@ namespace quiche {
 // We also keep a set<list::iterator> for find.  Since std::list is a
 // doubly-linked list, the iterators should remain stable.
 
-template <class Key,
-          class Value,
-          class Hash = std::hash<Key>,
-          class Eq = std::equal_to<Key>>
-class QuicheLinkedHashMap {
+// QUICHE_NO_EXPORT comments suppress erroneous presubmit failures.
+template <class Key,                      // QUICHE_NO_EXPORT
+          class Value,                    // QUICHE_NO_EXPORT
+          class Hash = absl::Hash<Key>,   // QUICHE_NO_EXPORT
+          class Eq = std::equal_to<Key>>  // QUICHE_NO_EXPORT
+class QUICHE_EXPORT_PRIVATE QuicheLinkedHashMap {
  private:
   typedef std::list<std::pair<Key, Value>> ListType;
   typedef absl::node_hash_map<Key, typename ListType::iterator, Hash, Eq>
