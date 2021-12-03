@@ -46,7 +46,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Adapter : public Http2Adapter {
   int GetStreamReceiveWindowSize(Http2StreamId stream_id) const override;
   int GetReceiveWindowSize() const override;
   int GetHpackEncoderDynamicTableSize() const override;
+  int GetHpackEncoderDynamicTableCapacity() const;
   int GetHpackDecoderDynamicTableSize() const override;
+  int GetHpackDecoderSizeLimit() const;
   Http2StreamId GetHighestReceivedStreamId() const override;
   void MarkDataConsumedForStream(Http2StreamId stream_id,
                                  size_t num_bytes) override;

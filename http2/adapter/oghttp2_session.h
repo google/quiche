@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "http2/adapter/data_source.h"
 #include "http2/adapter/event_forwarder.h"
 #include "http2/adapter/header_validator.h"
@@ -37,6 +38,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
  public:
   struct QUICHE_EXPORT_PRIVATE Options {
     Perspective perspective = Perspective::kClient;
+    // The maximum HPACK table size to use.
+    absl::optional<size_t> max_hpack_encoding_table_capacity = absl::nullopt;
     // Whether to automatically send PING acks when receiving a PING.
     bool auto_ping_ack = true;
     // Whether (as server) to send a RST_STREAM NO_ERROR when sending a fin on
@@ -102,9 +105,15 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // per-entry overhead from the specification.
   int GetHpackEncoderDynamicTableSize() const;
 
+  // Returns the maximum capacity of the HPACK encoder's dynamic table.
+  int GetHpackEncoderDynamicTableCapacity() const;
+
   // Returns the size of the HPACK decoder's dynamic table, including the
   // per-entry overhead from the specification.
   int GetHpackDecoderDynamicTableSize() const;
+
+  // Returns the size of the HPACK decoder's most recently applied size limit.
+  int GetHpackDecoderSizeLimit() const;
 
   // From Http2Session.
   int64_t ProcessBytes(absl::string_view bytes) override;
@@ -406,6 +415,13 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   uint32_t max_inbound_concurrent_streams_ =
       std::numeric_limits<uint32_t>::max();
   Options options_;
+
+  // The HPACK encoder header table capacity that will be applied when
+  // acking SETTINGS from the peer. Only contains a value if the peer advertises
+  // a larger table capacity than currently used; a smaller value can safely be
+  // applied immediately upon receipt.
+  absl::optional<uint32_t> encoder_header_table_capacity_when_acking_;
+
   bool received_goaway_ = false;
   bool queued_preface_ = false;
   bool peer_supports_metadata_ = false;

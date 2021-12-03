@@ -25,6 +25,10 @@ std::pair<absl::string_view, bool> GetStringView(const HeaderRep& rep) {
   }
 }
 
+bool operator==(const Http2Setting& a, const Http2Setting& b) {
+  return a.id == b.id && a.value == b.value;
+}
+
 absl::string_view Http2SettingsIdToString(uint16_t id) {
   switch (id) {
     case Http2KnownSettingsId::HEADER_TABLE_SIZE:

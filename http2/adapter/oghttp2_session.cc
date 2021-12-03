@@ -30,6 +30,8 @@ const bool kTraceLoggingEnabled = false;
 #endif
 
 const uint32_t kMaxAllowedMetadataFrameSize = 65536u;
+const uint32_t kDefaultHpackTableCapacity = 4096u;
+const uint32_t kMaximumHpackTableCapacity = 65536u;
 
 // TODO(birenroy): Consider incorporating spdy::FlagsSerializionVisitor here.
 class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
@@ -195,6 +197,13 @@ bool StatusIs1xx(absl::string_view status) {
   return status.size() == 3 && status[0] == '1';
 }
 
+// Returns the upper bound on HPACK encoder table capacity. If not specified in
+// the Options, a reasonable default upper bound is used.
+uint32_t HpackCapacityBound(const OgHttp2Session::Options& o) {
+  return o.max_hpack_encoding_table_capacity.value_or(
+      kMaximumHpackTableCapacity);
+}
+
 }  // namespace
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
@@ -334,9 +343,20 @@ int OgHttp2Session::GetHpackEncoderDynamicTableSize() const {
   return encoder == nullptr ? 0 : encoder->GetDynamicTableSize();
 }
 
+int OgHttp2Session::GetHpackEncoderDynamicTableCapacity() const {
+  const spdy::HpackEncoder* encoder = framer_.GetHpackEncoder();
+  return encoder == nullptr ? kDefaultHpackTableCapacity
+                            : encoder->CurrentHeaderTableSizeSetting();
+}
+
 int OgHttp2Session::GetHpackDecoderDynamicTableSize() const {
   const spdy::HpackDecoderAdapter* decoder = decoder_.GetHpackDecoder();
   return decoder == nullptr ? 0 : decoder->GetDynamicTableSize();
+}
+
+int OgHttp2Session::GetHpackDecoderSizeLimit() const {
+  const spdy::HpackDecoderAdapter* decoder = decoder_.GetHpackDecoder();
+  return decoder == nullptr ? 0 : decoder->GetCurrentHeaderTableSizeSetting();
 }
 
 int64_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
@@ -528,6 +548,14 @@ void OgHttp2Session::AfterFrameSent(uint8_t frame_type, uint32_t stream_id,
   visitor_.OnFrameSent(frame_type, stream_id, payload_length, flags,
                        error_code);
   if (stream_id == 0) {
+    const bool is_settings_ack =
+        static_cast<FrameType>(frame_type) == FrameType::SETTINGS &&
+        (flags & 0x01);
+    if (is_settings_ack && encoder_header_table_capacity_when_acking_) {
+      framer_.UpdateHeaderEncoderTableSize(
+          encoder_header_table_capacity_when_acking_.value());
+      encoder_header_table_capacity_when_acking_ = absl::nullopt;
+    }
     return;
   }
   auto iter = queued_frames_.find(stream_id);
@@ -906,6 +934,9 @@ void OgHttp2Session::OnRstStream(spdy::SpdyStreamId stream_id,
 
 void OgHttp2Session::OnSettings() {
   visitor_.OnSettingsStart();
+  auto settings = absl::make_unique<SpdySettingsIR>();
+  settings->set_is_ack(true);
+  EnqueueFrame(std::move(settings));
 }
 
 void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
@@ -916,14 +947,25 @@ void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
     max_frame_payload_ = value;
   } else if (id == MAX_CONCURRENT_STREAMS) {
     max_outbound_concurrent_streams_ = value;
+  } else if (id == HEADER_TABLE_SIZE) {
+    value = std::min(value, HpackCapacityBound(options_));
+    if (value < framer_.GetHpackEncoder()->CurrentHeaderTableSizeSetting()) {
+      // Safe to apply a smaller table capacity immediately.
+      QUICHE_VLOG(2) << TracePerspectiveAsString(options_.perspective)
+                     << " applying encoder table capacity " << value;
+      framer_.GetHpackEncoder()->ApplyHeaderTableSizeSetting(value);
+    } else {
+      QUICHE_VLOG(2)
+          << TracePerspectiveAsString(options_.perspective)
+          << " NOT applying encoder table capacity until writing ack: "
+          << value;
+      encoder_header_table_capacity_when_acking_ = value;
+    }
   }
 }
 
 void OgHttp2Session::OnSettingsEnd() {
   visitor_.OnSettingsEnd();
-  auto settings = absl::make_unique<SpdySettingsIR>();
-  settings->set_is_ack(true);
-  EnqueueFrame(std::move(settings));
 }
 
 void OgHttp2Session::OnSettingsAck() {
@@ -1169,6 +1211,9 @@ std::unique_ptr<SpdySettingsIR> OgHttp2Session::PrepareSettingsFrame(
         for (const auto id_and_value : settings_map) {
           if (id_and_value.first == spdy::SETTINGS_MAX_CONCURRENT_STREAMS) {
             max_inbound_concurrent_streams_ = id_and_value.second;
+          } else if (id_and_value.first == spdy::SETTINGS_HEADER_TABLE_SIZE) {
+            decoder_.GetHpackDecoder()->ApplyHeaderTableSizeSetting(
+                id_and_value.second);
           }
         }
       });

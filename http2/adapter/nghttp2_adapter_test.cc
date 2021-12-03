@@ -557,6 +557,50 @@ TEST(NgHttp2AdapterTest, ClientHandlesMetadataWithError) {
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
 }
 
+TEST(NgHttp2AdapterTest, ClientHandlesHpackHeaderTableSetting) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  testing::InSequence s;
+
+  const std::vector<const Header> headers1 = ToHeaders({
+      {":method", "GET"},
+      {":scheme", "http"},
+      {":authority", "example.com"},
+      {":path", "/this/is/request/one"},
+      {"x-i-do-not-like", "green eggs and ham"},
+      {"x-i-will-not-eat-them", "here or there, in a box, with a fox"},
+      {"x-like-them-in-a-house", "no"},
+      {"x-like-them-with-a-mouse", "no"},
+  });
+
+  const int32_t stream_id1 = adapter->SubmitRequest(headers1, nullptr, nullptr);
+  ASSERT_GT(stream_id1, 0);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  visitor.Clear();
+
+  EXPECT_GT(adapter->GetHpackEncoderDynamicTableSize(), 100);
+
+  const std::string stream_frames =
+      TestFrameSequence().Settings({{HEADER_TABLE_SIZE, 100u}}).Serialize();
+  // Server preface (SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{HEADER_TABLE_SIZE, 100u}));
+
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), stream_result);
+
+  EXPECT_LE(adapter->GetHpackEncoderDynamicTableSize(), 100);
+}
+
 TEST(NgHttp2AdapterTest, ClientHandlesInvalidTrailers) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);

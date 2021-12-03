@@ -79,6 +79,7 @@ class QUICHE_EXPORT_PRIVATE HpackEncoder {
   // SETTINGS_HEADER_TABLE_SIZE update from the remote decoding endpoint.
   void ApplyHeaderTableSizeSetting(size_t size_setting);
 
+  // TODO(birenroy): Rename this GetDynamicTableCapacity().
   size_t CurrentHeaderTableSizeSetting() const {
     return header_table_.settings_size_bound();
   }

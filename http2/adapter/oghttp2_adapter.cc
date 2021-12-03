@@ -103,8 +103,16 @@ int OgHttp2Adapter::GetHpackEncoderDynamicTableSize() const {
   return session_->GetHpackEncoderDynamicTableSize();
 }
 
+int OgHttp2Adapter::GetHpackEncoderDynamicTableCapacity() const {
+  return session_->GetHpackEncoderDynamicTableCapacity();
+}
+
 int OgHttp2Adapter::GetHpackDecoderDynamicTableSize() const {
   return session_->GetHpackDecoderDynamicTableSize();
+}
+
+int OgHttp2Adapter::GetHpackDecoderSizeLimit() const {
+  return session_->GetHpackDecoderSizeLimit();
 }
 
 Http2StreamId OgHttp2Adapter::GetHighestReceivedStreamId() const {

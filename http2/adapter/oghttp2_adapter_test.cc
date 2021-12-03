@@ -870,6 +870,230 @@ TEST(OgHttp2AdapterClientTest, ClientRejectsHeaders) {
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
 }
 
+TEST(OgHttp2AdapterClientTest, ClientHandlesSmallerHpackHeaderTableSetting) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  testing::InSequence s;
+
+  const std::vector<const Header> headers1 = ToHeaders({
+      {":method", "GET"},
+      {":scheme", "http"},
+      {":authority", "example.com"},
+      {":path", "/this/is/request/one"},
+      {"x-i-do-not-like", "green eggs and ham"},
+      {"x-i-will-not-eat-them", "here or there, in a box, with a fox"},
+      {"x-like-them-in-a-house", "no"},
+      {"x-like-them-with-a-mouse", "no"},
+  });
+
+  const int32_t stream_id1 = adapter->SubmitRequest(headers1, nullptr, nullptr);
+  ASSERT_GT(stream_id1, 0);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  visitor.Clear();
+
+  EXPECT_GT(adapter->GetHpackEncoderDynamicTableSize(), 100);
+
+  const std::string stream_frames =
+      TestFrameSequence().Settings({{HEADER_TABLE_SIZE, 100u}}).Serialize();
+  // Server preface (SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{HEADER_TABLE_SIZE, 100u}));
+  // Duplicate setting callback due to the way extensions work.
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{HEADER_TABLE_SIZE, 100u}));
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
+
+  EXPECT_EQ(adapter->GetHpackEncoderDynamicTableCapacity(), 100);
+  EXPECT_LE(adapter->GetHpackEncoderDynamicTableSize(), 100);
+}
+
+TEST(OgHttp2AdapterClientTest, ClientHandlesLargerHpackHeaderTableSetting) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  testing::InSequence s;
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  visitor.Clear();
+
+  EXPECT_EQ(adapter->GetHpackEncoderDynamicTableCapacity(), 4096);
+
+  const std::string stream_frames =
+      TestFrameSequence().Settings({{HEADER_TABLE_SIZE, 40960u}}).Serialize();
+  // Server preface (SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{HEADER_TABLE_SIZE, 40960u}));
+  // Duplicate setting callback due to the way extensions work.
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{HEADER_TABLE_SIZE, 40960u}));
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
+
+  // The increased capacity will not be applied until a SETTINGS ack is
+  // serialized.
+  EXPECT_EQ(adapter->GetHpackEncoderDynamicTableCapacity(), 4096);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  visitor.Clear();
+
+  EXPECT_EQ(adapter->GetHpackEncoderDynamicTableCapacity(), 40960);
+}
+
+TEST(OgHttp2AdapterClientTest, ClientSendsHpackHeaderTableSetting) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  testing::InSequence s;
+
+  const std::vector<const Header> headers1 = ToHeaders({
+      {":method", "GET"},
+      {":scheme", "http"},
+      {":authority", "example.com"},
+      {":path", "/this/is/request/one"},
+  });
+
+  const int32_t stream_id1 = adapter->SubmitRequest(headers1, nullptr, nullptr);
+  ASSERT_GT(stream_id1, 0);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  visitor.Clear();
+
+  const std::string stream_frames =
+      TestFrameSequence()
+          .ServerPreface()
+          .SettingsAck()
+          .Headers(
+              1,
+              {{":status", "200"},
+               {"server", "my-fake-server"},
+               {"date", "Tue, 6 Apr 2021 12:54:01 GMT"},
+               {"x-i-do-not-like", "green eggs and ham"},
+               {"x-i-will-not-eat-them", "here or there, in a box, with a fox"},
+               {"x-like-them-in-a-house", "no"},
+               {"x-like-them-with-a-mouse", "no"}},
+              /*fin=*/true)
+          .Serialize();
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Server acks client's initial SETTINGS.
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 1));
+  EXPECT_CALL(visitor, OnSettingsAck());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(7);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
+
+  EXPECT_GT(adapter->GetHpackDecoderSizeLimit(), 100);
+
+  // Submit settings, check decoder table size.
+  adapter->SubmitSettings({{HEADER_TABLE_SIZE, 100u}});
+  EXPECT_GT(adapter->GetHpackDecoderSizeLimit(), 100);
+
+  // Server preface SETTINGS ack
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  // SETTINGS with the new header table size value
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
+
+  // Because the client has not yet seen an ack from the server for the SETTINGS
+  // with header table size, it has not applied the new value.
+  EXPECT_GT(adapter->GetHpackDecoderSizeLimit(), 100);
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  visitor.Clear();
+
+  const std::vector<const Header> headers2 = ToHeaders({
+      {":method", "GET"},
+      {":scheme", "http"},
+      {":authority", "example.com"},
+      {":path", "/this/is/request/two"},
+  });
+
+  const int32_t stream_id2 = adapter->SubmitRequest(headers2, nullptr, nullptr);
+  ASSERT_GT(stream_id2, stream_id1);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id2, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id2, _, 0x5, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  visitor.Clear();
+
+  const std::string response_frames =
+      TestFrameSequence()
+          .Headers(stream_id2,
+                   {{":status", "200"},
+                    {"server", "my-fake-server"},
+                    {"date", "Tue, 6 Apr 2021 12:54:01 GMT"}},
+                   /*fin=*/true)
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id2, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(stream_id2));
+  EXPECT_CALL(visitor, OnHeaderForStream(stream_id2, _, _)).Times(3);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(stream_id2));
+  EXPECT_CALL(visitor, OnEndStream(stream_id2));
+  EXPECT_CALL(visitor,
+              OnCloseStream(stream_id2, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  const int64_t response_result = adapter->ProcessBytes(response_frames);
+  EXPECT_EQ(response_frames.size(), static_cast<size_t>(response_result));
+
+  // Still no ack for the outbound settings.
+  EXPECT_GT(adapter->GetHpackDecoderSizeLimit(), 100);
+
+  const std::string settings_ack =
+      TestFrameSequence().SettingsAck().Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 1));
+  EXPECT_CALL(visitor, OnSettingsAck());
+
+  const int64_t ack_result = adapter->ProcessBytes(settings_ack);
+  EXPECT_EQ(settings_ack.size(), static_cast<size_t>(ack_result));
+  // Ack has finally arrived.
+  EXPECT_EQ(adapter->GetHpackDecoderSizeLimit(), 100);
+}
+
 // TODO(birenroy): Validate headers and re-enable this test. The library should
 // invoke OnErrorDebug() with an error message for the invalid header. The
 // library should also invoke OnInvalidFrame() for the invalid HEADERS frame.
