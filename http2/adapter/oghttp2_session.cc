@@ -223,7 +223,11 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
     return;
   }
   const auto validation_result = validator_.ValidateSingleHeader(key, value);
-  if (validation_result != HeaderValidator::HEADER_OK) {
+  if (validation_result == HeaderValidator::HEADER_VALUE_INVALID_STATUS) {
+    QUICHE_VLOG(2) << "RST_STREAM: invalid status found";
+    result_ = Http2VisitorInterface::HEADER_HTTP_MESSAGING;
+    return;
+  } else if (validation_result != HeaderValidator::HEADER_OK) {
     QUICHE_VLOG(2) << "RST_STREAM: invalid header found";
     // TODO(birenroy): consider updating this to return HEADER_HTTP_MESSAGING.
     result_ = Http2VisitorInterface::HEADER_RST_STREAM;

@@ -28,6 +28,7 @@ class QUICHE_EXPORT_PRIVATE HeaderValidator {
     HEADER_NAME_EMPTY,
     HEADER_NAME_INVALID_CHAR,
     HEADER_VALUE_INVALID_CHAR,
+    HEADER_VALUE_INVALID_STATUS,
   };
   HeaderStatus ValidateSingleHeader(absl::string_view key,
                                     absl::string_view value);

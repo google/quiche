@@ -1253,6 +1253,77 @@ TEST(OgHttp2AdapterClientTest, ClientFailsOnGoAway) {
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
 }
 
+TEST(OgHttp2AdapterClientTest, ClientRejects101Response) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  testing::InSequence s;
+
+  const std::vector<const Header> headers1 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"},
+                 {"upgrade", "new-protocol"}});
+
+  const int32_t stream_id1 = adapter->SubmitRequest(headers1, nullptr, nullptr);
+  ASSERT_GT(stream_id1, 0);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  absl::string_view data = visitor.data();
+  EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                  spdy::SpdyFrameType::HEADERS}));
+  visitor.Clear();
+
+  const std::string stream_frames =
+      TestFrameSequence()
+          .ServerPreface()
+          .Headers(1,
+                   {{":status", "101"},
+                    {"server", "my-fake-server"},
+                    {"date", "Tue, 6 Apr 2021 12:54:01 GMT"}},
+                   /*fin=*/false)
+          .Serialize();
+
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor,
+              OnInvalidFrame(
+                  1, Http2VisitorInterface::InvalidFrameError::kHttpMessaging));
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(static_cast<int64_t>(stream_frames.size()), stream_result);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, 4, 0x0));
+  EXPECT_CALL(
+      visitor,
+      OnFrameSent(RST_STREAM, 1, 4, 0x0,
+                  static_cast<uint32_t>(Http2ErrorCode::PROTOCOL_ERROR)));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  EXPECT_TRUE(adapter->want_write());
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::RST_STREAM}));
+}
+
 TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
