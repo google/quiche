@@ -39,7 +39,8 @@ struct QUICHE_EXPORT_PRIVATE Http2Setting {
   uint32_t value;
 };
 
-bool operator==(const Http2Setting& a, const Http2Setting& b);
+QUICHE_EXPORT_PRIVATE bool operator==(const Http2Setting& a,
+                                      const Http2Setting& b);
 
 // The maximum possible stream ID.
 const Http2StreamId kMaxStreamId = 0x7FFFFFFF;
