@@ -29,6 +29,10 @@ bool ValidateRequestHeaders(const std::vector<std::string>& pseudo_headers) {
   return pseudo_headers == *kRequiredHeaders;
 }
 
+bool ValidateRequestTrailers(const std::vector<std::string>& pseudo_headers) {
+  return pseudo_headers.empty();
+}
+
 bool ValidateResponseHeaders(const std::vector<std::string>& pseudo_headers) {
   static const std::vector<std::string>* kRequiredHeaders =
       new std::vector<std::string>({":status"});
@@ -91,6 +95,8 @@ bool HeaderValidator::FinishHeaderBlock(HeaderType type) {
   switch (type) {
     case HeaderType::REQUEST:
       return ValidateRequestHeaders(pseudo_headers_);
+    case HeaderType::REQUEST_TRAILER:
+      return ValidateRequestTrailers(pseudo_headers_);
     case HeaderType::RESPONSE_100:
     case HeaderType::RESPONSE:
       return ValidateResponseHeaders(pseudo_headers_);

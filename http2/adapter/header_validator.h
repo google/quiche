@@ -12,6 +12,7 @@ namespace adapter {
 
 enum class HeaderType : uint8_t {
   REQUEST,
+  REQUEST_TRAILER,
   RESPONSE_100,
   RESPONSE,
   RESPONSE_TRAILER,

@@ -210,6 +210,8 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
   result_ = Http2VisitorInterface::HEADER_OK;
   const bool status = visitor_.OnBeginHeadersForStream(stream_id_);
   if (!status) {
+    QUICHE_VLOG(1)
+        << "Visitor rejected header block, returning HEADER_CONNECTION_ERROR";
     result_ = Http2VisitorInterface::HEADER_CONNECTION_ERROR;
   }
   validator_.StartHeaderBlock();
@@ -241,12 +243,14 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
     size_t /* compressed_header_bytes */) {
   if (result_ == Http2VisitorInterface::HEADER_OK) {
     if (!validator_.FinishHeaderBlock(type_)) {
+      QUICHE_VLOG(1)
+          << "FinishHeaderBlock returned false; returning HEADER_RST_STREAM";
       result_ = Http2VisitorInterface::HEADER_RST_STREAM;
     }
   }
   if (frame_contains_fin_ && IsResponse(type_) &&
       StatusIs1xx(status_header())) {
-    // Unexpected end of stream without final headers.
+    QUICHE_VLOG(1) << "Unexpected end of stream without final headers";
     result_ = Http2VisitorInterface::HEADER_HTTP_MESSAGING;
   }
   if (result_ == Http2VisitorInterface::HEADER_OK) {
@@ -586,9 +590,14 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
     connection_can_write = SendMetadata(stream_id, state.outbound_metadata);
   }
 
-  if (state.outbound_body == nullptr) {
+  if (state.outbound_body == nullptr ||
+      (!options_.trailers_require_end_data && state.data_deferred)) {
     // No data to send, but there might be trailers.
     if (state.trailers != nullptr) {
+      // Trailers will include END_STREAM, so the data source can be discarded.
+      // Since data_deferred is true, there is no data waiting to be flushed for
+      // this stream.
+      state.outbound_body = nullptr;
       auto block_ptr = std::move(state.trailers);
       if (state.half_closed_local) {
         QUICHE_LOG(ERROR) << "Sent fin; can't send trailers.";
@@ -775,10 +784,7 @@ int OgHttp2Session::SubmitTrailer(Http2StreamId stream_id,
     // Save trailers so they can be written once data is done.
     state.trailers =
         absl::make_unique<spdy::SpdyHeaderBlock>(ToHeaderBlock(trailers));
-    if (!options_.trailers_require_end_data) {
-      iter->second.data_deferred = false;
-    }
-    if (!iter->second.data_deferred) {
+    if (!options_.trailers_require_end_data || !iter->second.data_deferred) {
       write_scheduler_.MarkStreamReady(stream_id, false);
     }
   }
@@ -1022,6 +1028,10 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
   }
   if (options_.perspective == Perspective::kServer) {
     const auto new_stream_id = static_cast<Http2StreamId>(stream_id);
+    if (stream_map_.find(new_stream_id) != stream_map_.end() && fin) {
+      // Not a new stream, must be trailers.
+      return;
+    }
     if (new_stream_id <= highest_processed_stream_id_) {
       // A new stream ID lower than the watermark is a connection error.
       LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
@@ -1341,7 +1351,12 @@ bool OgHttp2Session::CanCreateStream() const {
 HeaderType OgHttp2Session::NextHeaderType(
     absl::optional<HeaderType> current_type) {
   if (IsServerSession()) {
-    return HeaderType::REQUEST;
+    if (!current_type) {
+      return HeaderType::REQUEST;
+    } else {
+      QUICHE_DCHECK(current_type == HeaderType::REQUEST);
+      return HeaderType::REQUEST_TRAILER;
+    }
   } else if (!current_type ||
              current_type.value() == HeaderType::RESPONSE_100) {
     return HeaderType::RESPONSE;
