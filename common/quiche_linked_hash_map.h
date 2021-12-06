@@ -41,7 +41,7 @@ template <class Key,                      // QUICHE_NO_EXPORT
           class Value,                    // QUICHE_NO_EXPORT
           class Hash = absl::Hash<Key>,   // QUICHE_NO_EXPORT
           class Eq = std::equal_to<Key>>  // QUICHE_NO_EXPORT
-class QUICHE_EXPORT_PRIVATE QuicheLinkedHashMap {
+class QuicheLinkedHashMap {               // QUICHE_NO_EXPORT
  private:
   typedef std::list<std::pair<Key, Value>> ListType;
   typedef absl::node_hash_map<Key, typename ListType::iterator, Hash, Eq>
