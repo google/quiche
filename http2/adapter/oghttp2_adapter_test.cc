@@ -3083,23 +3083,30 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsNewStreamAboveStreamLimit) {
   EXPECT_CALL(
       visitor,
       OnInvalidFrame(3, Http2VisitorInterface::InvalidFrameError::kProtocol));
+  // The oghttp2 stack also signals the connection error via OnConnectionError()
+  // and a negative ProcessBytes() return value.
+  EXPECT_CALL(visitor,
+              OnConnectionError(Http2VisitorInterface::ConnectionError::
+                                    kExceededMaxConcurrentStreams));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
-  EXPECT_EQ(static_cast<size_t>(stream_result), stream_frames.size());
+  EXPECT_LT(stream_result, 0);
 
-  // The server should send a RST_STREAM for the offending stream.
+  // The server should send a GOAWAY for this error, even though
+  // OnInvalidFrame() returns true.
   EXPECT_TRUE(adapter->want_write());
-  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 3, _, 0x0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
   EXPECT_CALL(visitor,
-              OnFrameSent(RST_STREAM, 3, _, 0x0,
+              OnFrameSent(GOAWAY, 0, _, 0x0,
                           static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::GOAWAY}));
 }
 
-TEST(OgHttp2AdapterServerTest, ServerAllowsNewStreamAboveStreamLimitBeforeAck) {
+TEST(OgHttp2AdapterServerTest,
+     ServerRstStreamsNewStreamAboveStreamLimitBeforeAck) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
   auto adapter = OgHttp2Adapter::Create(visitor, options);
@@ -3133,8 +3140,8 @@ TEST(OgHttp2AdapterServerTest, ServerAllowsNewStreamAboveStreamLimitBeforeAck) {
   visitor.Clear();
 
   // Let the client avoid sending a SETTINGS ack and attempt to open more than
-  // the advertised number of streams. The overflow stream should be allowed,
-  // due to the lack of SETTINGS ack.
+  // the advertised number of streams. The server should still reject the
+  // overflow stream, albeit with RST_STREAM REFUSED_STREAM instead of GOAWAY.
   const std::string stream_frames =
       TestFrameSequence()
           .Headers(1,
@@ -3157,15 +3164,23 @@ TEST(OgHttp2AdapterServerTest, ServerAllowsNewStreamAboveStreamLimitBeforeAck) {
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
   EXPECT_CALL(visitor, OnEndStream(1));
   EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 0x5));
-  EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
-  EXPECT_CALL(visitor, OnHeaderForStream(3, _, _)).Times(4);
-  EXPECT_CALL(visitor, OnEndHeadersForStream(3));
-  EXPECT_CALL(visitor, OnEndStream(3));
+  EXPECT_CALL(visitor,
+              OnInvalidFrame(
+                  3, Http2VisitorInterface::InvalidFrameError::kRefusedStream));
 
-  // The server should process the bytes without complaint.
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(static_cast<size_t>(stream_result), stream_frames.size());
-  EXPECT_FALSE(adapter->want_write());
+
+  // The server sends a RST_STREAM for the offending stream.
+  EXPECT_TRUE(adapter->want_write());
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 3, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(RST_STREAM, 3, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::REFUSED_STREAM)));
+
+  send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::RST_STREAM}));
 }
 
 }  // namespace

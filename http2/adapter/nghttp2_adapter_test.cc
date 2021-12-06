@@ -3243,7 +3243,7 @@ TEST(NgHttp2AdapterTest, ServerForbidsNewStreamAboveStreamLimit) {
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
-  // Apparently nghttp2 sends a GOAWAY for this error, even though
+  // The server should send a GOAWAY for this error, even though
   // OnInvalidFrame() returns true.
   EXPECT_TRUE(adapter->want_write());
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
@@ -3289,8 +3289,8 @@ TEST(NgHttp2AdapterTest, ServerRstStreamsNewStreamAboveStreamLimitBeforeAck) {
   visitor.Clear();
 
   // Let the client avoid sending a SETTINGS ack and attempt to open more than
-  // the advertised number of streams. Apparently nghttp2 still rejects the
-  // overflow stream, albeit with a RST_STREAM by default instead of a GOAWAY.
+  // the advertised number of streams. The server should still reject the
+  // overflow stream, albeit with RST_STREAM REFUSED_STREAM instead of GOAWAY.
   const std::string stream_frames =
       TestFrameSequence()
           .Headers(1,
@@ -3318,7 +3318,7 @@ TEST(NgHttp2AdapterTest, ServerRstStreamsNewStreamAboveStreamLimitBeforeAck) {
                   3, Http2VisitorInterface::InvalidFrameError::kRefusedStream));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
-  EXPECT_EQ(stream_frames.size(), stream_result);
+  EXPECT_EQ(stream_result, stream_frames.size());
 
   // The server sends a RST_STREAM for the offending stream.
   EXPECT_TRUE(adapter->want_write());

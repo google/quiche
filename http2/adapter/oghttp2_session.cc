@@ -1030,16 +1030,24 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
     }
 
     if (stream_map_.size() >= max_inbound_concurrent_streams_) {
-      // The new stream would exceed our advertised MAX_CONCURRENT_STREAMS.
-      // Currently, use PROTOCOL_ERROR for behavior parity in Envoy.
-      // TODO(diannahu): Change to GOAWAY, and add RST_STREAM for exceeding the
-      // pending max inbound concurrent streams value.
-      EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
-          stream_id, spdy::ERROR_CODE_PROTOCOL_ERROR));
-      const bool ok = visitor_.OnInvalidFrame(
+      // The new stream would exceed our advertised and acknowledged
+      // MAX_CONCURRENT_STREAMS. For parity with nghttp2, treat this error as a
+      // connection-level PROTOCOL_ERROR.
+      visitor_.OnInvalidFrame(
           stream_id, Http2VisitorInterface::InvalidFrameError::kProtocol);
+      LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
+                          ConnectionError::kExceededMaxConcurrentStreams);
+      return;
+    }
+    if (stream_map_.size() >= pending_max_inbound_concurrent_streams_) {
+      // The new stream would exceed our advertised but unacked
+      // MAX_CONCURRENT_STREAMS. Refuse the stream for parity with nghttp2.
+      EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+          stream_id, spdy::ERROR_CODE_REFUSED_STREAM));
+      const bool ok = visitor_.OnInvalidFrame(
+          stream_id, Http2VisitorInterface::InvalidFrameError::kRefusedStream);
       if (!ok) {
-        LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
+        LatchErrorAndNotify(Http2ErrorCode::REFUSED_STREAM,
                             ConnectionError::kExceededMaxConcurrentStreams);
       }
       return;
@@ -1206,6 +1214,10 @@ std::unique_ptr<SpdySettingsIR> OgHttp2Session::PrepareSettingsFrame(
   auto settings_ir = absl::make_unique<SpdySettingsIR>();
   for (const Http2Setting& setting : settings) {
     settings_ir->AddSetting(setting.id, setting.value);
+
+    if (setting.id == Http2KnownSettingsId::MAX_CONCURRENT_STREAMS) {
+      pending_max_inbound_concurrent_streams_ = setting.value;
+    }
   }
 
   // Copy the (small) map of settings we are about to send so that we can set

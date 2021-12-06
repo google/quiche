@@ -410,8 +410,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // is unlimited, the spec encourages a value of at least 100. We limit
   // ourselves to opening 100 until told otherwise by the peer and allow an
   // unlimited number from the peer until updated from SETTINGS we send.
-  // TODO(diannahu): Add a pending/unacked max inbound concurrent streams value.
   uint32_t max_outbound_concurrent_streams_ = 100u;
+  uint32_t pending_max_inbound_concurrent_streams_ =
+      std::numeric_limits<uint32_t>::max();
   uint32_t max_inbound_concurrent_streams_ =
       std::numeric_limits<uint32_t>::max();
   Options options_;
