@@ -2544,9 +2544,6 @@ TEST(OgHttp2AdapterServerTest, ServerErrorWhileHandlingHeaders) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, "accept", "some bogus value!"))
       .WillOnce(testing::Return(Http2VisitorInterface::HEADER_RST_STREAM));
-  EXPECT_CALL(
-      visitor,
-      OnInvalidFrame(1, Http2VisitorInterface::InvalidFrameError::kHttpHeader));
   EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor, OnWindowUpdate(1, 2000));
   EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 0));
@@ -2610,9 +2607,9 @@ TEST(OgHttp2AdapterServerTest, ServerConnectionErrorWhileHandlingHeaders) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
-  EXPECT_CALL(
-      visitor,
-      OnInvalidFrame(1, Http2VisitorInterface::InvalidFrameError::kHttpHeader))
+  EXPECT_CALL(visitor,
+              OnInvalidFrame(
+                  1, Http2VisitorInterface::InvalidFrameError::kHttpMessaging))
       .WillOnce(testing::Return(false));
   EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kHeaderError));
 
@@ -2628,12 +2625,12 @@ TEST(OgHttp2AdapterServerTest, ServerConnectionErrorWhileHandlingHeaders) {
   EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, 4, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(RST_STREAM, 1, 4, 0x0,
-                          static_cast<int>(Http2ErrorCode::INTERNAL_ERROR)));
+                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(GOAWAY, 0, _, 0x0,
-                          static_cast<int>(Http2ErrorCode::INTERNAL_ERROR)));
+                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
 
   int send_result = adapter->Send();
   // Some bytes should have been serialized.

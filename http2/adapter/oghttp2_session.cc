@@ -225,14 +225,10 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
     return;
   }
   const auto validation_result = validator_.ValidateSingleHeader(key, value);
-  if (validation_result == HeaderValidator::HEADER_VALUE_INVALID_STATUS) {
-    QUICHE_VLOG(2) << "RST_STREAM: invalid status found";
+  if (validation_result != HeaderValidator::HEADER_OK) {
+    QUICHE_VLOG(2) << "RST_STREAM HEADER_HTTP_MESSAGING with result "
+                   << static_cast<int>(validation_result);
     result_ = Http2VisitorInterface::HEADER_HTTP_MESSAGING;
-    return;
-  } else if (validation_result != HeaderValidator::HEADER_OK) {
-    QUICHE_VLOG(2) << "RST_STREAM: invalid header found";
-    // TODO(birenroy): consider updating this to return HEADER_HTTP_MESSAGING.
-    result_ = Http2VisitorInterface::HEADER_RST_STREAM;
     return;
   }
   result_ = visitor_.OnHeaderForStream(stream_id_, key, value);
@@ -243,9 +239,9 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
     size_t /* compressed_header_bytes */) {
   if (result_ == Http2VisitorInterface::HEADER_OK) {
     if (!validator_.FinishHeaderBlock(type_)) {
-      QUICHE_VLOG(1)
-          << "FinishHeaderBlock returned false; returning HEADER_RST_STREAM";
-      result_ = Http2VisitorInterface::HEADER_RST_STREAM;
+      QUICHE_VLOG(1) << "FinishHeaderBlock returned false; returning "
+                        "HEADER_HTTP_MESSAGING";
+      result_ = Http2VisitorInterface::HEADER_HTTP_MESSAGING;
     }
   }
   if (frame_contains_fin_ && IsResponse(type_) &&
@@ -1144,9 +1140,11 @@ void OgHttp2Session::OnHeaderStatus(
       EnqueueFrame(
           absl::make_unique<spdy::SpdyRstStreamIR>(stream_id, spdy_error_code));
 
-      const bool ok = visitor_.OnInvalidFrame(stream_id, frame_error);
-      if (!ok) {
-        LatchErrorAndNotify(error_code, ConnectionError::kHeaderError);
+      if (result == Http2VisitorInterface::HEADER_HTTP_MESSAGING) {
+        const bool ok = visitor_.OnInvalidFrame(stream_id, frame_error);
+        if (!ok) {
+          LatchErrorAndNotify(error_code, ConnectionError::kHeaderError);
+        }
       }
     }
   } else if (result == Http2VisitorInterface::HEADER_CONNECTION_ERROR) {
