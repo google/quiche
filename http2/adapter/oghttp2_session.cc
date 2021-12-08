@@ -279,6 +279,14 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
       options_(options) {
   decoder_.set_visitor(&receive_logger_);
   decoder_.set_extension_visitor(this);
+  if (options_.max_header_list_bytes) {
+    // Limit buffering of encoded HPACK data to 2x the decoded limit.
+    decoder_.GetHpackDecoder()->set_max_decode_buffer_size_bytes(
+        2 * *options_.max_header_list_bytes);
+    // Limit the total bytes accepted for HPACK decoding to 4x the limit.
+    decoder_.GetHpackDecoder()->set_max_header_block_bytes(
+        4 * *options_.max_header_list_bytes);
+  }
   if (options_.perspective == Perspective::kServer) {
     remaining_preface_ = {spdy::kHttp2ConnectionHeaderPrefix,
                           spdy::kHttp2ConnectionHeaderPrefixSize};
@@ -1213,6 +1221,10 @@ std::vector<Http2Setting> OgHttp2Session::GetInitialSettings() const {
     // disabled, so the server does not need to send this disabling setting.
     // TODO(diannahu): Consider applying server push disabling on SETTINGS ack.
     settings.push_back({Http2KnownSettingsId::ENABLE_PUSH, 0});
+  }
+  if (options_.max_header_list_bytes) {
+    settings.push_back({Http2KnownSettingsId::MAX_HEADER_LIST_SIZE,
+                        *options_.max_header_list_bytes});
   }
   return settings;
 }

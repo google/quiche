@@ -40,6 +40,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     Perspective perspective = Perspective::kClient;
     // The maximum HPACK table size to use.
     absl::optional<size_t> max_hpack_encoding_table_capacity = absl::nullopt;
+    // The maximum number of decoded header bytes that a stream can receive.
+    absl::optional<uint32_t> max_header_list_bytes = absl::nullopt;
     // Whether to automatically send PING acks when receiving a PING.
     bool auto_ping_ack = true;
     // Whether (as server) to send a RST_STREAM NO_ERROR when sending a fin on
