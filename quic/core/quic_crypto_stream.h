@@ -245,6 +245,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   virtual void OnDataAvailableInSequencer(QuicStreamSequencer* sequencer,
                                           EncryptionLevel level);
 
+  QuicStreamSequencer* GetStreamSequencerForLevel(EncryptionLevel level) {
+    return &substreams_[level].sequencer;
+  }
+
  private:
   // Data sent and received in CRYPTO frames is sent at multiple encryption
   // levels. Some of the state for the single logical crypto stream is split

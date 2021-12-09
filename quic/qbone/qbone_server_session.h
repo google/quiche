@@ -82,9 +82,10 @@ class QUIC_EXPORT_PRIVATE QboneServerSession
   // The packet processor.
   QbonePacketProcessor processor_;
 
- private:
   // Config for QUIC crypto server stream, used by the server.
   const QuicCryptoServerConfig* quic_crypto_server_config_;
+
+ private:
   // Used by QUIC crypto server stream to track most recently compressed certs.
   QuicCompressedCertsCache* compressed_certs_cache_;
   // This helper is needed when create QuicCryptoServerStream.

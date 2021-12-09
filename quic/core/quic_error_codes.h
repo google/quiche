@@ -608,9 +608,10 @@ enum QuicErrorCode {
   QUIC_TLS_UNEXPECTED_KEYING_MATERIAL_EXPORT_LABEL = 208,
   QUIC_TLS_KEYING_MATERIAL_EXPORTS_MISMATCH = 209,
   QUIC_TLS_KEYING_MATERIAL_EXPORT_NOT_AVAILABLE = 210,
+  QUIC_UNEXPECTED_DATA_BEFORE_ENCRYPTION_ESTABLISHED = 211,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 211,
+  QUIC_LAST_ERROR = 212,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
