@@ -125,7 +125,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   }
   bool want_write() const override {
     return !frames_.empty() || !buffered_data_.empty() ||
-           write_scheduler_.HasReadyStreams() || !connection_metadata_.empty();
+           !connection_metadata_.empty() || HasReadyStream();
   }
   int GetRemoteWindowSize() const override { return connection_send_window_; }
 
@@ -285,6 +285,13 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     SEND_ERROR,
   };
 
+  // Returns true if at least one stream has data or control frames to write.
+  bool HasReadyStream() const;
+
+  // Returns the next stream that has something to write. If there are no such
+  // streams, returns zero.
+  Http2StreamId GetNextReadyStream();
+
   // Sends the buffered connection preface or serialized frame data, if any.
   SendResult MaybeSendBufferedData();
 
@@ -391,7 +398,13 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   WindowManager connection_window_manager_;
 
   absl::flat_hash_set<Http2StreamId> streams_reset_;
+
+  // The number of frames currently queued per stream.
   absl::flat_hash_map<Http2StreamId, int> queued_frames_;
+  // Includes streams that are currently ready to write trailers.
+  absl::flat_hash_set<Http2StreamId> trailers_ready_;
+  // Includes streams that are currently ready to write metadata.
+  absl::flat_hash_set<Http2StreamId> metadata_ready_;
 
   MetadataSequence connection_metadata_;
 

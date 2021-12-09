@@ -482,9 +482,8 @@ int OgHttp2Session::Send() {
     continue_writing = SendMetadata(0, connection_metadata_);
   }
   // Wake streams for writes.
-  while (continue_writing == SendResult::SEND_OK &&
-         write_scheduler_.HasReadyStreams() && connection_send_window_ > 0) {
-    const Http2StreamId stream_id = write_scheduler_.PopNextReadyStream();
+  while (continue_writing == SendResult::SEND_OK && HasReadyStream()) {
+    const Http2StreamId stream_id = GetNextReadyStream();
     // TODO(birenroy): Add a return value to indicate write blockage, so streams
     // aren't woken unnecessarily.
     QUICHE_VLOG(1) << "Waking stream " << stream_id << " for writes.";
@@ -494,6 +493,28 @@ int OgHttp2Session::Send() {
     continue_writing = SendQueuedFrames();
   }
   return continue_writing == SendResult::SEND_ERROR ? -1 : 0;
+}
+
+bool OgHttp2Session::HasReadyStream() const {
+  return !metadata_ready_.empty() || !trailers_ready_.empty() ||
+         (write_scheduler_.HasReadyStreams() && connection_send_window_ > 0);
+}
+
+Http2StreamId OgHttp2Session::GetNextReadyStream() {
+  QUICHE_DCHECK(HasReadyStream());
+  if (!metadata_ready_.empty()) {
+    const Http2StreamId stream_id = *metadata_ready_.begin();
+    // WriteForStream() will re-mark the stream as ready, if necessary.
+    write_scheduler_.MarkStreamNotReady(stream_id);
+    return stream_id;
+  }
+  if (!trailers_ready_.empty()) {
+    const Http2StreamId stream_id = *trailers_ready_.begin();
+    // WriteForStream() will re-mark the stream as ready, if necessary.
+    write_scheduler_.MarkStreamNotReady(stream_id);
+    return stream_id;
+  }
+  return write_scheduler_.PopNextReadyStream();
 }
 
 OgHttp2Session::SendResult OgHttp2Session::MaybeSendBufferedData() {
@@ -692,7 +713,8 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
   if (connection_can_write != SendResult::SEND_OK) {
     return connection_can_write;
   }
-  return available_window <= 0 ? SendResult::SEND_BLOCKED : SendResult::SEND_OK;
+  return connection_send_window_ <= 0 ? SendResult::SEND_BLOCKED
+                                      : SendResult::SEND_OK;
 }
 
 OgHttp2Session::SendResult OgHttp2Session::SendMetadata(
@@ -719,6 +741,7 @@ OgHttp2Session::SendResult OgHttp2Session::SendMetadata(
         std::string(payload)));
     if (end_metadata) {
       sequence.erase(sequence.begin());
+      metadata_ready_.erase(stream_id);
     }
   }
   return SendQueuedFrames();
@@ -789,7 +812,7 @@ int OgHttp2Session::SubmitTrailer(Http2StreamId stream_id,
     state.trailers =
         absl::make_unique<spdy::SpdyHeaderBlock>(ToHeaderBlock(trailers));
     if (!options_.trailers_require_end_data || !iter->second.data_deferred) {
-      write_scheduler_.MarkStreamReady(stream_id, false);
+      trailers_ready_.insert(stream_id);
     }
   }
   return 0;
@@ -802,7 +825,7 @@ void OgHttp2Session::SubmitMetadata(Http2StreamId stream_id,
   } else {
     auto iter = CreateStream(stream_id);
     iter->second.outbound_metadata.push_back(std::move(source));
-    write_scheduler_.MarkStreamReady(stream_id, false);
+    metadata_ready_.insert(stream_id);
   }
 }
 
@@ -1089,6 +1112,7 @@ void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
     } else {
       if (it->second.send_window == 0) {
         // The stream was blocked on flow control.
+        QUICHE_VLOG(1) << "Marking stream " << stream_id << " ready to write.";
         write_scheduler_.MarkStreamReady(stream_id, false);
       }
       it->second.send_window += delta_window_size;
@@ -1277,6 +1301,7 @@ void OgHttp2Session::SendTrailers(Http2StreamId stream_id,
       absl::make_unique<spdy::SpdyHeadersIR>(stream_id, std::move(trailers));
   frame->set_fin(true);
   EnqueueFrame(std::move(frame));
+  trailers_ready_.erase(stream_id);
 }
 
 void OgHttp2Session::MaybeFinWithRstStream(StreamStateMap::iterator iter) {
@@ -1341,6 +1366,8 @@ void OgHttp2Session::CloseStream(Http2StreamId stream_id,
                                  Http2ErrorCode error_code) {
   visitor_.OnCloseStream(stream_id, error_code);
   stream_map_.erase(stream_id);
+  trailers_ready_.erase(stream_id);
+  metadata_ready_.erase(stream_id);
   if (write_scheduler_.StreamRegistered(stream_id)) {
     write_scheduler_.UnregisterStream(stream_id);
   }
