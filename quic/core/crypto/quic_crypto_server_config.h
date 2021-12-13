@@ -264,7 +264,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   void SetSourceAddressTokenKeys(const std::vector<std::string>& keys);
 
   // Get the server config ids for all known configs.
-  void GetConfigIds(std::vector<std::string>* scids) const;
+  std::vector<std::string> GetConfigIds() const;
 
   // Checks |client_hello| for gross errors and determines whether it can be
   // shown to be fresh (i.e. not a replay).  The result of the validation step

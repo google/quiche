@@ -515,12 +515,13 @@ void QuicCryptoServerConfig::SetSourceAddressTokenKeys(
   source_address_token_boxer_.SetKeys(keys);
 }
 
-void QuicCryptoServerConfig::GetConfigIds(
-    std::vector<std::string>* scids) const {
+std::vector<std::string> QuicCryptoServerConfig::GetConfigIds() const {
   QuicReaderMutexLock locked(&configs_lock_);
+  std::vector<std::string> scids;
   for (auto it = configs_.begin(); it != configs_.end(); ++it) {
-    scids->push_back(it->first);
+    scids.push_back(it->first);
   }
+  return scids;
 }
 
 void QuicCryptoServerConfig::ValidateClientHello(
