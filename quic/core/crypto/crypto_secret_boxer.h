@@ -34,13 +34,15 @@ class QUIC_EXPORT_PRIVATE CryptoSecretBoxer {
   // SetKeys sets a list of encryption keys. The first key in the list will be
   // used by |Box|, but all supplied keys will be tried by |Unbox|, to handle
   // key skew across the fleet. This must be called before |Box| or |Unbox|.
-  // Keys must be |GetKeySize()| bytes long.
-  void SetKeys(const std::vector<std::string>& keys);
+  // Keys must be |GetKeySize()| bytes long. No change is made if any key is
+  // invalid, or if there are no keys supplied.
+  bool SetKeys(const std::vector<std::string>& keys);
 
   // Box encrypts |plaintext| using a random nonce generated from |rand| and
   // returns the resulting ciphertext. Since an authenticator and nonce are
   // included, the result will be slightly larger than |plaintext|. The first
-  // key in the vector supplied to |SetKeys| will be used.
+  // key in the vector supplied to |SetKeys| will be used. |SetKeys| must be
+  // called before calling this method.
   std::string Box(QuicRandom* rand, absl::string_view plaintext) const;
 
   // Unbox takes the result of a previous call to |Box| in |ciphertext| and

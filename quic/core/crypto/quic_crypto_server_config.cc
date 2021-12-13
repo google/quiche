@@ -512,6 +512,7 @@ bool QuicCryptoServerConfig::SetConfigs(
 
 void QuicCryptoServerConfig::SetSourceAddressTokenKeys(
     const std::vector<std::string>& keys) {
+  // TODO(b/208866709)
   source_address_token_boxer_.SetKeys(keys);
 }
 
@@ -1576,9 +1577,14 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
   std::unique_ptr<CryptoHandshakeMessage> msg =
       CryptoFramer::ParseMessage(protobuf.config());
 
+  if (!msg) {
+    QUIC_LOG(WARNING) << "Failed to parse server config message";
+    return nullptr;
+  }
+
   if (msg->tag() != kSCFG) {
     QUIC_LOG(WARNING) << "Server config message has tag " << msg->tag()
-                      << " expected " << kSCFG;
+                      << ", but expected " << kSCFG;
     return nullptr;
   }
 

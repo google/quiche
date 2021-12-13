@@ -56,9 +56,9 @@ TEST_F(CryptoSecretBoxerTest, MultipleKeys) {
   std::string key_12(CryptoSecretBoxer::GetKeySize(), 0x12);
 
   CryptoSecretBoxer boxer_11, boxer_12, boxer;
-  boxer_11.SetKeys({key_11});
-  boxer_12.SetKeys({key_12});
-  boxer.SetKeys({key_12, key_11});
+  EXPECT_TRUE(boxer_11.SetKeys({key_11}));
+  EXPECT_TRUE(boxer_12.SetKeys({key_12}));
+  EXPECT_TRUE(boxer.SetKeys({key_12, key_11}));
 
   // Neither single-key boxer can decode the other's tokens.
   EXPECT_FALSE(CanDecode(boxer_11, boxer_12));
@@ -74,7 +74,7 @@ TEST_F(CryptoSecretBoxerTest, MultipleKeys) {
 
   // After we flush key_11 from |boxer|, it can no longer decode tokens from
   // |boxer_11|.
-  boxer.SetKeys({key_12});
+  EXPECT_TRUE(boxer.SetKeys({key_12}));
   EXPECT_FALSE(CanDecode(boxer, boxer_11));
 }
 
