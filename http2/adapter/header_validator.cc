@@ -59,20 +59,20 @@ void HeaderValidator::StartHeaderBlock() {
 HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
     absl::string_view key, absl::string_view value) {
   if (key.empty()) {
-    return HEADER_NAME_EMPTY;
+    return HEADER_FIELD_INVALID;
   }
   const absl::string_view validated_key = key[0] == ':' ? key.substr(1) : key;
   if (validated_key.find_first_not_of(kHttp2HeaderNameAllowedChars) !=
       absl::string_view::npos) {
     QUICHE_VLOG(2) << "invalid chars in header name: ["
                    << absl::CEscape(validated_key) << "]";
-    return HEADER_NAME_INVALID_CHAR;
+    return HEADER_FIELD_INVALID;
   }
   if (value.find_first_not_of(kHttp2HeaderValueAllowedChars) !=
       absl::string_view::npos) {
     QUICHE_VLOG(2) << "invalid chars in header value: [" << absl::CEscape(value)
                    << "]";
-    return HEADER_VALUE_INVALID_CHAR;
+    return HEADER_FIELD_INVALID;
   }
   if (key[0] == ':') {
     if (key == ":status") {
@@ -81,11 +81,11 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
               absl::string_view::npos) {
         QUICHE_VLOG(2) << "malformed status value: [" << absl::CEscape(value)
                        << "]";
-        return HEADER_VALUE_INVALID_CHAR;
+        return HEADER_FIELD_INVALID;
       }
       if (value == "101") {
         // Switching protocols is not allowed on a HTTP/2 stream.
-        return HEADER_VALUE_INVALID_STATUS;
+        return HEADER_FIELD_INVALID;
       }
       status_ = std::string(value);
     } else if (key == ":method") {

@@ -10,7 +10,7 @@ namespace test {
 TEST(HeaderValidatorTest, HeaderNameEmpty) {
   HeaderValidator v;
   HeaderValidator::HeaderStatus status = v.ValidateSingleHeader("", "value");
-  EXPECT_EQ(HeaderValidator::HEADER_NAME_EMPTY, status);
+  EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
 }
 
 TEST(HeaderValidatorTest, HeaderValueEmpty) {
@@ -37,13 +37,13 @@ TEST(HeaderValidatorTest, NameHasInvalidChar) {
                                                 : absl::StrCat("na", c, "me");
       HeaderValidator::HeaderStatus status =
           v.ValidateSingleHeader(name, "value");
-      EXPECT_EQ(HeaderValidator::HEADER_NAME_INVALID_CHAR, status);
+      EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
     }
     // Uppercase characters in header names should not be allowed.
     const std::string uc_name = is_pseudo_header ? ":Method" : "Name";
     HeaderValidator::HeaderStatus status =
         v.ValidateSingleHeader(uc_name, "value");
-    EXPECT_EQ(HeaderValidator::HEADER_NAME_INVALID_CHAR, status);
+    EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
   }
 }
 
@@ -60,7 +60,7 @@ TEST(HeaderValidatorTest, ValueHasInvalidChar) {
   for (const char* c : {"\r", "\n"}) {
     HeaderValidator::HeaderStatus status =
         v.ValidateSingleHeader("name", absl::StrCat("val", c, "ue"));
-    EXPECT_EQ(HeaderValidator::HEADER_VALUE_INVALID_CHAR, status);
+    EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
   }
 }
 
@@ -70,19 +70,19 @@ TEST(HeaderValidatorTest, StatusHasInvalidChar) {
   for (HeaderType type : {HeaderType::RESPONSE, HeaderType::RESPONSE_100}) {
     // When `:status` has a non-digit value, validation will fail.
     v.StartHeaderBlock();
-    EXPECT_EQ(HeaderValidator::HEADER_VALUE_INVALID_CHAR,
+    EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
               v.ValidateSingleHeader(":status", "bar"));
     EXPECT_FALSE(v.FinishHeaderBlock(type));
 
     // When `:status` is too short, validation will fail.
     v.StartHeaderBlock();
-    EXPECT_EQ(HeaderValidator::HEADER_VALUE_INVALID_CHAR,
+    EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
               v.ValidateSingleHeader(":status", "10"));
     EXPECT_FALSE(v.FinishHeaderBlock(type));
 
     // When `:status` is too long, validation will fail.
     v.StartHeaderBlock();
-    EXPECT_EQ(HeaderValidator::HEADER_VALUE_INVALID_CHAR,
+    EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
               v.ValidateSingleHeader(":status", "9000"));
     EXPECT_FALSE(v.FinishHeaderBlock(type));
 
