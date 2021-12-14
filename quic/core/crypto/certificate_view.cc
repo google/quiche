@@ -49,14 +49,6 @@ constexpr uint8_t kX509Version[] = {0x02, 0x01, 0x02};
 // 2.5.29.17
 constexpr uint8_t kSubjectAltNameOid[] = {0x55, 0x1d, 0x11};
 
-enum class PublicKeyType {
-  kRsa,
-  kP256,
-  kP384,
-  kEd25519,
-  kUnknown,
-};
-
 PublicKeyType PublicKeyTypeFromKey(EVP_PKEY* public_key) {
   switch (EVP_PKEY_id(public_key)) {
     case EVP_PKEY_RSA:
@@ -469,11 +461,13 @@ std::vector<std::string> CertificateView::LoadPemFromStream(
   }
 }
 
+PublicKeyType CertificateView::public_key_type() {
+  return PublicKeyTypeFromKey(public_key_.get());
+}
+
 bool CertificateView::ValidatePublicKeyParameters() {
-  // The profile here affects what certificates can be used:
-  // (1) when QUIC is used as a server library without any custom certificate
-  //     provider logic,
-  // (2) when QuicTransport is handling self-signed certificates.
+  // The profile here affects what certificates can be used when QUIC is used as
+  // a server library without any custom certificate provider logic.
   // The goal is to allow at minimum any certificate that would be allowed on a
   // regular Web session over TLS 1.3 while ensuring we do not expose any
   // algorithms we don't want to support long-term.

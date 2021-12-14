@@ -34,6 +34,15 @@ struct QUIC_EXPORT_PRIVATE PemReadResult {
 // Reads |input| line-by-line and returns the next available PEM message.
 QUIC_EXPORT_PRIVATE PemReadResult ReadNextPemMessage(std::istream* input);
 
+// Cryptograhpic algorithms recognized in X.509.
+enum class PublicKeyType {
+  kRsa,
+  kP256,
+  kP384,
+  kEd25519,
+  kUnknown,
+};
+
 // CertificateView represents a parsed version of a single X.509 certificate. As
 // the word "view" implies, it does not take ownership of the underlying strings
 // and consists primarily of pointers into the certificate that is passed into
@@ -68,6 +77,9 @@ class QUIC_EXPORT_PRIVATE CertificateView {
   bool VerifySignature(absl::string_view data,
                        absl::string_view signature,
                        uint16_t signature_algorithm) const;
+
+  // Returns the type of the key used in the certificate's SPKI.
+  PublicKeyType public_key_type();
 
  private:
   CertificateView() = default;
