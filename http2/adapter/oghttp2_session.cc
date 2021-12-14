@@ -33,6 +33,9 @@ const uint32_t kMaxAllowedMetadataFrameSize = 65536u;
 const uint32_t kDefaultHpackTableCapacity = 4096u;
 const uint32_t kMaximumHpackTableCapacity = 65536u;
 
+// Corresponds to NGHTTP2_ERR_CALLBACK_FAILURE.
+const int kSendError = -902;
+
 // TODO(birenroy): Consider incorporating spdy::FlagsSerializionVisitor here.
 class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
  public:
@@ -492,7 +495,7 @@ int OgHttp2Session::Send() {
   if (continue_writing == SendResult::SEND_OK) {
     continue_writing = SendQueuedFrames();
   }
-  return continue_writing == SendResult::SEND_ERROR ? -1 : 0;
+  return continue_writing == SendResult::SEND_ERROR ? kSendError : 0;
 }
 
 bool OgHttp2Session::HasReadyStream() const {

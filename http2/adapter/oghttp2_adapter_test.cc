@@ -1517,7 +1517,7 @@ TEST(OgHttp2AdapterClientTest, FailureSendingConnectionPreface) {
   EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kSendError));
 
   int result = adapter->Send();
-  EXPECT_EQ(result, Http2VisitorInterface::kSendError);
+  EXPECT_LT(result, 0);
 }
 
 TEST(OgHttp2AdapterClientTest, ClientForbidsPushPromise) {
