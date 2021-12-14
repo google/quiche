@@ -20,9 +20,14 @@ const absl::string_view kHttp2HeaderValueAllowedChars =
 
 const absl::string_view kHttp2StatusValueAllowedChars = "0123456789";
 
-// TODO(birenroy): Support websocket requests, which contain an extra
-// `:protocol` pseudo-header.
-bool ValidateRequestHeaders(const std::vector<std::string>& pseudo_headers) {
+bool ValidateRequestHeaders(const std::vector<std::string>& pseudo_headers,
+                            absl::string_view method, bool allow_connect) {
+  if (allow_connect && method == "CONNECT") {
+    static const std::vector<std::string>* kConnectHeaders =
+        new std::vector<std::string>(
+            {":authority", ":method", ":path", ":protocol", ":scheme"});
+    return pseudo_headers == *kConnectHeaders;
+  }
   static const std::vector<std::string>* kRequiredHeaders =
       new std::vector<std::string>(
           {":authority", ":method", ":path", ":scheme"});
@@ -48,6 +53,7 @@ bool ValidateResponseTrailers(const std::vector<std::string>& pseudo_headers) {
 void HeaderValidator::StartHeaderBlock() {
   pseudo_headers_.clear();
   status_.clear();
+  method_.clear();
 }
 
 HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
@@ -82,6 +88,8 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
         return HEADER_VALUE_INVALID_STATUS;
       }
       status_ = std::string(value);
+    } else if (key == ":method") {
+      method_ = std::string(value);
     }
     pseudo_headers_.push_back(std::string(key));
   }
@@ -94,7 +102,7 @@ bool HeaderValidator::FinishHeaderBlock(HeaderType type) {
   std::sort(pseudo_headers_.begin(), pseudo_headers_.end());
   switch (type) {
     case HeaderType::REQUEST:
-      return ValidateRequestHeaders(pseudo_headers_);
+      return ValidateRequestHeaders(pseudo_headers_, method_, allow_connect_);
     case HeaderType::REQUEST_TRAILER:
       return ValidateRequestTrailers(pseudo_headers_);
     case HeaderType::RESPONSE_100:

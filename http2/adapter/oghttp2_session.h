@@ -250,6 +250,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
                     type_ == HeaderType::RESPONSE_100);
       return validator_.status_header();
     }
+    void AllowConnect() { validator_.AllowConnect(); }
 
    private:
     OgHttp2Session& session_;

@@ -154,8 +154,38 @@ TEST(HeaderValidatorTest, WebsocketPseudoHeaders) {
   }
   EXPECT_EQ(HeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":protocol", "websocket"));
-  // For now, `:protocol` is treated as an extra pseudo-header.
+  // At this point, `:protocol` is treated as an extra pseudo-header.
   EXPECT_FALSE(v.FinishHeaderBlock(HeaderType::REQUEST));
+
+  // Future header blocks may send the `:protocol` pseudo-header for CONNECT
+  // requests.
+  v.AllowConnect();
+
+  v.StartHeaderBlock();
+  for (absl::string_view to_add : headers) {
+    EXPECT_EQ(HeaderValidator::HEADER_OK,
+              v.ValidateSingleHeader(to_add, "foo"));
+  }
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader(":protocol", "websocket"));
+  // The method is "foo", not "CONNECT", so `:protocol` is still treated as an
+  // extra pseudo-header.
+  EXPECT_FALSE(v.FinishHeaderBlock(HeaderType::REQUEST));
+
+  v.StartHeaderBlock();
+  for (absl::string_view to_add : headers) {
+    if (to_add == ":method") {
+      EXPECT_EQ(HeaderValidator::HEADER_OK,
+                v.ValidateSingleHeader(to_add, "CONNECT"));
+    } else {
+      EXPECT_EQ(HeaderValidator::HEADER_OK,
+                v.ValidateSingleHeader(to_add, "foo"));
+    }
+  }
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader(":protocol", "websocket"));
+  // After allowing the method, `:protocol` is acepted for CONNECT requests.
+  EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
 }
 
 TEST(HeaderValidatorTest, ResponsePseudoHeaders) {

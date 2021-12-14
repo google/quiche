@@ -22,6 +22,10 @@ class QUICHE_EXPORT_PRIVATE HeaderValidator {
  public:
   HeaderValidator() {}
 
+  // If called, this validator will allow the `:protocol` pseudo-header, as
+  // described in RFC 8441.
+  void AllowConnect() { allow_connect_ = true; }
+
   void StartHeaderBlock();
 
   enum HeaderStatus {
@@ -38,11 +42,14 @@ class QUICHE_EXPORT_PRIVATE HeaderValidator {
   // present for the given header type.
   bool FinishHeaderBlock(HeaderType type);
 
+  // For responses, returns the value of the ":status" header, if present.
   absl::string_view status_header() const { return status_; }
 
  private:
   std::vector<std::string> pseudo_headers_;
   std::string status_;
+  std::string method_;
+  bool allow_connect_ = false;
 };
 
 }  // namespace adapter

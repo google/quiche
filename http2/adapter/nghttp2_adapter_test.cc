@@ -3531,6 +3531,154 @@ TEST(NgHttp2AdapterTest, AutomaticPingAcksDisabled) {
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
 }
 
+TEST(NgHttp2AdapterTest, ServerForbidsProtocolPseudoheaderBeforeAck) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  const std::string initial_frames =
+      TestFrameSequence().ClientPreface().Serialize();
+
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(static_cast<size_t>(initial_result), initial_frames.size());
+
+  // The client attempts to send a CONNECT request with the `:protocol`
+  // pseudoheader before receiving the server's SETTINGS frame.
+  const std::string stream1_frames =
+      TestFrameSequence()
+          .Headers(1,
+                   {{":method", "CONNECT"},
+                    {":scheme", "https"},
+                    {":authority", "example.com"},
+                    {":path", "/this/is/request/one"},
+                    {":protocol", "websocket"}},
+                   /*fin=*/true)
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 0x5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(4);
+  EXPECT_CALL(
+      visitor,
+      OnErrorDebug("Invalid HTTP header field was received: frame type: 1, "
+                   "stream: 1, name: [:protocol], value: [websocket]"));
+  EXPECT_CALL(
+      visitor,
+      OnInvalidFrame(1, Http2VisitorInterface::InvalidFrameError::kHttpHeader));
+
+  int64_t stream_result = adapter->ProcessBytes(stream1_frames);
+  EXPECT_EQ(static_cast<size_t>(stream_result), stream1_frames.size());
+
+  // Server sends a SETTINGS ack and initial SETTINGS (with
+  // ENABLE_CONNECT_PROTOCOL).
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
+
+  // The server sends a RST_STREAM for the offending stream.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(RST_STREAM, 1, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::PROTOCOL_ERROR));
+
+  adapter->SubmitSettings({{ENABLE_CONNECT_PROTOCOL, 1}});
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::RST_STREAM}));
+  visitor.Clear();
+
+  // The client attempts to send a CONNECT request with the `:protocol`
+  // pseudoheader before acking the server's SETTINGS frame.
+  const std::string stream3_frames =
+      TestFrameSequence()
+          .Headers(3,
+                   {{":method", "CONNECT"},
+                    {":scheme", "https"},
+                    {":authority", "example.com"},
+                    {":path", "/this/is/request/two"},
+                    {":protocol", "websocket"}},
+                   /*fin=*/true)
+          .Serialize();
+
+  // Surprisingly, nghttp2 is okay with this.
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 0x5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, _, _)).Times(5);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(3));
+  EXPECT_CALL(visitor, OnEndStream(3));
+
+  stream_result = adapter->ProcessBytes(stream3_frames);
+  EXPECT_EQ(static_cast<size_t>(stream_result), stream3_frames.size());
+
+  EXPECT_FALSE(adapter->want_write());
+}
+
+TEST(NgHttp2AdapterTest, ServerAllowsProtocolPseudoheaderAfterAck) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+  adapter->SubmitSettings({{ENABLE_CONNECT_PROTOCOL, 1}});
+
+  const std::string initial_frames =
+      TestFrameSequence().ClientPreface().Serialize();
+
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(static_cast<size_t>(initial_result), initial_frames.size());
+
+  // Server initial SETTINGS (with ENABLE_CONNECT_PROTOCOL) and SETTINGS ack.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  visitor.Clear();
+
+  // The client attempts to send a CONNECT request with the `:protocol`
+  // pseudoheader after acking the server's SETTINGS frame.
+  const std::string stream_frames =
+      TestFrameSequence()
+          .SettingsAck()
+          .Headers(1,
+                   {{":method", "CONNECT"},
+                    {":scheme", "https"},
+                    {":authority", "example.com"},
+                    {":path", "/this/is/request/one"},
+                    {":protocol", "websocket"}},
+                   /*fin=*/true)
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, SETTINGS, 0x1));
+  EXPECT_CALL(visitor, OnSettingsAck());
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 0x5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(5);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(static_cast<size_t>(stream_result), stream_frames.size());
+
+  EXPECT_FALSE(adapter->want_write());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace adapter

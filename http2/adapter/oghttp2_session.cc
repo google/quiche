@@ -1274,6 +1274,9 @@ std::unique_ptr<SpdySettingsIR> OgHttp2Session::PrepareSettingsFrame(
           } else if (id_and_value.first == spdy::SETTINGS_HEADER_TABLE_SIZE) {
             decoder_.GetHpackDecoder()->ApplyHeaderTableSizeSetting(
                 id_and_value.second);
+          } else if (id_and_value.first == ENABLE_CONNECT_PROTOCOL &&
+                     id_and_value.second == 1u) {
+            headers_handler_.AllowConnect();
           }
         }
       });
