@@ -229,9 +229,9 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
   }
   const auto validation_result = validator_.ValidateSingleHeader(key, value);
   if (validation_result != HeaderValidator::HEADER_OK) {
-    QUICHE_VLOG(2) << "RST_STREAM HEADER_HTTP_MESSAGING with result "
+    QUICHE_VLOG(2) << "RST_STREAM with result "
                    << static_cast<int>(validation_result);
-    result_ = Http2VisitorInterface::HEADER_HTTP_MESSAGING;
+    result_ = Http2VisitorInterface::HEADER_FIELD_INVALID;
     return;
   }
   result_ = visitor_.OnHeaderForStream(stream_id_, key, value);
@@ -1159,6 +1159,7 @@ void OgHttp2Session::OnHeaderStatus(
   QUICHE_DCHECK_NE(result, Http2VisitorInterface::HEADER_OK);
   const bool should_reset_stream =
       result == Http2VisitorInterface::HEADER_RST_STREAM ||
+      result == Http2VisitorInterface::HEADER_FIELD_INVALID ||
       result == Http2VisitorInterface::HEADER_HTTP_MESSAGING;
   if (should_reset_stream) {
     const Http2ErrorCode error_code =
@@ -1167,7 +1168,8 @@ void OgHttp2Session::OnHeaderStatus(
             : Http2ErrorCode::PROTOCOL_ERROR;
     const spdy::SpdyErrorCode spdy_error_code = TranslateErrorCode(error_code);
     const Http2VisitorInterface::InvalidFrameError frame_error =
-        (result == Http2VisitorInterface::HEADER_RST_STREAM)
+        (result == Http2VisitorInterface::HEADER_RST_STREAM ||
+         result == Http2VisitorInterface::HEADER_FIELD_INVALID)
             ? Http2VisitorInterface::InvalidFrameError::kHttpHeader
             : Http2VisitorInterface::InvalidFrameError::kHttpMessaging;
     auto it = streams_reset_.find(stream_id);
@@ -1175,7 +1177,8 @@ void OgHttp2Session::OnHeaderStatus(
       EnqueueFrame(
           absl::make_unique<spdy::SpdyRstStreamIR>(stream_id, spdy_error_code));
 
-      if (result == Http2VisitorInterface::HEADER_HTTP_MESSAGING) {
+      if (result == Http2VisitorInterface::HEADER_FIELD_INVALID ||
+          result == Http2VisitorInterface::HEADER_HTTP_MESSAGING) {
         const bool ok = visitor_.OnInvalidFrame(stream_id, frame_error);
         if (!ok) {
           LatchErrorAndNotify(error_code, ConnectionError::kHeaderError);

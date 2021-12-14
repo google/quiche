@@ -92,6 +92,9 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
       method_ = std::string(value);
     }
     pseudo_headers_.push_back(std::string(key));
+  } else if (key == "content-length" && status_ == "204" && value != "0") {
+    // There should be no body in a "204 No Content" response.
+    return HEADER_FIELD_INVALID;
   }
   return HEADER_OK;
 }

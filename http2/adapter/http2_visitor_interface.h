@@ -121,7 +121,10 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
     HEADER_CONNECTION_ERROR,
     // The application rejects the header and requests the stream be reset.
     HEADER_RST_STREAM,
-    // The header is a violation of HTTP messaging semantics and will be reset
+    // The header field is invalid and will be reset with error code
+    // PROTOCOL_ERROR.
+    HEADER_FIELD_INVALID,
+    // The headers are a violation of HTTP messaging semantics and will be reset
     // with error code PROTOCOL_ERROR.
     HEADER_HTTP_MESSAGING,
   };
