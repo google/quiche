@@ -2164,6 +2164,101 @@ TEST_F(OgHttp2AdapterTest, TestPartialSerialize) {
                             SpdyFrameType::PING}));
 }
 
+TEST_F(OgHttp2AdapterTest, ConnectionErrorOnControlFrameSent) {
+  const std::string frames =
+      TestFrameSequence().ClientPreface().Ping(42).Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(http2_visitor_, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(http2_visitor_, OnSettingsStart());
+  EXPECT_CALL(http2_visitor_, OnSettingsEnd());
+  // PING
+  EXPECT_CALL(http2_visitor_, OnFrameHeader(0, _, PING, 0));
+  EXPECT_CALL(http2_visitor_, OnPing(42, false));
+
+  const int64_t read_result = adapter_->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+
+  EXPECT_TRUE(adapter_->want_write());
+
+  // Server preface (SETTINGS)
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  // SETTINGS ack
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(SETTINGS, 0, 0, 0x1, 0))
+      .WillOnce(testing::Return(-902));
+  EXPECT_CALL(http2_visitor_, OnConnectionError(ConnectionError::kSendError));
+
+  int send_result = adapter_->Send();
+  EXPECT_LT(send_result, 0);
+
+  EXPECT_FALSE(adapter_->want_write());
+
+  send_result = adapter_->Send();
+  EXPECT_LT(send_result, 0);
+}
+
+TEST_F(OgHttp2AdapterTest, ConnectionErrorOnDataFrameSent) {
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(http2_visitor_, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(http2_visitor_, OnSettingsStart());
+  EXPECT_CALL(http2_visitor_, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(http2_visitor_, OnFrameHeader(1, _, HEADERS, 0x5));
+  EXPECT_CALL(http2_visitor_, OnBeginHeadersForStream(1));
+  EXPECT_CALL(http2_visitor_, OnHeaderForStream(1, _, _)).Times(4);
+  EXPECT_CALL(http2_visitor_, OnEndHeadersForStream(1));
+  EXPECT_CALL(http2_visitor_, OnEndStream(1));
+
+  const int64_t read_result = adapter_->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+
+  auto body = absl::make_unique<TestDataFrameSource>(http2_visitor_, true);
+  body->AppendPayload("Here is some data, which will lead to a fatal error");
+  TestDataFrameSource* body_ptr = body.get();
+  int submit_result = adapter_->SubmitResponse(
+      1, ToHeaders({{":status", "200"}}), std::move(body));
+  ASSERT_EQ(0, submit_result);
+
+  EXPECT_TRUE(adapter_->want_write());
+
+  // Server preface (SETTINGS)
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  // SETTINGS ack
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  // Stream 1, with doomed DATA
+  EXPECT_CALL(http2_visitor_, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+  EXPECT_CALL(http2_visitor_, OnFrameSent(DATA, 1, _, 0x0, 0))
+      .WillOnce(testing::Return(-902));
+  EXPECT_CALL(http2_visitor_, OnConnectionError(ConnectionError::kSendError));
+
+  int send_result = adapter_->Send();
+  EXPECT_LT(send_result, 0);
+
+  body_ptr->AppendPayload("After the fatal error, data will be sent no more");
+
+  EXPECT_FALSE(adapter_->want_write());
+
+  send_result = adapter_->Send();
+  EXPECT_LT(send_result, 0);
+}
+
 TEST(OgHttp2AdapterServerTest, ClientSendsContinuation) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kServer};

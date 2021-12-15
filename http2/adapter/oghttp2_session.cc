@@ -477,6 +477,10 @@ int OgHttp2Session::Send() {
   sending_ = true;
   RunOnExit r{[this]() { sending_ = false; }};
 
+  if (fatal_send_error_) {
+    return kSendError;
+  }
+
   MaybeSetupPreface();
 
   SendResult continue_writing = SendQueuedFrames();
@@ -495,7 +499,12 @@ int OgHttp2Session::Send() {
   if (continue_writing == SendResult::SEND_OK) {
     continue_writing = SendQueuedFrames();
   }
-  return continue_writing == SendResult::SEND_ERROR ? kSendError : 0;
+  if (continue_writing == SendResult::SEND_ERROR) {
+    fatal_send_error_ = true;
+    return kSendError;
+  } else {
+    return 0;
+  }
 }
 
 bool OgHttp2Session::HasReadyStream() const {
@@ -564,10 +573,16 @@ OgHttp2Session::SendResult OgHttp2Session::SendQueuedFrames() {
       // Write blocked.
       return SendResult::SEND_BLOCKED;
     } else {
-      AfterFrameSent(c.frame_type(), c.stream_id(), frame_payload_length,
-                     c.flags(), c.error_code());
-
       frames_.pop_front();
+
+      const bool ok =
+          AfterFrameSent(c.frame_type(), c.stream_id(), frame_payload_length,
+                         c.flags(), c.error_code());
+      if (!ok) {
+        LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
+                            ConnectionError::kSendError);
+        return SendResult::SEND_ERROR;
+      }
       if (static_cast<size_t>(result) < frame.size()) {
         // The frame was partially written, so the rest must be buffered.
         buffered_data_.append(frame.data() + result, frame.size() - result);
@@ -578,11 +593,14 @@ OgHttp2Session::SendResult OgHttp2Session::SendQueuedFrames() {
   return SendResult::SEND_OK;
 }
 
-void OgHttp2Session::AfterFrameSent(uint8_t frame_type, uint32_t stream_id,
+bool OgHttp2Session::AfterFrameSent(uint8_t frame_type, uint32_t stream_id,
                                     size_t payload_length, uint8_t flags,
                                     uint32_t error_code) {
-  visitor_.OnFrameSent(frame_type, stream_id, payload_length, flags,
-                       error_code);
+  int result = visitor_.OnFrameSent(frame_type, stream_id, payload_length,
+                                    flags, error_code);
+  if (result < 0) {
+    return false;
+  }
   if (stream_id == 0) {
     const bool is_settings_ack =
         static_cast<FrameType>(frame_type) == FrameType::SETTINGS &&
@@ -592,7 +610,7 @@ void OgHttp2Session::AfterFrameSent(uint8_t frame_type, uint32_t stream_id,
           encoder_header_table_capacity_when_acking_.value());
       encoder_header_table_capacity_when_acking_ = absl::nullopt;
     }
-    return;
+    return true;
   }
   auto iter = queued_frames_.find(stream_id);
   if (frame_type != 0) {
@@ -602,6 +620,7 @@ void OgHttp2Session::AfterFrameSent(uint8_t frame_type, uint32_t stream_id,
     // TODO(birenroy): Consider passing through `error_code` here.
     CloseStreamIfReady(frame_type, stream_id);
   }
+  return true;
 }
 
 OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
@@ -683,7 +702,13 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
         state.half_closed_local = true;
         MaybeFinWithRstStream(it);
       }
-      AfterFrameSent(/* DATA */ 0, stream_id, length, fin ? 0x1 : 0x0, 0);
+      const bool ok =
+          AfterFrameSent(/* DATA */ 0, stream_id, length, fin ? 0x1 : 0x0, 0);
+      if (!ok) {
+        LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
+                            ConnectionError::kSendError);
+        return SendResult::SEND_ERROR;
+      }
       if (!stream_map_.contains(stream_id)) {
         // Note: the stream may have been closed if `fin` is true.
         break;

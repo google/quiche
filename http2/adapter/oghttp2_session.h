@@ -124,8 +124,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     return !received_goaway_ && !decoder_.HasError();
   }
   bool want_write() const override {
-    return !frames_.empty() || !buffered_data_.empty() ||
-           !connection_metadata_.empty() || HasReadyStream();
+    return !fatal_send_error_ &&
+           (!frames_.empty() || !buffered_data_.empty() ||
+            !connection_metadata_.empty() || HasReadyStream());
   }
   int GetRemoteWindowSize() const override { return connection_send_window_; }
 
@@ -299,7 +300,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Serializes and sends queued frames.
   SendResult SendQueuedFrames();
 
-  void AfterFrameSent(uint8_t frame_type, uint32_t stream_id,
+  // Returns false if a fatal connection error occurred.
+  bool AfterFrameSent(uint8_t frame_type, uint32_t stream_id,
                       size_t payload_length, uint8_t flags,
                       uint32_t error_code);
 
@@ -452,6 +454,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Replace this with a stream ID, for multiple GOAWAY support.
   bool queued_goaway_ = false;
   bool latched_error_ = false;
+
+  // True if a fatal sending error has occurred.
+  bool fatal_send_error_ = false;
 };
 
 }  // namespace adapter

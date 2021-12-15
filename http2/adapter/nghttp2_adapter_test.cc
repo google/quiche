@@ -1992,6 +1992,118 @@ TEST(NgHttp2AdapterTest, FailureSendingConnectionPreface) {
   EXPECT_EQ(result, NGHTTP2_ERR_CALLBACK_FAILURE);
 }
 
+TEST(NgHttp2AdapterTest, ConnectionErrorOnControlFrameSent) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  const std::string frames =
+      TestFrameSequence().ClientPreface().Ping(42).Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // PING
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, PING, 0));
+  EXPECT_CALL(visitor, OnPing(42, false));
+
+  const int64_t read_result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+
+  EXPECT_TRUE(adapter->want_write());
+
+  // SETTINGS ack
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0))
+      .WillOnce(testing::Return(-902));
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kSendError));
+
+  int send_result = adapter->Send();
+  EXPECT_LT(send_result, 0);
+
+  // Apparently nghttp2 retries sending the frames that had failed before.
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(PING, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(PING, 0, _, 0x1, 0));
+  send_result = adapter->Send();
+  EXPECT_EQ(send_result, 0);
+
+  EXPECT_FALSE(adapter->want_write());
+}
+
+TEST(NgHttp2AdapterTest, ConnectionErrorOnDataFrameSent) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 0x5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  const int64_t read_result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+
+  auto body = absl::make_unique<TestDataFrameSource>(visitor, true);
+  body->AppendPayload("Here is some data, which will lead to a fatal error");
+  TestDataFrameSource* body_ptr = body.get();
+  int submit_result = adapter->SubmitResponse(
+      1, ToHeaders({{":status", "200"}}), std::move(body));
+  ASSERT_EQ(0, submit_result);
+
+  EXPECT_TRUE(adapter->want_write());
+
+  // SETTINGS ack
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  // Stream 1, with doomed DATA
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0))
+      .WillOnce(testing::Return(-902));
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kSendError));
+
+  int send_result = adapter->Send();
+  EXPECT_LT(send_result, 0);
+
+  // The test data source got a signal that the first chunk of data was sent
+  // successfully, so discarded that data internally. However, due to the send
+  // error, the next Send() from nghttp2 will try to send that exact same data
+  // again. Without this line appending the exact same data back to the data
+  // source, the test crashes. It is not clear how the data source would know to
+  // not discard the data, unless told by the session? This is not intuitive.
+  body_ptr->AppendPayload(
+      "Here is some data, which will lead to a fatal error");
+
+  // Apparently nghttp2 retries sending the frames that had failed before.
+  EXPECT_TRUE(adapter->want_write());
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
+
+  send_result = adapter->Send();
+  EXPECT_EQ(send_result, 0);
+
+  EXPECT_FALSE(adapter->want_write());
+}
+
 TEST(NgHttp2AdapterTest, ServerConstruction) {
   testing::StrictMock<MockHttp2Visitor> visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
