@@ -1,5 +1,6 @@
 #include "http2/adapter/oghttp2_session.h"
 
+#include <cstdint>
 #include <tuple>
 #include <utility>
 
@@ -263,6 +264,19 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
   frame_contains_fin_ = false;
 }
 
+// A visitor that extracts an int64_t from each type of a ProcessBytesResult.
+struct OgHttp2Session::ProcessBytesResultVisitor {
+  int64_t operator()(const int64_t bytes) const { return bytes; }
+
+  int64_t operator()(const ProcessBytesError error) const {
+    switch (error) {
+      case ProcessBytesError::kUnspecified:
+        return -1;
+    }
+    return -1;
+  }
+};
+
 OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
     : visitor_(visitor),
       event_forwarder_([this]() { return !latched_error_; }, *this),
@@ -377,6 +391,11 @@ int OgHttp2Session::GetHpackDecoderSizeLimit() const {
 int64_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
   QUICHE_VLOG(2) << TracePerspectiveAsString(options_.perspective)
                  << " processing [" << absl::CEscape(bytes) << "]";
+  return absl::visit(ProcessBytesResultVisitor(), ProcessBytesImpl(bytes));
+}
+
+absl::variant<int64_t, OgHttp2Session::ProcessBytesError>
+OgHttp2Session::ProcessBytesImpl(absl::string_view bytes) {
   if (processing_bytes_) {
     QUICHE_VLOG(1) << "Returning early; already processing bytes.";
     return 0;
@@ -396,7 +415,7 @@ int64_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
                         << absl::CEscape(bytes) << "]";
       LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
                           ConnectionError::kInvalidConnectionPreface);
-      return -1;
+      return ProcessBytesError::kUnspecified;
     }
     remaining_preface_.remove_prefix(min_size);
     bytes.remove_prefix(min_size);
@@ -408,13 +427,12 @@ int64_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
     preface_consumed = min_size;
   }
   int64_t result = decoder_.ProcessInput(bytes.data(), bytes.size());
-  if (latched_error_) {
+  QUICHE_VLOG(2) << "ProcessBytes result: " << result;
+  if (latched_error_ || result < 0) {
     QUICHE_VLOG(2) << "ProcessBytes encountered an error.";
-    return -1;
+    return ProcessBytesError::kUnspecified;
   }
-  const int64_t ret = result < 0 ? result : result + preface_consumed;
-  QUICHE_VLOG(2) << "ProcessBytes returning: " << ret;
-  return ret;
+  return result + preface_consumed;
 }
 
 int OgHttp2Session::Consume(Http2StreamId stream_id, size_t num_bytes) {

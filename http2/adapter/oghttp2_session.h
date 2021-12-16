@@ -9,6 +9,7 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "absl/types/variant.h"
 #include "http2/adapter/data_source.h"
 #include "http2/adapter/event_forwarder.h"
 #include "http2/adapter/header_validator.h"
@@ -265,6 +266,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     bool frame_contains_fin_ = false;
   };
 
+  struct QUICHE_EXPORT_PRIVATE ProcessBytesResultVisitor;
+
   // Queues the connection preface, if not already done.
   void MaybeSetupPreface();
 
@@ -286,6 +289,16 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     // An error occurred while sending data.
     SEND_ERROR,
   };
+
+  enum class ProcessBytesError {
+    // A general, unspecified error.
+    kUnspecified,
+  };
+  using ProcessBytesResult = absl::variant<int64_t, ProcessBytesError>;
+
+  // Attempts to process `bytes` and returns the number of bytes proccessed on
+  // success or the processing error on failure.
+  ProcessBytesResult ProcessBytesImpl(absl::string_view bytes);
 
   // Returns true if at least one stream has data or control frames to write.
   bool HasReadyStream() const;
