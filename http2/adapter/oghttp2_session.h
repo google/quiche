@@ -293,6 +293,10 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   enum class ProcessBytesError {
     // A general, unspecified error.
     kUnspecified,
+    // The (server-side) session received an invalid client connection preface.
+    kInvalidConnectionPreface,
+    // A user/visitor callback failed with a fatal error.
+    kVisitorCallbackFailed,
   };
   using ProcessBytesResult = absl::variant<int64_t, ProcessBytesError>;
 
@@ -470,6 +474,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   // True if a fatal sending error has occurred.
   bool fatal_send_error_ = false;
+
+  // True if a fatal processing visitor callback failed.
+  bool fatal_visitor_callback_failure_ = false;
 };
 
 }  // namespace adapter

@@ -256,6 +256,7 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
   if (result_ == Http2VisitorInterface::HEADER_OK) {
     const bool result = visitor_.OnEndHeadersForStream(stream_id_);
     if (!result) {
+      session_.fatal_visitor_callback_failure_ = true;
       session_.decoder_.StopProcessing();
     }
   } else {
@@ -272,6 +273,10 @@ struct OgHttp2Session::ProcessBytesResultVisitor {
     switch (error) {
       case ProcessBytesError::kUnspecified:
         return -1;
+      case ProcessBytesError::kInvalidConnectionPreface:
+        return -903;  // NGHTTP2_ERR_BAD_CLIENT_MAGIC
+      case ProcessBytesError::kVisitorCallbackFailed:
+        return -902;  // NGHTTP2_ERR_CALLBACK_FAILURE
     }
     return -1;
   }
@@ -415,7 +420,7 @@ OgHttp2Session::ProcessBytesImpl(absl::string_view bytes) {
                         << absl::CEscape(bytes) << "]";
       LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
                           ConnectionError::kInvalidConnectionPreface);
-      return ProcessBytesError::kUnspecified;
+      return ProcessBytesError::kInvalidConnectionPreface;
     }
     remaining_preface_.remove_prefix(min_size);
     bytes.remove_prefix(min_size);
@@ -428,6 +433,11 @@ OgHttp2Session::ProcessBytesImpl(absl::string_view bytes) {
   }
   int64_t result = decoder_.ProcessInput(bytes.data(), bytes.size());
   QUICHE_VLOG(2) << "ProcessBytes result: " << result;
+  if (fatal_visitor_callback_failure_) {
+    QUICHE_DCHECK(latched_error_);
+    QUICHE_VLOG(2) << "Visitor callback failed while processing bytes.";
+    return ProcessBytesError::kVisitorCallbackFailed;
+  }
   if (latched_error_ || result < 0) {
     QUICHE_VLOG(2) << "ProcessBytes encountered an error.";
     return ProcessBytesError::kUnspecified;
@@ -896,6 +906,7 @@ void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
                                          highest_received_stream_id_);
   const bool result = visitor_.OnFrameHeader(stream_id, length, type, flags);
   if (!result) {
+    fatal_visitor_callback_failure_ = true;
     decoder_.StopProcessing();
   }
 }
@@ -915,6 +926,7 @@ void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
 
   const bool result = visitor_.OnBeginDataForStream(stream_id, length);
   if (!result) {
+    fatal_visitor_callback_failure_ = true;
     decoder_.StopProcessing();
   }
 }
@@ -934,6 +946,7 @@ void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,
   const bool result =
       visitor_.OnDataForStream(stream_id, absl::string_view(data, len));
   if (!result) {
+    fatal_visitor_callback_failure_ = true;
     decoder_.StopProcessing();
   }
 }
@@ -1076,6 +1089,7 @@ void OgHttp2Session::OnGoAway(spdy::SpdyStreamId last_accepted_stream_id,
   const bool result = visitor_.OnGoAway(last_accepted_stream_id,
                                         TranslateErrorCode(error_code), "");
   if (!result) {
+    fatal_visitor_callback_failure_ = true;
     decoder_.StopProcessing();
   }
 }
@@ -1116,8 +1130,11 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
       // The new stream would exceed our advertised and acknowledged
       // MAX_CONCURRENT_STREAMS. For parity with nghttp2, treat this error as a
       // connection-level PROTOCOL_ERROR.
-      visitor_.OnInvalidFrame(
+      bool ok = visitor_.OnInvalidFrame(
           stream_id, Http2VisitorInterface::InvalidFrameError::kProtocol);
+      if (!ok) {
+        fatal_visitor_callback_failure_ = true;
+      }
       LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
                           ConnectionError::kExceededMaxConcurrentStreams);
       return;
@@ -1130,6 +1147,7 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
       const bool ok = visitor_.OnInvalidFrame(
           stream_id, Http2VisitorInterface::InvalidFrameError::kRefusedStream);
       if (!ok) {
+        fatal_visitor_callback_failure_ = true;
         LatchErrorAndNotify(Http2ErrorCode::REFUSED_STREAM,
                             ConnectionError::kExceededMaxConcurrentStreams);
       }
@@ -1224,11 +1242,13 @@ void OgHttp2Session::OnHeaderStatus(
           result == Http2VisitorInterface::HEADER_HTTP_MESSAGING) {
         const bool ok = visitor_.OnInvalidFrame(stream_id, frame_error);
         if (!ok) {
+          fatal_visitor_callback_failure_ = true;
           LatchErrorAndNotify(error_code, ConnectionError::kHeaderError);
         }
       }
     }
   } else if (result == Http2VisitorInterface::HEADER_CONNECTION_ERROR) {
+    fatal_visitor_callback_failure_ = true;
     LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
                         ConnectionError::kHeaderError);
   }
@@ -1263,6 +1283,7 @@ void OgHttp2Session::OnFramePayload(const char* data, size_t len) {
         end_metadata_ = false;
       }
     } else {
+      fatal_visitor_callback_failure_ = true;
       decoder_.StopProcessing();
     }
   } else {
