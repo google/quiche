@@ -1298,6 +1298,30 @@ TEST(OgHttp2AdapterClientTest, DISABLED_ClientHandlesInvalidTrailers) {
                                             spdy::SpdyFrameType::RST_STREAM}));
 }
 
+TEST(OgHttp2AdapterClientTest, ClientStartsShutdown) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  EXPECT_FALSE(adapter->want_write());
+
+  // No-op (except for logging) for a client implementation.
+  adapter->SubmitShutdownNotice();
+  EXPECT_FALSE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized, EqualsFrames({SpdyFrameType::SETTINGS}));
+}
+
 TEST(OgHttp2AdapterClientTest, ClientFailsOnGoAway) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
@@ -3884,6 +3908,53 @@ TEST(OgHttp2AdapterServerTest, ServerAllowsProtocolPseudoheaderAfterAck) {
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(static_cast<size_t>(stream_result), stream_frames.size());
 
+  EXPECT_FALSE(adapter->want_write());
+}
+
+TEST(OgHttpAdapterServerTest, ServerStartsShutdown) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  EXPECT_FALSE(adapter->want_write());
+
+  adapter->SubmitShutdownNotice();
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(GOAWAY, 0, _, 0x0, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
+}
+
+TEST(OgHttp2AdapterServerTest, ServerStartsShutdownAfterGoaway) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  EXPECT_FALSE(adapter->want_write());
+
+  adapter->SubmitGoAway(1, Http2ErrorCode::HTTP2_NO_ERROR,
+                        "and don't come back!");
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(GOAWAY, 0, _, 0x0, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
+
+  // No-op, since a GOAWAY has previously been enqueued.
+  adapter->SubmitShutdownNotice();
   EXPECT_FALSE(adapter->want_write());
 }
 

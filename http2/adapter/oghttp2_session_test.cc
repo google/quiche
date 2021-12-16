@@ -473,30 +473,6 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithWriteBlock) {
   EXPECT_FALSE(session.want_write());
 }
 
-TEST(OgHttp2SessionTest, ClientStartShutdown) {
-  DataSavingVisitor visitor;
-  OgHttp2Session session(
-      visitor, OgHttp2Session::Options{.perspective = Perspective::kClient});
-
-  EXPECT_FALSE(session.want_write());
-
-  // No-op (except for logging) for a client implementation.
-  session.StartGracefulShutdown();
-  EXPECT_FALSE(session.want_write());
-
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
-
-  int result = session.Send();
-  EXPECT_EQ(0, result);
-
-  absl::string_view serialized = visitor.data();
-  EXPECT_THAT(serialized,
-              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
-  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(serialized, EqualsFrames({SpdyFrameType::SETTINGS}));
-}
-
 TEST(OgHttp2SessionTest, ServerConstruction) {
   testing::StrictMock<MockHttp2Visitor> visitor;
   OgHttp2Session session(
@@ -760,54 +736,6 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   EXPECT_EQ(session.GetStreamSendWindowSize(3), -1);
 
   EXPECT_GT(session.GetHpackEncoderDynamicTableSize(), 0);
-}
-
-TEST(OgHttp2SessionTest, ServerStartShutdown) {
-  DataSavingVisitor visitor;
-  OgHttp2Session session(
-      visitor, OgHttp2Session::Options{.perspective = Perspective::kServer});
-
-  EXPECT_FALSE(session.want_write());
-
-  session.StartGracefulShutdown();
-  EXPECT_TRUE(session.want_write());
-
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(GOAWAY, 0, _, 0x0, 0));
-
-  int result = session.Send();
-  EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(),
-              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
-}
-
-TEST(OgHttp2SessionTest, ServerStartShutdownAfterGoaway) {
-  DataSavingVisitor visitor;
-  OgHttp2Session session(
-      visitor, OgHttp2Session::Options{.perspective = Perspective::kServer});
-
-  EXPECT_FALSE(session.want_write());
-
-  auto goaway = absl::make_unique<spdy::SpdyGoAwayIR>(
-      1, spdy::ERROR_CODE_NO_ERROR, "and don't come back!");
-  session.EnqueueFrame(std::move(goaway));
-  EXPECT_TRUE(session.want_write());
-
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(GOAWAY, 0, _, 0x0, 0));
-
-  int result = session.Send();
-  EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(),
-              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
-
-  // No-op, since a GOAWAY has previously been enqueued.
-  session.StartGracefulShutdown();
-  EXPECT_FALSE(session.want_write());
 }
 
 // Tests the case where the server queues trailers after the data stream is

@@ -1072,6 +1072,22 @@ TEST(NgHttp2AdapterTest, ClientRejectsHeaders) {
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
 }
 
+TEST(NgHttp2AdapterTest, ClientStartsShutdown) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  EXPECT_FALSE(adapter->want_write());
+
+  // No-op for a client implementation.
+  adapter->SubmitShutdownNotice();
+  EXPECT_FALSE(adapter->want_write());
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+
+  EXPECT_EQ(visitor.data(), spdy::kHttp2ConnectionHeaderPrefix);
+}
+
 TEST(NgHttp2AdapterTest, ClientFailsOnGoAway) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
@@ -3852,6 +3868,45 @@ TEST(NgHttp2AdapterTest, ServerAllowsProtocolPseudoheaderAfterAck) {
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(static_cast<size_t>(stream_result), stream_frames.size());
 
+  EXPECT_FALSE(adapter->want_write());
+}
+
+TEST(NgHttp2AdapterTest, ServerStartsShutdown) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  EXPECT_FALSE(adapter->want_write());
+
+  adapter->SubmitShutdownNotice();
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(GOAWAY, 0, _, 0x0, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::GOAWAY}));
+}
+
+TEST(NgHttp2AdapterTest, ServerStartsShutdownAfterGoaway) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  EXPECT_FALSE(adapter->want_write());
+
+  adapter->SubmitGoAway(1, Http2ErrorCode::HTTP2_NO_ERROR,
+                        "and don't come back!");
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(GOAWAY, 0, _, 0x0, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::GOAWAY}));
+
+  // No-op, since a GOAWAY has previously been enqueued.
+  adapter->SubmitShutdownNotice();
   EXPECT_FALSE(adapter->want_write());
 }
 
