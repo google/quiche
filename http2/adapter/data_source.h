@@ -48,6 +48,10 @@ class QUICHE_EXPORT_PRIVATE MetadataSource {
   // to indicate an error, as well as a boolean indicating whether the metadata
   // has been completely copied.
   virtual std::pair<int64_t, bool> Pack(uint8_t* dest, size_t dest_len) = 0;
+
+  // This method is called when transmission of the metadata for this source
+  // fails in a non-recoverable way.
+  virtual void OnFailure() = 0;
 };
 
 }  // namespace adapter

@@ -294,6 +294,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     SEND_ERROR,
   };
 
+  // Returns the int corresponding to the `result`, updating state as needed.
+  int InterpretSendResult(SendResult result);
+
   enum class ProcessBytesError {
     // A general, unspecified error.
     kUnspecified,
@@ -474,6 +477,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   // Replace this with a stream ID, for multiple GOAWAY support.
   bool queued_goaway_ = false;
+  bool queued_immediate_goaway_ = false;
   bool latched_error_ = false;
 
   // True if a fatal sending error has occurred.

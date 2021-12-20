@@ -479,9 +479,18 @@ void OgHttp2Session::StartGracefulShutdown() {
 }
 
 void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
+  if (queued_immediate_goaway_) {
+    // Do not allow additional frames to be enqueued after the GOAWAY.
+    return;
+  }
+
   RunOnExit r;
   if (frame->frame_type() == spdy::SpdyFrameType::GOAWAY) {
     queued_goaway_ = true;
+    if (latched_error_) {
+      // TODO(diannahu): Clear the frames queue.
+      queued_immediate_goaway_ = true;
+    }
   } else if (frame->fin() ||
              frame->frame_type() == spdy::SpdyFrameType::RST_STREAM) {
     auto iter = stream_map_.find(frame->stream_id());
@@ -520,6 +529,12 @@ int OgHttp2Session::Send() {
   MaybeSetupPreface();
 
   SendResult continue_writing = SendQueuedFrames();
+  if (queued_immediate_goaway_) {
+    // If an immediate GOAWAY was queued, then the above flush either sent the
+    // GOAWAY or buffered it to be sent on the next successful flush. In either
+    // case, return early here to avoid sending other frames.
+    return InterpretSendResult(continue_writing);
+  }
   while (continue_writing == SendResult::SEND_OK &&
          !connection_metadata_.empty()) {
     continue_writing = SendMetadata(0, connection_metadata_);
@@ -535,7 +550,11 @@ int OgHttp2Session::Send() {
   if (continue_writing == SendResult::SEND_OK) {
     continue_writing = SendQueuedFrames();
   }
-  if (continue_writing == SendResult::SEND_ERROR) {
+  return InterpretSendResult(continue_writing);
+}
+
+int OgHttp2Session::InterpretSendResult(SendResult result) {
+  if (result == SendResult::SEND_ERROR) {
     fatal_send_error_ = true;
     return kSendError;
   } else {

@@ -3939,6 +3939,99 @@ TEST(NgHttp2AdapterTest, ConnectionErrorWithBlackholeSinkingData) {
   EXPECT_EQ(static_cast<size_t>(next_result), next_frame.size());
 }
 
+TEST(NgHttp2AdapterTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 0x5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  const int64_t read_result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+
+  // Submit a response for the stream.
+  auto body = absl::make_unique<TestDataFrameSource>(visitor, true);
+  body->AppendPayload("This data is doomed to never be written.");
+  int submit_result = adapter->SubmitResponse(
+      1, ToHeaders({{":status", "200"}}), std::move(body));
+  ASSERT_EQ(0, submit_result);
+
+  // Submit a SETTINGS frame.
+  adapter->SubmitSettings({});
+
+  // Submit a WINDOW_UPDATE frame.
+  adapter->SubmitWindowUpdate(kConnectionStreamId, 42);
+
+  // Submit another SETTINGS frame.
+  adapter->SubmitSettings({});
+
+  // Submit some metadata.
+  auto source = absl::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
+      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));
+  adapter->SubmitMetadata(1, 16384u, std::move(source));
+
+  EXPECT_TRUE(adapter->want_write());
+
+  // Trigger a connection error. Only the response headers will be written.
+  const std::string connection_error_frames =
+      TestFrameSequence().WindowUpdate(3, 42).Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(3, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnInvalidFrame(3, _));
+
+  const int64_t result = adapter->ProcessBytes(connection_error_frames);
+  EXPECT_EQ(static_cast<size_t>(result), connection_error_frames.size());
+
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(GOAWAY, 0, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
+
+  int send_result = adapter->Send();
+  // Some bytes should have been serialized.
+  EXPECT_EQ(0, send_result);
+  // The GOAWAY apparently causes the other frames to be dropped except for the
+  // non-ack SETTINGS frames; nghttp2 sends non-ack SETTINGS frames because they
+  // could be the initial SETTINGS frame. However, nghttp2 still allows sending
+  // multiple non-ack SETTINGS, which feels non-ideal.
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::GOAWAY}));
+  visitor.Clear();
+
+  // Try to submit more frames for writing. They should not be written.
+  adapter->SubmitPing(42);
+  EXPECT_FALSE(adapter->want_write());
+  send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), testing::IsEmpty());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace adapter

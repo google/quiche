@@ -110,6 +110,7 @@ class QUICHE_NO_EXPORT TestMetadataSource : public MetadataSource {
     return (encoded_entries_.size() + max_frame_size - 1) / max_frame_size;
   }
   std::pair<int64_t, bool> Pack(uint8_t* dest, size_t dest_len) override;
+  void OnFailure() override {}
 
  private:
   const std::string encoded_entries_;

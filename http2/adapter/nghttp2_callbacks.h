@@ -48,6 +48,10 @@ int OnBeforeFrameSent(nghttp2_session* session, const nghttp2_frame* frame,
 int OnFrameSent(nghttp2_session* session, const nghttp2_frame* frame,
                 void* user_data);
 
+// Invoked when a non-DATA frame is not sent because of an error.
+int OnFrameNotSent(nghttp2_session* session, const nghttp2_frame* frame,
+                   int lib_error_code, void* user_data);
+
 // Invoked when an invalid frame is received.
 int OnInvalidFrameReceived(nghttp2_session* session, const nghttp2_frame* frame,
                            int lib_error_code, void* user_data);

@@ -35,6 +35,11 @@ class SelfDeletingMetadataSource : public MetadataSource {
     return result;
   }
 
+  void OnFailure() override {
+    source_->OnFailure();
+    delete this;
+  }
+
  private:
   std::unique_ptr<MetadataSource> source_;
 };
