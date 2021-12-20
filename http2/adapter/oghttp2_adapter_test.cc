@@ -1670,7 +1670,7 @@ TEST(OgHttp2AdapterClientTest, ClientForbidsPushPromise) {
   EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kInvalidPushPromise));
 
   const int64_t read_result = adapter->ProcessBytes(frames);
-  EXPECT_LT(read_result, 0);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
 
   EXPECT_TRUE(adapter->want_write());
 
@@ -1742,7 +1742,7 @@ TEST(OgHttp2AdapterClientTest, ClientForbidsPushStream) {
   EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kInvalidNewStreamId));
 
   const int64_t read_result = adapter->ProcessBytes(frames);
-  EXPECT_LT(read_result, 0);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
 
   EXPECT_TRUE(adapter->want_write());
 
@@ -2503,7 +2503,7 @@ TEST(OgHttp2AdapterServerTest, ServerReceivesMoreHeaderBytesThanConfigured) {
   EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kParseError));
 
   int64_t result = adapter->ProcessBytes(frames);
-  EXPECT_LT(result, 0);
+  EXPECT_EQ(static_cast<size_t>(result), frames.size());
 
   EXPECT_TRUE(adapter->want_write());
 
@@ -3422,7 +3422,7 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsNewStreamBelowWatermark) {
   EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kInvalidNewStreamId));
 
   const int64_t result = adapter->ProcessBytes(frames);
-  EXPECT_LT(result, 0);
+  EXPECT_EQ(static_cast<size_t>(result), frames.size());
 
   EXPECT_EQ(3, adapter->GetHighestReceivedStreamId());
 
@@ -3467,7 +3467,7 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsWindowUpdateOnIdleStream) {
   EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kWrongFrameSequence));
 
   const int64_t result = adapter->ProcessBytes(frames);
-  EXPECT_LT(result, 0);
+  EXPECT_EQ(static_cast<size_t>(result), frames.size());
 
   EXPECT_EQ(1, adapter->GetHighestReceivedStreamId());
 
@@ -3514,7 +3514,7 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsDataOnIdleStream) {
   EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kWrongFrameSequence));
 
   const int64_t result = adapter->ProcessBytes(frames);
-  EXPECT_LT(result, 0);
+  EXPECT_EQ(static_cast<size_t>(result), frames.size());
 
   EXPECT_EQ(1, adapter->GetHighestReceivedStreamId());
 
@@ -3562,7 +3562,7 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsRstStreamOnIdleStream) {
   EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kWrongFrameSequence));
 
   const int64_t result = adapter->ProcessBytes(frames);
-  EXPECT_LT(result, 0);
+  EXPECT_EQ(static_cast<size_t>(result), frames.size());
 
   EXPECT_EQ(1, adapter->GetHighestReceivedStreamId());
 
@@ -3649,14 +3649,13 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsNewStreamAboveStreamLimit) {
   EXPECT_CALL(
       visitor,
       OnInvalidFrame(3, Http2VisitorInterface::InvalidFrameError::kProtocol));
-  // The oghttp2 stack also signals the connection error via OnConnectionError()
-  // and a negative ProcessBytes() return value.
+  // The oghttp2 stack also signals the error via OnConnectionError().
   EXPECT_CALL(visitor,
               OnConnectionError(Http2VisitorInterface::ConnectionError::
                                     kExceededMaxConcurrentStreams));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
-  EXPECT_LT(stream_result, 0);
+  EXPECT_EQ(static_cast<size_t>(stream_result), stream_frames.size());
 
   // The server should send a GOAWAY for this error, even though
   // OnInvalidFrame() returns true.
@@ -3956,6 +3955,69 @@ TEST(OgHttp2AdapterServerTest, ServerStartsShutdownAfterGoaway) {
   // No-op, since a GOAWAY has previously been enqueued.
   adapter->SubmitShutdownNotice();
   EXPECT_FALSE(adapter->want_write());
+}
+
+// Verifies that a connection-level processing error results in repeatedly
+// returning a positive value for ProcessBytes() to mark all data as consumed
+// when the blackhole option is enabled.
+TEST(OgHttp2AdapterServerTest, ConnectionErrorWithBlackholingData) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kServer,
+                                  .blackhole_data_on_connection_error = true};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  const std::string frames =
+      TestFrameSequence().ClientPreface().WindowUpdate(1, 42).Serialize();
+
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kWrongFrameSequence));
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(result), frames.size());
+
+  // Ask the connection to process more bytes. Because the option is enabled,
+  // the data should be marked as consumed.
+  const std::string next_frame = TestFrameSequence().Ping(42).Serialize();
+  const int64_t next_result = adapter->ProcessBytes(next_frame);
+  EXPECT_EQ(static_cast<size_t>(next_result), next_frame.size());
+}
+
+// Verifies that a connection-level processing error results in returning a
+// negative value for ProcessBytes() when the blackhole option is disabled.
+TEST(OgHttp2AdapterServerTest, ConnectionErrorWithoutBlackholingData) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kServer,
+                                  .blackhole_data_on_connection_error = false};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  const std::string frames =
+      TestFrameSequence().ClientPreface().WindowUpdate(1, 42).Serialize();
+
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kWrongFrameSequence));
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_LT(result, 0);
+
+  // Ask the connection to process more bytes. Because the option is disabled,
+  // ProcessBytes() should continue to return an error.
+  const std::string next_frame = TestFrameSequence().Ping(42).Serialize();
+  const int64_t next_result = adapter->ProcessBytes(next_frame);
+  EXPECT_LT(next_result, 0);
 }
 
 }  // namespace

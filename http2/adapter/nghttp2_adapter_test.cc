@@ -3910,6 +3910,35 @@ TEST(NgHttp2AdapterTest, ServerStartsShutdownAfterGoaway) {
   EXPECT_FALSE(adapter->want_write());
 }
 
+// Verifies that a connection-level processing error results in repeatedly
+// returning a positive value for ProcessBytes() to mark all data as consumed.
+TEST(NgHttp2AdapterTest, ConnectionErrorWithBlackholeSinkingData) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  const std::string frames =
+      TestFrameSequence().ClientPreface().WindowUpdate(1, 42).Serialize();
+
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnInvalidFrame(1, _));
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(result), frames.size());
+
+  // Ask the connection to process more bytes. Because the option is enabled,
+  // the data should be marked as consumed.
+  const std::string next_frame = TestFrameSequence().Ping(42).Serialize();
+  const int64_t next_result = adapter->ProcessBytes(next_frame);
+  EXPECT_EQ(static_cast<size_t>(next_result), next_frame.size());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace adapter

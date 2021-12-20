@@ -52,6 +52,10 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     // has indicated the end of data. If false, the server will assume that
     // submitting trailers indicates the end of data.
     bool trailers_require_end_data = false;
+    // Whether to mark all input data as consumed upon encountering a connection
+    // error while processing bytes. If true, subsequent processing will also
+    // mark all input data as consumed.
+    bool blackhole_data_on_connection_error = true;
   };
 
   OgHttp2Session(Http2VisitorInterface& visitor, Options options);
