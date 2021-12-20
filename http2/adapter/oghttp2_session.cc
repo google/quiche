@@ -1300,12 +1300,17 @@ bool OgHttp2Session::OnFrameHeader(spdy::SpdyStreamId stream_id, size_t length,
 void OgHttp2Session::OnFramePayload(const char* data, size_t len) {
   if (metadata_length_ > 0) {
     QUICHE_DCHECK_LE(len, metadata_length_);
-    const bool success = visitor_.OnMetadataForStream(
+    const bool payload_success = visitor_.OnMetadataForStream(
         metadata_stream_id_, absl::string_view(data, len));
-    if (success) {
+    if (payload_success) {
       metadata_length_ -= len;
       if (metadata_length_ == 0 && end_metadata_) {
-        visitor_.OnMetadataEndForStream(metadata_stream_id_);
+        const bool completion_success =
+            visitor_.OnMetadataEndForStream(metadata_stream_id_);
+        if (!completion_success) {
+          fatal_visitor_callback_failure_ = true;
+          decoder_.StopProcessing();
+        }
         metadata_stream_id_ = 0;
         end_metadata_ = false;
       }
