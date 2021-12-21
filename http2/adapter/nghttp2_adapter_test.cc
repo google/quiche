@@ -2668,6 +2668,57 @@ TEST(NgHttp2AdapterTest, ServerRejectsStreamData) {
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
 }
 
+TEST(NgHttp2AdapterTest, ServerReceivesTooLargeHeader) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  // nghttp2 will accept a maximum of 64kB of huffman encoded data per header
+  // field.
+  const std::string too_large_value = std::string(80 * 1024, 'q');
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"},
+                                           {"x-toobig", too_large_value}},
+                                          /*fin=*/false)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 0));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "POST"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
+  // Further header processing is skipped, as the header field is too large.
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), result);
+
+  EXPECT_TRUE(adapter->want_write());
+
+  // Since nghttp2 opted not to process the header, it generates a GOAWAY with
+  // error code COMPRESSION_ERROR.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, 8, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(GOAWAY, 0, 8, 0x0,
+                          static_cast<int>(Http2ErrorCode::COMPRESSION_ERROR)));
+
+  int send_result = adapter->Send();
+  // Some bytes should have been serialized.
+  EXPECT_EQ(0, send_result);
+  // GOAWAY.
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::GOAWAY}));
+}
+
 TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);

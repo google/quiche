@@ -19,6 +19,18 @@ TEST(HeaderValidatorTest, HeaderValueEmpty) {
   EXPECT_EQ(HeaderValidator::HEADER_OK, status);
 }
 
+TEST(HeaderValidatorTest, ExceedsMaxSize) {
+  HeaderValidator v;
+  v.SetMaxFieldSize(64u);
+  HeaderValidator::HeaderStatus status =
+      v.ValidateSingleHeader("name", "value");
+  EXPECT_EQ(HeaderValidator::HEADER_OK, status);
+  status = v.ValidateSingleHeader(
+      "name2",
+      "Antidisestablishmentariansism is supercalifragilisticexpialodocious.");
+  EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
+}
+
 TEST(HeaderValidatorTest, NameHasInvalidChar) {
   HeaderValidator v;
   for (const bool is_pseudo_header : {true, false}) {

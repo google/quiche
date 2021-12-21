@@ -43,6 +43,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     absl::optional<size_t> max_hpack_encoding_table_capacity = absl::nullopt;
     // The maximum number of decoded header bytes that a stream can receive.
     absl::optional<uint32_t> max_header_list_bytes = absl::nullopt;
+    // The maximum size of an individual header field, including name and value.
+    absl::optional<uint32_t> max_header_field_size = absl::nullopt;
     // Whether to automatically send PING acks when receiving a PING.
     bool auto_ping_ack = true;
     // Whether (as server) to send a RST_STREAM NO_ERROR when sending a fin on
@@ -257,6 +259,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
       return validator_.status_header();
     }
     void AllowConnect() { validator_.AllowConnect(); }
+    void SetMaxFieldSize(uint32_t field_size) {
+      validator_.SetMaxFieldSize(field_size);
+    }
 
    private:
     OgHttp2Session& session_;

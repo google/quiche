@@ -313,6 +313,9 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
     remaining_preface_ = {spdy::kHttp2ConnectionHeaderPrefix,
                           spdy::kHttp2ConnectionHeaderPrefixSize};
   }
+  if (options_.max_header_field_size.has_value()) {
+    headers_handler_.SetMaxFieldSize(options_.max_header_field_size.value());
+  }
 }
 
 OgHttp2Session::~OgHttp2Session() {}

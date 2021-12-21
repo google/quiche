@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "common/platform/api/quiche_export.h"
 
 namespace http2 {
@@ -21,6 +22,8 @@ enum class HeaderType : uint8_t {
 class QUICHE_EXPORT_PRIVATE HeaderValidator {
  public:
   HeaderValidator() {}
+
+  void SetMaxFieldSize(uint32_t field_size) { max_field_size_ = field_size; }
 
   // If called, this validator will allow the `:protocol` pseudo-header, as
   // described in RFC 8441.
@@ -46,6 +49,7 @@ class QUICHE_EXPORT_PRIVATE HeaderValidator {
   std::vector<std::string> pseudo_headers_;
   std::string status_;
   std::string method_;
+  absl::optional<size_t> max_field_size_;
   bool allow_connect_ = false;
 };
 
