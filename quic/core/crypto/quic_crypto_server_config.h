@@ -200,7 +200,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     // p256 determines whether a P-256 public key will be included in the
     // server config. Note that this breaks deterministic server-config
     // generation since P-256 key generation doesn't use the QuicRandom given
-    // to DefaultConfig().
+    // to GenerateConfig().
     bool p256;
   };
 
@@ -238,8 +238,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       const QuicServerConfigProtobuf& protobuf,
       QuicWallTime now);
 
-  // AddDefaultConfig calls DefaultConfig to create a config and then calls
-  // AddConfig to add it. See the comment for |DefaultConfig| for details of
+  // AddDefaultConfig calls GenerateConfig to create a config and then calls
+  // AddConfig to add it. See the comment for |GenerateConfig| for details of
   // the arguments.
   std::unique_ptr<CryptoHandshakeMessage> AddDefaultConfig(
       QuicRandom* rand,
@@ -282,9 +282,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   //     port may be used for certificate selection.
   // version: protocol version used for this connection.
   // clock: used to validate client nonces and ephemeral keys.
-  // crypto_proof: in/out parameter to which will be written the crypto proof
-  //               used in reply to a proof demand.  The pointed-to-object must
-  //               live until the callback is invoked.
+  // signed_config: in/out parameter to which will be written the crypto proof
+  //     used in reply to a proof demand.  The pointed-to-object must live until
+  //     the callback is invoked.
   // done_cb: single-use callback that accepts an opaque
   //     ValidatedClientHelloMsg token that holds information about
   //     the client hello.  The callback will always be called exactly
@@ -293,10 +293,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   void ValidateClientHello(
       const CryptoHandshakeMessage& client_hello,
       const QuicSocketAddress& client_address,
-      const QuicSocketAddress& server_address,
-      QuicTransportVersion version,
+      const QuicSocketAddress& server_address, QuicTransportVersion version,
       const QuicClock* clock,
-      QuicReferenceCountedPointer<QuicSignedServerConfig> crypto_proof,
+      QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
       std::unique_ptr<ValidateClientHelloResultCallback> done_cb) const;
 
   // ProcessClientHello processes |client_hello| and decides whether to accept
@@ -323,27 +322,22 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   //     certs. Owned by QuicDispatcher.
   // params: the state of the handshake. This may be updated with a server
   //     nonce when we send a rejection.
-  // crypto_proof: output structure containing the crypto proof used in reply to
-  //     a proof demand.
+  // signed_config: output structure containing the crypto proof used in reply
+  //     to a proof demand.
   // total_framing_overhead: the total per-packet overhead for a stream frame
   // chlo_packet_size: the size, in bytes, of the CHLO packet
   // done_cb: the callback invoked on completion
   void ProcessClientHello(
       QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
           validate_chlo_result,
-      bool reject_only,
-      QuicConnectionId connection_id,
+      bool reject_only, QuicConnectionId connection_id,
       const QuicSocketAddress& server_address,
-      const QuicSocketAddress& client_address,
-      ParsedQuicVersion version,
-      const ParsedQuicVersionVector& supported_versions,
-      const QuicClock* clock,
-      QuicRandom* rand,
-      QuicCompressedCertsCache* compressed_certs_cache,
+      const QuicSocketAddress& client_address, ParsedQuicVersion version,
+      const ParsedQuicVersionVector& supported_versions, const QuicClock* clock,
+      QuicRandom* rand, QuicCompressedCertsCache* compressed_certs_cache,
       QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params,
-      QuicReferenceCountedPointer<QuicSignedServerConfig> crypto_proof,
-      QuicByteCount total_framing_overhead,
-      QuicByteCount chlo_packet_size,
+      QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
+      QuicByteCount total_framing_overhead, QuicByteCount chlo_packet_size,
       std::unique_ptr<ProcessClientHelloResultCallback> done_cb) const;
 
   // BuildServerConfigUpdateMessage invokes |cb| with a SCUP message containing

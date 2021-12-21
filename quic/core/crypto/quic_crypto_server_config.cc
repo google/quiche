@@ -540,6 +540,10 @@ void QuicCryptoServerConfig::ValidateClientHello(
           client_hello, client_address.host(), now));
 
   absl::string_view requested_scid;
+  // We ignore here the return value from GetStringPiece. If there is no SCID
+  // tag, EvaluateClientHello will discover that because GetCurrentConfigs will
+  // not have found the requested config (i.e. because none of the configs will
+  // have an empty string as its id).
   client_hello.GetStringPiece(kSCID, &requested_scid);
   Configs configs;
   if (!GetCurrentConfigs(now, requested_scid,
@@ -1604,6 +1608,7 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
     QUIC_LOG(WARNING) << "Server config message is missing SCID";
     return nullptr;
   }
+  QUICHE_DCHECK(!scid.empty());
   config->id = std::string(scid);
 
   if (msg->GetTaglist(kAEAD, &config->aead) != QUIC_NO_ERROR) {
