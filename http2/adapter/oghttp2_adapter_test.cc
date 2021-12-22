@@ -2576,8 +2576,6 @@ TEST(OgHttp2AdapterServerTest, ServerReceivesMoreHeaderBytesThanConfigured) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(GOAWAY, 0, _, 0x0,
@@ -2587,7 +2585,6 @@ TEST(OgHttp2AdapterServerTest, ServerReceivesMoreHeaderBytesThanConfigured) {
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
                                             spdy::SpdyFrameType::GOAWAY}));
 }
 
@@ -3120,8 +3117,6 @@ TEST(OgHttp2AdapterServerTest, ServerConnectionErrorWhileHandlingHeaders) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, 4, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(RST_STREAM, 1, 4, 0x0,
@@ -3135,9 +3130,7 @@ TEST(OgHttp2AdapterServerTest, ServerConnectionErrorWhileHandlingHeaders) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS ack
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
                                             spdy::SpdyFrameType::RST_STREAM,
                                             spdy::SpdyFrameType::GOAWAY}));
 }
@@ -3183,8 +3176,6 @@ TEST(OgHttp2AdapterServerTest, ServerErrorAfterHandlingHeaders) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(GOAWAY, 0, _, 0x0,
@@ -3193,9 +3184,7 @@ TEST(OgHttp2AdapterServerTest, ServerErrorAfterHandlingHeaders) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS, SETTINGS ack, and GOAWAY
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
                                             spdy::SpdyFrameType::GOAWAY}));
 }
 
@@ -3237,8 +3226,6 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsFrameHeader) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(GOAWAY, 0, _, 0x0,
@@ -3247,9 +3234,7 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsFrameHeader) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS, SETTINGS ack, and GOAWAY
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
                                             spdy::SpdyFrameType::GOAWAY}));
 }
 
@@ -3302,8 +3287,6 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsBeginningOfData) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(GOAWAY, 0, _, 0x0,
@@ -3312,9 +3295,7 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsBeginningOfData) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS, SETTINGS ack, and GOAWAY.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
                                             spdy::SpdyFrameType::GOAWAY}));
 }
 
@@ -3360,8 +3341,6 @@ TEST(OgHttp2AdapterServerTest, ServerReceivesTooLargeHeader) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
   // Since the library opted not to process the header, it generates a GOAWAY
   // with error code COMPRESSION_ERROR.
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
@@ -3372,9 +3351,8 @@ TEST(OgHttp2AdapterServerTest, ServerReceivesTooLargeHeader) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS, SETTINGS ack, and GOAWAY.
+  // SETTINGS and GOAWAY.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
                                             spdy::SpdyFrameType::GOAWAY}));
 }
 
@@ -3427,8 +3405,6 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsStreamData) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(GOAWAY, 0, _, 0x0,
@@ -3437,9 +3413,7 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsStreamData) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS, SETTINGS ack, and GOAWAY.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
                                             spdy::SpdyFrameType::GOAWAY}));
 }
 
@@ -3557,8 +3531,6 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsNewStreamBelowWatermark) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(GOAWAY, 0, _, 0x0,
@@ -3567,9 +3539,7 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsNewStreamBelowWatermark) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS, SETTINGS ack, and GOAWAY.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
                                             spdy::SpdyFrameType::GOAWAY}));
 }
 
@@ -3600,10 +3570,8 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsWindowUpdateOnIdleStream) {
 
   EXPECT_TRUE(adapter->want_write());
 
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(GOAWAY, 0, _, 0x0,
@@ -3612,9 +3580,7 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsWindowUpdateOnIdleStream) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS, SETTINGS ack, and GOAWAY.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
                                             spdy::SpdyFrameType::GOAWAY}));
 }
 
@@ -3647,10 +3613,8 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsDataOnIdleStream) {
 
   EXPECT_TRUE(adapter->want_write());
 
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(GOAWAY, 0, _, 0x0,
@@ -3659,9 +3623,7 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsDataOnIdleStream) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS, SETTINGS ack, and GOAWAY.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
                                             spdy::SpdyFrameType::GOAWAY}));
 }
 
@@ -3695,10 +3657,8 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsRstStreamOnIdleStream) {
 
   EXPECT_TRUE(adapter->want_write());
 
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(GOAWAY, 0, _, 0x0,
@@ -3707,9 +3667,7 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsRstStreamOnIdleStream) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS, SETTINGS ack, and GOAWAY.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
                                             spdy::SpdyFrameType::GOAWAY}));
 }
 
@@ -4152,6 +4110,9 @@ TEST(OgHttp2AdapterServerTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
   OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
   auto adapter = OgHttp2Adapter::Create(visitor, options);
 
+  // Submit a custom initial SETTINGS frame with one setting.
+  adapter->SubmitSettings({{HEADER_TABLE_SIZE, 100u}});
+
   const std::string frames = TestFrameSequence()
                                  .ClientPreface()
                                  .Headers(1,
@@ -4184,9 +4145,6 @@ TEST(OgHttp2AdapterServerTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
       1, ToHeaders({{":status", "200"}}), std::move(body));
   ASSERT_EQ(0, submit_result);
 
-  // Submit a SETTINGS frame.
-  adapter->SubmitSettings({});
-
   // Submit a WINDOW_UPDATE frame.
   adapter->SubmitWindowUpdate(kConnectionStreamId, 42);
 
@@ -4212,18 +4170,8 @@ TEST(OgHttp2AdapterServerTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
 
   EXPECT_TRUE(adapter->want_write());
 
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
-  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 0, _, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 0, _, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(GOAWAY, 0, _, 0x0,
@@ -4232,14 +4180,8 @@ TEST(OgHttp2AdapterServerTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // TODO(diannahu): Drop other frames like nghttp2.
-  EXPECT_THAT(
-      visitor.data(),
-      EqualsFrames(
-          {spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::SETTINGS,
-           spdy::SpdyFrameType::HEADERS, spdy::SpdyFrameType::SETTINGS,
-           spdy::SpdyFrameType::WINDOW_UPDATE, spdy::SpdyFrameType::SETTINGS,
-           spdy::SpdyFrameType::GOAWAY}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::GOAWAY}));
   visitor.Clear();
 
   // Try to submit more frames for writing. They should not be written.

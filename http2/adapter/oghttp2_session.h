@@ -377,6 +377,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   void CloseStreamIfReady(uint8_t frame_type, uint32_t stream_id);
 
+  // Updates internal state to prepare for sending an immediate GOAWAY.
+  void PrepareForImmediateGoAway();
+
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
 
@@ -474,6 +477,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   bool queued_preface_ = false;
   bool peer_supports_metadata_ = false;
   bool end_metadata_ = false;
+  bool sent_non_ack_settings_ = false;
 
   // Recursion guard for ProcessBytes().
   bool processing_bytes_ = false;

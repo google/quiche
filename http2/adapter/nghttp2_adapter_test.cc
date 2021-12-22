@@ -3994,6 +3994,9 @@ TEST(NgHttp2AdapterTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
 
+  // Submit a custom initial SETTINGS frame with one setting.
+  adapter->SubmitSettings({{HEADER_TABLE_SIZE, 100u}});
+
   const std::string frames = TestFrameSequence()
                                  .ClientPreface()
                                  .Headers(1,
@@ -4026,9 +4029,6 @@ TEST(NgHttp2AdapterTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
       1, ToHeaders({{":status", "200"}}), std::move(body));
   ASSERT_EQ(0, submit_result);
 
-  // Submit a SETTINGS frame.
-  adapter->SubmitSettings({});
-
   // Submit a WINDOW_UPDATE frame.
   adapter->SubmitWindowUpdate(kConnectionStreamId, 42);
 
@@ -4054,8 +4054,8 @@ TEST(NgHttp2AdapterTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
 
   EXPECT_TRUE(adapter->want_write());
 
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));

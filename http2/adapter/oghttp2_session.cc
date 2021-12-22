@@ -208,6 +208,11 @@ uint32_t HpackCapacityBound(const OgHttp2Session::Options& o) {
       kMaximumHpackTableCapacity);
 }
 
+bool IsNonAckSettings(const spdy::SpdyFrameIR& frame) {
+  return frame.frame_type() == spdy::SpdyFrameType::SETTINGS &&
+         !reinterpret_cast<const SpdySettingsIR&>(frame).is_ack();
+}
+
 }  // namespace
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
@@ -491,8 +496,7 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
   if (frame->frame_type() == spdy::SpdyFrameType::GOAWAY) {
     queued_goaway_ = true;
     if (latched_error_) {
-      // TODO(diannahu): Clear the frames queue.
-      queued_immediate_goaway_ = true;
+      PrepareForImmediateGoAway();
     }
   } else if (frame->fin() ||
              frame->frame_type() == spdy::SpdyFrameType::RST_STREAM) {
@@ -660,13 +664,15 @@ bool OgHttp2Session::AfterFrameSent(uint8_t frame_type, uint32_t stream_id,
     return false;
   }
   if (stream_id == 0) {
-    const bool is_settings_ack =
-        static_cast<FrameType>(frame_type) == FrameType::SETTINGS &&
-        (flags & 0x01);
-    if (is_settings_ack && encoder_header_table_capacity_when_acking_) {
-      framer_.UpdateHeaderEncoderTableSize(
-          encoder_header_table_capacity_when_acking_.value());
-      encoder_header_table_capacity_when_acking_ = absl::nullopt;
+    if (static_cast<FrameType>(frame_type) == FrameType::SETTINGS) {
+      const bool is_settings_ack = (flags & 0x01);
+      if (is_settings_ack && encoder_header_table_capacity_when_acking_) {
+        framer_.UpdateHeaderEncoderTableSize(
+            encoder_header_table_capacity_when_acking_.value());
+        encoder_header_table_capacity_when_acking_ = absl::nullopt;
+      } else if (!is_settings_ack) {
+        sent_non_ack_settings_ = true;
+      }
     }
     return true;
   }
@@ -1334,9 +1340,7 @@ void OgHttp2Session::MaybeSetupPreface() {
                             spdy::kHttp2ConnectionHeaderPrefixSize);
     }
     // First frame must be a non-ack SETTINGS.
-    if (frames_.empty() ||
-        frames_.front()->frame_type() != spdy::SpdyFrameType::SETTINGS ||
-        reinterpret_cast<SpdySettingsIR&>(*frames_.front()).is_ack()) {
+    if (frames_.empty() || !IsNonAckSettings(*frames_.front())) {
       frames_.push_front(PrepareSettingsFrame(GetInitialSettings()));
     }
     queued_preface_ = true;
@@ -1537,6 +1541,33 @@ void OgHttp2Session::CloseStreamIfReady(uint8_t frame_type,
   if (static_cast<FrameType>(frame_type) == FrameType::RST_STREAM ||
       (state.half_closed_local && state.half_closed_remote)) {
     CloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR);
+  }
+}
+
+void OgHttp2Session::PrepareForImmediateGoAway() {
+  queued_immediate_goaway_ = true;
+
+  // Keep the initial SETTINGS frame if the session has SETTINGS at the front of
+  // the queue but has not sent SETTINGS yet. The session should send initial
+  // SETTINGS before GOAWAY.
+  std::unique_ptr<spdy::SpdyFrameIR> initial_settings;
+  if (!sent_non_ack_settings_ && !frames_.empty() &&
+      IsNonAckSettings(*frames_.front())) {
+    initial_settings = std::move(frames_.front());
+    frames_.pop_front();
+  }
+
+  // Remove all pending frames except for RST_STREAMs. It is important to send
+  // RST_STREAMs so the peer knows of errors below the GOAWAY last stream ID.
+  // TODO(diannahu): Consider informing the visitor of dropped frames. This may
+  // mean keeping the frames and invoking a frame-not-sent callback, similar to
+  // nghttp2. Could add a closure to each frame in the frames queue.
+  frames_.remove_if([](const auto& frame) {
+    return frame->frame_type() != spdy::SpdyFrameType::RST_STREAM;
+  });
+
+  if (initial_settings != nullptr) {
+    frames_.push_front(std::move(initial_settings));
   }
 }
 
