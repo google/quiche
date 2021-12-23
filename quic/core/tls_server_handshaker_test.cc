@@ -10,6 +10,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
+#include "quic/core/crypto/certificate_util.h"
 #include "quic/core/crypto/client_proof_source.h"
 #include "quic/core/crypto/proof_source.h"
 #include "quic/core/crypto/quic_random.h"
@@ -48,21 +49,6 @@ namespace {
 
 const char kServerHostname[] = "test.example.com";
 const uint16_t kServerPort = 443;
-
-QuicReferenceCountedPointer<ClientProofSource::Chain> TestClientCertChain() {
-  return QuicReferenceCountedPointer<ClientProofSource::Chain>(
-      new ClientProofSource::Chain({std::string(kTestCertificate)}));
-}
-
-CertificatePrivateKey TestClientCertPrivateKey() {
-  CBS private_key_cbs;
-  CBS_init(&private_key_cbs,
-           reinterpret_cast<const uint8_t*>(kTestCertificatePrivateKey.data()),
-           kTestCertificatePrivateKey.size());
-
-  return CertificatePrivateKey(
-      bssl::UniquePtr<EVP_PKEY>(EVP_parse_private_key(&private_key_cbs)));
-}
 
 struct TestParams {
   ParsedQuicVersion version;
@@ -400,6 +386,34 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
   }
 
  protected:
+  // Setup the client to send a (self-signed) client cert to the server, if
+  // requested. InitializeFakeClient() must be called after this to take effect.
+  bool SetupClientCert() {
+    auto client_proof_source = std::make_unique<DefaultClientProofSource>();
+
+    CertificatePrivateKey client_cert_key(
+        MakeKeyPairForSelfSignedCertificate());
+
+    CertificateOptions options;
+    options.subject = "CN=subject";
+    options.serial_number = 0x12345678;
+    options.validity_start = {2020, 1, 1, 0, 0, 0};
+    options.validity_end = {2049, 12, 31, 0, 0, 0};
+    std::string der_cert =
+        CreateSelfSignedCertificate(*client_cert_key.private_key(), options);
+
+    QuicReferenceCountedPointer<ClientProofSource::Chain> client_cert_chain(
+        new ClientProofSource::Chain({der_cert}));
+
+    if (!client_proof_source->AddCertAndKey({"*"}, client_cert_chain,
+                                            std::move(client_cert_key))) {
+      return false;
+    }
+
+    client_crypto_config_->set_proof_source(std::move(client_proof_source));
+    return true;
+  }
+
   // Every connection gets its own MockQuicConnectionHelper and
   // MockAlarmFactory, tracked separately from the server and client state so
   // their lifetimes persist through the whole test.
@@ -901,10 +915,7 @@ TEST_P(TlsServerHandshakerTest, ZeroRttRejectOnApplicationStateChange) {
 }
 
 TEST_P(TlsServerHandshakerTest, RequestClientCert) {
-  auto client_proof_source = std::make_unique<DefaultClientProofSource>();
-  ASSERT_TRUE(client_proof_source->AddCertAndKey({"*"}, TestClientCertChain(),
-                                                 TestClientCertPrivateKey()));
-  client_crypto_config_->set_proof_source(std::move(client_proof_source));
+  ASSERT_TRUE(SetupClientCert());
   InitializeFakeClient();
 
   initial_client_cert_mode_ = ClientCertMode::kRequest;
@@ -924,10 +935,7 @@ TEST_P(TlsServerHandshakerTest, RequestClientCert) {
 }
 
 TEST_P(TlsServerHandshakerTest, RequestClientCertByDelayedSslConfig) {
-  auto client_proof_source = std::make_unique<DefaultClientProofSource>();
-  ASSERT_TRUE(client_proof_source->AddCertAndKey({"*"}, TestClientCertChain(),
-                                                 TestClientCertPrivateKey()));
-  client_crypto_config_->set_proof_source(std::move(client_proof_source));
+  ASSERT_TRUE(SetupClientCert());
   InitializeFakeClient();
 
   QuicDelayedSSLConfig delayed_ssl_config;
@@ -966,10 +974,7 @@ TEST_P(TlsServerHandshakerTest, RequestClientCert_NoCert) {
 }
 
 TEST_P(TlsServerHandshakerTest, RequestAndRequireClientCert) {
-  auto client_proof_source = std::make_unique<DefaultClientProofSource>();
-  ASSERT_TRUE(client_proof_source->AddCertAndKey({"*"}, TestClientCertChain(),
-                                                 TestClientCertPrivateKey()));
-  client_crypto_config_->set_proof_source(std::move(client_proof_source));
+  ASSERT_TRUE(SetupClientCert());
   InitializeFakeClient();
 
   initial_client_cert_mode_ = ClientCertMode::kRequire;
@@ -990,10 +995,7 @@ TEST_P(TlsServerHandshakerTest, RequestAndRequireClientCert) {
 }
 
 TEST_P(TlsServerHandshakerTest, RequestAndRequireClientCertByDelayedSslConfig) {
-  auto client_proof_source = std::make_unique<DefaultClientProofSource>();
-  ASSERT_TRUE(client_proof_source->AddCertAndKey({"*"}, TestClientCertChain(),
-                                                 TestClientCertPrivateKey()));
-  client_crypto_config_->set_proof_source(std::move(client_proof_source));
+  ASSERT_TRUE(SetupClientCert());
   InitializeFakeClient();
 
   QuicDelayedSSLConfig delayed_ssl_config;

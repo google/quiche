@@ -23,6 +23,12 @@ inline QUIC_EXPORT_PRIVATE CBS StringPieceToCbs(absl::string_view piece) {
   return result;
 }
 
+inline QUIC_EXPORT_PRIVATE bool AddStringToCbb(CBB* cbb,
+                                               absl::string_view piece) {
+  return 1 == CBB_add_bytes(cbb, reinterpret_cast<const uint8_t*>(piece.data()),
+                            piece.size());
+}
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_CRYPTO_BORING_UTILS_H_
