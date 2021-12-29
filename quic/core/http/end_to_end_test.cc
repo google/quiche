@@ -5532,8 +5532,9 @@ TEST_P(EndToEndPacketReorderingTest, MigrateAgainAfterPathValidationFailure) {
   EXPECT_EQ(0u, client_connection->GetStats().num_new_connection_id_sent);
 }
 
+// TODO(haoyuewang) Re-enable this test in cr/418502410.
 TEST_P(EndToEndPacketReorderingTest,
-       MigrateAgainAfterPathValidationFailureWithNonZeroClientConnectionId) {
+       DISABLED_MigrateAgainAfterPathValidationFailureWithNonZeroClientCid) {
   if (!version_.SupportsClientConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
