@@ -108,7 +108,7 @@ bool QboneSessionBase::ShouldKeepConnectionAlive() const {
 
 std::unique_ptr<QuicStream> QboneSessionBase::CreateDataStream(
     QuicStreamId id) {
-  if (crypto_stream_ == nullptr || !crypto_stream_->encryption_established()) {
+  if (!IsEncryptionEstablished()) {
     // Encryption not active so no stream created
     return nullptr;
   }
