@@ -104,19 +104,19 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
                                             spdy::SpdyFrameType::PING}));
   visitor.Clear();
 
-  const std::vector<const Header> headers1 =
+  const std::vector<Header> headers1 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
                  {":path", "/this/is/request/one"}});
 
-  const std::vector<const Header> headers2 =
+  const std::vector<Header> headers2 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
                  {":path", "/this/is/request/two"}});
 
-  const std::vector<const Header> headers3 =
+  const std::vector<Header> headers3 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -269,7 +269,7 @@ TEST(NgHttp2AdapterTest, ClientRejects100HeadersWithFin) {
 
   testing::InSequence s;
 
-  const std::vector<const Header> headers1 =
+  const std::vector<Header> headers1 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -332,7 +332,7 @@ TEST(OgHttp2AdapterClientTest, ClientHandles204WithContent) {
 
   testing::InSequence s;
 
-  const std::vector<const Header> headers1 =
+  const std::vector<Header> headers1 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -396,7 +396,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesTrailers) {
 
   testing::InSequence s;
 
-  const std::vector<const Header> headers1 =
+  const std::vector<Header> headers1 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -472,7 +472,7 @@ TEST(NgHttp2AdapterTest, ClientSendsTrailers) {
 
   testing::InSequence s;
 
-  const std::vector<const Header> headers1 =
+  const std::vector<Header> headers1 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -501,7 +501,7 @@ TEST(NgHttp2AdapterTest, ClientSendsTrailers) {
                                   spdy::SpdyFrameType::DATA}));
   visitor.Clear();
 
-  const std::vector<const Header> trailers1 =
+  const std::vector<Header> trailers1 =
       ToHeaders({{"extra-info", "Trailers are weird but good?"}});
   adapter->SubmitTrailer(stream_id1, trailers1);
 
@@ -520,7 +520,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesMetadata) {
 
   testing::InSequence s;
 
-  const std::vector<const Header> headers1 =
+  const std::vector<Header> headers1 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -600,7 +600,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesMetadataWithError) {
 
   testing::InSequence s;
 
-  const std::vector<const Header> headers1 =
+  const std::vector<Header> headers1 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -675,7 +675,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesHpackHeaderTableSetting) {
 
   testing::InSequence s;
 
-  const std::vector<const Header> headers1 = ToHeaders({
+  const std::vector<Header> headers1 = ToHeaders({
       {":method", "GET"},
       {":scheme", "http"},
       {":authority", "example.com"},
@@ -719,7 +719,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesInvalidTrailers) {
 
   testing::InSequence s;
 
-  const std::vector<const Header> headers1 =
+  const std::vector<Header> headers1 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -805,7 +805,7 @@ TEST(NgHttp2AdapterTest, ClientRstStreamWhileHandlingHeaders) {
 
   testing::InSequence s;
 
-  const std::vector<const Header> headers1 =
+  const std::vector<Header> headers1 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -880,7 +880,7 @@ TEST(NgHttp2AdapterTest, ClientConnectionErrorWhileHandlingHeaders) {
 
   testing::InSequence s;
 
-  const std::vector<const Header> headers1 =
+  const std::vector<Header> headers1 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -948,7 +948,7 @@ TEST(NgHttp2AdapterTest, ClientConnectionErrorWhileHandlingHeadersOnly) {
 
   testing::InSequence s;
 
-  const std::vector<const Header> headers1 =
+  const std::vector<Header> headers1 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -1015,7 +1015,7 @@ TEST(NgHttp2AdapterTest, ClientRejectsHeaders) {
 
   testing::InSequence s;
 
-  const std::vector<const Header> headers1 =
+  const std::vector<Header> headers1 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -1094,7 +1094,7 @@ TEST(NgHttp2AdapterTest, ClientFailsOnGoAway) {
 
   testing::InSequence s;
 
-  const std::vector<const Header> headers1 =
+  const std::vector<Header> headers1 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -1165,7 +1165,7 @@ TEST(NgHttp2AdapterTest, ClientRejects101Response) {
 
   testing::InSequence s;
 
-  const std::vector<const Header> headers1 =
+  const std::vector<Header> headers1 =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -1872,7 +1872,7 @@ TEST(NgHttp2AdapterTest, ClientForbidsPushPromise) {
 
   visitor.Clear();
 
-  const std::vector<const Header> headers =
+  const std::vector<Header> headers =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -1886,7 +1886,7 @@ TEST(NgHttp2AdapterTest, ClientForbidsPushPromise) {
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
   visitor.Clear();
 
-  const std::vector<const Header> push_headers =
+  const std::vector<Header> push_headers =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -1944,7 +1944,7 @@ TEST(NgHttp2AdapterTest, ClientForbidsPushStream) {
 
   visitor.Clear();
 
-  const std::vector<const Header> headers =
+  const std::vector<Header> headers =
       ToHeaders({{":method", "GET"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
@@ -3083,7 +3083,7 @@ TEST(NgHttp2AdapterTest, ServerRespondsToRequestWithTrailers) {
   int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 
-  const std::vector<const Header> headers1 = ToHeaders({{":status", "200"}});
+  const std::vector<Header> headers1 = ToHeaders({{":status", "200"}});
   auto body1 = absl::make_unique<TestDataFrameSource>(visitor, true);
   TestDataFrameSource* body1_ptr = body1.get();
 

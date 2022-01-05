@@ -14,7 +14,7 @@ namespace http2 {
 namespace adapter {
 namespace test {
 
-std::vector<const Header> QUICHE_NO_EXPORT ToHeaders(
+std::vector<Header> QUICHE_NO_EXPORT ToHeaders(
     absl::Span<const std::pair<absl::string_view, absl::string_view>> headers);
 
 class QUICHE_NO_EXPORT TestFrameSequence {
