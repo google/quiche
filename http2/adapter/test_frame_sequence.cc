@@ -157,18 +157,16 @@ TestFrameSequence& TestFrameSequence::Priority(Http2StreamId stream_id,
 TestFrameSequence& TestFrameSequence::Metadata(Http2StreamId stream_id,
                                                absl::string_view payload,
                                                bool multiple_frames) {
-  const std::string encoded_payload = MetadataBlockForPayload(payload);
   if (multiple_frames) {
-    const size_t pos = encoded_payload.size() / 2;
+    const size_t pos = payload.size() / 2;
     frames_.push_back(absl::make_unique<spdy::SpdyUnknownIR>(
-        stream_id, kMetadataFrameType, 0, encoded_payload.substr(0, pos)));
+        stream_id, kMetadataFrameType, 0, std::string(payload.substr(0, pos))));
     frames_.push_back(absl::make_unique<spdy::SpdyUnknownIR>(
         stream_id, kMetadataFrameType, kMetadataEndFlag,
-        encoded_payload.substr(pos)));
+        std::string(payload.substr(pos))));
   } else {
     frames_.push_back(absl::make_unique<spdy::SpdyUnknownIR>(
-        stream_id, kMetadataFrameType, kMetadataEndFlag,
-        std::move(encoded_payload)));
+        stream_id, kMetadataFrameType, kMetadataEndFlag, std::string(payload)));
   }
   return *this;
 }
@@ -184,16 +182,6 @@ std::string TestFrameSequence::Serialize() {
     absl::StrAppend(&result, absl::string_view(f));
   }
   return result;
-}
-
-std::string TestFrameSequence::MetadataBlockForPayload(
-    absl::string_view payload) {
-  // Encode the payload using a header block.
-  spdy::SpdyHeaderBlock block;
-  block["example-payload"] = payload;
-  spdy::HpackEncoder encoder;
-  encoder.DisableCompression();
-  return encoder.EncodeHeaderBlock(block);
 }
 
 }  // namespace test

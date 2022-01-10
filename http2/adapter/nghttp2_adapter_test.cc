@@ -3039,11 +3039,9 @@ TEST(NgHttp2AdapterTest, ClientSendsMetadataWithContinuation) {
 
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);
-  EXPECT_EQ(TestFrameSequence::MetadataBlockForPayload(
-                "Example connection metadata in multiple frames"),
+  EXPECT_EQ("Example connection metadata in multiple frames",
             absl::StrJoin(visitor.GetMetadata(0), ""));
-  EXPECT_EQ(TestFrameSequence::MetadataBlockForPayload(
-                "Some stream metadata that's also sent in multiple frames"),
+  EXPECT_EQ("Some stream metadata that's also sent in multiple frames",
             absl::StrJoin(visitor.GetMetadata(1), ""));
 }
 

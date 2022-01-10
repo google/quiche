@@ -61,8 +61,6 @@ class QUICHE_NO_EXPORT TestFrameSequence {
 
   std::string Serialize();
 
-  static std::string MetadataBlockForPayload(absl::string_view);
-
  private:
   std::string preface_;
   std::vector<std::unique_ptr<spdy::SpdyFrameIR>> frames_;
