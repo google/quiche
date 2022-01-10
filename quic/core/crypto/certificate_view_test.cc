@@ -59,6 +59,7 @@ TEST(CertificateViewTest, Parse) {
       *quiche::QuicheUtcDateTimeToUnixSeconds(2020, 2, 2, 18, 13, 59));
   EXPECT_EQ(view->validity_end(), validity_end);
   EXPECT_EQ(view->public_key_type(), PublicKeyType::kRsa);
+  EXPECT_EQ(PublicKeyTypeToString(view->public_key_type()), "RSA");
 
   EXPECT_EQ("C=US,ST=California,L=Mountain View,O=QUIC Server,CN=127.0.0.1",
             view->GetHumanReadableSubject());

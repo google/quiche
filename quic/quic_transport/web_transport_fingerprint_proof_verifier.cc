@@ -158,6 +158,14 @@ QuicAsyncStatus WebTransportFingerprintProofVerifier::VerifyCertChain(
     return QUIC_FAILURE;
   }
 
+  if (!IsKeyTypeAllowedByPolicy(*view)) {
+    *details = std::make_unique<Details>(Status::kDisallowedKeyAlgorithm);
+    *error_details =
+        absl::StrCat("Certificate uses a disallowed public key type (",
+                     PublicKeyTypeToString(view->public_key_type()), ")");
+    return QUIC_FAILURE;
+  }
+
   *details = std::make_unique<Details>(Status::kValidCertificate);
   return QUIC_SUCCESS;
 }
@@ -199,6 +207,23 @@ bool WebTransportFingerprintProofVerifier::IsWithinValidityPeriod(
   QuicWallTime now = clock_->WallNow();
   return now.IsAfter(certificate.validity_start()) &&
          now.IsBefore(certificate.validity_end());
+}
+
+bool WebTransportFingerprintProofVerifier::IsKeyTypeAllowedByPolicy(
+    const CertificateView& certificate) {
+  switch (certificate.public_key_type()) {
+    // https://github.com/w3c/webtransport/pull/375 defines P-256 as an MTI
+    // algorithm, and prohibits RSA.  We also allow P-384 and Ed25519.
+    case PublicKeyType::kP256:
+    case PublicKeyType::kP384:
+    case PublicKeyType::kEd25519:
+      return true;
+    case PublicKeyType::kRsa:
+      // TODO(b/213614428): this should be false by default.
+      return true;
+    default:
+      return false;
+  }
 }
 
 }  // namespace quic

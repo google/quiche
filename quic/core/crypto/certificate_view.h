@@ -42,6 +42,7 @@ enum class PublicKeyType {
   kEd25519,
   kUnknown,
 };
+std::string PublicKeyTypeToString(PublicKeyType type);
 
 // CertificateView represents a parsed version of a single X.509 certificate. As
 // the word "view" implies, it does not take ownership of the underlying strings
@@ -79,7 +80,7 @@ class QUIC_EXPORT_PRIVATE CertificateView {
                        uint16_t signature_algorithm) const;
 
   // Returns the type of the key used in the certificate's SPKI.
-  PublicKeyType public_key_type();
+  PublicKeyType public_key_type() const;
 
  private:
   CertificateView() = default;

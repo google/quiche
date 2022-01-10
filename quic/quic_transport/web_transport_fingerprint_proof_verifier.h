@@ -61,8 +61,9 @@ class QUIC_EXPORT_PRIVATE WebTransportFingerprintProofVerifier
     kExpiryTooLong = 3,
     kExpired = 4,
     kInternalError = 5,
+    kDisallowedKeyAlgorithm = 6,
 
-    kMaxValue = kInternalError,
+    kMaxValue = kDisallowedKeyAlgorithm,
   };
 
   class QUIC_EXPORT_PRIVATE Details : public ProofVerifyDetails {
@@ -114,6 +115,9 @@ class QUIC_EXPORT_PRIVATE WebTransportFingerprintProofVerifier
       uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) override;
   std::unique_ptr<ProofVerifyContext> CreateDefaultContext() override;
+
+ protected:
+  virtual bool IsKeyTypeAllowedByPolicy(const CertificateView& certificate);
 
  private:
   bool HasKnownFingerprint(absl::string_view der_certificate);

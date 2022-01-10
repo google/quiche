@@ -168,6 +168,22 @@ absl::optional<std::string> DistinguishedNameToString(CBS input) {
 
 }  // namespace
 
+std::string PublicKeyTypeToString(PublicKeyType type) {
+  switch (type) {
+    case PublicKeyType::kRsa:
+      return "RSA";
+    case PublicKeyType::kP256:
+      return "ECDSA P-256";
+    case PublicKeyType::kP384:
+      return "ECDSA P-384";
+    case PublicKeyType::kEd25519:
+      return "Ed25519";
+    case PublicKeyType::kUnknown:
+      return "unknown";
+  }
+  return "";
+}
+
 absl::optional<quic::QuicWallTime> ParseDerTime(unsigned tag,
                                                 absl::string_view payload) {
   if (tag != CBS_ASN1_GENERALIZEDTIME && tag != CBS_ASN1_UTCTIME) {
@@ -461,7 +477,7 @@ std::vector<std::string> CertificateView::LoadPemFromStream(
   }
 }
 
-PublicKeyType CertificateView::public_key_type() {
+PublicKeyType CertificateView::public_key_type() const {
   return PublicKeyTypeFromKey(public_key_.get());
 }
 
