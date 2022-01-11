@@ -42,7 +42,7 @@ enum class PublicKeyType {
   kEd25519,
   kUnknown,
 };
-std::string PublicKeyTypeToString(PublicKeyType type);
+QUIC_EXPORT_PRIVATE std::string PublicKeyTypeToString(PublicKeyType type);
 
 // CertificateView represents a parsed version of a single X.509 certificate. As
 // the word "view" implies, it does not take ownership of the underlying strings
