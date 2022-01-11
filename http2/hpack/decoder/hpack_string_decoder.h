@@ -15,11 +15,11 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/base/macros.h"
 #include "http2/decoder/decode_buffer.h"
 #include "http2/decoder/decode_status.h"
 #include "http2/hpack/varint/hpack_varint_decoder.h"
 #include "http2/platform/api/http2_logging.h"
-#include "http2/platform/api/http2_macros.h"
 #include "common/platform/api/quiche_export.h"
 
 namespace http2 {
@@ -96,7 +96,7 @@ class QUICHE_EXPORT_PRIVATE HpackStringDecoder {
           // buffer, and hence this fall through skips another trip through the
           // switch above and more importantly skips setting the state_ variable
           // again in those cases where we don't need it.
-          HTTP2_FALLTHROUGH;
+          ABSL_FALLTHROUGH_INTENDED;
 
         case kDecodingString:
           HTTP2_DVLOG(2) << "kDecodingString: db->Remaining=" << db->Remaining()

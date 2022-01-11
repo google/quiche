@@ -182,7 +182,6 @@ bool ParseSettingsId(SpdySettingsId wire_setting_id,
     case SETTINGS_ENABLE_CONNECT_PROTOCOL:
     case SETTINGS_DEPRECATE_HTTP2_PRIORITIES:
     case SETTINGS_EXPERIMENT_SCHEDULER:
-      // FALLTHROUGH_INTENDED
       return true;
   }
   return false;

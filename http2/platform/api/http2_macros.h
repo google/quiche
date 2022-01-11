@@ -3,7 +3,6 @@
 
 #include "net/http2/platform/impl/http2_macros_impl.h"
 
-#define HTTP2_FALLTHROUGH HTTP2_FALLTHROUGH_IMPL
 #define HTTP2_UNREACHABLE() HTTP2_UNREACHABLE_IMPL()
 #define HTTP2_DIE_IF_NULL(ptr) HTTP2_DIE_IF_NULL_IMPL(ptr)
 

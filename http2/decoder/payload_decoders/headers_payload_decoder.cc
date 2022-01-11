@@ -6,13 +6,13 @@
 
 #include <stddef.h>
 
+#include "absl/base/macros.h"
 #include "http2/decoder/decode_buffer.h"
 #include "http2/decoder/http2_frame_decoder_listener.h"
 #include "http2/http2_constants.h"
 #include "http2/http2_structures.h"
 #include "http2/platform/api/http2_bug_tracker.h"
 #include "http2/platform/api/http2_logging.h"
-#include "http2/platform/api/http2_macros.h"
 
 namespace http2 {
 
@@ -129,7 +129,7 @@ DecodeStatus HeadersPayloadDecoder::ResumeDecodingPayload(
           payload_state_ = PayloadState::kReadPayload;
           continue;
         }
-        HTTP2_FALLTHROUGH;
+        ABSL_FALLTHROUGH_INTENDED;
 
       case PayloadState::kStartDecodingPriorityFields:
         status = state->StartDecodingStructureInPayload(&priority_fields_, db);
@@ -138,7 +138,7 @@ DecodeStatus HeadersPayloadDecoder::ResumeDecodingPayload(
           return status;
         }
         state->listener()->OnHeadersPriority(priority_fields_);
-        HTTP2_FALLTHROUGH;
+        ABSL_FALLTHROUGH_INTENDED;
 
       case PayloadState::kReadPayload:
         avail = state->AvailablePayload(db);
@@ -151,7 +151,7 @@ DecodeStatus HeadersPayloadDecoder::ResumeDecodingPayload(
           payload_state_ = PayloadState::kReadPayload;
           return DecodeStatus::kDecodeInProgress;
         }
-        HTTP2_FALLTHROUGH;
+        ABSL_FALLTHROUGH_INTENDED;
 
       case PayloadState::kSkipPadding:
         // SkipPadding handles the OnPadding callback.

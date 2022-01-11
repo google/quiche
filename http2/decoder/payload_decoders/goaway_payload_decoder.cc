@@ -6,13 +6,13 @@
 
 #include <stddef.h>
 
+#include "absl/base/macros.h"
 #include "http2/decoder/decode_buffer.h"
 #include "http2/decoder/http2_frame_decoder_listener.h"
 #include "http2/http2_constants.h"
 #include "http2/http2_structures.h"
 #include "http2/platform/api/http2_bug_tracker.h"
 #include "http2/platform/api/http2_logging.h"
-#include "http2/platform/api/http2_macros.h"
 
 namespace http2 {
 
@@ -74,7 +74,7 @@ DecodeStatus GoAwayPayloadDecoder::ResumeDecodingPayload(
     switch (payload_state_) {
       case PayloadState::kStartDecodingFixedFields:
         status = state->StartDecodingStructureInPayload(&goaway_fields_, db);
-        HTTP2_FALLTHROUGH;
+        ABSL_FALLTHROUGH_INTENDED;
 
       case PayloadState::kHandleFixedFieldsStatus:
         if (status == DecodeStatus::kDecodeDone) {
@@ -92,7 +92,7 @@ DecodeStatus GoAwayPayloadDecoder::ResumeDecodingPayload(
           payload_state_ = PayloadState::kResumeDecodingFixedFields;
           return status;
         }
-        HTTP2_FALLTHROUGH;
+        ABSL_FALLTHROUGH_INTENDED;
 
       case PayloadState::kReadOpaqueData:
         // The opaque data is all the remains to be decoded, so anything left

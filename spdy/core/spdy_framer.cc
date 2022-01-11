@@ -11,8 +11,8 @@
 #include <new>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/memory/memory.h"
-#include "http2/platform/api/http2_macros.h"
 #include "common/platform/api/quiche_bug_tracker.h"
 #include "common/platform/api/quiche_logging.h"
 #include "spdy/core/spdy_bitmasks.h"
@@ -421,7 +421,7 @@ std::unique_ptr<SpdyFrameSequence> SpdyFramer::CreateIterator(
     }
     case SpdyFrameType::DATA: {
       QUICHE_DVLOG(1) << "Serialize a stream end DATA frame for VTL";
-      HTTP2_FALLTHROUGH;
+      ABSL_FALLTHROUGH_INTENDED;
     }
     default: {
       return std::make_unique<SpdyControlFrameIterator>(framer,

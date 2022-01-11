@@ -6,13 +6,13 @@
 
 #include <stddef.h>
 
+#include "absl/base/macros.h"
 #include "http2/decoder/decode_buffer.h"
 #include "http2/decoder/http2_frame_decoder_listener.h"
 #include "http2/http2_constants.h"
 #include "http2/http2_structures.h"
 #include "http2/platform/api/http2_bug_tracker.h"
 #include "http2/platform/api/http2_logging.h"
-#include "http2/platform/api/http2_macros.h"
 
 namespace http2 {
 
@@ -95,7 +95,7 @@ DecodeStatus PushPromisePayloadDecoder::ResumeDecodingPayload(
           payload_state_ = PayloadState::kReadPadLength;
           return status;
         }
-        HTTP2_FALLTHROUGH;
+        ABSL_FALLTHROUGH_INTENDED;
 
       case PayloadState::kStartDecodingPushPromiseFields:
         status =
@@ -107,7 +107,7 @@ DecodeStatus PushPromisePayloadDecoder::ResumeDecodingPayload(
         // Finished decoding the Promised Stream ID. Can now tell the listener
         // that we're starting to decode a PUSH_PROMISE frame.
         ReportPushPromise(state);
-        HTTP2_FALLTHROUGH;
+        ABSL_FALLTHROUGH_INTENDED;
 
       case PayloadState::kReadPayload:
         QUICHE_DCHECK_LT(state->remaining_payload(),
@@ -131,7 +131,7 @@ DecodeStatus PushPromisePayloadDecoder::ResumeDecodingPayload(
           payload_state_ = PayloadState::kReadPayload;
           return DecodeStatus::kDecodeInProgress;
         }
-        HTTP2_FALLTHROUGH;
+        ABSL_FALLTHROUGH_INTENDED;
 
       case PayloadState::kSkipPadding:
         // SkipPadding handles the OnPadding callback.

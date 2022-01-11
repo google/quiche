@@ -8,11 +8,11 @@
 
 #include <cstdint>
 
+#include "absl/base/macros.h"
 #include "http2/platform/api/http2_bug_tracker.h"
 #include "http2/platform/api/http2_flag_utils.h"
 #include "http2/platform/api/http2_flags.h"
 #include "http2/platform/api/http2_logging.h"
-#include "http2/platform/api/http2_macros.h"
 
 namespace http2 {
 namespace {
@@ -112,7 +112,7 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
           return status;
         }
         state_ = EntryDecoderState::kDecodedType;
-        HTTP2_FALLTHROUGH;
+        ABSL_FALLTHROUGH_INTENDED;
 
       case EntryDecoderState::kDecodedType:
         // entry_type_decoder_ returned kDecodeDone, now need to decide how
@@ -144,7 +144,7 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
           return status;
         }
         state_ = EntryDecoderState::kStartDecodingValue;
-        HTTP2_FALLTHROUGH;
+        ABSL_FALLTHROUGH_INTENDED;
 
       case EntryDecoderState::kStartDecodingValue:
         HTTP2_DVLOG(1) << "kStartDecodingValue: db->Remaining="
