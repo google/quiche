@@ -57,6 +57,12 @@ QuicTime::Delta QuicConnectionPeer::GetNetworkTimeout(
 }
 
 // static
+QuicTime::Delta QuicConnectionPeer::GetHandshakeTimeout(
+    QuicConnection* connection) {
+  return connection->idle_network_detector_.handshake_timeout_;
+}
+
+// static
 void QuicConnectionPeer::SetPerspective(QuicConnection* connection,
                                         Perspective perspective) {
   connection->perspective_ = perspective;

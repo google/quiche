@@ -393,6 +393,53 @@ void CommunicateHandshakeMessages(PacketSavingConnection* client_conn,
   }
 }
 
+bool CommunicateHandshakeMessagesUntil(PacketSavingConnection* client_conn,
+                                       QuicCryptoStream* client,
+                                       std::function<bool()> client_condition,
+                                       PacketSavingConnection* server_conn,
+                                       QuicCryptoStream* server,
+                                       std::function<bool()> server_condition) {
+  size_t client_next_packet_to_deliver =
+      client_conn->number_of_packets_delivered_;
+  size_t server_next_packet_to_deliver =
+      server_conn->number_of_packets_delivered_;
+  while (
+      client_conn->connected() && server_conn->connected() &&
+      (!client_condition() || !server_condition()) &&
+      (client_conn->encrypted_packets_.size() > client_next_packet_to_deliver ||
+       server_conn->encrypted_packets_.size() >
+           server_next_packet_to_deliver)) {
+    if (!server_condition()) {
+      QUIC_LOG(INFO) << "Processing "
+                     << client_conn->encrypted_packets_.size() -
+                            client_next_packet_to_deliver
+                     << " packets client->server";
+      MovePackets(client_conn, &client_next_packet_to_deliver, server,
+                  server_conn, Perspective::IS_SERVER);
+    }
+    if (!client_condition()) {
+      QUIC_LOG(INFO) << "Processing "
+                     << server_conn->encrypted_packets_.size() -
+                            server_next_packet_to_deliver
+                     << " packets server->client";
+      MovePackets(server_conn, &server_next_packet_to_deliver, client,
+                  client_conn, Perspective::IS_CLIENT);
+    }
+  }
+  client_conn->number_of_packets_delivered_ = client_next_packet_to_deliver;
+  server_conn->number_of_packets_delivered_ = server_next_packet_to_deliver;
+  bool result = client_condition() && server_condition();
+  if (!result) {
+    QUIC_LOG(INFO) << "CommunicateHandshakeMessagesUnti failed with state: "
+                      "client connected? "
+                   << client_conn->connected() << " server connected? "
+                   << server_conn->connected() << " client condition met? "
+                   << client_condition() << " server condition met? "
+                   << server_condition();
+  }
+  return result;
+}
+
 std::pair<size_t, size_t> AdvanceHandshake(PacketSavingConnection* client_conn,
                                            QuicCryptoStream* client,
                                            size_t client_i,

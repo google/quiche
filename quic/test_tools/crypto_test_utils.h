@@ -109,6 +109,19 @@ void CommunicateHandshakeMessages(PacketSavingConnection* client_conn,
                                   PacketSavingConnection* server_conn,
                                   QuicCryptoStream* server);
 
+// CommunicateHandshakeMessagesUntil:
+// 1) Moves messages from |client| to |server| until |server_condition| is met.
+// 2) Moves messages from |server| to |client| until |client_condition| is met.
+// 3) Returns true if both conditions are met.
+// 4) Returns false if either connection is closed or there is no more packet to
+// deliver before both conditions are met.
+bool CommunicateHandshakeMessagesUntil(PacketSavingConnection* client_conn,
+                                       QuicCryptoStream* client,
+                                       std::function<bool()> client_condition,
+                                       PacketSavingConnection* server_conn,
+                                       QuicCryptoStream* server,
+                                       std::function<bool()> server_condition);
+
 // AdvanceHandshake attempts to moves messages from |client| to |server| and
 // |server| to |client|. Returns the number of messages moved.
 std::pair<size_t, size_t> AdvanceHandshake(PacketSavingConnection* client_conn,

@@ -50,6 +50,8 @@ class QuicConnectionPeer {
 
   static QuicTime::Delta GetNetworkTimeout(QuicConnection* connection);
 
+  static QuicTime::Delta GetHandshakeTimeout(QuicConnection* connection);
+
   static void SetPerspective(QuicConnection* connection,
                              Perspective perspective);
 

@@ -745,6 +745,9 @@ class PacketSavingConnection : public MockQuicConnection {
   MOCK_METHOD(void, OnPacketSent, (EncryptionLevel, TransmissionType));
 
   std::vector<std::unique_ptr<QuicEncryptedPacket>> encrypted_packets_;
+  // Number of packets in encrypted_packets that has been delivered to the peer
+  // connection.
+  size_t number_of_packets_delivered_ = 0;
   MockClock clock_;
 };
 
