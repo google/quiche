@@ -1244,9 +1244,7 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
   std::string protocol;
   absl::optional<QuicDatagramStreamId> flow_id;
   bool version_indicated = false;
-  for (const auto& header : header_list_) {
-    const std::string& header_name = header.first;
-    const std::string& header_value = header.second;
+  for (const auto& [header_name, header_value] : header_list_) {
     if (header_name == ":method") {
       if (!method.empty() || header_value.empty()) {
         return;
