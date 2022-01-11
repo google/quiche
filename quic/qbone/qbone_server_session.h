@@ -76,8 +76,12 @@ class QUIC_EXPORT_PRIVATE QboneServerSession
   // QboneSessionBase interface implementation.
   std::unique_ptr<QuicCryptoStream> CreateCryptoStream() override;
 
-  // Instantiate QboneServerControlStream.
+  // Instantiates QboneServerControlStream.
   void CreateControlStream();
+
+  // Instantiates QboneServerControlStream from the pending stream and returns a
+  // pointer to it.
+  QuicStream* CreateControlStreamFromPendingStream(PendingStream* pending);
 
   // The packet processor.
   QbonePacketProcessor processor_;
