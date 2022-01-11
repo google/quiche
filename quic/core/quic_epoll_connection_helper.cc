@@ -12,11 +12,10 @@
 namespace quic {
 
 QuicEpollConnectionHelper::QuicEpollConnectionHelper(
-    QuicEpollServer* epoll_server,
-    QuicAllocator type)
+    QuicEpollServer* epoll_server, QuicAllocator allocator_type)
     : clock_(epoll_server),
       random_generator_(QuicRandom::GetInstance()),
-      allocator_type_(type) {}
+      allocator_type_(allocator_type) {}
 
 QuicEpollConnectionHelper::~QuicEpollConnectionHelper() = default;
 

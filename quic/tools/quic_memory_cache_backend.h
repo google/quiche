@@ -154,9 +154,9 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
   void FetchResponseFromBackend(
       const spdy::Http2HeaderBlock& request_headers,
       const std::string& request_body,
-      QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
+      QuicSimpleServerBackend::RequestHandler* quic_stream) override;
   void CloseBackendResponseStream(
-      QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
+      QuicSimpleServerBackend::RequestHandler* quic_stream) override;
   WebTransportResponse ProcessWebTransportRequest(
       const spdy::Http2HeaderBlock& request_headers,
       WebTransportSession* session) override;

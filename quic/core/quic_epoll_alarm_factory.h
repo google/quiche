@@ -15,7 +15,7 @@ namespace quic {
 // Creates alarms that use the supplied EpollServer for timing and firing.
 class QUIC_EXPORT_PRIVATE QuicEpollAlarmFactory : public QuicAlarmFactory {
  public:
-  explicit QuicEpollAlarmFactory(QuicEpollServer* eps);
+  explicit QuicEpollAlarmFactory(QuicEpollServer* epoll_server);
   QuicEpollAlarmFactory(const QuicEpollAlarmFactory&) = delete;
   QuicEpollAlarmFactory& operator=(const QuicEpollAlarmFactory&) = delete;
   ~QuicEpollAlarmFactory() override;

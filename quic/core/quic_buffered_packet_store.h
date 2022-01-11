@@ -90,8 +90,7 @@ class QUIC_NO_EXPORT QuicBufferedPacketStore {
                                   BufferedPacketList early_arrived_packets) = 0;
   };
 
-  QuicBufferedPacketStore(VisitorInterface* vistor,
-                          const QuicClock* clock,
+  QuicBufferedPacketStore(VisitorInterface* visitor, const QuicClock* clock,
                           QuicAlarmFactory* alarm_factory);
 
   QuicBufferedPacketStore(const QuicBufferedPacketStore&) = delete;

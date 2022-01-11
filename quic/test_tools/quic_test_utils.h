@@ -1464,7 +1464,7 @@ void CreateClientSessionForTest(
 //   start time, otherwise nonce verification will fail.
 // supported_versions: Set of QUIC versions this server supports.
 // helper: Pointer to the MockQuicConnectionHelper to use for the session.
-// crypto_server_config: Pointer to the crypto server config.
+// server_crypto_config: Pointer to the crypto server config.
 // server_connection: Pointer reference for newly created
 //   connection.  This object will be owned by the
 //   server_session.
@@ -1474,7 +1474,7 @@ void CreateServerSessionForTest(
     QuicServerId server_id, QuicTime::Delta connection_start_time,
     ParsedQuicVersionVector supported_versions,
     MockQuicConnectionHelper* helper, MockAlarmFactory* alarm_factory,
-    QuicCryptoServerConfig* crypto_server_config,
+    QuicCryptoServerConfig* server_crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     PacketSavingConnection** server_connection,
     TestQuicSpdyServerSession** server_session);

@@ -332,16 +332,14 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
       std::string* error_details);
 
-  // Processes the message in |server_update|, updating the cached source
+  // Processes the message in |server_config_update|, updating the cached source
   // address token, and server config.
-  // If |server_update| is invalid then |error_details| will contain an error
-  // message, and an error code will be returned. If all has gone well
+  // If |server_config_update| is invalid then |error_details| will contain an
+  // error message, and an error code will be returned. If all has gone well
   // QUIC_NO_ERROR is returned.
   QuicErrorCode ProcessServerConfigUpdate(
-      const CryptoHandshakeMessage& server_update,
-      QuicWallTime now,
-      const QuicTransportVersion version,
-      absl::string_view chlo_hash,
+      const CryptoHandshakeMessage& server_config_update, QuicWallTime now,
+      const QuicTransportVersion version, absl::string_view chlo_hash,
       CachedState* cached,
       QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
       std::string* error_details);

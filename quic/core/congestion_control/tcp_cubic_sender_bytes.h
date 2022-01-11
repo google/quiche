@@ -96,8 +96,7 @@ class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
                                               QuicTime::Delta rtt);
   void SetMinCongestionWindowInPackets(QuicPacketCount congestion_window);
   void ExitSlowstart();
-  void OnPacketLost(QuicPacketNumber largest_loss,
-                    QuicByteCount lost_bytes,
+  void OnPacketLost(QuicPacketNumber packet_number, QuicByteCount lost_bytes,
                     QuicByteCount prior_in_flight);
   void MaybeIncreaseCwnd(QuicPacketNumber acked_packet_number,
                          QuicByteCount acked_bytes,

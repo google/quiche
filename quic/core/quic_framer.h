@@ -521,8 +521,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                            QuicDataWriter* writer);
   size_t AppendIetfFrames(const QuicFrames& frames, QuicDataWriter* writer);
   bool AppendStreamFrame(const QuicStreamFrame& frame,
-                         bool last_frame_in_packet,
-                         QuicDataWriter* writer);
+                         bool no_stream_frame_length, QuicDataWriter* writer);
   bool AppendCryptoFrame(const QuicCryptoFrame& frame, QuicDataWriter* writer);
   bool AppendAckFrequencyFrame(const QuicAckFrequencyFrame& frame,
                                QuicDataWriter* writer);
@@ -949,7 +948,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // |writer|, and return true if successful.
 
   bool AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
-                                 QuicDataWriter* builder);
+                                 QuicDataWriter* writer);
   bool AppendTimestampsToAckFrame(const QuicAckFrame& frame,
                                   QuicDataWriter* writer);
 
@@ -962,11 +961,11 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   bool AppendStopWaitingFrame(const QuicPacketHeader& header,
                               const QuicStopWaitingFrame& frame,
-                              QuicDataWriter* builder);
+                              QuicDataWriter* writer);
   bool AppendRstStreamFrame(const QuicRstStreamFrame& frame,
-                            QuicDataWriter* builder);
+                            QuicDataWriter* writer);
   bool AppendConnectionCloseFrame(const QuicConnectionCloseFrame& frame,
-                                  QuicDataWriter* builder);
+                                  QuicDataWriter* writer);
   bool AppendGoAwayFrame(const QuicGoAwayFrame& frame, QuicDataWriter* writer);
   bool AppendWindowUpdateFrame(const QuicWindowUpdateFrame& frame,
                                QuicDataWriter* writer);

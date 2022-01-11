@@ -834,9 +834,8 @@ void QuicCryptoClientConfig::AddCanonicalSuffix(const std::string& suffix) {
 }
 
 bool QuicCryptoClientConfig::PopulateFromCanonicalConfig(
-    const QuicServerId& server_id,
-    CachedState* server_state) {
-  QUICHE_DCHECK(server_state->IsEmpty());
+    const QuicServerId& server_id, CachedState* cached) {
+  QUICHE_DCHECK(cached->IsEmpty());
   size_t i = 0;
   for (; i < canonical_suffixes_.size(); ++i) {
     if (absl::EndsWithIgnoreCase(server_id.host(), canonical_suffixes_[i])) {
@@ -867,7 +866,7 @@ bool QuicCryptoClientConfig::PopulateFromCanonicalConfig(
   // Update canonical version to point at the "most recent" entry.
   it->second = server_id;
 
-  server_state->InitializeFrom(*canonical_state);
+  cached->InitializeFrom(*canonical_state);
   return true;
 }
 

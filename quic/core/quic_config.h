@@ -67,7 +67,7 @@ class QUIC_EXPORT_PRIVATE QuicConfigValue {
 // Stores uint32_t from CHLO or SHLO messages that are not negotiated.
 class QUIC_EXPORT_PRIVATE QuicFixedUint32 : public QuicConfigValue {
  public:
-  QuicFixedUint32(QuicTag name, QuicConfigPresence presence);
+  QuicFixedUint32(QuicTag tag, QuicConfigPresence presence);
   ~QuicFixedUint32() override;
 
   bool HasSendValue() const;

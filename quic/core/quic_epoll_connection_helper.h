@@ -30,7 +30,8 @@ enum class QuicAllocator { SIMPLE, BUFFER_POOL };
 class QUIC_EXPORT_PRIVATE QuicEpollConnectionHelper
     : public QuicConnectionHelperInterface {
  public:
-  QuicEpollConnectionHelper(QuicEpollServer* eps, QuicAllocator allocator);
+  QuicEpollConnectionHelper(QuicEpollServer* epoll_server,
+                            QuicAllocator allocator_type);
   QuicEpollConnectionHelper(const QuicEpollConnectionHelper&) = delete;
   QuicEpollConnectionHelper& operator=(const QuicEpollConnectionHelper&) =
       delete;
