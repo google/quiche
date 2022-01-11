@@ -65,7 +65,7 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
       key.size() + value.size() > max_field_size_.value()) {
     QUICHE_VLOG(2) << "Header field size is " << key.size() + value.size()
                    << ", exceeds max size of " << max_field_size_.value();
-    return HEADER_FIELD_INVALID;
+    return HEADER_FIELD_TOO_LONG;
   }
   const absl::string_view validated_key = key[0] == ':' ? key.substr(1) : key;
   if (validated_key.find_first_not_of(kHttp2HeaderNameAllowedChars) !=

@@ -34,6 +34,7 @@ class QUICHE_EXPORT_PRIVATE HeaderValidator {
   enum HeaderStatus {
     HEADER_OK,
     HEADER_FIELD_INVALID,
+    HEADER_FIELD_TOO_LONG,
   };
   HeaderStatus ValidateSingleHeader(absl::string_view key,
                                     absl::string_view value);

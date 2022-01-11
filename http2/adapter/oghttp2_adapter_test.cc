@@ -3332,9 +3332,8 @@ TEST(OgHttp2AdapterServerTest, ServerReceivesTooLargeHeader) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
   EXPECT_CALL(visitor, OnFrameHeader(1, _, CONTINUATION, 0)).Times(3);
   EXPECT_CALL(visitor, OnFrameHeader(1, _, CONTINUATION, 4));
-  EXPECT_CALL(
-      visitor,
-      OnInvalidFrame(1, Http2VisitorInterface::InvalidFrameError::kHttpHeader));
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kHeaderError));
+  // Further header processing is skipped, as the header field is too large.
 
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(static_cast<int64_t>(frames.size()), result);
@@ -3343,19 +3342,19 @@ TEST(OgHttp2AdapterServerTest, ServerReceivesTooLargeHeader) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, 4, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(RST_STREAM, 1, 4, 0x0, 1));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
+  // Since the library opted not to process the header, it generates a GOAWAY
+  // with error code COMPRESSION_ERROR.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(GOAWAY, 0, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::COMPRESSION_ERROR)));
 
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS, SETTINGS ack, and RST_STREAM.
+  // SETTINGS and GOAWAY.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+                                            spdy::SpdyFrameType::GOAWAY}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerRejectsStreamData) {

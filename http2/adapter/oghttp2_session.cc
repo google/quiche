@@ -226,6 +226,19 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
   validator_.StartHeaderBlock();
 }
 
+Http2VisitorInterface::OnHeaderResult InterpretHeaderStatus(
+    HeaderValidator::HeaderStatus status) {
+  switch (status) {
+    case HeaderValidator::HEADER_OK:
+      return Http2VisitorInterface::HEADER_OK;
+    case HeaderValidator::HEADER_FIELD_INVALID:
+      return Http2VisitorInterface::HEADER_FIELD_INVALID;
+    case HeaderValidator::HEADER_FIELD_TOO_LONG:
+      return Http2VisitorInterface::HEADER_COMPRESSION_ERROR;
+  }
+  return Http2VisitorInterface::HEADER_CONNECTION_ERROR;
+}
+
 void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
     absl::string_view key,
     absl::string_view value) {
@@ -233,11 +246,12 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
     QUICHE_VLOG(2) << "Early return; status not HEADER_OK";
     return;
   }
-  const auto validation_result = validator_.ValidateSingleHeader(key, value);
+  const HeaderValidator::HeaderStatus validation_result =
+      validator_.ValidateSingleHeader(key, value);
   if (validation_result != HeaderValidator::HEADER_OK) {
-    QUICHE_VLOG(2) << "RST_STREAM with result "
+    QUICHE_VLOG(2) << "Header validation failed with result "
                    << static_cast<int>(validation_result);
-    result_ = Http2VisitorInterface::HEADER_FIELD_INVALID;
+    result_ = InterpretHeaderStatus(validation_result);
     return;
   }
   result_ = visitor_.OnHeaderForStream(stream_id_, key, value);
@@ -1286,6 +1300,9 @@ void OgHttp2Session::OnHeaderStatus(
   } else if (result == Http2VisitorInterface::HEADER_CONNECTION_ERROR) {
     fatal_visitor_callback_failure_ = true;
     LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
+                        ConnectionError::kHeaderError);
+  } else if (result == Http2VisitorInterface::HEADER_COMPRESSION_ERROR) {
+    LatchErrorAndNotify(Http2ErrorCode::COMPRESSION_ERROR,
                         ConnectionError::kHeaderError);
   }
 }

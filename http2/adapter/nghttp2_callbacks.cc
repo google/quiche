@@ -174,6 +174,7 @@ int OnHeader(nghttp2_session* /* session */, const nghttp2_frame* frame,
     case Http2VisitorInterface::HEADER_OK:
       return 0;
     case Http2VisitorInterface::HEADER_CONNECTION_ERROR:
+    case Http2VisitorInterface::HEADER_COMPRESSION_ERROR:
       return NGHTTP2_ERR_CALLBACK_FAILURE;
     case Http2VisitorInterface::HEADER_RST_STREAM:
     case Http2VisitorInterface::HEADER_FIELD_INVALID:
