@@ -380,6 +380,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Updates internal state to prepare for sending an immediate GOAWAY.
   void PrepareForImmediateGoAway();
 
+  // Handles the potential end of received metadata for the given `stream_id`.
+  void MaybeHandleMetadataEndForStream(Http2StreamId stream_id);
+
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
 

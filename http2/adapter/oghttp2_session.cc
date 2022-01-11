@@ -1315,6 +1315,11 @@ bool OgHttp2Session::OnFrameHeader(spdy::SpdyStreamId stream_id, size_t length,
     metadata_stream_id_ = stream_id;
     metadata_length_ = length;
     end_metadata_ = flags & kMetadataEndFlag;
+
+    // Empty metadata payloads will not trigger OnFramePayload(), so handle
+    // that possibility here.
+    MaybeHandleMetadataEndForStream(metadata_stream_id_);
+
     return true;
   } else {
     QUICHE_DLOG(INFO) << "Unexpected frame type " << static_cast<int>(type)
@@ -1330,16 +1335,7 @@ void OgHttp2Session::OnFramePayload(const char* data, size_t len) {
         metadata_stream_id_, absl::string_view(data, len));
     if (payload_success) {
       metadata_length_ -= len;
-      if (metadata_length_ == 0 && end_metadata_) {
-        const bool completion_success =
-            visitor_.OnMetadataEndForStream(metadata_stream_id_);
-        if (!completion_success) {
-          fatal_visitor_callback_failure_ = true;
-          decoder_.StopProcessing();
-        }
-        metadata_stream_id_ = 0;
-        end_metadata_ = false;
-      }
+      MaybeHandleMetadataEndForStream(metadata_stream_id_);
     } else {
       fatal_visitor_callback_failure_ = true;
       decoder_.StopProcessing();
@@ -1585,6 +1581,18 @@ void OgHttp2Session::PrepareForImmediateGoAway() {
 
   if (initial_settings != nullptr) {
     frames_.push_front(std::move(initial_settings));
+  }
+}
+
+void OgHttp2Session::MaybeHandleMetadataEndForStream(Http2StreamId stream_id) {
+  if (metadata_length_ == 0 && end_metadata_) {
+    const bool completion_success = visitor_.OnMetadataEndForStream(stream_id);
+    if (!completion_success) {
+      fatal_visitor_callback_failure_ = true;
+      decoder_.StopProcessing();
+    }
+    metadata_stream_id_ = 0;
+    end_metadata_ = false;
   }
 }
 
