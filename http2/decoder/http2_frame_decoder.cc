@@ -10,7 +10,7 @@
 #include "http2/platform/api/http2_bug_tracker.h"
 #include "http2/platform/api/http2_flag_utils.h"
 #include "http2/platform/api/http2_flags.h"
-#include "http2/platform/api/http2_macros.h"
+#include "common/platform/api/quiche_logging.h"
 
 namespace http2 {
 
@@ -72,7 +72,7 @@ DecodeStatus Http2FrameDecoder::DecodeFrame(DecodeBuffer* db) {
       return DiscardPayload(db);
   }
 
-  HTTP2_UNREACHABLE();
+  QUICHE_NOTREACHED();
   return DecodeStatus::kDecodeError;
 }
 

@@ -8,7 +8,7 @@
 
 #include "http2/http2_constants.h"
 #include "http2/platform/api/http2_logging.h"
-#include "http2/platform/api/http2_macros.h"
+#include "common/platform/api/quiche_logging.h"
 
 namespace http2 {
 namespace {
@@ -26,13 +26,16 @@ std::string ExtractString(HpackDecoderStringBuffer* string_buffer) {
 }  // namespace
 
 HpackDecoderState::HpackDecoderState(HpackDecoderListener* listener)
-    : listener_(HTTP2_DIE_IF_NULL(listener)),
+    : listener_(listener),
       final_header_table_size_(Http2SettingsInfo::DefaultHeaderTableSize()),
       lowest_header_table_size_(final_header_table_size_),
       require_dynamic_table_size_update_(false),
       allow_dynamic_table_size_update_(true),
       saw_dynamic_table_size_update_(false),
-      error_(HpackDecodingError::kOk) {}
+      error_(HpackDecodingError::kOk) {
+  QUICHE_CHECK(listener_);
+}
+
 HpackDecoderState::~HpackDecoderState() = default;
 
 void HpackDecoderState::ApplyHeaderTableSizeSetting(

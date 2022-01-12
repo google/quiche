@@ -8,7 +8,7 @@
 #include "http2/platform/api/http2_flag_utils.h"
 #include "http2/platform/api/http2_flags.h"
 #include "http2/platform/api/http2_logging.h"
-#include "http2/platform/api/http2_macros.h"
+#include "common/platform/api/quiche_logging.h"
 #include "common/quiche_text_utils.h"
 
 namespace http2 {
@@ -21,7 +21,8 @@ HpackWholeEntryBuffer::HpackWholeEntryBuffer(HpackWholeEntryListener* listener,
 HpackWholeEntryBuffer::~HpackWholeEntryBuffer() = default;
 
 void HpackWholeEntryBuffer::set_listener(HpackWholeEntryListener* listener) {
-  listener_ = HTTP2_DIE_IF_NULL(listener);
+  QUICHE_CHECK(listener);
+  listener_ = listener;
 }
 
 void HpackWholeEntryBuffer::set_max_string_size_bytes(
