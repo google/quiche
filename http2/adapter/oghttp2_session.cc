@@ -633,6 +633,10 @@ OgHttp2Session::SendResult OgHttp2Session::SendQueuedFrames() {
     const auto& frame_ptr = frames_.front();
     FrameAttributeCollector c;
     frame_ptr->Visit(&c);
+
+    // DATA frames should never be queued.
+    QUICHE_DCHECK_NE(c.frame_type(), 0);
+
     // Frames can't accurately report their own length; the actual serialized
     // length must be used instead.
     spdy::SpdySerializedFrame frame = framer_.SerializeFrame(*frame_ptr);
@@ -669,16 +673,17 @@ OgHttp2Session::SendResult OgHttp2Session::SendQueuedFrames() {
   return SendResult::SEND_OK;
 }
 
-bool OgHttp2Session::AfterFrameSent(uint8_t frame_type, uint32_t stream_id,
+bool OgHttp2Session::AfterFrameSent(uint8_t frame_type_int, uint32_t stream_id,
                                     size_t payload_length, uint8_t flags,
                                     uint32_t error_code) {
-  int result = visitor_.OnFrameSent(frame_type, stream_id, payload_length,
+  const FrameType frame_type = static_cast<FrameType>(frame_type_int);
+  int result = visitor_.OnFrameSent(frame_type_int, stream_id, payload_length,
                                     flags, error_code);
   if (result < 0) {
     return false;
   }
   if (stream_id == 0) {
-    if (static_cast<FrameType>(frame_type) == FrameType::SETTINGS) {
+    if (frame_type == FrameType::SETTINGS) {
       const bool is_settings_ack = (flags & 0x01);
       if (is_settings_ack && encoder_header_table_capacity_when_acking_) {
         framer_.UpdateHeaderEncoderTableSize(
@@ -691,12 +696,12 @@ bool OgHttp2Session::AfterFrameSent(uint8_t frame_type, uint32_t stream_id,
     return true;
   }
   auto iter = queued_frames_.find(stream_id);
-  if (frame_type != 0) {
+  if (frame_type != FrameType::DATA) {
     --iter->second;
   }
   if (iter->second == 0) {
     // TODO(birenroy): Consider passing through `error_code` here.
-    CloseStreamIfReady(frame_type, stream_id);
+    CloseStreamIfReady(frame_type_int, stream_id);
   }
   return true;
 }
@@ -1493,6 +1498,9 @@ void OgHttp2Session::CloseStream(Http2StreamId stream_id,
   stream_map_.erase(stream_id);
   trailers_ready_.erase(stream_id);
   metadata_ready_.erase(stream_id);
+  streams_reset_.erase(stream_id);
+  queued_frames_.erase(stream_id);
+  stream_map_.erase(stream_id);
   if (write_scheduler_.StreamRegistered(stream_id)) {
     write_scheduler_.UnregisterStream(stream_id);
   }

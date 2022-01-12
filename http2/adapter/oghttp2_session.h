@@ -330,7 +330,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   SendResult SendQueuedFrames();
 
   // Returns false if a fatal connection error occurred.
-  bool AfterFrameSent(uint8_t frame_type, uint32_t stream_id,
+  bool AfterFrameSent(uint8_t frame_type_int, uint32_t stream_id,
                       size_t payload_length, uint8_t flags,
                       uint32_t error_code);
 
