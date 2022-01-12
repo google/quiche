@@ -520,9 +520,6 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
     }
     if (frame->frame_type() == spdy::SpdyFrameType::RST_STREAM) {
       streams_reset_.insert(frame->stream_id());
-    } else if (iter != stream_map_.end()) {
-      // Enqueue RST_STREAM NO_ERROR if appropriate.
-      r.emplace([this, iter]() { MaybeFinWithRstStream(iter); });
     }
   }
   if (frame->stream_id() != 0) {
@@ -637,6 +634,17 @@ OgHttp2Session::SendResult OgHttp2Session::SendQueuedFrames() {
     // DATA frames should never be queued.
     QUICHE_DCHECK_NE(c.frame_type(), 0);
 
+    const bool stream_reset =
+        c.stream_id() != 0 && streams_reset_.count(c.stream_id()) > 0;
+    if (stream_reset &&
+        c.frame_type() != static_cast<uint8_t>(FrameType::RST_STREAM)) {
+      // The stream has been reset, so any other remaining frames can be
+      // skipped.
+      // TODO(birenroy): inform the visitor of frames that are skipped.
+      DecrementQueuedFrameCount(c.stream_id(), c.frame_type());
+      frames_.pop_front();
+      continue;
+    }
     // Frames can't accurately report their own length; the actual serialized
     // length must be used instead.
     spdy::SpdySerializedFrame frame = framer_.SerializeFrame(*frame_ptr);
@@ -695,14 +703,28 @@ bool OgHttp2Session::AfterFrameSent(uint8_t frame_type_int, uint32_t stream_id,
     }
     return true;
   }
-  auto iter = queued_frames_.find(stream_id);
-  if (frame_type != FrameType::DATA) {
-    --iter->second;
+
+  const bool contains_fin =
+      (frame_type == FrameType::DATA || frame_type == FrameType::HEADERS) &&
+      (flags & 0x01) == 0x01;
+  auto it = stream_map_.find(stream_id);
+  const bool still_open_remote =
+      it != stream_map_.end() && !it->second.half_closed_remote;
+  if (contains_fin && still_open_remote &&
+      options_.rst_stream_no_error_when_incomplete &&
+      options_.perspective == Perspective::kServer) {
+    // Since the peer has not yet ended the stream, this endpoint should
+    // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
+    frames_.push_front(absl::make_unique<spdy::SpdyRstStreamIR>(
+        stream_id, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
+    auto queued_result = queued_frames_.insert({stream_id, 1});
+    if (!queued_result.second) {
+      ++(queued_result.first->second);
+    }
+    it->second.half_closed_remote = true;
   }
-  if (iter->second == 0) {
-    // TODO(birenroy): Consider passing through `error_code` here.
-    CloseStreamIfReady(frame_type_int, stream_id);
-  }
+
+  DecrementQueuedFrameCount(stream_id, frame_type_int);
   return true;
 }
 
@@ -715,6 +737,15 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
     return SendResult::SEND_OK;
   }
   StreamState& state = it->second;
+  auto reset_it = streams_reset_.find(stream_id);
+  if (reset_it != streams_reset_.end()) {
+    // The stream has been reset; there's no point in sending DATA or trailing
+    // HEADERS.
+    state.outbound_body = nullptr;
+    state.trailers = nullptr;
+    state.outbound_metadata.clear();
+    return SendResult::SEND_OK;
+  }
   SendResult connection_can_write = SendResult::SEND_OK;
   if (!state.outbound_metadata.empty()) {
     connection_can_write = SendMetadata(stream_id, state.outbound_metadata);
@@ -1601,6 +1632,23 @@ void OgHttp2Session::MaybeHandleMetadataEndForStream(Http2StreamId stream_id) {
     }
     metadata_stream_id_ = 0;
     end_metadata_ = false;
+  }
+}
+
+void OgHttp2Session::DecrementQueuedFrameCount(uint32_t stream_id,
+                                               uint8_t frame_type) {
+  auto iter = queued_frames_.find(stream_id);
+  if (iter == queued_frames_.end()) {
+    QUICHE_LOG(ERROR) << "Unable to find a queued frame count for stream "
+                      << stream_id;
+    return;
+  }
+  if (static_cast<FrameType>(frame_type) != FrameType::DATA) {
+    --iter->second;
+  }
+  if (iter->second == 0) {
+    // TODO(birenroy): Consider passing through `error_code` here.
+    CloseStreamIfReady(frame_type, stream_id);
   }
 }
 

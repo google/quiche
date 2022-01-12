@@ -383,6 +383,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Handles the potential end of received metadata for the given `stream_id`.
   void MaybeHandleMetadataEndForStream(Http2StreamId stream_id);
 
+  void DecrementQueuedFrameCount(uint32_t stream_id, uint8_t frame_type);
+
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
 
