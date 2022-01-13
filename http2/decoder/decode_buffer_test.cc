@@ -132,9 +132,14 @@ TEST(DecodeBufferDeathTest, NonNullBufferRequired) {
 TEST(DecodeBufferDeathTest, ModestBufferSizeRequired) {
   EXPECT_DEBUG_DEATH(
       {
-        const char data[] = "abc";
-        size_t len = 0;
-        DecodeBuffer b(data, ~len);
+        // This depends on being able to allocate a fairly large array on the
+        // stack. If that fails, we can instead do this:
+        //
+        //   std::string data(DecodeBuffer::kMaxDecodeBufferLength + 1, ' ');
+        //   DecodeBuffer b(data.data(), data.size());
+
+        const char data[DecodeBuffer::kMaxDecodeBufferLength + 1] = {};
+        DecodeBuffer b(data, sizeof data);
       },
       "Max.*Length");
 }

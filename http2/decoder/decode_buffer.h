@@ -26,13 +26,15 @@ class DecodeBufferSubset;
 
 class QUICHE_EXPORT_PRIVATE DecodeBuffer {
  public:
+  // We assume the decode buffers will typically be modest in size (i.e. often a
+  // few KB, perhaps as high as 100KB). Let's make sure during testing that we
+  // don't go very high, with 32MB selected rather arbitrarily. This is exposed
+  // to support testing.
+  static constexpr size_t kMaxDecodeBufferLength = 1 << 25;
+
   DecodeBuffer(const char* buffer, size_t len)
       : buffer_(buffer), cursor_(buffer), beyond_(buffer + len) {
     QUICHE_DCHECK(buffer != nullptr);
-    // We assume the decode buffers will typically be modest in size (i.e. often
-    // a few KB, perhaps as high as 100KB). Let's make sure during testing that
-    // we don't go very high, with 32MB selected rather arbitrarily.
-    const size_t kMaxDecodeBufferLength = 1 << 25;
     QUICHE_DCHECK_LE(len, kMaxDecodeBufferLength);
   }
   explicit DecodeBuffer(absl::string_view s)
