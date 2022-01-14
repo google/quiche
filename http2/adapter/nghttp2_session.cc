@@ -25,9 +25,10 @@ NgHttp2Session::~NgHttp2Session() {
   // Can't invoke want_read() or want_write(), as they are virtual methods.
   const bool pending_reads = nghttp2_session_want_read(session_.get()) != 0;
   const bool pending_writes = nghttp2_session_want_write(session_.get()) != 0;
-  QUICHE_LOG_IF(WARNING, pending_reads || pending_writes)
-      << "Shutting down connection with pending reads: " << pending_reads
-      << " or pending writes: " << pending_writes;
+  if (pending_reads || pending_writes) {
+    QUICHE_VLOG(1) << "Shutting down connection with pending reads: "
+                   << pending_reads << " or pending writes: " << pending_writes;
+  }
 }
 
 int64_t NgHttp2Session::ProcessBytes(absl::string_view bytes) {
