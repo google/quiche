@@ -367,7 +367,7 @@ QuicDispatcher::~QuicDispatcher() {
     clear_stateless_reset_addresses_alarm_->PermanentCancel();
   }
   reference_counted_session_map_.clear();
-  closed_ref_counted_session_list_.clear();
+  closed_session_list_.clear();
   num_sessions_in_session_map_ = 0;
 }
 
@@ -968,7 +968,7 @@ std::unique_ptr<QuicPerPacketContext> QuicDispatcher::GetPerPacketContext()
 
 void QuicDispatcher::DeleteSessions() {
   if (!write_blocked_list_.empty()) {
-    for (const auto& session : closed_ref_counted_session_list_) {
+    for (const auto& session : closed_session_list_) {
       if (write_blocked_list_.erase(session->connection()) != 0) {
         QUIC_BUG(quic_bug_12724_2)
             << "QuicConnection was in WriteBlockedList before destruction "
@@ -976,7 +976,7 @@ void QuicDispatcher::DeleteSessions() {
       }
     }
   }
-  closed_ref_counted_session_list_.clear();
+  closed_session_list_.clear();
 }
 
 void QuicDispatcher::ClearStatelessResetAddresses() {
@@ -1051,11 +1051,11 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
   if (ShouldDestroySessionAsynchronously()) {
     // Set up alarm to fire immediately to bring destruction of this session
     // out of current call stack.
-    if (closed_ref_counted_session_list_.empty()) {
+    if (closed_session_list_.empty()) {
       delete_sessions_alarm_->Update(helper()->GetClock()->ApproximateNow(),
                                      QuicTime::Delta::Zero());
     }
-    closed_ref_counted_session_list_.push_back(std::move(it->second));
+    closed_session_list_.push_back(std::move(it->second));
   }
   CleanUpSession(it->first, connection, error, error_details, source);
   for (const QuicConnectionId& cid :

@@ -414,8 +414,7 @@ class QUIC_NO_EXPORT QuicDispatcher
   std::unique_ptr<QuicTimeWaitListManager> time_wait_list_manager_;
 
   // The list of closed but not-yet-deleted sessions.
-  std::vector<std::unique_ptr<QuicSession>> closed_session_list_;
-  std::vector<std::shared_ptr<QuicSession>> closed_ref_counted_session_list_;
+  std::vector<std::shared_ptr<QuicSession>> closed_session_list_;
 
   // The helper used for all connections.
   std::unique_ptr<QuicConnectionHelperInterface> helper_;
