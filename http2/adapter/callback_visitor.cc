@@ -69,7 +69,7 @@ int64_t CallbackVisitor::OnReadyToSend(absl::string_view serialized) {
 }
 
 void CallbackVisitor::OnConnectionError(ConnectionError /*error*/) {
-  QUICHE_LOG(ERROR) << "OnConnectionError not implemented";
+  QUICHE_VLOG(1) << "OnConnectionError not implemented";
 }
 
 bool CallbackVisitor::OnFrameHeader(Http2StreamId stream_id, size_t length,
