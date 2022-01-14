@@ -2464,6 +2464,101 @@ TEST(NgHttp2AdapterTest, ServerErrorWhileHandlingHeaders) {
                                             spdy::SpdyFrameType::RST_STREAM}));
 }
 
+TEST(NgHttp2AdapterTest, ServerErrorWhileHandlingHeadersDropsFrames) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"},
+                                           {"accept", "some bogus value!"}},
+                                          /*fin=*/false)
+                                 .WindowUpdate(1, 2000)
+                                 .Data(1, "This is the request body.")
+                                 .Metadata(1, "This is the request metadata.")
+                                 .RstStream(1, Http2ErrorCode::CANCEL)
+                                 .WindowUpdate(0, 2000)
+                                 .Headers(3,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/two"}},
+                                          /*fin=*/false)
+                                 .Metadata(3, "This is the request metadata.",
+                                           /*multiple_frames=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(4);
+  EXPECT_CALL(visitor, OnHeaderForStream(1, "accept", "some bogus value!"))
+      .WillOnce(testing::Return(Http2VisitorInterface::HEADER_RST_STREAM));
+  // For the RST_STREAM-marked stream, the control frames and METADATA frame but
+  // not the DATA frame are delivered to the visitor.
+  EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnWindowUpdate(1, 2000));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, kMetadataFrameType, 4));
+  EXPECT_CALL(visitor, OnBeginMetadataForStream(1, _));
+  EXPECT_CALL(visitor, OnMetadataForStream(1, _));
+  EXPECT_CALL(visitor, OnMetadataEndForStream(1));
+  EXPECT_CALL(visitor, OnFrameHeader(1, 4, RST_STREAM, 0));
+  EXPECT_CALL(visitor, OnRstStream(1, Http2ErrorCode::CANCEL));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::CANCEL));
+  EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnWindowUpdate(0, 2000));
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, _, _)).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(3));
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, kMetadataFrameType, 0));
+  EXPECT_CALL(visitor, OnBeginMetadataForStream(3, _));
+  EXPECT_CALL(visitor, OnMetadataForStream(3, "This is the re"))
+      .WillOnce(testing::DoAll(testing::InvokeWithoutArgs([&adapter]() {
+                                 adapter->SubmitRst(
+                                     3, Http2ErrorCode::REFUSED_STREAM);
+                               }),
+                               testing::Return(true)));
+  // The rest of the metadata is still delivered to the visitor.
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, kMetadataFrameType, 4));
+  EXPECT_CALL(visitor, OnBeginMetadataForStream(3, _));
+  EXPECT_CALL(visitor, OnMetadataForStream(3, "quest metadata."));
+  EXPECT_CALL(visitor, OnMetadataEndForStream(3));
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
+
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, 4, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(RST_STREAM, 1, 4, 0x0,
+                          static_cast<int>(Http2ErrorCode::INTERNAL_ERROR)));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 3, 4, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(RST_STREAM, 3, 4, 0x0,
+                          static_cast<int>(Http2ErrorCode::REFUSED_STREAM)));
+  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::REFUSED_STREAM));
+
+  int send_result = adapter->Send();
+  // Some bytes should have been serialized.
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::RST_STREAM,
+                                            spdy::SpdyFrameType::RST_STREAM}));
+}
+
 TEST(NgHttp2AdapterTest, ServerConnectionErrorWhileHandlingHeaders) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);

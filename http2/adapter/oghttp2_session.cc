@@ -519,6 +519,7 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
       iter->second.half_closed_local = true;
     }
     if (frame->frame_type() == spdy::SpdyFrameType::RST_STREAM) {
+      // TODO(diannahu): Condition on existence in the stream map?
       streams_reset_.insert(frame->stream_id());
     }
   }
@@ -990,6 +991,9 @@ void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
                                     uint8_t flags) {
   highest_received_stream_id_ = std::max(static_cast<Http2StreamId>(stream_id),
                                          highest_received_stream_id_);
+  if (streams_reset_.contains(stream_id)) {
+    return;
+  }
   const bool result = visitor_.OnFrameHeader(stream_id, length, type, flags);
   if (!result) {
     fatal_visitor_callback_failure_ = true;
@@ -999,7 +1003,7 @@ void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
 
 void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
                                        size_t length, bool /*fin*/) {
-  if (!stream_map_.contains(stream_id)) {
+  if (!stream_map_.contains(stream_id) || streams_reset_.contains(stream_id)) {
     // The stream does not exist; it could be an error or a benign close, e.g.,
     // getting data for a stream this connection recently closed.
     if (static_cast<Http2StreamId>(stream_id) > highest_processed_stream_id_) {
@@ -1023,7 +1027,7 @@ void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,
   // Count the data against flow control, even if the stream is unknown.
   MarkDataBuffered(stream_id, len);
 
-  if (!stream_map_.contains(stream_id)) {
+  if (!stream_map_.contains(stream_id) || streams_reset_.contains(stream_id)) {
     // If the stream was unknown due to a protocol error, the visitor was
     // informed in OnDataFrameHeader().
     return;
@@ -1041,7 +1045,9 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
   auto iter = stream_map_.find(stream_id);
   if (iter != stream_map_.end()) {
     iter->second.half_closed_remote = true;
-    visitor_.OnEndStream(stream_id);
+    if (!streams_reset_.contains(stream_id)) {
+      visitor_.OnEndStream(stream_id);
+    }
   }
   auto queued_frames_iter = queued_frames_.find(stream_id);
   const bool no_queued_frames = queued_frames_iter == queued_frames_.end() ||
@@ -1106,6 +1112,9 @@ void OgHttp2Session::OnRstStream(spdy::SpdyStreamId stream_id,
     // Receiving RST_STREAM before HEADERS is a connection error.
     LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
                         ConnectionError::kWrongFrameSequence);
+    return;
+  }
+  if (streams_reset_.contains(stream_id)) {
     return;
   }
   visitor_.OnRstStream(stream_id, TranslateErrorCode(error_code));
@@ -1260,6 +1269,9 @@ void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
         return;
       }
     } else {
+      if (streams_reset_.contains(stream_id)) {
+        return;
+      }
       if (it->second.send_window == 0) {
         // The stream was blocked on flow control.
         QUICHE_VLOG(1) << "Marking stream " << stream_id << " ready to write.";
@@ -1345,6 +1357,9 @@ void OgHttp2Session::OnHeaderStatus(
 
 bool OgHttp2Session::OnFrameHeader(spdy::SpdyStreamId stream_id, size_t length,
                                    uint8_t type, uint8_t flags) {
+  if (streams_reset_.contains(stream_id)) {
+    return false;
+  }
   if (type == kMetadataFrameType) {
     QUICHE_DCHECK_EQ(metadata_length_, 0u);
     visitor_.OnBeginMetadataForStream(stream_id, length);
@@ -1365,6 +1380,9 @@ bool OgHttp2Session::OnFrameHeader(spdy::SpdyStreamId stream_id, size_t length,
 }
 
 void OgHttp2Session::OnFramePayload(const char* data, size_t len) {
+  if (streams_reset_.contains(metadata_stream_id_)) {
+    return;
+  }
   if (metadata_length_ > 0) {
     QUICHE_DCHECK_LE(len, metadata_length_);
     const bool payload_success = visitor_.OnMetadataForStream(

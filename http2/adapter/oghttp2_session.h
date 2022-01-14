@@ -437,6 +437,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   WindowManager connection_window_manager_;
 
+  // Tracks the streams that have been marked for reset. A stream is removed
+  // from this set once it is closed.
   absl::flat_hash_set<Http2StreamId> streams_reset_;
 
   // The number of frames currently queued per stream.
