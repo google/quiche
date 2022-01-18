@@ -328,7 +328,7 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
     decoder_.GetHpackDecoder()->set_max_header_block_bytes(
         4 * *options_.max_header_list_bytes);
   }
-  if (options_.perspective == Perspective::kServer) {
+  if (IsServerSession()) {
     remaining_preface_ = {spdy::kHttp2ConnectionHeaderPrefix,
                           spdy::kHttp2ConnectionHeaderPrefixSize};
   }
@@ -489,7 +489,7 @@ int OgHttp2Session::Consume(Http2StreamId stream_id, size_t num_bytes) {
 }
 
 void OgHttp2Session::StartGracefulShutdown() {
-  if (options_.perspective == Perspective::kServer) {
+  if (IsServerSession()) {
     if (!queued_goaway_) {
       EnqueueFrame(absl::make_unique<spdy::SpdyGoAwayIR>(
           std::numeric_limits<int32_t>::max(), spdy::ERROR_CODE_NO_ERROR,
@@ -712,8 +712,7 @@ bool OgHttp2Session::AfterFrameSent(uint8_t frame_type_int, uint32_t stream_id,
   const bool still_open_remote =
       it != stream_map_.end() && !it->second.half_closed_remote;
   if (contains_fin && still_open_remote &&
-      options_.rst_stream_no_error_when_incomplete &&
-      options_.perspective == Perspective::kServer) {
+      options_.rst_stream_no_error_when_incomplete && IsServerSession()) {
     // Since the peer has not yet ended the stream, this endpoint should
     // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
     frames_.push_front(absl::make_unique<spdy::SpdyRstStreamIR>(
@@ -1053,7 +1052,7 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
   const bool no_queued_frames = queued_frames_iter == queued_frames_.end() ||
                                 queued_frames_iter->second == 0;
   if (iter != stream_map_.end() && iter->second.half_closed_local &&
-      options_.perspective == Perspective::kClient && no_queued_frames) {
+      !IsServerSession() && no_queued_frames) {
     // From the client's perspective, the stream can be closed if it's already
     // half_closed_local.
     CloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR);
@@ -1208,7 +1207,7 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
   if (fin) {
     headers_handler_.set_frame_contains_fin();
   }
-  if (options_.perspective == Perspective::kServer) {
+  if (IsServerSession()) {
     const auto new_stream_id = static_cast<Http2StreamId>(stream_id);
     if (stream_map_.find(new_stream_id) != stream_map_.end() && fin) {
       // Not a new stream, must be trailers.
@@ -1402,7 +1401,7 @@ void OgHttp2Session::OnFramePayload(const char* data, size_t len) {
 
 void OgHttp2Session::MaybeSetupPreface() {
   if (!queued_preface_) {
-    if (options_.perspective == Perspective::kClient) {
+    if (!IsServerSession()) {
       buffered_data_.assign(spdy::kHttp2ConnectionHeaderPrefix,
                             spdy::kHttp2ConnectionHeaderPrefixSize);
     }
@@ -1486,8 +1485,7 @@ void OgHttp2Session::SendTrailers(Http2StreamId stream_id,
 void OgHttp2Session::MaybeFinWithRstStream(StreamStateMap::iterator iter) {
   QUICHE_DCHECK(iter != stream_map_.end() && iter->second.half_closed_local);
 
-  if (options_.rst_stream_no_error_when_incomplete &&
-      options_.perspective == Perspective::kServer &&
+  if (options_.rst_stream_no_error_when_incomplete && IsServerSession() &&
       !iter->second.half_closed_remote) {
     // Since the peer has not yet ended the stream, this endpoint should
     // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
