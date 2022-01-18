@@ -1,6 +1,7 @@
 #include "http2/adapter/header_validator.h"
 
 #include "absl/strings/escaping.h"
+#include "absl/strings/numbers.h"
 #include "common/platform/api/quiche_logging.h"
 
 namespace http2 {
@@ -54,6 +55,7 @@ void HeaderValidator::StartHeaderBlock() {
   pseudo_headers_.clear();
   status_.clear();
   method_.clear();
+  content_length_.reset();
 }
 
 HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
@@ -98,9 +100,11 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
       method_ = std::string(value);
     }
     pseudo_headers_.push_back(std::string(key));
-  } else if (key == "content-length" && status_ == "204" && value != "0") {
-    // There should be no body in a "204 No Content" response.
-    return HEADER_FIELD_INVALID;
+  } else if (key == "content-length") {
+    const bool success = HandleContentLength(value);
+    if (!success) {
+      return HEADER_FIELD_INVALID;
+    }
   }
   return HEADER_OK;
 }
@@ -121,6 +125,26 @@ bool HeaderValidator::FinishHeaderBlock(HeaderType type) {
       return ValidateResponseTrailers(pseudo_headers_);
   }
   return false;
+}
+
+bool HeaderValidator::HandleContentLength(absl::string_view value) {
+  if (value.empty()) {
+    return false;
+  }
+
+  if (status_ == "204" && value != "0") {
+    // There should be no body in a "204 No Content" response.
+    return false;
+  }
+
+  size_t content_length = 0;
+  const bool valid = absl::SimpleAtoi(value, &content_length);
+  if (!valid) {
+    return false;
+  }
+
+  content_length_ = content_length;
+  return true;
 }
 
 }  // namespace adapter

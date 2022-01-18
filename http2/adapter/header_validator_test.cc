@@ -1,11 +1,14 @@
 #include "http2/adapter/header_validator.h"
 
 #include "absl/strings/str_cat.h"
+#include "absl/types/optional.h"
 #include "common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace adapter {
 namespace test {
+
+using ::testing::Optional;
 
 TEST(HeaderValidatorTest, HeaderNameEmpty) {
   HeaderValidator v;
@@ -284,6 +287,42 @@ TEST(HeaderValidatorTest, ResponseTrailerPseudoHeaders) {
             v.ValidateSingleHeader(":status", "200"));
   EXPECT_EQ(HeaderValidator::HEADER_OK, v.ValidateSingleHeader("foo", "bar"));
   EXPECT_FALSE(v.FinishHeaderBlock(HeaderType::RESPONSE_TRAILER));
+}
+
+TEST(HeaderValidatorTest, ValidContentLength) {
+  HeaderValidator v;
+
+  v.StartHeaderBlock();
+  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("content-length", "41"));
+  EXPECT_THAT(v.content_length(), Optional(41));
+
+  v.StartHeaderBlock();
+  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("content-length", "42"));
+  EXPECT_THAT(v.content_length(), Optional(42));
+}
+
+TEST(HeaderValidatorTest, InvalidContentLength) {
+  HeaderValidator v;
+
+  v.StartHeaderBlock();
+  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+            v.ValidateSingleHeader("content-length", ""));
+  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+            v.ValidateSingleHeader("content-length", "nan"));
+  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+            v.ValidateSingleHeader("content-length", "-42"));
+  EXPECT_EQ(v.content_length(), absl::nullopt);
+  // End on a positive note.
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("content-length", "42"));
+  EXPECT_THAT(v.content_length(), Optional(42));
 }
 
 }  // namespace test

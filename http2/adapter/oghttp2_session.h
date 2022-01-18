@@ -219,6 +219,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     void* user_data = nullptr;
     int32_t send_window = kInitialFlowControlWindowSize;
     absl::optional<HeaderType> received_header_type;
+    absl::optional<size_t> remaining_content_length;
     bool half_closed_local = false;
     bool half_closed_remote = false;
     // Indicates that `outbound_body` temporarily cannot produce data.
@@ -257,6 +258,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
       QUICHE_DCHECK(type_ == HeaderType::RESPONSE ||
                     type_ == HeaderType::RESPONSE_100);
       return validator_.status_header();
+    }
+    absl::optional<size_t> content_length() const {
+      return validator_.content_length();
     }
     void AllowConnect() { validator_.AllowConnect(); }
     void SetMaxFieldSize(uint32_t field_size) {
@@ -384,6 +388,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   void MaybeHandleMetadataEndForStream(Http2StreamId stream_id);
 
   void DecrementQueuedFrameCount(uint32_t stream_id, uint8_t frame_type);
+
+  void HandleContentLengthError(Http2StreamId stream_id);
 
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;

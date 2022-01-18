@@ -46,11 +46,16 @@ class QUICHE_EXPORT_PRIVATE HeaderValidator {
   // For responses, returns the value of the ":status" header, if present.
   absl::string_view status_header() const { return status_; }
 
+  absl::optional<size_t> content_length() const { return content_length_; }
+
  private:
+  bool HandleContentLength(absl::string_view value);
+
   std::vector<std::string> pseudo_headers_;
   std::string status_;
   std::string method_;
   absl::optional<size_t> max_field_size_;
+  absl::optional<size_t> content_length_;
   bool allow_connect_ = false;
 };
 

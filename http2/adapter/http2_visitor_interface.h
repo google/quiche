@@ -78,6 +78,9 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
     kInvalidPushPromise,
     // The peer exceeded the max concurrent streams limit.
     kExceededMaxConcurrentStreams,
+    // The peer violated HTTP messaging semantics.
+    // TODO(b/214614028): Remove once these errors can be just RST_STREAM'd.
+    kHttpMessaging,
   };
   virtual void OnConnectionError(ConnectionError error) = 0;
 

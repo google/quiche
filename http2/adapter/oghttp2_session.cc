@@ -1002,7 +1002,8 @@ void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
 
 void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
                                        size_t length, bool /*fin*/) {
-  if (!stream_map_.contains(stream_id) || streams_reset_.contains(stream_id)) {
+  auto iter = stream_map_.find(stream_id);
+  if (iter == stream_map_.end() || streams_reset_.contains(stream_id)) {
     // The stream does not exist; it could be an error or a benign close, e.g.,
     // getting data for a stream this connection recently closed.
     if (static_cast<Http2StreamId>(stream_id) > highest_processed_stream_id_) {
@@ -1017,6 +1018,16 @@ void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
   if (!result) {
     fatal_visitor_callback_failure_ = true;
     decoder_.StopProcessing();
+  }
+
+  // Validate against the content-length if it exists.
+  if (iter->second.remaining_content_length.has_value()) {
+    if (length > *iter->second.remaining_content_length) {
+      HandleContentLengthError(stream_id);
+      iter->second.remaining_content_length.reset();
+    } else {
+      *iter->second.remaining_content_length -= length;
+    }
   }
 }
 
@@ -1044,10 +1055,20 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
   auto iter = stream_map_.find(stream_id);
   if (iter != stream_map_.end()) {
     iter->second.half_closed_remote = true;
-    if (!streams_reset_.contains(stream_id)) {
-      visitor_.OnEndStream(stream_id);
+    if (streams_reset_.contains(stream_id)) {
+      return;
     }
+
+    // Validate against the content-length if it exists.
+    if (iter->second.remaining_content_length.has_value() &&
+        *iter->second.remaining_content_length != 0) {
+      HandleContentLengthError(stream_id);
+      return;
+    }
+
+    visitor_.OnEndStream(stream_id);
   }
+
   auto queued_frames_iter = queued_frames_.find(stream_id);
   const bool no_queued_frames = queued_frames_iter == queued_frames_.end() ||
                                 queued_frames_iter->second == 0;
@@ -1096,6 +1117,7 @@ void OgHttp2Session::OnHeaderFrameEnd(spdy::SpdyStreamId stream_id) {
     } else {
       it->second.received_header_type = headers_handler_.header_type();
     }
+    it->second.remaining_content_length = headers_handler_.content_length();
     headers_handler_.set_stream_id(0);
   }
 }
@@ -1665,6 +1687,20 @@ void OgHttp2Session::DecrementQueuedFrameCount(uint32_t stream_id,
   if (iter->second == 0) {
     // TODO(birenroy): Consider passing through `error_code` here.
     CloseStreamIfReady(frame_type, stream_id);
+  }
+}
+
+void OgHttp2Session::HandleContentLengthError(Http2StreamId stream_id) {
+  EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+      stream_id, spdy::ERROR_CODE_PROTOCOL_ERROR));
+  // TODO(b/214614028): The OnInvalidFrame() is for nghttp2 parity, but parity
+  // causes this error to be connection-level in Envoy. Revisit after migration.
+  const bool ok = visitor_.OnInvalidFrame(
+      stream_id, Http2VisitorInterface::InvalidFrameError::kHttpMessaging);
+  if (!ok) {
+    fatal_visitor_callback_failure_ = true;
+    LatchErrorAndNotify(Http2ErrorCode::REFUSED_STREAM,
+                        ConnectionError::kHttpMessaging);
   }
 }
 
