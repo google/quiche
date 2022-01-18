@@ -478,7 +478,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
       std::numeric_limits<uint32_t>::max();
   uint32_t max_inbound_concurrent_streams_ =
       std::numeric_limits<uint32_t>::max();
-  Options options_;
+  const Options options_;
 
   // The HPACK encoder header table capacity that will be applied when
   // acking SETTINGS from the peer. Only contains a value if the peer advertises
