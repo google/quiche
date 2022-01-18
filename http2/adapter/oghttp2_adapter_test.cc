@@ -4405,6 +4405,150 @@ TEST(OgHttp2AdapterServerTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
   EXPECT_THAT(visitor.data(), testing::IsEmpty());
 }
 
+TEST(OgHttp2AdapterServerTest, ServerHandlesContentLength) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  testing::InSequence s;
+
+  const std::string stream_frames =
+      TestFrameSequence()
+          .ClientPreface()
+          .Headers(1, {{":method", "GET"},
+                       {":scheme", "https"},
+                       {":authority", "example.com"},
+                       {":path", "/this/is/request/one"},
+                       {"content-length", "2"}})
+          .Data(1, "hi", /*fin=*/true)
+          .Headers(3,
+                   {{":method", "GET"},
+                    {":scheme", "https"},
+                    {":authority", "example.com"},
+                    {":path", "/this/is/request/three"},
+                    {"content-length", "nan"}},
+                   /*fin=*/true)
+          .Serialize();
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  // Stream 1: content-length is correct
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(5);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 1));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, 2));
+  EXPECT_CALL(visitor, OnDataForStream(1, "hi"));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  // Stream 3: content-length is not a number
+  // TODO(diannahu): Let oghttp2 validate content-length.
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, _, _)).Times(5);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(3));
+  EXPECT_CALL(visitor, OnEndStream(3));
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
+  EXPECT_TRUE(adapter->want_write());
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::SETTINGS}));
+}
+
+TEST(OgHttp2AdapterServerTest, ServerHandlesContentLengthMismatch) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  testing::InSequence s;
+
+  const std::string stream_frames =
+      TestFrameSequence()
+          .ClientPreface()
+          .Headers(1, {{":method", "GET"},
+                       {":scheme", "https"},
+                       {":authority", "example.com"},
+                       {":path", "/this/is/request/two"},
+                       {"content-length", "2"}})
+          .Data(1, "h", /*fin=*/true)
+          .Headers(3, {{":method", "GET"},
+                       {":scheme", "https"},
+                       {":authority", "example.com"},
+                       {":path", "/this/is/request/three"},
+                       {"content-length", "2"}})
+          .Data(3, "howdy", /*fin=*/true)
+          .Headers(5,
+                   {{":method", "GET"},
+                    {":scheme", "https"},
+                    {":authority", "example.com"},
+                    {":path", "/this/is/request/four"},
+                    {"content-length", "2"}},
+                   /*fin=*/true)
+          .Serialize();
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  // Stream 1: content-length is larger than actual data
+  // TODO(diannahu): Let oghttp2 validate content-length.
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(5);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 1));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, 1));
+  EXPECT_CALL(visitor, OnDataForStream(1, "h"));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  // Stream 3: content-length is smaller than actual data
+  // TODO(diannahu): Let oghttp2 validate content-length.
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, _, _)).Times(5);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(3));
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, DATA, 1));
+  EXPECT_CALL(visitor, OnBeginDataForStream(3, 5));
+  EXPECT_CALL(visitor, OnDataForStream(3, "howdy"));
+  EXPECT_CALL(visitor, OnEndStream(3));
+
+  // Stream 5: content-length is invalid and HEADERS ends the stream
+  // TODO(diannahu): Let oghttp2 validate content-length.
+  EXPECT_CALL(visitor, OnFrameHeader(5, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(5));
+  EXPECT_CALL(visitor, OnHeaderForStream(5, _, _)).Times(5);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(5));
+  EXPECT_CALL(visitor, OnEndStream(5));
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
+  EXPECT_TRUE(adapter->want_write());
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::SETTINGS}));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace adapter
