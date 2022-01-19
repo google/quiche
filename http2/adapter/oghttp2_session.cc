@@ -1337,6 +1337,8 @@ bool OgHttp2Session::OnUnknownFrame(spdy::SpdyStreamId /*stream_id*/,
 void OgHttp2Session::OnHeaderStatus(
     Http2StreamId stream_id, Http2VisitorInterface::OnHeaderResult result) {
   QUICHE_DCHECK_NE(result, Http2VisitorInterface::HEADER_OK);
+  QUICHE_VLOG(1) << "OnHeaderStatus(stream_id=" << stream_id
+                 << ", result=" << result << ")";
   const bool should_reset_stream =
       result == Http2VisitorInterface::HEADER_RST_STREAM ||
       result == Http2VisitorInterface::HEADER_FIELD_INVALID ||
@@ -1447,6 +1449,9 @@ std::vector<Http2Setting> OgHttp2Session::GetInitialSettings() const {
     settings.push_back({Http2KnownSettingsId::MAX_HEADER_LIST_SIZE,
                         *options_.max_header_list_bytes});
   }
+  if (options_.allow_extended_connect && IsServerSession()) {
+    settings.push_back({Http2KnownSettingsId::ENABLE_CONNECT_PROTOCOL, 1u});
+  }
   return settings;
 }
 
@@ -1458,6 +1463,12 @@ std::unique_ptr<SpdySettingsIR> OgHttp2Session::PrepareSettingsFrame(
 
     if (setting.id == Http2KnownSettingsId::MAX_CONCURRENT_STREAMS) {
       pending_max_inbound_concurrent_streams_ = setting.value;
+    }
+    if (setting.id == ENABLE_CONNECT_PROTOCOL && setting.value == 1u &&
+        IsServerSession()) {
+      // Allow extended CONNECT semantics even before SETTINGS are acked, to
+      // make things easier for clients.
+      headers_handler_.AllowConnect();
     }
   }
 
@@ -1471,9 +1482,6 @@ std::unique_ptr<SpdySettingsIR> OgHttp2Session::PrepareSettingsFrame(
           } else if (id_and_value.first == spdy::SETTINGS_HEADER_TABLE_SIZE) {
             decoder_.GetHpackDecoder()->ApplyHeaderTableSizeSetting(
                 id_and_value.second);
-          } else if (id_and_value.first == ENABLE_CONNECT_PROTOCOL &&
-                     id_and_value.second == 1u) {
-            headers_handler_.AllowConnect();
           }
         }
       });

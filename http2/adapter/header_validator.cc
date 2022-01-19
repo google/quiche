@@ -23,6 +23,10 @@ const absl::string_view kHttp2StatusValueAllowedChars = "0123456789";
 
 bool ValidateRequestHeaders(const std::vector<std::string>& pseudo_headers,
                             absl::string_view method, bool allow_connect) {
+  QUICHE_VLOG(2) << "Request pseudo-headers: ["
+                 << absl::StrJoin(pseudo_headers, ", ")
+                 << "], allow_connect: " << allow_connect
+                 << ", method: " << method;
   if (allow_connect && method == "CONNECT") {
     static const std::vector<std::string>* kConnectHeaders =
         new std::vector<std::string>(

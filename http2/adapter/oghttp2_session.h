@@ -58,6 +58,10 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     // error while processing bytes. If true, subsequent processing will also
     // mark all input data as consumed.
     bool blackhole_data_on_connection_error = true;
+    // Whether to advertise support for the extended CONNECT semantics described
+    // in RFC 8441. If true, this endpoint will send the appropriate setting in
+    // initial SETTINGS.
+    bool allow_extended_connect = true;
   };
 
   OgHttp2Session(Http2VisitorInterface& visitor, Options options);

@@ -62,14 +62,16 @@ TEST_F(OgHttp2AdapterTest, ProcessBytes) {
       TestFrameSequence().ClientPreface().Ping(17).Serialize());
 }
 
-TEST_F(OgHttp2AdapterTest, InitialSettings) {
+TEST_F(OgHttp2AdapterTest, InitialSettingsNoExtendedConnect) {
   DataSavingVisitor client_visitor;
   OgHttp2Adapter::Options client_options{.perspective = Perspective::kClient,
-                                         .max_header_list_bytes = 42};
+                                         .max_header_list_bytes = 42,
+                                         .allow_extended_connect = false};
   auto client_adapter = OgHttp2Adapter::Create(client_visitor, client_options);
 
   DataSavingVisitor server_visitor;
-  OgHttp2Adapter::Options server_options{.perspective = Perspective::kServer};
+  OgHttp2Adapter::Options server_options{.perspective = Perspective::kServer,
+                                         .allow_extended_connect = false};
   auto server_adapter = OgHttp2Adapter::Create(server_visitor, server_options);
 
   testing::InSequence s;
@@ -99,6 +101,72 @@ TEST_F(OgHttp2AdapterTest, InitialSettings) {
   // Client processes the server's initial bytes, including initial SETTINGS.
   EXPECT_CALL(client_visitor, OnFrameHeader(0, 0, SETTINGS, 0x0));
   EXPECT_CALL(client_visitor, OnSettingsStart());
+  EXPECT_CALL(client_visitor, OnSettingsEnd());
+  {
+    const int64_t result = client_adapter->ProcessBytes(server_visitor.data());
+    EXPECT_EQ(server_visitor.data().size(), static_cast<size_t>(result));
+  }
+
+  // Server processes the client's initial bytes, including initial SETTINGS.
+  EXPECT_CALL(server_visitor, OnFrameHeader(0, 12, SETTINGS, 0x0));
+  EXPECT_CALL(server_visitor, OnSettingsStart());
+  EXPECT_CALL(server_visitor,
+              OnSetting(Http2Setting{Http2KnownSettingsId::ENABLE_PUSH, 0u}))
+      .Times(2);
+  EXPECT_CALL(
+      server_visitor,
+      OnSetting(Http2Setting{Http2KnownSettingsId::MAX_HEADER_LIST_SIZE, 42u}))
+      .Times(2);
+  EXPECT_CALL(server_visitor, OnSettingsEnd());
+  {
+    const int64_t result = server_adapter->ProcessBytes(client_visitor.data());
+    EXPECT_EQ(client_visitor.data().size(), static_cast<size_t>(result));
+  }
+}
+
+TEST_F(OgHttp2AdapterTest, InitialSettings) {
+  DataSavingVisitor client_visitor;
+  OgHttp2Adapter::Options client_options{.perspective = Perspective::kClient,
+                                         .max_header_list_bytes = 42};
+  ASSERT_TRUE(client_options.allow_extended_connect);
+  auto client_adapter = OgHttp2Adapter::Create(client_visitor, client_options);
+
+  DataSavingVisitor server_visitor;
+  OgHttp2Adapter::Options server_options{.perspective = Perspective::kServer};
+  ASSERT_TRUE(server_options.allow_extended_connect);
+  auto server_adapter = OgHttp2Adapter::Create(server_visitor, server_options);
+
+  testing::InSequence s;
+
+  // Client sends the connection preface, including the initial SETTINGS.
+  EXPECT_CALL(client_visitor, OnBeforeFrameSent(SETTINGS, 0, 12, 0x0));
+  EXPECT_CALL(client_visitor, OnFrameSent(SETTINGS, 0, 12, 0x0, 0));
+  {
+    int result = client_adapter->Send();
+    EXPECT_EQ(0, result);
+    absl::string_view data = client_visitor.data();
+    EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+    data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+    EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  }
+
+  // Server sends the connection preface, including the initial SETTINGS.
+  EXPECT_CALL(server_visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(server_visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
+  {
+    int result = server_adapter->Send();
+    EXPECT_EQ(0, result);
+    absl::string_view data = server_visitor.data();
+    EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  }
+
+  // Client processes the server's initial bytes, including initial SETTINGS.
+  EXPECT_CALL(client_visitor, OnFrameHeader(0, 6, SETTINGS, 0x0));
+  EXPECT_CALL(client_visitor, OnSettingsStart());
+  EXPECT_CALL(client_visitor,
+              OnSetting(Http2Setting{
+                  Http2KnownSettingsId::ENABLE_CONNECT_PROTOCOL, 1u}))
+      .Times(2);
   EXPECT_CALL(client_visitor, OnSettingsEnd());
   {
     const int64_t result = client_adapter->ProcessBytes(server_visitor.data());
@@ -3983,7 +4051,8 @@ TEST(OgHttp2AdapterServerTest,
 
 TEST(OgHttp2AdapterServerTest, ServerForbidsProtocolPseudoheaderBeforeAck) {
   DataSavingVisitor visitor;
-  OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
+  OgHttp2Adapter::Options options{.perspective = Perspective::kServer,
+                                  .allow_extended_connect = false};
   auto adapter = OgHttp2Adapter::Create(visitor, options);
 
   const std::string initial_frames =
@@ -4061,27 +4130,19 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsProtocolPseudoheaderBeforeAck) {
                    /*fin=*/true)
           .Serialize();
 
+  // After sending SETTINGS with `ENABLE_CONNECT_PROTOCOL`, oghttp2 matches
+  // nghttp2 in allowing this, even though the `allow_extended_connect` option
+  // is false.
   EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 0x5));
   EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
   EXPECT_CALL(visitor, OnHeaderForStream(3, _, _)).Times(5);
-  EXPECT_CALL(visitor,
-              OnInvalidFrame(
-                  3, Http2VisitorInterface::InvalidFrameError::kHttpMessaging));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(3));
+  EXPECT_CALL(visitor, OnEndStream(3));
 
   stream_result = adapter->ProcessBytes(stream3_frames);
   EXPECT_EQ(static_cast<size_t>(stream_result), stream3_frames.size());
 
-  // The server sends a RST_STREAM for the offending stream.
-  EXPECT_TRUE(adapter->want_write());
-  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 3, _, 0x0));
-  EXPECT_CALL(visitor,
-              OnFrameSent(RST_STREAM, 3, _, 0x0,
-                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
-  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::HTTP2_NO_ERROR));
-
-  send_result = adapter->Send();
-  EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_FALSE(adapter->want_write());
 }
 
 TEST(OgHttp2AdapterServerTest, ServerAllowsProtocolPseudoheaderAfterAck) {
@@ -4187,8 +4248,8 @@ TEST(OgHttp2AdapterServerTest, SkipsSendingFramesForRejectedStream) {
   adapter->SubmitRst(1, Http2ErrorCode::INTERNAL_ERROR);
 
   // Server initial SETTINGS and SETTINGS ack.
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
 
