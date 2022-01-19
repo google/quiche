@@ -17,7 +17,6 @@
 #include "common/platform/api/quiche_logging.h"
 #include "spdy/core/spdy_bitmasks.h"
 #include "spdy/core/spdy_frame_builder.h"
-#include "spdy/core/spdy_frame_reader.h"
 
 namespace spdy {
 

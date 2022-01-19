@@ -22,7 +22,6 @@
 #include "spdy/core/recording_headers_handler.h"
 #include "spdy/core/spdy_bitmasks.h"
 #include "spdy/core/spdy_frame_builder.h"
-#include "spdy/core/spdy_frame_reader.h"
 #include "spdy/core/spdy_protocol.h"
 #include "spdy/core/spdy_test_utils.h"
 
