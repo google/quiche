@@ -1119,7 +1119,10 @@ void OgHttp2Session::OnHeaderFrameEnd(spdy::SpdyStreamId stream_id) {
       it->second.received_header_type = headers_handler_.header_type();
     }
     if (headers_handler_.header_type() == HeaderType::REQUEST ||
-        headers_handler_.header_type() == HeaderType::RESPONSE) {
+        (headers_handler_.header_type() == HeaderType::RESPONSE &&
+         headers_handler_.status_header() != "304")) {
+      // 304 response content-length values should be ignored:
+      // https://httpwg.org/specs/rfc7230.html#rfc.section.3.3.2
       it->second.remaining_content_length = headers_handler_.content_length();
     }
     headers_handler_.set_stream_id(0);
