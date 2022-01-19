@@ -9,6 +9,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "common/platform/api/quiche_bug_tracker.h"
 #include "common/platform/api/quiche_logging.h"
 #include "common/quiche_endian.h"
 
@@ -37,6 +38,21 @@ bool QuicheDataReader::ReadUInt16(uint16_t* result) {
   if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
     *result = quiche::QuicheEndian::NetToHost16(*result);
   }
+  return true;
+}
+
+bool QuicheDataReader::ReadUInt24(uint32_t* result) {
+  if (endianness_ != quiche::NETWORK_BYTE_ORDER) {
+    // TODO(b/214573190): Implement and test HOST_BYTE_ORDER case.
+    QUICHE_BUG(QuicheDataReader_ReadUInt24_NotImplemented);
+    return false;
+  }
+
+  *result = 0;
+  if (!ReadBytes(reinterpret_cast<char*>(result) + 1, 3u)) {
+    return false;
+  }
+  *result = quiche::QuicheEndian::NetToHost32(*result);
   return true;
 }
 

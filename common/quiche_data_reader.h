@@ -45,11 +45,12 @@ class QUICHE_EXPORT_PRIVATE QuicheDataReader {
   // Empty destructor.
   ~QuicheDataReader() {}
 
-  // Reads an 8/16/32/64-bit unsigned integer into the given output
+  // Reads an 8/16/24/32/64-bit unsigned integer into the given output
   // parameter. Forwards the internal iterator on success. Returns true on
   // success, false otherwise.
   bool ReadUInt8(uint8_t* result);
   bool ReadUInt16(uint16_t* result);
+  bool ReadUInt24(uint32_t* result);
   bool ReadUInt32(uint32_t* result);
   bool ReadUInt64(uint64_t* result);
 

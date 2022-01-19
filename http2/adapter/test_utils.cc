@@ -4,9 +4,8 @@
 
 #include "absl/strings/str_format.h"
 #include "http2/adapter/http2_visitor_interface.h"
-#include "common/quiche_endian.h"
+#include "common/quiche_data_reader.h"
 #include "spdy/core/hpack/hpack_encoder.h"
-#include "spdy/core/spdy_frame_reader.h"
 
 namespace http2 {
 namespace adapter {
@@ -137,7 +136,7 @@ class SpdyControlFrameMatcher
 
   bool MatchAndExplain(absl::string_view s,
                        testing::MatchResultListener* listener) const override {
-    spdy::SpdyFrameReader reader(s.data(), s.size());
+    quiche::QuicheDataReader reader(s.data(), s.size());
 
     for (TypeAndOptionalLength expected : expected_types_and_lengths_) {
       if (!MatchAndExplainOneFrame(expected.first, expected.second, &reader,
@@ -146,8 +145,7 @@ class SpdyControlFrameMatcher
       }
     }
     if (!reader.IsDoneReading()) {
-      size_t bytes_remaining = s.size() - reader.GetBytesConsumed();
-      *listener << "; " << bytes_remaining << " bytes left to read!";
+      *listener << "; " << reader.BytesRemaining() << " bytes left to read!";
       return false;
     }
     return true;
@@ -155,7 +153,7 @@ class SpdyControlFrameMatcher
 
   bool MatchAndExplainOneFrame(spdy::SpdyFrameType expected_type,
                                absl::optional<size_t> expected_length,
-                               spdy::SpdyFrameReader* reader,
+                               quiche::QuicheDataReader* reader,
                                testing::MatchResultListener* listener) const {
     uint32_t payload_length;
     if (!reader->ReadUInt24(&payload_length)) {
