@@ -4572,8 +4572,8 @@ TEST(OgHttp2AdapterServerTest, ServerHandlesContentLengthMismatch) {
   EXPECT_CALL(visitor, OnSettingsEnd());
 
   // Stream 1: content-length is larger than actual data
-  // All data and then OnInvalidFrame() are delivered to the visitor. Note that
-  // nghttp2 does not deliver OnInvalidFrame().
+  // All data is delivered to the visitor. Note that neither oghttp2 nor
+  // nghttp2 delivers OnInvalidFrame().
   EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
   EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
   EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(5);
@@ -4581,33 +4581,24 @@ TEST(OgHttp2AdapterServerTest, ServerHandlesContentLengthMismatch) {
   EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 1));
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 1));
   EXPECT_CALL(visitor, OnDataForStream(1, "h"));
-  EXPECT_CALL(visitor,
-              OnInvalidFrame(
-                  1, Http2VisitorInterface::InvalidFrameError::kHttpMessaging));
 
   // Stream 3: content-length is smaller than actual data
   // The beginning of data is delivered to the visitor, but not the actual data.
-  // OnInvalidFrame() is delivered (unlike with nghttp2).
+  // Again, neither oghttp2 nor nghttp2 delivers OnInvalidFrame().
   EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 4));
   EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
   EXPECT_CALL(visitor, OnHeaderForStream(3, _, _)).Times(5);
   EXPECT_CALL(visitor, OnEndHeadersForStream(3));
   EXPECT_CALL(visitor, OnFrameHeader(3, _, DATA, 1));
   EXPECT_CALL(visitor, OnBeginDataForStream(3, 5));
-  EXPECT_CALL(visitor,
-              OnInvalidFrame(
-                  3, Http2VisitorInterface::InvalidFrameError::kHttpMessaging));
 
   // Stream 5: content-length is invalid and HEADERS ends the stream
-  // Only oghttp2 invokes OnEndHeadersForStream(), but both oghttp2 and nghttp2
-  // invoke OnInvalidFrame().
+  // Only oghttp2 invokes OnEndHeadersForStream(). Only nghttp2 invokes
+  // OnInvalidFrame().
   EXPECT_CALL(visitor, OnFrameHeader(5, _, HEADERS, 5));
   EXPECT_CALL(visitor, OnBeginHeadersForStream(5));
   EXPECT_CALL(visitor, OnHeaderForStream(5, _, _)).Times(5);
   EXPECT_CALL(visitor, OnEndHeadersForStream(5));
-  EXPECT_CALL(visitor,
-              OnInvalidFrame(
-                  5, Http2VisitorInterface::InvalidFrameError::kHttpMessaging));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));

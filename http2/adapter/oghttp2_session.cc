@@ -1701,15 +1701,6 @@ void OgHttp2Session::DecrementQueuedFrameCount(uint32_t stream_id,
 void OgHttp2Session::HandleContentLengthError(Http2StreamId stream_id) {
   EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
       stream_id, spdy::ERROR_CODE_PROTOCOL_ERROR));
-  // TODO(b/214614028): The OnInvalidFrame() is for nghttp2 parity, but parity
-  // causes this error to be connection-level in Envoy. Revisit after migration.
-  const bool ok = visitor_.OnInvalidFrame(
-      stream_id, Http2VisitorInterface::InvalidFrameError::kHttpMessaging);
-  if (!ok) {
-    fatal_visitor_callback_failure_ = true;
-    LatchErrorAndNotify(Http2ErrorCode::REFUSED_STREAM,
-                        ConnectionError::kHttpMessaging);
-  }
 }
 
 }  // namespace adapter
