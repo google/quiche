@@ -136,6 +136,7 @@ bool HeaderValidator::HandleContentLength(absl::string_view value) {
     return false;
   }
 
+  // TODO(diannahu): Do the same for 1xx responses.
   if (status_ == "204" && value != "0") {
     // There should be no body in a "204 No Content" response.
     return false;

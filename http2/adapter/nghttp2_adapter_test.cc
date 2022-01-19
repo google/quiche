@@ -4402,6 +4402,16 @@ TEST(NgHttp2AdapterTest, ServerHandlesContentLengthMismatch) {
                     {":path", "/this/is/request/four"},
                     {"content-length", "2"}},
                    /*fin=*/true)
+          .Headers(7,
+                   {{":method", "GET"},
+                    {":scheme", "https"},
+                    {":authority", "example.com"},
+                    {":path", "/this/is/request/four"},
+                    {"content-length", "2"}},
+                   /*fin=*/false)
+          .Data(7, "h", /*fin=*/false)
+          .Headers(7, {{"extra-info", "Trailers with content-length mismatch"}},
+                   /*fin=*/true)
           .Serialize();
 
   // Client preface (empty SETTINGS)
@@ -4438,6 +4448,22 @@ TEST(NgHttp2AdapterTest, ServerHandlesContentLengthMismatch) {
               OnInvalidFrame(
                   5, Http2VisitorInterface::InvalidFrameError::kHttpMessaging));
 
+  // Stream 7: content-length is invalid and trailers end the stream
+  // When the stream ends with trailers, nghttp2 invokes OnInvalidFrame().
+  EXPECT_CALL(visitor, OnFrameHeader(7, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(7));
+  EXPECT_CALL(visitor, OnHeaderForStream(7, _, _)).Times(5);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(7));
+  EXPECT_CALL(visitor, OnFrameHeader(7, _, DATA, 0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(7, 1));
+  EXPECT_CALL(visitor, OnDataForStream(7, "h"));
+  EXPECT_CALL(visitor, OnFrameHeader(7, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(7));
+  EXPECT_CALL(visitor, OnHeaderForStream(7, _, _));
+  EXPECT_CALL(visitor,
+              OnInvalidFrame(
+                  7, Http2VisitorInterface::InvalidFrameError::kHttpMessaging));
+
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
 
@@ -4458,11 +4484,17 @@ TEST(NgHttp2AdapterTest, ServerHandlesContentLengthMismatch) {
               OnFrameSent(RST_STREAM, 5, _, 0x0,
                           static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
   EXPECT_CALL(visitor, OnCloseStream(5, Http2ErrorCode::PROTOCOL_ERROR));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 7, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(RST_STREAM, 7, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
+  EXPECT_CALL(visitor, OnCloseStream(7, Http2ErrorCode::PROTOCOL_ERROR));
 
   EXPECT_TRUE(adapter->want_write());
   int result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::RST_STREAM,
                                             spdy::SpdyFrameType::RST_STREAM,
                                             spdy::SpdyFrameType::RST_STREAM,
                                             spdy::SpdyFrameType::RST_STREAM}));

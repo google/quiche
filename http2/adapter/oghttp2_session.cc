@@ -6,6 +6,7 @@
 
 #include "absl/memory/memory.h"
 #include "absl/strings/escaping.h"
+#include "http2/adapter/header_validator.h"
 #include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/http2_util.h"
 #include "http2/adapter/http2_visitor_interface.h"
@@ -1117,7 +1118,10 @@ void OgHttp2Session::OnHeaderFrameEnd(spdy::SpdyStreamId stream_id) {
     } else {
       it->second.received_header_type = headers_handler_.header_type();
     }
-    it->second.remaining_content_length = headers_handler_.content_length();
+    if (headers_handler_.header_type() == HeaderType::REQUEST ||
+        headers_handler_.header_type() == HeaderType::RESPONSE) {
+      it->second.remaining_content_length = headers_handler_.content_length();
+    }
     headers_handler_.set_stream_id(0);
   }
 }
