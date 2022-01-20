@@ -391,6 +391,20 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
     WebTransportStreamAdapter adapter;
   };
 
+  // Reason codes for `qpack_decoded_headers_accumulator_` being nullptr.
+  enum class QpackDecodedHeadersAccumulatorResetReason {
+    // `qpack_decoded_headers_accumulator_` was default constructed to nullptr.
+    kUnSet = 0,
+    // `qpack_decoded_headers_accumulator_` was reset in the corresponding
+    // method.
+    kResetInOnHeadersDecoded = 1,
+    kResetInOnHeaderDecodingError = 2,
+    kResetInOnStreamReset1 = 3,
+    kResetInOnStreamReset2 = 4,
+    kResetInResetWithError = 5,
+    kResetInOnClose = 6,
+  };
+
   // Called by HttpDecoderVisitor.
   bool OnDataFrameStart(QuicByteCount header_length,
                         QuicByteCount payload_length);
@@ -462,6 +476,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Headers accumulator for decoding HEADERS frame payload.
   std::unique_ptr<QpackDecodedHeadersAccumulator>
       qpack_decoded_headers_accumulator_;
+  // Reason for `qpack_decoded_headers_accumulator_` being nullptr.
+  QpackDecodedHeadersAccumulatorResetReason
+      qpack_decoded_headers_accumulator_reset_reason_;
   // Visitor of the HttpDecoder.
   std::unique_ptr<HttpDecoderVisitor> http_decoder_visitor_;
   // HttpDecoder for processing raw incoming stream frames.

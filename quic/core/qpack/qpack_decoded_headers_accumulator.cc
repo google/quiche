@@ -7,6 +7,7 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/qpack/qpack_decoder.h"
 #include "quic/core/qpack/qpack_header_table.h"
+#include "quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {
 
@@ -87,6 +88,11 @@ void QpackDecodedHeadersAccumulator::Decode(absl::string_view data) {
 void QpackDecodedHeadersAccumulator::EndHeaderBlock() {
   QUICHE_DCHECK(!error_detected_);
   QUICHE_DCHECK(!headers_decoded_);
+
+  if (!decoder_) {
+    QUIC_BUG(b215142466_EndHeaderBlock);
+    return;
+  }
 
   // Might destroy |this|.
   decoder_->EndHeaderBlock();
