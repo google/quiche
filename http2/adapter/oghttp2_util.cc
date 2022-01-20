@@ -8,7 +8,7 @@ spdy::SpdyHeaderBlock ToHeaderBlock(absl::Span<const Header> headers) {
   for (const Header& header : headers) {
     absl::string_view name = GetStringView(header.first).first;
     absl::string_view value = GetStringView(header.second).first;
-    block[name] = value;
+    block.AppendValueOrAddHeader(name, value);
   }
   return block;
 }
