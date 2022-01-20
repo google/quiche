@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef THIRD_PARTY_QUICHE_PLATFORM_API_QUICHE_EXPORT_H_
-#define THIRD_PARTY_QUICHE_PLATFORM_API_QUICHE_EXPORT_H_
+#ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_EXPORT_H_
+#define QUICHE_COMMON_PLATFORM_API_QUICHE_EXPORT_H_
 
 #include "quiche_platform_impl/quiche_export_impl.h"
 
@@ -18,4 +18,4 @@
 // defined in a header, or is built in Chromium as part of tests or tools.
 #define QUICHE_NO_EXPORT QUICHE_NO_EXPORT_IMPL
 
-#endif  // THIRD_PARTY_QUICHE_PLATFORM_API_QUICHE_EXPORT_H_
+#endif  // QUICHE_COMMON_PLATFORM_API_QUICHE_EXPORT_H_
