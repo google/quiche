@@ -21,6 +21,30 @@ const absl::string_view kHttp2HeaderValueAllowedChars =
 
 const absl::string_view kHttp2StatusValueAllowedChars = "0123456789";
 
+const absl::string_view kValidAuthorityChars =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~%!$&'()["
+    "]*+,;=:";
+
+// Returns whether `authority` contains only characters from the `host` ABNF
+// from RFC 3986 section 3.2.2.
+bool IsValidAuthority(absl::string_view authority) {
+  static const bool* valid_chars = []() {
+    using ValidCharArray = bool[256];
+    bool* chars = new ValidCharArray;
+    memset(chars, 0, sizeof(ValidCharArray));
+    for (char c : kValidAuthorityChars) {
+      chars[static_cast<uint8_t>(c)] = true;
+    }
+    return chars;
+  }();
+  for (char c : authority) {
+    if (!valid_chars[static_cast<uint8_t>(c)]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool ValidateRequestHeaders(const std::vector<std::string>& pseudo_headers,
                             absl::string_view method, bool allow_connect) {
   QUICHE_VLOG(2) << "Request pseudo-headers: ["
@@ -102,6 +126,8 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
       status_ = std::string(value);
     } else if (key == ":method") {
       method_ = std::string(value);
+    } else if (key == ":authority" && !IsValidAuthority(value)) {
+      return HEADER_FIELD_INVALID;
     }
     pseudo_headers_.push_back(std::string(key));
   } else if (key == "content-length") {

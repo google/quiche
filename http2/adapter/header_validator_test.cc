@@ -109,6 +109,40 @@ TEST(HeaderValidatorTest, StatusHasInvalidChar) {
   }
 }
 
+TEST(HeaderValidatorTest, AuthorityHasInvalidChar) {
+  HeaderValidator v;
+  v.StartHeaderBlock();
+
+  // These characters should be allowed. (Not exhaustive.)
+  for (const absl::string_view c : {"1", "-", "!", ":", "+", "=", ","}) {
+    HeaderValidator::HeaderStatus status = v.ValidateSingleHeader(
+        ":authority", absl::StrCat("ho", c, "st.example.com"));
+    EXPECT_EQ(HeaderValidator::HEADER_OK, status);
+  }
+  // These should not.
+  for (const absl::string_view c : {"\r", "\n", "|", "\\", "`"}) {
+    HeaderValidator::HeaderStatus status = v.ValidateSingleHeader(
+        ":authority", absl::StrCat("ho", c, "st.example.com"));
+    EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
+  }
+
+  // IPv4 example
+  HeaderValidator::HeaderStatus status =
+      v.ValidateSingleHeader(":authority", "123.45.67.89");
+  EXPECT_EQ(HeaderValidator::HEADER_OK, status);
+
+  // IPv6 examples
+  status = v.ValidateSingleHeader(":authority",
+                                  "2001:0db8:85a3:0000:0000:8a2e:0370:7334");
+  EXPECT_EQ(HeaderValidator::HEADER_OK, status);
+  status = v.ValidateSingleHeader(":authority", "[::1]:80");
+  EXPECT_EQ(HeaderValidator::HEADER_OK, status);
+
+  // Empty field
+  status = v.ValidateSingleHeader(":authority", "");
+  EXPECT_EQ(HeaderValidator::HEADER_OK, status);
+}
+
 TEST(HeaderValidatorTest, RequestPseudoHeaders) {
   HeaderValidator v;
   const absl::string_view headers[] = {":authority", ":method", ":path",
