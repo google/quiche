@@ -285,6 +285,23 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
   frame_contains_fin_ = false;
 }
 
+// TODO(diannahu): Add checks for other response codes and request methods.
+bool OgHttp2Session::PassthroughHeadersHandler::CanReceiveBody() const {
+  switch (header_type()) {
+    case HeaderType::REQUEST_TRAILER:
+    case HeaderType::RESPONSE_TRAILER:
+    case HeaderType::RESPONSE_100:
+      return false;
+    case HeaderType::RESPONSE:
+      // 304 responses should not have a body:
+      // https://httpwg.org/specs/rfc7230.html#rfc.section.3.3.2
+      return status_header() != "304";
+    case HeaderType::REQUEST:
+      return true;
+  }
+  return true;
+}
+
 // A visitor that extracts an int64_t from each type of a ProcessBytesResult.
 struct OgHttp2Session::ProcessBytesResultVisitor {
   int64_t operator()(const int64_t bytes) const { return bytes; }
@@ -1021,6 +1038,12 @@ void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
     decoder_.StopProcessing();
   }
 
+  if (!iter->second.can_receive_body && length > 0) {
+    EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+        stream_id, spdy::ERROR_CODE_PROTOCOL_ERROR));
+    return;
+  }
+
   // Validate against the content-length if it exists.
   if (iter->second.remaining_content_length.has_value()) {
     if (length > *iter->second.remaining_content_length) {
@@ -1114,17 +1137,16 @@ void OgHttp2Session::OnHeaderFrameEnd(spdy::SpdyStreamId stream_id) {
         headers_handler_.status_header()[0] == '1') {
       // If response headers carried a 1xx response code, final response headers
       // should still be forthcoming.
-      it->second.received_header_type = HeaderType::RESPONSE_100;
-    } else {
-      it->second.received_header_type = headers_handler_.header_type();
+      headers_handler_.set_header_type(HeaderType::RESPONSE_100);
     }
-    if (headers_handler_.header_type() == HeaderType::REQUEST ||
-        (headers_handler_.header_type() == HeaderType::RESPONSE &&
-         headers_handler_.status_header() != "304")) {
-      // 304 response content-length values should be ignored:
-      // https://httpwg.org/specs/rfc7230.html#rfc.section.3.3.2
+    it->second.received_header_type = headers_handler_.header_type();
+
+    // Track the content-length if the headers indicate that a body can follow.
+    it->second.can_receive_body = headers_handler_.CanReceiveBody();
+    if (it->second.can_receive_body) {
       it->second.remaining_content_length = headers_handler_.content_length();
     }
+
     headers_handler_.set_stream_id(0);
   }
 }

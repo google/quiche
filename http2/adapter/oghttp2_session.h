@@ -228,6 +228,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     bool half_closed_remote = false;
     // Indicates that `outbound_body` temporarily cannot produce data.
     bool data_deferred = false;
+    bool can_receive_body = true;
   };
   using StreamStateMap = absl::flat_hash_map<Http2StreamId, StreamState>;
 
@@ -258,7 +259,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     void OnHeader(absl::string_view key, absl::string_view value) override;
     void OnHeaderBlockEnd(size_t /* uncompressed_header_bytes */,
                           size_t /* compressed_header_bytes */) override;
-    absl::string_view status_header() {
+    absl::string_view status_header() const {
       QUICHE_DCHECK(type_ == HeaderType::RESPONSE ||
                     type_ == HeaderType::RESPONSE_100);
       return validator_.status_header();
@@ -270,6 +271,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     void SetMaxFieldSize(uint32_t field_size) {
       validator_.SetMaxFieldSize(field_size);
     }
+    bool CanReceiveBody() const;
 
    private:
     OgHttp2Session& session_;
