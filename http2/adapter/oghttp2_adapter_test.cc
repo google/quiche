@@ -34,6 +34,13 @@ enum FrameType {
   CONTINUATION,
 };
 
+// TODO(birenroy): replace numeric flag values with named constants
+enum FrameFlag {
+  END_STREAM = 0x01,
+  ACK = END_STREAM,
+  END_HEADERS = 0x04,
+};
+
 using spdy::SpdyFrameType;
 
 class OgHttp2AdapterTest : public testing::Test {
@@ -3846,7 +3853,13 @@ TEST(OgHttp2AdapterServerTest, ServerReceivesTooLargeHeader) {
                                            {":authority", "example.com"},
                                            {":path", "/this/is/request/one"},
                                            {"x-toobig", too_large_value}},
-                                          /*fin=*/false)
+                                          /*fin=*/true)
+                                 .Headers(3,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/two"}},
+                                          /*fin=*/true)
                                  .Serialize();
   testing::InSequence s;
 
@@ -3855,16 +3868,21 @@ TEST(OgHttp2AdapterServerTest, ServerReceivesTooLargeHeader) {
   EXPECT_CALL(visitor, OnSettingsStart());
   EXPECT_CALL(visitor, OnSettingsEnd());
 
-  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 0));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, END_STREAM));
   EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "POST"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
   EXPECT_CALL(visitor, OnFrameHeader(1, _, CONTINUATION, 0)).Times(3);
-  EXPECT_CALL(visitor, OnFrameHeader(1, _, CONTINUATION, 4));
-  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kHeaderError));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, CONTINUATION, END_HEADERS));
   // Further header processing is skipped, as the header field is too large.
+
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, END_STREAM | END_HEADERS));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, _, _)).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(3));
+  EXPECT_CALL(visitor, OnEndStream(3));
 
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(static_cast<int64_t>(frames.size()), result);
@@ -3873,19 +3891,19 @@ TEST(OgHttp2AdapterServerTest, ServerReceivesTooLargeHeader) {
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
-  // Since the library opted not to process the header, it generates a GOAWAY
-  // with error code COMPRESSION_ERROR.
-  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, ACK));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, ACK, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, 4, 0x0));
   EXPECT_CALL(visitor,
-              OnFrameSent(GOAWAY, 0, _, 0x0,
-                          static_cast<int>(Http2ErrorCode::COMPRESSION_ERROR)));
+              OnFrameSent(RST_STREAM, 1, 4, 0x0,
+                          static_cast<int>(Http2ErrorCode::INTERNAL_ERROR)));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
   int send_result = adapter->Send();
-  // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  // SETTINGS and GOAWAY.
   EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::GOAWAY}));
+                                            spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerReceivesInvalidAuthority) {

@@ -235,7 +235,7 @@ Http2VisitorInterface::OnHeaderResult InterpretHeaderStatus(
     case HeaderValidator::HEADER_FIELD_INVALID:
       return Http2VisitorInterface::HEADER_FIELD_INVALID;
     case HeaderValidator::HEADER_FIELD_TOO_LONG:
-      return Http2VisitorInterface::HEADER_COMPRESSION_ERROR;
+      return Http2VisitorInterface::HEADER_RST_STREAM;
   }
   return Http2VisitorInterface::HEADER_CONNECTION_ERROR;
 }
