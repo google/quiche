@@ -307,6 +307,42 @@ TEST(HeaderValidatorTest, Response204WithContentLength) {
             v.ValidateSingleHeader("content-length", "1"));
 }
 
+TEST(HeaderValidatorTest, Response100) {
+  HeaderValidator v;
+
+  v.StartHeaderBlock();
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader(":status", "100"));
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("x-content", "is not present"));
+  EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::RESPONSE));
+}
+
+TEST(HeaderValidatorTest, Response100WithContentLengthZero) {
+  HeaderValidator v;
+
+  v.StartHeaderBlock();
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader(":status", "100"));
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("x-content", "is not present"));
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("content-length", "0"));
+  EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::RESPONSE));
+}
+
+TEST(HeaderValidatorTest, Response100WithContentLength) {
+  HeaderValidator v;
+
+  v.StartHeaderBlock();
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader(":status", "100"));
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("x-content", "is not present"));
+  EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+            v.ValidateSingleHeader("content-length", "1"));
+}
+
 TEST(HeaderValidatorTest, ResponseTrailerPseudoHeaders) {
   HeaderValidator v;
 

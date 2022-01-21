@@ -1119,7 +1119,7 @@ void OgHttp2Session::OnStreamPadding(spdy::SpdyStreamId /*stream_id*/, size_t
 spdy::SpdyHeadersHandlerInterface* OgHttp2Session::OnHeaderFrameStart(
     spdy::SpdyStreamId stream_id) {
   auto it = stream_map_.find(stream_id);
-  if (it != stream_map_.end()) {
+  if (it != stream_map_.end() && !streams_reset_.contains(stream_id)) {
     headers_handler_.set_stream_id(stream_id);
     headers_handler_.set_header_type(
         NextHeaderType(it->second.received_header_type));
