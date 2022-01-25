@@ -46,17 +46,30 @@ bool IsValidAuthority(absl::string_view authority) {
 }
 
 bool ValidateRequestHeaders(const std::vector<std::string>& pseudo_headers,
-                            absl::string_view method, bool allow_connect) {
+                            absl::string_view method, absl::string_view path,
+                            bool allow_connect) {
   QUICHE_VLOG(2) << "Request pseudo-headers: ["
                  << absl::StrJoin(pseudo_headers, ", ")
                  << "], allow_connect: " << allow_connect
-                 << ", method: " << method;
+                 << ", method: " << method << ", path: " << path;
   if (allow_connect && method == "CONNECT") {
     static const std::vector<std::string>* kConnectHeaders =
         new std::vector<std::string>(
             {":authority", ":method", ":path", ":protocol", ":scheme"});
     return pseudo_headers == *kConnectHeaders;
   }
+
+  if (path.empty()) {
+    return false;
+  }
+  if (path == "*") {
+    if (method != "OPTIONS") {
+      return false;
+    }
+  } else if (path[0] != '/') {
+    return false;
+  }
+
   static const std::vector<std::string>* kRequiredHeaders =
       new std::vector<std::string>(
           {":authority", ":method", ":path", ":scheme"});
@@ -83,6 +96,7 @@ void HeaderValidator::StartHeaderBlock() {
   pseudo_headers_.clear();
   status_.clear();
   method_.clear();
+  path_.clear();
   content_length_.reset();
 }
 
@@ -128,6 +142,12 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
       method_ = std::string(value);
     } else if (key == ":authority" && !IsValidAuthority(value)) {
       return HEADER_FIELD_INVALID;
+    } else if (key == ":path") {
+      if (value.empty()) {
+        // For now, reject an empty path regardless of scheme.
+        return HEADER_FIELD_INVALID;
+      }
+      path_ = std::string(value);
     }
     pseudo_headers_.push_back(std::string(key));
   } else if (key == "content-length") {
@@ -145,7 +165,8 @@ bool HeaderValidator::FinishHeaderBlock(HeaderType type) {
   std::sort(pseudo_headers_.begin(), pseudo_headers_.end());
   switch (type) {
     case HeaderType::REQUEST:
-      return ValidateRequestHeaders(pseudo_headers_, method_, allow_connect_);
+      return ValidateRequestHeaders(pseudo_headers_, method_, path_,
+                                    allow_connect_);
     case HeaderType::REQUEST_TRAILER:
       return ValidateRequestTrailers(pseudo_headers_);
     case HeaderType::RESPONSE_100:

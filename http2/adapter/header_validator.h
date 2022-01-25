@@ -54,6 +54,7 @@ class QUICHE_EXPORT_PRIVATE HeaderValidator {
   std::vector<std::string> pseudo_headers_;
   std::string status_;
   std::string method_;
+  std::string path_;
   absl::optional<size_t> max_field_size_;
   absl::optional<size_t> content_length_;
   bool allow_connect_ = false;
