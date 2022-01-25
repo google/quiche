@@ -50,7 +50,6 @@ using spdy::SpdyGoAwayIR;
 using spdy::SpdyHeaderBlock;
 using spdy::SpdyHeadersHandlerInterface;
 using spdy::SpdyHeadersIR;
-using spdy::SpdyKnownSettingsId;
 using spdy::SpdyPingId;
 using spdy::SpdyPingIR;
 using spdy::SpdyPriority;

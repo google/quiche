@@ -8,8 +8,6 @@
 #include "http2/decoder/decode_status.h"
 #include "common/platform/api/quiche_logging.h"
 
-using ::http2::DecodeBuffer;
-
 namespace spdy {
 namespace {
 const size_t kMaxDecodeBufferSizeBytes = 32 * 1024;  // 32 KB

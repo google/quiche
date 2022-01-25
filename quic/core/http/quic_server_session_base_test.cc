@@ -45,7 +45,6 @@ using testing::_;
 using testing::StrictMock;
 
 using testing::AtLeast;
-using testing::Return;
 
 namespace quic {
 namespace test {

@@ -15,7 +15,6 @@ namespace quic {
 namespace test {
 namespace {
 
-using ::testing::_;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
 

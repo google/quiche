@@ -43,7 +43,6 @@ using spdy::SpdyFrameType;
 using spdy::SpdyHeaderBlock;
 using spdy::SpdyHeadersHandlerInterface;
 using spdy::SpdyHeadersIR;
-using spdy::SpdyKnownSettingsId;
 using spdy::SpdyPingId;
 using spdy::SpdyPriority;
 using spdy::SpdyPriorityIR;

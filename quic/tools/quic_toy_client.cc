@@ -67,7 +67,6 @@
 
 namespace {
 
-using quic::QuicUrl;
 using quiche::QuicheTextUtils;
 
 }  // namespace

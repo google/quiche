@@ -16,9 +16,7 @@
 #include "http2/platform/api/http2_test_helpers.h"
 #include "common/platform/api/quiche_test.h"
 
-using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
-using ::testing::AssertionSuccess;
 
 namespace http2 {
 namespace test {

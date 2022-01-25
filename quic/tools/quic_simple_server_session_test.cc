@@ -39,7 +39,6 @@
 #include "quic/tools/quic_simple_server_stream.h"
 
 using testing::_;
-using testing::AnyNumber;
 using testing::AtLeast;
 using testing::InSequence;
 using testing::Invoke;

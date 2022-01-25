@@ -15,20 +15,19 @@
 #include "http2/tools/random_decoder_test.h"
 #include "common/platform/api/quiche_test.h"
 
-using ::testing::AssertionFailure;
 using ::testing::AssertionSuccess;
 
 namespace http2 {
 namespace test {
 namespace {
 
-class HpackVarintDecoderTest : public RandomDecoderTest,
-                               public ::testing::WithParamInterface<
-                                   ::testing::tuple<uint8_t, const char*>> {
+class HpackVarintDecoderTest
+    : public RandomDecoderTest,
+      public ::testing::WithParamInterface<std::tuple<uint8_t, const char*>> {
  protected:
   HpackVarintDecoderTest()
-      : high_bits_(::testing::get<0>(GetParam())),
-        suffix_(absl::HexStringToBytes(::testing::get<1>(GetParam()))),
+      : high_bits_(std::get<0>(GetParam())),
+        suffix_(absl::HexStringToBytes(std::get<1>(GetParam()))),
         prefix_length_(0) {}
 
   void DecodeExpectSuccess(absl::string_view data,
