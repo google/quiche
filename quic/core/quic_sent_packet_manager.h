@@ -80,6 +80,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
                                            QuicByteCount /*old_cwnd*/,
                                            QuicByteCount /*new_cwnd*/) {}
 
+    virtual void OnAdjustBurstSize(int /*old_burst_size*/,
+                                   int /*new_burst_size*/) {}
+
     virtual void OnOvershootingDetected() {}
   };
 

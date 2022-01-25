@@ -33,27 +33,28 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
  public:
   // Network Params for AdjustNetworkParameters.
   struct QUIC_NO_EXPORT NetworkParams {
-    NetworkParams()
-        : NetworkParams(QuicBandwidth::Zero(), QuicTime::Delta::Zero(), false) {
-    }
+    NetworkParams() = default;
     NetworkParams(const QuicBandwidth& bandwidth,
                   const QuicTime::Delta& rtt,
                   bool allow_cwnd_to_decrease)
         : bandwidth(bandwidth),
           rtt(rtt),
           allow_cwnd_to_decrease(allow_cwnd_to_decrease) {}
+    explicit NetworkParams(int burst_token) : burst_token(burst_token) {}
 
     bool operator==(const NetworkParams& other) const {
       return bandwidth == other.bandwidth && rtt == other.rtt &&
              max_initial_congestion_window ==
                  other.max_initial_congestion_window &&
+             burst_token == other.burst_token &&
              allow_cwnd_to_decrease == other.allow_cwnd_to_decrease;
     }
 
-    QuicBandwidth bandwidth;
-    QuicTime::Delta rtt;
+    QuicBandwidth bandwidth = QuicBandwidth::Zero();
+    QuicTime::Delta rtt = QuicTime::Delta::Zero();
     int max_initial_congestion_window = 0;
-    bool allow_cwnd_to_decrease;
+    int burst_token = 0;
+    bool allow_cwnd_to_decrease = false;
   };
 
   static SendAlgorithmInterface* Create(

@@ -180,6 +180,12 @@ void QuicSentPacketManagerPeer::DisablePacerBursts(
 }
 
 // static
+int QuicSentPacketManagerPeer::GetPacerInitialBurstSize(
+    QuicSentPacketManager* sent_packet_manager) {
+  return sent_packet_manager->pacing_sender_.initial_burst_size_;
+}
+
+// static
 void QuicSentPacketManagerPeer::SetNextPacedPacketTime(
     QuicSentPacketManager* sent_packet_manager,
     QuicTime time) {

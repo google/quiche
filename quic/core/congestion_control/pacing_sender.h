@@ -79,6 +79,8 @@ class QUIC_EXPORT_PRIVATE PacingSender {
     return {ideal_next_packet_send_time_, allow_burst};
   }
 
+  uint32_t initial_burst_size() const { return initial_burst_size_; }
+
  protected:
   uint32_t lumpy_tokens() const { return lumpy_tokens_; }
 

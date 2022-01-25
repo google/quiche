@@ -85,6 +85,9 @@ class QuicSentPacketManagerPeer {
 
   static void DisablePacerBursts(QuicSentPacketManager* sent_packet_manager);
 
+  static int GetPacerInitialBurstSize(
+      QuicSentPacketManager* sent_packet_manager);
+
   static void SetNextPacedPacketTime(QuicSentPacketManager* sent_packet_manager,
                                      QuicTime time);
 
