@@ -20,8 +20,6 @@
 #include "http2/tools/random_decoder_test.h"
 #include "common/platform/api/quiche_test.h"
 
-using ::testing::AssertionSuccess;
-
 namespace http2 {
 namespace test {
 namespace {

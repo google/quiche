@@ -15,7 +15,6 @@
 #include "common/platform/api/quiche_test.h"
 #include "common/quiche_text_utils.h"
 
-using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
 using ::testing::Combine;
 using ::testing::Range;

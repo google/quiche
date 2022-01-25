@@ -33,8 +33,6 @@
 #include "http2/tools/http2_frame_builder.h"
 #include "http2/tools/random_decoder_test.h"
 
-using ::testing::AssertionFailure;
-using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
 
 namespace http2 {
