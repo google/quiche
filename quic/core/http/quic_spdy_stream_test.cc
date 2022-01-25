@@ -3445,7 +3445,7 @@ TEST_P(QuicSpdyStreamTest, HeadersAccumulatorNullptr) {
   EXPECT_CALL(*connection_, CloseConnection(_, _, _));
   bool result = true;
   EXPECT_QUIC_BUG(result = QuicSpdyStreamPeer::OnHeadersFrameEnd(stream_),
-                  "b215142466_OnHeadersFrameEnd.: 1$");
+                  "OnHeadersFrameEnd");
   EXPECT_FALSE(result);
 }
 
