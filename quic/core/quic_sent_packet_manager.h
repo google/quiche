@@ -625,8 +625,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Maximum number of packets to send upon RTO.
   QuicPacketCount max_rto_packets_;
   // If true, send the TLP at 0.5 RTT.
-  // TODO(renjietang): remove it once quic_deprecate_tlpr flag is deprecated.
-  bool enable_half_rtt_tail_loss_probe_;
   bool using_pacing_;
   // If true, use the new RTO with loss based CWND reduction instead of the send
   // algorithms's OnRetransmissionTimeout to reduce the congestion window.

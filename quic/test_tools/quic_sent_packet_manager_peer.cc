@@ -27,12 +27,6 @@ void QuicSentPacketManagerPeer::SetMaxTailLossProbes(
 }
 
 // static
-bool QuicSentPacketManagerPeer::GetEnableHalfRttTailLossProbe(
-    QuicSentPacketManager* sent_packet_manager) {
-  return sent_packet_manager->enable_half_rtt_tail_loss_probe_;
-}
-
-// static
 bool QuicSentPacketManagerPeer::GetUseNewRto(
     QuicSentPacketManager* sent_packet_manager) {
   return sent_packet_manager->use_new_rto_;
