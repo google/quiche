@@ -25,9 +25,6 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   // Returns currently supported versions using HTTP/3.
   const ParsedQuicVersionVector& GetSupportedVersionsWithOnlyHttp3();
 
-  // Returns currently supported versions using QUIC crypto.
-  const ParsedQuicVersionVector& GetSupportedVersionsWithQuicCrypto();
-
   // Returns the list of supported ALPNs, based on the current supported
   // versions and any custom additions by subclasses.
   const std::vector<std::string>& GetSupportedAlpns();
@@ -82,8 +79,6 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   ParsedQuicVersionVector filtered_supported_versions_;
   // Currently supported versions using HTTP/3.
   ParsedQuicVersionVector filtered_supported_versions_with_http3_;
-  // Currently supported versions using QUIC crypto.
-  ParsedQuicVersionVector filtered_supported_versions_with_quic_crypto_;
   // This vector contains the transport versions from
   // |filtered_supported_versions_|. No guarantees are made that the same
   // transport version isn't repeated.

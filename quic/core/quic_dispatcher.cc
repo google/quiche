@@ -1377,11 +1377,6 @@ const ParsedQuicVersionVector& QuicDispatcher::GetSupportedVersions() {
   return version_manager_->GetSupportedVersions();
 }
 
-const ParsedQuicVersionVector&
-QuicDispatcher::GetSupportedVersionsWithQuicCrypto() {
-  return version_manager_->GetSupportedVersionsWithQuicCrypto();
-}
-
 void QuicDispatcher::DeliverPacketsToSession(
     const std::list<BufferedPacket>& packets,
     QuicSession* session) {

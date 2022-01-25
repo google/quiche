@@ -30,12 +30,6 @@ QuicVersionManager::GetSupportedVersionsWithOnlyHttp3() {
   return filtered_supported_versions_with_http3_;
 }
 
-const ParsedQuicVersionVector&
-QuicVersionManager::GetSupportedVersionsWithQuicCrypto() {
-  MaybeRefilterSupportedVersions();
-  return filtered_supported_versions_with_quic_crypto_;
-}
-
 const std::vector<std::string>& QuicVersionManager::GetSupportedAlpns() {
   MaybeRefilterSupportedVersions();
   return filtered_supported_alpns_;
@@ -69,7 +63,6 @@ void QuicVersionManager::RefilterSupportedVersions() {
   filtered_supported_versions_ =
       FilterSupportedVersions(allowed_supported_versions_);
   filtered_supported_versions_with_http3_.clear();
-  filtered_supported_versions_with_quic_crypto_.clear();
   filtered_transport_versions_.clear();
   filtered_supported_alpns_.clear();
   for (const ParsedQuicVersion& version : filtered_supported_versions_) {
@@ -81,9 +74,6 @@ void QuicVersionManager::RefilterSupportedVersions() {
     }
     if (version.UsesHttp3()) {
       filtered_supported_versions_with_http3_.push_back(version);
-    }
-    if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
-      filtered_supported_versions_with_quic_crypto_.push_back(version);
     }
     filtered_supported_alpns_.emplace_back(AlpnForVersion(version));
   }
