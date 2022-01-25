@@ -19,7 +19,6 @@
 #include "http2/test_tools/http2_random.h"
 #include "http2/tools/random_decoder_test.h"
 
-using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
 
 namespace http2 {
