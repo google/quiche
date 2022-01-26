@@ -1564,6 +1564,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // any path.
   void RetirePeerIssuedConnectionIdsNoLongerOnPath();
 
+  // When path validation fails, proactively retire peer issued connection IDs
+  // no longer used on any path.
+  void RetirePeerIssuedConnectionIdsOnPathValidationFailure();
+
   // Writes the given packet to socket, encrypted with packet's
   // encryption_level. Returns true on successful write, and false if the writer
   // was blocked and the write needs to be tried again. Notifies the

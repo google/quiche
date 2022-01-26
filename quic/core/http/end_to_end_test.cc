@@ -5532,13 +5532,14 @@ TEST_P(EndToEndPacketReorderingTest, MigrateAgainAfterPathValidationFailure) {
   EXPECT_EQ(0u, client_connection->GetStats().num_new_connection_id_sent);
 }
 
-// TODO(haoyuewang) Re-enable this test in cr/418502410.
 TEST_P(EndToEndPacketReorderingTest,
-       DISABLED_MigrateAgainAfterPathValidationFailureWithNonZeroClientCid) {
+       MigrateAgainAfterPathValidationFailureWithNonZeroClientCid) {
   if (!version_.SupportsClientConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
+  SetQuicReloadableFlag(quic_retire_cid_on_reverse_path_validation_failure,
+                        true);
   override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
   ASSERT_TRUE(Initialize());
   if (!GetClientConnection()->connection_migration_use_new_cid()) {

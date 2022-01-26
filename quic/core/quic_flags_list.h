@@ -99,6 +99,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_require_handshake_confirmation, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_reset_per_packet_state_for_undecryptable_packets, true)
 // If true, send PATH_RESPONSE upon receiving PATH_CHALLENGE regardless of perspective. --gfe2_reloadable_flag_quic_start_peer_migration_earlier has to be true before turn on this flag.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_send_path_response2, true)
+// If true, server proactively retires client issued connection ID on reverse path validation failure. 
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_retire_cid_on_reverse_path_validation_failure, false)
 // If true, set burst token to 2 in cwnd bootstrapping experiment.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_bursts, false)
 // If true, stop resetting ideal_next_packet_send_time_ in pacing sender.
