@@ -460,6 +460,18 @@ TEST(HeaderValidatorTest, InvalidContentLength) {
   EXPECT_THAT(v.content_length(), Optional(42));
 }
 
+TEST(HeaderValidatorTest, TeHeader) {
+  HeaderValidator v;
+
+  v.StartHeaderBlock();
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("te", "trailers"));
+
+  v.StartHeaderBlock();
+  EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+            v.ValidateSingleHeader("te", "trailers, deflate"));
+}
+
 }  // namespace test
 }  // namespace adapter
 }  // namespace http2

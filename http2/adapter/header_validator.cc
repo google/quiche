@@ -155,6 +155,8 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
     if (!success) {
       return HEADER_FIELD_INVALID;
     }
+  } else if (key == "te" && value != "trailers") {
+    return HEADER_FIELD_INVALID;
   }
   return HEADER_OK;
 }

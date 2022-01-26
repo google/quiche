@@ -5038,6 +5038,72 @@ TEST(NgHttp2AdapterTest, ServerHandlesInvalidPath) {
                                             spdy::SpdyFrameType::RST_STREAM}));
 }
 
+TEST(NgHttp2AdapterTest, ServerHandlesTeHeader) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  testing::InSequence s;
+
+  const std::string stream_frames = TestFrameSequence()
+                                        .ClientPreface()
+                                        .Headers(1,
+                                                 {{":scheme", "https"},
+                                                  {":authority", "example.com"},
+                                                  {":path", "/"},
+                                                  {":method", "GET"},
+                                                  {"te", "trailers"}},
+                                                 /*fin=*/true)
+                                        .Headers(3,
+                                                 {{":scheme", "https"},
+                                                  {":authority", "example.com"},
+                                                  {":path", "/"},
+                                                  {":method", "GET"},
+                                                  {"te", "trailers, deflate"}},
+                                                 /*fin=*/true)
+                                        .Serialize();
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  // Stream 1: TE: trailers should be allowed.
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(5);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  // Stream 3: TE: <non-trailers> should be rejected.
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, _, _)).Times(4);
+  EXPECT_CALL(
+      visitor,
+      OnErrorDebug("Invalid HTTP header field was received: frame type: 1, "
+                   "stream: 3, name: [te], value: [trailers, deflate]"));
+  EXPECT_CALL(
+      visitor,
+      OnInvalidFrame(3, Http2VisitorInterface::InvalidFrameError::kHttpHeader));
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 3, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(RST_STREAM, 3, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
+  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::PROTOCOL_ERROR));
+
+  EXPECT_TRUE(adapter->want_write());
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::RST_STREAM}));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace adapter
