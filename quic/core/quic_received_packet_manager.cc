@@ -38,6 +38,7 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
       max_ack_ranges_(0),
       time_largest_observed_(QuicTime::Zero()),
       save_timestamps_(false),
+      save_timestamps_for_in_order_packets_(false),
       stats_(stats),
       num_retransmittable_packets_received_since_last_ack_sent_(0),
       min_received_before_ack_decimation_(kMinReceivedBeforeAckDecimation),
@@ -80,9 +81,12 @@ void QuicReceivedPacketManager::RecordPacketReceived(
   }
   ack_frame_updated_ = true;
 
+  // Whether |packet_number| is received out of order.
+  bool packet_reordered = false;
   if (LargestAcked(ack_frame_).IsInitialized() &&
       LargestAcked(ack_frame_) > packet_number) {
     // Record how out of order stats.
+    packet_reordered = true;
     ++stats_->packets_reordered;
     stats_->max_sequence_reordering =
         std::max(stats_->max_sequence_reordering,
@@ -101,8 +105,11 @@ void QuicReceivedPacketManager::RecordPacketReceived(
 
   if (save_timestamps_) {
     // The timestamp format only handles packets in time order.
-    if (!ack_frame_.received_packet_times.empty() &&
-        ack_frame_.received_packet_times.back().second > receipt_time) {
+    if (save_timestamps_for_in_order_packets_ && packet_reordered) {
+      QUIC_DLOG(WARNING) << "Not saving receive timestamp for packet "
+                         << packet_number;
+    } else if (!ack_frame_.received_packet_times.empty() &&
+               ack_frame_.received_packet_times.back().second > receipt_time) {
       QUIC_LOG(WARNING)
           << "Receive time went backwards from: "
           << ack_frame_.received_packet_times.back().second.ToDebuggingValue()
