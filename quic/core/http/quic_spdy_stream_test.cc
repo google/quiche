@@ -3424,7 +3424,8 @@ TEST_P(QuicSpdyStreamTest, GetMaxDatagramSize) {
   EXPECT_EQ(size - 1, size_with_context);
 }
 
-TEST_P(QuicSpdyStreamTest, HeadersAccumulatorNullptr) {
+TEST_P(QuicSpdyStreamTest,
+       QUIC_TEST_DISABLED_IN_CHROME(HeadersAccumulatorNullptr)) {
   if (!UsesHttp3()) {
     return;
   }
@@ -3445,7 +3446,7 @@ TEST_P(QuicSpdyStreamTest, HeadersAccumulatorNullptr) {
   EXPECT_CALL(*connection_, CloseConnection(_, _, _));
   bool result = true;
   EXPECT_QUIC_BUG(result = QuicSpdyStreamPeer::OnHeadersFrameEnd(stream_),
-                  "OnHeadersFrameEnd");
+                  "b215142466_OnHeadersFrameEnd.: 1$");
   EXPECT_FALSE(result);
 }
 
