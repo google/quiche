@@ -66,7 +66,8 @@ testing::Matcher<const nghttp2_frame_hd&> HasFrameHeaderRef(
 
 testing::Matcher<const nghttp2_frame*> IsData(
     const testing::Matcher<uint32_t> stream_id,
-    const testing::Matcher<size_t> length, const testing::Matcher<int> flags);
+    const testing::Matcher<size_t> length, const testing::Matcher<int> flags,
+    const testing::Matcher<size_t> padding = testing::_);
 
 testing::Matcher<const nghttp2_frame*> IsHeaders(
     const testing::Matcher<uint32_t> stream_id,

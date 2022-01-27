@@ -201,12 +201,23 @@ bool CallbackVisitor::OnEndHeadersForStream(Http2StreamId /*stream_id*/) {
   return true;
 }
 
+bool CallbackVisitor::OnDataPaddingLength(Http2StreamId /*stream_id*/,
+                                          size_t padding_length) {
+  QUICHE_DCHECK_GE(remaining_data_, padding_length);
+  current_frame_.data.padlen = padding_length;
+  remaining_data_ -= padding_length;
+  if (remaining_data_ == 0 && callbacks_->on_frame_recv_callback != nullptr) {
+    const int result = callbacks_->on_frame_recv_callback(
+        nullptr, &current_frame_, user_data_);
+    return result == 0;
+  }
+  return true;
+}
+
 bool CallbackVisitor::OnBeginDataForStream(Http2StreamId /*stream_id*/,
                                            size_t payload_length) {
-  // TODO(b/181586191): Interpret padding, subtract padding from
-  // |remaining_data_|.
   remaining_data_ = payload_length;
-  if (remaining_data_ == 0 && callbacks_->on_frame_recv_callback) {
+  if (remaining_data_ == 0 && callbacks_->on_frame_recv_callback != nullptr) {
     const int result = callbacks_->on_frame_recv_callback(
         nullptr, &current_frame_, user_data_);
     return result == 0;

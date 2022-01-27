@@ -144,6 +144,12 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
   virtual bool OnBeginDataForStream(Http2StreamId stream_id,
                                     size_t payload_length) = 0;
 
+  // Called when the optional padding length field is parsed as part of a DATA
+  // frame payload. `padding_length` represents the total amount of padding for
+  // this frame, including the length byte itself.
+  virtual bool OnDataPaddingLength(Http2StreamId stream_id,
+                                   size_t padding_length) = 0;
+
   // Called when the connection receives some |data| (as part of a DATA frame
   // payload) for a stream.
   virtual bool OnDataForStream(Http2StreamId stream_id,

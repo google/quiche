@@ -60,6 +60,13 @@ bool RecordingHttp2Visitor::OnEndHeadersForStream(Http2StreamId stream_id) {
   return true;
 }
 
+bool RecordingHttp2Visitor::OnDataPaddingLength(Http2StreamId stream_id,
+                                                size_t padding_length) {
+  events_.push_back(
+      absl::StrFormat("OnDataPaddingLength %d %d", stream_id, padding_length));
+  return true;
+}
+
 bool RecordingHttp2Visitor::OnBeginDataForStream(Http2StreamId stream_id,
                                                  size_t payload_length) {
   events_.push_back(

@@ -291,6 +291,72 @@ TEST(ServerCallbackVisitorUnitTest, StreamFrames) {
   visitor.OnCloseStream(3, Http2ErrorCode::INTERNAL_ERROR);
 }
 
+TEST(ServerCallbackVisitorUnitTest, DataWithPadding) {
+  testing::StrictMock<MockNghttp2Callbacks> callbacks;
+  CallbackVisitor visitor(Perspective::kServer,
+                          *MockNghttp2Callbacks::GetCallbacks(), &callbacks);
+
+  const size_t kPaddingLength = 39;
+  const uint8_t kFlags = NGHTTP2_FLAG_PADDED | NGHTTP2_FLAG_END_STREAM;
+
+  testing::InSequence seq;
+
+  // DATA on stream 1
+  EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(1, DATA, kFlags)));
+  EXPECT_TRUE(visitor.OnFrameHeader(1, 25 + kPaddingLength, DATA, kFlags));
+
+  EXPECT_TRUE(visitor.OnBeginDataForStream(1, 25 + kPaddingLength));
+
+  // Padding before data.
+  EXPECT_TRUE(visitor.OnDataPaddingLength(1, kPaddingLength));
+
+  EXPECT_CALL(callbacks,
+              OnDataChunkRecv(kFlags, 1, "This is the request body."));
+  EXPECT_CALL(callbacks, OnFrameRecv(IsData(1, _, kFlags, kPaddingLength)));
+  EXPECT_TRUE(visitor.OnDataForStream(1, "This is the request body."));
+  visitor.OnEndStream(1);
+
+  EXPECT_CALL(callbacks, OnStreamClose(1, NGHTTP2_NO_ERROR));
+  visitor.OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR);
+
+  // DATA on stream 3
+  EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(3, DATA, kFlags)));
+  EXPECT_TRUE(visitor.OnFrameHeader(3, 25 + kPaddingLength, DATA, kFlags));
+
+  EXPECT_TRUE(visitor.OnBeginDataForStream(3, 25 + kPaddingLength));
+
+  // Data before padding.
+  EXPECT_CALL(callbacks,
+              OnDataChunkRecv(kFlags, 3, "This is the request body."));
+  EXPECT_TRUE(visitor.OnDataForStream(3, "This is the request body."));
+
+  EXPECT_CALL(callbacks, OnFrameRecv(IsData(3, _, kFlags, kPaddingLength)));
+  EXPECT_TRUE(visitor.OnDataPaddingLength(3, kPaddingLength));
+  visitor.OnEndStream(3);
+
+  EXPECT_CALL(callbacks, OnStreamClose(3, NGHTTP2_NO_ERROR));
+  visitor.OnCloseStream(3, Http2ErrorCode::HTTP2_NO_ERROR);
+
+  // DATA on stream 5
+  EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(5, DATA, kFlags)));
+  EXPECT_TRUE(visitor.OnFrameHeader(5, 25 + kPaddingLength, DATA, kFlags));
+
+  EXPECT_TRUE(visitor.OnBeginDataForStream(5, 25 + kPaddingLength));
+
+  // Error during padding.
+  EXPECT_CALL(callbacks,
+              OnDataChunkRecv(kFlags, 5, "This is the request body."));
+  EXPECT_TRUE(visitor.OnDataForStream(5, "This is the request body."));
+
+  EXPECT_CALL(callbacks, OnFrameRecv(IsData(5, _, kFlags, kPaddingLength)))
+      .WillOnce(testing::Return(NGHTTP2_ERR_CALLBACK_FAILURE));
+  EXPECT_FALSE(visitor.OnDataPaddingLength(5, kPaddingLength));
+  visitor.OnEndStream(3);
+
+  EXPECT_CALL(callbacks, OnStreamClose(5, NGHTTP2_NO_ERROR));
+  visitor.OnCloseStream(5, Http2ErrorCode::HTTP2_NO_ERROR);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace adapter

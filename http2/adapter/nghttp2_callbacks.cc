@@ -63,6 +63,9 @@ int OnFrameReceived(nghttp2_session* /* session */,
     // callbacks. This callback handles the point at which the entire logical
     // frame has been received and processed.
     case NGHTTP2_DATA:
+      if ((frame->hd.flags & NGHTTP2_FLAG_PADDED) != 0) {
+        visitor->OnDataPaddingLength(stream_id, frame->data.padlen);
+      }
       if (frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
         visitor->OnEndStream(stream_id);
       }

@@ -1106,8 +1106,12 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
 
 void OgHttp2Session::OnStreamPadLength(spdy::SpdyStreamId stream_id,
                                        size_t value) {
+  bool result = visitor_.OnDataPaddingLength(stream_id, 1 + value);
+  if (!result) {
+    fatal_visitor_callback_failure_ = true;
+    decoder_.StopProcessing();
+  }
   MarkDataBuffered(stream_id, 1 + value);
-  // TODO(181586191): Pass padding to the visitor?
 }
 
 void OgHttp2Session::OnStreamPadding(spdy::SpdyStreamId /*stream_id*/, size_t

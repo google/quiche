@@ -101,8 +101,12 @@ class DataMatcher : public testing::MatcherInterface<const nghttp2_frame*> {
  public:
   DataMatcher(const testing::Matcher<uint32_t> stream_id,
               const testing::Matcher<size_t> length,
-              const testing::Matcher<int> flags)
-      : stream_id_(stream_id), length_(length), flags_(flags) {}
+              const testing::Matcher<int> flags,
+              const testing::Matcher<size_t> padding)
+      : stream_id_(stream_id),
+        length_(length),
+        flags_(flags),
+        padding_(padding) {}
 
   bool MatchAndExplain(const nghttp2_frame* frame,
                        testing::MatchResultListener* listener) const override {
@@ -119,6 +123,9 @@ class DataMatcher : public testing::MatcherInterface<const nghttp2_frame*> {
       matched = false;
     }
     if (!flags_.MatchAndExplain(frame->hd.flags, listener)) {
+      matched = false;
+    }
+    if (!padding_.MatchAndExplain(frame->data.padlen, listener)) {
       matched = false;
     }
     return matched;
@@ -142,6 +149,7 @@ class DataMatcher : public testing::MatcherInterface<const nghttp2_frame*> {
   const testing::Matcher<uint32_t> stream_id_;
   const testing::Matcher<size_t> length_;
   const testing::Matcher<int> flags_;
+  const testing::Matcher<size_t> padding_;
 };
 
 class HeadersMatcher : public testing::MatcherInterface<const nghttp2_frame*> {
@@ -405,8 +413,9 @@ testing::Matcher<const nghttp2_frame_hd&> HasFrameHeaderRef(
 
 testing::Matcher<const nghttp2_frame*> IsData(
     const testing::Matcher<uint32_t> stream_id,
-    const testing::Matcher<size_t> length, const testing::Matcher<int> flags) {
-  return MakeMatcher(new DataMatcher(stream_id, length, flags));
+    const testing::Matcher<size_t> length, const testing::Matcher<int> flags,
+    const testing::Matcher<size_t> padding) {
+  return MakeMatcher(new DataMatcher(stream_id, length, flags, padding));
 }
 
 testing::Matcher<const nghttp2_frame*> IsHeaders(
