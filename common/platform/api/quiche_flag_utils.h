@@ -5,7 +5,7 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_FLAG_UTILS_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_FLAG_UTILS_H_
 
-#include "net/quiche/common/platform/impl/quiche_flag_utils_impl.h"
+#include "quiche_platform_impl/quiche_flag_utils_impl.h"
 
 #define QUICHE_RELOADABLE_FLAG_COUNT QUICHE_RELOADABLE_FLAG_COUNT_IMPL
 #define QUICHE_RELOADABLE_FLAG_COUNT_N QUICHE_RELOADABLE_FLAG_COUNT_N_IMPL
