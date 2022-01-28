@@ -7,6 +7,7 @@
 
 #include "quic/core/crypto/transport_parameters.h"
 #include "quic/core/quic_types.h"
+#include "quic/core/quic_versions.h"
 
 namespace quic {
 
@@ -21,15 +22,12 @@ class QUIC_EXPORT_PRIVATE HandshakerDelegateInterface {
   // Called when new decryption key of |level| is available. Returns true if
   // decrypter is set successfully, otherwise, returns false.
   virtual bool OnNewDecryptionKeyAvailable(
-      EncryptionLevel level,
-      std::unique_ptr<QuicDecrypter> decrypter,
-      bool set_alternative_decrypter,
-      bool latch_once_used) = 0;
+      EncryptionLevel level, std::unique_ptr<QuicDecrypter> decrypter,
+      bool set_alternative_decrypter, bool latch_once_used) = 0;
 
   // Called when new encryption key of |level| is available.
   virtual void OnNewEncryptionKeyAvailable(
-      EncryptionLevel level,
-      std::unique_ptr<QuicEncrypter> encrypter) = 0;
+      EncryptionLevel level, std::unique_ptr<QuicEncrypter> encrypter) = 0;
 
   // Called to set default encryption level to |level|. Only used in QUIC
   // crypto.
@@ -68,8 +66,7 @@ class QUIC_EXPORT_PRIVATE HandshakerDelegateInterface {
   // On failure, returns a QuicErrorCode and saves a detailed error in
   // |error_details|.
   virtual QuicErrorCode ProcessTransportParameters(
-      const TransportParameters& params,
-      bool is_resumption,
+      const TransportParameters& params, bool is_resumption,
       std::string* error_details) = 0;
 
   // Called at the end of an handshake operation callback.
@@ -77,6 +74,10 @@ class QUIC_EXPORT_PRIVATE HandshakerDelegateInterface {
 
   // Whether a packet flusher is currently attached.
   virtual bool PacketFlusherAttached() const = 0;
+
+  // Get the QUIC version currently in use. tls_handshaker needs this to pass
+  // to crypto_utils to apply version-dependent HKDF labels.
+  virtual ParsedQuicVersion parsed_version() const = 0;
 };
 
 }  // namespace quic

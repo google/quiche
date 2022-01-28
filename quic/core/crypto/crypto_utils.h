@@ -79,9 +79,11 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // on the given QuicCrypter |*crypter|.
   // This follows the derivation described in section 7.3 of RFC 8446, except
   // with the label prefix in HKDF-Expand-Label changed from "tls13 " to "quic "
-  // as described in draft-ietf-quic-tls-14, section 5.1.
+  // as described in draft-ietf-quic-tls-14, section 5.1, or "quicv2 " as
+  // described in draft-ietf-quic-v2-01.
   static void InitializeCrypterSecrets(const EVP_MD* prf,
                                        const std::vector<uint8_t>& pp_secret,
+                                       const ParsedQuicVersion& version,
                                        QuicCrypter* crypter);
 
   // Derives the key and IV from the packet protection secret and sets those
@@ -90,17 +92,17 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // called before using |crypter|.
   static void SetKeyAndIV(const EVP_MD* prf,
                           const std::vector<uint8_t>& pp_secret,
+                          const ParsedQuicVersion& version,
                           QuicCrypter* crypter);
 
   // Derives the header protection key from the packet protection secret.
   static std::vector<uint8_t> GenerateHeaderProtectionKey(
-      const EVP_MD* prf,
-      const std::vector<uint8_t>& pp_secret,
-      size_t out_len);
+      const EVP_MD* prf, const std::vector<uint8_t>& pp_secret,
+      const ParsedQuicVersion& version, size_t out_len);
 
   // Given a secret for key phase n, return the secret for phase n+1.
   static std::vector<uint8_t> GenerateNextKeyPhaseSecret(
-      const EVP_MD* prf,
+      const EVP_MD* prf, const ParsedQuicVersion& version,
       const std::vector<uint8_t>& current_secret);
 
   // IETF QUIC encrypts ENCRYPTION_INITIAL messages with a version-specific key
@@ -130,10 +132,8 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   //   <4 bytes> current time
   //   <8 bytes> |orbit| (or random if |orbit| is empty)
   //   <20 bytes> random
-  static void GenerateNonce(QuicWallTime now,
-                            QuicRandom* random_generator,
-                            absl::string_view orbit,
-                            std::string* nonce);
+  static void GenerateNonce(QuicWallTime now, QuicRandom* random_generator,
+                            absl::string_view orbit, std::string* nonce);
 
   // DeriveKeys populates |crypters->encrypter|, |crypters->decrypter|, and
   // |subkey_secret| (optional -- may be null) given the contents of
@@ -155,15 +155,12 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // |SetDiversificationNonce| with a diversification nonce will be needed to
   // complete keying.
   static bool DeriveKeys(const ParsedQuicVersion& version,
-                         absl::string_view premaster_secret,
-                         QuicTag aead,
+                         absl::string_view premaster_secret, QuicTag aead,
                          absl::string_view client_nonce,
                          absl::string_view server_nonce,
                          absl::string_view pre_shared_key,
-                         const std::string& hkdf_input,
-                         Perspective perspective,
-                         Diversification diversification,
-                         CrypterPair* crypters,
+                         const std::string& hkdf_input, Perspective perspective,
+                         Diversification diversification, CrypterPair* crypters,
                          std::string* subkey_secret);
 
   // Computes the FNV-1a hash of the provided DER-encoded cert for use in the
@@ -199,8 +196,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // Returns QUIC_NO_ERROR if this is the case or returns the appropriate error
   // code and sets |error_details|.
   static QuicErrorCode ValidateClientHello(
-      const CryptoHandshakeMessage& client_hello,
-      ParsedQuicVersion version,
+      const CryptoHandshakeMessage& client_hello, ParsedQuicVersion version,
       const ParsedQuicVersionVector& supported_versions,
       std::string* error_details);
 
@@ -212,8 +208,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // Returns QUIC_NO_ERROR if this is the case or returns the appropriate error
   // code and sets |error_details|.
   static QuicErrorCode ValidateClientHelloVersion(
-      QuicVersionLabel client_version,
-      ParsedQuicVersion connection_version,
+      QuicVersionLabel client_version, ParsedQuicVersion connection_version,
       const ParsedQuicVersionVector& supported_versions,
       std::string* error_details);
 

@@ -485,8 +485,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     }
   }
 
-  void AddToCache(absl::string_view path,
-                  int response_code,
+  void AddToCache(absl::string_view path, int response_code,
                   absl::string_view body) {
     memory_cache_backend_.AddSimpleResponse(server_hostname_, path,
                                             response_code, body);
@@ -657,16 +656,14 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   bool SendSynchronousRequestAndCheckResponse(
-      QuicTestClient* client,
-      const std::string& request,
+      QuicTestClient* client, const std::string& request,
       const std::string& expected_response) {
     std::string received_response = client->SendSynchronousRequest(request);
     return CheckResponse(client, received_response, expected_response);
   }
 
   bool SendSynchronousRequestAndCheckResponse(
-      const std::string& request,
-      const std::string& expected_response) {
+      const std::string& request, const std::string& expected_response) {
     return SendSynchronousRequestAndCheckResponse(client_.get(), request,
                                                   expected_response);
   }
@@ -844,8 +841,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 };
 
 // Run all end to end tests with all supported versions.
-INSTANTIATE_TEST_SUITE_P(EndToEndTests,
-                         EndToEndTest,
+INSTANTIATE_TEST_SUITE_P(EndToEndTests, EndToEndTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
@@ -3210,8 +3206,7 @@ TEST_P(EndToEndTest, ConnectionMigrationNewTokenForNewIp) {
 class DuplicatePacketWithSpoofedSelfAddressWriter
     : public QuicPacketWriterWrapper {
  public:
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           PerPacketOptions* options) override {
@@ -4385,13 +4380,10 @@ TEST_P(EndToEndTest, CanceledStreamDoesNotBecomeZombie) {
 class ServerStreamWithErrorResponseBody : public QuicSimpleServerStream {
  public:
   ServerStreamWithErrorResponseBody(
-      QuicStreamId id,
-      QuicSpdySession* session,
+      QuicStreamId id, QuicSpdySession* session,
       QuicSimpleServerBackend* quic_simple_server_backend,
       std::string response_body)
-      : QuicSimpleServerStream(id,
-                               session,
-                               BIDIRECTIONAL,
+      : QuicSimpleServerStream(id, session, BIDIRECTIONAL,
                                quic_simple_server_backend),
         response_body_(std::move(response_body)) {}
 
@@ -4420,8 +4412,7 @@ class StreamWithErrorFactory : public QuicTestServer::StreamFactory {
   ~StreamWithErrorFactory() override = default;
 
   QuicSimpleServerStream* CreateStream(
-      QuicStreamId id,
-      QuicSpdySession* session,
+      QuicStreamId id, QuicSpdySession* session,
       QuicSimpleServerBackend* quic_simple_server_backend) override {
     return new ServerStreamWithErrorResponseBody(
         id, session, quic_simple_server_backend, response_body_);
@@ -4434,12 +4425,9 @@ class StreamWithErrorFactory : public QuicTestServer::StreamFactory {
 // A test server stream that drops all received body.
 class ServerStreamThatDropsBody : public QuicSimpleServerStream {
  public:
-  ServerStreamThatDropsBody(QuicStreamId id,
-                            QuicSpdySession* session,
+  ServerStreamThatDropsBody(QuicStreamId id, QuicSpdySession* session,
                             QuicSimpleServerBackend* quic_simple_server_backend)
-      : QuicSimpleServerStream(id,
-                               session,
-                               BIDIRECTIONAL,
+      : QuicSimpleServerStream(id, session, BIDIRECTIONAL,
                                quic_simple_server_backend) {}
 
   ~ServerStreamThatDropsBody() override = default;
@@ -4481,8 +4469,7 @@ class ServerStreamThatDropsBodyFactory : public QuicTestServer::StreamFactory {
   ~ServerStreamThatDropsBodyFactory() override = default;
 
   QuicSimpleServerStream* CreateStream(
-      QuicStreamId id,
-      QuicSpdySession* session,
+      QuicStreamId id, QuicSpdySession* session,
       QuicSimpleServerBackend* quic_simple_server_backend) override {
     return new ServerStreamThatDropsBody(id, session,
                                          quic_simple_server_backend);
@@ -4493,13 +4480,9 @@ class ServerStreamThatDropsBodyFactory : public QuicTestServer::StreamFactory {
 class ServerStreamThatSendsHugeResponse : public QuicSimpleServerStream {
  public:
   ServerStreamThatSendsHugeResponse(
-      QuicStreamId id,
-      QuicSpdySession* session,
-      QuicSimpleServerBackend* quic_simple_server_backend,
-      int64_t body_bytes)
-      : QuicSimpleServerStream(id,
-                               session,
-                               BIDIRECTIONAL,
+      QuicStreamId id, QuicSpdySession* session,
+      QuicSimpleServerBackend* quic_simple_server_backend, int64_t body_bytes)
+      : QuicSimpleServerStream(id, session, BIDIRECTIONAL,
                                quic_simple_server_backend),
         body_bytes_(body_bytes) {}
 
@@ -4529,8 +4512,7 @@ class ServerStreamThatSendsHugeResponseFactory
   ~ServerStreamThatSendsHugeResponseFactory() override = default;
 
   QuicSimpleServerStream* CreateStream(
-      QuicStreamId id,
-      QuicSpdySession* session,
+      QuicStreamId id, QuicSpdySession* session,
       QuicSimpleServerBackend* quic_simple_server_backend) override {
     return new ServerStreamThatSendsHugeResponse(
         id, session, quic_simple_server_backend, body_bytes_);
@@ -5255,8 +5237,7 @@ TEST_P(EndToEndPacketReorderingTest, ReorderedConnectivityProbing) {
 // called.
 class PacketHoldingWriter : public QuicPacketWriterWrapper {
  public:
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           PerPacketOptions* options) override {
@@ -5710,8 +5691,7 @@ class BadShloPacketWriter : public QuicPacketWriterWrapper {
       : error_returned_(false), version_(version) {}
   ~BadShloPacketWriter() override {}
 
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           quic::PerPacketOptions* options) override {
@@ -5728,6 +5708,9 @@ class BadShloPacketWriter : public QuicPacketWriterWrapper {
   }
 
   bool TypeByteIsServerHello(uint8_t type_byte) {
+    if (version_.UsesV2PacketTypes()) {
+      return ((type_byte & 0x30) >> 4) == 3;
+    }
     if (version_.UsesQuicCrypto()) {
       // ENCRYPTION_ZERO_RTT packet.
       return ((type_byte & 0x30) >> 4) == 1;
@@ -5784,21 +5767,23 @@ TEST_P(EndToEndTest, ConnectionCloseBeforeHandshakeComplete) {
 
 class BadShloPacketWriter2 : public QuicPacketWriterWrapper {
  public:
-  BadShloPacketWriter2() : error_returned_(false) {}
+  BadShloPacketWriter2(ParsedQuicVersion version)
+      : error_returned_(false), version_(version) {}
   ~BadShloPacketWriter2() override {}
 
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           quic::PerPacketOptions* options) override {
     const uint8_t type_byte = buffer[0];
-    if ((type_byte & FLAGS_LONG_HEADER) &&
-        (((type_byte & 0x30) >> 4) == 1 || (type_byte & 0x7F) == 0x7C)) {
-      QUIC_DVLOG(1) << "Dropping ZERO_RTT_PACKET packet";
-      return WriteResult(WRITE_STATUS_OK, buf_len);
-    }
-    if (!error_returned_ && !(type_byte & FLAGS_LONG_HEADER)) {
+
+    if (type_byte & FLAGS_LONG_HEADER) {
+      if (((type_byte & 0x30 >> 4) == (version_.UsesV2PacketTypes() ? 2 : 1)) ||
+          ((type_byte & 0x7F) == 0x7C)) {
+        QUIC_DVLOG(1) << "Dropping ZERO_RTT_PACKET packet";
+        return WriteResult(WRITE_STATUS_OK, buf_len);
+      }
+    } else if (!error_returned_) {
       QUIC_DVLOG(1) << "Return write error for short header packet";
       error_returned_ = true;
       return WriteResult(WRITE_STATUS_ERROR, QUIC_EMSGSIZE);
@@ -5809,6 +5794,7 @@ class BadShloPacketWriter2 : public QuicPacketWriterWrapper {
 
  private:
   bool error_returned_;
+  ParsedQuicVersion version_;
 };
 
 TEST_P(EndToEndTest, ForwardSecureConnectionClose) {
@@ -5839,7 +5825,7 @@ TEST_P(EndToEndTest, ForwardSecureConnectionClose) {
       dispatcher,
       // This causes the all server sent ZERO_RTT_PROTECTED packets to be
       // dropped, and first short header packet causes write error.
-      new BadShloPacketWriter2());
+      new BadShloPacketWriter2(version_));
   server_thread_->Resume();
   client_.reset(CreateQuicClient(client_writer_));
   EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
@@ -6028,8 +6014,7 @@ class CopyingPacketWriter : public PacketDroppingTestWriter {
  public:
   explicit CopyingPacketWriter(int num_packets_to_copy)
       : num_packets_to_copy_(num_packets_to_copy) {}
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           PerPacketOptions* options) override {

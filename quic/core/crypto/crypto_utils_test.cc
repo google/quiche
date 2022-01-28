@@ -8,6 +8,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/string_view.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_test_utils.h"
@@ -163,6 +164,48 @@ TEST_F(CryptoUtilsTest, ValidateServerVersionsWithDowngrade) {
       version_information_other_versions, server_version,
       client_original_supported_versions, &error_details));
   EXPECT_FALSE(error_details.empty());
+}
+
+// Test that the library is using the correct labels for each version, and
+// therefore generating correct obfuscators, using the test vectors in appendix
+// A of each RFC or internet-draft.
+TEST_F(CryptoUtilsTest, ValidateCryptoLabels) {
+  // if the number of HTTP/3 QUIC versions has changed, we need to change the
+  // expected_keys hardcoded into this test. Regrettably, this is not a
+  // compile-time constant.
+  EXPECT_EQ(AllSupportedVersionsWithTls().size(), 3u);
+  const char draft_29_key[] = {// test vector from draft-ietf-quic-tls-29, A.1
+                               0x14, 0x9d, 0x0b, 0x16, 0x62, 0xab, 0x87, 0x1f,
+                               0xbe, 0x63, 0xc4, 0x9b, 0x5e, 0x65, 0x5a, 0x5d};
+  const char v1_key[] = {// test vector from RFC 9001, A.1
+                         0xcf, 0x3a, 0x53, 0x31, 0x65, 0x3c, 0x36, 0x4c,
+                         0x88, 0xf0, 0xf3, 0x79, 0xb6, 0x06, 0x7e, 0x37};
+  const char v2_01_key[] = {// test vector from draft-ietf-quic-v2-01
+                            0x15, 0xd5, 0xb4, 0xd9, 0xa2, 0xb8, 0x91, 0x6a,
+                            0xa3, 0x9b, 0x1b, 0xfe, 0x57, 0x4d, 0x2a, 0xad};
+  const char connection_id[] =  // test vector from both docs
+      {0x83, 0x94, 0xc8, 0xf0, 0x3e, 0x51, 0x57, 0x08};
+  const QuicConnectionId cid(connection_id, sizeof(connection_id));
+  const char* key_str;
+  size_t key_size;
+  for (const ParsedQuicVersion& version : AllSupportedVersionsWithTls()) {
+    if (version == ParsedQuicVersion::Draft29()) {
+      key_str = draft_29_key;
+      key_size = sizeof(draft_29_key);
+    } else if (version == ParsedQuicVersion::RFCv1()) {
+      key_str = v1_key;
+      key_size = sizeof(v1_key);
+    } else {  // draft-ietf-quic-v2-01
+      key_str = v2_01_key;
+      key_size = sizeof(v2_01_key);
+    }
+    const absl::string_view expected_key{key_str, key_size};
+
+    CrypterPair crypters;
+    CryptoUtils::CreateInitialObfuscators(Perspective::IS_SERVER, version, cid,
+                                          &crypters);
+    EXPECT_EQ(crypters.encrypter->GetKey(), expected_key);
+  }
 }
 
 }  // namespace

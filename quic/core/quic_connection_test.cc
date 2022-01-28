@@ -184,19 +184,12 @@ class TestConnection : public QuicConnection {
   TestConnection(QuicConnectionId connection_id,
                  QuicSocketAddress initial_self_address,
                  QuicSocketAddress initial_peer_address,
-                 TestConnectionHelper* helper,
-                 TestAlarmFactory* alarm_factory,
-                 TestPacketWriter* writer,
-                 Perspective perspective,
+                 TestConnectionHelper* helper, TestAlarmFactory* alarm_factory,
+                 TestPacketWriter* writer, Perspective perspective,
                  ParsedQuicVersion version)
-      : QuicConnection(connection_id,
-                       initial_self_address,
-                       initial_peer_address,
-                       helper,
-                       alarm_factory,
-                       writer,
-                       /* owns_writer= */ false,
-                       perspective,
+      : QuicConnection(connection_id, initial_self_address,
+                       initial_peer_address, helper, alarm_factory, writer,
+                       /* owns_writer= */ false, perspective,
                        SupportedVersions(version)),
         notifier_(nullptr) {
     writer->set_perspective(perspective);
@@ -215,11 +208,9 @@ class TestConnection : public QuicConnection {
     QuicConnectionPeer::SetLossAlgorithm(this, loss_algorithm);
   }
 
-  void SendPacket(EncryptionLevel /*level*/,
-                  uint64_t packet_number,
+  void SendPacket(EncryptionLevel /*level*/, uint64_t packet_number,
                   std::unique_ptr<QuicPacket> packet,
-                  HasRetransmittableData retransmittable,
-                  bool has_ack,
+                  HasRetransmittableData retransmittable, bool has_ack,
                   bool has_pending_frames) {
     ScopedPacketFlusher flusher(this);
     char buffer[kMaxOutgoingPacketSize];
@@ -239,8 +230,7 @@ class TestConnection : public QuicConnection {
   }
 
   QuicConsumedData SaveAndSendStreamData(QuicStreamId id,
-                                         const struct iovec* iov,
-                                         int iov_count,
+                                         const struct iovec* iov, int iov_count,
                                          size_t total_length,
                                          QuicStreamOffset offset,
                                          StreamSendingState state) {
@@ -555,8 +545,7 @@ enum class AckResponse { kDefer, kImmediate };
 
 // Run tests with combinations of {ParsedQuicVersion, AckResponse}.
 struct TestParams {
-  TestParams(ParsedQuicVersion version,
-             AckResponse ack_response,
+  TestParams(ParsedQuicVersion version, AckResponse ack_response,
              bool no_stop_waiting)
       : version(version),
         ack_response(ack_response),
@@ -609,30 +598,20 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
  protected:
   QuicConnectionTest()
       : connection_id_(TestConnectionId()),
-        framer_(SupportedVersions(version()),
-                QuicTime::Zero(),
-                Perspective::IS_CLIENT,
-                connection_id_.length()),
+        framer_(SupportedVersions(version()), QuicTime::Zero(),
+                Perspective::IS_CLIENT, connection_id_.length()),
         send_algorithm_(new StrictMock<MockSendAlgorithm>),
         loss_algorithm_(new MockLossAlgorithm()),
         helper_(new TestConnectionHelper(&clock_, &random_generator_)),
         alarm_factory_(new TestAlarmFactory()),
-        peer_framer_(SupportedVersions(version()),
-                     QuicTime::Zero(),
-                     Perspective::IS_SERVER,
-                     connection_id_.length()),
-        peer_creator_(connection_id_,
-                      &peer_framer_,
+        peer_framer_(SupportedVersions(version()), QuicTime::Zero(),
+                     Perspective::IS_SERVER, connection_id_.length()),
+        peer_creator_(connection_id_, &peer_framer_,
                       /*delegate=*/nullptr),
         writer_(
             new TestPacketWriter(version(), &clock_, Perspective::IS_CLIENT)),
-        connection_(connection_id_,
-                    kSelfAddress,
-                    kPeerAddress,
-                    helper_.get(),
-                    alarm_factory_.get(),
-                    writer_.get(),
-                    Perspective::IS_CLIENT,
+        connection_(connection_id_, kSelfAddress, kPeerAddress, helper_.get(),
+                    alarm_factory_.get(), writer_.get(), Perspective::IS_CLIENT,
                     version()),
         creator_(QuicConnectionPeer::GetPacketCreator(&connection_)),
         manager_(QuicConnectionPeer::GetSentPacketManager(&connection_)),
@@ -872,16 +851,14 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         QuicReceivedPacket(encrypted_buffer, encrypted_length, clock_.Now()));
   }
 
-  size_t ProcessFramePacketAtLevel(uint64_t number,
-                                   QuicFrame frame,
+  size_t ProcessFramePacketAtLevel(uint64_t number, QuicFrame frame,
                                    EncryptionLevel level) {
     QuicFrames frames;
     frames.push_back(frame);
     return ProcessFramesPacketAtLevel(number, frames, level);
   }
 
-  size_t ProcessFramesPacketAtLevel(uint64_t number,
-                                    const QuicFrames& frames,
+  size_t ProcessFramesPacketAtLevel(uint64_t number, const QuicFrames& frames,
                                     EncryptionLevel level) {
     QuicPacketHeader header = ConstructPacketHeader(number, level);
     // Set the correct encryption level and encrypter on peer_creator and
@@ -1025,8 +1002,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     return encrypted_length;
   }
 
-  size_t ProcessDataPacketAtLevel(uint64_t number,
-                                  bool has_stop_waiting,
+  size_t ProcessDataPacketAtLevel(uint64_t number, bool has_stop_waiting,
                                   EncryptionLevel level) {
     std::unique_ptr<QuicPacket> packet(
         ConstructDataPacket(number, has_stop_waiting, level));
@@ -1055,8 +1031,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         QuicReceivedPacket(buffer, encrypted_length, QuicTime::Zero(), false));
   }
 
-  QuicByteCount SendStreamDataToPeer(QuicStreamId id,
-                                     absl::string_view data,
+  QuicByteCount SendStreamDataToPeer(QuicStreamId id, absl::string_view data,
                                      QuicStreamOffset offset,
                                      StreamSendingState state,
                                      QuicPacketNumber* last_packet) {
@@ -1084,8 +1059,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         .Times(AnyNumber());
   }
 
-  void SendRstStream(QuicStreamId id,
-                     QuicRstStreamErrorCode error,
+  void SendRstStream(QuicStreamId id, QuicRstStreamErrorCode error,
                      QuicStreamOffset bytes_written) {
     notifier_.WriteOrBufferRstStream(id, error, bytes_written);
     connection_.OnStreamReset(id, error);
@@ -10499,7 +10473,12 @@ void QuicConnectionTest::TestClientRetryHandling(
     return;
   }
 
-  // These values come from draft-ietf-quic-tls Appendix A.4.
+  // These values come from draft-ietf-quic-v2 Appendix A.4.
+  uint8_t retry_packet_rfcv2[] = {
+      0xcf, 0x70, 0x9a, 0x50, 0xc4, 0x00, 0x08, 0xf0, 0x67, 0xa5, 0x50, 0x2a,
+      0x42, 0x62, 0xb5, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x1d, 0xc7, 0x11, 0x30,
+      0xcd, 0x1e, 0xd3, 0x9d, 0x6e, 0xfc, 0xee, 0x5c, 0x85, 0x80, 0x65, 0x01};
+  // These values come from RFC9001 Appendix A.4.
   uint8_t retry_packet_rfcv1[] = {
       0xff, 0x00, 0x00, 0x00, 0x01, 0x00, 0x08, 0xf0, 0x67, 0xa5, 0x50, 0x2a,
       0x42, 0x62, 0xb5, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x04, 0xa2, 0x65, 0xba,
@@ -10511,7 +10490,10 @@ void QuicConnectionTest::TestClientRetryHandling(
 
   uint8_t* retry_packet;
   size_t retry_packet_length;
-  if (version() == ParsedQuicVersion::RFCv1()) {
+  if (version() == ParsedQuicVersion::V2Draft01()) {
+    retry_packet = retry_packet_rfcv2;
+    retry_packet_length = ABSL_ARRAYSIZE(retry_packet_rfcv2);
+  } else if (version() == ParsedQuicVersion::RFCv1()) {
     retry_packet = retry_packet_rfcv1;
     retry_packet_length = ABSL_ARRAYSIZE(retry_packet_rfcv1);
   } else if (version() == ParsedQuicVersion::Draft29()) {
