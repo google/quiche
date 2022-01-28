@@ -333,9 +333,7 @@ bool TlsHandshaker::ExportKeyingMaterialForLabel(absl::string_view label,
                                                  absl::string_view context,
                                                  size_t result_len,
                                                  std::string* result) {
-  // TODO(haoyuewang) Adding support of keying material export when 0-RTT is
-  // accepted.
-  if (SSL_in_init(ssl())) {
+  if (result == nullptr) {
     return false;
   }
   result->resize(result_len);

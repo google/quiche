@@ -20,6 +20,11 @@ class QuicClientSessionCachePeer {
     }
     return iter->second->token;
   }
+
+  static bool HasEntry(QuicClientSessionCache* cache,
+                       const QuicServerId& server_id) {
+    return cache->cache_.Lookup(server_id) != cache->cache_.end();
+  }
 };
 
 }  // namespace test
