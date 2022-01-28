@@ -335,6 +335,15 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (network_change_visitor_ != nullptr) {
     network_change_visitor_->OnCongestionChange();
   }
+
+  if (debug_delegate_ != nullptr) {
+    DebugDelegate::SendParameters parameters;
+    parameters.congestion_control_type =
+        send_algorithm_->GetCongestionControlType();
+    parameters.use_pacing = using_pacing_;
+    parameters.initial_congestion_window = initial_congestion_window_;
+    debug_delegate_->OnConfigProcessed(parameters);
+  }
 }
 
 void QuicSentPacketManager::ApplyConnectionOptions(

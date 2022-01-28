@@ -52,6 +52,12 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // the packet manager or connection as a result of these callbacks.
   class QUIC_EXPORT_PRIVATE DebugDelegate {
    public:
+    struct QUIC_EXPORT_PRIVATE SendParameters {
+      CongestionControlType congestion_control_type;
+      bool use_pacing;
+      QuicPacketCount initial_congestion_window;
+    };
+
     virtual ~DebugDelegate() {}
 
     // Called when a spurious retransmission is detected.
@@ -84,6 +90,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
                                    int /*new_burst_size*/) {}
 
     virtual void OnOvershootingDetected() {}
+
+    virtual void OnConfigProcessed(const SendParameters& /*parameters*/) {}
   };
 
   // Interface which gets callbacks from the QuicSentPacketManager when
