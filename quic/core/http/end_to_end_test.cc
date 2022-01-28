@@ -3246,7 +3246,8 @@ TEST_P(EndToEndTest, ClientAddressSpoofedForSomePeriod) {
   ASSERT_TRUE(QuicConnectionPeer::HasUnusedPeerIssuedConnectionId(
       GetClientConnection()));
 
-  QuicIpAddress real_host = TestLoopback(1);
+  QuicIpAddress real_host =
+      client_->client()->session()->connection()->self_address().host();
   ASSERT_TRUE(client_->MigrateSocket(real_host));
   SendSynchronousFooRequestAndCheckResponse();
   EXPECT_EQ(
