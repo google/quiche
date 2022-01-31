@@ -4161,7 +4161,7 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(QuicPacketNumber largest_acked,
       // packet order.
       timestamp_delta = timestamp_delta << receive_timestamps_exponent_;
       if (i == 0 && j == 0) {
-        last_timestamp_ = CalculateTimestampFromWire(timestamp_delta);
+        last_timestamp_ = QuicTime::Delta::FromMicroseconds(timestamp_delta);
       } else {
         last_timestamp_ = last_timestamp_ -
                           QuicTime::Delta::FromMicroseconds(timestamp_delta);
@@ -4170,10 +4170,10 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(QuicPacketNumber largest_acked,
           return false;
         }
       }
-      visitor_->OnAckTimestamp(packet_number - j,
-                               creation_time_ + last_timestamp_);
+      visitor_->OnAckTimestamp(packet_number, creation_time_ + last_timestamp_);
+      packet_number--;
     }
-    packet_number = packet_number - (timestamp_count - 1);
+    packet_number--;
   }
   return true;
 }
