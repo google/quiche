@@ -175,16 +175,65 @@ TEST_F(CryptoUtilsTest, ValidateCryptoLabels) {
   // compile-time constant.
   EXPECT_EQ(AllSupportedVersionsWithTls().size(), 3u);
   const char draft_29_key[] = {// test vector from draft-ietf-quic-tls-29, A.1
-                               0x14, 0x9d, 0x0b, 0x16, 0x62, 0xab, 0x87, 0x1f,
-                               0xbe, 0x63, 0xc4, 0x9b, 0x5e, 0x65, 0x5a, 0x5d};
+                               0x14,
+                               static_cast<char>(0x9d),
+                               0x0b,
+                               0x16,
+                               0x62,
+                               static_cast<char>(0xab),
+                               static_cast<char>(0x87),
+                               0x1f,
+                               static_cast<char>(0xbe),
+                               0x63,
+                               static_cast<char>(0xc4),
+                               static_cast<char>(0x9b),
+                               0x5e,
+                               0x65,
+                               0x5a,
+                               0x5d};
   const char v1_key[] = {// test vector from RFC 9001, A.1
-                         0xcf, 0x3a, 0x53, 0x31, 0x65, 0x3c, 0x36, 0x4c,
-                         0x88, 0xf0, 0xf3, 0x79, 0xb6, 0x06, 0x7e, 0x37};
+                         static_cast<char>(0xcf),
+                         0x3a,
+                         0x53,
+                         0x31,
+                         0x65,
+                         0x3c,
+                         0x36,
+                         0x4c,
+                         static_cast<char>(0x88),
+                         static_cast<char>(0xf0),
+                         static_cast<char>(0xf3),
+                         0x79,
+                         static_cast<char>(0xb6),
+                         0x06,
+                         0x7e,
+                         0x37};
   const char v2_01_key[] = {// test vector from draft-ietf-quic-v2-01
-                            0x15, 0xd5, 0xb4, 0xd9, 0xa2, 0xb8, 0x91, 0x6a,
-                            0xa3, 0x9b, 0x1b, 0xfe, 0x57, 0x4d, 0x2a, 0xad};
+                            0x15,
+                            static_cast<char>(0xd5),
+                            static_cast<char>(0xb4),
+                            static_cast<char>(0xd9),
+                            static_cast<char>(0xa2),
+                            static_cast<char>(0xb8),
+                            static_cast<char>(0x91),
+                            0x6a,
+                            static_cast<char>(0xa3),
+                            static_cast<char>(0x9b),
+                            0x1b,
+                            static_cast<char>(0xfe),
+                            0x57,
+                            0x4d,
+                            0x2a,
+                            static_cast<char>(0xad)};
   const char connection_id[] =  // test vector from both docs
-      {0x83, 0x94, 0xc8, 0xf0, 0x3e, 0x51, 0x57, 0x08};
+      {static_cast<char>(0x83),
+       static_cast<char>(0x94),
+       static_cast<char>(0xc8),
+       static_cast<char>(0xf0),
+       0x3e,
+       0x51,
+       0x57,
+       0x08};
   const QuicConnectionId cid(connection_id, sizeof(connection_id));
   const char* key_str;
   size_t key_size;
