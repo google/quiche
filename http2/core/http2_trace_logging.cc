@@ -189,9 +189,13 @@ spdy::SpdyHeadersHandlerInterface* Http2TraceLogger::OnHeaderFrameStart(
       << FORMAT_ARG(stream_id);
   spdy::SpdyHeadersHandlerInterface* result =
       wrapped_->OnHeaderFrameStart(stream_id);
-  recording_headers_handler_ =
-      absl::make_unique<spdy::RecordingHeadersHandler>(result);
-  result = recording_headers_handler_.get();
+  if (is_enabled_()) {
+    recording_headers_handler_ =
+        absl::make_unique<spdy::RecordingHeadersHandler>(result);
+    result = recording_headers_handler_.get();
+  } else {
+    recording_headers_handler_ = nullptr;
+  }
   return result;
 }
 
@@ -328,7 +332,8 @@ bool Http2TraceLogger::OnUnknownFrame(SpdyStreamId stream_id,
 
 void Http2TraceLogger::LogReceivedHeaders() const {
   if (recording_headers_handler_ == nullptr) {
-    QUICHE_BUG(bug_2794_1) << "Cannot log headers before creating handler.";
+    // Trace logging was not enabled when the start of the header block was
+    // received.
     return;
   }
   HTTP2_TRACE_LOG(perspective_, is_enabled_)
