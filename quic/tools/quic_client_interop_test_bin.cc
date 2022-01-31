@@ -19,19 +19,16 @@
 #include "quic/tools/fake_proof_verifier.h"
 #include "quic/tools/quic_client.h"
 #include "quic/tools/quic_url.h"
+#include "common/platform/api/quiche_command_line_flags.h"
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
-                              host,
-                              "",
-                              "The IP or hostname to connect to.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, host, "",
+                                "The IP or hostname to connect to.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    std::string,
-    quic_version,
-    "",
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, quic_version, "",
     "The QUIC version to use. Defaults to most recent IETF QUIC version.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t, port, 0, "The port to connect to.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, port, 0, "The port to connect to.");
 
 namespace quic {
 
@@ -403,9 +400,9 @@ int main(int argc, char* argv[]) {
   const char* usage = "Usage: quic_client_interop_test [options] [url]";
 
   std::vector<std::string> args =
-      quic::QuicParseCommandLineFlags(usage, argc, argv);
+      quiche::QuicheParseCommandLineFlags(usage, argc, argv);
   if (args.size() > 1) {
-    quic::QuicPrintCommandLineFlagHelp(usage);
+    quiche::QuichePrintCommandLineFlagHelp(usage);
     exit(1);
   }
   std::string dns_host = GetQuicFlag(FLAGS_host);
@@ -426,7 +423,7 @@ int main(int argc, char* argv[]) {
     port = 443;
   }
   if (dns_host.empty()) {
-    quic::QuicPrintCommandLineFlagHelp(usage);
+    quiche::QuichePrintCommandLineFlagHelp(usage);
     exit(1);
   }
   if (url_host.empty()) {

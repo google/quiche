@@ -47,6 +47,7 @@
 #include "quic/platform/api/quic_system_event_loop.h"
 #include "quic/tools/quic_epoll_client_factory.h"
 #include "quic/tools/quic_toy_client.h"
+#include "common/platform/api/quiche_command_line_flags.h"
 
 int main(int argc, char* argv[]) {
   QuicSystemEventLoop event_loop("quic_client");
@@ -54,9 +55,9 @@ int main(int argc, char* argv[]) {
 
   // All non-flag arguments should be interpreted as URLs to fetch.
   std::vector<std::string> urls =
-      quic::QuicParseCommandLineFlags(usage, argc, argv);
+      quiche::QuicheParseCommandLineFlags(usage, argc, argv);
   if (urls.size() != 1) {
-    quic::QuicPrintCommandLineFlagHelp(usage);
+    quiche::QuichePrintCommandLineFlagHelp(usage);
     exit(0);
   }
 

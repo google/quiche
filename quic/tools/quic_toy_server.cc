@@ -12,44 +12,33 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/tools/quic_memory_cache_backend.h"
+#include "common/platform/api/quiche_command_line_flags.h"
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
-                              port,
-                              6121,
-                              "The port the quic server will listen on.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, port, 6121,
+                                "The port the quic server will listen on.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    std::string,
-    quic_response_cache_dir,
-    "",
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, quic_response_cache_dir, "",
     "Specifies the directory used during QuicHttpResponseCache "
     "construction to seed the cache. Cache directory can be "
     "generated using `wget -p --save-headers <url>`");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    bool,
-    generate_dynamic_responses,
-    false,
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, generate_dynamic_responses, false,
     "If true, then URLs which have a numeric path will send a dynamically "
     "generated response of that many bytes.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
-                              quic_ietf_draft,
-                              false,
-                              "Only enable IETF draft versions. This also "
-                              "enables required internal QUIC flags.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, quic_ietf_draft, false,
+                                "Only enable IETF draft versions. This also "
+                                "enables required internal QUIC flags.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    std::string,
-    quic_versions,
-    "",
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, quic_versions, "",
     "QUIC versions to enable, e.g. \"h3-25,h3-27\". If not set, then all "
     "available versions are enabled.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
-                              enable_webtransport,
-                              false,
-                              "If true, WebTransport support is enabled.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, enable_webtransport, false,
+                                "If true, WebTransport support is enabled.");
 
 namespace quic {
 

@@ -29,15 +29,14 @@
 #include "quic/test_tools/simulator/simulator.h"
 #include "quic/test_tools/simulator/switch.h"
 #include "quic/test_tools/simulator/traffic_policer.h"
+#include "common/platform/api/quiche_command_line_flags.h"
 
 using testing::AllOf;
 using testing::Ge;
 using testing::Le;
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    std::string,
-    quic_bbr2_test_regression_mode,
-    "",
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, quic_bbr2_test_regression_mode, "",
     "One of a) 'record' to record test result (one file per test), or "
     "b) 'regress' to regress against recorded results, or "
     "c) <anything else> for non-regression mode.");

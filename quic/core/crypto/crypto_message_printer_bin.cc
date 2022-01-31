@@ -13,6 +13,7 @@
 #include "absl/strings/escaping.h"
 #include "quic/core/crypto/crypto_framer.h"
 #include "quic/core/quic_utils.h"
+#include "common/platform/api/quiche_command_line_flags.h"
 
 using std::cerr;
 using std::cout;
@@ -37,9 +38,9 @@ class CryptoMessagePrinter : public ::quic::CryptoFramerVisitorInterface {
 int main(int argc, char* argv[]) {
   const char* usage = "Usage: crypto_message_printer <hex>";
   std::vector<std::string> messages =
-      quic::QuicParseCommandLineFlags(usage, argc, argv);
+      quiche::QuicheParseCommandLineFlags(usage, argc, argv);
   if (messages.size() != 1) {
-    quic::QuicPrintCommandLineFlagHelp(usage);
+    quiche::QuichePrintCommandLineFlagHelp(usage);
     exit(0);
   }
 

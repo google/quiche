@@ -18,11 +18,10 @@
 #include "quic/platform/api/quic_testvalue.h"
 #include "quic/qbone/platform/icmp_packet.h"
 #include "quic/qbone/qbone_constants.h"
+#include "common/platform/api/quiche_command_line_flags.h"
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    bool,
-    qbone_close_ephemeral_frames,
-    true,
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, qbone_close_ephemeral_frames, true,
     "If true, we'll call CloseStream even when we receive ephemeral frames.");
 
 namespace quic {

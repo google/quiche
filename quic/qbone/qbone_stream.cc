@@ -10,11 +10,10 @@
 #include "quic/core/quic_types.h"
 #include "quic/qbone/qbone_constants.h"
 #include "quic/qbone/qbone_session_base.h"
+#include "common/platform/api/quiche_command_line_flags.h"
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(int,
-                              qbone_stream_ttl_secs,
-                              3,
-                              "The QBONE Stream TTL in seconds.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(int, qbone_stream_ttl_secs, 3,
+                                "The QBONE Stream TTL in seconds.");
 
 namespace quic {
 

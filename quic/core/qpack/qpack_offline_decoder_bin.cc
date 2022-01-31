@@ -9,16 +9,17 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/test_tools/qpack/qpack_offline_decoder.h"
+#include "common/platform/api/quiche_command_line_flags.h"
 
 int main(int argc, char* argv[]) {
   const char* usage =
       "Usage: qpack_offline_decoder input_filename expected_headers_filename "
       "....";
   std::vector<std::string> args =
-      quic::QuicParseCommandLineFlags(usage, argc, argv);
+      quiche::QuicheParseCommandLineFlags(usage, argc, argv);
 
   if (args.size() < 2 || args.size() % 2 != 0) {
-    quic::QuicPrintCommandLineFlagHelp(usage);
+    quiche::QuichePrintCommandLineFlagHelp(usage);
     return 1;
   }
 

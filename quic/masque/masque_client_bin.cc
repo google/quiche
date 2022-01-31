@@ -23,17 +23,15 @@
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_system_event_loop.h"
 #include "quic/tools/fake_proof_verifier.h"
+#include "common/platform/api/quiche_command_line_flags.h"
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
-                              disable_certificate_verification,
-                              false,
-                              "If true, don't verify the server certificate.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, disable_certificate_verification, false,
+    "If true, don't verify the server certificate.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
-                              masque_mode,
-                              "",
-                              "Allows setting MASQUE mode, valid values are "
-                              "open and legacy. Defaults to open.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, masque_mode, "",
+                                "Allows setting MASQUE mode, valid values are "
+                                "open and legacy. Defaults to open.");
 
 namespace quic {
 
@@ -48,9 +46,10 @@ int RunMasqueClient(int argc, char* argv[]) {
   // Note that the URI template expansion currently only supports string
   // replacement of {target_host} and {target_port}, not
   // {?target_host,target_port}.
-  std::vector<std::string> urls = QuicParseCommandLineFlags(usage, argc, argv);
+  std::vector<std::string> urls =
+      quiche::QuicheParseCommandLineFlags(usage, argc, argv);
   if (urls.empty()) {
-    QuicPrintCommandLineFlagHelp(usage);
+    quiche::QuichePrintCommandLineFlagHelp(usage);
     return 1;
   }
 

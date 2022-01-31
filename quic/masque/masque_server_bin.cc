@@ -15,40 +15,33 @@
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_system_event_loop.h"
+#include "common/platform/api/quiche_command_line_flags.h"
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
-                              port,
-                              9661,
-                              "The port the MASQUE server will listen on.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, port, 9661,
+                                "The port the MASQUE server will listen on.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    std::string,
-    cache_dir,
-    "",
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, cache_dir, "",
     "Specifies the directory used during QuicHttpResponseCache "
     "construction to seed the cache. Cache directory can be "
     "generated using `wget -p --save-headers <url>`");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    std::string,
-    server_authority,
-    "",
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, server_authority, "",
     "Specifies the authority over which the server will accept MASQUE "
     "requests. Defaults to empty which allows all authorities.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
-                              masque_mode,
-                              "",
-                              "Allows setting MASQUE mode, valid values are "
-                              "open and legacy. Defaults to open.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, masque_mode, "",
+                                "Allows setting MASQUE mode, valid values are "
+                                "open and legacy. Defaults to open.");
 
 int main(int argc, char* argv[]) {
   QuicSystemEventLoop event_loop("masque_server");
   const char* usage = "Usage: masque_server [options]";
   std::vector<std::string> non_option_args =
-      quic::QuicParseCommandLineFlags(usage, argc, argv);
+      quiche::QuicheParseCommandLineFlags(usage, argc, argv);
   if (!non_option_args.empty()) {
-    quic::QuicPrintCommandLineFlagHelp(usage);
+    quiche::QuichePrintCommandLineFlagHelp(usage);
     return 0;
   }
 

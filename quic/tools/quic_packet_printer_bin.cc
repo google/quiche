@@ -34,12 +34,11 @@
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_flags.h"
+#include "common/platform/api/quiche_command_line_flags.h"
 #include "common/quiche_text_utils.h"
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
-                              quic_version,
-                              "",
-                              "If set, specify the QUIC version to use.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, quic_version, "",
+                                "If set, specify the QUIC version to use.");
 
 namespace quic {
 
@@ -248,10 +247,10 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
 int main(int argc, char* argv[]) {
   const char* usage = "Usage: quic_packet_printer client|server <hex>";
   std::vector<std::string> args =
-      quic::QuicParseCommandLineFlags(usage, argc, argv);
+      quiche::QuicheParseCommandLineFlags(usage, argc, argv);
 
   if (args.size() < 2) {
-    quic::QuicPrintCommandLineFlagHelp(usage);
+    quiche::QuichePrintCommandLineFlagHelp(usage);
     return 1;
   }
 
@@ -263,7 +262,7 @@ int main(int argc, char* argv[]) {
     perspective = quic::Perspective::IS_SERVER;
   } else {
     std::cerr << "Invalid perspective" << std::endl;
-    quic::QuicPrintCommandLineFlagHelp(usage);
+    quiche::QuichePrintCommandLineFlagHelp(usage);
     return 1;
   }
   std::string hex = absl::HexStringToBytes(args[1]);

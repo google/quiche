@@ -9,8 +9,9 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_types.h"
 #include "quic/qbone/qbone_constants.h"
+#include "common/platform/api/quiche_command_line_flags.h"
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, qbone_client_defer_control_stream_creation, true,
     "If true, control stream in QBONE client session is created after "
     "encryption established.");

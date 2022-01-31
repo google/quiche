@@ -63,6 +63,7 @@
 #include "quic/platform/api/quic_system_event_loop.h"
 #include "quic/tools/fake_proof_verifier.h"
 #include "quic/tools/quic_url.h"
+#include "common/platform/api/quiche_command_line_flags.h"
 #include "common/quiche_text_utils.h"
 
 namespace {
@@ -71,162 +72,120 @@ using quiche::QuicheTextUtils;
 
 }  // namespace
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    std::string,
-    host,
-    "",
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, host, "",
     "The IP or hostname to connect to. If not provided, the host "
     "will be derived from the provided URL.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t, port, 0, "The port to connect to.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, port, 0, "The port to connect to.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
-                              ip_version_for_host_lookup,
-                              "",
-                              "Only used if host address lookup is needed. "
-                              "4=ipv4; 6=ipv6; otherwise=don't care.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, ip_version_for_host_lookup, "",
+                                "Only used if host address lookup is needed. "
+                                "4=ipv4; 6=ipv6; otherwise=don't care.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
-                              body,
-                              "",
-                              "If set, send a POST with this body.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, body, "",
+                                "If set, send a POST with this body.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    std::string,
-    body_hex,
-    "",
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, body_hex, "",
     "If set, contents are converted from hex to ascii, before "
     "sending as body of a POST. e.g. --body_hex=\"68656c6c6f\"");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    std::string,
-    headers,
-    "",
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, headers, "",
     "A semicolon separated list of key:value pairs to "
     "add to request headers.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
-                              quiet,
-                              false,
-                              "Set to true for a quieter output experience.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, quiet, false,
+                                "Set to true for a quieter output experience.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    std::string,
-    quic_version,
-    "",
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, quic_version, "",
     "QUIC version to speak, e.g. 21. If not set, then all available "
     "versions are offered in the handshake. Also supports wire versions "
     "such as Q043 or T099.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    std::string,
-    connection_options,
-    "",
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, connection_options, "",
     "Connection options as ASCII tags separated by commas, "
     "e.g. \"ABCD,EFGH\"");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    std::string,
-    client_connection_options,
-    "",
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, client_connection_options, "",
     "Client connection options as ASCII tags separated by commas, "
     "e.g. \"ABCD,EFGH\"");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
-                              quic_ietf_draft,
-                              false,
-                              "Use the IETF draft version. This also enables "
-                              "required internal QUIC flags.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, quic_ietf_draft, false,
+                                "Use the IETF draft version. This also enables "
+                                "required internal QUIC flags.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    bool,
-    version_mismatch_ok,
-    false,
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, version_mismatch_ok, false,
     "If true, a version mismatch in the handshake is not considered a "
     "failure. Useful for probing a server to determine if it speaks "
     "any version of QUIC.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    bool,
-    force_version_negotiation,
-    false,
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, force_version_negotiation, false,
     "If true, start by proposing a version that is reserved for version "
     "negotiation.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    bool,
-    multi_packet_chlo,
-    false,
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, multi_packet_chlo, false,
     "If true, add a transport parameter to make the ClientHello span two "
     "packets. Only works with QUIC+TLS.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    bool,
-    redirect_is_success,
-    true,
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, redirect_is_success, true,
     "If true, an HTTP response code of 3xx is considered to be a "
     "successful response, otherwise a failure.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
-                              initial_mtu,
-                              0,
-                              "Initial MTU of the connection.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, initial_mtu, 0,
+                                "Initial MTU of the connection.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    int32_t,
-    num_requests,
-    1,
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    int32_t, num_requests, 1,
     "How many sequential requests to make on a single connection.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
-                              disable_certificate_verification,
-                              false,
-                              "If true, don't verify the server certificate.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, disable_certificate_verification, false,
+    "If true, don't verify the server certificate.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, default_client_cert, "",
     "The path to the file containing PEM-encoded client default certificate to "
     "be sent to the server, if server requested client certs.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, default_client_cert_key, "",
     "The path to the file containing PEM-encoded private key of the client's "
     "default certificate for signing, if server requested client certs.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    bool,
-    drop_response_body,
-    false,
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, drop_response_body, false,
     "If true, drop response body immediately after it is received.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    bool,
-    disable_port_changes,
-    false,
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, disable_port_changes, false,
     "If true, do not change local port after each request.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
-                              one_connection_per_request,
-                              false,
-                              "If true, close the connection after each "
-                              "request. This allows testing 0-RTT.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, one_connection_per_request, false,
+                                "If true, close the connection after each "
+                                "request. This allows testing 0-RTT.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
-                              server_connection_id_length,
-                              -1,
-                              "Length of the server connection ID used.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, server_connection_id_length, -1,
+                                "Length of the server connection ID used.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
-                              client_connection_id_length,
-                              -1,
-                              "Length of the client connection ID used.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, client_connection_id_length, -1,
+                                "Length of the client connection ID used.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t, max_time_before_crypto_handshake_ms,
-                              10000,
-                              "Max time to wait before handshake completes.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, max_time_before_crypto_handshake_ms,
+                                10000,
+                                "Max time to wait before handshake completes.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t, max_inbound_header_list_size, 128 * 1024,
-                              "Max inbound header list size. 0 means default.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    int32_t, max_inbound_header_list_size, 128 * 1024,
+    "Max inbound header list size. 0 means default.");
 
 namespace quic {
 namespace {
