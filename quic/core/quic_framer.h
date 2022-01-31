@@ -315,6 +315,13 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     process_timestamps_ = process_timestamps;
   }
 
+  // Sets the max number of receive timestamps to send per ACK frame.
+  // TODO(wub): Remove the const once timestamps are negotiated via
+  // transport params.
+  void set_max_receive_timestamps_per_ack(uint32_t max_timestamps) const {
+    max_receive_timestamps_per_ack_ = max_timestamps;
+  }
+
   // Sets the exponent to use when writing/reading ACK receive timestamps.
   void set_receive_timestamps_exponent(uint32_t exponent) {
     receive_timestamps_exponent_ = exponent;
@@ -347,7 +354,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // blocks.
   static size_t GetMinAckFrameSize(QuicTransportVersion version,
                                    const QuicAckFrame& ack_frame,
-                                   uint32_t local_ack_delay_exponent);
+                                   uint32_t local_ack_delay_exponent,
+                                   bool use_ietf_ack_with_receive_timestamp);
   // Size in bytes of a stop waiting frame.
   static size_t GetStopWaitingFrameSize(
       QuicPacketNumberLength packet_number_length);
@@ -727,6 +735,23 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   using NackRangeMap = std::map<QuicPacketNumber, uint8_t>;
 
+  // AckTimestampRange is a data structure derived from a QuicAckFrame. It is
+  // used to serialize timestamps in a IETF_ACK_RECEIVE_TIMESTAMPS frame.
+  struct QUIC_EXPORT_PRIVATE AckTimestampRange {
+    QuicPacketCount gap;
+    // |range_begin| and |range_end| are index(es) in
+    // QuicAckFrame.received_packet_times, representing a continuous range of
+    // packet numbers in descending order. |range_begin| >= |range_end|.
+    ssize_t range_begin;  // Inclusive
+    ssize_t range_end;    // Inclusive
+  };
+  absl::InlinedVector<AckTimestampRange, 2> GetAckTimestampRanges(
+      const QuicAckFrame& frame, std::string& detailed_error) const;
+  ssize_t FrameAckTimestampRanges(
+      const QuicAckFrame& frame,
+      const absl::InlinedVector<AckTimestampRange, 2>& timestamp_ranges,
+      QuicDataWriter* writer) const;
+
   struct QUIC_EXPORT_PRIVATE AckFrameInfo {
     AckFrameInfo();
     AckFrameInfo(const AckFrameInfo& other);
@@ -895,6 +920,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Computes the wire size in bytes of time stamps in |ack|.
   size_t GetAckFrameTimeStampSize(const QuicAckFrame& ack);
+  size_t GetIetfAckFrameTimestampSize(const QuicAckFrame& ack);
 
   // Computes the wire size in bytes of the |ack| frame.
   size_t GetAckFrameSize(const QuicAckFrame& ack,
@@ -958,6 +984,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // of the frame.
   bool AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
                                      QuicDataWriter* writer);
+  bool AppendIetfTimestampsToAckFrame(const QuicAckFrame& frame,
+                                      QuicDataWriter* writer);
 
   bool AppendStopWaitingFrame(const QuicPacketHeader& header,
                               const QuicStopWaitingFrame& frame,
@@ -1080,6 +1108,15 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   bool ProcessPacketInternal(const QuicEncryptedPacket& packet);
 
+  // Determine whether the given QuicAckFrame should be serialized with a
+  // IETF_ACK_RECEIVE_TIMESTAMPS frame type.
+  bool UseIetfAckWithReceiveTimestamp(const QuicAckFrame& frame) const {
+    return VersionHasIetfQuicFrames(version_.transport_version) &&
+           process_timestamps_ &&
+           std::min<uint32_t>(max_receive_timestamps_per_ack_,
+                              frame.received_packet_times.size()) > 0;
+  }
+
   std::string detailed_error_;
   QuicFramerVisitorInterface* visitor_;
   QuicErrorCode error_;
@@ -1123,6 +1160,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // If true, send and process timestamps in the ACK frame.
   // TODO(ianswett): Remove the mutable once set_process_timestamps isn't const.
   mutable bool process_timestamps_;
+  // The max number of receive timestamps to send per ACK frame.
+  mutable uint32_t max_receive_timestamps_per_ack_;
   // The exponent to use when writing/reading ACK receive timestamps.
   uint32_t receive_timestamps_exponent_;
   // The creation time of the connection, used to calculate timestamps.

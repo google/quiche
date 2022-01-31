@@ -111,6 +111,8 @@ struct QUIC_EXPORT_PRIVATE QuicAckFrame {
   QuicTime::Delta ack_delay_time = QuicTime::Delta::Infinite();
 
   // Vector of <packet_number, time> for when packets arrived.
+  // For IETF versions, packet numbers and timestamps in this vector are both in
+  // ascending orders. Packets received out of order are not saved here.
   PacketTimeVector received_packet_times;
 
   // Set of packets.
