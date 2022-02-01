@@ -395,10 +395,6 @@ size_t TlsClientHandshaker::BufferSizeLimitForLevel(
   return TlsHandshaker::BufferSizeLimitForLevel(level);
 }
 
-bool TlsClientHandshaker::KeyUpdateSupportedLocally() const {
-  return true;
-}
-
 std::unique_ptr<QuicDecrypter>
 TlsClientHandshaker::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
   return TlsHandshaker::AdvanceKeysAndCreateCurrentOneRttDecrypter();

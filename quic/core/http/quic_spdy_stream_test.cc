@@ -136,7 +136,6 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   }
   void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> /*application_state*/) override {}
-  bool KeyUpdateSupportedLocally() const override { return true; }
   std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
       override {
     return nullptr;

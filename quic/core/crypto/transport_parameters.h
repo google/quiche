@@ -263,10 +263,6 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // Google-specific user agent identifier.
   absl::optional<std::string> user_agent_id;
 
-  // Google-specific mechanism to indicate that IETF QUIC Key Update has not
-  // yet been implemented. This will be removed once we implement it.
-  bool key_update_not_yet_supported;
-
   // Validates whether transport parameters are valid according to
   // the specification. If the transport parameters are not valid, this method
   // will write a human-readable error message to |error_details|.

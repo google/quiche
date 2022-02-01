@@ -180,10 +180,6 @@ size_t QuicCryptoClientHandshaker::BufferSizeLimitForLevel(
   return QuicCryptoHandshaker::BufferSizeLimitForLevel(level);
 }
 
-bool QuicCryptoClientHandshaker::KeyUpdateSupportedLocally() const {
-  return false;
-}
-
 std::unique_ptr<QuicDecrypter>
 QuicCryptoClientHandshaker::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
   // Key update is only defined in QUIC+TLS.

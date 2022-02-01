@@ -159,7 +159,6 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   }
   void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> /*application_state*/) override {}
-  MOCK_METHOD(bool, KeyUpdateSupportedLocally, (), (const, override));
   MOCK_METHOD(std::unique_ptr<QuicDecrypter>,
               AdvanceKeysAndCreateCurrentOneRttDecrypter,
               (),
@@ -235,8 +234,6 @@ class TestSession : public QuicSession {
         writev_consumes_all_data_(false),
         uses_pending_streams_(false),
         num_incoming_streams_created_(0) {
-    EXPECT_CALL(*GetMutableCryptoStream(), KeyUpdateSupportedLocally())
-        .WillRepeatedly(Return(false));
     Initialize();
     this->connection()->SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
@@ -2292,20 +2289,6 @@ TEST_P(QuicSessionTestClient, MinAckDelaySetOnTheClientQuicConfig) {
   ASSERT_EQ(session_.config()->GetMinAckDelayToSendMs(),
             kDefaultMinAckDelayTimeMs);
   ASSERT_TRUE(session_.connection()->can_receive_ack_frequency_frame());
-}
-
-TEST_P(QuicSessionTestClient, KeyUpdateNotSupportedLocally) {
-  EXPECT_CALL(*session_.GetMutableCryptoStream(), KeyUpdateSupportedLocally())
-      .WillOnce(Return(false));
-  session_.Initialize();
-  EXPECT_FALSE(session_.config()->KeyUpdateSupportedLocally());
-}
-
-TEST_P(QuicSessionTestClient, KeyUpdateSupportedLocally) {
-  EXPECT_CALL(*session_.GetMutableCryptoStream(), KeyUpdateSupportedLocally())
-      .WillOnce(Return(true));
-  session_.Initialize();
-  EXPECT_TRUE(session_.config()->KeyUpdateSupportedLocally());
 }
 
 TEST_P(QuicSessionTestClient, FailedToCreateStreamIfTooCloseToIdleTimeout) {

@@ -456,8 +456,6 @@ QuicConfig::QuicConfig()
       initial_stream_flow_control_window_bytes_(kSFCW, PRESENCE_OPTIONAL),
       initial_session_flow_control_window_bytes_(kCFCW, PRESENCE_OPTIONAL),
       connection_migration_disabled_(kNCMR, PRESENCE_OPTIONAL),
-      key_update_supported_remotely_(false),
-      key_update_supported_locally_(false),
       alternate_server_address_ipv6_(kASAD, PRESENCE_OPTIONAL),
       alternate_server_address_ipv4_(kASAD, PRESENCE_OPTIONAL),
       stateless_reset_token_(kSRST, PRESENCE_OPTIONAL),
@@ -861,22 +859,6 @@ void QuicConfig::SetDisableConnectionMigration() {
 
 bool QuicConfig::DisableConnectionMigration() const {
   return connection_migration_disabled_.HasReceivedValue();
-}
-
-void QuicConfig::SetKeyUpdateSupportedLocally() {
-  key_update_supported_locally_ = true;
-}
-
-bool QuicConfig::KeyUpdateSupportedForConnection() const {
-  return KeyUpdateSupportedRemotely() && KeyUpdateSupportedLocally();
-}
-
-bool QuicConfig::KeyUpdateSupportedLocally() const {
-  return key_update_supported_locally_;
-}
-
-bool QuicConfig::KeyUpdateSupportedRemotely() const {
-  return key_update_supported_remotely_;
 }
 
 void QuicConfig::SetIPv6AlternateServerAddressToSend(
@@ -1297,10 +1279,6 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
     params->google_connection_options = connection_options_.GetSendValues();
   }
 
-  if (!KeyUpdateSupportedLocally()) {
-    params->key_update_not_yet_supported = true;
-  }
-
   params->custom_parameters = custom_transport_parameters_to_send_;
 
   return true;
@@ -1409,9 +1387,6 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
 
   if (params.disable_active_migration) {
     connection_migration_disabled_.SetReceivedValue(1u);
-  }
-  if (!is_resumption && !params.key_update_not_yet_supported) {
-    key_update_supported_remotely_ = true;
   }
 
   active_connection_id_limit_.SetReceivedValue(

@@ -56,7 +56,7 @@ enum TransportParameters::TransportParameterId : uint64_t {
   kGoogleConnectionOptions = 0x3128,
   kGoogleUserAgentId = 0x3129,
   // 0x312A was used only in T050 to indicate support for HANDSHAKE_DONE.
-  kGoogleKeyUpdateNotYetSupported = 0x312B,
+  // 0x312B was used to indicate that QUIC+TLS key updates were not supported.
   // 0x4751 was used for non-standard Google-specific parameters encoded as a
   // Google QUIC_CRYPTO CHLO, it has been replaced by individual parameters.
   kGoogleQuicVersion =
@@ -124,8 +124,6 @@ std::string TransportParameterIdToString(
       return "google_connection_options";
     case TransportParameters::kGoogleUserAgentId:
       return "user_agent_id";
-    case TransportParameters::kGoogleKeyUpdateNotYetSupported:
-      return "key_update_not_yet_supported";
     case TransportParameters::kGoogleQuicVersion:
       return "google-version";
     case TransportParameters::kMinAckDelay:
@@ -166,8 +164,6 @@ bool TransportParameterIdIsKnown(
       return GetQuicReloadableFlag(quic_version_information);
     case TransportParameters::kGoogleUserAgentId:
       return !GetQuicReloadableFlag(quic_ignore_user_agent_transport_parameter);
-    case TransportParameters::kGoogleKeyUpdateNotYetSupported:
-      return !GetQuicReloadableFlag(quic_ignore_key_update_not_yet_supported);
   }
   return false;
 }
@@ -451,9 +447,6 @@ std::string TransportParameters::ToString() const {
     rv += " " + TransportParameterIdToString(kGoogleUserAgentId) + " \"" +
           user_agent_id.value() + "\"";
   }
-  if (key_update_not_yet_supported) {
-    rv += " " + TransportParameterIdToString(kGoogleKeyUpdateNotYetSupported);
-  }
   for (const auto& kv : custom_parameters) {
     absl::StrAppend(&rv, " 0x", absl::Hex(static_cast<uint32_t>(kv.first)),
                     "=");
@@ -493,8 +486,7 @@ TransportParameters::TransportParameters()
                                  kMinActiveConnectionIdLimitTransportParam,
                                  kVarInt62MaxValue),
       max_datagram_frame_size(kMaxDatagramFrameSize),
-      initial_round_trip_time_us(kInitialRoundTripTime),
-      key_update_not_yet_supported(false)
+      initial_round_trip_time_us(kInitialRoundTripTime)
 // Important note: any new transport parameters must be added
 // to TransportParameters::AreValid, SerializeTransportParameters and
 // ParseTransportParameters, TransportParameters's custom copy constructor, the
@@ -529,7 +521,6 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       initial_round_trip_time_us(other.initial_round_trip_time_us),
       google_connection_options(other.google_connection_options),
       user_agent_id(other.user_agent_id),
-      key_update_not_yet_supported(other.key_update_not_yet_supported),
       custom_parameters(other.custom_parameters) {
   if (other.preferred_address) {
     preferred_address = std::make_unique<TransportParameters::PreferredAddress>(
@@ -571,7 +562,6 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
             rhs.initial_round_trip_time_us.value() &&
         google_connection_options == rhs.google_connection_options &&
         user_agent_id == rhs.user_agent_id &&
-        key_update_not_yet_supported == rhs.key_update_not_yet_supported &&
         custom_parameters == rhs.custom_parameters)) {
     return false;
   }
@@ -759,7 +749,6 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
       kIntegerParameterLength +           // initial_round_trip_time_us
       kTypeAndValueLength +               // google_connection_options
       kTypeAndValueLength +               // user_agent_id
-      kTypeAndValueLength +               // key_update_not_yet_supported
       kTypeAndValueLength;                // google-version
 
   std::vector<TransportParameters::TransportParameterId> parameter_ids = {
@@ -785,7 +774,6 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
       TransportParameters::kRetrySourceConnectionId,
       TransportParameters::kGoogleConnectionOptions,
       TransportParameters::kGoogleUserAgentId,
-      TransportParameters::kGoogleKeyUpdateNotYetSupported,
       TransportParameters::kGoogleQuicVersion,
       TransportParameters::kVersionInformation,
   };
@@ -1136,18 +1124,6 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
           }
         }
       } break;
-      // Google-specific indicator for key update not yet supported.
-      case TransportParameters::kGoogleKeyUpdateNotYetSupported: {
-        if (in.key_update_not_yet_supported) {
-          if (!writer.WriteVarInt62(
-                  TransportParameters::kGoogleKeyUpdateNotYetSupported) ||
-              !writer.WriteVarInt62(/* transport parameter length */ 0)) {
-            QUIC_BUG(Failed to write key_update_not_yet_supported)
-                << "Failed to write key_update_not_yet_supported for " << in;
-            return false;
-          }
-        }
-      } break;
       // Google-specific version extension.
       case TransportParameters::kGoogleQuicVersion: {
         if (!in.legacy_version_information.has_value()) {
@@ -1492,31 +1468,6 @@ bool ParseTransportParameters(ParsedQuicVersion version,
           return false;
         }
         out->user_agent_id = std::string(value_reader.ReadRemainingPayload());
-        break;
-      case TransportParameters::kGoogleKeyUpdateNotYetSupported:
-        if (GetQuicReloadableFlag(quic_ignore_key_update_not_yet_supported)) {
-          QUIC_RELOADABLE_FLAG_COUNT_N(quic_ignore_key_update_not_yet_supported,
-                                       1, 2);
-          QUIC_CODE_COUNT(quic_ignore_key_update_not_yet_supported_ignored);
-          // This is a copy of the default switch statement below.
-          // TODO(dschinazi) remove this case entirely when deprecating the
-          // quic_ignore_key_update_not_yet_supported flag.
-          if (out->custom_parameters.find(param_id) !=
-              out->custom_parameters.end()) {
-            *error_details = "Received a second unknown parameter" +
-                             TransportParameterIdToString(param_id);
-            return false;
-          }
-          out->custom_parameters[param_id] =
-              std::string(value_reader.ReadRemainingPayload());
-          break;
-        }
-        QUIC_CODE_COUNT(quic_ignore_key_update_not_yet_supported_received);
-        if (out->key_update_not_yet_supported) {
-          *error_details = "Received a second key_update_not_yet_supported";
-          return false;
-        }
-        out->key_update_not_yet_supported = true;
         break;
       case TransportParameters::kGoogleQuicVersion: {
         if (!out->legacy_version_information.has_value()) {
