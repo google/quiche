@@ -70,6 +70,8 @@ TEST(ClientCallbackVisitorUnitTest, ConnectionFrames) {
   EXPECT_CALL(callbacks, OnFrameRecv(IsGoAway(5, NGHTTP2_ENHANCE_YOUR_CALM,
                                               "calm down!!")));
   visitor.OnGoAway(5, Http2ErrorCode::ENHANCE_YOUR_CALM, "calm down!!");
+
+  EXPECT_EQ(visitor.stream_map_size(), 0);
 }
 
 TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
@@ -79,6 +81,8 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
 
   testing::InSequence seq;
 
+  EXPECT_EQ(visitor.stream_map_size(), 0);
+
   // HEADERS on stream 1
   EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(1, HEADERS, _)));
   visitor.OnFrameHeader(1, 23, HEADERS, 4);
@@ -86,6 +90,8 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
   EXPECT_CALL(callbacks,
               OnBeginHeaders(IsHeaders(1, _, NGHTTP2_HCAT_RESPONSE)));
   visitor.OnBeginHeadersForStream(1);
+
+  EXPECT_EQ(visitor.stream_map_size(), 1);
 
   EXPECT_CALL(callbacks, OnHeader(_, ":status", "200", _));
   visitor.OnHeaderForStream(1, ":status", "200");
@@ -129,6 +135,9 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
   EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(3, RST_STREAM, 0)));
   visitor.OnFrameHeader(3, 4, RST_STREAM, 0);
 
+  // No change in stream map size.
+  EXPECT_EQ(visitor.stream_map_size(), 1);
+
   EXPECT_CALL(callbacks, OnFrameRecv(IsRstStream(3, NGHTTP2_INTERNAL_ERROR)));
   visitor.OnRstStream(3, Http2ErrorCode::INTERNAL_ERROR);
 
@@ -147,6 +156,9 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
   EXPECT_CALL(callbacks, OnStreamClose(1, NGHTTP2_NO_ERROR));
   visitor.OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR);
 
+  // Stream map is empty again.
+  EXPECT_EQ(visitor.stream_map_size(), 0);
+
   EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(5, RST_STREAM, _)));
   visitor.OnFrameHeader(5, 4, RST_STREAM, 0);
 
@@ -155,6 +167,8 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
 
   EXPECT_CALL(callbacks, OnStreamClose(5, NGHTTP2_REFUSED_STREAM));
   visitor.OnCloseStream(5, Http2ErrorCode::REFUSED_STREAM);
+
+  EXPECT_EQ(visitor.stream_map_size(), 0);
 }
 
 TEST(ClientCallbackVisitorUnitTest, HeadersWithContinuation) {
@@ -228,6 +242,8 @@ TEST(ServerCallbackVisitorUnitTest, ConnectionFrames) {
 
   EXPECT_CALL(callbacks, OnFrameRecv(IsPingAck(247)));
   visitor.OnPing(247, true);
+
+  EXPECT_EQ(visitor.stream_map_size(), 0);
 }
 
 TEST(ServerCallbackVisitorUnitTest, StreamFrames) {
@@ -245,6 +261,8 @@ TEST(ServerCallbackVisitorUnitTest, StreamFrames) {
   EXPECT_CALL(callbacks, OnBeginHeaders(IsHeaders(1, NGHTTP2_FLAG_END_HEADERS,
                                                   NGHTTP2_HCAT_REQUEST)));
   visitor.OnBeginHeadersForStream(1);
+
+  EXPECT_EQ(visitor.stream_map_size(), 1);
 
   EXPECT_CALL(callbacks, OnHeader(_, ":method", "POST", _));
   visitor.OnHeaderForStream(1, ":method", "POST");
@@ -280,6 +298,8 @@ TEST(ServerCallbackVisitorUnitTest, StreamFrames) {
   EXPECT_CALL(callbacks, OnStreamClose(1, NGHTTP2_NO_ERROR));
   visitor.OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR);
 
+  EXPECT_EQ(visitor.stream_map_size(), 0);
+
   // RST_STREAM on stream 3
   EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(3, RST_STREAM, 0)));
   visitor.OnFrameHeader(3, 4, RST_STREAM, 0);
@@ -289,6 +309,8 @@ TEST(ServerCallbackVisitorUnitTest, StreamFrames) {
 
   EXPECT_CALL(callbacks, OnStreamClose(3, NGHTTP2_INTERNAL_ERROR));
   visitor.OnCloseStream(3, Http2ErrorCode::INTERNAL_ERROR);
+
+  EXPECT_EQ(visitor.stream_map_size(), 0);
 }
 
 TEST(ServerCallbackVisitorUnitTest, DataWithPadding) {

@@ -69,6 +69,8 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
   bool OnMetadataEndForStream(Http2StreamId stream_id) override;
   void OnErrorDebug(absl::string_view message) override;
 
+  size_t stream_map_size() const { return stream_map_.size(); }
+
  private:
   struct QUICHE_EXPORT_PRIVATE StreamInfo {
     bool before_sent_headers = false;
@@ -82,8 +84,11 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
   void PopulateFrame(nghttp2_frame& frame, uint8_t frame_type,
                      Http2StreamId stream_id, size_t length, uint8_t flags,
                      uint32_t error_code, bool sent_headers);
+
   // Creates the StreamInfoMap entry if it doesn't exist.
   StreamInfoMap::iterator GetStreamInfo(Http2StreamId stream_id);
+
+  StreamInfoMap stream_map_;
 
   Perspective perspective_;
   nghttp2_session_callbacks_unique_ptr callbacks_;
@@ -92,8 +97,6 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
   nghttp2_frame current_frame_;
   std::vector<nghttp2_settings_entry> settings_;
   size_t remaining_data_ = 0;
-
-  StreamInfoMap stream_map_;
 };
 
 }  // namespace adapter
