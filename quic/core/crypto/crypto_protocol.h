@@ -434,6 +434,7 @@ const QuicTag kSRWP = TAG('S', 'R', 'W', 'P');   // Enable retransmittable on
 // Client Hints triggers.
 const QuicTag kGWCH = TAG('G', 'W', 'C', 'H');
 const QuicTag kYTCH = TAG('Y', 'T', 'C', 'H');
+const QuicTag kACH0 = TAG('A', 'C', 'H', '0');
 
 // Rejection tags
 const QuicTag kRREJ = TAG('R', 'R', 'E', 'J');   // Reasons for server sending
