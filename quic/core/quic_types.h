@@ -14,6 +14,7 @@
 
 #include "absl/container/inlined_vector.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_packet_number.h"
