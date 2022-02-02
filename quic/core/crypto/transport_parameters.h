@@ -260,9 +260,6 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // Google-specific connection options.
   absl::optional<QuicTagVector> google_connection_options;
 
-  // Google-specific user agent identifier.
-  absl::optional<std::string> user_agent_id;
-
   // Validates whether transport parameters are valid according to
   // the specification. If the transport parameters are not valid, this method
   // will write a human-readable error message to |error_details|.

@@ -240,9 +240,6 @@ bool TlsClientHandshaker::SetTransportParameters() {
   if (!handshaker_delegate()->FillTransportParameters(&params)) {
     return false;
   }
-  if (!user_agent_id_.empty()) {
-    params.user_agent_id = user_agent_id_;
-  }
 
   // Notify QuicConnectionDebugVisitor.
   session()->connection()->OnTransportParametersSent(params);

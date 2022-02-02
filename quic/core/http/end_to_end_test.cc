@@ -552,12 +552,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
           EXPECT_EQ(0u, server_stats.packets_lost);
         }
         EXPECT_EQ(0u, server_stats.packets_discarded);
-        if (!GetQuicReloadableFlag(
-                quic_ignore_user_agent_transport_parameter)) {
-          EXPECT_EQ(
-              server_session->user_agent_id().value_or("MissingUserAgent"),
-              kTestUserAgentId);
-        }
       } else {
         ADD_FAILURE() << "Missing server connection";
       }
@@ -5902,10 +5896,6 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
   QuicConfig* server_config = nullptr;
   if (server_session != nullptr) {
     server_config = server_session->config();
-    if (!GetQuicReloadableFlag(quic_ignore_user_agent_transport_parameter)) {
-      EXPECT_EQ(server_session->user_agent_id().value_or("MissingUserAgent"),
-                kTestUserAgentId);
-    }
   } else {
     ADD_FAILURE() << "Missing server session";
   }

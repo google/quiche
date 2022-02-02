@@ -502,10 +502,6 @@ bool TlsServerHandshaker::ProcessTransportParameters(
   }
 
   ProcessAdditionalTransportParameters(client_params);
-  if (!session()->user_agent_id().has_value() &&
-      client_params.user_agent_id.has_value()) {
-    session()->SetUserAgentId(client_params.user_agent_id.value());
-  }
 
   return true;
 }

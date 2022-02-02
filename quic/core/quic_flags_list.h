@@ -123,8 +123,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_use_token_in_session_cache, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_match_ietf_reset_code, true)
 // When the flag is true, exit STARTUP after the same number of loss events as PROBE_UP.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_startup_probe_up_loss_events, true)
-// When true, QUIC server will ignore received user agent transport parameter and rely on getting that information from HTTP headers.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_user_agent_transport_parameter, true)
 // When true, QUIC will both send and validate the version_information transport parameter.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_version_information, false)
 // When true, defaults to BBR congestion control instead of Cubic.
