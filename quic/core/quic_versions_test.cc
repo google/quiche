@@ -18,20 +18,13 @@ namespace {
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
 
-class QuicVersionsTest : public QuicTest {
- protected:
-  QuicVersionLabel MakeVersionLabel(char a, char b, char c, char d) {
-    return MakeQuicTag(d, c, b, a);
-  }
-};
-
-TEST_F(QuicVersionsTest, CreateQuicVersionLabelUnsupported) {
+TEST(QuicVersionsTest, CreateQuicVersionLabelUnsupported) {
   EXPECT_QUIC_BUG(
       CreateQuicVersionLabel(UnsupportedQuicVersion()),
       "Unsupported version QUIC_VERSION_UNSUPPORTED PROTOCOL_UNSUPPORTED");
 }
 
-TEST_F(QuicVersionsTest, KnownAndValid) {
+TEST(QuicVersionsTest, KnownAndValid) {
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     EXPECT_TRUE(version.IsKnown());
     EXPECT_TRUE(ParsedQuicVersionIsValid(version.handshake_protocol,
@@ -58,7 +51,7 @@ TEST_F(QuicVersionsTest, KnownAndValid) {
                                         static_cast<QuicTransportVersion>(99)));
 }
 
-TEST_F(QuicVersionsTest, Features) {
+TEST(QuicVersionsTest, Features) {
   ParsedQuicVersion parsed_version_q043 = ParsedQuicVersion::Q043();
   ParsedQuicVersion parsed_version_draft_29 = ParsedQuicVersion::Draft29();
 
@@ -109,7 +102,7 @@ TEST_F(QuicVersionsTest, Features) {
   EXPECT_FALSE(parsed_version_draft_29.UsesQuicCrypto());
 }
 
-TEST_F(QuicVersionsTest, ParseQuicVersionLabel) {
+TEST(QuicVersionsTest, ParseQuicVersionLabel) {
   EXPECT_EQ(ParsedQuicVersion::Q043(),
             ParseQuicVersionLabel(MakeVersionLabel('Q', '0', '4', '3')));
   EXPECT_EQ(ParsedQuicVersion::Q046(),
@@ -132,7 +125,7 @@ TEST_F(QuicVersionsTest, ParseQuicVersionLabel) {
                 MakeVersionLabel(0xff, 0x00, 0x00, 0x1d)}));
 }
 
-TEST_F(QuicVersionsTest, ParseQuicVersionString) {
+TEST(QuicVersionsTest, ParseQuicVersionString) {
   EXPECT_EQ(ParsedQuicVersion::Q043(), ParseQuicVersionString("Q043"));
   EXPECT_EQ(ParsedQuicVersion::Q046(),
             ParseQuicVersionString("QUIC_VERSION_46"));
@@ -158,7 +151,7 @@ TEST_F(QuicVersionsTest, ParseQuicVersionString) {
   }
 }
 
-TEST_F(QuicVersionsTest, ParseQuicVersionVectorString) {
+TEST(QuicVersionsTest, ParseQuicVersionVectorString) {
   ParsedQuicVersion version_q046 = ParsedQuicVersion::Q046();
   ParsedQuicVersion version_q050 = ParsedQuicVersion::Q050();
   ParsedQuicVersion version_draft_29 = ParsedQuicVersion::Draft29();
@@ -210,34 +203,31 @@ TEST_F(QuicVersionsTest, ParseQuicVersionVectorString) {
               ElementsAre(version_draft_29));
 }
 
-TEST_F(QuicVersionsTest, CreateQuicVersionLabel) {
-  EXPECT_EQ(MakeVersionLabel('Q', '0', '4', '3'),
-            CreateQuicVersionLabel(ParsedQuicVersion::Q043()));
-  EXPECT_EQ(MakeVersionLabel('Q', '0', '4', '6'),
-            CreateQuicVersionLabel(ParsedQuicVersion::Q046()));
-  EXPECT_EQ(MakeVersionLabel('Q', '0', '5', '0'),
-            CreateQuicVersionLabel(ParsedQuicVersion::Q050()));
-  EXPECT_EQ(MakeVersionLabel(0xff, 0x00, 0x00, 0x1d),
-            CreateQuicVersionLabel(ParsedQuicVersion::Draft29()));
-  EXPECT_EQ(MakeVersionLabel(0x00, 0x00, 0x00, 0x01),
-            CreateQuicVersionLabel(ParsedQuicVersion::RFCv1()));
-  EXPECT_EQ(MakeVersionLabel(0x70, 0x9a, 0x50, 0xc4),
+// Do not use MakeVersionLabel() to generate expectations, because
+// CreateQuicVersionLabel() uses MakeVersionLabel() internally,
+// in case it has a bug.
+TEST(QuicVersionsTest, CreateQuicVersionLabel) {
+  EXPECT_EQ(0x51303433u, CreateQuicVersionLabel(ParsedQuicVersion::Q043()));
+  EXPECT_EQ(0x51303436u, CreateQuicVersionLabel(ParsedQuicVersion::Q046()));
+  EXPECT_EQ(0x51303530u, CreateQuicVersionLabel(ParsedQuicVersion::Q050()));
+  EXPECT_EQ(0xff00001du, CreateQuicVersionLabel(ParsedQuicVersion::Draft29()));
+  EXPECT_EQ(0x00000001u, CreateQuicVersionLabel(ParsedQuicVersion::RFCv1()));
+  EXPECT_EQ(0x709a50c4u,
             CreateQuicVersionLabel(ParsedQuicVersion::V2Draft01()));
 
   // Make sure the negotiation reserved version is in the IETF reserved space.
   EXPECT_EQ(
-      MakeVersionLabel(0xda, 0x5a, 0x3a, 0x3a) & 0x0f0f0f0f,
+      0xda5a3a3au & 0x0f0f0f0f,
       CreateQuicVersionLabel(ParsedQuicVersion::ReservedForNegotiation()) &
           0x0f0f0f0f);
 
   // Make sure that disabling randomness works.
   SetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness, true);
-  EXPECT_EQ(
-      MakeVersionLabel(0xda, 0x5a, 0x3a, 0x3a),
-      CreateQuicVersionLabel(ParsedQuicVersion::ReservedForNegotiation()));
+  EXPECT_EQ(0xda5a3a3au, CreateQuicVersionLabel(
+                             ParsedQuicVersion::ReservedForNegotiation()));
 }
 
-TEST_F(QuicVersionsTest, QuicVersionLabelToString) {
+TEST(QuicVersionsTest, QuicVersionLabelToString) {
   QuicVersionLabelVector version_labels = {
       MakeVersionLabel('Q', '0', '3', '5'),
       MakeVersionLabel('Q', '0', '3', '7'),
@@ -258,7 +248,7 @@ TEST_F(QuicVersionsTest, QuicVersionLabelToString) {
   EXPECT_EQ("Q035,Q037,T038", os.str());
 }
 
-TEST_F(QuicVersionsTest, QuicVersionToString) {
+TEST(QuicVersionsTest, QuicVersionToString) {
   EXPECT_EQ("QUIC_VERSION_UNSUPPORTED",
             QuicVersionToString(QUIC_VERSION_UNSUPPORTED));
 
@@ -290,7 +280,7 @@ TEST_F(QuicVersionsTest, QuicVersionToString) {
   EXPECT_EQ("QUIC_VERSION_UNSUPPORTED,QUIC_VERSION_43", os.str());
 }
 
-TEST_F(QuicVersionsTest, ParsedQuicVersionToString) {
+TEST(QuicVersionsTest, ParsedQuicVersionToString) {
   EXPECT_EQ("0", ParsedQuicVersionToString(ParsedQuicVersion::Unsupported()));
   EXPECT_EQ("Q043", ParsedQuicVersionToString(ParsedQuicVersion::Q043()));
   EXPECT_EQ("Q046", ParsedQuicVersionToString(ParsedQuicVersion::Q046()));
@@ -321,7 +311,7 @@ TEST_F(QuicVersionsTest, ParsedQuicVersionToString) {
   EXPECT_EQ("0,Q043", os.str());
 }
 
-TEST_F(QuicVersionsTest, FilterSupportedVersionsAllVersions) {
+TEST(QuicVersionsTest, FilterSupportedVersionsAllVersions) {
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     QuicEnableVersion(version);
   }
@@ -334,7 +324,7 @@ TEST_F(QuicVersionsTest, FilterSupportedVersionsAllVersions) {
   EXPECT_EQ(expected_parsed_versions, AllSupportedVersions());
 }
 
-TEST_F(QuicVersionsTest, FilterSupportedVersionsWithoutFirstVersion) {
+TEST(QuicVersionsTest, FilterSupportedVersionsWithoutFirstVersion) {
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     QuicEnableVersion(version);
   }
@@ -348,7 +338,7 @@ TEST_F(QuicVersionsTest, FilterSupportedVersionsWithoutFirstVersion) {
             FilterSupportedVersions(AllSupportedVersions()));
 }
 
-TEST_F(QuicVersionsTest, LookUpParsedVersionByIndex) {
+TEST(QuicVersionsTest, LookUpParsedVersionByIndex) {
   ParsedQuicVersionVector all_versions = AllSupportedVersions();
   int version_count = all_versions.size();
   for (int i = -5; i <= version_count + 1; ++i) {
@@ -364,7 +354,7 @@ TEST_F(QuicVersionsTest, LookUpParsedVersionByIndex) {
 // This test may appear to be so simplistic as to be unnecessary,
 // yet a typo was made in doing the #defines and it was caught
 // only in some test far removed from here... Better safe than sorry.
-TEST_F(QuicVersionsTest, CheckTransportVersionNumbersForTypos) {
+TEST(QuicVersionsTest, CheckTransportVersionNumbersForTypos) {
   static_assert(SupportedVersions().size() == 6u,
                 "Supported versions out of sync");
   EXPECT_EQ(QUIC_VERSION_43, 43);
@@ -375,7 +365,7 @@ TEST_F(QuicVersionsTest, CheckTransportVersionNumbersForTypos) {
   EXPECT_EQ(QUIC_VERSION_IETF_2_DRAFT_01, 81);
 }
 
-TEST_F(QuicVersionsTest, AlpnForVersion) {
+TEST(QuicVersionsTest, AlpnForVersion) {
   static_assert(SupportedVersions().size() == 6u,
                 "Supported versions out of sync");
   EXPECT_EQ("h3-Q043", AlpnForVersion(ParsedQuicVersion::Q043()));
@@ -386,7 +376,7 @@ TEST_F(QuicVersionsTest, AlpnForVersion) {
   EXPECT_EQ("h3", AlpnForVersion(ParsedQuicVersion::V2Draft01()));
 }
 
-TEST_F(QuicVersionsTest, QuicVersionEnabling) {
+TEST(QuicVersionsTest, QuicVersionEnabling) {
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     QuicFlagSaver flag_saver;
     QuicDisableVersion(version);
@@ -396,7 +386,7 @@ TEST_F(QuicVersionsTest, QuicVersionEnabling) {
   }
 }
 
-TEST_F(QuicVersionsTest, ReservedForNegotiation) {
+TEST(QuicVersionsTest, ReservedForNegotiation) {
   EXPECT_EQ(QUIC_VERSION_RESERVED_FOR_NEGOTIATION,
             QuicVersionReservedForNegotiation().transport_version);
   // QUIC_VERSION_RESERVED_FOR_NEGOTIATION MUST NOT be supported.
@@ -405,7 +395,7 @@ TEST_F(QuicVersionsTest, ReservedForNegotiation) {
   }
 }
 
-TEST_F(QuicVersionsTest, SupportedVersionsHasCorrectList) {
+TEST(QuicVersionsTest, SupportedVersionsHasCorrectList) {
   size_t index = 0;
   for (HandshakeProtocol handshake_protocol : SupportedHandshakeProtocols()) {
     for (int trans_vers = 255; trans_vers > 0; trans_vers--) {
@@ -423,7 +413,7 @@ TEST_F(QuicVersionsTest, SupportedVersionsHasCorrectList) {
   EXPECT_EQ(SupportedVersions().size(), index);
 }
 
-TEST_F(QuicVersionsTest, SupportedVersionsAllDistinct) {
+TEST(QuicVersionsTest, SupportedVersionsAllDistinct) {
   for (size_t index1 = 0; index1 < SupportedVersions().size(); ++index1) {
     ParsedQuicVersion version1 = SupportedVersions()[index1];
     for (size_t index2 = index1 + 1; index2 < SupportedVersions().size();
@@ -443,7 +433,7 @@ TEST_F(QuicVersionsTest, SupportedVersionsAllDistinct) {
   }
 }
 
-TEST_F(QuicVersionsTest, CurrentSupportedHttp3Versions) {
+TEST(QuicVersionsTest, CurrentSupportedHttp3Versions) {
   ParsedQuicVersionVector h3_versions = CurrentSupportedHttp3Versions();
   ParsedQuicVersionVector all_current_supported_versions =
       CurrentSupportedVersions();

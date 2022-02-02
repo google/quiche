@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_TAG_H_
 #define QUICHE_QUIC_CORE_QUIC_TAG_H_
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -28,7 +29,8 @@ using QuicTagVector = std::vector<QuicTag>;
 
 // MakeQuicTag returns a value given the four bytes. For example:
 //   MakeQuicTag('C', 'H', 'L', 'O');
-QUIC_EXPORT_PRIVATE QuicTag MakeQuicTag(char a, char b, char c, char d);
+QUIC_EXPORT_PRIVATE QuicTag MakeQuicTag(uint8_t a, uint8_t b, uint8_t c,
+                                        uint8_t d);
 
 // Returns true if |tag_vector| contains |tag|.
 QUIC_EXPORT_PRIVATE bool ContainsQuicTag(const QuicTagVector& tag_vector,

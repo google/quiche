@@ -23,6 +23,7 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_VERSIONS_H_
 #define QUICHE_QUIC_CORE_QUIC_VERSIONS_H_
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -393,6 +394,11 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(
 // to the wire in network-byte-order.
 using QuicVersionLabel = uint32_t;
 using QuicVersionLabelVector = std::vector<QuicVersionLabel>;
+
+// Constructs a version label from the 4 bytes such that the on-the-wire
+// order will be: d, c, b, a.
+QUIC_EXPORT_PRIVATE QuicVersionLabel MakeVersionLabel(uint8_t a, uint8_t b,
+                                                      uint8_t c, uint8_t d);
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os, const QuicVersionLabelVector& version_labels);

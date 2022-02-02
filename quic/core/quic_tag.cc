@@ -66,7 +66,7 @@ std::string QuicTagToString(QuicTag tag) {
       reinterpret_cast<const char*>(&orig_tag), sizeof(orig_tag)));
 }
 
-uint32_t MakeQuicTag(char a, char b, char c, char d) {
+uint32_t MakeQuicTag(uint8_t a, uint8_t b, uint8_t c, uint8_t d) {
   return static_cast<uint32_t>(a) | static_cast<uint32_t>(b) << 8 |
          static_cast<uint32_t>(c) << 16 | static_cast<uint32_t>(d) << 24;
 }

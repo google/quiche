@@ -23,12 +23,6 @@
 namespace quic {
 namespace {
 
-// Constructs a version label from the 4 bytes such that the on-the-wire
-// order will be: d, c, b, a.
-QuicVersionLabel MakeVersionLabel(char a, char b, char c, char d) {
-  return MakeQuicTag(d, c, b, a);
-}
-
 QuicVersionLabel CreateRandomVersionLabelForNegotiation() {
   QuicVersionLabel result;
   if (!GetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness)) {
@@ -205,6 +199,10 @@ std::ostream& operator<<(std::ostream& os,
                          const ParsedQuicVersionVector& versions) {
   os << ParsedQuicVersionVectorToString(versions);
   return os;
+}
+
+QuicVersionLabel MakeVersionLabel(uint8_t a, uint8_t b, uint8_t c, uint8_t d) {
+  return MakeQuicTag(d, c, b, a);
 }
 
 std::ostream& operator<<(std::ostream& os,
