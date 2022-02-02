@@ -1113,7 +1113,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   bool UseIetfAckWithReceiveTimestamp(const QuicAckFrame& frame) const {
     return VersionHasIetfQuicFrames(version_.transport_version) &&
            process_timestamps_ &&
-           std::min<uint32_t>(max_receive_timestamps_per_ack_,
+           std::min<uint64_t>(max_receive_timestamps_per_ack_,
                               frame.received_packet_times.size()) > 0;
   }
 
