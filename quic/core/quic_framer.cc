@@ -5088,9 +5088,9 @@ size_t QuicFramer::GetIetfAckFrameTimestampSize(const QuicAckFrame& ack) {
     return 0;
   }
 
-  ssize_t size =
+  int64_t size =
       FrameAckTimestampRanges(ack, timestamp_ranges, /*writer=*/nullptr);
-  return std::max<ssize_t>(0, size);
+  return std::max<int64_t>(0, size);
 }
 
 size_t QuicFramer::GetAckFrameSize(
@@ -5869,11 +5869,11 @@ QuicFramer::GetAckTimestampRanges(const QuicAckFrame& frame,
   return timestamp_ranges;
 }
 
-ssize_t QuicFramer::FrameAckTimestampRanges(
+int64_t QuicFramer::FrameAckTimestampRanges(
     const QuicAckFrame& frame,
     const absl::InlinedVector<AckTimestampRange, 2>& timestamp_ranges,
     QuicDataWriter* writer) const {
-  ssize_t size = 0;
+  int64_t size = 0;
   auto maybe_write_var_int62 = [&](uint64_t value) {
     size += QuicDataWriter::GetVarInt62Len(value);
     if (writer != nullptr && !writer->WriteVarInt62(value)) {
@@ -5900,7 +5900,7 @@ ssize_t QuicFramer::FrameAckTimestampRanges(
       return -1;
     }
 
-    for (ssize_t i = range.range_begin; i >= range.range_end; --i) {
+    for (int64_t i = range.range_begin; i >= range.range_end; --i) {
       const QuicTime receive_timestamp = frame.received_packet_times[i].second;
       uint64_t time_delta;
       if (effective_prev_time.has_value()) {
@@ -5952,9 +5952,9 @@ bool QuicFramer::AppendIetfTimestampsToAckFrame(const QuicAckFrame& frame,
   }
 
   // Compute the size first using a null writer.
-  ssize_t size =
+  int64_t size =
       FrameAckTimestampRanges(frame, timestamp_ranges, /*writer=*/nullptr);
-  if (size > static_cast<ssize_t>(writer->capacity() - writer->length())) {
+  if (size > static_cast<int64_t>(writer->capacity() - writer->length())) {
     QUIC_DVLOG(1) << "Insufficient room to write IETF ack receive timestamps. "
                      "size_remain:"
                   << (writer->capacity() - writer->length())

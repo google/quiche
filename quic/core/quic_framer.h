@@ -742,12 +742,12 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     // |range_begin| and |range_end| are index(es) in
     // QuicAckFrame.received_packet_times, representing a continuous range of
     // packet numbers in descending order. |range_begin| >= |range_end|.
-    ssize_t range_begin;  // Inclusive
-    ssize_t range_end;    // Inclusive
+    int64_t range_begin;  // Inclusive
+    int64_t range_end;    // Inclusive
   };
   absl::InlinedVector<AckTimestampRange, 2> GetAckTimestampRanges(
       const QuicAckFrame& frame, std::string& detailed_error) const;
-  ssize_t FrameAckTimestampRanges(
+  int64_t FrameAckTimestampRanges(
       const QuicAckFrame& frame,
       const absl::InlinedVector<AckTimestampRange, 2>& timestamp_ranges,
       QuicDataWriter* writer) const;
