@@ -323,7 +323,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   }
 
   // Sets the exponent to use when writing/reading ACK receive timestamps.
-  void set_receive_timestamps_exponent(uint32_t exponent) {
+  void set_receive_timestamps_exponent(uint32_t exponent) const {
     receive_timestamps_exponent_ = exponent;
   }
 
@@ -1158,12 +1158,13 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // The diversification nonce from the last received packet.
   DiversificationNonce last_nonce_;
   // If true, send and process timestamps in the ACK frame.
-  // TODO(ianswett): Remove the mutable once set_process_timestamps isn't const.
+  // TODO(ianswett): Remove the mutables once set_process_timestamps and
+  // set_receive_timestamp_exponent_ aren't const.
   mutable bool process_timestamps_;
   // The max number of receive timestamps to send per ACK frame.
   mutable uint32_t max_receive_timestamps_per_ack_;
   // The exponent to use when writing/reading ACK receive timestamps.
-  uint32_t receive_timestamps_exponent_;
+  mutable uint32_t receive_timestamps_exponent_;
   // The creation time of the connection, used to calculate timestamps.
   QuicTime creation_time_;
   // The last timestamp received if process_timestamps_ is true.
