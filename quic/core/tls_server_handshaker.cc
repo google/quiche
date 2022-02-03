@@ -419,6 +419,10 @@ size_t TlsServerHandshaker::BufferSizeLimitForLevel(
   return TlsHandshaker::BufferSizeLimitForLevel(level);
 }
 
+bool TlsServerHandshaker::KeyUpdateSupportedLocally() const {
+  return true;
+}
+
 std::unique_ptr<QuicDecrypter>
 TlsServerHandshaker::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
   return TlsHandshaker::AdvanceKeysAndCreateCurrentOneRttDecrypter();
@@ -478,6 +482,24 @@ bool TlsServerHandshaker::ProcessTransportParameters(
 
   // Notify QuicConnectionDebugVisitor.
   session()->connection()->OnTransportParametersReceived(client_params);
+
+  if (GetQuicReloadableFlag(quic_ignore_key_update_not_yet_supported)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_ignore_key_update_not_yet_supported, 2,
+                                 2);
+  } else {
+    // Chrome clients before 86.0.4233.0 did not send the
+    // key_update_not_yet_supported transport parameter, but they did send a
+    // Google-internal transport parameter with identifier 0x4751. We treat
+    // reception of 0x4751 as having received key_update_not_yet_supported to
+    // ensure we do not use key updates with those older clients.
+    // TODO(dschinazi) remove this workaround once all of our QUIC+TLS Finch
+    // experiments have a min_version greater than 86.0.4233.0.
+    if (client_params.custom_parameters.find(
+            static_cast<TransportParameters::TransportParameterId>(0x4751)) !=
+        client_params.custom_parameters.end()) {
+      client_params.key_update_not_yet_supported = true;
+    }
+  }
 
   if (client_params.legacy_version_information.has_value() &&
       CryptoUtils::ValidateClientHelloVersion(

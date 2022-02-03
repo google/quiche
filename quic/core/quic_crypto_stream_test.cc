@@ -80,6 +80,7 @@ class MockQuicCryptoStream : public QuicCryptoStream,
   HandshakeState GetHandshakeState() const override { return HANDSHAKE_START; }
   void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> /*application_state*/) override {}
+  bool KeyUpdateSupportedLocally() const override { return false; }
   std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
       override {
     return nullptr;

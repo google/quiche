@@ -147,6 +147,10 @@ void QuicSession::Initialize() {
     connection_->OnSuccessfulVersionNegotiation();
   }
 
+  if (GetMutableCryptoStream()->KeyUpdateSupportedLocally()) {
+    config_.SetKeyUpdateSupportedLocally();
+  }
+
   if (QuicVersionUsesCryptoFrames(transport_version())) {
     return;
   }

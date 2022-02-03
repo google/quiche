@@ -505,7 +505,8 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     if (!ValidateConfigConnectionIds(config)) {
       return;
     }
-    support_key_update_for_connection_ = version().UsesTls();
+    support_key_update_for_connection_ =
+        config.KeyUpdateSupportedForConnection();
     framer_.SetKeyUpdateSupportForConnection(
         support_key_update_for_connection_);
   } else {

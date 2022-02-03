@@ -114,6 +114,10 @@ size_t QuicCryptoClientStream::BufferSizeLimitForLevel(
   return handshaker_->BufferSizeLimitForLevel(level);
 }
 
+bool QuicCryptoClientStream::KeyUpdateSupportedLocally() const {
+  return handshaker_->KeyUpdateSupportedLocally();
+}
+
 std::unique_ptr<QuicDecrypter>
 QuicCryptoClientStream::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
   return handshaker_->AdvanceKeysAndCreateCurrentOneRttDecrypter();
