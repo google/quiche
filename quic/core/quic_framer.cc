@@ -196,17 +196,16 @@ QuicPacketNumberLength GetShortHeaderPacketNumberLength(uint8_t type) {
   return static_cast<QuicPacketNumberLength>((type & 0x03) + 1);
 }
 
-uint8_t LongHeaderTypeToOnWireValue(QuicLongHeaderType type,
-                                    const ParsedQuicVersion& version) {
+uint8_t LongHeaderTypeToOnWireValue(QuicLongHeaderType type) {
   switch (type) {
     case INITIAL:
-      return version.UsesV2PacketTypes() ? (1 << 4) : 0;
+      return 0;
     case ZERO_RTT_PROTECTED:
-      return version.UsesV2PacketTypes() ? (2 << 4) : (1 << 4);
+      return 1 << 4;
     case HANDSHAKE:
-      return version.UsesV2PacketTypes() ? (3 << 4) : (2 << 4);
+      return 2 << 4;
     case RETRY:
-      return version.UsesV2PacketTypes() ? 0 : (3 << 4);
+      return 3 << 4;
     case VERSION_NEGOTIATION:
       return 0xF0;  // Value does not matter
     default:
@@ -215,22 +214,27 @@ uint8_t LongHeaderTypeToOnWireValue(QuicLongHeaderType type,
   }
 }
 
-QuicLongHeaderType GetLongHeaderType(uint8_t type,
-                                     const ParsedQuicVersion& version) {
+bool GetLongHeaderType(uint8_t type, QuicLongHeaderType* long_header_type) {
   QUICHE_DCHECK((type & FLAGS_LONG_HEADER));
   switch ((type & 0x30) >> 4) {
     case 0:
-      return version.UsesV2PacketTypes() ? RETRY : INITIAL;
+      *long_header_type = INITIAL;
+      break;
     case 1:
-      return version.UsesV2PacketTypes() ? INITIAL : ZERO_RTT_PROTECTED;
+      *long_header_type = ZERO_RTT_PROTECTED;
+      break;
     case 2:
-      return version.UsesV2PacketTypes() ? ZERO_RTT_PROTECTED : HANDSHAKE;
+      *long_header_type = HANDSHAKE;
+      break;
     case 3:
-      return version.UsesV2PacketTypes() ? HANDSHAKE : RETRY;
+      *long_header_type = RETRY;
+      break;
     default:
       QUIC_BUG(quic_bug_10850_4) << "Unreachable statement";
-      return INVALID_PACKET_TYPE;
+      *long_header_type = INVALID_PACKET_TYPE;
+      return false;
   }
+  return true;
 }
 
 QuicPacketNumberLength GetLongHeaderPacketNumberLength(uint8_t type) {
@@ -2209,7 +2213,7 @@ bool QuicFramer::AppendIetfHeaderTypeByte(const QuicPacketHeader& header,
   if (header.version_flag) {
     type = static_cast<uint8_t>(
         FLAGS_LONG_HEADER | FLAGS_FIXED_BIT |
-        LongHeaderTypeToOnWireValue(header.long_packet_type, version_) |
+        LongHeaderTypeToOnWireValue(header.long_packet_type) |
         PacketNumberLengthToOnWireValue(header.packet_number_length));
   } else {
     type = static_cast<uint8_t>(
@@ -2619,27 +2623,21 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
           set_detailed_error("Fixed bit is 0 in long header.");
           return false;
         }
-        header->long_packet_type = GetLongHeaderType(type, header->version);
-        switch (header->long_packet_type) {
-          case INVALID_PACKET_TYPE:
-            set_detailed_error("Illegal long header type value.");
+        if (!GetLongHeaderType(type, &header->long_packet_type)) {
+          set_detailed_error("Illegal long header type value.");
+          return false;
+        }
+        if (header->long_packet_type == RETRY) {
+          if (!version().SupportsRetry()) {
+            set_detailed_error("RETRY not supported in this version.");
             return false;
-          case RETRY:
-            if (!version().SupportsRetry()) {
-              set_detailed_error("RETRY not supported in this version.");
-              return false;
-            }
-            if (perspective_ == Perspective::IS_SERVER) {
-              set_detailed_error("Client-initiated RETRY is invalid.");
-              return false;
-            }
-            break;
-          default:
-            if (!header->version.HasHeaderProtection()) {
-              header->packet_number_length =
-                  GetLongHeaderPacketNumberLength(type);
-            }
-            break;
+          }
+          if (perspective_ == Perspective::IS_SERVER) {
+            set_detailed_error("Client-initiated RETRY is invalid.");
+            return false;
+          }
+        } else if (!header->version.HasHeaderProtection()) {
+          header->packet_number_length = GetLongHeaderPacketNumberLength(type);
         }
       }
     }
@@ -4594,8 +4592,7 @@ bool QuicFramer::ApplyHeaderProtection(EncryptionLevel level, char* buffer,
   QuicLongHeaderType header_type;
   if (IsLongHeader(type_byte)) {
     bitmask = 0x0f;
-    header_type = GetLongHeaderType(type_byte, version_);
-    if (header_type == INVALID_PACKET_TYPE) {
+    if (!GetLongHeaderType(type_byte, &header_type)) {
       return false;
     }
   }
@@ -6892,15 +6889,15 @@ inline bool PacketHasLengthPrefixedConnectionIds(
 }
 
 inline bool ParseLongHeaderConnectionIds(
-    QuicDataReader& reader, bool has_length_prefix,
-    QuicVersionLabel version_label, QuicConnectionId& destination_connection_id,
-    QuicConnectionId& source_connection_id, std::string& detailed_error) {
+    QuicDataReader* reader, bool has_length_prefix,
+    QuicVersionLabel version_label, QuicConnectionId* destination_connection_id,
+    QuicConnectionId* source_connection_id, std::string* detailed_error) {
   if (has_length_prefix) {
-    if (!reader.ReadLengthPrefixedConnectionId(&destination_connection_id)) {
-      detailed_error = "Unable to read destination connection ID.";
+    if (!reader->ReadLengthPrefixedConnectionId(destination_connection_id)) {
+      *detailed_error = "Unable to read destination connection ID.";
       return false;
     }
-    if (!reader.ReadLengthPrefixedConnectionId(&source_connection_id)) {
+    if (!reader->ReadLengthPrefixedConnectionId(source_connection_id)) {
       if (version_label == kProxVersionLabel) {
         // The "PROX" version does not follow the length-prefixed invariants,
         // and can therefore attempt to read a payload byte and interpret it
@@ -6909,14 +6906,14 @@ inline bool ParseLongHeaderConnectionIds(
         // parsing as successful.
         return true;
       }
-      detailed_error = "Unable to read source connection ID.";
+      *detailed_error = "Unable to read source connection ID.";
       return false;
     }
   } else {
     // Parse connection ID lengths.
     uint8_t connection_id_lengths_byte;
-    if (!reader.ReadUInt8(&connection_id_lengths_byte)) {
-      detailed_error = "Unable to read connection ID lengths.";
+    if (!reader->ReadUInt8(&connection_id_lengths_byte)) {
+      *detailed_error = "Unable to read connection ID lengths.";
       return false;
     }
     uint8_t destination_connection_id_length =
@@ -6931,16 +6928,16 @@ inline bool ParseLongHeaderConnectionIds(
     }
 
     // Read destination connection ID.
-    if (!reader.ReadConnectionId(&destination_connection_id,
-                                 destination_connection_id_length)) {
-      detailed_error = "Unable to read destination connection ID.";
+    if (!reader->ReadConnectionId(destination_connection_id,
+                                  destination_connection_id_length)) {
+      *detailed_error = "Unable to read destination connection ID.";
       return false;
     }
 
     // Read source connection ID.
-    if (!reader.ReadConnectionId(&source_connection_id,
-                                 source_connection_id_length)) {
-      detailed_error = "Unable to read source connection ID.";
+    if (!reader->ReadConnectionId(source_connection_id,
+                                  source_connection_id_length)) {
+      *detailed_error = "Unable to read source connection ID.";
       return false;
     }
   }
@@ -7013,9 +7010,9 @@ QuicErrorCode QuicFramer::ParsePublicHeader(
       *reader, *parsed_version, *version_label, *first_byte);
 
   // Parse connection IDs.
-  if (!ParseLongHeaderConnectionIds(*reader, *has_length_prefix, *version_label,
-                                    *destination_connection_id,
-                                    *source_connection_id, *detailed_error)) {
+  if (!ParseLongHeaderConnectionIds(reader, *has_length_prefix, *version_label,
+                                    destination_connection_id,
+                                    source_connection_id, detailed_error)) {
     return QUIC_INVALID_PACKET_HEADER;
   }
 
@@ -7025,20 +7022,14 @@ QuicErrorCode QuicFramer::ParsePublicHeader(
   }
 
   // Parse long packet type.
-  *long_packet_type = GetLongHeaderType(*first_byte, *parsed_version);
+  if (!GetLongHeaderType(*first_byte, long_packet_type)) {
+    *detailed_error = "Unable to parse long packet type.";
+    return QUIC_INVALID_PACKET_HEADER;
+  }
 
-  switch (*long_packet_type) {
-    case INVALID_PACKET_TYPE:
-      *detailed_error = "Unable to parse long packet type.";
-      return QUIC_INVALID_PACKET_HEADER;
-    case INITIAL:
-      if (!parsed_version->SupportsRetry()) {
-        // Retry token is only present on initial packets for some versions.
-        return QUIC_NO_ERROR;
-      }
-      break;
-    default:
-      return QUIC_NO_ERROR;
+  if (!parsed_version->SupportsRetry() || *long_packet_type != INITIAL) {
+    // Retry token is only present on initial packets for some versions.
+    return QUIC_NO_ERROR;
   }
 
   *retry_token_length_length = reader->PeekVarInt62Length();

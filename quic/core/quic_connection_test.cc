@@ -10473,12 +10473,7 @@ void QuicConnectionTest::TestClientRetryHandling(
     return;
   }
 
-  // These values come from draft-ietf-quic-v2 Appendix A.4.
-  uint8_t retry_packet_rfcv2[] = {
-      0xcf, 0x70, 0x9a, 0x50, 0xc4, 0x00, 0x08, 0xf0, 0x67, 0xa5, 0x50, 0x2a,
-      0x42, 0x62, 0xb5, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x1d, 0xc7, 0x11, 0x30,
-      0xcd, 0x1e, 0xd3, 0x9d, 0x6e, 0xfc, 0xee, 0x5c, 0x85, 0x80, 0x65, 0x01};
-  // These values come from RFC9001 Appendix A.4.
+  // These values come from draft-ietf-quic-tls Appendix A.4.
   uint8_t retry_packet_rfcv1[] = {
       0xff, 0x00, 0x00, 0x00, 0x01, 0x00, 0x08, 0xf0, 0x67, 0xa5, 0x50, 0x2a,
       0x42, 0x62, 0xb5, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x04, 0xa2, 0x65, 0xba,
@@ -10490,10 +10485,7 @@ void QuicConnectionTest::TestClientRetryHandling(
 
   uint8_t* retry_packet;
   size_t retry_packet_length;
-  if (version() == ParsedQuicVersion::V2Draft01()) {
-    retry_packet = retry_packet_rfcv2;
-    retry_packet_length = ABSL_ARRAYSIZE(retry_packet_rfcv2);
-  } else if (version() == ParsedQuicVersion::RFCv1()) {
+  if (version() == ParsedQuicVersion::RFCv1()) {
     retry_packet = retry_packet_rfcv1;
     retry_packet_length = ABSL_ARRAYSIZE(retry_packet_rfcv1);
   } else if (version() == ParsedQuicVersion::Draft29()) {

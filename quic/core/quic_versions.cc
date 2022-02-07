@@ -36,13 +36,11 @@ QuicVersionLabel CreateRandomVersionLabelForNegotiation() {
 }
 
 void SetVersionFlag(const ParsedQuicVersion& version, bool should_enable) {
-  static_assert(SupportedVersions().size() == 6u,
+  static_assert(SupportedVersions().size() == 5u,
                 "Supported versions out of sync");
   const bool enable = should_enable;
   const bool disable = !should_enable;
-  if (version == ParsedQuicVersion::V2Draft01()) {
-    SetQuicReloadableFlag(quic_enable_version_2_draft_01, enable);
-  } else if (version == ParsedQuicVersion::RFCv1()) {
+  if (version == ParsedQuicVersion::RFCv1()) {
     SetQuicReloadableFlag(quic_disable_version_rfcv1, disable);
   } else if (version == ParsedQuicVersion::Draft29()) {
     SetQuicReloadableFlag(quic_disable_version_draft_29, disable);
@@ -178,11 +176,6 @@ bool ParsedQuicVersion::UsesQuicCrypto() const {
   return handshake_protocol == PROTOCOL_QUIC_CRYPTO;
 }
 
-bool ParsedQuicVersion::UsesV2PacketTypes() const {
-  QUICHE_DCHECK(IsKnown());
-  return transport_version == QUIC_VERSION_IETF_2_DRAFT_01;
-}
-
 bool VersionHasLengthPrefixedConnectionIds(
     QuicTransportVersion transport_version) {
   QUICHE_DCHECK(transport_version != QUIC_VERSION_UNSUPPORTED);
@@ -218,11 +211,9 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
-  static_assert(SupportedVersions().size() == 6u,
+  static_assert(SupportedVersions().size() == 5u,
                 "Supported versions out of sync");
-  if (parsed_version == ParsedQuicVersion::V2Draft01()) {
-    return MakeVersionLabel(0x70, 0x9a, 0x50, 0xc4);
-  } else if (parsed_version == ParsedQuicVersion::RFCv1()) {
+  if (parsed_version == ParsedQuicVersion::RFCv1()) {
     return MakeVersionLabel(0x00, 0x00, 0x00, 0x01);
   } else if (parsed_version == ParsedQuicVersion::Draft29()) {
     return MakeVersionLabel(0xff, 0x00, 0x00, 29);
@@ -418,16 +409,10 @@ ParsedQuicVersionVector CurrentSupportedVersions() {
 
 ParsedQuicVersionVector FilterSupportedVersions(
     ParsedQuicVersionVector versions) {
-  static_assert(SupportedVersions().size() == 6u,
-                "Supported versions out of sync");
   ParsedQuicVersionVector filtered_versions;
   filtered_versions.reserve(versions.size());
   for (const ParsedQuicVersion& version : versions) {
-    if (version == ParsedQuicVersion::V2Draft01()) {
-      if (GetQuicReloadableFlag(quic_enable_version_2_draft_01)) {
-        filtered_versions.push_back(version);
-      }
-    } else if (version == ParsedQuicVersion::RFCv1()) {
+    if (version == ParsedQuicVersion::RFCv1()) {
       if (!GetQuicReloadableFlag(quic_disable_version_rfcv1)) {
         filtered_versions.push_back(version);
       }
@@ -501,7 +486,6 @@ std::string QuicVersionToString(QuicTransportVersion transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_50);
     RETURN_STRING_LITERAL(QUIC_VERSION_IETF_DRAFT_29);
     RETURN_STRING_LITERAL(QUIC_VERSION_IETF_RFC_V1);
-    RETURN_STRING_LITERAL(QUIC_VERSION_IETF_2_DRAFT_01);
     RETURN_STRING_LITERAL(QUIC_VERSION_UNSUPPORTED);
     RETURN_STRING_LITERAL(QUIC_VERSION_RESERVED_FOR_NEGOTIATION);
   }
@@ -520,13 +504,10 @@ std::string HandshakeProtocolToString(HandshakeProtocol handshake_protocol) {
 }
 
 std::string ParsedQuicVersionToString(ParsedQuicVersion version) {
-  static_assert(SupportedVersions().size() == 6u,
+  static_assert(SupportedVersions().size() == 5u,
                 "Supported versions out of sync");
   if (version == UnsupportedQuicVersion()) {
     return "0";
-  } else if (version == ParsedQuicVersion::V2Draft01()) {
-    QUICHE_DCHECK(version.UsesHttp3());
-    return "v2draft01";
   } else if (version == ParsedQuicVersion::RFCv1()) {
     QUICHE_DCHECK(version.UsesHttp3());
     return "RFCv1";
@@ -618,9 +599,7 @@ ParsedQuicVersion LegacyVersionForEncapsulation() {
 }
 
 std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
-  if (parsed_version == ParsedQuicVersion::V2Draft01()) {
-    return "h3";
-  } else if (parsed_version == ParsedQuicVersion::RFCv1()) {
+  if (parsed_version == ParsedQuicVersion::RFCv1()) {
     return "h3";
   } else if (parsed_version == ParsedQuicVersion::Draft29()) {
     return "h3-29";

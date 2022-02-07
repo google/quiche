@@ -8,7 +8,6 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
-#include "absl/strings/string_view.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_test_utils.h"
@@ -173,7 +172,7 @@ TEST_F(CryptoUtilsTest, ValidateCryptoLabels) {
   // if the number of HTTP/3 QUIC versions has changed, we need to change the
   // expected_keys hardcoded into this test. Regrettably, this is not a
   // compile-time constant.
-  EXPECT_EQ(AllSupportedVersionsWithTls().size(), 3u);
+  EXPECT_EQ(AllSupportedVersionsWithTls().size(), 2u);
   const char draft_29_key[] = {// test vector from draft-ietf-quic-tls-29, A.1
                                0x14,
                                static_cast<char>(0x9d),
@@ -208,23 +207,6 @@ TEST_F(CryptoUtilsTest, ValidateCryptoLabels) {
                          0x06,
                          0x7e,
                          0x37};
-  const char v2_01_key[] = {// test vector from draft-ietf-quic-v2-01
-                            0x15,
-                            static_cast<char>(0xd5),
-                            static_cast<char>(0xb4),
-                            static_cast<char>(0xd9),
-                            static_cast<char>(0xa2),
-                            static_cast<char>(0xb8),
-                            static_cast<char>(0x91),
-                            0x6a,
-                            static_cast<char>(0xa3),
-                            static_cast<char>(0x9b),
-                            0x1b,
-                            static_cast<char>(0xfe),
-                            0x57,
-                            0x4d,
-                            0x2a,
-                            static_cast<char>(0xad)};
   const char connection_id[] =  // test vector from both docs
       {static_cast<char>(0x83),
        static_cast<char>(0x94),
@@ -244,9 +226,6 @@ TEST_F(CryptoUtilsTest, ValidateCryptoLabels) {
     } else if (version == ParsedQuicVersion::RFCv1()) {
       key_str = v1_key;
       key_size = sizeof(v1_key);
-    } else {  // draft-ietf-quic-v2-01
-      key_str = v2_01_key;
-      key_size = sizeof(v2_01_key);
     }
     const absl::string_view expected_key{key_str, key_size};
 

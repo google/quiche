@@ -55,8 +55,6 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
 
  private:
   // Cached value of reloadable flags.
-  // quic_enable_version_2_draft_01 flag
-  bool enable_version_2_draft_01_ = false;
   // quic_disable_version_rfcv1 flag
   bool disable_version_rfcv1_ = true;
   // quic_disable_version_draft_29 flag
