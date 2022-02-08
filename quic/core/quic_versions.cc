@@ -331,22 +331,7 @@ ParsedQuicVersion ParseQuicVersionString(absl::string_view version_string) {
   if (version_string.empty()) {
     return UnsupportedQuicVersion();
   }
-  int quic_version_number = 0;
   const ParsedQuicVersionVector supported_versions = AllSupportedVersions();
-  if (absl::SimpleAtoi(version_string, &quic_version_number) &&
-      quic_version_number > 0) {
-    QuicTransportVersion transport_version =
-        static_cast<QuicTransportVersion>(quic_version_number);
-    if (!ParsedQuicVersionIsValid(PROTOCOL_QUIC_CRYPTO, transport_version)) {
-      return UnsupportedQuicVersion();
-    }
-    ParsedQuicVersion version(PROTOCOL_QUIC_CRYPTO, transport_version);
-    if (std::find(supported_versions.begin(), supported_versions.end(),
-                  version) != supported_versions.end()) {
-      return version;
-    }
-    return UnsupportedQuicVersion();
-  }
   for (const ParsedQuicVersion& version : supported_versions) {
     if (version_string == ParsedQuicVersionToString(version) ||
         version_string == AlpnForVersion(version) ||
@@ -361,6 +346,21 @@ ParsedQuicVersion ParseQuicVersionString(absl::string_view version_string) {
             QuicVersionLabelToString(CreateQuicVersionLabel(version))) {
       return version;
     }
+  }
+  int quic_version_number = 0;
+  if (absl::SimpleAtoi(version_string, &quic_version_number) &&
+      quic_version_number > 0) {
+    QuicTransportVersion transport_version =
+        static_cast<QuicTransportVersion>(quic_version_number);
+    if (!ParsedQuicVersionIsValid(PROTOCOL_QUIC_CRYPTO, transport_version)) {
+      return UnsupportedQuicVersion();
+    }
+    ParsedQuicVersion version(PROTOCOL_QUIC_CRYPTO, transport_version);
+    if (std::find(supported_versions.begin(), supported_versions.end(),
+                  version) != supported_versions.end()) {
+      return version;
+    }
+    return UnsupportedQuicVersion();
   }
   // Reading from the client so this should not be considered an ERROR.
   QUIC_DLOG(INFO) << "Unsupported QUIC version string: \"" << version_string

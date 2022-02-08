@@ -103,6 +103,8 @@ TEST(QuicVersionsTest, Features) {
 }
 
 TEST(QuicVersionsTest, ParseQuicVersionLabel) {
+  static_assert(SupportedVersions().size() == 5u,
+                "Supported versions out of sync");
   EXPECT_EQ(ParsedQuicVersion::Q043(),
             ParseQuicVersionLabel(MakeVersionLabel('Q', '0', '4', '3')));
   EXPECT_EQ(ParsedQuicVersion::Q046(),
@@ -119,9 +121,15 @@ TEST(QuicVersionsTest, ParseQuicVersionLabel) {
                 MakeVersionLabel(0x00, 0x00, 0x00, 0x01),
                 MakeVersionLabel(0xaa, 0xaa, 0xaa, 0xaa),
                 MakeVersionLabel(0xff, 0x00, 0x00, 0x1d)}));
+
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    EXPECT_EQ(version, ParseQuicVersionLabel(CreateQuicVersionLabel(version)));
+  }
 }
 
 TEST(QuicVersionsTest, ParseQuicVersionString) {
+  static_assert(SupportedVersions().size() == 5u,
+                "Supported versions out of sync");
   EXPECT_EQ(ParsedQuicVersion::Q043(), ParseQuicVersionString("Q043"));
   EXPECT_EQ(ParsedQuicVersion::Q046(),
             ParseQuicVersionString("QUIC_VERSION_46"));
@@ -141,9 +149,16 @@ TEST(QuicVersionsTest, ParseQuicVersionString) {
   EXPECT_EQ(ParsedQuicVersion::Draft29(), ParseQuicVersionString("draft29"));
   EXPECT_EQ(ParsedQuicVersion::Draft29(), ParseQuicVersionString("h3-29"));
 
+  EXPECT_EQ(ParsedQuicVersion::RFCv1(), ParseQuicVersionString("00000001"));
+  EXPECT_EQ(ParsedQuicVersion::RFCv1(), ParseQuicVersionString("h3"));
+
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     EXPECT_EQ(version,
               ParseQuicVersionString(ParsedQuicVersionToString(version)));
+    EXPECT_EQ(version, ParseQuicVersionString(QuicVersionLabelToString(
+                           CreateQuicVersionLabel(version))));
+
+    EXPECT_EQ(version, ParseQuicVersionString(AlpnForVersion(version)));
   }
 }
 
@@ -203,6 +218,8 @@ TEST(QuicVersionsTest, ParseQuicVersionVectorString) {
 // CreateQuicVersionLabel() uses MakeVersionLabel() internally,
 // in case it has a bug.
 TEST(QuicVersionsTest, CreateQuicVersionLabel) {
+  static_assert(SupportedVersions().size() == 5u,
+                "Supported versions out of sync");
   EXPECT_EQ(0x51303433u, CreateQuicVersionLabel(ParsedQuicVersion::Q043()));
   EXPECT_EQ(0x51303436u, CreateQuicVersionLabel(ParsedQuicVersion::Q046()));
   EXPECT_EQ(0x51303530u, CreateQuicVersionLabel(ParsedQuicVersion::Q050()));
@@ -222,24 +239,39 @@ TEST(QuicVersionsTest, CreateQuicVersionLabel) {
 }
 
 TEST(QuicVersionsTest, QuicVersionLabelToString) {
+  static_assert(SupportedVersions().size() == 5u,
+                "Supported versions out of sync");
+  EXPECT_EQ("Q043", QuicVersionLabelToString(
+                        CreateQuicVersionLabel(ParsedQuicVersion::Q043())));
+  EXPECT_EQ("Q046", QuicVersionLabelToString(
+                        CreateQuicVersionLabel(ParsedQuicVersion::Q046())));
+  EXPECT_EQ("Q050", QuicVersionLabelToString(
+                        CreateQuicVersionLabel(ParsedQuicVersion::Q050())));
+  EXPECT_EQ("ff00001d", QuicVersionLabelToString(CreateQuicVersionLabel(
+                            ParsedQuicVersion::Draft29())));
+  EXPECT_EQ("00000001", QuicVersionLabelToString(CreateQuicVersionLabel(
+                            ParsedQuicVersion::RFCv1())));
+
   QuicVersionLabelVector version_labels = {
       MakeVersionLabel('Q', '0', '3', '5'),
-      MakeVersionLabel('Q', '0', '3', '7'),
       MakeVersionLabel('T', '0', '3', '8'),
+      MakeVersionLabel(0xff, 0, 0, 7),
   };
 
   EXPECT_EQ("Q035", QuicVersionLabelToString(version_labels[0]));
-  EXPECT_EQ("T038", QuicVersionLabelToString(version_labels[2]));
+  EXPECT_EQ("T038", QuicVersionLabelToString(version_labels[1]));
+  EXPECT_EQ("ff000007", QuicVersionLabelToString(version_labels[2]));
 
-  EXPECT_EQ("Q035,Q037,T038", QuicVersionLabelVectorToString(version_labels));
-  EXPECT_EQ("Q035:Q037:T038",
+  EXPECT_EQ("Q035,T038,ff000007",
+            QuicVersionLabelVectorToString(version_labels));
+  EXPECT_EQ("Q035:T038:ff000007",
             QuicVersionLabelVectorToString(version_labels, ":", 2));
-  EXPECT_EQ("Q035|Q037|...",
+  EXPECT_EQ("Q035|T038|...",
             QuicVersionLabelVectorToString(version_labels, "|", 1));
 
   std::ostringstream os;
   os << version_labels;
-  EXPECT_EQ("Q035,Q037,T038", os.str());
+  EXPECT_EQ("Q035,T038,ff000007", os.str());
 }
 
 TEST(QuicVersionsTest, QuicVersionToString) {
