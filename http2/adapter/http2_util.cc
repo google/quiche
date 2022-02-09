@@ -97,6 +97,8 @@ absl::string_view ConnectionErrorToString(ConnectionError error) {
       return "InvalidPushPromise";
     case ConnectionError::kExceededMaxConcurrentStreams:
       return "ExceededMaxConcurrentStreams";
+    case ConnectionError::kFlowControlError:
+      return "FlowControlError";
   }
   return "UnknownConnectionError";
 }

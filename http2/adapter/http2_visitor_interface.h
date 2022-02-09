@@ -78,6 +78,8 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
     kInvalidPushPromise,
     // The peer exceeded the max concurrent streams limit.
     kExceededMaxConcurrentStreams,
+    // The peer caused a flow control error.
+    kFlowControlError,
   };
   virtual void OnConnectionError(ConnectionError error) = 0;
 

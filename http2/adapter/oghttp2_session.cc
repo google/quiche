@@ -1207,6 +1207,19 @@ void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
         encoder_header_table_capacity_when_acking_ = value;
       }
       break;
+    case INITIAL_WINDOW_SIZE:
+      if (value > spdy::kSpdyMaximumWindowSize) {
+        visitor_.OnInvalidFrame(
+            0, Http2VisitorInterface::InvalidFrameError::kFlowControl);
+        // The specification says this is a connection-level flow control error.
+        LatchErrorAndNotify(
+            Http2ErrorCode::FLOW_CONTROL_ERROR,
+            Http2VisitorInterface::ConnectionError::kFlowControlError);
+        return;
+      } else {
+        UpdateInitialWindowSize(value);
+      }
+      break;
     default:
       // TODO(bnc): See if C++17 inline constants are allowed in QUICHE.
       if (id == kMetadataExtensionId) {
@@ -1584,8 +1597,8 @@ OgHttp2Session::StreamStateMap::iterator OgHttp2Session::CreateStream(
   absl::flat_hash_map<Http2StreamId, StreamState>::iterator iter;
   bool inserted;
   std::tie(iter, inserted) = stream_map_.try_emplace(
-      stream_id,
-      StreamState(stream_receive_window_limit_, std::move(listener)));
+      stream_id, StreamState(initial_stream_receive_window_,
+                             initial_stream_send_window_, std::move(listener)));
   if (inserted) {
     // Add the stream to the write scheduler.
     const WriteScheduler::StreamPrecedenceType precedence(3);
@@ -1743,6 +1756,24 @@ void OgHttp2Session::DecrementQueuedFrameCount(uint32_t stream_id,
 void OgHttp2Session::HandleContentLengthError(Http2StreamId stream_id) {
   EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
       stream_id, spdy::ERROR_CODE_PROTOCOL_ERROR));
+}
+
+void OgHttp2Session::UpdateInitialWindowSize(uint32_t new_value) {
+  const int32_t delta =
+      static_cast<int32_t>(new_value) - initial_stream_send_window_;
+  initial_stream_send_window_ = new_value;
+  for (auto& [stream_id, stream_state] : stream_map_) {
+    const int64_t current_window_size = stream_state.send_window;
+    const int64_t new_window_size = current_window_size + delta;
+    if (new_window_size > spdy::kSpdyMaximumWindowSize) {
+      EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+          stream_id, spdy::ERROR_CODE_FLOW_CONTROL_ERROR));
+    }
+    stream_state.send_window += delta;
+    if (current_window_size <= 0 && new_window_size > 0) {
+      write_scheduler_.MarkStreamReady(stream_id, false);
+    }
+  }
 }
 
 }  // namespace adapter

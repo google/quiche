@@ -212,16 +212,17 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   using MetadataSequence = std::vector<std::unique_ptr<MetadataSource>>;
 
   struct QUICHE_EXPORT_PRIVATE StreamState {
-    StreamState(int32_t stream_receive_window,
+    StreamState(int32_t stream_receive_window, int32_t stream_send_window,
                 WindowManager::WindowUpdateListener listener)
-        : window_manager(stream_receive_window, std::move(listener)) {}
+        : window_manager(stream_receive_window, std::move(listener)),
+          send_window(stream_send_window) {}
 
     WindowManager window_manager;
     std::unique_ptr<DataFrameSource> outbound_body;
     MetadataSequence outbound_metadata;
     std::unique_ptr<spdy::SpdyHeaderBlock> trailers;
     void* user_data = nullptr;
-    int32_t send_window = kInitialFlowControlWindowSize;
+    int32_t send_window;
     absl::optional<HeaderType> received_header_type;
     absl::optional<size_t> remaining_content_length;
     bool half_closed_local = false;
@@ -397,6 +398,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   void HandleContentLengthError(Http2StreamId stream_id);
 
+  void UpdateInitialWindowSize(uint32_t new_value);
+
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
 
@@ -472,7 +475,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   size_t metadata_length_ = 0;
   int32_t connection_send_window_ = kInitialFlowControlWindowSize;
   // The initial flow control receive window size for any newly created streams.
-  int32_t stream_receive_window_limit_ = kInitialFlowControlWindowSize;
+  int32_t initial_stream_receive_window_ = kInitialFlowControlWindowSize;
+  // The initial flow control send window size for any newly created streams.
+  int32_t initial_stream_send_window_ = kInitialFlowControlWindowSize;
   uint32_t max_frame_payload_ = 16384u;
   // The maximum number of concurrent streams that this connection can open to
   // its peer and allow from its peer, respectively. Although the initial value

@@ -2157,6 +2157,264 @@ TEST(NgHttp2AdapterTest, ClientObeysMaxConcurrentStreams) {
   EXPECT_FALSE(adapter->want_write());
 }
 
+TEST(NgHttp2AdapterTest, ClientReceivesInitialWindowSetting) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  const std::string initial_frames =
+      TestFrameSequence()
+          .Settings({{INITIAL_WINDOW_SIZE, 80000u}})
+          .WindowUpdate(0, 65536)
+          .Serialize();
+  // Server preface (SETTINGS with INITIAL_STREAM_WINDOW)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{INITIAL_WINDOW_SIZE, 80000u}));
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnWindowUpdate(0, 65536));
+
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), static_cast<size_t>(initial_result));
+
+  // Session will want to write a SETTINGS ack.
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
+  int64_t result = adapter->Send();
+  EXPECT_EQ(0, result);
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized, EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  const std::string kLongBody = std::string(81000, 'c');
+  auto body1 = absl::make_unique<TestDataFrameSource>(visitor, true);
+  body1->AppendPayload(kLongBody);
+  body1->EndData();
+  const int stream_id =
+      adapter->SubmitRequest(ToHeaders({{":method", "POST"},
+                                        {":scheme", "http"},
+                                        {":authority", "example.com"},
+                                        {":path", "/this/is/request/one"}}),
+                             std::move(body1), nullptr);
+  EXPECT_GT(stream_id, 0);
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
+  // The client can send more than 4 frames (65536 bytes) of data.
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, 16384, 0x0, 0)).Times(4);
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, 14464, 0x0, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(
+      visitor.data(),
+      EqualsFrames({spdy::SpdyFrameType::HEADERS, spdy::SpdyFrameType::DATA,
+                    spdy::SpdyFrameType::DATA, spdy::SpdyFrameType::DATA,
+                    spdy::SpdyFrameType::DATA, spdy::SpdyFrameType::DATA}));
+}
+
+TEST(NgHttp2AdapterTest, ClientReceivesInitialWindowSettingAfterStreamStart) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  const std::string initial_frames =
+      TestFrameSequence().ServerPreface().WindowUpdate(0, 65536).Serialize();
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnWindowUpdate(0, 65536));
+
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), static_cast<size_t>(initial_result));
+
+  // Session will want to write a SETTINGS ack.
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
+  int64_t result = adapter->Send();
+  EXPECT_EQ(0, result);
+  visitor.Clear();
+
+  const std::string kLongBody = std::string(81000, 'c');
+  auto body1 = absl::make_unique<TestDataFrameSource>(visitor, true);
+  body1->AppendPayload(kLongBody);
+  body1->EndData();
+  const int stream_id =
+      adapter->SubmitRequest(ToHeaders({{":method", "POST"},
+                                        {":scheme", "http"},
+                                        {":authority", "example.com"},
+                                        {":path", "/this/is/request/one"}}),
+                             std::move(body1), nullptr);
+  EXPECT_GT(stream_id, 0);
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
+  // The client can only send 65535 bytes of data, as the stream window has not
+  // yet been increased.
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, 16384, 0x0, 0)).Times(3);
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, 16383, 0x0, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(
+      visitor.data(),
+      EqualsFrames({spdy::SpdyFrameType::HEADERS, spdy::SpdyFrameType::DATA,
+                    spdy::SpdyFrameType::DATA, spdy::SpdyFrameType::DATA,
+                    spdy::SpdyFrameType::DATA}));
+  visitor.Clear();
+
+  // Can't write any more due to flow control.
+  EXPECT_FALSE(adapter->want_write());
+
+  const std::string settings_frame =
+      TestFrameSequence().Settings({{INITIAL_WINDOW_SIZE, 80000u}}).Serialize();
+  // SETTINGS with INITIAL_STREAM_WINDOW
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{INITIAL_WINDOW_SIZE, 80000u}));
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t settings_result = adapter->ProcessBytes(settings_frame);
+  EXPECT_EQ(settings_frame.size(), static_cast<size_t>(settings_result));
+
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  // The client can write more after receiving the INITIAL_WINDOW_SIZE setting.
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, 14465, 0x0, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::DATA}));
+}
+
+TEST(NgHttp2AdapterTest, InvalidInitialWindowSetting) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  const uint32_t kTooLargeInitialWindow = 1u << 31;
+  const std::string initial_frames =
+      TestFrameSequence()
+          .Settings({{INITIAL_WINDOW_SIZE, kTooLargeInitialWindow}})
+          .Serialize();
+  // Server preface (SETTINGS with INITIAL_STREAM_WINDOW)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor,
+              OnInvalidFrame(
+                  0, Http2VisitorInterface::InvalidFrameError::kFlowControl));
+
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), static_cast<size_t>(initial_result));
+
+  // Session will want to write a GOAWAY.
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(
+      visitor,
+      OnFrameSent(GOAWAY, 0, _, 0x0,
+                  static_cast<int>(Http2ErrorCode::FLOW_CONTROL_ERROR)));
+
+  int64_t result = adapter->Send();
+  EXPECT_EQ(0, result);
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized, EqualsFrames({spdy::SpdyFrameType::GOAWAY}));
+  visitor.Clear();
+}
+
+TEST(NgHttp2AdapterTest, InitialWindowSettingCausesOverflow) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  testing::InSequence s;
+
+  const std::vector<Header> headers =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+  const int32_t stream_id = adapter->SubmitRequest(headers, nullptr, nullptr);
+  ASSERT_GT(stream_id, 0);
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x5, 0));
+  int64_t write_result = adapter->Send();
+  EXPECT_EQ(0, write_result);
+  absl::string_view data = visitor.data();
+  EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::HEADERS}));
+  visitor.Clear();
+
+  const uint32_t kLargeInitialWindow = (1u << 31) - 1;
+  const std::string frames =
+      TestFrameSequence()
+          .ServerPreface()
+          .Headers(stream_id, {{":status", "200"}}, /*fin=*/false)
+          .WindowUpdate(stream_id, 65536u)
+          .Settings({{INITIAL_WINDOW_SIZE, kLargeInitialWindow}})
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, HEADERS, 0x4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(stream_id));
+  EXPECT_CALL(visitor, OnHeaderForStream(stream_id, ":status", "200"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(stream_id));
+
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, 4, WINDOW_UPDATE, 0x0));
+  EXPECT_CALL(visitor, OnWindowUpdate(stream_id, 65536));
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{INITIAL_WINDOW_SIZE,
+                                              kLargeInitialWindow}));
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t read_result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
+  // The stream window update plus the SETTINGS frame with INITIAL_WINDOW_SIZE
+  // pushes the stream's flow control window outside of the acceptable range.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, stream_id, 4, 0x0));
+  EXPECT_CALL(
+      visitor,
+      OnFrameSent(RST_STREAM, stream_id, 4, 0x0,
+                  static_cast<int>(Http2ErrorCode::FLOW_CONTROL_ERROR)));
+  EXPECT_CALL(visitor,
+              OnCloseStream(stream_id, Http2ErrorCode::FLOW_CONTROL_ERROR));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::SETTINGS,
+                                            spdy::SpdyFrameType::RST_STREAM}));
+}
+
 TEST(NgHttp2AdapterTest, ClientForbidsPushPromise) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
