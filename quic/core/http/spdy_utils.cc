@@ -13,6 +13,7 @@
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
@@ -192,6 +193,25 @@ absl::optional<QuicDatagramStreamId> SpdyUtils::ParseDatagramFlowIdHeader(
 void SpdyUtils::AddDatagramFlowIdHeader(spdy::SpdyHeaderBlock* headers,
                                         QuicDatagramStreamId flow_id) {
   (*headers)["datagram-flow-id"] = absl::StrCat(flow_id);
+}
+
+// static
+ParsedQuicVersion SpdyUtils::ExtractQuicVersionFromAltSvcEntry(
+    const spdy::SpdyAltSvcWireFormat::AlternativeService&
+        alternative_service_entry,
+    const ParsedQuicVersionVector& supported_versions) {
+  for (const ParsedQuicVersion& version : supported_versions) {
+    if (version.AlpnDeferToRFCv1()) {
+      // Versions with share an ALPN with v1 are currently unable to be
+      // advertised with Alt-Svc.
+      continue;
+    }
+    if (AlpnForVersion(version) == alternative_service_entry.protocol_id) {
+      return version;
+    }
+  }
+
+  return ParsedQuicVersion::Unsupported();
 }
 
 }  // namespace quic

@@ -14,6 +14,7 @@
 #include "quic/core/http/quic_header_list.h"
 #include "quic/core/quic_packets.h"
 #include "quic/platform/api/quic_export.h"
+#include "spdy/core/spdy_alt_svc_wire_format.h"
 #include "spdy/core/spdy_header_block.h"
 
 namespace quic {
@@ -61,6 +62,14 @@ class QUIC_EXPORT_PRIVATE SpdyUtils {
   // Adds the "datagram-flow-id" header.
   static void AddDatagramFlowIdHeader(spdy::SpdyHeaderBlock* headers,
                                       QuicDatagramStreamId flow_id);
+
+  // Returns the advertised QUIC version from the specified alternative service
+  // advertisement, or ParsedQuicVersion::Unsupported() if no supported version
+  // is advertised.
+  static ParsedQuicVersion ExtractQuicVersionFromAltSvcEntry(
+      const spdy::SpdyAltSvcWireFormat::AlternativeService&
+          alternative_service_entry,
+      const ParsedQuicVersionVector& supported_versions);
 };
 
 }  // namespace quic

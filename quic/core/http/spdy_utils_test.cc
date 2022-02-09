@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "quic/core/http/spdy_utils.h"
+
 #include <memory>
 #include <string>
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
-#include "quic/core/http/spdy_utils.h"
+#include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_test.h"
 
 using spdy::SpdyHeaderBlock;
@@ -406,6 +408,34 @@ TEST_F(DatagramFlowIdTest, DatagramFlowId) {
   ValidateDatagramFlowId("42, 44; ecn-ect0, 46; ecn-ect1, 48; ecn-ce", 42);
   // Test reordered list.
   ValidateDatagramFlowId("44; ecn-ect0, 42, 48; ecn-ce, 46; ecn-ect1", 42);
+}
+
+using ExtractQuicVersionFromAltSvcEntry = QuicTest;
+
+TEST_F(ExtractQuicVersionFromAltSvcEntry, SupportedVersion) {
+  ParsedQuicVersionVector supported_versions = AllSupportedVersions();
+  spdy::SpdyAltSvcWireFormat::AlternativeService entry;
+  for (const ParsedQuicVersion& version : supported_versions) {
+    entry.protocol_id = AlpnForVersion(version);
+    ParsedQuicVersion expected_version = version;
+    // Versions with share an ALPN with v1 are currently unable to be
+    // advertised with Alt-Svc.
+    if (entry.protocol_id == AlpnForVersion(ParsedQuicVersion::RFCv1()) &&
+        version != ParsedQuicVersion::RFCv1()) {
+      expected_version = ParsedQuicVersion::RFCv1();
+    }
+    EXPECT_EQ(expected_version, SpdyUtils::ExtractQuicVersionFromAltSvcEntry(
+                                    entry, supported_versions))
+        << "version: " << version;
+  }
+}
+
+TEST_F(ExtractQuicVersionFromAltSvcEntry, UnsupportedVersion) {
+  spdy::SpdyAltSvcWireFormat::AlternativeService entry;
+  entry.protocol_id = "quic";
+  EXPECT_EQ(ParsedQuicVersion::Unsupported(),
+            SpdyUtils::ExtractQuicVersionFromAltSvcEntry(
+                entry, AllSupportedVersions()));
 }
 
 }  // namespace test
