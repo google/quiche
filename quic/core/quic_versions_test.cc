@@ -274,6 +274,34 @@ TEST(QuicVersionsTest, QuicVersionLabelToString) {
   EXPECT_EQ("Q035,T038,ff000007", os.str());
 }
 
+TEST(QuicVersionsTest, ParseQuicVersionLabelString) {
+  static_assert(SupportedVersions().size() == 5u,
+                "Supported versions out of sync");
+  // Explicitly test known QUIC version label strings.
+  EXPECT_EQ(ParsedQuicVersion::Q043(), ParseQuicVersionLabelString("Q043"));
+  EXPECT_EQ(ParsedQuicVersion::Q046(), ParseQuicVersionLabelString("Q046"));
+  EXPECT_EQ(ParsedQuicVersion::Q050(), ParseQuicVersionLabelString("Q050"));
+  EXPECT_EQ(ParsedQuicVersion::Draft29(),
+            ParseQuicVersionLabelString("ff00001d"));
+  EXPECT_EQ(ParsedQuicVersion::RFCv1(),
+            ParseQuicVersionLabelString("00000001"));
+
+  // Sanity check that a variety of other serialization formats are ignored.
+  EXPECT_EQ(UnsupportedQuicVersion(), ParseQuicVersionLabelString("1"));
+  EXPECT_EQ(UnsupportedQuicVersion(), ParseQuicVersionLabelString("46"));
+  EXPECT_EQ(UnsupportedQuicVersion(),
+            ParseQuicVersionLabelString("QUIC_VERSION_46"));
+  EXPECT_EQ(UnsupportedQuicVersion(), ParseQuicVersionLabelString("h3"));
+  EXPECT_EQ(UnsupportedQuicVersion(), ParseQuicVersionLabelString("h3-29"));
+
+  // Test round-trips between QuicVersionLabelToString and
+  // ParseQuicVersionLabelString.
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    EXPECT_EQ(version, ParseQuicVersionLabelString(QuicVersionLabelToString(
+                           CreateQuicVersionLabel(version))));
+  }
+}
+
 TEST(QuicVersionsTest, QuicVersionToString) {
   EXPECT_EQ("QUIC_VERSION_UNSUPPORTED",
             QuicVersionToString(QUIC_VERSION_UNSUPPORTED));

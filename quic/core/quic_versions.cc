@@ -457,6 +457,18 @@ std::string QuicVersionLabelToString(QuicVersionLabel version_label) {
   return QuicTagToString(quiche::QuicheEndian::HostToNet32(version_label));
 }
 
+ParsedQuicVersion ParseQuicVersionLabelString(
+    absl::string_view version_label_string) {
+  const ParsedQuicVersionVector supported_versions = AllSupportedVersions();
+  for (const ParsedQuicVersion& version : supported_versions) {
+    if (version_label_string ==
+        QuicVersionLabelToString(CreateQuicVersionLabel(version))) {
+      return version;
+    }
+  }
+  return UnsupportedQuicVersion();
+}
+
 std::string QuicVersionLabelVectorToString(
     const QuicVersionLabelVector& version_labels, const std::string& separator,
     size_t skip_after_nth_version) {

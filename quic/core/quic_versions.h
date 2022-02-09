@@ -490,6 +490,15 @@ CreateQuicVersionLabelVector(const ParsedQuicVersionVector& versions);
 QUIC_EXPORT_PRIVATE std::string QuicVersionLabelToString(
     QuicVersionLabel version_label);
 
+// Helper function which translates from a QuicVersionLabel string to a
+// ParsedQuicVersion. The version label string must be of the form returned
+// by QuicVersionLabelToString, for example, "00000001" or "Q046", but not
+// "51303433" (the hex encoding of the Q064 version label). Returns
+// the ParsedQuicVersion which matches the label or UnsupportedQuicVersion()
+// otherwise.
+QUIC_EXPORT_PRIVATE ParsedQuicVersion
+ParseQuicVersionLabelString(absl::string_view version_label_string);
+
 // Returns |separator|-separated list of string representations of
 // QuicVersionLabel values in the supplied |version_labels| vector. The values
 // after the (0-based) |skip_after_nth_version|'th are skipped.
