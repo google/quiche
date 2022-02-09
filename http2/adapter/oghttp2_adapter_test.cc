@@ -19,6 +19,7 @@ namespace {
 
 using ConnectionError = Http2VisitorInterface::ConnectionError;
 
+using spdy::SpdyFrameType;
 using testing::_;
 
 enum FrameType {
@@ -40,8 +41,6 @@ enum FrameFlag {
   ACK = END_STREAM,
   END_HEADERS = 0x04,
 };
-
-using spdy::SpdyFrameType;
 
 class OgHttp2AdapterTest : public testing::Test {
  protected:
@@ -92,7 +91,7 @@ TEST_F(OgHttp2AdapterTest, InitialSettingsNoExtendedConnect) {
     absl::string_view data = client_visitor.data();
     EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
     data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-    EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+    EXPECT_THAT(data, EqualsFrames({SpdyFrameType::SETTINGS}));
   }
 
   // Server sends the connection preface, including the initial SETTINGS.
@@ -102,7 +101,7 @@ TEST_F(OgHttp2AdapterTest, InitialSettingsNoExtendedConnect) {
     int result = server_adapter->Send();
     EXPECT_EQ(0, result);
     absl::string_view data = server_visitor.data();
-    EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+    EXPECT_THAT(data, EqualsFrames({SpdyFrameType::SETTINGS}));
   }
 
   // Client processes the server's initial bytes, including initial SETTINGS.
@@ -154,7 +153,7 @@ TEST_F(OgHttp2AdapterTest, InitialSettings) {
     absl::string_view data = client_visitor.data();
     EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
     data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-    EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+    EXPECT_THAT(data, EqualsFrames({SpdyFrameType::SETTINGS}));
   }
 
   // Server sends the connection preface, including the initial SETTINGS.
@@ -164,7 +163,7 @@ TEST_F(OgHttp2AdapterTest, InitialSettings) {
     int result = server_adapter->Send();
     EXPECT_EQ(0, result);
     absl::string_view data = server_visitor.data();
-    EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+    EXPECT_THAT(data, EqualsFrames({SpdyFrameType::SETTINGS}));
   }
 
   // Client processes the server's initial bytes, including initial SETTINGS.
@@ -227,10 +226,9 @@ TEST_F(OgHttp2AdapterTest, AutomaticSettingsAndPingAcks) {
 
   int send_result = adapter_->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(
-      http2_visitor_.data(),
-      EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                    spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::PING}));
+  EXPECT_THAT(http2_visitor_.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::PING}));
 }
 
 TEST_F(OgHttp2AdapterTest, AutomaticPingAcksDisabled) {
@@ -266,8 +264,8 @@ TEST_F(OgHttp2AdapterTest, AutomaticPingAcksDisabled) {
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientHandles100Headers) {
@@ -343,8 +341,8 @@ TEST(OgHttp2AdapterClientTest, ClientHandles100Headers) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::PING}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::PING}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientRejects100HeadersWithFin) {
@@ -409,8 +407,8 @@ TEST(OgHttp2AdapterClientTest, ClientRejects100HeadersWithFin) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS,
+                                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientRejects100HeadersWithContent) {
@@ -472,8 +470,8 @@ TEST(OgHttp2AdapterClientTest, ClientRejects100HeadersWithContent) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS,
+                                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientRejects100HeadersWithContentLength) {
@@ -539,8 +537,8 @@ TEST(OgHttp2AdapterClientTest, ClientRejects100HeadersWithContentLength) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS,
+                                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientHandles204WithContent) {
@@ -602,8 +600,8 @@ TEST(OgHttp2AdapterClientTest, ClientHandles204WithContent) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS,
+                                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientHandles304WithContent) {
@@ -666,8 +664,8 @@ TEST(OgHttp2AdapterClientTest, ClientHandles304WithContent) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS,
+                                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientHandles304WithContentLength) {
@@ -724,7 +722,7 @@ TEST(OgHttp2AdapterClientTest, ClientHandles304WithContentLength) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientHandlesTrailers) {
@@ -756,8 +754,8 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesTrailers) {
   absl::string_view data = visitor.data();
   EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
   data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                  spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(data,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS}));
   visitor.Clear();
 
   const std::string stream_frames =
@@ -804,7 +802,7 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesTrailers) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientSendsTrailers) {
@@ -840,9 +838,9 @@ TEST(OgHttp2AdapterClientTest, ClientSendsTrailers) {
   absl::string_view data = visitor.data();
   EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
   data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                  spdy::SpdyFrameType::HEADERS,
-                                  spdy::SpdyFrameType::DATA}));
+  EXPECT_THAT(data,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS,
+                            SpdyFrameType::DATA}));
   visitor.Clear();
 
   const std::vector<Header> trailers1 =
@@ -855,7 +853,7 @@ TEST(OgHttp2AdapterClientTest, ClientSendsTrailers) {
   result = adapter->Send();
   EXPECT_EQ(0, result);
   data = visitor.data();
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(data, EqualsFrames({SpdyFrameType::HEADERS}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientHandlesMetadata) {
@@ -887,8 +885,8 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesMetadata) {
   absl::string_view data = visitor.data();
   EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
   data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                  spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(data,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS}));
   visitor.Clear();
 
   const std::string stream_frames =
@@ -939,7 +937,7 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesMetadata) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientHandlesMetadataWithEmptyPayload) {
@@ -968,8 +966,8 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesMetadataWithEmptyPayload) {
   absl::string_view data = visitor.data();
   EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
   data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                  spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(data,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS}));
   visitor.Clear();
 
   const std::string stream_frames =
@@ -1075,7 +1073,7 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesMetadataWithPayloadError) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientHandlesMetadataWithCompletionError) {
@@ -1148,7 +1146,7 @@ TEST(OgHttp2AdapterClientTest, ClientHandlesMetadataWithCompletionError) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientRstStreamWhileHandlingHeaders) {
@@ -1180,8 +1178,8 @@ TEST(OgHttp2AdapterClientTest, ClientRstStreamWhileHandlingHeaders) {
   absl::string_view data = visitor.data();
   EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
   data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                  spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(data,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS}));
   visitor.Clear();
 
   const std::string stream_frames =
@@ -1226,8 +1224,8 @@ TEST(OgHttp2AdapterClientTest, ClientRstStreamWhileHandlingHeaders) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS,
+                                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientConnectionErrorWhileHandlingHeaders) {
@@ -1259,8 +1257,8 @@ TEST(OgHttp2AdapterClientTest, ClientConnectionErrorWhileHandlingHeaders) {
   absl::string_view data = visitor.data();
   EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
   data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                  spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(data,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS}));
   visitor.Clear();
 
   const std::string stream_frames =
@@ -1298,7 +1296,7 @@ TEST(OgHttp2AdapterClientTest, ClientConnectionErrorWhileHandlingHeaders) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientConnectionErrorWhileHandlingHeadersOnly) {
@@ -1330,8 +1328,8 @@ TEST(OgHttp2AdapterClientTest, ClientConnectionErrorWhileHandlingHeadersOnly) {
   absl::string_view data = visitor.data();
   EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
   data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                  spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(data,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS}));
   visitor.Clear();
 
   const std::string stream_frames =
@@ -1368,7 +1366,7 @@ TEST(OgHttp2AdapterClientTest, ClientConnectionErrorWhileHandlingHeadersOnly) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientRejectsHeaders) {
@@ -1400,8 +1398,8 @@ TEST(OgHttp2AdapterClientTest, ClientRejectsHeaders) {
   absl::string_view data = visitor.data();
   EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
   data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                  spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(data,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS}));
   visitor.Clear();
 
   const std::string stream_frames =
@@ -1435,7 +1433,7 @@ TEST(OgHttp2AdapterClientTest, ClientRejectsHeaders) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientHandlesSmallerHpackHeaderTableSetting) {
@@ -1692,8 +1690,8 @@ TEST(OgHttp2AdapterClientTest, DISABLED_ClientHandlesInvalidTrailers) {
   absl::string_view data = visitor.data();
   EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
   data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                  spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(data,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS}));
   visitor.Clear();
 
   const std::string stream_frames =
@@ -1742,8 +1740,8 @@ TEST(OgHttp2AdapterClientTest, DISABLED_ClientHandlesInvalidTrailers) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS,
+                                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientStartsShutdown) {
@@ -1799,8 +1797,8 @@ TEST(OgHttp2AdapterClientTest, ClientFailsOnGoAway) {
   absl::string_view data = visitor.data();
   EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
   data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                  spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(data,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS}));
   visitor.Clear();
 
   const std::string stream_frames =
@@ -1842,7 +1840,7 @@ TEST(OgHttp2AdapterClientTest, ClientFailsOnGoAway) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientRejects101Response) {
@@ -1872,8 +1870,8 @@ TEST(OgHttp2AdapterClientTest, ClientRejects101Response) {
   absl::string_view data = visitor.data();
   EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
   data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                  spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(data,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS}));
   visitor.Clear();
 
   const std::string stream_frames =
@@ -1912,8 +1910,8 @@ TEST(OgHttp2AdapterClientTest, ClientRejects101Response) {
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS,
+                                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
@@ -1986,8 +1984,8 @@ TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
 
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
-                                            spdy::SpdyFrameType::DATA}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
   EXPECT_THAT(visitor.data(), testing::HasSubstr(kBody));
   visitor.Clear();
   EXPECT_FALSE(adapter->want_write());
@@ -2042,7 +2040,7 @@ TEST(OgHttp2AdapterClientTest, ClientObeysMaxConcurrentStreams) {
   result = adapter->Send();
   EXPECT_EQ(0, result);
 
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
   visitor.Clear();
   EXPECT_FALSE(adapter->want_write());
 }
@@ -2326,9 +2324,9 @@ TEST(OggHttp2AdapterClientTest, InitialWindowSettingCausesOverflow) {
 
   int result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterClientTest, FailureSendingConnectionPreface) {
@@ -2358,7 +2356,7 @@ TEST(OgHttp2AdapterClientTest, ClientForbidsPushPromise) {
   absl::string_view data = visitor.data();
   EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
   data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(data, EqualsFrames({SpdyFrameType::SETTINGS}));
 
   visitor.Clear();
 
@@ -2373,7 +2371,7 @@ TEST(OgHttp2AdapterClientTest, ClientForbidsPushPromise) {
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x5, 0));
   write_result = adapter->Send();
   EXPECT_EQ(0, write_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
   visitor.Clear();
 
   const std::vector<Header> push_headers =
@@ -2412,7 +2410,7 @@ TEST(OgHttp2AdapterClientTest, ClientForbidsPushPromise) {
   int result = adapter->Send();
   EXPECT_EQ(0, result);
   // SETTINGS ack.
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientForbidsPushStream) {
@@ -2430,7 +2428,7 @@ TEST(OgHttp2AdapterClientTest, ClientForbidsPushStream) {
   absl::string_view data = visitor.data();
   EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
   data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(data, EqualsFrames({SpdyFrameType::SETTINGS}));
 
   visitor.Clear();
 
@@ -2445,7 +2443,7 @@ TEST(OgHttp2AdapterClientTest, ClientForbidsPushStream) {
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x5, 0));
   write_result = adapter->Send();
   EXPECT_EQ(0, write_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
   visitor.Clear();
 
   const std::string frames =
@@ -2484,7 +2482,7 @@ TEST(OgHttp2AdapterClientTest, ClientForbidsPushStream) {
   int result = adapter->Send();
   EXPECT_EQ(0, result);
   // SETTINGS ack.
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
 TEST(OgHttp2AdapterClientTest, ClientReceivesDataOnClosedStream) {
@@ -2499,7 +2497,7 @@ TEST(OgHttp2AdapterClientTest, ClientReceivesDataOnClosedStream) {
   absl::string_view data = visitor.data();
   EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
   data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
-  EXPECT_THAT(data, EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(data, EqualsFrames({SpdyFrameType::SETTINGS}));
   visitor.Clear();
 
   const std::string initial_frames =
@@ -2521,7 +2519,7 @@ TEST(OgHttp2AdapterClientTest, ClientReceivesDataOnClosedStream) {
 
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
   visitor.Clear();
 
   // Let the client open a stream with a request.
@@ -2539,7 +2537,7 @@ TEST(OgHttp2AdapterClientTest, ClientReceivesDataOnClosedStream) {
 
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
   visitor.Clear();
 
   // Let the client RST_STREAM the stream it opened.
@@ -2553,7 +2551,7 @@ TEST(OgHttp2AdapterClientTest, ClientReceivesDataOnClosedStream) {
 
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::RST_STREAM}));
   visitor.Clear();
 
   // Let the server send a response on the stream. (It might not have received
@@ -2782,10 +2780,9 @@ TEST_F(OgHttp2AdapterTest, SubmitMetadata) {
 
   int result = adapter_->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(
-      http2_visitor_.data(),
-      EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                    static_cast<spdy::SpdyFrameType>(kMetadataFrameType)}));
+  EXPECT_THAT(http2_visitor_.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS,
+                            static_cast<SpdyFrameType>(kMetadataFrameType)}));
   EXPECT_FALSE(adapter_->want_write());
 }
 
@@ -2811,13 +2808,12 @@ TEST_F(OgHttp2AdapterTest, SubmitMetadataMultipleFrames) {
   int result = adapter_->Send();
   EXPECT_EQ(0, result);
   absl::string_view serialized = http2_visitor_.data();
-  EXPECT_THAT(
-      serialized,
-      EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                    static_cast<spdy::SpdyFrameType>(kMetadataFrameType),
-                    static_cast<spdy::SpdyFrameType>(kMetadataFrameType),
-                    static_cast<spdy::SpdyFrameType>(kMetadataFrameType),
-                    static_cast<spdy::SpdyFrameType>(kMetadataFrameType)}));
+  EXPECT_THAT(serialized,
+              EqualsFrames({SpdyFrameType::SETTINGS,
+                            static_cast<SpdyFrameType>(kMetadataFrameType),
+                            static_cast<SpdyFrameType>(kMetadataFrameType),
+                            static_cast<SpdyFrameType>(kMetadataFrameType),
+                            static_cast<SpdyFrameType>(kMetadataFrameType)}));
   EXPECT_FALSE(adapter_->want_write());
 }
 
@@ -2834,10 +2830,9 @@ TEST_F(OgHttp2AdapterTest, SubmitConnectionMetadata) {
 
   int result = adapter_->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(
-      http2_visitor_.data(),
-      EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                    static_cast<spdy::SpdyFrameType>(kMetadataFrameType)}));
+  EXPECT_THAT(http2_visitor_.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS,
+                            static_cast<SpdyFrameType>(kMetadataFrameType)}));
   EXPECT_FALSE(adapter_->want_write());
 }
 
@@ -3182,9 +3177,8 @@ TEST(OgHttp2AdapterServerTest, RepeatedHeaderNames) {
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),
-              EqualsFrames(
-                  {spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::SETTINGS,
-                   spdy::SpdyFrameType::HEADERS, spdy::SpdyFrameType::DATA}));
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerRespondsToRequestWithTrailers) {
@@ -3240,9 +3234,9 @@ TEST(OgHttp2AdapterServerTest, ServerRespondsToRequestWithTrailers) {
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::HEADERS}));
   visitor.Clear();
 
   const std::string more_frames =
@@ -3269,7 +3263,7 @@ TEST(OgHttp2AdapterServerTest, ServerRespondsToRequestWithTrailers) {
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::DATA}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::DATA}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerReceivesMoreHeaderBytesThanConfigured) {
@@ -3320,8 +3314,8 @@ TEST(OgHttp2AdapterServerTest, ServerReceivesMoreHeaderBytesThanConfigured) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::GOAWAY}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerSubmitsResponseWithDataSourceError) {
@@ -3377,9 +3371,9 @@ TEST(OgHttp2AdapterServerTest, ServerSubmitsResponseWithDataSourceError) {
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::HEADERS}));
   visitor.Clear();
   EXPECT_FALSE(adapter->want_write());
 
@@ -3442,9 +3436,9 @@ TEST(OgHttp2AdapterServerTest, CompleteRequestWithServerResponse) {
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::HEADERS}));
   EXPECT_FALSE(adapter->want_write());
 }
 
@@ -3493,9 +3487,9 @@ TEST(OgHttp2AdapterServerTest, IncompleteRequestWithServerResponse) {
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::HEADERS}));
   EXPECT_FALSE(adapter->want_write());
 }
 
@@ -3548,10 +3542,10 @@ TEST(OgHttp2AdapterServerTest,
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::HEADERS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(
+      visitor.data(),
+      EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                    SpdyFrameType::HEADERS, SpdyFrameType::RST_STREAM}));
   EXPECT_FALSE(adapter->want_write());
 }
 
@@ -3613,9 +3607,8 @@ TEST(OgHttp2AdapterServerTest, ServerSendsInvalidTrailers) {
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),
-              EqualsFrames(
-                  {spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::SETTINGS,
-                   spdy::SpdyFrameType::HEADERS, spdy::SpdyFrameType::DATA}));
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
   EXPECT_THAT(visitor.data(), testing::HasSubstr(kBody));
   visitor.Clear();
   EXPECT_FALSE(adapter->want_write());
@@ -3632,7 +3625,7 @@ TEST(OgHttp2AdapterServerTest, ServerSendsInvalidTrailers) {
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerHandlesDataWithPadding) {
@@ -3692,8 +3685,8 @@ TEST(OgHttp2AdapterServerTest, ServerHandlesDataWithPadding) {
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
 }
 
 // Tests the case where the response body is in the progress of being sent while
@@ -3800,7 +3793,7 @@ TEST(OgHttp2AdapterServerTest, ServerSubmitsTrailersWhileDataDeferred) {
 
       send_result = adapter->Send();
       EXPECT_EQ(0, send_result);
-      EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS}));
+      EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
     }
   }
 }
@@ -3861,9 +3854,9 @@ TEST(OgHttp2AdapterServerTest, ServerErrorWhileHandlingHeaders) {
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
   // SETTINGS ack
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerErrorWhileHandlingHeadersDropsFrames) {
@@ -3948,10 +3941,10 @@ TEST(OgHttp2AdapterServerTest, ServerErrorWhileHandlingHeadersDropsFrames) {
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
   // SETTINGS ack
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(
+      visitor.data(),
+      EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                    SpdyFrameType::RST_STREAM, SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerConnectionErrorWhileHandlingHeaders) {
@@ -4011,9 +4004,9 @@ TEST(OgHttp2AdapterServerTest, ServerConnectionErrorWhileHandlingHeaders) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM,
-                                            spdy::SpdyFrameType::GOAWAY}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::RST_STREAM,
+                            SpdyFrameType::GOAWAY}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerErrorAfterHandlingHeaders) {
@@ -4065,8 +4058,8 @@ TEST(OgHttp2AdapterServerTest, ServerErrorAfterHandlingHeaders) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::GOAWAY}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
 }
 
 // Exercises the case when a visitor chooses to reject a frame based solely on
@@ -4115,8 +4108,8 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsFrameHeader) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::GOAWAY}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerRejectsBeginningOfData) {
@@ -4176,8 +4169,8 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsBeginningOfData) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::GOAWAY}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerReceivesTooLargeHeader) {
@@ -4246,9 +4239,9 @@ TEST(OgHttp2AdapterServerTest, ServerReceivesTooLargeHeader) {
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerReceivesInvalidAuthority) {
@@ -4297,9 +4290,9 @@ TEST(OgHttp2AdapterServerTest, ServerReceivesInvalidAuthority) {
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerRejectsStreamData) {
@@ -4359,8 +4352,8 @@ TEST(OgHttp2AdapterServerTest, ServerRejectsStreamData) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::GOAWAY}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
 }
 
 // Exercises a naive mutually recursive test client and server. This test fails
@@ -4539,8 +4532,8 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsNewStreamBelowWatermark) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::GOAWAY}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerForbidsWindowUpdateOnIdleStream) {
@@ -4580,8 +4573,8 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsWindowUpdateOnIdleStream) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::GOAWAY}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerForbidsDataOnIdleStream) {
@@ -4623,8 +4616,8 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsDataOnIdleStream) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::GOAWAY}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerForbidsRstStreamOnIdleStream) {
@@ -4667,8 +4660,8 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsRstStreamOnIdleStream) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::GOAWAY}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerForbidsNewStreamAboveStreamLimit) {
@@ -4700,8 +4693,8 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsNewStreamAboveStreamLimit) {
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
   visitor.Clear();
 
   // Let the client send a SETTINGS ack and then attempt to open more than the
@@ -4752,7 +4745,7 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsNewStreamAboveStreamLimit) {
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::GOAWAY}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::GOAWAY}));
 }
 
 TEST(OgHttp2AdapterServerTest,
@@ -4785,8 +4778,8 @@ TEST(OgHttp2AdapterServerTest,
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
   visitor.Clear();
 
   // Let the client avoid sending a SETTINGS ack and attempt to open more than
@@ -4830,7 +4823,7 @@ TEST(OgHttp2AdapterServerTest,
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerForbidsProtocolPseudoheaderBeforeAck) {
@@ -4895,10 +4888,10 @@ TEST(OgHttp2AdapterServerTest, ServerForbidsProtocolPseudoheaderBeforeAck) {
   adapter->SubmitSettings({{ENABLE_CONNECT_PROTOCOL, 1}});
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM,
-                                            spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(
+      visitor.data(),
+      EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                    SpdyFrameType::RST_STREAM, SpdyFrameType::SETTINGS}));
   visitor.Clear();
 
   // The client attempts to send a CONNECT request with the `:protocol`
@@ -5047,9 +5040,9 @@ TEST(OgHttp2AdapterServerTest, SkipsSendingFramesForRejectedStream) {
 
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttpAdapterServerTest, ServerStartsShutdown) {
@@ -5237,8 +5230,8 @@ TEST(OgHttp2AdapterServerTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
   int send_result = adapter->Send();
   // Some bytes should have been serialized.
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::GOAWAY}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
   visitor.Clear();
 
   // Try to submit more frames for writing. They should not be written.
@@ -5314,9 +5307,9 @@ TEST(OgHttp2AdapterServerTest, ServerHandlesContentLength) {
   EXPECT_TRUE(adapter->want_write());
   int result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerHandlesContentLengthMismatch) {
@@ -5442,10 +5435,9 @@ TEST(OgHttp2AdapterServerTest, ServerHandlesContentLengthMismatch) {
   EXPECT_EQ(0, result);
   EXPECT_THAT(
       visitor.data(),
-      EqualsFrames(
-          {spdy::SpdyFrameType::SETTINGS, spdy::SpdyFrameType::SETTINGS,
-           spdy::SpdyFrameType::RST_STREAM, spdy::SpdyFrameType::RST_STREAM,
-           spdy::SpdyFrameType::RST_STREAM, spdy::SpdyFrameType::RST_STREAM}));
+      EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                    SpdyFrameType::RST_STREAM, SpdyFrameType::RST_STREAM,
+                    SpdyFrameType::RST_STREAM, SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerHandlesAsteriskPathForOptions) {
@@ -5487,8 +5479,8 @@ TEST(OgHttp2AdapterServerTest, ServerHandlesAsteriskPathForOptions) {
   EXPECT_TRUE(adapter->want_write());
   int result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerHandlesInvalidPath) {
@@ -5573,11 +5565,11 @@ TEST(OgHttp2AdapterServerTest, ServerHandlesInvalidPath) {
   EXPECT_TRUE(adapter->want_write());
   int result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM,
-                                            spdy::SpdyFrameType::RST_STREAM,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(
+      visitor.data(),
+      EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                    SpdyFrameType::RST_STREAM, SpdyFrameType::RST_STREAM,
+                    SpdyFrameType::RST_STREAM}));
 }
 
 TEST(OgHttp2AdapterServerTest, ServerHandlesTeHeader) {
@@ -5641,9 +5633,9 @@ TEST(OgHttp2AdapterServerTest, ServerHandlesTeHeader) {
   EXPECT_TRUE(adapter->want_write());
   int result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::SETTINGS,
-                                            spdy::SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::RST_STREAM}));
 }
 
 }  // namespace
