@@ -720,6 +720,19 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
     return (CreateQuicVersionLabel(version_) >> 8 * (3 - pos)) & 0xff;
   }
 
+  // Helper functions to take a v1 long header packet and make it v2. These are
+  // not needed for short header packets, but if sent, this function will exit
+  // cleanly. It needs to be called twice for coalesced packets (see references
+  // to length_of_first_coalesced_packet below for examples of how to do this).
+  inline void ReviseFirstByteByVersion(unsigned char packet_ietf[]) {
+    if (version_.UsesV2PacketTypes() && (packet_ietf[0] >= 0x80)) {
+      packet_ietf[0] = (packet_ietf[0] + 0x10) | 0xc0;
+    }
+  }
+  inline void ReviseFirstByteByVersion(PacketFragments& packet_ietf) {
+    ReviseFirstByteByVersion(&packet_ietf[0].fragment[0]);
+  }
+
   bool CheckEncryption(QuicPacketNumber packet_number, QuicPacket* packet) {
     if (packet_number != encrypter_->packet_number_) {
       QUIC_LOG(ERROR) << "Encrypted incorrect packet number.  expected "
@@ -1261,6 +1274,7 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
   if (framer_.version().HasLongHeaderLengths()) {
+    ReviseFirstByteByVersion(packet49);
     p = packet49;
     p_length = ABSL_ARRAYSIZE(packet49);
   }
@@ -1367,6 +1381,7 @@ TEST_P(QuicFramerTest, ParsePublicHeader) {
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
   if (framer_.version().HasLongHeaderLengths()) {
+    ReviseFirstByteByVersion(packet49);
     p = packet49;
     p_length = ABSL_ARRAYSIZE(packet49);
   } else if (framer_.version().HasIetfInvariantHeader()) {
@@ -1657,6 +1672,7 @@ TEST_P(QuicFramerTest, PacketHeaderWithVersionFlag) {
   };
   // clang-format on
 
+  ReviseFirstByteByVersion(packet49);
   PacketFragments& fragments =
       framer_.version().HasLongHeaderLengths()
           ? packet49
@@ -2958,6 +2974,7 @@ TEST_P(QuicFramerTest, StreamFrameWithVersion) {
           ? VARIABLE_LENGTH_INTEGER_LENGTH_1
           : VARIABLE_LENGTH_INTEGER_LENGTH_0;
 
+  ReviseFirstByteByVersion(packet_ietf);
   PacketFragments& fragments =
       VersionHasIetfQuicFrames(framer_.transport_version())
           ? packet_ietf
@@ -6408,6 +6425,7 @@ TEST_P(QuicFramerTest, ParseIetfRetryPacket) {
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
   if (framer_.version().UsesTls()) {
+    ReviseFirstByteByVersion(packet_with_tag);
     p = packet_with_tag;
     p_length = ABSL_ARRAYSIZE(packet_with_tag);
   } else if (framer_.version().HasLongHeaderLengths()) {
@@ -7103,6 +7121,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithVersionFlag) {
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+    ReviseFirstByteByVersion(packet_ietf);
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   } else if (framer_.version().HasLongHeaderLengths()) {
@@ -13722,10 +13741,16 @@ TEST_P(QuicFramerTest, CoalescedPacket) {
       'R',  'L',  'D',  '?',
   };
   // clang-format on
+  const size_t first_packet_ietf_size = 46;
+  // If the first packet changes, the attempt to fix the first byte of the
+  // second packet will fail.
+  EXPECT_EQ(packet_ietf[first_packet_ietf_size], 0xD3);
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
   if (framer_.version().HasIetfQuicFrames()) {
+    ReviseFirstByteByVersion(packet_ietf);
+    ReviseFirstByteByVersion(&packet_ietf[first_packet_ietf_size]);
     p = packet_ietf;
     p_length = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -13845,6 +13870,7 @@ TEST_P(QuicFramerTest, CoalescedPacketWithUdpPadding) {
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
   if (framer_.version().HasIetfQuicFrames()) {
+    ReviseFirstByteByVersion(packet_ietf);
     p = packet_ietf;
     p_length = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -13992,10 +14018,16 @@ TEST_P(QuicFramerTest, CoalescedPacketWithDifferentVersion) {
       'R',  'L',  'D',  '?',
   };
   // clang-format on
+  const size_t first_packet_ietf_size = 46;
+  // If the first packet changes, the attempt to fix the first byte of the
+  // second packet will fail.
+  EXPECT_EQ(packet_ietf[first_packet_ietf_size], 0xD3);
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
   if (framer_.version().HasIetfQuicFrames()) {
+    ReviseFirstByteByVersion(packet_ietf);
+    ReviseFirstByteByVersion(&packet_ietf[first_packet_ietf_size]);
     p = packet_ietf;
     p_length = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -14103,6 +14135,7 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithoutDecrypter) {
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
   if (framer_.version().HasLongHeaderLengths()) {
+    ReviseFirstByteByVersion(packet49);
     p = packet49;
     p_length = ABSL_ARRAYSIZE(packet49);
   } else if (framer_.version().HasIetfInvariantHeader()) {
@@ -14205,6 +14238,7 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithDecrypter) {
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
   if (framer_.version().HasLongHeaderLengths()) {
+    ReviseFirstByteByVersion(packet49);
     p = packet49;
     p_length = ABSL_ARRAYSIZE(packet49);
   } else if (framer_.version().HasIetfInvariantHeader()) {
@@ -14365,10 +14399,15 @@ TEST_P(QuicFramerTest, UndecryptableCoalescedPacket) {
   };
   // clang-format on
   const size_t length_of_first_coalesced_packet = 46;
+  // If the first packet changes, the attempt to fix the first byte of the
+  // second packet will fail.
+  EXPECT_EQ(packet_ietf[length_of_first_coalesced_packet], 0xD3);
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
   if (framer_.version().HasIetfQuicFrames()) {
+    ReviseFirstByteByVersion(packet_ietf);
+    ReviseFirstByteByVersion(&packet_ietf[length_of_first_coalesced_packet]);
     p = packet_ietf;
     p_length = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -14532,10 +14571,16 @@ TEST_P(QuicFramerTest, MismatchedCoalescedPacket) {
       'R',  'L',  'D',  '?',
   };
   // clang-format on
+  const size_t length_of_first_coalesced_packet = 46;
+  // If the first packet changes, the attempt to fix the first byte of the
+  // second packet will fail.
+  EXPECT_EQ(packet_ietf[length_of_first_coalesced_packet], 0xD3);
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
   if (framer_.version().HasIetfQuicFrames()) {
+    ReviseFirstByteByVersion(packet_ietf);
+    ReviseFirstByteByVersion(&packet_ietf[length_of_first_coalesced_packet]);
     p = packet_ietf;
     p_length = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -14637,10 +14682,16 @@ TEST_P(QuicFramerTest, InvalidCoalescedPacket) {
       // version would be here but we cut off the invalid coalesced header.
   };
   // clang-format on
+  const size_t length_of_first_coalesced_packet = 46;
+  // If the first packet changes, the attempt to fix the first byte of the
+  // second packet will fail.
+  EXPECT_EQ(packet_ietf[length_of_first_coalesced_packet], 0xD3);
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
   if (framer_.version().HasIetfQuicFrames()) {
+    ReviseFirstByteByVersion(packet_ietf);
+    ReviseFirstByteByVersion(&packet_ietf[length_of_first_coalesced_packet]);
     p = packet_ietf;
     p_length = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -14868,6 +14919,7 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
         QuicEncryptedPacket(AsChars(long_header_packet),
                             ABSL_ARRAYSIZE(long_header_packet), false)));
   } else {
+    ReviseFirstByteByVersion(long_header_packet_ietf);
     EXPECT_TRUE(framer_.ProcessPacket(
         QuicEncryptedPacket(AsChars(long_header_packet_ietf),
                             ABSL_ARRAYSIZE(long_header_packet_ietf), false)));
@@ -15396,9 +15448,11 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToClient) {
     0x00,
   };
   // clang-format on
+
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
   if (framer_.version().HasLongHeaderLengths()) {
+    ReviseFirstByteByVersion(packet49);
     p = packet49;
     p_length = ABSL_ARRAYSIZE(packet49);
   }
@@ -15464,6 +15518,7 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToServer) {
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
   if (framer_.version().HasLongHeaderLengths()) {
+    ReviseFirstByteByVersion(packet49);
     p = packet49;
     p_length = ABSL_ARRAYSIZE(packet49);
   }
@@ -16303,6 +16358,7 @@ TEST_P(QuicFramerTest, ErrorWhenUnexpectedFrameTypeEncountered) {
   };
   // clang-format on
 
+  ReviseFirstByteByVersion(packet);
   QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
 
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));

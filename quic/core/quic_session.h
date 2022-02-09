@@ -312,6 +312,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
                                            std::string* error_details) override;
   void OnHandshakeCallbackDone() override;
   bool PacketFlusherAttached() const override;
+  ParsedQuicVersion parsed_version() const override { return version(); }
 
   // Implement StreamDelegateInterface.
   void OnStreamError(QuicErrorCode error_code,

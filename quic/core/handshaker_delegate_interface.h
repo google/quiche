@@ -7,6 +7,7 @@
 
 #include "quic/core/crypto/transport_parameters.h"
 #include "quic/core/quic_types.h"
+#include "quic/core/quic_versions.h"
 
 namespace quic {
 
@@ -73,6 +74,10 @@ class QUIC_EXPORT_PRIVATE HandshakerDelegateInterface {
 
   // Whether a packet flusher is currently attached.
   virtual bool PacketFlusherAttached() const = 0;
+
+  // Get the QUIC version currently in use. tls_handshaker needs this to pass
+  // to crypto_utils to apply version-dependent HKDF labels.
+  virtual ParsedQuicVersion parsed_version() const = 0;
 };
 
 }  // namespace quic

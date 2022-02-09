@@ -36,9 +36,11 @@ const std::vector<std::string>& QuicVersionManager::GetSupportedAlpns() {
 }
 
 void QuicVersionManager::MaybeRefilterSupportedVersions() {
-  static_assert(SupportedVersions().size() == 5u,
+  static_assert(SupportedVersions().size() == 6u,
                 "Supported versions out of sync");
-  if (disable_version_rfcv1_ !=
+  if (enable_version_2_draft_01_ !=
+          GetQuicReloadableFlag(quic_enable_version_2_draft_01) ||
+      disable_version_rfcv1_ !=
           GetQuicReloadableFlag(quic_disable_version_rfcv1) ||
       disable_version_draft_29_ !=
           GetQuicReloadableFlag(quic_disable_version_draft_29) ||
@@ -48,6 +50,8 @@ void QuicVersionManager::MaybeRefilterSupportedVersions() {
           GetQuicReloadableFlag(quic_disable_version_q046) ||
       disable_version_q043_ !=
           GetQuicReloadableFlag(quic_disable_version_q043)) {
+    enable_version_2_draft_01_ =
+        GetQuicReloadableFlag(quic_enable_version_2_draft_01);
     disable_version_rfcv1_ = GetQuicReloadableFlag(quic_disable_version_rfcv1);
     disable_version_draft_29_ =
         GetQuicReloadableFlag(quic_disable_version_draft_29);
@@ -75,7 +79,11 @@ void QuicVersionManager::RefilterSupportedVersions() {
     if (version.UsesHttp3()) {
       filtered_supported_versions_with_http3_.push_back(version);
     }
-    filtered_supported_alpns_.emplace_back(AlpnForVersion(version));
+    if (std::find(filtered_supported_alpns_.begin(),
+                  filtered_supported_alpns_.end(),
+                  AlpnForVersion(version)) == filtered_supported_alpns_.end()) {
+      filtered_supported_alpns_.emplace_back(AlpnForVersion(version));
+    }
   }
 }
 

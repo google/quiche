@@ -79,9 +79,11 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // on the given QuicCrypter |*crypter|.
   // This follows the derivation described in section 7.3 of RFC 8446, except
   // with the label prefix in HKDF-Expand-Label changed from "tls13 " to "quic "
-  // as described in draft-ietf-quic-tls-14, section 5.1.
+  // as described in draft-ietf-quic-tls-14, section 5.1, or "quicv2 " as
+  // described in draft-ietf-quic-v2-01.
   static void InitializeCrypterSecrets(const EVP_MD* prf,
                                        const std::vector<uint8_t>& pp_secret,
+                                       const ParsedQuicVersion& version,
                                        QuicCrypter* crypter);
 
   // Derives the key and IV from the packet protection secret and sets those
@@ -90,15 +92,18 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // called before using |crypter|.
   static void SetKeyAndIV(const EVP_MD* prf,
                           const std::vector<uint8_t>& pp_secret,
+                          const ParsedQuicVersion& version,
                           QuicCrypter* crypter);
 
   // Derives the header protection key from the packet protection secret.
   static std::vector<uint8_t> GenerateHeaderProtectionKey(
-      const EVP_MD* prf, const std::vector<uint8_t>& pp_secret, size_t out_len);
+      const EVP_MD* prf, const std::vector<uint8_t>& pp_secret,
+      const ParsedQuicVersion& version, size_t out_len);
 
   // Given a secret for key phase n, return the secret for phase n+1.
   static std::vector<uint8_t> GenerateNextKeyPhaseSecret(
-      const EVP_MD* prf, const std::vector<uint8_t>& current_secret);
+      const EVP_MD* prf, const ParsedQuicVersion& version,
+      const std::vector<uint8_t>& current_secret);
 
   // IETF QUIC encrypts ENCRYPTION_INITIAL messages with a version-specific key
   // (to prevent network observers that are not aware of that QUIC version from

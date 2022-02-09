@@ -5702,6 +5702,9 @@ class BadShloPacketWriter : public QuicPacketWriterWrapper {
   }
 
   bool TypeByteIsServerHello(uint8_t type_byte) {
+    if (version_.UsesV2PacketTypes()) {
+      return ((type_byte & 0x30) >> 4) == 3;
+    }
     if (version_.UsesQuicCrypto()) {
       // ENCRYPTION_ZERO_RTT packet.
       return ((type_byte & 0x30) >> 4) == 1;
@@ -5758,7 +5761,8 @@ TEST_P(EndToEndTest, ConnectionCloseBeforeHandshakeComplete) {
 
 class BadShloPacketWriter2 : public QuicPacketWriterWrapper {
  public:
-  BadShloPacketWriter2() : error_returned_(false) {}
+  BadShloPacketWriter2(ParsedQuicVersion version)
+      : error_returned_(false), version_(version) {}
   ~BadShloPacketWriter2() override {}
 
   WriteResult WritePacket(const char* buffer, size_t buf_len,
@@ -5766,12 +5770,14 @@ class BadShloPacketWriter2 : public QuicPacketWriterWrapper {
                           const QuicSocketAddress& peer_address,
                           quic::PerPacketOptions* options) override {
     const uint8_t type_byte = buffer[0];
-    if ((type_byte & FLAGS_LONG_HEADER) &&
-        (((type_byte & 0x30) >> 4) == 1 || (type_byte & 0x7F) == 0x7C)) {
-      QUIC_DVLOG(1) << "Dropping ZERO_RTT_PACKET packet";
-      return WriteResult(WRITE_STATUS_OK, buf_len);
-    }
-    if (!error_returned_ && !(type_byte & FLAGS_LONG_HEADER)) {
+
+    if (type_byte & FLAGS_LONG_HEADER) {
+      if (((type_byte & 0x30 >> 4) == (version_.UsesV2PacketTypes() ? 2 : 1)) ||
+          ((type_byte & 0x7F) == 0x7C)) {
+        QUIC_DVLOG(1) << "Dropping ZERO_RTT_PACKET packet";
+        return WriteResult(WRITE_STATUS_OK, buf_len);
+      }
+    } else if (!error_returned_) {
       QUIC_DVLOG(1) << "Return write error for short header packet";
       error_returned_ = true;
       return WriteResult(WRITE_STATUS_ERROR, QUIC_EMSGSIZE);
@@ -5782,6 +5788,7 @@ class BadShloPacketWriter2 : public QuicPacketWriterWrapper {
 
  private:
   bool error_returned_;
+  ParsedQuicVersion version_;
 };
 
 TEST_P(EndToEndTest, ForwardSecureConnectionClose) {
@@ -5812,7 +5819,7 @@ TEST_P(EndToEndTest, ForwardSecureConnectionClose) {
       dispatcher,
       // This causes the all server sent ZERO_RTT_PROTECTED packets to be
       // dropped, and first short header packet causes write error.
-      new BadShloPacketWriter2());
+      new BadShloPacketWriter2(version_));
   server_thread_->Resume();
   client_.reset(CreateQuicClient(client_writer_));
   EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));

@@ -133,6 +133,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_fix_pacing_sender_bursts, true)
 // When true, set the initial congestion control window from connection options in QuicSentPacketManager rather than TcpCubicSenderBytes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_unified_iw_options, true)
+// When true, support draft-ietf-quic-v2-01
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_version_2_draft_01, false)
 // When true, the B203 connection option causes the Bbr2Sender to ignore inflight_hi during PROBE_UP and increase it when the bytes delivered without loss are higher.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_ignore_inflight_hi_in_probe_up, true)
 // When true, the B205 connection option enables extra acked in STARTUP, and B204 adds new logic to decrease it whenever max bandwidth increases.
