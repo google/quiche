@@ -1185,28 +1185,37 @@ void OgHttp2Session::OnSettings() {
 }
 
 void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
-  visitor_.OnSetting({id, value});
-  if (id == kMetadataExtensionId) {
-    peer_supports_metadata_ = (value != 0);
-  } else if (id == MAX_FRAME_SIZE) {
-    max_frame_payload_ = value;
-  } else if (id == MAX_CONCURRENT_STREAMS) {
-    max_outbound_concurrent_streams_ = value;
-  } else if (id == HEADER_TABLE_SIZE) {
-    value = std::min(value, HpackCapacityBound(options_));
-    if (value < framer_.GetHpackEncoder()->CurrentHeaderTableSizeSetting()) {
-      // Safe to apply a smaller table capacity immediately.
-      QUICHE_VLOG(2) << TracePerspectiveAsString(options_.perspective)
-                     << " applying encoder table capacity " << value;
-      framer_.GetHpackEncoder()->ApplyHeaderTableSizeSetting(value);
-    } else {
-      QUICHE_VLOG(2)
-          << TracePerspectiveAsString(options_.perspective)
-          << " NOT applying encoder table capacity until writing ack: "
-          << value;
-      encoder_header_table_capacity_when_acking_ = value;
-    }
+  switch (id) {
+    case MAX_FRAME_SIZE:
+      max_frame_payload_ = value;
+      break;
+    case MAX_CONCURRENT_STREAMS:
+      max_outbound_concurrent_streams_ = value;
+      break;
+    case HEADER_TABLE_SIZE:
+      value = std::min(value, HpackCapacityBound(options_));
+      if (value < framer_.GetHpackEncoder()->CurrentHeaderTableSizeSetting()) {
+        // Safe to apply a smaller table capacity immediately.
+        QUICHE_VLOG(2) << TracePerspectiveAsString(options_.perspective)
+                       << " applying encoder table capacity " << value;
+        framer_.GetHpackEncoder()->ApplyHeaderTableSizeSetting(value);
+      } else {
+        QUICHE_VLOG(2)
+            << TracePerspectiveAsString(options_.perspective)
+            << " NOT applying encoder table capacity until writing ack: "
+            << value;
+        encoder_header_table_capacity_when_acking_ = value;
+      }
+      break;
+    default:
+      // TODO(bnc): See if C++17 inline constants are allowed in QUICHE.
+      if (id == kMetadataExtensionId) {
+        peer_supports_metadata_ = (value != 0);
+      } else {
+        QUICHE_VLOG(1) << "Unimplemented SETTING id: " << id;
+      }
   }
+  visitor_.OnSetting({id, value});
 }
 
 void OgHttp2Session::OnSettingsEnd() {
