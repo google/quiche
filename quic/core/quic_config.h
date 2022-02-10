@@ -384,12 +384,6 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   void SetDisableConnectionMigration();
   bool DisableConnectionMigration() const;
 
-  // Key update support.
-  void SetKeyUpdateSupportedLocally();
-  bool KeyUpdateSupportedForConnection() const;
-  bool KeyUpdateSupportedLocally() const;
-  bool KeyUpdateSupportedRemotely() const;
-
   // IPv6 alternate server address.
   void SetIPv6AlternateServerAddressToSend(
       const QuicSocketAddress& alternate_server_address_ipv6);
@@ -592,13 +586,6 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Whether active connection migration is allowed.
   // Uses the disable_active_migration transport parameter in IETF QUIC.
   QuicFixedUint32 connection_migration_disabled_;
-
-  // Whether key update is supported by the peer. Uses key_update_not_yet
-  // supported transport parameter in IETF QUIC.
-  bool key_update_supported_remotely_;
-
-  // Whether key update is supported locally.
-  bool key_update_supported_locally_;
 
   // Alternate server addresses the client could connect to.
   // Uses the preferred_address transport parameter in IETF QUIC.

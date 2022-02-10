@@ -66,7 +66,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> state) override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
-  bool KeyUpdateSupportedLocally() const override;
   std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
       override;
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;

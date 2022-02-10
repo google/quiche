@@ -12758,13 +12758,11 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   }
 
   TransportParameters params;
-  params.key_update_not_yet_supported = false;
   QuicConfig config;
   std::string error_details;
   EXPECT_THAT(config.ProcessTransportParameters(
                   params, /* is_resumption = */ false, &error_details),
               IsQuicNoError());
-  config.SetKeyUpdateSupportedLocally();
   QuicConfigPeer::SetNegotiated(&config, true);
   if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
@@ -12920,12 +12918,10 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdateApproachingConfidentialityLimit) {
   std::string error_details;
   TransportParameters params;
   // Key update is enabled.
-  params.key_update_not_yet_supported = false;
   QuicConfig config;
   EXPECT_THAT(config.ProcessTransportParameters(
                   params, /* is_resumption = */ false, &error_details),
               IsQuicNoError());
-  config.SetKeyUpdateSupportedLocally();
   QuicConfigPeer::SetNegotiated(&config, true);
   if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
@@ -13018,12 +13014,10 @@ TEST_P(QuicConnectionTest,
   std::string error_details;
   TransportParameters params;
   // Key update is enabled.
-  params.key_update_not_yet_supported = false;
   QuicConfig config;
   EXPECT_THAT(config.ProcessTransportParameters(
                   params, /* is_resumption = */ false, &error_details),
               IsQuicNoError());
-  config.SetKeyUpdateSupportedLocally();
   QuicConfigPeer::SetNegotiated(&config, true);
   if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
@@ -13051,137 +13045,6 @@ TEST_P(QuicConnectionTest,
   EXPECT_TRUE(connection_.connected());
   SendStreamDataToPeer(2, "foo", 0, NO_FIN, &last_packet);
   EXPECT_TRUE(connection_.connected());
-  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
-  SendStreamDataToPeer(3, "foo", 0, NO_FIN, &last_packet);
-  EXPECT_FALSE(connection_.connected());
-  const QuicConnectionStats& stats = connection_.GetStats();
-  EXPECT_EQ(0U, stats.key_update_count);
-  TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
-}
-
-TEST_P(QuicConnectionTest,
-       CloseConnectionOnConfidentialityLimitKeyUpdateNotSupportedByPeer) {
-  if (!connection_.version().UsesTls()) {
-    return;
-  }
-
-  // Set key update confidentiality limit to 1 packet.
-  SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 1U);
-  // Use confidentiality limit for connection close of 3 packets.
-  constexpr size_t kConfidentialityLimit = 3U;
-
-  std::string error_details;
-  TransportParameters params;
-  // Key update not enabled for this connection as peer doesn't support it.
-  params.key_update_not_yet_supported = true;
-  QuicConfig config;
-  EXPECT_THAT(config.ProcessTransportParameters(
-                  params, /* is_resumption = */ false, &error_details),
-              IsQuicNoError());
-  // Key update is supported locally.
-  config.SetKeyUpdateSupportedLocally();
-  QuicConfigPeer::SetNegotiated(&config, true);
-  if (connection_.version().UsesTls()) {
-    QuicConfigPeer::SetReceivedOriginalConnectionId(
-        &config, connection_.connection_id());
-    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
-        &config, connection_.connection_id());
-  }
-  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
-  connection_.SetFromConfig(config);
-
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  connection_.SetEncrypter(
-      ENCRYPTION_FORWARD_SECURE,
-      std::make_unique<NullEncrypterWithConfidentialityLimit>(
-          Perspective::IS_CLIENT, kConfidentialityLimit));
-  EXPECT_CALL(visitor_, GetHandshakeState())
-      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
-  connection_.OnHandshakeComplete();
-
-  QuicPacketNumber last_packet;
-  // Send 3 packets and receive acks for them. Since key update is not enabled
-  // the confidentiality limit should be reached, forcing the connection to be
-  // closed.
-  SendStreamDataToPeer(1, "foo", 0, NO_FIN, &last_packet);
-  EXPECT_TRUE(connection_.connected());
-  // Receive ack for packet.
-  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
-  QuicAckFrame frame1 = InitAckFrame(1);
-  ProcessAckPacket(&frame1);
-
-  SendStreamDataToPeer(2, "foo", 0, NO_FIN, &last_packet);
-  EXPECT_TRUE(connection_.connected());
-  // Receive ack for packet.
-  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
-  QuicAckFrame frame2 = InitAckFrame(2);
-  ProcessAckPacket(&frame2);
-
-  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
-  SendStreamDataToPeer(3, "foo", 0, NO_FIN, &last_packet);
-  EXPECT_FALSE(connection_.connected());
-  const QuicConnectionStats& stats = connection_.GetStats();
-  EXPECT_EQ(0U, stats.key_update_count);
-  TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
-}
-
-TEST_P(QuicConnectionTest,
-       CloseConnectionOnConfidentialityLimitKeyUpdateNotEnabledLocally) {
-  if (!connection_.version().UsesTls()) {
-    return;
-  }
-
-  // Set key update confidentiality limit to 1 packet.
-  SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 1U);
-  // Use confidentiality limit for connection close of 3 packets.
-  constexpr size_t kConfidentialityLimit = 3U;
-
-  std::string error_details;
-  TransportParameters params;
-  // Key update is supported by peer but not locally
-  // (config.SetKeyUpdateSupportedLocally is not called.)
-  params.key_update_not_yet_supported = false;
-  QuicConfig config;
-  EXPECT_THAT(config.ProcessTransportParameters(
-                  params, /* is_resumption = */ false, &error_details),
-              IsQuicNoError());
-  QuicConfigPeer::SetNegotiated(&config, true);
-  if (connection_.version().UsesTls()) {
-    QuicConfigPeer::SetReceivedOriginalConnectionId(
-        &config, connection_.connection_id());
-    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
-        &config, connection_.connection_id());
-  }
-  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
-  connection_.SetFromConfig(config);
-
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  connection_.SetEncrypter(
-      ENCRYPTION_FORWARD_SECURE,
-      std::make_unique<NullEncrypterWithConfidentialityLimit>(
-          Perspective::IS_CLIENT, kConfidentialityLimit));
-  EXPECT_CALL(visitor_, GetHandshakeState())
-      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
-  connection_.OnHandshakeComplete();
-
-  QuicPacketNumber last_packet;
-  // Send 3 packets and receive acks for them. Since key update is not enabled
-  // the confidentiality limit should be reached, forcing the connection to be
-  // closed.
-  SendStreamDataToPeer(1, "foo", 0, NO_FIN, &last_packet);
-  EXPECT_TRUE(connection_.connected());
-  // Receive ack for packet.
-  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
-  QuicAckFrame frame1 = InitAckFrame(1);
-  ProcessAckPacket(&frame1);
-
-  SendStreamDataToPeer(2, "foo", 0, NO_FIN, &last_packet);
-  EXPECT_TRUE(connection_.connected());
-  // Receive ack for packet.
-  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
-  QuicAckFrame frame2 = InitAckFrame(2);
-  ProcessAckPacket(&frame2);
-
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
   SendStreamDataToPeer(3, "foo", 0, NO_FIN, &last_packet);
   EXPECT_FALSE(connection_.connected());
@@ -13345,13 +13208,11 @@ TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitAcrossKeyPhases) {
   constexpr QuicPacketCount kIntegrityLimit = 4;
 
   TransportParameters params;
-  params.key_update_not_yet_supported = false;
   QuicConfig config;
   std::string error_details;
   EXPECT_THAT(config.ProcessTransportParameters(
                   params, /* is_resumption = */ false, &error_details),
               IsQuicNoError());
-  config.SetKeyUpdateSupportedLocally();
   QuicConfigPeer::SetNegotiated(&config, true);
   if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
@@ -13796,12 +13657,10 @@ TEST_P(QuicConnectionTest,
   // kept for key update, so enable key update for the test.
   std::string error_details;
   TransportParameters params;
-  params.key_update_not_yet_supported = false;
   QuicConfig config;
   EXPECT_THAT(config.ProcessTransportParameters(
                   params, /* is_resumption = */ false, &error_details),
               IsQuicNoError());
-  config.SetKeyUpdateSupportedLocally();
   QuicConfigPeer::SetNegotiated(&config, true);
   QuicConfigPeer::SetReceivedOriginalConnectionId(&config,
                                                   connection_.connection_id());
