@@ -1768,8 +1768,9 @@ void OgHttp2Session::UpdateInitialWindowSize(uint32_t new_value) {
     if (new_window_size > spdy::kSpdyMaximumWindowSize) {
       EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
           stream_id, spdy::ERROR_CODE_FLOW_CONTROL_ERROR));
+    } else {
+      stream_state.send_window += delta;
     }
-    stream_state.send_window += delta;
     if (current_window_size <= 0 && new_window_size > 0) {
       write_scheduler_.MarkStreamReady(stream_id, false);
     }
