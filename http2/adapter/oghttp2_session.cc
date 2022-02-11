@@ -1521,13 +1521,26 @@ std::unique_ptr<SpdySettingsIR> OgHttp2Session::PrepareSettingsFrame(
 void OgHttp2Session::HandleOutboundSettings(
     const spdy::SpdySettingsIR& settings_frame) {
   for (const auto& [id, value] : settings_frame.values()) {
-    if (id == Http2KnownSettingsId::MAX_CONCURRENT_STREAMS) {
-      pending_max_inbound_concurrent_streams_ = value;
-    }
-    if (id == ENABLE_CONNECT_PROTOCOL && value == 1u && IsServerSession()) {
-      // Allow extended CONNECT semantics even before SETTINGS are acked, to
-      // make things easier for clients.
-      headers_handler_.AllowConnect();
+    switch (static_cast<Http2KnownSettingsId>(id)) {
+      case MAX_CONCURRENT_STREAMS:
+        pending_max_inbound_concurrent_streams_ = value;
+        break;
+      case ENABLE_CONNECT_PROTOCOL:
+        if (value == 1u && IsServerSession()) {
+          // Allow extended CONNECT semantics even before SETTINGS are acked, to
+          // make things easier for clients.
+          headers_handler_.AllowConnect();
+        }
+        break;
+      case HEADER_TABLE_SIZE:
+      case ENABLE_PUSH:
+      case INITIAL_WINDOW_SIZE:
+      case MAX_FRAME_SIZE:
+      case MAX_HEADER_LIST_SIZE:
+        QUICHE_VLOG(2)
+            << "Not adjusting internal state for outbound setting with id "
+            << id;
+        break;
     }
   }
 
@@ -1536,10 +1549,22 @@ void OgHttp2Session::HandleOutboundSettings(
   settings_ack_callbacks_.push_back(
       [this, settings_map = settings_frame.values()]() {
         for (const auto& [id, value] : settings_map) {
-          if (id == spdy::SETTINGS_MAX_CONCURRENT_STREAMS) {
-            max_inbound_concurrent_streams_ = value;
-          } else if (id == spdy::SETTINGS_HEADER_TABLE_SIZE) {
-            decoder_.GetHpackDecoder()->ApplyHeaderTableSizeSetting(value);
+          switch (static_cast<Http2KnownSettingsId>(id)) {
+            case MAX_CONCURRENT_STREAMS:
+              max_inbound_concurrent_streams_ = value;
+              break;
+            case HEADER_TABLE_SIZE:
+              decoder_.GetHpackDecoder()->ApplyHeaderTableSizeSetting(value);
+              break;
+            case ENABLE_PUSH:
+            case INITIAL_WINDOW_SIZE:
+            case MAX_FRAME_SIZE:
+            case MAX_HEADER_LIST_SIZE:
+            case ENABLE_CONNECT_PROTOCOL:
+              QUICHE_VLOG(2)
+                  << "No action required in ack for outbound setting with id "
+                  << id;
+              break;
           }
         }
       });
