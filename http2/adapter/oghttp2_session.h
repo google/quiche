@@ -299,6 +299,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   std::unique_ptr<spdy::SpdySettingsIR> PrepareSettingsFrame(
       absl::Span<const Http2Setting> settings);
 
+  // Updates internal state to match the SETTINGS advertised to the peer.
+  void HandleOutboundSettings(const spdy::SpdySettingsIR& settings_frame);
+
   void SendWindowUpdate(Http2StreamId stream_id, size_t update_delta);
 
   enum class SendResult {

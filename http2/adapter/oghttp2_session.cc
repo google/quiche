@@ -990,7 +990,9 @@ void OgHttp2Session::SubmitMetadata(Http2StreamId stream_id,
 }
 
 void OgHttp2Session::SubmitSettings(absl::Span<const Http2Setting> settings) {
-  EnqueueFrame(PrepareSettingsFrame(settings));
+  auto frame = PrepareSettingsFrame(settings);
+  HandleOutboundSettings(*frame);
+  EnqueueFrame(std::move(frame));
 }
 
 void OgHttp2Session::OnError(SpdyFramerError error,
@@ -1486,7 +1488,9 @@ void OgHttp2Session::MaybeSetupPreface() {
     }
     // First frame must be a non-ack SETTINGS.
     if (frames_.empty() || !IsNonAckSettings(*frames_.front())) {
-      frames_.push_front(PrepareSettingsFrame(GetInitialSettings()));
+      auto frame = PrepareSettingsFrame(GetInitialSettings());
+      HandleOutboundSettings(*frame);
+      frames_.push_front(std::move(frame));
     }
     queued_preface_ = true;
   }
@@ -1515,12 +1519,17 @@ std::unique_ptr<SpdySettingsIR> OgHttp2Session::PrepareSettingsFrame(
   auto settings_ir = absl::make_unique<SpdySettingsIR>();
   for (const Http2Setting& setting : settings) {
     settings_ir->AddSetting(setting.id, setting.value);
+  }
+  return settings_ir;
+}
 
-    if (setting.id == Http2KnownSettingsId::MAX_CONCURRENT_STREAMS) {
-      pending_max_inbound_concurrent_streams_ = setting.value;
+void OgHttp2Session::HandleOutboundSettings(
+    const spdy::SpdySettingsIR& settings_frame) {
+  for (const auto& [id, value] : settings_frame.values()) {
+    if (id == Http2KnownSettingsId::MAX_CONCURRENT_STREAMS) {
+      pending_max_inbound_concurrent_streams_ = value;
     }
-    if (setting.id == ENABLE_CONNECT_PROTOCOL && setting.value == 1u &&
-        IsServerSession()) {
+    if (id == ENABLE_CONNECT_PROTOCOL && value == 1u && IsServerSession()) {
       // Allow extended CONNECT semantics even before SETTINGS are acked, to
       // make things easier for clients.
       headers_handler_.AllowConnect();
@@ -1530,17 +1539,15 @@ std::unique_ptr<SpdySettingsIR> OgHttp2Session::PrepareSettingsFrame(
   // Copy the (small) map of settings we are about to send so that we can set
   // values in the SETTINGS ack callback.
   settings_ack_callbacks_.push_back(
-      [this, settings_map = settings_ir->values()]() {
-        for (const auto id_and_value : settings_map) {
-          if (id_and_value.first == spdy::SETTINGS_MAX_CONCURRENT_STREAMS) {
-            max_inbound_concurrent_streams_ = id_and_value.second;
-          } else if (id_and_value.first == spdy::SETTINGS_HEADER_TABLE_SIZE) {
-            decoder_.GetHpackDecoder()->ApplyHeaderTableSizeSetting(
-                id_and_value.second);
+      [this, settings_map = settings_frame.values()]() {
+        for (const auto& [id, value] : settings_map) {
+          if (id == spdy::SETTINGS_MAX_CONCURRENT_STREAMS) {
+            max_inbound_concurrent_streams_ = value;
+          } else if (id == spdy::SETTINGS_HEADER_TABLE_SIZE) {
+            decoder_.GetHpackDecoder()->ApplyHeaderTableSizeSetting(value);
           }
         }
       });
-  return settings_ir;
 }
 
 void OgHttp2Session::SendWindowUpdate(Http2StreamId stream_id,
