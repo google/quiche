@@ -12,9 +12,8 @@ namespace test {
 std::vector<Header> ToHeaders(
     absl::Span<const std::pair<absl::string_view, absl::string_view>> headers) {
   std::vector<Header> out;
-  for (const auto& header : headers) {
-    out.push_back(
-        std::make_pair(HeaderRep(header.first), HeaderRep(header.second)));
+  for (auto [name, value] : headers) {
+    out.push_back(std::make_pair(HeaderRep(name), HeaderRep(value)));
   }
   return out;
 }

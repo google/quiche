@@ -1,7 +1,6 @@
 #include "http2/adapter/oghttp2_session.h"
 
 #include <cstdint>
-#include <tuple>
 #include <utility>
 
 #include "absl/memory/memory.h"
@@ -791,9 +790,7 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
                 static_cast<int32_t>(max_frame_payload_)});
   while (connection_can_write == SendResult::SEND_OK && available_window > 0 &&
          state.outbound_body != nullptr && !state.data_deferred) {
-    int64_t length;
-    bool end_data;
-    std::tie(length, end_data) =
+    auto [length, end_data] =
         state.outbound_body->SelectPayloadLength(available_window);
     QUICHE_VLOG(2) << "WriteForStream | length: " << length
                    << " end_data: " << end_data
@@ -885,9 +882,7 @@ OgHttp2Session::SendResult OgHttp2Session::SendMetadata(
   while (!sequence.empty()) {
     MetadataSource& source = *sequence.front();
 
-    int64_t written;
-    bool end_metadata;
-    std::tie(written, end_metadata) =
+    auto [written, end_metadata] =
         source.Pack(payload_buffer.get(), max_payload_size);
     if (written < 0) {
       // Did not touch the connection, so perhaps writes are still possible.
@@ -1589,8 +1584,7 @@ void OgHttp2Session::MaybeFinWithRstStream(StreamStateMap::iterator iter) {
 
 void OgHttp2Session::MarkDataBuffered(Http2StreamId stream_id, size_t bytes) {
   connection_window_manager_.MarkDataBuffered(bytes);
-  auto it = stream_map_.find(stream_id);
-  if (it != stream_map_.end()) {
+  if (auto it = stream_map_.find(stream_id); it != stream_map_.end()) {
     it->second.window_manager.MarkDataBuffered(bytes);
   }
 }
@@ -1601,9 +1595,7 @@ OgHttp2Session::StreamStateMap::iterator OgHttp2Session::CreateStream(
       [this, stream_id](size_t window_update_delta) {
         SendWindowUpdate(stream_id, window_update_delta);
       };
-  absl::flat_hash_map<Http2StreamId, StreamState>::iterator iter;
-  bool inserted;
-  std::tie(iter, inserted) = stream_map_.try_emplace(
+  auto [iter, inserted] = stream_map_.try_emplace(
       stream_id, StreamState(initial_stream_receive_window_,
                              initial_stream_send_window_, std::move(listener)));
   if (inserted) {
