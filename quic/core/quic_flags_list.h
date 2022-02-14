@@ -71,8 +71,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_single_ack_in_packet2, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_no_select_cert_if_disconnected, true)
 // If true, do not count bytes sent/received on the alternative path into the bytes sent/received on the default path.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_count_bytes_on_alternative_path_seperately, true)
-// If true, do not re-arm PTO while sending application data during handshake.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_rearm_pto_on_application_data_during_handshake, true)
 // If true, do not use the gQUIC common certificate set for certificate compression.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_no_common_cert_set, true)
 // If true, drop unsent PATH_RESPONSEs and rely on peer\'s retry.

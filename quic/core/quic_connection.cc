@@ -3725,15 +3725,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       return true;
     }
   }
-  if (GetQuicReloadableFlag(
-          quic_donot_rearm_pto_on_application_data_during_handshake)) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_donot_rearm_pto_on_application_data_during_handshake);
-    if (ShouldSetRetransmissionAlarmOnPacketSent(in_flight,
-                                                 packet->encryption_level)) {
-      SetRetransmissionAlarm();
-    }
-  } else if (in_flight || !retransmission_alarm_->IsSet()) {
+  if (ShouldSetRetransmissionAlarmOnPacketSent(in_flight,
+                                               packet->encryption_level)) {
     SetRetransmissionAlarm();
   }
   SetPingAlarm();

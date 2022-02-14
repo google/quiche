@@ -14933,14 +14933,8 @@ TEST_P(QuicConnectionTest, SendingZeroRttPacketsDoesNotPostponePTO) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   connection_.SendStreamDataWithString(2, "foo", 0, NO_FIN);
   ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-  if (GetQuicReloadableFlag(
-          quic_donot_rearm_pto_on_application_data_during_handshake)) {
-    // PTO deadline should be unchanged.
-    EXPECT_EQ(pto_deadline, connection_.GetRetransmissionAlarm()->deadline());
-  } else {
-    // PTO gets re-armed.
-    EXPECT_NE(pto_deadline, connection_.GetRetransmissionAlarm()->deadline());
-  }
+  // PTO deadline should be unchanged.
+  EXPECT_EQ(pto_deadline, connection_.GetRetransmissionAlarm()->deadline());
 }
 
 TEST_P(QuicConnectionTest, QueueingUndecryptablePacketsDoesntPostponePTO) {
