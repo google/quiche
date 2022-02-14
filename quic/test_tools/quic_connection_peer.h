@@ -168,8 +168,6 @@ class QuicConnectionPeer {
 
   static size_t NumUndecryptablePackets(QuicConnection* connection);
 
-  static size_t NumPendingPathChallengesToResponse(QuicConnection* connection);
-
   static void SetConnectionClose(QuicConnection* connection);
 
   static void SendPing(QuicConnection* connection);

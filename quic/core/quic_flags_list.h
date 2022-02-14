@@ -73,8 +73,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_no_select_cert_if_disconnected, tr
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_count_bytes_on_alternative_path_seperately, true)
 // If true, do not use the gQUIC common certificate set for certificate compression.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_no_common_cert_set, true)
-// If true, drop unsent PATH_RESPONSEs and rely on peer\'s retry.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_drop_unsent_path_response, true)
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 // If true, flush pending frames as well as pending padding bytes on connection migration.

@@ -2169,13 +2169,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   quiche::QuicheCircularDeque<QuicPathFrameBuffer>
       received_path_challenge_payloads_;
 
-  // Buffer outstanding PATH_CHALLENGEs if socket write is blocked, future
-  // OnCanWrite will attempt to respond with PATH_RESPONSEs using the retained
-  // payload and peer addresses.
-  // TODO(fayang): remove this when deprecating quic_drop_unsent_path_response.
-  quiche::QuicheCircularDeque<PendingPathChallenge>
-      pending_path_challenge_payloads_;
-
   // When we receive a RETRY packet or some INITIAL packets, we replace
   // |server_connection_id_| with the value from that packet and save off the
   // original value of |server_connection_id_| into

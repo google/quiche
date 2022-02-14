@@ -12528,30 +12528,6 @@ TEST_P(QuicConnectionTest, FailToWritePathResponse) {
   writer_->SetWriteBlocked();
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kNewPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
-
-  if (GetQuicReloadableFlag(quic_drop_unsent_path_response)) {
-    EXPECT_EQ(0u, QuicConnectionPeer::NumPendingPathChallengesToResponse(
-                      &connection_));
-    return;
-  }
-  ASSERT_EQ(
-      1u, QuicConnectionPeer::NumPendingPathChallengesToResponse(&connection_));
-
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(1));
-  writer_->SetWritable();
-  connection_.OnCanWrite();
-  EXPECT_EQ(1u, writer_->path_response_frames().size());
-  // The final check is to ensure that the random data in the response
-  // matches the random data from the challenge.
-  EXPECT_EQ(0, memcmp(path_frame_buffer.data(),
-                      &(writer_->path_response_frames().front().data_buffer),
-                      sizeof(path_frame_buffer)));
-  EXPECT_EQ(1u, writer_->padding_frames().size());
-  // PATH_RESPONSE should be sent in another packet to a different peer
-  // address.
-  EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
-  EXPECT_EQ(
-      0u, QuicConnectionPeer::NumPendingPathChallengesToResponse(&connection_));
 }
 
 // Regression test for b/168101557.

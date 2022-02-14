@@ -640,7 +640,6 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   // 2) Client side's rollout can be protected by the same connection option.
   connection_migration_use_new_cid_ =
       validate_client_addresses_ &&
-      GetQuicReloadableFlag(quic_drop_unsent_path_response) &&
       GetQuicReloadableFlag(quic_connection_migration_use_new_cid_v2);
   if (config.HasReceivedMaxPacketSize()) {
     peer_max_packet_size_ = config.ReceivedMaxPacketSize();
@@ -1741,19 +1740,10 @@ bool QuicConnection::OnPathChallengeFrameInternal(
   // Queue or send PATH_RESPONSE. Send PATH_RESPONSE to the source address of
   // the current incoming packet, even if it's not the default path or the
   // alternative path.
-  const bool success = SendPathResponse(
-      frame.data_buffer, last_received_packet_info_.source_address,
-      current_effective_peer_address);
-  if (GetQuicReloadableFlag(quic_drop_unsent_path_response)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_drop_unsent_path_response);
-  }
-  if (!success) {
+  if (!SendPathResponse(frame.data_buffer,
+                        last_received_packet_info_.source_address,
+                        current_effective_peer_address)) {
     QUIC_CODE_COUNT(quic_failed_to_send_path_response);
-    if (!GetQuicReloadableFlag(quic_drop_unsent_path_response)) {
-      // Queue the payloads to re-try later.
-      pending_path_challenge_payloads_.push_back(
-          {frame.data_buffer, last_received_packet_info_.source_address});
-    }
   }
   // TODO(b/150095588): change the stats to
   // num_valid_path_challenge_received.
@@ -2867,23 +2857,6 @@ void QuicConnection::OnCanWrite() {
     } else {
       SendAck();
     }
-  }
-
-  // TODO(danzh) PATH_RESPONSE is of more interest to the peer than ACK,
-  // evaluate if it's worth to send them before sending ACKs.
-  while (!pending_path_challenge_payloads_.empty()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response2, 4, 5);
-    const PendingPathChallenge& pending_path_challenge =
-        pending_path_challenge_payloads_.front();
-    // Note connection_migration_use_cid_ will depends on
-    // quic_drop_unsent_path_response flag eventually, and hence the empty
-    // effective_peer_address here will not be used.
-    if (!SendPathResponse(pending_path_challenge.received_path_challenge,
-                          pending_path_challenge.peer_address,
-                          /*effective_peer_address=*/QuicSocketAddress())) {
-      break;
-    }
-    pending_path_challenge_payloads_.pop_front();
   }
 
   // Sending queued packets may have caused the socket to become write blocked,

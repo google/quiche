@@ -413,12 +413,6 @@ size_t QuicConnectionPeer::NumUndecryptablePackets(QuicConnection* connection) {
   return connection->undecryptable_packets_.size();
 }
 
-// static
-size_t QuicConnectionPeer::NumPendingPathChallengesToResponse(
-    QuicConnection* connection) {
-  return connection->pending_path_challenge_payloads_.size();
-}
-
 void QuicConnectionPeer::SetConnectionClose(QuicConnection* connection) {
   connection->connected_ = false;
 }
