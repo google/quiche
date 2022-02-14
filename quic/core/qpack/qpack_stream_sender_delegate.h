@@ -17,6 +17,9 @@ class QUIC_EXPORT_PRIVATE QpackStreamSenderDelegate {
 
   // Write data on the unidirectional stream.
   virtual void WriteStreamData(absl::string_view data) = 0;
+
+  // Return the number of bytes buffered due to underlying stream being blocked.
+  virtual uint64_t NumBytesBuffered() const = 0;
 };
 
 }  // namespace quic

@@ -25,6 +25,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_no_probe_up_exit_if_no_queue, tru
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_cached_network_parameters_to_address_token2, true)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
+// If true, QpackEncoder will stop emitting instructions on the encoder stream if amount of buffered data exceeds a hardcoded limit.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_limit_encoder_stream_buffering, true)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_support_release_time_for_gso, false)
 // If true, TlsServerHandshaker will be able to 1) request client cert, and 2) verify the client cert in the virtual method TlsServerHandshaker::VerifyCertChain.

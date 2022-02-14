@@ -87,6 +87,12 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
   const QuicByteCount initial_encoder_stream_buffered_byte_count =
       encoder_stream_sender_.BufferedByteCount();
 
+  bool can_write_to_encoder_stream = true;
+  if (GetQuicReloadableFlag(quic_limit_encoder_stream_buffering)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_limit_encoder_stream_buffering);
+    can_write_to_encoder_stream = encoder_stream_sender_.CanWrite();
+  }
+
   Representations representations;
   representations.reserve(header_list.size());
 
@@ -152,17 +158,20 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
                          std::min(smallest_blocking_index, index))) {
             dynamic_table_insertion_blocked = true;
           } else {
-            // If allowed, duplicate entry and refer to it.
-            encoder_stream_sender_.SendDuplicate(
-                QpackAbsoluteIndexToEncoderStreamRelativeIndex(
-                    index, header_table_.inserted_entry_count()));
-            uint64_t new_index = header_table_.InsertEntry(name, value);
-            representations.push_back(EncodeIndexedHeaderField(
-                is_static, new_index, referred_indices));
-            smallest_blocking_index = std::min(smallest_blocking_index, index);
-            header_table_.set_dynamic_table_entry_referenced();
+            if (can_write_to_encoder_stream) {
+              // If allowed, duplicate entry and refer to it.
+              encoder_stream_sender_.SendDuplicate(
+                  QpackAbsoluteIndexToEncoderStreamRelativeIndex(
+                      index, header_table_.inserted_entry_count()));
+              uint64_t new_index = header_table_.InsertEntry(name, value);
+              representations.push_back(EncodeIndexedHeaderField(
+                  is_static, new_index, referred_indices));
+              smallest_blocking_index =
+                  std::min(smallest_blocking_index, index);
+              header_table_.set_dynamic_table_entry_referenced();
 
-            break;
+              break;
+            }
           }
         }
 
@@ -182,15 +191,17 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
                   header_table_.MaxInsertSizeWithoutEvictingGivenEntry(
                       smallest_blocking_index)) {
             // If allowed, insert entry into dynamic table and refer to it.
-            encoder_stream_sender_.SendInsertWithNameReference(is_static, index,
-                                                               value);
-            uint64_t new_index = header_table_.InsertEntry(name, value);
-            representations.push_back(EncodeIndexedHeaderField(
-                /* is_static = */ false, new_index, referred_indices));
-            smallest_blocking_index =
-                std::min<uint64_t>(smallest_blocking_index, new_index);
+            if (can_write_to_encoder_stream) {
+              encoder_stream_sender_.SendInsertWithNameReference(is_static,
+                                                                 index, value);
+              uint64_t new_index = header_table_.InsertEntry(name, value);
+              representations.push_back(EncodeIndexedHeaderField(
+                  /* is_static = */ false, new_index, referred_indices));
+              smallest_blocking_index =
+                  std::min<uint64_t>(smallest_blocking_index, new_index);
 
-            break;
+              break;
+            }
           }
 
           // Emit literal field with name reference.
@@ -208,18 +219,20 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
           dynamic_table_insertion_blocked = true;
         } else {
           // If allowed, insert entry with name reference and refer to it.
-          encoder_stream_sender_.SendInsertWithNameReference(
-              is_static,
-              QpackAbsoluteIndexToEncoderStreamRelativeIndex(
-                  index, header_table_.inserted_entry_count()),
-              value);
-          uint64_t new_index = header_table_.InsertEntry(name, value);
-          representations.push_back(
-              EncodeIndexedHeaderField(is_static, new_index, referred_indices));
-          smallest_blocking_index = std::min(smallest_blocking_index, index);
-          header_table_.set_dynamic_table_entry_referenced();
+          if (can_write_to_encoder_stream) {
+            encoder_stream_sender_.SendInsertWithNameReference(
+                is_static,
+                QpackAbsoluteIndexToEncoderStreamRelativeIndex(
+                    index, header_table_.inserted_entry_count()),
+                value);
+            uint64_t new_index = header_table_.InsertEntry(name, value);
+            representations.push_back(EncodeIndexedHeaderField(
+                is_static, new_index, referred_indices));
+            smallest_blocking_index = std::min(smallest_blocking_index, index);
+            header_table_.set_dynamic_table_entry_referenced();
 
-          break;
+            break;
+          }
         }
 
         if ((blocking_allowed || index < known_received_count) &&
@@ -251,14 +264,16 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
                        smallest_blocking_index)) {
           dynamic_table_insertion_blocked = true;
         } else {
-          encoder_stream_sender_.SendInsertWithoutNameReference(name, value);
-          uint64_t new_index = header_table_.InsertEntry(name, value);
-          representations.push_back(EncodeIndexedHeaderField(
-              /* is_static = */ false, new_index, referred_indices));
-          smallest_blocking_index =
-              std::min<uint64_t>(smallest_blocking_index, new_index);
+          if (can_write_to_encoder_stream) {
+            encoder_stream_sender_.SendInsertWithoutNameReference(name, value);
+            uint64_t new_index = header_table_.InsertEntry(name, value);
+            representations.push_back(EncodeIndexedHeaderField(
+                /* is_static = */ false, new_index, referred_indices));
+            smallest_blocking_index =
+                std::min<uint64_t>(smallest_blocking_index, new_index);
 
-          break;
+            break;
+          }
         }
 
         // Encode entry as string literals.
@@ -275,12 +290,18 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
       encoder_stream_sender_.BufferedByteCount();
   QUICHE_DCHECK_GE(encoder_stream_buffered_byte_count,
                    initial_encoder_stream_buffered_byte_count);
+
   if (encoder_stream_sent_byte_count) {
     *encoder_stream_sent_byte_count =
         encoder_stream_buffered_byte_count -
         initial_encoder_stream_buffered_byte_count;
   }
-  encoder_stream_sender_.Flush();
+  if (can_write_to_encoder_stream) {
+    encoder_stream_sender_.Flush();
+  } else {
+    QUICHE_DCHECK_EQ(encoder_stream_buffered_byte_count,
+                     initial_encoder_stream_buffered_byte_count);
+  }
 
   ++header_list_count_;
 

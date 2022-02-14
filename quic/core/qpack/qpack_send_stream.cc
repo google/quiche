@@ -34,6 +34,10 @@ void QpackSendStream::WriteStreamData(absl::string_view data) {
   WriteOrBufferData(data, false, nullptr);
 }
 
+uint64_t QpackSendStream::NumBytesBuffered() const {
+  return QuicStream::BufferedDataBytes();
+}
+
 void QpackSendStream::MaybeSendStreamType() {
   if (!stream_type_sent_) {
     char type[sizeof(http3_stream_type_)];

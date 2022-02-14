@@ -14,6 +14,14 @@
 
 namespace quic {
 
+namespace {
+
+// If QUIC stream bufferes more that this number of bytes,
+// CanWrite() will return false.
+constexpr uint64_t kMaxBytesBufferedByStream = 64 * 1024;
+
+}  // anonymous namespace
+
 QpackEncoderStreamSender::QpackEncoderStreamSender() : delegate_(nullptr) {}
 
 void QpackEncoderStreamSender::SendInsertWithNameReference(
@@ -42,6 +50,11 @@ void QpackEncoderStreamSender::SendDuplicate(uint64_t index) {
 void QpackEncoderStreamSender::SendSetDynamicTableCapacity(uint64_t capacity) {
   instruction_encoder_.Encode(
       QpackInstructionWithValues::SetDynamicTableCapacity(capacity), &buffer_);
+}
+
+bool QpackEncoderStreamSender::CanWrite() const {
+  return delegate_ && delegate_->NumBytesBuffered() + buffer_.size() <=
+                          kMaxBytesBufferedByStream;
 }
 
 void QpackEncoderStreamSender::Flush() {

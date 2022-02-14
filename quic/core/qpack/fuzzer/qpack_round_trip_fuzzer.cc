@@ -431,6 +431,7 @@ class DelayedStreamDataTransmitter : public QpackStreamSenderDelegate {
   void WriteStreamData(absl::string_view data) override {
     stream_data.push_back(std::string(data.data(), data.size()));
   }
+  uint64_t NumBytesBuffered() const override { return 0; }
 
   // Release some (possibly none) delayed stream data.
   void MaybeTransmitSomeData() {

@@ -38,8 +38,17 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamSender {
   // 5.2.4. Set Dynamic Table Capacity
   void SendSetDynamicTableCapacity(uint64_t capacity);
 
-  // Returns number of buffered bytes.
+  // Returns number of bytes buffered by this object.
+  // There is no limit on how much data this object is willing to buffer.
   QuicByteCount BufferedByteCount() const { return buffer_.size(); }
+
+  // Returns whether writing to the encoder stream is allowed.  Writing is
+  // disallowed if the amount of data buffered by the underlying stream exceeds
+  // a hardcoded limit, in order to limit memory consumption in case the encoder
+  // stream is blocked.  CanWrite() returning true does not mean that the
+  // encoder stream is not blocked, it just means the blocked data does not
+  // exceed the threshold.
+  bool CanWrite() const;
 
   // Writes all buffered instructions on the encoder stream.
   void Flush();

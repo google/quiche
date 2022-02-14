@@ -33,6 +33,7 @@ class MockQpackStreamSenderDelegate : public QpackStreamSenderDelegate {
   ~MockQpackStreamSenderDelegate() override = default;
 
   MOCK_METHOD(void, WriteStreamData, (absl::string_view data), (override));
+  MOCK_METHOD(uint64_t, NumBytesBuffered, (), (const, override));
 };
 
 class NoopQpackStreamSenderDelegate : public QpackStreamSenderDelegate {
@@ -40,6 +41,8 @@ class NoopQpackStreamSenderDelegate : public QpackStreamSenderDelegate {
   ~NoopQpackStreamSenderDelegate() override = default;
 
   void WriteStreamData(absl::string_view /*data*/) override {}
+
+  uint64_t NumBytesBuffered() const override { return 0; }
 };
 
 }  // namespace test

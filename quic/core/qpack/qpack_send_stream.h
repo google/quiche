@@ -43,6 +43,9 @@ class QUIC_EXPORT_PRIVATE QpackSendStream : public QuicStream,
   // before the first instruction so that the peer can open an qpack stream.
   void WriteStreamData(absl::string_view data) override;
 
+  // Return the number of bytes buffered due to underlying stream being blocked.
+  uint64_t NumBytesBuffered() const override;
+
   // TODO(b/112770235): Remove this method once QuicStreamIdManager supports
   // creating HTTP/3 unidirectional streams dynamically.
   void MaybeSendStreamType();
