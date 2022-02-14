@@ -105,8 +105,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_retire_cid_on_reverse_path_validation_
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_bursts, false)
 // If true, stop resetting ideal_next_packet_send_time_ in pacing sender.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_reset_ideal_next_packet_send_time, false)
-// If true, suppress crypto data write in mid of packet processing.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_suppress_write_mid_packet_processing, true)
 // If true, use BBRv2 as the default congestion controller. Takes precedence over --quic_default_to_bbr.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr_v2, false)
 // If true, use max(max_bw, send_rate) as the estimated bandwidth in QUIC\'s MaxAckHeightTracker.

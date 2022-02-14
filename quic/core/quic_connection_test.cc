@@ -15209,6 +15209,25 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
   }
 }
 
+TEST_P(QuicConnectionTest, ReceivedChloAndAck) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  QuicFrames frames;
+  QuicAckFrame ack_frame = InitAckFrame(1);
+  frames.push_back(MakeCryptoFrame());
+  frames.push_back(QuicFrame(&ack_frame));
+
+  EXPECT_CALL(visitor_, OnCryptoFrame(_))
+      .WillOnce(IgnoreResult(InvokeWithoutArgs(
+          &connection_, &TestConnection::SendCryptoStreamData)));
+  EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
+                                   ENCRYPTION_INITIAL);
+}
+
 // Regression test for b/201643321.
 TEST_P(QuicConnectionTest, FailedToRetransmitShlo) {
   if (!version().HasIetfQuicFrames()) {
