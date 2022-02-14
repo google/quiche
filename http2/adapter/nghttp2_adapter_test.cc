@@ -2960,6 +2960,147 @@ TEST(NgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
   EXPECT_FALSE(adapter->want_write());
 }
 
+TEST(NgHttp2AdapterTest, ClientDisobeysConnectionFlowControl) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"},
+                                           {"accept", "some bogus value!"}},
+                                          /*fin=*/false)
+                                 // 70000 bytes of data
+                                 .Data(1, std::string(16384, 'a'))
+                                 .Data(1, std::string(16384, 'a'))
+                                 .Data(1, std::string(16384, 'a'))
+                                 .Data(1, std::string(16384, 'a'))
+                                 .Data(1, std::string(4464, 'a'))
+                                 .Serialize();
+
+  testing::InSequence s;
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream).Times(5);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnFrameHeader(1, 16384, DATA, 0x0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, 16384));
+  EXPECT_CALL(visitor, OnDataForStream(1, _));
+  EXPECT_CALL(visitor, OnFrameHeader(1, 16384, DATA, 0x0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, 16384));
+  EXPECT_CALL(visitor, OnDataForStream(1, _));
+  EXPECT_CALL(visitor, OnFrameHeader(1, 16384, DATA, 0x0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, 16384));
+  EXPECT_CALL(visitor, OnDataForStream(1, _));
+  EXPECT_CALL(visitor, OnFrameHeader(1, 16384, DATA, 0x0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, 16384));
+  // No further frame data or headers are delivered.
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
+
+  EXPECT_TRUE(adapter->want_write());
+
+  // No SETTINGS ack is written.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(
+      visitor,
+      OnFrameSent(GOAWAY, 0, _, 0x0,
+                  static_cast<int>(Http2ErrorCode::FLOW_CONTROL_ERROR)));
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::GOAWAY}));
+}
+
+TEST(NgHttp2AdapterTest, ClientDisobeysStreamFlowControl) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"},
+                                           {"accept", "some bogus value!"}},
+                                          /*fin=*/false)
+                                 .Serialize();
+  const std::string more_frames = TestFrameSequence()
+                                      // 70000 bytes of data
+                                      .Data(1, std::string(16384, 'a'))
+                                      .Data(1, std::string(16384, 'a'))
+                                      .Data(1, std::string(16384, 'a'))
+                                      .Data(1, std::string(16384, 'a'))
+                                      .Data(1, std::string(4464, 'a'))
+                                      .Serialize();
+
+  testing::InSequence s;
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream).Times(5);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+
+  int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
+
+  adapter->SubmitWindowUpdate(0, 20000);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 0, 4, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 0, 4, 0x0, 0));
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS,
+                                            SpdyFrameType::WINDOW_UPDATE}));
+  visitor.Clear();
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, 16384, DATA, 0x0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, 16384));
+  EXPECT_CALL(visitor, OnDataForStream(1, _));
+  EXPECT_CALL(visitor, OnFrameHeader(1, 16384, DATA, 0x0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, 16384));
+  EXPECT_CALL(visitor, OnDataForStream(1, _));
+  EXPECT_CALL(visitor, OnFrameHeader(1, 16384, DATA, 0x0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, 16384));
+  EXPECT_CALL(visitor, OnDataForStream(1, _));
+  EXPECT_CALL(visitor, OnFrameHeader(1, 16384, DATA, 0x0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, 16384));
+  EXPECT_CALL(visitor, OnDataForStream(1, _));
+  // No further frame data or headers for stream 1 are delivered.
+
+  result = adapter->ProcessBytes(more_frames);
+  EXPECT_EQ(more_frames.size(), static_cast<size_t>(result));
+
+  EXPECT_TRUE(adapter->want_write());
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, 4, 0x0));
+  EXPECT_CALL(
+      visitor,
+      OnFrameSent(RST_STREAM, 1, 4, 0x0,
+                  static_cast<int>(Http2ErrorCode::FLOW_CONTROL_ERROR)));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::FLOW_CONTROL_ERROR));
+
+  send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::RST_STREAM}));
+}
+
 TEST(NgHttp2AdapterTest, ServerErrorWhileHandlingHeaders) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
