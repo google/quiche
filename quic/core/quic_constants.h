@@ -255,6 +255,9 @@ const size_t kMinRandomBytesLengthInStatelessReset = 24;
 // Maximum length allowed for the token in a NEW_TOKEN frame.
 const size_t kMaxNewTokenTokenLength = 0xffff;
 
+// The prefix used by a source address token in a NEW_TOKEN frame.
+const uint8_t kAddressTokenPrefix = 0;
+
 // Default initial rtt used before any samples are received.
 const int kInitialRttMs = 100;
 

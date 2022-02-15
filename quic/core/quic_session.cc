@@ -1689,8 +1689,8 @@ bool QuicSession::MaybeSendAddressToken() {
   const size_t buf_len = address_token.length() + 1;
   auto buffer = std::make_unique<char[]>(buf_len);
   QuicDataWriter writer(buf_len, buffer.get());
-  // Add prefix 0 for token sent in NEW_TOKEN frame.
-  writer.WriteUInt8(0);
+  // Add |kAddressTokenPrefix| for token sent in NEW_TOKEN frame.
+  writer.WriteUInt8(kAddressTokenPrefix);
   writer.WriteBytes(address_token.data(), address_token.length());
   control_frame_manager_.WriteOrBufferNewToken(
       absl::string_view(buffer.get(), buf_len));
@@ -2652,7 +2652,7 @@ bool QuicSession::ValidateToken(absl::string_view token) {
   if (GetQuicFlag(FLAGS_quic_reject_retry_token_in_initial_packet)) {
     return false;
   }
-  if (token.empty() || token[0] != 0) {
+  if (token.empty() || token[0] != kAddressTokenPrefix) {
     // Validate the prefix for token received in NEW_TOKEN frame.
     return false;
   }
