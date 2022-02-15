@@ -8,8 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "net/quic/platform/impl/quic_flags_impl.h"
-
+#include "quiche_platform_impl/quic_flags_impl.h"
 #include "common/platform/api/quiche_flags.h"
 
 #define GetQuicReloadableFlag(flag) GetQuicheReloadableFlag(quic, flag)
