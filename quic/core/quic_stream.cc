@@ -506,13 +506,7 @@ bool QuicStream::OnStopSending(QuicResetStreamError error) {
   }
 
   stream_error_ = error;
-  if (GetQuicReloadableFlag(quic_match_ietf_reset_code)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_match_ietf_reset_code);
-    MaybeSendRstStream(error);
-  } else {
-    MaybeSendRstStream(
-        QuicResetStreamError::FromInternal(error.internal_code()));
-  }
+  MaybeSendRstStream(error);
   return true;
 }
 
