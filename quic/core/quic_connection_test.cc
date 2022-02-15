@@ -1576,8 +1576,10 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtServer) {
     EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
   }
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
-  ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address, kPeerAddress,
-                                  ENCRYPTION_INITIAL);
+  EXPECT_QUIC_PEER_BUG(
+      ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address,
+                                      kPeerAddress, ENCRYPTION_INITIAL),
+      "Self address migration is not supported at the server");
   EXPECT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(QUIC_ERROR_MIGRATING_ADDRESS);
 }

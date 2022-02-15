@@ -3009,10 +3009,19 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
             last_received_packet_info_.destination_address.host()
                 .Normalized()) {
       if (!visitor_->AllowSelfAddressChange()) {
-        CloseConnection(
-            QUIC_ERROR_MIGRATING_ADDRESS,
-            "Self address migration is not supported at the server.",
-            ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+        const std::string error_details = absl::StrCat(
+            "Self address migration is not supported at the server, current "
+            "address: ",
+            default_path_.self_address.ToString(),
+            ", received packet address: ",
+            last_received_packet_info_.destination_address.ToString(),
+            ", size: ", last_size_,
+            ", packet number: ", header.packet_number.ToString(),
+            ", encryption level: ",
+            EncryptionLevelToString(last_decrypted_packet_level_));
+        QUIC_PEER_BUG(Server self address change) << error_details;
+        CloseConnection(QUIC_ERROR_MIGRATING_ADDRESS, error_details,
+                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
         return false;
       }
     }
