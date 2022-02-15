@@ -4596,14 +4596,7 @@ TEST_F(QuicSentPacketManagerTest, IgnorePeerMaxAckDelayDuringHandshake) {
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
                                    ENCRYPTION_HANDSHAKE));
-  if (GetQuicReloadableFlag(quic_ignore_peer_max_ack_delay_during_handshake)) {
-    EXPECT_EQ(kTestRTT, manager_.GetRttStats()->latest_rtt());
-  } else {
-    // Verify the ack_delay gets capped by the peer_max_ack_delay.
-    EXPECT_EQ(kTestRTT + queuing_delay -
-                  QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs),
-              manager_.GetRttStats()->latest_rtt());
-  }
+  EXPECT_EQ(kTestRTT, manager_.GetRttStats()->latest_rtt());
 }
 
 TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrameWithSRTT) {
