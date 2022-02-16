@@ -16,9 +16,7 @@ class WindowManagerPeer {
  public:
   explicit WindowManagerPeer(const WindowManager& wm) : wm_(wm) {}
 
-  size_t buffered() {
-    return wm_.buffered_;
-  }
+  int64_t buffered() { return wm_.buffered_; }
 
  private:
   const WindowManager& wm_;
@@ -32,12 +30,10 @@ class WindowManagerTest : public ::testing::Test {
       : wm_(kDefaultLimit, absl::bind_front(&WindowManagerTest::OnCall, this)),
         peer_(wm_) {}
 
-  void OnCall(size_t s) {
-    call_sequence_.push_back(s);
-  }
+  void OnCall(int64_t s) { call_sequence_.push_back(s); }
 
-  const size_t kDefaultLimit = 32 * 1024 * 3;
-  std::list<size_t> call_sequence_;
+  const int64_t kDefaultLimit = 32 * 1024 * 3;
+  std::list<int64_t> call_sequence_;
   WindowManager wm_;
   WindowManagerPeer peer_;
   ::http2::test::Http2Random random_;
@@ -56,9 +52,9 @@ TEST_F(WindowManagerTest, NoOps) {
 // This test verifies that WindowManager does not notify its listener when data
 // is only buffered, and never flushed.
 TEST_F(WindowManagerTest, DataOnlyBuffered) {
-  size_t total = 0;
+  int64_t total = 0;
   while (total < kDefaultLimit) {
-    size_t s = std::min<size_t>(kDefaultLimit - total, random_.Uniform(1024));
+    int64_t s = std::min<int64_t>(kDefaultLimit - total, random_.Uniform(1024));
     total += s;
     wm_.MarkDataBuffered(s);
   }
@@ -68,15 +64,15 @@ TEST_F(WindowManagerTest, DataOnlyBuffered) {
 // This test verifies that WindowManager does notify its listener when data is
 // buffered and subsequently flushed.
 TEST_F(WindowManagerTest, DataBufferedAndFlushed) {
-  size_t total_buffered = 0;
-  size_t total_flushed = 0;
+  int64_t total_buffered = 0;
+  int64_t total_flushed = 0;
   while (call_sequence_.empty()) {
-    size_t buffered =
-        std::min<size_t>(kDefaultLimit - total_buffered, random_.Uniform(1024));
+    int64_t buffered = std::min<int64_t>(kDefaultLimit - total_buffered,
+                                         random_.Uniform(1024));
     wm_.MarkDataBuffered(buffered);
     total_buffered += buffered;
     EXPECT_TRUE(call_sequence_.empty());
-    size_t flushed = random_.Uniform(total_buffered - total_flushed);
+    int64_t flushed = random_.Uniform(total_buffered - total_flushed);
     wm_.MarkDataFlushed(flushed);
     total_flushed += flushed;
   }
@@ -110,10 +106,10 @@ TEST_F(WindowManagerTest, AvoidBufferedUnderflow) {
 // This test verifies that WindowManager notifies its listener when window is
 // consumed (data is ignored or immediately dropped).
 TEST_F(WindowManagerTest, WindowConsumed) {
-  size_t consumed = kDefaultLimit / 3 - 1;
+  int64_t consumed = kDefaultLimit / 3 - 1;
   wm_.MarkWindowConsumed(consumed);
   EXPECT_TRUE(call_sequence_.empty());
-  const size_t extra = 1;
+  const int64_t extra = 1;
   wm_.MarkWindowConsumed(extra);
   EXPECT_THAT(call_sequence_, testing::ElementsAre(consumed + extra));
 }

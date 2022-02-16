@@ -8,12 +8,14 @@
 namespace http2 {
 namespace adapter {
 
-WindowManager::WindowManager(size_t window_size_limit,
+WindowManager::WindowManager(int64_t window_size_limit,
                              WindowUpdateListener listener)
-    : limit_(window_size_limit), window_(window_size_limit), buffered_(0),
+    : limit_(window_size_limit),
+      window_(window_size_limit),
+      buffered_(0),
       listener_(std::move(listener)) {}
 
-void WindowManager::OnWindowSizeLimitChange(const size_t new_limit) {
+void WindowManager::OnWindowSizeLimitChange(const int64_t new_limit) {
   QUICHE_VLOG(2) << "WindowManager@" << this
                  << " OnWindowSizeLimitChange from old limit of " << limit_
                  << " to new limit of " << new_limit;
@@ -26,7 +28,7 @@ void WindowManager::OnWindowSizeLimitChange(const size_t new_limit) {
   limit_ = new_limit;
 }
 
-void WindowManager::SetWindowSizeLimit(size_t new_limit) {
+void WindowManager::SetWindowSizeLimit(int64_t new_limit) {
   QUICHE_VLOG(2) << "WindowManager@" << this
                  << " SetWindowSizeLimit from old limit of " << limit_
                  << " to new limit of " << new_limit;
@@ -34,7 +36,7 @@ void WindowManager::SetWindowSizeLimit(size_t new_limit) {
   MaybeNotifyListener();
 }
 
-bool WindowManager::MarkDataBuffered(size_t bytes) {
+bool WindowManager::MarkDataBuffered(int64_t bytes) {
   QUICHE_VLOG(2) << "WindowManager@" << this << " window: " << window_
                  << " bytes: " << bytes;
   if (window_ < bytes) {
@@ -52,7 +54,7 @@ bool WindowManager::MarkDataBuffered(size_t bytes) {
   return window_ > 0;
 }
 
-void WindowManager::MarkDataFlushed(size_t bytes) {
+void WindowManager::MarkDataFlushed(int64_t bytes) {
   QUICHE_VLOG(2) << "WindowManager@" << this << " buffered: " << buffered_
                  << " bytes: " << bytes;
   if (buffered_ < bytes) {
@@ -73,9 +75,9 @@ void WindowManager::MaybeNotifyListener() {
   }
   // For the sake of efficiency, we want to send window updates if less than
   // half of the max quota is available to the peer at any point in time.
-  const size_t kDesiredMinWindow = limit_ / 2;
-  const size_t kDesiredMinDelta = limit_ / 3;
-  const size_t delta = limit_ - (buffered_ + window_);
+  const int64_t kDesiredMinWindow = limit_ / 2;
+  const int64_t kDesiredMinDelta = limit_ / 3;
+  const int64_t delta = limit_ - (buffered_ + window_);
   bool send_update = false;
   if (delta >= kDesiredMinDelta) {
     // This particular window update was sent because the available delta

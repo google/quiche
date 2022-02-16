@@ -19,34 +19,33 @@ class WindowManagerPeer;
 class QUICHE_EXPORT_PRIVATE WindowManager {
  public:
   // A WindowUpdateListener is invoked when it is time to send a window update.
-  typedef std::function<void(size_t)> WindowUpdateListener;
+  typedef std::function<void(int64_t)> WindowUpdateListener;
 
-  WindowManager(size_t window_size_limit,
-                WindowUpdateListener listener);
+  WindowManager(int64_t window_size_limit, WindowUpdateListener listener);
 
-  size_t CurrentWindowSize() const { return window_; }
-  size_t WindowSizeLimit() const { return limit_; }
+  int64_t CurrentWindowSize() const { return window_; }
+  int64_t WindowSizeLimit() const { return limit_; }
 
   // Called when the window size limit is changed (typically via settings) but
   // no window update should be sent.
-  void OnWindowSizeLimitChange(size_t new_limit);
+  void OnWindowSizeLimitChange(int64_t new_limit);
 
   // Sets the window size limit to |new_limit| and notifies the listener to
   // update as necessary.
-  void SetWindowSizeLimit(size_t new_limit);
+  void SetWindowSizeLimit(int64_t new_limit);
 
   // Increments the running total of data bytes buffered. Returns true iff there
   // is more window remaining.
-  bool MarkDataBuffered(size_t bytes);
+  bool MarkDataBuffered(int64_t bytes);
 
   // Increments the running total of data bytes that have been flushed or
   // dropped. Invokes the listener if the current window is smaller than some
   // threshold and there is quota available to send.
-  void MarkDataFlushed(size_t bytes);
+  void MarkDataFlushed(int64_t bytes);
 
   // Convenience method, used when incoming data is immediately dropped or
   // ignored.
-  void MarkWindowConsumed(size_t bytes) {
+  void MarkWindowConsumed(int64_t bytes) {
     MarkDataBuffered(bytes);
     MarkDataFlushed(bytes);
   }
@@ -58,16 +57,16 @@ class QUICHE_EXPORT_PRIVATE WindowManager {
 
   // The upper bound on the flow control window. The GFE attempts to maintain a
   // window of this size at the peer as data is proxied through.
-  size_t limit_;
+  int64_t limit_;
 
   // The current flow control window that has not been advertised to the peer
   // and not yet consumed. The peer can send this many bytes before becoming
   // blocked.
-  size_t window_;
+  int64_t window_;
 
   // The amount of data already buffered, which should count against the flow
   // control window upper bound.
-  size_t buffered_;
+  int64_t buffered_;
 
   WindowUpdateListener listener_;
 };
