@@ -6,7 +6,7 @@
 
 #ifdef QUIC_FLAG
 
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_set_burst_token, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_set_burst_token, true)
 
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_offload_pacing_to_usps2, false)
 // A testonly reloadable flag that will always default to false.
