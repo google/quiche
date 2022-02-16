@@ -168,7 +168,7 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
   QuicNewConnectionIdFrame IssueNewConnectionId();
 
   // This should be set to the min of:
-  // (1) # of connection atcive IDs that peer can maintain.
+  // (1) # of active connection IDs that peer can maintain.
   // (2) maximum # of active connection IDs self plans to issue.
   size_t active_connection_id_limit_;
   const QuicClock* clock_;
