@@ -19,12 +19,7 @@ void WindowManager::OnWindowSizeLimitChange(const int64_t new_limit) {
   QUICHE_VLOG(2) << "WindowManager@" << this
                  << " OnWindowSizeLimitChange from old limit of " << limit_
                  << " to new limit of " << new_limit;
-  if (new_limit > limit_) {
-    window_ += (new_limit - limit_);
-  } else {
-    QUICHE_BUG(H2 window decrease)
-        << "Window size limit decrease not currently supported.";
-  }
+  window_ += (new_limit - limit_);
   limit_ = new_limit;
 }
 
@@ -68,11 +63,6 @@ void WindowManager::MarkDataFlushed(int64_t bytes) {
 }
 
 void WindowManager::MaybeNotifyListener() {
-  if (buffered_ + window_ > limit_) {
-    QUICHE_LOG(ERROR) << "Flow control violation; limit: " << limit_
-                      << " buffered: " << buffered_ << " window: " << window_;
-    return;
-  }
   // For the sake of efficiency, we want to send window updates if less than
   // half of the max quota is available to the peer at any point in time.
   const int64_t kDesiredMinWindow = limit_ / 2;

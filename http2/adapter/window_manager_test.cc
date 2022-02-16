@@ -161,6 +161,53 @@ TEST_F(WindowManagerTest, ZeroWindowNotification) {
   EXPECT_THAT(call_sequence_, testing::ElementsAre(1));
 }
 
+TEST_F(WindowManagerTest, OnWindowSizeLimitChange) {
+  wm_.MarkDataBuffered(10000);
+  EXPECT_EQ(wm_.CurrentWindowSize(), kDefaultLimit - 10000);
+  EXPECT_EQ(wm_.WindowSizeLimit(), kDefaultLimit);
+
+  wm_.OnWindowSizeLimitChange(kDefaultLimit + 1000);
+  EXPECT_EQ(wm_.CurrentWindowSize(), kDefaultLimit - 9000);
+  EXPECT_EQ(wm_.WindowSizeLimit(), kDefaultLimit + 1000);
+
+  wm_.OnWindowSizeLimitChange(kDefaultLimit - 1000);
+  EXPECT_EQ(wm_.CurrentWindowSize(), kDefaultLimit - 11000);
+  EXPECT_EQ(wm_.WindowSizeLimit(), kDefaultLimit - 1000);
+}
+
+TEST_F(WindowManagerTest, NegativeWindowSize) {
+  wm_.MarkDataBuffered(80000);
+  // 98304 window - 80000 buffered = 18304 available
+  EXPECT_EQ(wm_.CurrentWindowSize(), 18304);
+  wm_.OnWindowSizeLimitChange(65535);
+  // limit decreases by 98304 - 65535 = 32769, window becomes -14465
+  EXPECT_EQ(wm_.CurrentWindowSize(), -14465);
+  wm_.MarkDataFlushed(70000);
+  // Still 10000 bytes buffered, so window manager grants sufficient quota to
+  // reach a window of 65535 - 10000.
+  EXPECT_EQ(wm_.CurrentWindowSize(), 55535);
+  // Desired window minus existing window: 55535 - (-14465) = 70000
+  EXPECT_THAT(call_sequence_, testing::ElementsAre(70000));
+}
+
+TEST_F(WindowManagerTest, IncreaseWindow) {
+  wm_.MarkDataBuffered(1000);
+  EXPECT_EQ(wm_.CurrentWindowSize(), kDefaultLimit - 1000);
+  EXPECT_EQ(wm_.WindowSizeLimit(), kDefaultLimit);
+
+  // Increasing the window beyond the limit is allowed.
+  wm_.IncreaseWindow(5000);
+  EXPECT_EQ(wm_.CurrentWindowSize(), kDefaultLimit + 4000);
+  EXPECT_EQ(wm_.WindowSizeLimit(), kDefaultLimit);
+
+  // 80000 bytes are buffered, then flushed.
+  wm_.MarkWindowConsumed(80000);
+  // The window manager replenishes the consumed quota up to the limit.
+  EXPECT_THAT(call_sequence_, testing::ElementsAre(75000));
+  // The window is the limit, minus buffered data, as expected.
+  EXPECT_EQ(wm_.CurrentWindowSize(), kDefaultLimit - 1000);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace adapter

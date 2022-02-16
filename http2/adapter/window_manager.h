@@ -50,6 +50,10 @@ class QUICHE_EXPORT_PRIVATE WindowManager {
     MarkDataFlushed(bytes);
   }
 
+  // Increments the window size without affecting the limit. Useful if this end
+  // of a stream or connection issues a one-time WINDOW_UPDATE.
+  void IncreaseWindow(int64_t delta) { window_ += delta; }
+
  private:
   friend class test::WindowManagerPeer;
 
