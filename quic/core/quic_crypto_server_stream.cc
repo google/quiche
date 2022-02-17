@@ -309,6 +309,11 @@ void QuicCryptoServerStream::FinishSendServerConfigUpdate(
   ++num_server_config_update_messages_sent_;
 }
 
+bool QuicCryptoServerStream::DisableResumption() {
+  QUICHE_DCHECK(false) << "Not supported for QUIC crypto.";
+  return false;
+}
+
 bool QuicCryptoServerStream::IsZeroRtt() const {
   return num_handshake_messages_ == 1 &&
          num_handshake_messages_with_server_nonces_ == 0;
@@ -329,6 +334,11 @@ QuicCryptoServerStream::PreviousCachedNetworkParams() const {
 }
 
 bool QuicCryptoServerStream::ResumptionAttempted() const {
+  return zero_rtt_attempted_;
+}
+
+bool QuicCryptoServerStream::EarlyDataAttempted() const {
+  QUICHE_DCHECK(false) << "Not supported for QUIC crypto.";
   return zero_rtt_attempted_;
 }
 

@@ -429,6 +429,7 @@ const QuicTag kIGNP = TAG('I', 'G', 'N', 'P');   // Do not use PING only packet
 const QuicTag kSRWP = TAG('S', 'R', 'W', 'P');   // Enable retransmittable on
                                                  // wire PING (ROWP) on the
                                                  // server side.
+const QuicTag kGSR0 = TAG('G', 'S', 'R', '0');   // Selective Resumption
 
 // Client Hints triggers.
 const QuicTag kGWCH = TAG('G', 'W', 'C', 'H');

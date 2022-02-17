@@ -90,6 +90,11 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
   // Configure the SSL such that delegate_->InfoCallback will be called.
   void EnableInfoCallback();
 
+  // Configure the SSL to disable session ticket support. Note that, this
+  // function simply sets the |SSL_OP_NO_TICKET| option on the SSL object, it
+  // does not check whether it is too late to do so.
+  void DisableTicketSupport();
+
   // Functions to convert between BoringSSL's enum ssl_encryption_level_t and
   // QUIC's EncryptionLevel.
   static EncryptionLevel QuicEncryptionLevel(enum ssl_encryption_level_t level);

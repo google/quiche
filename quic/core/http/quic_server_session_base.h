@@ -68,6 +68,8 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
     serving_region_ = serving_region;
   }
 
+  const std::string& serving_region() const { return serving_region_; }
+
   QuicSSLConfig GetSSLConfig() const override;
 
  protected:

@@ -62,6 +62,11 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
   virtual void SendServerConfigUpdate(
       const CachedNetworkParameters* cached_network_params) = 0;
 
+  // Disables TLS resumption, should be called as early as possible.
+  // Return true if resumption is disabled.
+  // Return false if nothing happened, typically it means it is called too late.
+  virtual bool DisableResumption() = 0;
+
   // Returns true if the connection was a successful 0-RTT resumption.
   virtual bool IsZeroRtt() const = 0;
 
@@ -72,6 +77,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
   // Returns true if the client attempted a resumption handshake, whether or not
   // the resumption actually occurred.
   virtual bool ResumptionAttempted() const = 0;
+
+  // Returns true if the client attempted to use early data, as indicated by the
+  // "early_data" TLS extension. TLS only.
+  virtual bool EarlyDataAttempted() const = 0;
 
   // NOTE: Indicating that the Expect-CT header should be sent here presents
   // a layering violation to some extent. The Expect-CT header only applies to

@@ -278,6 +278,14 @@ void TlsServerHandshaker::SendServerConfigUpdate(
   // SCUP messages aren't supported when using the TLS handshake.
 }
 
+bool TlsServerHandshaker::DisableResumption() {
+  if (!can_disable_resumption_ || !session()->connection()->connected()) {
+    return false;
+  }
+  tls_connection_.DisableTicketSupport();
+  return true;
+}
+
 bool TlsServerHandshaker::IsZeroRtt() const {
   return SSL_early_data_accepted(ssl());
 }
@@ -288,6 +296,14 @@ bool TlsServerHandshaker::IsResumption() const {
 
 bool TlsServerHandshaker::ResumptionAttempted() const {
   return ticket_received_;
+}
+
+bool TlsServerHandshaker::EarlyDataAttempted() const {
+  QUIC_BUG_IF(quic_tls_early_data_attempted_too_early,
+              !select_cert_status_.has_value())
+      << "EarlyDataAttempted must be called after EarlySelectCertCallback is "
+         "started";
+  return early_data_attempted_;
 }
 
 int TlsServerHandshaker::NumServerConfigUpdateMessagesSent() const {
@@ -881,6 +897,10 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     ticket_received_ = SSL_early_callback_ctx_extension_get(
         client_hello, TLSEXT_TYPE_pre_shared_key, &unused_extension_bytes,
         &unused_extension_len);
+
+    early_data_attempted_ = SSL_early_callback_ctx_extension_get(
+        client_hello, TLSEXT_TYPE_early_data, &unused_extension_bytes,
+        &unused_extension_len);
   }
 
   // This callback is called very early by Boring SSL, most of the SSL_get_foo
@@ -950,6 +970,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     return ssl_select_cert_error;
   }
 
+  can_disable_resumption_ = false;
   const QuicAsyncStatus status = proof_source_handle_->SelectCertificate(
       session()->connection()->self_address().Normalized(),
       session()->connection()->peer_address().Normalized(),

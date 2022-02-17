@@ -34,9 +34,11 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   bool GetBase64SHA256ClientChannelID(std::string* output) const override;
   void SendServerConfigUpdate(
       const CachedNetworkParameters* cached_network_params) override;
+  bool DisableResumption() override;
   bool IsZeroRtt() const override;
   bool IsResumption() const override;
   bool ResumptionAttempted() const override;
+  bool EarlyDataAttempted() const override;
   int NumServerConfigUpdateMessagesSent() const override;
   const CachedNetworkParameters* PreviousCachedNetworkParams() const override;
   void SetPreviousCachedNetworkParams(

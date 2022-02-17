@@ -120,6 +120,11 @@ void TlsConnection::EnableInfoCallback() {
       });
 }
 
+void TlsConnection::DisableTicketSupport() {
+  ssl_config_.disable_ticket_support = true;
+  SSL_set_options(ssl(), SSL_OP_NO_TICKET);
+}
+
 // static
 bssl::UniquePtr<SSL_CTX> TlsConnection::CreateSslCtx() {
   CRYPTO_library_init();

@@ -45,9 +45,12 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   bool GetBase64SHA256ClientChannelID(std::string* output) const override;
   void SendServerConfigUpdate(
       const CachedNetworkParameters* cached_network_params) override;
+  bool DisableResumption() override;
   bool IsZeroRtt() const override;
   bool IsResumption() const override;
   bool ResumptionAttempted() const override;
+  // Must be called after EarlySelectCertCallback is started.
+  bool EarlyDataAttempted() const override;
   int NumServerConfigUpdateMessagesSent() const override;
   const CachedNetworkParameters* PreviousCachedNetworkParams() const override;
   void SetPreviousCachedNetworkParams(
@@ -344,6 +347,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // indicates that the client attempted a resumption.
   bool ticket_received_ = false;
 
+  // True if the "early_data" extension is in the client hello.
+  bool early_data_attempted_ = false;
+
   // Force SessionTicketOpen to return ssl_ticket_aead_ignore_ticket if called.
   bool ignore_ticket_open_ = false;
 
@@ -367,6 +373,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   HandshakeState state_ = HANDSHAKE_START;
   bool encryption_established_ = false;
   bool valid_alpn_received_ = false;
+  bool can_disable_resumption_ = true;
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
   TlsServerConnection tls_connection_;
