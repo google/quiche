@@ -22,10 +22,13 @@ QUIC_PROTOCOL_FLAG(bool,
                    false,
                    "If true, disable pacing in QUIC")
 
-QUIC_PROTOCOL_FLAG(bool,
-                   quic_enforce_single_packet_chlo,
-                   true,
-                   "If true, enforce that QUIC CHLOs fit in one packet")
+// Note that single-packet CHLOs are only enforced for Google QUIC versions that
+// do not use CRYPTO frames. This currently means only Q043 and Q046. All other
+// versions of QUIC (both Google QUIC and IETF) allow multi-packet CHLOs
+// regardless of the value of this flag.
+QUIC_PROTOCOL_FLAG(bool, quic_enforce_single_packet_chlo, true,
+                   "If true, enforce that sent QUIC CHLOs fit in one packet. "
+                   "Only applies to Q043 and Q046.")
 
 // Currently, this number is quite conservative.  At a hypothetical 1000 qps,
 // this means that the longest time-wait list we should see is:
