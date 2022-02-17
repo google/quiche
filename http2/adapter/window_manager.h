@@ -21,7 +21,8 @@ class QUICHE_EXPORT_PRIVATE WindowManager {
   // A WindowUpdateListener is invoked when it is time to send a window update.
   typedef std::function<void(int64_t)> WindowUpdateListener;
 
-  WindowManager(int64_t window_size_limit, WindowUpdateListener listener);
+  WindowManager(int64_t window_size_limit, WindowUpdateListener listener,
+                bool update_window_on_notify = true);
 
   int64_t CurrentWindowSize() const { return window_; }
   int64_t WindowSizeLimit() const { return limit_; }
@@ -73,6 +74,8 @@ class QUICHE_EXPORT_PRIVATE WindowManager {
   int64_t buffered_;
 
   WindowUpdateListener listener_;
+
+  bool update_window_on_notify_;
 };
 
 }  // namespace adapter

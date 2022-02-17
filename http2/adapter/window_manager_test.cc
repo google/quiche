@@ -208,6 +208,61 @@ TEST_F(WindowManagerTest, IncreaseWindow) {
   EXPECT_EQ(wm_.CurrentWindowSize(), kDefaultLimit - 1000);
 }
 
+// This test verifies that when the constructor option is specified,
+// WindowManager does not update its internal accounting of the flow control
+// window when notifying the listener.
+TEST(WindowManagerNoUpdateTest, NoWindowUpdateOnListener) {
+  const int64_t kDefaultLimit = 65535;
+
+  std::list<int64_t> call_sequence1;
+  WindowManager wm1(
+      kDefaultLimit,
+      [&call_sequence1](int64_t delta) { call_sequence1.push_back(delta); },
+      /*update_window_on_notify=*/true);  // default
+  std::list<int64_t> call_sequence2;
+  WindowManager wm2(
+      kDefaultLimit,
+      [&call_sequence2](int64_t delta) { call_sequence2.push_back(delta); },
+      /*update_window_on_notify=*/false);
+
+  const int64_t consumed = kDefaultLimit / 3 - 1;
+
+  wm1.MarkWindowConsumed(consumed);
+  EXPECT_TRUE(call_sequence1.empty());
+  wm2.MarkWindowConsumed(consumed);
+  EXPECT_TRUE(call_sequence2.empty());
+
+  EXPECT_EQ(wm1.CurrentWindowSize(), kDefaultLimit - consumed);
+  EXPECT_EQ(wm2.CurrentWindowSize(), kDefaultLimit - consumed);
+
+  const int64_t extra = 1;
+  wm1.MarkWindowConsumed(extra);
+  EXPECT_THAT(call_sequence1, testing::ElementsAre(consumed + extra));
+  // Window size *is* updated after invoking the listener.
+  EXPECT_EQ(wm1.CurrentWindowSize(), kDefaultLimit);
+  call_sequence1.clear();
+
+  wm2.MarkWindowConsumed(extra);
+  EXPECT_THAT(call_sequence2, testing::ElementsAre(consumed + extra));
+  // Window size is *not* updated after invoking the listener.
+  EXPECT_EQ(wm2.CurrentWindowSize(), kDefaultLimit - (consumed + extra));
+  call_sequence2.clear();
+
+  // Manually increase the window by the listener notification amount.
+  wm2.IncreaseWindow(consumed + extra);
+  EXPECT_EQ(wm2.CurrentWindowSize(), kDefaultLimit);
+
+  wm1.SetWindowSizeLimit(kDefaultLimit * 5);
+  EXPECT_THAT(call_sequence1, testing::ElementsAre(kDefaultLimit * 4));
+  // *Does* update the window size.
+  EXPECT_EQ(wm1.CurrentWindowSize(), kDefaultLimit * 5);
+
+  wm2.SetWindowSizeLimit(kDefaultLimit * 5);
+  EXPECT_THAT(call_sequence2, testing::ElementsAre(kDefaultLimit * 4));
+  // Does *not* update the window size.
+  EXPECT_EQ(wm2.CurrentWindowSize(), kDefaultLimit);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace adapter

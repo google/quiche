@@ -9,11 +9,13 @@ namespace http2 {
 namespace adapter {
 
 WindowManager::WindowManager(int64_t window_size_limit,
-                             WindowUpdateListener listener)
+                             WindowUpdateListener listener,
+                             bool update_window_on_notify)
     : limit_(window_size_limit),
       window_(window_size_limit),
       buffered_(0),
-      listener_(std::move(listener)) {}
+      listener_(std::move(listener)),
+      update_window_on_notify_(update_window_on_notify) {}
 
 void WindowManager::OnWindowSizeLimitChange(const int64_t new_limit) {
   QUICHE_VLOG(2) << "WindowManager@" << this
@@ -82,7 +84,9 @@ void WindowManager::MaybeNotifyListener() {
     QUICHE_VLOG(2) << "WindowManager@" << this
                    << " Informing listener of delta: " << delta;
     listener_(delta);
-    window_ += delta;
+    if (update_window_on_notify_) {
+      window_ += delta;
+    }
   }
 }
 
