@@ -524,7 +524,9 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
     return;
   }
 
-  RunOnExit r;
+  const bool is_non_ack_settings = IsNonAckSettings(*frame);
+  MaybeSetupPreface(is_non_ack_settings);
+
   if (frame->frame_type() == spdy::SpdyFrameType::GOAWAY) {
     queued_goaway_ = true;
     if (latched_error_) {
@@ -544,6 +546,9 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
     UpdateReceiveWindow(
         frame->stream_id(),
         reinterpret_cast<spdy::SpdyWindowUpdateIR&>(*frame).delta());
+  } else if (is_non_ack_settings) {
+    HandleOutboundSettings(
+        *reinterpret_cast<spdy::SpdySettingsIR*>(frame.get()));
   }
   if (frame->stream_id() != 0) {
     auto result = queued_frames_.insert({frame->stream_id(), 1});
@@ -567,7 +572,7 @@ int OgHttp2Session::Send() {
     return kSendError;
   }
 
-  MaybeSetupPreface();
+  MaybeSetupPreface(/*sending_outbound_settings=*/false);
 
   SendResult continue_writing = SendQueuedFrames();
   if (queued_immediate_goaway_) {
@@ -1236,7 +1241,7 @@ void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
             Http2VisitorInterface::ConnectionError::kFlowControlError);
         return;
       } else {
-        UpdateInitialWindowSize(value);
+        UpdateStreamSendWindowSizes(value);
       }
       break;
     default:
@@ -1497,19 +1502,18 @@ void OgHttp2Session::OnFramePayload(const char* data, size_t len) {
   }
 }
 
-void OgHttp2Session::MaybeSetupPreface() {
+void OgHttp2Session::MaybeSetupPreface(bool sending_outbound_settings) {
   if (!queued_preface_) {
+    queued_preface_ = true;
     if (!IsServerSession()) {
       buffered_data_.assign(spdy::kHttp2ConnectionHeaderPrefix,
                             spdy::kHttp2ConnectionHeaderPrefixSize);
     }
-    // First frame must be a non-ack SETTINGS.
-    if (frames_.empty() || !IsNonAckSettings(*frames_.front())) {
-      auto frame = PrepareSettingsFrame(GetInitialSettings());
-      HandleOutboundSettings(*frame);
-      frames_.push_front(std::move(frame));
+    if (!sending_outbound_settings) {
+      QUICHE_DCHECK(frames_.empty());
+      // First frame must be a non-ack SETTINGS.
+      EnqueueFrame(PrepareSettingsFrame(GetInitialSettings()));
     }
-    queued_preface_ = true;
   }
 }
 
@@ -1578,8 +1582,11 @@ void OgHttp2Session::HandleOutboundSettings(
             case HEADER_TABLE_SIZE:
               decoder_.GetHpackDecoder()->ApplyHeaderTableSizeSetting(value);
               break;
-            case ENABLE_PUSH:
             case INITIAL_WINDOW_SIZE:
+              UpdateStreamReceiveWindowSizes(value);
+              initial_stream_receive_window_ = value;
+              break;
+            case ENABLE_PUSH:
             case MAX_FRAME_SIZE:
             case MAX_HEADER_LIST_SIZE:
             case ENABLE_CONNECT_PROTOCOL:
@@ -1816,7 +1823,7 @@ void OgHttp2Session::UpdateReceiveWindow(Http2StreamId stream_id,
   }
 }
 
-void OgHttp2Session::UpdateInitialWindowSize(uint32_t new_value) {
+void OgHttp2Session::UpdateStreamSendWindowSizes(uint32_t new_value) {
   const int32_t delta =
       static_cast<int32_t>(new_value) - initial_stream_send_window_;
   initial_stream_send_window_ = new_value;
@@ -1832,6 +1839,12 @@ void OgHttp2Session::UpdateInitialWindowSize(uint32_t new_value) {
     if (current_window_size <= 0 && new_window_size > 0) {
       write_scheduler_.MarkStreamReady(stream_id, false);
     }
+  }
+}
+
+void OgHttp2Session::UpdateStreamReceiveWindowSizes(uint32_t new_value) {
+  for (auto& [stream_id, stream_state] : stream_map_) {
+    stream_state.window_manager.OnWindowSizeLimitChange(new_value);
   }
 }
 

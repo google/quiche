@@ -295,6 +295,83 @@ TEST(NgHttp2AdapterTest, QueuingWindowUpdateAffectsWindow) {
             kInitialFlowControlWindowSize + 20000);
 }
 
+TEST(NgHttp2AdapterTest, AckOfSettingInitialWindowSizeAffectsWindow) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  testing::InSequence s;
+
+  const std::vector<Header> headers =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+  const int32_t stream_id1 = adapter->SubmitRequest(headers, nullptr, nullptr);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+
+  const std::string initial_frames =
+      TestFrameSequence().ServerPreface().Serialize();
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0x0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  int64_t parse_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), static_cast<size_t>(parse_result));
+
+  EXPECT_EQ(adapter->GetStreamReceiveWindowSize(stream_id1),
+            kInitialFlowControlWindowSize);
+  adapter->SubmitSettings({{INITIAL_WINDOW_SIZE, 80000u}});
+  // No update for the first stream, yet.
+  EXPECT_EQ(adapter->GetStreamReceiveWindowSize(stream_id1),
+            kInitialFlowControlWindowSize);
+
+  // Ack of server's initial settings.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
+  // Outbound SETTINGS containing INITIAL_WINDOW_SIZE.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+
+  // Still no update, as a SETTINGS ack has not yet been received.
+  EXPECT_EQ(adapter->GetStreamReceiveWindowSize(stream_id1),
+            kInitialFlowControlWindowSize);
+
+  const std::string settings_ack =
+      TestFrameSequence().SettingsAck().Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0x1));
+  EXPECT_CALL(visitor, OnSettingsAck);
+
+  parse_result = adapter->ProcessBytes(settings_ack);
+  EXPECT_EQ(settings_ack.size(), static_cast<size_t>(parse_result));
+
+  // Stream window has been updated.
+  EXPECT_EQ(adapter->GetStreamReceiveWindowSize(stream_id1), 80000);
+
+  const std::vector<Header> headers2 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/two"}});
+  const int32_t stream_id2 = adapter->SubmitRequest(headers, nullptr, nullptr);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id2, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id2, _, 0x5, 0));
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+
+  EXPECT_EQ(adapter->GetStreamReceiveWindowSize(stream_id2), 80000);
+}
+
 TEST(NgHttp2AdapterTest, ClientRejects100HeadersWithFin) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);

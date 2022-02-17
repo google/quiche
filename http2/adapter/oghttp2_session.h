@@ -289,8 +289,10 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   struct QUICHE_EXPORT_PRIVATE ProcessBytesResultVisitor;
 
-  // Queues the connection preface, if not already done.
-  void MaybeSetupPreface();
+  // Queues the connection preface, if not already done. If not
+  // `sending_outbound_settings` and the preface has not yet been queued, this
+  // method will generate and enqueue initial SETTINGS.
+  void MaybeSetupPreface(bool sending_outbound_settings);
 
   // Gets the settings to be sent in the initial SETTINGS frame sent as part of
   // the connection preface.
@@ -405,7 +407,13 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Invoked when sending a flow control window update to the peer.
   void UpdateReceiveWindow(Http2StreamId stream_id, int32_t delta);
 
-  void UpdateInitialWindowSize(uint32_t new_value);
+  // Updates stream send window accounting to respect the peer's advertised
+  // initial window setting.
+  void UpdateStreamSendWindowSizes(uint32_t new_value);
+
+  // Updates stream receive window managers to use the newly advertised stream
+  // initial window.
+  void UpdateStreamReceiveWindowSizes(uint32_t new_value);
 
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
