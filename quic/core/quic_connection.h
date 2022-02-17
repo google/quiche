@@ -411,6 +411,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
   virtual void OnNPacketNumbersSkipped(QuicPacketCount /*count*/,
                                        QuicTime /*now*/) {}
 
+  // Called when a packet is serialized but discarded (i.e. not sent).
+  virtual void OnPacketDiscarded(const SerializedPacket& /*packet*/) {}
+
   // Called for QUIC+TLS versions when we send transport parameters.
   virtual void OnTransportParametersSent(
       const TransportParameters& /*transport_parameters*/) {}

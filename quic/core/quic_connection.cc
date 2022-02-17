@@ -3441,6 +3441,9 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   switch (fate) {
     case DISCARD:
       ++stats_.packets_discarded;
+      if (debug_visitor_ != nullptr) {
+        debug_visitor_->OnPacketDiscarded(*packet);
+      }
       return true;
     case COALESCE:
       QUIC_BUG_IF(quic_bug_12714_24,
