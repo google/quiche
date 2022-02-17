@@ -1034,6 +1034,23 @@ void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
     return;
   }
 
+  if (static_cast<int64_t>(length) >
+      connection_window_manager_.CurrentWindowSize()) {
+    // Peer exceeded the connection flow control limit.
+    LatchErrorAndNotify(
+        Http2ErrorCode::FLOW_CONTROL_ERROR,
+        Http2VisitorInterface::ConnectionError::kFlowControlError);
+    return;
+  }
+
+  if (static_cast<int64_t>(length) >
+      iter->second.window_manager.CurrentWindowSize()) {
+    // Peer exceeded the stream flow control limit.
+    EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+        stream_id, spdy::ERROR_CODE_FLOW_CONTROL_ERROR));
+    return;
+  }
+
   const bool result = visitor_.OnBeginDataForStream(stream_id, length);
   if (!result) {
     fatal_visitor_callback_failure_ = true;

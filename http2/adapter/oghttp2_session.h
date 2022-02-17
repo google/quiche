@@ -402,6 +402,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   void HandleContentLengthError(Http2StreamId stream_id);
 
+  // Invoked when sending a flow control window update to the peer.
   void UpdateReceiveWindow(Http2StreamId stream_id, int32_t delta);
 
   void UpdateInitialWindowSize(uint32_t new_value);
