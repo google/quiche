@@ -345,6 +345,40 @@ TEST(OgHttp2AdapterTest, ClientHandles100Headers) {
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::PING}));
 }
 
+TEST(OgHttp2AdapterTest, QueuingWindowUpdateAffectsWindow) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  EXPECT_EQ(adapter->GetReceiveWindowSize(), kInitialFlowControlWindowSize);
+  adapter->SubmitWindowUpdate(0, 10000);
+  EXPECT_EQ(adapter->GetReceiveWindowSize(),
+            kInitialFlowControlWindowSize + 10000);
+
+  const std::vector<Header> headers =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+  const int32_t stream_id = adapter->SubmitRequest(headers, nullptr, nullptr);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 0, 4, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 0, 4, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x5, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+
+  EXPECT_EQ(adapter->GetStreamReceiveWindowSize(stream_id),
+            kInitialFlowControlWindowSize);
+  adapter->SubmitWindowUpdate(1, 20000);
+  EXPECT_EQ(adapter->GetStreamReceiveWindowSize(stream_id),
+            kInitialFlowControlWindowSize + 20000);
+}
+
 TEST(OgHttp2AdapterTest, ClientRejects100HeadersWithFin) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kClient};

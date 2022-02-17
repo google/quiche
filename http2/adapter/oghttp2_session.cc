@@ -329,11 +329,12 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
           []() { return kTraceLoggingEnabled; }, this),
       headers_handler_(*this, visitor),
       noop_headers_handler_(/*listener=*/nullptr),
-      connection_window_manager_(kInitialFlowControlWindowSize,
-                                 [this](size_t window_update_delta) {
-                                   SendWindowUpdate(kConnectionStreamId,
-                                                    window_update_delta);
-                                 }),
+      connection_window_manager_(
+          kInitialFlowControlWindowSize,
+          [this](size_t window_update_delta) {
+            SendWindowUpdate(kConnectionStreamId, window_update_delta);
+          },
+          /*update_window_on_notify=*/false),
       options_(options) {
   decoder_.set_visitor(&receive_logger_);
   decoder_.set_extension_visitor(this);
@@ -539,6 +540,10 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
       // TODO(diannahu): Condition on existence in the stream map?
       streams_reset_.insert(frame->stream_id());
     }
+  } else if (frame->frame_type() == spdy::SpdyFrameType::WINDOW_UPDATE) {
+    UpdateReceiveWindow(
+        frame->stream_id(),
+        reinterpret_cast<spdy::SpdyWindowUpdateIR&>(*frame).delta());
   }
   if (frame->stream_id() != 0) {
     auto result = queued_frames_.insert({frame->stream_id(), 1});
@@ -1780,6 +1785,18 @@ void OgHttp2Session::DecrementQueuedFrameCount(uint32_t stream_id,
 void OgHttp2Session::HandleContentLengthError(Http2StreamId stream_id) {
   EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
       stream_id, spdy::ERROR_CODE_PROTOCOL_ERROR));
+}
+
+void OgHttp2Session::UpdateReceiveWindow(Http2StreamId stream_id,
+                                         int32_t delta) {
+  if (stream_id == 0) {
+    connection_window_manager_.IncreaseWindow(delta);
+  } else {
+    auto iter = stream_map_.find(stream_id);
+    if (iter != stream_map_.end()) {
+      iter->second.window_manager.IncreaseWindow(delta);
+    }
+  }
 }
 
 void OgHttp2Session::UpdateInitialWindowSize(uint32_t new_value) {

@@ -214,7 +214,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   struct QUICHE_EXPORT_PRIVATE StreamState {
     StreamState(int32_t stream_receive_window, int32_t stream_send_window,
                 WindowManager::WindowUpdateListener listener)
-        : window_manager(stream_receive_window, std::move(listener)),
+        : window_manager(stream_receive_window, std::move(listener),
+                         /*update_window_on_notify=*/false),
           send_window(stream_send_window) {}
 
     WindowManager window_manager;
@@ -400,6 +401,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   void DecrementQueuedFrameCount(uint32_t stream_id, uint8_t frame_type);
 
   void HandleContentLengthError(Http2StreamId stream_id);
+
+  void UpdateReceiveWindow(Http2StreamId stream_id, int32_t delta);
 
   void UpdateInitialWindowSize(uint32_t new_value);
 
