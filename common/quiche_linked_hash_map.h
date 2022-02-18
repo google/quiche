@@ -22,7 +22,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "absl/container/node_hash_map.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/hash/hash.h"
 #include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_logging.h"
@@ -44,7 +44,7 @@ template <class Key,                      // QUICHE_NO_EXPORT
 class QuicheLinkedHashMap {               // QUICHE_NO_EXPORT
  private:
   typedef std::list<std::pair<Key, Value>> ListType;
-  typedef absl::node_hash_map<Key, typename ListType::iterator, Hash, Eq>
+  typedef absl::flat_hash_map<Key, typename ListType::iterator, Hash, Eq>
       MapType;
 
  public:
