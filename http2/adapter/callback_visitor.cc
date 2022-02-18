@@ -143,7 +143,7 @@ void CallbackVisitor::OnSettingsAck() {
 
 bool CallbackVisitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
   auto it = GetStreamInfo(stream_id);
-  if (it->second->received_headers) {
+  if (it->second.received_headers) {
     // At least one headers frame has already been received.
     QUICHE_VLOG(1)
         << "Headers already received for stream " << stream_id
@@ -163,7 +163,7 @@ bool CallbackVisitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
         break;
     }
   }
-  it->second->received_headers = true;
+  it->second.received_headers = true;
   if (callbacks_->on_begin_headers_callback) {
     const int result = callbacks_->on_begin_headers_callback(
         nullptr, &current_frame_, user_data_);
@@ -365,8 +365,8 @@ int CallbackVisitor::OnBeforeFrameSent(uint8_t frame_type,
     // The implementation of the before_frame_send_callback doesn't look at the
     // error code, so for now it's populated with 0.
     PopulateFrame(frame, frame_type, stream_id, length, flags, /*error_code=*/0,
-                  it->second->before_sent_headers);
-    it->second->before_sent_headers = true;
+                  it->second.before_sent_headers);
+    it->second.before_sent_headers = true;
     return callbacks_->before_frame_send_callback(nullptr, &frame, user_data_);
   }
   return 0;
@@ -383,8 +383,8 @@ int CallbackVisitor::OnFrameSent(uint8_t frame_type, Http2StreamId stream_id,
     nghttp2_frame frame;
     auto it = GetStreamInfo(stream_id);
     PopulateFrame(frame, frame_type, stream_id, length, flags, error_code,
-                  it->second->sent_headers);
-    it->second->sent_headers = true;
+                  it->second.sent_headers);
+    it->second.sent_headers = true;
     return callbacks_->on_frame_send_callback(nullptr, &frame, user_data_);
   }
   return 0;
@@ -450,7 +450,7 @@ CallbackVisitor::StreamInfoMap::iterator CallbackVisitor::GetStreamInfo(
     Http2StreamId stream_id) {
   auto it = stream_map_.find(stream_id);
   if (it == stream_map_.end()) {
-    auto p = stream_map_.insert({stream_id, absl::make_unique<StreamInfo>()});
+    auto p = stream_map_.insert({stream_id, {}});
     it = p.first;
   }
   return it;

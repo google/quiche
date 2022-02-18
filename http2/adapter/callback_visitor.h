@@ -78,8 +78,7 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
     bool received_headers = false;
   };
 
-  using StreamInfoMap =
-      absl::flat_hash_map<Http2StreamId, std::unique_ptr<StreamInfo>>;
+  using StreamInfoMap = absl::flat_hash_map<Http2StreamId, StreamInfo>;
 
   void PopulateFrame(nghttp2_frame& frame, uint8_t frame_type,
                      Http2StreamId stream_id, size_t length, uint8_t flags,
