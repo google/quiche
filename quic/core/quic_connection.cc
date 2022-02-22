@@ -4446,15 +4446,7 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
 
   // Once handshake is complete, there will be no new keys installed and hence
   // any undecryptable packets will never be able to be decrypted.
-  bool clear_undecryptable_packets =
-      encryption_level_ == ENCRYPTION_FORWARD_SECURE;
-  if (GetQuicReloadableFlag(
-          quic_clear_undecryptable_packets_on_handshake_complete)) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_clear_undecryptable_packets_on_handshake_complete);
-    clear_undecryptable_packets = IsHandshakeComplete();
-  }
-  if (clear_undecryptable_packets) {
+  if (IsHandshakeComplete()) {
     if (debug_visitor_ != nullptr) {
       for (const auto& undecryptable_packet : undecryptable_packets_) {
         debug_visitor_->OnUndecryptablePacket(
