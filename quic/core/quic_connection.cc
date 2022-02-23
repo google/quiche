@@ -1671,8 +1671,6 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
          "is closed. Last frame: "
       << most_recent_frame_type_;
   if (has_path_challenge_in_current_packet_) {
-    QUICHE_DCHECK(send_path_response_);
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response2, 2, 5);
     // Only respond to the 1st PATH_CHALLENGE in the packet.
     return true;
   }
@@ -1726,15 +1724,6 @@ bool QuicConnection::OnPathChallengeFrameInternal(
                  std::make_unique<ReversePathValidationResultDelegate>(
                      this, peer_address()));
   }
-  if (!send_path_response_) {
-    // Save the path challenge's payload, for later use in generating the
-    // response.
-    received_path_challenge_payloads_.push_back(frame.data_buffer);
-
-    MaybeUpdateAckTimeout();
-    return true;
-  }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response2, 3, 5);
   has_path_challenge_in_current_packet_ = true;
   MaybeUpdateAckTimeout();
   // Queue or send PATH_RESPONSE. Send PATH_RESPONSE to the source address of
@@ -2201,7 +2190,9 @@ void QuicConnection::OnPacketComplete() {
       << ENDPOINT << "Received a padded PING packet. is_probing: "
       << IsCurrentPacketConnectivityProbing();
 
-  MaybeRespondToConnectivityProbingOrMigration();
+  if (!version().HasIetfQuicFrames()) {
+    MaybeRespondToConnectivityProbingOrMigration();
+  }
 
   current_effective_peer_migration_type_ = NO_CHANGE;
 
@@ -2220,55 +2211,28 @@ void QuicConnection::OnPacketComplete() {
 }
 
 void QuicConnection::MaybeRespondToConnectivityProbingOrMigration() {
-  if (version().HasIetfQuicFrames()) {
-    if (send_path_response_) {
-      return;
-    }
-    if (perspective_ == Perspective::IS_CLIENT) {
-      // This node is a client, notify that a speculative connectivity probing
-      // packet has been received anyway.
-      visitor_->OnPacketReceived(last_received_packet_info_.destination_address,
-                                 last_received_packet_info_.source_address,
-                                 /*is_connectivity_probe=*/false);
-      return;
-    }
-    if (!received_path_challenge_payloads_.empty()) {
-      if (current_effective_peer_migration_type_ != NO_CHANGE) {
-        // TODO(b/150095588): change the stats to
-        // num_valid_path_challenge_received.
-        ++stats_.num_connectivity_probing_received;
-      }
-      // If the packet contains PATH CHALLENGE, send appropriate RESPONSE.
-      // There was at least one PATH CHALLENGE in the received packet,
-      // Generate the required PATH RESPONSE.
-      SendGenericPathProbePacket(nullptr,
-                                 last_received_packet_info_.source_address,
-                                 /* is_response=*/true);
-      return;
-    }
-  } else {
-    if (IsCurrentPacketConnectivityProbing()) {
-      visitor_->OnPacketReceived(last_received_packet_info_.destination_address,
-                                 last_received_packet_info_.source_address,
-                                 /*is_connectivity_probe=*/true);
-      return;
-    }
-    if (perspective_ == Perspective::IS_CLIENT) {
-      // This node is a client, notify that a speculative connectivity probing
-      // packet has been received anyway.
-      QUIC_DVLOG(1)
-          << ENDPOINT
-          << "Received a speculative connectivity probing packet for "
-          << GetServerConnectionIdAsRecipient(last_header_, perspective_)
-          << " from ip:port: "
-          << last_received_packet_info_.source_address.ToString()
-          << " to ip:port: "
-          << last_received_packet_info_.destination_address.ToString();
-      visitor_->OnPacketReceived(last_received_packet_info_.destination_address,
-                                 last_received_packet_info_.source_address,
-                                 /*is_connectivity_probe=*/false);
-      return;
-    }
+  QUICHE_DCHECK(!version().HasIetfQuicFrames());
+  if (IsCurrentPacketConnectivityProbing()) {
+    visitor_->OnPacketReceived(last_received_packet_info_.destination_address,
+                               last_received_packet_info_.source_address,
+                               /*is_connectivity_probe=*/true);
+    return;
+  }
+  if (perspective_ == Perspective::IS_CLIENT) {
+    // This node is a client, notify that a speculative connectivity probing
+    // packet has been received anyway.
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Received a speculative connectivity probing packet for "
+                  << GetServerConnectionIdAsRecipient(last_header_,
+                                                      perspective_)
+                  << " from ip:port: "
+                  << last_received_packet_info_.source_address.ToString()
+                  << " to ip:port: "
+                  << last_received_packet_info_.destination_address.ToString();
+    visitor_->OnPacketReceived(last_received_packet_info_.destination_address,
+                               last_received_packet_info_.source_address,
+                               /*is_connectivity_probe=*/false);
+    return;
   }
 }
 
@@ -3434,8 +3398,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   // during the WritePacket below.
   QuicTime packet_send_time = CalculatePacketSentTime();
   WriteResult result(WRITE_STATUS_OK, encrypted_length);
-  QuicSocketAddress send_to_address =
-      (send_path_response_) ? packet->peer_address : peer_address();
+  QuicSocketAddress send_to_address = packet->peer_address;
   // Self address is always the default self address on this code path.
   bool send_on_current_path = send_to_address == peer_address();
   switch (fate) {
@@ -5027,20 +4990,6 @@ void QuicConnection::SendMtuDiscoveryPacket(QuicByteCount target_mtu) {
 bool QuicConnection::SendConnectivityProbingPacket(
     QuicPacketWriter* probing_writer,
     const QuicSocketAddress& peer_address) {
-  return SendGenericPathProbePacket(probing_writer, peer_address,
-                                    /* is_response= */ false);
-}
-
-void QuicConnection::SendConnectivityProbingResponsePacket(
-    const QuicSocketAddress& peer_address) {
-  SendGenericPathProbePacket(nullptr, peer_address,
-                             /* is_response= */ true);
-}
-
-bool QuicConnection::SendGenericPathProbePacket(
-    QuicPacketWriter* probing_writer,
-    const QuicSocketAddress& peer_address,
-    bool is_response) {
   QUICHE_DCHECK(peer_address.IsInitialized());
   if (!connected_) {
     QUIC_BUG(quic_bug_10511_31)
@@ -5075,15 +5024,6 @@ bool QuicConnection::SendGenericPathProbePacket(
     // Non-IETF QUIC, generate a padded ping regardless of whether this is a
     // request or a response.
     probing_packet = packet_creator_.SerializeConnectivityProbingPacket();
-  } else if (is_response) {
-    QUICHE_DCHECK(!send_path_response_);
-    // IETF QUIC path response.
-    // Respond to path probe request using IETF QUIC PATH_RESPONSE frame.
-    probing_packet =
-        packet_creator_.SerializePathResponseConnectivityProbingPacket(
-            received_path_challenge_payloads_,
-            /*is_padded=*/false);
-    received_path_challenge_payloads_.clear();
   } else {
     // IETF QUIC path challenge.
     // Send a path probe request using IETF QUIC PATH_CHALLENGE frame.

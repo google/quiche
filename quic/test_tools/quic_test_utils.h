@@ -631,8 +631,6 @@ class MockQuicConnection : public QuicConnection {
                const std::string& details),
               (override));
   MOCK_METHOD(void, OnCanWrite, (), (override));
-  MOCK_METHOD(void, SendConnectivityProbingResponsePacket,
-              (const QuicSocketAddress& peer_address), (override));
   MOCK_METHOD(bool, SendConnectivityProbingPacket,
               (QuicPacketWriter*, const QuicSocketAddress& peer_address),
               (override));
@@ -701,11 +699,6 @@ class MockQuicConnection : public QuicConnection {
       QuicPacketWriter* probing_writer, const QuicSocketAddress& peer_address) {
     return QuicConnection::SendConnectivityProbingPacket(probing_writer,
                                                          peer_address);
-  }
-
-  void ReallySendConnectivityProbingResponsePacket(
-      const QuicSocketAddress& peer_address) {
-    QuicConnection::SendConnectivityProbingResponsePacket(peer_address);
   }
 
   bool ReallyOnPathResponseFrame(const QuicPathResponseFrame& frame) {

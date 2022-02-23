@@ -1411,8 +1411,7 @@ TEST_P(QuicSessionTestServer, InvalidGoAway) {
 // Test that server session will send a connectivity probe in response to a
 // connectivity probe on the same path.
 TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbe) {
-  if (connection_->send_path_response() &&
-      VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionHasIetfQuicFrames(transport_version())) {
     return;
   }
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -1427,62 +1426,14 @@ TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbe) {
       QuicConnectionPeer::GetWriter(session_.connection()));
   EXPECT_CALL(*writer, WritePacket(_, _, _, new_peer_address, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  if (connection_->send_path_response()) {
+
     EXPECT_CALL(*connection_, SendConnectivityProbingPacket(_, _))
         .WillOnce(
             Invoke(connection_,
                    &MockQuicConnection::ReallySendConnectivityProbingPacket));
-  } else {
-    EXPECT_CALL(*connection_, SendConnectivityProbingResponsePacket(_))
-        .WillOnce(Invoke(
-            connection_,
-            &MockQuicConnection::ReallySendConnectivityProbingResponsePacket));
-  }
-  if (VersionHasIetfQuicFrames(transport_version())) {
-    // Need to explicitly do this to emulate the reception of a PathChallenge,
-    // which stores its payload for use in generating the response.
-    connection_->OnPathChallengeFrame(
-        QuicPathChallengeFrame(0, path_frame_buffer1_));
-  }
   session_.OnPacketReceived(session_.self_address(), new_peer_address,
                             /*is_connectivity_probe=*/true);
   EXPECT_EQ(old_peer_address, session_.peer_address());
-}
-
-// Same as above, but check that if there are two PATH_CHALLENGE frames in the
-// packet, the response has both of them AND we do not do migration.  This for
-// IETF QUIC only.
-TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbes) {
-  if (connection_->send_path_response() ||
-      !VersionHasIetfQuicFrames(transport_version())) {
-    return;
-  }
-  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  QuicSocketAddress old_peer_address =
-      QuicSocketAddress(QuicIpAddress::Loopback4(), kTestPort);
-  EXPECT_EQ(old_peer_address, session_.peer_address());
-
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  // CheckMultiPathResponse validates that the written packet
-  // contains both path responses.
-  EXPECT_CALL(*writer, WritePacket(_, _, _, old_peer_address, _))
-      .WillOnce(Invoke(this, &QuicSessionTestServer::CheckMultiPathResponse));
-
-  EXPECT_CALL(*connection_, SendConnectivityProbingResponsePacket(_))
-      .WillOnce(Invoke(
-          connection_,
-          &MockQuicConnection::ReallySendConnectivityProbingResponsePacket));
-  QuicConnectionPeer::SetLastHeaderFormat(connection_,
-                                          IETF_QUIC_SHORT_HEADER_PACKET);
-  // Need to explicitly do this to emulate the reception of a PathChallenge,
-  // which stores its payload for use in generating the response.
-  connection_->OnPathChallengeFrame(
-      QuicPathChallengeFrame(0, path_frame_buffer1_));
-  connection_->OnPathChallengeFrame(
-      QuicPathChallengeFrame(0, path_frame_buffer2_));
-  session_.OnPacketReceived(session_.self_address(), old_peer_address,
-                            /*is_connectivity_probe=*/true);
 }
 
 TEST_P(QuicSessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {

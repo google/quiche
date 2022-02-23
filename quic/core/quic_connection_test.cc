@@ -2323,11 +2323,9 @@ TEST_P(QuicConnectionTest, ReceivePathProbeWithNoAddressChangeAtServer) {
       connection_.GetStats().num_connectivity_probing_received;
   ProcessReceivedPacket(kSelfAddress, kPeerAddress, *received);
 
-  EXPECT_EQ(num_probing_received + (GetParam().version.HasIetfQuicFrames() &&
-                                            connection_.send_path_response()
-                                        ? 1u
-                                        : 0u),
-            connection_.GetStats().num_connectivity_probing_received);
+  EXPECT_EQ(
+      num_probing_received + (GetParam().version.HasIetfQuicFrames() ? 1u : 0u),
+      connection_.GetStats().num_connectivity_probing_received);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 }
@@ -2730,9 +2728,6 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingPacketAtClient) {
   // Client takes all padded PING packet as speculative connectivity
   // probing packet, and reports to visitor.
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  if (!connection_.send_path_response()) {
-    EXPECT_CALL(visitor_, OnPacketReceived(_, _, false)).Times(1);
-  }
 
   std::unique_ptr<SerializedPacket> probing_packet = ConstructProbingPacket();
   std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
@@ -2743,11 +2738,9 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingPacketAtClient) {
       connection_.GetStats().num_connectivity_probing_received;
   ProcessReceivedPacket(kSelfAddress, kPeerAddress, *received);
 
-  EXPECT_EQ(num_probing_received + (GetParam().version.HasIetfQuicFrames() &&
-                                            connection_.send_path_response()
-                                        ? 1u
-                                        : 0u),
-            connection_.GetStats().num_connectivity_probing_received);
+  EXPECT_EQ(
+      num_probing_received + (GetParam().version.HasIetfQuicFrames() ? 1u : 0u),
+      connection_.GetStats().num_connectivity_probing_received);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 }
@@ -6894,8 +6887,7 @@ TEST_P(QuicConnectionTest, WriterBlockedAfterServerSendsConnectivityProbe) {
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(1), _, _))
       .Times(1);
-  if (connection_.send_path_response() &&
-      VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
+  if (VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
     QuicPathFrameBuffer payload{
         {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
@@ -8861,10 +8853,6 @@ TEST_P(QuicConnectionTest, ServerResponseToPathChallenge) {
   EXPECT_TRUE(connection_.OnPathChallengeFrame(
       writer_->path_challenge_frames().front()));
   EXPECT_TRUE(connection_.OnPaddingFrame(writer_->padding_frames().front()));
-  if (!connection_.send_path_response()) {
-    connection_.SendConnectivityProbingResponsePacket(
-        connection_.peer_address());
-  }
   creator_->FlushCurrentPacket();
 
   // The final check is to ensure that the random data in the response matches
@@ -8876,8 +8864,7 @@ TEST_P(QuicConnectionTest, ServerResponseToPathChallenge) {
 }
 
 TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnDefaulSocket) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.send_path_response()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
@@ -12296,22 +12283,14 @@ TEST_P(QuicConnectionTest, ReceiveMultiplePathChallenge) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(2)
       .WillOnce(Invoke([=]() {
-        EXPECT_EQ((connection_.send_path_response() ? 1u : 2u),
-                  writer_->path_response_frames().size());
+        EXPECT_EQ(1u, writer_->path_response_frames().size());
         // The final check is to ensure that the random data in the response
         // matches the random data from the challenge.
         EXPECT_EQ(0,
                   memcmp(path_frame_buffer1.data(),
                          &(writer_->path_response_frames().front().data_buffer),
                          sizeof(path_frame_buffer1)));
-        if (!connection_.send_path_response()) {
-          EXPECT_EQ(
-              0, memcmp(path_frame_buffer2.data(),
-                        &(writer_->path_response_frames().back().data_buffer),
-                        sizeof(path_frame_buffer2)));
-        } else {
-          EXPECT_EQ(1u, writer_->padding_frames().size());
-        }
+        EXPECT_EQ(1u, writer_->padding_frames().size());
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
       }))
       .WillOnce(Invoke([=]() {
@@ -12324,8 +12303,7 @@ TEST_P(QuicConnectionTest, ReceiveMultiplePathChallenge) {
 }
 
 TEST_P(QuicConnectionTest, ReceiveStreamFrameBeforePathChallenge) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.send_path_response()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_SERVER);
@@ -12378,8 +12356,7 @@ TEST_P(QuicConnectionTest, ReceiveStreamFrameBeforePathChallenge) {
 }
 
 TEST_P(QuicConnectionTest, ReceiveStreamFrameFollowingPathChallenge) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.send_path_response()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_SERVER);
@@ -12443,8 +12420,7 @@ TEST_P(QuicConnectionTest, ReceiveStreamFrameFollowingPathChallenge) {
 // Tests that a PATH_CHALLENGE is received in between other frames in an out of
 // order packet.
 TEST_P(QuicConnectionTest, PathChallengeWithDataInOutOfOrderPacket) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.send_path_response()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_SERVER);
@@ -12510,8 +12486,7 @@ TEST_P(QuicConnectionTest, PathChallengeWithDataInOutOfOrderPacket) {
 
 // Tests that a PATH_CHALLENGE is cached if its PATH_RESPONSE can't be sent.
 TEST_P(QuicConnectionTest, FailToWritePathResponse) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.send_path_response()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_SERVER);
