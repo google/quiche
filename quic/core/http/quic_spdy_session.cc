@@ -30,6 +30,7 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_stack_trace.h"
+#include "common/platform/api/quiche_mem_slice.h"
 #include "spdy/core/http2_frame_decoder_adapter.h"
 
 using http2::Http2DecoderAdapter;
@@ -1690,7 +1691,7 @@ MessageStatus QuicSpdySession::SendHttp3Datagram(
     return MESSAGE_STATUS_INTERNAL_ERROR;
   }
 
-  QuicMemSlice slice(std::move(buffer));
+  quiche::QuicheMemSlice slice(std::move(buffer));
   return datagram_queue()->SendOrQueueDatagram(std::move(slice));
 }
 

@@ -18,6 +18,7 @@
 #include "quic/test_tools/quic_config_peer.h"
 #include "quic/test_tools/quic_sent_packet_manager_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
+#include "common/platform/api/quiche_mem_slice.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -4440,7 +4441,7 @@ TEST_F(QuicSentPacketManagerTest, ClearDataInMessageFrameAfterPacketSent) {
 
   QuicMessageFrame* message_frame = nullptr;
   {
-    QuicMemSlice slice(MakeUniqueBuffer(&allocator_, 1024), 1024);
+    quiche::QuicheMemSlice slice(MakeUniqueBuffer(&allocator_, 1024), 1024);
     message_frame = new QuicMessageFrame(/*message_id=*/1, std::move(slice));
     EXPECT_FALSE(message_frame->message_data.empty());
     EXPECT_EQ(message_frame->message_length, 1024);

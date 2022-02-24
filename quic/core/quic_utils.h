@@ -22,8 +22,8 @@
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_iovec.h"
-#include "quic/platform/api/quic_mem_slice.h"
 #include "quic/platform/api/quic_socket_address.h"
+#include "common/platform/api/quiche_mem_slice.h"
 
 namespace quic {
 
@@ -254,7 +254,7 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
 bool IsValidWebTransportSessionId(WebTransportSessionId id,
                                   ParsedQuicVersion transport_version);
 
-QuicByteCount MemSliceSpanTotalSize(absl::Span<QuicMemSlice> span);
+QuicByteCount MemSliceSpanTotalSize(absl::Span<quiche::QuicheMemSlice> span);
 
 // Computes a SHA-256 hash and returns the raw bytes of the hash.
 QUIC_EXPORT_PRIVATE std::string RawSha256(absl::string_view input);

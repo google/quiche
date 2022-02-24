@@ -22,8 +22,8 @@
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
-#include "quic/platform/api/quic_mem_slice.h"
 #include "common/platform/api/quiche_logging.h"
+#include "common/platform/api/quiche_mem_slice.h"
 #include "common/platform/api/quiche_prefetch.h"
 #include "common/quiche_endian.h"
 
@@ -729,9 +729,9 @@ bool IsValidWebTransportSessionId(WebTransportSessionId id,
          QuicUtils::IsClientInitiatedStreamId(version.transport_version, id);
 }
 
-QuicByteCount MemSliceSpanTotalSize(absl::Span<QuicMemSlice> span) {
+QuicByteCount MemSliceSpanTotalSize(absl::Span<quiche::QuicheMemSlice> span) {
   QuicByteCount total = 0;
-  for (const QuicMemSlice& slice : span) {
+  for (const quiche::QuicheMemSlice& slice : span) {
     total += slice.length();
   }
   return total;

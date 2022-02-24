@@ -1069,7 +1069,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   MessageStatus SendMessage(absl::string_view message) {
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-    QuicMemSlice slice(QuicBuffer::Copy(
+    quiche::QuicheMemSlice slice(QuicBuffer::Copy(
         connection_.helper()->GetStreamSendBufferAllocator(), message));
     return connection_.SendMessage(1, absl::MakeSpan(&slice, 1), false);
   }
@@ -8705,7 +8705,7 @@ TEST_P(QuicConnectionTest, SendMessage) {
     connection_.SetFromConfig(config);
   }
   std::string message(connection_.GetCurrentLargestMessagePayload() * 2, 'a');
-  QuicMemSlice slice;
+  quiche::QuicheMemSlice slice;
   {
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
     connection_.SendStreamData3();

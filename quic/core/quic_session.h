@@ -42,8 +42,8 @@
 #include "quic/core/uber_quic_stream_id_manager.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_flags.h"
-#include "quic/platform/api/quic_mem_slice.h"
 #include "quic/platform/api/quic_socket_address.h"
+#include "common/platform/api/quiche_mem_slice.h"
 #include "common/quiche_linked_hash_map.h"
 
 namespace quic {
@@ -234,15 +234,16 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // SendMessage flushes the current packet even it is not full; if the
   // application needs to bundle other data in the same packet, consider using
   // QuicConnection::ScopedPacketFlusher around the relevant write operations.
-  MessageResult SendMessage(absl::Span<QuicMemSlice> message);
+  MessageResult SendMessage(absl::Span<quiche::QuicheMemSlice> message);
 
   // Same as above SendMessage, except caller can specify if the given |message|
   // should be flushed even if the underlying connection is deemed unwritable.
-  MessageResult SendMessage(absl::Span<QuicMemSlice> message, bool flush);
+  MessageResult SendMessage(absl::Span<quiche::QuicheMemSlice> message,
+                            bool flush);
 
   // Single-slice version of SendMessage().  Unlike the version above, this
   // version always takes ownership of the slice.
-  MessageResult SendMessage(QuicMemSlice message);
+  MessageResult SendMessage(quiche::QuicheMemSlice message);
 
   // Called when message with |message_id| gets acked.
   virtual void OnMessageAcked(QuicMessageId message_id,

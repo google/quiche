@@ -280,7 +280,8 @@ WebTransportStream* WebTransportHttp3::OpenOutgoingUnidirectionalStream() {
   return stream->interface();
 }
 
-MessageStatus WebTransportHttp3::SendOrQueueDatagram(QuicMemSlice datagram) {
+MessageStatus WebTransportHttp3::SendOrQueueDatagram(
+    quiche::QuicheMemSlice datagram) {
   return connect_stream_->SendHttp3Datagram(
       context_id_, absl::string_view(datagram.data(), datagram.length()));
 }

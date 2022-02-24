@@ -16,6 +16,7 @@
 #include "quic/quic_transport/quic_transport_protocol.h"
 #include "quic/quic_transport/quic_transport_stream.h"
 #include "quic/tools/web_transport_test_visitors.h"
+#include "common/platform/api/quiche_mem_slice.h"
 
 namespace quic {
 
@@ -131,7 +132,7 @@ void QuicTransportSimpleServerSession::OnMessageReceived(
       connection()->helper()->GetStreamSendBufferAllocator(), message.size());
   memcpy(buffer.get(), message.data(), message.size());
   datagram_queue()->SendOrQueueDatagram(
-      QuicMemSlice(std::move(buffer), message.size()));
+      quiche::QuicheMemSlice(std::move(buffer), message.size()));
 }
 
 void QuicTransportSimpleServerSession::MaybeEchoStreamsBack() {

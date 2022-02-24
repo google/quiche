@@ -35,8 +35,8 @@
 #include "quic/core/session_notifier_interface.h"
 #include "quic/core/stream_delegate_interface.h"
 #include "quic/platform/api/quic_export.h"
-#include "quic/platform/api/quic_mem_slice.h"
 #include "quic/platform/api/quic_reference_counted.h"
+#include "common/platform/api/quiche_mem_slice.h"
 #include "spdy/core/spdy_protocol.h"
 
 namespace quic {
@@ -365,8 +365,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // the wire.  This method has all-or-nothing semantics: if the write buffer is
   // not full, all of the memslices in |span| are moved into it; otherwise,
   // nothing happens.
-  QuicConsumedData WriteMemSlices(absl::Span<QuicMemSlice> span, bool fin);
-  QuicConsumedData WriteMemSlice(QuicMemSlice span, bool fin);
+  QuicConsumedData WriteMemSlices(absl::Span<quiche::QuicheMemSlice> span,
+                                  bool fin);
+  QuicConsumedData WriteMemSlice(quiche::QuicheMemSlice span, bool fin);
 
   // Returns true if any stream data is lost (including fin) and needs to be
   // retransmitted.

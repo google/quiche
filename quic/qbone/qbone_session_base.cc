@@ -19,6 +19,7 @@
 #include "quic/qbone/platform/icmp_packet.h"
 #include "quic/qbone/qbone_constants.h"
 #include "common/platform/api/quiche_command_line_flags.h"
+#include "common/platform/api/quiche_mem_slice.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, qbone_close_ephemeral_frames, true,
@@ -139,7 +140,7 @@ void QboneSessionBase::SendPacketToPeer(absl::string_view packet) {
   }
 
   if (send_packets_as_messages_) {
-    QuicMemSlice slice(QuicBuffer::Copy(
+    quiche::QuicheMemSlice slice(QuicBuffer::Copy(
         connection()->helper()->GetStreamSendBufferAllocator(), packet));
     switch (SendMessage(absl::MakeSpan(&slice, 1), /*flush=*/true).status) {
       case MESSAGE_STATUS_SUCCESS:

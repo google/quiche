@@ -20,8 +20,8 @@
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_mem_slice.h"
 #include "common/platform/api/quiche_logging.h"
+#include "common/platform/api/quiche_mem_slice.h"
 
 using spdy::SpdyPriority;
 
@@ -759,12 +759,13 @@ void QuicStream::MaybeSendBlocked() {
   }
 }
 
-QuicConsumedData QuicStream::WriteMemSlice(QuicMemSlice span, bool fin) {
+QuicConsumedData QuicStream::WriteMemSlice(quiche::QuicheMemSlice span,
+                                           bool fin) {
   return WriteMemSlices(absl::MakeSpan(&span, 1), fin);
 }
 
-QuicConsumedData QuicStream::WriteMemSlices(absl::Span<QuicMemSlice> span,
-                                            bool fin) {
+QuicConsumedData QuicStream::WriteMemSlices(
+    absl::Span<quiche::QuicheMemSlice> span, bool fin) {
   QuicConsumedData consumed_data(0, false);
   if (span.empty() && !fin) {
     QUIC_BUG(quic_bug_10586_6) << "span.empty() && !fin";

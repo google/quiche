@@ -1310,13 +1310,13 @@ StreamType DetermineStreamType(QuicStreamId id,
              : default_type;
 }
 
-QuicMemSlice MemSliceFromString(absl::string_view data) {
+quiche::QuicheMemSlice MemSliceFromString(absl::string_view data) {
   if (data.empty()) {
-    return QuicMemSlice();
+    return quiche::QuicheMemSlice();
   }
 
   static SimpleBufferAllocator* allocator = new SimpleBufferAllocator();
-  return QuicMemSlice(QuicBuffer::Copy(allocator, data));
+  return quiche::QuicheMemSlice(QuicBuffer::Copy(allocator, data));
 }
 
 bool TaggingEncrypter::EncryptPacket(uint64_t /*packet_number*/,

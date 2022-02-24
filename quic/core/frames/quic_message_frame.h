@@ -10,17 +10,18 @@
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_export.h"
-#include "quic/platform/api/quic_mem_slice.h"
+#include "common/platform/api/quiche_mem_slice.h"
 
 namespace quic {
 
-using QuicMessageData = absl::InlinedVector<QuicMemSlice, 1>;
+using QuicMessageData = absl::InlinedVector<quiche::QuicheMemSlice, 1>;
 
 struct QUIC_EXPORT_PRIVATE QuicMessageFrame {
   QuicMessageFrame() = default;
   explicit QuicMessageFrame(QuicMessageId message_id);
-  QuicMessageFrame(QuicMessageId message_id, absl::Span<QuicMemSlice> span);
-  QuicMessageFrame(QuicMessageId message_id, QuicMemSlice slice);
+  QuicMessageFrame(QuicMessageId message_id,
+                   absl::Span<quiche::QuicheMemSlice> span);
+  QuicMessageFrame(QuicMessageId message_id, quiche::QuicheMemSlice slice);
   QuicMessageFrame(const char* data, QuicPacketLength length);
 
   QuicMessageFrame(const QuicMessageFrame& other) = delete;

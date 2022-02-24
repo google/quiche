@@ -35,6 +35,7 @@
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_socket_address.h"
+#include "common/platform/api/quiche_mem_slice.h"
 #include "spdy/core/spdy_framer.h"
 #include "spdy/core/spdy_header_block.h"
 
@@ -154,7 +155,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   // Does the same thing as WriteOrBufferBody except this method takes
   // memslicespan as the data input. Right now it only calls WriteMemSlices.
-  QuicConsumedData WriteBodySlices(absl::Span<QuicMemSlice> slices, bool fin);
+  QuicConsumedData WriteBodySlices(absl::Span<quiche::QuicheMemSlice> slices,
+                                   bool fin);
 
   // Marks the trailers as consumed. This applies to the case where this object
   // receives headers and trailers as QuicHeaderLists via calls to

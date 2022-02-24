@@ -46,6 +46,7 @@
 #include "quic/test_tools/quic_stream_peer.h"
 #include "quic/test_tools/quic_stream_send_buffer_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
+#include "common/platform/api/quiche_mem_slice.h"
 #include "common/quiche_endian.h"
 #include "common/test_tools/quiche_test_utils.h"
 #include "spdy/core/spdy_framer.h"
@@ -2040,7 +2041,7 @@ TEST_P(QuicSpdySessionTestClient, WritePriority) {
   SpdyFramer spdy_framer(SpdyFramer::ENABLE_COMPRESSION);
   SpdySerializedFrame frame = spdy_framer.SerializeFrame(priority_frame);
 
-  const QuicMemSlice& slice =
+  const quiche::QuicheMemSlice& slice =
       QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer)->slice;
   EXPECT_EQ(absl::string_view(frame.data(), frame.size()),
             absl::string_view(slice.data(), slice.length()));

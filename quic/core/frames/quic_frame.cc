@@ -11,6 +11,7 @@
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_logging.h"
+#include "common/platform/api/quiche_mem_slice.h"
 
 namespace quic {
 
@@ -393,7 +394,7 @@ QuicFrame CopyQuicFrame(QuicBufferAllocator* allocator,
       for (const auto& slice : frame.message_frame->message_data) {
         QuicBuffer buffer = QuicBuffer::Copy(allocator, slice.AsStringView());
         copy.message_frame->message_data.push_back(
-            QuicMemSlice(std::move(buffer)));
+            quiche::QuicheMemSlice(std::move(buffer)));
       }
       break;
     case NEW_TOKEN_FRAME:

@@ -10,7 +10,7 @@
 #include "absl/types/optional.h"
 #include "quic/core/quic_time.h"
 #include "quic/core/quic_types.h"
-#include "quic/platform/api/quic_mem_slice.h"
+#include "common/platform/api/quiche_mem_slice.h"
 #include "common/quiche_circular_deque.h"
 
 namespace quic {
@@ -44,7 +44,7 @@ class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
 
   // Adds the datagram to the end of the queue.  May send it immediately; if
   // not, MESSAGE_STATUS_BLOCKED is returned.
-  MessageStatus SendOrQueueDatagram(QuicMemSlice datagram);
+  MessageStatus SendOrQueueDatagram(quiche::QuicheMemSlice datagram);
 
   // Attempts to send a single datagram from the queue.  Returns the result of
   // SendMessage(), or nullopt if there were no unexpired datagrams to send.
@@ -69,7 +69,7 @@ class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
 
  private:
   struct QUIC_EXPORT_PRIVATE Datagram {
-    QuicMemSlice datagram;
+    quiche::QuicheMemSlice datagram;
     QuicTime expiry;
   };
 

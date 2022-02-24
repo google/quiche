@@ -32,7 +32,7 @@
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_mem_slice_storage.h"
+#include "common/quiche_mem_slice_storage.h"
 #include "common/quiche_text_utils.h"
 #include "spdy/core/spdy_protocol.h"
 
@@ -390,7 +390,7 @@ size_t QuicSpdyStream::WriteTrailers(
 
 QuicConsumedData QuicSpdyStream::WritevBody(const struct iovec* iov, int count,
                                             bool fin) {
-  QuicMemSliceStorage storage(
+  quiche::QuicheMemSliceStorage storage(
       iov, count,
       session()->connection()->helper()->GetStreamSendBufferAllocator(),
       GetQuicFlag(FLAGS_quic_send_buffer_max_data_slice_size));
@@ -421,7 +421,7 @@ bool QuicSpdyStream::WriteDataFrameHeader(QuicByteCount data_length,
                   << header.size();
   if (can_write) {
     // Save one copy and allocation if send buffer can accomodate the header.
-    QuicMemSlice header_slice(std::move(header));
+    quiche::QuicheMemSlice header_slice(std::move(header));
     WriteMemSlices(absl::MakeSpan(&header_slice, 1), false);
   } else {
     QUICHE_DCHECK(force_write);
@@ -431,7 +431,7 @@ bool QuicSpdyStream::WriteDataFrameHeader(QuicByteCount data_length,
 }
 
 QuicConsumedData QuicSpdyStream::WriteBodySlices(
-    absl::Span<QuicMemSlice> slices, bool fin) {
+    absl::Span<quiche::QuicheMemSlice> slices, bool fin) {
   if (!VersionUsesHttp3(transport_version()) || slices.empty()) {
     return WriteMemSlices(slices, fin);
   }

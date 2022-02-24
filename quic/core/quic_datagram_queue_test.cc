@@ -12,10 +12,10 @@
 #include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_time.h"
 #include "quic/core/quic_types.h"
-#include "quic/platform/api/quic_mem_slice.h"
 #include "quic/platform/api/quic_reference_counted.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_test_utils.h"
+#include "common/platform/api/quiche_mem_slice.h"
 
 namespace quic {
 namespace test {
@@ -70,11 +70,11 @@ class QuicDatagramQueueTestBase : public QuicTest {
 
   ~QuicDatagramQueueTestBase() = default;
 
-  QuicMemSlice CreateMemSlice(absl::string_view data) {
+  quiche::QuicheMemSlice CreateMemSlice(absl::string_view data) {
     QuicUniqueBufferPtr buffer =
         MakeUniqueBuffer(helper_.GetStreamSendBufferAllocator(), data.size());
     memcpy(buffer.get(), data.data(), data.size());
-    return QuicMemSlice(std::move(buffer), data.size());
+    return quiche::QuicheMemSlice(std::move(buffer), data.size());
   }
 
   MockQuicConnectionHelper helper_;
@@ -176,7 +176,7 @@ TEST_F(QuicDatagramQueueTest, Expiry) {
   std::vector<std::string> messages;
   EXPECT_CALL(*connection_, SendMessage(_, _, _))
       .WillRepeatedly([&messages](QuicMessageId /*id*/,
-                                  absl::Span<QuicMemSlice> message,
+                                  absl::Span<quiche::QuicheMemSlice> message,
                                   bool /*flush*/) {
         messages.push_back(std::string(message[0].AsStringView()));
         return MESSAGE_STATUS_SUCCESS;

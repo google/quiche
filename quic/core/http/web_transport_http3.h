@@ -16,6 +16,7 @@
 #include "quic/core/quic_stream.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/web_transport_interface.h"
+#include "common/platform/api/quiche_mem_slice.h"
 #include "spdy/core/spdy_header_block.h"
 
 namespace quic {
@@ -84,7 +85,7 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   WebTransportStream* OpenOutgoingBidirectionalStream() override;
   WebTransportStream* OpenOutgoingUnidirectionalStream() override;
 
-  MessageStatus SendOrQueueDatagram(QuicMemSlice datagram) override;
+  MessageStatus SendOrQueueDatagram(quiche::QuicheMemSlice datagram) override;
   QuicByteCount GetMaxDatagramSize() const override;
   void SetDatagramMaxTimeInQueue(QuicTime::Delta max_time_in_queue) override;
 

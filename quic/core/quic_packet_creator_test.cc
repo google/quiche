@@ -2448,7 +2448,7 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
   }
 
   MessageStatus AddMessageFrame(QuicMessageId message_id,
-                                QuicMemSlice message) {
+                                quiche::QuicheMemSlice message) {
     if (!has_ack() && delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
                                                       NOT_HANDSHAKE)) {
       EXPECT_CALL(*delegate_, MaybeBundleAckOpportunistically()).Times(1);

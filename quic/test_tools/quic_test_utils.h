@@ -33,7 +33,6 @@
 #include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
-#include "quic/platform/api/quic_mem_slice_storage.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/mock_clock.h"
@@ -41,6 +40,7 @@
 #include "quic/test_tools/mock_random.h"
 #include "quic/test_tools/quic_framer_peer.h"
 #include "quic/test_tools/simple_quic_framer.h"
+#include "common/quiche_mem_slice_storage.h"
 
 namespace quic {
 
@@ -645,7 +645,8 @@ class MockQuicConnection : public QuicConnection {
               (override));
   MOCK_METHOD(bool, SendControlFrame, (const QuicFrame& frame), (override));
   MOCK_METHOD(MessageStatus, SendMessage,
-              (QuicMessageId, absl::Span<QuicMemSlice>, bool), (override));
+              (QuicMessageId, absl::Span<quiche::QuicheMemSlice>, bool),
+              (override));
   MOCK_METHOD(bool, SendPathChallenge,
               (const QuicPathFrameBuffer&, const QuicSocketAddress&,
                const QuicSocketAddress&, const QuicSocketAddress&,
@@ -1534,7 +1535,7 @@ StreamType DetermineStreamType(QuicStreamId id, ParsedQuicVersion version,
 
 // Creates a MemSlice using a singleton trivial buffer allocator.  Performs a
 // copy.
-QuicMemSlice MemSliceFromString(absl::string_view data);
+quiche::QuicheMemSlice MemSliceFromString(absl::string_view data);
 
 // Used to compare ReceivedPacketInfo.
 MATCHER_P(ReceivedPacketInfoEquals, info, "") {

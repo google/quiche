@@ -15,6 +15,7 @@
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_containers.h"
+#include "common/platform/api/quiche_mem_slice.h"
 #include "common/quiche_text_utils.h"
 
 namespace quic {
@@ -281,7 +282,7 @@ void MasqueCompressionEngine::CompressAndSendPacket(
   }
 
   MessageResult message_result =
-      masque_session_->SendMessage(QuicMemSlice(std::move(buffer)));
+      masque_session_->SendMessage(quiche::QuicheMemSlice(std::move(buffer)));
 
   QUIC_DVLOG(1) << "Sent packet compressed with flow ID " << flow_id
                 << " and got message result " << message_result;

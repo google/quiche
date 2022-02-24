@@ -10,6 +10,7 @@
 #include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/web_transport_interface.h"
 #include "quic/platform/api/quic_logging.h"
+#include "common/platform/api/quiche_mem_slice.h"
 #include "common/quiche_circular_deque.h"
 
 namespace quic {
@@ -220,7 +221,7 @@ class EchoWebTransportSessionVisitor : public WebTransportVisitor {
   void OnDatagramReceived(absl::string_view datagram) override {
     auto buffer = MakeUniqueBuffer(&allocator_, datagram.size());
     memcpy(buffer.get(), datagram.data(), datagram.size());
-    QuicMemSlice slice(std::move(buffer), datagram.size());
+    quiche::QuicheMemSlice slice(std::move(buffer), datagram.size());
     session_->SendOrQueueDatagram(std::move(slice));
   }
 

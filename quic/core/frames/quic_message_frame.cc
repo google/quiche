@@ -6,7 +6,7 @@
 
 #include "quic/core/quic_constants.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_mem_slice.h"
+#include "common/platform/api/quiche_mem_slice.h"
 
 namespace quic {
 
@@ -14,9 +14,9 @@ QuicMessageFrame::QuicMessageFrame(QuicMessageId message_id)
     : message_id(message_id), data(nullptr), message_length(0) {}
 
 QuicMessageFrame::QuicMessageFrame(QuicMessageId message_id,
-                                   absl::Span<QuicMemSlice> span)
+                                   absl::Span<quiche::QuicheMemSlice> span)
     : message_id(message_id), data(nullptr), message_length(0) {
-  for (QuicMemSlice& slice : span) {
+  for (quiche::QuicheMemSlice& slice : span) {
     if (slice.empty()) {
       continue;
     }
@@ -24,7 +24,8 @@ QuicMessageFrame::QuicMessageFrame(QuicMessageId message_id,
     message_data.push_back(std::move(slice));
   }
 }
-QuicMessageFrame::QuicMessageFrame(QuicMessageId message_id, QuicMemSlice slice)
+QuicMessageFrame::QuicMessageFrame(QuicMessageId message_id,
+                                   quiche::QuicheMemSlice slice)
     : QuicMessageFrame(message_id, absl::MakeSpan(&slice, 1)) {}
 
 QuicMessageFrame::QuicMessageFrame(const char* data, QuicPacketLength length)

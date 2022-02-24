@@ -28,7 +28,6 @@
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
-#include "quic/platform/api/quic_mem_slice_storage.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/mock_quic_session_visitor.h"
 #include "quic/test_tools/quic_config_peer.h"
@@ -39,6 +38,7 @@
 #include "quic/test_tools/quic_stream_peer.h"
 #include "quic/test_tools/quic_stream_send_buffer_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
+#include "common/quiche_mem_slice_storage.h"
 
 using spdy::kV3HighestPriority;
 using spdy::SpdyPriority;
@@ -2700,7 +2700,7 @@ TEST_P(QuicSessionTestServer, WritevDataOnReadUnidirectionalStream) {
       .Times(1);
   std::string body(100, '.');
   struct iovec iov = {const_cast<char*>(body.data()), body.length()};
-  QuicMemSliceStorage storage(
+  quiche::QuicheMemSliceStorage storage(
       &iov, 1, session_.connection()->helper()->GetStreamSendBufferAllocator(),
       1024);
   stream4->WriteMemSlices(storage.ToSpan(), false);
@@ -2716,7 +2716,7 @@ TEST_P(QuicSessionTestServer, WriteMemSlicesOnReadUnidirectionalStream) {
                   QUIC_TRY_TO_WRITE_DATA_ON_READ_UNIDIRECTIONAL_STREAM, _, _))
       .Times(1);
   std::string data(1024, 'a');
-  std::vector<QuicMemSlice> buffers;
+  std::vector<quiche::QuicheMemSlice> buffers;
   buffers.push_back(MemSliceFromString(data));
   buffers.push_back(MemSliceFromString(data));
   stream4->WriteMemSlices(absl::MakeSpan(buffers), false);

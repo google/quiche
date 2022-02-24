@@ -1605,7 +1605,7 @@ void QuicPacketCreator::SetTransmissionType(TransmissionType type) {
 }
 
 MessageStatus QuicPacketCreator::AddMessageFrame(
-    QuicMessageId message_id, absl::Span<QuicMemSlice> message) {
+    QuicMessageId message_id, absl::Span<quiche::QuicheMemSlice> message) {
   QUIC_BUG_IF(quic_bug_10752_33, !flusher_attached_)
       << ENDPOINT
       << "Packet flusher is not attached when "

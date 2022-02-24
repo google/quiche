@@ -5705,9 +5705,9 @@ void QuicConnection::ResetAckStates() {
   uber_received_packet_manager_.ResetAckStates(encryption_level_);
 }
 
-MessageStatus QuicConnection::SendMessage(QuicMessageId message_id,
-                                          absl::Span<QuicMemSlice> message,
-                                          bool flush) {
+MessageStatus QuicConnection::SendMessage(
+    QuicMessageId message_id, absl::Span<quiche::QuicheMemSlice> message,
+    bool flush) {
   if (!VersionSupportsMessageFrames(transport_version())) {
     QUIC_BUG(quic_bug_10511_38)
         << "MESSAGE frame is not supported for version " << transport_version();

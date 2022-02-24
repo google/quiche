@@ -30,6 +30,7 @@
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
+#include "common/platform/api/quiche_mem_slice.h"
 #include "common/quiche_circular_deque.h"
 
 namespace quic {
@@ -421,7 +422,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Tries to add a message frame containing |message| and returns the status.
   MessageStatus AddMessageFrame(QuicMessageId message_id,
-                                absl::Span<QuicMemSlice> message);
+                                absl::Span<quiche::QuicheMemSlice> message);
 
   // Returns the largest payload that will fit into a single MESSAGE frame.
   QuicPacketLength GetCurrentLargestMessagePayload() const;

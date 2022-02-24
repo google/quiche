@@ -57,9 +57,9 @@ inline QuicUniqueBufferPtr MakeUniqueBuffer(QuicBufferAllocator* allocator,
                              QuicBufferDeleter(allocator));
 }
 
-// QuicUniqueBufferPtr with a length attached to it.  Similar to QuicMemSlice,
-// except unlike QuicMemSlice, QuicBuffer is mutable and is not
-// platform-specific.  Also unlike QuicMemSlice, QuicBuffer can be empty.
+// QuicUniqueBufferPtr with a length attached to it.  Similar to QuicheMemSlice,
+// except unlike QuicheMemSlice, QuicBuffer is mutable and is not
+// platform-specific.  Also unlike QuicheMemSlice, QuicBuffer can be empty.
 class QUIC_EXPORT_PRIVATE QuicBuffer {
  public:
   QuicBuffer() : buffer_(nullptr, QuicBufferDeleter(nullptr)), size_(0) {}

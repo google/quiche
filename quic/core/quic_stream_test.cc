@@ -24,7 +24,6 @@
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_mem_slice_storage.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_config_peer.h"
 #include "quic/test_tools/quic_connection_peer.h"
@@ -33,6 +32,7 @@
 #include "quic/test_tools/quic_stream_peer.h"
 #include "quic/test_tools/quic_stream_sequencer_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
+#include "common/quiche_mem_slice_storage.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -1171,7 +1171,7 @@ TEST_P(QuicStreamTest, WriteBufferedData) {
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(0, false)));
   struct iovec iov = {const_cast<char*>(data.data()), data.length()};
-  QuicMemSliceStorage storage(
+  quiche::QuicheMemSliceStorage storage(
       &iov, 1, session_->connection()->helper()->GetStreamSendBufferAllocator(),
       1024);
   QuicConsumedData consumed = stream_->WriteMemSlices(storage.ToSpan(), false);
@@ -1184,7 +1184,7 @@ TEST_P(QuicStreamTest, WriteBufferedData) {
   EXPECT_FALSE(stream_->CanWriteNewData());
 
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(0);
-  QuicMemSliceStorage storage2(
+  quiche::QuicheMemSliceStorage storage2(
       &iov, 1, session_->connection()->helper()->GetStreamSendBufferAllocator(),
       1024);
   consumed = stream_->WriteMemSlices(storage2.ToSpan(), false);
@@ -1210,7 +1210,7 @@ TEST_P(QuicStreamTest, WriteBufferedData) {
 
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(0);
   // All data can be consumed as buffered data is below upper limit.
-  QuicMemSliceStorage storage3(
+  quiche::QuicheMemSliceStorage storage3(
       &iov, 1, session_->connection()->helper()->GetStreamSendBufferAllocator(),
       1024);
   consumed = stream_->WriteMemSlices(storage3.ToSpan(), false);
@@ -1229,13 +1229,13 @@ TEST_P(QuicStreamTest, WritevDataReachStreamLimit) {
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(Invoke(session_.get(), &MockQuicSession::ConsumeData));
   struct iovec iov = {const_cast<char*>(data.data()), 5u};
-  QuicMemSliceStorage storage(
+  quiche::QuicheMemSliceStorage storage(
       &iov, 1, session_->connection()->helper()->GetStreamSendBufferAllocator(),
       1024);
   QuicConsumedData consumed = stream_->WriteMemSlices(storage.ToSpan(), false);
   EXPECT_EQ(data.length(), consumed.bytes_consumed);
   struct iovec iov2 = {const_cast<char*>(data.data()), 1u};
-  QuicMemSliceStorage storage2(
+  quiche::QuicheMemSliceStorage storage2(
       &iov2, 1,
       session_->connection()->helper()->GetStreamSendBufferAllocator(), 1024);
   EXPECT_CALL(*connection_, CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _));
@@ -1251,14 +1251,14 @@ TEST_P(QuicStreamTest, WriteMemSlices) {
   constexpr QuicByteCount kDataSize = 1024;
   QuicBufferAllocator* allocator =
       connection_->helper()->GetStreamSendBufferAllocator();
-  std::vector<QuicMemSlice> vector1;
-  vector1.push_back(QuicMemSlice(QuicBuffer(allocator, kDataSize)));
-  vector1.push_back(QuicMemSlice(QuicBuffer(allocator, kDataSize)));
-  std::vector<QuicMemSlice> vector2;
-  vector2.push_back(QuicMemSlice(QuicBuffer(allocator, kDataSize)));
-  vector2.push_back(QuicMemSlice(QuicBuffer(allocator, kDataSize)));
-  absl::Span<QuicMemSlice> span1(vector1);
-  absl::Span<QuicMemSlice> span2(vector2);
+  std::vector<quiche::QuicheMemSlice> vector1;
+  vector1.push_back(quiche::QuicheMemSlice(QuicBuffer(allocator, kDataSize)));
+  vector1.push_back(quiche::QuicheMemSlice(QuicBuffer(allocator, kDataSize)));
+  std::vector<quiche::QuicheMemSlice> vector2;
+  vector2.push_back(quiche::QuicheMemSlice(QuicBuffer(allocator, kDataSize)));
+  vector2.push_back(quiche::QuicheMemSlice(QuicBuffer(allocator, kDataSize)));
+  absl::Span<quiche::QuicheMemSlice> span1(vector1);
+  absl::Span<quiche::QuicheMemSlice> span2(vector2);
 
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(InvokeWithoutArgs([this]() {
@@ -1314,7 +1314,7 @@ TEST_P(QuicStreamTest, WriteMemSlicesReachStreamLimit) {
   Initialize();
   QuicStreamPeer::SetStreamBytesWritten(kMaxStreamLength - 5u, stream_);
   std::vector<std::pair<char*, size_t>> buffers;
-  QuicMemSlice slice1 = MemSliceFromString("12345");
+  quiche::QuicheMemSlice slice1 = MemSliceFromString("12345");
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(InvokeWithoutArgs([this]() {
         return session_->ConsumeData(stream_->id(), 5u, 0u, NO_FIN,
@@ -1324,7 +1324,7 @@ TEST_P(QuicStreamTest, WriteMemSlicesReachStreamLimit) {
   QuicConsumedData consumed = stream_->WriteMemSlice(std::move(slice1), false);
   EXPECT_EQ(5u, consumed.bytes_consumed);
 
-  QuicMemSlice slice2 = MemSliceFromString("6");
+  quiche::QuicheMemSlice slice2 = MemSliceFromString("6");
   EXPECT_CALL(*connection_, CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _));
   EXPECT_QUIC_BUG(stream_->WriteMemSlice(std::move(slice2), false),
                   "Write too many data via stream");

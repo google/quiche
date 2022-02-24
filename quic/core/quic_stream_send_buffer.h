@@ -11,7 +11,7 @@
 #include "quic/core/quic_interval_set.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_iovec.h"
-#include "quic/platform/api/quic_mem_slice.h"
+#include "common/platform/api/quiche_mem_slice.h"
 #include "common/quiche_circular_deque.h"
 
 namespace quic {
@@ -28,7 +28,7 @@ class QuicDataWriter;
 // stream data is saved in send buffer and is removed when stream data is fully
 // acked. It is move-only.
 struct QUIC_EXPORT_PRIVATE BufferedSlice {
-  BufferedSlice(QuicMemSlice mem_slice, QuicStreamOffset offset);
+  BufferedSlice(quiche::QuicheMemSlice mem_slice, QuicStreamOffset offset);
   BufferedSlice(BufferedSlice&& other);
   BufferedSlice& operator=(BufferedSlice&& other);
 
@@ -40,7 +40,7 @@ struct QUIC_EXPORT_PRIVATE BufferedSlice {
   QuicInterval<std::size_t> interval() const;
 
   // Stream data of this data slice.
-  QuicMemSlice slice;
+  quiche::QuicheMemSlice slice;
   // Location of this data slice in the stream.
   QuicStreamOffset offset;
 };
@@ -76,10 +76,10 @@ class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
                       QuicByteCount data_length);
 
   // Save |slice| to send buffer.
-  void SaveMemSlice(QuicMemSlice slice);
+  void SaveMemSlice(quiche::QuicheMemSlice slice);
 
   // Save all slices in |span| to send buffer. Return total bytes saved.
-  QuicByteCount SaveMemSliceSpan(absl::Span<QuicMemSlice> span);
+  QuicByteCount SaveMemSliceSpan(absl::Span<quiche::QuicheMemSlice> span);
 
   // Called when |bytes_consumed| bytes has been consumed by the stream.
   void OnStreamDataConsumed(size_t bytes_consumed);

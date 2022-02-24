@@ -28,6 +28,7 @@
 #include "quic/quic_transport/quic_transport_protocol.h"
 #include "quic/quic_transport/quic_transport_session_interface.h"
 #include "quic/quic_transport/quic_transport_stream.h"
+#include "common/platform/api/quiche_mem_slice.h"
 
 namespace quic {
 
@@ -99,7 +100,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   QuicTransportStream* OpenOutgoingBidirectionalStream() override;
   QuicTransportStream* OpenOutgoingUnidirectionalStream() override;
 
-  MessageStatus SendOrQueueDatagram(QuicMemSlice datagram) override {
+  MessageStatus SendOrQueueDatagram(quiche::QuicheMemSlice datagram) override {
     return datagram_queue()->SendOrQueueDatagram(std::move(datagram));
   }
   void SetDatagramMaxTimeInQueue(QuicTime::Delta max_time_in_queue) override {

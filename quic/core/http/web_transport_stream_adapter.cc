@@ -6,6 +6,7 @@
 
 #include "quic/core/http/web_transport_http3.h"
 #include "quic/core/quic_error_codes.h"
+#include "common/platform/api/quiche_mem_slice.h"
 
 namespace quic {
 
@@ -45,7 +46,7 @@ bool WebTransportStreamAdapter::Write(absl::string_view data) {
     return false;
   }
 
-  QuicMemSlice memslice(QuicBuffer::Copy(
+  quiche::QuicheMemSlice memslice(QuicBuffer::Copy(
       session_->connection()->helper()->GetStreamSendBufferAllocator(), data));
   QuicConsumedData consumed =
       stream_->WriteMemSlices(absl::MakeSpan(&memslice, 1), /*fin=*/false);
@@ -76,7 +77,7 @@ bool WebTransportStreamAdapter::SendFin() {
     return false;
   }
 
-  QuicMemSlice empty;
+  quiche::QuicheMemSlice empty;
   QuicConsumedData consumed =
       stream_->WriteMemSlices(absl::MakeSpan(&empty, 1), /*fin=*/true);
   QUICHE_DCHECK_EQ(consumed.bytes_consumed, 0u);

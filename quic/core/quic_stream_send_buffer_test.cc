@@ -40,10 +40,10 @@ class QuicStreamSendBufferTest : public QuicTest {
 
     QuicBuffer buffer1(&allocator_, 1024);
     memset(buffer1.data(), 'c', buffer1.size());
-    QuicMemSlice slice1(std::move(buffer1));
+    quiche::QuicheMemSlice slice1(std::move(buffer1));
     QuicBuffer buffer2(&allocator_, 768);
     memset(buffer2.data(), 'd', buffer2.size());
-    QuicMemSlice slice2(std::move(buffer2));
+    quiche::QuicheMemSlice slice2(std::move(buffer2));
 
     // The stream offset should be 0 since nothing is written.
     EXPECT_EQ(0u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
@@ -310,7 +310,7 @@ TEST_F(QuicStreamSendBufferTest, EndOffset) {
   EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
   QuicBuffer buffer(&allocator_, 60);
   memset(buffer.data(), 'e', buffer.size());
-  QuicMemSlice slice(std::move(buffer));
+  quiche::QuicheMemSlice slice(std::move(buffer));
   send_buffer_.SaveMemSlice(std::move(slice));
 
   EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
@@ -321,7 +321,7 @@ TEST_F(QuicStreamSendBufferTest, SaveMemSliceSpan) {
   QuicStreamSendBuffer send_buffer(&allocator);
 
   std::string data(1024, 'a');
-  std::vector<QuicMemSlice> buffers;
+  std::vector<quiche::QuicheMemSlice> buffers;
   for (size_t i = 0; i < 10; ++i) {
     buffers.push_back(MemSliceFromString(data));
   }
@@ -335,7 +335,7 @@ TEST_F(QuicStreamSendBufferTest, SaveEmptyMemSliceSpan) {
   QuicStreamSendBuffer send_buffer(&allocator);
 
   std::string data(1024, 'a');
-  std::vector<QuicMemSlice> buffers;
+  std::vector<quiche::QuicheMemSlice> buffers;
   for (size_t i = 0; i < 10; ++i) {
     buffers.push_back(MemSliceFromString(data));
   }

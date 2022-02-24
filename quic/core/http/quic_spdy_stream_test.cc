@@ -37,6 +37,7 @@
 #include "quic/test_tools/quic_spdy_stream_peer.h"
 #include "quic/test_tools/quic_stream_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
+#include "common/quiche_mem_slice_storage.h"
 
 using spdy::kV3HighestPriority;
 using spdy::kV3LowestPriority;
@@ -1980,10 +1981,10 @@ TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteBodySlices) {
   std::string body2(100, 'x');
   struct iovec body1_iov = {const_cast<char*>(body1.data()), body1.length()};
   struct iovec body2_iov = {const_cast<char*>(body2.data()), body2.length()};
-  QuicMemSliceStorage storage(&body1_iov, 1,
-                              helper_.GetStreamSendBufferAllocator(), 1024);
-  QuicMemSliceStorage storage2(&body2_iov, 1,
-                               helper_.GetStreamSendBufferAllocator(), 1024);
+  quiche::QuicheMemSliceStorage storage(
+      &body1_iov, 1, helper_.GetStreamSendBufferAllocator(), 1024);
+  quiche::QuicheMemSliceStorage storage2(
+      &body2_iov, 1, helper_.GetStreamSendBufferAllocator(), 1024);
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(AtLeast(1));
   stream_->WriteBodySlices(storage.ToSpan(), false);
   stream_->WriteBodySlices(storage2.ToSpan(), true);

@@ -2,17 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "quic/core/quic_stream_send_buffer.h"
+
 #include <algorithm>
 
 #include "quic/core/quic_data_writer.h"
 #include "quic/core/quic_interval.h"
-#include "quic/core/quic_stream_send_buffer.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_mem_slice.h"
+#include "common/platform/api/quiche_mem_slice.h"
 
 namespace quic {
 
@@ -26,7 +27,8 @@ struct CompareOffset {
 
 }  // namespace
 
-BufferedSlice::BufferedSlice(QuicMemSlice mem_slice, QuicStreamOffset offset)
+BufferedSlice::BufferedSlice(quiche::QuicheMemSlice mem_slice,
+                             QuicStreamOffset offset)
     : slice(std::move(mem_slice)), offset(offset) {}
 
 BufferedSlice::BufferedSlice(BufferedSlice&& other) = default;
@@ -68,13 +70,13 @@ void QuicStreamSendBuffer::SaveStreamData(const struct iovec* iov,
     QuicUniqueBufferPtr buffer = MakeUniqueBuffer(allocator_, slice_len);
     QuicUtils::CopyToBuffer(iov, iov_count, iov_offset, slice_len,
                             buffer.get());
-    SaveMemSlice(QuicMemSlice(std::move(buffer), slice_len));
+    SaveMemSlice(quiche::QuicheMemSlice(std::move(buffer), slice_len));
     data_length -= slice_len;
     iov_offset += slice_len;
   }
 }
 
-void QuicStreamSendBuffer::SaveMemSlice(QuicMemSlice slice) {
+void QuicStreamSendBuffer::SaveMemSlice(quiche::QuicheMemSlice slice) {
   QUIC_DVLOG(2) << "Save slice offset " << stream_offset_ << " length "
                 << slice.length();
   if (slice.empty()) {
@@ -93,9 +95,9 @@ void QuicStreamSendBuffer::SaveMemSlice(QuicMemSlice slice) {
 }
 
 QuicByteCount QuicStreamSendBuffer::SaveMemSliceSpan(
-    absl::Span<QuicMemSlice> span) {
+    absl::Span<quiche::QuicheMemSlice> span) {
   QuicByteCount total = 0;
-  for (QuicMemSlice& slice : span) {
+  for (quiche::QuicheMemSlice& slice : span) {
     if (slice.length() == 0) {
       // Skip empty slices.
       continue;

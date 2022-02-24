@@ -2464,16 +2464,17 @@ void QuicSession::SetTransmissionType(TransmissionType type) {
   connection_->SetTransmissionType(type);
 }
 
-MessageResult QuicSession::SendMessage(absl::Span<QuicMemSlice> message) {
+MessageResult QuicSession::SendMessage(
+    absl::Span<quiche::QuicheMemSlice> message) {
   return SendMessage(message, /*flush=*/false);
 }
 
-MessageResult QuicSession::SendMessage(QuicMemSlice message) {
+MessageResult QuicSession::SendMessage(quiche::QuicheMemSlice message) {
   return SendMessage(absl::MakeSpan(&message, 1), /*flush=*/false);
 }
 
-MessageResult QuicSession::SendMessage(absl::Span<QuicMemSlice> message,
-                                       bool flush) {
+MessageResult QuicSession::SendMessage(
+    absl::Span<quiche::QuicheMemSlice> message, bool flush) {
   QUICHE_DCHECK(connection_->connected())
       << ENDPOINT << "Try to write messages when connection is closed.";
   if (!IsEncryptionEstablished()) {
