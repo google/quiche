@@ -317,6 +317,9 @@ TEST_F(SimpleSessionNotifierTest, OnCanWriteCryptoFrames) {
 
 TEST_F(SimpleSessionNotifierTest, RetransmitFrames) {
   InSequence s;
+  connection_.SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
   // Send stream 3 data [0, 10) and fin.
   EXPECT_CALL(connection_, SendStreamData(3, 10, 0, FIN))
       .WillOnce(Return(QuicConsumedData(10, true)));

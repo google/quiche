@@ -2280,7 +2280,7 @@ void QuicSession::OnFrameLost(const QuicFrame& frame) {
   }
 }
 
-void QuicSession::RetransmitFrames(const QuicFrames& frames,
+bool QuicSession::RetransmitFrames(const QuicFrames& frames,
                                    TransmissionType type) {
   QuicConnection::ScopedPacketFlusher retransmission_flusher(connection_);
   for (const QuicFrame& frame : frames) {
@@ -2289,12 +2289,17 @@ void QuicSession::RetransmitFrames(const QuicFrames& frames,
       continue;
     }
     if (frame.type == CRYPTO_FRAME) {
-      GetMutableCryptoStream()->RetransmitData(frame.crypto_frame, type);
+      const bool data_retransmitted =
+          GetMutableCryptoStream()->RetransmitData(frame.crypto_frame, type);
+      if (GetQuicRestartFlag(quic_set_packet_state_if_all_data_retransmitted) &&
+          !data_retransmitted) {
+        return false;
+      }
       continue;
     }
     if (frame.type != STREAM_FRAME) {
       if (!control_frame_manager_.RetransmitControlFrame(frame, type)) {
-        break;
+        return false;
       }
       continue;
     }
@@ -2303,9 +2308,10 @@ void QuicSession::RetransmitFrames(const QuicFrames& frames,
         !stream->RetransmitStreamData(frame.stream_frame.offset,
                                       frame.stream_frame.data_length,
                                       frame.stream_frame.fin, type)) {
-      break;
+      return false;
     }
   }
+  return true;
 }
 
 bool QuicSession::IsFrameOutstanding(const QuicFrame& frame) const {

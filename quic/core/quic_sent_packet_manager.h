@@ -548,12 +548,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   void MarkForRetransmission(QuicPacketNumber packet_number,
                              TransmissionType transmission_type);
 
-  // Performs whatever work is need to retransmit the data correctly, either
-  // by retransmitting the frames directly or by notifying that the frames
-  // are lost.
-  void HandleRetransmission(TransmissionType transmission_type,
-                            QuicTransmissionInfo* transmission_info);
-
   // Called after packets have been marked handled with last received ack frame.
   void PostProcessNewlyAckedPackets(QuicPacketNumber ack_packet_number,
                                     EncryptionLevel ack_decrypted_level,

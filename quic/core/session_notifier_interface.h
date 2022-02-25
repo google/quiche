@@ -28,8 +28,9 @@ class QUIC_EXPORT_PRIVATE SessionNotifierInterface {
   // Called when |frame| is considered as lost.
   virtual void OnFrameLost(const QuicFrame& frame) = 0;
 
-  // Called to retransmit |frames| with transmission |type|.
-  virtual void RetransmitFrames(const QuicFrames& frames,
+  // Called to retransmit |frames| with transmission |type|. Returns true if all
+  // data gets retransmitted.
+  virtual bool RetransmitFrames(const QuicFrames& frames,
                                 TransmissionType type) = 0;
 
   // Returns true if |frame| is outstanding and waiting to be acked.

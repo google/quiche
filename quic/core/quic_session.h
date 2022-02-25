@@ -193,7 +193,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
                     QuicTime receive_timestamp) override;
   void OnStreamFrameRetransmitted(const QuicStreamFrame& frame) override;
   void OnFrameLost(const QuicFrame& frame) override;
-  void RetransmitFrames(const QuicFrames& frames,
+  bool RetransmitFrames(const QuicFrames& frames,
                         TransmissionType type) override;
   bool IsFrameOutstanding(const QuicFrame& frame) const override;
   bool HasUnackedCryptoData() const override;

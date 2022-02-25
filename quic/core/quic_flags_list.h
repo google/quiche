@@ -107,6 +107,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, t
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // If true, validate that peer owns the new address once the server detects peer migration or is probed from that address, and also apply anti-amplification limit while sending to that address.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_server_reverse_validate_new_path3, true)
+// If true, when a packet is forced retransmitted, only set packet state if all data gets retransmitted.
+QUIC_FLAG(FLAGS_quic_restart_flag_quic_set_packet_state_if_all_data_retransmitted, false)
 // If true, when client attempts TLS resumption, use token in session_cache_ instead of cached_states_ in QuicCryptoClientConfig.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_use_token_in_session_cache, true)
 // When the flag is true, exit STARTUP after the same number of loss events as PROBE_UP.

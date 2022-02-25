@@ -189,10 +189,10 @@ void QuicEndpoint::OnFrameLost(const QuicFrame& frame) {
   notifier_->OnFrameLost(frame);
 }
 
-void QuicEndpoint::RetransmitFrames(const QuicFrames& frames,
+bool QuicEndpoint::RetransmitFrames(const QuicFrames& frames,
                                     TransmissionType type) {
   QUICHE_DCHECK(notifier_);
-  notifier_->RetransmitFrames(frames, type);
+  return notifier_->RetransmitFrames(frames, type);
 }
 
 bool QuicEndpoint::IsFrameOutstanding(const QuicFrame& frame) const {

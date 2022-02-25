@@ -477,9 +477,9 @@ void QuicUnackedPacketMap::NotifyFramesLost(const QuicTransmissionInfo& info,
   }
 }
 
-void QuicUnackedPacketMap::RetransmitFrames(const QuicFrames& frames,
+bool QuicUnackedPacketMap::RetransmitFrames(const QuicFrames& frames,
                                             TransmissionType type) {
-  session_notifier_->RetransmitFrames(frames, type);
+  return session_notifier_->RetransmitFrames(frames, type);
 }
 
 void QuicUnackedPacketMap::MaybeAggregateAckedStreamFrame(

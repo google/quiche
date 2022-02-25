@@ -217,8 +217,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   void OnCryptoFrameLost(QuicCryptoFrame* crypto_frame);
 
   // Called to retransmit any outstanding data in the range indicated by the
-  // encryption level, offset, and length in |crypto_frame|.
-  void RetransmitData(QuicCryptoFrame* crypto_frame, TransmissionType type);
+  // encryption level, offset, and length in |crypto_frame|. Returns true if all
+  // data gets retransmitted.
+  bool RetransmitData(QuicCryptoFrame* crypto_frame, TransmissionType type);
 
   // Called to write buffered crypto frames.
   void WriteBufferedCryptoFrames();

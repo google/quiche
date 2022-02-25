@@ -670,8 +670,42 @@ void QuicSentPacketManager::MarkForRetransmission(
   // Handshake packets should never be sent as probing retransmissions.
   QUICHE_DCHECK(!transmission_info->has_crypto_handshake ||
                 transmission_type != PROBING_RETRANSMISSION);
+  if (ShouldForceRetransmission(transmission_type)) {
+    const bool retransmitted = unacked_packets_.RetransmitFrames(
+        QuicFrames(transmission_info->retransmittable_frames),
+        transmission_type);
+    if (GetQuicRestartFlag(quic_set_packet_state_if_all_data_retransmitted)) {
+      QUIC_RESTART_FLAG_COUNT(quic_set_packet_state_if_all_data_retransmitted);
+      if (!retransmitted) {
+        // Do not set packet state if the data is not fully retransmitted.
+        // This should only happen if packet payload size decreases which can be
+        // caused by:
+        // 1) connection tries to opportunistically retransmit data
+        // when sending a packet of a different packet number space, or
+        // 2) path MTU decreases, or
+        // 3) packet header size increases (e.g., packet number length
+        // increases).
+        QUIC_CODE_COUNT(quic_retransmit_frames_failed);
+        return;
+      }
+      QUIC_CODE_COUNT(quic_retransmit_frames_succeeded);
+    }
+  } else {
+    unacked_packets_.NotifyFramesLost(*transmission_info, transmission_type);
 
-  HandleRetransmission(transmission_type, transmission_info);
+    if (!transmission_info->retransmittable_frames.empty()) {
+      if (transmission_type == LOSS_RETRANSMISSION) {
+        // Record the first packet sent after loss, which allows to wait 1
+        // more RTT before giving up on this lost packet.
+        transmission_info->first_sent_after_loss =
+            unacked_packets_.largest_sent_packet() + 1;
+      } else {
+        // Clear the recorded first packet sent after loss when version or
+        // encryption changes.
+        transmission_info->first_sent_after_loss.Clear();
+      }
+    }
+  }
 
   // Get the latest transmission_info here as it can be invalidated after
   // HandleRetransmission adding new sent packets into unacked_packets_.
@@ -681,44 +715,6 @@ void QuicSentPacketManager::MarkForRetransmission(
   // Update packet state according to transmission type.
   transmission_info->state =
       QuicUtils::RetransmissionTypeToPacketState(transmission_type);
-}
-
-void QuicSentPacketManager::HandleRetransmission(
-    TransmissionType transmission_type,
-    QuicTransmissionInfo* transmission_info) {
-  if (ShouldForceRetransmission(transmission_type)) {
-    // TODO(fayang): Consider to make RTO and PROBING retransmission
-    // strategies be configurable by applications. Today, TLP, RTO and PROBING
-    // retransmissions are handled similarly, i.e., always retranmist the
-    // oldest outstanding data. This is not ideal in general because different
-    // applications may want different strategies. For example, some
-    // applications may want to use higher priority stream data for bandwidth
-    // probing, and some applications want to consider RTO is an indication of
-    // loss, etc.
-    // transmission_info owning these frames may be deallocated after each
-    // retransimission. Make a copy of retransmissible frames to prevent the
-    // invalidation.
-    unacked_packets_.RetransmitFrames(
-        QuicFrames(transmission_info->retransmittable_frames),
-        transmission_type);
-    return;
-  }
-
-  unacked_packets_.NotifyFramesLost(*transmission_info, transmission_type);
-  if (transmission_info->retransmittable_frames.empty()) {
-    return;
-  }
-
-  if (transmission_type == LOSS_RETRANSMISSION) {
-    // Record the first packet sent after loss, which allows to wait 1
-    // more RTT before giving up on this lost packet.
-    transmission_info->first_sent_after_loss =
-        unacked_packets_.largest_sent_packet() + 1;
-  } else {
-    // Clear the recorded first packet sent after loss when version or
-    // encryption changes.
-    transmission_info->first_sent_after_loss.Clear();
-  }
 }
 
 void QuicSentPacketManager::RecordOneSpuriousRetransmission(

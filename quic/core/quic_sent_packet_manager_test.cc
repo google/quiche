@@ -47,22 +47,19 @@ MATCHER(PacketNumberEq, "") {
 
 class MockDebugDelegate : public QuicSentPacketManager::DebugDelegate {
  public:
-  MOCK_METHOD(void,
-              OnSpuriousPacketRetransmission,
+  MOCK_METHOD(void, OnSpuriousPacketRetransmission,
               (TransmissionType transmission_type, QuicByteCount byte_size),
               (override));
-  MOCK_METHOD(void,
-              OnPacketLoss,
+  MOCK_METHOD(void, OnPacketLoss,
               (QuicPacketNumber lost_packet_number,
                EncryptionLevel encryption_level,
-               TransmissionType transmission_type,
-               QuicTime detection_time),
+               TransmissionType transmission_type, QuicTime detection_time),
               (override));
 };
 
 class QuicSentPacketManagerTest : public QuicTest {
  public:
-  void RetransmitCryptoPacket(uint64_t packet_number) {
+  bool RetransmitCryptoPacket(uint64_t packet_number) {
     EXPECT_CALL(
         *send_algorithm_,
         OnPacketSent(_, BytesInFlight(), QuicPacketNumber(packet_number),
@@ -73,10 +70,10 @@ class QuicSentPacketManagerTest : public QuicTest {
     packet.has_crypto_handshake = IS_HANDSHAKE;
     manager_.OnPacketSent(&packet, clock_.Now(), HANDSHAKE_RETRANSMISSION,
                           HAS_RETRANSMITTABLE_DATA, true);
+    return true;
   }
 
-  void RetransmitDataPacket(uint64_t packet_number,
-                            TransmissionType type,
+  bool RetransmitDataPacket(uint64_t packet_number, TransmissionType type,
                             EncryptionLevel level) {
     EXPECT_CALL(
         *send_algorithm_,
@@ -86,20 +83,18 @@ class QuicSentPacketManagerTest : public QuicTest {
     packet.encryption_level = level;
     manager_.OnPacketSent(&packet, clock_.Now(), type, HAS_RETRANSMITTABLE_DATA,
                           true);
+    return true;
   }
 
-  void RetransmitDataPacket(uint64_t packet_number, TransmissionType type) {
-    RetransmitDataPacket(packet_number, type, ENCRYPTION_INITIAL);
+  bool RetransmitDataPacket(uint64_t packet_number, TransmissionType type) {
+    return RetransmitDataPacket(packet_number, type, ENCRYPTION_INITIAL);
   }
 
  protected:
   const CongestionControlType kInitialCongestionControlType = kCubicBytes;
   QuicSentPacketManagerTest()
-      : manager_(Perspective::IS_SERVER,
-                 &clock_,
-                 QuicRandom::GetInstance(),
-                 &stats_,
-                 kInitialCongestionControlType),
+      : manager_(Perspective::IS_SERVER, &clock_, QuicRandom::GetInstance(),
+                 &stats_, kInitialCongestionControlType),
         send_algorithm_(new StrictMock<MockSendAlgorithm>),
         network_change_visitor_(new StrictMock<MockNetworkChangeVisitor>) {
     QuicSentPacketManagerPeer::SetSendAlgorithm(&manager_, send_algorithm_);
@@ -174,8 +169,7 @@ class QuicSentPacketManagerTest : public QuicTest {
     EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
   }
 
-  void ExpectAckAndLoss(bool rtt_updated,
-                        uint64_t largest_observed,
+  void ExpectAckAndLoss(bool rtt_updated, uint64_t largest_observed,
                         uint64_t lost_packet) {
     EXPECT_CALL(
         *send_algorithm_,
@@ -186,10 +180,8 @@ class QuicSentPacketManagerTest : public QuicTest {
   }
 
   // |packets_acked| and |packets_lost| should be in packet number order.
-  void ExpectAcksAndLosses(bool rtt_updated,
-                           uint64_t* packets_acked,
-                           size_t num_packets_acked,
-                           uint64_t* packets_lost,
+  void ExpectAcksAndLosses(bool rtt_updated, uint64_t* packets_acked,
+                           size_t num_packets_acked, uint64_t* packets_lost,
                            size_t num_packets_lost) {
     std::vector<QuicPacketNumber> ack_vector;
     for (size_t i = 0; i < num_packets_acked; ++i) {
@@ -224,7 +216,7 @@ class QuicSentPacketManagerTest : public QuicTest {
       EXPECT_CALL(notifier_, RetransmitFrames(_, _))
           .WillOnce(WithArgs<1>(
               Invoke([this, new_packet_number](TransmissionType type) {
-                RetransmitDataPacket(new_packet_number, type);
+                return RetransmitDataPacket(new_packet_number, type);
               })));
     } else {
       EXPECT_CALL(notifier_, OnFrameLost(_)).Times(1);
@@ -311,8 +303,7 @@ class QuicSentPacketManagerTest : public QuicTest {
     SendAckPacket(packet_number, largest_acked, ENCRYPTION_INITIAL);
   }
 
-  void SendAckPacket(uint64_t packet_number,
-                     uint64_t largest_acked,
+  void SendAckPacket(uint64_t packet_number, uint64_t largest_acked,
                      EncryptionLevel level) {
     EXPECT_CALL(
         *send_algorithm_,
@@ -398,8 +389,9 @@ TEST_F(QuicSentPacketManagerTest, RetransmitThenAck) {
 TEST_F(QuicSentPacketManagerTest, RetransmitThenAckBeforeSend) {
   SendDataPacket(1);
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(2, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(2, type);
+      })));
   QuicSentPacketManagerPeer::MarkForRetransmission(&manager_, 1,
                                                    TLP_RETRANSMISSION);
   // Ack 1.
@@ -421,7 +413,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitThenAckBeforeSend) {
 
 TEST_F(QuicSentPacketManagerTest, RetransmitThenStopRetransmittingBeforeSend) {
   SendDataPacket(1);
-  EXPECT_CALL(notifier_, RetransmitFrames(_, _));
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _)).WillRepeatedly(Return(true));
   QuicSentPacketManagerPeer::MarkForRetransmission(&manager_, 1,
                                                    TLP_RETRANSMISSION);
 
@@ -852,16 +844,18 @@ TEST_F(QuicSentPacketManagerTest, TailLossProbeTimeout) {
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(2, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(2, type);
+      })));
   manager_.MaybeRetransmitTailLossProbe();
 
   // The second tail loss probe retransmits 1 packet.
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(3, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(3, type);
+      })));
   manager_.MaybeRetransmitTailLossProbe();
   EXPECT_CALL(*send_algorithm_, CanSend(_)).WillOnce(Return(false));
   EXPECT_EQ(QuicTime::Delta::Infinite(), manager_.TimeUntilSend(clock_.Now()));
@@ -921,8 +915,9 @@ TEST_F(QuicSentPacketManagerTest, TailLossProbeThenRTO) {
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(101, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(101, type);
+      })));
   manager_.MaybeRetransmitTailLossProbe();
   EXPECT_CALL(*send_algorithm_, CanSend(_)).WillOnce(Return(false));
   EXPECT_EQ(QuicTime::Delta::Infinite(), manager_.TimeUntilSend(clock_.Now()));
@@ -932,8 +927,9 @@ TEST_F(QuicSentPacketManagerTest, TailLossProbeThenRTO) {
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(102, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(102, type);
+      })));
   EXPECT_TRUE(manager_.MaybeRetransmitTailLossProbe());
   EXPECT_CALL(*send_algorithm_, CanSend(_)).WillOnce(Return(false));
   EXPECT_EQ(QuicTime::Delta::Infinite(), manager_.TimeUntilSend(clock_.Now()));
@@ -948,10 +944,12 @@ TEST_F(QuicSentPacketManagerTest, TailLossProbeThenRTO) {
 
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(103, type); })))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(104, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(103, type);
+      })))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(104, type);
+      })));
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(2u, stats_.tlp_count);
   EXPECT_EQ(1u, stats_.rto_count);
@@ -998,8 +996,10 @@ TEST_F(QuicSentPacketManagerTest, CryptoHandshakeTimeout) {
   // The first retransmits 2 packets.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(6); }))
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(7); }));
+      .WillOnce(
+          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(6); }))
+      .WillOnce(
+          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(7); }));
   manager_.OnRetransmissionTimeout();
   // Expect all 4 handshake packets to be in flight and 3 data packets.
   EXPECT_EQ(7 * kDefaultLength, manager_.GetBytesInFlight());
@@ -1008,8 +1008,10 @@ TEST_F(QuicSentPacketManagerTest, CryptoHandshakeTimeout) {
   // The second retransmits 2 packets.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(8); }))
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(9); }));
+      .WillOnce(
+          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(8); }))
+      .WillOnce(
+          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(9); }));
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(9 * kDefaultLength, manager_.GetBytesInFlight());
   EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
@@ -1041,12 +1043,14 @@ TEST_F(QuicSentPacketManagerTest, CryptoHandshakeSpuriousRetransmission) {
 
   // Retransmit the crypto packet as 2.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(2); }));
+      .WillOnce(
+          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(2); }));
   manager_.OnRetransmissionTimeout();
 
   // Retransmit the crypto packet as 3.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(3); }));
+      .WillOnce(
+          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(3); }));
   manager_.OnRetransmissionTimeout();
 
   // Now ack the second crypto packet, and ensure the first gets removed, but
@@ -1079,8 +1083,10 @@ TEST_F(QuicSentPacketManagerTest, CryptoHandshakeTimeoutUnsentDataPacket) {
   // Retransmit 2 crypto packets, but not the serialized packet.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(4); }))
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(5); }));
+      .WillOnce(
+          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(4); }))
+      .WillOnce(
+          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(5); }));
   manager_.OnRetransmissionTimeout();
   EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 }
@@ -1094,13 +1100,15 @@ TEST_F(QuicSentPacketManagerTest,
 
   // Retransmit the crypto packet as 2.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(2); }));
+      .WillOnce(
+          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(2); }));
   manager_.OnRetransmissionTimeout();
   EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // Retransmit the crypto packet as 3.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(3); }));
+      .WillOnce(
+          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(3); }));
   manager_.OnRetransmissionTimeout();
   EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
@@ -1145,10 +1153,12 @@ TEST_F(QuicSentPacketManagerTest, RetransmissionTimeout) {
   EXPECT_FALSE(manager_.MaybeRetransmitTailLossProbe());
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(101, type); })))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(102, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(101, type);
+      })))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(102, type);
+      })));
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(102 * kDefaultLength, manager_.GetBytesInFlight());
 
@@ -1210,8 +1220,9 @@ TEST_F(QuicSentPacketManagerTest, RetransmissionTimeoutOnePacket) {
   EXPECT_FALSE(manager_.MaybeRetransmitTailLossProbe());
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(1)
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(101, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(101, type);
+      })));
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(101 * kDefaultLength, manager_.GetBytesInFlight());
 }
@@ -1244,10 +1255,12 @@ TEST_F(QuicSentPacketManagerTest, NewRetransmissionTimeout) {
   EXPECT_FALSE(manager_.MaybeRetransmitTailLossProbe());
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(101, type); })))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(102, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(101, type);
+      })))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(102, type);
+      })));
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(102 * kDefaultLength, manager_.GetBytesInFlight());
 
@@ -1279,15 +1292,17 @@ TEST_F(QuicSentPacketManagerTest, TwoRetransmissionTimeoutsAckSecond) {
   SendDataPacket(1);
 
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(2, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(2, type);
+      })));
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(2 * kDefaultLength, manager_.GetBytesInFlight());
 
   // Rto a second time.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(3, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(3, type);
+      })));
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(3 * kDefaultLength, manager_.GetBytesInFlight());
 
@@ -1313,15 +1328,17 @@ TEST_F(QuicSentPacketManagerTest, TwoRetransmissionTimeoutsAckFirst) {
   SendDataPacket(1);
 
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(2, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(2, type);
+      })));
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(2 * kDefaultLength, manager_.GetBytesInFlight());
 
   // Rto a second time.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(3, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(3, type);
+      })));
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(3 * kDefaultLength, manager_.GetBytesInFlight());
 
@@ -1363,7 +1380,8 @@ TEST_F(QuicSentPacketManagerTest, GetTransmissionTimeCryptoHandshake) {
   // Retransmit the packet by invoking the retransmission timeout.
   clock_.AdvanceTime(1.5 * srtt);
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(2); }));
+      .WillOnce(
+          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(2); }));
   // When session decides what to write, crypto_packet_send_time gets updated.
   crypto_packet_send_time = clock_.Now();
   manager_.OnRetransmissionTimeout();
@@ -1375,7 +1393,8 @@ TEST_F(QuicSentPacketManagerTest, GetTransmissionTimeCryptoHandshake) {
   // Retransmit the packet for the 2nd time.
   clock_.AdvanceTime(2 * 1.5 * srtt);
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(3); }));
+      .WillOnce(
+          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(3); }));
   // When session decides what to write, crypto_packet_send_time gets updated.
   crypto_packet_send_time = clock_.Now();
   manager_.OnRetransmissionTimeout();
@@ -1419,7 +1438,8 @@ TEST_F(QuicSentPacketManagerTest,
   // Retransmit the packet by invoking the retransmission timeout.
   clock_.AdvanceTime(2 * srtt);
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(2); }));
+      .WillOnce(
+          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(2); }));
   crypto_packet_send_time = clock_.Now();
   manager_.OnRetransmissionTimeout();
 
@@ -1454,8 +1474,9 @@ TEST_F(QuicSentPacketManagerTest, GetTransmissionTimeTailLossProbe) {
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(3, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(3, type);
+      })));
   EXPECT_TRUE(manager_.MaybeRetransmitTailLossProbe());
   EXPECT_CALL(*send_algorithm_, CanSend(_)).WillOnce(Return(false));
   EXPECT_EQ(QuicTime::Delta::Infinite(), manager_.TimeUntilSend(clock_.Now()));
@@ -1486,10 +1507,12 @@ TEST_F(QuicSentPacketManagerTest, GetTransmissionTimeSpuriousRTO) {
   clock_.AdvanceTime(expected_rto_delay);
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(5, type); })))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(6, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(5, type);
+      })))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(6, type);
+      })));
   manager_.OnRetransmissionTimeout();
   // All previous packets are inflight, plus two rto retransmissions.
   EXPECT_EQ(6 * kDefaultLength, manager_.GetBytesInFlight());
@@ -1541,7 +1564,7 @@ TEST_F(QuicSentPacketManagerTest, GetTransmissionDelayMin) {
     delay = delay + delay;
     EXPECT_CALL(notifier_, RetransmitFrames(_, _))
         .WillOnce(WithArgs<1>(Invoke([this, i](TransmissionType type) {
-          RetransmitDataPacket(i + 2, type);
+          return RetransmitDataPacket(i + 2, type);
         })));
     manager_.OnRetransmissionTimeout();
   }
@@ -1575,7 +1598,7 @@ TEST_F(QuicSentPacketManagerTest, GetTransmissionDelayExponentialBackoff) {
     delay = delay + delay;
     EXPECT_CALL(notifier_, RetransmitFrames(_, _))
         .WillOnce(WithArgs<1>(Invoke([this, i](TransmissionType type) {
-          RetransmitDataPacket(i + 2, type);
+          return RetransmitDataPacket(i + 2, type);
         })));
     manager_.OnRetransmissionTimeout();
   }
@@ -2612,7 +2635,8 @@ TEST_F(QuicSentPacketManagerTest, PacketInLimbo) {
   SendAckPacket(3, 1, ENCRYPTION_FORWARD_SECURE);
   // Retransmit SHLO.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(4); }));
+      .WillOnce(
+          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(4); }));
   manager_.OnRetransmissionTimeout();
 
   // Successfully decrypt a forward secure packet.
@@ -2625,7 +2649,7 @@ TEST_F(QuicSentPacketManagerTest, PacketInLimbo) {
   manager_.OnRetransmissionTimeout();
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(6, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(6, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeRetransmitTailLossProbe();
 
@@ -2664,10 +2688,12 @@ TEST_F(QuicSentPacketManagerTest, RtoFiresNoPacketToRetransmit) {
   }
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(11, type); })))
-      .WillOnce(WithArgs<1>(Invoke(
-          [this](TransmissionType type) { RetransmitDataPacket(12, type); })));
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(11, type);
+      })))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        return RetransmitDataPacket(12, type);
+      })));
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(1u, stats_.rto_count);
   EXPECT_EQ(0u, manager_.pending_timer_transmission_count());
@@ -2723,10 +2749,10 @@ TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeout) {
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
       })))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(4, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(4, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeSendProbePackets();
   // Verify PTO period gets set to twice the current value.
@@ -2789,7 +2815,7 @@ TEST_F(QuicSentPacketManagerTest, SendOneProbePacket) {
   // Verify one probe packet gets sent.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeSendProbePackets();
 }
@@ -2903,7 +2929,7 @@ TEST_F(QuicSentPacketManagerTest, PtoTimeoutIncludesMaxAckDelay) {
   // Verify 1 probe packets get sent and packet number gets skipped.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(4, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(4, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeSendProbePackets();
   // Verify PTO period gets set to twice the current value. Also, ack delay is
@@ -3024,10 +3050,10 @@ TEST_F(QuicSentPacketManagerTest, StartExponentialBackoffSince2ndPto) {
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
       })))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(4, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(4, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeSendProbePackets();
   // Verify no exponential backoff.
@@ -3044,10 +3070,10 @@ TEST_F(QuicSentPacketManagerTest, StartExponentialBackoffSince2ndPto) {
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(5, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(5, type, ENCRYPTION_FORWARD_SECURE);
       })))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(6, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(6, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeSendProbePackets();
   // Verify still no exponential backoff.
@@ -3064,10 +3090,10 @@ TEST_F(QuicSentPacketManagerTest, StartExponentialBackoffSince2ndPto) {
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(7, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(7, type, ENCRYPTION_FORWARD_SECURE);
       })))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(8, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(8, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeSendProbePackets();
   // Verify exponential backoff starts.
@@ -3084,10 +3110,10 @@ TEST_F(QuicSentPacketManagerTest, StartExponentialBackoffSince2ndPto) {
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(9, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(9, type, ENCRYPTION_FORWARD_SECURE);
       })))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(10, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(10, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeSendProbePackets();
   // Verify exponential backoff continues.
@@ -3144,7 +3170,7 @@ TEST_F(QuicSentPacketManagerTest, RtoNotInFlightPacket) {
   manager_.OnRetransmissionTimeout();
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeRetransmitTailLossProbe();
 
@@ -3152,7 +3178,7 @@ TEST_F(QuicSentPacketManagerTest, RtoNotInFlightPacket) {
   manager_.OnRetransmissionTimeout();
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(4, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(4, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeRetransmitTailLossProbe();
 
@@ -3161,6 +3187,7 @@ TEST_F(QuicSentPacketManagerTest, RtoNotInFlightPacket) {
       .WillOnce(WithArgs<0>(Invoke([&crypto_frame](const QuicFrames& frames) {
         EXPECT_EQ(1u, frames.size());
         EXPECT_NE(crypto_frame, frames[0].stream_frame);
+        return true;
       })));
   manager_.OnRetransmissionTimeout();
 }
@@ -3200,7 +3227,7 @@ TEST_F(QuicSentPacketManagerTest, Aggressive1Pto) {
   // Verify 1 probe packets get sent and packet number gets skipped.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeSendProbePackets();
 
@@ -3248,7 +3275,7 @@ TEST_F(QuicSentPacketManagerTest, Aggressive2Ptos) {
   // Verify 1 probe packets get sent and packet number gets skipped.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeSendProbePackets();
 
@@ -3265,7 +3292,7 @@ TEST_F(QuicSentPacketManagerTest, Aggressive2Ptos) {
   // Verify 1 probe packets get sent and packet number gets skipped.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(5, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(5, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeSendProbePackets();
   expected_pto_delay =
@@ -3332,7 +3359,7 @@ TEST_F(QuicSentPacketManagerTest, ClientMultiplePacketNumberSpacePtoTimeout) {
   // Verify probe packet gets sent.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(3, type, ENCRYPTION_HANDSHAKE);
+        return RetransmitDataPacket(3, type, ENCRYPTION_HANDSHAKE);
       })));
   manager_.MaybeSendProbePackets();
   // Verify PTO period gets set to twice the current value.
@@ -3492,7 +3519,7 @@ TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeoutByLeftEdge) {
 
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeSendProbePackets();
   // Verify PTO period gets set to twice the current value and based on packet3.
@@ -3569,7 +3596,7 @@ TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeoutByLeftEdge2) {
 
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
+        return RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
       })));
   manager_.MaybeSendProbePackets();
   // Verify PTO period gets set to twice the expected value and based on
@@ -4004,7 +4031,8 @@ TEST_F(QuicSentPacketManagerTest, ExponentialBackoffWithNoRttMeasurement) {
   manager_.OnRetransmissionTimeout();
 
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(WithArgs<1>(Invoke([this]() { RetransmitCryptoPacket(3); })));
+      .WillOnce(
+          WithArgs<1>(Invoke([this]() { return RetransmitCryptoPacket(3); })));
   manager_.MaybeSendProbePackets();
   if (GetQuicReloadableFlag(quic_default_on_pto)) {
     manager_.AdjustPendingTimerTransmissions();
@@ -4033,7 +4061,8 @@ TEST_F(QuicSentPacketManagerTest, PtoDelayWithTinyInitialRtt) {
   manager_.OnRetransmissionTimeout();
 
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(WithArgs<1>(Invoke([this]() { RetransmitCryptoPacket(3); })));
+      .WillOnce(
+          WithArgs<1>(Invoke([this]() { return RetransmitCryptoPacket(3); })));
   manager_.MaybeSendProbePackets();
   if (GetQuicReloadableFlag(quic_default_on_pto)) {
     manager_.AdjustPendingTimerTransmissions();
@@ -4188,7 +4217,7 @@ TEST_F(QuicSentPacketManagerTest, MaybeRetransmitInitialData) {
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(4, type, ENCRYPTION_INITIAL);
+        return RetransmitDataPacket(4, type, ENCRYPTION_INITIAL);
       })));
   manager_.RetransmitDataOfSpaceIfAny(INITIAL_DATA);
   // Verify PTO is re-armed based on packet 2.
@@ -4199,7 +4228,7 @@ TEST_F(QuicSentPacketManagerTest, MaybeRetransmitInitialData) {
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
-        RetransmitDataPacket(5, type, ENCRYPTION_INITIAL);
+        return RetransmitDataPacket(5, type, ENCRYPTION_INITIAL);
       })));
   manager_.RetransmitDataOfSpaceIfAny(INITIAL_DATA);
   // Verify PTO does not change.
@@ -4259,8 +4288,7 @@ TEST_F(QuicSentPacketManagerTest, SendPathChallengeAndGetAck) {
 }
 
 SerializedPacket MakePacketWithAckFrequencyFrame(
-    int packet_number,
-    int ack_frequency_sequence_number,
+    int packet_number, int ack_frequency_sequence_number,
     QuicTime::Delta max_ack_delay) {
   auto* ack_frequency_frame = new QuicAckFrequencyFrame();
   ack_frequency_frame->max_ack_delay = max_ack_delay;

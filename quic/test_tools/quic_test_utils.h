@@ -1388,7 +1388,7 @@ class MockSessionNotifier : public SessionNotifierInterface {
   MOCK_METHOD(void, OnStreamFrameRetransmitted, (const QuicStreamFrame&),
               (override));
   MOCK_METHOD(void, OnFrameLost, (const QuicFrame&), (override));
-  MOCK_METHOD(void, RetransmitFrames,
+  MOCK_METHOD(bool, RetransmitFrames,
               (const QuicFrames&, TransmissionType type), (override));
   MOCK_METHOD(bool, IsFrameOutstanding, (const QuicFrame&), (const, override));
   MOCK_METHOD(bool, HasUnackedCryptoData, (), (const, override));

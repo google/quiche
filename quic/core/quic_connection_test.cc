@@ -15269,6 +15269,94 @@ TEST_P(QuicConnectionTest, FailedToRetransmitShlo) {
   }
 }
 
+// Regression test for b/216133388.
+TEST_P(QuicConnectionTest, FailedToConsumeCryptoData) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  use_tagging_decrypter();
+  // Received INITIAL 1.
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.HasPendingAcks());
+
+  peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                            std::make_unique<TaggingEncrypter>(0x02));
+
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x03));
+  SetDecrypter(ENCRYPTION_HANDSHAKE,
+               std::make_unique<StrictTaggingDecrypter>(0x03));
+  SetDecrypter(ENCRYPTION_ZERO_RTT,
+               std::make_unique<StrictTaggingDecrypter>(0x02));
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<TaggingEncrypter>(0x04));
+  // Received ENCRYPTION_ZERO_RTT 1.
+  ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    // Send INITIAL 1.
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+    connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_INITIAL);
+    // Send HANDSHAKE 2.
+    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+    connection_.SendCryptoDataWithString(std::string(200, 'a'), 0,
+                                         ENCRYPTION_HANDSHAKE);
+    // Send 1-RTT 3.
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    connection_.SendStreamDataWithString(0, std::string(40, 'a'), 0, NO_FIN);
+  }
+  // Received HANDSHAKE Ping, hence discard INITIAL keys.
+  peer_framer_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                            std::make_unique<TaggingEncrypter>(0x03));
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.NeuterUnencryptedPackets();
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_HANDSHAKE);
+  clock_.AdvanceTime(kAlarmGranularity);
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    // Sending this 1-RTT data would leave the coalescer only have space to
+    // accommodate the HANDSHAKE ACK. The crypto data cannot be bundled with the
+    // ACK.
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    connection_.SendStreamDataWithString(0, std::string(1395, 'a'), 40, NO_FIN);
+  }
+  // Verify retransmission alarm is armed.
+  ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  const QuicTime retransmission_time =
+      connection_.GetRetransmissionAlarm()->deadline();
+  clock_.AdvanceTime(retransmission_time - clock_.Now());
+  connection_.GetRetransmissionAlarm()->Fire();
+
+  if (GetQuicRestartFlag(quic_set_packet_state_if_all_data_retransmitted)) {
+    // Verify the retransmission is a coalesced packet with HANDSHAKE 2 and
+    // 1-RTT 3.
+    EXPECT_EQ(0x04040404u, writer_->final_bytes_of_last_packet());
+    // Only the first packet in the coalesced packet has been processed.
+    EXPECT_EQ(1u, writer_->crypto_frames().size());
+    // Process the coalesced 1-RTT packet.
+    ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
+    auto packet = writer_->coalesced_packet()->Clone();
+    writer_->framer()->ProcessPacket(*packet);
+    EXPECT_EQ(1u, writer_->stream_frames().size());
+    ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
+  } else {
+    // Although packet 2 has not been retransmitted, it has been marked PTOed
+    // and a HANDHSAKE PING gets retransmitted.
+    EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
+    EXPECT_EQ(1u, writer_->ping_frames().size());
+    EXPECT_TRUE(writer_->stream_frames().empty());
+    ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
+  }
+  // Verify retransmission alarm is still armed.
+  ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

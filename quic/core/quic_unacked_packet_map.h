@@ -60,7 +60,8 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
                         TransmissionType type);
 
   // Notifies session_notifier to retransmit frames with |transmission_type|.
-  void RetransmitFrames(const QuicFrames& frames, TransmissionType type);
+  // Returns true if all data gets retransmitted.
+  bool RetransmitFrames(const QuicFrames& frames, TransmissionType type);
 
   // Marks |info| as no longer in flight.
   void RemoveFromInFlight(QuicTransmissionInfo* info);
