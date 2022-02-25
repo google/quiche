@@ -13476,11 +13476,7 @@ TEST_P(QuicConnectionTest, SingleAckInPacket) {
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
   ASSERT_FALSE(writer_->ack_frames().empty());
-  if (GetQuicReloadableFlag(quic_single_ack_in_packet2)) {
-    EXPECT_EQ(1u, writer_->ack_frames().size());
-  } else {
-    EXPECT_EQ(2u, writer_->ack_frames().size());
-  }
+  EXPECT_EQ(1u, writer_->ack_frames().size());
 }
 
 TEST_P(QuicConnectionTest,
@@ -13699,7 +13695,6 @@ TEST_P(QuicConnectionTest, TryToFlushAckWithAckQueued) {
     return;
   }
   SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
-  SetQuicReloadableFlag(quic_single_ack_in_packet2, true);
   set_perspective(Perspective::IS_SERVER);
 
   QuicConfig config;

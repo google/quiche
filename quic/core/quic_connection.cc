@@ -4523,14 +4523,10 @@ void QuicConnection::SendConnectionClosePacket(
     // If there was a packet write error, write the smallest close possible.
     ScopedPacketFlusher flusher(this);
     // Always bundle an ACK with connection close for debugging purpose.
-    bool send_ack = error != QUIC_PACKET_WRITE_ERROR &&
-                    !uber_received_packet_manager_.IsAckFrameEmpty(
-                        QuicUtils::GetPacketNumberSpace(encryption_level_));
-    if (GetQuicReloadableFlag(quic_single_ack_in_packet2)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_single_ack_in_packet2, 1, 2);
-      send_ack = !packet_creator_.has_ack() && send_ack;
-    }
-    if (send_ack) {
+    if (error != QUIC_PACKET_WRITE_ERROR &&
+        !uber_received_packet_manager_.IsAckFrameEmpty(
+            QuicUtils::GetPacketNumberSpace(encryption_level_)) &&
+        !packet_creator_.has_ack()) {
       SendAck();
     }
     QuicConnectionCloseFrame* frame;
@@ -4566,14 +4562,10 @@ void QuicConnection::SendConnectionClosePacket(
     ScopedEncryptionLevelContext context(this, level);
     // Bundle an ACK of the corresponding packet number space for debugging
     // purpose.
-    bool send_ack = error != QUIC_PACKET_WRITE_ERROR &&
-                    !uber_received_packet_manager_.IsAckFrameEmpty(
-                        QuicUtils::GetPacketNumberSpace(encryption_level_));
-    if (GetQuicReloadableFlag(quic_single_ack_in_packet2)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_single_ack_in_packet2, 2, 2);
-      send_ack = !packet_creator_.has_ack() && send_ack;
-    }
-    if (send_ack) {
+    if (error != QUIC_PACKET_WRITE_ERROR &&
+        !uber_received_packet_manager_.IsAckFrameEmpty(
+            QuicUtils::GetPacketNumberSpace(encryption_level_)) &&
+        !packet_creator_.has_ack()) {
       QuicFrames frames;
       frames.push_back(GetUpdatedAckFrame());
       packet_creator_.FlushAckFrame(frames);

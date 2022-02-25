@@ -1526,9 +1526,7 @@ bool QuicPacketCreator::FlushAckFrame(const QuicFrames& frames) {
          "generator tries to send ACK frame.";
   // MaybeBundleAckOpportunistically could be called nestedly when sending a
   // control frame causing another control frame to be sent.
-  QUIC_BUG_IF(quic_bug_12398_18,
-              GetQuicReloadableFlag(quic_single_ack_in_packet2) &&
-                  !frames.empty() && has_ack())
+  QUIC_BUG_IF(quic_bug_12398_18, !frames.empty() && has_ack())
       << ENDPOINT << "Trying to flush " << quiche::PrintElements(frames)
       << " when there is ACK queued";
   for (const auto& frame : frames) {
