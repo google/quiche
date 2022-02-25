@@ -65,6 +65,11 @@ void QuicReceiveControlStream::OnError(HttpDecoder* decoder) {
 }
 
 bool QuicReceiveControlStream::OnMaxPushIdFrame(const MaxPushIdFrame& frame) {
+  if (GetQuicReloadableFlag(quic_ignore_max_push_id)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_ignore_max_push_id);
+    return ValidateFrameType(HttpFrameType::MAX_PUSH_ID);
+  }
+
   if (spdy_session()->debug_visitor()) {
     spdy_session()->debug_visitor()->OnMaxPushIdFrameReceived(frame);
   }

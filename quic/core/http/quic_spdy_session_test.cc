@@ -1823,6 +1823,10 @@ TEST_P(QuicSpdySessionTestServer, DrainingStreamsDoNotCountAsOpened) {
 
 // TODO(b/171463363): Remove.
 TEST_P(QuicSpdySessionTestServer, ReduceMaxPushId) {
+  if (GetQuicReloadableFlag(quic_ignore_max_push_id)) {
+    return;
+  }
+
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }

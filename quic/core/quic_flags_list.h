@@ -75,6 +75,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_flush_pending_frames_and_padding_bytes_on_migration, true)
 // If true, ietf connection migration is no longer conditioned on connection option RVCM.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_remove_connection_migration_connection_option, false)
+// If true, ignore incoming MAX_PUSH_ID frames (expect for enforcing frame type rules).
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_max_push_id, false)
 // If true, include stream information in idle timeout connection close detail.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, pass the received PATH_RESPONSE payload to path validator to move forward the path validation.
