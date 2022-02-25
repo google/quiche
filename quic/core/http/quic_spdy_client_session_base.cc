@@ -87,8 +87,9 @@ void QuicSpdyClientSessionBase::OnPromiseHeaderList(
     return;
   }
 
-  if (VersionUsesHttp3(transport_version()) &&
-      !CanCreatePushStreamWithId(promised_stream_id)) {
+  if (VersionUsesHttp3(transport_version())) {
+    // Received push stream id is higher than MAX_PUSH_ID
+    // because no MAX_PUSH_ID frame is ever sent.
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID,
         "Received push stream id higher than MAX_PUSH_ID.",

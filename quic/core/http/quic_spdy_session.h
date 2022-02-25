@@ -331,10 +331,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // TODO(b/171463363): Remove.
   bool OnMaxPushIdFrame(PushId max_push_id);
 
-  // TODO(b/171463363): Remove.
-  // Returns false.
-  bool CanCreatePushStreamWithId(PushId push_id);
-
   int32_t destruction_indicator() const { return destruction_indicator_; }
 
   void set_debug_visitor(Http3DebugVisitor* debug_visitor) {

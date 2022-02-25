@@ -1592,13 +1592,6 @@ bool QuicSpdySession::goaway_sent() const {
              : transport_goaway_sent();
 }
 
-bool QuicSpdySession::CanCreatePushStreamWithId(PushId /* push_id */) {
-  // TODO(b/171463363): Remove this method.
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
-
-  return false;
-}
-
 void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
     absl::string_view type) {
   QUIC_PEER_BUG(quic_peer_bug_10360_9) << absl::StrCat(
