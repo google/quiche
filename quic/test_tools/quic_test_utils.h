@@ -980,7 +980,6 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
 
   MOCK_METHOD(void, OnSettingsFrameSent, (const SettingsFrame&), (override));
   MOCK_METHOD(void, OnGoAwayFrameSent, (QuicStreamId), (override));
-  MOCK_METHOD(void, OnMaxPushIdFrameSent, (const MaxPushIdFrame&), (override));
   MOCK_METHOD(void, OnPriorityUpdateFrameSent, (const PriorityUpdateFrame&),
               (override));
 

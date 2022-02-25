@@ -104,8 +104,6 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   // Outgoing HTTP/3 frames on the control stream.
   virtual void OnSettingsFrameSent(const SettingsFrame& /*frame*/) = 0;
   virtual void OnGoAwayFrameSent(QuicStreamId /*stream_id*/) {}
-  // TODO(b/171463363): Remove.
-  virtual void OnMaxPushIdFrameSent(const MaxPushIdFrame& /*frame*/) {}
   virtual void OnPriorityUpdateFrameSent(const PriorityUpdateFrame& /*frame*/) {
   }
 
