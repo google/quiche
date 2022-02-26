@@ -55,7 +55,7 @@ class SimpleDataProducer : public QuicStreamFrameDataProducer {
 
   using CryptoBufferMap =
       absl::flat_hash_map<std::pair<EncryptionLevel, QuicStreamOffset>,
-                          absl::string_view>;
+                          std::string>;
 
   SimpleBufferAllocator allocator_;
 
