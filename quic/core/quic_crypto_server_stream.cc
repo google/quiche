@@ -168,16 +168,12 @@ void QuicCryptoServerStream::
   AdjustTestValue("quic::QuicCryptoServerStream::after_process_client_hello",
                   session());
 
-  if (noop_if_disconnected_after_process_chlo_) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_crypto_noop_if_disconnected_after_process_chlo);
-    if (!session()->connection()->connected()) {
-      QUIC_CODE_COUNT(quic_crypto_disconnected_after_process_client_hello);
-      QUIC_LOG_FIRST_N(INFO, 10)
-          << "After processing CHLO, QUIC connection has been closed with code "
-          << session()->error() << ", details: " << session()->error_details();
-      return;
-    }
+  if (!session()->connection()->connected()) {
+    QUIC_CODE_COUNT(quic_crypto_disconnected_after_process_client_hello);
+    QUIC_LOG_FIRST_N(INFO, 10)
+        << "After processing CHLO, QUIC connection has been closed with code "
+        << session()->error() << ", details: " << session()->error_details();
+    return;
   }
 
   const CryptoHandshakeMessage& message = result.client_hello;
