@@ -19,7 +19,7 @@ class QuicheMemSliceTest : public QuicheTest {
  public:
   QuicheMemSliceTest() {
     size_t length = 1024;
-    slice_ = QuicheMemSlice(MakeUniqueBuffer(&allocator_, length), length);
+    slice_ = QuicheMemSlice(quic::QuicBuffer(&allocator_, length));
     orig_data_ = slice_.data();
     orig_length_ = slice_.length();
   }

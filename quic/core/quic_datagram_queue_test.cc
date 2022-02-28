@@ -71,10 +71,8 @@ class QuicDatagramQueueTestBase : public QuicTest {
   ~QuicDatagramQueueTestBase() = default;
 
   quiche::QuicheMemSlice CreateMemSlice(absl::string_view data) {
-    QuicUniqueBufferPtr buffer =
-        MakeUniqueBuffer(helper_.GetStreamSendBufferAllocator(), data.size());
-    memcpy(buffer.get(), data.data(), data.size());
-    return quiche::QuicheMemSlice(std::move(buffer), data.size());
+    return quiche::QuicheMemSlice(
+        QuicBuffer::Copy(helper_.GetStreamSendBufferAllocator(), data));
   }
 
   MockQuicConnectionHelper helper_;

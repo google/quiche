@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
+#include "quic/core/quic_buffer_allocator.h"
 #include "common/platform/api/quiche_export.h"
 #include "net/quiche/common/platform/impl/quiche_mem_slice_impl.h"
 
@@ -30,22 +31,10 @@ class QUICHE_EXPORT_PRIVATE QuicheMemSlice {
   // count.
   QuicheMemSlice() = default;
 
-  // Constructs a QuicheMemSlice that takes ownership of |buffer|.  |length|
-  // must not be zero.  To construct an empty QuicheMemSlice, use the
-  // zero-argument constructor instead.
-  // TODO(vasilvv): switch all users to QuicBuffer version, and make this
-  // private.
-  QuicheMemSlice(quic::QuicUniqueBufferPtr buffer, size_t length)
-      : impl_(std::move(buffer), length) {}
-
   // Constructs a QuicheMemSlice that takes ownership of |buffer|.  The length
   // of the |buffer| must not be zero.  To construct an empty QuicheMemSlice,
   // use the zero-argument constructor instead.
-  explicit QuicheMemSlice(quic::QuicBuffer buffer) : QuicheMemSlice() {
-    // Store the size of the buffer *before* calling buffer.Release().
-    const size_t size = buffer.size();
-    *this = QuicheMemSlice(buffer.Release(), size);
-  }
+  explicit QuicheMemSlice(quic::QuicBuffer buffer) : impl_(std::move(buffer)) {}
 
   // Constructs a QuicheMemSlice that takes ownership of |buffer| allocated on
   // heap.  |length| must not be zero.

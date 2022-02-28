@@ -128,11 +128,8 @@ void QuicTransportSimpleServerSession::OnMessageReceived(
   if (mode_ != ECHO) {
     return;
   }
-  QuicUniqueBufferPtr buffer = MakeUniqueBuffer(
-      connection()->helper()->GetStreamSendBufferAllocator(), message.size());
-  memcpy(buffer.get(), message.data(), message.size());
-  datagram_queue()->SendOrQueueDatagram(
-      quiche::QuicheMemSlice(std::move(buffer), message.size()));
+  datagram_queue()->SendOrQueueDatagram(quiche::QuicheMemSlice(QuicBuffer::Copy(
+      connection()->helper()->GetStreamSendBufferAllocator(), message)));
 }
 
 void QuicTransportSimpleServerSession::MaybeEchoStreamsBack() {

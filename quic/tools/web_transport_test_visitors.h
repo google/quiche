@@ -219,9 +219,7 @@ class EchoWebTransportSessionVisitor : public WebTransportVisitor {
   }
 
   void OnDatagramReceived(absl::string_view datagram) override {
-    auto buffer = MakeUniqueBuffer(&allocator_, datagram.size());
-    memcpy(buffer.get(), datagram.data(), datagram.size());
-    quiche::QuicheMemSlice slice(std::move(buffer), datagram.size());
+    quiche::QuicheMemSlice slice(QuicBuffer::Copy(&allocator_, datagram));
     session_->SendOrQueueDatagram(std::move(slice));
   }
 
