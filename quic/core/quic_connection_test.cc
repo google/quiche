@@ -493,10 +493,9 @@ class TestConnection : public QuicConnection {
 
   bool PtoEnabled() {
     if (QuicConnectionPeer::GetSentPacketManager(this)->pto_enabled()) {
-      // PTO mode is default enabled for T099. And TLP/RTO related tests are
-      // stale.
+      // TLP/RTO related tests are stale when PTO is enabled.
       QUICHE_DCHECK(PROTOCOL_TLS1_3 == version().handshake_protocol ||
-                    GetQuicReloadableFlag(quic_default_on_pto));
+                    GetQuicRestartFlag(quic_default_on_pto2));
       return true;
     }
     return false;
@@ -4025,8 +4024,7 @@ TEST_P(QuicConnectionTest, RetransmitForQuicRstStreamNoErrorOnRTO) {
 
   // Fire the RTO and verify that the RST_STREAM is resent, the stream data
   // is sent.
-  const size_t num_retransmissions =
-      connection_.SupportsMultiplePacketNumberSpaces() ? 1 : 2;
+  const size_t num_retransmissions = connection_.PtoEnabled() ? 1 : 2;
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(num_retransmissions));
   clock_.AdvanceTime(DefaultRetransmissionTime());
@@ -4255,10 +4253,7 @@ TEST_P(QuicConnectionTest, RetransmitWriteBlockedAckedOriginalThenSent) {
   writer_->SetWritable();
   connection_.OnCanWrite();
   EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-  uint64_t retransmission = connection_.SupportsMultiplePacketNumberSpaces() &&
-                                    !GetQuicReloadableFlag(quic_default_on_pto)
-                                ? 3
-                                : 2;
+  uint64_t retransmission = connection_.PtoEnabled() ? 3 : 2;
   EXPECT_FALSE(QuicConnectionPeer::HasRetransmittableFrames(&connection_,
                                                             retransmission));
 }
@@ -9918,12 +9913,7 @@ TEST_P(QuicConnectionTest, DeprecateHandshakeMode) {
   EXPECT_EQ(0u, connection_.GetStats().crypto_retransmit_count);
 
   // PTO fires, verify a PING packet gets sent because there is no data to send.
-  EXPECT_CALL(*send_algorithm_,
-              OnPacketSent(_, _,
-                           GetQuicReloadableFlag(quic_default_on_pto)
-                               ? QuicPacketNumber(2)
-                               : QuicPacketNumber(3),
-                           _, _));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(3), _, _));
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(1u, connection_.GetStats().pto_count);
   EXPECT_EQ(1u, connection_.GetStats().crypto_retransmit_count);
@@ -10397,12 +10387,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
 
   // Retransmit handshake data.
   clock_.AdvanceTime(retransmission_time - clock_.Now());
-  EXPECT_CALL(*send_algorithm_,
-              OnPacketSent(_, _,
-                           GetQuicReloadableFlag(quic_default_on_pto)
-                               ? QuicPacketNumber(3)
-                               : QuicPacketNumber(4),
-                           _, _));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(4), _, _));
   connection_.GetRetransmissionAlarm()->Fire();
   // Verify 1-RTT packet gets coalesced with handshake retransmission.
   EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
@@ -10416,14 +10401,8 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
 
   // Retransmit handshake data again.
   clock_.AdvanceTime(retransmission_time - clock_.Now());
-  QuicPacketNumber handshake_retransmission =
-      GetQuicReloadableFlag(quic_default_on_pto) ? QuicPacketNumber(5)
-                                                 : QuicPacketNumber(7);
-  handshake_retransmission += 1;
-  EXPECT_CALL(*send_algorithm_,
-              OnPacketSent(_, _, handshake_retransmission + 1, _, _));
-  EXPECT_CALL(*send_algorithm_,
-              OnPacketSent(_, _, handshake_retransmission, _, _));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(9), _, _));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(8), _, _));
   connection_.GetRetransmissionAlarm()->Fire();
   // Verify 1-RTT packet gets coalesced with handshake retransmission.
   EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
@@ -10435,12 +10414,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
 
   // Retransmit application data.
   clock_.AdvanceTime(retransmission_time - clock_.Now());
-  QuicPacketNumber application_retransmission =
-      GetQuicReloadableFlag(quic_default_on_pto) ? QuicPacketNumber(6)
-                                                 : QuicPacketNumber(9);
-  application_retransmission += 2;
-  EXPECT_CALL(*send_algorithm_,
-              OnPacketSent(_, _, application_retransmission, _, _));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(11), _, _));
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
 }
@@ -11436,11 +11410,7 @@ TEST_P(QuicConnectionTest, InflatedRttSample) {
   clock_.AdvanceTime(kTestRTT);
   // Assume retransmitted INITIAL gets received.
   QuicFrames frames;
-  QuicPacketNumber initial_retransmission =
-      GetQuicReloadableFlag(quic_default_on_pto) ? QuicPacketNumber(3)
-                                                 : QuicPacketNumber(4);
-  auto ack_frame =
-      InitAckFrame({{initial_retransmission, initial_retransmission + 1}});
+  auto ack_frame = InitAckFrame({{QuicPacketNumber(4), QuicPacketNumber(5)}});
   frames.push_back(QuicFrame(&ack_frame));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _))
       .Times(AnyNumber());
@@ -11451,7 +11421,7 @@ TEST_P(QuicConnectionTest, InflatedRttSample) {
   // HANDSHAKE 5 is also processed.
   QuicAckFrame ack_frame2 =
       InitAckFrame({{QuicPacketNumber(2), QuicPacketNumber(3)},
-                    {initial_retransmission + 1, initial_retransmission + 2}});
+                    {QuicPacketNumber(5), QuicPacketNumber(6)}});
   ack_frame2.ack_delay_time = QuicTime::Delta::Zero();
   frames.push_back(QuicFrame(&ack_frame2));
   ProcessFramesPacketAtLevel(1, frames, ENCRYPTION_HANDSHAKE);

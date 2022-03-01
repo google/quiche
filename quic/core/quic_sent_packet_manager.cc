@@ -68,11 +68,8 @@ static const uint32_t kConservativeUnpacedBurst = 2;
                                                             : "Client: ")
 
 QuicSentPacketManager::QuicSentPacketManager(
-    Perspective perspective,
-    const QuicClock* clock,
-    QuicRandom* random,
-    QuicConnectionStats* stats,
-    CongestionControlType congestion_control_type)
+    Perspective perspective, const QuicClock* clock, QuicRandom* random,
+    QuicConnectionStats* stats, CongestionControlType congestion_control_type)
     : unacked_packets_(perspective),
       clock_(clock),
       random_(random),
@@ -100,7 +97,7 @@ QuicSentPacketManager::QuicSentPacketManager(
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       rtt_updated_(false),
       acked_packets_iter_(last_ack_frame_.packets.rbegin()),
-      pto_enabled_(GetQuicReloadableFlag(quic_default_on_pto)),
+      pto_enabled_(GetQuicRestartFlag(quic_default_on_pto2)),
       max_probe_packets_per_pto_(2),
       consecutive_pto_count_(0),
       handshake_mode_disabled_(false),
@@ -120,9 +117,14 @@ QuicSentPacketManager::QuicSentPacketManager(
       ignore_ack_delay_(false) {
   SetSendAlgorithm(congestion_control_type);
   if (pto_enabled_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_default_on_pto, 1, 2);
+    QUIC_RESTART_FLAG_COUNT_N(quic_default_on_pto2, 1, 2);
     // TODO(fayang): change the default values when deprecating
-    // quic_default_on_pto.
+    // quic_default_on_pto2.
+    // Default to 1 packet per PTO and skip a packet number. Arm the 1st PTO
+    // with max of earliest in flight sent time + PTO delay and 1.5 * srtt from
+    // last in flight packet.
+    max_probe_packets_per_pto_ = 1;
+    skip_packet_number_for_pto_ = true;
     first_pto_srtt_multiplier_ = 1.5;
     pto_rttvar_multiplier_ = 2;
   }
@@ -169,57 +171,61 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     min_rto_timeout_ = kAlarmGranularity;
   }
 
-  if (config.HasClientSentConnectionOption(k2PTO, perspective)) {
-    pto_enabled_ = true;
-  }
-  if (config.HasClientSentConnectionOption(k1PTO, perspective)) {
-    pto_enabled_ = true;
-    max_probe_packets_per_pto_ = 1;
-  }
-
-  if (config.HasClientSentConnectionOption(kPTOS, perspective)) {
-    if (!pto_enabled_) {
-      QUIC_PEER_BUG(quic_peer_bug_12552_1)
-          << "PTO is not enabled when receiving PTOS connection option.";
+  if (!GetQuicRestartFlag(quic_default_on_pto2)) {
+    if (config.HasClientSentConnectionOption(k2PTO, perspective)) {
+      pto_enabled_ = true;
+    }
+    if (config.HasClientSentConnectionOption(k1PTO, perspective)) {
       pto_enabled_ = true;
       max_probe_packets_per_pto_ = 1;
     }
-    skip_packet_number_for_pto_ = true;
+
+    if (config.HasClientSentConnectionOption(kPTOS, perspective)) {
+      if (!pto_enabled_) {
+        QUIC_PEER_BUG(quic_peer_bug_12552_1)
+            << "PTO is not enabled when receiving PTOS connection option.";
+        pto_enabled_ = true;
+        max_probe_packets_per_pto_ = 1;
+      }
+      skip_packet_number_for_pto_ = true;
+    }
+    if (pto_enabled_) {
+      if (config.HasClientSentConnectionOption(kPTOA, perspective)) {
+        always_include_max_ack_delay_for_pto_timeout_ = false;
+      }
+      if (config.HasClientSentConnectionOption(kPEB1, perspective)) {
+        StartExponentialBackoffAfterNthPto(1);
+      }
+      if (config.HasClientSentConnectionOption(kPEB2, perspective)) {
+        StartExponentialBackoffAfterNthPto(2);
+      }
+      if (config.HasClientSentConnectionOption(kPVS1, perspective)) {
+        pto_rttvar_multiplier_ = 2;
+      }
+      if (config.HasClientSentConnectionOption(kPAG1, perspective)) {
+        QUIC_CODE_COUNT(one_aggressive_pto);
+        num_tlp_timeout_ptos_ = 1;
+      }
+      if (config.HasClientSentConnectionOption(kPAG2, perspective)) {
+        QUIC_CODE_COUNT(two_aggressive_ptos);
+        num_tlp_timeout_ptos_ = 2;
+      }
+      if (config.HasClientSentConnectionOption(kPLE1, perspective)) {
+        first_pto_srtt_multiplier_ = 0.5;
+      } else if (config.HasClientSentConnectionOption(kPLE2, perspective)) {
+        first_pto_srtt_multiplier_ = 1.5;
+      }
+      if (config.HasClientSentConnectionOption(kAPTO, perspective)) {
+        pto_multiplier_without_rtt_samples_ = 1.5;
+      }
+      if (config.HasClientSentConnectionOption(kPSDA, perspective)) {
+        use_standard_deviation_for_pto_ = true;
+        rtt_stats_.EnableStandardDeviationCalculation();
+      }
+    }
   }
 
   if (pto_enabled_) {
-    if (config.HasClientSentConnectionOption(kPTOA, perspective)) {
-      always_include_max_ack_delay_for_pto_timeout_ = false;
-    }
-    if (config.HasClientSentConnectionOption(kPEB1, perspective)) {
-      StartExponentialBackoffAfterNthPto(1);
-    }
-    if (config.HasClientSentConnectionOption(kPEB2, perspective)) {
-      StartExponentialBackoffAfterNthPto(2);
-    }
-    if (config.HasClientSentConnectionOption(kPVS1, perspective)) {
-      pto_rttvar_multiplier_ = 2;
-    }
-    if (config.HasClientSentConnectionOption(kPAG1, perspective)) {
-      QUIC_CODE_COUNT(one_aggressive_pto);
-      num_tlp_timeout_ptos_ = 1;
-    }
-    if (config.HasClientSentConnectionOption(kPAG2, perspective)) {
-      QUIC_CODE_COUNT(two_aggressive_ptos);
-      num_tlp_timeout_ptos_ = 2;
-    }
-    if (config.HasClientSentConnectionOption(kPLE1, perspective)) {
-      first_pto_srtt_multiplier_ = 0.5;
-    } else if (config.HasClientSentConnectionOption(kPLE2, perspective)) {
-      first_pto_srtt_multiplier_ = 1.5;
-    }
-    if (config.HasClientSentConnectionOption(kAPTO, perspective)) {
-      pto_multiplier_without_rtt_samples_ = 1.5;
-    }
-    if (config.HasClientSentConnectionOption(kPSDA, perspective)) {
-      use_standard_deviation_for_pto_ = true;
-      rtt_stats_.EnableStandardDeviationCalculation();
-    }
     if (config.HasClientRequestedIndependentOption(kPDP1, perspective)) {
       num_ptos_for_path_degrading_ = 1;
     }
@@ -1085,15 +1091,20 @@ void QuicSentPacketManager::AdjustPendingTimerTransmissions() {
 
 void QuicSentPacketManager::EnableIetfPtoAndLossDetection() {
   if (pto_enabled_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_default_on_pto, 2, 2);
+    QUIC_RESTART_FLAG_COUNT_N(quic_default_on_pto2, 2, 2);
     // Disable handshake mode.
     handshake_mode_disabled_ = true;
     return;
   }
+  if (GetQuicRestartFlag(quic_default_on_pto2)) {
+    QUIC_BUG(pto_not_enabled)
+        << "PTO is not enabled while quic_default_on_pto2 is true";
+    return;
+  }
   pto_enabled_ = true;
   handshake_mode_disabled_ = true;
-  // Default to 1 packet per PTO and skip a packet number. Arm the 1st PTO with
-  // max of earliest in flight sent time + PTO delay and 1.5 * srtt from
+  // Default to 1 packet per PTO and skip a packet number. Arm the 1st PTO
+  // with max of earliest in flight sent time + PTO delay and 1.5 * srtt from
   // last in flight packet.
   max_probe_packets_per_pto_ = 1;
   skip_packet_number_for_pto_ = true;

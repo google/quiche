@@ -42,7 +42,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, false)
 // If true, close read side but not write side in QuicSpdyStream::OnStreamReset().
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_fix_on_stream_reset, true)
 // If true, default on PTO which unifies TLP + RTO loss recovery.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_on_pto, false)
+QUIC_FLAG(FLAGS_quic_restart_flag_quic_default_on_pto2, true)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, delay block allocation in QuicStreamSequencerBuffer until there is actually new data available.
