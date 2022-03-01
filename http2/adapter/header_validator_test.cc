@@ -60,6 +60,15 @@ TEST(HeaderValidatorTest, NameHasInvalidChar) {
           v.ValidateSingleHeader(name, "value");
       EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
     }
+    // Test nul separately.
+    {
+      const absl::string_view name = is_pseudo_header
+                                         ? absl::string_view(":met\0hod", 8)
+                                         : absl::string_view("na\0me", 5);
+      HeaderValidator::HeaderStatus status =
+          v.ValidateSingleHeader(name, "value");
+      EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
+    }
     // Uppercase characters in header names should not be allowed.
     const std::string uc_name = is_pseudo_header ? ":Method" : "Name";
     HeaderValidator::HeaderStatus status =
@@ -81,6 +90,12 @@ TEST(HeaderValidatorTest, ValueHasInvalidChar) {
   for (const char* c : {"\r", "\n"}) {
     HeaderValidator::HeaderStatus status =
         v.ValidateSingleHeader("name", absl::StrCat("val", c, "ue"));
+    EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
+  }
+  // Test nul separately.
+  {
+    HeaderValidator::HeaderStatus status =
+        v.ValidateSingleHeader("name", absl::string_view("val\0ue", 6));
     EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
   }
 }
