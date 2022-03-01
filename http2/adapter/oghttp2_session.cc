@@ -1730,11 +1730,9 @@ void OgHttp2Session::LatchErrorAndNotify(Http2ErrorCode error_code,
   latched_error_ = true;
   visitor_.OnConnectionError(error);
   decoder_.StopProcessing();
-  if (IsServerSession()) {
-    EnqueueFrame(absl::make_unique<spdy::SpdyGoAwayIR>(
-        highest_processed_stream_id_, TranslateErrorCode(error_code),
-        ConnectionErrorToString(error)));
-  }
+  EnqueueFrame(absl::make_unique<spdy::SpdyGoAwayIR>(
+      highest_processed_stream_id_, TranslateErrorCode(error_code),
+      ConnectionErrorToString(error)));
 }
 
 void OgHttp2Session::CloseStreamIfReady(uint8_t frame_type,
