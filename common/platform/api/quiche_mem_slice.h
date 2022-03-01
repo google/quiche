@@ -7,28 +7,18 @@
 
 #include <memory>
 
+#include "quiche_platform_impl/quiche_mem_slice_impl.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_buffer_allocator.h"
 #include "common/platform/api/quiche_export.h"
-#include "net/quiche/common/platform/impl/quiche_mem_slice_impl.h"
-
-/* API_DESCRIPTION
- QuicheMemSlice is used to wrap application data and pass to QUIC stream's write
- interface. It refers to a memory block of data which should be around till
- QuicheMemSlice::Reset() is called. It's upto each platform, to implement it as
- reference counted or not.
- API-DESCRIPTION */
 
 namespace quiche {
 
-// QuicheMemSlice is an internally reference counted data buffer used as the
-// source buffers for write operations. QuicheMemSlice implicitly maintains a
-// reference count and will free the underlying data buffer when the reference
-// count reaches zero.
+// QuicheMemSlice is a wrapper around a platform-specific I/O buffer type. It
+// may be reference counted, though QUICHE itself does not rely on that.
 class QUICHE_EXPORT_PRIVATE QuicheMemSlice {
  public:
-  // Constructs a empty QuicheMemSlice with no underlying data and 0 reference
-  // count.
+  // Constructs a empty QuicheMemSlice with no underlying data.
   QuicheMemSlice() = default;
 
   // Constructs a QuicheMemSlice that takes ownership of |buffer|.  The length

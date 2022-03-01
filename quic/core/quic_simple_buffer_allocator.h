@@ -10,6 +10,9 @@
 
 namespace quic {
 
+// Provides buffer allocation using operators new[] and delete[] on char arrays.
+// Note that some of the QUICHE code relies on this being the case for deleting
+// new[]-allocated arrays from elsewhere.
 class QUIC_EXPORT_PRIVATE SimpleBufferAllocator : public QuicBufferAllocator {
  public:
   static SimpleBufferAllocator* Get() {

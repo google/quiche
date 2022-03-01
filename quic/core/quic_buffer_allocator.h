@@ -66,6 +66,9 @@ class QUIC_EXPORT_PRIVATE QuicBuffer {
   QuicBuffer(QuicBufferAllocator* allocator, size_t size)
       : buffer_(MakeUniqueBuffer(allocator, size)), size_(size) {}
 
+  QuicBuffer(QuicUniqueBufferPtr buffer, size_t size)
+      : buffer_(std::move(buffer)), size_(size) {}
+
   // Make sure the move constructor zeroes out the size field.
   QuicBuffer(QuicBuffer&& other)
       : buffer_(std::move(other.buffer_)), size_(other.size_) {
