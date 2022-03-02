@@ -77,9 +77,7 @@ class QuicCryptoServerConfigPeer {
   static std::string CompressChain(
       QuicCompressedCertsCache* compressed_certs_cache,
       const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
-      const std::string& client_common_set_hashes,
-      const std::string& client_cached_cert_hashes,
-      const CommonCertSets* common_sets);
+      const std::string& client_cached_cert_hashes);
 
   uint32_t source_address_token_future_secs();
 

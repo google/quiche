@@ -30,7 +30,7 @@ using ServerConfigID = std::string;
 // "1CON", "BBQ4", "NCON", "RCID", "SREJ", "TBKP", "TB10", "SCLS", "SMHL",
 // "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS", "QNSP", "B2CL", "CHSP",
 // "BPTE", "ACKD", "AKD2", "AKD4", "MAD1", "MAD4", "MAD5", "ACD0", "ACKQ",
-// "TLPR"
+// "TLPR", "CCS\0"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
@@ -390,7 +390,6 @@ const QuicTag kSCID = TAG('S', 'C', 'I', 'D');   // Server config id
 const QuicTag kORBT = TAG('O', 'B', 'I', 'T');   // Server orbit.
 const QuicTag kPDMD = TAG('P', 'D', 'M', 'D');   // Proof demand.
 const QuicTag kPROF = TAG('P', 'R', 'O', 'F');   // Proof (signature).
-const QuicTag kCCS  = TAG('C', 'C', 'S', 0);     // Common certificate set
 const QuicTag kCCRT = TAG('C', 'C', 'R', 'T');   // Cached certificate
 const QuicTag kEXPY = TAG('E', 'X', 'P', 'Y');   // Expiry
 const QuicTag kSTTL = TAG('S', 'T', 'T', 'L');   // Server Config TTL

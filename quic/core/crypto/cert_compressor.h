@@ -9,22 +9,17 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "quic/core/crypto/common_cert_set.h"
 #include "quic/core/crypto/crypto_protocol.h"
 #include "quic/platform/api/quic_export.h"
 
 namespace quic {
 
 // CertCompressor provides functions for compressing and decompressing
-// certificate chains using three techniquies:
+// certificate chains using two techniquies:
 //   1) The peer may provide a list of a 64-bit, FNV-1a hashes of certificates
 //      that they already have. In the event that one of them is to be
 //      compressed, it can be replaced with just the hash.
-//   2) The peer may provide a number of hashes that represent sets of
-//      pre-shared certificates (CommonCertSets). If one of those certificates
-//      is to be compressed, and it's known to the given CommonCertSets, then it
-//      can be replaced with a set hash and certificate index.
-//   3) Otherwise the certificates are compressed with zlib using a pre-shared
+//   2) Otherwise the certificates are compressed with zlib using a pre-shared
 //      dictionary that consists of the certificates handled with the above
 //      methods and a small chunk of common substrings.
 class QUIC_EXPORT_PRIVATE CertCompressor {
@@ -32,22 +27,16 @@ class QUIC_EXPORT_PRIVATE CertCompressor {
   CertCompressor() = delete;
 
   // CompressChain compresses the certificates in |certs| and returns a
-  // compressed representation. |common_sets| contains the common certificate
-  // sets known locally and |client_common_set_hashes| contains the hashes of
-  // the common sets known to the peer. |client_cached_cert_hashes| contains
+  // compressed representation. client_cached_cert_hashes| contains
   // 64-bit, FNV-1a hashes of certificates that the peer already possesses.
   static std::string CompressChain(const std::vector<std::string>& certs,
-                                   absl::string_view client_common_set_hashes,
-                                   absl::string_view client_cached_cert_hashes,
-                                   const CommonCertSets* common_sets);
+                                   absl::string_view client_cached_cert_hashes);
 
   // DecompressChain decompresses the result of |CompressChain|, given in |in|,
   // into a series of certificates that are written to |out_certs|.
-  // |cached_certs| contains certificates that the peer may have omitted and
-  // |common_sets| contains the common certificate sets known locally.
+  // |cached_certs| contains certificates that the peer may have omitted.
   static bool DecompressChain(absl::string_view in,
                               const std::vector<std::string>& cached_certs,
-                              const CommonCertSets* common_sets,
                               std::vector<std::string>* out_certs);
 };
 

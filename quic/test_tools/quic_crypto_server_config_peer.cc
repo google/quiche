@@ -143,12 +143,9 @@ void QuicCryptoServerConfigPeer::SelectNewPrimaryConfig(int seconds) {
 std::string QuicCryptoServerConfigPeer::CompressChain(
     QuicCompressedCertsCache* compressed_certs_cache,
     const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
-    const std::string& client_common_set_hashes,
-    const std::string& client_cached_cert_hashes,
-    const CommonCertSets* common_sets) {
-  return QuicCryptoServerConfig::CompressChain(
-      compressed_certs_cache, chain, client_common_set_hashes,
-      client_cached_cert_hashes, common_sets);
+    const std::string& client_cached_cert_hashes) {
+  return QuicCryptoServerConfig::CompressChain(compressed_certs_cache, chain,
+                                               client_cached_cert_hashes);
 }
 
 uint32_t QuicCryptoServerConfigPeer::source_address_token_future_secs() {

@@ -1329,11 +1329,9 @@ void QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
     std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb) const {
   std::string serialized;
   std::string source_address_token;
-  const CommonCertSets* common_cert_sets;
   {
     QuicReaderMutexLock locked(&configs_lock_);
     serialized = primary_config_->serialized;
-    common_cert_sets = primary_config_->common_cert_sets;
     source_address_token = NewSourceAddressToken(
         *primary_config_->source_address_token_boxer,
         previous_source_address_tokens, client_address.host(), rand,
@@ -1347,8 +1345,8 @@ void QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
 
   auto proof_source_cb =
       std::make_unique<BuildServerConfigUpdateMessageProofSourceCallback>(
-          this, compressed_certs_cache, common_cert_sets, params,
-          std::move(message), std::move(cb));
+          this, compressed_certs_cache, params, std::move(message),
+          std::move(cb));
 
   proof_source_->GetProof(server_address, client_address, params.sni,
                           serialized, version, chlo_hash,
@@ -1362,14 +1360,11 @@ QuicCryptoServerConfig::BuildServerConfigUpdateMessageProofSourceCallback::
     BuildServerConfigUpdateMessageProofSourceCallback(
         const QuicCryptoServerConfig* config,
         QuicCompressedCertsCache* compressed_certs_cache,
-        const CommonCertSets* common_cert_sets,
         const QuicCryptoNegotiatedParameters& params,
         CryptoHandshakeMessage message,
         std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb)
     : config_(config),
       compressed_certs_cache_(compressed_certs_cache),
-      common_cert_sets_(common_cert_sets),
-      client_common_set_hashes_(params.client_common_set_hashes),
       client_cached_cert_hashes_(params.client_cached_cert_hashes),
       sct_supported_by_client_(params.sct_supported_by_client),
       sni_(params.sni),
@@ -1382,16 +1377,14 @@ void QuicCryptoServerConfig::BuildServerConfigUpdateMessageProofSourceCallback::
         const QuicCryptoProof& proof,
         std::unique_ptr<ProofSource::Details> details) {
   config_->FinishBuildServerConfigUpdateMessage(
-      compressed_certs_cache_, common_cert_sets_, client_common_set_hashes_,
-      client_cached_cert_hashes_, sct_supported_by_client_, sni_, ok, chain,
-      proof.signature, proof.leaf_cert_scts, std::move(details),
-      std::move(message_), std::move(cb_));
+      compressed_certs_cache_, client_cached_cert_hashes_,
+      sct_supported_by_client_, sni_, ok, chain, proof.signature,
+      proof.leaf_cert_scts, std::move(details), std::move(message_),
+      std::move(cb_));
 }
 
 void QuicCryptoServerConfig::FinishBuildServerConfigUpdateMessage(
     QuicCompressedCertsCache* compressed_certs_cache,
-    const CommonCertSets* common_cert_sets,
-    const std::string& client_common_set_hashes,
     const std::string& client_cached_cert_hashes,
     bool sct_supported_by_client,
     const std::string& sni,
@@ -1408,8 +1401,7 @@ void QuicCryptoServerConfig::FinishBuildServerConfigUpdateMessage(
   }
 
   const std::string compressed =
-      CompressChain(compressed_certs_cache, chain, client_common_set_hashes,
-                    client_cached_cert_hashes, common_cert_sets);
+      CompressChain(compressed_certs_cache, chain, client_cached_cert_hashes);
 
   message.SetStringPiece(kCertificateTag, compressed);
   message.SetStringPiece(kPROF, signature);
@@ -1469,12 +1461,6 @@ void QuicCryptoServerConfig::BuildRejection(
     return;
   }
 
-  absl::string_view client_common_set_hashes;
-  if (context.client_hello().GetStringPiece(kCCS, &client_common_set_hashes)) {
-    context.params()->client_common_set_hashes =
-        std::string(client_common_set_hashes);
-  }
-
   absl::string_view client_cached_cert_hashes;
   if (context.client_hello().GetStringPiece(kCCRT,
                                             &client_cached_cert_hashes)) {
@@ -1486,8 +1472,7 @@ void QuicCryptoServerConfig::BuildRejection(
 
   const std::string compressed = CompressChain(
       context.compressed_certs_cache(), context.signed_config()->chain,
-      context.params()->client_common_set_hashes,
-      context.params()->client_cached_cert_hashes, config.common_cert_sets);
+      context.params()->client_cached_cert_hashes);
 
   QUICHE_DCHECK_GT(context.chlo_packet_size(), context.client_hello().size());
   // kREJOverheadBytes is a very rough estimate of how much of a REJ
@@ -1555,22 +1540,18 @@ void QuicCryptoServerConfig::BuildRejection(
 std::string QuicCryptoServerConfig::CompressChain(
     QuicCompressedCertsCache* compressed_certs_cache,
     const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
-    const std::string& client_common_set_hashes,
-    const std::string& client_cached_cert_hashes,
-    const CommonCertSets* common_sets) {
+    const std::string& client_cached_cert_hashes) {
   // Check whether the compressed certs is available in the cache.
   QUICHE_DCHECK(compressed_certs_cache);
   const std::string* cached_value = compressed_certs_cache->GetCompressedCert(
-      chain, client_common_set_hashes, client_cached_cert_hashes);
+      chain, client_cached_cert_hashes);
   if (cached_value) {
     return *cached_value;
   }
   std::string compressed =
-      CertCompressor::CompressChain(chain->certs, client_common_set_hashes,
-                                    client_cached_cert_hashes, common_sets);
+      CertCompressor::CompressChain(chain->certs, client_cached_cert_hashes);
   // Insert the newly compressed cert to cache.
-  compressed_certs_cache->Insert(chain, client_common_set_hashes,
-                                 client_cached_cert_hashes, compressed);
+  compressed_certs_cache->Insert(chain, client_cached_cert_hashes, compressed);
   return compressed;
 }
 

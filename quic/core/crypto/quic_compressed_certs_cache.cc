@@ -22,15 +22,12 @@ const size_t QuicCompressedCertsCache::kQuicCompressedCertsCacheSize = 225;
 
 QuicCompressedCertsCache::UncompressedCerts::UncompressedCerts()
     : chain(nullptr),
-      client_common_set_hashes(nullptr),
       client_cached_cert_hashes(nullptr) {}
 
 QuicCompressedCertsCache::UncompressedCerts::UncompressedCerts(
     const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
-    const std::string* client_common_set_hashes,
     const std::string* client_cached_cert_hashes)
     : chain(chain),
-      client_common_set_hashes(client_common_set_hashes),
       client_cached_cert_hashes(client_cached_cert_hashes) {}
 
 QuicCompressedCertsCache::UncompressedCerts::~UncompressedCerts() {}
@@ -41,7 +38,6 @@ QuicCompressedCertsCache::CachedCerts::CachedCerts(
     const UncompressedCerts& uncompressed_certs,
     const std::string& compressed_cert)
     : chain_(uncompressed_certs.chain),
-      client_common_set_hashes_(*uncompressed_certs.client_common_set_hashes),
       client_cached_cert_hashes_(*uncompressed_certs.client_cached_cert_hashes),
       compressed_cert_(compressed_cert) {}
 
@@ -52,9 +48,7 @@ QuicCompressedCertsCache::CachedCerts::~CachedCerts() {}
 
 bool QuicCompressedCertsCache::CachedCerts::MatchesUncompressedCerts(
     const UncompressedCerts& uncompressed_certs) const {
-  return (client_common_set_hashes_ ==
-              *uncompressed_certs.client_common_set_hashes &&
-          client_cached_cert_hashes_ ==
+  return (client_cached_cert_hashes_ ==
               *uncompressed_certs.client_cached_cert_hashes &&
           chain_ == uncompressed_certs.chain);
 }
@@ -74,10 +68,8 @@ QuicCompressedCertsCache::~QuicCompressedCertsCache() {
 
 const std::string* QuicCompressedCertsCache::GetCompressedCert(
     const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
-    const std::string& client_common_set_hashes,
     const std::string& client_cached_cert_hashes) {
-  UncompressedCerts uncompressed_certs(chain, &client_common_set_hashes,
-                                       &client_cached_cert_hashes);
+  UncompressedCerts uncompressed_certs(chain, &client_cached_cert_hashes);
 
   uint64_t key = ComputeUncompressedCertsHash(uncompressed_certs);
 
@@ -95,11 +87,9 @@ const std::string* QuicCompressedCertsCache::GetCompressedCert(
 
 void QuicCompressedCertsCache::Insert(
     const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
-    const std::string& client_common_set_hashes,
     const std::string& client_cached_cert_hashes,
     const std::string& compressed_cert) {
-  UncompressedCerts uncompressed_certs(chain, &client_common_set_hashes,
-                                       &client_cached_cert_hashes);
+  UncompressedCerts uncompressed_certs(chain, &client_cached_cert_hashes);
 
   uint64_t key = ComputeUncompressedCertsHash(uncompressed_certs);
 
@@ -120,10 +110,7 @@ size_t QuicCompressedCertsCache::Size() {
 uint64_t QuicCompressedCertsCache::ComputeUncompressedCertsHash(
     const UncompressedCerts& uncompressed_certs) {
   uint64_t hash =
-      std::hash<std::string>()(*uncompressed_certs.client_common_set_hashes);
-  uint64_t h =
       std::hash<std::string>()(*uncompressed_certs.client_cached_cert_hashes);
-  hash_combine(&hash, h);
 
   hash_combine(&hash,
                reinterpret_cast<uint64_t>(uncompressed_certs.chain.get()));

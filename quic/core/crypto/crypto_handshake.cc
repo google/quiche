@@ -4,7 +4,6 @@
 
 #include "quic/core/crypto/crypto_handshake.h"
 
-#include "quic/core/crypto/common_cert_set.h"
 #include "quic/core/crypto/key_exchange.h"
 #include "quic/core/crypto/quic_decrypter.h"
 #include "quic/core/crypto/quic_encrypter.h"
@@ -33,9 +32,8 @@ const char QuicCryptoConfig::kCETVLabel[] = "QUIC CETV block";
 const char QuicCryptoConfig::kForwardSecureLabel[] =
     "QUIC forward secure key expansion";
 
-QuicCryptoConfig::QuicCryptoConfig()
-    : common_cert_sets(CommonCertSets::GetInstanceQUIC()) {}
+QuicCryptoConfig::QuicCryptoConfig() = default;
 
-QuicCryptoConfig::~QuicCryptoConfig() {}
+QuicCryptoConfig::~QuicCryptoConfig() = default;
 
 }  // namespace quic

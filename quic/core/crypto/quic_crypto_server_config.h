@@ -745,16 +745,12 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
                       CryptoHandshakeMessage* out) const;
 
   // CompressChain compresses the certificates in |chain->certs| and returns a
-  // compressed representation. |common_sets| contains the common certificate
-  // sets known locally and |client_common_set_hashes| contains the hashes of
-  // the common sets known to the peer. |client_cached_cert_hashes| contains
+  // compressed representation. |client_cached_cert_hashes| contains
   // 64-bit, FNV-1a hashes of certificates that the peer already possesses.
   static std::string CompressChain(
       QuicCompressedCertsCache* compressed_certs_cache,
       const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
-      const std::string& client_common_set_hashes,
-      const std::string& client_cached_cert_hashes,
-      const CommonCertSets* common_sets);
+      const std::string& client_cached_cert_hashes);
 
   // ParseConfigProtobuf parses the given config protobuf and returns a
   // QuicReferenceCountedPointer<Config> if successful. The caller adopts the
@@ -806,7 +802,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     BuildServerConfigUpdateMessageProofSourceCallback(
         const QuicCryptoServerConfig* config,
         QuicCompressedCertsCache* compressed_certs_cache,
-        const CommonCertSets* common_cert_sets,
         const QuicCryptoNegotiatedParameters& params,
         CryptoHandshakeMessage message,
         std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb);
@@ -819,8 +814,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
    private:
     const QuicCryptoServerConfig* config_;
     QuicCompressedCertsCache* compressed_certs_cache_;
-    const CommonCertSets* common_cert_sets_;
-    const std::string client_common_set_hashes_;
     const std::string client_cached_cert_hashes_;
     const bool sct_supported_by_client_;
     const std::string sni_;
@@ -833,8 +826,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // message and invokes |cb|.
   void FinishBuildServerConfigUpdateMessage(
       QuicCompressedCertsCache* compressed_certs_cache,
-      const CommonCertSets* common_cert_sets,
-      const std::string& client_common_set_hashes,
       const std::string& client_cached_cert_hashes,
       bool sct_supported_by_client,
       const std::string& sni,

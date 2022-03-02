@@ -15,7 +15,6 @@
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "quic/core/crypto/cert_compressor.h"
 #include "quic/core/crypto/chacha20_poly1305_encrypter.h"
-#include "quic/core/crypto/common_cert_set.h"
 #include "quic/core/crypto/crypto_framer.h"
 #include "quic/core/crypto/crypto_protocol.h"
 #include "quic/core/crypto/crypto_utils.h"
@@ -439,12 +438,6 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
 
   out->SetVector(kPDMD, QuicTagVector{kX509});
 
-  if (GetQuicRestartFlag(quic_no_common_cert_set)) {
-    // Client only. No flag count.
-  } else if (common_cert_sets) {
-    out->SetStringPiece(kCCS, common_cert_sets->GetCommonHashes());
-  }
-
   out->SetStringPiece(kCertificateSCTTag, "");
 
   const std::vector<std::string>& certs = cached->certs();
@@ -657,8 +650,7 @@ QuicErrorCode QuicCryptoClientConfig::CacheNewServerConfig(
   bool has_cert = message.GetStringPiece(kCertificateTag, &cert_bytes);
   if (has_proof && has_cert) {
     std::vector<std::string> certs;
-    if (!CertCompressor::DecompressChain(cert_bytes, cached_certs,
-                                         common_cert_sets, &certs)) {
+    if (!CertCompressor::DecompressChain(cert_bytes, cached_certs, &certs)) {
       *error_details = "Certificate data invalid";
       return QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER;
     }

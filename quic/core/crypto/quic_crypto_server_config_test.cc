@@ -75,7 +75,7 @@ TEST_F(QuicCryptoServerConfigTest, CompressCerts) {
       new ProofSource::Chain(certs));
 
   std::string compressed = QuicCryptoServerConfigPeer::CompressChain(
-      &compressed_certs_cache, chain, "", "", nullptr);
+      &compressed_certs_cache, chain, "");
 
   EXPECT_EQ(compressed_certs_cache.Size(), 1u);
 }
@@ -94,16 +94,15 @@ TEST_F(QuicCryptoServerConfigTest, CompressSameCertsTwice) {
   std::vector<std::string> certs = {"testcert"};
   QuicReferenceCountedPointer<ProofSource::Chain> chain(
       new ProofSource::Chain(certs));
-  std::string common_certs = "";
   std::string cached_certs = "";
 
   std::string compressed = QuicCryptoServerConfigPeer::CompressChain(
-      &compressed_certs_cache, chain, common_certs, cached_certs, nullptr);
+      &compressed_certs_cache, chain, cached_certs);
   EXPECT_EQ(compressed_certs_cache.Size(), 1u);
 
   // Compress the same certs, should use cache if available.
   std::string compressed2 = QuicCryptoServerConfigPeer::CompressChain(
-      &compressed_certs_cache, chain, common_certs, cached_certs, nullptr);
+      &compressed_certs_cache, chain, cached_certs);
   EXPECT_EQ(compressed, compressed2);
   EXPECT_EQ(compressed_certs_cache.Size(), 1u);
 }
@@ -123,11 +122,10 @@ TEST_F(QuicCryptoServerConfigTest, CompressDifferentCerts) {
   std::vector<std::string> certs = {"testcert"};
   QuicReferenceCountedPointer<ProofSource::Chain> chain(
       new ProofSource::Chain(certs));
-  std::string common_certs = "";
   std::string cached_certs = "";
 
   std::string compressed = QuicCryptoServerConfigPeer::CompressChain(
-      &compressed_certs_cache, chain, common_certs, cached_certs, nullptr);
+      &compressed_certs_cache, chain, cached_certs);
   EXPECT_EQ(compressed_certs_cache.Size(), 1u);
 
   // Compress a similar certs which only differs in the chain.
@@ -135,19 +133,8 @@ TEST_F(QuicCryptoServerConfigTest, CompressDifferentCerts) {
       new ProofSource::Chain(certs));
 
   std::string compressed2 = QuicCryptoServerConfigPeer::CompressChain(
-      &compressed_certs_cache, chain2, common_certs, cached_certs, nullptr);
+      &compressed_certs_cache, chain2, cached_certs);
   EXPECT_EQ(compressed_certs_cache.Size(), 2u);
-
-  // Compress a similar certs which only differs in common certs field.
-  static const uint64_t set_hash = 42;
-  std::unique_ptr<CommonCertSets> common_sets(
-      crypto_test_utils::MockCommonCertSets(certs[0], set_hash, 1));
-  absl::string_view different_common_certs(
-      reinterpret_cast<const char*>(&set_hash), sizeof(set_hash));
-  std::string compressed3 = QuicCryptoServerConfigPeer::CompressChain(
-      &compressed_certs_cache, chain, std::string(different_common_certs),
-      cached_certs, common_sets.get());
-  EXPECT_EQ(compressed_certs_cache.Size(), 3u);
 }
 
 class SourceAddressTokenTest : public QuicTest {

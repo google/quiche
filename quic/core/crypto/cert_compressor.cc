@@ -163,9 +163,6 @@ struct CertEntry {
     // CACHED means that the certificate is already known to the peer and will
     // be replaced by its 64-bit hash (in |hash|).
     CACHED = 2,
-    // COMMON means that the certificate is in a common certificate set known
-    // to the peer with hash |set_hash| and certificate index |index|.
-    COMMON = 3,
   };
 
   Type type;
@@ -175,13 +172,10 @@ struct CertEntry {
 };
 
 // MatchCerts returns a vector of CertEntries describing how to most
-// efficiently represent |certs| to a peer who has the common sets identified
-// by |client_common_set_hashes| and who has cached the certificates with the
-// 64-bit, FNV-1a hashes in |client_cached_cert_hashes|.
+// efficiently represent |certs| to a peer who has cached the certificates
+// with the 64-bit, FNV-1a hashes in |client_cached_cert_hashes|.
 std::vector<CertEntry> MatchCerts(const std::vector<std::string>& certs,
-                                  absl::string_view client_common_set_hashes,
-                                  absl::string_view client_cached_cert_hashes,
-                                  const CommonCertSets* common_sets) {
+                                  absl::string_view client_cached_cert_hashes) {
   std::vector<CertEntry> entries;
   entries.reserve(certs.size());
 
@@ -218,16 +212,6 @@ std::vector<CertEntry> MatchCerts(const std::vector<std::string>& certs,
       }
     }
 
-    if (GetQuicRestartFlag(quic_no_common_cert_set)) {
-      QUIC_RESTART_FLAG_COUNT(quic_no_common_cert_set);
-    } else if (common_sets &&
-               common_sets->MatchCert(*i, client_common_set_hashes,
-                                      &entry.set_hash, &entry.index)) {
-      entry.type = CertEntry::COMMON;
-      entries.push_back(entry);
-      continue;
-    }
-
     entry.type = CertEntry::COMPRESSED;
     entries.push_back(entry);
   }
@@ -247,11 +231,6 @@ size_t CertEntriesSize(const std::vector<CertEntry>& entries) {
         break;
       case CertEntry::CACHED:
         entries_size += sizeof(uint64_t);
-        break;
-      case CertEntry::COMMON:
-        QUIC_BUG_IF(unexpected_common_cert_entry_1,
-                    GetQuicRestartFlag(quic_no_common_cert_set));
-        entries_size += sizeof(uint64_t) + sizeof(uint32_t);
         break;
     }
   }
@@ -273,15 +252,6 @@ void SerializeCertEntries(uint8_t* out, const std::vector<CertEntry>& entries) {
         memcpy(out, &i->hash, sizeof(i->hash));
         out += sizeof(uint64_t);
         break;
-      case CertEntry::COMMON:
-        QUIC_BUG_IF(unexpected_common_cert_entry_2,
-                    GetQuicRestartFlag(quic_no_common_cert_set));
-        // Assumes a little-endian machine.
-        memcpy(out, &i->set_hash, sizeof(i->set_hash));
-        out += sizeof(i->set_hash);
-        memcpy(out, &i->index, sizeof(uint32_t));
-        out += sizeof(uint32_t);
-        break;
     }
   }
 
@@ -291,12 +261,12 @@ void SerializeCertEntries(uint8_t* out, const std::vector<CertEntry>& entries) {
 // ZlibDictForEntries returns a string that contains the zlib pre-shared
 // dictionary to use in order to decompress a zlib block following |entries|.
 // |certs| is one-to-one with |entries| and contains the certificates for those
-// entries that are CACHED or COMMON.
+// entries that are CACHED.
 std::string ZlibDictForEntries(const std::vector<CertEntry>& entries,
                                const std::vector<std::string>& certs) {
   std::string zlib_dict;
 
-  // The dictionary starts with the common and cached certs in reverse order.
+  // The dictionary starts with the cached certs in reverse order.
   size_t zlib_dict_size = 0;
   for (size_t i = certs.size() - 1; i < certs.size(); i--) {
     if (entries[i].type != CertEntry::COMPRESSED) {
@@ -336,12 +306,11 @@ std::vector<uint64_t> HashCerts(const std::vector<std::string>& certs) {
 }
 
 // ParseEntries parses the serialised form of a vector of CertEntries from
-// |in_out| and writes them to |out_entries|. CACHED and COMMON entries are
-// resolved using |cached_certs| and |common_sets| and written to |out_certs|.
-// |in_out| is updated to contain the trailing data.
+// |in_out| and writes them to |out_entries|. CACHED entries are resolved using
+// |cached_certs| and written to |out_certs|. |in_out| is updated to contain
+// the trailing data.
 bool ParseEntries(absl::string_view* in_out,
                   const std::vector<std::string>& cached_certs,
-                  const CommonCertSets* common_sets,
                   std::vector<CertEntry>* out_entries,
                   std::vector<std::string>* out_certs) {
   absl::string_view in = *in_out;
@@ -391,30 +360,7 @@ bool ParseEntries(absl::string_view* in_out,
         }
         break;
       }
-      case CertEntry::COMMON: {
-        if (GetQuicRestartFlag(quic_no_common_cert_set)) {
-          // Client only. No flag count.
-          return false;
-        }
-        if (!common_sets) {
-          return false;
-        }
-        if (in.size() < sizeof(uint64_t) + sizeof(uint32_t)) {
-          return false;
-        }
-        memcpy(&entry.set_hash, in.data(), sizeof(uint64_t));
-        in.remove_prefix(sizeof(uint64_t));
-        memcpy(&entry.index, in.data(), sizeof(uint32_t));
-        in.remove_prefix(sizeof(uint32_t));
 
-        absl::string_view cert =
-            common_sets->GetCert(entry.set_hash, entry.index);
-        if (cert.empty()) {
-          return false;
-        }
-        out_certs->push_back(std::string(cert));
-        break;
-      }
       default:
         return false;
     }
@@ -465,11 +411,9 @@ class ScopedZLib {
 // static
 std::string CertCompressor::CompressChain(
     const std::vector<std::string>& certs,
-    absl::string_view client_common_set_hashes,
-    absl::string_view client_cached_cert_hashes,
-    const CommonCertSets* common_sets) {
-  const std::vector<CertEntry> entries = MatchCerts(
-      certs, client_common_set_hashes, client_cached_cert_hashes, common_sets);
+    absl::string_view client_cached_cert_hashes) {
+  const std::vector<CertEntry> entries =
+      MatchCerts(certs, client_cached_cert_hashes);
   QUICHE_DCHECK_EQ(entries.size(), certs.size());
 
   size_t uncompressed_size = 0;
@@ -568,10 +512,9 @@ std::string CertCompressor::CompressChain(
 bool CertCompressor::DecompressChain(
     absl::string_view in,
     const std::vector<std::string>& cached_certs,
-    const CommonCertSets* common_sets,
     std::vector<std::string>* out_certs) {
   std::vector<CertEntry> entries;
-  if (!ParseEntries(&in, cached_certs, common_sets, &entries, out_certs)) {
+  if (!ParseEntries(&in, cached_certs, &entries, out_certs)) {
     return false;
   }
   QUICHE_DCHECK_EQ(entries.size(), out_certs->size());
@@ -642,10 +585,6 @@ bool CertCompressor::DecompressChain(
         uncompressed.remove_prefix(cert_len);
         break;
       case CertEntry::CACHED:
-        break;
-      case CertEntry::COMMON:
-        QUIC_BUG_IF(unexpected_common_cert_entry_3,
-                    GetQuicRestartFlag(quic_no_common_cert_set));
         break;
     }
   }

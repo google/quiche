@@ -14,7 +14,6 @@
 
 namespace quic {
 
-class CommonCertSets;
 class SynchronousKeyExchange;
 class QuicDecrypter;
 class QuicEncrypter;
@@ -140,7 +139,6 @@ struct QUIC_EXPORT_PRIVATE QuicCryptoNegotiatedParameters
   // Used when generating proof signature when sending server config updates.
 
   // Used to generate cert chain when sending server config updates.
-  std::string client_common_set_hashes;
   std::string client_cached_cert_hashes;
 
   // Default to false; set to true if the client indicates that it supports sct
@@ -184,8 +182,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoConfig {
   QuicTagVector kexs;
   // Authenticated encryption with associated data (AEAD) algorithms.
   QuicTagVector aead;
-
-  const CommonCertSets* common_cert_sets;
 };
 
 }  // namespace quic
