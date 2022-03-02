@@ -26,11 +26,18 @@ namespace {
 
 const char* kPathToFds = "/proc/self/fd";
 
+// Return the value of a symbolic link in |path|, if |path| is not found, return
+// an empty string.
 std::string ReadLink(const std::string& path) {
   std::string result(PATH_MAX, '\0');
   ssize_t result_size = readlink(path.c_str(), &result[0], result.size());
+  if (result_size < 0 && errno == ENOENT) {
+    return "";
+  }
   QUICHE_CHECK(result_size > 0 &&
-               static_cast<size_t>(result_size) < result.size());
+               static_cast<size_t>(result_size) < result.size())
+      << "result_size:" << result_size << ", errno:" << errno
+      << ", path:" << path;
   result.resize(result_size);
   return result;
 }
