@@ -996,7 +996,6 @@ void OgHttp2Session::SubmitMetadata(Http2StreamId stream_id,
 
 void OgHttp2Session::SubmitSettings(absl::Span<const Http2Setting> settings) {
   auto frame = PrepareSettingsFrame(settings);
-  HandleOutboundSettings(*frame);
   EnqueueFrame(std::move(frame));
 }
 

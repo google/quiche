@@ -3081,6 +3081,79 @@ TEST(OgHttp2AdapterTest, TestPartialSerialize) {
                             SpdyFrameType::PING}));
 }
 
+TEST(OgHttp2AdapterTest, TestStreamInitialWindowSizeUpdates) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  adapter->SubmitSettings({{INITIAL_WINDOW_SIZE, 80000}});
+  EXPECT_TRUE(adapter->want_write());
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/false)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 0x4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+
+  const int64_t read_result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+
+  // New stream window size has not yet been applied.
+  EXPECT_EQ(adapter->GetStreamReceiveWindowSize(1), 65535);
+
+  // Server initial SETTINGS
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
+  // SETTINGS ack
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+
+  // New stream window size has still not been applied.
+  EXPECT_EQ(adapter->GetStreamReceiveWindowSize(1), 65535);
+
+  const std::string ack = TestFrameSequence().SettingsAck().Serialize();
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0x1));
+  EXPECT_CALL(visitor, OnSettingsAck());
+  adapter->ProcessBytes(ack);
+
+  // New stream window size has finally been applied upon SETTINGS ack.
+  EXPECT_EQ(adapter->GetStreamReceiveWindowSize(1), 80000);
+
+  // Update the stream window size again.
+  adapter->SubmitSettings({{INITIAL_WINDOW_SIZE, 90000}});
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+
+  // New stream window size has not yet been applied.
+  EXPECT_EQ(adapter->GetStreamReceiveWindowSize(1), 80000);
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0x1));
+  EXPECT_CALL(visitor, OnSettingsAck());
+  adapter->ProcessBytes(ack);
+
+  // New stream window size is applied after the ack.
+  EXPECT_EQ(adapter->GetStreamReceiveWindowSize(1), 90000);
+}
+
 TEST(OgHttp2AdapterTest, ConnectionErrorOnControlFrameSent) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
