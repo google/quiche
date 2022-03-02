@@ -2351,9 +2351,7 @@ TEST(OgHttp2AdapterTest, InvalidInitialWindowSetting) {
       visitor,
       OnInvalidFrame(0, Http2VisitorInterface::InvalidFrameError::kFlowControl))
       .Times(2);
-  EXPECT_CALL(visitor,
-              OnConnectionError(
-                  Http2VisitorInterface::ConnectionError::kFlowControlError));
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kFlowControlError));
 
   const int64_t initial_result = adapter->ProcessBytes(initial_frames);
   EXPECT_EQ(initial_frames.size(), static_cast<size_t>(initial_result));
@@ -4078,9 +4076,7 @@ TEST(OgHttp2AdapterTest, ClientDisobeysConnectionFlowControl) {
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 16384));
   EXPECT_CALL(visitor, OnDataForStream(1, _));
   EXPECT_CALL(visitor, OnFrameHeader(1, 16384, DATA, 0x0));
-  EXPECT_CALL(visitor,
-              OnConnectionError(
-                  Http2VisitorInterface::ConnectionError::kFlowControlError));
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kFlowControlError));
   // No further frame data or headers are delivered.
 
   const int64_t result = adapter->ProcessBytes(frames);
@@ -5114,9 +5110,8 @@ TEST(OgHttp2AdapterTest, ServerForbidsNewStreamAboveStreamLimit) {
       visitor,
       OnInvalidFrame(3, Http2VisitorInterface::InvalidFrameError::kProtocol));
   // The oghttp2 stack also signals the error via OnConnectionError().
-  EXPECT_CALL(visitor,
-              OnConnectionError(Http2VisitorInterface::ConnectionError::
-                                    kExceededMaxConcurrentStreams));
+  EXPECT_CALL(visitor, OnConnectionError(
+                           ConnectionError::kExceededMaxConcurrentStreams));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(static_cast<size_t>(stream_result), stream_frames.size());
