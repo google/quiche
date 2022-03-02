@@ -138,12 +138,14 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
       config.ReceivedInitialRoundTripTimeUs() > 0) {
     if (!config.HasClientSentConnectionOption(kNRTT, perspective)) {
       SetInitialRtt(QuicTime::Delta::FromMicroseconds(
-          config.ReceivedInitialRoundTripTimeUs()));
+                        config.ReceivedInitialRoundTripTimeUs()),
+                    /*trusted=*/false);
     }
   } else if (config.HasInitialRoundTripTimeUsToSend() &&
              config.GetInitialRoundTripTimeUsToSend() > 0) {
     SetInitialRtt(QuicTime::Delta::FromMicroseconds(
-        config.GetInitialRoundTripTimeUsToSend()));
+                      config.GetInitialRoundTripTimeUsToSend()),
+                  /*trusted=*/false);
   }
   if (config.HasReceivedMaxAckDelayMs()) {
     peer_max_ack_delay_ =
@@ -384,8 +386,12 @@ void QuicSentPacketManager::ResumeConnectionState(
   // This calls the old AdjustNetworkParameters interface, and fills certain
   // fields in SendAlgorithmInterface::NetworkParams
   // (e.g., quic_bbr_fix_pacing_rate) using GFE flags.
-  AdjustNetworkParameters(SendAlgorithmInterface::NetworkParams(
-      bandwidth, rtt, /*allow_cwnd_to_decrease = */ false));
+  SendAlgorithmInterface::NetworkParams params(
+      bandwidth, rtt, /*allow_cwnd_to_decrease = */ false);
+  // The rtt is trusted because it's a min_rtt measured from a previous
+  // connection with the same network path between client and server.
+  params.is_rtt_trusted = true;
+  AdjustNetworkParameters(params);
 }
 
 void QuicSentPacketManager::AdjustNetworkParameters(
@@ -404,8 +410,24 @@ void QuicSentPacketManager::AdjustNetworkParameters(
   }
   const QuicBandwidth& bandwidth = params.bandwidth;
   const QuicTime::Delta& rtt = params.rtt;
-  if (!rtt.IsZero()) {
-    SetInitialRtt(rtt);
+
+  if (use_lower_min_irtt()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_lower_min_for_trusted_irtt, 2, 2);
+    if (!rtt.IsZero()) {
+      if (params.is_rtt_trusted) {
+        // Always set initial rtt if it's trusted.
+        SetInitialRtt(rtt, /*trusted=*/true);
+      } else if (rtt_stats_.initial_rtt() ==
+                 QuicTime::Delta::FromMilliseconds(kInitialRttMs)) {
+        // Only set initial rtt if we are using the default. This avoids
+        // overwriting a trusted initial rtt by an untrusted one.
+        SetInitialRtt(rtt, /*trusted=*/false);
+      }
+    }
+  } else {
+    if (!rtt.IsZero()) {
+      SetInitialRtt(rtt, /*trusted=*/false);
+    }
   }
   const QuicByteCount old_cwnd = send_algorithm_->GetCongestionWindow();
   if (GetQuicReloadableFlag(quic_conservative_bursts) && using_pacing_ &&
@@ -1710,9 +1732,10 @@ NextReleaseTimeResult QuicSentPacketManager::GetNextReleaseTime() const {
   return pacing_sender_.GetNextReleaseTime();
 }
 
-void QuicSentPacketManager::SetInitialRtt(QuicTime::Delta rtt) {
-  const QuicTime::Delta min_rtt =
-      QuicTime::Delta::FromMicroseconds(kMinInitialRoundTripTimeUs);
+void QuicSentPacketManager::SetInitialRtt(QuicTime::Delta rtt, bool trusted) {
+  const QuicTime::Delta min_rtt = QuicTime::Delta::FromMicroseconds(
+      trusted ? kMinTrustedInitialRoundTripTimeUs
+              : kMinUntrustedInitialRoundTripTimeUs);
   QuicTime::Delta max_rtt =
       QuicTime::Delta::FromMicroseconds(kMaxInitialRoundTripTimeUs);
   rtt_stats_.set_initial_rtt(std::max(min_rtt, std::min(max_rtt, rtt)));

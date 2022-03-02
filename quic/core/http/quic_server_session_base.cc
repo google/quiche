@@ -47,8 +47,13 @@ void QuicServerSessionBase::Initialize() {
 void QuicServerSessionBase::OnConfigNegotiated() {
   QuicSpdySession::OnConfigNegotiated();
 
-  if (!config()->HasReceivedConnectionOptions()) {
-    return;
+  const bool use_lower_min_irtt =
+      connection()->sent_packet_manager().use_lower_min_irtt();
+
+  if (!use_lower_min_irtt) {
+    if (!config()->HasReceivedConnectionOptions()) {
+      return;
+    }
   }
 
   const CachedNetworkParameters* cached_network_params =
@@ -61,17 +66,26 @@ void QuicServerSessionBase::OnConfigNegotiated() {
       cached_network_params != nullptr) {
     if (cached_network_params->serving_region() == serving_region_) {
       QUIC_CODE_COUNT(quic_server_received_network_params_at_same_region);
-      if (ContainsQuicTag(config()->ReceivedConnectionOptions(), kTRTT)) {
+      if ((!use_lower_min_irtt || config()->HasReceivedConnectionOptions()) &&
+          ContainsQuicTag(config()->ReceivedConnectionOptions(), kTRTT)) {
         QUIC_DLOG(INFO)
             << "Server: Setting initial rtt to "
             << cached_network_params->min_rtt_ms()
             << "ms which is received from a validated address token";
         connection()->sent_packet_manager().SetInitialRtt(
             QuicTime::Delta::FromMilliseconds(
-                cached_network_params->min_rtt_ms()));
+                cached_network_params->min_rtt_ms()),
+            /*trusted=*/use_lower_min_irtt);
       }
     } else {
       QUIC_CODE_COUNT(quic_server_received_network_params_at_different_region);
+    }
+  }
+
+  if (use_lower_min_irtt) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_lower_min_for_trusted_irtt, 1, 2);
+    if (!config()->HasReceivedConnectionOptions()) {
+      return;
     }
   }
 

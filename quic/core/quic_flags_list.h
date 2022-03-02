@@ -23,6 +23,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_check_amplification_limit_with_p
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_no_probe_up_exit_if_no_queue, true)
 // If true, 1) NEW_TOKENs sent from a IETF QUIC session will include the cached network parameters proto, 2) A min_rtt received from a validated token will be used to set the initial rtt, 3) Enable bandwidth resumption for IETF QUIC when connection options BWRE or BWMX exists.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_cached_network_parameters_to_address_token2, true)
+// If true, 1) QUIC connections will use a lower minimum for trusted initial rtt, 2) When TRTT is received, QUIC server sessions will mark the initial rtt from CachedNetworkParameters as trusted.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_lower_min_for_trusted_irtt, false)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 // If true, QpackEncoder will stop emitting instructions on the encoder stream if amount of buffered data exceeds a hardcoded limit.

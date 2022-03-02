@@ -34,8 +34,7 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
   // Network Params for AdjustNetworkParameters.
   struct QUIC_NO_EXPORT NetworkParams {
     NetworkParams() = default;
-    NetworkParams(const QuicBandwidth& bandwidth,
-                  const QuicTime::Delta& rtt,
+    NetworkParams(const QuicBandwidth& bandwidth, const QuicTime::Delta& rtt,
                   bool allow_cwnd_to_decrease)
         : bandwidth(bandwidth),
           rtt(rtt),
@@ -47,7 +46,8 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
              max_initial_congestion_window ==
                  other.max_initial_congestion_window &&
              burst_token == other.burst_token &&
-             allow_cwnd_to_decrease == other.allow_cwnd_to_decrease;
+             allow_cwnd_to_decrease == other.allow_cwnd_to_decrease &&
+             is_rtt_trusted == other.is_rtt_trusted;
     }
 
     QuicBandwidth bandwidth = QuicBandwidth::Zero();
@@ -55,6 +55,7 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
     int max_initial_congestion_window = 0;
     int burst_token = 0;
     bool allow_cwnd_to_decrease = false;
+    bool is_rtt_trusted = false;
   };
 
   static SendAlgorithmInterface* Create(

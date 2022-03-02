@@ -86,8 +86,11 @@ const QuicPacketCount kMinCongestionWindowForBandwidthResumption = 10;
 // Default size of the socket receive buffer in bytes.
 const QuicByteCount kDefaultSocketReceiveBuffer = 1024 * 1024;
 
-// Don't allow a client to suggest an RTT shorter than 10ms.
-const uint32_t kMinInitialRoundTripTimeUs = 10 * kNumMicrosPerMilli;
+// The lower bound of an untrusted initial rtt value.
+const uint32_t kMinUntrustedInitialRoundTripTimeUs = 10 * kNumMicrosPerMilli;
+
+// The lower bound of a trusted initial rtt value.
+const uint32_t kMinTrustedInitialRoundTripTimeUs = 5 * kNumMicrosPerMilli;
 
 // Don't allow a client to suggest an RTT longer than 1 second.
 const uint32_t kMaxInitialRoundTripTimeUs = kNumMicrosPerSecond;

@@ -482,8 +482,13 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     num_ptos_for_path_degrading_ = num_ptos_for_path_degrading;
   }
 
-  // Sets the initial RTT of the connection.
-  void SetInitialRtt(QuicTime::Delta rtt);
+  // Sets the initial RTT of the connection. The inital RTT is clamped to
+  // - A maximum of kMaxInitialRoundTripTimeUs.
+  // - A minimum of kMinTrustedInitialRoundTripTimeUs if |trusted|, or
+  // kMinUntrustedInitialRoundTripTimeUs if not |trusted|.
+  void SetInitialRtt(QuicTime::Delta rtt, bool trusted);
+
+  bool use_lower_min_irtt() const { return use_lower_min_irtt_; }
 
  private:
   friend class test::QuicConnectionPeer;
@@ -756,6 +761,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Whether to ignore the ack_delay in received ACKs.
   bool ignore_ack_delay_;
+
+  // Latched value of --quic_use_lower_min_for_trusted_irtt.
+  bool use_lower_min_irtt_ =
+      GetQuicReloadableFlag(quic_use_lower_min_for_trusted_irtt);
 };
 
 }  // namespace quic

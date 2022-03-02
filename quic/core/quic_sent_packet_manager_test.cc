@@ -2101,6 +2101,7 @@ TEST_F(QuicSentPacketManagerTest, ResumeConnectionState) {
   params.bandwidth = QuicBandwidth::Zero();
   params.allow_cwnd_to_decrease = false;
   params.rtt = kRtt;
+  params.is_rtt_trusted = true;
 
   EXPECT_CALL(*send_algorithm_, AdjustNetworkParameters(params));
   EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
@@ -4680,6 +4681,42 @@ TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrameWithSRTT) {
   EXPECT_EQ(frame.max_ack_delay,
             std::max(rtt_stats->SmoothedOrInitialRtt() * 0.25,
                      QuicTime::Delta::FromMilliseconds(1u)));
+}
+
+TEST_F(QuicSentPacketManagerTest, SetInitialRtt) {
+  // Upper bounds.
+  manager_.SetInitialRtt(
+      QuicTime::Delta::FromMicroseconds(kMaxInitialRoundTripTimeUs + 1), false);
+  EXPECT_EQ(manager_.GetRttStats()->initial_rtt().ToMicroseconds(),
+            kMaxInitialRoundTripTimeUs);
+
+  manager_.SetInitialRtt(
+      QuicTime::Delta::FromMicroseconds(kMaxInitialRoundTripTimeUs + 1), true);
+  EXPECT_EQ(manager_.GetRttStats()->initial_rtt().ToMicroseconds(),
+            kMaxInitialRoundTripTimeUs);
+
+  EXPECT_GT(kMinUntrustedInitialRoundTripTimeUs,
+            kMinTrustedInitialRoundTripTimeUs);
+
+  // Lower bounds for untrusted rtt.
+  manager_.SetInitialRtt(QuicTime::Delta::FromMicroseconds(
+                             kMinUntrustedInitialRoundTripTimeUs - 1),
+                         false);
+  EXPECT_EQ(manager_.GetRttStats()->initial_rtt().ToMicroseconds(),
+            kMinUntrustedInitialRoundTripTimeUs);
+
+  // Lower bounds for trusted rtt.
+  manager_.SetInitialRtt(QuicTime::Delta::FromMicroseconds(
+                             kMinUntrustedInitialRoundTripTimeUs - 1),
+                         true);
+  EXPECT_EQ(manager_.GetRttStats()->initial_rtt().ToMicroseconds(),
+            kMinUntrustedInitialRoundTripTimeUs - 1);
+
+  manager_.SetInitialRtt(
+      QuicTime::Delta::FromMicroseconds(kMinTrustedInitialRoundTripTimeUs - 1),
+      true);
+  EXPECT_EQ(manager_.GetRttStats()->initial_rtt().ToMicroseconds(),
+            kMinTrustedInitialRoundTripTimeUs);
 }
 
 }  // namespace
