@@ -37,7 +37,7 @@ void SimpleDataProducer::SaveCryptoData(EncryptionLevel level,
                                         QuicStreamOffset offset,
                                         absl::string_view data) {
   auto key = std::make_pair(level, offset);
-  crypto_buffer_map_[key] = data;
+  crypto_buffer_map_[key] = std::string(data);
 }
 
 WriteStreamDataResult SimpleDataProducer::WriteStreamData(
