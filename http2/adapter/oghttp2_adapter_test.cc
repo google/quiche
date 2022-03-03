@@ -4742,11 +4742,11 @@ TEST(OgHttp2AdapterTest, ServerRejectsStreamData) {
 // without recursion guards in OgHttp2Session.
 TEST(OgHttp2AdapterInteractionTest, ClientServerInteractionTest) {
   MockHttp2Visitor client_visitor;
-  auto client_adapter =
-      OgHttp2Adapter::Create(client_visitor, {Perspective::kClient});
+  auto client_adapter = OgHttp2Adapter::Create(
+      client_visitor, {.perspective = Perspective::kClient});
   MockHttp2Visitor server_visitor;
-  auto server_adapter =
-      OgHttp2Adapter::Create(server_visitor, {Perspective::kServer});
+  auto server_adapter = OgHttp2Adapter::Create(
+      server_visitor, {.perspective = Perspective::kServer});
 
   // Feeds bytes sent from the client into the server's ProcessBytes.
   EXPECT_CALL(client_visitor, OnReadyToSend(_))
@@ -6016,6 +6016,68 @@ TEST(OgHttp2AdapterTest, ServerHandlesTeHeader) {
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
                             SpdyFrameType::RST_STREAM}));
+}
+
+TEST(OgHttp2AdapterTest, ServerUsesCustomWindowUpdateStrategy) {
+  // Test the use of a custom WINDOW_UPDATE strategy.
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{
+      .should_window_update_fn = [](int64_t /*limit*/, int64_t /*size*/,
+                                    int64_t /*delta*/) { return true; },
+      .perspective = Perspective::kServer};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/false)
+                                 .Data(1, "This is the request body.",
+                                       /*fin=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 0x1));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
+  EXPECT_CALL(visitor, OnDataForStream(1, "This is the request body."));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<int64_t>(frames.size()), result);
+
+  // Mark a small number of bytes for the stream as consumed. Because of the
+  // custom WINDOW_UPDATE strategy, the session should send WINDOW_UPDATEs.
+  adapter->MarkDataConsumedForStream(1, 5);
+
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 1, 4, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 1, 4, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 0, 4, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 0, 4, 0x0, 0));
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::WINDOW_UPDATE,
+                            SpdyFrameType::WINDOW_UPDATE}));
 }
 
 }  // namespace

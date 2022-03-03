@@ -122,5 +122,9 @@ absl::string_view InvalidFrameErrorToString(
   return "UnknownInvalidFrameError";
 }
 
+bool DeltaAtLeastHalfLimit(int64_t limit, int64_t /*size*/, int64_t delta) {
+  return delta > 0 && delta >= limit / 2;
+}
+
 }  // namespace adapter
 }  // namespace http2

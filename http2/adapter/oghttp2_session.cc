@@ -334,7 +334,7 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
           [this](size_t window_update_delta) {
             SendWindowUpdate(kConnectionStreamId, window_update_delta);
           },
-          /*should_window_update_fn=*/{},
+          options.should_window_update_fn,
           /*update_window_on_notify=*/false),
       options_(options) {
   decoder_.set_visitor(&receive_logger_);
@@ -1650,8 +1650,9 @@ OgHttp2Session::StreamStateMap::iterator OgHttp2Session::CreateStream(
         SendWindowUpdate(stream_id, window_update_delta);
       };
   auto [iter, inserted] = stream_map_.try_emplace(
-      stream_id, StreamState(initial_stream_receive_window_,
-                             initial_stream_send_window_, std::move(listener)));
+      stream_id,
+      StreamState(initial_stream_receive_window_, initial_stream_send_window_,
+                  std::move(listener), options_.should_window_update_fn));
   if (inserted) {
     // Add the stream to the write scheduler.
     const WriteScheduler::StreamPrecedenceType precedence(3);

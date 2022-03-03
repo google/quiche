@@ -38,6 +38,11 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
       public spdy::ExtensionVisitorInterface {
  public:
   struct QUICHE_EXPORT_PRIVATE Options {
+    // Returns whether to send a WINDOW_UPDATE based on the window limit, window
+    // size, and delta that would be sent in the WINDOW_UPDATE.
+    WindowManager::ShouldWindowUpdateFn should_window_update_fn =
+        DeltaAtLeastHalfLimit;
+    // The perspective of this session.
     Perspective perspective = Perspective::kClient;
     // The maximum HPACK table size to use.
     absl::optional<size_t> max_hpack_encoding_table_capacity = absl::nullopt;
@@ -213,9 +218,10 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   struct QUICHE_EXPORT_PRIVATE StreamState {
     StreamState(int32_t stream_receive_window, int32_t stream_send_window,
-                WindowManager::WindowUpdateListener listener)
+                WindowManager::WindowUpdateListener listener,
+                WindowManager::ShouldWindowUpdateFn should_window_update_fn)
         : window_manager(stream_receive_window, std::move(listener),
-                         /*should_window_update_fn=*/{},
+                         std::move(should_window_update_fn),
                          /*update_window_on_notify=*/false),
           send_window(stream_send_window) {}
 
