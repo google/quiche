@@ -341,12 +341,14 @@ class TestSession : public QuicSpdySession {
   }
 
   QuicConsumedData SendStreamData(QuicStream* stream) {
+    struct iovec iov;
     if (!QuicUtils::IsCryptoStreamId(connection()->transport_version(),
                                      stream->id()) &&
         connection()->encryption_level() != ENCRYPTION_FORWARD_SECURE) {
       this->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     }
-    QuicStreamPeer::SendBuffer(stream).SaveStreamData("not empty");
+    MakeIOVector("not empty", &iov);
+    QuicStreamPeer::SendBuffer(stream).SaveStreamData(&iov, 1, 0, 9);
     QuicConsumedData consumed =
         WritevData(stream->id(), 9, 0, FIN, NOT_RETRANSMISSION,
                    GetEncryptionLevelToSendApplicationData());

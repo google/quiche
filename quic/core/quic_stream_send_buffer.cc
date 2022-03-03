@@ -58,19 +58,22 @@ QuicStreamSendBuffer::QuicStreamSendBuffer(
 
 QuicStreamSendBuffer::~QuicStreamSendBuffer() {}
 
-void QuicStreamSendBuffer::SaveStreamData(absl::string_view data) {
-  QUICHE_DCHECK(!data.empty());
-
+void QuicStreamSendBuffer::SaveStreamData(const struct iovec* iov,
+                                          int iov_count,
+                                          size_t iov_offset,
+                                          QuicByteCount data_length) {
+  QUICHE_DCHECK_LT(0u, data_length);
   // Latch the maximum data slice size.
   const QuicByteCount max_data_slice_size =
       GetQuicFlag(FLAGS_quic_send_buffer_max_data_slice_size);
-  while (!data.empty()) {
-    size_t slice_len = std::min(data.length(), max_data_slice_size);
-    auto buffer =
-        quiche::QuicheBuffer::Copy(allocator_, data.substr(0, slice_len));
+  while (data_length > 0) {
+    size_t slice_len = std::min(data_length, max_data_slice_size);
+    quiche::QuicheBuffer buffer(allocator_, slice_len);
+    QuicUtils::CopyToBuffer(iov, iov_count, iov_offset, slice_len,
+                            buffer.data());
     SaveMemSlice(quiche::QuicheMemSlice(std::move(buffer)));
-
-    data = data.substr(slice_len);
+    data_length -= slice_len;
+    iov_offset += slice_len;
   }
 }
 

@@ -104,18 +104,24 @@ class TestPacketCreator : public QuicPacketCreator {
         producer_(producer),
         version_(framer->version()) {}
 
-  bool ConsumeDataToFillCurrentPacket(QuicStreamId id, absl::string_view data,
-                                      QuicStreamOffset offset, bool fin,
+  bool ConsumeDataToFillCurrentPacket(QuicStreamId id,
+                                      const struct iovec* iov,
+                                      int iov_count,
+                                      size_t total_length,
+                                      size_t iov_offset,
+                                      QuicStreamOffset offset,
+                                      bool fin,
                                       bool needs_full_padding,
                                       TransmissionType transmission_type,
                                       QuicFrame* frame) {
     // Save data before data is consumed.
-    if (!data.empty()) {
-      producer_->SaveStreamData(id, data);
+    QuicByteCount data_length = total_length - iov_offset;
+    if (data_length > 0) {
+      producer_->SaveStreamData(id, iov, iov_count, iov_offset, data_length);
     }
     return QuicPacketCreator::ConsumeDataToFillCurrentPacket(
-        id, data.length(), offset, fin, needs_full_padding, transmission_type,
-        frame);
+        id, data_length - iov_offset, offset, fin, needs_full_padding,
+        transmission_type, frame);
   }
 
   void StopSendingVersion() {
@@ -277,6 +283,7 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
   StrictMock<MockFramerVisitor> framer_visitor_;
   StrictMock<MockPacketCreatorDelegate> delegate_;
   std::string data_;
+  struct iovec iov_;
   TestPacketCreator creator_;
   std::unique_ptr<SerializedPacket> serialized_packet_;
   SimpleDataProducer producer_;
@@ -377,11 +384,12 @@ TEST_P(QuicPacketCreatorTest, ConsumeCryptoDataToFillCurrentPacket) {
 TEST_P(QuicPacketCreatorTest, ConsumeDataToFillCurrentPacket) {
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
   QuicFrame frame;
+  MakeIOVector("test", &iov_);
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       client_framer_.transport_version(), Perspective::IS_CLIENT);
-  const std::string data("test");
   ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-      stream_id, data, 0u, false, false, NOT_RETRANSMISSION, &frame));
+      stream_id, &iov_, 1u, iov_.iov_len, 0u, 0u, false, false,
+      NOT_RETRANSMISSION, &frame));
   size_t consumed = frame.stream_frame.data_length;
   EXPECT_EQ(4u, consumed);
   CheckStreamFrame(frame, stream_id, "test", 0u, false);
@@ -391,11 +399,12 @@ TEST_P(QuicPacketCreatorTest, ConsumeDataToFillCurrentPacket) {
 TEST_P(QuicPacketCreatorTest, ConsumeDataFin) {
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
   QuicFrame frame;
+  MakeIOVector("test", &iov_);
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       client_framer_.transport_version(), Perspective::IS_CLIENT);
-  const std::string data("test");
   ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-      stream_id, data, 0u, true, false, NOT_RETRANSMISSION, &frame));
+      stream_id, &iov_, 1u, iov_.iov_len, 0u, 0u, true, false,
+      NOT_RETRANSMISSION, &frame));
   size_t consumed = frame.stream_frame.data_length;
   EXPECT_EQ(4u, consumed);
   CheckStreamFrame(frame, stream_id, "test", 0u, true);
@@ -408,7 +417,8 @@ TEST_P(QuicPacketCreatorTest, ConsumeDataFinOnly) {
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       client_framer_.transport_version(), Perspective::IS_CLIENT);
   ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-      stream_id, {}, 0u, true, false, NOT_RETRANSMISSION, &frame));
+      stream_id, nullptr, 0u, 0u, 0u, 0u, true, false, NOT_RETRANSMISSION,
+      &frame));
   size_t consumed = frame.stream_frame.data_length;
   EXPECT_EQ(0u, consumed);
   CheckStreamFrame(frame, stream_id, std::string(), 0u, true);
@@ -435,13 +445,13 @@ TEST_P(QuicPacketCreatorTest, CreateAllFreeBytesForStreamFrames) {
                                              kOffset, /* data_size=*/0xffff));
     if (should_have_room) {
       QuicFrame frame;
-      const std::string data("testdata");
+      MakeIOVector("testdata", &iov_);
       EXPECT_CALL(delegate_, OnSerializedPacket(_))
           .WillRepeatedly(Invoke(
               this, &QuicPacketCreatorTest::ClearSerializedPacketForTests));
       ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-          GetNthClientInitiatedStreamId(1), data, kOffset, false, false,
-          NOT_RETRANSMISSION, &frame));
+          GetNthClientInitiatedStreamId(1), &iov_, 1u, iov_.iov_len, 0u,
+          kOffset, false, false, NOT_RETRANSMISSION, &frame));
       size_t bytes_consumed = frame.stream_frame.data_length;
       EXPECT_LT(0u, bytes_consumed);
       creator_.FlushCurrentPacket();
@@ -462,9 +472,10 @@ TEST_P(QuicPacketCreatorTest, StreamFrameConsumption) {
     std::string data(capacity + delta, 'A');
     size_t bytes_free = delta > 0 ? 0 : 0 - delta;
     QuicFrame frame;
+    MakeIOVector(data, &iov_);
     ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-        GetNthClientInitiatedStreamId(1), data, kOffset, false, false,
-        NOT_RETRANSMISSION, &frame));
+        GetNthClientInitiatedStreamId(1), &iov_, 1u, iov_.iov_len, 0u, kOffset,
+        false, false, NOT_RETRANSMISSION, &frame));
 
     // BytesFree() returns bytes available for the next frame, which will
     // be two bytes smaller since the stream frame would need to be grown.
@@ -502,6 +513,7 @@ TEST_P(QuicPacketCreatorTest, CryptoStreamFramePacketPadding) {
     size_t bytes_free = delta > 0 ? 0 : 0 - delta;
 
     QuicFrame frame;
+    MakeIOVector(data, &iov_);
     EXPECT_CALL(delegate_, OnSerializedPacket(_))
         .WillRepeatedly(
             Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
@@ -512,7 +524,8 @@ TEST_P(QuicPacketCreatorTest, CryptoStreamFramePacketPadding) {
     if (!QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
       ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
           QuicUtils::GetCryptoStreamId(client_framer_.transport_version()),
-          data, kOffset, false, true, NOT_RETRANSMISSION, &frame));
+          &iov_, 1u, iov_.iov_len, 0u, kOffset, false, true, NOT_RETRANSMISSION,
+          &frame));
       size_t bytes_consumed = frame.stream_frame.data_length;
       EXPECT_LT(0u, bytes_consumed);
     } else {
@@ -556,11 +569,12 @@ TEST_P(QuicPacketCreatorTest, NonCryptoStreamFramePacketNonPadding) {
     size_t bytes_free = delta > 0 ? 0 : 0 - delta;
 
     QuicFrame frame;
+    MakeIOVector(data, &iov_);
     EXPECT_CALL(delegate_, OnSerializedPacket(_))
         .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
     ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-        GetNthClientInitiatedStreamId(1), data, kOffset, false, false,
-        NOT_RETRANSMISSION, &frame));
+        GetNthClientInitiatedStreamId(1), &iov_, 1u, iov_.iov_len, 0u, kOffset,
+        false, false, NOT_RETRANSMISSION, &frame));
     size_t bytes_consumed = frame.stream_frame.data_length;
     EXPECT_LT(0u, bytes_consumed);
     creator_.FlushCurrentPacket();
@@ -1384,13 +1398,14 @@ TEST_P(QuicPacketCreatorTest, ConsumeDataLargerThanOneStreamFrame) {
   QuicFrame frame;
   size_t payload_length = creator_.max_packet_length();
   const std::string too_long_payload(payload_length, 'a');
+  MakeIOVector(too_long_payload, &iov_);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       client_framer_.transport_version(), Perspective::IS_CLIENT);
   ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-      stream_id, too_long_payload, 0u, true, false, NOT_RETRANSMISSION,
-      &frame));
+      stream_id, &iov_, 1u, iov_.iov_len, 0u, 0u, true, false,
+      NOT_RETRANSMISSION, &frame));
   size_t consumed = frame.stream_frame.data_length;
   // The entire payload could not be consumed.
   EXPECT_GT(payload_length, consumed);
@@ -1435,10 +1450,11 @@ TEST_P(QuicPacketCreatorTest, AddFrameAndFlush) {
   EXPECT_FALSE(creator_.HasPendingStreamFramesOfStream(stream_id));
 
   QuicFrame frame;
-  const std::string data("test");
+  MakeIOVector("test", &iov_);
   EXPECT_CALL(debug, OnFrameAddedToPacket(_));
   ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-      stream_id, data, 0u, false, false, NOT_RETRANSMISSION, &frame));
+      stream_id, &iov_, 1u, iov_.iov_len, 0u, 0u, false, false,
+      NOT_RETRANSMISSION, &frame));
   size_t consumed = frame.stream_frame.data_length;
   EXPECT_EQ(4u, consumed);
   EXPECT_TRUE(creator_.HasPendingFrames());
@@ -1488,8 +1504,9 @@ TEST_P(QuicPacketCreatorTest, SerializeAndSendStreamFrame) {
   }
   EXPECT_FALSE(creator_.HasPendingFrames());
 
-  const std::string data("test");
-  producer_.SaveStreamData(GetNthClientInitiatedStreamId(0), data);
+  MakeIOVector("test", &iov_);
+  producer_.SaveStreamData(GetNthClientInitiatedStreamId(0), &iov_, 1u, 0u,
+                           iov_.iov_len);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
   size_t num_bytes_consumed;
@@ -1497,7 +1514,7 @@ TEST_P(QuicPacketCreatorTest, SerializeAndSendStreamFrame) {
   creator_.set_debug_delegate(&debug);
   EXPECT_CALL(debug, OnFrameAddedToPacket(_));
   creator_.CreateAndSerializeStreamFrame(
-      GetNthClientInitiatedStreamId(0), data.length(), 0, 0, true,
+      GetNthClientInitiatedStreamId(0), iov_.iov_len, 0, 0, true,
       NOT_RETRANSMISSION, &num_bytes_consumed);
   EXPECT_EQ(4u, num_bytes_consumed);
 
@@ -1524,13 +1541,14 @@ TEST_P(QuicPacketCreatorTest, SerializeStreamFrameWithPadding) {
   EXPECT_FALSE(creator_.HasPendingFrames());
 
   // Send one byte of stream data.
-  const std::string data("a");
-  producer_.SaveStreamData(GetNthClientInitiatedStreamId(0), data);
+  MakeIOVector("a", &iov_);
+  producer_.SaveStreamData(GetNthClientInitiatedStreamId(0), &iov_, 1u, 0u,
+                           iov_.iov_len);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
   size_t num_bytes_consumed;
   creator_.CreateAndSerializeStreamFrame(
-      GetNthClientInitiatedStreamId(0), data.length(), 0, 0, true,
+      GetNthClientInitiatedStreamId(0), iov_.iov_len, 0, 0, true,
       NOT_RETRANSMISSION, &num_bytes_consumed);
   EXPECT_EQ(1u, num_bytes_consumed);
 
@@ -1603,13 +1621,16 @@ TEST_P(QuicPacketCreatorTest, ChloTooLarge) {
   std::unique_ptr<QuicData> message_data;
   message_data = framer.ConstructHandshakeMessage(message);
 
+  struct iovec iov;
+  MakeIOVector(absl::string_view(message_data->data(), message_data->length()),
+               &iov);
   QuicFrame frame;
   EXPECT_CALL(delegate_, OnUnrecoverableError(QUIC_CRYPTO_CHLO_TOO_LARGE, _));
   EXPECT_QUIC_BUG(
       creator_.ConsumeDataToFillCurrentPacket(
           QuicUtils::GetCryptoStreamId(client_framer_.transport_version()),
-          absl::string_view(message_data->data(), message_data->length()), 0u,
-          false, false, NOT_RETRANSMISSION, &frame),
+          &iov, 1u, iov.iov_len, 0u, 0u, false, false, NOT_RETRANSMISSION,
+          &frame),
       "Client hello won't fit in a single packet.");
 }
 
@@ -1644,11 +1665,11 @@ TEST_P(QuicPacketCreatorTest, FullPaddingDoesNotConsumePendingPadding) {
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
   creator_.AddPendingPadding(kMaxNumRandomPaddingBytes);
   QuicFrame frame;
+  MakeIOVector("test", &iov_);
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       client_framer_.transport_version(), Perspective::IS_CLIENT);
-  const std::string data("test");
   ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-      stream_id, data, 0u, false,
+      stream_id, &iov_, 1u, iov_.iov_len, 0u, 0u, false,
       /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame));
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
@@ -1679,16 +1700,18 @@ TEST_P(QuicPacketCreatorTest, ConsumeDataAndRandomPadding) {
       .WillRepeatedly(
           Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
   // Send stream frame of size kStreamFramePayloadSize.
-  creator_.ConsumeDataToFillCurrentPacket(
-      stream_id, absl::string_view(buf, kStreamFramePayloadSize), 0u, false,
-      false, NOT_RETRANSMISSION, &frame);
+  MakeIOVector(absl::string_view(buf, kStreamFramePayloadSize), &iov_);
+  creator_.ConsumeDataToFillCurrentPacket(stream_id, &iov_, 1u, iov_.iov_len,
+                                          0u, 0u, false, false,
+                                          NOT_RETRANSMISSION, &frame);
   creator_.FlushCurrentPacket();
   // 1 byte padding is sent.
   EXPECT_EQ(pending_padding_bytes - 1, creator_.pending_padding_bytes());
   // Send stream frame of size kStreamFramePayloadSize + 1.
-  creator_.ConsumeDataToFillCurrentPacket(
-      stream_id, absl::string_view(buf, kStreamFramePayloadSize + 1),
-      kStreamFramePayloadSize, false, false, NOT_RETRANSMISSION, &frame);
+  MakeIOVector(absl::string_view(buf, kStreamFramePayloadSize + 1), &iov_);
+  creator_.ConsumeDataToFillCurrentPacket(stream_id, &iov_, 1u, iov_.iov_len,
+                                          0u, kStreamFramePayloadSize, false,
+                                          false, NOT_RETRANSMISSION, &frame);
   // No padding is sent.
   creator_.FlushCurrentPacket();
   EXPECT_EQ(pending_padding_bytes - 1, creator_.pending_padding_bytes());
@@ -1707,11 +1730,11 @@ TEST_P(QuicPacketCreatorTest, FlushWithExternalBuffer) {
   EXPECT_CALL(delegate_, GetPacketBuffer()).WillOnce(Return(external_buffer));
 
   QuicFrame frame;
+  MakeIOVector("test", &iov_);
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       client_framer_.transport_version(), Perspective::IS_CLIENT);
-  const std::string data("test");
   ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-      stream_id, data, 0u, false,
+      stream_id, &iov_, 1u, iov_.iov_len, 0u, 0u, false,
       /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame));
 
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
@@ -1769,11 +1792,12 @@ TEST_P(QuicPacketCreatorTest, AddMessageFrame) {
   creator_.FlushCurrentPacket();
 
   QuicFrame frame;
+  MakeIOVector("test", &iov_);
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       client_framer_.transport_version(), Perspective::IS_CLIENT);
-  const std::string data("test");
   EXPECT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-      stream_id, data, 0u, false, false, NOT_RETRANSMISSION, &frame));
+      stream_id, &iov_, 1u, iov_.iov_len, 0u, 0u, false, false,
+      NOT_RETRANSMISSION, &frame));
   QuicMessageFrame* frame4 =
       new QuicMessageFrame(4, MemSliceFromString("message"));
   EXPECT_TRUE(creator_.AddFrame(QuicFrame(frame4), NOT_RETRANSMISSION));
@@ -2038,38 +2062,43 @@ TEST_P(QuicPacketCreatorTest, CoalesceStreamFrames) {
   StrictMock<MockDebugDelegate> debug;
   creator_.set_debug_delegate(&debug);
 
+  MakeIOVector("test", &iov_);
   QuicFrame frame;
-  const std::string data1("test");
   EXPECT_CALL(debug, OnFrameAddedToPacket(_));
   ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-      stream_id1, data1, 0u, false, false, NOT_RETRANSMISSION, &frame));
+      stream_id1, &iov_, 1u, iov_.iov_len, 0u, 0u, false, false,
+      NOT_RETRANSMISSION, &frame));
   EXPECT_TRUE(creator_.HasPendingFrames());
   EXPECT_TRUE(creator_.HasPendingStreamFramesOfStream(stream_id1));
 
-  const std::string data2("coalesce");
+  MakeIOVector("coalesce", &iov_);
   // frame will be coalesced with the first frame.
   const auto previous_size = creator_.PacketSize();
-  QuicStreamFrame target(stream_id1, true, 0, data1.length() + data2.length());
+  QuicStreamFrame target(stream_id1, true, 0, 12);
   EXPECT_CALL(debug, OnStreamFrameCoalesced(target));
   ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-      stream_id1, data2, 4u, true, false, NOT_RETRANSMISSION, &frame));
+      stream_id1, &iov_, 1u, iov_.iov_len, 0u, 4u, true, false,
+      NOT_RETRANSMISSION, &frame));
   EXPECT_EQ(frame.stream_frame.data_length,
             creator_.PacketSize() - previous_size);
 
   // frame is for another stream, so it won't be coalesced.
   const auto length = creator_.BytesFree() - 10u;
-  const std::string data3(length, 'x');
+  std::string large_data(length, 'x');
+  MakeIOVector(large_data, &iov_);
   EXPECT_CALL(debug, OnFrameAddedToPacket(_));
   ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-      stream_id2, data3, 0u, false, false, NOT_RETRANSMISSION, &frame));
+      stream_id2, &iov_, 1u, iov_.iov_len, 0u, 0u, false, false,
+      NOT_RETRANSMISSION, &frame));
   EXPECT_TRUE(creator_.HasPendingStreamFramesOfStream(stream_id2));
 
   // The packet doesn't have enough free bytes for all data, but will still be
   // able to consume and coalesce part of them.
   EXPECT_CALL(debug, OnStreamFrameCoalesced(_));
-  const std::string data4("somerandomdata");
+  MakeIOVector("somerandomdata", &iov_);
   ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-      stream_id2, data4, length, false, false, NOT_RETRANSMISSION, &frame));
+      stream_id2, &iov_, 1u, iov_.iov_len, 0u, length, false, false,
+      NOT_RETRANSMISSION, &frame));
 
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
@@ -2225,12 +2254,14 @@ TEST_P(QuicPacketCreatorTest, SoftMaxPacketLength) {
   // restored.
   creator_.SetSoftMaxPacketLength(overhead);
   EXPECT_EQ(overhead, creator_.max_packet_length());
-  const std::string data = "crypto data";
+  std::string data = "crypto data";
+  MakeIOVector(data, &iov_);
   QuicFrame frame;
   if (!QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
     ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
-        QuicUtils::GetCryptoStreamId(client_framer_.transport_version()), data,
-        kOffset, false, true, NOT_RETRANSMISSION, &frame));
+        QuicUtils::GetCryptoStreamId(client_framer_.transport_version()), &iov_,
+        1u, iov_.iov_len, 0u, kOffset, false, true, NOT_RETRANSMISSION,
+        &frame));
     size_t bytes_consumed = frame.stream_frame.data_length;
     EXPECT_LT(0u, bytes_consumed);
   } else {
@@ -2386,28 +2417,34 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
   }
 
   QuicConsumedData ConsumeDataFastPath(QuicStreamId id,
-                                       absl::string_view data) {
+                                       const struct iovec* iov,
+                                       int iov_count,
+                                       size_t total_length,
+                                       QuicStreamOffset offset,
+                                       bool fin) {
     // Save data before data is consumed.
-    if (!data.empty()) {
-      producer_->SaveStreamData(id, data);
+    if (total_length > 0) {
+      producer_->SaveStreamData(id, iov, iov_count, 0, total_length);
     }
-    return QuicPacketCreator::ConsumeDataFastPath(id, data.length(),
-                                                  /* offset = */ 0,
-                                                  /* fin = */ true, 0);
+    return QuicPacketCreator::ConsumeDataFastPath(id, total_length, offset, fin,
+                                                  0);
   }
 
-  QuicConsumedData ConsumeData(QuicStreamId id, absl::string_view data,
+  QuicConsumedData ConsumeData(QuicStreamId id,
+                               const struct iovec* iov,
+                               int iov_count,
+                               size_t total_length,
                                QuicStreamOffset offset,
                                StreamSendingState state) {
     // Save data before data is consumed.
-    if (!data.empty()) {
-      producer_->SaveStreamData(id, data);
+    if (total_length > 0) {
+      producer_->SaveStreamData(id, iov, iov_count, 0, total_length);
     }
     if (!has_ack() && delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
                                                       NOT_HANDSHAKE)) {
       EXPECT_CALL(*delegate_, MaybeBundleAckOpportunistically()).Times(1);
     }
-    return QuicPacketCreator::ConsumeData(id, data.length(), offset, state);
+    return QuicPacketCreator::ConsumeData(id, total_length, offset, state);
   }
 
   MessageStatus AddMessageFrame(QuicMessageId message_id,
@@ -2554,6 +2591,13 @@ class QuicPacketCreatorMultiplePacketsTest : public QuicTest {
     }
   }
 
+  void CreateData(size_t len) {
+    data_array_.reset(new char[len]);
+    memset(data_array_.get(), '?', len);
+    iov_.iov_base = data_array_.get();
+    iov_.iov_len = len;
+  }
+
   QuicFramer framer_;
   MockRandom random_creator_;
   StrictMock<MockDelegate> delegate_;
@@ -2586,13 +2630,14 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
        WrongEncryptionLevelForStreamDataFastPath) {
   creator_.set_encryption_level(ENCRYPTION_HANDSHAKE);
   delegate_.SetCanWriteAnything();
-  const std::string data(10000, '?');
+  // Create a 10000 byte IOVector.
+  CreateData(10000);
   EXPECT_CALL(delegate_, OnSerializedPacket(_)).Times(0);
   EXPECT_CALL(delegate_, OnUnrecoverableError(_, _));
   EXPECT_QUIC_BUG(creator_.ConsumeDataFastPath(
                       QuicUtils::GetFirstBidirectionalStreamId(
                           framer_.transport_version(), Perspective::IS_CLIENT),
-                      data),
+                      &iov_, 1u, iov_.iov_len, 0, true),
                   "");
 }
 
@@ -2689,10 +2734,11 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
 TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeData_NotWritable) {
   delegate_.SetCanNotWrite();
 
+  MakeIOVector("foo", &iov_);
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      "foo", 0, FIN);
+      &iov_, 1u, iov_.iov_len, 0, FIN);
   EXPECT_EQ(0u, consumed.bytes_consumed);
   EXPECT_FALSE(consumed.fin_consumed);
   EXPECT_FALSE(creator_.HasPendingFrames());
@@ -2703,10 +2749,11 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
        ConsumeData_WritableAndShouldNotFlush) {
   delegate_.SetCanWriteAnything();
 
+  MakeIOVector("foo", &iov_);
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      "foo", 0, FIN);
+      &iov_, 1u, iov_.iov_len, 0, FIN);
   EXPECT_EQ(3u, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
   EXPECT_TRUE(creator_.HasPendingFrames());
@@ -2720,10 +2767,11 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
+  MakeIOVector("foo", &iov_);
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      "foo", 0, FIN);
+      &iov_, 1u, iov_.iov_len, 0, FIN);
   creator_.Flush();
   EXPECT_EQ(3u, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
@@ -2744,7 +2792,8 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeData_Handshake) {
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
-  const std::string data = "foo bar";
+  std::string data = "foo bar";
+  MakeIOVector(data, &iov_);
   size_t consumed_bytes = 0;
   if (QuicVersionUsesCryptoFrames(framer_.transport_version())) {
     consumed_bytes = creator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data, 0);
@@ -2752,8 +2801,8 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeData_Handshake) {
     consumed_bytes =
         creator_
             .ConsumeData(
-                QuicUtils::GetCryptoStreamId(framer_.transport_version()), data,
-                0, NO_FIN)
+                QuicUtils::GetCryptoStreamId(framer_.transport_version()),
+                &iov_, 1u, iov_.iov_len, 0, NO_FIN)
             .bytes_consumed;
   }
   EXPECT_EQ(7u, consumed_bytes);
@@ -2785,7 +2834,8 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
-  const std::string data = "foo";
+  std::string data = "foo";
+  MakeIOVector(data, &iov_);
   size_t bytes_consumed = 0;
   if (QuicVersionUsesCryptoFrames(framer_.transport_version())) {
     bytes_consumed = creator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data, 0);
@@ -2793,8 +2843,8 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
     bytes_consumed =
         creator_
             .ConsumeData(
-                QuicUtils::GetCryptoStreamId(framer_.transport_version()), data,
-                0, NO_FIN)
+                QuicUtils::GetCryptoStreamId(framer_.transport_version()),
+                &iov_, 1u, iov_.iov_len, 0, NO_FIN)
             .bytes_consumed;
   }
   EXPECT_EQ(3u, bytes_consumed);
@@ -2832,7 +2882,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeData_EmptyData) {
   EXPECT_QUIC_BUG(creator_.ConsumeData(
                       QuicUtils::QuicUtils::GetFirstBidirectionalStreamId(
                           framer_.transport_version(), Perspective::IS_CLIENT),
-                      {}, 0, NO_FIN),
+                      nullptr, 0, 0, 0, NO_FIN),
                   "Attempt to consume empty data without FIN.");
 }
 
@@ -2840,10 +2890,13 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
        ConsumeDataMultipleTimes_WritableAndShouldNotFlush) {
   delegate_.SetCanWriteAnything();
 
+  MakeIOVector("foo", &iov_);
   creator_.ConsumeData(QuicUtils::GetFirstBidirectionalStreamId(
                            framer_.transport_version(), Perspective::IS_CLIENT),
-                       "foo", 0, FIN);
-  QuicConsumedData consumed = creator_.ConsumeData(3, "quux", 3, NO_FIN);
+                       &iov_, 1u, iov_.iov_len, 0, FIN);
+  MakeIOVector("quux", &iov_);
+  QuicConsumedData consumed =
+      creator_.ConsumeData(3, &iov_, 1u, iov_.iov_len, 3, NO_FIN);
   EXPECT_EQ(4u, consumed.bytes_consumed);
   EXPECT_FALSE(consumed.fin_consumed);
   EXPECT_TRUE(creator_.HasPendingFrames());
@@ -2853,13 +2906,15 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
 TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeData_BatchOperations) {
   delegate_.SetCanWriteAnything();
 
+  MakeIOVector("foo", &iov_);
   creator_.ConsumeData(QuicUtils::GetFirstBidirectionalStreamId(
                            framer_.transport_version(), Perspective::IS_CLIENT),
-                       "foo", 0, NO_FIN);
+                       &iov_, 1u, iov_.iov_len, 0, NO_FIN);
+  MakeIOVector("quux", &iov_);
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      "quux", 3, FIN);
+      &iov_, 1u, iov_.iov_len, 3, FIN);
   EXPECT_EQ(4u, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
   EXPECT_TRUE(creator_.HasPendingFrames());
@@ -2914,10 +2969,11 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   }
   // Queue enough data to prevent a stream frame with a non-zero offset from
   // fitting.
+  MakeIOVector("foo", &iov_);
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      "foo", 0, NO_FIN);
+      &iov_, 1u, iov_.iov_len, 0, NO_FIN);
   EXPECT_EQ(3u, consumed.bytes_consumed);
   EXPECT_FALSE(consumed.fin_consumed);
   EXPECT_TRUE(creator_.HasPendingFrames());
@@ -2925,10 +2981,11 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
 
   // This frame will not fit with the existing frame, causing the queued frame
   // to be serialized, and it will be added to a new open packet.
+  MakeIOVector("bar", &iov_);
   consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      "bar", 3, FIN);
+      &iov_, 1u, iov_.iov_len, 3, FIN);
   EXPECT_EQ(3u, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
   EXPECT_TRUE(creator_.HasPendingFrames());
@@ -2948,14 +3005,15 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeDataFastPath) {
   delegate_.SetCanWriteAnything();
   creator_.SetTransmissionType(LOSS_RETRANSMISSION);
 
-  const std::string data(10000, '?');
+  // Create a 10000 byte IOVector.
+  CreateData(10000);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillRepeatedly(
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
   QuicConsumedData consumed = creator_.ConsumeDataFastPath(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      data);
+      &iov_, 1u, iov_.iov_len, 0, true);
   EXPECT_EQ(10000u, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
   EXPECT_FALSE(creator_.HasPendingFrames());
@@ -2977,14 +3035,15 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeDataFastPath) {
 TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeDataLarge) {
   delegate_.SetCanWriteAnything();
 
-  const std::string data(10000, '?');
+  // Create a 10000 byte IOVector.
+  CreateData(10000);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillRepeatedly(
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      data, 0, FIN);
+      &iov_, 1u, iov_.iov_len, 0, FIN);
   EXPECT_EQ(10000u, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
   EXPECT_FALSE(creator_.HasPendingFrames());
@@ -3018,7 +3077,8 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeDataLargeSendAckFalse) {
   creator_.ConsumeRetransmittableControlFrame(QuicFrame(rst_frame),
                                               /*bundle_ack=*/false);
 
-  const std::string data(10000, '?');
+  // Create a 10000 byte IOVector.
+  CreateData(10000);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillRepeatedly(
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
@@ -3027,7 +3087,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeDataLargeSendAckFalse) {
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      data, 0, FIN);
+      &iov_, 1u, iov_.iov_len, 0, FIN);
   creator_.Flush();
 
   EXPECT_EQ(10000u, consumed.bytes_consumed);
@@ -3048,14 +3108,15 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeDataLargeSendAckTrue) {
   delegate_.SetCanNotWrite();
   delegate_.SetCanWriteAnything();
 
-  const std::string data(10000, '?');
+  // Create a 10000 byte IOVector.
+  CreateData(10000);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillRepeatedly(
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      data, 0, FIN);
+      &iov_, 1u, iov_.iov_len, 0, FIN);
   creator_.Flush();
 
   EXPECT_EQ(10000u, consumed.bytes_consumed);
@@ -3090,7 +3151,8 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, NotWritableThenBatchOperations) {
       creator_.ConsumeRetransmittableControlFrame(QuicFrame(rst_frame),
                                                   /*bundle_ack=*/false));
   // Send some data and a control frame
-  creator_.ConsumeData(3, "quux", 0, NO_FIN);
+  MakeIOVector("quux", &iov_);
+  creator_.ConsumeData(3, &iov_, 1u, iov_.iov_len, 0, NO_FIN);
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     creator_.ConsumeRetransmittableControlFrame(QuicFrame(CreateGoAwayFrame()),
                                                 /*bundle_ack=*/false);
@@ -3147,8 +3209,9 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, NotWritableThenBatchOperations2) {
                                                   /*bundle_ack=*/false));
   // Send enough data to exceed one packet
   size_t data_len = kDefaultMaxPacketSize + 100;
-  const std::string data(data_len, '?');
-  QuicConsumedData consumed = creator_.ConsumeData(3, data, 0, FIN);
+  CreateData(data_len);
+  QuicConsumedData consumed =
+      creator_.ConsumeData(3, &iov_, 1u, iov_.iov_len, 0, FIN);
   EXPECT_EQ(data_len, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
@@ -3187,10 +3250,11 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, PacketTransmissionType) {
   creator_.SetTransmissionType(LOSS_RETRANSMISSION);
 
   size_t data_len = 1224;
-  const std::string data(data_len, '?');
+  CreateData(data_len);
   QuicStreamId stream1_id = QuicUtils::GetFirstBidirectionalStreamId(
       framer_.transport_version(), Perspective::IS_CLIENT);
-  QuicConsumedData consumed = creator_.ConsumeData(stream1_id, data, 0, NO_FIN);
+  QuicConsumedData consumed =
+      creator_.ConsumeData(stream1_id, &iov_, 1u, iov_.iov_len, 0, NO_FIN);
   EXPECT_EQ(data_len, consumed.bytes_consumed);
   ASSERT_EQ(0u, creator_.BytesFree())
       << "Test setup failed: Please increase data_len to "
@@ -3205,7 +3269,8 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, PacketTransmissionType) {
 
   QuicStreamId stream2_id = stream1_id + 4;
 
-  consumed = creator_.ConsumeData(stream2_id, data, 0, NO_FIN);
+  consumed =
+      creator_.ConsumeData(stream2_id, &iov_, 1u, iov_.iov_len, 0, NO_FIN);
   EXPECT_EQ(data_len, consumed.bytes_consumed);
 
   // Ensure the packet is successfully created.
@@ -3254,11 +3319,11 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, SetMaxPacketLength_Initial) {
       .Times(3)
       .WillRepeatedly(
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
-  const std::string data(data_len, '?');
+  CreateData(data_len);
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      data,
+      &iov_, 1u, iov_.iov_len,
       /*offset=*/0, FIN);
   EXPECT_EQ(data_len, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
@@ -3293,11 +3358,11 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, SetMaxPacketLength_Middle) {
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
 
   // Send two packets before packet size change.
-  const std::string data(data_len, '?');
+  CreateData(data_len);
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      data,
+      &iov_, 1u, iov_.iov_len,
       /*offset=*/0, NO_FIN);
   creator_.Flush();
   EXPECT_EQ(data_len, consumed.bytes_consumed);
@@ -3313,11 +3378,12 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, SetMaxPacketLength_Middle) {
   EXPECT_EQ(packet_len, creator_.max_packet_length());
 
   // Send a packet after packet size change.
+  CreateData(data_len);
   creator_.AttachPacketFlusher();
   consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      data, data_len, FIN);
+      &iov_, 1u, iov_.iov_len, data_len, FIN);
   creator_.Flush();
   EXPECT_EQ(data_len, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
@@ -3345,11 +3411,11 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
 
   // First send half of the packet worth of data.  We are in the batch mode, so
   // should not cause packet serialization.
-  const std::string first_write(first_write_len, '?');
+  CreateData(first_write_len);
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      first_write,
+      &iov_, 1u, iov_.iov_len,
       /*offset=*/0, NO_FIN);
   EXPECT_EQ(first_write_len, consumed.bytes_consumed);
   EXPECT_FALSE(consumed.fin_consumed);
@@ -3381,11 +3447,11 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
 
   // Send a more than a packet worth of data to the same stream.  This should
   // trigger serialization of one packet, and queue another one.
-  const std::string second_write(second_write_len, '?');
+  CreateData(second_write_len);
   consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      second_write,
+      &iov_, 1u, iov_.iov_len,
       /*offset=*/first_write_len, FIN);
   EXPECT_EQ(second_write_len, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
@@ -3475,11 +3541,11 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
 
   // Send data before the MTU probe.
-  const std::string data(data_len, '?');
+  CreateData(data_len);
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      data,
+      &iov_, 1u, iov_.iov_len,
       /*offset=*/0, NO_FIN);
   creator_.Flush();
   EXPECT_EQ(data_len, consumed.bytes_consumed);
@@ -3493,11 +3559,12 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   EXPECT_FALSE(creator_.HasPendingRetransmittableFrames());
 
   // Send data after the MTU probe.
+  CreateData(data_len);
   creator_.AttachPacketFlusher();
   consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      data,
+      &iov_, 1u, iov_.iov_len,
       /*offset=*/data_len, FIN);
   creator_.Flush();
   EXPECT_EQ(data_len, consumed.bytes_consumed);
@@ -3588,9 +3655,9 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
+  MakeIOVector(absl::string_view(buf, kStreamFramePayloadSize), &iov_);
   QuicConsumedData consumed = creator_.ConsumeData(
-      kDataStreamId, absl::string_view(buf, kStreamFramePayloadSize), 0,
-      FIN_AND_PADDING);
+      kDataStreamId, &iov_, 1u, iov_.iov_len, 0, FIN_AND_PADDING);
   creator_.Flush();
   EXPECT_EQ(kStreamFramePayloadSize, consumed.bytes_consumed);
   EXPECT_FALSE(creator_.HasPendingFrames());
@@ -3631,9 +3698,9 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillRepeatedly(
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
+  MakeIOVector(absl::string_view(buf, kStreamFramePayloadSize), &iov_);
   QuicConsumedData consumed = creator_.ConsumeData(
-      kDataStreamId, absl::string_view(buf, kStreamFramePayloadSize), 0,
-      FIN_AND_PADDING);
+      kDataStreamId, &iov_, 1u, iov_.iov_len, 0, FIN_AND_PADDING);
   creator_.Flush();
   EXPECT_EQ(kStreamFramePayloadSize, consumed.bytes_consumed);
   EXPECT_FALSE(creator_.HasPendingFrames());
@@ -3686,13 +3753,13 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillRepeatedly(
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
+  MakeIOVector(absl::string_view(buf, kStreamFramePayloadSize), &iov_);
   QuicConsumedData consumed = creator_.ConsumeData(
-      kDataStreamId1, absl::string_view(buf, kStreamFramePayloadSize), 0,
-      FIN_AND_PADDING);
+      kDataStreamId1, &iov_, 1u, iov_.iov_len, 0, FIN_AND_PADDING);
   EXPECT_EQ(kStreamFramePayloadSize, consumed.bytes_consumed);
-  consumed = creator_.ConsumeData(
-      kDataStreamId2, absl::string_view(buf, kStreamFramePayloadSize), 0,
-      FIN_AND_PADDING);
+  MakeIOVector(absl::string_view(buf, kStreamFramePayloadSize), &iov_);
+  consumed = creator_.ConsumeData(kDataStreamId2, &iov_, 1u, iov_.iov_len, 0,
+                                  FIN_AND_PADDING);
   EXPECT_EQ(kStreamFramePayloadSize, consumed.bytes_consumed);
   creator_.Flush();
   EXPECT_FALSE(creator_.HasPendingFrames());
@@ -3729,9 +3796,10 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, AddMessageFrame) {
       .WillOnce(
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
 
+  MakeIOVector("foo", &iov_);
   creator_.ConsumeData(QuicUtils::GetFirstBidirectionalStreamId(
                            framer_.transport_version(), Perspective::IS_CLIENT),
-                       "foo", 0, FIN);
+                       &iov_, 1u, iov_.iov_len, 0, FIN);
   EXPECT_EQ(MESSAGE_STATUS_SUCCESS,
             creator_.AddMessageFrame(1, MemSliceFromString("message")));
   EXPECT_TRUE(creator_.HasPendingFrames());
@@ -3773,9 +3841,10 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ExtraPaddingNeeded) {
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(
           Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
+  MakeIOVector("a", &iov_);
   creator_.ConsumeData(QuicUtils::GetFirstBidirectionalStreamId(
                            framer_.transport_version(), Perspective::IS_CLIENT),
-                       "a", 0, FIN);
+                       &iov_, 1u, iov_.iov_len, 0, FIN);
   creator_.Flush();
   ASSERT_FALSE(packets_[0].nonretransmittable_frames.empty());
   QuicFrame padding = packets_[0].nonretransmittable_frames[0];
@@ -3792,12 +3861,13 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   creator_.SetClientConnectionId(client_connection_id);
   creator_.SetServerConnectionId(server_connection_id);
   // Send some stream data.
+  MakeIOVector("foo", &iov_);
   EXPECT_CALL(delegate_, ShouldGeneratePacket(_, _))
       .WillRepeatedly(Return(true));
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(creator_.transport_version(),
                                                Perspective::IS_CLIENT),
-      "foo", 0, NO_FIN);
+      &iov_, 1u, iov_.iov_len, 0, NO_FIN);
   EXPECT_EQ(3u, consumed.bytes_consumed);
   EXPECT_TRUE(creator_.HasPendingFrames());
   {
@@ -3812,7 +3882,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
     QuicConsumedData consumed = creator_.ConsumeData(
         QuicUtils::GetFirstBidirectionalStreamId(creator_.transport_version(),
                                                  Perspective::IS_CLIENT),
-        "foo", 0, FIN);
+        &iov_, 1u, iov_.iov_len, 0, FIN);
     EXPECT_EQ(3u, consumed.bytes_consumed);
   }
   // After exiting the scope, the last queued frame should be flushed.
@@ -3832,12 +3902,13 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   QuicSocketAddress peer_addr(QuicIpAddress::Any4(), 12345);
   creator_.SetDefaultPeerAddress(peer_addr);
   // Send some stream data.
+  MakeIOVector("foo", &iov_);
   EXPECT_CALL(delegate_, ShouldGeneratePacket(_, _))
       .WillRepeatedly(Return(true));
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(creator_.transport_version(),
                                                Perspective::IS_CLIENT),
-      "foo", 0, NO_FIN);
+      &iov_, 1u, iov_.iov_len, 0, NO_FIN);
   EXPECT_EQ(3u, consumed.bytes_consumed);
 
   QuicSocketAddress peer_addr1(QuicIpAddress::Any4(), 12346);
@@ -3867,7 +3938,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
     QuicConsumedData consumed = creator_.ConsumeData(
         QuicUtils::GetFirstBidirectionalStreamId(creator_.transport_version(),
                                                  Perspective::IS_CLIENT),
-        "foo", 0, FIN);
+        &iov_, 1u, iov_.iov_len, 0, FIN);
     EXPECT_EQ(3u, consumed.bytes_consumed);
     EXPECT_TRUE(creator_.HasPendingFrames());
   }
@@ -3888,12 +3959,13 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   ASSERT_EQ(server_connection_id1, creator_.GetServerConnectionId());
 
   // Send some stream data.
+  MakeIOVector("foo", &iov_);
   EXPECT_CALL(delegate_, ShouldGeneratePacket(_, _))
       .WillRepeatedly(Return(true));
   QuicConsumedData consumed = creator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(creator_.transport_version(),
                                                Perspective::IS_CLIENT),
-      "foo", 0, NO_FIN);
+      &iov_, 1u, iov_.iov_len, 0, NO_FIN);
   EXPECT_EQ(3u, consumed.bytes_consumed);
   EXPECT_TRUE(creator_.HasPendingFrames());
 
@@ -3912,12 +3984,13 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
             /*update_connection_id=*/true);
         ASSERT_EQ(client_connection_id2, creator_.GetClientConnectionId());
         ASSERT_EQ(server_connection_id2, creator_.GetServerConnectionId());
+        MakeIOVector("foo", &iov_);
         EXPECT_CALL(delegate_, ShouldGeneratePacket(_, _))
             .WillRepeatedly(Return(true));
         QuicConsumedData consumed = creator_.ConsumeData(
             QuicUtils::GetFirstBidirectionalStreamId(
                 creator_.transport_version(), Perspective::IS_CLIENT),
-            "foo", 0, NO_FIN);
+            &iov_, 1u, iov_.iov_len, 0, NO_FIN);
         EXPECT_EQ(3u, consumed.bytes_consumed);
         EXPECT_TRUE(creator_.HasPendingFrames());
         // This should trigger another OnSerializedPacket() with the 2nd

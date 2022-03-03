@@ -69,8 +69,11 @@ class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
   QuicStreamSendBuffer(QuicStreamSendBuffer&& other) = delete;
   ~QuicStreamSendBuffer();
 
-  // Save |data| to send buffer.
-  void SaveStreamData(absl::string_view data);
+  // Save |data_length| of data starts at |iov_offset| in |iov| to send buffer.
+  void SaveStreamData(const struct iovec* iov,
+                      int iov_count,
+                      size_t iov_offset,
+                      QuicByteCount data_length);
 
   // Save |slice| to send buffer.
   void SaveMemSlice(quiche::QuicheMemSlice slice);

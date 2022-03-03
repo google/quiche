@@ -81,6 +81,9 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
                            size_t buffer_length,
                            char* buffer);
 
+  // Creates an iovec pointing to the same data as |data|.
+  static struct iovec MakeIovec(absl::string_view data);
+
   // Returns the opposite Perspective of the |perspective| passed in.
   static constexpr Perspective InvertPerspective(Perspective perspective) {
     return perspective == Perspective::IS_CLIENT ? Perspective::IS_SERVER

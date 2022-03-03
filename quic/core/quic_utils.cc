@@ -290,6 +290,13 @@ void QuicUtils::CopyToBuffer(const struct iovec* iov,
 }
 
 // static
+struct iovec QuicUtils::MakeIovec(absl::string_view data) {
+  struct iovec iov = {const_cast<char*>(data.data()),
+                      static_cast<size_t>(data.size())};
+  return iov;
+}
+
+// static
 bool QuicUtils::IsAckable(SentPacketState state) {
   return state != NEVER_SENT && state != ACKED && state != UNACKABLE;
 }
