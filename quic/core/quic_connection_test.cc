@@ -230,16 +230,15 @@ class TestConnection : public QuicConnection {
   }
 
   QuicConsumedData SaveAndSendStreamData(QuicStreamId id,
-                                         const struct iovec* iov, int iov_count,
-                                         size_t total_length,
+                                         absl::string_view data,
                                          QuicStreamOffset offset,
                                          StreamSendingState state) {
     ScopedPacketFlusher flusher(this);
-    producer_.SaveStreamData(id, iov, iov_count, 0u, total_length);
+    producer_.SaveStreamData(id, data);
     if (notifier_ != nullptr) {
-      return notifier_->WriteOrBufferData(id, total_length, state);
+      return notifier_->WriteOrBufferData(id, data.length(), state);
     }
-    return QuicConnection::SendStreamData(id, total_length, offset, state);
+    return QuicConnection::SendStreamData(id, data.length(), offset, state);
   }
 
   QuicConsumedData SendStreamDataWithString(QuicStreamId id,
@@ -257,9 +256,7 @@ class TestConnection : public QuicConnection {
         QuicConnectionPeer::SetAddressValidated(this);
       }
     }
-    struct iovec iov;
-    MakeIOVector(data, &iov);
-    return SaveAndSendStreamData(id, &iov, 1, data.length(), offset, state);
+    return SaveAndSendStreamData(id, data, offset, state);
   }
 
   QuicConsumedData SendApplicationDataAtLevel(EncryptionLevel encryption_level,
@@ -271,9 +268,7 @@ class TestConnection : public QuicConnection {
     QUICHE_DCHECK(encryption_level >= ENCRYPTION_ZERO_RTT);
     SetEncrypter(encryption_level, std::make_unique<TaggingEncrypter>(0x01));
     SetDefaultEncryptionLevel(encryption_level);
-    struct iovec iov;
-    MakeIOVector(data, &iov);
-    return SaveAndSendStreamData(id, &iov, 1, data.length(), offset, state);
+    return SaveAndSendStreamData(id, data, offset, state);
   }
 
   QuicConsumedData SendStreamData3() {
@@ -3707,19 +3702,11 @@ TEST_P(QuicConnectionTest, FramePackingAckResponse) {
 
 TEST_P(QuicConnectionTest, FramePackingSendv) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  // Send data in 1 packet by writing multiple blocks in a single iovector
-  // using writev.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
 
-  char data[] = "ABCDEF";
-  struct iovec iov[2];
-  iov[0].iov_base = data;
-  iov[0].iov_len = 4;
-  iov[1].iov_base = data + 4;
-  iov[1].iov_len = 2;
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       connection_.transport_version(), Perspective::IS_CLIENT);
-  connection_.SaveAndSendStreamData(stream_id, iov, 2, 6, 0, NO_FIN);
+  connection_.SaveAndSendStreamData(stream_id, "ABCDEF", 0, NO_FIN);
 
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
   EXPECT_FALSE(connection_.HasQueuedData());
@@ -3737,19 +3724,12 @@ TEST_P(QuicConnectionTest, FramePackingSendv) {
 
 TEST_P(QuicConnectionTest, FramePackingSendvQueued) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  // Try to send two stream frames in 1 packet by using writev.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
 
   BlockOnNextWrite();
-  char data[] = "ABCDEF";
-  struct iovec iov[2];
-  iov[0].iov_base = data;
-  iov[0].iov_len = 4;
-  iov[1].iov_base = data + 4;
-  iov[1].iov_len = 2;
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       connection_.transport_version(), Perspective::IS_CLIENT);
-  connection_.SaveAndSendStreamData(stream_id, iov, 2, 6, 0, NO_FIN);
+  connection_.SaveAndSendStreamData(stream_id, "ABCDEF", 0, NO_FIN);
 
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
   EXPECT_TRUE(connection_.HasQueuedData());
@@ -3763,7 +3743,10 @@ TEST_P(QuicConnectionTest, FramePackingSendvQueued) {
   EXPECT_EQ(1u, writer_->frame_count());
   EXPECT_EQ(1u, writer_->stream_frames().size());
   EXPECT_EQ(0u, writer_->padding_frames().size());
-  EXPECT_EQ(stream_id, writer_->stream_frames()[0]->stream_id);
+  QuicStreamFrame* frame = writer_->stream_frames()[0].get();
+  EXPECT_EQ(stream_id, frame->stream_id);
+  EXPECT_EQ("ABCDEF",
+            absl::string_view(frame->data_buffer, frame->data_length));
 }
 
 TEST_P(QuicConnectionTest, SendingZeroBytes) {
@@ -3772,7 +3755,7 @@ TEST_P(QuicConnectionTest, SendingZeroBytes) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       connection_.transport_version(), Perspective::IS_CLIENT);
-  connection_.SaveAndSendStreamData(stream_id, nullptr, 0, 0, 0, FIN);
+  connection_.SaveAndSendStreamData(stream_id, {}, 0, FIN);
 
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
   EXPECT_FALSE(connection_.HasQueuedData());
@@ -3805,16 +3788,11 @@ TEST_P(QuicConnectionTest, LargeSendWithPendingAck) {
 
   // Send data and ensure the ack is bundled.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(9);
-  size_t len = 10000;
-  std::unique_ptr<char[]> data_array(new char[len]);
-  memset(data_array.get(), '?', len);
-  struct iovec iov;
-  iov.iov_base = data_array.get();
-  iov.iov_len = len;
+  const std::string data(10000, '?');
   QuicConsumedData consumed = connection_.SaveAndSendStreamData(
-      GetNthClientInitiatedStreamId(0, connection_.transport_version()), &iov,
-      1, len, 0, FIN);
-  EXPECT_EQ(len, consumed.bytes_consumed);
+      GetNthClientInitiatedStreamId(0, connection_.transport_version()), data,
+      0, FIN);
+  EXPECT_EQ(data.length(), consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
   EXPECT_FALSE(connection_.HasQueuedData());
@@ -7409,9 +7387,7 @@ TEST_P(QuicConnectionTest, SendingUnencryptedStreamDataFails) {
 
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
-  struct iovec iov;
-  MakeIOVector("", &iov);
-  EXPECT_QUIC_BUG(connection_.SaveAndSendStreamData(3, &iov, 1, 0, 0, FIN),
+  EXPECT_QUIC_BUG(connection_.SaveAndSendStreamData(3, {}, 0, FIN),
                   "Cannot send stream data with level: ENCRYPTION_INITIAL");
   EXPECT_FALSE(connection_.connected());
   EXPECT_EQ(1, connection_close_frame_count_);
@@ -12292,11 +12268,8 @@ TEST_P(QuicConnectionTest, ReceiveStreamFrameBeforePathChallenge) {
       .WillOnce(Invoke([=](const QuicStreamFrame& frame) {
         // Send some data on the stream. The STREAM_FRAME should be built into
         // one packet together with the latter PATH_RESPONSE and PATH_CHALLENGE.
-        std::string data{"response body"};
-        struct iovec iov;
-        MakeIOVector(data, &iov);
-        connection_.producer()->SaveStreamData(frame.stream_id, &iov, 1, 0u,
-                                               data.length());
+        const std::string data{"response body"};
+        connection_.producer()->SaveStreamData(frame.stream_id, data);
         return notifier_.WriteOrBufferData(frame.stream_id, data.length(),
                                            NO_FIN);
       }));
@@ -12365,11 +12338,8 @@ TEST_P(QuicConnectionTest, ReceiveStreamFrameFollowingPathChallenge) {
       .WillOnce(Invoke([=](const QuicStreamFrame& frame) {
         // Send some data on the stream. The STREAM_FRAME should be built into a
         // new packet but throttled by anti-amplifciation limit.
-        std::string data{"response body"};
-        struct iovec iov;
-        MakeIOVector(data, &iov);
-        connection_.producer()->SaveStreamData(frame.stream_id, &iov, 1, 0u,
-                                               data.length());
+        const std::string data{"response body"};
+        connection_.producer()->SaveStreamData(frame.stream_id, data);
         return notifier_.WriteOrBufferData(frame.stream_id, data.length(),
                                            NO_FIN);
       }));
@@ -12409,11 +12379,8 @@ TEST_P(QuicConnectionTest, PathChallengeWithDataInOutOfOrderPacket) {
       .WillRepeatedly(Invoke([=](const QuicStreamFrame& frame) {
         // Send some data on the stream. The STREAM_FRAME should be built into
         // one packet together with the latter PATH_RESPONSE.
-        std::string data{"response body"};
-        struct iovec iov;
-        MakeIOVector(data, &iov);
-        connection_.producer()->SaveStreamData(frame.stream_id, &iov, 1, 0u,
-                                               data.length());
+        const std::string data{"response body"};
+        connection_.producer()->SaveStreamData(frame.stream_id, data);
         return notifier_.WriteOrBufferData(frame.stream_id, data.length(),
                                            NO_FIN);
       }));
