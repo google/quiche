@@ -6,11 +6,12 @@
 #define QUICHE_QUIC_CORE_HTTP_HTTP_ENCODER_H_
 
 #include <memory>
+
 #include "quic/core/http/http_frames.h"
-#include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
+#include "common/quiche_buffer_allocator.h"
 
 namespace quic {
 
@@ -25,10 +26,10 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
   // Returns the length of the header for a DATA frame.
   static QuicByteCount GetDataFrameHeaderLength(QuicByteCount payload_length);
 
-  // Serializes a DATA frame header into a QuicBuffer; returns said QuicBuffer
-  // on success, empty buffer otherwise.
-  static QuicBuffer SerializeDataFrameHeader(QuicByteCount payload_length,
-                                             QuicBufferAllocator* allocator);
+  // Serializes a DATA frame header into a QuicheBuffer; returns said
+  // QuicheBuffer on success, empty buffer otherwise.
+  static quiche::QuicheBuffer SerializeDataFrameHeader(
+      QuicByteCount payload_length, quiche::QuicheBufferAllocator* allocator);
 
   // Serializes a HEADERS frame header into a new buffer stored in |output|.
   // Returns the length of the buffer on success, or 0 otherwise.

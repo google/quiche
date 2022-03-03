@@ -21,7 +21,7 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
   bool MaybeCoalescePacket(const SerializedPacket& packet,
                            const QuicSocketAddress& self_address,
                            const QuicSocketAddress& peer_address,
-                           QuicBufferAllocator* allocator,
+                           quiche::QuicheBufferAllocator* allocator,
                            QuicPacketLength current_max_packet_length);
 
   // Clears this coalesced packet.

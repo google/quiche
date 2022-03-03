@@ -20,7 +20,6 @@
 #include "quic/core/http/spdy_utils.h"
 #include "quic/core/http/web_transport_http3.h"
 #include "quic/core/quic_connection.h"
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_stream_sequencer_buffer.h"
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
@@ -38,6 +37,7 @@
 #include "quic/test_tools/quic_stream_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
 #include "common/quiche_mem_slice_storage.h"
+#include "common/simple_buffer_allocator.h"
 
 using spdy::kV3HighestPriority;
 using spdy::kV3LowestPriority;
@@ -477,8 +477,8 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   std::string DataFrame(absl::string_view payload) {
-    QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
-        payload.length(), SimpleBufferAllocator::Get());
+    quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
+        payload.length(), quiche::SimpleBufferAllocator::Get());
     return absl::StrCat(header.AsStringView(), payload);
   }
 
@@ -1010,8 +1010,8 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlNoWindowUpdateIfNotConsumed) {
   std::string data;
 
   if (UsesHttp3()) {
-    QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
-        body.length(), SimpleBufferAllocator::Get());
+    quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
+        body.length(), quiche::SimpleBufferAllocator::Get());
     data = absl::StrCat(header.AsStringView(), body);
     header_length = header.size();
   } else {
@@ -1053,8 +1053,8 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlWindowUpdate) {
   std::string data;
 
   if (UsesHttp3()) {
-    QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
-        body.length(), SimpleBufferAllocator::Get());
+    quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
+        body.length(), quiche::SimpleBufferAllocator::Get());
     data = absl::StrCat(header.AsStringView(), body);
     header_length = header.size();
   } else {
@@ -1118,12 +1118,12 @@ TEST_P(QuicSpdyStreamTest, ConnectionFlowControlWindowUpdate) {
 
   if (UsesHttp3()) {
     body = std::string(kWindow / 4 - 2, 'a');
-    QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
-        body.length(), SimpleBufferAllocator::Get());
+    quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
+        body.length(), quiche::SimpleBufferAllocator::Get());
     data = absl::StrCat(header.AsStringView(), body);
     header_length = header.size();
-    QuicBuffer header2 = HttpEncoder::SerializeDataFrameHeader(
-        body.length(), SimpleBufferAllocator::Get());
+    quiche::QuicheBuffer header2 = HttpEncoder::SerializeDataFrameHeader(
+        body.length(), quiche::SimpleBufferAllocator::Get());
     data2 = absl::StrCat(header2.AsStringView(), body2);
   } else {
     body = std::string(kWindow / 4, 'a');
@@ -1596,7 +1596,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
   QuicByteCount header_length = 0;
   if (UsesHttp3()) {
     header_length = HttpEncoder::SerializeDataFrameHeader(
-                        body.length(), SimpleBufferAllocator::Get())
+                        body.length(), quiche::SimpleBufferAllocator::Get())
                         .size();
   }
 
@@ -1940,10 +1940,10 @@ TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteOrBufferBody) {
   stream_->WriteOrBufferBody(body, false);
   stream_->WriteOrBufferBody(body2, true);
 
-  QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
-      body.length(), SimpleBufferAllocator::Get());
-  QuicBuffer header2 = HttpEncoder::SerializeDataFrameHeader(
-      body2.length(), SimpleBufferAllocator::Get());
+  quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
+      body.length(), quiche::SimpleBufferAllocator::Get());
+  quiche::QuicheBuffer header2 = HttpEncoder::SerializeDataFrameHeader(
+      body2.length(), quiche::SimpleBufferAllocator::Get());
 
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(body.length(), _));
   QuicStreamFrame frame(stream_->id(), false, 0,

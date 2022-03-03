@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quic/core/quic_simple_buffer_allocator.h"
+#include "common/simple_buffer_allocator.h"
 
-namespace quic {
+namespace quiche {
 
 char* SimpleBufferAllocator::New(size_t size) {
   return new char[size];
@@ -18,4 +18,4 @@ void SimpleBufferAllocator::Delete(char* buffer) {
   delete[] buffer;
 }
 
-}  // namespace quic
+}  // namespace quiche

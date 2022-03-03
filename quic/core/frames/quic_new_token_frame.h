@@ -9,7 +9,6 @@
 #include <ostream>
 
 #include "absl/strings/string_view.h"
-#include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"

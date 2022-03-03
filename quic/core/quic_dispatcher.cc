@@ -77,7 +77,7 @@ class ClearStatelessResetAddressesAlarm
 class PacketCollector : public QuicPacketCreator::DelegateInterface,
                         public QuicStreamFrameDataProducer {
  public:
-  explicit PacketCollector(QuicBufferAllocator* allocator)
+  explicit PacketCollector(quiche::QuicheBufferAllocator* allocator)
       : send_buffer_(allocator) {}
   ~PacketCollector() override = default;
 

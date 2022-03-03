@@ -21,12 +21,10 @@
 #include "quic/core/crypto/quic_decrypter.h"
 #include "quic/core/crypto/quic_encrypter.h"
 #include "quic/core/http/quic_spdy_client_session.h"
-#include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_config.h"
 #include "quic/core/quic_data_writer.h"
 #include "quic/core/quic_framer.h"
 #include "quic/core/quic_packet_creator.h"
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
@@ -36,7 +34,9 @@
 #include "quic/test_tools/crypto_test_utils.h"
 #include "quic/test_tools/quic_config_peer.h"
 #include "quic/test_tools/quic_connection_peer.h"
+#include "common/quiche_buffer_allocator.h"
 #include "common/quiche_endian.h"
+#include "common/simple_buffer_allocator.h"
 #include "spdy/core/spdy_frame_builder.h"
 
 using testing::_;
@@ -486,7 +486,8 @@ QuicArenaScopedPtr<QuicAlarm> MockAlarmFactory::CreateAlarm(
   }
 }
 
-QuicBufferAllocator* MockQuicConnectionHelper::GetStreamSendBufferAllocator() {
+quiche::QuicheBufferAllocator*
+MockQuicConnectionHelper::GetStreamSendBufferAllocator() {
   return &buffer_allocator_;
 }
 
@@ -1315,8 +1316,9 @@ quiche::QuicheMemSlice MemSliceFromString(absl::string_view data) {
     return quiche::QuicheMemSlice();
   }
 
-  static SimpleBufferAllocator* allocator = new SimpleBufferAllocator();
-  return quiche::QuicheMemSlice(QuicBuffer::Copy(allocator, data));
+  static quiche::SimpleBufferAllocator* allocator =
+      new quiche::SimpleBufferAllocator();
+  return quiche::QuicheMemSlice(quiche::QuicheBuffer::Copy(allocator, data));
 }
 
 bool TaggingEncrypter::EncryptPacket(uint64_t /*packet_number*/,

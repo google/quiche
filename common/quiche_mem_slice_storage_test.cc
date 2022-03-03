@@ -4,8 +4,8 @@
 
 #include "common/quiche_mem_slice_storage.h"
 
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "common/platform/api/quiche_test.h"
+#include "common/simple_buffer_allocator.h"
 
 namespace quiche {
 namespace test {
@@ -22,7 +22,7 @@ TEST_F(QuicheMemSliceStorageImplTest, EmptyIov) {
 }
 
 TEST_F(QuicheMemSliceStorageImplTest, SingleIov) {
-  quic::SimpleBufferAllocator allocator;
+  SimpleBufferAllocator allocator;
   std::string body(3, 'c');
   struct iovec iov = {const_cast<char*>(body.data()), body.length()};
   QuicheMemSliceStorage storage(&iov, 1, &allocator, 1024);
@@ -32,7 +32,7 @@ TEST_F(QuicheMemSliceStorageImplTest, SingleIov) {
 }
 
 TEST_F(QuicheMemSliceStorageImplTest, MultipleIovInSingleSlice) {
-  quic::SimpleBufferAllocator allocator;
+  SimpleBufferAllocator allocator;
   std::string body1(3, 'a');
   std::string body2(4, 'b');
   struct iovec iov[] = {{const_cast<char*>(body1.data()), body1.length()},
@@ -44,7 +44,7 @@ TEST_F(QuicheMemSliceStorageImplTest, MultipleIovInSingleSlice) {
 }
 
 TEST_F(QuicheMemSliceStorageImplTest, MultipleIovInMultipleSlice) {
-  quic::SimpleBufferAllocator allocator;
+  SimpleBufferAllocator allocator;
   std::string body1(4, 'a');
   std::string body2(4, 'b');
   struct iovec iov[] = {{const_cast<char*>(body1.data()), body1.length()},

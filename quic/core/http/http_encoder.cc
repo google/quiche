@@ -43,13 +43,12 @@ QuicByteCount HttpEncoder::GetDataFrameHeaderLength(
 }
 
 // static
-QuicBuffer HttpEncoder::SerializeDataFrameHeader(
-    QuicByteCount payload_length,
-    QuicBufferAllocator* allocator) {
+quiche::QuicheBuffer HttpEncoder::SerializeDataFrameHeader(
+    QuicByteCount payload_length, quiche::QuicheBufferAllocator* allocator) {
   QUICHE_DCHECK_NE(0u, payload_length);
   QuicByteCount header_length = GetDataFrameHeaderLength(payload_length);
 
-  QuicBuffer header(allocator, header_length);
+  quiche::QuicheBuffer header(allocator, header_length);
   QuicDataWriter writer(header.size(), header.data());
 
   if (WriteFrameHeader(payload_length, HttpFrameType::DATA, &writer)) {
@@ -57,7 +56,7 @@ QuicBuffer HttpEncoder::SerializeDataFrameHeader(
   }
   QUIC_DLOG(ERROR)
       << "Http encoder failed when attempting to serialize data frame header.";
-  return QuicBuffer();
+  return quiche::QuicheBuffer();
 }
 
 // static

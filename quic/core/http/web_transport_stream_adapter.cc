@@ -46,7 +46,7 @@ bool WebTransportStreamAdapter::Write(absl::string_view data) {
     return false;
   }
 
-  quiche::QuicheMemSlice memslice(QuicBuffer::Copy(
+  quiche::QuicheMemSlice memslice(quiche::QuicheBuffer::Copy(
       session_->connection()->helper()->GetStreamSendBufferAllocator(), data));
   QuicConsumedData consumed =
       stream_->WriteMemSlices(absl::MakeSpan(&memslice, 1), /*fin=*/false);

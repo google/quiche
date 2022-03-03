@@ -8,11 +8,11 @@
 #include <vector>
 
 #include "absl/types/span.h"
-#include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_iovec.h"
 #include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_mem_slice.h"
+#include "common/quiche_buffer_allocator.h"
 
 namespace quiche {
 
@@ -21,7 +21,7 @@ namespace quiche {
 class QUICHE_EXPORT_PRIVATE QuicheMemSliceStorage {
  public:
   QuicheMemSliceStorage(const struct iovec* iov, int iov_count,
-                        quic::QuicBufferAllocator* allocator,
+                        QuicheBufferAllocator* allocator,
                         const quic::QuicByteCount max_slice_len);
 
   QuicheMemSliceStorage(const QuicheMemSliceStorage& other) = default;

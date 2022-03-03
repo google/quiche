@@ -30,7 +30,6 @@
 #include "quic/core/quic_packet_creator.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_path_validator.h"
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
@@ -53,6 +52,7 @@
 #include "quic/test_tools/quic_test_utils.h"
 #include "quic/test_tools/simple_data_producer.h"
 #include "quic/test_tools/simple_session_notifier.h"
+#include "common/simple_buffer_allocator.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -169,14 +169,14 @@ class TestConnectionHelper : public QuicConnectionHelperInterface {
 
   QuicRandom* GetRandomGenerator() override { return random_generator_; }
 
-  QuicBufferAllocator* GetStreamSendBufferAllocator() override {
+  quiche::QuicheBufferAllocator* GetStreamSendBufferAllocator() override {
     return &buffer_allocator_;
   }
 
  private:
   MockClock* clock_;
   MockRandom* random_generator_;
-  SimpleBufferAllocator buffer_allocator_;
+  quiche::SimpleBufferAllocator buffer_allocator_;
 };
 
 class TestConnection : public QuicConnection {
@@ -1068,7 +1068,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   MessageStatus SendMessage(absl::string_view message) {
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-    quiche::QuicheMemSlice slice(QuicBuffer::Copy(
+    quiche::QuicheMemSlice slice(quiche::QuicheBuffer::Copy(
         connection_.helper()->GetStreamSendBufferAllocator(), message));
     return connection_.SendMessage(1, absl::MakeSpan(&slice, 1), false);
   }
@@ -1465,7 +1465,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   std::unique_ptr<MockLossAlgorithm> loss_algorithm_;
   MockClock clock_;
   MockRandom random_generator_;
-  SimpleBufferAllocator buffer_allocator_;
+  quiche::SimpleBufferAllocator buffer_allocator_;
   std::unique_ptr<TestConnectionHelper> helper_;
   std::unique_ptr<TestAlarmFactory> alarm_factory_;
   QuicFramer peer_framer_;

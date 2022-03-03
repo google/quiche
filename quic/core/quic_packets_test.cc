@@ -74,7 +74,7 @@ TEST_F(QuicPacketsTest, GetClientConnectionIdAsSender) {
 
 TEST_F(QuicPacketsTest, CopySerializedPacket) {
   std::string buffer(1000, 'a');
-  SimpleBufferAllocator allocator;
+  quiche::SimpleBufferAllocator allocator;
   SerializedPacket packet(QuicPacketNumber(1), PACKET_1BYTE_PACKET_NUMBER,
                           buffer.data(), buffer.length(), /*has_ack=*/false,
                           /*has_stop_waiting=*/false);

@@ -511,7 +511,7 @@ SerializedPacket::~SerializedPacket() {
 }
 
 SerializedPacket* CopySerializedPacket(const SerializedPacket& serialized,
-                                       QuicBufferAllocator* allocator,
+                                       quiche::QuicheBufferAllocator* allocator,
                                        bool copy_buffer) {
   SerializedPacket* copy = new SerializedPacket(
       serialized.packet_number, serialized.packet_number_length,

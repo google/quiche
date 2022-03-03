@@ -410,8 +410,7 @@ struct QUIC_EXPORT_PRIVATE SerializedPacket {
 // indicates whether the encrypted buffer should be copied.
 QUIC_EXPORT_PRIVATE SerializedPacket* CopySerializedPacket(
     const SerializedPacket& serialized,
-    QuicBufferAllocator* allocator,
-    bool copy_buffer);
+    quiche::QuicheBufferAllocator* allocator, bool copy_buffer);
 
 // Allocates a new char[] of size |packet.encrypted_length| and copies in
 // |packet.encrypted_buffer|.

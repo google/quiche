@@ -2,18 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_QUIC_SIMPLE_BUFFER_ALLOCATOR_H_
-#define QUICHE_QUIC_CORE_QUIC_SIMPLE_BUFFER_ALLOCATOR_H_
+#ifndef QUICHE_COMMON_QUICHE_SIMPLE_BUFFER_ALLOCATOR_H_
+#define QUICHE_COMMON_QUICHE_SIMPLE_BUFFER_ALLOCATOR_H_
 
-#include "quic/core/quic_buffer_allocator.h"
-#include "quic/platform/api/quic_export.h"
+#include "common/platform/api/quiche_export.h"
+#include "common/quiche_buffer_allocator.h"
 
-namespace quic {
+namespace quiche {
 
 // Provides buffer allocation using operators new[] and delete[] on char arrays.
 // Note that some of the QUICHE code relies on this being the case for deleting
 // new[]-allocated arrays from elsewhere.
-class QUIC_EXPORT_PRIVATE SimpleBufferAllocator : public QuicBufferAllocator {
+class QUICHE_EXPORT_PRIVATE SimpleBufferAllocator
+    : public QuicheBufferAllocator {
  public:
   static SimpleBufferAllocator* Get() {
     static SimpleBufferAllocator* singleton = new SimpleBufferAllocator();
@@ -25,6 +26,6 @@ class QUIC_EXPORT_PRIVATE SimpleBufferAllocator : public QuicBufferAllocator {
   void Delete(char* buffer) override;
 };
 
-}  // namespace quic
+}  // namespace quiche
 
-#endif  // QUICHE_QUIC_CORE_QUIC_SIMPLE_BUFFER_ALLOCATOR_H_
+#endif  // QUICHE_COMMON_QUICHE_SIMPLE_BUFFER_ALLOCATOR_H_

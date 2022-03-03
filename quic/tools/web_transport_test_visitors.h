@@ -7,11 +7,11 @@
 
 #include <string>
 
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/web_transport_interface.h"
 #include "quic/platform/api/quic_logging.h"
 #include "common/platform/api/quiche_mem_slice.h"
 #include "common/quiche_circular_deque.h"
+#include "common/simple_buffer_allocator.h"
 
 namespace quic {
 
@@ -219,7 +219,8 @@ class EchoWebTransportSessionVisitor : public WebTransportVisitor {
   }
 
   void OnDatagramReceived(absl::string_view datagram) override {
-    quiche::QuicheMemSlice slice(QuicBuffer::Copy(&allocator_, datagram));
+    quiche::QuicheMemSlice slice(
+        quiche::QuicheBuffer::Copy(&allocator_, datagram));
     session_->SendOrQueueDatagram(std::move(slice));
   }
 
@@ -251,7 +252,7 @@ class EchoWebTransportSessionVisitor : public WebTransportVisitor {
 
  private:
   WebTransportSession* session_;
-  SimpleBufferAllocator allocator_;
+  quiche::SimpleBufferAllocator allocator_;
   bool echo_stream_opened_ = false;
 
   quiche::QuicheCircularDeque<std::string> streams_to_echo_back_;

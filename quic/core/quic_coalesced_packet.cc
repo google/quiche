@@ -18,10 +18,9 @@ QuicCoalescedPacket::~QuicCoalescedPacket() {
 }
 
 bool QuicCoalescedPacket::MaybeCoalescePacket(
-    const SerializedPacket& packet,
-    const QuicSocketAddress& self_address,
+    const SerializedPacket& packet, const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address,
-    QuicBufferAllocator* allocator,
+    quiche::QuicheBufferAllocator* allocator,
     QuicPacketLength current_max_packet_length) {
   if (packet.encrypted_length == 0) {
     QUIC_BUG(quic_bug_10611_1) << "Trying to coalesce an empty packet";

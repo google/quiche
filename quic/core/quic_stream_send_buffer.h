@@ -64,7 +64,7 @@ struct QUIC_EXPORT_PRIVATE StreamPendingRetransmission {
 // across slice boundaries.
 class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
  public:
-  explicit QuicStreamSendBuffer(QuicBufferAllocator* allocator);
+  explicit QuicStreamSendBuffer(quiche::QuicheBufferAllocator* allocator);
   QuicStreamSendBuffer(const QuicStreamSendBuffer& other) = delete;
   QuicStreamSendBuffer(QuicStreamSendBuffer&& other) = delete;
   ~QuicStreamSendBuffer();
@@ -153,7 +153,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
   // Offset of next inserted byte.
   QuicStreamOffset stream_offset_;
 
-  QuicBufferAllocator* allocator_;
+  quiche::QuicheBufferAllocator* allocator_;
 
   // Bytes that have been consumed by the stream.
   uint64_t stream_bytes_written_;

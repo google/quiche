@@ -9,13 +9,13 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/http/http_constants.h"
 #include "quic/core/qpack/qpack_header_table.h"
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/test_tools/qpack/qpack_encoder_peer.h"
 #include "quic/test_tools/quic_spdy_session_peer.h"
 #include "quic/test_tools/quic_stream_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
+#include "common/simple_buffer_allocator.h"
 
 namespace quic {
 
@@ -240,8 +240,8 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsFragments) {
 
 TEST_P(QuicReceiveControlStreamTest, ReceiveWrongFrame) {
   // DATA frame header without payload.
-  QuicBuffer data = HttpEncoder::SerializeDataFrameHeader(
-      /* payload_length = */ 2, SimpleBufferAllocator::Get());
+  quiche::QuicheBuffer data = HttpEncoder::SerializeDataFrameHeader(
+      /* payload_length = */ 2, quiche::SimpleBufferAllocator::Get());
 
   QuicStreamFrame frame(receive_control_stream_->id(), false, 1,
                         data.AsStringView());

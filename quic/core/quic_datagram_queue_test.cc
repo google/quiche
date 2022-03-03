@@ -9,13 +9,13 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quic/core/crypto/null_encrypter.h"
-#include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_time.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_reference_counted.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_test_utils.h"
 #include "common/platform/api/quiche_mem_slice.h"
+#include "common/quiche_buffer_allocator.h"
 
 namespace quic {
 namespace test {
@@ -71,8 +71,8 @@ class QuicDatagramQueueTestBase : public QuicTest {
   ~QuicDatagramQueueTestBase() = default;
 
   quiche::QuicheMemSlice CreateMemSlice(absl::string_view data) {
-    return quiche::QuicheMemSlice(
-        QuicBuffer::Copy(helper_.GetStreamSendBufferAllocator(), data));
+    return quiche::QuicheMemSlice(quiche::QuicheBuffer::Copy(
+        helper_.GetStreamSendBufferAllocator(), data));
   }
 
   MockQuicConnectionHelper helper_;

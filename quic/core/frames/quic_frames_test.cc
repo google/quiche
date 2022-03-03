@@ -625,7 +625,8 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
     }
   }
 
-  QuicFrames copy = CopyQuicFrames(SimpleBufferAllocator::Get(), frames);
+  QuicFrames copy =
+      CopyQuicFrames(quiche::SimpleBufferAllocator::Get(), frames);
   ASSERT_EQ(NUM_FRAME_TYPES, copy.size());
   for (uint8_t i = 0; i < NUM_FRAME_TYPES; ++i) {
     EXPECT_EQ(i, copy[i].type);

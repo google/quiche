@@ -401,7 +401,7 @@ bool QuicSpdyStream::WriteDataFrameHeader(QuicByteCount data_length,
                                           bool force_write) {
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
   QUICHE_DCHECK_GT(data_length, 0u);
-  QuicBuffer header = HttpEncoder::SerializeDataFrameHeader(
+  quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
       data_length,
       spdy_session_->connection()->helper()->GetStreamSendBufferAllocator());
   const bool can_write = CanWriteNewDataAfterData(header.size());
@@ -1563,7 +1563,7 @@ void QuicSpdyStream::OnCapsuleParseFailure(const std::string& error_message) {
 void QuicSpdyStream::WriteCapsule(const Capsule& capsule, bool fin) {
   QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id() << " sending capsule "
                   << capsule;
-  QuicBuffer serialized_capsule = SerializeCapsule(
+  quiche::QuicheBuffer serialized_capsule = SerializeCapsule(
       capsule,
       spdy_session_->connection()->helper()->GetStreamSendBufferAllocator());
   QUICHE_DCHECK_GT(serialized_capsule.size(), 0u);

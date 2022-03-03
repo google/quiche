@@ -6,12 +6,12 @@
 
 #include "quic/core/frames/quic_new_connection_id_frame.h"
 #include "quic/core/frames/quic_retire_connection_id_frame.h"
-#include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_logging.h"
 #include "common/platform/api/quiche_mem_slice.h"
+#include "common/quiche_buffer_allocator.h"
 
 namespace quic {
 
@@ -327,7 +327,7 @@ QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame) {
   return copy;
 }
 
-QuicFrame CopyQuicFrame(QuicBufferAllocator* allocator,
+QuicFrame CopyQuicFrame(quiche::QuicheBufferAllocator* allocator,
                         const QuicFrame& frame) {
   QuicFrame copy;
   switch (frame.type) {
@@ -392,7 +392,8 @@ QuicFrame CopyQuicFrame(QuicBufferAllocator* allocator,
       copy.message_frame->data = frame.message_frame->data;
       copy.message_frame->message_length = frame.message_frame->message_length;
       for (const auto& slice : frame.message_frame->message_data) {
-        QuicBuffer buffer = QuicBuffer::Copy(allocator, slice.AsStringView());
+        quiche::QuicheBuffer buffer =
+            quiche::QuicheBuffer::Copy(allocator, slice.AsStringView());
         copy.message_frame->message_data.push_back(
             quiche::QuicheMemSlice(std::move(buffer)));
       }
@@ -419,7 +420,7 @@ QuicFrame CopyQuicFrame(QuicBufferAllocator* allocator,
   return copy;
 }
 
-QuicFrames CopyQuicFrames(QuicBufferAllocator* allocator,
+QuicFrames CopyQuicFrames(quiche::QuicheBufferAllocator* allocator,
                           const QuicFrames& frames) {
   QuicFrames copy;
   for (const auto& frame : frames) {

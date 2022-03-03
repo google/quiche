@@ -9,8 +9,7 @@
 namespace quiche {
 
 QuicheMemSliceStorage::QuicheMemSliceStorage(
-    const struct iovec* iov, int iov_count,
-    quic::QuicBufferAllocator* allocator,
+    const struct iovec* iov, int iov_count, QuicheBufferAllocator* allocator,
     const quic::QuicByteCount max_slice_len) {
   if (iov == nullptr) {
     return;
@@ -24,7 +23,7 @@ QuicheMemSliceStorage::QuicheMemSliceStorage(
   size_t io_offset = 0;
   while (write_len > 0) {
     size_t slice_len = std::min(write_len, max_slice_len);
-    quic::QuicBuffer buffer(allocator, slice_len);
+    QuicheBuffer buffer(allocator, slice_len);
     quic::QuicUtils::CopyToBuffer(iov, iov_count, io_offset, slice_len,
                                   buffer.data());
     storage_.push_back(QuicheMemSlice(std::move(buffer)));

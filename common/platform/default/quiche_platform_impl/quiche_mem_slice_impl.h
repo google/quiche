@@ -1,9 +1,9 @@
 #ifndef QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUICHE_MEM_SLICE_IMPL_H_
 #define QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUICHE_MEM_SLICE_IMPL_H_
 
-#include "quic/core/quic_buffer_allocator.h"
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "common/platform/api/quiche_export.h"
+#include "common/quiche_buffer_allocator.h"
+#include "common/simple_buffer_allocator.h"
 
 namespace quiche {
 
@@ -11,15 +11,15 @@ class QUICHE_EXPORT_PRIVATE QuicheMemSliceImpl {
  public:
   QuicheMemSliceImpl() = default;
 
-  explicit QuicheMemSliceImpl(quic::QuicBuffer buffer)
+  explicit QuicheMemSliceImpl(QuicheBuffer buffer)
       : buffer_(std::move(buffer)) {}
 
   QuicheMemSliceImpl(std::unique_ptr<char[]> buffer, size_t length)
-      : buffer_(quic::QuicBuffer(
-            quic::QuicUniqueBufferPtr(
-                buffer.release(),
-                quic::QuicBufferDeleter(quic::SimpleBufferAllocator::Get())),
-            length)) {}
+      : buffer_(
+            QuicheBuffer(QuicheUniqueBufferPtr(
+                             buffer.release(),
+                             QuicheBufferDeleter(SimpleBufferAllocator::Get())),
+                         length)) {}
 
   QuicheMemSliceImpl(const QuicheMemSliceImpl& other) = delete;
   QuicheMemSliceImpl& operator=(const QuicheMemSliceImpl& other) = delete;
@@ -31,14 +31,14 @@ class QUICHE_EXPORT_PRIVATE QuicheMemSliceImpl {
 
   ~QuicheMemSliceImpl() = default;
 
-  void Reset() { buffer_ = quic::QuicBuffer(); }
+  void Reset() { buffer_ = QuicheBuffer(); }
 
   const char* data() const { return buffer_.data(); }
   size_t length() const { return buffer_.size(); }
   bool empty() const { return buffer_.empty(); }
 
  private:
-  quic::QuicBuffer buffer_;
+  QuicheBuffer buffer_;
 };
 
 }  // namespace quiche

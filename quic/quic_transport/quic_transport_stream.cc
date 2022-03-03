@@ -7,7 +7,6 @@
 #include <sys/types.h>
 
 #include "absl/strings/string_view.h"
-#include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"

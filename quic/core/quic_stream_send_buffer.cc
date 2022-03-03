@@ -47,7 +47,8 @@ bool StreamPendingRetransmission::operator==(
   return offset == other.offset && length == other.length;
 }
 
-QuicStreamSendBuffer::QuicStreamSendBuffer(QuicBufferAllocator* allocator)
+QuicStreamSendBuffer::QuicStreamSendBuffer(
+    quiche::QuicheBufferAllocator* allocator)
     : current_end_offset_(0),
       stream_offset_(0),
       allocator_(allocator),
@@ -67,7 +68,7 @@ void QuicStreamSendBuffer::SaveStreamData(const struct iovec* iov,
       GetQuicFlag(FLAGS_quic_send_buffer_max_data_slice_size);
   while (data_length > 0) {
     size_t slice_len = std::min(data_length, max_data_slice_size);
-    QuicBuffer buffer(allocator_, slice_len);
+    quiche::QuicheBuffer buffer(allocator_, slice_len);
     QuicUtils::CopyToBuffer(iov, iov_count, iov_offset, slice_len,
                             buffer.data());
     SaveMemSlice(quiche::QuicheMemSlice(std::move(buffer)));

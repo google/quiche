@@ -17,7 +17,7 @@ TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
   QuicCoalescedPacket coalesced;
   EXPECT_EQ("total_length: 0 padding_size: 0 packets: {}",
             coalesced.ToString(0));
-  SimpleBufferAllocator allocator;
+  quiche::SimpleBufferAllocator allocator;
   EXPECT_EQ(0u, coalesced.length());
   EXPECT_EQ(0u, coalesced.NumberOfPackets());
   char buffer[1000];
@@ -96,7 +96,7 @@ TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
 
 TEST(QuicCoalescedPacketTest, CopyEncryptedBuffers) {
   QuicCoalescedPacket coalesced;
-  SimpleBufferAllocator allocator;
+  quiche::SimpleBufferAllocator allocator;
   QuicSocketAddress self_address(QuicIpAddress::Loopback4(), 1);
   QuicSocketAddress peer_address(QuicIpAddress::Loopback4(), 2);
   std::string buffer(500, 'a');
@@ -139,7 +139,7 @@ TEST(QuicCoalescedPacketTest, NeuterInitialPacket) {
   EXPECT_EQ("total_length: 0 padding_size: 0 packets: {}",
             coalesced.ToString(0));
 
-  SimpleBufferAllocator allocator;
+  quiche::SimpleBufferAllocator allocator;
   EXPECT_EQ(0u, coalesced.length());
   char buffer[1000];
   QuicSocketAddress self_address(QuicIpAddress::Loopback4(), 1);

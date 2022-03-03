@@ -10,11 +10,11 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "quic/core/quic_connection.h"
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_containers.h"
 #include "quic/test_tools/simulator/actor.h"
 #include "quic/test_tools/simulator/alarm_factory.h"
+#include "common/simple_buffer_allocator.h"
 
 namespace quic {
 namespace simulator {
@@ -42,7 +42,7 @@ class Simulator : public QuicConnectionHelperInterface {
   // Begin QuicConnectionHelperInterface implementation.
   const QuicClock* GetClock() const override;
   QuicRandom* GetRandomGenerator() override;
-  QuicBufferAllocator* GetStreamSendBufferAllocator() override;
+  quiche::QuicheBufferAllocator* GetStreamSendBufferAllocator() override;
   // End QuicConnectionHelperInterface implementation.
 
   QuicAlarmFactory* GetAlarmFactory();
@@ -110,7 +110,7 @@ class Simulator : public QuicConnectionHelperInterface {
 
   Clock clock_;
   QuicRandom* random_generator_;
-  SimpleBufferAllocator buffer_allocator_;
+  quiche::SimpleBufferAllocator buffer_allocator_;
   AlarmFactory alarm_factory_;
 
   // Alarm for RunFor() method.

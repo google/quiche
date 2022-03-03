@@ -30,7 +30,6 @@
 #include "quic/core/quic_path_validator.h"
 #include "quic/core/quic_sent_packet_manager.h"
 #include "quic/core/quic_server_id.h"
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_socket_address.h"
@@ -41,6 +40,7 @@
 #include "quic/test_tools/quic_framer_peer.h"
 #include "quic/test_tools/simple_quic_framer.h"
 #include "common/quiche_mem_slice_storage.h"
+#include "common/simple_buffer_allocator.h"
 
 namespace quic {
 
@@ -517,13 +517,13 @@ class MockQuicConnectionHelper : public QuicConnectionHelperInterface {
   ~MockQuicConnectionHelper() override;
   const QuicClock* GetClock() const override;
   QuicRandom* GetRandomGenerator() override;
-  QuicBufferAllocator* GetStreamSendBufferAllocator() override;
+  quiche::QuicheBufferAllocator* GetStreamSendBufferAllocator() override;
   void AdvanceTime(QuicTime::Delta delta);
 
  private:
   MockClock clock_;
   MockRandom random_generator_;
-  SimpleBufferAllocator buffer_allocator_;
+  quiche::SimpleBufferAllocator buffer_allocator_;
 };
 
 class MockAlarmFactory : public QuicAlarmFactory {

@@ -8,13 +8,13 @@
 
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_data_writer.h"
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_stream_send_buffer_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
+#include "common/simple_buffer_allocator.h"
 
 namespace quic {
 namespace test {
@@ -38,10 +38,10 @@ class QuicStreamSendBufferTest : public QuicTest {
     iov[0] = MakeIovec(absl::string_view(data1));
     iov[1] = MakeIovec(absl::string_view(data2));
 
-    QuicBuffer buffer1(&allocator_, 1024);
+    quiche::QuicheBuffer buffer1(&allocator_, 1024);
     memset(buffer1.data(), 'c', buffer1.size());
     quiche::QuicheMemSlice slice1(std::move(buffer1));
-    QuicBuffer buffer2(&allocator_, 768);
+    quiche::QuicheBuffer buffer2(&allocator_, 768);
     memset(buffer2.data(), 'd', buffer2.size());
     quiche::QuicheMemSlice slice2(std::move(buffer2));
 
@@ -73,7 +73,7 @@ class QuicStreamSendBufferTest : public QuicTest {
     EXPECT_EQ(3840u, send_buffer_.stream_bytes_outstanding());
   }
 
-  SimpleBufferAllocator allocator_;
+  quiche::SimpleBufferAllocator allocator_;
   QuicStreamSendBuffer send_buffer_;
 };
 
@@ -308,7 +308,7 @@ TEST_F(QuicStreamSendBufferTest, EndOffset) {
 
   // Last offset is end offset of last slice.
   EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-  QuicBuffer buffer(&allocator_, 60);
+  quiche::QuicheBuffer buffer(&allocator_, 60);
   memset(buffer.data(), 'e', buffer.size());
   quiche::QuicheMemSlice slice(std::move(buffer));
   send_buffer_.SaveMemSlice(std::move(slice));
@@ -317,7 +317,7 @@ TEST_F(QuicStreamSendBufferTest, EndOffset) {
 }
 
 TEST_F(QuicStreamSendBufferTest, SaveMemSliceSpan) {
-  SimpleBufferAllocator allocator;
+  quiche::SimpleBufferAllocator allocator;
   QuicStreamSendBuffer send_buffer(&allocator);
 
   std::string data(1024, 'a');
@@ -331,7 +331,7 @@ TEST_F(QuicStreamSendBufferTest, SaveMemSliceSpan) {
 }
 
 TEST_F(QuicStreamSendBufferTest, SaveEmptyMemSliceSpan) {
-  SimpleBufferAllocator allocator;
+  quiche::SimpleBufferAllocator allocator;
   QuicStreamSendBuffer send_buffer(&allocator);
 
   std::string data(1024, 'a');

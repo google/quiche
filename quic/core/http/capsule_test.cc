@@ -60,8 +60,8 @@ class CapsuleTest : public QuicTest {
 
   void TestSerialization(const Capsule& capsule,
                          const std::string& expected_bytes) {
-    QuicBuffer serialized_capsule =
-        SerializeCapsule(capsule, SimpleBufferAllocator::Get());
+    quiche::QuicheBuffer serialized_capsule =
+        SerializeCapsule(capsule, quiche::SimpleBufferAllocator::Get());
     quiche::test::CompareCharArraysWithHexError(
         "Serialized capsule", serialized_capsule.data(),
         serialized_capsule.size(), expected_bytes.data(),

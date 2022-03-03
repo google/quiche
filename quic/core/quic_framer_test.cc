@@ -921,7 +921,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
   QuicTime start_;
   QuicFramer framer_;
   test::TestQuicVisitor visitor_;
-  SimpleBufferAllocator allocator_;
+  quiche::SimpleBufferAllocator allocator_;
 };
 
 // Multiple test cases of QuicFramerTest use byte arrays to define packets for

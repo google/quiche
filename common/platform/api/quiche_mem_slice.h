@@ -9,8 +9,8 @@
 
 #include "quiche_platform_impl/quiche_mem_slice_impl.h"
 #include "absl/strings/string_view.h"
-#include "quic/core/quic_buffer_allocator.h"
 #include "common/platform/api/quiche_export.h"
+#include "common/quiche_buffer_allocator.h"
 
 namespace quiche {
 
@@ -24,7 +24,7 @@ class QUICHE_EXPORT_PRIVATE QuicheMemSlice {
   // Constructs a QuicheMemSlice that takes ownership of |buffer|.  The length
   // of the |buffer| must not be zero.  To construct an empty QuicheMemSlice,
   // use the zero-argument constructor instead.
-  explicit QuicheMemSlice(quic::QuicBuffer buffer) : impl_(std::move(buffer)) {}
+  explicit QuicheMemSlice(QuicheBuffer buffer) : impl_(std::move(buffer)) {}
 
   // Constructs a QuicheMemSlice that takes ownership of |buffer| allocated on
   // heap.  |length| must not be zero.

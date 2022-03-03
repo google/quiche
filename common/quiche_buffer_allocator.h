@@ -2,22 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_QUIC_BUFFER_ALLOCATOR_H_
-#define QUICHE_QUIC_CORE_QUIC_BUFFER_ALLOCATOR_H_
+#ifndef QUICHE_COMMON_QUICHE_BUFFER_ALLOCATOR_H_
+#define QUICHE_COMMON_QUICHE_BUFFER_ALLOCATOR_H_
 
 #include <stddef.h>
 
 #include <memory>
 
 #include "absl/strings/string_view.h"
-#include "quic/platform/api/quic_export.h"
+#include "common/platform/api/quiche_export.h"
 
-namespace quic {
+namespace quiche {
 
 // Abstract base class for classes which allocate and delete buffers.
-class QUIC_EXPORT_PRIVATE QuicBufferAllocator {
+class QUICHE_EXPORT_PRIVATE QuicheBufferAllocator {
  public:
-  virtual ~QuicBufferAllocator();
+  virtual ~QuicheBufferAllocator() = default;
 
   // Returns or allocates a new buffer of |size|. Never returns null.
   virtual char* New(size_t size) = 0;
@@ -36,46 +36,47 @@ class QUIC_EXPORT_PRIVATE QuicBufferAllocator {
 };
 
 // A deleter that can be used to manage ownership of buffers allocated via
-// QuicBufferAllocator through std::unique_ptr.
-class QUIC_EXPORT_PRIVATE QuicBufferDeleter {
+// QuicheBufferAllocator through std::unique_ptr.
+class QUICHE_EXPORT_PRIVATE QuicheBufferDeleter {
  public:
-  explicit QuicBufferDeleter(QuicBufferAllocator* allocator)
+  explicit QuicheBufferDeleter(QuicheBufferAllocator* allocator)
       : allocator_(allocator) {}
 
-  QuicBufferAllocator* allocator() { return allocator_; }
+  QuicheBufferAllocator* allocator() { return allocator_; }
   void operator()(char* buffer) { allocator_->Delete(buffer); }
 
  private:
-  QuicBufferAllocator* allocator_;
+  QuicheBufferAllocator* allocator_;
 };
 
-using QuicUniqueBufferPtr = std::unique_ptr<char[], QuicBufferDeleter>;
+using QuicheUniqueBufferPtr = std::unique_ptr<char[], QuicheBufferDeleter>;
 
-inline QuicUniqueBufferPtr MakeUniqueBuffer(QuicBufferAllocator* allocator,
-                                            size_t size) {
-  return QuicUniqueBufferPtr(allocator->New(size),
-                             QuicBufferDeleter(allocator));
+inline QuicheUniqueBufferPtr MakeUniqueBuffer(QuicheBufferAllocator* allocator,
+                                              size_t size) {
+  return QuicheUniqueBufferPtr(allocator->New(size),
+                               QuicheBufferDeleter(allocator));
 }
 
-// QuicUniqueBufferPtr with a length attached to it.  Similar to QuicheMemSlice,
-// except unlike QuicheMemSlice, QuicBuffer is mutable and is not
-// platform-specific.  Also unlike QuicheMemSlice, QuicBuffer can be empty.
-class QUIC_EXPORT_PRIVATE QuicBuffer {
+// QuicheUniqueBufferPtr with a length attached to it.  Similar to
+// QuicheMemSlice, except unlike QuicheMemSlice, QuicheBuffer is mutable and is
+// not platform-specific.  Also unlike QuicheMemSlice, QuicheBuffer can be
+// empty.
+class QUICHE_EXPORT_PRIVATE QuicheBuffer {
  public:
-  QuicBuffer() : buffer_(nullptr, QuicBufferDeleter(nullptr)), size_(0) {}
-  QuicBuffer(QuicBufferAllocator* allocator, size_t size)
+  QuicheBuffer() : buffer_(nullptr, QuicheBufferDeleter(nullptr)), size_(0) {}
+  QuicheBuffer(QuicheBufferAllocator* allocator, size_t size)
       : buffer_(MakeUniqueBuffer(allocator, size)), size_(size) {}
 
-  QuicBuffer(QuicUniqueBufferPtr buffer, size_t size)
+  QuicheBuffer(QuicheUniqueBufferPtr buffer, size_t size)
       : buffer_(std::move(buffer)), size_(size) {}
 
   // Make sure the move constructor zeroes out the size field.
-  QuicBuffer(QuicBuffer&& other)
+  QuicheBuffer(QuicheBuffer&& other)
       : buffer_(std::move(other.buffer_)), size_(other.size_) {
     other.buffer_ = nullptr;
     other.size_ = 0;
   }
-  QuicBuffer& operator=(QuicBuffer&& other) {
+  QuicheBuffer& operator=(QuicheBuffer&& other) {
     buffer_ = std::move(other.buffer_);
     size_ = other.size_;
 
@@ -84,11 +85,10 @@ class QUIC_EXPORT_PRIVATE QuicBuffer {
     return *this;
   }
 
-  // Convenience method to initialize a QuicBuffer by copying from an existing
-  // one.
-  static QuicBuffer Copy(QuicBufferAllocator* allocator,
-                         absl::string_view data) {
-    QuicBuffer result(allocator, data.size());
+  // Factory method to create a QuicheBuffer that holds a copy of `data`.
+  static QuicheBuffer Copy(QuicheBufferAllocator* allocator,
+                           absl::string_view data) {
+    QuicheBuffer result(allocator, data.size());
     memcpy(result.data(), data.data(), data.size());
     return result;
   }
@@ -102,16 +102,16 @@ class QUIC_EXPORT_PRIVATE QuicBuffer {
   }
 
   // Releases the ownership of the underlying buffer.
-  QuicUniqueBufferPtr Release() {
+  QuicheUniqueBufferPtr Release() {
     size_ = 0;
     return std::move(buffer_);
   }
 
  private:
-  QuicUniqueBufferPtr buffer_;
+  QuicheUniqueBufferPtr buffer_;
   size_t size_;
 };
 
-}  // namespace quic
+}  // namespace quiche
 
-#endif  // QUICHE_QUIC_CORE_QUIC_BUFFER_ALLOCATOR_H_
+#endif  // QUICHE_COMMON_QUICHE_BUFFER_ALLOCATOR_H_

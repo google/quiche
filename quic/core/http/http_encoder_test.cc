@@ -5,18 +5,18 @@
 #include "quic/core/http/http_encoder.h"
 
 #include "absl/base/macros.h"
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_test_utils.h"
+#include "common/simple_buffer_allocator.h"
 #include "common/test_tools/quiche_test_utils.h"
 
 namespace quic {
 namespace test {
 
 TEST(HttpEncoderTest, SerializeDataFrameHeader) {
-  QuicBuffer buffer = HttpEncoder::SerializeDataFrameHeader(
-      /* payload_length = */ 5, SimpleBufferAllocator::Get());
+  quiche::QuicheBuffer buffer = HttpEncoder::SerializeDataFrameHeader(
+      /* payload_length = */ 5, quiche::SimpleBufferAllocator::Get());
   char output[] = {// type (DATA)
                    0x00,
                    // length

@@ -1249,14 +1249,18 @@ TEST_P(QuicStreamTest, WriteMemSlices) {
 
   Initialize();
   constexpr QuicByteCount kDataSize = 1024;
-  QuicBufferAllocator* allocator =
+  quiche::QuicheBufferAllocator* allocator =
       connection_->helper()->GetStreamSendBufferAllocator();
   std::vector<quiche::QuicheMemSlice> vector1;
-  vector1.push_back(quiche::QuicheMemSlice(QuicBuffer(allocator, kDataSize)));
-  vector1.push_back(quiche::QuicheMemSlice(QuicBuffer(allocator, kDataSize)));
+  vector1.push_back(
+      quiche::QuicheMemSlice(quiche::QuicheBuffer(allocator, kDataSize)));
+  vector1.push_back(
+      quiche::QuicheMemSlice(quiche::QuicheBuffer(allocator, kDataSize)));
   std::vector<quiche::QuicheMemSlice> vector2;
-  vector2.push_back(quiche::QuicheMemSlice(QuicBuffer(allocator, kDataSize)));
-  vector2.push_back(quiche::QuicheMemSlice(QuicBuffer(allocator, kDataSize)));
+  vector2.push_back(
+      quiche::QuicheMemSlice(quiche::QuicheBuffer(allocator, kDataSize)));
+  vector2.push_back(
+      quiche::QuicheMemSlice(quiche::QuicheBuffer(allocator, kDataSize)));
   absl::Span<quiche::QuicheMemSlice> span1(vector1);
   absl::Span<quiche::QuicheMemSlice> span2(vector2);
 

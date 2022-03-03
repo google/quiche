@@ -392,8 +392,8 @@ CapsuleParser::CapsuleParser(Visitor* visitor) : visitor_(visitor) {
   QUICHE_DCHECK_NE(visitor_, nullptr);
 }
 
-QuicBuffer SerializeCapsule(const Capsule& capsule,
-                            QuicBufferAllocator* allocator) {
+quiche::QuicheBuffer SerializeCapsule(
+    const Capsule& capsule, quiche::QuicheBufferAllocator* allocator) {
   QuicByteCount capsule_type_length = QuicDataWriter::GetVarInt62Len(
       static_cast<uint64_t>(capsule.capsule_type()));
   QuicByteCount capsule_data_length;
@@ -454,15 +454,15 @@ QuicBuffer SerializeCapsule(const Capsule& capsule,
       QuicDataWriter::GetVarInt62Len(capsule_data_length);
   QuicByteCount total_capsule_length =
       capsule_type_length + capsule_length_length + capsule_data_length;
-  QuicBuffer buffer(allocator, total_capsule_length);
+  quiche::QuicheBuffer buffer(allocator, total_capsule_length);
   QuicDataWriter writer(buffer.size(), buffer.data());
   if (!writer.WriteVarInt62(static_cast<uint64_t>(capsule.capsule_type()))) {
     QUIC_BUG(capsule type write fail) << "Failed to write CAPSULE type";
-    return QuicBuffer();
+    return {};
   }
   if (!writer.WriteVarInt62(capsule_data_length)) {
     QUIC_BUG(capsule length write fail) << "Failed to write CAPSULE length";
-    return QuicBuffer();
+    return {};
   }
   switch (capsule.capsule_type()) {
     case CapsuleType::LEGACY_DATAGRAM:
@@ -471,14 +471,14 @@ QuicBuffer SerializeCapsule(const Capsule& capsule,
                 capsule.legacy_datagram_capsule().context_id.value())) {
           QUIC_BUG(datagram capsule context ID write fail)
               << "Failed to write LEGACY_DATAGRAM CAPSULE context ID";
-          return QuicBuffer();
+          return {};
         }
       }
       if (!writer.WriteStringPiece(
               capsule.legacy_datagram_capsule().http_datagram_payload)) {
         QUIC_BUG(datagram capsule payload write fail)
             << "Failed to write LEGACY_DATAGRAM CAPSULE payload";
-        return QuicBuffer();
+        return {};
       }
       break;
     case CapsuleType::DATAGRAM_WITH_CONTEXT:
@@ -486,13 +486,13 @@ QuicBuffer SerializeCapsule(const Capsule& capsule,
               capsule.datagram_with_context_capsule().context_id)) {
         QUIC_BUG(datagram capsule context ID write fail)
             << "Failed to write DATAGRAM_WITH_CONTEXT CAPSULE context ID";
-        return QuicBuffer();
+        return {};
       }
       if (!writer.WriteStringPiece(
               capsule.datagram_with_context_capsule().http_datagram_payload)) {
         QUIC_BUG(datagram capsule payload write fail)
             << "Failed to write DATAGRAM_WITH_CONTEXT CAPSULE payload";
-        return QuicBuffer();
+        return {};
       }
       break;
     case CapsuleType::DATAGRAM_WITHOUT_CONTEXT:
@@ -500,7 +500,7 @@ QuicBuffer SerializeCapsule(const Capsule& capsule,
                                        .http_datagram_payload)) {
         QUIC_BUG(datagram capsule payload write fail)
             << "Failed to write DATAGRAM_WITHOUT_CONTEXT CAPSULE payload";
-        return QuicBuffer();
+        return {};
       }
       break;
     case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
@@ -508,20 +508,20 @@ QuicBuffer SerializeCapsule(const Capsule& capsule,
               capsule.register_datagram_context_capsule().context_id)) {
         QUIC_BUG(register context capsule context ID write fail)
             << "Failed to write REGISTER_DATAGRAM_CONTEXT CAPSULE context ID";
-        return QuicBuffer();
+        return {};
       }
       if (!writer.WriteVarInt62(static_cast<uint64_t>(
               capsule.register_datagram_context_capsule().format_type))) {
         QUIC_BUG(register context capsule format type write fail)
             << "Failed to write REGISTER_DATAGRAM_CONTEXT CAPSULE format type";
-        return QuicBuffer();
+        return {};
       }
       if (!writer.WriteStringPiece(capsule.register_datagram_context_capsule()
                                        .format_additional_data)) {
         QUIC_BUG(register context capsule additional data write fail)
             << "Failed to write REGISTER_DATAGRAM_CONTEXT CAPSULE additional "
                "data";
-        return QuicBuffer();
+        return {};
       }
       break;
     case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
@@ -530,7 +530,7 @@ QuicBuffer SerializeCapsule(const Capsule& capsule,
         QUIC_BUG(register no context capsule format type write fail)
             << "Failed to write REGISTER_DATAGRAM_NO_CONTEXT CAPSULE format "
                "type";
-        return QuicBuffer();
+        return {};
       }
       if (!writer.WriteStringPiece(
               capsule.register_datagram_no_context_capsule()
@@ -538,7 +538,7 @@ QuicBuffer SerializeCapsule(const Capsule& capsule,
         QUIC_BUG(register no context capsule additional data write fail)
             << "Failed to write REGISTER_DATAGRAM_NO_CONTEXT CAPSULE "
                "additional data";
-        return QuicBuffer();
+        return {};
       }
       break;
     case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
@@ -546,19 +546,19 @@ QuicBuffer SerializeCapsule(const Capsule& capsule,
               capsule.close_datagram_context_capsule().context_id)) {
         QUIC_BUG(close context capsule context ID write fail)
             << "Failed to write CLOSE_DATAGRAM_CONTEXT CAPSULE context ID";
-        return QuicBuffer();
+        return {};
       }
       if (!writer.WriteVarInt62(static_cast<uint64_t>(
               capsule.close_datagram_context_capsule().close_code))) {
         QUIC_BUG(close context capsule close code write fail)
             << "Failed to write CLOSE_DATAGRAM_CONTEXT CAPSULE close code";
-        return QuicBuffer();
+        return {};
       }
       if (!writer.WriteStringPiece(
               capsule.close_datagram_context_capsule().close_details)) {
         QUIC_BUG(close context capsule close details write fail)
             << "Failed to write CLOSE_DATAGRAM_CONTEXT CAPSULE close details";
-        return QuicBuffer();
+        return {};
       }
       break;
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
@@ -566,19 +566,19 @@ QuicBuffer SerializeCapsule(const Capsule& capsule,
               capsule.close_web_transport_session_capsule().error_code)) {
         QUIC_BUG(close webtransport session capsule error code write fail)
             << "Failed to write CLOSE_WEBTRANSPORT_SESSION error code";
-        return QuicBuffer();
+        return {};
       }
       if (!writer.WriteStringPiece(
               capsule.close_web_transport_session_capsule().error_message)) {
         QUIC_BUG(close webtransport session capsule error message write fail)
             << "Failed to write CLOSE_WEBTRANSPORT_SESSION error message";
-        return QuicBuffer();
+        return {};
       }
       break;
     default:
       if (!writer.WriteStringPiece(capsule.unknown_capsule_data())) {
         QUIC_BUG(capsule data write fail) << "Failed to write CAPSULE data";
-        return QuicBuffer();
+        return {};
       }
       break;
   }
@@ -586,7 +586,7 @@ QuicBuffer SerializeCapsule(const Capsule& capsule,
     QUIC_BUG(capsule write length mismatch)
         << "CAPSULE serialization wrote " << writer.length() << " instead of "
         << writer.capacity();
-    return QuicBuffer();
+    return {};
   }
   return buffer;
 }

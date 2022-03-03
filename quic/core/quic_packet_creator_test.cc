@@ -21,7 +21,6 @@
 #include "quic/core/frames/quic_stream_frame.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_data_writer.h"
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_expect_bug.h"
@@ -33,6 +32,7 @@
 #include "quic/test_tools/quic_test_utils.h"
 #include "quic/test_tools/simple_data_producer.h"
 #include "quic/test_tools/simple_quic_framer.h"
+#include "common/simple_buffer_allocator.h"
 #include "common/test_tools/quiche_test_utils.h"
 
 using ::testing::_;
@@ -287,7 +287,7 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
   TestPacketCreator creator_;
   std::unique_ptr<SerializedPacket> serialized_packet_;
   SimpleDataProducer producer_;
-  SimpleBufferAllocator allocator_;
+  quiche::SimpleBufferAllocator allocator_;
 };
 
 // Run all packet creator tests with all supported versions of QUIC, and with
@@ -2140,7 +2140,7 @@ TEST_P(QuicPacketCreatorTest, SaveNonRetransmittableFrames) {
 
 TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
   QuicCoalescedPacket coalesced;
-  SimpleBufferAllocator allocator;
+  quiche::SimpleBufferAllocator allocator;
   QuicSocketAddress self_address(QuicIpAddress::Loopback4(), 1);
   QuicSocketAddress peer_address(QuicIpAddress::Loopback4(), 2);
   for (size_t i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
@@ -2606,7 +2606,7 @@ class QuicPacketCreatorMultiplePacketsTest : public QuicTest {
   std::vector<SerializedPacket> packets_;
   QuicAckFrame ack_frame_;
   struct iovec iov_;
-  SimpleBufferAllocator allocator_;
+  quiche::SimpleBufferAllocator allocator_;
 
  private:
   std::unique_ptr<char[]> data_array_;

@@ -13,7 +13,6 @@
 #include "url/origin.h"
 #include "quic/core/crypto/quic_crypto_client_config.h"
 #include "quic/core/crypto/quic_crypto_server_config.h"
-#include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_connection.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_types.h"

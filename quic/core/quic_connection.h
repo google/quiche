@@ -452,8 +452,8 @@ class QUIC_EXPORT_PRIVATE QuicConnectionHelperInterface {
   // Returns a QuicRandom to be used for all random number related functions.
   virtual QuicRandom* GetRandomGenerator() = 0;
 
-  // Returns a QuicBufferAllocator to be used for stream send buffers.
-  virtual QuicBufferAllocator* GetStreamSendBufferAllocator() = 0;
+  // Returns a QuicheBufferAllocator to be used for stream send buffers.
+  virtual quiche::QuicheBufferAllocator* GetStreamSendBufferAllocator() = 0;
 };
 
 class QUIC_EXPORT_PRIVATE QuicConnection

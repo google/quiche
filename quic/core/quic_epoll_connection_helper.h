@@ -9,17 +9,18 @@
 #define QUICHE_QUIC_CORE_QUIC_EPOLL_CONNECTION_HELPER_H_
 
 #include <sys/types.h>
+
 #include <set>
 
 #include "quic/core/quic_connection.h"
 #include "quic/core/quic_default_packet_writer.h"
 #include "quic/core/quic_packet_writer.h"
 #include "quic/core/quic_packets.h"
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_time.h"
 #include "quic/platform/api/quic_epoll.h"
 #include "quic/platform/api/quic_stream_buffer_allocator.h"
 #include "net/quic/platform/impl/quic_epoll_clock.h"
+#include "common/simple_buffer_allocator.h"
 
 namespace quic {
 
@@ -40,7 +41,7 @@ class QUIC_EXPORT_PRIVATE QuicEpollConnectionHelper
   // QuicConnectionHelperInterface
   const QuicClock* GetClock() const override;
   QuicRandom* GetRandomGenerator() override;
-  QuicBufferAllocator* GetStreamSendBufferAllocator() override;
+  quiche::QuicheBufferAllocator* GetStreamSendBufferAllocator() override;
 
  private:
   const QuicEpollClock clock_;
@@ -48,7 +49,7 @@ class QUIC_EXPORT_PRIVATE QuicEpollConnectionHelper
   // Set up allocators.  They take up minimal memory before use.
   // Allocator for stream send buffers.
   QuicStreamBufferAllocator stream_buffer_allocator_;
-  SimpleBufferAllocator simple_buffer_allocator_;
+  quiche::SimpleBufferAllocator simple_buffer_allocator_;
   QuicAllocator allocator_type_;
 };
 

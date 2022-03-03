@@ -7,10 +7,10 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_stream_frame_data_producer.h"
 #include "quic/core/quic_stream_send_buffer.h"
 #include "quic/platform/api/quic_containers.h"
+#include "common/simple_buffer_allocator.h"
 
 namespace quic {
 
@@ -57,7 +57,7 @@ class SimpleDataProducer : public QuicStreamFrameDataProducer {
       absl::flat_hash_map<std::pair<EncryptionLevel, QuicStreamOffset>,
                           std::string>;
 
-  SimpleBufferAllocator allocator_;
+  quiche::SimpleBufferAllocator allocator_;
 
   SendBufferMap send_buffer_map_;
 

@@ -7,9 +7,9 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
-#include "quic/core/quic_buffer_allocator.h"
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "common/platform/api/quiche_test.h"
+#include "common/quiche_buffer_allocator.h"
+#include "common/simple_buffer_allocator.h"
 
 namespace quiche {
 namespace test {
@@ -19,12 +19,12 @@ class QuicheMemSliceTest : public QuicheTest {
  public:
   QuicheMemSliceTest() {
     size_t length = 1024;
-    slice_ = QuicheMemSlice(quic::QuicBuffer(&allocator_, length));
+    slice_ = QuicheMemSlice(QuicheBuffer(&allocator_, length));
     orig_data_ = slice_.data();
     orig_length_ = slice_.length();
   }
 
-  quic::SimpleBufferAllocator allocator_;
+  SimpleBufferAllocator allocator_;
   QuicheMemSlice slice_;
   const char* orig_data_;
   size_t orig_length_;
@@ -62,7 +62,7 @@ TEST_F(QuicheMemSliceTest, SliceAllocatedOnHeap) {
 TEST_F(QuicheMemSliceTest, SliceFromBuffer) {
   const absl::string_view kTestString =
       "RFC 9000 Release Celebration Memorial Test String";
-  auto buffer = quic::QuicBuffer::Copy(&allocator_, kTestString);
+  auto buffer = QuicheBuffer::Copy(&allocator_, kTestString);
   QuicheMemSlice slice(std::move(buffer));
 
   EXPECT_EQ(buffer.data(), nullptr);  // NOLINT(bugprone-use-after-move)

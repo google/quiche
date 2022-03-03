@@ -11,10 +11,10 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
-#include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_data_reader.h"
 #include "quic/core/quic_types.h"
 #include "common/platform/api/quiche_logging.h"
+#include "common/quiche_buffer_allocator.h"
 
 namespace quic {
 
@@ -283,8 +283,8 @@ class QUIC_EXPORT_PRIVATE CapsuleParser {
 };
 
 // Serializes |capsule| into a newly allocated buffer.
-QUIC_EXPORT_PRIVATE QuicBuffer SerializeCapsule(const Capsule& capsule,
-                                                QuicBufferAllocator* allocator);
+QUIC_EXPORT_PRIVATE quiche::QuicheBuffer SerializeCapsule(
+    const Capsule& capsule, quiche::QuicheBufferAllocator* allocator);
 
 }  // namespace quic
 

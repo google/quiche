@@ -6642,7 +6642,7 @@ TEST_P(EndToEndTest, WebTransportDatagrams) {
   ASSERT_TRUE(session != nullptr);
   NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
 
-  SimpleBufferAllocator allocator;
+  quiche::SimpleBufferAllocator allocator;
   for (int i = 0; i < 10; i++) {
     session->SendOrQueueDatagram(MemSliceFromString("test"));
   }
@@ -6672,7 +6672,7 @@ TEST_P(EndToEndTest, WebTransportDatagramsWithContexts) {
   ASSERT_TRUE(connect_stream != nullptr);
   NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
 
-  SimpleBufferAllocator allocator;
+  quiche::SimpleBufferAllocator allocator;
   for (int i = 0; i < 10; i++) {
     session->SendOrQueueDatagram(MemSliceFromString("test"));
   }

@@ -335,7 +335,7 @@ class QuicSentPacketManagerTest : public QuicTest {
     return 4;
   }
 
-  SimpleBufferAllocator allocator_;
+  quiche::SimpleBufferAllocator allocator_;
   QuicSentPacketManager manager_;
   MockClock clock_;
   QuicConnectionStats stats_;
@@ -4495,7 +4495,7 @@ TEST_F(QuicSentPacketManagerTest, ClearDataInMessageFrameAfterPacketSent) {
 
   QuicMessageFrame* message_frame = nullptr;
   {
-    quiche::QuicheMemSlice slice(QuicBuffer(&allocator_, 1024));
+    quiche::QuicheMemSlice slice(quiche::QuicheBuffer(&allocator_, 1024));
     message_frame = new QuicMessageFrame(/*message_id=*/1, std::move(slice));
     EXPECT_FALSE(message_frame->message_data.empty());
     EXPECT_EQ(message_frame->message_length, 1024);

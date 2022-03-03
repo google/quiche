@@ -9,7 +9,6 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/quic_random.h"
 #include "quic/core/quic_session.h"
-#include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/platform/api/quic_test_loopback.h"
@@ -17,6 +16,7 @@
 #include "quic/qbone/qbone_session_base.h"
 #include "quic/test_tools/mock_clock.h"
 #include "quic/test_tools/quic_test_utils.h"
+#include "common/simple_buffer_allocator.h"
 #include "spdy/core/spdy_protocol.h"
 
 namespace quic {
@@ -159,7 +159,7 @@ class QboneReadOnlyStreamTest : public ::testing::Test,
     return QuicRandom::GetInstance();
   }
 
-  QuicBufferAllocator* GetStreamSendBufferAllocator() override {
+  quiche::QuicheBufferAllocator* GetStreamSendBufferAllocator() override {
     return &buffer_allocator_;
   }
 
@@ -170,7 +170,7 @@ class QboneReadOnlyStreamTest : public ::testing::Test,
   std::unique_ptr<QuicAlarmFactory> alarm_factory_;
   std::unique_ptr<QuicConnection> connection_;
   // Used to implement the QuicConnectionHelperInterface.
-  SimpleBufferAllocator buffer_allocator_;
+  quiche::SimpleBufferAllocator buffer_allocator_;
   MockClock clock_;
   const QuicStreamId kStreamId = QuicUtils::GetFirstUnidirectionalStreamId(
       CurrentSupportedVersions()[0].transport_version, Perspective::IS_CLIENT);

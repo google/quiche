@@ -27,7 +27,8 @@ QuicRandom* QuicEpollConnectionHelper::GetRandomGenerator() {
   return random_generator_;
 }
 
-QuicBufferAllocator* QuicEpollConnectionHelper::GetStreamSendBufferAllocator() {
+quiche::QuicheBufferAllocator*
+QuicEpollConnectionHelper::GetStreamSendBufferAllocator() {
   if (allocator_type_ == QuicAllocator::BUFFER_POOL) {
     return &stream_buffer_allocator_;
   } else {

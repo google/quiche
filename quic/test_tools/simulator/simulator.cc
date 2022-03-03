@@ -113,7 +113,7 @@ QuicRandom* Simulator::GetRandomGenerator() {
   return random_generator_;
 }
 
-QuicBufferAllocator* Simulator::GetStreamSendBufferAllocator() {
+quiche::QuicheBufferAllocator* Simulator::GetStreamSendBufferAllocator() {
   return &buffer_allocator_;
 }
 

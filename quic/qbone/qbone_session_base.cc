@@ -10,7 +10,6 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_data_reader.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_exported_stats.h"
@@ -20,6 +19,7 @@
 #include "quic/qbone/qbone_constants.h"
 #include "common/platform/api/quiche_command_line_flags.h"
 #include "common/platform/api/quiche_mem_slice.h"
+#include "common/quiche_buffer_allocator.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, qbone_close_ephemeral_frames, true,
@@ -140,7 +140,7 @@ void QboneSessionBase::SendPacketToPeer(absl::string_view packet) {
   }
 
   if (send_packets_as_messages_) {
-    quiche::QuicheMemSlice slice(QuicBuffer::Copy(
+    quiche::QuicheMemSlice slice(quiche::QuicheBuffer::Copy(
         connection()->helper()->GetStreamSendBufferAllocator(), packet));
     switch (SendMessage(absl::MakeSpan(&slice, 1), /*flush=*/true).status) {
       case MESSAGE_STATUS_SUCCESS:

@@ -7,7 +7,6 @@
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
-#include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_data_reader.h"
 #include "quic/core/quic_data_writer.h"
 #include "quic/core/quic_framer.h"
@@ -16,6 +15,7 @@
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_containers.h"
 #include "common/platform/api/quiche_mem_slice.h"
+#include "common/quiche_buffer_allocator.h"
 #include "common/quiche_text_utils.h"
 
 namespace quic {
@@ -269,7 +269,7 @@ void MasqueCompressionEngine::CompressAndSendPacket(
                     sizeof(server_address.port()) + sizeof(uint8_t) +
                     server_address.host().ToPackedString().length();
   }
-  QuicBuffer buffer(
+  quiche::QuicheBuffer buffer(
       masque_session_->connection()->helper()->GetStreamSendBufferAllocator(),
       slice_length);
   QuicDataWriter writer(buffer.size(), buffer.data());

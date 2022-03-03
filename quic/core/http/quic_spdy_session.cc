@@ -1663,8 +1663,8 @@ MessageStatus QuicSpdySession::SendHttp3Datagram(
   if (context_id.has_value()) {
     slice_length += QuicDataWriter::GetVarInt62Len(context_id.value());
   }
-  QuicBuffer buffer(connection()->helper()->GetStreamSendBufferAllocator(),
-                    slice_length);
+  quiche::QuicheBuffer buffer(
+      connection()->helper()->GetStreamSendBufferAllocator(), slice_length);
   QuicDataWriter writer(slice_length, buffer.data());
   if (!writer.WriteVarInt62(stream_id_to_write)) {
     QUIC_BUG(h3 datagram stream ID write fail)
