@@ -20,46 +20,41 @@ namespace quic {
 namespace test {
 namespace {
 
-struct iovec MakeIovec(absl::string_view data) {
-  struct iovec iov = {const_cast<char*>(data.data()),
-                      static_cast<size_t>(data.size())};
-  return iov;
-}
-
 class QuicStreamSendBufferTest : public QuicTest {
  public:
   QuicStreamSendBufferTest() : send_buffer_(&allocator_) {
     EXPECT_EQ(0u, send_buffer_.size());
     EXPECT_EQ(0u, send_buffer_.stream_bytes_written());
     EXPECT_EQ(0u, send_buffer_.stream_bytes_outstanding());
-    std::string data1(1536, 'a');
-    std::string data2 = std::string(256, 'b') + std::string(256, 'c');
-    struct iovec iov[2];
-    iov[0] = MakeIovec(absl::string_view(data1));
-    iov[1] = MakeIovec(absl::string_view(data2));
+    // The stream offset should be 0 since nothing is written.
+    EXPECT_EQ(0u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
+
+    std::string data1 = absl::StrCat(
+        std::string(1536, 'a'), std::string(256, 'b'), std::string(256, 'c'));
 
     quiche::QuicheBuffer buffer1(&allocator_, 1024);
     memset(buffer1.data(), 'c', buffer1.size());
     quiche::QuicheMemSlice slice1(std::move(buffer1));
+
     quiche::QuicheBuffer buffer2(&allocator_, 768);
     memset(buffer2.data(), 'd', buffer2.size());
     quiche::QuicheMemSlice slice2(std::move(buffer2));
 
-    // The stream offset should be 0 since nothing is written.
-    EXPECT_EQ(0u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-
-    // Save all data.
+    // `data` will be split into two BufferedSlices.
     SetQuicFlag(FLAGS_quic_send_buffer_max_data_slice_size, 1024);
-    send_buffer_.SaveStreamData(iov, 2, 0, 2048);
+    send_buffer_.SaveStreamData(data1);
+
     send_buffer_.SaveMemSlice(std::move(slice1));
     EXPECT_TRUE(slice1.empty());
     send_buffer_.SaveMemSlice(std::move(slice2));
     EXPECT_TRUE(slice2.empty());
 
     EXPECT_EQ(4u, send_buffer_.size());
-    // At this point, the whole buffer looks like:
-    // |      a * 1536      |b * 256|         c * 1280        |  d * 768  |
-    // |    slice1     |     slice2       |      slice3       |   slice4  |
+    // At this point, `send_buffer_.interval_deque_` looks like this:
+    // BufferedSlice1: 'a' * 1024
+    // BufferedSlice2: 'a' * 512 + 'b' * 256 + 'c' * 256
+    // BufferedSlice3: 'c' * 1024
+    // BufferedSlice4: 'd' * 768
   }
 
   void WriteAllData() {

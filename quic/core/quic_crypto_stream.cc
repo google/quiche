@@ -140,11 +140,9 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
   }
   const bool had_buffered_data = HasBufferedCryptoFrames();
   // Append |data| to the send buffer for this encryption level.
-  struct iovec iov(QuicUtils::MakeIovec(data));
   QuicStreamSendBuffer* send_buffer = &substreams_[level].send_buffer;
   QuicStreamOffset offset = send_buffer->stream_offset();
-  send_buffer->SaveStreamData(&iov, /*iov_count=*/1, /*iov_offset=*/0,
-                              data.length());
+  send_buffer->SaveStreamData(data);
   if (kMaxStreamLength - offset < data.length()) {
     QUIC_BUG(quic_bug_10322_2) << "Writing too much crypto handshake data";
     // TODO(nharper): Switch this to an IETF QUIC error code, possibly
