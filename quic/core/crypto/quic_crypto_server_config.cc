@@ -12,6 +12,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
@@ -37,6 +38,7 @@
 #include "quic/core/proto/crypto_server_config_proto.h"
 #include "quic/core/proto/source_address_token_proto.h"
 #include "quic/core/quic_clock.h"
+#include "quic/core/quic_connection_context.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_socket_address_coder.h"
 #include "quic/core/quic_types.h"
@@ -114,6 +116,40 @@ bool ClientDemandsX509Proof(const CryptoHandshakeMessage& client_hello) {
     }
   }
   return false;
+}
+
+std::string FormatCryptoHandshakeMessageForTrace(
+    const CryptoHandshakeMessage* message) {
+  if (message == nullptr) {
+    return "<null message>";
+  }
+
+  std::string s = QuicTagToString(message->tag());
+
+  // Append the reasons for REJ.
+  if (const auto it = message->tag_value_map().find(kRREJ);
+      it != message->tag_value_map().end()) {
+    const std::string& value = it->second;
+    // The value is a vector of uint32_t(s).
+    if (value.size() % sizeof(uint32_t) == 0) {
+      absl::StrAppend(&s, " RREJ:[");
+      // Append comma-separated list of reasons to |s|.
+      for (size_t j = 0; j < value.size(); j += sizeof(uint32_t)) {
+        uint32_t reason;
+        memcpy(&reason, value.data() + j, sizeof(reason));
+        if (j > 0) {
+          absl::StrAppend(&s, ",");
+        }
+        absl::StrAppend(&s, CryptoUtils::HandshakeFailureReasonToString(
+                                static_cast<HandshakeFailureReason>(reason)));
+      }
+      absl::StrAppend(&s, "]");
+    } else {
+      absl::StrAppendFormat(&s, " RREJ:[unexpected length:%u]", value.size());
+    }
+  }
+
+  return s;
 }
 
 }  // namespace
@@ -217,6 +253,8 @@ QuicCryptoServerConfig::ProcessClientHelloContext::
 void QuicCryptoServerConfig::ProcessClientHelloContext::Fail(
     QuicErrorCode error,
     const std::string& error_details) {
+  QUIC_TRACEPRINTF("ProcessClientHello failed: error=%s, details=%s",
+                   QuicErrorCodeToString(error), error_details);
   done_cb_->Run(error, error_details, nullptr, nullptr, nullptr);
   done_cb_ = nullptr;
 }
@@ -225,6 +263,9 @@ void QuicCryptoServerConfig::ProcessClientHelloContext::Succeed(
     std::unique_ptr<CryptoHandshakeMessage> message,
     std::unique_ptr<DiversificationNonce> diversification_nonce,
     std::unique_ptr<ProofSource::Details> proof_source_details) {
+  QUIC_TRACEPRINTF("ProcessClientHello succeeded: %s",
+                   FormatCryptoHandshakeMessageForTrace(message.get()));
+
   done_cb_->Run(QUIC_NO_ERROR, std::string(), std::move(message),
                 std::move(diversification_nonce),
                 std::move(proof_source_details));
