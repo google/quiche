@@ -8,7 +8,7 @@
 namespace http2 {
 namespace adapter {
 
-bool DefaultShouldNotifyListener(int64_t limit, int64_t window, int64_t delta) {
+bool DefaultShouldWindowUpdateFn(int64_t limit, int64_t window, int64_t delta) {
   // For the sake of efficiency, we want to send window updates if less than
   // half of the max quota is available to the peer at any point in time.
   const int64_t kDesiredMinWindow = limit / 2;
@@ -27,16 +27,16 @@ bool DefaultShouldNotifyListener(int64_t limit, int64_t window, int64_t delta) {
 
 WindowManager::WindowManager(int64_t window_size_limit,
                              WindowUpdateListener listener,
-                             ShouldNotifyListener should_notify_listener,
+                             ShouldWindowUpdateFn should_window_update_fn,
                              bool update_window_on_notify)
     : limit_(window_size_limit),
       window_(window_size_limit),
       buffered_(0),
       listener_(std::move(listener)),
-      should_notify_listener_(std::move(should_notify_listener)),
+      should_window_update_fn_(std::move(should_window_update_fn)),
       update_window_on_notify_(update_window_on_notify) {
-  if (!should_notify_listener_) {
-    should_notify_listener_ = DefaultShouldNotifyListener;
+  if (!should_window_update_fn_) {
+    should_window_update_fn_ = DefaultShouldWindowUpdateFn;
   }
 }
 
@@ -89,7 +89,7 @@ void WindowManager::MarkDataFlushed(int64_t bytes) {
 
 void WindowManager::MaybeNotifyListener() {
   const int64_t delta = limit_ - (buffered_ + window_);
-  if (should_notify_listener_(limit_, window_, delta) && delta > 0) {
+  if (should_window_update_fn_(limit_, window_, delta) && delta > 0) {
     QUICHE_VLOG(2) << "WindowManager@" << this
                    << " Informing listener of delta: " << delta;
     listener_(delta);

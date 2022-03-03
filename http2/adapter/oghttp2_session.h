@@ -215,7 +215,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     StreamState(int32_t stream_receive_window, int32_t stream_send_window,
                 WindowManager::WindowUpdateListener listener)
         : window_manager(stream_receive_window, std::move(listener),
-                         /*should_notify_listener=*/{},
+                         /*should_window_update_fn=*/{},
                          /*update_window_on_notify=*/false),
           send_window(stream_send_window) {}
 

@@ -334,7 +334,7 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
           [this](size_t window_update_delta) {
             SendWindowUpdate(kConnectionStreamId, window_update_delta);
           },
-          /*should_notify_listener=*/{},
+          /*should_window_update_fn=*/{},
           /*update_window_on_notify=*/false),
       options_(options) {
   decoder_.set_visitor(&receive_logger_);

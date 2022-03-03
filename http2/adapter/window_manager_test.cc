@@ -266,9 +266,9 @@ TEST(WindowManagerNoUpdateTest, NoWindowUpdateOnListener) {
 }
 
 // This test verifies that when the constructor option is specified,
-// WindowManager uses the provided ShouldNotifyListener to determine when to
+// WindowManager uses the provided ShouldWindowUpdateFn to determine when to
 // notify the listener.
-TEST(WindowManagerShouldUpdateTest, CustomShouldNotifyListener) {
+TEST(WindowManagerShouldUpdateTest, CustomShouldWindowUpdateFn) {
   const int64_t kDefaultLimit = 65535;
 
   // This window manager should always notify.

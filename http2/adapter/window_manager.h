@@ -23,11 +23,11 @@ class QUICHE_EXPORT_PRIVATE WindowManager {
 
   // Invoked to determine whether to call the listener based on the window
   // limit, window size, and delta that would be sent.
-  using ShouldNotifyListener =
+  using ShouldWindowUpdateFn =
       std::function<bool(int64_t limit, int64_t size, int64_t delta)>;
 
   WindowManager(int64_t window_size_limit, WindowUpdateListener listener,
-                ShouldNotifyListener should_notify_listener = {},
+                ShouldWindowUpdateFn should_window_update_fn = {},
                 bool update_window_on_notify = true);
 
   int64_t CurrentWindowSize() const { return window_; }
@@ -81,7 +81,7 @@ class QUICHE_EXPORT_PRIVATE WindowManager {
 
   WindowUpdateListener listener_;
 
-  ShouldNotifyListener should_notify_listener_;
+  ShouldWindowUpdateFn should_window_update_fn_;
 
   bool update_window_on_notify_;
 };
