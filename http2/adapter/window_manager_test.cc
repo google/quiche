@@ -218,11 +218,13 @@ TEST(WindowManagerNoUpdateTest, NoWindowUpdateOnListener) {
   WindowManager wm1(
       kDefaultLimit,
       [&call_sequence1](int64_t delta) { call_sequence1.push_back(delta); },
+      /*should_notify_listener=*/{},
       /*update_window_on_notify=*/true);  // default
   std::list<int64_t> call_sequence2;
   WindowManager wm2(
       kDefaultLimit,
       [&call_sequence2](int64_t delta) { call_sequence2.push_back(delta); },
+      /*should_notify_listener=*/{},
       /*update_window_on_notify=*/false);
 
   const int64_t consumed = kDefaultLimit / 3 - 1;
@@ -261,6 +263,71 @@ TEST(WindowManagerNoUpdateTest, NoWindowUpdateOnListener) {
   EXPECT_THAT(call_sequence2, testing::ElementsAre(kDefaultLimit * 4));
   // Does *not* update the window size.
   EXPECT_EQ(wm2.CurrentWindowSize(), kDefaultLimit);
+}
+
+// This test verifies that when the constructor option is specified,
+// WindowManager uses the provided ShouldNotifyListener to determine when to
+// notify the listener.
+TEST(WindowManagerShouldUpdateTest, CustomShouldNotifyListener) {
+  const int64_t kDefaultLimit = 65535;
+
+  // This window manager should always notify.
+  std::list<int64_t> call_sequence1;
+  WindowManager wm1(
+      kDefaultLimit,
+      [&call_sequence1](int64_t delta) { call_sequence1.push_back(delta); },
+      [](int64_t /*limit*/, int64_t /*window*/, int64_t /*delta*/) {
+        return true;
+      });
+  // This window manager should never notify.
+  std::list<int64_t> call_sequence2;
+  WindowManager wm2(
+      kDefaultLimit,
+      [&call_sequence2](int64_t delta) { call_sequence2.push_back(delta); },
+      [](int64_t /*limit*/, int64_t /*window*/, int64_t /*delta*/) {
+        return false;
+      });
+  // This window manager should notify as long as no data is buffered.
+  std::list<int64_t> call_sequence3;
+  WindowManager wm3(
+      kDefaultLimit,
+      [&call_sequence3](int64_t delta) { call_sequence3.push_back(delta); },
+      [](int64_t limit, int64_t window, int64_t delta) {
+        return delta == limit - window;
+      });
+
+  const int64_t consumed = kDefaultLimit / 4;
+
+  wm1.MarkWindowConsumed(consumed);
+  EXPECT_THAT(call_sequence1, testing::ElementsAre(consumed));
+  wm2.MarkWindowConsumed(consumed);
+  EXPECT_TRUE(call_sequence2.empty());
+  wm3.MarkWindowConsumed(consumed);
+  EXPECT_THAT(call_sequence3, testing::ElementsAre(consumed));
+
+  const int64_t buffered = 42;
+
+  wm1.MarkDataBuffered(buffered);
+  EXPECT_THAT(call_sequence1, testing::ElementsAre(consumed));
+  wm2.MarkDataBuffered(buffered);
+  EXPECT_TRUE(call_sequence2.empty());
+  wm3.MarkDataBuffered(buffered);
+  EXPECT_THAT(call_sequence3, testing::ElementsAre(consumed));
+
+  wm1.MarkDataFlushed(buffered / 3);
+  EXPECT_THAT(call_sequence1, testing::ElementsAre(consumed, buffered / 3));
+  wm2.MarkDataFlushed(buffered / 3);
+  EXPECT_TRUE(call_sequence2.empty());
+  wm3.MarkDataFlushed(buffered / 3);
+  EXPECT_THAT(call_sequence3, testing::ElementsAre(consumed));
+
+  wm1.MarkDataFlushed(2 * buffered / 3);
+  EXPECT_THAT(call_sequence1,
+              testing::ElementsAre(consumed, buffered / 3, 2 * buffered / 3));
+  wm2.MarkDataFlushed(2 * buffered / 3);
+  EXPECT_TRUE(call_sequence2.empty());
+  wm3.MarkDataFlushed(2 * buffered / 3);
+  EXPECT_THAT(call_sequence3, testing::ElementsAre(consumed, buffered));
 }
 
 }  // namespace

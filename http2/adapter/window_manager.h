@@ -19,9 +19,15 @@ class WindowManagerPeer;
 class QUICHE_EXPORT_PRIVATE WindowManager {
  public:
   // A WindowUpdateListener is invoked when it is time to send a window update.
-  typedef std::function<void(int64_t)> WindowUpdateListener;
+  using WindowUpdateListener = std::function<void(int64_t)>;
+
+  // Invoked to determine whether to call the listener based on the window
+  // limit, window size, and delta that would be sent.
+  using ShouldNotifyListener =
+      std::function<bool(int64_t limit, int64_t size, int64_t delta)>;
 
   WindowManager(int64_t window_size_limit, WindowUpdateListener listener,
+                ShouldNotifyListener should_notify_listener = {},
                 bool update_window_on_notify = true);
 
   int64_t CurrentWindowSize() const { return window_; }
@@ -74,6 +80,8 @@ class QUICHE_EXPORT_PRIVATE WindowManager {
   int64_t buffered_;
 
   WindowUpdateListener listener_;
+
+  ShouldNotifyListener should_notify_listener_;
 
   bool update_window_on_notify_;
 };

@@ -8,14 +8,37 @@
 namespace http2 {
 namespace adapter {
 
+bool DefaultShouldNotifyListener(int64_t limit, int64_t window, int64_t delta) {
+  // For the sake of efficiency, we want to send window updates if less than
+  // half of the max quota is available to the peer at any point in time.
+  const int64_t kDesiredMinWindow = limit / 2;
+  const int64_t kDesiredMinDelta = limit / 3;
+  if (delta >= kDesiredMinDelta) {
+    // This particular window update was sent because the available delta
+    // exceeded the desired minimum.
+    return true;
+  } else if (window < kDesiredMinWindow) {
+    // This particular window update was sent because the quota available to the
+    // peer at this moment is less than the desired minimum.
+    return true;
+  }
+  return false;
+}
+
 WindowManager::WindowManager(int64_t window_size_limit,
                              WindowUpdateListener listener,
+                             ShouldNotifyListener should_notify_listener,
                              bool update_window_on_notify)
     : limit_(window_size_limit),
       window_(window_size_limit),
       buffered_(0),
       listener_(std::move(listener)),
-      update_window_on_notify_(update_window_on_notify) {}
+      should_notify_listener_(std::move(should_notify_listener)),
+      update_window_on_notify_(update_window_on_notify) {
+  if (!should_notify_listener_) {
+    should_notify_listener_ = DefaultShouldNotifyListener;
+  }
+}
 
 void WindowManager::OnWindowSizeLimitChange(const int64_t new_limit) {
   QUICHE_VLOG(2) << "WindowManager@" << this
@@ -65,22 +88,8 @@ void WindowManager::MarkDataFlushed(int64_t bytes) {
 }
 
 void WindowManager::MaybeNotifyListener() {
-  // For the sake of efficiency, we want to send window updates if less than
-  // half of the max quota is available to the peer at any point in time.
-  const int64_t kDesiredMinWindow = limit_ / 2;
-  const int64_t kDesiredMinDelta = limit_ / 3;
   const int64_t delta = limit_ - (buffered_ + window_);
-  bool send_update = false;
-  if (delta >= kDesiredMinDelta) {
-    // This particular window update was sent because the available delta
-    // exceeded the desired minimum.
-    send_update = true;
-  } else if (window_ < kDesiredMinWindow) {
-    // This particular window update was sent because the quota available to the
-    // peer at this moment is less than the desired minimum.
-    send_update = true;
-  }
-  if (send_update && delta > 0) {
+  if (should_notify_listener_(limit_, window_, delta) && delta > 0) {
     QUICHE_VLOG(2) << "WindowManager@" << this
                    << " Informing listener of delta: " << delta;
     listener_(delta);
