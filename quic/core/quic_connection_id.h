@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/types/span.h"
 #include "quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -47,6 +48,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionId {
 
   // Creates a connection ID from network order bytes.
   QuicConnectionId(const char* data, uint8_t length);
+  QuicConnectionId(const absl::Span<const uint8_t>& data);
 
   // Creates a connection ID from another connection ID.
   QuicConnectionId(const QuicConnectionId& other);
@@ -89,8 +91,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionId {
 
   // operator<< allows easily logging connection IDs.
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicConnectionId& v);
+      std::ostream& os, const QuicConnectionId& v);
 
   bool operator==(const QuicConnectionId& v) const;
   bool operator!=(const QuicConnectionId& v) const;

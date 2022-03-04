@@ -60,6 +60,33 @@ TEST_F(QuicConnectionIdTest, Data) {
   EXPECT_EQ(kNewLength, connection_id2.length());
 }
 
+TEST_F(QuicConnectionIdTest, SpanData) {
+  QuicConnectionId connection_id = QuicConnectionId({0x01, 0x02, 0x03});
+  EXPECT_EQ(connection_id.length(), 3);
+  QuicConnectionId empty_connection_id =
+      QuicConnectionId(absl::Span<uint8_t>());
+  EXPECT_EQ(empty_connection_id.length(), 0);
+  QuicConnectionId connection_id2 = QuicConnectionId({
+      0x01,
+      0x02,
+      0x03,
+      0x04,
+      0x05,
+      0x06,
+      0x07,
+      0x08,
+      0x09,
+      0x0a,
+      0x0b,
+      0x0c,
+      0x0d,
+      0x0e,
+      0x0f,
+      0x10,
+  });
+  EXPECT_EQ(connection_id2.length(), 16);
+}
+
 TEST_F(QuicConnectionIdTest, DoubleConvert) {
   QuicConnectionId connection_id64_1 = test::TestConnectionId(1);
   QuicConnectionId connection_id64_2 = test::TestConnectionId(42);

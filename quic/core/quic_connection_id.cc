@@ -71,6 +71,10 @@ QuicConnectionId::QuicConnectionId(const char* data, uint8_t length) {
   memcpy(data_long_, data, length_);
 }
 
+QuicConnectionId::QuicConnectionId(const absl::Span<const uint8_t>& data)
+    : QuicConnectionId(reinterpret_cast<const char*>(data.data()),
+                       data.length()) {}
+
 QuicConnectionId::~QuicConnectionId() {
   if (length_ > sizeof(data_short_)) {
     free(data_long_);
@@ -101,9 +105,7 @@ char* QuicConnectionId::mutable_data() {
   return data_long_;
 }
 
-uint8_t QuicConnectionId::length() const {
-  return length_;
-}
+uint8_t QuicConnectionId::length() const { return length_; }
 
 void QuicConnectionId::set_length(uint8_t length) {
   char temporary_data[sizeof(data_short_)];
@@ -131,9 +133,7 @@ void QuicConnectionId::set_length(uint8_t length) {
   length_ = length;
 }
 
-bool QuicConnectionId::IsEmpty() const {
-  return length_ == 0;
-}
+bool QuicConnectionId::IsEmpty() const { return length_ == 0; }
 
 size_t QuicConnectionId::Hash() const {
   static const QuicConnectionIdHasher hasher = QuicConnectionIdHasher();
@@ -170,9 +170,7 @@ bool QuicConnectionId::operator<(const QuicConnectionId& v) const {
   return memcmp(data(), v.data(), length_) < 0;
 }
 
-QuicConnectionId EmptyQuicConnectionId() {
-  return QuicConnectionId();
-}
+QuicConnectionId EmptyQuicConnectionId() { return QuicConnectionId(); }
 
 static_assert(kQuicDefaultConnectionIdLength == sizeof(uint64_t),
               "kQuicDefaultConnectionIdLength changed");
