@@ -2269,10 +2269,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Enable this via reloadable flag once this feature is complete.
   bool connection_migration_use_new_cid_ = false;
 
-  const bool reset_per_packet_state_for_undecryptable_packets_ =
-      GetQuicReloadableFlag(
-          quic_reset_per_packet_state_for_undecryptable_packets);
-
   // TODO(b/205023946) Debug-only fields, to be deprecated after the bug is
   // fixed.
   absl::optional<QuicWallTime> quic_bug_10511_43_timestamp_;

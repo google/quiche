@@ -83,8 +83,6 @@ QUIC_FLAG(FLAGS_quic_restart_flag_quic_use_recent_reset_addresses, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_act_upon_invalid_header, false)
 // If true, require handshake confirmation for QUIC connections, functionally disabling 0-rtt handshakes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_require_handshake_confirmation, false)
-// If true, reset per packet state before processing undecryptable packets.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_reset_per_packet_state_for_undecryptable_packets, true)
 // If true, server proactively retires client issued connection ID on reverse path validation failure. 
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_retire_cid_on_reverse_path_validation_failure, false)
 // If true, set burst token to 2 in cwnd bootstrapping experiment.

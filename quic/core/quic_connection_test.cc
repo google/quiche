@@ -11499,17 +11499,10 @@ TEST_P(QuicConnectionTest, ClientAckDelayForAsyncPacketProcessing) {
   auto packet = writer_->coalesced_packet()->Clone();
   writer_->framer()->ProcessPacket(*packet);
   ASSERT_FALSE(writer_->ack_frames().empty());
-  if (GetQuicReloadableFlag(
-          quic_reset_per_packet_state_for_undecryptable_packets)) {
-    // Verify the ack_delay_time in the HANDSHAKE ACK frame includes the
-    // buffering time.
-    EXPECT_EQ(QuicTime::Delta::FromMilliseconds(101),
-              writer_->ack_frames()[0].ack_delay_time);
-  } else {
-    // This ack_delay_time is wrong.
-    EXPECT_EQ(QuicTime::Delta::FromMilliseconds(1),
-              writer_->ack_frames()[0].ack_delay_time);
-  }
+  // Verify the ack_delay_time in the HANDSHAKE ACK frame includes the
+  // buffering time.
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(101),
+            writer_->ack_frames()[0].ack_delay_time);
   ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
 }
 
