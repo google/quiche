@@ -10,7 +10,6 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/qpack/qpack_encoder_peer.h"
 #include "quic/test_tools/qpack/qpack_encoder_test_utils.h"
@@ -499,10 +498,6 @@ TEST_F(QpackEncoderTest, DynamicTableCapacityLessThanMaximum) {
 }
 
 TEST_F(QpackEncoderTest, EncoderStreamWritesDisallowedThenAllowed) {
-  if (!GetQuicReloadableFlag(quic_limit_encoder_stream_buffering)) {
-    return;
-  }
-
   EXPECT_CALL(encoder_stream_sender_delegate_, NumBytesBuffered())
       .WillRepeatedly(Return(kTooManyBytesBuffered));
   encoder_.SetMaximumBlockedStreams(1);
@@ -564,10 +559,6 @@ TEST_F(QpackEncoderTest, EncoderStreamWritesDisallowedThenAllowed) {
 }
 
 TEST_F(QpackEncoderTest, EncoderStreamWritesAllowedThenDisallowed) {
-  if (!GetQuicReloadableFlag(quic_limit_encoder_stream_buffering)) {
-    return;
-  }
-
   EXPECT_CALL(encoder_stream_sender_delegate_, NumBytesBuffered())
       .WillRepeatedly(Return(0));
   encoder_.SetMaximumBlockedStreams(1);

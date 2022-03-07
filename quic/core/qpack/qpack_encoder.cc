@@ -13,8 +13,6 @@
 #include "quic/core/qpack/qpack_instruction_encoder.h"
 #include "quic/core/qpack/qpack_required_insert_count.h"
 #include "quic/core/qpack/value_splitting_header_list.h"
-#include "quic/platform/api/quic_flag_utils.h"
-#include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -87,11 +85,7 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
   const QuicByteCount initial_encoder_stream_buffered_byte_count =
       encoder_stream_sender_.BufferedByteCount();
 
-  bool can_write_to_encoder_stream = true;
-  if (GetQuicReloadableFlag(quic_limit_encoder_stream_buffering)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_limit_encoder_stream_buffering);
-    can_write_to_encoder_stream = encoder_stream_sender_.CanWrite();
-  }
+  const bool can_write_to_encoder_stream = encoder_stream_sender_.CanWrite();
 
   Representations representations;
   representations.reserve(header_list.size());
