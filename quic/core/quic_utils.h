@@ -21,7 +21,6 @@
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_export.h"
-#include "quic/platform/api/quic_iovec.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "common/platform/api/quiche_mem_slice.h"
 
@@ -71,15 +70,6 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   static AddressChangeType DetermineAddressChangeType(
       const QuicSocketAddress& old_address,
       const QuicSocketAddress& new_address);
-
-  // Copies |buffer_length| bytes from iov starting at offset |iov_offset| into
-  // buffer. |iov| must be at least iov_offset+length total length and buffer
-  // must be at least |length| long.
-  static void CopyToBuffer(const struct iovec* iov,
-                           int iov_count,
-                           size_t iov_offset,
-                           size_t buffer_length,
-                           char* buffer);
 
   // Returns the opposite Perspective of the |perspective| passed in.
   static constexpr Perspective InvertPerspective(Perspective perspective) {

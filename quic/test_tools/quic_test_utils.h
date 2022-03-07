@@ -1510,12 +1510,6 @@ QuicHeaderList AsHeaderList(const T& container) {
   return l;
 }
 
-// Utility function that stores |str|'s data in |iov|.
-inline void MakeIOVector(absl::string_view str, struct iovec* iov) {
-  iov->iov_base = const_cast<char*>(str.data());
-  iov->iov_len = static_cast<size_t>(str.size());
-}
-
 // Helper functions for stream ids, to allow test logic to abstract over the
 // HTTP stream numbering scheme (i.e. whether one or two QUIC streams are used
 // per HTTP transaction).

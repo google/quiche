@@ -10,7 +10,6 @@
 #include "quic/core/quic_interval_deque.h"
 #include "quic/core/quic_interval_set.h"
 #include "quic/core/quic_types.h"
-#include "quic/platform/api/quic_iovec.h"
 #include "common/platform/api/quiche_mem_slice.h"
 #include "common/quiche_circular_deque.h"
 

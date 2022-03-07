@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
+#include "quic/platform/api/quic_iovec.h"
 #include "common/platform/api/quiche_export.h"
 
 namespace quiche {
@@ -88,10 +89,18 @@ class QUICHE_EXPORT_PRIVATE QuicheBuffer {
   // Factory method to create a QuicheBuffer that holds a copy of `data`.
   static QuicheBuffer Copy(QuicheBufferAllocator* allocator,
                            absl::string_view data) {
-    QuicheBuffer result(allocator, data.size());
-    memcpy(result.data(), data.data(), data.size());
-    return result;
+    QuicheBuffer buffer(allocator, data.size());
+    memcpy(buffer.data(), data.data(), data.size());
+    return buffer;
   }
+
+  // Factory method to create a QuicheBuffer of length `buffer_length` that
+  // holds a copy of `buffer_length` bytes from `iov` starting at offset
+  // `iov_offset`.  `iov` must be at least `iov_offset + buffer_length` total
+  // length.
+  static QuicheBuffer CopyFromIovec(QuicheBufferAllocator* allocator,
+                                    const struct iovec* iov, int iov_count,
+                                    size_t iov_offset, size_t buffer_length);
 
   const char* data() const { return buffer_.get(); }
   char* data() { return buffer_.get(); }

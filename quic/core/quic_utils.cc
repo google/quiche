@@ -24,7 +24,6 @@
 #include "quic/platform/api/quic_flags.h"
 #include "common/platform/api/quiche_logging.h"
 #include "common/platform/api/quiche_mem_slice.h"
-#include "common/platform/api/quiche_prefetch.h"
 #include "common/quiche_endian.h"
 
 namespace quic {
@@ -236,57 +235,6 @@ AddressChangeType QuicUtils::DetermineAddressChangeType(
   }
 
   return IPV4_TO_IPV4_CHANGE;
-}
-
-// static
-void QuicUtils::CopyToBuffer(const struct iovec* iov,
-                             int iov_count,
-                             size_t iov_offset,
-                             size_t buffer_length,
-                             char* buffer) {
-  int iovnum = 0;
-  while (iovnum < iov_count && iov_offset >= iov[iovnum].iov_len) {
-    iov_offset -= iov[iovnum].iov_len;
-    ++iovnum;
-  }
-  QUICHE_DCHECK_LE(iovnum, iov_count);
-  QUICHE_DCHECK_LE(iov_offset, iov[iovnum].iov_len);
-  if (iovnum >= iov_count || buffer_length == 0) {
-    return;
-  }
-
-  // Unroll the first iteration that handles iov_offset.
-  const size_t iov_available = iov[iovnum].iov_len - iov_offset;
-  size_t copy_len = std::min(buffer_length, iov_available);
-
-  // Try to prefetch the next iov if there is at least one more after the
-  // current. Otherwise, it looks like an irregular access that the hardware
-  // prefetcher won't speculatively prefetch. Only prefetch one iov because
-  // generally, the iov_offset is not 0, input iov consists of 2K buffers and
-  // the output buffer is ~1.4K.
-  if (copy_len == iov_available && iovnum + 1 < iov_count) {
-    char* next_base = static_cast<char*>(iov[iovnum + 1].iov_base);
-    // Prefetch 2 cachelines worth of data to get the prefetcher started; leave
-    // it to the hardware prefetcher after that.
-    quiche::QuichePrefetchT0(next_base);
-    if (iov[iovnum + 1].iov_len >= 64) {
-      quiche::QuichePrefetchT0(next_base + ABSL_CACHELINE_SIZE);
-    }
-  }
-
-  const char* src = static_cast<char*>(iov[iovnum].iov_base) + iov_offset;
-  while (true) {
-    memcpy(buffer, src, copy_len);
-    buffer_length -= copy_len;
-    buffer += copy_len;
-    if (buffer_length == 0 || ++iovnum >= iov_count) {
-      break;
-    }
-    src = static_cast<char*>(iov[iovnum].iov_base);
-    copy_len = std::min(buffer_length, iov[iovnum].iov_len);
-  }
-  QUIC_BUG_IF(quic_bug_10839_1, buffer_length > 0)
-      << "Failed to copy entire length to buffer.";
 }
 
 // static

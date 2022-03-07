@@ -87,5 +87,9 @@ void CompareCharArraysWithHexError(const std::string& description,
                 << HexDumpWithMarks(actual, actual_len, marks.get(), max_len);
 }
 
+iovec MakeIOVector(absl::string_view str) {
+  return iovec{const_cast<char*>(str.data()), static_cast<size_t>(str.size())};
+}
+
 }  // namespace test
 }  // namespace quiche

@@ -7,6 +7,9 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
+#include "quic/platform/api/quic_iovec.h"
+
 namespace quiche {
 namespace test {
 
@@ -15,6 +18,9 @@ void CompareCharArraysWithHexError(const std::string& description,
                                    const int actual_len,
                                    const char* expected,
                                    const int expected_len);
+
+// Create iovec that points to that data that `str` points to.
+iovec MakeIOVector(absl::string_view str);
 
 }  // namespace test
 }  // namespace quiche

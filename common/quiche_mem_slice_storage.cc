@@ -23,9 +23,8 @@ QuicheMemSliceStorage::QuicheMemSliceStorage(
   size_t io_offset = 0;
   while (write_len > 0) {
     size_t slice_len = std::min(write_len, max_slice_len);
-    QuicheBuffer buffer(allocator, slice_len);
-    quic::QuicUtils::CopyToBuffer(iov, iov_count, io_offset, slice_len,
-                                  buffer.data());
+    QuicheBuffer buffer = QuicheBuffer::CopyFromIovec(allocator, iov, iov_count,
+                                                      io_offset, slice_len);
     storage_.push_back(QuicheMemSlice(std::move(buffer)));
     write_len -= slice_len;
     io_offset += slice_len;
