@@ -15154,44 +15154,30 @@ TEST_P(QuicConnectionTest, FailedToRetransmitShlo) {
   // Verify ACK delay is 1ms.
   EXPECT_EQ(clock_.Now() + kAlarmGranularity,
             connection_.GetAckAlarm()->deadline());
-  if (!GetQuicReloadableFlag(
-          quic_donot_check_amplification_limit_with_pending_timer_credit)) {
-    // ACK is not sent because of amplification limit throttled.
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  } else {
-    // ACK is not throttled by amplification limit, and SHLO is bundled. Also
-    // HANDSHAKE packet gets coalesced.
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
-  }
+  // ACK is not throttled by amplification limit, and SHLO is bundled. Also
+  // HANDSHAKE packet gets coalesced.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
   // ACK alarm fires.
   clock_.AdvanceTime(kAlarmGranularity);
   connection_.GetAckAlarm()->Fire();
-  if (GetQuicReloadableFlag(
-          quic_donot_check_amplification_limit_with_pending_timer_credit)) {
-    // Verify HANDSHAKE packet is coalesced with INITIAL ACK + SHLO.
-    EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
-    // Only the first packet in the coalesced packet has been processed,
-    // verify SHLO is bundled with INITIAL ACK.
-    EXPECT_EQ(1u, writer_->ack_frames().size());
-    EXPECT_EQ(1u, writer_->crypto_frames().size());
-    // Process the coalesced HANDSHAKE packet.
-    ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
-    auto packet = writer_->coalesced_packet()->Clone();
-    writer_->framer()->ProcessPacket(*packet);
-    EXPECT_EQ(0u, writer_->ack_frames().size());
-    EXPECT_EQ(1u, writer_->crypto_frames().size());
-    ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
-  }
+  // Verify HANDSHAKE packet is coalesced with INITIAL ACK + SHLO.
+  EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
+  // Only the first packet in the coalesced packet has been processed,
+  // verify SHLO is bundled with INITIAL ACK.
+  EXPECT_EQ(1u, writer_->ack_frames().size());
+  EXPECT_EQ(1u, writer_->crypto_frames().size());
+  // Process the coalesced HANDSHAKE packet.
+  ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
+  auto packet = writer_->coalesced_packet()->Clone();
+  writer_->framer()->ProcessPacket(*packet);
+  EXPECT_EQ(0u, writer_->ack_frames().size());
+  EXPECT_EQ(1u, writer_->crypto_frames().size());
+  ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
 
   // Received INITIAL 3.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
   ProcessCryptoPacketAtLevel(3, ENCRYPTION_INITIAL);
-  if (!GetQuicReloadableFlag(
-          quic_donot_check_amplification_limit_with_pending_timer_credit)) {
-    EXPECT_FALSE(connection_.HasPendingAcks());
-  } else {
-    EXPECT_TRUE(connection_.HasPendingAcks());
-  }
+  EXPECT_TRUE(connection_.HasPendingAcks());
 }
 
 // Regression test for b/216133388.

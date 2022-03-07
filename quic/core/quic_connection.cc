@@ -3234,12 +3234,15 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     return packet_creator_.HasSoftMaxPacketLength();
   }
 
-  const bool donot_check_amplification_limit_with_pending_timer_credit =
-      GetQuicReloadableFlag(
-          quic_donot_check_amplification_limit_with_pending_timer_credit);
+  if (sent_packet_manager_.pending_timer_transmission_count() > 0) {
+    // Allow sending if there are pending tokens, which occurs when:
+    // 1) firing PTO,
+    // 2) bundling CRYPTO data with ACKs,
+    // 3) coalescing CRYPTO data of higher space.
+    return true;
+  }
 
-  if (!donot_check_amplification_limit_with_pending_timer_credit &&
-      LimitedByAmplificationFactor()) {
+  if (LimitedByAmplificationFactor()) {
     // Server is constrained by the amplification restriction.
     QUIC_CODE_COUNT(quic_throttled_by_amplification_limit);
     QUIC_DVLOG(1) << ENDPOINT
@@ -3250,32 +3253,6 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
                   << default_path_.bytes_sent_before_address_validation;
     ++stats_.num_amplification_throttling;
     return false;
-  }
-
-  if (sent_packet_manager_.pending_timer_transmission_count() > 0) {
-    // Allow sending if there are pending tokens, which occurs when:
-    // 1) firing PTO,
-    // 2) bundling CRYPTO data with ACKs,
-    // 3) coalescing CRYPTO data of higher space.
-    return true;
-  }
-
-  if (donot_check_amplification_limit_with_pending_timer_credit) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_donot_check_amplification_limit_with_pending_timer_credit);
-    if (LimitedByAmplificationFactor()) {
-      // Server is constrained by the amplification restriction.
-      QUIC_CODE_COUNT(quic_throttled_by_amplification_limit);
-      QUIC_DVLOG(1)
-          << ENDPOINT
-          << "Constrained by amplification restriction to peer address "
-          << default_path_.peer_address << " bytes received "
-          << default_path_.bytes_received_before_address_validation
-          << ", bytes sent"
-          << default_path_.bytes_sent_before_address_validation;
-      ++stats_.num_amplification_throttling;
-      return false;
-    }
   }
 
   if (HandleWriteBlocked()) {

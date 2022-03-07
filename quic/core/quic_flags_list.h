@@ -17,8 +17,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_testonly_default_true, true)
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_testonly_default_false, false)
 // A testonly restart flag that will always default to true.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_testonly_default_true, true)
-// Donot check amplification limit if there is available pending_timer_transmission_count.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_check_amplification_limit_with_pending_timer_credit, true)
 // If bytes in flight has dipped below 1.25*MaxBW in the last round, do not exit PROBE_UP due to excess queue buildup.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_no_probe_up_exit_if_no_queue, true)
 // If true, 1) NEW_TOKENs sent from a IETF QUIC session will include the cached network parameters proto, 2) A min_rtt received from a validated token will be used to set the initial rtt, 3) Enable bandwidth resumption for IETF QUIC when connection options BWRE or BWMX exists.
