@@ -35,8 +35,6 @@ QUIC_FLAG(FLAGS_quic_restart_flag_quic_support_release_time_for_gso, false)
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_tls_server_support_client_cert, true)
 // If true, abort async QPACK header decompression in QuicSpdyStream::Reset() and in QuicSpdyStream::OnStreamReset().
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_abort_qpack_on_stream_reset, true)
-// If true, accept empty crypto frame.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_accept_empty_crypto_frame, true)
 // If true, ack frequency frame can be sent from server to client.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_can_send_ack_frequency, true)
 // If true, allow client to enable BBRv2 on server via connection option \'B2ON\'.
