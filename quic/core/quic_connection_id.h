@@ -48,7 +48,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionId {
 
   // Creates a connection ID from network order bytes.
   QuicConnectionId(const char* data, uint8_t length);
-  QuicConnectionId(const absl::Span<const uint8_t>& data);
+  QuicConnectionId(const absl::Span<const uint8_t> data);
 
   // Creates a connection ID from another connection ID.
   QuicConnectionId(const QuicConnectionId& other);

@@ -71,7 +71,7 @@ QuicConnectionId::QuicConnectionId(const char* data, uint8_t length) {
   memcpy(data_long_, data, length_);
 }
 
-QuicConnectionId::QuicConnectionId(const absl::Span<const uint8_t>& data)
+QuicConnectionId::QuicConnectionId(const absl::Span<const uint8_t> data)
     : QuicConnectionId(reinterpret_cast<const char*>(data.data()),
                        data.length()) {}
 
