@@ -18,7 +18,7 @@
 namespace quic {
 
 std::unique_ptr<ProofSourceX509> ProofSourceX509::Create(
-    QuicReferenceCountedPointer<Chain> default_chain,
+    quiche::QuicheReferenceCountedPointer<Chain> default_chain,
     CertificatePrivateKey default_key) {
   std::unique_ptr<ProofSourceX509> result(new ProofSourceX509());
   if (!result->AddCertificateChain(default_chain, std::move(default_key))) {
@@ -61,10 +61,11 @@ void ProofSourceX509::GetProof(
                 nullptr);
 }
 
-QuicReferenceCountedPointer<ProofSource::Chain> ProofSourceX509::GetCertChain(
-    const QuicSocketAddress& /*server_address*/,
-    const QuicSocketAddress& /*client_address*/, const std::string& hostname,
-    bool* cert_matched_sni) {
+quiche::QuicheReferenceCountedPointer<ProofSource::Chain>
+ProofSourceX509::GetCertChain(const QuicSocketAddress& /*server_address*/,
+                              const QuicSocketAddress& /*client_address*/,
+                              const std::string& hostname,
+                              bool* cert_matched_sni) {
   return GetCertificate(hostname, cert_matched_sni)->chain;
 }
 
@@ -93,7 +94,7 @@ ProofSource::TicketCrypter* ProofSourceX509::GetTicketCrypter() {
 }
 
 bool ProofSourceX509::AddCertificateChain(
-    QuicReferenceCountedPointer<Chain> chain,
+    quiche::QuicheReferenceCountedPointer<Chain> chain,
     CertificatePrivateKey key) {
   if (chain->certs.empty()) {
     QUIC_BUG(quic_bug_10644_1) << "Empty certificate chain supplied.";

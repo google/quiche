@@ -18,14 +18,13 @@ namespace test {
 
 class ShloVerifier {
  public:
-  ShloVerifier(
-      QuicCryptoServerConfig* crypto_config,
-      QuicSocketAddress server_addr,
-      QuicSocketAddress client_addr,
-      const QuicClock* clock,
-      QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
-      QuicCompressedCertsCache* compressed_certs_cache,
-      ParsedQuicVersion version)
+  ShloVerifier(QuicCryptoServerConfig* crypto_config,
+               QuicSocketAddress server_addr, QuicSocketAddress client_addr,
+               const QuicClock* clock,
+               quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig>
+                   signed_config,
+               QuicCompressedCertsCache* compressed_certs_cache,
+               ParsedQuicVersion version)
       : crypto_config_(crypto_config),
         server_addr_(server_addr),
         client_addr_(client_addr),
@@ -39,8 +38,9 @@ class ShloVerifier {
    public:
     explicit ValidateClientHelloCallback(ShloVerifier* shlo_verifier)
         : shlo_verifier_(shlo_verifier) {}
-    void Run(QuicReferenceCountedPointer<
-                 ValidateClientHelloResultCallback::Result> result,
+    void Run(quiche::QuicheReferenceCountedPointer<
+                 ValidateClientHelloResultCallback::Result>
+                 result,
              std::unique_ptr<ProofSource::Details> /* details */) override {
       shlo_verifier_->ValidateClientHelloDone(result);
     }
@@ -56,7 +56,7 @@ class ShloVerifier {
 
  private:
   void ValidateClientHelloDone(
-      const QuicReferenceCountedPointer<
+      const quiche::QuicheReferenceCountedPointer<
           ValidateClientHelloResultCallback::Result>& result) {
     result_ = result;
     crypto_config_->ProcessClientHello(
@@ -99,11 +99,12 @@ class ShloVerifier {
   QuicSocketAddress server_addr_;
   QuicSocketAddress client_addr_;
   const QuicClock* clock_;
-  QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config_;
+  quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig> signed_config_;
   QuicCompressedCertsCache* compressed_certs_cache_;
 
-  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
-  QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
+  quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
+  quiche::QuicheReferenceCountedPointer<
+      ValidateClientHelloResultCallback::Result>
       result_;
 
   const ParsedQuicVersion version_;
@@ -118,7 +119,7 @@ TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
       crypto_test_utils::ProofSourceForTesting(), KeyExchangeSource::Default());
   QuicSocketAddress server_addr(QuicIpAddress::Any4(), 5);
   QuicSocketAddress client_addr(QuicIpAddress::Loopback4(), 1);
-  QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config(
+  quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig> signed_config(
       new QuicSignedServerConfig);
   QuicCompressedCertsCache compressed_certs_cache(
       QuicCompressedCertsCache::kQuicCompressedCertsCacheSize);

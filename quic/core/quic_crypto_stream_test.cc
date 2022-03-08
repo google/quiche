@@ -96,7 +96,7 @@ class MockQuicCryptoStream : public QuicCryptoStream,
   SSL* GetSsl() const override { return nullptr; }
 
  private:
-  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
+  quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
   std::vector<CryptoHandshakeMessage> messages_;
 };
 

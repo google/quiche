@@ -3946,7 +3946,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   const int expected_bytes_acked = header_size + request_string.length();
 
   // The TestAckListener will cause a failure if not notified.
-  QuicReferenceCountedPointer<TestAckListener> ack_listener(
+  quiche::QuicheReferenceCountedPointer<TestAckListener> ack_listener(
       new TestAckListener());
 
   // Send the request, and register the delegate for ACKs.

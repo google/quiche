@@ -15,8 +15,8 @@
 #include "quic/core/crypto/quic_crypto_proof.h"
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_export.h"
-#include "quic/platform/api/quic_reference_counted.h"
 #include "quic/platform/api/quic_socket_address.h"
+#include "common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
 
@@ -41,7 +41,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
  public:
   // Chain is a reference-counted wrapper for a vector of stringified
   // certificates.
-  struct QUIC_EXPORT_PRIVATE Chain : public QuicReferenceCounted {
+  struct QUIC_EXPORT_PRIVATE Chain : public quiche::QuicheReferenceCounted {
     explicit Chain(const std::vector<std::string>& certs);
     Chain(const Chain&) = delete;
     Chain& operator=(const Chain&) = delete;
@@ -83,7 +83,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
     // any, gathered during the operation of GetProof.  If no stats are
     // available, this will be nullptr.
     virtual void Run(bool ok,
-                     const QuicReferenceCountedPointer<Chain>& chain,
+                     const quiche::QuicheReferenceCountedPointer<Chain>& chain,
                      const QuicCryptoProof& proof,
                      std::unique_ptr<Details> details) = 0;
 
@@ -149,7 +149,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
   //
   // Sets *cert_matched_sni to true if the certificate matched the given
   // hostname, false if a default cert not matching the hostname was used.
-  virtual QuicReferenceCountedPointer<Chain> GetCertChain(
+  virtual quiche::QuicheReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
       const QuicSocketAddress& client_address, const std::string& hostname,
       bool* cert_matched_sni) = 0;
@@ -347,7 +347,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandle {
 // Returns true if |chain| contains a parsable DER-encoded X.509 leaf cert and
 // it matches with |key|.
 QUIC_EXPORT_PRIVATE bool ValidateCertAndKey(
-    const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
+    const quiche::QuicheReferenceCountedPointer<ProofSource::Chain>& chain,
     const CertificatePrivateKey& key);
 
 }  // namespace quic

@@ -12,18 +12,18 @@
 #include "quic/core/crypto/proof_source.h"
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_ip_address.h"
-#include "quic/platform/api/quic_reference_counted.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/test_certificates.h"
+#include "common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
 namespace test {
 namespace {
 
-QuicReferenceCountedPointer<ProofSource::Chain> MakeChain(
+quiche::QuicheReferenceCountedPointer<ProofSource::Chain> MakeChain(
     absl::string_view cert) {
-  return QuicReferenceCountedPointer<ProofSource::Chain>(
+  return quiche::QuicheReferenceCountedPointer<ProofSource::Chain>(
       new ProofSource::Chain(std::vector<std::string>{std::string(cert)}));
 }
 
@@ -41,7 +41,8 @@ class ProofSourceX509Test : public QuicTest {
   }
 
  protected:
-  QuicReferenceCountedPointer<ProofSource::Chain> test_chain_, wildcard_chain_;
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> test_chain_,
+      wildcard_chain_;
   std::unique_ptr<CertificatePrivateKey> test_key_, wildcard_key_;
 };
 

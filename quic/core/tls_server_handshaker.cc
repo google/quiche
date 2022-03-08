@@ -78,7 +78,7 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
   }
 
   bool cert_matched_sni;
-  QuicReferenceCountedPointer<ProofSource::Chain> chain =
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain =
       proof_source_->GetCertChain(server_address, client_address, hostname,
                                   &cert_matched_sni);
 

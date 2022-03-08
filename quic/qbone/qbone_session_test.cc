@@ -80,8 +80,9 @@ class IndirectionProofSource : public ProofSource {
                 std::unique_ptr<Callback> callback) override {
     if (!proof_source_) {
       QuicCryptoProof proof;
-      QuicReferenceCountedPointer<ProofSource::Chain> chain = GetCertChain(
-          server_address, client_address, hostname, &proof.cert_matched_sni);
+      quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain =
+          GetCertChain(server_address, client_address, hostname,
+                       &proof.cert_matched_sni);
       callback->Run(/*ok=*/false, chain, proof, /*details=*/nullptr);
       return;
     }
@@ -90,12 +91,12 @@ class IndirectionProofSource : public ProofSource {
                             std::move(callback));
   }
 
-  QuicReferenceCountedPointer<Chain> GetCertChain(
+  quiche::QuicheReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
       const QuicSocketAddress& client_address, const std::string& hostname,
       bool* cert_matched_sni) override {
     if (!proof_source_) {
-      return QuicReferenceCountedPointer<Chain>();
+      return quiche::QuicheReferenceCountedPointer<Chain>();
     }
     return proof_source_->GetCertChain(server_address, client_address, hostname,
                                        cert_matched_sni);

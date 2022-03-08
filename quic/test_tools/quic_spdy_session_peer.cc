@@ -48,7 +48,8 @@ void QuicSpdySessionPeer::SetMaxInboundHeaderListSize(
 size_t QuicSpdySessionPeer::WriteHeadersOnHeadersStream(
     QuicSpdySession* session, QuicStreamId id, spdy::SpdyHeaderBlock headers,
     bool fin, const spdy::SpdyStreamPrecedence& precedence,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+        ack_listener) {
   return session->WriteHeadersOnHeadersStream(
       id, std::move(headers), fin, precedence, std::move(ack_listener));
 }

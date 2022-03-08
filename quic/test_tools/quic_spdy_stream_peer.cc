@@ -13,7 +13,8 @@ namespace test {
 // static
 void QuicSpdyStreamPeer::set_ack_listener(
     QuicSpdyStream* stream,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+        ack_listener) {
   stream->set_ack_listener(std::move(ack_listener));
 }
 

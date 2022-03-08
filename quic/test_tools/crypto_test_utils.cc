@@ -103,12 +103,11 @@ namespace {
 class FullChloGenerator {
  public:
   FullChloGenerator(
-      QuicCryptoServerConfig* crypto_config,
-      QuicSocketAddress server_addr,
-      QuicSocketAddress client_addr,
-      const QuicClock* clock,
+      QuicCryptoServerConfig* crypto_config, QuicSocketAddress server_addr,
+      QuicSocketAddress client_addr, const QuicClock* clock,
       ParsedQuicVersion version,
-      QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
+      quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig>
+          signed_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       CryptoHandshakeMessage* out)
       : crypto_config_(crypto_config),
@@ -125,8 +124,9 @@ class FullChloGenerator {
    public:
     explicit ValidateClientHelloCallback(FullChloGenerator* generator)
         : generator_(generator) {}
-    void Run(QuicReferenceCountedPointer<
-                 ValidateClientHelloResultCallback::Result> result,
+    void Run(quiche::QuicheReferenceCountedPointer<
+                 ValidateClientHelloResultCallback::Result>
+                 result,
              std::unique_ptr<ProofSource::Details> /* details */) override {
       generator_->ValidateClientHelloDone(std::move(result));
     }
@@ -141,9 +141,9 @@ class FullChloGenerator {
   }
 
  private:
-  void ValidateClientHelloDone(
-      QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
-          result) {
+  void ValidateClientHelloDone(quiche::QuicheReferenceCountedPointer<
+                               ValidateClientHelloResultCallback::Result>
+                                   result) {
     result_ = result;
     crypto_config_->ProcessClientHello(
         result_, /*reject_only=*/false, TestConnectionId(1), server_addr_,
@@ -205,12 +205,13 @@ class FullChloGenerator {
   QuicSocketAddress client_addr_;
   const QuicClock* clock_;
   ParsedQuicVersion version_;
-  QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config_;
+  quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig> signed_config_;
   QuicCompressedCertsCache* compressed_certs_cache_;
   CryptoHandshakeMessage* out_;
 
-  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
-  QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
+  quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
+  quiche::QuicheReferenceCountedPointer<
+      ValidateClientHelloResultCallback::Result>
       result_;
 };
 
@@ -473,7 +474,7 @@ std::string GetValueForTag(const CryptoHandshakeMessage& message, QuicTag tag) {
 }
 
 uint64_t LeafCertHashForTesting() {
-  QuicReferenceCountedPointer<ProofSource::Chain> chain;
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain;
   QuicSocketAddress server_address(QuicIpAddress::Any4(), 42);
   QuicSocketAddress client_address(QuicIpAddress::Any4(), 43);
   QuicCryptoProof proof;
@@ -481,20 +482,22 @@ uint64_t LeafCertHashForTesting() {
 
   class Callback : public ProofSource::Callback {
    public:
-    Callback(bool* ok, QuicReferenceCountedPointer<ProofSource::Chain>* chain)
+    Callback(bool* ok,
+             quiche::QuicheReferenceCountedPointer<ProofSource::Chain>* chain)
         : ok_(ok), chain_(chain) {}
 
-    void Run(bool ok,
-             const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
-             const QuicCryptoProof& /* proof */,
-             std::unique_ptr<ProofSource::Details> /* details */) override {
+    void Run(
+        bool ok,
+        const quiche::QuicheReferenceCountedPointer<ProofSource::Chain>& chain,
+        const QuicCryptoProof& /* proof */,
+        std::unique_ptr<ProofSource::Details> /* details */) override {
       *ok_ = ok;
       *chain_ = chain;
     }
 
    private:
     bool* ok_;
-    QuicReferenceCountedPointer<ProofSource::Chain>* chain_;
+    quiche::QuicheReferenceCountedPointer<ProofSource::Chain>* chain_;
   };
 
   // Note: relies on the callback being invoked synchronously
@@ -838,12 +841,10 @@ std::string GenerateClientPublicValuesHex() {
 
 void GenerateFullCHLO(
     const CryptoHandshakeMessage& inchoate_chlo,
-    QuicCryptoServerConfig* crypto_config,
-    QuicSocketAddress server_addr,
-    QuicSocketAddress client_addr,
-    QuicTransportVersion transport_version,
+    QuicCryptoServerConfig* crypto_config, QuicSocketAddress server_addr,
+    QuicSocketAddress client_addr, QuicTransportVersion transport_version,
     const QuicClock* clock,
-    QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
+    quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig> signed_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     CryptoHandshakeMessage* out) {
   // Pass a inchoate CHLO.

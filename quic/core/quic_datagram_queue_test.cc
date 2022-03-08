@@ -11,10 +11,10 @@
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/quic_time.h"
 #include "quic/core/quic_types.h"
-#include "quic/platform/api/quic_reference_counted.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_test_utils.h"
 #include "common/platform/api/quiche_mem_slice.h"
+#include "common/platform/api/quiche_reference_counted.h"
 #include "common/quiche_buffer_allocator.h"
 
 namespace quic {
@@ -35,7 +35,7 @@ class EstablishedCryptoStream : public MockQuicCryptoStream {
 
 class QuicDatagramQueueObserver final : public QuicDatagramQueue::Observer {
  public:
-  class Context : public QuicReferenceCounted {
+  class Context : public quiche::QuicheReferenceCounted {
    public:
     std::vector<absl::optional<MessageStatus>> statuses;
   };
@@ -49,10 +49,12 @@ class QuicDatagramQueueObserver final : public QuicDatagramQueue::Observer {
     context_->statuses.push_back(std::move(status));
   }
 
-  const QuicReferenceCountedPointer<Context>& context() { return context_; }
+  const quiche::QuicheReferenceCountedPointer<Context>& context() {
+    return context_;
+  }
 
  private:
-  QuicReferenceCountedPointer<Context> context_;
+  quiche::QuicheReferenceCountedPointer<Context> context_;
 };
 
 class QuicDatagramQueueTestBase : public QuicTest {
@@ -209,7 +211,8 @@ class QuicDatagramQueueWithObserverTest : public QuicDatagramQueueTestBase {
   // This is moved out immediately.
   std::unique_ptr<QuicDatagramQueueObserver> observer_;
 
-  QuicReferenceCountedPointer<QuicDatagramQueueObserver::Context> context_;
+  quiche::QuicheReferenceCountedPointer<QuicDatagramQueueObserver::Context>
+      context_;
   QuicDatagramQueue queue_;
 };
 

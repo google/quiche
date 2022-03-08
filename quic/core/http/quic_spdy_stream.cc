@@ -262,7 +262,8 @@ bool QuicSpdyStream::ShouldUseDatagramContexts() const {
 
 size_t QuicSpdyStream::WriteHeaders(
     SpdyHeaderBlock header_block, bool fin,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+        ack_listener) {
   if (!AssertNotWebTransportDataStream("writing headers")) {
     return 0;
   }
@@ -349,7 +350,8 @@ void QuicSpdyStream::WriteOrBufferBody(absl::string_view data, bool fin) {
 
 size_t QuicSpdyStream::WriteTrailers(
     SpdyHeaderBlock trailer_block,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+        ack_listener) {
   if (fin_sent()) {
     QUIC_BUG(quic_bug_10410_1)
         << "Trailers cannot be sent after a FIN, on stream " << id();
@@ -1204,7 +1206,8 @@ bool QuicSpdyStream::OnUnknownFrameEnd() { return true; }
 
 size_t QuicSpdyStream::WriteHeadersImpl(
     spdy::SpdyHeaderBlock header_block, bool fin,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+        ack_listener) {
   if (!VersionUsesHttp3(transport_version())) {
     return spdy_session_->WriteHeadersOnHeadersStream(
         id(), std::move(header_block), fin, precedence(),

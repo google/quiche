@@ -204,7 +204,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   virtual size_t WriteHeadersOnHeadersStream(
       QuicStreamId id, spdy::SpdyHeaderBlock headers, bool fin,
       const spdy::SpdyStreamPrecedence& precedence,
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+      quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+          ack_listener);
 
   // Writes an HTTP/2 PRIORITY frame the to peer. Returns the size in bytes of
   // the resulting PRIORITY frame.
@@ -506,7 +507,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   size_t WriteHeadersOnHeadersStreamImpl(
       QuicStreamId id, spdy::SpdyHeaderBlock headers, bool fin,
       QuicStreamId parent_stream_id, int weight, bool exclusive,
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+      quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+          ack_listener);
 
   void OnNewEncryptionKeyAvailable(
       EncryptionLevel level, std::unique_ptr<QuicEncrypter> encrypter) override;

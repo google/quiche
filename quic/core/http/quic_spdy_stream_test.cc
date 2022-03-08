@@ -192,7 +192,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
 
   bool encryption_established_;
   bool one_rtt_keys_available_;
-  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
+  quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
 };
 
 class TestStream : public QuicSpdyStream {
@@ -222,9 +222,10 @@ class TestStream : public QuicSpdyStream {
 
   MOCK_METHOD(void, WriteHeadersMock, (bool fin), ());
 
-  size_t WriteHeadersImpl(spdy::SpdyHeaderBlock header_block, bool fin,
-                          QuicReferenceCountedPointer<QuicAckListenerInterface>
-                          /*ack_listener*/) override {
+  size_t WriteHeadersImpl(
+      spdy::SpdyHeaderBlock header_block, bool fin,
+      quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+      /*ack_listener*/) override {
     saved_headers_ = std::move(header_block);
     WriteHeadersMock(fin);
     if (VersionUsesHttp3(transport_version())) {
@@ -1721,9 +1722,9 @@ TEST_P(QuicSpdyStreamTest, HeaderStreamNotiferCorrespondingSpdyStream) {
   Initialize(kShouldProcessData);
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(AtLeast(1));
   testing::InSequence s;
-  QuicReferenceCountedPointer<MockAckListener> ack_listener1(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> ack_listener1(
       new MockAckListener());
-  QuicReferenceCountedPointer<MockAckListener> ack_listener2(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> ack_listener2(
       new MockAckListener());
   stream_->set_ack_listener(ack_listener1);
   stream2_->set_ack_listener(ack_listener2);
@@ -1811,7 +1812,7 @@ TEST_P(QuicSpdyStreamTest, SetPriorityBeforeUpdateStreamPriority) {
 
 TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {
   Initialize(kShouldProcessData);
-  QuicReferenceCountedPointer<MockAckListener> mock_ack_listener(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> mock_ack_listener(
       new StrictMock<MockAckListener>);
   stream_->set_ack_listener(mock_ack_listener);
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(AtLeast(1));
@@ -1865,7 +1866,7 @@ TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {
 
 TEST_P(QuicSpdyStreamTest, StreamDataGetAckedMultipleTimes) {
   Initialize(kShouldProcessData);
-  QuicReferenceCountedPointer<MockAckListener> mock_ack_listener(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> mock_ack_listener(
       new StrictMock<MockAckListener>);
   stream_->set_ack_listener(mock_ack_listener);
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(AtLeast(1));
@@ -1930,7 +1931,7 @@ TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteOrBufferBody) {
   }
 
   Initialize(kShouldProcessData);
-  QuicReferenceCountedPointer<MockAckListener> mock_ack_listener(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> mock_ack_listener(
       new StrictMock<MockAckListener>);
   stream_->set_ack_listener(mock_ack_listener);
   std::string body = "Test1";
@@ -1974,7 +1975,7 @@ TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteBodySlices) {
   }
 
   Initialize(kShouldProcessData);
-  QuicReferenceCountedPointer<MockAckListener> mock_ack_listener(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> mock_ack_listener(
       new StrictMock<MockAckListener>);
   stream_->set_ack_listener(mock_ack_listener);
   std::string body1 = "Test1";
@@ -2009,7 +2010,7 @@ TEST_P(QuicSpdyStreamTest, HeaderBytesNotReportedOnRetransmission) {
   }
 
   Initialize(kShouldProcessData);
-  QuicReferenceCountedPointer<MockAckListener> mock_ack_listener(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> mock_ack_listener(
       new StrictMock<MockAckListener>);
   stream_->set_ack_listener(mock_ack_listener);
   std::string body1 = "Test1";

@@ -27,8 +27,8 @@
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_time_wait_list_manager.h"
 #include "quic/core/quic_version_manager.h"
-#include "quic/platform/api/quic_reference_counted.h"
 #include "quic/platform/api/quic_socket_address.h"
+#include "common/platform/api/quiche_reference_counted.h"
 #include "common/quiche_linked_hash_map.h"
 
 namespace quic {

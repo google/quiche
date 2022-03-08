@@ -20,7 +20,8 @@ class QuicSpdyStreamPeer {
  public:
   static void set_ack_listener(
       QuicSpdyStream* stream,
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+      quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+          ack_listener);
   static const QuicIntervalSet<QuicStreamOffset>& unacked_frame_headers_offsets(
       QuicSpdyStream* stream);
   static bool use_datagram_contexts(QuicSpdyStream* stream);

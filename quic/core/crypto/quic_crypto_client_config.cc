@@ -388,12 +388,10 @@ void QuicCryptoClientConfig::ClearCachedStates(const ServerIdFilter& filter) {
 }
 
 void QuicCryptoClientConfig::FillInchoateClientHello(
-    const QuicServerId& server_id,
-    const ParsedQuicVersion preferred_version,
-    const CachedState* cached,
-    QuicRandom* rand,
-    bool demand_x509_proof,
-    QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
+    const QuicServerId& server_id, const ParsedQuicVersion preferred_version,
+    const CachedState* cached, QuicRandom* rand, bool demand_x509_proof,
+    quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+        out_params,
     CryptoHandshakeMessage* out) const {
   out->set_tag(kCHLO);
   out->set_minimum_size(1);
@@ -457,16 +455,13 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
 }
 
 QuicErrorCode QuicCryptoClientConfig::FillClientHello(
-    const QuicServerId& server_id,
-    QuicConnectionId connection_id,
+    const QuicServerId& server_id, QuicConnectionId connection_id,
     const ParsedQuicVersion preferred_version,
-    const ParsedQuicVersion actual_version,
-    const CachedState* cached,
-    QuicWallTime now,
-    QuicRandom* rand,
-    QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
-    CryptoHandshakeMessage* out,
-    std::string* error_details) const {
+    const ParsedQuicVersion actual_version, const CachedState* cached,
+    QuicWallTime now, QuicRandom* rand,
+    quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+        out_params,
+    CryptoHandshakeMessage* out, std::string* error_details) const {
   QUICHE_DCHECK(error_details != nullptr);
   QUIC_BUG_IF(quic_bug_12943_2,
               !QuicUtils::IsConnectionIdValidForVersion(
@@ -677,12 +672,11 @@ QuicErrorCode QuicCryptoClientConfig::CacheNewServerConfig(
 }
 
 QuicErrorCode QuicCryptoClientConfig::ProcessRejection(
-    const CryptoHandshakeMessage& rej,
-    QuicWallTime now,
-    const QuicTransportVersion version,
-    absl::string_view chlo_hash,
+    const CryptoHandshakeMessage& rej, QuicWallTime now,
+    const QuicTransportVersion version, absl::string_view chlo_hash,
     CachedState* cached,
-    QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
+    quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+        out_params,
     std::string* error_details) {
   QUICHE_DCHECK(error_details != nullptr);
 
@@ -708,11 +702,10 @@ QuicErrorCode QuicCryptoClientConfig::ProcessRejection(
 
 QuicErrorCode QuicCryptoClientConfig::ProcessServerHello(
     const CryptoHandshakeMessage& server_hello,
-    QuicConnectionId /*connection_id*/,
-    ParsedQuicVersion version,
-    const ParsedQuicVersionVector& negotiated_versions,
-    CachedState* cached,
-    QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
+    QuicConnectionId /*connection_id*/, ParsedQuicVersion version,
+    const ParsedQuicVersionVector& negotiated_versions, CachedState* cached,
+    quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+        out_params,
     std::string* error_details) {
   QUICHE_DCHECK(error_details != nullptr);
 
@@ -770,12 +763,11 @@ QuicErrorCode QuicCryptoClientConfig::ProcessServerHello(
 }
 
 QuicErrorCode QuicCryptoClientConfig::ProcessServerConfigUpdate(
-    const CryptoHandshakeMessage& server_config_update,
-    QuicWallTime now,
-    const QuicTransportVersion version,
-    absl::string_view chlo_hash,
+    const CryptoHandshakeMessage& server_config_update, QuicWallTime now,
+    const QuicTransportVersion version, absl::string_view chlo_hash,
     CachedState* cached,
-    QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
+    quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+        out_params,
     std::string* error_details) {
   QUICHE_DCHECK(error_details != nullptr);
 

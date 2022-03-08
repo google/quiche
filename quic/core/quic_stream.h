@@ -35,8 +35,8 @@
 #include "quic/core/session_notifier_interface.h"
 #include "quic/core/stream_delegate_interface.h"
 #include "quic/platform/api/quic_export.h"
-#include "quic/platform/api/quic_reference_counted.h"
 #include "common/platform/api/quiche_mem_slice.h"
+#include "common/platform/api/quiche_reference_counted.h"
 #include "spdy/core/spdy_protocol.h"
 
 namespace quic {
@@ -316,12 +316,14 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // true.
   void WriteOrBufferData(
       absl::string_view data, bool fin,
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+      quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+          ack_listener);
 
   // Sends |data| to connection with specified |level|.
   void WriteOrBufferDataAtLevel(
       absl::string_view data, bool fin, EncryptionLevel level,
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+      quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+          ack_listener);
 
   // Adds random padding after the fin is consumed for this stream.
   void AddRandomPaddingAfterFin();
@@ -409,7 +411,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // buffer.
   virtual void OnDataBuffered(
       QuicStreamOffset /*offset*/, QuicByteCount /*data_length*/,
-      const QuicReferenceCountedPointer<QuicAckListenerInterface>&
+      const quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>&
       /*ack_listener*/) {}
 
   // Called just before the object is destroyed.

@@ -12,19 +12,19 @@
 namespace quic {
 namespace test {
 
-QuicReferenceCountedPointer<QuicCryptoServerConfig::Config>
+quiche::QuicheReferenceCountedPointer<QuicCryptoServerConfig::Config>
 QuicCryptoServerConfigPeer::GetPrimaryConfig() {
   QuicReaderMutexLock locked(&server_config_->configs_lock_);
-  return QuicReferenceCountedPointer<QuicCryptoServerConfig::Config>(
+  return quiche::QuicheReferenceCountedPointer<QuicCryptoServerConfig::Config>(
       server_config_->primary_config_);
 }
 
-QuicReferenceCountedPointer<QuicCryptoServerConfig::Config>
+quiche::QuicheReferenceCountedPointer<QuicCryptoServerConfig::Config>
 QuicCryptoServerConfigPeer::GetConfig(std::string config_id) {
   QuicReaderMutexLock locked(&server_config_->configs_lock_);
   if (config_id == "<primary>") {
-    return QuicReferenceCountedPointer<QuicCryptoServerConfig::Config>(
-        server_config_->primary_config_);
+    return quiche::QuicheReferenceCountedPointer<
+        QuicCryptoServerConfig::Config>(server_config_->primary_config_);
   } else {
     return server_config_->GetConfigWithScid(config_id);
   }
@@ -91,9 +91,9 @@ void QuicCryptoServerConfigPeer::CheckConfigs(
   ASSERT_EQ(expected_ids_and_status.size(), server_config_->configs_.size())
       << ConfigsDebug();
 
-  for (const std::pair<
-           const ServerConfigID,
-           QuicReferenceCountedPointer<QuicCryptoServerConfig::Config>>& i :
+  for (const std::pair<const ServerConfigID,
+                       quiche::QuicheReferenceCountedPointer<
+                           QuicCryptoServerConfig::Config>>& i :
        server_config_->configs_) {
     bool found = false;
     for (std::pair<ServerConfigID, bool>& j : expected_ids_and_status) {
@@ -120,8 +120,8 @@ std::string QuicCryptoServerConfigPeer::ConfigsDebug() {
   std::string s;
 
   for (const auto& i : server_config_->configs_) {
-    const QuicReferenceCountedPointer<QuicCryptoServerConfig::Config> config =
-        i.second;
+    const quiche::QuicheReferenceCountedPointer<QuicCryptoServerConfig::Config>
+        config = i.second;
     if (config->is_primary) {
       s += "(primary) ";
     } else {
@@ -142,7 +142,7 @@ void QuicCryptoServerConfigPeer::SelectNewPrimaryConfig(int seconds) {
 
 std::string QuicCryptoServerConfigPeer::CompressChain(
     QuicCompressedCertsCache* compressed_certs_cache,
-    const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
+    const quiche::QuicheReferenceCountedPointer<ProofSource::Chain>& chain,
     const std::string& client_cached_cert_hashes) {
   return QuicCryptoServerConfig::CompressChain(compressed_certs_cache, chain,
                                                client_cached_cert_hashes);

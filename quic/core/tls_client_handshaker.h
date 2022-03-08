@@ -149,7 +149,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   HandshakeState state_ = HANDSHAKE_START;
   bool encryption_established_ = false;
   bool initial_keys_dropped_ = false;
-  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+  quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
 
   bool allow_empty_alpn_for_tests_ = false;

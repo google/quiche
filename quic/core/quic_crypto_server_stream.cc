@@ -21,7 +21,7 @@ class QuicCryptoServerStream::ProcessClientHelloCallback
  public:
   ProcessClientHelloCallback(
       QuicCryptoServerStream* parent,
-      const QuicReferenceCountedPointer<
+      const quiche::QuicheReferenceCountedPointer<
           ValidateClientHelloResultCallback::Result>& result)
       : parent_(parent), result_(result) {}
 
@@ -44,7 +44,8 @@ class QuicCryptoServerStream::ProcessClientHelloCallback
 
  private:
   QuicCryptoServerStream* parent_;
-  QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
+  quiche::QuicheReferenceCountedPointer<
+      ValidateClientHelloResultCallback::Result>
       result_;
 };
 
@@ -137,7 +138,8 @@ void QuicCryptoServerStream::OnHandshakeMessage(
 }
 
 void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
-    QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
+    quiche::QuicheReferenceCountedPointer<
+        ValidateClientHelloResultCallback::Result>
         result,
     std::unique_ptr<ProofSource::Details> details) {
   // Clear the callback that got us here.
@@ -456,7 +458,8 @@ QuicCryptoServerStream::CreateCurrentOneRttEncrypter() {
 }
 
 void QuicCryptoServerStream::ProcessClientHello(
-    QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
+    quiche::QuicheReferenceCountedPointer<
+        ValidateClientHelloResultCallback::Result>
         result,
     std::unique_ptr<ProofSource::Details> proof_source_details,
     std::unique_ptr<ProcessClientHelloResultCallback> done_cb) {
@@ -518,7 +521,7 @@ void QuicCryptoServerStream::ValidateCallback::Cancel() {
 }
 
 void QuicCryptoServerStream::ValidateCallback::Run(
-    QuicReferenceCountedPointer<Result> result,
+    quiche::QuicheReferenceCountedPointer<Result> result,
     std::unique_ptr<ProofSource::Details> details) {
   if (parent_ != nullptr) {
     parent_->FinishProcessingHandshakeMessage(std::move(result),

@@ -123,9 +123,9 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   ssize_t SendData(const std::string& data, bool last_data);
   // As above, but |delegate| will be notified when |data| is ACKed.
   ssize_t SendData(
-      const std::string& data,
-      bool last_data,
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+      const std::string& data, bool last_data,
+      quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+          ack_listener);
 
   // Clears any outstanding state and sends a simple GET of 'uri' to the
   // server.  Returns 0 if the request failed and no bytes were written.
@@ -262,10 +262,9 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // stores the request in case it needs to be resent.  If |headers| is
   // null, only the body will be sent on the stream.
   ssize_t GetOrCreateStreamAndSendRequest(
-      const spdy::SpdyHeaderBlock* headers,
-      absl::string_view body,
-      bool fin,
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+      const spdy::SpdyHeaderBlock* headers, absl::string_view body, bool fin,
+      quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+          ack_listener);
 
   QuicRstStreamErrorCode stream_error() { return stream_error_; }
   QuicErrorCode connection_error() const;
@@ -340,11 +339,10 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   class TestClientDataToResend : public QuicClient::QuicDataToResend {
    public:
     TestClientDataToResend(
-        std::unique_ptr<spdy::SpdyHeaderBlock> headers,
-        absl::string_view body,
-        bool fin,
-        QuicTestClient* test_client,
-        QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+        std::unique_ptr<spdy::SpdyHeaderBlock> headers, absl::string_view body,
+        bool fin, QuicTestClient* test_client,
+        quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+            ack_listener);
 
     ~TestClientDataToResend() override;
 
@@ -352,7 +350,8 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
 
    protected:
     QuicTestClient* test_client_;
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener_;
+    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+        ack_listener_;
   };
 
   // PerStreamState of a stream is updated when it is closed.

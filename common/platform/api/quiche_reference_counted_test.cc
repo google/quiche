@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quic/platform/api/quic_reference_counted.h"
+#include "common/platform/api/quiche_reference_counted.h"
 
 #include "quic/platform/api/quic_test.h"
 
-namespace quic {
+namespace quiche {
 namespace test {
 namespace {
 
-class Base : public QuicReferenceCounted {
+class Base : public QuicheReferenceCounted {
  public:
   explicit Base(bool* destroyed) : destroyed_(destroyed) {
     *destroyed_ = false;
@@ -31,28 +31,28 @@ class Derived : public Base {
   ~Derived() override {}
 };
 
-class QuicReferenceCountedTest : public QuicTest {};
+class QuicheReferenceCountedTest : public QuicTest {};
 
-TEST_F(QuicReferenceCountedTest, DefaultConstructor) {
-  QuicReferenceCountedPointer<Base> a;
+TEST_F(QuicheReferenceCountedTest, DefaultConstructor) {
+  QuicheReferenceCountedPointer<Base> a;
   EXPECT_EQ(nullptr, a);
   EXPECT_EQ(nullptr, a.get());
   EXPECT_FALSE(a);
 }
 
-TEST_F(QuicReferenceCountedTest, ConstructFromRawPointer) {
+TEST_F(QuicheReferenceCountedTest, ConstructFromRawPointer) {
   bool destroyed = false;
   {
-    QuicReferenceCountedPointer<Base> a(new Base(&destroyed));
+    QuicheReferenceCountedPointer<Base> a(new Base(&destroyed));
     EXPECT_FALSE(destroyed);
   }
   EXPECT_TRUE(destroyed);
 }
 
-TEST_F(QuicReferenceCountedTest, RawPointerAssignment) {
+TEST_F(QuicheReferenceCountedTest, RawPointerAssignment) {
   bool destroyed = false;
   {
-    QuicReferenceCountedPointer<Base> a;
+    QuicheReferenceCountedPointer<Base> a;
     Base* rct = new Base(&destroyed);
     a = rct;
     EXPECT_FALSE(destroyed);
@@ -60,12 +60,12 @@ TEST_F(QuicReferenceCountedTest, RawPointerAssignment) {
   EXPECT_TRUE(destroyed);
 }
 
-TEST_F(QuicReferenceCountedTest, PointerCopy) {
+TEST_F(QuicheReferenceCountedTest, PointerCopy) {
   bool destroyed = false;
   {
-    QuicReferenceCountedPointer<Base> a(new Base(&destroyed));
+    QuicheReferenceCountedPointer<Base> a(new Base(&destroyed));
     {
-      QuicReferenceCountedPointer<Base> b(a);
+      QuicheReferenceCountedPointer<Base> b(a);
       EXPECT_EQ(a, b);
       EXPECT_FALSE(destroyed);
     }
@@ -74,12 +74,12 @@ TEST_F(QuicReferenceCountedTest, PointerCopy) {
   EXPECT_TRUE(destroyed);
 }
 
-TEST_F(QuicReferenceCountedTest, PointerCopyAssignment) {
+TEST_F(QuicheReferenceCountedTest, PointerCopyAssignment) {
   bool destroyed = false;
   {
-    QuicReferenceCountedPointer<Base> a(new Base(&destroyed));
+    QuicheReferenceCountedPointer<Base> a(new Base(&destroyed));
     {
-      QuicReferenceCountedPointer<Base> b = a;
+      QuicheReferenceCountedPointer<Base> b = a;
       EXPECT_EQ(a, b);
       EXPECT_FALSE(destroyed);
     }
@@ -88,12 +88,12 @@ TEST_F(QuicReferenceCountedTest, PointerCopyAssignment) {
   EXPECT_TRUE(destroyed);
 }
 
-TEST_F(QuicReferenceCountedTest, PointerCopyFromOtherType) {
+TEST_F(QuicheReferenceCountedTest, PointerCopyFromOtherType) {
   bool destroyed = false;
   {
-    QuicReferenceCountedPointer<Derived> a(new Derived(&destroyed));
+    QuicheReferenceCountedPointer<Derived> a(new Derived(&destroyed));
     {
-      QuicReferenceCountedPointer<Base> b(a);
+      QuicheReferenceCountedPointer<Base> b(a);
       EXPECT_EQ(a.get(), b.get());
       EXPECT_FALSE(destroyed);
     }
@@ -102,12 +102,12 @@ TEST_F(QuicReferenceCountedTest, PointerCopyFromOtherType) {
   EXPECT_TRUE(destroyed);
 }
 
-TEST_F(QuicReferenceCountedTest, PointerCopyAssignmentFromOtherType) {
+TEST_F(QuicheReferenceCountedTest, PointerCopyAssignmentFromOtherType) {
   bool destroyed = false;
   {
-    QuicReferenceCountedPointer<Derived> a(new Derived(&destroyed));
+    QuicheReferenceCountedPointer<Derived> a(new Derived(&destroyed));
     {
-      QuicReferenceCountedPointer<Base> b = a;
+      QuicheReferenceCountedPointer<Base> b = a;
       EXPECT_EQ(a.get(), b.get());
       EXPECT_FALSE(destroyed);
     }
@@ -116,11 +116,11 @@ TEST_F(QuicReferenceCountedTest, PointerCopyAssignmentFromOtherType) {
   EXPECT_TRUE(destroyed);
 }
 
-TEST_F(QuicReferenceCountedTest, PointerMove) {
+TEST_F(QuicheReferenceCountedTest, PointerMove) {
   bool destroyed = false;
-  QuicReferenceCountedPointer<Base> a(new Derived(&destroyed));
+  QuicheReferenceCountedPointer<Base> a(new Derived(&destroyed));
   EXPECT_FALSE(destroyed);
-  QuicReferenceCountedPointer<Base> b(std::move(a));
+  QuicheReferenceCountedPointer<Base> b(std::move(a));
   EXPECT_FALSE(destroyed);
   EXPECT_NE(nullptr, b);
   EXPECT_EQ(nullptr, a);  // NOLINT
@@ -129,11 +129,11 @@ TEST_F(QuicReferenceCountedTest, PointerMove) {
   EXPECT_TRUE(destroyed);
 }
 
-TEST_F(QuicReferenceCountedTest, PointerMoveAssignment) {
+TEST_F(QuicheReferenceCountedTest, PointerMoveAssignment) {
   bool destroyed = false;
-  QuicReferenceCountedPointer<Base> a(new Derived(&destroyed));
+  QuicheReferenceCountedPointer<Base> a(new Derived(&destroyed));
   EXPECT_FALSE(destroyed);
-  QuicReferenceCountedPointer<Base> b = std::move(a);
+  QuicheReferenceCountedPointer<Base> b = std::move(a);
   EXPECT_FALSE(destroyed);
   EXPECT_NE(nullptr, b);
   EXPECT_EQ(nullptr, a);  // NOLINT
@@ -142,11 +142,11 @@ TEST_F(QuicReferenceCountedTest, PointerMoveAssignment) {
   EXPECT_TRUE(destroyed);
 }
 
-TEST_F(QuicReferenceCountedTest, PointerMoveFromOtherType) {
+TEST_F(QuicheReferenceCountedTest, PointerMoveFromOtherType) {
   bool destroyed = false;
-  QuicReferenceCountedPointer<Derived> a(new Derived(&destroyed));
+  QuicheReferenceCountedPointer<Derived> a(new Derived(&destroyed));
   EXPECT_FALSE(destroyed);
-  QuicReferenceCountedPointer<Base> b(std::move(a));
+  QuicheReferenceCountedPointer<Base> b(std::move(a));
   EXPECT_FALSE(destroyed);
   EXPECT_NE(nullptr, b);
   EXPECT_EQ(nullptr, a);  // NOLINT
@@ -155,11 +155,11 @@ TEST_F(QuicReferenceCountedTest, PointerMoveFromOtherType) {
   EXPECT_TRUE(destroyed);
 }
 
-TEST_F(QuicReferenceCountedTest, PointerMoveAssignmentFromOtherType) {
+TEST_F(QuicheReferenceCountedTest, PointerMoveAssignmentFromOtherType) {
   bool destroyed = false;
-  QuicReferenceCountedPointer<Derived> a(new Derived(&destroyed));
+  QuicheReferenceCountedPointer<Derived> a(new Derived(&destroyed));
   EXPECT_FALSE(destroyed);
-  QuicReferenceCountedPointer<Base> b = std::move(a);
+  QuicheReferenceCountedPointer<Base> b = std::move(a);
   EXPECT_FALSE(destroyed);
   EXPECT_NE(nullptr, b);
   EXPECT_EQ(nullptr, a);  // NOLINT
@@ -170,4 +170,4 @@ TEST_F(QuicReferenceCountedTest, PointerMoveAssignmentFromOtherType) {
 
 }  // namespace
 }  // namespace test
-}  // namespace quic
+}  // namespace quiche

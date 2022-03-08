@@ -202,7 +202,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
 
   bool encryption_established_;
   bool one_rtt_keys_available_;
-  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+  quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
 };
 

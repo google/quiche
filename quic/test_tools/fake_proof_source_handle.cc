@@ -104,7 +104,7 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
 
   QUICHE_DCHECK(select_cert_action_ == Action::DELEGATE_SYNC);
   bool cert_matched_sni;
-  QuicReferenceCountedPointer<ProofSource::Chain> chain =
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain =
       delegate_->GetCertChain(server_address, client_address, hostname,
                               &cert_matched_sni);
 
@@ -197,7 +197,7 @@ void FakeProofSourceHandle::SelectCertOperation::Run() {
         /*cert_matched_sni=*/false, dealyed_ssl_config_);
   } else if (action_ == Action::DELEGATE_ASYNC) {
     bool cert_matched_sni;
-    QuicReferenceCountedPointer<ProofSource::Chain> chain =
+    quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain =
         delegate_->GetCertChain(args_.server_address, args_.client_address,
                                 args_.hostname, &cert_matched_sni);
     bool ok = chain && !chain->certs.empty();

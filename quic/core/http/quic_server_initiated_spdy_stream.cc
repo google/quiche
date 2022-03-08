@@ -16,9 +16,9 @@ void QuicServerInitiatedSpdyStream::OnBodyAvailable() {
 }
 
 size_t QuicServerInitiatedSpdyStream::WriteHeaders(
-    spdy::SpdyHeaderBlock /*header_block*/,
-    bool /*fin*/,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> /*ack_listener*/) {
+    spdy::SpdyHeaderBlock /*header_block*/, bool /*fin*/,
+    quiche::QuicheReferenceCountedPointer<
+        QuicAckListenerInterface> /*ack_listener*/) {
   QUIC_BUG(Writing headers in QuicServerInitiatedSpdyStream)
       << "Attempting to write headers in QuicServerInitiatedSpdyStream";
   OnUnrecoverableError(QUIC_INTERNAL_ERROR,

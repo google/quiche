@@ -29,7 +29,7 @@ class QuicCompressedCertsCacheTest : public QuicTest {
 TEST_F(QuicCompressedCertsCacheTest, CacheHit) {
   std::vector<std::string> certs = {"leaf cert", "intermediate cert",
                                     "root cert"};
-  QuicReferenceCountedPointer<ProofSource::Chain> chain(
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain(
       new ProofSource::Chain(certs));
   std::string cached_certs = "cached certs";
   std::string compressed = "compressed cert";
@@ -45,7 +45,7 @@ TEST_F(QuicCompressedCertsCacheTest, CacheHit) {
 TEST_F(QuicCompressedCertsCacheTest, CacheMiss) {
   std::vector<std::string> certs = {"leaf cert", "intermediate cert",
                                     "root cert"};
-  QuicReferenceCountedPointer<ProofSource::Chain> chain(
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain(
       new ProofSource::Chain(certs));
 
   std::string cached_certs = "cached certs";
@@ -57,7 +57,7 @@ TEST_F(QuicCompressedCertsCacheTest, CacheMiss) {
             certs_cache_.GetCompressedCert(chain, "mismatched cached certs"));
 
   // A different chain though with equivalent certs should get a cache miss.
-  QuicReferenceCountedPointer<ProofSource::Chain> chain2(
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain2(
       new ProofSource::Chain(certs));
   EXPECT_EQ(nullptr, certs_cache_.GetCompressedCert(chain2, cached_certs));
 }
@@ -67,7 +67,7 @@ TEST_F(QuicCompressedCertsCacheTest, CacheMissDueToEviction) {
   // then evicted.
   std::vector<std::string> certs = {"leaf cert", "intermediate cert",
                                     "root cert"};
-  QuicReferenceCountedPointer<ProofSource::Chain> chain(
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain(
       new ProofSource::Chain(certs));
 
   std::string cached_certs = "cached certs";

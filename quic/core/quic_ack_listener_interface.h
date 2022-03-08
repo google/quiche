@@ -8,13 +8,13 @@
 #include "quic/core/quic_time.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
-#include "quic/platform/api/quic_reference_counted.h"
+#include "common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
 
 // Pure virtual class to listen for packet acknowledgements.
 class QUIC_EXPORT_PRIVATE QuicAckListenerInterface
-    : public QuicReferenceCounted {
+    : public quiche::QuicheReferenceCounted {
  public:
   QuicAckListenerInterface() {}
 

@@ -216,7 +216,7 @@ std::unique_ptr<ClientProofSource> CreateTestClientProofSource(
   auto proof_source = std::make_unique<DefaultClientProofSource>();
   proof_source->AddCertAndKey(
       {"*"},
-      QuicReferenceCountedPointer<ClientProofSource::Chain>(
+      quiche::QuicheReferenceCountedPointer<ClientProofSource::Chain>(
           new ClientProofSource::Chain(certs)),
       std::move(*private_key));
 

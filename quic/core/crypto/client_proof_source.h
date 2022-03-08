@@ -22,11 +22,11 @@ class QUIC_EXPORT_PRIVATE ClientProofSource {
   virtual ~ClientProofSource() {}
 
   struct QUIC_EXPORT_PRIVATE CertAndKey {
-    CertAndKey(QuicReferenceCountedPointer<Chain> chain,
+    CertAndKey(quiche::QuicheReferenceCountedPointer<Chain> chain,
                CertificatePrivateKey private_key)
         : chain(std::move(chain)), private_key(std::move(private_key)) {}
 
-    QuicReferenceCountedPointer<Chain> chain;
+    quiche::QuicheReferenceCountedPointer<Chain> chain;
     CertificatePrivateKey private_key;
   };
 
@@ -54,7 +54,7 @@ class QUIC_EXPORT_PRIVATE DefaultClientProofSource : public ClientProofSource {
   // If any element of |server_hostnames| is already associated with a cert
   // chain, it will be updated to be associated with the new cert chain.
   bool AddCertAndKey(std::vector<std::string> server_hostnames,
-                     QuicReferenceCountedPointer<Chain> chain,
+                     quiche::QuicheReferenceCountedPointer<Chain> chain,
                      CertificatePrivateKey private_key);
 
   // ClientProofSource implementation

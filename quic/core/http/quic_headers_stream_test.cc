@@ -760,11 +760,11 @@ TEST_P(QuicHeadersStreamTest, AckSentData) {
                                    _, _, NO_FIN, _, _))
       .WillRepeatedly(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   InSequence s;
-  QuicReferenceCountedPointer<MockAckListener> ack_listener1(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> ack_listener1(
       new MockAckListener());
-  QuicReferenceCountedPointer<MockAckListener> ack_listener2(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> ack_listener2(
       new MockAckListener());
-  QuicReferenceCountedPointer<MockAckListener> ack_listener3(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> ack_listener3(
       new MockAckListener());
 
   // Packet 1.
@@ -829,11 +829,11 @@ TEST_P(QuicHeadersStreamTest, FrameContainsMultipleHeaders) {
                                    _, _, NO_FIN, _, _))
       .WillRepeatedly(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   InSequence s;
-  QuicReferenceCountedPointer<MockAckListener> ack_listener1(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> ack_listener1(
       new MockAckListener());
-  QuicReferenceCountedPointer<MockAckListener> ack_listener2(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> ack_listener2(
       new MockAckListener());
-  QuicReferenceCountedPointer<MockAckListener> ack_listener3(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> ack_listener3(
       new MockAckListener());
 
   headers_stream_->WriteOrBufferData("Header5", false, ack_listener1);
@@ -879,11 +879,11 @@ TEST_P(QuicHeadersStreamTest, HeadersGetAckedMultipleTimes) {
                                    _, _, NO_FIN, _, _))
       .WillRepeatedly(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   InSequence s;
-  QuicReferenceCountedPointer<MockAckListener> ack_listener1(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> ack_listener1(
       new MockAckListener());
-  QuicReferenceCountedPointer<MockAckListener> ack_listener2(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> ack_listener2(
       new MockAckListener());
-  QuicReferenceCountedPointer<MockAckListener> ack_listener3(
+  quiche::QuicheReferenceCountedPointer<MockAckListener> ack_listener3(
       new MockAckListener());
 
   // Send [0, 42).

@@ -78,8 +78,9 @@ class DummyProofSource : public ProofSource {
                 absl::string_view /*chlo_hash*/,
                 std::unique_ptr<Callback> callback) override {
     bool cert_matched_sni;
-    QuicReferenceCountedPointer<ProofSource::Chain> chain = GetCertChain(
-        server_address, client_address, hostname, &cert_matched_sni);
+    quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain =
+        GetCertChain(server_address, client_address, hostname,
+                     &cert_matched_sni);
     QuicCryptoProof proof;
     proof.signature = "Dummy signature";
     proof.leaf_cert_scts = "Dummy timestamp";
@@ -87,13 +88,13 @@ class DummyProofSource : public ProofSource {
     callback->Run(true, chain, proof, /*details=*/nullptr);
   }
 
-  QuicReferenceCountedPointer<Chain> GetCertChain(
+  quiche::QuicheReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& /*server_address*/,
       const QuicSocketAddress& /*client_address*/,
       const std::string& /*hostname*/, bool* /*cert_matched_sni*/) override {
     std::vector<std::string> certs;
     certs.push_back("Dummy cert");
-    return QuicReferenceCountedPointer<ProofSource::Chain>(
+    return quiche::QuicheReferenceCountedPointer<ProofSource::Chain>(
         new ProofSource::Chain(certs));
   }
 

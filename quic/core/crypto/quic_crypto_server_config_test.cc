@@ -71,7 +71,7 @@ TEST_F(QuicCryptoServerConfigTest, CompressCerts) {
   QuicCryptoServerConfigPeer peer(&server);
 
   std::vector<std::string> certs = {"testcert"};
-  QuicReferenceCountedPointer<ProofSource::Chain> chain(
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain(
       new ProofSource::Chain(certs));
 
   std::string compressed = QuicCryptoServerConfigPeer::CompressChain(
@@ -92,7 +92,7 @@ TEST_F(QuicCryptoServerConfigTest, CompressSameCertsTwice) {
 
   // Compress the certs for the first time.
   std::vector<std::string> certs = {"testcert"};
-  QuicReferenceCountedPointer<ProofSource::Chain> chain(
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain(
       new ProofSource::Chain(certs));
   std::string cached_certs = "";
 
@@ -120,7 +120,7 @@ TEST_F(QuicCryptoServerConfigTest, CompressDifferentCerts) {
   QuicCryptoServerConfigPeer peer(&server);
 
   std::vector<std::string> certs = {"testcert"};
-  QuicReferenceCountedPointer<ProofSource::Chain> chain(
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain(
       new ProofSource::Chain(certs));
   std::string cached_certs = "";
 
@@ -129,7 +129,7 @@ TEST_F(QuicCryptoServerConfigTest, CompressDifferentCerts) {
   EXPECT_EQ(compressed_certs_cache.Size(), 1u);
 
   // Compress a similar certs which only differs in the chain.
-  QuicReferenceCountedPointer<ProofSource::Chain> chain2(
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain2(
       new ProofSource::Chain(certs));
 
   std::string compressed2 = QuicCryptoServerConfigPeer::CompressChain(
@@ -456,7 +456,7 @@ TEST_F(CryptoServerConfigsTest, AdvancePrimary) {
 
 class ValidateCallback : public ValidateClientHelloResultCallback {
  public:
-  void Run(QuicReferenceCountedPointer<Result> /*result*/,
+  void Run(quiche::QuicheReferenceCountedPointer<Result> /*result*/,
            std::unique_ptr<ProofSource::Details> /*details*/) override {}
 };
 
@@ -477,7 +477,7 @@ TEST_F(CryptoServerConfigsTest, AdvancePrimaryViaValidate) {
   }
   ASSERT_NE(transport_version, QUIC_VERSION_UNSUPPORTED);
   MockClock clock;
-  QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config(
+  quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig> signed_config(
       new QuicSignedServerConfig);
   std::unique_ptr<ValidateClientHelloResultCallback> done_cb(
       new ValidateCallback);

@@ -21,7 +21,7 @@
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_server_id.h"
 #include "quic/platform/api/quic_export.h"
-#include "quic/platform/api/quic_reference_counted.h"
+#include "common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
 
@@ -265,12 +265,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // then |out| will include an X509 proof demand, and the associated
   // certificate related fields.
   void FillInchoateClientHello(
-      const QuicServerId& server_id,
-      const ParsedQuicVersion preferred_version,
-      const CachedState* cached,
-      QuicRandom* rand,
-      bool demand_x509_proof,
-      QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
+      const QuicServerId& server_id, const ParsedQuicVersion preferred_version,
+      const CachedState* cached, QuicRandom* rand, bool demand_x509_proof,
+      quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+          out_params,
       CryptoHandshakeMessage* out) const;
 
   // FillClientHello sets |out| to be a CHLO message based on the configuration
@@ -288,16 +286,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // from the client and server's keys, and the Channel ID public key and the
   // signature are placed in the CETV value of the CHLO.
   QuicErrorCode FillClientHello(
-      const QuicServerId& server_id,
-      QuicConnectionId connection_id,
+      const QuicServerId& server_id, QuicConnectionId connection_id,
       const ParsedQuicVersion preferred_version,
-      const ParsedQuicVersion actual_version,
-      const CachedState* cached,
-      QuicWallTime now,
-      QuicRandom* rand,
-      QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
-      CryptoHandshakeMessage* out,
-      std::string* error_details) const;
+      const ParsedQuicVersion actual_version, const CachedState* cached,
+      QuicWallTime now, QuicRandom* rand,
+      quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+          out_params,
+      CryptoHandshakeMessage* out, std::string* error_details) const;
 
   // ProcessRejection processes a REJ message from a server and updates the
   // cached information about that server. After this, |IsComplete| may return
@@ -306,12 +301,11 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // will be saved in |out_params|. |now| is used to judge whether the server
   // config in the rejection message has expired.
   QuicErrorCode ProcessRejection(
-      const CryptoHandshakeMessage& rej,
-      QuicWallTime now,
-      QuicTransportVersion version,
-      absl::string_view chlo_hash,
+      const CryptoHandshakeMessage& rej, QuicWallTime now,
+      QuicTransportVersion version, absl::string_view chlo_hash,
       CachedState* cached,
-      QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
+      quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+          out_params,
       std::string* error_details);
 
   // ProcessServerHello processes the message in |server_hello|, updates the
@@ -325,11 +319,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // versions provided in the VER tag of the server hello.
   QuicErrorCode ProcessServerHello(
       const CryptoHandshakeMessage& server_hello,
-      QuicConnectionId connection_id,
-      ParsedQuicVersion version,
-      const ParsedQuicVersionVector& negotiated_versions,
-      CachedState* cached,
-      QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
+      QuicConnectionId connection_id, ParsedQuicVersion version,
+      const ParsedQuicVersionVector& negotiated_versions, CachedState* cached,
+      quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+          out_params,
       std::string* error_details);
 
   // Processes the message in |server_config_update|, updating the cached source
@@ -341,7 +334,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       const CryptoHandshakeMessage& server_config_update, QuicWallTime now,
       const QuicTransportVersion version, absl::string_view chlo_hash,
       CachedState* cached,
-      QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
+      quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+          out_params,
       std::string* error_details);
 
   ProofVerifier* proof_verifier() const;

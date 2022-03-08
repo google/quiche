@@ -94,10 +94,11 @@ void FakeProofSource::GetProof(
       delegate_.get()));
 }
 
-QuicReferenceCountedPointer<ProofSource::Chain> FakeProofSource::GetCertChain(
-    const QuicSocketAddress& server_address,
-    const QuicSocketAddress& client_address, const std::string& hostname,
-    bool* cert_matched_sni) {
+quiche::QuicheReferenceCountedPointer<ProofSource::Chain>
+FakeProofSource::GetCertChain(const QuicSocketAddress& server_address,
+                              const QuicSocketAddress& client_address,
+                              const std::string& hostname,
+                              bool* cert_matched_sni) {
   return delegate_->GetCertChain(server_address, client_address, hostname,
                                  cert_matched_sni);
 }

@@ -676,7 +676,8 @@ size_t QuicSpdySession::ProcessHeaderData(const struct iovec& iov) {
 size_t QuicSpdySession::WriteHeadersOnHeadersStream(
     QuicStreamId id, SpdyHeaderBlock headers, bool fin,
     const spdy::SpdyStreamPrecedence& precedence,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+        ack_listener) {
   QUICHE_DCHECK(!VersionUsesHttp3(transport_version()));
 
   return WriteHeadersOnHeadersStreamImpl(
@@ -905,7 +906,8 @@ bool QuicSpdySession::UsesPendingStreamForFrame(QuicFrameType type,
 size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
     QuicStreamId id, spdy::SpdyHeaderBlock headers, bool fin,
     QuicStreamId parent_stream_id, int weight, bool exclusive,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+        ack_listener) {
   QUICHE_DCHECK(!VersionUsesHttp3(transport_version()));
 
   const QuicByteCount uncompressed_size = headers.TotalBytesUsed();

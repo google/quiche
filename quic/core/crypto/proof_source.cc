@@ -33,7 +33,7 @@ CryptoBuffers ProofSource::Chain::ToCryptoBuffers() const {
 }
 
 bool ValidateCertAndKey(
-    const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
+    const quiche::QuicheReferenceCountedPointer<ProofSource::Chain>& chain,
     const CertificatePrivateKey& key) {
   if (chain.get() == nullptr || chain->certs.empty()) {
     QUIC_BUG(quic_proof_source_empty_chain) << "Certificate chain is empty";

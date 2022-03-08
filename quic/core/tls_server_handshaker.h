@@ -374,7 +374,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   bool encryption_established_ = false;
   bool valid_alpn_received_ = false;
   bool can_disable_resumption_ = true;
-  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+  quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
   TlsServerConnection tls_connection_;
   const QuicCryptoServerConfig* crypto_config_;  // Unowned.

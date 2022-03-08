@@ -455,10 +455,9 @@ void QuicTestClient::SendRequestsAndWaitForResponses(
 }
 
 ssize_t QuicTestClient::GetOrCreateStreamAndSendRequest(
-    const spdy::SpdyHeaderBlock* headers,
-    absl::string_view body,
-    bool fin,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+    const spdy::SpdyHeaderBlock* headers, absl::string_view body, bool fin,
+    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+        ack_listener) {
   if (headers) {
     QuicClientPushPromiseIndex::TryHandle* handle;
     QuicAsyncStatus rv =
@@ -530,9 +529,9 @@ ssize_t QuicTestClient::SendData(const std::string& data, bool last_data) {
 }
 
 ssize_t QuicTestClient::SendData(
-    const std::string& data,
-    bool last_data,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+    const std::string& data, bool last_data,
+    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+        ack_listener) {
   return GetOrCreateStreamAndSendRequest(nullptr, absl::string_view(data),
                                          last_data, std::move(ack_listener));
 }
@@ -898,11 +897,10 @@ void QuicTestClient::WaitForWriteToFlush() {
 }
 
 QuicTestClient::TestClientDataToResend::TestClientDataToResend(
-    std::unique_ptr<spdy::SpdyHeaderBlock> headers,
-    absl::string_view body,
-    bool fin,
-    QuicTestClient* test_client,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener)
+    std::unique_ptr<spdy::SpdyHeaderBlock> headers, absl::string_view body,
+    bool fin, QuicTestClient* test_client,
+    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+        ack_listener)
     : QuicClient::QuicDataToResend(std::move(headers), body, fin),
       test_client_(test_client),
       ack_listener_(std::move(ack_listener)) {}

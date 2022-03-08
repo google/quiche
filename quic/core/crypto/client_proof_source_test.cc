@@ -11,8 +11,9 @@
 namespace quic {
 namespace test {
 
-QuicReferenceCountedPointer<ClientProofSource::Chain> TestCertChain() {
-  return QuicReferenceCountedPointer<ClientProofSource::Chain>(
+quiche::QuicheReferenceCountedPointer<ClientProofSource::Chain>
+TestCertChain() {
+  return quiche::QuicheReferenceCountedPointer<ClientProofSource::Chain>(
       new ClientProofSource::Chain({std::string(kTestCertificate)}));
 }
 
@@ -32,17 +33,19 @@ const ClientProofSource::CertAndKey* TestCertAndKey() {
   return &cert_and_key;
 }
 
-QuicReferenceCountedPointer<ClientProofSource::Chain> NullCertChain() {
-  return QuicReferenceCountedPointer<ClientProofSource::Chain>();
+quiche::QuicheReferenceCountedPointer<ClientProofSource::Chain>
+NullCertChain() {
+  return quiche::QuicheReferenceCountedPointer<ClientProofSource::Chain>();
 }
 
-QuicReferenceCountedPointer<ClientProofSource::Chain> EmptyCertChain() {
-  return QuicReferenceCountedPointer<ClientProofSource::Chain>(
+quiche::QuicheReferenceCountedPointer<ClientProofSource::Chain>
+EmptyCertChain() {
+  return quiche::QuicheReferenceCountedPointer<ClientProofSource::Chain>(
       new ClientProofSource::Chain(std::vector<std::string>()));
 }
 
-QuicReferenceCountedPointer<ClientProofSource::Chain> BadCertChain() {
-  return QuicReferenceCountedPointer<ClientProofSource::Chain>(
+quiche::QuicheReferenceCountedPointer<ClientProofSource::Chain> BadCertChain() {
+  return quiche::QuicheReferenceCountedPointer<ClientProofSource::Chain>(
       new ClientProofSource::Chain({"This is the content of a bad cert."}));
 }
 

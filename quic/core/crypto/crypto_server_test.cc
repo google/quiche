@@ -166,8 +166,9 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
     ASSERT_TRUE(server_config_->GetStringPiece(kSCID, &scid));
     scid_hex_ = "#" + absl::BytesToHexString(scid);
 
-    signed_config_ = QuicReferenceCountedPointer<QuicSignedServerConfig>(
-        new QuicSignedServerConfig());
+    signed_config_ =
+        quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig>(
+            new QuicSignedServerConfig());
     QUICHE_DCHECK(signed_config_->chain.get() == nullptr);
   }
 
@@ -186,7 +187,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
       *called_ = false;
     }
 
-    void Run(QuicReferenceCountedPointer<Result> result,
+    void Run(quiche::QuicheReferenceCountedPointer<Result> result,
              std::unique_ptr<ProofSource::Details> /* details */) override {
       ASSERT_FALSE(*called_);
       test_->ProcessValidationResult(std::move(result), should_succeed_,
@@ -247,10 +248,8 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
   class ProcessCallback : public ProcessClientHelloResultCallback {
    public:
     ProcessCallback(
-        QuicReferenceCountedPointer<ValidateCallback::Result> result,
-        bool should_succeed,
-        const char* error_substr,
-        bool* called,
+        quiche::QuicheReferenceCountedPointer<ValidateCallback::Result> result,
+        bool should_succeed, const char* error_substr, bool* called,
         CryptoHandshakeMessage* out)
         : result_(std::move(result)),
           should_succeed_(should_succeed),
@@ -283,7 +282,8 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
     }
 
    private:
-    const QuicReferenceCountedPointer<ValidateCallback::Result> result_;
+    const quiche::QuicheReferenceCountedPointer<ValidateCallback::Result>
+        result_;
     const bool should_succeed_;
     const char* const error_substr_;
     bool* called_;
@@ -291,9 +291,8 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
   };
 
   void ProcessValidationResult(
-      QuicReferenceCountedPointer<ValidateCallback::Result> result,
-      bool should_succeed,
-      const char* error_substr) {
+      quiche::QuicheReferenceCountedPointer<ValidateCallback::Result> result,
+      bool should_succeed, const char* error_substr) {
     QuicSocketAddress server_address(QuicIpAddress::Any4(), 5);
     bool called;
     config_.ProcessClientHello(
@@ -355,8 +354,8 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
   QuicCryptoServerConfigPeer peer_;
   QuicCompressedCertsCache compressed_certs_cache_;
   QuicCryptoServerConfig::ConfigOptions config_options_;
-  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
-  QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config_;
+  quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
+  quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig> signed_config_;
   CryptoHandshakeMessage out_;
   uint8_t orbit_[kOrbitSize];
   size_t chlo_packet_size_;

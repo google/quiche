@@ -24,7 +24,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceX509 : public ProofSource {
   // Creates a proof source that uses |default_chain| when no SubjectAltName
   // value matches.  Returns nullptr if |default_chain| is invalid.
   static std::unique_ptr<ProofSourceX509> Create(
-      QuicReferenceCountedPointer<Chain> default_chain,
+      quiche::QuicheReferenceCountedPointer<Chain> default_chain,
       CertificatePrivateKey default_key);
 
   // ProofSource implementation.
@@ -35,7 +35,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceX509 : public ProofSource {
                 QuicTransportVersion transport_version,
                 absl::string_view chlo_hash,
                 std::unique_ptr<Callback> callback) override;
-  QuicReferenceCountedPointer<Chain> GetCertChain(
+  quiche::QuicheReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
       const QuicSocketAddress& client_address, const std::string& hostname,
       bool* cert_matched_sni) override;
@@ -52,14 +52,14 @@ class QUIC_EXPORT_PRIVATE ProofSourceX509 : public ProofSource {
   // not valid.  Newer certificates will override older certificates with the
   // same SubjectAltName value.
   ABSL_MUST_USE_RESULT bool AddCertificateChain(
-      QuicReferenceCountedPointer<Chain> chain,
+      quiche::QuicheReferenceCountedPointer<Chain> chain,
       CertificatePrivateKey key);
 
  private:
   ProofSourceX509() = default;
 
   struct QUIC_EXPORT_PRIVATE Certificate {
-    QuicReferenceCountedPointer<Chain> chain;
+    quiche::QuicheReferenceCountedPointer<Chain> chain;
     CertificatePrivateKey key;
   };
 

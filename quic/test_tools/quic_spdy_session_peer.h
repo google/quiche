@@ -34,7 +34,8 @@ class QuicSpdySessionPeer {
   static size_t WriteHeadersOnHeadersStream(
       QuicSpdySession* session, QuicStreamId id, spdy::SpdyHeaderBlock headers,
       bool fin, const spdy::SpdyStreamPrecedence& precedence,
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+      quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+          ack_listener);
   // |session| can't be nullptr.
   static QuicStreamId GetNextOutgoingUnidirectionalStreamId(
       QuicSpdySession* session);

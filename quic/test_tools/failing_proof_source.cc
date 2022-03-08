@@ -19,13 +19,13 @@ void FailingProofSource::GetProof(const QuicSocketAddress& /*server_address*/,
   callback->Run(false, nullptr, QuicCryptoProof(), nullptr);
 }
 
-QuicReferenceCountedPointer<ProofSource::Chain>
+quiche::QuicheReferenceCountedPointer<ProofSource::Chain>
 FailingProofSource::GetCertChain(const QuicSocketAddress& /*server_address*/,
                                  const QuicSocketAddress& /*client_address*/,
                                  const std::string& /*hostname*/,
                                  bool* cert_matched_sni) {
   *cert_matched_sni = false;
-  return QuicReferenceCountedPointer<Chain>();
+  return quiche::QuicheReferenceCountedPointer<Chain>();
 }
 
 void FailingProofSource::ComputeTlsSignature(

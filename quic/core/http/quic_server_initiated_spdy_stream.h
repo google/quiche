@@ -18,10 +18,10 @@ class QUIC_EXPORT_PRIVATE QuicServerInitiatedSpdyStream
   using QuicSpdyStream::QuicSpdyStream;
 
   void OnBodyAvailable() override;
-  size_t WriteHeaders(spdy::SpdyHeaderBlock header_block,
-                      bool fin,
-                      QuicReferenceCountedPointer<QuicAckListenerInterface>
-                          ack_listener) override;
+  size_t WriteHeaders(
+      spdy::SpdyHeaderBlock header_block, bool fin,
+      quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+          ack_listener) override;
   void OnInitialHeadersComplete(bool fin,
                                 size_t frame_len,
                                 const QuicHeaderList& header_list) override;

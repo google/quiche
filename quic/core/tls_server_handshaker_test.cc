@@ -402,8 +402,8 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
     std::string der_cert =
         CreateSelfSignedCertificate(*client_cert_key.private_key(), options);
 
-    QuicReferenceCountedPointer<ClientProofSource::Chain> client_cert_chain(
-        new ClientProofSource::Chain({der_cert}));
+    quiche::QuicheReferenceCountedPointer<ClientProofSource::Chain>
+        client_cert_chain(new ClientProofSource::Chain({der_cert}));
 
     if (!client_proof_source->AddCertAndKey({"*"}, client_cert_chain,
                                             std::move(client_cert_key))) {

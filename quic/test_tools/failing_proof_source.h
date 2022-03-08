@@ -21,7 +21,7 @@ class FailingProofSource : public ProofSource {
                 absl::string_view chlo_hash,
                 std::unique_ptr<Callback> callback) override;
 
-  QuicReferenceCountedPointer<Chain> GetCertChain(
+  quiche::QuicheReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
       const QuicSocketAddress& client_address, const std::string& hostname,
       bool* cert_matched_sni) override;

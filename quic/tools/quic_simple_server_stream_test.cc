@@ -58,9 +58,10 @@ class TestStream : public QuicSimpleServerStream {
   MOCK_METHOD(void, WriteHeadersMock, (bool fin), ());
   MOCK_METHOD(void, WriteEarlyHintsHeadersMock, (bool fin), ());
 
-  size_t WriteHeaders(spdy::Http2HeaderBlock header_block, bool fin,
-                      QuicReferenceCountedPointer<QuicAckListenerInterface>
-                      /*ack_listener*/) override {
+  size_t WriteHeaders(
+      spdy::Http2HeaderBlock header_block, bool fin,
+      quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+      /*ack_listener*/) override {
     if (header_block[":status"] == "103") {
       WriteEarlyHintsHeadersMock(fin);
     } else {

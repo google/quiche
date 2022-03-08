@@ -98,7 +98,7 @@ struct QUIC_EXPORT_PRIVATE CrypterPair {
 
 // Parameters negotiated by the crypto handshake.
 struct QUIC_EXPORT_PRIVATE QuicCryptoNegotiatedParameters
-    : public QuicReferenceCounted {
+    : public quiche::QuicheReferenceCounted {
   // Initializes the members to 0 or empty values.
   QuicCryptoNegotiatedParameters();
 

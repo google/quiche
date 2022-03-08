@@ -858,7 +858,7 @@ class MockQuicCryptoStream : public QuicCryptoStream {
   SSL* GetSsl() const override { return nullptr; }
 
  private:
-  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
+  quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
   CryptoFramer crypto_framer_;
 };
 

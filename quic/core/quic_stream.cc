@@ -649,7 +649,8 @@ void QuicStream::SetPriority(const spdy::SpdyStreamPrecedence& precedence) {
 
 void QuicStream::WriteOrBufferData(
     absl::string_view data, bool fin,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+        ack_listener) {
   QUIC_BUG_IF(quic_bug_12570_4,
               QuicUtils::IsCryptoStreamId(transport_version(), id_))
       << ENDPOINT
@@ -662,7 +663,8 @@ void QuicStream::WriteOrBufferData(
 
 void QuicStream::WriteOrBufferDataAtLevel(
     absl::string_view data, bool fin, EncryptionLevel level,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
+        ack_listener) {
   if (data.empty() && !fin) {
     QUIC_BUG(quic_bug_10586_2) << "data.empty() && !fin";
     return;

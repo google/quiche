@@ -38,7 +38,6 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_ip_address.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_reference_counted.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/mock_clock.h"
@@ -52,6 +51,7 @@
 #include "quic/test_tools/quic_test_utils.h"
 #include "quic/test_tools/simple_data_producer.h"
 #include "quic/test_tools/simple_session_notifier.h"
+#include "common/platform/api/quiche_reference_counted.h"
 #include "common/simple_buffer_allocator.h"
 
 using testing::_;

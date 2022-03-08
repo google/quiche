@@ -10,7 +10,7 @@ namespace quic {
 
 bool DefaultClientProofSource::AddCertAndKey(
     std::vector<std::string> server_hostnames,
-    QuicReferenceCountedPointer<Chain> chain,
+    quiche::QuicheReferenceCountedPointer<Chain> chain,
     CertificatePrivateKey private_key) {
   if (!ValidateCertAndKey(chain, private_key)) {
     return false;

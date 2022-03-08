@@ -27,8 +27,8 @@
 #include "quic/core/quic_time.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_mutex.h"
-#include "quic/platform/api/quic_reference_counted.h"
 #include "quic/platform/api/quic_socket_address.h"
+#include "common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
 
@@ -83,7 +83,7 @@ class QUIC_EXPORT_PRIVATE ValidateClientHelloResultCallback {
  public:
   // Opaque token that holds information about the client_hello and
   // its validity.  Can be interpreted by calling ProcessClientHello.
-  struct QUIC_EXPORT_PRIVATE Result : public QuicReferenceCounted {
+  struct QUIC_EXPORT_PRIVATE Result : public quiche::QuicheReferenceCounted {
     Result(const CryptoHandshakeMessage& in_client_hello,
            QuicIpAddress in_client_ip,
            QuicWallTime in_now);
@@ -106,7 +106,7 @@ class QUIC_EXPORT_PRIVATE ValidateClientHelloResultCallback {
   ValidateClientHelloResultCallback& operator=(
       const ValidateClientHelloResultCallback&) = delete;
   virtual ~ValidateClientHelloResultCallback();
-  virtual void Run(QuicReferenceCountedPointer<Result> result,
+  virtual void Run(quiche::QuicheReferenceCountedPointer<Result> result,
                    std::unique_ptr<ProofSource::Details> details) = 0;
 };
 
@@ -295,7 +295,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       const QuicSocketAddress& client_address,
       const QuicSocketAddress& server_address, QuicTransportVersion version,
       const QuicClock* clock,
-      QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
+      quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig>
+          signed_config,
       std::unique_ptr<ValidateClientHelloResultCallback> done_cb) const;
 
   // ProcessClientHello processes |client_hello| and decides whether to accept
@@ -328,15 +329,18 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // chlo_packet_size: the size, in bytes, of the CHLO packet
   // done_cb: the callback invoked on completion
   void ProcessClientHello(
-      QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
+      quiche::QuicheReferenceCountedPointer<
+          ValidateClientHelloResultCallback::Result>
           validate_chlo_result,
       bool reject_only, QuicConnectionId connection_id,
       const QuicSocketAddress& server_address,
       const QuicSocketAddress& client_address, ParsedQuicVersion version,
       const ParsedQuicVersionVector& supported_versions, const QuicClock* clock,
       QuicRandom* rand, QuicCompressedCertsCache* compressed_certs_cache,
-      QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params,
-      QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
+      quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+          params,
+      quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig>
+          signed_config,
       QuicByteCount total_framing_overhead, QuicByteCount chlo_packet_size,
       std::unique_ptr<ProcessClientHelloResultCallback> done_cb) const;
 
@@ -472,7 +476,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // Config represents a server config: a collection of preferences and
   // Diffie-Hellman public values.
   class QUIC_EXPORT_PRIVATE Config : public QuicCryptoConfig,
-                                     public QuicReferenceCounted {
+                                     public quiche::QuicheReferenceCounted {
    public:
     Config();
     Config(const Config&) = delete;
@@ -530,18 +534,18 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   };
 
   using ConfigMap =
-      std::map<ServerConfigID, QuicReferenceCountedPointer<Config>>;
+      std::map<ServerConfigID, quiche::QuicheReferenceCountedPointer<Config>>;
 
   // Get a ref to the config with a given server config id.
-  QuicReferenceCountedPointer<Config> GetConfigWithScid(
+  quiche::QuicheReferenceCountedPointer<Config> GetConfigWithScid(
       absl::string_view requested_scid) const
       QUIC_SHARED_LOCKS_REQUIRED(configs_lock_);
 
   // A snapshot of the configs associated with an in-progress handshake.
   struct QUIC_EXPORT_PRIVATE Configs {
-    QuicReferenceCountedPointer<Config> requested;
-    QuicReferenceCountedPointer<Config> primary;
-    QuicReferenceCountedPointer<Config> fallback;
+    quiche::QuicheReferenceCountedPointer<Config> requested;
+    quiche::QuicheReferenceCountedPointer<Config> primary;
+    quiche::QuicheReferenceCountedPointer<Config> fallback;
   };
 
   // Get a snapshot of the current configs associated with a handshake.  If this
@@ -550,16 +554,16 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   //
   // Returns true if any configs are loaded.  If false is returned, |configs| is
   // not modified.
-  bool GetCurrentConfigs(const QuicWallTime& now,
-                         absl::string_view requested_scid,
-                         QuicReferenceCountedPointer<Config> old_primary_config,
-                         Configs* configs) const;
+  bool GetCurrentConfigs(
+      const QuicWallTime& now, absl::string_view requested_scid,
+      quiche::QuicheReferenceCountedPointer<Config> old_primary_config,
+      Configs* configs) const;
 
   // ConfigPrimaryTimeLessThan returns true if a->primary_time <
   // b->primary_time.
   static bool ConfigPrimaryTimeLessThan(
-      const QuicReferenceCountedPointer<Config>& a,
-      const QuicReferenceCountedPointer<Config>& b);
+      const quiche::QuicheReferenceCountedPointer<Config>& a,
+      const quiche::QuicheReferenceCountedPointer<Config>& b);
 
   // SelectNewPrimaryConfig reevaluates the primary config based on the
   // "primary_time" deadlines contained in each.
@@ -571,10 +575,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // are written to |client_hello_state->info|.
   void EvaluateClientHello(
       const QuicSocketAddress& server_address,
-      const QuicSocketAddress& client_address,
-      QuicTransportVersion version,
+      const QuicSocketAddress& client_address, QuicTransportVersion version,
       const Configs& configs,
-      QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
+      quiche::QuicheReferenceCountedPointer<
+          ValidateClientHelloResultCallback::Result>
           client_hello_state,
       std::unique_ptr<ValidateClientHelloResultCallback> done_cb) const;
 
@@ -583,21 +587,20 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   class QUIC_EXPORT_PRIVATE ProcessClientHelloContext {
    public:
     ProcessClientHelloContext(
-        QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
+        quiche::QuicheReferenceCountedPointer<
+            ValidateClientHelloResultCallback::Result>
             validate_chlo_result,
-        bool reject_only,
-        QuicConnectionId connection_id,
+        bool reject_only, QuicConnectionId connection_id,
         const QuicSocketAddress& server_address,
-        const QuicSocketAddress& client_address,
-        ParsedQuicVersion version,
+        const QuicSocketAddress& client_address, ParsedQuicVersion version,
         const ParsedQuicVersionVector& supported_versions,
-        const QuicClock* clock,
-        QuicRandom* rand,
+        const QuicClock* clock, QuicRandom* rand,
         QuicCompressedCertsCache* compressed_certs_cache,
-        QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params,
-        QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
-        QuicByteCount total_framing_overhead,
-        QuicByteCount chlo_packet_size,
+        quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+            params,
+        quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig>
+            signed_config,
+        QuicByteCount total_framing_overhead, QuicByteCount chlo_packet_size,
         std::unique_ptr<ProcessClientHelloResultCallback> done_cb)
         : validate_chlo_result_(validate_chlo_result),
           reject_only_(reject_only),
@@ -626,7 +629,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
                  std::unique_ptr<ProofSource::Details> proof_source_details);
 
     // Member accessors
-    QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
+    quiche::QuicheReferenceCountedPointer<
+        ValidateClientHelloResultCallback::Result>
     validate_chlo_result() const {
       return validate_chlo_result_;
     }
@@ -643,10 +647,12 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     QuicCompressedCertsCache* compressed_certs_cache() const {
       return compressed_certs_cache_;
     }
-    QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params() const {
+    quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+    params() const {
       return params_;
     }
-    QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config() const {
+    quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig>
+    signed_config() const {
       return signed_config_;
     }
     QuicByteCount total_framing_overhead() const {
@@ -664,7 +670,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     }
 
    private:
-    const QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
+    const quiche::QuicheReferenceCountedPointer<
+        ValidateClientHelloResultCallback::Result>
         validate_chlo_result_;
     const bool reject_only_;
     const QuicConnectionId connection_id_;
@@ -675,8 +682,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     const QuicClock* const clock_;
     QuicRandom* const rand_;
     QuicCompressedCertsCache* const compressed_certs_cache_;
-    const QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
-    const QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config_;
+    const quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
+        params_;
+    const quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig>
+        signed_config_;
     const QuicByteCount total_framing_overhead_;
     const QuicByteCount chlo_packet_size_;
     std::unique_ptr<ProcessClientHelloResultCallback> done_cb_;
@@ -715,7 +724,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // client used is not accessible.
   void SendRejectWithFallbackConfig(
       std::unique_ptr<ProcessClientHelloContext> context,
-      QuicReferenceCountedPointer<Config> fallback_config) const;
+      quiche::QuicheReferenceCountedPointer<Config> fallback_config) const;
 
   // Callback class for bridging between SendRejectWithFallbackConfig and
   // SendRejectWithFallbackConfigAfterGetProof.
@@ -729,7 +738,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       bool found_error,
       std::unique_ptr<ProofSource::Details> proof_source_details,
       std::unique_ptr<ProcessClientHelloContext> context,
-      QuicReferenceCountedPointer<Config> fallback_config) const;
+      quiche::QuicheReferenceCountedPointer<Config> fallback_config) const;
 
   // BuildRejectionAndRecordStats calls |BuildRejection| below and also informs
   // the RejectionObserver.
@@ -749,15 +758,15 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // 64-bit, FNV-1a hashes of certificates that the peer already possesses.
   static std::string CompressChain(
       QuicCompressedCertsCache* compressed_certs_cache,
-      const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
+      const quiche::QuicheReferenceCountedPointer<ProofSource::Chain>& chain,
       const std::string& client_cached_cert_hashes);
 
   // ParseConfigProtobuf parses the given config protobuf and returns a
-  // QuicReferenceCountedPointer<Config> if successful. The caller adopts the
-  // reference to the Config. On error, ParseConfigProtobuf returns nullptr.
-  QuicReferenceCountedPointer<Config> ParseConfigProtobuf(
-      const QuicServerConfigProtobuf& protobuf,
-      bool is_fallback) const;
+  // quiche::QuicheReferenceCountedPointer<Config> if successful. The caller
+  // adopts the reference to the Config. On error, ParseConfigProtobuf returns
+  // nullptr.
+  quiche::QuicheReferenceCountedPointer<Config> ParseConfigProtobuf(
+      const QuicServerConfigProtobuf& protobuf, bool is_fallback) const;
 
   // ValidateSingleSourceAddressToken returns HANDSHAKE_OK if the source
   // address token in |token| is a timely token for the IP address |ip|
@@ -806,10 +815,11 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
         CryptoHandshakeMessage message,
         std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb);
 
-    void Run(bool ok,
-             const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
-             const QuicCryptoProof& proof,
-             std::unique_ptr<ProofSource::Details> details) override;
+    void Run(
+        bool ok,
+        const quiche::QuicheReferenceCountedPointer<ProofSource::Chain>& chain,
+        const QuicCryptoProof& proof,
+        std::unique_ptr<ProofSource::Details> details) override;
 
    private:
     const QuicCryptoServerConfig* config_;
@@ -827,12 +837,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   void FinishBuildServerConfigUpdateMessage(
       QuicCompressedCertsCache* compressed_certs_cache,
       const std::string& client_cached_cert_hashes,
-      bool sct_supported_by_client,
-      const std::string& sni,
-      bool ok,
-      const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
-      const std::string& signature,
-      const std::string& leaf_cert_sct,
+      bool sct_supported_by_client, const std::string& sni, bool ok,
+      const quiche::QuicheReferenceCountedPointer<ProofSource::Chain>& chain,
+      const std::string& signature, const std::string& leaf_cert_sct,
       std::unique_ptr<ProofSource::Details> details,
       CryptoHandshakeMessage message,
       std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb) const;
@@ -862,7 +869,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   // primary_config_ points to a Config (which is also in |configs_|) which is
   // the primary config - i.e. the one that we'll give out to new clients.
-  mutable QuicReferenceCountedPointer<Config> primary_config_
+  mutable quiche::QuicheReferenceCountedPointer<Config> primary_config_
       QUIC_GUARDED_BY(configs_lock_);
 
   // fallback_config_ points to a Config (which is also in |configs_|) which is
@@ -870,7 +877,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // for some reason.
   //
   // TODO(b/112548056): This is currently always nullptr.
-  QuicReferenceCountedPointer<Config> fallback_config_
+  quiche::QuicheReferenceCountedPointer<Config> fallback_config_
       QUIC_GUARDED_BY(configs_lock_);
 
   // next_config_promotion_time_ contains the nearest, future time when an
@@ -939,14 +946,14 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 };
 
 struct QUIC_EXPORT_PRIVATE QuicSignedServerConfig
-    : public QuicReferenceCounted {
+    : public quiche::QuicheReferenceCounted {
   QuicSignedServerConfig();
 
   QuicCryptoProof proof;
-  QuicReferenceCountedPointer<ProofSource::Chain> chain;
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain;
   // The server config that is used for this proof (and the rest of the
   // request).
-  QuicReferenceCountedPointer<QuicCryptoServerConfig::Config> config;
+  quiche::QuicheReferenceCountedPointer<QuicCryptoServerConfig::Config> config;
   std::string primary_scid;
 
  protected:
