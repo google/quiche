@@ -4,7 +4,7 @@
 
 #include "common/platform/api/quiche_reference_counted.h"
 
-#include "quic/platform/api/quic_test.h"
+#include "common/platform/api/quiche_test.h"
 
 namespace quiche {
 namespace test {
@@ -31,7 +31,7 @@ class Derived : public Base {
   ~Derived() override {}
 };
 
-class QuicheReferenceCountedTest : public QuicTest {};
+class QuicheReferenceCountedTest : public QuicheTest {};
 
 TEST_F(QuicheReferenceCountedTest, DefaultConstructor) {
   QuicheReferenceCountedPointer<Base> a;

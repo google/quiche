@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_REFERENCE_COUNTED_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_REFERENCE_COUNTED_H_
 
+#include "quiche_platform_impl/quiche_reference_counted_impl.h"
 #include "common/platform/api/quiche_export.h"
-#include "net/quiche/common/platform/impl/quiche_reference_counted_impl.h"
 
 namespace quiche {
 
