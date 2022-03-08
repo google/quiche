@@ -6385,28 +6385,26 @@ bool QuicConnection::SendPathChallenge(
     return connected_;
   }
   if (connection_migration_use_new_cid_) {
-    {
-      QuicConnectionId client_cid, server_cid;
-      FindOnPathConnectionIds(self_address, effective_peer_address, &client_cid,
-                              &server_cid);
-      QuicPacketCreator::ScopedPeerAddressContext context(
-          &packet_creator_, peer_address, client_cid, server_cid,
-          connection_migration_use_new_cid_);
-      if (writer == writer_) {
-        ScopedPacketFlusher flusher(this);
-        // It's on current path, add the PATH_CHALLENGE the same way as other
-        // frames. This may cause connection to be closed.
-        packet_creator_.AddPathChallengeFrame(data_buffer);
-      } else {
-        std::unique_ptr<SerializedPacket> probing_packet =
-            packet_creator_.SerializePathChallengeConnectivityProbingPacket(
-                data_buffer);
-        QUICHE_DCHECK_EQ(IsRetransmittable(*probing_packet),
-                         NO_RETRANSMITTABLE_DATA);
-        QUICHE_DCHECK_EQ(self_address, alternative_path_.self_address);
-        WritePacketUsingWriter(std::move(probing_packet), writer, self_address,
-                               peer_address, /*measure_rtt=*/false);
-      }
+    QuicConnectionId client_cid, server_cid;
+    FindOnPathConnectionIds(self_address, effective_peer_address, &client_cid,
+                            &server_cid);
+    QuicPacketCreator::ScopedPeerAddressContext context(
+        &packet_creator_, peer_address, client_cid, server_cid,
+        connection_migration_use_new_cid_);
+    if (writer == writer_) {
+      ScopedPacketFlusher flusher(this);
+      // It's on current path, add the PATH_CHALLENGE the same way as other
+      // frames. This may cause connection to be closed.
+      packet_creator_.AddPathChallengeFrame(data_buffer);
+    } else {
+      std::unique_ptr<SerializedPacket> probing_packet =
+          packet_creator_.SerializePathChallengeConnectivityProbingPacket(
+              data_buffer);
+      QUICHE_DCHECK_EQ(IsRetransmittable(*probing_packet),
+                       NO_RETRANSMITTABLE_DATA);
+      QUICHE_DCHECK_EQ(self_address, alternative_path_.self_address);
+      WritePacketUsingWriter(std::move(probing_packet), writer, self_address,
+                             peer_address, /*measure_rtt=*/false);
     }
     return connected_;
   }
