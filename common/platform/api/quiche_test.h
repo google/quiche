@@ -12,6 +12,15 @@ using QuicheTest = quiche::test::QuicheTest;
 template <class T>
 using QuicheTestWithParam = quiche::test::QuicheTestWithParamImpl<T>;
 
+using QuicheFlagSaver = QuicheFlagSaverImpl;
+
+// Class which needs to be instantiated in tests which use threads.
+using ScopedEnvironmentForThreads = ScopedEnvironmentForThreadsImpl;
+
+inline std::string QuicheGetTestMemoryCachePath() {
+  return QuicheGetTestMemoryCachePathImpl();
+}
+
 namespace quiche {
 namespace test {
 
@@ -26,5 +35,10 @@ inline std::string QuicheGetCommonSourcePath() {
 
 #define EXPECT_QUICHE_DEBUG_DEATH(condition, message) \
   EXPECT_QUICHE_DEBUG_DEATH_IMPL(condition, message)
+
+#define QUICHE_TEST_DISABLED_IN_CHROME(name) \
+  QUICHE_TEST_DISABLED_IN_CHROME_IMPL(name)
+
+#define QUICHE_SLOW_TEST(test) QUICHE_SLOW_TEST_IMPL(test)
 
 #endif  // QUICHE_COMMON_PLATFORM_API_QUICHE_TEST_H_
