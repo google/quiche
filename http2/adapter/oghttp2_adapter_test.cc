@@ -2990,13 +2990,41 @@ TEST(OgHttp2AdapterTest, GetSendWindowSize) {
   EXPECT_EQ(peer_window, kInitialFlowControlWindowSize);
 }
 
-TEST(OgHttp2AdapterTest, MarkDataConsumedForStream) {
+TEST(OgHttp2AdapterTest, MarkDataConsumedForNonexistentStream) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kServer};
   auto adapter = OgHttp2Adapter::Create(visitor, options);
 
-  EXPECT_QUICHE_BUG(adapter->MarkDataConsumedForStream(1, 11),
-                    "Stream 1 not found");
+  // Send some data on stream 1 so the connection window manager doesn't
+  // underflow later.
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/false)
+                                 .Data(1, "Some data on stream 1")
+                                 .Serialize();
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
+  EXPECT_CALL(visitor, OnDataForStream(1, _));
+
+  adapter->ProcessBytes(frames);
+
+  // This should not cause a crash or QUICHE_BUG.
+  adapter->MarkDataConsumedForStream(3, 11);
 }
 
 TEST(OgHttp2AdapterTest, TestSerialize) {
