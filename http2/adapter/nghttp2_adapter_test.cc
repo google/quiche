@@ -3129,6 +3129,181 @@ TEST(NgHttp2AdapterTest, ClientDisobeysConnectionFlowControl) {
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::GOAWAY}));
 }
 
+TEST(NgHttp2AdapterTest, ClientDisobeysConnectionFlowControlWithOneDataFrame) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  // Allow the client to send a DATA frame that exceeds the connection flow
+  // control window.
+  const uint32_t window_overflow_bytes = kInitialFlowControlWindowSize + 1;
+  adapter->SubmitSettings({{MAX_FRAME_SIZE, window_overflow_bytes}});
+
+  const std::string initial_frames =
+      TestFrameSequence()
+          .ClientPreface()
+          .Headers(1,
+                   {{":method", "POST"},
+                    {":scheme", "https"},
+                    {":authority", "example.com"},
+                    {":path", "/this/is/request/one"}},
+                   /*fin=*/false)
+          .Serialize();
+
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+
+  int64_t process_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), static_cast<size_t>(process_result));
+
+  EXPECT_TRUE(adapter->want_write());
+
+  // Outbound SETTINGS containing MAX_FRAME_SIZE.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
+
+  // Ack of client's initial settings.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  // Now let the client ack the MAX_FRAME_SIZE SETTINGS and send a DATA frame to
+  // overflow the connection-level window. The result should be a GOAWAY.
+  const std::string overflow_frames =
+      TestFrameSequence()
+          .SettingsAck()
+          .Data(1, std::string(window_overflow_bytes, 'a'))
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0x1));
+  EXPECT_CALL(visitor, OnSettingsAck());
+  EXPECT_CALL(visitor, OnFrameHeader(1, window_overflow_bytes, DATA, 0x0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, window_overflow_bytes));
+  // No further frame data is delivered.
+
+  process_result = adapter->ProcessBytes(overflow_frames);
+  EXPECT_EQ(overflow_frames.size(), static_cast<size_t>(process_result));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(
+      visitor,
+      OnFrameSent(GOAWAY, 0, _, 0x0,
+                  static_cast<int>(Http2ErrorCode::FLOW_CONTROL_ERROR)));
+
+  send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::GOAWAY}));
+}
+
+TEST(NgHttp2AdapterTest, ClientDisobeysConnectionFlowControlAcrossReads) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  // Allow the client to send a DATA frame that exceeds the connection flow
+  // control window.
+  const uint32_t window_overflow_bytes = kInitialFlowControlWindowSize + 1;
+  adapter->SubmitSettings({{MAX_FRAME_SIZE, window_overflow_bytes}});
+
+  const std::string initial_frames =
+      TestFrameSequence()
+          .ClientPreface()
+          .Headers(1,
+                   {{":method", "POST"},
+                    {":scheme", "https"},
+                    {":authority", "example.com"},
+                    {":path", "/this/is/request/one"}},
+                   /*fin=*/false)
+          .Serialize();
+
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+
+  int64_t process_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), static_cast<size_t>(process_result));
+
+  EXPECT_TRUE(adapter->want_write());
+
+  // Outbound SETTINGS containing MAX_FRAME_SIZE.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
+
+  // Ack of client's initial settings.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  // Now let the client ack the MAX_FRAME_SIZE SETTINGS and send a DATA frame to
+  // overflow the connection-level window. The result should be a GOAWAY, but
+  // because the processing is split across several calls, nghttp2 instead
+  // delivers the data payloads (which the visitor then consumes). This is a bug
+  // in nghttp2, which should recognize the flow control error.
+  const std::string overflow_frames =
+      TestFrameSequence()
+          .SettingsAck()
+          .Data(1, std::string(window_overflow_bytes, 'a'))
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0x1));
+  EXPECT_CALL(visitor, OnSettingsAck());
+  EXPECT_CALL(visitor, OnFrameHeader(1, window_overflow_bytes, DATA, 0x0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, window_overflow_bytes));
+  // BUG: The visitor should not have received the data.
+  EXPECT_CALL(visitor, OnDataForStream(1, _))
+      .WillRepeatedly(
+          [&adapter](Http2StreamId stream_id, absl::string_view data) {
+            adapter->MarkDataConsumedForStream(stream_id, data.size());
+            return true;
+          });
+
+  const size_t chunk_length = 16384;
+  ASSERT_GE(overflow_frames.size(), chunk_length);
+  absl::string_view remaining = overflow_frames;
+  while (!remaining.empty()) {
+    absl::string_view chunk = remaining.substr(0, chunk_length);
+    process_result = adapter->ProcessBytes(chunk);
+    EXPECT_EQ(chunk.length(), static_cast<size_t>(process_result));
+
+    remaining.remove_prefix(chunk.length());
+  }
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 0, 4, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 0, 4, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 1, 4, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 1, 4, 0x0, 0));
+
+  send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::WINDOW_UPDATE,
+                                            SpdyFrameType::WINDOW_UPDATE}));
+}
+
 TEST(NgHttp2AdapterTest, ClientDisobeysStreamFlowControl) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
