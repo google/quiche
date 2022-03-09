@@ -10,6 +10,7 @@
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_test.h"
+#include "quic/test_tools/first_flight.h"
 #include "quic/test_tools/mock_clock.h"
 #include "quic/test_tools/quic_buffered_packet_store_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
@@ -447,6 +448,55 @@ TEST_F(QuicBufferedPacketStoreTest, DiscardPacketsEmpty) {
   EXPECT_FALSE(store_.HasChlosBuffered());
 }
 
+TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
+  QuicConnectionId connection_id = TestConnectionId(1);
+  std::vector<std::string> alpns;
+  std::string sni;
+  bool resumption_attempted = false;
+  bool early_data_attempted = false;
+  QuicConfig config;
+
+  EXPECT_FALSE(store_.HasBufferedPackets(connection_id));
+  store_.EnqueuePacket(connection_id, false, packet_, self_address_,
+                       peer_address_, valid_version_, kNoParsedChlo);
+  EXPECT_TRUE(store_.HasBufferedPackets(connection_id));
+
+  // The packet in 'packet_' is not a TLS CHLO packet.
+  EXPECT_FALSE(store_.IngestPacketForTlsChloExtraction(
+      connection_id, valid_version_, packet_, &alpns, &sni,
+      &resumption_attempted, &early_data_attempted));
+
+  store_.DiscardPackets(connection_id);
+
+  // Force the TLS CHLO to span multiple packets.
+  constexpr auto kCustomParameterId =
+      static_cast<TransportParameters::TransportParameterId>(0xff33);
+  std::string kCustomParameterValue(2000, '-');
+  config.custom_transport_parameters_to_send()[kCustomParameterId] =
+      kCustomParameterValue;
+  auto packets = GetFirstFlightOfPackets(valid_version_, config);
+  ASSERT_EQ(packets.size(), 2u);
+
+  store_.EnqueuePacket(connection_id, false, *packets[0], self_address_,
+                       peer_address_, valid_version_, kNoParsedChlo);
+  store_.EnqueuePacket(connection_id, false, *packets[1], self_address_,
+                       peer_address_, valid_version_, kNoParsedChlo);
+
+  EXPECT_TRUE(store_.HasBufferedPackets(connection_id));
+  EXPECT_FALSE(store_.IngestPacketForTlsChloExtraction(
+      connection_id, valid_version_, *packets[0], &alpns, &sni,
+      &resumption_attempted, &early_data_attempted));
+  EXPECT_TRUE(store_.IngestPacketForTlsChloExtraction(
+      connection_id, valid_version_, *packets[1], &alpns, &sni,
+      &resumption_attempted, &early_data_attempted));
+
+  ASSERT_EQ(alpns.size(), 1u);
+  EXPECT_EQ(alpns[0], AlpnForVersion(valid_version_));
+  EXPECT_EQ(sni, TestHostname());
+
+  EXPECT_FALSE(resumption_attempted);
+  EXPECT_FALSE(early_data_attempted);
+}
 }  // namespace
 }  // namespace test
 }  // namespace quic
