@@ -296,13 +296,13 @@ std::string PacketNumberSpaceToString(PacketNumberSpace packet_number_space) {
 
 std::string SerializedPacketFateToString(SerializedPacketFate fate) {
   switch (fate) {
+    RETURN_STRING_LITERAL(DISCARD);
     RETURN_STRING_LITERAL(COALESCE);
     RETURN_STRING_LITERAL(BUFFER);
     RETURN_STRING_LITERAL(SEND_TO_WRITER);
     RETURN_STRING_LITERAL(LEGACY_VERSION_ENCAPSULATE);
-    default:
-      return absl::StrCat("Unknown(", static_cast<int>(fate), ")");
   }
+  return absl::StrCat("Unknown(", static_cast<int>(fate), ")");
 }
 
 std::ostream& operator<<(std::ostream& os, SerializedPacketFate fate) {
