@@ -8,6 +8,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_ip_address_family.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/qbone/platform/icmp_packet.h"
 #include "quic/qbone/platform/internet_checksum.h"

@@ -6,6 +6,7 @@
 
 #include <cstdint>
 
+#include "quic/platform/api/quic_ip_address_family.h"
 #include "quic/platform/api/quic_test.h"
 
 namespace quic {

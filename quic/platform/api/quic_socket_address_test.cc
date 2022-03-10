@@ -7,6 +7,7 @@
 #include <memory>
 #include <sstream>
 
+#include "quic/platform/api/quic_ip_address.h"
 #include "quic/platform/api/quic_test.h"
 
 namespace quic {

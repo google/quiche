@@ -10,6 +10,7 @@
 
 #include "quic/core/quic_packets.h"
 #include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_ip_address.h"
 #include "quic/platform/api/quic_socket_address.h"
 
 namespace quic {

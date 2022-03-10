@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "quic/platform/api/quic_ip_address_family.h"
+
 namespace quic {
 
 namespace {
