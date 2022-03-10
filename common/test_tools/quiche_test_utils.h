@@ -8,7 +8,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "quic/platform/api/quic_iovec.h"
+#include "common/platform/api/quiche_iovec.h"
 
 namespace quiche {
 namespace test {

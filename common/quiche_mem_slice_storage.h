@@ -9,8 +9,8 @@
 
 #include "absl/types/span.h"
 #include "quic/core/quic_types.h"
-#include "quic/platform/api/quic_iovec.h"
 #include "common/platform/api/quiche_export.h"
+#include "common/platform/api/quiche_iovec.h"
 #include "common/platform/api/quiche_mem_slice.h"
 #include "common/quiche_buffer_allocator.h"
 

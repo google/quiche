@@ -69,7 +69,7 @@
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
-#include "quic/platform/api/quic_iovec.h"
+#include "common/platform/api/quiche_iovec.h"
 
 namespace quic {
 
