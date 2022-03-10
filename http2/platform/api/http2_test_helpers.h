@@ -4,7 +4,7 @@
 // Provides VERIFY_* macros, similar to EXPECT_* and ASSERT_*, but they return
 // an AssertionResult if the condition is not satisfied.
 #include "common/platform/api/quiche_test.h"
-#include "net/quiche/common/platform/impl/quiche_test_helpers_impl.h"
+#include "common/platform/api/quiche_test_helpers.h"
 
 #define VERIFY_AND_RETURN_SUCCESS(expression) \
   {                                           \
