@@ -13,6 +13,8 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/crypto/quic_client_session_cache.h"
 #include "quic/core/http/http_constants.h"
@@ -35,7 +37,6 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_port_utils.h"
-#include "quic/platform/api/quic_sleep.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/platform/api/quic_test_loopback.h"
@@ -4334,7 +4335,7 @@ TEST_P(EndToEndTest, BadEncryptedData) {
       client_->client()->network_helper()->GetLatestClientAddress().host(),
       server_address_, nullptr);
   // Give the server time to process the packet.
-  QuicSleep(QuicTime::Delta::FromSeconds(1));
+  absl::SleepFor(absl::Seconds(1));
   // This error is sent to the connection's OnError (which ignores it), so the
   // dispatcher doesn't see it.
   // Pause the server so we can access the server's internals without races.
