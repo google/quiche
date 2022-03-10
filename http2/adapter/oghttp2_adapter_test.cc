@@ -2900,6 +2900,89 @@ TEST(OgHttp2AdapterTest, ClientSendsMetadataAfterFlowControlBlock) {
   EXPECT_EQ(0, result);
 }
 
+TEST(OgHttp2AdapterTest, ClientQueuesRequests) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  testing::InSequence s;
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+
+  adapter->Send();
+
+  const std::string initial_frames =
+      TestFrameSequence()
+          .ServerPreface({{MAX_CONCURRENT_STREAMS, 2}})
+          .SettingsAck()
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0x0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{
+                           Http2KnownSettingsId::MAX_CONCURRENT_STREAMS, 2u}))
+      .Times(2);
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0x1));
+  EXPECT_CALL(visitor, OnSettingsAck());
+
+  adapter->ProcessBytes(initial_frames);
+
+  const std::vector<Header> headers =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/example/request"}});
+  std::vector<int32_t> stream_ids;
+  // Start two, which hits the limit.
+  int32_t stream_id = adapter->SubmitRequest(headers, nullptr, nullptr);
+  stream_ids.push_back(stream_id);
+  stream_id = adapter->SubmitRequest(headers, nullptr, nullptr);
+  stream_ids.push_back(stream_id);
+  // Start two more, which must be queued.
+  stream_id = adapter->SubmitRequest(headers, nullptr, nullptr);
+  stream_ids.push_back(stream_id);
+  stream_id = adapter->SubmitRequest(headers, nullptr, nullptr);
+  stream_ids.push_back(stream_id);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_ids[0], _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_ids[0], _, 0x5, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_ids[1], _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_ids[1], _, 0x5, 0));
+
+  adapter->Send();
+
+  const std::string update_streams =
+      TestFrameSequence().Settings({{MAX_CONCURRENT_STREAMS, 5}}).Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0x0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{
+                           Http2KnownSettingsId::MAX_CONCURRENT_STREAMS, 5u}))
+      .Times(2);
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  adapter->ProcessBytes(update_streams);
+  stream_id = adapter->SubmitRequest(headers, nullptr, nullptr);
+  stream_ids.push_back(stream_id);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_ids[2], _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_ids[2], _, 0x5, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_ids[3], _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_ids[3], _, 0x5, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_ids[4], _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_ids[4], _, 0x5, 0));
+  // Header frames should all have been sent in order, regardless of any
+  // queuing.
+
+  adapter->Send();
+}
+
 TEST(OgHttp2AdapterTest, SubmitMetadata) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kServer};

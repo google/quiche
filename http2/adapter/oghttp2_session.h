@@ -22,6 +22,7 @@
 #include "http2/core/priority_write_scheduler.h"
 #include "common/platform/api/quiche_bug_tracker.h"
 #include "common/platform/api/quiche_export.h"
+#include "common/quiche_linked_hash_map.h"
 #include "spdy/core/http2_frame_decoder_adapter.h"
 #include "spdy/core/no_op_headers_handler.h"
 #include "spdy/core/spdy_framer.h"
@@ -242,7 +243,6 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   using StreamStateMap = absl::flat_hash_map<Http2StreamId, StreamState>;
 
   struct QUICHE_EXPORT_PRIVATE PendingStreamState {
-    Http2StreamId stream_id;
     spdy::SpdyHeaderBlock headers;
     std::unique_ptr<DataFrameSource> data_source;
     void* user_data = nullptr;
@@ -385,6 +385,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
                     std::unique_ptr<DataFrameSource> data_source,
                     void* user_data);
 
+  // Sends headers for pending streams as long as the stream limit allows.
+  void StartPendingStreams();
+
   // Closes the given `stream_id` with the given `error_code`.
   void CloseStream(Http2StreamId stream_id, Http2ErrorCode error_code);
 
@@ -445,7 +448,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Maintains the state of pending streams known to this session. A pending
   // stream is kept in this list until it can be created while complying with
   // `max_outbound_concurrent_streams_`.
-  std::list<PendingStreamState> pending_streams_;
+  quiche::QuicheLinkedHashMap<Http2StreamId, PendingStreamState>
+      pending_streams_;
 
   // The queue of outbound frames.
   std::list<std::unique_ptr<spdy::SpdyFrameIR>> frames_;

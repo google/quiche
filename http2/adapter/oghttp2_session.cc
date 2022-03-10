@@ -371,6 +371,10 @@ void* OgHttp2Session::GetStreamUserData(Http2StreamId stream_id) {
   if (it != stream_map_.end()) {
     return it->second.user_data;
   }
+  auto p = pending_streams_.find(stream_id);
+  if (p != pending_streams_.end()) {
+    return p->second.user_data;
+  }
   return nullptr;
 }
 
@@ -918,14 +922,16 @@ int32_t OgHttp2Session::SubmitRequest(
   // TODO(birenroy): return an error for the incorrect perspective
   const Http2StreamId stream_id = next_stream_id_;
   next_stream_id_ += 2;
-  if (CanCreateStream()) {
-    StartRequest(stream_id, ToHeaderBlock(headers), std::move(data_source),
-                 user_data);
-  } else {
+  if (!pending_streams_.empty() || !CanCreateStream()) {
     // TODO(diannahu): There should probably be a limit to the number of allowed
     // pending streams.
-    pending_streams_.push_back(
-        {stream_id, ToHeaderBlock(headers), std::move(data_source), user_data});
+    pending_streams_.insert(
+        {stream_id, PendingStreamState{ToHeaderBlock(headers),
+                                       std::move(data_source), user_data}});
+    StartPendingStreams();
+  } else {
+    StartRequest(stream_id, ToHeaderBlock(headers), std::move(data_source),
+                 user_data);
   }
   return stream_id;
 }
@@ -1677,6 +1683,16 @@ void OgHttp2Session::StartRequest(Http2StreamId stream_id,
   SendHeaders(stream_id, std::move(headers), end_stream);
 }
 
+void OgHttp2Session::StartPendingStreams() {
+  while (!pending_streams_.empty() && CanCreateStream()) {
+    auto& [stream_id, pending_stream] = pending_streams_.front();
+    StartRequest(stream_id, std::move(pending_stream.headers),
+                 std::move(pending_stream.data_source),
+                 pending_stream.user_data);
+    pending_streams_.pop_front();
+  }
+}
+
 void OgHttp2Session::CloseStream(Http2StreamId stream_id,
                                  Http2ErrorCode error_code) {
   visitor_.OnCloseStream(stream_id, error_code);
@@ -1690,13 +1706,7 @@ void OgHttp2Session::CloseStream(Http2StreamId stream_id,
     write_scheduler_.UnregisterStream(stream_id);
   }
 
-  if (!pending_streams_.empty() && CanCreateStream()) {
-    PendingStreamState& pending_stream = pending_streams_.front();
-    StartRequest(pending_stream.stream_id, std::move(pending_stream.headers),
-                 std::move(pending_stream.data_source),
-                 pending_stream.user_data);
-    pending_streams_.pop_front();
-  }
+  StartPendingStreams();
 }
 
 bool OgHttp2Session::CanCreateStream() const {
