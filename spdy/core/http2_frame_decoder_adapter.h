@@ -162,6 +162,10 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
   // events for this connection.
   void StopProcessing();
 
+  // Sets the limit on the size of received HTTP/2 frame payloads. Corresponds
+  // to SETTINGS_MAX_FRAME_SIZE as advertised to the peer.
+  void SetMaxFrameSize(size_t max_frame_size);
+
  private:
   bool OnFrameHeader(const Http2FrameHeader& header) override;
   void OnDataStart(const Http2FrameHeader& header) override;
@@ -310,7 +314,7 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
 
   // The limit on the size of received HTTP/2 payloads as specified in the
   // SETTINGS_MAX_FRAME_SIZE advertised to peer.
-  size_t recv_frame_size_limit_ = spdy::kHttp2DefaultFramePayloadLimit;
+  size_t max_frame_size_ = spdy::kHttp2DefaultFramePayloadLimit;
 
   // Has OnFrameHeader been called?
   bool decoded_frame_header_ = false;

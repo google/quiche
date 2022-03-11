@@ -693,8 +693,8 @@ TEST_P(SpdyFramerTest, HeaderStreamDependencyValues) {
   }
 }
 
-// Test that if we receive a frame with payload length field at the
-// advertised max size, we do not set an error in ProcessInput.
+// Test that if we receive a frame with a payload length field at the default
+// max size, we do not set an error in ProcessInput.
 TEST_P(SpdyFramerTest, AcceptMaxFrameSizeSetting) {
   testing::StrictMock<test::MockSpdyFramerVisitor> visitor;
   deframer_.set_visitor(&visitor);
@@ -718,8 +718,8 @@ TEST_P(SpdyFramerTest, AcceptMaxFrameSizeSetting) {
   EXPECT_FALSE(deframer_.HasError());
 }
 
-// Test that if we receive a frame with payload length larger than the
-// advertised max size, we set an error of SPDY_INVALID_CONTROL_FRAME_SIZE.
+// Test that if we receive a frame with a payload length larger than the default
+// max size, we set an error of SPDY_INVALID_CONTROL_FRAME_SIZE.
 TEST_P(SpdyFramerTest, ExceedMaxFrameSizeSetting) {
   testing::StrictMock<test::MockSpdyFramerVisitor> visitor;
   deframer_.set_visitor(&visitor);
@@ -744,6 +744,34 @@ TEST_P(SpdyFramerTest, ExceedMaxFrameSizeSetting) {
             deframer_.spdy_framer_error())
       << Http2DecoderAdapter::SpdyFramerErrorToString(
              deframer_.spdy_framer_error());
+}
+
+// Test that if we set a larger max frame size and then receive a frame with a
+// payload length at that larger size, we do not set an error in ProcessInput.
+TEST_P(SpdyFramerTest, AcceptLargerMaxFrameSizeSetting) {
+  testing::StrictMock<test::MockSpdyFramerVisitor> visitor;
+  deframer_.set_visitor(&visitor);
+
+  const size_t big_frame_size = (1 << 14) + 1;
+  deframer_.SetMaxFrameSize(big_frame_size);
+
+  // DATA frame with larger-than-default but acceptable payload length.
+  unsigned char kH2FrameData[] = {
+      0x00, 0x40, 0x01,        // Length: 2^14 + 1
+      0x00,                    //   Type: DATA
+      0x00,                    //  Flags: None
+      0x00, 0x00, 0x00, 0x01,  // Stream: 1
+      0x00, 0x00, 0x00, 0x00,  // Junk payload
+  };
+
+  SpdySerializedFrame frame(reinterpret_cast<char*>(kH2FrameData),
+                            sizeof(kH2FrameData), false);
+
+  EXPECT_CALL(visitor, OnCommonHeader(1, big_frame_size, 0x0, 0x0));
+  EXPECT_CALL(visitor, OnDataFrameHeader(1, big_frame_size, false));
+  EXPECT_CALL(visitor, OnStreamFrameData(1, _, 4));
+  deframer_.ProcessInput(frame.data(), frame.size());
+  EXPECT_FALSE(deframer_.HasError());
 }
 
 // Test that if we receive a DATA frame with padding length larger than the

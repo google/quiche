@@ -264,9 +264,6 @@ void Http2DecoderAdapter::set_extension_visitor(
 }
 
 size_t Http2DecoderAdapter::ProcessInput(const char* data, size_t len) {
-  size_t limit = recv_frame_size_limit_;
-  frame_decoder_->set_maximum_payload_size(limit);
-
   size_t total_processed = 0;
   while (len > 0 && spdy_state_ != SPDY_ERROR) {
     // Process one at a time so that we update the adapter's internal
@@ -310,6 +307,11 @@ bool Http2DecoderAdapter::probable_http_response() const {
 void Http2DecoderAdapter::StopProcessing() {
   SetSpdyErrorAndNotify(SpdyFramerError::SPDY_STOP_PROCESSING,
                         "Ignoring further events on this connection.");
+}
+
+void Http2DecoderAdapter::SetMaxFrameSize(size_t max_frame_size) {
+  max_frame_size_ = max_frame_size;
+  frame_decoder_->set_maximum_payload_size(max_frame_size);
 }
 
 // ===========================================================================
@@ -767,8 +769,7 @@ void Http2DecoderAdapter::OnPaddingTooLong(const Http2FrameHeader& header,
 
 void Http2DecoderAdapter::OnFrameSizeError(const Http2FrameHeader& header) {
   QUICHE_DVLOG(1) << "OnFrameSizeError: " << header;
-  size_t recv_limit = recv_frame_size_limit_;
-  if (header.payload_length > recv_limit) {
+  if (header.payload_length > max_frame_size_) {
     if (header.type == Http2FrameType::DATA) {
       SetSpdyErrorAndNotify(SpdyFramerError::SPDY_OVERSIZED_PAYLOAD, "");
     } else {
