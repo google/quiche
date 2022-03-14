@@ -103,6 +103,9 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
   Http2DecoderAdapter();
   ~Http2DecoderAdapter() override;
 
+  Http2DecoderAdapter(const Http2DecoderAdapter&) = delete;
+  Http2DecoderAdapter& operator=(const Http2DecoderAdapter&) = delete;
+
   // Set callbacks to be called from the framer.  A visitor must be set, or
   // else the framer will likely crash.  It is acceptable for the visitor
   // to do nothing.  If this is called multiple times, only the last visitor
@@ -136,9 +139,6 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
   // OnGoAwayFrameData(), or ExtensionVisitorInterface::OnFramePayload() method
   // is guaranteed to be called exactly once, with the entire payload or field.
   size_t ProcessInput(const char* data, size_t len);
-
-  // Reset the decoder (used just for tests at this time).
-  void Reset();
 
   // Current state of the decoder.
   SpdyState state() const;
@@ -224,10 +224,6 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
   void DetermineSpdyState(DecodeStatus status);
   void ResetBetweenFrames();
 
-  // ResetInternal is called from the constructor, and during tests, but not
-  // otherwise (i.e. not between every frame).
-  void ResetInternal();
-
   void set_spdy_state(SpdyState v);
 
   void SetSpdyErrorAndNotify(SpdyFramerError error, std::string detailed_error);
@@ -296,8 +292,7 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
   // clearing if the adapter is to be used for another connection.
   std::unique_ptr<spdy::HpackDecoderAdapter> hpack_decoder_ = nullptr;
 
-  // The HTTP/2 frame decoder. Accessed via a unique_ptr to allow replacement
-  // (e.g. in tests) when Reset() is called.
+  // The HTTP/2 frame decoder.
   std::unique_ptr<Http2FrameDecoder> frame_decoder_;
 
   // Next frame type expected. Currently only used for CONTINUATION frames,
