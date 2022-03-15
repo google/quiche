@@ -1591,8 +1591,10 @@ void OgHttp2Session::HandleOutboundSettings(
               UpdateStreamReceiveWindowSizes(value);
               initial_stream_receive_window_ = value;
               break;
-            case ENABLE_PUSH:
             case MAX_FRAME_SIZE:
+              decoder_.SetMaxFrameSize(value);
+              break;
+            case ENABLE_PUSH:
             case MAX_HEADER_LIST_SIZE:
             case ENABLE_CONNECT_PROTOCOL:
               QUICHE_VLOG(2)
