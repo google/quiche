@@ -42,15 +42,14 @@ namespace quic {
 namespace {
 
 // Implements the HKDF-Expand-Label function as defined in section 7.1 of RFC
-// 8446, except that it uses "quic " as the prefix instead of "tls13 ", as
-// specified by draft-ietf-quic-tls-14. The HKDF-Expand-Label function takes 4
-// explicit arguments (Secret, Label, Context, and Length), as well as
-// implicit PRF which is the hash function negotiated by TLS. Its use in QUIC
-// (as needed by the QUIC stack, instead of as used internally by the TLS
-// stack) is only for deriving initial secrets for obfuscation and for
-// calculating packet protection keys and IVs from the corresponding packet
-// protection secret. Neither of these uses need a Context (a zero-length
-// context is provided), so this argument is omitted here.
+// 8446. The HKDF-Expand-Label function takes 4 explicit arguments (Secret,
+// Label, Context, and Length), as well as implicit PRF which is the hash
+// function negotiated by TLS. Its use in QUIC (as needed by the QUIC stack,
+// instead of as used internally by the TLS stack) is only for deriving initial
+// secrets for obfuscation, for calculating packet protection keys and IVs from
+// the corresponding packet protection secret and key update in the same quic
+// session. None of these uses need a Context (a zero-length context is
+// provided), so this argument is omitted here.
 //
 // The implicit PRF is explicitly passed into HkdfExpandLabel as |prf|; the
 // Secret, Label, and Length are passed in as |secret|, |label|, and
@@ -61,8 +60,10 @@ std::vector<uint8_t> HkdfExpandLabel(const EVP_MD* prf,
   bssl::ScopedCBB quic_hkdf_label;
   CBB inner_label;
   const char label_prefix[] = "tls13 ";
-  // 19 = size(u16) + size(u8) + len("tls13 ") + len ("client in") + size(u8)
-  static const size_t max_quic_hkdf_label_length = 19;
+  // 20 = size(u16) + size(u8) + len("tls13 ") +
+  //      max_len("client in", "server in", "quicv2 key", ... ) +
+  //      size(u8);
+  static const size_t max_quic_hkdf_label_length = 20;
   if (!CBB_init(quic_hkdf_label.get(), max_quic_hkdf_label_length) ||
       !CBB_add_u16(quic_hkdf_label.get(), out_len) ||
       !CBB_add_u8_length_prefixed(quic_hkdf_label.get(), &inner_label) ||
@@ -72,6 +73,7 @@ std::vector<uint8_t> HkdfExpandLabel(const EVP_MD* prf,
       !CBB_add_bytes(&inner_label,
                      reinterpret_cast<const uint8_t*>(label.data()),
                      label.size()) ||
+      // Zero length |Context|.
       !CBB_add_u8(quic_hkdf_label.get(), 0) ||
       !CBB_flush(quic_hkdf_label.get())) {
     QUIC_LOG(ERROR) << "Building HKDF label failed";
