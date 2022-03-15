@@ -103,8 +103,6 @@ QUIC_FLAG(FLAGS_quic_restart_flag_quic_set_packet_state_if_all_data_retransmitte
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_tls_use_token_in_session_cache, true)
 // When the flag is true, exit STARTUP after the same number of loss events as PROBE_UP.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_startup_probe_up_loss_events, true)
-// When true, QUIC will both send and validate the version_information transport parameter.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_version_information, true)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr, false)
 // When true, prevents QUIC\'s PacingSender from generating bursts when the congestion controller is CWND limited and not pacing limited.

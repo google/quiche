@@ -4208,7 +4208,6 @@ TEST_P(EndToEndTest, VersionNegotiationDowngradeAttackIsDetected) {
     ASSERT_TRUE(Initialize());
     return;
   }
-  SetQuicReloadableFlag(quic_version_information, true);
   connect_to_server_on_initialize_ = false;
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     target_version);

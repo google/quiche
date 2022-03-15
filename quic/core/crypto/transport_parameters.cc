@@ -158,9 +158,8 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kGoogleConnectionOptions:
     case TransportParameters::kGoogleQuicVersion:
     case TransportParameters::kMinAckDelay:
-      return true;
     case TransportParameters::kVersionInformation:
-      return GetQuicReloadableFlag(quic_version_information);
+      return true;
   }
   return false;
 }
@@ -1444,20 +1443,6 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         }
       } break;
       case TransportParameters::kVersionInformation: {
-        if (!GetQuicReloadableFlag(quic_version_information)) {
-          // This duplicates the default case and will be removed when this flag
-          // is deprecated.
-          if (out->custom_parameters.find(param_id) !=
-              out->custom_parameters.end()) {
-            *error_details = "Received a second unknown parameter" +
-                             TransportParameterIdToString(param_id);
-            return false;
-          }
-          out->custom_parameters[param_id] =
-              std::string(value_reader.ReadRemainingPayload());
-          break;
-        }
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_information, 2, 2);
         if (out->version_information.has_value()) {
           *error_details = "Received a second version_information";
           return false;

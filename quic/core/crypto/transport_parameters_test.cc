@@ -298,9 +298,7 @@ TEST_P(TransportParametersTest, RoundTripClient) {
   orig_params.perspective = Perspective::IS_CLIENT;
   orig_params.legacy_version_information =
       CreateFakeLegacyVersionInformationClient();
-  if (GetQuicReloadableFlag(quic_version_information)) {
-    orig_params.version_information = CreateFakeVersionInformation();
-  }
+  orig_params.version_information = CreateFakeVersionInformation();
   orig_params.max_idle_timeout_ms.set_value(kFakeIdleTimeoutMilliseconds);
   orig_params.max_udp_payload_size.set_value(kMaxPacketSizeForTest);
   orig_params.initial_max_data.set_value(kFakeInitialMaxData);
@@ -344,9 +342,7 @@ TEST_P(TransportParametersTest, RoundTripServer) {
   orig_params.perspective = Perspective::IS_SERVER;
   orig_params.legacy_version_information =
       CreateFakeLegacyVersionInformationServer();
-  if (GetQuicReloadableFlag(quic_version_information)) {
-    orig_params.version_information = CreateFakeVersionInformation();
-  }
+  orig_params.version_information = CreateFakeVersionInformation();
   orig_params.original_destination_connection_id =
       CreateFakeOriginalDestinationConnectionId();
   orig_params.max_idle_timeout_ms.set_value(kFakeIdleTimeoutMilliseconds);
@@ -593,11 +589,9 @@ TEST_P(TransportParametersTest, ParseClientParams) {
             new_params.legacy_version_information.value().version);
   EXPECT_TRUE(
       new_params.legacy_version_information.value().supported_versions.empty());
-  if (GetQuicReloadableFlag(quic_version_information)) {
-    ASSERT_TRUE(new_params.version_information.has_value());
-    EXPECT_EQ(new_params.version_information.value(),
-              CreateFakeVersionInformation());
-  }
+  ASSERT_TRUE(new_params.version_information.has_value());
+  EXPECT_EQ(new_params.version_information.value(),
+            CreateFakeVersionInformation());
   EXPECT_FALSE(new_params.original_destination_connection_id.has_value());
   EXPECT_EQ(kFakeIdleTimeoutMilliseconds,
             new_params.max_idle_timeout_ms.value());
@@ -853,11 +847,9 @@ TEST_P(TransportParametersTest, ParseServerParams) {
   EXPECT_EQ(
       kFakeVersionLabel2,
       new_params.legacy_version_information.value().supported_versions[1]);
-  if (GetQuicReloadableFlag(quic_version_information)) {
-    ASSERT_TRUE(new_params.version_information.has_value());
-    EXPECT_EQ(new_params.version_information.value(),
-              CreateFakeVersionInformation());
-  }
+  ASSERT_TRUE(new_params.version_information.has_value());
+  EXPECT_EQ(new_params.version_information.value(),
+            CreateFakeVersionInformation());
   ASSERT_TRUE(new_params.original_destination_connection_id.has_value());
   EXPECT_EQ(CreateFakeOriginalDestinationConnectionId(),
             new_params.original_destination_connection_id.value());

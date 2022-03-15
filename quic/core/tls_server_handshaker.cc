@@ -535,15 +535,11 @@ TlsServerHandshaker::SetTransportParameters() {
       CreateQuicVersionLabelVector(session()->supported_versions());
   server_params.legacy_version_information.value().version =
       CreateQuicVersionLabel(session()->connection()->version());
-  if (GetQuicReloadableFlag(quic_version_information)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_information, 1, 2);
-    server_params.version_information =
-        TransportParameters::VersionInformation();
-    server_params.version_information.value().chosen_version =
-        CreateQuicVersionLabel(session()->version());
-    server_params.version_information.value().other_versions =
-        CreateQuicVersionLabelVector(session()->supported_versions());
-  }
+  server_params.version_information = TransportParameters::VersionInformation();
+  server_params.version_information.value().chosen_version =
+      CreateQuicVersionLabel(session()->version());
+  server_params.version_information.value().other_versions =
+      CreateQuicVersionLabelVector(session()->supported_versions());
 
   if (!handshaker_delegate()->FillTransportParameters(&server_params)) {
     return result;
