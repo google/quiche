@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "quic/core/quic_config.h"
+#include "quic/core/quic_epoll_clock.h"
 #include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_mutex.h"
 #include "quic/platform/api/quic_socket_address.h"

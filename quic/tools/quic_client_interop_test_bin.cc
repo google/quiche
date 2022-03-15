@@ -9,11 +9,11 @@
 
 #include "absl/strings/str_cat.h"
 #include "quic/core/crypto/quic_client_session_cache.h"
+#include "quic/core/quic_epoll_clock.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_epoll.h"
 #include "quic/platform/api/quic_system_event_loop.h"
-#include "net/quic/platform/impl/quic_epoll_clock.h"
 #include "quic/test_tools/quic_connection_peer.h"
 #include "quic/test_tools/quic_session_peer.h"
 #include "quic/tools/fake_proof_verifier.h"

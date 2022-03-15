@@ -14,12 +14,12 @@
 
 #include "quic/core/quic_connection.h"
 #include "quic/core/quic_default_packet_writer.h"
+#include "quic/core/quic_epoll_clock.h"
 #include "quic/core/quic_packet_writer.h"
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_time.h"
 #include "quic/platform/api/quic_epoll.h"
 #include "quic/platform/api/quic_stream_buffer_allocator.h"
-#include "net/quic/platform/impl/quic_epoll_clock.h"
 #include "common/simple_buffer_allocator.h"
 
 namespace quic {

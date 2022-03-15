@@ -4,9 +4,9 @@
 
 #include "quic/core/quic_epoll_alarm_factory.h"
 
+#include "quic/core/quic_epoll_clock.h"
 #include "quic/platform/api/quic_epoll_test_tools.h"
 #include "quic/platform/api/quic_test.h"
-#include "net/quic/platform/impl/quic_epoll_clock.h"
 
 namespace quic {
 namespace test {
