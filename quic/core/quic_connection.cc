@@ -3391,6 +3391,10 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
               packet_creator_.max_packet_length())) {
         // Failed to coalesce packet, flush current coalesced packet.
         if (!FlushCoalescedPacket()) {
+          QUIC_BUG_IF(quic_connection_connected_after_flush_coalesced_failure,
+                      connected_)
+              << "QUIC connection is still connected after failing to flush "
+                 "coalesced packet.";
           // Failed to flush coalesced packet, write error has been handled.
           return false;
         }
@@ -5905,6 +5909,15 @@ bool QuicConnection::FlushCoalescedPacket() {
   const size_t length = packet_creator_.SerializeCoalescedPacket(
       coalesced_packet_, buffer, coalesced_packet_.max_packet_length());
   if (length == 0) {
+    if (GetQuicReloadableFlag(
+            quic_close_connection_if_fail_to_serialzie_coalesced_packet) &&
+        connected_) {
+      QUIC_RELOADABLE_FLAG_COUNT(
+          quic_close_connection_if_fail_to_serialzie_coalesced_packet);
+      CloseConnection(QUIC_FAILED_TO_SERIALIZE_PACKET,
+                      "Failed to serialize coalesced packet.",
+                      ConnectionCloseBehavior::SILENT_CLOSE);
+    }
     return false;
   }
   if (debug_visitor_ != nullptr) {

@@ -181,4 +181,17 @@ std::string QuicCoalescedPacket::ToString(size_t serialized_length) const {
   return info;
 }
 
+std::vector<size_t> QuicCoalescedPacket::packet_lengths() const {
+  std::vector<size_t> lengths;
+  for (const auto& packet : encrypted_buffers_) {
+    if (lengths.empty()) {
+      lengths.push_back(
+          initial_packet_ == nullptr ? 0 : initial_packet_->encrypted_length);
+    } else {
+      lengths.push_back(packet.length());
+    }
+  }
+  return lengths;
+}
+
 }  // namespace quic

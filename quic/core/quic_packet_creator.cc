@@ -14,6 +14,7 @@
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quic/core/crypto/crypto_protocol.h"
@@ -1122,6 +1123,7 @@ size_t QuicPacketCreator::SerializeCoalescedPacket(
   QUIC_BUG_IF(quic_bug_12398_15, coalesced.length() == 0)
       << ENDPOINT << "Attempt to serialize empty coalesced packet";
   size_t packet_length = 0;
+  size_t initial_length = 0;
   if (coalesced.initial_packet() != nullptr) {
     // Padding coalesced packet containing initial packet to full.
     size_t padding_size = coalesced.max_packet_length() - coalesced.length();
@@ -1132,7 +1134,7 @@ size_t QuicPacketCreator::SerializeCoalescedPacket(
       // Do not pad server initial connection close packet.
       padding_size = 0;
     }
-    size_t initial_length = ReserializeInitialPacketInCoalescedPacket(
+    initial_length = ReserializeInitialPacketInCoalescedPacket(
         *coalesced.initial_packet(), padding_size, buffer, buffer_len);
     if (initial_length == 0) {
       QUIC_BUG(quic_bug_10752_19)
@@ -1147,6 +1149,14 @@ size_t QuicPacketCreator::SerializeCoalescedPacket(
   }
   size_t length_copied = 0;
   if (!coalesced.CopyEncryptedBuffers(buffer, buffer_len, &length_copied)) {
+    QUIC_BUG(quic_serialize_coalesced_packet_copy_failure)
+        << "SerializeCoalescedPacket failed. buffer_len:" << buffer_len
+        << ", initial_length:" << initial_length
+        << ", length_copied:" << length_copied
+        << ", coalesced.length:" << coalesced.length()
+        << ", coalesced.max_packet_length:" << coalesced.max_packet_length()
+        << ", coalesced.packet_lengths:"
+        << absl::StrJoin(coalesced.packet_lengths(), ":");
     return 0;
   }
   packet_length += length_copied;

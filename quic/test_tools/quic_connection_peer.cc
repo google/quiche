@@ -535,5 +535,16 @@ void QuicConnectionPeer::SetLastDecryptedLevel(QuicConnection* connection,
   connection->last_decrypted_packet_level_ = level;
 }
 
+// static
+QuicCoalescedPacket& QuicConnectionPeer::GetCoalescedPacket(
+    QuicConnection* connection) {
+  return connection->coalesced_packet_;
+}
+
+// static
+void QuicConnectionPeer::FlushCoalescedPacket(QuicConnection* connection) {
+  connection->FlushCoalescedPacket();
+}
+
 }  // namespace test
 }  // namespace quic

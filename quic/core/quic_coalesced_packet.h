@@ -9,6 +9,10 @@
 
 namespace quic {
 
+namespace test {
+class QuicCoalescedPacketPeer;
+}
+
 // QuicCoalescedPacket is used to buffer multiple packets which can be coalesced
 // into the same UDP datagram.
 class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
@@ -61,7 +65,11 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
 
   QuicPacketLength max_packet_length() const { return max_packet_length_; }
 
+  std::vector<size_t> packet_lengths() const;
+
  private:
+  friend class test::QuicCoalescedPacketPeer;
+
   // self/peer addresses are set when trying to coalesce the first packet.
   // Packets with different self/peer addresses cannot be coalesced.
   QuicSocketAddress self_address_;

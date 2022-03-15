@@ -220,6 +220,10 @@ class QuicConnectionPeer {
 
   static void SetLastDecryptedLevel(QuicConnection* connection,
                                     EncryptionLevel level);
+
+  static QuicCoalescedPacket& GetCoalescedPacket(QuicConnection* connection);
+
+  static void FlushCoalescedPacket(QuicConnection* connection);
 };
 
 }  // namespace test

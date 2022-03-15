@@ -107,6 +107,9 @@ class QuicCryptoStreamTest : public QuicTest {
                                            &alarm_factory_,
                                            Perspective::IS_CLIENT)),
         session_(connection_, /*create_mock_crypto_stream=*/false) {
+    EXPECT_CALL(*static_cast<MockPacketWriter*>(connection_->writer()),
+                WritePacket(_, _, _, _, _))
+        .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
     stream_ = new MockQuicCryptoStream(&session_);
     session_.SetCryptoStream(stream_);
     session_.Initialize();

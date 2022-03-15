@@ -13,6 +13,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/congestion_control/loss_detection_interface.h"
 #include "quic/core/congestion_control/send_algorithm_interface.h"
@@ -42,6 +43,7 @@
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/mock_clock.h"
 #include "quic/test_tools/mock_random.h"
+#include "quic/test_tools/quic_coalesced_packet_peer.h"
 #include "quic/test_tools/quic_config_peer.h"
 #include "quic/test_tools/quic_connection_peer.h"
 #include "quic/test_tools/quic_framer_peer.h"
@@ -10264,6 +10266,81 @@ TEST_P(QuicConnectionTest, SendCoalescedPackets) {
   EXPECT_EQ(0u, writer_->stream_frames().size());
   // Verify there is coalesced packet.
   EXPECT_NE(nullptr, writer_->coalesced_packet());
+}
+
+TEST_P(QuicConnectionTest, FailToCoalescePacket) {
+  // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
+  if (!IsDefaultTestConfiguration() ||
+      !connection_.version().CanSendCoalescedPackets()) {
+    return;
+  }
+
+  set_perspective(Perspective::IS_SERVER);
+  use_tagging_decrypter();
+
+  EXPECT_CALL(visitor_, OnHandshakePacketSent());
+
+  if (GetQuicReloadableFlag(
+          quic_close_connection_if_fail_to_serialzie_coalesced_packet)) {
+    EXPECT_CALL(visitor_,
+                OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+        .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
+  }
+
+  ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_INITIAL);
+  auto test_body = [&] {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                             std::make_unique<TaggingEncrypter>(0x01));
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+    connection_.SendCryptoDataWithString("foo", 0);
+    // Verify this packet is on hold.
+    EXPECT_EQ(0u, writer_->packets_write_attempts());
+
+    connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                             std::make_unique<TaggingEncrypter>(0x02));
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+    connection_.SendCryptoDataWithString("bar", 3);
+    EXPECT_EQ(0u, writer_->packets_write_attempts());
+
+    connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                             std::make_unique<TaggingEncrypter>(0x03));
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    SendStreamDataToPeer(2, "baz", 3, NO_FIN, nullptr);
+
+    creator_->Flush();
+
+    auto& coalesced_packet =
+        QuicConnectionPeer::GetCoalescedPacket(&connection_);
+    QuicPacketLength coalesced_packet_max_length =
+        coalesced_packet.max_packet_length();
+    QuicCoalescedPacketPeer::SetMaxPacketLength(coalesced_packet,
+                                                coalesced_packet.length());
+
+    // Make the coalescer's FORWARD_SECURE packet longer.
+    *QuicCoalescedPacketPeer::GetMutableEncryptedBuffer(
+        coalesced_packet, ENCRYPTION_FORWARD_SECURE) += "!!! TEST !!!";
+
+    QUIC_LOG(INFO) << "Reduced coalesced_packet_max_length from "
+                   << coalesced_packet_max_length << " to "
+                   << coalesced_packet.max_packet_length()
+                   << ", coalesced_packet.length:" << coalesced_packet.length()
+                   << ", coalesced_packet.packet_lengths:"
+                   << absl::StrJoin(coalesced_packet.packet_lengths(), ":");
+  };
+
+  EXPECT_QUIC_BUG(test_body(), "SerializeCoalescedPacket failed.");
+
+  if (GetQuicReloadableFlag(
+          quic_close_connection_if_fail_to_serialzie_coalesced_packet)) {
+    EXPECT_FALSE(connection_.connected());
+    EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+                IsError(QUIC_FAILED_TO_SERIALIZE_PACKET));
+    EXPECT_EQ(saved_connection_close_frame_.error_details,
+              "Failed to serialize coalesced packet.");
+  } else {
+    EXPECT_TRUE(connection_.connected());
+  }
 }
 
 TEST_P(QuicConnectionTest, LegacyVersionEncapsulation) {
