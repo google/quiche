@@ -1080,7 +1080,7 @@ bool TlsServerHandshaker::ValidateHostname(const std::string& hostname) const {
   if (!QuicHostnameUtils::IsValidSNI(hostname)) {
     // TODO(b/151676147): Include this error string in the CONNECTION_CLOSE
     // frame.
-    QUIC_LOG(ERROR) << "Invalid SNI provided: \"" << hostname << "\"";
+    QUIC_DLOG(ERROR) << "Invalid SNI provided: \"" << hostname << "\"";
     return false;
   }
   return true;
