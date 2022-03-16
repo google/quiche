@@ -5,8 +5,8 @@
 #include "quic/core/quic_epoll_connection_helper.h"
 
 #include "quic/core/crypto/quic_random.h"
-#include "quic/platform/api/quic_epoll_test_tools.h"
 #include "quic/platform/api/quic_test.h"
+#include "common/platform/api/quiche_epoll_test_tools.h"
 
 namespace quic {
 namespace test {
@@ -17,7 +17,7 @@ class QuicEpollConnectionHelperTest : public QuicTest {
   QuicEpollConnectionHelperTest()
       : helper_(&epoll_server_, QuicAllocator::BUFFER_POOL) {}
 
-  QuicFakeEpollServer epoll_server_;
+  quiche::QuicheFakeEpollServer epoll_server_;
   QuicEpollConnectionHelper helper_;
 };
 

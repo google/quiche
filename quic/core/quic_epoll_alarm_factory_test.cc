@@ -5,8 +5,8 @@
 #include "quic/core/quic_epoll_alarm_factory.h"
 
 #include "quic/core/quic_epoll_clock.h"
-#include "quic/platform/api/quic_epoll_test_tools.h"
 #include "quic/platform/api/quic_test.h"
+#include "common/platform/api/quiche_epoll_test_tools.h"
 
 namespace quic {
 namespace test {
@@ -36,7 +36,7 @@ class QuicEpollAlarmFactoryTest : public QuicTestWithParam<bool> {
 
   const QuicEpollClock clock_;
   QuicEpollAlarmFactory alarm_factory_;
-  QuicFakeEpollServer epoll_server_;
+  quiche::QuicheFakeEpollServer epoll_server_;
   QuicConnectionArena arena_;
 };
 
