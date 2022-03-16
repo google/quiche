@@ -1124,9 +1124,10 @@ size_t QuicPacketCreator::SerializeCoalescedPacket(
       << ENDPOINT << "Attempt to serialize empty coalesced packet";
   size_t packet_length = 0;
   size_t initial_length = 0;
+  size_t padding_size = 0;
   if (coalesced.initial_packet() != nullptr) {
     // Padding coalesced packet containing initial packet to full.
-    size_t padding_size = coalesced.max_packet_length() - coalesced.length();
+    padding_size = coalesced.max_packet_length() - coalesced.length();
     if (framer_->perspective() == Perspective::IS_SERVER &&
         QuicUtils::ContainsFrameType(
             coalesced.initial_packet()->retransmittable_frames,
@@ -1143,6 +1144,22 @@ size_t QuicPacketCreator::SerializeCoalescedPacket(
              "coalesced packet";
       return 0;
     }
+    QUIC_BUG_IF(quic_reserialize_initial_packet_unexpected_size,
+                coalesced.initial_packet()->encrypted_length + padding_size !=
+                    initial_length)
+        << "Reserialize initial packet in coalescer has unexpected size, "
+           "original_length: "
+        << coalesced.initial_packet()->encrypted_length
+        << ", coalesced.max_packet_length: " << coalesced.max_packet_length()
+        << ", coalesced.length: " << coalesced.length()
+        << ", padding_size: " << padding_size
+        << ", serialized_length: " << initial_length
+        << ", retransmittable frames: "
+        << QuicFramesToString(
+               coalesced.initial_packet()->retransmittable_frames)
+        << ", nonretransmittable frames: "
+        << QuicFramesToString(
+               coalesced.initial_packet()->nonretransmittable_frames);
     buffer += initial_length;
     buffer_len -= initial_length;
     packet_length += initial_length;
@@ -1152,6 +1169,7 @@ size_t QuicPacketCreator::SerializeCoalescedPacket(
     QUIC_BUG(quic_serialize_coalesced_packet_copy_failure)
         << "SerializeCoalescedPacket failed. buffer_len:" << buffer_len
         << ", initial_length:" << initial_length
+        << ", padding_size: " << padding_size
         << ", length_copied:" << length_copied
         << ", coalesced.length:" << coalesced.length()
         << ", coalesced.max_packet_length:" << coalesced.max_packet_length()
