@@ -15345,6 +15345,73 @@ TEST_P(QuicConnectionTest, FailedToConsumeCryptoData) {
   ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
 }
 
+TEST_P(QuicConnectionTest,
+       RTTSampleDoesNotIncludeQueuingDelayWithPostponedAckProcessing) {
+  // An endpoint might postpone the processing of ACK when the corresponding
+  // decryption key is not available. This test makes sure the RTT sample does
+  // not include the queuing delay.
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  QuicConfig config;
+  config.set_max_undecryptable_packets(3);
+  connection_.SetFromConfig(config);
+
+  // 30ms RTT.
+  const QuicTime::Delta kTestRTT = QuicTime::Delta::FromMilliseconds(30);
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_->GetRttStats());
+  rtt_stats->UpdateRtt(kTestRTT, QuicTime::Delta::Zero(), QuicTime::Zero());
+  use_tagging_decrypter();
+
+  // Send 0-RTT packet.
+  connection_.RemoveDecrypter(ENCRYPTION_FORWARD_SECURE);
+  connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+  connection_.SendStreamDataWithString(0, std::string(10, 'a'), 0, FIN);
+
+  // Receives 1-RTT ACK for 0-RTT packet after RTT + ack_delay.
+  clock_.AdvanceTime(
+      kTestRTT + QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs));
+  EXPECT_EQ(0u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            std::make_unique<TaggingEncrypter>(0x01));
+  QuicAckFrame ack_frame = InitAckFrame(1);
+  // Peer reported ACK delay.
+  ack_frame.ack_delay_time =
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+  QuicFrames frames;
+  frames.push_back(QuicFrame(&ack_frame));
+  QuicPacketHeader header =
+      ConstructPacketHeader(30, ENCRYPTION_FORWARD_SECURE);
+  std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
+
+  char buffer[kMaxOutgoingPacketSize];
+  size_t encrypted_length = peer_framer_.EncryptPayload(
+      ENCRYPTION_FORWARD_SECURE, QuicPacketNumber(30), *packet, buffer,
+      kMaxOutgoingPacketSize);
+  connection_.ProcessUdpPacket(
+      kSelfAddress, kPeerAddress,
+      QuicReceivedPacket(buffer, encrypted_length, clock_.Now(), false));
+  if (connection_.GetSendAlarm()->IsSet()) {
+    connection_.GetSendAlarm()->Fire();
+  }
+  ASSERT_EQ(1u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
+
+  // Assume 1-RTT decrypter is available after 10ms.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  EXPECT_FALSE(connection_.GetProcessUndecryptablePacketsAlarm()->IsSet());
+  SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+               std::make_unique<StrictTaggingDecrypter>(0x01));
+  ASSERT_TRUE(connection_.GetProcessUndecryptablePacketsAlarm()->IsSet());
+
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
+  connection_.GetProcessUndecryptablePacketsAlarm()->Fire();
+  // Verify RTT sample does not include queueing delay.
+  EXPECT_EQ(rtt_stats->latest_rtt(), kTestRTT);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
