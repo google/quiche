@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_PLATFORM_API_QUIC_CLIENT_STATS_H_
-#define QUICHE_QUIC_PLATFORM_API_QUIC_CLIENT_STATS_H_
+#ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_CLIENT_STATS_H_
+#define QUICHE_COMMON_PLATFORM_API_QUICHE_CLIENT_STATS_H_
 
 #include <string>
 
-#include "common/platform/api/quiche_client_stats.h"
+#include "quiche_platform_impl/quiche_client_stats_impl.h"
 
-namespace quic {
+namespace quiche {
 
 //------------------------------------------------------------------------------
 // Enumeration histograms.
@@ -24,22 +24,22 @@ namespace quic {
 //     FINAL_VALUE = N,
 //     COUNT
 //   };
-//   QUIC_CLIENT_HISTOGRAM_ENUM("My.Enumeration", MyEnum::SOME_VALUE,
+//   QUICHE_CLIENT_HISTOGRAM_ENUM("My.Enumeration", MyEnum::SOME_VALUE,
 //   MyEnum::COUNT, "Number of time $foo equals to some enum value");
 //
 // Note: The value in |sample| must be strictly less than |enum_size|.
 
-#define QUIC_CLIENT_HISTOGRAM_ENUM(name, sample, enum_size, docstring) \
-  QUICHE_CLIENT_HISTOGRAM_ENUM(name, sample, enum_size, docstring)
+#define QUICHE_CLIENT_HISTOGRAM_ENUM(name, sample, enum_size, docstring) \
+  QUICHE_CLIENT_HISTOGRAM_ENUM_IMPL(name, sample, enum_size, docstring)
 
 //------------------------------------------------------------------------------
 // Histogram for boolean values.
 
 // Sample usage:
-//   QUIC_CLIENT_HISTOGRAM_BOOL("My.Boolean", bool,
+//   QUICHE_CLIENT_HISTOGRAM_BOOL("My.Boolean", bool,
 //   "Number of times $foo is true or false");
-#define QUIC_CLIENT_HISTOGRAM_BOOL(name, sample, docstring) \
-  QUICHE_CLIENT_HISTOGRAM_BOOL(name, sample, docstring)
+#define QUICHE_CLIENT_HISTOGRAM_BOOL(name, sample, docstring) \
+  QUICHE_CLIENT_HISTOGRAM_BOOL_IMPL(name, sample, docstring)
 
 //------------------------------------------------------------------------------
 // Timing histograms. These are used for collecting timing data (generally
@@ -50,12 +50,13 @@ namespace quic {
 // sample and max are unspecified, but they must be the same for one histogram.
 
 // Sample usage:
-//   QUIC_CLIENT_HISTOGRAM_TIMES("Very.Long.Timing.Histogram", time_delta,
+//   QUICHE_CLIENT_HISTOGRAM_TIMES("Very.Long.Timing.Histogram", time_delta,
 //       QuicTime::Delta::FromSeconds(1), QuicTime::Delta::FromSecond(3600 *
 //       24), 100, "Time spent in doing operation.");
-#define QUIC_CLIENT_HISTOGRAM_TIMES(name, sample, min, max, bucket_count, \
-                                    docstring)                            \
-  QUICHE_CLIENT_HISTOGRAM_TIMES(name, sample, min, max, bucket_count, docstring)
+#define QUICHE_CLIENT_HISTOGRAM_TIMES(name, sample, min, max, bucket_count, \
+                                      docstring)                            \
+  QUICHE_CLIENT_HISTOGRAM_TIMES_IMPL(name, sample, min, max, bucket_count,  \
+                                     docstring)
 
 //------------------------------------------------------------------------------
 // Count histograms. These are used for collecting numeric data.
@@ -71,17 +72,17 @@ namespace quic {
 
 // Sample usage:
 //   UMA_CLIENT_HISTOGRAM_CUSTOM_COUNTS("My.Histogram", 1, 100000000, 100,
-//      "Counters of hitting certian code.");
+//      "Counters of hitting certain code.");
 
-#define QUIC_CLIENT_HISTOGRAM_COUNTS(name, sample, min, max, bucket_count, \
-                                     docstring)                            \
-  QUICHE_CLIENT_HISTOGRAM_COUNTS(name, sample, min, max, bucket_count,     \
-                                 docstring)
+#define QUICHE_CLIENT_HISTOGRAM_COUNTS(name, sample, min, max, bucket_count, \
+                                       docstring)                            \
+  QUICHE_CLIENT_HISTOGRAM_COUNTS_IMPL(name, sample, min, max, bucket_count,  \
+                                      docstring)
 
-inline void QuicClientSparseHistogram(const std::string& name, int sample) {
-  quiche::QuicheClientSparseHistogram(name, sample);
+inline void QuicheClientSparseHistogram(const std::string& name, int sample) {
+  QuicheClientSparseHistogramImpl(name, sample);
 }
 
-}  // namespace quic
+}  // namespace quiche
 
-#endif  // QUICHE_QUIC_PLATFORM_API_QUIC_CLIENT_STATS_H_
+#endif  // QUICHE_COMMON_PLATFORM_API_QUICHE_CLIENT_STATS_H_

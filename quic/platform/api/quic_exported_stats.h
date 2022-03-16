@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_EXPORTED_STATS_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_EXPORTED_STATS_H_
 
-#include "net/quic/platform/impl/quic_client_stats_impl.h"
-#include "net/quic/platform/impl/quic_server_stats_impl.h"
+#include "quic/platform/api/quic_client_stats.h"
+#include "quic/platform/api/quic_server_stats.h"
 
 namespace quic {
 
@@ -30,10 +30,10 @@ namespace quic {
 //
 // Note: The value in |sample| must be strictly less than |enum_size|.
 
-#define QUIC_HISTOGRAM_ENUM(name, sample, enum_size, docstring)          \
-  do {                                                                   \
-    QUIC_CLIENT_HISTOGRAM_ENUM_IMPL(name, sample, enum_size, docstring); \
-    QUIC_SERVER_HISTOGRAM_ENUM_IMPL(name, sample, enum_size, docstring); \
+#define QUIC_HISTOGRAM_ENUM(name, sample, enum_size, docstring)     \
+  do {                                                              \
+    QUIC_CLIENT_HISTOGRAM_ENUM(name, sample, enum_size, docstring); \
+    QUIC_SERVER_HISTOGRAM_ENUM(name, sample, enum_size, docstring); \
   } while (0)
 
 //------------------------------------------------------------------------------
@@ -42,10 +42,10 @@ namespace quic {
 // Sample usage:
 //   QUIC_HISTOGRAM_BOOL("My.Boolean", bool,
 //                       "Number of times $foo is true or false");
-#define QUIC_HISTOGRAM_BOOL(name, sample, docstring)          \
-  do {                                                        \
-    QUIC_CLIENT_HISTOGRAM_BOOL_IMPL(name, sample, docstring); \
-    QUIC_SERVER_HISTOGRAM_BOOL_IMPL(name, sample, docstring); \
+#define QUIC_HISTOGRAM_BOOL(name, sample, docstring)     \
+  do {                                                   \
+    QUIC_CLIENT_HISTOGRAM_BOOL(name, sample, docstring); \
+    QUIC_SERVER_HISTOGRAM_BOOL(name, sample, docstring); \
   } while (0)
 
 //------------------------------------------------------------------------------
@@ -63,10 +63,10 @@ namespace quic {
 
 #define QUIC_HISTOGRAM_TIMES(name, sample, min, max, bucket_count, docstring) \
   do {                                                                        \
-    QUIC_CLIENT_HISTOGRAM_TIMES_IMPL(name, sample, min, max, bucket_count,    \
-                                     docstring);                              \
-    QUIC_SERVER_HISTOGRAM_TIMES_IMPL(name, sample, min, max, bucket_count,    \
-                                     docstring);                              \
+    QUIC_CLIENT_HISTOGRAM_TIMES(name, sample, min, max, bucket_count,         \
+                                docstring);                                   \
+    QUIC_SERVER_HISTOGRAM_TIMES(name, sample, min, max, bucket_count,         \
+                                docstring);                                   \
   } while (0)
 
 //------------------------------------------------------------------------------
@@ -85,10 +85,10 @@ namespace quic {
 
 #define QUIC_HISTOGRAM_COUNTS(name, sample, min, max, bucket_count, docstring) \
   do {                                                                         \
-    QUIC_CLIENT_HISTOGRAM_COUNTS_IMPL(name, sample, min, max, bucket_count,    \
-                                      docstring);                              \
-    QUIC_SERVER_HISTOGRAM_COUNTS_IMPL(name, sample, min, max, bucket_count,    \
-                                      docstring);                              \
+    QUIC_CLIENT_HISTOGRAM_COUNTS(name, sample, min, max, bucket_count,         \
+                                 docstring);                                   \
+    QUIC_SERVER_HISTOGRAM_COUNTS(name, sample, min, max, bucket_count,         \
+                                 docstring);                                   \
   } while (0)
 
 }  // namespace quic
