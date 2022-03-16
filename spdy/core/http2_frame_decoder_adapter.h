@@ -290,22 +290,22 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
 
   // The HPACK decoder to be used for this adapter. User is responsible for
   // clearing if the adapter is to be used for another connection.
-  std::unique_ptr<spdy::HpackDecoderAdapter> hpack_decoder_ = nullptr;
+  std::unique_ptr<spdy::HpackDecoderAdapter> hpack_decoder_;
 
   // The HTTP/2 frame decoder.
-  std::unique_ptr<Http2FrameDecoder> frame_decoder_;
+  Http2FrameDecoder frame_decoder_;
 
   // Next frame type expected. Currently only used for CONTINUATION frames,
   // but could be used for detecting whether the first frame is a SETTINGS
   // frame.
-  // TODO(jamessyng): Provide means to indicate that decoder should require
+  // TODO(jamessynge): Provide means to indicate that decoder should require
   // SETTINGS frame as the first frame.
   Http2FrameType expected_frame_type_;
 
   // Attempt to duplicate the SpdyState and SpdyFramerError values that
   // SpdyFramer sets. Values determined by getting tests to pass.
-  SpdyState spdy_state_;
-  SpdyFramerError spdy_framer_error_;
+  SpdyState spdy_state_ = SpdyState::SPDY_READY_FOR_FRAME;
+  SpdyFramerError spdy_framer_error_ = SpdyFramerError::SPDY_NO_ERROR;
 
   // The limit on the size of received HTTP/2 payloads as specified in the
   // SETTINGS_MAX_FRAME_SIZE advertised to peer.
@@ -326,14 +326,14 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
 
   // Has OnHeaders() already been called for current HEADERS block? Only
   // meaningful between OnHeadersStart and OnHeadersPriority.
-  bool on_headers_called_;
+  bool on_headers_called_ = false;
 
   // Has OnHpackFragment() already been called for current HPACK block?
   // SpdyFramer will pass an empty buffer to the HPACK decoder if a HEADERS
   // or PUSH_PROMISE has no HPACK data in it (e.g. a HEADERS frame with only
   // padding). Detect that condition and replicate the behavior using this
   // field.
-  bool on_hpack_fragment_called_;
+  bool on_hpack_fragment_called_ = false;
 
   // Have we seen a frame header that appears to be an HTTP/1 response?
   bool latched_probable_http_response_ = false;

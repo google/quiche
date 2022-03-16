@@ -242,24 +242,11 @@ const char* Http2DecoderAdapter::SpdyFramerErrorToString(
   return "UNKNOWN_ERROR";
 }
 
-Http2DecoderAdapter::Http2DecoderAdapter() {
+Http2DecoderAdapter::Http2DecoderAdapter() : frame_decoder_(this) {
   QUICHE_DVLOG(1) << "Http2DecoderAdapter ctor";
-
-  set_spdy_state(SpdyState::SPDY_READY_FOR_FRAME);
-  spdy_framer_error_ = SpdyFramerError::SPDY_NO_ERROR;
-
-  decoded_frame_header_ = false;
-  has_frame_header_ = false;
-  on_headers_called_ = false;
-  on_hpack_fragment_called_ = false;
-  latched_probable_http_response_ = false;
-  has_expected_frame_type_ = false;
 
   CorruptFrameHeader(&frame_header_);
   CorruptFrameHeader(&hpack_first_frame_header_);
-
-  frame_decoder_ = std::make_unique<Http2FrameDecoder>(this);
-  hpack_decoder_ = nullptr;
 }
 
 Http2DecoderAdapter::~Http2DecoderAdapter() = default;
@@ -322,7 +309,7 @@ void Http2DecoderAdapter::StopProcessing() {
 
 void Http2DecoderAdapter::SetMaxFrameSize(size_t max_frame_size) {
   max_frame_size_ = max_frame_size;
-  frame_decoder_->set_maximum_payload_size(max_frame_size);
+  frame_decoder_.set_maximum_payload_size(max_frame_size);
 }
 
 // ===========================================================================
@@ -805,7 +792,7 @@ void Http2DecoderAdapter::OnFrameSizeError(const Http2FrameHeader& header) {
 size_t Http2DecoderAdapter::ProcessInputFrame(const char* data, size_t len) {
   QUICHE_DCHECK_NE(spdy_state_, SpdyState::SPDY_ERROR);
   DecodeBuffer db(data, len);
-  DecodeStatus status = frame_decoder_->DecodeFrame(&db);
+  DecodeStatus status = frame_decoder_.DecodeFrame(&db);
   if (spdy_state_ != SpdyState::SPDY_ERROR) {
     DetermineSpdyState(status);
   } else {
@@ -871,10 +858,11 @@ void Http2DecoderAdapter::DetermineSpdyState(DecodeStatus status) {
           // Push the Http2FrameDecoder out of state kDiscardPayload now
           // since doing so requires no input.
           DecodeBuffer tmp("", 0);
-          DecodeStatus status = frame_decoder_->DecodeFrame(&tmp);
-          if (status != DecodeStatus::kDecodeDone) {
+          DecodeStatus decode_status = frame_decoder_.DecodeFrame(&tmp);
+          if (decode_status != DecodeStatus::kDecodeDone) {
             QUICHE_BUG(spdy_bug_1_3)
-                << "Expected to be done decoding the frame, not " << status;
+                << "Expected to be done decoding the frame, not "
+                << decode_status;
             SetSpdyErrorAndNotify(SPDY_INTERNAL_FRAMER_ERROR, "");
           } else if (spdy_framer_error_ != SPDY_NO_ERROR) {
             QUICHE_BUG(spdy_bug_1_4)
@@ -915,7 +903,7 @@ void Http2DecoderAdapter::SetSpdyErrorAndNotify(SpdyFramerError error,
     QUICHE_DCHECK_NE(error, SpdyFramerError::SPDY_NO_ERROR);
     spdy_framer_error_ = error;
     set_spdy_state(SpdyState::SPDY_ERROR);
-    frame_decoder_->set_listener(&no_op_listener_);
+    frame_decoder_.set_listener(&no_op_listener_);
     visitor()->OnError(error, detailed_error);
   }
 }
@@ -945,9 +933,9 @@ Http2FrameType Http2DecoderAdapter::frame_type() const {
 
 size_t Http2DecoderAdapter::remaining_total_payload() const {
   QUICHE_DCHECK(has_frame_header_);
-  size_t remaining = frame_decoder_->remaining_payload();
+  size_t remaining = frame_decoder_.remaining_payload();
   if (IsPaddable(frame_type()) && frame_header_.IsPadded()) {
-    remaining += frame_decoder_->remaining_padding();
+    remaining += frame_decoder_.remaining_padding();
   }
   return remaining;
 }
@@ -959,13 +947,13 @@ bool Http2DecoderAdapter::IsReadingPaddingLength() {
 }
 bool Http2DecoderAdapter::IsSkippingPadding() {
   bool result = frame_header_.IsPadded() && opt_pad_length_ &&
-                frame_decoder_->remaining_payload() == 0 &&
-                frame_decoder_->remaining_padding() > 0;
+                frame_decoder_.remaining_payload() == 0 &&
+                frame_decoder_.remaining_padding() > 0;
   QUICHE_DVLOG(2) << "Http2DecoderAdapter::IsSkippingPadding: " << result;
   return result;
 }
 bool Http2DecoderAdapter::IsDiscardingPayload() {
-  bool result = decoded_frame_header_ && frame_decoder_->IsDiscardingPayload();
+  bool result = decoded_frame_header_ && frame_decoder_.IsDiscardingPayload();
   QUICHE_DVLOG(2) << "Http2DecoderAdapter::IsDiscardingPayload: " << result;
   return result;
 }

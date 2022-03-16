@@ -34,13 +34,6 @@ namespace {
 
 class Http2FrameDecoderTest : public RandomDecoderTest {
  protected:
-  void SetUp() override {
-    // On any one run of this suite, we'll always choose the same value for
-    // use_default_constructor_ because the random seed is the same for each
-    // test case, but across runs the random seed changes.
-    use_default_constructor_ = Random().OneIn(2);
-  }
-
   DecodeStatus StartDecoding(DecodeBuffer* db) override {
     HTTP2_DVLOG(2) << "StartDecoding, db->Remaining=" << db->Remaining();
     collector_.Reset();
@@ -91,16 +84,8 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   }
 
   void PrepareDecoder() {
-    // Alternate which constructor is used.
-    if (use_default_constructor_) {
-      decoder_ = std::make_unique<Http2FrameDecoder>();
-      decoder_->set_listener(&collector_);
-    } else {
-      decoder_ = std::make_unique<Http2FrameDecoder>(&collector_);
-    }
+    decoder_ = std::make_unique<Http2FrameDecoder>(&collector_);
     decoder_->set_maximum_payload_size(maximum_payload_size_);
-
-    use_default_constructor_ = !use_default_constructor_;
   }
 
   void ResetDecodeSpeedCounters() {
@@ -212,7 +197,6 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   uint32_t maximum_payload_size_ = Http2SettingsInfo::DefaultMaxFrameSize();
   FramePartsCollectorListener collector_;
   std::unique_ptr<Http2FrameDecoder> decoder_;
-  bool use_default_constructor_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
