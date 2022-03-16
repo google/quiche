@@ -9,13 +9,13 @@
 
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_flags.h"
-#include "quic/platform/api/quic_system_event_loop.h"
 #include "quic/tools/quic_epoll_server_factory.h"
 #include "quic/tools/quic_toy_server.h"
 #include "common/platform/api/quiche_command_line_flags.h"
+#include "common/platform/api/quiche_system_event_loop.h"
 
 int main(int argc, char* argv[]) {
-  QuicSystemEventLoop event_loop("quic_server");
+  quiche::QuicheSystemEventLoop event_loop("quic_server");
   const char* usage = "Usage: quic_server [options]";
   std::vector<std::string> non_option_args =
       quiche::QuicheParseCommandLineFlags(usage, argc, argv);

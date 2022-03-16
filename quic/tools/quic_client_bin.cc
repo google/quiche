@@ -44,13 +44,13 @@
 #include <memory>
 #include <string>
 
-#include "quic/platform/api/quic_system_event_loop.h"
 #include "quic/tools/quic_epoll_client_factory.h"
 #include "quic/tools/quic_toy_client.h"
 #include "common/platform/api/quiche_command_line_flags.h"
+#include "common/platform/api/quiche_system_event_loop.h"
 
 int main(int argc, char* argv[]) {
-  QuicSystemEventLoop event_loop("quic_client");
+  quiche::QuicheSystemEventLoop event_loop("quic_client");
   const char* usage = "Usage: quic_client [options] <url>";
 
   // All non-flag arguments should be interpreted as URLs to fetch.

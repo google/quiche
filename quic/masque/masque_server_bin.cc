@@ -14,8 +14,8 @@
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_socket_address.h"
-#include "quic/platform/api/quic_system_event_loop.h"
 #include "common/platform/api/quiche_command_line_flags.h"
+#include "common/platform/api/quiche_system_event_loop.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, port, 9661,
                                 "The port the MASQUE server will listen on.");
@@ -36,7 +36,7 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, masque_mode, "",
                                 "open and legacy. Defaults to open.");
 
 int main(int argc, char* argv[]) {
-  QuicSystemEventLoop event_loop("masque_server");
+  quiche::QuicheSystemEventLoop event_loop("masque_server");
   const char* usage = "Usage: masque_server [options]";
   std::vector<std::string> non_option_args =
       quiche::QuicheParseCommandLineFlags(usage, argc, argv);

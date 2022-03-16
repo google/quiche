@@ -13,13 +13,13 @@
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_epoll.h"
-#include "quic/platform/api/quic_system_event_loop.h"
 #include "quic/test_tools/quic_connection_peer.h"
 #include "quic/test_tools/quic_session_peer.h"
 #include "quic/tools/fake_proof_verifier.h"
 #include "quic/tools/quic_client.h"
 #include "quic/tools/quic_url.h"
 #include "common/platform/api/quiche_command_line_flags.h"
+#include "common/platform/api/quiche_system_event_loop.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, host, "",
                                 "The IP or hostname to connect to.");
@@ -396,7 +396,7 @@ std::set<Feature> ServerSupport(std::string dns_host,
 }  // namespace quic
 
 int main(int argc, char* argv[]) {
-  QuicSystemEventLoop event_loop("quic_client");
+  quiche::QuicheSystemEventLoop event_loop("quic_client");
   const char* usage = "Usage: quic_client_interop_test [options] [url]";
 
   std::vector<std::string> args =

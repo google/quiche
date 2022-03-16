@@ -22,7 +22,7 @@
 #include "quic/core/quic_udp_socket.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_system_event_loop.h"
+#include "common/platform/api/quiche_system_event_loop.h"
 
 namespace quic {
 
@@ -132,7 +132,7 @@ void QuicClientEpollNetworkHelper::CleanUpUDPSocketImpl(int fd) {
 }
 
 void QuicClientEpollNetworkHelper::RunEventLoop() {
-  QuicRunSystemEventLoopIteration();
+  quiche::QuicheRunSystemEventLoopIteration();
   epoll_server_->WaitForEventsAndExecuteCallbacks();
 }
 

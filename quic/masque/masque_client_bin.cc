@@ -21,9 +21,9 @@
 #include "quic/platform/api/quic_default_proof_providers.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_socket_address.h"
-#include "quic/platform/api/quic_system_event_loop.h"
 #include "quic/tools/fake_proof_verifier.h"
 #include "common/platform/api/quiche_command_line_flags.h"
+#include "common/platform/api/quiche_system_event_loop.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, disable_certificate_verification, false,
@@ -38,7 +38,7 @@ namespace quic {
 namespace {
 
 int RunMasqueClient(int argc, char* argv[]) {
-  QuicSystemEventLoop event_loop("masque_client");
+  quiche::QuicheSystemEventLoop event_loop("masque_client");
   const char* usage = "Usage: masque_client [options] <url>";
 
   // The first non-flag argument is the URI template of the MASQUE server.
