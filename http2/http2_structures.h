@@ -182,7 +182,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 // Http2RstStreamFields:
 
-QUICHE_EXPORT_PRIVATE struct Http2RstStreamFields {
+struct QUICHE_EXPORT_PRIVATE Http2RstStreamFields {
   static constexpr size_t EncodedSize() { return 4; }
   bool IsSupportedErrorCode() const {
     return IsSupportedHttp2ErrorCode(error_code);
@@ -202,7 +202,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 // Http2SettingFields:
 
-QUICHE_EXPORT_PRIVATE struct Http2SettingFields {
+struct QUICHE_EXPORT_PRIVATE Http2SettingFields {
   Http2SettingFields() {}
   Http2SettingFields(Http2SettingsParameter parameter, uint32_t value)
       : parameter(parameter), value(value) {}
@@ -226,7 +226,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 // Http2PushPromiseFields:
 
-QUICHE_EXPORT_PRIVATE struct Http2PushPromiseFields {
+struct QUICHE_EXPORT_PRIVATE Http2PushPromiseFields {
   static constexpr size_t EncodedSize() { return 4; }
 
   uint32_t promised_stream_id;
@@ -243,7 +243,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 // Http2PingFields:
 
-QUICHE_EXPORT_PRIVATE struct Http2PingFields {
+struct QUICHE_EXPORT_PRIVATE Http2PingFields {
   static constexpr size_t EncodedSize() { return 8; }
 
   uint8_t opaque_bytes[8];
@@ -260,7 +260,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 // Http2GoAwayFields:
 
-QUICHE_EXPORT_PRIVATE struct Http2GoAwayFields {
+struct QUICHE_EXPORT_PRIVATE Http2GoAwayFields {
   Http2GoAwayFields() {}
   Http2GoAwayFields(uint32_t last_stream_id, Http2ErrorCode error_code)
       : last_stream_id(last_stream_id), error_code(error_code) {}
@@ -284,7 +284,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 // Http2WindowUpdateFields:
 
-QUICHE_EXPORT_PRIVATE struct Http2WindowUpdateFields {
+struct QUICHE_EXPORT_PRIVATE Http2WindowUpdateFields {
   static constexpr size_t EncodedSize() { return 4; }
 
   // 31-bit, unsigned increase in the window size (only positive values are
@@ -304,7 +304,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
 
 // Http2AltSvcFields:
 
-QUICHE_EXPORT_PRIVATE struct Http2AltSvcFields {
+struct QUICHE_EXPORT_PRIVATE Http2AltSvcFields {
   static constexpr size_t EncodedSize() { return 2; }
 
   // This is the one fixed size portion of the ALTSVC payload.
@@ -322,7 +322,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 // Http2PriorityUpdateFields:
 
-QUICHE_EXPORT_PRIVATE struct QUICHE_EXPORT_PRIVATE Http2PriorityUpdateFields {
+struct QUICHE_EXPORT_PRIVATE Http2PriorityUpdateFields {
   Http2PriorityUpdateFields() {}
   Http2PriorityUpdateFields(uint32_t prioritized_stream_id)
       : prioritized_stream_id(prioritized_stream_id) {}
