@@ -556,7 +556,8 @@ void Http2DecoderAdapter::OnSetting(const Http2SettingFields& setting_fields) {
   QUICHE_DVLOG(1) << "OnSetting: " << setting_fields;
   const auto parameter = static_cast<SpdySettingsId>(setting_fields.parameter);
   visitor()->OnSetting(parameter, setting_fields.value);
-  if (extension_ != nullptr) {
+  SpdyKnownSettingsId known_id;
+  if (extension_ != nullptr && !spdy::ParseSettingsId(parameter, &known_id)) {
     extension_->OnSetting(parameter, setting_fields.value);
   }
 }

@@ -113,12 +113,10 @@ TEST(OgHttp2AdapterTest, InitialSettingsNoExtendedConnect) {
   EXPECT_CALL(server_visitor, OnFrameHeader(0, 12, SETTINGS, 0x0));
   EXPECT_CALL(server_visitor, OnSettingsStart());
   EXPECT_CALL(server_visitor,
-              OnSetting(Http2Setting{Http2KnownSettingsId::ENABLE_PUSH, 0u}))
-      .Times(2);
+              OnSetting(Http2Setting{Http2KnownSettingsId::ENABLE_PUSH, 0u}));
   EXPECT_CALL(
       server_visitor,
-      OnSetting(Http2Setting{Http2KnownSettingsId::MAX_HEADER_LIST_SIZE, 42u}))
-      .Times(2);
+      OnSetting(Http2Setting{Http2KnownSettingsId::MAX_HEADER_LIST_SIZE, 42u}));
   EXPECT_CALL(server_visitor, OnSettingsEnd());
   {
     const int64_t result = server_adapter->ProcessBytes(client_visitor.data());
@@ -167,8 +165,7 @@ TEST(OgHttp2AdapterTest, InitialSettings) {
   EXPECT_CALL(client_visitor, OnSettingsStart());
   EXPECT_CALL(client_visitor,
               OnSetting(Http2Setting{
-                  Http2KnownSettingsId::ENABLE_CONNECT_PROTOCOL, 1u}))
-      .Times(2);
+                  Http2KnownSettingsId::ENABLE_CONNECT_PROTOCOL, 1u}));
   EXPECT_CALL(client_visitor, OnSettingsEnd());
   {
     const int64_t result = client_adapter->ProcessBytes(server_visitor.data());
@@ -179,12 +176,10 @@ TEST(OgHttp2AdapterTest, InitialSettings) {
   EXPECT_CALL(server_visitor, OnFrameHeader(0, 12, SETTINGS, 0x0));
   EXPECT_CALL(server_visitor, OnSettingsStart());
   EXPECT_CALL(server_visitor,
-              OnSetting(Http2Setting{Http2KnownSettingsId::ENABLE_PUSH, 0u}))
-      .Times(2);
+              OnSetting(Http2Setting{Http2KnownSettingsId::ENABLE_PUSH, 0u}));
   EXPECT_CALL(
       server_visitor,
-      OnSetting(Http2Setting{Http2KnownSettingsId::MAX_HEADER_LIST_SIZE, 42u}))
-      .Times(2);
+      OnSetting(Http2Setting{Http2KnownSettingsId::MAX_HEADER_LIST_SIZE, 42u}));
   EXPECT_CALL(server_visitor, OnSettingsEnd());
   {
     const int64_t result = server_adapter->ProcessBytes(client_visitor.data());
@@ -1603,8 +1598,6 @@ TEST(OgHttp2AdapterTest, ClientHandlesSmallerHpackHeaderTableSetting) {
   EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
   EXPECT_CALL(visitor, OnSettingsStart());
   EXPECT_CALL(visitor, OnSetting(Http2Setting{HEADER_TABLE_SIZE, 100u}));
-  // Duplicate setting callback due to the way extensions work.
-  EXPECT_CALL(visitor, OnSetting(Http2Setting{HEADER_TABLE_SIZE, 100u}));
   EXPECT_CALL(visitor, OnSettingsEnd());
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
@@ -1635,8 +1628,6 @@ TEST(OgHttp2AdapterTest, ClientHandlesLargerHpackHeaderTableSetting) {
   // Server preface (SETTINGS)
   EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
   EXPECT_CALL(visitor, OnSettingsStart());
-  EXPECT_CALL(visitor, OnSetting(Http2Setting{HEADER_TABLE_SIZE, 40960u}));
-  // Duplicate setting callback due to the way extensions work.
   EXPECT_CALL(visitor, OnSetting(Http2Setting{HEADER_TABLE_SIZE, 40960u}));
   EXPECT_CALL(visitor, OnSettingsEnd());
 
@@ -2077,9 +2068,6 @@ TEST(OgHttp2AdapterTest, ClientObeysMaxConcurrentStreams) {
   EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
   EXPECT_CALL(visitor, OnSettingsStart());
   EXPECT_CALL(visitor, OnSetting);
-  // TODO(diannahu): Remove this duplicate call with a separate
-  // ExtensionVisitorInterface implementation.
-  EXPECT_CALL(visitor, OnSetting);
   EXPECT_CALL(visitor, OnSettingsEnd());
 
   const int64_t initial_result = adapter->ProcessBytes(initial_frames);
@@ -2189,10 +2177,7 @@ TEST(OgHttp2AdapterTest, ClientReceivesInitialWindowSetting) {
   // Server preface (SETTINGS with INITIAL_STREAM_WINDOW)
   EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
   EXPECT_CALL(visitor, OnSettingsStart());
-  // TODO(diannahu): Remove the duplicate call with a separate
-  // ExtensionVisitorInterface implementation.
-  EXPECT_CALL(visitor, OnSetting(Http2Setting{INITIAL_WINDOW_SIZE, 80000u}))
-      .Times(2);
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{INITIAL_WINDOW_SIZE, 80000u}));
   EXPECT_CALL(visitor, OnSettingsEnd());
   EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor, OnWindowUpdate(0, 65536));
@@ -2310,10 +2295,7 @@ TEST(OgHttp2AdapterTest, ClientReceivesInitialWindowSettingAfterStreamStart) {
   // SETTINGS with INITIAL_STREAM_WINDOW
   EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
   EXPECT_CALL(visitor, OnSettingsStart());
-  // TODO(diannahu): Remove the duplicate call with a separate
-  // ExtensionVisitorInterface implementation.
-  EXPECT_CALL(visitor, OnSetting(Http2Setting{INITIAL_WINDOW_SIZE, 80000u}))
-      .Times(2);
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{INITIAL_WINDOW_SIZE, 80000u}));
   EXPECT_CALL(visitor, OnSettingsEnd());
 
   const int64_t settings_result = adapter->ProcessBytes(settings_frame);
@@ -2345,12 +2327,9 @@ TEST(OgHttp2AdapterTest, InvalidInitialWindowSetting) {
   // Server preface (SETTINGS with INITIAL_STREAM_WINDOW)
   EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
   EXPECT_CALL(visitor, OnSettingsStart());
-  // TODO(diannahu): Remove the duplicate call with a separate
-  // ExtensionVisitorInterface implementation.
-  EXPECT_CALL(
-      visitor,
-      OnInvalidFrame(0, Http2VisitorInterface::InvalidFrameError::kFlowControl))
-      .Times(2);
+  EXPECT_CALL(visitor,
+              OnInvalidFrame(
+                  0, Http2VisitorInterface::InvalidFrameError::kFlowControl));
   EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kFlowControlError));
 
   const int64_t initial_result = adapter->ProcessBytes(initial_frames);
@@ -2429,9 +2408,8 @@ TEST(OggHttp2AdapterClientTest, InitialWindowSettingCausesOverflow) {
 
   EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
   EXPECT_CALL(visitor, OnSettingsStart());
-  EXPECT_CALL(visitor,
-              OnSetting(Http2Setting{INITIAL_WINDOW_SIZE, kLargeInitialWindow}))
-      .Times(2);
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{INITIAL_WINDOW_SIZE,
+                                              kLargeInitialWindow}));
   EXPECT_CALL(visitor, OnSettingsEnd());
 
   const int64_t read_result = adapter->ProcessBytes(frames);
@@ -3062,8 +3040,7 @@ TEST(OgHttp2AdapterTest, ClientQueuesRequests) {
   EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0x0));
   EXPECT_CALL(visitor, OnSettingsStart());
   EXPECT_CALL(visitor, OnSetting(Http2Setting{
-                           Http2KnownSettingsId::MAX_CONCURRENT_STREAMS, 2u}))
-      .Times(2);
+                           Http2KnownSettingsId::MAX_CONCURRENT_STREAMS, 2u}));
   EXPECT_CALL(visitor, OnSettingsEnd());
   EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0x1));
   EXPECT_CALL(visitor, OnSettingsAck());
@@ -3102,8 +3079,7 @@ TEST(OgHttp2AdapterTest, ClientQueuesRequests) {
   EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0x0));
   EXPECT_CALL(visitor, OnSettingsStart());
   EXPECT_CALL(visitor, OnSetting(Http2Setting{
-                           Http2KnownSettingsId::MAX_CONCURRENT_STREAMS, 5u}))
-      .Times(2);
+                           Http2KnownSettingsId::MAX_CONCURRENT_STREAMS, 5u}));
   EXPECT_CALL(visitor, OnSettingsEnd());
 
   adapter->ProcessBytes(update_streams);
@@ -5248,7 +5224,7 @@ TEST(OgHttp2AdapterInteractionTest,
   // Client preface (empty SETTINGS)
   EXPECT_CALL(server_visitor, OnFrameHeader(0, _, SETTINGS, 0));
   EXPECT_CALL(server_visitor, OnSettingsStart());
-  EXPECT_CALL(server_visitor, OnSetting(_)).Times(testing::AnyNumber());
+  EXPECT_CALL(server_visitor, OnSetting).Times(testing::AnyNumber());
   EXPECT_CALL(server_visitor, OnSettingsEnd());
   // Stream 1
   EXPECT_CALL(server_visitor, OnFrameHeader(1, _, HEADERS, 5));

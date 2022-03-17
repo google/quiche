@@ -527,7 +527,7 @@ class QUICHE_EXPORT_PRIVATE ExtensionVisitorInterface {
  public:
   virtual ~ExtensionVisitorInterface() {}
 
-  // Called when SETTINGS are received, including non-standard SETTINGS.
+  // Called when non-standard SETTINGS are received.
   virtual void OnSetting(SpdySettingsId id, uint32_t value) = 0;
 
   // Called when non-standard frames are received.

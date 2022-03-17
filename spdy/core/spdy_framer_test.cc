@@ -3238,7 +3238,7 @@ TEST_P(SpdyFramerTest, ReadUnknownSettingsId) {
 
 TEST_P(SpdyFramerTest, ReadKnownAndUnknownSettingsWithExtension) {
   const unsigned char kH2FrameData[] = {
-      0x00, 0x00, 0x12,        // Length: 18
+      0x00, 0x00, 0x18,        // Length: 24
       0x04,                    //   Type: SETTINGS
       0x00,                    //  Flags: none
       0x00, 0x00, 0x00, 0x00,  // Stream: 0
@@ -3247,6 +3247,8 @@ TEST_P(SpdyFramerTest, ReadKnownAndUnknownSettingsWithExtension) {
       0x00, 0x5f,              //  Param: 95
       0x00, 0x01, 0x00, 0x02,  //  Value: 65538
       0x00, 0x02,              //  Param: ENABLE_PUSH
+      0x00, 0x00, 0x00, 0x01,  //  Value: 1
+      0x00, 0x08,              //  Param: ENABLE_CONNECT_PROTOCOL
       0x00, 0x00, 0x00, 0x01,  //  Value: 1
   };
 
@@ -3257,14 +3259,13 @@ TEST_P(SpdyFramerTest, ReadKnownAndUnknownSettingsWithExtension) {
 
   // In HTTP/2, we ignore unknown settings because of extensions. However, we
   // pass the SETTINGS to the visitor, which can decide how to handle them.
-  EXPECT_EQ(3, visitor.setting_count_);
+  EXPECT_EQ(4, visitor.setting_count_);
   EXPECT_EQ(0, visitor.error_count_);
 
-  // The extension receives all SETTINGS, including the non-standard SETTINGS.
+  // The extension receives only the non-standard SETTINGS.
   EXPECT_THAT(
       extension.settings_received_,
-      testing::ElementsAre(testing::Pair(16, 2), testing::Pair(95, 65538),
-                           testing::Pair(2, 1)));
+      testing::ElementsAre(testing::Pair(16, 2), testing::Pair(95, 65538)));
 }
 
 // Tests handling of SETTINGS frame with entries out of order.
