@@ -39,14 +39,12 @@ namespace http2 {
 
 struct QUICHE_EXPORT_PRIVATE Http2FrameHeader {
   Http2FrameHeader() {}
-  Http2FrameHeader(uint32_t payload_length,
-                   Http2FrameType type,
-                   uint8_t flags,
+  Http2FrameHeader(uint32_t payload_length, Http2FrameType type, uint8_t flags,
                    uint32_t stream_id)
       : payload_length(payload_length),
         stream_id(stream_id),
         type(type),
-        flags(static_cast<Http2FrameFlag>(flags)) {
+        flags(flags) {
     QUICHE_DCHECK_LT(payload_length, static_cast<uint32_t>(1 << 24))
         << "Payload Length is only a 24 bit field\n"
         << ToString();
@@ -56,9 +54,7 @@ struct QUICHE_EXPORT_PRIVATE Http2FrameHeader {
 
   // Keep the current value of those flags that are in
   // valid_flags, and clear all the others.
-  void RetainFlags(uint8_t valid_flags) {
-    flags = static_cast<Http2FrameFlag>(flags & valid_flags);
-  }
+  void RetainFlags(uint8_t valid_flags) { flags = (flags & valid_flags); }
 
   // Returns true if any of the flags in flag_mask are set,
   // otherwise false.
@@ -128,7 +124,7 @@ struct QUICHE_EXPORT_PRIVATE Http2FrameHeader {
   // Flag bits, with interpretations that depend upon the frame type.
   // Flag bits not used by the frame type are cleared.
   // Third field in encoding.
-  Http2FrameFlag flags;
+  uint8_t flags;
 };
 
 QUICHE_EXPORT_PRIVATE bool operator==(const Http2FrameHeader& a,
@@ -186,7 +182,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 // Http2RstStreamFields:
 
-struct Http2RstStreamFields {
+QUICHE_EXPORT_PRIVATE struct Http2RstStreamFields {
   static constexpr size_t EncodedSize() { return 4; }
   bool IsSupportedErrorCode() const {
     return IsSupportedHttp2ErrorCode(error_code);
@@ -206,7 +202,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 // Http2SettingFields:
 
-struct Http2SettingFields {
+QUICHE_EXPORT_PRIVATE struct Http2SettingFields {
   Http2SettingFields() {}
   Http2SettingFields(Http2SettingsParameter parameter, uint32_t value)
       : parameter(parameter), value(value) {}
@@ -230,7 +226,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 // Http2PushPromiseFields:
 
-struct Http2PushPromiseFields {
+QUICHE_EXPORT_PRIVATE struct Http2PushPromiseFields {
   static constexpr size_t EncodedSize() { return 4; }
 
   uint32_t promised_stream_id;
@@ -247,7 +243,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 // Http2PingFields:
 
-struct Http2PingFields {
+QUICHE_EXPORT_PRIVATE struct Http2PingFields {
   static constexpr size_t EncodedSize() { return 8; }
 
   uint8_t opaque_bytes[8];
@@ -264,7 +260,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 // Http2GoAwayFields:
 
-struct Http2GoAwayFields {
+QUICHE_EXPORT_PRIVATE struct Http2GoAwayFields {
   Http2GoAwayFields() {}
   Http2GoAwayFields(uint32_t last_stream_id, Http2ErrorCode error_code)
       : last_stream_id(last_stream_id), error_code(error_code) {}
@@ -288,7 +284,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 // Http2WindowUpdateFields:
 
-struct Http2WindowUpdateFields {
+QUICHE_EXPORT_PRIVATE struct Http2WindowUpdateFields {
   static constexpr size_t EncodedSize() { return 4; }
 
   // 31-bit, unsigned increase in the window size (only positive values are
@@ -308,7 +304,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
 
 // Http2AltSvcFields:
 
-struct Http2AltSvcFields {
+QUICHE_EXPORT_PRIVATE struct Http2AltSvcFields {
   static constexpr size_t EncodedSize() { return 2; }
 
   // This is the one fixed size portion of the ALTSVC payload.
@@ -326,7 +322,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 // Http2PriorityUpdateFields:
 
-struct QUICHE_EXPORT_PRIVATE Http2PriorityUpdateFields {
+QUICHE_EXPORT_PRIVATE struct QUICHE_EXPORT_PRIVATE Http2PriorityUpdateFields {
   Http2PriorityUpdateFields() {}
   Http2PriorityUpdateFields(uint32_t prioritized_stream_id)
       : prioritized_stream_id(prioritized_stream_id) {}

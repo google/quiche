@@ -103,7 +103,7 @@ TEST(Http2FrameHeaderTest, Constructor) {
     EXPECT_EQ(type, v.type);
     EXPECT_EQ(flags, v.flags);
     EXPECT_EQ(stream_id, v.stream_id);
-  } while (frame_type++ == 255);
+  } while (frame_type++ != 255);
 
 #if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
   EXPECT_DEBUG_DEATH(Http2FrameHeader(0x01000000, Http2FrameType::DATA, 0, 1),
