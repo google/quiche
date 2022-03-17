@@ -2,35 +2,35 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quic/platform/api/quic_hostname_utils.h"
+#include "common/platform/api/quiche_hostname_utils.h"
 
 #include <string>
 
 #include "absl/base/macros.h"
-#include "quic/platform/api/quic_test.h"
+#include "common/platform/api/quiche_test.h"
 
-namespace quic {
+namespace quiche {
 namespace test {
 namespace {
 
-class QuicHostnameUtilsTest : public QuicTest {};
+class QuicheHostnameUtilsTest : public QuicheTest {};
 
-TEST_F(QuicHostnameUtilsTest, IsValidSNI) {
+TEST_F(QuicheHostnameUtilsTest, IsValidSNI) {
   // IP as SNI.
-  EXPECT_FALSE(QuicHostnameUtils::IsValidSNI("192.168.0.1"));
+  EXPECT_FALSE(QuicheHostnameUtils::IsValidSNI("192.168.0.1"));
   // SNI without any dot.
-  EXPECT_TRUE(QuicHostnameUtils::IsValidSNI("somedomain"));
+  EXPECT_TRUE(QuicheHostnameUtils::IsValidSNI("somedomain"));
   // Invalid by RFC2396 but unfortunately domains of this form exist.
-  EXPECT_TRUE(QuicHostnameUtils::IsValidSNI("some_domain.com"));
+  EXPECT_TRUE(QuicheHostnameUtils::IsValidSNI("some_domain.com"));
   // An empty string must be invalid otherwise the QUIC client will try sending
   // it.
-  EXPECT_FALSE(QuicHostnameUtils::IsValidSNI(""));
+  EXPECT_FALSE(QuicheHostnameUtils::IsValidSNI(""));
 
   // Valid SNI
-  EXPECT_TRUE(QuicHostnameUtils::IsValidSNI("test.google.com"));
+  EXPECT_TRUE(QuicheHostnameUtils::IsValidSNI("test.google.com"));
 }
 
-TEST_F(QuicHostnameUtilsTest, NormalizeHostname) {
+TEST_F(QuicheHostnameUtilsTest, NormalizeHostname) {
   // clang-format off
   struct {
     const char *input, *expected;
@@ -80,10 +80,10 @@ TEST_F(QuicHostnameUtilsTest, NormalizeHostname) {
 
   for (size_t i = 0; i < ABSL_ARRAYSIZE(tests); ++i) {
     EXPECT_EQ(std::string(tests[i].expected),
-              QuicHostnameUtils::NormalizeHostname(tests[i].input));
+              QuicheHostnameUtils::NormalizeHostname(tests[i].input));
   }
 }
 
 }  // namespace
 }  // namespace test
-}  // namespace quic
+}  // namespace quiche

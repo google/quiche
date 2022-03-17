@@ -2,37 +2,33 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_PLATFORM_API_QUIC_TEST_LOOPBACK_H_
-#define QUICHE_QUIC_PLATFORM_API_QUIC_TEST_LOOPBACK_H_
+#ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_TEST_LOOPBACK_H_
+#define QUICHE_COMMON_PLATFORM_API_QUICHE_TEST_LOOPBACK_H_
 
+#include "quiche_platform_impl/quiche_test_loopback_impl.h"
 #include "quic/platform/api/quic_ip_address.h"
 #include "quic/platform/api/quic_ip_address_family.h"
-#include "common/platform/api/quiche_test_loopback.h"
 
-namespace quic {
+namespace quiche {
 
 // Returns the address family (IPv4 or IPv6) used to run test under.
-inline IpAddressFamily AddressFamilyUnderTest() {
-  return quiche::AddressFamilyUnderTest();
-}
+quic::IpAddressFamily AddressFamilyUnderTest();
 
 // Returns an IPv4 loopback address.
-inline QuicIpAddress TestLoopback4() { return quiche::TestLoopback4(); }
+quic::QuicIpAddress TestLoopback4();
 
 // Returns the only IPv6 loopback address.
-inline QuicIpAddress TestLoopback6() { return quiche::TestLoopback6(); }
+quic::QuicIpAddress TestLoopback6();
 
 // Returns an appropriate IPv4/Ipv6 loopback address based upon whether the
 // test's environment.
-inline QuicIpAddress TestLoopback() { return quiche::TestLoopback(); }
+quic::QuicIpAddress TestLoopback();
 
 // If address family under test is IPv4, returns an indexed IPv4 loopback
 // address. If address family under test is IPv6, the address returned is
 // platform-dependent.
-inline QuicIpAddress TestLoopback(int index) {
-  return quiche::TestLoopback(index);
-}
+quic::QuicIpAddress TestLoopback(int index);
 
-}  // namespace quic
+}  // namespace quiche
 
-#endif  // QUICHE_QUIC_PLATFORM_API_QUIC_TEST_LOOPBACK_H_
+#endif  // QUICHE_COMMON_PLATFORM_API_QUICHE_TEST_LOOPBACK_H_

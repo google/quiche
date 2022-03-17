@@ -5,23 +5,11 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_THREAD_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_THREAD_H_
 
-#include <string>
-
-#include "quic/platform/api/quic_export.h"
-#include "net/quic/platform/impl/quic_thread_impl.h"
+#include "common/platform/api/quiche_thread.h"
 
 namespace quic {
 
-// A class representing a thread of execution in QUIC.
-class QUIC_EXPORT_PRIVATE QuicThread : public QuicThreadImpl {
- public:
-  QuicThread(const std::string& string) : QuicThreadImpl(string) {}
-  QuicThread(const QuicThread&) = delete;
-  QuicThread& operator=(const QuicThread&) = delete;
-
-  // Impl defines a virtual void Run() method which subclasses
-  // must implement.
-};
+using QuicThread = quiche::QuicheThread;
 
 }  // namespace quic
 

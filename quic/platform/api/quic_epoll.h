@@ -5,14 +5,14 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_EPOLL_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_EPOLL_H_
 
-#include "net/quic/platform/impl/quic_epoll_impl.h"
+#include "common/platform/api/quiche_epoll.h"
 
 namespace quic {
 
-using QuicEpollServer = QuicEpollServerImpl;
-using QuicEpollEvent = QuicEpollEventImpl;
-using QuicEpollAlarmBase = QuicEpollAlarmBaseImpl;
-using QuicEpollCallbackInterface = QuicEpollCallbackInterfaceImpl;
+using QuicEpollServer = quiche::QuicheEpollServer;
+using QuicEpollEvent = quiche::QuicheEpollEvent;
+using QuicEpollAlarmBase = quiche::QuicheEpollAlarmBase;
+using QuicEpollCallbackInterface = quiche::QuicheEpollCallbackInterface;
 
 }  // namespace quic
 

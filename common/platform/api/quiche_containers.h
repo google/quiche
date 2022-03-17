@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_PLATFORM_API_QUIC_CONTAINERS_H_
-#define QUICHE_QUIC_PLATFORM_API_QUIC_CONTAINERS_H_
+#ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_CONTAINERS_H_
+#define QUICHE_COMMON_PLATFORM_API_QUICHE_CONTAINERS_H_
 
-#include "common/platform/api/quiche_containers.h"
+#include "quiche_platform_impl/quiche_containers_impl.h"
 
-namespace quic {
+namespace quiche {
 
 // An ordered container optimized for small sets.
 // An implementation with O(n) mutations might be chosen
@@ -15,8 +15,8 @@ namespace quic {
 //
 // DOES NOT GUARANTEE POINTER OR ITERATOR STABILITY!
 template <typename Key, typename Compare = std::less<Key>>
-using QuicSmallOrderedSet = ::quiche::QuicheSmallOrderedSet<Key, Compare>;
+using QuicheSmallOrderedSet = QuicheSmallOrderedSetImpl<Key, Compare>;
 
-}  // namespace quic
+}  // namespace quiche
 
-#endif  // QUICHE_QUIC_PLATFORM_API_QUIC_CONTAINERS_H_
+#endif  // QUICHE_COMMON_PLATFORM_API_QUICHE_CONTAINERS_H_

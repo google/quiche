@@ -5,12 +5,11 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_STREAM_BUFFER_ALLOCATOR_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_STREAM_BUFFER_ALLOCATOR_H_
 
-#include "net/quic/platform/impl/quic_stream_buffer_allocator_impl.h"
+#include "common/platform/api/quiche_stream_buffer_allocator.h"
 
 namespace quic {
 
-using QuicStreamBufferAllocator = QuicStreamBufferAllocatorImpl;
-
+using QuicStreamBufferAllocator = quiche::QuicheStreamBufferAllocator;
 }
 
 #endif  // QUICHE_QUIC_PLATFORM_API_QUIC_STREAM_BUFFER_ALLOCATOR_H_

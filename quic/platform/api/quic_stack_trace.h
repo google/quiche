@@ -7,13 +7,11 @@
 
 #include <string>
 
-#include "net/quic/platform/impl/quic_stack_trace_impl.h"
+#include "common/platform/api/quiche_stack_trace.h"
 
 namespace quic {
 
-inline std::string QuicStackTrace() {
-  return QuicStackTraceImpl();
-}
+inline std::string QuicStackTrace() { return quiche::QuicheStackTrace(); }
 
 }  // namespace quic
 

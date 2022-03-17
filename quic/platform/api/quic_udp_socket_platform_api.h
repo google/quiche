@@ -5,23 +5,23 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_UDP_SOCKET_PLATFORM_API_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_UDP_SOCKET_PLATFORM_API_H_
 
-#include "net/quic/platform/impl/quic_udp_socket_platform_impl.h"
+#include "common/platform/api/quiche_udp_socket_platform_api.h"
 
 namespace quic {
 
 const size_t kCmsgSpaceForGooglePacketHeader =
-    kCmsgSpaceForGooglePacketHeaderImpl;
+    quiche::kCmsgSpaceForGooglePacketHeader;
 
 inline bool GetGooglePacketHeadersFromControlMessage(
     struct ::cmsghdr* cmsg,
     char** packet_headers,
     size_t* packet_headers_len) {
-  return GetGooglePacketHeadersFromControlMessageImpl(cmsg, packet_headers,
-                                                      packet_headers_len);
+  return quiche::GetGooglePacketHeadersFromControlMessage(cmsg, packet_headers,
+                                                          packet_headers_len);
 }
 
 inline void SetGoogleSocketOptions(int fd) {
-  SetGoogleSocketOptionsImpl(fd);
+  quiche::SetGoogleSocketOptions(fd);
 }
 
 }  // namespace quic
