@@ -1,6 +1,6 @@
 # QUICHE
 
-QUICHE stands for QUIC, Http/2, Etc. It is Google's production-ready
+QUICHE stands for QUIC, Http, Etc. It is Google's production-ready
 implementation of QUIC, HTTP/2, HTTP/3, and related protocols and tools. It
 powers Google's servers, Chromium, Envoy, and other projects. It is actively
 developed and maintained.
