@@ -47,6 +47,10 @@ class QuicTestServer : public QuicServer {
         QuicStreamId id,
         QuicSpdySession* session,
         QuicSimpleServerBackend* quic_simple_server_backend) = 0;
+
+    virtual QuicSimpleServerStream* CreateStream(
+        PendingStream* pending, QuicSpdySession* session,
+        QuicSimpleServerBackend* quic_simple_server_backend) = 0;
   };
 
   class CryptoStreamFactory {

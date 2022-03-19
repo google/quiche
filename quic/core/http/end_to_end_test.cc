@@ -4416,6 +4416,12 @@ class StreamWithErrorFactory : public QuicTestServer::StreamFactory {
         id, session, quic_simple_server_backend, response_body_);
   }
 
+  QuicSimpleServerStream* CreateStream(
+      PendingStream* /*pending*/, QuicSpdySession* /*session*/,
+      QuicSimpleServerBackend* /*response_cache*/) override {
+    return nullptr;
+  }
+
  private:
   std::string response_body_;
 };
@@ -4472,6 +4478,12 @@ class ServerStreamThatDropsBodyFactory : public QuicTestServer::StreamFactory {
     return new ServerStreamThatDropsBody(id, session,
                                          quic_simple_server_backend);
   }
+
+  QuicSimpleServerStream* CreateStream(
+      PendingStream* /*pending*/, QuicSpdySession* /*session*/,
+      QuicSimpleServerBackend* /*response_cache*/) override {
+    return nullptr;
+  }
 };
 
 // A test server stream that sends response with body size greater than 4GB.
@@ -4514,6 +4526,12 @@ class ServerStreamThatSendsHugeResponseFactory
       QuicSimpleServerBackend* quic_simple_server_backend) override {
     return new ServerStreamThatSendsHugeResponse(
         id, session, quic_simple_server_backend, body_bytes_);
+  }
+
+  QuicSimpleServerStream* CreateStream(
+      PendingStream* /*pending*/, QuicSpdySession* /*session*/,
+      QuicSimpleServerBackend* /*response_cache*/) override {
+    return nullptr;
   }
 
   int64_t body_bytes_;
