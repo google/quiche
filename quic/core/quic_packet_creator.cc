@@ -479,7 +479,8 @@ void QuicPacketCreator::FlushCurrentPacket() {
   }
 
   QUICHE_DCHECK_EQ(nullptr, packet_.encrypted_buffer) << ENDPOINT;
-  if (!SerializePacket(std::move(external_buffer), kMaxOutgoingPacketSize)) {
+  if (!SerializePacket(std::move(external_buffer), kMaxOutgoingPacketSize,
+                       /*allow_padding=*/true)) {
     return;
   }
   OnSerializedPacket();
@@ -525,6 +526,14 @@ size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(
       << ENDPOINT
       << "Attempt to serialize empty ENCRYPTION_INITIAL packet in coalesced "
          "packet";
+
+  if (close_connection_if_fail_to_serialzie_coalesced_packet_ &&
+      HasPendingFrames()) {
+    QUIC_BUG(quic_packet_creator_unexpected_queued_frames)
+        << "Unexpected queued frames: " << GetPendingFramesInfo();
+    return 0;
+  }
+
   ScopedPacketContextSwitcher switcher(
       packet.packet_number -
           1,  // -1 because serialize packet increase packet number.
@@ -555,7 +564,16 @@ size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(
       return 0;
     }
   }
-  if (!SerializePacket(QuicOwnedPacketBuffer(buffer, nullptr), buffer_len)) {
+
+  if (close_connection_if_fail_to_serialzie_coalesced_packet_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_close_connection_if_fail_to_serialzie_coalesced_packet2, 1, 2);
+  }
+
+  if (!SerializePacket(
+          QuicOwnedPacketBuffer(buffer, nullptr), buffer_len,
+          /*allow_padding=*/
+          !close_connection_if_fail_to_serialzie_coalesced_packet_)) {
     return 0;
   }
   const size_t encrypted_length = packet_.encrypted_length;
@@ -788,7 +806,8 @@ QuicPacketCreator::MaybeBuildDataPacketWithChaosProtection(
 }
 
 bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
-                                        size_t encrypted_buffer_len) {
+                                        size_t encrypted_buffer_len,
+                                        bool allow_padding) {
   if (packet_.encrypted_buffer != nullptr) {
     const std::string error_details =
         "Packet's encrypted buffer is not empty before serialization";
@@ -817,11 +836,14 @@ bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
                   << EncryptionLevelToString(packet_.encryption_level);
   }
 
-  MaybeAddPadding();
+  if (allow_padding) {
+    MaybeAddPadding();
+  }
 
   QUIC_DVLOG(2) << ENDPOINT << "Serializing packet " << header
                 << QuicFramesToString(queued_frames_) << " at encryption_level "
-                << packet_.encryption_level;
+                << packet_.encryption_level
+                << ", allow_padding:" << allow_padding;
 
   if (!framer_->HasEncrypterOfEncryptionLevel(packet_.encryption_level)) {
     // TODO(fayang): Use QUIC_MISSING_WRITE_KEYS for serialization failures due
@@ -1919,6 +1941,13 @@ void QuicPacketCreator::MaybeAddPadding() {
   // Header protection requires a minimum plaintext packet size.
   MaybeAddExtraPaddingForHeaderProtection();
 
+  QUIC_DVLOG(3) << "MaybeAddPadding for " << packet_.packet_number
+                << ": transmission_type:" << packet_.transmission_type
+                << ", fate:" << packet_.fate
+                << ", needs_full_padding_:" << needs_full_padding_
+                << ", pending_padding_bytes_:" << pending_padding_bytes_
+                << ", BytesFree:" << BytesFree();
+
   if (!needs_full_padding_ && pending_padding_bytes_ == 0) {
     // Do not need padding.
     return;
@@ -1951,6 +1980,8 @@ bool QuicPacketCreator::IncludeVersionInHeader() const {
 
 void QuicPacketCreator::AddPendingPadding(QuicByteCount size) {
   pending_padding_bytes_ += size;
+  QUIC_DVLOG(3) << "After AddPendingPadding(" << size
+                << "), pending_padding_bytes_:" << pending_padding_bytes_;
 }
 
 bool QuicPacketCreator::StreamFrameIsClientHello(

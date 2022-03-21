@@ -57,8 +57,7 @@ QuicConsumedData SimpleSessionNotifier::WriteOrBufferData(
   const size_t length = stream_state.bytes_total - stream_state.bytes_sent;
   connection_->SetTransmissionType(NOT_RETRANSMISSION);
   QuicConsumedData consumed =
-      connection_->SendStreamData(id, length, stream_state.bytes_sent,
-                                  stream_state.fin_buffered ? FIN : NO_FIN);
+      connection_->SendStreamData(id, length, stream_state.bytes_sent, state);
   QUIC_DVLOG(1) << "consumed: " << consumed;
   OnStreamDataConsumed(id, stream_state.bytes_sent, consumed.bytes_consumed,
                        consumed.fin_consumed);

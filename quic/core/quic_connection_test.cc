@@ -198,9 +198,15 @@ class TestConnection : public QuicConnection {
     SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                  std::make_unique<NullEncrypter>(perspective));
     SetDataProducer(&producer_);
+    ON_CALL(*this, OnSerializedPacket(_))
+        .WillByDefault([this](SerializedPacket packet) {
+          QuicConnection::OnSerializedPacket(std::move(packet));
+        });
   }
   TestConnection(const TestConnection&) = delete;
   TestConnection& operator=(const TestConnection&) = delete;
+
+  MOCK_METHOD(void, OnSerializedPacket, (SerializedPacket packet), (override));
 
   void SetSendAlgorithm(SendAlgorithmInterface* send_algorithm) {
     QuicConnectionPeer::SetSendAlgorithm(this, send_algorithm);
@@ -10281,7 +10287,7 @@ TEST_P(QuicConnectionTest, FailToCoalescePacket) {
   EXPECT_CALL(visitor_, OnHandshakePacketSent());
 
   if (GetQuicReloadableFlag(
-          quic_close_connection_if_fail_to_serialzie_coalesced_packet)) {
+          quic_close_connection_if_fail_to_serialzie_coalesced_packet2)) {
     EXPECT_CALL(visitor_,
                 OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
         .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
@@ -10332,7 +10338,7 @@ TEST_P(QuicConnectionTest, FailToCoalescePacket) {
   EXPECT_QUIC_BUG(test_body(), "SerializeCoalescedPacket failed.");
 
   if (GetQuicReloadableFlag(
-          quic_close_connection_if_fail_to_serialzie_coalesced_packet)) {
+          quic_close_connection_if_fail_to_serialzie_coalesced_packet2)) {
     EXPECT_FALSE(connection_.connected());
     EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
                 IsError(QUIC_FAILED_TO_SERIALIZE_PACKET));
@@ -15410,6 +15416,114 @@ TEST_P(QuicConnectionTest,
   connection_.GetProcessUndecryptablePacketsAlarm()->Fire();
   // Verify RTT sample does not include queueing delay.
   EXPECT_EQ(rtt_stats->latest_rtt(), kTestRTT);
+}
+
+// Regression test for b/112480134.
+TEST_P(QuicConnectionTest, NoExtraPaddingInReserializedInitial) {
+  // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
+  if (!IsDefaultTestConfiguration() ||
+      !connection_.version().CanSendCoalescedPackets()) {
+    return;
+  }
+
+  set_perspective(Perspective::IS_SERVER);
+  MockQuicConnectionDebugVisitor debug_visitor;
+  connection_.set_debug_visitor(&debug_visitor);
+
+  uint64_t debug_visitor_sent_count = 0;
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _))
+      .WillRepeatedly([&]() { debug_visitor_sent_count++; });
+
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  use_tagging_decrypter();
+
+  // Received INITIAL 1.
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+
+  peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                            std::make_unique<TaggingEncrypter>(0x02));
+
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x03));
+  SetDecrypter(ENCRYPTION_HANDSHAKE,
+               std::make_unique<StrictTaggingDecrypter>(0x03));
+  SetDecrypter(ENCRYPTION_ZERO_RTT,
+               std::make_unique<StrictTaggingDecrypter>(0x02));
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<TaggingEncrypter>(0x04));
+
+  // Received ENCRYPTION_ZERO_RTT 2.
+  ProcessDataPacketAtLevel(2, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
+
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    // Send INITIAL 1.
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+    connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_INITIAL);
+    // Send HANDSHAKE 2.
+    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+    connection_.SendCryptoDataWithString(std::string(200, 'a'), 0,
+                                         ENCRYPTION_HANDSHAKE);
+    // Send 1-RTT 3.
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    connection_.SendStreamDataWithString(0, std::string(400, 'b'), 0, NO_FIN);
+  }
+
+  // Arrange the stream data to be sent in response to ENCRYPTION_INITIAL 3.
+  const std::string data4(1000, '4');  // Data to send in stream id 4
+  const std::string data8(3000, '8');  // Data to send in stream id 8
+  EXPECT_CALL(visitor_, OnCanWrite()).WillOnce([&]() {
+    connection_.producer()->SaveStreamData(4, data4);
+    connection_.producer()->SaveStreamData(8, data8);
+
+    notifier_.WriteOrBufferData(4, data4.size(), FIN_AND_PADDING);
+
+    // This should trigger FlushCoalescedPacket.
+    notifier_.WriteOrBufferData(8, data8.size(), FIN);
+  });
+
+  QuicByteCount pending_padding_after_serialize_2nd_1rtt_packet = 0;
+  QuicPacketCount num_1rtt_packets_serialized = 0;
+  EXPECT_CALL(connection_, OnSerializedPacket(_))
+      .WillRepeatedly([&](SerializedPacket packet) {
+        if (packet.encryption_level == ENCRYPTION_FORWARD_SECURE) {
+          num_1rtt_packets_serialized++;
+          if (num_1rtt_packets_serialized == 2) {
+            pending_padding_after_serialize_2nd_1rtt_packet =
+                connection_.packet_creator().pending_padding_bytes();
+          }
+        }
+        connection_.QuicConnection::OnSerializedPacket(std::move(packet));
+      });
+
+  // Server receives INITIAL 3, this will serialzie FS 7 (stream 4, stream 8),
+  // which will trigger a flush of a coalesced packet consists of INITIAL 4,
+  // HS 5 and FS 6 (stream 4).
+  if (GetQuicReloadableFlag(
+          quic_close_connection_if_fail_to_serialzie_coalesced_packet2)) {
+    // Expect no QUIC_BUG.
+    ProcessDataPacketAtLevel(3, !kHasStopWaiting, ENCRYPTION_INITIAL);
+    EXPECT_EQ(
+        debug_visitor_sent_count,
+        connection_.sent_packet_manager().GetLargestSentPacket().ToUint64());
+  } else {
+    // Expect QUIC_BUG due to extra padding.
+    EXPECT_QUIC_BUG(
+        { ProcessDataPacketAtLevel(3, !kHasStopWaiting, ENCRYPTION_INITIAL); },
+        "Reserialize initial packet in coalescer has unexpected size");
+    EXPECT_EQ(
+        debug_visitor_sent_count + 1,
+        connection_.sent_packet_manager().GetLargestSentPacket().ToUint64());
+  }
+
+  // The error only happens if after serializing the second 1RTT packet(pkt #7),
+  // the pending padding bytes is non zero.
+  EXPECT_GT(pending_padding_after_serialize_2nd_1rtt_packet, 0u);
+  EXPECT_TRUE(connection_.connected());
 }
 
 }  // namespace

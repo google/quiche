@@ -30,6 +30,7 @@
 #include "quic/core/quic_packets.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_flags.h"
 #include "common/platform/api/quiche_mem_slice.h"
 #include "common/quiche_circular_deque.h"
 
@@ -505,6 +506,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   const QuicSocketAddress& peer_address() const { return packet_.peer_address; }
 
+  bool close_connection_if_fail_to_serialzie_coalesced_packet() const {
+    return close_connection_if_fail_to_serialzie_coalesced_packet_;
+  }
+
  private:
   friend class test::QuicPacketCreatorPeer;
 
@@ -553,9 +558,12 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // retransmitted to packet_.retransmittable_frames. All frames must fit into
   // a single packet. Returns true on success, otherwise, returns false.
   // Fails if |encrypted_buffer| is not large enough for the encrypted packet.
+  //
+  // Padding may be added if |allow_padding|. Currently, the only case where it
+  // is disallowed is reserializing a coalesced initial packet.
   ABSL_MUST_USE_RESULT bool SerializePacket(
-      QuicOwnedPacketBuffer encrypted_buffer,
-      size_t encrypted_buffer_len);
+      QuicOwnedPacketBuffer encrypted_buffer, size_t encrypted_buffer_len,
+      bool allow_padding);
 
   // Called after a new SerialiedPacket is created to call the delegate's
   // OnSerializedPacket and reset state.
@@ -713,6 +721,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Whether to attempt protecting initial packets with chaos.
   bool chaos_protection_enabled_;
+
+  const bool close_connection_if_fail_to_serialzie_coalesced_packet_ =
+      GetQuicReloadableFlag(
+          quic_close_connection_if_fail_to_serialzie_coalesced_packet2);
 };
 
 }  // namespace quic

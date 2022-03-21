@@ -111,8 +111,9 @@ SerializedPacket QuicPacketCreatorPeer::SerializeAllFrames(
     bool success = creator->AddFrame(frame, NOT_RETRANSMISSION);
     QUICHE_DCHECK(success);
   }
-  const bool success = creator->SerializePacket(
-      QuicOwnedPacketBuffer(buffer, nullptr), buffer_len);
+  const bool success =
+      creator->SerializePacket(QuicOwnedPacketBuffer(buffer, nullptr),
+                               buffer_len, /*allow_padding=*/true);
   QUICHE_DCHECK(success);
   SerializedPacket packet = std::move(creator->packet_);
   // The caller takes ownership of the QuicEncryptedPacket.
