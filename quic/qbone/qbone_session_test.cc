@@ -9,7 +9,6 @@
 #include "quic/core/quic_alarm_factory.h"
 #include "quic/core/quic_epoll_alarm_factory.h"
 #include "quic/platform/api/quic_expect_bug.h"
-#include "quic/platform/api/quic_port_utils.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/platform/api/quic_test_loopback.h"
 #include "quic/qbone/platform/icmp_packet.h"
@@ -316,8 +315,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
         std::make_unique<DataSavingQboneControlHandler<QboneClientRequest>>();
     server_handler_ =
         std::make_unique<DataSavingQboneControlHandler<QboneServerRequest>>();
-    QuicSocketAddress server_address(TestLoopback(),
-                                     QuicPickServerPortForTestsOrDie());
+    QuicSocketAddress server_address(TestLoopback(), 0);
     QuicSocketAddress client_address;
     if (server_address.host().address_family() == IpAddressFamily::IP_V4) {
       client_address = QuicSocketAddress(QuicIpAddress::Any4(), 0);

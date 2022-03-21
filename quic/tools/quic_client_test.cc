@@ -13,7 +13,6 @@
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "quic/platform/api/quic_epoll.h"
-#include "quic/platform/api/quic_port_utils.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/platform/api/quic_test_loopback.h"
 #include "quic/test_tools/crypto_test_utils.h"
@@ -75,8 +74,7 @@ class QuicClientTest : public QuicTest {
   // Creates a new QuicClient and Initializes it on an unused port.
   // Caller is responsible for deletion.
   std::unique_ptr<QuicClient> CreateAndInitializeQuicClient() {
-    uint16_t port = QuicPickServerPortForTestsOrDie();
-    QuicSocketAddress server_address(QuicSocketAddress(TestLoopback(), port));
+    QuicSocketAddress server_address(QuicSocketAddress(TestLoopback(), 0));
     QuicServerId server_id("hostname", server_address.port(), false);
     ParsedQuicVersionVector versions = AllSupportedVersions();
     auto client = std::make_unique<QuicClient>(

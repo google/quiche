@@ -14,7 +14,6 @@
 #include "quic/core/quic_epoll_connection_helper.h"
 #include "quic/core/quic_packet_reader.h"
 #include "quic/platform/api/quic_mutex.h"
-#include "quic/platform/api/quic_port_utils.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/platform/api/quic_test_loopback.h"
@@ -228,8 +227,7 @@ INSTANTIATE_TEST_SUITE_P(Tests,
 
 TEST_P(QboneClientTest, SendDataFromClient) {
   auto server = new QboneTestServer(crypto_test_utils::ProofSourceForTesting());
-  QuicSocketAddress server_address(TestLoopback(),
-                                   QuicPickServerPortForTestsOrDie());
+  QuicSocketAddress server_address(TestLoopback(), 0);
   ServerThread server_thread(server, server_address);
   server_thread.Initialize();
   server_address =

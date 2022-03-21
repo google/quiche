@@ -36,7 +36,6 @@
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
-#include "quic/platform/api/quic_port_utils.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/platform/api/quic_test_loopback.h"
@@ -175,8 +174,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   EndToEndTest()
       : initialized_(false),
         connect_to_server_on_initialize_(true),
-        server_address_(QuicSocketAddress(TestLoopback(),
-                                          QuicPickServerPortForTestsOrDie())),
+        server_address_(QuicSocketAddress(TestLoopback(), 0)),
         server_hostname_("test.example.com"),
         client_writer_(nullptr),
         server_writer_(nullptr),
@@ -210,8 +208,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     AddToCache("/bar", 200, kBarResponseBody);
     // Enable fixes for bugs found in tests and prod.
   }
-
-  ~EndToEndTest() override { QuicRecyclePort(server_address_.port()); }
 
   virtual void CreateClientWithWriter() {
     client_.reset(CreateQuicClient(client_writer_));
