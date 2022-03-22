@@ -11,7 +11,7 @@
 
 #include "absl/strings/string_view.h"
 #include "common/platform/api/quiche_export.h"
-#include "common/quiche_iovec.h"
+#include "common/platform/api/quiche_iovec.h"
 
 namespace quiche {
 
