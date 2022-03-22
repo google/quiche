@@ -1014,6 +1014,7 @@ void TlsServerHandshaker::OnSelectCertificateDone(
 
   QUIC_TRACESTRING(absl::StrCat(
       "TLS select certificate done: ok:", ok,
+      ", certs_found:", (chain != nullptr && !chain->certs.empty()),
       ", len(handshake_hints):", handshake_hints.size(),
       ", len(ticket_encryption_key):", ticket_encryption_key.size()));
 
@@ -1042,11 +1043,11 @@ void TlsServerHandshaker::OnSelectCertificateDone(
       }
       select_cert_status_ = QUIC_SUCCESS;
     } else {
-      QUIC_LOG(ERROR) << "No certs provided for host '"
-                      << crypto_negotiated_params_->sni << "', server_address:"
-                      << session()->connection()->self_address()
-                      << ", client_address:"
-                      << session()->connection()->peer_address();
+      QUIC_DLOG(ERROR) << "No certs provided for host '"
+                       << crypto_negotiated_params_->sni << "', server_address:"
+                       << session()->connection()->self_address()
+                       << ", client_address:"
+                       << session()->connection()->peer_address();
     }
   }
 
