@@ -91,8 +91,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_bursts, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_reset_ideal_next_packet_send_time, false)
 // If true, use BBRv2 as the default congestion controller. Takes precedence over --quic_default_to_bbr.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr_v2, false)
-// If true, use max(max_bw, send_rate) as the estimated bandwidth in QUIC\'s MaxAckHeightTracker.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr_use_send_rate_in_max_ack_height_tracker, true)
 // If true, use new connection ID in connection migration.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, true)
 // If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.

@@ -566,7 +566,6 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB207) {
 }
 
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransferBBRB) {
-  SetQuicReloadableFlag(quic_bbr_use_send_rate_in_max_ack_height_tracker, true);
   SetConnectionOption(kBBRB);
   DefaultTopologyParams params;
   CreateNetwork(params);

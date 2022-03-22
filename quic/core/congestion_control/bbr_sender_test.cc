@@ -325,7 +325,6 @@ TEST_F(BbrSenderTest, SimpleTransfer) {
 }
 
 TEST_F(BbrSenderTest, SimpleTransferBBRB) {
-  SetQuicReloadableFlag(quic_bbr_use_send_rate_in_max_ack_height_tracker, true);
   SetConnectionOption(kBBRB);
   CreateDefaultSetup();
 
