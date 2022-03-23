@@ -1573,7 +1573,15 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtServer) {
   QuicIpAddress host;
   host.FromString("1.1.1.1");
   QuicSocketAddress self_address(host, 123);
+  EXPECT_EQ(0u, connection_.GetStats().packets_dropped);
   EXPECT_CALL(visitor_, AllowSelfAddressChange()).WillOnce(Return(false));
+  if (GetQuicReloadableFlag(quic_drop_packets_with_changed_server_address)) {
+    ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address,
+                                    kPeerAddress, ENCRYPTION_INITIAL);
+    EXPECT_TRUE(connection_.connected());
+    EXPECT_EQ(1u, connection_.GetStats().packets_dropped);
+    return;
+  }
   if (version().handshake_protocol == PROTOCOL_TLS1_3) {
     EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
   }
@@ -1584,6 +1592,7 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtServer) {
       "Self address migration is not supported at the server");
   EXPECT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(QUIC_ERROR_MIGRATING_ADDRESS);
+  EXPECT_EQ(1u, connection_.GetStats().packets_dropped);
 }
 
 TEST_P(QuicConnectionTest, AllowSelfAddressChangeToMappedIpv4AddressAtServer) {

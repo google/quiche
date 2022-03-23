@@ -2980,6 +2980,12 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
             ", packet number: ", header.packet_number.ToString(),
             ", encryption level: ",
             EncryptionLevelToString(last_decrypted_packet_level_));
+        if (GetQuicReloadableFlag(
+                quic_drop_packets_with_changed_server_address)) {
+          QUIC_LOG_EVERY_N_SEC(INFO, 100) << error_details;
+          QUIC_CODE_COUNT(quic_dropped_packets_with_changed_server_address);
+          return false;
+        }
         QUIC_PEER_BUG(Server self address change) << error_details;
         CloseConnection(QUIC_ERROR_MIGRATING_ADDRESS, error_details,
                         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
