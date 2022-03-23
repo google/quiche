@@ -454,9 +454,6 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(void, OnWriteBlocked, (), (override));
   MOCK_METHOD(void, OnCanWrite, (), (override));
   MOCK_METHOD(bool, SendProbingData, (), (override));
-  MOCK_METHOD(bool, ValidateStatelessReset,
-              (const quic::QuicSocketAddress&, const quic::QuicSocketAddress&),
-              (override));
   MOCK_METHOD(void, OnCongestionWindowChange, (QuicTime now), (override));
   MOCK_METHOD(void, OnConnectionMigration, (AddressChangeType type),
               (override));
