@@ -579,8 +579,19 @@ TEST(NgHttp2AdapterTest, ClientHandles204WithContent) {
   const int32_t stream_id1 = adapter->SubmitRequest(headers1, nullptr, nullptr);
   ASSERT_GT(stream_id1, 0);
 
+  const std::vector<Header> headers2 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/two"}});
+
+  const int32_t stream_id2 = adapter->SubmitRequest(headers2, nullptr, nullptr);
+  ASSERT_GT(stream_id2, stream_id1);
+
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id2, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id2, _, 0x5, 0));
 
   int result = adapter->Send();
   EXPECT_EQ(0, result);
@@ -592,6 +603,8 @@ TEST(NgHttp2AdapterTest, ClientHandles204WithContent) {
           .Headers(1, {{":status", "204"}, {"content-length", "2"}},
                    /*fin=*/false)
           .Data(1, "hi")
+          .Headers(3, {{":status", "204"}}, /*fin=*/false)
+          .Data(3, "hi")
           .Serialize();
 
   // Server preface (empty SETTINGS)
@@ -609,6 +622,12 @@ TEST(NgHttp2AdapterTest, ClientHandles204WithContent) {
   EXPECT_CALL(
       visitor,
       OnInvalidFrame(1, Http2VisitorInterface::InvalidFrameError::kHttpHeader));
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, ":status", "204"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(3));
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, DATA, 0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(3, 2));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
@@ -620,12 +639,18 @@ TEST(NgHttp2AdapterTest, ClientHandles204WithContent) {
               OnFrameSent(RST_STREAM, 1, _, 0x0,
                           static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::PROTOCOL_ERROR));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 3, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(RST_STREAM, 3, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
+  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::PROTOCOL_ERROR));
 
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS,
-                                            SpdyFrameType::RST_STREAM}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::RST_STREAM,
+                            SpdyFrameType::RST_STREAM}));
 }
 
 TEST(NgHttp2AdapterTest, ClientHandles304WithContent) {

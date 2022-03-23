@@ -284,7 +284,7 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
   frame_contains_fin_ = false;
 }
 
-// TODO(diannahu): Add checks for other response codes and request methods.
+// TODO(diannahu): Add checks for request methods.
 bool OgHttp2Session::PassthroughHeadersHandler::CanReceiveBody() const {
   switch (header_type()) {
     case HeaderType::REQUEST_TRAILER:
@@ -294,7 +294,9 @@ bool OgHttp2Session::PassthroughHeadersHandler::CanReceiveBody() const {
     case HeaderType::RESPONSE:
       // 304 responses should not have a body:
       // https://httpwg.org/specs/rfc7230.html#rfc.section.3.3.2
-      return status_header() != "304";
+      // Neither should 204 responses:
+      // https://httpwg.org/specs/rfc7231.html#rfc.section.6.3.5
+      return status_header() != "304" && status_header() != "204";
     case HeaderType::REQUEST:
       return true;
   }
