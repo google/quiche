@@ -85,7 +85,7 @@ class UberReceivedPacketManagerTest : public QuicTest {
     manager_->MaybeUpdateAckTimeout(
         should_last_packet_instigate_acks, decrypted_packet_level,
         QuicPacketNumber(last_received_packet_number), clock_.ApproximateNow(),
-        &rtt_stats_);
+        clock_.ApproximateNow(), &rtt_stats_);
   }
 
   void CheckAckTimeout(QuicTime time) {
@@ -520,6 +520,40 @@ TEST_F(UberReceivedPacketManagerTest, AckSendingDifferentPacketNumberSpaces) {
   // Application data ACK should be sent immediately.
   CheckAckTimeout(clock_.ApproximateNow());
   EXPECT_FALSE(HasPendingAck());
+}
+
+TEST_F(UberReceivedPacketManagerTest,
+       AckTimeoutForPreviouslyUndecryptablePackets) {
+  manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_SERVER);
+  EXPECT_FALSE(HasPendingAck());
+  EXPECT_FALSE(manager_->IsAckFrameUpdated());
+
+  // Received undecryptable 1-RTT packet 4.
+  const QuicTime packet_receipt_time4 = clock_.ApproximateNow();
+  // 1-RTT keys become available after 10ms because HANDSHAKE 5 gets received.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  RecordPacketReceipt(ENCRYPTION_HANDSHAKE, 5);
+  MaybeUpdateAckTimeout(kInstigateAck, ENCRYPTION_HANDSHAKE, 5);
+  EXPECT_TRUE(HasPendingAck());
+  RecordPacketReceipt(ENCRYPTION_FORWARD_SECURE, 4);
+  manager_->MaybeUpdateAckTimeout(kInstigateAck, ENCRYPTION_FORWARD_SECURE,
+                                  QuicPacketNumber(4), packet_receipt_time4,
+                                  clock_.ApproximateNow(), &rtt_stats_);
+
+  // Send delayed handshake ACK.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
+  CheckAckTimeout(clock_.ApproximateNow());
+
+  EXPECT_TRUE(HasPendingAck());
+  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
+    // Verify ACK delay is based on packet receipt time.
+    CheckAckTimeout(clock_.ApproximateNow() -
+                    QuicTime::Delta::FromMilliseconds(11) + kDelayedAckTime);
+  } else {
+    // Delayed ack is scheduled.
+    CheckAckTimeout(clock_.ApproximateNow() -
+                    QuicTime::Delta::FromMilliseconds(1) + kDelayedAckTime);
+  }
 }
 
 }  // namespace

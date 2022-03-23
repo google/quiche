@@ -67,8 +67,9 @@ class QuicReceivedPacketManagerTest : public QuicTest {
                              uint64_t last_received_packet_number) {
     received_manager_.MaybeUpdateAckTimeout(
         should_last_packet_instigate_acks,
-        QuicPacketNumber(last_received_packet_number), clock_.ApproximateNow(),
-        &rtt_stats_);
+        QuicPacketNumber(last_received_packet_number),
+        /*last_packet_receipt_time=*/clock_.ApproximateNow(),
+        /*now=*/clock_.ApproximateNow(), &rtt_stats_);
   }
 
   void CheckAckTimeout(QuicTime time) {
@@ -634,6 +635,54 @@ TEST_F(QuicReceivedPacketManagerTest,
       // Ack at default delay as decimation is disabled.
       CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
     }
+  }
+}
+
+TEST_F(QuicReceivedPacketManagerTest, UpdateAckTimeoutOnPacketReceiptTime) {
+  EXPECT_FALSE(HasPendingAck());
+
+  // Received packets 3 and 4.
+  QuicTime packet_receipt_time3 = clock_.ApproximateNow();
+  // Packet 3 gets processed after 10ms.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  RecordPacketReceipt(3, packet_receipt_time3);
+  received_manager_.MaybeUpdateAckTimeout(
+      kInstigateAck, QuicPacketNumber(3),
+      /*last_packet_receipt_time=*/packet_receipt_time3,
+      clock_.ApproximateNow(), &rtt_stats_);
+  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
+    // Make sure ACK timeout is based on receipt time.
+    CheckAckTimeout(packet_receipt_time3 + kDelayedAckTime);
+  } else {
+    // Make sure ACK timeout is based on now.
+    CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+  }
+
+  RecordPacketReceipt(4, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 4);
+  // Immediate ack is sent.
+  CheckAckTimeout(clock_.ApproximateNow());
+}
+
+TEST_F(QuicReceivedPacketManagerTest,
+       UpdateAckTimeoutOnPacketReceiptTimeLongerQueuingTime) {
+  EXPECT_FALSE(HasPendingAck());
+
+  // Received packets 3 and 4.
+  QuicTime packet_receipt_time3 = clock_.ApproximateNow();
+  // Packet 3 gets processed after 100ms.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(100));
+  RecordPacketReceipt(3, packet_receipt_time3);
+  received_manager_.MaybeUpdateAckTimeout(
+      kInstigateAck, QuicPacketNumber(3),
+      /*last_packet_receipt_time=*/packet_receipt_time3,
+      clock_.ApproximateNow(), &rtt_stats_);
+  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
+    // Given 100ms > ack delay, verify immediate ACK.
+    CheckAckTimeout(clock_.ApproximateNow());
+  } else {
+    // Make sure ACK timeout is based on now.
+    CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
   }
 }
 

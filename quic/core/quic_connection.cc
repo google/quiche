@@ -2199,8 +2199,8 @@ void QuicConnection::OnPacketComplete() {
   if (!should_last_packet_instigate_acks_) {
     uber_received_packet_manager_.MaybeUpdateAckTimeout(
         should_last_packet_instigate_acks_, last_decrypted_packet_level_,
-        last_header_.packet_number, clock_->ApproximateNow(),
-        sent_packet_manager_.GetRttStats());
+        last_header_.packet_number, last_received_packet_info_.receipt_time,
+        clock_->ApproximateNow(), sent_packet_manager_.GetRttStats());
   }
 
   ClearLastFrames();
@@ -6330,8 +6330,8 @@ void QuicConnection::MaybeUpdateAckTimeout() {
   should_last_packet_instigate_acks_ = true;
   uber_received_packet_manager_.MaybeUpdateAckTimeout(
       /*should_last_packet_instigate_acks=*/true, last_decrypted_packet_level_,
-      last_header_.packet_number, clock_->ApproximateNow(),
-      sent_packet_manager_.GetRttStats());
+      last_header_.packet_number, last_received_packet_info_.receipt_time,
+      clock_->ApproximateNow(), sent_packet_manager_.GetRttStats());
 }
 
 QuicTime QuicConnection::GetPathDegradingDeadline() const {

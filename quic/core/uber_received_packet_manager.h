@@ -47,7 +47,7 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
   void MaybeUpdateAckTimeout(bool should_last_packet_instigate_acks,
                              EncryptionLevel decrypted_packet_level,
                              QuicPacketNumber last_received_packet_number,
-                             QuicTime now,
+                             QuicTime last_packet_receipt_time, QuicTime now,
                              const RttStats* rtt_stats);
 
   // Resets ACK related states, called after an ACK is successfully sent.

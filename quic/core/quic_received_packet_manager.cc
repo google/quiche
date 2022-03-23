@@ -234,7 +234,7 @@ void QuicReceivedPacketManager::MaybeUpdateAckFrequency(
 void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     bool should_last_packet_instigate_acks,
     QuicPacketNumber last_received_packet_number,
-    QuicTime now,
+    QuicTime last_packet_receipt_time, QuicTime now,
     const RttStats* rtt_stats) {
   if (!ack_frame_updated_) {
     // ACK frame has not been updated, nothing to do.
@@ -268,8 +268,24 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     return;
   }
 
+  QuicTime ack_timeout_base = now;
+  const bool quic_update_ack_timeout_on_receipt_time =
+      GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time);
+  if (quic_update_ack_timeout_on_receipt_time) {
+    if (last_packet_receipt_time <= now) {
+      QUIC_CODE_COUNT(quic_update_ack_timeout_on_receipt_time);
+      ack_timeout_base = last_packet_receipt_time;
+    } else {
+      QUIC_CODE_COUNT(quic_update_ack_timeout_on_now);
+      ack_timeout_base = now;
+    }
+  }
   QuicTime updated_ack_time =
-      now + GetMaxAckDelay(last_received_packet_number, *rtt_stats);
+      ack_timeout_base +
+      GetMaxAckDelay(last_received_packet_number, *rtt_stats);
+  if (quic_update_ack_timeout_on_receipt_time) {
+    updated_ack_time = std::max(now, updated_ack_time);
+  }
   if (!ack_timeout_.IsInitialized() || ack_timeout_ > updated_ack_time) {
     ack_timeout_ = updated_ack_time;
   }

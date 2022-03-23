@@ -2925,7 +2925,8 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
   }
   connection_.ProcessUdpPacket(
       kSelfAddress, kPeerAddress,
-      QuicReceivedPacket(buffer, encrypted_length, QuicTime::Zero(), false));
+      QuicReceivedPacket(buffer, encrypted_length, clock_.ApproximateNow(),
+                         false));
 
   EXPECT_EQ(kMaxOutgoingPacketSize, connection_.max_packet_length());
 }
@@ -2972,7 +2973,8 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSizeWhileWriterLimited) {
   }
   connection_.ProcessUdpPacket(
       kSelfAddress, kPeerAddress,
-      QuicReceivedPacket(buffer, encrypted_length, QuicTime::Zero(), false));
+      QuicReceivedPacket(buffer, encrypted_length, clock_.ApproximateNow(),
+                         false));
 
   // Here, the limit imposed by the writer is lower than the size of the packet
   // received, so the writer max packet size is used.
@@ -11551,7 +11553,10 @@ TEST_P(QuicConnectionTest, ClientAckDelayForAsyncPacketProcessing) {
   // SetFromConfig is always called after construction from InitializeSession.
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
-  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(AnyNumber());
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).WillOnce(Invoke([this]() {
+    connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+    connection_.NeuterUnencryptedPackets();
+  }));
   QuicConfig config;
   connection_.SetFromConfig(config);
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
@@ -11576,13 +11581,29 @@ TEST_P(QuicConnectionTest, ClientAckDelayForAsyncPacketProcessing) {
                            std::make_unique<TaggingEncrypter>(0x01));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
   // Verify HANDSHAKE packet gets processed.
+  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  } else {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  }
   connection_.GetProcessUndecryptablePacketsAlarm()->Fire();
-  ASSERT_TRUE(connection_.HasPendingAcks());
-  // Send ACKs.
-  clock_.AdvanceTime(connection_.GetAckAlarm()->deadline() - clock_.Now());
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
-  connection_.GetAckAlarm()->Fire();
+  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
+    // Verify immediate ACK has been sent out when flush went out of scope.
+    ASSERT_FALSE(connection_.HasPendingAcks());
+  } else {
+    ASSERT_TRUE(connection_.HasPendingAcks());
+    // Send ACKs.
+    clock_.AdvanceTime(connection_.GetAckAlarm()->deadline() - clock_.Now());
+    connection_.GetAckAlarm()->Fire();
+  }
   ASSERT_FALSE(writer_->ack_frames().empty());
+  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
+    // Verify the ack_delay_time in the sent HANDSHAKE ACK frame is 100ms.
+    EXPECT_EQ(QuicTime::Delta::FromMilliseconds(100),
+              writer_->ack_frames()[0].ack_delay_time);
+    ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
+    return;
+  }
   // Verify the ack_delay_time in the INITIAL ACK frame is 1ms.
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(1),
             writer_->ack_frames()[0].ack_delay_time);
@@ -15533,6 +15554,73 @@ TEST_P(QuicConnectionTest, NoExtraPaddingInReserializedInitial) {
   // the pending padding bytes is non zero.
   EXPECT_GT(pending_padding_after_serialize_2nd_1rtt_packet, 0u);
   EXPECT_TRUE(connection_.connected());
+}
+
+TEST_P(QuicConnectionTest, ReportedAckDelayIncludesQueuingDelay) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  QuicConfig config;
+  config.set_max_undecryptable_packets(3);
+  connection_.SetFromConfig(config);
+
+  // Receive 1-RTT ack-eliciting packet while keys are not available.
+  connection_.RemoveDecrypter(ENCRYPTION_FORWARD_SECURE);
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            std::make_unique<TaggingEncrypter>(0x01));
+  QuicFrames frames;
+  frames.push_back(QuicFrame(QuicPingFrame()));
+  frames.push_back(QuicFrame(QuicPaddingFrame(100)));
+  QuicPacketHeader header =
+      ConstructPacketHeader(30, ENCRYPTION_FORWARD_SECURE);
+  std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
+
+  char buffer[kMaxOutgoingPacketSize];
+  size_t encrypted_length = peer_framer_.EncryptPayload(
+      ENCRYPTION_FORWARD_SECURE, QuicPacketNumber(30), *packet, buffer,
+      kMaxOutgoingPacketSize);
+  EXPECT_EQ(0u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
+  const QuicTime packet_receipt_time = clock_.Now();
+  connection_.ProcessUdpPacket(
+      kSelfAddress, kPeerAddress,
+      QuicReceivedPacket(buffer, encrypted_length, clock_.Now(), false));
+  if (connection_.GetSendAlarm()->IsSet()) {
+    connection_.GetSendAlarm()->Fire();
+  }
+  ASSERT_EQ(1u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
+  // 1-RTT keys become available after 10ms.
+  const QuicTime::Delta kQueuingDelay = QuicTime::Delta::FromMilliseconds(10);
+  clock_.AdvanceTime(kQueuingDelay);
+  EXPECT_FALSE(connection_.GetProcessUndecryptablePacketsAlarm()->IsSet());
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+               std::make_unique<StrictTaggingDecrypter>(0x01));
+  ASSERT_TRUE(connection_.GetProcessUndecryptablePacketsAlarm()->IsSet());
+
+  connection_.GetProcessUndecryptablePacketsAlarm()->Fire();
+  ASSERT_TRUE(connection_.HasPendingAcks());
+  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
+    EXPECT_EQ(packet_receipt_time + DefaultDelayedAckTime(),
+              connection_.GetAckAlarm()->deadline());
+    clock_.AdvanceTime(packet_receipt_time + DefaultDelayedAckTime() -
+                       clock_.Now());
+  } else {
+    EXPECT_EQ(clock_.Now() + DefaultDelayedAckTime(),
+              connection_.GetAckAlarm()->deadline());
+    clock_.AdvanceTime(DefaultDelayedAckTime());
+  }
+  // Fire ACK alarm.
+  connection_.GetAckAlarm()->Fire();
+  ASSERT_EQ(1u, writer_->ack_frames().size());
+  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
+    // Verify ACK delay time does not include queuing delay.
+    EXPECT_EQ(DefaultDelayedAckTime(), writer_->ack_frames()[0].ack_delay_time);
+  } else {
+    // Verify ACK delay time = queuing delay + ack delay
+    EXPECT_EQ(DefaultDelayedAckTime() + kQueuingDelay,
+              writer_->ack_frames()[0].ack_delay_time);
+  }
 }
 
 }  // namespace
