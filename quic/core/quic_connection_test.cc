@@ -15253,13 +15253,22 @@ TEST_P(QuicConnectionTest, FailedToRetransmitShlo) {
   EXPECT_EQ(clock_.Now() + kAlarmGranularity,
             connection_.GetAckAlarm()->deadline());
   // ACK is not throttled by amplification limit, and SHLO is bundled. Also
-  // HANDSHAKE packet gets coalesced.
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  // HANDSHAKE + 1RTT packets get coalesced.
+  if (GetQuicReloadableFlag(quic_flush_after_coalesce_higher_space_packets)) {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(3);
+  } else {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  }
   // ACK alarm fires.
   clock_.AdvanceTime(kAlarmGranularity);
   connection_.GetAckAlarm()->Fire();
-  // Verify HANDSHAKE packet is coalesced with INITIAL ACK + SHLO.
-  EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
+  if (GetQuicReloadableFlag(quic_flush_after_coalesce_higher_space_packets)) {
+    // Verify 1-RTT packet is coalesced.
+    EXPECT_EQ(0x04040404u, writer_->final_bytes_of_last_packet());
+  } else {
+    // Verify HANDSHAKE packet is coalesced with INITIAL ACK + SHLO.
+    EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
+  }
   // Only the first packet in the coalesced packet has been processed,
   // verify SHLO is bundled with INITIAL ACK.
   EXPECT_EQ(1u, writer_->ack_frames().size());
@@ -15270,7 +15279,16 @@ TEST_P(QuicConnectionTest, FailedToRetransmitShlo) {
   writer_->framer()->ProcessPacket(*packet);
   EXPECT_EQ(0u, writer_->ack_frames().size());
   EXPECT_EQ(1u, writer_->crypto_frames().size());
-  ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
+  if (GetQuicReloadableFlag(quic_flush_after_coalesce_higher_space_packets)) {
+    // Process the coalesced 1-RTT packet.
+    ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
+    packet = writer_->coalesced_packet()->Clone();
+    writer_->framer()->ProcessPacket(*packet);
+    EXPECT_EQ(0u, writer_->crypto_frames().size());
+    EXPECT_EQ(1u, writer_->stream_frames().size());
+  } else {
+    ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
+  }
 
   // Received INITIAL 3.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
@@ -15606,6 +15624,79 @@ TEST_P(QuicConnectionTest, ReportedAckDelayIncludesQueuingDelay) {
     EXPECT_EQ(DefaultDelayedAckTime() + kQueuingDelay,
               writer_->ack_frames()[0].ack_delay_time);
   }
+}
+
+TEST_P(QuicConnectionTest, CoalesceOneRTTPacketWithInitialAndHandshakePackets) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  use_tagging_decrypter();
+
+  // Received INITIAL 1.
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+
+  peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                            std::make_unique<TaggingEncrypter>(0x02));
+
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x03));
+  SetDecrypter(ENCRYPTION_HANDSHAKE,
+               std::make_unique<StrictTaggingDecrypter>(0x03));
+  SetDecrypter(ENCRYPTION_ZERO_RTT,
+               std::make_unique<StrictTaggingDecrypter>(0x02));
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<TaggingEncrypter>(0x04));
+
+  // Received ENCRYPTION_ZERO_RTT 2.
+  ProcessDataPacketAtLevel(2, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
+
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    // Send INITIAL 1.
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+    connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_INITIAL);
+    // Send HANDSHAKE 2.
+    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+    connection_.SendCryptoDataWithString(std::string(200, 'a'), 0,
+                                         ENCRYPTION_HANDSHAKE);
+    // Send 1-RTT data.
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    connection_.SendStreamDataWithString(0, std::string(2000, 'b'), 0, FIN);
+  }
+  // Verify coalesced packet [INITIAL 1 + HANDSHAKE 2 + part of 1-RTT data] +
+  // rest of 1-RTT data get sent.
+  EXPECT_EQ(2u, writer_->packets_write_attempts());
+
+  // Received ENCRYPTION_INITIAL 3.
+  ProcessDataPacketAtLevel(3, !kHasStopWaiting, ENCRYPTION_INITIAL);
+
+  // Verify a coalesced packet gets sent.
+  EXPECT_EQ(3u, writer_->packets_write_attempts());
+
+  // Only the first INITIAL packet has been processed yet.
+  EXPECT_EQ(1u, writer_->ack_frames().size());
+  EXPECT_EQ(1u, writer_->crypto_frames().size());
+
+  // Process HANDSHAKE packet.
+  ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
+  auto packet = writer_->coalesced_packet()->Clone();
+  writer_->framer()->ProcessPacket(*packet);
+  EXPECT_EQ(1u, writer_->crypto_frames().size());
+  if (!GetQuicReloadableFlag(quic_flush_after_coalesce_higher_space_packets)) {
+    ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
+    return;
+  }
+  // Process 1-RTT packet.
+  ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
+  packet = writer_->coalesced_packet()->Clone();
+  writer_->framer()->ProcessPacket(*packet);
+  EXPECT_EQ(1u, writer_->stream_frames().size());
 }
 
 }  // namespace

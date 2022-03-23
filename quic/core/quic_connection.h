@@ -2252,6 +2252,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Enable this via reloadable flag once this feature is complete.
   bool connection_migration_use_new_cid_ = false;
 
+  const bool flush_after_coalesce_higher_space_packets_ =
+      GetQuicReloadableFlag(quic_flush_after_coalesce_higher_space_packets);
+
   // TODO(b/205023946) Debug-only fields, to be deprecated after the bug is
   // fixed.
   absl::optional<QuicWallTime> quic_bug_10511_43_timestamp_;

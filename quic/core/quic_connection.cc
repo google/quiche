@@ -4786,10 +4786,30 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
         connection_->SendAck();
       }
     }
-    connection_->packet_creator_.Flush();
-    if (connection_->version().CanSendCoalescedPackets()) {
-      connection_->MaybeCoalescePacketOfHigherSpace();
-      connection_->FlushCoalescedPacket();
+
+    if (connection_->flush_after_coalesce_higher_space_packets_) {
+      // INITIAL or HANDSHAKE retransmission could cause peer to derive new
+      // keys, such that the buffered undecryptable packets may be processed.
+      // This endpoint would derive an inflated RTT sample when receiving ACKs
+      // of those undecryptable packets. To mitigate this, tries to coalesce as
+      // many higher space packets as possible (via for loop inside
+      // MaybeCoalescePacketOfHigherSpace) to fill the remaining space in the
+      // coalescer.
+      QUIC_RELOADABLE_FLAG_COUNT(
+          quic_flush_after_coalesce_higher_space_packets);
+      if (connection_->version().CanSendCoalescedPackets()) {
+        connection_->MaybeCoalescePacketOfHigherSpace();
+      }
+      connection_->packet_creator_.Flush();
+      if (connection_->version().CanSendCoalescedPackets()) {
+        connection_->FlushCoalescedPacket();
+      }
+    } else {
+      connection_->packet_creator_.Flush();
+      if (connection_->version().CanSendCoalescedPackets()) {
+        connection_->MaybeCoalescePacketOfHigherSpace();
+        connection_->FlushCoalescedPacket();
+      }
     }
     connection_->FlushPackets();
     if (!handshake_packet_sent_ && connection_->handshake_packet_sent_) {
@@ -5831,16 +5851,15 @@ bool QuicConnection::ShouldBundleRetransmittableFrameWithAck() const {
 }
 
 void QuicConnection::MaybeCoalescePacketOfHigherSpace() {
-  if (!connected() || !packet_creator_.HasSoftMaxPacketLength() ||
-      fill_coalesced_packet_) {
-    // Make sure MaybeCoalescePacketOfHigherSpace is not re-entrant.
+  if (!connected() || !packet_creator_.HasSoftMaxPacketLength()) {
     return;
   }
-  // INITIAL or HANDSHAKE retransmission could cause peer to derive new
-  // keys, such that the buffered undecryptable packets may be processed.
-  // This endpoint would derive an inflated RTT sample (which includes the PTO
-  // timeout) when receiving ACKs of those undecryptable packets. To mitigate
-  // this, tries to coalesce a packet of higher encryption level.
+  if (fill_coalesced_packet_) {
+    // Make sure MaybeCoalescePacketOfHigherSpace is not re-entrant.
+    QUIC_BUG_IF(quic_coalesce_packet_reentrant,
+                flush_after_coalesce_higher_space_packets_);
+    return;
+  }
   for (EncryptionLevel retransmission_level :
        {ENCRYPTION_INITIAL, ENCRYPTION_HANDSHAKE}) {
     // Coalesce HANDSHAKE with INITIAL retransmission, and coalesce 1-RTT with
@@ -5854,6 +5873,9 @@ void QuicConnection::MaybeCoalescePacketOfHigherSpace() {
             NOT_RETRANSMISSION &&
         framer_.HasEncrypterOfEncryptionLevel(coalesced_level) &&
         !coalesced_packet_.ContainsPacketOfEncryptionLevel(coalesced_level)) {
+      QUIC_DVLOG(1) << ENDPOINT
+                    << "Trying to coalesce packet of encryption level: "
+                    << EncryptionLevelToString(coalesced_level);
       fill_coalesced_packet_ = true;
       sent_packet_manager_.RetransmitDataOfSpaceIfAny(
           QuicUtils::GetPacketNumberSpace(coalesced_level));
