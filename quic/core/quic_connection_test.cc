@@ -15699,6 +15699,38 @@ TEST_P(QuicConnectionTest, CoalesceOneRTTPacketWithInitialAndHandshakePackets) {
   EXPECT_EQ(1u, writer_->stream_frames().size());
 }
 
+// Regression test for b/180103273
+TEST_P(QuicConnectionTest, SendMultipleConnectionCloses) {
+  if (!version().HasIetfQuicFrames() ||
+      !GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  // Finish handshake.
+  QuicConnectionPeer::SetAddressValidated(&connection_);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  notifier_.NeuterUnencryptedData();
+  connection_.NeuterUnencryptedPackets();
+  connection_.OnHandshakeComplete();
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.RemoveEncrypter(ENCRYPTION_HANDSHAKE);
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+
+  SendStreamDataToPeer(1, "foo", 0, NO_FIN, nullptr);
+  ASSERT_TRUE(connection_.BlackholeDetectionInProgress());
+  // Verify BeforeConnectionCloseSent gets called twice while OnConnectionClosed
+  // is called once.
+  EXPECT_CALL(visitor_, BeforeConnectionCloseSent()).Times(2);
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  // Send connection close w/o closing connection.
+  QuicConnectionPeer::SendConnectionClosePacket(
+      &connection_, INTERNAL_ERROR, QUIC_INTERNAL_ERROR, "internal error");
+  // Fire blackhole detection alarm.
+  EXPECT_QUIC_BUG(connection_.GetBlackholeDetectorAlarm()->Fire(),
+                  "Already sent connection close");
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

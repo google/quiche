@@ -2255,6 +2255,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const bool flush_after_coalesce_higher_space_packets_ =
       GetQuicReloadableFlag(quic_flush_after_coalesce_higher_space_packets);
 
+  // Records the 1-RTT connection close frame sent.
+  // TODO(b/180103273): remove this after the bug gets fixed.
+  absl::optional<QuicConnectionCloseFrame> connection_close_frame_sent_;
+
   // TODO(b/205023946) Debug-only fields, to be deprecated after the bug is
   // fixed.
   absl::optional<QuicWallTime> quic_bug_10511_43_timestamp_;
