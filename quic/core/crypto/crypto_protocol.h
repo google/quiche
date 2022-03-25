@@ -430,6 +430,9 @@ const QuicTag kSRWP = TAG('S', 'R', 'W', 'P');   // Enable retransmittable on
                                                  // server side.
 const QuicTag kGSR0 = TAG('G', 'S', 'R', '0');   // Selective Resumption
 
+const QuicTag kINVC = TAG('I', 'N', 'V', 'C');   // Send connection close for
+                                                 // INVALID_VERSION
+
 // Client Hints triggers.
 const QuicTag kGWCH = TAG('G', 'W', 'C', 'H');
 const QuicTag kYTCH = TAG('Y', 'T', 'C', 'H');

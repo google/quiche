@@ -2276,6 +2276,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // TODO(b/180103273): remove this after the bug gets fixed.
   absl::optional<QuicConnectionCloseFrame> connection_close_frame_sent_;
 
+  // If true, send connection close packet on INVALID_VERSION.
+  bool send_connection_close_for_invalid_version_ = false;
+
   // TODO(b/205023946) Debug-only fields, to be deprecated after the bug is
   // fixed.
   absl::optional<QuicWallTime> quic_bug_10511_43_timestamp_;

@@ -7049,6 +7049,41 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
               IsError(QUIC_INVALID_VERSION));
 }
 
+TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiationWithConnectionClose) {
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(kINVC);
+  config.SetClientConnectionOptions(connection_options);
+  connection_.SetFromConfig(config);
+
+  // All supported versions except the one the connection supports.
+  ParsedQuicVersionVector versions;
+  for (auto version : AllSupportedVersions()) {
+    if (version != connection_.version()) {
+      versions.push_back(version);
+    }
+  }
+
+  // Send a version negotiation packet.
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      QuicFramer::BuildVersionNegotiationPacket(
+          connection_id_, EmptyQuicConnectionId(),
+          connection_.version().HasIetfInvariantHeader(),
+          connection_.version().HasLengthPrefixedConnectionIds(), versions));
+  std::unique_ptr<QuicReceivedPacket> received(
+      ConstructReceivedPacket(*encrypted, QuicTime::Zero()));
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
+  // Verify connection close packet gets sent.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(1u));
+  connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *received);
+  EXPECT_FALSE(connection_.connected());
+  EXPECT_EQ(1, connection_close_frame_count_);
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_INVALID_VERSION));
+}
+
 TEST_P(QuicConnectionTest, BadVersionNegotiation) {
   // Send a version negotiation packet with the version the client started with.
   // It should be rejected.

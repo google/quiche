@@ -619,6 +619,10 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(kDFER, perspective_)) {
     defer_send_in_response_to_packets_ = false;
   }
+
+  if (config.HasClientRequestedIndependentOption(kINVC, perspective_)) {
+    send_connection_close_for_invalid_version_ = true;
+  }
   const bool remove_connection_migration_connection_option =
       GetQuicReloadableFlag(quic_remove_connection_migration_connection_option);
   if (remove_connection_migration_connection_option) {
@@ -882,7 +886,9 @@ void QuicConnection::OnVersionNegotiationPacket(
           ParsedQuicVersionVectorToString(framer_.supported_versions()),
           "}, peer supported versions: {",
           ParsedQuicVersionVectorToString(packet.versions), "}"),
-      ConnectionCloseBehavior::SILENT_CLOSE);
+      send_connection_close_for_invalid_version_
+          ? ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET
+          : ConnectionCloseBehavior::SILENT_CLOSE);
 }
 
 // Handles retry for client connection.
