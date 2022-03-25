@@ -1504,6 +1504,13 @@ QuicTime::Delta QuicSentPacketManager::GetSlowStartDuration() const {
   return QuicTime::Delta::Infinite();
 }
 
+QuicByteCount QuicSentPacketManager::GetAvailableCongestionWindowInBytes()
+    const {
+  QuicByteCount congestion_window = GetCongestionWindowInBytes();
+  QuicByteCount bytes_in_flight = GetBytesInFlight();
+  return congestion_window - std::min(congestion_window, bytes_in_flight);
+}
+
 std::string QuicSentPacketManager::GetDebugState() const {
   return send_algorithm_->GetDebugState();
 }

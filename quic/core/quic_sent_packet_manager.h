@@ -285,6 +285,11 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return send_algorithm_->GetCongestionWindow();
   }
 
+  // Returns the difference between current congestion window and bytes in
+  // flight. Returns 0 if bytes in flight is bigger than the current congestion
+  // window.
+  QuicByteCount GetAvailableCongestionWindowInBytes() const;
+
   QuicBandwidth GetPacingRate() const {
     return send_algorithm_->PacingRate(GetBytesInFlight());
   }

@@ -4719,6 +4719,23 @@ TEST_F(QuicSentPacketManagerTest, SetInitialRtt) {
             kMinTrustedInitialRoundTripTimeUs);
 }
 
+TEST_F(QuicSentPacketManagerTest, GetAvailableCongestionWindow) {
+  SendDataPacket(1);
+  EXPECT_EQ(kDefaultLength, manager_.GetBytesInFlight());
+
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillOnce(Return(kDefaultLength + 10));
+  EXPECT_EQ(10u, manager_.GetAvailableCongestionWindowInBytes());
+
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillOnce(Return(kDefaultLength));
+  EXPECT_EQ(0u, manager_.GetAvailableCongestionWindowInBytes());
+
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillOnce(Return(kDefaultLength - 10));
+  EXPECT_EQ(0u, manager_.GetAvailableCongestionWindowInBytes());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
