@@ -1,5 +1,8 @@
 #include "http2/adapter/header_validator.h"
 
+#include <utility>
+#include <vector>
+
 #include "absl/strings/str_cat.h"
 #include "absl/types/optional.h"
 #include "common/platform/api/quiche_test.h"
@@ -485,6 +488,24 @@ TEST(HeaderValidatorTest, TeHeader) {
   v.StartHeaderBlock();
   EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
             v.ValidateSingleHeader("te", "trailers, deflate"));
+}
+
+TEST(HeaderValidatorTest, ConnectionSpecificHeaders) {
+  const std::vector<Header> connection_headers = {
+      {"connection", "keep-alive"}, {"proxy-connection", "keep-alive"},
+      {"keep-alive", "timeout=42"}, {"transfer-encoding", "chunked"},
+      {"upgrade", "h2c"},
+  };
+  for (const auto& [connection_key, connection_value] : connection_headers) {
+    HeaderValidator v;
+    v.StartHeaderBlock();
+    for (const auto& [sample_key, sample_value] : kSampleRequestPseudoheaders) {
+      EXPECT_EQ(HeaderValidator::HEADER_OK,
+                v.ValidateSingleHeader(sample_key, sample_value));
+    }
+    EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+              v.ValidateSingleHeader(connection_key, connection_value));
+  }
 }
 
 }  // namespace test

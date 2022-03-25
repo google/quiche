@@ -4,6 +4,7 @@
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
+#include "http2/http2_constants.h"
 #include "common/platform/api/quiche_logging.h"
 
 namespace http2 {
@@ -181,6 +182,10 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
       return HEADER_FIELD_INVALID;
     }
   } else if (key == "te" && value != "trailers") {
+    return HEADER_FIELD_INVALID;
+  } else if (key == "upgrade" || GetInvalidHttp2HeaderSet().contains(key)) {
+    // TODO(b/78024822): Remove the "upgrade" here once it's added to
+    // GetInvalidHttp2HeaderSet().
     return HEADER_FIELD_INVALID;
   }
   return HEADER_OK;
