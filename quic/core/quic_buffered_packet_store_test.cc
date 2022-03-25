@@ -30,6 +30,7 @@ const absl::optional<ParsedClientHello> kDefaultParsedChlo =
 using BufferedPacket = QuicBufferedPacketStore::BufferedPacket;
 using BufferedPacketList = QuicBufferedPacketStore::BufferedPacketList;
 using EnqueuePacketResult = QuicBufferedPacketStore::EnqueuePacketResult;
+using ::testing::ElementsAre;
 class QuicBufferedPacketStoreVisitor
     : public QuicBufferedPacketStore::VisitorInterface {
  public:
@@ -490,8 +491,7 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
       connection_id, valid_version_, *packets[1], &alpns, &sni,
       &resumption_attempted, &early_data_attempted));
 
-  ASSERT_EQ(alpns.size(), 1u);
-  EXPECT_EQ(alpns[0], AlpnForVersion(valid_version_));
+  EXPECT_THAT(alpns, ElementsAre(AlpnForVersion(valid_version_)));
   EXPECT_EQ(sni, TestHostname());
 
   EXPECT_FALSE(resumption_attempted);
