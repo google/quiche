@@ -625,7 +625,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     QUIC_RELOADABLE_FLAG_COUNT(
         quic_remove_connection_migration_connection_option);
   }
-  if (framer_.version().HasIetfQuicFrames() &&
+  if (framer_.version().HasIetfQuicFrames() && use_path_validator_ &&
       count_bytes_on_alternative_path_separately_ &&
       GetQuicReloadableFlag(quic_server_reverse_validate_new_path3) &&
       (remove_connection_migration_connection_option ||
@@ -1751,8 +1751,19 @@ bool QuicConnection::OnPathResponseFrame(const QuicPathResponseFrame& frame) {
     debug_visitor_->OnPathResponseFrame(frame);
   }
   MaybeUpdateAckTimeout();
+  if (use_path_validator_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_pass_path_response_to_validator, 1, 4);
     path_validator_.OnPathResponse(
         frame.data_buffer, last_received_packet_info_.destination_address);
+  } else {
+    if (!transmitted_connectivity_probe_payload_ ||
+        *transmitted_connectivity_probe_payload_ != frame.data_buffer) {
+      // Is not for the probe we sent, ignore it.
+      return true;
+    }
+    // Have received the matching PATH RESPONSE, saved payload no longer valid.
+    transmitted_connectivity_probe_payload_ = nullptr;
+  }
   return connected_;
 }
 
@@ -2237,6 +2248,8 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
   QUICHE_DCHECK(version().HasIetfInvariantHeader());
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
 
+  if (use_path_validator_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_pass_path_response_to_validator, 4, 4);
     if (!IsDefaultPath(last_received_packet_info_.destination_address,
                        last_received_packet_info_.source_address)) {
       // This packet is received on a probing path. Do not close connection.
@@ -2252,6 +2265,12 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
       }
       return;
     }
+  } else if (!visitor_->ValidateStatelessReset(
+                 last_received_packet_info_.destination_address,
+                 last_received_packet_info_.source_address)) {
+    // This packet is received on a probing path. Do not close connection.
+    return;
+  }
 
   const std::string error_details = "Received stateless reset.";
   QUIC_CODE_COUNT(quic_tear_down_local_connection_on_stateless_reset);
@@ -3518,7 +3537,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       // The write failed, but the writer is not blocked, so return true.
       return true;
     }
-    if (!send_on_current_path) {
+    if (use_path_validator_ && !send_on_current_path) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_pass_path_response_to_validator, 2, 4);
       // Only handle MSG_TOO_BIG as error on current path.
       return true;
     }
@@ -4592,8 +4612,10 @@ void QuicConnection::TearDownLocalConnectionState(
   // Cancel the alarms so they don't trigger any action now that the
   // connection is closed.
   CancelAllAlarms();
+  if (use_path_validator_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_pass_path_response_to_validator, 3, 4);
     CancelPathValidation();
-
+  }
   peer_issued_cid_manager_.reset();
   self_issued_cid_manager_.reset();
 }
@@ -5005,12 +5027,16 @@ bool QuicConnection::SendConnectivityProbingPacket(
   } else {
     // IETF QUIC path challenge.
     // Send a path probe request using IETF QUIC PATH_CHALLENGE frame.
-    QuicPathFrameBuffer transmitted_connectivity_probe_payload;
-    random_generator_->RandBytes(&transmitted_connectivity_probe_payload,
+    transmitted_connectivity_probe_payload_ =
+        std::make_unique<QuicPathFrameBuffer>();
+    random_generator_->RandBytes(transmitted_connectivity_probe_payload_.get(),
                                  sizeof(QuicPathFrameBuffer));
     probing_packet =
         packet_creator_.SerializePathChallengeConnectivityProbingPacket(
-            transmitted_connectivity_probe_payload);
+            *transmitted_connectivity_probe_payload_);
+    if (!probing_packet) {
+      transmitted_connectivity_probe_payload_ = nullptr;
+    }
   }
   QUICHE_DCHECK_EQ(IsRetransmittable(*probing_packet), NO_RETRANSMITTABLE_DATA);
   return WritePacketUsingWriter(std::move(probing_packet), probing_writer,
@@ -6471,6 +6497,7 @@ QuicTime QuicConnection::GetRetryTimeout(
 void QuicConnection::ValidatePath(
     std::unique_ptr<QuicPathValidationContext> context,
     std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate) {
+  QUICHE_DCHECK(use_path_validator_);
   if (!connection_migration_use_new_cid_ &&
       perspective_ == Perspective::IS_CLIENT &&
       !IsDefaultPath(context->self_address(), context->peer_address())) {
@@ -6587,14 +6614,17 @@ void QuicConnection::SendPingAtLevel(EncryptionLevel level) {
 }
 
 bool QuicConnection::HasPendingPathValidation() const {
+  QUICHE_DCHECK(use_path_validator_);
   return path_validator_.HasPendingPathValidation();
 }
 
 QuicPathValidationContext* QuicConnection::GetPathValidationContext() const {
+  QUICHE_DCHECK(use_path_validator_);
   return path_validator_.GetContext();
 }
 
 void QuicConnection::CancelPathValidation() {
+  QUICHE_DCHECK(use_path_validator_);
   path_validator_.CancelPathValidation();
 }
 

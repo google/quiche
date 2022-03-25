@@ -289,7 +289,8 @@ bool QuicClientBase::MigrateSocketWithSpecifiedPort(
 
 bool QuicClientBase::ValidateAndMigrateSocket(const QuicIpAddress& new_host) {
   QUICHE_DCHECK(VersionHasIetfQuicFrames(
-      session_->connection()->version().transport_version));
+                    session_->connection()->version().transport_version) &&
+                session_->connection()->use_path_validator());
   if (!connected()) {
     return false;
   }

@@ -141,6 +141,12 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // bandwidth.  Returns true if data was sent, false otherwise.
   virtual bool SendProbingData() = 0;
 
+  // Called when stateless reset packet is received. Returns true if the
+  // connection needs to be closed.
+  virtual bool ValidateStatelessReset(
+      const quic::QuicSocketAddress& self_address,
+      const quic::QuicSocketAddress& peer_address) = 0;
+
   // Called when the connection experiences a change in congestion window.
   virtual void OnCongestionWindowChange(QuicTime now) = 0;
 
@@ -1147,6 +1153,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Can only be set if this is a client connection.
   void EnableLegacyVersionEncapsulation(const std::string& server_name);
 
+  bool use_path_validator() const { return use_path_validator_; }
+
   // If now is close to idle timeout, returns true and sends a connectivity
   // probing packet to test the connection for liveness. Otherwise, returns
   // false.
@@ -2137,6 +2145,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Time this connection can release packets into the future.
   QuicTime::Delta release_time_into_future_;
 
+  // Payload of most recently transmitted IETF QUIC connectivity
+  // probe packet (the PATH_CHALLENGE payload). This implementation transmits
+  // only one PATH_CHALLENGE per connectivity probe, so only one
+  // QuicPathFrameBuffer is needed.
+  std::unique_ptr<QuicPathFrameBuffer> transmitted_connectivity_probe_payload_;
+
   // Payloads that were received in the most recent probe. This needs to be a
   // Deque because the peer might no be using this implementation, and others
   // might send a packet with more than one PATH_CHALLENGE, so all need to be
@@ -2194,6 +2208,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   size_t anti_amplification_factor_ =
       GetQuicFlag(FLAGS_quic_anti_amplification_factor);
+
+  bool use_path_validator_ =
+      GetQuicReloadableFlag(quic_pass_path_response_to_validator);
 
   // True if AckFrequencyFrame is supported.
   bool can_receive_ack_frequency_frame_ = false;
