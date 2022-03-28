@@ -50,13 +50,6 @@ bool AllCharsInMap(absl::string_view str, const CharMap& map) {
   return true;
 }
 
-// Returns whether `authority` contains only characters from the `host` ABNF
-// from RFC 3986 section 3.2.2.
-bool IsValidAuthority(absl::string_view authority) {
-  static const CharMap valid_chars = BuildValidCharMap(kValidAuthorityChars);
-  return AllCharsInMap(authority, valid_chars);
-}
-
 bool IsValidHeaderName(absl::string_view name) {
   static const CharMap valid_chars =
       BuildValidCharMap(kHttp2HeaderNameAllowedChars);
@@ -127,6 +120,7 @@ void HeaderValidator::StartHeaderBlock() {
   status_.clear();
   method_.clear();
   path_.clear();
+  authority_ = absl::nullopt;
   content_length_.reset();
 }
 
@@ -166,7 +160,7 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
       status_ = std::string(value);
     } else if (key == ":method") {
       method_ = std::string(value);
-    } else if (key == ":authority" && !IsValidAuthority(value)) {
+    } else if (key == ":authority" && !ValidateAndSetAuthority(value)) {
       return HEADER_FIELD_INVALID;
     } else if (key == ":path") {
       if (value.empty()) {
@@ -176,6 +170,17 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
       path_ = std::string(value);
     }
     pseudo_headers_.push_back(std::string(key));
+  } else if (key == "host") {
+    if (!status_.empty()) {
+      // Response headers can contain "Host".
+    } else {
+      if (!authority_.has_value()) {
+        pseudo_headers_.push_back(std::string(":authority"));
+      }
+      if (!ValidateAndSetAuthority(value)) {
+        return HEADER_FIELD_INVALID;
+      }
+    }
   } else if (key == "content-length") {
     const bool success = HandleContentLength(value);
     if (!success) {
@@ -231,6 +236,20 @@ bool HeaderValidator::HandleContentLength(absl::string_view value) {
   }
 
   content_length_ = content_length;
+  return true;
+}
+
+// Returns whether `authority` contains only characters from the `host` ABNF
+// from RFC 3986 section 3.2.2.
+bool HeaderValidator::ValidateAndSetAuthority(absl::string_view authority) {
+  static const CharMap valid_chars = BuildValidCharMap(kValidAuthorityChars);
+  if (!AllCharsInMap(authority, valid_chars)) {
+    return false;
+  }
+  if (authority_.has_value() && authority != authority_.value()) {
+    return false;
+  }
+  authority_ = std::string(authority);
   return true;
 }
 

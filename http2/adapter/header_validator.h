@@ -50,8 +50,10 @@ class QUICHE_EXPORT_PRIVATE HeaderValidator {
 
  private:
   bool HandleContentLength(absl::string_view value);
+  bool ValidateAndSetAuthority(absl::string_view authority);
 
   std::vector<std::string> pseudo_headers_;
+  absl::optional<std::string> authority_ = absl::nullopt;
   std::string status_;
   std::string method_;
   std::string path_;
