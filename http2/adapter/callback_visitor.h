@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
@@ -18,6 +19,9 @@ namespace adapter {
 // data" pointer, and invokes the callbacks according to HTTP/2 events received.
 class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
  public:
+  // Called when the visitor receives a close event for `stream_id`.
+  using StreamCloseListener = std::function<void(Http2StreamId stream_id)>;
+
   explicit CallbackVisitor(Perspective perspective,
                            const nghttp2_session_callbacks& callbacks,
                            void* user_data);
@@ -71,6 +75,10 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
 
   size_t stream_map_size() const { return stream_map_.size(); }
 
+  void set_stream_close_listener(StreamCloseListener stream_close_listener) {
+    stream_close_listener_ = std::move(stream_close_listener);
+  }
+
  private:
   struct QUICHE_EXPORT_PRIVATE StreamInfo {
     bool before_sent_headers = false;
@@ -88,6 +96,8 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
   StreamInfoMap::iterator GetStreamInfo(Http2StreamId stream_id);
 
   StreamInfoMap stream_map_;
+
+  StreamCloseListener stream_close_listener_;
 
   Perspective perspective_;
   nghttp2_session_callbacks_unique_ptr callbacks_;

@@ -143,6 +143,8 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   adapter->SetStreamUserData(stream_id2, const_cast<char*>(kSentinel2));
   adapter->SetStreamUserData(stream_id3, nullptr);
 
+  EXPECT_EQ(adapter->sources_size(), 3);
+
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id2, _, 0x5));
@@ -205,7 +207,11 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   EXPECT_CALL(visitor, OnDataForStream(1, "This is the response body."));
   EXPECT_CALL(visitor, OnFrameHeader(3, 4, RST_STREAM, 0));
   EXPECT_CALL(visitor, OnRstStream(3, Http2ErrorCode::INTERNAL_ERROR));
-  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::INTERNAL_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::INTERNAL_ERROR))
+      .WillOnce(
+          [&adapter](Http2StreamId stream_id, Http2ErrorCode /*error_code*/) {
+            adapter->RemoveStream(stream_id);
+          });
   EXPECT_CALL(visitor, OnFrameHeader(0, 19, GOAWAY, 0));
   EXPECT_CALL(visitor,
               OnGoAway(5, Http2ErrorCode::ENHANCE_YOUR_CALM, "calm down!!"));
@@ -220,6 +226,9 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   // Third stream has not received any data.
   EXPECT_EQ(kInitialFlowControlWindowSize,
             adapter->GetStreamReceiveWindowSize(stream_id3));
+
+  // One stream was closed.
+  EXPECT_EQ(adapter->sources_size(), 2);
 
   // Connection window should be the same as the first stream.
   EXPECT_EQ(adapter->GetReceiveWindowSize(),
@@ -241,10 +250,18 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   EXPECT_CALL(visitor, OnFrameHeader(1, 0, DATA, 1));
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 0));
   EXPECT_CALL(visitor, OnEndStream(1));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR))
+      .WillOnce(
+          [&adapter](Http2StreamId stream_id, Http2ErrorCode /*error_code*/) {
+            adapter->RemoveStream(stream_id);
+          });
   EXPECT_CALL(visitor, OnFrameHeader(5, 4, RST_STREAM, 0));
   EXPECT_CALL(visitor, OnRstStream(5, Http2ErrorCode::REFUSED_STREAM));
-  EXPECT_CALL(visitor, OnCloseStream(5, Http2ErrorCode::REFUSED_STREAM));
+  EXPECT_CALL(visitor, OnCloseStream(5, Http2ErrorCode::REFUSED_STREAM))
+      .WillOnce(
+          [&adapter](Http2StreamId stream_id, Http2ErrorCode /*error_code*/) {
+            adapter->RemoveStream(stream_id);
+          });
   adapter->ProcessBytes(TestFrameSequence()
                             .Data(1, "", true)
                             .RstStream(5, Http2ErrorCode::REFUSED_STREAM)
@@ -256,6 +273,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   // After receiving END_STREAM for 1 and RST_STREAM for 5, the session no
   // longer expects reads.
   EXPECT_FALSE(adapter->want_read());
+  EXPECT_EQ(adapter->sources_size(), 0);
 
   // Client will not have anything else to write.
   EXPECT_FALSE(adapter->want_write());

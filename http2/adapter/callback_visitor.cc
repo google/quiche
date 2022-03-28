@@ -263,6 +263,9 @@ void CallbackVisitor::OnCloseStream(Http2StreamId stream_id,
         nullptr, stream_id, static_cast<uint32_t>(error_code), user_data_);
   }
   stream_map_.erase(stream_id);
+  if (stream_close_listener_) {
+    stream_close_listener_(stream_id);
+  }
 }
 
 void CallbackVisitor::OnPriorityForStream(Http2StreamId /*stream_id*/,

@@ -1,5 +1,7 @@
 #include "http2/adapter/callback_visitor.h"
 
+#include "absl/container/flat_hash_map.h"
+#include "http2/adapter/http2_protocol.h"
 #include "http2/adapter/mock_nghttp2_callbacks.h"
 #include "http2/adapter/nghttp2_test_utils.h"
 #include "http2/adapter/test_utils.h"
@@ -11,6 +13,9 @@ namespace test {
 namespace {
 
 using testing::_;
+using testing::IsEmpty;
+using testing::Pair;
+using testing::UnorderedElementsAre;
 
 enum FrameType {
   DATA,
@@ -78,6 +83,11 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
   testing::StrictMock<MockNghttp2Callbacks> callbacks;
   CallbackVisitor visitor(Perspective::kClient,
                           *MockNghttp2Callbacks::GetCallbacks(), &callbacks);
+  absl::flat_hash_map<Http2StreamId, int> stream_close_counts;
+  visitor.set_stream_close_listener(
+      [&stream_close_counts](Http2StreamId stream_id) {
+        ++stream_close_counts[stream_id];
+      });
 
   testing::InSequence seq;
 
@@ -131,18 +141,23 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
   EXPECT_CALL(callbacks, OnFrameRecv(IsHeaders(1, _, NGHTTP2_HCAT_HEADERS)));
   visitor.OnEndHeadersForStream(1);
 
+  EXPECT_THAT(stream_close_counts, IsEmpty());
+
   // RST_STREAM on stream 3
   EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(3, RST_STREAM, 0)));
   visitor.OnFrameHeader(3, 4, RST_STREAM, 0);
 
   // No change in stream map size.
   EXPECT_EQ(visitor.stream_map_size(), 1);
+  EXPECT_THAT(stream_close_counts, IsEmpty());
 
   EXPECT_CALL(callbacks, OnFrameRecv(IsRstStream(3, NGHTTP2_INTERNAL_ERROR)));
   visitor.OnRstStream(3, Http2ErrorCode::INTERNAL_ERROR);
 
   EXPECT_CALL(callbacks, OnStreamClose(3, NGHTTP2_INTERNAL_ERROR));
   visitor.OnCloseStream(3, Http2ErrorCode::INTERNAL_ERROR);
+
+  EXPECT_THAT(stream_close_counts, UnorderedElementsAre(Pair(3, 1)));
 
   // More stream close events
   EXPECT_CALL(callbacks,
@@ -156,8 +171,10 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
   EXPECT_CALL(callbacks, OnStreamClose(1, NGHTTP2_NO_ERROR));
   visitor.OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR);
 
-  // Stream map is empty again.
+  // Stream map is empty again after both streams were closed.
   EXPECT_EQ(visitor.stream_map_size(), 0);
+  EXPECT_THAT(stream_close_counts,
+              UnorderedElementsAre(Pair(3, 1), Pair(1, 1)));
 
   EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(5, RST_STREAM, _)));
   visitor.OnFrameHeader(5, 4, RST_STREAM, 0);
@@ -169,6 +186,8 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
   visitor.OnCloseStream(5, Http2ErrorCode::REFUSED_STREAM);
 
   EXPECT_EQ(visitor.stream_map_size(), 0);
+  EXPECT_THAT(stream_close_counts,
+              UnorderedElementsAre(Pair(3, 1), Pair(1, 1), Pair(5, 1)));
 }
 
 TEST(ClientCallbackVisitorUnitTest, HeadersWithContinuation) {

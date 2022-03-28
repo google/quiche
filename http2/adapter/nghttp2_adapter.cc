@@ -220,7 +220,6 @@ int32_t NgHttp2Adapter::SubmitRequest(
   int32_t stream_id =
       nghttp2_submit_request(session_->raw_ptr(), nullptr, nvs.data(),
                              nvs.size(), provider.get(), stream_user_data);
-  // TODO(birenroy): clean up data source on stream close
   sources_.emplace(stream_id, std::move(data_source));
   QUICHE_VLOG(1) << "Submitted request with " << nvs.size()
                  << " request headers and user data " << stream_user_data
@@ -235,7 +234,6 @@ int NgHttp2Adapter::SubmitResponse(
   std::unique_ptr<nghttp2_data_provider> provider =
       MakeDataProvider(data_source.get());
 
-  // TODO(birenroy): clean up data source on stream close
   sources_.emplace(stream_id, std::move(data_source));
 
   int result = nghttp2_submit_response(session_->raw_ptr(), stream_id,
@@ -267,6 +265,10 @@ void* NgHttp2Adapter::GetStreamUserData(Http2StreamId stream_id) {
 
 bool NgHttp2Adapter::ResumeStream(Http2StreamId stream_id) {
   return 0 == nghttp2_session_resume_data(session_->raw_ptr(), stream_id);
+}
+
+void NgHttp2Adapter::RemoveStream(Http2StreamId stream_id) {
+  sources_.erase(stream_id);
 }
 
 NgHttp2Adapter::NgHttp2Adapter(Http2VisitorInterface& visitor,

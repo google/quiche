@@ -88,6 +88,12 @@ class QUICHE_EXPORT_PRIVATE NgHttp2Adapter : public Http2Adapter {
 
   bool ResumeStream(Http2StreamId stream_id) override;
 
+  // Removes references to the `stream_id` from this adapter.
+  void RemoveStream(Http2StreamId stream_id);
+
+  // Accessor for testing.
+  size_t sources_size() const { return sources_.size(); }
+
  private:
   NgHttp2Adapter(Http2VisitorInterface& visitor, Perspective perspective,
                  const nghttp2_option* options);
