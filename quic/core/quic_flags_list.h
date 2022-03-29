@@ -19,8 +19,6 @@ QUIC_FLAG(FLAGS_quic_restart_flag_quic_testonly_default_false, false)
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_testonly_default_true, true)
 // If bytes in flight has dipped below 1.25*MaxBW in the last round, do not exit PROBE_UP due to excess queue buildup.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_no_probe_up_exit_if_no_queue, true)
-// If true, 1) NEW_TOKENs sent from a IETF QUIC session will include the cached network parameters proto, 2) A min_rtt received from a validated token will be used to set the initial rtt, 3) Enable bandwidth resumption for IETF QUIC when connection options BWRE or BWMX exists.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_cached_network_parameters_to_address_token2, true)
 // If true, 1) QUIC connections will use a lower minimum for trusted initial rtt, 2) When TRTT is received, QUIC server sessions will mark the initial rtt from CachedNetworkParameters as trusted.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_lower_min_for_trusted_irtt, true)
 // If true, QUIC connection will be closed if it fails to serialize a coalesced packet.

@@ -1661,30 +1661,26 @@ TEST_P(EndToEndTest, AddressToken) {
         static_cast<const QuicCryptoServerStreamBase*>(
             server_session->GetCryptoStream())
             ->PreviousCachedNetworkParams();
-    if (GetQuicReloadableFlag(
-            quic_add_cached_network_parameters_to_address_token2)) {
-      ASSERT_NE(server_received_network_params, nullptr);
-      // QuicSentPacketManager::SetInitialRtt clamps the initial_rtt to between
-      // [min_initial_rtt, max_initial_rtt].
-      const QuicTime::Delta min_initial_rtt =
-          server_connection->sent_packet_manager().use_lower_min_irtt()
-              ? QuicTime::Delta::FromMicroseconds(
-                    kMinTrustedInitialRoundTripTimeUs)
-              : QuicTime::Delta::FromMicroseconds(
-                    kMinUntrustedInitialRoundTripTimeUs);
-      const QuicTime::Delta max_initial_rtt =
-          QuicTime::Delta::FromMicroseconds(kMaxInitialRoundTripTimeUs);
-      const QuicTime::Delta expected_initial_rtt =
-          std::max(min_initial_rtt,
-                   std::min(max_initial_rtt,
-                            QuicTime::Delta::FromMilliseconds(
-                                server_received_network_params->min_rtt_ms())));
-      EXPECT_EQ(
-          server_connection->sent_packet_manager().GetRttStats()->initial_rtt(),
-          expected_initial_rtt);
-    } else {
-      EXPECT_EQ(server_received_network_params, nullptr);
-    }
+
+    ASSERT_NE(server_received_network_params, nullptr);
+    // QuicSentPacketManager::SetInitialRtt clamps the initial_rtt to between
+    // [min_initial_rtt, max_initial_rtt].
+    const QuicTime::Delta min_initial_rtt =
+        server_connection->sent_packet_manager().use_lower_min_irtt()
+            ? QuicTime::Delta::FromMicroseconds(
+                  kMinTrustedInitialRoundTripTimeUs)
+            : QuicTime::Delta::FromMicroseconds(
+                  kMinUntrustedInitialRoundTripTimeUs);
+    const QuicTime::Delta max_initial_rtt =
+        QuicTime::Delta::FromMicroseconds(kMaxInitialRoundTripTimeUs);
+    const QuicTime::Delta expected_initial_rtt =
+        std::max(min_initial_rtt,
+                 std::min(max_initial_rtt,
+                          QuicTime::Delta::FromMilliseconds(
+                              server_received_network_params->min_rtt_ms())));
+    EXPECT_EQ(
+        server_connection->sent_packet_manager().GetRttStats()->initial_rtt(),
+        expected_initial_rtt);
   } else {
     ADD_FAILURE() << "Missing server connection";
   }
@@ -1747,72 +1743,6 @@ TEST_P(EndToEndTest, AddressToken) {
   server_thread_->Resume();
 
   client_->Disconnect();
-}
-
-TEST_P(EndToEndTest, AddressTokenRefreshedByServer) {
-  SetQuicReloadableFlag(quic_add_cached_network_parameters_to_address_token2,
-                        true);
-  ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
-    return;
-  }
-
-  QuicCryptoClientConfig* client_crypto_config =
-      client_->client()->crypto_config();
-  QuicServerId server_id = client_->client()->server_id();
-
-  SendSynchronousFooRequestAndCheckResponse();
-  EXPECT_FALSE(GetClientSession()->EarlyDataAccepted());
-
-  client_->Disconnect();
-
-  QuicClientSessionCache* session_cache = static_cast<QuicClientSessionCache*>(
-      client_crypto_config->mutable_session_cache());
-  std::string old_address_token;
-  if (GetQuicReloadableFlag(quic_tls_use_token_in_session_cache)) {
-    old_address_token =
-        QuicClientSessionCachePeer::GetToken(session_cache, server_id);
-  } else {
-    old_address_token =
-        client_crypto_config->LookupOrCreate(server_id)->source_address_token();
-  }
-  ASSERT_TRUE(!old_address_token.empty());
-
-  SetQuicReloadableFlag(quic_add_cached_network_parameters_to_address_token2,
-                        false);
-
-  // The 0-RTT handshake should succeed.
-  client_->Connect();
-  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
-  ASSERT_TRUE(client_->client()->connected());
-  SendSynchronousFooRequestAndCheckResponse();
-
-  EXPECT_TRUE(GetClientSession()->EarlyDataAccepted());
-
-  server_thread_->Pause();
-  QuicSpdySession* server_session = GetServerSession();
-  QuicConnection* server_connection = GetServerConnection();
-  ASSERT_TRUE(server_session != nullptr && server_connection != nullptr);
-  // Verify address is validated via validating token received in INITIAL
-  // packet.
-  EXPECT_FALSE(
-      server_connection->GetStats().address_validated_via_decrypting_packet);
-  EXPECT_TRUE(server_connection->GetStats().address_validated_via_token);
-
-  server_thread_->Resume();
-
-  client_->Disconnect();
-
-  std::string new_address_token;
-  if (GetQuicReloadableFlag(quic_tls_use_token_in_session_cache)) {
-    new_address_token =
-        QuicClientSessionCachePeer::GetToken(session_cache, server_id);
-  } else {
-    new_address_token =
-        client_crypto_config->LookupOrCreate(server_id)->source_address_token();
-  }
-  ASSERT_TRUE(!new_address_token.empty());
-  ASSERT_NE(new_address_token, old_address_token);
 }
 
 // Verify that client does not reuse a source address token.

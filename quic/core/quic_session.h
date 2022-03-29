@@ -624,11 +624,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Latched value of flag --quic_tls_server_support_client_cert.
   bool support_client_cert() const { return support_client_cert_; }
 
-  // Get latched flag value.
-  bool add_cached_network_parameters_to_address_token() const {
-    return add_cached_network_parameters_to_address_token_;
-  }
-
   // Try converting all pending streams to normal streams.
   void ProcessAllPendingStreams();
 
@@ -1012,10 +1007,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // This indicates a liveness testing is in progress, and push back the
   // creation of new outgoing bidirectional streams.
   bool liveness_testing_in_progress_;
-
-  const bool add_cached_network_parameters_to_address_token_ =
-      GetQuicReloadableFlag(
-          quic_add_cached_network_parameters_to_address_token2);
 
   // Whether BoringSSL randomizes the order of TLS extensions.
   bool permutes_tls_extensions_ = true;

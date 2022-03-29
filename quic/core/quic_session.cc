@@ -1669,10 +1669,9 @@ void QuicSession::OnTlsHandshakeComplete() {
 bool QuicSession::MaybeSendAddressToken() {
   QUICHE_DCHECK(perspective_ == Perspective::IS_SERVER &&
                 connection()->version().HasIetfQuicFrames());
-  absl::optional<CachedNetworkParameters> cached_network_params;
-  if (add_cached_network_parameters_to_address_token()) {
-    cached_network_params = GenerateCachedNetworkParameters();
-  }
+  absl::optional<CachedNetworkParameters> cached_network_params =
+      GenerateCachedNetworkParameters();
+
   std::string address_token = GetCryptoStream()->GetAddressToken(
       cached_network_params.has_value() ? &cached_network_params.value()
                                         : nullptr);
@@ -1687,11 +1686,8 @@ bool QuicSession::MaybeSendAddressToken() {
   writer.WriteBytes(address_token.data(), address_token.length());
   control_frame_manager_.WriteOrBufferNewToken(
       absl::string_view(buffer.get(), buf_len));
-  if (add_cached_network_parameters_to_address_token() &&
-      cached_network_params.has_value()) {
+  if (cached_network_params.has_value()) {
     connection()->OnSendConnectionState(*cached_network_params);
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_add_cached_network_parameters_to_address_token2, 1, 2);
   }
   return true;
 }
@@ -2658,14 +2654,12 @@ bool QuicSession::ValidateToken(absl::string_view token) {
   }
   const bool valid = GetCryptoStream()->ValidateAddressToken(
       absl::string_view(token.data() + 1, token.length() - 1));
-  if (add_cached_network_parameters_to_address_token() && valid) {
+  if (valid) {
     const CachedNetworkParameters* cached_network_params =
         GetCryptoStream()->PreviousCachedNetworkParams();
     if (cached_network_params != nullptr &&
         cached_network_params->timestamp() > 0) {
       connection()->OnReceiveConnectionState(*cached_network_params);
-      QUIC_RELOADABLE_FLAG_COUNT_N(
-          quic_add_cached_network_parameters_to_address_token2, 2, 2);
     }
   }
   return valid;

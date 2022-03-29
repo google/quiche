@@ -642,11 +642,6 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
     EXPECT_CALL(*quic_crypto_stream,
                 SendServerConfigUpdate(EqualsProto(expected_network_params)))
         .Times(1);
-  } else if (!GetQuicReloadableFlag(
-                 quic_add_cached_network_parameters_to_address_token2)) {
-    EXPECT_CALL(*tls_server_stream,
-                SendServerConfigUpdate(EqualsProto(expected_network_params)))
-        .Times(1);
   } else {
     EXPECT_CALL(*tls_server_stream,
                 GetAddressToken(EqualsProto(expected_network_params)))
