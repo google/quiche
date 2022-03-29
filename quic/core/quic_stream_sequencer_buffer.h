@@ -239,9 +239,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
 
   // Currently received data.
   QuicIntervalSet<QuicStreamOffset> bytes_received_;
-
-  bool delay_allocation_until_new_data_ = GetQuicReloadableFlag(
-      quic_delay_sequencer_buffer_allocation_until_new_data);
 };
 
 }  // namespace quic

@@ -43,8 +43,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_fix_on_stream_reset, true)
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_default_on_pto2, true)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
-// If true, delay block allocation in QuicStreamSequencerBuffer until there is actually new data available.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_delay_sequencer_buffer_allocation_until_new_data, true)
 // If true, disable QUIC version Q043.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_q043, false)
 // If true, disable QUIC version Q046.
