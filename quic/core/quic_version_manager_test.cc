@@ -41,7 +41,6 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   EXPECT_THAT(manager.GetSupportedAlpns(),
               ElementsAre("h3-Q050", "h3-Q046", "h3-Q043"));
 
-  int offset = 0;
   QuicEnableVersion(ParsedQuicVersion::Draft29());
   expected_parsed_versions.insert(expected_parsed_versions.begin(),
                                   ParsedQuicVersion::Draft29());
@@ -54,7 +53,6 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   EXPECT_THAT(manager.GetSupportedAlpns(),
               ElementsAre("h3-29", "h3-Q050", "h3-Q046", "h3-Q043"));
 
-  offset++;
   QuicEnableVersion(ParsedQuicVersion::RFCv1());
   expected_parsed_versions.insert(expected_parsed_versions.begin(),
                                   ParsedQuicVersion::RFCv1());
@@ -67,7 +65,6 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   EXPECT_THAT(manager.GetSupportedAlpns(),
               ElementsAre("h3", "h3-29", "h3-Q050", "h3-Q046", "h3-Q043"));
 
-  offset++;
   QuicEnableVersion(ParsedQuicVersion::V2Draft01());
   expected_parsed_versions.insert(expected_parsed_versions.begin(),
                                   ParsedQuicVersion::V2Draft01());
