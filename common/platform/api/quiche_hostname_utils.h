@@ -7,7 +7,6 @@
 
 #include <string>
 
-#include "quiche_platform_impl/quiche_hostname_utils_impl.h"
 #include "absl/strings/string_view.h"
 #include "common/platform/api/quiche_export.h"
 
