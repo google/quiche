@@ -236,14 +236,13 @@ TEST_F(QuicFramesTest, GoAwayFrameToString) {
 }
 
 TEST_F(QuicFramesTest, WindowUpdateFrameToString) {
-  QuicWindowUpdateFrame window_update;
-  QuicFrame frame(&window_update);
+  QuicFrame frame((QuicWindowUpdateFrame()));
   SetControlFrameId(3, &frame);
   EXPECT_EQ(3u, GetControlFrameId(frame));
   std::ostringstream stream;
-  window_update.stream_id = 1;
-  window_update.max_data = 2;
-  stream << window_update;
+  frame.window_update_frame.stream_id = 1;
+  frame.window_update_frame.max_data = 2;
+  stream << frame.window_update_frame;
   EXPECT_EQ("{ control_frame_id: 3, stream_id: 1, max_data: 2 }\n",
             stream.str());
   EXPECT_TRUE(IsControlFrame(frame.type));
@@ -562,7 +561,7 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
         frames.push_back(QuicFrame(new QuicGoAwayFrame()));
         break;
       case WINDOW_UPDATE_FRAME:
-        frames.push_back(QuicFrame(new QuicWindowUpdateFrame()));
+        frames.push_back(QuicFrame(QuicWindowUpdateFrame()));
         break;
       case BLOCKED_FRAME:
         frames.push_back(QuicFrame(new QuicBlockedFrame()));

@@ -673,7 +673,7 @@ size_t QuicFramer::GetRetransmittableControlFrameSize(
       // For IETF QUIC, this could be either a MAX DATA or MAX STREAM DATA.
       // GetWindowUpdateFrameSize figures this out and returns the correct
       // length.
-      return GetWindowUpdateFrameSize(version, *frame.window_update_frame);
+      return GetWindowUpdateFrameSize(version, frame.window_update_frame);
     case BLOCKED_FRAME:
       return GetBlockedFrameSize(version, *frame.blocked_frame);
     case NEW_CONNECTION_ID_FRAME:
@@ -972,7 +972,7 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
         }
         break;
       case WINDOW_UPDATE_FRAME:
-        if (!AppendWindowUpdateFrame(*frame.window_update_frame, &writer)) {
+        if (!AppendWindowUpdateFrame(frame.window_update_frame, &writer)) {
           QUIC_BUG(quic_bug_10850_25) << "AppendWindowUpdateFrame failed";
           return 0;
         }
@@ -1124,15 +1124,15 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
       case WINDOW_UPDATE_FRAME:
         // Depending on whether there is a stream ID or not, will be either a
         // MAX STREAM DATA frame or a MAX DATA frame.
-        if (frame.window_update_frame->stream_id ==
+        if (frame.window_update_frame.stream_id ==
             QuicUtils::GetInvalidStreamId(transport_version())) {
-          if (!AppendMaxDataFrame(*frame.window_update_frame, writer)) {
+          if (!AppendMaxDataFrame(frame.window_update_frame, writer)) {
             QUIC_BUG(quic_bug_10850_38)
                 << "AppendMaxDataFrame failed: " << detailed_error();
             return 0;
           }
         } else {
-          if (!AppendMaxStreamDataFrame(*frame.window_update_frame, writer)) {
+          if (!AppendMaxStreamDataFrame(frame.window_update_frame, writer)) {
             QUIC_BUG(quic_bug_10850_39)
                 << "AppendMaxStreamDataFrame failed: " << detailed_error();
             return 0;
@@ -5263,7 +5263,7 @@ bool QuicFramer::AppendIetfFrameType(const QuicFrame& frame,
     case WINDOW_UPDATE_FRAME:
       // Depending on whether there is a stream ID or not, will be either a
       // MAX_STREAM_DATA frame or a MAX_DATA frame.
-      if (frame.window_update_frame->stream_id ==
+      if (frame.window_update_frame.stream_id ==
           QuicUtils::GetInvalidStreamId(transport_version())) {
         type_byte = IETF_MAX_DATA;
       } else {

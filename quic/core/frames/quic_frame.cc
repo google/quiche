@@ -47,8 +47,8 @@ QuicFrame::QuicFrame(QuicConnectionCloseFrame* frame)
 QuicFrame::QuicFrame(QuicGoAwayFrame* frame)
     : type(GOAWAY_FRAME), goaway_frame(frame) {}
 
-QuicFrame::QuicFrame(QuicWindowUpdateFrame* frame)
-    : type(WINDOW_UPDATE_FRAME), window_update_frame(frame) {}
+QuicFrame::QuicFrame(QuicWindowUpdateFrame frame)
+    : window_update_frame(frame) {}
 
 QuicFrame::QuicFrame(QuicBlockedFrame* frame)
     : type(BLOCKED_FRAME), blocked_frame(frame) {}
@@ -96,7 +96,8 @@ void DeleteFrame(QuicFrame* frame) {
       frame->type != PING_FRAME && frame->type != MAX_STREAMS_FRAME &&
       frame->type != STOP_WAITING_FRAME &&
       frame->type != STREAMS_BLOCKED_FRAME && frame->type != STREAM_FRAME &&
-      frame->type != HANDSHAKE_DONE_FRAME) {
+      frame->type != HANDSHAKE_DONE_FRAME &&
+      frame->type != WINDOW_UPDATE_FRAME) {
     QUICHE_CHECK(!frame->delete_forbidden) << *frame;
   }
 #endif  // QUIC_FRAME_DEBUG
@@ -110,6 +111,7 @@ void DeleteFrame(QuicFrame* frame) {
     case STREAMS_BLOCKED_FRAME:
     case STREAM_FRAME:
     case HANDSHAKE_DONE_FRAME:
+    case WINDOW_UPDATE_FRAME:
       break;
     case ACK_FRAME:
       delete frame->ack_frame;
@@ -125,9 +127,6 @@ void DeleteFrame(QuicFrame* frame) {
       break;
     case BLOCKED_FRAME:
       delete frame->blocked_frame;
-      break;
-    case WINDOW_UPDATE_FRAME:
-      delete frame->window_update_frame;
       break;
     case PATH_CHALLENGE_FRAME:
       delete frame->path_challenge_frame;
@@ -200,7 +199,7 @@ QuicControlFrameId GetControlFrameId(const QuicFrame& frame) {
     case GOAWAY_FRAME:
       return frame.goaway_frame->control_frame_id;
     case WINDOW_UPDATE_FRAME:
-      return frame.window_update_frame->control_frame_id;
+      return frame.window_update_frame.control_frame_id;
     case BLOCKED_FRAME:
       return frame.blocked_frame->control_frame_id;
     case STREAMS_BLOCKED_FRAME:
@@ -235,7 +234,7 @@ void SetControlFrameId(QuicControlFrameId control_frame_id, QuicFrame* frame) {
       frame->goaway_frame->control_frame_id = control_frame_id;
       return;
     case WINDOW_UPDATE_FRAME:
-      frame->window_update_frame->control_frame_id = control_frame_id;
+      frame->window_update_frame.control_frame_id = control_frame_id;
       return;
     case BLOCKED_FRAME:
       frame->blocked_frame->control_frame_id = control_frame_id;
@@ -283,7 +282,7 @@ QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame) {
       copy = QuicFrame(new QuicGoAwayFrame(*frame.goaway_frame));
       break;
     case WINDOW_UPDATE_FRAME:
-      copy = QuicFrame(new QuicWindowUpdateFrame(*frame.window_update_frame));
+      copy = QuicFrame(QuicWindowUpdateFrame(frame.window_update_frame));
       break;
     case BLOCKED_FRAME:
       copy = QuicFrame(new QuicBlockedFrame(*frame.blocked_frame));
@@ -345,7 +344,7 @@ QuicFrame CopyQuicFrame(quiche::QuicheBufferAllocator* allocator,
       copy = QuicFrame(new QuicGoAwayFrame(*frame.goaway_frame));
       break;
     case WINDOW_UPDATE_FRAME:
-      copy = QuicFrame(new QuicWindowUpdateFrame(*frame.window_update_frame));
+      copy = QuicFrame(QuicWindowUpdateFrame(frame.window_update_frame));
       break;
     case BLOCKED_FRAME:
       copy = QuicFrame(new QuicBlockedFrame(*frame.blocked_frame));
@@ -449,7 +448,7 @@ std::ostream& operator<<(std::ostream& os, const QuicFrame& frame) {
       break;
     }
     case WINDOW_UPDATE_FRAME: {
-      os << "type { WINDOW_UPDATE_FRAME } " << *(frame.window_update_frame);
+      os << "type { WINDOW_UPDATE_FRAME } " << frame.window_update_frame;
       break;
     }
     case BLOCKED_FRAME: {

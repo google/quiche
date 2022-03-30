@@ -2237,7 +2237,7 @@ TEST_P(QuicSpdySessionTestServer, RetransmitFrames) {
   QuicWindowUpdateFrame window_update(1, stream2->id(), 9);
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1));
-  frames.push_back(QuicFrame(&window_update));
+  frames.push_back(QuicFrame(window_update));
   frames.push_back(QuicFrame(frame2));
   frames.push_back(QuicFrame(frame3));
   EXPECT_FALSE(session_.WillingAndAbleToWrite());

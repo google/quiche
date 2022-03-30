@@ -173,15 +173,15 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
       break;
 
     case WINDOW_UPDATE_FRAME: {
-      bool is_connection = frame.window_update_frame->stream_id == 0;
+      bool is_connection = frame.window_update_frame.stream_id == 0;
       frame_record->set_frame_type(is_connection ? quic_trace::MAX_DATA
                                                  : quic_trace::MAX_STREAM_DATA);
 
       quic_trace::FlowControlInfo* info =
           frame_record->mutable_flow_control_info();
-      info->set_max_data(frame.window_update_frame->max_data);
+      info->set_max_data(frame.window_update_frame.max_data);
       if (!is_connection) {
-        info->set_stream_id(frame.window_update_frame->stream_id);
+        info->set_stream_id(frame.window_update_frame.stream_id);
       }
       break;
     }
@@ -194,7 +194,7 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
       quic_trace::FlowControlInfo* info =
           frame_record->mutable_flow_control_info();
       if (!is_connection) {
-        info->set_stream_id(frame.window_update_frame->stream_id);
+        info->set_stream_id(frame.window_update_frame.stream_id);
       }
       break;
     }
@@ -272,9 +272,7 @@ void QuicTraceVisitor::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame,
   event->set_event_type(quic_trace::PACKET_RECEIVED);
   event->set_packet_number(connection_->GetLargestReceivedPacket().ToUint64());
 
-  // TODO(vasilvv): consider removing this copy.
-  QuicWindowUpdateFrame copy_of_update = frame;
-  PopulateFrameInfo(QuicFrame(&copy_of_update), event->add_frames());
+  PopulateFrameInfo(QuicFrame(frame), event->add_frames());
 }
 
 void QuicTraceVisitor::OnSuccessfulVersionNegotiation(

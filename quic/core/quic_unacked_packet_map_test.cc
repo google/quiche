@@ -556,7 +556,7 @@ TEST_P(QuicUnackedPacketMapTest, CannotAggregateAckedControlFrames) {
   QuicGoAwayFrame go_away(3, QUIC_PEER_GOING_AWAY, 5, "Going away.");
 
   QuicTransmissionInfo info1;
-  info1.retransmittable_frames.push_back(QuicFrame(&window_update));
+  info1.retransmittable_frames.push_back(QuicFrame(window_update));
   info1.retransmittable_frames.push_back(QuicFrame(stream_frame1));
   info1.retransmittable_frames.push_back(QuicFrame(stream_frame2));
 

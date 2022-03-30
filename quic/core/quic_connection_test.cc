@@ -3283,8 +3283,7 @@ TEST_P(QuicConnectionTest, AckNeedsRetransmittableFrames) {
   // WINDOW_UPDATE.
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame())
       .WillOnce(Invoke([this]() {
-        connection_.SendControlFrame(
-            QuicFrame(new QuicWindowUpdateFrame(1, 0, 0)));
+        connection_.SendControlFrame(QuicFrame(QuicWindowUpdateFrame(1, 0, 0)));
       }));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   EXPECT_EQ(0u, writer_->window_update_frames().size());
@@ -3357,8 +3356,7 @@ TEST_P(QuicConnectionTest, AckNeedsRetransmittableFramesAfterPto) {
   // with the ACK.
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame())
       .WillOnce(Invoke([this]() {
-        connection_.SendControlFrame(
-            QuicFrame(new QuicWindowUpdateFrame(1, 0, 0)));
+        connection_.SendControlFrame(QuicFrame(QuicWindowUpdateFrame(1, 0, 0)));
       }));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessDataPacket(11);
@@ -6985,9 +6983,9 @@ TEST_P(QuicConnectionTest, GoAway) {
 TEST_P(QuicConnectionTest, WindowUpdate) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
-  QuicWindowUpdateFrame* window_update = new QuicWindowUpdateFrame();
-  window_update->stream_id = 3;
-  window_update->max_data = 1234;
+  QuicWindowUpdateFrame window_update;
+  window_update.stream_id = 3;
+  window_update.max_data = 1234;
   EXPECT_CALL(visitor_, OnWindowUpdateFrame(_));
   ProcessFramePacket(QuicFrame(window_update));
 }
@@ -7310,9 +7308,9 @@ TEST_P(QuicConnectionTest, WindowUpdateInstigateAcks) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   // Send a WINDOW_UPDATE frame.
-  QuicWindowUpdateFrame* window_update = new QuicWindowUpdateFrame();
-  window_update->stream_id = 3;
-  window_update->max_data = 1234;
+  QuicWindowUpdateFrame window_update;
+  window_update.stream_id = 3;
+  window_update.max_data = 1234;
   EXPECT_CALL(visitor_, OnWindowUpdateFrame(_));
   ProcessFramePacket(QuicFrame(window_update));
 
@@ -10973,7 +10971,7 @@ TEST_P(QuicConnectionTest, DonotChangeQueuedAcks) {
   frames.push_back(QuicFrame(&ack_frame));
   // Receiving stream frame causes something to send.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([this]() {
-    connection_.SendControlFrame(QuicFrame(new QuicWindowUpdateFrame(1, 0, 0)));
+    connection_.SendControlFrame(QuicFrame(QuicWindowUpdateFrame(1, 0, 0)));
     // Verify now the queued ACK contains packet number 2.
     EXPECT_TRUE(QuicPacketCreatorPeer::QueuedFrames(
                     QuicConnectionPeer::GetPacketCreator(&connection_))[0]
@@ -15181,7 +15179,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
         frame = QuicFrame(&blocked_frame);
         break;
       case WINDOW_UPDATE_FRAME:
-        frame = QuicFrame(&window_update_frame);
+        frame = QuicFrame(window_update_frame);
         break;
       case PATH_CHALLENGE_FRAME:
         frame = QuicFrame(&path_challenge_frame);

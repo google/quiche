@@ -4,13 +4,18 @@
 
 #include "quic/core/frames/quic_window_update_frame.h"
 
+#include "quic/core/quic_types.h"
+
 namespace quic {
 
+QuicWindowUpdateFrame::QuicWindowUpdateFrame()
+    : QuicInlinedFrame(WINDOW_UPDATE_FRAME) {}
+
 QuicWindowUpdateFrame::QuicWindowUpdateFrame(
-    QuicControlFrameId control_frame_id,
-    QuicStreamId stream_id,
+    QuicControlFrameId control_frame_id, QuicStreamId stream_id,
     QuicByteCount max_data)
-    : control_frame_id(control_frame_id),
+    : QuicInlinedFrame(WINDOW_UPDATE_FRAME),
+      control_frame_id(control_frame_id),
       stream_id(stream_id),
       max_data(max_data) {}
 

@@ -78,7 +78,7 @@ void QuicControlFrameManager::WriteOrBufferWindowUpdate(
     QuicStreamId id, QuicStreamOffset byte_offset) {
   QUIC_DVLOG(1) << "Writing WINDOW_UPDATE_FRAME";
   WriteOrBufferQuicFrame(QuicFrame(
-      new QuicWindowUpdateFrame(++last_control_frame_id_, id, byte_offset)));
+      QuicWindowUpdateFrame(++last_control_frame_id_, id, byte_offset)));
 }
 
 void QuicControlFrameManager::WriteOrBufferBlocked(QuicStreamId id) {
@@ -160,7 +160,7 @@ void QuicControlFrameManager::OnControlFrameSent(const QuicFrame& frame) {
     return;
   }
   if (frame.type == WINDOW_UPDATE_FRAME) {
-    QuicStreamId stream_id = frame.window_update_frame->stream_id;
+    QuicStreamId stream_id = frame.window_update_frame.stream_id;
     if (window_update_frames_.contains(stream_id) &&
         id > window_update_frames_[stream_id]) {
       // Consider the older window update of the same stream as acked.
@@ -190,7 +190,7 @@ bool QuicControlFrameManager::OnControlFrameAcked(const QuicFrame& frame) {
     return false;
   }
   if (frame.type == WINDOW_UPDATE_FRAME) {
-    QuicStreamId stream_id = frame.window_update_frame->stream_id;
+    QuicStreamId stream_id = frame.window_update_frame.stream_id;
     if (window_update_frames_.contains(stream_id) &&
         window_update_frames_[stream_id] == id) {
       window_update_frames_.erase(stream_id);

@@ -116,8 +116,8 @@ void SimpleSessionNotifier::WriteOrBufferWindowUpate(
   const bool had_buffered_data =
       HasBufferedStreamData() || HasBufferedControlFrames();
   QuicControlFrameId control_frame_id = ++last_control_frame_id_;
-  control_frames_.emplace_back((
-      QuicFrame(new QuicWindowUpdateFrame(control_frame_id, id, byte_offset))));
+  control_frames_.emplace_back(
+      (QuicFrame(QuicWindowUpdateFrame(control_frame_id, id, byte_offset))));
   if (had_buffered_data) {
     QUIC_DLOG(WARNING) << "Connection is write blocked";
     return;

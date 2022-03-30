@@ -9624,7 +9624,7 @@ TEST_P(QuicFramerTest, BuildWindowUpdatePacket) {
   window_update_frame.stream_id = kStreamId;
   window_update_frame.max_data = 0x1122334455667788;
 
-  QuicFrames frames = {QuicFrame(&window_update_frame)};
+  QuicFrames frames = {QuicFrame(window_update_frame)};
 
   // clang-format off
   unsigned char packet[] = {
@@ -9712,7 +9712,7 @@ TEST_P(QuicFramerTest, BuildMaxStreamDataPacket) {
   window_update_frame.stream_id = kStreamId;
   window_update_frame.max_data = 0x1122334455667788;
 
-  QuicFrames frames = {QuicFrame(&window_update_frame)};
+  QuicFrames frames = {QuicFrame(window_update_frame)};
 
   // clang-format off
   unsigned char packet_ietf[] = {
@@ -9758,7 +9758,7 @@ TEST_P(QuicFramerTest, BuildMaxDataPacket) {
       QuicUtils::GetInvalidStreamId(framer_.transport_version());
   window_update_frame.max_data = 0x1122334455667788;
 
-  QuicFrames frames = {QuicFrame(&window_update_frame)};
+  QuicFrames frames = {QuicFrame(window_update_frame)};
 
   // clang-format off
   unsigned char packet_ietf[] = {
@@ -12566,7 +12566,7 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
   EXPECT_EQ(QuicFramer::GetWindowUpdateFrameSize(framer_.transport_version(),
                                                  window_update),
             QuicFramer::GetRetransmittableControlFrameSize(
-                framer_.transport_version(), QuicFrame(&window_update)));
+                framer_.transport_version(), QuicFrame(window_update)));
 
   QuicBlockedFrame blocked(4, 3, 1024);
   EXPECT_EQ(
