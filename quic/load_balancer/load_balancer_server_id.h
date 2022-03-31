@@ -47,7 +47,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerServerId {
   absl::Span<const uint8_t> data() const {
     return absl::MakeConstSpan(data_.data(), length_);
   }
-  inline uint8_t length() const { return length_; }
+  uint8_t length() const { return length_; }
 
   // Returns the server ID in hex format.
   std::string ToString() const;
