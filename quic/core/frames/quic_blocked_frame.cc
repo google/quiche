@@ -4,16 +4,24 @@
 
 #include "quic/core/frames/quic_blocked_frame.h"
 
+#include "quic/core/quic_types.h"
+
 namespace quic {
+
+QuicBlockedFrame::QuicBlockedFrame() : QuicInlinedFrame(BLOCKED_FRAME) {}
 
 QuicBlockedFrame::QuicBlockedFrame(QuicControlFrameId control_frame_id,
                                    QuicStreamId stream_id)
-    : control_frame_id(control_frame_id), stream_id(stream_id), offset(0) {}
+    : QuicInlinedFrame(BLOCKED_FRAME),
+      control_frame_id(control_frame_id),
+      stream_id(stream_id),
+      offset(0) {}
 
 QuicBlockedFrame::QuicBlockedFrame(QuicControlFrameId control_frame_id,
                                    QuicStreamId stream_id,
                                    QuicStreamOffset offset)
-    : control_frame_id(control_frame_id),
+    : QuicInlinedFrame(BLOCKED_FRAME),
+      control_frame_id(control_frame_id),
       stream_id(stream_id),
       offset(offset) {}
 

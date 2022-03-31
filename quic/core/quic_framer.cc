@@ -675,7 +675,7 @@ size_t QuicFramer::GetRetransmittableControlFrameSize(
       // length.
       return GetWindowUpdateFrameSize(version, frame.window_update_frame);
     case BLOCKED_FRAME:
-      return GetBlockedFrameSize(version, *frame.blocked_frame);
+      return GetBlockedFrameSize(version, frame.blocked_frame);
     case NEW_CONNECTION_ID_FRAME:
       return GetNewConnectionIdFrameSize(*frame.new_connection_id_frame);
     case RETIRE_CONNECTION_ID_FRAME:
@@ -978,7 +978,7 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
         }
         break;
       case BLOCKED_FRAME:
-        if (!AppendBlockedFrame(*frame.blocked_frame, &writer)) {
+        if (!AppendBlockedFrame(frame.blocked_frame, &writer)) {
           QUIC_BUG(quic_bug_10850_26) << "AppendBlockedFrame failed";
           return 0;
         }
@@ -1140,7 +1140,7 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         }
         break;
       case BLOCKED_FRAME:
-        if (!AppendBlockedFrame(*frame.blocked_frame, writer)) {
+        if (!AppendBlockedFrame(frame.blocked_frame, writer)) {
           QUIC_BUG(quic_bug_10850_40)
               << "AppendBlockedFrame failed: " << detailed_error();
           return 0;
@@ -5271,7 +5271,7 @@ bool QuicFramer::AppendIetfFrameType(const QuicFrame& frame,
       }
       break;
     case BLOCKED_FRAME:
-      if (frame.blocked_frame->stream_id ==
+      if (frame.blocked_frame.stream_id ==
           QuicUtils::GetInvalidStreamId(transport_version())) {
         type_byte = IETF_DATA_BLOCKED;
       } else {

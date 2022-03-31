@@ -561,7 +561,7 @@ TEST_P(QuicUnackedPacketMapTest, CannotAggregateAckedControlFrames) {
   info1.retransmittable_frames.push_back(QuicFrame(stream_frame2));
 
   QuicTransmissionInfo info2;
-  info2.retransmittable_frames.push_back(QuicFrame(&blocked));
+  info2.retransmittable_frames.push_back(QuicFrame(blocked));
   info2.retransmittable_frames.push_back(QuicFrame(&go_away));
 
   // Verify 2 contiguous stream frames are aggregated.

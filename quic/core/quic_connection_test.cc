@@ -6993,8 +6993,8 @@ TEST_P(QuicConnectionTest, WindowUpdate) {
 TEST_P(QuicConnectionTest, Blocked) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
-  QuicBlockedFrame* blocked = new QuicBlockedFrame();
-  blocked->stream_id = 3;
+  QuicBlockedFrame blocked;
+  blocked.stream_id = 3;
   EXPECT_CALL(visitor_, OnBlockedFrame(_));
   ProcessFramePacket(QuicFrame(blocked));
   EXPECT_EQ(1u, connection_.GetStats().blocked_frames_received);
@@ -7322,8 +7322,8 @@ TEST_P(QuicConnectionTest, BlockedFrameInstigateAcks) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   // Send a BLOCKED frame.
-  QuicBlockedFrame* blocked = new QuicBlockedFrame();
-  blocked->stream_id = 3;
+  QuicBlockedFrame blocked;
+  blocked.stream_id = 3;
   EXPECT_CALL(visitor_, OnBlockedFrame(_));
   ProcessFramePacket(QuicFrame(blocked));
 
@@ -7410,7 +7410,7 @@ TEST_P(QuicConnectionTest, SendBlockedImmediately) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(1);
   EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
-  connection_.SendControlFrame(QuicFrame(new QuicBlockedFrame(1, 3)));
+  connection_.SendControlFrame(QuicFrame(QuicBlockedFrame(1, 3)));
   EXPECT_EQ(1u, connection_.GetStats().blocked_frames_sent);
   EXPECT_FALSE(connection_.HasQueuedData());
 }
@@ -7426,7 +7426,7 @@ TEST_P(QuicConnectionTest, FailedToSendBlockedFrames) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(0);
   EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
-  connection_.SendControlFrame(QuicFrame(&blocked));
+  connection_.SendControlFrame(QuicFrame(blocked));
   EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
   EXPECT_FALSE(connection_.HasQueuedData());
 }
@@ -9599,14 +9599,14 @@ TEST_P(QuicConnectionTest, CoalescedPacketThatSavesFrames) {
         .Times(3)
         .WillRepeatedly([this](const QuicCryptoFrame& /*frame*/) {
           // QuicFrame takes ownership of the QuicBlockedFrame.
-          connection_.SendControlFrame(QuicFrame(new QuicBlockedFrame(1, 3)));
+          connection_.SendControlFrame(QuicFrame(QuicBlockedFrame(1, 3)));
         });
   } else {
     EXPECT_CALL(visitor_, OnStreamFrame(_))
         .Times(3)
         .WillRepeatedly([this](const QuicStreamFrame& /*frame*/) {
           // QuicFrame takes ownership of the QuicBlockedFrame.
-          connection_.SendControlFrame(QuicFrame(new QuicBlockedFrame(1, 3)));
+          connection_.SendControlFrame(QuicFrame(QuicBlockedFrame(1, 3)));
         });
   }
 
@@ -15176,7 +15176,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
         skipped = true;
         break;
       case BLOCKED_FRAME:
-        frame = QuicFrame(&blocked_frame);
+        frame = QuicFrame(blocked_frame);
         break;
       case WINDOW_UPDATE_FRAME:
         frame = QuicFrame(window_update_frame);

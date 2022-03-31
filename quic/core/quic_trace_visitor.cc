@@ -187,7 +187,7 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
     }
 
     case BLOCKED_FRAME: {
-      bool is_connection = frame.blocked_frame->stream_id == 0;
+      bool is_connection = frame.blocked_frame.stream_id == 0;
       frame_record->set_frame_type(is_connection ? quic_trace::BLOCKED
                                                  : quic_trace::STREAM_BLOCKED);
 

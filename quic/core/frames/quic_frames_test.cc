@@ -249,13 +249,12 @@ TEST_F(QuicFramesTest, WindowUpdateFrameToString) {
 }
 
 TEST_F(QuicFramesTest, BlockedFrameToString) {
-  QuicBlockedFrame blocked;
-  QuicFrame frame(&blocked);
+  QuicFrame frame((QuicBlockedFrame()));
   SetControlFrameId(4, &frame);
   EXPECT_EQ(4u, GetControlFrameId(frame));
-  blocked.stream_id = 1;
+  frame.blocked_frame.stream_id = 1;
   std::ostringstream stream;
-  stream << blocked;
+  stream << frame.blocked_frame;
   EXPECT_EQ("{ control_frame_id: 4, stream_id: 1 }\n", stream.str());
   EXPECT_TRUE(IsControlFrame(frame.type));
 }
@@ -564,7 +563,7 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
         frames.push_back(QuicFrame(QuicWindowUpdateFrame()));
         break;
       case BLOCKED_FRAME:
-        frames.push_back(QuicFrame(new QuicBlockedFrame()));
+        frames.push_back(QuicFrame(QuicBlockedFrame()));
         break;
       case STOP_WAITING_FRAME:
         frames.push_back(QuicFrame(QuicStopWaitingFrame()));

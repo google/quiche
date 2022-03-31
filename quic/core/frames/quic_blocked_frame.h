@@ -7,6 +7,7 @@
 
 #include <ostream>
 
+#include "quic/core/frames/quic_inlined_frame.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_types.h"
 
@@ -16,16 +17,18 @@ namespace quic {
 // endpoint believes itself to be flow-control blocked but otherwise ready to
 // send data. The BLOCKED frame is purely advisory and optional.
 // Based on SPDY's BLOCKED frame (undocumented as of 2014-01-28).
-struct QUIC_EXPORT_PRIVATE QuicBlockedFrame {
-  QuicBlockedFrame() = default;
+struct QUIC_EXPORT_PRIVATE QuicBlockedFrame
+    : public QuicInlinedFrame<QuicBlockedFrame> {
+  QuicBlockedFrame();
   QuicBlockedFrame(QuicControlFrameId control_frame_id, QuicStreamId stream_id);
-  QuicBlockedFrame(QuicControlFrameId control_frame_id,
-                   QuicStreamId stream_id,
+  QuicBlockedFrame(QuicControlFrameId control_frame_id, QuicStreamId stream_id,
                    QuicStreamOffset offset);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os,
       const QuicBlockedFrame& b);
+
+  QuicFrameType type;
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.

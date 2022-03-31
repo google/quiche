@@ -84,7 +84,7 @@ void QuicControlFrameManager::WriteOrBufferWindowUpdate(
 void QuicControlFrameManager::WriteOrBufferBlocked(QuicStreamId id) {
   QUIC_DVLOG(1) << "Writing BLOCKED_FRAME";
   WriteOrBufferQuicFrame(
-      QuicFrame(new QuicBlockedFrame(++last_control_frame_id_, id)));
+      QuicFrame(QuicBlockedFrame(++last_control_frame_id_, id)));
 }
 
 void QuicControlFrameManager::WriteOrBufferStreamsBlocked(QuicStreamCount count,

@@ -9805,7 +9805,7 @@ TEST_P(QuicFramerTest, BuildBlockedPacket) {
   }
   blocked_frame.offset = kStreamOffset;
 
-  QuicFrames frames = {QuicFrame(&blocked_frame)};
+  QuicFrames frames = {QuicFrame(blocked_frame)};
 
   // clang-format off
   unsigned char packet[] = {
@@ -11020,7 +11020,7 @@ TEST_P(QuicFramerTest, BuildIetfBlockedPacket) {
   QuicBlockedFrame frame;
   frame.stream_id = QuicUtils::GetInvalidStreamId(framer_.transport_version());
   frame.offset = kStreamOffset;
-  QuicFrames frames = {QuicFrame(&frame)};
+  QuicFrames frames = {QuicFrame(frame)};
 
   // clang-format off
   unsigned char packet_ietf[] = {
@@ -11106,7 +11106,7 @@ TEST_P(QuicFramerTest, BuildIetfStreamBlockedPacket) {
   QuicBlockedFrame frame;
   frame.stream_id = kStreamId;
   frame.offset = kStreamOffset;
-  QuicFrames frames = {QuicFrame(&frame)};
+  QuicFrames frames = {QuicFrame(frame)};
 
   // clang-format off
   unsigned char packet_ietf[] = {
@@ -12572,7 +12572,7 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
   EXPECT_EQ(
       QuicFramer::GetBlockedFrameSize(framer_.transport_version(), blocked),
       QuicFramer::GetRetransmittableControlFrameSize(
-          framer_.transport_version(), QuicFrame(&blocked)));
+          framer_.transport_version(), QuicFrame(blocked)));
 
   // Following frames are IETF QUIC frames only.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {

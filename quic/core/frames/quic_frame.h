@@ -59,12 +59,12 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
   explicit QuicFrame(QuicStreamFrame stream_frame);
   explicit QuicFrame(QuicHandshakeDoneFrame handshake_done_frame);
   explicit QuicFrame(QuicWindowUpdateFrame frame);
+  explicit QuicFrame(QuicBlockedFrame frame);
 
   explicit QuicFrame(QuicAckFrame* frame);
   explicit QuicFrame(QuicRstStreamFrame* frame);
   explicit QuicFrame(QuicConnectionCloseFrame* frame);
   explicit QuicFrame(QuicGoAwayFrame* frame);
-  explicit QuicFrame(QuicBlockedFrame* frame);
   explicit QuicFrame(QuicNewConnectionIdFrame* frame);
   explicit QuicFrame(QuicRetireConnectionIdFrame* frame);
   explicit QuicFrame(QuicNewTokenFrame* frame);
@@ -92,6 +92,7 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
     QuicStreamFrame stream_frame;
     QuicHandshakeDoneFrame handshake_done_frame;
     QuicWindowUpdateFrame window_update_frame;
+    QuicBlockedFrame blocked_frame;
 
     // Out of line frames.
     struct {
@@ -103,14 +104,13 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
 
       // TODO(wub): These frames can also be inlined without increasing the size
       // of QuicFrame:
-      // QuicBlockedFrame, QuicPathResponseFrame, QuicPathChallengeFrame and
+      // QuicPathResponseFrame, QuicPathChallengeFrame and
       // QuicStopSendingFrame.
       union {
         QuicAckFrame* ack_frame;
         QuicRstStreamFrame* rst_stream_frame;
         QuicConnectionCloseFrame* connection_close_frame;
         QuicGoAwayFrame* goaway_frame;
-        QuicBlockedFrame* blocked_frame;
         QuicNewConnectionIdFrame* new_connection_id_frame;
         QuicRetireConnectionIdFrame* retire_connection_id_frame;
         QuicPathResponseFrame* path_response_frame;
