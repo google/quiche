@@ -87,8 +87,7 @@ std::unique_ptr<QuicResumptionState> QuicClientSessionCache::Lookup(
     state->application_state =
         std::make_unique<ApplicationState>(*iter->second->application_state);
   }
-  if (GetQuicReloadableFlag(quic_tls_use_token_in_session_cache) &&
-      !iter->second->token.empty()) {
+  if (!iter->second->token.empty()) {
     state->token = iter->second->token;
     // Clear token after use.
     iter->second->token.clear();

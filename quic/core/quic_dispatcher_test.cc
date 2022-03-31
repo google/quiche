@@ -454,10 +454,6 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     ParsedClientHello parsed_chlo;
     parsed_chlo.alpns = {ExpectedAlpn()};
     parsed_chlo.sni = TestHostname();
-    if (address_token_.has_value() &&
-        !GetQuicReloadableFlag(quic_tls_use_token_in_session_cache)) {
-      parsed_chlo.retry_token = *address_token_;
-    }
     return parsed_chlo;
   }
 

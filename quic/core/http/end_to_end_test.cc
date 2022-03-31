@@ -1718,27 +1718,14 @@ TEST_P(EndToEndTest, AddressToken) {
   server_thread_->Pause();
   server_session = GetServerSession();
   server_connection = GetServerConnection();
-  if (!GetQuicReloadableFlag(quic_tls_use_token_in_session_cache)) {
-    // Address token is reused.
-    if (server_session != nullptr && server_connection != nullptr) {
-      // Verify address is validated via validating token received in INITIAL
-      // packet.
-      EXPECT_FALSE(server_connection->GetStats()
-                       .address_validated_via_decrypting_packet);
-      EXPECT_TRUE(server_connection->GetStats().address_validated_via_token);
-    } else {
-      ADD_FAILURE() << "Missing server connection";
-    }
+  // Verify address token is only used once.
+  if (server_session != nullptr && server_connection != nullptr) {
+    // Verify address is validated via decrypting packet.
+    EXPECT_TRUE(
+        server_connection->GetStats().address_validated_via_decrypting_packet);
+    EXPECT_FALSE(server_connection->GetStats().address_validated_via_token);
   } else {
-    // Verify address token is only used once.
-    if (server_session != nullptr && server_connection != nullptr) {
-      // Verify address is validated via decrypting packet.
-      EXPECT_TRUE(server_connection->GetStats()
-                      .address_validated_via_decrypting_packet);
-      EXPECT_FALSE(server_connection->GetStats().address_validated_via_token);
-    } else {
-      ADD_FAILURE() << "Missing server connection";
-    }
+    ADD_FAILURE() << "Missing server connection";
   }
   server_thread_->Resume();
 
@@ -1763,15 +1750,8 @@ TEST_P(EndToEndTest, AddressTokenNotReusedByClient) {
 
   QuicClientSessionCache* session_cache = static_cast<QuicClientSessionCache*>(
       client_crypto_config->mutable_session_cache());
-  std::string old_address_token;
-  if (GetQuicReloadableFlag(quic_tls_use_token_in_session_cache)) {
-    old_address_token =
-        QuicClientSessionCachePeer::GetToken(session_cache, server_id);
-  } else {
-    old_address_token =
-        client_crypto_config->LookupOrCreate(server_id)->source_address_token();
-  }
-  ASSERT_TRUE(!old_address_token.empty());
+  ASSERT_TRUE(
+      !QuicClientSessionCachePeer::GetToken(session_cache, server_id).empty());
 
   // Pause the server thread again to blackhole packets from client.
   server_thread_->Pause();
@@ -1779,17 +1759,9 @@ TEST_P(EndToEndTest, AddressTokenNotReusedByClient) {
   EXPECT_FALSE(client_->client()->WaitForOneRttKeysAvailable());
   EXPECT_FALSE(client_->client()->connected());
 
-  std::string new_address_token;
-  if (GetQuicReloadableFlag(quic_tls_use_token_in_session_cache)) {
-    new_address_token =
-        QuicClientSessionCachePeer::GetToken(session_cache, server_id);
-    // Verify address token gets cleared.
-    ASSERT_TRUE(new_address_token.empty());
-  } else {
-    new_address_token =
-        client_crypto_config->LookupOrCreate(server_id)->source_address_token();
-    ASSERT_FALSE(new_address_token.empty());
-  }
+  // Verify address token gets cleared.
+  ASSERT_TRUE(
+      QuicClientSessionCachePeer::GetToken(session_cache, server_id).empty());
   server_thread_->Resume();
 }
 

@@ -42,13 +42,6 @@ TlsClientHandshaker::TlsClientHandshaker(
       has_application_state_(has_application_state),
       crypto_config_(crypto_config),
       tls_connection_(crypto_config->ssl_ctx(), this, session->GetSSLConfig()) {
-  if (!GetQuicReloadableFlag(quic_tls_use_token_in_session_cache)) {
-    std::string token =
-        crypto_config->LookupOrCreate(server_id)->source_address_token();
-    if (!token.empty()) {
-      session->SetSourceAddressTokenToSend(token);
-    }
-  }
   if (crypto_config->tls_signature_algorithms().has_value()) {
     SSL_set1_sigalgs_list(ssl(),
                           crypto_config->tls_signature_algorithms()->c_str());
@@ -127,8 +120,7 @@ bool TlsClientHandshaker::CryptoConnect() {
   }
   if (cached_state_) {
     SSL_set_session(ssl(), cached_state_->tls_session.get());
-    if (GetQuicReloadableFlag(quic_tls_use_token_in_session_cache) &&
-        !cached_state_->token.empty()) {
+    if (!cached_state_->token.empty()) {
       session()->SetSourceAddressTokenToSend(cached_state_->token);
     }
   }
@@ -435,14 +427,8 @@ void TlsClientHandshaker::OnNewTokenReceived(absl::string_view token) {
   if (token.empty()) {
     return;
   }
-  if (GetQuicReloadableFlag(quic_tls_use_token_in_session_cache)) {
-    if (session_cache_ != nullptr) {
-      session_cache_->OnNewTokenReceived(server_id_, token);
-    }
-  } else {
-    QuicCryptoClientConfig::CachedState* cached =
-        crypto_config_->LookupOrCreate(server_id_);
-    cached->set_source_address_token(token);
+  if (session_cache_ != nullptr) {
+    session_cache_->OnNewTokenReceived(server_id_, token);
   }
 }
 
