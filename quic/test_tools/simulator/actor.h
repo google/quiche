@@ -37,8 +37,8 @@ class Actor {
   // to schedule the next call manually.
   virtual void Act() = 0;
 
-  inline std::string name() const { return name_; }
-  inline Simulator* simulator() const { return simulator_; }
+  std::string name() const { return name_; }
+  Simulator* simulator() const { return simulator_; }
 
  protected:
   // Calls Schedule() on the associated simulator.

@@ -540,11 +540,11 @@ class QUIC_EXPORT_PRIVATE QuicSession
   static void RecordConnectionCloseAtServer(QuicErrorCode error,
                                             ConnectionCloseSource source);
 
-  inline QuicTransportVersion transport_version() const {
+  QuicTransportVersion transport_version() const {
     return connection_->transport_version();
   }
 
-  inline ParsedQuicVersion version() const { return connection_->version(); }
+  ParsedQuicVersion version() const { return connection_->version(); }
 
   bool is_configured() const { return is_configured_; }
 

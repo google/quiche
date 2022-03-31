@@ -46,8 +46,8 @@ class QuicEndpointBase : public Endpoint,
                    std::string peer_name);
   ~QuicEndpointBase() override;
 
-  inline QuicConnection* connection() { return connection_.get(); }
-  inline size_t write_blocked_count() { return write_blocked_count_; }
+  QuicConnection* connection() { return connection_.get(); }
+  size_t write_blocked_count() { return write_blocked_count_; }
 
   // Drop the next packet upon receipt.
   void DropNextIncomingPacket();

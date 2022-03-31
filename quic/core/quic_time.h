@@ -61,19 +61,17 @@ class QUIC_EXPORT_PRIVATE QuicTime {
     static constexpr Delta FromMicroseconds(int64_t us) { return Delta(us); }
 
     // Converts the time offset to a rounded number of seconds.
-    inline int64_t ToSeconds() const { return time_offset_ / 1000 / 1000; }
+    int64_t ToSeconds() const { return time_offset_ / 1000 / 1000; }
 
     // Converts the time offset to a rounded number of milliseconds.
-    inline int64_t ToMilliseconds() const { return time_offset_ / 1000; }
+    int64_t ToMilliseconds() const { return time_offset_ / 1000; }
 
     // Converts the time offset to a rounded number of microseconds.
-    inline int64_t ToMicroseconds() const { return time_offset_; }
+    int64_t ToMicroseconds() const { return time_offset_; }
 
-    inline bool IsZero() const { return time_offset_ == 0; }
+    bool IsZero() const { return time_offset_ == 0; }
 
-    inline bool IsInfinite() const {
-      return time_offset_ == kQuicInfiniteTimeUs;
-    }
+    bool IsInfinite() const { return time_offset_ == kQuicInfiniteTimeUs; }
 
     std::string ToDebuggingValue() const;
 
@@ -123,9 +121,9 @@ class QUIC_EXPORT_PRIVATE QuicTime {
   // represents the number of microseconds since some epoch.  It may
   // be the UNIX epoch on some platforms.  On others, it may
   // be a CPU ticks based value.
-  inline int64_t ToDebuggingValue() const { return time_; }
+  int64_t ToDebuggingValue() const { return time_; }
 
-  inline bool IsInitialized() const { return 0 != time_; }
+  bool IsInitialized() const { return 0 != time_; }
 
  private:
   friend class QuicClock;

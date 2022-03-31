@@ -35,11 +35,11 @@ class Queue : public Actor, public UnconstrainedPortInterface {
 
   void Act() override;
 
-  inline QuicByteCount capacity() const { return capacity_; }
-  inline QuicByteCount bytes_queued() const { return bytes_queued_; }
-  inline QuicPacketCount packets_queued() const { return queue_.size(); }
+  QuicByteCount capacity() const { return capacity_; }
+  QuicByteCount bytes_queued() const { return bytes_queued_; }
+  QuicPacketCount packets_queued() const { return queue_.size(); }
 
-  inline void set_listener_interface(ListenerInterface* listener) {
+  void set_listener_interface(ListenerInterface* listener) {
     listener_ = listener;
   }
 
@@ -83,9 +83,7 @@ class Queue : public Actor, public UnconstrainedPortInterface {
     Queue* queue_;
   };
 
-  inline bool IsAggregationEnabled() const {
-    return aggregation_threshold_ > 0;
-  }
+  bool IsAggregationEnabled() const { return aggregation_threshold_ > 0; }
 
   // Increment the bundle counter and reset the bundle state.  This causes all
   // packets currently in the bundle to be flushed onto the link.

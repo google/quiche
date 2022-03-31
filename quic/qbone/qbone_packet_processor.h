@@ -106,17 +106,16 @@ class QbonePacketProcessor {
     // for filtering from the |ipv6_header| argument.  All of those assume that
     // the header is of valid size, which is true for everything passed into
     // FilterPacket().
-    inline uint8_t TransportProtocolFromHeader(absl::string_view ipv6_header) {
+    uint8_t TransportProtocolFromHeader(absl::string_view ipv6_header) {
       return ipv6_header[6];
     }
-    inline QuicIpAddress SourceIpFromHeader(absl::string_view ipv6_header) {
+    QuicIpAddress SourceIpFromHeader(absl::string_view ipv6_header) {
       QuicIpAddress address;
       address.FromPackedString(&ipv6_header[8],
                                QuicIpAddress::kIPv6AddressSize);
       return address;
     }
-    inline QuicIpAddress DestinationIpFromHeader(
-        absl::string_view ipv6_header) {
+    QuicIpAddress DestinationIpFromHeader(absl::string_view ipv6_header) {
       QuicIpAddress address;
       address.FromPackedString(&ipv6_header[24],
                                QuicIpAddress::kIPv6AddressSize);
@@ -173,7 +172,7 @@ class QbonePacketProcessor {
   void SendTcpReset(absl::string_view original_packet,
                     Direction original_direction);
 
-  inline bool IsValid() const { return client_ip_ != kInvalidIpAddress; }
+  bool IsValid() const { return client_ip_ != kInvalidIpAddress; }
 
   // IP address of the server.  Used to send ICMP messages.
   in6_addr self_ip_;

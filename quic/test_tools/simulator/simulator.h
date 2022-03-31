@@ -47,11 +47,9 @@ class Simulator : public QuicConnectionHelperInterface {
 
   QuicAlarmFactory* GetAlarmFactory();
 
-  inline void set_random_generator(QuicRandom* random) {
-    random_generator_ = random;
-  }
+  void set_random_generator(QuicRandom* random) { random_generator_ = random; }
 
-  inline bool enable_random_delays() const { return enable_random_delays_; }
+  bool enable_random_delays() const { return enable_random_delays_; }
 
   // Run the simulation until either no actors are scheduled or
   // |termination_predicate| returns true.  Returns true if terminated due to

@@ -40,7 +40,7 @@ class QuicEndpoint : public QuicEndpointBase,
   QuicByteCount bytes_to_transfer() const;
   QuicByteCount bytes_transferred() const;
   QuicByteCount bytes_received() const;
-  inline bool wrong_data_received() const { return wrong_data_received_; }
+  bool wrong_data_received() const { return wrong_data_received_; }
 
   // Send |bytes| bytes.  Initiates the transfer if one is not already in
   // progress.

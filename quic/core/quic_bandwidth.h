@@ -53,8 +53,8 @@ class QUIC_EXPORT_PRIVATE QuicBandwidth {
   }
 
   // Create a new QuicBandwidth based on the bytes per the elapsed delta.
-  static inline QuicBandwidth FromBytesAndTimeDelta(QuicByteCount bytes,
-                                                    QuicTime::Delta delta) {
+  static QuicBandwidth FromBytesAndTimeDelta(QuicByteCount bytes,
+                                             QuicTime::Delta delta) {
     if (bytes == 0) {
       return QuicBandwidth(0);
     }
@@ -68,30 +68,30 @@ class QUIC_EXPORT_PRIVATE QuicBandwidth {
     return QuicBandwidth(num_micro_bits / delta.ToMicroseconds());
   }
 
-  inline int64_t ToBitsPerSecond() const { return bits_per_second_; }
+  int64_t ToBitsPerSecond() const { return bits_per_second_; }
 
-  inline int64_t ToKBitsPerSecond() const { return bits_per_second_ / 1000; }
+  int64_t ToKBitsPerSecond() const { return bits_per_second_ / 1000; }
 
-  inline int64_t ToBytesPerSecond() const { return bits_per_second_ / 8; }
+  int64_t ToBytesPerSecond() const { return bits_per_second_ / 8; }
 
-  inline int64_t ToKBytesPerSecond() const { return bits_per_second_ / 8000; }
+  int64_t ToKBytesPerSecond() const { return bits_per_second_ / 8000; }
 
-  inline QuicByteCount ToBytesPerPeriod(QuicTime::Delta time_period) const {
+  QuicByteCount ToBytesPerPeriod(QuicTime::Delta time_period) const {
     return bits_per_second_ * time_period.ToMicroseconds() / 8 /
            kNumMicrosPerSecond;
   }
 
-  inline int64_t ToKBytesPerPeriod(QuicTime::Delta time_period) const {
+  int64_t ToKBytesPerPeriod(QuicTime::Delta time_period) const {
     return bits_per_second_ * time_period.ToMicroseconds() / 8000 /
            kNumMicrosPerSecond;
   }
 
-  inline bool IsZero() const { return bits_per_second_ == 0; }
-  inline bool IsInfinite() const {
+  bool IsZero() const { return bits_per_second_ == 0; }
+  bool IsInfinite() const {
     return bits_per_second_ == Infinite().ToBitsPerSecond();
   }
 
-  inline QuicTime::Delta TransferTime(QuicByteCount bytes) const {
+  QuicTime::Delta TransferTime(QuicByteCount bytes) const {
     if (bits_per_second_ == 0) {
       return QuicTime::Delta::Zero();
     }

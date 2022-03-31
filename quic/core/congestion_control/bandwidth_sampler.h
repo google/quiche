@@ -88,10 +88,10 @@ struct QUIC_NO_EXPORT ExtraAckedEvent {
   // The round trip of the event.
   QuicRoundTripCount round = 0;
 
-  inline bool operator>=(const ExtraAckedEvent& other) const {
+  bool operator>=(const ExtraAckedEvent& other) const {
     return extra_acked >= other.extra_acked;
   }
-  inline bool operator==(const ExtraAckedEvent& other) const {
+  bool operator==(const ExtraAckedEvent& other) const {
     return extra_acked == other.extra_acked;
   }
 };

@@ -30,12 +30,12 @@ class Switch {
 
   // Returns Endpoint associated with the port under number |port_number|.  Just
   // like on most real switches, port numbering starts with 1.
-  inline Endpoint* port(SwitchPortNumber port_number) {
+  Endpoint* port(SwitchPortNumber port_number) {
     QUICHE_DCHECK_NE(port_number, 0u);
     return &ports_[port_number - 1];
   }
 
-  inline Queue* port_queue(SwitchPortNumber port_number) {
+  Queue* port_queue(SwitchPortNumber port_number) {
     return ports_[port_number - 1].queue();
   }
 
@@ -62,8 +62,8 @@ class Switch {
 
     void Act() override;
 
-    inline bool connected() const { return connected_; }
-    inline Queue* queue() { return &queue_; }
+    bool connected() const { return connected_; }
+    Queue* queue() { return &queue_; }
 
    private:
     Switch* parent_;
