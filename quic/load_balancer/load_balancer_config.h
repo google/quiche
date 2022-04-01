@@ -69,18 +69,18 @@ class QUIC_EXPORT_PRIVATE LoadBalancerConfig {
   LoadBalancerConfig(uint8_t config_id, uint8_t server_id_len,
                      uint8_t nonce_len, absl::string_view key);
 
-  const uint8_t config_id_;
-  const uint8_t server_id_len_;
-  const uint8_t nonce_len_;
+  uint8_t config_id_;
+  uint8_t server_id_len_;
+  uint8_t nonce_len_;
   // All Connection ID encryption and decryption uses the AES_encrypt function
   // at root, so there is a single key for all of it. This is empty if the
   // config is not encrypted.
-  const absl::optional<AES_KEY> key_;
+  absl::optional<AES_KEY> key_;
   // The one exception is that when total_len == 16, connection ID decryption
   // uses AES_decrypt. The bytes that comprise the key are the same, but
   // AES_decrypt requires an AES_KEY that is initialized differently. In all
   // other cases, block_decrypt_key_ is empty.
-  const absl::optional<AES_KEY> block_decrypt_key_;
+  absl::optional<AES_KEY> block_decrypt_key_;
 };
 
 }  // namespace quic

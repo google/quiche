@@ -56,8 +56,8 @@ class QUIC_EXPORT_PRIVATE LoadBalancerServerId {
   // The constructor is private because it can't validate the input.
   LoadBalancerServerId(const absl::Span<const uint8_t> data);
 
-  const std::array<uint8_t, kLoadBalancerMaxServerIdLen> data_;
-  const uint8_t length_;
+  std::array<uint8_t, kLoadBalancerMaxServerIdLen> data_;
+  uint8_t length_;
 };
 
 }  // namespace quic
