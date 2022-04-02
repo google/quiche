@@ -132,7 +132,7 @@ void QuicSimpleServerSession::HandleRstOnValidNonexistentStream(
         frame.stream_id >= next_stream_id) {
       size_t index = (frame.stream_id - next_stream_id) /
                      QuicUtils::StreamIdDelta(transport_version());
-      if (index <= promised_streams_.size()) {
+      if (index < promised_streams_.size()) {
         promised_streams_[index].is_cancelled = true;
       }
     }
