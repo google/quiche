@@ -71,6 +71,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_remove_connection_migration_connection
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_max_push_id, true)
 // If true, include stream information in idle timeout connection close detail.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
+// If true, limit the size of HPACK encoder dynamic table to 16 kB.  Only affects gQUIC; QPACK encoder dynamic table size used in IETF QUIC is already bounded.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_limit_encoder_dynamic_table_size, true)
 // If true, pass the received PATH_RESPONSE payload to path validator to move forward the path validation.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_pass_path_response_to_validator, true)
 // If true, quic server will send ENABLE_CONNECT_PROTOCOL setting and and endpoint will validate required request/response headers and extended CONNECT mechanism and update code counts of valid/invalid headers.

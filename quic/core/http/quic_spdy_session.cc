@@ -58,6 +58,10 @@ ABSL_CONST_INIT const size_t kMaxUnassociatedWebTransportStreams = 24;
 
 namespace {
 
+// Limit on HPACK encoder dynamic table size.
+// Only used for Google QUIC, not IETF QUIC.
+constexpr uint64_t kHpackEncoderDynamicTableSizeLimit = 16384;
+
 #define ENDPOINT \
   (perspective() == Perspective::IS_SERVER ? "Server: " : "Client: ")
 
@@ -1221,6 +1225,12 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
       QUIC_DVLOG(1) << ENDPOINT
                     << "SETTINGS_HEADER_TABLE_SIZE received with value "
                     << value;
+      if (GetQuicReloadableFlag(quic_limit_encoder_dynamic_table_size)) {
+        QUIC_RELOADABLE_FLAG_COUNT(quic_limit_encoder_dynamic_table_size);
+        spdy_framer_.UpdateHeaderEncoderTableSize(
+            std::min<uint64_t>(value, kHpackEncoderDynamicTableSizeLimit));
+        break;
+      }
       spdy_framer_.UpdateHeaderEncoderTableSize(value);
       break;
     case spdy::SETTINGS_ENABLE_PUSH:
