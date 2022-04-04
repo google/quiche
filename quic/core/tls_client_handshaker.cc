@@ -40,7 +40,6 @@ TlsClientHandshaker::TlsClientHandshaker(
       pre_shared_key_(crypto_config->pre_shared_key()),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
       has_application_state_(has_application_state),
-      crypto_config_(crypto_config),
       tls_connection_(crypto_config->ssl_ctx(), this, session->GetSSLConfig()) {
   if (crypto_config->tls_signature_algorithms().has_value()) {
     SSL_set1_sigalgs_list(ssl(),

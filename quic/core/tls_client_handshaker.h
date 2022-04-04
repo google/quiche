@@ -160,8 +160,6 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   // will always be non-null if a 0-RTT resumption is attempted.
   std::unique_ptr<QuicResumptionState> cached_state_;
 
-  QuicCryptoClientConfig* crypto_config_;  // Not owned.
-
   TlsClientConnection tls_connection_;
 
   // If |has_application_state_|, stores the tls session tickets before
