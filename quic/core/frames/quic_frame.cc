@@ -69,8 +69,7 @@ QuicFrame::QuicFrame(QuicPathResponseFrame* frame)
 QuicFrame::QuicFrame(QuicPathChallengeFrame* frame)
     : type(PATH_CHALLENGE_FRAME), path_challenge_frame(frame) {}
 
-QuicFrame::QuicFrame(QuicStopSendingFrame* frame)
-    : type(STOP_SENDING_FRAME), stop_sending_frame(frame) {}
+QuicFrame::QuicFrame(QuicStopSendingFrame frame) : stop_sending_frame(frame) {}
 
 QuicFrame::QuicFrame(QuicMessageFrame* frame)
     : type(MESSAGE_FRAME), message_frame(frame) {}
@@ -96,7 +95,8 @@ void DeleteFrame(QuicFrame* frame) {
       frame->type != STOP_WAITING_FRAME &&
       frame->type != STREAMS_BLOCKED_FRAME && frame->type != STREAM_FRAME &&
       frame->type != HANDSHAKE_DONE_FRAME &&
-      frame->type != WINDOW_UPDATE_FRAME && frame->type != BLOCKED_FRAME) {
+      frame->type != WINDOW_UPDATE_FRAME && frame->type != BLOCKED_FRAME &&
+      frame->type != STOP_SENDING_FRAME) {
     QUICHE_CHECK(!frame->delete_forbidden) << *frame;
   }
 #endif  // QUIC_FRAME_DEBUG
@@ -112,6 +112,7 @@ void DeleteFrame(QuicFrame* frame) {
     case HANDSHAKE_DONE_FRAME:
     case WINDOW_UPDATE_FRAME:
     case BLOCKED_FRAME:
+    case STOP_SENDING_FRAME:
       break;
     case ACK_FRAME:
       delete frame->ack_frame;
@@ -127,9 +128,6 @@ void DeleteFrame(QuicFrame* frame) {
       break;
     case PATH_CHALLENGE_FRAME:
       delete frame->path_challenge_frame;
-      break;
-    case STOP_SENDING_FRAME:
-      delete frame->stop_sending_frame;
       break;
     case NEW_CONNECTION_ID_FRAME:
       delete frame->new_connection_id_frame;
@@ -206,7 +204,7 @@ QuicControlFrameId GetControlFrameId(const QuicFrame& frame) {
     case PING_FRAME:
       return frame.ping_frame.control_frame_id;
     case STOP_SENDING_FRAME:
-      return frame.stop_sending_frame->control_frame_id;
+      return frame.stop_sending_frame.control_frame_id;
     case NEW_CONNECTION_ID_FRAME:
       return frame.new_connection_id_frame->control_frame_id;
     case RETIRE_CONNECTION_ID_FRAME:
@@ -246,7 +244,7 @@ void SetControlFrameId(QuicControlFrameId control_frame_id, QuicFrame* frame) {
       frame->max_streams_frame.control_frame_id = control_frame_id;
       return;
     case STOP_SENDING_FRAME:
-      frame->stop_sending_frame->control_frame_id = control_frame_id;
+      frame->stop_sending_frame.control_frame_id = control_frame_id;
       return;
     case NEW_CONNECTION_ID_FRAME:
       frame->new_connection_id_frame->control_frame_id = control_frame_id;
@@ -288,7 +286,7 @@ QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame) {
       copy = QuicFrame(QuicPingFrame(frame.ping_frame.control_frame_id));
       break;
     case STOP_SENDING_FRAME:
-      copy = QuicFrame(new QuicStopSendingFrame(*frame.stop_sending_frame));
+      copy = QuicFrame(QuicStopSendingFrame(frame.stop_sending_frame));
       break;
     case NEW_CONNECTION_ID_FRAME:
       copy = QuicFrame(
@@ -381,7 +379,7 @@ QuicFrame CopyQuicFrame(quiche::QuicheBufferAllocator* allocator,
       copy = QuicFrame(new QuicPathChallengeFrame(*frame.path_challenge_frame));
       break;
     case STOP_SENDING_FRAME:
-      copy = QuicFrame(new QuicStopSendingFrame(*frame.stop_sending_frame));
+      copy = QuicFrame(QuicStopSendingFrame(frame.stop_sending_frame));
       break;
     case MESSAGE_FRAME:
       copy = QuicFrame(new QuicMessageFrame(frame.message_frame->message_id));
@@ -496,7 +494,7 @@ std::ostream& operator<<(std::ostream& os, const QuicFrame& frame) {
       os << "type { PATH_CHALLENGE } " << *(frame.path_challenge_frame);
       break;
     case STOP_SENDING_FRAME:
-      os << "type { STOP_SENDING } " << *(frame.stop_sending_frame);
+      os << "type { STOP_SENDING } " << frame.stop_sending_frame;
       break;
     case MESSAGE_FRAME:
       os << "type { MESSAGE_FRAME }" << *(frame.message_frame);

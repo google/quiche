@@ -83,7 +83,7 @@ class QuicControlFrameManagerTest : public QuicTest {
     EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(&goaway_)));
     EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(window_update_)));
     EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(blocked_)));
-    EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(&stop_sending_)));
+    EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(stop_sending_)));
 
     EXPECT_FALSE(manager_->HasPendingRetransmission());
     EXPECT_TRUE(manager_->WillingToWrite());
@@ -117,7 +117,7 @@ TEST_F(QuicControlFrameManagerTest, OnControlFrameAcked) {
   EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(&goaway_)));
   EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(window_update_)));
   EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(blocked_)));
-  EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(&stop_sending_)));
+  EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(stop_sending_)));
 
   EXPECT_TRUE(manager_->OnControlFrameAcked(QuicFrame(window_update_)));
   EXPECT_FALSE(manager_->IsControlFrameOutstanding(QuicFrame(window_update_)));

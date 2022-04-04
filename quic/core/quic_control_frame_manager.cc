@@ -107,7 +107,7 @@ void QuicControlFrameManager::WriteOrBufferStopSending(
     QuicResetStreamError error, QuicStreamId stream_id) {
   QUIC_DVLOG(1) << "Writing STOP_SENDING_FRAME";
   WriteOrBufferQuicFrame(QuicFrame(
-      new QuicStopSendingFrame(++last_control_frame_id_, stream_id, error)));
+      QuicStopSendingFrame(++last_control_frame_id_, stream_id, error)));
 }
 
 void QuicControlFrameManager::WriteOrBufferHandshakeDone() {

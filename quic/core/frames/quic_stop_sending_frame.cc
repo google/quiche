@@ -8,6 +8,9 @@
 
 namespace quic {
 
+QuicStopSendingFrame::QuicStopSendingFrame()
+    : QuicInlinedFrame(STOP_SENDING_FRAME) {}
+
 QuicStopSendingFrame::QuicStopSendingFrame(QuicControlFrameId control_frame_id,
                                            QuicStreamId stream_id,
                                            QuicRstStreamErrorCode error_code)
@@ -17,7 +20,8 @@ QuicStopSendingFrame::QuicStopSendingFrame(QuicControlFrameId control_frame_id,
 QuicStopSendingFrame::QuicStopSendingFrame(QuicControlFrameId control_frame_id,
                                            QuicStreamId stream_id,
                                            QuicResetStreamError error)
-    : control_frame_id(control_frame_id),
+    : QuicInlinedFrame(STOP_SENDING_FRAME),
+      control_frame_id(control_frame_id),
       stream_id(stream_id),
       error_code(error.internal_code()),
       ietf_error_code(error.ietf_application_code()) {}

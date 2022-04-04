@@ -13,7 +13,9 @@
 
 namespace quic {
 
-enum QuicRstStreamErrorCode {
+// QuicRstStreamErrorCode is encoded as a single octet on-the-wire in IETF QUIC
+// and a 32-bit integer in gQUIC.
+enum QuicRstStreamErrorCode : uint32_t {
   // Complete response has been sent, sending a RST to ask the other endpoint
   // to stop sending request data without discarding the response.
   QUIC_STREAM_NO_ERROR = 0,

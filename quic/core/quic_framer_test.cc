@@ -12345,7 +12345,7 @@ TEST_P(QuicFramerTest, BuildIetfStopSendingPacket) {
   frame.error_code = QUIC_STREAM_ENCODER_STREAM_ERROR;
   frame.ietf_error_code =
       static_cast<uint64_t>(QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR);
-  QuicFrames frames = {QuicFrame(&frame)};
+  QuicFrames frames = {QuicFrame(frame)};
 
   // clang-format off
   unsigned char packet_ietf[] = {
@@ -12612,7 +12612,7 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
   QuicStopSendingFrame stop_sending_frame(10, 3, QUIC_STREAM_CANCELLED);
   EXPECT_EQ(QuicFramer::GetStopSendingFrameSize(stop_sending_frame),
             QuicFramer::GetRetransmittableControlFrameSize(
-                framer_.transport_version(), QuicFrame(&stop_sending_frame)));
+                framer_.transport_version(), QuicFrame(stop_sending_frame)));
 }
 
 // A set of tests to ensure that bad frame-type encodings

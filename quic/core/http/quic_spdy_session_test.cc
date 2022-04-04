@@ -2355,13 +2355,12 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
         .WillOnce(Invoke([stream_id](const QuicFrame& frame) {
           EXPECT_EQ(STOP_SENDING_FRAME, frame.type);
 
-          QuicStopSendingFrame* stop_sending = frame.stop_sending_frame;
-          EXPECT_EQ(stream_id, stop_sending->stream_id);
-          EXPECT_EQ(QUIC_STREAM_STREAM_CREATION_ERROR,
-                    stop_sending->error_code);
+          const QuicStopSendingFrame& stop_sending = frame.stop_sending_frame;
+          EXPECT_EQ(stream_id, stop_sending.stream_id);
+          EXPECT_EQ(QUIC_STREAM_STREAM_CREATION_ERROR, stop_sending.error_code);
           EXPECT_EQ(
               static_cast<uint64_t>(QuicHttp3ErrorCode::STREAM_CREATION_ERROR),
-              stop_sending->ietf_error_code);
+              stop_sending.ietf_error_code);
 
           return ClearControlFrame(frame);
         }));

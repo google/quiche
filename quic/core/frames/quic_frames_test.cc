@@ -92,16 +92,15 @@ TEST_F(QuicFramesTest, RstStreamFrameToString) {
 }
 
 TEST_F(QuicFramesTest, StopSendingFrameToString) {
-  QuicStopSendingFrame stop_sending;
-  QuicFrame frame(&stop_sending);
+  QuicFrame frame((QuicStopSendingFrame()));
   SetControlFrameId(1, &frame);
   EXPECT_EQ(1u, GetControlFrameId(frame));
-  stop_sending.stream_id = 321;
-  stop_sending.error_code = QUIC_STREAM_CANCELLED;
-  stop_sending.ietf_error_code =
+  frame.stop_sending_frame.stream_id = 321;
+  frame.stop_sending_frame.error_code = QUIC_STREAM_CANCELLED;
+  frame.stop_sending_frame.ietf_error_code =
       static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_CANCELLED);
   std::ostringstream stream;
-  stream << stop_sending;
+  stream << frame.stop_sending_frame;
   EXPECT_EQ(
       "{ control_frame_id: 1, stream_id: 321, error_code: 6, ietf_error_code: "
       "268 }\n",
@@ -599,7 +598,7 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
         frames.push_back(QuicFrame(new QuicPathChallengeFrame()));
         break;
       case STOP_SENDING_FRAME:
-        frames.push_back(QuicFrame(new QuicStopSendingFrame()));
+        frames.push_back(QuicFrame(QuicStopSendingFrame()));
         break;
       case MESSAGE_FRAME:
         frames.push_back(QuicFrame(message_frame));

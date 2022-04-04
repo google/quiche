@@ -691,7 +691,7 @@ size_t QuicFramer::GetRetransmittableControlFrameSize(
     case PATH_CHALLENGE_FRAME:
       return GetPathChallengeFrameSize(*frame.path_challenge_frame);
     case STOP_SENDING_FRAME:
-      return GetStopSendingFrameSize(*frame.stop_sending_frame);
+      return GetStopSendingFrameSize(frame.stop_sending_frame);
     case HANDSHAKE_DONE_FRAME:
       // HANDSHAKE_DONE has no payload.
       return kQuicFrameTypeSize;
@@ -1184,7 +1184,7 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         }
         break;
       case STOP_SENDING_FRAME:
-        if (!AppendStopSendingFrame(*frame.stop_sending_frame, writer)) {
+        if (!AppendStopSendingFrame(frame.stop_sending_frame, writer)) {
           QUIC_BUG(quic_bug_10850_46)
               << "AppendStopSendingFrame failed: " << detailed_error();
           return 0;

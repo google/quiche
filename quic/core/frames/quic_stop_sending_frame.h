@@ -7,14 +7,16 @@
 
 #include <ostream>
 
+#include "quic/core/frames/quic_inlined_frame.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_types.h"
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE QuicStopSendingFrame {
-  QuicStopSendingFrame() = default;
+struct QUIC_EXPORT_PRIVATE QuicStopSendingFrame
+    : public QuicInlinedFrame<QuicStopSendingFrame> {
+  QuicStopSendingFrame();
   QuicStopSendingFrame(QuicControlFrameId control_frame_id,
                        QuicStreamId stream_id,
                        QuicRstStreamErrorCode error_code);
@@ -24,6 +26,8 @@ struct QUIC_EXPORT_PRIVATE QuicStopSendingFrame {
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os,
       const QuicStopSendingFrame& frame);
+
+  QuicFrameType type;
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.

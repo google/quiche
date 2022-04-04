@@ -15185,7 +15185,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
         frame = QuicFrame(&path_challenge_frame);
         break;
       case STOP_SENDING_FRAME:
-        frame = QuicFrame(&stop_sending_frame);
+        frame = QuicFrame(stop_sending_frame);
         break;
       case NEW_CONNECTION_ID_FRAME:
         frame = QuicFrame(&new_connection_id_frame);
