@@ -1520,7 +1520,7 @@ bool QuicFramer::ProcessPacketInternal(const QuicEncryptedPacket& packet) {
                        << ParsedQuicVersionToString(header.version)
                        << " instead of " << ParsedQuicVersionToString(version_);
       set_detailed_error("Client received unexpected version.");
-      return RaiseError(QUIC_INVALID_VERSION);
+      return RaiseError(QUIC_PACKET_WRONG_VERSION);
     }
   }
 

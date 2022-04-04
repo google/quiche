@@ -38,8 +38,6 @@
 
 using testing::_;
 using testing::ContainerEq;
-using testing::Eq;
-using testing::IsNull;
 using testing::Return;
 
 namespace quic {
@@ -14771,7 +14769,7 @@ TEST_P(QuicFramerTest, CoalescedPacketWithZeroesRoundTrip) {
   EXPECT_TRUE(visitor_.coalesced_packets_.empty());
 }
 
-TEST_P(QuicFramerTest, ClientReceivesInvalidVersion) {
+TEST_P(QuicFramerTest, ClientReceivesWrongVersion) {
   if (!framer_.version().HasIetfInvariantHeader()) {
     return;
   }
@@ -14797,7 +14795,7 @@ TEST_P(QuicFramerTest, ClientReceivesInvalidVersion) {
   QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
 
-  EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_VERSION));
+  EXPECT_THAT(framer_.error(), IsError(QUIC_PACKET_WRONG_VERSION));
   EXPECT_EQ("Client received unexpected version.", framer_.detailed_error());
 }
 

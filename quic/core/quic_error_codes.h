@@ -190,8 +190,10 @@ enum QuicErrorCode {
   QUIC_TOO_MANY_AVAILABLE_STREAMS = 76,
   // Received public reset for this connection.
   QUIC_PUBLIC_RESET = 19,
-  // Invalid protocol version.
+  // Version selected by client is not acceptable to the server.
   QUIC_INVALID_VERSION = 20,
+  // Received packet indicates version that does not match connection version.
+  QUIC_PACKET_WRONG_VERSION = 212,
 
   // The Header ID for a stream was too far from the previous.
   QUIC_INVALID_HEADER_ID = 22,
@@ -613,7 +615,7 @@ enum QuicErrorCode {
   QUIC_UNEXPECTED_DATA_BEFORE_ENCRYPTION_ESTABLISHED = 211,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 212,
+  QUIC_LAST_ERROR = 213,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
