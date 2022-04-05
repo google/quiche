@@ -1547,6 +1547,78 @@ TEST(NgHttp2AdapterTest, ClientStartsShutdown) {
   EXPECT_EQ(visitor.data(), spdy::kHttp2ConnectionHeaderPrefix);
 }
 
+TEST(NgHttp2AdapterTest, ClientReceivesGoAway) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  testing::InSequence s;
+
+  const std::vector<Header> headers1 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+
+  const int32_t stream_id1 = adapter->SubmitRequest(headers1, nullptr, nullptr);
+  ASSERT_GT(stream_id1, 0);
+
+  const std::vector<Header> headers2 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/two"}});
+
+  const int32_t stream_id2 = adapter->SubmitRequest(headers2, nullptr, nullptr);
+  ASSERT_GT(stream_id2, stream_id1);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id2, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id2, _, 0x5, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  absl::string_view data = visitor.data();
+  EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(data,
+              EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::HEADERS}));
+  visitor.Clear();
+
+  const std::string stream_frames =
+      TestFrameSequence()
+          .ServerPreface()
+          .RstStream(1, Http2ErrorCode::ENHANCE_YOUR_CALM)
+          .GoAway(1, Http2ErrorCode::INTERNAL_ERROR, "indigestion")
+          .WindowUpdate(0, 42)
+          .WindowUpdate(1, 42)
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  EXPECT_CALL(visitor, OnFrameHeader(1, 4, RST_STREAM, 0));
+  EXPECT_CALL(visitor, OnRstStream(1, Http2ErrorCode::ENHANCE_YOUR_CALM));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::ENHANCE_YOUR_CALM));
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, GOAWAY, 0));
+  EXPECT_CALL(visitor,
+              OnGoAway(1, Http2ErrorCode::INTERNAL_ERROR, "indigestion"));
+  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::REFUSED_STREAM));
+  EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnWindowUpdate(0, 42));
+  EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), stream_result);
+
+  // Intriguingly, despite want_write() being true, the sent data is empty; the
+  // receipt of the GOAWAY prevents the SETTINGS ack from being written.
+  EXPECT_TRUE(adapter->want_write());
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), testing::IsEmpty());
+}
+
 TEST(NgHttp2AdapterTest, ClientFailsOnGoAway) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);

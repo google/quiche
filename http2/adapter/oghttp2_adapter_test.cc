@@ -1913,6 +1913,85 @@ TEST(OgHttp2AdapterTest, ClientStartsShutdown) {
   EXPECT_THAT(serialized, EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
+TEST(OgHttp2AdapterTest, ClientReceivesGoAway) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  testing::InSequence s;
+
+  const std::vector<Header> headers1 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+
+  const int32_t stream_id1 = adapter->SubmitRequest(headers1, nullptr, nullptr);
+  ASSERT_GT(stream_id1, 0);
+
+  const std::vector<Header> headers2 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/two"}});
+
+  const int32_t stream_id2 = adapter->SubmitRequest(headers2, nullptr, nullptr);
+  ASSERT_GT(stream_id2, stream_id1);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id2, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id2, _, 0x5, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  absl::string_view data = visitor.data();
+  EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(data,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS,
+                            SpdyFrameType::HEADERS}));
+  visitor.Clear();
+
+  const std::string stream_frames =
+      TestFrameSequence()
+          .ServerPreface()
+          .RstStream(1, Http2ErrorCode::ENHANCE_YOUR_CALM)
+          .GoAway(1, Http2ErrorCode::INTERNAL_ERROR, "indigestion")
+          .WindowUpdate(0, 42)
+          .WindowUpdate(1, 42)
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  EXPECT_CALL(visitor, OnFrameHeader(1, 4, RST_STREAM, 0));
+  EXPECT_CALL(visitor, OnRstStream(1, Http2ErrorCode::ENHANCE_YOUR_CALM));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::ENHANCE_YOUR_CALM));
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, GOAWAY, 0));
+  // Currently, oghttp2 does not pass the opaque data to the visitor.
+  EXPECT_CALL(visitor, OnGoAway(1, Http2ErrorCode::INTERNAL_ERROR, ""));
+  // TODO(b/228093860): Close stream IDs above the GOAWAY's last_stream_id.
+  EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnWindowUpdate(0, 42));
+  EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
+  // TODO(b/228093860): Do not pass WINDOW_UPDATE events on closed streams.
+  EXPECT_CALL(visitor, OnWindowUpdate(1, 42));
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
+  EXPECT_TRUE(adapter->want_write());
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
+}
+
 TEST(OgHttp2AdapterTest, ClientFailsOnGoAway) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
