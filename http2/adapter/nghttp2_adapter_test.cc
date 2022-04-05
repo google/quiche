@@ -211,6 +211,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
       .WillOnce(
           [&adapter](Http2StreamId stream_id, Http2ErrorCode /*error_code*/) {
             adapter->RemoveStream(stream_id);
+            return true;
           });
   EXPECT_CALL(visitor, OnFrameHeader(0, 19, GOAWAY, 0));
   EXPECT_CALL(visitor,
@@ -254,6 +255,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
       .WillOnce(
           [&adapter](Http2StreamId stream_id, Http2ErrorCode /*error_code*/) {
             adapter->RemoveStream(stream_id);
+            return true;
           });
   EXPECT_CALL(visitor, OnFrameHeader(5, 4, RST_STREAM, 0));
   EXPECT_CALL(visitor, OnRstStream(5, Http2ErrorCode::REFUSED_STREAM));
@@ -261,6 +263,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
       .WillOnce(
           [&adapter](Http2StreamId stream_id, Http2ErrorCode /*error_code*/) {
             adapter->RemoveStream(stream_id);
+            return true;
           });
   adapter->ProcessBytes(TestFrameSequence()
                             .Data(1, "", true)

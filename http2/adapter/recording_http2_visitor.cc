@@ -90,10 +90,11 @@ void RecordingHttp2Visitor::OnRstStream(Http2StreamId stream_id,
                                     Http2ErrorCodeToString(error_code)));
 }
 
-void RecordingHttp2Visitor::OnCloseStream(Http2StreamId stream_id,
+bool RecordingHttp2Visitor::OnCloseStream(Http2StreamId stream_id,
                                           Http2ErrorCode error_code) {
   events_.push_back(absl::StrFormat("OnCloseStream %d %s", stream_id,
                                     Http2ErrorCodeToString(error_code)));
+  return true;
 }
 
 void RecordingHttp2Visitor::OnPriorityForStream(Http2StreamId stream_id,

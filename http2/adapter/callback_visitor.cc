@@ -254,18 +254,20 @@ void CallbackVisitor::OnRstStream(Http2StreamId /*stream_id*/,
   }
 }
 
-void CallbackVisitor::OnCloseStream(Http2StreamId stream_id,
+bool CallbackVisitor::OnCloseStream(Http2StreamId stream_id,
                                     Http2ErrorCode error_code) {
+  int result = 0;
   if (callbacks_->on_stream_close_callback) {
     QUICHE_VLOG(1) << "OnCloseStream(stream_id: " << stream_id
                    << ", error_code: " << int(error_code) << ")";
-    callbacks_->on_stream_close_callback(
+    result = callbacks_->on_stream_close_callback(
         nullptr, stream_id, static_cast<uint32_t>(error_code), user_data_);
   }
   stream_map_.erase(stream_id);
   if (stream_close_listener_) {
     stream_close_listener_(stream_id);
   }
+  return result == 0;
 }
 
 void CallbackVisitor::OnPriorityForStream(Http2StreamId /*stream_id*/,

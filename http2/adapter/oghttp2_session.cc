@@ -1699,7 +1699,11 @@ void OgHttp2Session::StartPendingStreams() {
 
 void OgHttp2Session::CloseStream(Http2StreamId stream_id,
                                  Http2ErrorCode error_code) {
-  visitor_.OnCloseStream(stream_id, error_code);
+  const bool result = visitor_.OnCloseStream(stream_id, error_code);
+  if (!result) {
+    latched_error_ = true;
+    decoder_.StopProcessing();
+  }
   stream_map_.erase(stream_id);
   trailers_ready_.erase(stream_id);
   metadata_ready_.erase(stream_id);

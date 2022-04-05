@@ -83,7 +83,8 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
   };
   virtual void OnConnectionError(ConnectionError error) = 0;
 
-  // Called when the header for a frame is received.
+  // Called when the header for a frame is received. Returns false if a fatal
+  // error has occurred.
   virtual bool OnFrameHeader(Http2StreamId /*stream_id*/, size_t /*length*/,
                              uint8_t /*type*/, uint8_t /*flags*/) {
     return true;
@@ -138,22 +139,24 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
 
   // Called when the connection has received the complete header block for a
   // logical HEADERS frame on a stream (which may contain CONTINUATION frames,
-  // transparent to the user).
+  // transparent to the user). Returns false if a fatal error has occurred.
   virtual bool OnEndHeadersForStream(Http2StreamId stream_id) = 0;
 
   // Called when the connection receives the beginning of a DATA frame. The data
-  // payload will be provided via subsequent calls to OnDataForStream().
+  // payload will be provided via subsequent calls to OnDataForStream(). Returns
+  // false if a fatal error has occurred.
   virtual bool OnBeginDataForStream(Http2StreamId stream_id,
                                     size_t payload_length) = 0;
 
   // Called when the optional padding length field is parsed as part of a DATA
   // frame payload. `padding_length` represents the total amount of padding for
-  // this frame, including the length byte itself.
+  // this frame, including the length byte itself. Returns false if a fatal
+  // error has occurred.
   virtual bool OnDataPaddingLength(Http2StreamId stream_id,
                                    size_t padding_length) = 0;
 
   // Called when the connection receives some |data| (as part of a DATA frame
-  // payload) for a stream.
+  // payload) for a stream. Returns false if a fatal error has occurred.
   virtual bool OnDataForStream(Http2StreamId stream_id,
                                absl::string_view data) = 0;
 
@@ -166,8 +169,9 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
   virtual void OnRstStream(Http2StreamId stream_id,
                            Http2ErrorCode error_code) = 0;
 
-  // Called when a stream is closed.
-  virtual void OnCloseStream(Http2StreamId stream_id,
+  // Called when a stream is closed. Returns false if a fatal error has
+  // occurred.
+  virtual bool OnCloseStream(Http2StreamId stream_id,
                              Http2ErrorCode error_code) = 0;
 
   // Called when the connection receives a PRIORITY frame.
@@ -183,7 +187,8 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
   virtual void OnPushPromiseForStream(Http2StreamId stream_id,
                                       Http2StreamId promised_stream_id) = 0;
 
-  // Called when the connection receives a GOAWAY frame.
+  // Called when the connection receives a GOAWAY frame. Returns false if a
+  // fatal error has occurred.
   virtual bool OnGoAway(Http2StreamId last_accepted_stream_id,
                         Http2ErrorCode error_code,
                         absl::string_view opaque_data) = 0;

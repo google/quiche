@@ -225,6 +225,36 @@ TEST(ClientCallbackVisitorUnitTest, HeadersWithContinuation) {
   visitor.OnEndHeadersForStream(1);
 }
 
+TEST(ClientCallbackVisitorUnitTest, ResetAndGoaway) {
+  testing::StrictMock<MockNghttp2Callbacks> callbacks;
+  CallbackVisitor visitor(Perspective::kClient,
+                          *MockNghttp2Callbacks::GetCallbacks(), &callbacks);
+
+  testing::InSequence seq;
+
+  // RST_STREAM on stream 1
+  EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(1, RST_STREAM, 0x0)));
+  EXPECT_TRUE(visitor.OnFrameHeader(1, 13, RST_STREAM, 0x0));
+
+  EXPECT_CALL(callbacks, OnFrameRecv(IsRstStream(1, NGHTTP2_INTERNAL_ERROR)));
+  visitor.OnRstStream(1, Http2ErrorCode::INTERNAL_ERROR);
+
+  EXPECT_CALL(callbacks, OnStreamClose(1, NGHTTP2_INTERNAL_ERROR));
+  EXPECT_TRUE(visitor.OnCloseStream(1, Http2ErrorCode::INTERNAL_ERROR));
+
+  EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(0, GOAWAY, 0x0)));
+  EXPECT_TRUE(visitor.OnFrameHeader(0, 13, GOAWAY, 0x0));
+
+  EXPECT_CALL(callbacks,
+              OnFrameRecv(IsGoAway(3, NGHTTP2_ENHANCE_YOUR_CALM, "calma te")));
+  EXPECT_TRUE(
+      visitor.OnGoAway(3, Http2ErrorCode::ENHANCE_YOUR_CALM, "calma te"));
+
+  EXPECT_CALL(callbacks, OnStreamClose(5, NGHTTP2_STREAM_CLOSED))
+      .WillOnce(testing::Return(NGHTTP2_ERR_CALLBACK_FAILURE));
+  EXPECT_FALSE(visitor.OnCloseStream(5, Http2ErrorCode::STREAM_CLOSED));
+}
+
 TEST(ServerCallbackVisitorUnitTest, ConnectionFrames) {
   testing::StrictMock<MockNghttp2Callbacks> callbacks;
   CallbackVisitor visitor(Perspective::kServer,

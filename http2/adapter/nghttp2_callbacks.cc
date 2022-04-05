@@ -252,8 +252,9 @@ int OnStreamClosed(nghttp2_session* /* session */,
                    void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
-  visitor->OnCloseStream(stream_id, ToHttp2ErrorCode(error_code));
-  return 0;
+  const bool result =
+      visitor->OnCloseStream(stream_id, ToHttp2ErrorCode(error_code));
+  return result ? 0 : NGHTTP2_ERR_CALLBACK_FAILURE;
 }
 
 int OnExtensionChunkReceived(nghttp2_session* /*session*/,
