@@ -1373,8 +1373,9 @@ void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
         // Receiving WINDOW_UPDATE before HEADERS is a connection error.
         LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
                             ConnectionError::kWrongFrameSequence);
-        return;
       }
+      // Do not inform the visitor of a WINDOW_UPDATE for a non-existent stream.
+      return;
     } else {
       if (streams_reset_.contains(stream_id)) {
         return;

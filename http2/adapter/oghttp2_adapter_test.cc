@@ -1977,8 +1977,6 @@ TEST(OgHttp2AdapterTest, ClientReceivesGoAway) {
   EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor, OnWindowUpdate(0, 42));
   EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
-  // TODO(b/228093860): Do not pass WINDOW_UPDATE events on closed streams.
-  EXPECT_CALL(visitor, OnWindowUpdate(1, 42));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
