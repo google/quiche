@@ -5,6 +5,6 @@
 #ifndef QUICHE_EPOLL_SERVER_PLATFORM_API_EPOLL_EXPORT_H_
 #define QUICHE_EPOLL_SERVER_PLATFORM_API_EPOLL_EXPORT_H_
 
-#include "net/tools/epoll_server/platform/impl/epoll_export_impl.h"
+#include "quiche_platform_impl/epoll_export_impl.h"
 
 #endif  // QUICHE_EPOLL_SERVER_PLATFORM_API_EPOLL_EXPORT_H_

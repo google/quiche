@@ -5,7 +5,7 @@
 #ifndef QUICHE_EPOLL_SERVER_PLATFORM_API_EPOLL_LOGGING_H_
 #define QUICHE_EPOLL_SERVER_PLATFORM_API_EPOLL_LOGGING_H_
 
-#include "net/tools/epoll_server/platform/impl/epoll_logging_impl.h"
+#include "quiche_platform_impl/epoll_logging_impl.h"
 
 namespace epoll_server {
 

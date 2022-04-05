@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "net/tools/epoll_server/platform/impl/epoll_ptr_util_impl.h"
+#include "quiche_platform_impl/epoll_ptr_util_impl.h"
 
 namespace epoll_server {
 
