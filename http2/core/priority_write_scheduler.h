@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <deque>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -20,6 +19,7 @@
 #include "common/platform/api/quiche_bug_tracker.h"
 #include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_logging.h"
+#include "common/quiche_circular_deque.h"
 #include "spdy/core/spdy_protocol.h"
 
 namespace http2 {
@@ -294,7 +294,7 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
   };
 
   // O(1) size lookup, O(1) insert at front or back (amortized).
-  using ReadyList = std::deque<StreamInfo*>;
+  using ReadyList = quiche::QuicheCircularDeque<StreamInfo*>;
 
   // State kept for each priority level.
   struct QUICHE_EXPORT_PRIVATE PriorityInfo {
@@ -306,15 +306,15 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
 
   typedef std::unordered_map<StreamIdType, StreamInfo> StreamInfoMap;
 
-  // Erases first occurrence (which should be the only one) of |info| in
-  // |ready_list|, returning true if found (and erased), or false otherwise.
-  // Decrements |num_ready_streams_| if an entry is erased.
+  // Erases `info` from `ready_list`, returning true if found (and erased), or
+  // false otherwise. Decrements `num_ready_streams_` if an entry is erased.
   bool Erase(ReadyList* ready_list, const StreamInfo& info) {
-    auto it = std::find(ready_list->begin(), ready_list->end(), &info);
+    auto it = std::remove(ready_list->begin(), ready_list->end(), &info);
     if (it == ready_list->end()) {
+      // `info` was not found.
       return false;
     }
-    ready_list->erase(it);
+    ready_list->pop_back();
     --num_ready_streams_;
     return true;
   }
