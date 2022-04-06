@@ -165,6 +165,10 @@ void QuicEndpointBase::Writer::SetWritable() {
   is_blocked_ = false;
 }
 
+absl::optional<int> QuicEndpointBase::Writer::MessageTooBigErrorCode() const {
+  return absl::nullopt;
+}
+
 QuicByteCount QuicEndpointBase::Writer::GetMaxPacketSize(
     const QuicSocketAddress& /*peer_address*/) const {
   return kMaxOutgoingPacketSize;

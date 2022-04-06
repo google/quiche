@@ -41,6 +41,10 @@ void QuicDefaultPacketWriter::SetWritable() {
   write_blocked_ = false;
 }
 
+absl::optional<int> QuicDefaultPacketWriter::MessageTooBigErrorCode() const {
+  return EMSGSIZE;
+}
+
 QuicByteCount QuicDefaultPacketWriter::GetMaxPacketSize(
     const QuicSocketAddress& /*peer_address*/) const {
   return kMaxOutgoingPacketSize;

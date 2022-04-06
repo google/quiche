@@ -39,7 +39,6 @@
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_client_stats.h"
-#include "quic/platform/api/quic_error_code_wrappers.h"
 #include "quic/platform/api/quic_exported_stats.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
@@ -3089,7 +3088,7 @@ void QuicConnection::WriteQueuedPackets() {
         packet.encrypted_buffer.data(), packet.encrypted_buffer.length(),
         packet.self_address.host(), packet.peer_address, per_packet_options_);
     QUIC_DVLOG(1) << ENDPOINT << "Sending buffered packet, result: " << result;
-    if (IsMsgTooBig(result) &&
+    if (IsMsgTooBig(writer_, result) &&
         packet.encrypted_buffer.length() > long_term_mtu_) {
       // When MSG_TOO_BIG is returned, the system typically knows what the
       // actual MTU is, so there is no need to probe further.
@@ -3530,7 +3529,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
 
   // In some cases, an MTU probe can cause EMSGSIZE. This indicates that the
   // MTU discovery is permanently unsuccessful.
-  if (IsMsgTooBig(result)) {
+  if (IsMsgTooBig(writer_, result)) {
     if (is_mtu_discovery) {
       // When MSG_TOO_BIG is returned, the system typically knows what the
       // actual MTU is, so there is no need to probe further.
@@ -3824,9 +3823,12 @@ void QuicConnection::FlushPackets() {
   }
 }
 
-bool QuicConnection::IsMsgTooBig(const WriteResult& result) {
+bool QuicConnection::IsMsgTooBig(const QuicPacketWriter* writer,
+                                 const WriteResult& result) {
+  absl::optional<int> writer_error_code = writer->MessageTooBigErrorCode();
   return (result.status == WRITE_STATUS_MSG_TOO_BIG) ||
-         (IsWriteError(result.status) && result.error_code == QUIC_EMSGSIZE);
+         (writer_error_code.has_value() && IsWriteError(result.status) &&
+          result.error_code == *writer_error_code);
 }
 
 bool QuicConnection::ShouldDiscardPacket(EncryptionLevel encryption_level) {
@@ -3883,22 +3885,20 @@ void QuicConnection::OnWriteError(int error_code) {
   const std::string error_details = absl::StrCat(
       "Write failed with error: ", error_code, " (", strerror(error_code), ")");
   QUIC_LOG_FIRST_N(ERROR, 2) << ENDPOINT << error_details;
-  switch (error_code) {
-    case QUIC_EMSGSIZE:
-      CloseConnection(QUIC_PACKET_WRITE_ERROR, error_details,
-                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      break;
-    default:
-      // We can't send an error as the socket is presumably borked.
-      if (version().HasIetfInvariantHeader()) {
-        QUIC_CODE_COUNT(quic_tear_down_local_connection_on_write_error_ietf);
-      } else {
-        QUIC_CODE_COUNT(
-            quic_tear_down_local_connection_on_write_error_non_ietf);
-      }
-      CloseConnection(QUIC_PACKET_WRITE_ERROR, error_details,
-                      ConnectionCloseBehavior::SILENT_CLOSE);
+  absl::optional<int> writer_error_code = writer_->MessageTooBigErrorCode();
+  if (writer_error_code.has_value() && error_code == *writer_error_code) {
+    CloseConnection(QUIC_PACKET_WRITE_ERROR, error_details,
+                    ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
   }
+  // We can't send an error as the socket is presumably borked.
+  if (version().HasIetfInvariantHeader()) {
+    QUIC_CODE_COUNT(quic_tear_down_local_connection_on_write_error_ietf);
+  } else {
+    QUIC_CODE_COUNT(quic_tear_down_local_connection_on_write_error_non_ietf);
+  }
+  CloseConnection(QUIC_PACKET_WRITE_ERROR, error_details,
+                  ConnectionCloseBehavior::SILENT_CLOSE);
 }
 
 QuicPacketBuffer QuicConnection::GetPacketBuffer() {

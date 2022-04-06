@@ -34,7 +34,6 @@
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
-#include "quic/platform/api/quic_error_code_wrappers.h"
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_ip_address.h"
@@ -12320,7 +12319,7 @@ TEST_P(QuicConnectionTest,
   uint32_t num_packets_write_attempts = writer_->packets_write_attempts();
 
   writer_->SetShouldWriteFail();
-  writer_->SetWriteError(QUIC_EMSGSIZE);
+  writer_->SetWriteError(*writer_->MessageTooBigErrorCode());
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Any4(), 12345);
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .Times(0u);

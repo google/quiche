@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <utility>
 
+#include "absl/types/optional.h"
 #include "quic/core/quic_packets.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_ip_address.h"
@@ -113,6 +114,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketWriter {
   // Records that the socket has become writable, for example when an EPOLLOUT
   // is received or an asynchronous write completes.
   virtual void SetWritable() = 0;
+
+  // The error code used by the writer to indicate that the write failed due to
+  // supplied packet being too big.  This is equivalent to returning
+  // WRITE_STATUS_MSG_TOO_BIG as a status.
+  virtual absl::optional<int> MessageTooBigErrorCode() const = 0;
 
   // Returns the maximum size of the packet which can be written using this
   // writer for the supplied peer address.  This size may actually exceed the

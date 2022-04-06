@@ -599,7 +599,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnWriteError(int error_code);
 
   // Whether |result| represents a MSG TOO BIG write error.
-  bool IsMsgTooBig(const WriteResult& result);
+  bool IsMsgTooBig(const QuicPacketWriter* writer, const WriteResult& result);
 
   // If the socket is not blocked, writes queued packets.
   void WriteIfNotBlocked();

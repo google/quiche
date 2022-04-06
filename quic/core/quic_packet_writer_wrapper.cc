@@ -32,6 +32,10 @@ void QuicPacketWriterWrapper::SetWritable() {
   writer_->SetWritable();
 }
 
+absl::optional<int> QuicPacketWriterWrapper::MessageTooBigErrorCode() const {
+  return writer_->MessageTooBigErrorCode();
+}
+
 QuicByteCount QuicPacketWriterWrapper::GetMaxPacketSize(
     const QuicSocketAddress& peer_address) const {
   return writer_->GetMaxPacketSize(peer_address);

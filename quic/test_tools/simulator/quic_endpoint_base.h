@@ -84,6 +84,7 @@ class QuicEndpointBase : public Endpoint,
                             PerPacketOptions* options) override;
     bool IsWriteBlocked() const override;
     void SetWritable() override;
+    absl::optional<int> MessageTooBigErrorCode() const override;
     QuicByteCount GetMaxPacketSize(
         const QuicSocketAddress& peer_address) const override;
     bool SupportsReleaseTime() const override;

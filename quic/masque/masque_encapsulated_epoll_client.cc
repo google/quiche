@@ -39,6 +39,10 @@ class MasquePacketWriter : public QuicPacketWriter {
 
   void SetWritable() override {}
 
+  absl::optional<int> MessageTooBigErrorCode() const override {
+    return EMSGSIZE;
+  }
+
   QuicByteCount GetMaxPacketSize(
       const QuicSocketAddress& /*peer_address*/) const override {
     return kMasqueMaxEncapsulatedPacketSize;

@@ -1148,6 +1148,8 @@ class MockPacketWriter : public QuicPacketWriter {
               (override));
   MOCK_METHOD(bool, IsWriteBlocked, (), (const, override));
   MOCK_METHOD(void, SetWritable, (), (override));
+  MOCK_METHOD(absl::optional<int>, MessageTooBigErrorCode, (),
+              (const, override));
   MOCK_METHOD(QuicByteCount, GetMaxPacketSize,
               (const QuicSocketAddress& peer_address), (const, override));
   MOCK_METHOD(bool, SupportsReleaseTime, (), (const, override));
@@ -1744,6 +1746,8 @@ class TestPacketWriter : public QuicPacketWriter {
   bool ShouldWriteFail() { return write_should_fail_; }
 
   bool IsWriteBlocked() const override { return write_blocked_; }
+
+  absl::optional<int> MessageTooBigErrorCode() const override { return 0x1234; }
 
   void SetWriteBlocked() { write_blocked_ = true; }
 
