@@ -17,7 +17,7 @@ bool LoadBalancerDecoder::AddConfig(const LoadBalancerConfig& config) {
 }
 
 void LoadBalancerDecoder::DeleteConfig(uint8_t config_id) {
-  if (config_id > 2) {
+  if (config_id >= kNumLoadBalancerConfigs) {
     QUIC_BUG(quic_bug_438896865_01)
         << "Decoder deleting config with invalid config_id "
         << static_cast<int>(config_id);
@@ -38,7 +38,7 @@ absl::optional<LoadBalancerServerId> LoadBalancerDecoder::GetServerId(
   if (!config.has_value()) {
     return absl::optional<LoadBalancerServerId>();
   }
-  if (connection_id.length() < (1 + config->total_len())) {
+  if (connection_id.length() < config->total_len()) {
     // Connection ID wasn't long enough
     return absl::optional<LoadBalancerServerId>();
   }
@@ -50,7 +50,7 @@ absl::optional<LoadBalancerServerId> LoadBalancerDecoder::GetServerId(
         absl::Span<const uint8_t>(data, config->server_id_len()));
   }
   uint8_t result[kQuicMaxConnectionIdWithLengthPrefixLength];
-  if (config->total_len() == kLoadBalancerKeyLen) {  // single pass
+  if (config->plaintext_len() == kLoadBalancerKeyLen) {  // single pass
     if (!config->BlockDecrypt(data, result)) {
       return absl::optional<LoadBalancerServerId>();
     }
@@ -58,9 +58,9 @@ absl::optional<LoadBalancerServerId> LoadBalancerDecoder::GetServerId(
     // Do 3 or 4 passes. Only 3 are necessary if the server_id is short enough
     // to fit in the first half of the connection ID (the decoder doesn't need
     // to extract the nonce).
-    memcpy(result, data, config->total_len());
+    memcpy(result, data, config->plaintext_len());
     uint8_t end = (config->server_id_len() > config->nonce_len()) ? 1 : 2;
-    for (uint8_t i = 4; i >= end; i--) {
+    for (uint8_t i = kNumLoadBalancerCryptoPasses; i >= end; i--) {
       if (!config->EncryptionPass(result, i)) {
         return absl::optional<LoadBalancerServerId>();
       }
@@ -77,7 +77,7 @@ absl::optional<uint8_t> LoadBalancerDecoder::GetConfigId(
   }
   const uint8_t first_byte = connection_id.data()[0];
   uint8_t codepoint = (first_byte >> 6);
-  if (codepoint <= 2) {
+  if (codepoint < kNumLoadBalancerConfigs) {
     return codepoint;
   }
   return absl::optional<uint8_t>();

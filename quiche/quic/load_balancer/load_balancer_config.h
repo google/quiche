@@ -11,12 +11,14 @@
 
 namespace quic {
 
+inline constexpr uint8_t kNumLoadBalancerConfigs = 3;
 inline constexpr uint8_t kLoadBalancerKeyLen = 16;
 // Regardless of key length, the AES block size is always 16 Bytes.
 inline constexpr uint8_t kLoadBalancerBlockSize = 16;
 // The spec says nonces can be 18 bytes, but 16 lets it be a uint128.
 inline constexpr uint8_t kLoadBalancerMaxNonceLen = 16;
 inline constexpr uint8_t kLoadBalancerMinNonceLen = 4;
+inline constexpr uint8_t kNumLoadBalancerCryptoPasses = 4;
 
 // This the base class for QUIC-LB configuration. It contains configuration
 // elements usable by both encoders (servers) and decoders (load balancers).
@@ -61,7 +63,10 @@ class QUIC_EXPORT_PRIVATE LoadBalancerConfig {
   uint8_t config_id() const { return config_id_; }
   uint8_t server_id_len() const { return server_id_len_; }
   uint8_t nonce_len() const { return nonce_len_; }
-  uint8_t total_len() const { return server_id_len_ + nonce_len_; }
+  // Returns length of all but the first octet.
+  uint8_t plaintext_len() const { return server_id_len_ + nonce_len_; }
+  // Returns length of the entire connection ID.
+  uint8_t total_len() const { return server_id_len_ + nonce_len_ + 1; }
   bool IsEncrypted() const { return key_.has_value(); }
 
  private:

@@ -67,7 +67,8 @@ TEST_F(LoadBalancerConfigTest, ValidParams) {
   EXPECT_EQ(config->config_id(), 0);
   EXPECT_EQ(config->server_id_len(), 3);
   EXPECT_EQ(config->nonce_len(), 4);
-  EXPECT_EQ(config->total_len(), 7);
+  EXPECT_EQ(config->plaintext_len(), 7);
+  EXPECT_EQ(config->total_len(), 8);
   EXPECT_FALSE(config->IsEncrypted());
   auto config2 =
       LoadBalancerConfig::Create(2, 6, 7, absl::string_view(raw_key, 16));
@@ -75,7 +76,8 @@ TEST_F(LoadBalancerConfigTest, ValidParams) {
   EXPECT_EQ(config2->config_id(), 2);
   EXPECT_EQ(config2->server_id_len(), 6);
   EXPECT_EQ(config2->nonce_len(), 7);
-  EXPECT_EQ(config2->total_len(), 13);
+  EXPECT_EQ(config2->plaintext_len(), 13);
+  EXPECT_EQ(config2->total_len(), 14);
   EXPECT_TRUE(config2->IsEncrypted());
 }
 

@@ -13,7 +13,8 @@ namespace quic {
 
 // This class wraps an absl::flat_hash_map which associates server IDs to an
 // arbitrary type T. It validates that all server ids are of the same fixed
-// length.
+// length. This might be used by a load balancer to connect a server ID with a
+// pool member data structure.
 template <typename T>
 class QUIC_EXPORT_PRIVATE LoadBalancerServerIdMap {
  public:

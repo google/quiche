@@ -155,28 +155,32 @@ TEST_F(LoadBalancerEncoderTest, FailToUpdateConfigWithSameId) {
   EXPECT_EQ(visitor.num_adds(), 1u);
 }
 
+struct LoadBalancerEncoderTestCase {
+  LoadBalancerConfig config;
+  LoadBalancerServerId server_id;
+  QuicConnectionId connection_id;
+};
+
 TEST_F(LoadBalancerEncoderTest, UnencryptedConnectionIdTestVectors) {
-  const uint8_t server_id_lens[] = {3, 8};
-  const uint8_t nonce_lens[] = {4, 5};
-  static_assert(sizeof(server_id_lens) == sizeof(nonce_lens));
-  const std::vector<QuicConnectionId> expected_connection_ids{
-      QuicConnectionId({0x07, 0xed, 0x79, 0x3a, 0x80, 0x49, 0x71, 0x8a}),
-      QuicConnectionId({0x4d, 0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f, 0x5f,
-                        0xee, 0x15, 0xda, 0x27, 0xc4}),
+  const struct LoadBalancerEncoderTestCase test_vectors[2] = {
+      {
+          *LoadBalancerConfig::CreateUnencrypted(0, 3, 4),
+          MakeServerId(kServerId, 3),
+          QuicConnectionId({0x07, 0xed, 0x79, 0x3a, 0x80, 0x49, 0x71, 0x8a}),
+      },
+      {
+          *LoadBalancerConfig::CreateUnencrypted(1, 8, 5),
+          MakeServerId(kServerId, 8),
+          QuicConnectionId({0x4d, 0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f,
+                            0x5f, 0xee, 0x15, 0xda, 0x27, 0xc4}),
+      },
   };
-  EXPECT_EQ(sizeof(server_id_lens), expected_connection_ids.size());
-  for (uint8_t i = 0; i < sizeof(server_id_lens); i++) {
-    uint8_t config_id = i % 3;
+  for (const auto &test : test_vectors) {
     random_.AddNextValues(kNonceHigh, kNonceLow);
     auto encoder = LoadBalancerEncoder::Create(random_, nullptr, true, 8);
-    EXPECT_TRUE(encoder.has_value());
-    auto config = LoadBalancerConfig::CreateUnencrypted(
-        config_id, server_id_lens[i], nonce_lens[i]);
-    EXPECT_TRUE(config.has_value());
-    EXPECT_TRUE(encoder->UpdateConfig(
-        *config, MakeServerId(kServerId, server_id_lens[i])));
+    EXPECT_TRUE(encoder->UpdateConfig(test.config, test.server_id));
     absl::uint128 nonces_left = encoder->num_nonces_left();
-    EXPECT_EQ(encoder->GenerateConnectionId(), expected_connection_ids[i]);
+    EXPECT_EQ(encoder->GenerateConnectionId(), test.connection_id);
     EXPECT_EQ(encoder->num_nonces_left(), nonces_left - 1);
   }
 }
@@ -215,41 +219,48 @@ TEST_F(LoadBalancerEncoderTest, EncoderTestVectors) {
   // (2) server_id_len > nonce_len, so there is a fourth decryption pass
   // (3) the single-pass encryption case
   // (4) An even total length.
-  uint8_t server_id_lens[] = {3, 10, 8, 9};
-  uint8_t nonce_lens[] = {4, 5, 8, 9};
-  static_assert(sizeof(server_id_lens) == sizeof(nonce_lens));
-  const std::vector<QuicConnectionId> expected_connection_ids{
-      QuicConnectionId({0x07, 0xfb, 0xfe, 0x05, 0xf7, 0x31, 0xb4, 0x25}),
-      QuicConnectionId({0x4f, 0x01, 0x09, 0x56, 0xfb, 0x5c, 0x1d, 0x4d, 0x86,
-                        0xe0, 0x10, 0x18, 0x3e, 0x0b, 0x7d, 0x1e}),
-      QuicConnectionId({0x90, 0x4d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9, 0xb2,
-                        0xb9, 0x90, 0x7a, 0xfb, 0x5e, 0xcf, 0x8c, 0xc3}),
-      QuicConnectionId({0x12, 0x7a, 0x28, 0x5a, 0x09, 0xf8, 0x52, 0x80, 0xf4,
-                        0xfd, 0x6a, 0xbb, 0x43, 0x4a, 0x71, 0x59, 0xe4, 0xd3,
-                        0xeb}),
+  const LoadBalancerEncoderTestCase test_vectors[4] = {
+      {
+          *LoadBalancerConfig::Create(0, 3, 4, kKey),
+          MakeServerId(kServerId, 3),
+          QuicConnectionId({0x07, 0xfb, 0xfe, 0x05, 0xf7, 0x31, 0xb4, 0x25}),
+      },
+      {
+          *LoadBalancerConfig::Create(1, 10, 5, kKey),
+          MakeServerId(kServerId, 10),
+          QuicConnectionId({0x4f, 0x01, 0x09, 0x56, 0xfb, 0x5c, 0x1d, 0x4d,
+                            0x86, 0xe0, 0x10, 0x18, 0x3e, 0x0b, 0x7d, 0x1e}),
+      },
+      {
+          *LoadBalancerConfig::Create(2, 8, 8, kKey),
+          MakeServerId(kServerId, 8),
+          QuicConnectionId({0x90, 0x4d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9,
+                            0xb2, 0xb9, 0x90, 0x7a, 0xfb, 0x5e, 0xcf, 0x8c,
+                            0xc3}),
+      },
+      {
+          *LoadBalancerConfig::Create(0, 9, 9, kKey),
+          MakeServerId(kServerId, 9),
+          QuicConnectionId({0x12, 0x7a, 0x28, 0x5a, 0x09, 0xf8, 0x52, 0x80,
+                            0xf4, 0xfd, 0x6a, 0xbb, 0x43, 0x4a, 0x71, 0x59,
+                            0xe4, 0xd3, 0xeb}),
+      },
   };
-  EXPECT_EQ(sizeof(server_id_lens), expected_connection_ids.size());
-  for (uint8_t i = 0; i < sizeof(server_id_lens); i++) {
-    uint8_t config_id = i % 3;
+  for (const auto &test : test_vectors) {
     auto encoder = LoadBalancerEncoder::Create(random_, nullptr, true, 8);
     EXPECT_TRUE(encoder.has_value());
-    auto config = LoadBalancerConfig::Create(config_id, server_id_lens[i],
-                                             nonce_lens[i], kKey);
-    EXPECT_TRUE(config.has_value());
     random_.AddNextValues(kNonceHigh, kNonceLow);
-    EXPECT_TRUE(encoder->UpdateConfig(
-        *config, MakeServerId(kServerId, server_id_lens[i])));
-    EXPECT_EQ(encoder->GenerateConnectionId(), expected_connection_ids[i]);
+    EXPECT_TRUE(encoder->UpdateConfig(test.config, test.server_id));
+    EXPECT_EQ(encoder->GenerateConnectionId(), test.connection_id);
   }
 }
 
 TEST_F(LoadBalancerEncoderTest, RunOutOfNonces) {
-  const uint8_t config_id = 0, server_id_len = 3, nonce_len = 4;
+  const uint8_t server_id_len = 3;
   TestLoadBalancerEncoderVisitor visitor;
   auto encoder = LoadBalancerEncoder::Create(random_, &visitor, true, 8);
   EXPECT_TRUE(encoder.has_value());
-  auto config =
-      LoadBalancerConfig::Create(config_id, server_id_len, nonce_len, kKey);
+  auto config = LoadBalancerConfig::Create(0, server_id_len, 4, kKey);
   EXPECT_TRUE(config.has_value());
   EXPECT_TRUE(
       encoder->UpdateConfig(*config, MakeServerId(kServerId, server_id_len)));

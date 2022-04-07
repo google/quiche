@@ -17,7 +17,7 @@ namespace {
 // Validates all non-key parts of the input.
 bool CommonValidation(const uint8_t config_id, const uint8_t server_id_len,
                       const uint8_t nonce_len) {
-  if (config_id > 2 || server_id_len == 0 ||
+  if (config_id >= kNumLoadBalancerConfigs || server_id_len == 0 ||
       nonce_len < kLoadBalancerMinNonceLen ||
       nonce_len > kLoadBalancerMaxNonceLen ||
       server_id_len >
@@ -54,25 +54,25 @@ absl::optional<AES_KEY> BuildKey(absl::string_view key, bool encrypt) {
 // TakePlaintextFrom{Left,Right}() reads the left or right half of 'from' and
 // expands it into a full encryption block ('to') in accordance with the
 // internet-draft.
-void TakePlaintextFromLeft(uint8_t *to, uint8_t *from, uint8_t total_len,
+void TakePlaintextFromLeft(uint8_t *to, uint8_t *from, uint8_t plaintext_len,
                            uint8_t index) {
-  uint8_t half = total_len / 2;
+  uint8_t half = plaintext_len / 2;
   memset(to, 0, kLoadBalancerBlockSize - 1);
   memcpy(to, from, half);
-  if (total_len % 2) {
+  if (plaintext_len % 2) {
     to[half] = from[half] & 0xf0;
   }
   to[kLoadBalancerBlockSize - 1] = index;
 }
 
-void TakePlaintextFromRight(uint8_t *to, uint8_t *from, uint8_t total_len,
+void TakePlaintextFromRight(uint8_t *to, uint8_t *from, uint8_t plaintext_len,
                             uint8_t index) {
-  const uint8_t half = total_len / 2;
+  const uint8_t half = plaintext_len / 2;
   const uint8_t write_point = kLoadBalancerBlockSize - half;
-  const uint8_t read_point = total_len - half;
+  const uint8_t read_point = plaintext_len - half;
   memset((to + 1), 0, kLoadBalancerBlockSize - 1);
   memcpy(to + write_point, from + read_point, half);
-  if (total_len % 2) {
+  if (plaintext_len % 2) {
     to[write_point - 1] = from[read_point - 1] & 0x0f;
   }
   to[0] = index;
@@ -81,21 +81,21 @@ void TakePlaintextFromRight(uint8_t *to, uint8_t *from, uint8_t total_len,
 // CiphertextXorWith{Left,Right}() takes the relevant end of the ciphertext in
 // 'from' and XORs it with half of the ConnectionId stored at 'to', in
 // accordance with the internet-draft.
-void CiphertextXorWithLeft(uint8_t *to, uint8_t *from, uint8_t total_len) {
-  uint8_t half = total_len / 2;
+void CiphertextXorWithLeft(uint8_t *to, uint8_t *from, uint8_t plaintext_len) {
+  uint8_t half = plaintext_len / 2;
   for (int i = 0; i < half; i++) {
     *(to + i) ^= *(from + i);
   }
-  if (total_len % 2) {
+  if (plaintext_len % 2) {
     *(to + half) ^= (*(from + half) & 0xf0);
   }
 }
 
-void CiphertextXorWithRight(uint8_t *to, uint8_t *from, uint8_t total_len) {
-  const uint8_t half = total_len / 2;
-  const uint8_t write_point = total_len - half;
+void CiphertextXorWithRight(uint8_t *to, uint8_t *from, uint8_t plaintext_len) {
+  const uint8_t half = plaintext_len / 2;
+  const uint8_t write_point = plaintext_len - half;
   const uint8_t read_point = kLoadBalancerBlockSize - half;
-  if (total_len % 2) {
+  if (plaintext_len % 2) {
     *(to + write_point - 1) ^= (*(from + read_point - 1) & 0x0f);
   }
   for (int i = 0; i < half; i++) {
@@ -144,18 +144,18 @@ bool LoadBalancerConfig::EncryptionPass(uint8_t *target,
     return false;
   }
   if (index % 2) {  // Odd indices go from left to right
-    TakePlaintextFromLeft(plaintext, target, total_len(), index);
+    TakePlaintextFromLeft(plaintext, target, plaintext_len(), index);
   } else {
-    TakePlaintextFromRight(plaintext, target, total_len(), index);
+    TakePlaintextFromRight(plaintext, target, plaintext_len(), index);
   }
   if (!BlockEncrypt(plaintext, ciphertext)) {
     return false;
   }
   // XOR bits over the correct half.
   if (index % 2) {
-    CiphertextXorWithRight(target, ciphertext, total_len());
+    CiphertextXorWithRight(target, ciphertext, plaintext_len());
   } else {
-    CiphertextXorWithLeft(target, ciphertext, total_len());
+    CiphertextXorWithLeft(target, ciphertext, plaintext_len());
   }
   return true;
 }

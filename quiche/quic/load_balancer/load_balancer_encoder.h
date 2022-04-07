@@ -54,8 +54,8 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder {
  public:
   // Returns a newly created encoder with no active config, if
   // |unroutable_connection_id_length| is valid. |visitor| specifies an optional
-  // interface to receive callbacks when connection IDs need to be retired.
-  // If |encode_length| is true, then the first byte of any generated
+  // interface to receive callbacks when config status changes.
+  // If |len_self_encoded| is true, then the first byte of any generated
   // connection ids will encode the length. Otherwise, those bits will be
   // random. |unroutable_connection_id_length| specifies the length of
   // connection IDs to be generated when there is no active config. It must not
@@ -78,7 +78,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder {
   // on.
   void DeleteConfig();
 
-  // Returns the number of additional connections IDs that can be generated with
+  // Returns the number of additional connection IDs that can be generated with
   // the current config, or 0 if there is no current config.
   absl::uint128 num_nonces_left() const { return num_nonces_left_; }
 

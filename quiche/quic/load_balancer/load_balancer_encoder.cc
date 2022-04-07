@@ -102,7 +102,7 @@ void LoadBalancerEncoder::DeleteConfig() {
 }
 
 QuicConnectionId LoadBalancerEncoder::GenerateConnectionId() {
-  uint8_t length = (config_.has_value()) ? (config_->total_len() + 1)
+  uint8_t length = (config_.has_value()) ? config_->total_len()
                                          : unroutable_connection_id_len_;
   uint8_t config_id = config_.has_value() ? (config_->config_id() << 6)
                                           : kLoadBalancerUnroutableConfigId;
@@ -146,14 +146,14 @@ QuicConnectionId LoadBalancerEncoder::GenerateConnectionId() {
     if (!WriteUint128(nonce_hash, config_->nonce_len(), rewriter)) {
       return QuicConnectionId();
     }
-  } else if (config_->total_len() == kLoadBalancerBlockSize) {
+  } else if (config_->plaintext_len() == kLoadBalancerBlockSize) {
     // Use one encryption pass.
     if (!config_->BlockEncrypt(block_start, block_start)) {
       QUIC_LOG(ERROR) << "Block encryption failed";
       return QuicConnectionId();
     }
   } else {
-    for (uint8_t i = 1; i <= 4; i++) {
+    for (uint8_t i = 1; i <= kNumLoadBalancerCryptoPasses; i++) {
       if (!config_->EncryptionPass(block_start, i)) {
         QUIC_LOG(ERROR) << "Block encryption failed";
         return QuicConnectionId();
