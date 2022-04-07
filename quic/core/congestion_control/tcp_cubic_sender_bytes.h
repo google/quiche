@@ -68,6 +68,7 @@ class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
   bool CanSend(QuicByteCount bytes_in_flight) override;
   QuicBandwidth PacingRate(QuicByteCount bytes_in_flight) const override;
   QuicBandwidth BandwidthEstimate() const override;
+  bool HasGoodBandwidthEstimateForResumption() const override { return false; }
   QuicByteCount GetCongestionWindow() const override;
   QuicByteCount GetSlowStartThreshold() const override;
   CongestionControlType GetCongestionControlType() const override;

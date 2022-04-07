@@ -590,12 +590,15 @@ TEST_F(BbrSenderTest, RecoveryStates) {
 // small bursts of data after sending continuously for a while.
 TEST_F(BbrSenderTest, ApplicationLimitedBursts) {
   CreateDefaultSetup();
+  EXPECT_FALSE(sender_->HasGoodBandwidthEstimateForResumption());
 
   DriveOutOfStartup();
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
+  EXPECT_TRUE(sender_->HasGoodBandwidthEstimateForResumption());
 
   SendBursts(20, 512, QuicTime::Delta::FromSeconds(3));
   EXPECT_TRUE(sender_->ExportDebugState().last_sample_is_app_limited);
+  EXPECT_TRUE(sender_->HasGoodBandwidthEstimateForResumption());
   EXPECT_APPROX_EQ(kTestLinkBandwidth,
                    sender_->ExportDebugState().max_bandwidth, 0.01f);
 }

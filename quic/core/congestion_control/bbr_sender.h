@@ -127,6 +127,9 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   bool CanSend(QuicByteCount bytes_in_flight) override;
   QuicBandwidth PacingRate(QuicByteCount bytes_in_flight) const override;
   QuicBandwidth BandwidthEstimate() const override;
+  bool HasGoodBandwidthEstimateForResumption() const override {
+    return has_non_app_limited_sample();
+  }
   QuicByteCount GetCongestionWindow() const override;
   QuicByteCount GetSlowStartThreshold() const override;
   CongestionControlType GetCongestionControlType() const override;

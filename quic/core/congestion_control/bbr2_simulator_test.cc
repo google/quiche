@@ -1225,11 +1225,14 @@ TEST_F(Bbr2DefaultTopologyTest, ApplicationLimitedBursts) {
   DefaultTopologyParams params;
   CreateNetwork(params);
 
+  EXPECT_FALSE(sender_->HasGoodBandwidthEstimateForResumption());
   DriveOutOfStartup(params);
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
+  EXPECT_TRUE(sender_->HasGoodBandwidthEstimateForResumption());
 
   SendBursts(params, 20, 512, QuicTime::Delta::FromSeconds(3));
   EXPECT_TRUE(sender_->ExportDebugState().last_sample_is_app_limited);
+  EXPECT_TRUE(sender_->HasGoodBandwidthEstimateForResumption());
   EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
                    sender_->ExportDebugState().bandwidth_hi, 0.01f);
 }

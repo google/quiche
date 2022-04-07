@@ -1189,6 +1189,8 @@ class MockSendAlgorithm : public SendAlgorithmInterface {
   MOCK_METHOD(bool, CanSend, (QuicByteCount), (override));
   MOCK_METHOD(QuicBandwidth, PacingRate, (QuicByteCount), (const, override));
   MOCK_METHOD(QuicBandwidth, BandwidthEstimate, (), (const, override));
+  MOCK_METHOD(bool, HasGoodBandwidthEstimateForResumption, (),
+              (const, override));
   MOCK_METHOD(QuicByteCount, GetCongestionWindow, (), (const, override));
   MOCK_METHOD(std::string, GetDebugState, (), (const, override));
   MOCK_METHOD(bool, InSlowStart, (), (const, override));

@@ -122,6 +122,9 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
   // Returns 0 when it does not have an estimate.
   virtual QuicBandwidth BandwidthEstimate() const = 0;
 
+  // Whether BandwidthEstimate returns a good measurement for resumption.
+  virtual bool HasGoodBandwidthEstimateForResumption() const = 0;
+
   // Returns the size of the current congestion window in bytes.  Note, this is
   // not the *available* window.  Some send algorithms may not use a congestion
   // window and will return 0.

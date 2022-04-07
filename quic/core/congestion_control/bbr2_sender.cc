@@ -333,6 +333,9 @@ void Bbr2Sender::OnCongestionEvent(bool /*rtt_updated*/,
                                  congestion_event);
   last_sample_is_app_limited_ =
       congestion_event.last_packet_send_state.is_app_limited;
+  if (!last_sample_is_app_limited_) {
+    has_non_app_limited_sample_ = true;
+  }
   if (congestion_event.bytes_in_flight == 0 &&
       params().avoid_unnecessary_probe_rtt) {
     OnEnterQuiescence(event_time);

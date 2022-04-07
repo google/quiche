@@ -83,6 +83,10 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
     return model_.BandwidthEstimate();
   }
 
+  bool HasGoodBandwidthEstimateForResumption() const override {
+    return has_non_app_limited_sample_;
+  }
+
   QuicByteCount GetCongestionWindow() const override;
 
   QuicByteCount GetSlowStartThreshold() const override { return 0; }
@@ -197,6 +201,8 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   Bbr2DrainMode drain_;
   Bbr2ProbeBwMode probe_bw_;
   Bbr2ProbeRttMode probe_rtt_;
+
+  bool has_non_app_limited_sample_ = false;
 
   // Debug only.
   bool last_sample_is_app_limited_;
