@@ -30,7 +30,7 @@ using ServerConfigID = std::string;
 // "1CON", "BBQ4", "NCON", "RCID", "SREJ", "TBKP", "TB10", "SCLS", "SMHL",
 // "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS", "QNSP", "B2CL", "CHSP",
 // "BPTE", "ACKD", "AKD2", "AKD4", "MAD1", "MAD4", "MAD5", "ACD0", "ACKQ",
-// "TLPR", "CCS\0"
+// "TLPR", "CCS\0", "PDP4"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
@@ -410,9 +410,6 @@ const QuicTag kPDP2 = TAG('P', 'D', 'P', '2');   // Path degrading triggered
 
 const QuicTag kPDP3 = TAG('P', 'D', 'P', '3');   // Path degrading triggered
                                                  // at 3PTO.
-
-const QuicTag kPDP4 = TAG('P', 'D', 'P', '4');   // Path degrading triggered
-                                                 // at 4PTO.
 
 const QuicTag kPDP5 = TAG('P', 'D', 'P', '5');   // Path degrading triggered
                                                  // at 5PTO.

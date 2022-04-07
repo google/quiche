@@ -3908,7 +3908,10 @@ TEST_F(QuicSentPacketManagerTest, NoPacketThresholdDetectionForRuntPackets) {
       QuicSentPacketManagerPeer::UsePacketThresholdForRuntPackets(&manager_));
 }
 
-TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelay) {
+TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelayNonPto) {
+  if (GetQuicRestartFlag(quic_default_on_pto2)) {
+    return;
+  }
   QuicSentPacketManagerPeer::SetMaxTailLossProbes(&manager_, 2);
   // Before RTT sample is available.
   // 2 TLPs + 2 RTOs.
@@ -3948,6 +3951,15 @@ TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelay) {
         expected_delay +
         QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_);
   }
+  EXPECT_EQ(expected_delay, manager_.GetPathDegradingDelay());
+}
+
+TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelayDefaultPTO) {
+  if (!GetQuicRestartFlag(quic_default_on_pto2)) {
+    return;
+  }
+  QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
+  QuicTime::Delta expected_delay = 4 * manager_.GetPtoDelay();
   EXPECT_EQ(expected_delay, manager_.GetPathDegradingDelay());
 }
 
