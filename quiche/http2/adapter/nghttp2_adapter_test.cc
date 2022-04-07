@@ -1585,6 +1585,10 @@ TEST(NgHttp2AdapterTest, ClientReceivesGoAway) {
               EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::HEADERS}));
   visitor.Clear();
 
+  // Submit a pending WINDOW_UPDATE for a stream that will be closed due to
+  // GOAWAY. The WINDOW_UPDATE should not be sent.
+  adapter->SubmitWindowUpdate(3, 42);
+
   const std::string stream_frames =
       TestFrameSequence()
           .ServerPreface()
@@ -1611,9 +1615,88 @@ TEST(NgHttp2AdapterTest, ClientReceivesGoAway) {
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
-  // Intriguingly, despite want_write() being true, the sent data is empty; the
-  // receipt of the GOAWAY prevents the SETTINGS ack from being written.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
+  // SETTINGS ack (but only after the enqueue of the seemingly unrelated
+  // WINDOW_UPDATE). The WINDOW_UPDATE is not written.
   EXPECT_TRUE(adapter->want_write());
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
+}
+
+TEST(NgHttp2AdapterTest, ClientReceivesMultipleGoAways) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  testing::InSequence s;
+
+  const std::vector<Header> headers1 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+
+  const int32_t stream_id1 = adapter->SubmitRequest(headers1, nullptr, nullptr);
+  ASSERT_GT(stream_id1, 0);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  absl::string_view data = visitor.data();
+  EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(data, EqualsFrames({SpdyFrameType::HEADERS}));
+  visitor.Clear();
+
+  const std::string initial_frames =
+      TestFrameSequence()
+          .ServerPreface()
+          .GoAway(kMaxStreamId, Http2ErrorCode::INTERNAL_ERROR, "indigestion")
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, GOAWAY, 0));
+  EXPECT_CALL(visitor, OnGoAway(kMaxStreamId, Http2ErrorCode::INTERNAL_ERROR,
+                                "indigestion"));
+
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), static_cast<size_t>(initial_result));
+
+  // Submit a WINDOW_UPDATE for the open stream. Because the stream is below the
+  // GOAWAY's last_stream_id, it should be sent.
+  adapter->SubmitWindowUpdate(1, 42);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 1, 4, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 1, 4, 0x0, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS,
+                                            SpdyFrameType::WINDOW_UPDATE}));
+  visitor.Clear();
+
+  const std::string final_frames =
+      TestFrameSequence()
+          .GoAway(0, Http2ErrorCode::INTERNAL_ERROR, "indigestion")
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, GOAWAY, 0));
+  EXPECT_CALL(visitor,
+              OnGoAway(0, Http2ErrorCode::INTERNAL_ERROR, "indigestion"));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::REFUSED_STREAM));
+
+  const int64_t final_result = adapter->ProcessBytes(final_frames);
+  EXPECT_EQ(final_frames.size(), static_cast<size_t>(final_result));
+
+  EXPECT_FALSE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), testing::IsEmpty());

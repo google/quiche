@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <utility>
+#include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/escaping.h"
@@ -678,6 +679,13 @@ OgHttp2Session::SendResult OgHttp2Session::SendQueuedFrames() {
       DecrementQueuedFrameCount(c.stream_id(), c.frame_type());
       frames_.pop_front();
       continue;
+    } else if (received_goaway_ &&
+               c.stream_id() >
+                   static_cast<uint32_t>(received_goaway_stream_id_)) {
+      // This frame will be ignored by the peer, so don't send it. The stream
+      // should already have been closed.
+      frames_.pop_front();
+      continue;
     }
     // Frames can't accurately report their own length; the actual serialized
     // length must be used instead.
@@ -1288,11 +1296,27 @@ void OgHttp2Session::OnPing(spdy::SpdyPingId unique_id, bool is_ack) {
 void OgHttp2Session::OnGoAway(spdy::SpdyStreamId last_accepted_stream_id,
                               spdy::SpdyErrorCode error_code) {
   received_goaway_ = true;
+  // TODO(diannahu): Validate that `last_accepted_stream_id` is non-increasing.
+  received_goaway_stream_id_ = last_accepted_stream_id;
   const bool result = visitor_.OnGoAway(last_accepted_stream_id,
                                         TranslateErrorCode(error_code), "");
   if (!result) {
     fatal_visitor_callback_failure_ = true;
     decoder_.StopProcessing();
+  }
+
+  // Close the streams above `last_accepted_stream_id`.
+  if (last_accepted_stream_id == spdy::kMaxStreamId) {
+    return;
+  }
+  std::vector<Http2StreamId> streams_to_close;
+  for (const auto& [stream_id, stream_state] : stream_map_) {
+    if (static_cast<spdy::SpdyStreamId>(stream_id) > last_accepted_stream_id) {
+      streams_to_close.push_back(stream_id);
+    }
+  }
+  for (Http2StreamId stream_id : streams_to_close) {
+    CloseStream(stream_id, Http2ErrorCode::REFUSED_STREAM);
   }
 }
 
@@ -1710,7 +1734,6 @@ void OgHttp2Session::CloseStream(Http2StreamId stream_id,
   metadata_ready_.erase(stream_id);
   streams_reset_.erase(stream_id);
   queued_frames_.erase(stream_id);
-  stream_map_.erase(stream_id);
   if (write_scheduler_.StreamRegistered(stream_id)) {
     write_scheduler_.UnregisterStream(stream_id);
   }

@@ -498,6 +498,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   Http2StreamId highest_received_stream_id_ = 0;
   Http2StreamId highest_processed_stream_id_ = 0;
   Http2StreamId metadata_stream_id_ = 0;
+  Http2StreamId received_goaway_stream_id_ = 0;
   size_t metadata_length_ = 0;
   int32_t connection_send_window_ = kInitialFlowControlWindowSize;
   // The initial flow control receive window size for any newly created streams.
