@@ -157,7 +157,7 @@ TEST_F(QuicStreamSequencerBufferTest, Move) {
   EXPECT_TRUE(helper2.IsBufferAllocated());
 }
 
-TEST_F(QuicStreamSequencerBufferTest, OnStreamDataInvalidSource) {
+TEST_F(QuicStreamSequencerBufferTest, DISABLED_OnStreamDataInvalidSource) {
   // Pass in an invalid source, expects to return error.
   absl::string_view source;
   source = absl::string_view(nullptr, 1024);
