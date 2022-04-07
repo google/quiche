@@ -34,7 +34,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_abort_qpack_on_stream_reset, true)
 // If true, ack frequency frame can be sent from server to client.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_can_send_ack_frequency, true)
 // If true, allow client to enable BBRv2 on server via connection option \'B2ON\'.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, true)
 // If true, close read side but not write side in QuicSpdyStream::OnStreamReset().
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_fix_on_stream_reset, true)
 // If true, consolidate more logic into SetRetransmissionAlarm to ensure the logic is applied consistently.
