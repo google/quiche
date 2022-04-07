@@ -4167,6 +4167,9 @@ TEST_F(QuicSentPacketManagerTest, ClearLastInflightPacketsSentTime) {
 
 // Regression test for b/157895910.
 TEST_F(QuicSentPacketManagerTest, EarliestSentTimeNotInitializedWhenPtoFires) {
+  if (GetQuicReloadableFlag(quic_simplify_set_retransmission_alarm)) {
+    return;
+  }
   manager_.EnableMultiplePacketNumberSpacesSupport();
   EXPECT_CALL(*send_algorithm_, PacingRate(_))
       .WillRepeatedly(Return(QuicBandwidth::Zero()));

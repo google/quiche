@@ -13473,7 +13473,6 @@ TEST_P(QuicConnectionTest, ServerHelloGetsReordered) {
 
 TEST_P(QuicConnectionTest, MigratePath) {
   EXPECT_CALL(visitor_, GetHandshakeState())
-      .Times(testing::AtMost(2))
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   EXPECT_CALL(visitor_, OnPathDegrading());
   connection_.OnPathDegradingDetected();
@@ -15776,6 +15775,58 @@ TEST_P(QuicConnectionTest, SendMultipleConnectionCloses) {
   // Fire blackhole detection alarm.
   EXPECT_QUIC_BUG(connection_.GetBlackholeDetectorAlarm()->Fire(),
                   "Already sent connection close");
+}
+
+// Regression test for b/157895910.
+TEST_P(QuicConnectionTest, EarliestSentTimeNotInitializedWhenPtoFires) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  use_tagging_decrypter();
+
+  // Received INITIAL 1.
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x03));
+  SetDecrypter(ENCRYPTION_HANDSHAKE,
+               std::make_unique<StrictTaggingDecrypter>(0x03));
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<TaggingEncrypter>(0x04));
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    // Send INITIAL 1.
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+    connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_INITIAL);
+    // Send HANDSHAKE 2.
+    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+    connection_.SendCryptoDataWithString(std::string(200, 'a'), 0,
+                                         ENCRYPTION_HANDSHAKE);
+    // Send half RTT data.
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    connection_.SendStreamDataWithString(0, std::string(2000, 'b'), 0, FIN);
+  }
+
+  // Received ACKs for both INITIAL and HANDSHAKE packets.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _))
+      .Times(AnyNumber());
+  QuicFrames frames1;
+  QuicAckFrame ack_frame1 = InitAckFrame(1);
+  frames1.push_back(QuicFrame(&ack_frame1));
+
+  QuicFrames frames2;
+  QuicAckFrame ack_frame2 =
+      InitAckFrame({{QuicPacketNumber(2), QuicPacketNumber(3)}});
+  frames2.push_back(QuicFrame(&ack_frame2));
+  ProcessCoalescedPacket(
+      {{2, frames1, ENCRYPTION_INITIAL}, {3, frames2, ENCRYPTION_HANDSHAKE}});
+  // Verify PTO is not armed given the only outstanding data is half RTT data.
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 }
 
 }  // namespace
