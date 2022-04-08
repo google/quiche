@@ -1852,7 +1852,7 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
 
   // Receiving PATH_RESPONSE should lift the anti-amplification limit.
   QuicFrames frames3;
-  frames3.push_back(QuicFrame(new QuicPathResponseFrame(99, payload)));
+  frames3.push_back(QuicFrame(QuicPathResponseFrame(99, payload)));
   EXPECT_CALL(visitor_, MaybeSendAddressToken());
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(testing::AtLeast(1u));
@@ -2166,11 +2166,10 @@ TEST_P(QuicConnectionTest,
           QuicFrame(new QuicNewTokenFrame(1, "new_token")));
       return true;
     }));
-    ProcessFramesPacketWithAddresses({QuicFrame(new QuicPathResponseFrame(
-                                          0, reverse_path_challenge_payload)),
-                                      QuicFrame(&ack_frame)},
-                                     kSelfAddress, kPeerAddress3,
-                                     ENCRYPTION_FORWARD_SECURE);
+    ProcessFramesPacketWithAddresses(
+        {QuicFrame(QuicPathResponseFrame(0, reverse_path_challenge_payload)),
+         QuicFrame(&ack_frame)},
+        kSelfAddress, kPeerAddress3, ENCRYPTION_FORWARD_SECURE);
   }
 }
 
@@ -2540,7 +2539,7 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
     EXPECT_EQ((connection_.validate_client_address() ? 2 : 3) * bytes_sent,
               QuicConnectionPeer::BytesSentOnAlternativePath(&connection_));
     QuicFrames frames;
-    frames.push_back(QuicFrame(new QuicPathResponseFrame(99, payload)));
+    frames.push_back(QuicFrame(QuicPathResponseFrame(99, payload)));
     ProcessFramesPacketWithAddresses(frames, connection_.self_address(),
                                      kNewPeerAddress,
                                      ENCRYPTION_FORWARD_SECURE);
@@ -11949,7 +11948,7 @@ TEST_P(QuicConnectionTest, PathValidationOnNewSocketSuccess) {
   EXPECT_EQ(0u, writer_->packets_write_attempts());
 
   QuicFrames frames;
-  frames.push_back(QuicFrame(new QuicPathResponseFrame(
+  frames.push_back(QuicFrame(QuicPathResponseFrame(
       99, new_writer.path_challenge_frames().front().data_buffer)));
   ProcessFramesPacketWithAddresses(frames, kNewSelfAddress, kPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
@@ -12174,7 +12173,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedDefaultSocket) {
     // address validation.
     QuicFrames frames;
     frames.push_back(
-        QuicFrame(new QuicPathChallengeFrame(0, path_challenge_payload)));
+        QuicFrame(QuicPathChallengeFrame(0, path_challenge_payload)));
     ProcessFramesPacketWithAddresses(frames, kSelfAddress, kNewPeerAddress,
                                      ENCRYPTION_FORWARD_SECURE);
   } else {
@@ -12352,10 +12351,8 @@ TEST_P(QuicConnectionTest, ReceiveMultiplePathChallenge) {
   QuicPathFrameBuffer path_frame_buffer1{0, 1, 2, 3, 4, 5, 6, 7};
   QuicPathFrameBuffer path_frame_buffer2{8, 9, 10, 11, 12, 13, 14, 15};
   QuicFrames frames;
-  frames.push_back(
-      QuicFrame(new QuicPathChallengeFrame(0, path_frame_buffer1)));
-  frames.push_back(
-      QuicFrame(new QuicPathChallengeFrame(0, path_frame_buffer2)));
+  frames.push_back(QuicFrame(QuicPathChallengeFrame(0, path_frame_buffer1)));
+  frames.push_back(QuicFrame(QuicPathChallengeFrame(0, path_frame_buffer2)));
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Loopback6(),
                                           /*port=*/23456);
 
@@ -12395,7 +12392,7 @@ TEST_P(QuicConnectionTest, ReceiveStreamFrameBeforePathChallenge) {
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   QuicPathFrameBuffer path_frame_buffer{0, 1, 2, 3, 4, 5, 6, 7};
-  frames.push_back(QuicFrame(new QuicPathChallengeFrame(0, path_frame_buffer)));
+  frames.push_back(QuicFrame(QuicPathChallengeFrame(0, path_frame_buffer)));
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Loopback4(),
                                           /*port=*/23456);
 
@@ -12444,7 +12441,7 @@ TEST_P(QuicConnectionTest, ReceiveStreamFrameFollowingPathChallenge) {
 
   QuicFrames frames;
   QuicPathFrameBuffer path_frame_buffer{0, 1, 2, 3, 4, 5, 6, 7};
-  frames.push_back(QuicFrame(new QuicPathChallengeFrame(0, path_frame_buffer)));
+  frames.push_back(QuicFrame(QuicPathChallengeFrame(0, path_frame_buffer)));
   // PATH_RESPONSE should be flushed out before the rest packet is parsed.
   frames.push_back(QuicFrame(frame1_));
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Loopback4(),
@@ -12506,7 +12503,7 @@ TEST_P(QuicConnectionTest, PathChallengeWithDataInOutOfOrderPacket) {
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   QuicPathFrameBuffer path_frame_buffer{0, 1, 2, 3, 4, 5, 6, 7};
-  frames.push_back(QuicFrame(new QuicPathChallengeFrame(0, path_frame_buffer)));
+  frames.push_back(QuicFrame(QuicPathChallengeFrame(0, path_frame_buffer)));
   frames.push_back(QuicFrame(frame2_));
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Loopback6(),
                                           /*port=*/23456);
@@ -12568,7 +12565,7 @@ TEST_P(QuicConnectionTest, FailToWritePathResponse) {
 
   QuicFrames frames;
   QuicPathFrameBuffer path_frame_buffer{0, 1, 2, 3, 4, 5, 6, 7};
-  frames.push_back(QuicFrame(new QuicPathChallengeFrame(0, path_frame_buffer)));
+  frames.push_back(QuicFrame(QuicPathChallengeFrame(0, path_frame_buffer)));
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Loopback6(),
                                           /*port=*/23456);
 
@@ -13824,7 +13821,7 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
   QuicPathFrameBuffer path_challenge_payload{0, 1, 2, 3, 4, 5, 6, 7};
   QuicFrames frames1;
   frames1.push_back(
-      QuicFrame(new QuicPathChallengeFrame(0, path_challenge_payload)));
+      QuicFrame(QuicPathChallengeFrame(0, path_challenge_payload)));
   QuicPathFrameBuffer payload;
   EXPECT_CALL(*send_algorithm_,
               OnPacketSent(_, _, _, _, NO_RETRANSMITTABLE_DATA))
@@ -13911,7 +13908,7 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
 
   // Receiving PATH_RESPONSE should lift the anti-amplification limit.
   QuicFrames frames3;
-  frames3.push_back(QuicFrame(new QuicPathResponseFrame(99, payload)));
+  frames3.push_back(QuicFrame(QuicPathResponseFrame(99, payload)));
   EXPECT_CALL(visitor_, MaybeSendAddressToken());
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(testing::AtLeast(1u));
@@ -13979,7 +13976,7 @@ TEST_P(QuicConnectionTest,
   QuicPathFrameBuffer path_challenge_payload{0, 1, 2, 3, 4, 5, 6, 7};
   QuicFrames frames1;
   frames1.push_back(
-      QuicFrame(new QuicPathChallengeFrame(0, path_challenge_payload)));
+      QuicFrame(QuicPathChallengeFrame(0, path_challenge_payload)));
   ProcessFramesPacketWithAddresses(frames1, kSelfAddress, kNewPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
   EXPECT_TRUE(connection_.HasPendingPathValidation());
@@ -13992,7 +13989,7 @@ TEST_P(QuicConnectionTest,
 
   // Receive PATH_RESPONSE should mark the new peer address validated.
   QuicFrames frames3;
-  frames3.push_back(QuicFrame(new QuicPathResponseFrame(99, payload)));
+  frames3.push_back(QuicFrame(QuicPathResponseFrame(99, payload)));
   ProcessFramesPacketWithAddresses(frames3, kSelfAddress, kNewPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
 
@@ -14107,7 +14104,7 @@ TEST_P(QuicConnectionTest,
   QuicPathFrameBuffer path_challenge_payload{0, 1, 2, 3, 4, 5, 6, 7};
   QuicFrames frames1;
   frames1.push_back(
-      QuicFrame(new QuicPathChallengeFrame(0, path_challenge_payload)));
+      QuicFrame(QuicPathChallengeFrame(0, path_challenge_payload)));
   ProcessFramesPacketWithAddresses(frames1, kSelfAddress, kNewerPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
@@ -15180,7 +15177,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
         frame = QuicFrame(window_update_frame);
         break;
       case PATH_CHALLENGE_FRAME:
-        frame = QuicFrame(&path_challenge_frame);
+        frame = QuicFrame(path_challenge_frame);
         break;
       case STOP_SENDING_FRAME:
         frame = QuicFrame(stop_sending_frame);
@@ -15192,7 +15189,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
         frame = QuicFrame(&retire_connection_id_frame);
         break;
       case PATH_RESPONSE_FRAME:
-        frame = QuicFrame(&path_response_frame);
+        frame = QuicFrame(path_response_frame);
         break;
       case MESSAGE_FRAME:
         frame = QuicFrame(&message_frame);

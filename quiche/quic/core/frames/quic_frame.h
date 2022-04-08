@@ -61,6 +61,8 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
   explicit QuicFrame(QuicWindowUpdateFrame frame);
   explicit QuicFrame(QuicBlockedFrame frame);
   explicit QuicFrame(QuicStopSendingFrame frame);
+  explicit QuicFrame(QuicPathChallengeFrame frame);
+  explicit QuicFrame(QuicPathResponseFrame frame);
 
   explicit QuicFrame(QuicAckFrame* frame);
   explicit QuicFrame(QuicRstStreamFrame* frame);
@@ -69,8 +71,6 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
   explicit QuicFrame(QuicNewConnectionIdFrame* frame);
   explicit QuicFrame(QuicRetireConnectionIdFrame* frame);
   explicit QuicFrame(QuicNewTokenFrame* frame);
-  explicit QuicFrame(QuicPathResponseFrame* frame);
-  explicit QuicFrame(QuicPathChallengeFrame* frame);
   explicit QuicFrame(QuicMessageFrame* message_frame);
   explicit QuicFrame(QuicCryptoFrame* crypto_frame);
   explicit QuicFrame(QuicAckFrequencyFrame* ack_frequency_frame);
@@ -94,6 +94,8 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
     QuicWindowUpdateFrame window_update_frame;
     QuicBlockedFrame blocked_frame;
     QuicStopSendingFrame stop_sending_frame;
+    QuicPathChallengeFrame path_challenge_frame;
+    QuicPathResponseFrame path_response_frame;
 
     // Out of line frames.
     struct {
@@ -103,9 +105,6 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
       bool delete_forbidden = false;
 #endif  // QUIC_FRAME_DEBUG
 
-      // TODO(wub): These frames can also be inlined without increasing the size
-      // of QuicFrame:
-      // QuicPathResponseFrame, QuicPathChallengeFrame.
       union {
         QuicAckFrame* ack_frame;
         QuicRstStreamFrame* rst_stream_frame;
@@ -113,8 +112,6 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
         QuicGoAwayFrame* goaway_frame;
         QuicNewConnectionIdFrame* new_connection_id_frame;
         QuicRetireConnectionIdFrame* retire_connection_id_frame;
-        QuicPathResponseFrame* path_response_frame;
-        QuicPathChallengeFrame* path_challenge_frame;
         QuicMessageFrame* message_frame;
         QuicCryptoFrame* crypto_frame;
         QuicAckFrequencyFrame* ack_frequency_frame;

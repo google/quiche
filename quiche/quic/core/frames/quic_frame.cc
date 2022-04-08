@@ -63,11 +63,11 @@ QuicFrame::QuicFrame(QuicMaxStreamsFrame frame) : max_streams_frame(frame) {}
 QuicFrame::QuicFrame(QuicStreamsBlockedFrame frame)
     : streams_blocked_frame(frame) {}
 
-QuicFrame::QuicFrame(QuicPathResponseFrame* frame)
-    : type(PATH_RESPONSE_FRAME), path_response_frame(frame) {}
+QuicFrame::QuicFrame(QuicPathResponseFrame frame)
+    : path_response_frame(frame) {}
 
-QuicFrame::QuicFrame(QuicPathChallengeFrame* frame)
-    : type(PATH_CHALLENGE_FRAME), path_challenge_frame(frame) {}
+QuicFrame::QuicFrame(QuicPathChallengeFrame frame)
+    : path_challenge_frame(frame) {}
 
 QuicFrame::QuicFrame(QuicStopSendingFrame frame) : stop_sending_frame(frame) {}
 
@@ -96,7 +96,9 @@ void DeleteFrame(QuicFrame* frame) {
       frame->type != STREAMS_BLOCKED_FRAME && frame->type != STREAM_FRAME &&
       frame->type != HANDSHAKE_DONE_FRAME &&
       frame->type != WINDOW_UPDATE_FRAME && frame->type != BLOCKED_FRAME &&
-      frame->type != STOP_SENDING_FRAME) {
+      frame->type != STOP_SENDING_FRAME &&
+      frame->type != PATH_CHALLENGE_FRAME &&
+      frame->type != PATH_RESPONSE_FRAME) {
     QUICHE_CHECK(!frame->delete_forbidden) << *frame;
   }
 #endif  // QUIC_FRAME_DEBUG
@@ -113,6 +115,8 @@ void DeleteFrame(QuicFrame* frame) {
     case WINDOW_UPDATE_FRAME:
     case BLOCKED_FRAME:
     case STOP_SENDING_FRAME:
+    case PATH_CHALLENGE_FRAME:
+    case PATH_RESPONSE_FRAME:
       break;
     case ACK_FRAME:
       delete frame->ack_frame;
@@ -126,17 +130,11 @@ void DeleteFrame(QuicFrame* frame) {
     case GOAWAY_FRAME:
       delete frame->goaway_frame;
       break;
-    case PATH_CHALLENGE_FRAME:
-      delete frame->path_challenge_frame;
-      break;
     case NEW_CONNECTION_ID_FRAME:
       delete frame->new_connection_id_frame;
       break;
     case RETIRE_CONNECTION_ID_FRAME:
       delete frame->retire_connection_id_frame;
-      break;
-    case PATH_RESPONSE_FRAME:
-      delete frame->path_response_frame;
       break;
     case MESSAGE_FRAME:
       delete frame->message_frame;
@@ -373,10 +371,10 @@ QuicFrame CopyQuicFrame(quiche::QuicheBufferAllocator* allocator,
       copy = QuicFrame(QuicStreamsBlockedFrame(frame.streams_blocked_frame));
       break;
     case PATH_RESPONSE_FRAME:
-      copy = QuicFrame(new QuicPathResponseFrame(*frame.path_response_frame));
+      copy = QuicFrame(QuicPathResponseFrame(frame.path_response_frame));
       break;
     case PATH_CHALLENGE_FRAME:
-      copy = QuicFrame(new QuicPathChallengeFrame(*frame.path_challenge_frame));
+      copy = QuicFrame(QuicPathChallengeFrame(frame.path_challenge_frame));
       break;
     case STOP_SENDING_FRAME:
       copy = QuicFrame(QuicStopSendingFrame(frame.stop_sending_frame));
@@ -488,10 +486,10 @@ std::ostream& operator<<(std::ostream& os, const QuicFrame& frame) {
       os << "type { STREAMS_BLOCKED } " << frame.streams_blocked_frame;
       break;
     case PATH_RESPONSE_FRAME:
-      os << "type { PATH_RESPONSE } " << *(frame.path_response_frame);
+      os << "type { PATH_RESPONSE } " << frame.path_response_frame;
       break;
     case PATH_CHALLENGE_FRAME:
-      os << "type { PATH_CHALLENGE } " << *(frame.path_challenge_frame);
+      os << "type { PATH_CHALLENGE } " << frame.path_challenge_frame;
       break;
     case STOP_SENDING_FRAME:
       os << "type { STOP_SENDING } " << frame.stop_sending_frame;

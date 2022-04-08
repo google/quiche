@@ -9,14 +9,15 @@
 
 namespace quic {
 
+QuicPathResponseFrame::QuicPathResponseFrame()
+    : QuicInlinedFrame(PATH_RESPONSE_FRAME) {}
+
 QuicPathResponseFrame::QuicPathResponseFrame(
-    QuicControlFrameId control_frame_id,
-    const QuicPathFrameBuffer& data_buff)
-    : control_frame_id(control_frame_id) {
+    QuicControlFrameId control_frame_id, const QuicPathFrameBuffer& data_buff)
+    : QuicInlinedFrame(PATH_RESPONSE_FRAME),
+      control_frame_id(control_frame_id) {
   memcpy(data_buffer.data(), data_buff.data(), data_buffer.size());
 }
-
-QuicPathResponseFrame::~QuicPathResponseFrame() {}
 
 std::ostream& operator<<(std::ostream& os, const QuicPathResponseFrame& frame) {
   os << "{ control_frame_id: " << frame.control_frame_id << ", data: "

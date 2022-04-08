@@ -12428,7 +12428,7 @@ TEST_P(QuicFramerTest, BuildIetfPathChallengePacket) {
 
   QuicPathChallengeFrame frame;
   frame.data_buffer = QuicPathFrameBuffer({{0, 1, 2, 3, 4, 5, 6, 7}});
-  QuicFrames frames = {QuicFrame(&frame)};
+  QuicFrames frames = {QuicFrame(frame)};
 
   // clang-format off
   unsigned char packet_ietf[] = {
@@ -12511,7 +12511,7 @@ TEST_P(QuicFramerTest, BuildIetfPathResponsePacket) {
 
   QuicPathResponseFrame frame;
   frame.data_buffer = QuicPathFrameBuffer({{0, 1, 2, 3, 4, 5, 6, 7}});
-  QuicFrames frames = {QuicFrame(&frame)};
+  QuicFrames frames = {QuicFrame(frame)};
 
   // clang-format off
   unsigned char packet_ietf[] = {
@@ -12600,12 +12600,12 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
   QuicPathResponseFrame path_response_frame(8, buffer);
   EXPECT_EQ(QuicFramer::GetPathResponseFrameSize(path_response_frame),
             QuicFramer::GetRetransmittableControlFrameSize(
-                framer_.transport_version(), QuicFrame(&path_response_frame)));
+                framer_.transport_version(), QuicFrame(path_response_frame)));
 
   QuicPathChallengeFrame path_challenge_frame(9, buffer);
   EXPECT_EQ(QuicFramer::GetPathChallengeFrameSize(path_challenge_frame),
             QuicFramer::GetRetransmittableControlFrameSize(
-                framer_.transport_version(), QuicFrame(&path_challenge_frame)));
+                framer_.transport_version(), QuicFrame(path_challenge_frame)));
 
   QuicStopSendingFrame stop_sending_frame(10, 3, QUIC_STREAM_CANCELLED);
   EXPECT_EQ(QuicFramer::GetStopSendingFrameSize(stop_sending_frame),

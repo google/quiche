@@ -1056,11 +1056,10 @@ size_t QuicPacketCreator::BuildPaddedPathChallengePacket(
   QuicFrames frames;
 
   // Write a PATH_CHALLENGE frame, which has a random 8-byte payload
-  QuicPathChallengeFrame path_challenge_frame(0, payload);
-  frames.push_back(QuicFrame(&path_challenge_frame));
+  frames.push_back(QuicFrame(QuicPathChallengeFrame(0, payload)));
 
   if (debug_delegate_ != nullptr) {
-    debug_delegate_->OnFrameAddedToPacket(QuicFrame(&path_challenge_frame));
+    debug_delegate_->OnFrameAddedToPacket(frames.back());
   }
 
   // Add padding to the rest of the packet in order to assess Path MTU
@@ -1087,20 +1086,12 @@ size_t QuicPacketCreator::BuildPathResponsePacket(
   QUICHE_DCHECK(VersionHasIetfQuicFrames(framer_->transport_version()))
       << ENDPOINT;
 
-  std::vector<std::unique_ptr<QuicPathResponseFrame>> path_response_frames;
+  QuicFrames frames;
   for (const QuicPathFrameBuffer& payload : payloads) {
     // Note that the control frame ID can be 0 since this is not retransmitted.
-    path_response_frames.push_back(
-        std::make_unique<QuicPathResponseFrame>(0, payload));
-  }
-
-  QuicFrames frames;
-  for (const std::unique_ptr<QuicPathResponseFrame>& path_response_frame :
-       path_response_frames) {
-    frames.push_back(QuicFrame(path_response_frame.get()));
+    frames.push_back(QuicFrame(QuicPathResponseFrame(0, payload)));
     if (debug_delegate_ != nullptr) {
-      debug_delegate_->OnFrameAddedToPacket(
-          QuicFrame(path_response_frame.get()));
+      debug_delegate_->OnFrameAddedToPacket(frames.back());
     }
   }
 
@@ -2252,8 +2243,7 @@ void QuicPacketCreator::AddPathChallengeFrame(
       << "Packet flusher is not attached when "
          "generator tries to write stream data.";
   // Write a PATH_CHALLENGE frame, which has a random 8-byte payload.
-  auto path_challenge_frame = new QuicPathChallengeFrame(0, payload);
-  QuicFrame frame(path_challenge_frame);
+  QuicFrame frame(QuicPathChallengeFrame(0, payload));
   if (AddPaddedFrameWithRetry(frame)) {
     return;
   }
@@ -2263,20 +2253,16 @@ void QuicPacketCreator::AddPathChallengeFrame(
   // regression, consider to notify the caller about the sending failure and let
   // the caller to decide if it worth retrying.
   QUIC_DVLOG(1) << ENDPOINT << "Can't send PATH_CHALLENGE now";
-  delete path_challenge_frame;
 }
 
 bool QuicPacketCreator::AddPathResponseFrame(
     const QuicPathFrameBuffer& data_buffer) {
-  auto path_response =
-      new QuicPathResponseFrame(kInvalidControlFrameId, data_buffer);
-  QuicFrame frame(path_response);
+  QuicFrame frame(QuicPathResponseFrame(kInvalidControlFrameId, data_buffer));
   if (AddPaddedFrameWithRetry(frame)) {
     return true;
   }
 
   QUIC_DVLOG(1) << ENDPOINT << "Can't send PATH_RESPONSE now";
-  delete path_response;
   return false;
 }
 

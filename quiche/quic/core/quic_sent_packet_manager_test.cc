@@ -4309,7 +4309,7 @@ TEST_F(QuicSentPacketManagerTest, SendPathChallengeAndGetAck) {
                           kDefaultLength, false, false);
   QuicPathFrameBuffer path_frame_buffer{0, 1, 2, 3, 4, 5, 6, 7};
   packet.nonretransmittable_frames.push_back(
-      QuicFrame(new QuicPathChallengeFrame(0, path_frame_buffer)));
+      QuicFrame(QuicPathChallengeFrame(0, path_frame_buffer)));
   packet.encryption_level = ENCRYPTION_FORWARD_SECURE;
   manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
                         NO_RETRANSMITTABLE_DATA, false);

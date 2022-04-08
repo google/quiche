@@ -592,10 +592,10 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
         frames.push_back(QuicFrame(QuicStreamsBlockedFrame()));
         break;
       case PATH_RESPONSE_FRAME:
-        frames.push_back(QuicFrame(new QuicPathResponseFrame()));
+        frames.push_back(QuicFrame(QuicPathResponseFrame()));
         break;
       case PATH_CHALLENGE_FRAME:
-        frames.push_back(QuicFrame(new QuicPathChallengeFrame()));
+        frames.push_back(QuicFrame(QuicPathChallengeFrame()));
         break;
       case STOP_SENDING_FRAME:
         frames.push_back(QuicFrame(QuicStopSendingFrame()));
@@ -627,16 +627,29 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
   ASSERT_EQ(NUM_FRAME_TYPES, copy.size());
   for (uint8_t i = 0; i < NUM_FRAME_TYPES; ++i) {
     EXPECT_EQ(i, copy[i].type);
-    if (i != MESSAGE_FRAME) {
-      continue;
+    if (i == MESSAGE_FRAME) {
+      // Verify message frame is correctly copied.
+      EXPECT_EQ(1u, copy[i].message_frame->message_id);
+      EXPECT_EQ(nullptr, copy[i].message_frame->data);
+      EXPECT_EQ(7u, copy[i].message_frame->message_length);
+      ASSERT_EQ(1u, copy[i].message_frame->message_data.size());
+      EXPECT_EQ(0, memcmp(copy[i].message_frame->message_data[0].data(),
+                          frames[i].message_frame->message_data[0].data(), 7));
+    } else if (i == PATH_CHALLENGE_FRAME) {
+      EXPECT_EQ(copy[i].path_challenge_frame.control_frame_id,
+                frames[i].path_challenge_frame.control_frame_id);
+      EXPECT_EQ(memcmp(&copy[i].path_challenge_frame.data_buffer,
+                       &frames[i].path_challenge_frame.data_buffer,
+                       copy[i].path_challenge_frame.data_buffer.size()),
+                0);
+    } else if (i == PATH_RESPONSE_FRAME) {
+      EXPECT_EQ(copy[i].path_response_frame.control_frame_id,
+                frames[i].path_response_frame.control_frame_id);
+      EXPECT_EQ(memcmp(&copy[i].path_response_frame.data_buffer,
+                       &frames[i].path_response_frame.data_buffer,
+                       copy[i].path_response_frame.data_buffer.size()),
+                0);
     }
-    // Verify message frame is correctly copied.
-    EXPECT_EQ(1u, copy[i].message_frame->message_id);
-    EXPECT_EQ(nullptr, copy[i].message_frame->data);
-    EXPECT_EQ(7u, copy[i].message_frame->message_length);
-    ASSERT_EQ(1u, copy[i].message_frame->message_data.size());
-    EXPECT_EQ(0, memcmp(copy[i].message_frame->message_data[0].data(),
-                        frames[i].message_frame->message_data[0].data(), 7));
   }
   DeleteFrames(&frames);
   DeleteFrames(&copy);

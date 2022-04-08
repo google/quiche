@@ -687,9 +687,9 @@ size_t QuicFramer::GetRetransmittableControlFrameSize(
     case STREAMS_BLOCKED_FRAME:
       return GetStreamsBlockedFrameSize(version, frame.streams_blocked_frame);
     case PATH_RESPONSE_FRAME:
-      return GetPathResponseFrameSize(*frame.path_response_frame);
+      return GetPathResponseFrameSize(frame.path_response_frame);
     case PATH_CHALLENGE_FRAME:
-      return GetPathChallengeFrameSize(*frame.path_challenge_frame);
+      return GetPathChallengeFrameSize(frame.path_challenge_frame);
     case STOP_SENDING_FRAME:
       return GetStopSendingFrameSize(frame.stop_sending_frame);
     case HANDSHAKE_DONE_FRAME:
@@ -1191,14 +1191,14 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         }
         break;
       case PATH_CHALLENGE_FRAME:
-        if (!AppendPathChallengeFrame(*frame.path_challenge_frame, writer)) {
+        if (!AppendPathChallengeFrame(frame.path_challenge_frame, writer)) {
           QUIC_BUG(quic_bug_10850_47)
               << "AppendPathChallengeFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case PATH_RESPONSE_FRAME:
-        if (!AppendPathResponseFrame(*frame.path_response_frame, writer)) {
+        if (!AppendPathResponseFrame(frame.path_response_frame, writer)) {
           QUIC_BUG(quic_bug_10850_48)
               << "AppendPathResponseFrame failed: " << detailed_error();
           return 0;

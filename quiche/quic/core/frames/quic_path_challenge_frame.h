@@ -8,20 +8,23 @@
 #include <memory>
 #include <ostream>
 
+#include "quiche/quic/core/frames/quic_inlined_frame.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_types.h"
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE QuicPathChallengeFrame {
-  QuicPathChallengeFrame() = default;
+struct QUIC_EXPORT_PRIVATE QuicPathChallengeFrame
+    : public QuicInlinedFrame<QuicPathChallengeFrame> {
+  QuicPathChallengeFrame();
   QuicPathChallengeFrame(QuicControlFrameId control_frame_id,
                          const QuicPathFrameBuffer& data_buff);
-  ~QuicPathChallengeFrame();
+  ~QuicPathChallengeFrame() = default;
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicPathChallengeFrame& frame);
+      std::ostream& os, const QuicPathChallengeFrame& frame);
+
+  QuicFrameType type;
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.

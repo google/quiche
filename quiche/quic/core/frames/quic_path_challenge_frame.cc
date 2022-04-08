@@ -9,14 +9,15 @@
 
 namespace quic {
 
+QuicPathChallengeFrame::QuicPathChallengeFrame()
+    : QuicInlinedFrame(PATH_CHALLENGE_FRAME) {}
+
 QuicPathChallengeFrame::QuicPathChallengeFrame(
-    QuicControlFrameId control_frame_id,
-    const QuicPathFrameBuffer& data_buff)
-    : control_frame_id(control_frame_id) {
+    QuicControlFrameId control_frame_id, const QuicPathFrameBuffer& data_buff)
+    : QuicInlinedFrame(PATH_CHALLENGE_FRAME),
+      control_frame_id(control_frame_id) {
   memcpy(data_buffer.data(), data_buff.data(), data_buffer.size());
 }
-
-QuicPathChallengeFrame::~QuicPathChallengeFrame() {}
 
 std::ostream& operator<<(std::ostream& os,
                          const QuicPathChallengeFrame& frame) {
