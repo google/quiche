@@ -5,11 +5,6 @@
 #ifndef QUICHE_QUIC_CORE_PROTO_SOURCE_ADDRESS_TOKEN_PROTO_H_
 #define QUICHE_QUIC_CORE_PROTO_SOURCE_ADDRESS_TOKEN_PROTO_H_
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Weverything"
-
 #include "quiche/quic/core/proto/source_address_token.pb.h"
-
-#pragma clang diagnostic pop
 
 #endif  // QUICHE_QUIC_CORE_PROTO_SOURCE_ADDRESS_TOKEN_PROTO_H_

@@ -4,12 +4,7 @@
 
 #include "quiche/quic/load_balancer/load_balancer_server_id.h"
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Weverything"
-
 #include "absl/hash/hash_testing.h"
-
-#pragma clang diagnostic pop
 
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
