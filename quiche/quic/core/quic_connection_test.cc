@@ -1306,7 +1306,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     if (perspective == Perspective::IS_SERVER) {
       QuicConfig config;
       if (!GetQuicReloadableFlag(
-              quic_remove_connection_migration_connection_option)) {
+              quic_remove_connection_migration_connection_option_v2)) {
         QuicTagVector connection_options;
         connection_options.push_back(kRVCM);
         config.SetInitialReceivedConnectionOptions(connection_options);
@@ -14116,7 +14116,7 @@ TEST_P(QuicConnectionTest,
 TEST_P(QuicConnectionTest,
        PathValidationFailedOnClientDueToLackOfServerConnectionId) {
   if (!GetQuicReloadableFlag(
-          quic_remove_connection_migration_connection_option)) {
+          quic_remove_connection_migration_connection_option_v2)) {
     QuicConfig config;
     EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
     connection_.SetFromConfig(config);
@@ -14144,7 +14144,7 @@ TEST_P(QuicConnectionTest,
 TEST_P(QuicConnectionTest,
        PathValidationFailedOnClientDueToLackOfClientConnectionIdTheSecondTime) {
   if (!GetQuicReloadableFlag(
-          quic_remove_connection_migration_connection_option)) {
+          quic_remove_connection_migration_connection_option_v2)) {
     QuicConfig config;
     config.SetConnectionOptionsToSend({kRVCM});
     EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -14235,7 +14235,7 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest, ServerConnectionIdRetiredUponPathValidationFailure) {
   if (!GetQuicReloadableFlag(
-          quic_remove_connection_migration_connection_option)) {
+          quic_remove_connection_migration_connection_option_v2)) {
     QuicConfig config;
     config.SetConnectionOptionsToSend({kRVCM});
     EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -14285,7 +14285,7 @@ TEST_P(QuicConnectionTest, ServerConnectionIdRetiredUponPathValidationFailure) {
 TEST_P(QuicConnectionTest,
        MigratePathDirectlyFailedDueToLackOfServerConnectionId) {
   if (!GetQuicReloadableFlag(
-          quic_remove_connection_migration_connection_option)) {
+          quic_remove_connection_migration_connection_option_v2)) {
     QuicConfig config;
     config.SetConnectionOptionsToSend({kRVCM});
     EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -14308,7 +14308,7 @@ TEST_P(QuicConnectionTest,
 TEST_P(QuicConnectionTest,
        MigratePathDirectlyFailedDueToLackOfClientConnectionIdTheSecondTime) {
   if (!GetQuicReloadableFlag(
-          quic_remove_connection_migration_connection_option)) {
+          quic_remove_connection_migration_connection_option_v2)) {
     QuicConfig config;
     config.SetConnectionOptionsToSend({kRVCM});
     EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -14627,7 +14627,7 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
   if (!GetQuicReloadableFlag(
-          quic_remove_connection_migration_connection_option)) {
+          quic_remove_connection_migration_connection_option_v2)) {
     QuicConfig config;
     config.SetConnectionOptionsToSend({kRVCM});
     EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -15076,7 +15076,7 @@ TEST_P(QuicConnectionTest, PingNotSentAt0RTTLevelWhenInitialAvailable) {
 
 TEST_P(QuicConnectionTest, AckElicitingFrames) {
   if (!GetQuicReloadableFlag(
-          quic_remove_connection_migration_connection_option)) {
+          quic_remove_connection_migration_connection_option_v2)) {
     QuicConfig config;
     config.SetConnectionOptionsToSend({kRVCM});
     EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));

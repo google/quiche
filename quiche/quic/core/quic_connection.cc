@@ -623,10 +623,11 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     send_connection_close_for_invalid_version_ = true;
   }
   const bool remove_connection_migration_connection_option =
-      GetQuicReloadableFlag(quic_remove_connection_migration_connection_option);
+      GetQuicReloadableFlag(
+          quic_remove_connection_migration_connection_option_v2);
   if (remove_connection_migration_connection_option) {
     QUIC_RELOADABLE_FLAG_COUNT(
-        quic_remove_connection_migration_connection_option);
+        quic_remove_connection_migration_connection_option_v2);
   }
   if (framer_.version().HasIetfQuicFrames() && use_path_validator_ &&
       count_bytes_on_alternative_path_separately_ &&
