@@ -1301,8 +1301,23 @@ void OgHttp2Session::OnPing(spdy::SpdyPingId unique_id, bool is_ack) {
 
 void OgHttp2Session::OnGoAway(spdy::SpdyStreamId last_accepted_stream_id,
                               spdy::SpdyErrorCode error_code) {
+  if (received_goaway_ &&
+      last_accepted_stream_id >
+          static_cast<spdy::SpdyStreamId>(received_goaway_stream_id_)) {
+    // This GOAWAY has a higher `last_accepted_stream_id` than a previous
+    // GOAWAY, a connection-level spec violation.
+    const bool ok = visitor_.OnInvalidFrame(
+        kConnectionStreamId,
+        Http2VisitorInterface::InvalidFrameError::kProtocol);
+    if (!ok) {
+      fatal_visitor_callback_failure_ = true;
+    }
+    LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
+                        ConnectionError::kInvalidGoAwayLastStreamId);
+    return;
+  }
+
   received_goaway_ = true;
-  // TODO(diannahu): Validate that `last_accepted_stream_id` is non-increasing.
   received_goaway_stream_id_ = last_accepted_stream_id;
   const bool result = visitor_.OnGoAway(last_accepted_stream_id,
                                         TranslateErrorCode(error_code), "");

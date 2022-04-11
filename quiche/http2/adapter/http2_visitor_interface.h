@@ -80,6 +80,8 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
     kExceededMaxConcurrentStreams,
     // The peer caused a flow control error.
     kFlowControlError,
+    // The peer sent a GOAWAY with an invalid last-stream-ID field.
+    kInvalidGoAwayLastStreamId,
   };
   virtual void OnConnectionError(ConnectionError error) = 0;
 

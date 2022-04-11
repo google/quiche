@@ -99,6 +99,8 @@ absl::string_view ConnectionErrorToString(ConnectionError error) {
       return "ExceededMaxConcurrentStreams";
     case ConnectionError::kFlowControlError:
       return "FlowControlError";
+    case ConnectionError::kInvalidGoAwayLastStreamId:
+      return "InvalidGoAwayLastStreamId";
   }
   return "UnknownConnectionError";
 }
