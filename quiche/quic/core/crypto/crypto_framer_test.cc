@@ -23,9 +23,7 @@ namespace quic {
 namespace test {
 namespace {
 
-char* AsChars(unsigned char* data) {
-  return reinterpret_cast<char*>(data);
-}
+char* AsChars(unsigned char* data) { return reinterpret_cast<char*>(data); }
 
 class TestCryptoVisitor : public CryptoFramerVisitorInterface {
  public:
@@ -53,32 +51,30 @@ TEST(CryptoFramerTest, ConstructHandshakeMessage) {
   message.SetStringPiece(0x12345679, "ghijk");
   message.SetStringPiece(0x1234567A, "lmnopqr");
 
-  unsigned char packet[] = {
-      // tag
-      0x33, 0x77, 0xAA, 0xFF,
-      // num entries
-      0x03, 0x00,
-      // padding
-      0x00, 0x00,
-      // tag 1
-      0x78, 0x56, 0x34, 0x12,
-      // end offset 1
-      0x06, 0x00, 0x00, 0x00,
-      // tag 2
-      0x79, 0x56, 0x34, 0x12,
-      // end offset 2
-      0x0b, 0x00, 0x00, 0x00,
-      // tag 3
-      0x7A, 0x56, 0x34, 0x12,
-      // end offset 3
-      0x12, 0x00, 0x00, 0x00,
-      // value 1
-      'a', 'b', 'c', 'd', 'e', 'f',
-      // value 2
-      'g', 'h', 'i', 'j', 'k',
-      // value 3
-      'l', 'm', 'n', 'o', 'p', 'q', 'r',
-  };
+  unsigned char packet[] = {// tag
+                            0x33, 0x77, 0xAA, 0xFF,
+                            // num entries
+                            0x03, 0x00,
+                            // padding
+                            0x00, 0x00,
+                            // tag 1
+                            0x78, 0x56, 0x34, 0x12,
+                            // end offset 1
+                            0x06, 0x00, 0x00, 0x00,
+                            // tag 2
+                            0x79, 0x56, 0x34, 0x12,
+                            // end offset 2
+                            0x0b, 0x00, 0x00, 0x00,
+                            // tag 3
+                            0x7A, 0x56, 0x34, 0x12,
+                            // end offset 3
+                            0x12, 0x00, 0x00, 0x00,
+                            // value 1
+                            'a', 'b', 'c', 'd', 'e', 'f',
+                            // value 2
+                            'g', 'h', 'i', 'j', 'k',
+                            // value 3
+                            'l', 'm', 'n', 'o', 'p', 'q', 'r'};
 
   CryptoFramer framer;
   std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
@@ -94,26 +90,24 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageWithTwoKeys) {
   message.SetStringPiece(0x12345678, "abcdef");
   message.SetStringPiece(0x12345679, "ghijk");
 
-  unsigned char packet[] = {
-      // tag
-      0x33, 0x77, 0xAA, 0xFF,
-      // num entries
-      0x02, 0x00,
-      // padding
-      0x00, 0x00,
-      // tag 1
-      0x78, 0x56, 0x34, 0x12,
-      // end offset 1
-      0x06, 0x00, 0x00, 0x00,
-      // tag 2
-      0x79, 0x56, 0x34, 0x12,
-      // end offset 2
-      0x0b, 0x00, 0x00, 0x00,
-      // value 1
-      'a', 'b', 'c', 'd', 'e', 'f',
-      // value 2
-      'g', 'h', 'i', 'j', 'k',
-  };
+  unsigned char packet[] = {// tag
+                            0x33, 0x77, 0xAA, 0xFF,
+                            // num entries
+                            0x02, 0x00,
+                            // padding
+                            0x00, 0x00,
+                            // tag 1
+                            0x78, 0x56, 0x34, 0x12,
+                            // end offset 1
+                            0x06, 0x00, 0x00, 0x00,
+                            // tag 2
+                            0x79, 0x56, 0x34, 0x12,
+                            // end offset 2
+                            0x0b, 0x00, 0x00, 0x00,
+                            // value 1
+                            'a', 'b', 'c', 'd', 'e', 'f',
+                            // value 2
+                            'g', 'h', 'i', 'j', 'k'};
 
   CryptoFramer framer;
   std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
@@ -129,18 +123,16 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageZeroLength) {
   message.set_tag(0xFFAA7733);
   message.SetStringPiece(0x12345678, "");
 
-  unsigned char packet[] = {
-      // tag
-      0x33, 0x77, 0xAA, 0xFF,
-      // num entries
-      0x01, 0x00,
-      // padding
-      0x00, 0x00,
-      // tag 1
-      0x78, 0x56, 0x34, 0x12,
-      // end offset 1
-      0x00, 0x00, 0x00, 0x00,
-  };
+  unsigned char packet[] = {// tag
+                            0x33, 0x77, 0xAA, 0xFF,
+                            // num entries
+                            0x01, 0x00,
+                            // padding
+                            0x00, 0x00,
+                            // tag 1
+                            0x78, 0x56, 0x34, 0x12,
+                            // end offset 1
+                            0x00, 0x00, 0x00, 0x00};
 
   CryptoFramer framer;
   std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
@@ -169,28 +161,27 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageMinimumSize) {
   message.SetStringPiece(0x01020304, "test");
   message.set_minimum_size(64);
 
-  unsigned char packet[] = {
-      // tag
-      0x33, 0x77, 0xAA, 0xFF,
-      // num entries
-      0x02, 0x00,
-      // padding
-      0x00, 0x00,
-      // tag 1
-      'P', 'A', 'D', 0,
-      // end offset 1
-      0x24, 0x00, 0x00, 0x00,
-      // tag 2
-      0x04, 0x03, 0x02, 0x01,
-      // end offset 2
-      0x28, 0x00, 0x00, 0x00,
-      // 36 bytes of padding.
-      '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-',
-      '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-',
-      '-', '-', '-', '-', '-', '-',
-      // value 2
-      't', 'e', 's', 't',
-  };
+  unsigned char packet[] = {// tag
+                            0x33, 0x77, 0xAA, 0xFF,
+                            // num entries
+                            0x02, 0x00,
+                            // padding
+                            0x00, 0x00,
+                            // tag 1
+                            'P', 'A', 'D', 0,
+                            // end offset 1
+                            0x24, 0x00, 0x00, 0x00,
+                            // tag 2
+                            0x04, 0x03, 0x02, 0x01,
+                            // end offset 2
+                            0x28, 0x00, 0x00, 0x00,
+                            // 36 bytes of padding.
+                            '-', '-', '-', '-', '-', '-', '-', '-', '-', '-',
+                            '-', '-', '-', '-', '-', '-', '-', '-', '-', '-',
+                            '-', '-', '-', '-', '-', '-', '-', '-', '-', '-',
+                            '-', '-', '-', '-', '-', '-',
+                            // value 2
+                            't', 'e', 's', 't'};
 
   CryptoFramer framer;
   std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
@@ -207,26 +198,25 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageMinimumSizePadLast) {
   message.SetStringPiece(1, "");
   message.set_minimum_size(64);
 
-  unsigned char packet[] = {
-      // tag
-      0x33, 0x77, 0xAA, 0xFF,
-      // num entries
-      0x02, 0x00,
-      // padding
-      0x00, 0x00,
-      // tag 1
-      0x01, 0x00, 0x00, 0x00,
-      // end offset 1
-      0x00, 0x00, 0x00, 0x00,
-      // tag 2
-      'P', 'A', 'D', 0,
-      // end offset 2
-      0x28, 0x00, 0x00, 0x00,
-      // 40 bytes of padding.
-      '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-',
-      '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-',
-      '-', '-', '-', '-', '-', '-', '-', '-', '-', '-',
-  };
+  unsigned char packet[] = {// tag
+                            0x33, 0x77, 0xAA, 0xFF,
+                            // num entries
+                            0x02, 0x00,
+                            // padding
+                            0x00, 0x00,
+                            // tag 1
+                            0x01, 0x00, 0x00, 0x00,
+                            // end offset 1
+                            0x00, 0x00, 0x00, 0x00,
+                            // tag 2
+                            'P', 'A', 'D', 0,
+                            // end offset 2
+                            0x28, 0x00, 0x00, 0x00,
+                            // 40 bytes of padding.
+                            '-', '-', '-', '-', '-', '-', '-', '-', '-', '-',
+                            '-', '-', '-', '-', '-', '-', '-', '-', '-', '-',
+                            '-', '-', '-', '-', '-', '-', '-', '-', '-', '-',
+                            '-', '-', '-', '-', '-', '-', '-', '-', '-', '-'};
 
   CryptoFramer framer;
   std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
@@ -242,26 +232,24 @@ TEST(CryptoFramerTest, ProcessInput) {
   CryptoFramer framer;
   framer.set_visitor(&visitor);
 
-  unsigned char input[] = {
-      // tag
-      0x33, 0x77, 0xAA, 0xFF,
-      // num entries
-      0x02, 0x00,
-      // padding
-      0x00, 0x00,
-      // tag 1
-      0x78, 0x56, 0x34, 0x12,
-      // end offset 1
-      0x06, 0x00, 0x00, 0x00,
-      // tag 2
-      0x79, 0x56, 0x34, 0x12,
-      // end offset 2
-      0x0b, 0x00, 0x00, 0x00,
-      // value 1
-      'a', 'b', 'c', 'd', 'e', 'f',
-      // value 2
-      'g', 'h', 'i', 'j', 'k',
-  };
+  unsigned char input[] = {// tag
+                           0x33, 0x77, 0xAA, 0xFF,
+                           // num entries
+                           0x02, 0x00,
+                           // padding
+                           0x00, 0x00,
+                           // tag 1
+                           0x78, 0x56, 0x34, 0x12,
+                           // end offset 1
+                           0x06, 0x00, 0x00, 0x00,
+                           // tag 2
+                           0x79, 0x56, 0x34, 0x12,
+                           // end offset 2
+                           0x0b, 0x00, 0x00, 0x00,
+                           // value 1
+                           'a', 'b', 'c', 'd', 'e', 'f',
+                           // value 2
+                           'g', 'h', 'i', 'j', 'k'};
 
   EXPECT_TRUE(framer.ProcessInput(
       absl::string_view(AsChars(input), ABSL_ARRAYSIZE(input))));
@@ -280,32 +268,30 @@ TEST(CryptoFramerTest, ProcessInputWithThreeKeys) {
   CryptoFramer framer;
   framer.set_visitor(&visitor);
 
-  unsigned char input[] = {
-      // tag
-      0x33, 0x77, 0xAA, 0xFF,
-      // num entries
-      0x03, 0x00,
-      // padding
-      0x00, 0x00,
-      // tag 1
-      0x78, 0x56, 0x34, 0x12,
-      // end offset 1
-      0x06, 0x00, 0x00, 0x00,
-      // tag 2
-      0x79, 0x56, 0x34, 0x12,
-      // end offset 2
-      0x0b, 0x00, 0x00, 0x00,
-      // tag 3
-      0x7A, 0x56, 0x34, 0x12,
-      // end offset 3
-      0x12, 0x00, 0x00, 0x00,
-      // value 1
-      'a', 'b', 'c', 'd', 'e', 'f',
-      // value 2
-      'g', 'h', 'i', 'j', 'k',
-      // value 3
-      'l', 'm', 'n', 'o', 'p', 'q', 'r',
-  };
+  unsigned char input[] = {// tag
+                           0x33, 0x77, 0xAA, 0xFF,
+                           // num entries
+                           0x03, 0x00,
+                           // padding
+                           0x00, 0x00,
+                           // tag 1
+                           0x78, 0x56, 0x34, 0x12,
+                           // end offset 1
+                           0x06, 0x00, 0x00, 0x00,
+                           // tag 2
+                           0x79, 0x56, 0x34, 0x12,
+                           // end offset 2
+                           0x0b, 0x00, 0x00, 0x00,
+                           // tag 3
+                           0x7A, 0x56, 0x34, 0x12,
+                           // end offset 3
+                           0x12, 0x00, 0x00, 0x00,
+                           // value 1
+                           'a', 'b', 'c', 'd', 'e', 'f',
+                           // value 2
+                           'g', 'h', 'i', 'j', 'k',
+                           // value 3
+                           'l', 'm', 'n', 'o', 'p', 'q', 'r'};
 
   EXPECT_TRUE(framer.ProcessInput(
       absl::string_view(AsChars(input), ABSL_ARRAYSIZE(input))));
@@ -325,26 +311,24 @@ TEST(CryptoFramerTest, ProcessInputIncrementally) {
   CryptoFramer framer;
   framer.set_visitor(&visitor);
 
-  unsigned char input[] = {
-      // tag
-      0x33, 0x77, 0xAA, 0xFF,
-      // num entries
-      0x02, 0x00,
-      // padding
-      0x00, 0x00,
-      // tag 1
-      0x78, 0x56, 0x34, 0x12,
-      // end offset 1
-      0x06, 0x00, 0x00, 0x00,
-      // tag 2
-      0x79, 0x56, 0x34, 0x12,
-      // end offset 2
-      0x0b, 0x00, 0x00, 0x00,
-      // value 1
-      'a', 'b', 'c', 'd', 'e', 'f',
-      // value 2
-      'g', 'h', 'i', 'j', 'k',
-  };
+  unsigned char input[] = {// tag
+                           0x33, 0x77, 0xAA, 0xFF,
+                           // num entries
+                           0x02, 0x00,
+                           // padding
+                           0x00, 0x00,
+                           // tag 1
+                           0x78, 0x56, 0x34, 0x12,
+                           // end offset 1
+                           0x06, 0x00, 0x00, 0x00,
+                           // tag 2
+                           0x79, 0x56, 0x34, 0x12,
+                           // end offset 2
+                           0x0b, 0x00, 0x00, 0x00,
+                           // value 1
+                           'a', 'b', 'c', 'd', 'e', 'f',
+                           // value 2
+                           'g', 'h', 'i', 'j', 'k'};
 
   for (size_t i = 0; i < ABSL_ARRAYSIZE(input); i++) {
     EXPECT_TRUE(framer.ProcessInput(absl::string_view(AsChars(input) + i, 1)));
@@ -363,22 +347,20 @@ TEST(CryptoFramerTest, ProcessInputTagsOutOfOrder) {
   CryptoFramer framer;
   framer.set_visitor(&visitor);
 
-  unsigned char input[] = {
-      // tag
-      0x33, 0x77, 0xAA, 0xFF,
-      // num entries
-      0x02, 0x00,
-      // padding
-      0x00, 0x00,
-      // tag 1
-      0x78, 0x56, 0x34, 0x13,
-      // end offset 1
-      0x01, 0x00, 0x00, 0x00,
-      // tag 2
-      0x79, 0x56, 0x34, 0x12,
-      // end offset 2
-      0x02, 0x00, 0x00, 0x00,
-  };
+  unsigned char input[] = {// tag
+                           0x33, 0x77, 0xAA, 0xFF,
+                           // num entries
+                           0x02, 0x00,
+                           // padding
+                           0x00, 0x00,
+                           // tag 1
+                           0x78, 0x56, 0x34, 0x13,
+                           // end offset 1
+                           0x01, 0x00, 0x00, 0x00,
+                           // tag 2
+                           0x79, 0x56, 0x34, 0x12,
+                           // end offset 2
+                           0x02, 0x00, 0x00, 0x00};
 
   EXPECT_FALSE(framer.ProcessInput(
       absl::string_view(AsChars(input), ABSL_ARRAYSIZE(input))));
@@ -391,22 +373,20 @@ TEST(CryptoFramerTest, ProcessEndOffsetsOutOfOrder) {
   CryptoFramer framer;
   framer.set_visitor(&visitor);
 
-  unsigned char input[] = {
-      // tag
-      0x33, 0x77, 0xAA, 0xFF,
-      // num entries
-      0x02, 0x00,
-      // padding
-      0x00, 0x00,
-      // tag 1
-      0x79, 0x56, 0x34, 0x12,
-      // end offset 1
-      0x01, 0x00, 0x00, 0x00,
-      // tag 2
-      0x78, 0x56, 0x34, 0x13,
-      // end offset 2
-      0x00, 0x00, 0x00, 0x00,
-  };
+  unsigned char input[] = {// tag
+                           0x33, 0x77, 0xAA, 0xFF,
+                           // num entries
+                           0x02, 0x00,
+                           // padding
+                           0x00, 0x00,
+                           // tag 1
+                           0x79, 0x56, 0x34, 0x12,
+                           // end offset 1
+                           0x01, 0x00, 0x00, 0x00,
+                           // tag 2
+                           0x78, 0x56, 0x34, 0x13,
+                           // end offset 2
+                           0x00, 0x00, 0x00, 0x00};
 
   EXPECT_FALSE(framer.ProcessInput(
       absl::string_view(AsChars(input), ABSL_ARRAYSIZE(input))));
@@ -419,14 +399,12 @@ TEST(CryptoFramerTest, ProcessInputTooManyEntries) {
   CryptoFramer framer;
   framer.set_visitor(&visitor);
 
-  unsigned char input[] = {
-      // tag
-      0x33, 0x77, 0xAA, 0xFF,
-      // num entries
-      0xA0, 0x00,
-      // padding
-      0x00, 0x00,
-  };
+  unsigned char input[] = {// tag
+                           0x33, 0x77, 0xAA, 0xFF,
+                           // num entries
+                           0xA0, 0x00,
+                           // padding
+                           0x00, 0x00};
 
   EXPECT_FALSE(framer.ProcessInput(
       absl::string_view(AsChars(input), ABSL_ARRAYSIZE(input))));
@@ -439,22 +417,20 @@ TEST(CryptoFramerTest, ProcessInputZeroLength) {
   CryptoFramer framer;
   framer.set_visitor(&visitor);
 
-  unsigned char input[] = {
-      // tag
-      0x33, 0x77, 0xAA, 0xFF,
-      // num entries
-      0x02, 0x00,
-      // padding
-      0x00, 0x00,
-      // tag 1
-      0x78, 0x56, 0x34, 0x12,
-      // end offset 1
-      0x00, 0x00, 0x00, 0x00,
-      // tag 2
-      0x79, 0x56, 0x34, 0x12,
-      // end offset 2
-      0x05, 0x00, 0x00, 0x00,
-  };
+  unsigned char input[] = {// tag
+                           0x33, 0x77, 0xAA, 0xFF,
+                           // num entries
+                           0x02, 0x00,
+                           // padding
+                           0x00, 0x00,
+                           // tag 1
+                           0x78, 0x56, 0x34, 0x12,
+                           // end offset 1
+                           0x00, 0x00, 0x00, 0x00,
+                           // tag 2
+                           0x79, 0x56, 0x34, 0x12,
+                           // end offset 2
+                           0x05, 0x00, 0x00, 0x00};
 
   EXPECT_TRUE(framer.ProcessInput(
       absl::string_view(AsChars(input), ABSL_ARRAYSIZE(input))));
