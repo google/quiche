@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_COMMON_QUICHE_SIMPLE_BUFFER_ALLOCATOR_H_
-#define QUICHE_COMMON_QUICHE_SIMPLE_BUFFER_ALLOCATOR_H_
+#ifndef QUICHE_COMMON_SIMPLE_BUFFER_ALLOCATOR_H_
+#define QUICHE_COMMON_SIMPLE_BUFFER_ALLOCATOR_H_
 
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
@@ -28,4 +28,4 @@ class QUICHE_EXPORT_PRIVATE SimpleBufferAllocator
 
 }  // namespace quiche
 
-#endif  // QUICHE_COMMON_QUICHE_SIMPLE_BUFFER_ALLOCATOR_H_
+#endif  // QUICHE_COMMON_SIMPLE_BUFFER_ALLOCATOR_H_

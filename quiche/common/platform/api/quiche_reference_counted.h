@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_PLATFORM_API_QUIC_REFERENCE_COUNTED_H_
-#define QUICHE_QUIC_PLATFORM_API_QUIC_REFERENCE_COUNTED_H_
+#ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_REFERENCE_COUNTED_H_
+#define QUICHE_COMMON_PLATFORM_API_QUICHE_REFERENCE_COUNTED_H_
 
 #include "quiche_platform_impl/quiche_reference_counted_impl.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -166,4 +166,4 @@ class QUICHE_NO_EXPORT QuicheReferenceCountedPointer {
 
 }  // namespace quiche
 
-#endif  // QUICHE_QUIC_PLATFORM_API_QUIC_REFERENCE_COUNTED_H_
+#endif  // QUICHE_COMMON_PLATFORM_API_QUICHE_REFERENCE_COUNTED_H_

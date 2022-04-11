@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_QPACK_REQUIRED_INSERT_COUNT_H_
-#define QUICHE_QUIC_CORE_QPACK_REQUIRED_INSERT_COUNT_H_
+#ifndef QUICHE_QUIC_CORE_QPACK_QPACK_REQUIRED_INSERT_COUNT_H_
+#define QUICHE_QUIC_CORE_QPACK_QPACK_REQUIRED_INSERT_COUNT_H_
 
 #include <cstdint>
 
@@ -30,4 +30,4 @@ QUIC_EXPORT_PRIVATE bool QpackDecodeRequiredInsertCount(
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_CORE_QPACK_REQUIRED_INSERT_COUNT_H_
+#endif  // QUICHE_QUIC_CORE_QPACK_QPACK_REQUIRED_INSERT_COUNT_H_

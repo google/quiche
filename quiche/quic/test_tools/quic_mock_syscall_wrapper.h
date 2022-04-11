@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_PLATFORM_IMPL_QUIC_MOCK_SYSCALL_WRAPPER_H_
-#define QUICHE_QUIC_PLATFORM_IMPL_QUIC_MOCK_SYSCALL_WRAPPER_H_
+#ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_MOCK_SYSCALL_WRAPPER_H_
+#define QUICHE_QUIC_TEST_TOOLS_QUIC_MOCK_SYSCALL_WRAPPER_H_
 
 #include "quiche/quic/core/quic_syscall_wrapper.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -34,4 +34,4 @@ class MockQuicSyscallWrapper : public QuicSyscallWrapper {
 }  // namespace test
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_PLATFORM_IMPL_QUIC_MOCK_SYSCALL_WRAPPER_H_
+#endif  // QUICHE_QUIC_TEST_TOOLS_QUIC_MOCK_SYSCALL_WRAPPER_H_

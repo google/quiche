@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_PLATFORM_IMPL_QUIC_SENDMMSG_BATCH_WRITER_H_
-#define QUICHE_QUIC_PLATFORM_IMPL_QUIC_SENDMMSG_BATCH_WRITER_H_
+#ifndef QUICHE_QUIC_CORE_BATCH_WRITER_QUIC_SENDMMSG_BATCH_WRITER_H_
+#define QUICHE_QUIC_CORE_BATCH_WRITER_QUIC_SENDMMSG_BATCH_WRITER_H_
 
 #include "quiche/quic/core/batch_writer/quic_batch_writer_base.h"
 #include "quiche/quic/core/quic_linux_socket_utils.h"
@@ -32,4 +32,4 @@ class QUIC_EXPORT_PRIVATE QuicSendmmsgBatchWriter : public QuicUdpBatchWriter {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_PLATFORM_IMPL_QUIC_SENDMMSG_BATCH_WRITER_H_
+#endif  // QUICHE_QUIC_CORE_BATCH_WRITER_QUIC_SENDMMSG_BATCH_WRITER_H_

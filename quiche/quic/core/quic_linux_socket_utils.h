@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_PLATFORM_IMPL_QUIC_LINUX_SOCKET_UTILS_H_
-#define QUICHE_QUIC_PLATFORM_IMPL_QUIC_LINUX_SOCKET_UTILS_H_
+#ifndef QUICHE_QUIC_CORE_QUIC_LINUX_SOCKET_UTILS_H_
+#define QUICHE_QUIC_CORE_QUIC_LINUX_SOCKET_UTILS_H_
 
 #include <errno.h>
 #include <stddef.h>
@@ -294,4 +294,4 @@ class QUIC_EXPORT_PRIVATE QuicLinuxSocketUtils {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_PLATFORM_IMPL_QUIC_LINUX_SOCKET_UTILS_H_
+#endif  // QUICHE_QUIC_CORE_QUIC_LINUX_SOCKET_UTILS_H_

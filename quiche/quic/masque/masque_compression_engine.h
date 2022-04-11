@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_MASQUE_MASQUE_PROTOCOL_H_
-#define QUICHE_QUIC_MASQUE_MASQUE_PROTOCOL_H_
+#ifndef QUICHE_QUIC_MASQUE_MASQUE_COMPRESSION_ENGINE_H_
+#define QUICHE_QUIC_MASQUE_MASQUE_COMPRESSION_ENGINE_H_
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
@@ -117,4 +117,4 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_MASQUE_MASQUE_PROTOCOL_H_
+#endif  // QUICHE_QUIC_MASQUE_MASQUE_COMPRESSION_ENGINE_H_

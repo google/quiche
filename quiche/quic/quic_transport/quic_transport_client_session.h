@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_QUIC_TRANSPORT_QUIC_TRANSPORT_SESSION_H_
-#define QUICHE_QUIC_QUIC_TRANSPORT_QUIC_TRANSPORT_SESSION_H_
+#ifndef QUICHE_QUIC_QUIC_TRANSPORT_QUIC_TRANSPORT_CLIENT_SESSION_H_
+#define QUICHE_QUIC_QUIC_TRANSPORT_QUIC_TRANSPORT_CLIENT_SESSION_H_
 
 #include <cstdint>
 #include <memory>
@@ -173,4 +173,4 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_QUIC_TRANSPORT_QUIC_TRANSPORT_SESSION_H_
+#endif  // QUICHE_QUIC_QUIC_TRANSPORT_QUIC_TRANSPORT_CLIENT_SESSION_H_

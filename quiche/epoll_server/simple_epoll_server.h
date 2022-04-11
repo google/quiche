@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_EPOLL_SERVER_H_
-#define QUICHE_EPOLL_SERVER_H_
+#ifndef QUICHE_EPOLL_SERVER_SIMPLE_EPOLL_SERVER_H_
+#define QUICHE_EPOLL_SERVER_SIMPLE_EPOLL_SERVER_H_
 
 #include <fcntl.h>
 #include <stddef.h>
@@ -1049,4 +1049,4 @@ class EPOLL_EXPORT_PRIVATE EpollAlarm : public EpollAlarmCallbackInterface {
 
 }  // namespace epoll_server
 
-#endif  // QUICHE_EPOLL_SERVER_H_
+#endif  // QUICHE_EPOLL_SERVER_SIMPLE_EPOLL_SERVER_H_

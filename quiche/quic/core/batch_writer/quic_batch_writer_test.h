@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_PLATFORM_IMPL_BATCH_WRITER_QUIC_BATCH_WRITER_TEST_H_
-#define QUICHE_QUIC_PLATFORM_IMPL_BATCH_WRITER_QUIC_BATCH_WRITER_TEST_H_
+#ifndef QUICHE_QUIC_CORE_BATCH_WRITER_QUIC_BATCH_WRITER_TEST_H_
+#define QUICHE_QUIC_CORE_BATCH_WRITER_QUIC_BATCH_WRITER_TEST_H_
 
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -284,4 +284,4 @@ TEST_P(QuicUdpBatchWriterIOTest, WriteAndRead) {
 }  // namespace test
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_PLATFORM_IMPL_BATCH_WRITER_QUIC_BATCH_WRITER_TEST_H_
+#endif  // QUICHE_QUIC_CORE_BATCH_WRITER_QUIC_BATCH_WRITER_TEST_H_

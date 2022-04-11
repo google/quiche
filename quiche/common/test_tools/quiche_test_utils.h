@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_COMMON_QUICHE_TEST_UTILS_H_
-#define QUICHE_COMMON_QUICHE_TEST_UTILS_H_
+#ifndef QUICHE_COMMON_TEST_TOOLS_QUICHE_TEST_UTILS_H_
+#define QUICHE_COMMON_TEST_TOOLS_QUICHE_TEST_UTILS_H_
 
 #include <string>
 
@@ -25,4 +25,4 @@ iovec MakeIOVector(absl::string_view str);
 }  // namespace test
 }  // namespace quiche
 
-#endif  // QUICHE_COMMON_QUICHE_TEST_UTILS_H_
+#endif  // QUICHE_COMMON_TEST_TOOLS_QUICHE_TEST_UTILS_H_

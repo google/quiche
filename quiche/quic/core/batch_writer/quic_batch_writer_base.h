@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_PLATFORM_IMPL_BATCH_WRITER_QUIC_BATCH_WRITER_BASE_H_
-#define QUICHE_QUIC_PLATFORM_IMPL_BATCH_WRITER_QUIC_BATCH_WRITER_BASE_H_
+#ifndef QUICHE_QUIC_CORE_BATCH_WRITER_QUIC_BATCH_WRITER_BASE_H_
+#define QUICHE_QUIC_CORE_BATCH_WRITER_QUIC_BATCH_WRITER_BASE_H_
 
 #include <cstdint>
 #include "quiche/quic/core/batch_writer/quic_batch_writer_buffer.h"
@@ -155,4 +155,4 @@ class QUIC_EXPORT_PRIVATE QuicUdpBatchWriter : public QuicBatchWriterBase {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_PLATFORM_IMPL_BATCH_WRITER_QUIC_BATCH_WRITER_BASE_H_
+#endif  // QUICHE_QUIC_CORE_BATCH_WRITER_QUIC_BATCH_WRITER_BASE_H_

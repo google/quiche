@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_LOAD_BALANCER_SERVER_ID_H_
-#define QUICHE_QUIC_LOAD_BALANCER_SERVER_ID_H_
+#ifndef QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_SERVER_ID_H_
+#define QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_SERVER_ID_H_
 
 #include <array>
 
@@ -62,4 +62,4 @@ class QUIC_EXPORT_PRIVATE LoadBalancerServerId {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_LOAD_BALANCER_SERVER_ID_H_
+#endif  // QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_SERVER_ID_H_

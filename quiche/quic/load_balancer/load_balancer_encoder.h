@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_LOAD_BALANCER_ENCODER_H_
-#define QUICHE_QUIC_LOAD_BALANCER_ENCODER_H_
+#ifndef QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_ENCODER_H_
+#define QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_ENCODER_H_
 
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/load_balancer/load_balancer_config.h"
@@ -120,4 +120,4 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_LOAD_BALANCER_ENCODER_H_
+#endif  // QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_ENCODER_H_
