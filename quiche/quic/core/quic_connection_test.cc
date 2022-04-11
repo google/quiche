@@ -2497,7 +2497,6 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
   if (GetParam().version.HasIetfQuicFrames() &&
-      connection_.use_path_validator() &&
       GetQuicReloadableFlag(quic_count_bytes_on_alternative_path_seperately)) {
     QuicByteCount bytes_sent =
         QuicConnectionPeer::BytesSentOnAlternativePath(&connection_);
@@ -6951,9 +6950,6 @@ TEST_P(QuicConnectionTest, IetfStatelessReset) {
                                                 kTestStatelessResetToken));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*packet, QuicTime::Zero()));
-  if (!connection_.use_path_validator()) {
-    EXPECT_CALL(visitor_, ValidateStatelessReset(_, _)).WillOnce(Return(true));
-  }
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_PEER))
       .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
   connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *received);
@@ -8925,8 +8921,7 @@ TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnDefaulSocket) {
 }
 
 TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnAlternativeSocket) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.use_path_validator()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
@@ -11922,8 +11917,7 @@ TEST_P(QuicConnectionTest,
 }
 
 TEST_P(QuicConnectionTest, PathValidationOnNewSocketSuccess) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.use_path_validator()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
@@ -11956,8 +11950,7 @@ TEST_P(QuicConnectionTest, PathValidationOnNewSocketSuccess) {
 }
 
 TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.use_path_validator()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
@@ -12015,8 +12008,7 @@ TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
 
 // Regression test for b/182571515.
 TEST_P(QuicConnectionTest, PathValidationRetry) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.use_path_validator()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
@@ -12048,8 +12040,7 @@ TEST_P(QuicConnectionTest, PathValidationRetry) {
 }
 
 TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.use_path_validator()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
@@ -12135,8 +12126,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
 //  Tests that PATH_CHALLENGE is dropped if it is sent via the default writer
 //  and the writer is blocked.
 TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedDefaultSocket) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.use_path_validator()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_SERVER);
@@ -12209,8 +12199,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedDefaultSocket) {
 
 // Tests that write error on the alternate socket should be ignored.
 TEST_P(QuicConnectionTest, SendPathChallengeFailOnNewSocket) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.use_path_validator()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
@@ -12241,8 +12230,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnNewSocket) {
 // Tests that write error while sending PATH_CHALLANGE from the default socket
 // should close the connection.
 TEST_P(QuicConnectionTest, SendPathChallengeFailOnDefaultPath) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.use_path_validator()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
@@ -12276,8 +12264,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnDefaultPath) {
 }
 
 TEST_P(QuicConnectionTest, SendPathChallengeFailOnAlternativePeerAddress) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.use_path_validator()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
@@ -12308,8 +12295,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnAlternativePeerAddress) {
 
 TEST_P(QuicConnectionTest,
        SendPathChallengeFailPacketTooBigOnAlternativePeerAddress) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.use_path_validator()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
@@ -13499,8 +13485,7 @@ TEST_P(QuicConnectionTest, MigratePath) {
 }
 
 TEST_P(QuicConnectionTest, MigrateToNewPathDuringProbing) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.use_path_validator()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
@@ -14501,7 +14486,7 @@ TEST_P(QuicConnectionTest,
 TEST_P(
     QuicConnectionTest,
     ReplacePeerIssuedConnectionIdOnBothPathsTriggeredByNewConnectionIdFrame) {
-  if (!version().HasIetfQuicFrames() || !connection_.use_path_validator() ||
+  if (!version().HasIetfQuicFrames() ||
       !connection_.count_bytes_on_alternative_path_separately()) {
     return;
   }

@@ -5231,8 +5231,7 @@ TEST_P(EndToEndTest, ClientValidateNewNetwork) {
 
 TEST_P(EndToEndPacketReorderingTest, ReorderedPathChallenge) {
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames() ||
-      !client_->client()->session()->connection()->use_path_validator()) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
   client_.reset(EndToEndTest::CreateQuicClient(nullptr));
@@ -5292,8 +5291,7 @@ TEST_P(EndToEndPacketReorderingTest, ReorderedPathChallenge) {
 
 TEST_P(EndToEndPacketReorderingTest, PathValidationFailure) {
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames() ||
-      !client_->client()->session()->connection()->use_path_validator()) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
 
