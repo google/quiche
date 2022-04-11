@@ -384,7 +384,7 @@ TEST_P(HpackEncoderTest, SingleLiteralWithIndexName) {
   CompareWithExpectedEncoding(headers);
 
   // A new entry was inserted and added to the reference set.
-  HpackEntry* new_entry = &peer_.table_peer().dynamic_entries()->front();
+  HpackEntry* new_entry = peer_.table_peer().dynamic_entries()->front().get();
   EXPECT_EQ(new_entry->name(), key_2_->name());
   EXPECT_EQ(new_entry->value(), "value3");
 }
@@ -396,7 +396,7 @@ TEST_P(HpackEncoderTest, SingleLiteralWithLiteralName) {
   headers["key3"] = "value3";
   CompareWithExpectedEncoding(headers);
 
-  HpackEntry* new_entry = &peer_.table_peer().dynamic_entries()->front();
+  HpackEntry* new_entry = peer_.table_peer().dynamic_entries()->front().get();
   EXPECT_EQ(new_entry->name(), "key3");
   EXPECT_EQ(new_entry->value(), "value3");
 }
@@ -696,7 +696,7 @@ TEST_P(HpackEncoderTest, HeaderTableSizeUpdate) {
   headers["key3"] = "value3";
   CompareWithExpectedEncoding(headers);
 
-  HpackEntry* new_entry = &peer_.table_peer().dynamic_entries()->front();
+  HpackEntry* new_entry = peer_.table_peer().dynamic_entries()->front().get();
   EXPECT_EQ(new_entry->name(), "key3");
   EXPECT_EQ(new_entry->value(), "value3");
 }
@@ -715,7 +715,7 @@ TEST_P(HpackEncoderTest, HeaderTableSizeUpdateWithMin) {
   headers["key3"] = "value3";
   CompareWithExpectedEncoding(headers);
 
-  HpackEntry* new_entry = &peer_.table_peer().dynamic_entries()->front();
+  HpackEntry* new_entry = peer_.table_peer().dynamic_entries()->front().get();
   EXPECT_EQ(new_entry->name(), "key3");
   EXPECT_EQ(new_entry->value(), "value3");
 }
@@ -729,7 +729,7 @@ TEST_P(HpackEncoderTest, HeaderTableSizeUpdateWithExistingSize) {
   headers["key3"] = "value3";
   CompareWithExpectedEncoding(headers);
 
-  HpackEntry* new_entry = &peer_.table_peer().dynamic_entries()->front();
+  HpackEntry* new_entry = peer_.table_peer().dynamic_entries()->front().get();
   EXPECT_EQ(new_entry->name(), "key3");
   EXPECT_EQ(new_entry->value(), "value3");
 }
@@ -746,7 +746,7 @@ TEST_P(HpackEncoderTest, HeaderTableSizeUpdatesWithGreaterSize) {
   headers["key3"] = "value3";
   CompareWithExpectedEncoding(headers);
 
-  HpackEntry* new_entry = &peer_.table_peer().dynamic_entries()->front();
+  HpackEntry* new_entry = peer_.table_peer().dynamic_entries()->front().get();
   EXPECT_EQ(new_entry->name(), "key3");
   EXPECT_EQ(new_entry->value(), "value3");
 }

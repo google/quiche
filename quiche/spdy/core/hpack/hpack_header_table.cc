@@ -97,7 +97,7 @@ size_t HpackHeaderTable::EvictionCountToReclaim(size_t reclaim_size) const {
   size_t count = 0;
   for (auto it = dynamic_entries_.rbegin();
        it != dynamic_entries_.rend() && reclaim_size != 0; ++it, ++count) {
-    reclaim_size -= std::min(reclaim_size, it->Size());
+    reclaim_size -= std::min(reclaim_size, (*it)->Size());
   }
   return count;
 }
@@ -106,7 +106,7 @@ void HpackHeaderTable::Evict(size_t count) {
   for (size_t i = 0; i != count; ++i) {
     QUICHE_CHECK(!dynamic_entries_.empty());
 
-    HpackEntry* entry = &dynamic_entries_.back();
+    HpackEntry* entry = dynamic_entries_.back().get();
     const size_t index = dynamic_table_insertions_ - dynamic_entries_.size();
 
     size_ -= entry->Size();
@@ -147,8 +147,8 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
 
   const size_t index = dynamic_table_insertions_;
   dynamic_entries_.push_front(
-      HpackEntry(std::string(name), std::string(value)));
-  HpackEntry* new_entry = &dynamic_entries_.front();
+      std::make_unique<HpackEntry>(std::string(name), std::string(value)));
+  HpackEntry* new_entry = dynamic_entries_.front().get();
   auto index_result = dynamic_index_.insert(std::make_pair(
       HpackLookupEntry{new_entry->name(), new_entry->value()}, index));
   if (!index_result.second) {
@@ -182,7 +182,7 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
   size_ += entry_size;
   ++dynamic_table_insertions_;
 
-  return &dynamic_entries_.front();
+  return dynamic_entries_.front().get();
 }
 
 }  // namespace spdy

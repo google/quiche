@@ -43,7 +43,7 @@ class HpackHeaderTablePeer {
     table_->EvictionSet(name, value, &begin, &end);
     std::vector<HpackEntry*> result;
     for (; begin != end; ++begin) {
-      result.push_back(&(*begin));
+      result.push_back(begin->get());
     }
     return result;
   }
@@ -352,7 +352,7 @@ TEST_F(HpackHeaderTableTest, TryAddEntryEviction) {
   AddEntriesExpectNoEviction(entries);
 
   // The first entry in the dynamic table.
-  const HpackEntry* survivor_entry = &peer_.dynamic_entries().front();
+  const HpackEntry* survivor_entry = peer_.dynamic_entries().front().get();
 
   HpackEntry long_entry =
       MakeEntryOfSize(table_.max_size() - survivor_entry->Size());
