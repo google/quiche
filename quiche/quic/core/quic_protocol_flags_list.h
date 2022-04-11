@@ -206,13 +206,9 @@ QUIC_PROTOCOL_FLAG(
     "bandwidth * this flag), consider the current aggregation completed "
     "and starts a new one.")
 
-// TODO(b/153892665): Change the default value of
-// quic_anti_amplification_factor back to 3 when cert compression is
-// supported.
 QUIC_PROTOCOL_FLAG(
     int32_t,
     quic_anti_amplification_factor,
-    5,
     3,
     "Anti-amplification factor. Before address validation, server will "
     "send no more than factor times bytes received.")
