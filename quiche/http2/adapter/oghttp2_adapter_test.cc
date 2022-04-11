@@ -2075,6 +2075,121 @@ TEST(OgHttp2AdapterTest, ClientReceivesMultipleGoAways) {
   EXPECT_THAT(visitor.data(), testing::IsEmpty());
 }
 
+TEST(OgHttp2AdapterTest, ClientReceivesGoAwayWithPendingStreams) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options{.perspective = Perspective::kClient};
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  testing::InSequence s;
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  absl::string_view data = visitor.data();
+  EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(data, EqualsFrames({SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  const std::string initial_frames =
+      TestFrameSequence()
+          .ServerPreface({{.id = MAX_CONCURRENT_STREAMS, .value = 1}})
+          .Serialize();
+
+  // Server preface (SETTINGS with MAX_CONCURRENT_STREAMS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSetting);
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), static_cast<size_t>(initial_result));
+
+  const std::vector<Header> headers1 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+
+  const int32_t stream_id1 = adapter->SubmitRequest(headers1, nullptr, nullptr);
+  ASSERT_GT(stream_id1, 0);
+
+  const std::vector<Header> headers2 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/two"}});
+
+  const int32_t stream_id2 = adapter->SubmitRequest(headers2, nullptr, nullptr);
+  ASSERT_GT(stream_id2, stream_id1);
+
+  // The second request should be pending because of
+  // SETTINGS_MAX_CONCURRENT_STREAMS.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS}));
+  visitor.Clear();
+
+  // Let the client receive a GOAWAY and raise MAX_CONCURRENT_STREAMS. Even
+  // though the GOAWAY last_stream_id is higher than the pending request's
+  // stream ID, pending request should not be sent.
+  const std::string stream_frames =
+      TestFrameSequence()
+          .GoAway(kMaxStreamId, Http2ErrorCode::INTERNAL_ERROR, "indigestion")
+          .Settings({{MAX_CONCURRENT_STREAMS, 42u}})
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, GOAWAY, 0));
+  EXPECT_CALL(visitor,
+              OnGoAway(kMaxStreamId, Http2ErrorCode::INTERNAL_ERROR, ""));
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{MAX_CONCURRENT_STREAMS, 42u}));
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
+  // We close the pending stream on the next write attempt.
+  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::REFUSED_STREAM));
+
+  EXPECT_TRUE(adapter->want_write());
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  // Requests submitted after receiving the GOAWAY should not be sent.
+  const std::vector<Header> headers3 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/three"}});
+
+  const int32_t stream_id3 = adapter->SubmitRequest(headers3, nullptr, nullptr);
+  ASSERT_GT(stream_id3, stream_id2);
+
+  // We close the pending stream on the next write attempt.
+  EXPECT_CALL(visitor, OnCloseStream(5, Http2ErrorCode::REFUSED_STREAM));
+
+  EXPECT_TRUE(adapter->want_write());
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), testing::IsEmpty());
+  EXPECT_FALSE(adapter->want_write());
+}
+
 TEST(OgHttp2AdapterTest, ClientFailsOnGoAway) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options{.perspective = Perspective::kClient};

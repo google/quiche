@@ -143,7 +143,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   bool want_write() const override {
     return !fatal_send_error_ &&
            (!frames_.empty() || !buffered_data_.empty() ||
-            !connection_metadata_.empty() || HasReadyStream());
+            !connection_metadata_.empty() || HasReadyStream() ||
+            !goaway_rejected_streams_.empty());
   }
   int GetRemoteWindowSize() const override { return connection_send_window_; }
 
@@ -404,6 +405,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   void CloseStreamIfReady(uint8_t frame_type, uint32_t stream_id);
 
+  // Informs the visitor of rejected, non-active streams due to GOAWAY receipt.
+  void CloseGoAwayRejectedStreams();
+
   // Updates internal state to prepare for sending an immediate GOAWAY.
   void PrepareForImmediateGoAway();
 
@@ -488,6 +492,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   absl::flat_hash_set<Http2StreamId> trailers_ready_;
   // Includes streams that are currently ready to write metadata.
   absl::flat_hash_set<Http2StreamId> metadata_ready_;
+  // Includes streams that will not be written due to receipt of GOAWAY.
+  absl::flat_hash_set<Http2StreamId> goaway_rejected_streams_;
 
   MetadataSequence connection_metadata_;
 

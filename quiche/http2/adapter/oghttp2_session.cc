@@ -592,6 +592,8 @@ int OgHttp2Session::Send() {
          !connection_metadata_.empty()) {
     continue_writing = SendMetadata(0, connection_metadata_);
   }
+  // Notify on new/pending streams closed due to GOAWAY receipt.
+  CloseGoAwayRejectedStreams();
   // Wake streams for writes.
   while (continue_writing == SendResult::SEND_OK && HasReadyStream()) {
     const Http2StreamId stream_id = GetNextReadyStream();
@@ -1230,6 +1232,10 @@ void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
       break;
     case MAX_CONCURRENT_STREAMS:
       max_outbound_concurrent_streams_ = value;
+      if (!IsServerSession()) {
+        // We may now be able to start pending streams.
+        StartPendingStreams();
+      }
       break;
     case HEADER_TABLE_SIZE:
       value = std::min(value, HpackCapacityBound(options_));
@@ -1702,6 +1708,12 @@ void OgHttp2Session::StartRequest(Http2StreamId stream_id,
                                   spdy::SpdyHeaderBlock headers,
                                   std::unique_ptr<DataFrameSource> data_source,
                                   void* user_data) {
+  if (received_goaway_) {
+    // Do not start new streams after receiving a GOAWAY.
+    goaway_rejected_streams_.insert(stream_id);
+    return;
+  }
+
   auto iter = CreateStream(stream_id);
   const bool end_stream = data_source == nullptr;
   if (!end_stream) {
@@ -1788,6 +1800,18 @@ void OgHttp2Session::CloseStreamIfReady(uint8_t frame_type,
       (state.half_closed_local && state.half_closed_remote)) {
     CloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR);
   }
+}
+
+void OgHttp2Session::CloseGoAwayRejectedStreams() {
+  for (Http2StreamId stream_id : goaway_rejected_streams_) {
+    const bool result =
+        visitor_.OnCloseStream(stream_id, Http2ErrorCode::REFUSED_STREAM);
+    if (!result) {
+      latched_error_ = true;
+      decoder_.StopProcessing();
+    }
+  }
+  goaway_rejected_streams_.clear();
 }
 
 void OgHttp2Session::PrepareForImmediateGoAway() {
