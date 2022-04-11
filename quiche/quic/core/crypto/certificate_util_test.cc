@@ -4,7 +4,7 @@
 
 #include "quiche/quic/core/crypto/certificate_util.h"
 
-#include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/platform/api/quic_test_output.h"

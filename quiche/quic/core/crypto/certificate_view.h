@@ -11,9 +11,9 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
-#include "third_party/boringssl/src/include/openssl/base.h"
-#include "third_party/boringssl/src/include/openssl/bytestring.h"
-#include "third_party/boringssl/src/include/openssl/evp.h"
+#include "openssl/base.h"
+#include "openssl/bytestring.h"
+#include "openssl/evp.h"
 #include "quiche/quic/core/crypto/boring_utils.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"

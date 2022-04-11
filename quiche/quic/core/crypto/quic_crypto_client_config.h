@@ -12,8 +12,8 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/base.h"
-#include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "openssl/base.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/client_proof_source.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"

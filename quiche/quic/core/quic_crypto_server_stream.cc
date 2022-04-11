@@ -9,7 +9,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/sha.h"
+#include "openssl/sha.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_testvalue.h"
 #include "quiche/common/quiche_text_utils.h"

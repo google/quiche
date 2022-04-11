@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/quic_types.h"
 
 namespace quic {

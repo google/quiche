@@ -6,7 +6,7 @@
 #define QUICHE_QUIC_CORE_CRYPTO_BORING_UTILS_H_
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/bytestring.h"
+#include "openssl/bytestring.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {

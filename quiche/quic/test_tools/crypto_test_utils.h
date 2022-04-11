@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/evp.h"
+#include "openssl/evp.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packets.h"

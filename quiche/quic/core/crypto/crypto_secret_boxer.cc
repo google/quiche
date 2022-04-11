@@ -8,8 +8,8 @@
 #include "quiche/quic/core/crypto/crypto_secret_boxer.h"
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/aead.h"
-#include "third_party/boringssl/src/include/openssl/err.h"
+#include "openssl/aead.h"
+#include "openssl/err.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 

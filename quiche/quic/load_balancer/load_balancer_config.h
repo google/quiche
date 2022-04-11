@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_CONFIG_H_
 #define QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_CONFIG_H_
 
-#include "third_party/boringssl/src/include/openssl/aes.h"
+#include "openssl/aes.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
 

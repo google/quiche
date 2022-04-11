@@ -15,7 +15,7 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/sha.h"
+#include "openssl/sha.h"
 #include "quiche/quic/core/crypto/cert_compressor.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_utils.h"

@@ -8,7 +8,7 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/tls1.h"
+#include "openssl/tls1.h"
 #include "quiche/quic/core/crypto/aes_128_gcm_12_decrypter.h"
 #include "quiche/quic/core/crypto/aes_128_gcm_decrypter.h"
 #include "quiche/quic/core/crypto/aes_256_gcm_decrypter.h"

@@ -10,7 +10,7 @@
 
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/curve25519.h"
+#include "openssl/curve25519.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 

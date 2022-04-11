@@ -11,7 +11,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/sha.h"
+#include "openssl/sha.h"
 #include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"

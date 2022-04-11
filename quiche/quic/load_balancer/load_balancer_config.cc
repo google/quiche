@@ -7,7 +7,7 @@
 #include <memory>
 #include <string_view>
 
-#include "third_party/boringssl/src/include/openssl/aes.h"
+#include "openssl/aes.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {

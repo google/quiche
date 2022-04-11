@@ -5,7 +5,7 @@
 #include "quiche/quic/core/crypto/aes_base_decrypter.h"
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/aes.h"
+#include "openssl/aes.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {

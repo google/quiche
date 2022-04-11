@@ -10,7 +10,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
 #include "quiche/quic/core/crypto/crypto_utils.h"
 #include "quiche/quic/core/proto/cached_network_parameters_proto.h"

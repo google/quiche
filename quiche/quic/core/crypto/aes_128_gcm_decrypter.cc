@@ -4,8 +4,8 @@
 
 #include "quiche/quic/core/crypto/aes_128_gcm_decrypter.h"
 
-#include "third_party/boringssl/src/include/openssl/aead.h"
-#include "third_party/boringssl/src/include/openssl/tls1.h"
+#include "openssl/aead.h"
+#include "openssl/tls1.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 

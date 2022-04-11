@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/core/crypto/quic_crypto_proof.h"
 #include "quiche/quic/core/quic_versions.h"

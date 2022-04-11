@@ -12,7 +12,7 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/cert_compressor.h"
 #include "quiche/quic/core/crypto/chacha20_poly1305_encrypter.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"

@@ -6,8 +6,8 @@
 #define QUICHE_QUIC_CORE_TLS_HANDSHAKER_H_
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/base.h"
-#include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "openssl/base.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_message_parser.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"

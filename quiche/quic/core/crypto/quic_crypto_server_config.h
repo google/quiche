@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/base.h"
+#include "openssl/base.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"

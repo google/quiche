@@ -6,7 +6,7 @@
 
 #include <utility>
 
-#include "third_party/boringssl/src/include/openssl/tls1.h"
+#include "openssl/tls1.h"
 #include "quiche/quic/core/crypto/aes_128_gcm_12_encrypter.h"
 #include "quiche/quic/core/crypto/aes_128_gcm_encrypter.h"
 #include "quiche/quic/core/crypto/aes_256_gcm_encrypter.h"

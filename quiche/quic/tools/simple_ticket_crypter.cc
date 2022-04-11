@@ -4,8 +4,8 @@
 
 #include "quiche/quic/tools/simple_ticket_crypter.h"
 
-#include "third_party/boringssl/src/include/openssl/aead.h"
-#include "third_party/boringssl/src/include/openssl/rand.h"
+#include "openssl/aead.h"
+#include "openssl/rand.h"
 
 namespace quic {
 

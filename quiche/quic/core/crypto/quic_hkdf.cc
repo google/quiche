@@ -7,8 +7,8 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/digest.h"
-#include "third_party/boringssl/src/include/openssl/hkdf.h"
+#include "openssl/digest.h"
+#include "openssl/hkdf.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 
 namespace quic {

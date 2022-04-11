@@ -4,7 +4,7 @@
 
 #include "quiche/quic/core/crypto/chacha20_poly1305_encrypter.h"
 
-#include "third_party/boringssl/src/include/openssl/evp.h"
+#include "openssl/evp.h"
 
 namespace quic {
 

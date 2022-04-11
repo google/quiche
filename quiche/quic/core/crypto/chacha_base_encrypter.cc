@@ -6,7 +6,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/chacha.h"
+#include "openssl/chacha.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/common/quiche_endian.h"

@@ -9,9 +9,9 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/crypto.h"
-#include "third_party/boringssl/src/include/openssl/err.h"
-#include "third_party/boringssl/src/include/openssl/evp.h"
+#include "openssl/crypto.h"
+#include "openssl/err.h"
+#include "openssl/evp.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_logging.h"

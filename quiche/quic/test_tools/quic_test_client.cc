@@ -10,7 +10,7 @@
 
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/x509.h"
+#include "openssl/x509.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/http/spdy_utils.h"

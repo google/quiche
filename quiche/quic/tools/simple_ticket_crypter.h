@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_TOOLS_SIMPLE_TICKET_CRYPTER_H_
 #define QUICHE_QUIC_TOOLS_SIMPLE_TICKET_CRYPTER_H_
 
-#include "third_party/boringssl/src/include/openssl/aead.h"
+#include "openssl/aead.h"
 #include "quiche/quic/core/crypto/proof_source.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"

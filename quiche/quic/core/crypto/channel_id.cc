@@ -7,11 +7,11 @@
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/bn.h"
-#include "third_party/boringssl/src/include/openssl/ec.h"
-#include "third_party/boringssl/src/include/openssl/ecdsa.h"
-#include "third_party/boringssl/src/include/openssl/nid.h"
-#include "third_party/boringssl/src/include/openssl/sha.h"
+#include "openssl/bn.h"
+#include "openssl/ec.h"
+#include "openssl/ecdsa.h"
+#include "openssl/nid.h"
+#include "openssl/sha.h"
 
 namespace quic {
 

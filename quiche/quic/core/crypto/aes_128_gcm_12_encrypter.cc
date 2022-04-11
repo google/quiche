@@ -4,7 +4,7 @@
 
 #include "quiche/quic/core/crypto/aes_128_gcm_12_encrypter.h"
 
-#include "third_party/boringssl/src/include/openssl/evp.h"
+#include "openssl/evp.h"
 
 namespace quic {
 

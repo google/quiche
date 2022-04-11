@@ -2,8 +2,8 @@
 
 #include "absl/strings/escaping.h"
 #include "quiche/http2/platform/api/http2_logging.h"
-#include "third_party/boringssl/src/include/openssl/chacha.h"
-#include "third_party/boringssl/src/include/openssl/rand.h"
+#include "openssl/chacha.h"
+#include "openssl/rand.h"
 
 static const uint8_t kZeroNonce[12] = {0};
 

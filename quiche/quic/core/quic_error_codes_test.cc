@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-#include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/platform/api/quic_test.h"
 
 namespace quic {

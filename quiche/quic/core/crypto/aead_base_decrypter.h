@@ -8,7 +8,7 @@
 #include <cstddef>
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/aead.h"
+#include "openssl/aead.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/platform/api/quic_export.h"
 

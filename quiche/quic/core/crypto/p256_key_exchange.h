@@ -9,7 +9,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/base.h"
+#include "openssl/base.h"
 #include "quiche/quic/core/crypto/key_exchange.h"
 #include "quiche/quic/platform/api/quic_export.h"
 

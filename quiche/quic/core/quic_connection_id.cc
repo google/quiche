@@ -11,7 +11,7 @@
 #include <string>
 
 #include "absl/strings/escaping.h"
-#include "third_party/boringssl/src/include/openssl/siphash.h"
+#include "openssl/siphash.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"

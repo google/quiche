@@ -14,7 +14,7 @@
 #include "absl/base/optimization.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/sha.h"
+#include "openssl/sha.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_types.h"

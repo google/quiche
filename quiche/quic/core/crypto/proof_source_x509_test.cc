@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/core/crypto/proof_source.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"

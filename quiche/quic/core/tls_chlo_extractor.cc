@@ -8,7 +8,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/frames/quic_crypto_frame.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_error_codes.h"

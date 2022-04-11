@@ -8,8 +8,8 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/pool.h"
-#include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "openssl/pool.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/crypto/tls_server_connection.h"
 #include "quiche/quic/core/proto/cached_network_parameters_proto.h"

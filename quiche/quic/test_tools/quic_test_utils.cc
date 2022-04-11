@@ -11,8 +11,8 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
-#include "third_party/boringssl/src/include/openssl/chacha.h"
-#include "third_party/boringssl/src/include/openssl/sha.h"
+#include "openssl/chacha.h"
+#include "openssl/sha.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_utils.h"
