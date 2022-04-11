@@ -681,11 +681,11 @@ OgHttp2Session::SendResult OgHttp2Session::SendQueuedFrames() {
       DecrementQueuedFrameCount(c.stream_id(), c.frame_type());
       frames_.pop_front();
       continue;
-    } else if (received_goaway_ &&
+    } else if (!IsServerSession() && received_goaway_ &&
                c.stream_id() >
                    static_cast<uint32_t>(received_goaway_stream_id_)) {
-      // This frame will be ignored by the peer, so don't send it. The stream
-      // should already have been closed.
+      // This frame will be ignored by the server, so don't send it. The stream
+      // associated with this frame should have been closed in OnGoAway().
       frames_.pop_front();
       continue;
     }
@@ -1311,8 +1311,9 @@ void OgHttp2Session::OnGoAway(spdy::SpdyStreamId last_accepted_stream_id,
     decoder_.StopProcessing();
   }
 
-  // Close the streams above `last_accepted_stream_id`.
-  if (last_accepted_stream_id == spdy::kMaxStreamId) {
+  // Close the streams above `last_accepted_stream_id`. Only applies if the
+  // session receives a GOAWAY as a client, as we do not support server push.
+  if (last_accepted_stream_id == spdy::kMaxStreamId || IsServerSession()) {
     return;
   }
   std::vector<Http2StreamId> streams_to_close;
