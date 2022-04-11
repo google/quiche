@@ -210,10 +210,6 @@ TlsServerHandshaker::TlsServerHandshaker(
   if (session->connection()->context()->tracer) {
     tls_connection_.EnableInfoCallback();
   }
-
-  if (no_select_cert_if_disconnected_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_no_select_cert_if_disconnected, 1, 2);
-  }
 }
 
 TlsServerHandshaker::~TlsServerHandshaker() { CancelOutstandingCallbacks(); }
@@ -953,9 +949,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
           ? std::string(alps_result.alps_buffer.get(), alps_result.alps_length)
           : std::string();
 
-  if (no_select_cert_if_disconnected_ &&
-      !session()->connection()->connected()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_no_select_cert_if_disconnected, 2, 2);
+  if (!session()->connection()->connected()) {
     select_cert_status_ = QUIC_FAILURE;
     return ssl_select_cert_error;
   }

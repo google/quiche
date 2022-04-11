@@ -1062,13 +1062,6 @@ TEST_P(TlsServerHandshakerTest, CloseConnectionBeforeSelectCert) {
           }));
 
   AdvanceHandshakeWithFakeClient();
-  if (!GetQuicReloadableFlag(quic_tls_no_select_cert_if_disconnected)) {
-    // SelectCertificate is called when flag is false.
-    EXPECT_FALSE(server_handshaker_->fake_proof_source_handle()
-                     ->all_select_cert_args()
-                     .empty());
-    return;
-  }
 
   EXPECT_TRUE(server_handshaker_->fake_proof_source_handle()
                   ->all_select_cert_args()
