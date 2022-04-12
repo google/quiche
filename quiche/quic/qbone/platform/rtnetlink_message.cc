@@ -8,11 +8,8 @@
 
 namespace quic {
 
-RtnetlinkMessage::RtnetlinkMessage(uint16_t type,
-                                   uint16_t flags,
-                                   uint32_t seq,
-                                   uint32_t pid,
-                                   const void* payload_header,
+RtnetlinkMessage::RtnetlinkMessage(uint16_t type, uint16_t flags, uint32_t seq,
+                                   uint32_t pid, const void* payload_header,
                                    size_t payload_header_length) {
   auto* buf = new uint8_t[NLMSG_SPACE(payload_header_length)];
   memset(buf, 0, NLMSG_SPACE(payload_header_length));
@@ -36,8 +33,7 @@ RtnetlinkMessage::~RtnetlinkMessage() {
   }
 }
 
-void RtnetlinkMessage::AppendAttribute(uint16_t type,
-                                       const void* data,
+void RtnetlinkMessage::AppendAttribute(uint16_t type, const void* data,
                                        uint16_t data_length) {
   auto* buf = new uint8_t[RTA_SPACE(data_length)];
   memset(buf, 0, RTA_SPACE(data_length));
@@ -65,9 +61,7 @@ std::unique_ptr<struct iovec[]> RtnetlinkMessage::BuildIoVec() const {
   return message;
 }
 
-size_t RtnetlinkMessage::IoVecSize() const {
-  return message_.size();
-}
+size_t RtnetlinkMessage::IoVecSize() const { return message_.size(); }
 
 void RtnetlinkMessage::AdjustMessageLength(size_t additional_data_length) {
   MessageHeader()->nlmsg_len =
@@ -79,9 +73,7 @@ struct nlmsghdr* RtnetlinkMessage::MessageHeader() {
 }
 
 LinkMessage LinkMessage::New(RtnetlinkMessage::Operation request_operation,
-                             uint16_t flags,
-                             uint32_t seq,
-                             uint32_t pid,
+                             uint16_t flags, uint32_t seq, uint32_t pid,
                              const struct ifinfomsg* interface_info_header) {
   uint16_t request_type;
   switch (request_operation) {
@@ -106,11 +98,8 @@ LinkMessage LinkMessage::New(RtnetlinkMessage::Operation request_operation,
 }
 
 AddressMessage AddressMessage::New(
-    RtnetlinkMessage::Operation request_operation,
-    uint16_t flags,
-    uint32_t seq,
-    uint32_t pid,
-    const struct ifaddrmsg* interface_address_header) {
+    RtnetlinkMessage::Operation request_operation, uint16_t flags, uint32_t seq,
+    uint32_t pid, const struct ifaddrmsg* interface_address_header) {
   uint16_t request_type;
   switch (request_operation) {
     case RtnetlinkMessage::Operation::NEW:
@@ -134,9 +123,7 @@ AddressMessage AddressMessage::New(
 }
 
 RouteMessage RouteMessage::New(RtnetlinkMessage::Operation request_operation,
-                               uint16_t flags,
-                               uint32_t seq,
-                               uint32_t pid,
+                               uint16_t flags, uint32_t seq, uint32_t pid,
                                const struct rtmsg* route_message_header) {
   uint16_t request_type;
   switch (request_operation) {
@@ -155,9 +142,7 @@ RouteMessage RouteMessage::New(RtnetlinkMessage::Operation request_operation,
 }
 
 RuleMessage RuleMessage::New(RtnetlinkMessage::Operation request_operation,
-                             uint16_t flags,
-                             uint32_t seq,
-                             uint32_t pid,
+                             uint16_t flags, uint32_t seq, uint32_t pid,
                              const struct rtmsg* rule_message_header) {
   uint16_t request_type;
   switch (request_operation) {

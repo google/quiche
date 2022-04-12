@@ -36,8 +36,7 @@ class NetlinkTest : public QuicTest {
   }
 
   void ExpectNetlinkPacket(
-      uint16_t type,
-      uint16_t flags,
+      uint16_t type, uint16_t flags,
       const std::function<ssize_t(void* buf, size_t len, int seq)>&
           recv_callback,
       const std::function<void(const void* buf, size_t len)>& send_callback =
@@ -115,9 +114,7 @@ class NetlinkTest : public QuicTest {
   MockKernel mock_kernel_;
 };
 
-void AddRTA(struct nlmsghdr* netlink_message,
-            uint16_t type,
-            const void* data,
+void AddRTA(struct nlmsghdr* netlink_message, uint16_t type, const void* data,
             size_t len) {
   auto* next_header_ptr = reinterpret_cast<char*>(netlink_message) +
                           NLMSG_ALIGN(netlink_message->nlmsg_len);
@@ -132,14 +129,9 @@ void AddRTA(struct nlmsghdr* netlink_message,
 }
 
 void CreateIfinfomsg(struct nlmsghdr* netlink_message,
-                     const std::string& interface_name,
-                     uint16_t type,
-                     int index,
-                     unsigned int flags,
-                     unsigned int change,
-                     uint8_t address[],
-                     int address_len,
-                     uint8_t broadcast[],
+                     const std::string& interface_name, uint16_t type,
+                     int index, unsigned int flags, unsigned int change,
+                     uint8_t address[], int address_len, uint8_t broadcast[],
                      int broadcast_len) {
   auto* interface_info =
       reinterpret_cast<struct ifinfomsg*>(NLMSG_DATA(netlink_message));
@@ -163,8 +155,7 @@ void CreateIfinfomsg(struct nlmsghdr* netlink_message,
 
 struct nlmsghdr* CreateNetlinkMessage(void* buf,  // NOLINT
                                       struct nlmsghdr* previous_netlink_message,
-                                      uint16_t type,
-                                      int seq) {
+                                      uint16_t type, int seq) {
   auto* next_header_ptr = reinterpret_cast<char*>(buf);
   if (previous_netlink_message != nullptr) {
     next_header_ptr = reinterpret_cast<char*>(previous_netlink_message) +
@@ -180,12 +171,9 @@ struct nlmsghdr* CreateNetlinkMessage(void* buf,  // NOLINT
   return netlink_message;
 }
 
-void CreateIfaddrmsg(struct nlmsghdr* nlm,
-                     int interface_index,
-                     unsigned char prefixlen,
-                     unsigned char flags,
-                     unsigned char scope,
-                     QuicIpAddress ip) {
+void CreateIfaddrmsg(struct nlmsghdr* nlm, int interface_index,
+                     unsigned char prefixlen, unsigned char flags,
+                     unsigned char scope, QuicIpAddress ip) {
   QUICHE_CHECK(ip.IsInitialized());
   unsigned char family;
   switch (ip.address_family()) {
@@ -213,18 +201,11 @@ void CreateIfaddrmsg(struct nlmsghdr* nlm,
          ip.ToPackedString().size());
 }
 
-void CreateRtmsg(struct nlmsghdr* nlm,
-                 unsigned char family,
-                 unsigned char destination_length,
-                 unsigned char source_length,
-                 unsigned char tos,
-                 unsigned char table,
-                 unsigned char protocol,
-                 unsigned char scope,
-                 unsigned char type,
-                 unsigned int flags,
-                 QuicIpAddress destination,
-                 int interface_index) {
+void CreateRtmsg(struct nlmsghdr* nlm, unsigned char family,
+                 unsigned char destination_length, unsigned char source_length,
+                 unsigned char tos, unsigned char table, unsigned char protocol,
+                 unsigned char scope, unsigned char type, unsigned int flags,
+                 QuicIpAddress destination, int interface_index) {
   auto* msg = reinterpret_cast<struct rtmsg*>(NLMSG_DATA(nlm));
   msg->rtm_family = family;
   msg->rtm_dst_len = destination_length;

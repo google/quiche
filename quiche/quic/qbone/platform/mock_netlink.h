@@ -14,26 +14,17 @@ class MockNetlink : public NetlinkInterface {
  public:
   MOCK_METHOD(bool, GetLinkInfo, (const std::string&, LinkInfo*), (override));
 
-  MOCK_METHOD(bool,
-              GetAddresses,
-              (int, uint8_t, std::vector<AddressInfo>*, int*),
-              (override));
+  MOCK_METHOD(bool, GetAddresses,
+              (int, uint8_t, std::vector<AddressInfo>*, int*), (override));
 
-  MOCK_METHOD(bool,
-              ChangeLocalAddress,
-              (uint32_t,
-               Verb,
-               const QuicIpAddress&,
-               uint8_t,
-               uint8_t,
-               uint8_t,
+  MOCK_METHOD(bool, ChangeLocalAddress,
+              (uint32_t, Verb, const QuicIpAddress&, uint8_t, uint8_t, uint8_t,
                const std::vector<struct rtattr*>&),
               (override));
 
   MOCK_METHOD(bool, GetRouteInfo, (std::vector<RoutingRule>*), (override));
 
-  MOCK_METHOD(bool,
-              ChangeRoute,
+  MOCK_METHOD(bool, ChangeRoute,
               (Verb, uint32_t, const IpRange&, uint8_t, QuicIpAddress, int32_t),
               (override));
 

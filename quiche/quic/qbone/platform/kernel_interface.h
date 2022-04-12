@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+
 #include <type_traits>
 #include <utility>
 
@@ -26,24 +27,14 @@ class KernelInterface {
   virtual int ioctl(int fd, int request, void* argp) = 0;
   virtual int open(const char* pathname, int flags) = 0;
   virtual ssize_t read(int fd, void* buf, size_t count) = 0;
-  virtual ssize_t recvfrom(int sockfd,
-                           void* buf,
-                           size_t len,
-                           int flags,
-                           struct sockaddr* src_addr,
-                           socklen_t* addrlen) = 0;
+  virtual ssize_t recvfrom(int sockfd, void* buf, size_t len, int flags,
+                           struct sockaddr* src_addr, socklen_t* addrlen) = 0;
   virtual ssize_t sendmsg(int sockfd, const struct msghdr* msg, int flags) = 0;
-  virtual ssize_t sendto(int sockfd,
-                         const void* buf,
-                         size_t len,
-                         int flags,
+  virtual ssize_t sendto(int sockfd, const void* buf, size_t len, int flags,
                          const struct sockaddr* dest_addr,
                          socklen_t addrlen) = 0;
   virtual int socket(int domain, int type, int protocol) = 0;
-  virtual int setsockopt(int fd,
-                         int level,
-                         int optname,
-                         const void* optval,
+  virtual int setsockopt(int fd, int level, int optname, const void* optval,
                          socklen_t optlen) = 0;
   virtual ssize_t write(int fd, const void* buf, size_t count) = 0;
 };
@@ -96,12 +87,8 @@ class ParametrizedKernel final : public KernelInterface {
     static Runner syscall("read");
     return syscall.Run(&::read, fd, buf, count);
   }
-  ssize_t recvfrom(int sockfd,
-                   void* buf,
-                   size_t len,
-                   int flags,
-                   struct sockaddr* src_addr,
-                   socklen_t* addrlen) override {
+  ssize_t recvfrom(int sockfd, void* buf, size_t len, int flags,
+                   struct sockaddr* src_addr, socklen_t* addrlen) override {
     static Runner syscall("recvfrom");
     return syscall.RetryOnError(&::recvfrom, static_cast<ssize_t>(-1), sockfd,
                                 buf, len, flags, src_addr, addrlen);
@@ -111,12 +98,8 @@ class ParametrizedKernel final : public KernelInterface {
     return syscall.RetryOnError(&::sendmsg, static_cast<ssize_t>(-1), sockfd,
                                 msg, flags);
   }
-  ssize_t sendto(int sockfd,
-                 const void* buf,
-                 size_t len,
-                 int flags,
-                 const struct sockaddr* dest_addr,
-                 socklen_t addrlen) override {
+  ssize_t sendto(int sockfd, const void* buf, size_t len, int flags,
+                 const struct sockaddr* dest_addr, socklen_t addrlen) override {
     static Runner syscall("sendto");
     return syscall.RetryOnError(&::sendto, static_cast<ssize_t>(-1), sockfd,
                                 buf, len, flags, dest_addr, addrlen);
@@ -125,10 +108,7 @@ class ParametrizedKernel final : public KernelInterface {
     static Runner syscall("socket");
     return syscall.Retry(&::socket, domain, type, protocol);
   }
-  int setsockopt(int fd,
-                 int level,
-                 int optname,
-                 const void* optval,
+  int setsockopt(int fd, int level, int optname, const void* optval,
                  socklen_t optlen) override {
     static Runner syscall("setsockopt");
     return syscall.Retry(&::setsockopt, fd, level, optname, optval, optlen);

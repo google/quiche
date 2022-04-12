@@ -39,9 +39,7 @@ struct IPv6PseudoHeader {
 
 }  // namespace
 
-void CreateIcmpPacket(in6_addr src,
-                      in6_addr dst,
-                      const icmp6_hdr& icmp_header,
+void CreateIcmpPacket(in6_addr src, in6_addr dst, const icmp6_hdr& icmp_header,
                       absl::string_view body,
                       const std::function<void(absl::string_view)>& cb) {
   const size_t body_size = std::min(body.size(), kICMPv6BodyMaxSize);

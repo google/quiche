@@ -35,8 +35,7 @@ class RtnetlinkMessage {
   // Appends a struct rtattr to the message. nlmsg_len and rta_len is handled
   // properly.
   // Override this to perform check on type.
-  virtual void AppendAttribute(uint16_t type,
-                               const void* data,
+  virtual void AppendAttribute(uint16_t type, const void* data,
                                uint16_t data_length);
 
   // Builds the array of iovec that can be fed into sendmsg directly.
@@ -48,12 +47,8 @@ class RtnetlinkMessage {
  protected:
   // Subclass should add their own message header immediately after the
   // nlmsghdr. Make this private to force the creation of such header.
-  RtnetlinkMessage(uint16_t type,
-                   uint16_t flags,
-                   uint32_t seq,
-                   uint32_t pid,
-                   const void* payload_header,
-                   size_t payload_header_length);
+  RtnetlinkMessage(uint16_t type, uint16_t flags, uint32_t seq, uint32_t pid,
+                   const void* payload_header, size_t payload_header_length);
 
   // Adjusts nlmsg_len in the header assuming additional_data_length is appended
   // at the end.
@@ -71,9 +66,7 @@ class RtnetlinkMessage {
 class LinkMessage : public RtnetlinkMessage {
  public:
   static LinkMessage New(RtnetlinkMessage::Operation request_operation,
-                         uint16_t flags,
-                         uint32_t seq,
-                         uint32_t pid,
+                         uint16_t flags, uint32_t seq, uint32_t pid,
                          const struct ifinfomsg* interface_info_header);
 
  private:
@@ -85,9 +78,7 @@ class LinkMessage : public RtnetlinkMessage {
 class AddressMessage : public RtnetlinkMessage {
  public:
   static AddressMessage New(RtnetlinkMessage::Operation request_operation,
-                            uint16_t flags,
-                            uint32_t seq,
-                            uint32_t pid,
+                            uint16_t flags, uint32_t seq, uint32_t pid,
                             const struct ifaddrmsg* interface_address_header);
 
  private:
@@ -99,9 +90,7 @@ class AddressMessage : public RtnetlinkMessage {
 class RouteMessage : public RtnetlinkMessage {
  public:
   static RouteMessage New(RtnetlinkMessage::Operation request_operation,
-                          uint16_t flags,
-                          uint32_t seq,
-                          uint32_t pid,
+                          uint16_t flags, uint32_t seq, uint32_t pid,
                           const struct rtmsg* route_message_header);
 
  private:
@@ -111,9 +100,7 @@ class RouteMessage : public RtnetlinkMessage {
 class RuleMessage : public RtnetlinkMessage {
  public:
   static RuleMessage New(RtnetlinkMessage::Operation request_operation,
-                         uint16_t flags,
-                         uint32_t seq,
-                         uint32_t pid,
+                         uint16_t flags, uint32_t seq, uint32_t pid,
                          const struct rtmsg* rule_message_header);
 
  private:

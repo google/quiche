@@ -70,9 +70,7 @@ bool IpRange::operator==(IpRange other) const {
   return prefix_ == other.prefix_ && prefix_length_ == other.prefix_length_;
 }
 
-bool IpRange::operator!=(IpRange other) const {
-  return !(*this == other);
-}
+bool IpRange::operator!=(IpRange other) const { return !(*this == other); }
 
 bool IpRange::FromString(const std::string& range) {
   size_t slash_pos = range.find('/');
@@ -94,8 +92,6 @@ bool IpRange::FromString(const std::string& range) {
   return true;
 }
 
-QuicIpAddress IpRange::FirstAddressInRange() const {
-  return prefix();
-}
+QuicIpAddress IpRange::FirstAddressInRange() const { return prefix(); }
 
 }  // namespace quic

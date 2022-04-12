@@ -22,9 +22,7 @@ Netlink::Netlink(KernelInterface* kernel) : kernel_(kernel) {
   seq_ = QuicRandom::GetInstance()->RandUint64();
 }
 
-Netlink::~Netlink() {
-  CloseSocket();
-}
+Netlink::~Netlink() { CloseSocket(); }
 
 void Netlink::ResetRecvBuf(size_t size) {
   if (size != 0) {
@@ -198,8 +196,7 @@ namespace {
 
 class LocalAddressParser : public NetlinkParserInterface {
  public:
-  LocalAddressParser(int interface_index,
-                     uint8_t unwanted_flags,
+  LocalAddressParser(int interface_index, uint8_t unwanted_flags,
                      std::vector<Netlink::AddressInfo>* local_addresses,
                      int* num_ipv6_nodad_dadfailed_addresses)
       : interface_index_(interface_index),
@@ -306,8 +303,7 @@ class LocalAddressParser : public NetlinkParserInterface {
 
 }  // namespace
 
-bool Netlink::GetAddresses(int interface_index,
-                           uint8_t unwanted_flags,
+bool Netlink::GetAddresses(int interface_index, uint8_t unwanted_flags,
                            std::vector<AddressInfo>* addresses,
                            int* num_ipv6_nodad_dadfailed_addresses) {
   // the message doesn't contain the index, we'll have to do the filtering while
@@ -353,12 +349,8 @@ class UnknownParser : public NetlinkParserInterface {
 }  // namespace
 
 bool Netlink::ChangeLocalAddress(
-    uint32_t interface_index,
-    Verb verb,
-    const QuicIpAddress& address,
-    uint8_t prefix_length,
-    uint8_t ifa_flags,
-    uint8_t ifa_scope,
+    uint32_t interface_index, Verb verb, const QuicIpAddress& address,
+    uint8_t prefix_length, uint8_t ifa_flags, uint8_t ifa_scope,
     const std::vector<struct rtattr*>& additional_attributes) {
   if (verb == Verb::kReplace) {
     return false;
@@ -494,10 +486,8 @@ bool Netlink::GetRouteInfo(std::vector<Netlink::RoutingRule>* routing_rules) {
   return true;
 }
 
-bool Netlink::ChangeRoute(Netlink::Verb verb,
-                          uint32_t table,
-                          const IpRange& destination_subnet,
-                          uint8_t scope,
+bool Netlink::ChangeRoute(Netlink::Verb verb, uint32_t table,
+                          const IpRange& destination_subnet, uint8_t scope,
                           QuicIpAddress preferred_source,
                           int32_t interface_index) {
   if (!destination_subnet.prefix().IsInitialized()) {
