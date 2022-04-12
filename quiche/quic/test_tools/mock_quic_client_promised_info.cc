@@ -8,9 +8,7 @@ namespace quic {
 namespace test {
 
 MockQuicClientPromisedInfo::MockQuicClientPromisedInfo(
-    QuicSpdyClientSessionBase* session,
-    QuicStreamId id,
-    std::string url)
+    QuicSpdyClientSessionBase* session, QuicStreamId id, std::string url)
     : QuicClientPromisedInfo(session, id, url) {}
 
 MockQuicClientPromisedInfo::~MockQuicClientPromisedInfo() {}

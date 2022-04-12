@@ -37,21 +37,18 @@ class MockableQuicClient : public QuicClient {
                      QuicEpollServer* epoll_server);
 
   MockableQuicClient(QuicSocketAddress server_address,
-                     const QuicServerId& server_id,
-                     const QuicConfig& config,
+                     const QuicServerId& server_id, const QuicConfig& config,
                      const ParsedQuicVersionVector& supported_versions,
                      QuicEpollServer* epoll_server);
 
   MockableQuicClient(QuicSocketAddress server_address,
-                     const QuicServerId& server_id,
-                     const QuicConfig& config,
+                     const QuicServerId& server_id, const QuicConfig& config,
                      const ParsedQuicVersionVector& supported_versions,
                      QuicEpollServer* epoll_server,
                      std::unique_ptr<ProofVerifier> proof_verifier);
 
   MockableQuicClient(QuicSocketAddress server_address,
-                     const QuicServerId& server_id,
-                     const QuicConfig& config,
+                     const QuicServerId& server_id, const QuicConfig& config,
                      const ParsedQuicVersionVector& supported_versions,
                      QuicEpollServer* epoll_server,
                      std::unique_ptr<ProofVerifier> proof_verifier,
@@ -99,17 +96,14 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
                  const std::string& server_hostname,
                  const ParsedQuicVersionVector& supported_versions);
   QuicTestClient(QuicSocketAddress server_address,
-                 const std::string& server_hostname,
-                 const QuicConfig& config,
+                 const std::string& server_hostname, const QuicConfig& config,
                  const ParsedQuicVersionVector& supported_versions);
   QuicTestClient(QuicSocketAddress server_address,
-                 const std::string& server_hostname,
-                 const QuicConfig& config,
+                 const std::string& server_hostname, const QuicConfig& config,
                  const ParsedQuicVersionVector& supported_versions,
                  std::unique_ptr<ProofVerifier> proof_verifier);
   QuicTestClient(QuicSocketAddress server_address,
-                 const std::string& server_hostname,
-                 const QuicConfig& config,
+                 const std::string& server_hostname, const QuicConfig& config,
                  const ParsedQuicVersionVector& supported_versions,
                  std::unique_ptr<ProofVerifier> proof_verifier,
                  std::unique_ptr<SessionCache> session_cache);
@@ -145,16 +139,13 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // |fin| and returns the number of bytes sent (the size of the serialized
   // request headers and body).
   ssize_t SendMessage(const spdy::SpdyHeaderBlock& headers,
-                      absl::string_view body,
-                      bool fin);
+                      absl::string_view body, bool fin);
   // Sends a request containing |headers| and |body| with the fin bit set to
   // |fin| and returns the number of bytes sent (the size of the serialized
   // request headers and body). If |flush| is true, will wait for the message to
   // be flushed before returning.
   ssize_t SendMessage(const spdy::SpdyHeaderBlock& headers,
-                      absl::string_view body,
-                      bool fin,
-                      bool flush);
+                      absl::string_view body, bool fin, bool flush);
   // Sends a request containing |headers| and |body|, waits for the response,
   // and returns the response body.
   std::string SendCustomSynchronousRequest(const spdy::SpdyHeaderBlock& headers,
@@ -357,15 +348,13 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // PerStreamState of a stream is updated when it is closed.
   struct PerStreamState {
     PerStreamState(const PerStreamState& other);
-    PerStreamState(QuicRstStreamErrorCode stream_error,
-                   bool response_complete,
+    PerStreamState(QuicRstStreamErrorCode stream_error, bool response_complete,
                    bool response_headers_complete,
                    const spdy::SpdyHeaderBlock& response_headers,
                    const spdy::SpdyHeaderBlock& preliminary_headers,
                    const std::string& response,
                    const spdy::SpdyHeaderBlock& response_trailers,
-                   uint64_t bytes_read,
-                   uint64_t bytes_written,
+                   uint64_t bytes_read, uint64_t bytes_written,
                    int64_t response_body_size);
     ~PerStreamState();
 

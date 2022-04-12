@@ -10,21 +10,13 @@ MockClock::MockClock() : now_(QuicTime::Zero()) {}
 
 MockClock::~MockClock() {}
 
-void MockClock::AdvanceTime(QuicTime::Delta delta) {
-  now_ = now_ + delta;
-}
+void MockClock::AdvanceTime(QuicTime::Delta delta) { now_ = now_ + delta; }
 
-void MockClock::Reset() {
-  now_ = QuicTime::Zero();
-}
+void MockClock::Reset() { now_ = QuicTime::Zero(); }
 
-QuicTime MockClock::Now() const {
-  return now_;
-}
+QuicTime MockClock::Now() const { return now_; }
 
-QuicTime MockClock::ApproximateNow() const {
-  return now_;
-}
+QuicTime MockClock::ApproximateNow() const { return now_; }
 
 QuicWallTime MockClock::WallNow() const {
   return QuicWallTime::FromUNIXSeconds((now_ - QuicTime::Zero()).ToSeconds());

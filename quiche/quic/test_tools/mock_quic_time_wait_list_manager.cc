@@ -11,9 +11,7 @@ namespace quic {
 namespace test {
 
 MockTimeWaitListManager::MockTimeWaitListManager(
-    QuicPacketWriter* writer,
-    Visitor* visitor,
-    const QuicClock* clock,
+    QuicPacketWriter* writer, Visitor* visitor, const QuicClock* clock,
     QuicAlarmFactory* alarm_factory)
     : QuicTimeWaitListManager(writer, visitor, clock, alarm_factory) {
   // Though AddConnectionIdToTimeWait is mocked, we want to retain its

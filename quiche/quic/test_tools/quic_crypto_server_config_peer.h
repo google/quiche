@@ -33,11 +33,8 @@ class QuicCryptoServerConfigPeer {
 
   // Generates a new valid source address token.
   std::string NewSourceAddressToken(
-      std::string config_id,
-      SourceAddressTokens previous_tokens,
-      const QuicIpAddress& ip,
-      QuicRandom* rand,
-      QuicWallTime now,
+      std::string config_id, SourceAddressTokens previous_tokens,
+      const QuicIpAddress& ip, QuicRandom* rand, QuicWallTime now,
       CachedNetworkParameters* cached_network_params);
 
   // Attempts to validate the tokens in |srct|.
@@ -47,9 +44,7 @@ class QuicCryptoServerConfigPeer {
 
   // Attempts to validate the single source address token in |token|.
   HandshakeFailureReason ValidateSingleSourceAddressToken(
-      absl::string_view token,
-      const QuicIpAddress& ip,
-      QuicWallTime now);
+      absl::string_view token, const QuicIpAddress& ip, QuicWallTime now);
 
   // CheckConfigs compares the state of the Configs in |server_config_| to the
   // description given as arguments.

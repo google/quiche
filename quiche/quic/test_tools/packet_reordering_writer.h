@@ -22,8 +22,7 @@ class PacketReorderingWriter : public QuicPacketWriterWrapper {
 
   ~PacketReorderingWriter() override;
 
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           PerPacketOptions* options) override;

@@ -23,21 +23,15 @@ class CustomStreamSession : public QuicSimpleServerSession {
   CustomStreamSession(
       const QuicConfig& config,
       const ParsedQuicVersionVector& supported_versions,
-      QuicConnection* connection,
-      QuicSession::Visitor* visitor,
+      QuicConnection* connection, QuicSession::Visitor* visitor,
       QuicCryptoServerStreamBase::Helper* helper,
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       QuicTestServer::StreamFactory* stream_factory,
       QuicTestServer::CryptoStreamFactory* crypto_stream_factory,
       QuicSimpleServerBackend* quic_simple_server_backend)
-      : QuicSimpleServerSession(config,
-                                supported_versions,
-                                connection,
-                                visitor,
-                                helper,
-                                crypto_config,
-                                compressed_certs_cache,
+      : QuicSimpleServerSession(config, supported_versions, connection, visitor,
+                                helper, crypto_config, compressed_certs_cache,
                                 quic_simple_server_backend),
         stream_factory_(stream_factory),
         crypto_stream_factory_(crypto_stream_factory) {}
@@ -73,22 +67,17 @@ class CustomStreamSession : public QuicSimpleServerSession {
 class QuicTestDispatcher : public QuicSimpleDispatcher {
  public:
   QuicTestDispatcher(
-      const QuicConfig* config,
-      const QuicCryptoServerConfig* crypto_config,
+      const QuicConfig* config, const QuicCryptoServerConfig* crypto_config,
       QuicVersionManager* version_manager,
       std::unique_ptr<QuicConnectionHelperInterface> helper,
       std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
       QuicSimpleServerBackend* quic_simple_server_backend,
       uint8_t expected_server_connection_id_length)
-      : QuicSimpleDispatcher(config,
-                             crypto_config,
-                             version_manager,
-                             std::move(helper),
-                             std::move(session_helper),
-                             std::move(alarm_factory),
-                             quic_simple_server_backend,
-                             expected_server_connection_id_length),
+      : QuicSimpleDispatcher(
+            config, crypto_config, version_manager, std::move(helper),
+            std::move(session_helper), std::move(alarm_factory),
+            quic_simple_server_backend, expected_server_connection_id_length),
         session_factory_(nullptr),
         stream_factory_(nullptr),
         crypto_stream_factory_(nullptr) {}
@@ -169,26 +158,20 @@ QuicTestServer::QuicTestServer(
     : QuicServer(std::move(proof_source), quic_simple_server_backend) {}
 
 QuicTestServer::QuicTestServer(
-    std::unique_ptr<ProofSource> proof_source,
-    const QuicConfig& config,
+    std::unique_ptr<ProofSource> proof_source, const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
     QuicSimpleServerBackend* quic_simple_server_backend)
-    : QuicTestServer(std::move(proof_source),
-                     config,
-                     supported_versions,
+    : QuicTestServer(std::move(proof_source), config, supported_versions,
                      quic_simple_server_backend,
                      kQuicDefaultConnectionIdLength) {}
 
 QuicTestServer::QuicTestServer(
-    std::unique_ptr<ProofSource> proof_source,
-    const QuicConfig& config,
+    std::unique_ptr<ProofSource> proof_source, const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
     QuicSimpleServerBackend* quic_simple_server_backend,
     uint8_t expected_server_connection_id_length)
-    : QuicServer(std::move(proof_source),
-                 config,
-                 QuicCryptoServerConfig::ConfigOptions(),
-                 supported_versions,
+    : QuicServer(std::move(proof_source), config,
+                 QuicCryptoServerConfig::ConfigOptions(), supported_versions,
                  quic_simple_server_backend,
                  expected_server_connection_id_length) {}
 
@@ -220,21 +203,14 @@ void QuicTestServer::SetCryptoStreamFactory(CryptoStreamFactory* factory) {
 ///////////////////////////   TEST SESSIONS ///////////////////////////////
 
 ImmediateGoAwaySession::ImmediateGoAwaySession(
-    const QuicConfig& config,
-    QuicConnection* connection,
-    QuicSession::Visitor* visitor,
-    QuicCryptoServerStreamBase::Helper* helper,
+    const QuicConfig& config, QuicConnection* connection,
+    QuicSession::Visitor* visitor, QuicCryptoServerStreamBase::Helper* helper,
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSimpleServerBackend* quic_simple_server_backend)
-    : QuicSimpleServerSession(config,
-                              CurrentSupportedVersions(),
-                              connection,
-                              visitor,
-                              helper,
-                              crypto_config,
-                              compressed_certs_cache,
-                              quic_simple_server_backend) {}
+    : QuicSimpleServerSession(
+          config, CurrentSupportedVersions(), connection, visitor, helper,
+          crypto_config, compressed_certs_cache, quic_simple_server_backend) {}
 
 void ImmediateGoAwaySession::OnStreamFrame(const QuicStreamFrame& frame) {
   if (VersionUsesHttp3(transport_version())) {
@@ -256,8 +232,7 @@ void ImmediateGoAwaySession::OnCryptoFrame(const QuicCryptoFrame& frame) {
 }
 
 void ImmediateGoAwaySession::OnNewEncryptionKeyAvailable(
-    EncryptionLevel level,
-    std::unique_ptr<QuicEncrypter> encrypter) {
+    EncryptionLevel level, std::unique_ptr<QuicEncrypter> encrypter) {
   QuicSimpleServerSession::OnNewEncryptionKeyAvailable(level,
                                                        std::move(encrypter));
   if (VersionUsesHttp3(transport_version())) {

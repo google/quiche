@@ -14,15 +14,13 @@ namespace test {
 
 // static
 void QuicStreamIdManagerPeer::set_incoming_actual_max_streams(
-    QuicStreamIdManager* stream_id_manager,
-    QuicStreamCount count) {
+    QuicStreamIdManager* stream_id_manager, QuicStreamCount count) {
   stream_id_manager->incoming_actual_max_streams_ = count;
 }
 
 // static
 void QuicStreamIdManagerPeer::set_outgoing_max_streams(
-    QuicStreamIdManager* stream_id_manager,
-    QuicStreamCount count) {
+    QuicStreamIdManager* stream_id_manager, QuicStreamCount count) {
   stream_id_manager->outgoing_max_streams_ = count;
 }
 

@@ -8,8 +8,7 @@ namespace quic {
 namespace test {
 
 bool QuicTimeWaitListManagerPeer::ShouldSendResponse(
-    QuicTimeWaitListManager* manager,
-    int received_packet_count) {
+    QuicTimeWaitListManager* manager, int received_packet_count) {
   return manager->ShouldSendResponse(received_packet_count);
 }
 

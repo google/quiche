@@ -36,8 +36,7 @@ class FakeProofSource : public ProofSource {
   // ProofSource interface
   void GetProof(const QuicSocketAddress& server_address,
                 const QuicSocketAddress& client_address,
-                const std::string& hostname,
-                const std::string& server_config,
+                const std::string& hostname, const std::string& server_config,
                 QuicTransportVersion transport_version,
                 absl::string_view chlo_hash,
                 std::unique_ptr<ProofSource::Callback> callback) override;
@@ -47,10 +46,8 @@ class FakeProofSource : public ProofSource {
       bool* cert_matched_sni) override;
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
-      const QuicSocketAddress& client_address,
-      const std::string& hostname,
-      uint16_t signature_algorithm,
-      absl::string_view in,
+      const QuicSocketAddress& client_address, const std::string& hostname,
+      uint16_t signature_algorithm, absl::string_view in,
       std::unique_ptr<ProofSource::SignatureCallback> callback) override;
   absl::InlinedVector<uint16_t, 8> SupportedTlsSignatureAlgorithms()
       const override;
@@ -81,11 +78,9 @@ class FakeProofSource : public ProofSource {
   class GetProofOp : public PendingOp {
    public:
     GetProofOp(const QuicSocketAddress& server_addr,
-               const QuicSocketAddress& client_address,
-               std::string hostname,
+               const QuicSocketAddress& client_address, std::string hostname,
                std::string server_config,
-               QuicTransportVersion transport_version,
-               std::string chlo_hash,
+               QuicTransportVersion transport_version, std::string chlo_hash,
                std::unique_ptr<ProofSource::Callback> callback,
                ProofSource* delegate);
     ~GetProofOp() override;
@@ -107,8 +102,7 @@ class FakeProofSource : public ProofSource {
    public:
     ComputeSignatureOp(const QuicSocketAddress& server_address,
                        const QuicSocketAddress& client_address,
-                       std::string hostname,
-                       uint16_t sig_alg,
+                       std::string hostname, uint16_t sig_alg,
                        absl::string_view in,
                        std::unique_ptr<ProofSource::SignatureCallback> callback,
                        ProofSource* delegate);

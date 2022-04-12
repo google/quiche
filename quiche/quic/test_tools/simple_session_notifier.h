@@ -26,13 +26,11 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
   ~SimpleSessionNotifier() override;
 
   // Tries to write stream data and returns data consumed.
-  QuicConsumedData WriteOrBufferData(QuicStreamId id,
-                                     QuicByteCount data_length,
+  QuicConsumedData WriteOrBufferData(QuicStreamId id, QuicByteCount data_length,
                                      StreamSendingState state);
 
   // Tries to write RST_STREAM_FRAME.
-  void WriteOrBufferRstStream(QuicStreamId id,
-                              QuicRstStreamErrorCode error,
+  void WriteOrBufferRstStream(QuicStreamId id, QuicRstStreamErrorCode error,
                               QuicStreamOffset bytes_written);
 
   // Tries to write WINDOW_UPDATE.
@@ -46,8 +44,7 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
       const QuicAckFrequencyFrame& ack_frequency_frame);
 
   // Tries to write CRYPTO data and returns the number of bytes written.
-  size_t WriteCryptoData(EncryptionLevel level,
-                         QuicByteCount data_length,
+  size_t WriteCryptoData(EncryptionLevel level, QuicByteCount data_length,
                          QuicStreamOffset offset);
 
   // Neuters unencrypted data of crypto stream.
@@ -78,8 +75,7 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
   bool StreamIsWaitingForAcks(QuicStreamId id) const;
 
   // SessionNotifierInterface methods:
-  bool OnFrameAcked(const QuicFrame& frame,
-                    QuicTime::Delta ack_delay_time,
+  bool OnFrameAcked(const QuicFrame& frame, QuicTime::Delta ack_delay_time,
                     QuicTime receive_timestamp) override;
   void OnStreamFrameRetransmitted(const QuicStreamFrame& /*frame*/) override {}
   void OnFrameLost(const QuicFrame& frame) override;
@@ -114,10 +110,8 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
 
   using StreamMap = absl::flat_hash_map<QuicStreamId, StreamState>;
 
-  void OnStreamDataConsumed(QuicStreamId id,
-                            QuicStreamOffset offset,
-                            QuicByteCount data_length,
-                            bool fin);
+  void OnStreamDataConsumed(QuicStreamId id, QuicStreamOffset offset,
+                            QuicByteCount data_length, bool fin);
 
   bool OnControlFrameAcked(const QuicFrame& frame);
 

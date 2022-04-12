@@ -28,8 +28,7 @@ class SimpleDataProducer : public QuicStreamFrameDataProducer {
   // that stream.
   void SaveStreamData(QuicStreamId id, absl::string_view data);
 
-  void SaveCryptoData(EncryptionLevel level,
-                      QuicStreamOffset offset,
+  void SaveCryptoData(EncryptionLevel level, QuicStreamOffset offset,
                       absl::string_view data);
 
   // QuicStreamFrameDataProducer
@@ -37,8 +36,7 @@ class SimpleDataProducer : public QuicStreamFrameDataProducer {
                                         QuicStreamOffset offset,
                                         QuicByteCount data_length,
                                         QuicDataWriter* writer) override;
-  bool WriteCryptoData(EncryptionLevel level,
-                       QuicStreamOffset offset,
+  bool WriteCryptoData(EncryptionLevel level, QuicStreamOffset offset,
                        QuicByteCount data_length,
                        QuicDataWriter* writer) override;
 

@@ -12,11 +12,8 @@ PacketReorderingWriter::PacketReorderingWriter() = default;
 PacketReorderingWriter::~PacketReorderingWriter() = default;
 
 WriteResult PacketReorderingWriter::WritePacket(
-    const char* buffer,
-    size_t buf_len,
-    const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address,
-    PerPacketOptions* options) {
+    const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
+    const QuicSocketAddress& peer_address, PerPacketOptions* options) {
   if (!delay_next_) {
     QUIC_VLOG(2) << "Writing a non-delayed packet";
     WriteResult wr = QuicPacketWriterWrapper::WritePacket(

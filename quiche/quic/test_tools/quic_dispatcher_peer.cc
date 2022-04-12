@@ -75,19 +75,15 @@ QuicBufferedPacketStore* QuicDispatcherPeer::GetBufferedPackets(
 
 // static
 void QuicDispatcherPeer::set_new_sessions_allowed_per_event_loop(
-    QuicDispatcher* dispatcher,
-    size_t num_session_allowed) {
+    QuicDispatcher* dispatcher, size_t num_session_allowed) {
   dispatcher->new_sessions_allowed_per_event_loop_ = num_session_allowed;
 }
 
 // static
 void QuicDispatcherPeer::SendPublicReset(
-    QuicDispatcher* dispatcher,
-    const QuicSocketAddress& self_address,
-    const QuicSocketAddress& peer_address,
-    QuicConnectionId connection_id,
-    bool ietf_quic,
-    size_t received_packet_length,
+    QuicDispatcher* dispatcher, const QuicSocketAddress& self_address,
+    const QuicSocketAddress& peer_address, QuicConnectionId connection_id,
+    bool ietf_quic, size_t received_packet_length,
     std::unique_ptr<QuicPerPacketContext> packet_context) {
   dispatcher->time_wait_list_manager()->SendPublicReset(
       self_address, peer_address, connection_id, ietf_quic,
@@ -102,15 +98,13 @@ std::unique_ptr<QuicPerPacketContext> QuicDispatcherPeer::GetPerPacketContext(
 
 // static
 void QuicDispatcherPeer::RestorePerPacketContext(
-    QuicDispatcher* dispatcher,
-    std::unique_ptr<QuicPerPacketContext> context) {
+    QuicDispatcher* dispatcher, std::unique_ptr<QuicPerPacketContext> context) {
   dispatcher->RestorePerPacketContext(std::move(context));
 }
 
 // static
 std::string QuicDispatcherPeer::SelectAlpn(
-    QuicDispatcher* dispatcher,
-    const std::vector<std::string>& alpns) {
+    QuicDispatcher* dispatcher, const std::vector<std::string>& alpns) {
   return dispatcher->SelectAlpn(alpns);
 }
 
@@ -125,8 +119,7 @@ QuicSession* QuicDispatcherPeer::GetFirstSessionIfAny(
 
 // static
 const QuicSession* QuicDispatcherPeer::FindSession(
-    const QuicDispatcher* dispatcher,
-    QuicConnectionId id) {
+    const QuicDispatcher* dispatcher, QuicConnectionId id) {
   auto it = dispatcher->reference_counted_session_map_.find(id);
   return (it == dispatcher->reference_counted_session_map_.end())
              ? nullptr

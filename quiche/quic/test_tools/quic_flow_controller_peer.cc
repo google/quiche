@@ -14,22 +14,19 @@ namespace test {
 
 // static
 void QuicFlowControllerPeer::SetSendWindowOffset(
-    QuicFlowController* flow_controller,
-    QuicStreamOffset offset) {
+    QuicFlowController* flow_controller, QuicStreamOffset offset) {
   flow_controller->send_window_offset_ = offset;
 }
 
 // static
 void QuicFlowControllerPeer::SetReceiveWindowOffset(
-    QuicFlowController* flow_controller,
-    QuicStreamOffset offset) {
+    QuicFlowController* flow_controller, QuicStreamOffset offset) {
   flow_controller->receive_window_offset_ = offset;
 }
 
 // static
 void QuicFlowControllerPeer::SetMaxReceiveWindow(
-    QuicFlowController* flow_controller,
-    QuicByteCount window_size) {
+    QuicFlowController* flow_controller, QuicByteCount window_size) {
   flow_controller->receive_window_size_ = window_size;
 }
 

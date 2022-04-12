@@ -117,8 +117,7 @@ ABSL_CONST_INIT const char kTestCertificateRaw[] = {
     '\xa1', '\xa9', '\x51', '\x51', '\x0f', '\xad', '\x60'};
 
 ABSL_CONST_INIT const absl::string_view kTestCertificate(
-    kTestCertificateRaw,
-    sizeof(kTestCertificateRaw));
+    kTestCertificateRaw, sizeof(kTestCertificateRaw));
 
 ABSL_CONST_INIT const char kTestCertificatePem[] =
     R"(Certificate:
@@ -416,8 +415,7 @@ ABSL_CONST_INIT const char kTestCertificatePrivateKeyRaw[] = {
     '\x59'};
 
 ABSL_CONST_INIT const absl::string_view kTestCertificatePrivateKey(
-    kTestCertificatePrivateKeyRaw,
-    sizeof(kTestCertificatePrivateKeyRaw));
+    kTestCertificatePrivateKeyRaw, sizeof(kTestCertificatePrivateKeyRaw));
 
 ABSL_CONST_INIT const char kTestCertificatePrivateKeyPem[] =
     R"(-----BEGIN PRIVATE KEY-----
@@ -575,8 +573,7 @@ ABSL_CONST_INIT const char kWildcardCertificateRaw[] = {
     '\x93', '\x5f', '\x35'};
 
 ABSL_CONST_INIT const absl::string_view kWildcardCertificate(
-    kWildcardCertificateRaw,
-    sizeof(kWildcardCertificateRaw));
+    kWildcardCertificateRaw, sizeof(kWildcardCertificateRaw));
 
 ABSL_CONST_INIT const char kWildcardCertificatePrivateKeyRaw[] = {
     '\x30', '\x82', '\x04', '\xbe', '\x02', '\x01', '\x00', '\x30', '\x0d',

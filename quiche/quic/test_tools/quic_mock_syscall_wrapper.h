@@ -20,15 +20,11 @@ class MockQuicSyscallWrapper : public QuicSyscallWrapper {
   // default.
   explicit MockQuicSyscallWrapper(QuicSyscallWrapper* delegate);
 
-  MOCK_METHOD(ssize_t,
-              Sendmsg,
-              (int sockfd, const msghdr*, int flags),
+  MOCK_METHOD(ssize_t, Sendmsg, (int sockfd, const msghdr*, int flags),
               (override));
 
-  MOCK_METHOD(int,
-              Sendmmsg,
-              (int sockfd, mmsghdr*, unsigned int vlen, int flags),
-              (override));
+  MOCK_METHOD(int, Sendmmsg,
+              (int sockfd, mmsghdr*, unsigned int vlen, int flags), (override));
 };
 
 }  // namespace test

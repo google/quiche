@@ -19,22 +19,19 @@ namespace test {
 
 // static
 void QuicConnectionPeer::SetSendAlgorithm(
-    QuicConnection* connection,
-    SendAlgorithmInterface* send_algorithm) {
+    QuicConnection* connection, SendAlgorithmInterface* send_algorithm) {
   GetSentPacketManager(connection)->SetSendAlgorithm(send_algorithm);
 }
 
 // static
 void QuicConnectionPeer::SetLossAlgorithm(
-    QuicConnection* connection,
-    LossDetectionInterface* loss_algorithm) {
+    QuicConnection* connection, LossDetectionInterface* loss_algorithm) {
   GetSentPacketManager(connection)->loss_algorithm_ = loss_algorithm;
 }
 
 // static
 void QuicConnectionPeer::PopulateStopWaitingFrame(
-    QuicConnection* connection,
-    QuicStopWaitingFrame* stop_waiting) {
+    QuicConnection* connection, QuicStopWaitingFrame* stop_waiting) {
   connection->PopulateStopWaitingFrame(stop_waiting);
 }
 
@@ -83,8 +80,7 @@ void QuicConnectionPeer::SetPeerAddress(QuicConnection* connection,
 
 // static
 void QuicConnectionPeer::SetDirectPeerAddress(
-    QuicConnection* connection,
-    const QuicSocketAddress& direct_peer_address) {
+    QuicConnection* connection, const QuicSocketAddress& direct_peer_address) {
   connection->direct_peer_address_ = direct_peer_address;
 }
 
@@ -196,8 +192,7 @@ QuicPacketWriter* QuicConnectionPeer::GetWriter(QuicConnection* connection) {
 
 // static
 void QuicConnectionPeer::SetWriter(QuicConnection* connection,
-                                   QuicPacketWriter* writer,
-                                   bool owns_writer) {
+                                   QuicPacketWriter* writer, bool owns_writer) {
   if (connection->owns_writer_) {
     delete connection->writer_;
   }
@@ -240,8 +235,7 @@ QuicPacketCount QuicConnectionPeer::GetPacketsBetweenMtuProbes(
 
 // static
 void QuicConnectionPeer::ReInitializeMtuDiscoverer(
-    QuicConnection* connection,
-    QuicPacketCount packets_between_probes_base,
+    QuicConnection* connection, QuicPacketCount packets_between_probes_base,
     QuicPacketNumber next_probe_at) {
   connection->mtu_discoverer_ =
       QuicConnectionMtuDiscoverer(packets_between_probes_base, next_probe_at);
@@ -276,8 +270,7 @@ void QuicConnectionPeer::SetNoStopWaitingFrames(QuicConnection* connection,
 
 // static
 void QuicConnectionPeer::SetMaxTrackedPackets(
-    QuicConnection* connection,
-    QuicPacketCount max_tracked_packets) {
+    QuicConnection* connection, QuicPacketCount max_tracked_packets) {
   connection->max_tracked_packets_ = max_tracked_packets;
 }
 
@@ -293,8 +286,7 @@ void QuicConnectionPeer::SetNegotiatedVersion(QuicConnection* connection) {
 
 // static
 void QuicConnectionPeer::SetMaxConsecutiveNumPacketsWithNoRetransmittableFrames(
-    QuicConnection* connection,
-    size_t new_value) {
+    QuicConnection* connection, size_t new_value) {
   connection->max_consecutive_num_packets_with_no_retransmittable_frames_ =
       new_value;
 }
@@ -332,10 +324,8 @@ void QuicConnectionPeer::SetAddressValidated(QuicConnection* connection) {
 
 // static
 void QuicConnectionPeer::SendConnectionClosePacket(
-    QuicConnection* connection,
-    QuicIetfTransportErrorCodes ietf_error,
-    QuicErrorCode error,
-    const std::string& details) {
+    QuicConnection* connection, QuicIetfTransportErrorCodes ietf_error,
+    QuicErrorCode error, const std::string& details) {
   connection->SendConnectionClosePacket(error, ietf_error, details);
 }
 
@@ -402,8 +392,7 @@ QuicIdleNetworkDetector& QuicConnectionPeer::GetIdleNetworkDetector(
 
 // static
 void QuicConnectionPeer::SetServerConnectionId(
-    QuicConnection* connection,
-    const QuicConnectionId& server_connection_id) {
+    QuicConnection* connection, const QuicConnectionId& server_connection_id) {
   connection->default_path_.server_connection_id = server_connection_id;
   connection->InstallInitialCrypters(server_connection_id);
 }
@@ -424,8 +413,7 @@ void QuicConnectionPeer::SendPing(QuicConnection* connection) {
 
 // static
 void QuicConnectionPeer::SetLastPacketDestinationAddress(
-    QuicConnection* connection,
-    const QuicSocketAddress& address) {
+    QuicConnection* connection, const QuicSocketAddress& address) {
   connection->last_received_packet_info_.destination_address = address;
 }
 
@@ -467,8 +455,7 @@ bool QuicConnectionPeer::IsAlternativePathValidated(
 
 // static
 bool QuicConnectionPeer::IsAlternativePath(
-    QuicConnection* connection,
-    const QuicSocketAddress& self_address,
+    QuicConnection* connection, const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address) {
   return connection->IsAlternativePath(self_address, peer_address);
 }

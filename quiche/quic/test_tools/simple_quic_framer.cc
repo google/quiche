@@ -319,24 +319,17 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 };
 
 SimpleQuicFramer::SimpleQuicFramer()
-    : framer_(AllSupportedVersions(),
-              QuicTime::Zero(),
-              Perspective::IS_SERVER,
+    : framer_(AllSupportedVersions(), QuicTime::Zero(), Perspective::IS_SERVER,
               kQuicDefaultConnectionIdLength) {}
 
 SimpleQuicFramer::SimpleQuicFramer(
     const ParsedQuicVersionVector& supported_versions)
-    : framer_(supported_versions,
-              QuicTime::Zero(),
-              Perspective::IS_SERVER,
+    : framer_(supported_versions, QuicTime::Zero(), Perspective::IS_SERVER,
               kQuicDefaultConnectionIdLength) {}
 
 SimpleQuicFramer::SimpleQuicFramer(
-    const ParsedQuicVersionVector& supported_versions,
-    Perspective perspective)
-    : framer_(supported_versions,
-              QuicTime::Zero(),
-              perspective,
+    const ParsedQuicVersionVector& supported_versions, Perspective perspective)
+    : framer_(supported_versions, QuicTime::Zero(), perspective,
               kQuicDefaultConnectionIdLength) {}
 
 SimpleQuicFramer::~SimpleQuicFramer() {}
@@ -364,9 +357,7 @@ EncryptionLevel SimpleQuicFramer::last_decrypted_level() const {
   return visitor_->last_decrypted_level();
 }
 
-QuicFramer* SimpleQuicFramer::framer() {
-  return &framer_;
-}
+QuicFramer* SimpleQuicFramer::framer() { return &framer_; }
 
 size_t SimpleQuicFramer::num_frames() const {
   return ack_frames().size() + goaway_frames().size() +

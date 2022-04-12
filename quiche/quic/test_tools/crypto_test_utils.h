@@ -86,13 +86,11 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
                             PacketSavingConnection* server_conn,
                             QuicCryptoServerStreamBase* server,
                             const QuicServerId& server_id,
-                            const FakeClientOptions& options,
-                            std::string alpn);
+                            const FakeClientOptions& options, std::string alpn);
 
 // SetupCryptoServerConfigForTest configures |crypto_config|
 // with sensible defaults for testing.
-void SetupCryptoServerConfigForTest(const QuicClock* clock,
-                                    QuicRandom* rand,
+void SetupCryptoServerConfigForTest(const QuicClock* clock, QuicRandom* rand,
                                     QuicCryptoServerConfig* crypto_config);
 
 // Sends the handshake message |message| to stream |stream| with the perspective
@@ -177,15 +175,13 @@ CryptoHandshakeMessage CreateCHLO(
 // to decrypt) and has |dest_stream| process them. |*inout_packet_index| is
 // updated with an index one greater than the last packet processed.
 void MovePackets(PacketSavingConnection* source_conn,
-                 size_t* inout_packet_index,
-                 QuicCryptoStream* dest_stream,
+                 size_t* inout_packet_index, QuicCryptoStream* dest_stream,
                  PacketSavingConnection* dest_conn,
                  Perspective dest_perspective);
 
 // Return an inchoate CHLO with some basic tag value pairs.
 CryptoHandshakeMessage GenerateDefaultInchoateCHLO(
-    const QuicClock* clock,
-    QuicTransportVersion version,
+    const QuicClock* clock, QuicTransportVersion version,
     QuicCryptoServerConfig* crypto_config);
 
 // Takes a inchoate CHLO, returns a full CHLO in |out| which can pass

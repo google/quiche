@@ -28,8 +28,7 @@ class QUIC_NO_EXPORT DelegatedPacketWriter : public QuicPacketWriter {
     virtual ~Delegate() {}
     // Note that |buffer| may be released after this call completes so overrides
     // that want to use the data after the call is complete MUST copy it.
-    virtual void OnDelegatedPacket(const char* buffer,
-                                   size_t buf_len,
+    virtual void OnDelegatedPacket(const char* buffer, size_t buf_len,
                                    const QuicIpAddress& self_client_address,
                                    const QuicSocketAddress& peer_client_address,
                                    PerPacketOptions* options) = 0;
@@ -60,8 +59,7 @@ class QUIC_NO_EXPORT DelegatedPacketWriter : public QuicPacketWriter {
   }
   WriteResult Flush() override { return WriteResult(WRITE_STATUS_OK, 0); }
 
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_client_address,
                           const QuicSocketAddress& peer_client_address,
                           PerPacketOptions* options) override {
@@ -96,8 +94,7 @@ std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
     const QuicConnectionId& client_connection_id);
 
 std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
-    const ParsedQuicVersion& version,
-    const QuicConfig& config,
+    const ParsedQuicVersion& version, const QuicConfig& config,
     const QuicConnectionId& server_connection_id);
 
 std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
@@ -110,8 +107,7 @@ std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
     const QuicConnectionId& server_connection_id);
 
 std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
-    const ParsedQuicVersion& version,
-    const QuicConfig& config);
+    const ParsedQuicVersion& version, const QuicConfig& config);
 
 std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
     const ParsedQuicVersion& version);

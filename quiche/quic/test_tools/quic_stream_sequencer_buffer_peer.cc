@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/test_tools/quic_stream_sequencer_buffer_peer.h"
+
 #include <cstddef>
 
 #include "quiche/quic/platform/api/quic_flags.h"

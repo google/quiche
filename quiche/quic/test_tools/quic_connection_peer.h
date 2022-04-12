@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_CONNECTION_PEER_H_
 
 #include <cstddef>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -62,8 +63,7 @@ class QuicConnectionPeer {
                              const QuicSocketAddress& peer_address);
 
   static void SetDirectPeerAddress(
-      QuicConnection* connection,
-      const QuicSocketAddress& direct_peer_address);
+      QuicConnection* connection, const QuicSocketAddress& direct_peer_address);
 
   static void SetEffectivePeerAddress(
       QuicConnection* connection,
@@ -98,8 +98,7 @@ class QuicConnectionPeer {
 
   static QuicPacketWriter* GetWriter(QuicConnection* connection);
   // If |owns_writer| is true, takes ownership of |writer|.
-  static void SetWriter(QuicConnection* connection,
-                        QuicPacketWriter* writer,
+  static void SetWriter(QuicConnection* connection, QuicPacketWriter* writer,
                         bool owns_writer);
   static void TearDownLocalConnectionState(QuicConnection* connection);
   static QuicEncryptedPacket* GetConnectionClosePacket(
@@ -112,8 +111,7 @@ class QuicConnectionPeer {
   static QuicPacketCount GetPacketsBetweenMtuProbes(QuicConnection* connection);
 
   static void ReInitializeMtuDiscoverer(
-      QuicConnection* connection,
-      QuicPacketCount packets_between_probes_base,
+      QuicConnection* connection, QuicPacketCount packets_between_probes_base,
       QuicPacketNumber next_probe_at);
   static void SetAckDecimationDelay(QuicConnection* connection,
                                     float ack_decimation_delay);
@@ -126,8 +124,7 @@ class QuicConnectionPeer {
                                    QuicPacketCount max_tracked_packets);
   static void SetNegotiatedVersion(QuicConnection* connection);
   static void SetMaxConsecutiveNumPacketsWithNoRetransmittableFrames(
-      QuicConnection* connection,
-      size_t new_value);
+      QuicConnection* connection, size_t new_value);
   static bool SupportsReleaseTime(QuicConnection* connection);
   static QuicConnection::PacketContent GetCurrentPacketContent(
       QuicConnection* connection);
@@ -163,8 +160,7 @@ class QuicConnectionPeer {
       QuicConnection* connection);
 
   static void SetServerConnectionId(
-      QuicConnection* connection,
-      const QuicConnectionId& server_connection_id);
+      QuicConnection* connection, const QuicConnectionId& server_connection_id);
 
   static size_t NumUndecryptablePackets(QuicConnection* connection);
 

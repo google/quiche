@@ -13,8 +13,7 @@ namespace test {
 
 class MockTimeWaitListManager : public QuicTimeWaitListManager {
  public:
-  MockTimeWaitListManager(QuicPacketWriter* writer,
-                          Visitor* visitor,
+  MockTimeWaitListManager(QuicPacketWriter* writer, Visitor* visitor,
                           const QuicClock* clock,
                           QuicAlarmFactory* alarm_factory);
   ~MockTimeWaitListManager() override;
@@ -30,21 +29,15 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
     QuicTimeWaitListManager::AddConnectionIdToTimeWait(action, std::move(info));
   }
 
-  MOCK_METHOD(void,
-              ProcessPacket,
-              (const QuicSocketAddress&,
-               const QuicSocketAddress&,
-               QuicConnectionId,
-               PacketHeaderFormat,
-               size_t,
+  MOCK_METHOD(void, ProcessPacket,
+              (const QuicSocketAddress&, const QuicSocketAddress&,
+               QuicConnectionId, PacketHeaderFormat, size_t,
                std::unique_ptr<QuicPerPacketContext>),
               (override));
 
-  MOCK_METHOD(void,
-              SendVersionNegotiationPacket,
+  MOCK_METHOD(void, SendVersionNegotiationPacket,
               (QuicConnectionId server_connection_id,
-               QuicConnectionId client_connection_id,
-               bool ietf_quic,
+               QuicConnectionId client_connection_id, bool ietf_quic,
                bool has_length_prefix,
                const ParsedQuicVersionVector& supported_versions,
                const QuicSocketAddress& server_address,
@@ -52,20 +45,14 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
                std::unique_ptr<QuicPerPacketContext> packet_context),
               (override));
 
-  MOCK_METHOD(void,
-              SendPublicReset,
-              (const QuicSocketAddress&,
-               const QuicSocketAddress&,
-               QuicConnectionId,
-               bool,
-               size_t,
+  MOCK_METHOD(void, SendPublicReset,
+              (const QuicSocketAddress&, const QuicSocketAddress&,
+               QuicConnectionId, bool, size_t,
                std::unique_ptr<QuicPerPacketContext>),
               (override));
 
-  MOCK_METHOD(void,
-              SendPacket,
-              (const QuicSocketAddress&,
-               const QuicSocketAddress&,
+  MOCK_METHOD(void, SendPacket,
+              (const QuicSocketAddress&, const QuicSocketAddress&,
                const QuicEncryptedPacket&),
               (override));
 };

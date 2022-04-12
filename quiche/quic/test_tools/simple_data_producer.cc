@@ -38,9 +38,7 @@ void SimpleDataProducer::SaveCryptoData(EncryptionLevel level,
 }
 
 WriteStreamDataResult SimpleDataProducer::WriteStreamData(
-    QuicStreamId id,
-    QuicStreamOffset offset,
-    QuicByteCount data_length,
+    QuicStreamId id, QuicStreamOffset offset, QuicByteCount data_length,
     QuicDataWriter* writer) {
   auto iter = send_buffer_map_.find(id);
   if (iter == send_buffer_map_.end()) {

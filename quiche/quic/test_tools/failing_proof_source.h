@@ -15,8 +15,7 @@ class FailingProofSource : public ProofSource {
  public:
   void GetProof(const QuicSocketAddress& server_address,
                 const QuicSocketAddress& client_address,
-                const std::string& hostname,
-                const std::string& server_config,
+                const std::string& hostname, const std::string& server_config,
                 QuicTransportVersion transport_version,
                 absl::string_view chlo_hash,
                 std::unique_ptr<Callback> callback) override;
@@ -28,10 +27,8 @@ class FailingProofSource : public ProofSource {
 
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
-      const QuicSocketAddress& client_address,
-      const std::string& hostname,
-      uint16_t signature_algorithm,
-      absl::string_view in,
+      const QuicSocketAddress& client_address, const std::string& hostname,
+      uint16_t signature_algorithm, absl::string_view in,
       std::unique_ptr<SignatureCallback> callback) override;
 
   absl::InlinedVector<uint16_t, 8> SupportedTlsSignatureAlgorithms()

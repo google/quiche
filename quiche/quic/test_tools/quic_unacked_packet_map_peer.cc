@@ -15,8 +15,7 @@ const QuicStreamFrame& QuicUnackedPacketMapPeer::GetAggregatedStreamFrame(
 
 // static
 void QuicUnackedPacketMapPeer::SetPerspective(
-    QuicUnackedPacketMap* unacked_packets,
-    Perspective perspective) {
+    QuicUnackedPacketMap* unacked_packets, Perspective perspective) {
   *const_cast<Perspective*>(&unacked_packets->perspective_) = perspective;
 }
 

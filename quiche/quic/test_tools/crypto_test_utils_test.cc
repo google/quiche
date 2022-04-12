@@ -72,8 +72,7 @@ class ShloVerifier {
    public:
     explicit ProcessClientHelloCallback(ShloVerifier* shlo_verifier)
         : shlo_verifier_(shlo_verifier) {}
-    void Run(QuicErrorCode /*error*/,
-             const std::string& /*error_details*/,
+    void Run(QuicErrorCode /*error*/, const std::string& /*error_details*/,
              std::unique_ptr<CryptoHandshakeMessage> message,
              std::unique_ptr<DiversificationNonce> /*diversification_nonce*/,
              std::unique_ptr<ProofSource::Details> /*proof_source_details*/)

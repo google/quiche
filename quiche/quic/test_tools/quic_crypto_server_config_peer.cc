@@ -40,11 +40,8 @@ void QuicCryptoServerConfigPeer::ResetProofSource(
 }
 
 std::string QuicCryptoServerConfigPeer::NewSourceAddressToken(
-    std::string config_id,
-    SourceAddressTokens previous_tokens,
-    const QuicIpAddress& ip,
-    QuicRandom* rand,
-    QuicWallTime now,
+    std::string config_id, SourceAddressTokens previous_tokens,
+    const QuicIpAddress& ip, QuicRandom* rand, QuicWallTime now,
     CachedNetworkParameters* cached_network_params) {
   return server_config_->NewSourceAddressToken(
       *GetConfig(config_id)->source_address_token_boxer, previous_tokens, ip,
@@ -52,11 +49,8 @@ std::string QuicCryptoServerConfigPeer::NewSourceAddressToken(
 }
 
 HandshakeFailureReason QuicCryptoServerConfigPeer::ValidateSourceAddressTokens(
-    std::string config_id,
-    absl::string_view srct,
-    const QuicIpAddress& ip,
-    QuicWallTime now,
-    CachedNetworkParameters* cached_network_params) {
+    std::string config_id, absl::string_view srct, const QuicIpAddress& ip,
+    QuicWallTime now, CachedNetworkParameters* cached_network_params) {
   SourceAddressTokens tokens;
   HandshakeFailureReason reason = server_config_->ParseSourceAddressToken(
       *GetConfig(config_id)->source_address_token_boxer, srct, tokens);
@@ -70,9 +64,7 @@ HandshakeFailureReason QuicCryptoServerConfigPeer::ValidateSourceAddressTokens(
 
 HandshakeFailureReason
 QuicCryptoServerConfigPeer::ValidateSingleSourceAddressToken(
-    absl::string_view token,
-    const QuicIpAddress& ip,
-    QuicWallTime now) {
+    absl::string_view token, const QuicIpAddress& ip, QuicWallTime now) {
   SourceAddressTokens tokens;
   HandshakeFailureReason parse_status = server_config_->ParseSourceAddressToken(
       *GetPrimaryConfig()->source_address_token_boxer, token, tokens);

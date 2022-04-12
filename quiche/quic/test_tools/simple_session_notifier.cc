@@ -36,9 +36,7 @@ SimpleSessionNotifier::StreamState::StreamState()
 SimpleSessionNotifier::StreamState::~StreamState() {}
 
 QuicConsumedData SimpleSessionNotifier::WriteOrBufferData(
-    QuicStreamId id,
-    QuicByteCount data_length,
-    StreamSendingState state) {
+    QuicStreamId id, QuicByteCount data_length, StreamSendingState state) {
   if (!stream_map_.contains(id)) {
     stream_map_[id] = StreamState();
   }
@@ -91,8 +89,7 @@ size_t SimpleSessionNotifier::WriteCryptoData(EncryptionLevel level,
 }
 
 void SimpleSessionNotifier::WriteOrBufferRstStream(
-    QuicStreamId id,
-    QuicRstStreamErrorCode error,
+    QuicStreamId id, QuicRstStreamErrorCode error,
     QuicStreamOffset bytes_written) {
   QUIC_DVLOG(1) << "Writing RST_STREAM_FRAME";
   const bool had_buffered_data =
@@ -494,8 +491,7 @@ bool SimpleSessionNotifier::HasUnackedCryptoData() const {
 
 bool SimpleSessionNotifier::HasUnackedStreamData() const {
   for (const auto& it : stream_map_) {
-    if (StreamIsWaitingForAcks(it.first))
-      return true;
+    if (StreamIsWaitingForAcks(it.first)) return true;
   }
   return false;
 }

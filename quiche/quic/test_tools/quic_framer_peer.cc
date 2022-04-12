@@ -12,32 +12,27 @@ namespace test {
 
 // static
 uint64_t QuicFramerPeer::CalculatePacketNumberFromWire(
-    QuicFramer* framer,
-    QuicPacketNumberLength packet_number_length,
-    QuicPacketNumber last_packet_number,
-    uint64_t packet_number) {
+    QuicFramer* framer, QuicPacketNumberLength packet_number_length,
+    QuicPacketNumber last_packet_number, uint64_t packet_number) {
   return framer->CalculatePacketNumberFromWire(
       packet_number_length, last_packet_number, packet_number);
 }
 
 // static
 void QuicFramerPeer::SetLastSerializedServerConnectionId(
-    QuicFramer* framer,
-    QuicConnectionId server_connection_id) {
+    QuicFramer* framer, QuicConnectionId server_connection_id) {
   framer->last_serialized_server_connection_id_ = server_connection_id;
 }
 
 // static
 void QuicFramerPeer::SetLastSerializedClientConnectionId(
-    QuicFramer* framer,
-    QuicConnectionId client_connection_id) {
+    QuicFramer* framer, QuicConnectionId client_connection_id) {
   framer->last_serialized_client_connection_id_ = client_connection_id;
 }
 
 // static
 void QuicFramerPeer::SetLastWrittenPacketNumberLength(
-    QuicFramer* framer,
-    size_t packet_number_length) {
+    QuicFramer* framer, size_t packet_number_length) {
   framer->last_written_packet_number_length_ = packet_number_length;
 }
 
@@ -95,29 +90,24 @@ void QuicFramerPeer::SetFirstSendingPacketNumber(QuicFramer* framer,
 
 // static
 void QuicFramerPeer::SetExpectedServerConnectionIDLength(
-    QuicFramer* framer,
-    uint8_t expected_server_connection_id_length) {
+    QuicFramer* framer, uint8_t expected_server_connection_id_length) {
   *const_cast<uint8_t*>(&framer->expected_server_connection_id_length_) =
       expected_server_connection_id_length;
 }
 
 // static
 QuicPacketNumber QuicFramerPeer::GetLargestDecryptedPacketNumber(
-    QuicFramer* framer,
-    PacketNumberSpace packet_number_space) {
+    QuicFramer* framer, PacketNumberSpace packet_number_space) {
   return framer->largest_decrypted_packet_numbers_[packet_number_space];
 }
 
 // static
 bool QuicFramerPeer::ProcessAndValidateIetfConnectionIdLength(
-    QuicDataReader* reader,
-    ParsedQuicVersion version,
-    Perspective perspective,
+    QuicDataReader* reader, ParsedQuicVersion version, Perspective perspective,
     bool should_update_expected_server_connection_id_length,
     uint8_t* expected_server_connection_id_length,
     uint8_t* destination_connection_id_length,
-    uint8_t* source_connection_id_length,
-    std::string* detailed_error) {
+    uint8_t* source_connection_id_length, std::string* detailed_error) {
   return QuicFramer::ProcessAndValidateIetfConnectionIdLength(
       reader, version, perspective,
       should_update_expected_server_connection_id_length,

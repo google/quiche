@@ -157,8 +157,7 @@ class FullChloGenerator {
    public:
     explicit ProcessClientHelloCallback(FullChloGenerator* generator)
         : generator_(generator) {}
-    void Run(QuicErrorCode error,
-             const std::string& error_details,
+    void Run(QuicErrorCode error, const std::string& error_details,
              std::unique_ptr<CryptoHandshakeMessage> message,
              std::unique_ptr<DiversificationNonce> /*diversification_nonce*/,
              std::unique_ptr<ProofSource::Details> /*proof_source_details*/)
@@ -338,8 +337,7 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
   return client_session.GetCryptoStream()->num_sent_client_hellos();
 }
 
-void SetupCryptoServerConfigForTest(const QuicClock* clock,
-                                    QuicRandom* rand,
+void SetupCryptoServerConfigForTest(const QuicClock* clock, QuicRandom* rand,
                                     QuicCryptoServerConfig* crypto_config) {
   QuicCryptoServerConfig::ConfigOptions options;
   options.channel_id_enabled = true;
@@ -562,8 +560,7 @@ std::string EncryptionLevelString(EncryptionLevel level) {
 }
 
 void CompareCrypters(const QuicEncrypter* encrypter,
-                     const QuicDecrypter* decrypter,
-                     std::string label) {
+                     const QuicDecrypter* decrypter, std::string label) {
   if (encrypter == nullptr || decrypter == nullptr) {
     ADD_FAILURE() << "Expected non-null crypters; have " << encrypter << " and "
                   << decrypter << " for " << label;
@@ -702,8 +699,7 @@ CryptoHandshakeMessage CreateCHLO(
 }
 
 void MovePackets(PacketSavingConnection* source_conn,
-                 size_t* inout_packet_index,
-                 QuicCryptoStream* dest_stream,
+                 size_t* inout_packet_index, QuicCryptoStream* dest_stream,
                  PacketSavingConnection* dest_conn,
                  Perspective dest_perspective) {
   SimpleQuicFramer framer(source_conn->supported_versions(), dest_perspective);
@@ -795,8 +791,7 @@ void MovePackets(PacketSavingConnection* source_conn,
 }
 
 CryptoHandshakeMessage GenerateDefaultInchoateCHLO(
-    const QuicClock* clock,
-    QuicTransportVersion version,
+    const QuicClock* clock, QuicTransportVersion version,
     QuicCryptoServerConfig* crypto_config) {
   // clang-format off
   return CreateCHLO(

@@ -29,11 +29,8 @@ class MockQuicConnectionWithSendStreamData : public MockQuicConnection {
                                        Perspective perspective)
       : MockQuicConnection(helper, alarm_factory, perspective) {}
 
-  MOCK_METHOD(QuicConsumedData,
-              SendStreamData,
-              (QuicStreamId id,
-               size_t write_length,
-               QuicStreamOffset offset,
+  MOCK_METHOD(QuicConsumedData, SendStreamData,
+              (QuicStreamId id, size_t write_length, QuicStreamOffset offset,
                StreamSendingState state),
               (override));
 };

@@ -17,21 +17,15 @@ void MockRandom::RandBytes(void* data, size_t len) {
   memset(data, increment_ + static_cast<uint8_t>('r'), len);
 }
 
-uint64_t MockRandom::RandUint64() {
-  return base_ + increment_;
-}
+uint64_t MockRandom::RandUint64() { return base_ + increment_; }
 
 void MockRandom::InsecureRandBytes(void* data, size_t len) {
   RandBytes(data, len);
 }
 
-uint64_t MockRandom::InsecureRandUint64() {
-  return RandUint64();
-}
+uint64_t MockRandom::InsecureRandUint64() { return RandUint64(); }
 
-void MockRandom::ChangeValue() {
-  increment_++;
-}
+void MockRandom::ChangeValue() { increment_++; }
 
 void MockRandom::ResetBase(uint32_t base) {
   base_ = base;

@@ -33,9 +33,7 @@ TestTicketCrypter::TestTicketCrypter()
       ticket_prefix_.data() + ABSL_ARRAYSIZE(kTicketPrefix), 16);
 }
 
-size_t TestTicketCrypter::MaxOverhead() {
-  return ticket_prefix_.size();
-}
+size_t TestTicketCrypter::MaxOverhead() { return ticket_prefix_.size(); }
 
 std::vector<uint8_t> TestTicketCrypter::Encrypt(
     absl::string_view in, absl::string_view /* encryption_key */) {

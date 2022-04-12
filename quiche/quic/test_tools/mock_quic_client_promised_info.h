@@ -17,12 +17,10 @@ namespace test {
 class MockQuicClientPromisedInfo : public QuicClientPromisedInfo {
  public:
   MockQuicClientPromisedInfo(QuicSpdyClientSessionBase* session,
-                             QuicStreamId id,
-                             std::string url);
+                             QuicStreamId id, std::string url);
   ~MockQuicClientPromisedInfo() override;
 
-  MOCK_METHOD(QuicAsyncStatus,
-              HandleClientRequest,
+  MOCK_METHOD(QuicAsyncStatus, HandleClientRequest,
               (const spdy::SpdyHeaderBlock& headers,
                QuicClientPushPromiseIndex::Delegate*),
               (override));

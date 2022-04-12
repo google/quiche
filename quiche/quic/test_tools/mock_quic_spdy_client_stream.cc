@@ -8,9 +8,7 @@ namespace quic {
 namespace test {
 
 MockQuicSpdyClientStream::MockQuicSpdyClientStream(
-    QuicStreamId id,
-    QuicSpdyClientSession* session,
-    StreamType type)
+    QuicStreamId id, QuicSpdyClientSession* session, StreamType type)
     : QuicSpdyClientStream(id, session, type) {}
 
 MockQuicSpdyClientStream::~MockQuicSpdyClientStream() {}

@@ -15,16 +15,13 @@ namespace test {
 
 class MockQuicSpdyClientStream : public QuicSpdyClientStream {
  public:
-  MockQuicSpdyClientStream(QuicStreamId id,
-                           QuicSpdyClientSession* session,
+  MockQuicSpdyClientStream(QuicStreamId id, QuicSpdyClientSession* session,
                            StreamType type);
   ~MockQuicSpdyClientStream() override;
 
   MOCK_METHOD(void, OnStreamFrame, (const QuicStreamFrame& frame), (override));
-  MOCK_METHOD(void,
-              OnPromiseHeaderList,
-              (QuicStreamId promised_stream_id,
-               size_t frame_len,
+  MOCK_METHOD(void, OnPromiseHeaderList,
+              (QuicStreamId promised_stream_id, size_t frame_len,
                const QuicHeaderList& list),
               (override));
   MOCK_METHOD(void, OnDataAvailable, (), (override));

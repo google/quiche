@@ -31,10 +31,8 @@ FailingProofSource::GetCertChain(const QuicSocketAddress& /*server_address*/,
 void FailingProofSource::ComputeTlsSignature(
     const QuicSocketAddress& /*server_address*/,
     const QuicSocketAddress& /*client_address*/,
-    const std::string& /*hostname*/,
-    uint16_t /*signature_algorithm*/,
-    absl::string_view /*in*/,
-    std::unique_ptr<SignatureCallback> callback) {
+    const std::string& /*hostname*/, uint16_t /*signature_algorithm*/,
+    absl::string_view /*in*/, std::unique_ptr<SignatureCallback> callback) {
   callback->Run(false, "", nullptr);
 }
 

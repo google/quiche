@@ -48,16 +48,12 @@ class QuicDispatcherPeer {
       QuicDispatcher* dispatcher);
 
   static void set_new_sessions_allowed_per_event_loop(
-      QuicDispatcher* dispatcher,
-      size_t num_session_allowed);
+      QuicDispatcher* dispatcher, size_t num_session_allowed);
 
   static void SendPublicReset(
-      QuicDispatcher* dispatcher,
-      const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address,
-      QuicConnectionId connection_id,
-      bool ietf_quic,
-      size_t received_packet_length,
+      QuicDispatcher* dispatcher, const QuicSocketAddress& self_address,
+      const QuicSocketAddress& peer_address, QuicConnectionId connection_id,
+      bool ietf_quic, size_t received_packet_length,
       std::unique_ptr<QuicPerPacketContext> packet_context);
 
   static std::unique_ptr<QuicPerPacketContext> GetPerPacketContext(

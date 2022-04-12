@@ -70,8 +70,7 @@ class FirstFlightExtractor : public DelegatedPacketWriter::Delegate {
     session_->CryptoConnect();
   }
 
-  void OnDelegatedPacket(const char* buffer,
-                         size_t buf_len,
+  void OnDelegatedPacket(const char* buffer, size_t buf_len,
                          const QuicIpAddress& /*self_client_address*/,
                          const QuicSocketAddress& /*peer_client_address*/,
                          PerPacketOptions* /*options*/) override {
@@ -114,8 +113,7 @@ std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
 }
 
 std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
-    const ParsedQuicVersion& version,
-    const QuicConfig& config,
+    const ParsedQuicVersion& version, const QuicConfig& config,
     const QuicConnectionId& server_connection_id,
     const QuicConnectionId& client_connection_id) {
   FirstFlightExtractor first_flight_extractor(
@@ -125,16 +123,14 @@ std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
 }
 
 std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
-    const ParsedQuicVersion& version,
-    const QuicConfig& config,
+    const ParsedQuicVersion& version, const QuicConfig& config,
     const QuicConnectionId& server_connection_id) {
   return GetFirstFlightOfPackets(version, config, server_connection_id,
                                  EmptyQuicConnectionId());
 }
 
 std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
-    const ParsedQuicVersion& version,
-    const QuicConfig& config) {
+    const ParsedQuicVersion& version, const QuicConfig& config) {
   return GetFirstFlightOfPackets(version, config, TestConnectionId());
 }
 

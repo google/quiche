@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/test_tools/quic_stream_send_buffer_peer.h"
+
 #include "quiche/quic/test_tools/quic_interval_deque_peer.h"
 
 namespace quic {
@@ -11,8 +12,7 @@ namespace test {
 
 // static
 void QuicStreamSendBufferPeer::SetStreamOffset(
-    QuicStreamSendBuffer* send_buffer,
-    QuicStreamOffset stream_offset) {
+    QuicStreamSendBuffer* send_buffer, QuicStreamOffset stream_offset) {
   send_buffer->stream_offset_ = stream_offset;
 }
 

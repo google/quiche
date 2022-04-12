@@ -14,8 +14,7 @@ BadPacketWriter::BadPacketWriter(size_t packet_causing_write_error,
 
 BadPacketWriter::~BadPacketWriter() {}
 
-WriteResult BadPacketWriter::WritePacket(const char* buffer,
-                                         size_t buf_len,
+WriteResult BadPacketWriter::WritePacket(const char* buffer, size_t buf_len,
                                          const QuicIpAddress& self_address,
                                          const QuicSocketAddress& peer_address,
                                          PerPacketOptions* options) {

@@ -18,8 +18,7 @@ bool QuicPacketCreatorPeer::SendVersionInPacket(QuicPacketCreator* creator) {
 
 // static
 void QuicPacketCreatorPeer::SetSendVersionInPacket(
-    QuicPacketCreator* creator,
-    bool send_version_in_packet) {
+    QuicPacketCreator* creator, bool send_version_in_packet) {
   ParsedQuicVersion version = creator->framer_->version();
   if (!VersionHasIetfQuicFrames(version.transport_version) &&
       version.handshake_protocol != PROTOCOL_TLS1_3) {
@@ -35,8 +34,7 @@ void QuicPacketCreatorPeer::SetSendVersionInPacket(
 
 // static
 void QuicPacketCreatorPeer::SetPacketNumberLength(
-    QuicPacketCreator* creator,
-    QuicPacketNumberLength packet_number_length) {
+    QuicPacketCreator* creator, QuicPacketNumberLength packet_number_length) {
   creator->packet_.packet_number_length = packet_number_length;
 }
 
@@ -84,8 +82,7 @@ void QuicPacketCreatorPeer::FillPacketHeader(QuicPacketCreator* creator,
 void QuicPacketCreatorPeer::CreateStreamFrame(QuicPacketCreator* creator,
                                               QuicStreamId id,
                                               size_t data_length,
-                                              QuicStreamOffset offset,
-                                              bool fin,
+                                              QuicStreamOffset offset, bool fin,
                                               QuicFrame* frame) {
   creator->CreateStreamFrame(id, data_length, offset, fin, frame);
 }
@@ -101,9 +98,7 @@ bool QuicPacketCreatorPeer::CreateCryptoFrame(QuicPacketCreator* creator,
 
 // static
 SerializedPacket QuicPacketCreatorPeer::SerializeAllFrames(
-    QuicPacketCreator* creator,
-    const QuicFrames& frames,
-    char* buffer,
+    QuicPacketCreator* creator, const QuicFrames& frames, char* buffer,
     size_t buffer_len) {
   QUICHE_DCHECK(creator->queued_frames_.empty());
   QUICHE_DCHECK(!frames.empty());
@@ -131,8 +126,7 @@ QuicPacketCreatorPeer::SerializeConnectivityProbingPacket(
 // static
 std::unique_ptr<SerializedPacket>
 QuicPacketCreatorPeer::SerializePathChallengeConnectivityProbingPacket(
-    QuicPacketCreator* creator,
-    const QuicPathFrameBuffer& payload) {
+    QuicPacketCreator* creator, const QuicPathFrameBuffer& payload) {
   return creator->SerializePathChallengeConnectivityProbingPacket(payload);
 }
 

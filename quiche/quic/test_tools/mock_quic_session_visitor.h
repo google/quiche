@@ -18,35 +18,23 @@ class MockQuicSessionVisitor : public QuicTimeWaitListManager::Visitor {
   MockQuicSessionVisitor(const MockQuicSessionVisitor&) = delete;
   MockQuicSessionVisitor& operator=(const MockQuicSessionVisitor&) = delete;
   ~MockQuicSessionVisitor() override;
-  MOCK_METHOD(void,
-              OnConnectionClosed,
-              (QuicConnectionId connection_id,
-               QuicErrorCode error,
-               const std::string& error_details,
-               ConnectionCloseSource source),
+  MOCK_METHOD(void, OnConnectionClosed,
+              (QuicConnectionId connection_id, QuicErrorCode error,
+               const std::string& error_details, ConnectionCloseSource source),
               (override));
   MOCK_METHOD(void, OnWriteBlocked, (QuicBlockedWriterInterface*), (override));
-  MOCK_METHOD(void,
-              OnRstStreamReceived,
-              (const QuicRstStreamFrame& frame),
+  MOCK_METHOD(void, OnRstStreamReceived, (const QuicRstStreamFrame& frame),
               (override));
-  MOCK_METHOD(void,
-              OnStopSendingReceived,
-              (const QuicStopSendingFrame& frame),
+  MOCK_METHOD(void, OnStopSendingReceived, (const QuicStopSendingFrame& frame),
               (override));
-  MOCK_METHOD(void,
-              OnNewConnectionIdSent,
+  MOCK_METHOD(void, OnNewConnectionIdSent,
               (const QuicConnectionId& server_connection_id,
                const QuicConnectionId& new_connection_id),
               (override));
-  MOCK_METHOD(void,
-              OnConnectionIdRetired,
-              (const quic::QuicConnectionId& server_connection_id),
-              (override));
-  MOCK_METHOD(void,
-              OnConnectionAddedToTimeWaitList,
-              (QuicConnectionId connection_id),
-              (override));
+  MOCK_METHOD(void, OnConnectionIdRetired,
+              (const quic::QuicConnectionId& server_connection_id), (override));
+  MOCK_METHOD(void, OnConnectionAddedToTimeWaitList,
+              (QuicConnectionId connection_id), (override));
 };
 
 class MockQuicCryptoServerStreamHelper
@@ -58,13 +46,11 @@ class MockQuicCryptoServerStreamHelper
   MockQuicCryptoServerStreamHelper& operator=(
       const MockQuicCryptoServerStreamHelper&) = delete;
   ~MockQuicCryptoServerStreamHelper() override;
-  MOCK_METHOD(bool,
-              CanAcceptClientHello,
+  MOCK_METHOD(bool, CanAcceptClientHello,
               (const CryptoHandshakeMessage& message,
                const QuicSocketAddress& client_address,
                const QuicSocketAddress& peer_address,
-               const QuicSocketAddress& self_address,
-               std::string*),
+               const QuicSocketAddress& self_address, std::string*),
               (const, override));
 };
 

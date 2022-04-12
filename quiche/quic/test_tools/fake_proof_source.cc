@@ -22,12 +22,9 @@ FakeProofSource::PendingOp::~PendingOp() = default;
 
 FakeProofSource::GetProofOp::GetProofOp(
     const QuicSocketAddress& server_addr,
-    const QuicSocketAddress& client_address,
-    std::string hostname,
-    std::string server_config,
-    QuicTransportVersion transport_version,
-    std::string chlo_hash,
-    std::unique_ptr<ProofSource::Callback> callback,
+    const QuicSocketAddress& client_address, std::string hostname,
+    std::string server_config, QuicTransportVersion transport_version,
+    std::string chlo_hash, std::unique_ptr<ProofSource::Callback> callback,
     ProofSource* delegate)
     : server_address_(server_addr),
       client_address_(client_address),
@@ -49,10 +46,8 @@ void FakeProofSource::GetProofOp::Run() {
 
 FakeProofSource::ComputeSignatureOp::ComputeSignatureOp(
     const QuicSocketAddress& server_address,
-    const QuicSocketAddress& client_address,
-    std::string hostname,
-    uint16_t sig_alg,
-    absl::string_view in,
+    const QuicSocketAddress& client_address, std::string hostname,
+    uint16_t sig_alg, absl::string_view in,
     std::unique_ptr<ProofSource::SignatureCallback> callback,
     ProofSource* delegate)
     : server_address_(server_address),
@@ -70,16 +65,12 @@ void FakeProofSource::ComputeSignatureOp::Run() {
                                  sig_alg_, in_, std::move(callback_));
 }
 
-void FakeProofSource::Activate() {
-  active_ = true;
-}
+void FakeProofSource::Activate() { active_ = true; }
 
 void FakeProofSource::GetProof(
     const QuicSocketAddress& server_address,
-    const QuicSocketAddress& client_address,
-    const std::string& hostname,
-    const std::string& server_config,
-    QuicTransportVersion transport_version,
+    const QuicSocketAddress& client_address, const std::string& hostname,
+    const std::string& server_config, QuicTransportVersion transport_version,
     absl::string_view chlo_hash,
     std::unique_ptr<ProofSource::Callback> callback) {
   if (!active_) {
@@ -105,10 +96,8 @@ FakeProofSource::GetCertChain(const QuicSocketAddress& server_address,
 
 void FakeProofSource::ComputeTlsSignature(
     const QuicSocketAddress& server_address,
-    const QuicSocketAddress& client_address,
-    const std::string& hostname,
-    uint16_t signature_algorithm,
-    absl::string_view in,
+    const QuicSocketAddress& client_address, const std::string& hostname,
+    uint16_t signature_algorithm, absl::string_view in,
     std::unique_ptr<ProofSource::SignatureCallback> callback) {
   QUIC_LOG(INFO) << "FakeProofSource::ComputeTlsSignature";
   if (!active_) {
@@ -142,9 +131,7 @@ void FakeProofSource::SetTicketCrypter(
   ticket_crypter_ = std::move(ticket_crypter);
 }
 
-int FakeProofSource::NumPendingCallbacks() const {
-  return pending_ops_.size();
-}
+int FakeProofSource::NumPendingCallbacks() const { return pending_ops_.size(); }
 
 void FakeProofSource::InvokePendingCallback(int n) {
   QUICHE_CHECK(NumPendingCallbacks() > n);

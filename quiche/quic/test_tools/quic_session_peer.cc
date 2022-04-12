@@ -52,8 +52,7 @@ void QuicSessionPeer::SetMaxOpenIncomingStreams(QuicSession* session,
 
 // static
 void QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
-    QuicSession* session,
-    uint32_t max_streams) {
+    QuicSession* session, uint32_t max_streams) {
   QUICHE_DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenIncomingBidirectionalStreams not supported for Google "
          "QUIC";
@@ -62,8 +61,7 @@ void QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
 }
 // static
 void QuicSessionPeer::SetMaxOpenIncomingUnidirectionalStreams(
-    QuicSession* session,
-    uint32_t max_streams) {
+    QuicSession* session, uint32_t max_streams) {
   QUICHE_DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenIncomingUnidirectionalStreams not supported for Google "
          "QUIC";
@@ -84,8 +82,7 @@ void QuicSessionPeer::SetMaxOpenOutgoingStreams(QuicSession* session,
 
 // static
 void QuicSessionPeer::SetMaxOpenOutgoingBidirectionalStreams(
-    QuicSession* session,
-    uint32_t max_streams) {
+    QuicSession* session, uint32_t max_streams) {
   QUICHE_DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenOutgoingBidirectionalStreams not supported for Google "
          "QUIC";
@@ -94,8 +91,7 @@ void QuicSessionPeer::SetMaxOpenOutgoingBidirectionalStreams(
 }
 // static
 void QuicSessionPeer::SetMaxOpenOutgoingUnidirectionalStreams(
-    QuicSession* session,
-    uint32_t max_streams) {
+    QuicSession* session, uint32_t max_streams) {
   QUICHE_DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenOutgoingUnidirectionalStreams not supported for Google "
          "QUIC";

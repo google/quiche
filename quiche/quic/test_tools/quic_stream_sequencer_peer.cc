@@ -31,8 +31,7 @@ bool QuicStreamSequencerPeer::IsUnderlyingBufferAllocated(
 
 // static
 void QuicStreamSequencerPeer::SetFrameBufferTotalBytesRead(
-    QuicStreamSequencer* sequencer,
-    QuicStreamOffset total_bytes_read) {
+    QuicStreamSequencer* sequencer, QuicStreamOffset total_bytes_read) {
   QuicStreamSequencerBufferPeer buffer_peer(&(sequencer->buffered_frames_));
   buffer_peer.set_total_bytes_read(total_bytes_read);
 }

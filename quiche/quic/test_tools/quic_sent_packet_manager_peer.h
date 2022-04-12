@@ -74,8 +74,7 @@ class QuicSentPacketManagerPeer {
   static bool UsingPacing(const QuicSentPacketManager* sent_packet_manager);
 
   static bool HasRetransmittableFrames(
-      QuicSentPacketManager* sent_packet_manager,
-      uint64_t packet_number);
+      QuicSentPacketManager* sent_packet_manager, uint64_t packet_number);
 
   static QuicUnackedPacketMap* GetUnackedPacketMap(
       QuicSentPacketManager* sent_packet_manager);

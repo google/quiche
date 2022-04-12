@@ -10,20 +10,15 @@ namespace quic {
 namespace test {
 
 MockQuicDispatcher::MockQuicDispatcher(
-    const QuicConfig* config,
-    const QuicCryptoServerConfig* crypto_config,
+    const QuicConfig* config, const QuicCryptoServerConfig* crypto_config,
     QuicVersionManager* version_manager,
     std::unique_ptr<QuicConnectionHelperInterface> helper,
     std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
     std::unique_ptr<QuicAlarmFactory> alarm_factory,
     QuicSimpleServerBackend* quic_simple_server_backend)
-    : QuicSimpleDispatcher(config,
-                           crypto_config,
-                           version_manager,
-                           std::move(helper),
-                           std::move(session_helper),
-                           std::move(alarm_factory),
-                           quic_simple_server_backend,
+    : QuicSimpleDispatcher(config, crypto_config, version_manager,
+                           std::move(helper), std::move(session_helper),
+                           std::move(alarm_factory), quic_simple_server_backend,
                            kQuicDefaultConnectionIdLength) {}
 
 MockQuicDispatcher::~MockQuicDispatcher() {}

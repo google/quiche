@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/test_tools/fake_proof_source_handle.h"
+
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
@@ -24,8 +25,7 @@ class QUIC_EXPORT_PRIVATE ResultSavingSignatureCallback
       : result_(result) {
     QUICHE_DCHECK(!result_->has_value());
   }
-  void Run(bool ok,
-           std::string signature,
+  void Run(bool ok, std::string signature,
            std::unique_ptr<ProofSource::Details> details) override {
     result_->emplace(
         ComputeSignatureResult{ok, std::move(signature), std::move(details)});
@@ -36,12 +36,9 @@ class QUIC_EXPORT_PRIVATE ResultSavingSignatureCallback
 };
 
 ComputeSignatureResult ComputeSignatureNow(
-    ProofSource* delegate,
-    const QuicSocketAddress& server_address,
-    const QuicSocketAddress& client_address,
-    const std::string& hostname,
-    uint16_t signature_algorithm,
-    absl::string_view in) {
+    ProofSource* delegate, const QuicSocketAddress& server_address,
+    const QuicSocketAddress& client_address, const std::string& hostname,
+    uint16_t signature_algorithm, absl::string_view in) {
   absl::optional<ComputeSignatureResult> result;
   delegate->ComputeTlsSignature(
       server_address, client_address, hostname, signature_algorithm, in,
@@ -71,12 +68,9 @@ void FakeProofSourceHandle::CloseHandle() {
 
 QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
     const QuicSocketAddress& server_address,
-    const QuicSocketAddress& client_address,
-    absl::string_view ssl_capabilities,
-    const std::string& hostname,
-    absl::string_view client_hello,
-    const std::string& alpn,
-    absl::optional<std::string> alps,
+    const QuicSocketAddress& client_address, absl::string_view ssl_capabilities,
+    const std::string& hostname, absl::string_view client_hello,
+    const std::string& alpn, absl::optional<std::string> alps,
     const std::vector<uint8_t>& quic_transport_params,
     const absl::optional<std::vector<uint8_t>>& early_data_context,
     const QuicSSLConfig& ssl_config) {
@@ -119,10 +113,8 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
 
 QuicAsyncStatus FakeProofSourceHandle::ComputeSignature(
     const QuicSocketAddress& server_address,
-    const QuicSocketAddress& client_address,
-    const std::string& hostname,
-    uint16_t signature_algorithm,
-    absl::string_view in,
+    const QuicSocketAddress& client_address, const std::string& hostname,
+    uint16_t signature_algorithm, absl::string_view in,
     size_t max_signature_size) {
   if (compute_signature_action_ != Action::FAIL_SYNC_DO_NOT_CHECK_CLOSED) {
     QUICHE_CHECK(!closed_);
@@ -213,9 +205,7 @@ void FakeProofSourceHandle::SelectCertOperation::Run() {
 }
 
 FakeProofSourceHandle::ComputeSignatureOperation::ComputeSignatureOperation(
-    ProofSource* delegate,
-    ProofSourceHandleCallback* callback,
-    Action action,
+    ProofSource* delegate, ProofSourceHandleCallback* callback, Action action,
     ComputeSignatureArgs args)
     : PendingOperation(delegate, callback, action), args_(std::move(args)) {}
 

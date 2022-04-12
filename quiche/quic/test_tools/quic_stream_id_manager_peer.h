@@ -21,8 +21,7 @@ class QuicStreamIdManagerPeer {
   QuicStreamIdManagerPeer() = delete;
 
   static void set_incoming_actual_max_streams(
-      QuicStreamIdManager* stream_id_manager,
-      QuicStreamCount count);
+      QuicStreamIdManager* stream_id_manager, QuicStreamCount count);
   static void set_outgoing_max_streams(QuicStreamIdManager* stream_id_manager,
                                        QuicStreamCount count);
 

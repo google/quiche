@@ -24,16 +24,13 @@ class QuicConfigPeer {
                                                         uint32_t window_bytes);
 
   static void SetReceivedInitialMaxStreamDataBytesIncomingBidirectional(
-      QuicConfig* config,
-      uint32_t window_bytes);
+      QuicConfig* config, uint32_t window_bytes);
 
   static void SetReceivedInitialMaxStreamDataBytesOutgoingBidirectional(
-      QuicConfig* config,
-      uint32_t window_bytes);
+      QuicConfig* config, uint32_t window_bytes);
 
   static void SetReceivedInitialMaxStreamDataBytesUnidirectional(
-      QuicConfig* config,
-      uint32_t window_bytes);
+      QuicConfig* config, uint32_t window_bytes);
 
   static void SetReceivedInitialSessionFlowControlWindow(QuicConfig* config,
                                                          uint32_t window_bytes);
@@ -70,12 +67,10 @@ class QuicConfigPeer {
       const QuicConnectionId& original_destination_connection_id);
 
   static void SetReceivedInitialSourceConnectionId(
-      QuicConfig* config,
-      const QuicConnectionId& initial_source_connection_id);
+      QuicConfig* config, const QuicConnectionId& initial_source_connection_id);
 
   static void SetReceivedRetrySourceConnectionId(
-      QuicConfig* config,
-      const QuicConnectionId& retry_source_connection_id);
+      QuicConfig* config, const QuicConnectionId& retry_source_connection_id);
 
   static void SetReceivedMaxDatagramFrameSize(QuicConfig* config,
                                               uint64_t max_datagram_frame_size);
