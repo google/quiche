@@ -9,8 +9,7 @@
 #include "quiche/quic/core/quic_session.h"
 
 namespace quic {
-QpackSendStream::QpackSendStream(QuicStreamId id,
-                                 QuicSession* session,
+QpackSendStream::QpackSendStream(QuicStreamId id, QuicSession* session,
                                  uint64_t http3_stream_type)
     : QuicStream(id, session, /*is_static = */ true, WRITE_UNIDIRECTIONAL),
       http3_stream_type_(http3_stream_type),

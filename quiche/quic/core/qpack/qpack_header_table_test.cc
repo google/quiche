@@ -97,11 +97,9 @@ class QpackEncoderHeaderTableTest
  protected:
   ~QpackEncoderHeaderTableTest() override = default;
 
-  void ExpectMatch(absl::string_view name,
-                   absl::string_view value,
+  void ExpectMatch(absl::string_view name, absl::string_view value,
                    QpackEncoderHeaderTable::MatchType expected_match_type,
-                   bool expected_is_static,
-                   uint64_t expected_index) const {
+                   bool expected_is_static, uint64_t expected_index) const {
     // Initialize outparams to a value different from the expected to ensure
     // that FindHeaderField() sets them.
     bool is_static = !expected_is_static;
@@ -410,8 +408,7 @@ class QpackDecoderHeaderTableTest
  protected:
   ~QpackDecoderHeaderTableTest() override = default;
 
-  void ExpectEntryAtIndex(bool is_static,
-                          uint64_t index,
+  void ExpectEntryAtIndex(bool is_static, uint64_t index,
                           absl::string_view expected_name,
                           absl::string_view expected_value) const {
     const auto* entry = table_.LookupEntry(is_static, index);

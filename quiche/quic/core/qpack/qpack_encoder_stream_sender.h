@@ -27,8 +27,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamSender {
   // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#rfc.section.5.2
 
   // 5.2.1. Insert With Name Reference
-  void SendInsertWithNameReference(bool is_static,
-                                   uint64_t name_index,
+  void SendInsertWithNameReference(bool is_static, uint64_t name_index,
                                    absl::string_view value);
   // 5.2.2. Insert Without Name Reference
   void SendInsertWithoutNameReference(absl::string_view name,

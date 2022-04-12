@@ -12,9 +12,7 @@
 namespace quic {
 
 QpackDecodedHeadersAccumulator::QpackDecodedHeadersAccumulator(
-    QuicStreamId id,
-    QpackDecoder* qpack_decoder,
-    Visitor* visitor,
+    QuicStreamId id, QpackDecoder* qpack_decoder, Visitor* visitor,
     size_t max_header_list_size)
     : decoder_(qpack_decoder->CreateProgressiveDecoder(id, this)),
       visitor_(visitor),

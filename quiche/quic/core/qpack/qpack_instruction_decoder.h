@@ -49,8 +49,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
     // Implementations are allowed to destroy the QpackInstructionDecoder
     // instance synchronously.
     virtual void OnInstructionDecodingError(
-        ErrorCode error_code,
-        absl::string_view error_message) = 0;
+        ErrorCode error_code, absl::string_view error_message) = 0;
   };
 
   // Both |*language| and |*delegate| must outlive this object.

@@ -202,9 +202,7 @@ const QpackLanguage* QpackRequestStreamLanguage() {
 
 // static
 QpackInstructionWithValues QpackInstructionWithValues::InsertWithNameReference(
-    bool is_static,
-    uint64_t name_index,
-    absl::string_view value) {
+    bool is_static, uint64_t name_index, absl::string_view value) {
   QpackInstructionWithValues instruction_with_values;
   instruction_with_values.instruction_ = InsertWithNameReferenceInstruction();
   instruction_with_values.s_bit_ = is_static;
@@ -217,8 +215,7 @@ QpackInstructionWithValues QpackInstructionWithValues::InsertWithNameReference(
 // static
 QpackInstructionWithValues
 QpackInstructionWithValues::InsertWithoutNameReference(
-    absl::string_view name,
-    absl::string_view value) {
+    absl::string_view name, absl::string_view value) {
   QpackInstructionWithValues instruction_with_values;
   instruction_with_values.instruction_ =
       InsertWithoutNameReferenceInstruction();
@@ -292,8 +289,7 @@ QpackInstructionWithValues QpackInstructionWithValues::Prefix(
 
 // static
 QpackInstructionWithValues QpackInstructionWithValues::IndexedHeaderField(
-    bool is_static,
-    uint64_t index) {
+    bool is_static, uint64_t index) {
   QpackInstructionWithValues instruction_with_values;
   instruction_with_values.instruction_ = QpackIndexedHeaderFieldInstruction();
   instruction_with_values.s_bit_ = is_static;
@@ -305,9 +301,7 @@ QpackInstructionWithValues QpackInstructionWithValues::IndexedHeaderField(
 // static
 QpackInstructionWithValues
 QpackInstructionWithValues::LiteralHeaderFieldNameReference(
-    bool is_static,
-    uint64_t index,
-    absl::string_view value) {
+    bool is_static, uint64_t index, absl::string_view value) {
   QpackInstructionWithValues instruction_with_values;
   instruction_with_values.instruction_ =
       QpackLiteralHeaderFieldNameReferenceInstruction();
@@ -320,8 +314,7 @@ QpackInstructionWithValues::LiteralHeaderFieldNameReference(
 
 // static
 QpackInstructionWithValues QpackInstructionWithValues::LiteralHeaderField(
-    absl::string_view name,
-    absl::string_view value) {
+    absl::string_view name, absl::string_view value) {
   QpackInstructionWithValues instruction_with_values;
   instruction_with_values.instruction_ = QpackLiteralHeaderFieldInstruction();
   instruction_with_values.name_ = name;

@@ -50,10 +50,8 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
                                        absl::string_view error_message) = 0;
   };
 
-  QpackDecodedHeadersAccumulator(QuicStreamId id,
-                                 QpackDecoder* qpack_decoder,
-                                 Visitor* visitor,
-                                 size_t max_header_list_size);
+  QpackDecodedHeadersAccumulator(QuicStreamId id, QpackDecoder* qpack_decoder,
+                                 Visitor* visitor, size_t max_header_list_size);
   virtual ~QpackDecodedHeadersAccumulator() = default;
 
   // QpackProgressiveDecoder::HeadersHandlerInterface implementation.

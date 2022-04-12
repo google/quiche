@@ -42,8 +42,7 @@ const char* const kHeaderAcknowledgement = "\x81";
 class MockVisitor : public QpackDecodedHeadersAccumulator::Visitor {
  public:
   ~MockVisitor() override = default;
-  MOCK_METHOD(void,
-              OnHeadersDecoded,
+  MOCK_METHOD(void, OnHeadersDecoded,
               (QuicHeaderList headers, bool header_list_size_limit_exceeded),
               (override));
   MOCK_METHOD(void, OnHeaderDecodingError,
@@ -56,12 +55,9 @@ class MockVisitor : public QpackDecodedHeadersAccumulator::Visitor {
 class QpackDecodedHeadersAccumulatorTest : public QuicTest {
  protected:
   QpackDecodedHeadersAccumulatorTest()
-      : qpack_decoder_(kMaxDynamicTableCapacity,
-                       kMaximumBlockedStreams,
+      : qpack_decoder_(kMaxDynamicTableCapacity, kMaximumBlockedStreams,
                        &encoder_stream_error_delegate_),
-        accumulator_(kTestStreamId,
-                     &qpack_decoder_,
-                     &visitor_,
+        accumulator_(kTestStreamId, &qpack_decoder_, &visitor_,
                      kMaxHeaderListSize) {
     qpack_decoder_.set_qpack_stream_sender_delegate(
         &decoder_stream_sender_delegate_);

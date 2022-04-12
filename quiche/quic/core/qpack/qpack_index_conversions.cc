@@ -11,8 +11,7 @@
 namespace quic {
 
 uint64_t QpackAbsoluteIndexToEncoderStreamRelativeIndex(
-    uint64_t absolute_index,
-    uint64_t inserted_entry_count) {
+    uint64_t absolute_index, uint64_t inserted_entry_count) {
   QUICHE_DCHECK_LT(absolute_index, inserted_entry_count);
 
   return inserted_entry_count - absolute_index - 1;
@@ -26,8 +25,7 @@ uint64_t QpackAbsoluteIndexToRequestStreamRelativeIndex(uint64_t absolute_index,
 }
 
 bool QpackEncoderStreamRelativeIndexToAbsoluteIndex(
-    uint64_t relative_index,
-    uint64_t inserted_entry_count,
+    uint64_t relative_index, uint64_t inserted_entry_count,
     uint64_t* absolute_index) {
   if (relative_index >= inserted_entry_count) {
     return false;
@@ -48,8 +46,7 @@ bool QpackRequestStreamRelativeIndexToAbsoluteIndex(uint64_t relative_index,
   return true;
 }
 
-bool QpackPostBaseIndexToAbsoluteIndex(uint64_t post_base_index,
-                                       uint64_t base,
+bool QpackPostBaseIndexToAbsoluteIndex(uint64_t post_base_index, uint64_t base,
                                        uint64_t* absolute_index) {
   if (post_base_index >= std::numeric_limits<uint64_t>::max() - base) {
     return false;

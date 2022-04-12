@@ -51,9 +51,7 @@ uint64_t QpackEncoderHeaderTable::InsertEntry(absl::string_view name,
 }
 
 QpackEncoderHeaderTable::MatchType QpackEncoderHeaderTable::FindHeaderField(
-    absl::string_view name,
-    absl::string_view value,
-    bool* is_static,
+    absl::string_view name, absl::string_view value, bool* is_static,
     uint64_t* index) const {
   QpackLookupEntry query{name, value};
 

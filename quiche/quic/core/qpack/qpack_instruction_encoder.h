@@ -54,8 +54,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
   void DoSBit(bool s_bit);
   void DoVarintEncode(uint64_t varint, uint64_t varint2, std::string* output);
   void DoStartString(absl::string_view name, absl::string_view value);
-  void DoWriteString(absl::string_view name,
-                     absl::string_view value,
+  void DoWriteString(absl::string_view name, absl::string_view value,
                      std::string* output);
 
   // True if name or value should be Huffman encoded.

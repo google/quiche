@@ -43,8 +43,7 @@ QpackEncoder::~QpackEncoder() {}
 
 // static
 QpackEncoder::Representation QpackEncoder::EncodeIndexedHeaderField(
-    bool is_static,
-    uint64_t index,
+    bool is_static, uint64_t index,
     QpackBlockingManager::IndexSet* referred_indices) {
   // Add |index| to |*referred_indices| only if entry is in the dynamic table.
   if (!is_static) {
@@ -56,9 +55,7 @@ QpackEncoder::Representation QpackEncoder::EncodeIndexedHeaderField(
 // static
 QpackEncoder::Representation
 QpackEncoder::EncodeLiteralHeaderFieldWithNameReference(
-    bool is_static,
-    uint64_t index,
-    absl::string_view value,
+    bool is_static, uint64_t index, absl::string_view value,
     QpackBlockingManager::IndexSet* referred_indices) {
   // Add |index| to |*referred_indices| only if entry is in the dynamic table.
   if (!is_static) {
@@ -70,14 +67,12 @@ QpackEncoder::EncodeLiteralHeaderFieldWithNameReference(
 
 // static
 QpackEncoder::Representation QpackEncoder::EncodeLiteralHeaderField(
-    absl::string_view name,
-    absl::string_view value) {
+    absl::string_view name, absl::string_view value) {
   return Representation::LiteralHeaderField(name, value);
 }
 
 QpackEncoder::Representations QpackEncoder::FirstPassEncode(
-    QuicStreamId stream_id,
-    const spdy::Http2HeaderBlock& header_list,
+    QuicStreamId stream_id, const spdy::Http2HeaderBlock& header_list,
     QpackBlockingManager::IndexSet* referred_indices,
     QuicByteCount* encoder_stream_sent_byte_count) {
   // If previous instructions are buffered in |encoder_stream_sender_|,
@@ -369,8 +364,7 @@ std::string QpackEncoder::SecondPassEncode(
 }
 
 std::string QpackEncoder::EncodeHeaderList(
-    QuicStreamId stream_id,
-    const spdy::Http2HeaderBlock& header_list,
+    QuicStreamId stream_id, const spdy::Http2HeaderBlock& header_list,
     QuicByteCount* encoder_stream_sent_byte_count) {
   // Keep track of all dynamic table indices that this header block refers to so
   // that it can be passed to QpackBlockingManager.

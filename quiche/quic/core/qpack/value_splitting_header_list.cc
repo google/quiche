@@ -54,11 +54,11 @@ ValueSplittingHeaderList::const_iterator::operator++() {
 }
 
 const ValueSplittingHeaderList::value_type&
-    ValueSplittingHeaderList::const_iterator::operator*() const {
+ValueSplittingHeaderList::const_iterator::operator*() const {
   return header_field_;
 }
 const ValueSplittingHeaderList::value_type*
-    ValueSplittingHeaderList::const_iterator::operator->() const {
+ValueSplittingHeaderList::const_iterator::operator->() const {
   return &header_field_;
 }
 

@@ -69,8 +69,7 @@ void QpackBlockingManager::OnHeaderBlockSent(QuicStreamId stream_id,
 }
 
 bool QpackBlockingManager::blocking_allowed_on_stream(
-    QuicStreamId stream_id,
-    uint64_t maximum_blocked_streams) const {
+    QuicStreamId stream_id, uint64_t maximum_blocked_streams) const {
   // This should be the most common case: the limit is larger than the number of
   // streams that have unacknowledged header blocks (regardless of whether they
   // are blocked or not) plus one for stream |stream_id|.

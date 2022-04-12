@@ -100,8 +100,7 @@ void QpackInstructionEncoder::DoSBit(bool s_bit) {
   state_ = State::kStartField;
 }
 
-void QpackInstructionEncoder::DoVarintEncode(uint64_t varint,
-                                             uint64_t varint2,
+void QpackInstructionEncoder::DoVarintEncode(uint64_t varint, uint64_t varint2,
                                              std::string* output) {
   QUICHE_DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
                 field_->type == QpackInstructionFieldType::kVarint2 ||

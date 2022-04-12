@@ -149,8 +149,7 @@ QpackHeaderTableBase<DynamicEntryTable>::QpackHeaderTableBase()
 
 template <typename DynamicEntryTable>
 bool QpackHeaderTableBase<DynamicEntryTable>::EntryFitsDynamicTableCapacity(
-    absl::string_view name,
-    absl::string_view value) const {
+    absl::string_view name, absl::string_view value) const {
   return QpackEntry::Size(name, value) <= dynamic_table_capacity_;
 }
 
@@ -178,8 +177,7 @@ QUIC_NO_EXPORT inline QpackEntry NewEntry(std::string name, std::string value,
 
 template <typename DynamicEntryTable>
 uint64_t QpackHeaderTableBase<DynamicEntryTable>::InsertEntry(
-    absl::string_view name,
-    absl::string_view value) {
+    absl::string_view name, absl::string_view value) {
   QUICHE_DCHECK(EntryFitsDynamicTableCapacity(name, value));
 
   const uint64_t index = dropped_entry_count_ + dynamic_entries_.size();
@@ -259,10 +257,8 @@ class QUIC_EXPORT_PRIVATE QpackEncoderHeaderTable
   // Returns the absolute index of an entry with matching name and value if such
   // exists, otherwise one with matching name is such exists.  |index| is zero
   // based for both the static and the dynamic table.
-  MatchType FindHeaderField(absl::string_view name,
-                            absl::string_view value,
-                            bool* is_static,
-                            uint64_t* index) const;
+  MatchType FindHeaderField(absl::string_view name, absl::string_view value,
+                            bool* is_static, uint64_t* index) const;
 
   // Returns the size of the largest entry that could be inserted into the
   // dynamic table without evicting entry |index|.  |index| might be larger than

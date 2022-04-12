@@ -49,8 +49,7 @@ class QpackRoundTripTest : public QuicTestWithParam<FragmentMode> {
   }
 };
 
-INSTANTIATE_TEST_SUITE_P(All,
-                         QpackRoundTripTest,
+INSTANTIATE_TEST_SUITE_P(All, QpackRoundTripTest,
                          Values(FragmentMode::kSingleChunk,
                                 FragmentMode::kOctetByOctet));
 

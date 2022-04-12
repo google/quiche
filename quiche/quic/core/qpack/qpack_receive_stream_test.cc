@@ -51,9 +51,7 @@ class QpackReceiveStreamTest : public QuicTestWithParam<TestParams> {
  public:
   QpackReceiveStreamTest()
       : connection_(new StrictMock<MockQuicConnection>(
-            &helper_,
-            &alarm_factory_,
-            perspective(),
+            &helper_, &alarm_factory_, perspective(),
             SupportedVersions(GetParam().version))),
         session_(connection_) {
     EXPECT_CALL(session_, OnCongestionWindowChange(_)).Times(AnyNumber());
@@ -79,8 +77,7 @@ class QpackReceiveStreamTest : public QuicTestWithParam<TestParams> {
   QpackReceiveStream* qpack_receive_stream_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QpackReceiveStreamTest,
+INSTANTIATE_TEST_SUITE_P(Tests, QpackReceiveStreamTest,
                          ::testing::ValuesIn(GetTestParams()));
 
 TEST_P(QpackReceiveStreamTest, ResetQpackReceiveStream) {

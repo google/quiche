@@ -28,8 +28,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamReceiver
     virtual ~Delegate() = default;
 
     // 5.2.1. Insert With Name Reference
-    virtual void OnInsertWithNameReference(bool is_static,
-                                           uint64_t name_index,
+    virtual void OnInsertWithNameReference(bool is_static, uint64_t name_index,
                                            absl::string_view value) = 0;
     // 5.2.2. Insert Without Name Reference
     virtual void OnInsertWithoutNameReference(absl::string_view name,

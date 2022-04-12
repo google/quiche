@@ -63,9 +63,7 @@ class QpackSendStreamTest : public QuicTestWithParam<TestParams> {
  public:
   QpackSendStreamTest()
       : connection_(new StrictMock<MockQuicConnection>(
-            &helper_,
-            &alarm_factory_,
-            perspective(),
+            &helper_, &alarm_factory_, perspective(),
             SupportedVersions(GetParam().version))),
         session_(connection_) {
     EXPECT_CALL(session_, OnCongestionWindowChange(_)).Times(AnyNumber());
@@ -99,8 +97,7 @@ class QpackSendStreamTest : public QuicTestWithParam<TestParams> {
   QpackSendStream* qpack_send_stream_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QpackSendStreamTest,
+INSTANTIATE_TEST_SUITE_P(Tests, QpackSendStreamTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 

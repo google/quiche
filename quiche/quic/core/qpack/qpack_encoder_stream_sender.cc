@@ -25,9 +25,7 @@ constexpr uint64_t kMaxBytesBufferedByStream = 64 * 1024;
 QpackEncoderStreamSender::QpackEncoderStreamSender() : delegate_(nullptr) {}
 
 void QpackEncoderStreamSender::SendInsertWithNameReference(
-    bool is_static,
-    uint64_t name_index,
-    absl::string_view value) {
+    bool is_static, uint64_t name_index, absl::string_view value) {
   instruction_encoder_.Encode(
       QpackInstructionWithValues::InsertWithNameReference(is_static, name_index,
                                                           value),
@@ -35,8 +33,7 @@ void QpackEncoderStreamSender::SendInsertWithNameReference(
 }
 
 void QpackEncoderStreamSender::SendInsertWithoutNameReference(
-    absl::string_view name,
-    absl::string_view value) {
+    absl::string_view name, absl::string_view value) {
   instruction_encoder_.Encode(
       QpackInstructionWithValues::InsertWithoutNameReference(name, value),
       &buffer_);

@@ -23,8 +23,7 @@ class QUIC_EXPORT_PRIVATE QpackSendStream : public QuicStream,
  public:
   // |session| can't be nullptr, and the ownership is not passed. |session| owns
   // this stream.
-  QpackSendStream(QuicStreamId id,
-                  QuicSession* session,
+  QpackSendStream(QuicStreamId id, QuicSession* session,
                   uint64_t http3_stream_type);
   QpackSendStream(const QpackSendStream&) = delete;
   QpackSendStream& operator=(const QpackSendStream&) = delete;

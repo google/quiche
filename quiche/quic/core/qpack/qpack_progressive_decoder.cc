@@ -153,9 +153,7 @@ void QpackProgressiveDecoder::OnInsertCountReachedThreshold() {
   }
 }
 
-void QpackProgressiveDecoder::Cancel() {
-  cancelled_ = true;
-}
+void QpackProgressiveDecoder::Cancel() { cancelled_ = true; }
 
 bool QpackProgressiveDecoder::DoIndexedHeaderFieldInstruction() {
   if (!instruction_decoder_.s_bit()) {
@@ -405,8 +403,7 @@ void QpackProgressiveDecoder::OnError(QuicErrorCode error_code,
   handler_->OnDecodingErrorDetected(error_code, error_message);
 }
 
-bool QpackProgressiveDecoder::DeltaBaseToBase(bool sign,
-                                              uint64_t delta_base,
+bool QpackProgressiveDecoder::DeltaBaseToBase(bool sign, uint64_t delta_base,
                                               uint64_t* base) {
   if (sign) {
     if (delta_base == std::numeric_limits<uint64_t>::max() ||

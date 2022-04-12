@@ -19,18 +19,14 @@ class MockDelegate : public QpackEncoderStreamReceiver::Delegate {
  public:
   ~MockDelegate() override = default;
 
-  MOCK_METHOD(void,
-              OnInsertWithNameReference,
+  MOCK_METHOD(void, OnInsertWithNameReference,
               (bool is_static, uint64_t name_index, absl::string_view value),
               (override));
-  MOCK_METHOD(void,
-              OnInsertWithoutNameReference,
-              (absl::string_view name, absl::string_view value),
-              (override));
+  MOCK_METHOD(void, OnInsertWithoutNameReference,
+              (absl::string_view name, absl::string_view value), (override));
   MOCK_METHOD(void, OnDuplicate, (uint64_t index), (override));
   MOCK_METHOD(void, OnSetDynamicTableCapacity, (uint64_t capacity), (override));
-  MOCK_METHOD(void,
-              OnErrorDetected,
+  MOCK_METHOD(void, OnErrorDetected,
               (QuicErrorCode error_code, absl::string_view error_message),
               (override));
 };

@@ -15,8 +15,7 @@
 namespace quic {
 
 QpackDecoder::QpackDecoder(
-    uint64_t maximum_dynamic_table_capacity,
-    uint64_t maximum_blocked_streams,
+    uint64_t maximum_dynamic_table_capacity, uint64_t maximum_blocked_streams,
     EncoderStreamErrorDelegate* encoder_stream_error_delegate)
     : encoder_stream_error_delegate_(encoder_stream_error_delegate),
       encoder_stream_receiver_(this),

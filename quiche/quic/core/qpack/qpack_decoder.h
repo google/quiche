@@ -83,8 +83,7 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
       QpackProgressiveDecoder::HeadersHandlerInterface* handler);
 
   // QpackEncoderStreamReceiver::Delegate implementation
-  void OnInsertWithNameReference(bool is_static,
-                                 uint64_t name_index,
+  void OnInsertWithNameReference(bool is_static, uint64_t name_index,
                                  absl::string_view value) override;
   void OnInsertWithoutNameReference(absl::string_view name,
                                     absl::string_view value) override;

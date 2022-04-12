@@ -111,16 +111,13 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   // Generate indexed header field representation
   // and optionally update |*referred_indices|.
   static Representation EncodeIndexedHeaderField(
-      bool is_static,
-      uint64_t index,
+      bool is_static, uint64_t index,
       QpackBlockingManager::IndexSet* referred_indices);
 
   // Generate literal header field with name reference representation
   // and optionally update |*referred_indices|.
   static Representation EncodeLiteralHeaderFieldWithNameReference(
-      bool is_static,
-      uint64_t index,
-      absl::string_view value,
+      bool is_static, uint64_t index, absl::string_view value,
       QpackBlockingManager::IndexSet* referred_indices);
 
   // Generate literal header field representation.
@@ -139,8 +136,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   // absolute indices.  Returned representation objects may have
   // absl::string_views pointing to strings owned by |*header_list|.
   Representations FirstPassEncode(
-      QuicStreamId stream_id,
-      const spdy::Http2HeaderBlock& header_list,
+      QuicStreamId stream_id, const spdy::Http2HeaderBlock& header_list,
       QpackBlockingManager::IndexSet* referred_indices,
       QuicByteCount* encoder_stream_sent_byte_count);
 

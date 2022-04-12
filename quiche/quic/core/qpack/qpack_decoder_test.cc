@@ -36,8 +36,7 @@ const uint64_t kMaximumBlockedStreams = 1;
 class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
  protected:
   QpackDecoderTest()
-      : qpack_decoder_(kMaximumDynamicTableCapacity,
-                       kMaximumBlockedStreams,
+      : qpack_decoder_(kMaximumDynamicTableCapacity, kMaximumBlockedStreams,
                        &encoder_stream_error_delegate_),
         fragment_mode_(GetParam()) {
     qpack_decoder_.set_qpack_stream_sender_delegate(
@@ -108,8 +107,7 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
   std::unique_ptr<QpackProgressiveDecoder> progressive_decoder_;
 };
 
-INSTANTIATE_TEST_SUITE_P(All,
-                         QpackDecoderTest,
+INSTANTIATE_TEST_SUITE_P(All, QpackDecoderTest,
                          Values(FragmentMode::kSingleChunk,
                                 FragmentMode::kOctetByOctet));
 

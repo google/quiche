@@ -149,12 +149,9 @@ class QUIC_EXPORT_PRIVATE QpackInstructionWithValues {
  public:
   // 5.2 Encoder stream instructions
   static QpackInstructionWithValues InsertWithNameReference(
-      bool is_static,
-      uint64_t name_index,
-      absl::string_view value);
+      bool is_static, uint64_t name_index, absl::string_view value);
   static QpackInstructionWithValues InsertWithoutNameReference(
-      absl::string_view name,
-      absl::string_view value);
+      absl::string_view name, absl::string_view value);
   static QpackInstructionWithValues Duplicate(uint64_t index);
   static QpackInstructionWithValues SetDynamicTableCapacity(uint64_t capacity);
 
@@ -170,9 +167,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionWithValues {
   static QpackInstructionWithValues IndexedHeaderField(bool is_static,
                                                        uint64_t index);
   static QpackInstructionWithValues LiteralHeaderFieldNameReference(
-      bool is_static,
-      uint64_t index,
-      absl::string_view value);
+      bool is_static, uint64_t index, absl::string_view value);
   static QpackInstructionWithValues LiteralHeaderField(absl::string_view name,
                                                        absl::string_view value);
 
