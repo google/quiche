@@ -59,8 +59,7 @@ bool TunDeviceController::UpdateAddress(const IpRange& desired_range) {
 }
 
 bool TunDeviceController::UpdateRoutes(
-    const IpRange& desired_range,
-    const std::vector<IpRange>& desired_routes) {
+    const IpRange& desired_range, const std::vector<IpRange>& desired_routes) {
   if (!setup_tun_) {
     return true;
   }
@@ -81,10 +80,9 @@ bool TunDeviceController::UpdateRoutes(
   for (const auto& rule : routing_rules) {
     if (rule.out_interface == link_info.index &&
         rule.table == QboneConstants::kQboneRouteTableId) {
-      if (!netlink_->ChangeRoute(NetlinkInterface::Verb::kRemove,
-                                 rule.table, rule.destination_subnet,
-                                 rule.scope, rule.preferred_source,
-                                 rule.out_interface)) {
+      if (!netlink_->ChangeRoute(NetlinkInterface::Verb::kRemove, rule.table,
+                                 rule.destination_subnet, rule.scope,
+                                 rule.preferred_source, rule.out_interface)) {
         QUIC_LOG(ERROR) << "Unable to remove old route to <"
                         << rule.destination_subnet.ToString() << ">";
         return false;
@@ -115,8 +113,7 @@ bool TunDeviceController::UpdateRoutes(
 }
 
 bool TunDeviceController::UpdateRoutesWithRetries(
-    const IpRange& desired_range,
-    const std::vector<IpRange>& desired_routes,
+    const IpRange& desired_range, const std::vector<IpRange>& desired_routes,
     int retries) {
   while (retries-- > 0) {
     if (UpdateRoutes(desired_range, desired_routes)) {
@@ -140,8 +137,8 @@ bool TunDeviceController::UpdateRules(IpRange desired_range) {
 
   for (const auto& rule : ip_rules) {
     if (rule.table == QboneConstants::kQboneRouteTableId) {
-      if (!netlink_->ChangeRule(NetlinkInterface::Verb::kRemove,
-                                rule.table, rule.source_range)) {
+      if (!netlink_->ChangeRule(NetlinkInterface::Verb::kRemove, rule.table,
+                                rule.source_range)) {
         QUIC_LOG(ERROR) << "Unable to remove old rule for table <" << rule.table
                         << "> from source <" << rule.source_range.ToString()
                         << ">";

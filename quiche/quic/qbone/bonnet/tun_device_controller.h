@@ -46,8 +46,7 @@ class TunDeviceController {
   //
   // TODO(b/179430548): Remove this once we've root-caused the underlying issue.
   virtual bool UpdateRoutesWithRetries(
-      const IpRange& desired_range,
-      const std::vector<IpRange>& desired_routes,
+      const IpRange& desired_range, const std::vector<IpRange>& desired_routes,
       int retries);
 
   virtual void RegisterAddressUpdateCallback(

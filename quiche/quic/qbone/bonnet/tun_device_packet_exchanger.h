@@ -61,9 +61,7 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
                                        std::string* error) override;
 
   // From QbonePacketExchanger.
-  bool WritePacket(const char* packet,
-                   size_t size,
-                   bool* blocked,
+  bool WritePacket(const char* packet, size_t size, bool* blocked,
                    std::string* error) override;
 
   std::unique_ptr<QuicData> ApplyL2Headers(const QuicData& l3_packet);

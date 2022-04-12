@@ -27,10 +27,8 @@ constexpr size_t kIPv6AddrSize = sizeof(in6_addr);
 const char kUnknownSource[] = "UNKNOWN";
 const char kNoSource[] = "N/A";
 
-IcmpReachable::IcmpReachable(QuicIpAddress source,
-                             QuicIpAddress destination,
-                             absl::Duration timeout,
-                             KernelInterface* kernel,
+IcmpReachable::IcmpReachable(QuicIpAddress source, QuicIpAddress destination,
+                             absl::Duration timeout, KernelInterface* kernel,
                              QuicEpollServer* epoll_server,
                              StatsInterface* stats)
     : timeout_(timeout),

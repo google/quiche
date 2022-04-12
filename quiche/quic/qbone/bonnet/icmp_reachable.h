@@ -64,12 +64,9 @@ class IcmpReachable : public IcmpReachableInterface {
   //                Server's thread.
   // |stats| is not owned, but should outlive this instance. It will be called
   //         back on Echo Replies, timeouts, and I/O errors.
-  IcmpReachable(QuicIpAddress source,
-                QuicIpAddress destination,
-                absl::Duration timeout,
-                KernelInterface* kernel,
-                QuicEpollServer* epoll_server,
-                StatsInterface* stats);
+  IcmpReachable(QuicIpAddress source, QuicIpAddress destination,
+                absl::Duration timeout, KernelInterface* kernel,
+                QuicEpollServer* epoll_server, StatsInterface* stats);
 
   ~IcmpReachable() override;
 
@@ -93,8 +90,7 @@ class IcmpReachable : public IcmpReachableInterface {
     EpollCallback(EpollCallback&&) = delete;
     EpollCallback& operator=(EpollCallback&&) = delete;
 
-    void OnRegistration(QuicEpollServer* eps,
-                        int fd,
+    void OnRegistration(QuicEpollServer* eps, int fd,
                         int event_mask) override{};
 
     void OnModification(int fd, int event_mask) override{};
