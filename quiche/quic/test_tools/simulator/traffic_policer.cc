@@ -9,12 +9,10 @@
 namespace quic {
 namespace simulator {
 
-TrafficPolicer::TrafficPolicer(Simulator* simulator,
-                               std::string name,
+TrafficPolicer::TrafficPolicer(Simulator* simulator, std::string name,
                                QuicByteCount initial_bucket_size,
                                QuicByteCount max_bucket_size,
-                               QuicBandwidth target_bandwidth,
-                               Endpoint* input)
+                               QuicBandwidth target_bandwidth, Endpoint* input)
     : PacketFilter(simulator, name, input),
       initial_bucket_size_(initial_bucket_size),
       max_bucket_size_(max_bucket_size),

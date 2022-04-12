@@ -111,10 +111,8 @@ class CounterPort : public UnconstrainedPortInterface {
 // CounterPort as an Rx interface.
 class LinkSaturator : public Endpoint {
  public:
-  LinkSaturator(Simulator* simulator,
-                std::string name,
-                QuicByteCount packet_size,
-                std::string destination)
+  LinkSaturator(Simulator* simulator, std::string name,
+                QuicByteCount packet_size, std::string destination)
       : Endpoint(simulator, name),
         packet_size_(packet_size),
         destination_(std::move(destination)),
@@ -429,9 +427,7 @@ TEST_F(SimulatorTest, SwitchedNetwork) {
 // instantiated.
 class AlarmToggler : public Actor {
  public:
-  AlarmToggler(Simulator* simulator,
-               std::string name,
-               QuicAlarm* alarm,
+  AlarmToggler(Simulator* simulator, std::string name, QuicAlarm* alarm,
                QuicTime::Delta interval)
       : Actor(simulator, name),
         alarm_(alarm),

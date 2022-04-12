@@ -2,19 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "quiche/quic/test_tools/simulator/switch.h"
+
 #include <cinttypes>
 #include <utility>
 
 #include "absl/strings/str_cat.h"
-#include "quiche/quic/test_tools/simulator/switch.h"
 
 namespace quic {
 namespace simulator {
 
-Switch::Switch(Simulator* simulator,
-               std::string name,
-               SwitchPortNumber port_count,
-               QuicByteCount queue_capacity) {
+Switch::Switch(Simulator* simulator, std::string name,
+               SwitchPortNumber port_count, QuicByteCount queue_capacity) {
   for (size_t port_number = 1; port_number <= port_count; port_number++) {
     ports_.emplace_back(simulator,
                         absl::StrCat(name, " (port ", port_number, ")"), this,
@@ -24,11 +23,8 @@ Switch::Switch(Simulator* simulator,
 
 Switch::~Switch() {}
 
-Switch::Port::Port(Simulator* simulator,
-                   std::string name,
-                   Switch* parent,
-                   SwitchPortNumber port_number,
-                   QuicByteCount queue_capacity)
+Switch::Port::Port(Simulator* simulator, std::string name, Switch* parent,
+                   SwitchPortNumber port_number, QuicByteCount queue_capacity)
     : Endpoint(simulator, name),
       parent_(parent),
       port_number_(port_number),
@@ -43,9 +39,7 @@ void Switch::Port::EnqueuePacket(std::unique_ptr<Packet> packet) {
   queue_.AcceptPacket(std::move(packet));
 }
 
-UnconstrainedPortInterface* Switch::Port::GetRxPort() {
-  return this;
-}
+UnconstrainedPortInterface* Switch::Port::GetRxPort() { return this; }
 
 void Switch::Port::SetTxPort(ConstrainedPortInterface* port) {
   queue_.set_tx_port(port);

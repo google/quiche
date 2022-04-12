@@ -53,14 +53,12 @@ QuicSocketAddress GetAddressFromName(std::string name) {
   return QuicSocketAddress(host, port);
 }
 
-QuicEndpointBase::QuicEndpointBase(Simulator* simulator,
-                                   std::string name,
+QuicEndpointBase::QuicEndpointBase(Simulator* simulator, std::string name,
                                    std::string peer_name)
     : Endpoint(simulator, name),
       peer_name_(peer_name),
       writer_(this),
-      nic_tx_queue_(simulator,
-                    absl::StrCat(name, " (TX Queue)"),
+      nic_tx_queue_(simulator, absl::StrCat(name, " (TX Queue)"),
                     kMaxOutgoingPacketSize * kTxQueueSize),
       connection_(nullptr),
       write_blocked_count_(0),
@@ -79,9 +77,7 @@ QuicEndpointBase::~QuicEndpointBase() {
   }
 }
 
-void QuicEndpointBase::DropNextIncomingPacket() {
-  drop_next_packet_ = true;
-}
+void QuicEndpointBase::DropNextIncomingPacket() { drop_next_packet_ = true; }
 
 void QuicEndpointBase::RecordTrace() {
   trace_visitor_ = std::make_unique<QuicTraceVisitor>(connection_.get());
@@ -103,9 +99,7 @@ void QuicEndpointBase::AcceptPacket(std::unique_ptr<Packet> packet) {
                                 connection_->peer_address(), received_packet);
 }
 
-UnconstrainedPortInterface* QuicEndpointBase::GetRxPort() {
-  return this;
-}
+UnconstrainedPortInterface* QuicEndpointBase::GetRxPort() { return this; }
 
 void QuicEndpointBase::SetTxPort(ConstrainedPortInterface* port) {
   // Any egress done by the endpoint is actually handled by a queue on an NIC.
@@ -127,11 +121,8 @@ QuicEndpointBase::Writer::Writer(QuicEndpointBase* endpoint)
 QuicEndpointBase::Writer::~Writer() {}
 
 WriteResult QuicEndpointBase::Writer::WritePacket(
-    const char* buffer,
-    size_t buf_len,
-    const QuicIpAddress& /*self_address*/,
-    const QuicSocketAddress& /*peer_address*/,
-    PerPacketOptions* options) {
+    const char* buffer, size_t buf_len, const QuicIpAddress& /*self_address*/,
+    const QuicSocketAddress& /*peer_address*/, PerPacketOptions* options) {
   QUICHE_DCHECK(!IsWriteBlocked());
   QUICHE_DCHECK(options == nullptr);
   QUICHE_DCHECK(buf_len <= kMaxOutgoingPacketSize);
@@ -157,13 +148,9 @@ WriteResult QuicEndpointBase::Writer::WritePacket(
   return WriteResult(WRITE_STATUS_OK, buf_len);
 }
 
-bool QuicEndpointBase::Writer::IsWriteBlocked() const {
-  return is_blocked_;
-}
+bool QuicEndpointBase::Writer::IsWriteBlocked() const { return is_blocked_; }
 
-void QuicEndpointBase::Writer::SetWritable() {
-  is_blocked_ = false;
-}
+void QuicEndpointBase::Writer::SetWritable() { is_blocked_ = false; }
 
 absl::optional<int> QuicEndpointBase::Writer::MessageTooBigErrorCode() const {
   return absl::nullopt;
@@ -174,13 +161,9 @@ QuicByteCount QuicEndpointBase::Writer::GetMaxPacketSize(
   return kMaxOutgoingPacketSize;
 }
 
-bool QuicEndpointBase::Writer::SupportsReleaseTime() const {
-  return false;
-}
+bool QuicEndpointBase::Writer::SupportsReleaseTime() const { return false; }
 
-bool QuicEndpointBase::Writer::IsBatchMode() const {
-  return false;
-}
+bool QuicEndpointBase::Writer::IsBatchMode() const { return false; }
 
 QuicPacketBuffer QuicEndpointBase::Writer::GetNextWriteLocation(
     const QuicIpAddress& /*self_address*/,
@@ -193,8 +176,7 @@ WriteResult QuicEndpointBase::Writer::Flush() {
 }
 
 QuicEndpointMultiplexer::QuicEndpointMultiplexer(
-    std::string name,
-    const std::vector<QuicEndpointBase*>& endpoints)
+    std::string name, const std::vector<QuicEndpointBase*>& endpoints)
     : Endpoint((*endpoints.begin())->simulator(), name) {
   for (QuicEndpointBase* endpoint : endpoints) {
     mapping_.insert(std::make_pair(endpoint->name(), endpoint));

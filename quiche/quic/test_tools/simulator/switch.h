@@ -20,9 +20,7 @@ using SwitchPortNumber = size_t;
 // on every output port.
 class Switch {
  public:
-  Switch(Simulator* simulator,
-         std::string name,
-         SwitchPortNumber port_count,
+  Switch(Simulator* simulator, std::string name, SwitchPortNumber port_count,
          QuicByteCount queue_capacity);
   Switch(const Switch&) = delete;
   Switch& operator=(const Switch&) = delete;
@@ -42,11 +40,8 @@ class Switch {
  private:
   class Port : public Endpoint, public UnconstrainedPortInterface {
    public:
-    Port(Simulator* simulator,
-         std::string name,
-         Switch* parent,
-         SwitchPortNumber port_number,
-         QuicByteCount queue_capacity);
+    Port(Simulator* simulator, std::string name, Switch* parent,
+         SwitchPortNumber port_number, QuicByteCount queue_capacity);
     Port(Port&&) = delete;
     Port(const Port&) = delete;
     Port& operator=(const Port&) = delete;

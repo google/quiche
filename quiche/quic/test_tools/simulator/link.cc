@@ -14,8 +14,7 @@ namespace simulator {
 // Parameters for random noise delay.
 const uint64_t kMaxRandomDelayUs = 10;
 
-OneWayLink::OneWayLink(Simulator* simulator,
-                       std::string name,
+OneWayLink::OneWayLink(Simulator* simulator, std::string name,
                        UnconstrainedPortInterface* sink,
                        QuicBandwidth bandwidth,
                        QuicTime::Delta propagation_delay)
@@ -90,34 +89,23 @@ QuicTime::Delta OneWayLink::GetRandomDelay(QuicTime::Delta transfer_time) {
   return delta;
 }
 
-SymmetricLink::SymmetricLink(Simulator* simulator,
-                             std::string name,
+SymmetricLink::SymmetricLink(Simulator* simulator, std::string name,
                              UnconstrainedPortInterface* sink_a,
                              UnconstrainedPortInterface* sink_b,
                              QuicBandwidth bandwidth,
                              QuicTime::Delta propagation_delay)
-    : a_to_b_link_(simulator,
-                   absl::StrCat(name, " (A-to-B)"),
-                   sink_b,
-                   bandwidth,
-                   propagation_delay),
-      b_to_a_link_(simulator,
-                   absl::StrCat(name, " (B-to-A)"),
-                   sink_a,
-                   bandwidth,
-                   propagation_delay) {}
+    : a_to_b_link_(simulator, absl::StrCat(name, " (A-to-B)"), sink_b,
+                   bandwidth, propagation_delay),
+      b_to_a_link_(simulator, absl::StrCat(name, " (B-to-A)"), sink_a,
+                   bandwidth, propagation_delay) {}
 
-SymmetricLink::SymmetricLink(Endpoint* endpoint_a,
-                             Endpoint* endpoint_b,
+SymmetricLink::SymmetricLink(Endpoint* endpoint_a, Endpoint* endpoint_b,
                              QuicBandwidth bandwidth,
                              QuicTime::Delta propagation_delay)
     : SymmetricLink(endpoint_a->simulator(),
-                    absl::StrFormat("Link [%s]<->[%s]",
-                                    endpoint_a->name(),
+                    absl::StrFormat("Link [%s]<->[%s]", endpoint_a->name(),
                                     endpoint_b->name()),
-                    endpoint_a->GetRxPort(),
-                    endpoint_b->GetRxPort(),
-                    bandwidth,
+                    endpoint_a->GetRxPort(), endpoint_b->GetRxPort(), bandwidth,
                     propagation_delay) {
   endpoint_a->SetTxPort(&a_to_b_link_);
   endpoint_b->SetTxPort(&b_to_a_link_);

@@ -14,8 +14,7 @@ namespace simulator {
 // simulation timeline.
 class Alarm : public QuicAlarm {
  public:
-  Alarm(Simulator* simulator,
-        std::string name,
+  Alarm(Simulator* simulator, std::string name,
         QuicArenaScopedPtr<QuicAlarm::Delegate> delegate)
       : QuicAlarm(std::move(delegate)), adapter_(simulator, name, this) {}
   ~Alarm() override {}

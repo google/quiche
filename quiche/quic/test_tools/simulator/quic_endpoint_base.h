@@ -41,8 +41,7 @@ class QuicEndpointBase : public Endpoint,
  public:
   // Does not create the connection; the subclass has to create connection by
   // itself.
-  QuicEndpointBase(Simulator* simulator,
-                   std::string name,
+  QuicEndpointBase(Simulator* simulator, std::string name,
                    std::string peer_name);
   ~QuicEndpointBase() override;
 
@@ -77,8 +76,7 @@ class QuicEndpointBase : public Endpoint,
     explicit Writer(QuicEndpointBase* endpoint);
     ~Writer() override;
 
-    WriteResult WritePacket(const char* buffer,
-                            size_t buf_len,
+    WriteResult WritePacket(const char* buffer, size_t buf_len,
                             const QuicIpAddress& self_address,
                             const QuicSocketAddress& peer_address,
                             PerPacketOptions* options) override;
@@ -108,8 +106,7 @@ class QuicEndpointBase : public Endpoint,
                                           QuicStreamOffset offset,
                                           QuicByteCount data_length,
                                           QuicDataWriter* writer) override;
-    bool WriteCryptoData(EncryptionLevel level,
-                         QuicStreamOffset offset,
+    bool WriteCryptoData(EncryptionLevel level, QuicStreamOffset offset,
                          QuicByteCount data_length,
                          QuicDataWriter* writer) override;
   };

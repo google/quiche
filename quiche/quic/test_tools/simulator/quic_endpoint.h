@@ -31,11 +31,8 @@ class QuicEndpoint : public QuicEndpointBase,
                      public QuicConnectionVisitorInterface,
                      public SessionNotifierInterface {
  public:
-  QuicEndpoint(Simulator* simulator,
-               std::string name,
-               std::string peer_name,
-               Perspective perspective,
-               QuicConnectionId connection_id);
+  QuicEndpoint(Simulator* simulator, std::string name, std::string peer_name,
+               Perspective perspective, QuicConnectionId connection_id);
 
   QuicByteCount bytes_to_transfer() const;
   QuicByteCount bytes_transferred() const;
@@ -115,8 +112,7 @@ class QuicEndpoint : public QuicEndpointBase,
   // End QuicConnectionVisitorInterface implementation.
 
   // Begin SessionNotifierInterface methods:
-  bool OnFrameAcked(const QuicFrame& frame,
-                    QuicTime::Delta ack_delay_time,
+  bool OnFrameAcked(const QuicFrame& frame, QuicTime::Delta ack_delay_time,
                     QuicTime receive_timestamp) override;
   void OnStreamFrameRetransmitted(const QuicStreamFrame& /*frame*/) override {}
   void OnFrameLost(const QuicFrame& frame) override;
@@ -136,18 +132,14 @@ class QuicEndpoint : public QuicEndpointBase,
                                           QuicStreamOffset offset,
                                           QuicByteCount data_length,
                                           QuicDataWriter* writer) override;
-    bool WriteCryptoData(EncryptionLevel level,
-                         QuicStreamOffset offset,
+    bool WriteCryptoData(EncryptionLevel level, QuicStreamOffset offset,
                          QuicByteCount data_length,
                          QuicDataWriter* writer) override;
   };
 
   std::unique_ptr<QuicConnection> CreateConnection(
-      Simulator* simulator,
-      std::string name,
-      std::string peer_name,
-      Perspective perspective,
-      QuicConnectionId connection_id);
+      Simulator* simulator, std::string name, std::string peer_name,
+      Perspective perspective, QuicConnectionId connection_id);
 
   // Write stream data until |bytes_to_transfer_| is zero or the connection is
   // write-blocked.

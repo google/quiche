@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/test_tools/simulator/actor.h"
+
 #include "quiche/quic/test_tools/simulator/simulator.h"
 
 namespace quic {
@@ -15,17 +16,13 @@ Actor::Actor(Simulator* simulator, std::string name)
   simulator_->AddActor(this);
 }
 
-Actor::~Actor() {
-  simulator_->RemoveActor(this);
-}
+Actor::~Actor() { simulator_->RemoveActor(this); }
 
 void Actor::Schedule(QuicTime next_tick) {
   simulator_->Schedule(this, next_tick);
 }
 
-void Actor::Unschedule() {
-  simulator_->Unschedule(this);
-}
+void Actor::Unschedule() { simulator_->Unschedule(this); }
 
 }  // namespace simulator
 }  // namespace quic

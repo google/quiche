@@ -21,10 +21,8 @@ namespace simulator {
 // synchronization issues.
 class OneWayLink : public Actor, public ConstrainedPortInterface {
  public:
-  OneWayLink(Simulator* simulator,
-             std::string name,
-             UnconstrainedPortInterface* sink,
-             QuicBandwidth bandwidth,
+  OneWayLink(Simulator* simulator, std::string name,
+             UnconstrainedPortInterface* sink, QuicBandwidth bandwidth,
              QuicTime::Delta propagation_delay);
   OneWayLink(const OneWayLink&) = delete;
   OneWayLink& operator=(const OneWayLink&) = delete;
@@ -73,16 +71,12 @@ class OneWayLink : public Actor, public ConstrainedPortInterface {
 // OneWayLink objects tied together.
 class SymmetricLink {
  public:
-  SymmetricLink(Simulator* simulator,
-                std::string name,
+  SymmetricLink(Simulator* simulator, std::string name,
                 UnconstrainedPortInterface* sink_a,
-                UnconstrainedPortInterface* sink_b,
-                QuicBandwidth bandwidth,
+                UnconstrainedPortInterface* sink_b, QuicBandwidth bandwidth,
                 QuicTime::Delta propagation_delay);
-  SymmetricLink(Endpoint* endpoint_a,
-                Endpoint* endpoint_b,
-                QuicBandwidth bandwidth,
-                QuicTime::Delta propagation_delay);
+  SymmetricLink(Endpoint* endpoint_a, Endpoint* endpoint_b,
+                QuicBandwidth bandwidth, QuicTime::Delta propagation_delay);
   SymmetricLink(const SymmetricLink&) = delete;
   SymmetricLink& operator=(const SymmetricLink&) = delete;
 

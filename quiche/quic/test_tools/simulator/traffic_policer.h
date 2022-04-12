@@ -19,11 +19,9 @@ namespace simulator {
 // are hashed by the destination only.
 class TrafficPolicer : public PacketFilter {
  public:
-  TrafficPolicer(Simulator* simulator,
-                 std::string name,
+  TrafficPolicer(Simulator* simulator, std::string name,
                  QuicByteCount initial_bucket_size,
-                 QuicByteCount max_bucket_size,
-                 QuicBandwidth target_bandwidth,
+                 QuicByteCount max_bucket_size, QuicBandwidth target_bandwidth,
                  Endpoint* input);
   TrafficPolicer(const TrafficPolicer&) = delete;
   TrafficPolicer& operator=(const TrafficPolicer&) = delete;

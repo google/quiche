@@ -28,9 +28,7 @@ Queue::Queue(Simulator* simulator, std::string name, QuicByteCount capacity)
 
 Queue::~Queue() { aggregation_timeout_alarm_->PermanentCancel(); }
 
-void Queue::set_tx_port(ConstrainedPortInterface* port) {
-  tx_port_ = port;
-}
+void Queue::set_tx_port(ConstrainedPortInterface* port) { tx_port_ = port; }
 
 void Queue::AcceptPacket(std::unique_ptr<Packet> packet) {
   if (packet->size + bytes_queued_ > capacity_) {

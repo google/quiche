@@ -23,10 +23,8 @@ const QuicStreamId kDataStream = 3;
 const QuicByteCount kWriteChunkSize = 128 * 1024;
 const char kStreamDataContents = 'Q';
 
-QuicEndpoint::QuicEndpoint(Simulator* simulator,
-                           std::string name,
-                           std::string peer_name,
-                           Perspective perspective,
+QuicEndpoint::QuicEndpoint(Simulator* simulator, std::string name,
+                           std::string peer_name, Perspective perspective,
                            QuicConnectionId connection_id)
     : QuicEndpointBase(simulator, name, peer_name),
       bytes_to_transfer_(0),
@@ -167,13 +165,9 @@ bool QuicEndpoint::WillingAndAbleToWrite() const {
   }
   return bytes_to_transfer_ != 0;
 }
-bool QuicEndpoint::ShouldKeepConnectionAlive() const {
-  return true;
-}
+bool QuicEndpoint::ShouldKeepConnectionAlive() const { return true; }
 
-bool QuicEndpoint::AllowSelfAddressChange() const {
-  return false;
-}
+bool QuicEndpoint::AllowSelfAddressChange() const { return false; }
 
 bool QuicEndpoint::OnFrameAcked(const QuicFrame& frame,
                                 QuicTime::Delta ack_delay_time,
@@ -200,9 +194,7 @@ bool QuicEndpoint::IsFrameOutstanding(const QuicFrame& frame) const {
   return notifier_->IsFrameOutstanding(frame);
 }
 
-bool QuicEndpoint::HasUnackedCryptoData() const {
-  return false;
-}
+bool QuicEndpoint::HasUnackedCryptoData() const { return false; }
 
 bool QuicEndpoint::HasUnackedStreamData() const {
   if (notifier_ != nullptr) {
@@ -216,9 +208,7 @@ HandshakeState QuicEndpoint::GetHandshakeState() const {
 }
 
 WriteStreamDataResult QuicEndpoint::DataProducer::WriteStreamData(
-    QuicStreamId /*id*/,
-    QuicStreamOffset /*offset*/,
-    QuicByteCount data_length,
+    QuicStreamId /*id*/, QuicStreamOffset /*offset*/, QuicByteCount data_length,
     QuicDataWriter* writer) {
   writer->WriteRepeatedByte(kStreamDataContents, data_length);
   return WRITE_SUCCESS;

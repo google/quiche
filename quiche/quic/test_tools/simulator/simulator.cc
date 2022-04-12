@@ -29,13 +29,9 @@ Simulator::~Simulator() {
 
 Simulator::Clock::Clock() : now_(kStartTime) {}
 
-QuicTime Simulator::Clock::ApproximateNow() const {
-  return now_;
-}
+QuicTime Simulator::Clock::ApproximateNow() const { return now_; }
 
-QuicTime Simulator::Clock::Now() const {
-  return now_;
-}
+QuicTime Simulator::Clock::Now() const { return now_; }
 
 QuicWallTime Simulator::Clock::WallNow() const {
   return QuicWallTime::FromUNIXMicroseconds(
@@ -101,9 +97,7 @@ void Simulator::Unschedule(Actor* actor) {
   QUICHE_DCHECK(false);
 }
 
-const QuicClock* Simulator::GetClock() const {
-  return &clock_;
-}
+const QuicClock* Simulator::GetClock() const { return &clock_; }
 
 QuicRandom* Simulator::GetRandomGenerator() {
   if (random_generator_ == nullptr) {
@@ -117,16 +111,12 @@ quiche::QuicheBufferAllocator* Simulator::GetStreamSendBufferAllocator() {
   return &buffer_allocator_;
 }
 
-QuicAlarmFactory* Simulator::GetAlarmFactory() {
-  return &alarm_factory_;
-}
+QuicAlarmFactory* Simulator::GetAlarmFactory() { return &alarm_factory_; }
 
 Simulator::RunForDelegate::RunForDelegate(bool* run_for_should_stop)
     : run_for_should_stop_(run_for_should_stop) {}
 
-void Simulator::RunForDelegate::OnAlarm() {
-  *run_for_should_stop_ = true;
-}
+void Simulator::RunForDelegate::OnAlarm() { *run_for_should_stop_ = true; }
 
 void Simulator::RunFor(QuicTime::Delta time_span) {
   QUICHE_DCHECK(!run_for_alarm_->IsSet());

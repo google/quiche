@@ -42,8 +42,7 @@ class QuicEndpointTest : public QuicTest {
                                            kDefaultPropagationDelay);
   }
 
-  std::unique_ptr<SymmetricLink> CustomLink(Endpoint* a,
-                                            Endpoint* b,
+  std::unique_ptr<SymmetricLink> CustomLink(Endpoint* a, Endpoint* b,
                                             uint64_t extra_rtt_ms) {
     return std::make_unique<SymmetricLink>(
         a, b, kDefaultBandwidth,
