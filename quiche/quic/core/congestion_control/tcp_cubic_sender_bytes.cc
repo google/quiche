@@ -28,12 +28,9 @@ const QuicByteCount kDefaultMinimumCongestionWindow = 2 * kDefaultTCPMSS;
 }  // namespace
 
 TcpCubicSenderBytes::TcpCubicSenderBytes(
-    const QuicClock* clock,
-    const RttStats* rtt_stats,
-    bool reno,
+    const QuicClock* clock, const RttStats* rtt_stats, bool reno,
     QuicPacketCount initial_tcp_congestion_window,
-    QuicPacketCount max_congestion_window,
-    QuicConnectionStats* stats)
+    QuicPacketCount max_congestion_window, QuicConnectionStats* stats)
     : rtt_stats_(rtt_stats),
       stats_(stats),
       reno_(reno),
@@ -121,9 +118,7 @@ float TcpCubicSenderBytes::RenoBeta() const {
 }
 
 void TcpCubicSenderBytes::OnCongestionEvent(
-    bool rtt_updated,
-    QuicByteCount prior_in_flight,
-    QuicTime event_time,
+    bool rtt_updated, QuicByteCount prior_in_flight, QuicTime event_time,
     const AckedPacketVector& acked_packets,
     const LostPacketVector& lost_packets) {
   if (rtt_updated && InSlowStart() &&
@@ -162,10 +157,8 @@ void TcpCubicSenderBytes::OnPacketAcked(QuicPacketNumber acked_packet_number,
 }
 
 void TcpCubicSenderBytes::OnPacketSent(
-    QuicTime /*sent_time*/,
-    QuicByteCount /*bytes_in_flight*/,
-    QuicPacketNumber packet_number,
-    QuicByteCount bytes,
+    QuicTime /*sent_time*/, QuicByteCount /*bytes_in_flight*/,
+    QuicPacketNumber packet_number, QuicByteCount bytes,
     HasRetransmittableData is_retransmittable) {
   if (InSlowStart()) {
     ++(stats_->slowstart_packets_sent);
@@ -240,9 +233,7 @@ bool TcpCubicSenderBytes::InRecovery() const {
          largest_acked_packet_number_ <= largest_sent_at_last_cutback_;
 }
 
-bool TcpCubicSenderBytes::ShouldSendProbingPacket() const {
-  return false;
-}
+bool TcpCubicSenderBytes::ShouldSendProbingPacket() const { return false; }
 
 void TcpCubicSenderBytes::OnRetransmissionTimeout(bool packets_retransmitted) {
   largest_sent_at_last_cutback_.Clear();
@@ -253,16 +244,13 @@ void TcpCubicSenderBytes::OnRetransmissionTimeout(bool packets_retransmitted) {
   HandleRetransmissionTimeout();
 }
 
-std::string TcpCubicSenderBytes::GetDebugState() const {
-  return "";
-}
+std::string TcpCubicSenderBytes::GetDebugState() const { return ""; }
 
 void TcpCubicSenderBytes::OnApplicationLimited(
     QuicByteCount /*bytes_in_flight*/) {}
 
 void TcpCubicSenderBytes::SetCongestionWindowFromBandwidthAndRtt(
-    QuicBandwidth bandwidth,
-    QuicTime::Delta rtt) {
+    QuicBandwidth bandwidth, QuicTime::Delta rtt) {
   QuicByteCount new_congestion_window = bandwidth.ToBytesPerPeriod(rtt);
   // Limit new CWND if needed.
   congestion_window_ =
@@ -357,10 +345,8 @@ QuicByteCount TcpCubicSenderBytes::GetSlowStartThreshold() const {
 // Called when we receive an ack. Normal TCP tracks how many packets one ack
 // represents, but quic has a separate ack for each packet.
 void TcpCubicSenderBytes::MaybeIncreaseCwnd(
-    QuicPacketNumber /*acked_packet_number*/,
-    QuicByteCount acked_bytes,
-    QuicByteCount prior_in_flight,
-    QuicTime event_time) {
+    QuicPacketNumber /*acked_packet_number*/, QuicByteCount acked_bytes,
+    QuicByteCount prior_in_flight, QuicTime event_time) {
   QUIC_BUG_IF(quic_bug_10439_1, InRecovery())
       << "Never increase the CWND during recovery.";
   // Do not increase the congestion window unless the sender is close to using

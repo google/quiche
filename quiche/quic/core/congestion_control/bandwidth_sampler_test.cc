@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/core/congestion_control/bandwidth_sampler.h"
+
 #include <cstdint>
 #include <set>
 
@@ -73,8 +74,7 @@ class BandwidthSamplerTest : public QuicTestWithParam<TestParameters> {
     return packet_count * kRegularPacketSize;
   }
 
-  void SendPacketInner(uint64_t packet_number,
-                       QuicByteCount bytes,
+  void SendPacketInner(uint64_t packet_number, QuicByteCount bytes,
                        HasRetransmittableData has_retransmittable_data) {
     sampler_.OnPacketSent(clock_.Now(), QuicPacketNumber(packet_number), bytes,
                           bytes_in_flight_, has_retransmittable_data);
@@ -180,8 +180,7 @@ class BandwidthSamplerTest : public QuicTestWithParam<TestParameters> {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    BandwidthSamplerTests,
-    BandwidthSamplerTest,
+    BandwidthSamplerTests, BandwidthSamplerTest,
     testing::Values(TestParameters{/*overestimate_avoidance=*/false},
                     TestParameters{/*overestimate_avoidance=*/true}),
     testing::PrintToStringParamName());

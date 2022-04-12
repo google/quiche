@@ -154,16 +154,10 @@ class SendAlgorithmTest : public QuicTestWithParam<TestParams> {
  protected:
   SendAlgorithmTest()
       : simulator_(),
-        quic_sender_(&simulator_,
-                     "QUIC sender",
-                     "Receiver",
-                     Perspective::IS_CLIENT,
-                     TestConnectionId()),
-        receiver_(&simulator_,
-                  "Receiver",
-                  "QUIC sender",
-                  Perspective::IS_SERVER,
-                  TestConnectionId()) {
+        quic_sender_(&simulator_, "QUIC sender", "Receiver",
+                     Perspective::IS_CLIENT, TestConnectionId()),
+        receiver_(&simulator_, "Receiver", "QUIC sender",
+                  Perspective::IS_SERVER, TestConnectionId()) {
     rtt_stats_ = quic_sender_.connection()->sent_packet_manager().GetRttStats();
     sender_ = SendAlgorithmInterface::Create(
         simulator_.GetClock(), rtt_stats_,
@@ -209,10 +203,8 @@ class SendAlgorithmTest : public QuicTestWithParam<TestParams> {
         << quic_sender_.bytes_to_transfer();
   }
 
-  void SendBursts(size_t number_of_bursts,
-                  QuicByteCount bytes,
-                  QuicTime::Delta rtt,
-                  QuicTime::Delta wait_time) {
+  void SendBursts(size_t number_of_bursts, QuicByteCount bytes,
+                  QuicTime::Delta rtt, QuicTime::Delta wait_time) {
     ASSERT_EQ(0u, quic_sender_.bytes_to_transfer());
     for (size_t i = 0; i < number_of_bursts; i++) {
       quic_sender_.AddBytesToTransfer(bytes);
@@ -232,8 +224,7 @@ class SendAlgorithmTest : public QuicTestWithParam<TestParams> {
   // Estimates the elapsed time for a given transfer size, given the
   // bottleneck bandwidth and link propagation delay.
   QuicTime::Delta EstimatedElapsedTime(
-      QuicByteCount transfer_size_bytes,
-      QuicBandwidth test_link_bandwidth,
+      QuicByteCount transfer_size_bytes, QuicBandwidth test_link_bandwidth,
       const QuicTime::Delta& test_link_delay) const {
     return test_link_bandwidth.TransferTime(transfer_size_bytes) +
            2 * test_link_delay;
@@ -271,8 +262,7 @@ class SendAlgorithmTest : public QuicTestWithParam<TestParams> {
   SendAlgorithmInterface* sender_;
 };
 
-INSTANTIATE_TEST_SUITE_P(SendAlgorithmTests,
-                         SendAlgorithmTest,
+INSTANTIATE_TEST_SUITE_P(SendAlgorithmTests, SendAlgorithmTest,
                          ::testing::ValuesIn(GetTestParams()),
                          TestParamToString);
 

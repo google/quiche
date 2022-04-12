@@ -56,8 +56,7 @@ void MinRttFilter::ForceUpdate(QuicTime::Delta sample_rtt, QuicTime now) {
 Bbr2NetworkModel::Bbr2NetworkModel(const Bbr2Params* params,
                                    QuicTime::Delta initial_rtt,
                                    QuicTime initial_rtt_timestamp,
-                                   float cwnd_gain,
-                                   float pacing_gain,
+                                   float cwnd_gain, float pacing_gain,
                                    const BandwidthSampler* old_sampler)
     : params_(params),
       bandwidth_sampler_([](QuicRoundTripCount max_height_tracker_window_length,
@@ -84,8 +83,7 @@ void Bbr2NetworkModel::OnPacketSent(QuicTime sent_time,
 }
 
 void Bbr2NetworkModel::OnCongestionEventStart(
-    QuicTime event_time,
-    const AckedPacketVector& acked_packets,
+    QuicTime event_time, const AckedPacketVector& acked_packets,
     const LostPacketVector& lost_packets,
     Bbr2CongestionEvent* congestion_event) {
   const QuicByteCount prior_bytes_acked = total_bytes_acked();

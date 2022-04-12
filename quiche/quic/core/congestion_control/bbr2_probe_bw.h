@@ -26,8 +26,7 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeBwMode final : public Bbr2ModeBase {
              const Bbr2CongestionEvent* /*congestion_event*/) override {}
 
   Bbr2Mode OnCongestionEvent(
-      QuicByteCount prior_in_flight,
-      QuicTime event_time,
+      QuicByteCount prior_in_flight, QuicTime event_time,
       const AckedPacketVector& acked_packets,
       const LostPacketVector& lost_packets,
       const Bbr2CongestionEvent& congestion_event) override;
@@ -80,8 +79,7 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeBwMode final : public Bbr2ModeBase {
   AdaptUpperBoundsResult MaybeAdaptUpperBounds(
       const Bbr2CongestionEvent& congestion_event);
 
-  void EnterProbeDown(bool probed_too_high,
-                      bool stopped_risky_probe,
+  void EnterProbeDown(bool probed_too_high, bool stopped_risky_probe,
                       QuicTime now);
   void EnterProbeCruise(QuicTime now);
   void EnterProbeRefill(uint64_t probe_up_rounds, QuicTime now);
@@ -130,12 +128,10 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeBwMode final : public Bbr2ModeBase {
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os,
-    const Bbr2ProbeBwMode::DebugState& state);
+    std::ostream& os, const Bbr2ProbeBwMode::DebugState& state);
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os,
-    const Bbr2ProbeBwMode::CyclePhase phase);
+    std::ostream& os, const Bbr2ProbeBwMode::CyclePhase phase);
 
 }  // namespace quic
 

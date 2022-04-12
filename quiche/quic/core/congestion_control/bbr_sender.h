@@ -88,12 +88,10 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
     QuicPacketNumber end_of_app_limited_phase;
   };
 
-  BbrSender(QuicTime now,
-            const RttStats* rtt_stats,
+  BbrSender(QuicTime now, const RttStats* rtt_stats,
             const QuicUnackedPacketMap* unacked_packets,
             QuicPacketCount initial_tcp_congestion_window,
-            QuicPacketCount max_tcp_congestion_window,
-            QuicRandom* random,
+            QuicPacketCount max_tcp_congestion_window, QuicRandom* random,
             QuicConnectionStats* stats);
   BbrSender(const BbrSender&) = delete;
   BbrSender& operator=(const BbrSender&) = delete;
@@ -111,15 +109,12 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   void AdjustNetworkParameters(const NetworkParams& params) override;
   void SetInitialCongestionWindowInPackets(
       QuicPacketCount congestion_window) override;
-  void OnCongestionEvent(bool rtt_updated,
-                         QuicByteCount prior_in_flight,
+  void OnCongestionEvent(bool rtt_updated, QuicByteCount prior_in_flight,
                          QuicTime event_time,
                          const AckedPacketVector& acked_packets,
                          const LostPacketVector& lost_packets) override;
-  void OnPacketSent(QuicTime sent_time,
-                    QuicByteCount bytes_in_flight,
-                    QuicPacketNumber packet_number,
-                    QuicByteCount bytes,
+  void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
+                    QuicPacketNumber packet_number, QuicByteCount bytes,
                     HasRetransmittableData is_retransmittable) override;
   void OnPacketNeutered(QuicPacketNumber packet_number) override;
   void OnRetransmissionTimeout(bool /*packets_retransmitted*/) override {}
@@ -178,15 +173,13 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // For switching send algorithm mid connection.
   friend class Bbr2Sender;
 
-  using MaxBandwidthFilter = WindowedFilter<QuicBandwidth,
-                                            MaxFilter<QuicBandwidth>,
-                                            QuicRoundTripCount,
-                                            QuicRoundTripCount>;
+  using MaxBandwidthFilter =
+      WindowedFilter<QuicBandwidth, MaxFilter<QuicBandwidth>,
+                     QuicRoundTripCount, QuicRoundTripCount>;
 
-  using MaxAckHeightFilter = WindowedFilter<QuicByteCount,
-                                            MaxFilter<QuicByteCount>,
-                                            QuicRoundTripCount,
-                                            QuicRoundTripCount>;
+  using MaxAckHeightFilter =
+      WindowedFilter<QuicByteCount, MaxFilter<QuicByteCount>,
+                     QuicRoundTripCount, QuicRoundTripCount>;
 
   // Computes the target congestion window using the specified gain.
   QuicByteCount GetTargetCongestionWindow(float gain) const;
@@ -204,8 +197,7 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   bool UpdateRoundTripCounter(QuicPacketNumber last_acked_packet);
 
   // Updates the current gain used in PROBE_BW mode.
-  void UpdateGainCyclePhase(QuicTime now,
-                            QuicByteCount prior_in_flight,
+  void UpdateGainCyclePhase(QuicTime now, QuicByteCount prior_in_flight,
                             bool has_losses);
   // Tracks for how many round-trips the bandwidth has not increased
   // significantly.
@@ -214,13 +206,11 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // appropriate.
   void MaybeExitStartupOrDrain(QuicTime now);
   // Decides whether to enter or exit PROBE_RTT.
-  void MaybeEnterOrExitProbeRtt(QuicTime now,
-                                bool is_round_start,
+  void MaybeEnterOrExitProbeRtt(QuicTime now, bool is_round_start,
                                 bool min_rtt_expired);
   // Determines whether BBR needs to enter, exit or advance state of the
   // recovery.
-  void UpdateRecoveryState(QuicPacketNumber last_acked_packet,
-                           bool has_losses,
+  void UpdateRecoveryState(QuicPacketNumber last_acked_packet, bool has_losses,
                            bool is_round_start);
 
   // Updates the ack aggregation max filter in bytes.
@@ -391,8 +381,7 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                              const BbrSender::Mode& mode);
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os,
-    const BbrSender::DebugState& state);
+    std::ostream& os, const BbrSender::DebugState& state);
 
 }  // namespace quic
 

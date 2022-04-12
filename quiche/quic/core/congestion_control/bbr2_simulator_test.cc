@@ -161,16 +161,10 @@ class Bbr2SimulatorTest : public QuicTest {
 class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
  protected:
   Bbr2DefaultTopologyTest()
-      : sender_endpoint_(&simulator_,
-                         "Sender",
-                         "Receiver",
-                         Perspective::IS_CLIENT,
-                         TestConnectionId(42)),
-        receiver_endpoint_(&simulator_,
-                           "Receiver",
-                           "Sender",
-                           Perspective::IS_SERVER,
-                           TestConnectionId(42)) {
+      : sender_endpoint_(&simulator_, "Sender", "Receiver",
+                         Perspective::IS_CLIENT, TestConnectionId(42)),
+        receiver_endpoint_(&simulator_, "Receiver", "Sender",
+                           Perspective::IS_SERVER, TestConnectionId(42)) {
     sender_ = SetupBbr2Sender(&sender_endpoint_, /*old_sender=*/nullptr);
   }
 
@@ -265,10 +259,8 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
 
   // Send |bytes|-sized bursts of data |number_of_bursts| times, waiting for
   // |wait_time| between each burst.
-  void SendBursts(const DefaultTopologyParams& params,
-                  size_t number_of_bursts,
-                  QuicByteCount bytes,
-                  QuicTime::Delta wait_time) {
+  void SendBursts(const DefaultTopologyParams& params, size_t number_of_bursts,
+                  QuicByteCount bytes, QuicTime::Delta wait_time) {
     ASSERT_EQ(0u, sender_endpoint_.bytes_to_transfer());
     for (size_t i = 0; i < number_of_bursts; i++) {
       sender_endpoint_.AddBytesToTransfer(bytes);

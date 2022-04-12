@@ -32,8 +32,7 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
 
   // Uses |largest_acked| and time to decide when packets are lost.
   DetectionStats DetectLosses(const QuicUnackedPacketMap& unacked_packets,
-                              QuicTime time,
-                              const RttStats& rtt_stats,
+                              QuicTime time, const RttStats& rtt_stats,
                               QuicPacketNumber largest_newly_acked,
                               const AckedPacketVector& packets_acked,
                               LostPacketVector* packets_lost) override;

@@ -33,10 +33,8 @@ class TcpCubicSenderBytesPeer;
 
 class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
  public:
-  TcpCubicSenderBytes(const QuicClock* clock,
-                      const RttStats* rtt_stats,
-                      bool reno,
-                      QuicPacketCount initial_tcp_congestion_window,
+  TcpCubicSenderBytes(const QuicClock* clock, const RttStats* rtt_stats,
+                      bool reno, QuicPacketCount initial_tcp_congestion_window,
                       QuicPacketCount max_congestion_window,
                       QuicConnectionStats* stats);
   TcpCubicSenderBytes(const TcpCubicSenderBytes&) = delete;
@@ -53,15 +51,12 @@ class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
   void SetInitialCongestionWindowInPackets(
       QuicPacketCount congestion_window) override;
   void OnConnectionMigration() override;
-  void OnCongestionEvent(bool rtt_updated,
-                         QuicByteCount prior_in_flight,
+  void OnCongestionEvent(bool rtt_updated, QuicByteCount prior_in_flight,
                          QuicTime event_time,
                          const AckedPacketVector& acked_packets,
                          const LostPacketVector& lost_packets) override;
-  void OnPacketSent(QuicTime sent_time,
-                    QuicByteCount bytes_in_flight,
-                    QuicPacketNumber packet_number,
-                    QuicByteCount bytes,
+  void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
+                    QuicPacketNumber packet_number, QuicByteCount bytes,
                     HasRetransmittableData is_retransmittable) override;
   void OnPacketNeutered(QuicPacketNumber /*packet_number*/) override {}
   void OnRetransmissionTimeout(bool packets_retransmitted) override;
@@ -90,8 +85,7 @@ class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
 
   // TODO(ianswett): Remove these and migrate to OnCongestionEvent.
   void OnPacketAcked(QuicPacketNumber acked_packet_number,
-                     QuicByteCount acked_bytes,
-                     QuicByteCount prior_in_flight,
+                     QuicByteCount acked_bytes, QuicByteCount prior_in_flight,
                      QuicTime event_time);
   void SetCongestionWindowFromBandwidthAndRtt(QuicBandwidth bandwidth,
                                               QuicTime::Delta rtt);
@@ -101,8 +95,7 @@ class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
                     QuicByteCount prior_in_flight);
   void MaybeIncreaseCwnd(QuicPacketNumber acked_packet_number,
                          QuicByteCount acked_bytes,
-                         QuicByteCount prior_in_flight,
-                         QuicTime event_time);
+                         QuicByteCount prior_in_flight, QuicTime event_time);
   void HandleRetransmissionTimeout();
 
  private:

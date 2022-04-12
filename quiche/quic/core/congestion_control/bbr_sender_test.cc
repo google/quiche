@@ -86,25 +86,16 @@ class BbrSenderTest : public QuicTest {
  protected:
   BbrSenderTest()
       : simulator_(&random_),
-        bbr_sender_(&simulator_,
-                    "BBR sender",
-                    "Receiver",
+        bbr_sender_(&simulator_, "BBR sender", "Receiver",
                     Perspective::IS_CLIENT,
                     /*connection_id=*/TestConnectionId(42)),
-        competing_sender_(&simulator_,
-                          "Competing sender",
-                          "Competing receiver",
+        competing_sender_(&simulator_, "Competing sender", "Competing receiver",
                           Perspective::IS_CLIENT,
                           /*connection_id=*/TestConnectionId(43)),
-        receiver_(&simulator_,
-                  "Receiver",
-                  "BBR sender",
-                  Perspective::IS_SERVER,
+        receiver_(&simulator_, "Receiver", "BBR sender", Perspective::IS_SERVER,
                   /*connection_id=*/TestConnectionId(42)),
-        competing_receiver_(&simulator_,
-                            "Competing receiver",
-                            "Competing sender",
-                            Perspective::IS_SERVER,
+        competing_receiver_(&simulator_, "Competing receiver",
+                            "Competing sender", Perspective::IS_SERVER,
                             /*connection_id=*/TestConnectionId(43)),
         receiver_multiplexer_("Receiver multiplexer",
                               {&receiver_, &competing_receiver_}) {
@@ -258,8 +249,7 @@ class BbrSenderTest : public QuicTest {
 
   // Send |bytes|-sized bursts of data |number_of_bursts| times, waiting for
   // |wait_time| between each burst.
-  void SendBursts(size_t number_of_bursts,
-                  QuicByteCount bytes,
+  void SendBursts(size_t number_of_bursts, QuicByteCount bytes,
                   QuicTime::Delta wait_time) {
     ASSERT_EQ(0u, bbr_sender_.bytes_to_transfer());
     for (size_t i = 0; i < number_of_bursts; i++) {
@@ -471,9 +461,8 @@ TEST_F(BbrSenderTest, SimpleTransferAckDecimation) {
 
 // Test a simple long data transfer with 2 rtts of aggregation.
 // TODO(b/172302465) Re-enable this test.
-TEST_F(BbrSenderTest,
-       QUIC_TEST_DISABLED_IN_CHROME(
-           SimpleTransfer2RTTAggregationBytes20RTTWindow)) {
+TEST_F(BbrSenderTest, QUIC_TEST_DISABLED_IN_CHROME(
+                          SimpleTransfer2RTTAggregationBytes20RTTWindow)) {
   SetConnectionOption(kBSAO);
   CreateDefaultSetup();
   SetConnectionOption(kBBR4);

@@ -26,14 +26,11 @@ namespace quic {
 
 class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
  public:
-  Bbr2Sender(QuicTime now,
-             const RttStats* rtt_stats,
+  Bbr2Sender(QuicTime now, const RttStats* rtt_stats,
              const QuicUnackedPacketMap* unacked_packets,
              QuicPacketCount initial_cwnd_in_packets,
-             QuicPacketCount max_cwnd_in_packets,
-             QuicRandom* random,
-             QuicConnectionStats* stats,
-             BbrSender* old_sender);
+             QuicPacketCount max_cwnd_in_packets, QuicRandom* random,
+             QuicConnectionStats* stats, BbrSender* old_sender);
 
   ~Bbr2Sender() override = default;
 
@@ -57,16 +54,13 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   void SetInitialCongestionWindowInPackets(
       QuicPacketCount congestion_window) override;
 
-  void OnCongestionEvent(bool rtt_updated,
-                         QuicByteCount prior_in_flight,
+  void OnCongestionEvent(bool rtt_updated, QuicByteCount prior_in_flight,
                          QuicTime event_time,
                          const AckedPacketVector& acked_packets,
                          const LostPacketVector& lost_packets) override;
 
-  void OnPacketSent(QuicTime sent_time,
-                    QuicByteCount bytes_in_flight,
-                    QuicPacketNumber packet_number,
-                    QuicByteCount bytes,
+  void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
+                    QuicPacketNumber packet_number, QuicByteCount bytes,
                     HasRetransmittableData is_retransmittable) override;
 
   void OnPacketNeutered(QuicPacketNumber packet_number) override;
@@ -214,8 +208,7 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os,
-    const Bbr2Sender::DebugState& state);
+    std::ostream& os, const Bbr2Sender::DebugState& state);
 
 }  // namespace quic
 

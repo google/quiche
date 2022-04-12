@@ -22,8 +22,7 @@ class QUIC_EXPORT_PRIVATE PrrSender {
   void OnPacketLost(QuicByteCount prior_in_flight);
   void OnPacketSent(QuicByteCount sent_bytes);
   void OnPacketAcked(QuicByteCount acked_bytes);
-  bool CanSend(QuicByteCount congestion_window,
-               QuicByteCount bytes_in_flight,
+  bool CanSend(QuicByteCount congestion_window, QuicByteCount bytes_in_flight,
                QuicByteCount slowstart_threshold) const;
 
  private:

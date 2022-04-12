@@ -13,8 +13,7 @@
 namespace quic {
 
 namespace {
-float DetectionResponseTime(QuicTime::Delta rtt,
-                            QuicTime send_time,
+float DetectionResponseTime(QuicTime::Delta rtt, QuicTime send_time,
                             QuicTime detection_time) {
   if (detection_time <= send_time || rtt.IsZero()) {
     // Time skewed, assume a very fast detection where |detection_time| is
@@ -34,12 +33,9 @@ QuicTime::Delta GetMaxRtt(const RttStats& rtt_stats) {
 
 // Uses nack counts to decide when packets are lost.
 LossDetectionInterface::DetectionStats GeneralLossAlgorithm::DetectLosses(
-    const QuicUnackedPacketMap& unacked_packets,
-    QuicTime time,
-    const RttStats& rtt_stats,
-    QuicPacketNumber largest_newly_acked,
-    const AckedPacketVector& packets_acked,
-    LostPacketVector* packets_lost) {
+    const QuicUnackedPacketMap& unacked_packets, QuicTime time,
+    const RttStats& rtt_stats, QuicPacketNumber largest_newly_acked,
+    const AckedPacketVector& packets_acked, LostPacketVector* packets_lost) {
   DetectionStats detection_stats;
 
   loss_detection_timeout_ = QuicTime::Zero();
@@ -149,10 +145,8 @@ QuicTime GeneralLossAlgorithm::GetLossTimeout() const {
 }
 
 void GeneralLossAlgorithm::SpuriousLossDetected(
-    const QuicUnackedPacketMap& unacked_packets,
-    const RttStats& rtt_stats,
-    QuicTime ack_receive_time,
-    QuicPacketNumber packet_number,
+    const QuicUnackedPacketMap& unacked_packets, const RttStats& rtt_stats,
+    QuicTime ack_receive_time, QuicPacketNumber packet_number,
     QuicPacketNumber previous_largest_acked) {
   if (use_adaptive_time_threshold_ && reordering_shift_ > 0) {
     // Increase reordering fraction such that the packet would not have been

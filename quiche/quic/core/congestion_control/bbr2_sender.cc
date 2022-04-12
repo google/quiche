@@ -55,14 +55,11 @@ const int kMaxModeChangesPerCongestionEvent = 4;
                      ? (drain_.member_function_call) \
                      : (probe_rtt_or_die().member_function_call))))
 
-Bbr2Sender::Bbr2Sender(QuicTime now,
-                       const RttStats* rtt_stats,
+Bbr2Sender::Bbr2Sender(QuicTime now, const RttStats* rtt_stats,
                        const QuicUnackedPacketMap* unacked_packets,
                        QuicPacketCount initial_cwnd_in_packets,
-                       QuicPacketCount max_cwnd_in_packets,
-                       QuicRandom* random,
-                       QuicConnectionStats* stats,
-                       BbrSender* old_sender)
+                       QuicPacketCount max_cwnd_in_packets, QuicRandom* random,
+                       QuicConnectionStats* stats, BbrSender* old_sender)
     : mode_(Bbr2Mode::STARTUP),
       rtt_stats_(rtt_stats),
       unacked_packets_(unacked_packets),
@@ -70,8 +67,7 @@ Bbr2Sender::Bbr2Sender(QuicTime now,
       connection_stats_(stats),
       params_(kDefaultMinimumCongestionWindow,
               max_cwnd_in_packets * kDefaultTCPMSS),
-      model_(&params_,
-             rtt_stats->SmoothedOrInitialRtt(),
+      model_(&params_, rtt_stats->SmoothedOrInitialRtt(),
              rtt_stats->last_update_time(),
              /*cwnd_gain=*/1.0,
              /*pacing_gain=*/kInitialPacingGain,
@@ -80,9 +76,9 @@ Bbr2Sender::Bbr2Sender(QuicTime now,
           (old_sender) ? old_sender->GetCongestionWindow()
                        : (initial_cwnd_in_packets * kDefaultTCPMSS))),
       cwnd_(initial_cwnd_),
-      pacing_rate_(kInitialPacingGain * QuicBandwidth::FromBytesAndTimeDelta(
-                                            cwnd_,
-                                            rtt_stats->SmoothedOrInitialRtt())),
+      pacing_rate_(kInitialPacingGain *
+                   QuicBandwidth::FromBytesAndTimeDelta(
+                       cwnd_, rtt_stats->SmoothedOrInitialRtt())),
       startup_(this, &model_, now),
       drain_(this, &model_),
       probe_bw_(this, &model_),
@@ -431,8 +427,7 @@ QuicByteCount Bbr2Sender::GetTargetCongestionWindow(float gain) const {
                   cwnd_limits().Min());
 }
 
-void Bbr2Sender::OnPacketSent(QuicTime sent_time,
-                              QuicByteCount bytes_in_flight,
+void Bbr2Sender::OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
                               QuicPacketNumber packet_number,
                               QuicByteCount bytes,
                               HasRetransmittableData is_retransmittable) {

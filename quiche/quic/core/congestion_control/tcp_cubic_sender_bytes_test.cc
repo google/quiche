@@ -34,12 +34,9 @@ const float kRenoBeta = 0.7f;  // Reno backoff factor.
 class TcpCubicSenderBytesPeer : public TcpCubicSenderBytes {
  public:
   TcpCubicSenderBytesPeer(const QuicClock* clock, bool reno)
-      : TcpCubicSenderBytes(clock,
-                            &rtt_stats_,
-                            reno,
+      : TcpCubicSenderBytes(clock, &rtt_stats_, reno,
                             kInitialCongestionWindowPackets,
-                            kMaxCongestionWindowPackets,
-                            &stats_) {}
+                            kMaxCongestionWindowPackets, &stats_) {}
 
   const HybridSlowStart& hybrid_slow_start() const {
     return hybrid_slow_start_;

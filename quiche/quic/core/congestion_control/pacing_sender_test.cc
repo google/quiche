@@ -77,8 +77,7 @@ class PacingSenderTest : public QuicTest {
 
   void CheckPacketIsSentImmediately(HasRetransmittableData retransmittable_data,
                                     QuicByteCount prior_in_flight,
-                                    bool in_recovery,
-                                    QuicPacketCount cwnd) {
+                                    bool in_recovery, QuicPacketCount cwnd) {
     // In order for the packet to be sendable, the underlying sender must
     // permit it to be sent immediately.
     for (int i = 0; i < 2; ++i) {

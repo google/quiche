@@ -37,10 +37,8 @@ class QUIC_EXPORT_PRIVATE LossDetectionInterface {
 
   // Called when a new ack arrives or the loss alarm fires.
   virtual DetectionStats DetectLosses(
-      const QuicUnackedPacketMap& unacked_packets,
-      QuicTime time,
-      const RttStats& rtt_stats,
-      QuicPacketNumber largest_newly_acked,
+      const QuicUnackedPacketMap& unacked_packets, QuicTime time,
+      const RttStats& rtt_stats, QuicPacketNumber largest_newly_acked,
       const AckedPacketVector& packets_acked,
       LostPacketVector* packets_lost) = 0;
 
@@ -50,10 +48,8 @@ class QUIC_EXPORT_PRIVATE LossDetectionInterface {
 
   // Called when |packet_number| was detected lost but gets acked later.
   virtual void SpuriousLossDetected(
-      const QuicUnackedPacketMap& unacked_packets,
-      const RttStats& rtt_stats,
-      QuicTime ack_receive_time,
-      QuicPacketNumber packet_number,
+      const QuicUnackedPacketMap& unacked_packets, const RttStats& rtt_stats,
+      QuicTime ack_receive_time, QuicPacketNumber packet_number,
       QuicPacketNumber previous_largest_acked) = 0;
 
   virtual void OnConfigNegotiated() = 0;

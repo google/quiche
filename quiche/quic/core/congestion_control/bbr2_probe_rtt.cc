@@ -18,8 +18,7 @@ void Bbr2ProbeRttMode::Enter(QuicTime /*now*/,
 }
 
 Bbr2Mode Bbr2ProbeRttMode::OnCongestionEvent(
-    QuicByteCount /*prior_in_flight*/,
-    QuicTime /*event_time*/,
+    QuicByteCount /*prior_in_flight*/, QuicTime /*event_time*/,
     const AckedPacketVector& /*acked_packets*/,
     const LostPacketVector& /*lost_packets*/,
     const Bbr2CongestionEvent& congestion_event) {
@@ -54,8 +53,7 @@ Limits<QuicByteCount> Bbr2ProbeRttMode::GetCwndLimits() const {
 }
 
 Bbr2Mode Bbr2ProbeRttMode::OnExitQuiescence(
-    QuicTime now,
-    QuicTime /*quiescence_start_time*/) {
+    QuicTime now, QuicTime /*quiescence_start_time*/) {
   if (now > exit_time_) {
     return Bbr2Mode::PROBE_BW;
   }
@@ -76,8 +74,6 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-const Bbr2Params& Bbr2ProbeRttMode::Params() const {
-  return sender_->Params();
-}
+const Bbr2Params& Bbr2ProbeRttMode::Params() const { return sender_->Params(); }
 
 }  // namespace quic

@@ -339,17 +339,12 @@ struct QUIC_EXPORT_PRIVATE Bbr2CongestionEvent {
 // bandwidth_(hi|lo), bandwidth and rtt estimates, etc.
 class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
  public:
-  Bbr2NetworkModel(const Bbr2Params* params,
-                   QuicTime::Delta initial_rtt,
-                   QuicTime initial_rtt_timestamp,
-                   float cwnd_gain,
-                   float pacing_gain,
-                   const BandwidthSampler* old_sampler);
+  Bbr2NetworkModel(const Bbr2Params* params, QuicTime::Delta initial_rtt,
+                   QuicTime initial_rtt_timestamp, float cwnd_gain,
+                   float pacing_gain, const BandwidthSampler* old_sampler);
 
-  void OnPacketSent(QuicTime sent_time,
-                    QuicByteCount bytes_in_flight,
-                    QuicPacketNumber packet_number,
-                    QuicByteCount bytes,
+  void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
+                    QuicPacketNumber packet_number, QuicByteCount bytes,
                     HasRetransmittableData is_retransmittable);
 
   void OnCongestionEventStart(QuicTime event_time,
@@ -641,8 +636,7 @@ class QUIC_EXPORT_PRIVATE Bbr2ModeBase {
                      const Bbr2CongestionEvent* congestion_event) = 0;
 
   virtual Bbr2Mode OnCongestionEvent(
-      QuicByteCount prior_in_flight,
-      QuicTime event_time,
+      QuicByteCount prior_in_flight, QuicTime event_time,
       const AckedPacketVector& acked_packets,
       const LostPacketVector& lost_packets,
       const Bbr2CongestionEvent& congestion_event) = 0;

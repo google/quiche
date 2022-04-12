@@ -47,8 +47,7 @@ class QUIC_EXPORT_PRIVATE RttStats {
 
   // Updates the RTT from an incoming ack which is received |send_delta| after
   // the packet is sent and the peer reports the ack being delayed |ack_delay|.
-  void UpdateRtt(QuicTime::Delta send_delta,
-                 QuicTime::Delta ack_delay,
+  void UpdateRtt(QuicTime::Delta send_delta, QuicTime::Delta ack_delay,
                  QuicTime now);
 
   // Causes the smoothed_rtt to be increased to the latest_rtt if the latest_rtt

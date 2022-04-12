@@ -18,11 +18,9 @@ class WindowedFilterTest : public QuicTest {
   // Set the window to 99ms, so 25ms is more than a quarter rtt.
   WindowedFilterTest()
       : windowed_min_rtt_(QuicTime::Delta::FromMilliseconds(99),
-                          QuicTime::Delta::Zero(),
-                          QuicTime::Zero()),
+                          QuicTime::Delta::Zero(), QuicTime::Zero()),
         windowed_max_bw_(QuicTime::Delta::FromMilliseconds(99),
-                         QuicBandwidth::Zero(),
-                         QuicTime::Zero()) {}
+                         QuicBandwidth::Zero(), QuicTime::Zero()) {}
 
   // Sets up windowed_min_rtt_ to have the following values:
   // Best = 20ms, recorded at 25ms
@@ -75,14 +73,10 @@ class WindowedFilterTest : public QuicTest {
   }
 
  protected:
-  WindowedFilter<QuicTime::Delta,
-                 MinFilter<QuicTime::Delta>,
-                 QuicTime,
+  WindowedFilter<QuicTime::Delta, MinFilter<QuicTime::Delta>, QuicTime,
                  QuicTime::Delta>
       windowed_min_rtt_;
-  WindowedFilter<QuicBandwidth,
-                 MaxFilter<QuicBandwidth>,
-                 QuicTime,
+  WindowedFilter<QuicBandwidth, MaxFilter<QuicBandwidth>, QuicTime,
                  QuicTime::Delta>
       windowed_max_bw_;
 };
@@ -92,8 +86,7 @@ namespace {
 // to ensure that it is not susceptible to noise.
 void UpdateWithIrrelevantSamples(
     WindowedFilter<uint64_t, MaxFilter<uint64_t>, uint64_t, uint64_t>* filter,
-    uint64_t max_value,
-    uint64_t time) {
+    uint64_t max_value, uint64_t time) {
   for (uint64_t i = 0; i < 1000; i++) {
     filter->Update(i % max_value, time);
   }

@@ -19,13 +19,10 @@ class RttStats;
 
 // Factory for send side congestion control algorithm.
 SendAlgorithmInterface* SendAlgorithmInterface::Create(
-    const QuicClock* clock,
-    const RttStats* rtt_stats,
+    const QuicClock* clock, const RttStats* rtt_stats,
     const QuicUnackedPacketMap* unacked_packets,
-    CongestionControlType congestion_control_type,
-    QuicRandom* random,
-    QuicConnectionStats* stats,
-    QuicPacketCount initial_congestion_window,
+    CongestionControlType congestion_control_type, QuicRandom* random,
+    QuicConnectionStats* stats, QuicPacketCount initial_congestion_window,
     SendAlgorithmInterface* old_send_algorithm) {
   QuicPacketCount max_congestion_window =
       GetQuicFlag(FLAGS_quic_max_congestion_window);

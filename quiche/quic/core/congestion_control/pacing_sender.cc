@@ -54,10 +54,8 @@ void PacingSender::OnCongestionEvent(bool rtt_updated,
 }
 
 void PacingSender::OnPacketSent(
-    QuicTime sent_time,
-    QuicByteCount bytes_in_flight,
-    QuicPacketNumber packet_number,
-    QuicByteCount bytes,
+    QuicTime sent_time, QuicByteCount bytes_in_flight,
+    QuicPacketNumber packet_number, QuicByteCount bytes,
     HasRetransmittableData has_retransmittable_data) {
   QUICHE_DCHECK(sender_ != nullptr);
   sender_->OnPacketSent(sent_time, bytes_in_flight, packet_number, bytes,
@@ -135,8 +133,7 @@ void PacingSender::SetBurstTokens(uint32_t burst_tokens) {
 }
 
 QuicTime::Delta PacingSender::TimeUntilSend(
-    QuicTime now,
-    QuicByteCount bytes_in_flight) const {
+    QuicTime now, QuicByteCount bytes_in_flight) const {
   QUICHE_DCHECK(sender_ != nullptr);
 
   if (!sender_->CanSend(bytes_in_flight)) {

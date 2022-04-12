@@ -35,10 +35,8 @@ struct QUIC_EXPORT_PRIVATE SendTimeState {
         total_bytes_lost(0),
         bytes_in_flight(0) {}
 
-  SendTimeState(bool is_app_limited,
-                QuicByteCount total_bytes_sent,
-                QuicByteCount total_bytes_acked,
-                QuicByteCount total_bytes_lost,
+  SendTimeState(bool is_app_limited, QuicByteCount total_bytes_sent,
+                QuicByteCount total_bytes_acked, QuicByteCount total_bytes_lost,
                 QuicByteCount bytes_in_flight)
       : is_valid(true),
         is_app_limited(is_app_limited),
@@ -195,9 +193,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
   // released from the sampler until it the packet is either acknowledged or
   // declared lost.
   virtual void OnPacketSent(
-      QuicTime sent_time,
-      QuicPacketNumber packet_number,
-      QuicByteCount bytes,
+      QuicTime sent_time, QuicPacketNumber packet_number, QuicByteCount bytes,
       QuicByteCount bytes_in_flight,
       HasRetransmittableData has_retransmittable_data) = 0;
 
@@ -231,10 +227,8 @@ class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
   // |est_bandwidth_upper_bound| is an upper bound of estimated bandwidth used
   // to calculate extra_acked.
   virtual CongestionEventSample OnCongestionEvent(
-      QuicTime ack_time,
-      const AckedPacketVector& acked_packets,
-      const LostPacketVector& lost_packets,
-      QuicBandwidth max_bandwidth,
+      QuicTime ack_time, const AckedPacketVector& acked_packets,
+      const LostPacketVector& lost_packets, QuicBandwidth max_bandwidth,
       QuicBandwidth est_bandwidth_upper_bound,
       QuicRoundTripCount round_trip_count) = 0;
 
@@ -348,18 +342,14 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   BandwidthSampler(const BandwidthSampler& other);
   ~BandwidthSampler() override;
 
-  void OnPacketSent(QuicTime sent_time,
-                    QuicPacketNumber packet_number,
-                    QuicByteCount bytes,
-                    QuicByteCount bytes_in_flight,
+  void OnPacketSent(QuicTime sent_time, QuicPacketNumber packet_number,
+                    QuicByteCount bytes, QuicByteCount bytes_in_flight,
                     HasRetransmittableData has_retransmittable_data) override;
   void OnPacketNeutered(QuicPacketNumber packet_number) override;
 
   CongestionEventSample OnCongestionEvent(
-      QuicTime ack_time,
-      const AckedPacketVector& acked_packets,
-      const LostPacketVector& lost_packets,
-      QuicBandwidth max_bandwidth,
+      QuicTime ack_time, const AckedPacketVector& acked_packets,
+      const LostPacketVector& lost_packets, QuicBandwidth max_bandwidth,
       QuicBandwidth est_bandwidth_upper_bound,
       QuicRoundTripCount round_trip_count) override;
   QuicByteCount OnAckEventEnd(QuicBandwidth bandwidth_estimate,
@@ -490,8 +480,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
     // Snapshot constructor. Records the current state of the bandwidth
     // sampler.
     // |bytes_in_flight| is the bytes in flight right after the packet is sent.
-    ConnectionStateOnSentPacket(QuicTime sent_time,
-                                QuicByteCount size,
+    ConnectionStateOnSentPacket(QuicTime sent_time, QuicByteCount size,
                                 QuicByteCount bytes_in_flight,
                                 const BandwidthSampler& sampler)
         : sent_time(sent_time),
@@ -500,10 +489,8 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
               sampler.total_bytes_sent_at_last_acked_packet_),
           last_acked_packet_sent_time(sampler.last_acked_packet_sent_time_),
           last_acked_packet_ack_time(sampler.last_acked_packet_ack_time_),
-          send_time_state(sampler.is_app_limited_,
-                          sampler.total_bytes_sent_,
-                          sampler.total_bytes_acked_,
-                          sampler.total_bytes_lost_,
+          send_time_state(sampler.is_app_limited_, sampler.total_bytes_sent_,
+                          sampler.total_bytes_acked_, sampler.total_bytes_lost_,
                           bytes_in_flight) {}
 
     // Default constructor.  Required to put this structure into
@@ -516,8 +503,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
           last_acked_packet_ack_time(QuicTime::Zero()) {}
 
     friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-        std::ostream& os,
-        const ConnectionStateOnSentPacket& p) {
+        std::ostream& os, const ConnectionStateOnSentPacket& p) {
       os << "{sent_time:" << p.sent_time << ", size:" << p.size
          << ", total_bytes_sent_at_last_acked_packet:"
          << p.total_bytes_sent_at_last_acked_packet
@@ -608,8 +594,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   // Handles the actual bandwidth calculations, whereas the outer method handles
   // retrieving and removing |sent_packet|.
   BandwidthSample OnPacketAcknowledgedInner(
-      QuicTime ack_time,
-      QuicPacketNumber packet_number,
+      QuicTime ack_time, QuicPacketNumber packet_number,
       const ConnectionStateOnSentPacket& sent_packet);
 
   MaxAckHeightTracker max_ack_height_tracker_;

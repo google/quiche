@@ -15,8 +15,7 @@
 namespace quic {
 
 Bbr2StartupMode::Bbr2StartupMode(const Bbr2Sender* sender,
-                                 Bbr2NetworkModel* model,
-                                 QuicTime now)
+                                 Bbr2NetworkModel* model, QuicTime now)
     : Bbr2ModeBase(sender, model) {
   // Increment, instead of reset startup stats, so we don't lose data recorded
   // before QuicConnection switched send algorithm to BBRv2.
@@ -42,8 +41,7 @@ void Bbr2StartupMode::Leave(QuicTime now,
 }
 
 Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
-    QuicByteCount /*prior_in_flight*/,
-    QuicTime /*event_time*/,
+    QuicByteCount /*prior_in_flight*/, QuicTime /*event_time*/,
     const AckedPacketVector& /*acked_packets*/,
     const LostPacketVector& /*lost_packets*/,
     const Bbr2CongestionEvent& congestion_event) {
@@ -150,8 +148,6 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-const Bbr2Params& Bbr2StartupMode::Params() const {
-  return sender_->Params();
-}
+const Bbr2Params& Bbr2StartupMode::Params() const { return sender_->Params(); }
 
 }  // namespace quic

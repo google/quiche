@@ -10,8 +10,7 @@
 namespace quic {
 
 Bbr2Mode Bbr2DrainMode::OnCongestionEvent(
-    QuicByteCount /*prior_in_flight*/,
-    QuicTime /*event_time*/,
+    QuicByteCount /*prior_in_flight*/, QuicTime /*event_time*/,
     const AckedPacketVector& /*acked_packets*/,
     const LostPacketVector& /*lost_packets*/,
     const Bbr2CongestionEvent& congestion_event) {
@@ -55,8 +54,6 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-const Bbr2Params& Bbr2DrainMode::Params() const {
-  return sender_->Params();
-}
+const Bbr2Params& Bbr2DrainMode::Params() const { return sender_->Params(); }
 
 }  // namespace quic

@@ -23,8 +23,7 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeRttMode final : public Bbr2ModeBase {
              const Bbr2CongestionEvent* /*congestion_event*/) override {}
 
   Bbr2Mode OnCongestionEvent(
-      QuicByteCount prior_in_flight,
-      QuicTime event_time,
+      QuicByteCount prior_in_flight, QuicTime event_time,
       const AckedPacketVector& acked_packets,
       const LostPacketVector& lost_packets,
       const Bbr2CongestionEvent& congestion_event) override;
@@ -52,8 +51,7 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeRttMode final : public Bbr2ModeBase {
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os,
-    const Bbr2ProbeRttMode::DebugState& state);
+    std::ostream& os, const Bbr2ProbeRttMode::DebugState& state);
 
 }  // namespace quic
 

@@ -188,9 +188,7 @@ void BandwidthSampler::EnableOverestimateAvoidance() {
 BandwidthSampler::~BandwidthSampler() {}
 
 void BandwidthSampler::OnPacketSent(
-    QuicTime sent_time,
-    QuicPacketNumber packet_number,
-    QuicByteCount bytes,
+    QuicTime sent_time, QuicPacketNumber packet_number, QuicByteCount bytes,
     QuicByteCount bytes_in_flight,
     HasRetransmittableData has_retransmittable_data) {
   last_sent_packet_ = packet_number;
@@ -381,8 +379,7 @@ QuicByteCount BandwidthSampler::OnAckEventEnd(
 }
 
 BandwidthSample BandwidthSampler::OnPacketAcknowledged(
-    QuicTime ack_time,
-    QuicPacketNumber packet_number) {
+    QuicTime ack_time, QuicPacketNumber packet_number) {
   last_acked_packet_ = packet_number;
   ConnectionStateOnSentPacket* sent_packet_pointer =
       connection_state_map_.GetEntry(packet_number);
@@ -396,8 +393,7 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledged(
 }
 
 BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
-    QuicTime ack_time,
-    QuicPacketNumber packet_number,
+    QuicTime ack_time, QuicPacketNumber packet_number,
     const ConnectionStateOnSentPacket& sent_packet) {
   total_bytes_acked_ += sent_packet.size;
   total_bytes_sent_at_last_acked_packet_ =
@@ -578,9 +574,7 @@ QuicByteCount BandwidthSampler::total_bytes_neutered() const {
   return total_bytes_neutered_;
 }
 
-bool BandwidthSampler::is_app_limited() const {
-  return is_app_limited_;
-}
+bool BandwidthSampler::is_app_limited() const { return is_app_limited_; }
 
 QuicPacketNumber BandwidthSampler::end_of_app_limited_phase() const {
   return end_of_app_limited_phase_;

@@ -39,8 +39,7 @@ void RttStats::ExpireSmoothedMetrics() {
 }
 
 // Updates the RTT based on a new sample.
-void RttStats::UpdateRtt(QuicTime::Delta send_delta,
-                         QuicTime::Delta ack_delay,
+void RttStats::UpdateRtt(QuicTime::Delta send_delta, QuicTime::Delta ack_delay,
                          QuicTime now) {
   if (send_delta.IsInfinite() || send_delta <= QuicTime::Delta::Zero()) {
     QUIC_LOG_FIRST_N(WARNING, 3)
@@ -112,8 +111,7 @@ QuicTime::Delta RttStats::GetStandardOrMeanDeviation() const {
 }
 
 void RttStats::StandardDeviationCaculator::OnNewRttSample(
-    QuicTime::Delta rtt_sample,
-    QuicTime::Delta smoothed_rtt) {
+    QuicTime::Delta rtt_sample, QuicTime::Delta smoothed_rtt) {
   double new_value = rtt_sample.ToMicroseconds();
   if (smoothed_rtt.IsZero()) {
     return;

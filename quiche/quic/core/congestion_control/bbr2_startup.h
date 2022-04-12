@@ -16,8 +16,7 @@ namespace quic {
 class Bbr2Sender;
 class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
  public:
-  Bbr2StartupMode(const Bbr2Sender* sender,
-                  Bbr2NetworkModel* model,
+  Bbr2StartupMode(const Bbr2Sender* sender, Bbr2NetworkModel* model,
                   QuicTime now);
 
   void Enter(QuicTime now,
@@ -26,8 +25,7 @@ class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
              const Bbr2CongestionEvent* congestion_event) override;
 
   Bbr2Mode OnCongestionEvent(
-      QuicByteCount prior_in_flight,
-      QuicTime event_time,
+      QuicByteCount prior_in_flight, QuicTime event_time,
       const AckedPacketVector& acked_packets,
       const LostPacketVector& lost_packets,
       const Bbr2CongestionEvent& congestion_event) override;
@@ -63,8 +61,7 @@ class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os,
-    const Bbr2StartupMode::DebugState& state);
+    std::ostream& os, const Bbr2StartupMode::DebugState& state);
 
 }  // namespace quic
 

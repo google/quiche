@@ -39,8 +39,7 @@ class QUIC_EXPORT_PRIVATE HybridSlowStart {
   // rtt: the RTT for this ack packet.
   // min_rtt: is the lowest delay (RTT) we have seen during the session.
   // congestion_window: the congestion window in packets.
-  bool ShouldExitSlowStart(QuicTime::Delta rtt,
-                           QuicTime::Delta min_rtt,
+  bool ShouldExitSlowStart(QuicTime::Delta rtt, QuicTime::Delta min_rtt,
                            QuicPacketCount congestion_window);
 
   // Start a new slow start phase.

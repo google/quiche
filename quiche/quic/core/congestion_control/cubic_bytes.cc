@@ -73,7 +73,7 @@ float CubicBytes::BetaLastMax() const {
 }
 
 void CubicBytes::ResetCubicState() {
-  epoch_ = QuicTime::Zero();             // Reset time.
+  epoch_ = QuicTime::Zero();  // Reset time.
   last_max_congestion_window_ = 0;
   acked_bytes_count_ = 0;
   estimated_tcp_congestion_window_ = 0;
@@ -114,10 +114,8 @@ QuicByteCount CubicBytes::CongestionWindowAfterPacketLoss(
 }
 
 QuicByteCount CubicBytes::CongestionWindowAfterAck(
-    QuicByteCount acked_bytes,
-    QuicByteCount current_congestion_window,
-    QuicTime::Delta delay_min,
-    QuicTime event_time) {
+    QuicByteCount acked_bytes, QuicByteCount current_congestion_window,
+    QuicTime::Delta delay_min, QuicTime event_time) {
   acked_bytes_count_ += acked_bytes;
 
   if (!epoch_.IsInitialized()) {

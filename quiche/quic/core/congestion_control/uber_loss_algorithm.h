@@ -53,8 +53,7 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
 
   // Detects lost packets.
   DetectionStats DetectLosses(const QuicUnackedPacketMap& unacked_packets,
-                              QuicTime time,
-                              const RttStats& rtt_stats,
+                              QuicTime time, const RttStats& rtt_stats,
                               QuicPacketNumber largest_newly_acked,
                               const AckedPacketVector& packets_acked,
                               LostPacketVector* packets_lost) override;

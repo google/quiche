@@ -59,12 +59,9 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
   };
 
   static SendAlgorithmInterface* Create(
-      const QuicClock* clock,
-      const RttStats* rtt_stats,
-      const QuicUnackedPacketMap* unacked_packets,
-      CongestionControlType type,
-      QuicRandom* random,
-      QuicConnectionStats* stats,
+      const QuicClock* clock, const RttStats* rtt_stats,
+      const QuicUnackedPacketMap* unacked_packets, CongestionControlType type,
+      QuicRandom* random, QuicConnectionStats* stats,
       QuicPacketCount initial_congestion_window,
       SendAlgorithmInterface* old_send_algorithm);
 
@@ -95,10 +92,8 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
   // retransmittable.  |bytes_in_flight| is the number of bytes in flight before
   // the packet was sent.
   // Note: this function must be called for every packet sent to the wire.
-  virtual void OnPacketSent(QuicTime sent_time,
-                            QuicByteCount bytes_in_flight,
-                            QuicPacketNumber packet_number,
-                            QuicByteCount bytes,
+  virtual void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
+                            QuicPacketNumber packet_number, QuicByteCount bytes,
                             HasRetransmittableData is_retransmittable) = 0;
 
   // Inform that |packet_number| has been neutered.

@@ -66,8 +66,7 @@ class GeneralLossAlgorithmTest : public QuicTest {
   }
 
   void VerifyLosses(
-      uint64_t largest_newly_acked,
-      const AckedPacketVector& packets_acked,
+      uint64_t largest_newly_acked, const AckedPacketVector& packets_acked,
       const std::vector<uint64_t>& losses_expected,
       absl::optional<QuicPacketCount> max_sequence_reordering_expected,
       absl::optional<QuicPacketCount>
