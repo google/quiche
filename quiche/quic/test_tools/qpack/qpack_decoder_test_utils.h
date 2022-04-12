@@ -34,8 +34,7 @@ class MockEncoderStreamErrorDelegate
  public:
   ~MockEncoderStreamErrorDelegate() override = default;
 
-  MOCK_METHOD(void,
-              OnEncoderStreamError,
+  MOCK_METHOD(void, OnEncoderStreamError,
               (QuicErrorCode error_code, absl::string_view error_message),
               (override));
 };
@@ -78,10 +77,8 @@ class MockHeadersHandler
   MockHeadersHandler& operator=(const MockHeadersHandler&) = delete;
   ~MockHeadersHandler() override = default;
 
-  MOCK_METHOD(void,
-              OnHeaderDecoded,
-              (absl::string_view name, absl::string_view value),
-              (override));
+  MOCK_METHOD(void, OnHeaderDecoded,
+              (absl::string_view name, absl::string_view value), (override));
   MOCK_METHOD(void, OnDecodingCompleted, (), (override));
   MOCK_METHOD(void, OnDecodingErrorDetected,
               (QuicErrorCode error_code, absl::string_view error_message),
@@ -101,8 +98,7 @@ class NoOpHeadersHandler
 };
 
 void QpackDecode(
-    uint64_t maximum_dynamic_table_capacity,
-    uint64_t maximum_blocked_streams,
+    uint64_t maximum_dynamic_table_capacity, uint64_t maximum_blocked_streams,
     QpackDecoder::EncoderStreamErrorDelegate* encoder_stream_error_delegate,
     QpackStreamSenderDelegate* decoder_stream_sender_delegate,
     QpackProgressiveDecoder::HeadersHandlerInterface* handler,

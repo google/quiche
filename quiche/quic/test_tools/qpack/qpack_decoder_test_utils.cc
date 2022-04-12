@@ -15,8 +15,7 @@ namespace quic {
 namespace test {
 
 void NoopEncoderStreamErrorDelegate::OnEncoderStreamError(
-    QuicErrorCode /* error_code */,
-    absl::string_view /*error_message*/) {}
+    QuicErrorCode /* error_code */, absl::string_view /*error_message*/) {}
 
 TestHeadersHandler::TestHeadersHandler()
     : decoding_completed_(false), decoding_error_detected_(false) {}
@@ -66,8 +65,7 @@ const std::string& TestHeadersHandler::error_message() const {
 }
 
 void QpackDecode(
-    uint64_t maximum_dynamic_table_capacity,
-    uint64_t maximum_blocked_streams,
+    uint64_t maximum_dynamic_table_capacity, uint64_t maximum_blocked_streams,
     QpackDecoder::EncoderStreamErrorDelegate* encoder_stream_error_delegate,
     QpackStreamSenderDelegate* decoder_stream_sender_delegate,
     QpackProgressiveDecoder::HeadersHandlerInterface* handler,

@@ -32,8 +32,7 @@ class MockDecoderStreamErrorDelegate
  public:
   ~MockDecoderStreamErrorDelegate() override = default;
 
-  MOCK_METHOD(void,
-              OnDecoderStreamError,
+  MOCK_METHOD(void, OnDecoderStreamError,
               (QuicErrorCode error_code, absl::string_view error_message),
               (override));
 };

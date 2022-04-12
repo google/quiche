@@ -276,8 +276,7 @@ class HpackEncoderTest : public QuicheTestWithParam<EncodeStrategy> {
 
 using HpackEncoderTestWithDefaultStrategy = HpackEncoderTest;
 
-INSTANTIATE_TEST_SUITE_P(HpackEncoderTests,
-                         HpackEncoderTestWithDefaultStrategy,
+INSTANTIATE_TEST_SUITE_P(HpackEncoderTests, HpackEncoderTestWithDefaultStrategy,
                          ::testing::Values(kDefault));
 
 TEST_P(HpackEncoderTestWithDefaultStrategy, EncodeRepresentations) {
@@ -336,10 +335,8 @@ TEST_P(HpackEncoderTestWithDefaultStrategy, DynamicTableGrows) {
   EXPECT_GT(encoder_.GetDynamicTableSize(), kInitialDynamicTableSize);
 }
 
-INSTANTIATE_TEST_SUITE_P(HpackEncoderTests,
-                         HpackEncoderTest,
-                         ::testing::Values(kDefault,
-                                           kIncremental,
+INSTANTIATE_TEST_SUITE_P(HpackEncoderTests, HpackEncoderTest,
+                         ::testing::Values(kDefault, kIncremental,
                                            kRepresentations));
 
 TEST_P(HpackEncoderTest, SingleDynamicIndex) {

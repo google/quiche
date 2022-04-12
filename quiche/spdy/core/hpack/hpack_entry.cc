@@ -15,9 +15,7 @@ HpackEntry::HpackEntry(std::string name, std::string value)
 size_t HpackEntry::Size(absl::string_view name, absl::string_view value) {
   return name.size() + value.size() + kHpackEntrySizeOverhead;
 }
-size_t HpackEntry::Size() const {
-  return Size(name(), value());
-}
+size_t HpackEntry::Size() const { return Size(name(), value()); }
 
 std::string HpackEntry::GetDebugString() const {
   return absl::StrCat("{ name: \"", name_, "\", value: \"", value_, "\" }");

@@ -85,8 +85,7 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   // Determine the set of entries which would be evicted by the insertion
   // of |name| & |value| into the table, as per section 4.4. No eviction
   // actually occurs. The set is returned via range [begin_out, end_out).
-  void EvictionSet(absl::string_view name,
-                   absl::string_view value,
+  void EvictionSet(absl::string_view name, absl::string_view value,
                    DynamicEntryTable::iterator* begin_out,
                    DynamicEntryTable::iterator* end_out);
 

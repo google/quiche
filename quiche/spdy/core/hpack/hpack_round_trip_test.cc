@@ -74,10 +74,8 @@ class HpackRoundTripTest : public QuicheTestWithParam<InputSizeParam> {
   HpackDecoderAdapter decoder_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         HpackRoundTripTest,
-                         ::testing::Values(ALL_INPUT,
-                                           ONE_BYTE,
+INSTANTIATE_TEST_SUITE_P(Tests, HpackRoundTripTest,
+                         ::testing::Values(ALL_INPUT, ONE_BYTE,
                                            ZERO_THEN_ONE_BYTE));
 
 TEST_P(HpackRoundTripTest, ResponseFixtures) {

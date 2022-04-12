@@ -39,8 +39,7 @@ void HpackDecoderAdapter::HandleControlFrameHeadersStart(
 }
 
 bool HpackDecoderAdapter::HandleControlFrameHeadersData(
-    const char* headers_data,
-    size_t headers_data_length) {
+    const char* headers_data, size_t headers_data_length) {
   QUICHE_DVLOG(2) << "HpackDecoderAdapter::HandleControlFrameHeadersData: len="
                   << headers_data_length;
   if (!header_block_started_) {

@@ -30,8 +30,7 @@ class HpackVarintDecoderTest
         suffix_(absl::HexStringToBytes(std::get<1>(GetParam()))),
         prefix_length_(0) {}
 
-  void DecodeExpectSuccess(absl::string_view data,
-                           uint32_t prefix_length,
+  void DecodeExpectSuccess(absl::string_view data, uint32_t prefix_length,
                            uint64_t expected_value) {
     Validator validator = [expected_value, this](
                               const DecodeBuffer& /*db*/,
@@ -62,8 +61,7 @@ class HpackVarintDecoderTest
   }
 
  private:
-  AssertionResult Decode(absl::string_view data,
-                         uint32_t prefix_length,
+  AssertionResult Decode(absl::string_view data, uint32_t prefix_length,
                          const Validator validator) {
     prefix_length_ = prefix_length;
 
@@ -107,8 +105,7 @@ class HpackVarintDecoderTest
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    HpackVarintDecoderTest,
-    HpackVarintDecoderTest,
+    HpackVarintDecoderTest, HpackVarintDecoderTest,
     ::testing::Combine(
         // Bits of the first byte not part of the prefix should be ignored.
         ::testing::Values(0b00000000, 0b11111111, 0b10101010),

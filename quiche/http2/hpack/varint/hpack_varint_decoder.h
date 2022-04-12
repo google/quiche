@@ -61,8 +61,7 @@ class QUICHE_EXPORT_PRIVATE HpackVarintDecoder {
   // |prefix_length| is number of bits in the first byte that are used for
   // encoding the integer.  |db| is the rest of the buffer,  that is, not
   // including the first byte.
-  DecodeStatus Start(uint8_t prefix_value,
-                     uint8_t prefix_length,
+  DecodeStatus Start(uint8_t prefix_value, uint8_t prefix_length,
                      DecodeBuffer* db);
 
   // The caller has already determined that the encoding requires multiple
@@ -87,8 +86,7 @@ class QUICHE_EXPORT_PRIVATE HpackVarintDecoder {
 
   // For benchmarking, these methods ensure the decoder
   // is NOT inlined into the caller.
-  DecodeStatus StartForTest(uint8_t prefix_value,
-                            uint8_t prefix_length,
+  DecodeStatus StartForTest(uint8_t prefix_value, uint8_t prefix_length,
                             DecodeBuffer* db);
   DecodeStatus StartExtendedForTest(uint8_t prefix_length, DecodeBuffer* db);
   DecodeStatus ResumeForTest(DecodeBuffer* db);

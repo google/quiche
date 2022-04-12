@@ -20,9 +20,7 @@ class QUICHE_EXPORT_PRIVATE HpackVarintEncoder {
  public:
   // Encode |varint|, appending encoded data to |*output|.
   // Appends between 1 and 11 bytes in total.
-  static void Encode(uint8_t high_bits,
-                     uint8_t prefix_length,
-                     uint64_t varint,
+  static void Encode(uint8_t high_bits, uint8_t prefix_length, uint64_t varint,
                      std::string* output);
 };
 

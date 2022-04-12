@@ -226,9 +226,7 @@ class HpackDecoderAdapterTest
     return decoded_block();
   }
 
-  void expectEntry(size_t index,
-                   size_t size,
-                   const std::string& name,
+  void expectEntry(size_t index, size_t size, const std::string& name,
                    const std::string& value) {
     const HpackStringPair* entry = decoder_peer_.GetTableEntry(index);
     EXPECT_EQ(name, entry->name) << "index " << index;
@@ -256,14 +254,12 @@ class HpackDecoderAdapterTest
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    NoHandler,
-    HpackDecoderAdapterTest,
+    NoHandler, HpackDecoderAdapterTest,
     ::testing::Combine(::testing::Values(START_WITHOUT_HANDLER, NO_START),
                        ::testing::Bool()));
 
 INSTANTIATE_TEST_SUITE_P(
-    WithHandler,
-    HpackDecoderAdapterTest,
+    WithHandler, HpackDecoderAdapterTest,
     ::testing::Combine(::testing::Values(START_WITH_HANDLER),
                        ::testing::Bool()));
 

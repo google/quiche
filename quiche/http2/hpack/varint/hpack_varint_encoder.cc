@@ -11,10 +11,8 @@
 namespace http2 {
 
 // static
-void HpackVarintEncoder::Encode(uint8_t high_bits,
-                                uint8_t prefix_length,
-                                uint64_t varint,
-                                std::string* output) {
+void HpackVarintEncoder::Encode(uint8_t high_bits, uint8_t prefix_length,
+                                uint64_t varint, std::string* output) {
   QUICHE_DCHECK_LE(1u, prefix_length);
   QUICHE_DCHECK_LE(prefix_length, 8u);
 

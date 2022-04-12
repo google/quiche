@@ -110,9 +110,7 @@ class HpackVarintRoundTripTest : public RandomDecoderTest {
   // HpackVarintDecoder is as expected, which also acts as confirmation that
   // my thinking about the encodings being used by the tests, i.e. cover the
   // range desired.
-  void ValidateEncoding(uint64_t value,
-                        uint64_t minimum,
-                        uint64_t maximum,
+  void ValidateEncoding(uint64_t value, uint64_t minimum, uint64_t maximum,
                         size_t expected_bytes) {
     ASSERT_EQ(expected_bytes, buffer_.size());
     if (expected_bytes > 1) {
@@ -155,8 +153,7 @@ class HpackVarintRoundTripTest : public RandomDecoderTest {
   }
 
   void EncodeAndDecodeValues(const std::set<uint64_t>& values,
-                             uint8_t prefix_length,
-                             size_t expected_bytes) {
+                             uint8_t prefix_length, size_t expected_bytes) {
     QUICHE_CHECK(!values.empty());
     const uint64_t minimum = *values.begin();
     const uint64_t maximum = *values.rbegin();
@@ -201,8 +198,7 @@ class HpackVarintRoundTripTest : public RandomDecoderTest {
   // Encode values (all or some of it) in [start, start+range).  Check
   // that |start| is the smallest value and |start+range-1| is the largest value
   // corresponding to |expected_bytes|, except if |expected_bytes| is maximal.
-  void EncodeAndDecodeValuesInRange(uint64_t start,
-                                    uint64_t range,
+  void EncodeAndDecodeValuesInRange(uint64_t start, uint64_t range,
                                     uint8_t prefix_length,
                                     size_t expected_bytes) {
     const uint8_t prefix_mask = (1 << prefix_length) - 1;
