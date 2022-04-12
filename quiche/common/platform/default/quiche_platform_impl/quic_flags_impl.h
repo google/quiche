@@ -8,7 +8,6 @@
 #include <string>
 
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/common/platform/api/quiche_flags.h"
 
 #define QUIC_PROTOCOL_FLAG(type, flag, ...) \
   QUICHE_EXPORT_PRIVATE extern type FLAGS_##flag;
