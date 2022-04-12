@@ -20,8 +20,8 @@ uint64_t QpackEncoderHeaderTable::InsertEntry(absl::string_view name,
       QpackHeaderTableBase<QpackEncoderDynamicTable>::InsertEntry(name, value);
 
   // Make name and value point to the new entry.
-  name = dynamic_entries().back().name();
-  value = dynamic_entries().back().value();
+  name = dynamic_entries().back()->name();
+  value = dynamic_entries().back()->value();
 
   auto index_result = dynamic_index_.insert(
       std::make_pair(QpackLookupEntry{name, value}, index));
@@ -110,7 +110,7 @@ uint64_t QpackEncoderHeaderTable::MaxInsertSizeWithoutEvictingGivenEntry(
       break;
     }
     ++entry_index;
-    max_insert_size += entry.Size();
+    max_insert_size += entry->Size();
   }
 
   return max_insert_size;
@@ -133,7 +133,7 @@ uint64_t QpackEncoderHeaderTable::draining_index(
   auto it = dynamic_entries().begin();
   uint64_t entry_index = dropped_entry_count();
   while (space_above_draining_index < required_space) {
-    space_above_draining_index += it->Size();
+    space_above_draining_index += (*it)->Size();
     ++it;
     ++entry_index;
     if (it == dynamic_entries().end()) {
@@ -145,7 +145,7 @@ uint64_t QpackEncoderHeaderTable::draining_index(
 }
 
 void QpackEncoderHeaderTable::RemoveEntryFromEnd() {
-  const QpackEntry* const entry = &dynamic_entries().front();
+  const QpackEntry* const entry = dynamic_entries().front().get();
   const uint64_t index = dropped_entry_count();
 
   auto index_it = dynamic_index_.find({entry->name(), entry->value()});
