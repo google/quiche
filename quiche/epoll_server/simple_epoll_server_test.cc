@@ -55,7 +55,6 @@ enum {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -75,10 +74,10 @@ struct RecordEntry {
   int fd;
   int data;
 
-  bool IsEqual(const RecordEntry *entry) const {
+  bool IsEqual(const RecordEntry* entry) const {
     bool retval = true;
 
-    if (instance  !=  entry->instance) {
+    if (instance != entry->instance) {
       retval = false;
       EPOLL_LOG(INFO) << " instance (" << instance << ") != entry->instance("
                       << entry->instance << ")";
@@ -88,7 +87,7 @@ struct RecordEntry {
       EPOLL_LOG(INFO) << " event_type (" << event_type
                       << ") != entry->event_type(" << entry->event_type << ")";
     }
-    if ( fd != entry->fd ) {
+    if (fd != entry->fd) {
       retval = false;
       EPOLL_LOG(INFO) << " fd (" << fd << ") != entry->fd (" << entry->fd
                       << ")";
@@ -112,30 +111,28 @@ class Recorder {
         RecordEntry(WallTimeNowInUsec(), instance, event_type, fd, data));
   }
 
-  const std::vector<RecordEntry> *records() const { return &records_; }
+  const std::vector<RecordEntry>* records() const { return &records_; }
 
-  bool IsEqual(const Recorder *recorder) const {
-    const std::vector<RecordEntry> *records = recorder->records();
+  bool IsEqual(const Recorder* recorder) const {
+    const std::vector<RecordEntry>* records = recorder->records();
 
-     if (records_.size() != records->size()) {
-       EPOLL_LOG(INFO) << "records_.size() (" << records_.size()
-                       << ") != records->size() (" << records->size() << ")";
-       return false;
-     }
-     for (size_t i = 0; i < std::min(records_.size(), records->size()); ++i) {
-       if (!records_[i].IsEqual(&(*records)[i])) {
-         EPOLL_LOG(INFO) << "entry in index: " << i
-                         << " differs from recorder.";
-         return false;
-       }
-     }
+    if (records_.size() != records->size()) {
+      EPOLL_LOG(INFO) << "records_.size() (" << records_.size()
+                      << ") != records->size() (" << records->size() << ")";
+      return false;
+    }
+    for (size_t i = 0; i < std::min(records_.size(), records->size()); ++i) {
+      if (!records_[i].IsEqual(&(*records)[i])) {
+        EPOLL_LOG(INFO) << "entry in index: " << i << " differs from recorder.";
+        return false;
+      }
+    }
     return true;
   }
 
  private:
   std::vector<RecordEntry> records_;
 };
-
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -245,8 +242,7 @@ class EpollTestServer : public SimpleEpollServer {
 class EpollFunctionTest : public EpollTest {
  public:
   EpollFunctionTest()
-      : fd_(-1), fd2_(-1), recorder_(nullptr), cb_(nullptr), ep_(nullptr) {
-  }
+      : fd_(-1), fd2_(-1), recorder_(nullptr), cb_(nullptr), ep_(nullptr) {}
 
   ~EpollFunctionTest() override {
     delete ep_;
@@ -280,14 +276,14 @@ class EpollFunctionTest : public EpollTest {
 
   int fd() { return fd_; }
   int fd2() { return fd2_; }
-  EpollTestServer*  ep() { return ep_; }
+  EpollTestServer* ep() { return ep_; }
   EpollCallbackInterface* cb() { return cb_; }
   const Recorder* recorder() { return recorder_; }
 
  private:
   int fd_;
   int fd2_;
-  const Recorder *recorder_;
+  const Recorder* recorder_;
   RecordingCB* cb_;
   EpollTestServer* ep_;
 };
@@ -354,7 +350,7 @@ TEST_F(EpollFunctionTest, TestUnregisterFD) {
   ep()->CheckMapping(fd(), cb());
   ep()->CheckEventMask(fd(), EPOLLIN);
 
-    // Unregister and make sure that it's gone.
+  // Unregister and make sure that it's gone.
   ep()->UnregisterFD(fd());
   ep()->CheckNotMapped(fd());
   ep()->CheckNotRegistered(fd());
@@ -461,7 +457,7 @@ TEST_F(EpollFunctionTest, TestSet_timeout_in_us) {
 }
 
 TEST_F(EpollFunctionTest, TestHandleEvent) {
-  const std::vector<RecordEntry> *records = recorder()->records();
+  const std::vector<RecordEntry>* records = recorder()->records();
 
   // Test that nothing bad happens if the FD is not in the map.
   ep()->HandleEvent(fd(), EPOLLOUT);
@@ -542,16 +538,14 @@ TEST_F(EpollFunctionTest, TestEventMaskToString) {
 class TestAlarm : public EpollAlarmCallbackInterface {
  public:
   TestAlarm()
-    : time_before_next_alarm_(-1),
-      was_called_(false),
-      num_called_(0),
-      absolute_time_(false),
-      onshutdown_called_(false),
-      has_token_(false),
-      eps_(nullptr) {
-  }
-  ~TestAlarm() override {
-  }
+      : time_before_next_alarm_(-1),
+        was_called_(false),
+        num_called_(0),
+        absolute_time_(false),
+        onshutdown_called_(false),
+        has_token_(false),
+        eps_(nullptr) {}
+  ~TestAlarm() override {}
   int64_t OnAlarm() override {
     has_token_ = false;
     was_called_ = true;
@@ -576,9 +570,7 @@ class TestAlarm : public EpollAlarmCallbackInterface {
     last_token_ = token;
     eps_ = eps;
   }
-  void OnUnregistration() override {
-    has_token_ = false;
-  }
+  void OnUnregistration() override { has_token_ = false; }
 
   void UnregisterIfRegistered(SimpleEpollServer* eps) {
     if (has_token_) {
@@ -603,9 +595,7 @@ class TestAlarm : public EpollAlarmCallbackInterface {
   void set_time_before_next_alarm(int64_t time) {
     time_before_next_alarm_ = time;
   }
-  void set_absolute_time(bool absolute) {
-    absolute_time_ = absolute;
-  }
+  void set_absolute_time(bool absolute) { absolute_time_ = absolute; }
   bool onshutdown_called() { return onshutdown_called_; }
 
  protected:
@@ -760,12 +750,8 @@ class TestAlarmThatUnregistersAnotherAlarm : public TestAlarm {
 class TestAlarmUnregister : public TestAlarm {
  public:
   TestAlarmUnregister()
-      : onunregistration_called_(false),
-        iterator_token_(nullptr) {
-  }
-  ~TestAlarmUnregister() override {
-    delete iterator_token_;
-  }
+      : onunregistration_called_(false), iterator_token_(nullptr) {}
+  ~TestAlarmUnregister() override { delete iterator_token_; }
 
   void OnShutdown(SimpleEpollServer* /*eps*/) override {
     onshutdown_called_ = true;
@@ -886,7 +872,6 @@ TEST(SimpleEpollServerTest, TestRegisterAlarmApproximateDelta) {
 
   EXPECT_LT(first_now, second_now);
 
-
   // The alarm was a one-time thing.  Make sure that we don't hit it again.
   EXPECT_EQ(0u, ep.GetNumPendingAlarmsForTest());
   ep.WaitForEventsAndExecuteCallbacks();
@@ -964,7 +949,6 @@ TEST(SimpleEpollServerTest, TestAlarmsOneOnAlarmUnRegistersAnotherAlarm) {
   alarm.set_absolute_time(true);
   alarm.set_time_before_next_alarm(abs_time + 2);
 
-
   // Register two alarms and make sure we wait long enough to hit it.
   ep.RegisterAlarm(abs_time, &alarm);
   // This would cause us to unregister alarm when OnAlarm is called
@@ -992,7 +976,7 @@ TEST(SimpleEpollServerTest, TestRepeatAlarms) {
 
   // Register an alarm and make sure we wait long enough to hit it.
   ep.set_timeout_in_us(alarm_time * 1000 * 2);
-  alarm.set_time_before_next_alarm(1000*alarm_time);
+  alarm.set_time_before_next_alarm(1000 * alarm_time);
   ep.RegisterAlarm(WallTimeNowInUsec() + alarm_time, &alarm);
   EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
 
@@ -1280,7 +1264,7 @@ TEST(SimpleEpollServerTest, TestFiredReregisteredAlarm) {
   alarmA.set_time_before_next_alarm(1000 * 30);
   alarmA.set_absolute_time(true);
 
-// Alarm A first fires at 15, then 30
+  // Alarm A first fires at 15, then 30
   ep.RegisterAlarm(15 * 1000, &alarmA);
 
   found = alarmA.get_token(&first_token);
@@ -1377,7 +1361,7 @@ TEST(SimpleEpollServerTest, TestWrite) {
 
   RecordingCB recording_cb;
   const Recorder* recorder = recording_cb.recorder();
-  const std::vector<RecordEntry> *records = recorder->records();
+  const std::vector<RecordEntry>* records = recorder->records();
 
   // Register to listen to write events.
   ep.RegisterFD(write_fd, &recording_cb, EPOLLOUT | O_NONBLOCK);
@@ -1387,7 +1371,7 @@ TEST(SimpleEpollServerTest, TestWrite) {
 
   // Fill up the pipe.
   int written = 1;
-  for (int i = 0; i < 17 && written > 0 ; ++i) {
+  for (int i = 0; i < 17 && written > 0; ++i) {
     written = write(write_fd, &data, kPageSize);
   }
   EXPECT_LT(written, 0);
@@ -1438,7 +1422,7 @@ TEST(SimpleEpollServerTest, TestReadWrite) {
 
   RecordingCB recording_cb;
   const Recorder* recorder = recording_cb.recorder();
-  const std::vector<RecordEntry> *records = recorder->records();
+  const std::vector<RecordEntry>* records = recorder->records();
 
   // Register to listen to read and write events.
   ep.RegisterFDForReadWrite(read_fd, &recording_cb);
@@ -1472,11 +1456,11 @@ TEST(SimpleEpollServerTest, TestMultipleFDs) {
 
   RecordingCB recording_cb_one;
   const Recorder* recorder_one = recording_cb_one.recorder();
-  const std::vector<RecordEntry> *records_one = recorder_one->records();
+  const std::vector<RecordEntry>* records_one = recorder_one->records();
 
   RecordingCB recording_cb_two;
   const Recorder* recorder_two = recording_cb_two.recorder();
-  const std::vector<RecordEntry> *records_two = recorder_two->records();
+  const std::vector<RecordEntry>* records_two = recorder_two->records();
 
   // Register to listen to read events for both pipes
   ep.RegisterFDForRead(pipe_one[0], &recording_cb_one);
@@ -1536,16 +1520,16 @@ TEST(SimpleEpollServerTest, TestFDOnShutdown) {
   // Make sure OnShutdown was called for both callbacks.
   Recorder write_recorder;
   write_recorder.Record(&recording_cb1, CREATION, 0, 0);
-  write_recorder.Record(
-      &recording_cb1, REGISTRATION, write_fd, EPOLLOUT | O_NONBLOCK);
+  write_recorder.Record(&recording_cb1, REGISTRATION, write_fd,
+                        EPOLLOUT | O_NONBLOCK);
   write_recorder.Record(&recording_cb1, UNREGISTRATION, write_fd, false);
   write_recorder.Record(&recording_cb1, SHUTDOWN, write_fd, 0);
   EXPECT_TRUE(recorder1->IsEqual(&write_recorder));
 
   Recorder read_recorder;
   read_recorder.Record(&recording_cb2, CREATION, 0, 0);
-  read_recorder.Record(
-      &recording_cb2, REGISTRATION, read_fd, EPOLLIN | O_NONBLOCK);
+  read_recorder.Record(&recording_cb2, REGISTRATION, read_fd,
+                       EPOLLIN | O_NONBLOCK);
   read_recorder.Record(&recording_cb2, UNREGISTRATION, read_fd, false);
   read_recorder.Record(&recording_cb2, SHUTDOWN, read_fd, 0);
   EXPECT_TRUE(recorder2->IsEqual(&read_recorder));
@@ -1557,11 +1541,9 @@ TEST(SimpleEpollServerTest, TestFDOnShutdown) {
 class UnregisterCB : public EpollCallbackInterface {
  public:
   explicit UnregisterCB(int fd)
-    : eps_(nullptr), fd_(fd), onshutdown_called_(false) {
-  }
+      : eps_(nullptr), fd_(fd), onshutdown_called_(false) {}
 
-  ~UnregisterCB() override {
-  }
+  ~UnregisterCB() override {}
 
   void OnShutdown(SimpleEpollServer* /*eps*/, int fd) override {
     eps_->UnregisterFD(fd_);
@@ -1612,11 +1594,10 @@ TEST(SimpleEpollServerTest, TestUnregisteringFDsOnShutdown) {
   }
 
   // Make sure at least one onshutdown was called.
-  EXPECT_TRUE(unreg_cb1.onshutdown_called() ||
-              unreg_cb2.onshutdown_called());
+  EXPECT_TRUE(unreg_cb1.onshutdown_called() || unreg_cb2.onshutdown_called());
   // Make sure that both onshutdowns were not called.
-  EXPECT_TRUE(!(unreg_cb1.onshutdown_called() &&
-              unreg_cb2.onshutdown_called()));
+  EXPECT_TRUE(
+      !(unreg_cb1.onshutdown_called() && unreg_cb2.onshutdown_called()));
 
   close(read_fd);
   close(write_fd);
@@ -1634,7 +1615,7 @@ TEST(SimpleEpollServerTest, TestFDsAndAlarms) {
 
   RecordingCB recording_cb;
   const Recorder* recorder = recording_cb.recorder();
-  const std::vector<RecordEntry> *records = recorder->records();
+  const std::vector<RecordEntry>* records = recorder->records();
 
   TestAlarm alarm;
 
@@ -1670,12 +1651,10 @@ TEST(SimpleEpollServerTest, TestFDsAndAlarms) {
   close(pipe_fds[1]);
 }
 
-class EpollReader: public EpollCallbackInterface {
+class EpollReader : public EpollCallbackInterface {
  public:
   explicit EpollReader(int len)
-      : len_(0),
-        expected_len_(len),
-        done_reading_(false) {
+      : len_(0), expected_len_(len), done_reading_(false) {
     memset(&buf_, 0, kMaxBufLen);
   }
 
@@ -1725,7 +1704,7 @@ class EpollReader: public EpollCallbackInterface {
   bool done_reading_;
 };
 
-void TestPipe(char *test_message, int len) {
+void TestPipe(char* test_message, int len) {
   int pipe_fds[2];
   if (pipe(pipe_fds) < 0) {
     EPOLL_PLOG(FATAL) << "pipe failed()";
@@ -1737,7 +1716,7 @@ void TestPipe(char *test_message, int len) {
 
   switch (child_pid = fork()) {
     case 0: {  // Child will send message.
-      const char *message = test_message;
+      const char* message = test_message;
       int size;
       close(reader_pipe);
       while ((size = write(writer_pipe, message, len)) > 0) {
@@ -1852,9 +1831,7 @@ class EdgeTriggerCB : public EpollCallbackInterface {
     write_closed_ = false;
   }
 
-  void ResetByteCounts() {
-    bytes_read_ = bytes_written_ = 0;
-  }
+  void ResetByteCounts() { bytes_read_ = bytes_written_ = 0; }
 
   void set_will_read(bool will_read) { will_read_ = will_read; }
 
@@ -1954,7 +1931,7 @@ class EdgeTriggerCB : public EpollCallbackInterface {
   int bytes_read_;
   std::vector<char> write_buf_;
   int bytes_written_;
-  char peer_char_;   // The char we expected to read.
+  char peer_char_;  // The char we expected to read.
   bool can_read_;
   bool will_read_;
   bool can_write_;
@@ -2041,11 +2018,10 @@ class EPSWaitThread : public EpollThread {
   explicit EPSWaitThread(SimpleEpollServer* eps)
       : EpollThread("EPSWait"), eps_(eps), done_(false) {}
 
-  void Run() override {
-    eps_->WaitForEventsAndExecuteCallbacks();
-  }
+  void Run() override { eps_->WaitForEventsAndExecuteCallbacks(); }
 
   bool done() { return done_; }
+
  private:
   SimpleEpollServer* eps_;
   bool done_;
@@ -2062,12 +2038,11 @@ TEST(EpollServerTest, TestWake) {
   eps_thread.Join();
 }
 
-class UnRegisterWhileProcessingCB: public EpollCallbackInterface {
+class UnRegisterWhileProcessingCB : public EpollCallbackInterface {
  public:
   explicit UnRegisterWhileProcessingCB(int fd) : eps_(nullptr), fd_(fd) {}
 
-  ~UnRegisterWhileProcessingCB() override {
-  }
+  ~UnRegisterWhileProcessingCB() override {}
 
   void OnShutdown(SimpleEpollServer* /*eps*/, int /*fd*/) override {}
 
@@ -2087,13 +2062,12 @@ class UnRegisterWhileProcessingCB: public EpollCallbackInterface {
   int fd_;
 };
 
-class RegisterWhileProcessingCB: public EpollCallbackInterface {
+class RegisterWhileProcessingCB : public EpollCallbackInterface {
  public:
   RegisterWhileProcessingCB(int fd, EpollCallbackInterface* cb)
-    : eps_(nullptr), fd_(fd), cb_(cb) {}
+      : eps_(nullptr), fd_(fd), cb_(cb) {}
 
-  ~RegisterWhileProcessingCB() override {
-  }
+  ~RegisterWhileProcessingCB() override {}
 
   void OnShutdown(SimpleEpollServer* /*eps*/, int /*fd*/) override {}
 
@@ -2169,17 +2143,15 @@ TEST(SimpleEpollServerTest,
 
   Recorder correct_recorder;
   correct_recorder.Record(&recorder_cb, CREATION, 0, 0);
-  correct_recorder.Record(&recorder_cb, REGISTRATION, -3,
-                          EPOLLIN | EPOLLOUT);
+  correct_recorder.Record(&recorder_cb, REGISTRATION, -3, EPOLLIN | EPOLLOUT);
   correct_recorder.Record(&recorder_cb, UNREGISTRATION, -3, 0);
-  correct_recorder.Record(&recorder_cb, REGISTRATION, -3,
-                          EPOLLIN | EPOLLOUT);
+  correct_recorder.Record(&recorder_cb, REGISTRATION, -3, EPOLLIN | EPOLLOUT);
   correct_recorder.Record(&recorder_cb, SHUTDOWN, -3, 0);
 
   EXPECT_TRUE(correct_recorder.IsEqual(recorder_cb.recorder()));
 }
 
-class ReRegWhileReadyListOnEvent: public EpollCallbackInterface {
+class ReRegWhileReadyListOnEvent : public EpollCallbackInterface {
  public:
   explicit ReRegWhileReadyListOnEvent(int /*fd*/) : eps_(nullptr) {}
 
@@ -2219,7 +2191,7 @@ TEST(SimpleEpollServerTest,
   }
 }
 
-class UnRegEverythingReadyListOnEvent: public EpollCallbackInterface {
+class UnRegEverythingReadyListOnEvent : public EpollCallbackInterface {
  public:
   UnRegEverythingReadyListOnEvent() : eps_(nullptr), fd_(0), fd_range_(0) {}
 
@@ -2304,7 +2276,7 @@ TEST(SimpleEpollServerTest,
   EXPECT_EQ(epoll_server.ApproximateNowInUsec(), epoll_server.NowInUsec());
 }
 
-class ApproximateNowInUsecTestCB: public EpollCallbackInterface {
+class ApproximateNowInUsecTestCB : public EpollCallbackInterface {
  public:
   ApproximateNowInUsecTestCB() : feps_(nullptr), called_(false) {}
 
@@ -2369,12 +2341,11 @@ class FakeEpollServerWithDelay : public FakeSimpleEpollServer {
 };
 
 // A callback that records the epoll event's delay.
-class RecordDelayOnEvent: public EpollCallbackInterface {
+class RecordDelayOnEvent : public EpollCallbackInterface {
  public:
   RecordDelayOnEvent() : last_delay(-1), eps_(nullptr) {}
 
-  ~RecordDelayOnEvent() override {
-  }
+  ~RecordDelayOnEvent() override {}
 
   void OnShutdown(SimpleEpollServer* /*eps*/, int /*fd*/) override {}
 
