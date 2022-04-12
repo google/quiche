@@ -7,7 +7,7 @@
 
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_types.h"
-#include "third_party/quic_trace/lib/quic_trace.pb.h"
+#include "third_party/quic_trace/quic_trace/quic_trace.pb.h"
 
 namespace quic {
 
