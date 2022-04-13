@@ -25,8 +25,7 @@ struct QUIC_EXPORT_PRIVATE QuicBlockedFrame
                    QuicStreamOffset offset);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicBlockedFrame& b);
+      std::ostream& os, const QuicBlockedFrame& b);
 
   QuicFrameType type;
 

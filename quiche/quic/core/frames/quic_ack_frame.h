@@ -83,8 +83,7 @@ class QUIC_EXPORT_PRIVATE PacketNumberQueue {
   const_reverse_iterator rend() const;
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const PacketNumberQueue& q);
+      std::ostream& os, const PacketNumberQueue& q);
 
  private:
   QuicIntervalSet<QuicPacketNumber> packet_number_intervals_;
@@ -98,8 +97,7 @@ struct QUIC_EXPORT_PRIVATE QuicAckFrame {
   void Clear();
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicAckFrame& ack_frame);
+      std::ostream& os, const QuicAckFrame& ack_frame);
 
   // The highest packet number we've observed from the peer. When |packets| is
   // not empty, it should always be equal to packets.Max(). The |LargestAcked|
@@ -139,8 +137,7 @@ LargestAcked(const QuicAckFrame& frame) {
 // as missing.
 // Always returns false for packet numbers less than least_unacked.
 QUIC_EXPORT_PRIVATE bool IsAwaitingPacket(
-    const QuicAckFrame& ack_frame,
-    QuicPacketNumber packet_number,
+    const QuicAckFrame& ack_frame, QuicPacketNumber packet_number,
     QuicPacketNumber peer_least_packet_awaiting_ack);
 
 }  // namespace quic

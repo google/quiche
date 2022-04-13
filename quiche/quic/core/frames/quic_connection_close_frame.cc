@@ -13,10 +13,8 @@
 namespace quic {
 
 QuicConnectionCloseFrame::QuicConnectionCloseFrame(
-    QuicTransportVersion transport_version,
-    QuicErrorCode error_code,
-    QuicIetfTransportErrorCodes ietf_error,
-    std::string error_phrase,
+    QuicTransportVersion transport_version, QuicErrorCode error_code,
+    QuicIetfTransportErrorCodes ietf_error, std::string error_phrase,
     uint64_t frame_type)
     : quic_error_code(error_code), error_details(error_phrase) {
   if (!VersionHasIetfQuicFrames(transport_version)) {
@@ -44,8 +42,7 @@ QuicConnectionCloseFrame::QuicConnectionCloseFrame(
 }
 
 std::ostream& operator<<(
-    std::ostream& os,
-    const QuicConnectionCloseFrame& connection_close_frame) {
+    std::ostream& os, const QuicConnectionCloseFrame& connection_close_frame) {
   os << "{ Close type: " << connection_close_frame.close_type;
   switch (connection_close_frame.close_type) {
     case IETF_QUIC_TRANSPORT_CONNECTION_CLOSE:

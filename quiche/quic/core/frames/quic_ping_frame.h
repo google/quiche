@@ -20,8 +20,7 @@ struct QUIC_EXPORT_PRIVATE QuicPingFrame
   explicit QuicPingFrame(QuicControlFrameId control_frame_id);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicPingFrame& ping_frame);
+      std::ostream& os, const QuicPingFrame& ping_frame);
 
   QuicFrameType type;
 

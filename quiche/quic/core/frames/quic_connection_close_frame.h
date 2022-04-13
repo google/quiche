@@ -32,8 +32,7 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
                            uint64_t transport_close_frame_type);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicConnectionCloseFrame& c);
+      std::ostream& os, const QuicConnectionCloseFrame& c);
 
   // Indicates whether the the frame is a Google QUIC CONNECTION_CLOSE frame,
   // an IETF QUIC CONNECTION_CLOSE frame with transport error code,

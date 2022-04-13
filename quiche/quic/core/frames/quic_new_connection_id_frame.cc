@@ -7,11 +7,9 @@
 namespace quic {
 
 QuicNewConnectionIdFrame::QuicNewConnectionIdFrame(
-    QuicControlFrameId control_frame_id,
-    QuicConnectionId connection_id,
+    QuicControlFrameId control_frame_id, QuicConnectionId connection_id,
     QuicConnectionIdSequenceNumber sequence_number,
-    StatelessResetToken stateless_reset_token,
-    uint64_t retire_prior_to)
+    StatelessResetToken stateless_reset_token, uint64_t retire_prior_to)
     : control_frame_id(control_frame_id),
       connection_id(connection_id),
       sequence_number(sequence_number),

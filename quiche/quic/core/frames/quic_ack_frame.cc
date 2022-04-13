@@ -102,9 +102,7 @@ void PacketNumberQueue::RemoveSmallestInterval() {
   packet_number_intervals_.PopFront();
 }
 
-void PacketNumberQueue::Clear() {
-  packet_number_intervals_.Clear();
-}
+void PacketNumberQueue::Clear() { packet_number_intervals_.Clear(); }
 
 bool PacketNumberQueue::Contains(QuicPacketNumber packet_number) const {
   if (!packet_number.IsInitialized()) {

@@ -10,8 +10,7 @@ QuicStreamsBlockedFrame::QuicStreamsBlockedFrame()
     : QuicInlinedFrame(STREAMS_BLOCKED_FRAME) {}
 
 QuicStreamsBlockedFrame::QuicStreamsBlockedFrame(
-    QuicControlFrameId control_frame_id,
-    QuicStreamCount stream_count,
+    QuicControlFrameId control_frame_id, QuicStreamCount stream_count,
     bool unidirectional)
     : QuicInlinedFrame(STREAMS_BLOCKED_FRAME),
       control_frame_id(control_frame_id),

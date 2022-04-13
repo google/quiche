@@ -20,8 +20,7 @@ struct QUIC_EXPORT_PRIVATE QuicHandshakeDoneFrame
   explicit QuicHandshakeDoneFrame(QuicControlFrameId control_frame_id);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicHandshakeDoneFrame& handshake_done_frame);
+      std::ostream& os, const QuicHandshakeDoneFrame& handshake_done_frame);
 
   QuicFrameType type;
 

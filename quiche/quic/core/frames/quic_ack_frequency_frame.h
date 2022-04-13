@@ -18,13 +18,11 @@ namespace quic {
 // A frame that allows sender control of acknowledgement delays.
 struct QUIC_EXPORT_PRIVATE QuicAckFrequencyFrame {
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicAckFrequencyFrame& ack_frequency_frame);
+      std::ostream& os, const QuicAckFrequencyFrame& ack_frequency_frame);
 
   QuicAckFrequencyFrame() = default;
   QuicAckFrequencyFrame(QuicControlFrameId control_frame_id,
-                        uint64_t sequence_number,
-                        uint64_t packet_tolerance,
+                        uint64_t sequence_number, uint64_t packet_tolerance,
                         QuicTime::Delta max_ack_delay);
 
   // A unique identifier of this control frame. 0 when this frame is

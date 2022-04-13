@@ -22,8 +22,7 @@ struct QUIC_EXPORT_PRIVATE QuicPaddingFrame
       : QuicInlinedFrame(PADDING_FRAME), num_padding_bytes(num_padding_bytes) {}
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicPaddingFrame& padding_frame);
+      std::ostream& os, const QuicPaddingFrame& padding_frame);
 
   QuicFrameType type;
 

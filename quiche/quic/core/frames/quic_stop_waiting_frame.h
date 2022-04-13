@@ -18,8 +18,7 @@ struct QUIC_EXPORT_PRIVATE QuicStopWaitingFrame
   QuicStopWaitingFrame();
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicStopWaitingFrame& s);
+      std::ostream& os, const QuicStopWaitingFrame& s);
 
   QuicFrameType type;
 

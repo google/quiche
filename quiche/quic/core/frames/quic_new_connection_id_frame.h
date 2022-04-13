@@ -23,8 +23,7 @@ struct QUIC_EXPORT_PRIVATE QuicNewConnectionIdFrame {
                            uint64_t retire_prior_to);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicNewConnectionIdFrame& frame);
+      std::ostream& os, const QuicNewConnectionIdFrame& frame);
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.

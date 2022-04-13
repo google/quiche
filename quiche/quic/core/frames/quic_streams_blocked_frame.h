@@ -21,12 +21,10 @@ struct QUIC_EXPORT_PRIVATE QuicStreamsBlockedFrame
     : public QuicInlinedFrame<QuicStreamsBlockedFrame> {
   QuicStreamsBlockedFrame();
   QuicStreamsBlockedFrame(QuicControlFrameId control_frame_id,
-                          QuicStreamCount stream_count,
-                          bool unidirectional);
+                          QuicStreamCount stream_count, bool unidirectional);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicStreamsBlockedFrame& frame);
+      std::ostream& os, const QuicStreamsBlockedFrame& frame);
 
   QuicFrameType type;
 

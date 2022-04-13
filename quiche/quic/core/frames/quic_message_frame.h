@@ -33,8 +33,7 @@ struct QUIC_EXPORT_PRIVATE QuicMessageFrame {
   ~QuicMessageFrame();
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicMessageFrame& s);
+      std::ostream& os, const QuicMessageFrame& s);
 
   // message_id is only used on the sender side and does not get serialized on
   // wire.

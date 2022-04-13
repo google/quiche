@@ -16,11 +16,9 @@ namespace quic {
 
 struct QUIC_EXPORT_PRIVATE QuicCryptoFrame {
   QuicCryptoFrame() = default;
-  QuicCryptoFrame(EncryptionLevel level,
-                  QuicStreamOffset offset,
+  QuicCryptoFrame(EncryptionLevel level, QuicStreamOffset offset,
                   QuicPacketLength data_length);
-  QuicCryptoFrame(EncryptionLevel level,
-                  QuicStreamOffset offset,
+  QuicCryptoFrame(EncryptionLevel level, QuicStreamOffset offset,
                   absl::string_view data);
   ~QuicCryptoFrame();
 
@@ -37,10 +35,8 @@ struct QUIC_EXPORT_PRIVATE QuicCryptoFrame {
   const char* data_buffer = nullptr;
   QuicStreamOffset offset = 0;  // Location of this data in the stream.
 
-  QuicCryptoFrame(EncryptionLevel level,
-                  QuicStreamOffset offset,
-                  const char* data_buffer,
-                  QuicPacketLength data_length);
+  QuicCryptoFrame(EncryptionLevel level, QuicStreamOffset offset,
+                  const char* data_buffer, QuicPacketLength data_length);
 };
 static_assert(sizeof(QuicCryptoFrame) <= 64,
               "Keep the QuicCryptoFrame size to a cacheline.");

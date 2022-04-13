@@ -24,8 +24,7 @@ struct QUIC_EXPORT_PRIVATE QuicStopSendingFrame
                        QuicStreamId stream_id, QuicResetStreamError error);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicStopSendingFrame& frame);
+      std::ostream& os, const QuicStopSendingFrame& frame);
 
   QuicFrameType type;
 

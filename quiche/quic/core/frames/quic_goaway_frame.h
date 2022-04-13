@@ -16,10 +16,8 @@ namespace quic {
 
 struct QUIC_EXPORT_PRIVATE QuicGoAwayFrame {
   QuicGoAwayFrame() = default;
-  QuicGoAwayFrame(QuicControlFrameId control_frame_id,
-                  QuicErrorCode error_code,
-                  QuicStreamId last_good_stream_id,
-                  const std::string& reason);
+  QuicGoAwayFrame(QuicControlFrameId control_frame_id, QuicErrorCode error_code,
+                  QuicStreamId last_good_stream_id, const std::string& reason);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                                       const QuicGoAwayFrame& g);

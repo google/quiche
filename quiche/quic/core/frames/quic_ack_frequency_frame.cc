@@ -3,16 +3,15 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+
 #include <cstdint>
 #include <limits>
 
 namespace quic {
 
 QuicAckFrequencyFrame::QuicAckFrequencyFrame(
-    QuicControlFrameId control_frame_id,
-    uint64_t sequence_number,
-    uint64_t packet_tolerance,
-    QuicTime::Delta max_ack_delay)
+    QuicControlFrameId control_frame_id, uint64_t sequence_number,
+    uint64_t packet_tolerance, QuicTime::Delta max_ack_delay)
     : control_frame_id(control_frame_id),
       sequence_number(sequence_number),
       packet_tolerance(packet_tolerance),

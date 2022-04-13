@@ -21,12 +21,10 @@ struct QUIC_EXPORT_PRIVATE QuicMaxStreamsFrame
     : public QuicInlinedFrame<QuicMaxStreamsFrame> {
   QuicMaxStreamsFrame();
   QuicMaxStreamsFrame(QuicControlFrameId control_frame_id,
-                      QuicStreamCount stream_count,
-                      bool unidirectional);
+                      QuicStreamCount stream_count, bool unidirectional);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicMaxStreamsFrame& frame);
+      std::ostream& os, const QuicMaxStreamsFrame& frame);
 
   QuicFrameType type;
 

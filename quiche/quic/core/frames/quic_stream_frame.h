@@ -18,13 +18,9 @@ namespace quic {
 struct QUIC_EXPORT_PRIVATE QuicStreamFrame
     : public QuicInlinedFrame<QuicStreamFrame> {
   QuicStreamFrame();
-  QuicStreamFrame(QuicStreamId stream_id,
-                  bool fin,
-                  QuicStreamOffset offset,
+  QuicStreamFrame(QuicStreamId stream_id, bool fin, QuicStreamOffset offset,
                   absl::string_view data);
-  QuicStreamFrame(QuicStreamId stream_id,
-                  bool fin,
-                  QuicStreamOffset offset,
+  QuicStreamFrame(QuicStreamId stream_id, bool fin, QuicStreamOffset offset,
                   QuicPacketLength data_length);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -43,11 +39,8 @@ struct QUIC_EXPORT_PRIVATE QuicStreamFrame
   const char* data_buffer = nullptr;  // Not owned.
   QuicStreamOffset offset = 0;        // Location of this data in the stream.
 
-  QuicStreamFrame(QuicStreamId stream_id,
-                  bool fin,
-                  QuicStreamOffset offset,
-                  const char* data_buffer,
-                  QuicPacketLength data_length);
+  QuicStreamFrame(QuicStreamId stream_id, bool fin, QuicStreamOffset offset,
+                  const char* data_buffer, QuicPacketLength data_length);
 };
 static_assert(sizeof(QuicStreamFrame) <= 64,
               "Keep the QuicStreamFrame size to a cacheline.");

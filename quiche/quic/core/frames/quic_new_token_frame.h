@@ -21,8 +21,7 @@ struct QUIC_EXPORT_PRIVATE QuicNewTokenFrame {
                     absl::string_view token);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const QuicNewTokenFrame& s);
+      std::ostream& os, const QuicNewTokenFrame& s);
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.
