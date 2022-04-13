@@ -4,6 +4,9 @@
 
 #include "quiche/quic/load_balancer/load_balancer_config.h"
 
+#include <cstdint>
+
+#include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -91,27 +94,26 @@ TEST_F(LoadBalancerConfigTest, TestEncryptionPassExample) {
   std::array<uint8_t, 7> bytes = {
       0x31, 0x44, 0x1a, 0x9c, 0x69, 0xc2, 0x75,
   };
-  EXPECT_FALSE(config->EncryptionPass(nullptr, 0));
-  EXPECT_TRUE(config->EncryptionPass(bytes.data(), 1));
+  // Input is too short.
+  EXPECT_FALSE(config->EncryptionPass(absl::Span<uint8_t>(bytes.data(), 6), 0));
+  EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 1));
   EXPECT_TRUE((bytes == std::array<uint8_t, 7>(
                             {0x31, 0x44, 0x1a, 0x9d, 0xbc, 0x04, 0x26})));
-  EXPECT_TRUE(config->EncryptionPass(bytes.data(), 2));
+  EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 2));
   EXPECT_TRUE((bytes == std::array<uint8_t, 7>(
                             {0x4f, 0xdd, 0x0c, 0x9d, 0xbc, 0x04, 0x26})));
-  EXPECT_TRUE(config->EncryptionPass(bytes.data(), 3));
+  EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 3));
   EXPECT_TRUE((bytes == std::array<uint8_t, 7>(
                             {0x4f, 0xdd, 0x0c, 0x9b, 0xba, 0x1e, 0xe0})));
-  EXPECT_TRUE(config->EncryptionPass(bytes.data(), 4));
+  EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 4));
   EXPECT_TRUE((bytes == std::array<uint8_t, 7>(
                             {0xe2, 0x3c, 0xb4, 0x2b, 0xba, 0x1e, 0xe0})));
 }
 
 TEST_F(LoadBalancerConfigTest, EncryptionPassPlaintext) {
   auto config = LoadBalancerConfig::CreateUnencrypted(0, 3, 4);
-  std::array<uint8_t, 7> bytes = {
-      0x31, 0x44, 0x1a, 0x9c, 0x69, 0xc2, 0x75,
-  };
-  EXPECT_FALSE(config->EncryptionPass(bytes.data(), 1));
+  std::array<uint8_t, 7> bytes = {0x31, 0x44, 0x1a, 0x9c, 0x69, 0xc2, 0x75};
+  EXPECT_FALSE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 1));
 }
 
 TEST_F(LoadBalancerConfigTest, InvalidBlockEncryption) {
@@ -119,7 +121,7 @@ TEST_F(LoadBalancerConfigTest, InvalidBlockEncryption) {
   auto pt_config = LoadBalancerConfig::CreateUnencrypted(0, 8, 8);
   EXPECT_FALSE(pt_config->BlockEncrypt(pt, ct));
   EXPECT_FALSE(pt_config->BlockDecrypt(ct, pt));
-  EXPECT_FALSE(pt_config->EncryptionPass(pt, 0));
+  EXPECT_FALSE(pt_config->EncryptionPass(absl::Span<uint8_t>(pt), 0));
   auto small_cid_config =
       LoadBalancerConfig::Create(0, 3, 4, absl::string_view(raw_key, 16));
   EXPECT_TRUE(small_cid_config->BlockEncrypt(pt, ct));

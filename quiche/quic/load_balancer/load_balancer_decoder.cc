@@ -61,7 +61,7 @@ absl::optional<LoadBalancerServerId> LoadBalancerDecoder::GetServerId(
     memcpy(result, data, config->plaintext_len());
     uint8_t end = (config->server_id_len() > config->nonce_len()) ? 1 : 2;
     for (uint8_t i = kNumLoadBalancerCryptoPasses; i >= end; i--) {
-      if (!config->EncryptionPass(result, i)) {
+      if (!config->EncryptionPass(absl::Span<uint8_t>(result), i)) {
         return absl::optional<LoadBalancerServerId>();
       }
     }

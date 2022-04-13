@@ -47,8 +47,9 @@ class QUIC_EXPORT_PRIVATE LoadBalancerConfig {
 
   // Handles one pass of 4-pass encryption. Encoder and decoder use of this
   // function varies substantially, so they are not implemented here.
-  // Returns false if the config is not encrypted.
-  ABSL_MUST_USE_RESULT bool EncryptionPass(uint8_t *target,
+  // Returns false if the config is not encrypted, or if |target| isn't long
+  // enough.
+  ABSL_MUST_USE_RESULT bool EncryptionPass(absl::Span<uint8_t> target,
                                            const uint8_t index) const;
   // Use the key to do a block encryption, which is used both in all cases of
   // encrypted configs. Returns false if there's no key.
