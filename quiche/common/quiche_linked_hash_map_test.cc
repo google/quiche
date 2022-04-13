@@ -297,9 +297,7 @@ TEST(LinkedHashMapTest, Insertion) {
       << "Duplicate insertion should have given us the original iterator.";
 }
 
-static std::pair<int, int> Pair(int i, int j) {
-  return {i, j};
-}
+static std::pair<int, int> Pair(int i, int j) { return {i, j}; }
 
 // Test front accessors.
 TEST(LinkedHashMapTest, Front) {

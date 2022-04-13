@@ -27,19 +27,12 @@
 namespace quic {
 
 QuicTransportClientSession::QuicTransportClientSession(
-    QuicConnection* connection,
-    Visitor* owner,
-    const QuicConfig& config,
-    const ParsedQuicVersionVector& supported_versions,
-    const GURL& url,
-    QuicCryptoClientConfig* crypto_config,
-    url::Origin origin,
+    QuicConnection* connection, Visitor* owner, const QuicConfig& config,
+    const ParsedQuicVersionVector& supported_versions, const GURL& url,
+    QuicCryptoClientConfig* crypto_config, url::Origin origin,
     WebTransportVisitor* visitor,
     std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer)
-    : QuicSession(connection,
-                  owner,
-                  config,
-                  supported_versions,
+    : QuicSession(connection, owner, config, supported_versions,
                   /*num_expected_unidirectional_static_streams*/ 0,
                   std::move(datagram_observer)),
       url_(url),

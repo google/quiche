@@ -19,9 +19,7 @@ namespace quiche {
 namespace test {
 namespace {
 
-char* AsChars(unsigned char* data) {
-  return reinterpret_cast<char*>(data);
-}
+char* AsChars(unsigned char* data) { return reinterpret_cast<char*>(data); }
 
 struct TestParams {
   explicit TestParams(quiche::Endianness endianness) : endianness(endianness) {}
@@ -47,8 +45,7 @@ std::vector<TestParams> GetTestParams() {
 
 class QuicheDataWriterTest : public QuicheTestWithParam<TestParams> {};
 
-INSTANTIATE_TEST_SUITE_P(QuicheDataWriterTests,
-                         QuicheDataWriterTest,
+INSTANTIATE_TEST_SUITE_P(QuicheDataWriterTests, QuicheDataWriterTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 

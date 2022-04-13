@@ -54,8 +54,7 @@ ParsedQuicVersionVector GetVersions() {
 
 class QuicTransportEndpointBase : public QuicEndpointBase {
  public:
-  QuicTransportEndpointBase(Simulator* simulator,
-                            const std::string& name,
+  QuicTransportEndpointBase(Simulator* simulator, const std::string& name,
                             const std::string& peer_name,
                             Perspective perspective)
       : QuicEndpointBase(simulator, name, peer_name) {
@@ -71,25 +70,16 @@ class QuicTransportEndpointBase : public QuicEndpointBase {
 
 class QuicTransportClientEndpoint : public QuicTransportEndpointBase {
  public:
-  QuicTransportClientEndpoint(Simulator* simulator,
-                              const std::string& name,
+  QuicTransportClientEndpoint(Simulator* simulator, const std::string& name,
                               const std::string& peer_name,
-                              const QuicConfig& config,
-                              url::Origin origin,
+                              const QuicConfig& config, url::Origin origin,
                               const std::string& path)
-      : QuicTransportEndpointBase(simulator,
-                                  name,
-                                  peer_name,
+      : QuicTransportEndpointBase(simulator, name, peer_name,
                                   Perspective::IS_CLIENT),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting()),
-        session_(connection_.get(),
-                 nullptr,
-                 config,
-                 GetVersions(),
+        session_(connection_.get(), nullptr, config, GetVersions(),
                  GURL("quic-transport://test.example.com:50000" + path),
-                 &crypto_config_,
-                 origin,
-                 &visitor_,
+                 &crypto_config_, origin, &visitor_,
                  /*datagram_observer=*/nullptr) {
     session_.Initialize();
   }
@@ -105,14 +95,11 @@ class QuicTransportClientEndpoint : public QuicTransportEndpointBase {
 
 class QuicTransportServerEndpoint : public QuicTransportEndpointBase {
  public:
-  QuicTransportServerEndpoint(Simulator* simulator,
-                              const std::string& name,
+  QuicTransportServerEndpoint(Simulator* simulator, const std::string& name,
                               const std::string& peer_name,
                               const QuicConfig& config,
                               std::vector<url::Origin> accepted_origins)
-      : QuicTransportEndpointBase(simulator,
-                                  name,
-                                  peer_name,
+      : QuicTransportEndpointBase(simulator, name, peer_name,
                                   Perspective::IS_SERVER),
         crypto_config_(QuicCryptoServerConfig::TESTING,
                        QuicRandom::GetInstance(),
@@ -121,13 +108,8 @@ class QuicTransportServerEndpoint : public QuicTransportEndpointBase {
         compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
         session_(connection_.get(),
-                 /*owns_connection=*/false,
-                 nullptr,
-                 config,
-                 GetVersions(),
-                 &crypto_config_,
-                 &compressed_certs_cache_,
-                 accepted_origins) {
+                 /*owns_connection=*/false, nullptr, config, GetVersions(),
+                 &crypto_config_, &compressed_certs_cache_, accepted_origins) {
     session_.Initialize();
   }
 

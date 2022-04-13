@@ -22,8 +22,7 @@ QuicheDataReader::QuicheDataReader(absl::string_view data)
 QuicheDataReader::QuicheDataReader(const char* data, const size_t len)
     : QuicheDataReader(data, len, quiche::NETWORK_BYTE_ORDER) {}
 
-QuicheDataReader::QuicheDataReader(const char* data,
-                                   const size_t len,
+QuicheDataReader::QuicheDataReader(const char* data, const size_t len,
                                    quiche::Endianness endianness)
     : data_(data), len_(len), pos_(0), endianness_(endianness) {}
 
@@ -187,13 +186,9 @@ bool QuicheDataReader::Seek(size_t size) {
   return true;
 }
 
-bool QuicheDataReader::IsDoneReading() const {
-  return len_ == pos_;
-}
+bool QuicheDataReader::IsDoneReading() const { return len_ == pos_; }
 
-size_t QuicheDataReader::BytesRemaining() const {
-  return len_ - pos_;
-}
+size_t QuicheDataReader::BytesRemaining() const { return len_ - pos_; }
 
 bool QuicheDataReader::TruncateRemaining(size_t truncation_length) {
   if (truncation_length > BytesRemaining()) {

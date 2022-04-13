@@ -40,13 +40,9 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
       public QuicCryptoClientStream::ProofHandler {
  public:
   QuicTransportClientSession(
-      QuicConnection* connection,
-      Visitor* owner,
-      const QuicConfig& config,
-      const ParsedQuicVersionVector& supported_versions,
-      const GURL& url,
-      QuicCryptoClientConfig* crypto_config,
-      url::Origin origin,
+      QuicConnection* connection, Visitor* owner, const QuicConfig& config,
+      const ParsedQuicVersionVector& supported_versions, const GURL& url,
+      QuicCryptoClientConfig* crypto_config, url::Origin origin,
       WebTransportVisitor* visitor,
       std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer);
 

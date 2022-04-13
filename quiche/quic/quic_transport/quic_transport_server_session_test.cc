@@ -57,9 +57,7 @@ ParsedQuicVersionVector GetVersions() {
 class QuicTransportServerSessionTest : public QuicTest {
  public:
   QuicTransportServerSessionTest()
-      : connection_(&helper_,
-                    &alarm_factory_,
-                    Perspective::IS_SERVER,
+      : connection_(&helper_, &alarm_factory_, Perspective::IS_SERVER,
                     GetVersions()),
         crypto_config_(QuicCryptoServerConfig::TESTING,
                        QuicRandom::GetInstance(),

@@ -14,16 +14,13 @@
 namespace quic {
 
 QuicTransportStream::QuicTransportStream(
-    QuicStreamId id,
-    QuicSession* session,
+    QuicStreamId id, QuicSession* session,
     QuicTransportSessionInterface* session_interface)
-    : QuicStream(id,
-                 session,
+    : QuicStream(id, session,
                  /*is_static=*/false,
-                 QuicUtils::GetStreamType(id,
-                                          session->connection()->perspective(),
-                                          session->IsIncomingStream(id),
-                                          session->version())),
+                 QuicUtils::GetStreamType(
+                     id, session->connection()->perspective(),
+                     session->IsIncomingStream(id), session->version())),
       adapter_(session, this, sequencer()),
       session_interface_(session_interface) {}
 
@@ -72,9 +69,7 @@ size_t QuicTransportStream::ReadableBytes() const {
   return adapter_.ReadableBytes();
 }
 
-void QuicTransportStream::OnDataAvailable() {
-  adapter_.OnDataAvailable();
-}
+void QuicTransportStream::OnDataAvailable() { adapter_.OnDataAvailable(); }
 
 void QuicTransportStream::OnCanWriteNewData() {
   // Ensure the origin check has been completed, as the stream can be notified

@@ -37,8 +37,7 @@ namespace quiche {
 // inserted or erased in the middle.
 //
 // TODO(wub): Make memory grow/shrink strategies customizable.
-template <typename T,
-          size_t MinCapacityIncrement = 3,
+template <typename T, size_t MinCapacityIncrement = 3,
           typename Allocator = std::allocator<T>>
 class QUICHE_NO_EXPORT QuicheCircularDeque {
   using AllocatorTraits = std::allocator_traits<Allocator>;
@@ -214,8 +213,7 @@ class QUICHE_NO_EXPORT QuicheCircularDeque {
   explicit QuicheCircularDeque(const allocator_type& alloc)
       : allocator_and_data_(alloc) {}
 
-  QuicheCircularDeque(size_type count,
-                      const T& value,
+  QuicheCircularDeque(size_type count, const T& value,
                       const Allocator& alloc = allocator_type())
       : allocator_and_data_(alloc) {
     resize(count, value);
@@ -232,8 +230,7 @@ class QUICHE_NO_EXPORT QuicheCircularDeque {
       typename = std::enable_if_t<std::is_base_of<
           std::input_iterator_tag,
           typename std::iterator_traits<InputIt>::iterator_category>::value>>
-  QuicheCircularDeque(InputIt first,
-                      InputIt last,
+  QuicheCircularDeque(InputIt first, InputIt last,
                       const Allocator& alloc = allocator_type())
       : allocator_and_data_(alloc) {
     AssignRange(first, last);
@@ -241,9 +238,8 @@ class QUICHE_NO_EXPORT QuicheCircularDeque {
 
   QuicheCircularDeque(const QuicheCircularDeque& other)
       : QuicheCircularDeque(
-            other,
-            AllocatorTraits::select_on_container_copy_construction(
-                other.allocator_and_data_.allocator())) {}
+            other, AllocatorTraits::select_on_container_copy_construction(
+                       other.allocator_and_data_.allocator())) {}
 
   QuicheCircularDeque(const QuicheCircularDeque& other,
                       const allocator_type& alloc)
@@ -499,8 +495,7 @@ class QUICHE_NO_EXPORT QuicheCircularDeque {
   }
 
   friend QUICHE_NO_EXPORT std::ostream& operator<<(
-      std::ostream& os,
-      const QuicheCircularDeque& dq) {
+      std::ostream& os, const QuicheCircularDeque& dq) {
     os << "{";
     for (size_type pos = 0; pos != dq.size(); ++pos) {
       if (pos != 0) {

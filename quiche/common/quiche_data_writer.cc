@@ -16,16 +16,13 @@ namespace quiche {
 QuicheDataWriter::QuicheDataWriter(size_t size, char* buffer)
     : QuicheDataWriter(size, buffer, quiche::NETWORK_BYTE_ORDER) {}
 
-QuicheDataWriter::QuicheDataWriter(size_t size,
-                                   char* buffer,
+QuicheDataWriter::QuicheDataWriter(size_t size, char* buffer,
                                    quiche::Endianness endianness)
     : buffer_(buffer), capacity_(size), length_(0), endianness_(endianness) {}
 
 QuicheDataWriter::~QuicheDataWriter() {}
 
-char* QuicheDataWriter::data() {
-  return buffer_;
-}
+char* QuicheDataWriter::data() { return buffer_; }
 
 bool QuicheDataWriter::WriteUInt8(uint8_t value) {
   return WriteBytes(&value, sizeof(value));

@@ -25,8 +25,7 @@ namespace quic {
 class QUIC_EXPORT_PRIVATE QuicTransportStream : public QuicStream,
                                                 public WebTransportStream {
  public:
-  QuicTransportStream(QuicStreamId id,
-                      QuicSession* session,
+  QuicTransportStream(QuicStreamId id, QuicSession* session,
                       QuicTransportSessionInterface* session_interface);
 
   // Reads at most |buffer_size| bytes into |buffer| and returns the number of

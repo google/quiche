@@ -52,9 +52,7 @@ std::string DataInStream(QuicStream* stream) {
 class QuicTransportClientSessionTest : public QuicTest {
  protected:
   QuicTransportClientSessionTest()
-      : connection_(&helper_,
-                    &alarm_factory_,
-                    Perspective::IS_CLIENT,
+      : connection_(&helper_, &alarm_factory_, Perspective::IS_CLIENT,
                     GetVersions()),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {
     QuicEnableVersion(DefaultVersionForQuicTransport());

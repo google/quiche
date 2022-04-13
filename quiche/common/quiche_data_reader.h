@@ -36,8 +36,7 @@ class QUICHE_EXPORT_PRIVATE QuicheDataReader {
   QuicheDataReader(const char* data, const size_t len);
   // Constructs a reader using the specified endianness.
   // Caller must provide an underlying buffer to work on.
-  QuicheDataReader(const char* data,
-                   const size_t len,
+  QuicheDataReader(const char* data, const size_t len,
                    quiche::Endianness endianness);
   QuicheDataReader(const QuicheDataReader&) = delete;
   QuicheDataReader& operator=(const QuicheDataReader&) = delete;

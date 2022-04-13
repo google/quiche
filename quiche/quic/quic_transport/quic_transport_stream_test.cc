@@ -36,10 +36,8 @@ class MockQuicTransportSessionInterface : public QuicTransportSessionInterface {
 class QuicTransportStreamTest : public QuicTest {
  public:
   QuicTransportStreamTest()
-      : connection_(new MockQuicConnection(&helper_,
-                                           &alarm_factory_,
-                                           Perspective::IS_CLIENT,
-                                           GetVersions())),
+      : connection_(new MockQuicConnection(
+            &helper_, &alarm_factory_, Perspective::IS_CLIENT, GetVersions())),
         session_(connection_) {
     QuicEnableVersion(DefaultVersionForQuicTransport());
     session_.Initialize();

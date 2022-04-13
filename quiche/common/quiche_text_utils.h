@@ -45,8 +45,7 @@ class QUICHE_EXPORT_PRIVATE QuicheTextUtils {
   }
 
   // Base64 encodes with no padding |data_len| bytes of |data| into |output|.
-  static void Base64Encode(const uint8_t* data,
-                           size_t data_len,
+  static void Base64Encode(const uint8_t* data, size_t data_len,
                            std::string* output);
 
   // Decodes a base64-encoded |input|.  Returns nullopt when the input is

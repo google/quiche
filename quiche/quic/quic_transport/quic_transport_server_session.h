@@ -36,8 +36,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportServerSession
     virtual bool ProcessPath(const GURL& url) = 0;
   };
 
-  QuicTransportServerSession(QuicConnection* connection,
-                             Visitor* owner,
+  QuicTransportServerSession(QuicConnection* connection, Visitor* owner,
                              const QuicConfig& config,
                              const ParsedQuicVersionVector& supported_versions,
                              const QuicCryptoServerConfig* crypto_config,

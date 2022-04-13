@@ -36,17 +36,11 @@ class QuicTransportServerCryptoHelper
 }  // namespace
 
 QuicTransportServerSession::QuicTransportServerSession(
-    QuicConnection* connection,
-    Visitor* owner,
-    const QuicConfig& config,
+    QuicConnection* connection, Visitor* owner, const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
     const QuicCryptoServerConfig* crypto_config,
-    QuicCompressedCertsCache* compressed_certs_cache,
-    ServerVisitor* visitor)
-    : QuicSession(connection,
-                  owner,
-                  config,
-                  supported_versions,
+    QuicCompressedCertsCache* compressed_certs_cache, ServerVisitor* visitor)
+    : QuicSession(connection, owner, config, supported_versions,
                   /*num_expected_unidirectional_static_streams*/ 0),
       visitor_(visitor) {
   for (const ParsedQuicVersion& version : supported_versions) {
@@ -77,10 +71,8 @@ QuicStream* QuicTransportServerSession::CreateIncomingStream(QuicStreamId id) {
 
 QuicTransportServerSession::ClientIndication::ClientIndication(
     QuicTransportServerSession* session)
-    : QuicStream(ClientIndicationStream(),
-                 session,
-                 /* is_static= */ false,
-                 StreamType::READ_UNIDIRECTIONAL),
+    : QuicStream(ClientIndicationStream(), session,
+                 /* is_static= */ false, StreamType::READ_UNIDIRECTIONAL),
       session_(session) {}
 
 void QuicTransportServerSession::ClientIndication::OnDataAvailable() {

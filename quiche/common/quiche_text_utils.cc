@@ -11,8 +11,7 @@
 namespace quiche {
 
 // static
-void QuicheTextUtils::Base64Encode(const uint8_t* data,
-                                   size_t data_len,
+void QuicheTextUtils::Base64Encode(const uint8_t* data, size_t data_len,
                                    std::string* output) {
   absl::Base64Escape(std::string(reinterpret_cast<const char*>(data), data_len),
                      output);

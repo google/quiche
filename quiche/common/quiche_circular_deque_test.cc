@@ -61,10 +61,8 @@ class CountingAllocator : public BaseAllocator<T> {
   std::shared_ptr<Counts> shared_counts_ = std::make_shared<Counts>();
 };
 
-template <typename T,
-          typename propagate_on_copy_assignment,
-          typename propagate_on_move_assignment,
-          typename propagate_on_swap,
+template <typename T, typename propagate_on_copy_assignment,
+          typename propagate_on_move_assignment, typename propagate_on_swap,
           bool equality_result,
           template <typename> class BaseAllocator = std::allocator>
 struct ConfigurableAllocator : public BaseAllocator<T> {
@@ -233,8 +231,8 @@ TEST_F(QuicheCircularDequeTest, Assign) {
   dq3 = std::move(*&dq3);
   EXPECT_THAT(dq3, ElementsAre(3, 3, 3, 3, 3));
 
-  ASSERT_TRUE(decltype(
-      dq3.get_allocator())::propagate_on_container_move_assignment::value);
+  ASSERT_TRUE(decltype(dq3.get_allocator())::
+                  propagate_on_container_move_assignment::value);
   decltype(dq3) dq8;
   dq8 = std::move(*&dq3);
   EXPECT_THAT(dq8, ElementsAre(3, 3, 3, 3, 3));
