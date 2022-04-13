@@ -139,23 +139,23 @@ absl::optional<LoadBalancerConfig> LoadBalancerConfig::CreateUnencrypted(
 
 bool LoadBalancerConfig::EncryptionPass(uint8_t *target,
                                         const uint8_t index) const {
-  uint8_t plaintext[kLoadBalancerBlockSize], ciphertext[kLoadBalancerBlockSize];
+  uint8_t buf[kLoadBalancerBlockSize];
   if (!key_.has_value() || target == nullptr) {
     return false;
   }
   if (index % 2) {  // Odd indices go from left to right
-    TakePlaintextFromLeft(plaintext, target, plaintext_len(), index);
+    TakePlaintextFromLeft(buf, target, plaintext_len(), index);
   } else {
-    TakePlaintextFromRight(plaintext, target, plaintext_len(), index);
+    TakePlaintextFromRight(buf, target, plaintext_len(), index);
   }
-  if (!BlockEncrypt(plaintext, ciphertext)) {
+  if (!BlockEncrypt(buf, buf)) {
     return false;
   }
   // XOR bits over the correct half.
   if (index % 2) {
-    CiphertextXorWithRight(target, ciphertext, plaintext_len());
+    CiphertextXorWithRight(target, buf, plaintext_len());
   } else {
-    CiphertextXorWithLeft(target, ciphertext, plaintext_len());
+    CiphertextXorWithLeft(target, buf, plaintext_len());
   }
   return true;
 }
