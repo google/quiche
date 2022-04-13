@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/masque/masque_client_tools.h"
+
 #include "quiche/quic/masque/masque_encapsulated_epoll_client.h"
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"

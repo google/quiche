@@ -124,9 +124,7 @@ std::unique_ptr<MasqueEpollClient> MasqueEpollClient::Create(
   return masque_client;
 }
 
-void MasqueEpollClient::OnSettingsReceived() {
-  settings_received_ = true;
-}
+void MasqueEpollClient::OnSettingsReceived() { settings_received_ = true; }
 
 bool MasqueEpollClient::WaitUntilSettingsReceived() {
   while (connected() && !settings_received_) {

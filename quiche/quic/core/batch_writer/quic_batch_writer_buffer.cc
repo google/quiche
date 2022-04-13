@@ -12,9 +12,7 @@ QuicBatchWriterBuffer::QuicBatchWriterBuffer() {
   memset(buffer_, 0, sizeof(buffer_));
 }
 
-void QuicBatchWriterBuffer::Clear() {
-  buffered_writes_.clear();
-}
+void QuicBatchWriterBuffer::Clear() { buffered_writes_.clear(); }
 
 std::string QuicBatchWriterBuffer::DebugString() const {
   std::ostringstream os;
@@ -54,11 +52,8 @@ char* QuicBatchWriterBuffer::GetNextWriteLocation() const {
 }
 
 QuicBatchWriterBuffer::PushResult QuicBatchWriterBuffer::PushBufferedWrite(
-    const char* buffer,
-    size_t buf_len,
-    const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address,
-    const PerPacketOptions* options,
+    const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
+    const QuicSocketAddress& peer_address, const PerPacketOptions* options,
     uint64_t release_time) {
   QUICHE_DCHECK(Invariants());
   QUICHE_DCHECK_LE(buf_len, kMaxOutgoingPacketSize);

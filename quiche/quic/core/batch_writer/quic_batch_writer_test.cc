@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/core/batch_writer/quic_batch_writer_test.h"
+
 #include "quiche/quic/core/batch_writer/quic_gso_batch_writer.h"
 #include "quiche/quic/core/batch_writer/quic_sendmmsg_batch_writer.h"
 
@@ -47,8 +48,7 @@ class QuicGsoBatchWriterIOTestDelegate
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    QuicGsoBatchWriterTest,
-    QuicUdpBatchWriterIOTest,
+    QuicGsoBatchWriterTest, QuicUdpBatchWriterIOTest,
     testing::ValuesIn(
         MakeQuicBatchWriterTestParams<QuicGsoBatchWriterIOTestDelegate>()));
 
@@ -67,8 +67,7 @@ class QuicSendmmsgBatchWriterIOTestDelegate
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    QuicSendmmsgBatchWriterTest,
-    QuicUdpBatchWriterIOTest,
+    QuicSendmmsgBatchWriterTest, QuicUdpBatchWriterIOTest,
     testing::ValuesIn(MakeQuicBatchWriterTestParams<
                       QuicSendmmsgBatchWriterIOTestDelegate>()));
 

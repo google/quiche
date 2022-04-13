@@ -113,6 +113,4 @@ int RunMasqueClient(int argc, char* argv[]) {
 
 }  // namespace quic
 
-int main(int argc, char* argv[]) {
-  return quic::RunMasqueClient(argc, argv);
-}
+int main(int argc, char* argv[]) { return quic::RunMasqueClient(argc, argv); }

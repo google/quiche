@@ -95,8 +95,7 @@ struct QUIC_EXPORT_PRIVATE QuicUdpBatchWriterIOTestParams {
   int packet_size;
 
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
-      std::ostream& os,
-      const QuicUdpBatchWriterIOTestParams& p) {
+      std::ostream& os, const QuicUdpBatchWriterIOTestParams& p) {
     os << "{ address_family: " << p.address_family
        << " data_size: " << p.data_size << " packet_size: " << p.packet_size
        << " }";

@@ -29,8 +29,7 @@ class QUIC_NO_EXPORT MasqueEncapsulatedClientSession
   MasqueEncapsulatedClientSession(
       const QuicConfig& config,
       const ParsedQuicVersionVector& supported_versions,
-      QuicConnection* connection,
-      const QuicServerId& server_id,
+      QuicConnection* connection, const QuicServerId& server_id,
       QuicCryptoClientConfig* crypto_config,
       QuicClientPushPromiseIndex* push_promise_index,
       MasqueClientSession* masque_client_session);
@@ -45,8 +44,7 @@ class QUIC_NO_EXPORT MasqueEncapsulatedClientSession
   void ProcessPacket(absl::string_view packet,
                      QuicSocketAddress server_address) override;
   void CloseConnection(
-      QuicErrorCode error,
-      const std::string& details,
+      QuicErrorCode error, const std::string& details,
       ConnectionCloseBehavior connection_close_behavior) override;
 
   // From QuicSession.

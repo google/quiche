@@ -29,9 +29,7 @@ size_t PacketLength(const msghdr* msg) {
   return length;
 }
 
-uint64_t MillisToNanos(uint64_t milliseconds) {
-  return milliseconds * 1000000;
-}
+uint64_t MillisToNanos(uint64_t milliseconds) { return milliseconds * 1000000; }
 
 class QUIC_EXPORT_PRIVATE TestQuicGsoBatchWriter : public QuicGsoBatchWriter {
  public:
@@ -73,9 +71,7 @@ struct QUIC_EXPORT_PRIVATE TestPerPacketOptions : public PerPacketOptions {
 struct QUIC_EXPORT_PRIVATE TestBufferedWrite : public BufferedWrite {
   using BufferedWrite::BufferedWrite;
   TestBufferedWrite(const TestBufferedWrite& other)
-      : BufferedWrite(other.buffer,
-                      other.buf_len,
-                      other.self_address,
+      : BufferedWrite(other.buffer, other.buf_len, other.self_address,
                       other.peer_address,
                       other.options ? other.options->Clone()
                                     : std::unique_ptr<PerPacketOptions>(),
@@ -86,17 +82,11 @@ struct QUIC_EXPORT_PRIVATE TestBufferedWrite : public BufferedWrite {
 static char unused_packet_buffer[kMaxOutgoingPacketSize];
 
 struct QUIC_EXPORT_PRIVATE BatchCriteriaTestData {
-  BatchCriteriaTestData(size_t buf_len,
-                        const QuicIpAddress& self_address,
+  BatchCriteriaTestData(size_t buf_len, const QuicIpAddress& self_address,
                         const QuicSocketAddress& peer_address,
-                        uint64_t release_time,
-                        bool can_batch,
-                        bool must_flush)
-      : buffered_write(unused_packet_buffer,
-                       buf_len,
-                       self_address,
-                       peer_address,
-                       std::unique_ptr<PerPacketOptions>(),
+                        uint64_t release_time, bool can_batch, bool must_flush)
+      : buffered_write(unused_packet_buffer, buf_len, self_address,
+                       peer_address, std::unique_ptr<PerPacketOptions>(),
                        release_time),
         can_batch(can_batch),
         must_flush(must_flush) {}

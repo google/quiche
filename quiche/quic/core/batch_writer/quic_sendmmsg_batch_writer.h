@@ -15,8 +15,7 @@ class QUIC_EXPORT_PRIVATE QuicSendmmsgBatchWriter : public QuicUdpBatchWriter {
   QuicSendmmsgBatchWriter(std::unique_ptr<QuicBatchWriterBuffer> batch_buffer,
                           int fd);
 
-  CanBatchResult CanBatch(const char* buffer,
-                          size_t buf_len,
+  CanBatchResult CanBatch(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           const PerPacketOptions* options,

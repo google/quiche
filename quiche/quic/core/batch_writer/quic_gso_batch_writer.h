@@ -21,8 +21,7 @@ class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
 
   bool SupportsReleaseTime() const final { return supports_release_time_; }
 
-  CanBatchResult CanBatch(const char* buffer,
-                          size_t buf_len,
+  CanBatchResult CanBatch(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           const PerPacketOptions* options,
@@ -34,8 +33,7 @@ class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
   // Test only constructor to forcefully enable release time.
   struct QUIC_EXPORT_PRIVATE ReleaseTimeForceEnabler {};
   QuicGsoBatchWriter(std::unique_ptr<QuicBatchWriterBuffer> batch_buffer,
-                     int fd,
-                     clockid_t clockid_for_release_time,
+                     int fd, clockid_t clockid_for_release_time,
                      ReleaseTimeForceEnabler enabler);
 
   ReleaseTime GetReleaseTime(const PerPacketOptions* options) const override;
@@ -54,10 +52,8 @@ class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
 
   static const int kCmsgSpace =
       kCmsgSpaceForIp + kCmsgSpaceForSegmentSize + kCmsgSpaceForTxTime;
-  static void BuildCmsg(QuicMsgHdr* hdr,
-                        const QuicIpAddress& self_address,
-                        uint16_t gso_size,
-                        uint64_t release_time);
+  static void BuildCmsg(QuicMsgHdr* hdr, const QuicIpAddress& self_address,
+                        uint16_t gso_size, uint64_t release_time);
 
   template <size_t CmsgSpace, typename CmsgBuilderT>
   FlushImplResult InternalFlushImpl(CmsgBuilderT cmsg_builder) {

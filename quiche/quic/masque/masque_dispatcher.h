@@ -21,11 +21,9 @@ class QUIC_NO_EXPORT MasqueDispatcher : public QuicSimpleDispatcher,
                                         public MasqueServerSession::Visitor {
  public:
   explicit MasqueDispatcher(
-      MasqueMode masque_mode,
-      const QuicConfig* config,
+      MasqueMode masque_mode, const QuicConfig* config,
       const QuicCryptoServerConfig* crypto_config,
-      QuicVersionManager* version_manager,
-      QuicEpollServer* epoll_server,
+      QuicVersionManager* version_manager, QuicEpollServer* epoll_server,
       std::unique_ptr<QuicConnectionHelperInterface> helper,
       std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
@@ -59,8 +57,7 @@ class QUIC_NO_EXPORT MasqueDispatcher : public QuicSimpleDispatcher,
   MasqueServerBackend* masque_server_backend_;  // Unowned.
   // Mapping from client connection IDs to server sessions, allows routing
   // incoming packets to the right MASQUE connection.
-  absl::flat_hash_map<QuicConnectionId,
-                      MasqueServerSession*,
+  absl::flat_hash_map<QuicConnectionId, MasqueServerSession*,
                       QuicConnectionIdHash>
       client_connection_id_registrations_;
 };

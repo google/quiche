@@ -49,8 +49,7 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
 
     // Close the encapsulated connection.
     virtual void CloseConnection(
-        QuicErrorCode error,
-        const std::string& details,
+        QuicErrorCode error, const std::string& details,
         ConnectionCloseBehavior connection_close_behavior) = 0;
   };
 
@@ -173,8 +172,7 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
   MasqueMode masque_mode_;
   std::string uri_template_;
   std::list<ConnectUdpClientState> connect_udp_client_states_;
-  absl::flat_hash_map<QuicConnectionId,
-                      EncapsulatedClientSession*,
+  absl::flat_hash_map<QuicConnectionId, EncapsulatedClientSession*,
                       QuicConnectionIdHash>
       client_connection_id_registrations_;
   Owner* owner_;  // Unowned;

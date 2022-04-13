@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/masque/masque_encapsulated_epoll_client.h"
+
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/masque/masque_client_session.h"
 #include "quiche/quic/masque/masque_encapsulated_client_session.h"
@@ -19,8 +20,7 @@ class MasquePacketWriter : public QuicPacketWriter {
  public:
   explicit MasquePacketWriter(MasqueEncapsulatedEpollClient* client)
       : client_(client) {}
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& /*self_address*/,
                           const QuicSocketAddress& peer_address,
                           PerPacketOptions* /*options*/) override {
@@ -81,17 +81,13 @@ class MasqueClientEpollNetworkHelper : public QuicClientEpollNetworkHelper {
 }  // namespace
 
 MasqueEncapsulatedEpollClient::MasqueEncapsulatedEpollClient(
-    QuicSocketAddress server_address,
-    const QuicServerId& server_id,
+    QuicSocketAddress server_address, const QuicServerId& server_id,
     QuicEpollServer* epoll_server,
     std::unique_ptr<ProofVerifier> proof_verifier,
     MasqueEpollClient* masque_client)
     : QuicClient(
-          server_address,
-          server_id,
-          MasqueSupportedVersions(),
-          MasqueEncapsulatedConfig(),
-          epoll_server,
+          server_address, server_id, MasqueSupportedVersions(),
+          MasqueEncapsulatedConfig(), epoll_server,
           std::make_unique<MasqueClientEpollNetworkHelper>(epoll_server, this),
           std::move(proof_verifier)),
       masque_client_(masque_client) {}

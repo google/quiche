@@ -5,6 +5,7 @@
 #include "quiche/quic/core/batch_writer/quic_gso_batch_writer.h"
 
 #include <time.h>
+
 #include <ctime>
 
 #include "quiche/quic/core/quic_linux_socket_utils.h"
@@ -38,10 +39,8 @@ QuicGsoBatchWriter::QuicGsoBatchWriter(int fd,
 }
 
 QuicGsoBatchWriter::QuicGsoBatchWriter(
-    std::unique_ptr<QuicBatchWriterBuffer> batch_buffer,
-    int fd,
-    clockid_t clockid_for_release_time,
-    ReleaseTimeForceEnabler /*enabler*/)
+    std::unique_ptr<QuicBatchWriterBuffer> batch_buffer, int fd,
+    clockid_t clockid_for_release_time, ReleaseTimeForceEnabler /*enabler*/)
     : QuicUdpBatchWriter(std::move(batch_buffer), fd),
       clockid_for_release_time_(clockid_for_release_time),
       supports_release_time_(true) {
@@ -49,11 +48,8 @@ QuicGsoBatchWriter::QuicGsoBatchWriter(
 }
 
 QuicGsoBatchWriter::CanBatchResult QuicGsoBatchWriter::CanBatch(
-    const char* /*buffer*/,
-    size_t buf_len,
-    const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address,
-    const PerPacketOptions* options,
+    const char* /*buffer*/, size_t buf_len, const QuicIpAddress& self_address,
+    const QuicSocketAddress& peer_address, const PerPacketOptions* options,
     uint64_t release_time) const {
   // If there is nothing buffered already, this write will be included in this
   // batch.
@@ -146,8 +142,7 @@ uint64_t QuicGsoBatchWriter::NowInNanosForReleaseTime() const {
 // static
 void QuicGsoBatchWriter::BuildCmsg(QuicMsgHdr* hdr,
                                    const QuicIpAddress& self_address,
-                                   uint16_t gso_size,
-                                   uint64_t release_time) {
+                                   uint16_t gso_size, uint64_t release_time) {
   hdr->SetIpInNextCmsg(self_address);
   if (gso_size > 0) {
     *hdr->GetNextCmsgData<uint16_t>(SOL_UDP, UDP_SEGMENT) = gso_size;

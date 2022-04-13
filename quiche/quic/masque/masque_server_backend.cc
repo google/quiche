@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/masque/masque_server_backend.h"
+
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 
@@ -73,8 +74,8 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
 
   auto it = backend_client_states_.find(request_handler->connection_id());
   if (it == backend_client_states_.end()) {
-    QUIC_LOG(ERROR) << "Could not find backend client for "
-                    << masque_path << request_headers.DebugString();
+    QUIC_LOG(ERROR) << "Could not find backend client for " << masque_path
+                    << request_headers.DebugString();
     return false;
   }
 

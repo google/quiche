@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/core/batch_writer/quic_batch_writer_base.h"
+
 #include <cstdint>
 
 #include "quiche/quic/platform/api/quic_export.h"
@@ -16,11 +17,8 @@ QuicBatchWriterBase::QuicBatchWriterBase(
     : write_blocked_(false), batch_buffer_(std::move(batch_buffer)) {}
 
 WriteResult QuicBatchWriterBase::WritePacket(
-    const char* buffer,
-    size_t buf_len,
-    const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address,
-    PerPacketOptions* options) {
+    const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
+    const QuicSocketAddress& peer_address, PerPacketOptions* options) {
   const WriteResult result =
       InternalWritePacket(buffer, buf_len, self_address, peer_address, options);
 
@@ -32,11 +30,8 @@ WriteResult QuicBatchWriterBase::WritePacket(
 }
 
 WriteResult QuicBatchWriterBase::InternalWritePacket(
-    const char* buffer,
-    size_t buf_len,
-    const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address,
-    PerPacketOptions* options) {
+    const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
+    const QuicSocketAddress& peer_address, PerPacketOptions* options) {
   if (buf_len > kMaxOutgoingPacketSize) {
     return WriteResult(WRITE_STATUS_MSG_TOO_BIG, EMSGSIZE);
   }

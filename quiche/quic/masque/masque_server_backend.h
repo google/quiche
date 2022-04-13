@@ -66,9 +66,9 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
     BackendClient* backend_client;
     std::vector<std::unique_ptr<QuicBackendResponse>> responses;
   };
-  absl::
-      flat_hash_map<QuicConnectionId, BackendClientState, QuicConnectionIdHash>
-          backend_client_states_;
+  absl::flat_hash_map<QuicConnectionId, BackendClientState,
+                      QuicConnectionIdHash>
+      backend_client_states_;
 };
 
 }  // namespace quic

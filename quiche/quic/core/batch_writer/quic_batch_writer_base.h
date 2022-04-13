@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_BATCH_WRITER_QUIC_BATCH_WRITER_BASE_H_
 
 #include <cstdint>
+
 #include "quiche/quic/core/batch_writer/quic_batch_writer_buffer.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_types.h"
@@ -28,8 +29,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
   // ATTENTION: If this write triggered a flush, and the flush failed, all
   // buffered packets will be dropped to allow the next write to work. The
   // number of dropped packets can be found in WriteResult.dropped_packets.
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           PerPacketOptions* options) override;
@@ -97,8 +97,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
 
   // Given the existing buffered writes(in buffered_writes()), whether a new
   // write(in the arguments) can be batched.
-  virtual CanBatchResult CanBatch(const char* buffer,
-                                  size_t buf_len,
+  virtual CanBatchResult CanBatch(const char* buffer, size_t buf_len,
                                   const QuicIpAddress& self_address,
                                   const QuicSocketAddress& peer_address,
                                   const PerPacketOptions* options,
@@ -127,8 +126,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
   virtual FlushImplResult FlushImpl() = 0;
 
  private:
-  WriteResult InternalWritePacket(const char* buffer,
-                                  size_t buf_len,
+  WriteResult InternalWritePacket(const char* buffer, size_t buf_len,
                                   const QuicIpAddress& self_address,
                                   const QuicSocketAddress& peer_address,
                                   PerPacketOptions* options);

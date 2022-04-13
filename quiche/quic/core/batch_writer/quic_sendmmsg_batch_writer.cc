@@ -7,17 +7,14 @@
 namespace quic {
 
 QuicSendmmsgBatchWriter::QuicSendmmsgBatchWriter(
-    std::unique_ptr<QuicBatchWriterBuffer> batch_buffer,
-    int fd)
+    std::unique_ptr<QuicBatchWriterBuffer> batch_buffer, int fd)
     : QuicUdpBatchWriter(std::move(batch_buffer), fd) {}
 
 QuicSendmmsgBatchWriter::CanBatchResult QuicSendmmsgBatchWriter::CanBatch(
-    const char* /*buffer*/,
-    size_t /*buf_len*/,
+    const char* /*buffer*/, size_t /*buf_len*/,
     const QuicIpAddress& /*self_address*/,
     const QuicSocketAddress& /*peer_address*/,
-    const PerPacketOptions* /*options*/,
-    uint64_t /*release_time*/) const {
+    const PerPacketOptions* /*options*/, uint64_t /*release_time*/) const {
   return CanBatchResult(/*can_batch=*/true, /*must_flush=*/false);
 }
 

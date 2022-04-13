@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/core/batch_writer/quic_batch_writer_buffer.h"
+
 #include <memory>
 #include <string>
 
@@ -48,10 +49,8 @@ class QuicBatchWriterBufferTest : public QuicTest {
     return packet_buffer;
   }
 
-  void CheckBufferedWriteContent(int buffered_write_index,
-                                 char buffer_content,
-                                 size_t buf_len,
-                                 const QuicIpAddress& self_addr,
+  void CheckBufferedWriteContent(int buffered_write_index, char buffer_content,
+                                 size_t buf_len, const QuicIpAddress& self_addr,
                                  const QuicSocketAddress& peer_addr,
                                  const PerPacketOptions* options) {
     const BufferedWrite& buffered_write =

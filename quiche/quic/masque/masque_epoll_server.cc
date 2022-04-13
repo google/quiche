@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/masque/masque_epoll_server.h"
+
 #include "quiche/quic/core/quic_epoll_alarm_factory.h"
 #include "quiche/quic/masque/masque_dispatcher.h"
 #include "quiche/quic/masque/masque_utils.h"
@@ -13,8 +14,7 @@ namespace quic {
 
 MasqueEpollServer::MasqueEpollServer(MasqueMode masque_mode,
                                      MasqueServerBackend* masque_server_backend)
-    : QuicServer(CreateDefaultProofSource(),
-                 masque_server_backend,
+    : QuicServer(CreateDefaultProofSource(), masque_server_backend,
                  MasqueSupportedVersions()),
       masque_mode_(masque_mode),
       masque_server_backend_(masque_server_backend) {}

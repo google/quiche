@@ -40,8 +40,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBuffer {
     bool buffer_copied;
   };
 
-  PushResult PushBufferedWrite(const char* buffer,
-                               size_t buf_len,
+  PushResult PushBufferedWrite(const char* buffer, size_t buf_len,
                                const QuicIpAddress& self_address,
                                const QuicSocketAddress& peer_address,
                                const PerPacketOptions* options,
