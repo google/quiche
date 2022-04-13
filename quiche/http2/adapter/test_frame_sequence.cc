@@ -30,8 +30,7 @@ TestFrameSequence& TestFrameSequence::ServerPreface(
 }
 
 TestFrameSequence& TestFrameSequence::Data(Http2StreamId stream_id,
-                                           absl::string_view payload,
-                                           bool fin,
+                                           absl::string_view payload, bool fin,
                                            absl::optional<int> padding_length) {
   auto data = absl::make_unique<spdy::SpdyDataIR>(stream_id, payload);
   data->set_fin(fin);
@@ -146,8 +145,7 @@ TestFrameSequence& TestFrameSequence::WindowUpdate(Http2StreamId stream_id,
 
 TestFrameSequence& TestFrameSequence::Priority(Http2StreamId stream_id,
                                                Http2StreamId parent_stream_id,
-                                               int weight,
-                                               bool exclusive) {
+                                               int weight, bool exclusive) {
   frames_.push_back(absl::make_unique<spdy::SpdyPriorityIR>(
       stream_id, parent_stream_id, weight, exclusive));
   return *this;

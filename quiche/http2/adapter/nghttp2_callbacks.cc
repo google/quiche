@@ -33,8 +33,7 @@ ssize_t OnReadyToSend(nghttp2_session* /* session */, const uint8_t* data,
   }
 }
 
-int OnBeginFrame(nghttp2_session* /* session */,
-                 const nghttp2_frame_hd* header,
+int OnBeginFrame(nghttp2_session* /* session */, const nghttp2_frame_hd* header,
                  void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
@@ -51,8 +50,7 @@ int OnBeginFrame(nghttp2_session* /* session */,
   return result ? 0 : NGHTTP2_ERR_CALLBACK_FAILURE;
 }
 
-int OnFrameReceived(nghttp2_session* /* session */,
-                    const nghttp2_frame* frame,
+int OnFrameReceived(nghttp2_session* /* session */, const nghttp2_frame* frame,
                     void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
@@ -156,8 +154,7 @@ int OnFrameReceived(nghttp2_session* /* session */,
   return 0;
 }
 
-int OnBeginHeaders(nghttp2_session* /* session */,
-                   const nghttp2_frame* frame,
+int OnBeginHeaders(nghttp2_session* /* session */, const nghttp2_frame* frame,
                    void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
@@ -246,10 +243,8 @@ int OnDataChunk(nghttp2_session* /* session */, uint8_t /*flags*/,
   return result ? 0 : NGHTTP2_ERR_CALLBACK_FAILURE;
 }
 
-int OnStreamClosed(nghttp2_session* /* session */,
-                   Http2StreamId stream_id,
-                   uint32_t error_code,
-                   void* user_data) {
+int OnStreamClosed(nghttp2_session* /* session */, Http2StreamId stream_id,
+                   uint32_t error_code, void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   const bool result =

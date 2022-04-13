@@ -13,17 +13,14 @@ namespace callbacks {
 
 // Assumes |source| is a DataFrameSource.
 ssize_t DataFrameSourceReadCallback(nghttp2_session* /*session */,
-                                    int32_t /* stream_id */,
-                                    uint8_t* /* buf */,
-                                    size_t length,
-                                    uint32_t* data_flags,
+                                    int32_t /* stream_id */, uint8_t* /* buf */,
+                                    size_t length, uint32_t* data_flags,
                                     nghttp2_data_source* source,
                                     void* /* user_data */);
 
 int DataFrameSourceSendCallback(nghttp2_session* /* session */,
                                 nghttp2_frame* /* frame */,
-                                const uint8_t* framehd,
-                                size_t length,
+                                const uint8_t* framehd, size_t length,
                                 nghttp2_data_source* source,
                                 void* /* user_data */);
 

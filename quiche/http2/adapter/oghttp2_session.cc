@@ -241,8 +241,7 @@ Http2VisitorInterface::OnHeaderResult InterpretHeaderStatus(
 }
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
-    absl::string_view key,
-    absl::string_view value) {
+    absl::string_view key, absl::string_view value) {
   if (result_ != Http2VisitorInterface::HEADER_OK) {
     QUICHE_VLOG(2) << "Early return; status not HEADER_OK";
     return;
@@ -1026,10 +1025,8 @@ void OgHttp2Session::OnError(SpdyFramerError error,
   LatchErrorAndNotify(GetHttp2ErrorCode(error), ConnectionError::kParseError);
 }
 
-void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id,
-                                    size_t length,
-                                    uint8_t type,
-                                    uint8_t flags) {
+void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id, size_t length,
+                                    uint8_t type, uint8_t flags) {
   highest_received_stream_id_ = std::max(static_cast<Http2StreamId>(stream_id),
                                          highest_received_stream_id_);
   if (streams_reset_.contains(stream_id)) {
@@ -1097,8 +1094,7 @@ void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
 }
 
 void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,
-                                       const char* data,
-                                       size_t len) {
+                                       const char* data, size_t len) {
   // Count the data against flow control, even if the stream is unknown.
   MarkDataBuffered(stream_id, len);
 
@@ -1276,9 +1272,7 @@ void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
   visitor_.OnSetting({id, value});
 }
 
-void OgHttp2Session::OnSettingsEnd() {
-  visitor_.OnSettingsEnd();
-}
+void OgHttp2Session::OnSettingsEnd() { visitor_.OnSettingsEnd(); }
 
 void OgHttp2Session::OnSettingsAck() {
   if (!settings_ack_callbacks_.empty()) {

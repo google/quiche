@@ -99,8 +99,7 @@ bool RecordingHttp2Visitor::OnCloseStream(Http2StreamId stream_id,
 
 void RecordingHttp2Visitor::OnPriorityForStream(Http2StreamId stream_id,
                                                 Http2StreamId parent_stream_id,
-                                                int weight,
-                                                bool exclusive) {
+                                                int weight, bool exclusive) {
   events_.push_back(absl::StrFormat("OnPriorityForStream %d %d %d %d",
                                     stream_id, parent_stream_id, weight,
                                     exclusive));
@@ -111,8 +110,7 @@ void RecordingHttp2Visitor::OnPing(Http2PingId ping_id, bool is_ack) {
 }
 
 void RecordingHttp2Visitor::OnPushPromiseForStream(
-    Http2StreamId stream_id,
-    Http2StreamId promised_stream_id) {
+    Http2StreamId stream_id, Http2StreamId promised_stream_id) {
   events_.push_back(absl::StrFormat("OnPushPromiseForStream %d %d", stream_id,
                                     promised_stream_id));
 }

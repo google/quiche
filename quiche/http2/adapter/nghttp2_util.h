@@ -49,8 +49,7 @@ std::vector<nghttp2_nv> GetNghttp2Nvs(absl::Span<const Header> headers);
 // the :status pseudoheader first based on the given |response_code|. The
 // |response_code| is passed in separately from |headers| for lifetime reasons.
 std::vector<nghttp2_nv> GetResponseNghttp2Nvs(
-    const spdy::Http2HeaderBlock& headers,
-    absl::string_view response_code);
+    const spdy::Http2HeaderBlock& headers, absl::string_view response_code);
 
 // Returns the HTTP/2 error code corresponding to the raw wire value, as defined
 // in RFC 7540 Section 7. Unrecognized error codes are treated as INTERNAL_ERROR
@@ -66,8 +65,7 @@ Http2VisitorInterface::InvalidFrameError ToInvalidFrameError(int error);
 // |provider| uses the zero-copy nghttp2_data_source_read_callback API. Unsafe
 // otherwise.
 std::unique_ptr<DataFrameSource> MakeZeroCopyDataFrameSource(
-    nghttp2_data_provider provider,
-    void* user_data,
+    nghttp2_data_provider provider, void* user_data,
     nghttp2_send_data_callback send_data);
 
 void LogBeforeSend(const nghttp2_frame& frame);

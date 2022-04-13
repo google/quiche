@@ -89,8 +89,7 @@ void NgHttp2Adapter::SubmitSettings(absl::Span<const Http2Setting> settings) {
 
 void NgHttp2Adapter::SubmitPriorityForStream(Http2StreamId stream_id,
                                              Http2StreamId parent_stream_id,
-                                             int weight,
-                                             bool exclusive) {
+                                             int weight, bool exclusive) {
   nghttp2_priority_spec priority_spec;
   nghttp2_priority_spec_init(&priority_spec, parent_stream_id, weight,
                              static_cast<int>(exclusive));

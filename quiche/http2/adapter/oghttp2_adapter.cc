@@ -20,8 +20,7 @@ using spdy::SpdyWindowUpdateIR;
 
 /* static */
 std::unique_ptr<OgHttp2Adapter> OgHttp2Adapter::Create(
-    Http2VisitorInterface& visitor,
-    Options options) {
+    Http2VisitorInterface& visitor, Options options) {
   // Using `new` to access a non-public constructor.
   return absl::WrapUnique(new OgHttp2Adapter(visitor, std::move(options)));
 }
@@ -42,8 +41,7 @@ void OgHttp2Adapter::SubmitSettings(absl::Span<const Http2Setting> settings) {
 
 void OgHttp2Adapter::SubmitPriorityForStream(Http2StreamId stream_id,
                                              Http2StreamId parent_stream_id,
-                                             int weight,
-                                             bool exclusive) {
+                                             int weight, bool exclusive) {
   session_->EnqueueFrame(absl::make_unique<SpdyPriorityIR>(
       stream_id, parent_stream_id, weight, exclusive));
 }

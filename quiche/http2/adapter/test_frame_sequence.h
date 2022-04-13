@@ -25,8 +25,7 @@ class QUICHE_NO_EXPORT TestFrameSequence {
       absl::Span<const Http2Setting> settings = {});
   TestFrameSequence& ServerPreface(
       absl::Span<const Http2Setting> settings = {});
-  TestFrameSequence& Data(Http2StreamId stream_id,
-                          absl::string_view payload,
+  TestFrameSequence& Data(Http2StreamId stream_id, absl::string_view payload,
                           bool fin = false,
                           absl::optional<int> padding_length = absl::nullopt);
   TestFrameSequence& RstStream(Http2StreamId stream_id, Http2ErrorCode error);
@@ -52,8 +51,7 @@ class QUICHE_NO_EXPORT TestFrameSequence {
                              bool add_continuation = false);
   TestFrameSequence& WindowUpdate(Http2StreamId stream_id, int32_t delta);
   TestFrameSequence& Priority(Http2StreamId stream_id,
-                              Http2StreamId parent_stream_id,
-                              int weight,
+                              Http2StreamId parent_stream_id, int weight,
                               bool exclusive);
   TestFrameSequence& Metadata(Http2StreamId stream_id,
                               absl::string_view payload,

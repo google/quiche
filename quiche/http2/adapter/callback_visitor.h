@@ -50,8 +50,7 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
   bool OnCloseStream(Http2StreamId stream_id,
                      Http2ErrorCode error_code) override;
   void OnPriorityForStream(Http2StreamId stream_id,
-                           Http2StreamId parent_stream_id,
-                           int weight,
+                           Http2StreamId parent_stream_id, int weight,
                            bool exclusive) override;
   void OnPing(Http2PingId ping_id, bool is_ack) override;
   void OnPushPromiseForStream(Http2StreamId stream_id,

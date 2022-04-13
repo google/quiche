@@ -86,8 +86,7 @@ std::vector<nghttp2_nv> GetNghttp2Nvs(absl::Span<const Header> headers) {
 }
 
 std::vector<nghttp2_nv> GetResponseNghttp2Nvs(
-    const spdy::Http2HeaderBlock& headers,
-    absl::string_view response_code) {
+    const spdy::Http2HeaderBlock& headers, absl::string_view response_code) {
   // Allocate enough for all headers and also the :status pseudoheader.
   const int num_headers = headers.size();
   std::vector<nghttp2_nv> nghttp2_nvs;
@@ -162,8 +161,7 @@ InvalidFrameError ToInvalidFrameError(int error) {
 class Nghttp2DataFrameSource : public DataFrameSource {
  public:
   Nghttp2DataFrameSource(nghttp2_data_provider provider,
-                         nghttp2_send_data_callback send_data,
-                         void* user_data)
+                         nghttp2_send_data_callback send_data, void* user_data)
       : provider_(std::move(provider)),
         send_data_(std::move(send_data)),
         user_data_(user_data) {}
@@ -215,8 +213,7 @@ class Nghttp2DataFrameSource : public DataFrameSource {
 };
 
 std::unique_ptr<DataFrameSource> MakeZeroCopyDataFrameSource(
-    nghttp2_data_provider provider,
-    void* user_data,
+    nghttp2_data_provider provider, void* user_data,
     nghttp2_send_data_callback send_data) {
   return absl::make_unique<Nghttp2DataFrameSource>(
       std::move(provider), std::move(send_data), user_data);

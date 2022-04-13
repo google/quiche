@@ -44,8 +44,7 @@ class QUICHE_EXPORT_PRIVATE Http2Adapter {
   // Submits a PRIORITY frame for the given stream.
   virtual void SubmitPriorityForStream(Http2StreamId stream_id,
                                        Http2StreamId parent_stream_id,
-                                       int weight,
-                                       bool exclusive) = 0;
+                                       int weight, bool exclusive) = 0;
 
   // Submits a PING on the connection.
   virtual void SubmitPing(Http2PingId ping_id) = 0;

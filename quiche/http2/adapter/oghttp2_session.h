@@ -151,15 +151,11 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // From SpdyFramerVisitorInterface
   void OnError(http2::Http2DecoderAdapter::SpdyFramerError error,
                std::string detailed_error) override;
-  void OnCommonHeader(spdy::SpdyStreamId /*stream_id*/,
-                      size_t /*length*/,
-                      uint8_t /*type*/,
-                      uint8_t /*flags*/) override;
-  void OnDataFrameHeader(spdy::SpdyStreamId stream_id,
-                         size_t length,
+  void OnCommonHeader(spdy::SpdyStreamId /*stream_id*/, size_t /*length*/,
+                      uint8_t /*type*/, uint8_t /*flags*/) override;
+  void OnDataFrameHeader(spdy::SpdyStreamId stream_id, size_t length,
                          bool fin) override;
-  void OnStreamFrameData(spdy::SpdyStreamId stream_id,
-                         const char* data,
+  void OnStreamFrameData(spdy::SpdyStreamId stream_id, const char* data,
                          size_t len) override;
   void OnStreamEnd(spdy::SpdyStreamId stream_id) override;
   void OnStreamPadLength(spdy::SpdyStreamId /*stream_id*/,
@@ -178,25 +174,19 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   void OnGoAway(spdy::SpdyStreamId last_accepted_stream_id,
                 spdy::SpdyErrorCode error_code) override;
   bool OnGoAwayFrameData(const char* goaway_data, size_t len) override;
-  void OnHeaders(spdy::SpdyStreamId stream_id,
-                 bool has_priority,
-                 int weight,
-                 spdy::SpdyStreamId parent_stream_id,
-                 bool exclusive,
-                 bool fin,
+  void OnHeaders(spdy::SpdyStreamId stream_id, bool has_priority, int weight,
+                 spdy::SpdyStreamId parent_stream_id, bool exclusive, bool fin,
                  bool end) override;
   void OnWindowUpdate(spdy::SpdyStreamId stream_id,
                       int delta_window_size) override;
   void OnPushPromise(spdy::SpdyStreamId stream_id,
-                     spdy::SpdyStreamId promised_stream_id,
-                     bool end) override;
+                     spdy::SpdyStreamId promised_stream_id, bool end) override;
   void OnContinuation(spdy::SpdyStreamId stream_id, bool end) override;
   void OnAltSvc(spdy::SpdyStreamId /*stream_id*/, absl::string_view /*origin*/,
                 const spdy::SpdyAltSvcWireFormat::
                     AlternativeServiceVector& /*altsvc_vector*/) override;
   void OnPriority(spdy::SpdyStreamId stream_id,
-                  spdy::SpdyStreamId parent_stream_id,
-                  int weight,
+                  spdy::SpdyStreamId parent_stream_id, int weight,
                   bool exclusive) override;
   void OnPriorityUpdate(spdy::SpdyStreamId prioritized_stream_id,
                         absl::string_view priority_field_value) override;
