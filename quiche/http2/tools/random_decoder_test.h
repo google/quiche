@@ -21,9 +21,9 @@
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/platform/api/http2_logging.h"
-#include "quiche/http2/platform/api/http2_test_helpers.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 namespace http2 {
 namespace test {
@@ -54,7 +54,7 @@ void CorruptEnum(T* out, Http2Random* rng) {
 
 // Base class for tests of the ability to decode a sequence of bytes with
 // various boundaries between the DecodeBuffers provided to the decoder.
-class RandomDecoderTest : public QuicheTest {
+QUICHE_NO_EXPORT class RandomDecoderTest : public QuicheTest {
  public:
   // SelectSize returns the size of the next DecodeBuffer to be passed to the
   // decoder. Note that RandomDecoderTest allows that size to be zero, though

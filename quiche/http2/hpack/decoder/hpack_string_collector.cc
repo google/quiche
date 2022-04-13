@@ -11,8 +11,8 @@
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
-#include "quiche/http2/platform/api/http2_test_helpers.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 namespace http2 {
 namespace test {

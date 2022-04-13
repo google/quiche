@@ -21,9 +21,9 @@
 
 #include "absl/strings/str_cat.h"
 #include "quiche/http2/http2_structures_test_util.h"
-#include "quiche/http2/platform/api/http2_test_helpers.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;

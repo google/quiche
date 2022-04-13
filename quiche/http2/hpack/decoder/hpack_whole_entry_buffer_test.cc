@@ -7,7 +7,6 @@
 // Tests of HpackWholeEntryBuffer: does it buffer correctly, and does it
 // detect Huffman decoding errors and oversize string errors?
 
-#include "quiche/http2/platform/api/http2_test_helpers.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 using ::testing::_;

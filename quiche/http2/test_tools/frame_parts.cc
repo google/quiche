@@ -9,8 +9,8 @@
 #include "absl/strings/escaping.h"
 #include "quiche/http2/http2_structures_test_util.h"
 #include "quiche/http2/platform/api/http2_logging.h"
-#include "quiche/http2/platform/api/http2_test_helpers.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;

@@ -7,7 +7,6 @@
 #include <functional>
 
 #include "quiche/http2/platform/api/http2_logging.h"
-#include "quiche/http2/platform/api/http2_test_helpers.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/common/platform/api/quiche_test.h"
 

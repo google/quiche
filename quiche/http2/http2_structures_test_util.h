@@ -8,9 +8,9 @@
 #include <string>
 
 #include "quiche/http2/http2_structures.h"
-#include "quiche/http2/platform/api/http2_test_helpers.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/tools/http2_frame_builder.h"
+#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 namespace http2 {
 namespace test {

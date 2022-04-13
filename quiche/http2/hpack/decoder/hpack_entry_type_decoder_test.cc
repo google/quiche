@@ -8,9 +8,9 @@
 
 #include "quiche/http2/hpack/tools/hpack_block_builder.h"
 #include "quiche/http2/platform/api/http2_logging.h"
-#include "quiche/http2/platform/api/http2_test_helpers.h"
 #include "quiche/http2/tools/random_decoder_test.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionSuccess;
 
