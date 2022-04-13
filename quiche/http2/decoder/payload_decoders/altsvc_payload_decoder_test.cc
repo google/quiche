@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include <string>
+#include <tuple>
 
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
 #include "quiche/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
@@ -82,13 +83,13 @@ TEST_F(AltSvcPayloadDecoderTest, Truncated) {
       VerifyDetectsFrameSizeError(0, fb.buffer(), /*approve_size*/ nullptr));
 }
 
-class AltSvcPayloadLengthTests : public AltSvcPayloadDecoderTest,
-                                 public ::testing::WithParamInterface<
-                                     ::testing::tuple<uint16_t, uint32_t>> {
+class AltSvcPayloadLengthTests
+    : public AltSvcPayloadDecoderTest,
+      public ::testing::WithParamInterface<std::tuple<uint16_t, uint32_t>> {
  protected:
   AltSvcPayloadLengthTests()
-      : origin_length_(::testing::get<0>(GetParam())),
-        value_length_(::testing::get<1>(GetParam())) {
+      : origin_length_(std::get<0>(GetParam())),
+        value_length_(std::get<1>(GetParam())) {
     HTTP2_VLOG(1) << "################  origin_length_=" << origin_length_
                   << "   value_length_=" << value_length_
                   << "  ################";
