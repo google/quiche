@@ -69,9 +69,7 @@ class FakeQbonePacketExchanger : public QbonePacketExchanger {
   }
 
   // Implements QbonePacketExchanger::WritePacket.
-  bool WritePacket(const char* packet,
-                   size_t size,
-                   bool* blocked,
+  bool WritePacket(const char* packet, size_t size, bool* blocked,
                    std::string* error) override {
     *blocked = false;
 

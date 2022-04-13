@@ -13,9 +13,7 @@ namespace quic {
 
 class MockQboneClient : public QboneClientInterface {
  public:
-  MOCK_METHOD(void,
-              ProcessPacketFromNetwork,
-              (absl::string_view packet),
+  MOCK_METHOD(void, ProcessPacketFromNetwork, (absl::string_view packet),
               (override));
 };
 

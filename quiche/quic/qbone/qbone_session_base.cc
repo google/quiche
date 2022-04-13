@@ -31,15 +31,10 @@ namespace quic {
   (perspective() == Perspective::IS_SERVER ? "Server: " : "Client: ")
 
 QboneSessionBase::QboneSessionBase(
-    QuicConnection* connection,
-    Visitor* owner,
-    const QuicConfig& config,
+    QuicConnection* connection, Visitor* owner, const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
     QbonePacketWriter* writer)
-    : QuicSession(connection,
-                  owner,
-                  config,
-                  supported_versions,
+    : QuicSession(connection, owner, config, supported_versions,
                   /*num_expected_unidirectional_static_streams = */ 0) {
   set_writer(writer);
   const uint32_t max_streams =

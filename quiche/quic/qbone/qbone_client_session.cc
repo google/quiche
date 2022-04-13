@@ -21,11 +21,9 @@ namespace quic {
 QboneClientSession::QboneClientSession(
     QuicConnection* connection,
     QuicCryptoClientConfig* quic_crypto_client_config,
-    QuicSession::Visitor* owner,
-    const QuicConfig& config,
+    QuicSession::Visitor* owner, const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
-    const QuicServerId& server_id,
-    QbonePacketWriter* writer,
+    const QuicServerId& server_id, QbonePacketWriter* writer,
     QboneClientControlStream::Handler* handler)
     : QboneSessionBase(connection, owner, config, supported_versions, writer),
       server_id_(server_id),

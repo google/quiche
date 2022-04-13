@@ -21,11 +21,9 @@ class QUIC_EXPORT_PRIVATE QboneClientSession
  public:
   QboneClientSession(QuicConnection* connection,
                      QuicCryptoClientConfig* quic_crypto_client_config,
-                     QuicSession::Visitor* owner,
-                     const QuicConfig& config,
+                     QuicSession::Visitor* owner, const QuicConfig& config,
                      const ParsedQuicVersionVector& supported_versions,
-                     const QuicServerId& server_id,
-                     QbonePacketWriter* writer,
+                     const QuicServerId& server_id, QbonePacketWriter* writer,
                      QboneClientControlStream::Handler* handler);
   QboneClientSession(const QboneClientSession&) = delete;
   QboneClientSession& operator=(const QboneClientSession&) = delete;

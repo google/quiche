@@ -13,8 +13,7 @@ namespace quic {
 class MockQboneServerSession : public QboneServerSession {
  public:
   explicit MockQboneServerSession(QuicConnection* connection)
-      : QboneServerSession(CurrentSupportedVersions(),
-                           connection,
+      : QboneServerSession(CurrentSupportedVersions(), connection,
                            /*owner=*/nullptr,
                            /*config=*/{},
                            /*quic_crypto_server_config=*/nullptr,

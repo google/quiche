@@ -20,11 +20,9 @@ class QboneClient : public QuicClientBase, public QboneClientInterface {
  public:
   // Note that the epoll server, QBONE writer, and handler are owned
   // by the caller.
-  QboneClient(QuicSocketAddress server_address,
-              const QuicServerId& server_id,
+  QboneClient(QuicSocketAddress server_address, const QuicServerId& server_id,
               const ParsedQuicVersionVector& supported_versions,
-              QuicSession::Visitor* session_owner,
-              const QuicConfig& config,
+              QuicSession::Visitor* session_owner, const QuicConfig& config,
               QuicEpollServer* epoll_server,
               std::unique_ptr<ProofVerifier> proof_verifier,
               QbonePacketWriter* qbone_writer,
@@ -60,9 +58,7 @@ class QboneClient : public QuicClientBase, public QboneClientInterface {
     return qbone_handler_;
   }
 
-  QuicSession::Visitor* session_owner() {
-    return session_owner_;
-  }
+  QuicSession::Visitor* session_owner() { return session_owner_; }
 
   bool HasActiveRequests() override;
 

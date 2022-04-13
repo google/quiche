@@ -19,8 +19,7 @@ namespace quic {
 
 class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
  public:
-  QboneSessionBase(QuicConnection* connection,
-                   Visitor* owner,
+  QboneSessionBase(QuicConnection* connection, Visitor* owner,
                    const QuicConfig& config,
                    const ParsedQuicVersionVector& supported_versions,
                    QbonePacketWriter* writer);

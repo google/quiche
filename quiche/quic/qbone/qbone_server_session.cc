@@ -22,11 +22,9 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
 namespace quic {
 
 bool QboneCryptoServerStreamHelper::CanAcceptClientHello(
-    const CryptoHandshakeMessage& chlo,
-    const QuicSocketAddress& client_address,
+    const CryptoHandshakeMessage& chlo, const QuicSocketAddress& client_address,
     const QuicSocketAddress& peer_address,
-    const QuicSocketAddress& self_address,
-    std::string* error_details) const {
+    const QuicSocketAddress& self_address, std::string* error_details) const {
   absl::string_view alpn;
   chlo.GetStringPiece(quic::kALPN, &alpn);
   if (alpn != QboneConstants::kQboneAlpn) {
@@ -38,16 +36,11 @@ bool QboneCryptoServerStreamHelper::CanAcceptClientHello(
 
 QboneServerSession::QboneServerSession(
     const quic::ParsedQuicVersionVector& supported_versions,
-    QuicConnection* connection,
-    Visitor* owner,
-    const QuicConfig& config,
+    QuicConnection* connection, Visitor* owner, const QuicConfig& config,
     const QuicCryptoServerConfig* quic_crypto_server_config,
-    QuicCompressedCertsCache* compressed_certs_cache,
-    QbonePacketWriter* writer,
-    QuicIpAddress self_ip,
-    QuicIpAddress client_ip,
-    size_t client_ip_subnet_length,
-    QboneServerControlStream::Handler* handler)
+    QuicCompressedCertsCache* compressed_certs_cache, QbonePacketWriter* writer,
+    QuicIpAddress self_ip, QuicIpAddress client_ip,
+    size_t client_ip_subnet_length, QboneServerControlStream::Handler* handler)
     : QboneSessionBase(connection, owner, config, supported_versions, writer),
       processor_(self_ip, client_ip, client_ip_subnet_length, this, this),
       quic_crypto_server_config_(quic_crypto_server_config),

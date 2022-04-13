@@ -77,22 +77,13 @@ class ConnectionOwningQboneServerSession : public QboneServerSession {
  public:
   ConnectionOwningQboneServerSession(
       const ParsedQuicVersionVector& supported_versions,
-      QuicConnection* connection,
-      Visitor* owner,
-      const QuicConfig& config,
+      QuicConnection* connection, Visitor* owner, const QuicConfig& config,
       const QuicCryptoServerConfig* quic_crypto_server_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       QbonePacketWriter* writer)
-      : QboneServerSession(supported_versions,
-                           connection,
-                           owner,
-                           config,
-                           quic_crypto_server_config,
-                           compressed_certs_cache,
-                           writer,
-                           TestLoopback6(),
-                           TestLoopback6(),
-                           64,
+      : QboneServerSession(supported_versions, connection, owner, config,
+                           quic_crypto_server_config, compressed_certs_cache,
+                           writer, TestLoopback6(), TestLoopback6(), 64,
                            nullptr),
         connection_(connection) {}
 
@@ -105,18 +96,14 @@ class ConnectionOwningQboneServerSession : public QboneServerSession {
 class QuicQboneDispatcher : public QuicDispatcher {
  public:
   QuicQboneDispatcher(
-      const QuicConfig* config,
-      const QuicCryptoServerConfig* crypto_config,
+      const QuicConfig* config, const QuicCryptoServerConfig* crypto_config,
       QuicVersionManager* version_manager,
       std::unique_ptr<QuicConnectionHelperInterface> helper,
       std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
       QbonePacketWriter* writer)
-      : QuicDispatcher(config,
-                       crypto_config,
-                       version_manager,
-                       std::move(helper),
-                       std::move(session_helper),
+      : QuicDispatcher(config, crypto_config, version_manager,
+                       std::move(helper), std::move(session_helper),
                        std::move(alarm_factory),
                        kQuicDefaultConnectionIdLength),
         writer_(writer) {}
@@ -175,15 +162,9 @@ class QboneTestClient : public QboneClient {
                   const ParsedQuicVersionVector& supported_versions,
                   QuicEpollServer* epoll_server,
                   std::unique_ptr<ProofVerifier> proof_verifier)
-      : QboneClient(server_address,
-                    server_id,
-                    supported_versions,
-                    /*session_owner=*/nullptr,
-                    QuicConfig(),
-                    epoll_server,
-                    std::move(proof_verifier),
-                    &qbone_writer_,
-                    nullptr) {}
+      : QboneClient(server_address, server_id, supported_versions,
+                    /*session_owner=*/nullptr, QuicConfig(), epoll_server,
+                    std::move(proof_verifier), &qbone_writer_, nullptr) {}
 
   ~QboneTestClient() override {}
 
@@ -220,8 +201,7 @@ class QboneTestClient : public QboneClient {
 
 class QboneClientTest : public QuicTestWithParam<ParsedQuicVersion> {};
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QboneClientTest,
+INSTANTIATE_TEST_SUITE_P(Tests, QboneClientTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 

@@ -23,25 +23,15 @@ class MockPacketProcessorStats : public QbonePacketProcessor::StatsInterface {
  public:
   MockPacketProcessorStats() {}
 
-  MOCK_METHOD(void,
-              OnPacketForwarded,
-              (QbonePacketProcessor::Direction),
+  MOCK_METHOD(void, OnPacketForwarded, (QbonePacketProcessor::Direction),
               (override));
-  MOCK_METHOD(void,
-              OnPacketDroppedSilently,
-              (QbonePacketProcessor::Direction),
+  MOCK_METHOD(void, OnPacketDroppedSilently, (QbonePacketProcessor::Direction),
               (override));
-  MOCK_METHOD(void,
-              OnPacketDroppedWithIcmp,
-              (QbonePacketProcessor::Direction),
+  MOCK_METHOD(void, OnPacketDroppedWithIcmp, (QbonePacketProcessor::Direction),
               (override));
-  MOCK_METHOD(void,
-              OnPacketDroppedWithTcpReset,
-              (QbonePacketProcessor::Direction),
-              (override));
-  MOCK_METHOD(void,
-              OnPacketDeferred,
-              (QbonePacketProcessor::Direction),
+  MOCK_METHOD(void, OnPacketDroppedWithTcpReset,
+              (QbonePacketProcessor::Direction), (override));
+  MOCK_METHOD(void, OnPacketDeferred, (QbonePacketProcessor::Direction),
               (override));
 };
 

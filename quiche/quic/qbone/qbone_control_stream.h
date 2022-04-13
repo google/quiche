@@ -34,7 +34,7 @@ class QUIC_EXPORT_PRIVATE QboneControlStreamBase : public QuicStream {
 template <class T>
 class QUIC_EXPORT_PRIVATE QboneControlHandler {
  public:
-  virtual ~QboneControlHandler() { }
+  virtual ~QboneControlHandler() {}
 
   virtual void OnControlRequest(const T& request) = 0;
   virtual void OnControlError() = 0;

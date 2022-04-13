@@ -35,15 +35,12 @@ class QUIC_EXPORT_PRIVATE QboneServerSession
       public QbonePacketProcessor::StatsInterface {
  public:
   QboneServerSession(const quic::ParsedQuicVersionVector& supported_versions,
-                     QuicConnection* connection,
-                     Visitor* owner,
+                     QuicConnection* connection, Visitor* owner,
                      const QuicConfig& config,
                      const QuicCryptoServerConfig* quic_crypto_server_config,
                      QuicCompressedCertsCache* compressed_certs_cache,
-                     QbonePacketWriter* writer,
-                     QuicIpAddress self_ip,
-                     QuicIpAddress client_ip,
-                     size_t client_ip_subnet_length,
+                     QbonePacketWriter* writer, QuicIpAddress self_ip,
+                     QuicIpAddress client_ip, size_t client_ip_subnet_length,
                      QboneServerControlStream::Handler* handler);
   QboneServerSession(const QboneServerSession&) = delete;
   QboneServerSession& operator=(const QboneServerSession&) = delete;

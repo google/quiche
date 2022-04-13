@@ -34,10 +34,8 @@ void QboneWriteOnlyStream::WritePacketToQuicStream(absl::string_view packet) {
 
 QboneReadOnlyStream::QboneReadOnlyStream(QuicStreamId id,
                                          QboneSessionBase* session)
-    : QuicStream(id,
-                 session,
-                 /*is_static=*/false,
-                 READ_UNIDIRECTIONAL),
+    : QuicStream(id, session,
+                 /*is_static=*/false, READ_UNIDIRECTIONAL),
       session_(session) {
   // QBONE uses a LIFO queue to try to always make progress. An individual
   // packet may persist for upto to qbone_stream_ttl_secs seconds in memory.

@@ -160,11 +160,8 @@ QbonePacketProcessor::ProcessIPv6HeaderAndFilter(std::string* packet,
 }
 
 QbonePacketProcessor::ProcessingResult QbonePacketProcessor::ProcessIPv6Header(
-    std::string* packet,
-    Direction direction,
-    uint8_t* transport_protocol,
-    char** transport_data,
-    icmp6_hdr* icmp_header) {
+    std::string* packet, Direction direction, uint8_t* transport_protocol,
+    char** transport_data, icmp6_hdr* icmp_header) {
   // Check if the packet is big enough to have IPv6 header.
   if (packet->size() < kIPv6HeaderSize) {
     QUIC_DVLOG(1) << "Dropped malformed packet: IPv6 header too short";

@@ -131,10 +131,8 @@ class QbonePacketProcessor {
   // |output| gets notified whenever the processor decides to send a packet, and
   // |stats| gets notified about any decisions that processor makes, without a
   // reference to which packet that decision was made about.
-  QbonePacketProcessor(QuicIpAddress self_ip,
-                       QuicIpAddress client_ip,
-                       size_t client_ip_subnet_length,
-                       OutputInterface* output,
+  QbonePacketProcessor(QuicIpAddress self_ip, QuicIpAddress client_ip,
+                       size_t client_ip_subnet_length, OutputInterface* output,
                        StatsInterface* stats);
   QbonePacketProcessor(const QbonePacketProcessor&) = delete;
   QbonePacketProcessor& operator=(const QbonePacketProcessor&) = delete;
@@ -187,8 +185,7 @@ class QbonePacketProcessor {
  private:
   // Performs basic sanity and permission checks on the packet, and decreases
   // the TTL.
-  ProcessingResult ProcessIPv6Header(std::string* packet,
-                                     Direction direction,
+  ProcessingResult ProcessIPv6Header(std::string* packet, Direction direction,
                                      uint8_t* transport_protocol,
                                      char** transport_data,
                                      icmp6_hdr* icmp_header);

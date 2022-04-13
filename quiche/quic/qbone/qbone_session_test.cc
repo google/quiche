@@ -72,8 +72,7 @@ class IndirectionProofSource : public ProofSource {
   // ProofSource override.
   void GetProof(const QuicSocketAddress& server_address,
                 const QuicSocketAddress& client_address,
-                const std::string& hostname,
-                const std::string& server_config,
+                const std::string& hostname, const std::string& server_config,
                 QuicTransportVersion transport_version,
                 absl::string_view chlo_hash,
                 std::unique_ptr<Callback> callback) override {
@@ -103,10 +102,8 @@ class IndirectionProofSource : public ProofSource {
 
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
-      const QuicSocketAddress& client_address,
-      const std::string& hostname,
-      uint16_t signature_algorithm,
-      absl::string_view in,
+      const QuicSocketAddress& client_address, const std::string& hostname,
+      uint16_t signature_algorithm, absl::string_view in,
       std::unique_ptr<SignatureCallback> callback) override {
     if (!proof_source_) {
       callback->Run(/*ok=*/true, "Signature", /*details=*/nullptr);
@@ -144,16 +141,11 @@ class IndirectionProofVerifier : public ProofVerifier {
 
   // ProofVerifier override
   QuicAsyncStatus VerifyProof(
-      const std::string& hostname,
-      const uint16_t port,
-      const std::string& server_config,
-      QuicTransportVersion transport_version,
-      absl::string_view chlo_hash,
-      const std::vector<std::string>& certs,
-      const std::string& cert_sct,
-      const std::string& signature,
-      const ProofVerifyContext* context,
-      std::string* error_details,
+      const std::string& hostname, const uint16_t port,
+      const std::string& server_config, QuicTransportVersion transport_version,
+      absl::string_view chlo_hash, const std::vector<std::string>& certs,
+      const std::string& cert_sct, const std::string& signature,
+      const ProofVerifyContext* context, std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* verify_details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     if (!proof_verifier_) {
@@ -166,14 +158,10 @@ class IndirectionProofVerifier : public ProofVerifier {
   }
 
   QuicAsyncStatus VerifyCertChain(
-      const std::string& hostname,
-      const uint16_t port,
-      const std::vector<std::string>& certs,
-      const std::string& ocsp_response,
-      const std::string& cert_sct,
-      const ProofVerifyContext* context,
-      std::string* error_details,
-      std::unique_ptr<ProofVerifyDetails>* details,
+      const std::string& hostname, const uint16_t port,
+      const std::vector<std::string>& certs, const std::string& ocsp_response,
+      const std::string& cert_sct, const ProofVerifyContext* context,
+      std::string* error_details, std::unique_ptr<ProofVerifyDetails>* details,
       uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     if (!proof_verifier_) {
@@ -278,8 +266,7 @@ class FakeTaskRunner {
 
  private:
   using TaskType = std::shared_ptr<InnerTask>;
-  std::priority_queue<TaskType,
-                      std::vector<TaskType>,
+  std::priority_queue<TaskType, std::vector<TaskType>,
                       std::function<bool(const TaskType&, const TaskType&)>>
       tasks_;
   MockQuicConnectionHelper* helper_;
@@ -414,8 +401,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void ExpectICMPTooBigResponse(const std::vector<std::string>& written_packets,
-                                const int mtu,
-                                const std::string& packet) {
+                                const int mtu, const std::string& packet) {
     auto* header = reinterpret_cast<const ip6_hdr*>(packet.data());
     icmp6_hdr icmp_header{};
     icmp_header.icmp6_type = ICMP6_PACKET_TOO_BIG;
@@ -554,8 +540,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
   std::unique_ptr<QboneClientSession> client_peer_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QboneSessionTest,
+INSTANTIATE_TEST_SUITE_P(Tests, QboneSessionTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 

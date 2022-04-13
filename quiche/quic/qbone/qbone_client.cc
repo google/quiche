@@ -17,8 +17,7 @@
 namespace quic {
 namespace {
 std::unique_ptr<QuicClientBase::NetworkHelper> CreateNetworkHelper(
-    QuicEpollServer* epoll_server,
-    QboneClient* client) {
+    QuicEpollServer* epoll_server, QboneClient* client) {
   std::unique_ptr<QuicClientBase::NetworkHelper> helper =
       std::make_unique<QuicClientEpollNetworkHelper>(epoll_server, client);
   quic::AdjustTestValue("QboneClient/network_helper", &helper);
@@ -36,13 +35,10 @@ QboneClient::QboneClient(QuicSocketAddress server_address,
                          QbonePacketWriter* qbone_writer,
                          QboneClientControlStream::Handler* qbone_handler)
     : QuicClientBase(
-          server_id,
-          supported_versions,
-          config,
+          server_id, supported_versions, config,
           new QuicEpollConnectionHelper(epoll_server, QuicAllocator::SIMPLE),
           new QuicEpollAlarmFactory(epoll_server),
-          CreateNetworkHelper(epoll_server, this),
-          std::move(proof_verifier),
+          CreateNetworkHelper(epoll_server, this), std::move(proof_verifier),
           nullptr),
       qbone_writer_(qbone_writer),
       qbone_handler_(qbone_handler),
@@ -51,9 +47,7 @@ QboneClient::QboneClient(QuicSocketAddress server_address,
   crypto_config()->set_alpn("qbone");
 }
 
-QboneClient::~QboneClient() {
-  ResetSession();
-}
+QboneClient::~QboneClient() { ResetSession(); }
 
 QboneClientSession* QboneClient::qbone_session() {
   return static_cast<QboneClientSession*>(QuicClientBase::session());

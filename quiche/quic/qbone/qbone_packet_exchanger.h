@@ -59,9 +59,7 @@ class QbonePacketExchanger : public QbonePacketWriter {
   // Returns true if the write succeeds. blocked will be set to true if the
   // write failure is caused by the local network being blocked. error contains
   // the error message.
-  virtual bool WritePacket(const char* packet,
-                           size_t size,
-                           bool* blocked,
+  virtual bool WritePacket(const char* packet, size_t size, bool* blocked,
                            std::string* error) = 0;
 
   std::list<std::unique_ptr<QuicData>> packet_queue_;

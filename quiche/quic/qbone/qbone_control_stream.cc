@@ -22,8 +22,7 @@ QboneControlStreamBase::QboneControlStreamBase(QuicSession* session)
     : QuicStream(
           QboneConstants::GetControlStreamId(session->transport_version()),
           session,
-          /*is_static=*/true,
-          BIDIRECTIONAL),
+          /*is_static=*/true, BIDIRECTIONAL),
       pending_message_size_(0) {}
 
 QboneControlStreamBase::QboneControlStreamBase(quic::PendingStream* pending,

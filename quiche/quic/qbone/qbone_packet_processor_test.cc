@@ -102,19 +102,16 @@ static const char kReferenceClientSubnetPacketData[] = {
 // clang-format on
 
 static const absl::string_view kReferenceClientPacket(
-    kReferenceClientPacketData,
-    arraysize(kReferenceClientPacketData));
+    kReferenceClientPacketData, arraysize(kReferenceClientPacketData));
 
 static const absl::string_view kReferenceNetworkPacket(
-    kReferenceNetworkPacketData,
-    arraysize(kReferenceNetworkPacketData));
+    kReferenceNetworkPacketData, arraysize(kReferenceNetworkPacketData));
 
 static const absl::string_view kReferenceClientSubnetPacket(
     kReferenceClientSubnetPacketData,
     arraysize(kReferenceClientSubnetPacketData));
 
-MATCHER_P(IsIcmpMessage,
-          icmp_type,
+MATCHER_P(IsIcmpMessage, icmp_type,
           "Checks whether the argument is an ICMP message of supplied type") {
   if (arg.size() < kTotalICMPv6HeaderSize) {
     return false;
@@ -125,12 +122,8 @@ MATCHER_P(IsIcmpMessage,
 
 class MockPacketFilter : public QbonePacketProcessor::Filter {
  public:
-  MOCK_METHOD(ProcessingResult,
-              FilterPacket,
-              (Direction,
-               absl::string_view,
-               absl::string_view,
-               icmp6_hdr*,
+  MOCK_METHOD(ProcessingResult, FilterPacket,
+              (Direction, absl::string_view, absl::string_view, icmp6_hdr*,
                OutputInterface*),
               (override));
 };
