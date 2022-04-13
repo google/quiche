@@ -19,23 +19,19 @@ namespace quic {
 class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
                                public QuicSimpleServerBackend::RequestHandler {
  public:
-  QuicSimpleServerStream(QuicStreamId id,
-                         QuicSpdySession* session,
+  QuicSimpleServerStream(QuicStreamId id, QuicSpdySession* session,
                          StreamType type,
                          QuicSimpleServerBackend* quic_simple_server_backend);
-  QuicSimpleServerStream(PendingStream* pending,
-                         QuicSpdySession* session,
+  QuicSimpleServerStream(PendingStream* pending, QuicSpdySession* session,
                          QuicSimpleServerBackend* quic_simple_server_backend);
   QuicSimpleServerStream(const QuicSimpleServerStream&) = delete;
   QuicSimpleServerStream& operator=(const QuicSimpleServerStream&) = delete;
   ~QuicSimpleServerStream() override;
 
   // QuicSpdyStream
-  void OnInitialHeadersComplete(bool fin,
-                                size_t frame_len,
+  void OnInitialHeadersComplete(bool fin, size_t frame_len,
                                 const QuicHeaderList& header_list) override;
-  void OnTrailingHeadersComplete(bool fin,
-                                 size_t frame_len,
+  void OnTrailingHeadersComplete(bool fin, size_t frame_len,
                                  const QuicHeaderList& header_list) override;
   void OnCanWrite() override;
 

@@ -18,12 +18,9 @@
 namespace quic {
 
 std::unique_ptr<QuicSpdyClientBase> QuicEpollClientFactory::CreateClient(
-    std::string host_for_handshake,
-    std::string host_for_lookup,
-    int address_family_for_lookup,
-    uint16_t port,
-    ParsedQuicVersionVector versions,
-    const QuicConfig& config,
+    std::string host_for_handshake, std::string host_for_lookup,
+    int address_family_for_lookup, uint16_t port,
+    ParsedQuicVersionVector versions, const QuicConfig& config,
     std::unique_ptr<ProofVerifier> verifier,
     std::unique_ptr<SessionCache> session_cache) {
   QuicSocketAddress addr = tools::LookupAddress(

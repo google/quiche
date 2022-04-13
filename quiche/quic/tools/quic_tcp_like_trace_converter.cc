@@ -17,8 +17,7 @@ QuicTcpLikeTraceConverter::StreamOffsetSegment::StreamOffsetSegment()
     : connection_offset(0) {}
 
 QuicTcpLikeTraceConverter::StreamOffsetSegment::StreamOffsetSegment(
-    QuicStreamOffset stream_offset,
-    uint64_t connection_offset,
+    QuicStreamOffset stream_offset, uint64_t connection_offset,
     QuicByteCount data_length)
     : stream_data(stream_offset, stream_offset + data_length),
       connection_offset(connection_offset) {}
@@ -26,9 +25,7 @@ QuicTcpLikeTraceConverter::StreamOffsetSegment::StreamOffsetSegment(
 QuicTcpLikeTraceConverter::StreamInfo::StreamInfo() : fin(false) {}
 
 QuicIntervalSet<uint64_t> QuicTcpLikeTraceConverter::OnCryptoFrameSent(
-    EncryptionLevel level,
-    QuicStreamOffset offset,
-    QuicByteCount data_length) {
+    EncryptionLevel level, QuicStreamOffset offset, QuicByteCount data_length) {
   if (level >= NUM_ENCRYPTION_LEVELS) {
     QUIC_BUG(quic_bug_10907_1) << "Invalid encryption level";
     return {};
@@ -38,9 +35,7 @@ QuicIntervalSet<uint64_t> QuicTcpLikeTraceConverter::OnCryptoFrameSent(
 }
 
 QuicIntervalSet<uint64_t> QuicTcpLikeTraceConverter::OnStreamFrameSent(
-    QuicStreamId stream_id,
-    QuicStreamOffset offset,
-    QuicByteCount data_length,
+    QuicStreamId stream_id, QuicStreamOffset offset, QuicByteCount data_length,
     bool fin) {
   return OnFrameSent(
       offset, data_length, fin,
@@ -48,9 +43,7 @@ QuicIntervalSet<uint64_t> QuicTcpLikeTraceConverter::OnStreamFrameSent(
 }
 
 QuicIntervalSet<uint64_t> QuicTcpLikeTraceConverter::OnFrameSent(
-    QuicStreamOffset offset,
-    QuicByteCount data_length,
-    bool fin,
+    QuicStreamOffset offset, QuicByteCount data_length, bool fin,
     StreamInfo* info) {
   QuicIntervalSet<uint64_t> connection_offsets;
   if (fin) {
@@ -104,8 +97,7 @@ QuicIntervalSet<uint64_t> QuicTcpLikeTraceConverter::OnFrameSent(
 }
 
 QuicInterval<uint64_t> QuicTcpLikeTraceConverter::OnControlFrameSent(
-    QuicControlFrameId control_frame_id,
-    QuicByteCount control_frame_length) {
+    QuicControlFrameId control_frame_id, QuicByteCount control_frame_length) {
   if (control_frame_id > largest_observed_control_frame_id_) {
     // New control frame.
     QuicInterval<uint64_t> connection_offset = QuicInterval<uint64_t>(

@@ -54,8 +54,7 @@ class QuicSimpleServerBackend {
   // asynchronously calls |request_handler| with the HTTP response.
   virtual void FetchResponseFromBackend(
       const spdy::Http2HeaderBlock& request_headers,
-      const std::string& request_body,
-      RequestHandler* request_handler) = 0;
+      const std::string& request_body, RequestHandler* request_handler) = 0;
   // Clears the state of the backend  instance
   virtual void CloseBackendResponseStream(RequestHandler* request_handler) = 0;
 

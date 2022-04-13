@@ -11,10 +11,8 @@ namespace quic {
 
 class QuicSimpleClientStream : public QuicSpdyClientStream {
  public:
-  QuicSimpleClientStream(QuicStreamId id,
-                         QuicSpdyClientSession* session,
-                         StreamType type,
-                         bool drop_response_body)
+  QuicSimpleClientStream(QuicStreamId id, QuicSpdyClientSession* session,
+                         StreamType type, bool drop_response_body)
       : QuicSpdyClientStream(id, session, type),
         drop_response_body_(drop_response_body) {}
   void OnBodyAvailable() override;

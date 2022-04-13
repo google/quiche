@@ -30,21 +30,16 @@ namespace {
 class MockQuicSimpleDispatcher : public QuicSimpleDispatcher {
  public:
   MockQuicSimpleDispatcher(
-      const QuicConfig* config,
-      const QuicCryptoServerConfig* crypto_config,
+      const QuicConfig* config, const QuicCryptoServerConfig* crypto_config,
       QuicVersionManager* version_manager,
       std::unique_ptr<QuicConnectionHelperInterface> helper,
       std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
       QuicSimpleServerBackend* quic_simple_server_backend)
-      : QuicSimpleDispatcher(config,
-                             crypto_config,
-                             version_manager,
-                             std::move(helper),
-                             std::move(session_helper),
-                             std::move(alarm_factory),
-                             quic_simple_server_backend,
-                             kQuicDefaultConnectionIdLength) {}
+      : QuicSimpleDispatcher(
+            config, crypto_config, version_manager, std::move(helper),
+            std::move(session_helper), std::move(alarm_factory),
+            quic_simple_server_backend, kQuicDefaultConnectionIdLength) {}
   ~MockQuicSimpleDispatcher() override = default;
 
   MOCK_METHOD(void, OnCanWrite, (), (override));
@@ -148,23 +143,19 @@ TEST_F(QuicServerEpollInTest, ProcessBufferedCHLOsOnEpollin) {
 class QuicServerDispatchPacketTest : public QuicTest {
  public:
   QuicServerDispatchPacketTest()
-      : crypto_config_("blah",
-                       QuicRandom::GetInstance(),
+      : crypto_config_("blah", QuicRandom::GetInstance(),
                        crypto_test_utils::ProofSourceForTesting(),
                        KeyExchangeSource::Default()),
         version_manager_(AllSupportedVersions()),
-        dispatcher_(
-            &config_,
-            &crypto_config_,
-            &version_manager_,
-            std::unique_ptr<QuicEpollConnectionHelper>(
-                new QuicEpollConnectionHelper(&eps_,
-                                              QuicAllocator::BUFFER_POOL)),
-            std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
-                new QuicSimpleCryptoServerStreamHelper()),
-            std::unique_ptr<QuicEpollAlarmFactory>(
-                new QuicEpollAlarmFactory(&eps_)),
-            &quic_simple_server_backend_) {
+        dispatcher_(&config_, &crypto_config_, &version_manager_,
+                    std::unique_ptr<QuicEpollConnectionHelper>(
+                        new QuicEpollConnectionHelper(
+                            &eps_, QuicAllocator::BUFFER_POOL)),
+                    std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
+                        new QuicSimpleCryptoServerStreamHelper()),
+                    std::unique_ptr<QuicEpollAlarmFactory>(
+                        new QuicEpollAlarmFactory(&eps_)),
+                    &quic_simple_server_backend_) {
     dispatcher_.InitializeWithWriter(new QuicDefaultPacketWriter(1234));
   }
 

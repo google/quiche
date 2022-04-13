@@ -117,8 +117,7 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
   // Copying the rest headers ensures they are the same as the original
   // request, especially cookies.
   spdy::Http2HeaderBlock SynthesizePushRequestHeaders(
-      std::string request_url,
-      QuicBackendResponse::ServerPushInfo resource,
+      std::string request_url, QuicBackendResponse::ServerPushInfo resource,
       const spdy::Http2HeaderBlock& original_request_headers);
 
   // Send PUSH_PROMISE frame on headers stream.

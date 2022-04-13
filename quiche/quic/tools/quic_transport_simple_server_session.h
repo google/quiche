@@ -44,9 +44,7 @@ class QuicTransportSimpleServerSession
   };
 
   QuicTransportSimpleServerSession(
-      QuicConnection* connection,
-      bool owns_connection,
-      Visitor* owner,
+      QuicConnection* connection, bool owns_connection, Visitor* owner,
       const QuicConfig& config,
       const ParsedQuicVersionVector& supported_versions,
       const QuicCryptoServerConfig* crypto_config,

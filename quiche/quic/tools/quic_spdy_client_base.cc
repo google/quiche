@@ -25,30 +25,21 @@ void QuicSpdyClientBase::ClientQuicDataToResend::Resend() {
 }
 
 QuicSpdyClientBase::QuicDataToResend::QuicDataToResend(
-    std::unique_ptr<Http2HeaderBlock> headers,
-    absl::string_view body,
-    bool fin)
+    std::unique_ptr<Http2HeaderBlock> headers, absl::string_view body, bool fin)
     : headers_(std::move(headers)), body_(body), fin_(fin) {}
 
 QuicSpdyClientBase::QuicDataToResend::~QuicDataToResend() = default;
 
 QuicSpdyClientBase::QuicSpdyClientBase(
     const QuicServerId& server_id,
-    const ParsedQuicVersionVector& supported_versions,
-    const QuicConfig& config,
-    QuicConnectionHelperInterface* helper,
-    QuicAlarmFactory* alarm_factory,
+    const ParsedQuicVersionVector& supported_versions, const QuicConfig& config,
+    QuicConnectionHelperInterface* helper, QuicAlarmFactory* alarm_factory,
     std::unique_ptr<NetworkHelper> network_helper,
     std::unique_ptr<ProofVerifier> proof_verifier,
     std::unique_ptr<SessionCache> session_cache)
-    : QuicClientBase(server_id,
-                     supported_versions,
-                     config,
-                     helper,
-                     alarm_factory,
-                     std::move(network_helper),
-                     std::move(proof_verifier),
-                     std::move(session_cache)),
+    : QuicClientBase(server_id, supported_versions, config, helper,
+                     alarm_factory, std::move(network_helper),
+                     std::move(proof_verifier), std::move(session_cache)),
       store_response_(false),
       latest_response_code_(-1) {}
 
@@ -113,8 +104,7 @@ std::unique_ptr<QuicSession> QuicSpdyClientBase::CreateQuicClientSession(
 }
 
 void QuicSpdyClientBase::SendRequest(const Http2HeaderBlock& headers,
-                                     absl::string_view body,
-                                     bool fin) {
+                                     absl::string_view body, bool fin) {
   if (GetQuicFlag(FLAGS_quic_client_convert_http_header_name_to_lowercase)) {
     QUIC_CODE_COUNT(quic_client_convert_http_header_name_to_lowercase);
     Http2HeaderBlock sanitized_headers;
@@ -129,13 +119,11 @@ void QuicSpdyClientBase::SendRequest(const Http2HeaderBlock& headers,
 }
 
 void QuicSpdyClientBase::SendRequestInternal(Http2HeaderBlock sanitized_headers,
-                                             absl::string_view body,
-                                             bool fin) {
+                                             absl::string_view body, bool fin) {
   QuicClientPushPromiseIndex::TryHandle* handle;
   QuicAsyncStatus rv =
       push_promise_index()->Try(sanitized_headers, this, &handle);
-  if (rv == QUIC_SUCCESS)
-    return;
+  if (rv == QUIC_SUCCESS) return;
 
   if (rv == QUIC_PENDING) {
     // May need to retry request if asynchronous rendezvous fails.
@@ -152,9 +140,7 @@ void QuicSpdyClientBase::SendRequestInternal(Http2HeaderBlock sanitized_headers,
 }
 
 void QuicSpdyClientBase::SendRequestAndWaitForResponse(
-    const Http2HeaderBlock& headers,
-    absl::string_view body,
-    bool fin) {
+    const Http2HeaderBlock& headers, absl::string_view body, bool fin) {
   SendRequest(headers, body, fin);
   while (WaitForEvents()) {
   }

@@ -68,8 +68,7 @@ class QuicServer : public QuicSpdyServerBase,
   virtual void Shutdown();
 
   // From EpollCallbackInterface
-  void OnRegistration(QuicEpollServer* /*eps*/,
-                      int /*fd*/,
+  void OnRegistration(QuicEpollServer* /*eps*/, int /*fd*/,
                       int /*event_mask*/) override {}
   void OnModification(int /*fd*/, int /*event_mask*/) override {}
   void OnEvent(int /*fd*/, QuicEpollEvent* /*event*/) override;

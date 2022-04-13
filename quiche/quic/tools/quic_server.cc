@@ -45,23 +45,18 @@ const size_t kNumSessionsToCreatePerSocketEvent = 16;
 
 QuicServer::QuicServer(std::unique_ptr<ProofSource> proof_source,
                        QuicSimpleServerBackend* quic_simple_server_backend)
-    : QuicServer(std::move(proof_source),
-                 quic_simple_server_backend,
+    : QuicServer(std::move(proof_source), quic_simple_server_backend,
                  AllSupportedVersions()) {}
 
 QuicServer::QuicServer(std::unique_ptr<ProofSource> proof_source,
                        QuicSimpleServerBackend* quic_simple_server_backend,
                        const ParsedQuicVersionVector& supported_versions)
-    : QuicServer(std::move(proof_source),
-                 QuicConfig(),
-                 QuicCryptoServerConfig::ConfigOptions(),
-                 supported_versions,
-                 quic_simple_server_backend,
-                 kQuicDefaultConnectionIdLength) {}
+    : QuicServer(std::move(proof_source), QuicConfig(),
+                 QuicCryptoServerConfig::ConfigOptions(), supported_versions,
+                 quic_simple_server_backend, kQuicDefaultConnectionIdLength) {}
 
 QuicServer::QuicServer(
-    std::unique_ptr<ProofSource> proof_source,
-    const QuicConfig& config,
+    std::unique_ptr<ProofSource> proof_source, const QuicConfig& config,
     const QuicCryptoServerConfig::ConfigOptions& crypto_config_options,
     const ParsedQuicVersionVector& supported_versions,
     QuicSimpleServerBackend* quic_simple_server_backend,
@@ -72,10 +67,8 @@ QuicServer::QuicServer(
       overflow_supported_(false),
       silent_close_(false),
       config_(config),
-      crypto_config_(kSourceAddressTokenSecret,
-                     QuicRandom::GetInstance(),
-                     std::move(proof_source),
-                     KeyExchangeSource::Default()),
+      crypto_config_(kSourceAddressTokenSecret, QuicRandom::GetInstance(),
+                     std::move(proof_source), KeyExchangeSource::Default()),
       crypto_config_options_(crypto_config_options),
       version_manager_(supported_versions),
       packet_reader_(new QuicPacketReader()),

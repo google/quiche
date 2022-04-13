@@ -25,8 +25,7 @@ class QuicTcpLikeTraceConverter {
   struct StreamOffsetSegment {
     StreamOffsetSegment();
     StreamOffsetSegment(QuicStreamOffset stream_offset,
-                        uint64_t connection_offset,
-                        QuicByteCount data_length);
+                        uint64_t connection_offset, QuicByteCount data_length);
 
     QuicInterval<QuicStreamOffset> stream_data;
     uint64_t connection_offset;
@@ -69,8 +68,7 @@ class QuicTcpLikeTraceConverter {
   // Called when frame with |offset|, |data_length| and |fin| has been sent.
   // Update |info| and returns connection offsets.
   QuicIntervalSet<uint64_t> OnFrameSent(QuicStreamOffset offset,
-                                        QuicByteCount data_length,
-                                        bool fin,
+                                        QuicByteCount data_length, bool fin,
                                         StreamInfo* info);
 
   StreamInfo crypto_frames_info_[NUM_ENCRYPTION_LEVELS];

@@ -81,10 +81,8 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
   // Adds a simple response to the cache.  The response headers will
   // only contain the "content-length" header with the length of |body|.
-  void AddSimpleResponse(absl::string_view host,
-                         absl::string_view path,
-                         int response_code,
-                         absl::string_view body);
+  void AddSimpleResponse(absl::string_view host, absl::string_view path,
+                         int response_code, absl::string_view body);
 
   // Add a simple response to the cache as AddSimpleResponse() does, and add
   // some server push resources(resource path, corresponding response status and
@@ -92,44 +90,35 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
   // Push resource implicitly come from the same host.
   // TODO(b/171463363): Remove.
   void AddSimpleResponseWithServerPushResources(
-      absl::string_view host,
-      absl::string_view path,
-      int response_code,
+      absl::string_view host, absl::string_view path, int response_code,
       absl::string_view body,
       std::list<QuicBackendResponse::ServerPushInfo> push_resources);
 
   // Add a response to the cache.
-  void AddResponse(absl::string_view host,
-                   absl::string_view path,
+  void AddResponse(absl::string_view host, absl::string_view path,
                    spdy::Http2HeaderBlock response_headers,
                    absl::string_view response_body);
 
   // Add a response, with trailers, to the cache.
-  void AddResponse(absl::string_view host,
-                   absl::string_view path,
+  void AddResponse(absl::string_view host, absl::string_view path,
                    spdy::Http2HeaderBlock response_headers,
                    absl::string_view response_body,
                    spdy::Http2HeaderBlock response_trailers);
 
   // Add a response, with 103 Early Hints, to the cache.
   void AddResponseWithEarlyHints(
-      absl::string_view host,
-      absl::string_view path,
-      spdy::Http2HeaderBlock response_headers,
-      absl::string_view response_body,
+      absl::string_view host, absl::string_view path,
+      spdy::Http2HeaderBlock response_headers, absl::string_view response_body,
       const std::vector<spdy::Http2HeaderBlock>& early_hints);
 
   // Simulate a special behavior at a particular path.
   void AddSpecialResponse(
-      absl::string_view host,
-      absl::string_view path,
+      absl::string_view host, absl::string_view path,
       QuicBackendResponse::SpecialResponseType response_type);
 
   void AddSpecialResponse(
-      absl::string_view host,
-      absl::string_view path,
-      spdy::Http2HeaderBlock response_headers,
-      absl::string_view response_body,
+      absl::string_view host, absl::string_view path,
+      spdy::Http2HeaderBlock response_headers, absl::string_view response_body,
       QuicBackendResponse::SpecialResponseType response_type);
 
   // Sets a default response in case of cache misses.  Takes ownership of
@@ -163,8 +152,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
   bool SupportsWebTransport() override { return enable_webtransport_; }
 
  private:
-  void AddResponseImpl(absl::string_view host,
-                       absl::string_view path,
+  void AddResponseImpl(absl::string_view host, absl::string_view path,
                        QuicBackendResponse::SpecialResponseType response_type,
                        spdy::Http2HeaderBlock response_headers,
                        absl::string_view response_body,
@@ -177,8 +165,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
   // request if these push resources are not associated with this request yet.
   // TODO(b/171463363): Remove.
   void MaybeAddServerPushResources(
-      absl::string_view request_host,
-      absl::string_view request_path,
+      absl::string_view request_host, absl::string_view request_path,
       std::list<QuicBackendResponse::ServerPushInfo> push_resources);
 
   // Check if push resource(push_host/push_path) associated with given request

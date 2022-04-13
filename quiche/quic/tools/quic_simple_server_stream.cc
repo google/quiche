@@ -26,9 +26,7 @@ using spdy::Http2HeaderBlock;
 namespace quic {
 
 QuicSimpleServerStream::QuicSimpleServerStream(
-    QuicStreamId id,
-    QuicSpdySession* session,
-    StreamType type,
+    QuicStreamId id, QuicSpdySession* session, StreamType type,
     QuicSimpleServerBackend* quic_simple_server_backend)
     : QuicSpdyServerStreamBase(id, session, type),
       content_length_(-1),
@@ -52,9 +50,7 @@ QuicSimpleServerStream::~QuicSimpleServerStream() {
 }
 
 void QuicSimpleServerStream::OnInitialHeadersComplete(
-    bool fin,
-    size_t frame_len,
-    const QuicHeaderList& header_list) {
+    bool fin, size_t frame_len, const QuicHeaderList& header_list) {
   QuicSpdyStream::OnInitialHeadersComplete(fin, frame_len, header_list);
   // QuicSpdyStream::OnInitialHeadersComplete() may have already sent error
   // response.
@@ -62,7 +58,7 @@ void QuicSimpleServerStream::OnInitialHeadersComplete(
       !SpdyUtils::CopyAndValidateHeaders(header_list, &content_length_,
                                          &request_headers_)) {
     QUIC_DVLOG(1) << "Invalid headers";
-      SendErrorResponse();
+    SendErrorResponse();
   }
   ConsumeHeaderList();
   if (!fin && !response_sent_) {
@@ -78,9 +74,7 @@ void QuicSimpleServerStream::OnInitialHeadersComplete(
 }
 
 void QuicSimpleServerStream::OnTrailingHeadersComplete(
-    bool /*fin*/,
-    size_t /*frame_len*/,
-    const QuicHeaderList& /*header_list*/) {
+    bool /*fin*/, size_t /*frame_len*/, const QuicHeaderList& /*header_list*/) {
   QUIC_BUG(quic_bug_10962_1) << "Server does not support receiving Trailers.";
   SendErrorResponse();
 }
@@ -205,9 +199,7 @@ QuicConnectionId QuicSimpleServerStream::connection_id() const {
   return spdy_session()->connection_id();
 }
 
-QuicStreamId QuicSimpleServerStream::stream_id() const {
-  return id();
-}
+QuicStreamId QuicSimpleServerStream::stream_id() const { return id(); }
 
 std::string QuicSimpleServerStream::peer_host() const {
   return spdy_session()->peer_address().host().ToString();
@@ -341,9 +333,7 @@ void QuicSimpleServerStream::SendNotFoundResponse() {
   SendHeadersAndBody(std::move(headers), kNotFoundResponseBody);
 }
 
-void QuicSimpleServerStream::SendErrorResponse() {
-  SendErrorResponse(0);
-}
+void QuicSimpleServerStream::SendErrorResponse() { SendErrorResponse(0); }
 
 void QuicSimpleServerStream::SendErrorResponse(int resp_code) {
   QUIC_DVLOG(1) << "Stream " << id() << " sending error response.";
@@ -361,8 +351,7 @@ void QuicSimpleServerStream::SendErrorResponse(int resp_code) {
 }
 
 void QuicSimpleServerStream::SendIncompleteResponse(
-    Http2HeaderBlock response_headers,
-    absl::string_view body) {
+    Http2HeaderBlock response_headers, absl::string_view body) {
   QUIC_DLOG(INFO) << "Stream " << id() << " writing headers (fin = false) : "
                   << response_headers.DebugString();
   WriteHeaders(std::move(response_headers), /*fin=*/false, nullptr);
@@ -377,15 +366,13 @@ void QuicSimpleServerStream::SendIncompleteResponse(
 }
 
 void QuicSimpleServerStream::SendHeadersAndBody(
-    Http2HeaderBlock response_headers,
-    absl::string_view body) {
+    Http2HeaderBlock response_headers, absl::string_view body) {
   SendHeadersAndBodyAndTrailers(std::move(response_headers), body,
                                 Http2HeaderBlock());
 }
 
 void QuicSimpleServerStream::SendHeadersAndBodyAndTrailers(
-    Http2HeaderBlock response_headers,
-    absl::string_view body,
+    Http2HeaderBlock response_headers, absl::string_view body,
     Http2HeaderBlock response_trailers) {
   // Send the headers, with a FIN if there's nothing else to send.
   bool send_fin = (body.empty() && response_trailers.empty());

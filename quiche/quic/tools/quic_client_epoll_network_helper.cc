@@ -31,8 +31,7 @@ const int kEpollFlags = EPOLLIN | EPOLLOUT | EPOLLET;
 }  // namespace
 
 QuicClientEpollNetworkHelper::QuicClientEpollNetworkHelper(
-    QuicEpollServer* epoll_server,
-    QuicClientBase* client)
+    QuicEpollServer* epoll_server, QuicClientBase* client)
     : epoll_server_(epoll_server),
       packets_dropped_(0),
       overflow_supported_(false),
@@ -55,8 +54,7 @@ std::string QuicClientEpollNetworkHelper::Name() const {
 }
 
 bool QuicClientEpollNetworkHelper::CreateUDPSocketAndBind(
-    QuicSocketAddress server_address,
-    QuicIpAddress bind_to_address,
+    QuicSocketAddress server_address, QuicIpAddress bind_to_address,
     int bind_to_port) {
   epoll_server_->set_timeout_in_us(50 * 1000);
 
@@ -204,14 +202,12 @@ int QuicClientEpollNetworkHelper::GetLatestFD() const {
 
 void QuicClientEpollNetworkHelper::ProcessPacket(
     const QuicSocketAddress& self_address,
-    const QuicSocketAddress& peer_address,
-    const QuicReceivedPacket& packet) {
+    const QuicSocketAddress& peer_address, const QuicReceivedPacket& packet) {
   client_->session()->ProcessUdpPacket(self_address, peer_address, packet);
 }
 
 int QuicClientEpollNetworkHelper::CreateUDPSocket(
-    QuicSocketAddress server_address,
-    bool* overflow_supported) {
+    QuicSocketAddress server_address, bool* overflow_supported) {
   QuicUdpSocketApi api;
   int fd = api.Create(server_address.host().AddressFamilyToInt(),
                       /*receive_buffer_size =*/kDefaultSocketReceiveBuffer,

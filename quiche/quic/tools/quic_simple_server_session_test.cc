@@ -83,21 +83,16 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
  public:
   explicit MockQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
-      QuicCompressedCertsCache* compressed_certs_cache,
-      QuicSession* session,
+      QuicCompressedCertsCache* compressed_certs_cache, QuicSession* session,
       QuicCryptoServerStreamBase::Helper* helper)
-      : QuicCryptoServerStream(crypto_config,
-                               compressed_certs_cache,
-                               session,
+      : QuicCryptoServerStream(crypto_config, compressed_certs_cache, session,
                                helper) {}
   MockQuicCryptoServerStream(const MockQuicCryptoServerStream&) = delete;
   MockQuicCryptoServerStream& operator=(const MockQuicCryptoServerStream&) =
       delete;
   ~MockQuicCryptoServerStream() override {}
 
-  MOCK_METHOD(void,
-              SendServerConfigUpdate,
-              (const CachedNetworkParameters*),
+  MOCK_METHOD(void, SendServerConfigUpdate, (const CachedNetworkParameters*),
               (override));
 
   bool encryption_established() const override { return true; }
@@ -112,9 +107,7 @@ class MockTlsServerHandshaker : public TlsServerHandshaker {
   MockTlsServerHandshaker& operator=(const MockTlsServerHandshaker&) = delete;
   ~MockTlsServerHandshaker() override {}
 
-  MOCK_METHOD(void,
-              SendServerConfigUpdate,
-              (const CachedNetworkParameters*),
+  MOCK_METHOD(void, SendServerConfigUpdate, (const CachedNetworkParameters*),
               (override));
 
   bool encryption_established() const override { return true; }
@@ -122,8 +115,7 @@ class MockTlsServerHandshaker : public TlsServerHandshaker {
 
 QuicCryptoServerStreamBase* CreateMockCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
-    QuicCompressedCertsCache* compressed_certs_cache,
-    QuicSession* session,
+    QuicCompressedCertsCache* compressed_certs_cache, QuicSession* session,
     QuicCryptoServerStreamBase::Helper* helper) {
   switch (session->connection()->version().handshake_protocol) {
     case PROTOCOL_QUIC_CRYPTO:
@@ -143,13 +135,10 @@ QuicCryptoServerStreamBase* CreateMockCryptoServerStream(
 class MockQuicConnectionWithSendStreamData : public MockQuicConnection {
  public:
   MockQuicConnectionWithSendStreamData(
-      MockQuicConnectionHelper* helper,
-      MockAlarmFactory* alarm_factory,
+      MockQuicConnectionHelper* helper, MockAlarmFactory* alarm_factory,
       Perspective perspective,
       const ParsedQuicVersionVector& supported_versions)
-      : MockQuicConnection(helper,
-                           alarm_factory,
-                           perspective,
+      : MockQuicConnection(helper, alarm_factory, perspective,
                            supported_versions) {
     auto consume_all_data = [](QuicStreamId /*id*/, size_t write_length,
                                QuicStreamOffset /*offset*/,
@@ -160,11 +149,8 @@ class MockQuicConnectionWithSendStreamData : public MockQuicConnection {
         .WillByDefault(Invoke(consume_all_data));
   }
 
-  MOCK_METHOD(QuicConsumedData,
-              SendStreamData,
-              (QuicStreamId id,
-               size_t write_length,
-               QuicStreamOffset offset,
+  MOCK_METHOD(QuicConsumedData, SendStreamData,
+              (QuicStreamId id, size_t write_length, QuicStreamOffset offset,
                StreamSendingState state),
               (override));
 };
@@ -172,21 +158,15 @@ class MockQuicConnectionWithSendStreamData : public MockQuicConnection {
 class MockQuicSimpleServerSession : public QuicSimpleServerSession {
  public:
   MockQuicSimpleServerSession(
-      const QuicConfig& config,
-      QuicConnection* connection,
-      QuicSession::Visitor* visitor,
-      QuicCryptoServerStreamBase::Helper* helper,
+      const QuicConfig& config, QuicConnection* connection,
+      QuicSession::Visitor* visitor, QuicCryptoServerStreamBase::Helper* helper,
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       QuicSimpleServerBackend* quic_simple_server_backend)
-      : QuicSimpleServerSession(config,
-                                CurrentSupportedVersions(),
-                                connection,
-                                visitor,
-                                helper,
-                                crypto_config,
-                                compressed_certs_cache,
-                                quic_simple_server_backend) {}
+      : QuicSimpleServerSession(
+            config, CurrentSupportedVersions(), connection, visitor, helper,
+            crypto_config, compressed_certs_cache, quic_simple_server_backend) {
+  }
   // Methods taking non-copyable types like Http2HeaderBlock by value cannot be
   // mocked directly.
   void WritePushPromise(QuicStreamId original_stream_id,
@@ -195,18 +175,14 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
     return WritePushPromiseMock(original_stream_id, promised_stream_id,
                                 headers);
   }
-  MOCK_METHOD(void,
-              WritePushPromiseMock,
-              (QuicStreamId original_stream_id,
-               QuicStreamId promised_stream_id,
+  MOCK_METHOD(void, WritePushPromiseMock,
+              (QuicStreamId original_stream_id, QuicStreamId promised_stream_id,
                const spdy::Http2HeaderBlock& headers),
               ());
 
   MOCK_METHOD(void, SendBlocked, (QuicStreamId), (override));
-  MOCK_METHOD(bool,
-              WriteControlFrame,
-              (const QuicFrame& frame, TransmissionType type),
-              (override));
+  MOCK_METHOD(bool, WriteControlFrame,
+              (const QuicFrame& frame, TransmissionType type), (override));
 };
 
 class QuicSimpleServerSessionTest
@@ -325,8 +301,7 @@ class QuicSimpleServerSessionTest
   std::unique_ptr<CryptoHandshakeMessage> handshake_message_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicSimpleServerSessionTest,
+INSTANTIATE_TEST_SUITE_P(Tests, QuicSimpleServerSessionTest,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 

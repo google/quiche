@@ -108,14 +108,10 @@ class QuicClientInteropRunner : QuicConnectionDebugVisitor {
   // Feature::kResumption to it, otherwise it is left unmodified.
   void AttemptResumption(QuicClient* client, const std::string& authority);
 
-  void AttemptRequest(QuicSocketAddress addr,
-                      std::string authority,
-                      QuicServerId server_id,
-                      ParsedQuicVersion version,
-                      bool test_version_negotiation,
-                      bool attempt_rebind,
-                      bool attempt_multi_packet_chlo,
-                      bool attempt_key_update);
+  void AttemptRequest(QuicSocketAddress addr, std::string authority,
+                      QuicServerId server_id, ParsedQuicVersion version,
+                      bool test_version_negotiation, bool attempt_rebind,
+                      bool attempt_multi_packet_chlo, bool attempt_key_update);
 
   // Constructs a SpdyHeaderBlock containing the pseudo-headers needed to make a
   // GET request to "/" on the hostname |authority|.
@@ -193,14 +189,11 @@ void QuicClientInteropRunner::AttemptResumption(QuicClient* client,
   }
 }
 
-void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
-                                             std::string authority,
-                                             QuicServerId server_id,
-                                             ParsedQuicVersion version,
-                                             bool test_version_negotiation,
-                                             bool attempt_rebind,
-                                             bool attempt_multi_packet_chlo,
-                                             bool attempt_key_update) {
+void QuicClientInteropRunner::AttemptRequest(
+    QuicSocketAddress addr, std::string authority, QuicServerId server_id,
+    ParsedQuicVersion version, bool test_version_negotiation,
+    bool attempt_rebind, bool attempt_multi_packet_chlo,
+    bool attempt_key_update) {
   ParsedQuicVersionVector versions = {version};
   if (test_version_negotiation) {
     versions.insert(versions.begin(), QuicVersionReservedForNegotiation());
@@ -345,8 +338,7 @@ spdy::Http2HeaderBlock QuicClientInteropRunner::ConstructHeaderBlock(
 }
 
 void QuicClientInteropRunner::SendRequest(
-    QuicClient* client,
-    const spdy::Http2HeaderBlock& header_block) {
+    QuicClient* client, const spdy::Http2HeaderBlock& header_block) {
   client->set_store_response(true);
   client->SendRequestAndWaitForResponse(header_block, "", /*fin=*/true);
 
@@ -367,10 +359,8 @@ void QuicClientInteropRunner::SendRequest(
   }
 }
 
-std::set<Feature> ServerSupport(std::string dns_host,
-                                std::string url_host,
-                                int port,
-                                ParsedQuicVersion version) {
+std::set<Feature> ServerSupport(std::string dns_host, std::string url_host,
+                                int port, ParsedQuicVersion version) {
   std::cout << "Attempting interop with version " << version << std::endl;
 
   // Build the client, and try to connect.

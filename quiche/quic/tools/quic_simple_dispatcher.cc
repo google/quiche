@@ -10,20 +10,15 @@
 namespace quic {
 
 QuicSimpleDispatcher::QuicSimpleDispatcher(
-    const QuicConfig* config,
-    const QuicCryptoServerConfig* crypto_config,
+    const QuicConfig* config, const QuicCryptoServerConfig* crypto_config,
     QuicVersionManager* version_manager,
     std::unique_ptr<QuicConnectionHelperInterface> helper,
     std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
     std::unique_ptr<QuicAlarmFactory> alarm_factory,
     QuicSimpleServerBackend* quic_simple_server_backend,
     uint8_t expected_server_connection_id_length)
-    : QuicDispatcher(config,
-                     crypto_config,
-                     version_manager,
-                     std::move(helper),
-                     std::move(session_helper),
-                     std::move(alarm_factory),
+    : QuicDispatcher(config, crypto_config, version_manager, std::move(helper),
+                     std::move(session_helper), std::move(alarm_factory),
                      expected_server_connection_id_length),
       quic_simple_server_backend_(quic_simple_server_backend) {}
 

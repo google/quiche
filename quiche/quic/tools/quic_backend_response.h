@@ -19,10 +19,8 @@ class QuicBackendResponse {
   // comprising a response for the push request.
   // TODO(b/171463363): Remove.
   struct ServerPushInfo {
-    ServerPushInfo(QuicUrl request_url,
-                   spdy::Http2HeaderBlock headers,
-                   spdy::SpdyPriority priority,
-                   std::string body);
+    ServerPushInfo(QuicUrl request_url, spdy::Http2HeaderBlock headers,
+                   spdy::SpdyPriority priority, std::string body);
     ServerPushInfo(const ServerPushInfo& other);
 
     QuicUrl request_url;

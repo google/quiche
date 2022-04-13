@@ -324,8 +324,7 @@ class QuicClientBase {
   bool CanReconnectWithDifferentVersion(ParsedQuicVersion* version) const;
 
   std::unique_ptr<QuicPacketWriter> CreateWriterForNewNetwork(
-      const QuicIpAddress& new_host,
-      int port);
+      const QuicIpAddress& new_host, int port);
 
   // |server_id_| is a tuple (hostname, port, is_https) of the server.
   QuicServerId server_id_;

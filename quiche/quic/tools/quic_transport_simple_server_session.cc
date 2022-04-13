@@ -21,21 +21,13 @@
 namespace quic {
 
 QuicTransportSimpleServerSession::QuicTransportSimpleServerSession(
-    QuicConnection* connection,
-    bool owns_connection,
-    Visitor* owner,
-    const QuicConfig& config,
-    const ParsedQuicVersionVector& supported_versions,
+    QuicConnection* connection, bool owns_connection, Visitor* owner,
+    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     std::vector<url::Origin> accepted_origins)
-    : QuicTransportServerSession(connection,
-                                 owner,
-                                 config,
-                                 supported_versions,
-                                 crypto_config,
-                                 compressed_certs_cache,
-                                 this),
+    : QuicTransportServerSession(connection, owner, config, supported_versions,
+                                 crypto_config, compressed_certs_cache, this),
       owns_connection_(owns_connection),
       mode_(DISCARD),
       accepted_origins_(accepted_origins) {}

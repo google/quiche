@@ -77,10 +77,8 @@ QuicClientBase::NetworkHelper::~NetworkHelper() = default;
 
 QuicClientBase::QuicClientBase(
     const QuicServerId& server_id,
-    const ParsedQuicVersionVector& supported_versions,
-    const QuicConfig& config,
-    QuicConnectionHelperInterface* helper,
-    QuicAlarmFactory* alarm_factory,
+    const ParsedQuicVersionVector& supported_versions, const QuicConfig& config,
+    QuicConnectionHelperInterface* helper, QuicAlarmFactory* alarm_factory,
     std::unique_ptr<NetworkHelper> network_helper,
     std::unique_ptr<ProofVerifier> proof_verifier,
     std::unique_ptr<SessionCache> session_cache)
@@ -206,9 +204,7 @@ void QuicClientBase::StartConnect() {
   set_connected_or_attempting_connect(true);
 }
 
-void QuicClientBase::InitializeSession() {
-  session()->Initialize();
-}
+void QuicClientBase::InitializeSession() { session()->Initialize(); }
 
 void QuicClientBase::Disconnect() {
   QUICHE_DCHECK(initialized_);
@@ -260,8 +256,7 @@ bool QuicClientBase::MigrateSocket(const QuicIpAddress& new_host) {
 }
 
 bool QuicClientBase::MigrateSocketWithSpecifiedPort(
-    const QuicIpAddress& new_host,
-    int port) {
+    const QuicIpAddress& new_host, int port) {
   if (!connected()) {
     QUICHE_DVLOG(1)
         << "MigrateSocketWithSpecifiedPort failed as connection has closed";
@@ -310,8 +305,7 @@ bool QuicClientBase::ValidateAndMigrateSocket(const QuicIpAddress& new_host) {
 }
 
 std::unique_ptr<QuicPacketWriter> QuicClientBase::CreateWriterForNewNetwork(
-    const QuicIpAddress& new_host,
-    int port) {
+    const QuicIpAddress& new_host, int port) {
   set_bind_to_address(new_host);
   set_local_port(port);
   if (!network_helper_->CreateUDPSocketAndBind(server_address_,
@@ -331,13 +325,9 @@ bool QuicClientBase::ChangeEphemeralPort() {
   return MigrateSocketWithSpecifiedPort(current_host, 0 /*any ephemeral port*/);
 }
 
-QuicSession* QuicClientBase::session() {
-  return session_.get();
-}
+QuicSession* QuicClientBase::session() { return session_.get(); }
 
-const QuicSession* QuicClientBase::session() const {
-  return session_.get();
-}
+const QuicSession* QuicClientBase::session() const { return session_.get(); }
 
 QuicClientBase::NetworkHelper* QuicClientBase::network_helper() {
   return network_helper_.get();

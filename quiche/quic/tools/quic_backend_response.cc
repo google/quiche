@@ -7,10 +7,8 @@
 namespace quic {
 
 QuicBackendResponse::ServerPushInfo::ServerPushInfo(
-    QuicUrl request_url,
-    spdy::Http2HeaderBlock headers,
-    spdy::SpdyPriority priority,
-    std::string body)
+    QuicUrl request_url, spdy::Http2HeaderBlock headers,
+    spdy::SpdyPriority priority, std::string body)
     : request_url(request_url),
       headers(std::move(headers)),
       priority(priority),

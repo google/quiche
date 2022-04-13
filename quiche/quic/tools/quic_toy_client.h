@@ -22,13 +22,10 @@ class QuicToyClient {
     // supporting |versions|, using |host_for_handshake| for handshake and
     // |verifier| to verify proofs.
     virtual std::unique_ptr<QuicSpdyClientBase> CreateClient(
-        std::string host_for_handshake,
-        std::string host_for_lookup,
+        std::string host_for_handshake, std::string host_for_lookup,
         // AF_INET, AF_INET6, or AF_UNSPEC(=don't care).
-        int address_family_for_lookup,
-        uint16_t port,
-        ParsedQuicVersionVector versions,
-        const QuicConfig& config,
+        int address_family_for_lookup, uint16_t port,
+        ParsedQuicVersionVector versions, const QuicConfig& config,
         std::unique_ptr<ProofVerifier> verifier,
         std::unique_ptr<SessionCache> session_cache) = 0;
   };
