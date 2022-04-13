@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/core/quic_udp_socket.h"
-#include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_udp_socket_platform_api.h"
-
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+
+#include "quiche/quic/core/quic_udp_socket.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_udp_socket_platform_api.h"
 
 #if defined(__APPLE__) && !defined(__APPLE_USE_RFC_3542)
 #error "__APPLE_USE_RFC_3542 needs to be defined."
@@ -197,12 +197,8 @@ void PopulatePacketInfoFromControlMessage(struct cmsghdr* cmsg,
   }
 }
 
-bool NextCmsg(msghdr* hdr,
-              char* control_buffer,
-              size_t control_buffer_len,
-              int cmsg_level,
-              int cmsg_type,
-              size_t data_size,
+bool NextCmsg(msghdr* hdr, char* control_buffer, size_t control_buffer_len,
+              int cmsg_level, int cmsg_type, size_t data_size,
               cmsghdr** cmsg /*in, out*/) {
   // msg_controllen needs to be increased first, otherwise CMSG_NXTHDR will
   // return nullptr.
@@ -235,8 +231,7 @@ bool NextCmsg(msghdr* hdr,
 
 QuicUdpSocketFd QuicUdpSocketApi::Create(int address_family,
                                          int receive_buffer_size,
-                                         int send_buffer_size,
-                                         bool ipv6_only) {
+                                         int send_buffer_size, bool ipv6_only) {
   // QUICHE_DCHECK here so the program exits early(before reading packets) in
   // debug mode. This should have been a static_assert, however it can't be done
   // on ios/osx because CMSG_SPACE isn't a constant expression there.
@@ -256,11 +251,9 @@ QuicUdpSocketFd QuicUdpSocketApi::Create(int address_family,
   return fd;
 }
 
-bool QuicUdpSocketApi::SetupSocket(QuicUdpSocketFd fd,
-                                   int address_family,
+bool QuicUdpSocketApi::SetupSocket(QuicUdpSocketFd fd, int address_family,
                                    int receive_buffer_size,
-                                   int send_buffer_size,
-                                   bool ipv6_only) {
+                                   int send_buffer_size, bool ipv6_only) {
   // Receive buffer size.
   if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &receive_buffer_size,
                  sizeof(receive_buffer_size)) != 0) {
@@ -560,9 +553,7 @@ size_t QuicUdpSocketApi::ReadMultiplePackets(QuicUdpSocketFd fd,
 }
 
 WriteResult QuicUdpSocketApi::WritePacket(
-    QuicUdpSocketFd fd,
-    const char* packet_buffer,
-    size_t packet_buffer_len,
+    QuicUdpSocketFd fd, const char* packet_buffer, size_t packet_buffer_len,
     const QuicUdpPacketInfo& packet_info) {
   if (!packet_info.HasValue(QuicUdpPacketInfoBit::PEER_ADDRESS)) {
     return WriteResult(WRITE_STATUS_ERROR, EINVAL);

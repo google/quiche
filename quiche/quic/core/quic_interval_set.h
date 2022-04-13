@@ -51,13 +51,13 @@
 //   EXPECT_TRUE(intervals.Contains(Interval<int>(20, 40)));
 
 #include <stddef.h>
+
 #include <algorithm>
 #include <initializer_list>
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
-
-#include <string>
 
 #include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/platform/api/quic_containers.h"
@@ -353,8 +353,7 @@ class QUIC_NO_EXPORT QuicIntervalSet {
   template <typename Iter>
   void assign(Iter first, Iter last) {
     Clear();
-    for (; first != last; ++first)
-      Add(*first);
+    for (; first != last; ++first) Add(*first);
   }
 
   void assign(std::initializer_list<value_type> il) {
@@ -414,8 +413,7 @@ class QUIC_NO_EXPORT QuicIntervalSet {
   // first element in 'x' after the hole, or x->intervals_.end() if no elements
   // exist after the hole.
   template <typename X, typename Func>
-  static bool FindNextIntersectingPairImpl(X* x,
-                                           const QuicIntervalSet& y,
+  static bool FindNextIntersectingPairImpl(X* x, const QuicIntervalSet& y,
                                            const_iterator* mine,
                                            const_iterator* theirs,
                                            Func on_hole);
@@ -477,8 +475,7 @@ typename QuicIntervalSet<T>::value_type QuicIntervalSet<T>::SpanningInterval()
 
 template <typename T>
 void QuicIntervalSet<T>::Add(const value_type& interval) {
-  if (interval.Empty())
-    return;
+  if (interval.Empty()) return;
   const_iterator it = intervals_.lower_bound(interval.min());
   value_type the_union = interval;
   if (it != intervals_.begin()) {
@@ -504,8 +501,7 @@ template <typename T>
 bool QuicIntervalSet<T>::Contains(const T& value) const {
   // Find the first interval with min() > value, then move back one step
   const_iterator it = intervals_.upper_bound(value);
-  if (it == intervals_.begin())
-    return false;
+  if (it == intervals_.begin()) return false;
   --it;
   return it->Contains(value);
 }
@@ -514,8 +510,7 @@ template <typename T>
 bool QuicIntervalSet<T>::Contains(const value_type& interval) const {
   // Find the first interval with min() > value, then move back one step.
   const_iterator it = intervals_.upper_bound(interval.min());
-  if (it == intervals_.begin())
-    return false;
+  if (it == intervals_.begin()) return false;
   --it;
   return it->Contains(interval);
 }
@@ -554,8 +549,7 @@ template <typename T>
 typename QuicIntervalSet<T>::const_iterator QuicIntervalSet<T>::Find(
     const T& value) const {
   const_iterator it = intervals_.upper_bound(value);
-  if (it == intervals_.begin())
-    return intervals_.end();
+  if (it == intervals_.begin()) return intervals_.end();
   --it;
   if (it->Contains(value))
     return it;
@@ -573,8 +567,7 @@ template <typename T>
 typename QuicIntervalSet<T>::const_iterator QuicIntervalSet<T>::Find(
     const value_type& probe) const {
   const_iterator it = intervals_.upper_bound(probe.min());
-  if (it == intervals_.begin())
-    return intervals_.end();
+  if (it == intervals_.begin()) return intervals_.end();
   --it;
   if (it->Contains(probe))
     return it;
@@ -609,14 +602,11 @@ typename QuicIntervalSet<T>::const_iterator QuicIntervalSet<T>::UpperBound(
 
 template <typename T>
 bool QuicIntervalSet<T>::IsDisjoint(const value_type& interval) const {
-  if (interval.Empty())
-    return true;
+  if (interval.Empty()) return true;
   // Find the first interval with min() > interval.min()
   const_iterator it = intervals_.upper_bound(interval.min());
-  if (it != intervals_.end() && interval.max() > it->min())
-    return false;
-  if (it == intervals_.begin())
-    return true;
+  if (it != intervals_.end() && interval.max() > it->min()) return false;
+  if (it == intervals_.begin()) return true;
   --it;
   return it->max() <= interval.min();
 }
@@ -769,8 +759,7 @@ void QuicIntervalSet<T>::Difference(const QuicIntervalSet& other) {
   // We look at all the elements of intervals_, so that's O(Size()).
   //
   // We also look at all the elements of other.intervals_, for O(other.Size()).
-  if (Empty())
-    return;
+  if (Empty()) return;
   Set result;
   const_iterator mine = intervals_.begin();
   value_type myinterval = *mine;
@@ -839,11 +828,9 @@ bool QuicIntervalSet<T>::Valid() const {
   const_iterator prev = end();
   for (const_iterator it = begin(); it != end(); ++it) {
     // invalid or empty interval.
-    if (it->min() >= it->max())
-      return false;
+    if (it->min() >= it->max()) return false;
     // Not sorted, not disjoint, or adjacent.
-    if (prev != end() && prev->max() >= it->min())
-      return false;
+    if (prev != end() && prev->max() >= it->min()) return false;
     prev = it;
   }
   return true;

@@ -55,8 +55,7 @@ class QUIC_EXPORT_PRIVATE QuicConfigValue {
   // Selects a mutually acceptable value from those offered in |peer_hello|
   // and those defined in the subclass.
   virtual QuicErrorCode ProcessPeerHello(
-      const CryptoHandshakeMessage& peer_hello,
-      HelloType hello_type,
+      const CryptoHandshakeMessage& peer_hello, HelloType hello_type,
       std::string* error_details) = 0;
 
  protected:

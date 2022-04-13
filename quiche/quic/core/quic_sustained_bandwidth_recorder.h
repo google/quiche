@@ -34,12 +34,9 @@ class QUIC_EXPORT_PRIVATE QuicSustainedBandwidthRecorder {
   // method over a 3 * srtt period results in storage of a valid sustained
   // bandwidth estimate.
   // |time_now| is used as a max bandwidth timestamp if needed.
-  void RecordEstimate(bool in_recovery,
-                      bool in_slow_start,
-                      QuicBandwidth bandwidth,
-                      QuicTime estimate_time,
-                      QuicWallTime wall_time,
-                      QuicTime::Delta srtt);
+  void RecordEstimate(bool in_recovery, bool in_slow_start,
+                      QuicBandwidth bandwidth, QuicTime estimate_time,
+                      QuicWallTime wall_time, QuicTime::Delta srtt);
 
   bool HasEstimate() const { return has_estimate_; }
 

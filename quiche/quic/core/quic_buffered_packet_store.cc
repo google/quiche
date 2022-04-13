@@ -66,8 +66,7 @@ BufferedPacketList& BufferedPacketList::operator=(BufferedPacketList&& other) =
 BufferedPacketList::~BufferedPacketList() {}
 
 QuicBufferedPacketStore::QuicBufferedPacketStore(
-    VisitorInterface* visitor,
-    const QuicClock* clock,
+    VisitorInterface* visitor, const QuicClock* clock,
     QuicAlarmFactory* alarm_factory)
     : connection_life_span_(
           QuicTime::Delta::FromSeconds(kInitialIdleTimeoutSecs)),

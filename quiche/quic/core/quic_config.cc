@@ -30,12 +30,9 @@ namespace quic {
 // Reads the value corresponding to |name_| from |msg| into |out|. If the
 // |name_| is absent in |msg| and |presence| is set to OPTIONAL |out| is set
 // to |default_value|.
-QuicErrorCode ReadUint32(const CryptoHandshakeMessage& msg,
-                         QuicTag tag,
-                         QuicConfigPresence presence,
-                         uint32_t default_value,
-                         uint32_t* out,
-                         std::string* error_details) {
+QuicErrorCode ReadUint32(const CryptoHandshakeMessage& msg, QuicTag tag,
+                         QuicConfigPresence presence, uint32_t default_value,
+                         uint32_t* out, std::string* error_details) {
   QUICHE_DCHECK(error_details != nullptr);
   QuicErrorCode error = msg.GetUint32(tag, out);
   switch (error) {
@@ -66,9 +63,7 @@ QuicFixedUint32::QuicFixedUint32(QuicTag tag, QuicConfigPresence presence)
       has_receive_value_(false) {}
 QuicFixedUint32::~QuicFixedUint32() {}
 
-bool QuicFixedUint32::HasSendValue() const {
-  return has_send_value_;
-}
+bool QuicFixedUint32::HasSendValue() const { return has_send_value_; }
 
 uint32_t QuicFixedUint32::GetSendValue() const {
   QUIC_BUG_IF(quic_bug_12743_1, !has_send_value_)
@@ -81,9 +76,7 @@ void QuicFixedUint32::SetSendValue(uint32_t value) {
   send_value_ = value;
 }
 
-bool QuicFixedUint32::HasReceivedValue() const {
-  return has_receive_value_;
-}
+bool QuicFixedUint32::HasReceivedValue() const { return has_receive_value_; }
 
 uint32_t QuicFixedUint32::GetReceivedValue() const {
   QUIC_BUG_IF(quic_bug_12743_2, !has_receive_value_)
@@ -108,8 +101,7 @@ void QuicFixedUint32::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
 }
 
 QuicErrorCode QuicFixedUint32::ProcessPeerHello(
-    const CryptoHandshakeMessage& peer_hello,
-    HelloType /*hello_type*/,
+    const CryptoHandshakeMessage& peer_hello, HelloType /*hello_type*/,
     std::string* error_details) {
   QUICHE_DCHECK(error_details != nullptr);
   if (tag_ == 0) {
@@ -143,9 +135,7 @@ QuicFixedUint62::QuicFixedUint62(QuicTag name, QuicConfigPresence presence)
 
 QuicFixedUint62::~QuicFixedUint62() {}
 
-bool QuicFixedUint62::HasSendValue() const {
-  return has_send_value_;
-}
+bool QuicFixedUint62::HasSendValue() const { return has_send_value_; }
 
 uint64_t QuicFixedUint62::GetSendValue() const {
   if (!has_send_value_) {
@@ -165,9 +155,7 @@ void QuicFixedUint62::SetSendValue(uint64_t value) {
   send_value_ = value;
 }
 
-bool QuicFixedUint62::HasReceivedValue() const {
-  return has_receive_value_;
-}
+bool QuicFixedUint62::HasReceivedValue() const { return has_receive_value_; }
 
 uint64_t QuicFixedUint62::GetReceivedValue() const {
   if (!has_receive_value_) {
@@ -199,8 +187,7 @@ void QuicFixedUint62::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
 }
 
 QuicErrorCode QuicFixedUint62::ProcessPeerHello(
-    const CryptoHandshakeMessage& peer_hello,
-    HelloType /*hello_type*/,
+    const CryptoHandshakeMessage& peer_hello, HelloType /*hello_type*/,
     std::string* error_details) {
   QUICHE_DCHECK(error_details != nullptr);
   uint32_t receive_value32;
@@ -225,8 +212,7 @@ QuicErrorCode QuicFixedUint62::ProcessPeerHello(
 }
 
 QuicFixedStatelessResetToken::QuicFixedStatelessResetToken(
-    QuicTag tag,
-    QuicConfigPresence presence)
+    QuicTag tag, QuicConfigPresence presence)
     : QuicConfigValue(tag, presence),
       has_send_value_(false),
       has_receive_value_(false) {}
@@ -273,8 +259,7 @@ void QuicFixedStatelessResetToken::ToHandshakeMessage(
 }
 
 QuicErrorCode QuicFixedStatelessResetToken::ProcessPeerHello(
-    const CryptoHandshakeMessage& peer_hello,
-    HelloType /*hello_type*/,
+    const CryptoHandshakeMessage& peer_hello, HelloType /*hello_type*/,
     std::string* error_details) {
   QUICHE_DCHECK(error_details != nullptr);
   QuicErrorCode error =
@@ -307,9 +292,7 @@ QuicFixedTagVector::QuicFixedTagVector(const QuicFixedTagVector& other) =
 
 QuicFixedTagVector::~QuicFixedTagVector() {}
 
-bool QuicFixedTagVector::HasSendValues() const {
-  return has_send_values_;
-}
+bool QuicFixedTagVector::HasSendValues() const { return has_send_values_; }
 
 const QuicTagVector& QuicFixedTagVector::GetSendValues() const {
   QUIC_BUG_IF(quic_bug_12743_6, !has_send_values_)
@@ -344,8 +327,7 @@ void QuicFixedTagVector::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
 }
 
 QuicErrorCode QuicFixedTagVector::ProcessPeerHello(
-    const CryptoHandshakeMessage& peer_hello,
-    HelloType /*hello_type*/,
+    const CryptoHandshakeMessage& peer_hello, HelloType /*hello_type*/,
     std::string* error_details) {
   QUICHE_DCHECK(error_details != nullptr);
   QuicTagVector values;
@@ -378,9 +360,7 @@ QuicFixedSocketAddress::QuicFixedSocketAddress(QuicTag tag,
 
 QuicFixedSocketAddress::~QuicFixedSocketAddress() {}
 
-bool QuicFixedSocketAddress::HasSendValue() const {
-  return has_send_value_;
-}
+bool QuicFixedSocketAddress::HasSendValue() const { return has_send_value_; }
 
 const QuicSocketAddress& QuicFixedSocketAddress::GetSendValue() const {
   QUIC_BUG_IF(quic_bug_12743_8, !has_send_value_)
@@ -417,8 +397,7 @@ void QuicFixedSocketAddress::ToHandshakeMessage(
 }
 
 QuicErrorCode QuicFixedSocketAddress::ProcessPeerHello(
-    const CryptoHandshakeMessage& peer_hello,
-    HelloType /*hello_type*/,
+    const CryptoHandshakeMessage& peer_hello, HelloType /*hello_type*/,
     std::string* error_details) {
   absl::string_view address;
   if (!peer_hello.GetStringPiece(tag_, &address)) {
@@ -524,8 +503,7 @@ void QuicConfig::SetClientConnectionOptions(
 }
 
 bool QuicConfig::HasClientRequestedIndependentOption(
-    QuicTag tag,
-    Perspective perspective) const {
+    QuicTag tag, Perspective perspective) const {
   if (perspective == Perspective::IS_SERVER) {
     return (HasReceivedConnectionOptions() &&
             ContainsQuicTag(ReceivedConnectionOptions(), tag));
@@ -1008,9 +986,7 @@ const StatelessResetToken& QuicConfig::ReceivedStatelessResetToken() const {
   return stateless_reset_token_.GetReceivedValue();
 }
 
-bool QuicConfig::negotiated() const {
-  return negotiated_;
-}
+bool QuicConfig::negotiated() const { return negotiated_; }
 
 void QuicConfig::SetCreateSessionTagIndicators(QuicTagVector tags) {
   create_session_tag_indicators_ = std::move(tags);
@@ -1039,8 +1015,7 @@ void QuicConfig::SetDefaults() {
 }
 
 void QuicConfig::ToHandshakeMessage(
-    CryptoHandshakeMessage* out,
-    QuicTransportVersion transport_version) const {
+    CryptoHandshakeMessage* out, QuicTransportVersion transport_version) const {
   // Idle timeout has custom rules that are different from other values.
   // We configure ourselves with the minumum value between the one sent and
   // the one received. Additionally, when QUIC_CRYPTO is used, the server
@@ -1086,8 +1061,7 @@ void QuicConfig::ToHandshakeMessage(
 }
 
 QuicErrorCode QuicConfig::ProcessPeerHello(
-    const CryptoHandshakeMessage& peer_hello,
-    HelloType hello_type,
+    const CryptoHandshakeMessage& peer_hello, HelloType hello_type,
     std::string* error_details) {
   QUICHE_DCHECK(error_details != nullptr);
 
@@ -1285,8 +1259,7 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
 }
 
 QuicErrorCode QuicConfig::ProcessTransportParameters(
-    const TransportParameters& params,
-    bool is_resumption,
+    const TransportParameters& params, bool is_resumption,
     std::string* error_details) {
   if (!is_resumption && params.original_destination_connection_id.has_value()) {
     received_original_destination_connection_id_ =

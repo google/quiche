@@ -242,8 +242,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
         const ProofVerifyDetails& verify_details) = 0;
   };
 
-  QuicCryptoClientStream(const QuicServerId& server_id,
-                         QuicSession* session,
+  QuicCryptoClientStream(const QuicServerId& server_id, QuicSession* session,
                          std::unique_ptr<ProofVerifyContext> verify_context,
                          QuicCryptoClientConfig* crypto_config,
                          ProofHandler* proof_handler,

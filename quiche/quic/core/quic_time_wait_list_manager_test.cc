@@ -80,8 +80,7 @@ class FramerVisitorCapturingPublicReset : public NoOpFramerVisitor {
 class MockAlarmFactory;
 class MockAlarm : public QuicAlarm {
  public:
-  explicit MockAlarm(QuicArenaScopedPtr<Delegate> delegate,
-                     int alarm_index,
+  explicit MockAlarm(QuicArenaScopedPtr<Delegate> delegate, int alarm_index,
                      MockAlarmFactory* factory)
       : QuicAlarm(std::move(delegate)),
         alarm_index_(alarm_index),
@@ -124,13 +123,9 @@ class MockAlarmFactory : public QuicAlarmFactory {
   int alarm_index_ = 0;
 };
 
-void MockAlarm::SetImpl() {
-  factory_->OnAlarmSet(alarm_index_, deadline());
-}
+void MockAlarm::SetImpl() { factory_->OnAlarmSet(alarm_index_, deadline()); }
 
-void MockAlarm::CancelImpl() {
-  factory_->OnAlarmCancelled(alarm_index_);
-}
+void MockAlarm::CancelImpl() { factory_->OnAlarmCancelled(alarm_index_); }
 
 class QuicTimeWaitListManagerTest : public QuicTest {
  protected:
@@ -162,8 +157,7 @@ class QuicTimeWaitListManagerTest : public QuicTest {
   }
 
   void AddConnectionId(
-      QuicConnectionId connection_id,
-      ParsedQuicVersion version,
+      QuicConnectionId connection_id, ParsedQuicVersion version,
       QuicTimeWaitListManager::TimeWaitAction action,
       std::vector<std::unique_ptr<QuicEncryptedPacket>>* packets) {
     time_wait_list_manager_.AddConnectionIdToTimeWait(
@@ -183,8 +177,7 @@ class QuicTimeWaitListManagerTest : public QuicTest {
 
   QuicEncryptedPacket* ConstructEncryptedPacket(
       QuicConnectionId destination_connection_id,
-      QuicConnectionId source_connection_id,
-      uint64_t packet_number) {
+      QuicConnectionId source_connection_id, uint64_t packet_number) {
     return quic::test::ConstructEncryptedPacket(destination_connection_id,
                                                 source_connection_id, false,
                                                 false, packet_number, "data");

@@ -7,7 +7,6 @@
 
 #include <cstddef>
 #include <cstdint>
-
 #include <type_traits>
 
 #include "quiche/quic/core/quic_types.h"
@@ -167,10 +166,8 @@ class QUIC_EXPORT_PRIVATE QuicUdpSocketApi {
   // addresses is disabled. This is only necessary for IPv6 sockets on iOS - all
   // other platforms can ignore this parameter. Return kQuicInvalidSocketFd if
   // failed.
-  QuicUdpSocketFd Create(int address_family,
-                         int receive_buffer_size,
-                         int send_buffer_size,
-                         bool ipv6_only = false);
+  QuicUdpSocketFd Create(int address_family, int receive_buffer_size,
+                         int send_buffer_size, bool ipv6_only = false);
 
   // Closes |fd|. No-op if |fd| equals to kQuicInvalidSocketFd.
   void Destroy(QuicUdpSocketFd fd);
@@ -217,8 +214,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpSocketApi {
   //
   // If |*result| is reused for subsequent ReadPacket() calls, caller needs to
   // call result->Reset() before each ReadPacket().
-  void ReadPacket(QuicUdpSocketFd fd,
-                  BitMask64 packet_info_interested,
+  void ReadPacket(QuicUdpSocketFd fd, BitMask64 packet_info_interested,
                   ReadPacketResult* result);
 
   using ReadPacketResults = std::vector<ReadPacketResult>;
@@ -233,16 +229,13 @@ class QUIC_EXPORT_PRIVATE QuicUdpSocketApi {
   // Write a packet to |fd|.
   // packet_buffer, packet_buffer_len:  The packet buffer to write.
   // packet_info:                       The per packet information to set.
-  WriteResult WritePacket(QuicUdpSocketFd fd,
-                          const char* packet_buffer,
+  WriteResult WritePacket(QuicUdpSocketFd fd, const char* packet_buffer,
                           size_t packet_buffer_len,
                           const QuicUdpPacketInfo& packet_info);
 
  protected:
-  bool SetupSocket(QuicUdpSocketFd fd,
-                   int address_family,
-                   int receive_buffer_size,
-                   int send_buffer_size,
+  bool SetupSocket(QuicUdpSocketFd fd, int address_family,
+                   int receive_buffer_size, int send_buffer_size,
                    bool ipv6_only);
   bool EnableReceiveSelfIpAddressForV4(QuicUdpSocketFd fd);
   bool EnableReceiveSelfIpAddressForV6(QuicUdpSocketFd fd);

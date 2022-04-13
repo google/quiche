@@ -133,8 +133,7 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
   QuicNewConnectionIdFrame IssueNewConnectionIdForPreferredAddress();
 
   QuicErrorCode OnRetireConnectionIdFrame(
-      const QuicRetireConnectionIdFrame& frame,
-      QuicTime::Delta pto_delay,
+      const QuicRetireConnectionIdFrame& frame, QuicTime::Delta pto_delay,
       std::string* error_detail);
 
   std::vector<QuicConnectionId> GetUnretiredConnectionIds() const;

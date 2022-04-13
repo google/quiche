@@ -170,8 +170,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   // ProcessClientHello has been called.
   void FinishProcessingHandshakeMessageAfterProcessClientHello(
       const ValidateClientHelloResultCallback::Result& result,
-      QuicErrorCode error,
-      const std::string& error_details,
+      QuicErrorCode error, const std::string& error_details,
       std::unique_ptr<CryptoHandshakeMessage> reply,
       std::unique_ptr<DiversificationNonce> diversification_nonce,
       std::unique_ptr<ProofSource::Details> proof_source_details);

@@ -12,7 +12,6 @@
 
 namespace quic {
 
-
 constexpr float kExpiryInMinRtts = 1.25;
 constexpr float kMinPacingWindows = 4;
 

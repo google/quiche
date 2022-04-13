@@ -11,17 +11,14 @@
 namespace quic {
 
 LegacyQuicStreamIdManager::LegacyQuicStreamIdManager(
-    Perspective perspective,
-    QuicTransportVersion transport_version,
-    size_t max_open_outgoing_streams,
-    size_t max_open_incoming_streams)
+    Perspective perspective, QuicTransportVersion transport_version,
+    size_t max_open_outgoing_streams, size_t max_open_incoming_streams)
     : perspective_(perspective),
       transport_version_(transport_version),
       max_open_outgoing_streams_(max_open_outgoing_streams),
       max_open_incoming_streams_(max_open_incoming_streams),
-      next_outgoing_stream_id_(
-          QuicUtils::GetFirstBidirectionalStreamId(transport_version_,
-                                                   perspective_)),
+      next_outgoing_stream_id_(QuicUtils::GetFirstBidirectionalStreamId(
+          transport_version_, perspective_)),
       largest_peer_created_stream_id_(
           perspective_ == Perspective::IS_SERVER
               ? (QuicVersionUsesCryptoFrames(transport_version_)

@@ -19,8 +19,7 @@ class QUIC_EXPORT_PRIVATE QuicServerId {
  public:
   QuicServerId();
   QuicServerId(const std::string& host, uint16_t port);
-  QuicServerId(const std::string& host,
-               uint16_t port,
+  QuicServerId(const std::string& host, uint16_t port,
                bool privacy_mode_enabled);
   ~QuicServerId();
 

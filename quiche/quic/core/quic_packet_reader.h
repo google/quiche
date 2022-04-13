@@ -35,9 +35,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketReader {
   // to track dropped packets and some packets are read.
   // If the socket has timestamping enabled, the per packet timestamps will be
   // passed to the processor. Otherwise, |clock| will be used.
-  virtual bool ReadAndDispatchPackets(int fd,
-                                      int port,
-                                      const QuicClock& clock,
+  virtual bool ReadAndDispatchPackets(int fd, int port, const QuicClock& clock,
                                       ProcessPacketInterface* processor,
                                       QuicPacketCount* packets_dropped);
 
@@ -47,8 +45,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketReader {
   // that case, |prefer_v6_ip| is used to determine which one is used as the
   // return value. If neither v4 nor v6 ip exists, return an uninitialized ip.
   static QuicIpAddress GetSelfIpFromPacketInfo(
-      const QuicUdpPacketInfo& packet_info,
-      bool prefer_v6_ip);
+      const QuicUdpPacketInfo& packet_info, bool prefer_v6_ip);
 
   struct QUIC_EXPORT_PRIVATE ReadBuffer {
     ABSL_CACHELINE_ALIGNED char

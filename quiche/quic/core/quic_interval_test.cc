@@ -27,8 +27,7 @@ void STLDeleteContainerPointers(ForwardIterator begin, ForwardIterator end) {
 
 template <typename T>
 void STLDeleteElements(T* container) {
-  if (!container)
-    return;
+  if (!container) return;
   STLDeleteContainerPointers(container->begin(), container->end());
   container->clear();
 }
@@ -102,10 +101,8 @@ class QuicIntervalTest : public QuicTest {
   // changes_i1 is true, and the same for changes_i2.  The resulting
   // intersection should be result.
   void TestIntersect(const QuicInterval<int64_t>& i1,
-                     const QuicInterval<int64_t>& i2,
-                     bool changes_i1,
-                     bool changes_i2,
-                     const QuicInterval<int64_t>& result) {
+                     const QuicInterval<int64_t>& i2, bool changes_i1,
+                     bool changes_i2, const QuicInterval<int64_t>& result) {
     QuicInterval<int64_t> i;
     i = i1;
     EXPECT_TRUE(i.IntersectWith(i2) == changes_i1 && i == result);

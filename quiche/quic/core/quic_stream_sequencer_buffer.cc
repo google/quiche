@@ -50,9 +50,7 @@ QuicStreamSequencerBuffer::QuicStreamSequencerBuffer(size_t max_capacity_bytes)
   Clear();
 }
 
-QuicStreamSequencerBuffer::~QuicStreamSequencerBuffer() {
-  Clear();
-}
+QuicStreamSequencerBuffer::~QuicStreamSequencerBuffer() { Clear(); }
 
 void QuicStreamSequencerBuffer::Clear() {
   if (blocks_ != nullptr) {
@@ -109,10 +107,8 @@ void QuicStreamSequencerBuffer::MaybeAddMoreBlocks(
 }
 
 QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
-    QuicStreamOffset starting_offset,
-    absl::string_view data,
-    size_t* const bytes_buffered,
-    std::string* error_details) {
+    QuicStreamOffset starting_offset, absl::string_view data,
+    size_t* const bytes_buffered, std::string* error_details) {
   *bytes_buffered = 0;
   size_t size = data.size();
   if (size == 0) {

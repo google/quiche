@@ -22,10 +22,8 @@ struct QUIC_EXPORT_PRIVATE QuicTransmissionInfo {
   // Constructs a Transmission with a new all_transmissions set
   // containing |packet_number|.
   QuicTransmissionInfo(EncryptionLevel level,
-                       TransmissionType transmission_type,
-                       QuicTime sent_time,
-                       QuicPacketLength bytes_sent,
-                       bool has_crypto_handshake,
+                       TransmissionType transmission_type, QuicTime sent_time,
+                       QuicPacketLength bytes_sent, bool has_crypto_handshake,
                        bool has_ack_frequency);
 
   QuicTransmissionInfo(const QuicTransmissionInfo& other);

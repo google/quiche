@@ -28,11 +28,9 @@ QuicCryptoClientStreamBase::QuicCryptoClientStreamBase(QuicSession* session)
     : QuicCryptoStream(session) {}
 
 QuicCryptoClientStream::QuicCryptoClientStream(
-    const QuicServerId& server_id,
-    QuicSession* session,
+    const QuicServerId& server_id, QuicSession* session,
     std::unique_ptr<ProofVerifyContext> verify_context,
-    QuicCryptoClientConfig* crypto_config,
-    ProofHandler* proof_handler,
+    QuicCryptoClientConfig* crypto_config, ProofHandler* proof_handler,
     bool has_application_state)
     : QuicCryptoClientStreamBase(session) {
   QUICHE_DCHECK_EQ(Perspective::IS_CLIENT,

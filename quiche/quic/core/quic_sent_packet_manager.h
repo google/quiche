@@ -62,8 +62,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
     // Called when a spurious retransmission is detected.
     virtual void OnSpuriousPacketRetransmission(
-        TransmissionType /*transmission_type*/,
-        QuicByteCount /*byte_size*/) {}
+        TransmissionType /*transmission_type*/, QuicByteCount /*byte_size*/) {}
 
     virtual void OnIncomingAck(QuicPacketNumber /*ack_packet_number*/,
                                EncryptionLevel /*ack_decrypted_level*/,
@@ -125,10 +124,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     PTO_MODE,
   };
 
-  QuicSentPacketManager(Perspective perspective,
-                        const QuicClock* clock,
-                        QuicRandom* random,
-                        QuicConnectionStats* stats,
+  QuicSentPacketManager(Perspective perspective, const QuicClock* clock,
+                        QuicRandom* random, QuicConnectionStats* stats,
                         CongestionControlType congestion_control_type);
   QuicSentPacketManager(const QuicSentPacketManager&) = delete;
   QuicSentPacketManager& operator=(const QuicSentPacketManager&) = delete;
@@ -210,8 +207,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // the number of bytes sent and if they were retransmitted and if this packet
   // is used for rtt measuring.  Returns true if the sender should reset the
   // retransmission timer.
-  bool OnPacketSent(SerializedPacket* mutable_packet,
-                    QuicTime sent_time,
+  bool OnPacketSent(SerializedPacket* mutable_packet, QuicTime sent_time,
                     TransmissionType transmission_type,
                     HasRetransmittableData has_retransmittable_data,
                     bool measure_rtt);
@@ -550,8 +546,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Removes the retransmittability and in flight properties from the packet at
   // |info| due to receipt by the peer.
   void MarkPacketHandled(QuicPacketNumber packet_number,
-                         QuicTransmissionInfo* info,
-                         QuicTime ack_receive_time,
+                         QuicTransmissionInfo* info, QuicTime ack_receive_time,
                          QuicTime::Delta ack_delay_time,
                          QuicTime receive_timestamp);
 
@@ -566,8 +561,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   void PostProcessNewlyAckedPackets(QuicPacketNumber ack_packet_number,
                                     EncryptionLevel ack_decrypted_level,
                                     const QuicAckFrame& ack_frame,
-                                    QuicTime ack_receive_time,
-                                    bool rtt_updated,
+                                    QuicTime ack_receive_time, bool rtt_updated,
                                     QuicByteCount prior_bytes_in_flight);
 
   // Notify observers that packet with QuicTransmissionInfo |info| is a spurious

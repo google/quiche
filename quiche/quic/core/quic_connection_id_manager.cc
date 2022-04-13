@@ -15,8 +15,7 @@
 namespace quic {
 
 QuicConnectionIdData::QuicConnectionIdData(
-    const QuicConnectionId& connection_id,
-    uint64_t sequence_number,
+    const QuicConnectionId& connection_id, uint64_t sequence_number,
     const StatelessResetToken& stateless_reset_token)
     : connection_id(connection_id),
       sequence_number(sequence_number),
@@ -124,8 +123,7 @@ void QuicPeerIssuedConnectionIdManager::PrepareToRetireConnectionIdPriorTo(
 }
 
 QuicErrorCode QuicPeerIssuedConnectionIdManager::OnNewConnectionIdFrame(
-    const QuicNewConnectionIdFrame& frame,
-    std::string* error_detail) {
+    const QuicNewConnectionIdFrame& frame, std::string* error_detail) {
   if (recent_new_connection_id_sequence_numbers_.Contains(
           frame.sequence_number)) {
     // This frame has a recently seen sequence number. Ignore.
@@ -323,8 +321,7 @@ QuicSelfIssuedConnectionIdManager::IssueNewConnectionIdForPreferredAddress() {
 }
 
 QuicErrorCode QuicSelfIssuedConnectionIdManager::OnRetireConnectionIdFrame(
-    const QuicRetireConnectionIdFrame& frame,
-    QuicTime::Delta pto_delay,
+    const QuicRetireConnectionIdFrame& frame, QuicTime::Delta pto_delay,
     std::string* error_detail) {
   QUICHE_DCHECK(!active_connection_ids_.empty());
   if (frame.sequence_number > active_connection_ids_.back().second) {

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/core/quic_crypto_server_stream_base.h"
-
 #include <map>
 #include <memory>
 #include <utility>
@@ -20,6 +18,7 @@
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_crypto_client_stream.h"
+#include "quiche/quic/core/quic_crypto_server_stream_base.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -59,10 +58,9 @@ class QuicCryptoServerStreamTest : public QuicTest {
   }
 
   explicit QuicCryptoServerStreamTest(std::unique_ptr<ProofSource> proof_source)
-      : server_crypto_config_(QuicCryptoServerConfig::TESTING,
-                              QuicRandom::GetInstance(),
-                              std::move(proof_source),
-                              KeyExchangeSource::Default()),
+      : server_crypto_config_(
+            QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
+            std::move(proof_source), KeyExchangeSource::Default()),
         server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
         server_id_(kServerHostname, kServerPort, false),
@@ -95,12 +93,11 @@ class QuicCryptoServerStreamTest : public QuicTest {
     EXPECT_CALL(*server_session_->helper(), CanAcceptClientHello(_, _, _, _, _))
         .Times(testing::AnyNumber());
     EXPECT_CALL(*server_session_, SelectAlpn(_))
-        .WillRepeatedly(
-            [this](const std::vector<absl::string_view>& alpns) {
-              return std::find(
-                  alpns.cbegin(), alpns.cend(),
-                  AlpnForVersion(server_session_->connection()->version()));
-            });
+        .WillRepeatedly([this](const std::vector<absl::string_view>& alpns) {
+          return std::find(
+              alpns.cbegin(), alpns.cend(),
+              AlpnForVersion(server_session_->connection()->version()));
+        });
     crypto_test_utils::SetupCryptoServerConfigForTest(
         server_connection_->clock(), server_connection_->random_generator(),
         &server_crypto_config_);

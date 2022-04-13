@@ -10,16 +10,11 @@ namespace quic {
 
 QuicPacketWriterWrapper::QuicPacketWriterWrapper() = default;
 
-QuicPacketWriterWrapper::~QuicPacketWriterWrapper() {
-  unset_writer();
-}
+QuicPacketWriterWrapper::~QuicPacketWriterWrapper() { unset_writer(); }
 
 WriteResult QuicPacketWriterWrapper::WritePacket(
-    const char* buffer,
-    size_t buf_len,
-    const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address,
-    PerPacketOptions* options) {
+    const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
+    const QuicSocketAddress& peer_address, PerPacketOptions* options) {
   return writer_->WritePacket(buffer, buf_len, self_address, peer_address,
                               options);
 }
@@ -28,9 +23,7 @@ bool QuicPacketWriterWrapper::IsWriteBlocked() const {
   return writer_->IsWriteBlocked();
 }
 
-void QuicPacketWriterWrapper::SetWritable() {
-  writer_->SetWritable();
-}
+void QuicPacketWriterWrapper::SetWritable() { writer_->SetWritable(); }
 
 absl::optional<int> QuicPacketWriterWrapper::MessageTooBigErrorCode() const {
   return writer_->MessageTooBigErrorCode();
@@ -50,14 +43,11 @@ bool QuicPacketWriterWrapper::IsBatchMode() const {
 }
 
 QuicPacketBuffer QuicPacketWriterWrapper::GetNextWriteLocation(
-    const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address) {
+    const QuicIpAddress& self_address, const QuicSocketAddress& peer_address) {
   return writer_->GetNextWriteLocation(self_address, peer_address);
 }
 
-WriteResult QuicPacketWriterWrapper::Flush() {
-  return writer_->Flush();
-}
+WriteResult QuicPacketWriterWrapper::Flush() { return writer_->Flush(); }
 
 void QuicPacketWriterWrapper::set_writer(QuicPacketWriter* writer) {
   unset_writer();

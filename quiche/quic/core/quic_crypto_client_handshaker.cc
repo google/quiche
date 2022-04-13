@@ -25,8 +25,7 @@ QuicCryptoClientHandshaker::ProofVerifierCallbackImpl::
     ~ProofVerifierCallbackImpl() {}
 
 void QuicCryptoClientHandshaker::ProofVerifierCallbackImpl::Run(
-    bool ok,
-    const std::string& error_details,
+    bool ok, const std::string& error_details,
     std::unique_ptr<ProofVerifyDetails>* details) {
   if (parent_ == nullptr) {
     return;
@@ -47,10 +46,8 @@ void QuicCryptoClientHandshaker::ProofVerifierCallbackImpl::Cancel() {
 }
 
 QuicCryptoClientHandshaker::QuicCryptoClientHandshaker(
-    const QuicServerId& server_id,
-    QuicCryptoClientStream* stream,
-    QuicSession* session,
-    std::unique_ptr<ProofVerifyContext> verify_context,
+    const QuicServerId& server_id, QuicCryptoClientStream* stream,
+    QuicSession* session, std::unique_ptr<ProofVerifyContext> verify_context,
     QuicCryptoClientConfig* crypto_config,
     QuicCryptoClientStream::ProofHandler* proof_handler)
     : QuicCryptoHandshaker(stream, session),
@@ -141,9 +138,7 @@ int QuicCryptoClientHandshaker::num_scup_messages_received() const {
   return num_scup_messages_received_;
 }
 
-std::string QuicCryptoClientHandshaker::chlo_hash() const {
-  return chlo_hash_;
-}
+std::string QuicCryptoClientHandshaker::chlo_hash() const { return chlo_hash_; }
 
 bool QuicCryptoClientHandshaker::encryption_established() const {
   return encryption_established_;
@@ -195,8 +190,7 @@ QuicCryptoClientHandshaker::CreateCurrentOneRttEncrypter() {
 }
 
 void QuicCryptoClientHandshaker::OnConnectionClosed(
-    QuicErrorCode /*error*/,
-    ConnectionCloseSource /*source*/) {
+    QuicErrorCode /*error*/, ConnectionCloseSource /*source*/) {
   next_state_ = STATE_CONNECTION_CLOSED;
 }
 

@@ -111,10 +111,8 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   // certificate_unknown. Implementations of VerifyCertChain may retain the
   // |out_alert| pointer while performing an async operation.
   virtual QuicAsyncStatus VerifyCertChain(
-      const std::vector<std::string>& certs,
-      std::string* error_details,
-      std::unique_ptr<ProofVerifyDetails>* details,
-      uint8_t* out_alert,
+      const std::vector<std::string>& certs, std::string* error_details,
+      std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) = 0;
   // Called when certificate verification is completed.
   virtual void OnProofVerifyDetailsAvailable(
@@ -139,16 +137,14 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   // 1.3 key schedule (RFC 8446 section 7.1), in particular the handshake
   // traffic secrets and application traffic secrets. The provided write secret
   // must be used with the provided cipher suite |cipher|.
-  void SetWriteSecret(EncryptionLevel level,
-                      const SSL_CIPHER* cipher,
+  void SetWriteSecret(EncryptionLevel level, const SSL_CIPHER* cipher,
                       const std::vector<uint8_t>& write_secret) override;
 
   // SetReadSecret is similar to SetWriteSecret, except that it is used for
   // decrypting messages. SetReadSecret at a particular level is always called
   // after SetWriteSecret for that level, except for ENCRYPTION_ZERO_RTT, where
   // the EncryptionLevel for SetWriteSecret is ENCRYPTION_FORWARD_SECURE.
-  bool SetReadSecret(EncryptionLevel level,
-                     const SSL_CIPHER* cipher,
+  bool SetReadSecret(EncryptionLevel level, const SSL_CIPHER* cipher,
                      const std::vector<uint8_t>& read_secret) override;
 
   // WriteMessage is called when there is |data| from the TLS stack ready for
@@ -180,8 +176,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
     ~ProofVerifierCallbackImpl() override;
 
     // ProofVerifierCallback interface.
-    void Run(bool ok,
-             const std::string& error_details,
+    void Run(bool ok, const std::string& error_details,
              std::unique_ptr<ProofVerifyDetails>* details) override;
 
     // If called, Cancel causes the pending callback to be a no-op.

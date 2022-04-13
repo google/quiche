@@ -31,10 +31,8 @@ class QUIC_EXPORT_PRIVATE QuicChaosProtector
  public:
   // |framer| and |random| must be valid for the lifetime of QuicChaosProtector.
   explicit QuicChaosProtector(const QuicCryptoFrame& crypto_frame,
-                              int num_padding_bytes,
-                              size_t packet_size,
-                              QuicFramer* framer,
-                              QuicRandom* random);
+                              int num_padding_bytes, size_t packet_size,
+                              QuicFramer* framer, QuicRandom* random);
 
   ~QuicChaosProtector() override;
 
@@ -53,8 +51,7 @@ class QUIC_EXPORT_PRIVATE QuicChaosProtector
                                         QuicStreamOffset offset,
                                         QuicByteCount data_length,
                                         QuicDataWriter* /*writer*/) override;
-  bool WriteCryptoData(EncryptionLevel level,
-                       QuicStreamOffset offset,
+  bool WriteCryptoData(EncryptionLevel level, QuicStreamOffset offset,
                        QuicByteCount data_length,
                        QuicDataWriter* writer) override;
 

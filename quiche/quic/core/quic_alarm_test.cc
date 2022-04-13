@@ -111,9 +111,7 @@ class QuicAlarmTest : public QuicTest {
   QuicTime new_deadline_;
 };
 
-TEST_F(QuicAlarmTest, IsSet) {
-  EXPECT_FALSE(alarm_.IsSet());
-}
+TEST_F(QuicAlarmTest, IsSet) { EXPECT_FALSE(alarm_.IsSet()); }
 
 TEST_F(QuicAlarmTest, Set) {
   QuicTime deadline = QuicTime::Zero() + QuicTime::Delta::FromSeconds(7);

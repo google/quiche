@@ -89,8 +89,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionMtuDiscoverer {
   QuicPacketNumber next_probe_at() const { return next_probe_at_; }
 
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
-      std::ostream& os,
-      const QuicConnectionMtuDiscoverer& d);
+      std::ostream& os, const QuicConnectionMtuDiscoverer& d);
 
  private:
   bool IsEnabled() const;

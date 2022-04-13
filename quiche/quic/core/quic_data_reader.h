@@ -40,8 +40,7 @@ class QUIC_EXPORT_PRIVATE QuicDataReader : public quiche::QuicheDataReader {
   QuicDataReader(const char* data, const size_t len);
   // Constructs a reader using the specified endianness.
   // Caller must provide an underlying buffer to work on.
-  QuicDataReader(const char* data,
-                 const size_t len,
+  QuicDataReader(const char* data, const size_t len,
                  quiche::Endianness endianness);
   QuicDataReader(const QuicDataReader&) = delete;
   QuicDataReader& operator=(const QuicDataReader&) = delete;

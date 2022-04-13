@@ -464,11 +464,8 @@ void QuicSentPacketManager::SetHandshakeConfirmed() {
 }
 
 void QuicSentPacketManager::PostProcessNewlyAckedPackets(
-    QuicPacketNumber ack_packet_number,
-    EncryptionLevel ack_decrypted_level,
-    const QuicAckFrame& ack_frame,
-    QuicTime ack_receive_time,
-    bool rtt_updated,
+    QuicPacketNumber ack_packet_number, EncryptionLevel ack_decrypted_level,
+    const QuicAckFrame& ack_frame, QuicTime ack_receive_time, bool rtt_updated,
     QuicByteCount prior_bytes_in_flight) {
   unacked_packets_.NotifyAggregatedStreamFrameAcked(
       last_ack_frame_.ack_delay_time);
@@ -532,9 +529,7 @@ void QuicSentPacketManager::PostProcessNewlyAckedPackets(
 }
 
 void QuicSentPacketManager::MaybeInvokeCongestionEvent(
-    bool rtt_updated,
-    QuicByteCount prior_in_flight,
-    QuicTime event_time) {
+    bool rtt_updated, QuicByteCount prior_in_flight, QuicTime event_time) {
   if (!rtt_updated && packets_acked_.empty() && packets_lost_.empty()) {
     return;
   }
@@ -682,8 +677,7 @@ QuicTime QuicSentPacketManager::GetEarliestPacketSentTimeForPto(
 }
 
 void QuicSentPacketManager::MarkForRetransmission(
-    QuicPacketNumber packet_number,
-    TransmissionType transmission_type) {
+    QuicPacketNumber packet_number, TransmissionType transmission_type) {
   QuicTransmissionInfo* transmission_info =
       unacked_packets_.GetMutableTransmissionInfo(packet_number);
   // A previous RTO retransmission may cause connection close; packets without
@@ -842,11 +836,9 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
 }
 
 bool QuicSentPacketManager::OnPacketSent(
-    SerializedPacket* mutable_packet,
-    QuicTime sent_time,
+    SerializedPacket* mutable_packet, QuicTime sent_time,
     TransmissionType transmission_type,
-    HasRetransmittableData has_retransmittable_data,
-    bool measure_rtt) {
+    HasRetransmittableData has_retransmittable_data, bool measure_rtt) {
   const SerializedPacket& packet = *mutable_packet;
   QuicPacketNumber packet_number = packet.packet_number;
   QUICHE_DCHECK_LE(FirstSendingPacketNumber(), packet_number);
@@ -1641,8 +1633,7 @@ void QuicSentPacketManager::OnAckTimestamp(QuicPacketNumber packet_number,
 }
 
 AckResult QuicSentPacketManager::OnAckFrameEnd(
-    QuicTime ack_receive_time,
-    QuicPacketNumber ack_packet_number,
+    QuicTime ack_receive_time, QuicPacketNumber ack_packet_number,
     EncryptionLevel ack_decrypted_level) {
   QuicByteCount prior_bytes_in_flight = unacked_packets_.bytes_in_flight();
   // Reverse packets_acked_ so that it is in ascending order.

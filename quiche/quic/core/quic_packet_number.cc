@@ -11,9 +11,7 @@
 
 namespace quic {
 
-void QuicPacketNumber::Clear() {
-  packet_number_ = UninitializedPacketNumber();
-}
+void QuicPacketNumber::Clear() { packet_number_ = UninitializedPacketNumber(); }
 
 void QuicPacketNumber::UpdateMax(QuicPacketNumber new_value) {
   if (!new_value.IsInitialized()) {

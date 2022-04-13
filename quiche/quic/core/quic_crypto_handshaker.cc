@@ -20,8 +20,7 @@ QuicCryptoHandshaker::QuicCryptoHandshaker(QuicCryptoStream* stream,
 QuicCryptoHandshaker::~QuicCryptoHandshaker() {}
 
 void QuicCryptoHandshaker::SendHandshakeMessage(
-    const CryptoHandshakeMessage& message,
-    EncryptionLevel level) {
+    const CryptoHandshakeMessage& message, EncryptionLevel level) {
   QUIC_DVLOG(1) << ENDPOINT << "Sending " << message.DebugString();
   session()->NeuterUnencryptedData();
   session()->OnCryptoHandshakeMessageSent(message);

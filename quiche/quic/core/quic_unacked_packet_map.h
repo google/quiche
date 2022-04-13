@@ -41,10 +41,8 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   // Any retransmittible_frames in |mutable_packet| are swapped from
   // |mutable_packet| into the QuicTransmissionInfo.
   void AddSentPacket(SerializedPacket* mutable_packet,
-                     TransmissionType transmission_type,
-                     QuicTime sent_time,
-                     bool set_in_flight,
-                     bool measure_rtt);
+                     TransmissionType transmission_type, QuicTime sent_time,
+                     bool set_in_flight, bool measure_rtt);
 
   // Returns true if the packet |packet_number| is unacked.
   bool IsUnacked(QuicPacketNumber packet_number) const;
@@ -52,8 +50,7 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   // Notifies session_notifier that frames have been acked. Returns true if any
   // new data gets acked, returns false otherwise.
   bool NotifyFramesAcked(const QuicTransmissionInfo& info,
-                         QuicTime::Delta ack_delay,
-                         QuicTime receive_timestamp);
+                         QuicTime::Delta ack_delay, QuicTime receive_timestamp);
 
   // Notifies session_notifier that frames in |info| are considered as lost.
   void NotifyFramesLost(const QuicTransmissionInfo& info,
@@ -176,8 +173,7 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   // Called when |packet_number| gets acked. Maybe increase the largest acked of
   // |packet_number_space|.
   void MaybeUpdateLargestAckedOfPacketNumberSpace(
-      PacketNumberSpace packet_number_space,
-      QuicPacketNumber packet_number);
+      PacketNumberSpace packet_number_space, QuicPacketNumber packet_number);
 
   // Remove any packets no longer needed for retransmission, congestion, or
   // RTT measurement purposes.

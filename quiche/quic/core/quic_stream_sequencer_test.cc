@@ -33,14 +33,10 @@ class MockStream : public QuicStreamSequencer::StreamInterface {
  public:
   MOCK_METHOD(void, OnFinRead, (), (override));
   MOCK_METHOD(void, OnDataAvailable, (), (override));
-  MOCK_METHOD(void,
-              OnUnrecoverableError,
-              (QuicErrorCode error, const std::string& details),
-              (override));
-  MOCK_METHOD(void,
-              OnUnrecoverableError,
-              (QuicErrorCode error,
-               QuicIetfTransportErrorCodes ietf_error,
+  MOCK_METHOD(void, OnUnrecoverableError,
+              (QuicErrorCode error, const std::string& details), (override));
+  MOCK_METHOD(void, OnUnrecoverableError,
+              (QuicErrorCode error, QuicIetfTransportErrorCodes ietf_error,
                const std::string& details),
               (override));
   MOCK_METHOD(void, ResetWithError, (QuicResetStreamError error), (override));
@@ -83,8 +79,7 @@ class QuicStreamSequencerTest : public QuicTest {
     return VerifyReadableRegions(*sequencer_, expected);
   }
 
-  bool VerifyIovecs(iovec* iovecs,
-                    size_t num_iovecs,
+  bool VerifyIovecs(iovec* iovecs, size_t num_iovecs,
                     const std::vector<std::string>& expected) {
     return VerifyIovecs(*sequencer_, iovecs, num_iovecs, expected);
   }
@@ -110,8 +105,7 @@ class QuicStreamSequencerTest : public QuicTest {
            VerifyIovecs(sequencer, iovecs, num_iovecs, expected);
   }
 
-  bool VerifyIovecs(const QuicStreamSequencer& /*sequencer*/,
-                    iovec* iovecs,
+  bool VerifyIovecs(const QuicStreamSequencer& /*sequencer*/, iovec* iovecs,
                     size_t num_iovecs,
                     const std::vector<std::string>& expected) {
     int start_position = 0;

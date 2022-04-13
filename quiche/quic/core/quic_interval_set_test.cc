@@ -132,8 +132,7 @@ static void TestContainsAndFind(const QuicIntervalSet<int>& is, int value) {
   EXPECT_TRUE(it->Contains(value)) << "Iterator does not contain " << value;
 }
 
-static void TestContainsAndFind(const QuicIntervalSet<int>& is,
-                                int min,
+static void TestContainsAndFind(const QuicIntervalSet<int>& is, int min,
                                 int max) {
   EXPECT_TRUE(is.Contains(min, max))
       << "Set does not contain interval with min " << min << "and max " << max;
@@ -152,8 +151,7 @@ static void TestNotContainsAndFind(const QuicIntervalSet<int>& is, int value) {
                           << value;
 }
 
-static void TestNotContainsAndFind(const QuicIntervalSet<int>& is,
-                                   int min,
+static void TestNotContainsAndFind(const QuicIntervalSet<int>& is, int min,
                                    int max) {
   EXPECT_FALSE(is.Contains(min, max))
       << "Set contains interval with min " << min << "and max " << max;
@@ -854,12 +852,8 @@ TEST(QuicIntervalSetMultipleCompactionTest, RightCovering) {
 
 // Helper method for testing and verifying the results of a one-interval
 // completement case.
-static bool CheckOneComplement(int add_min,
-                               int add_max,
-                               int comp_min,
-                               int comp_max,
-                               int count,
-                               ...) {
+static bool CheckOneComplement(int add_min, int add_max, int comp_min,
+                               int comp_max, int count, ...) {
   QuicIntervalSet<int> iset;
   iset.Add(add_min, add_max);
   iset.Complement(comp_min, comp_max);
@@ -906,11 +900,8 @@ TEST_F(QuicIntervalSetTest, SingleIntervalComplement) {
 
 // Helper method that copies <iset> and takes its complement,
 // returning false if Check succeeds.
-static bool CheckComplement(const QuicIntervalSet<int>& iset,
-                            int comp_min,
-                            int comp_max,
-                            int count,
-                            ...) {
+static bool CheckComplement(const QuicIntervalSet<int>& iset, int comp_min,
+                            int comp_max, int count, ...) {
   QuicIntervalSet<int> iset_copy = iset;
   iset_copy.Complement(comp_min, comp_max);
   bool result = true;

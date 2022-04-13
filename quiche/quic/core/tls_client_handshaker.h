@@ -29,8 +29,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
       public TlsClientConnection::Delegate {
  public:
   // |crypto_config| must outlive TlsClientHandshaker.
-  TlsClientHandshaker(const QuicServerId& server_id,
-                      QuicCryptoStream* stream,
+  TlsClientHandshaker(const QuicServerId& server_id, QuicCryptoStream* stream,
                       QuicSession* session,
                       std::unique_ptr<ProofVerifyContext> verify_context,
                       QuicCryptoClientConfig* crypto_config,
@@ -70,8 +69,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
                           ConnectionCloseSource source) override;
   void OnHandshakeDoneReceived() override;
   void OnNewTokenReceived(absl::string_view token) override;
-  void SetWriteSecret(EncryptionLevel level,
-                      const SSL_CIPHER* cipher,
+  void SetWriteSecret(EncryptionLevel level, const SSL_CIPHER* cipher,
                       const std::vector<uint8_t>& write_secret) override;
 
   // Override to drop initial keys if trying to write ENCRYPTION_HANDSHAKE data.
@@ -97,10 +95,8 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   void ProcessPostHandshakeMessage() override;
   bool ShouldCloseConnectionOnUnexpectedError(int ssl_error) override;
   QuicAsyncStatus VerifyCertChain(
-      const std::vector<std::string>& certs,
-      std::string* error_details,
-      std::unique_ptr<ProofVerifyDetails>* details,
-      uint8_t* out_alert,
+      const std::vector<std::string>& certs, std::string* error_details,
+      std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) override;
   void OnProofVerifyDetailsAvailable(
       const ProofVerifyDetails& verify_details) override;

@@ -19,9 +19,7 @@ QuicEpollConnectionHelper::QuicEpollConnectionHelper(
 
 QuicEpollConnectionHelper::~QuicEpollConnectionHelper() = default;
 
-const QuicClock* QuicEpollConnectionHelper::GetClock() const {
-  return &clock_;
-}
+const QuicClock* QuicEpollConnectionHelper::GetClock() const { return &clock_; }
 
 QuicRandom* QuicEpollConnectionHelper::GetRandomGenerator() {
   return random_generator_;

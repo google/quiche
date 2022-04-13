@@ -24,8 +24,7 @@ class QUIC_NO_EXPORT QuicPacketWriterWrapper : public QuicPacketWriter {
 
   // Default implementation of the QuicPacketWriter interface. Passes everything
   // to |writer_|.
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           PerPacketOptions* options) override;

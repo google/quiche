@@ -247,9 +247,7 @@ void QuicStreamSequencer::MarkConsumed(size_t num_bytes_consumed) {
   stream_->AddBytesConsumed(num_bytes_consumed);
 }
 
-void QuicStreamSequencer::SetBlockedUntilFlush() {
-  blocked_ = true;
-}
+void QuicStreamSequencer::SetBlockedUntilFlush() { blocked_ = true; }
 
 void QuicStreamSequencer::SetUnblocked() {
   blocked_ = false;

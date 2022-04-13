@@ -22,8 +22,7 @@ class QuicSession;
 class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
  public:
   UberQuicStreamIdManager(
-      Perspective perspective,
-      ParsedQuicVersion version,
+      Perspective perspective, ParsedQuicVersion version,
       QuicStreamIdManager::DelegateInterface* delegate,
       QuicStreamCount max_open_outgoing_bidirectional_streams,
       QuicStreamCount max_open_outgoing_unidirectional_streams,

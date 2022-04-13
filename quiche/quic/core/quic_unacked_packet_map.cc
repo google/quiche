@@ -119,13 +119,11 @@ QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective)
       bytes_in_flight_per_packet_number_space_{0, 0, 0},
       packets_in_flight_(0),
       last_inflight_packet_sent_time_(QuicTime::Zero()),
-      last_inflight_packets_sent_time_{{QuicTime::Zero()},
-                                       {QuicTime::Zero()},
-                                       {QuicTime::Zero()}},
+      last_inflight_packets_sent_time_{
+          {QuicTime::Zero()}, {QuicTime::Zero()}, {QuicTime::Zero()}},
       last_crypto_packet_sent_time_(QuicTime::Zero()),
       session_notifier_(nullptr),
-      supports_multiple_packet_number_spaces_(false) {
-}
+      supports_multiple_packet_number_spaces_(false) {}
 
 QuicUnackedPacketMap::~QuicUnackedPacketMap() {
   for (QuicTransmissionInfo& transmission_info : unacked_packets_) {
@@ -135,8 +133,7 @@ QuicUnackedPacketMap::~QuicUnackedPacketMap() {
 
 void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* mutable_packet,
                                          TransmissionType transmission_type,
-                                         QuicTime sent_time,
-                                         bool set_in_flight,
+                                         QuicTime sent_time, bool set_in_flight,
                                          bool measure_rtt) {
   const SerializedPacket& packet = *mutable_packet;
   QuicPacketNumber packet_number = packet.packet_number;
@@ -248,14 +245,12 @@ void QuicUnackedPacketMap::IncreaseLargestAcked(
 }
 
 void QuicUnackedPacketMap::MaybeUpdateLargestAckedOfPacketNumberSpace(
-    PacketNumberSpace packet_number_space,
-    QuicPacketNumber packet_number) {
+    PacketNumberSpace packet_number_space, QuicPacketNumber packet_number) {
   largest_acked_packets_[packet_number_space].UpdateMax(packet_number);
 }
 
 bool QuicUnackedPacketMap::IsPacketUsefulForMeasuringRtt(
-    QuicPacketNumber packet_number,
-    const QuicTransmissionInfo& info) const {
+    QuicPacketNumber packet_number, const QuicTransmissionInfo& info) const {
   // Packet can be used for RTT measurement if it may yet be acked as the
   // largest observed packet by the receiver.
   return QuicUtils::IsAckable(info.state) &&
@@ -278,8 +273,7 @@ bool QuicUnackedPacketMap::IsPacketUsefulForRetransmittableData(
 }
 
 bool QuicUnackedPacketMap::IsPacketUseless(
-    QuicPacketNumber packet_number,
-    const QuicTransmissionInfo& info) const {
+    QuicPacketNumber packet_number, const QuicTransmissionInfo& info) const {
   return !IsPacketUsefulForMeasuringRtt(packet_number, info) &&
          !IsPacketUsefulForCongestionControl(info) &&
          !IsPacketUsefulForRetransmittableData(info);
@@ -483,8 +477,7 @@ bool QuicUnackedPacketMap::RetransmitFrames(const QuicFrames& frames,
 }
 
 void QuicUnackedPacketMap::MaybeAggregateAckedStreamFrame(
-    const QuicTransmissionInfo& info,
-    QuicTime::Delta ack_delay,
+    const QuicTransmissionInfo& info, QuicTime::Delta ack_delay,
     QuicTime receive_timestamp) {
   if (session_notifier_ == nullptr) {
     return;

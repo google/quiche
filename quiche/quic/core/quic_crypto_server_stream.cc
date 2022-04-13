@@ -26,8 +26,7 @@ class QuicCryptoServerStream::ProcessClientHelloCallback
       : parent_(parent), result_(result) {}
 
   void Run(
-      QuicErrorCode error,
-      const std::string& error_details,
+      QuicErrorCode error, const std::string& error_details,
       std::unique_ptr<CryptoHandshakeMessage> message,
       std::unique_ptr<DiversificationNonce> diversification_nonce,
       std::unique_ptr<ProofSource::Details> proof_source_details) override {
@@ -51,8 +50,7 @@ class QuicCryptoServerStream::ProcessClientHelloCallback
 
 QuicCryptoServerStream::QuicCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
-    QuicCompressedCertsCache* compressed_certs_cache,
-    QuicSession* session,
+    QuicCompressedCertsCache* compressed_certs_cache, QuicSession* session,
     QuicCryptoServerStreamBase::Helper* helper)
     : QuicCryptoServerStreamBase(session),
       QuicCryptoHandshaker(this, session),
@@ -156,8 +154,7 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
 void QuicCryptoServerStream::
     FinishProcessingHandshakeMessageAfterProcessClientHello(
         const ValidateClientHelloResultCallback::Result& result,
-        QuicErrorCode error,
-        const std::string& error_details,
+        QuicErrorCode error, const std::string& error_details,
         std::unique_ptr<CryptoHandshakeMessage> reply,
         std::unique_ptr<DiversificationNonce> diversification_nonce,
         std::unique_ptr<ProofSource::Details> proof_source_details) {
@@ -278,8 +275,7 @@ void QuicCryptoServerStream::SendServerConfigUpdateCallback::Cancel() {
 
 // From BuildServerConfigUpdateMessageResultCallback
 void QuicCryptoServerStream::SendServerConfigUpdateCallback::Run(
-    bool ok,
-    const CryptoHandshakeMessage& message) {
+    bool ok, const CryptoHandshakeMessage& message) {
   if (parent_ == nullptr) {
     return;
   }
@@ -287,8 +283,7 @@ void QuicCryptoServerStream::SendServerConfigUpdateCallback::Run(
 }
 
 void QuicCryptoServerStream::FinishSendServerConfigUpdate(
-    bool ok,
-    const CryptoHandshakeMessage& message) {
+    bool ok, const CryptoHandshakeMessage& message) {
   // Clear the callback that got us here.
   QUICHE_DCHECK(send_server_config_update_cb_ != nullptr);
   send_server_config_update_cb_ = nullptr;
@@ -353,9 +348,7 @@ void QuicCryptoServerStream::OnPacketDecrypted(EncryptionLevel level) {
   }
 }
 
-void QuicCryptoServerStream::OnHandshakeDoneReceived() {
-  QUICHE_DCHECK(false);
-}
+void QuicCryptoServerStream::OnHandshakeDoneReceived() { QUICHE_DCHECK(false); }
 
 void QuicCryptoServerStream::OnNewTokenReceived(absl::string_view /*token*/) {
   QUICHE_DCHECK(false);
@@ -516,9 +509,7 @@ QuicCryptoServerStream::ValidateCallback::ValidateCallback(
     QuicCryptoServerStream* parent)
     : parent_(parent) {}
 
-void QuicCryptoServerStream::ValidateCallback::Cancel() {
-  parent_ = nullptr;
-}
+void QuicCryptoServerStream::ValidateCallback::Cancel() { parent_ = nullptr; }
 
 void QuicCryptoServerStream::ValidateCallback::Run(
     quiche::QuicheReferenceCountedPointer<Result> result,

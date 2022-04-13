@@ -22,11 +22,8 @@ namespace quic {
   (perspective_ == Perspective::IS_SERVER ? " Server: " : " Client: ")
 
 QuicStreamIdManager::QuicStreamIdManager(
-    DelegateInterface* delegate,
-    bool unidirectional,
-    Perspective perspective,
-    ParsedQuicVersion version,
-    QuicStreamCount max_allowed_outgoing_streams,
+    DelegateInterface* delegate, bool unidirectional, Perspective perspective,
+    ParsedQuicVersion version, QuicStreamCount max_allowed_outgoing_streams,
     QuicStreamCount max_allowed_incoming_streams)
     : delegate_(delegate),
       unidirectional_(unidirectional),
@@ -45,8 +42,7 @@ QuicStreamIdManager::QuicStreamIdManager(
 QuicStreamIdManager::~QuicStreamIdManager() {}
 
 bool QuicStreamIdManager::OnStreamsBlockedFrame(
-    const QuicStreamsBlockedFrame& frame,
-    std::string* error_details) {
+    const QuicStreamsBlockedFrame& frame, std::string* error_details) {
   QUICHE_DCHECK_EQ(frame.unidirectional, unidirectional_);
   if (frame.stream_count > incoming_advertised_max_streams_) {
     // Peer thinks it can send more streams that we've told it.
@@ -156,8 +152,7 @@ bool QuicStreamIdManager::CanOpenNextOutgoingStream() const {
 }
 
 bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
-    const QuicStreamId stream_id,
-    std::string* error_details) {
+    const QuicStreamId stream_id, std::string* error_details) {
   // |stream_id| must be an incoming stream of the right directionality.
   QUICHE_DCHECK_NE(QuicUtils::IsBidirectionalStreamId(stream_id, version_),
                    unidirectional_);

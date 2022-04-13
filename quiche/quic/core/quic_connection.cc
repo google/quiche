@@ -392,9 +392,7 @@ QuicConnection::~QuicConnection() {
   }
 }
 
-void QuicConnection::ClearQueuedPackets() {
-  buffered_packets_.clear();
-}
+void QuicConnection::ClearQueuedPackets() { buffered_packets_.clear(); }
 
 bool QuicConnection::ValidateConfigConnectionIds(const QuicConfig& config) {
   QUICHE_DCHECK(config.negotiated());
@@ -799,9 +797,7 @@ void QuicConnection::OnError(QuicFramer* framer) {
                   ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
 
-void QuicConnection::OnPacket() {
-  last_packet_decrypted_ = false;
-}
+void QuicConnection::OnPacket() { last_packet_decrypted_ = false; }
 
 void QuicConnection::OnPublicResetPacket(const QuicPublicResetPacket& packet) {
   // Check that any public reset packet with a different connection ID that was
@@ -1135,9 +1131,7 @@ void QuicConnection::OnTransportParametersResumed(
   }
 }
 
-bool QuicConnection::HasPendingAcks() const {
-  return ack_alarm_->IsSet();
-}
+bool QuicConnection::HasPendingAcks() const { return ack_alarm_->IsSet(); }
 
 void QuicConnection::OnUserAgentIdKnown(const std::string& /*user_agent_id*/) {
   sent_packet_manager_.OnUserAgentIdKnown();
@@ -1657,8 +1651,7 @@ class ReversePathValidationContext : public QuicPathValidationContext {
                                const QuicSocketAddress& peer_address,
                                const QuicSocketAddress& effective_peer_address,
                                QuicConnection* connection)
-      : QuicPathValidationContext(self_address,
-                                  peer_address,
+      : QuicPathValidationContext(self_address, peer_address,
                                   effective_peer_address),
         connection_(connection) {}
 
@@ -3135,8 +3128,7 @@ void QuicConnection::NeuterUnencryptedPackets() {
 }
 
 bool QuicConnection::ShouldGeneratePacket(
-    HasRetransmittableData retransmittable,
-    IsHandshake handshake) {
+    HasRetransmittableData retransmittable, IsHandshake handshake) {
   QUICHE_DCHECK(handshake != IS_HANDSHAKE ||
                 QuicVersionUsesCryptoFrames(transport_version()))
       << ENDPOINT
@@ -4241,8 +4233,7 @@ void QuicConnection::SetDecrypter(EncryptionLevel level,
 }
 
 void QuicConnection::SetAlternativeDecrypter(
-    EncryptionLevel level,
-    std::unique_ptr<QuicDecrypter> decrypter,
+    EncryptionLevel level, std::unique_ptr<QuicDecrypter> decrypter,
     bool latch_once_used) {
   framer_.SetAlternativeDecrypter(level, std::move(decrypter), latch_once_used);
 
@@ -4253,8 +4244,7 @@ void QuicConnection::SetAlternativeDecrypter(
 }
 
 void QuicConnection::InstallDecrypter(
-    EncryptionLevel level,
-    std::unique_ptr<QuicDecrypter> decrypter) {
+    EncryptionLevel level, std::unique_ptr<QuicDecrypter> decrypter) {
   if (level == ENCRYPTION_ZERO_RTT) {
     had_zero_rtt_decrypter_ = true;
   }
@@ -4308,8 +4298,7 @@ const QuicDecrypter* QuicConnection::alternative_decrypter() const {
 }
 
 void QuicConnection::QueueUndecryptablePacket(
-    const QuicEncryptedPacket& packet,
-    EncryptionLevel decryption_level) {
+    const QuicEncryptedPacket& packet, EncryptionLevel decryption_level) {
   for (const auto& saved_packet : undecryptable_packets_) {
     if (packet.data() == saved_packet.packet->data() &&
         packet.length() == saved_packet.packet->length()) {
@@ -4445,16 +4434,14 @@ bool QuicConnection::MaybeProcessCoalescedPackets() {
 }
 
 void QuicConnection::CloseConnection(
-    QuicErrorCode error,
-    const std::string& details,
+    QuicErrorCode error, const std::string& details,
     ConnectionCloseBehavior connection_close_behavior) {
   CloseConnection(error, NO_IETF_QUIC_ERROR, details,
                   connection_close_behavior);
 }
 
 void QuicConnection::CloseConnection(
-    QuicErrorCode error,
-    QuicIetfTransportErrorCodes ietf_error,
+    QuicErrorCode error, QuicIetfTransportErrorCodes ietf_error,
     const std::string& error_details,
     ConnectionCloseBehavior connection_close_behavior) {
   QUICHE_DCHECK(!error_details.empty());
@@ -4483,8 +4470,7 @@ void QuicConnection::CloseConnection(
 }
 
 void QuicConnection::SendConnectionClosePacket(
-    QuicErrorCode error,
-    QuicIetfTransportErrorCodes ietf_error,
+    QuicErrorCode error, QuicIetfTransportErrorCodes ietf_error,
     const std::string& details) {
   // Always use the current path to send CONNECTION_CLOSE.
   QuicPacketCreator::ScopedPeerAddressContext context(
@@ -4579,10 +4565,8 @@ void QuicConnection::SendConnectionClosePacket(
 }
 
 void QuicConnection::TearDownLocalConnectionState(
-    QuicErrorCode error,
-    QuicIetfTransportErrorCodes ietf_error,
-    const std::string& error_details,
-    ConnectionCloseSource source) {
+    QuicErrorCode error, QuicIetfTransportErrorCodes ietf_error,
+    const std::string& error_details, ConnectionCloseSource source) {
   QuicConnectionCloseFrame frame(transport_version(), error, ietf_error,
                                  error_details,
                                  framer_.current_received_frame_type());
@@ -4590,8 +4574,7 @@ void QuicConnection::TearDownLocalConnectionState(
 }
 
 void QuicConnection::TearDownLocalConnectionState(
-    const QuicConnectionCloseFrame& frame,
-    ConnectionCloseSource source) {
+    const QuicConnectionCloseFrame& frame, ConnectionCloseSource source) {
   if (!connected_) {
     QUIC_DLOG(INFO) << "Connection is already closed.";
     return;
@@ -4901,8 +4884,7 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
 }
 
 QuicConnection::ScopedEncryptionLevelContext::ScopedEncryptionLevelContext(
-    QuicConnection* connection,
-    EncryptionLevel encryption_level)
+    QuicConnection* connection, EncryptionLevel encryption_level)
     : connection_(connection), latched_encryption_level_(ENCRYPTION_INITIAL) {
   if (connection_ == nullptr) {
     return;
@@ -4919,16 +4901,14 @@ QuicConnection::ScopedEncryptionLevelContext::~ScopedEncryptionLevelContext() {
 }
 
 QuicConnection::BufferedPacket::BufferedPacket(
-    const SerializedPacket& packet,
-    const QuicSocketAddress& self_address,
+    const SerializedPacket& packet, const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address)
     : encrypted_buffer(CopyBuffer(packet), packet.encrypted_length),
       self_address(self_address),
       peer_address(peer_address) {}
 
 QuicConnection::BufferedPacket::BufferedPacket(
-    char* encrypted_buffer,
-    QuicPacketLength encrypted_length,
+    char* encrypted_buffer, QuicPacketLength encrypted_length,
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address)
     : encrypted_buffer(CopyBuffer(encrypted_buffer, encrypted_length),
@@ -5007,8 +4987,7 @@ void QuicConnection::SendMtuDiscoveryPacket(QuicByteCount target_mtu) {
 // and let the caller to call writer to write the packet and handle write
 // status.
 bool QuicConnection::SendConnectivityProbingPacket(
-    QuicPacketWriter* probing_writer,
-    const QuicSocketAddress& peer_address) {
+    QuicPacketWriter* probing_writer, const QuicSocketAddress& peer_address) {
   QUICHE_DCHECK(peer_address.IsInitialized());
   if (!connected_) {
     QUIC_BUG(quic_bug_10511_31)
@@ -5060,11 +5039,9 @@ bool QuicConnection::SendConnectivityProbingPacket(
 }
 
 bool QuicConnection::WritePacketUsingWriter(
-    std::unique_ptr<SerializedPacket> packet,
-    QuicPacketWriter* writer,
+    std::unique_ptr<SerializedPacket> packet, QuicPacketWriter* writer,
     const QuicSocketAddress& self_address,
-    const QuicSocketAddress& peer_address,
-    bool measure_rtt) {
+    const QuicSocketAddress& peer_address, bool measure_rtt) {
   const QuicTime packet_send_time = clock_->Now();
   QUIC_DVLOG(2) << ENDPOINT
                 << "Sending path probe packet for server connection ID "
@@ -6123,8 +6100,7 @@ bool QuicConnection::LimitedByAmplificationFactor() const {
 }
 
 SerializedPacketFate QuicConnection::GetSerializedPacketFate(
-    bool is_mtu_discovery,
-    EncryptionLevel encryption_level) {
+    bool is_mtu_discovery, EncryptionLevel encryption_level) {
   if (ShouldDiscardPacket(encryption_level)) {
     return DISCARD;
   }
@@ -6445,8 +6421,7 @@ bool QuicConnection::SendPathChallenge(
     const QuicPathFrameBuffer& data_buffer,
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address,
-    const QuicSocketAddress& effective_peer_address,
-    QuicPacketWriter* writer) {
+    const QuicSocketAddress& effective_peer_address, QuicPacketWriter* writer) {
   if (!framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_FORWARD_SECURE)) {
     return connected_;
   }
@@ -6711,8 +6686,7 @@ void QuicConnection::RetirePeerIssuedConnectionIdsOnPathValidationFailure() {
 
 bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
                                  const QuicSocketAddress& peer_address,
-                                 QuicPacketWriter* writer,
-                                 bool owns_writer) {
+                                 QuicPacketWriter* writer, bool owns_writer) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT);
   if (!connected_) {
     if (owns_writer) {
@@ -6824,8 +6798,7 @@ void QuicConnection::SetSourceAddressTokenToSend(absl::string_view token) {
 }
 
 void QuicConnection::MaybeUpdateBytesSentToAlternativeAddress(
-    const QuicSocketAddress& peer_address,
-    QuicByteCount sent_packet_size) {
+    const QuicSocketAddress& peer_address, QuicByteCount sent_packet_size) {
   if (!version().SupportsAntiAmplificationLimit() ||
       perspective_ != Perspective::IS_SERVER) {
     return;

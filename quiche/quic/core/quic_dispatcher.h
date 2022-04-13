@@ -49,8 +49,7 @@ class QUIC_NO_EXPORT QuicDispatcher
       quiche::QuicheLinkedHashMap<QuicBlockedWriterInterface*, bool>;
 
   QuicDispatcher(
-      const QuicConfig* config,
-      const QuicCryptoServerConfig* crypto_config,
+      const QuicConfig* config, const QuicCryptoServerConfig* crypto_config,
       QuicVersionManager* version_manager,
       std::unique_ptr<QuicConnectionHelperInterface> helper,
       std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
@@ -83,8 +82,7 @@ class QUIC_NO_EXPORT QuicDispatcher
   // QuicTimeWaitListManager::Visitor):
   // Ensure that the closed connection is cleaned up asynchronously.
   void OnConnectionClosed(QuicConnectionId server_connection_id,
-                          QuicErrorCode error,
-                          const std::string& error_details,
+                          QuicErrorCode error, const std::string& error_details,
                           ConnectionCloseSource source) override;
 
   // QuicSession::Visitor interface implementation (via inheritance of
@@ -122,8 +120,7 @@ class QUIC_NO_EXPORT QuicDispatcher
       QuicConnectionId server_connection_id) override;
 
   using ReferenceCountedSessionMap =
-      absl::flat_hash_map<QuicConnectionId,
-                          std::shared_ptr<QuicSession>,
+      absl::flat_hash_map<QuicConnectionId, std::shared_ptr<QuicSession>,
                           QuicConnectionIdHash>;
 
   size_t NumSessions() const;
@@ -134,8 +131,9 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Clear recent_stateless_reset_addresses_.
   void ClearStatelessResetAddresses();
 
-  using ConnectionIdMap = absl::
-      flat_hash_map<QuicConnectionId, QuicConnectionId, QuicConnectionIdHash>;
+  using ConnectionIdMap =
+      absl::flat_hash_map<QuicConnectionId, QuicConnectionId,
+                          QuicConnectionIdHash>;
 
   // QuicBufferedPacketStore::VisitorInterface implementation.
   void OnExpiredPackets(QuicConnectionId server_connection_id,
@@ -308,8 +306,7 @@ class QUIC_NO_EXPORT QuicDispatcher
   // to the time-wait list.  The caller needs to manually remove the session
   // from the map after that.
   void CleanUpSession(QuicConnectionId server_connection_id,
-                      QuicConnection* connection,
-                      QuicErrorCode error,
+                      QuicConnection* connection, QuicErrorCode error,
                       const std::string& error_details,
                       ConnectionCloseSource source);
 
@@ -318,13 +315,9 @@ class QUIC_NO_EXPORT QuicDispatcher
   // connection to time wait list or 2) directly add connection to time wait
   // list with |action|.
   void StatelesslyTerminateConnection(
-      QuicConnectionId server_connection_id,
-      PacketHeaderFormat format,
-      bool version_flag,
-      bool use_length_prefix,
-      ParsedQuicVersion version,
-      QuicErrorCode error_code,
-      const std::string& error_details,
+      QuicConnectionId server_connection_id, PacketHeaderFormat format,
+      bool version_flag, bool use_length_prefix, ParsedQuicVersion version,
+      QuicErrorCode error_code, const std::string& error_details,
       QuicTimeWaitListManager::TimeWaitAction action);
 
   // Save/Restore per packet context.

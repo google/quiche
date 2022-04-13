@@ -159,9 +159,8 @@ class QuicStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   QuicWriteBlockedList* write_blocked_list_;
   QuicTime::Delta zero_;
   ParsedQuicVersionVector supported_versions_;
-  QuicStreamId kTestStreamId =
-      GetNthClientInitiatedBidirectionalStreamId(GetParam().transport_version,
-                                                 1);
+  QuicStreamId kTestStreamId = GetNthClientInitiatedBidirectionalStreamId(
+      GetParam().transport_version, 1);
   const QuicStreamId kTestPendingStreamId =
       GetNthClientInitiatedUnidirectionalStreamId(GetParam().transport_version,
                                                   1);

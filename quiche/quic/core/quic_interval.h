@@ -57,6 +57,7 @@
 //   EXPECT_FALSE(r1.Contains(r1.min()));  // e.g. doesn't contain its own min.
 
 #include <stddef.h>
+
 #include <algorithm>
 #include <ostream>
 #include <type_traits>
@@ -97,8 +98,7 @@ class QUIC_NO_EXPORT QuicInterval {
   // QuicInterval.
   QuicInterval(const T& min, const T& max) : min_(min), max_(max) {}
 
-  template <typename U1,
-            typename U2,
+  template <typename U1, typename U2,
             typename = typename std::enable_if<
                 std::is_convertible<U1, T>::value &&
                 std::is_convertible<U2, T>::value>::type>
@@ -157,8 +157,7 @@ class QUIC_NO_EXPORT QuicInterval {
   // Roughly speaking that means the intervals don't intersect, and they are not
   // adjacent.   Empty intervals are always separated from any other interval.
   bool Separated(const QuicInterval& other) const {
-    if (Empty() || other.Empty())
-      return true;
+    if (Empty() || other.Empty()) return true;
     return other.max() < min() || max() < other.min();
   }
 
@@ -191,17 +190,14 @@ class QUIC_NO_EXPORT QuicInterval {
   // be set to the empty QuicInterval (it is possible that *lo will be empty and
   // *hi non-empty). The method returns true iff the intersection of *this and i
   // is non-empty.
-  bool Difference(const QuicInterval& i,
-                  QuicInterval* lo,
+  bool Difference(const QuicInterval& i, QuicInterval* lo,
                   QuicInterval* hi) const;
 
   friend bool operator==(const QuicInterval& a, const QuicInterval& b) {
     bool ae = a.Empty();
     bool be = b.Empty();
-    if (ae && be)
-      return true;  // All empties are equal.
-    if (ae != be)
-      return false;  // Empty cannot equal nonempty.
+    if (ae && be) return true;   // All empties are equal.
+    if (ae != be) return false;  // Empty cannot equal nonempty.
     return a.min() == b.min() && a.max() == b.max();
   }
 
@@ -248,8 +244,7 @@ auto operator<<(std::ostream& out, const QuicInterval<T>& i)
 template <typename T>
 bool QuicInterval<T>::Intersects(const QuicInterval& i,
                                  QuicInterval* out) const {
-  if (!Intersects(i))
-    return false;
+  if (!Intersects(i)) return false;
   if (out != nullptr) {
     *out = QuicInterval(std::max(min(), i.min()), std::min(max(), i.max()));
   }
@@ -258,8 +253,7 @@ bool QuicInterval<T>::Intersects(const QuicInterval& i,
 
 template <typename T>
 bool QuicInterval<T>::IntersectWith(const QuicInterval& i) {
-  if (Empty())
-    return false;
+  if (Empty()) return false;
   bool modified = false;
   if (i.min() > min()) {
     SetMin(i.min());
@@ -274,8 +268,7 @@ bool QuicInterval<T>::IntersectWith(const QuicInterval& i) {
 
 template <typename T>
 bool QuicInterval<T>::SpanningUnion(const QuicInterval& i) {
-  if (i.Empty())
-    return false;
+  if (i.Empty()) return false;
   if (Empty()) {
     *this = i;
     return true;
@@ -340,14 +333,12 @@ bool QuicInterval<T>::Difference(const QuicInterval& i,
 }
 
 template <typename T>
-bool QuicInterval<T>::Difference(const QuicInterval& i,
-                                 QuicInterval* lo,
+bool QuicInterval<T>::Difference(const QuicInterval& i, QuicInterval* lo,
                                  QuicInterval* hi) const {
   // Initialize *lo and *hi to empty
   *lo = {};
   *hi = {};
-  if (Empty())
-    return false;
+  if (Empty()) return false;
   if (i.Empty()) {
     *lo = *this;
     return false;

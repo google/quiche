@@ -25,9 +25,7 @@ namespace quic {
 namespace test {
 namespace {
 
-char* AsChars(unsigned char* data) {
-  return reinterpret_cast<char*>(data);
-}
+char* AsChars(unsigned char* data) { return reinterpret_cast<char*>(data); }
 
 struct TestParams {
   explicit TestParams(quiche::Endianness endianness) : endianness(endianness) {}
@@ -53,8 +51,7 @@ std::vector<TestParams> GetTestParams() {
 
 class QuicDataWriterTest : public QuicTestWithParam<TestParams> {};
 
-INSTANTIATE_TEST_SUITE_P(QuicDataWriterTests,
-                         QuicDataWriterTest,
+INSTANTIATE_TEST_SUITE_P(QuicDataWriterTests, QuicDataWriterTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 

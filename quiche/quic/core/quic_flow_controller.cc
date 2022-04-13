@@ -29,11 +29,8 @@ std::string QuicFlowController::LogLabel() {
 }
 
 QuicFlowController::QuicFlowController(
-    QuicSession* session,
-    QuicStreamId id,
-    bool is_connection_flow_controller,
-    QuicStreamOffset send_window_offset,
-    QuicStreamOffset receive_window_offset,
+    QuicSession* session, QuicStreamId id, bool is_connection_flow_controller,
+    QuicStreamOffset send_window_offset, QuicStreamOffset receive_window_offset,
     QuicByteCount receive_window_size_limit,
     bool should_auto_tune_receive_window,
     QuicFlowControllerInterface* session_flow_controller)
@@ -283,9 +280,7 @@ void QuicFlowController::EnsureWindowAtLeast(QuicByteCount window_size) {
   UpdateReceiveWindowOffsetAndSendWindowUpdate(available_window);
 }
 
-bool QuicFlowController::IsBlocked() const {
-  return SendWindowSize() == 0;
-}
+bool QuicFlowController::IsBlocked() const { return SendWindowSize() == 0; }
 
 uint64_t QuicFlowController::SendWindowSize() const {
   if (bytes_sent_ > send_window_offset_) {

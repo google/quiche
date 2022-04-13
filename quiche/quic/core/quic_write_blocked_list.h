@@ -57,8 +57,7 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   // purposes.
   QuicStreamId PopFront();
 
-  void RegisterStream(QuicStreamId stream_id,
-                      bool is_static_stream,
+  void RegisterStream(QuicStreamId stream_id, bool is_static_stream,
                       const spdy::SpdyStreamPrecedence& precedence);
 
   void UnregisterStream(QuicStreamId stream_id, bool is_static);

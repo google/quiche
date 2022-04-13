@@ -227,21 +227,13 @@ inline QuicTime::Delta operator>>(QuicTime::Delta lhs, size_t rhs) {
 inline bool operator==(QuicTime lhs, QuicTime rhs) {
   return lhs.time_ == rhs.time_;
 }
-inline bool operator!=(QuicTime lhs, QuicTime rhs) {
-  return !(lhs == rhs);
-}
+inline bool operator!=(QuicTime lhs, QuicTime rhs) { return !(lhs == rhs); }
 inline bool operator<(QuicTime lhs, QuicTime rhs) {
   return lhs.time_ < rhs.time_;
 }
-inline bool operator>(QuicTime lhs, QuicTime rhs) {
-  return rhs < lhs;
-}
-inline bool operator<=(QuicTime lhs, QuicTime rhs) {
-  return !(rhs < lhs);
-}
-inline bool operator>=(QuicTime lhs, QuicTime rhs) {
-  return !(lhs < rhs);
-}
+inline bool operator>(QuicTime lhs, QuicTime rhs) { return rhs < lhs; }
+inline bool operator<=(QuicTime lhs, QuicTime rhs) { return !(rhs < lhs); }
+inline bool operator>=(QuicTime lhs, QuicTime rhs) { return !(lhs < rhs); }
 
 // Override stream output operator for gtest or QUICHE_CHECK macros.
 inline std::ostream& operator<<(std::ostream& output, const QuicTime t) {

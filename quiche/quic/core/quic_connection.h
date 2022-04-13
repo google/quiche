@@ -468,10 +468,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                  QuicSocketAddress initial_self_address,
                  QuicSocketAddress initial_peer_address,
                  QuicConnectionHelperInterface* helper,
-                 QuicAlarmFactory* alarm_factory,
-                 QuicPacketWriter* writer,
-                 bool owns_writer,
-                 Perspective perspective,
+                 QuicAlarmFactory* alarm_factory, QuicPacketWriter* writer,
+                 bool owns_writer, Perspective perspective,
                  const ParsedQuicVersionVector& supported_versions);
   QuicConnection(const QuicConnection&) = delete;
   QuicConnection& operator=(const QuicConnection&) = delete;
@@ -506,8 +504,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // information.
   void AdjustNetworkParameters(
       const SendAlgorithmInterface::NetworkParams& params);
-  void AdjustNetworkParameters(QuicBandwidth bandwidth,
-                               QuicTime::Delta rtt,
+  void AdjustNetworkParameters(QuicBandwidth bandwidth, QuicTime::Delta rtt,
                                bool allow_cwnd_to_decrease);
 
   // Install a loss detection tuner. Must be called before OnConfigNegotiated.
@@ -522,8 +519,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Sends crypto handshake messages of length |write_length| to the peer in as
   // few packets as possible. Returns the number of bytes consumed from the
   // data.
-  virtual size_t SendCryptoData(EncryptionLevel level,
-                                size_t write_length,
+  virtual size_t SendCryptoData(EncryptionLevel level, size_t write_length,
                                 QuicStreamOffset offset);
 
   // Send the data of length |write_length| to the peer in as few packets as
@@ -531,8 +527,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // indicating if the fin bit was consumed.  This does not indicate the data
   // has been sent on the wire: it may have been turned into a packet and queued
   // if the socket was unexpectedly blocked.
-  virtual QuicConsumedData SendStreamData(QuicStreamId id,
-                                          size_t write_length,
+  virtual QuicConsumedData SendStreamData(QuicStreamId id, size_t write_length,
                                           QuicStreamOffset offset,
                                           StreamSendingState state);
 
@@ -547,14 +542,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // |connection_close_behavior| determines whether or not a connection close
   // packet is sent to the peer.
   virtual void CloseConnection(
-      QuicErrorCode error,
-      const std::string& details,
+      QuicErrorCode error, const std::string& details,
       ConnectionCloseBehavior connection_close_behavior);
   // Closes the connection, specifying the wire error code |ietf_error|
   // explicitly.
   virtual void CloseConnection(
-      QuicErrorCode error,
-      QuicIetfTransportErrorCodes ietf_error,
+      QuicErrorCode error, QuicIetfTransportErrorCodes ietf_error,
       const std::string& details,
       ConnectionCloseBehavior connection_close_behavior);
 
@@ -702,8 +695,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnUnrecoverableError(QuicErrorCode error,
                             const std::string& error_details) override;
   SerializedPacketFate GetSerializedPacketFate(
-      bool is_mtu_discovery,
-      EncryptionLevel encryption_level) override;
+      bool is_mtu_discovery, EncryptionLevel encryption_level) override;
 
   // QuicSentPacketManager::NetworkChangeVisitor
   void OnCongestionChange() override;
@@ -958,8 +950,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // PATH_CHALLENGE packet is transmitted; if not V99, a Google QUIC padded PING
   // packet is transmitted.
   virtual bool SendConnectivityProbingPacket(
-      QuicPacketWriter* probing_writer,
-      const QuicSocketAddress& peer_address);
+      QuicPacketWriter* probing_writer, const QuicSocketAddress& peer_address);
 
   // Disable MTU discovery on this connection.
   void DisableMtuDiscovery();
@@ -1200,8 +1191,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // available CIDs, connection disconnected, etc).
   bool MigratePath(const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address,
-                   QuicPacketWriter* writer,
-                   bool owns_writer);
+                   QuicPacketWriter* writer, bool owns_writer);
 
   // Called to clear the alternative_path_ when path validation failed on the
   // client side.
@@ -1404,8 +1394,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     BufferedPacket(const SerializedPacket& packet,
                    const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address);
-    BufferedPacket(char* encrypted_buffer,
-                   QuicPacketLength encrypted_length,
+    BufferedPacket(char* encrypted_buffer, QuicPacketLength encrypted_length,
                    const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address);
     BufferedPacket(const BufferedPacket& other) = delete;
@@ -1801,8 +1790,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Increment bytes sent/received on the alternative path if the current packet
   // is sent/received on that path.
   void MaybeUpdateBytesSentToAlternativeAddress(
-      const QuicSocketAddress& peer_address,
-      QuicByteCount sent_packet_size);
+      const QuicSocketAddress& peer_address, QuicByteCount sent_packet_size);
   void MaybeUpdateBytesReceivedFromAlternativeAddress(
       QuicByteCount received_packet_size);
 

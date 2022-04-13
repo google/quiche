@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+
 #include "openssl/ssl.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
 #include "quiche/quic/core/quic_framer.h"
@@ -206,23 +207,17 @@ class QUIC_NO_EXPORT TlsChloExtractor
   // BoringSSL static TLS callbacks.
   static enum ssl_select_cert_result_t SelectCertCallback(
       const SSL_CLIENT_HELLO* client_hello);
-  static int SetReadSecretCallback(SSL* ssl,
-                                   enum ssl_encryption_level_t level,
+  static int SetReadSecretCallback(SSL* ssl, enum ssl_encryption_level_t level,
                                    const SSL_CIPHER* cipher,
-                                   const uint8_t* secret,
-                                   size_t secret_length);
-  static int SetWriteSecretCallback(SSL* ssl,
-                                    enum ssl_encryption_level_t level,
+                                   const uint8_t* secret, size_t secret_length);
+  static int SetWriteSecretCallback(SSL* ssl, enum ssl_encryption_level_t level,
                                     const SSL_CIPHER* cipher,
                                     const uint8_t* secret,
                                     size_t secret_length);
-  static int WriteMessageCallback(SSL* ssl,
-                                  enum ssl_encryption_level_t level,
-                                  const uint8_t* data,
-                                  size_t len);
+  static int WriteMessageCallback(SSL* ssl, enum ssl_encryption_level_t level,
+                                  const uint8_t* data, size_t len);
   static int FlushFlightCallback(SSL* ssl);
-  static int SendAlertCallback(SSL* ssl,
-                               enum ssl_encryption_level_t level,
+  static int SendAlertCallback(SSL* ssl, enum ssl_encryption_level_t level,
                                uint8_t desc);
 
   // Called by SelectCertCallback.

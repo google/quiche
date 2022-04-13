@@ -3,20 +3,19 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/core/quic_mtu_discovery.h"
+
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_stack_trace.h"
 
 namespace quic {
 
 QuicConnectionMtuDiscoverer::QuicConnectionMtuDiscoverer(
-    QuicPacketCount packets_between_probes_base,
-    QuicPacketNumber next_probe_at)
+    QuicPacketCount packets_between_probes_base, QuicPacketNumber next_probe_at)
     : packets_between_probes_(packets_between_probes_base),
       next_probe_at_(next_probe_at) {}
 
 void QuicConnectionMtuDiscoverer::Enable(
-    QuicByteCount max_packet_length,
-    QuicByteCount target_max_packet_length) {
+    QuicByteCount max_packet_length, QuicByteCount target_max_packet_length) {
   QUICHE_DCHECK(!IsEnabled());
 
   if (target_max_packet_length <= max_packet_length) {
@@ -115,8 +114,7 @@ QuicPacketLength QuicConnectionMtuDiscoverer::next_probe_packet_length() const {
 }
 
 void QuicConnectionMtuDiscoverer::OnMaxPacketLengthUpdated(
-    QuicByteCount old_value,
-    QuicByteCount new_value) {
+    QuicByteCount old_value, QuicByteCount new_value) {
   if (!IsEnabled() || new_value <= old_value) {
     return;
   }

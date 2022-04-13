@@ -103,8 +103,7 @@ class MockQuicCryptoStream : public QuicCryptoStream,
 class QuicCryptoStreamTest : public QuicTest {
  public:
   QuicCryptoStreamTest()
-      : connection_(new MockQuicConnection(&helper_,
-                                           &alarm_factory_,
+      : connection_(new MockQuicConnection(&helper_, &alarm_factory_,
                                            Perspective::IS_CLIENT)),
         session_(connection_, /*create_mock_crypto_stream=*/false) {
     EXPECT_CALL(*static_cast<MockPacketWriter*>(connection_->writer()),

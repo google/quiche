@@ -23,10 +23,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
       public QuicCryptoHandshaker {
  public:
   QuicCryptoClientHandshaker(
-      const QuicServerId& server_id,
-      QuicCryptoClientStream* stream,
-      QuicSession* session,
-      std::unique_ptr<ProofVerifyContext> verify_context,
+      const QuicServerId& server_id, QuicCryptoClientStream* stream,
+      QuicSession* session, std::unique_ptr<ProofVerifyContext> verify_context,
       QuicCryptoClientConfig* crypto_config,
       QuicCryptoClientStream::ProofHandler* proof_handler);
   QuicCryptoClientHandshaker(const QuicCryptoClientHandshaker&) = delete;
@@ -93,8 +91,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
     ~ProofVerifierCallbackImpl() override;
 
     // ProofVerifierCallback interface.
-    void Run(bool ok,
-             const std::string& error_details,
+    void Run(bool ok, const std::string& error_details,
              std::unique_ptr<ProofVerifyDetails>* details) override;
 
     // Cancel causes any future callbacks to be ignored. It must be called on

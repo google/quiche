@@ -77,9 +77,9 @@ class QUIC_NO_EXPORT QuicBufferedPacketStore {
     TlsChloExtractor tls_chlo_extractor;
   };
 
-  using BufferedPacketMap = quiche::QuicheLinkedHashMap<QuicConnectionId,
-                                                        BufferedPacketList,
-                                                        QuicConnectionIdHash>;
+  using BufferedPacketMap =
+      quiche::QuicheLinkedHashMap<QuicConnectionId, BufferedPacketList,
+                                  QuicConnectionIdHash>;
 
   class QUIC_NO_EXPORT VisitorInterface {
    public:

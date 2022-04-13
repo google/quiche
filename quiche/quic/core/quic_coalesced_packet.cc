@@ -13,9 +13,7 @@ namespace quic {
 QuicCoalescedPacket::QuicCoalescedPacket()
     : length_(0), max_packet_length_(0) {}
 
-QuicCoalescedPacket::~QuicCoalescedPacket() {
-  Clear();
-}
+QuicCoalescedPacket::~QuicCoalescedPacket() { Clear(); }
 
 bool QuicCoalescedPacket::MaybeCoalescePacket(
     const SerializedPacket& packet, const QuicSocketAddress& self_address,
@@ -117,8 +115,7 @@ void QuicCoalescedPacket::NeuterInitialPacket() {
   initial_packet_ = nullptr;
 }
 
-bool QuicCoalescedPacket::CopyEncryptedBuffers(char* buffer,
-                                               size_t buffer_len,
+bool QuicCoalescedPacket::CopyEncryptedBuffers(char* buffer, size_t buffer_len,
                                                size_t* length_copied) const {
   *length_copied = 0;
   for (const auto& packet : encrypted_buffers_) {

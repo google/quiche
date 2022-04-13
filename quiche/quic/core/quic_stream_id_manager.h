@@ -30,10 +30,8 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
                                 bool unidirectional) = 0;
   };
 
-  QuicStreamIdManager(DelegateInterface* delegate,
-                      bool unidirectional,
-                      Perspective perspective,
-                      ParsedQuicVersion version,
+  QuicStreamIdManager(DelegateInterface* delegate, bool unidirectional,
+                      Perspective perspective, ParsedQuicVersion version,
                       QuicStreamCount max_allowed_outgoing_streams,
                       QuicStreamCount max_allowed_incoming_streams);
 

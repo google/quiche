@@ -70,8 +70,7 @@ void QuicReceivedPacketManager::SetFromConfig(const QuicConfig& config,
 }
 
 void QuicReceivedPacketManager::RecordPacketReceived(
-    const QuicPacketHeader& header,
-    QuicTime receipt_time) {
+    const QuicPacketHeader& header, QuicTime receipt_time) {
   const QuicPacketNumber packet_number = header.packet_number;
   QUICHE_DCHECK(IsAwaitingPacket(packet_number))
       << " packet_number:" << packet_number;
@@ -171,7 +170,7 @@ const QuicFrame QuicReceivedPacketManager::GetUpdatedAckFrame(
   QuicFrame frame = QuicFrame(&ack_frame_);
   frame.delete_forbidden = true;
   return frame;
-#else  // QUIC_FRAME_DEBUG
+#else   // QUIC_FRAME_DEBUG
   return QuicFrame(&ack_frame_);
 #endif  // QUIC_FRAME_DEBUG
 }

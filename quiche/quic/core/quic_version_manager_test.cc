@@ -74,9 +74,8 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   EXPECT_EQ(3u, manager.GetSupportedVersionsWithOnlyHttp3().size());
   EXPECT_EQ(CurrentSupportedHttp3Versions(),
             manager.GetSupportedVersionsWithOnlyHttp3());
-  EXPECT_THAT(
-      manager.GetSupportedAlpns(),
-      ElementsAre("h3", "h3-29", "h3-Q050", "h3-Q046", "h3-Q043"));
+  EXPECT_THAT(manager.GetSupportedAlpns(),
+              ElementsAre("h3", "h3-29", "h3-Q050", "h3-Q046", "h3-Q043"));
 }
 
 }  // namespace

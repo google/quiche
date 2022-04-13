@@ -133,8 +133,8 @@ TEST_F(QuicWriteBlockedListTest, NoDuplicateEntries) {
   // Try to add a stream to the write blocked list multiple times at the same
   // priority.
   const QuicStreamId kBlockedId = 3 + 2;
-    write_blocked_list_.RegisterStream(
-        kBlockedId, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  write_blocked_list_.RegisterStream(
+      kBlockedId, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
   write_blocked_list_.AddStream(kBlockedId);
   write_blocked_list_.AddStream(kBlockedId);
   write_blocked_list_.AddStream(kBlockedId);

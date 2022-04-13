@@ -70,8 +70,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketNumber {
   std::string ToString() const;
 
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
-      std::ostream& os,
-      const QuicPacketNumber& p);
+      std::ostream& os, const QuicPacketNumber& p);
 
  private:
   // All following operators REQUIRE operands.Initialized() == true.

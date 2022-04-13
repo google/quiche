@@ -76,8 +76,7 @@ void QuicNetworkBlackholeDetector::StopDetection(bool permanent) {
 }
 
 void QuicNetworkBlackholeDetector::RestartDetection(
-    QuicTime path_degrading_deadline,
-    QuicTime blackhole_deadline,
+    QuicTime path_degrading_deadline, QuicTime blackhole_deadline,
     QuicTime path_mtu_reduction_deadline) {
   path_degrading_deadline_ = path_degrading_deadline;
   blackhole_deadline_ = blackhole_deadline;

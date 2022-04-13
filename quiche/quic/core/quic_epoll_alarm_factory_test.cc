@@ -40,8 +40,7 @@ class QuicEpollAlarmFactoryTest : public QuicTestWithParam<bool> {
   QuicConnectionArena arena_;
 };
 
-INSTANTIATE_TEST_SUITE_P(UseArena,
-                         QuicEpollAlarmFactoryTest,
+INSTANTIATE_TEST_SUITE_P(UseArena, QuicEpollAlarmFactoryTest,
                          ::testing::ValuesIn({true, false}),
                          ::testing::PrintToStringParamName());
 

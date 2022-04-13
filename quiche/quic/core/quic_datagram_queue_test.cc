@@ -21,7 +21,6 @@ namespace quic {
 namespace test {
 namespace {
 
-
 using testing::_;
 using testing::ElementsAre;
 using testing::Return;
@@ -60,8 +59,7 @@ class QuicDatagramQueueObserver final : public QuicDatagramQueue::Observer {
 class QuicDatagramQueueTestBase : public QuicTest {
  protected:
   QuicDatagramQueueTestBase()
-      : connection_(new MockQuicConnection(&helper_,
-                                           &alarm_factory_,
+      : connection_(new MockQuicConnection(&helper_, &alarm_factory_,
                                            Perspective::IS_CLIENT)),
         session_(connection_) {
     session_.SetCryptoStream(new EstablishedCryptoStream(&session_));

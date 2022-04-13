@@ -46,20 +46,14 @@ std::vector<TestParams> GetTestParams() {
 
 class MockDelegate : public QuicStreamIdManager::DelegateInterface {
  public:
-  MOCK_METHOD(void,
-              SendMaxStreams,
-              (QuicStreamCount stream_count, bool unidirectional),
-              (override));
+  MOCK_METHOD(void, SendMaxStreams,
+              (QuicStreamCount stream_count, bool unidirectional), (override));
 };
 
 class UberQuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
  protected:
   UberQuicStreamIdManagerTest()
-      : manager_(perspective(),
-                 version(),
-                 &delegate_,
-                 0,
-                 0,
+      : manager_(perspective(), version(), &delegate_, 0, 0,
                  kDefaultMaxStreamsPerConnection,
                  kDefaultMaxStreamsPerConnection) {}
 
@@ -109,8 +103,7 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
   }
 
   QuicStreamId StreamCountToId(QuicStreamCount stream_count,
-                               Perspective perspective,
-                               bool bidirectional) {
+                               Perspective perspective, bool bidirectional) {
     return ((bidirectional) ? QuicUtils::GetFirstBidirectionalStreamId(
                                   transport_version(), perspective)
                             : QuicUtils::GetFirstUnidirectionalStreamId(
@@ -129,8 +122,7 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
   UberQuicStreamIdManager manager_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         UberQuicStreamIdManagerTest,
+INSTANTIATE_TEST_SUITE_P(Tests, UberQuicStreamIdManagerTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 

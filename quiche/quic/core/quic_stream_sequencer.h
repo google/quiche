@@ -177,8 +177,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
   void MaybeCloseStream();
 
   // Shared implementation between OnStreamFrame and OnCryptoFrame.
-  void OnFrameData(QuicStreamOffset byte_offset,
-                   size_t data_len,
+  void OnFrameData(QuicStreamOffset byte_offset, size_t data_len,
                    const char* data_buffer);
 
   // The stream which owns this sequencer.

@@ -42,8 +42,7 @@ uint16_t kDefaultPort = 443;
 }  // namespace
 
 TlsServerHandshaker::DefaultProofSourceHandle::DefaultProofSourceHandle(
-    TlsServerHandshaker* handshaker,
-    ProofSource* proof_source)
+    TlsServerHandshaker* handshaker, ProofSource* proof_source)
     : handshaker_(handshaker), proof_source_(proof_source) {}
 
 TlsServerHandshaker::DefaultProofSourceHandle::~DefaultProofSourceHandle() {
@@ -63,10 +62,8 @@ QuicAsyncStatus
 TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
     const QuicSocketAddress& server_address,
     const QuicSocketAddress& client_address,
-    absl::string_view /*ssl_capabilities*/,
-    const std::string& hostname,
-    absl::string_view /*client_hello*/,
-    const std::string& /*alpn*/,
+    absl::string_view /*ssl_capabilities*/, const std::string& hostname,
+    absl::string_view /*client_hello*/, const std::string& /*alpn*/,
     absl::optional<std::string> /*alps*/,
     const std::vector<uint8_t>& /*quic_transport_params*/,
     const absl::optional<std::vector<uint8_t>>& /*early_data_context*/,
@@ -98,10 +95,8 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
 
 QuicAsyncStatus TlsServerHandshaker::DefaultProofSourceHandle::ComputeSignature(
     const QuicSocketAddress& server_address,
-    const QuicSocketAddress& client_address,
-    const std::string& hostname,
-    uint16_t signature_algorithm,
-    absl::string_view in,
+    const QuicSocketAddress& client_address, const std::string& hostname,
+    uint16_t signature_algorithm, absl::string_view in,
     size_t max_signature_size) {
   if (!handshaker_ || !proof_source_) {
     QUIC_BUG(quic_bug_10341_2)
@@ -326,9 +321,7 @@ void TlsServerHandshaker::OnPacketDecrypted(EncryptionLevel level) {
   }
 }
 
-void TlsServerHandshaker::OnHandshakeDoneReceived() {
-  QUICHE_DCHECK(false);
-}
+void TlsServerHandshaker::OnHandshakeDoneReceived() { QUICHE_DCHECK(false); }
 
 void TlsServerHandshaker::OnNewTokenReceived(absl::string_view /*token*/) {
   QUICHE_DCHECK(false);
@@ -368,9 +361,7 @@ bool TlsServerHandshaker::ValidateAddressToken(absl::string_view token) const {
   return true;
 }
 
-bool TlsServerHandshaker::ShouldSendExpectCTHeader() const {
-  return false;
-}
+bool TlsServerHandshaker::ShouldSendExpectCTHeader() const { return false; }
 
 bool TlsServerHandshaker::DidCertMatchSni() const { return cert_matched_sni_; }
 
@@ -411,9 +402,7 @@ CryptoMessageParser* TlsServerHandshaker::crypto_message_parser() {
   return TlsHandshaker::crypto_message_parser();
 }
 
-HandshakeState TlsServerHandshaker::GetHandshakeState() const {
-  return state_;
-}
+HandshakeState TlsServerHandshaker::GetHandshakeState() const { return state_; }
 
 void TlsServerHandshaker::SetServerApplicationStateForResumption(
     std::unique_ptr<ApplicationState> state) {
@@ -447,8 +436,7 @@ void TlsServerHandshaker::AdvanceHandshakeFromCallback() {
 }
 
 bool TlsServerHandshaker::ProcessTransportParameters(
-    const SSL_CLIENT_HELLO* client_hello,
-    std::string* error_details) {
+    const SSL_CLIENT_HELLO* client_hello, std::string* error_details) {
   TransportParameters client_params;
   const uint8_t* client_params_bytes;
   size_t params_bytes_len;
@@ -568,8 +556,7 @@ TlsServerHandshaker::SetTransportParameters() {
 }
 
 void TlsServerHandshaker::SetWriteSecret(
-    EncryptionLevel level,
-    const SSL_CIPHER* cipher,
+    EncryptionLevel level, const SSL_CIPHER* cipher,
     const std::vector<uint8_t>& write_secret) {
   if (is_connection_closed()) {
     return;
@@ -622,10 +609,8 @@ void TlsServerHandshaker::FinishHandshake() {
 }
 
 QuicAsyncStatus TlsServerHandshaker::VerifyCertChain(
-    const std::vector<std::string>& /*certs*/,
-    std::string* /*error_details*/,
-    std::unique_ptr<ProofVerifyDetails>* /*details*/,
-    uint8_t* /*out_alert*/,
+    const std::vector<std::string>& /*certs*/, std::string* /*error_details*/,
+    std::unique_ptr<ProofVerifyDetails>* /*details*/, uint8_t* /*out_alert*/,
     std::unique_ptr<ProofVerifierCallback> /*callback*/) {
   if (!session()->support_client_cert()) {
     QUIC_BUG(quic_bug_10341_5)
@@ -645,10 +630,7 @@ void TlsServerHandshaker::OnProofVerifyDetailsAvailable(
     const ProofVerifyDetails& /*verify_details*/) {}
 
 ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(
-    uint8_t* out,
-    size_t* out_len,
-    size_t max_out,
-    uint16_t sig_alg,
+    uint8_t* out, size_t* out_len, size_t max_out, uint16_t sig_alg,
     absl::string_view in) {
   QUICHE_DCHECK_EQ(expected_ssl_error(), SSL_ERROR_WANT_READ);
 
@@ -669,9 +651,7 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(
 }
 
 ssl_private_key_result_t TlsServerHandshaker::PrivateKeyComplete(
-    uint8_t* out,
-    size_t* out_len,
-    size_t max_out) {
+    uint8_t* out, size_t* out_len, size_t max_out) {
   if (expected_ssl_error() == SSL_ERROR_WANT_PRIVATE_KEY_OPERATION) {
     return ssl_private_key_retry;
   }
@@ -702,9 +682,7 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeyComplete(
 }
 
 void TlsServerHandshaker::OnComputeSignatureDone(
-    bool ok,
-    bool is_sync,
-    std::string signature,
+    bool ok, bool is_sync, std::string signature,
     std::unique_ptr<ProofSource::Details> details) {
   QUIC_DVLOG(1) << "OnComputeSignatureDone. ok:" << ok
                 << ", is_sync:" << is_sync
@@ -741,8 +719,7 @@ size_t TlsServerHandshaker::SessionTicketMaxOverhead() {
   return proof_source_->GetTicketCrypter()->MaxOverhead();
 }
 
-int TlsServerHandshaker::SessionTicketSeal(uint8_t* out,
-                                           size_t* out_len,
+int TlsServerHandshaker::SessionTicketSeal(uint8_t* out, size_t* out_len,
                                            size_t max_out_len,
                                            absl::string_view in) {
   QUICHE_DCHECK(proof_source_->GetTicketCrypter());
@@ -762,10 +739,7 @@ int TlsServerHandshaker::SessionTicketSeal(uint8_t* out,
 }
 
 ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
-    uint8_t* out,
-    size_t* out_len,
-    size_t max_out_len,
-    absl::string_view in) {
+    uint8_t* out, size_t* out_len, size_t max_out_len, absl::string_view in) {
   QUICHE_DCHECK(proof_source_->GetTicketCrypter());
 
   if (ignore_ticket_open_) {
@@ -828,9 +802,7 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
 }
 
 ssl_ticket_aead_result_t TlsServerHandshaker::FinalizeSessionTicketOpen(
-    uint8_t* out,
-    size_t* out_len,
-    size_t max_out_len) {
+    uint8_t* out, size_t* out_len, size_t max_out_len) {
   ticket_decryption_callback_ = nullptr;
   set_expected_ssl_error(SSL_ERROR_WANT_READ);
   if (decrypted_session_ticket_.empty()) {
@@ -1081,10 +1053,8 @@ int TlsServerHandshaker::TlsExtServernameCallback(int* /*out_alert*/) {
   return SSL_TLSEXT_ERR_OK;
 }
 
-int TlsServerHandshaker::SelectAlpn(const uint8_t** out,
-                                    uint8_t* out_len,
-                                    const uint8_t* in,
-                                    unsigned in_len) {
+int TlsServerHandshaker::SelectAlpn(const uint8_t** out, uint8_t* out_len,
+                                    const uint8_t* in, unsigned in_len) {
   // |in| contains a sequence of 1-byte-length-prefixed values.
   *out_len = 0;
   *out = nullptr;

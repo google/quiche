@@ -19,8 +19,7 @@ QuicDataReader::QuicDataReader(absl::string_view data)
 QuicDataReader::QuicDataReader(const char* data, const size_t len)
     : QuicDataReader(data, len, quiche::NETWORK_BYTE_ORDER) {}
 
-QuicDataReader::QuicDataReader(const char* data,
-                               const size_t len,
+QuicDataReader::QuicDataReader(const char* data, const size_t len,
                                quiche::Endianness endianness)
     : quiche::QuicheDataReader(data, len, endianness) {}
 

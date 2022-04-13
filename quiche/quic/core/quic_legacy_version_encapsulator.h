@@ -27,12 +27,9 @@ class QUIC_EXPORT_PRIVATE QuicLegacyVersionEncapsulator
   // the contents of the encapsulated packet to |out|. |out| must point to a
   // valid memory buffer capable of holding kMaxOutgoingPacketSize bytes.
   static QuicPacketLength Encapsulate(
-      absl::string_view sni,
-      absl::string_view inner_packet,
-      const QuicConnectionId& server_connection_id,
-      QuicTime creation_time,
-      QuicByteCount outer_max_packet_length,
-      char* out);
+      absl::string_view sni, absl::string_view inner_packet,
+      const QuicConnectionId& server_connection_id, QuicTime creation_time,
+      QuicByteCount outer_max_packet_length, char* out);
 
   // Returns the number of bytes of minimum overhead caused by Legacy Version
   // Encapsulation, based on the length of the provided server name |sni|.
@@ -48,8 +45,7 @@ class QUIC_EXPORT_PRIVATE QuicLegacyVersionEncapsulator
                             IsHandshake handshake) override;
   const QuicFrames MaybeBundleAckOpportunistically() override;
   SerializedPacketFate GetSerializedPacketFate(
-      bool is_mtu_discovery,
-      EncryptionLevel encryption_level) override;
+      bool is_mtu_discovery, EncryptionLevel encryption_level) override;
 
   ~QuicLegacyVersionEncapsulator() override;
 

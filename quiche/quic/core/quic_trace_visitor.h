@@ -19,8 +19,7 @@ class QUIC_NO_EXPORT QuicTraceVisitor : public QuicConnectionDebugVisitor {
   explicit QuicTraceVisitor(const QuicConnection* connection);
 
   void OnPacketSent(QuicPacketNumber packet_number,
-                    QuicPacketLength packet_length,
-                    bool has_crypto_handshake,
+                    QuicPacketLength packet_length, bool has_crypto_handshake,
                     TransmissionType transmission_type,
                     EncryptionLevel encryption_level,
                     const QuicFrames& retransmittable_frames,
@@ -29,10 +28,8 @@ class QUIC_NO_EXPORT QuicTraceVisitor : public QuicConnectionDebugVisitor {
 
   void OnIncomingAck(QuicPacketNumber ack_packet_number,
                      EncryptionLevel ack_decrypted_level,
-                     const QuicAckFrame& ack_frame,
-                     QuicTime ack_receive_time,
-                     QuicPacketNumber largest_observed,
-                     bool rtt_updated,
+                     const QuicAckFrame& ack_frame, QuicTime ack_receive_time,
+                     QuicPacketNumber largest_observed, bool rtt_updated,
                      QuicPacketNumber least_unacked_sent_packet) override;
 
   void OnPacketLoss(QuicPacketNumber lost_packet_number,
@@ -48,8 +45,7 @@ class QUIC_NO_EXPORT QuicTraceVisitor : public QuicConnectionDebugVisitor {
 
   void OnApplicationLimited() override;
 
-  void OnAdjustNetworkParameters(QuicBandwidth bandwidth,
-                                 QuicTime::Delta rtt,
+  void OnAdjustNetworkParameters(QuicBandwidth bandwidth, QuicTime::Delta rtt,
                                  QuicByteCount old_cwnd,
                                  QuicByteCount new_cwnd) override;
 

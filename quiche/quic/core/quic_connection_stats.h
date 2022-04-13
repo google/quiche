@@ -19,8 +19,7 @@ namespace quic {
 // Structure to hold stats for a QuicConnection.
 struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
-      std::ostream& os,
-      const QuicConnectionStats& s);
+      std::ostream& os, const QuicConnectionStats& s);
 
   QuicByteCount bytes_sent = 0;  // Includes retransmissions.
   QuicPacketCount packets_sent = 0;
@@ -100,8 +99,8 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   size_t rto_count = 0;  // Count of times the rto timer fired.
   size_t pto_count = 0;
 
-  int64_t min_rtt_us = 0;  // Minimum RTT in microseconds.
-  int64_t srtt_us = 0;     // Smoothed RTT in microseconds.
+  int64_t min_rtt_us = 0;                 // Minimum RTT in microseconds.
+  int64_t srtt_us = 0;                    // Smoothed RTT in microseconds.
   int64_t cwnd_bootstrapping_rtt_us = 0;  // RTT used in cwnd_bootstrapping.
   // The connection's |long_term_mtu_| used for sending packets, populated by
   // QuicConnection::GetStats().

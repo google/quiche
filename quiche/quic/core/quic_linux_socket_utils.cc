@@ -6,6 +6,7 @@
 
 #include <linux/net_tstamp.h>
 #include <netinet/in.h>
+
 #include <cstdint>
 
 #include "quiche/quic/core/quic_syscall_wrapper.h"
@@ -15,10 +16,8 @@
 
 namespace quic {
 
-QuicMsgHdr::QuicMsgHdr(const char* buffer,
-                       size_t buf_len,
-                       const QuicSocketAddress& peer_address,
-                       char* cbuf,
+QuicMsgHdr::QuicMsgHdr(const char* buffer, size_t buf_len,
+                       const QuicSocketAddress& peer_address, char* cbuf,
                        size_t cbuf_size)
     : iov_{const_cast<char*>(buffer), buf_len},
       cbuf_(cbuf),
@@ -55,8 +54,7 @@ void QuicMsgHdr::SetIpInNextCmsg(const QuicIpAddress& self_address) {
   }
 }
 
-void* QuicMsgHdr::GetNextCmsgDataInternal(int cmsg_level,
-                                          int cmsg_type,
+void* QuicMsgHdr::GetNextCmsgDataInternal(int cmsg_level, int cmsg_type,
                                           size_t data_size) {
   // msg_controllen needs to be increased first, otherwise CMSG_NXTHDR will
   // return nullptr.
@@ -120,9 +118,7 @@ void QuicMMsgHdr::SetIpInNextCmsg(int i, const QuicIpAddress& self_address) {
   }
 }
 
-void* QuicMMsgHdr::GetNextCmsgDataInternal(int i,
-                                           int cmsg_level,
-                                           int cmsg_type,
+void* QuicMMsgHdr::GetNextCmsgDataInternal(int i, int cmsg_level, int cmsg_type,
                                            size_t data_size) {
   mmsghdr* mhdr = GetMMsgHdr(i);
   msghdr* hdr = &mhdr->msg_hdr;
@@ -217,8 +213,7 @@ bool QuicLinuxSocketUtils::GetTtlFromMsghdr(struct msghdr* hdr, int* ttl) {
 
 // static
 void QuicLinuxSocketUtils::SetIpInfoInCmsgData(
-    const QuicIpAddress& self_address,
-    void* cmsg_data) {
+    const QuicIpAddress& self_address, void* cmsg_data) {
   QUICHE_DCHECK(self_address.IsInitialized());
   const std::string& address_str = self_address.ToPackedString();
   if (self_address.IsIPv4()) {

@@ -56,8 +56,7 @@ class QUIC_EXPORT_PRIVATE QuicPathValidationContext {
 
  private:
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
-      std::ostream& os,
-      const QuicPathValidationContext& context);
+      std::ostream& os, const QuicPathValidationContext& context);
 
   QuicSocketAddress self_address_;
   // The address to send PATH_CHALLENGE.

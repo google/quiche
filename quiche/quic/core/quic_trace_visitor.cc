@@ -45,14 +45,10 @@ QuicTraceVisitor::QuicTraceVisitor(const QuicConnection* connection)
 }
 
 void QuicTraceVisitor::OnPacketSent(
-    QuicPacketNumber packet_number,
-    QuicPacketLength packet_length,
-    bool /*has_crypto_handshake*/,
-    TransmissionType /*transmission_type*/,
-    EncryptionLevel encryption_level,
-    const QuicFrames& retransmittable_frames,
-    const QuicFrames& /*nonretransmittable_frames*/,
-    QuicTime sent_time) {
+    QuicPacketNumber packet_number, QuicPacketLength packet_length,
+    bool /*has_crypto_handshake*/, TransmissionType /*transmission_type*/,
+    EncryptionLevel encryption_level, const QuicFrames& retransmittable_frames,
+    const QuicFrames& /*nonretransmittable_frames*/, QuicTime sent_time) {
   quic_trace::Event* event = trace_.add_events();
   event->set_event_type(quic_trace::PACKET_SENT);
   event->set_time_us(ConvertTimestampToRecordedFormat(sent_time));
@@ -234,12 +230,9 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
 }
 
 void QuicTraceVisitor::OnIncomingAck(
-    QuicPacketNumber /*ack_packet_number*/,
-    EncryptionLevel ack_decrypted_level,
-    const QuicAckFrame& ack_frame,
-    QuicTime ack_receive_time,
-    QuicPacketNumber /*largest_observed*/,
-    bool /*rtt_updated*/,
+    QuicPacketNumber /*ack_packet_number*/, EncryptionLevel ack_decrypted_level,
+    const QuicAckFrame& ack_frame, QuicTime ack_receive_time,
+    QuicPacketNumber /*largest_observed*/, bool /*rtt_updated*/,
     QuicPacketNumber /*least_unacked_sent_packet*/) {
   quic_trace::Event* event = trace_.add_events();
   event->set_time_us(ConvertTimestampToRecordedFormat(ack_receive_time));

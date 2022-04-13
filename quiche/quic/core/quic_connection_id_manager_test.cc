@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/core/quic_connection_id_manager.h"
+
 #include <cstddef>
 
 #include "quiche/quic/core/quic_connection_id.h"
@@ -519,18 +520,12 @@ class TestSelfIssuedConnectionIdManagerVisitor
  public:
   void OnPeerIssuedConnectionIdRetired() override {}
 
-  MOCK_METHOD(bool,
-              SendNewConnectionId,
-              (const QuicNewConnectionIdFrame& frame),
-              (override));
-  MOCK_METHOD(void,
-              OnNewConnectionIdIssued,
-              (const QuicConnectionId& connection_id),
-              (override));
-  MOCK_METHOD(void,
-              OnSelfIssuedConnectionIdRetired,
-              (const QuicConnectionId& connection_id),
-              (override));
+  MOCK_METHOD(bool, SendNewConnectionId,
+              (const QuicNewConnectionIdFrame& frame), (override));
+  MOCK_METHOD(void, OnNewConnectionIdIssued,
+              (const QuicConnectionId& connection_id), (override));
+  MOCK_METHOD(void, OnSelfIssuedConnectionIdRetired,
+              (const QuicConnectionId& connection_id), (override));
 };
 
 class QuicSelfIssuedConnectionIdManagerTest : public QuicTest {
@@ -556,11 +551,8 @@ class QuicSelfIssuedConnectionIdManagerTest : public QuicTest {
   QuicTime::Delta pto_delay_ = QuicTime::Delta::FromMilliseconds(10);
 };
 
-MATCHER_P3(ExpectedNewConnectionIdFrame,
-           connection_id,
-           sequence_number,
-           retire_prior_to,
-           "") {
+MATCHER_P3(ExpectedNewConnectionIdFrame, connection_id, sequence_number,
+           retire_prior_to, "") {
   return (arg.connection_id == connection_id) &&
          (arg.sequence_number == sequence_number) &&
          (arg.retire_prior_to == retire_prior_to);

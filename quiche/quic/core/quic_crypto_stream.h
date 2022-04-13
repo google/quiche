@@ -46,8 +46,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // Returns the per-packet framing overhead associated with sending a
   // handshake message for |version|.
   static QuicByteCount CryptoMessageFramingOverhead(
-      QuicTransportVersion version,
-      QuicConnectionId connection_id);
+      QuicTransportVersion version, QuicConnectionId connection_id);
 
   // QuicStream implementation
   void OnStreamFrame(const QuicStreamFrame& frame) override;
@@ -184,16 +183,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   void WritePendingRetransmission() override;
 
   // Override to send unacked crypto data with the appropriate encryption level.
-  bool RetransmitStreamData(QuicStreamOffset offset,
-                            QuicByteCount data_length,
-                            bool fin,
-                            TransmissionType type) override;
+  bool RetransmitStreamData(QuicStreamOffset offset, QuicByteCount data_length,
+                            bool fin, TransmissionType type) override;
 
   // Sends stream retransmission data at |encryption_level|.
   QuicConsumedData RetransmitStreamDataAtLevel(
       QuicStreamOffset retransmission_offset,
-      QuicByteCount retransmission_length,
-      EncryptionLevel encryption_level,
+      QuicByteCount retransmission_length, EncryptionLevel encryption_level,
       TransmissionType type);
 
   // Returns the number of bytes of handshake data that have been received from
@@ -207,10 +203,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // Writes |data_length| of data of a crypto frame to |writer|. The data
   // written is from the send buffer for encryption level |level| and starts at
   // |offset|.
-  bool WriteCryptoFrame(EncryptionLevel level,
-                        QuicStreamOffset offset,
-                        QuicByteCount data_length,
-                        QuicDataWriter* writer);
+  bool WriteCryptoFrame(EncryptionLevel level, QuicStreamOffset offset,
+                        QuicByteCount data_length, QuicDataWriter* writer);
 
   // Called when data from a CRYPTO frame is considered lost. The lost data is
   // identified by the encryption level, offset, and length in |crypto_frame|.
@@ -229,8 +223,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
 
   // Returns true if any portion of the data at encryption level |level|
   // starting at |offset| for |length| bytes is outstanding.
-  bool IsFrameOutstanding(EncryptionLevel level,
-                          size_t offset,
+  bool IsFrameOutstanding(EncryptionLevel level, size_t offset,
                           size_t length) const;
 
   // Returns true if the crypto handshake is still waiting for acks of sent

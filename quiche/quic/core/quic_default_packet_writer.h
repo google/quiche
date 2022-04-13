@@ -24,8 +24,7 @@ class QUIC_EXPORT_PRIVATE QuicDefaultPacketWriter : public QuicPacketWriter {
   ~QuicDefaultPacketWriter() override;
 
   // QuicPacketWriter
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           PerPacketOptions* options) override;

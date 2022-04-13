@@ -30,19 +30,14 @@ class MockSendDelegate : public QuicPathValidator::SendDelegate {
   // Send a PATH_CHALLENGE frame using given path information and populate
   // |data_buffer| with the frame payload. Return true if the validator should
   // move forward in validation, i.e. arm the retry timer.
-  MOCK_METHOD(bool,
-              SendPathChallenge,
-              (const QuicPathFrameBuffer&,
-               const QuicSocketAddress&,
-               const QuicSocketAddress&,
-               const QuicSocketAddress&,
+  MOCK_METHOD(bool, SendPathChallenge,
+              (const QuicPathFrameBuffer&, const QuicSocketAddress&,
+               const QuicSocketAddress&, const QuicSocketAddress&,
                QuicPacketWriter*),
               (override));
 
-  MOCK_METHOD(QuicTime,
-              GetRetryTimeout,
-              (const QuicSocketAddress&, QuicPacketWriter*),
-              (const, override));
+  MOCK_METHOD(QuicTime, GetRetryTimeout,
+              (const QuicSocketAddress&, QuicPacketWriter*), (const, override));
 };
 
 class QuicPathValidatorTest : public QuicTest {

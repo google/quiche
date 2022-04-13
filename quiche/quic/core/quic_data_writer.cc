@@ -19,8 +19,7 @@ namespace quic {
 QuicDataWriter::QuicDataWriter(size_t size, char* buffer)
     : quiche::QuicheDataWriter(size, buffer) {}
 
-QuicDataWriter::QuicDataWriter(size_t size,
-                               char* buffer,
+QuicDataWriter::QuicDataWriter(size_t size, char* buffer,
                                quiche::Endianness endianness)
     : quiche::QuicheDataWriter(size, buffer, endianness) {}
 
@@ -190,8 +189,7 @@ bool QuicDataWriter::WriteVarInt62(uint64_t value) {
 }
 
 bool QuicDataWriter::WriteVarInt62(
-    uint64_t value,
-    QuicVariableLengthIntegerLength write_length) {
+    uint64_t value, QuicVariableLengthIntegerLength write_length) {
   QUICHE_DCHECK_EQ(endianness(), quiche::NETWORK_BYTE_ORDER);
 
   size_t remaining_bytes = remaining();

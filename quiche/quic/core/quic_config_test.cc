@@ -34,8 +34,7 @@ class QuicConfigTest : public QuicTestWithParam<ParsedQuicVersion> {
 };
 
 // Run all tests with all versions of QUIC.
-INSTANTIATE_TEST_SUITE_P(QuicConfigTests,
-                         QuicConfigTest,
+INSTANTIATE_TEST_SUITE_P(QuicConfigTests, QuicConfigTest,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 

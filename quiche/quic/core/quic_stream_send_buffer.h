@@ -81,15 +81,13 @@ class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
   void OnStreamDataConsumed(size_t bytes_consumed);
 
   // Write |data_length| of data starts at |offset|.
-  bool WriteStreamData(QuicStreamOffset offset,
-                       QuicByteCount data_length,
+  bool WriteStreamData(QuicStreamOffset offset, QuicByteCount data_length,
                        QuicDataWriter* writer);
 
   // Called when data [offset, offset + data_length) is acked or removed as
   // stream is canceled. Removes fully acked data slice from send buffer. Set
   // |newly_acked_length|. Returns false if trying to ack unsent data.
-  bool OnStreamDataAcked(QuicStreamOffset offset,
-                         QuicByteCount data_length,
+  bool OnStreamDataAcked(QuicStreamOffset offset, QuicByteCount data_length,
                          QuicByteCount* newly_acked_length);
 
   // Called when data [offset, offset + data_length) is considered as lost.

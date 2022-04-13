@@ -88,18 +88,14 @@ class MockDebugDelegate : public QuicPacketCreator::DebugDelegate {
 
   MOCK_METHOD(void, OnFrameAddedToPacket, (const QuicFrame& frame), (override));
 
-  MOCK_METHOD(void,
-              OnStreamFrameCoalesced,
-              (const QuicStreamFrame& frame),
+  MOCK_METHOD(void, OnStreamFrameCoalesced, (const QuicStreamFrame& frame),
               (override));
 };
 
 class TestPacketCreator : public QuicPacketCreator {
  public:
-  TestPacketCreator(QuicConnectionId connection_id,
-                    QuicFramer* framer,
-                    DelegateInterface* delegate,
-                    SimpleDataProducer* producer)
+  TestPacketCreator(QuicConnectionId connection_id, QuicFramer* framer,
+                    DelegateInterface* delegate, SimpleDataProducer* producer)
       : QuicPacketCreator(connection_id, framer, delegate),
         producer_(producer),
         version_(framer->version()) {}
@@ -146,14 +142,10 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
  protected:
   QuicPacketCreatorTest()
       : connection_id_(TestConnectionId(2)),
-        server_framer_(SupportedVersions(GetParam().version),
-                       QuicTime::Zero(),
-                       Perspective::IS_SERVER,
-                       connection_id_.length()),
-        client_framer_(SupportedVersions(GetParam().version),
-                       QuicTime::Zero(),
-                       Perspective::IS_CLIENT,
-                       connection_id_.length()),
+        server_framer_(SupportedVersions(GetParam().version), QuicTime::Zero(),
+                       Perspective::IS_SERVER, connection_id_.length()),
+        client_framer_(SupportedVersions(GetParam().version), QuicTime::Zero(),
+                       Perspective::IS_CLIENT, connection_id_.length()),
         data_("foo"),
         creator_(connection_id_, &client_framer_, &delegate_, &producer_) {
     EXPECT_CALL(delegate_, GetPacketBuffer())
@@ -208,10 +200,8 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
     server_framer_.ProcessPacket(encrypted_packet);
   }
 
-  void CheckStreamFrame(const QuicFrame& frame,
-                        QuicStreamId stream_id,
-                        const std::string& data,
-                        QuicStreamOffset offset,
+  void CheckStreamFrame(const QuicFrame& frame, QuicStreamId stream_id,
+                        const std::string& data, QuicStreamOffset offset,
                         bool fin) {
     EXPECT_EQ(STREAM_FRAME, frame.type);
     EXPECT_EQ(stream_id, frame.stream_frame.stream_id);
@@ -286,8 +276,7 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
 // Run all packet creator tests with all supported versions of QUIC, and with
 // and without version in the packet header, as well as doing a run for each
 // length of truncated connection id.
-INSTANTIATE_TEST_SUITE_P(QuicPacketCreatorTests,
-                         QuicPacketCreatorTest,
+INSTANTIATE_TEST_SUITE_P(QuicPacketCreatorTests, QuicPacketCreatorTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
@@ -2287,24 +2276,17 @@ class MockDelegate : public QuicPacketCreator::DelegateInterface {
   MockDelegate& operator=(const MockDelegate&) = delete;
   ~MockDelegate() override {}
 
-  MOCK_METHOD(bool,
-              ShouldGeneratePacket,
+  MOCK_METHOD(bool, ShouldGeneratePacket,
               (HasRetransmittableData retransmittable, IsHandshake handshake),
               (override));
-  MOCK_METHOD(const QuicFrames,
-              MaybeBundleAckOpportunistically,
-              (),
+  MOCK_METHOD(const QuicFrames, MaybeBundleAckOpportunistically, (),
               (override));
   MOCK_METHOD(QuicPacketBuffer, GetPacketBuffer, (), (override));
   MOCK_METHOD(void, OnSerializedPacket, (SerializedPacket), (override));
-  MOCK_METHOD(void,
-              OnUnrecoverableError,
-              (QuicErrorCode, const std::string&),
+  MOCK_METHOD(void, OnUnrecoverableError, (QuicErrorCode, const std::string&),
               (override));
-  MOCK_METHOD(SerializedPacketFate,
-              GetSerializedPacketFate,
-              (bool, EncryptionLevel),
-              (override));
+  MOCK_METHOD(SerializedPacketFate, GetSerializedPacketFate,
+              (bool, EncryptionLevel), (override));
 
   void SetCanWriteAnything() {
     EXPECT_CALL(*this, ShouldGeneratePacket(_, _)).WillRepeatedly(Return(true));
@@ -2359,8 +2341,7 @@ struct PacketContents {
 class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
  public:
   MultiplePacketsTestPacketCreator(
-      QuicConnectionId connection_id,
-      QuicFramer* framer,
+      QuicConnectionId connection_id, QuicFramer* framer,
       QuicRandom* random_generator,
       QuicPacketCreator::DelegateInterface* delegate,
       SimpleDataProducer* producer)
@@ -2420,8 +2401,7 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
                                               absl::MakeSpan(&message, 1));
   }
 
-  size_t ConsumeCryptoData(EncryptionLevel level,
-                           absl::string_view data,
+  size_t ConsumeCryptoData(EncryptionLevel level, absl::string_view data,
                            QuicStreamOffset offset) {
     producer_->SaveCryptoData(level, offset, data);
     if (!has_ack() && delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
@@ -2439,14 +2419,9 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
 class QuicPacketCreatorMultiplePacketsTest : public QuicTest {
  public:
   QuicPacketCreatorMultiplePacketsTest()
-      : framer_(AllSupportedVersions(),
-                QuicTime::Zero(),
-                Perspective::IS_CLIENT,
-                kQuicDefaultConnectionIdLength),
-        creator_(TestConnectionId(),
-                 &framer_,
-                 &random_creator_,
-                 &delegate_,
+      : framer_(AllSupportedVersions(), QuicTime::Zero(),
+                Perspective::IS_CLIENT, kQuicDefaultConnectionIdLength),
+        creator_(TestConnectionId(), &framer_, &random_creator_, &delegate_,
                  &producer_),
         ack_frame_(InitAckFrame(1)) {
     EXPECT_CALL(delegate_, GetPacketBuffer())

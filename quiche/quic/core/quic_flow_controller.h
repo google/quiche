@@ -37,8 +37,7 @@ class QUIC_EXPORT_PRIVATE QuicFlowControllerInterface {
 class QUIC_EXPORT_PRIVATE QuicFlowController
     : public QuicFlowControllerInterface {
  public:
-  QuicFlowController(QuicSession* session,
-                     QuicStreamId id,
+  QuicFlowController(QuicSession* session, QuicStreamId id,
                      bool is_connection_flow_controller,
                      QuicStreamOffset send_window_offset,
                      QuicStreamOffset receive_window_offset,

@@ -33,8 +33,7 @@ class QUIC_NO_EXPORT ChloExtractor {
   static bool Extract(const QuicEncryptedPacket& packet,
                       ParsedQuicVersion version,
                       const QuicTagVector& create_session_tag_indicators,
-                      Delegate* delegate,
-                      uint8_t connection_id_length);
+                      Delegate* delegate, uint8_t connection_id_length);
 
   ChloExtractor(const ChloExtractor&) = delete;
   ChloExtractor operator=(const ChloExtractor&) = delete;

@@ -14,8 +14,7 @@ QuicServerId::QuicServerId() : QuicServerId("", 0, false) {}
 QuicServerId::QuicServerId(const std::string& host, uint16_t port)
     : QuicServerId(host, port, false) {}
 
-QuicServerId::QuicServerId(const std::string& host,
-                           uint16_t port,
+QuicServerId::QuicServerId(const std::string& host, uint16_t port,
                            bool privacy_mode_enabled)
     : host_(host), port_(port), privacy_mode_enabled_(privacy_mode_enabled) {}
 

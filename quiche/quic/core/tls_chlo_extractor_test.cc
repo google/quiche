@@ -129,8 +129,7 @@ class TlsChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
   std::vector<std::unique_ptr<QuicReceivedPacket>> packets_;
 };
 
-INSTANTIATE_TEST_SUITE_P(TlsChloExtractorTests,
-                         TlsChloExtractorTest,
+INSTANTIATE_TEST_SUITE_P(TlsChloExtractorTests, TlsChloExtractorTest,
                          ::testing::ValuesIn(AllSupportedVersionsWithTls()),
                          ::testing::PrintToStringParamName());
 

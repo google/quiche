@@ -32,13 +32,9 @@ std::string QuicTime::Delta::ToDebuggingValue() const {
   return absl::StrCat(time_offset_, "us");
 }
 
-uint64_t QuicWallTime::ToUNIXSeconds() const {
-  return microseconds_ / 1000000;
-}
+uint64_t QuicWallTime::ToUNIXSeconds() const { return microseconds_ / 1000000; }
 
-uint64_t QuicWallTime::ToUNIXMicroseconds() const {
-  return microseconds_;
-}
+uint64_t QuicWallTime::ToUNIXMicroseconds() const { return microseconds_; }
 
 bool QuicWallTime::IsAfter(QuicWallTime other) const {
   return microseconds_ > other.microseconds_;
@@ -48,9 +44,7 @@ bool QuicWallTime::IsBefore(QuicWallTime other) const {
   return microseconds_ < other.microseconds_;
 }
 
-bool QuicWallTime::IsZero() const {
-  return microseconds_ == 0;
-}
+bool QuicWallTime::IsZero() const { return microseconds_ == 0; }
 
 QuicTime::Delta QuicWallTime::AbsoluteDifference(QuicWallTime other) const {
   uint64_t d;

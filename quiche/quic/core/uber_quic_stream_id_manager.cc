@@ -10,8 +10,7 @@
 namespace quic {
 
 UberQuicStreamIdManager::UberQuicStreamIdManager(
-    Perspective perspective,
-    ParsedQuicVersion version,
+    Perspective perspective, ParsedQuicVersion version,
     QuicStreamIdManager::DelegateInterface* delegate,
     QuicStreamCount max_open_outgoing_bidirectional_streams,
     QuicStreamCount max_open_outgoing_unidirectional_streams,
@@ -19,16 +18,13 @@ UberQuicStreamIdManager::UberQuicStreamIdManager(
     QuicStreamCount max_open_incoming_unidirectional_streams)
     : version_(version),
       bidirectional_stream_id_manager_(delegate,
-                                       /*unidirectional=*/false,
-                                       perspective,
+                                       /*unidirectional=*/false, perspective,
                                        version,
                                        max_open_outgoing_bidirectional_streams,
                                        max_open_incoming_bidirectional_streams),
       unidirectional_stream_id_manager_(
           delegate,
-          /*unidirectional=*/true,
-          perspective,
-          version,
+          /*unidirectional=*/true, perspective, version,
           max_open_outgoing_unidirectional_streams,
           max_open_incoming_unidirectional_streams) {}
 
@@ -68,8 +64,7 @@ QuicStreamId UberQuicStreamIdManager::GetNextOutgoingUnidirectionalStreamId() {
 }
 
 bool UberQuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
-    QuicStreamId id,
-    std::string* error_details) {
+    QuicStreamId id, std::string* error_details) {
   if (QuicUtils::IsBidirectionalStreamId(id, version_)) {
     return bidirectional_stream_id_manager_.MaybeIncreaseLargestPeerStreamId(
         id, error_details);
@@ -87,8 +82,7 @@ void UberQuicStreamIdManager::OnStreamClosed(QuicStreamId id) {
 }
 
 bool UberQuicStreamIdManager::OnStreamsBlockedFrame(
-    const QuicStreamsBlockedFrame& frame,
-    std::string* error_details) {
+    const QuicStreamsBlockedFrame& frame, std::string* error_details) {
   if (frame.unidirectional) {
     return unidirectional_stream_id_manager_.OnStreamsBlockedFrame(
         frame, error_details);

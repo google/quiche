@@ -29,8 +29,7 @@ namespace quic {
 
 QuicChaosProtector::QuicChaosProtector(const QuicCryptoFrame& crypto_frame,
                                        int num_padding_bytes,
-                                       size_t packet_size,
-                                       QuicFramer* framer,
+                                       size_t packet_size, QuicFramer* framer,
                                        QuicRandom* random)
     : packet_size_(packet_size),
       crypto_data_length_(crypto_frame.data_length),
@@ -44,13 +43,10 @@ QuicChaosProtector::QuicChaosProtector(const QuicCryptoFrame& crypto_frame,
   QUICHE_DCHECK_NE(random_, nullptr);
 }
 
-QuicChaosProtector::~QuicChaosProtector() {
-  DeleteFrames(&frames_);
-}
+QuicChaosProtector::~QuicChaosProtector() { DeleteFrames(&frames_); }
 
 absl::optional<size_t> QuicChaosProtector::BuildDataPacket(
-    const QuicPacketHeader& header,
-    char* buffer) {
+    const QuicPacketHeader& header, char* buffer) {
   if (!CopyCryptoDataToLocalBuffer()) {
     return absl::nullopt;
   }
@@ -62,9 +58,7 @@ absl::optional<size_t> QuicChaosProtector::BuildDataPacket(
 }
 
 WriteStreamDataResult QuicChaosProtector::WriteStreamData(
-    QuicStreamId id,
-    QuicStreamOffset offset,
-    QuicByteCount data_length,
+    QuicStreamId id, QuicStreamOffset offset, QuicByteCount data_length,
     QuicDataWriter* /*writer*/) {
   QUIC_BUG(chaos stream) << "This should never be called; id " << id
                          << " offset " << offset << " data_length "
@@ -213,8 +207,7 @@ void QuicChaosProtector::SpreadPadding() {
 }
 
 absl::optional<size_t> QuicChaosProtector::BuildPacket(
-    const QuicPacketHeader& header,
-    char* buffer) {
+    const QuicPacketHeader& header, char* buffer) {
   QuicStreamFrameDataProducer* original_data_producer =
       framer_->data_producer();
   framer_->set_data_producer(this);

@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/core/quic_interval_deque.h"
+
 #include <cstdint>
 #include <ostream>
+
 #include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -26,8 +28,7 @@ struct TestIntervalItem {
   QuicInterval<std::size_t> interval() const {
     return QuicInterval<std::size_t>(interval_start, interval_end);
   }
-  TestIntervalItem(int32_t val,
-                   std::size_t interval_start,
+  TestIntervalItem(int32_t val, std::size_t interval_start,
                    std::size_t interval_end)
       : val(val), interval_start(interval_start), interval_end(interval_end) {}
 };

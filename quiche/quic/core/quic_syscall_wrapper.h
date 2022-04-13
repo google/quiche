@@ -20,9 +20,7 @@ class QUIC_EXPORT_PRIVATE QuicSyscallWrapper {
 
   virtual ssize_t Sendmsg(int sockfd, const msghdr* msg, int flags);
 
-  virtual int Sendmmsg(int sockfd,
-                       mmsghdr* msgvec,
-                       unsigned int vlen,
+  virtual int Sendmmsg(int sockfd, mmsghdr* msgvec, unsigned int vlen,
                        int flags);
 };
 

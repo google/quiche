@@ -22,10 +22,8 @@
 namespace quic {
 
 TlsClientHandshaker::TlsClientHandshaker(
-    const QuicServerId& server_id,
-    QuicCryptoStream* stream,
-    QuicSession* session,
-    std::unique_ptr<ProofVerifyContext> verify_context,
+    const QuicServerId& server_id, QuicCryptoStream* stream,
+    QuicSession* session, std::unique_ptr<ProofVerifyContext> verify_context,
     QuicCryptoClientConfig* crypto_config,
     QuicCryptoClientStream::ProofHandler* proof_handler,
     bool has_application_state)
@@ -319,9 +317,7 @@ bool TlsClientHandshaker::ProcessTransportParameters(
   return true;
 }
 
-int TlsClientHandshaker::num_sent_client_hellos() const {
-  return 0;
-}
+int TlsClientHandshaker::num_sent_client_hellos() const { return 0; }
 
 bool TlsClientHandshaker::IsResumption() const {
   QUIC_BUG_IF(quic_bug_12736_1, !one_rtt_keys_available());
@@ -348,9 +344,7 @@ int TlsClientHandshaker::num_scup_messages_received() const {
   return 0;
 }
 
-std::string TlsClientHandshaker::chlo_hash() const {
-  return "";
-}
+std::string TlsClientHandshaker::chlo_hash() const { return ""; }
 
 bool TlsClientHandshaker::ExportKeyingMaterial(absl::string_view label,
                                                absl::string_view context,
@@ -376,9 +370,7 @@ CryptoMessageParser* TlsClientHandshaker::crypto_message_parser() {
   return TlsHandshaker::crypto_message_parser();
 }
 
-HandshakeState TlsClientHandshaker::GetHandshakeState() const {
-  return state_;
-}
+HandshakeState TlsClientHandshaker::GetHandshakeState() const { return state_; }
 
 size_t TlsClientHandshaker::BufferSizeLimitForLevel(
     EncryptionLevel level) const {
@@ -432,8 +424,7 @@ void TlsClientHandshaker::OnNewTokenReceived(absl::string_view token) {
 }
 
 void TlsClientHandshaker::SetWriteSecret(
-    EncryptionLevel level,
-    const SSL_CIPHER* cipher,
+    EncryptionLevel level, const SSL_CIPHER* cipher,
     const std::vector<uint8_t>& write_secret) {
   if (is_connection_closed()) {
     return;
@@ -458,10 +449,8 @@ void TlsClientHandshaker::OnHandshakeConfirmed() {
 }
 
 QuicAsyncStatus TlsClientHandshaker::VerifyCertChain(
-    const std::vector<std::string>& certs,
-    std::string* error_details,
-    std::unique_ptr<ProofVerifyDetails>* details,
-    uint8_t* out_alert,
+    const std::vector<std::string>& certs, std::string* error_details,
+    std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
     std::unique_ptr<ProofVerifierCallback> callback) {
   const uint8_t* ocsp_response_raw;
   size_t ocsp_response_len;

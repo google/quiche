@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/core/tls_chlo_extractor.h"
+
 #include <cstring>
 #include <memory>
 
@@ -152,8 +153,7 @@ void TlsChloExtractor::OnUnrecoverableError(QuicErrorCode error,
 }
 
 void TlsChloExtractor::OnUnrecoverableError(
-    QuicErrorCode error,
-    QuicIetfTransportErrorCodes ietf_error,
+    QuicErrorCode error, QuicIetfTransportErrorCodes ietf_error,
     const std::string& details) {
   HandleUnrecoverableError(absl::StrCat(
       "Crypto stream error ", QuicErrorCodeToString(error), "(",
@@ -211,10 +211,8 @@ TlsChloExtractor* TlsChloExtractor::GetInstanceFromSSL(SSL* ssl) {
 
 // static
 int TlsChloExtractor::SetReadSecretCallback(
-    SSL* ssl,
-    enum ssl_encryption_level_t /*level*/,
-    const SSL_CIPHER* /*cipher*/,
-    const uint8_t* /*secret*/,
+    SSL* ssl, enum ssl_encryption_level_t /*level*/,
+    const SSL_CIPHER* /*cipher*/, const uint8_t* /*secret*/,
     size_t /*secret_length*/) {
   GetInstanceFromSSL(ssl)->HandleUnexpectedCallback("SetReadSecretCallback");
   return 0;
@@ -222,10 +220,8 @@ int TlsChloExtractor::SetReadSecretCallback(
 
 // static
 int TlsChloExtractor::SetWriteSecretCallback(
-    SSL* ssl,
-    enum ssl_encryption_level_t /*level*/,
-    const SSL_CIPHER* /*cipher*/,
-    const uint8_t* /*secret*/,
+    SSL* ssl, enum ssl_encryption_level_t /*level*/,
+    const SSL_CIPHER* /*cipher*/, const uint8_t* /*secret*/,
     size_t /*secret_length*/) {
   GetInstanceFromSSL(ssl)->HandleUnexpectedCallback("SetWriteSecretCallback");
   return 0;
@@ -233,9 +229,7 @@ int TlsChloExtractor::SetWriteSecretCallback(
 
 // static
 int TlsChloExtractor::WriteMessageCallback(
-    SSL* ssl,
-    enum ssl_encryption_level_t /*level*/,
-    const uint8_t* /*data*/,
+    SSL* ssl, enum ssl_encryption_level_t /*level*/, const uint8_t* /*data*/,
     size_t /*len*/) {
   GetInstanceFromSSL(ssl)->HandleUnexpectedCallback("WriteMessageCallback");
   return 0;

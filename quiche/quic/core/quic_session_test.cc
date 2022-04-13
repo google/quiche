@@ -160,12 +160,8 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> /*application_state*/) override {}
   MOCK_METHOD(std::unique_ptr<QuicDecrypter>,
-              AdvanceKeysAndCreateCurrentOneRttDecrypter,
-              (),
-              (override));
-  MOCK_METHOD(std::unique_ptr<QuicEncrypter>,
-              CreateCurrentOneRttEncrypter,
-              (),
+              AdvanceKeysAndCreateCurrentOneRttDecrypter, (), (override));
+  MOCK_METHOD(std::unique_ptr<QuicEncrypter>, CreateCurrentOneRttEncrypter, (),
               (override));
 
   MOCK_METHOD(void, OnCanWrite, (), (override));
@@ -198,9 +194,7 @@ class TestStream : public QuicStream {
   TestStream(QuicStreamId id, QuicSession* session, StreamType type)
       : TestStream(id, session, /*is_static=*/false, type) {}
 
-  TestStream(QuicStreamId id,
-             QuicSession* session,
-             bool is_static,
+  TestStream(QuicStreamId id, QuicSession* session, bool is_static,
              StreamType type)
       : QuicStream(id, session, is_static, type) {}
 
@@ -213,8 +207,7 @@ class TestStream : public QuicStream {
   void OnDataAvailable() override {}
 
   MOCK_METHOD(void, OnCanWrite, (), (override));
-  MOCK_METHOD(bool,
-              RetransmitStreamData,
+  MOCK_METHOD(bool, RetransmitStreamData,
               (QuicStreamOffset, QuicByteCount, bool, TransmissionType),
               (override));
 
@@ -225,9 +218,7 @@ class TestSession : public QuicSession {
  public:
   explicit TestSession(QuicConnection* connection,
                        MockQuicSessionVisitor* session_visitor)
-      : QuicSession(connection,
-                    session_visitor,
-                    DefaultQuicConfig(),
+      : QuicSession(connection, session_visitor, DefaultQuicConfig(),
                     CurrentSupportedVersions(),
                     /*num_expected_unidirectional_static_streams = */ 0),
         crypto_stream_(this),
@@ -342,9 +333,7 @@ class TestSession : public QuicSession {
     return consumed;
   }
 
-  MOCK_METHOD(void,
-              OnCanCreateNewOutgoingStream,
-              (bool unidirectional),
+  MOCK_METHOD(void, OnCanCreateNewOutgoingStream, (bool unidirectional),
               (override));
 
   void set_writev_consumes_all_data(bool val) {
@@ -443,11 +432,9 @@ class TestSession : public QuicSession {
 class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
  protected:
   QuicSessionTestBase(Perspective perspective, bool configure_session)
-      : connection_(
-            new StrictMock<MockQuicConnection>(&helper_,
-                                               &alarm_factory_,
-                                               perspective,
-                                               SupportedVersions(GetParam()))),
+      : connection_(new StrictMock<MockQuicConnection>(
+            &helper_, &alarm_factory_, perspective,
+            SupportedVersions(GetParam()))),
         session_(connection_, &session_visitor_),
         configure_session_(configure_session) {
     session_.config()->SetInitialStreamFlowControlWindowToSend(
@@ -580,8 +567,7 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   QuicStreamId StreamCountToId(QuicStreamCount stream_count,
-                               Perspective perspective,
-                               bool bidirectional) {
+                               Perspective perspective, bool bidirectional) {
     // Calculate and build up stream ID rather than use
     // GetFirst... because tests that rely on this method
     // needs to do the stream count where #1 is 0/1/2/3, and not
@@ -610,8 +596,7 @@ class QuicSessionTestServer : public QuicSessionTestBase {
  public:
   // CheckMultiPathResponse validates that a written packet
   // contains both expected path responses.
-  WriteResult CheckMultiPathResponse(const char* buffer,
-                                     size_t buf_len,
+  WriteResult CheckMultiPathResponse(const char* buffer, size_t buf_len,
                                      const QuicIpAddress& /*self_address*/,
                                      const QuicSocketAddress& /*peer_address*/,
                                      PerPacketOptions* /*options*/) {
@@ -646,10 +631,8 @@ class QuicSessionTestServer : public QuicSessionTestBase {
       : QuicSessionTestBase(Perspective::IS_SERVER, /*configure_session=*/true),
         path_frame_buffer1_({0, 1, 2, 3, 4, 5, 6, 7}),
         path_frame_buffer2_({8, 9, 10, 11, 12, 13, 14, 15}),
-        client_framer_(SupportedVersions(GetParam()),
-                       QuicTime::Zero(),
-                       Perspective::IS_CLIENT,
-                       kQuicDefaultConnectionIdLength) {
+        client_framer_(SupportedVersions(GetParam()), QuicTime::Zero(),
+                       Perspective::IS_CLIENT, kQuicDefaultConnectionIdLength) {
     client_framer_.set_visitor(&framer_visitor_);
     client_framer_.SetInitialObfuscators(TestConnectionId());
     if (client_framer_.version().KnowsWhichDecrypterToUse()) {
@@ -666,8 +649,7 @@ class QuicSessionTestServer : public QuicSessionTestBase {
   QuicFramer client_framer_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicSessionTestServer,
+INSTANTIATE_TEST_SUITE_P(Tests, QuicSessionTestServer,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 
@@ -1425,10 +1407,10 @@ TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbe) {
   EXPECT_CALL(*writer, WritePacket(_, _, _, new_peer_address, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
 
-    EXPECT_CALL(*connection_, SendConnectivityProbingPacket(_, _))
-        .WillOnce(
-            Invoke(connection_,
-                   &MockQuicConnection::ReallySendConnectivityProbingPacket));
+  EXPECT_CALL(*connection_, SendConnectivityProbingPacket(_, _))
+      .WillOnce(
+          Invoke(connection_,
+                 &MockQuicConnection::ReallySendConnectivityProbingPacket));
   session_.OnPacketReceived(session_.self_address(), new_peer_address,
                             /*is_connectivity_probe=*/true);
   EXPECT_EQ(old_peer_address, session_.peer_address());
@@ -2062,8 +2044,7 @@ class QuicSessionTestClient : public QuicSessionTestBase {
                             /*configure_session=*/true) {}
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicSessionTestClient,
+INSTANTIATE_TEST_SUITE_P(Tests, QuicSessionTestClient,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 
@@ -3058,8 +3039,7 @@ class QuicSessionTestClientUnconfigured : public QuicSessionTestBase {
                             /*configure_session=*/false) {}
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicSessionTestClientUnconfigured,
+INSTANTIATE_TEST_SUITE_P(Tests, QuicSessionTestClientUnconfigured,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 

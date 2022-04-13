@@ -88,10 +88,8 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
             this, &TestTlsServerHandshaker::RealOverrideQuicConfigDefaults));
   }
 
-  MOCK_METHOD(std::unique_ptr<ProofSourceHandle>,
-              MaybeCreateProofSourceHandle,
-              (),
-              (override));
+  MOCK_METHOD(std::unique_ptr<ProofSourceHandle>, MaybeCreateProofSourceHandle,
+              (), (override));
 
   MOCK_METHOD(void, OverrideQuicConfigDefaults, (QuicConfig * config),
               (override));
@@ -446,8 +444,7 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
   ParsedQuicVersionVector supported_versions_;
 };
 
-INSTANTIATE_TEST_SUITE_P(TlsServerHandshakerTests,
-                         TlsServerHandshakerTest,
+INSTANTIATE_TEST_SUITE_P(TlsServerHandshakerTests, TlsServerHandshakerTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 

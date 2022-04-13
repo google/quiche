@@ -19,8 +19,7 @@
 namespace quic {
 
 QuicConnectionId GetServerConnectionIdAsRecipient(
-    const QuicPacketHeader& header,
-    Perspective perspective) {
+    const QuicPacketHeader& header, Perspective perspective) {
   if (perspective == Perspective::IS_SERVER) {
     return header.destination_connection_id;
   }
@@ -28,8 +27,7 @@ QuicConnectionId GetServerConnectionIdAsRecipient(
 }
 
 QuicConnectionId GetClientConnectionIdAsRecipient(
-    const QuicPacketHeader& header,
-    Perspective perspective) {
+    const QuicPacketHeader& header, Perspective perspective) {
   if (perspective == Perspective::IS_CLIENT) {
     return header.destination_connection_id;
   }
@@ -45,8 +43,7 @@ QuicConnectionId GetServerConnectionIdAsSender(const QuicPacketHeader& header,
 }
 
 QuicConnectionIdIncluded GetServerConnectionIdIncludedAsSender(
-    const QuicPacketHeader& header,
-    Perspective perspective) {
+    const QuicPacketHeader& header, Perspective perspective) {
   if (perspective == Perspective::IS_CLIENT) {
     return header.destination_connection_id_included;
   }
@@ -62,8 +59,7 @@ QuicConnectionId GetClientConnectionIdAsSender(const QuicPacketHeader& header,
 }
 
 QuicConnectionIdIncluded GetClientConnectionIdIncludedAsSender(
-    const QuicPacketHeader& header,
-    Perspective perspective) {
+    const QuicPacketHeader& header, Perspective perspective) {
   if (perspective == Perspective::IS_CLIENT) {
     return header.source_connection_id_included;
   }
@@ -106,8 +102,7 @@ size_t GetPacketHeaderSize(QuicTransportVersion version,
 size_t GetPacketHeaderSize(
     QuicTransportVersion version,
     QuicConnectionIdLength destination_connection_id_length,
-    QuicConnectionIdLength source_connection_id_length,
-    bool include_version,
+    QuicConnectionIdLength source_connection_id_length, bool include_version,
     bool include_diversification_nonce,
     QuicPacketNumberLength packet_number_length,
     QuicVariableLengthIntegerLength retry_token_length_length,
@@ -155,8 +150,7 @@ size_t GetStartOfEncryptedData(QuicTransportVersion version,
 size_t GetStartOfEncryptedData(
     QuicTransportVersion version,
     QuicConnectionIdLength destination_connection_id_length,
-    QuicConnectionIdLength source_connection_id_length,
-    bool include_version,
+    QuicConnectionIdLength source_connection_id_length, bool include_version,
     bool include_diversification_nonce,
     QuicPacketNumberLength packet_number_length,
     QuicVariableLengthIntegerLength retry_token_length_length,
@@ -217,8 +211,7 @@ QuicIetfStatelessResetPacket::QuicIetfStatelessResetPacket()
     : stateless_reset_token({}) {}
 
 QuicIetfStatelessResetPacket::QuicIetfStatelessResetPacket(
-    const QuicPacketHeader& header,
-    StatelessResetToken token)
+    const QuicPacketHeader& header, StatelessResetToken token)
     : header(header), stateless_reset_token(token) {}
 
 QuicIetfStatelessResetPacket::QuicIetfStatelessResetPacket(
@@ -287,12 +280,9 @@ QuicData::~QuicData() {
 }
 
 QuicPacket::QuicPacket(
-    char* buffer,
-    size_t length,
-    bool owns_buffer,
+    char* buffer, size_t length, bool owns_buffer,
     QuicConnectionIdLength destination_connection_id_length,
-    QuicConnectionIdLength source_connection_id_length,
-    bool includes_version,
+    QuicConnectionIdLength source_connection_id_length, bool includes_version,
     bool includes_diversification_nonce,
     QuicPacketNumberLength packet_number_length,
     QuicVariableLengthIntegerLength retry_token_length_length,
@@ -309,28 +299,20 @@ QuicPacket::QuicPacket(
       retry_token_length_(retry_token_length),
       length_length_(length_length) {}
 
-QuicPacket::QuicPacket(QuicTransportVersion /*version*/,
-                       char* buffer,
-                       size_t length,
-                       bool owns_buffer,
+QuicPacket::QuicPacket(QuicTransportVersion /*version*/, char* buffer,
+                       size_t length, bool owns_buffer,
                        const QuicPacketHeader& header)
-    : QuicPacket(buffer,
-                 length,
-                 owns_buffer,
+    : QuicPacket(buffer, length, owns_buffer,
                  GetIncludedDestinationConnectionIdLength(header),
                  GetIncludedSourceConnectionIdLength(header),
-                 header.version_flag,
-                 header.nonce != nullptr,
-                 header.packet_number_length,
-                 header.retry_token_length_length,
-                 header.retry_token.length(),
-                 header.length_length) {}
+                 header.version_flag, header.nonce != nullptr,
+                 header.packet_number_length, header.retry_token_length_length,
+                 header.retry_token.length(), header.length_length) {}
 
 QuicEncryptedPacket::QuicEncryptedPacket(const char* buffer, size_t length)
     : QuicData(buffer, length) {}
 
-QuicEncryptedPacket::QuicEncryptedPacket(const char* buffer,
-                                         size_t length,
+QuicEncryptedPacket::QuicEncryptedPacket(const char* buffer, size_t length,
                                          bool owns_buffer)
     : QuicData(buffer, length, owns_buffer) {}
 
@@ -348,47 +330,27 @@ std::ostream& operator<<(std::ostream& os, const QuicEncryptedPacket& s) {
   return os;
 }
 
-QuicReceivedPacket::QuicReceivedPacket(const char* buffer,
-                                       size_t length,
+QuicReceivedPacket::QuicReceivedPacket(const char* buffer, size_t length,
                                        QuicTime receipt_time)
-    : QuicReceivedPacket(buffer,
-                         length,
-                         receipt_time,
+    : QuicReceivedPacket(buffer, length, receipt_time,
                          false /* owns_buffer */) {}
 
-QuicReceivedPacket::QuicReceivedPacket(const char* buffer,
-                                       size_t length,
-                                       QuicTime receipt_time,
-                                       bool owns_buffer)
-    : QuicReceivedPacket(buffer,
-                         length,
-                         receipt_time,
-                         owns_buffer,
-                         0 /* ttl */,
+QuicReceivedPacket::QuicReceivedPacket(const char* buffer, size_t length,
+                                       QuicTime receipt_time, bool owns_buffer)
+    : QuicReceivedPacket(buffer, length, receipt_time, owns_buffer, 0 /* ttl */,
                          true /* ttl_valid */) {}
 
-QuicReceivedPacket::QuicReceivedPacket(const char* buffer,
-                                       size_t length,
-                                       QuicTime receipt_time,
-                                       bool owns_buffer,
-                                       int ttl,
-                                       bool ttl_valid)
-    : quic::QuicReceivedPacket(buffer,
-                               length,
-                               receipt_time,
-                               owns_buffer,
-                               ttl,
-                               ttl_valid,
-                               nullptr /* packet_headers */,
+QuicReceivedPacket::QuicReceivedPacket(const char* buffer, size_t length,
+                                       QuicTime receipt_time, bool owns_buffer,
+                                       int ttl, bool ttl_valid)
+    : quic::QuicReceivedPacket(buffer, length, receipt_time, owns_buffer, ttl,
+                               ttl_valid, nullptr /* packet_headers */,
                                0 /* headers_length */,
                                false /* owns_header_buffer */) {}
 
-QuicReceivedPacket::QuicReceivedPacket(const char* buffer,
-                                       size_t length,
-                                       QuicTime receipt_time,
-                                       bool owns_buffer,
-                                       int ttl,
-                                       bool ttl_valid,
+QuicReceivedPacket::QuicReceivedPacket(const char* buffer, size_t length,
+                                       QuicTime receipt_time, bool owns_buffer,
+                                       int ttl, bool ttl_valid,
                                        char* packet_headers,
                                        size_t headers_length,
                                        bool owns_header_buffer)
@@ -449,8 +411,7 @@ SerializedPacket::SerializedPacket(QuicPacketNumber packet_number,
                                    QuicPacketNumberLength packet_number_length,
                                    const char* encrypted_buffer,
                                    QuicPacketLength encrypted_length,
-                                   bool has_ack,
-                                   bool has_stop_waiting)
+                                   bool has_ack, bool has_stop_waiting)
     : encrypted_buffer(encrypted_buffer),
       encrypted_length(encrypted_length),
       has_crypto_handshake(NOT_HANDSHAKE),

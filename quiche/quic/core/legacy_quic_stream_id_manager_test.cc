@@ -53,8 +53,7 @@ std::vector<TestParams> GetTestParams() {
 class LegacyQuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
  public:
   LegacyQuicStreamIdManagerTest()
-      : manager_(GetParam().perspective,
-                 GetParam().version.transport_version,
+      : manager_(GetParam().perspective, GetParam().version.transport_version,
                  kDefaultMaxStreamsPerConnection,
                  kDefaultMaxStreamsPerConnection) {}
 
@@ -72,8 +71,7 @@ class LegacyQuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
   LegacyQuicStreamIdManager manager_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         LegacyQuicStreamIdManagerTest,
+INSTANTIATE_TEST_SUITE_P(Tests, LegacyQuicStreamIdManagerTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 

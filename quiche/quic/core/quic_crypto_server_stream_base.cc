@@ -29,8 +29,7 @@ QuicCryptoServerStreamBase::QuicCryptoServerStreamBase(QuicSession* session)
 
 std::unique_ptr<QuicCryptoServerStreamBase> CreateCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
-    QuicCompressedCertsCache* compressed_certs_cache,
-    QuicSession* session,
+    QuicCompressedCertsCache* compressed_certs_cache, QuicSession* session,
     QuicCryptoServerStreamBase::Helper* helper) {
   switch (session->connection()->version().handshake_protocol) {
     case PROTOCOL_QUIC_CRYPTO:

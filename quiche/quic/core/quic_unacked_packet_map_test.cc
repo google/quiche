@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/core/quic_unacked_packet_map.h"
+
 #include <cstddef>
 #include <limits>
 
@@ -47,8 +48,7 @@ class QuicUnackedPacketMapTest : public QuicTestWithParam<Perspective> {
   }
 
   SerializedPacket CreateRetransmittablePacketForStream(
-      uint64_t packet_number,
-      QuicStreamId stream_id) {
+      uint64_t packet_number, QuicStreamId stream_id) {
     SerializedPacket packet(QuicPacketNumber(packet_number),
                             PACKET_1BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
                             false, false);
@@ -163,8 +163,7 @@ class QuicUnackedPacketMapTest : public QuicTestWithParam<Perspective> {
   StrictMock<MockSessionNotifier> notifier_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicUnackedPacketMapTest,
+INSTANTIATE_TEST_SUITE_P(Tests, QuicUnackedPacketMapTest,
                          ::testing::ValuesIn({Perspective::IS_CLIENT,
                                               Perspective::IS_SERVER}),
                          ::testing::PrintToStringParamName());

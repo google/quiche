@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_QUIC_RECEIVED_PACKET_MANAGER_H_
 
 #include <cstddef>
+
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_framer.h"

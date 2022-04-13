@@ -47,8 +47,7 @@ QuicCryptoStream::~QuicCryptoStream() {}
 
 // static
 QuicByteCount QuicCryptoStream::CryptoMessageFramingOverhead(
-    QuicTransportVersion version,
-    QuicConnectionId connection_id) {
+    QuicTransportVersion version, QuicConnectionId connection_id) {
   QUICHE_DCHECK(
       QuicUtils::IsConnectionIdValidForVersion(connection_id, version));
   QuicVariableLengthIntegerLength retry_token_length_length =
@@ -106,8 +105,7 @@ void QuicCryptoStream::OnDataAvailable() {
 }
 
 void QuicCryptoStream::OnDataAvailableInSequencer(
-    QuicStreamSequencer* sequencer,
-    EncryptionLevel level) {
+    QuicStreamSequencer* sequencer, EncryptionLevel level) {
   struct iovec iov;
   while (sequencer->GetReadableRegion(&iov)) {
     absl::string_view data(static_cast<char*>(iov.iov_base), iov.iov_len);
@@ -322,10 +320,8 @@ bool QuicCryptoStream::RetransmitStreamData(QuicStreamOffset offset,
 }
 
 QuicConsumedData QuicCryptoStream::RetransmitStreamDataAtLevel(
-    QuicStreamOffset retransmission_offset,
-    QuicByteCount retransmission_length,
-    EncryptionLevel encryption_level,
-    TransmissionType type) {
+    QuicStreamOffset retransmission_offset, QuicByteCount retransmission_length,
+    EncryptionLevel encryption_level, TransmissionType type) {
   QUICHE_DCHECK(type == HANDSHAKE_RETRANSMISSION || type == PTO_RETRANSMISSION);
   const auto consumed = stream_delegate()->WritevData(
       id(), retransmission_length, retransmission_offset, NO_FIN, type,
@@ -442,8 +438,7 @@ bool QuicCryptoStream::HasBufferedCryptoFrames() const {
   return false;
 }
 
-bool QuicCryptoStream::IsFrameOutstanding(EncryptionLevel level,
-                                          size_t offset,
+bool QuicCryptoStream::IsFrameOutstanding(EncryptionLevel level, size_t offset,
                                           size_t length) const {
   if (!QuicVersionUsesCryptoFrames(session()->transport_version())) {
     // This only happens if a client was originally configured for a version
@@ -470,8 +465,7 @@ bool QuicCryptoStream::IsWaitingForAcks() const {
 }
 
 QuicCryptoStream::CryptoSubstream::CryptoSubstream(
-    QuicCryptoStream* crypto_stream,
-    EncryptionLevel)
+    QuicCryptoStream* crypto_stream, EncryptionLevel)
     : sequencer(crypto_stream),
       send_buffer(crypto_stream->session()
                       ->connection()

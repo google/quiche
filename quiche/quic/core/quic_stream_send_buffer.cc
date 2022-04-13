@@ -146,8 +146,7 @@ bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
 }
 
 bool QuicStreamSendBuffer::OnStreamDataAcked(
-    QuicStreamOffset offset,
-    QuicByteCount data_length,
+    QuicStreamOffset offset, QuicByteCount data_length,
     QuicByteCount* newly_acked_length) {
   *newly_acked_length = 0;
   if (data_length == 0) {
@@ -212,8 +211,7 @@ void QuicStreamSendBuffer::OnStreamDataLost(QuicStreamOffset offset,
 }
 
 void QuicStreamSendBuffer::OnStreamDataRetransmitted(
-    QuicStreamOffset offset,
-    QuicByteCount data_length) {
+    QuicStreamOffset offset, QuicByteCount data_length) {
   if (data_length == 0) {
     return;
   }
@@ -285,14 +283,11 @@ void QuicStreamSendBuffer::CleanUpBufferedSlices() {
 }
 
 bool QuicStreamSendBuffer::IsStreamDataOutstanding(
-    QuicStreamOffset offset,
-    QuicByteCount data_length) const {
+    QuicStreamOffset offset, QuicByteCount data_length) const {
   return data_length > 0 &&
          !bytes_acked_.Contains(offset, offset + data_length);
 }
 
-size_t QuicStreamSendBuffer::size() const {
-  return interval_deque_.Size();
-}
+size_t QuicStreamSendBuffer::size() const { return interval_deque_.Size(); }
 
 }  // namespace quic

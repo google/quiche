@@ -35,10 +35,7 @@ QuicPacketReader::QuicPacketReader()
 QuicPacketReader::~QuicPacketReader() = default;
 
 bool QuicPacketReader::ReadAndDispatchPackets(
-    int fd,
-    int port,
-    const QuicClock& clock,
-    ProcessPacketInterface* processor,
+    int fd, int port, const QuicClock& clock, ProcessPacketInterface* processor,
     QuicPacketCount* /*packets_dropped*/) {
   // Reset all read_results for reuse.
   for (size_t i = 0; i < read_results_.size(); ++i) {
@@ -112,8 +109,7 @@ bool QuicPacketReader::ReadAndDispatchPackets(
 
 // static
 QuicIpAddress QuicPacketReader::GetSelfIpFromPacketInfo(
-    const QuicUdpPacketInfo& packet_info,
-    bool prefer_v6_ip) {
+    const QuicUdpPacketInfo& packet_info, bool prefer_v6_ip) {
   if (prefer_v6_ip) {
     if (packet_info.HasValue(QuicUdpPacketInfoBit::V6_SELF_IP)) {
       return packet_info.self_v6_ip();

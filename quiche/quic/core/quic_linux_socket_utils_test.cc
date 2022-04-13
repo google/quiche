@@ -6,11 +6,11 @@
 
 #include <netinet/in.h>
 #include <stdint.h>
+
 #include <cstddef>
 #include <sstream>
-#include <vector>
-
 #include <string>
+#include <vector>
 
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_mock_syscall_wrapper.h"
@@ -46,10 +46,8 @@ class QuicLinuxSocketUtilsTest : public QuicTest {
   ScopedGlobalSyscallWrapperOverride syscall_override_{&mock_syscalls_};
 };
 
-void CheckIpAndTtlInCbuf(msghdr* hdr,
-                         const void* cbuf,
-                         const QuicIpAddress& self_addr,
-                         int ttl) {
+void CheckIpAndTtlInCbuf(msghdr* hdr, const void* cbuf,
+                         const QuicIpAddress& self_addr, int ttl) {
   const bool is_ipv4 = self_addr.IsIPv4();
   const size_t ip_cmsg_space = is_ipv4 ? kCmsgSpaceForIpv4 : kCmsgSpaceForIpv6;
 
@@ -82,8 +80,7 @@ void CheckIpAndTtlInCbuf(msghdr* hdr,
   EXPECT_EQ(nullptr, CMSG_NXTHDR(hdr, cmsg));
 }
 
-void CheckMsghdrWithoutCbuf(const msghdr* hdr,
-                            const void* buffer,
+void CheckMsghdrWithoutCbuf(const msghdr* hdr, const void* buffer,
                             size_t buf_len,
                             const QuicSocketAddress& peer_addr) {
   EXPECT_EQ(
@@ -99,8 +96,7 @@ void CheckMsghdrWithoutCbuf(const msghdr* hdr,
   EXPECT_EQ(0u, hdr->msg_controllen);
 }
 
-void CheckIpAndGsoSizeInCbuf(msghdr* hdr,
-                             const void* cbuf,
+void CheckIpAndGsoSizeInCbuf(msghdr* hdr, const void* cbuf,
                              const QuicIpAddress& self_addr,
                              uint16_t gso_size) {
   const bool is_ipv4 = self_addr.IsIPv4();
@@ -289,25 +285,24 @@ TEST_F(QuicLinuxSocketUtilsTest, WriteMultiplePackets_WriteSuccess) {
     SCOPED_TRACE(testing::Message()
                  << "expected_num_packets_sent=" << expected_num_packets_sent);
     EXPECT_CALL(mock_syscalls_, Sendmmsg(_, _, _, _))
-        .WillOnce(Invoke(
-            [&](int /*fd*/, mmsghdr* msgvec, unsigned int vlen, int /*flags*/) {
-              EXPECT_LE(static_cast<unsigned int>(expected_num_packets_sent),
-                        vlen);
-              for (unsigned int i = 0; i < vlen; ++i) {
-                const BufferedWrite& buffered_write = buffered_writes[i];
-                const msghdr& hdr = msgvec[i].msg_hdr;
-                EXPECT_EQ(1u, hdr.msg_iovlen);
-                EXPECT_EQ(buffered_write.buffer, hdr.msg_iov->iov_base);
-                EXPECT_EQ(buffered_write.buf_len, hdr.msg_iov->iov_len);
-                sockaddr_storage expected_peer_address =
-                    buffered_write.peer_address.generic_address();
-                EXPECT_EQ(0, memcmp(&expected_peer_address, hdr.msg_name,
-                                    sizeof(sockaddr_storage)));
-                EXPECT_EQ(buffered_write.self_address.IsInitialized(),
-                          hdr.msg_control != nullptr);
-              }
-              return expected_num_packets_sent;
-            }))
+        .WillOnce(Invoke([&](int /*fd*/, mmsghdr* msgvec, unsigned int vlen,
+                             int /*flags*/) {
+          EXPECT_LE(static_cast<unsigned int>(expected_num_packets_sent), vlen);
+          for (unsigned int i = 0; i < vlen; ++i) {
+            const BufferedWrite& buffered_write = buffered_writes[i];
+            const msghdr& hdr = msgvec[i].msg_hdr;
+            EXPECT_EQ(1u, hdr.msg_iovlen);
+            EXPECT_EQ(buffered_write.buffer, hdr.msg_iov->iov_base);
+            EXPECT_EQ(buffered_write.buf_len, hdr.msg_iov->iov_len);
+            sockaddr_storage expected_peer_address =
+                buffered_write.peer_address.generic_address();
+            EXPECT_EQ(0, memcmp(&expected_peer_address, hdr.msg_name,
+                                sizeof(sockaddr_storage)));
+            EXPECT_EQ(buffered_write.self_address.IsInitialized(),
+                      hdr.msg_control != nullptr);
+          }
+          return expected_num_packets_sent;
+        }))
         .RetiresOnSaturation();
 
     int expected_bytes_written = 0;

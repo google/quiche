@@ -111,8 +111,7 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
 };
 
 ChloFramerVisitor::ChloFramerVisitor(
-    QuicFramer* framer,
-    const QuicTagVector& create_session_tag_indicators,
+    QuicFramer* framer, const QuicTagVector& create_session_tag_indicators,
     ChloExtractor::Delegate* delegate)
     : framer_(framer),
       create_session_tag_indicators_(create_session_tag_indicators),
@@ -151,8 +150,7 @@ void ChloFramerVisitor::OnCoalescedPacket(
     const QuicEncryptedPacket& /*packet*/) {}
 
 void ChloFramerVisitor::OnUndecryptablePacket(
-    const QuicEncryptedPacket& /*packet*/,
-    EncryptionLevel /*decryption_level*/,
+    const QuicEncryptedPacket& /*packet*/, EncryptionLevel /*decryption_level*/,
     bool /*has_decryption_key*/) {}
 
 bool ChloFramerVisitor::OnStreamFrame(const QuicStreamFrame& frame) {
@@ -348,8 +346,7 @@ void ChloFramerVisitor::OnHandshakeMessage(
 bool ChloExtractor::Extract(const QuicEncryptedPacket& packet,
                             ParsedQuicVersion version,
                             const QuicTagVector& create_session_tag_indicators,
-                            Delegate* delegate,
-                            uint8_t connection_id_length) {
+                            Delegate* delegate, uint8_t connection_id_length) {
   QUIC_DVLOG(1) << "Extracting CHLO using version " << version;
   QuicFramer framer({version}, QuicTime::Zero(), Perspective::IS_SERVER,
                     connection_id_length);

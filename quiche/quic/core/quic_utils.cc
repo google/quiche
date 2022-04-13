@@ -367,8 +367,7 @@ bool QuicUtils::IsServerInitiatedStreamId(QuicTransportVersion version,
 }
 
 // static
-bool QuicUtils::IsOutgoingStreamId(ParsedQuicVersion version,
-                                   QuicStreamId id,
+bool QuicUtils::IsOutgoingStreamId(ParsedQuicVersion version, QuicStreamId id,
                                    Perspective perspective) {
   // Streams are outgoing streams, iff:
   // - we are the server and the stream is server-initiated
@@ -387,8 +386,7 @@ bool QuicUtils::IsBidirectionalStreamId(QuicStreamId id,
 }
 
 // static
-StreamType QuicUtils::GetStreamType(QuicStreamId id,
-                                    Perspective perspective,
+StreamType QuicUtils::GetStreamType(QuicStreamId id, Perspective perspective,
                                     bool peer_initiated,
                                     ParsedQuicVersion version) {
   QUICHE_DCHECK(version.HasIetfQuicFrames());
@@ -422,8 +420,7 @@ QuicStreamId QuicUtils::StreamIdDelta(QuicTransportVersion version) {
 
 // static
 QuicStreamId QuicUtils::GetFirstBidirectionalStreamId(
-    QuicTransportVersion version,
-    Perspective perspective) {
+    QuicTransportVersion version, Perspective perspective) {
   if (VersionHasIetfQuicFrames(version)) {
     return perspective == Perspective::IS_CLIENT ? 0 : 1;
   } else if (QuicVersionUsesCryptoFrames(version)) {
@@ -434,8 +431,7 @@ QuicStreamId QuicUtils::GetFirstBidirectionalStreamId(
 
 // static
 QuicStreamId QuicUtils::GetFirstUnidirectionalStreamId(
-    QuicTransportVersion version,
-    Perspective perspective) {
+    QuicTransportVersion version, Perspective perspective) {
   if (VersionHasIetfQuicFrames(version)) {
     return perspective == Perspective::IS_CLIENT ? 2 : 3;
   } else if (QuicVersionUsesCryptoFrames(version)) {
@@ -510,8 +506,7 @@ QuicConnectionId QuicUtils::CreateRandomConnectionId(
 
 // static
 QuicConnectionId QuicUtils::CreateRandomConnectionId(
-    uint8_t connection_id_length,
-    QuicRandom* random) {
+    uint8_t connection_id_length, QuicRandom* random) {
   QuicConnectionId connection_id;
   connection_id.set_length(connection_id_length);
   if (connection_id.length() > 0) {
@@ -533,8 +528,7 @@ QuicConnectionId QuicUtils::CreateZeroConnectionId(
 
 // static
 bool QuicUtils::IsConnectionIdLengthValidForVersion(
-    size_t connection_id_length,
-    QuicTransportVersion transport_version) {
+    size_t connection_id_length, QuicTransportVersion transport_version) {
   // No version of QUIC can support lengths that do not fit in an uint8_t.
   if (connection_id_length >
       static_cast<size_t>(std::numeric_limits<uint8_t>::max())) {
@@ -566,8 +560,7 @@ bool QuicUtils::IsConnectionIdLengthValidForVersion(
 
 // static
 bool QuicUtils::IsConnectionIdValidForVersion(
-    QuicConnectionId connection_id,
-    QuicTransportVersion transport_version) {
+    QuicConnectionId connection_id, QuicTransportVersion transport_version) {
   return IsConnectionIdLengthValidForVersion(connection_id.length(),
                                              transport_version);
 }
@@ -651,8 +644,7 @@ bool QuicUtils::IsAckElicitingFrame(QuicFrameType type) {
 
 // static
 bool QuicUtils::AreStatelessResetTokensEqual(
-    const StatelessResetToken& token1,
-    const StatelessResetToken& token2) {
+    const StatelessResetToken& token1, const StatelessResetToken& token2) {
   char byte = 0;
   for (size_t i = 0; i < kStatelessResetTokenLength; i++) {
     // This avoids compiler optimizations that could make us stop comparing

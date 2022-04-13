@@ -60,8 +60,7 @@ class QuicChaosProtectorTest : public QuicTestWithParam<ParsedQuicVersion>,
   }
 
   // From QuicStreamFrameDataProducer.
-  bool WriteCryptoData(EncryptionLevel level,
-                       QuicStreamOffset offset,
+  bool WriteCryptoData(EncryptionLevel level, QuicStreamOffset offset,
                        QuicByteCount data_length,
                        QuicDataWriter* writer) override {
     EXPECT_EQ(level, level);
@@ -152,8 +151,7 @@ ParsedQuicVersionVector TestVersions() {
   return versions;
 }
 
-INSTANTIATE_TEST_SUITE_P(QuicChaosProtectorTests,
-                         QuicChaosProtectorTest,
+INSTANTIATE_TEST_SUITE_P(QuicChaosProtectorTests, QuicChaosProtectorTest,
                          ::testing::ValuesIn(TestVersions()),
                          ::testing::PrintToStringParamName());
 

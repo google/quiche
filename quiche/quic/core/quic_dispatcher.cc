@@ -124,8 +124,7 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
     }
     return WRITE_FAILED;
   }
-  bool WriteCryptoData(EncryptionLevel /*level*/,
-                       QuicStreamOffset offset,
+  bool WriteCryptoData(EncryptionLevel /*level*/, QuicStreamOffset offset,
                        QuicByteCount data_length,
                        QuicDataWriter* writer) override {
     return send_buffer_.WriteStreamData(offset, data_length, writer);
@@ -153,8 +152,7 @@ class StatelessConnectionTerminator {
                                 QuicTimeWaitListManager* time_wait_list_manager)
       : server_connection_id_(server_connection_id),
         framer_(ParsedQuicVersionVector{version},
-                /*unused*/ QuicTime::Zero(),
-                Perspective::IS_SERVER,
+                /*unused*/ QuicTime::Zero(), Perspective::IS_SERVER,
                 /*unused*/ kQuicDefaultConnectionIdLength),
         collector_(helper->GetStreamSendBufferAllocator()),
         creator_(server_connection_id, &framer_, &collector_),
@@ -171,8 +169,7 @@ class StatelessConnectionTerminator {
   // Generates a packet containing a CONNECTION_CLOSE frame specifying
   // |error_code| and |error_details| and add the connection to time wait.
   void CloseConnection(QuicErrorCode error_code,
-                       const std::string& error_details,
-                       bool ietf_quic,
+                       const std::string& error_details, bool ietf_quic,
                        std::vector<QuicConnectionId> active_connection_ids) {
     SerializeConnectionClosePacket(error_code, error_details);
 
@@ -1115,13 +1112,9 @@ void QuicDispatcher::OnConnectionAddedToTimeWaitList(
 }
 
 void QuicDispatcher::StatelesslyTerminateConnection(
-    QuicConnectionId server_connection_id,
-    PacketHeaderFormat format,
-    bool version_flag,
-    bool use_length_prefix,
-    ParsedQuicVersion version,
-    QuicErrorCode error_code,
-    const std::string& error_details,
+    QuicConnectionId server_connection_id, PacketHeaderFormat format,
+    bool version_flag, bool use_length_prefix, ParsedQuicVersion version,
+    QuicErrorCode error_code, const std::string& error_details,
     QuicTimeWaitListManager::TimeWaitAction action) {
   if (format != IETF_QUIC_LONG_HEADER_PACKET && !version_flag) {
     QUIC_DVLOG(1) << "Statelessly terminating " << server_connection_id
@@ -1258,8 +1251,7 @@ bool QuicDispatcher::HasBufferedPackets(QuicConnectionId server_connection_id) {
 }
 
 void QuicDispatcher::OnBufferPacketFailure(
-    EnqueuePacketResult result,
-    QuicConnectionId server_connection_id) {
+    EnqueuePacketResult result, QuicConnectionId server_connection_id) {
   QUIC_DLOG(INFO) << "Fail to buffer packet on connection "
                   << server_connection_id << " because of " << result;
 }
@@ -1360,13 +1352,9 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
   --new_sessions_allowed_per_event_loop_;
 }
 
-bool QuicDispatcher::ShouldDestroySessionAsynchronously() {
-  return true;
-}
+bool QuicDispatcher::ShouldDestroySessionAsynchronously() { return true; }
 
-void QuicDispatcher::SetLastError(QuicErrorCode error) {
-  last_error_ = error;
-}
+void QuicDispatcher::SetLastError(QuicErrorCode error) { last_error_ = error; }
 
 bool QuicDispatcher::OnFailedToDispatchPacket(
     const ReceivedPacketInfo& /*packet_info*/) {
@@ -1378,8 +1366,7 @@ const ParsedQuicVersionVector& QuicDispatcher::GetSupportedVersions() {
 }
 
 void QuicDispatcher::DeliverPacketsToSession(
-    const std::list<BufferedPacket>& packets,
-    QuicSession* session) {
+    const std::list<BufferedPacket>& packets, QuicSession* session) {
   for (const BufferedPacket& packet : packets) {
     session->ProcessUdpPacket(packet.self_address, packet.peer_address,
                               *(packet.packet));

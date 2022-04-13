@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/core/quic_legacy_version_encapsulator.h"
+
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -57,16 +58,14 @@ void QuicLegacyVersionEncapsulator::OnSerializedPacket(
 }
 
 void QuicLegacyVersionEncapsulator::OnUnrecoverableError(
-    QuicErrorCode error,
-    const std::string& error_details) {
+    QuicErrorCode error, const std::string& error_details) {
   unrecoverable_failure_encountered_ = true;
   QUIC_BUG(quic_bug_10615_3) << "QuicLegacyVersionEncapsulator received error "
                              << error << ": " << error_details;
 }
 
 bool QuicLegacyVersionEncapsulator::ShouldGeneratePacket(
-    HasRetransmittableData /*retransmittable*/,
-    IsHandshake /*handshake*/) {
+    HasRetransmittableData /*retransmittable*/, IsHandshake /*handshake*/) {
   return true;
 }
 
@@ -77,19 +76,15 @@ QuicLegacyVersionEncapsulator::MaybeBundleAckOpportunistically() {
 }
 
 SerializedPacketFate QuicLegacyVersionEncapsulator::GetSerializedPacketFate(
-    bool /*is_mtu_discovery*/,
-    EncryptionLevel /*encryption_level*/) {
+    bool /*is_mtu_discovery*/, EncryptionLevel /*encryption_level*/) {
   return SEND_TO_WRITER;
 }
 
 // static
 QuicPacketLength QuicLegacyVersionEncapsulator::Encapsulate(
-    absl::string_view sni,
-    absl::string_view inner_packet,
-    const QuicConnectionId& server_connection_id,
-    QuicTime creation_time,
-    QuicByteCount outer_max_packet_length,
-    char* out) {
+    absl::string_view sni, absl::string_view inner_packet,
+    const QuicConnectionId& server_connection_id, QuicTime creation_time,
+    QuicByteCount outer_max_packet_length, char* out) {
   if (outer_max_packet_length > kMaxOutgoingPacketSize) {
     outer_max_packet_length = kMaxOutgoingPacketSize;
   }

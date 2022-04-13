@@ -48,16 +48,11 @@ class TestProofVerifier : public ProofVerifier {
       : verifier_(crypto_test_utils::ProofVerifierForTesting()) {}
 
   QuicAsyncStatus VerifyProof(
-      const std::string& hostname,
-      const uint16_t port,
-      const std::string& server_config,
-      QuicTransportVersion quic_version,
-      absl::string_view chlo_hash,
-      const std::vector<std::string>& certs,
-      const std::string& cert_sct,
-      const std::string& signature,
-      const ProofVerifyContext* context,
-      std::string* error_details,
+      const std::string& hostname, const uint16_t port,
+      const std::string& server_config, QuicTransportVersion quic_version,
+      absl::string_view chlo_hash, const std::vector<std::string>& certs,
+      const std::string& cert_sct, const std::string& signature,
+      const ProofVerifyContext* context, std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     return verifier_->VerifyProof(
@@ -66,14 +61,10 @@ class TestProofVerifier : public ProofVerifier {
   }
 
   QuicAsyncStatus VerifyCertChain(
-      const std::string& hostname,
-      const uint16_t port,
-      const std::vector<std::string>& certs,
-      const std::string& ocsp_response,
-      const std::string& cert_sct,
-      const ProofVerifyContext* context,
-      std::string* error_details,
-      std::unique_ptr<ProofVerifyDetails>* details,
+      const std::string& hostname, const uint16_t port,
+      const std::vector<std::string>& certs, const std::string& ocsp_response,
+      const std::string& cert_sct, const ProofVerifyContext* context,
+      std::string* error_details, std::unique_ptr<ProofVerifyDetails>* details,
       uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     if (!active_) {
@@ -107,8 +98,7 @@ class TestProofVerifier : public ProofVerifier {
   // run.
   class FailingProofVerifierCallback : public ProofVerifierCallback {
    public:
-    void Run(bool /*ok*/,
-             const std::string& /*error_details*/,
+    void Run(bool /*ok*/, const std::string& /*error_details*/,
              std::unique_ptr<ProofVerifyDetails>* /*details*/) override {
       FAIL();
     }
@@ -116,8 +106,7 @@ class TestProofVerifier : public ProofVerifier {
 
   class VerifyChainPendingOp {
    public:
-    VerifyChainPendingOp(const std::string& hostname,
-                         const uint16_t port,
+    VerifyChainPendingOp(const std::string& hostname, const uint16_t port,
                          const std::vector<std::string>& certs,
                          const std::string& ocsp_response,
                          const std::string& cert_sct,
@@ -258,8 +247,7 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
   QuicCompressedCertsCache server_compressed_certs_cache_;
 };
 
-INSTANTIATE_TEST_SUITE_P(TlsHandshakerTests,
-                         TlsClientHandshakerTest,
+INSTANTIATE_TEST_SUITE_P(TlsHandshakerTests, TlsClientHandshakerTest,
                          ::testing::ValuesIn(AllSupportedVersionsWithTls()),
                          ::testing::PrintToStringParamName());
 

@@ -37,8 +37,7 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
   // Copies encrypted_buffers_ to |buffer| and sets |length_copied| to the
   // copied amount. Returns false if copy fails (i.e., |buffer_len| is not
   // enough).
-  bool CopyEncryptedBuffers(char* buffer,
-                            size_t buffer_len,
+  bool CopyEncryptedBuffers(char* buffer, size_t buffer_len,
                             size_t* length_copied) const;
 
   std::string ToString(size_t serialized_length) const;

@@ -16,9 +16,7 @@ ssize_t QuicSyscallWrapper::Sendmsg(int sockfd, const msghdr* msg, int flags) {
   return ::sendmsg(sockfd, msg, flags);
 }
 
-int QuicSyscallWrapper::Sendmmsg(int sockfd,
-                                 mmsghdr* msgvec,
-                                 unsigned int vlen,
+int QuicSyscallWrapper::Sendmmsg(int sockfd, mmsghdr* msgvec, unsigned int vlen,
                                  int flags) {
 #if defined(__linux__) && !defined(__ANDROID__)
   return ::sendmmsg(sockfd, msgvec, vlen, flags);

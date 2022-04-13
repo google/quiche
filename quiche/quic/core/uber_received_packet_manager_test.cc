@@ -57,8 +57,7 @@ class UberReceivedPacketManagerTest : public QuicTest {
   }
 
   void RecordPacketReceipt(EncryptionLevel decrypted_packet_level,
-                           uint64_t packet_number,
-                           QuicTime receipt_time) {
+                           uint64_t packet_number, QuicTime receipt_time) {
     QuicPacketHeader header;
     header.packet_number = QuicPacketNumber(packet_number);
     manager_->RecordPacketReceived(decrypted_packet_level, header,

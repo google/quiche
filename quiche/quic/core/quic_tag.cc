@@ -17,8 +17,7 @@
 namespace quic {
 
 bool FindMutualQuicTag(const QuicTagVector& our_tags,
-                       const QuicTagVector& their_tags,
-                       QuicTag* out_result,
+                       const QuicTagVector& their_tags, QuicTag* out_result,
                        size_t* out_index) {
   const size_t num_our_tags = our_tags.size();
   const size_t num_their_tags = their_tags.size();
