@@ -116,7 +116,7 @@ QUICHE_NO_EXPORT class RandomDecoderTest : public QuicheTest {
       const SelectSize& select_size,
       const Validator& validator) {
     DecodeStatus status = DecodeSegments(original, select_size);
-    VERIFY_AND_RETURN_SUCCESS(validator(*original, status));
+    return validator(*original, status);
   }
 
   // Returns a SelectSize function for fast decoding, i.e. passing all that

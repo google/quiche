@@ -142,14 +142,12 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
 
   template <size_t N>
   AssertionResult DecodeLeadingStructure(const char (&data)[N]) {
-    VERIFY_AND_RETURN_SUCCESS(
-        DecodeLeadingStructure(nullptr, absl::string_view(data, N)));
+    return DecodeLeadingStructure(nullptr, absl::string_view(data, N));
   }
 
   template <size_t N>
   AssertionResult DecodeLeadingStructure(const unsigned char (&data)[N]) {
-    VERIFY_AND_RETURN_SUCCESS(
-        DecodeLeadingStructure(nullptr, ToStringPiece(data)));
+    return DecodeLeadingStructure(nullptr, ToStringPiece(data));
   }
 
   // Encode the structure |in_s| into bytes, then decode the bytes
@@ -157,7 +155,7 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
   AssertionResult EncodeThenDecode(const S& in_s) {
     std::string bytes = SerializeStructure(in_s);
     VERIFY_EQ(S::EncodedSize(), bytes.size());
-    VERIFY_AND_RETURN_SUCCESS(DecodeLeadingStructure(&in_s, bytes));
+    return DecodeLeadingStructure(&in_s, bytes);
   }
 
   // Repeatedly fill a structure with random but valid contents, encode it, then

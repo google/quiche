@@ -92,8 +92,8 @@ class DataPayloadDecoderTest
     set_frame_header(frame_header);
     ScrubFlagsOfHeader(&frame_header);
     FrameParts expected(frame_header, data_payload, total_pad_length_);
-    VERIFY_AND_RETURN_SUCCESS(
-        DecodePayloadAndValidateSeveralWays(frame_builder_.buffer(), expected));
+    return DecodePayloadAndValidateSeveralWays(frame_builder_.buffer(),
+                                               expected);
   }
 };
 

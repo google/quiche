@@ -96,7 +96,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   AssertionResult VerifyCollected(const FrameParts& expected) {
     VERIFY_FALSE(collector_.IsInProgress());
     VERIFY_EQ(1u, collector_.size());
-    VERIFY_AND_RETURN_SUCCESS(expected.VerifyEquals(*collector_.frame(0)));
+    return expected.VerifyEquals(*collector_.frame(0));
   }
 
   AssertionResult DecodePayloadAndValidateSeveralWays(absl::string_view payload,
@@ -117,7 +117,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
     auto validator = [&expected, this](const DecodeBuffer& /*input*/,
                                        DecodeStatus status) -> AssertionResult {
       VERIFY_EQ(status, DecodeStatus::kDecodeDone);
-      VERIFY_AND_RETURN_SUCCESS(VerifyCollected(expected));
+      return VerifyCollected(expected);
     };
     ResetDecodeSpeedCounters();
     VERIFY_SUCCESS(DecodePayloadAndValidateSeveralWays(
@@ -161,7 +161,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
     auto validator = [&expected, this](const DecodeBuffer& /*input*/,
                                        DecodeStatus status) -> AssertionResult {
       VERIFY_EQ(status, DecodeStatus::kDecodeError);
-      VERIFY_AND_RETURN_SUCCESS(VerifyCollected(expected));
+      return VerifyCollected(expected);
     };
     ResetDecodeSpeedCounters();
     EXPECT_TRUE(
@@ -175,7 +175,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   AssertionResult DecodePayloadExpectingFrameSizeError(const char (&buf)[N],
                                                        FrameParts expected) {
     expected.SetHasFrameSizeError(true);
-    VERIFY_AND_RETURN_SUCCESS(DecodePayloadExpectingError(buf, expected));
+    return DecodePayloadExpectingError(buf, expected);
   }
 
   template <size_t N>
@@ -843,7 +843,7 @@ TEST_F(Http2FrameDecoderTest, BeyondMaximum) {
     // The decoder detects this error after decoding the header, and without
     // trying to decode the payload.
     VERIFY_EQ(input.Offset(), Http2FrameHeader::EncodedSize());
-    VERIFY_AND_RETURN_SUCCESS(VerifyCollected(expected));
+    return VerifyCollected(expected);
   };
   ResetDecodeSpeedCounters();
   EXPECT_TRUE(DecodePayloadAndValidateSeveralWays(ToStringPiece(kFrameData),

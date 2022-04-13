@@ -56,9 +56,7 @@ TEST_F(HpackEntryDecoderTest, IndexedHeader_Literals) {
   {
     const char input[] = {'\x82'};  // == Index 2 ==
     DecodeBuffer b(input);
-    auto do_check = [this]() {
-      VERIFY_AND_RETURN_SUCCESS(collector_.ValidateIndexedHeader(2));
-    };
+    auto do_check = [this]() { return collector_.ValidateIndexedHeader(2); };
     EXPECT_TRUE(
         DecodeAndValidateSeveralWays(&b, ValidateDoneAndEmpty(do_check)));
     EXPECT_TRUE(do_check());
@@ -67,9 +65,7 @@ TEST_F(HpackEntryDecoderTest, IndexedHeader_Literals) {
   {
     const char input[] = {'\xfe'};  // == Index 126 ==
     DecodeBuffer b(input);
-    auto do_check = [this]() {
-      VERIFY_AND_RETURN_SUCCESS(collector_.ValidateIndexedHeader(126));
-    };
+    auto do_check = [this]() { return collector_.ValidateIndexedHeader(126); };
     EXPECT_TRUE(
         DecodeAndValidateSeveralWays(&b, ValidateDoneAndEmpty(do_check)));
     EXPECT_TRUE(do_check());
@@ -78,9 +74,7 @@ TEST_F(HpackEntryDecoderTest, IndexedHeader_Literals) {
   {
     const char input[] = {'\xff', '\x00'};  // == Index 127 ==
     DecodeBuffer b(input);
-    auto do_check = [this]() {
-      VERIFY_AND_RETURN_SUCCESS(collector_.ValidateIndexedHeader(127));
-    };
+    auto do_check = [this]() { return collector_.ValidateIndexedHeader(127); };
     EXPECT_TRUE(
         DecodeAndValidateSeveralWays(&b, ValidateDoneAndEmpty(do_check)));
     EXPECT_TRUE(do_check());
@@ -94,7 +88,7 @@ TEST_F(HpackEntryDecoderTest, IndexedHeader_Various) {
     hbb.AppendIndexedHeader(ndx);
 
     auto do_check = [this, ndx]() {
-      VERIFY_AND_RETURN_SUCCESS(collector_.ValidateIndexedHeader(ndx));
+      return collector_.ValidateIndexedHeader(ndx);
     };
     EXPECT_TRUE(
         DecodeAndValidateSeveralWays(hbb, ValidateDoneAndEmpty(do_check)));
@@ -110,8 +104,8 @@ TEST_F(HpackEntryDecoderTest, IndexedLiteralValue_Literal) {
       "custom-header";  // Value
   DecodeBuffer b(input, sizeof input - 1);
   auto do_check = [this]() {
-    VERIFY_AND_RETURN_SUCCESS(collector_.ValidateLiteralValueHeader(
-        HpackEntryType::kIndexedLiteralHeader, 0x40, false, "custom-header"));
+    return collector_.ValidateLiteralValueHeader(
+        HpackEntryType::kIndexedLiteralHeader, 0x40, false, "custom-header");
   };
   EXPECT_TRUE(DecodeAndValidateSeveralWays(&b, ValidateDoneAndEmpty(do_check)));
   EXPECT_TRUE(do_check());
@@ -127,9 +121,9 @@ TEST_F(HpackEntryDecoderTest, IndexedLiteralNameValue_Literal) {
 
   DecodeBuffer b(input, sizeof input - 1);
   auto do_check = [this]() {
-    VERIFY_AND_RETURN_SUCCESS(collector_.ValidateLiteralNameValueHeader(
+    return collector_.ValidateLiteralNameValueHeader(
         HpackEntryType::kIndexedLiteralHeader, false, "custom-key", false,
-        "custom-header"));
+        "custom-header");
   };
   EXPECT_TRUE(DecodeAndValidateSeveralWays(&b, ValidateDoneAndEmpty(do_check)));
   EXPECT_TRUE(do_check());
@@ -140,7 +134,7 @@ TEST_F(HpackEntryDecoderTest, DynamicTableSizeUpdate_Literal) {
   const char input[] = "\x3f\x00";
   DecodeBuffer b(input, 2);
   auto do_check = [this]() {
-    VERIFY_AND_RETURN_SUCCESS(collector_.ValidateDynamicTableSizeUpdate(31));
+    return collector_.ValidateDynamicTableSizeUpdate(31);
   };
   EXPECT_TRUE(DecodeAndValidateSeveralWays(&b, ValidateDoneAndEmpty(do_check)));
   EXPECT_TRUE(do_check());
@@ -171,8 +165,8 @@ TEST_P(HpackLiteralEntryDecoderTest, RandNameIndexAndLiteralValue) {
                                        value_is_huffman_encoded, value);
     auto do_check = [this, ndx, value_is_huffman_encoded,
                      value]() -> AssertionResult {
-      VERIFY_AND_RETURN_SUCCESS(collector_.ValidateLiteralValueHeader(
-          entry_type_, ndx, value_is_huffman_encoded, value));
+      return collector_.ValidateLiteralValueHeader(
+          entry_type_, ndx, value_is_huffman_encoded, value);
     };
     EXPECT_TRUE(
         DecodeAndValidateSeveralWays(hbb, ValidateDoneAndEmpty(do_check)));
@@ -193,9 +187,9 @@ TEST_P(HpackLiteralEntryDecoderTest, RandLiteralNameAndValue) {
                                   value_is_huffman_encoded, value);
     auto do_check = [this, name_is_huffman_encoded, name,
                      value_is_huffman_encoded, value]() -> AssertionResult {
-      VERIFY_AND_RETURN_SUCCESS(collector_.ValidateLiteralNameValueHeader(
+      return collector_.ValidateLiteralNameValueHeader(
           entry_type_, name_is_huffman_encoded, name, value_is_huffman_encoded,
-          value));
+          value);
     };
     EXPECT_TRUE(
         DecodeAndValidateSeveralWays(hbb, ValidateDoneAndEmpty(do_check)));

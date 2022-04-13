@@ -195,7 +195,7 @@ class QUICHE_EXPORT_PRIVATE AbstractPayloadDecoderTest
     auto validator = [&expected, this]() -> AssertionResult {
       VERIFY_FALSE(listener_.IsInProgress());
       VERIFY_EQ(1u, listener_.size());
-      VERIFY_AND_RETURN_SUCCESS(expected.VerifyEquals(*listener_.frame(0)));
+      return expected.VerifyEquals(*listener_.frame(0));
     };
     return PayloadDecoderBaseTest::DecodePayloadAndValidateSeveralWays(
         payload, ValidateDoneAndEmpty(validator));
@@ -234,9 +234,8 @@ class QUICHE_EXPORT_PRIVATE AbstractPayloadDecoderTest
       VERIFY_FALSE(frame->GetOptMissingLength());
       return validator(input, status);
     };
-    VERIFY_AND_RETURN_SUCCESS(
-        PayloadDecoderBaseTest::DecodePayloadAndValidateSeveralWays(payload,
-                                                                    validator));
+    return PayloadDecoderBaseTest::DecodePayloadAndValidateSeveralWays(
+        payload, validator);
   }
 
   // Confirm that we get OnFrameSizeError when trying to decode unpadded_payload
@@ -312,8 +311,8 @@ class QUICHE_EXPORT_PRIVATE AbstractPayloadDecoderTest
     uint8_t known_flags = KnownFlagsMaskForFrameType(frame_type);
     VERIFY_EQ(0, known_flags & Http2FrameFlag::PADDED);
     VERIFY_EQ(0, required_flags & Http2FrameFlag::PADDED);
-    VERIFY_AND_RETURN_SUCCESS(VerifyDetectsMultipleFrameSizeErrors(
-        required_flags, unpadded_payload, approve_size, 0));
+    return VerifyDetectsMultipleFrameSizeErrors(
+        required_flags, unpadded_payload, approve_size, 0);
   }
 
   Listener listener_;
@@ -399,9 +398,8 @@ class AbstractPaddablePayloadDecoderTest
       VERIFY_FALSE(frame->GetHasFrameSizeError());
       return ::testing::AssertionSuccess();
     };
-    VERIFY_AND_RETURN_SUCCESS(
-        PayloadDecoderBaseTest::DecodePayloadAndValidateSeveralWays(payload,
-                                                                    validator));
+    return PayloadDecoderBaseTest::DecodePayloadAndValidateSeveralWays(
+        payload, validator);
   }
 
   // Verifies that we get OnPaddingTooLong for a padded frame payload whose
@@ -434,8 +432,7 @@ class AbstractPaddablePayloadDecoderTest
 
     const Http2FrameHeader header(payload_length, DecoderPeer::FrameType(),
                                   flags, RandStreamId());
-    VERIFY_AND_RETURN_SUCCESS(
-        VerifyDetectsPaddingTooLong(payload, header, missing_length));
+    return VerifyDetectsPaddingTooLong(payload, header, missing_length);
   }
 
   // total_pad_length_ includes the size of the Pad Length field, and thus
