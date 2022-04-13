@@ -42,8 +42,7 @@ const EVP_AEAD* InitAndCall(const EVP_AEAD* (*aead_getter)()) {
 }  // namespace
 
 AeadBaseEncrypter::AeadBaseEncrypter(const EVP_AEAD* (*aead_getter)(),
-                                     size_t key_size,
-                                     size_t auth_tag_size,
+                                     size_t key_size, size_t auth_tag_size,
                                      size_t nonce_size,
                                      bool use_ietf_nonce_construction)
     : aead_alg_(InitAndCall(aead_getter)),
@@ -126,8 +125,7 @@ bool AeadBaseEncrypter::Encrypt(absl::string_view nonce,
 
 bool AeadBaseEncrypter::EncryptPacket(uint64_t packet_number,
                                       absl::string_view associated_data,
-                                      absl::string_view plaintext,
-                                      char* output,
+                                      absl::string_view plaintext, char* output,
                                       size_t* output_length,
                                       size_t max_output_length) {
   size_t ciphertext_size = GetCiphertextSize(plaintext.length());
@@ -156,17 +154,13 @@ bool AeadBaseEncrypter::EncryptPacket(uint64_t packet_number,
   return true;
 }
 
-size_t AeadBaseEncrypter::GetKeySize() const {
-  return key_size_;
-}
+size_t AeadBaseEncrypter::GetKeySize() const { return key_size_; }
 
 size_t AeadBaseEncrypter::GetNoncePrefixSize() const {
   return nonce_size_ - sizeof(QuicPacketNumber);
 }
 
-size_t AeadBaseEncrypter::GetIVSize() const {
-  return nonce_size_;
-}
+size_t AeadBaseEncrypter::GetIVSize() const { return nonce_size_; }
 
 size_t AeadBaseEncrypter::GetMaxPlaintextSize(size_t ciphertext_size) const {
   return ciphertext_size - std::min(ciphertext_size, auth_tag_size_);

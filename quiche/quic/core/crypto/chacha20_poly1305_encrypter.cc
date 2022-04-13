@@ -16,9 +16,7 @@ const size_t kNonceSize = 12;
 }  // namespace
 
 ChaCha20Poly1305Encrypter::ChaCha20Poly1305Encrypter()
-    : ChaChaBaseEncrypter(EVP_aead_chacha20_poly1305,
-                          kKeySize,
-                          kAuthTagSize,
+    : ChaChaBaseEncrypter(EVP_aead_chacha20_poly1305, kKeySize, kAuthTagSize,
                           kNonceSize,
                           /* use_ietf_nonce_construction */ false) {
   static_assert(kKeySize <= kMaxKeySize, "key size too big");

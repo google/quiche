@@ -30,16 +30,14 @@ class QUIC_EXPORT_PRIVATE ChannelIDVerifier {
 
   // Verify returns true iff |signature| is a valid signature of |signed_data|
   // by |key|.
-  static bool Verify(absl::string_view key,
-                     absl::string_view signed_data,
+  static bool Verify(absl::string_view key, absl::string_view signed_data,
                      absl::string_view signature);
 
   // FOR TESTING ONLY: VerifyRaw returns true iff |signature| is a valid
   // signature of |signed_data| by |key|. |is_channel_id_signature| indicates
   // whether |signature| is a ChannelID signature (with kContextStr prepended
   // to the data to be signed).
-  static bool VerifyRaw(absl::string_view key,
-                        absl::string_view signed_data,
+  static bool VerifyRaw(absl::string_view key, absl::string_view signed_data,
                         absl::string_view signature,
                         bool is_channel_id_signature);
 };

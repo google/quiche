@@ -84,8 +84,7 @@ std::string P256KeyExchange::NewPrivateKey() {
 }
 
 bool P256KeyExchange::CalculateSharedKeySync(
-    absl::string_view peer_public_value,
-    std::string* shared_key) const {
+    absl::string_view peer_public_value, std::string* shared_key) const {
   if (peer_public_value.size() != kUncompressedP256PointBytes) {
     QUIC_DLOG(INFO) << "Peer public value is invalid";
     return false;

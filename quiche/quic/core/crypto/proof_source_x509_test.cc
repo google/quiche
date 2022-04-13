@@ -118,8 +118,7 @@ TEST_F(ProofSourceX509Test, CertificateSelection) {
 TEST_F(ProofSourceX509Test, TlsSignature) {
   class Callback : public ProofSource::SignatureCallback {
    public:
-    void Run(bool ok,
-             std::string signature,
+    void Run(bool ok, std::string signature,
              std::unique_ptr<ProofSource::Details> /*details*/) override {
       ASSERT_TRUE(ok);
       std::unique_ptr<CertificateView> view =

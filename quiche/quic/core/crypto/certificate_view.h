@@ -75,8 +75,7 @@ class QUIC_EXPORT_PRIVATE CertificateView {
   absl::optional<std::string> GetHumanReadableSubject() const;
 
   // |signature_algorithm| is a TLS signature algorithm ID.
-  bool VerifySignature(absl::string_view data,
-                       absl::string_view signature,
+  bool VerifySignature(absl::string_view data, absl::string_view signature,
                        uint16_t signature_algorithm) const;
 
   // Returns the type of the key used in the certificate's SPKI.
@@ -143,8 +142,7 @@ QUIC_EXPORT_PRIVATE absl::optional<std::string> X509NameAttributeToString(
 // Parses a DER time based on the specified ASN.1 tag.  Exposed primarily for
 // testing.
 QUIC_EXPORT_PRIVATE absl::optional<quic::QuicWallTime> ParseDerTime(
-    unsigned tag,
-    absl::string_view payload);
+    unsigned tag, absl::string_view payload);
 
 }  // namespace quic
 

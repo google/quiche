@@ -137,8 +137,7 @@ absl::optional<std::string> X509NameAttributeToString(CBS input) {
 
 namespace {
 
-template <unsigned inner_tag,
-          char separator,
+template <unsigned inner_tag, char separator,
           absl::optional<std::string> (*parser)(CBS)>
 absl::optional<std::string> ParseAndJoin(CBS input) {
   std::vector<std::string> pieces;

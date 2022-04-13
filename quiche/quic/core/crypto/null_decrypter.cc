@@ -18,17 +18,13 @@ namespace quic {
 NullDecrypter::NullDecrypter(Perspective perspective)
     : perspective_(perspective) {}
 
-bool NullDecrypter::SetKey(absl::string_view key) {
-  return key.empty();
-}
+bool NullDecrypter::SetKey(absl::string_view key) { return key.empty(); }
 
 bool NullDecrypter::SetNoncePrefix(absl::string_view nonce_prefix) {
   return nonce_prefix.empty();
 }
 
-bool NullDecrypter::SetIV(absl::string_view iv) {
-  return iv.empty();
-}
+bool NullDecrypter::SetIV(absl::string_view iv) { return iv.empty(); }
 
 bool NullDecrypter::SetHeaderProtectionKey(absl::string_view key) {
   return key.empty();
@@ -47,8 +43,7 @@ bool NullDecrypter::SetDiversificationNonce(
 
 bool NullDecrypter::DecryptPacket(uint64_t /*packet_number*/,
                                   absl::string_view associated_data,
-                                  absl::string_view ciphertext,
-                                  char* output,
+                                  absl::string_view ciphertext, char* output,
                                   size_t* output_length,
                                   size_t max_output_length) {
   QuicDataReader reader(ciphertext.data(), ciphertext.length(),
@@ -79,29 +74,19 @@ std::string NullDecrypter::GenerateHeaderProtectionMask(
   return std::string(5, 0);
 }
 
-size_t NullDecrypter::GetKeySize() const {
-  return 0;
-}
+size_t NullDecrypter::GetKeySize() const { return 0; }
 
-size_t NullDecrypter::GetNoncePrefixSize() const {
-  return 0;
-}
+size_t NullDecrypter::GetNoncePrefixSize() const { return 0; }
 
-size_t NullDecrypter::GetIVSize() const {
-  return 0;
-}
+size_t NullDecrypter::GetIVSize() const { return 0; }
 
-absl::string_view NullDecrypter::GetKey() const {
-  return absl::string_view();
-}
+absl::string_view NullDecrypter::GetKey() const { return absl::string_view(); }
 
 absl::string_view NullDecrypter::GetNoncePrefix() const {
   return absl::string_view();
 }
 
-uint32_t NullDecrypter::cipher_id() const {
-  return 0;
-}
+uint32_t NullDecrypter::cipher_id() const { return 0; }
 
 QuicPacketCount NullDecrypter::GetIntegrityLimit() const {
   return std::numeric_limits<QuicPacketCount>::max();

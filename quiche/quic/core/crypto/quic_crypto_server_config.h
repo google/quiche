@@ -85,8 +85,7 @@ class QUIC_EXPORT_PRIVATE ValidateClientHelloResultCallback {
   // its validity.  Can be interpreted by calling ProcessClientHello.
   struct QUIC_EXPORT_PRIVATE Result : public quiche::QuicheReferenceCounted {
     Result(const CryptoHandshakeMessage& in_client_hello,
-           QuicIpAddress in_client_ip,
-           QuicWallTime in_now);
+           QuicIpAddress in_client_ip, QuicWallTime in_now);
 
     CryptoHandshakeMessage client_hello;
     ClientHelloInfo info;
@@ -119,8 +118,7 @@ class QUIC_EXPORT_PRIVATE ProcessClientHelloResultCallback {
   ProcessClientHelloResultCallback& operator=(
       const ProcessClientHelloResultCallback&) = delete;
   virtual ~ProcessClientHelloResultCallback();
-  virtual void Run(QuicErrorCode error,
-                   const std::string& error_details,
+  virtual void Run(QuicErrorCode error, const std::string& error_details,
                    std::unique_ptr<CryptoHandshakeMessage> message,
                    std::unique_ptr<DiversificationNonce> diversification_nonce,
                    std::unique_ptr<ProofSource::Details> details) = 0;
@@ -166,9 +164,7 @@ class QUIC_EXPORT_PRIVATE KeyExchangeSource {
   // is set, |private_key| is required to be set, and a local key-exchange
   // object should be returned.
   virtual std::unique_ptr<AsynchronousKeyExchange> Create(
-      std::string server_config_id,
-      bool is_fallback,
-      QuicTag type,
+      std::string server_config_id, bool is_fallback, QuicTag type,
       absl::string_view private_key) = 0;
 };
 
@@ -235,16 +231,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // conjunction with |protobuf->primary_time()| to determine whether the
   // config should be made primary.
   std::unique_ptr<CryptoHandshakeMessage> AddConfig(
-      const QuicServerConfigProtobuf& protobuf,
-      QuicWallTime now);
+      const QuicServerConfigProtobuf& protobuf, QuicWallTime now);
 
   // AddDefaultConfig calls GenerateConfig to create a config and then calls
   // AddConfig to add it. See the comment for |GenerateConfig| for details of
   // the arguments.
   std::unique_ptr<CryptoHandshakeMessage> AddDefaultConfig(
-      QuicRandom* rand,
-      const QuicClock* clock,
-      const ConfigOptions& options);
+      QuicRandom* rand, const QuicClock* clock, const ConfigOptions& options);
 
   // SetConfigs takes a vector of config protobufs and the current time.
   // Configs are assumed to be uniquely identified by their server config ID.
@@ -352,14 +345,11 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   //
   // |cached_network_params| is optional, and can be nullptr.
   void BuildServerConfigUpdateMessage(
-      QuicTransportVersion version,
-      absl::string_view chlo_hash,
+      QuicTransportVersion version, absl::string_view chlo_hash,
       const SourceAddressTokens& previous_source_address_tokens,
       const QuicSocketAddress& server_address,
-      const QuicSocketAddress& client_address,
-      const QuicClock* clock,
-      QuicRandom* rand,
-      QuicCompressedCertsCache* compressed_certs_cache,
+      const QuicSocketAddress& client_address, const QuicClock* clock,
+      QuicRandom* rand, QuicCompressedCertsCache* compressed_certs_cache,
       const QuicCryptoNegotiatedParameters& params,
       const CachedNetworkParameters* cached_network_params,
       std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb) const;
@@ -418,10 +408,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // |cached_network_params| is optional, and can be nullptr.
   std::string NewSourceAddressToken(
       const CryptoSecretBoxer& crypto_secret_boxer,
-      const SourceAddressTokens& previous_tokens,
-      const QuicIpAddress& ip,
-      QuicRandom* rand,
-      QuicWallTime now,
+      const SourceAddressTokens& previous_tokens, const QuicIpAddress& ip,
+      QuicRandom* rand, QuicWallTime now,
       const CachedNetworkParameters* cached_network_params) const;
 
   // ParseSourceAddressToken parses the source address tokens contained in
@@ -438,10 +426,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // reason for failure. |cached_network_params| is populated if the valid
   // token contains a CachedNetworkParameters proto.
   HandshakeFailureReason ValidateSourceAddressTokens(
-      const SourceAddressTokens& tokens,
-      const QuicIpAddress& ip,
-      QuicWallTime now,
-      CachedNetworkParameters* cached_network_params) const;
+      const SourceAddressTokens& tokens, const QuicIpAddress& ip,
+      QuicWallTime now, CachedNetworkParameters* cached_network_params) const;
 
   // Callers retain the ownership of |rejection_observer| which must outlive the
   // config.
@@ -712,8 +698,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   void ProcessClientHelloAfterCalculateSharedKeys(
       bool found_error,
       std::unique_ptr<ProofSource::Details> proof_source_details,
-      QuicTag key_exchange_type,
-      std::unique_ptr<CryptoHandshakeMessage> out,
+      QuicTag key_exchange_type, std::unique_ptr<CryptoHandshakeMessage> out,
       absl::string_view public_value,
       std::unique_ptr<ProcessClientHelloContext> context,
       const Configs& configs) const;
@@ -773,16 +758,14 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // given that the current time is |now|. Otherwise it returns the reason
   // for failure.
   HandshakeFailureReason ValidateSingleSourceAddressToken(
-      const SourceAddressToken& token,
-      const QuicIpAddress& ip,
+      const SourceAddressToken& token, const QuicIpAddress& ip,
       QuicWallTime now) const;
 
   // Returns HANDSHAKE_OK if the source address token in |token| is a timely
   // token given that the current time is |now|. Otherwise it returns the
   // reason for failure.
   HandshakeFailureReason ValidateSourceAddressTokenTimestamp(
-      const SourceAddressToken& token,
-      QuicWallTime now) const;
+      const SourceAddressToken& token, QuicWallTime now) const;
 
   // NewServerNonce generates and encrypts a random nonce.
   std::string NewServerNonce(QuicRandom* rand, QuicWallTime now) const;

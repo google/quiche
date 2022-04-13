@@ -105,8 +105,7 @@ class QUIC_EXPORT_PRIVATE CryptoHandshakeMessage {
   // GetNthValue24 interprets the value with the given tag to be a series of
   // 24-bit, length prefixed values and it returns the subvalue with the given
   // index.
-  QuicErrorCode GetNthValue24(QuicTag tag,
-                              unsigned index,
+  QuicErrorCode GetNthValue24(QuicTag tag, unsigned index,
                               absl::string_view* out) const;
   QuicErrorCode GetUint32(QuicTag tag, uint32_t* out) const;
   QuicErrorCode GetUint64(QuicTag tag, uint64_t* out) const;

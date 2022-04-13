@@ -19,10 +19,8 @@ class QUIC_EXPORT_PRIVATE AeadBaseEncrypter : public QuicEncrypter {
  public:
   // This takes the function pointer rather than the EVP_AEAD itself so
   // subclasses do not need to call CRYPTO_library_init.
-  AeadBaseEncrypter(const EVP_AEAD* (*aead_getter)(),
-                    size_t key_size,
-                    size_t auth_tag_size,
-                    size_t nonce_size,
+  AeadBaseEncrypter(const EVP_AEAD* (*aead_getter)(), size_t key_size,
+                    size_t auth_tag_size, size_t nonce_size,
                     bool use_ietf_nonce_construction);
   AeadBaseEncrypter(const AeadBaseEncrypter&) = delete;
   AeadBaseEncrypter& operator=(const AeadBaseEncrypter&) = delete;
@@ -32,12 +30,9 @@ class QUIC_EXPORT_PRIVATE AeadBaseEncrypter : public QuicEncrypter {
   bool SetKey(absl::string_view key) override;
   bool SetNoncePrefix(absl::string_view nonce_prefix) override;
   bool SetIV(absl::string_view iv) override;
-  bool EncryptPacket(uint64_t packet_number,
-                     absl::string_view associated_data,
-                     absl::string_view plaintext,
-                     char* output,
-                     size_t* output_length,
-                     size_t max_output_length) override;
+  bool EncryptPacket(uint64_t packet_number, absl::string_view associated_data,
+                     absl::string_view plaintext, char* output,
+                     size_t* output_length, size_t max_output_length) override;
   size_t GetKeySize() const override;
   size_t GetNoncePrefixSize() const override;
   size_t GetIVSize() const override;
@@ -48,10 +43,8 @@ class QUIC_EXPORT_PRIVATE AeadBaseEncrypter : public QuicEncrypter {
 
   // Necessary so unit tests can explicitly specify a nonce, instead of an IV
   // (or nonce prefix) and packet number.
-  bool Encrypt(absl::string_view nonce,
-               absl::string_view associated_data,
-               absl::string_view plaintext,
-               unsigned char* output);
+  bool Encrypt(absl::string_view nonce, absl::string_view associated_data,
+               absl::string_view plaintext, unsigned char* output);
 
  protected:
   // Make these constants available to the subclasses so that the subclasses

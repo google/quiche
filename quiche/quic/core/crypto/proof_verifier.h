@@ -47,8 +47,7 @@ class QUIC_EXPORT_PRIVATE ProofVerifierCallback {
   // description of the error. |details| contains implementation-specific
   // details of the verification. |Run| may take ownership of |details| by
   // calling |release| on it.
-  virtual void Run(bool ok,
-                   const std::string& error_details,
+  virtual void Run(bool ok, const std::string& error_details,
                    std::unique_ptr<ProofVerifyDetails>* details) = 0;
 };
 
@@ -75,16 +74,11 @@ class QUIC_EXPORT_PRIVATE ProofVerifier {
   // The signature uses SHA-256 as the hash function and PSS padding in the
   // case of RSA.
   virtual QuicAsyncStatus VerifyProof(
-      const std::string& hostname,
-      const uint16_t port,
-      const std::string& server_config,
-      QuicTransportVersion transport_version,
-      absl::string_view chlo_hash,
-      const std::vector<std::string>& certs,
-      const std::string& cert_sct,
-      const std::string& signature,
-      const ProofVerifyContext* context,
-      std::string* error_details,
+      const std::string& hostname, const uint16_t port,
+      const std::string& server_config, QuicTransportVersion transport_version,
+      absl::string_view chlo_hash, const std::vector<std::string>& certs,
+      const std::string& cert_sct, const std::string& signature,
+      const ProofVerifyContext* context, std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) = 0;
 
@@ -106,16 +100,11 @@ class QUIC_EXPORT_PRIVATE ProofVerifier {
   // will call back, on the original thread, via |callback| when complete.
   // In this case, the ProofVerifier will take ownership of |callback|.
   virtual QuicAsyncStatus VerifyCertChain(
-      const std::string& hostname,
-      const uint16_t port,
-      const std::vector<std::string>& certs,
-      const std::string& ocsp_response,
-      const std::string& cert_sct,
-      const ProofVerifyContext* context,
-      std::string* error_details,
-      std::unique_ptr<ProofVerifyDetails>* details,
-      uint8_t* out_alert,
-      std::unique_ptr<ProofVerifierCallback> callback) = 0;
+      const std::string& hostname, const uint16_t port,
+      const std::vector<std::string>& certs, const std::string& ocsp_response,
+      const std::string& cert_sct, const ProofVerifyContext* context,
+      std::string* error_details, std::unique_ptr<ProofVerifyDetails>* details,
+      uint8_t* out_alert, std::unique_ptr<ProofVerifierCallback> callback) = 0;
 
   // Returns a ProofVerifyContext instance which can be use for subsequent
   // verifications. Applications may chose create a different context and

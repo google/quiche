@@ -97,8 +97,7 @@ class QUIC_EXPORT_PRIVATE CryptoFramer : public CryptoMessageParser {
   // doesn't set error_ and doesn't call |visitor_->OnError()|.
   QuicErrorCode Process(absl::string_view input);
 
-  static bool WritePadTag(QuicDataWriter* writer,
-                          size_t pad_length,
+  static bool WritePadTag(QuicDataWriter* writer, size_t pad_length,
                           uint32_t* end_offset);
 
   // Represents the current state of the parsing state machine.

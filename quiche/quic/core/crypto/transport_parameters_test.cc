@@ -161,8 +161,7 @@ class TransportParametersTest : public QuicTestWithParam<ParsedQuicVersion> {
   ParsedQuicVersion version_;
 };
 
-INSTANTIATE_TEST_SUITE_P(TransportParametersTests,
-                         TransportParametersTest,
+INSTANTIATE_TEST_SUITE_P(TransportParametersTests, TransportParametersTest,
                          ::testing::ValuesIn(AllSupportedVersionsWithTls()),
                          ::testing::PrintToStringParamName());
 

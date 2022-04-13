@@ -37,8 +37,7 @@ class QUIC_EXPORT_PRIVATE QuicEncrypter : public QuicCrypter {
   // |plaintext| must be <= |output|.
   virtual bool EncryptPacket(uint64_t packet_number,
                              absl::string_view associated_data,
-                             absl::string_view plaintext,
-                             char* output,
+                             absl::string_view plaintext, char* output,
                              size_t* output_length,
                              size_t max_output_length) = 0;
 

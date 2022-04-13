@@ -80,9 +80,7 @@ class DefaultKeyExchangeSource : public KeyExchangeSource {
   ~DefaultKeyExchangeSource() override = default;
 
   std::unique_ptr<AsynchronousKeyExchange> Create(
-      std::string /*server_config_id*/,
-      bool /* is_fallback */,
-      QuicTag type,
+      std::string /*server_config_id*/, bool /* is_fallback */, QuicTag type,
       absl::string_view private_key) override {
     if (private_key.empty()) {
       QUIC_LOG(WARNING) << "Server config contains key exchange method without "
@@ -179,8 +177,7 @@ class ValidateClientHelloHelper {
   }
 
   void ValidationComplete(
-      QuicErrorCode error_code,
-      const char* error_details,
+      QuicErrorCode error_code, const char* error_details,
       std::unique_ptr<ProofSource::Details> proof_source_details) {
     result_->error_code = error_code;
     result_->error_details = error_details;
@@ -217,8 +214,7 @@ PrimaryConfigChangedCallback::PrimaryConfigChangedCallback() {}
 PrimaryConfigChangedCallback::~PrimaryConfigChangedCallback() {}
 
 ValidateClientHelloResultCallback::Result::Result(
-    const CryptoHandshakeMessage& in_client_hello,
-    QuicIpAddress in_client_ip,
+    const CryptoHandshakeMessage& in_client_hello, QuicIpAddress in_client_ip,
     QuicWallTime in_now)
     : client_hello(in_client_hello),
       info(in_client_ip, in_now),
@@ -253,8 +249,7 @@ QuicCryptoServerConfig::ProcessClientHelloContext::
 }
 
 void QuicCryptoServerConfig::ProcessClientHelloContext::Fail(
-    QuicErrorCode error,
-    const std::string& error_details) {
+    QuicErrorCode error, const std::string& error_details) {
   QUIC_TRACEPRINTF("ProcessClientHello failed: error=%s, details=%s",
                    QuicErrorCodeToString(error), error_details);
   done_cb_->Run(error, error_details, nullptr, nullptr, nullptr);
@@ -276,8 +271,7 @@ void QuicCryptoServerConfig::ProcessClientHelloContext::Succeed(
 
 QuicCryptoServerConfig::QuicCryptoServerConfig(
     absl::string_view source_address_token_secret,
-    QuicRandom* server_nonce_entropy,
-    std::unique_ptr<ProofSource> proof_source,
+    QuicRandom* server_nonce_entropy, std::unique_ptr<ProofSource> proof_source,
     std::unique_ptr<KeyExchangeSource> key_exchange_source)
     : replay_protection_(true),
       chlo_multiplier_(kMultiplier),
@@ -314,9 +308,7 @@ QuicCryptoServerConfig::~QuicCryptoServerConfig() {}
 
 // static
 QuicServerConfigProtobuf QuicCryptoServerConfig::GenerateConfig(
-    QuicRandom* rand,
-    const QuicClock* clock,
-    const ConfigOptions& options) {
+    QuicRandom* rand, const QuicClock* clock, const ConfigOptions& options) {
   CryptoHandshakeMessage msg;
 
   const std::string curve25519_private_key =
@@ -428,8 +420,7 @@ QuicServerConfigProtobuf QuicCryptoServerConfig::GenerateConfig(
 }
 
 std::unique_ptr<CryptoHandshakeMessage> QuicCryptoServerConfig::AddConfig(
-    const QuicServerConfigProtobuf& protobuf,
-    const QuicWallTime now) {
+    const QuicServerConfigProtobuf& protobuf, const QuicWallTime now) {
   std::unique_ptr<CryptoHandshakeMessage> msg =
       CryptoFramer::ParseMessage(protobuf.config());
 
@@ -473,8 +464,7 @@ QuicCryptoServerConfig::AddDefaultConfig(QuicRandom* rand,
 
 bool QuicCryptoServerConfig::SetConfigs(
     const std::vector<QuicServerConfigProtobuf>& protobufs,
-    const QuicServerConfigProtobuf* fallback_protobuf,
-    const QuicWallTime now) {
+    const QuicServerConfigProtobuf* fallback_protobuf, const QuicWallTime now) {
   std::vector<quiche::QuicheReferenceCountedPointer<Config>> parsed_configs;
   for (auto& protobuf : protobufs) {
     quiche::QuicheReferenceCountedPointer<Config> config =
@@ -642,8 +632,7 @@ class QuicCryptoServerConfig::ProcessClientHelloAfterGetProofCallback
   ProcessClientHelloAfterGetProofCallback(
       const QuicCryptoServerConfig* config,
       std::unique_ptr<ProofSource::Details> proof_source_details,
-      QuicTag key_exchange_type,
-      std::unique_ptr<CryptoHandshakeMessage> out,
+      QuicTag key_exchange_type, std::unique_ptr<CryptoHandshakeMessage> out,
       absl::string_view public_value,
       std::unique_ptr<ProcessClientHelloContext> context,
       const Configs& configs)
@@ -880,8 +869,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
 void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
     bool found_error,
     std::unique_ptr<ProofSource::Details> proof_source_details,
-    QuicTag key_exchange_type,
-    std::unique_ptr<CryptoHandshakeMessage> out,
+    QuicTag key_exchange_type, std::unique_ptr<CryptoHandshakeMessage> out,
     absl::string_view public_value,
     std::unique_ptr<ProcessClientHelloContext> context,
     const Configs& configs) const {
@@ -1358,14 +1346,11 @@ void QuicCryptoServerConfig::EvaluateClientHello(
 }
 
 void QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
-    QuicTransportVersion version,
-    absl::string_view chlo_hash,
+    QuicTransportVersion version, absl::string_view chlo_hash,
     const SourceAddressTokens& previous_source_address_tokens,
     const QuicSocketAddress& server_address,
-    const QuicSocketAddress& client_address,
-    const QuicClock* clock,
-    QuicRandom* rand,
-    QuicCompressedCertsCache* compressed_certs_cache,
+    const QuicSocketAddress& client_address, const QuicClock* clock,
+    QuicRandom* rand, QuicCompressedCertsCache* compressed_certs_cache,
     const QuicCryptoNegotiatedParameters& params,
     const CachedNetworkParameters* cached_network_params,
     std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb) const {
@@ -1457,8 +1442,7 @@ void QuicCryptoServerConfig::FinishBuildServerConfigUpdateMessage(
 }
 
 void QuicCryptoServerConfig::BuildRejectionAndRecordStats(
-    const ProcessClientHelloContext& context,
-    const Config& config,
+    const ProcessClientHelloContext& context, const Config& config,
     const std::vector<uint32_t>& reject_reasons,
     CryptoHandshakeMessage* out) const {
   BuildRejection(context, config, reject_reasons, out);
@@ -1468,8 +1452,7 @@ void QuicCryptoServerConfig::BuildRejectionAndRecordStats(
 }
 
 void QuicCryptoServerConfig::BuildRejection(
-    const ProcessClientHelloContext& context,
-    const Config& config,
+    const ProcessClientHelloContext& context, const Config& config,
     const std::vector<uint32_t>& reject_reasons,
     CryptoHandshakeMessage* out) const {
   const QuicWallTime now = context.clock()->WallNow();
@@ -1549,15 +1532,15 @@ void QuicCryptoServerConfig::BuildRejection(
             context.signed_config()->chain->certs;
         std::string ca_subject;
         if (!certs.empty()) {
-            std::unique_ptr<CertificateView> view =
-                CertificateView::ParseSingleCertificate(certs[0]);
-            if (view != nullptr) {
-              absl::optional<std::string> maybe_ca_subject =
-                  view->GetHumanReadableSubject();
-              if (maybe_ca_subject.has_value()) {
-                ca_subject = *maybe_ca_subject;
-              }
+          std::unique_ptr<CertificateView> view =
+              CertificateView::ParseSingleCertificate(certs[0]);
+          if (view != nullptr) {
+            absl::optional<std::string> maybe_ca_subject =
+                view->GetHumanReadableSubject();
+            if (maybe_ca_subject.has_value()) {
+              ca_subject = *maybe_ca_subject;
             }
+          }
         }
         QUIC_LOG_EVERY_N_SEC(WARNING, 60)
             << "SCT is expected but it is empty. sni: '"
@@ -1735,10 +1718,8 @@ void QuicCryptoServerConfig::AcquirePrimaryConfigChangedCb(
 
 std::string QuicCryptoServerConfig::NewSourceAddressToken(
     const CryptoSecretBoxer& crypto_secret_boxer,
-    const SourceAddressTokens& previous_tokens,
-    const QuicIpAddress& ip,
-    QuicRandom* rand,
-    QuicWallTime now,
+    const SourceAddressTokens& previous_tokens, const QuicIpAddress& ip,
+    QuicRandom* rand, QuicWallTime now,
     const CachedNetworkParameters* cached_network_params) const {
   SourceAddressTokens source_address_tokens;
   SourceAddressToken* source_address_token = source_address_tokens.add_tokens();
@@ -1780,9 +1761,7 @@ ProofSource* QuicCryptoServerConfig::proof_source() const {
   return proof_source_.get();
 }
 
-SSL_CTX* QuicCryptoServerConfig::ssl_ctx() const {
-  return ssl_ctx_.get();
-}
+SSL_CTX* QuicCryptoServerConfig::ssl_ctx() const { return ssl_ctx_.get(); }
 
 HandshakeFailureReason QuicCryptoServerConfig::ParseSourceAddressToken(
     const CryptoSecretBoxer& crypto_secret_boxer, absl::string_view token,
@@ -1808,10 +1787,8 @@ HandshakeFailureReason QuicCryptoServerConfig::ParseSourceAddressToken(
 }
 
 HandshakeFailureReason QuicCryptoServerConfig::ValidateSourceAddressTokens(
-    const SourceAddressTokens& source_address_tokens,
-    const QuicIpAddress& ip,
-    QuicWallTime now,
-    CachedNetworkParameters* cached_network_params) const {
+    const SourceAddressTokens& source_address_tokens, const QuicIpAddress& ip,
+    QuicWallTime now, CachedNetworkParameters* cached_network_params) const {
   HandshakeFailureReason reason =
       SOURCE_ADDRESS_TOKEN_DIFFERENT_IP_ADDRESS_FAILURE;
   for (const SourceAddressToken& token : source_address_tokens.tokens()) {
@@ -1828,8 +1805,7 @@ HandshakeFailureReason QuicCryptoServerConfig::ValidateSourceAddressTokens(
 }
 
 HandshakeFailureReason QuicCryptoServerConfig::ValidateSingleSourceAddressToken(
-    const SourceAddressToken& source_address_token,
-    const QuicIpAddress& ip,
+    const SourceAddressToken& source_address_token, const QuicIpAddress& ip,
     QuicWallTime now) const {
   if (source_address_token.ip() != ip.DualStacked().ToPackedString()) {
     // It's for a different IP address.
@@ -1841,8 +1817,7 @@ HandshakeFailureReason QuicCryptoServerConfig::ValidateSingleSourceAddressToken(
 
 HandshakeFailureReason
 QuicCryptoServerConfig::ValidateSourceAddressTokenTimestamp(
-    const SourceAddressToken& source_address_token,
-    QuicWallTime now) const {
+    const SourceAddressToken& source_address_token, QuicWallTime now) const {
   const QuicWallTime timestamp(
       QuicWallTime::FromUNIXSeconds(source_address_token.timestamp()));
   const QuicTime::Delta delta(now.AbsoluteDifference(timestamp));

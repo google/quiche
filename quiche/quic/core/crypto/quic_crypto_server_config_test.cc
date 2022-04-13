@@ -145,8 +145,7 @@ class SourceAddressTokenTest : public QuicTest {
         ip6_(QuicIpAddress::Loopback6()),
         original_time_(QuicWallTime::Zero()),
         rand_(QuicRandom::GetInstance()),
-        server_(QuicCryptoServerConfig::TESTING,
-                rand_,
+        server_(QuicCryptoServerConfig::TESTING, rand_,
                 crypto_test_utils::ProofSourceForTesting(),
                 KeyExchangeSource::Default()),
         peer_(&server_) {
@@ -164,16 +163,14 @@ class SourceAddressTokenTest : public QuicTest {
   }
 
   std::string NewSourceAddressToken(
-      std::string config_id,
-      const QuicIpAddress& ip,
+      std::string config_id, const QuicIpAddress& ip,
       const SourceAddressTokens& previous_tokens) {
     return peer_.NewSourceAddressToken(config_id, previous_tokens, ip, rand_,
                                        clock_.WallNow(), nullptr);
   }
 
   std::string NewSourceAddressToken(
-      std::string config_id,
-      const QuicIpAddress& ip,
+      std::string config_id, const QuicIpAddress& ip,
       CachedNetworkParameters* cached_network_params) {
     SourceAddressTokens previous_tokens;
     return peer_.NewSourceAddressToken(config_id, previous_tokens, ip, rand_,
@@ -187,9 +184,7 @@ class SourceAddressTokenTest : public QuicTest {
   }
 
   HandshakeFailureReason ValidateSourceAddressTokens(
-      std::string config_id,
-      absl::string_view srct,
-      const QuicIpAddress& ip,
+      std::string config_id, absl::string_view srct, const QuicIpAddress& ip,
       CachedNetworkParameters* cached_network_params) {
     return peer_.ValidateSourceAddressTokens(
         config_id, srct, ip, clock_.WallNow(), cached_network_params);
@@ -287,8 +282,7 @@ class CryptoServerConfigsTest : public QuicTest {
  public:
   CryptoServerConfigsTest()
       : rand_(QuicRandom::GetInstance()),
-        config_(QuicCryptoServerConfig::TESTING,
-                rand_,
+        config_(QuicCryptoServerConfig::TESTING, rand_,
                 crypto_test_utils::ProofSourceForTesting(),
                 KeyExchangeSource::Default()),
         test_peer_(&config_) {}

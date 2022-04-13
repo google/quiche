@@ -106,31 +106,23 @@ ssl_select_cert_result_t TlsServerConnection::EarlySelectCertCallback(
 }
 
 // static
-int TlsServerConnection::TlsExtServernameCallback(SSL* ssl,
-                                                  int* out_alert,
+int TlsServerConnection::TlsExtServernameCallback(SSL* ssl, int* out_alert,
                                                   void* /*arg*/) {
   return ConnectionFromSsl(ssl)->delegate_->TlsExtServernameCallback(out_alert);
 }
 
 // static
-int TlsServerConnection::SelectAlpnCallback(SSL* ssl,
-                                            const uint8_t** out,
-                                            uint8_t* out_len,
-                                            const uint8_t* in,
-                                            unsigned in_len,
-                                            void* /*arg*/) {
+int TlsServerConnection::SelectAlpnCallback(SSL* ssl, const uint8_t** out,
+                                            uint8_t* out_len, const uint8_t* in,
+                                            unsigned in_len, void* /*arg*/) {
   return ConnectionFromSsl(ssl)->delegate_->SelectAlpn(out, out_len, in,
                                                        in_len);
 }
 
 // static
-ssl_private_key_result_t TlsServerConnection::PrivateKeySign(SSL* ssl,
-                                                             uint8_t* out,
-                                                             size_t* out_len,
-                                                             size_t max_out,
-                                                             uint16_t sig_alg,
-                                                             const uint8_t* in,
-                                                             size_t in_len) {
+ssl_private_key_result_t TlsServerConnection::PrivateKeySign(
+    SSL* ssl, uint8_t* out, size_t* out_len, size_t max_out, uint16_t sig_alg,
+    const uint8_t* in, size_t in_len) {
   return ConnectionFromSsl(ssl)->delegate_->PrivateKeySign(
       out, out_len, max_out, sig_alg,
       absl::string_view(reinterpret_cast<const char*>(in), in_len));
@@ -138,10 +130,7 @@ ssl_private_key_result_t TlsServerConnection::PrivateKeySign(SSL* ssl,
 
 // static
 ssl_private_key_result_t TlsServerConnection::PrivateKeyComplete(
-    SSL* ssl,
-    uint8_t* out,
-    size_t* out_len,
-    size_t max_out) {
+    SSL* ssl, uint8_t* out, size_t* out_len, size_t max_out) {
   return ConnectionFromSsl(ssl)->delegate_->PrivateKeyComplete(out, out_len,
                                                                max_out);
 }
@@ -159,12 +148,9 @@ size_t TlsServerConnection::SessionTicketMaxOverhead(SSL* ssl) {
 }
 
 // static
-int TlsServerConnection::SessionTicketSeal(SSL* ssl,
-                                           uint8_t* out,
-                                           size_t* out_len,
-                                           size_t max_out_len,
-                                           const uint8_t* in,
-                                           size_t in_len) {
+int TlsServerConnection::SessionTicketSeal(SSL* ssl, uint8_t* out,
+                                           size_t* out_len, size_t max_out_len,
+                                           const uint8_t* in, size_t in_len) {
   return ConnectionFromSsl(ssl)->delegate_->SessionTicketSeal(
       out, out_len, max_out_len,
       absl::string_view(reinterpret_cast<const char*>(in), in_len));
@@ -172,12 +158,8 @@ int TlsServerConnection::SessionTicketSeal(SSL* ssl,
 
 // static
 enum ssl_ticket_aead_result_t TlsServerConnection::SessionTicketOpen(
-    SSL* ssl,
-    uint8_t* out,
-    size_t* out_len,
-    size_t max_out_len,
-    const uint8_t* in,
-    size_t in_len) {
+    SSL* ssl, uint8_t* out, size_t* out_len, size_t max_out_len,
+    const uint8_t* in, size_t in_len) {
   return ConnectionFromSsl(ssl)->delegate_->SessionTicketOpen(
       out, out_len, max_out_len,
       absl::string_view(reinterpret_cast<const char*>(in), in_len));

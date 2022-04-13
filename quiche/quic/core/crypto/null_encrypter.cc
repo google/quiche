@@ -16,17 +16,13 @@ const size_t kHashSizeShort = 12;  // size of uint128 serialized short
 NullEncrypter::NullEncrypter(Perspective perspective)
     : perspective_(perspective) {}
 
-bool NullEncrypter::SetKey(absl::string_view key) {
-  return key.empty();
-}
+bool NullEncrypter::SetKey(absl::string_view key) { return key.empty(); }
 
 bool NullEncrypter::SetNoncePrefix(absl::string_view nonce_prefix) {
   return nonce_prefix.empty();
 }
 
-bool NullEncrypter::SetIV(absl::string_view iv) {
-  return iv.empty();
-}
+bool NullEncrypter::SetIV(absl::string_view iv) { return iv.empty(); }
 
 bool NullEncrypter::SetHeaderProtectionKey(absl::string_view key) {
   return key.empty();
@@ -34,8 +30,7 @@ bool NullEncrypter::SetHeaderProtectionKey(absl::string_view key) {
 
 bool NullEncrypter::EncryptPacket(uint64_t /*packet_number*/,
                                   absl::string_view associated_data,
-                                  absl::string_view plaintext,
-                                  char* output,
+                                  absl::string_view plaintext, char* output,
                                   size_t* output_length,
                                   size_t max_output_length) {
   const size_t len = plaintext.size() + GetHashLength();
@@ -64,17 +59,11 @@ std::string NullEncrypter::GenerateHeaderProtectionMask(
   return std::string(5, 0);
 }
 
-size_t NullEncrypter::GetKeySize() const {
-  return 0;
-}
+size_t NullEncrypter::GetKeySize() const { return 0; }
 
-size_t NullEncrypter::GetNoncePrefixSize() const {
-  return 0;
-}
+size_t NullEncrypter::GetNoncePrefixSize() const { return 0; }
 
-size_t NullEncrypter::GetIVSize() const {
-  return 0;
-}
+size_t NullEncrypter::GetIVSize() const { return 0; }
 
 size_t NullEncrypter::GetMaxPlaintextSize(size_t ciphertext_size) const {
   return ciphertext_size - std::min(ciphertext_size, GetHashLength());
@@ -88,16 +77,12 @@ QuicPacketCount NullEncrypter::GetConfidentialityLimit() const {
   return std::numeric_limits<QuicPacketCount>::max();
 }
 
-absl::string_view NullEncrypter::GetKey() const {
-  return absl::string_view();
-}
+absl::string_view NullEncrypter::GetKey() const { return absl::string_view(); }
 
 absl::string_view NullEncrypter::GetNoncePrefix() const {
   return absl::string_view();
 }
 
-size_t NullEncrypter::GetHashLength() const {
-  return kHashSizeShort;
-}
+size_t NullEncrypter::GetHashLength() const { return kHashSizeShort; }
 
 }  // namespace quic

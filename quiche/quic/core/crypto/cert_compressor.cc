@@ -510,8 +510,7 @@ std::string CertCompressor::CompressChain(
 
 // static
 bool CertCompressor::DecompressChain(
-    absl::string_view in,
-    const std::vector<std::string>& cached_certs,
+    absl::string_view in, const std::vector<std::string>& cached_certs,
     std::vector<std::string>* out_certs) {
   std::vector<CertEntry> entries;
   if (!ParseEntries(&in, cached_certs, &entries, out_certs)) {

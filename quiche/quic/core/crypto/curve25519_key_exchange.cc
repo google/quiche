@@ -63,8 +63,7 @@ std::string Curve25519KeyExchange::NewPrivateKey(QuicRandom* rand) {
 }
 
 bool Curve25519KeyExchange::CalculateSharedKeySync(
-    absl::string_view peer_public_value,
-    std::string* shared_key) const {
+    absl::string_view peer_public_value, std::string* shared_key) const {
   if (peer_public_value.size() != X25519_PUBLIC_VALUE_LEN) {
     return false;
   }

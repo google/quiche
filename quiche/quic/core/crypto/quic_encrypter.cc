@@ -21,8 +21,7 @@ namespace quic {
 
 // static
 std::unique_ptr<QuicEncrypter> QuicEncrypter::Create(
-    const ParsedQuicVersion& version,
-    QuicTag algorithm) {
+    const ParsedQuicVersion& version, QuicTag algorithm) {
   switch (algorithm) {
     case kAESG:
       if (version.UsesInitialObfuscators()) {

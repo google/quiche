@@ -45,8 +45,7 @@ class DummyProofVerifierCallback : public ProofVerifierCallback {
   DummyProofVerifierCallback() {}
   ~DummyProofVerifierCallback() override {}
 
-  void Run(bool /*ok*/,
-           const std::string& /*error_details*/,
+  void Run(bool /*ok*/, const std::string& /*error_details*/,
            std::unique_ptr<ProofVerifyDetails>* /*details*/) override {
     QUICHE_DCHECK(false);
   }
@@ -94,8 +93,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
       : rand_(QuicRandom::GetInstance()),
         client_address_(QuicIpAddress::Loopback4(), 1234),
         client_version_(UnsupportedQuicVersion()),
-        config_(QuicCryptoServerConfig::TESTING,
-                rand_,
+        config_(QuicCryptoServerConfig::TESTING, rand_,
                 crypto_test_utils::ProofSourceForTesting(),
                 KeyExchangeSource::Default()),
         peer_(&config_),
@@ -176,10 +174,8 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
   // it on to ProcessClientHello.
   class ValidateCallback : public ValidateClientHelloResultCallback {
    public:
-    ValidateCallback(CryptoServerTest* test,
-                     bool should_succeed,
-                     const char* error_substr,
-                     bool* called)
+    ValidateCallback(CryptoServerTest* test, bool should_succeed,
+                     const char* error_substr, bool* called)
         : test_(test),
           should_succeed_(should_succeed),
           error_substr_(error_substr),
@@ -259,8 +255,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
       *called_ = false;
     }
 
-    void Run(QuicErrorCode error,
-             const std::string& error_details,
+    void Run(QuicErrorCode error, const std::string& error_details,
              std::unique_ptr<CryptoHandshakeMessage> message,
              std::unique_ptr<DiversificationNonce> /*diversification_nonce*/,
              std::unique_ptr<ProofSource::Details> /*proof_source_details*/)
@@ -366,8 +361,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
   std::unique_ptr<CryptoHandshakeMessage> server_config_;
 };
 
-INSTANTIATE_TEST_SUITE_P(CryptoServerTests,
-                         CryptoServerTest,
+INSTANTIATE_TEST_SUITE_P(CryptoServerTests, CryptoServerTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 

@@ -30,8 +30,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceX509 : public ProofSource {
   // ProofSource implementation.
   void GetProof(const QuicSocketAddress& server_address,
                 const QuicSocketAddress& client_address,
-                const std::string& hostname,
-                const std::string& server_config,
+                const std::string& hostname, const std::string& server_config,
                 QuicTransportVersion transport_version,
                 absl::string_view chlo_hash,
                 std::unique_ptr<Callback> callback) override;

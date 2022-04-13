@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <string>
-
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
+
+#include <string>
 
 namespace quic {
 
@@ -21,8 +21,7 @@ inline void hash_combine(uint64_t* seed, const uint64_t& val) {
 const size_t QuicCompressedCertsCache::kQuicCompressedCertsCacheSize = 225;
 
 QuicCompressedCertsCache::UncompressedCerts::UncompressedCerts()
-    : chain(nullptr),
-      client_cached_cert_hashes(nullptr) {}
+    : chain(nullptr), client_cached_cert_hashes(nullptr) {}
 
 QuicCompressedCertsCache::UncompressedCerts::UncompressedCerts(
     const quiche::QuicheReferenceCountedPointer<ProofSource::Chain>& chain,
@@ -98,13 +97,9 @@ void QuicCompressedCertsCache::Insert(
   certs_cache_.Insert(key, std::move(cached_certs));
 }
 
-size_t QuicCompressedCertsCache::MaxSize() {
-  return certs_cache_.MaxSize();
-}
+size_t QuicCompressedCertsCache::MaxSize() { return certs_cache_.MaxSize(); }
 
-size_t QuicCompressedCertsCache::Size() {
-  return certs_cache_.Size();
-}
+size_t QuicCompressedCertsCache::Size() { return certs_cache_.Size(); }
 
 uint64_t QuicCompressedCertsCache::ComputeUncompressedCertsHash(
     const UncompressedCerts& uncompressed_certs) {

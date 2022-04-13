@@ -19,10 +19,8 @@ class QUIC_EXPORT_PRIVATE AeadBaseDecrypter : public QuicDecrypter {
  public:
   // This takes the function pointer rather than the EVP_AEAD itself so
   // subclasses do not need to call CRYPTO_library_init.
-  AeadBaseDecrypter(const EVP_AEAD* (*aead_getter)(),
-                    size_t key_size,
-                    size_t auth_tag_size,
-                    size_t nonce_size,
+  AeadBaseDecrypter(const EVP_AEAD* (*aead_getter)(), size_t key_size,
+                    size_t auth_tag_size, size_t nonce_size,
                     bool use_ietf_nonce_construction);
   AeadBaseDecrypter(const AeadBaseDecrypter&) = delete;
   AeadBaseDecrypter& operator=(const AeadBaseDecrypter&) = delete;
@@ -34,12 +32,9 @@ class QUIC_EXPORT_PRIVATE AeadBaseDecrypter : public QuicDecrypter {
   bool SetIV(absl::string_view iv) override;
   bool SetPreliminaryKey(absl::string_view key) override;
   bool SetDiversificationNonce(const DiversificationNonce& nonce) override;
-  bool DecryptPacket(uint64_t packet_number,
-                     absl::string_view associated_data,
-                     absl::string_view ciphertext,
-                     char* output,
-                     size_t* output_length,
-                     size_t max_output_length) override;
+  bool DecryptPacket(uint64_t packet_number, absl::string_view associated_data,
+                     absl::string_view ciphertext, char* output,
+                     size_t* output_length, size_t max_output_length) override;
   size_t GetKeySize() const override;
   size_t GetNoncePrefixSize() const override;
   size_t GetIVSize() const override;

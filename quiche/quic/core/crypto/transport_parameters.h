@@ -56,8 +56,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
     bool Read(QuicDataReader* reader, std::string* error_details);
     // operator<< allows easily logging integer transport parameters.
     friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-        std::ostream& os,
-        const IntegerParameter& param);
+        std::ostream& os, const IntegerParameter& param);
 
    private:
     friend struct TransportParameters;
@@ -65,10 +64,8 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
     // This constructor sets |default_value| and |min_value| to 0, and
     // |max_value| to kVarInt62MaxValue.
     explicit IntegerParameter(TransportParameterId param_id);
-    IntegerParameter(TransportParameterId param_id,
-                     uint64_t default_value,
-                     uint64_t min_value,
-                     uint64_t max_value);
+    IntegerParameter(TransportParameterId param_id, uint64_t default_value,
+                     uint64_t min_value, uint64_t max_value);
     IntegerParameter(const IntegerParameter& other) = default;
     IntegerParameter(IntegerParameter&& other) = default;
     // Human-readable string representation.
@@ -106,8 +103,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
     // Allows easily logging.
     std::string ToString() const;
     friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-        std::ostream& os,
-        const TransportParameters& params);
+        std::ostream& os, const TransportParameters& params);
   };
 
   // LegacyVersionInformation represents the Google QUIC downgrade prevention
@@ -271,16 +267,14 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // Allows easily logging transport parameters.
   std::string ToString() const;
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const TransportParameters& params);
+      std::ostream& os, const TransportParameters& params);
 };
 
 // Serializes a TransportParameters struct into the format for sending it in a
 // TLS extension. The serialized bytes are written to |*out|. Returns if the
 // parameters are valid and serialization succeeded.
 QUIC_EXPORT_PRIVATE bool SerializeTransportParameters(
-    ParsedQuicVersion version,
-    const TransportParameters& in,
+    ParsedQuicVersion version, const TransportParameters& in,
     std::vector<uint8_t>* out);
 
 // Parses bytes from the quic_transport_parameters TLS extension and writes the
@@ -289,12 +283,9 @@ QUIC_EXPORT_PRIVATE bool SerializeTransportParameters(
 // This method returns true if the input was successfully parsed.
 // On failure, this method will write a human-readable error message to
 // |error_details|.
-QUIC_EXPORT_PRIVATE bool ParseTransportParameters(ParsedQuicVersion version,
-                                                  Perspective perspective,
-                                                  const uint8_t* in,
-                                                  size_t in_len,
-                                                  TransportParameters* out,
-                                                  std::string* error_details);
+QUIC_EXPORT_PRIVATE bool ParseTransportParameters(
+    ParsedQuicVersion version, Perspective perspective, const uint8_t* in,
+    size_t in_len, TransportParameters* out, std::string* error_details);
 
 // Serializes |in| and |application_data| in a deterministic format so that
 // multiple calls to SerializeTransportParametersForTicket with the same inputs
@@ -305,8 +296,7 @@ QUIC_EXPORT_PRIVATE bool ParseTransportParameters(ParsedQuicVersion version,
 // match what they were on the connection that issued an early data capable
 // ticket.
 QUIC_EXPORT_PRIVATE bool SerializeTransportParametersForTicket(
-    const TransportParameters& in,
-    const std::vector<uint8_t>& application_data,
+    const TransportParameters& in, const std::vector<uint8_t>& application_data,
     std::vector<uint8_t>* out);
 
 }  // namespace quic

@@ -73,13 +73,9 @@ std::unique_ptr<CryptoHandshakeMessage> CryptoFramer::ParseMessage(
   return visitor.release();
 }
 
-QuicErrorCode CryptoFramer::error() const {
-  return error_;
-}
+QuicErrorCode CryptoFramer::error() const { return error_; }
 
-const std::string& CryptoFramer::error_detail() const {
-  return error_detail_;
-}
+const std::string& CryptoFramer::error_detail() const { return error_detail_; }
 
 bool CryptoFramer::ProcessInput(absl::string_view input,
                                 EncryptionLevel /*level*/) {
@@ -101,9 +97,7 @@ bool CryptoFramer::ProcessInput(absl::string_view input) {
   return true;
 }
 
-size_t CryptoFramer::InputBytesRemaining() const {
-  return buffer_.length();
-}
+size_t CryptoFramer::InputBytesRemaining() const { return buffer_.length(); }
 
 bool CryptoFramer::HasTag(QuicTag tag) const {
   if (state_ != STATE_READING_VALUES) {
@@ -340,8 +334,7 @@ QuicErrorCode CryptoFramer::Process(absl::string_view input) {
 }
 
 // static
-bool CryptoFramer::WritePadTag(QuicDataWriter* writer,
-                               size_t pad_length,
+bool CryptoFramer::WritePadTag(QuicDataWriter* writer, size_t pad_length,
                                uint32_t* end_offset) {
   if (!writer->WriteTag(kPAD)) {
     QUICHE_DCHECK(false) << "Failed to write tag.";

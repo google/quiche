@@ -218,9 +218,7 @@ int HexDigitToInt(char ch) {
 // Converts |in| to bytes and stores the bytes in the |out| buffer. The
 // number of bytes converted is returned in |*out_len|. Returns true on
 // success, false on failure.
-bool DecodeHexString(const char* in,
-                     char* out,
-                     size_t* out_len,
+bool DecodeHexString(const char* in, char* out, size_t* out_len,
                      size_t max_len) {
   if (!in) {
     *out_len = static_cast<size_t>(-1);

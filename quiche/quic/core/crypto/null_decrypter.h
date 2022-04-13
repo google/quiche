@@ -35,12 +35,9 @@ class QUIC_EXPORT_PRIVATE NullDecrypter : public QuicDecrypter {
   bool SetHeaderProtectionKey(absl::string_view key) override;
   bool SetPreliminaryKey(absl::string_view key) override;
   bool SetDiversificationNonce(const DiversificationNonce& nonce) override;
-  bool DecryptPacket(uint64_t packet_number,
-                     absl::string_view associated_data,
-                     absl::string_view ciphertext,
-                     char* output,
-                     size_t* output_length,
-                     size_t max_output_length) override;
+  bool DecryptPacket(uint64_t packet_number, absl::string_view associated_data,
+                     absl::string_view ciphertext, char* output,
+                     size_t* output_length, size_t max_output_length) override;
   std::string GenerateHeaderProtectionMask(
       QuicDataReader* sample_reader) override;
   size_t GetKeySize() const override;

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/core/crypto/quic_random.h"
+
 #include <cstdint>
 #include <cstring>
 
@@ -85,9 +86,7 @@ void DefaultRandom::InsecureRandBytes(void* data, size_t len) {
   }
 }
 
-uint64_t DefaultRandom::InsecureRandUint64() {
-  return Xoshiro256PlusPlus();
-}
+uint64_t DefaultRandom::InsecureRandUint64() { return Xoshiro256PlusPlus(); }
 
 }  // namespace
 

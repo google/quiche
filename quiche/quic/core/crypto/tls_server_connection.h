@@ -41,10 +41,8 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
     virtual int TlsExtServernameCallback(int* out_alert) = 0;
 
     // Selects which ALPN to use based on the list sent by the client.
-    virtual int SelectAlpn(const uint8_t** out,
-                           uint8_t* out_len,
-                           const uint8_t* in,
-                           unsigned in_len) = 0;
+    virtual int SelectAlpn(const uint8_t** out, uint8_t* out_len,
+                           const uint8_t* in, unsigned in_len) = 0;
 
     // Signs |in| using the signature algorithm specified by |sig_alg| (an
     // SSL_SIGN_* value). If the signing operation cannot be completed
@@ -82,10 +80,8 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
     // resulting encrypted ticket in |out|, writing the length of the bytes
     // written to |*out_len|, which is no larger than |max_out_len|. It returns
     // 1 on success and 0 on error.
-    virtual int SessionTicketSeal(uint8_t* out,
-                                  size_t* out_len,
-                                  size_t max_out_len,
-                                  absl::string_view in) = 0;
+    virtual int SessionTicketSeal(uint8_t* out, size_t* out_len,
+                                  size_t max_out_len, absl::string_view in) = 0;
 
     // SessionTicketOpen is called when BoringSSL has an encrypted session
     // ticket |in| and wants the ticket decrypted. This decryption operation can
@@ -108,9 +104,7 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
     // instead. If a fatal error occurs, ssl_ticket_aead_error can be returned
     // which will terminate the handshake.
     virtual enum ssl_ticket_aead_result_t SessionTicketOpen(
-        uint8_t* out,
-        size_t* out_len,
-        size_t max_out_len,
+        uint8_t* out, size_t* out_len, size_t max_out_len,
         absl::string_view in) = 0;
 
     // Provides the delegate for callbacks that are shared between client and
@@ -120,8 +114,7 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
     friend class TlsServerConnection;
   };
 
-  TlsServerConnection(SSL_CTX* ssl_ctx,
-                      Delegate* delegate,
+  TlsServerConnection(SSL_CTX* ssl_ctx, Delegate* delegate,
                       QuicSSLConfig ssl_config);
 
   // Creates and configures an SSL_CTX that is appropriate for servers to use.
@@ -144,12 +137,8 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
   // These functions are registered as callbacks in BoringSSL and delegate their
   // implementation to the matching methods in Delegate above.
   static int TlsExtServernameCallback(SSL* ssl, int* out_alert, void* arg);
-  static int SelectAlpnCallback(SSL* ssl,
-                                const uint8_t** out,
-                                uint8_t* out_len,
-                                const uint8_t* in,
-                                unsigned in_len,
-                                void* arg);
+  static int SelectAlpnCallback(SSL* ssl, const uint8_t** out, uint8_t* out_len,
+                                const uint8_t* in, unsigned in_len, void* arg);
 
   // |kPrivateKeyMethod| is a vtable pointing to PrivateKeySign and
   // PrivateKeyComplete used by the TLS stack to compute the signature for the
@@ -157,15 +146,10 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
   static const SSL_PRIVATE_KEY_METHOD kPrivateKeyMethod;
 
   // The following functions make up the contents of |kPrivateKeyMethod|.
-  static ssl_private_key_result_t PrivateKeySign(SSL* ssl,
-                                                 uint8_t* out,
-                                                 size_t* out_len,
-                                                 size_t max_out,
-                                                 uint16_t sig_alg,
-                                                 const uint8_t* in,
-                                                 size_t in_len);
-  static ssl_private_key_result_t PrivateKeyComplete(SSL* ssl,
-                                                     uint8_t* out,
+  static ssl_private_key_result_t PrivateKeySign(
+      SSL* ssl, uint8_t* out, size_t* out_len, size_t max_out, uint16_t sig_alg,
+      const uint8_t* in, size_t in_len);
+  static ssl_private_key_result_t PrivateKeyComplete(SSL* ssl, uint8_t* out,
                                                      size_t* out_len,
                                                      size_t max_out);
 
@@ -175,14 +159,10 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
 
   // The following functions make up the contents of |kSessionTicketMethod|.
   static size_t SessionTicketMaxOverhead(SSL* ssl);
-  static int SessionTicketSeal(SSL* ssl,
-                               uint8_t* out,
-                               size_t* out_len,
-                               size_t max_out_len,
-                               const uint8_t* in,
+  static int SessionTicketSeal(SSL* ssl, uint8_t* out, size_t* out_len,
+                               size_t max_out_len, const uint8_t* in,
                                size_t in_len);
-  static enum ssl_ticket_aead_result_t SessionTicketOpen(SSL* ssl,
-                                                         uint8_t* out,
+  static enum ssl_ticket_aead_result_t SessionTicketOpen(SSL* ssl, uint8_t* out,
                                                          size_t* out_len,
                                                          size_t max_out_len,
                                                          const uint8_t* in,

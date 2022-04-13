@@ -57,8 +57,7 @@ class QUIC_EXPORT_PRIVATE QuicDecrypter : public QuicCrypter {
   // to non-authentic inputs, as opposed to other reasons for failure.
   virtual bool DecryptPacket(uint64_t packet_number,
                              absl::string_view associated_data,
-                             absl::string_view ciphertext,
-                             char* output,
+                             absl::string_view ciphertext, char* output,
                              size_t* output_length,
                              size_t max_output_length) = 0;
 
@@ -84,8 +83,7 @@ class QUIC_EXPORT_PRIVATE QuicDecrypter : public QuicCrypter {
   static void DiversifyPreliminaryKey(absl::string_view preliminary_key,
                                       absl::string_view nonce_prefix,
                                       const DiversificationNonce& nonce,
-                                      size_t key_size,
-                                      size_t nonce_prefix_size,
+                                      size_t key_size, size_t nonce_prefix_size,
                                       std::string* out_key,
                                       std::string* out_nonce_prefix);
 };

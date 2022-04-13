@@ -48,8 +48,7 @@ class QUIC_EXPORT_PRIVATE AsynchronousKeyExchange {
   // that |callback| might be invoked synchronously.  Results will be written
   // into |*shared_key|.
   virtual void CalculateSharedKeyAsync(
-      absl::string_view peer_public_value,
-      std::string* shared_key,
+      absl::string_view peer_public_value, std::string* shared_key,
       std::unique_ptr<Callback> callback) const = 0;
 
   // Tag indicating the key-exchange algorithm this object will use.
@@ -90,15 +89,13 @@ class QUIC_EXPORT_PRIVATE SynchronousKeyExchange
 // must be one of {kC255, kC256}.  Returns nullptr if |private_key| or |type| is
 // invalid.
 std::unique_ptr<SynchronousKeyExchange> CreateLocalSynchronousKeyExchange(
-    QuicTag type,
-    absl::string_view private_key);
+    QuicTag type, absl::string_view private_key);
 
 // Create a SynchronousKeyExchange object which will use a keypair generated
 // from |rand|, and a key-exchange algorithm specified by |type|, which must be
 // one of {kC255, kC256}.  Returns nullptr if |type| is invalid.
 std::unique_ptr<SynchronousKeyExchange> CreateLocalSynchronousKeyExchange(
-    QuicTag type,
-    QuicRandom* rand);
+    QuicTag type, QuicRandom* rand);
 
 }  // namespace quic
 

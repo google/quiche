@@ -91,27 +91,18 @@ class QUIC_EXPORT_PRIVATE WebTransportFingerprintProofVerifier
 
   // ProofVerifier implementation.
   QuicAsyncStatus VerifyProof(
-      const std::string& hostname,
-      const uint16_t port,
-      const std::string& server_config,
-      QuicTransportVersion transport_version,
-      absl::string_view chlo_hash,
-      const std::vector<std::string>& certs,
-      const std::string& cert_sct,
-      const std::string& signature,
-      const ProofVerifyContext* context,
-      std::string* error_details,
+      const std::string& hostname, const uint16_t port,
+      const std::string& server_config, QuicTransportVersion transport_version,
+      absl::string_view chlo_hash, const std::vector<std::string>& certs,
+      const std::string& cert_sct, const std::string& signature,
+      const ProofVerifyContext* context, std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) override;
   QuicAsyncStatus VerifyCertChain(
-      const std::string& hostname,
-      const uint16_t port,
-      const std::vector<std::string>& certs,
-      const std::string& ocsp_response,
-      const std::string& cert_sct,
-      const ProofVerifyContext* context,
-      std::string* error_details,
-      std::unique_ptr<ProofVerifyDetails>* details,
+      const std::string& hostname, const uint16_t port,
+      const std::vector<std::string>& certs, const std::string& ocsp_response,
+      const std::string& cert_sct, const ProofVerifyContext* context,
+      std::string* error_details, std::unique_ptr<ProofVerifyDetails>* details,
       uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) override;
   std::unique_ptr<ProofVerifyContext> CreateDefaultContext() override;

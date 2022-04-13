@@ -186,8 +186,7 @@ int TlsConnection::SetWriteSecretCallback(SSL* ssl,
 // static
 int TlsConnection::WriteMessageCallback(SSL* ssl,
                                         enum ssl_encryption_level_t level,
-                                        const uint8_t* data,
-                                        size_t len) {
+                                        const uint8_t* data, size_t len) {
   ConnectionFromSsl(ssl)->delegate_->WriteMessage(
       QuicEncryptionLevel(level),
       absl::string_view(reinterpret_cast<const char*>(data), len));

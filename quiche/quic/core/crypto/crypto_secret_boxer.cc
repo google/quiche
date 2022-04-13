@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "quiche/quic/core/crypto/crypto_secret_boxer.h"
+
 #include <cstdint>
 #include <string>
-
-#include "quiche/quic/core/crypto/crypto_secret_boxer.h"
 
 #include "absl/strings/string_view.h"
 #include "openssl/aead.h"
@@ -37,9 +37,7 @@ CryptoSecretBoxer::CryptoSecretBoxer() {}
 CryptoSecretBoxer::~CryptoSecretBoxer() {}
 
 // static
-size_t CryptoSecretBoxer::GetKeySize() {
-  return kBoxKeySize;
-}
+size_t CryptoSecretBoxer::GetKeySize() { return kBoxKeySize; }
 
 // kAEAD is the AEAD used for boxing: AES-256-GCM-SIV.
 static const EVP_AEAD* (*const kAEAD)() = EVP_aead_aes_256_gcm_siv;

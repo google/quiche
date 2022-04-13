@@ -75,13 +75,10 @@ const QuicData& CryptoHandshakeMessage::GetSerialized() const {
   return *serialized_;
 }
 
-void CryptoHandshakeMessage::MarkDirty() {
-  serialized_.reset();
-}
+void CryptoHandshakeMessage::MarkDirty() { serialized_.reset(); }
 
 void CryptoHandshakeMessage::SetVersionVector(
-    QuicTag tag,
-    ParsedQuicVersionVector versions) {
+    QuicTag tag, ParsedQuicVersionVector versions) {
   QuicVersionLabelVector version_labels;
   for (const ParsedQuicVersion& version : versions) {
     version_labels.push_back(
@@ -101,13 +98,10 @@ void CryptoHandshakeMessage::SetStringPiece(QuicTag tag,
   tag_value_map_[tag] = std::string(value);
 }
 
-void CryptoHandshakeMessage::Erase(QuicTag tag) {
-  tag_value_map_.erase(tag);
-}
+void CryptoHandshakeMessage::Erase(QuicTag tag) { tag_value_map_.erase(tag); }
 
 QuicErrorCode CryptoHandshakeMessage::GetTaglist(
-    QuicTag tag,
-    QuicTagVector* out_tags) const {
+    QuicTag tag, QuicTagVector* out_tags) const {
   auto it = tag_value_map_.find(tag);
   QuicErrorCode ret = QUIC_NO_ERROR;
 
@@ -133,8 +127,7 @@ QuicErrorCode CryptoHandshakeMessage::GetTaglist(
 }
 
 QuicErrorCode CryptoHandshakeMessage::GetVersionLabelList(
-    QuicTag tag,
-    QuicVersionLabelVector* out) const {
+    QuicTag tag, QuicVersionLabelVector* out) const {
   QuicErrorCode error = GetTaglist(tag, out);
   if (error != QUIC_NO_ERROR) {
     return error;
@@ -148,8 +141,7 @@ QuicErrorCode CryptoHandshakeMessage::GetVersionLabelList(
 }
 
 QuicErrorCode CryptoHandshakeMessage::GetVersionLabel(
-    QuicTag tag,
-    QuicVersionLabel* out) const {
+    QuicTag tag, QuicVersionLabel* out) const {
   QuicErrorCode error = GetUint32(tag, out);
   if (error != QUIC_NO_ERROR) {
     return error;
@@ -174,9 +166,7 @@ bool CryptoHandshakeMessage::HasStringPiece(QuicTag tag) const {
 }
 
 QuicErrorCode CryptoHandshakeMessage::GetNthValue24(
-    QuicTag tag,
-    unsigned index,
-    absl::string_view* out) const {
+    QuicTag tag, unsigned index, absl::string_view* out) const {
   absl::string_view value;
   if (!GetStringPiece(tag, &value)) {
     return QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND;
@@ -221,8 +211,7 @@ QuicErrorCode CryptoHandshakeMessage::GetUint64(QuicTag tag,
 }
 
 QuicErrorCode CryptoHandshakeMessage::GetStatelessResetToken(
-    QuicTag tag,
-    StatelessResetToken* out) const {
+    QuicTag tag, StatelessResetToken* out) const {
   return GetPOD(tag, out, kStatelessResetTokenLength);
 }
 
@@ -246,16 +235,13 @@ void CryptoHandshakeMessage::set_minimum_size(size_t min_bytes) {
   minimum_size_ = min_bytes;
 }
 
-size_t CryptoHandshakeMessage::minimum_size() const {
-  return minimum_size_;
-}
+size_t CryptoHandshakeMessage::minimum_size() const { return minimum_size_; }
 
 std::string CryptoHandshakeMessage::DebugString() const {
   return DebugStringInternal(0);
 }
 
-QuicErrorCode CryptoHandshakeMessage::GetPOD(QuicTag tag,
-                                             void* out,
+QuicErrorCode CryptoHandshakeMessage::GetPOD(QuicTag tag, void* out,
                                              size_t len) const {
   auto it = tag_value_map_.find(tag);
   QuicErrorCode ret = QUIC_NO_ERROR;

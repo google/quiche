@@ -30,11 +30,9 @@ std::unique_ptr<ProofSourceX509> ProofSourceX509::Create(
 
 void ProofSourceX509::GetProof(
     const QuicSocketAddress& /*server_address*/,
-    const QuicSocketAddress& /*client_address*/,
-    const std::string& hostname,
+    const QuicSocketAddress& /*client_address*/, const std::string& hostname,
     const std::string& server_config,
-    QuicTransportVersion /*transport_version*/,
-    absl::string_view chlo_hash,
+    QuicTransportVersion /*transport_version*/, absl::string_view chlo_hash,
     std::unique_ptr<ProofSource::Callback> callback) {
   QuicCryptoProof proof;
 
@@ -71,10 +69,8 @@ ProofSourceX509::GetCertChain(const QuicSocketAddress& /*server_address*/,
 
 void ProofSourceX509::ComputeTlsSignature(
     const QuicSocketAddress& /*server_address*/,
-    const QuicSocketAddress& /*client_address*/,
-    const std::string& hostname,
-    uint16_t signature_algorithm,
-    absl::string_view in,
+    const QuicSocketAddress& /*client_address*/, const std::string& hostname,
+    uint16_t signature_algorithm, absl::string_view in,
     std::unique_ptr<ProofSource::SignatureCallback> callback) {
   bool cert_matched_sni;
   std::string signature = GetCertificate(hostname, &cert_matched_sni)
