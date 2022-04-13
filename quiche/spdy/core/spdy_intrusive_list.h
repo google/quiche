@@ -86,14 +86,17 @@
 // Note that SpdyIntrusiveList::size() runs in O(N) time.
 
 #include <stddef.h>
+
 #include <iterator>
 
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace spdy {
 
 template <typename T, typename ListID> class SpdyIntrusiveList;
 
-template <typename T, typename ListID = void> class SpdyIntrusiveLink {
+template <typename T, typename ListID = void>
+class QUICHE_EXPORT_PRIVATE SpdyIntrusiveLink {
  protected:
   // We declare the constructor protected so that only derived types and the
   // befriended list can construct this.
@@ -117,7 +120,8 @@ template <typename T, typename ListID = void> class SpdyIntrusiveLink {
   SpdyIntrusiveLink* prev_;
 };
 
-template <typename T, typename ListID = void> class SpdyIntrusiveList {
+template <typename T, typename ListID = void>
+class QUICHE_EXPORT_PRIVATE SpdyIntrusiveList {
   template <typename QualifiedT, typename QualifiedLinkT> class iterator_impl;
 
  public:
@@ -262,8 +266,8 @@ template <typename T, typename ListID = void> class SpdyIntrusiveList {
   // variant of T and the matching qualified link type. Essentially, QualifiedT
   // will either be 'T' or 'const T', the latter for a const_iterator.
   template <typename QualifiedT, typename QualifiedLinkT>
-  class iterator_impl : public std::iterator<std::bidirectional_iterator_tag,
-                                             QualifiedT> {
+  class QUICHE_EXPORT_PRIVATE iterator_impl
+      : public std::iterator<std::bidirectional_iterator_tag, QualifiedT> {
    public:
     typedef std::iterator<std::bidirectional_iterator_tag, QualifiedT> base;
 

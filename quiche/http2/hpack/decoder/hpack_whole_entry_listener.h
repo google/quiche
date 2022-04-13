@@ -57,7 +57,8 @@ class QUICHE_EXPORT_PRIVATE HpackWholeEntryListener {
 
 // A no-op implementation of HpackWholeEntryDecoderListener, useful for ignoring
 // callbacks once an error is detected.
-class HpackWholeEntryNoOpListener : public HpackWholeEntryListener {
+class QUICHE_EXPORT_PRIVATE HpackWholeEntryNoOpListener
+    : public HpackWholeEntryListener {
  public:
   ~HpackWholeEntryNoOpListener() override;
 

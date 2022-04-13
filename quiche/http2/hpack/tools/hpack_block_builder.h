@@ -23,12 +23,13 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace test {
 
-class HpackBlockBuilder {
+class QUICHE_EXPORT_PRIVATE HpackBlockBuilder {
  public:
   explicit HpackBlockBuilder(absl::string_view initial_contents)
       : buffer_(initial_contents.data(), initial_contents.size()) {}

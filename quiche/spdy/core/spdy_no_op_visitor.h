@@ -12,14 +12,16 @@
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
 namespace spdy {
 
-class SpdyNoOpVisitor : public SpdyFramerVisitorInterface,
-                        public SpdyFramerDebugVisitorInterface,
-                        public SpdyHeadersHandlerInterface {
+class QUICHE_EXPORT_PRIVATE SpdyNoOpVisitor
+    : public SpdyFramerVisitorInterface,
+      public SpdyFramerDebugVisitorInterface,
+      public SpdyHeadersHandlerInterface {
  public:
   SpdyNoOpVisitor();
   ~SpdyNoOpVisitor() override;

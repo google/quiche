@@ -22,12 +22,13 @@
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
 #include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace test {
 
-class FrameParts : public Http2FrameDecoderListener {
+class QUICHE_EXPORT_PRIVATE FrameParts : public Http2FrameDecoderListener {
  public:
   // The first callback for every type of frame includes the frame header; this
   // is the only constructor used during decoding of a frame.
@@ -251,7 +252,8 @@ class FrameParts : public Http2FrameDecoderListener {
   bool got_end_callback_ = false;
 };
 
-std::ostream& operator<<(std::ostream& out, const FrameParts& v);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               const FrameParts& v);
 
 }  // namespace test
 }  // namespace http2

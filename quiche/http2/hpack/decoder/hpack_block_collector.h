@@ -24,11 +24,13 @@
 #include "quiche/http2/hpack/http2_hpack_constants.h"
 #include "quiche/http2/hpack/tools/hpack_block_builder.h"
 #include "quiche/http2/test_tools/http2_random.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace test {
 
-class HpackBlockCollector : public HpackEntryDecoderListener {
+class QUICHE_EXPORT_PRIVATE HpackBlockCollector
+    : public HpackEntryDecoderListener {
  public:
   HpackBlockCollector();
   HpackBlockCollector(const HpackBlockCollector& other);

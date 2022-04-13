@@ -23,13 +23,14 @@
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/tools/http2_frame_builder.h"
 #include "quiche/http2/tools/random_decoder_test.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace test {
 
 // Base class for tests of payload decoders. Below this there is a templated
 // sub-class that adds a bunch of type specific features.
-class PayloadDecoderBaseTest : public RandomDecoderTest {
+class QUICHE_EXPORT_PRIVATE PayloadDecoderBaseTest : public RandomDecoderTest {
  protected:
   PayloadDecoderBaseTest();
 
@@ -109,11 +110,10 @@ class PayloadDecoderBaseTest : public RandomDecoderTest {
 // of Http2FrameDecoderListenerInterface to be used during decoding.
 // Typically Listener is a sub-class of FramePartsCollector.
 // SupportedFrameType is set to false only for UnknownPayloadDecoder.
-template <class Decoder,
-          class DecoderPeer,
-          class Listener,
+template <class Decoder, class DecoderPeer, class Listener,
           bool SupportedFrameType = true>
-class AbstractPayloadDecoderTest : public PayloadDecoderBaseTest {
+class QUICHE_EXPORT_PRIVATE AbstractPayloadDecoderTest
+    : public PayloadDecoderBaseTest {
  protected:
   // An ApproveSize function returns true to approve decoding the specified
   // size of payload, else false to skip that size. Typically used for negative

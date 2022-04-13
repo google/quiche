@@ -20,11 +20,13 @@
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
 #include "quiche/http2/test_tools/frame_parts_collector.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace test {
 
-class FramePartsCollectorListener : public FramePartsCollector {
+class QUICHE_EXPORT_PRIVATE FramePartsCollectorListener
+    : public FramePartsCollector {
  public:
   FramePartsCollectorListener() {}
   ~FramePartsCollectorListener() override {}

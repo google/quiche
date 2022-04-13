@@ -20,12 +20,14 @@
 #include "quiche/http2/hpack/decoder/hpack_string_collector.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
 #include "quiche/http2/hpack/tools/hpack_block_builder.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace test {
 
-class HpackEntryCollector : public HpackEntryDecoderListener {
+class QUICHE_EXPORT_PRIVATE HpackEntryCollector
+    : public HpackEntryDecoderListener {
  public:
   HpackEntryCollector();
   HpackEntryCollector(const HpackEntryCollector& other);
@@ -145,9 +147,12 @@ class HpackEntryCollector : public HpackEntryDecoderListener {
   bool ended_ = false;
 };
 
-bool operator==(const HpackEntryCollector& a, const HpackEntryCollector& b);
-bool operator!=(const HpackEntryCollector& a, const HpackEntryCollector& b);
-std::ostream& operator<<(std::ostream& out, const HpackEntryCollector& v);
+QUICHE_EXPORT_PRIVATE bool operator==(const HpackEntryCollector& a,
+                                      const HpackEntryCollector& b);
+QUICHE_EXPORT_PRIVATE bool operator!=(const HpackEntryCollector& a,
+                                      const HpackEntryCollector& b);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               const HpackEntryCollector& v);
 
 }  // namespace test
 }  // namespace http2
