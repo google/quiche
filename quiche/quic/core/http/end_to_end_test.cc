@@ -63,8 +63,8 @@
 #include "quiche/quic/test_tools/quic_test_client.h"
 #include "quiche/quic/test_tools/quic_test_server.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
-#include "quiche/quic/test_tools/quic_transport_test_tools.h"
 #include "quiche/quic/test_tools/server_thread.h"
+#include "quiche/quic/test_tools/web_transport_test_tools.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_client.h"
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
@@ -722,16 +722,18 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     return session;
   }
 
-  NiceMock<MockClientVisitor>& SetupWebTransportVisitor(
+  NiceMock<MockWebTransportSessionVisitor>& SetupWebTransportVisitor(
       WebTransportHttp3* session) {
-    auto visitor_owned = std::make_unique<NiceMock<MockClientVisitor>>();
-    NiceMock<MockClientVisitor>& visitor = *visitor_owned;
+    auto visitor_owned =
+        std::make_unique<NiceMock<MockWebTransportSessionVisitor>>();
+    NiceMock<MockWebTransportSessionVisitor>& visitor = *visitor_owned;
     session->SetVisitor(std::move(visitor_owned));
     return visitor;
   }
 
   std::string ReadDataFromWebTransportStreamUntilFin(
-      WebTransportStream* stream, MockStreamVisitor* visitor = nullptr) {
+      WebTransportStream* stream,
+      MockWebTransportStreamVisitor* visitor = nullptr) {
     QuicStreamId id = stream->GetStreamId();
     std::string buffer;
 
@@ -744,7 +746,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     while (true) {
       bool can_read = false;
       if (visitor == nullptr) {
-        auto visitor_owned = std::make_unique<MockStreamVisitor>();
+        auto visitor_owned = std::make_unique<MockWebTransportStreamVisitor>();
         visitor = visitor_owned.get();
         stream->SetVisitor(std::move(visitor_owned));
       }
@@ -6389,13 +6391,15 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStream) {
   WebTransportHttp3* session =
       CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
   ASSERT_TRUE(session != nullptr);
-  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+  NiceMock<MockWebTransportSessionVisitor>& visitor =
+      SetupWebTransportVisitor(session);
 
   WebTransportStream* outgoing_stream =
       session->OpenOutgoingUnidirectionalStream();
   ASSERT_TRUE(outgoing_stream != nullptr);
 
-  auto stream_visitor = std::make_unique<NiceMock<MockStreamVisitor>>();
+  auto stream_visitor =
+      std::make_unique<NiceMock<MockWebTransportStreamVisitor>>();
   bool data_acknowledged = false;
   EXPECT_CALL(*stream_visitor, OnWriteSideInDataRecvdState())
       .WillOnce(Assign(&data_acknowledged, true));
@@ -6434,7 +6438,8 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStreamSentEarly) {
   WebTransportHttp3* session =
       CreateWebTransportSession("/echo", /*wait_for_server_response=*/false);
   ASSERT_TRUE(session != nullptr);
-  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+  NiceMock<MockWebTransportSessionVisitor>& visitor =
+      SetupWebTransportVisitor(session);
 
   WebTransportStream* outgoing_stream =
       session->OpenOutgoingUnidirectionalStream();
@@ -6471,8 +6476,9 @@ TEST_P(EndToEndTest, WebTransportSessionBidirectionalStream) {
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
 
-  auto stream_visitor_owned = std::make_unique<NiceMock<MockStreamVisitor>>();
-  MockStreamVisitor* stream_visitor = stream_visitor_owned.get();
+  auto stream_visitor_owned =
+      std::make_unique<NiceMock<MockWebTransportStreamVisitor>>();
+  MockWebTransportStreamVisitor* stream_visitor = stream_visitor_owned.get();
   bool data_acknowledged = false;
   EXPECT_CALL(*stream_visitor, OnWriteSideInDataRecvdState())
       .WillOnce(Assign(&data_acknowledged, true));
@@ -6523,7 +6529,8 @@ TEST_P(EndToEndTest, WebTransportSessionServerBidirectionalStream) {
   WebTransportHttp3* session =
       CreateWebTransportSession("/echo", /*wait_for_server_response=*/false);
   ASSERT_TRUE(session != nullptr);
-  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+  NiceMock<MockWebTransportSessionVisitor>& visitor =
+      SetupWebTransportVisitor(session);
 
   bool stream_received = false;
   EXPECT_CALL(visitor, OnIncomingBidirectionalStreamAvailable())
@@ -6551,7 +6558,8 @@ TEST_P(EndToEndTest, WebTransportDatagrams) {
   WebTransportHttp3* session =
       CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
   ASSERT_TRUE(session != nullptr);
-  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+  NiceMock<MockWebTransportSessionVisitor>& visitor =
+      SetupWebTransportVisitor(session);
 
   quiche::SimpleBufferAllocator allocator;
   for (int i = 0; i < 10; i++) {
@@ -6581,7 +6589,8 @@ TEST_P(EndToEndTest, WebTransportDatagramsWithContexts) {
       "/echo", /*wait_for_server_response=*/true, &connect_stream);
   ASSERT_TRUE(session != nullptr);
   ASSERT_TRUE(connect_stream != nullptr);
-  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+  NiceMock<MockWebTransportSessionVisitor>& visitor =
+      SetupWebTransportVisitor(session);
 
   quiche::SimpleBufferAllocator allocator;
   for (int i = 0; i < 10; i++) {
@@ -6608,7 +6617,8 @@ TEST_P(EndToEndTest, WebTransportSessionClose) {
   WebTransportHttp3* session =
       CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
   ASSERT_TRUE(session != nullptr);
-  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+  NiceMock<MockWebTransportSessionVisitor>& visitor =
+      SetupWebTransportVisitor(session);
 
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
@@ -6639,7 +6649,8 @@ TEST_P(EndToEndTest, WebTransportSessionCloseWithoutCapsule) {
   WebTransportHttp3* session =
       CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
   ASSERT_TRUE(session != nullptr);
-  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+  NiceMock<MockWebTransportSessionVisitor>& visitor =
+      SetupWebTransportVisitor(session);
 
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
@@ -6670,7 +6681,8 @@ TEST_P(EndToEndTest, WebTransportSessionReceiveClose) {
   WebTransportHttp3* session = CreateWebTransportSession(
       "/session-close", /*wait_for_server_response=*/true);
   ASSERT_TRUE(session != nullptr);
-  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+  NiceMock<MockWebTransportSessionVisitor>& visitor =
+      SetupWebTransportVisitor(session);
 
   WebTransportStream* stream = session->OpenOutgoingUnidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
@@ -6705,7 +6717,8 @@ TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
       CreateWebTransportSession("/resets", /*wait_for_server_response=*/true);
   ASSERT_TRUE(session != nullptr);
 
-  NiceMock<MockClientVisitor>& visitor = SetupWebTransportVisitor(session);
+  NiceMock<MockWebTransportSessionVisitor>& visitor =
+      SetupWebTransportVisitor(session);
   EXPECT_CALL(visitor, OnIncomingUnidirectionalStreamAvailable())
       .WillRepeatedly([this, session]() {
         ReadAllIncomingWebTransportUnidirectionalStreams(session);

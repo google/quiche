@@ -16,7 +16,6 @@
 #include "quiche/quic/test_tools/mock_random.h"
 #include "quiche/quic/test_tools/quic_path_validator_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
-#include "quiche/quic/test_tools/quic_transport_test_tools.h"
 
 using testing::_;
 using testing::Invoke;

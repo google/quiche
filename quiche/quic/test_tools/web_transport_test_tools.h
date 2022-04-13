@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_TRANSPORT_TEST_TOOLS_H_
-#define QUICHE_QUIC_TEST_TOOLS_QUIC_TRANSPORT_TEST_TOOLS_H_
+#ifndef QUICHE_QUIC_TEST_TOOLS_WEB_TRANSPORT_TEST_TOOLS_H_
+#define QUICHE_QUIC_TEST_TOOLS_WEB_TRANSPORT_TEST_TOOLS_H_
 
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/quic/quic_transport/quic_transport_server_session.h"
 
 namespace quic {
 namespace test {
 
-class MockClientVisitor : public WebTransportVisitor {
+class MockWebTransportSessionVisitor : public WebTransportVisitor {
  public:
   MOCK_METHOD(void, OnSessionReady, (const spdy::SpdyHeaderBlock&), (override));
   MOCK_METHOD(void, OnSessionClosed,
@@ -24,13 +23,7 @@ class MockClientVisitor : public WebTransportVisitor {
   MOCK_METHOD(void, OnCanCreateNewOutgoingUnidirectionalStream, (), (override));
 };
 
-class MockServerVisitor : public QuicTransportServerSession::ServerVisitor {
- public:
-  MOCK_METHOD(bool, CheckOrigin, (url::Origin), (override));
-  MOCK_METHOD(bool, ProcessPath, (const GURL&), (override));
-};
-
-class MockStreamVisitor : public WebTransportStreamVisitor {
+class MockWebTransportStreamVisitor : public WebTransportStreamVisitor {
  public:
   MOCK_METHOD(void, OnCanRead, (), (override));
   MOCK_METHOD(void, OnCanWrite, (), (override));
@@ -45,4 +38,4 @@ class MockStreamVisitor : public WebTransportStreamVisitor {
 }  // namespace test
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_TEST_TOOLS_QUIC_TRANSPORT_TEST_TOOLS_H_
+#endif  // QUICHE_QUIC_TEST_TOOLS_WEB_TRANSPORT_TEST_TOOLS_H_
