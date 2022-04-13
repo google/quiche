@@ -25,7 +25,7 @@
 namespace http2 {
 namespace test {
 
-class QUICHE_EXPORT_PRIVATE FramePartsCollectorListener
+class QUICHE_NO_EXPORT FramePartsCollectorListener
     : public FramePartsCollector {
  public:
   FramePartsCollectorListener() {}

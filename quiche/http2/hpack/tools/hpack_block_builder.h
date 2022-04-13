@@ -29,7 +29,7 @@
 namespace http2 {
 namespace test {
 
-class QUICHE_EXPORT_PRIVATE HpackBlockBuilder {
+class QUICHE_NO_EXPORT HpackBlockBuilder {
  public:
   explicit HpackBlockBuilder(absl::string_view initial_contents)
       : buffer_(initial_contents.data(), initial_contents.size()) {}

@@ -26,8 +26,7 @@
 namespace http2 {
 namespace test {
 
-class QUICHE_EXPORT_PRIVATE HpackEntryCollector
-    : public HpackEntryDecoderListener {
+class QUICHE_NO_EXPORT HpackEntryCollector : public HpackEntryDecoderListener {
  public:
   HpackEntryCollector();
   HpackEntryCollector(const HpackEntryCollector& other);
@@ -147,12 +146,12 @@ class QUICHE_EXPORT_PRIVATE HpackEntryCollector
   bool ended_ = false;
 };
 
-QUICHE_EXPORT_PRIVATE bool operator==(const HpackEntryCollector& a,
-                                      const HpackEntryCollector& b);
-QUICHE_EXPORT_PRIVATE bool operator!=(const HpackEntryCollector& a,
-                                      const HpackEntryCollector& b);
-QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                               const HpackEntryCollector& v);
+QUICHE_NO_EXPORT bool operator==(const HpackEntryCollector& a,
+                                 const HpackEntryCollector& b);
+QUICHE_NO_EXPORT bool operator!=(const HpackEntryCollector& a,
+                                 const HpackEntryCollector& b);
+QUICHE_NO_EXPORT std::ostream& operator<<(std::ostream& out,
+                                          const HpackEntryCollector& v);
 
 }  // namespace test
 }  // namespace http2

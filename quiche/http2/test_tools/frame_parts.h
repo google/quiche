@@ -28,7 +28,7 @@
 namespace http2 {
 namespace test {
 
-class QUICHE_EXPORT_PRIVATE FrameParts : public Http2FrameDecoderListener {
+class QUICHE_NO_EXPORT FrameParts : public Http2FrameDecoderListener {
  public:
   // The first callback for every type of frame includes the frame header; this
   // is the only constructor used during decoding of a frame.
@@ -252,8 +252,8 @@ class QUICHE_EXPORT_PRIVATE FrameParts : public Http2FrameDecoderListener {
   bool got_end_callback_ = false;
 };
 
-QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                               const FrameParts& v);
+QUICHE_NO_EXPORT std::ostream& operator<<(std::ostream& out,
+                                          const FrameParts& v);
 
 }  // namespace test
 }  // namespace http2

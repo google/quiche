@@ -29,8 +29,7 @@
 namespace http2 {
 namespace test {
 
-class QUICHE_EXPORT_PRIVATE HpackBlockCollector
-    : public HpackEntryDecoderListener {
+class QUICHE_NO_EXPORT HpackBlockCollector : public HpackEntryDecoderListener {
  public:
   HpackBlockCollector();
   HpackBlockCollector(const HpackBlockCollector& other);

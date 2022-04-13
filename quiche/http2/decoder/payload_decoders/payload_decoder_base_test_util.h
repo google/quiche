@@ -31,7 +31,7 @@ namespace test {
 
 // Base class for tests of payload decoders. Below this there is a templated
 // sub-class that adds a bunch of type specific features.
-class QUICHE_EXPORT_PRIVATE PayloadDecoderBaseTest : public RandomDecoderTest {
+class QUICHE_NO_EXPORT PayloadDecoderBaseTest : public RandomDecoderTest {
  protected:
   PayloadDecoderBaseTest();
 
@@ -113,7 +113,7 @@ class QUICHE_EXPORT_PRIVATE PayloadDecoderBaseTest : public RandomDecoderTest {
 // SupportedFrameType is set to false only for UnknownPayloadDecoder.
 template <class Decoder, class DecoderPeer, class Listener,
           bool SupportedFrameType = true>
-class QUICHE_EXPORT_PRIVATE AbstractPayloadDecoderTest
+class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
     : public PayloadDecoderBaseTest {
  protected:
   // An ApproveSize function returns true to approve decoding the specified
