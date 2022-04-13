@@ -17,10 +17,8 @@ using spdy::SpdyHeaderBlock;
 namespace quic {
 
 QuicSpdyClientSessionBase::QuicSpdyClientSessionBase(
-    QuicConnection* connection,
-    QuicClientPushPromiseIndex* push_promise_index,
-    const QuicConfig& config,
-    const ParsedQuicVersionVector& supported_versions)
+    QuicConnection* connection, QuicClientPushPromiseIndex* push_promise_index,
+    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions)
     : QuicSpdySession(connection, nullptr, config, supported_versions),
       push_promise_index_(push_promise_index),
       largest_promised_stream_id_(
@@ -40,24 +38,20 @@ void QuicSpdyClientSessionBase::OnConfigNegotiated() {
 }
 
 void QuicSpdyClientSessionBase::OnInitialHeadersComplete(
-    QuicStreamId stream_id,
-    const SpdyHeaderBlock& response_headers) {
+    QuicStreamId stream_id, const SpdyHeaderBlock& response_headers) {
   // Note that the strong ordering of the headers stream means that
   // QuicSpdyClientStream::OnPromiseHeadersComplete must have already
   // been called (on the associated stream) if this is a promised
   // stream. However, this stream may not have existed at this time,
   // hence the need to query the session.
   QuicClientPromisedInfo* promised = GetPromisedById(stream_id);
-  if (!promised)
-    return;
+  if (!promised) return;
 
   promised->OnResponseHeaders(response_headers);
 }
 
 void QuicSpdyClientSessionBase::OnPromiseHeaderList(
-    QuicStreamId stream_id,
-    QuicStreamId promised_stream_id,
-    size_t frame_len,
+    QuicStreamId stream_id, QuicStreamId promised_stream_id, size_t frame_len,
     const QuicHeaderList& header_list) {
   if (IsStaticStream(stream_id)) {
     connection()->CloseConnection(
@@ -205,8 +199,7 @@ void QuicSpdyClientSessionBase::OnPushStreamTimedOut(
     QuicStreamId /*stream_id*/) {}
 
 void QuicSpdyClientSessionBase::ResetPromised(
-    QuicStreamId id,
-    QuicRstStreamErrorCode error_code) {
+    QuicStreamId id, QuicRstStreamErrorCode error_code) {
   QUICHE_DCHECK(QuicUtils::IsServerInitiatedStreamId(transport_version(), id));
   ResetStream(id, error_code);
   if (!IsOpenStream(id) && !IsClosedStream(id)) {

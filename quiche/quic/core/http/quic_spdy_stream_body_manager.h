@@ -63,8 +63,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyManager {
   // preassigned and will not be changed.  Returns the total number of bytes the
   // caller shall mark consumed.  Sets |*total_bytes_read| to the total number
   // of body bytes read.
-  ABSL_MUST_USE_RESULT size_t ReadBody(const struct iovec* iov,
-                                       size_t iov_len,
+  ABSL_MUST_USE_RESULT size_t ReadBody(const struct iovec* iov, size_t iov_len,
                                        size_t* total_bytes_read);
 
   bool HasBytesToRead() const { return !fragments_.empty(); }

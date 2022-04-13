@@ -51,8 +51,7 @@ HttpDecoder::HttpDecoder(Visitor* visitor, Options options)
 HttpDecoder::~HttpDecoder() {}
 
 // static
-bool HttpDecoder::DecodeSettings(const char* data,
-                                 QuicByteCount len,
+bool HttpDecoder::DecodeSettings(const char* data, QuicByteCount len,
                                  SettingsFrame* frame) {
   QuicDataReader reader(data, len);
   uint64_t frame_type;
@@ -616,7 +615,7 @@ bool HttpDecoder::ParseSettingsFrame(QuicDataReader* reader,
 }
 
 bool HttpDecoder::ParsePriorityUpdateFrame(QuicDataReader* reader,
-                                              PriorityUpdateFrame* frame) {
+                                           PriorityUpdateFrame* frame) {
   frame->prioritized_element_type = REQUEST_STREAM;
 
   if (!reader->ReadVarInt62(&frame->prioritized_element_id)) {

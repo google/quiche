@@ -83,9 +83,7 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
  public:
   QuicReceiveControlStreamTest()
       : connection_(new StrictMock<MockQuicConnection>(
-            &helper_,
-            &alarm_factory_,
-            perspective(),
+            &helper_, &alarm_factory_, perspective(),
             SupportedVersions(GetParam().version))),
         session_(connection_) {
     EXPECT_CALL(session_, OnCongestionWindowChange(_)).Times(AnyNumber());
@@ -140,8 +138,7 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
   TestStream* stream_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicReceiveControlStreamTest,
+INSTANTIATE_TEST_SUITE_P(Tests, QuicReceiveControlStreamTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 

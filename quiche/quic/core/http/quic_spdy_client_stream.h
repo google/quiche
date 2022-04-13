@@ -21,8 +21,7 @@ class QuicSpdyClientSession;
 // SPDY response.
 class QUIC_EXPORT_PRIVATE QuicSpdyClientStream : public QuicSpdyStream {
  public:
-  QuicSpdyClientStream(QuicStreamId id,
-                       QuicSpdyClientSession* session,
+  QuicSpdyClientStream(QuicStreamId id, QuicSpdyClientSession* session,
                        StreamType type);
   QuicSpdyClientStream(PendingStream* pending,
                        QuicSpdyClientSession* spdy_session);
@@ -31,18 +30,15 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientStream : public QuicSpdyStream {
   ~QuicSpdyClientStream() override;
 
   // Override the base class to parse and store headers.
-  void OnInitialHeadersComplete(bool fin,
-                                size_t frame_len,
+  void OnInitialHeadersComplete(bool fin, size_t frame_len,
                                 const QuicHeaderList& header_list) override;
 
   // Override the base class to parse and store trailers.
-  void OnTrailingHeadersComplete(bool fin,
-                                 size_t frame_len,
+  void OnTrailingHeadersComplete(bool fin, size_t frame_len,
                                  const QuicHeaderList& header_list) override;
 
   // Override the base class to handle creation of the push stream.
-  void OnPromiseHeaderList(QuicStreamId promised_id,
-                           size_t frame_len,
+  void OnPromiseHeaderList(QuicStreamId promised_id, size_t frame_len,
                            const QuicHeaderList& header_list) override;
 
   // QuicStream implementation called by the session when there's data for us.
@@ -50,8 +46,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientStream : public QuicSpdyStream {
 
   // Serializes the headers and body, sends it to the server, and
   // returns the number of bytes sent.
-  size_t SendRequest(spdy::SpdyHeaderBlock headers,
-                     absl::string_view body,
+  size_t SendRequest(spdy::SpdyHeaderBlock headers, absl::string_view body,
                      bool fin);
 
   // Returns the response data.

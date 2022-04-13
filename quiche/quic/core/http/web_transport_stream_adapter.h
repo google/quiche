@@ -18,8 +18,7 @@ namespace quic {
 class QUIC_EXPORT_PRIVATE WebTransportStreamAdapter
     : public WebTransportStream {
  public:
-  WebTransportStreamAdapter(QuicSession* session,
-                            QuicStream* stream,
+  WebTransportStreamAdapter(QuicSession* session, QuicStream* stream,
                             QuicStreamSequencer* sequencer);
 
   // WebTransportStream implementation.

@@ -11,8 +11,7 @@ namespace quic {
 
 class QUIC_NO_EXPORT QuicSpdyServerStreamBase : public QuicSpdyStream {
  public:
-  QuicSpdyServerStreamBase(QuicStreamId id,
-                           QuicSpdySession* session,
+  QuicSpdyServerStreamBase(QuicStreamId id, QuicSpdySession* session,
                            StreamType type);
   QuicSpdyServerStreamBase(PendingStream* pending, QuicSpdySession* session);
   QuicSpdyServerStreamBase(const QuicSpdyServerStreamBase&) = delete;

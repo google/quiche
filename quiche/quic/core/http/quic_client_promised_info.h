@@ -30,8 +30,7 @@ class QUIC_EXPORT_PRIVATE QuicClientPromisedInfo
     : public QuicClientPushPromiseIndex::TryHandle {
  public:
   // Interface to QuicSpdyClientStream
-  QuicClientPromisedInfo(QuicSpdyClientSessionBase* session,
-                         QuicStreamId id,
+  QuicClientPromisedInfo(QuicSpdyClientSessionBase* session, QuicStreamId id,
                          std::string url);
   QuicClientPromisedInfo(const QuicClientPromisedInfo&) = delete;
   QuicClientPromisedInfo& operator=(const QuicClientPromisedInfo&) = delete;

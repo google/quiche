@@ -1355,8 +1355,8 @@ TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
   QuicSocketAddress new_peer_address =
       QuicSocketAddress(QuicIpAddress::Loopback4(), kTestPort + 1);
 
-    EXPECT_CALL(*connection_,
-                SendConnectivityProbingPacket(nullptr, new_peer_address));
+  EXPECT_CALL(*connection_,
+              SendConnectivityProbingPacket(nullptr, new_peer_address));
 
   if (VersionHasIetfQuicFrames(transport_version())) {
     // Need to explicitly do this to emulate the reception of a PathChallenge,

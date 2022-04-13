@@ -53,8 +53,7 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream
   bool OnAcceptChFrame(const AcceptChFrame& frame) override;
   void OnWebTransportStreamFrameType(QuicByteCount header_length,
                                      WebTransportSessionId session_id) override;
-  bool OnUnknownFrameStart(uint64_t frame_type,
-                           QuicByteCount header_length,
+  bool OnUnknownFrameStart(uint64_t frame_type, QuicByteCount header_length,
                            QuicByteCount payload_length) override;
   bool OnUnknownFramePayload(absl::string_view payload) override;
   bool OnUnknownFrameEnd() override;

@@ -54,8 +54,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSessionBase
   // Called by |headers_stream_| when push promise headers have been
   // completely received.
   void OnPromiseHeaderList(QuicStreamId stream_id,
-                           QuicStreamId promised_stream_id,
-                           size_t frame_len,
+                           QuicStreamId promised_stream_id, size_t frame_len,
                            const QuicHeaderList& header_list) override;
 
   // Called by |QuicSpdyClientStream| on receipt of response headers,

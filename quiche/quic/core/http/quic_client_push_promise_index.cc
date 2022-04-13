@@ -30,8 +30,7 @@ QuicClientPromisedInfo* QuicClientPushPromiseIndex::GetPromised(
 
 QuicAsyncStatus QuicClientPushPromiseIndex::Try(
     const spdy::SpdyHeaderBlock& request,
-    QuicClientPushPromiseIndex::Delegate* delegate,
-    TryHandle** handle) {
+    QuicClientPushPromiseIndex::Delegate* delegate, TryHandle** handle) {
   std::string url(SpdyServerPushUtils::GetPromisedUrlFromHeaders(request));
   auto it = promised_by_url_.find(url);
   if (it != promised_by_url_.end()) {

@@ -21,8 +21,7 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
  public:
   // |session| can't be nullptr, and the ownership is not passed. The stream can
   // only be accessed through the session.
-  QuicSendControlStream(QuicStreamId id,
-                        QuicSpdySession* session,
+  QuicSendControlStream(QuicStreamId id, QuicSpdySession* session,
                         const SettingsFrame& settings);
   QuicSendControlStream(const QuicSendControlStream&) = delete;
   QuicSendControlStream& operator=(const QuicSendControlStream&) = delete;

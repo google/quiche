@@ -100,8 +100,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // return bool, because WEBTRANSPORT_STREAM always causes the parsing
     // process to cease.
     virtual void OnWebTransportStreamFrameType(
-        QuicByteCount header_length,
-        WebTransportSessionId session_id) = 0;
+        QuicByteCount header_length, WebTransportSessionId session_id) = 0;
 
     // Called when a frame of unknown type |frame_type| has been received.
     // Frame type might be reserved, Visitor must make sure to ignore.
@@ -135,8 +134,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // Decode settings frame from |data|.
   // Upon successful decoding, |frame| will be populated, and returns true.
   // This method is not used for regular processing of incoming data.
-  static bool DecodeSettings(const char* data,
-                             QuicByteCount len,
+  static bool DecodeSettings(const char* data, QuicByteCount len,
                              SettingsFrame* frame);
 
   // Returns an error code other than QUIC_NO_ERROR if and only if

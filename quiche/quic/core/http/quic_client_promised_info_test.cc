@@ -34,12 +34,10 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
       const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection,
       QuicClientPushPromiseIndex* push_promise_index)
-      : QuicSpdyClientSession(DefaultQuicConfig(),
-                              supported_versions,
+      : QuicSpdyClientSession(DefaultQuicConfig(), supported_versions,
                               connection,
                               QuicServerId("example.com", 443, false),
-                              &crypto_config_,
-                              push_promise_index),
+                              &crypto_config_, push_promise_index),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting()),
         authorized_(true) {}
   MockQuicSpdyClientSession(const MockQuicSpdyClientSession&) = delete;
@@ -53,10 +51,8 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
 
   void set_authorized(bool authorized) { authorized_ = authorized; }
 
-  MOCK_METHOD(bool,
-              WriteControlFrame,
-              (const QuicFrame& frame, TransmissionType type),
-              (override));
+  MOCK_METHOD(bool, WriteControlFrame,
+              (const QuicFrame& frame, TransmissionType type), (override));
 
  private:
   QuicCryptoClientConfig crypto_config_;
@@ -69,11 +65,9 @@ class QuicClientPromisedInfoTest : public QuicTest {
   class StreamVisitor;
 
   QuicClientPromisedInfoTest()
-      : connection_(new StrictMock<MockQuicConnection>(&helper_,
-                                                       &alarm_factory_,
-                                                       Perspective::IS_CLIENT)),
-        session_(connection_->supported_versions(),
-                 connection_,
+      : connection_(new StrictMock<MockQuicConnection>(
+            &helper_, &alarm_factory_, Perspective::IS_CLIENT)),
+        session_(connection_->supported_versions(), connection_,
                  &push_promise_index_),
         body_("hello world"),
         promise_id_(

@@ -34,8 +34,7 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
   // Serializes a HEADERS frame header into a new buffer stored in |output|.
   // Returns the length of the buffer on success, or 0 otherwise.
   static QuicByteCount SerializeHeadersFrameHeader(
-      QuicByteCount payload_length,
-      std::unique_ptr<char[]>* output);
+      QuicByteCount payload_length, std::unique_ptr<char[]>* output);
 
   // Serializes a SETTINGS frame into a new buffer stored in |output|.
   // Returns the length of the buffer on success, or 0 otherwise.
@@ -65,8 +64,7 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
   // Serializes a WEBTRANSPORT_STREAM frame header as specified in
   // https://www.ietf.org/archive/id/draft-ietf-webtrans-http3-00.html#name-client-initiated-bidirectio
   static QuicByteCount SerializeWebTransportStreamFrameHeader(
-      WebTransportSessionId session_id,
-      std::unique_ptr<char[]>* output);
+      WebTransportSessionId session_id, std::unique_ptr<char[]>* output);
 };
 
 }  // namespace quic

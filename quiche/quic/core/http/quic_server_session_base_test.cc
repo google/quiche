@@ -58,28 +58,21 @@ const char* const kStreamData = "\1z";
 
 class TestServerSession : public QuicServerSessionBase {
  public:
-  TestServerSession(const QuicConfig& config,
-                    QuicConnection* connection,
+  TestServerSession(const QuicConfig& config, QuicConnection* connection,
                     QuicSession::Visitor* visitor,
                     QuicCryptoServerStreamBase::Helper* helper,
                     const QuicCryptoServerConfig* crypto_config,
                     QuicCompressedCertsCache* compressed_certs_cache,
                     QuicSimpleServerBackend* quic_simple_server_backend)
-      : QuicServerSessionBase(config,
-                              CurrentSupportedVersions(),
-                              connection,
-                              visitor,
-                              helper,
-                              crypto_config,
+      : QuicServerSessionBase(config, CurrentSupportedVersions(), connection,
+                              visitor, helper, crypto_config,
                               compressed_certs_cache),
         quic_simple_server_backend_(quic_simple_server_backend) {}
 
   ~TestServerSession() override { DeleteConnection(); }
 
-  MOCK_METHOD(bool,
-              WriteControlFrame,
-              (const QuicFrame& frame, TransmissionType type),
-              (override));
+  MOCK_METHOD(bool, WriteControlFrame,
+              (const QuicFrame& frame, TransmissionType type), (override));
 
  protected:
   QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override {
@@ -137,8 +130,7 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   explicit QuicServerSessionBaseTest(std::unique_ptr<ProofSource> proof_source)
       : crypto_config_(QuicCryptoServerConfig::TESTING,
-                       QuicRandom::GetInstance(),
-                       std::move(proof_source),
+                       QuicRandom::GetInstance(), std::move(proof_source),
                        KeyExchangeSource::Default()),
         compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize) {
@@ -242,8 +234,7 @@ MATCHER_P(EqualsProto, network_params, "") {
               reference.previous_connection_state());
 }
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicServerSessionBaseTest,
+INSTANTIATE_TEST_SUITE_P(Tests, QuicServerSessionBaseTest,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 
@@ -478,18 +469,14 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
       QuicCompressedCertsCache* compressed_certs_cache,
       QuicServerSessionBase* session,
       QuicCryptoServerStreamBase::Helper* helper)
-      : QuicCryptoServerStream(crypto_config,
-                               compressed_certs_cache,
-                               session,
+      : QuicCryptoServerStream(crypto_config, compressed_certs_cache, session,
                                helper) {}
   MockQuicCryptoServerStream(const MockQuicCryptoServerStream&) = delete;
   MockQuicCryptoServerStream& operator=(const MockQuicCryptoServerStream&) =
       delete;
   ~MockQuicCryptoServerStream() override {}
 
-  MOCK_METHOD(void,
-              SendServerConfigUpdate,
-              (const CachedNetworkParameters*),
+  MOCK_METHOD(void, SendServerConfigUpdate, (const CachedNetworkParameters*),
               (override));
 };
 
@@ -751,8 +738,7 @@ class StreamMemberLifetimeTest : public QuicServerSessionBaseTest {
   QuicCryptoServerConfigPeer crypto_config_peer_;
 };
 
-INSTANTIATE_TEST_SUITE_P(StreamMemberLifetimeTests,
-                         StreamMemberLifetimeTest,
+INSTANTIATE_TEST_SUITE_P(StreamMemberLifetimeTests, StreamMemberLifetimeTest,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 

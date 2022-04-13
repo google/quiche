@@ -147,8 +147,7 @@ struct QUIC_EXPORT_PRIVATE PriorityUpdateFrame {
   }
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const PriorityUpdateFrame& s) {
+      std::ostream& os, const PriorityUpdateFrame& s) {
     os << s.ToString();
     return os;
   }
@@ -172,8 +171,7 @@ struct QUIC_EXPORT_PRIVATE AcceptChFrame {
   }
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os,
-      const AcceptChFrame& frame) {
+      std::ostream& os, const AcceptChFrame& frame) {
     os << "ACCEPT_CH frame with " << frame.entries.size() << " entries: ";
     for (auto& entry : frame.entries) {
       os << "origin: " << entry.origin << "; value: " << entry.value;

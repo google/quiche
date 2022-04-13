@@ -16,9 +16,7 @@ using spdy::SpdyHeaderBlock;
 namespace quic {
 
 QuicClientPromisedInfo::QuicClientPromisedInfo(
-    QuicSpdyClientSessionBase* session,
-    QuicStreamId id,
-    std::string url)
+    QuicSpdyClientSessionBase* session, QuicStreamId id, std::string url)
     : session_(session),
       id_(id),
       url_(std::move(url)),

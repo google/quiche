@@ -84,8 +84,7 @@ class QUIC_EXPORT_PRIVATE QuicClientPushPromiseIndex {
   // cancel the request if need be.  The caller does not inherit
   // ownership of |*handle|, and it ceases to be valid if the caller
   // invokes |handle->Cancel()| or if |delegate->OnReponse()| fires.
-  QuicAsyncStatus Try(const spdy::SpdyHeaderBlock& request,
-                      Delegate* delegate,
+  QuicAsyncStatus Try(const spdy::SpdyHeaderBlock& request, Delegate* delegate,
                       TryHandle** handle);
 
   QuicPromisedByUrlMap* promised_by_url() { return &promised_by_url_; }

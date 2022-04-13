@@ -11,14 +11,11 @@
 namespace quic {
 
 WebTransportStreamAdapter::WebTransportStreamAdapter(
-    QuicSession* session,
-    QuicStream* stream,
-    QuicStreamSequencer* sequencer)
+    QuicSession* session, QuicStream* stream, QuicStreamSequencer* sequencer)
     : session_(session), stream_(stream), sequencer_(sequencer) {}
 
 WebTransportStream::ReadResult WebTransportStreamAdapter::Read(
-    char* buffer,
-    size_t buffer_size) {
+    char* buffer, size_t buffer_size) {
   iovec iov;
   iov.iov_base = buffer;
   iov.iov_len = buffer_size;

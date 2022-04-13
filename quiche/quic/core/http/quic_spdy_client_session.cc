@@ -22,15 +22,11 @@
 namespace quic {
 
 QuicSpdyClientSession::QuicSpdyClientSession(
-    const QuicConfig& config,
-    const ParsedQuicVersionVector& supported_versions,
-    QuicConnection* connection,
-    const QuicServerId& server_id,
+    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
+    QuicConnection* connection, const QuicServerId& server_id,
     QuicCryptoClientConfig* crypto_config,
     QuicClientPushPromiseIndex* push_promise_index)
-    : QuicSpdyClientSessionBase(connection,
-                                push_promise_index,
-                                config,
+    : QuicSpdyClientSessionBase(connection, push_promise_index, config,
                                 supported_versions),
       server_id_(server_id),
       crypto_config_(crypto_config),

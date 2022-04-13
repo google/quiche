@@ -20,10 +20,8 @@
 namespace quic {
 
 QuicReceiveControlStream::QuicReceiveControlStream(
-    PendingStream* pending,
-    QuicSpdySession* spdy_session)
-    : QuicStream(pending,
-                 spdy_session,
+    PendingStream* pending, QuicSpdySession* spdy_session)
+    : QuicStream(pending, spdy_session,
                  /*is_static=*/true),
       settings_frame_received_(false),
       decoder_(this),
@@ -123,8 +121,7 @@ bool QuicReceiveControlStream::OnDataFrameEnd() {
 }
 
 bool QuicReceiveControlStream::OnHeadersFrameStart(
-    QuicByteCount /*header_length*/,
-    QuicByteCount
+    QuicByteCount /*header_length*/, QuicByteCount
     /*payload_length*/) {
   return ValidateFrameType(HttpFrameType::HEADERS);
 }
@@ -205,15 +202,13 @@ bool QuicReceiveControlStream::OnAcceptChFrame(const AcceptChFrame& frame) {
 }
 
 void QuicReceiveControlStream::OnWebTransportStreamFrameType(
-    QuicByteCount /*header_length*/,
-    WebTransportSessionId /*session_id*/) {
+    QuicByteCount /*header_length*/, WebTransportSessionId /*session_id*/) {
   QUIC_BUG(WEBTRANSPORT_STREAM on Control Stream)
       << "Parsed WEBTRANSPORT_STREAM on a control stream.";
 }
 
 bool QuicReceiveControlStream::OnUnknownFrameStart(
-    uint64_t frame_type,
-    QuicByteCount /*header_length*/,
+    uint64_t frame_type, QuicByteCount /*header_length*/,
     QuicByteCount payload_length) {
   if (spdy_session()->debug_visitor()) {
     spdy_session()->debug_visitor()->OnUnknownFrameReceived(id(), frame_type,

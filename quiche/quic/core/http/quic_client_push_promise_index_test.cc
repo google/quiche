@@ -28,12 +28,10 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
       const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection,
       QuicClientPushPromiseIndex* push_promise_index)
-      : QuicSpdyClientSession(DefaultQuicConfig(),
-                              supported_versions,
+      : QuicSpdyClientSession(DefaultQuicConfig(), supported_versions,
                               connection,
                               QuicServerId("example.com", 443, false),
-                              &crypto_config_,
-                              push_promise_index),
+                              &crypto_config_, push_promise_index),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {}
   MockQuicSpdyClientSession(const MockQuicSpdyClientSession&) = delete;
   MockQuicSpdyClientSession& operator=(const MockQuicSpdyClientSession&) =
@@ -47,14 +45,12 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
 class QuicClientPushPromiseIndexTest : public QuicTest {
  public:
   QuicClientPushPromiseIndexTest()
-      : connection_(new StrictMock<MockQuicConnection>(&helper_,
-                                                       &alarm_factory_,
-                                                       Perspective::IS_CLIENT)),
+      : connection_(new StrictMock<MockQuicConnection>(
+            &helper_, &alarm_factory_, Perspective::IS_CLIENT)),
         session_(connection_->supported_versions(), connection_, &index_),
         promised_(&session_,
                   GetNthServerInitiatedUnidirectionalStreamId(
-                      connection_->transport_version(),
-                      0),
+                      connection_->transport_version(), 0),
                   url_) {
     request_[":path"] = "/bar";
     request_[":authority"] = "www.google.com";

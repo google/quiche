@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "quiche/quic/core/http/http_encoder.h"
+
 #include <cstdint>
 #include <memory>
 
@@ -18,8 +19,7 @@ namespace quic {
 
 namespace {
 
-bool WriteFrameHeader(QuicByteCount length,
-                      HttpFrameType type,
+bool WriteFrameHeader(QuicByteCount length, HttpFrameType type,
                       QuicDataWriter* writer) {
   return writer->WriteVarInt62(static_cast<uint64_t>(type)) &&
          writer->WriteVarInt62(length);
@@ -61,8 +61,7 @@ quiche::QuicheBuffer HttpEncoder::SerializeDataFrameHeader(
 
 // static
 QuicByteCount HttpEncoder::SerializeHeadersFrameHeader(
-    QuicByteCount payload_length,
-    std::unique_ptr<char[]>* output) {
+    QuicByteCount payload_length, std::unique_ptr<char[]>* output) {
   QUICHE_DCHECK_NE(0u, payload_length);
   QuicByteCount header_length =
       QuicDataWriter::GetVarInt62Len(payload_length) +
@@ -83,8 +82,7 @@ QuicByteCount HttpEncoder::SerializeHeadersFrameHeader(
 
 // static
 QuicByteCount HttpEncoder::SerializeSettingsFrame(
-    const SettingsFrame& settings,
-    std::unique_ptr<char[]>* output) {
+    const SettingsFrame& settings, std::unique_ptr<char[]>* output) {
   QuicByteCount payload_length = 0;
   std::vector<std::pair<uint64_t, uint64_t>> ordered_settings{
       settings.values.begin(), settings.values.end()};
@@ -120,8 +118,7 @@ QuicByteCount HttpEncoder::SerializeSettingsFrame(
 
 // static
 QuicByteCount HttpEncoder::SerializeGoAwayFrame(
-    const GoAwayFrame& goaway,
-    std::unique_ptr<char[]>* output) {
+    const GoAwayFrame& goaway, std::unique_ptr<char[]>* output) {
   QuicByteCount payload_length = QuicDataWriter::GetVarInt62Len(goaway.id);
   QuicByteCount total_length =
       GetTotalLength(payload_length, HttpFrameType::GOAWAY);
@@ -173,8 +170,7 @@ QuicByteCount HttpEncoder::SerializePriorityUpdateFrame(
 
 // static
 QuicByteCount HttpEncoder::SerializeAcceptChFrame(
-    const AcceptChFrame& accept_ch,
-    std::unique_ptr<char[]>* output) {
+    const AcceptChFrame& accept_ch, std::unique_ptr<char[]>* output) {
   QuicByteCount payload_length = 0;
   for (const auto& entry : accept_ch.entries) {
     payload_length += QuicDataWriter::GetVarInt62Len(entry.origin.size());
@@ -255,8 +251,7 @@ QuicByteCount HttpEncoder::SerializeGreasingFrame(
 }
 
 QuicByteCount HttpEncoder::SerializeWebTransportStreamFrameHeader(
-    WebTransportSessionId session_id,
-    std::unique_ptr<char[]>* output) {
+    WebTransportSessionId session_id, std::unique_ptr<char[]>* output) {
   uint64_t stream_type =
       static_cast<uint64_t>(HttpFrameType::WEBTRANSPORT_STREAM);
   QuicByteCount header_length = QuicDataWriter::GetVarInt62Len(stream_type) +

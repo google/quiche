@@ -61,16 +61,11 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSession {
   explicit TestQuicSpdyClientSession(
       const QuicConfig& config,
       const ParsedQuicVersionVector& supported_versions,
-      QuicConnection* connection,
-      const QuicServerId& server_id,
+      QuicConnection* connection, const QuicServerId& server_id,
       QuicCryptoClientConfig* crypto_config,
       QuicClientPushPromiseIndex* push_promise_index)
-      : QuicSpdyClientSession(config,
-                              supported_versions,
-                              connection,
-                              server_id,
-                              crypto_config,
-                              push_promise_index) {}
+      : QuicSpdyClientSession(config, supported_versions, connection, server_id,
+                              crypto_config, push_promise_index) {}
 
   std::unique_ptr<QuicSpdyClientStream> CreateClientStream() override {
     return std::make_unique<MockQuicSpdyClientStream>(
@@ -232,14 +227,11 @@ std::string ParamNameFormatter(
   return ParsedQuicVersionToString(info.param);
 }
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicSpdyClientSessionTest,
+INSTANTIATE_TEST_SUITE_P(Tests, QuicSpdyClientSessionTest,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ParamNameFormatter);
 
-TEST_P(QuicSpdyClientSessionTest, CryptoConnect) {
-  CompleteCryptoHandshake();
-}
+TEST_P(QuicSpdyClientSessionTest, CryptoConnect) { CompleteCryptoHandshake(); }
 
 TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
   if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {

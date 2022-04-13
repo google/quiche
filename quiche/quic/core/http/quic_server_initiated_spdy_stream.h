@@ -22,8 +22,7 @@ class QUIC_EXPORT_PRIVATE QuicServerInitiatedSpdyStream
       spdy::SpdyHeaderBlock header_block, bool fin,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener) override;
-  void OnInitialHeadersComplete(bool fin,
-                                size_t frame_len,
+  void OnInitialHeadersComplete(bool fin, size_t frame_len,
                                 const QuicHeaderList& header_list) override;
 };
 

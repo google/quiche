@@ -36,22 +36,18 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
       const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection,
       QuicClientPushPromiseIndex* push_promise_index)
-      : QuicSpdyClientSession(DefaultQuicConfig(),
-                              supported_versions,
+      : QuicSpdyClientSession(DefaultQuicConfig(), supported_versions,
                               connection,
                               QuicServerId("example.com", 443, false),
-                              &crypto_config_,
-                              push_promise_index),
+                              &crypto_config_, push_promise_index),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {}
   MockQuicSpdyClientSession(const MockQuicSpdyClientSession&) = delete;
   MockQuicSpdyClientSession& operator=(const MockQuicSpdyClientSession&) =
       delete;
   ~MockQuicSpdyClientSession() override = default;
 
-  MOCK_METHOD(bool,
-              WriteControlFrame,
-              (const QuicFrame& frame, TransmissionType type),
-              (override));
+  MOCK_METHOD(bool, WriteControlFrame,
+              (const QuicFrame& frame, TransmissionType type), (override));
 
   using QuicSession::ActivateStream;
 
@@ -64,13 +60,10 @@ class QuicSpdyClientStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   class StreamVisitor;
 
   QuicSpdyClientStreamTest()
-      : connection_(
-            new StrictMock<MockQuicConnection>(&helper_,
-                                               &alarm_factory_,
-                                               Perspective::IS_CLIENT,
-                                               SupportedVersions(GetParam()))),
-        session_(connection_->supported_versions(),
-                 connection_,
+      : connection_(new StrictMock<MockQuicConnection>(
+            &helper_, &alarm_factory_, Perspective::IS_CLIENT,
+            SupportedVersions(GetParam()))),
+        session_(connection_->supported_versions(), connection_,
                  &push_promise_index_),
         body_("hello world") {
     session_.Initialize();
@@ -110,8 +103,7 @@ class QuicSpdyClientStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   std::string body_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicSpdyClientStreamTest,
+INSTANTIATE_TEST_SUITE_P(Tests, QuicSpdyClientStreamTest,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 
