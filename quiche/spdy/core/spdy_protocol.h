@@ -279,7 +279,7 @@ QUICHE_EXPORT_PRIVATE SpdyErrorCode ParseErrorCode(uint32_t wire_error_code);
 
 // Serialize RST_STREAM or GOAWAY frame error code to string
 // for logging/debugging.
-const char* ErrorCodeToString(SpdyErrorCode error_code);
+QUICHE_EXPORT_PRIVATE const char* ErrorCodeToString(SpdyErrorCode error_code);
 
 // Serialize |type| to string for logging/debugging.
 QUICHE_EXPORT_PRIVATE const char* WriteSchedulerTypeToString(
