@@ -259,16 +259,13 @@ class VerifyingDecoder : public QpackDecodedHeadersAccumulator::Visitor {
     virtual void OnHeaderBlockDecoded(QuicStreamId stream_id) = 0;
   };
 
-  VerifyingDecoder(QuicStreamId stream_id,
-                   Visitor* visitor,
+  VerifyingDecoder(QuicStreamId stream_id, Visitor* visitor,
                    QpackDecoder* qpack_decoder,
                    QuicHeaderList expected_header_list)
       : stream_id_(stream_id),
         visitor_(visitor),
         accumulator_(
-            stream_id,
-            qpack_decoder,
-            this,
+            stream_id, qpack_decoder, this,
             /* max_header_list_size = */ std::numeric_limits<size_t>::max()),
         expected_header_list_(std::move(expected_header_list)) {}
 
@@ -317,8 +314,7 @@ class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor,
  public:
   DecodingEndpoint(uint64_t maximum_dynamic_table_capacity,
                    uint64_t maximum_blocked_streams)
-      : decoder_(maximum_dynamic_table_capacity,
-                 maximum_blocked_streams,
+      : decoder_(maximum_dynamic_table_capacity, maximum_blocked_streams,
                  &encoder_stream_error_delegate_) {}
 
   ~DecodingEndpoint() override {

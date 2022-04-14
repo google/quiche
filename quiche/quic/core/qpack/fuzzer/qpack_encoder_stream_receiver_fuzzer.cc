@@ -22,8 +22,7 @@ class NoOpDelegate : public QpackEncoderStreamReceiver::Delegate {
   NoOpDelegate() : error_detected_(false) {}
   ~NoOpDelegate() override = default;
 
-  void OnInsertWithNameReference(bool /*is_static*/,
-                                 uint64_t /*name_index*/,
+  void OnInsertWithNameReference(bool /*is_static*/, uint64_t /*name_index*/,
                                  absl::string_view /*value*/) override {}
   void OnInsertWithoutNameReference(absl::string_view /*name*/,
                                     absl::string_view /*value*/) override {}

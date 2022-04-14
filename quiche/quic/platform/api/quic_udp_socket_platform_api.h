@@ -13,9 +13,7 @@ const size_t kCmsgSpaceForGooglePacketHeader =
     quiche::kCmsgSpaceForGooglePacketHeader;
 
 inline bool GetGooglePacketHeadersFromControlMessage(
-    struct ::cmsghdr* cmsg,
-    char** packet_headers,
-    size_t* packet_headers_len) {
+    struct ::cmsghdr* cmsg, char** packet_headers, size_t* packet_headers_len) {
   return quiche::GetGooglePacketHeadersFromControlMessage(cmsg, packet_headers,
                                                           packet_headers_len);
 }

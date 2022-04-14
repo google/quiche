@@ -91,17 +91,13 @@ bool operator==(QuicIpAddress lhs, QuicIpAddress rhs) {
   return false;
 }
 
-bool operator!=(QuicIpAddress lhs, QuicIpAddress rhs) {
-  return !(lhs == rhs);
-}
+bool operator!=(QuicIpAddress lhs, QuicIpAddress rhs) { return !(lhs == rhs); }
 
 bool QuicIpAddress::IsInitialized() const {
   return family_ != IpAddressFamily::IP_UNSPEC;
 }
 
-IpAddressFamily QuicIpAddress::address_family() const {
-  return family_;
-}
+IpAddressFamily QuicIpAddress::address_family() const { return family_; }
 
 int QuicIpAddress::AddressFamilyToInt() const {
   return ToPlatformAddressFamily(family_);
@@ -193,13 +189,9 @@ bool QuicIpAddress::FromString(std::string str) {
   return false;
 }
 
-bool QuicIpAddress::IsIPv4() const {
-  return family_ == IpAddressFamily::IP_V4;
-}
+bool QuicIpAddress::IsIPv4() const { return family_ == IpAddressFamily::IP_V4; }
 
-bool QuicIpAddress::IsIPv6() const {
-  return family_ == IpAddressFamily::IP_V6;
-}
+bool QuicIpAddress::IsIPv6() const { return family_ == IpAddressFamily::IP_V6; }
 
 bool QuicIpAddress::InSameSubnet(const QuicIpAddress& other,
                                  int subnet_length) {

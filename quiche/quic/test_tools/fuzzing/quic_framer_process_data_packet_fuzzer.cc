@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <fuzzer/FuzzedDataProvider.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <string>
@@ -78,8 +79,7 @@ struct QuicSelfContainedPacketHeader : public QuicPacketHeader {
 // at sender, and 2) the serialzied buffer can pass the receiver framer's
 // ProcessPublicHeader and DecryptPayload functions.
 QuicSelfContainedPacketHeader ConsumeQuicPacketHeader(
-    FuzzedDataProvider* provider,
-    Perspective receiver_perspective) {
+    FuzzedDataProvider* provider, Perspective receiver_perspective) {
   QuicSelfContainedPacketHeader header;
 
   header.version = ConsumeParsedQuicVersion(provider);
