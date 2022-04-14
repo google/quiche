@@ -33,8 +33,7 @@ class QUICHE_EXPORT_PRIVATE HpackWholeEntryListener {
   // entry_type will be kIndexedLiteralHeader, kUnindexedLiteralHeader, or
   // kNeverIndexedLiteralHeader.
   virtual void OnNameIndexAndLiteralValue(
-      HpackEntryType entry_type,
-      size_t name_index,
+      HpackEntryType entry_type, size_t name_index,
       HpackDecoderStringBuffer* value_buffer) = 0;
 
   // Called when a header entry with a literal name and literal value
@@ -42,8 +41,7 @@ class QUICHE_EXPORT_PRIVATE HpackWholeEntryListener {
   // kIndexedLiteralHeader, kUnindexedLiteralHeader, or
   // kNeverIndexedLiteralHeader.
   virtual void OnLiteralNameAndValue(
-      HpackEntryType entry_type,
-      HpackDecoderStringBuffer* name_buffer,
+      HpackEntryType entry_type, HpackDecoderStringBuffer* name_buffer,
       HpackDecoderStringBuffer* value_buffer) = 0;
 
   // Called when an update to the size of the peer's dynamic table has been
@@ -64,8 +62,7 @@ class QUICHE_EXPORT_PRIVATE HpackWholeEntryNoOpListener
 
   void OnIndexedHeader(size_t index) override;
   void OnNameIndexAndLiteralValue(
-      HpackEntryType entry_type,
-      size_t name_index,
+      HpackEntryType entry_type, size_t name_index,
       HpackDecoderStringBuffer* value_buffer) override;
   void OnLiteralNameAndValue(HpackEntryType entry_type,
                              HpackDecoderStringBuffer* name_buffer,

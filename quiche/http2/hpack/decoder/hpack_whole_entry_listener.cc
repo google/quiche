@@ -12,17 +12,14 @@ HpackWholeEntryNoOpListener::~HpackWholeEntryNoOpListener() = default;
 
 void HpackWholeEntryNoOpListener::OnIndexedHeader(size_t /*index*/) {}
 void HpackWholeEntryNoOpListener::OnNameIndexAndLiteralValue(
-    HpackEntryType /*entry_type*/,
-    size_t /*name_index*/,
+    HpackEntryType /*entry_type*/, size_t /*name_index*/,
     HpackDecoderStringBuffer* /*value_buffer*/) {}
 void HpackWholeEntryNoOpListener::OnLiteralNameAndValue(
-    HpackEntryType /*entry_type*/,
-    HpackDecoderStringBuffer* /*name_buffer*/,
+    HpackEntryType /*entry_type*/, HpackDecoderStringBuffer* /*name_buffer*/,
     HpackDecoderStringBuffer* /*value_buffer*/) {}
 void HpackWholeEntryNoOpListener::OnDynamicTableSizeUpdate(size_t /*size*/) {}
 void HpackWholeEntryNoOpListener::OnHpackDecodeError(
-    HpackDecodingError /*error*/,
-    std::string /*detailed_error*/) {}
+    HpackDecodingError /*error*/, std::string /*detailed_error*/) {}
 
 // static
 HpackWholeEntryNoOpListener* HpackWholeEntryNoOpListener::NoOpListener() {

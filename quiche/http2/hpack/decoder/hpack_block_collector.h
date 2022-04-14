@@ -63,16 +63,13 @@ class QUICHE_NO_EXPORT HpackBlockCollector : public HpackEntryDecoderListener {
 
   // Add an HPACK entry for a header entry with an index for the name, and a
   // literal value.
-  void ExpectNameIndexAndLiteralValue(HpackEntryType type,
-                                      size_t index,
+  void ExpectNameIndexAndLiteralValue(HpackEntryType type, size_t index,
                                       bool value_huffman,
                                       const std::string& value);
 
   // Add an HPACK entry for a header entry with a literal name and value.
-  void ExpectLiteralNameAndValue(HpackEntryType type,
-                                 bool name_huffman,
-                                 const std::string& name,
-                                 bool value_huffman,
+  void ExpectLiteralNameAndValue(HpackEntryType type, bool name_huffman,
+                                 const std::string& name, bool value_huffman,
                                  const std::string& value);
 
   // Shuffle the entries, in support of generating an HPACK block of entries
@@ -94,18 +91,14 @@ class QUICHE_NO_EXPORT HpackBlockCollector : public HpackEntryDecoderListener {
   // Return AssertionSuccess if there is just one entry, and it is a Header
   // entry with an index for the name and a literal value.
   ::testing::AssertionResult ValidateSoleLiteralValueHeader(
-      HpackEntryType expected_type,
-      size_t expected_index,
-      bool expected_value_huffman,
-      absl::string_view expected_value) const;
+      HpackEntryType expected_type, size_t expected_index,
+      bool expected_value_huffman, absl::string_view expected_value) const;
 
   // Return AssertionSuccess if there is just one entry, and it is a Header
   // with a literal name and literal value.
   ::testing::AssertionResult ValidateSoleLiteralNameValueHeader(
-      HpackEntryType expected_type,
-      bool expected_name_huffman,
-      absl::string_view expected_name,
-      bool expected_value_huffman,
+      HpackEntryType expected_type, bool expected_name_huffman,
+      absl::string_view expected_name, bool expected_value_huffman,
       absl::string_view expected_value) const;
 
   bool IsNotPending() const { return pending_entry_.IsClear(); }

@@ -62,14 +62,10 @@ typedef std::vector<HpackHeaderEntry> HpackHeaderEntries;
 class MockHpackDecoderListener : public HpackDecoderListener {
  public:
   MOCK_METHOD(void, OnHeaderListStart, (), (override));
-  MOCK_METHOD(void,
-              OnHeader,
-              (const std::string& name, const std::string& value),
-              (override));
+  MOCK_METHOD(void, OnHeader,
+              (const std::string& name, const std::string& value), (override));
   MOCK_METHOD(void, OnHeaderListEnd, (), (override));
-  MOCK_METHOD(void,
-              OnHeaderErrorDetected,
-              (absl::string_view error_message),
+  MOCK_METHOD(void, OnHeaderErrorDetected, (absl::string_view error_message),
               (override));
 };
 
@@ -184,8 +180,7 @@ class HpackDecoderTest : public QuicheTestWithParam<bool>,
   }
 
   // dynamic_index is one-based, because that is the way RFC 7541 shows it.
-  AssertionResult VerifyEntry(size_t dynamic_index,
-                              const char* name,
+  AssertionResult VerifyEntry(size_t dynamic_index, const char* name,
                               const char* value) {
     const HpackStringPair* entry =
         Lookup(dynamic_index + kFirstDynamicTableIndex - 1);

@@ -83,8 +83,7 @@ class QUICHE_EXPORT_PRIVATE HpackEntryDecoder {
 QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
                                                const HpackEntryDecoder& v);
 QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& out,
-    HpackEntryDecoder::EntryDecoderState state);
+    std::ostream& out, HpackEntryDecoder::EntryDecoderState state);
 
 }  // namespace http2
 

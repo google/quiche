@@ -51,23 +51,22 @@ class HpackStringDecoderTest : public RandomDecoderTest {
   // the string to be passed to Collected outlives the call to MakeValidator.
   Validator MakeValidator(const std::string& expected_str,
                           bool expected_huffman) {
-    return
-        [expected_str, expected_huffman, this](
-            const DecodeBuffer& /*input*/,
-            DecodeStatus /*status*/) -> AssertionResult {
-          AssertionResult result = Collected(expected_str, expected_huffman);
-          if (result) {
-            VERIFY_EQ(collector_,
-                      HpackStringCollector(expected_str, expected_huffman));
-          } else {
-            VERIFY_NE(collector_,
-                      HpackStringCollector(expected_str, expected_huffman));
-          }
-          HTTP2_VLOG(2) << collector_.ToString();
-          collector_.Clear();
-          HTTP2_VLOG(2) << collector_;
-          return result;
-        };
+    return [expected_str, expected_huffman, this](
+               const DecodeBuffer& /*input*/,
+               DecodeStatus /*status*/) -> AssertionResult {
+      AssertionResult result = Collected(expected_str, expected_huffman);
+      if (result) {
+        VERIFY_EQ(collector_,
+                  HpackStringCollector(expected_str, expected_huffman));
+      } else {
+        VERIFY_NE(collector_,
+                  HpackStringCollector(expected_str, expected_huffman));
+      }
+      HTTP2_VLOG(2) << collector_.ToString();
+      collector_.Clear();
+      HTTP2_VLOG(2) << collector_;
+      return result;
+    };
   }
 
   HpackStringDecoder decoder_;

@@ -70,8 +70,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderState : public HpackWholeEntryListener {
   // object when an entire entry has been decoded.
   void OnIndexedHeader(size_t index) override;
   void OnNameIndexAndLiteralValue(
-      HpackEntryType entry_type,
-      size_t name_index,
+      HpackEntryType entry_type, size_t name_index,
       HpackDecoderStringBuffer* value_buffer) override;
   void OnLiteralNameAndValue(HpackEntryType entry_type,
                              HpackDecoderStringBuffer* name_buffer,

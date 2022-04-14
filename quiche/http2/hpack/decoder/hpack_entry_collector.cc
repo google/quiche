@@ -22,9 +22,7 @@ const size_t kInvalidIndex = 99999999;
 
 }  // namespace
 
-HpackEntryCollector::HpackEntryCollector() {
-  Clear();
-}
+HpackEntryCollector::HpackEntryCollector() { Clear(); }
 
 HpackEntryCollector::HpackEntryCollector(const HpackEntryCollector& other) =
     default;
@@ -32,8 +30,7 @@ HpackEntryCollector::HpackEntryCollector(const HpackEntryCollector& other) =
 HpackEntryCollector::HpackEntryCollector(HpackEntryType type,
                                          size_t index_or_size)
     : header_type_(type), index_(index_or_size), started_(true), ended_(true) {}
-HpackEntryCollector::HpackEntryCollector(HpackEntryType type,
-                                         size_t index,
+HpackEntryCollector::HpackEntryCollector(HpackEntryType type, size_t index,
                                          bool value_huffman,
                                          const std::string& value)
     : header_type_(type),
@@ -41,8 +38,7 @@ HpackEntryCollector::HpackEntryCollector(HpackEntryType type,
       value_(value, value_huffman),
       started_(true),
       ended_(true) {}
-HpackEntryCollector::HpackEntryCollector(HpackEntryType type,
-                                         bool name_huffman,
+HpackEntryCollector::HpackEntryCollector(HpackEntryType type, bool name_huffman,
                                          const std::string& name,
                                          bool value_huffman,
                                          const std::string& value)
@@ -131,9 +127,7 @@ bool HpackEntryCollector::IsClear() const {
   return header_type_ == kInvalidHeaderType && index_ == kInvalidIndex &&
          name_.IsClear() && value_.IsClear() && !started_ && !ended_;
 }
-bool HpackEntryCollector::IsComplete() const {
-  return started_ && ended_;
-}
+bool HpackEntryCollector::IsComplete() const { return started_ && ended_; }
 bool HpackEntryCollector::LiteralNameExpected() const {
   switch (header_type_) {
     case HpackEntryType::kIndexedLiteralHeader:
@@ -163,10 +157,8 @@ AssertionResult HpackEntryCollector::ValidateIndexedHeader(
   return ::testing::AssertionSuccess();
 }
 AssertionResult HpackEntryCollector::ValidateLiteralValueHeader(
-    HpackEntryType expected_type,
-    size_t expected_index,
-    bool expected_value_huffman,
-    absl::string_view expected_value) const {
+    HpackEntryType expected_type, size_t expected_index,
+    bool expected_value_huffman, absl::string_view expected_value) const {
   VERIFY_TRUE(started_);
   VERIFY_TRUE(ended_);
   VERIFY_EQ(expected_type, header_type_);
@@ -177,10 +169,8 @@ AssertionResult HpackEntryCollector::ValidateLiteralValueHeader(
   return ::testing::AssertionSuccess();
 }
 AssertionResult HpackEntryCollector::ValidateLiteralNameValueHeader(
-    HpackEntryType expected_type,
-    bool expected_name_huffman,
-    absl::string_view expected_name,
-    bool expected_value_huffman,
+    HpackEntryType expected_type, bool expected_name_huffman,
+    absl::string_view expected_name, bool expected_value_huffman,
     absl::string_view expected_value) const {
   VERIFY_TRUE(started_);
   VERIFY_TRUE(ended_);

@@ -33,9 +33,7 @@ std::ostream& operator<<(std::ostream& out,
 
 }  // namespace
 
-HpackStringCollector::HpackStringCollector() {
-  Clear();
-}
+HpackStringCollector::HpackStringCollector() { Clear(); }
 
 HpackStringCollector::HpackStringCollector(const std::string& str, bool huffman)
     : s(str), len(str.size()), huffman_encoded(huffman), state(kEnded) {}
@@ -51,13 +49,9 @@ bool HpackStringCollector::IsClear() const {
   return s.empty() && len == 0 && huffman_encoded == false && state == kGenesis;
 }
 
-bool HpackStringCollector::IsInProgress() const {
-  return state == kStarted;
-}
+bool HpackStringCollector::IsInProgress() const { return state == kStarted; }
 
-bool HpackStringCollector::HasEnded() const {
-  return state == kEnded;
-}
+bool HpackStringCollector::HasEnded() const { return state == kEnded; }
 
 void HpackStringCollector::OnStringStart(bool huffman, size_t length) {
   EXPECT_TRUE(IsClear()) << ToString();
@@ -81,8 +75,7 @@ void HpackStringCollector::OnStringEnd() {
 }
 
 ::testing::AssertionResult HpackStringCollector::Collected(
-    absl::string_view str,
-    bool is_huffman_encoded) const {
+    absl::string_view str, bool is_huffman_encoded) const {
   VERIFY_TRUE(HasEnded());
   VERIFY_EQ(str.size(), len);
   VERIFY_EQ(is_huffman_encoded, huffman_encoded);

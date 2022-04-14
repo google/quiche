@@ -124,8 +124,7 @@ class QUICHE_EXPORT_PRIVATE HpackStringDecoder {
   // If the length is not fully decoded, case state_ is set appropriately
   // for the next call to Resume.
   template <class Listener>
-  bool StartDecodingLength(DecodeBuffer* db,
-                           Listener* cb,
+  bool StartDecodingLength(DecodeBuffer* db, Listener* cb,
                            DecodeStatus* status) {
     if (db->Empty()) {
       *status = DecodeStatus::kDecodeInProgress;
@@ -151,8 +150,7 @@ class QUICHE_EXPORT_PRIVATE HpackStringDecoder {
   // If the length is not fully decoded, case state_ is set appropriately
   // for the next call to Resume.
   template <class Listener>
-  bool ResumeDecodingLength(DecodeBuffer* db,
-                            Listener* cb,
+  bool ResumeDecodingLength(DecodeBuffer* db, Listener* cb,
                             DecodeStatus* status) {
     QUICHE_DCHECK_EQ(state_, kResumeDecodingLength);
     *status = length_decoder_.Resume(db);

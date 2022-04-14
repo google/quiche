@@ -64,8 +64,7 @@ class HpackBlockDecoderTest : public RandomDecoderTest {
   }
 
   AssertionResult DecodeHpackExampleAndValidateSeveralWays(
-      absl::string_view hpack_example,
-      Validator validator) {
+      absl::string_view hpack_example, Validator validator) {
     std::string input = HpackExampleToStringOrDie(hpack_example);
     DecodeBuffer db(input);
     return DecodeAndValidateSeveralWays(&db, validator);

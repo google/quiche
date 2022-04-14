@@ -39,9 +39,7 @@ void HpackBlockCollector::OnNameStart(bool huffman_encoded, size_t len) {
 void HpackBlockCollector::OnNameData(const char* data, size_t len) {
   pending_entry_.OnNameData(data, len);
 }
-void HpackBlockCollector::OnNameEnd() {
-  pending_entry_.OnNameEnd();
-}
+void HpackBlockCollector::OnNameEnd() { pending_entry_.OnNameEnd(); }
 void HpackBlockCollector::OnValueStart(bool huffman_encoded, size_t len) {
   pending_entry_.OnValueStart(huffman_encoded, len);
 }
@@ -74,9 +72,7 @@ void HpackBlockCollector::ExpectDynamicTableSizeUpdate(size_t size) {
       HpackEntryCollector(HpackEntryType::kDynamicTableSizeUpdate, size));
 }
 void HpackBlockCollector::ExpectNameIndexAndLiteralValue(
-    HpackEntryType type,
-    size_t index,
-    bool value_huffman,
+    HpackEntryType type, size_t index, bool value_huffman,
     const std::string& value) {
   entries_.push_back(HpackEntryCollector(type, index, value_huffman, value));
 }
@@ -109,10 +105,8 @@ AssertionResult HpackBlockCollector::ValidateSoleIndexedHeader(
   return AssertionSuccess();
 }
 AssertionResult HpackBlockCollector::ValidateSoleLiteralValueHeader(
-    HpackEntryType expected_type,
-    size_t expected_index,
-    bool expected_value_huffman,
-    absl::string_view expected_value) const {
+    HpackEntryType expected_type, size_t expected_index,
+    bool expected_value_huffman, absl::string_view expected_value) const {
   VERIFY_TRUE(pending_entry_.IsClear());
   VERIFY_EQ(1u, entries_.size());
   VERIFY_TRUE(entries_.front().ValidateLiteralValueHeader(
@@ -120,10 +114,8 @@ AssertionResult HpackBlockCollector::ValidateSoleLiteralValueHeader(
   return AssertionSuccess();
 }
 AssertionResult HpackBlockCollector::ValidateSoleLiteralNameValueHeader(
-    HpackEntryType expected_type,
-    bool expected_name_huffman,
-    absl::string_view expected_name,
-    bool expected_value_huffman,
+    HpackEntryType expected_type, bool expected_name_huffman,
+    absl::string_view expected_name, bool expected_value_huffman,
     absl::string_view expected_value) const {
   VERIFY_TRUE(pending_entry_.IsClear());
   VERIFY_EQ(1u, entries_.size());

@@ -111,9 +111,7 @@ const std::string& Name(const FakeHpackEntry& entry) {
 const std::string& Value(const FakeHpackEntry& entry) {
   return std::get<1>(entry);
 }
-size_t Size(const FakeHpackEntry& entry) {
-  return std::get<2>(entry);
-}
+size_t Size(const FakeHpackEntry& entry) { return std::get<2>(entry); }
 
 class HpackDecoderTablesTest : public HpackDecoderStaticTableTest {
  protected:

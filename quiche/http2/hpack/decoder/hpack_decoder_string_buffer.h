@@ -94,8 +94,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderStringBuffer {
 };
 
 QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& out,
-    const HpackDecoderStringBuffer& v);
+    std::ostream& out, const HpackDecoderStringBuffer& v);
 
 }  // namespace http2
 

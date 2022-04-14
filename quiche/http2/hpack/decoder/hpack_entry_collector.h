@@ -35,14 +35,10 @@ class QUICHE_NO_EXPORT HpackEntryCollector : public HpackEntryDecoderListener {
   // an HpackEntryCollector "manually", and then compare it against another
   // that is populated via calls to the HpackEntryDecoderListener methods.
   HpackEntryCollector(HpackEntryType type, size_t index_or_size);
-  HpackEntryCollector(HpackEntryType type,
-                      size_t index,
-                      bool value_huffman,
+  HpackEntryCollector(HpackEntryType type, size_t index, bool value_huffman,
                       const std::string& value);
-  HpackEntryCollector(HpackEntryType type,
-                      bool name_huffman,
-                      const std::string& name,
-                      bool value_huffman,
+  HpackEntryCollector(HpackEntryType type, bool name_huffman,
+                      const std::string& name, bool value_huffman,
                       const std::string& value);
 
   ~HpackEntryCollector() override;
@@ -83,18 +79,14 @@ class QUICHE_NO_EXPORT HpackEntryCollector : public HpackEntryDecoderListener {
   // value (i.e. OnStartLiteralHeader was called with a non-zero index for
   // the name, which must match expected_index).
   ::testing::AssertionResult ValidateLiteralValueHeader(
-      HpackEntryType expected_type,
-      size_t expected_index,
-      bool expected_value_huffman,
-      absl::string_view expected_value) const;
+      HpackEntryType expected_type, size_t expected_index,
+      bool expected_value_huffman, absl::string_view expected_value) const;
 
   // Returns success if collected a Header with an literal name and literal
   // value.
   ::testing::AssertionResult ValidateLiteralNameValueHeader(
-      HpackEntryType expected_type,
-      bool expected_name_huffman,
-      absl::string_view expected_name,
-      bool expected_value_huffman,
+      HpackEntryType expected_type, bool expected_name_huffman,
+      absl::string_view expected_name, bool expected_value_huffman,
       absl::string_view expected_value) const;
 
   // Returns success if collected a Dynamic Table Size Update,

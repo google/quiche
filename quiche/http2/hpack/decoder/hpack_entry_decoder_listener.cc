@@ -16,8 +16,7 @@ void HpackEntryDecoderVLoggingListener::OnIndexedHeader(size_t index) {
 }
 
 void HpackEntryDecoderVLoggingListener::OnStartLiteralHeader(
-    HpackEntryType entry_type,
-    size_t maybe_name_index) {
+    HpackEntryType entry_type, size_t maybe_name_index) {
   HTTP2_VLOG(1) << "OnStartLiteralHeader: entry_type=" << entry_type
                 << ", maybe_name_index=" << maybe_name_index;
   if (wrapped_) {

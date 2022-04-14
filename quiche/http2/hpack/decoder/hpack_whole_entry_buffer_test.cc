@@ -26,21 +26,16 @@ class MockHpackWholeEntryListener : public HpackWholeEntryListener {
   ~MockHpackWholeEntryListener() override = default;
 
   MOCK_METHOD(void, OnIndexedHeader, (size_t index), (override));
-  MOCK_METHOD(void,
-              OnNameIndexAndLiteralValue,
-              (HpackEntryType entry_type,
-               size_t name_index,
+  MOCK_METHOD(void, OnNameIndexAndLiteralValue,
+              (HpackEntryType entry_type, size_t name_index,
                HpackDecoderStringBuffer* value_buffer),
               (override));
-  MOCK_METHOD(void,
-              OnLiteralNameAndValue,
-              (HpackEntryType entry_type,
-               HpackDecoderStringBuffer* name_buffer,
+  MOCK_METHOD(void, OnLiteralNameAndValue,
+              (HpackEntryType entry_type, HpackDecoderStringBuffer* name_buffer,
                HpackDecoderStringBuffer* value_buffer),
               (override));
   MOCK_METHOD(void, OnDynamicTableSizeUpdate, (size_t size), (override));
-  MOCK_METHOD(void,
-              OnHpackDecodeError,
+  MOCK_METHOD(void, OnHpackDecodeError,
               (HpackDecodingError error, std::string detailed_error),
               (override));
 };
