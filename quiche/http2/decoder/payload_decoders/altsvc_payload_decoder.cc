@@ -37,8 +37,7 @@ std::ostream& operator<<(std::ostream& out,
 }
 
 DecodeStatus AltSvcPayloadDecoder::StartDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "AltSvcPayloadDecoder::StartDecodingPayload: "
                  << state->frame_header();
   QUICHE_DCHECK_EQ(Http2FrameType::ALTSVC, state->frame_header().type);
@@ -52,8 +51,7 @@ DecodeStatus AltSvcPayloadDecoder::StartDecodingPayload(
 }
 
 DecodeStatus AltSvcPayloadDecoder::ResumeDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   const Http2FrameHeader& frame_header = state->frame_header();
   HTTP2_DVLOG(2) << "AltSvcPayloadDecoder::ResumeDecodingPayload: "
                  << frame_header;

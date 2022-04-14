@@ -91,12 +91,10 @@ struct Listener : public FramePartsCollector {
 };
 
 class HeadersPayloadDecoderTest
-    : public AbstractPaddablePayloadDecoderTest<HeadersPayloadDecoder,
-                                                HeadersPayloadDecoderPeer,
-                                                Listener> {};
+    : public AbstractPaddablePayloadDecoderTest<
+          HeadersPayloadDecoder, HeadersPayloadDecoderPeer, Listener> {};
 
-INSTANTIATE_TEST_SUITE_P(VariousPadLengths,
-                         HeadersPayloadDecoderTest,
+INSTANTIATE_TEST_SUITE_P(VariousPadLengths, HeadersPayloadDecoderTest,
                          ::testing::Values(0, 1, 2, 3, 4, 254, 255, 256));
 
 // Decode various sizes of (fake) HPACK payload, both with and without the

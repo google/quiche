@@ -37,8 +37,7 @@ std::ostream& operator<<(std::ostream& out,
 }
 
 DecodeStatus GoAwayPayloadDecoder::StartDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "GoAwayPayloadDecoder::StartDecodingPayload: "
                  << state->frame_header();
   QUICHE_DCHECK_EQ(Http2FrameType::GOAWAY, state->frame_header().type);
@@ -51,8 +50,7 @@ DecodeStatus GoAwayPayloadDecoder::StartDecodingPayload(
 }
 
 DecodeStatus GoAwayPayloadDecoder::ResumeDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   HTTP2_DVLOG(2)
       << "GoAwayPayloadDecoder::ResumeDecodingPayload: remaining_payload="
       << state->remaining_payload() << ", db->Remaining=" << db->Remaining();

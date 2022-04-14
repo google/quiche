@@ -84,12 +84,11 @@ struct Listener : public FramePartsCollector {
 };
 
 class PushPromisePayloadDecoderTest
-    : public AbstractPaddablePayloadDecoderTest<PushPromisePayloadDecoder,
-                                                PushPromisePayloadDecoderPeer,
-                                                Listener> {};
+    : public AbstractPaddablePayloadDecoderTest<
+          PushPromisePayloadDecoder, PushPromisePayloadDecoderPeer, Listener> {
+};
 
-INSTANTIATE_TEST_SUITE_P(VariousPadLengths,
-                         PushPromisePayloadDecoderTest,
+INSTANTIATE_TEST_SUITE_P(VariousPadLengths, PushPromisePayloadDecoderTest,
                          ::testing::Values(0, 1, 2, 3, 4, 254, 255, 256));
 
 // Payload contains the required Http2PushPromiseFields, followed by some

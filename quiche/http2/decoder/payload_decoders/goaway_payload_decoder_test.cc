@@ -60,8 +60,7 @@ struct Listener : public FramePartsCollector {
 
 class GoAwayPayloadDecoderTest
     : public AbstractPayloadDecoderTest<GoAwayPayloadDecoder,
-                                        GoAwayPayloadDecoderPeer,
-                                        Listener> {};
+                                        GoAwayPayloadDecoderPeer, Listener> {};
 
 // Confirm we get an error if the payload is not long enough to hold
 // Http2GoAwayFields.
@@ -86,8 +85,7 @@ class GoAwayOpaqueDataLengthTests
   const uint32_t length_;
 };
 
-INSTANTIATE_TEST_SUITE_P(VariousLengths,
-                         GoAwayOpaqueDataLengthTests,
+INSTANTIATE_TEST_SUITE_P(VariousLengths, GoAwayOpaqueDataLengthTests,
                          ::testing::Values(0, 1, 2, 3, 4, 5, 6));
 
 TEST_P(GoAwayOpaqueDataLengthTests, ValidLength) {

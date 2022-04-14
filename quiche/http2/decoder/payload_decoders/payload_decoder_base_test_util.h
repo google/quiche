@@ -82,8 +82,7 @@ class QUICHE_NO_EXPORT PayloadDecoderBaseTest : public RandomDecoderTest {
   // Given the specified payload (without the common frame header), decode
   // it with several partitionings of the payload.
   ::testing::AssertionResult DecodePayloadAndValidateSeveralWays(
-      absl::string_view payload,
-      Validator validator);
+      absl::string_view payload, Validator validator);
 
   // TODO(jamessynge): Add helper method for verifying these are both non-zero,
   // and call the new method from tests that expect successful decoding.
@@ -190,8 +189,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
   // will be decoded several times with different partitionings of the payload,
   // and after each the validator will be called.
   AssertionResult DecodePayloadAndValidateSeveralWays(
-      absl::string_view payload,
-      const FrameParts& expected) {
+      absl::string_view payload, const FrameParts& expected) {
     auto validator = [&expected, this]() -> AssertionResult {
       VERIFY_FALSE(listener_.IsInProgress());
       VERIFY_EQ(1u, listener_.size());
@@ -209,8 +207,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
   // std::nullptr_t (not extra validation).
   template <typename WrappedValidator>
   ::testing::AssertionResult VerifyDetectsFrameSizeError(
-      absl::string_view payload,
-      const Http2FrameHeader& header,
+      absl::string_view payload, const Http2FrameHeader& header,
       WrappedValidator wrapped_validator) {
     set_frame_header(header);
     // If wrapped_validator is not a RandomDecoderTest::Validator, make it so.
@@ -246,10 +243,8 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
   // The flags will be required_flags, PADDED if total_pad_length > 0, and some
   // randomly selected flag bits not excluded by FlagsAffectingPayloadDecoding.
   ::testing::AssertionResult VerifyDetectsMultipleFrameSizeErrors(
-      uint8_t required_flags,
-      absl::string_view unpadded_payload,
-      ApproveSize approve_size,
-      int total_pad_length) {
+      uint8_t required_flags, absl::string_view unpadded_payload,
+      ApproveSize approve_size, int total_pad_length) {
     // required_flags should come from those that are defined for the frame
     // type AND are those that affect the decoding of the payload (otherwise,
     // the flag shouldn't be required).
@@ -304,8 +299,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
 
   // As above, but for frames without padding.
   ::testing::AssertionResult VerifyDetectsFrameSizeError(
-      uint8_t required_flags,
-      absl::string_view unpadded_payload,
+      uint8_t required_flags, absl::string_view unpadded_payload,
       const ApproveSize& approve_size) {
     Http2FrameType frame_type = DecoderPeer::FrameType();
     uint8_t known_flags = KnownFlagsMaskForFrameType(frame_type);
@@ -378,8 +372,7 @@ class AbstractPaddablePayloadDecoderTest
   // amount of missing padding is as specified. header.IsPadded must be true,
   // and the payload must be empty or the PadLength field must be too large.
   ::testing::AssertionResult VerifyDetectsPaddingTooLong(
-      absl::string_view payload,
-      const Http2FrameHeader& header,
+      absl::string_view payload, const Http2FrameHeader& header,
       size_t expected_missing_length) {
     set_frame_header(header);
     auto& listener = listener_;

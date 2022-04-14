@@ -13,8 +13,7 @@
 namespace http2 {
 
 DecodeStatus SettingsPayloadDecoder::StartDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   const Http2FrameHeader& frame_header = state->frame_header();
   const uint32_t total_length = frame_header.payload_length;
 
@@ -40,8 +39,7 @@ DecodeStatus SettingsPayloadDecoder::StartDecodingPayload(
 }
 
 DecodeStatus SettingsPayloadDecoder::ResumeDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "SettingsPayloadDecoder::ResumeDecodingPayload"
                  << "  remaining_payload=" << state->remaining_payload()
                  << "  db->Remaining=" << db->Remaining();
@@ -58,8 +56,7 @@ DecodeStatus SettingsPayloadDecoder::ResumeDecodingPayload(
 }
 
 DecodeStatus SettingsPayloadDecoder::StartDecodingSettings(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "SettingsPayloadDecoder::StartDecodingSettings"
                  << "  remaining_payload=" << state->remaining_payload()
                  << "  db->Remaining=" << db->Remaining();

@@ -70,8 +70,7 @@ struct Listener : public FramePartsCollector {
 
 class SettingsPayloadDecoderTest
     : public AbstractPayloadDecoderTest<SettingsPayloadDecoder,
-                                        SettingsPayloadDecoderPeer,
-                                        Listener> {
+                                        SettingsPayloadDecoderPeer, Listener> {
  protected:
   Http2SettingFields RandSettingsFields() {
     Http2SettingFields fields;

@@ -13,8 +13,7 @@
 namespace http2 {
 
 DecodeStatus RstStreamPayloadDecoder::StartDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "RstStreamPayloadDecoder::StartDecodingPayload: "
                  << state->frame_header();
   QUICHE_DCHECK_EQ(Http2FrameType::RST_STREAM, state->frame_header().type);
@@ -27,8 +26,7 @@ DecodeStatus RstStreamPayloadDecoder::StartDecodingPayload(
 }
 
 DecodeStatus RstStreamPayloadDecoder::ResumeDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "RstStreamPayloadDecoder::ResumeDecodingPayload"
                  << "  remaining_payload=" << state->remaining_payload()
                  << "  db->Remaining=" << db->Remaining();

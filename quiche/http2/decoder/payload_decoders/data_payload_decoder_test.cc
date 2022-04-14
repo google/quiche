@@ -75,9 +75,8 @@ struct Listener : public FramePartsCollector {
 };
 
 class DataPayloadDecoderTest
-    : public AbstractPaddablePayloadDecoderTest<DataPayloadDecoder,
-                                                DataPayloadDecoderPeer,
-                                                Listener> {
+    : public AbstractPaddablePayloadDecoderTest<
+          DataPayloadDecoder, DataPayloadDecoderPeer, Listener> {
  protected:
   AssertionResult CreateAndDecodeDataOfSize(size_t data_size) {
     Reset();
@@ -97,8 +96,7 @@ class DataPayloadDecoderTest
   }
 };
 
-INSTANTIATE_TEST_SUITE_P(VariousPadLengths,
-                         DataPayloadDecoderTest,
+INSTANTIATE_TEST_SUITE_P(VariousPadLengths, DataPayloadDecoderTest,
                          ::testing::Values(0, 1, 2, 3, 4, 254, 255, 256));
 
 TEST_P(DataPayloadDecoderTest, VariousDataPayloadSizes) {

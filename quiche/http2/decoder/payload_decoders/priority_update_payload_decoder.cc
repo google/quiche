@@ -37,8 +37,7 @@ std::ostream& operator<<(std::ostream& out,
 }
 
 DecodeStatus PriorityUpdatePayloadDecoder::StartDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "PriorityUpdatePayloadDecoder::StartDecodingPayload: "
                  << state->frame_header();
   QUICHE_DCHECK_EQ(Http2FrameType::PRIORITY_UPDATE, state->frame_header().type);
@@ -51,8 +50,7 @@ DecodeStatus PriorityUpdatePayloadDecoder::StartDecodingPayload(
 }
 
 DecodeStatus PriorityUpdatePayloadDecoder::ResumeDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "PriorityUpdatePayloadDecoder::ResumeDecodingPayload: "
                     "remaining_payload="
                  << state->remaining_payload()

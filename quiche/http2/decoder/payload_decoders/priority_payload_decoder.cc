@@ -13,8 +13,7 @@
 namespace http2 {
 
 DecodeStatus PriorityPayloadDecoder::StartDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "PriorityPayloadDecoder::StartDecodingPayload: "
                  << state->frame_header();
   QUICHE_DCHECK_EQ(Http2FrameType::PRIORITY, state->frame_header().type);
@@ -27,8 +26,7 @@ DecodeStatus PriorityPayloadDecoder::StartDecodingPayload(
 }
 
 DecodeStatus PriorityPayloadDecoder::ResumeDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "PriorityPayloadDecoder::ResumeDecodingPayload"
                  << "  remaining_payload=" << state->remaining_payload()
                  << "  db->Remaining=" << db->Remaining();

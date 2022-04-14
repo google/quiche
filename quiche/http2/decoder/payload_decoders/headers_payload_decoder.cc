@@ -39,8 +39,7 @@ std::ostream& operator<<(std::ostream& out,
 }
 
 DecodeStatus HeadersPayloadDecoder::StartDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   const Http2FrameHeader& frame_header = state->frame_header();
   const uint32_t total_length = frame_header.payload_length;
 
@@ -97,8 +96,7 @@ DecodeStatus HeadersPayloadDecoder::StartDecodingPayload(
 }
 
 DecodeStatus HeadersPayloadDecoder::ResumeDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "HeadersPayloadDecoder::ResumeDecodingPayload "
                  << "remaining_payload=" << state->remaining_payload()
                  << "; db->Remaining=" << db->Remaining();

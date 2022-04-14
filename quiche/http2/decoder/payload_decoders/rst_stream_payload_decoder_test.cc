@@ -50,8 +50,7 @@ struct Listener : public FramePartsCollector {
 
 class RstStreamPayloadDecoderTest
     : public AbstractPayloadDecoderTest<RstStreamPayloadDecoder,
-                                        RstStreamPayloadDecoderPeer,
-                                        Listener> {
+                                        RstStreamPayloadDecoderPeer, Listener> {
  protected:
   Http2RstStreamFields RandRstStreamFields() {
     Http2RstStreamFields fields;

@@ -49,8 +49,7 @@ struct Listener : public FramePartsCollector {
 
 class PriorityPayloadDecoderTest
     : public AbstractPayloadDecoderTest<PriorityPayloadDecoder,
-                                        PriorityPayloadDecoderPeer,
-                                        Listener> {
+                                        PriorityPayloadDecoderPeer, Listener> {
  protected:
   Http2PriorityFields RandPriorityFields() {
     Http2PriorityFields fields;

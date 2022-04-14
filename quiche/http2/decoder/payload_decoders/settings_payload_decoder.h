@@ -42,8 +42,7 @@ class QUICHE_EXPORT_PRIVATE SettingsPayloadDecoder {
 
   // Decoding a single SETTING returned a status other than kDecodeDone; this
   // method just brings together the QUICHE_DCHECKs to reduce duplication.
-  DecodeStatus HandleNotDone(FrameDecoderState* state,
-                             DecodeBuffer* db,
+  DecodeStatus HandleNotDone(FrameDecoderState* state, DecodeBuffer* db,
                              DecodeStatus status);
 
   Http2SettingFields setting_fields_;

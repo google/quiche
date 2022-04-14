@@ -53,8 +53,7 @@ struct Listener : public FramePartsCollector {
 
 class PingPayloadDecoderTest
     : public AbstractPayloadDecoderTest<PingPayloadDecoder,
-                                        PingPayloadDecoderPeer,
-                                        Listener> {
+                                        PingPayloadDecoderPeer, Listener> {
  protected:
   Http2PingFields RandPingFields() {
     Http2PingFields fields;

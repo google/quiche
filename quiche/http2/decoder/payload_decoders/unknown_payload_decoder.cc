@@ -15,8 +15,7 @@
 namespace http2 {
 
 DecodeStatus UnknownPayloadDecoder::StartDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   const Http2FrameHeader& frame_header = state->frame_header();
 
   HTTP2_DVLOG(2) << "UnknownPayloadDecoder::StartDecodingPayload: "
@@ -30,8 +29,7 @@ DecodeStatus UnknownPayloadDecoder::StartDecodingPayload(
 }
 
 DecodeStatus UnknownPayloadDecoder::ResumeDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "UnknownPayloadDecoder::ResumeDecodingPayload "
                  << "remaining_payload=" << state->remaining_payload()
                  << "; db->Remaining=" << db->Remaining();

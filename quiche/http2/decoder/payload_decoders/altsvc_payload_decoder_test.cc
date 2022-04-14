@@ -38,8 +38,7 @@ class AltSvcPayloadDecoderPeer {
 namespace {
 
 struct Listener : public FramePartsCollector {
-  void OnAltSvcStart(const Http2FrameHeader& header,
-                     size_t origin_length,
+  void OnAltSvcStart(const Http2FrameHeader& header, size_t origin_length,
                      size_t value_length) override {
     HTTP2_VLOG(1) << "OnAltSvcStart header: " << header
                   << "; origin_length=" << origin_length
@@ -70,8 +69,7 @@ struct Listener : public FramePartsCollector {
 
 class AltSvcPayloadDecoderTest
     : public AbstractPayloadDecoderTest<AltSvcPayloadDecoder,
-                                        AltSvcPayloadDecoderPeer,
-                                        Listener> {};
+                                        AltSvcPayloadDecoderPeer, Listener> {};
 
 // Confirm we get an error if the payload is not long enough to hold
 // Http2AltSvcFields and the indicated length of origin.
@@ -99,8 +97,7 @@ class AltSvcPayloadLengthTests
   const uint32_t value_length_;
 };
 
-INSTANTIATE_TEST_SUITE_P(VariousOriginAndValueLengths,
-                         AltSvcPayloadLengthTests,
+INSTANTIATE_TEST_SUITE_P(VariousOriginAndValueLengths, AltSvcPayloadLengthTests,
                          ::testing::Combine(::testing::Values(0, 1, 3, 65535),
                                             ::testing::Values(0, 1, 3, 65537)));
 

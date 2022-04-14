@@ -36,8 +36,7 @@ std::ostream& operator<<(std::ostream& out,
 }
 
 DecodeStatus PushPromisePayloadDecoder::StartDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   const Http2FrameHeader& frame_header = state->frame_header();
   const uint32_t total_length = frame_header.payload_length;
 
@@ -63,8 +62,7 @@ DecodeStatus PushPromisePayloadDecoder::StartDecodingPayload(
 }
 
 DecodeStatus PushPromisePayloadDecoder::ResumeDecodingPayload(
-    FrameDecoderState* state,
-    DecodeBuffer* db) {
+    FrameDecoderState* state, DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "UnknownPayloadDecoder::ResumeDecodingPayload"
                  << "  remaining_payload=" << state->remaining_payload()
                  << "  db->Remaining=" << db->Remaining();

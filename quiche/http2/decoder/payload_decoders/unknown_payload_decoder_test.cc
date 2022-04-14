@@ -60,8 +60,7 @@ constexpr bool SupportedFrameType = false;
 
 class UnknownPayloadDecoderTest
     : public AbstractPayloadDecoderTest<UnknownPayloadDecoder,
-                                        UnknownPayloadDecoderPeer,
-                                        Listener,
+                                        UnknownPayloadDecoderPeer, Listener,
                                         SupportedFrameType>,
       public ::testing::WithParamInterface<uint32_t> {
  protected:
@@ -78,8 +77,7 @@ class UnknownPayloadDecoderTest
   const uint32_t length_;
 };
 
-INSTANTIATE_TEST_SUITE_P(VariousLengths,
-                         UnknownPayloadDecoderTest,
+INSTANTIATE_TEST_SUITE_P(VariousLengths, UnknownPayloadDecoderTest,
                          ::testing::Values(0, 1, 2, 3, 255, 256));
 
 TEST_P(UnknownPayloadDecoderTest, ValidLength) {
