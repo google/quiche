@@ -151,7 +151,7 @@ TEST(Http2FrameHeaderTest, Eq) {
 // The tests of the valid frame types include EXPECT_DEBUG_DEATH, which is
 // quite slow, so using value parameterized tests in order to allow sharding.
 class Http2FrameHeaderTypeAndFlagTest
-    : public QuicheTestWithParam<std::tuple<Http2FrameType, Http2FrameFlag>> {
+    : public QuicheTestWithParam<std::tuple<Http2FrameType, uint8_t>> {
  protected:
   Http2FrameHeaderTypeAndFlagTest()
       : type_(std::get<0>(GetParam())), flags_(std::get<1>(GetParam())) {
@@ -161,7 +161,7 @@ class Http2FrameHeaderTypeAndFlagTest
   }
 
   const Http2FrameType type_;
-  const Http2FrameFlag flags_;
+  const uint8_t flags_;
 };
 
 class IsEndStreamTest : public Http2FrameHeaderTypeAndFlagTest {};
