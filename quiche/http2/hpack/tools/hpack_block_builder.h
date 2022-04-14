@@ -76,8 +76,7 @@ class QUICHE_NO_EXPORT HpackBlockBuilder {
 
   // Appends a varint, with the specified high_bits above the prefix of the
   // varint.
-  void AppendHighBitsAndVarint(uint8_t high_bits,
-                               uint8_t prefix_length,
+  void AppendHighBitsAndVarint(uint8_t high_bits, uint8_t prefix_length,
                                uint64_t varint);
 
   // Append the start of an HPACK entry for the specified type, with the

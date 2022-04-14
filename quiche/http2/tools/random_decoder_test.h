@@ -112,8 +112,7 @@ QUICHE_NO_EXPORT class RandomDecoderTest : public QuicheTest {
   // buffer, with the cursor advanced as far as has been consumed by the decoder
   // and returns validator's result.
   ::testing::AssertionResult DecodeSegmentsAndValidate(
-      DecodeBuffer* original,
-      const SelectSize& select_size,
+      DecodeBuffer* original, const SelectSize& select_size,
       const Validator& validator) {
     DecodeStatus status = DecodeSegments(original, select_size);
     return validator(*original, status);

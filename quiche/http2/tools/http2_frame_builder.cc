@@ -17,8 +17,7 @@
 namespace http2 {
 namespace test {
 
-Http2FrameBuilder::Http2FrameBuilder(Http2FrameType type,
-                                     uint8_t flags,
+Http2FrameBuilder::Http2FrameBuilder(Http2FrameType type, uint8_t flags,
                                      uint32_t stream_id) {
   AppendUInt24(0);  // Frame payload length, unknown so far.
   Append(type);
@@ -26,9 +25,7 @@ Http2FrameBuilder::Http2FrameBuilder(Http2FrameType type,
   AppendUInt31(stream_id);
 }
 
-Http2FrameBuilder::Http2FrameBuilder(const Http2FrameHeader& v) {
-  Append(v);
-}
+Http2FrameBuilder::Http2FrameBuilder(const Http2FrameHeader& v) { Append(v); }
 
 void Http2FrameBuilder::Append(absl::string_view s) {
   absl::StrAppend(&buffer_, s);
@@ -43,9 +40,7 @@ void Http2FrameBuilder::AppendZeroes(size_t num_zero_bytes) {
   buffer_.append(num_zero_bytes, zero);
 }
 
-void Http2FrameBuilder::AppendUInt8(uint8_t value) {
-  AppendBytes(&value, 1);
-}
+void Http2FrameBuilder::AppendUInt8(uint8_t value) { AppendBytes(&value, 1); }
 
 void Http2FrameBuilder::AppendUInt16(uint16_t value) {
   value = htons(value);
@@ -158,8 +153,7 @@ void Http2FrameBuilder::WriteAt(absl::string_view s, size_t offset) {
   }
 }
 
-void Http2FrameBuilder::WriteBytesAt(const void* data,
-                                     uint32_t num_bytes,
+void Http2FrameBuilder::WriteBytesAt(const void* data, uint32_t num_bytes,
                                      size_t offset) {
   WriteAt(absl::string_view(static_cast<const char*>(data), num_bytes), offset);
 }

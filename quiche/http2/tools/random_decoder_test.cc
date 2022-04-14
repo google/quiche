@@ -23,9 +23,7 @@ namespace test {
 
 RandomDecoderTest::RandomDecoderTest() = default;
 
-bool RandomDecoderTest::StopDecodeOnDone() {
-  return stop_decode_on_done_;
-}
+bool RandomDecoderTest::StopDecodeOnDone() { return stop_decode_on_done_; }
 
 DecodeStatus RandomDecoderTest::DecodeSegments(DecodeBuffer* original,
                                                const SelectSize& select_size) {
@@ -73,8 +71,7 @@ DecodeStatus RandomDecoderTest::DecodeSegments(DecodeBuffer* original,
 // Decode |original| multiple times, with different segmentations, validating
 // after each decode, returning on the first failure.
 AssertionResult RandomDecoderTest::DecodeAndValidateSeveralWays(
-    DecodeBuffer* original,
-    bool return_non_zero_on_first,
+    DecodeBuffer* original, bool return_non_zero_on_first,
     const Validator& validator) {
   const uint32_t original_remaining = original->Remaining();
   HTTP2_VLOG(1) << "DecodeAndValidateSeveralWays - Start, remaining = "
