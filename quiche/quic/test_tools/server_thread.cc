@@ -13,10 +13,11 @@
 namespace quic {
 namespace test {
 
-ServerThread::ServerThread(QuicServer* server, const QuicSocketAddress& address)
+ServerThread::ServerThread(std::unique_ptr<QuicServer> server,
+                           const QuicSocketAddress& address)
     : QuicThread("server_thread"),
-      server_(server),
-      clock_(server->epoll_server()),
+      server_(std::move(server)),
+      clock_(server_->epoll_server()),
       address_(address),
       port_(0),
       initialized_(false) {}

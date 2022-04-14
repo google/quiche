@@ -21,7 +21,8 @@ namespace test {
 // Simple wrapper class to run QuicServer in a dedicated thread.
 class ServerThread : public QuicThread {
  public:
-  ServerThread(QuicServer* server, const QuicSocketAddress& address);
+  ServerThread(std::unique_ptr<QuicServer> server,
+               const QuicSocketAddress& address);
   ServerThread(const ServerThread&) = delete;
   ServerThread& operator=(const ServerThread&) = delete;
 

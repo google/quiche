@@ -444,12 +444,12 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   void StartServer() {
-    auto* test_server = new QuicTestServer(
+    auto test_server = std::make_unique<QuicTestServer>(
         crypto_test_utils::ProofSourceForTesting(), server_config_,
         server_supported_versions_, &memory_cache_backend_,
         expected_server_connection_id_length_);
     server_thread_ =
-        std::make_unique<ServerThread>(test_server, server_address_);
+        std::make_unique<ServerThread>(std::move(test_server), server_address_);
     if (chlo_multiplier_ != 0) {
       server_thread_->server()->SetChloMultiplier(chlo_multiplier_);
     }
