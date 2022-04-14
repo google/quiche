@@ -17,10 +17,7 @@ include default implementation for all platform APIs and to open-source build
 files. In the meanwhile, take a look at open source embedders like Chromium and
 Envoy to get started:
 
-*   Platform implementations in Chromium:
-    +   [quic/platform](https://source.chromium.org/chromium/chromium/src/+/main:net/quic/platform/impl/)
-    +   [http2/platform](https://source.chromium.org/chromium/chromium/src/+/main:net/http2/platform/impl/)
-    +   [quiche/common/platform](https://source.chromium.org/chromium/chromium/src/+/main:net/quiche/common/platform/impl/)
+*   [Platform implementations in Chromium](https://source.chromium.org/chromium/chromium/src/+/main:net/third_party/quiche/overrides/quiche_platform_impl/)
 *   [Build file in Chromium](https://source.chromium.org/chromium/chromium/src/+/main:net/third_party/quiche/BUILD.gn)
 *   [Platform implementations in Envoy](https://github.com/envoyproxy/envoy/tree/master/source/common/quic/platform)
 *   [Build file in Envoy](https://github.com/envoyproxy/envoy/blob/main/bazel/external/quiche.BUILD)
