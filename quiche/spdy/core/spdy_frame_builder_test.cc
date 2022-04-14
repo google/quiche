@@ -23,8 +23,7 @@ class QUICHE_EXPORT_PRIVATE SpdyFrameBuilderPeer {
   }
 
   static char* GetWritableOutput(SpdyFrameBuilder* builder,
-                                 size_t desired_length,
-                                 size_t* actual_length) {
+                                 size_t desired_length, size_t* actual_length) {
     return builder->GetWritableOutput(desired_length, actual_length);
   }
 };

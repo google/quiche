@@ -22,10 +22,8 @@ inline bool operator==(absl::string_view x,
 
 namespace test {
 
-std::string HexDumpWithMarks(const unsigned char* data,
-                             int length,
-                             const bool* marks,
-                             int mark_length);
+std::string HexDumpWithMarks(const unsigned char* data, int length,
+                             const bool* marks, int mark_length);
 
 void CompareCharArraysWithHexError(const std::string& description,
                                    const unsigned char* actual,

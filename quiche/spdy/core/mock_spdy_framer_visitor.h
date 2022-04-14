@@ -25,8 +25,7 @@ class QUICHE_NO_EXPORT MockSpdyFramerVisitor
   MockSpdyFramerVisitor();
   ~MockSpdyFramerVisitor() override;
 
-  MOCK_METHOD(void,
-              OnError,
+  MOCK_METHOD(void, OnError,
               (http2::Http2DecoderAdapter::SpdyFramerError error,
                std::string detailed_error),
               (override));
@@ -34,90 +33,59 @@ class QUICHE_NO_EXPORT MockSpdyFramerVisitor
               (SpdyStreamId stream_id, size_t length, uint8_t type,
                uint8_t flags),
               (override));
-  MOCK_METHOD(void,
-              OnDataFrameHeader,
-              (SpdyStreamId stream_id, size_t length, bool fin),
-              (override));
-  MOCK_METHOD(void,
-              OnStreamFrameData,
+  MOCK_METHOD(void, OnDataFrameHeader,
+              (SpdyStreamId stream_id, size_t length, bool fin), (override));
+  MOCK_METHOD(void, OnStreamFrameData,
               (SpdyStreamId stream_id, const char* data, size_t len),
               (override));
   MOCK_METHOD(void, OnStreamEnd, (SpdyStreamId stream_id), (override));
-  MOCK_METHOD(void,
-              OnStreamPadLength,
-              (SpdyStreamId stream_id, size_t value),
+  MOCK_METHOD(void, OnStreamPadLength, (SpdyStreamId stream_id, size_t value),
               (override));
-  MOCK_METHOD(void,
-              OnStreamPadding,
-              (SpdyStreamId stream_id, size_t len),
+  MOCK_METHOD(void, OnStreamPadding, (SpdyStreamId stream_id, size_t len),
               (override));
-  MOCK_METHOD(SpdyHeadersHandlerInterface*,
-              OnHeaderFrameStart,
-              (SpdyStreamId stream_id),
-              (override));
+  MOCK_METHOD(SpdyHeadersHandlerInterface*, OnHeaderFrameStart,
+              (SpdyStreamId stream_id), (override));
   MOCK_METHOD(void, OnHeaderFrameEnd, (SpdyStreamId stream_id), (override));
-  MOCK_METHOD(void,
-              OnRstStream,
-              (SpdyStreamId stream_id, SpdyErrorCode error_code),
-              (override));
+  MOCK_METHOD(void, OnRstStream,
+              (SpdyStreamId stream_id, SpdyErrorCode error_code), (override));
   MOCK_METHOD(void, OnSettings, (), (override));
   MOCK_METHOD(void, OnSetting, (SpdySettingsId id, uint32_t value), (override));
   MOCK_METHOD(void, OnPing, (SpdyPingId unique_id, bool is_ack), (override));
   MOCK_METHOD(void, OnSettingsEnd, (), (override));
   MOCK_METHOD(void, OnSettingsAck, (), (override));
-  MOCK_METHOD(void,
-              OnGoAway,
+  MOCK_METHOD(void, OnGoAway,
               (SpdyStreamId last_accepted_stream_id, SpdyErrorCode error_code),
               (override));
   MOCK_METHOD(bool, OnGoAwayFrameData, (const char* goaway_data, size_t len),
               (override));
-  MOCK_METHOD(void,
-              OnHeaders,
-              (SpdyStreamId stream_id,
-               bool has_priority,
-               int weight,
-               SpdyStreamId parent_stream_id,
-               bool exclusive,
-               bool fin,
+  MOCK_METHOD(void, OnHeaders,
+              (SpdyStreamId stream_id, bool has_priority, int weight,
+               SpdyStreamId parent_stream_id, bool exclusive, bool fin,
                bool end),
               (override));
-  MOCK_METHOD(void,
-              OnWindowUpdate,
-              (SpdyStreamId stream_id, int delta_window_size),
-              (override));
-  MOCK_METHOD(void,
-              OnPushPromise,
-              (SpdyStreamId stream_id,
-               SpdyStreamId promised_stream_id,
+  MOCK_METHOD(void, OnWindowUpdate,
+              (SpdyStreamId stream_id, int delta_window_size), (override));
+  MOCK_METHOD(void, OnPushPromise,
+              (SpdyStreamId stream_id, SpdyStreamId promised_stream_id,
                bool end),
               (override));
-  MOCK_METHOD(void,
-              OnContinuation,
-              (SpdyStreamId stream_id, bool end),
+  MOCK_METHOD(void, OnContinuation, (SpdyStreamId stream_id, bool end),
               (override));
   MOCK_METHOD(
-      void,
-      OnAltSvc,
-      (SpdyStreamId stream_id,
-       absl::string_view origin,
+      void, OnAltSvc,
+      (SpdyStreamId stream_id, absl::string_view origin,
        const SpdyAltSvcWireFormat::AlternativeServiceVector& altsvc_vector),
       (override));
-  MOCK_METHOD(void,
-              OnPriority,
-              (SpdyStreamId stream_id,
-               SpdyStreamId parent_stream_id,
-               int weight,
-               bool exclusive),
+  MOCK_METHOD(void, OnPriority,
+              (SpdyStreamId stream_id, SpdyStreamId parent_stream_id,
+               int weight, bool exclusive),
               (override));
-  MOCK_METHOD(void,
-              OnPriorityUpdate,
+  MOCK_METHOD(void, OnPriorityUpdate,
               (SpdyStreamId prioritized_stream_id,
                absl::string_view priority_field_value),
               (override));
-  MOCK_METHOD(bool,
-              OnUnknownFrame,
-              (SpdyStreamId stream_id, uint8_t frame_type),
-              (override));
+  MOCK_METHOD(bool, OnUnknownFrame,
+              (SpdyStreamId stream_id, uint8_t frame_type), (override));
 
   void DelegateHeaderHandling() {
     ON_CALL(*this, OnHeaderFrameStart(testing::_))

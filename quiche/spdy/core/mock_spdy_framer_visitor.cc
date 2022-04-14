@@ -8,9 +8,7 @@ namespace spdy {
 
 namespace test {
 
-MockSpdyFramerVisitor::MockSpdyFramerVisitor() {
-  DelegateHeaderHandling();
-}
+MockSpdyFramerVisitor::MockSpdyFramerVisitor() { DelegateHeaderHandling(); }
 
 MockSpdyFramerVisitor::~MockSpdyFramerVisitor() = default;
 

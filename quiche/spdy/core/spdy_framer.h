@@ -56,8 +56,7 @@ class QUICHE_EXPORT_PRIVATE SpdyFramer {
 
   // Create a SpdyFrameSequence to serialize |frame_ir|.
   static std::unique_ptr<SpdyFrameSequence> CreateIterator(
-      SpdyFramer* framer,
-      std::unique_ptr<const SpdyFrameIR> frame_ir);
+      SpdyFramer* framer, std::unique_ptr<const SpdyFrameIR> frame_ir);
 
   // Gets the serialized flags for the given |frame|.
   static uint8_t GetSerializedFlags(const SpdyFrameIR& frame);
@@ -146,8 +145,7 @@ class QUICHE_EXPORT_PRIVATE SpdyFramer {
   // Serializes the data frame header and optionally padding length fields,
   // excluding actual data payload and padding.
   bool SerializeDataFrameHeaderWithPaddingLengthField(
-      const SpdyDataIR& data,
-      ZeroCopyOutputBuffer* output) const;
+      const SpdyDataIR& data, ZeroCopyOutputBuffer* output) const;
 
   bool SerializeRstStream(const SpdyRstStreamIR& rst_stream,
                           ZeroCopyOutputBuffer* output) const;
@@ -360,10 +358,8 @@ class QUICHE_EXPORT_PRIVATE SpdyFramer {
 
  private:
   void SerializeHeadersBuilderHelper(const SpdyHeadersIR& headers,
-                                     uint8_t* flags,
-                                     size_t* size,
-                                     std::string* hpack_encoding,
-                                     int* weight,
+                                     uint8_t* flags, size_t* size,
+                                     std::string* hpack_encoding, int* weight,
                                      size_t* length_field);
   void SerializePushPromiseBuilderHelper(const SpdyPushPromiseIR& push_promise,
                                          uint8_t* flags,

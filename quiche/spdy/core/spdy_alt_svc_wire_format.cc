@@ -9,7 +9,6 @@
 #include <limits>
 
 #include "absl/strings/str_cat.h"
-
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace spdy {
@@ -18,8 +17,7 @@ namespace {
 
 template <class T>
 bool ParsePositiveIntegerImpl(absl::string_view::const_iterator c,
-                              absl::string_view::const_iterator end,
-                              T* value) {
+                              absl::string_view::const_iterator end, T* value) {
   *value = 0;
   for (; c != end && std::isdigit(*c); ++c) {
     if (*value > std::numeric_limits<T>::max() / 10) {
@@ -54,8 +52,7 @@ SpdyAltSvcWireFormat::AlternativeService::AlternativeService(
 
 // static
 bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
-    absl::string_view value,
-    AlternativeServiceVector* altsvc_vector) {
+    absl::string_view value, AlternativeServiceVector* altsvc_vector) {
   // Empty value is invalid according to the specification.
   if (value.empty()) {
     return false;
@@ -326,10 +323,8 @@ bool SpdyAltSvcWireFormat::PercentDecode(absl::string_view::const_iterator c,
 
 // static
 bool SpdyAltSvcWireFormat::ParseAltAuthority(
-    absl::string_view::const_iterator c,
-    absl::string_view::const_iterator end,
-    std::string* host,
-    uint16_t* port) {
+    absl::string_view::const_iterator c, absl::string_view::const_iterator end,
+    std::string* host, uint16_t* port) {
   host->clear();
   if (c == end) {
     return false;
@@ -373,16 +368,14 @@ bool SpdyAltSvcWireFormat::ParseAltAuthority(
 
 // static
 bool SpdyAltSvcWireFormat::ParsePositiveInteger16(
-    absl::string_view::const_iterator c,
-    absl::string_view::const_iterator end,
+    absl::string_view::const_iterator c, absl::string_view::const_iterator end,
     uint16_t* value) {
   return ParsePositiveIntegerImpl<uint16_t>(c, end, value);
 }
 
 // static
 bool SpdyAltSvcWireFormat::ParsePositiveInteger32(
-    absl::string_view::const_iterator c,
-    absl::string_view::const_iterator end,
+    absl::string_view::const_iterator c, absl::string_view::const_iterator end,
     uint32_t* value) {
   return ParsePositiveIntegerImpl<uint32_t>(c, end, value);
 }

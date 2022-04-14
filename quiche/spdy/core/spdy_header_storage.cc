@@ -38,8 +38,7 @@ absl::string_view SpdyHeaderStorage::WriteFragments(
   return absl::string_view(dst, total_size);
 }
 
-size_t Join(char* dst,
-            const std::vector<absl::string_view>& fragments,
+size_t Join(char* dst, const std::vector<absl::string_view>& fragments,
             absl::string_view separator) {
   if (fragments.empty()) {
     return 0;

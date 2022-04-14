@@ -22,7 +22,7 @@ struct TestItem : public SpdyIntrusiveLink<TestItem>,
   int n;
 };
 typedef SpdyIntrusiveList<TestItem> TestList;
-typedef std::list<TestItem*> CanonicalList;
+typedef std::list<TestItem *> CanonicalList;
 
 void swap(TestItem &a, TestItem &b) {
   using std::swap;
@@ -33,8 +33,7 @@ class IntrusiveListTest : public QuicheTest {
  protected:
   void CheckLists() {
     CheckLists(l1, ll1);
-    if (QuicheTest::HasFailure())
-      return;
+    if (QuicheTest::HasFailure()) return;
     CheckLists(l2, ll2);
   }
 
@@ -73,7 +72,7 @@ class IntrusiveListTest : public QuicheTest {
 TEST(NewIntrusiveListTest, Basic) {
   TestList list1;
 
-  EXPECT_EQ(sizeof(SpdyIntrusiveLink<TestItem>), sizeof(void*) * 2);
+  EXPECT_EQ(sizeof(SpdyIntrusiveLink<TestItem>), sizeof(void *) * 2);
 
   for (int i = 0; i < 10; ++i) {
     TestItem *e = new TestItem;
@@ -87,21 +86,17 @@ TEST(NewIntrusiveListTest, Basic) {
   EXPECT_EQ(list1.size(), 10u);
 
   // Check both const and non-const forward iteration.
-  const TestList& clist1 = list1;
+  const TestList &clist1 = list1;
   int i = 0;
   TestList::iterator iter = list1.begin();
-  for (;
-       iter != list1.end();
-       ++iter, ++i) {
+  for (; iter != list1.end(); ++iter, ++i) {
     EXPECT_EQ(iter->n, i);
   }
   EXPECT_EQ(iter, clist1.end());
   EXPECT_NE(iter, clist1.begin());
   i = 0;
   iter = list1.begin();
-  for (;
-       iter != list1.end();
-       ++iter, ++i) {
+  for (; iter != list1.end(); ++iter, ++i) {
     EXPECT_EQ(iter->n, i);
   }
   EXPECT_EQ(iter, clist1.end());
@@ -117,12 +112,10 @@ TEST(NewIntrusiveListTest, Basic) {
   EXPECT_EQ(list2.size(), 10u);
 
   // Check both const and non-const reverse iteration.
-  const TestList& clist2 = list2;
+  const TestList &clist2 = list2;
   TestList::reverse_iterator riter = list2.rbegin();
   i = 9;
-  for (;
-       riter != list2.rend();
-       ++riter, --i) {
+  for (; riter != list2.rend(); ++riter, --i) {
     EXPECT_EQ(riter->n, i);
   }
   EXPECT_EQ(riter, clist2.rend());
@@ -130,9 +123,7 @@ TEST(NewIntrusiveListTest, Basic) {
 
   riter = list2.rbegin();
   i = 9;
-  for (;
-       riter != list2.rend();
-       ++riter, --i) {
+  for (; riter != list2.rend(); ++riter, --i) {
     EXPECT_EQ(riter->n, i);
   }
   EXPECT_EQ(riter, clist2.rend());
@@ -242,7 +233,7 @@ TEST_F(IntrusiveListTest, Splice) {
   // We verify that the contents of this secondary list aren't affected by any
   // of the splices.
   SpdyIntrusiveList<TestItem, ListId2> secondary_list;
-  for (int i  = 0; i < 3; ++i) {
+  for (int i = 0; i < 3; ++i) {
     secondary_list.push_back(&e[i]);
   }
 
@@ -324,14 +315,16 @@ struct VirtuallyDerivedClassC
 
 // Test for multiple layers between the element type and the link.
 namespace templated_base_link {
-template <typename T> struct AbstractBase : public SpdyIntrusiveLink<T> {
+template <typename T>
+struct AbstractBase : public SpdyIntrusiveLink<T> {
   virtual ~AbstractBase() = 0;
 };
-template <typename T> AbstractBase<T>::~AbstractBase() {}
+template <typename T>
+AbstractBase<T>::~AbstractBase() {}
 struct DerivedClass : public AbstractBase<DerivedClass> {
   int n;
 };
-}
+}  // namespace templated_base_link
 
 TEST(NewIntrusiveListTest, HandleInheritanceHierarchies) {
   {
@@ -389,7 +382,7 @@ TEST(NewIntrusiveListTest, HandleInheritanceHierarchies) {
     list.push_back(&d4);
     EXPECT_EQ(4u, list.size());
     SpdyIntrusiveList<AbstractBase, BaseLinkId>::iterator it = list.begin();
-    EXPECT_EQ("DerivedClass",           (it++)->name());
+    EXPECT_EQ("DerivedClass", (it++)->name());
     EXPECT_EQ("VirtuallyDerivedClassA", (it++)->name());
     EXPECT_EQ("VirtuallyDerivedClassB", (it++)->name());
     EXPECT_EQ("VirtuallyDerivedClassC", (it++)->name());

@@ -292,21 +292,14 @@ const char* const kHttp2ProtocolHeader = ":protocol";
 
 const char* const kHttp2StatusHeader = ":status";
 
-bool SpdyFrameIR::fin() const {
-  return false;
-}
+bool SpdyFrameIR::fin() const { return false; }
 
-int SpdyFrameIR::flow_control_window_consumed() const {
-  return 0;
-}
+int SpdyFrameIR::flow_control_window_consumed() const { return 0; }
 
-bool SpdyFrameWithFinIR::fin() const {
-  return fin_;
-}
+bool SpdyFrameWithFinIR::fin() const { return fin_; }
 
 SpdyFrameWithHeaderBlockIR::SpdyFrameWithHeaderBlockIR(
-    SpdyStreamId stream_id,
-    Http2HeaderBlock header_block)
+    SpdyStreamId stream_id, Http2HeaderBlock header_block)
     : SpdyFrameWithFinIR(stream_id), header_block_(std::move(header_block)) {}
 
 SpdyFrameWithHeaderBlockIR::~SpdyFrameWithHeaderBlockIR() = default;
@@ -344,9 +337,7 @@ void SpdyDataIR::Visit(SpdyFrameVisitor* visitor) const {
   return visitor->VisitData(*this);
 }
 
-SpdyFrameType SpdyDataIR::frame_type() const {
-  return SpdyFrameType::DATA;
-}
+SpdyFrameType SpdyDataIR::frame_type() const { return SpdyFrameType::DATA; }
 
 int SpdyDataIR::flow_control_window_consumed() const {
   return padded_ ? 1 + padding_payload_len_ + data_len_ : data_len_;
@@ -373,9 +364,7 @@ SpdyFrameType SpdyRstStreamIR::frame_type() const {
   return SpdyFrameType::RST_STREAM;
 }
 
-size_t SpdyRstStreamIR::size() const {
-  return kRstStreamFrameSize;
-}
+size_t SpdyRstStreamIR::size() const { return kRstStreamFrameSize; }
 
 SpdySettingsIR::SpdySettingsIR() : is_ack_(false) {}
 
@@ -397,13 +386,9 @@ void SpdyPingIR::Visit(SpdyFrameVisitor* visitor) const {
   return visitor->VisitPing(*this);
 }
 
-SpdyFrameType SpdyPingIR::frame_type() const {
-  return SpdyFrameType::PING;
-}
+SpdyFrameType SpdyPingIR::frame_type() const { return SpdyFrameType::PING; }
 
-size_t SpdyPingIR::size() const {
-  return kPingFrameSize;
-}
+size_t SpdyPingIR::size() const { return kPingFrameSize; }
 
 SpdyGoAwayIR::SpdyGoAwayIR(SpdyStreamId last_good_stream_id,
                            SpdyErrorCode error_code,
@@ -414,15 +399,12 @@ SpdyGoAwayIR::SpdyGoAwayIR(SpdyStreamId last_good_stream_id,
 }
 
 SpdyGoAwayIR::SpdyGoAwayIR(SpdyStreamId last_good_stream_id,
-                           SpdyErrorCode error_code,
-                           const char* description)
-    : SpdyGoAwayIR(last_good_stream_id,
-                   error_code,
+                           SpdyErrorCode error_code, const char* description)
+    : SpdyGoAwayIR(last_good_stream_id, error_code,
                    absl::string_view(description)) {}
 
 SpdyGoAwayIR::SpdyGoAwayIR(SpdyStreamId last_good_stream_id,
-                           SpdyErrorCode error_code,
-                           std::string description)
+                           SpdyErrorCode error_code, std::string description)
     : description_store_(std::move(description)),
       description_(description_store_) {
   set_last_good_stream_id(last_good_stream_id);
@@ -435,17 +417,14 @@ void SpdyGoAwayIR::Visit(SpdyFrameVisitor* visitor) const {
   return visitor->VisitGoAway(*this);
 }
 
-SpdyFrameType SpdyGoAwayIR::frame_type() const {
-  return SpdyFrameType::GOAWAY;
-}
+SpdyFrameType SpdyGoAwayIR::frame_type() const { return SpdyFrameType::GOAWAY; }
 
 size_t SpdyGoAwayIR::size() const {
   return kGoawayFrameMinimumSize + description_.size();
 }
 
 SpdyContinuationIR::SpdyContinuationIR(SpdyStreamId stream_id)
-    : SpdyFrameIR(stream_id), end_headers_(false) {
-}
+    : SpdyFrameIR(stream_id), end_headers_(false) {}
 
 SpdyContinuationIR::~SpdyContinuationIR() = default;
 
@@ -503,9 +482,7 @@ SpdyFrameType SpdyWindowUpdateIR::frame_type() const {
   return SpdyFrameType::WINDOW_UPDATE;
 }
 
-size_t SpdyWindowUpdateIR::size() const {
-  return kWindowUpdateFrameSize;
-}
+size_t SpdyWindowUpdateIR::size() const { return kWindowUpdateFrameSize; }
 
 void SpdyPushPromiseIR::Visit(SpdyFrameVisitor* visitor) const {
   return visitor->VisitPushPromise(*this);
@@ -540,9 +517,7 @@ void SpdyAltSvcIR::Visit(SpdyFrameVisitor* visitor) const {
   return visitor->VisitAltSvc(*this);
 }
 
-SpdyFrameType SpdyAltSvcIR::frame_type() const {
-  return SpdyFrameType::ALTSVC;
-}
+SpdyFrameType SpdyAltSvcIR::frame_type() const { return SpdyFrameType::ALTSVC; }
 
 size_t SpdyAltSvcIR::size() const {
   size_t size = kGetAltSvcFrameMinimumSize;
@@ -562,9 +537,7 @@ SpdyFrameType SpdyPriorityIR::frame_type() const {
   return SpdyFrameType::PRIORITY;
 }
 
-size_t SpdyPriorityIR::size() const {
-  return kPriorityFrameSize;
-}
+size_t SpdyPriorityIR::size() const { return kPriorityFrameSize; }
 
 void SpdyPriorityUpdateIR::Visit(SpdyFrameVisitor* visitor) const {
   return visitor->VisitPriorityUpdate(*this);

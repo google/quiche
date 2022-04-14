@@ -575,8 +575,7 @@ void Http2DecoderAdapter::OnSettingsAck(const Http2FrameHeader& header) {
 }
 
 void Http2DecoderAdapter::OnPushPromiseStart(
-    const Http2FrameHeader& header,
-    const Http2PushPromiseFields& promise,
+    const Http2FrameHeader& header, const Http2PushPromiseFields& promise,
     size_t total_padding_length) {
   QUICHE_DVLOG(1) << "OnPushPromiseStart: " << header
                   << "; promise: " << promise

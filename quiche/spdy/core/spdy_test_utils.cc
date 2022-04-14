@@ -18,10 +18,8 @@
 namespace spdy {
 namespace test {
 
-std::string HexDumpWithMarks(const unsigned char* data,
-                             int length,
-                             const bool* marks,
-                             int mark_length) {
+std::string HexDumpWithMarks(const unsigned char* data, int length,
+                             const bool* marks, int mark_length) {
   static const char kHexChars[] = "0123456789abcdef";
   static const int kColumns = 4;
 
@@ -78,8 +76,7 @@ void CompareCharArraysWithHexError(const std::string& description,
   for (int i = min_len; i < max_len; ++i) {
     marks[i] = true;
   }
-  if (identical)
-    return;
+  if (identical) return;
   ADD_FAILURE() << "Description:\n"
                 << description << "\n\nExpected:\n"
                 << HexDumpWithMarks(expected, expected_len, marks.get(),

@@ -64,8 +64,7 @@ namespace test {
 }
 
 ::testing::AssertionResult VerifySpdyFrameIREquals(
-    const SpdyHeadersIR& expected,
-    const SpdyHeadersIR& actual) {
+    const SpdyHeadersIR& expected, const SpdyHeadersIR& actual) {
   QUICHE_VLOG(1) << "VerifySpdyFrameIREquals SpdyHeadersIR";
   VERIFY_EQ(expected.stream_id(), actual.stream_id());
   VERIFY_EQ(expected.fin(), actual.fin());
@@ -87,8 +86,7 @@ namespace test {
 }
 
 ::testing::AssertionResult VerifySpdyFrameIREquals(
-    const SpdyPriorityIR& expected,
-    const SpdyPriorityIR& actual) {
+    const SpdyPriorityIR& expected, const SpdyPriorityIR& actual) {
   QUICHE_VLOG(1) << "VerifySpdyFrameIREquals SpdyPriorityIR";
   VERIFY_EQ(expected.stream_id(), actual.stream_id());
   VERIFY_SUCCESS(VerifySpdyFrameWithPriorityIREquals(expected, actual));
@@ -96,8 +94,7 @@ namespace test {
 }
 
 ::testing::AssertionResult VerifySpdyFrameIREquals(
-    const SpdyPushPromiseIR& expected,
-    const SpdyPushPromiseIR& actual) {
+    const SpdyPushPromiseIR& expected, const SpdyPushPromiseIR& actual) {
   QUICHE_VLOG(1) << "VerifySpdyFrameIREquals SpdyPushPromiseIR";
   VERIFY_EQ(expected.stream_id(), actual.stream_id());
   VERIFY_SUCCESS(VerifySpdyFrameWithPaddingIREquals(expected, actual));
@@ -107,8 +104,7 @@ namespace test {
 }
 
 ::testing::AssertionResult VerifySpdyFrameIREquals(
-    const SpdyRstStreamIR& expected,
-    const SpdyRstStreamIR& actual) {
+    const SpdyRstStreamIR& expected, const SpdyRstStreamIR& actual) {
   QUICHE_VLOG(1) << "VerifySpdyFrameIREquals SpdyRstStreamIR";
   VERIFY_EQ(expected.stream_id(), actual.stream_id());
   VERIFY_EQ(expected.error_code(), actual.error_code());
@@ -116,8 +112,7 @@ namespace test {
 }
 
 ::testing::AssertionResult VerifySpdyFrameIREquals(
-    const SpdySettingsIR& expected,
-    const SpdySettingsIR& actual) {
+    const SpdySettingsIR& expected, const SpdySettingsIR& actual) {
   QUICHE_VLOG(1) << "VerifySpdyFrameIREquals SpdySettingsIR";
   // Note, ignoring non-HTTP/2 fields such as clear_settings.
   VERIFY_EQ(expected.is_ack(), actual.is_ack());
@@ -143,8 +138,7 @@ namespace test {
 }
 
 ::testing::AssertionResult VerifySpdyFrameIREquals(
-    const SpdyWindowUpdateIR& expected,
-    const SpdyWindowUpdateIR& actual) {
+    const SpdyWindowUpdateIR& expected, const SpdyWindowUpdateIR& actual) {
   QUICHE_VLOG(1) << "VerifySpdyFrameIREquals SpdyWindowUpdateIR";
   VERIFY_EQ(expected.stream_id(), actual.stream_id());
   VERIFY_EQ(expected.delta(), actual.delta());

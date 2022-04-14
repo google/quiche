@@ -16,8 +16,6 @@ void ArrayOutputBuffer::AdvanceWritePtr(int64_t count) {
   capacity_ -= count;
 }
 
-uint64_t ArrayOutputBuffer::BytesFree() const {
-  return capacity_;
-}
+uint64_t ArrayOutputBuffer::BytesFree() const { return capacity_; }
 
 }  // namespace spdy

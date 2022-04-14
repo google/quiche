@@ -52,8 +52,7 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
   // key-dependent separator.
   class QUICHE_EXPORT_PRIVATE HeaderValue {
    public:
-    HeaderValue(SpdyHeaderStorage* storage,
-                absl::string_view key,
+    HeaderValue(SpdyHeaderStorage* storage, absl::string_view key,
                 absl::string_view initial_value);
 
     // Moves are allowed.
@@ -257,7 +256,7 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
       outer_iterator.forbid_dereference();
     }
     return outer_iterator;
-#else  // SPDY_HEADER_DEBUG
+#else   // SPDY_HEADER_DEBUG
     return iterator(inner_iterator);
 #endif  // SPDY_HEADER_DEBUG
   }
@@ -270,7 +269,7 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
       outer_iterator.forbid_dereference();
     }
     return outer_iterator;
-#else  // SPDY_HEADER_DEBUG
+#else   // SPDY_HEADER_DEBUG
     return iterator(inner_iterator);
 #endif  // SPDY_HEADER_DEBUG
   }

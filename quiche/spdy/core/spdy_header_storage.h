@@ -50,8 +50,7 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderStorage {
 // Writes |fragments| to |dst|, joined by |separator|. |dst| must be large
 // enough to hold the result. Returns the number of bytes written.
 QUICHE_EXPORT_PRIVATE size_t
-Join(char* dst,
-     const std::vector<absl::string_view>& fragments,
+Join(char* dst, const std::vector<absl::string_view>& fragments,
      absl::string_view separator);
 
 }  // namespace spdy

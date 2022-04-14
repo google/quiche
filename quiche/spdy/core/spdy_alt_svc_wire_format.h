@@ -76,8 +76,7 @@ class QUICHE_EXPORT_PRIVATE SpdyAltSvcWireFormat {
   // |*port|.  Return true on success, false if input is invalid.
   static bool ParseAltAuthority(absl::string_view::const_iterator c,
                                 absl::string_view::const_iterator end,
-                                std::string* host,
-                                uint16_t* port);
+                                std::string* host, uint16_t* port);
   // Parse a positive integer between |c| and |end| into |*value|.
   // Return true on success, false if input is not a positive integer or it
   // cannot be represented on uint16_t.

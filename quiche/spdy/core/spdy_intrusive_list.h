@@ -93,7 +93,8 @@
 
 namespace spdy {
 
-template <typename T, typename ListID> class SpdyIntrusiveList;
+template <typename T, typename ListID>
+class SpdyIntrusiveList;
 
 template <typename T, typename ListID = void>
 class QUICHE_EXPORT_PRIVATE SpdyIntrusiveLink {
@@ -122,14 +123,15 @@ class QUICHE_EXPORT_PRIVATE SpdyIntrusiveLink {
 
 template <typename T, typename ListID = void>
 class QUICHE_EXPORT_PRIVATE SpdyIntrusiveList {
-  template <typename QualifiedT, typename QualifiedLinkT> class iterator_impl;
+  template <typename QualifiedT, typename QualifiedLinkT>
+  class iterator_impl;
 
  public:
   typedef T value_type;
-  typedef value_type *pointer;
-  typedef const value_type *const_pointer;
-  typedef value_type &reference;
-  typedef const value_type &const_reference;
+  typedef value_type* pointer;
+  typedef const value_type* const_pointer;
+  typedef value_type& reference;
+  typedef const value_type& const_reference;
   typedef size_t size_type;
   typedef ptrdiff_t difference_type;
 
@@ -185,7 +187,7 @@ class QUICHE_EXPORT_PRIVATE SpdyIntrusiveList {
   reference back() { return *(--end()); }
   const_reference back() const { return *(--end()); }
 
-  static iterator insert(iterator position, T *obj) {
+  static iterator insert(iterator position, T* obj) {
     return insert_link(position.link(), obj);
   }
   void push_front(T* obj) { insert(begin(), obj); }
@@ -294,16 +296,22 @@ class QUICHE_EXPORT_PRIVATE SpdyIntrusiveList {
       return link_->cast_to_derived();
     }
 
-    QualifiedLinkT *link() const { return link_; }
+    QualifiedLinkT* link() const { return link_; }
 
 #ifndef SWIG  // SWIG can't wrap these operator overloads.
-    iterator_impl& operator++() { link_ = link_->next_; return *this; }
+    iterator_impl& operator++() {
+      link_ = link_->next_;
+      return *this;
+    }
     iterator_impl operator++(int /*unused*/) {
       iterator_impl tmp = *this;
       ++*this;
       return tmp;
     }
-    iterator_impl& operator--() { link_ = link_->prev_; return *this; }
+    iterator_impl& operator--() {
+      link_ = link_->prev_;
+      return *this;
+    }
     iterator_impl operator--(int /*unused*/) {
       iterator_impl tmp = *this;
       --*this;
@@ -313,7 +321,8 @@ class QUICHE_EXPORT_PRIVATE SpdyIntrusiveList {
 
    private:
     // Ensure iterators can access other iterators node directly.
-    template <typename U, typename V> friend class iterator_impl;
+    template <typename U, typename V>
+    friend class iterator_impl;
 
     QualifiedLinkT* link_ = nullptr;
   };

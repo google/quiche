@@ -256,8 +256,7 @@ QUICHE_EXPORT_PRIVATE uint8_t SerializeFrameType(SpdyFrameType frame_type);
 // (stream-specific xor connection-level). Returns false iff we know
 // the given frame type does not align with the given streamID.
 QUICHE_EXPORT_PRIVATE bool IsValidHTTP2FrameStreamId(
-    SpdyStreamId current_frame_stream_id,
-    SpdyFrameType frame_type_field);
+    SpdyStreamId current_frame_stream_id, SpdyFrameType frame_type_field);
 
 // Serialize |frame_type| to string for logging/debugging.
 QUICHE_EXPORT_PRIVATE const char* FrameTypeToString(SpdyFrameType frame_type);
@@ -661,20 +660,17 @@ class QUICHE_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
  public:
   // References description, doesn't copy it, so description must outlast
   // this SpdyGoAwayIR.
-  SpdyGoAwayIR(SpdyStreamId last_good_stream_id,
-               SpdyErrorCode error_code,
+  SpdyGoAwayIR(SpdyStreamId last_good_stream_id, SpdyErrorCode error_code,
                absl::string_view description);
 
   // References description, doesn't copy it, so description must outlast
   // this SpdyGoAwayIR.
-  SpdyGoAwayIR(SpdyStreamId last_good_stream_id,
-               SpdyErrorCode error_code,
+  SpdyGoAwayIR(SpdyStreamId last_good_stream_id, SpdyErrorCode error_code,
                const char* description);
 
   // Moves description into description_store_, so caller doesn't need to
   // keep description live after constructing this SpdyGoAwayIR.
-  SpdyGoAwayIR(SpdyStreamId last_good_stream_id,
-               SpdyErrorCode error_code,
+  SpdyGoAwayIR(SpdyStreamId last_good_stream_id, SpdyErrorCode error_code,
                std::string description);
   SpdyGoAwayIR(const SpdyGoAwayIR&) = delete;
   SpdyGoAwayIR& operator=(const SpdyGoAwayIR&) = delete;
@@ -780,8 +776,7 @@ class QUICHE_EXPORT_PRIVATE SpdyPushPromiseIR
  public:
   SpdyPushPromiseIR(SpdyStreamId stream_id, SpdyStreamId promised_stream_id)
       : SpdyPushPromiseIR(stream_id, promised_stream_id, Http2HeaderBlock()) {}
-  SpdyPushPromiseIR(SpdyStreamId stream_id,
-                    SpdyStreamId promised_stream_id,
+  SpdyPushPromiseIR(SpdyStreamId stream_id, SpdyStreamId promised_stream_id,
                     Http2HeaderBlock header_block)
       : SpdyFrameWithHeaderBlockIR(stream_id, std::move(header_block)),
         promised_stream_id_(promised_stream_id),
@@ -866,10 +861,8 @@ class QUICHE_EXPORT_PRIVATE SpdyAltSvcIR : public SpdyFrameIR {
 
 class QUICHE_EXPORT_PRIVATE SpdyPriorityIR : public SpdyFrameIR {
  public:
-  SpdyPriorityIR(SpdyStreamId stream_id,
-                 SpdyStreamId parent_stream_id,
-                 int weight,
-                 bool exclusive)
+  SpdyPriorityIR(SpdyStreamId stream_id, SpdyStreamId parent_stream_id,
+                 int weight, bool exclusive)
       : SpdyFrameIR(stream_id),
         parent_stream_id_(parent_stream_id),
         weight_(weight),
@@ -950,9 +943,7 @@ class QUICHE_EXPORT_PRIVATE SpdyAcceptChIR : public SpdyFrameIR {
 // Represents a frame of unrecognized type.
 class QUICHE_EXPORT_PRIVATE SpdyUnknownIR : public SpdyFrameIR {
  public:
-  SpdyUnknownIR(SpdyStreamId stream_id,
-                uint8_t type,
-                uint8_t flags,
+  SpdyUnknownIR(SpdyStreamId stream_id, uint8_t type, uint8_t flags,
                 std::string payload)
       : SpdyFrameIR(stream_id),
         type_(type),

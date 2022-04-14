@@ -98,10 +98,8 @@ Http2HeaderBlock::iterator::iterator(const iterator& other) = default;
 Http2HeaderBlock::iterator::~iterator() = default;
 
 Http2HeaderBlock::ValueProxy::ValueProxy(
-    Http2HeaderBlock* block,
-    Http2HeaderBlock::MapType::iterator lookup_result,
-    const absl::string_view key,
-    size_t* spdy_header_block_value_size)
+    Http2HeaderBlock* block, Http2HeaderBlock::MapType::iterator lookup_result,
+    const absl::string_view key, size_t* spdy_header_block_value_size)
     : block_(block),
       lookup_result_(lookup_result),
       key_(key),

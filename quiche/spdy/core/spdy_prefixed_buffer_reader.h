@@ -16,10 +16,8 @@ namespace spdy {
 // from a disjoint buffer prefix & suffix.
 class QUICHE_EXPORT_PRIVATE SpdyPrefixedBufferReader {
  public:
-  SpdyPrefixedBufferReader(const char* prefix,
-                           size_t prefix_length,
-                           const char* suffix,
-                           size_t suffix_length);
+  SpdyPrefixedBufferReader(const char* prefix, size_t prefix_length,
+                           const char* suffix, size_t suffix_length);
 
   // Returns number of bytes available to be read.
   size_t Available();

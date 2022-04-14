@@ -50,8 +50,7 @@ template <class T>
 // Verify the priority fields in two frames of type T are the same.
 template <class T>
 ::testing::AssertionResult VerifySpdyFrameWithPriorityIREquals(
-    const T& expected,
-    const T& actual) {
+    const T& expected, const T& actual) {
   QUICHE_VLOG(1) << "VerifySpdyFrameWithPriorityIREquals";
   VERIFY_EQ(expected.parent_stream_id(), actual.parent_stream_id());
   VERIFY_EQ(expected.weight(), actual.weight());
@@ -85,8 +84,7 @@ template <class T>
 
 // Verify that two SpdyHeadersIR frames are the same.
 ::testing::AssertionResult VerifySpdyFrameIREquals(
-    const SpdyHeadersIR& expected,
-    const SpdyHeadersIR& actual);
+    const SpdyHeadersIR& expected, const SpdyHeadersIR& actual);
 
 // Verify that two SpdyPingIR frames are the same.
 ::testing::AssertionResult VerifySpdyFrameIREquals(const SpdyPingIR& expected,
@@ -94,28 +92,23 @@ template <class T>
 
 // Verify that two SpdyPriorityIR frames are the same.
 ::testing::AssertionResult VerifySpdyFrameIREquals(
-    const SpdyPriorityIR& expected,
-    const SpdyPriorityIR& actual);
+    const SpdyPriorityIR& expected, const SpdyPriorityIR& actual);
 
 // Verify that two SpdyPushPromiseIR frames are the same.
 ::testing::AssertionResult VerifySpdyFrameIREquals(
-    const SpdyPushPromiseIR& expected,
-    const SpdyPushPromiseIR& actual);
+    const SpdyPushPromiseIR& expected, const SpdyPushPromiseIR& actual);
 
 // Verify that two SpdyRstStreamIR frames are the same.
 ::testing::AssertionResult VerifySpdyFrameIREquals(
-    const SpdyRstStreamIR& expected,
-    const SpdyRstStreamIR& actual);
+    const SpdyRstStreamIR& expected, const SpdyRstStreamIR& actual);
 
 // Verify that two SpdySettingsIR frames are the same.
 ::testing::AssertionResult VerifySpdyFrameIREquals(
-    const SpdySettingsIR& expected,
-    const SpdySettingsIR& actual);
+    const SpdySettingsIR& expected, const SpdySettingsIR& actual);
 
 // Verify that two SpdyWindowUpdateIR frames are the same.
 ::testing::AssertionResult VerifySpdyFrameIREquals(
-    const SpdyWindowUpdateIR& expected,
-    const SpdyWindowUpdateIR& actual);
+    const SpdyWindowUpdateIR& expected, const SpdyWindowUpdateIR& actual);
 
 // Verify that either expected and actual are both nullptr, or that both are not
 // nullptr, and that actual is of type E, and that it matches expected.

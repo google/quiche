@@ -24,8 +24,7 @@ class SpdyAltSvcWireFormatPeer {
   }
   static bool ParseAltAuthority(absl::string_view::const_iterator c,
                                 absl::string_view::const_iterator end,
-                                std::string* host,
-                                uint16_t* port) {
+                                std::string* host, uint16_t* port) {
     return SpdyAltSvcWireFormat::ParseAltAuthority(c, end, host, port);
   }
   static bool ParsePositiveInteger16(absl::string_view::const_iterator c,
@@ -53,8 +52,7 @@ namespace {
 // Generate header field values, possibly with multiply defined parameters and
 // random case, and corresponding AlternativeService entries.
 void FuzzHeaderFieldValue(
-    int i,
-    std::string* header_field_value,
+    int i, std::string* header_field_value,
     SpdyAltSvcWireFormat::AlternativeService* expected_altsvc) {
   if (!header_field_value->empty()) {
     header_field_value->push_back(',');
