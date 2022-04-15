@@ -83,14 +83,12 @@ class QUIC_NO_EXPORT MasqueServerSession
  private:
   // State that the MasqueServerSession keeps for each CONNECT-UDP request.
   class QUIC_NO_EXPORT ConnectUdpServerState
-      : public QuicSpdyStream::Http3DatagramRegistrationVisitor,
-        public QuicSpdyStream::Http3DatagramVisitor {
+      : public QuicSpdyStream::Http3DatagramVisitor {
    public:
     // ConnectUdpServerState takes ownership of |fd|. It will unregister it
     // from |epoll_server| and close the file descriptor when destructed.
     explicit ConnectUdpServerState(
         QuicSpdyStream* stream,
-        absl::optional<QuicDatagramContextId> context_id,
         const QuicSocketAddress& target_server_address, QuicUdpSocketFd fd,
         MasqueServerSession* masque_session);
 
@@ -103,9 +101,6 @@ class QUIC_NO_EXPORT MasqueServerSession
     ConnectUdpServerState& operator=(ConnectUdpServerState&&);
 
     QuicSpdyStream* stream() const { return stream_; }
-    absl::optional<QuicDatagramContextId> context_id() const {
-      return context_id_;
-    }
     const QuicSocketAddress& target_server_address() const {
       return target_server_address_;
     }
@@ -113,27 +108,13 @@ class QUIC_NO_EXPORT MasqueServerSession
 
     // From QuicSpdyStream::Http3DatagramVisitor.
     void OnHttp3Datagram(QuicStreamId stream_id,
-                         absl::optional<QuicDatagramContextId> context_id,
                          absl::string_view payload) override;
-
-    // From QuicSpdyStream::Http3DatagramRegistrationVisitor.
-    void OnContextReceived(QuicStreamId stream_id,
-                           absl::optional<QuicDatagramContextId> context_id,
-                           DatagramFormatType format_type,
-                           absl::string_view format_additional_data) override;
-    void OnContextClosed(QuicStreamId stream_id,
-                         absl::optional<QuicDatagramContextId> context_id,
-                         ContextCloseCode close_code,
-                         absl::string_view close_details) override;
 
    private:
     QuicSpdyStream* stream_;
-    absl::optional<QuicDatagramContextId> context_id_;
     QuicSocketAddress target_server_address_;
     QuicUdpSocketFd fd_;                   // Owned.
     MasqueServerSession* masque_session_;  // Unowned.
-    bool context_received_ = false;
-    bool context_registered_ = false;
   };
 
   // From QuicSpdySession.

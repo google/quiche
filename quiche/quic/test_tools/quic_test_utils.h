@@ -1987,11 +1987,9 @@ class SavingHttp3DatagramVisitor : public QuicSpdyStream::Http3DatagramVisitor {
  public:
   struct SavedHttp3Datagram {
     QuicStreamId stream_id;
-    absl::optional<QuicDatagramContextId> context_id;
     std::string payload;
     bool operator==(const SavedHttp3Datagram& o) const {
-      return stream_id == o.stream_id && context_id == o.context_id &&
-             payload == o.payload;
+      return stream_id == o.stream_id && payload == o.payload;
     }
   };
   const std::vector<SavedHttp3Datagram>& received_h3_datagrams() const {
@@ -2000,31 +1998,13 @@ class SavingHttp3DatagramVisitor : public QuicSpdyStream::Http3DatagramVisitor {
 
   // Override from QuicSpdyStream::Http3DatagramVisitor.
   void OnHttp3Datagram(QuicStreamId stream_id,
-                       absl::optional<QuicDatagramContextId> context_id,
                        absl::string_view payload) override {
     received_h3_datagrams_.push_back(
-        SavedHttp3Datagram{stream_id, context_id, std::string(payload)});
+        SavedHttp3Datagram{stream_id, std::string(payload)});
   }
 
  private:
   std::vector<SavedHttp3Datagram> received_h3_datagrams_;
-};
-
-class MockHttp3DatagramRegistrationVisitor
-    : public QuicSpdyStream::Http3DatagramRegistrationVisitor {
- public:
-  MOCK_METHOD(void, OnContextReceived,
-              (QuicStreamId stream_id,
-               absl::optional<QuicDatagramContextId> context_id,
-               DatagramFormatType format_type,
-               absl::string_view format_additional_data),
-              (override));
-
-  MOCK_METHOD(void, OnContextClosed,
-              (QuicStreamId stream_id,
-               absl::optional<QuicDatagramContextId> context_id,
-               ContextCloseCode close_code, absl::string_view close_details),
-              (override));
 };
 
 }  // namespace test

@@ -42,8 +42,7 @@ class QUIC_NO_EXPORT NoopWebTransportVisitor : public WebTransportVisitor {
 
 WebTransportHttp3::WebTransportHttp3(QuicSpdySession* session,
                                      QuicSpdyStream* connect_stream,
-                                     WebTransportSessionId id,
-                                     bool attempt_to_use_datagram_contexts)
+                                     WebTransportSessionId id)
     : session_(session),
       connect_stream_(connect_stream),
       id_(id),
@@ -51,15 +50,7 @@ WebTransportHttp3::WebTransportHttp3(QuicSpdySession* session,
   QUICHE_DCHECK(session_->SupportsWebTransport());
   QUICHE_DCHECK(IsValidWebTransportSessionId(id, session_->version()));
   QUICHE_DCHECK_EQ(connect_stream_->id(), id);
-  connect_stream_->RegisterHttp3DatagramRegistrationVisitor(
-      this, attempt_to_use_datagram_contexts);
-  if (session_->perspective() == Perspective::IS_CLIENT) {
-    context_is_known_ = true;
-    context_currently_registered_ = true;
-    if (attempt_to_use_datagram_contexts) {
-      context_id_ = connect_stream_->GetNextDatagramContextId();
-    }
-  }
+  connect_stream_->RegisterHttp3DatagramVisitor(this);
 }
 
 void WebTransportHttp3::AssociateStream(QuicStreamId stream_id) {
@@ -87,11 +78,7 @@ void WebTransportHttp3::OnConnectStreamClosing() {
   for (QuicStreamId id : streams) {
     session_->ResetStream(id, QUIC_STREAM_WEBTRANSPORT_SESSION_GONE);
   }
-  if (context_currently_registered_) {
-    context_currently_registered_ = false;
-    connect_stream_->UnregisterHttp3DatagramContextId(context_id_);
-  }
-  connect_stream_->UnregisterHttp3DatagramRegistrationVisitor();
+  connect_stream_->UnregisterHttp3DatagramVisitor();
 
   MaybeNotifyClose();
 }
@@ -283,11 +270,11 @@ WebTransportStream* WebTransportHttp3::OpenOutgoingUnidirectionalStream() {
 MessageStatus WebTransportHttp3::SendOrQueueDatagram(
     quiche::QuicheMemSlice datagram) {
   return connect_stream_->SendHttp3Datagram(
-      context_id_, absl::string_view(datagram.data(), datagram.length()));
+      absl::string_view(datagram.data(), datagram.length()));
 }
 
 QuicByteCount WebTransportHttp3::GetMaxDatagramSize() const {
-  return connect_stream_->GetMaxDatagramSize(context_id_);
+  return connect_stream_->GetMaxDatagramSize();
 }
 
 void WebTransportHttp3::SetDatagramMaxTimeInQueue(
@@ -295,86 +282,10 @@ void WebTransportHttp3::SetDatagramMaxTimeInQueue(
   connect_stream_->SetMaxDatagramTimeInQueue(max_time_in_queue);
 }
 
-void WebTransportHttp3::OnHttp3Datagram(
-    QuicStreamId stream_id, absl::optional<QuicDatagramContextId> context_id,
-    absl::string_view payload) {
+void WebTransportHttp3::OnHttp3Datagram(QuicStreamId stream_id,
+                                        absl::string_view payload) {
   QUICHE_DCHECK_EQ(stream_id, connect_stream_->id());
-  QUICHE_DCHECK(context_id == context_id_);
   visitor_->OnDatagramReceived(payload);
-}
-
-void WebTransportHttp3::OnContextReceived(
-    QuicStreamId stream_id, absl::optional<QuicDatagramContextId> context_id,
-    DatagramFormatType format_type, absl::string_view format_additional_data) {
-  if (stream_id != connect_stream_->id()) {
-    QUIC_BUG(WT3 bad datagram context registration)
-        << ENDPOINT << "Registered stream ID " << stream_id << ", expected "
-        << connect_stream_->id();
-    return;
-  }
-  if (format_type != DatagramFormatType::WEBTRANSPORT) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Ignoring unexpected datagram format type "
-                    << DatagramFormatTypeToString(format_type);
-    return;
-  }
-  if (!format_additional_data.empty()) {
-    QUIC_DLOG(ERROR)
-        << ENDPOINT
-        << "Received non-empty format additional data for context ID "
-        << (context_id_.has_value() ? context_id_.value() : 0)
-        << " on stream ID " << connect_stream_->id();
-    session_->ResetStream(connect_stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD);
-    return;
-  }
-  if (!context_is_known_) {
-    context_is_known_ = true;
-    context_id_ = context_id;
-  }
-  if (context_id != context_id_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Ignoring unexpected context ID "
-                    << (context_id.has_value() ? context_id.value() : 0)
-                    << " instead of "
-                    << (context_id_.has_value() ? context_id_.value() : 0)
-                    << " on stream ID " << connect_stream_->id();
-    return;
-  }
-  if (session_->perspective() == Perspective::IS_SERVER) {
-    if (context_currently_registered_) {
-      QUIC_DLOG(ERROR) << ENDPOINT << "Received duplicate context ID "
-                       << (context_id_.has_value() ? context_id_.value() : 0)
-                       << " on stream ID " << connect_stream_->id();
-      session_->ResetStream(connect_stream_->id(), QUIC_STREAM_CANCELLED);
-      return;
-    }
-    context_currently_registered_ = true;
-    connect_stream_->RegisterHttp3DatagramContextId(
-        context_id_, format_type, format_additional_data, this);
-  }
-}
-
-void WebTransportHttp3::OnContextClosed(
-    QuicStreamId stream_id, absl::optional<QuicDatagramContextId> context_id,
-    ContextCloseCode close_code, absl::string_view close_details) {
-  if (stream_id != connect_stream_->id()) {
-    QUIC_BUG(WT3 bad datagram context registration)
-        << ENDPOINT << "Closed context on stream ID " << stream_id
-        << ", expected " << connect_stream_->id();
-    return;
-  }
-  if (context_id != context_id_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Ignoring unexpected close of context ID "
-                    << (context_id.has_value() ? context_id.value() : 0)
-                    << " instead of "
-                    << (context_id_.has_value() ? context_id_.value() : 0)
-                    << " on stream ID " << connect_stream_->id();
-    return;
-  }
-  QUIC_DLOG(INFO) << ENDPOINT
-                  << "Received datagram context close with close code "
-                  << close_code << " close details \"" << close_details
-                  << "\" on stream ID " << connect_stream_->id()
-                  << ", resetting stream";
-  session_->ResetStream(connect_stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD);
 }
 
 void WebTransportHttp3::MaybeNotifyClose() {

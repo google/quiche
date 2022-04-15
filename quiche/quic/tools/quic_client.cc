@@ -130,8 +130,7 @@ std::unique_ptr<QuicSession> QuicClient::CreateQuicClientSession(
     QuicConnection* connection) {
   return std::make_unique<QuicSimpleClientSession>(
       *config(), supported_versions, connection, server_id(), crypto_config(),
-      push_promise_index(), drop_response_body(), enable_web_transport(),
-      use_datagram_contexts());
+      push_promise_index(), drop_response_body(), enable_web_transport());
 }
 
 QuicClientEpollNetworkHelper* QuicClient::epoll_network_helper() {

@@ -20,12 +20,11 @@ namespace quic {
 
 enum class CapsuleType : uint64_t {
   // Casing in this enum matches the IETF specification.
-  LEGACY_DATAGRAM = 0xff37a0,  // draft-ietf-masque-h3-datagram-04
-  REGISTER_DATAGRAM_CONTEXT = 0xff37a1,
-  REGISTER_DATAGRAM_NO_CONTEXT = 0xff37a2,
-  CLOSE_DATAGRAM_CONTEXT = 0xff37a3,
-  DATAGRAM_WITH_CONTEXT = 0xff37a4,
-  DATAGRAM_WITHOUT_CONTEXT = 0xff37a5,
+  LEGACY_DATAGRAM = 0xff37a0,  // draft-ietf-masque-h3-datagram-04.
+  REGISTER_DATAGRAM_NO_CONTEXT =
+      0xff37a2,  // draft-ietf-masque-h3-datagram-04 to -05.
+  DATAGRAM_WITHOUT_CONTEXT =
+      0xff37a5,  // draft-ietf-masque-h3-datagram-05 to -08.
   CLOSE_WEBTRANSPORT_SESSION = 0x2843,
 };
 
@@ -44,43 +43,16 @@ QUIC_EXPORT_PRIVATE std::string DatagramFormatTypeToString(
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os, const DatagramFormatType& datagram_format_type);
 
-enum class ContextCloseCode : uint64_t {
-  // Casing in this enum matches the IETF specification.
-  CLOSE_NO_ERROR = 0xff78a0,  // NO_ERROR already exists in winerror.h.
-  UNKNOWN_FORMAT = 0xff78a1,
-  DENIED = 0xff78a2,
-  RESOURCE_LIMIT = 0xff78a3,
-};
-
-QUIC_EXPORT_PRIVATE std::string ContextCloseCodeToString(
-    ContextCloseCode context_close_code);
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os, const ContextCloseCode& context_close_code);
-
 struct QUIC_EXPORT_PRIVATE LegacyDatagramCapsule {
   absl::optional<QuicDatagramContextId> context_id;
-  absl::string_view http_datagram_payload;
-};
-struct QUIC_EXPORT_PRIVATE DatagramWithContextCapsule {
-  QuicDatagramContextId context_id;
   absl::string_view http_datagram_payload;
 };
 struct QUIC_EXPORT_PRIVATE DatagramWithoutContextCapsule {
   absl::string_view http_datagram_payload;
 };
-struct QUIC_EXPORT_PRIVATE RegisterDatagramContextCapsule {
-  QuicDatagramContextId context_id;
-  DatagramFormatType format_type;
-  absl::string_view format_additional_data;
-};
 struct QUIC_EXPORT_PRIVATE RegisterDatagramNoContextCapsule {
   DatagramFormatType format_type;
   absl::string_view format_additional_data;
-};
-struct QUIC_EXPORT_PRIVATE CloseDatagramContextCapsule {
-  QuicDatagramContextId context_id;
-  ContextCloseCode close_code;
-  absl::string_view close_details;
 };
 struct QUIC_EXPORT_PRIVATE CloseWebTransportSessionCapsule {
   WebTransportSessionError error_code;
@@ -97,21 +69,11 @@ class QUIC_EXPORT_PRIVATE Capsule {
   static Capsule LegacyDatagram(
       absl::optional<QuicDatagramContextId> context_id = absl::nullopt,
       absl::string_view http_datagram_payload = absl::string_view());
-  static Capsule DatagramWithContext(
-      QuicDatagramContextId context_id,
-      absl::string_view http_datagram_payload = absl::string_view());
   static Capsule DatagramWithoutContext(
       absl::string_view http_datagram_payload = absl::string_view());
-  static Capsule RegisterDatagramContext(
-      QuicDatagramContextId context_id, DatagramFormatType format_type,
-      absl::string_view format_additional_data = absl::string_view());
   static Capsule RegisterDatagramNoContext(
       DatagramFormatType format_type,
       absl::string_view format_additional_data = absl::string_view());
-  static Capsule CloseDatagramContext(
-      QuicDatagramContextId context_id,
-      ContextCloseCode close_code = ContextCloseCode::CLOSE_NO_ERROR,
-      absl::string_view close_details = absl::string_view());
   static Capsule CloseWebTransportSession(
       WebTransportSessionError error_code = 0,
       absl::string_view error_message = "");
@@ -138,14 +100,6 @@ class QUIC_EXPORT_PRIVATE Capsule {
     QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::LEGACY_DATAGRAM);
     return legacy_datagram_capsule_;
   }
-  DatagramWithContextCapsule& datagram_with_context_capsule() {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::DATAGRAM_WITH_CONTEXT);
-    return datagram_with_context_capsule_;
-  }
-  const DatagramWithContextCapsule& datagram_with_context_capsule() const {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::DATAGRAM_WITH_CONTEXT);
-    return datagram_with_context_capsule_;
-  }
   DatagramWithoutContextCapsule& datagram_without_context_capsule() {
     QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::DATAGRAM_WITHOUT_CONTEXT);
     return datagram_without_context_capsule_;
@@ -155,15 +109,6 @@ class QUIC_EXPORT_PRIVATE Capsule {
     QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::DATAGRAM_WITHOUT_CONTEXT);
     return datagram_without_context_capsule_;
   }
-  RegisterDatagramContextCapsule& register_datagram_context_capsule() {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::REGISTER_DATAGRAM_CONTEXT);
-    return register_datagram_context_capsule_;
-  }
-  const RegisterDatagramContextCapsule& register_datagram_context_capsule()
-      const {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::REGISTER_DATAGRAM_CONTEXT);
-    return register_datagram_context_capsule_;
-  }
   RegisterDatagramNoContextCapsule& register_datagram_no_context_capsule() {
     QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT);
     return register_datagram_no_context_capsule_;
@@ -172,14 +117,6 @@ class QUIC_EXPORT_PRIVATE Capsule {
       const {
     QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT);
     return register_datagram_no_context_capsule_;
-  }
-  CloseDatagramContextCapsule& close_datagram_context_capsule() {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::CLOSE_DATAGRAM_CONTEXT);
-    return close_datagram_context_capsule_;
-  }
-  const CloseDatagramContextCapsule& close_datagram_context_capsule() const {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::CLOSE_DATAGRAM_CONTEXT);
-    return close_datagram_context_capsule_;
   }
   CloseWebTransportSessionCapsule& close_web_transport_session_capsule() {
     QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::CLOSE_WEBTRANSPORT_SESSION);
@@ -192,22 +129,16 @@ class QUIC_EXPORT_PRIVATE Capsule {
   }
   absl::string_view& unknown_capsule_data() {
     QUICHE_DCHECK(capsule_type_ != CapsuleType::LEGACY_DATAGRAM &&
-                  capsule_type_ != CapsuleType::DATAGRAM_WITH_CONTEXT &&
                   capsule_type_ != CapsuleType::DATAGRAM_WITHOUT_CONTEXT &&
-                  capsule_type_ != CapsuleType::REGISTER_DATAGRAM_CONTEXT &&
                   capsule_type_ != CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT &&
-                  capsule_type_ != CapsuleType::CLOSE_DATAGRAM_CONTEXT &&
                   capsule_type_ != CapsuleType::CLOSE_WEBTRANSPORT_SESSION)
         << capsule_type_;
     return unknown_capsule_data_;
   }
   const absl::string_view& unknown_capsule_data() const {
     QUICHE_DCHECK(capsule_type_ != CapsuleType::LEGACY_DATAGRAM &&
-                  capsule_type_ != CapsuleType::DATAGRAM_WITH_CONTEXT &&
                   capsule_type_ != CapsuleType::DATAGRAM_WITHOUT_CONTEXT &&
-                  capsule_type_ != CapsuleType::REGISTER_DATAGRAM_CONTEXT &&
                   capsule_type_ != CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT &&
-                  capsule_type_ != CapsuleType::CLOSE_DATAGRAM_CONTEXT &&
                   capsule_type_ != CapsuleType::CLOSE_WEBTRANSPORT_SESSION)
         << capsule_type_;
     return unknown_capsule_data_;
@@ -217,11 +148,8 @@ class QUIC_EXPORT_PRIVATE Capsule {
   CapsuleType capsule_type_;
   union {
     LegacyDatagramCapsule legacy_datagram_capsule_;
-    DatagramWithContextCapsule datagram_with_context_capsule_;
     DatagramWithoutContextCapsule datagram_without_context_capsule_;
-    RegisterDatagramContextCapsule register_datagram_context_capsule_;
     RegisterDatagramNoContextCapsule register_datagram_no_context_capsule_;
-    CloseDatagramContextCapsule close_datagram_context_capsule_;
     CloseWebTransportSessionCapsule close_web_transport_session_capsule_;
     absl::string_view unknown_capsule_data_;
   };
@@ -252,10 +180,6 @@ class QUIC_EXPORT_PRIVATE CapsuleParser {
   // |visitor| must be non-null, and must outlive CapsuleParser.
   explicit CapsuleParser(Visitor* visitor);
 
-  void set_datagram_context_id_present(bool datagram_context_id_present) {
-    datagram_context_id_present_ = datagram_context_id_present;
-  }
-
   // Ingests a capsule fragment (any fragment of bytes from the capsule data
   // stream) and parses and complete capsules it encounters. Returns false if a
   // parsing error occurred.
@@ -272,8 +196,6 @@ class QUIC_EXPORT_PRIVATE CapsuleParser {
   size_t AttemptParseCapsule();
   void ReportParseFailure(const std::string& error_message);
 
-  // Whether HTTP Datagram Context IDs are present.
-  bool datagram_context_id_present_ = false;
   // Whether a parsing error has occurred.
   bool parsing_error_occurred_ = false;
   // Visitor which will receive callbacks, unowned.

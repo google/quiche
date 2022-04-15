@@ -25,11 +25,6 @@ QuicSpdyStreamPeer::unacked_frame_headers_offsets(QuicSpdyStream* stream) {
 }
 
 // static
-bool QuicSpdyStreamPeer::use_datagram_contexts(QuicSpdyStream* stream) {
-  return stream->use_datagram_contexts_;
-}
-
-// static
 bool QuicSpdyStreamPeer::OnHeadersFrameEnd(QuicSpdyStream* stream) {
   return stream->OnHeadersFrameEnd();
 }

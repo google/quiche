@@ -20,14 +20,8 @@ namespace quic {
 
 std::string CapsuleTypeToString(CapsuleType capsule_type) {
   switch (capsule_type) {
-    case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
-      return "REGISTER_DATAGRAM_CONTEXT";
-    case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
-      return "CLOSE_DATAGRAM_CONTEXT";
     case CapsuleType::LEGACY_DATAGRAM:
       return "LEGACY_DATAGRAM";
-    case CapsuleType::DATAGRAM_WITH_CONTEXT:
-      return "DATAGRAM_WITH_CONTEXT";
     case CapsuleType::DATAGRAM_WITHOUT_CONTEXT:
       return "DATAGRAM_WITHOUT_CONTEXT";
     case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
@@ -61,27 +55,6 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-std::string ContextCloseCodeToString(ContextCloseCode context_close_code) {
-  switch (context_close_code) {
-    case ContextCloseCode::CLOSE_NO_ERROR:
-      return "NO_ERROR";
-    case ContextCloseCode::UNKNOWN_FORMAT:
-      return "UNKNOWN_FORMAT";
-    case ContextCloseCode::DENIED:
-      return "DENIED";
-    case ContextCloseCode::RESOURCE_LIMIT:
-      return "RESOURCE_LIMIT";
-  }
-  return absl::StrCat("Unknown(", static_cast<uint64_t>(context_close_code),
-                      ")");
-}
-
-std::ostream& operator<<(std::ostream& os,
-                         const ContextCloseCode& context_close_code) {
-  os << ContextCloseCodeToString(context_close_code);
-  return os;
-}
-
 Capsule::Capsule(CapsuleType capsule_type) : capsule_type_(capsule_type) {
   switch (capsule_type) {
     case CapsuleType::LEGACY_DATAGRAM:
@@ -91,13 +64,6 @@ Capsule::Capsule(CapsuleType capsule_type) : capsule_type_(capsule_type) {
           "All capsule structs must have these properties");
       legacy_datagram_capsule_ = LegacyDatagramCapsule();
       break;
-    case CapsuleType::DATAGRAM_WITH_CONTEXT:
-      static_assert(
-          std::is_standard_layout<DatagramWithContextCapsule>::value &&
-              std::is_trivially_destructible<DatagramWithContextCapsule>::value,
-          "All capsule structs must have these properties");
-      datagram_with_context_capsule_ = DatagramWithContextCapsule();
-      break;
     case CapsuleType::DATAGRAM_WITHOUT_CONTEXT:
       static_assert(
           std::is_standard_layout<DatagramWithoutContextCapsule>::value &&
@@ -105,14 +71,6 @@ Capsule::Capsule(CapsuleType capsule_type) : capsule_type_(capsule_type) {
                   DatagramWithoutContextCapsule>::value,
           "All capsule structs must have these properties");
       datagram_without_context_capsule_ = DatagramWithoutContextCapsule();
-      break;
-    case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
-      static_assert(
-          std::is_standard_layout<RegisterDatagramContextCapsule>::value &&
-              std::is_trivially_destructible<
-                  RegisterDatagramContextCapsule>::value,
-          "All capsule structs must have these properties");
-      register_datagram_context_capsule_ = RegisterDatagramContextCapsule();
       break;
     case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
       static_assert(
@@ -122,14 +80,6 @@ Capsule::Capsule(CapsuleType capsule_type) : capsule_type_(capsule_type) {
           "All capsule structs must have these properties");
       register_datagram_no_context_capsule_ =
           RegisterDatagramNoContextCapsule();
-      break;
-    case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
-      static_assert(
-          std::is_standard_layout<CloseDatagramContextCapsule>::value &&
-              std::is_trivially_destructible<
-                  CloseDatagramContextCapsule>::value,
-          "All capsule structs must have these properties");
-      close_datagram_context_capsule_ = CloseDatagramContextCapsule();
       break;
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
       static_assert(
@@ -157,33 +107,11 @@ Capsule Capsule::LegacyDatagram(
 }
 
 // static
-Capsule Capsule::DatagramWithContext(QuicDatagramContextId context_id,
-                                     absl::string_view http_datagram_payload) {
-  Capsule capsule(CapsuleType::DATAGRAM_WITH_CONTEXT);
-  capsule.datagram_with_context_capsule().context_id = context_id;
-  capsule.datagram_with_context_capsule().http_datagram_payload =
-      http_datagram_payload;
-  return capsule;
-}
-
-// static
 Capsule Capsule::DatagramWithoutContext(
     absl::string_view http_datagram_payload) {
   Capsule capsule(CapsuleType::DATAGRAM_WITHOUT_CONTEXT);
   capsule.datagram_without_context_capsule().http_datagram_payload =
       http_datagram_payload;
-  return capsule;
-}
-
-// static
-Capsule Capsule::RegisterDatagramContext(
-    QuicDatagramContextId context_id, DatagramFormatType format_type,
-    absl::string_view format_additional_data) {
-  Capsule capsule(CapsuleType::REGISTER_DATAGRAM_CONTEXT);
-  capsule.register_datagram_context_capsule().context_id = context_id;
-  capsule.register_datagram_context_capsule().format_type = format_type;
-  capsule.register_datagram_context_capsule().format_additional_data =
-      format_additional_data;
   return capsule;
 }
 
@@ -194,17 +122,6 @@ Capsule Capsule::RegisterDatagramNoContext(
   capsule.register_datagram_no_context_capsule().format_type = format_type;
   capsule.register_datagram_no_context_capsule().format_additional_data =
       format_additional_data;
-  return capsule;
-}
-
-// static
-Capsule Capsule::CloseDatagramContext(QuicDatagramContextId context_id,
-                                      ContextCloseCode close_code,
-                                      absl::string_view close_details) {
-  Capsule capsule(CapsuleType::CLOSE_DATAGRAM_CONTEXT);
-  capsule.close_datagram_context_capsule().context_id = context_id;
-  capsule.close_datagram_context_capsule().close_code = close_code;
-  capsule.close_datagram_context_capsule().close_details = close_details;
   return capsule;
 }
 
@@ -231,23 +148,13 @@ Capsule& Capsule::operator=(const Capsule& other) {
     case CapsuleType::LEGACY_DATAGRAM:
       legacy_datagram_capsule_ = other.legacy_datagram_capsule_;
       break;
-    case CapsuleType::DATAGRAM_WITH_CONTEXT:
-      datagram_with_context_capsule_ = other.datagram_with_context_capsule_;
-      break;
     case CapsuleType::DATAGRAM_WITHOUT_CONTEXT:
       datagram_without_context_capsule_ =
           other.datagram_without_context_capsule_;
       break;
-    case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
-      register_datagram_context_capsule_ =
-          other.register_datagram_context_capsule_;
-      break;
     case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
       register_datagram_no_context_capsule_ =
           other.register_datagram_no_context_capsule_;
-      break;
-    case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
-      close_datagram_context_capsule_ = other.close_datagram_context_capsule_;
       break;
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
       close_web_transport_session_capsule_ =
@@ -274,35 +181,15 @@ bool Capsule::operator==(const Capsule& other) const {
                  other.legacy_datagram_capsule_.context_id &&
              legacy_datagram_capsule_.http_datagram_payload ==
                  other.legacy_datagram_capsule_.http_datagram_payload;
-    case CapsuleType::DATAGRAM_WITH_CONTEXT:
-      return datagram_with_context_capsule_.context_id ==
-                 other.datagram_with_context_capsule_.context_id &&
-             datagram_with_context_capsule_.http_datagram_payload ==
-                 other.datagram_with_context_capsule_.http_datagram_payload;
     case CapsuleType::DATAGRAM_WITHOUT_CONTEXT:
       return datagram_without_context_capsule_.http_datagram_payload ==
              other.datagram_without_context_capsule_.http_datagram_payload;
-    case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
-      return register_datagram_context_capsule_.context_id ==
-                 other.register_datagram_context_capsule_.context_id &&
-             register_datagram_context_capsule_.format_type ==
-                 other.register_datagram_context_capsule_.format_type &&
-             register_datagram_context_capsule_.format_additional_data ==
-                 other.register_datagram_context_capsule_
-                     .format_additional_data;
     case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
       return register_datagram_no_context_capsule_.format_type ==
                  other.register_datagram_no_context_capsule_.format_type &&
              register_datagram_no_context_capsule_.format_additional_data ==
                  other.register_datagram_no_context_capsule_
                      .format_additional_data;
-    case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
-      return close_datagram_context_capsule_.context_id ==
-                 other.close_datagram_context_capsule_.context_id &&
-             close_datagram_context_capsule_.close_code ==
-                 other.close_datagram_context_capsule_.close_code &&
-             close_datagram_context_capsule_.close_details ==
-                 other.close_datagram_context_capsule_.close_details;
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
       return close_web_transport_session_capsule_.error_code ==
                  other.close_web_transport_session_capsule_.error_code &&
@@ -326,29 +213,12 @@ std::string Capsule::ToString() const {
                           legacy_datagram_capsule_.http_datagram_payload),
                       "]");
       break;
-    case CapsuleType::DATAGRAM_WITH_CONTEXT:
-      absl::StrAppend(&rv, "(", datagram_with_context_capsule_.context_id, ")[",
-                      absl::BytesToHexString(
-                          datagram_with_context_capsule_.http_datagram_payload),
-                      "]");
-      break;
     case CapsuleType::DATAGRAM_WITHOUT_CONTEXT:
       absl::StrAppend(
           &rv, "[",
           absl::BytesToHexString(
               datagram_without_context_capsule_.http_datagram_payload),
           "]");
-      break;
-    case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
-      absl::StrAppend(
-          &rv, "(context_id=", register_datagram_context_capsule_.context_id,
-          ",format_type=",
-          DatagramFormatTypeToString(
-              register_datagram_context_capsule_.format_type),
-          "){",
-          absl::BytesToHexString(
-              register_datagram_context_capsule_.format_additional_data),
-          "}");
       break;
     case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
       absl::StrAppend(
@@ -359,15 +229,6 @@ std::string Capsule::ToString() const {
           absl::BytesToHexString(
               register_datagram_no_context_capsule_.format_additional_data),
           "}");
-      break;
-    case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
-      absl::StrAppend(
-          &rv, "(context_id=", close_datagram_context_capsule_.context_id,
-          ",close_code=",
-          ContextCloseCodeToString(close_datagram_context_capsule_.close_code),
-          ",close_details=\"",
-          absl::BytesToHexString(close_datagram_context_capsule_.close_details),
-          "\")");
       break;
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
       absl::StrAppend(
@@ -406,25 +267,9 @@ quiche::QuicheBuffer SerializeCapsule(
             capsule.legacy_datagram_capsule().context_id.value());
       }
       break;
-    case CapsuleType::DATAGRAM_WITH_CONTEXT:
-      capsule_data_length =
-          QuicDataWriter::GetVarInt62Len(
-              capsule.datagram_with_context_capsule().context_id) +
-          capsule.datagram_with_context_capsule()
-              .http_datagram_payload.length();
-      break;
     case CapsuleType::DATAGRAM_WITHOUT_CONTEXT:
       capsule_data_length = capsule.datagram_without_context_capsule()
                                 .http_datagram_payload.length();
-      break;
-    case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
-      capsule_data_length =
-          QuicDataWriter::GetVarInt62Len(
-              capsule.register_datagram_context_capsule().context_id) +
-          QuicDataWriter::GetVarInt62Len(static_cast<uint64_t>(
-              capsule.register_datagram_context_capsule().format_type)) +
-          capsule.register_datagram_context_capsule()
-              .format_additional_data.length();
       break;
     case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
       capsule_data_length =
@@ -432,14 +277,6 @@ quiche::QuicheBuffer SerializeCapsule(
               capsule.register_datagram_no_context_capsule().format_type)) +
           capsule.register_datagram_no_context_capsule()
               .format_additional_data.length();
-      break;
-    case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
-      capsule_data_length =
-          QuicDataWriter::GetVarInt62Len(
-              capsule.close_datagram_context_capsule().context_id) +
-          QuicDataWriter::GetVarInt62Len(static_cast<uint64_t>(
-              capsule.close_datagram_context_capsule().close_code)) +
-          capsule.close_datagram_context_capsule().close_details.length();
       break;
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
       capsule_data_length =
@@ -481,46 +318,11 @@ quiche::QuicheBuffer SerializeCapsule(
         return {};
       }
       break;
-    case CapsuleType::DATAGRAM_WITH_CONTEXT:
-      if (!writer.WriteVarInt62(
-              capsule.datagram_with_context_capsule().context_id)) {
-        QUIC_BUG(datagram capsule context ID write fail)
-            << "Failed to write DATAGRAM_WITH_CONTEXT CAPSULE context ID";
-        return {};
-      }
-      if (!writer.WriteStringPiece(
-              capsule.datagram_with_context_capsule().http_datagram_payload)) {
-        QUIC_BUG(datagram capsule payload write fail)
-            << "Failed to write DATAGRAM_WITH_CONTEXT CAPSULE payload";
-        return {};
-      }
-      break;
     case CapsuleType::DATAGRAM_WITHOUT_CONTEXT:
       if (!writer.WriteStringPiece(capsule.datagram_without_context_capsule()
                                        .http_datagram_payload)) {
         QUIC_BUG(datagram capsule payload write fail)
             << "Failed to write DATAGRAM_WITHOUT_CONTEXT CAPSULE payload";
-        return {};
-      }
-      break;
-    case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
-      if (!writer.WriteVarInt62(
-              capsule.register_datagram_context_capsule().context_id)) {
-        QUIC_BUG(register context capsule context ID write fail)
-            << "Failed to write REGISTER_DATAGRAM_CONTEXT CAPSULE context ID";
-        return {};
-      }
-      if (!writer.WriteVarInt62(static_cast<uint64_t>(
-              capsule.register_datagram_context_capsule().format_type))) {
-        QUIC_BUG(register context capsule format type write fail)
-            << "Failed to write REGISTER_DATAGRAM_CONTEXT CAPSULE format type";
-        return {};
-      }
-      if (!writer.WriteStringPiece(capsule.register_datagram_context_capsule()
-                                       .format_additional_data)) {
-        QUIC_BUG(register context capsule additional data write fail)
-            << "Failed to write REGISTER_DATAGRAM_CONTEXT CAPSULE additional "
-               "data";
         return {};
       }
       break;
@@ -538,26 +340,6 @@ quiche::QuicheBuffer SerializeCapsule(
         QUIC_BUG(register no context capsule additional data write fail)
             << "Failed to write REGISTER_DATAGRAM_NO_CONTEXT CAPSULE "
                "additional data";
-        return {};
-      }
-      break;
-    case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
-      if (!writer.WriteVarInt62(
-              capsule.close_datagram_context_capsule().context_id)) {
-        QUIC_BUG(close context capsule context ID write fail)
-            << "Failed to write CLOSE_DATAGRAM_CONTEXT CAPSULE context ID";
-        return {};
-      }
-      if (!writer.WriteVarInt62(static_cast<uint64_t>(
-              capsule.close_datagram_context_capsule().close_code))) {
-        QUIC_BUG(close context capsule close code write fail)
-            << "Failed to write CLOSE_DATAGRAM_CONTEXT CAPSULE close code";
-        return {};
-      }
-      if (!writer.WriteStringPiece(
-              capsule.close_datagram_context_capsule().close_details)) {
-        QUIC_BUG(close context capsule close details write fail)
-            << "Failed to write CLOSE_DATAGRAM_CONTEXT CAPSULE close details";
         return {};
       }
       break;
@@ -638,47 +420,11 @@ size_t CapsuleParser::AttemptParseCapsule() {
   Capsule capsule(static_cast<CapsuleType>(capsule_type64));
   switch (capsule.capsule_type()) {
     case CapsuleType::LEGACY_DATAGRAM:
-      if (datagram_context_id_present_) {
-        uint64_t context_id;
-        if (!capsule_data_reader.ReadVarInt62(&context_id)) {
-          ReportParseFailure(
-              "Unable to parse capsule LEGACY_DATAGRAM context ID");
-          return 0;
-        }
-        capsule.legacy_datagram_capsule().context_id = context_id;
-      }
       capsule.legacy_datagram_capsule().http_datagram_payload =
-          capsule_data_reader.ReadRemainingPayload();
-      break;
-    case CapsuleType::DATAGRAM_WITH_CONTEXT:
-      uint64_t context_id;
-      if (!capsule_data_reader.ReadVarInt62(&context_id)) {
-        ReportParseFailure(
-            "Unable to parse capsule DATAGRAM_WITH_CONTEXT context ID");
-        return 0;
-      }
-      capsule.datagram_with_context_capsule().context_id = context_id;
-      capsule.datagram_with_context_capsule().http_datagram_payload =
           capsule_data_reader.ReadRemainingPayload();
       break;
     case CapsuleType::DATAGRAM_WITHOUT_CONTEXT:
       capsule.datagram_without_context_capsule().http_datagram_payload =
-          capsule_data_reader.ReadRemainingPayload();
-      break;
-    case CapsuleType::REGISTER_DATAGRAM_CONTEXT:
-      if (!capsule_data_reader.ReadVarInt62(
-              &capsule.register_datagram_context_capsule().context_id)) {
-        ReportParseFailure(
-            "Unable to parse capsule REGISTER_DATAGRAM_CONTEXT context ID");
-        return 0;
-      }
-      if (!capsule_data_reader.ReadVarInt62(reinterpret_cast<uint64_t*>(
-              &capsule.register_datagram_context_capsule().format_type))) {
-        ReportParseFailure(
-            "Unable to parse capsule REGISTER_DATAGRAM_CONTEXT format type");
-        return 0;
-      }
-      capsule.register_datagram_context_capsule().format_additional_data =
           capsule_data_reader.ReadRemainingPayload();
       break;
     case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT:
@@ -689,22 +435,6 @@ size_t CapsuleParser::AttemptParseCapsule() {
         return 0;
       }
       capsule.register_datagram_no_context_capsule().format_additional_data =
-          capsule_data_reader.ReadRemainingPayload();
-      break;
-    case CapsuleType::CLOSE_DATAGRAM_CONTEXT:
-      if (!capsule_data_reader.ReadVarInt62(
-              &capsule.close_datagram_context_capsule().context_id)) {
-        ReportParseFailure(
-            "Unable to parse capsule CLOSE_DATAGRAM_CONTEXT context ID");
-        return 0;
-      }
-      if (!capsule_data_reader.ReadVarInt62(reinterpret_cast<uint64_t*>(
-              &capsule.close_datagram_context_capsule().close_code))) {
-        ReportParseFailure(
-            "Unable to parse capsule CLOSE_DATAGRAM_CONTEXT close code");
-        return 0;
-      }
-      capsule.close_datagram_context_capsule().close_details =
           capsule_data_reader.ReadRemainingPayload();
       break;
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:

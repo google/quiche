@@ -286,7 +286,6 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     }
     epoll_server_->RegisterFDForRead(fd_wrapper.fd(), this);
 
-    absl::optional<QuicDatagramContextId> context_id;
     QuicSpdyStream* stream = static_cast<QuicSpdyStream*>(
         GetActiveStream(request_handler->stream_id()));
     if (stream == nullptr) {
@@ -298,17 +297,13 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     if (flow_id.has_value()) {
       stream->RegisterHttp3DatagramFlowId(*flow_id);
     }
-    connect_udp_server_states_.push_back(
-        ConnectUdpServerState(stream, context_id, target_server_address,
-                              fd_wrapper.extract_fd(), this));
+    connect_udp_server_states_.push_back(ConnectUdpServerState(
+        stream, target_server_address, fd_wrapper.extract_fd(), this));
 
     if (http_datagram_support() == HttpDatagramSupport::kDraft00) {
       // TODO(b/181256914) remove this when we drop support for
       // draft-ietf-masque-h3-datagram-00 in favor of later drafts.
-      stream->RegisterHttp3DatagramContextId(
-          context_id, DatagramFormatType::UDP_PAYLOAD,
-          /*format_additional_data=*/absl::string_view(),
-          &connect_udp_server_states_.back());
+      stream->RegisterHttp3DatagramVisitor(&connect_udp_server_states_.back());
     }
 
     spdy::Http2HeaderBlock response_headers;
@@ -437,7 +432,6 @@ void MasqueServerSession::OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) {
     }
     // The packet is valid, send it to the client in a DATAGRAM frame.
     MessageStatus message_status = it->stream()->SendHttp3Datagram(
-        it->context_id(),
         absl::string_view(read_result.packet_buffer.buffer,
                           read_result.packet_buffer.buffer_len));
     QUIC_DVLOG(1) << "Sent UDP packet from " << expected_target_server_address
@@ -476,25 +470,20 @@ bool MasqueServerSession::OnSettingsFrame(const SettingsFrame& frame) {
 }
 
 MasqueServerSession::ConnectUdpServerState::ConnectUdpServerState(
-    QuicSpdyStream* stream, absl::optional<QuicDatagramContextId> context_id,
-    const QuicSocketAddress& target_server_address, QuicUdpSocketFd fd,
-    MasqueServerSession* masque_session)
+    QuicSpdyStream* stream, const QuicSocketAddress& target_server_address,
+    QuicUdpSocketFd fd, MasqueServerSession* masque_session)
     : stream_(stream),
-      context_id_(context_id),
       target_server_address_(target_server_address),
       fd_(fd),
       masque_session_(masque_session) {
   QUICHE_DCHECK_NE(fd_, kQuicInvalidSocketFd);
   QUICHE_DCHECK_NE(masque_session_, nullptr);
-  this->stream()->RegisterHttp3DatagramRegistrationVisitor(this);
+  this->stream()->RegisterHttp3DatagramVisitor(this);
 }
 
 MasqueServerSession::ConnectUdpServerState::~ConnectUdpServerState() {
   if (stream() != nullptr) {
-    if (context_registered_) {
-      stream()->UnregisterHttp3DatagramContextId(context_id());
-    }
-    stream()->UnregisterHttp3DatagramRegistrationVisitor();
+    stream()->UnregisterHttp3DatagramVisitor();
   }
   if (fd_ == kQuicInvalidSocketFd) {
     return;
@@ -522,27 +511,19 @@ MasqueServerSession::ConnectUdpServerState::operator=(
   }
   stream_ = other.stream_;
   other.stream_ = nullptr;
-  context_id_ = other.context_id_;
   target_server_address_ = other.target_server_address_;
   fd_ = other.fd_;
   masque_session_ = other.masque_session_;
   other.fd_ = kQuicInvalidSocketFd;
-  context_registered_ = other.context_registered_;
-  other.context_registered_ = false;
   if (stream() != nullptr) {
-    stream()->MoveHttp3DatagramRegistration(this);
-    if (context_registered_) {
-      stream()->MoveHttp3DatagramContextIdRegistration(context_id(), this);
-    }
+    stream()->ReplaceHttp3DatagramVisitor(this);
   }
   return *this;
 }
 
 void MasqueServerSession::ConnectUdpServerState::OnHttp3Datagram(
-    QuicStreamId stream_id, absl::optional<QuicDatagramContextId> context_id,
-    absl::string_view payload) {
+    QuicStreamId stream_id, absl::string_view payload) {
   QUICHE_DCHECK_EQ(stream_id, stream()->id());
-  QUICHE_DCHECK(context_id == context_id_);
   QuicUdpSocketApi socket_api;
   QuicUdpPacketInfo packet_info;
   packet_info.SetPeerAddress(target_server_address_);
@@ -550,79 +531,6 @@ void MasqueServerSession::ConnectUdpServerState::OnHttp3Datagram(
       fd_, payload.data(), payload.length(), packet_info);
   QUIC_DVLOG(1) << "Wrote packet of length " << payload.length() << " to "
                 << target_server_address_ << " with result " << write_result;
-}
-
-void MasqueServerSession::ConnectUdpServerState::OnContextReceived(
-    QuicStreamId stream_id, absl::optional<QuicDatagramContextId> context_id,
-    DatagramFormatType format_type, absl::string_view format_additional_data) {
-  if (stream_id != stream()->id()) {
-    QUIC_BUG(MASQUE server bad datagram context registration)
-        << "Registered stream ID " << stream_id << ", expected "
-        << stream()->id();
-    return;
-  }
-  if (format_type != DatagramFormatType::UDP_PAYLOAD) {
-    QUIC_DLOG(INFO) << "Ignoring unexpected datagram format type "
-                    << DatagramFormatTypeToString(format_type);
-    return;
-  }
-  if (!format_additional_data.empty()) {
-    QUIC_DLOG(ERROR)
-        << "Received non-empty format additional data for context ID "
-        << (context_id_.has_value() ? context_id_.value() : 0)
-        << " on stream ID " << stream()->id();
-    masque_session_->ResetStream(stream()->id(), QUIC_STREAM_CANCELLED);
-    return;
-  }
-  if (!context_received_) {
-    context_received_ = true;
-    context_id_ = context_id;
-  }
-  if (context_id != context_id_) {
-    QUIC_DLOG(INFO)
-        << "Ignoring unexpected context ID "
-        << (context_id.has_value() ? absl::StrCat(context_id.value()) : "none")
-        << " instead of "
-        << (context_id_.has_value() ? absl::StrCat(context_id_.value())
-                                    : "none")
-        << " on stream ID " << stream()->id();
-    return;
-  }
-  if (context_registered_) {
-    QUIC_BUG(MASQUE server double datagram context registration)
-        << "Try to re-register stream ID " << stream_id << " context ID "
-        << (context_id_.has_value() ? absl::StrCat(context_id_.value())
-                                    : "none");
-    return;
-  }
-  context_registered_ = true;
-  stream()->RegisterHttp3DatagramContextId(context_id_, format_type,
-                                           format_additional_data, this);
-}
-
-void MasqueServerSession::ConnectUdpServerState::OnContextClosed(
-    QuicStreamId stream_id, absl::optional<QuicDatagramContextId> context_id,
-    ContextCloseCode close_code, absl::string_view close_details) {
-  if (stream_id != stream()->id()) {
-    QUIC_BUG(MASQUE server bad datagram context registration)
-        << "Closed context on stream ID " << stream_id << ", expected "
-        << stream()->id();
-    return;
-  }
-  if (context_id != context_id_) {
-    QUIC_DLOG(INFO)
-        << "Ignoring unexpected close of context ID "
-        << (context_id.has_value() ? absl::StrCat(context_id.value()) : "none")
-        << " instead of "
-        << (context_id_.has_value() ? absl::StrCat(context_id_.value())
-                                    : "none")
-        << " on stream ID " << stream()->id();
-    return;
-  }
-  QUIC_DLOG(INFO) << "Received datagram context close with close code "
-                  << close_code << " close details \"" << close_details
-                  << "\" on stream ID " << stream()->id() << ", closing stream";
-  masque_session_->ResetStream(stream()->id(), QUIC_STREAM_CANCELLED);
 }
 
 }  // namespace quic

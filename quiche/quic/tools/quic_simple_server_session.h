@@ -70,10 +70,6 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
 
   void OnCanCreateNewOutgoingStream(bool unidirectional) override;
 
-  bool ShouldNegotiateDatagramContexts() override {
-    return quic_simple_server_backend_->UsesDatagramContexts();
-  }
-
  protected:
   // QuicSession methods:
   QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override;

@@ -254,10 +254,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   bool OnCapsule(const Capsule& capsule) override;
   void OnCapsuleParseFailure(const std::string& error_message) override;
 
-  // Sends an HTTP/3 datagram. The stream and context IDs are not part of
-  // |payload|.
+  // Sends an HTTP/3 datagram. The stream ID is not part of |payload|.
   MessageStatus SendHttp3Datagram(
-      absl::optional<QuicDatagramContextId> context_id,
       absl::string_view payload);
 
   class QUIC_EXPORT_PRIVATE Http3DatagramVisitor {
@@ -265,87 +263,35 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
     virtual ~Http3DatagramVisitor() {}
 
     // Called when an HTTP/3 datagram is received. |payload| does not contain
-    // the stream or context IDs. Note that this contains the stream ID even if
-    // flow IDs from draft-ietf-masque-h3-datagram-00 are in use.
+    // the stream ID. Note that this contains the stream ID even if flow IDs
+    // from draft-ietf-masque-h3-datagram-00 are in use.
     virtual void OnHttp3Datagram(
         QuicStreamId stream_id,
-        absl::optional<QuicDatagramContextId> context_id,
         absl::string_view payload) = 0;
   };
 
-  class QUIC_EXPORT_PRIVATE Http3DatagramRegistrationVisitor {
-   public:
-    virtual ~Http3DatagramRegistrationVisitor() {}
+  // Registers |visitor| to receive HTTP/3 datagrams. |visitor| must be
+  // valid until a corresponding call to UnregisterHttp3DatagramVisitor.
+  void RegisterHttp3DatagramVisitor(Http3DatagramVisitor* visitor);
 
-    // Called when a REGISTER_DATAGRAM_CONTEXT or REGISTER_DATAGRAM_NO_CONTEXT
-    // capsule is received. Note that this contains the stream ID even if flow
-    // IDs from draft-ietf-masque-h3-datagram-00 are in use.
-    virtual void OnContextReceived(
-        QuicStreamId stream_id,
-        absl::optional<QuicDatagramContextId> context_id,
-        DatagramFormatType format_type,
-        absl::string_view format_additional_data) = 0;
+  // Unregisters an HTTP/3 datagram visitor. Must only be called after a call to
+  // RegisterHttp3DatagramVisitor.
+  void UnregisterHttp3DatagramVisitor();
 
-    // Called when a CLOSE_DATAGRAM_CONTEXT capsule is received. Note that this
-    // contains the stream ID even if flow IDs from
-    // draft-ietf-masque-h3-datagram-00 are in use.
-    virtual void OnContextClosed(
-        QuicStreamId stream_id,
-        absl::optional<QuicDatagramContextId> context_id,
-        ContextCloseCode close_code, absl::string_view close_details) = 0;
-  };
-
-  // Registers |visitor| to receive HTTP/3 datagram context registrations. This
-  // must not be called without first calling
-  // UnregisterHttp3DatagramRegistrationVisitor. |visitor| must be valid until a
-  // corresponding call to UnregisterHttp3DatagramRegistrationVisitor.
-  void RegisterHttp3DatagramRegistrationVisitor(
-      Http3DatagramRegistrationVisitor* visitor,
-      bool use_datagram_contexts = false);
-
-  // Unregisters for HTTP/3 datagram context registrations. Must not be called
-  // unless previously registered.
-  void UnregisterHttp3DatagramRegistrationVisitor();
-
-  // Moves an HTTP/3 datagram registration to a different visitor. Mainly meant
-  // to be used by the visitors' move operators.
-  void MoveHttp3DatagramRegistration(Http3DatagramRegistrationVisitor* visitor);
-
-  // Registers |visitor| to receive HTTP/3 datagrams for optional context ID
-  // |context_id|. This must not be called on a previously registered context ID
-  // without first calling UnregisterHttp3DatagramContextId. |visitor| must be
-  // valid until a corresponding call to UnregisterHttp3DatagramContextId. If
-  // this method is called multiple times, the context ID MUST either be always
-  // present, or always absent.
-  void RegisterHttp3DatagramContextId(
-      absl::optional<QuicDatagramContextId> context_id,
-      DatagramFormatType format_type, absl::string_view format_additional_data,
-      Http3DatagramVisitor* visitor);
-
-  // Unregisters an HTTP/3 datagram context ID. Must be called on a previously
-  // registered context.
-  void UnregisterHttp3DatagramContextId(
-      absl::optional<QuicDatagramContextId> context_id);
-
-  // Moves an HTTP/3 datagram context ID to a different visitor. Mainly meant
-  // to be used by the visitors' move operators.
-  void MoveHttp3DatagramContextIdRegistration(
-      absl::optional<QuicDatagramContextId> context_id,
-      Http3DatagramVisitor* visitor);
+  // Replaces the current HTTP/3 datagram visitor with a different visitor.
+  // Mainly meant to be used by the visitors' move operators.
+  void ReplaceHttp3DatagramVisitor(Http3DatagramVisitor* visitor);
 
   // Sets max datagram time in queue.
   void SetMaxDatagramTimeInQueue(QuicTime::Delta max_time_in_queue);
 
-  // Generates a new HTTP/3 datagram context ID for this stream. A datagram
-  // registration visitor must be currently registered on this stream.
-  QuicDatagramContextId GetNextDatagramContextId();
-
   void OnDatagramReceived(QuicDataReader* reader);
 
+  // Registers a datagram flow ID, only meant to be used when in legacy mode for
+  // draft-ietf-masque-h3-datagram-00.
   void RegisterHttp3DatagramFlowId(QuicDatagramStreamId flow_id);
 
-  QuicByteCount GetMaxDatagramSize(
-      absl::optional<QuicDatagramContextId> context_id) const;
+  QuicByteCount GetMaxDatagramSize() const;
 
   // Writes |capsule| onto the DATA stream.
   void WriteCapsule(const Capsule& capsule, bool fin = false);
@@ -445,11 +391,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   void HandleBodyAvailable();
 
   // Called when a datagram frame or capsule is received.
-  void HandleReceivedDatagram(absl::optional<QuicDatagramContextId> context_id,
-                              absl::string_view payload);
-
-  // Whether datagram contexts should be used on this stream.
-  bool ShouldUseDatagramContexts() const;
+  void HandleReceivedDatagram(absl::string_view payload);
 
   QuicSpdySession* spdy_session_;
 
@@ -526,13 +468,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   std::unique_ptr<WebTransportDataStream> web_transport_data_;
 
   // HTTP/3 Datagram support.
-  Http3DatagramRegistrationVisitor* datagram_registration_visitor_ = nullptr;
-  Http3DatagramVisitor* datagram_no_context_visitor_ = nullptr;
+  Http3DatagramVisitor* datagram_visitor_ = nullptr;
+  // Flow ID is only used when in legacy mode for
+  // draft-ietf-masque-h3-datagram-00.
   absl::optional<QuicDatagramStreamId> datagram_flow_id_;
-  QuicDatagramContextId datagram_next_available_context_id_;
-  absl::flat_hash_map<QuicDatagramContextId, Http3DatagramVisitor*>
-      datagram_context_visitors_;
-  bool use_datagram_contexts_ = false;
 };
 
 }  // namespace quic

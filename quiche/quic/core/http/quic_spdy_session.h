@@ -391,7 +391,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // This must not be used except by QuicSpdyStream::SendHttp3Datagram.
   MessageStatus SendHttp3Datagram(
       QuicDatagramStreamId stream_id,
-      absl::optional<QuicDatagramContextId> context_id,
       absl::string_view payload);
   // This must not be used except by QuicSpdyStream::SetMaxDatagramTimeInQueue.
   void SetMaxDatagramTimeInQueueForStreamId(QuicStreamId stream_id,
@@ -461,10 +460,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
       WebTransportHttp3* session);
 
   QuicSpdyStream* GetOrCreateSpdyDataStream(const QuicStreamId stream_id);
-
-  // Indicates whether we will try to negotiate datagram contexts on newly
-  // created WebTransport sessions over HTTP/3.
-  virtual bool ShouldNegotiateDatagramContexts();
 
   // Indicates whether the client should check that the
   // `Sec-Webtransport-Http3-Draft` header is valid.

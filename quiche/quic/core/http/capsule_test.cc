@@ -33,8 +33,6 @@ namespace {
 
 constexpr DatagramFormatType kFakeFormatType =
     static_cast<DatagramFormatType>(0x123456);
-constexpr ContextCloseCode kFakeCloseCode =
-    static_cast<ContextCloseCode>(0x654321);
 
 class MockCapsuleParserVisitor : public CapsuleParser::Visitor {
  public:
@@ -89,25 +87,6 @@ TEST_F(CapsuleTest, LegacyDatagramCapsule) {
   TestSerialization(expected_capsule, capsule_fragment);
 }
 
-TEST_F(CapsuleTest, LegacyDatagramCapsuleWithContext) {
-  std::string capsule_fragment = absl::HexStringToBytes(
-      "80ff37a0"          // LEGACY_DATAGRAM capsule type
-      "09"                // capsule length
-      "04"                // context ID
-      "a1a2a3a4a5a6a7a8"  // HTTP Datagram payload
-  );
-  capsule_parser_.set_datagram_context_id_present(true);
-  std::string datagram_payload = absl::HexStringToBytes("a1a2a3a4a5a6a7a8");
-  Capsule expected_capsule =
-      Capsule::LegacyDatagram(/*context_id=*/4, datagram_payload);
-  {
-    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
-    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
-  }
-  ValidateParserIsEmpty();
-  TestSerialization(expected_capsule, capsule_fragment);
-}
-
 TEST_F(CapsuleTest, DatagramWithoutContextCapsule) {
   std::string capsule_fragment = absl::HexStringToBytes(
       "80ff37a5"          // DATAGRAM_WITHOUT_CONTEXT capsule type
@@ -116,44 +95,6 @@ TEST_F(CapsuleTest, DatagramWithoutContextCapsule) {
   );
   std::string datagram_payload = absl::HexStringToBytes("a1a2a3a4a5a6a7a8");
   Capsule expected_capsule = Capsule::DatagramWithoutContext(datagram_payload);
-  {
-    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
-    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
-  }
-  ValidateParserIsEmpty();
-  TestSerialization(expected_capsule, capsule_fragment);
-}
-
-TEST_F(CapsuleTest, DatagramWithContextCapsule) {
-  std::string capsule_fragment = absl::HexStringToBytes(
-      "80ff37a4"          // DATAGRAM_WITH_CONTEXT capsule type
-      "09"                // capsule length
-      "04"                // context ID
-      "a1a2a3a4a5a6a7a8"  // HTTP Datagram payload
-  );
-  std::string datagram_payload = absl::HexStringToBytes("a1a2a3a4a5a6a7a8");
-  Capsule expected_capsule =
-      Capsule::DatagramWithContext(/*context_id=*/4, datagram_payload);
-  {
-    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
-    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
-  }
-  ValidateParserIsEmpty();
-  TestSerialization(expected_capsule, capsule_fragment);
-}
-
-TEST_F(CapsuleTest, RegisterContextCapsule) {
-  std::string capsule_fragment = absl::HexStringToBytes(
-      "80ff37a1"          // REGISTER_DATAGRAM_CONTEXT capsule type
-      "0d"                // capsule length
-      "04"                // context ID
-      "80123456"          // 0x123456 datagram format type
-      "f1f2f3f4f5f6f7f8"  // format additional data
-  );
-  std::string format_additional_data =
-      absl::HexStringToBytes("f1f2f3f4f5f6f7f8");
-  Capsule expected_capsule = Capsule::RegisterDatagramContext(
-      /*context_id=*/4, kFakeFormatType, format_additional_data);
   {
     EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
     ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
@@ -173,25 +114,6 @@ TEST_F(CapsuleTest, RegisterNoContextCapsule) {
       absl::HexStringToBytes("f1f2f3f4f5f6f7f8");
   Capsule expected_capsule = Capsule::RegisterDatagramNoContext(
       kFakeFormatType, format_additional_data);
-  {
-    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
-    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
-  }
-  ValidateParserIsEmpty();
-  TestSerialization(expected_capsule, capsule_fragment);
-}
-
-TEST_F(CapsuleTest, CloseContextCapsule) {
-  std::string capsule_fragment = absl::HexStringToBytes(
-      "80ff37a3"  // CLOSE_DATAGRAM_CONTEXT capsule type
-      "27"        // capsule length
-      "04"        // context ID
-      "80654321"  // 0x654321 close code
-  );
-  std::string close_details = "All your contexts are belong to us";
-  capsule_fragment += close_details;
-  Capsule expected_capsule = Capsule::CloseDatagramContext(
-      /*context_id=*/4, kFakeCloseCode, close_details);
   {
     EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
     ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));

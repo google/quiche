@@ -107,8 +107,7 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
  private:
   // State that the MasqueClientSession keeps for each CONNECT-UDP request.
   class QUIC_NO_EXPORT ConnectUdpClientState
-      : public QuicSpdyStream::Http3DatagramRegistrationVisitor,
-        public QuicSpdyStream::Http3DatagramVisitor {
+      : public QuicSpdyStream::Http3DatagramVisitor {
    public:
     // |stream| and |encapsulated_client_session| must be valid for the lifetime
     // of the ConnectUdpClientState.
@@ -116,7 +115,6 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
         QuicSpdyClientStream* stream,
         EncapsulatedClientSession* encapsulated_client_session,
         MasqueClientSession* masque_session,
-        absl::optional<QuicDatagramContextId> context_id,
         const QuicSocketAddress& target_server_address);
 
     ~ConnectUdpClientState();
@@ -131,33 +129,18 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
     EncapsulatedClientSession* encapsulated_client_session() const {
       return encapsulated_client_session_;
     }
-    absl::optional<QuicDatagramContextId> context_id() const {
-      return context_id_;
-    }
     const QuicSocketAddress& target_server_address() const {
       return target_server_address_;
     }
 
     // From QuicSpdyStream::Http3DatagramVisitor.
     void OnHttp3Datagram(QuicStreamId stream_id,
-                         absl::optional<QuicDatagramContextId> context_id,
                          absl::string_view payload) override;
-
-    // From QuicSpdyStream::Http3DatagramRegistrationVisitor.
-    void OnContextReceived(QuicStreamId stream_id,
-                           absl::optional<QuicDatagramContextId> context_id,
-                           DatagramFormatType format_type,
-                           absl::string_view format_additional_data) override;
-    void OnContextClosed(QuicStreamId stream_id,
-                         absl::optional<QuicDatagramContextId> context_id,
-                         ContextCloseCode close_code,
-                         absl::string_view close_details) override;
 
    private:
     QuicSpdyClientStream* stream_;                            // Unowned.
     EncapsulatedClientSession* encapsulated_client_session_;  // Unowned.
     MasqueClientSession* masque_session_;                     // Unowned.
-    absl::optional<QuicDatagramContextId> context_id_;
     QuicSocketAddress target_server_address_;
   };
 

@@ -193,11 +193,7 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id, QuicSpdySession* spdy_session,
       sequencer_offset_(0),
       is_decoder_processing_input_(false),
       ack_listener_(nullptr),
-      last_sent_urgency_(kDefaultUrgency),
-      datagram_next_available_context_id_(spdy_session->perspective() ==
-                                                  Perspective::IS_SERVER
-                                              ? kFirstDatagramContextIdServer
-                                              : kFirstDatagramContextIdClient) {
+      last_sent_urgency_(kDefaultUrgency) {
   QUICHE_DCHECK_EQ(session()->connection(), spdy_session->connection());
   QUICHE_DCHECK_EQ(transport_version(), spdy_session->transport_version());
   QUICHE_DCHECK(!QuicUtils::IsCryptoStreamId(transport_version(), id));
@@ -253,13 +249,6 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
 
 QuicSpdyStream::~QuicSpdyStream() {}
 
-bool QuicSpdyStream::ShouldUseDatagramContexts() const {
-  return spdy_session_->SupportsH3Datagram() &&
-         spdy_session_->http_datagram_support() !=
-             HttpDatagramSupport::kDraft00 &&
-         use_datagram_contexts_;
-}
-
 size_t QuicSpdyStream::WriteHeaders(
     SpdyHeaderBlock header_block, bool fin,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
@@ -288,12 +277,6 @@ size_t QuicSpdyStream::WriteHeaders(
 
   MaybeProcessSentWebTransportHeaders(header_block);
 
-  if (ShouldUseDatagramContexts()) {
-    // RegisterHttp3DatagramRegistrationVisitor caller wishes to use contexts,
-    // inform the peer.
-    header_block["sec-use-datagram-contexts"] = "?1";
-  }
-
   if (web_transport_ != nullptr &&
       spdy_session_->http_datagram_support() != HttpDatagramSupport::kDraft00 &&
       spdy_session_->perspective() == Perspective::IS_SERVER) {
@@ -313,11 +296,20 @@ size_t QuicSpdyStream::WriteHeaders(
 
   if (web_transport_ != nullptr &&
       session()->perspective() == Perspective::IS_CLIENT) {
-    // This will send a capsule and therefore needs to happen after headers have
-    // been sent.
-    RegisterHttp3DatagramContextId(
-        web_transport_->context_id(), DatagramFormatType::WEBTRANSPORT,
-        /*format_additional_data=*/absl::string_view(), web_transport_.get());
+    if (spdy_session_->http_datagram_support() !=
+        HttpDatagramSupport::kDraft00) {
+      // draft-ietf-masque-h3-datagram-01 and later use capsules.
+      WriteGreaseCapsule();
+      if (spdy_session_->http_datagram_support() ==
+          HttpDatagramSupport::kDraft04) {
+        // Send a REGISTER_DATAGRAM_NO_CONTEXT capsule to support servers that
+        // are running draft-ietf-masque-h3-datagram-04 or -05.
+        WriteCapsule(Capsule::RegisterDatagramNoContext(
+            DatagramFormatType::WEBTRANSPORT,
+            /*format_additional_data=*/absl::string_view()));
+        WriteGreaseCapsule();
+      }
+    }
   }
 
   return bytes_written;
@@ -654,19 +646,6 @@ void QuicSpdyStream::OnInitialHeadersComplete(
   if (!GetQuicReloadableFlag(quic_verify_request_headers_2) ||
       !header_too_large) {
     MaybeProcessReceivedWebTransportHeaders();
-    if (ShouldUseDatagramContexts()) {
-      bool peer_wishes_to_use_datagram_contexts = false;
-      for (const auto& header : header_list_) {
-        if (header.first == "sec-use-datagram-contexts" &&
-            header.second == "?1") {
-          peer_wishes_to_use_datagram_contexts = true;
-          break;
-        }
-      }
-      if (!peer_wishes_to_use_datagram_contexts) {
-        use_datagram_contexts_ = false;
-      }
-    }
   }
 
   if (VersionUsesHttp3(transport_version())) {
@@ -1340,20 +1319,8 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
     RegisterHttp3DatagramFlowId(*flow_id);
   }
 
-  web_transport_ = std::make_unique<WebTransportHttp3>(
-      spdy_session_, this, id(),
-      spdy_session_->ShouldNegotiateDatagramContexts());
-
-  if (spdy_session_->http_datagram_support() != HttpDatagramSupport::kDraft00) {
-    return;
-  }
-  // If we're in draft-ietf-masque-h3-datagram-00 mode, pretend we also received
-  // a REGISTER_DATAGRAM_NO_CONTEXT capsule.
-  // TODO(b/181256914) remove this when we remove support for
-  // draft-ietf-masque-h3-datagram-00 in favor of later drafts.
-  RegisterHttp3DatagramContextId(
-      /*context_id=*/absl::nullopt, DatagramFormatType::WEBTRANSPORT,
-      /*format_additional_data=*/absl::string_view(), web_transport_.get());
+  web_transport_ =
+      std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
 }
 
 void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
@@ -1381,9 +1348,8 @@ void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
     headers["sec-webtransport-http3-draft02"] = "1";
   }
 
-  web_transport_ = std::make_unique<WebTransportHttp3>(
-      spdy_session_, this, id(),
-      spdy_session_->ShouldNegotiateDatagramContexts());
+  web_transport_ =
+      std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
 }
 
 void QuicSpdyStream::OnCanWriteNewData() {
@@ -1444,27 +1410,12 @@ QuicSpdyStream::WebTransportDataStream::WebTransportDataStream(
       adapter(stream->spdy_session_, stream, stream->sequencer()) {}
 
 void QuicSpdyStream::HandleReceivedDatagram(
-    absl::optional<QuicDatagramContextId> context_id,
     absl::string_view payload) {
-  Http3DatagramVisitor* visitor;
-  if (context_id.has_value()) {
-    auto it = datagram_context_visitors_.find(context_id.value());
-    if (it == datagram_context_visitors_.end()) {
-      QUIC_DLOG(ERROR) << ENDPOINT
-                       << "Received datagram without any visitor for context "
-                       << context_id.value();
-      return;
-    }
-    visitor = it->second;
-  } else {
-    if (datagram_no_context_visitor_ == nullptr) {
-      QUIC_DLOG(ERROR)
-          << ENDPOINT << "Received datagram without any visitor for no context";
-      return;
-    }
-    visitor = datagram_no_context_visitor_;
+  if (datagram_visitor_ == nullptr) {
+    QUIC_DLOG(ERROR) << ENDPOINT << "Received datagram without any visitor";
+    return;
   }
-  visitor->OnHttp3Datagram(id(), context_id, payload);
+  datagram_visitor_->OnHttp3Datagram(id(), payload);
 }
 
 bool QuicSpdyStream::OnCapsule(const Capsule& capsule) {
@@ -1485,64 +1436,14 @@ bool QuicSpdyStream::OnCapsule(const Capsule& capsule) {
   switch (capsule.capsule_type()) {
     case CapsuleType::LEGACY_DATAGRAM: {
       HandleReceivedDatagram(
-          capsule.legacy_datagram_capsule().context_id,
           capsule.legacy_datagram_capsule().http_datagram_payload);
     } break;
-    case CapsuleType::DATAGRAM_WITH_CONTEXT: {
-      HandleReceivedDatagram(
-          capsule.datagram_with_context_capsule().context_id,
-          capsule.datagram_with_context_capsule().http_datagram_payload);
-    } break;
     case CapsuleType::DATAGRAM_WITHOUT_CONTEXT: {
-      absl::optional<QuicDatagramContextId> context_id;
-      if (use_datagram_contexts_) {
-        // draft-ietf-masque-h3-datagram-05 encodes context ID 0 using
-        // DATAGRAM_WITHOUT_CONTEXT.
-        context_id = 0;
-      }
       HandleReceivedDatagram(
-          context_id,
           capsule.datagram_without_context_capsule().http_datagram_payload);
     } break;
-    case CapsuleType::REGISTER_DATAGRAM_CONTEXT: {
-      if (datagram_registration_visitor_ == nullptr) {
-        QUIC_DLOG(ERROR) << ENDPOINT << "Received capsule " << capsule
-                         << " without any registration visitor";
-        return false;
-      }
-      datagram_registration_visitor_->OnContextReceived(
-          id(), capsule.register_datagram_context_capsule().context_id,
-          capsule.register_datagram_context_capsule().format_type,
-          capsule.register_datagram_context_capsule().format_additional_data);
-    } break;
     case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT: {
-      if (datagram_registration_visitor_ == nullptr) {
-        QUIC_DLOG(ERROR) << ENDPOINT << "Received capsule " << capsule
-                         << " without any registration visitor";
-        return false;
-      }
-      absl::optional<QuicDatagramContextId> context_id;
-      if (use_datagram_contexts_) {
-        // draft-ietf-masque-h3-datagram-05 encodes context ID 0 using
-        // REGISTER_DATAGRAM_NO_CONTEXT.
-        context_id = 0;
-      }
-      datagram_registration_visitor_->OnContextReceived(
-          id(), context_id,
-          capsule.register_datagram_no_context_capsule().format_type,
-          capsule.register_datagram_no_context_capsule()
-              .format_additional_data);
-    } break;
-    case CapsuleType::CLOSE_DATAGRAM_CONTEXT: {
-      if (datagram_registration_visitor_ == nullptr) {
-        QUIC_DLOG(ERROR) << ENDPOINT << "Received capsule " << capsule
-                         << " without any registration visitor";
-        return false;
-      }
-      datagram_registration_visitor_->OnContextClosed(
-          id(), capsule.close_datagram_context_capsule().context_id,
-          capsule.close_datagram_context_capsule().close_code,
-          capsule.close_datagram_context_capsule().close_details);
+      // Silently ignore received REGISTER_DATAGRAM_NO_CONTEXT capsules.
     } break;
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION: {
       if (web_transport_ == nullptr) {
@@ -1589,212 +1490,57 @@ void QuicSpdyStream::WriteGreaseCapsule() {
 }
 
 MessageStatus QuicSpdyStream::SendHttp3Datagram(
-    absl::optional<QuicDatagramContextId> context_id,
     absl::string_view payload) {
   QuicDatagramStreamId stream_id =
       datagram_flow_id_.has_value() ? datagram_flow_id_.value() : id();
-  return spdy_session_->SendHttp3Datagram(stream_id, context_id, payload);
+  return spdy_session_->SendHttp3Datagram(stream_id, payload);
 }
 
-void QuicSpdyStream::RegisterHttp3DatagramRegistrationVisitor(
-    Http3DatagramRegistrationVisitor* visitor, bool use_datagram_contexts) {
-  if (visitor == nullptr) {
-    QUIC_BUG(null datagram registration visitor)
-        << ENDPOINT << "Null datagram registration visitor for" << id();
-    return;
-  }
-  if (datagram_registration_visitor_ != nullptr) {
-    QUIC_BUG(double datagram registration visitor)
-        << ENDPOINT << "Double datagram registration visitor for" << id();
-    return;
-  }
-  use_datagram_contexts_ = use_datagram_contexts;
-  QUIC_DLOG(INFO) << ENDPOINT << "Registering datagram stream ID " << id()
-                  << " with" << (use_datagram_contexts_ ? "" : "out")
-                  << " contexts";
-  datagram_registration_visitor_ = visitor;
-  QUICHE_DCHECK(!capsule_parser_);
-  capsule_parser_.reset(new CapsuleParser(this));
-}
-
-void QuicSpdyStream::UnregisterHttp3DatagramRegistrationVisitor() {
-  QUIC_BUG_IF(h3 datagram unregister unknown stream ID,
-              datagram_registration_visitor_ == nullptr)
-      << ENDPOINT
-      << "Attempted to unregister unknown HTTP/3 datagram stream ID " << id();
-  QUIC_DLOG(INFO) << ENDPOINT << "Unregistering datagram stream ID " << id();
-  datagram_registration_visitor_ = nullptr;
-}
-
-void QuicSpdyStream::MoveHttp3DatagramRegistration(
-    Http3DatagramRegistrationVisitor* visitor) {
-  QUIC_BUG_IF(h3 datagram move unknown stream ID,
-              datagram_registration_visitor_ == nullptr)
-      << ENDPOINT << "Attempted to move unknown HTTP/3 datagram stream ID "
-      << id();
-  QUIC_DLOG(INFO) << ENDPOINT << "Moving datagram stream ID " << id();
-  datagram_registration_visitor_ = visitor;
-}
-
-void QuicSpdyStream::RegisterHttp3DatagramContextId(
-    absl::optional<QuicDatagramContextId> context_id,
-    DatagramFormatType format_type, absl::string_view format_additional_data,
+void QuicSpdyStream::RegisterHttp3DatagramVisitor(
     Http3DatagramVisitor* visitor) {
   if (visitor == nullptr) {
     QUIC_BUG(null datagram visitor)
-        << ENDPOINT << "Null datagram visitor for stream ID " << id()
-        << " context ID "
-        << (context_id.has_value() ? absl::StrCat(context_id.value()) : "none");
+        << ENDPOINT << "Null datagram visitor for stream ID " << id();
     return;
   }
-  if (datagram_registration_visitor_ == nullptr) {
-    QUIC_BUG(context registration without registration visitor)
-        << ENDPOINT << "Cannot register context ID "
-        << (context_id.has_value() ? absl::StrCat(context_id.value()) : "none")
-        << " without registration visitor for stream ID " << id();
-    return;
-  }
-  QUIC_DLOG(INFO) << ENDPOINT << "Registering datagram context ID "
-                  << (context_id.has_value() ? absl::StrCat(context_id.value())
-                                             : "none")
-                  << " with stream ID " << id();
+  QUIC_DLOG(INFO) << ENDPOINT << "Registering datagram visitor with stream ID "
+                  << id();
 
-  if (context_id.has_value()) {
-    if (datagram_no_context_visitor_ != nullptr) {
-      QUIC_BUG(h3 datagram context ID mix1)
-          << ENDPOINT
-          << "Attempted to mix registrations without and with context IDs "
-             "for stream ID "
-          << id();
-      return;
-    }
-    auto insertion_result =
-        datagram_context_visitors_.insert({context_id.value(), visitor});
-    if (!insertion_result.second) {
-      QUIC_BUG(h3 datagram double context registration)
-          << ENDPOINT << "Attempted to doubly register HTTP/3 stream ID "
-          << id() << " context ID " << context_id.value();
-      return;
-    }
-    capsule_parser_->set_datagram_context_id_present(true);
-  } else {
-    // Registration without a context ID.
-    if (!datagram_context_visitors_.empty()) {
-      QUIC_BUG(h3 datagram context ID mix2)
-          << ENDPOINT
-          << "Attempted to mix registrations with and without context IDs "
-             "for stream ID "
-          << id();
-      return;
-    }
-    if (datagram_no_context_visitor_ != nullptr) {
-      QUIC_BUG(h3 datagram double no context registration)
-          << ENDPOINT << "Attempted to doubly register HTTP/3 stream ID "
-          << id() << " with no context ID";
-      return;
-    }
-    datagram_no_context_visitor_ = visitor;
-    capsule_parser_->set_datagram_context_id_present(false);
-  }
-  if (spdy_session_->http_datagram_support() == HttpDatagramSupport::kDraft04) {
-    const bool is_client = session()->perspective() == Perspective::IS_CLIENT;
-    if (context_id.has_value()) {
-      const bool is_client_context = context_id.value() % 2 == 0;
-      if (is_client == is_client_context) {
-        QuicConnection::ScopedPacketFlusher flusher(
-            spdy_session_->connection());
-        WriteGreaseCapsule();
-        if (context_id.value() != 0) {
-          WriteCapsule(Capsule::RegisterDatagramContext(
-              context_id.value(), format_type, format_additional_data));
-        } else {
-          // draft-ietf-masque-h3-datagram-05 encodes context ID 0 using
-          // REGISTER_DATAGRAM_NO_CONTEXT.
-          WriteCapsule(Capsule::RegisterDatagramNoContext(
-              format_type, format_additional_data));
-        }
-        WriteGreaseCapsule();
-      }
-    } else if (is_client) {
-      QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
-      WriteGreaseCapsule();
-      WriteCapsule(Capsule::RegisterDatagramNoContext(format_type,
-                                                      format_additional_data));
-      WriteGreaseCapsule();
-    }
-  }
-}
-
-void QuicSpdyStream::UnregisterHttp3DatagramContextId(
-    absl::optional<QuicDatagramContextId> context_id) {
-  if (datagram_registration_visitor_ == nullptr) {
-    QUIC_BUG(context unregistration without registration visitor)
-        << ENDPOINT << "Cannot unregister context ID "
-        << (context_id.has_value() ? absl::StrCat(context_id.value()) : "none")
-        << " without registration visitor for stream ID " << id();
-    return;
-  }
-  QUIC_DLOG(INFO) << ENDPOINT << "Unregistering datagram context ID "
-                  << (context_id.has_value() ? absl::StrCat(context_id.value())
-                                             : "none")
-                  << " with stream ID " << id();
-  if (context_id.has_value()) {
-    size_t num_erased = datagram_context_visitors_.erase(context_id.value());
-    QUIC_BUG_IF(h3 datagram unregister unknown context, num_erased != 1)
-        << "Attempted to unregister unknown HTTP/3 context ID "
-        << context_id.value() << " on stream ID " << id();
-  } else {
-    // Unregistration without a context ID.
-    QUIC_BUG_IF(h3 datagram unknown context unregistration,
-                datagram_no_context_visitor_ == nullptr)
-        << "Attempted to unregister unknown no context on HTTP/3 stream ID "
+  if (datagram_visitor_ != nullptr) {
+    QUIC_BUG(h3 datagram double registration)
+        << ENDPOINT
+        << "Attempted to doubly register HTTP/3 datagram with stream ID "
         << id();
-    datagram_no_context_visitor_ = nullptr;
+    return;
   }
-  if (spdy_session_->http_datagram_support() == HttpDatagramSupport::kDraft04 &&
-      context_id.has_value()) {
-    WriteCapsule(Capsule::CloseDatagramContext(context_id.value()));
-  }
+  datagram_visitor_ = visitor;
+  QUICHE_DCHECK(!capsule_parser_);
+  capsule_parser_ = std::make_unique<CapsuleParser>(this);
 }
 
-void QuicSpdyStream::MoveHttp3DatagramContextIdRegistration(
-    absl::optional<QuicDatagramContextId> context_id,
+void QuicSpdyStream::UnregisterHttp3DatagramVisitor() {
+  if (datagram_visitor_ == nullptr) {
+    QUIC_BUG(datagram visitor empty during unregistration)
+        << ENDPOINT << "Cannot unregister datagram visitor for stream ID "
+        << id();
+    return;
+  }
+  QUIC_DLOG(INFO) << ENDPOINT << "Unregistering datagram visitor for stream ID "
+                  << id();
+  datagram_visitor_ = nullptr;
+}
+
+void QuicSpdyStream::ReplaceHttp3DatagramVisitor(
     Http3DatagramVisitor* visitor) {
-  if (datagram_registration_visitor_ == nullptr) {
-    QUIC_BUG(context move without registration visitor)
-        << ENDPOINT << "Cannot move context ID "
-        << (context_id.has_value() ? absl::StrCat(context_id.value()) : "none")
-        << " without registration visitor for stream ID " << id();
-    return;
-  }
-  QUIC_DLOG(INFO) << ENDPOINT << "Moving datagram context ID "
-                  << (context_id.has_value() ? absl::StrCat(context_id.value())
-                                             : "none")
-                  << " with stream ID " << id();
-  if (context_id.has_value()) {
-    QUIC_BUG_IF(h3 datagram move unknown context,
-                !datagram_context_visitors_.contains(context_id.value()))
-        << ENDPOINT << "Attempted to move unknown context ID "
-        << context_id.value() << " on stream ID " << id();
-    datagram_context_visitors_[context_id.value()] = visitor;
-    return;
-  }
-  // Move without a context ID.
-  QUIC_BUG_IF(h3 datagram unknown context move,
-              datagram_no_context_visitor_ == nullptr)
-      << "Attempted to move unknown no context on HTTP/3 stream ID " << id();
-  datagram_no_context_visitor_ = visitor;
+  QUIC_BUG_IF(h3 datagram unknown move, datagram_visitor_ == nullptr)
+      << "Attempted to move missing datagram visitor on HTTP/3 stream ID "
+      << id();
+  datagram_visitor_ = visitor;
 }
 
 void QuicSpdyStream::SetMaxDatagramTimeInQueue(
     QuicTime::Delta max_time_in_queue) {
   spdy_session_->SetMaxDatagramTimeInQueueForStreamId(id(), max_time_in_queue);
-}
-
-QuicDatagramContextId QuicSpdyStream::GetNextDatagramContextId() {
-  QuicDatagramContextId result = datagram_next_available_context_id_;
-  datagram_next_available_context_id_ += kDatagramContextIdIncrement;
-  return result;
 }
 
 void QuicSpdyStream::OnDatagramReceived(QuicDataReader* reader) {
@@ -1803,23 +1549,10 @@ void QuicSpdyStream::OnDatagramReceived(QuicDataReader* reader) {
                     << id();
     return;
   }
-  absl::optional<QuicDatagramContextId> context_id;
-  if (use_datagram_contexts_) {
-    QuicDatagramContextId parsed_context_id;
-    if (!reader->ReadVarInt62(&parsed_context_id)) {
-      QUIC_DLOG(ERROR) << "Failed to parse context ID in received HTTP/3 "
-                          "datagram on stream ID "
-                       << id();
-      return;
-    }
-    context_id = parsed_context_id;
-  }
-  absl::string_view payload = reader->ReadRemainingPayload();
-  HandleReceivedDatagram(context_id, payload);
+  HandleReceivedDatagram(reader->ReadRemainingPayload());
 }
 
-QuicByteCount QuicSpdyStream::GetMaxDatagramSize(
-    absl::optional<QuicDatagramContextId> context_id) const {
+QuicByteCount QuicSpdyStream::GetMaxDatagramSize() const {
   QuicByteCount prefix_size = 0;
   switch (spdy_session_->http_datagram_support()) {
     case HttpDatagramSupport::kDraft00:
@@ -1847,21 +1580,12 @@ QuicByteCount QuicSpdyStream::GetMaxDatagramSize(
     prefix_size = 8;
   }
 
-  if (context_id.has_value()) {
-    QUIC_BUG_IF(
-        context_id with draft00 in GetMaxDatagramSize,
-        spdy_session_->http_datagram_support() == HttpDatagramSupport::kDraft00)
-        << "GetMaxDatagramSize() called with a context ID specified, but "
-           "draft00 does not support contexts.";
-    prefix_size += QuicDataWriter::GetVarInt62Len(*context_id);
-  }
-
   QuicByteCount max_datagram_size =
       session()->GetGuaranteedLargestMessagePayload();
   if (max_datagram_size < prefix_size) {
     QUIC_BUG(max_datagram_size smaller than prefix_size)
         << "GetGuaranteedLargestMessagePayload() returned a datagram size that "
-           "is not sufficient to fit stream and/or context ID into it.";
+           "is not sufficient to fit stream ID into it.";
     return 0;
   }
   return max_datagram_size - prefix_size;

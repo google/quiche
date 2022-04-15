@@ -880,8 +880,6 @@ void QuicSpdySession::OnNewEncryptionKeyAvailable(
 
 bool QuicSpdySession::ShouldNegotiateWebTransport() { return false; }
 
-bool QuicSpdySession::ShouldNegotiateDatagramContexts() { return false; }
-
 bool QuicSpdySession::ShouldValidateWebTransportVersion() const { return true; }
 
 bool QuicSpdySession::WillNegotiateWebTransport() {
@@ -1658,7 +1656,6 @@ void QuicSpdySession::LogHeaderCompressionRatioHistogram(
 
 MessageStatus QuicSpdySession::SendHttp3Datagram(
     QuicDatagramStreamId stream_id,
-    absl::optional<QuicDatagramContextId> context_id,
     absl::string_view payload) {
   if (!SupportsH3Datagram()) {
     QUIC_BUG(send http datagram too early)
@@ -1672,9 +1669,6 @@ MessageStatus QuicSpdySession::SendHttp3Datagram(
   }
   size_t slice_length =
       QuicDataWriter::GetVarInt62Len(stream_id_to_write) + payload.length();
-  if (context_id.has_value()) {
-    slice_length += QuicDataWriter::GetVarInt62Len(context_id.value());
-  }
   quiche::QuicheBuffer buffer(
       connection()->helper()->GetStreamSendBufferAllocator(), slice_length);
   QuicDataWriter writer(slice_length, buffer.data());
@@ -1682,13 +1676,6 @@ MessageStatus QuicSpdySession::SendHttp3Datagram(
     QUIC_BUG(h3 datagram stream ID write fail)
         << "Failed to write HTTP/3 datagram stream ID";
     return MESSAGE_STATUS_INTERNAL_ERROR;
-  }
-  if (context_id.has_value()) {
-    if (!writer.WriteVarInt62(context_id.value())) {
-      QUIC_BUG(h3 datagram context ID write fail)
-          << "Failed to write HTTP/3 datagram context ID";
-      return MESSAGE_STATUS_INTERNAL_ERROR;
-    }
   }
   if (!writer.WriteBytes(payload.data(), payload.length())) {
     QUIC_BUG(h3 datagram payload write fail)
