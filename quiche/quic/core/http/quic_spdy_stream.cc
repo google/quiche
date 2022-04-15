@@ -304,9 +304,14 @@ size_t QuicSpdyStream::WriteHeaders(
           HttpDatagramSupport::kDraft04) {
         // Send a REGISTER_DATAGRAM_NO_CONTEXT capsule to support servers that
         // are running draft-ietf-masque-h3-datagram-04 or -05.
-        WriteCapsule(Capsule::RegisterDatagramNoContext(
-            DatagramFormatType::WEBTRANSPORT,
-            /*format_additional_data=*/absl::string_view()));
+        uint64_t capsule_type = 0xff37a2;  // REGISTER_DATAGRAM_NO_CONTEXT
+        constexpr unsigned char capsule_data[4] = {
+            0x80, 0xff, 0x7c, 0x00,  // WEBTRANSPORT datagram format type
+        };
+        WriteCapsule(Capsule::Unknown(
+            capsule_type,
+            absl::string_view(reinterpret_cast<const char*>(capsule_data),
+                              sizeof(capsule_data))));
         WriteGreaseCapsule();
       }
     }
@@ -1441,9 +1446,6 @@ bool QuicSpdyStream::OnCapsule(const Capsule& capsule) {
     case CapsuleType::DATAGRAM_WITHOUT_CONTEXT: {
       HandleReceivedDatagram(
           capsule.datagram_without_context_capsule().http_datagram_payload);
-    } break;
-    case CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT: {
-      // Silently ignore received REGISTER_DATAGRAM_NO_CONTEXT capsules.
     } break;
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION: {
       if (web_transport_ == nullptr) {

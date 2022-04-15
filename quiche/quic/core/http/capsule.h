@@ -21,8 +21,6 @@ namespace quic {
 enum class CapsuleType : uint64_t {
   // Casing in this enum matches the IETF specification.
   LEGACY_DATAGRAM = 0xff37a0,  // draft-ietf-masque-h3-datagram-04.
-  REGISTER_DATAGRAM_NO_CONTEXT =
-      0xff37a2,  // draft-ietf-masque-h3-datagram-04 to -05.
   DATAGRAM_WITHOUT_CONTEXT =
       0xff37a5,  // draft-ietf-masque-h3-datagram-05 to -08.
   CLOSE_WEBTRANSPORT_SESSION = 0x2843,
@@ -32,27 +30,12 @@ QUIC_EXPORT_PRIVATE std::string CapsuleTypeToString(CapsuleType capsule_type);
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                              const CapsuleType& capsule_type);
 
-enum class DatagramFormatType : uint64_t {
-  // Casing in this enum matches the IETF specification.
-  UDP_PAYLOAD = 0xff6f00,
-  WEBTRANSPORT = 0xff7c00,
-};
-
-QUIC_EXPORT_PRIVATE std::string DatagramFormatTypeToString(
-    DatagramFormatType datagram_format_type);
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os, const DatagramFormatType& datagram_format_type);
-
 struct QUIC_EXPORT_PRIVATE LegacyDatagramCapsule {
   absl::optional<QuicDatagramContextId> context_id;
   absl::string_view http_datagram_payload;
 };
 struct QUIC_EXPORT_PRIVATE DatagramWithoutContextCapsule {
   absl::string_view http_datagram_payload;
-};
-struct QUIC_EXPORT_PRIVATE RegisterDatagramNoContextCapsule {
-  DatagramFormatType format_type;
-  absl::string_view format_additional_data;
 };
 struct QUIC_EXPORT_PRIVATE CloseWebTransportSessionCapsule {
   WebTransportSessionError error_code;
@@ -71,9 +54,6 @@ class QUIC_EXPORT_PRIVATE Capsule {
       absl::string_view http_datagram_payload = absl::string_view());
   static Capsule DatagramWithoutContext(
       absl::string_view http_datagram_payload = absl::string_view());
-  static Capsule RegisterDatagramNoContext(
-      DatagramFormatType format_type,
-      absl::string_view format_additional_data = absl::string_view());
   static Capsule CloseWebTransportSession(
       WebTransportSessionError error_code = 0,
       absl::string_view error_message = "");
@@ -109,15 +89,6 @@ class QUIC_EXPORT_PRIVATE Capsule {
     QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::DATAGRAM_WITHOUT_CONTEXT);
     return datagram_without_context_capsule_;
   }
-  RegisterDatagramNoContextCapsule& register_datagram_no_context_capsule() {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT);
-    return register_datagram_no_context_capsule_;
-  }
-  const RegisterDatagramNoContextCapsule& register_datagram_no_context_capsule()
-      const {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT);
-    return register_datagram_no_context_capsule_;
-  }
   CloseWebTransportSessionCapsule& close_web_transport_session_capsule() {
     QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::CLOSE_WEBTRANSPORT_SESSION);
     return close_web_transport_session_capsule_;
@@ -130,7 +101,6 @@ class QUIC_EXPORT_PRIVATE Capsule {
   absl::string_view& unknown_capsule_data() {
     QUICHE_DCHECK(capsule_type_ != CapsuleType::LEGACY_DATAGRAM &&
                   capsule_type_ != CapsuleType::DATAGRAM_WITHOUT_CONTEXT &&
-                  capsule_type_ != CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT &&
                   capsule_type_ != CapsuleType::CLOSE_WEBTRANSPORT_SESSION)
         << capsule_type_;
     return unknown_capsule_data_;
@@ -138,7 +108,6 @@ class QUIC_EXPORT_PRIVATE Capsule {
   const absl::string_view& unknown_capsule_data() const {
     QUICHE_DCHECK(capsule_type_ != CapsuleType::LEGACY_DATAGRAM &&
                   capsule_type_ != CapsuleType::DATAGRAM_WITHOUT_CONTEXT &&
-                  capsule_type_ != CapsuleType::REGISTER_DATAGRAM_NO_CONTEXT &&
                   capsule_type_ != CapsuleType::CLOSE_WEBTRANSPORT_SESSION)
         << capsule_type_;
     return unknown_capsule_data_;
@@ -149,7 +118,6 @@ class QUIC_EXPORT_PRIVATE Capsule {
   union {
     LegacyDatagramCapsule legacy_datagram_capsule_;
     DatagramWithoutContextCapsule datagram_without_context_capsule_;
-    RegisterDatagramNoContextCapsule register_datagram_no_context_capsule_;
     CloseWebTransportSessionCapsule close_web_transport_session_capsule_;
     absl::string_view unknown_capsule_data_;
   };

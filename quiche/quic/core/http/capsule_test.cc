@@ -31,9 +31,6 @@ class CapsuleParserPeer {
 
 namespace {
 
-constexpr DatagramFormatType kFakeFormatType =
-    static_cast<DatagramFormatType>(0x123456);
-
 class MockCapsuleParserVisitor : public CapsuleParser::Visitor {
  public:
   MockCapsuleParserVisitor() {
@@ -95,25 +92,6 @@ TEST_F(CapsuleTest, DatagramWithoutContextCapsule) {
   );
   std::string datagram_payload = absl::HexStringToBytes("a1a2a3a4a5a6a7a8");
   Capsule expected_capsule = Capsule::DatagramWithoutContext(datagram_payload);
-  {
-    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
-    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
-  }
-  ValidateParserIsEmpty();
-  TestSerialization(expected_capsule, capsule_fragment);
-}
-
-TEST_F(CapsuleTest, RegisterNoContextCapsule) {
-  std::string capsule_fragment = absl::HexStringToBytes(
-      "80ff37a2"          // REGISTER_DATAGRAM_NO_CONTEXT capsule type
-      "0c"                // capsule length
-      "80123456"          // 0x123456 datagram format type
-      "f1f2f3f4f5f6f7f8"  // format additional data
-  );
-  std::string format_additional_data =
-      absl::HexStringToBytes("f1f2f3f4f5f6f7f8");
-  Capsule expected_capsule = Capsule::RegisterDatagramNoContext(
-      kFakeFormatType, format_additional_data);
   {
     EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
     ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));

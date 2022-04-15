@@ -593,10 +593,6 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       headers.OnHeader("sec-webtransport-http3-draft02", "1");
     }
     stream->OnStreamHeaderList(/*fin=*/true, 0, headers);
-    if (session_.http_datagram_support() != HttpDatagramSupport::kDraft00) {
-      stream->OnCapsule(
-          Capsule::RegisterDatagramNoContext(DatagramFormatType::WEBTRANSPORT));
-    }
     WebTransportHttp3* web_transport =
         session_.GetWebTransportSession(session_id);
     ASSERT_TRUE(web_transport != nullptr);
