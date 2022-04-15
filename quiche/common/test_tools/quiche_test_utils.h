@@ -14,8 +14,7 @@ namespace quiche {
 namespace test {
 
 void CompareCharArraysWithHexError(const std::string& description,
-                                   const char* actual,
-                                   const int actual_len,
+                                   const char* actual, const int actual_len,
                                    const char* expected,
                                    const int expected_len);
 

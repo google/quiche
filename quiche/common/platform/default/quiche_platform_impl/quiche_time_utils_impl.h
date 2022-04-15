@@ -11,10 +11,8 @@
 
 namespace quiche {
 
-absl::optional<int64_t> QuicheUtcDateTimeToUnixSecondsImpl(int year,
-                                                           int month,
-                                                           int day,
-                                                           int hour,
+absl::optional<int64_t> QuicheUtcDateTimeToUnixSecondsImpl(int year, int month,
+                                                           int day, int hour,
                                                            int minute,
                                                            int second);
 

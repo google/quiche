@@ -13,16 +13,12 @@ const size_t kCmsgSpaceForGooglePacketHeader =
     kCmsgSpaceForGooglePacketHeaderImpl;
 
 inline bool GetGooglePacketHeadersFromControlMessage(
-    struct ::cmsghdr* cmsg,
-    char** packet_headers,
-    size_t* packet_headers_len) {
+    struct ::cmsghdr* cmsg, char** packet_headers, size_t* packet_headers_len) {
   return GetGooglePacketHeadersFromControlMessageImpl(cmsg, packet_headers,
                                                       packet_headers_len);
 }
 
-inline void SetGoogleSocketOptions(int fd) {
-  SetGoogleSocketOptionsImpl(fd);
-}
+inline void SetGoogleSocketOptions(int fd) { SetGoogleSocketOptionsImpl(fd); }
 
 }  // namespace quiche
 

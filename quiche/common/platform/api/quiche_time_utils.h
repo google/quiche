@@ -16,12 +16,8 @@ namespace quiche {
 // instance, it will reject February 29 on non-leap years, or 25 hours in a day.
 // As a notable exception, 60 seconds is accepted to deal with potential leap
 // seconds.  If the date predates Unix epoch, nullopt will be returned.
-inline absl::optional<int64_t> QuicheUtcDateTimeToUnixSeconds(int year,
-                                                              int month,
-                                                              int day,
-                                                              int hour,
-                                                              int minute,
-                                                              int second) {
+inline absl::optional<int64_t> QuicheUtcDateTimeToUnixSeconds(
+    int year, int month, int day, int hour, int minute, int second) {
   return QuicheUtcDateTimeToUnixSecondsImpl(year, month, day, hour, minute,
                                             second);
 }
