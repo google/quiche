@@ -691,7 +691,7 @@ size_t BalsaHeaders::RemoveValue(absl::string_view key,
   // Remove whitespace around search value.
   absl::string_view needle = search_value;
   strings::RemoveWhitespaceContext(&needle);
-  GFE_BUG_IF(bug_22783_2, needle != search_value)
+  QUICHE_BUG_IF(bug_22783_2, needle != search_value)
       << "Search value should not be surrounded by spaces.";
 
   // We have nothing to do for empty needle strings.
