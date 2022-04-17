@@ -29,9 +29,9 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, disable_certificate_verification, false,
     "If true, don't verify the server certificate.");
 
-DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, masque_mode, "",
-                                "Allows setting MASQUE mode, valid values are "
-                                "open and legacy. Defaults to open.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, masque_mode, "",
+    "Allows setting MASQUE mode, currently only valid value is \"open\".");
 
 namespace quic {
 
@@ -83,9 +83,7 @@ int RunMasqueClient(int argc, char* argv[]) {
   }
   MasqueMode masque_mode = MasqueMode::kOpen;
   std::string mode_string = GetQuicFlag(FLAGS_masque_mode);
-  if (mode_string == "legacy") {
-    masque_mode = MasqueMode::kLegacy;
-  } else if (!mode_string.empty() && mode_string != "open") {
+  if (!mode_string.empty() && mode_string != "open") {
     std::cerr << "Invalid masque_mode \"" << mode_string << "\"" << std::endl;
     return 1;
   }

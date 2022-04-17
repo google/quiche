@@ -33,8 +33,7 @@ void MasqueEncapsulatedClientSession::CloseConnection(
 void MasqueEncapsulatedClientSession::OnConnectionClosed(
     const QuicConnectionCloseFrame& frame, ConnectionCloseSource source) {
   QuicSpdyClientSession::OnConnectionClosed(frame, source);
-  masque_client_session_->UnregisterConnectionId(
-      connection()->client_connection_id(), this);
+  masque_client_session_->CloseConnectUdpStream(this);
 }
 
 }  // namespace quic

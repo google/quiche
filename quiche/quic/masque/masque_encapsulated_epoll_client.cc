@@ -29,9 +29,7 @@ class MasquePacketWriter : public QuicPacketWriter {
                   << " bytes to " << peer_address;
     absl::string_view packet(buffer, buf_len);
     client_->masque_client()->masque_client_session()->SendPacket(
-        client_->session()->connection()->client_connection_id(),
-        client_->session()->connection()->connection_id(), packet, peer_address,
-        client_->masque_encapsulated_client_session());
+        packet, peer_address, client_->masque_encapsulated_client_session());
     return WriteResult(WRITE_STATUS_OK, buf_len);
   }
 
@@ -93,8 +91,8 @@ MasqueEncapsulatedEpollClient::MasqueEncapsulatedEpollClient(
       masque_client_(masque_client) {}
 
 MasqueEncapsulatedEpollClient::~MasqueEncapsulatedEpollClient() {
-  masque_client_->masque_client_session()->UnregisterConnectionId(
-      client_connection_id_, masque_encapsulated_client_session());
+  masque_client_->masque_client_session()->CloseConnectUdpStream(
+      masque_encapsulated_client_session());
 }
 
 std::unique_ptr<QuicSession>
@@ -111,15 +109,6 @@ MasqueEncapsulatedEpollClient::CreateQuicClientSession(
 MasqueEncapsulatedClientSession*
 MasqueEncapsulatedEpollClient::masque_encapsulated_client_session() {
   return static_cast<MasqueEncapsulatedClientSession*>(QuicClient::session());
-}
-
-QuicConnectionId MasqueEncapsulatedEpollClient::GetClientConnectionId() {
-  if (client_connection_id_.IsEmpty()) {
-    client_connection_id_ = QuicUtils::CreateRandomConnectionId();
-    masque_client_->masque_client_session()->RegisterConnectionId(
-        client_connection_id_, masque_encapsulated_client_session());
-  }
-  return client_connection_id_;
 }
 
 }  // namespace quic

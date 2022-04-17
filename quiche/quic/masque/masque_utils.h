@@ -26,10 +26,6 @@ enum : QuicByteCount {
 // Mode that MASQUE is operating in.
 enum class MasqueMode : uint8_t {
   kInvalid = 0,  // Should never be used.
-  kLegacy = 1,   // Legacy mode uses the legacy MASQUE protocol as documented in
-  // <https://tools.ietf.org/html/draft-schinazi-masque-protocol>. That version
-  // of MASQUE uses a custom application-protocol over HTTP/3, and also allows
-  // unauthenticated clients.
   kOpen = 2,  // Open mode uses the MASQUE HTTP CONNECT-UDP method as documented
   // in <https://tools.ietf.org/html/draft-ietf-masque-connect-udp>. This mode
   // allows unauthenticated clients (a more restricted mode will be added to

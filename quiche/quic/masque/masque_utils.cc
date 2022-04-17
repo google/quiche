@@ -30,8 +30,6 @@ std::string MasqueModeToString(MasqueMode masque_mode) {
   switch (masque_mode) {
     case MasqueMode::kInvalid:
       return "Invalid";
-    case MasqueMode::kLegacy:
-      return "Legacy";
     case MasqueMode::kOpen:
       return "Open";
   }

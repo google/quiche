@@ -91,36 +91,6 @@ std::unique_ptr<MasqueEpollClient> MasqueEpollClient::Create(
     return nullptr;
   }
 
-  if (masque_client->masque_mode() == MasqueMode::kLegacy) {
-    // Construct the legacy mode init request.
-    spdy::Http2HeaderBlock header_block;
-    header_block[":method"] = "POST";
-    header_block[":scheme"] = "https";
-    header_block[":authority"] = masque_client->authority();
-    header_block[":path"] = "/.well-known/masque/init";
-    std::string body = "foo";
-
-    // Make sure to store the response, for later output.
-    masque_client->set_store_response(true);
-
-    // Send the MASQUE init command.
-    masque_client->SendRequestAndWaitForResponse(header_block, body,
-                                                 /*fin=*/true);
-
-    if (!masque_client->connected()) {
-      QUIC_LOG(ERROR)
-          << "MASQUE init request caused connection failure. Error: "
-          << QuicErrorCodeToString(masque_client->session()->error());
-      return nullptr;
-    }
-
-    const int response_code = masque_client->latest_response_code();
-    if (response_code != 200) {
-      QUIC_LOG(ERROR) << "MASQUE init request failed with HTTP response code "
-                      << response_code;
-      return nullptr;
-    }
-  }
   return masque_client;
 }
 
@@ -131,24 +101,6 @@ bool MasqueEpollClient::WaitUntilSettingsReceived() {
     network_helper()->RunEventLoop();
   }
   return connected() && settings_received_;
-}
-
-void MasqueEpollClient::UnregisterClientConnectionId(
-    QuicConnectionId client_connection_id) {
-  std::string body(client_connection_id.data(), client_connection_id.length());
-
-  // Construct a GET or POST request for supplied URL.
-  spdy::Http2HeaderBlock header_block;
-  header_block[":method"] = "POST";
-  header_block[":scheme"] = "https";
-  header_block[":authority"] = authority();
-  header_block[":path"] = "/.well-known/masque/unregister";
-
-  // Make sure to store the response, for later output.
-  set_store_response(true);
-
-  // Send the MASQUE unregister command.
-  SendRequest(header_block, body, /*fin=*/true);
 }
 
 }  // namespace quic

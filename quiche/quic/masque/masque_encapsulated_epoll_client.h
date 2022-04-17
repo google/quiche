@@ -32,8 +32,6 @@ class QUIC_NO_EXPORT MasqueEncapsulatedEpollClient : public QuicClient {
       const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection) override;
 
-  QuicConnectionId GetClientConnectionId() override;
-
   // MASQUE client that this client is encapsulated in.
   MasqueEpollClient* masque_client() { return masque_client_; }
 
@@ -42,7 +40,6 @@ class QUIC_NO_EXPORT MasqueEncapsulatedEpollClient : public QuicClient {
 
  private:
   MasqueEpollClient* masque_client_;  // Unowned.
-  QuicConnectionId client_connection_id_;
 };
 
 }  // namespace quic

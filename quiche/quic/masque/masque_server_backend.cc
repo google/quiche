@@ -20,7 +20,6 @@ MasqueServerBackend::MasqueServerBackend(MasqueMode masque_mode,
 
 bool MasqueServerBackend::MaybeHandleMasqueRequest(
     const spdy::Http2HeaderBlock& request_headers,
-    const std::string& request_body,
     QuicSimpleServerBackend::RequestHandler* request_handler) {
   auto method_pair = request_headers.find(":method");
   if (method_pair == request_headers.end()) {
@@ -29,34 +28,11 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
   }
   absl::string_view method = method_pair->second;
   std::string masque_path = "";
-  if (masque_mode_ == MasqueMode::kLegacy) {
-    auto path_pair = request_headers.find(":path");
-    auto scheme_pair = request_headers.find(":scheme");
-    if (path_pair == request_headers.end() ||
-        scheme_pair == request_headers.end()) {
-      // This request is missing required headers.
-      return false;
-    }
-    absl::string_view path = path_pair->second;
-    absl::string_view scheme = scheme_pair->second;
-    if (scheme != "https" || method != "POST" || request_body.empty()) {
-      // MASQUE requests MUST be a non-empty https POST.
-      return false;
-    }
-
-    if (path.rfind("/.well-known/masque/", 0) != 0) {
-      // This request is not a MASQUE path.
-      return false;
-    }
-    masque_path = std::string(path.substr(sizeof("/.well-known/masque/") - 1));
-  } else {
-    QUICHE_DCHECK_EQ(masque_mode_, MasqueMode::kOpen);
-    auto protocol_pair = request_headers.find(":protocol");
-    if (method != "CONNECT" || protocol_pair == request_headers.end() ||
-        protocol_pair->second != "connect-udp") {
-      // This is not a MASQUE request.
-      return false;
-    }
+  auto protocol_pair = request_headers.find(":protocol");
+  if (method != "CONNECT" || protocol_pair == request_headers.end() ||
+      protocol_pair->second != "connect-udp") {
+    // This is not a MASQUE request.
+    return false;
   }
 
   if (!server_authority_.empty()) {
@@ -82,8 +58,7 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
   BackendClient* backend_client = it->second.backend_client;
 
   std::unique_ptr<QuicBackendResponse> response =
-      backend_client->HandleMasqueRequest(masque_path, request_headers,
-                                          request_body, request_handler);
+      backend_client->HandleMasqueRequest(request_headers, request_handler);
   if (response == nullptr) {
     QUIC_LOG(ERROR) << "Backend client did not process request for "
                     << masque_path << request_headers.DebugString();
@@ -103,8 +78,7 @@ void MasqueServerBackend::FetchResponseFromBackend(
     const spdy::Http2HeaderBlock& request_headers,
     const std::string& request_body,
     QuicSimpleServerBackend::RequestHandler* request_handler) {
-  if (MaybeHandleMasqueRequest(request_headers, request_body,
-                               request_handler)) {
+  if (MaybeHandleMasqueRequest(request_headers, request_handler)) {
     // Request was handled as a MASQUE request.
     return;
   }

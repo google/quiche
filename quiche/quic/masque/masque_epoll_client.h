@@ -38,9 +38,6 @@ class QUIC_NO_EXPORT MasqueEpollClient : public QuicClient,
 
   // From MasqueClientSession::Owner.
   void OnSettingsReceived() override;
-  // Send a MASQUE client connection ID unregister command to the server.
-  void UnregisterClientConnectionId(
-      QuicConnectionId client_connection_id) override;
 
   MasqueMode masque_mode() const { return masque_mode_; }
 

@@ -78,7 +78,7 @@ std::unique_ptr<QuicBackendResponse> CreateBackendErrorResponse(
 MasqueServerSession::MasqueServerSession(
     MasqueMode masque_mode, const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
-    QuicConnection* connection, QuicSession::Visitor* visitor, Visitor* owner,
+    QuicConnection* connection, QuicSession::Visitor* visitor,
     QuicEpollServer* epoll_server, QuicCryptoServerStreamBase::Helper* helper,
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
@@ -87,9 +87,7 @@ MasqueServerSession::MasqueServerSession(
                               helper, crypto_config, compressed_certs_cache,
                               masque_server_backend),
       masque_server_backend_(masque_server_backend),
-      owner_(owner),
       epoll_server_(epoll_server),
-      compression_engine_(this),
       masque_mode_(masque_mode) {
   // Artificially increase the max packet length to 1350 to ensure we can fit
   // QUIC packets inside DATAGRAM frames.
@@ -98,44 +96,6 @@ MasqueServerSession::MasqueServerSession(
 
   masque_server_backend_->RegisterBackendClient(connection_id(), this);
   QUICHE_DCHECK_NE(epoll_server_, nullptr);
-}
-
-void MasqueServerSession::OnMessageReceived(absl::string_view message) {
-  if (masque_mode_ == MasqueMode::kLegacy) {
-    QUIC_DVLOG(1) << "Received DATAGRAM frame of length " << message.length();
-    QuicConnectionId client_connection_id, server_connection_id;
-    QuicSocketAddress target_server_address;
-    std::vector<char> packet;
-    bool version_present;
-    if (!compression_engine_.DecompressDatagram(
-            message, &client_connection_id, &server_connection_id,
-            &target_server_address, &packet, &version_present)) {
-      return;
-    }
-
-    QUIC_DVLOG(1) << "Received packet of length " << packet.size() << " for "
-                  << target_server_address << " client "
-                  << client_connection_id;
-
-    if (version_present) {
-      if (client_connection_id.length() != kQuicDefaultConnectionIdLength) {
-        QUIC_DLOG(ERROR)
-            << "Dropping long header with invalid client_connection_id "
-            << client_connection_id;
-        return;
-      }
-      owner_->RegisterClientConnectionId(client_connection_id, this);
-    }
-
-    WriteResult write_result = connection()->writer()->WritePacket(
-        packet.data(), packet.size(), connection()->self_address().host(),
-        target_server_address, nullptr);
-    QUIC_DVLOG(1) << "Got " << write_result << " for " << packet.size()
-                  << " bytes to " << target_server_address;
-    return;
-  }
-  QUICHE_DCHECK_EQ(masque_mode_, MasqueMode::kOpen);
-  QuicSpdySession::OnMessageReceived(message);
 }
 
 void MasqueServerSession::OnMessageAcked(QuicMessageId message_id,
@@ -166,204 +126,153 @@ void MasqueServerSession::OnStreamClosed(QuicStreamId stream_id) {
 }
 
 std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
-    const std::string& masque_path,
     const spdy::Http2HeaderBlock& request_headers,
-    const std::string& request_body,
     QuicSimpleServerBackend::RequestHandler* request_handler) {
-  if (masque_mode_ != MasqueMode::kLegacy) {
-    auto path_pair = request_headers.find(":path");
-    auto scheme_pair = request_headers.find(":scheme");
-    auto method_pair = request_headers.find(":method");
-    auto protocol_pair = request_headers.find(":protocol");
-    auto authority_pair = request_headers.find(":authority");
-    if (path_pair == request_headers.end()) {
-      QUIC_DLOG(ERROR) << "MASQUE request is missing :path";
-      return CreateBackendErrorResponse("400", "Missing :path");
-    }
-    if (scheme_pair == request_headers.end()) {
-      QUIC_DLOG(ERROR) << "MASQUE request is missing :scheme";
-      return CreateBackendErrorResponse("400", "Missing :scheme");
-    }
-    if (method_pair == request_headers.end()) {
-      QUIC_DLOG(ERROR) << "MASQUE request is missing :method";
-      return CreateBackendErrorResponse("400", "Missing :method");
-    }
-    if (protocol_pair == request_headers.end()) {
-      QUIC_DLOG(ERROR) << "MASQUE request is missing :protocol";
-      return CreateBackendErrorResponse("400", "Missing :protocol");
-    }
-    if (authority_pair == request_headers.end()) {
-      QUIC_DLOG(ERROR) << "MASQUE request is missing :authority";
-      return CreateBackendErrorResponse("400", "Missing :authority");
-    }
-    absl::string_view path = path_pair->second;
-    absl::string_view scheme = scheme_pair->second;
-    absl::string_view method = method_pair->second;
-    absl::string_view protocol = protocol_pair->second;
-    absl::string_view authority = authority_pair->second;
-    if (path.empty()) {
-      QUIC_DLOG(ERROR) << "MASQUE request with empty path";
-      return CreateBackendErrorResponse("400", "Empty path");
-    }
-    if (scheme.empty()) {
-      return CreateBackendErrorResponse("400", "Empty scheme");
-    }
-    if (method != "CONNECT") {
-      QUIC_DLOG(ERROR) << "MASQUE request with bad method \"" << method << "\"";
-      return CreateBackendErrorResponse("400", "Bad method");
-    }
-    if (protocol != "connect-udp") {
-      QUIC_DLOG(ERROR) << "MASQUE request with bad protocol \"" << protocol
-                       << "\"";
-      return CreateBackendErrorResponse("400", "Bad protocol");
-    }
-    absl::optional<QuicDatagramStreamId> flow_id;
-    if (http_datagram_support() == HttpDatagramSupport::kDraft00) {
-      flow_id = SpdyUtils::ParseDatagramFlowIdHeader(request_headers);
-      if (!flow_id.has_value()) {
-        QUIC_DLOG(ERROR)
-            << "MASQUE request with bad or missing DatagramFlowId header";
-        return CreateBackendErrorResponse(
-            "400", "Bad or missing DatagramFlowId header");
-      }
-    }
-    // Extract target host and port from path using default template.
-    std::vector<absl::string_view> path_split = absl::StrSplit(path, '/');
-    if (path_split.size() != 4 || !path_split[0].empty() ||
-        path_split[1].empty() || path_split[2].empty() ||
-        !path_split[3].empty()) {
-      QUIC_DLOG(ERROR) << "MASQUE request with bad path \"" << path << "\"";
-      return CreateBackendErrorResponse("400", "Bad path");
-    }
-    absl::optional<std::string> host = quiche::AsciiUrlDecode(path_split[1]);
-    if (!host.has_value()) {
-      QUIC_DLOG(ERROR) << "Failed to decode host \"" << path_split[1] << "\"";
-      return CreateBackendErrorResponse("500", "Failed to decode host");
-    }
-    absl::optional<std::string> port = quiche::AsciiUrlDecode(path_split[2]);
-    if (!port.has_value()) {
-      QUIC_DLOG(ERROR) << "Failed to decode port \"" << path_split[2] << "\"";
-      return CreateBackendErrorResponse("500", "Failed to decode port");
-    }
-
-    // Perform DNS resolution.
-    addrinfo hint = {};
-    hint.ai_protocol = IPPROTO_UDP;
-
-    addrinfo* info_list = nullptr;
-    int result = getaddrinfo(host.value().c_str(), port.value().c_str(), &hint,
-                             &info_list);
-    if (result != 0) {
-      QUIC_DLOG(ERROR) << "Failed to resolve " << authority << ": "
-                       << gai_strerror(result);
-      return CreateBackendErrorResponse("500", "DNS resolution failed");
-    }
-
-    QUICHE_CHECK_NE(info_list, nullptr);
-    std::unique_ptr<addrinfo, void (*)(addrinfo*)> info_list_owned(
-        info_list, freeaddrinfo);
-    QuicSocketAddress target_server_address(info_list->ai_addr,
-                                            info_list->ai_addrlen);
-    QUIC_DLOG(INFO) << "Got CONNECT_UDP request on stream ID "
-                    << request_handler->stream_id() << " flow_id="
-                    << (flow_id.has_value() ? absl::StrCat(*flow_id) : "none")
-                    << " target_server_address=\"" << target_server_address
-                    << "\"";
-
-    FdWrapper fd_wrapper(target_server_address.host().AddressFamilyToInt());
-    if (fd_wrapper.fd() == kQuicInvalidSocketFd) {
-      QUIC_DLOG(ERROR) << "Socket creation failed";
-      return CreateBackendErrorResponse("500", "Socket creation failed");
-    }
-    QuicSocketAddress empty_address(QuicIpAddress::Any6(), 0);
-    if (target_server_address.host().IsIPv4()) {
-      empty_address = QuicSocketAddress(QuicIpAddress::Any4(), 0);
-    }
-    QuicUdpSocketApi socket_api;
-    if (!socket_api.Bind(fd_wrapper.fd(), empty_address)) {
-      QUIC_DLOG(ERROR) << "Socket bind failed";
-      return CreateBackendErrorResponse("500", "Socket bind failed");
-    }
-    epoll_server_->RegisterFDForRead(fd_wrapper.fd(), this);
-
-    QuicSpdyStream* stream = static_cast<QuicSpdyStream*>(
-        GetActiveStream(request_handler->stream_id()));
-    if (stream == nullptr) {
-      QUIC_BUG(bad masque server stream type)
-          << "Unexpected stream type for stream ID "
-          << request_handler->stream_id();
-      return CreateBackendErrorResponse("500", "Bad stream type");
-    }
-    if (flow_id.has_value()) {
-      stream->RegisterHttp3DatagramFlowId(*flow_id);
-    }
-    connect_udp_server_states_.push_back(ConnectUdpServerState(
-        stream, target_server_address, fd_wrapper.extract_fd(), this));
-
-    if (http_datagram_support() == HttpDatagramSupport::kDraft00) {
-      // TODO(b/181256914) remove this when we drop support for
-      // draft-ietf-masque-h3-datagram-00 in favor of later drafts.
-      stream->RegisterHttp3DatagramVisitor(&connect_udp_server_states_.back());
-    }
-
-    spdy::Http2HeaderBlock response_headers;
-    response_headers[":status"] = "200";
-    if (flow_id.has_value()) {
-      SpdyUtils::AddDatagramFlowIdHeader(&response_headers, *flow_id);
-    }
-    auto response = std::make_unique<QuicBackendResponse>();
-    response->set_response_type(QuicBackendResponse::INCOMPLETE_RESPONSE);
-    response->set_headers(std::move(response_headers));
-    response->set_body("");
-
-    return response;
+  auto path_pair = request_headers.find(":path");
+  auto scheme_pair = request_headers.find(":scheme");
+  auto method_pair = request_headers.find(":method");
+  auto protocol_pair = request_headers.find(":protocol");
+  auto authority_pair = request_headers.find(":authority");
+  if (path_pair == request_headers.end()) {
+    QUIC_DLOG(ERROR) << "MASQUE request is missing :path";
+    return CreateBackendErrorResponse("400", "Missing :path");
   }
-
-  QUIC_DLOG(INFO) << "MasqueServerSession handling MASQUE request";
-
-  if (masque_path == "init") {
-    if (masque_initialized_) {
-      QUIC_DLOG(ERROR) << "Got second MASQUE init request";
-      return nullptr;
-    }
-    masque_initialized_ = true;
-  } else if (masque_path == "unregister") {
-    QuicConnectionId connection_id(request_body.data(), request_body.length());
-    QUIC_DLOG(INFO) << "Received MASQUE request to unregister "
-                    << connection_id;
-    owner_->UnregisterClientConnectionId(connection_id);
-    compression_engine_.UnregisterClientConnectionId(connection_id);
-  } else {
-    if (!masque_initialized_) {
-      QUIC_DLOG(ERROR) << "Got MASQUE request before init";
-      return nullptr;
+  if (scheme_pair == request_headers.end()) {
+    QUIC_DLOG(ERROR) << "MASQUE request is missing :scheme";
+    return CreateBackendErrorResponse("400", "Missing :scheme");
+  }
+  if (method_pair == request_headers.end()) {
+    QUIC_DLOG(ERROR) << "MASQUE request is missing :method";
+    return CreateBackendErrorResponse("400", "Missing :method");
+  }
+  if (protocol_pair == request_headers.end()) {
+    QUIC_DLOG(ERROR) << "MASQUE request is missing :protocol";
+    return CreateBackendErrorResponse("400", "Missing :protocol");
+  }
+  if (authority_pair == request_headers.end()) {
+    QUIC_DLOG(ERROR) << "MASQUE request is missing :authority";
+    return CreateBackendErrorResponse("400", "Missing :authority");
+  }
+  absl::string_view path = path_pair->second;
+  absl::string_view scheme = scheme_pair->second;
+  absl::string_view method = method_pair->second;
+  absl::string_view protocol = protocol_pair->second;
+  absl::string_view authority = authority_pair->second;
+  if (path.empty()) {
+    QUIC_DLOG(ERROR) << "MASQUE request with empty path";
+    return CreateBackendErrorResponse("400", "Empty path");
+  }
+  if (scheme.empty()) {
+    return CreateBackendErrorResponse("400", "Empty scheme");
+  }
+  if (method != "CONNECT") {
+    QUIC_DLOG(ERROR) << "MASQUE request with bad method \"" << method << "\"";
+    return CreateBackendErrorResponse("400", "Bad method");
+  }
+  if (protocol != "connect-udp") {
+    QUIC_DLOG(ERROR) << "MASQUE request with bad protocol \"" << protocol
+                     << "\"";
+    return CreateBackendErrorResponse("400", "Bad protocol");
+  }
+  absl::optional<QuicDatagramStreamId> flow_id;
+  if (http_datagram_support() == HttpDatagramSupport::kDraft00) {
+    flow_id = SpdyUtils::ParseDatagramFlowIdHeader(request_headers);
+    if (!flow_id.has_value()) {
+      QUIC_DLOG(ERROR)
+          << "MASQUE request with bad or missing DatagramFlowId header";
+      return CreateBackendErrorResponse("400",
+                                        "Bad or missing DatagramFlowId header");
     }
   }
+  // Extract target host and port from path using default template.
+  std::vector<absl::string_view> path_split = absl::StrSplit(path, '/');
+  if (path_split.size() != 4 || !path_split[0].empty() ||
+      path_split[1].empty() || path_split[2].empty() ||
+      !path_split[3].empty()) {
+    QUIC_DLOG(ERROR) << "MASQUE request with bad path \"" << path << "\"";
+    return CreateBackendErrorResponse("400", "Bad path");
+  }
+  absl::optional<std::string> host = quiche::AsciiUrlDecode(path_split[1]);
+  if (!host.has_value()) {
+    QUIC_DLOG(ERROR) << "Failed to decode host \"" << path_split[1] << "\"";
+    return CreateBackendErrorResponse("500", "Failed to decode host");
+  }
+  absl::optional<std::string> port = quiche::AsciiUrlDecode(path_split[2]);
+  if (!port.has_value()) {
+    QUIC_DLOG(ERROR) << "Failed to decode port \"" << path_split[2] << "\"";
+    return CreateBackendErrorResponse("500", "Failed to decode port");
+  }
 
-  // TODO(dschinazi) implement binary protocol sent in response body.
-  const std::string response_body = "";
+  // Perform DNS resolution.
+  addrinfo hint = {};
+  hint.ai_protocol = IPPROTO_UDP;
+
+  addrinfo* info_list = nullptr;
+  int result = getaddrinfo(host.value().c_str(), port.value().c_str(), &hint,
+                           &info_list);
+  if (result != 0 || info_list == nullptr) {
+    QUIC_DLOG(ERROR) << "Failed to resolve " << authority << ": "
+                     << gai_strerror(result);
+    return CreateBackendErrorResponse("500", "DNS resolution failed");
+  }
+
+  std::unique_ptr<addrinfo, void (*)(addrinfo*)> info_list_owned(info_list,
+                                                                 freeaddrinfo);
+  QuicSocketAddress target_server_address(info_list->ai_addr,
+                                          info_list->ai_addrlen);
+  QUIC_DLOG(INFO) << "Got CONNECT_UDP request on stream ID "
+                  << request_handler->stream_id() << " flow_id="
+                  << (flow_id.has_value() ? absl::StrCat(*flow_id) : "none")
+                  << " target_server_address=\"" << target_server_address
+                  << "\"";
+
+  FdWrapper fd_wrapper(target_server_address.host().AddressFamilyToInt());
+  if (fd_wrapper.fd() == kQuicInvalidSocketFd) {
+    QUIC_DLOG(ERROR) << "Socket creation failed";
+    return CreateBackendErrorResponse("500", "Socket creation failed");
+  }
+  QuicSocketAddress empty_address(QuicIpAddress::Any6(), 0);
+  if (target_server_address.host().IsIPv4()) {
+    empty_address = QuicSocketAddress(QuicIpAddress::Any4(), 0);
+  }
+  QuicUdpSocketApi socket_api;
+  if (!socket_api.Bind(fd_wrapper.fd(), empty_address)) {
+    QUIC_DLOG(ERROR) << "Socket bind failed";
+    return CreateBackendErrorResponse("500", "Socket bind failed");
+  }
+  epoll_server_->RegisterFDForRead(fd_wrapper.fd(), this);
+
+  QuicSpdyStream* stream =
+      static_cast<QuicSpdyStream*>(GetActiveStream(request_handler->stream_id()));
+  if (stream == nullptr) {
+    QUIC_BUG(bad masque server stream type)
+        << "Unexpected stream type for stream ID "
+        << request_handler->stream_id();
+    return CreateBackendErrorResponse("500", "Bad stream type");
+  }
+  if (flow_id.has_value()) {
+    stream->RegisterHttp3DatagramFlowId(*flow_id);
+  }
+  connect_udp_server_states_.push_back(ConnectUdpServerState(
+      stream, target_server_address, fd_wrapper.extract_fd(), this));
+
+  if (http_datagram_support() == HttpDatagramSupport::kDraft00) {
+    // TODO(b/181256914) remove this when we drop support for
+    // draft-ietf-masque-h3-datagram-00 in favor of later drafts.
+    stream->RegisterHttp3DatagramVisitor(&connect_udp_server_states_.back());
+  }
+
   spdy::Http2HeaderBlock response_headers;
   response_headers[":status"] = "200";
+  if (flow_id.has_value()) {
+    SpdyUtils::AddDatagramFlowIdHeader(&response_headers, *flow_id);
+  }
   auto response = std::make_unique<QuicBackendResponse>();
-  response->set_response_type(QuicBackendResponse::REGULAR_RESPONSE);
+  response->set_response_type(QuicBackendResponse::INCOMPLETE_RESPONSE);
   response->set_headers(std::move(response_headers));
-  response->set_body(response_body);
+  response->set_body("");
 
   return response;
-}
-
-void MasqueServerSession::HandlePacketFromServer(
-    const ReceivedPacketInfo& packet_info) {
-  QUIC_DVLOG(1) << "MasqueServerSession received " << packet_info;
-  if (masque_mode_ == MasqueMode::kLegacy) {
-    compression_engine_.CompressAndSendPacket(
-        packet_info.packet.AsStringPiece(),
-        packet_info.destination_connection_id, packet_info.source_connection_id,
-        packet_info.peer_address);
-    return;
-  }
-  QUIC_LOG(ERROR) << "Ignoring packet from server in " << masque_mode_
-                  << " mode";
 }
 
 void MasqueServerSession::OnRegistration(QuicEpollServer* /*eps*/,

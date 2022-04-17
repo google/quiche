@@ -30,42 +30,7 @@ MasqueClientSession::MasqueClientSession(
                             crypto_config, push_promise_index),
       masque_mode_(masque_mode),
       uri_template_(uri_template),
-      owner_(owner),
-      compression_engine_(this) {}
-
-void MasqueClientSession::OnMessageReceived(absl::string_view message) {
-  if (masque_mode_ == MasqueMode::kLegacy) {
-    QUIC_DVLOG(1) << "Received DATAGRAM frame of length " << message.length();
-    QuicConnectionId client_connection_id, server_connection_id;
-    QuicSocketAddress target_server_address;
-    std::vector<char> packet;
-    bool version_present;
-    if (!compression_engine_.DecompressDatagram(
-            message, &client_connection_id, &server_connection_id,
-            &target_server_address, &packet, &version_present)) {
-      return;
-    }
-
-    auto connection_id_registration =
-        client_connection_id_registrations_.find(client_connection_id);
-    if (connection_id_registration ==
-        client_connection_id_registrations_.end()) {
-      QUIC_DLOG(ERROR) << "MasqueClientSession failed to dispatch "
-                       << client_connection_id;
-      return;
-    }
-    EncapsulatedClientSession* encapsulated_client_session =
-        connection_id_registration->second;
-    encapsulated_client_session->ProcessPacket(
-        absl::string_view(packet.data(), packet.size()), target_server_address);
-
-    QUIC_DVLOG(1) << "Sent " << packet.size() << " bytes to connection for "
-                  << client_connection_id;
-    return;
-  }
-  QUICHE_DCHECK_EQ(masque_mode_, MasqueMode::kOpen);
-  QuicSpdySession::OnMessageReceived(message);
-}
+      owner_(owner) {}
 
 void MasqueClientSession::OnMessageAcked(QuicMessageId message_id,
                                          QuicTime /*receive_timestamp*/) {
@@ -174,16 +139,8 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
 }
 
 void MasqueClientSession::SendPacket(
-    QuicConnectionId client_connection_id,
-    QuicConnectionId server_connection_id, absl::string_view packet,
-    const QuicSocketAddress& target_server_address,
+    absl::string_view packet, const QuicSocketAddress& target_server_address,
     EncapsulatedClientSession* encapsulated_client_session) {
-  if (masque_mode_ == MasqueMode::kLegacy) {
-    compression_engine_.CompressAndSendPacket(packet, client_connection_id,
-                                              server_connection_id,
-                                              target_server_address);
-    return;
-  }
   const ConnectUdpClientState* connect_udp = GetOrCreateConnectUdpClientState(
       target_server_address, encapsulated_client_session);
   if (connect_udp == nullptr) {
@@ -200,34 +157,8 @@ void MasqueClientSession::SendPacket(
                 << MessageStatusToString(message_status);
 }
 
-void MasqueClientSession::RegisterConnectionId(
-    QuicConnectionId client_connection_id,
+void MasqueClientSession::CloseConnectUdpStream(
     EncapsulatedClientSession* encapsulated_client_session) {
-  QUIC_DLOG(INFO) << "Registering " << client_connection_id
-                  << " to encapsulated client";
-  QUICHE_DCHECK(
-      client_connection_id_registrations_.find(client_connection_id) ==
-          client_connection_id_registrations_.end() ||
-      client_connection_id_registrations_[client_connection_id] ==
-          encapsulated_client_session);
-  client_connection_id_registrations_[client_connection_id] =
-      encapsulated_client_session;
-}
-
-void MasqueClientSession::UnregisterConnectionId(
-    QuicConnectionId client_connection_id,
-    EncapsulatedClientSession* encapsulated_client_session) {
-  QUIC_DLOG(INFO) << "Unregistering " << client_connection_id;
-  if (masque_mode_ == MasqueMode::kLegacy) {
-    if (client_connection_id_registrations_.find(client_connection_id) !=
-        client_connection_id_registrations_.end()) {
-      client_connection_id_registrations_.erase(client_connection_id);
-      owner_->UnregisterClientConnectionId(client_connection_id);
-      compression_engine_.UnregisterClientConnectionId(client_connection_id);
-    }
-    return;
-  }
-
   for (auto it = connect_udp_client_states_.begin();
        it != connect_udp_client_states_.end();) {
     if (it->encapsulated_client_session() == encapsulated_client_session) {

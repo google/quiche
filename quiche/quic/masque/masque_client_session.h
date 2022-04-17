@@ -10,7 +10,6 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
-#include "quiche/quic/masque/masque_compression_engine.h"
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -29,10 +28,6 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
   class QUIC_NO_EXPORT Owner {
    public:
     virtual ~Owner() {}
-
-    // Notifies the owner that the client connection ID is no longer in use.
-    virtual void UnregisterClientConnectionId(
-        QuicConnectionId client_connection_id) = 0;
 
     // Notifies the owner that a settings frame has been received.
     virtual void OnSettingsReceived() = 0;
@@ -70,7 +65,6 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
   MasqueClientSession& operator=(const MasqueClientSession&) = delete;
 
   // From QuicSession.
-  void OnMessageReceived(absl::string_view message) override;
   void OnMessageAcked(QuicMessageId message_id,
                       QuicTime receive_timestamp) override;
   void OnMessageLost(QuicMessageId message_id) override;
@@ -82,26 +76,12 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
   bool OnSettingsFrame(const SettingsFrame& frame) override;
 
   // Send encapsulated packet.
-  void SendPacket(QuicConnectionId client_connection_id,
-                  QuicConnectionId server_connection_id,
-                  absl::string_view packet,
+  void SendPacket(absl::string_view packet,
                   const QuicSocketAddress& target_server_address,
                   EncapsulatedClientSession* encapsulated_client_session);
 
-  // Register encapsulated client. This allows clients that are encapsulated
-  // within this MASQUE session to indicate they own a given client connection
-  // ID so incoming packets with that connection ID are routed back to them.
-  // Callers must not register a second different |encapsulated_client_session|
-  // with the same |client_connection_id|. Every call must be matched with a
-  // call to UnregisterConnectionId.
-  void RegisterConnectionId(
-      QuicConnectionId client_connection_id,
-      EncapsulatedClientSession* encapsulated_client_session);
-
-  // Unregister encapsulated client. |client_connection_id| must match a
-  // value previously passed to RegisterConnectionId.
-  void UnregisterConnectionId(
-      QuicConnectionId client_connection_id,
+  // Close CONNECT-UDP stream tied to this encapsulated client session.
+  void CloseConnectUdpStream(
       EncapsulatedClientSession* encapsulated_client_session);
 
  private:
@@ -155,11 +135,7 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
   MasqueMode masque_mode_;
   std::string uri_template_;
   std::list<ConnectUdpClientState> connect_udp_client_states_;
-  absl::flat_hash_map<QuicConnectionId, EncapsulatedClientSession*,
-                      QuicConnectionIdHash>
-      client_connection_id_registrations_;
   Owner* owner_;  // Unowned;
-  MasqueCompressionEngine compression_engine_;
 };
 
 }  // namespace quic

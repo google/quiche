@@ -17,8 +17,7 @@ namespace quic {
 
 // QUIC dispatcher that handles new MASQUE connections and can proxy traffic
 // between MASQUE clients and QUIC servers.
-class QUIC_NO_EXPORT MasqueDispatcher : public QuicSimpleDispatcher,
-                                        public MasqueServerSession::Visitor {
+class QUIC_NO_EXPORT MasqueDispatcher : public QuicSimpleDispatcher {
  public:
   explicit MasqueDispatcher(
       MasqueMode masque_mode, const QuicConfig* config,
@@ -41,25 +40,10 @@ class QUIC_NO_EXPORT MasqueDispatcher : public QuicSimpleDispatcher,
       const ParsedQuicVersion& version,
       const quic::ParsedClientHello& parsed_chlo) override;
 
-  bool OnFailedToDispatchPacket(const ReceivedPacketInfo& packet_info) override;
-
-  // From MasqueServerSession::Visitor.
-  void RegisterClientConnectionId(
-      QuicConnectionId client_connection_id,
-      MasqueServerSession* masque_server_session) override;
-
-  void UnregisterClientConnectionId(
-      QuicConnectionId client_connection_id) override;
-
  private:
   MasqueMode masque_mode_;
   QuicEpollServer* epoll_server_;               // Unowned.
   MasqueServerBackend* masque_server_backend_;  // Unowned.
-  // Mapping from client connection IDs to server sessions, allows routing
-  // incoming packets to the right MASQUE connection.
-  absl::flat_hash_map<QuicConnectionId, MasqueServerSession*,
-                      QuicConnectionIdHash>
-      client_connection_id_registrations_;
 };
 
 }  // namespace quic
