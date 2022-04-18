@@ -255,8 +255,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   void OnCapsuleParseFailure(const std::string& error_message) override;
 
   // Sends an HTTP/3 datagram. The stream ID is not part of |payload|.
-  MessageStatus SendHttp3Datagram(
-      absl::string_view payload);
+  MessageStatus SendHttp3Datagram(absl::string_view payload);
 
   class QUIC_EXPORT_PRIVATE Http3DatagramVisitor {
    public:
@@ -265,9 +264,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
     // Called when an HTTP/3 datagram is received. |payload| does not contain
     // the stream ID. Note that this contains the stream ID even if flow IDs
     // from draft-ietf-masque-h3-datagram-00 are in use.
-    virtual void OnHttp3Datagram(
-        QuicStreamId stream_id,
-        absl::string_view payload) = 0;
+    virtual void OnHttp3Datagram(QuicStreamId stream_id,
+                                 absl::string_view payload) = 0;
   };
 
   // Registers |visitor| to receive HTTP/3 datagrams. |visitor| must be

@@ -66,9 +66,8 @@ class QUIC_NO_EXPORT MasqueServerSession
     // ConnectUdpServerState takes ownership of |fd|. It will unregister it
     // from |epoll_server| and close the file descriptor when destructed.
     explicit ConnectUdpServerState(
-        QuicSpdyStream* stream,
-        const QuicSocketAddress& target_server_address, QuicUdpSocketFd fd,
-        MasqueServerSession* masque_session);
+        QuicSpdyStream* stream, const QuicSocketAddress& target_server_address,
+        QuicUdpSocketFd fd, MasqueServerSession* masque_session);
 
     ~ConnectUdpServerState();
 

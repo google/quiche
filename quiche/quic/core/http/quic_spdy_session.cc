@@ -1654,9 +1654,8 @@ void QuicSpdySession::LogHeaderCompressionRatioHistogram(
   }
 }
 
-MessageStatus QuicSpdySession::SendHttp3Datagram(
-    QuicDatagramStreamId stream_id,
-    absl::string_view payload) {
+MessageStatus QuicSpdySession::SendHttp3Datagram(QuicDatagramStreamId stream_id,
+                                                 absl::string_view payload) {
   if (!SupportsH3Datagram()) {
     QUIC_BUG(send http datagram too early)
         << "Refusing to send HTTP Datagram before SETTINGS received";

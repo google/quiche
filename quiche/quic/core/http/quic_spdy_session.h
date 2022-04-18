@@ -389,9 +389,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   }
 
   // This must not be used except by QuicSpdyStream::SendHttp3Datagram.
-  MessageStatus SendHttp3Datagram(
-      QuicDatagramStreamId stream_id,
-      absl::string_view payload);
+  MessageStatus SendHttp3Datagram(QuicDatagramStreamId stream_id,
+                                  absl::string_view payload);
   // This must not be used except by QuicSpdyStream::SetMaxDatagramTimeInQueue.
   void SetMaxDatagramTimeInQueueForStreamId(QuicStreamId stream_id,
                                             QuicTime::Delta max_time_in_queue);

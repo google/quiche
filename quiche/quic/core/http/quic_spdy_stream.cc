@@ -1414,8 +1414,7 @@ QuicSpdyStream::WebTransportDataStream::WebTransportDataStream(
     : session_id(session_id),
       adapter(stream->spdy_session_, stream, stream->sequencer()) {}
 
-void QuicSpdyStream::HandleReceivedDatagram(
-    absl::string_view payload) {
+void QuicSpdyStream::HandleReceivedDatagram(absl::string_view payload) {
   if (datagram_visitor_ == nullptr) {
     QUIC_DLOG(ERROR) << ENDPOINT << "Received datagram without any visitor";
     return;
@@ -1491,8 +1490,7 @@ void QuicSpdyStream::WriteGreaseCapsule() {
   WriteCapsule(capsule, /*fin=*/false);
 }
 
-MessageStatus QuicSpdyStream::SendHttp3Datagram(
-    absl::string_view payload) {
+MessageStatus QuicSpdyStream::SendHttp3Datagram(absl::string_view payload) {
   QuicDatagramStreamId stream_id =
       datagram_flow_id_.has_value() ? datagram_flow_id_.value() : id();
   return spdy_session_->SendHttp3Datagram(stream_id, payload);
