@@ -16,7 +16,7 @@ namespace spdy {
 // Not thread-safe.
 class QUICHE_EXPORT_PRIVATE SpdySimpleArena {
  public:
-  class Status {
+  class QUICHE_EXPORT_PRIVATE Status {
    private:
     friend class SpdySimpleArena;
     size_t bytes_allocated_;
@@ -52,7 +52,7 @@ class QUICHE_EXPORT_PRIVATE SpdySimpleArena {
   Status status() const { return status_; }
 
  private:
-  struct Block {
+  struct QUICHE_EXPORT_PRIVATE Block {
     std::unique_ptr<char[]> data;
     size_t size = 0;
     size_t used = 0;

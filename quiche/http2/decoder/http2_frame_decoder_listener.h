@@ -33,12 +33,13 @@
 
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace http2 {
 
 // TODO(jamessynge): Consider sorting the methods by frequency of call, if that
 // helps at all.
-class Http2FrameDecoderListener {
+class QUICHE_EXPORT_PRIVATE Http2FrameDecoderListener {
  public:
   Http2FrameDecoderListener() {}
   virtual ~Http2FrameDecoderListener() {}
@@ -315,7 +316,8 @@ class Http2FrameDecoderListener {
 };
 
 // Do nothing for each call. Useful for ignoring a frame that is invalid.
-class Http2FrameDecoderNoOpListener : public Http2FrameDecoderListener {
+class QUICHE_EXPORT_PRIVATE Http2FrameDecoderNoOpListener
+    : public Http2FrameDecoderListener {
  public:
   Http2FrameDecoderNoOpListener() {}
   ~Http2FrameDecoderNoOpListener() override {}

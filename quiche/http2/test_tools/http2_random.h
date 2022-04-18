@@ -12,6 +12,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace test {
@@ -19,7 +20,7 @@ namespace test {
 // The random number generator used for unit tests.  Since the algorithm is
 // deterministic and fixed, this can be used to reproduce flakes in the unit
 // tests caused by specific random values.
-class Http2Random {
+class QUICHE_EXPORT_PRIVATE Http2Random {
  public:
   Http2Random();
 

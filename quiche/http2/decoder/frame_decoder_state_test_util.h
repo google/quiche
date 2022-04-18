@@ -8,11 +8,12 @@
 #include "quiche/http2/decoder/frame_decoder_state.h"
 #include "quiche/http2/http2_structures.h"
 #include "quiche/http2/tools/random_decoder_test.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace test {
 
-class FrameDecoderStatePeer {
+class QUICHE_NO_EXPORT FrameDecoderStatePeer {
  public:
   // Randomizes (i.e. corrupts) the fields of the FrameDecoderState.
   // PayloadDecoderBaseTest::StartDecoding calls this before passing the first

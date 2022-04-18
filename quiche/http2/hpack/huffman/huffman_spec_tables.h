@@ -9,9 +9,11 @@
 
 #include <cstdint>
 
+#include "quiche/common/platform/api/quiche_export.h"
+
 namespace http2 {
 
-struct HuffmanSpecTables {
+struct QUICHE_EXPORT_PRIVATE HuffmanSpecTables {
   // Number of bits in the encoding of each symbol (byte).
   static const uint8_t kCodeLengths[257];
 

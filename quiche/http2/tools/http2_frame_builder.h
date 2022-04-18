@@ -21,11 +21,12 @@
 #include "absl/strings/string_view.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace test {
 
-class Http2FrameBuilder {
+class QUICHE_NO_EXPORT Http2FrameBuilder {
  public:
   Http2FrameBuilder(Http2FrameType type, uint8_t flags, uint32_t stream_id);
   explicit Http2FrameBuilder(const Http2FrameHeader& v);

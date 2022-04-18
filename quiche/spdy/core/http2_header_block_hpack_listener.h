@@ -3,6 +3,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder_listener.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/spdy/core/spdy_header_block.h"
 
@@ -10,7 +11,8 @@ namespace spdy {
 
 // This class simply gathers the key-value pairs emitted by an HpackDecoder in
 // a SpdyHeaderBlock.
-class Http2HeaderBlockHpackListener : public http2::HpackDecoderListener {
+class QUICHE_EXPORT_PRIVATE Http2HeaderBlockHpackListener
+    : public http2::HpackDecoderListener {
  public:
   Http2HeaderBlockHpackListener() {}
 

@@ -19,13 +19,13 @@ namespace spdy {
 
 // An HpackPrefix signifies |bits| stored in the top |bit_size| bits
 // of an octet.
-struct HpackPrefix {
+struct QUICHE_EXPORT_PRIVATE HpackPrefix {
   uint8_t bits;
   size_t bit_size;
 };
 
 // Represents a symbol and its Huffman code (stored in most-significant bits).
-struct HpackHuffmanSymbol {
+struct QUICHE_EXPORT_PRIVATE HpackHuffmanSymbol {
   uint32_t code;
   uint8_t length;
   uint16_t id;
@@ -33,7 +33,7 @@ struct HpackHuffmanSymbol {
 
 // An entry in the static table. Must be a POD in order to avoid static
 // initializers, i.e. no user-defined constructors or destructors.
-struct HpackStaticEntry {
+struct QUICHE_EXPORT_PRIVATE HpackStaticEntry {
   const char* const name;
   const size_t name_len;
   const char* const value;

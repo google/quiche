@@ -12,12 +12,14 @@
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace http2 {
 
 // Fail if any of the methods are called. Allows a test to override only the
 // expected calls.
-class FailingHttp2FrameDecoderListener : public Http2FrameDecoderListener {
+class QUICHE_NO_EXPORT FailingHttp2FrameDecoderListener
+    : public Http2FrameDecoderListener {
  public:
   FailingHttp2FrameDecoderListener();
   ~FailingHttp2FrameDecoderListener() override;
@@ -82,7 +84,8 @@ class FailingHttp2FrameDecoderListener : public Http2FrameDecoderListener {
 
 // HTTP2_VLOG's all the calls it receives, and forwards those calls to an
 // optional listener.
-class LoggingHttp2FrameDecoderListener : public Http2FrameDecoderListener {
+class QUICHE_NO_EXPORT LoggingHttp2FrameDecoderListener
+    : public Http2FrameDecoderListener {
  public:
   LoggingHttp2FrameDecoderListener();
   explicit LoggingHttp2FrameDecoderListener(Http2FrameDecoderListener* wrapped);

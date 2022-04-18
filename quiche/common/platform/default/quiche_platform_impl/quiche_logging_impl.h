@@ -16,12 +16,13 @@
 #include <string>
 
 #include "absl/base/attributes.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
 
 // NoopLogSink provides a log sink that does not put the data that it logs
 // anywhere.
-class NoopLogSink {
+class QUICHE_EXPORT_PRIVATE NoopLogSink {
  public:
   NoopLogSink() {}
 
@@ -43,7 +44,7 @@ class NoopLogSink {
 
 // We need to actually implement LOG(FATAL), otherwise some functions will fail
 // to compile due to the "failed to return value from non-void function" error.
-class FatalLogSink : public NoopLogSink {
+class QUICHE_EXPORT_PRIVATE FatalLogSink : public NoopLogSink {
  public:
   ABSL_ATTRIBUTE_NORETURN ~FatalLogSink() { abort(); }
 };

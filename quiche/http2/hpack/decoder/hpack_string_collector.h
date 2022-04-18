@@ -14,6 +14,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/http2/hpack/decoder/hpack_string_decoder_listener.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -21,7 +22,8 @@ namespace test {
 
 // Records the callbacks associated with a decoding a string; must
 // call Clear() between decoding successive strings.
-struct HpackStringCollector : public HpackStringDecoderListener {
+struct QUICHE_NO_EXPORT HpackStringCollector
+    : public HpackStringDecoderListener {
   enum CollectorState {
     kGenesis,
     kStarted,
@@ -55,7 +57,8 @@ bool operator==(const HpackStringCollector& a, const HpackStringCollector& b);
 
 bool operator!=(const HpackStringCollector& a, const HpackStringCollector& b);
 
-std::ostream& operator<<(std::ostream& out, const HpackStringCollector& v);
+QUICHE_NO_EXPORT std::ostream& operator<<(std::ostream& out,
+                                          const HpackStringCollector& v);
 
 }  // namespace test
 }  // namespace http2

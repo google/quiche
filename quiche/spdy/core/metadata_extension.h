@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/spdy_header_block.h"
 #include "quiche/spdy/core/spdy_protocol.h"
@@ -19,7 +20,8 @@ namespace spdy {
 // a setting with a setting ID of kMetadataExtensionId and a value of 1.
 //
 // Metadata is represented as a HPACK header block with literal encoding.
-class MetadataVisitor : public spdy::ExtensionVisitorInterface {
+class QUICHE_EXPORT_PRIVATE MetadataVisitor
+    : public spdy::ExtensionVisitorInterface {
  public:
   using MetadataPayload = spdy::SpdyHeaderBlock;
 
@@ -89,11 +91,11 @@ class MetadataVisitor : public spdy::ExtensionVisitorInterface {
 };
 
 // A class that serializes metadata blocks as sequences of frames.
-class MetadataSerializer {
+class QUICHE_EXPORT_PRIVATE MetadataSerializer {
  public:
   using MetadataPayload = spdy::SpdyHeaderBlock;
 
-  class FrameSequence {
+  class QUICHE_EXPORT_PRIVATE FrameSequence {
    public:
     virtual ~FrameSequence() {}
 
