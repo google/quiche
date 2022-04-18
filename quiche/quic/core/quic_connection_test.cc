@@ -15747,16 +15747,16 @@ TEST_P(QuicConnectionTest, SendMultipleConnectionCloses) {
 
   SendStreamDataToPeer(1, "foo", 0, NO_FIN, nullptr);
   ASSERT_TRUE(connection_.BlackholeDetectionInProgress());
-  // Verify BeforeConnectionCloseSent gets called twice while OnConnectionClosed
-  // is called once.
+  // Verify that BeforeConnectionCloseSent() gets called twice,
+  // while OnConnectionClosed() is called only once.
   EXPECT_CALL(visitor_, BeforeConnectionCloseSent()).Times(2);
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
   // Send connection close w/o closing connection.
   QuicConnectionPeer::SendConnectionClosePacket(
       &connection_, INTERNAL_ERROR, QUIC_INTERNAL_ERROR, "internal error");
-  // Fire blackhole detection alarm.
-  EXPECT_QUIC_BUG(connection_.GetBlackholeDetectorAlarm()->Fire(),
-                  "Already sent connection close");
+  // Fire blackhole detection alarm.  This will invoke
+  // SendConnectionClosePacket() a second time.
+  connection_.GetBlackholeDetectorAlarm()->Fire();
 }
 
 // Regression test for b/157895910.

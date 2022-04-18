@@ -1295,6 +1295,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // |ietf_error| may optionally be be used to directly specify the wire
   // error code. Otherwise if |ietf_error| is NO_IETF_QUIC_ERROR, the
   // QuicErrorCodeToTransportErrorCode mapping of |error| will be used.
+  // Caller may choose to call SendConnectionClosePacket() directly instead of
+  // CloseConnection() to notify peer that the connection is going to be closed,
+  // for example, when the server is tearing down. Given
+  // SendConnectionClosePacket() does not close connection, multiple connection
+  // close packets could be sent to the peer.
   virtual void SendConnectionClosePacket(QuicErrorCode error,
                                          QuicIetfTransportErrorCodes ietf_error,
                                          const std::string& details);
@@ -2242,10 +2247,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   const bool flush_after_coalesce_higher_space_packets_ =
       GetQuicReloadableFlag(quic_flush_after_coalesce_higher_space_packets);
-
-  // Records the 1-RTT connection close frame sent.
-  // TODO(b/180103273): remove this after the bug gets fixed.
-  absl::optional<QuicConnectionCloseFrame> connection_close_frame_sent_;
 
   // If true, send connection close packet on INVALID_VERSION.
   bool send_connection_close_for_invalid_version_ = false;

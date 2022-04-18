@@ -776,21 +776,12 @@ void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
 
   stream_id = QuicUtils::GetMaxClientInitiatedBidirectionalStreamId(
       transport_version());
-  if (last_sent_http3_goaway_id_.has_value()) {
-    if (last_sent_http3_goaway_id_.value() == stream_id) {
-      // Do not send GOAWAY twice.
-      return;
-    }
-    if (last_sent_http3_goaway_id_.value() < stream_id) {
-      // A previous GOAWAY frame was sent with smaller stream ID.  This is not
-      // possible, because the only time a GOAWAY frame with non-maximal
-      // stream ID is sent is right before closing connection.
-      QUIC_BUG(quic_bug_10360_3)
-          << "Not sending GOAWAY frame with " << stream_id
-          << " because one with " << last_sent_http3_goaway_id_.value()
-          << " already sent on connection " << connection()->connection_id();
-      return;
-    }
+  if (last_sent_http3_goaway_id_.has_value() &&
+      last_sent_http3_goaway_id_.value() <= stream_id) {
+    // Do not send GOAWAY frame with a higher id, because it is forbidden.
+    // Do not send one with same stream id as before, since frames on the
+    // control stream are guaranteed to be processed in order.
+    return;
   }
 
   send_control_stream_->SendGoAway(stream_id);
@@ -1533,18 +1524,9 @@ void QuicSpdySession::BeforeConnectionCloseSent() {
   }
   if (last_sent_http3_goaway_id_.has_value() &&
       last_sent_http3_goaway_id_.value() <= stream_id) {
-    // A previous GOAWAY frame was sent with smaller stream ID.  This is not
-    // possible, because this is the only method sending a GOAWAY frame with
-    // non-maximal stream ID, and this must only be called once, right
-    // before closing connection.
-    QUIC_BUG(QuicGoawayFrameAlreadySent)
-        << "Not sending GOAWAY frame with " << stream_id << " because one with "
-        << last_sent_http3_goaway_id_.value() << " already sent on connection "
-        << connection()->connection_id();
-
-    // MUST not send GOAWAY with identifier larger than previously sent.
-    // Do not bother sending one with same identifier as before, since GOAWAY
-    // frames on the control stream are guaranteed to be processed in order.
+    // Do not send GOAWAY frame with a higher id, because it is forbidden.
+    // Do not send one with same stream id as before, since frames on the
+    // control stream are guaranteed to be processed in order.
     return;
   }
 

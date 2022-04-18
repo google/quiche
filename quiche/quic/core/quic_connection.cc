@@ -4543,16 +4543,6 @@ void QuicConnection::SendConnectionClosePacket(
     auto* frame = new QuicConnectionCloseFrame(
         transport_version(), error, ietf_error, details,
         framer_.current_received_frame_type());
-    if (level == ENCRYPTION_FORWARD_SECURE) {
-      if (connection_close_frame_sent_.has_value()) {
-        QUIC_BUG(quic_send_multiple_connection_closes)
-            << ENDPOINT << "Already sent connection close: "
-            << connection_close_frame_sent_.value()
-            << ", going to send connection close: " << *frame;
-      } else {
-        connection_close_frame_sent_ = *frame;
-      }
-    }
     packet_creator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
     packet_creator_.FlushCurrentPacket();
   }
