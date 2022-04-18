@@ -17,8 +17,7 @@ size_t HuffmanSize(absl::string_view plain) {
   return (bits + 7) / 8;
 }
 
-void HuffmanEncode(absl::string_view plain,
-                   size_t encoded_size,
+void HuffmanEncode(absl::string_view plain, size_t encoded_size,
                    std::string* huffman) {
   QUICHE_DCHECK(huffman != nullptr);
   huffman->reserve(huffman->size() + encoded_size);
@@ -65,8 +64,7 @@ void HuffmanEncode(absl::string_view plain,
   }
 }
 
-void HuffmanEncodeFast(absl::string_view input,
-                       size_t encoded_size,
+void HuffmanEncodeFast(absl::string_view input, size_t encoded_size,
                        std::string* output) {
   const size_t original_size = output->size();
   const size_t final_size = original_size + encoded_size;

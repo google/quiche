@@ -58,8 +58,7 @@ FrameParts::FrameParts(const Http2FrameHeader& header,
   opt_payload_length_ = payload.size();
 }
 FrameParts::FrameParts(const Http2FrameHeader& header,
-                       absl::string_view payload,
-                       size_t total_pad_length)
+                       absl::string_view payload, size_t total_pad_length)
     : FrameParts(header, payload) {
   HTTP2_VLOG(1) << "FrameParts with total_pad_length=" << total_pad_length;
   SetTotalPadLength(total_pad_length);
@@ -334,8 +333,7 @@ void FrameParts::OnWindowUpdate(const Http2FrameHeader& header,
 }
 
 void FrameParts::OnAltSvcStart(const Http2FrameHeader& header,
-                               size_t origin_length,
-                               size_t value_length) {
+                               size_t origin_length, size_t value_length) {
   HTTP2_VLOG(1) << "OnAltSvcStart: " << header
                 << "    origin_length: " << origin_length
                 << "    value_length: " << value_length;
@@ -505,8 +503,7 @@ void FrameParts::OutputTo(std::ostream& out) const {
 }
 
 AssertionResult FrameParts::StartFrameOfType(
-    const Http2FrameHeader& header,
-    Http2FrameType expected_frame_type) {
+    const Http2FrameHeader& header, Http2FrameType expected_frame_type) {
   VERIFY_EQ(header.type, expected_frame_type);
   VERIFY_FALSE(got_start_callback_);
   VERIFY_FALSE(got_end_callback_);

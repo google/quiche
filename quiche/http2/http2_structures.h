@@ -140,8 +140,7 @@ QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
 
 struct QUICHE_EXPORT_PRIVATE Http2PriorityFields {
   Http2PriorityFields() {}
-  Http2PriorityFields(uint32_t stream_dependency,
-                      uint32_t weight,
+  Http2PriorityFields(uint32_t stream_dependency, uint32_t weight,
                       bool is_exclusive)
       : stream_dependency(stream_dependency),
         weight(weight),
@@ -299,8 +298,7 @@ QUICHE_EXPORT_PRIVATE inline bool operator!=(const Http2WindowUpdateFields& a,
   return !(a == b);
 }
 QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& out,
-    const Http2WindowUpdateFields& v);
+    std::ostream& out, const Http2WindowUpdateFields& v);
 
 // Http2AltSvcFields:
 
@@ -338,13 +336,11 @@ struct QUICHE_EXPORT_PRIVATE Http2PriorityUpdateFields {
 QUICHE_EXPORT_PRIVATE bool operator==(const Http2PriorityUpdateFields& a,
                                       const Http2PriorityUpdateFields& b);
 QUICHE_EXPORT_PRIVATE inline bool operator!=(
-    const Http2PriorityUpdateFields& a,
-    const Http2PriorityUpdateFields& b) {
+    const Http2PriorityUpdateFields& a, const Http2PriorityUpdateFields& b) {
   return !(a == b);
 }
 QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& out,
-    const Http2PriorityUpdateFields& v);
+    std::ostream& out, const Http2PriorityUpdateFields& v);
 
 }  // namespace http2
 

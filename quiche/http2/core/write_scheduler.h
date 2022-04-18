@@ -73,8 +73,7 @@ class QUICHE_EXPORT_PRIVATE WriteScheduler {
   // Preconditions: |stream_id| should be unregistered, and
   // |precedence.parent_id()| should be registered or |kHttp2RootStreamId|.
   virtual void UpdateStreamPrecedence(
-      StreamIdType stream_id,
-      const StreamPrecedenceType& precedence) = 0;
+      StreamIdType stream_id, const StreamPrecedenceType& precedence) = 0;
 
   // Returns child streams of the given stream, if any. If the scheduler
   // doesn't support stream dependencies, returns an empty vector.

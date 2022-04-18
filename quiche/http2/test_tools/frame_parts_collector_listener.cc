@@ -116,8 +116,7 @@ void FramePartsCollectorListener::OnSettingsAck(
 }
 
 void FramePartsCollectorListener::OnPushPromiseStart(
-    const Http2FrameHeader& header,
-    const Http2PushPromiseFields& promise,
+    const Http2FrameHeader& header, const Http2PushPromiseFields& promise,
     size_t total_padding_length) {
   HTTP2_VLOG(1) << "OnPushPromiseStart header: " << header
                 << "  promise: " << promise
@@ -144,8 +143,7 @@ void FramePartsCollectorListener::OnPingAck(const Http2FrameHeader& header,
 }
 
 void FramePartsCollectorListener::OnGoAwayStart(
-    const Http2FrameHeader& header,
-    const Http2GoAwayFields& goaway) {
+    const Http2FrameHeader& header, const Http2GoAwayFields& goaway) {
   HTTP2_VLOG(1) << "OnGoAwayStart header: " << header << "; goaway: " << goaway;
   StartFrame(header)->OnGoAwayStart(header, goaway);
 }
@@ -162,8 +160,7 @@ void FramePartsCollectorListener::OnGoAwayEnd() {
 }
 
 void FramePartsCollectorListener::OnWindowUpdate(
-    const Http2FrameHeader& header,
-    uint32_t window_size_increment) {
+    const Http2FrameHeader& header, uint32_t window_size_increment) {
   HTTP2_VLOG(1) << "OnWindowUpdate: " << header
                 << "; window_size_increment=" << window_size_increment;
   EXPECT_EQ(Http2FrameType::WINDOW_UPDATE, header.type);
@@ -233,8 +230,7 @@ void FramePartsCollectorListener::OnUnknownEnd() {
 }
 
 void FramePartsCollectorListener::OnPaddingTooLong(
-    const Http2FrameHeader& header,
-    size_t missing_length) {
+    const Http2FrameHeader& header, size_t missing_length) {
   HTTP2_VLOG(1) << "OnPaddingTooLong: " << header
                 << "    missing_length: " << missing_length;
   EndFrame()->OnPaddingTooLong(header, missing_length);

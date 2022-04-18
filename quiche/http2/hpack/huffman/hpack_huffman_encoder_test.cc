@@ -16,8 +16,7 @@ class HuffmanEncoderTest : public ::testing::TestWithParam<bool> {
   HuffmanEncoderTest() : use_fast_encoder_(GetParam()) {}
   virtual ~HuffmanEncoderTest() = default;
 
-  void Encode(absl::string_view input,
-              size_t encoded_size,
+  void Encode(absl::string_view input, size_t encoded_size,
               std::string* output) {
     use_fast_encoder_ ? HuffmanEncodeFast(input, encoded_size, output)
                       : HuffmanEncode(input, encoded_size, output);

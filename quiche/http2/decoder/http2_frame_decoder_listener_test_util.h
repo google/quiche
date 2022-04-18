@@ -60,8 +60,7 @@ class QUICHE_NO_EXPORT FailingHttp2FrameDecoderListener
   void OnGoAwayEnd() override;
   void OnWindowUpdate(const Http2FrameHeader& header,
                       uint32_t increment) override;
-  void OnAltSvcStart(const Http2FrameHeader& header,
-                     size_t origin_length,
+  void OnAltSvcStart(const Http2FrameHeader& header, size_t origin_length,
                      size_t value_length) override;
   void OnAltSvcOriginData(const char* data, size_t len) override;
   void OnAltSvcValueData(const char* data, size_t len) override;
@@ -127,8 +126,7 @@ class QUICHE_NO_EXPORT LoggingHttp2FrameDecoderListener
   void OnGoAwayEnd() override;
   void OnWindowUpdate(const Http2FrameHeader& header,
                       uint32_t increment) override;
-  void OnAltSvcStart(const Http2FrameHeader& header,
-                     size_t origin_length,
+  void OnAltSvcStart(const Http2FrameHeader& header, size_t origin_length,
                      size_t value_length) override;
   void OnAltSvcOriginData(const char* data, size_t len) override;
   void OnAltSvcValueData(const char* data, size_t len) override;

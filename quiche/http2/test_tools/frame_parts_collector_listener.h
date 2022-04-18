@@ -67,8 +67,7 @@ class QUICHE_NO_EXPORT FramePartsCollectorListener
   void OnGoAwayEnd() override;
   void OnWindowUpdate(const Http2FrameHeader& header,
                       uint32_t window_size_increment) override;
-  void OnAltSvcStart(const Http2FrameHeader& header,
-                     size_t origin_length,
+  void OnAltSvcStart(const Http2FrameHeader& header, size_t origin_length,
                      size_t value_length) override;
   void OnAltSvcOriginData(const char* data, size_t len) override;
   void OnAltSvcValueData(const char* data, size_t len) override;

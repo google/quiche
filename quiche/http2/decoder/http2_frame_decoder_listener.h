@@ -233,8 +233,7 @@ class QUICHE_EXPORT_PRIVATE Http2FrameDecoderListener {
   //   OnAltSvcEnd will called last, after all of the origin and
   //     Alt-Svc-Field-Value have been delivered to the listener.
   virtual void OnAltSvcStart(const Http2FrameHeader& header,
-                             size_t origin_length,
-                             size_t value_length) = 0;
+                             size_t origin_length, size_t value_length) = 0;
 
   // Called when decoding the (optional) origin of an ALTSVC;
   // the field is uninterpreted.

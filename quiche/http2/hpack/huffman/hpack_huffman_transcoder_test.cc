@@ -72,8 +72,7 @@ class HpackHuffmanTranscoderTest : public RandomDecoderTest {
   }
 
   AssertionResult TranscodeAndValidateSeveralWays(
-      absl::string_view plain,
-      absl::string_view expected_huffman) {
+      absl::string_view plain, absl::string_view expected_huffman) {
     size_t encoded_size = HuffmanSize(plain);
     std::string encoded;
     HuffmanEncode(plain, encoded_size, &encoded);

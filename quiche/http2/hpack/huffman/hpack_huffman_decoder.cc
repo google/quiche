@@ -345,9 +345,7 @@ struct ShortCodeInfo {
 
 }  // namespace
 
-HuffmanBitBuffer::HuffmanBitBuffer() {
-  Reset();
-}
+HuffmanBitBuffer::HuffmanBitBuffer() { Reset(); }
 
 void HuffmanBitBuffer::Reset() {
   accumulator_ = 0;

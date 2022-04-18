@@ -112,8 +112,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   // payload will be decoded several times with different partitionings
   // of the payload, and after each the validator will be called.
   AssertionResult DecodePayloadAndValidateSeveralWays(
-      absl::string_view payload,
-      const FrameParts& expected) {
+      absl::string_view payload, const FrameParts& expected) {
     auto validator = [&expected, this](const DecodeBuffer& /*input*/,
                                        DecodeStatus status) -> AssertionResult {
       VERIFY_EQ(status, DecodeStatus::kDecodeDone);
@@ -141,16 +140,14 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
 
   template <size_t N>
   AssertionResult DecodePayloadAndValidateSeveralWays(
-      const char (&buf)[N],
-      const FrameParts& expected) {
+      const char (&buf)[N], const FrameParts& expected) {
     return DecodePayloadAndValidateSeveralWays(absl::string_view(buf, N),
                                                expected);
   }
 
   template <size_t N>
   AssertionResult DecodePayloadAndValidateSeveralWays(
-      const char (&buf)[N],
-      const Http2FrameHeader& header) {
+      const char (&buf)[N], const Http2FrameHeader& header) {
     return DecodePayloadAndValidateSeveralWays(absl::string_view(buf, N),
                                                FrameParts(header));
   }
@@ -180,8 +177,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
 
   template <size_t N>
   AssertionResult DecodePayloadExpectingFrameSizeError(
-      const char (&buf)[N],
-      const Http2FrameHeader& header) {
+      const char (&buf)[N], const Http2FrameHeader& header) {
     return DecodePayloadExpectingFrameSizeError(buf, FrameParts(header));
   }
 

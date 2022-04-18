@@ -39,8 +39,7 @@ class QUICHE_NO_EXPORT FrameParts : public Http2FrameDecoderListener {
 
   // For use in tests where the expected frame has a variable size payload
   // and may be padded.
-  FrameParts(const Http2FrameHeader& header,
-             absl::string_view payload,
+  FrameParts(const Http2FrameHeader& header, absl::string_view payload,
              size_t total_pad_length);
 
   // Copy constructor.
@@ -96,8 +95,7 @@ class QUICHE_NO_EXPORT FrameParts : public Http2FrameDecoderListener {
   void OnGoAwayEnd() override;
   void OnWindowUpdate(const Http2FrameHeader& header,
                       uint32_t increment) override;
-  void OnAltSvcStart(const Http2FrameHeader& header,
-                     size_t origin_length,
+  void OnAltSvcStart(const Http2FrameHeader& header, size_t origin_length,
                      size_t value_length) override;
   void OnAltSvcOriginData(const char* data, size_t len) override;
   void OnAltSvcValueData(const char* data, size_t len) override;
@@ -200,8 +198,7 @@ class QUICHE_NO_EXPORT FrameParts : public Http2FrameDecoderListener {
   // expected_frame_type, and have not already received other On* methods
   // (i.e. got_start_callback is false).
   ::testing::AssertionResult StartFrameOfType(
-      const Http2FrameHeader& header,
-      Http2FrameType expected_frame_type);
+      const Http2FrameHeader& header, Http2FrameType expected_frame_type);
 
   // ASSERT that StartFrameOfType has already been called with
   // expected_frame_type (i.e. got_start_callback has been called), and that

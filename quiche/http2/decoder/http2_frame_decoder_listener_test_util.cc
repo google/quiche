@@ -31,9 +31,7 @@ void FailingHttp2FrameDecoderListener::OnDataPayload(const char* /*data*/,
   FAIL() << "OnDataPayload: len=" << len;
 }
 
-void FailingHttp2FrameDecoderListener::OnDataEnd() {
-  FAIL() << "OnDataEnd";
-}
+void FailingHttp2FrameDecoderListener::OnDataEnd() { FAIL() << "OnDataEnd"; }
 
 void FailingHttp2FrameDecoderListener::OnHeadersStart(
     const Http2FrameHeader& header) {
@@ -55,8 +53,7 @@ void FailingHttp2FrameDecoderListener::OnHeadersEnd() {
 }
 
 void FailingHttp2FrameDecoderListener::OnPriorityFrame(
-    const Http2FrameHeader& header,
-    const Http2PriorityFields& priority) {
+    const Http2FrameHeader& header, const Http2PriorityFields& priority) {
   FAIL() << "OnPriorityFrame: " << header << "; priority: " << priority;
 }
 
@@ -79,8 +76,7 @@ void FailingHttp2FrameDecoderListener::OnPadding(const char* /*padding*/,
 }
 
 void FailingHttp2FrameDecoderListener::OnRstStream(
-    const Http2FrameHeader& header,
-    Http2ErrorCode error_code) {
+    const Http2FrameHeader& header, Http2ErrorCode error_code) {
   FAIL() << "OnRstStream: " << header << "; code=" << error_code;
 }
 
@@ -104,8 +100,7 @@ void FailingHttp2FrameDecoderListener::OnSettingsAck(
 }
 
 void FailingHttp2FrameDecoderListener::OnPushPromiseStart(
-    const Http2FrameHeader& header,
-    const Http2PushPromiseFields& promise,
+    const Http2FrameHeader& header, const Http2PushPromiseFields& promise,
     size_t total_padding_length) {
   FAIL() << "OnPushPromiseStart: " << header << "; promise: " << promise
          << "; total_padding_length: " << total_padding_length;
@@ -126,8 +121,7 @@ void FailingHttp2FrameDecoderListener::OnPingAck(const Http2FrameHeader& header,
 }
 
 void FailingHttp2FrameDecoderListener::OnGoAwayStart(
-    const Http2FrameHeader& header,
-    const Http2GoAwayFields& goaway) {
+    const Http2FrameHeader& header, const Http2GoAwayFields& goaway) {
   FAIL() << "OnGoAwayStart: " << header << "; goaway: " << goaway;
 }
 
@@ -141,15 +135,12 @@ void FailingHttp2FrameDecoderListener::OnGoAwayEnd() {
 }
 
 void FailingHttp2FrameDecoderListener::OnWindowUpdate(
-    const Http2FrameHeader& header,
-    uint32_t increment) {
+    const Http2FrameHeader& header, uint32_t increment) {
   FAIL() << "OnWindowUpdate: " << header << "; increment=" << increment;
 }
 
 void FailingHttp2FrameDecoderListener::OnAltSvcStart(
-    const Http2FrameHeader& header,
-    size_t origin_length,
-    size_t value_length) {
+    const Http2FrameHeader& header, size_t origin_length, size_t value_length) {
   FAIL() << "OnAltSvcStart: " << header << "; origin_length: " << origin_length
          << "; value_length: " << value_length;
 }
@@ -176,8 +167,7 @@ void FailingHttp2FrameDecoderListener::OnPriorityUpdateStart(
 }
 
 void FailingHttp2FrameDecoderListener::OnPriorityUpdatePayload(
-    const char* /*data*/,
-    size_t len) {
+    const char* /*data*/, size_t len) {
   FAIL() << "OnPriorityUpdatePayload: len=" << len;
 }
 
@@ -200,8 +190,7 @@ void FailingHttp2FrameDecoderListener::OnUnknownEnd() {
 }
 
 void FailingHttp2FrameDecoderListener::OnPaddingTooLong(
-    const Http2FrameHeader& header,
-    size_t missing_length) {
+    const Http2FrameHeader& header, size_t missing_length) {
   FAIL() << "OnPaddingTooLong: " << header
          << "; missing_length: " << missing_length;
 }
@@ -282,8 +271,7 @@ void LoggingHttp2FrameDecoderListener::OnHeadersEnd() {
 }
 
 void LoggingHttp2FrameDecoderListener::OnPriorityFrame(
-    const Http2FrameHeader& header,
-    const Http2PriorityFields& priority) {
+    const Http2FrameHeader& header, const Http2PriorityFields& priority) {
   HTTP2_VLOG(1) << "OnPriorityFrame: " << header << "; priority: " << priority;
   if (wrapped_ != nullptr) {
     wrapped_->OnPriorityFrame(header, priority);
@@ -321,8 +309,7 @@ void LoggingHttp2FrameDecoderListener::OnPadding(const char* padding,
 }
 
 void LoggingHttp2FrameDecoderListener::OnRstStream(
-    const Http2FrameHeader& header,
-    Http2ErrorCode error_code) {
+    const Http2FrameHeader& header, Http2ErrorCode error_code) {
   HTTP2_VLOG(1) << "OnRstStream: " << header << "; code=" << error_code;
   if (wrapped_ != nullptr) {
     wrapped_->OnRstStream(header, error_code);
@@ -361,8 +348,7 @@ void LoggingHttp2FrameDecoderListener::OnSettingsAck(
 }
 
 void LoggingHttp2FrameDecoderListener::OnPushPromiseStart(
-    const Http2FrameHeader& header,
-    const Http2PushPromiseFields& promise,
+    const Http2FrameHeader& header, const Http2PushPromiseFields& promise,
     size_t total_padding_length) {
   HTTP2_VLOG(1) << "OnPushPromiseStart: " << header << "; promise: " << promise
                 << "; total_padding_length: " << total_padding_length;
@@ -395,8 +381,7 @@ void LoggingHttp2FrameDecoderListener::OnPingAck(const Http2FrameHeader& header,
 }
 
 void LoggingHttp2FrameDecoderListener::OnGoAwayStart(
-    const Http2FrameHeader& header,
-    const Http2GoAwayFields& goaway) {
+    const Http2FrameHeader& header, const Http2GoAwayFields& goaway) {
   HTTP2_VLOG(1) << "OnGoAwayStart: " << header << "; goaway: " << goaway;
   if (wrapped_ != nullptr) {
     wrapped_->OnGoAwayStart(header, goaway);
@@ -419,8 +404,7 @@ void LoggingHttp2FrameDecoderListener::OnGoAwayEnd() {
 }
 
 void LoggingHttp2FrameDecoderListener::OnWindowUpdate(
-    const Http2FrameHeader& header,
-    uint32_t increment) {
+    const Http2FrameHeader& header, uint32_t increment) {
   HTTP2_VLOG(1) << "OnWindowUpdate: " << header << "; increment=" << increment;
   if (wrapped_ != nullptr) {
     wrapped_->OnWindowUpdate(header, increment);
@@ -428,9 +412,7 @@ void LoggingHttp2FrameDecoderListener::OnWindowUpdate(
 }
 
 void LoggingHttp2FrameDecoderListener::OnAltSvcStart(
-    const Http2FrameHeader& header,
-    size_t origin_length,
-    size_t value_length) {
+    const Http2FrameHeader& header, size_t origin_length, size_t value_length) {
   HTTP2_VLOG(1) << "OnAltSvcStart: " << header
                 << "; origin_length: " << origin_length
                 << "; value_length: " << value_length;
@@ -510,8 +492,7 @@ void LoggingHttp2FrameDecoderListener::OnUnknownEnd() {
 }
 
 void LoggingHttp2FrameDecoderListener::OnPaddingTooLong(
-    const Http2FrameHeader& header,
-    size_t missing_length) {
+    const Http2FrameHeader& header, size_t missing_length) {
   HTTP2_VLOG(1) << "OnPaddingTooLong: " << header
                 << "; missing_length: " << missing_length;
   if (wrapped_ != nullptr) {

@@ -114,13 +114,11 @@ class QUICHE_EXPORT_PRIVATE Http2StructureDecoder {
   friend class test::Http2StructureDecoderPeer;
 
   uint32_t IncompleteStart(DecodeBuffer* db, uint32_t target_size);
-  DecodeStatus IncompleteStart(DecodeBuffer* db,
-                               uint32_t* remaining_payload,
+  DecodeStatus IncompleteStart(DecodeBuffer* db, uint32_t* remaining_payload,
                                uint32_t target_size);
 
   bool ResumeFillingBuffer(DecodeBuffer* db, uint32_t target_size);
-  bool ResumeFillingBuffer(DecodeBuffer* db,
-                           uint32_t* remaining_payload,
+  bool ResumeFillingBuffer(DecodeBuffer* db, uint32_t* remaining_payload,
                            uint32_t target_size);
 
   uint32_t offset_;

@@ -165,8 +165,7 @@ class Http2FrameHeaderTypeAndFlagTest
 };
 
 class IsEndStreamTest : public Http2FrameHeaderTypeAndFlagTest {};
-INSTANTIATE_TEST_SUITE_P(IsEndStream,
-                         IsEndStreamTest,
+INSTANTIATE_TEST_SUITE_P(IsEndStream, IsEndStreamTest,
                          Combine(ValuesIn(ValidFrameTypes()),
                                  Values(~Http2FrameFlag::END_STREAM, 0xff)));
 TEST_P(IsEndStreamTest, IsEndStream) {
@@ -203,8 +202,7 @@ TEST_P(IsEndStreamTest, IsEndStream) {
 }
 
 class IsACKTest : public Http2FrameHeaderTypeAndFlagTest {};
-INSTANTIATE_TEST_SUITE_P(IsAck,
-                         IsACKTest,
+INSTANTIATE_TEST_SUITE_P(IsAck, IsACKTest,
                          Combine(ValuesIn(ValidFrameTypes()),
                                  Values(~Http2FrameFlag::ACK, 0xff)));
 TEST_P(IsACKTest, IsAck) {
@@ -240,8 +238,7 @@ TEST_P(IsACKTest, IsAck) {
 }
 
 class IsEndHeadersTest : public Http2FrameHeaderTypeAndFlagTest {};
-INSTANTIATE_TEST_SUITE_P(IsEndHeaders,
-                         IsEndHeadersTest,
+INSTANTIATE_TEST_SUITE_P(IsEndHeaders, IsEndHeadersTest,
                          Combine(ValuesIn(ValidFrameTypes()),
                                  Values(~Http2FrameFlag::END_HEADERS, 0xff)));
 TEST_P(IsEndHeadersTest, IsEndHeaders) {
@@ -281,8 +278,7 @@ TEST_P(IsEndHeadersTest, IsEndHeaders) {
 }
 
 class IsPaddedTest : public Http2FrameHeaderTypeAndFlagTest {};
-INSTANTIATE_TEST_SUITE_P(IsPadded,
-                         IsPaddedTest,
+INSTANTIATE_TEST_SUITE_P(IsPadded, IsPaddedTest,
                          Combine(ValuesIn(ValidFrameTypes()),
                                  Values(~Http2FrameFlag::PADDED, 0xff)));
 TEST_P(IsPaddedTest, IsPadded) {
@@ -320,8 +316,7 @@ TEST_P(IsPaddedTest, IsPadded) {
 }
 
 class HasPriorityTest : public Http2FrameHeaderTypeAndFlagTest {};
-INSTANTIATE_TEST_SUITE_P(HasPriority,
-                         HasPriorityTest,
+INSTANTIATE_TEST_SUITE_P(HasPriority, HasPriorityTest,
                          Combine(ValuesIn(ValidFrameTypes()),
                                  Values(~Http2FrameFlag::PRIORITY, 0xff)));
 TEST_P(HasPriorityTest, HasPriority) {

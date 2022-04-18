@@ -258,9 +258,7 @@ void Http2FrameDecoder::RetainFlags(uint8_t valid_flags) {
 
 // Clear all of the flags in the frame header; for use with frame types that
 // don't define any flags, such as WINDOW_UPDATE.
-void Http2FrameDecoder::ClearFlags() {
-  frame_decoder_state_.ClearFlags();
-}
+void Http2FrameDecoder::ClearFlags() { frame_decoder_state_.ClearFlags(); }
 
 DecodeStatus Http2FrameDecoder::StartDecodingAltSvcPayload(DecodeBuffer* db) {
   ClearFlags();
