@@ -67,8 +67,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_flush_after_coalesce_higher_space_pack
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_flush_pending_frames_and_padding_bytes_on_migration, true)
 // If true, ietf connection migration is no longer conditioned on connection option RVCM.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_remove_connection_migration_connection_option_v2, false)
-// If true, ignore incoming MAX_PUSH_ID frames (expect for enforcing frame type rules).
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_ignore_max_push_id, true)
 // If true, include stream information in idle timeout connection close detail.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, limit the size of HPACK encoder dynamic table to 16 kB.  Only affects gQUIC; QPACK encoder dynamic table size used in IETF QUIC is already bounded.

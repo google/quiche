@@ -81,8 +81,6 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   // Incoming HTTP/3 frames on the control stream.
   virtual void OnSettingsFrameReceived(const SettingsFrame& /*frame*/) = 0;
   virtual void OnGoAwayFrameReceived(const GoAwayFrame& /*frame*/) {}
-  // TODO(b/171463363): Remove.
-  virtual void OnMaxPushIdFrameReceived(const MaxPushIdFrame& /*frame*/) {}
   virtual void OnPriorityUpdateFrameReceived(
       const PriorityUpdateFrame& /*frame*/) {}
   virtual void OnAcceptChFrameReceived(const AcceptChFrame& /*frame*/) {}
@@ -322,14 +320,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // those streams are not initialized yet.
   void OnCanCreateNewOutgoingStream(bool unidirectional) override;
 
-  // Sets |max_push_id_|.
-  // This method must only be called if protocol is IETF QUIC and perspective is
-  // server.  It must only be called if a MAX_PUSH_ID frame is received.
-  // Returns whether |max_push_id| is greater than or equal to current
-  // |max_push_id_|.
-  // TODO(b/171463363): Remove.
-  bool OnMaxPushIdFrame(PushId max_push_id);
-
   int32_t destruction_indicator() const { return destruction_indicator_; }
 
   void set_debug_visitor(Http3DebugVisitor* debug_visitor) {
@@ -567,10 +557,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
       absl::string_view type);
 
   // Sends any data which should be sent at the start of a connection, including
-  // the initial SETTINGS frame, and (when IETF QUIC is used) also a MAX_PUSH_ID
-  // frame if SetMaxPushId() had been called before encryption was established.
-  // When using 0-RTT, this method is called twice: once when encryption is
-  // established, and again when 1-RTT keys are available.
+  // the initial SETTINGS frame.  When using 0-RTT, this method is called twice:
+  // once when encryption is established, and again when 1-RTT keys are
+  // available.
   void SendInitialData();
 
   void FillSettingsFrame();
@@ -630,20 +619,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   spdy::SpdyFramer spdy_framer_;
   http2::Http2DecoderAdapter h2_deframer_;
   std::unique_ptr<SpdyFramerVisitor> spdy_framer_visitor_;
-
-  // Used in IETF QUIC only.
-  // For a server:
-  //   the push ID in the most recently received MAX_PUSH_ID frame,
-  //   or unset if no MAX_PUSH_ID frame has been received.
-  // For a client:
-  //   unset until SetMaxPushId() is called;
-  //   before encryption is established, the push ID to be sent in the initial
-  //   MAX_PUSH_ID frame;
-  //   after encryption is established, the push ID in the most recently sent
-  //   MAX_PUSH_ID frame.
-  // Once set, never goes back to unset.
-  // TODO(b/171463363): Remove.
-  absl::optional<PushId> max_push_id_;
 
   // Not owned by the session.
   Http3DebugVisitor* debug_visitor_;

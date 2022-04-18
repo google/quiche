@@ -502,29 +502,6 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     return std::string(priority_buffer.get(), priority_frame_length);
   }
 
-  // TODO(b/171463363): Remove.
-  std::string SerializeMaxPushIdFrame(PushId push_id) {
-    const QuicByteCount payload_length =
-        QuicDataWriter::GetVarInt62Len(push_id);
-
-    const QuicByteCount total_length =
-        QuicDataWriter::GetVarInt62Len(
-            static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID)) +
-        QuicDataWriter::GetVarInt62Len(payload_length) +
-        QuicDataWriter::GetVarInt62Len(push_id);
-
-    std::string max_push_id_frame(total_length, '\0');
-    QuicDataWriter writer(total_length, &*max_push_id_frame.begin());
-
-    QUICHE_CHECK(writer.WriteVarInt62(
-        static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID)));
-    QUICHE_CHECK(writer.WriteVarInt62(payload_length));
-    QUICHE_CHECK(writer.WriteVarInt62(push_id));
-    QUICHE_CHECK_EQ(0u, writer.remaining());
-
-    return max_push_id_frame;
-  }
-
   QuicStreamId StreamCountToId(QuicStreamCount stream_count,
                                Perspective perspective, bool bidirectional) {
     // Calculate and build up stream ID rather than use
@@ -1813,60 +1790,6 @@ TEST_P(QuicSpdySessionTestServer, DrainingStreamsDoNotCountAsOpened) {
     session_.StreamDraining(i, /*unidirectional=*/false);
     EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
   }
-}
-
-// TODO(b/171463363): Remove.
-TEST_P(QuicSpdySessionTestServer, ReduceMaxPushId) {
-  if (GetQuicReloadableFlag(quic_ignore_max_push_id)) {
-    return;
-  }
-
-  if (!VersionUsesHttp3(transport_version())) {
-    return;
-  }
-
-  StrictMock<MockHttp3DebugVisitor> debug_visitor;
-  session_.set_debug_visitor(&debug_visitor);
-
-  // Use an arbitrary stream id for incoming control stream.
-  QuicStreamId stream_id =
-      GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
-  char type[] = {kControlStream};
-  absl::string_view stream_type(type, 1);
-
-  QuicStreamOffset offset = 0;
-  QuicStreamFrame data1(stream_id, false, offset, stream_type);
-  offset += stream_type.length();
-  EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(stream_id));
-  session_.OnStreamFrame(data1);
-  EXPECT_EQ(stream_id,
-            QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
-
-  SettingsFrame settings;
-  std::string settings_frame = EncodeSettings(settings);
-  QuicStreamFrame data2(stream_id, false, offset, settings_frame);
-  offset += settings_frame.length();
-
-  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
-  session_.OnStreamFrame(data2);
-
-  std::string max_push_id_frame1 = SerializeMaxPushIdFrame(/* push_id = */ 3);
-  QuicStreamFrame data3(stream_id, false, offset, max_push_id_frame1);
-  offset += max_push_id_frame1.length();
-
-  EXPECT_CALL(debug_visitor, OnMaxPushIdFrameReceived(_));
-  session_.OnStreamFrame(data3);
-
-  std::string max_push_id_frame2 = SerializeMaxPushIdFrame(/* push_id = */ 1);
-  QuicStreamFrame data4(stream_id, false, offset, max_push_id_frame2);
-
-  EXPECT_CALL(debug_visitor, OnMaxPushIdFrameReceived(_));
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_HTTP_INVALID_MAX_PUSH_ID,
-                              "MAX_PUSH_ID received with value 1 which is "
-                              "smaller that previously received value 3",
-                              _));
-  session_.OnStreamFrame(data4);
 }
 
 class QuicSpdySessionTestClient : public QuicSpdySessionTestBase {

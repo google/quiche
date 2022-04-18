@@ -62,21 +62,9 @@ void QuicReceiveControlStream::OnError(HttpDecoder* decoder) {
   stream_delegate()->OnStreamError(decoder->error(), decoder->error_detail());
 }
 
-bool QuicReceiveControlStream::OnMaxPushIdFrame(const MaxPushIdFrame& frame) {
-  if (GetQuicReloadableFlag(quic_ignore_max_push_id)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_ignore_max_push_id);
-    return ValidateFrameType(HttpFrameType::MAX_PUSH_ID);
-  }
-
-  if (spdy_session()->debug_visitor()) {
-    spdy_session()->debug_visitor()->OnMaxPushIdFrameReceived(frame);
-  }
-
-  if (!ValidateFrameType(HttpFrameType::MAX_PUSH_ID)) {
-    return false;
-  }
-
-  return spdy_session()->OnMaxPushIdFrame(frame.push_id);
+bool QuicReceiveControlStream::OnMaxPushIdFrame(
+    const MaxPushIdFrame& /*frame*/) {
+  return ValidateFrameType(HttpFrameType::MAX_PUSH_ID);
 }
 
 bool QuicReceiveControlStream::OnGoAwayFrame(const GoAwayFrame& frame) {

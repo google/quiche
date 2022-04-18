@@ -959,8 +959,6 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
   MOCK_METHOD(void, OnSettingsFrameReceived, (const SettingsFrame&),
               (override));
   MOCK_METHOD(void, OnGoAwayFrameReceived, (const GoAwayFrame&), (override));
-  MOCK_METHOD(void, OnMaxPushIdFrameReceived, (const MaxPushIdFrame&),
-              (override));
   MOCK_METHOD(void, OnPriorityUpdateFrameReceived, (const PriorityUpdateFrame&),
               (override));
   MOCK_METHOD(void, OnAcceptChFrameReceived, (const AcceptChFrame&),

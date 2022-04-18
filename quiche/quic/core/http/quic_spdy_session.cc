@@ -1558,38 +1558,6 @@ void QuicSpdySession::OnCanCreateNewOutgoingStream(bool unidirectional) {
   }
 }
 
-bool QuicSpdySession::OnMaxPushIdFrame(PushId max_push_id) {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
-  QUICHE_DCHECK_EQ(Perspective::IS_SERVER, perspective());
-
-  if (max_push_id_.has_value()) {
-    QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id
-                  << " from: " << max_push_id_.value();
-  } else {
-    QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id
-                  << " from unset";
-  }
-  absl::optional<PushId> old_max_push_id = max_push_id_;
-  max_push_id_ = max_push_id;
-
-  if (!old_max_push_id.has_value() || max_push_id > old_max_push_id.value()) {
-    OnCanCreateNewOutgoingStream(true);
-    return true;
-  }
-
-  // Equal value is not considered an error.
-  if (max_push_id < old_max_push_id.value()) {
-    CloseConnectionWithDetails(
-        QUIC_HTTP_INVALID_MAX_PUSH_ID,
-        absl::StrCat("MAX_PUSH_ID received with value ", max_push_id,
-                     " which is smaller that previously received value ",
-                     old_max_push_id.value()));
-    return false;
-  }
-
-  return true;
-}
-
 bool QuicSpdySession::goaway_received() const {
   return VersionUsesHttp3(transport_version())
              ? last_received_http3_goaway_id_.has_value()
