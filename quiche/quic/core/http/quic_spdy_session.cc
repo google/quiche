@@ -74,7 +74,7 @@ class AlpsFrameDecoder : public HttpDecoder::Visitor {
 
   // HttpDecoder::Visitor implementation.
   void OnError(HttpDecoder* /*decoder*/) override {}
-  bool OnMaxPushIdFrame(const MaxPushIdFrame& /*frame*/) override {
+  bool OnMaxPushIdFrame() override {
     error_detail_ = "MAX_PUSH_ID frame forbidden";
     return false;
   }

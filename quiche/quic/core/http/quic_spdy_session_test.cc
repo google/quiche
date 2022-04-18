@@ -1300,8 +1300,7 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayLargerIdThanBefore) {
   }
 
   EXPECT_FALSE(session_.goaway_received());
-  PushId push_id1 = 0;
-  session_.OnHttp3GoAway(push_id1);
+  session_.OnHttp3GoAway(/* id = */ 0);
   EXPECT_TRUE(session_.goaway_received());
 
   EXPECT_CALL(
@@ -1310,8 +1309,7 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayLargerIdThanBefore) {
           QUIC_HTTP_GOAWAY_ID_LARGER_THAN_PREVIOUS,
           "GOAWAY received with ID 1 greater than previously received ID 0",
           _));
-  PushId push_id2 = 1;
-  session_.OnHttp3GoAway(push_id2);
+  session_.OnHttp3GoAway(/* id = */ 1);
 }
 
 // Test that server session will send a connectivity probe in response to a

@@ -528,8 +528,8 @@ bool HttpDecoder::ParseEntirePayload(QuicDataReader* reader) {
       return visitor_->OnGoAwayFrame(frame);
     }
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID): {
-      MaxPushIdFrame frame;
-      if (!reader->ReadVarInt62(&frame.push_id)) {
+      uint64_t unused;
+      if (!reader->ReadVarInt62(&unused)) {
         RaiseError(QUIC_HTTP_FRAME_ERROR,
                    "Unable to read MAX_PUSH_ID push_id.");
         return false;
@@ -539,7 +539,7 @@ bool HttpDecoder::ParseEntirePayload(QuicDataReader* reader) {
                    "Superfluous data in MAX_PUSH_ID frame.");
         return false;
       }
-      return visitor_->OnMaxPushIdFrame(frame);
+      return visitor_->OnMaxPushIdFrame();
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM): {
       PriorityUpdateFrame frame;

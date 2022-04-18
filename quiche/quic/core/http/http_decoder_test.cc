@@ -45,8 +45,7 @@ class MockHttpDecoderVisitor : public HttpDecoder::Visitor {
   // Called if an error is detected.
   MOCK_METHOD(void, OnError, (HttpDecoder*), (override));
 
-  MOCK_METHOD(bool, OnMaxPushIdFrame, (const MaxPushIdFrame& frame),
-              (override));
+  MOCK_METHOD(bool, OnMaxPushIdFrame, (), (override));
   MOCK_METHOD(bool, OnGoAwayFrame, (const GoAwayFrame& frame), (override));
   MOCK_METHOD(bool, OnSettingsFrameStart, (QuicByteCount header_length),
               (override));
@@ -90,7 +89,7 @@ class MockHttpDecoderVisitor : public HttpDecoder::Visitor {
 class HttpDecoderTest : public QuicTest {
  public:
   HttpDecoderTest() : decoder_(&visitor_) {
-    ON_CALL(visitor_, OnMaxPushIdFrame(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnMaxPushIdFrame()).WillByDefault(Return(true));
     ON_CALL(visitor_, OnGoAwayFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnSettingsFrameStart(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnSettingsFrame(_)).WillByDefault(Return(true));
@@ -230,20 +229,19 @@ TEST_F(HttpDecoderTest, MaxPushId) {
       "01");  // Push Id
 
   // Visitor pauses processing.
-  EXPECT_CALL(visitor_, OnMaxPushIdFrame(MaxPushIdFrame({1})))
-      .WillOnce(Return(false));
+  EXPECT_CALL(visitor_, OnMaxPushIdFrame()).WillOnce(Return(false));
   EXPECT_EQ(input.size(), ProcessInputWithGarbageAppended(input));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the full frame.
-  EXPECT_CALL(visitor_, OnMaxPushIdFrame(MaxPushIdFrame({1})));
+  EXPECT_CALL(visitor_, OnMaxPushIdFrame());
   EXPECT_EQ(input.size(), ProcessInput(input));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the frame incrementally.
-  EXPECT_CALL(visitor_, OnMaxPushIdFrame(MaxPushIdFrame({1})));
+  EXPECT_CALL(visitor_, OnMaxPushIdFrame());
   ProcessInputCharByChar(input);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());

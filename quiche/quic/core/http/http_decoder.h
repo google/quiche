@@ -45,7 +45,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // processed.  At that point it is safe to consume |header_length| bytes.
 
     // Called when a MAX_PUSH_ID frame has been successfully parsed.
-    virtual bool OnMaxPushIdFrame(const MaxPushIdFrame& frame) = 0;
+    virtual bool OnMaxPushIdFrame() = 0;
 
     // Called when a GOAWAY frame has been successfully parsed.
     virtual bool OnGoAwayFrame(const GoAwayFrame& frame) = 0;

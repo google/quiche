@@ -20,9 +20,6 @@
 
 namespace quic {
 
-// TODO(b/171463363): Remove.
-using PushId = uint64_t;
-
 enum class HttpFrameType {
   DATA = 0x0,
   HEADERS = 0x1,
@@ -99,18 +96,6 @@ struct QUIC_EXPORT_PRIVATE GoAwayFrame {
   uint64_t id;
 
   bool operator==(const GoAwayFrame& rhs) const { return id == rhs.id; }
-};
-
-// 7.2.7.  MAX_PUSH_ID
-//
-//   The MAX_PUSH_ID frame (type=0xD) is used by clients to control the
-//   number of server pushes that the server can initiate.
-struct QUIC_EXPORT_PRIVATE MaxPushIdFrame {
-  PushId push_id;
-
-  bool operator==(const MaxPushIdFrame& rhs) const {
-    return push_id == rhs.push_id;
-  }
 };
 
 // https://httpwg.org/http-extensions/draft-ietf-httpbis-priority.html

@@ -44,17 +44,6 @@ TEST(HttpFramesTest, GoAwayFrame) {
   EXPECT_TRUE(a == b);
 }
 
-TEST(HttpFramesTest, MaxPushIdFrame) {
-  MaxPushIdFrame a{1};
-  EXPECT_TRUE(a == a);
-
-  MaxPushIdFrame b{2};
-  EXPECT_FALSE(a == b);
-
-  b.push_id = 1;
-  EXPECT_TRUE(a == b);
-}
-
 TEST(HttpFramesTest, PriorityUpdateFrame) {
   PriorityUpdateFrame a{REQUEST_STREAM, 0, ""};
   EXPECT_TRUE(a == a);

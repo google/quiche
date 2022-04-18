@@ -62,8 +62,7 @@ void QuicReceiveControlStream::OnError(HttpDecoder* decoder) {
   stream_delegate()->OnStreamError(decoder->error(), decoder->error_detail());
 }
 
-bool QuicReceiveControlStream::OnMaxPushIdFrame(
-    const MaxPushIdFrame& /*frame*/) {
+bool QuicReceiveControlStream::OnMaxPushIdFrame() {
   return ValidateFrameType(HttpFrameType::MAX_PUSH_ID);
 }
 
