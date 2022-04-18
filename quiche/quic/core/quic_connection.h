@@ -741,20 +741,16 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   }
   // Used in Chromium, but not internally.
   // Must only be called before ping_alarm_ is set.
-  void set_ping_timeout(QuicTime::Delta ping_timeout) {
+  void set_keep_alive_ping_timeout(QuicTime::Delta keep_alive_ping_timeout) {
     QUICHE_DCHECK(!ping_alarm_->IsSet());
-    ping_timeout_ = ping_timeout;
+    keep_alive_ping_timeout_ = keep_alive_ping_timeout;
   }
-  const QuicTime::Delta ping_timeout() const { return ping_timeout_; }
   // Sets an initial timeout for the ping alarm when there is no retransmittable
   // data in flight, allowing for a more aggressive ping alarm in that case.
   void set_initial_retransmittable_on_wire_timeout(
       QuicTime::Delta retransmittable_on_wire_timeout) {
     QUICHE_DCHECK(!ping_alarm_->IsSet());
     initial_retransmittable_on_wire_timeout_ = retransmittable_on_wire_timeout;
-  }
-  const QuicTime::Delta initial_retransmittable_on_wire_timeout() const {
-    return initial_retransmittable_on_wire_timeout_;
   }
   // Used in Chromium, but not internally.
   void set_creator_debug_delegate(QuicPacketCreator::DebugDelegate* visitor) {
@@ -1980,8 +1976,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // SendAlarm.
   bool defer_send_in_response_to_packets_;
 
-  // The timeout for PING.
-  QuicTime::Delta ping_timeout_;
+  // The timeout for keep-alive PING.
+  QuicTime::Delta keep_alive_ping_timeout_;
 
   // Initial timeout for how long the wire can have no retransmittable packets.
   QuicTime::Delta initial_retransmittable_on_wire_timeout_;

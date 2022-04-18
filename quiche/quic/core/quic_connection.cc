@@ -258,7 +258,7 @@ QuicConnection::QuicConnection(
       stop_waiting_count_(0),
       pending_retransmission_alarm_(false),
       defer_send_in_response_to_packets_(false),
-      ping_timeout_(QuicTime::Delta::FromSeconds(kPingTimeoutSecs)),
+      keep_alive_ping_timeout_(QuicTime::Delta::FromSeconds(kPingTimeoutSecs)),
       initial_retransmittable_on_wire_timeout_(QuicTime::Delta::Infinite()),
       consecutive_retransmittable_on_wire_ping_count_(0),
       retransmittable_on_wire_ping_count_(0),
@@ -4660,7 +4660,7 @@ void QuicConnection::SetPingAlarm() {
           GetQuicFlag(FLAGS_quic_max_retransmittable_on_wire_ping_count)) {
     if (perspective_ == Perspective::IS_CLIENT) {
       // Clients send 15s PINGs to avoid NATs from timing out.
-      ping_alarm_->Update(clock_->ApproximateNow() + ping_timeout_,
+      ping_alarm_->Update(clock_->ApproximateNow() + keep_alive_ping_timeout_,
                           QuicTime::Delta::FromSeconds(1));
     } else {
       // Servers do not send 15s PINGs.
@@ -4668,7 +4668,8 @@ void QuicConnection::SetPingAlarm() {
     }
     return;
   }
-  QUICHE_DCHECK_LT(initial_retransmittable_on_wire_timeout_, ping_timeout_);
+  QUICHE_DCHECK_LT(initial_retransmittable_on_wire_timeout_,
+                   keep_alive_ping_timeout_);
   QuicTime::Delta retransmittable_on_wire_timeout =
       initial_retransmittable_on_wire_timeout_;
   int max_aggressive_retransmittable_on_wire_ping_count =
@@ -4690,7 +4691,7 @@ void QuicConnection::SetPingAlarm() {
     return;
   }
 
-  if (retransmittable_on_wire_timeout < ping_timeout_) {
+  if (retransmittable_on_wire_timeout < keep_alive_ping_timeout_) {
     // Use a shorter timeout if there are open streams, but nothing on the wire.
     ping_alarm_->Update(
         clock_->ApproximateNow() + retransmittable_on_wire_timeout,
@@ -4702,7 +4703,7 @@ void QuicConnection::SetPingAlarm() {
     return;
   }
 
-  ping_alarm_->Update(clock_->ApproximateNow() + ping_timeout_,
+  ping_alarm_->Update(clock_->ApproximateNow() + keep_alive_ping_timeout_,
                       kAlarmGranularity);
 }
 

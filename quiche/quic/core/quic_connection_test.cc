@@ -5043,7 +5043,7 @@ TEST_P(QuicConnectionTest, ReducedPingTimeout) {
   EXPECT_FALSE(connection_.GetPingAlarm()->IsSet());
 
   // Use a reduced ping timeout for this connection.
-  connection_.set_ping_timeout(QuicTime::Delta::FromSeconds(10));
+  connection_.set_keep_alive_ping_timeout(QuicTime::Delta::FromSeconds(10));
 
   // Advance to 5ms, and send a packet to the peer, which will set
   // the ping alarm.
@@ -8431,7 +8431,7 @@ TEST_P(QuicConnectionTest, BackOffRetransmittableOnWireTimeout) {
   // The ping alarm is set for the ping timeout, not the shorter
   // retransmittable_on_wire_timeout.
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
-  EXPECT_EQ(connection_.ping_timeout(),
+  EXPECT_EQ(QuicTime::Delta::FromSeconds(kPingTimeoutSecs),
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_)).Times(AnyNumber());
@@ -8462,7 +8462,8 @@ TEST_P(QuicConnectionTest, BackOffRetransmittableOnWireTimeout) {
 
   // Verify subsequent pings are sent with timeout that is exponentially backed
   // off.
-  while (retransmittable_on_wire_timeout * 2 < connection_.ping_timeout()) {
+  while (retransmittable_on_wire_timeout * 2 <
+         QuicTime::Delta::FromSeconds(kPingTimeoutSecs)) {
     // Receive an ACK for the previous PING. This should set the
     // ping alarm with backed off retransmittable-on-wire timeout.
     retransmittable_on_wire_timeout = retransmittable_on_wire_timeout * 2;
@@ -8483,7 +8484,7 @@ TEST_P(QuicConnectionTest, BackOffRetransmittableOnWireTimeout) {
 
   // The ping alarm is set with default ping timeout.
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
-  EXPECT_EQ(connection_.ping_timeout(),
+  EXPECT_EQ(QuicTime::Delta::FromSeconds(kPingTimeoutSecs),
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Receive an ACK for the previous PING. The ping alarm is set with an
@@ -8494,7 +8495,8 @@ TEST_P(QuicConnectionTest, BackOffRetransmittableOnWireTimeout) {
       {{QuicPacketNumber(ack_num), QuicPacketNumber(ack_num + 1)}});
   ProcessAckPacket(&frame);
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
-  EXPECT_EQ(connection_.ping_timeout() - QuicTime::Delta::FromMilliseconds(5),
+  EXPECT_EQ(QuicTime::Delta::FromSeconds(kPingTimeoutSecs) -
+                QuicTime::Delta::FromMilliseconds(5),
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 }
 
@@ -8526,7 +8528,7 @@ TEST_P(QuicConnectionTest, ResetBackOffRetransmitableOnWireTimeout) {
   // The ping alarm is set for the ping timeout, not the shorter
   // retransmittable_on_wire_timeout.
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
-  EXPECT_EQ(connection_.ping_timeout(),
+  EXPECT_EQ(QuicTime::Delta::FromSeconds(kPingTimeoutSecs),
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Receive an ACK of the first packet. This should set the ping alarm with
@@ -8640,7 +8642,7 @@ TEST_P(QuicConnectionTest, RetransmittableOnWirePingLimit) {
   // The ping alarm is set for the ping timeout, not the shorter
   // retransmittable_on_wire_timeout.
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
-  EXPECT_EQ(connection_.ping_timeout(),
+  EXPECT_EQ(QuicTime::Delta::FromSeconds(kPingTimeoutSecs),
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_)).Times(AnyNumber());
@@ -8673,7 +8675,7 @@ TEST_P(QuicConnectionTest, RetransmittableOnWirePingLimit) {
       {{QuicPacketNumber(ack_num), QuicPacketNumber(ack_num + 1)}});
   ProcessAckPacket(&frame);
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
-  EXPECT_EQ(connection_.ping_timeout(),
+  EXPECT_EQ(QuicTime::Delta::FromSeconds(kPingTimeoutSecs),
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 }
 
