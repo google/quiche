@@ -570,4 +570,3 @@ const uint32_t HuffmanSpecTables::kRightCodes[] = {
 // clang-format off
 
 }  // namespace http2
-
