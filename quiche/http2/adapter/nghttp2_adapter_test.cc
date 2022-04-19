@@ -1778,7 +1778,7 @@ TEST(NgHttp2AdapterTest, ClientReceivesGoAwayWithPendingStreams) {
 
   const std::string initial_frames =
       TestFrameSequence()
-          .ServerPreface({{.id = MAX_CONCURRENT_STREAMS, .value = 1}})
+          .ServerPreface({{MAX_CONCURRENT_STREAMS, 1}})
           .Serialize();
 
   // Server preface (SETTINGS with MAX_CONCURRENT_STREAMS)
@@ -2612,7 +2612,7 @@ TEST(NgHttp2AdapterTest, ClientObeysMaxConcurrentStreams) {
 
   const std::string initial_frames =
       TestFrameSequence()
-          .ServerPreface({{.id = MAX_CONCURRENT_STREAMS, .value = 1}})
+          .ServerPreface({{MAX_CONCURRENT_STREAMS, 1}})
           .Serialize();
   testing::InSequence s;
 
