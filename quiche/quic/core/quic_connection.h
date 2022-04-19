@@ -2251,6 +2251,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // fixed.
   absl::optional<QuicWallTime> quic_bug_10511_43_timestamp_;
   std::string quic_bug_10511_43_error_detail_;
+
+  bool only_send_probing_frames_on_alternative_path_ =
+      GetQuicReloadableFlag(quic_not_bundle_ack_on_alternative_path);
 };
 
 }  // namespace quic

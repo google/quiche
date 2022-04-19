@@ -14037,6 +14037,123 @@ TEST_P(QuicConnectionTest,
   EXPECT_EQ(1u, connection_.GetStats().num_validated_peer_migration);
 }
 
+// Regression test of b/228645208.
+TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
+  if (!connection_.connection_migration_use_new_cid()) {
+    return;
+  }
+
+  PathProbeTestInit(Perspective::IS_SERVER);
+  SetClientConnectionId(TestConnectionId(1));
+  connection_.CreateConnectionIdManager();
+
+  QuicConnectionId server_cid0 = connection_.connection_id();
+  QuicConnectionId client_cid0 = connection_.client_connection_id();
+  QuicConnectionId client_cid1 = TestConnectionId(2);
+  QuicConnectionId server_cid1;
+  // Sends new server CID to client.
+  EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_))
+      .WillOnce(
+          Invoke([&](const QuicConnectionId& cid) { server_cid1 = cid; }));
+  EXPECT_CALL(visitor_, SendNewConnectionId(_));
+  connection_.MaybeSendConnectionIdToClient();
+  // Receives new client CID from client.
+  QuicNewConnectionIdFrame new_cid_frame;
+  new_cid_frame.connection_id = client_cid1;
+  new_cid_frame.sequence_number = 1u;
+  new_cid_frame.retire_prior_to = 0u;
+  connection_.OnNewConnectionIdFrame(new_cid_frame);
+  auto* packet_creator = QuicConnectionPeer::GetPacketCreator(&connection_);
+  ASSERT_EQ(packet_creator->GetDestinationConnectionId(), client_cid0);
+  ASSERT_EQ(packet_creator->GetSourceConnectionId(), server_cid0);
+
+  peer_creator_.SetServerConnectionId(server_cid1);
+  const QuicSocketAddress kNewPeerAddress =
+      QuicSocketAddress(QuicIpAddress::Loopback4(), /*port=*/23456);
+  QuicPathFrameBuffer path_challenge_payload{0, 1, 2, 3, 4, 5, 6, 7};
+  QuicFrames frames1;
+  frames1.push_back(
+      QuicFrame(QuicPathChallengeFrame(0, path_challenge_payload)));
+  QuicPathFrameBuffer payload;
+  EXPECT_CALL(*send_algorithm_,
+              OnPacketSent(_, _, _, _, NO_RETRANSMITTABLE_DATA))
+      .Times(AtLeast(1))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
+        EXPECT_EQ(kPeerAddress, connection_.peer_address());
+        EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+        EXPECT_FALSE(writer_->path_response_frames().empty());
+        EXPECT_FALSE(writer_->path_challenge_frames().empty());
+        payload = writer_->path_challenge_frames().front().data_buffer;
+      }));
+  ProcessFramesPacketWithAddresses(frames1, kSelfAddress, kNewPeerAddress,
+                                   ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  const auto* default_path = QuicConnectionPeer::GetDefaultPath(&connection_);
+  const auto* alternative_path =
+      QuicConnectionPeer::GetAlternativePath(&connection_);
+  EXPECT_EQ(default_path->client_connection_id, client_cid0);
+  EXPECT_EQ(default_path->server_connection_id, server_cid0);
+  EXPECT_EQ(alternative_path->client_connection_id, client_cid1);
+  EXPECT_EQ(alternative_path->server_connection_id, server_cid1);
+  EXPECT_EQ(packet_creator->GetDestinationConnectionId(), client_cid0);
+  EXPECT_EQ(packet_creator->GetSourceConnectionId(), server_cid0);
+
+  // Process non-probing packets on the default path.
+  peer_creator_.SetServerConnectionId(server_cid0);
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillRepeatedly(Invoke([=]() {
+    EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  }));
+  // Receives packets 3 - 39 to send 19 ACK-only packets, which will force the
+  // connection to reach |kMaxConsecutiveNonRetransmittablePackets| while
+  // sending the next ACK.
+  for (size_t i = 3; i <= 39; ++i) {
+    ProcessDataPacket(i);
+  }
+  EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+
+  EXPECT_TRUE(connection_.HasPendingAcks());
+  QuicTime ack_time = connection_.GetAckAlarm()->deadline();
+  QuicTime path_validation_retry_time =
+      connection_.GetRetryTimeout(kNewPeerAddress, writer_.get());
+  // Advance time to simultaneously fire path validation retry and ACK alarms.
+  clock_.AdvanceTime(std::max(ack_time, path_validation_retry_time) -
+                     clock_.ApproximateNow());
+
+  // The 20th ACK should bundle with a WINDOW_UPDATE frame.
+  EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame())
+      .WillOnce(Invoke([this]() {
+        connection_.SendControlFrame(QuicFrame(QuicWindowUpdateFrame(1, 0, 0)));
+      }));
+  if (GetQuicReloadableFlag(quic_not_bundle_ack_on_alternative_path)) {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+        .WillOnce(Invoke([&]() {
+          EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
+          EXPECT_FALSE(writer_->path_challenge_frames().empty());
+          // Retry path validation shouldn't bundle ACK.
+          EXPECT_TRUE(writer_->ack_frames().empty());
+        }))
+        .WillOnce(Invoke([&]() {
+          EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
+          EXPECT_FALSE(writer_->ack_frames().empty());
+          EXPECT_FALSE(writer_->window_update_frames().empty());
+        }));
+    static_cast<TestAlarmFactory::TestAlarm*>(
+        QuicPathValidatorPeer::retry_timer(
+            QuicConnectionPeer::path_validator(&connection_)))
+        ->Fire();
+  } else {
+    EXPECT_QUIC_BUG(static_cast<TestAlarmFactory::TestAlarm*>(
+                        QuicPathValidatorPeer::retry_timer(
+                            QuicConnectionPeer::path_validator(&connection_)))
+                        ->Fire(),
+                    "quic_bug_12645_2");
+  }
+}
+
 TEST_P(QuicConnectionTest,
        ProbedOnAnotherPathAfterPeerIpAddressChangeAtServer) {
   PathProbeTestInit(Perspective::IS_SERVER);

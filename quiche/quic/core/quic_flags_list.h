@@ -57,6 +57,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_draft_29, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_server_blackhole_detection, false)
 // If true, discard INITIAL packet if the key has been dropped.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, true)
+// If true, do not bundle ACK while sending PATH_CHALLENGE on alternative path.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_not_bundle_ack_on_alternative_path, true)
 // If true, do not count bytes sent/received on the alternative path into the bytes sent/received on the default path.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_count_bytes_on_alternative_path_seperately, true)
 // If true, enable server retransmittable on wire PING.

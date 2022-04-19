@@ -34,6 +34,7 @@
 #include "quiche/quic/core/quic_legacy_version_encapsulator.h"
 #include "quiche/quic/core/quic_packet_creator.h"
 #include "quiche/quic/core/quic_packet_writer.h"
+#include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_path_validator.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -208,6 +209,20 @@ CongestionControlType GetDefaultCongestionControlType() {
   }
 
   return kCubicBytes;
+}
+
+bool ContainsNonProbingFrame(const SerializedPacket& packet) {
+  for (const QuicFrame& frame : packet.nonretransmittable_frames) {
+    if (!QuicUtils::IsProbingFrame(frame.type)) {
+      return true;
+    }
+  }
+  for (const QuicFrame& frame : packet.retransmittable_frames) {
+    if (!QuicUtils::IsProbingFrame(frame.type)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace
@@ -3360,7 +3375,18 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   WriteResult result(WRITE_STATUS_OK, encrypted_length);
   QuicSocketAddress send_to_address = packet->peer_address;
   // Self address is always the default self address on this code path.
-  bool send_on_current_path = send_to_address == peer_address();
+  const bool send_on_current_path = send_to_address == peer_address();
+  if (!send_on_current_path && only_send_probing_frames_on_alternative_path_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_not_bundle_ack_on_alternative_path, 2, 2);
+    QUIC_BUG_IF(quic_send_non_probing_frames_on_alternative_path,
+                ContainsNonProbingFrame(*packet))
+        << "Packet " << packet->packet_number
+        << " with non-probing frames was sent on alternative path: "
+           "nonretransmittable_frames: "
+        << QuicFramesToString(packet->nonretransmittable_frames)
+        << " retransmittable_frames: "
+        << QuicFramesToString(packet->retransmittable_frames);
+  }
   switch (fate) {
     case DISCARD:
       ++stats_.packets_discarded;
@@ -6417,28 +6443,60 @@ bool QuicConnection::SendPathChallenge(
     return connected_;
   }
   if (connection_migration_use_new_cid_) {
-    {
-      QuicConnectionId client_cid, server_cid;
-      FindOnPathConnectionIds(self_address, effective_peer_address, &client_cid,
-                              &server_cid);
+    if (!only_send_probing_frames_on_alternative_path_) {
+      {
+        QuicConnectionId client_cid, server_cid;
+        FindOnPathConnectionIds(self_address, effective_peer_address,
+                                &client_cid, &server_cid);
+        QuicPacketCreator::ScopedPeerAddressContext context(
+            &packet_creator_, peer_address, client_cid, server_cid,
+            connection_migration_use_new_cid_);
+        if (writer == writer_) {
+          ScopedPacketFlusher flusher(this);
+          // It's on current path, add the PATH_CHALLENGE the same way as other
+          // frames. This may cause connection to be closed.
+          packet_creator_.AddPathChallengeFrame(data_buffer);
+        } else {
+          std::unique_ptr<SerializedPacket> probing_packet =
+              packet_creator_.SerializePathChallengeConnectivityProbingPacket(
+                  data_buffer);
+          QUICHE_DCHECK_EQ(IsRetransmittable(*probing_packet),
+                           NO_RETRANSMITTABLE_DATA);
+          QUICHE_DCHECK_EQ(self_address, alternative_path_.self_address);
+          WritePacketUsingWriter(std::move(probing_packet), writer,
+                                 self_address, peer_address,
+                                 /*measure_rtt=*/false);
+        }
+      }
+      return connected_;
+    }
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_not_bundle_ack_on_alternative_path, 1, 2);
+    QuicConnectionId client_cid, server_cid;
+    FindOnPathConnectionIds(self_address, effective_peer_address, &client_cid,
+                            &server_cid);
+    if (writer == writer_) {
+      ScopedPacketFlusher flusher(this);
+      {
+        QuicPacketCreator::ScopedPeerAddressContext context(
+            &packet_creator_, peer_address, client_cid, server_cid,
+            connection_migration_use_new_cid_);
+        // It's using the default writer, add the PATH_CHALLENGE the same way as
+        // other frames. This may cause connection to be closed.
+        packet_creator_.AddPathChallengeFrame(data_buffer);
+      }
+    } else {
+      // Switch to the right CID and source/peer addresses.
       QuicPacketCreator::ScopedPeerAddressContext context(
           &packet_creator_, peer_address, client_cid, server_cid,
           connection_migration_use_new_cid_);
-      if (writer == writer_) {
-        ScopedPacketFlusher flusher(this);
-        // It's on current path, add the PATH_CHALLENGE the same way as other
-        // frames. This may cause connection to be closed.
-        packet_creator_.AddPathChallengeFrame(data_buffer);
-      } else {
-        std::unique_ptr<SerializedPacket> probing_packet =
-            packet_creator_.SerializePathChallengeConnectivityProbingPacket(
-                data_buffer);
-        QUICHE_DCHECK_EQ(IsRetransmittable(*probing_packet),
-                         NO_RETRANSMITTABLE_DATA);
-        QUICHE_DCHECK_EQ(self_address, alternative_path_.self_address);
-        WritePacketUsingWriter(std::move(probing_packet), writer, self_address,
-                               peer_address, /*measure_rtt=*/false);
-      }
+      std::unique_ptr<SerializedPacket> probing_packet =
+          packet_creator_.SerializePathChallengeConnectivityProbingPacket(
+              data_buffer);
+      QUICHE_DCHECK_EQ(IsRetransmittable(*probing_packet),
+                       NO_RETRANSMITTABLE_DATA);
+      QUICHE_DCHECK_EQ(self_address, alternative_path_.self_address);
+      WritePacketUsingWriter(std::move(probing_packet), writer, self_address,
+                             peer_address, /*measure_rtt=*/false);
     }
     return connected_;
   }
