@@ -128,6 +128,7 @@ class PingAlarmDelegate : public QuicConnectionAlarmDelegate {
 
   void OnAlarm() override {
     QUICHE_DCHECK(connection_->connected());
+    QUICHE_DCHECK(!GetQuicReloadableFlag(quic_use_ping_manager));
     connection_->OnPingTimeout();
   }
 };
@@ -327,7 +328,8 @@ QuicConnection::QuicConnection(
                              alarm_factory_, &context_),
       path_validator_(alarm_factory_, &arena_, this, random_generator_,
                       &context_),
-      most_recent_frame_type_(NUM_FRAME_TYPES) {
+      most_recent_frame_type_(NUM_FRAME_TYPES),
+      ping_manager_(perspective, this, &arena_, alarm_factory_, &context_) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
 
@@ -1350,7 +1352,11 @@ bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
   MaybeUpdateAckTimeout();
   visitor_->OnStreamFrame(frame);
   stats_.stream_bytes_received += frame.data_length;
-  consecutive_retransmittable_on_wire_ping_count_ = 0;
+  if (use_ping_manager_) {
+    ping_manager_.reset_consecutive_retransmittable_on_wire_count();
+  } else {
+    consecutive_retransmittable_on_wire_ping_count_ = 0;
+  }
   return connected_;
 }
 
@@ -4053,6 +4059,7 @@ void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
 }
 
 void QuicConnection::OnPingTimeout() {
+  QUICHE_DCHECK(!use_ping_manager_);
   if (retransmission_alarm_->IsSet() ||
       !visitor_->ShouldKeepConnectionAlive()) {
     return;
@@ -4621,7 +4628,11 @@ void QuicConnection::CancelAllAlarms() {
   QUIC_DVLOG(1) << "Cancelling all QuicConnection alarms.";
 
   ack_alarm_->PermanentCancel();
-  ping_alarm_->PermanentCancel();
+  if (use_ping_manager_) {
+    ping_manager_.Stop();
+  } else {
+    ping_alarm_->PermanentCancel();
+  }
   retransmission_alarm_->PermanentCancel();
   send_alarm_->PermanentCancel();
   mtu_discovery_alarm_->PermanentCancel();
@@ -4663,6 +4674,13 @@ void QuicConnection::SetNetworkTimeouts(QuicTime::Delta handshake_timeout,
 
 void QuicConnection::SetPingAlarm() {
   if (!connected_) {
+    return;
+  }
+  if (use_ping_manager_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_use_ping_manager);
+    ping_manager_.SetAlarm(clock_->ApproximateNow(),
+                           visitor_->ShouldKeepConnectionAlive(),
+                           sent_packet_manager_.HasInFlightPackets());
     return;
   }
   if (perspective_ == Perspective::IS_SERVER &&
@@ -6280,6 +6298,24 @@ void QuicConnection::OnIdleNetworkDetected() {
                   idle_timeout_connection_close_behavior_);
 }
 
+void QuicConnection::OnKeepAliveTimeout() {
+  QUICHE_DCHECK(use_ping_manager_);
+  if (retransmission_alarm_->IsSet() ||
+      !visitor_->ShouldKeepConnectionAlive()) {
+    return;
+  }
+  SendPingAtLevel(framer().GetEncryptionLevelToSendApplicationData());
+}
+
+void QuicConnection::OnRetransmittableOnWireTimeout() {
+  QUICHE_DCHECK(use_ping_manager_);
+  if (retransmission_alarm_->IsSet() ||
+      !visitor_->ShouldKeepConnectionAlive()) {
+    return;
+  }
+  SendPingAtLevel(framer().GetEncryptionLevelToSendApplicationData());
+}
+
 void QuicConnection::OnPeerIssuedConnectionIdRetired() {
   QUICHE_DCHECK(peer_issued_cid_manager_ != nullptr);
   QuicConnectionId* default_path_cid =
@@ -7105,6 +7141,27 @@ QuicConnection::OnPeerIpAddressChanged() {
   // Stop detections in quiecense.
   blackhole_detector_.StopDetection(/*permanent=*/false);
   return old_send_algorithm;
+}
+
+void QuicConnection::set_keep_alive_ping_timeout(
+    QuicTime::Delta keep_alive_ping_timeout) {
+  if (use_ping_manager_) {
+    ping_manager_.set_keep_alive_timeout(keep_alive_ping_timeout);
+    return;
+  }
+  QUICHE_DCHECK(!ping_alarm_->IsSet());
+  keep_alive_ping_timeout_ = keep_alive_ping_timeout;
+}
+
+void QuicConnection::set_initial_retransmittable_on_wire_timeout(
+    QuicTime::Delta retransmittable_on_wire_timeout) {
+  if (use_ping_manager_) {
+    ping_manager_.set_initial_retransmittable_on_wire_timeout(
+        retransmittable_on_wire_timeout);
+    return;
+  }
+  QUICHE_DCHECK(!ping_alarm_->IsSet());
+  initial_retransmittable_on_wire_timeout_ = retransmittable_on_wire_timeout;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

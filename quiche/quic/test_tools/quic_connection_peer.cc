@@ -64,6 +64,7 @@ void QuicConnectionPeer::SetPerspective(QuicConnection* connection,
                                         Perspective perspective) {
   connection->perspective_ = perspective;
   QuicFramerPeer::SetPerspective(&connection->framer_, perspective);
+  connection->ping_manager_.perspective_ = perspective;
 }
 
 // static
@@ -128,6 +129,9 @@ QuicAlarm* QuicConnectionPeer::GetAckAlarm(QuicConnection* connection) {
 
 // static
 QuicAlarm* QuicConnectionPeer::GetPingAlarm(QuicConnection* connection) {
+  if (GetQuicReloadableFlag(quic_use_ping_manager)) {
+    return connection->ping_manager_.alarm_.get();
+  }
   return connection->ping_alarm_.get();
 }
 

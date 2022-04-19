@@ -50,6 +50,7 @@
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_path_validator.h"
+#include "quiche/quic/core/quic_ping_manager.h"
 #include "quiche/quic/core/quic_sent_packet_manager.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
@@ -458,7 +459,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       public QuicNetworkBlackholeDetector::Delegate,
       public QuicIdleNetworkDetector::Delegate,
       public QuicPathValidator::SendDelegate,
-      public QuicConnectionIdManagerVisitorInterface {
+      public QuicConnectionIdManagerVisitorInterface,
+      public QuicPingManager::Delegate {
  public:
   // Constructs a new QuicConnection for |connection_id| and
   // |initial_peer_address| using |writer| to write packets. |owns_writer|
@@ -710,6 +712,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnHandshakeTimeout() override;
   void OnIdleNetworkDetected() override;
 
+  // QuicPingManager::Delegate
+  void OnKeepAliveTimeout() override;
+  void OnRetransmittableOnWireTimeout() override;
+
   // QuicConnectionIdManagerVisitorInterface
   void OnPeerIssuedConnectionIdRetired() override;
   bool SendNewConnectionId(const QuicNewConnectionIdFrame& frame) override;
@@ -741,17 +747,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   }
   // Used in Chromium, but not internally.
   // Must only be called before ping_alarm_ is set.
-  void set_keep_alive_ping_timeout(QuicTime::Delta keep_alive_ping_timeout) {
-    QUICHE_DCHECK(!ping_alarm_->IsSet());
-    keep_alive_ping_timeout_ = keep_alive_ping_timeout;
-  }
+  void set_keep_alive_ping_timeout(QuicTime::Delta keep_alive_ping_timeout);
   // Sets an initial timeout for the ping alarm when there is no retransmittable
   // data in flight, allowing for a more aggressive ping alarm in that case.
   void set_initial_retransmittable_on_wire_timeout(
-      QuicTime::Delta retransmittable_on_wire_timeout) {
-    QUICHE_DCHECK(!ping_alarm_->IsSet());
-    initial_retransmittable_on_wire_timeout_ = retransmittable_on_wire_timeout;
-  }
+      QuicTime::Delta retransmittable_on_wire_timeout);
   // Used in Chromium, but not internally.
   void set_creator_debug_delegate(QuicPacketCreator::DebugDelegate* visitor) {
     packet_creator_.set_debug_delegate(visitor);
@@ -1976,6 +1976,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // SendAlarm.
   bool defer_send_in_response_to_packets_;
 
+  // TODO(fayang): remove PING related fields below when deprecating
+  // quic_use_ping_manager.
   // The timeout for keep-alive PING.
   QuicTime::Delta keep_alive_ping_timeout_;
 
@@ -1999,6 +2001,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // An alarm that is scheduled when the SentPacketManager requires a delay
   // before sending packets and fires when the packet may be sent.
   QuicArenaScopedPtr<QuicAlarm> send_alarm_;
+  // TODO(fayang): remove ping_alarm_ when deprecating quic_use_ping_manager.
   // An alarm that fires when a ping should be sent.
   QuicArenaScopedPtr<QuicAlarm> ping_alarm_;
   // An alarm that fires when an MTU probe should be sent.
@@ -2246,6 +2249,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // If true, send connection close packet on INVALID_VERSION.
   bool send_connection_close_for_invalid_version_ = false;
+
+  const bool use_ping_manager_ = GetQuicReloadableFlag(quic_use_ping_manager);
+
+  QuicPingManager ping_manager_;
 
   // TODO(b/205023946) Debug-only fields, to be deprecated after the bug is
   // fixed.
