@@ -5,8 +5,13 @@
 #include "quiche/quic/core/quic_buffered_packet_store.h"
 
 #include <list>
+#include <memory>
 #include <string>
 
+#include "quiche/quic/core/crypto/transport_parameters.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -30,7 +35,14 @@ const absl::optional<ParsedClientHello> kDefaultParsedChlo =
 using BufferedPacket = QuicBufferedPacketStore::BufferedPacket;
 using BufferedPacketList = QuicBufferedPacketStore::BufferedPacketList;
 using EnqueuePacketResult = QuicBufferedPacketStore::EnqueuePacketResult;
+using ::testing::A;
+using ::testing::Conditional;
+using ::testing::Each;
 using ::testing::ElementsAre;
+using ::testing::Ne;
+using ::testing::SizeIs;
+using ::testing::Truly;
+
 class QuicBufferedPacketStoreVisitor
     : public QuicBufferedPacketStore::VisitorInterface {
  public:
@@ -496,6 +508,94 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
 
   EXPECT_FALSE(resumption_attempted);
   EXPECT_FALSE(early_data_attempted);
+}
+
+TEST_F(QuicBufferedPacketStoreTest, DeliverInitialPacketsFirst) {
+  QuicConfig config;
+  QuicConnectionId connection_id = TestConnectionId(1);
+
+  // Force the TLS CHLO to span multiple packets.
+  constexpr auto kCustomParameterId =
+      static_cast<TransportParameters::TransportParameterId>(0xff33);
+  std::string custom_parameter_value(2000, '-');
+  config.custom_transport_parameters_to_send()[kCustomParameterId] =
+      custom_parameter_value;
+  auto initial_packets = GetFirstFlightOfPackets(valid_version_, config);
+  ASSERT_THAT(initial_packets, SizeIs(2));
+
+  // Verify that the packets generated are INITIAL packets.
+  EXPECT_THAT(
+      initial_packets,
+      Each(Truly([](const std::unique_ptr<QuicReceivedPacket>& packet) {
+        QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
+        PacketHeaderFormat unused_format;
+        bool unused_version_flag;
+        bool unused_use_length_prefix;
+        QuicVersionLabel unused_version_label;
+        ParsedQuicVersion unused_parsed_version = UnsupportedQuicVersion();
+        QuicConnectionId unused_destination_connection_id;
+        QuicConnectionId unused_source_connection_id;
+        absl::optional<absl::string_view> unused_retry_token;
+        std::string unused_detailed_error;
+        QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
+            *packet, kQuicDefaultConnectionIdLength, &unused_format,
+            &long_packet_type, &unused_version_flag, &unused_use_length_prefix,
+            &unused_version_label, &unused_parsed_version,
+            &unused_destination_connection_id, &unused_source_connection_id,
+            &unused_retry_token, &unused_detailed_error);
+        return error_code == QUIC_NO_ERROR && long_packet_type == INITIAL;
+      })));
+
+  QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
+  PacketHeaderFormat unused_format;
+  bool unused_version_flag;
+  bool unused_use_length_prefix;
+  QuicVersionLabel unused_version_label;
+  ParsedQuicVersion unused_parsed_version = UnsupportedQuicVersion();
+  QuicConnectionId unused_destination_connection_id;
+  QuicConnectionId unused_source_connection_id;
+  absl::optional<absl::string_view> unused_retry_token;
+  std::string unused_detailed_error;
+  QuicErrorCode error_code = QUIC_NO_ERROR;
+
+  // Verify that packet_ is not an INITIAL packet.
+  error_code = QuicFramer::ParsePublicHeaderDispatcher(
+      packet_, kQuicDefaultConnectionIdLength, &unused_format,
+      &long_packet_type, &unused_version_flag, &unused_use_length_prefix,
+      &unused_version_label, &unused_parsed_version,
+      &unused_destination_connection_id, &unused_source_connection_id,
+      &unused_retry_token, &unused_detailed_error);
+  EXPECT_THAT(error_code, IsQuicNoError());
+  EXPECT_NE(long_packet_type, INITIAL);
+
+  store_.EnqueuePacket(connection_id, false, packet_, self_address_,
+                       peer_address_, valid_version_, kNoParsedChlo);
+  store_.EnqueuePacket(connection_id, false, *initial_packets[0], self_address_,
+                       peer_address_, valid_version_, kNoParsedChlo);
+  store_.EnqueuePacket(connection_id, false, *initial_packets[1], self_address_,
+                       peer_address_, valid_version_, kNoParsedChlo);
+
+  BufferedPacketList delivered_packets = store_.DeliverPackets(connection_id);
+  EXPECT_THAT(delivered_packets.buffered_packets, SizeIs(3));
+
+  QuicLongHeaderType previous_packet_type = INITIAL;
+  for (const auto& packet : delivered_packets.buffered_packets) {
+    error_code = QuicFramer::ParsePublicHeaderDispatcher(
+        *packet.packet, kQuicDefaultConnectionIdLength, &unused_format,
+        &long_packet_type, &unused_version_flag, &unused_use_length_prefix,
+        &unused_version_label, &unused_parsed_version,
+        &unused_destination_connection_id, &unused_source_connection_id,
+        &unused_retry_token, &unused_detailed_error);
+    EXPECT_THAT(error_code, IsQuicNoError());
+
+    if (GetQuicReloadableFlag(quic_deliver_initial_packets_first)) {
+      // INITIAL packets should not follow a non-INITIAL packet.
+      EXPECT_THAT(long_packet_type,
+                  Conditional(previous_packet_type == INITIAL,
+                              A<QuicLongHeaderType>(), Ne(INITIAL)));
+      previous_packet_type = long_packet_type;
+    }
+  }
 }
 }  // namespace
 }  // namespace test

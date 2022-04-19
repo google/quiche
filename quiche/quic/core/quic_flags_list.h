@@ -43,6 +43,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_simplify_set_retransmission_alarm, tru
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_default_on_pto2, true)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
+// If true, deliver INITIAL packets before other types of packets in QuicBufferedPacketStore.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_deliver_initial_packets_first, true)
 // If true, disable QUIC version Q043.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_q043, false)
 // If true, disable QUIC version Q046.

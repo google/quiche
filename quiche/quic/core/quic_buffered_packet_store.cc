@@ -6,6 +6,10 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 
@@ -176,6 +180,39 @@ BufferedPacketList QuicBufferedPacketStore::DeliverPackets(
   if (it != undecryptable_packets_.end()) {
     packets_to_deliver = std::move(it->second);
     undecryptable_packets_.erase(connection_id);
+    if (GetQuicReloadableFlag(quic_deliver_initial_packets_first)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_deliver_initial_packets_first);
+      std::list<BufferedPacket> initial_packets;
+      std::list<BufferedPacket> other_packets;
+      for (auto& packet : packets_to_deliver.buffered_packets) {
+        QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
+        PacketHeaderFormat unused_format;
+        bool unused_version_flag;
+        bool unused_use_length_prefix;
+        QuicVersionLabel unused_version_label;
+        ParsedQuicVersion unused_parsed_version = UnsupportedQuicVersion();
+        QuicConnectionId unused_destination_connection_id;
+        QuicConnectionId unused_source_connection_id;
+        absl::optional<absl::string_view> unused_retry_token;
+        std::string unused_detailed_error;
+
+        QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
+            *packet.packet, kQuicDefaultConnectionIdLength, &unused_format,
+            &long_packet_type, &unused_version_flag, &unused_use_length_prefix,
+            &unused_version_label, &unused_parsed_version,
+            &unused_destination_connection_id, &unused_source_connection_id,
+            &unused_retry_token, &unused_detailed_error);
+
+        if (error_code == QUIC_NO_ERROR && long_packet_type == INITIAL) {
+          initial_packets.push_back(std::move(packet));
+        } else {
+          other_packets.push_back(std::move(packet));
+        }
+      }
+
+      initial_packets.splice(initial_packets.end(), other_packets);
+      packets_to_deliver.buffered_packets = std::move(initial_packets);
+    }
   }
   return packets_to_deliver;
 }
