@@ -3674,7 +3674,7 @@ TEST_P(QuicSpdySessionTestClient, WebTransportWithoutExtendedConnect) {
   EXPECT_TRUE(session_.SupportsWebTransport());
 }
 
-// Regression bug for b/208997000.
+// Regression test for b/208997000.
 TEST_P(QuicSpdySessionTestClient, LimitEncoderDynamicTableSize) {
   if (version().UsesHttp3()) {
     return;
@@ -3705,43 +3705,25 @@ TEST_P(QuicSpdySessionTestClient, LimitEncoderDynamicTableSize) {
       QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer)->slice;
   absl::string_view stream_data(slice.data(), slice.length());
 
-  if (GetQuicReloadableFlag(quic_limit_encoder_dynamic_table_size)) {
-    EXPECT_EQ(absl::HexStringToBytes(
-                  "000009"  // frame length
-                  "01"      // frame type HEADERS
-                  "25"),    // flags END_STREAM | END_HEADERS | PRIORITY
-              stream_data.substr(0, 5));
-    stream_data.remove_prefix(5);
-  } else {
-    EXPECT_EQ(absl::HexStringToBytes(
-                  "00000c"  // frame length
-                  "01"      // frame type HEADERS
-                  "25"),    // flags END_STREAM | END_HEADERS | PRIORITY
-              stream_data.substr(0, 5));
-    stream_data.remove_prefix(5);
-  }
+  EXPECT_EQ(absl::HexStringToBytes(
+                "000009"  // frame length
+                "01"      // frame type HEADERS
+                "25"),    // flags END_STREAM | END_HEADERS | PRIORITY
+            stream_data.substr(0, 5));
+  stream_data.remove_prefix(5);
 
   // Ignore stream ID as it might differ between QUIC versions.
   stream_data.remove_prefix(4);
 
-  // Ignore stream dependency and weight.
   EXPECT_EQ(absl::HexStringToBytes("00000000"  // stream dependency
                                    "92"),      // stream weight
             stream_data.substr(0, 5));
   stream_data.remove_prefix(5);
 
-  if (GetQuicReloadableFlag(quic_limit_encoder_dynamic_table_size)) {
-    EXPECT_EQ(absl::HexStringToBytes(
-                  "3fe17f"  // Dynamic Table Size Update to 16384
-                  "82"),    // Indexed Header Field Representation with index 2
-              stream_data);
-  } else {
-    EXPECT_EQ(
-        absl::HexStringToBytes(
-            "3fe1ffffff03"  // Dynamic Table Size Update to 1024 * 1024 * 1024
-            "82"),          // Indexed Header Field Representation with index 2
-        stream_data);
-  }
+  EXPECT_EQ(absl::HexStringToBytes(
+                "3fe17f"  // Dynamic Table Size Update to 16384
+                "82"),    // Indexed Header Field Representation with index 2
+            stream_data);
 }
 
 class QuicSpdySessionTestServerNoExtendedConnect

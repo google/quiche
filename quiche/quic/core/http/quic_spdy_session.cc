@@ -1214,13 +1214,8 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
       QUIC_DVLOG(1) << ENDPOINT
                     << "SETTINGS_HEADER_TABLE_SIZE received with value "
                     << value;
-      if (GetQuicReloadableFlag(quic_limit_encoder_dynamic_table_size)) {
-        QUIC_RELOADABLE_FLAG_COUNT(quic_limit_encoder_dynamic_table_size);
-        spdy_framer_.UpdateHeaderEncoderTableSize(
-            std::min<uint64_t>(value, kHpackEncoderDynamicTableSizeLimit));
-        break;
-      }
-      spdy_framer_.UpdateHeaderEncoderTableSize(value);
+      spdy_framer_.UpdateHeaderEncoderTableSize(
+          std::min<uint64_t>(value, kHpackEncoderDynamicTableSizeLimit));
       break;
     case spdy::SETTINGS_ENABLE_PUSH:
       if (perspective() == Perspective::IS_SERVER) {

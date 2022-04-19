@@ -629,7 +629,7 @@ TEST_P(QuicHeadersStreamTest, RespectHttp2SettingsFrameSupportedFields) {
                                       ->header_encoder_table_size());
 }
 
-// Regression bug for b/208997000.
+// Regression test for b/208997000.
 TEST_P(QuicHeadersStreamTest, LimitEncoderDynamicTableSize) {
   const uint32_t kVeryLargeTableSizeLimit = 1024 * 1024 * 1024;
   SpdySettingsIR data;
@@ -638,14 +638,8 @@ TEST_P(QuicHeadersStreamTest, LimitEncoderDynamicTableSize) {
   stream_frame_.data_buffer = frame.data();
   stream_frame_.data_length = frame.size();
   headers_stream_->OnStreamFrame(stream_frame_);
-  if (GetQuicReloadableFlag(quic_limit_encoder_dynamic_table_size)) {
-    EXPECT_EQ(16384u, QuicSpdySessionPeer::GetSpdyFramer(&session_)
-                          ->header_encoder_table_size());
-  } else {
-    EXPECT_EQ(kVeryLargeTableSizeLimit,
-              QuicSpdySessionPeer::GetSpdyFramer(&session_)
-                  ->header_encoder_table_size());
-  }
+  EXPECT_EQ(16384u, QuicSpdySessionPeer::GetSpdyFramer(&session_)
+                        ->header_encoder_table_size());
 }
 
 TEST_P(QuicHeadersStreamTest, RespectHttp2SettingsFrameUnsupportedFields) {
