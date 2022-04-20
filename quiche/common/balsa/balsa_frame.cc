@@ -248,40 +248,28 @@ void BalsaFrame::ProcessFirstLine(const char* begin, const char* end) {
     HandleWarning(last_error_);
   }
 
+  const absl::string_view line_input(
+      begin + headers_->non_whitespace_1_idx_,
+      headers_->whitespace_4_idx_ - headers_->non_whitespace_1_idx_);
+  const absl::string_view part1(
+      begin + headers_->non_whitespace_1_idx_,
+      headers_->whitespace_2_idx_ - headers_->non_whitespace_1_idx_);
+  const absl::string_view part2(
+      begin + headers_->non_whitespace_2_idx_,
+      headers_->whitespace_3_idx_ - headers_->non_whitespace_2_idx_);
+  const absl::string_view part3(
+      begin + headers_->non_whitespace_3_idx_,
+      headers_->whitespace_4_idx_ - headers_->non_whitespace_3_idx_);
+
   if (is_request_) {
-    size_t version_length =
-        headers_->whitespace_4_idx_ - headers_->non_whitespace_3_idx_;
-    visitor_->OnRequestFirstLineInput(
-        absl::string_view(
-            begin + headers_->non_whitespace_1_idx_,
-            headers_->whitespace_4_idx_ - headers_->non_whitespace_1_idx_),
-        absl::string_view(
-            begin + headers_->non_whitespace_1_idx_,
-            headers_->whitespace_2_idx_ - headers_->non_whitespace_1_idx_),
-        absl::string_view(
-            begin + headers_->non_whitespace_2_idx_,
-            headers_->whitespace_3_idx_ - headers_->non_whitespace_2_idx_),
-        absl::string_view(begin + headers_->non_whitespace_3_idx_,
-                          version_length));
-    if (version_length == 0) {
+    visitor_->OnRequestFirstLineInput(line_input, part1, part2, part3);
+    if (part3.empty()) {
       parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
     }
     return;
   }
 
-  visitor_->OnResponseFirstLineInput(
-      absl::string_view(
-          begin + headers_->non_whitespace_1_idx_,
-          headers_->whitespace_4_idx_ - headers_->non_whitespace_1_idx_),
-      absl::string_view(
-          begin + headers_->non_whitespace_1_idx_,
-          headers_->whitespace_2_idx_ - headers_->non_whitespace_1_idx_),
-      absl::string_view(
-          begin + headers_->non_whitespace_2_idx_,
-          headers_->whitespace_3_idx_ - headers_->non_whitespace_2_idx_),
-      absl::string_view(
-          begin + headers_->non_whitespace_3_idx_,
-          headers_->whitespace_4_idx_ - headers_->non_whitespace_3_idx_));
+  visitor_->OnResponseFirstLineInput(line_input, part1, part2, part3);
 }
 
 // 'stream_begin' points to the first character of the headers buffer.
@@ -515,18 +503,16 @@ BalsaHeadersEnums::ContentLengthStatus BalsaFrame::ProcessContentLengthLine(
 void BalsaFrame::ProcessTransferEncodingLine(HeaderLines::size_type line_idx) {
   const HeaderLineDescription& header_line = headers_->header_lines_[line_idx];
   const char* stream_begin = headers_->OriginalHeaderStreamBegin();
-  const char* line_end = stream_begin + header_line.last_char_idx;
-  const char* value_begin = stream_begin + header_line.value_begin_idx;
-  size_t value_length = line_end - value_begin;
+  const absl::string_view transfer_encoding(
+      stream_begin + header_line.value_begin_idx,
+      header_line.last_char_idx - header_line.value_begin_idx);
 
-  if (absl::EqualsIgnoreCase(absl::string_view(value_begin, value_length),
-                             kChunked)) {
+  if (absl::EqualsIgnoreCase(transfer_encoding, kChunked)) {
     headers_->transfer_encoding_is_chunked_ = true;
     return;
   }
 
-  if (absl::EqualsIgnoreCase(absl::string_view(value_begin, value_length),
-                             kIdentity)) {
+  if (absl::EqualsIgnoreCase(transfer_encoding, kIdentity)) {
     headers_->transfer_encoding_is_chunked_ = false;
     return;
   }
@@ -597,11 +583,9 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
   const HeaderLines::size_type lines_size = headers->header_lines_.size();
   for (HeaderLines::size_type i = 0; i < lines_size; ++i) {
     const HeaderLineDescription& line = headers->header_lines_[i];
-    const char* key_begin = stream_begin + line.first_char_idx;
-    const size_t key_len = line.key_end_idx - line.first_char_idx;
-    const char c = key_len != 0u ? *key_begin : ' ';
-    DVLOG(2) << "[" << i << "]: " << std::string(key_begin, key_len) << " c: '"
-             << c << "' key_len: " << key_len;
+    const absl::string_view key(stream_begin + line.first_char_idx,
+                                line.key_end_idx - line.first_char_idx);
+    DVLOG(2) << "[" << i << "]: " << key << " key_len: " << key.length();
 
     // If a header begins with either lowercase or uppercase 'c' or 't', then
     // the header may be one of content-length, connection, content-encoding
@@ -609,8 +593,7 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
     // that the message is framed, and so the framer is required to search
     // for them.  However, first check for a formatting error, and skip
     // special header treatment on trailer lines (when is_trailer is true).
-
-    if (c == ' ') {
+    if (key.empty() || key[0] == ' ') {
       parse_state_ = BalsaFrameEnums::ERROR;
       HandleError(is_trailer ? BalsaFrameEnums::INVALID_TRAILER_FORMAT
                              : BalsaFrameEnums::INVALID_HEADER_FORMAT);
@@ -619,8 +602,7 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
     if (is_trailer) {
       continue;
     }
-    if (absl::EqualsIgnoreCase(absl::string_view(key_begin, key_len),
-                               kContentLength)) {
+    if (absl::EqualsIgnoreCase(key, kContentLength)) {
       size_t length = 0;
       BalsaHeadersEnums::ContentLengthStatus content_length_status =
           ProcessContentLengthLine(i, &length);
@@ -641,8 +623,7 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
       }
       continue;
     }
-    if (absl::EqualsIgnoreCase(absl::string_view(key_begin, key_len),
-                               kTransferEncoding)) {
+    if (absl::EqualsIgnoreCase(key, kTransferEncoding)) {
       if (transfer_encoding_idx != 0) {
         HandleError(BalsaFrameEnums::MULTIPLE_TRANSFER_ENCODING_KEYS);
         return;
@@ -719,7 +700,7 @@ void BalsaFrame::AssignParseStateAfterHeadersHaveBeenParsed() {
       // everything until the connection is closed is body.
     case BalsaHeadersEnums::NO_CONTENT_LENGTH:
       if (is_request_) {
-        absl::string_view method = headers_->request_method();
+        const absl::string_view method = headers_->request_method();
         // POSTs and PUTs should have a detectable body length.  If they
         // do not we consider it an error.
         if (method != "POST" && method != "PUT") {
