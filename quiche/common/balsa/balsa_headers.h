@@ -1033,9 +1033,8 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders : public HeaderApi {
     return balsa_buffer_.GetReadableBytesOfFirstBlock();
   }
 
-  void GetReadablePtrFromHeaderStream(const char** p, size_t* s) {
-    *p = OriginalHeaderStreamBegin();
-    *s = GetReadableBytesFromHeaderStream();
+  absl::string_view GetReadablePtrFromHeaderStream() {
+    return {OriginalHeaderStreamBegin(), GetReadableBytesFromHeaderStream()};
   }
 
   absl::string_view GetValueFromHeaderLineDescription(

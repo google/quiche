@@ -252,26 +252,34 @@ void BalsaFrame::ProcessFirstLine(const char* begin, const char* end) {
     size_t version_length =
         headers_->whitespace_4_idx_ - headers_->non_whitespace_3_idx_;
     visitor_->OnRequestFirstLineInput(
-        begin + headers_->non_whitespace_1_idx_,
-        headers_->whitespace_4_idx_ - headers_->non_whitespace_1_idx_,
-        begin + headers_->non_whitespace_1_idx_,
-        headers_->whitespace_2_idx_ - headers_->non_whitespace_1_idx_,
-        begin + headers_->non_whitespace_2_idx_,
-        headers_->whitespace_3_idx_ - headers_->non_whitespace_2_idx_,
-        begin + headers_->non_whitespace_3_idx_, version_length);
+        absl::string_view(
+            begin + headers_->non_whitespace_1_idx_,
+            headers_->whitespace_4_idx_ - headers_->non_whitespace_1_idx_),
+        absl::string_view(
+            begin + headers_->non_whitespace_1_idx_,
+            headers_->whitespace_2_idx_ - headers_->non_whitespace_1_idx_),
+        absl::string_view(
+            begin + headers_->non_whitespace_2_idx_,
+            headers_->whitespace_3_idx_ - headers_->non_whitespace_2_idx_),
+        absl::string_view(begin + headers_->non_whitespace_3_idx_,
+                          version_length));
     if (version_length == 0) {
       parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
     }
   } else {
     visitor_->OnResponseFirstLineInput(
-        begin + headers_->non_whitespace_1_idx_,
-        headers_->whitespace_4_idx_ - headers_->non_whitespace_1_idx_,
-        begin + headers_->non_whitespace_1_idx_,
-        headers_->whitespace_2_idx_ - headers_->non_whitespace_1_idx_,
-        begin + headers_->non_whitespace_2_idx_,
-        headers_->whitespace_3_idx_ - headers_->non_whitespace_2_idx_,
-        begin + headers_->non_whitespace_3_idx_,
-        headers_->whitespace_4_idx_ - headers_->non_whitespace_3_idx_);
+        absl::string_view(
+            begin + headers_->non_whitespace_1_idx_,
+            headers_->whitespace_4_idx_ - headers_->non_whitespace_1_idx_),
+        absl::string_view(
+            begin + headers_->non_whitespace_1_idx_,
+            headers_->whitespace_2_idx_ - headers_->non_whitespace_1_idx_),
+        absl::string_view(
+            begin + headers_->non_whitespace_2_idx_,
+            headers_->whitespace_3_idx_ - headers_->non_whitespace_2_idx_),
+        absl::string_view(
+            begin + headers_->non_whitespace_3_idx_,
+            headers_->whitespace_4_idx_ - headers_->non_whitespace_3_idx_));
   }
 }
 
@@ -825,12 +833,7 @@ size_t BalsaFrame::ProcessHeaders(const char* message_start,
     // we tell that to the headers object. The headers object may make
     // more efficient allocation decisions when this is signaled.
     headers_->DoneWritingFromFramer();
-    {
-      const char* readable_ptr = nullptr;
-      size_t readable_size = 0;
-      headers_->GetReadablePtrFromHeaderStream(&readable_ptr, &readable_size);
-      visitor_->OnHeaderInput(readable_ptr, readable_size);
-    }
+    visitor_->OnHeaderInput(headers_->GetReadablePtrFromHeaderStream());
 
     // Ok, now that we've written everything into our header buffer, it is
     // time to process the header lines (extract proper values for headers
@@ -988,7 +991,8 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
         QUICHE_DCHECK_LE(current, end);
         while (true) {
           if (current == end) {
-            visitor_->OnRawBodyInput(on_entry, current - on_entry);
+            visitor_->OnRawBodyInput(
+                absl::string_view(on_entry, current - on_entry));
             return current - input;
           }
 
@@ -1059,7 +1063,8 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
                 (std::numeric_limits<size_t>::max() - length_x_16) <
                     static_cast<size_t>(addition)) {
               // overflow -- asked for a chunk-length greater than 2^64 - 1!!
-              visitor_->OnRawBodyInput(on_entry, current - on_entry);
+              visitor_->OnRawBodyInput(
+                  absl::string_view(on_entry, current - on_entry));
               HandleError(BalsaFrameEnums::CHUNK_LENGTH_OVERFLOW);
               return current - input;
             }
@@ -1071,7 +1076,8 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
             // ^[0-9;A-Fa-f][ \t\n] -- was not matched, either because no
             // characters were converted, or an unexpected character was
             // seen.
-            visitor_->OnRawBodyInput(on_entry, current - on_entry);
+            visitor_->OnRawBodyInput(
+                absl::string_view(on_entry, current - on_entry));
             HandleError(BalsaFrameEnums::INVALID_CHUNK_LENGTH);
             return current - input;
           }
@@ -1092,9 +1098,10 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
         QUICHE_DCHECK_LE(current, end);
         while (true) {
           if (current == end) {
-            visitor_->OnChunkExtensionInput(extensions_start,
-                                            extensions_length);
-            visitor_->OnRawBodyInput(on_entry, current - on_entry);
+            visitor_->OnChunkExtensionInput(
+                absl::string_view(extensions_start, extensions_length));
+            visitor_->OnRawBodyInput(
+                absl::string_view(on_entry, current - on_entry));
             return current - input;
           }
           const char c = *current;
@@ -1111,7 +1118,8 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
         }
 
         chunk_length_character_extracted_ = false;
-        visitor_->OnChunkExtensionInput(extensions_start, extensions_length);
+        visitor_->OnChunkExtensionInput(
+            absl::string_view(extensions_start, extensions_length));
 
         if (chunk_length_remaining_ != 0) {
           parse_state_ = BalsaFrameEnums::READING_CHUNK_DATA;
@@ -1134,8 +1142,10 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
                                       ? chunk_length_remaining_
                                       : bytes_remaining;
           const char* tmp_current = current + consumed_bytes;
-          visitor_->OnRawBodyInput(on_entry, tmp_current - on_entry);
-          visitor_->OnBodyChunkInput(current, consumed_bytes);
+          visitor_->OnRawBodyInput(
+              absl::string_view(on_entry, tmp_current - on_entry));
+          visitor_->OnBodyChunkInput(
+              absl::string_view(current, consumed_bytes));
           on_entry = current = tmp_current;
           chunk_length_remaining_ -= consumed_bytes;
         }
@@ -1145,14 +1155,16 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
           continue;
         }
 
-        visitor_->OnRawBodyInput(on_entry, current - on_entry);
+        visitor_->OnRawBodyInput(
+            absl::string_view(on_entry, current - on_entry));
         return current - input;
 
       case BalsaFrameEnums::READING_CHUNK_TERM:
         QUICHE_DCHECK_LE(current, end);
         while (true) {
           if (current == end) {
-            visitor_->OnRawBodyInput(on_entry, current - on_entry);
+            visitor_->OnRawBodyInput(
+                absl::string_view(on_entry, current - on_entry));
             return current - input;
           }
 
@@ -1170,7 +1182,8 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
         QUICHE_DCHECK_LE(current, end);
         while (true) {
           if (current == end) {
-            visitor_->OnRawBodyInput(on_entry, current - on_entry);
+            visitor_->OnRawBodyInput(
+                absl::string_view(on_entry, current - on_entry));
             return current - input;
           }
 
@@ -1180,7 +1193,8 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
             // is done.
             ++current;
             parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
-            visitor_->OnRawBodyInput(on_entry, current - on_entry);
+            visitor_->OnRawBodyInput(
+                absl::string_view(on_entry, current - on_entry));
             visitor_->MessageDone();
             return current - input;
           }
@@ -1207,7 +1221,8 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
         // If (!HeaderFramingMayBeFound()), then we know that we must be
         // reading the first non CRLF character of a trailer.
         parse_state_ = BalsaFrameEnums::READING_TRAILER;
-        visitor_->OnRawBodyInput(on_entry, current - on_entry);
+        visitor_->OnRawBodyInput(
+            absl::string_view(on_entry, current - on_entry));
         on_entry = current;
         continue;
 
@@ -1243,7 +1258,8 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
               }
               visitor_->ProcessTrailers(*trailer_);
             }
-            visitor_->OnTrailerInput(on_entry, current - on_entry);
+            visitor_->OnTrailerInput(
+                absl::string_view(on_entry, current - on_entry));
             visitor_->MessageDone();
             return current - input;
           }
@@ -1251,14 +1267,16 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
         if (trailer_ != nullptr) {
           trailer_->WriteFromFramer(on_entry, current - on_entry);
         }
-        visitor_->OnTrailerInput(on_entry, current - on_entry);
+        visitor_->OnTrailerInput(
+            absl::string_view(on_entry, current - on_entry));
         return current - input;
 
       case BalsaFrameEnums::READING_UNTIL_CLOSE: {
         const size_t bytes_remaining = end - current;
         if (bytes_remaining > 0) {
-          visitor_->OnRawBodyInput(current, bytes_remaining);
-          visitor_->OnBodyChunkInput(current, bytes_remaining);
+          visitor_->OnRawBodyInput(absl::string_view(current, bytes_remaining));
+          visitor_->OnBodyChunkInput(
+              absl::string_view(current, bytes_remaining));
           current += bytes_remaining;
         }
         return current - input;
@@ -1272,8 +1290,9 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
               (content_length_remaining_ < bytes_remaining)
                   ? content_length_remaining_
                   : bytes_remaining;
-          visitor_->OnRawBodyInput(current, consumed_bytes);
-          visitor_->OnBodyChunkInput(current, consumed_bytes);
+          visitor_->OnRawBodyInput(absl::string_view(current, consumed_bytes));
+          visitor_->OnBodyChunkInput(
+              absl::string_view(current, consumed_bytes));
           current += consumed_bytes;
           content_length_remaining_ -= consumed_bytes;
         }

@@ -7,6 +7,7 @@
 
 #include <cstddef>
 
+#include "absl/strings/string_view.h"
 #include "quiche/common/balsa/balsa_visitor_interface.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
@@ -26,25 +27,23 @@ class QUICHE_EXPORT_PRIVATE NoOpBalsaVisitor : public BalsaVisitorInterface {
 
   ~NoOpBalsaVisitor() override {}
 
-  void OnRawBodyInput(const char* /*input*/, size_t /*size*/) override {}
-  void OnBodyChunkInput(const char* /*input*/, size_t /*size*/) override {}
-  void OnHeaderInput(const char* /*input*/, size_t /*size*/) override {}
-  void OnTrailerInput(const char* /*input*/, size_t /*size*/) override {}
+  void OnRawBodyInput(absl::string_view /*input*/) override {}
+  void OnBodyChunkInput(absl::string_view /*input*/) override {}
+  void OnHeaderInput(absl::string_view /*input*/) override {}
+  void OnTrailerInput(absl::string_view /*input*/) override {}
   void ProcessHeaders(const BalsaHeaders& /*headers*/) override {}
   void ProcessTrailers(const BalsaHeaders& /*trailer*/) override {}
 
-  void OnRequestFirstLineInput(
-      const char* /*line_input*/, size_t /*line_length*/,
-      const char* /*method_input*/, size_t /*method_length*/,
-      const char* /*request_uri_input*/, size_t /*request_uri_length*/,
-      const char* /*version_input*/, size_t /*version_length*/) override {}
-  void OnResponseFirstLineInput(
-      const char* /*line_input*/, size_t /*line_length*/,
-      const char* /*version_input*/, size_t /*version_length*/,
-      const char* /*status_input*/, size_t /*status_length*/,
-      const char* /*reason_input*/, size_t /*reason_length*/) override {}
+  void OnRequestFirstLineInput(absl::string_view /*line_input*/,
+                               absl::string_view /*method_input*/,
+                               absl::string_view /*request_uri_input*/,
+                               absl::string_view /*version_input*/) override {}
+  void OnResponseFirstLineInput(absl::string_view /*line_input*/,
+                                absl::string_view /*version_input*/,
+                                absl::string_view /*status_input*/,
+                                absl::string_view /*reason_input*/) override {}
   void OnChunkLength(size_t /*chunk_length*/) override {}
-  void OnChunkExtensionInput(const char* /*input*/, size_t /*size*/) override {}
+  void OnChunkExtensionInput(absl::string_view /*input*/) override {}
   void ContinueHeaderDone() override {}
   void HeaderDone() override {}
   void MessageDone() override {}
