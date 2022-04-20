@@ -3073,11 +3073,10 @@ void QuicConnection::WriteQueuedPackets() {
     }
     const BufferedPacket& packet = buffered_packets_.front();
     WriteResult result = writer_->WritePacket(
-        packet.encrypted_buffer.data(), packet.encrypted_buffer.length(),
-        packet.self_address.host(), packet.peer_address, per_packet_options_);
+        packet.data.get(), packet.length, packet.self_address.host(),
+        packet.peer_address, per_packet_options_);
     QUIC_DVLOG(1) << ENDPOINT << "Sending buffered packet, result: " << result;
-    if (IsMsgTooBig(writer_, result) &&
-        packet.encrypted_buffer.length() > long_term_mtu_) {
+    if (IsMsgTooBig(writer_, result) && packet.length > long_term_mtu_) {
       // When MSG_TOO_BIG is returned, the system typically knows what the
       // actual MTU is, so there is no need to probe further.
       // TODO(wub): Reduce max packet size to a safe default, or the actual MTU.
@@ -4916,21 +4915,18 @@ QuicConnection::ScopedEncryptionLevelContext::~ScopedEncryptionLevelContext() {
 QuicConnection::BufferedPacket::BufferedPacket(
     const SerializedPacket& packet, const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address)
-    : encrypted_buffer(CopyBuffer(packet), packet.encrypted_length),
-      self_address(self_address),
-      peer_address(peer_address) {}
+    : BufferedPacket(packet.encrypted_buffer, packet.encrypted_length,
+                     self_address, peer_address) {}
 
 QuicConnection::BufferedPacket::BufferedPacket(
-    char* encrypted_buffer, QuicPacketLength encrypted_length,
+    const char* encrypted_buffer, QuicPacketLength encrypted_length,
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address)
-    : encrypted_buffer(CopyBuffer(encrypted_buffer, encrypted_length),
-                       encrypted_length),
+    : length(encrypted_length),
       self_address(self_address),
-      peer_address(peer_address) {}
-
-QuicConnection::BufferedPacket::~BufferedPacket() {
-  delete[] encrypted_buffer.data();
+      peer_address(peer_address) {
+  data = std::make_unique<char[]>(encrypted_length);
+  memcpy(data.get(), encrypted_buffer, encrypted_length);
 }
 
 HasRetransmittableData QuicConnection::IsRetransmittable(

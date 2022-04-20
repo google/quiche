@@ -1391,16 +1391,17 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     BufferedPacket(const SerializedPacket& packet,
                    const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address);
-    BufferedPacket(char* encrypted_buffer, QuicPacketLength encrypted_length,
+    BufferedPacket(const char* encrypted_buffer,
+                   QuicPacketLength encrypted_length,
                    const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address);
     BufferedPacket(const BufferedPacket& other) = delete;
     BufferedPacket(const BufferedPacket&& other) = delete;
 
-    ~BufferedPacket();
+    ~BufferedPacket() = default;
 
-    // encrypted_buffer is owned by buffered packet.
-    absl::string_view encrypted_buffer;
+    std::unique_ptr<char[]> data;
+    const QuicPacketLength length;
     // Self and peer addresses when the packet is serialized.
     const QuicSocketAddress self_address;
     const QuicSocketAddress peer_address;
