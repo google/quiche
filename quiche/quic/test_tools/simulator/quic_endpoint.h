@@ -108,6 +108,7 @@ class QuicEndpoint : public QuicEndpointBase,
       const QuicSocketAddress& /*address*/) const override {
     return false;
   }
+  void OnBandwidthUpdateTimeout() override {}
 
   // End QuicConnectionVisitorInterface implementation.
 

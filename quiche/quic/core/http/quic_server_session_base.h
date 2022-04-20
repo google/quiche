@@ -48,6 +48,9 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
   void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
 
+  // Override to send bandwidth estimate.
+  void OnBandwidthUpdateTimeout() override;
+
   // Sends a server config update to the client, containing new bandwidth
   // estimate.
   void OnCongestionWindowChange(QuicTime now) override;
@@ -129,8 +132,9 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
   // The most recent bandwidth estimate sent to the client.
   QuicBandwidth bandwidth_estimate_sent_to_client_;
 
-  // Text describing server location. Sent to the client as part of the bandwith
-  // estimate in the source-address token. Optional, can be left empty.
+  // Text describing server location. Sent to the client as part of the
+  // bandwidth estimate in the source-address token. Optional, can be left
+  // empty.
   std::string serving_region_;
 
   // Time at which we send the last SCUP to the client.
@@ -144,6 +148,8 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
   // should go away once we fix http://b//27897982
   int32_t BandwidthToCachedParameterBytesPerSecond(
       const QuicBandwidth& bandwidth) const;
+
+  bool enable_sending_bandwidth_estimate_when_network_idle_ = false;
 };
 
 }  // namespace quic

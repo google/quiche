@@ -34,6 +34,9 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
 
     // Called when idle network has been detected.
     virtual void OnIdleNetworkDetected() = 0;
+
+    // Called when bandwidth update alarms.
+    virtual void OnBandwidthUpdateTimeout() = 0;
   };
 
   QuicIdleNetworkDetector(Delegate* delegate, QuicTime now,
@@ -73,6 +76,10 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
 
   QuicTime::Delta idle_network_timeout() const { return idle_network_timeout_; }
 
+  QuicTime::Delta bandwidth_update_timeout() const {
+    return bandwidth_update_timeout_;
+  }
+
   QuicTime GetIdleNetworkDeadline() const;
 
  private:
@@ -83,13 +90,15 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
 
   void MaybeSetAlarmOnSentPacket(QuicTime::Delta pto_delay);
 
+  QuicTime GetBandwidthUpdateDeadline() const;
+
   Delegate* delegate_;  // Not owned.
 
   // Start time of the detector, handshake deadline = start_time_ +
   // handshake_timeout_.
   const QuicTime start_time_;
 
-  // Handshake timeout. Infinit means handshake has completed.
+  // Handshake timeout. Infinite means handshake has completed.
   QuicTime::Delta handshake_timeout_;
 
   // Time that last packet is received for this connection. Initialized to
@@ -102,8 +111,11 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
   // Initialized to 0.
   QuicTime time_of_first_packet_sent_after_receiving_;
 
-  // Idle network timeout. Infinit means no idle network timeout.
+  // Idle network timeout. Infinite means no idle network timeout.
   QuicTime::Delta idle_network_timeout_;
+
+  // Bandwidth update timeout. Infinite means no bandwidth update timeout.
+  QuicTime::Delta bandwidth_update_timeout_;
 
   QuicArenaScopedPtr<QuicAlarm> alarm_;
 

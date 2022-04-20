@@ -239,6 +239,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
 
   // Whether the server address is known to the connection.
   virtual bool IsKnownServerAddress(const QuicSocketAddress& address) const = 0;
+
+  // When bandwidth update alarms.
+  virtual void OnBandwidthUpdateTimeout() = 0;
 };
 
 // Interface which gets callbacks from the QuicConnection at interesting
@@ -711,6 +714,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // QuicIdleNetworkDetector::Delegate
   void OnHandshakeTimeout() override;
   void OnIdleNetworkDetected() override;
+  void OnBandwidthUpdateTimeout() override;
 
   // QuicPingManager::Delegate
   void OnKeepAliveTimeout() override;

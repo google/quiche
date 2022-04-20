@@ -173,6 +173,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
       const QuicSocketAddress& /*address*/) const override {
     return false;
   }
+  void OnBandwidthUpdateTimeout() override {}
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,

@@ -504,6 +504,8 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
       const QuicSocketAddress& /*address*/) const override {
     return false;
   }
+
+  void OnBandwidthUpdateTimeout() override {}
 };
 
 class MockQuicConnectionHelper : public QuicConnectionHelperInterface {

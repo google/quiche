@@ -10,12 +10,14 @@
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/core/quic_tag.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -96,6 +98,12 @@ void QuicServerSessionBase::OnConfigNegotiated() {
         << "Failed to disable resumption";
   }
 
+  enable_sending_bandwidth_estimate_when_network_idle_ =
+      GetQuicRestartFlag(
+          quic_enable_sending_bandwidth_estimate_when_network_idle) &&
+      version().HasIetfQuicFrames() &&
+      ContainsQuicTag(config()->ReceivedConnectionOptions(), kBWID);
+
   // Enable bandwidth resumption if peer sent correct connection options.
   const bool last_bandwidth_resumption =
       ContainsQuicTag(config()->ReceivedConnectionOptions(), kBWRE);
@@ -138,7 +146,31 @@ void QuicServerSessionBase::OnConnectionClosed(
   }
 }
 
+void QuicServerSessionBase::OnBandwidthUpdateTimeout() {
+  if (!enable_sending_bandwidth_estimate_when_network_idle_) {
+    return;
+  }
+  QUIC_DVLOG(1) << "Bandwidth update timed out.";
+  const SendAlgorithmInterface* send_algorithm =
+      connection()->sent_packet_manager().GetSendAlgorithm();
+  if (send_algorithm != nullptr &&
+      send_algorithm->HasGoodBandwidthEstimateForResumption()) {
+    const bool success = MaybeSendAddressToken();
+    QUIC_BUG_IF(QUIC_BUG_25522, !success) << "Failed to send address token.";
+    QUIC_RESTART_FLAG_COUNT_N(
+        quic_enable_sending_bandwidth_estimate_when_network_idle, 2, 3);
+  }
+}
+
 void QuicServerSessionBase::OnCongestionWindowChange(QuicTime now) {
+  // Sending bandwidth is no longer conditioned on if session does bandwidth
+  // resumption.
+  if (GetQuicRestartFlag(
+          quic_enable_sending_bandwidth_estimate_when_network_idle)) {
+    QUIC_RESTART_FLAG_COUNT_N(
+        quic_enable_sending_bandwidth_estimate_when_network_idle, 3, 3);
+    return;
+  }
   if (!bandwidth_resumption_enabled_) {
     return;
   }
@@ -345,30 +377,55 @@ QuicServerSessionBase::GenerateCachedNetworkParameters() const {
         sent_packet_manager.GetRttStats()->min_rtt().ToMilliseconds());
   }
 
-  // Populate bandwidth estimates if any.
-  if (bandwidth_recorder != nullptr && bandwidth_recorder->HasEstimate()) {
-    const int32_t bw_estimate_bytes_per_second =
-        BandwidthToCachedParameterBytesPerSecond(
-            bandwidth_recorder->BandwidthEstimate());
-    const int32_t max_bw_estimate_bytes_per_second =
-        BandwidthToCachedParameterBytesPerSecond(
-            bandwidth_recorder->MaxBandwidthEstimate());
-    QUIC_BUG_IF(quic_bug_12513_1, max_bw_estimate_bytes_per_second < 0)
-        << max_bw_estimate_bytes_per_second;
-    QUIC_BUG_IF(quic_bug_10393_1, bw_estimate_bytes_per_second < 0)
-        << bw_estimate_bytes_per_second;
+  if (enable_sending_bandwidth_estimate_when_network_idle_) {
+    const SendAlgorithmInterface* send_algorithm =
+        sent_packet_manager.GetSendAlgorithm();
+    if (send_algorithm != nullptr &&
+        send_algorithm->HasGoodBandwidthEstimateForResumption()) {
+      cached_network_params.set_bandwidth_estimate_bytes_per_second(
+          BandwidthToCachedParameterBytesPerSecond(
+              send_algorithm->BandwidthEstimate()));
+      QUIC_CODE_COUNT(quic_send_measured_bandwidth_in_token);
+    } else {
+      const quic::CachedNetworkParameters* previous_cached_network_params =
+          crypto_stream()->PreviousCachedNetworkParams();
+      if (previous_cached_network_params != nullptr &&
+          previous_cached_network_params
+                  ->bandwidth_estimate_bytes_per_second() > 0) {
+        cached_network_params.set_bandwidth_estimate_bytes_per_second(
+            previous_cached_network_params
+                ->bandwidth_estimate_bytes_per_second());
+        QUIC_CODE_COUNT(quic_send_previous_bandwidth_in_token);
+      } else {
+        QUIC_CODE_COUNT(quic_not_send_bandwidth_in_token);
+      }
+    }
+  } else {
+    // Populate bandwidth estimates if any.
+    if (bandwidth_recorder != nullptr && bandwidth_recorder->HasEstimate()) {
+      const int32_t bw_estimate_bytes_per_second =
+          BandwidthToCachedParameterBytesPerSecond(
+              bandwidth_recorder->BandwidthEstimate());
+      const int32_t max_bw_estimate_bytes_per_second =
+          BandwidthToCachedParameterBytesPerSecond(
+              bandwidth_recorder->MaxBandwidthEstimate());
+      QUIC_BUG_IF(quic_bug_12513_1, max_bw_estimate_bytes_per_second < 0)
+          << max_bw_estimate_bytes_per_second;
+      QUIC_BUG_IF(quic_bug_10393_1, bw_estimate_bytes_per_second < 0)
+          << bw_estimate_bytes_per_second;
 
-    cached_network_params.set_bandwidth_estimate_bytes_per_second(
-        bw_estimate_bytes_per_second);
-    cached_network_params.set_max_bandwidth_estimate_bytes_per_second(
-        max_bw_estimate_bytes_per_second);
-    cached_network_params.set_max_bandwidth_timestamp_seconds(
-        bandwidth_recorder->MaxBandwidthTimestamp());
+      cached_network_params.set_bandwidth_estimate_bytes_per_second(
+          bw_estimate_bytes_per_second);
+      cached_network_params.set_max_bandwidth_estimate_bytes_per_second(
+          max_bw_estimate_bytes_per_second);
+      cached_network_params.set_max_bandwidth_timestamp_seconds(
+          bandwidth_recorder->MaxBandwidthTimestamp());
 
-    cached_network_params.set_previous_connection_state(
-        bandwidth_recorder->EstimateRecordedDuringSlowStart()
-            ? CachedNetworkParameters::SLOW_START
-            : CachedNetworkParameters::CONGESTION_AVOIDANCE);
+      cached_network_params.set_previous_connection_state(
+          bandwidth_recorder->EstimateRecordedDuringSlowStart()
+              ? CachedNetworkParameters::SLOW_START
+              : CachedNetworkParameters::CONGESTION_AVOIDANCE);
+    }
   }
 
   if (!serving_region_.empty()) {

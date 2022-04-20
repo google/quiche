@@ -5860,6 +5860,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendAfterHandshake) {
         &config, connection_.connection_id());
   }
   connection_.SetFromConfig(config);
+  QuicConnectionPeer::DisableBandwidthUpdate(&connection_);
 
   const QuicTime::Delta default_idle_timeout =
       QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs - 1);
@@ -5935,6 +5936,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
   EXPECT_THAT(error, IsQuicNoError());
 
   connection_.SetFromConfig(config);
+  QuicConnectionPeer::DisableBandwidthUpdate(&connection_);
 
   const QuicTime::Delta default_idle_timeout =
       QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs - 1);
@@ -5997,6 +5999,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
         &config, connection_.connection_id());
   }
   connection_.SetFromConfig(config);
+  QuicConnectionPeer::DisableBandwidthUpdate(&connection_);
 
   const QuicTime::Delta default_idle_timeout =
       QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs - 1);
@@ -6092,6 +6095,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterReceiveNotSendWhenUnacked) {
   connection_.SetNetworkTimeouts(
       QuicTime::Delta::Infinite(),
       initial_idle_timeout + QuicTime::Delta::FromSeconds(1));
+  QuicConnectionPeer::DisableBandwidthUpdate(&connection_);
   const QuicTime::Delta five_ms = QuicTime::Delta::FromMilliseconds(5);
   QuicTime default_timeout = clock_.ApproximateNow() + initial_idle_timeout;
 
@@ -11680,14 +11684,14 @@ TEST_P(QuicConnectionTest, TestingLiveness) {
   ASSERT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
   EXPECT_FALSE(connection_.MaybeTestLiveness());
 
-  QuicTime deadline = connection_.GetTimeoutAlarm()->deadline();
+  QuicTime deadline = QuicConnectionPeer::GetIdleNetworkDeadline(&connection_);
   QuicTime::Delta timeout = deadline - clock_.ApproximateNow();
   // Advance time to near the idle timeout.
   clock_.AdvanceTime(timeout - QuicTime::Delta::FromMilliseconds(1));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   EXPECT_TRUE(connection_.MaybeTestLiveness());
   // Verify idle deadline does not change.
-  EXPECT_EQ(deadline, connection_.GetTimeoutAlarm()->deadline());
+  EXPECT_EQ(deadline, QuicConnectionPeer::GetIdleNetworkDeadline(&connection_));
 }
 
 TEST_P(QuicConnectionTest, SilentIdleTimeout) {
@@ -11717,6 +11721,11 @@ TEST_P(QuicConnectionTest, SilentIdleTimeout) {
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  if (!QuicConnectionPeer::GetBandwidthUpdateTimeout(&connection_)
+           .IsInfinite()) {
+    // Fires the bandwidth update.
+    connection_.GetTimeoutAlarm()->Fire();
+  }
   connection_.GetTimeoutAlarm()->Fire();
   // Verify the connection close packets get serialized and added to
   // termination packets list.

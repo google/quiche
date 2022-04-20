@@ -5,7 +5,9 @@
 #include "quiche/quic/core/quic_idle_network_detector.h"
 
 #include "quiche/quic/core/quic_one_block_arena.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
@@ -25,6 +27,7 @@ class MockDelegate : public QuicIdleNetworkDetector::Delegate {
  public:
   MOCK_METHOD(void, OnHandshakeTimeout, (), (override));
   MOCK_METHOD(void, OnIdleNetworkDetected, (), (override));
+  MOCK_METHOD(void, OnBandwidthUpdateTimeout, (), (override));
 };
 
 class QuicIdleNetworkDetectorTest : public QuicTest {
@@ -90,6 +93,8 @@ TEST_F(QuicIdleNetworkDetectorTest,
       /*handshake_timeout=*/QuicTime::Delta::FromSeconds(30),
       /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20));
   EXPECT_TRUE(alarm_->IsSet());
+  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(20),
+            alarm_->deadline());
 
   // Handshake completes in 200ms.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(200));
@@ -97,11 +102,30 @@ TEST_F(QuicIdleNetworkDetectorTest,
   detector_->SetTimeouts(
       /*handshake_timeout=*/QuicTime::Delta::Infinite(),
       /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(600));
-  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(600),
+  if (!GetQuicRestartFlag(
+          quic_enable_sending_bandwidth_estimate_when_network_idle)) {
+    EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(600),
+              alarm_->deadline());
+
+    // No network activity for 600s.
+    clock_.AdvanceTime(QuicTime::Delta::FromSeconds(600));
+    EXPECT_CALL(delegate_, OnIdleNetworkDetected());
+    alarm_->Fire();
+    return;
+  }
+
+  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(300),
+            alarm_->deadline());
+
+  // No network activity for 300s.
+  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(300));
+  EXPECT_CALL(delegate_, OnBandwidthUpdateTimeout());
+  alarm_->Fire();
+  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(300),
             alarm_->deadline());
 
   // No network activity for 600s.
-  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(600));
+  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(300));
   EXPECT_CALL(delegate_, OnIdleNetworkDetected());
   alarm_->Fire();
 }
@@ -115,11 +139,16 @@ TEST_F(QuicIdleNetworkDetectorTest,
   EXPECT_TRUE(alarm_->IsSet());
 
   // Handshake completes in 200ms.
+  const bool enable_sending_bandwidth_estimate_when_network_idle =
+      GetQuicRestartFlag(
+          quic_enable_sending_bandwidth_estimate_when_network_idle);
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(200));
   detector_->OnPacketReceived(clock_.Now());
   detector_->SetTimeouts(
       /*handshake_timeout=*/QuicTime::Delta::Infinite(),
-      /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(600));
+      enable_sending_bandwidth_estimate_when_network_idle
+          ? QuicTime::Delta::FromSeconds(1200)
+          : QuicTime::Delta::FromSeconds(600));
   EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(600),
             alarm_->deadline());
 
@@ -133,22 +162,46 @@ TEST_F(QuicIdleNetworkDetectorTest,
   // Sent another packet after 200ms
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(200));
   detector_->OnPacketSent(clock_.Now(), QuicTime::Delta::Zero());
-  // Verify idle network deadline does not extend.
+  // Verify network deadline does not extend.
   EXPECT_EQ(packet_sent_time + QuicTime::Delta::FromSeconds(600),
             alarm_->deadline());
 
-  // No network activity for 600s.
+  if (!enable_sending_bandwidth_estimate_when_network_idle) {
+    // No network activity for 600s.
+    clock_.AdvanceTime(QuicTime::Delta::FromSeconds(600) -
+                       QuicTime::Delta::FromMilliseconds(200));
+    EXPECT_CALL(delegate_, OnIdleNetworkDetected());
+    alarm_->Fire();
+    return;
+  }
+
+  // Bandwidth update times out after no network activity for 600s.
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(600) -
                      QuicTime::Delta::FromMilliseconds(200));
+  EXPECT_CALL(delegate_, OnBandwidthUpdateTimeout());
+  alarm_->Fire();
+  EXPECT_TRUE(alarm_->IsSet());
+  EXPECT_EQ(packet_sent_time + QuicTime::Delta::FromSeconds(1200),
+            alarm_->deadline());
+
+  // Network idle time out after no network activity for 1200s.
+  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1200) -
+                     QuicTime::Delta::FromMilliseconds(600));
   EXPECT_CALL(delegate_, OnIdleNetworkDetected());
   alarm_->Fire();
 }
 
 TEST_F(QuicIdleNetworkDetectorTest, ShorterIdleTimeoutOnSentPacket) {
   detector_->enable_shorter_idle_timeout_on_sent_packet();
+  QuicTime::Delta idle_network_timeout = QuicTime::Delta::Zero();
+  if (GetQuicRestartFlag(
+          quic_enable_sending_bandwidth_estimate_when_network_idle)) {
+    idle_network_timeout = QuicTime::Delta::FromSeconds(60);
+  } else {
+    idle_network_timeout = QuicTime::Delta::FromSeconds(30);
+  }
   detector_->SetTimeouts(
-      /*handshake_timeout=*/QuicTime::Delta::Infinite(),
-      /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(30));
+      /*handshake_timeout=*/QuicTime::Delta::Infinite(), idle_network_timeout);
   EXPECT_TRUE(alarm_->IsSet());
   const QuicTime deadline = alarm_->deadline();
   EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(30), deadline);
@@ -175,7 +228,7 @@ TEST_F(QuicIdleNetworkDetectorTest, ShorterIdleTimeoutOnSentPacket) {
   EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(30),
             alarm_->deadline());
 
-  // Send a packet near timeout..
+  // Send a packet near timeout.
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(29));
   detector_->OnPacketSent(clock_.Now(), QuicTime::Delta::FromSeconds(2));
   EXPECT_TRUE(alarm_->IsSet());

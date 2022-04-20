@@ -83,6 +83,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_act_upon_invalid_header, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_require_handshake_confirmation, false)
 // If true, server proactively retires client issued connection ID on reverse path validation failure. 
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_retire_cid_on_reverse_path_validation_failure, true)
+// If true, server sends bandwidth eastimate when network is idle for a while.
+QUIC_FLAG(FLAGS_quic_restart_flag_quic_enable_sending_bandwidth_estimate_when_network_idle, false)
 // If true, servers drop received packets with changed server address.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_drop_packets_with_changed_server_address, true)
 // If true, set burst token to 2 in cwnd bootstrapping experiment.
