@@ -266,21 +266,22 @@ void BalsaFrame::ProcessFirstLine(const char* begin, const char* end) {
     if (version_length == 0) {
       parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
     }
-  } else {
-    visitor_->OnResponseFirstLineInput(
-        absl::string_view(
-            begin + headers_->non_whitespace_1_idx_,
-            headers_->whitespace_4_idx_ - headers_->non_whitespace_1_idx_),
-        absl::string_view(
-            begin + headers_->non_whitespace_1_idx_,
-            headers_->whitespace_2_idx_ - headers_->non_whitespace_1_idx_),
-        absl::string_view(
-            begin + headers_->non_whitespace_2_idx_,
-            headers_->whitespace_3_idx_ - headers_->non_whitespace_2_idx_),
-        absl::string_view(
-            begin + headers_->non_whitespace_3_idx_,
-            headers_->whitespace_4_idx_ - headers_->non_whitespace_3_idx_));
+    return;
   }
+
+  visitor_->OnResponseFirstLineInput(
+      absl::string_view(
+          begin + headers_->non_whitespace_1_idx_,
+          headers_->whitespace_4_idx_ - headers_->non_whitespace_1_idx_),
+      absl::string_view(
+          begin + headers_->non_whitespace_1_idx_,
+          headers_->whitespace_2_idx_ - headers_->non_whitespace_1_idx_),
+      absl::string_view(
+          begin + headers_->non_whitespace_2_idx_,
+          headers_->whitespace_3_idx_ - headers_->non_whitespace_2_idx_),
+      absl::string_view(
+          begin + headers_->non_whitespace_3_idx_,
+          headers_->whitespace_4_idx_ - headers_->non_whitespace_3_idx_));
 }
 
 // 'stream_begin' points to the first character of the headers buffer.
@@ -406,7 +407,8 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
       // Then the next colon will not be found within this header line-- time
       // to try again with another header-line.
       continue;
-    } else if (current < line_begin) {
+    }
+    if (current < line_begin) {
       // When this condition is true, the last detected colon was part of a
       // previous line.  We reset to the beginning of the line as we don't care
       // about the presence of any colon before the beginning of the current
@@ -520,13 +522,16 @@ void BalsaFrame::ProcessTransferEncodingLine(HeaderLines::size_type line_idx) {
   if (absl::EqualsIgnoreCase(absl::string_view(value_begin, value_length),
                              kChunked)) {
     headers_->transfer_encoding_is_chunked_ = true;
-  } else if (absl::EqualsIgnoreCase(
-                 absl::string_view(value_begin, value_length), kIdentity)) {
-    headers_->transfer_encoding_is_chunked_ = false;
-  } else {
-    HandleError(BalsaFrameEnums::UNKNOWN_TRANSFER_ENCODING);
     return;
   }
+
+  if (absl::EqualsIgnoreCase(absl::string_view(value_begin, value_length),
+                             kIdentity)) {
+    headers_->transfer_encoding_is_chunked_ = false;
+    return;
+  }
+
+  HandleError(BalsaFrameEnums::UNKNOWN_TRANSFER_ENCODING);
 }
 
 bool BalsaFrame::CheckHeaderLinesForInvalidChars(const Lines& lines,
@@ -560,9 +565,9 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
       if (invalid_chars_error_enabled()) {
         HandleError(BalsaFrameEnums::INVALID_HEADER_CHARACTER);
         return;
-      } else {
-        HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER);
       }
+
+      HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER);
     }
   }
 
@@ -610,31 +615,34 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
       HandleError(is_trailer ? BalsaFrameEnums::INVALID_TRAILER_FORMAT
                              : BalsaFrameEnums::INVALID_HEADER_FORMAT);
       return;
-    } else if (is_trailer) {
+    }
+    if (is_trailer) {
       continue;
-    } else if (absl::EqualsIgnoreCase(absl::string_view(key_begin, key_len),
-                                      kContentLength)) {
+    }
+    if (absl::EqualsIgnoreCase(absl::string_view(key_begin, key_len),
+                               kContentLength)) {
       size_t length = 0;
       BalsaHeadersEnums::ContentLengthStatus content_length_status =
           ProcessContentLengthLine(i, &length);
-      if (content_length_idx != 0) {  // then we've already seen one!
-        if ((headers->content_length_status_ != content_length_status) ||
-            ((headers->content_length_status_ ==
-              BalsaHeadersEnums::VALID_CONTENT_LENGTH) &&
-             (http_validation_policy().disallow_multiple_content_length() ||
-              length != headers->content_length_))) {
-          HandleError(BalsaFrameEnums::MULTIPLE_CONTENT_LENGTH_KEYS);
-          return;
-        }
-        continue;
-      } else {
+      if (content_length_idx == 0) {
         content_length_idx = i + 1;
         headers->content_length_status_ = content_length_status;
         headers->content_length_ = length;
         content_length_remaining_ = length;
+        continue;
       }
-    } else if (absl::EqualsIgnoreCase(absl::string_view(key_begin, key_len),
-                                      kTransferEncoding)) {
+      if ((headers->content_length_status_ != content_length_status) ||
+          ((headers->content_length_status_ ==
+            BalsaHeadersEnums::VALID_CONTENT_LENGTH) &&
+           (http_validation_policy().disallow_multiple_content_length() ||
+            length != headers->content_length_))) {
+        HandleError(BalsaFrameEnums::MULTIPLE_CONTENT_LENGTH_KEYS);
+        return;
+      }
+      continue;
+    }
+    if (absl::EqualsIgnoreCase(absl::string_view(key_begin, key_len),
+                               kTransferEncoding)) {
       if (transfer_encoding_idx != 0) {
         HandleError(BalsaFrameEnums::MULTIPLE_TRANSFER_ENCODING_KEYS);
         return;
@@ -666,71 +674,73 @@ void BalsaFrame::AssignParseStateAfterHeadersHaveBeenParsed() {
   // one of these response-codes.  rfc2616 section 4.3
   parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
   int response_code = headers_->parsed_response_code_;
-  if (is_request_ || (!request_was_head_ &&
-                      BalsaHeaders::ResponseCanHaveBody(response_code))) {
-    // Then we can have a body.
-    if (headers_->transfer_encoding_is_chunked_) {
-      // Note that
-      // if ( Transfer-Encoding: chunked &&  Content-length: )
-      // then Transfer-Encoding: chunked trumps.
-      // This is as specified in the spec.
-      // rfc2616 section 4.4.3
-      parse_state_ = BalsaFrameEnums::READING_CHUNK_LENGTH;
-    } else {
-      // Errors parsing content-length definitely can cause
-      // protocol errors/warnings
-      switch (headers_->content_length_status_) {
-        // If we have a content-length, and it is parsed
-        // properly, there are two options.
-        // 1) zero content, in which case the message is done, and
-        // 2) nonzero content, in which case we have to
-        //    consume the body.
-        case BalsaHeadersEnums::VALID_CONTENT_LENGTH:
-          if (headers_->content_length_ == 0) {
-            parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
-          } else {
-            parse_state_ = BalsaFrameEnums::READING_CONTENT;
-          }
-          break;
-        case BalsaHeadersEnums::CONTENT_LENGTH_OVERFLOW:
-        case BalsaHeadersEnums::INVALID_CONTENT_LENGTH:
-          // If there were characters left-over after parsing the
-          // content length, we should flag an error and stop.
-          HandleError(BalsaFrameEnums::UNPARSABLE_CONTENT_LENGTH);
-          break;
-          // We can have: no transfer-encoding, no content length, and no
-          // connection: close...
-          // Unfortunately, this case doesn't seem to be covered in the spec.
-          // We'll assume that the safest thing to do here is what the google
-          // binaries before 2008 already do, which is to assume that
-          // everything until the connection is closed is body.
-        case BalsaHeadersEnums::NO_CONTENT_LENGTH:
-          if (is_request_) {
-            absl::string_view method = headers_->request_method();
-            // POSTs and PUTs should have a detectable body length.  If they
-            // do not we consider it an error.
-            if (method != "POST" && method != "PUT") {
-              parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
-              break;
-            } else if (!allow_reading_until_close_for_request_) {
-              HandleError(BalsaFrameEnums::REQUIRED_BODY_BUT_NO_CONTENT_LENGTH);
-              break;
-            }
-          }
-          parse_state_ = BalsaFrameEnums::READING_UNTIL_CLOSE;
-          HandleWarning(BalsaFrameEnums::MAYBE_BODY_BUT_NO_CONTENT_LENGTH);
-          break;
-          // The COV_NF_... statements here provide hints to the apparatus
-          // which computes coverage reports/ratios that this code is never
-          // intended to be executed, and should technically be impossible.
-          // COV_NF_START
-        default:
-          LOG(FATAL) << "Saw a content_length_status: "
-                     << headers_->content_length_status_
-                     << " which is unknown.";
-          // COV_NF_END
+  if (!is_request_ && (request_was_head_ ||
+                       !BalsaHeaders::ResponseCanHaveBody(response_code))) {
+    // There is no body.
+    return;
+  }
+
+  if (headers_->transfer_encoding_is_chunked_) {
+    // Note that
+    // if ( Transfer-Encoding: chunked &&  Content-length: )
+    // then Transfer-Encoding: chunked trumps.
+    // This is as specified in the spec.
+    // rfc2616 section 4.4.3
+    parse_state_ = BalsaFrameEnums::READING_CHUNK_LENGTH;
+    return;
+  }
+
+  // Errors parsing content-length definitely can cause
+  // protocol errors/warnings
+  switch (headers_->content_length_status_) {
+    // If we have a content-length, and it is parsed
+    // properly, there are two options.
+    // 1) zero content, in which case the message is done, and
+    // 2) nonzero content, in which case we have to
+    //    consume the body.
+    case BalsaHeadersEnums::VALID_CONTENT_LENGTH:
+      if (headers_->content_length_ == 0) {
+        parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
+      } else {
+        parse_state_ = BalsaFrameEnums::READING_CONTENT;
       }
-    }
+      break;
+    case BalsaHeadersEnums::CONTENT_LENGTH_OVERFLOW:
+    case BalsaHeadersEnums::INVALID_CONTENT_LENGTH:
+      // If there were characters left-over after parsing the
+      // content length, we should flag an error and stop.
+      HandleError(BalsaFrameEnums::UNPARSABLE_CONTENT_LENGTH);
+      break;
+      // We can have: no transfer-encoding, no content length, and no
+      // connection: close...
+      // Unfortunately, this case doesn't seem to be covered in the spec.
+      // We'll assume that the safest thing to do here is what the google
+      // binaries before 2008 already do, which is to assume that
+      // everything until the connection is closed is body.
+    case BalsaHeadersEnums::NO_CONTENT_LENGTH:
+      if (is_request_) {
+        absl::string_view method = headers_->request_method();
+        // POSTs and PUTs should have a detectable body length.  If they
+        // do not we consider it an error.
+        if (method != "POST" && method != "PUT") {
+          parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
+          break;
+        } else if (!allow_reading_until_close_for_request_) {
+          HandleError(BalsaFrameEnums::REQUIRED_BODY_BUT_NO_CONTENT_LENGTH);
+          break;
+        }
+      }
+      parse_state_ = BalsaFrameEnums::READING_UNTIL_CLOSE;
+      HandleWarning(BalsaFrameEnums::MAYBE_BODY_BUT_NO_CONTENT_LENGTH);
+      break;
+      // The COV_NF_... statements here provide hints to the apparatus
+      // which computes coverage reports/ratios that this code is never
+      // intended to be executed, and should technically be impossible.
+      // COV_NF_START
+    default:
+      LOG(FATAL) << "Saw a content_length_status: "
+                 << headers_->content_length_status_ << " which is unknown.";
+      // COV_NF_END
   }
 }
 
@@ -788,7 +798,9 @@ size_t BalsaFrame::ProcessHeaders(const char* message_start,
         ProcessFirstLine(begin, begin + lines_[0].second);
         if (parse_state_ == BalsaFrameEnums::MESSAGE_FULLY_READ) {
           break;
-        } else if (parse_state_ == BalsaFrameEnums::ERROR) {
+        }
+
+        if (parse_state_ == BalsaFrameEnums::ERROR) {
           return message_current - original_message_start;
         }
       }
@@ -853,16 +865,15 @@ size_t BalsaFrame::ProcessHeaders(const char* message_start,
       visitor_->ContinueHeaderDone();
       checkpoint = message_start = message_current;
       continue;
-    } else {
-      AssignParseStateAfterHeadersHaveBeenParsed();
-      if (parse_state_ == BalsaFrameEnums::ERROR) {
-        return message_current - original_message_start;
-      }
-      visitor_->ProcessHeaders(*headers_);
-      visitor_->HeaderDone();
-      if (parse_state_ == BalsaFrameEnums::MESSAGE_FULLY_READ) {
-        visitor_->MessageDone();
-      }
+    }
+    AssignParseStateAfterHeadersHaveBeenParsed();
+    if (parse_state_ == BalsaFrameEnums::ERROR) {
+      return message_current - original_message_start;
+    }
+    visitor_->ProcessHeaders(*headers_);
+    visitor_->HeaderDone();
+    if (parse_state_ == BalsaFrameEnums::MESSAGE_FULLY_READ) {
+      visitor_->MessageDone();
     }
     return message_current - original_message_start;
   }
@@ -894,34 +905,32 @@ size_t BalsaFrame::BytesSafeToSplice() const {
 void BalsaFrame::BytesSpliced(size_t bytes_spliced) {
   switch (parse_state_) {
     case BalsaFrameEnums::READING_CHUNK_DATA:
-      if (chunk_length_remaining_ >= bytes_spliced) {
-        chunk_length_remaining_ -= bytes_spliced;
-        if (chunk_length_remaining_ == 0) {
-          parse_state_ = BalsaFrameEnums::READING_CHUNK_TERM;
-        }
-        return;
-      } else {
+      if (chunk_length_remaining_ < bytes_spliced) {
         HandleError(BalsaFrameEnums::
                         CALLED_BYTES_SPLICED_AND_EXCEEDED_SAFE_SPLICE_AMOUNT);
         return;
       }
+      chunk_length_remaining_ -= bytes_spliced;
+      if (chunk_length_remaining_ == 0) {
+        parse_state_ = BalsaFrameEnums::READING_CHUNK_TERM;
+      }
+      return;
 
     case BalsaFrameEnums::READING_UNTIL_CLOSE:
       return;
 
     case BalsaFrameEnums::READING_CONTENT:
-      if (content_length_remaining_ >= bytes_spliced) {
-        content_length_remaining_ -= bytes_spliced;
-        if (content_length_remaining_ == 0) {
-          parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
-          visitor_->MessageDone();
-        }
-        return;
-      } else {
+      if (content_length_remaining_ < bytes_spliced) {
         HandleError(BalsaFrameEnums::
                         CALLED_BYTES_SPLICED_AND_EXCEEDED_SAFE_SPLICE_AMOUNT);
         return;
       }
+      content_length_remaining_ -= bytes_spliced;
+      if (content_length_remaining_ == 0) {
+        parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
+        visitor_->MessageDone();
+      }
+      return;
 
     default:
       HandleError(BalsaFrameEnums::CALLED_BYTES_SPLICED_WHEN_UNSAFE_TO_DO_SO);

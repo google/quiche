@@ -281,7 +281,10 @@ void BalsaHeaders::MaybeClearSpecialHeaderValues(absl::string_view key) {
 
     content_length_status_ = BalsaHeadersEnums::NO_CONTENT_LENGTH;
     content_length_ = 0;
-  } else if (absl::EqualsIgnoreCase(key, kTransferEncoding)) {
+    return;
+  }
+
+  if (absl::EqualsIgnoreCase(key, kTransferEncoding)) {
     transfer_encoding_is_chunked_ = false;
   }
 }
@@ -1025,24 +1028,23 @@ void BalsaHeaders::SetRequestVersion(absl::string_view version) {
   // This is the last of the three parts of the firstline.
   // Since whitespace_3_idx and non_whitespace_3_idx may point to the same
   // place, we ensure below that any available space includes space for a
-  // litteral space (' ') character between the second component and the third
+  // literal space (' ') character between the second component and the third
   // component.
   bool fits_in_space_allowed =
       version.size() + 1 <= whitespace_4_idx_ - whitespace_3_idx_;
 
-  if (fits_in_space_allowed) {
-    char* stream_begin = BeginningOfFirstLine();
-    *(stream_begin + whitespace_3_idx_) = ' ';
-    non_whitespace_3_idx_ = whitespace_3_idx_ + 1;
-    whitespace_4_idx_ = non_whitespace_3_idx_ + version.size();
-    memcpy(stream_begin + non_whitespace_3_idx_, version.data(),
-           version.size());
-  } else {
-    // The new version is too large to fit in the space available for the old
-    // one, so we have to reformat the firstline.
+  if (!fits_in_space_allowed) {
+    // If the new version is too large, then reformat the firstline.
     SetRequestFirstlineFromStringPieces(request_method(), request_uri(),
                                         version);
+    return;
   }
+
+  char* stream_begin = BeginningOfFirstLine();
+  *(stream_begin + whitespace_3_idx_) = ' ';
+  non_whitespace_3_idx_ = whitespace_3_idx_ + 1;
+  whitespace_4_idx_ = non_whitespace_3_idx_ + version.size();
+  memcpy(stream_begin + non_whitespace_3_idx_, version.data(), version.size());
 }
 
 void BalsaHeaders::SetResponseReasonPhrase(absl::string_view reason) {
