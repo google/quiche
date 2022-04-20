@@ -645,7 +645,6 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
         quic_remove_connection_migration_connection_option_v2);
   }
   if (framer_.version().HasIetfQuicFrames() &&
-      count_bytes_on_alternative_path_separately_ &&
       GetQuicReloadableFlag(quic_server_reverse_validate_new_path3) &&
       (remove_connection_migration_connection_option ||
        config.HasClientSentConnectionOption(kRVCM, perspective_))) {
@@ -2722,14 +2721,9 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
 
   stats_.bytes_received += packet.length();
   ++stats_.packets_received;
-  if (!count_bytes_on_alternative_path_separately_) {
-    if (EnforceAntiAmplificationLimit()) {
-      default_path_.bytes_received_before_address_validation += last_size_;
-    }
-  } else if (IsDefaultPath(last_received_packet_info_.destination_address,
-                           last_received_packet_info_.source_address) &&
-             EnforceAntiAmplificationLimit()) {
-    QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 1, 5);
+  if (IsDefaultPath(last_received_packet_info_.destination_address,
+                    last_received_packet_info_.source_address) &&
+      EnforceAntiAmplificationLimit()) {
     last_received_packet_info_.received_bytes_counted = true;
     default_path_.bytes_received_before_address_validation += last_size_;
   }
@@ -3164,10 +3158,6 @@ bool QuicConnection::ShouldGeneratePacket(
                        "generate packet.";
     return false;
   }
-  if (!count_bytes_on_alternative_path_separately_) {
-    return CanWrite(retransmittable);
-  }
-  QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 4, 5);
   if (IsDefaultPath(default_path_.self_address,
                     packet_creator_.peer_address())) {
     return CanWrite(retransmittable);
@@ -3601,22 +3591,13 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   QUIC_DVLOG(1) << ENDPOINT << "time we began writing last sent packet: "
                 << packet_send_time.ToDebuggingValue();
 
-  if (!count_bytes_on_alternative_path_separately_) {
+  if (IsDefaultPath(default_path_.self_address, send_to_address)) {
     if (EnforceAntiAmplificationLimit()) {
       // Include bytes sent even if they are not in flight.
       default_path_.bytes_sent_before_address_validation += encrypted_length;
     }
   } else {
-    QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 2, 5);
-    if (IsDefaultPath(default_path_.self_address, send_to_address)) {
-      if (EnforceAntiAmplificationLimit()) {
-        // Include bytes sent even if they are not in flight.
-        default_path_.bytes_sent_before_address_validation += encrypted_length;
-      }
-    } else {
-      MaybeUpdateBytesSentToAlternativeAddress(send_to_address,
-                                               encrypted_length);
-    }
+    MaybeUpdateBytesSentToAlternativeAddress(send_to_address, encrypted_length);
   }
 
   // Do not measure rtt of this packet if it's not sent on current path.
@@ -5503,12 +5484,10 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
     }
     QuicSocketAddress current_effective_peer_address =
         GetEffectivePeerAddressFromCurrentPacket();
-    if (!count_bytes_on_alternative_path_separately_ ||
-        IsDefaultPath(last_received_packet_info_.destination_address,
+    if (IsDefaultPath(last_received_packet_info_.destination_address,
                       last_received_packet_info_.source_address)) {
       return connected_;
     }
-    QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 3, 5);
     if (perspective_ == Perspective::IS_SERVER &&
         type == PATH_CHALLENGE_FRAME &&
         !IsAlternativePath(last_received_packet_info_.destination_address,
@@ -6020,22 +5999,15 @@ bool QuicConnection::FlushCoalescedPacket() {
   // Account for added padding.
   if (length > coalesced_packet_.length()) {
     size_t padding_size = length - coalesced_packet_.length();
-    if (!count_bytes_on_alternative_path_separately_) {
+    if (IsDefaultPath(coalesced_packet_.self_address(),
+                      coalesced_packet_.peer_address())) {
       if (EnforceAntiAmplificationLimit()) {
+        // Include bytes sent even if they are not in flight.
         default_path_.bytes_sent_before_address_validation += padding_size;
       }
     } else {
-      QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 5, 5);
-      if (IsDefaultPath(coalesced_packet_.self_address(),
-                        coalesced_packet_.peer_address())) {
-        if (EnforceAntiAmplificationLimit()) {
-          // Include bytes sent even if they are not in flight.
-          default_path_.bytes_sent_before_address_validation += padding_size;
-        }
-      } else {
-        MaybeUpdateBytesSentToAlternativeAddress(
-            coalesced_packet_.peer_address(), padding_size);
-      }
+      MaybeUpdateBytesSentToAlternativeAddress(coalesced_packet_.peer_address(),
+                                               padding_size);
     }
     stats_.bytes_sent += padding_size;
     if (coalesced_packet_.initial_packet() != nullptr &&

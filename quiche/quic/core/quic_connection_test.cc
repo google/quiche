@@ -2496,8 +2496,7 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
             connection_.GetStats().num_connectivity_probing_received);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
-  if (GetParam().version.HasIetfQuicFrames() &&
-      GetQuicReloadableFlag(quic_count_bytes_on_alternative_path_seperately)) {
+  if (GetParam().version.HasIetfQuicFrames()) {
     QuicByteCount bytes_sent =
         QuicConnectionPeer::BytesSentOnAlternativePath(&connection_);
     EXPECT_LT(0u, bytes_sent);
@@ -14605,8 +14604,7 @@ TEST_P(QuicConnectionTest,
 TEST_P(
     QuicConnectionTest,
     ReplacePeerIssuedConnectionIdOnBothPathsTriggeredByNewConnectionIdFrame) {
-  if (!version().HasIetfQuicFrames() ||
-      !connection_.count_bytes_on_alternative_path_separately()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   PathProbeTestInit(Perspective::IS_SERVER);
