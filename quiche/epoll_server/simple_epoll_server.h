@@ -37,7 +37,7 @@
 
 #include <sys/epoll.h>
 
-#include "quiche/epoll_server/platform/api/epoll_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace epoll_server {
 
@@ -456,7 +456,7 @@ class SimpleEpollServer {
   static std::string EventMaskToString(int event_mask);
 
   // Summary:
-  //   Logs the state of the epoll server with EPOLL_LOG(ERROR).
+  //   Logs the state of the epoll server with QUICHE_LOG(ERROR).
   void LogStateOnCrash();
 
   // Summary:
@@ -724,10 +724,10 @@ class SimpleEpollServer {
 
     // When a number of events equals the record threshold,
     // the collected data summary for all FDs will be written
-    // to EPOLL_LOG(INFO). Note that this does not include the
+    // to QUICHE_LOG(INFO). Note that this does not include the
     // individual events (if you'reinterested in those, you'll
     // have to get at them programmatically).
-    // After any such flushing to EPOLL_LOG(INFO) all events will
+    // After any such flushing to QUICHE_LOG(INFO) all events will
     // be cleared.
     // Note that the definition of an 'event' is a bit 'hazy',
     // as it includes the 'Unregistration' event, and perhaps
@@ -748,7 +748,7 @@ class SimpleEpollServer {
     void MaybeRecordAndClear() {
       ++num_records_;
       if ((num_records_ > record_threshold_) && (record_threshold_ > 0)) {
-        EPOLL_LOG(INFO) << "\n" << *this;
+        QUICHE_LOG(INFO) << "\n" << *this;
         num_records_ = 0;
         Clear();
       }
