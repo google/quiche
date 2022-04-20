@@ -1963,6 +1963,31 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
   VerifyCleanConnection(false);
 }
 
+TEST_P(EndToEndTest, DisableResumption) {
+  client_extra_copts_.push_back(kNRES);
+  ASSERT_TRUE(Initialize());
+  if (!version_.UsesTls()) {
+    return;
+  }
+  SendSynchronousFooRequestAndCheckResponse();
+  QuicSpdyClientSession* client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_EQ(client_session->GetCryptoStream()->EarlyDataReason(),
+            ssl_early_data_no_session_offered);
+  client_->Disconnect();
+
+  SendSynchronousFooRequestAndCheckResponse();
+  client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  if (GetQuicReloadableFlag(quic_enable_disable_resumption)) {
+    EXPECT_EQ(client_session->GetCryptoStream()->EarlyDataReason(),
+              ssl_early_data_session_not_resumed);
+  } else {
+    EXPECT_EQ(client_session->GetCryptoStream()->EarlyDataReason(),
+              ssl_early_data_accepted);
+  }
+}
+
 // This is a regression test for b/162595387
 TEST_P(EndToEndTest, PostZeroRTTRequestDuringHandshake) {
   if (!version_.UsesTls()) {

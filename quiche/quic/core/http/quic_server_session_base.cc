@@ -86,6 +86,16 @@ void QuicServerSessionBase::OnConfigNegotiated() {
     }
   }
 
+  if (GetQuicReloadableFlag(quic_enable_disable_resumption) &&
+      version().UsesTls() &&
+      ContainsQuicTag(config()->ReceivedConnectionOptions(), kNRES) &&
+      crypto_stream_->ResumptionAttempted()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_enable_disable_resumption);
+    const bool disabled = crypto_stream_->DisableResumption();
+    QUIC_BUG_IF(quic_failed_to_disable_resumption, !disabled)
+        << "Failed to disable resumption";
+  }
+
   // Enable bandwidth resumption if peer sent correct connection options.
   const bool last_bandwidth_resumption =
       ContainsQuicTag(config()->ReceivedConnectionOptions(), kBWRE);

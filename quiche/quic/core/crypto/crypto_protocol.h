@@ -426,6 +426,7 @@ const QuicTag kSRWP = TAG('S', 'R', 'W', 'P');   // Enable retransmittable on
                                                  // wire PING (ROWP) on the
                                                  // server side.
 const QuicTag kGSR0 = TAG('G', 'S', 'R', '0');   // Selective Resumption
+const QuicTag kNRES = TAG('N', 'R', 'E', 'S');   // No resumption
 
 const QuicTag kINVC = TAG('I', 'N', 'V', 'C');   // Send connection close for
                                                  // INVALID_VERSION
