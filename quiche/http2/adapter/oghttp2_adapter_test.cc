@@ -2199,7 +2199,7 @@ TEST(OgHttp2AdapterTest, ClientReceivesGoAwayWithPendingStreams) {
 
   const std::string initial_frames =
       TestFrameSequence()
-          .ServerPreface({{.id = MAX_CONCURRENT_STREAMS, .value = 1}})
+          .ServerPreface({{MAX_CONCURRENT_STREAMS, 1}})
           .Serialize();
 
   // Server preface (SETTINGS with MAX_CONCURRENT_STREAMS)
@@ -2469,7 +2469,7 @@ TEST(OgHttp2AdapterTest, ClientObeysMaxConcurrentStreams) {
 
   const std::string initial_frames =
       TestFrameSequence()
-          .ServerPreface({{.id = MAX_CONCURRENT_STREAMS, .value = 1}})
+          .ServerPreface({{MAX_CONCURRENT_STREAMS, 1}})
           .Serialize();
   testing::InSequence s;
 
@@ -5723,11 +5723,13 @@ TEST(OgHttp2AdapterTest, ServerRejectsStreamData) {
 // without recursion guards in OgHttp2Session.
 TEST(OgHttp2AdapterInteractionTest, ClientServerInteractionTest) {
   MockHttp2Visitor client_visitor;
-  auto client_adapter = OgHttp2Adapter::Create(
-      client_visitor, {.perspective = Perspective::kClient});
+  OgHttp2Adapter::Options client_options;
+  client_options.perspective = Perspective::kClient;
+  auto client_adapter = OgHttp2Adapter::Create(client_visitor, client_options);
   MockHttp2Visitor server_visitor;
-  auto server_adapter = OgHttp2Adapter::Create(
-      server_visitor, {.perspective = Perspective::kServer});
+  OgHttp2Adapter::Options server_options;
+  server_options.perspective = Perspective::kServer;
+  auto server_adapter = OgHttp2Adapter::Create(server_visitor, server_options);
 
   // Feeds bytes sent from the client into the server's ProcessBytes.
   EXPECT_CALL(client_visitor, OnReadyToSend(_))
@@ -7152,10 +7154,10 @@ TEST(OgHttp2AdapterTest, ServerHandlesConnectionSpecificHeaders) {
 TEST(OgHttp2AdapterTest, ServerUsesCustomWindowUpdateStrategy) {
   // Test the use of a custom WINDOW_UPDATE strategy.
   DataSavingVisitor visitor;
-  OgHttp2Adapter::Options options{
-      .should_window_update_fn = [](int64_t /*limit*/, int64_t /*size*/,
-                                    int64_t /*delta*/) { return true; },
-      .perspective = Perspective::kServer};
+  OgHttp2Adapter::Options options;
+  options.should_window_update_fn = [](int64_t /*limit*/, int64_t /*size*/,
+                                       int64_t /*delta*/) { return true; };
+  options.perspective = Perspective::kServer;
   auto adapter = OgHttp2Adapter::Create(visitor, options);
 
   const std::string frames = TestFrameSequence()
