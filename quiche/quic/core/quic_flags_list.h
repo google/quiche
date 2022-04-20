@@ -97,8 +97,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_ping_manager, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, true)
 // If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
-// If true, validate that peer owns the new address once the server detects peer migration or is probed from that address, and also apply anti-amplification limit while sending to that address.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_server_reverse_validate_new_path3, true)
 // If true, when a packet is forced retransmitted, only set packet state if all data gets retransmitted.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_set_packet_state_if_all_data_retransmitted, true)
 // When the flag is true, exit STARTUP after the same number of loss events as PROBE_UP.

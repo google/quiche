@@ -645,10 +645,8 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
         quic_remove_connection_migration_connection_option_v2);
   }
   if (framer_.version().HasIetfQuicFrames() &&
-      GetQuicReloadableFlag(quic_server_reverse_validate_new_path3) &&
       (remove_connection_migration_connection_option ||
        config.HasClientSentConnectionOption(kRVCM, perspective_))) {
-    QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 6, 6);
     validate_client_addresses_ = true;
   }
   // Having connection_migration_use_new_cid_ depends on the same set of flags
@@ -1693,7 +1691,6 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
   if (!validate_client_addresses_) {
     return OnPathChallengeFrameInternal(frame);
   }
-  QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 1, 6);
   {
     // TODO(danzh) inline OnPathChallengeFrameInternal() once
     // validate_client_addresses_ is deprecated.
@@ -5148,7 +5145,6 @@ void QuicConnection::OnEffectivePeerMigrationValidated() {
   if (!validate_client_addresses_) {
     return;
   }
-  QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 2, 6);
   if (debug_visitor_ != nullptr) {
     const QuicTime now = clock_->ApproximateNow();
     if (now >= stats_.handshake_completion_time) {
@@ -5194,7 +5190,6 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
     return;
   }
 
-  QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 3, 6);
   if (type == NO_CHANGE) {
     UpdatePeerAddress(last_received_packet_info_.source_address);
     QUIC_BUG(quic_bug_10511_36)
@@ -5508,7 +5503,6 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
             current_effective_peer_address, client_cid,
             last_packet_destination_connection_id_, stateless_reset_token);
       } else if (!default_path_.validated) {
-        QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 4, 6);
         // Skip reverse path validation because either handshake hasn't
         // completed or the connection is validating the default path. Using
         // PATH_CHALLENGE to validate alternative client address before
@@ -5522,7 +5516,6 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
                     IsHandshakeConfirmed() && !alternative_path_.validated)
             << "No validated peer address to send after handshake comfirmed.";
       } else if (!IsReceivedPeerAddressValidated()) {
-        QUIC_CODE_COUNT_N(quic_server_reverse_validate_new_path3, 5, 6);
         QuicConnectionId client_connection_id;
         absl::optional<StatelessResetToken> stateless_reset_token;
         FindMatchingOrNewClientConnectionIdOrToken(
