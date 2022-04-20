@@ -7,7 +7,6 @@
 #include <list>
 #include <utility>
 
-#include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -62,12 +61,12 @@ void QuicSimpleServerStream::OnInitialHeadersComplete(
   }
   ConsumeHeaderList();
   if (!fin && !response_sent_) {
-    // CONNECT and other CONNECT-like methods (such as CONNECT-UDP) require
-    // sending the response right after parsing the headers even though the FIN
-    // bit has not been received on the request stream.
+    // CONNECT requests do not carry any message content but carry data after
+    // the headers, so they require sending the response right after parsing the
+    // headers even though the FIN bit has not been received on the request
+    // stream.
     auto it = request_headers_.find(":method");
-    if (it != request_headers_.end() &&
-        absl::StartsWith(it->second, "CONNECT")) {
+    if (it != request_headers_.end() && it->second == "CONNECT") {
       SendResponse();
     }
   }
@@ -156,11 +155,9 @@ void QuicSimpleServerStream::SendResponse() {
   }
 
   if (!request_headers_.contains(":path")) {
-    // CONNECT and other CONNECT-like methods (such as CONNECT-UDP) do not all
-    // require :path to be present.
+    // The CONNECT method does not require :path to be present.
     auto it = request_headers_.find(":method");
-    if (it == request_headers_.end() ||
-        !absl::StartsWith(it->second, "CONNECT")) {
+    if (it == request_headers_.end() || it->second != "CONNECT") {
       QUIC_DVLOG(1) << "Request headers do not contain :path.";
       SendErrorResponse();
       return;
