@@ -12,8 +12,8 @@
 #include <algorithm>
 #include <utility>
 
+#include "absl/time/clock.h"
 #include "quiche/epoll_server/platform/api/epoll_bug.h"
-#include "quiche/epoll_server/platform/api/epoll_time.h"
 
 // Design notes: An efficient implementation of ready list has the following
 // desirable properties:
@@ -485,7 +485,9 @@ void SimpleEpollServer::Wake() {
   DCHECK_EQ(rv, 1);
 }
 
-int64_t SimpleEpollServer::NowInUsec() const { return WallTimeNowInUsec(); }
+int64_t SimpleEpollServer::NowInUsec() const {
+  return absl::GetCurrentTimeNanos() / 1000;
+}
 
 int64_t SimpleEpollServer::ApproximateNowInUsec() const {
   if (recorded_now_in_us_ != 0) {

@@ -24,13 +24,12 @@
 #include <utility>
 #include <vector>
 
+#include "absl/time/clock.h"
 #include "quiche/epoll_server/fake_simple_epoll_server.h"
 #include "quiche/epoll_server/platform/api/epoll_address_test_utils.h"
 #include "quiche/epoll_server/platform/api/epoll_expect_bug.h"
-#include "quiche/epoll_server/platform/api/epoll_ptr_util.h"
 #include "quiche/epoll_server/platform/api/epoll_test.h"
 #include "quiche/epoll_server/platform/api/epoll_thread.h"
-#include "quiche/epoll_server/platform/api/epoll_time.h"
 
 namespace epoll_server {
 
@@ -54,6 +53,8 @@ enum {
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
+
+int64_t WallTimeNowInUsec() { return absl::GetCurrentTimeNanos() / 1000; }
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -1738,7 +1739,7 @@ void TestPipe(char* test_message, int len) {
       break;
     default: {  // Parent will receive message.
       close(writer_pipe);
-      auto ep = EpollMakeUnique<SimpleEpollServer>();
+      auto ep = std::make_unique<SimpleEpollServer>();
       ep->set_timeout_in_us(1);
       EpollReader reader(len);
       ep->RegisterFD(reader_pipe, &reader, EPOLLIN);
@@ -1782,7 +1783,7 @@ TEST(SimpleEpollServerTest, TestRead) {
   int read_fd = pipe_fds[0];
   int write_fd = pipe_fds[1];
 
-  auto reader = EpollMakeUnique<EpollReader>(len);
+  auto reader = std::make_unique<EpollReader>(len);
 
   // Check that registering a FD for read alerts us when there is data to be
   // read.

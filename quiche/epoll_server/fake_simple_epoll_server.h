@@ -10,7 +10,6 @@
 
 #include <map>
 
-#include "quiche/epoll_server/platform/api/epoll_export.h"
 #include "quiche/epoll_server/simple_epoll_server.h"
 
 namespace epoll_server {
@@ -19,8 +18,7 @@ namespace test {
 // Unlike the full FakeEpollServer, this only lies about the time but lets
 // fd events operate normally.  Usefully when interacting with real backends
 // but wanting to skip forward in time to trigger timeouts.
-class EPOLL_EXPORT_PRIVATE FakeTimeSimpleEpollServer
-    : public SimpleEpollServer {
+class FakeTimeSimpleEpollServer : public SimpleEpollServer {
  public:
   FakeTimeSimpleEpollServer();
   FakeTimeSimpleEpollServer(const FakeTimeSimpleEpollServer&) = delete;
@@ -53,8 +51,7 @@ class EPOLL_EXPORT_PRIVATE FakeTimeSimpleEpollServer
   int64_t now_in_usec_;
 };
 
-class EPOLL_EXPORT_PRIVATE FakeSimpleEpollServer
-    : public FakeTimeSimpleEpollServer {
+class FakeSimpleEpollServer : public FakeTimeSimpleEpollServer {
  public:  // type definitions
   using EventQueue = std::multimap<int64_t, struct epoll_event>;
 
