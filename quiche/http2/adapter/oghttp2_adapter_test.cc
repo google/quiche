@@ -5722,11 +5722,11 @@ TEST(OgHttp2AdapterTest, ServerRejectsStreamData) {
 // Exercises a naive mutually recursive test client and server. This test fails
 // without recursion guards in OgHttp2Session.
 TEST(OgHttp2AdapterInteractionTest, ClientServerInteractionTest) {
-  MockHttp2Visitor client_visitor;
+  testing::NiceMock<MockHttp2Visitor> client_visitor;
   OgHttp2Adapter::Options client_options;
   client_options.perspective = Perspective::kClient;
   auto client_adapter = OgHttp2Adapter::Create(client_visitor, client_options);
-  MockHttp2Visitor server_visitor;
+  testing::NiceMock<MockHttp2Visitor> server_visitor;
   OgHttp2Adapter::Options server_options;
   server_options.perspective = Perspective::kServer;
   auto server_adapter = OgHttp2Adapter::Create(server_visitor, server_options);
