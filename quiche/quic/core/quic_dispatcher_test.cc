@@ -979,15 +979,10 @@ TEST_P(QuicDispatcherTestAllVersions, LimitResetsToSameClientAddress) {
   QuicSocketAddress client_address3(QuicIpAddress::Loopback6(), 1);
   QuicConnectionId connection_id = TestConnectionId(1);
 
-  if (GetQuicRestartFlag(quic_use_recent_reset_addresses)) {
-    // Verify only one reset is sent to the address, although multiple packets
-    // are received.
-    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
-        .Times(1);
-  } else {
-    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
-        .Times(3);
-  }
+  // Verify only one reset is sent to the address, although multiple packets
+  // are received.
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+      .Times(1);
   ProcessPacket(client_address, connection_id, /*has_version_flag=*/false,
                 "data");
   ProcessPacket(client_address, connection_id, /*has_version_flag=*/false,
@@ -1024,43 +1019,25 @@ TEST_P(QuicDispatcherTestAllVersions,
   const QuicTime expected_deadline =
       mock_helper_.GetClock()->Now() +
       QuicTime::Delta::FromMilliseconds(kTestLifeTimeMs);
-  if (GetQuicRestartFlag(quic_use_recent_reset_addresses)) {
-    ASSERT_TRUE(GetClearResetAddressesAlarm()->IsSet());
-    EXPECT_EQ(expected_deadline, GetClearResetAddressesAlarm()->deadline());
-  } else {
-    EXPECT_FALSE(GetClearResetAddressesAlarm()->IsSet());
-  }
+  ASSERT_TRUE(GetClearResetAddressesAlarm()->IsSet());
+  EXPECT_EQ(expected_deadline, GetClearResetAddressesAlarm()->deadline());
   // Received no version packet 2 after 5ms.
   mock_helper_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   ProcessPacket(client_address2, connection_id, /*has_version_flag=*/false,
                 "data");
-  if (GetQuicRestartFlag(quic_use_recent_reset_addresses)) {
-    ASSERT_TRUE(GetClearResetAddressesAlarm()->IsSet());
-    // Verify deadline does not change.
-    EXPECT_EQ(expected_deadline, GetClearResetAddressesAlarm()->deadline());
-  } else {
-    EXPECT_FALSE(GetClearResetAddressesAlarm()->IsSet());
-  }
-  if (GetQuicRestartFlag(quic_use_recent_reset_addresses)) {
-    // Verify reset gets throttled since there are too many recent addresses.
-    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
-        .Times(0);
-  } else {
-    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
-        .Times(1);
-  }
+  ASSERT_TRUE(GetClearResetAddressesAlarm()->IsSet());
+  // Verify deadline does not change.
+  EXPECT_EQ(expected_deadline, GetClearResetAddressesAlarm()->deadline());
+  // Verify reset gets throttled since there are too many recent addresses.
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+      .Times(0);
   ProcessPacket(client_address3, connection_id, /*has_version_flag=*/false,
                 "data");
 
   mock_helper_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
-  if (GetQuicRestartFlag(quic_use_recent_reset_addresses)) {
-    GetClearResetAddressesAlarm()->Fire();
-    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
-        .Times(2);
-  } else {
-    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
-        .Times(3);
-  }
+  GetClearResetAddressesAlarm()->Fire();
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+      .Times(2);
   ProcessPacket(client_address, connection_id, /*has_version_flag=*/false,
                 "data");
   ProcessPacket(client_address2, connection_id, /*has_version_flag=*/false,

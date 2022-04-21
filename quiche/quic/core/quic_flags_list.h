@@ -75,8 +75,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_remove_connection_migration_connection
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, quic server will send ENABLE_CONNECT_PROTOCOL setting and and endpoint will validate required request/response headers and extended CONNECT mechanism and update code counts of valid/invalid headers.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_verify_request_headers_2, true)
-// If true, record addresses that server has sent reset to recently, and do not send reset if the address lives in the set.
-QUIC_FLAG(FLAGS_quic_restart_flag_quic_use_recent_reset_addresses, true)
 // If true, reject or send error response code upon receiving invalid request or response headers. This flag depends on --gfe2_reloadable_flag_quic_verify_request_headers_2.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_act_upon_invalid_header, false)
 // If true, require handshake confirmation for QUIC connections, functionally disabling 0-rtt handshakes.

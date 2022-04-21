@@ -467,9 +467,6 @@ class QUIC_NO_EXPORT QuicDispatcher
   // If true, change expected_server_connection_id_length_ to be the received
   // destination connection ID length of all IETF long headers.
   bool should_update_expected_server_connection_id_length_;
-
-  const bool use_recent_reset_addresses_ =
-      GetQuicRestartFlag(quic_use_recent_reset_addresses);
 };
 
 }  // namespace quic
