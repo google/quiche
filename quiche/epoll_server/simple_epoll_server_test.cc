@@ -26,10 +26,10 @@
 
 #include "absl/time/clock.h"
 #include "quiche/epoll_server/fake_simple_epoll_server.h"
-#include "quiche/common/platform/api/quiche_expect_bug.h"
-#include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/platform/api/quiche_test_loopback.h"
-#include "quiche/common/platform/api/quiche_thread.h"
+#include "quiche/epoll_server/platform/api/epoll_address_test_utils.h"
+#include "quiche/epoll_server/platform/api/epoll_expect_bug.h"
+#include "quiche/epoll_server/platform/api/epoll_test.h"
+#include "quiche/epoll_server/platform/api/epoll_thread.h"
 
 namespace epoll_server {
 
@@ -80,23 +80,23 @@ struct RecordEntry {
 
     if (instance != entry->instance) {
       retval = false;
-      QUICHE_LOG(INFO) << " instance (" << instance << ") != entry->instance("
-                       << entry->instance << ")";
+      EPOLL_LOG(INFO) << " instance (" << instance << ") != entry->instance("
+                      << entry->instance << ")";
     }
     if (event_type != entry->event_type) {
       retval = false;
-      QUICHE_LOG(INFO) << " event_type (" << event_type
-                       << ") != entry->event_type(" << entry->event_type << ")";
+      EPOLL_LOG(INFO) << " event_type (" << event_type
+                      << ") != entry->event_type(" << entry->event_type << ")";
     }
     if (fd != entry->fd) {
       retval = false;
-      QUICHE_LOG(INFO) << " fd (" << fd << ") != entry->fd (" << entry->fd
-                       << ")";
+      EPOLL_LOG(INFO) << " fd (" << fd << ") != entry->fd (" << entry->fd
+                      << ")";
     }
     if (data != entry->data) {
       retval = false;
-      QUICHE_LOG(INFO) << " data (" << data << ") != entry->data("
-                       << entry->data << ")";
+      EPOLL_LOG(INFO) << " data (" << data << ") != entry->data(" << entry->data
+                      << ")";
     }
     return retval;
   }
@@ -118,14 +118,13 @@ class Recorder {
     const std::vector<RecordEntry>* records = recorder->records();
 
     if (records_.size() != records->size()) {
-      QUICHE_LOG(INFO) << "records_.size() (" << records_.size()
-                       << ") != records->size() (" << records->size() << ")";
+      EPOLL_LOG(INFO) << "records_.size() (" << records_.size()
+                      << ") != records->size() (" << records->size() << ")";
       return false;
     }
     for (size_t i = 0; i < std::min(records_.size(), records->size()); ++i) {
       if (!records_[i].IsEqual(&(*records)[i])) {
-        QUICHE_LOG(INFO) << "entry in index: " << i
-                         << " differs from recorder.";
+        EPOLL_LOG(INFO) << "entry in index: " << i << " differs from recorder.";
         return false;
       }
     }
@@ -241,7 +240,7 @@ class EpollTestServer : public SimpleEpollServer {
   using SimpleEpollServer::WaitForEventsAndCallHandleEvents;
 };
 
-class EpollFunctionTest : public QuicheTest {
+class EpollFunctionTest : public EpollTest {
  public:
   EpollFunctionTest()
       : fd_(-1), fd2_(-1), recorder_(nullptr), cb_(nullptr), ep_(nullptr) {}
@@ -260,7 +259,7 @@ class EpollFunctionTest : public QuicheTest {
 
     int pipe_fds[2];
     if (pipe(pipe_fds) < 0) {
-      QUICHE_PLOG(FATAL) << "pipe() failed";
+      EPOLL_PLOG(FATAL) << "pipe() failed";
     }
     fd_ = pipe_fds[0];
     fd2_ = pipe_fds[1];
@@ -291,11 +290,7 @@ class EpollFunctionTest : public QuicheTest {
 };
 
 TEST_F(EpollFunctionTest, TestUnconnectedSocket) {
-  int fd =
-      socket((quiche::AddressFamilyUnderTest() == quic::IpAddressFamily::IP_V6)
-                 ? AF_INET6
-                 : AF_INET,
-             SOCK_STREAM, IPPROTO_TCP);
+  int fd = socket(AddressFamilyUnderTest(), SOCK_STREAM, IPPROTO_TCP);
   ep()->RegisterFD(fd, cb(), EPOLLIN | EPOLLOUT);
   ep()->WaitForEventsAndExecuteCallbacks();
 
@@ -1360,7 +1355,7 @@ TEST(SimpleEpollServerTest, TestWrite) {
 
   int pipe_fds[2];
   if (pipe(pipe_fds) < 0) {
-    QUICHE_PLOG(FATAL) << "pipe() failed";
+    EPOLL_PLOG(FATAL) << "pipe() failed";
   }
   int read_fd = pipe_fds[0];
   int write_fd = pipe_fds[1];
@@ -1421,7 +1416,7 @@ TEST(SimpleEpollServerTest, TestReadWrite) {
 
   int pipe_fds[2];
   if (pipe(pipe_fds) < 0) {
-    QUICHE_PLOG(FATAL) << "pipe() failed";
+    EPOLL_PLOG(FATAL) << "pipe() failed";
   }
   int read_fd = pipe_fds[0];
   int write_fd = pipe_fds[1];
@@ -1453,11 +1448,11 @@ TEST(SimpleEpollServerTest, TestMultipleFDs) {
 
   int pipe_one[2];
   if (pipe(pipe_one) < 0) {
-    QUICHE_PLOG(FATAL) << "pipe() failed";
+    EPOLL_PLOG(FATAL) << "pipe() failed";
   }
   int pipe_two[2];
   if (pipe(pipe_two) < 0) {
-    QUICHE_PLOG(FATAL) << "pipe() failed";
+    EPOLL_PLOG(FATAL) << "pipe() failed";
   }
 
   RecordingCB recording_cb_one;
@@ -1504,7 +1499,7 @@ TEST(SimpleEpollServerTest, TestMultipleFDs) {
 TEST(SimpleEpollServerTest, TestFDOnShutdown) {
   int pipe_fds[2];
   if (pipe(pipe_fds) < 0) {
-    QUICHE_PLOG(FATAL) << "pipe() failed";
+    EPOLL_PLOG(FATAL) << "pipe() failed";
   }
   int read_fd = pipe_fds[0];
   int write_fd = pipe_fds[1];
@@ -1579,7 +1574,7 @@ class UnregisterCB : public EpollCallbackInterface {
 TEST(SimpleEpollServerTest, TestUnregisteringFDsOnShutdown) {
   int pipe_fds[2];
   if (pipe(pipe_fds) < 0) {
-    QUICHE_PLOG(FATAL) << "pipe() failed";
+    EPOLL_PLOG(FATAL) << "pipe() failed";
   }
   int read_fd = pipe_fds[0];
   int write_fd = pipe_fds[1];
@@ -1616,7 +1611,7 @@ TEST(SimpleEpollServerTest, TestFDsAndAlarms) {
 
   int pipe_fds[2];
   if (pipe(pipe_fds) < 0) {
-    QUICHE_PLOG(FATAL) << "pipe() failed";
+    EPOLL_PLOG(FATAL) << "pipe() failed";
   }
 
   RecordingCB recording_cb;
@@ -1688,7 +1683,7 @@ class EpollReader : public EpollCallbackInterface {
   void OnShutdown(SimpleEpollServer* /*eps*/, int /*fd*/) override {
     // None of the current tests involve having active callbacks when the
     // server shuts down.
-    QUICHE_LOG(FATAL);
+    EPOLL_LOG(FATAL);
   }
 
   std::string Name() const override { return "EpollReader"; }
@@ -1713,7 +1708,7 @@ class EpollReader : public EpollCallbackInterface {
 void TestPipe(char* test_message, int len) {
   int pipe_fds[2];
   if (pipe(pipe_fds) < 0) {
-    QUICHE_PLOG(FATAL) << "pipe failed()";
+    EPOLL_PLOG(FATAL) << "pipe failed()";
   }
   int reader_pipe = pipe_fds[0];
   int writer_pipe = pipe_fds[1];
@@ -1733,14 +1728,14 @@ void TestPipe(char* test_message, int len) {
         }
       }
       if (len > 0) {
-        QUICHE_PLOG(FATAL) << "write() failed";
+        EPOLL_PLOG(FATAL) << "write() failed";
       }
       close(writer_pipe);
 
       _exit(0);
     }
     case -1:
-      QUICHE_PLOG(FATAL) << "fork() failed";
+      EPOLL_PLOG(FATAL) << "fork() failed";
       break;
     default: {  // Parent will receive message.
       close(writer_pipe);
@@ -1783,7 +1778,7 @@ TEST(SimpleEpollServerTest, TestRead) {
 
   int pipe_fds[2];
   if (pipe(pipe_fds) < 0) {
-    QUICHE_PLOG(FATAL) << "pipe() failed";
+    EPOLL_PLOG(FATAL) << "pipe() failed";
   }
   int read_fd = pipe_fds[0];
   int write_fd = pipe_fds[1];
@@ -1880,12 +1875,12 @@ class EdgeTriggerCB : public EpollCallbackInterface {
 
       if (len > 0) {
         bytes_read_ += len;
-        QUICHE_VLOG(1) << "fd: " << fd << ", read " << len
-                       << ", total: " << bytes_read_;
+        EPOLL_VLOG(1) << "fd: " << fd << ", read " << len
+                      << ", total: " << bytes_read_;
         // Now check the bytes read
         EXPECT_TRUE(CheckReadBuffer(len));
       } else if (len < 0) {
-        QUICHE_VLOG(1) << "fd: " << fd << " read hit EAGAIN";
+        EPOLL_VLOG(1) << "fd: " << fd << " read hit EAGAIN";
         EXPECT_EQ(EAGAIN, errno) << strerror(errno);
         can_read_ = false;
       } else {
@@ -1901,10 +1896,10 @@ class EdgeTriggerCB : public EpollCallbackInterface {
       can_write_ = (len == write_size);
       if (len > 0) {
         bytes_written_ += len;
-        QUICHE_VLOG(1) << "fd: " << fd << ", write " << len
-                       << ", total: " << bytes_written_;
+        EPOLL_VLOG(1) << "fd: " << fd << ", write " << len
+                      << ", total: " << bytes_written_;
       } else {
-        QUICHE_VLOG(1) << "fd: " << fd << " write hit EAGAIN";
+        EPOLL_VLOG(1) << "fd: " << fd << " write hit EAGAIN";
         EXPECT_EQ(EAGAIN, errno) << strerror(errno);
         can_write_ = false;
       }
@@ -1926,7 +1921,7 @@ class EdgeTriggerCB : public EpollCallbackInterface {
   void OnShutdown(SimpleEpollServer* /*eps*/, int /*fd*/) override {
     // None of the current tests involve having active callbacks when the
     // server shuts down.
-    QUICHE_LOG(FATAL);
+    EPOLL_LOG(FATAL);
   }
 
   std::string Name() const override { return "EdgeTriggerCB"; }
@@ -1977,7 +1972,7 @@ TEST(SimpleEpollServerTest, TestReadyList) {
   SimpleEpollServer ep;
   int pipe_fds[2];
   if (pipe(pipe_fds) < 0) {
-    QUICHE_PLOG(FATAL) << "pipe() failed";
+    EPOLL_PLOG(FATAL) << "pipe() failed";
   }
 
   // Just use any CB will do, since we never wait on epoll events.
@@ -2019,10 +2014,10 @@ TEST(SimpleEpollServerTest, TestReadyList) {
   close(pipe_fds[1]);
 }
 
-class EPSWaitThread : public quiche::QuicheThread {
+class EPSWaitThread : public EpollThread {
  public:
   explicit EPSWaitThread(SimpleEpollServer* eps)
-      : QuicheThread("EPSWait"), eps_(eps), done_(false) {}
+      : EpollThread("EPSWait"), eps_(eps), done_(false) {}
 
   void Run() override { eps_->WaitForEventsAndExecuteCallbacks(); }
 
@@ -2488,8 +2483,8 @@ TEST(SimpleEpollServerAlarmTest, TestThatSameAlarmCanNotBeRegisteredTwice) {
   TestAlarm alarm;
   SimpleEpollServer epoll_server;
   epoll_server.RegisterAlarm(1, &alarm);
-  EXPECT_QUICHE_BUG(epoll_server.RegisterAlarm(1, &alarm),
-                    "Alarm already exists");
+  EXPECT_EPOLL_BUG(epoll_server.RegisterAlarm(1, &alarm),
+                   "Alarm already exists");
 }
 
 }  // namespace

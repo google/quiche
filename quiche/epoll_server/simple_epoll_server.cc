@@ -13,7 +13,7 @@
 #include <utility>
 
 #include "absl/time/clock.h"
-#include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/epoll_server/platform/api/epoll_bug.h"
 
 // Design notes: An efficient implementation of ready list has the following
 // desirable properties:
@@ -122,8 +122,8 @@ SimpleEpollServer::SimpleEpollServer()
     // call...
     int saved_errno = errno;
     char buf[kErrorBufferSize];
-    QUICHE_LOG(FATAL) << "Error " << saved_errno << " in pipe(): "
-                      << strerror_r(saved_errno, buf, sizeof(buf));
+    EPOLL_LOG(FATAL) << "Error " << saved_errno << " in pipe(): "
+                     << strerror_r(saved_errno, buf, sizeof(buf));
   }
   read_fd_ = pipe_fds[0];
   write_fd_ = pipe_fds[1];
@@ -166,9 +166,9 @@ SimpleEpollServer::~SimpleEpollServer() {
   DCHECK_EQ(in_shutdown_, false);
   in_shutdown_ = true;
 #ifdef EPOLL_SERVER_EVENT_TRACING
-  QUICHE_LOG(INFO) << "\n" << event_recorder_;
+  EPOLL_LOG(INFO) << "\n" << event_recorder_;
 #endif
-  QUICHE_VLOG(2) << "Shutting down epoll server ";
+  EPOLL_VLOG(2) << "Shutting down epoll server ";
   CleanupFDToCBMap();
 
   LIST_INIT(&ready_list_);
@@ -208,7 +208,7 @@ inline void SimpleEpollServer::RemoveFromReadyList(
 
 void SimpleEpollServer::RegisterFD(int fd, CB* cb, int event_mask) {
   CHECK(cb);
-  QUICHE_VLOG(3) << "RegisterFD fd=" << fd << " event_mask=" << event_mask;
+  EPOLL_VLOG(3) << "RegisterFD fd=" << fd << " event_mask=" << event_mask;
   auto fd_i = cb_map_.find(CBAndEventMask(NULL, 0, fd));
   if (cb_map_.end() != fd_i) {
     // do we just abort, or do we just unregister the other callback?
@@ -244,9 +244,9 @@ void SimpleEpollServer::SetNonblocking(int fd) {
   if (flags == -1) {
     int saved_errno = errno;
     char buf[kErrorBufferSize];
-    QUICHE_LOG(FATAL) << "Error " << saved_errno << " doing fcntl(" << fd
-                      << ", F_GETFL, 0): "
-                      << strerror_r(saved_errno, buf, sizeof(buf));
+    EPOLL_LOG(FATAL) << "Error " << saved_errno << " doing fcntl(" << fd
+                     << ", F_GETFL, 0): "
+                     << strerror_r(saved_errno, buf, sizeof(buf));
   }
   if (!(flags & O_NONBLOCK)) {
     int saved_flags = flags;
@@ -255,9 +255,9 @@ void SimpleEpollServer::SetNonblocking(int fd) {
       // bad.
       int saved_errno = errno;
       char buf[kErrorBufferSize];
-      QUICHE_LOG(FATAL) << "Error " << saved_errno << " doing fcntl(" << fd
-                        << ", F_SETFL, " << saved_flags
-                        << "): " << strerror_r(saved_errno, buf, sizeof(buf));
+      EPOLL_LOG(FATAL) << "Error " << saved_errno << " doing fcntl(" << fd
+                       << ", F_SETFL, " << saved_flags
+                       << "): " << strerror_r(saved_errno, buf, sizeof(buf));
     }
   }
 }
@@ -344,9 +344,9 @@ void SimpleEpollServer::HandleEvent(int fd, int event_mask) {
 
 void SimpleEpollServer::WaitForEventsAndExecuteCallbacks() {
   if (in_wait_for_events_and_execute_callbacks_) {
-    QUICHE_LOG(DFATAL) << "Attempting to call WaitForEventsAndExecuteCallbacks"
-                          " when an ancestor to the current function is already"
-                          " WaitForEventsAndExecuteCallbacks!";
+    EPOLL_LOG(DFATAL) << "Attempting to call WaitForEventsAndExecuteCallbacks"
+                         " when an ancestor to the current function is already"
+                         " WaitForEventsAndExecuteCallbacks!";
     // The line below is actually tested, but in coverage mode,
     // we never see it.
     return;  // COV_NF_LINE
@@ -370,9 +370,9 @@ void SimpleEpollServer::WaitForEventsAndExecuteCallbacks() {
   // Get the first timeout from the alarm_map where it is
   // stored in absolute time.
   int64_t next_alarm_time_in_us = alarm_map_.begin()->first;
-  QUICHE_VLOG(4) << "next_alarm_time = " << next_alarm_time_in_us
-                 << " now             = " << now_in_us
-                 << " timeout_in_us = " << timeout_in_us_;
+  EPOLL_VLOG(4) << "next_alarm_time = " << next_alarm_time_in_us
+                << " now             = " << now_in_us
+                << " timeout_in_us = " << timeout_in_us_;
 
   int64_t wait_time_in_us;
   int64_t alarm_timeout_in_us = next_alarm_time_in_us - now_in_us;
@@ -386,7 +386,7 @@ void SimpleEpollServer::WaitForEventsAndExecuteCallbacks() {
     wait_time_in_us = timeout_in_us_;
   }
 
-  QUICHE_VLOG(4) << "wait_time_in_us = " << wait_time_in_us;
+  EPOLL_VLOG(4) << "wait_time_in_us = " << wait_time_in_us;
 
   // wait for events.
 
@@ -442,10 +442,10 @@ void SimpleEpollServer::VerifyReadyList() const {
 }
 
 void SimpleEpollServer::RegisterAlarm(int64_t timeout_time_in_us, AlarmCB* ac) {
-  QUICHE_VLOG(4) << "RegisteringAlarm " << ac << " at : " << timeout_time_in_us;
+  EPOLL_VLOG(4) << "RegisteringAlarm " << ac << " at : " << timeout_time_in_us;
   CHECK(ac);
   if (all_alarms_.find(ac) != all_alarms_.end()) {
-    QUICHE_BUG(epoll_bug_1_1) << "Alarm already exists";
+    EPOLL_BUG(epoll_bug_1_1) << "Alarm already exists";
   }
 
   auto alarm_iter = alarm_map_.insert(std::make_pair(timeout_time_in_us, ac));
@@ -459,7 +459,7 @@ void SimpleEpollServer::RegisterAlarm(int64_t timeout_time_in_us, AlarmCB* ac) {
 //  valid iterator. The caller must ensure the validity of the iterator.
 void SimpleEpollServer::UnregisterAlarm(const AlarmRegToken& iterator_token) {
   AlarmCB* cb = iterator_token->second;
-  QUICHE_VLOG(4) << "UnregisteringAlarm " << cb;
+  EPOLL_VLOG(4) << "UnregisteringAlarm " << cb;
   alarm_map_.erase(iterator_token);
   all_alarms_.erase(cb);
   cb->OnUnregistration();
@@ -514,28 +514,27 @@ std::string SimpleEpollServer::EventMaskToString(int event_mask) {
 }
 
 void SimpleEpollServer::LogStateOnCrash() {
-  QUICHE_LOG(ERROR)
+  EPOLL_LOG(ERROR)
       << "-------------------Epoll Server-------------------------";
-  QUICHE_LOG(ERROR) << "Epoll server " << this << " polling on fd "
-                    << epoll_fd_;
-  QUICHE_LOG(ERROR) << "timeout_in_us_: " << timeout_in_us_;
+  EPOLL_LOG(ERROR) << "Epoll server " << this << " polling on fd " << epoll_fd_;
+  EPOLL_LOG(ERROR) << "timeout_in_us_: " << timeout_in_us_;
 
   // Log sessions with alarms.
-  QUICHE_LOG(ERROR) << alarm_map_.size() << " alarms registered.";
+  EPOLL_LOG(ERROR) << alarm_map_.size() << " alarms registered.";
   for (auto it = alarm_map_.begin(); it != alarm_map_.end(); ++it) {
     const bool skipped =
         alarms_reregistered_and_should_be_skipped_.find(it->second) !=
         alarms_reregistered_and_should_be_skipped_.end();
-    QUICHE_LOG(ERROR) << "Alarm " << it->second << " registered at time "
-                      << it->first << " and should be skipped = " << skipped;
+    EPOLL_LOG(ERROR) << "Alarm " << it->second << " registered at time "
+                     << it->first << " and should be skipped = " << skipped;
   }
 
-  QUICHE_LOG(ERROR) << cb_map_.size() << " fd callbacks registered.";
+  EPOLL_LOG(ERROR) << cb_map_.size() << " fd callbacks registered.";
   for (auto it = cb_map_.begin(); it != cb_map_.end(); ++it) {
-    QUICHE_LOG(ERROR) << "fd: " << it->fd << " with mask " << it->event_mask
-                      << " registered with cb: " << it->cb;
+    EPOLL_LOG(ERROR) << "fd: " << it->fd << " with mask " << it->event_mask
+                     << " registered with cb: " << it->cb;
   }
-  QUICHE_LOG(ERROR)
+  EPOLL_LOG(ERROR)
       << "-------------------/Epoll Server------------------------";
 }
 
@@ -551,8 +550,8 @@ void SimpleEpollServer::DelFD(int fd) const {
   if (epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, &ee)) {
     int saved_errno = errno;
     char buf[kErrorBufferSize];
-    QUICHE_LOG(FATAL) << "Epoll set removal error for fd " << fd << ": "
-                      << strerror_r(saved_errno, buf, sizeof(buf));
+    EPOLL_LOG(FATAL) << "Epoll set removal error for fd " << fd << ": "
+                     << strerror_r(saved_errno, buf, sizeof(buf));
   }
 }
 
@@ -569,8 +568,8 @@ void SimpleEpollServer::AddFD(int fd, int event_mask) const {
   if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &ee)) {
     int saved_errno = errno;
     char buf[kErrorBufferSize];
-    QUICHE_LOG(FATAL) << "Epoll set insertion error for fd " << fd << ": "
-                      << strerror_r(saved_errno, buf, sizeof(buf));
+    EPOLL_LOG(FATAL) << "Epoll set insertion error for fd " << fd << ": "
+                     << strerror_r(saved_errno, buf, sizeof(buf));
   }
 }
 
@@ -584,13 +583,13 @@ void SimpleEpollServer::ModFD(int fd, int event_mask) const {
 #ifdef EPOLL_SERVER_EVENT_TRACING
   event_recorder_.RecordFDMaskEvent(fd, ee.events, "ModFD");
 #endif
-  QUICHE_VLOG(3) << "modifying fd= " << fd << " "
-                 << EventMaskToString(ee.events);
+  EPOLL_VLOG(3) << "modifying fd= " << fd << " "
+                << EventMaskToString(ee.events);
   if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &ee)) {
     int saved_errno = errno;
     char buf[kErrorBufferSize];
-    QUICHE_LOG(FATAL) << "Epoll set modification error for fd " << fd << ": "
-                      << strerror_r(saved_errno, buf, sizeof(buf));
+    EPOLL_LOG(FATAL) << "Epoll set modification error for fd " << fd << ": "
+                     << strerror_r(saved_errno, buf, sizeof(buf));
   }
 }
 
@@ -599,18 +598,18 @@ void SimpleEpollServer::ModFD(int fd, int event_mask) const {
 void SimpleEpollServer::ModifyFD(int fd, int remove_event, int add_event) {
   auto fd_i = cb_map_.find(CBAndEventMask(NULL, 0, fd));
   if (cb_map_.end() == fd_i) {
-    QUICHE_VLOG(2) << "Didn't find the fd " << fd << "in internal structures";
+    EPOLL_VLOG(2) << "Didn't find the fd " << fd << "in internal structures";
     return;
   }
 
   if (fd_i->cb != NULL) {
     int& event_mask = fd_i->event_mask;
-    QUICHE_VLOG(3) << "fd= " << fd
-                   << " event_mask before: " << EventMaskToString(event_mask);
+    EPOLL_VLOG(3) << "fd= " << fd
+                  << " event_mask before: " << EventMaskToString(event_mask);
     event_mask &= ~remove_event;
     event_mask |= add_event;
 
-    QUICHE_VLOG(3) << " event_mask after: " << EventMaskToString(event_mask);
+    EPOLL_VLOG(3) << " event_mask after: " << EventMaskToString(event_mask);
 
     ModFD(fd, event_mask);
 
@@ -624,8 +623,8 @@ void SimpleEpollServer::WaitForEventsAndCallHandleEvents(
     // If ready list is not empty, then don't sleep at all.
     timeout_in_us = 0;
   } else if (timeout_in_us < 0) {
-    QUICHE_LOG(INFO) << "Negative epoll timeout: " << timeout_in_us
-                     << "us; epoll will wait forever for events.";
+    EPOLL_LOG(INFO) << "Negative epoll timeout: " << timeout_in_us
+                    << "us; epoll will wait forever for events.";
     // If timeout_in_us is < 0 we are supposed to Wait forever.  This means we
     // should set timeout_in_us to -1000 so we will
     // Wait(-1000/1000) == Wait(-1) == Wait forever.
@@ -640,7 +639,7 @@ void SimpleEpollServer::WaitForEventsAndCallHandleEvents(
   int64_t expected_wakeup_us = NowInUsec() + timeout_in_us;
 
   int nfds = epoll_wait_impl(epoll_fd_, events, events_size, timeout_in_ms);
-  QUICHE_VLOG(3) << "nfds=" << nfds;
+  EPOLL_VLOG(3) << "nfds=" << nfds;
 
 #ifdef EPOLL_SERVER_EVENT_TRACING
   event_recorder_.RecordEpollWaitEvent(timeout_in_ms, nfds);
@@ -675,8 +674,8 @@ void SimpleEpollServer::WaitForEventsAndCallHandleEvents(
     if (errno != EINTR && errno != 0) {
       int saved_errno = errno;
       char buf[kErrorBufferSize];
-      QUICHE_LOG(FATAL) << "Error " << saved_errno << " in epoll_wait: "
-                        << strerror_r(saved_errno, buf, sizeof(buf));
+      EPOLL_LOG(FATAL) << "Error " << saved_errno << " in epoll_wait: "
+                       << strerror_r(saved_errno, buf, sizeof(buf));
     }
   }
 
@@ -762,9 +761,9 @@ void SimpleEpollServer::CallAndReregisterAlarmEvents() {
       // if timeout is > now_in_us then we have no fear that this alarm
       // can be reexecuted in this loop, and hence we do not need to
       // worry about a recursive loop.
-      QUICHE_DVLOG(3) << "Reregistering alarm "
-                      << " " << cb << " " << new_timeout_time_in_us << " "
-                      << now_in_us;
+      EPOLL_DVLOG(3) << "Reregistering alarm "
+                     << " " << cb << " " << new_timeout_time_in_us << " "
+                     << now_in_us;
       if (new_timeout_time_in_us <= now_in_us) {
         alarms_reregistered_and_should_be_skipped_.insert(cb);
       }
