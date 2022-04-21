@@ -15514,26 +15514,17 @@ TEST_P(QuicConnectionTest, FailedToConsumeCryptoData) {
   clock_.AdvanceTime(retransmission_time - clock_.Now());
   connection_.GetRetransmissionAlarm()->Fire();
 
-  if (GetQuicRestartFlag(quic_set_packet_state_if_all_data_retransmitted)) {
-    // Verify the retransmission is a coalesced packet with HANDSHAKE 2 and
-    // 1-RTT 3.
-    EXPECT_EQ(0x04040404u, writer_->final_bytes_of_last_packet());
-    // Only the first packet in the coalesced packet has been processed.
-    EXPECT_EQ(1u, writer_->crypto_frames().size());
-    // Process the coalesced 1-RTT packet.
-    ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
-    auto packet = writer_->coalesced_packet()->Clone();
-    writer_->framer()->ProcessPacket(*packet);
-    EXPECT_EQ(1u, writer_->stream_frames().size());
-    ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
-  } else {
-    // Although packet 2 has not been retransmitted, it has been marked PTOed
-    // and a HANDHSAKE PING gets retransmitted.
-    EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
-    EXPECT_EQ(1u, writer_->ping_frames().size());
-    EXPECT_TRUE(writer_->stream_frames().empty());
-    ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
-  }
+  // Verify the retransmission is a coalesced packet with HANDSHAKE 2 and
+  // 1-RTT 3.
+  EXPECT_EQ(0x04040404u, writer_->final_bytes_of_last_packet());
+  // Only the first packet in the coalesced packet has been processed.
+  EXPECT_EQ(1u, writer_->crypto_frames().size());
+  // Process the coalesced 1-RTT packet.
+  ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
+  auto packet = writer_->coalesced_packet()->Clone();
+  writer_->framer()->ProcessPacket(*packet);
+  EXPECT_EQ(1u, writer_->stream_frames().size());
+  ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
   // Verify retransmission alarm is still armed.
   ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
 }

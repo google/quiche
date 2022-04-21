@@ -693,25 +693,21 @@ void QuicSentPacketManager::MarkForRetransmission(
   QUICHE_DCHECK(!transmission_info->has_crypto_handshake ||
                 transmission_type != PROBING_RETRANSMISSION);
   if (ShouldForceRetransmission(transmission_type)) {
-    const bool retransmitted = unacked_packets_.RetransmitFrames(
-        QuicFrames(transmission_info->retransmittable_frames),
-        transmission_type);
-    if (GetQuicRestartFlag(quic_set_packet_state_if_all_data_retransmitted)) {
-      QUIC_RESTART_FLAG_COUNT(quic_set_packet_state_if_all_data_retransmitted);
-      if (!retransmitted) {
-        // Do not set packet state if the data is not fully retransmitted.
-        // This should only happen if packet payload size decreases which can be
-        // caused by:
-        // 1) connection tries to opportunistically retransmit data
-        // when sending a packet of a different packet number space, or
-        // 2) path MTU decreases, or
-        // 3) packet header size increases (e.g., packet number length
-        // increases).
-        QUIC_CODE_COUNT(quic_retransmit_frames_failed);
-        return;
-      }
-      QUIC_CODE_COUNT(quic_retransmit_frames_succeeded);
+    if (!unacked_packets_.RetransmitFrames(
+            QuicFrames(transmission_info->retransmittable_frames),
+            transmission_type)) {
+      // Do not set packet state if the data is not fully retransmitted.
+      // This should only happen if packet payload size decreases which can be
+      // caused by:
+      // 1) connection tries to opportunistically retransmit data
+      // when sending a packet of a different packet number space, or
+      // 2) path MTU decreases, or
+      // 3) packet header size increases (e.g., packet number length
+      // increases).
+      QUIC_CODE_COUNT(quic_retransmit_frames_failed);
+      return;
     }
+    QUIC_CODE_COUNT(quic_retransmit_frames_succeeded);
   } else {
     unacked_packets_.NotifyFramesLost(*transmission_info, transmission_type);
 

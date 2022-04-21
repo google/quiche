@@ -2285,10 +2285,7 @@ bool QuicSession::RetransmitFrames(const QuicFrames& frames,
       continue;
     }
     if (frame.type == CRYPTO_FRAME) {
-      const bool data_retransmitted =
-          GetMutableCryptoStream()->RetransmitData(frame.crypto_frame, type);
-      if (GetQuicRestartFlag(quic_set_packet_state_if_all_data_retransmitted) &&
-          !data_retransmitted) {
+      if (!GetMutableCryptoStream()->RetransmitData(frame.crypto_frame, type)) {
         return false;
       }
       continue;

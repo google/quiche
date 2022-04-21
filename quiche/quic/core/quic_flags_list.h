@@ -101,8 +101,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_ping_manager, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, true)
 // If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
-// If true, when a packet is forced retransmitted, only set packet state if all data gets retransmitted.
-QUIC_FLAG(FLAGS_quic_restart_flag_quic_set_packet_state_if_all_data_retransmitted, true)
 // When the flag is true, exit STARTUP after the same number of loss events as PROBE_UP.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_startup_probe_up_loss_events, true)
 // When true, defaults to BBR congestion control instead of Cubic.
