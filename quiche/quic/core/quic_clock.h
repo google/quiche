@@ -18,24 +18,11 @@ namespace quic {
 // Interface for retrieving the current time.
 class QUIC_EXPORT_PRIVATE QuicClock {
  public:
-  QuicClock();
-  virtual ~QuicClock();
+  QuicClock() = default;
+  virtual ~QuicClock() = default;
 
   QuicClock(const QuicClock&) = delete;
   QuicClock& operator=(const QuicClock&) = delete;
-
-  // Compute the offset between this clock with the Unix Epoch clock.
-  // Return the calibrated offset between WallNow() and Now(), in the form of
-  // (wallnow_in_us - now_in_us).
-  // The return value can be used by SetCalibrationOffset() to actually
-  // calibrate the clock, or all instances of this clock type.
-  QuicTime::Delta ComputeCalibrationOffset() const;
-
-  // Calibrate this clock. A calibrated clock guarantees that the
-  // ConvertWallTimeToQuicTime() function always return the same result for the
-  // same walltime.
-  // Should not be called more than once for each QuicClock.
-  void SetCalibrationOffset(QuicTime::Delta offset);
 
   // Returns the approximate current time as a QuicTime object.
   virtual QuicTime ApproximateNow() const = 0;
@@ -57,14 +44,6 @@ class QUIC_EXPORT_PRIVATE QuicClock {
   QuicTime CreateTimeFromMicroseconds(uint64_t time_us) const {
     return QuicTime(time_us);
   }
-
- private:
-  // True if |calibration_offset_| is valid.
-  bool is_calibrated_;
-  // If |is_calibrated_|, |calibration_offset_| is the (fixed) offset between
-  // the Unix Epoch clock and this clock.
-  // In other words, the offset between WallNow() and Now().
-  QuicTime::Delta calibration_offset_;
 };
 
 }  // namespace quic
