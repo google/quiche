@@ -1335,9 +1335,10 @@ WriteResult TestPacketWriter::WritePacket(const char* buffer, size_t buf_len,
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<NullDecrypter>(framer_.framer()->perspective()));
   }
-  EXPECT_TRUE(framer_.ProcessPacket(packet))
+  EXPECT_EQ(next_packet_processable_, framer_.ProcessPacket(packet))
       << framer_.framer()->detailed_error() << " perspective "
       << framer_.framer()->perspective();
+  next_packet_processable_ = true;
   if (block_on_next_write_) {
     write_blocked_ = true;
     block_on_next_write_ = false;

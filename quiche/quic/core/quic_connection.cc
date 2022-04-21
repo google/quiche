@@ -589,6 +589,16 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientRequestedIndependentOption(kFIDT, perspective_)) {
     idle_network_detector_.enable_shorter_idle_timeout_on_sent_packet();
   }
+  if (perspective_ == Perspective::IS_CLIENT && version().HasIetfQuicFrames()) {
+    // Only conduct those experiments in IETF QUIC because random packets may
+    // elicit reset and gQUIC PUBLIC_RESET will cause connection close.
+    if (config.HasClientRequestedIndependentOption(kROWF, perspective_)) {
+      retransmittable_on_wire_behavior_ = SEND_FIRST_FORWARD_SECURE_PACKET;
+    }
+    if (config.HasClientRequestedIndependentOption(kROWR, perspective_)) {
+      retransmittable_on_wire_behavior_ = SEND_RANDOM_BYTES;
+    }
+  }
   if (config.HasClientRequestedIndependentOption(k3AFF, perspective_)) {
     anti_amplification_factor_ = 3;
   }
@@ -3925,6 +3935,12 @@ void QuicConnection::OnSerializedPacket(SerializedPacket serialized_packet) {
   } else {
     consecutive_num_packets_with_no_retransmittable_frames_ = 0;
   }
+  if (retransmittable_on_wire_behavior_ == SEND_FIRST_FORWARD_SECURE_PACKET &&
+      first_serialized_one_rtt_packet_ == nullptr &&
+      serialized_packet.encryption_level == ENCRYPTION_FORWARD_SECURE) {
+    first_serialized_one_rtt_packet_ = std::make_unique<BufferedPacket>(
+        serialized_packet, self_address(), peer_address());
+  }
   SendOrQueuePacket(std::move(serialized_packet));
 }
 
@@ -4927,6 +4943,17 @@ QuicConnection::BufferedPacket::BufferedPacket(
       peer_address(peer_address) {
   data = std::make_unique<char[]>(encrypted_length);
   memcpy(data.get(), encrypted_buffer, encrypted_length);
+}
+
+QuicConnection::BufferedPacket::BufferedPacket(
+    QuicRandom& random, QuicPacketLength encrypted_length,
+    const QuicSocketAddress& self_address,
+    const QuicSocketAddress& peer_address)
+    : length(encrypted_length),
+      self_address(self_address),
+      peer_address(peer_address) {
+  data = std::make_unique<char[]>(encrypted_length);
+  random.RandBytes(data.get(), encrypted_length);
 }
 
 HasRetransmittableData QuicConnection::IsRetransmittable(
@@ -6276,6 +6303,42 @@ void QuicConnection::OnRetransmittableOnWireTimeout() {
   QUICHE_DCHECK(use_ping_manager_);
   if (retransmission_alarm_->IsSet() ||
       !visitor_->ShouldKeepConnectionAlive()) {
+    return;
+  }
+  bool packet_buffered = false;
+  switch (retransmittable_on_wire_behavior_) {
+    case DEFAULT:
+      break;
+    case SEND_FIRST_FORWARD_SECURE_PACKET:
+      if (first_serialized_one_rtt_packet_ != nullptr) {
+        buffered_packets_.emplace_back(
+            first_serialized_one_rtt_packet_->data.get(),
+            first_serialized_one_rtt_packet_->length, self_address(),
+            peer_address());
+        packet_buffered = true;
+      }
+      break;
+    case SEND_RANDOM_BYTES:
+      const QuicPacketLength random_bytes_length =
+          std::max(QuicFramer::GetMinStatelessResetPacketLength() + 1,
+                   random_generator_->RandUint64() %
+                       packet_creator_.max_packet_length());
+      buffered_packets_.emplace_back(*random_generator_, random_bytes_length,
+                                     self_address(), peer_address());
+      packet_buffered = true;
+      break;
+  }
+  if (packet_buffered) {
+    if (!writer_->IsWriteBlocked()) {
+      WriteQueuedPackets();
+    }
+    if (connected_) {
+      // Always reset PING alarm with has_in_flight_packets=true. This is used
+      // to avoid re-arming the alarm in retransmittable-on-wire mode.
+      ping_manager_.SetAlarm(clock_->ApproximateNow(),
+                             visitor_->ShouldKeepConnectionAlive(),
+                             /*has_in_flight_packets=*/true);
+    }
     return;
   }
   SendPingAtLevel(framer().GetEncryptionLevelToSendApplicationData());

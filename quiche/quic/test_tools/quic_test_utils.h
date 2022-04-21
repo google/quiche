@@ -1777,6 +1777,8 @@ class TestPacketWriter : public QuicPacketWriter {
 
   void SimulateNextPacketTooLarge() { next_packet_too_large_ = true; }
 
+  void ExpectNextPacketUnprocessable() { next_packet_processable_ = false; }
+
   void AlwaysGetPacketTooLarge() { always_get_packet_too_large_ = true; }
 
   // Sets the amount of time that the writer should before the actual write.
@@ -1923,6 +1925,7 @@ class TestPacketWriter : public QuicPacketWriter {
   bool block_on_next_flush_ = false;
   bool block_on_next_write_ = false;
   bool next_packet_too_large_ = false;
+  bool next_packet_processable_ = true;
   bool always_get_packet_too_large_ = false;
   bool is_write_blocked_data_buffered_ = false;
   bool is_batch_mode_ = false;
