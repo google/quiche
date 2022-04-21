@@ -17,7 +17,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/iterator/range.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
@@ -387,6 +386,25 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders : public HeaderApi {
   // finished. lines().end() will also work.
   class const_header_lines_key_iterator;
 
+  // A simple class that can be used in a range-based for loop.
+  template <typename IteratorType>
+  class QUICHE_EXPORT_PRIVATE iterator_range {
+   public:
+    using iterator = IteratorType;
+    using const_iterator = IteratorType;
+    using value_type = typename std::iterator_traits<IteratorType>::value_type;
+
+    iterator_range(IteratorType begin_iterator, IteratorType end_iterator)
+        : begin_iterator_(std::move(begin_iterator)),
+          end_iterator_(std::move(end_iterator)) {}
+
+    IteratorType begin() const { return begin_iterator_; }
+    IteratorType end() const { return end_iterator_; }
+
+   private:
+    IteratorType begin_iterator_, end_iterator_;
+  };
+
   // Set of names of headers that might have multiple values. The GFE2 and
   // Envoy/GFE3 use different sets, and CoalesceOption::kCoalesce can be used
   // to match Envoy behavior in WriteToBuffer().
@@ -440,11 +458,11 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders : public HeaderApi {
   BalsaHeaders& operator=(BalsaHeaders&&) = default;
 
   // Returns a range that represents all of the header lines.
-  absl::iterator_range<const_header_lines_iterator> lines() const;
+  iterator_range<const_header_lines_iterator> lines() const;
 
   // Returns an iterator range consisting of the header lines matching key.
   // String backing 'key' must remain valid for lifetime of range.
-  absl::iterator_range<const_header_lines_key_iterator> lines(
+  iterator_range<const_header_lines_key_iterator> lines(
       absl::string_view key) const;
 
   // Returns a forward-only iterator that only stops at lines matching key.
@@ -1310,13 +1328,14 @@ class BalsaHeaders::const_header_lines_key_iterator
   absl::string_view key_;
 };
 
-inline absl::iterator_range<BalsaHeaders::const_header_lines_iterator>
+inline BalsaHeaders::iterator_range<BalsaHeaders::const_header_lines_iterator>
 BalsaHeaders::lines() const {
   return {HeaderLinesBeginHelper<const_header_lines_iterator>(),
           HeaderLinesEndHelper<const_header_lines_iterator>()};
 }
 
-inline absl::iterator_range<BalsaHeaders::const_header_lines_key_iterator>
+inline BalsaHeaders::iterator_range<
+    BalsaHeaders::const_header_lines_key_iterator>
 BalsaHeaders::lines(absl::string_view key) const {
   return {GetIteratorForKey(key), header_lines_key_end()};
 }
