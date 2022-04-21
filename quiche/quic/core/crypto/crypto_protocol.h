@@ -426,10 +426,6 @@ const QuicTag kIGNP = TAG('I', 'G', 'N', 'P');   // Do not use PING only packet
 const QuicTag kSRWP = TAG('S', 'R', 'W', 'P');   // Enable retransmittable on
                                                  // wire PING (ROWP) on the
                                                  // server side.
-const QuicTag kROWF = TAG('R', 'O', 'W', 'F');   // Send first 1-RTT packet on
-                                                 // ROWP timeout.
-const QuicTag kROWR = TAG('R', 'O', 'W', 'R');   // Send random bytes on ROWP
-                                                 // timeout.
 const QuicTag kGSR0 = TAG('G', 'S', 'R', '0');   // Selective Resumption
 const QuicTag kNRES = TAG('N', 'R', 'E', 'S');   // No resumption
 

@@ -1338,12 +1338,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
  private:
   friend class test::QuicConnectionPeer;
 
-  enum RetransmittableOnWireBehavior {
-    DEFAULT,                           // Send packet containing a PING frame.
-    SEND_FIRST_FORWARD_SECURE_PACKET,  // Send 1st 1-RTT packet.
-    SEND_RANDOM_BYTES  // Send random bytes which is an unprocessable packet.
-  };
-
   struct QUIC_EXPORT_PRIVATE PendingPathChallenge {
     QuicPathFrameBuffer received_path_challenge;
     QuicSocketAddress peer_address;
@@ -1403,11 +1397,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                    const QuicSocketAddress& peer_address);
     BufferedPacket(const char* encrypted_buffer,
                    QuicPacketLength encrypted_length,
-                   const QuicSocketAddress& self_address,
-                   const QuicSocketAddress& peer_address);
-    // Please note, this buffered packet contains random bytes (and is not
-    // *actually* a QUIC packet).
-    BufferedPacket(QuicRandom& random, QuicPacketLength encrypted_length,
                    const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address);
     BufferedPacket(const BufferedPacket& other) = delete;
@@ -2262,11 +2251,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const bool use_ping_manager_ = GetQuicReloadableFlag(quic_use_ping_manager);
 
   QuicPingManager ping_manager_;
-
-  // Records first serialized 1-RTT packet.
-  std::unique_ptr<BufferedPacket> first_serialized_one_rtt_packet_;
-
-  RetransmittableOnWireBehavior retransmittable_on_wire_behavior_ = DEFAULT;
 
   // TODO(b/205023946) Debug-only fields, to be deprecated after the bug is
   // fixed.
