@@ -1010,7 +1010,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   EncryptionLevel encryption_level() const { return encryption_level_; }
   EncryptionLevel last_decrypted_level() const {
-    return last_decrypted_packet_level_;
+    return last_received_packet_info_.decrypted_level;
   }
 
   const QuicSocketAddress& last_packet_source_address() const {
@@ -1220,6 +1220,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Instantiates connection ID manager.
   void CreateConnectionIdManager();
 
+  // Log QUIC_BUG if there is pending frames for the stream with |id|.
+  void QuicBugIfHasPendingFrames(QuicStreamId id) const;
+
   QuicConnectionContext* context() { return &context_; }
   const QuicConnectionContext* context() const { return &context_; }
 
@@ -1422,24 +1425,30 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     const QuicSocketAddress peer_address;
   };
 
-  // ReceivedPacketInfo comprises the received packet information, which can be
-  // retrieved before the packet gets successfully decrypted.
+  // ReceivedPacketInfo comprises the received packet information.
+  // TODO(fayang): move more fields to ReceivedPacketInfo.
   struct QUIC_EXPORT_PRIVATE ReceivedPacketInfo {
-    explicit ReceivedPacketInfo(QuicTime receipt_time)
-        : received_bytes_counted(false), receipt_time(receipt_time) {}
+    explicit ReceivedPacketInfo(QuicTime receipt_time);
     ReceivedPacketInfo(const QuicSocketAddress& destination_address,
                        const QuicSocketAddress& source_address,
-                       QuicTime receipt_time)
-        : received_bytes_counted(false),
-          destination_address(destination_address),
-          source_address(source_address),
-          receipt_time(receipt_time) {}
+                       QuicTime receipt_time, QuicByteCount length);
 
-    bool received_bytes_counted;
     QuicSocketAddress destination_address;
     QuicSocketAddress source_address;
-    QuicTime receipt_time;
+    QuicTime receipt_time = QuicTime::Zero();
+    bool received_bytes_counted = false;
+    QuicByteCount length = 0;
+    QuicConnectionId destination_connection_id;
+    // Fields below are only populated if packet gets decrypted successfully.
+    // TODO(fayang): consider using absl::optional for following fields.
+    bool decrypted = false;
+    EncryptionLevel decrypted_level = ENCRYPTION_INITIAL;
+    QuicPacketHeader header;
+    absl::InlinedVector<QuicFrameType, 1> frames;
   };
+
+  QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
+      std::ostream& os, const QuicConnection::ReceivedPacketInfo& info);
 
   // UndecrytablePacket comprises a undecryptable packet and related
   // information.
@@ -1918,15 +1927,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // key update but before the first packet has been sent.
   QuicPacketNumber lowest_packet_sent_in_current_key_phase_;
 
-  // True if the last packet has gotten far enough in the framer to be
-  // decrypted.
-  bool last_packet_decrypted_;
-  QuicByteCount last_size_;  // Size of the last received packet.
   // TODO(rch): remove this when b/27221014 is fixed.
   const char* current_packet_data_;  // UDP payload of packet currently being
                                      // parsed or nullptr.
-  EncryptionLevel last_decrypted_packet_level_;
-  QuicPacketHeader last_header_;
   bool should_last_packet_instigate_acks_;
 
   // Track some peer state so we can do less bookkeeping
@@ -2053,12 +2056,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // True by default.  False if we've received or sent an explicit connection
   // close.
   bool connected_;
-
-  // Destination connection ID of the last received packet. If this ID is the
-  // original server connection ID chosen by client and server replaces it with
-  // a different ID, last_packet_destination_connection_id_ is set to the
-  // replacement connection ID on the server side.
-  QuicConnectionId last_packet_destination_connection_id_;
 
   // Set to false if the connection should not send truncated connection IDs to
   // the peer, even if the peer supports it.
@@ -2239,9 +2236,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Note that if alternative_path_ stores a validated path information (case
   // 2), do not override it on receiving PATH_CHALLENGE (case 1).
   PathState alternative_path_;
-
-  // This field is used to debug b/177312785.
-  QuicFrameType most_recent_frame_type_;
 
   // If true, upon seeing a new client address, validate the client address.
   bool validate_client_addresses_ = false;

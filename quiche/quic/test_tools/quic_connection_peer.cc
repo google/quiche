@@ -119,7 +119,7 @@ void QuicConnectionPeer::SwapCrypters(QuicConnection* connection,
 void QuicConnectionPeer::SetCurrentPacket(QuicConnection* connection,
                                           absl::string_view current_packet) {
   connection->current_packet_data_ = current_packet.data();
-  connection->last_size_ = current_packet.size();
+  connection->last_received_packet_info_.length = current_packet.size();
 }
 
 // static
@@ -240,7 +240,7 @@ QuicEncryptedPacket* QuicConnectionPeer::GetConnectionClosePacket(
 // static
 QuicPacketHeader* QuicConnectionPeer::GetLastHeader(
     QuicConnection* connection) {
-  return &connection->last_header_;
+  return &connection->last_received_packet_info_.header;
 }
 
 // static
@@ -321,12 +321,6 @@ bool QuicConnectionPeer::SupportsReleaseTime(QuicConnection* connection) {
 QuicConnection::PacketContent QuicConnectionPeer::GetCurrentPacketContent(
     QuicConnection* connection) {
   return connection->current_packet_content_;
-}
-
-// static
-void QuicConnectionPeer::SetLastHeaderFormat(QuicConnection* connection,
-                                             PacketHeaderFormat format) {
-  connection->last_header_.form = format;
 }
 
 // static
@@ -540,7 +534,7 @@ QuicConnectionPeer::MakeSelfIssuedConnectionIdManager(
 // static
 void QuicConnectionPeer::SetLastDecryptedLevel(QuicConnection* connection,
                                                EncryptionLevel level) {
-  connection->last_decrypted_packet_level_ = level;
+  connection->last_received_packet_info_.decrypted_level = level;
 }
 
 // static
