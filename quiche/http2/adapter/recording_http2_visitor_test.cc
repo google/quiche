@@ -51,8 +51,7 @@ TEST(RecordingHttp2VisitorTest, SameEventsProduceSameSequence) {
   const uint8_t flags = random.Rand8();
   const Http2ErrorCode error_code = static_cast<Http2ErrorCode>(
       random.Uniform(static_cast<int>(Http2ErrorCode::MAX_ERROR_CODE)));
-  const Http2Setting setting = {.id = random.Rand16(),
-                                .value = random.Rand32()};
+  const Http2Setting setting = {random.Rand16(), random.Rand32()};
   const absl::string_view alphabet = "abcdefghijklmnopqrstuvwxyz0123456789-";
   const std::string some_string =
       random.RandStringWithAlphabet(random.Rand8(), alphabet);
