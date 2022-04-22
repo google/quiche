@@ -20,7 +20,7 @@ namespace test {
 // The random number generator used for unit tests.  Since the algorithm is
 // deterministic and fixed, this can be used to reproduce flakes in the unit
 // tests caused by specific random values.
-class QUICHE_EXPORT_PRIVATE Http2Random {
+class QUICHE_NO_EXPORT Http2Random {
  public:
   Http2Random();
 
