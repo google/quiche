@@ -611,11 +611,11 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders : public HeaderApi {
   void RemoveAllOfHeader(absl::string_view key) override;
 
   // Removes all headers starting with 'key' [case insensitive]
-  void RemoveAllHeadersWithPrefix(absl::string_view key) override;
+  void RemoveAllHeadersWithPrefix(absl::string_view prefix) override;
 
   // Returns true if we have at least one header with given prefix
   // [case insensitive]. Currently for test use only.
-  bool HasHeadersWithPrefix(absl::string_view key) const override;
+  bool HasHeadersWithPrefix(absl::string_view prefix) const override;
 
   // Returns the key value pairs for all headers where the header key begins
   // with the specified prefix.
