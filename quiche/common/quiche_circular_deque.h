@@ -733,7 +733,7 @@ class QUICHE_NO_EXPORT QuicheCircularDeque {
   // with the fields we had to store anyway, via inheriting from the allocator,
   // so this allocator instance doesn't consume any storage when its type has no
   // data members.
-  struct QUICHE_EXPORT_PRIVATE AllocatorAndData : private allocator_type {
+  struct QUICHE_NO_EXPORT AllocatorAndData : private allocator_type {
     explicit AllocatorAndData(const allocator_type& alloc)
         : allocator_type(alloc) {}
 
