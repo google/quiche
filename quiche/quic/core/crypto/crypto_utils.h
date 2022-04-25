@@ -248,6 +248,11 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   static bool GetSSLCapabilities(const SSL* ssl,
                                  bssl::UniquePtr<uint8_t>* capabilities,
                                  size_t* capabilities_len);
+
+  // Computes the contents of a binary message that is signed inside QUIC Crypto
+  // protocol using the certificate key.
+  static absl::optional<std::string> GenerateProofPayloadToBeSigned(
+      absl::string_view chlo_hash, absl::string_view server_config);
 };
 
 }  // namespace quic

@@ -787,4 +787,24 @@ bool CryptoUtils::GetSSLCapabilities(const SSL* ssl,
   return true;
 }
 
+// static
+absl::optional<std::string> CryptoUtils::GenerateProofPayloadToBeSigned(
+    absl::string_view chlo_hash, absl::string_view server_config) {
+  size_t payload_size = sizeof(kProofSignatureLabel) + sizeof(uint32_t) +
+                        chlo_hash.size() + server_config.size();
+  std::string payload;
+  payload.resize(payload_size);
+  QuicDataWriter payload_writer(payload_size, payload.data(),
+                                quiche::Endianness::HOST_BYTE_ORDER);
+  bool success = payload_writer.WriteBytes(kProofSignatureLabel,
+                                           sizeof(kProofSignatureLabel)) &&
+                 payload_writer.WriteUInt32(chlo_hash.size()) &&
+                 payload_writer.WriteStringPiece(chlo_hash) &&
+                 payload_writer.WriteStringPiece(server_config);
+  if (!success) {
+    return absl::nullopt;
+  }
+  return payload;
+}
+
 }  // namespace quic
