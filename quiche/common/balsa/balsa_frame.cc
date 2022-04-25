@@ -319,8 +319,8 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
   const char* stream_begin = headers->OriginalHeaderStreamBegin();
   // The last line is always just a newline (and is uninteresting).
   const Lines::size_type lines_size_m1 = lines.size() - 1;
-  // For a trailer, there is no first line, so lines[0] is the first header
-  // . For real headers, the first line takes lines[0], so real header starts
+  // For a trailer, there is no first line, so lines[0] is the first header.
+  // For real headers, the first line takes lines[0], so real header starts
   // at index 1.
   int first_header_idx = (is_trailer ? 0 : 1);
   const char* current = stream_begin + lines[first_header_idx].first;
@@ -408,8 +408,7 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
         break;
       }
 
-      if (http_validation_policy().enforce_header_characters() &&
-          IsInvalidHeaderKeyChar(*current)) {
+      if (IsInvalidHeaderKeyChar(*current)) {
         // Generally invalid characters were found earlier.
         HandleError(is_trailer
                         ? BalsaFrameEnums::INVALID_TRAILER_NAME_CHARACTER

@@ -16,12 +16,9 @@ namespace quiche {
 // during the parsing of an HTTP request.
 class QUICHE_EXPORT_PRIVATE HttpValidationPolicy {
  public:
-  HttpValidationPolicy(bool enforce_header_keys, bool enforce_all);
+  HttpValidationPolicy(bool enforce_all);
 
   static HttpValidationPolicy CreateDefault();
-
-  // A header name has to be drawn from a set of allowed characters.
-  bool enforce_header_characters() const { return enforce_header_keys_; }
 
   // https://tools.ietf.org/html/rfc7230#section-3.2.4 deprecates "folding"
   // of long header lines onto continuation lines.
@@ -44,15 +41,11 @@ class QUICHE_EXPORT_PRIVATE HttpValidationPolicy {
 
   friend QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os, const HttpValidationPolicy& policy) {
-    os << "HttpValidationPolicy(enforce_header_keys_="
-       << policy.enforce_header_keys_
-       << ", enforce_all_=" << policy.enforce_all_ << ")";
+    os << "HttpValidationPolicy(enforce_all_=" << policy.enforce_all_ << ")";
     return os;
   }
 
  private:
-  // Enforce more standard-compliant parsing of HTTP headers.
-  bool enforce_header_keys_;
   // Enforce "everything": set for strictest possible parsing.
   bool enforce_all_;
 };

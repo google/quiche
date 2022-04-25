@@ -10,21 +10,15 @@
 
 namespace quiche {
 
-HttpValidationPolicy::HttpValidationPolicy(bool enforce_header_keys,
-                                           bool enforce_all)
-    : enforce_header_keys_(enforce_header_keys), enforce_all_(enforce_all) {
-  if (enforce_all_) {
-    QUICHE_DCHECK(enforce_header_keys_);
-  }
-}
+HttpValidationPolicy::HttpValidationPolicy(bool enforce_all)
+    : enforce_all_(enforce_all) {}
 
 HttpValidationPolicy HttpValidationPolicy::CreateDefault() {
-  return HttpValidationPolicy(true, false);
+  return HttpValidationPolicy(false);
 }
 
 bool HttpValidationPolicy::operator==(const HttpValidationPolicy& other) const {
-  return std::tie(enforce_header_keys_, enforce_all_) ==
-         std::tie(other.enforce_header_keys_, other.enforce_all_);
+  return enforce_all_ == other.enforce_all_;
 }
 
 }  // namespace quiche
