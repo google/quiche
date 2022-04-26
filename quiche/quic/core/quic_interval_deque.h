@@ -137,7 +137,7 @@ class QuicIntervalDequePeer;
 //   //   cached_index -> 1
 //   //   container -> {{2, [25, 30)}, {3, [35, 50)}}
 
-template <class T, class C = QUIC_NO_EXPORT quiche::QuicheCircularDeque<T>>
+template <class T, class C = quiche::QuicheCircularDeque<T>>
 class QUIC_NO_EXPORT QuicIntervalDeque {
  public:
   class QUIC_NO_EXPORT Iterator {
