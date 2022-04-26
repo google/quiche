@@ -30,8 +30,10 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
+#include "quiche/quic/tools/quic_simple_server_backend.h"
 #include "quiche/quic/tools/quic_simple_server_session.h"
 #include "quiche/common/simple_buffer_allocator.h"
+#include "quiche/spdy/core/spdy_header_block.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -51,12 +53,19 @@ class TestStream : public QuicSimpleServerStream {
   TestStream(QuicStreamId stream_id, QuicSpdySession* session, StreamType type,
              QuicSimpleServerBackend* quic_simple_server_backend)
       : QuicSimpleServerStream(stream_id, session, type,
-                               quic_simple_server_backend) {}
+                               quic_simple_server_backend) {
+    EXPECT_CALL(*this, WriteOrBufferBody(_, _))
+        .Times(AnyNumber())
+        .WillRepeatedly([this](absl::string_view data, bool fin) {
+          this->QuicSimpleServerStream::WriteOrBufferBody(data, fin);
+        });
+  }
 
   ~TestStream() override = default;
 
   MOCK_METHOD(void, WriteHeadersMock, (bool fin), ());
   MOCK_METHOD(void, WriteEarlyHintsHeadersMock, (bool fin), ());
+  MOCK_METHOD(void, WriteOrBufferBody, (absl::string_view data, bool fin), ());
 
   size_t WriteHeaders(
       spdy::Http2HeaderBlock header_block, bool fin,
@@ -87,6 +96,10 @@ class TestStream : public QuicSimpleServerStream {
     auto it = request_headers_.find(key);
     QUICHE_DCHECK(it != request_headers_.end());
     return it->second;
+  }
+
+  void ReplaceBackend(QuicSimpleServerBackend* backend) {
+    set_quic_simple_server_backend_for_test(backend);
   }
 
  protected:
@@ -256,6 +269,11 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     return VersionUsesHttp3(connection_->transport_version());
   }
 
+  void ReplaceBackend(std::unique_ptr<QuicSimpleServerBackend> backend) {
+    replacement_backend_ = std::move(backend);
+    stream_->ReplaceBackend(replacement_backend_.get());
+  }
+
   spdy::Http2HeaderBlock response_headers_;
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
@@ -265,6 +283,7 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   std::unique_ptr<QuicCryptoServerConfig> crypto_config_;
   QuicCompressedCertsCache compressed_certs_cache_;
   QuicMemoryCacheBackend memory_cache_backend_;
+  std::unique_ptr<QuicSimpleServerBackend> replacement_backend_;
   StrictMock<MockQuicSimpleServerSession> session_;
   StrictMock<TestStream>* stream_;  // Owned by session_.
   std::unique_ptr<QuicBackendResponse> quic_response_;
@@ -732,26 +751,115 @@ TEST_P(QuicSimpleServerStreamTest, InvalidHeadersWithFin) {
   stream_->OnStreamFrame(frame);
 }
 
-TEST_P(QuicSimpleServerStreamTest, ConnectSendsResponseBeforeFinReceived) {
-  EXPECT_CALL(session_, WritevData(_, _, _, _, _, _))
-      .WillRepeatedly(
-          Invoke(&session_, &MockQuicSimpleServerSession::ConsumeData));
+// Basic QuicSimpleServerBackend that implements its behavior through mocking.
+class TestQuicSimpleServerBackend : public QuicSimpleServerBackend {
+ public:
+  TestQuicSimpleServerBackend() = default;
+  ~TestQuicSimpleServerBackend() override = default;
+
+  // QuicSimpleServerBackend:
+  bool InitializeBackend(const std::string& /*backend_url*/) override {
+    return true;
+  }
+  bool IsBackendInitialized() const override { return true; }
+  MOCK_METHOD(void, FetchResponseFromBackend,
+              (const spdy::Http2HeaderBlock&, const std::string&,
+               RequestHandler*),
+              (override));
+  MOCK_METHOD(void, HandleConnectHeaders,
+              (const spdy::Http2HeaderBlock&, RequestHandler*), (override));
+  MOCK_METHOD(void, HandleConnectData,
+              (absl::string_view, bool, RequestHandler*), (override));
+  void CloseBackendResponseStream(
+      RequestHandler* /*request_handler*/) override {}
+};
+
+ACTION_P(SendHeadersResponse, response_ptr) {
+  arg1->OnResponseBackendComplete(response_ptr);
+}
+
+ACTION_P(SendStreamData, data, close_stream) {
+  arg2->SendStreamData(data, close_stream);
+}
+
+ACTION_P(TerminateStream, error) { arg1->TerminateStreamWithError(error); }
+
+TEST_P(QuicSimpleServerStreamTest, ConnectSendsIntermediateResponses) {
+  auto test_backend = std::make_unique<TestQuicSimpleServerBackend>();
+  TestQuicSimpleServerBackend* test_backend_ptr = test_backend.get();
+  ReplaceBackend(std::move(test_backend));
+
+  constexpr absl::string_view kRequestBody = "\x11\x11";
+  spdy::Http2HeaderBlock response_headers;
+  response_headers[":status"] = "200";
+  QuicBackendResponse headers_response;
+  headers_response.set_headers(response_headers.Clone());
+  headers_response.set_response_type(QuicBackendResponse::INCOMPLETE_RESPONSE);
+  constexpr absl::string_view kBody1 = "\x22\x22";
+  constexpr absl::string_view kBody2 = "\x33\x33";
+
+  // Expect an initial headers-only request to result in a headers-only
+  // incomplete response. Then a data frame without fin, resulting in stream
+  // data. Then a data frame with fin, resulting in stream data with fin.
+  InSequence s;
+  EXPECT_CALL(*test_backend_ptr, HandleConnectHeaders(_, _))
+      .WillOnce(SendHeadersResponse(&headers_response));
+  EXPECT_CALL(*stream_, WriteHeadersMock(false));
+  EXPECT_CALL(*test_backend_ptr, HandleConnectData(kRequestBody, false, _))
+      .WillOnce(SendStreamData(kBody1,
+                               /*close_stream=*/false));
+  EXPECT_CALL(*stream_, WriteOrBufferBody(kBody1, false));
+  EXPECT_CALL(*test_backend_ptr, HandleConnectData(kRequestBody, true, _))
+      .WillOnce(SendStreamData(kBody2,
+                               /*close_stream=*/true));
+  EXPECT_CALL(*stream_, WriteOrBufferBody(kBody2, true));
+
   QuicHeaderList header_list;
   header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":method", "CONNECT");
   header_list.OnHeaderBlockEnd(128, 128);
-  EXPECT_CALL(*stream_, WriteHeadersMock(/*fin=*/false));
+
   stream_->OnStreamHeaderList(/*fin=*/false, kFakeFrameLen, header_list);
   quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
-      body_.length(), quiche::SimpleBufferAllocator::Get());
-  std::string data =
-      UsesHttp3() ? absl::StrCat(header.AsStringView(), body_) : body_;
+      kRequestBody.length(), quiche::SimpleBufferAllocator::Get());
+  std::string data = UsesHttp3()
+                         ? absl::StrCat(header.AsStringView(), kRequestBody)
+                         : std::string(kRequestBody);
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
-  EXPECT_EQ("CONNECT", StreamHeadersValue(":method"));
-  EXPECT_EQ(body_, StreamBody());
-  EXPECT_TRUE(stream_->send_response_was_called());
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), /*fin=*/true, data.length(), data));
+
+  // Expect to not go through SendResponse().
+  EXPECT_FALSE(stream_->send_response_was_called());
+  EXPECT_FALSE(stream_->send_error_response_was_called());
+}
+
+TEST_P(QuicSimpleServerStreamTest, ErrorOnUnhandledConnect) {
+  // Expect single set of failure response headers with FIN in response to the
+  // headers. Then, expect abrupt stream termination in response to the body.
+  EXPECT_CALL(*stream_, WriteHeadersMock(true));
+  EXPECT_CALL(session_, MaybeSendRstStreamFrame(stream_->id(), _, _));
+
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":method", "CONNECT");
+  header_list.OnHeaderBlockEnd(128, 128);
+  constexpr absl::string_view kRequestBody = "\x11\x11";
+
+  stream_->OnStreamHeaderList(/*fin=*/false, kFakeFrameLen, header_list);
+  quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
+      kRequestBody.length(), quiche::SimpleBufferAllocator::Get());
+  std::string data = UsesHttp3()
+                         ? absl::StrCat(header.AsStringView(), kRequestBody)
+                         : std::string(kRequestBody);
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), /*fin=*/true, /*offset=*/0, data));
+
+  // Expect failure to not go through SendResponse().
+  EXPECT_FALSE(stream_->send_response_was_called());
   EXPECT_FALSE(stream_->send_error_response_was_called());
 }
 
@@ -783,6 +891,30 @@ TEST_P(QuicSimpleServerStreamTest, ConnectWithInvalidHeader) {
   stream_->OnStreamHeaderList(/*fin=*/false, kFakeFrameLen, header_list);
   EXPECT_FALSE(stream_->send_response_was_called());
   EXPECT_TRUE(stream_->send_error_response_was_called());
+}
+
+TEST_P(QuicSimpleServerStreamTest, BackendCanTerminateStream) {
+  auto test_backend = std::make_unique<TestQuicSimpleServerBackend>();
+  TestQuicSimpleServerBackend* test_backend_ptr = test_backend.get();
+  ReplaceBackend(std::move(test_backend));
+
+  EXPECT_CALL(session_, WritevData(_, _, _, _, _, _))
+      .WillRepeatedly(
+          Invoke(&session_, &MockQuicSimpleServerSession::ConsumeData));
+
+  QuicResetStreamError expected_error =
+      QuicResetStreamError::FromInternal(QUIC_STREAM_CONNECT_ERROR);
+  EXPECT_CALL(*test_backend_ptr, HandleConnectHeaders(_, _))
+      .WillOnce(TerminateStream(expected_error));
+  EXPECT_CALL(session_,
+              MaybeSendRstStreamFrame(stream_->id(), expected_error, _));
+
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":method", "CONNECT");
+  header_list.OnHeaderBlockEnd(128, 128);
+  stream_->OnStreamHeaderList(/*fin=*/false, kFakeFrameLen, header_list);
 }
 
 }  // namespace

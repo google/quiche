@@ -5,10 +5,14 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_SIMPLE_SERVER_BACKEND_H_
 #define QUICHE_QUIC_TOOLS_QUIC_SIMPLE_SERVER_BACKEND_H_
 
+#include <cstdint>
 #include <memory>
 
+#include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
+#include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/spdy/core/spdy_header_block.h"
 
@@ -33,6 +37,14 @@ class QuicSimpleServerBackend {
     // the QUIC client.
     virtual void OnResponseBackendComplete(
         const QuicBackendResponse* response) = 0;
+    // Sends additional non-full-response data (without headers) to the request
+    // stream, e.g. for CONNECT data. May only be called after sending an
+    // incomplete response (using `QuicBackendResponse::INCOMPLETE_RESPONSE`).
+    // Sends the data with the FIN bit to close the stream if `close_stream` is
+    // true.
+    virtual void SendStreamData(absl::string_view data, bool close_stream) = 0;
+    // Abruptly terminates (resets) the request stream with `error`.
+    virtual void TerminateStreamWithError(QuicResetStreamError error) = 0;
   };
 
   struct WebTransportResponse {
@@ -49,12 +61,43 @@ class QuicSimpleServerBackend {
   virtual bool IsBackendInitialized() const = 0;
   // Triggers a HTTP request to be sent to the backend server or cache
   // If response is immediately available, the function synchronously calls
-  // the |request_handler| with the HTTP response.
+  // the `request_handler` with the HTTP response.
   // If the response has to be fetched over the network, the function
-  // asynchronously calls |request_handler| with the HTTP response.
+  // asynchronously calls `request_handler` with the HTTP response.
+  //
+  // Not called for requests using the CONNECT method.
   virtual void FetchResponseFromBackend(
       const spdy::Http2HeaderBlock& request_headers,
       const std::string& request_body, RequestHandler* request_handler) = 0;
+
+  // Handles headers for requests using the CONNECT method. Called immediately
+  // on receiving the headers, potentially before the request is complete or
+  // data is received. Any response (complete or incomplete) should be sent,
+  // potentially asynchronously, using `request_handler`.
+  //
+  // If not overridden by backend, sends an error appropriate for a server that
+  // does not handle CONNECT requests.
+  virtual void HandleConnectHeaders(
+      const spdy::Http2HeaderBlock& /*request_headers*/,
+      RequestHandler* request_handler) {
+    spdy::Http2HeaderBlock headers;
+    headers[":status"] = "405";
+    QuicBackendResponse response;
+    response.set_headers(std::move(headers));
+    request_handler->OnResponseBackendComplete(&response);
+  }
+  // Handles data for requests using the CONNECT method.  Called repeatedly
+  // whenever new data is available. If `data_complete` is true, data was
+  // received with the FIN bit, and this is the last call to this method.
+  //
+  // If not overridden by backend, abruptly terminates the stream.
+  virtual void HandleConnectData(absl::string_view /*data*/,
+                                 bool /*data_complete*/,
+                                 RequestHandler* request_handler) {
+    request_handler->TerminateStreamWithError(
+        QuicResetStreamError::FromInternal(QUIC_STREAM_CONNECT_ERROR));
+  }
+
   // Clears the state of the backend  instance
   virtual void CloseBackendResponseStream(RequestHandler* request_handler) = 0;
 

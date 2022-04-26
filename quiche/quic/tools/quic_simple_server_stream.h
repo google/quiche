@@ -5,8 +5,12 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_SIMPLE_SERVER_STREAM_H_
 #define QUICHE_QUIC_TOOLS_QUIC_SIMPLE_SERVER_STREAM_H_
 
+#include <cstdint>
+
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quiche/quic/core/http/quic_spdy_server_stream_base.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
@@ -55,10 +59,15 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
   QuicStreamId stream_id() const override;
   std::string peer_host() const override;
   void OnResponseBackendComplete(const QuicBackendResponse* response) override;
+  void SendStreamData(absl::string_view data, bool close_stream) override;
+  void TerminateStreamWithError(QuicResetStreamError error) override;
 
  protected:
-  // Sends a basic 200 response using SendHeaders for the headers and WriteData
-  // for the body.
+  // Handles fresh body data whenever received when method is CONNECT.
+  void HandleRequestConnectData(bool fin_received);
+
+  // Sends a response using SendHeaders for the headers and WriteData for the
+  // body.
   virtual void SendResponse();
 
   // Sends a basic 500 response using SendHeaders for the headers and WriteData
@@ -70,22 +79,33 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
   // for the body.
   void SendNotFoundResponse();
 
-  // Sends the response header and body, but not the fin.
-  void SendIncompleteResponse(spdy::Http2HeaderBlock response_headers,
-                              absl::string_view body);
+  // Sends the response header (if not `absl::nullopt`) and body, but not the
+  // fin.
+  void SendIncompleteResponse(
+      absl::optional<spdy::Http2HeaderBlock> response_headers,
+      absl::string_view body);
 
   void SendHeadersAndBody(spdy::Http2HeaderBlock response_headers,
                           absl::string_view body);
-  void SendHeadersAndBodyAndTrailers(spdy::Http2HeaderBlock response_headers,
-                                     absl::string_view body,
-                                     spdy::Http2HeaderBlock response_trailers);
+  void SendHeadersAndBodyAndTrailers(
+      absl::optional<spdy::Http2HeaderBlock> response_headers,
+      absl::string_view body, spdy::Http2HeaderBlock response_trailers);
 
   spdy::Http2HeaderBlock* request_headers() { return &request_headers_; }
+
+  // Returns true iff the request (per saved `request_headers_`) is a CONNECT or
+  // Extended CONNECT request.
+  bool IsConnectRequest() const;
 
   const std::string& body() { return body_; }
 
   // Writes the body bytes for the GENERATE_BYTES response type.
   void WriteGeneratedBytes();
+
+  void set_quic_simple_server_backend_for_test(
+      QuicSimpleServerBackend* backend) {
+    quic_simple_server_backend_ = backend;
+  }
 
   // The parsed headers received from the client.
   spdy::Http2HeaderBlock request_headers_;

@@ -4,15 +4,18 @@
 
 #include "quiche/quic/tools/quic_simple_server_stream.h"
 
+#include <cstdint>
 #include <list>
 #include <utility>
 
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -60,15 +63,36 @@ void QuicSimpleServerStream::OnInitialHeadersComplete(
     SendErrorResponse();
   }
   ConsumeHeaderList();
-  if (!fin && !response_sent_) {
-    // CONNECT requests do not carry any message content but carry data after
-    // the headers, so they require sending the response right after parsing the
-    // headers even though the FIN bit has not been received on the request
-    // stream.
-    auto it = request_headers_.find(":method");
-    if (it != request_headers_.end() && it->second == "CONNECT") {
-      SendResponse();
+
+  // CONNECT requests do not carry any message content but carry data after the
+  // headers, so they require sending the response right after parsing the
+  // headers even though the FIN bit has not been received on the request
+  // stream.
+  if (!fin && !response_sent_ && IsConnectRequest()) {
+    if (quic_simple_server_backend_ == nullptr) {
+      QUIC_DVLOG(1) << "Backend is missing on CONNECT headers.";
+      SendErrorResponse();
+      return;
     }
+
+    if (web_transport() != nullptr) {
+      QuicSimpleServerBackend::WebTransportResponse response =
+          quic_simple_server_backend_->ProcessWebTransportRequest(
+              request_headers_, web_transport());
+      if (response.response_headers[":status"] == "200") {
+        WriteHeaders(std::move(response.response_headers), false, nullptr);
+        if (response.visitor != nullptr) {
+          web_transport()->SetVisitor(std::move(response.visitor));
+        }
+        web_transport()->HeadersReceived(request_headers_);
+      } else {
+        WriteHeaders(std::move(response.response_headers), true, nullptr);
+      }
+      return;
+    }
+
+    quic_simple_server_backend_->HandleConnectHeaders(request_headers_,
+                                                      /*request_handler=*/this);
   }
 }
 
@@ -98,7 +122,11 @@ void QuicSimpleServerStream::OnBodyAvailable() {
     }
     MarkConsumed(iov.iov_len);
   }
+
   if (!sequencer()->IsClosed()) {
+    if (IsConnectRequest()) {
+      HandleRequestConnectData(/*fin_received=*/false);
+    }
     sequencer()->SetUnblocked();
     return;
   }
@@ -111,7 +139,11 @@ void QuicSimpleServerStream::OnBodyAvailable() {
     return;
   }
 
-  SendResponse();
+  if (IsConnectRequest()) {
+    HandleRequestConnectData(/*fin_received=*/true);
+  } else {
+    SendResponse();
+  }
 }
 
 void QuicSimpleServerStream::PushResponse(
@@ -133,7 +165,28 @@ void QuicSimpleServerStream::PushResponse(
   SendResponse();
 }
 
+void QuicSimpleServerStream::HandleRequestConnectData(bool fin_received) {
+  QUICHE_DCHECK(IsConnectRequest());
+
+  if (quic_simple_server_backend_ == nullptr) {
+    QUIC_DVLOG(1) << "Backend is missing on CONNECT data.";
+    ResetWriteSide(
+        QuicResetStreamError::FromInternal(QUIC_STREAM_CONNECT_ERROR));
+    return;
+  }
+
+  // Clear `body_`, so only new data is sent to the backend next time.
+  std::string data = std::move(body_);
+  body_.clear();
+
+  quic_simple_server_backend_->HandleConnectData(data,
+                                                 /*data_complete=*/fin_received,
+                                                 this);
+}
+
 void QuicSimpleServerStream::SendResponse() {
+  QUICHE_DCHECK(!IsConnectRequest());
+
   if (request_headers_.empty()) {
     QUIC_DVLOG(1) << "Request headers empty.";
     SendErrorResponse();
@@ -155,17 +208,13 @@ void QuicSimpleServerStream::SendResponse() {
   }
 
   if (!request_headers_.contains(":path")) {
-    // The CONNECT method does not require :path to be present.
-    auto it = request_headers_.find(":method");
-    if (it == request_headers_.end() || it->second != "CONNECT") {
-      QUIC_DVLOG(1) << "Request headers do not contain :path.";
-      SendErrorResponse();
-      return;
-    }
+    QUIC_DVLOG(1) << "Request headers do not contain :path.";
+    SendErrorResponse();
+    return;
   }
 
   if (quic_simple_server_backend_ == nullptr) {
-    QUIC_DVLOG(1) << "Backend is missing.";
+    QUIC_DVLOG(1) << "Backend is missing in SendResponse().";
     SendErrorResponse();
     return;
   }
@@ -306,6 +355,27 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
                                 response->trailers().Clone());
 }
 
+void QuicSimpleServerStream::SendStreamData(absl::string_view data,
+                                            bool close_stream) {
+  // Doesn't make sense to call this without data or `close_stream`.
+  QUICHE_DCHECK(!data.empty() || close_stream);
+
+  if (close_stream) {
+    SendHeadersAndBodyAndTrailers(
+        /*response_headers=*/absl::nullopt, data,
+        /*response_trailers=*/spdy::Http2HeaderBlock());
+  } else {
+    SendIncompleteResponse(/*response_headers=*/absl::nullopt, data);
+  }
+}
+
+void QuicSimpleServerStream::TerminateStreamWithError(
+    QuicResetStreamError error) {
+  QUIC_DVLOG(1) << "Stream " << id() << " abruptly terminating with error "
+                << error.internal_code();
+  ResetWriteSide(error);
+}
+
 void QuicSimpleServerStream::OnCanWrite() {
   QuicSpdyStream::OnCanWrite();
   WriteGeneratedBytes();
@@ -348,12 +418,16 @@ void QuicSimpleServerStream::SendErrorResponse(int resp_code) {
 }
 
 void QuicSimpleServerStream::SendIncompleteResponse(
-    Http2HeaderBlock response_headers, absl::string_view body) {
-  QUIC_DLOG(INFO) << "Stream " << id() << " writing headers (fin = false) : "
-                  << response_headers.DebugString();
-  WriteHeaders(std::move(response_headers), /*fin=*/false, nullptr);
-  QUICHE_DCHECK(!response_sent_);
-  response_sent_ = true;
+    absl::optional<Http2HeaderBlock> response_headers, absl::string_view body) {
+  // Headers should be sent iff not sent in a previous response.
+  QUICHE_DCHECK_NE(response_headers.has_value(), response_sent_);
+
+  if (response_headers.has_value()) {
+    QUIC_DLOG(INFO) << "Stream " << id() << " writing headers (fin = false) : "
+                    << response_headers.value().DebugString();
+    WriteHeaders(std::move(response_headers).value(), /*fin=*/false, nullptr);
+    response_sent_ = true;
+  }
 
   QUIC_DLOG(INFO) << "Stream " << id()
                   << " writing body (fin = false) with size: " << body.size();
@@ -369,22 +443,27 @@ void QuicSimpleServerStream::SendHeadersAndBody(
 }
 
 void QuicSimpleServerStream::SendHeadersAndBodyAndTrailers(
-    Http2HeaderBlock response_headers, absl::string_view body,
+    absl::optional<Http2HeaderBlock> response_headers, absl::string_view body,
     Http2HeaderBlock response_trailers) {
-  // Send the headers, with a FIN if there's nothing else to send.
-  bool send_fin = (body.empty() && response_trailers.empty());
-  QUIC_DLOG(INFO) << "Stream " << id() << " writing headers (fin = " << send_fin
-                  << ") : " << response_headers.DebugString();
-  WriteHeaders(std::move(response_headers), send_fin, nullptr);
-  QUICHE_DCHECK(!response_sent_);
-  response_sent_ = true;
-  if (send_fin) {
-    // Nothing else to send.
-    return;
+  // Headers should be sent iff not sent in a previous response.
+  QUICHE_DCHECK_NE(response_headers.has_value(), response_sent_);
+
+  if (response_headers.has_value()) {
+    // Send the headers, with a FIN if there's nothing else to send.
+    bool send_fin = (body.empty() && response_trailers.empty());
+    QUIC_DLOG(INFO) << "Stream " << id()
+                    << " writing headers (fin = " << send_fin
+                    << ") : " << response_headers.value().DebugString();
+    WriteHeaders(std::move(response_headers).value(), send_fin, nullptr);
+    response_sent_ = true;
+    if (send_fin) {
+      // Nothing else to send.
+      return;
+    }
   }
 
   // Send the body, with a FIN if there's no trailers to send.
-  send_fin = response_trailers.empty();
+  bool send_fin = response_trailers.empty();
   QUIC_DLOG(INFO) << "Stream " << id() << " writing body (fin = " << send_fin
                   << ") with size: " << body.size();
   if (!body.empty() || send_fin) {
@@ -399,6 +478,11 @@ void QuicSimpleServerStream::SendHeadersAndBodyAndTrailers(
   QUIC_DLOG(INFO) << "Stream " << id() << " writing trailers (fin = true): "
                   << response_trailers.DebugString();
   WriteTrailers(std::move(response_trailers), nullptr);
+}
+
+bool QuicSimpleServerStream::IsConnectRequest() const {
+  auto method_it = request_headers_.find(":method");
+  return method_it != request_headers_.end() && method_it->second == "CONNECT";
 }
 
 void QuicSimpleServerStream::OnInvalidHeaders() {

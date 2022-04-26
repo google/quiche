@@ -6818,15 +6818,16 @@ TEST_P(EndToEndTest, RejectExtendedConnect) {
   client_->WaitForResponse();
   CheckResponseHeaders("400");
 
-  // Vanilla CONNECT should be accepted.
+  // Vanilla CONNECT should be sent to backend.
   spdy::SpdyHeaderBlock headers2;
   headers2[":authority"] = "localhost";
   headers2[":method"] = "CONNECT";
 
+  // Backend not configured/implemented to fully handle CONNECT requests, so
+  // expect it to send a 405.
   client_->SendMessage(headers2, "body", /*fin=*/true);
   client_->WaitForResponse();
-  // No :path header, so 404.
-  CheckResponseHeaders("404");
+  CheckResponseHeaders("405");
 }
 
 TEST_P(EndToEndTest, RejectInvalidRequestHeader) {

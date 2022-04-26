@@ -129,7 +129,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
           ack_listener);
 
   // Sends |data| to the peer, or buffers if it can't be sent immediately.
-  void WriteOrBufferBody(absl::string_view data, bool fin);
+  virtual void WriteOrBufferBody(absl::string_view data, bool fin);
 
   // Writes the trailers contained in |trailer_block| on the dedicated headers
   // stream or on this stream, depending on VersionUsesHttp3().  Trailers will
