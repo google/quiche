@@ -4,6 +4,7 @@
 
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 
+#include <cstring>
 #include <memory>
 
 #include "absl/strings/string_view.h"
@@ -46,6 +47,33 @@ TEST_F(QuicheMemSliceTest, MoveAssign) {
   EXPECT_EQ(moved.length(), orig_length_);
   EXPECT_EQ(nullptr, slice_.data());
   EXPECT_EQ(0u, slice_.length());
+  EXPECT_TRUE(slice_.empty());
+}
+
+TEST_F(QuicheMemSliceTest, MoveAssignNonEmpty) {
+  const absl::string_view data("foo");
+  auto buffer = std::make_unique<char[]>(data.length());
+  std::memcpy(buffer.get(), data.data(), data.length());
+
+  QuicheMemSlice moved(std::move(buffer), data.length());
+  EXPECT_EQ(data, moved.AsStringView());
+
+  moved = std::move(slice_);
+  EXPECT_EQ(moved.data(), orig_data_);
+  EXPECT_EQ(moved.length(), orig_length_);
+  EXPECT_EQ(nullptr, slice_.data());
+  EXPECT_EQ(0u, slice_.length());
+  EXPECT_TRUE(slice_.empty());
+}
+
+TEST_F(QuicheMemSliceTest, Reset) {
+  EXPECT_EQ(slice_.data(), orig_data_);
+  EXPECT_EQ(slice_.length(), orig_length_);
+  EXPECT_FALSE(slice_.empty());
+
+  slice_.Reset();
+
+  EXPECT_EQ(slice_.length(), 0u);
   EXPECT_TRUE(slice_.empty());
 }
 
