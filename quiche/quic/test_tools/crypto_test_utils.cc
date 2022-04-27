@@ -10,14 +10,19 @@
 #include <utility>
 
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "openssl/bn.h"
 #include "openssl/ec.h"
 #include "openssl/ecdsa.h"
 #include "openssl/nid.h"
 #include "openssl/sha.h"
+#include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/core/crypto/channel_id.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
+#include "quiche/quic/core/crypto/crypto_utils.h"
+#include "quiche/quic/core/crypto/proof_source_x509.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
@@ -28,9 +33,11 @@
 #include "quiche/quic/core/quic_crypto_server_stream_base.h"
 #include "quiche/quic/core/quic_crypto_stream.h"
 #include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_hostname_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -39,6 +46,7 @@
 #include "quiche/quic/test_tools/quic_stream_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simple_quic_framer.h"
+#include "quiche/quic/test_tools/test_certificates.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
 namespace quic {
@@ -850,6 +858,112 @@ void GenerateFullCHLO(
   crypto_config->ValidateClientHello(
       inchoate_chlo, client_addr, server_addr, transport_version, clock,
       signed_config, generator.GetValidateClientHelloCallback());
+}
+
+namespace {
+
+constexpr char kTestProofHostname[] = "test.example.com";
+
+class TestProofSource : public ProofSourceX509 {
+ public:
+  TestProofSource()
+      : ProofSourceX509(
+            quiche::QuicheReferenceCountedPointer<ProofSource::Chain>(
+                new ProofSource::Chain(
+                    std::vector<std::string>{std::string(kTestCertificate)})),
+            std::move(*CertificatePrivateKey::LoadFromDer(
+                kTestCertificatePrivateKey))) {
+    QUICHE_DCHECK(valid());
+  }
+
+ protected:
+  void MaybeAddSctsForHostname(absl::string_view /*hostname*/,
+                               std::string& leaf_cert_scts) override {
+    leaf_cert_scts = "Certificate Transparency is really nice";
+  }
+};
+
+class QUIC_EXPORT_PRIVATE TestProofVerifier : public ProofVerifier {
+ public:
+  TestProofVerifier()
+      : certificate_(std::move(
+            *CertificateView::ParseSingleCertificate(kTestCertificate))) {}
+
+  class Details : public ProofVerifyDetails {
+   public:
+    ProofVerifyDetails* Clone() const override { return new Details(*this); }
+  };
+
+  QuicAsyncStatus VerifyProof(
+      const std::string& hostname, const uint16_t port,
+      const std::string& server_config,
+      QuicTransportVersion /*transport_version*/, absl::string_view chlo_hash,
+      const std::vector<std::string>& certs, const std::string& cert_sct,
+      const std::string& signature, const ProofVerifyContext* context,
+      std::string* error_details, std::unique_ptr<ProofVerifyDetails>* details,
+      std::unique_ptr<ProofVerifierCallback> callback) override {
+    absl::optional<std::string> payload =
+        CryptoUtils::GenerateProofPayloadToBeSigned(chlo_hash, server_config);
+    if (!payload.has_value()) {
+      *error_details = "Failed to serialize signed payload";
+      return QUIC_FAILURE;
+    }
+    if (!certificate_.VerifySignature(*payload, signature,
+                                      SSL_SIGN_RSA_PSS_RSAE_SHA256)) {
+      *error_details = "Invalid signature";
+      return QUIC_FAILURE;
+    }
+
+    uint8_t out_alert;
+    return VerifyCertChain(hostname, port, certs, /*ocsp_response=*/"",
+                           cert_sct, context, error_details, details,
+                           &out_alert, std::move(callback));
+  }
+
+  QuicAsyncStatus VerifyCertChain(
+      const std::string& hostname, const uint16_t /*port*/,
+      const std::vector<std::string>& certs,
+      const std::string& /*ocsp_response*/, const std::string& /*cert_sct*/,
+      const ProofVerifyContext* /*context*/, std::string* error_details,
+      std::unique_ptr<ProofVerifyDetails>* details, uint8_t* /*out_alert*/,
+      std::unique_ptr<ProofVerifierCallback> /*callback*/) override {
+    std::string normalized_hostname =
+        QuicHostnameUtils::NormalizeHostname(hostname);
+    if (normalized_hostname != kTestProofHostname) {
+      *error_details = absl::StrCat("Invalid hostname, expected ",
+                                    kTestProofHostname, " got ", hostname);
+      return QUIC_FAILURE;
+    }
+    if (certs.empty() || certs.front() != kTestCertificate) {
+      *error_details = "Received certificate different from the expected";
+      return QUIC_FAILURE;
+    }
+    *details = std::make_unique<Details>();
+    return QUIC_SUCCESS;
+  }
+
+  std::unique_ptr<ProofVerifyContext> CreateDefaultContext() override {
+    return nullptr;
+  }
+
+ private:
+  CertificateView certificate_;
+};
+
+}  // namespace
+
+std::unique_ptr<ProofSource> ProofSourceForTesting() {
+  return std::make_unique<TestProofSource>();
+}
+
+std::unique_ptr<ProofVerifier> ProofVerifierForTesting() {
+  return std::make_unique<TestProofVerifier>();
+}
+
+std::string CertificateHostnameForTesting() { return kTestProofHostname; }
+
+std::unique_ptr<ProofVerifyContext> ProofVerifyContextForTesting() {
+  return nullptr;
 }
 
 }  // namespace crypto_test_utils

@@ -137,6 +137,9 @@ std::unique_ptr<ProofSource> ProofSourceForTesting();
 // Returns a new |ProofVerifier| that uses the QUIC testing root CA.
 std::unique_ptr<ProofVerifier> ProofVerifierForTesting();
 
+// Returns the hostname used by the proof source and the proof verifier above.
+std::string CertificateHostnameForTesting();
+
 // Returns a hash of the leaf test certificate.
 uint64_t LeafCertHashForTesting();
 
