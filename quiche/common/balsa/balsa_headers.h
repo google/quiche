@@ -34,8 +34,6 @@ class Http2HeaderValidator;
 
 namespace quiche {
 
-class BalsaHeaders;
-
 namespace test {
 class BalsaHeadersTestPeer;
 }  // namespace test
@@ -77,13 +75,6 @@ class BalsaHeadersTestPeer;
 class QUICHE_EXPORT_PRIVATE BalsaBuffer {
  public:
   static constexpr size_t kDefaultBlocksize = 4096;
-  // We have two friends here. These exist as friends as we
-  // want to allow access to the constructors for the test
-  // class and the Balsa* classes. We put this into the
-  // header file as we want this class to be inlined into the
-  // BalsaHeaders implementation, yet be testable.
-  friend class BalsaBufferTestSpouse;
-  friend class BalsaHeaders;
 
   // The BufferBlock is a structure used internally by the
   // BalsaBuffer class to store the base buffer pointers to
@@ -127,6 +118,12 @@ class QUICHE_EXPORT_PRIVATE BalsaBuffer {
   };
 
   typedef std::vector<BufferBlock> Blocks;
+
+  BalsaBuffer()
+      : blocksize_(kDefaultBlocksize), can_write_to_contiguous_buffer_(true) {}
+
+  explicit BalsaBuffer(size_t blocksize)
+      : blocksize_(blocksize), can_write_to_contiguous_buffer_(true) {}
 
   BalsaBuffer(const BalsaBuffer&) = delete;
   BalsaBuffer& operator=(const BalsaBuffer&) = delete;
@@ -307,12 +304,6 @@ class QUICHE_EXPORT_PRIVATE BalsaBuffer {
   size_t bytes_used(size_t idx) const { return blocks_[idx].bytes_used(); }
 
  private:
-  BalsaBuffer()
-      : blocksize_(kDefaultBlocksize), can_write_to_contiguous_buffer_(true) {}
-
-  explicit BalsaBuffer(size_t blocksize)
-      : blocksize_(blocksize), can_write_to_contiguous_buffer_(true) {}
-
   BufferBlock AllocBlock() { return AllocCustomBlock(blocksize_); }
 
   BufferBlock AllocCustomBlock(size_t blocksize) {
