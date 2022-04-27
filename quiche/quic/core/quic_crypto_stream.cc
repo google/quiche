@@ -6,10 +6,12 @@
 
 #include <string>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_utils.h"
+#include "quiche/quic/core/frames/quic_crypto_frame.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_types.h"
@@ -74,6 +76,12 @@ void QuicCryptoStream::OnCryptoFrame(const QuicCryptoFrame& frame) {
               !QuicVersionUsesCryptoFrames(session()->transport_version()))
       << "Versions less than 47 shouldn't receive CRYPTO frames";
   EncryptionLevel level = session()->connection()->last_decrypted_level();
+  if (!IsCryptoFrameExpectedForEncryptionLevel(level)) {
+    OnUnrecoverableError(
+        IETF_QUIC_PROTOCOL_VIOLATION,
+        absl::StrCat("CRYPTO_FRAME is unexpectedly received at level ", level));
+    return;
+  }
   substreams_[level].sequencer.OnCryptoFrame(frame);
   EncryptionLevel frame_level = level;
   if (substreams_[level].sequencer.NumBytesBuffered() >

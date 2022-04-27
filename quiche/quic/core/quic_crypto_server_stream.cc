@@ -12,6 +12,7 @@
 #include "openssl/sha.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_testvalue.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
@@ -525,5 +526,10 @@ const QuicSocketAddress QuicCryptoServerStream::GetClientAddress() {
 }
 
 SSL* QuicCryptoServerStream::GetSsl() const { return nullptr; }
+
+bool QuicCryptoServerStream::IsCryptoFrameExpectedForEncryptionLevel(
+    EncryptionLevel /*level*/) const {
+  return true;
+}
 
 }  // namespace quic

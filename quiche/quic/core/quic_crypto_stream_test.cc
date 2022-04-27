@@ -17,6 +17,7 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
+#include "quiche/quic/test_tools/quic_connection_peer.h"
 #include "quiche/quic/test_tools/quic_stream_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
@@ -94,6 +95,11 @@ class MockQuicCryptoStream : public QuicCryptoStream,
     return false;
   }
   SSL* GetSsl() const override { return nullptr; }
+
+  bool IsCryptoFrameExpectedForEncryptionLevel(
+      EncryptionLevel level) const override {
+    return level != ENCRYPTION_ZERO_RTT;
+  }
 
  private:
   quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
@@ -672,6 +678,20 @@ TEST_F(QuicCryptoStreamTest, LimitBufferedCryptoData) {
   QuicStreamOffset offset = 1;
   stream_->OnCryptoFrame(
       QuicCryptoFrame(ENCRYPTION_INITIAL, offset, large_frame));
+}
+
+TEST_F(QuicCryptoStreamTest, CloseConnectionWithZeroRttCryptoFrame) {
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    return;
+  }
+
+  EXPECT_CALL(*connection_,
+              CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, _, _));
+
+  test::QuicConnectionPeer::SetLastDecryptedLevel(connection_,
+                                                  ENCRYPTION_ZERO_RTT);
+  QuicStreamOffset offset = 1;
+  stream_->OnCryptoFrame(QuicCryptoFrame(ENCRYPTION_ZERO_RTT, offset, "data"));
 }
 
 TEST_F(QuicCryptoStreamTest, RetransmitCryptoFramesAndPartialWrite) {

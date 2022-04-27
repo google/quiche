@@ -169,6 +169,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     // for the connection.
     virtual bool encryption_established() const = 0;
 
+    // Returns true if receiving CRYPTO_FRAME at encryption `level` is expected.
+    virtual bool IsCryptoFrameExpectedForEncryptionLevel(
+        EncryptionLevel level) const = 0;
+
     // Returns true once 1RTT keys are available.
     virtual bool one_rtt_keys_available() const = 0;
 
@@ -283,6 +287,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
       override;
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
   SSL* GetSsl() const override;
+  bool IsCryptoFrameExpectedForEncryptionLevel(
+      EncryptionLevel level) const override;
   bool ExportKeyingMaterial(absl::string_view label, absl::string_view context,
                             size_t result_len, std::string* result) override;
   std::string chlo_hash() const;

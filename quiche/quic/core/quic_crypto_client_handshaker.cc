@@ -144,6 +144,11 @@ bool QuicCryptoClientHandshaker::encryption_established() const {
   return encryption_established_;
 }
 
+bool QuicCryptoClientHandshaker::IsCryptoFrameExpectedForEncryptionLevel(
+    EncryptionLevel /*level*/) const {
+  return true;
+}
+
 bool QuicCryptoClientHandshaker::one_rtt_keys_available() const {
   return one_rtt_keys_available_;
 }

@@ -3121,6 +3121,8 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
 // static
 bool QuicFramer::IsIetfFrameTypeExpectedForEncryptionLevel(
     uint64_t frame_type, EncryptionLevel level) {
+  // IETF_CRYPTO is allowed for any level here and is separately checked in
+  // QuicCryptoStream::OnCryptoFrame.
   switch (level) {
     case ENCRYPTION_INITIAL:
     case ENCRYPTION_HANDSHAKE:
@@ -3132,7 +3134,7 @@ bool QuicFramer::IsIetfFrameTypeExpectedForEncryptionLevel(
     case ENCRYPTION_ZERO_RTT:
       return !(frame_type == IETF_ACK || frame_type == IETF_ACK_ECN ||
                frame_type == IETF_ACK_RECEIVE_TIMESTAMPS ||
-               frame_type == IETF_CRYPTO || frame_type == IETF_HANDSHAKE_DONE ||
+               frame_type == IETF_HANDSHAKE_DONE ||
                frame_type == IETF_NEW_TOKEN ||
                frame_type == IETF_PATH_RESPONSE ||
                frame_type == IETF_RETIRE_CONNECTION_ID);

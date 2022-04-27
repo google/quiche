@@ -855,6 +855,10 @@ class MockQuicCryptoStream : public QuicCryptoStream {
     return false;
   }
   SSL* GetSsl() const override { return nullptr; }
+  bool IsCryptoFrameExpectedForEncryptionLevel(
+      quic::EncryptionLevel level) const override {
+    return level != ENCRYPTION_ZERO_RTT;
+  }
 
  private:
   quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;

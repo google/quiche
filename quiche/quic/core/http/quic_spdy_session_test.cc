@@ -195,6 +195,10 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   void OnConnectionClosed(QuicErrorCode /*error*/,
                           ConnectionCloseSource /*source*/) override {}
   SSL* GetSsl() const override { return nullptr; }
+  bool IsCryptoFrameExpectedForEncryptionLevel(
+      EncryptionLevel level) const override {
+    return level != ENCRYPTION_ZERO_RTT;
+  }
 
   bool ExportKeyingMaterial(absl::string_view /*label*/,
                             absl::string_view /*context*/,

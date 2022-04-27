@@ -187,6 +187,11 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
 
   SSL* GetSsl() const override { return nullptr; }
 
+  bool IsCryptoFrameExpectedForEncryptionLevel(
+      EncryptionLevel level) const override {
+    return level != ENCRYPTION_ZERO_RTT;
+  }
+
  private:
   using QuicCryptoStream::session;
 

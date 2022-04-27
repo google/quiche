@@ -164,4 +164,9 @@ SSL* QuicCryptoClientStream::GetSsl() const {
   return tls_handshaker_ == nullptr ? nullptr : tls_handshaker_->ssl();
 }
 
+bool QuicCryptoClientStream::IsCryptoFrameExpectedForEncryptionLevel(
+    EncryptionLevel level) const {
+  return handshaker_->IsCryptoFrameExpectedForEncryptionLevel(level);
+}
+
 }  // namespace quic

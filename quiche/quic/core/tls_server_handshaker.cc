@@ -1134,4 +1134,9 @@ TlsServerHandshaker::SetApplicationSettings(absl::string_view alpn) {
 
 SSL* TlsServerHandshaker::GetSsl() const { return ssl(); }
 
+bool TlsServerHandshaker::IsCryptoFrameExpectedForEncryptionLevel(
+    EncryptionLevel level) const {
+  return level != ENCRYPTION_ZERO_RTT;
+}
+
 }  // namespace quic

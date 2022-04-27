@@ -240,6 +240,11 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
     return &substreams_[level].sequencer;
   }
 
+  // Called by OnCryptoFrame to check if a CRYPTO frame is received at an
+  // expected `level`.
+  virtual bool IsCryptoFrameExpectedForEncryptionLevel(
+      EncryptionLevel level) const = 0;
+
  private:
   // Data sent and received in CRYPTO frames is sent at multiple encryption
   // levels. Some of the state for the single logical crypto stream is split

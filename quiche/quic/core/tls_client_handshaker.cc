@@ -357,6 +357,11 @@ bool TlsClientHandshaker::encryption_established() const {
   return encryption_established_;
 }
 
+bool TlsClientHandshaker::IsCryptoFrameExpectedForEncryptionLevel(
+    EncryptionLevel level) const {
+  return level != ENCRYPTION_ZERO_RTT;
+}
+
 bool TlsClientHandshaker::one_rtt_keys_available() const {
   return state_ >= HANDSHAKE_COMPLETE;
 }
