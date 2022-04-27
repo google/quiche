@@ -473,7 +473,7 @@ BalsaHeadersEnums::ContentLengthStatus BalsaFrame::ProcessContentLengthLine(
 
   if (value_begin >= line_end) {
     // There is no non-whitespace value data.
-    DVLOG(1) << "invalid content-length -- no non-whitespace value data";
+    QUICHE_DVLOG(1) << "invalid content-length -- no non-whitespace value data";
     return BalsaHeadersEnums::INVALID_CONTENT_LENGTH;
   }
 
@@ -481,7 +481,8 @@ BalsaHeadersEnums::ContentLengthStatus BalsaFrame::ProcessContentLengthLine(
   while (value_begin < line_end) {
     if (*value_begin < '0' || *value_begin > '9') {
       // bad! content-length found, and couldn't parse all of it!
-      DVLOG(1) << "invalid content-length - non numeric character detected";
+      QUICHE_DVLOG(1)
+          << "invalid content-length - non numeric character detected";
       return BalsaHeadersEnums::INVALID_CONTENT_LENGTH;
     }
     const size_t kMaxDiv10 = std::numeric_limits<size_t>::max() / 10;
@@ -489,13 +490,13 @@ BalsaHeadersEnums::ContentLengthStatus BalsaFrame::ProcessContentLengthLine(
     const char c = *value_begin - '0';
     if (*length > kMaxDiv10 ||
         (std::numeric_limits<size_t>::max() - length_x_10) < c) {
-      DVLOG(1) << "content-length overflow";
+      QUICHE_DVLOG(1) << "content-length overflow";
       return BalsaHeadersEnums::CONTENT_LENGTH_OVERFLOW;
     }
     *length = length_x_10 + c;
     ++value_begin;
   }
-  DVLOG(1) << "content_length parsed: " << *length;
+  QUICHE_DVLOG(1) << "content_length parsed: " << *length;
   return BalsaHeadersEnums::VALID_CONTENT_LENGTH;
 }
 
@@ -543,7 +544,7 @@ bool BalsaFrame::CheckHeaderLinesForInvalidChars(const Lines& lines,
 void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
                                     BalsaHeaders* headers) {
   QUICHE_DCHECK(!lines.empty());
-  DVLOG(1) << "******@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@**********\n";
+  QUICHE_DVLOG(1) << "******@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@**********\n";
 
   if (is_request() && track_invalid_chars()) {
     if (CheckHeaderLinesForInvalidChars(lines, headers)) {
@@ -584,7 +585,7 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
     const HeaderLineDescription& line = headers->header_lines_[i];
     const absl::string_view key(stream_begin + line.first_char_idx,
                                 line.key_end_idx - line.first_char_idx);
-    DVLOG(2) << "[" << i << "]: " << key << " key_len: " << key.length();
+    QUICHE_DVLOG(2) << "[" << i << "]: " << key << " key_len: " << key.length();
 
     // If a header begins with either lowercase or uppercase 'c' or 't', then
     // the header may be one of content-length, connection, content-encoding
@@ -718,8 +719,9 @@ void BalsaFrame::AssignParseStateAfterHeadersHaveBeenParsed() {
       // intended to be executed, and should technically be impossible.
       // COV_NF_START
     default:
-      LOG(FATAL) << "Saw a content_length_status: "
-                 << headers_->content_length_status_ << " which is unknown.";
+      QUICHE_LOG(FATAL) << "Saw a content_length_status: "
+                        << headers_->content_length_status_
+                        << " which is unknown.";
       // COV_NF_END
   }
 }
@@ -773,8 +775,9 @@ size_t BalsaFrame::ProcessHeaders(const char* message_start,
         checkpoint = message_current + 1;
         const char* begin = headers_->OriginalHeaderStreamBegin();
 
-        DVLOG(1) << "First line " << std::string(begin, lines_[0].second);
-        DVLOG(1) << "is_request_: " << is_request_;
+        QUICHE_DVLOG(1) << "First line "
+                        << std::string(begin, lines_[0].second);
+        QUICHE_DVLOG(1) << "is_request_: " << is_request_;
         ProcessFirstLine(begin, begin + lines_[0].second);
         if (parse_state_ == BalsaFrameEnums::MESSAGE_FULLY_READ) {
           break;
@@ -1295,8 +1298,8 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
         // The state-machine should never be in a state that isn't handled
         // above.  This is a glaring logic error, and we should do something
         // drastic to ensure that this gets looked-at and fixed.
-        LOG(FATAL) << "Unknown state: " << parse_state_  // COV_NF_LINE
-                   << " memory corruption?!";            // COV_NF_LINE
+        QUICHE_LOG(FATAL) << "Unknown state: " << parse_state_  // COV_NF_LINE
+                          << " memory corruption?!";            // COV_NF_LINE
     }
   }
 }

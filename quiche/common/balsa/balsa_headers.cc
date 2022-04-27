@@ -1059,8 +1059,9 @@ void BalsaHeaders::RemoveLastTokenFromHeaderValue(absl::string_view key) {
   BalsaHeaders::HeaderLines::iterator it =
       GetHeaderLinesIterator(key, header_lines_.begin());
   if (it == header_lines_.end()) {
-    DLOG(WARNING) << "Attempting to remove last token from a non-existent "
-                  << "header \"" << key << "\"";
+    QUICHE_DLOG(WARNING)
+        << "Attempting to remove last token from a non-existent "
+        << "header \"" << key << "\"";
     return;
   }
 
@@ -1082,8 +1083,9 @@ void BalsaHeaders::RemoveLastTokenFromHeaderValue(absl::string_view key) {
   ParseTokenList(value, &tokens);
 
   if (tokens.empty()) {
-    DLOG(WARNING) << "Attempting to remove a token from an empty header value "
-                  << "for header \"" << key << "\"";
+    QUICHE_DLOG(WARNING)
+        << "Attempting to remove a token from an empty header value "
+        << "for header \"" << key << "\"";
     header_line->skip = true;  // remove the whole line
   } else if (tokens.size() == 1) {
     header_line->skip = true;  // remove the whole line
