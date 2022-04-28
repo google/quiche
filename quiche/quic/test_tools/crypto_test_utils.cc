@@ -883,7 +883,7 @@ class TestProofSource : public ProofSourceX509 {
   }
 };
 
-class QUIC_EXPORT_PRIVATE TestProofVerifier : public ProofVerifier {
+class TestProofVerifier : public ProofVerifier {
  public:
   TestProofVerifier()
       : certificate_(std::move(
