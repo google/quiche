@@ -32,6 +32,8 @@ namespace quic {
 namespace test {
 namespace {
 
+using ::testing::ElementsAre;
+
 ParsedQuicVersionVector GetTestParams() {
   ParsedQuicVersionVector test_versions;
 
@@ -234,13 +236,11 @@ TEST_P(QboneClientTest, SendDataFromClient) {
       server_thread.WaitUntil([&] { return server_ptr->data().size() >= 2; },
                               QuicTime::Delta::FromSeconds(5)));
 
-  std::string long_data(
-      QboneConstants::kMaxQbonePacketBytes - sizeof(ip6_hdr) - 1, 'A');
-
   // Pretend the server gets data.
+  std::string long_data(1000, 'A');
   server_thread.Schedule([server_ptr, &long_data]() {
-    EXPECT_THAT(server_ptr->data()[0], testing::Eq(TestPacketOut("hello")));
-    EXPECT_THAT(server_ptr->data()[1], testing::Eq(TestPacketOut("world")));
+    EXPECT_THAT(server_ptr->data(),
+                ElementsAre(TestPacketOut("hello"), TestPacketOut("world")));
     auto server_session = static_cast<QboneServerSession*>(
         QuicDispatcherPeer::GetFirstSessionIfAny(
             QuicServerPeer::GetDispatcher(server_ptr)));
@@ -249,11 +249,11 @@ TEST_P(QboneClientTest, SendDataFromClient) {
     server_session->ProcessPacketFromNetwork(TestPacketIn(long_data));
     server_session->ProcessPacketFromNetwork(TestPacketIn(long_data));
   });
-  ASSERT_TRUE(client.WaitForDataSize(3, QuicTime::Delta::FromSeconds(5)));
-  EXPECT_THAT(client.data()[0],
-              testing::Eq(TestPacketOut("Somethingsomething")));
-  EXPECT_THAT(client.data()[1], testing::Eq(TestPacketOut(long_data)));
-  EXPECT_THAT(client.data()[2], testing::Eq(TestPacketOut(long_data)));
+
+  EXPECT_TRUE(client.WaitForDataSize(3, QuicTime::Delta::FromSeconds(5)));
+  EXPECT_THAT(client.data(),
+              ElementsAre(TestPacketOut("Somethingsomething"),
+                          TestPacketOut(long_data), TestPacketOut(long_data)));
 
   client.Disconnect();
   server_thread.Quit();

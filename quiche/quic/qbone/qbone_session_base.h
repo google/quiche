@@ -89,10 +89,9 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
 
   QbonePacketWriter* writer_;
 
-  // If true, MESSAGE frames are used for short datagrams.  If false, ephemeral
-  // streams are used instead.  Note that receiving MESSAGE frames is always
-  // supported.
-  bool send_packets_as_messages_ = false;
+  // If true, send QUIC DATAGRAM (aka MESSAGE) frames instead of ephemeral
+  // streams. Note that receiving DATAGRAM frames is always supported.
+  bool send_packets_as_messages_ = true;
 
  private:
   // Used for the crypto handshake.
