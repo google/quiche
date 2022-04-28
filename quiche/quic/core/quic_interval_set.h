@@ -60,8 +60,8 @@
 #include <vector>
 
 #include "quiche/quic/core/quic_interval.h"
-#include "quiche/quic/platform/api/quic_containers.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_containers.h"
 
 namespace quic {
 
@@ -85,7 +85,7 @@ class QUIC_NO_EXPORT QuicIntervalSet {
     bool operator()(T&& point, const value_type& a) const;
   };
 
-  using Set = QuicSmallOrderedSet<value_type, IntervalLess>;
+  using Set = quiche::QuicheSmallOrderedSet<value_type, IntervalLess>;
 
  public:
   using const_iterator = typename Set::const_iterator;
