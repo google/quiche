@@ -16,9 +16,9 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
-#include "absl/strings/string_view_utils.h"
 #include "quiche/common/balsa/balsa_enums.h"
 #include "quiche/common/balsa/header_properties.h"
 #include "quiche/common/platform/api/quiche_header_policy.h"
@@ -117,6 +117,49 @@ constexpr absl::string_view kTransferEncoding("Transfer-Encoding");
 
 // HEADER_FUNC to insert "name" into the MultivaluedHeadersSet of Envoy headers.
 #define MULTIVALUE_ENVOY_HEADER(name) {name},
+
+absl::string_view::difference_type FindIgnoreCase(absl::string_view haystack,
+                                                  absl::string_view needle) {
+  absl::string_view::difference_type pos = 0;
+  while (haystack.size() >= needle.size()) {
+    if (absl::StartsWithIgnoreCase(haystack, needle)) {
+      return pos;
+    }
+    ++pos;
+    haystack.remove_prefix(1);
+  }
+
+  return absl::string_view::npos;
+}
+
+absl::string_view::difference_type RemoveLeadingWhitespace(
+    absl::string_view* text) {
+  size_t count = 0;
+  const char* ptr = text->data();
+  while (count < text->size() && absl::ascii_isspace(*ptr)) {
+    count++;
+    ptr++;
+  }
+  text->remove_prefix(count);
+  return count;
+}
+
+absl::string_view::difference_type RemoveTrailingWhitespace(
+    absl::string_view* text) {
+  size_t count = 0;
+  const char* ptr = text->data() + text->size() - 1;
+  while (count < text->size() && absl::ascii_isspace(*ptr)) {
+    ++count;
+    --ptr;
+  }
+  text->remove_suffix(count);
+  return count;
+}
+
+absl::string_view::difference_type RemoveWhitespaceContext(
+    absl::string_view* text) {
+  return RemoveLeadingWhitespace(text) + RemoveTrailingWhitespace(text);
+}
 
 }  // namespace
 
@@ -505,8 +548,8 @@ namespace {
 // Helper function for HeaderHasValue that checks that the specified region
 // within line is preceded by whitespace and a comma or beginning of line,
 // and followed by whitespace and a comma or end of line.
-bool SurroundedOnlyBySpacesAndCommas(stringpiece_ssize_type idx,
-                                     stringpiece_ssize_type end_idx,
+bool SurroundedOnlyBySpacesAndCommas(absl::string_view::difference_type idx,
+                                     absl::string_view::difference_type end_idx,
                                      absl::string_view line) {
   for (idx = idx - 1; idx >= 0; --idx) {
     if (line[idx] == ',') {
@@ -537,10 +580,9 @@ bool BalsaHeaders::HeaderHasValueHelper(absl::string_view key,
        it != lines().end(); ++it) {
     absl::string_view line = it->second;
     absl::string_view::size_type idx =
-        case_sensitive ? line.find(value, 0)
-                       : strings::FindIgnoreCase(line, value);
+        case_sensitive ? line.find(value, 0) : FindIgnoreCase(line, value);
     while (idx != absl::string_view::npos) {
-      stringpiece_ssize_type end_idx = idx + value.size();
+      absl::string_view::difference_type end_idx = idx + value.size();
       if (SurroundedOnlyBySpacesAndCommas(idx, end_idx, line)) {
         return true;
       }
@@ -693,7 +735,7 @@ size_t BalsaHeaders::RemoveValue(absl::string_view key,
                                  absl::string_view search_value) {
   // Remove whitespace around search value.
   absl::string_view needle = search_value;
-  strings::RemoveWhitespaceContext(&needle);
+  RemoveWhitespaceContext(&needle);
   QUICHE_BUG_IF(bug_22783_2, needle != search_value)
       << "Search value should not be surrounded by spaces.";
 
@@ -723,7 +765,7 @@ size_t BalsaHeaders::RemoveValue(absl::string_view key,
     // this stringpiece will continually move forward, and its tail
     // (head+length) will always remain the same.
     absl::string_view values(value_begin, line->ValuesLength());
-    strings::RemoveWhitespaceContext(&values);
+    RemoveWhitespaceContext(&values);
     if (values.size() == needle.size()) {
       if (values == needle) {
         line->skip = true;
@@ -736,8 +778,7 @@ size_t BalsaHeaders::RemoveValue(absl::string_view key,
     char* insertion = value_begin;
     while (values.size() >= needle.size()) {
       // Strip leading whitespace.
-      ssize_t cur_leading_whitespace =
-          strings::RemoveLeadingWhitespace(&values);
+      ssize_t cur_leading_whitespace = RemoveLeadingWhitespace(&values);
 
       // See if we've got a match (at least as a prefix).
       bool found = absl::StartsWith(values, needle);
@@ -757,7 +798,7 @@ size_t BalsaHeaders::RemoveValue(absl::string_view key,
         if (comma_found) {
           cur.remove_suffix(1);
         }
-        strings::RemoveTrailingWhitespace(&cur);
+        RemoveTrailingWhitespace(&cur);
         found = (cur.size() == needle.size());
       }
 
