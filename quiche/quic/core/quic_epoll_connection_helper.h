@@ -19,7 +19,7 @@
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_epoll.h"
-#include "quiche/quic/platform/api/quic_stream_buffer_allocator.h"
+#include "quiche/common/platform/api/quiche_stream_buffer_allocator.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
 namespace quic {
@@ -48,7 +48,7 @@ class QUIC_EXPORT_PRIVATE QuicEpollConnectionHelper
   QuicRandom* random_generator_;
   // Set up allocators.  They take up minimal memory before use.
   // Allocator for stream send buffers.
-  QuicStreamBufferAllocator stream_buffer_allocator_;
+  quiche::QuicheStreamBufferAllocator stream_buffer_allocator_;
   quiche::SimpleBufferAllocator simple_buffer_allocator_;
   QuicAllocator allocator_type_;
 };
