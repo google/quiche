@@ -9,10 +9,10 @@
 #include <cstdint>
 
 #include "absl/base/macros.h"
-#include "quiche/http2/platform/api/http2_bug_tracker.h"
 #include "quiche/http2/platform/api/http2_flag_utils.h"
 #include "quiche/http2/platform/api/http2_flags.h"
 #include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 
 namespace http2 {
 namespace {
@@ -86,7 +86,7 @@ DecodeStatus HpackEntryDecoder::Start(DecodeBuffer* db,
       return status;
   }
 
-  HTTP2_BUG(http2_bug_63_1) << "Unreachable";
+  QUICHE_BUG(http2_bug_63_1) << "Unreachable";
   return DecodeStatus::kDecodeError;
 }
 
@@ -252,7 +252,7 @@ bool HpackEntryDecoder::DispatchOnType(HpackEntryDecoderListener* listener) {
       return true;
   }
 
-  HTTP2_BUG(http2_bug_63_2) << "Unreachable, entry_type=" << entry_type;
+  QUICHE_BUG(http2_bug_63_2) << "Unreachable, entry_type=" << entry_type;
   return true;
 }
 

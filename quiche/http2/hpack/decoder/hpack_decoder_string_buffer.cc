@@ -6,8 +6,8 @@
 
 #include <utility>
 
-#include "quiche/http2/platform/api/http2_bug_tracker.h"
 #include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 
 namespace http2 {
 
@@ -24,7 +24,7 @@ std::ostream& operator<<(std::ostream& out,
   // Since the value doesn't come over the wire, only a programming bug should
   // result in reaching this point.
   int unknown = static_cast<int>(v);
-  HTTP2_BUG(http2_bug_50_1)
+  QUICHE_BUG(http2_bug_50_1)
       << "Invalid HpackDecoderStringBuffer::State: " << unknown;
   return out << "HpackDecoderStringBuffer::State(" << unknown << ")";
 }
@@ -44,7 +44,7 @@ std::ostream& operator<<(std::ostream& out,
   // Since the value doesn't come over the wire, only a programming bug should
   // result in reaching this point.
   auto v2 = static_cast<int>(v);
-  HTTP2_BUG(http2_bug_50_2)
+  QUICHE_BUG(http2_bug_50_2)
       << "Invalid HpackDecoderStringBuffer::Backing: " << v2;
   return out << "HpackDecoderStringBuffer::Backing(" << v2 << ")";
 }

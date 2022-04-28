@@ -5,7 +5,7 @@
 #include "quiche/http2/hpack/tools/hpack_block_builder.h"
 
 #include "quiche/http2/hpack/varint/hpack_varint_encoder.h"
-#include "quiche/http2/platform/api/http2_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -46,7 +46,7 @@ void HpackBlockBuilder::AppendEntryTypeAndVarint(HpackEntryType entry_type,
       prefix_length = 4;
       break;
     default:
-      HTTP2_BUG(http2_bug_110_1) << "Unreached, entry_type=" << entry_type;
+      QUICHE_BUG(http2_bug_110_1) << "Unreached, entry_type=" << entry_type;
       high_bits = 0;
       prefix_length = 0;
       break;

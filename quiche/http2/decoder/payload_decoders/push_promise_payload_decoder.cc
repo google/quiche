@@ -11,8 +11,8 @@
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
-#include "quiche/http2/platform/api/http2_bug_tracker.h"
 #include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 
 namespace http2 {
 
@@ -153,7 +153,7 @@ DecodeStatus PushPromisePayloadDecoder::ResumeDecodingPayload(
         payload_state_ = PayloadState::kResumeDecodingPushPromiseFields;
         return status;
     }
-    HTTP2_BUG(http2_bug_183_1) << "PayloadState: " << payload_state_;
+    QUICHE_BUG(http2_bug_183_1) << "PayloadState: " << payload_state_;
   }
 }
 

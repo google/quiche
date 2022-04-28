@@ -8,8 +8,8 @@
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
-#include "quiche/http2/platform/api/http2_bug_tracker.h"
 #include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 
 namespace http2 {
 namespace test {
@@ -40,7 +40,7 @@ void HpackExampleToStringOrDie(absl::string_view example, std::string* output) {
       example.remove_prefix(pos + 1);
       continue;
     }
-    HTTP2_BUG(http2_bug_107_1)
+    QUICHE_BUG(http2_bug_107_1)
         << "Can't parse byte " << static_cast<int>(c0)
         << absl::StrCat(" (0x", absl::Hex(c0), ")") << "\nExample: " << example;
   }

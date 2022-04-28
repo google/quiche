@@ -4,8 +4,8 @@
 
 #include "quiche/http2/decoder/decode_status.h"
 
-#include "quiche/http2/platform/api/http2_bug_tracker.h"
 #include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 
 namespace http2 {
 
@@ -21,7 +21,7 @@ std::ostream& operator<<(std::ostream& out, DecodeStatus v) {
   // Since the value doesn't come over the wire, only a programming bug should
   // result in reaching this point.
   int unknown = static_cast<int>(v);
-  HTTP2_BUG(http2_bug_147_1) << "Unknown DecodeStatus " << unknown;
+  QUICHE_BUG(http2_bug_147_1) << "Unknown DecodeStatus " << unknown;
   return out << "DecodeStatus(" << unknown << ")";
 }
 

@@ -11,8 +11,8 @@
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
-#include "quiche/http2/platform/api/http2_bug_tracker.h"
 #include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 
 namespace http2 {
 
@@ -33,7 +33,7 @@ std::ostream& operator<<(std::ostream& out,
   // Since the value doesn't come over the wire, only a programming bug should
   // result in reaching this point.
   int unknown = static_cast<int>(v);
-  HTTP2_BUG(http2_bug_189_1)
+  QUICHE_BUG(http2_bug_189_1)
       << "Invalid HeadersPayloadDecoder::PayloadState: " << unknown;
   return out << "HeadersPayloadDecoder::PayloadState(" << unknown << ")";
 }
@@ -169,7 +169,7 @@ DecodeStatus HeadersPayloadDecoder::ResumeDecodingPayload(
         payload_state_ = PayloadState::kReadPayload;
         continue;
     }
-    HTTP2_BUG(http2_bug_189_2) << "PayloadState: " << payload_state_;
+    QUICHE_BUG(http2_bug_189_2) << "PayloadState: " << payload_state_;
   }
 }
 

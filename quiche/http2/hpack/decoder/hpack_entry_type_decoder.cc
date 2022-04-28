@@ -5,10 +5,10 @@
 #include "quiche/http2/hpack/decoder/hpack_entry_type_decoder.h"
 
 #include "absl/strings/str_cat.h"
-#include "quiche/http2/platform/api/http2_bug_tracker.h"
 #include "quiche/http2/platform/api/http2_flag_utils.h"
 #include "quiche/http2/platform/api/http2_flags.h"
 #include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 
 namespace http2 {
 
@@ -353,7 +353,7 @@ DecodeStatus HpackEntryTypeDecoder::Start(DecodeBuffer* db) {
       // All of those bits are 1, so the varint extends into another byte.
       return varint_decoder_.StartExtended(7, db);
   }
-  HTTP2_BUG(http2_bug_66_1)
+  QUICHE_BUG(http2_bug_66_1)
       << "Unreachable, byte=" << std::hex << static_cast<uint32_t>(byte);
   HTTP2_CODE_COUNT_N(decompress_failure_3, 17, 23);
   return DecodeStatus::kDecodeError;

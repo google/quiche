@@ -7,9 +7,9 @@
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/hpack/varint/hpack_varint_decoder.h"
 #include "quiche/http2/http2_constants.h"
-#include "quiche/http2/platform/api/http2_bug_tracker.h"
 #include "quiche/http2/platform/api/http2_flag_utils.h"
 #include "quiche/http2/platform/api/http2_flags.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
@@ -28,7 +28,7 @@ std::ostream& operator<<(std::ostream& out, Http2FrameDecoder::State v) {
   // Since the value doesn't come over the wire, only a programming bug should
   // result in reaching this point.
   int unknown = static_cast<int>(v);
-  HTTP2_BUG(http2_bug_155_1) << "Http2FrameDecoder::State " << unknown;
+  QUICHE_BUG(http2_bug_155_1) << "Http2FrameDecoder::State " << unknown;
   return out << "Http2FrameDecoder::State(" << unknown << ")";
 }
 

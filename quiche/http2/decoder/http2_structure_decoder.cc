@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cstring>
 
-#include "quiche/http2/platform/api/http2_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 
 namespace http2 {
 
@@ -16,12 +16,12 @@ namespace http2 {
 // against bugs in the decoder, only against malicious encoders, but since
 // we're copying memory into a buffer here, let's make sure we don't allow a
 // small mistake to grow larger. The decoder will get stuck if we hit the
-// HTTP2_BUG conditions, but shouldn't corrupt memory.
+// QUICHE_BUG conditions, but shouldn't corrupt memory.
 
 uint32_t Http2StructureDecoder::IncompleteStart(DecodeBuffer* db,
                                                 uint32_t target_size) {
   if (target_size > sizeof buffer_) {
-    HTTP2_BUG(http2_bug_154_1)
+    QUICHE_BUG(http2_bug_154_1)
         << "target_size too large for buffer: " << target_size;
     return 0;
   }
@@ -54,7 +54,7 @@ bool Http2StructureDecoder::ResumeFillingBuffer(DecodeBuffer* db,
                  << ": target_size=" << target_size << "; offset_=" << offset_
                  << "; db->Remaining=" << db->Remaining();
   if (target_size < offset_) {
-    HTTP2_BUG(http2_bug_154_2)
+    QUICHE_BUG(http2_bug_154_2)
         << "Already filled buffer_! target_size=" << target_size
         << "    offset_=" << offset_;
     return false;
@@ -76,7 +76,7 @@ bool Http2StructureDecoder::ResumeFillingBuffer(DecodeBuffer* db,
                  << "; *remaining_payload=" << *remaining_payload
                  << "; db->Remaining=" << db->Remaining();
   if (target_size < offset_) {
-    HTTP2_BUG(http2_bug_154_3)
+    QUICHE_BUG(http2_bug_154_3)
         << "Already filled buffer_! target_size=" << target_size
         << "    offset_=" << offset_;
     return false;
