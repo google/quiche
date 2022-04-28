@@ -396,9 +396,9 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders : public HeaderApi {
     IteratorType begin_iterator_, end_iterator_;
   };
 
-  // Set of names of headers that might have multiple values. The GFE2 and
-  // Envoy/GFE3 use different sets, and CoalesceOption::kCoalesce can be used
-  // to match Envoy behavior in WriteToBuffer().
+  // Set of names of headers that might have multiple values.
+  // CoalesceOption::kCoalesce can be used to match Envoy behavior in
+  // WriteToBuffer().
   using MultivaluedHeadersSet =
       absl::flat_hash_set<absl::string_view, StringPieceCaseHash,
                           StringPieceCaseEqual>;
