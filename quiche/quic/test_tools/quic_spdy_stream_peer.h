@@ -7,7 +7,6 @@
 
 #include "quiche/quic/core/quic_ack_listener_interface.h"
 #include "quiche/quic/core/quic_interval_set.h"
-#include "quiche/quic/platform/api/quic_containers.h"
 
 namespace quic {
 

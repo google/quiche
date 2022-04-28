@@ -9,7 +9,6 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_stream_frame_data_producer.h"
 #include "quiche/quic/core/quic_stream_send_buffer.h"
-#include "quiche/quic/platform/api/quic_containers.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
 namespace quic {

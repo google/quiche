@@ -5,7 +5,6 @@
 #include "quiche/quic/test_tools/server_thread.h"
 
 #include "quiche/quic/core/quic_dispatcher.h"
-#include "quiche/quic/platform/api/quic_containers.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/quic_dispatcher_peer.h"
 #include "quiche/quic/test_tools/quic_server_peer.h"

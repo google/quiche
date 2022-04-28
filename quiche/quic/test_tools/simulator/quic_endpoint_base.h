@@ -15,7 +15,6 @@
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream_frame_data_producer.h"
 #include "quiche/quic/core/quic_trace_visitor.h"
-#include "quiche/quic/platform/api/quic_containers.h"
 #include "quiche/quic/test_tools/simple_session_notifier.h"
 #include "quiche/quic/test_tools/simulator/link.h"
 #include "quiche/quic/test_tools/simulator/queue.h"

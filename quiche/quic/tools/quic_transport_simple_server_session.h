@@ -11,7 +11,6 @@
 #include "url/origin.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/platform/api/quic_containers.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/quic_transport/quic_transport_server_session.h"
 #include "quiche/quic/quic_transport/quic_transport_stream.h"

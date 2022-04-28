@@ -14,7 +14,6 @@
 #include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/core/crypto/proof_source.h"
 #include "quiche/quic/core/crypto/quic_crypto_proof.h"
-#include "quiche/quic/platform/api/quic_containers.h"
 
 namespace quic {
 

@@ -16,7 +16,6 @@
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_packet_reader.h"
-#include "quiche/quic/platform/api/quic_containers.h"
 #include "quiche/quic/platform/api/quic_epoll.h"
 #include "quiche/quic/tools/quic_client_epoll_network_helper.h"
 #include "quiche/quic/tools/quic_spdy_client_base.h"

@@ -8,7 +8,6 @@
 #include <deque>
 
 #include "absl/container/flat_hash_map.h"
-#include "quiche/quic/platform/api/quic_containers.h"
 #include "quiche/quic/test_tools/simulator/queue.h"
 
 namespace quic {

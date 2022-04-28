@@ -8,7 +8,6 @@
 
 #include "absl/container/node_hash_set.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_containers.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/platform/mock_kernel.h"
 #include "quiche/quic/qbone/qbone_constants.h"

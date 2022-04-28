@@ -11,7 +11,6 @@
 #include "absl/container/flat_hash_set.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_containers.h"
 #include "quiche/quic/test_tools/simulator/actor.h"
 #include "quiche/quic/test_tools/simulator/alarm_factory.h"
 #include "quiche/common/simple_buffer_allocator.h"

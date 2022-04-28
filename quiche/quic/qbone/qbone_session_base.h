@@ -10,7 +10,6 @@
 #include "quiche/quic/core/quic_crypto_stream.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_session.h"
-#include "quiche/quic/platform/api/quic_containers.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/qbone/qbone_packet_writer.h"
 #include "quiche/quic/qbone/qbone_stream.h"

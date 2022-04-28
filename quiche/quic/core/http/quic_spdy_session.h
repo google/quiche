@@ -31,7 +31,6 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/platform/api/quic_containers.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
