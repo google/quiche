@@ -11,6 +11,7 @@
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/common/platform/api/quiche_file_utils.h"
+#include "quiche/common/platform/api/quiche_test.h"
 
 namespace quic {
 namespace test {
@@ -30,7 +31,7 @@ class QuicMemoryCacheBackendTest : public QuicTest {
     (*headers)[":scheme"] = "https";
   }
 
-  std::string CacheDirectory() { return QuicGetTestMemoryCachePath(); }
+  std::string CacheDirectory() { return QuicheGetTestMemoryCachePath(); }
 
   QuicMemoryCacheBackend cache_;
 };

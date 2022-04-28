@@ -20,10 +20,6 @@ using ScopedEnvironmentForThreads = ScopedEnvironmentForThreadsImpl;
 
 #define QUIC_TEST_DISABLED_IN_CHROME(name) QUICHE_TEST_DISABLED_IN_CHROME(name)
 
-inline std::string QuicGetTestMemoryCachePath() {
-  return QuicheGetTestMemoryCachePath();
-}
-
 #define QUIC_SLOW_TEST(test) QUICHE_SLOW_TEST(test)
 
 #endif  // QUICHE_QUIC_PLATFORM_API_QUIC_TEST_H_
