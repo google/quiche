@@ -236,8 +236,7 @@ bool TlsClientHandshaker::SetTransportParameters() {
   session()->connection()->OnTransportParametersSent(params);
 
   std::vector<uint8_t> param_bytes;
-  return SerializeTransportParameters(session()->connection()->version(),
-                                      params, &param_bytes) &&
+  return SerializeTransportParameters(params, &param_bytes) &&
          SSL_set_quic_transport_params(ssl(), param_bytes.data(),
                                        param_bytes.size()) == 1;
 }

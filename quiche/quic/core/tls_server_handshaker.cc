@@ -528,8 +528,7 @@ TlsServerHandshaker::SetTransportParameters() {
 
   {  // Ensure |server_params_bytes| is not accessed out of the scope.
     std::vector<uint8_t> server_params_bytes;
-    if (!SerializeTransportParameters(session()->connection()->version(),
-                                      server_params, &server_params_bytes) ||
+    if (!SerializeTransportParameters(server_params, &server_params_bytes) ||
         SSL_set_quic_transport_params(ssl(), server_params_bytes.data(),
                                       server_params_bytes.size()) != 1) {
       return result;

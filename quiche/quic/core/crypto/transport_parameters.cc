@@ -660,8 +660,7 @@ bool TransportParameters::AreValid(std::string* error_details) const {
 
 TransportParameters::~TransportParameters() = default;
 
-bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
-                                  const TransportParameters& in,
+bool SerializeTransportParameters(const TransportParameters& in,
                                   std::vector<uint8_t>* out) {
   std::string error_details;
   if (!in.AreValid(&error_details)) {
