@@ -396,18 +396,6 @@ void QuicSentPacketManager::ResumeConnectionState(
 
 void QuicSentPacketManager::AdjustNetworkParameters(
     const SendAlgorithmInterface::NetworkParams& params) {
-  if (params.burst_token != 0) {
-    if (using_pacing_) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_set_burst_token);
-      int old_burst_size = pacing_sender_.initial_burst_size();
-      pacing_sender_.SetBurstTokens(params.burst_token);
-      if (debug_delegate_ != nullptr) {
-        debug_delegate_->OnAdjustBurstSize(old_burst_size,
-                                           pacing_sender_.initial_burst_size());
-      }
-    }
-    return;
-  }
   const QuicBandwidth& bandwidth = params.bandwidth;
   const QuicTime::Delta& rtt = params.rtt;
 

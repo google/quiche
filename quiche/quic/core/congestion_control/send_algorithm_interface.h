@@ -39,13 +39,11 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
         : bandwidth(bandwidth),
           rtt(rtt),
           allow_cwnd_to_decrease(allow_cwnd_to_decrease) {}
-    explicit NetworkParams(int burst_token) : burst_token(burst_token) {}
 
     bool operator==(const NetworkParams& other) const {
       return bandwidth == other.bandwidth && rtt == other.rtt &&
              max_initial_congestion_window ==
                  other.max_initial_congestion_window &&
-             burst_token == other.burst_token &&
              allow_cwnd_to_decrease == other.allow_cwnd_to_decrease &&
              is_rtt_trusted == other.is_rtt_trusted;
     }
@@ -53,7 +51,6 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
     QuicBandwidth bandwidth = QuicBandwidth::Zero();
     QuicTime::Delta rtt = QuicTime::Delta::Zero();
     int max_initial_congestion_window = 0;
-    int burst_token = 0;
     bool allow_cwnd_to_decrease = false;
     bool is_rtt_trusted = false;
   };
