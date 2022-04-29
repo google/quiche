@@ -2935,7 +2935,7 @@ TEST_P(SpdyFramerTest, PushPromiseFramesWithIterator) {
   EXPECT_FALSE(frame_it.HasNextFrame());
 }
 
-class SpdyControlFrameIteratorTest : public quiche::test::QuicheTest {
+class SpdyControlFrameIteratorTest : public QuicheTest {
  public:
   SpdyControlFrameIteratorTest() : output_(output_buffer, kSize) {}
 
