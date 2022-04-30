@@ -13,23 +13,6 @@
 namespace quic {
 namespace test {
 
-// static
-size_t QuicSentPacketManagerPeer::GetMaxTailLossProbes(
-    QuicSentPacketManager* sent_packet_manager) {
-  return sent_packet_manager->max_tail_loss_probes_;
-}
-
-// static
-void QuicSentPacketManagerPeer::SetMaxTailLossProbes(
-    QuicSentPacketManager* sent_packet_manager, size_t max_tail_loss_probes) {
-  sent_packet_manager->max_tail_loss_probes_ = max_tail_loss_probes;
-}
-
-// static
-bool QuicSentPacketManagerPeer::GetUseNewRto(
-    QuicSentPacketManager* sent_packet_manager) {
-  return sent_packet_manager->use_new_rto_;
-}
 
 // static
 void QuicSentPacketManagerPeer::SetPerspective(
@@ -91,18 +74,6 @@ void QuicSentPacketManagerPeer::MarkForRetransmission(
 }
 
 // static
-QuicTime::Delta QuicSentPacketManagerPeer::GetRetransmissionDelay(
-    const QuicSentPacketManager* sent_packet_manager) {
-  return sent_packet_manager->GetRetransmissionDelay();
-}
-
-// static
-QuicTime::Delta QuicSentPacketManagerPeer::GetTailLossProbeDelay(
-    const QuicSentPacketManager* sent_packet_manager) {
-  return sent_packet_manager->GetTailLossProbeDelay();
-}
-
-// static
 size_t QuicSentPacketManagerPeer::GetNumRetransmittablePackets(
     const QuicSentPacketManager* sent_packet_manager) {
   size_t num_unacked_packets = 0;
@@ -116,15 +87,9 @@ size_t QuicSentPacketManagerPeer::GetNumRetransmittablePackets(
 }
 
 // static
-void QuicSentPacketManagerPeer::SetConsecutiveRtoCount(
+void QuicSentPacketManagerPeer::SetConsecutivePtoCount(
     QuicSentPacketManager* sent_packet_manager, size_t count) {
-  sent_packet_manager->consecutive_rto_count_ = count;
-}
-
-// static
-void QuicSentPacketManagerPeer::SetConsecutiveTlpCount(
-    QuicSentPacketManager* sent_packet_manager, size_t count) {
-  sent_packet_manager->consecutive_tlp_count_ = count;
+  sent_packet_manager->consecutive_pto_count_ = count;
 }
 
 // static

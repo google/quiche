@@ -187,8 +187,6 @@ enum TransmissionType : int8_t {
   ALL_ZERO_RTT_RETRANSMISSION,  // Retransmits all packets encrypted with 0-RTT
                                 // key.
   LOSS_RETRANSMISSION,          // Retransmits due to loss detection.
-  RTO_RETRANSMISSION,           // Retransmits due to retransmit time out.
-  TLP_RETRANSMISSION,           // Tail loss probes.
   PTO_RETRANSMISSION,           // Retransmission due to probe timeout.
   PROBING_RETRANSMISSION,       // Retransmission in order to probe bandwidth.
   PATH_RETRANSMISSION,          // Retransmission proactively due to underlying
@@ -552,10 +550,6 @@ enum SentPacketState : uint8_t {
   HANDSHAKE_RETRANSMITTED,
   // This packet is considered as lost, this is used for LOST_RETRANSMISSION.
   LOST,
-  // This packet has been retransmitted when TLP fires.
-  TLP_RETRANSMITTED,
-  // This packet has been retransmitted when RTO fires.
-  RTO_RETRANSMITTED,
   // This packet has been retransmitted when PTO fires.
   PTO_RETRANSMITTED,
   // This packet has been retransmitted for probing purpose.

@@ -402,8 +402,8 @@ TEST_P(QuicUnackedPacketMapTest, RetransmitFourTimes) {
   std::vector<uint64_t> retransmittable2 = {1, 3};
   VerifyRetransmittablePackets(&retransmittable2[0], retransmittable2.size());
 
-  // TLP 3 (formerly 1) as 4, and don't remove 1 from unacked.
-  RetransmitAndSendPacket(3, 4, TLP_RETRANSMISSION);
+  // PTO 3 (formerly 1) as 4, and don't remove 1 from unacked.
+  RetransmitAndSendPacket(3, 4, PTO_RETRANSMISSION);
   SerializedPacket packet5(CreateRetransmittablePacket(5));
   unacked_packets_.AddSentPacket(&packet5, NOT_RETRANSMISSION, now_, true,
                                  true);

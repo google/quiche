@@ -358,7 +358,7 @@ TEST_F(SimpleSessionNotifierTest, RetransmitFrames) {
   // stream 3 data [0, 3) is retransmitted and connection is blocked.
   EXPECT_CALL(connection_, SendStreamData(3, 3, 0, NO_FIN))
       .WillOnce(Return(QuicConsumedData(2, false)));
-  notifier_.RetransmitFrames(frames, RTO_RETRANSMISSION);
+  notifier_.RetransmitFrames(frames, PTO_RETRANSMISSION);
   EXPECT_FALSE(notifier_.WillingToWrite());
 }
 

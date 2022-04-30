@@ -617,12 +617,10 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(k5RTO, perspective_)) {
     num_rtos_for_blackhole_detection_ = 5;
   }
-  if (sent_packet_manager_.pto_enabled()) {
-    if (config.HasClientSentConnectionOption(k6PTO, perspective_) ||
-        config.HasClientSentConnectionOption(k7PTO, perspective_) ||
-        config.HasClientSentConnectionOption(k8PTO, perspective_)) {
-      num_rtos_for_blackhole_detection_ = 5;
-    }
+  if (config.HasClientSentConnectionOption(k6PTO, perspective_) ||
+      config.HasClientSentConnectionOption(k7PTO, perspective_) ||
+      config.HasClientSentConnectionOption(k8PTO, perspective_)) {
+    num_rtos_for_blackhole_detection_ = 5;
   }
   if (config.HasClientSentConnectionOption(kNSTP, perspective_)) {
     no_stop_waiting_frames_ = true;
@@ -4138,11 +4136,8 @@ void QuicConnection::OnRetransmissionTimeout() {
       packet_creator_.packet_number();
   const auto retransmission_mode =
       sent_packet_manager_.OnRetransmissionTimeout();
-  if (sent_packet_manager_.skip_packet_number_for_pto() &&
-      retransmission_mode == QuicSentPacketManager::PTO_MODE &&
-      sent_packet_manager_.pending_timer_transmission_count() == 1) {
-    // Skip a packet number when a single PTO packet is sent to elicit an
-    // immediate ACK.
+  if (retransmission_mode == QuicSentPacketManager::PTO_MODE) {
+    // Skip a packet number when PTO fires to elicit an immediate ACK.
     const QuicPacketCount num_packet_numbers_to_skip = 1;
     packet_creator_.SkipNPacketNumbers(
         num_packet_numbers_to_skip,
@@ -4168,23 +4163,14 @@ void QuicConnection::OnRetransmissionTimeout() {
   if (!connected_) {
     return;
   }
-
-  // In the PTO and TLP cases, the SentPacketManager gives the connection the
-  // opportunity to send new data before retransmitting.
-  if (sent_packet_manager_.pto_enabled()) {
-    sent_packet_manager_.MaybeSendProbePackets();
-  } else if (sent_packet_manager_.MaybeRetransmitTailLossProbe()) {
-    // Send the pending retransmission now that it's been queued.
-    WriteIfNotBlocked();
-  }
+  // When PTO fires, the SentPacketManager gives the connection the opportunity
+  // to send new data before retransmitting.
+  sent_packet_manager_.MaybeSendProbePacket();
 
   if (packet_creator_.packet_number() == previous_created_packet_number &&
-      (retransmission_mode == QuicSentPacketManager::TLP_MODE ||
-       retransmission_mode == QuicSentPacketManager::RTO_MODE ||
-       retransmission_mode == QuicSentPacketManager::PTO_MODE) &&
+      retransmission_mode == QuicSentPacketManager::PTO_MODE &&
       !visitor_->WillingAndAbleToWrite()) {
-    // Send PING if timer fires in TLP/RTO/PTO mode but there is no data to
-    // send.
+    // Send PING if timer fires in PTO mode but there is no data to send.
     QUIC_DLOG(INFO) << ENDPOINT
                     << "No packet gets sent when timer fires in mode "
                     << retransmission_mode << ", send PING";
@@ -4214,13 +4200,9 @@ void QuicConnection::OnRetransmissionTimeout() {
     }
   }
   if (retransmission_mode == QuicSentPacketManager::PTO_MODE) {
-    sent_packet_manager_.AdjustPendingTimerTransmissions();
-  }
-  if (retransmission_mode != QuicSentPacketManager::LOSS_MODE &&
-      retransmission_mode != QuicSentPacketManager::HANDSHAKE_MODE) {
-    // When timer fires in TLP/RTO/PTO mode, ensure 1) at least one packet is
-    // created, or there is data to send and available credit (such that
-    // packets will be sent eventually).
+    // When timer fires in PTO mode, ensure 1) at least one packet is created,
+    // or there is data to send and available credit (such that packets will be
+    // sent eventually).
     QUIC_BUG_IF(
         quic_bug_12714_27,
         packet_creator_.packet_number() == previous_created_packet_number &&
@@ -5974,10 +5956,9 @@ bool QuicConnection::ShouldBundleRetransmittableFrameWithAck() const {
     return true;
   }
   if (bundle_retransmittable_with_pto_ack_ &&
-      (sent_packet_manager_.GetConsecutiveRtoCount() > 0 ||
-       sent_packet_manager_.GetConsecutivePtoCount() > 0)) {
-    // Bundle a retransmittable frame with an ACK if the PTO or RTO has fired
-    // in order to recover more quickly in cases of temporary network outage.
+      sent_packet_manager_.GetConsecutivePtoCount() > 0) {
+    // Bundle a retransmittable frame with an ACK if PTO has fired in order to
+    // recover more quickly in cases of temporary network outage.
     return true;
   }
   return false;
@@ -6337,8 +6318,6 @@ void QuicConnection::OnIdleNetworkDetected() {
   }
   QUIC_DVLOG(1) << ENDPOINT << error_details;
   const bool has_consecutive_pto =
-      sent_packet_manager_.GetConsecutiveTlpCount() > 0 ||
-      sent_packet_manager_.GetConsecutiveRtoCount() > 0 ||
       sent_packet_manager_.GetConsecutivePtoCount() > 0;
   if (has_consecutive_pto || visitor_->ShouldKeepConnectionAlive()) {
     if (GetQuicReloadableFlag(quic_add_stream_info_to_idle_close_detail) &&

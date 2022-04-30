@@ -181,6 +181,13 @@ const int kMaxAvailableStreamsMultiplier = 10;
 // create available streams entries.
 const int kMaxPromisedStreamsMultiplier = kMaxAvailableStreamsMultiplier - 1;
 
+// The 1st PTO is armed with max of earliest in flight sent time + PTO
+// delay and kFirstPtoSrttMultiplier * srtt from last in flight packet.
+const float kFirstPtoSrttMultiplier = 1.5;
+
+// The multiplier of RTT variation when calculating PTO timeout.
+const int kPtoRttvarMultiplier = 2;
+
 // TCP RFC calls for 1 second RTO however Linux differs from this default and
 // define the minimum RTO to 200ms, we will use the same until we have data to
 // support a higher or lower value.

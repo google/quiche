@@ -2103,8 +2103,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // from the peer. Default to kMaxConsecutiveNonRetransmittablePackets.
   size_t max_consecutive_num_packets_with_no_retransmittable_frames_;
 
-  // If true, bundle an ack-eliciting frame with an ACK if the PTO or RTO alarm
-  // have previously fired.
+  // If true, bundle an ack-eliciting frame with an ACK if the PTO alarm have
+  // previously fired.
   bool bundle_retransmittable_with_pto_ack_;
 
   // If true, the connection will fill up the pipe with extra data whenever the

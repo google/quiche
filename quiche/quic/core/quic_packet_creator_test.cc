@@ -1932,16 +1932,16 @@ TEST_P(QuicPacketCreatorTest, PacketTransmissionType) {
   EXPECT_TRUE(creator_.AddFrame(ack_frame, LOSS_RETRANSMISSION));
   ASSERT_EQ(serialized_packet_, nullptr);
 
-  EXPECT_TRUE(creator_.AddFrame(stream_frame, RTO_RETRANSMISSION));
+  EXPECT_TRUE(creator_.AddFrame(stream_frame, PTO_RETRANSMISSION));
   ASSERT_EQ(serialized_packet_, nullptr);
 
-  EXPECT_TRUE(creator_.AddFrame(padding_frame, TLP_RETRANSMISSION));
+  EXPECT_TRUE(creator_.AddFrame(padding_frame, PROBING_RETRANSMISSION));
   creator_.FlushCurrentPacket();
   ASSERT_TRUE(serialized_packet_->encrypted_buffer);
 
   // The last retransmittable frame on packet is a stream frame, the packet's
   // transmission type should be the same as the stream frame's.
-  EXPECT_EQ(serialized_packet_->transmission_type, RTO_RETRANSMISSION);
+  EXPECT_EQ(serialized_packet_->transmission_type, PTO_RETRANSMISSION);
   DeleteSerializedPacket();
 }
 

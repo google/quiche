@@ -37,8 +37,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_fix_on_stream_reset, true)
 // If true, consolidate more logic into SetRetransmissionAlarm to ensure the logic is applied consistently.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_simplify_set_retransmission_alarm, true)
-// If true, default on PTO which unifies TLP + RTO loss recovery.
-QUIC_FLAG(FLAGS_quic_restart_flag_quic_default_on_pto2, true)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, deliver INITIAL packets before other types of packets in QuicBufferedPacketStore.
