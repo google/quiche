@@ -3638,22 +3638,6 @@ TEST(BalsaHeaders, WriteToBufferCoalescingEnvoyHeaders) {
   EXPECT_EQ(simple_buffer.GetReadableRegion(), expected_coalesced);
 }
 
-TEST(BalsaHeadersTest, GfeHeaderPolicyGfeBug) {
-  BalsaHeaders headers;
-  headers.SetRequestFirstlineFromStringPieces("GET", "/", "HTTP/1.0");
-  headers.AppendHeader("foo", "bar");
-  EXPECT_QUICHE_BUG(headers.AppendHeader("X-Goog-Wombat", "tree"),
-                    "Header X-Goog-Wombat violates go/gfe-header-policy");
-}
-
-TEST(BalsaHeadersTest, GfeHeaderPolicyExemptionNoGfeBug) {
-  BalsaHeaders headers;
-  headers.SetRequestFirstlineFromStringPieces("GET", "/", "HTTP/1.0");
-  // Exempt header should not trigger a QUICHE_BUG.
-  headers.AppendHeader("X-Goog-Authenticated-User-ID", "id");
-  headers.AppendHeader("x-goog-authenticated-user-id", "id");
-}
-
 TEST(BalsaHeadersTest, RemoveLastTokenFromOneLineHeader) {
   BalsaHeaders headers =
       CreateHTTPHeaders(true,
