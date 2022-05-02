@@ -10,7 +10,7 @@
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
-#include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 
@@ -18,8 +18,8 @@ DecodeStatus UnknownPayloadDecoder::StartDecodingPayload(
     FrameDecoderState* state, DecodeBuffer* db) {
   const Http2FrameHeader& frame_header = state->frame_header();
 
-  HTTP2_DVLOG(2) << "UnknownPayloadDecoder::StartDecodingPayload: "
-                 << frame_header;
+  QUICHE_DVLOG(2) << "UnknownPayloadDecoder::StartDecodingPayload: "
+                  << frame_header;
   QUICHE_DCHECK(!IsSupportedHttp2FrameType(frame_header.type)) << frame_header;
   QUICHE_DCHECK_LE(db->Remaining(), frame_header.payload_length);
 
@@ -30,9 +30,9 @@ DecodeStatus UnknownPayloadDecoder::StartDecodingPayload(
 
 DecodeStatus UnknownPayloadDecoder::ResumeDecodingPayload(
     FrameDecoderState* state, DecodeBuffer* db) {
-  HTTP2_DVLOG(2) << "UnknownPayloadDecoder::ResumeDecodingPayload "
-                 << "remaining_payload=" << state->remaining_payload()
-                 << "; db->Remaining=" << db->Remaining();
+  QUICHE_DVLOG(2) << "UnknownPayloadDecoder::ResumeDecodingPayload "
+                  << "remaining_payload=" << state->remaining_payload()
+                  << "; db->Remaining=" << db->Remaining();
   QUICHE_DCHECK(!IsSupportedHttp2FrameType(state->frame_header().type))
       << state->frame_header();
   QUICHE_DCHECK_LE(state->remaining_payload(),

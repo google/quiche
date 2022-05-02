@@ -12,12 +12,12 @@
 #include "quiche/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures_test_util.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/test_tools/frame_parts_collector.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/tools/http2_frame_builder.h"
 #include "quiche/http2/tools/random_decoder_test.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -47,38 +47,38 @@ struct Listener : public FramePartsCollector {
   void OnPushPromiseStart(const Http2FrameHeader& header,
                           const Http2PushPromiseFields& promise,
                           size_t total_padding_length) override {
-    HTTP2_VLOG(1) << "OnPushPromiseStart header: " << header
-                  << "  promise: " << promise
-                  << "  total_padding_length: " << total_padding_length;
+    QUICHE_VLOG(1) << "OnPushPromiseStart header: " << header
+                   << "  promise: " << promise
+                   << "  total_padding_length: " << total_padding_length;
     EXPECT_EQ(Http2FrameType::PUSH_PROMISE, header.type);
     StartFrame(header)->OnPushPromiseStart(header, promise,
                                            total_padding_length);
   }
 
   void OnHpackFragment(const char* data, size_t len) override {
-    HTTP2_VLOG(1) << "OnHpackFragment: len=" << len;
+    QUICHE_VLOG(1) << "OnHpackFragment: len=" << len;
     CurrentFrame()->OnHpackFragment(data, len);
   }
 
   void OnPushPromiseEnd() override {
-    HTTP2_VLOG(1) << "OnPushPromiseEnd";
+    QUICHE_VLOG(1) << "OnPushPromiseEnd";
     EndFrame()->OnPushPromiseEnd();
   }
 
   void OnPadding(const char* padding, size_t skipped_length) override {
-    HTTP2_VLOG(1) << "OnPadding: " << skipped_length;
+    QUICHE_VLOG(1) << "OnPadding: " << skipped_length;
     CurrentFrame()->OnPadding(padding, skipped_length);
   }
 
   void OnPaddingTooLong(const Http2FrameHeader& header,
                         size_t missing_length) override {
-    HTTP2_VLOG(1) << "OnPaddingTooLong: " << header
-                  << "; missing_length: " << missing_length;
+    QUICHE_VLOG(1) << "OnPaddingTooLong: " << header
+                   << "; missing_length: " << missing_length;
     FrameError(header)->OnPaddingTooLong(header, missing_length);
   }
 
   void OnFrameSizeError(const Http2FrameHeader& header) override {
-    HTTP2_VLOG(1) << "OnFrameSizeError: " << header;
+    QUICHE_VLOG(1) << "OnFrameSizeError: " << header;
     FrameError(header)->OnFrameSizeError(header);
   }
 };
@@ -95,8 +95,8 @@ INSTANTIATE_TEST_SUITE_P(VariousPadLengths, PushPromisePayloadDecoderTest,
 // (fake) HPACK payload.
 TEST_P(PushPromisePayloadDecoderTest, VariousHpackPayloadSizes) {
   for (size_t hpack_size : {0, 1, 2, 3, 255, 256, 1024}) {
-    HTTP2_LOG(INFO) << "###########   hpack_size = " << hpack_size
-                    << "  ###########";
+    QUICHE_LOG(INFO) << "###########   hpack_size = " << hpack_size
+                     << "  ###########";
     Reset();
     std::string hpack_payload = Random().RandString(hpack_size);
     Http2PushPromiseFields push_promise{RandStreamId()};

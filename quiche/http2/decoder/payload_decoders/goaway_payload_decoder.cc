@@ -11,8 +11,8 @@
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 
@@ -38,8 +38,8 @@ std::ostream& operator<<(std::ostream& out,
 
 DecodeStatus GoAwayPayloadDecoder::StartDecodingPayload(
     FrameDecoderState* state, DecodeBuffer* db) {
-  HTTP2_DVLOG(2) << "GoAwayPayloadDecoder::StartDecodingPayload: "
-                 << state->frame_header();
+  QUICHE_DVLOG(2) << "GoAwayPayloadDecoder::StartDecodingPayload: "
+                  << state->frame_header();
   QUICHE_DCHECK_EQ(Http2FrameType::GOAWAY, state->frame_header().type);
   QUICHE_DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
   QUICHE_DCHECK_EQ(0, state->frame_header().flags);
@@ -51,7 +51,7 @@ DecodeStatus GoAwayPayloadDecoder::StartDecodingPayload(
 
 DecodeStatus GoAwayPayloadDecoder::ResumeDecodingPayload(
     FrameDecoderState* state, DecodeBuffer* db) {
-  HTTP2_DVLOG(2)
+  QUICHE_DVLOG(2)
       << "GoAwayPayloadDecoder::ResumeDecodingPayload: remaining_payload="
       << state->remaining_payload() << ", db->Remaining=" << db->Remaining();
 
@@ -66,7 +66,7 @@ DecodeStatus GoAwayPayloadDecoder::ResumeDecodingPayload(
   DecodeStatus status = DecodeStatus::kDecodeError;
   size_t avail;
   while (true) {
-    HTTP2_DVLOG(2)
+    QUICHE_DVLOG(2)
         << "GoAwayPayloadDecoder::ResumeDecodingPayload payload_state_="
         << payload_state_;
     switch (payload_state_) {

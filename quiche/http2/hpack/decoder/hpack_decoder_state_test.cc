@@ -12,7 +12,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
 #include "quiche/http2/http2_constants.h"
-#include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/platform/api/quiche_test_helpers.h"
 

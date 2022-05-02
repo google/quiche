@@ -18,8 +18,8 @@
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 class DecodeBufferSubset;

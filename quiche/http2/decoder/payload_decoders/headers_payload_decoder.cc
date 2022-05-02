@@ -11,8 +11,8 @@
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 
@@ -43,8 +43,8 @@ DecodeStatus HeadersPayloadDecoder::StartDecodingPayload(
   const Http2FrameHeader& frame_header = state->frame_header();
   const uint32_t total_length = frame_header.payload_length;
 
-  HTTP2_DVLOG(2) << "HeadersPayloadDecoder::StartDecodingPayload: "
-                 << frame_header;
+  QUICHE_DVLOG(2) << "HeadersPayloadDecoder::StartDecodingPayload: "
+                  << frame_header;
 
   QUICHE_DCHECK_EQ(Http2FrameType::HEADERS, frame_header.type);
   QUICHE_DCHECK_LE(db->Remaining(), total_length);
@@ -68,9 +68,9 @@ DecodeStatus HeadersPayloadDecoder::StartDecodingPayload(
   // set then we can decode faster.
   const auto payload_flags = Http2FrameFlag::PADDED | Http2FrameFlag::PRIORITY;
   if (!frame_header.HasAnyFlags(payload_flags)) {
-    HTTP2_DVLOG(2) << "StartDecodingPayload !IsPadded && !HasPriority";
+    QUICHE_DVLOG(2) << "StartDecodingPayload !IsPadded && !HasPriority";
     if (db->Remaining() == total_length) {
-      HTTP2_DVLOG(2) << "StartDecodingPayload all present";
+      QUICHE_DVLOG(2) << "StartDecodingPayload all present";
       // Note that we don't cache the listener field so that the callee can
       // replace it if the frame is bad.
       // If this case is common enough, consider combining the 3 callbacks
@@ -97,9 +97,9 @@ DecodeStatus HeadersPayloadDecoder::StartDecodingPayload(
 
 DecodeStatus HeadersPayloadDecoder::ResumeDecodingPayload(
     FrameDecoderState* state, DecodeBuffer* db) {
-  HTTP2_DVLOG(2) << "HeadersPayloadDecoder::ResumeDecodingPayload "
-                 << "remaining_payload=" << state->remaining_payload()
-                 << "; db->Remaining=" << db->Remaining();
+  QUICHE_DVLOG(2) << "HeadersPayloadDecoder::ResumeDecodingPayload "
+                  << "remaining_payload=" << state->remaining_payload()
+                  << "; db->Remaining=" << db->Remaining();
 
   const Http2FrameHeader& frame_header = state->frame_header();
 
@@ -110,7 +110,7 @@ DecodeStatus HeadersPayloadDecoder::ResumeDecodingPayload(
   DecodeStatus status;
   size_t avail;
   while (true) {
-    HTTP2_DVLOG(2)
+    QUICHE_DVLOG(2)
         << "HeadersPayloadDecoder::ResumeDecodingPayload payload_state_="
         << payload_state_;
     switch (payload_state_) {

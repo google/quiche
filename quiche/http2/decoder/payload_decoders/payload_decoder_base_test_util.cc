@@ -19,7 +19,7 @@ PayloadDecoderBaseTest::PayloadDecoderBaseTest() {
 }
 
 DecodeStatus PayloadDecoderBaseTest::StartDecoding(DecodeBuffer* db) {
-  HTTP2_DVLOG(2) << "StartDecoding, db->Remaining=" << db->Remaining();
+  QUICHE_DVLOG(2) << "StartDecoding, db->Remaining=" << db->Remaining();
   // Make sure sub-class has set frame_header_ so that we can inject it
   // into the payload decoder below.
   if (!frame_header_is_set_) {
@@ -64,7 +64,7 @@ DecodeStatus PayloadDecoderBaseTest::StartDecoding(DecodeBuffer* db) {
 }
 
 DecodeStatus PayloadDecoderBaseTest::ResumeDecoding(DecodeBuffer* db) {
-  HTTP2_DVLOG(2) << "ResumeDecoding, db->Remaining=" << db->Remaining();
+  QUICHE_DVLOG(2) << "ResumeDecoding, db->Remaining=" << db->Remaining();
   DecodeStatus status = ResumeDecodingPayload(db);
   if (status != DecodeStatus::kDecodeInProgress) {
     // Keep track of this so that a concrete test can verify that both fast

@@ -6,7 +6,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
-#include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 namespace {
@@ -37,11 +37,11 @@ const std::vector<HpackStringPair>* GetStaticTable() {
 
 HpackStringPair::HpackStringPair(std::string name, std::string value)
     : name(std::move(name)), value(std::move(value)) {
-  HTTP2_DVLOG(3) << DebugString() << " ctor";
+  QUICHE_DVLOG(3) << DebugString() << " ctor";
 }
 
 HpackStringPair::~HpackStringPair() {
-  HTTP2_DVLOG(3) << DebugString() << " dtor";
+  QUICHE_DVLOG(3) << DebugString() << " dtor";
 }
 
 std::string HpackStringPair::DebugString() const {
@@ -71,8 +71,8 @@ HpackDecoderDynamicTable::HpackDecoderDynamicTable()
 HpackDecoderDynamicTable::~HpackDecoderDynamicTable() = default;
 
 void HpackDecoderDynamicTable::DynamicTableSizeUpdate(size_t size_limit) {
-  HTTP2_DVLOG(3) << "HpackDecoderDynamicTable::DynamicTableSizeUpdate "
-                 << size_limit;
+  QUICHE_DVLOG(3) << "HpackDecoderDynamicTable::DynamicTableSizeUpdate "
+                  << size_limit;
   EnsureSizeNoMoreThan(size_limit);
   QUICHE_DCHECK_LE(current_size_, size_limit);
   size_limit_ = size_limit;
@@ -83,13 +83,13 @@ void HpackDecoderDynamicTable::DynamicTableSizeUpdate(size_t size_limit) {
 void HpackDecoderDynamicTable::Insert(std::string name, std::string value) {
   HpackStringPair entry(std::move(name), std::move(value));
   size_t entry_size = entry.size();
-  HTTP2_DVLOG(2) << "InsertEntry of size=" << entry_size
-                 << "\n     name: " << entry.name
-                 << "\n    value: " << entry.value;
+  QUICHE_DVLOG(2) << "InsertEntry of size=" << entry_size
+                  << "\n     name: " << entry.name
+                  << "\n    value: " << entry.value;
   if (entry_size > size_limit_) {
-    HTTP2_DVLOG(2) << "InsertEntry: entry larger than table, removing "
-                   << table_.size() << " entries, of total size "
-                   << current_size_ << " bytes.";
+    QUICHE_DVLOG(2) << "InsertEntry: entry larger than table, removing "
+                    << table_.size() << " entries, of total size "
+                    << current_size_ << " bytes.";
     table_.clear();
     current_size_ = 0;
     return;
@@ -99,7 +99,7 @@ void HpackDecoderDynamicTable::Insert(std::string name, std::string value) {
   EnsureSizeNoMoreThan(insert_limit);
   table_.push_front(entry);
   current_size_ += entry_size;
-  HTTP2_DVLOG(2) << "InsertEntry: current_size_=" << current_size_;
+  QUICHE_DVLOG(2) << "InsertEntry: current_size_=" << current_size_;
   QUICHE_DCHECK_GE(current_size_, entry_size);
   QUICHE_DCHECK_LE(current_size_, size_limit_);
 }
@@ -112,8 +112,8 @@ const HpackStringPair* HpackDecoderDynamicTable::Lookup(size_t index) const {
 }
 
 void HpackDecoderDynamicTable::EnsureSizeNoMoreThan(size_t limit) {
-  HTTP2_DVLOG(2) << "EnsureSizeNoMoreThan limit=" << limit
-                 << ", current_size_=" << current_size_;
+  QUICHE_DVLOG(2) << "EnsureSizeNoMoreThan limit=" << limit
+                  << ", current_size_=" << current_size_;
   // Not the most efficient choice, but any easy way to start.
   while (current_size_ > limit) {
     RemoveLastEntry();
@@ -124,8 +124,8 @@ void HpackDecoderDynamicTable::EnsureSizeNoMoreThan(size_t limit) {
 void HpackDecoderDynamicTable::RemoveLastEntry() {
   QUICHE_DCHECK(!table_.empty());
   if (!table_.empty()) {
-    HTTP2_DVLOG(2) << "RemoveLastEntry current_size_=" << current_size_
-                   << ", last entry size=" << table_.back().size();
+    QUICHE_DVLOG(2) << "RemoveLastEntry current_size_=" << current_size_
+                    << ", last entry size=" << table_.back().size();
     QUICHE_DCHECK_GE(current_size_, table_.back().size());
     current_size_ -= table_.back().size();
     table_.pop_back();

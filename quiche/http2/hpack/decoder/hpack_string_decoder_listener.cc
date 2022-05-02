@@ -4,14 +4,14 @@
 
 #include "quiche/http2/hpack/decoder/hpack_string_decoder_listener.h"
 
-#include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 namespace test {
 
 void HpackStringDecoderVLoggingListener::OnStringStart(bool huffman_encoded,
                                                        size_t len) {
-  HTTP2_VLOG(1) << "OnStringStart: H=" << huffman_encoded << ", len=" << len;
+  QUICHE_VLOG(1) << "OnStringStart: H=" << huffman_encoded << ", len=" << len;
   if (wrapped_) {
     wrapped_->OnStringStart(huffman_encoded, len);
   }
@@ -19,14 +19,14 @@ void HpackStringDecoderVLoggingListener::OnStringStart(bool huffman_encoded,
 
 void HpackStringDecoderVLoggingListener::OnStringData(const char* data,
                                                       size_t len) {
-  HTTP2_VLOG(1) << "OnStringData: len=" << len;
+  QUICHE_VLOG(1) << "OnStringData: len=" << len;
   if (wrapped_) {
     return wrapped_->OnStringData(data, len);
   }
 }
 
 void HpackStringDecoderVLoggingListener::OnStringEnd() {
-  HTTP2_VLOG(1) << "OnStringEnd";
+  QUICHE_VLOG(1) << "OnStringEnd";
   if (wrapped_) {
     return wrapped_->OnStringEnd();
   }

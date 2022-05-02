@@ -19,8 +19,8 @@
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/hpack/varint/hpack_varint_decoder.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 
@@ -81,8 +81,8 @@ class QUICHE_EXPORT_PRIVATE HpackStringDecoder {
     while (true) {
       switch (state_) {
         case kStartDecodingLength:
-          HTTP2_DVLOG(2) << "kStartDecodingLength: db->Remaining="
-                         << db->Remaining();
+          QUICHE_DVLOG(2) << "kStartDecodingLength: db->Remaining="
+                          << db->Remaining();
           if (!StartDecodingLength(db, cb, &status)) {
             // The length is split across decode buffers.
             return status;
@@ -99,13 +99,13 @@ class QUICHE_EXPORT_PRIVATE HpackStringDecoder {
           ABSL_FALLTHROUGH_INTENDED;
 
         case kDecodingString:
-          HTTP2_DVLOG(2) << "kDecodingString: db->Remaining=" << db->Remaining()
-                         << "    remaining_=" << remaining_;
+          QUICHE_DVLOG(2) << "kDecodingString: db->Remaining="
+                          << db->Remaining() << "    remaining_=" << remaining_;
           return DecodeString(db, cb);
 
         case kResumeDecodingLength:
-          HTTP2_DVLOG(2) << "kResumeDecodingLength: db->Remaining="
-                         << db->Remaining();
+          QUICHE_DVLOG(2) << "kResumeDecodingLength: db->Remaining="
+                          << db->Remaining();
           if (!ResumeDecodingLength(db, cb, &status)) {
             return status;
           }

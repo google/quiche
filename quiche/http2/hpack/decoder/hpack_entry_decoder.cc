@@ -11,8 +11,8 @@
 #include "absl/base/macros.h"
 #include "quiche/http2/platform/api/http2_flag_utils.h"
 #include "quiche/http2/platform/api/http2_flags.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 namespace {
@@ -101,8 +101,8 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
     switch (state_) {
       case EntryDecoderState::kResumeDecodingType:
         // entry_type_decoder_ returned kDecodeInProgress when last called.
-        HTTP2_DVLOG(1) << "kResumeDecodingType: db->Remaining="
-                       << db->Remaining();
+        QUICHE_DVLOG(1) << "kResumeDecodingType: db->Remaining="
+                        << db->Remaining();
         status = entry_type_decoder_.Resume(db);
         if (status == DecodeStatus::kDecodeError) {
           HTTP2_CODE_COUNT_N(decompress_failure_3, 12, 23);
@@ -117,7 +117,7 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
       case EntryDecoderState::kDecodedType:
         // entry_type_decoder_ returned kDecodeDone, now need to decide how
         // to proceed.
-        HTTP2_DVLOG(1) << "kDecodedType: db->Remaining=" << db->Remaining();
+        QUICHE_DVLOG(1) << "kDecodedType: db->Remaining=" << db->Remaining();
         if (DispatchOnType(listener)) {
           // All done.
           return DecodeStatus::kDecodeDone;
@@ -125,8 +125,8 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
         continue;
 
       case EntryDecoderState::kStartDecodingName:
-        HTTP2_DVLOG(1) << "kStartDecodingName: db->Remaining="
-                       << db->Remaining();
+        QUICHE_DVLOG(1) << "kStartDecodingName: db->Remaining="
+                        << db->Remaining();
         {
           NameDecoderListener ncb(listener);
           status = string_decoder_.Start(db, &ncb);
@@ -147,8 +147,8 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
         ABSL_FALLTHROUGH_INTENDED;
 
       case EntryDecoderState::kStartDecodingValue:
-        HTTP2_DVLOG(1) << "kStartDecodingValue: db->Remaining="
-                       << db->Remaining();
+        QUICHE_DVLOG(1) << "kStartDecodingValue: db->Remaining="
+                        << db->Remaining();
         {
           ValueDecoderListener vcb(listener);
           status = string_decoder_.Start(db, &vcb);
@@ -171,8 +171,8 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
 
       case EntryDecoderState::kResumeDecodingName:
         // The literal name was split across decode buffers.
-        HTTP2_DVLOG(1) << "kResumeDecodingName: db->Remaining="
-                       << db->Remaining();
+        QUICHE_DVLOG(1) << "kResumeDecodingName: db->Remaining="
+                        << db->Remaining();
         {
           NameDecoderListener ncb(listener);
           status = string_decoder_.Resume(db, &ncb);
@@ -194,8 +194,8 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
 
       case EntryDecoderState::kResumeDecodingValue:
         // The literal value was split across decode buffers.
-        HTTP2_DVLOG(1) << "kResumeDecodingValue: db->Remaining="
-                       << db->Remaining();
+        QUICHE_DVLOG(1) << "kResumeDecodingValue: db->Remaining="
+                        << db->Remaining();
         {
           ValueDecoderListener vcb(listener);
           status = string_decoder_.Resume(db, &vcb);

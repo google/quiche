@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "quiche/http2/http2_constants.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
@@ -40,21 +39,21 @@ HpackDecoderState::~HpackDecoderState() = default;
 
 void HpackDecoderState::ApplyHeaderTableSizeSetting(
     uint32_t header_table_size) {
-  HTTP2_DVLOG(2) << "HpackDecoderState::ApplyHeaderTableSizeSetting("
-                 << header_table_size << ")";
+  QUICHE_DVLOG(2) << "HpackDecoderState::ApplyHeaderTableSizeSetting("
+                  << header_table_size << ")";
   QUICHE_DCHECK_LE(lowest_header_table_size_, final_header_table_size_);
   if (header_table_size < lowest_header_table_size_) {
     lowest_header_table_size_ = header_table_size;
   }
   final_header_table_size_ = header_table_size;
-  HTTP2_DVLOG(2) << "low water mark: " << lowest_header_table_size_;
-  HTTP2_DVLOG(2) << "final limit: " << final_header_table_size_;
+  QUICHE_DVLOG(2) << "low water mark: " << lowest_header_table_size_;
+  QUICHE_DVLOG(2) << "final limit: " << final_header_table_size_;
 }
 
 // Called to notify this object that we're starting to decode an HPACK block
 // (e.g. a HEADERS or PUSH_PROMISE frame's header has been decoded).
 void HpackDecoderState::OnHeaderBlockStart() {
-  HTTP2_DVLOG(2) << "HpackDecoderState::OnHeaderBlockStart";
+  QUICHE_DVLOG(2) << "HpackDecoderState::OnHeaderBlockStart";
   // This instance can't be reused after an error has been detected, as we must
   // assume that the encoder and decoder compression states are no longer
   // synchronized.
@@ -72,14 +71,14 @@ void HpackDecoderState::OnHeaderBlockStart() {
       (lowest_header_table_size_ <
            decoder_tables_.current_header_table_size() ||
        final_header_table_size_ < decoder_tables_.header_table_size_limit());
-  HTTP2_DVLOG(2) << "HpackDecoderState::OnHeaderListStart "
-                 << "require_dynamic_table_size_update_="
-                 << require_dynamic_table_size_update_;
+  QUICHE_DVLOG(2) << "HpackDecoderState::OnHeaderListStart "
+                  << "require_dynamic_table_size_update_="
+                  << require_dynamic_table_size_update_;
   listener_->OnHeaderListStart();
 }
 
 void HpackDecoderState::OnIndexedHeader(size_t index) {
-  HTTP2_DVLOG(2) << "HpackDecoderState::OnIndexedHeader: " << index;
+  QUICHE_DVLOG(2) << "HpackDecoderState::OnIndexedHeader: " << index;
   if (error_ != HpackDecodingError::kOk) {
     return;
   }
@@ -99,9 +98,9 @@ void HpackDecoderState::OnIndexedHeader(size_t index) {
 void HpackDecoderState::OnNameIndexAndLiteralValue(
     HpackEntryType entry_type, size_t name_index,
     HpackDecoderStringBuffer* value_buffer) {
-  HTTP2_DVLOG(2) << "HpackDecoderState::OnNameIndexAndLiteralValue "
-                 << entry_type << ", " << name_index << ", "
-                 << value_buffer->str();
+  QUICHE_DVLOG(2) << "HpackDecoderState::OnNameIndexAndLiteralValue "
+                  << entry_type << ", " << name_index << ", "
+                  << value_buffer->str();
   if (error_ != HpackDecodingError::kOk) {
     return;
   }
@@ -125,8 +124,8 @@ void HpackDecoderState::OnNameIndexAndLiteralValue(
 void HpackDecoderState::OnLiteralNameAndValue(
     HpackEntryType entry_type, HpackDecoderStringBuffer* name_buffer,
     HpackDecoderStringBuffer* value_buffer) {
-  HTTP2_DVLOG(2) << "HpackDecoderState::OnLiteralNameAndValue " << entry_type
-                 << ", " << name_buffer->str() << ", " << value_buffer->str();
+  QUICHE_DVLOG(2) << "HpackDecoderState::OnLiteralNameAndValue " << entry_type
+                  << ", " << name_buffer->str() << ", " << value_buffer->str();
   if (error_ != HpackDecodingError::kOk) {
     return;
   }
@@ -144,11 +143,11 @@ void HpackDecoderState::OnLiteralNameAndValue(
 }
 
 void HpackDecoderState::OnDynamicTableSizeUpdate(size_t size_limit) {
-  HTTP2_DVLOG(2) << "HpackDecoderState::OnDynamicTableSizeUpdate " << size_limit
-                 << ", required="
-                 << (require_dynamic_table_size_update_ ? "true" : "false")
-                 << ", allowed="
-                 << (allow_dynamic_table_size_update_ ? "true" : "false");
+  QUICHE_DVLOG(2) << "HpackDecoderState::OnDynamicTableSizeUpdate "
+                  << size_limit << ", required="
+                  << (require_dynamic_table_size_update_ ? "true" : "false")
+                  << ", allowed="
+                  << (allow_dynamic_table_size_update_ ? "true" : "false");
   if (error_ != HpackDecodingError::kOk) {
     return;
   }
@@ -188,15 +187,15 @@ void HpackDecoderState::OnDynamicTableSizeUpdate(size_t size_limit) {
 
 void HpackDecoderState::OnHpackDecodeError(HpackDecodingError error,
                                            std::string detailed_error) {
-  HTTP2_DVLOG(2) << "HpackDecoderState::OnHpackDecodeError "
-                 << HpackDecodingErrorToString(error);
+  QUICHE_DVLOG(2) << "HpackDecoderState::OnHpackDecodeError "
+                  << HpackDecodingErrorToString(error);
   if (error_ == HpackDecodingError::kOk) {
     ReportError(error, detailed_error);
   }
 }
 
 void HpackDecoderState::OnHeaderBlockEnd() {
-  HTTP2_DVLOG(2) << "HpackDecoderState::OnHeaderBlockEnd";
+  QUICHE_DVLOG(2) << "HpackDecoderState::OnHeaderBlockEnd";
   if (error_ != HpackDecodingError::kOk) {
     return;
   }
@@ -211,9 +210,9 @@ void HpackDecoderState::OnHeaderBlockEnd() {
 
 void HpackDecoderState::ReportError(HpackDecodingError error,
                                     std::string detailed_error) {
-  HTTP2_DVLOG(2) << "HpackDecoderState::ReportError is new="
-                 << (error_ == HpackDecodingError::kOk ? "true" : "false")
-                 << ", error: " << HpackDecodingErrorToString(error);
+  QUICHE_DVLOG(2) << "HpackDecoderState::ReportError is new="
+                  << (error_ == HpackDecodingError::kOk ? "true" : "false")
+                  << ", error: " << HpackDecodingErrorToString(error);
   if (error_ == HpackDecodingError::kOk) {
     listener_->OnHeaderErrorDetected(HpackDecodingErrorToString(error));
     error_ = error;

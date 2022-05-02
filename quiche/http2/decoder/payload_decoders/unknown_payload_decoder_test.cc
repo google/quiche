@@ -13,11 +13,11 @@
 #include "quiche/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/test_tools/frame_parts_collector.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/tools/random_decoder_test.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -41,17 +41,17 @@ namespace {
 
 struct Listener : public FramePartsCollector {
   void OnUnknownStart(const Http2FrameHeader& header) override {
-    HTTP2_VLOG(1) << "OnUnknownStart: " << header;
+    QUICHE_VLOG(1) << "OnUnknownStart: " << header;
     StartFrame(header)->OnUnknownStart(header);
   }
 
   void OnUnknownPayload(const char* data, size_t len) override {
-    HTTP2_VLOG(1) << "OnUnknownPayload: len=" << len;
+    QUICHE_VLOG(1) << "OnUnknownPayload: len=" << len;
     CurrentFrame()->OnUnknownPayload(data, len);
   }
 
   void OnUnknownEnd() override {
-    HTTP2_VLOG(1) << "OnUnknownEnd";
+    QUICHE_VLOG(1) << "OnUnknownEnd";
     EndFrame()->OnUnknownEnd();
   }
 };
@@ -65,8 +65,8 @@ class UnknownPayloadDecoderTest
       public ::testing::WithParamInterface<uint32_t> {
  protected:
   UnknownPayloadDecoderTest() : length_(GetParam()) {
-    HTTP2_VLOG(1) << "################  length_=" << length_
-                  << "  ################";
+    QUICHE_VLOG(1) << "################  length_=" << length_
+                   << "  ################";
 
     // Each test case will choose a random frame type that isn't supported.
     do {

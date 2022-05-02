@@ -11,8 +11,8 @@
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 
@@ -38,8 +38,8 @@ std::ostream& operator<<(std::ostream& out,
 
 DecodeStatus AltSvcPayloadDecoder::StartDecodingPayload(
     FrameDecoderState* state, DecodeBuffer* db) {
-  HTTP2_DVLOG(2) << "AltSvcPayloadDecoder::StartDecodingPayload: "
-                 << state->frame_header();
+  QUICHE_DVLOG(2) << "AltSvcPayloadDecoder::StartDecodingPayload: "
+                  << state->frame_header();
   QUICHE_DCHECK_EQ(Http2FrameType::ALTSVC, state->frame_header().type);
   QUICHE_DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
   QUICHE_DCHECK_EQ(0, state->frame_header().flags);
@@ -53,8 +53,8 @@ DecodeStatus AltSvcPayloadDecoder::StartDecodingPayload(
 DecodeStatus AltSvcPayloadDecoder::ResumeDecodingPayload(
     FrameDecoderState* state, DecodeBuffer* db) {
   const Http2FrameHeader& frame_header = state->frame_header();
-  HTTP2_DVLOG(2) << "AltSvcPayloadDecoder::ResumeDecodingPayload: "
-                 << frame_header;
+  QUICHE_DVLOG(2) << "AltSvcPayloadDecoder::ResumeDecodingPayload: "
+                  << frame_header;
   QUICHE_DCHECK_EQ(Http2FrameType::ALTSVC, frame_header.type);
   QUICHE_DCHECK_LE(state->remaining_payload(), frame_header.payload_length);
   QUICHE_DCHECK_LE(db->Remaining(), state->remaining_payload());
@@ -64,7 +64,7 @@ DecodeStatus AltSvcPayloadDecoder::ResumeDecodingPayload(
   // see QUICHE_DCHECK_NE above.
   DecodeStatus status = DecodeStatus::kDecodeError;
   while (true) {
-    HTTP2_DVLOG(2)
+    QUICHE_DVLOG(2)
         << "AltSvcPayloadDecoder::ResumeDecodingPayload payload_state_="
         << payload_state_;
     switch (payload_state_) {
@@ -109,9 +109,9 @@ DecodeStatus AltSvcPayloadDecoder::ResumeDecodingPayload(
 
 DecodeStatus AltSvcPayloadDecoder::DecodeStrings(FrameDecoderState* state,
                                                  DecodeBuffer* db) {
-  HTTP2_DVLOG(2) << "AltSvcPayloadDecoder::DecodeStrings remaining_payload="
-                 << state->remaining_payload()
-                 << ", db->Remaining=" << db->Remaining();
+  QUICHE_DVLOG(2) << "AltSvcPayloadDecoder::DecodeStrings remaining_payload="
+                  << state->remaining_payload()
+                  << ", db->Remaining=" << db->Remaining();
   // Note that we don't explicitly keep track of exactly how far through the
   // origin; instead we compute it from how much is left of the original
   // payload length and the decoded total length of the origin.

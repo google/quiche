@@ -19,9 +19,9 @@
 #include "quiche/http2/hpack/tools/hpack_block_builder.h"
 #include "quiche/http2/hpack/tools/hpack_example.h"
 #include "quiche/http2/http2_constants.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/tools/random_util.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/platform/api/quiche_test_helpers.h"
 
@@ -122,7 +122,7 @@ class HpackDecoderTest : public QuicheTestWithParam<bool>,
   }
 
   AssertionResult DecodeBlock(absl::string_view block) {
-    HTTP2_VLOG(1) << "HpackDecoderTest::DecodeBlock";
+    QUICHE_VLOG(1) << "HpackDecoderTest::DecodeBlock";
 
     VERIFY_FALSE(decoder_.DetectError());
     VERIFY_TRUE(error_messages_.empty());

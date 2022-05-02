@@ -12,11 +12,11 @@
 #include "absl/strings/string_view.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/platform/api/http2_flags.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/test_tools/frame_parts_collector_listener.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/tools/random_decoder_test.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionSuccess;
@@ -35,7 +35,7 @@ namespace {
 class Http2FrameDecoderTest : public RandomDecoderTest {
  protected:
   DecodeStatus StartDecoding(DecodeBuffer* db) override {
-    HTTP2_DVLOG(2) << "StartDecoding, db->Remaining=" << db->Remaining();
+    QUICHE_DVLOG(2) << "StartDecoding, db->Remaining=" << db->Remaining();
     collector_.Reset();
     PrepareDecoder();
 
@@ -52,7 +52,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   }
 
   DecodeStatus ResumeDecoding(DecodeBuffer* db) override {
-    HTTP2_DVLOG(2) << "ResumeDecoding, db->Remaining=" << db->Remaining();
+    QUICHE_DVLOG(2) << "ResumeDecoding, db->Remaining=" << db->Remaining();
     DecodeStatus status = decoder_->DecodeFrame(db);
     if (status != DecodeStatus::kDecodeInProgress) {
       // Keep track of this so that a concrete test can verify that both fast

@@ -19,11 +19,11 @@
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_constants_test_util.h"
 #include "quiche/http2/http2_structures.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/tools/http2_frame_builder.h"
 #include "quiche/http2/tools/random_decoder_test.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test_helpers.h"
 
 namespace http2 {
@@ -56,7 +56,7 @@ class QUICHE_NO_EXPORT PayloadDecoderBaseTest : public RandomDecoderTest {
   void set_frame_header(const Http2FrameHeader& header) {
     EXPECT_EQ(0, InvalidFlagMaskForFrameType(header.type) & header.flags);
     if (!frame_header_is_set_ || frame_header_ != header) {
-      HTTP2_VLOG(2) << "set_frame_header: " << frame_header_;
+      QUICHE_VLOG(2) << "set_frame_header: " << frame_header_;
     }
     frame_header_ = header;
     frame_header_is_set_ = true;
@@ -173,14 +173,15 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
 
   // Start decoding the payload.
   DecodeStatus StartDecodingPayload(DecodeBuffer* db) override {
-    HTTP2_DVLOG(2) << "StartDecodingPayload, db->Remaining=" << db->Remaining();
+    QUICHE_DVLOG(2) << "StartDecodingPayload, db->Remaining="
+                    << db->Remaining();
     return payload_decoder_->StartDecodingPayload(mutable_state(), db);
   }
 
   // Resume decoding the payload.
   DecodeStatus ResumeDecodingPayload(DecodeBuffer* db) override {
-    HTTP2_DVLOG(2) << "ResumeDecodingPayload, db->Remaining="
-                   << db->Remaining();
+    QUICHE_DVLOG(2) << "ResumeDecodingPayload, db->Remaining="
+                    << db->Remaining();
     return payload_decoder_->ResumeDecodingPayload(mutable_state(), db);
   }
 
@@ -218,8 +219,8 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
     validator = [header, validator, this](
                     const DecodeBuffer& input,
                     DecodeStatus status) -> ::testing::AssertionResult {
-      HTTP2_DVLOG(2) << "VerifyDetectsFrameSizeError validator; status="
-                     << status << "; input.Remaining=" << input.Remaining();
+      QUICHE_DVLOG(2) << "VerifyDetectsFrameSizeError validator; status="
+                      << status << "; input.Remaining=" << input.Remaining();
       VERIFY_EQ(DecodeStatus::kDecodeError, status);
       VERIFY_FALSE(listener_.IsInProgress());
       VERIFY_EQ(1u, listener_.size());
@@ -272,7 +273,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
       if (approve_size != nullptr && !approve_size(real_payload_size)) {
         continue;
       }
-      HTTP2_VLOG(1) << "real_payload_size=" << real_payload_size;
+      QUICHE_VLOG(1) << "real_payload_size=" << real_payload_size;
       uint8_t flags = required_flags | RandFlags();
       Http2FrameBuilder fb;
       if (total_pad_length > 0) {
@@ -331,7 +332,7 @@ class AbstractPaddablePayloadDecoderTest
   typedef typename Base::Validator Validator;
 
   AbstractPaddablePayloadDecoderTest() : total_pad_length_(GetParam()) {
-    HTTP2_LOG(INFO) << "total_pad_length_ = " << total_pad_length_;
+    QUICHE_LOG(INFO) << "total_pad_length_ = " << total_pad_length_;
   }
 
   // Note that total_pad_length_ includes the size of the Pad Length field,
@@ -408,12 +409,12 @@ class AbstractPaddablePayloadDecoderTest
     if (IsPadded()) {
       fb.AppendUInt8(pad_length());
       fb.AppendZeroes(pad_length());
-      HTTP2_VLOG(1) << "fb.size=" << fb.size();
+      QUICHE_VLOG(1) << "fb.size=" << fb.size();
       // Pick a random length for the payload that is shorter than neccesary.
       payload_length = Random().Uniform(fb.size());
     }
 
-    HTTP2_VLOG(1) << "payload_length=" << payload_length;
+    QUICHE_VLOG(1) << "payload_length=" << payload_length;
     std::string payload = fb.buffer().substr(0, payload_length);
 
     // The missing length is the amount we cut off the end, unless
@@ -421,7 +422,7 @@ class AbstractPaddablePayloadDecoderTest
     // byte, the Pad Length field, is missing.
     size_t missing_length =
         payload_length == 0 ? 1 : fb.size() - payload_length;
-    HTTP2_VLOG(1) << "missing_length=" << missing_length;
+    QUICHE_VLOG(1) << "missing_length=" << missing_length;
 
     const Http2FrameHeader header(payload_length, DecoderPeer::FrameType(),
                                   flags, RandStreamId());

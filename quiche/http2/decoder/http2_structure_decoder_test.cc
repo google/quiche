@@ -28,9 +28,9 @@
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures_test_util.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/http2/tools/http2_frame_builder.h"
 #include "quiche/http2/tools/random_decoder_test.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionSuccess;
@@ -133,8 +133,8 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
       VERIFY_EQ(0u, incomplete_resume_count_);
     }
     if (expected != nullptr) {
-      HTTP2_DVLOG(1) << "DecodeLeadingStructure expected: " << *expected;
-      HTTP2_DVLOG(1) << "DecodeLeadingStructure   actual: " << *structure_;
+      QUICHE_DVLOG(1) << "DecodeLeadingStructure expected: " << *expected;
+      QUICHE_DVLOG(1) << "DecodeLeadingStructure   actual: " << *structure_;
       VERIFY_EQ(*expected, *structure_);
     }
     return AssertionSuccess();

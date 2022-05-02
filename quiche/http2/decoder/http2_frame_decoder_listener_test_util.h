@@ -81,7 +81,7 @@ class QUICHE_NO_EXPORT FailingHttp2FrameDecoderListener
   void EnsureNotAbstract() { FailingHttp2FrameDecoderListener instance; }
 };
 
-// HTTP2_VLOG's all the calls it receives, and forwards those calls to an
+// QUICHE_VLOG's all the calls it receives, and forwards those calls to an
 // optional listener.
 class QUICHE_NO_EXPORT LoggingHttp2FrameDecoderListener
     : public Http2FrameDecoderListener {

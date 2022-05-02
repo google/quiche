@@ -12,12 +12,12 @@
 #include "quiche/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures_test_util.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/test_tools/frame_parts_collector.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/tools/http2_frame_builder.h"
 #include "quiche/http2/tools/random_decoder_test.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -48,44 +48,44 @@ namespace {
 // via the public methods of FramePartsCollector.
 struct Listener : public FramePartsCollector {
   void OnHeadersStart(const Http2FrameHeader& header) override {
-    HTTP2_VLOG(1) << "OnHeadersStart: " << header;
+    QUICHE_VLOG(1) << "OnHeadersStart: " << header;
     StartFrame(header)->OnHeadersStart(header);
   }
 
   void OnHeadersPriority(const Http2PriorityFields& priority) override {
-    HTTP2_VLOG(1) << "OnHeadersPriority: " << priority;
+    QUICHE_VLOG(1) << "OnHeadersPriority: " << priority;
     CurrentFrame()->OnHeadersPriority(priority);
   }
 
   void OnHpackFragment(const char* data, size_t len) override {
-    HTTP2_VLOG(1) << "OnHpackFragment: len=" << len;
+    QUICHE_VLOG(1) << "OnHpackFragment: len=" << len;
     CurrentFrame()->OnHpackFragment(data, len);
   }
 
   void OnHeadersEnd() override {
-    HTTP2_VLOG(1) << "OnHeadersEnd";
+    QUICHE_VLOG(1) << "OnHeadersEnd";
     EndFrame()->OnHeadersEnd();
   }
 
   void OnPadLength(size_t pad_length) override {
-    HTTP2_VLOG(1) << "OnPadLength: " << pad_length;
+    QUICHE_VLOG(1) << "OnPadLength: " << pad_length;
     CurrentFrame()->OnPadLength(pad_length);
   }
 
   void OnPadding(const char* padding, size_t skipped_length) override {
-    HTTP2_VLOG(1) << "OnPadding: " << skipped_length;
+    QUICHE_VLOG(1) << "OnPadding: " << skipped_length;
     CurrentFrame()->OnPadding(padding, skipped_length);
   }
 
   void OnPaddingTooLong(const Http2FrameHeader& header,
                         size_t missing_length) override {
-    HTTP2_VLOG(1) << "OnPaddingTooLong: " << header
-                  << "; missing_length: " << missing_length;
+    QUICHE_VLOG(1) << "OnPaddingTooLong: " << header
+                   << "; missing_length: " << missing_length;
     FrameError(header)->OnPaddingTooLong(header, missing_length);
   }
 
   void OnFrameSizeError(const Http2FrameHeader& header) override {
-    HTTP2_VLOG(1) << "OnFrameSizeError: " << header;
+    QUICHE_VLOG(1) << "OnFrameSizeError: " << header;
     FrameError(header)->OnFrameSizeError(header);
   }
 };
@@ -101,8 +101,8 @@ INSTANTIATE_TEST_SUITE_P(VariousPadLengths, HeadersPayloadDecoderTest,
 // PRIORITY flag set.
 TEST_P(HeadersPayloadDecoderTest, VariousHpackPayloadSizes) {
   for (size_t hpack_size : {0, 1, 2, 3, 255, 256, 1024}) {
-    HTTP2_LOG(INFO) << "###########   hpack_size = " << hpack_size
-                    << "  ###########";
+    QUICHE_LOG(INFO) << "###########   hpack_size = " << hpack_size
+                     << "  ###########";
     Http2PriorityFields priority(RandStreamId(), 1 + Random().Rand8(),
                                  Random().OneIn(2));
 

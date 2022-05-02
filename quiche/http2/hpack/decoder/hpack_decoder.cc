@@ -7,7 +7,7 @@
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/platform/api/http2_flag_utils.h"
 #include "quiche/http2/platform/api/http2_flags.h"
-#include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 
@@ -29,8 +29,8 @@ void HpackDecoder::ApplyHeaderTableSizeSetting(uint32_t max_header_table_size) {
 }
 
 bool HpackDecoder::StartDecodingBlock() {
-  HTTP2_DVLOG(3) << "HpackDecoder::StartDecodingBlock, error_detected="
-                 << (DetectError() ? "true" : "false");
+  QUICHE_DVLOG(3) << "HpackDecoder::StartDecodingBlock, error_detected="
+                  << (DetectError() ? "true" : "false");
   if (DetectError()) {
     return false;
   }
@@ -43,9 +43,9 @@ bool HpackDecoder::StartDecodingBlock() {
 }
 
 bool HpackDecoder::DecodeFragment(DecodeBuffer* db) {
-  HTTP2_DVLOG(3) << "HpackDecoder::DecodeFragment, error_detected="
-                 << (DetectError() ? "true" : "false")
-                 << ", size=" << db->Remaining();
+  QUICHE_DVLOG(3) << "HpackDecoder::DecodeFragment, error_detected="
+                  << (DetectError() ? "true" : "false")
+                  << ", size=" << db->Remaining();
   if (DetectError()) {
     HTTP2_CODE_COUNT_N(decompress_failure_3, 3, 23);
     return false;
@@ -73,8 +73,8 @@ bool HpackDecoder::DecodeFragment(DecodeBuffer* db) {
 }
 
 bool HpackDecoder::EndDecodingBlock() {
-  HTTP2_DVLOG(3) << "HpackDecoder::EndDecodingBlock, error_detected="
-                 << (DetectError() ? "true" : "false");
+  QUICHE_DVLOG(3) << "HpackDecoder::EndDecodingBlock, error_detected="
+                  << (DetectError() ? "true" : "false");
   if (DetectError()) {
     HTTP2_CODE_COUNT_N(decompress_failure_3, 6, 23);
     return false;
@@ -100,7 +100,7 @@ bool HpackDecoder::DetectError() {
   }
 
   if (decoder_state_.error() != HpackDecodingError::kOk) {
-    HTTP2_DVLOG(2) << "Error detected in decoder_state_";
+    QUICHE_DVLOG(2) << "Error detected in decoder_state_";
     HTTP2_CODE_COUNT_N(decompress_failure_3, 10, 23);
     error_ = decoder_state_.error();
     detailed_error_ = decoder_state_.detailed_error();
@@ -111,9 +111,9 @@ bool HpackDecoder::DetectError() {
 
 void HpackDecoder::ReportError(HpackDecodingError error,
                                std::string detailed_error) {
-  HTTP2_DVLOG(3) << "HpackDecoder::ReportError is new="
-                 << (error_ == HpackDecodingError::kOk ? "true" : "false")
-                 << ", error: " << HpackDecodingErrorToString(error);
+  QUICHE_DVLOG(3) << "HpackDecoder::ReportError is new="
+                  << (error_ == HpackDecodingError::kOk ? "true" : "false")
+                  << ", error: " << HpackDecodingErrorToString(error);
   if (error_ == HpackDecodingError::kOk) {
     error_ = error;
     detailed_error_ = detailed_error;

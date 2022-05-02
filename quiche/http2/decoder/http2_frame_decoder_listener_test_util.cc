@@ -7,7 +7,7 @@
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
-#include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -209,7 +209,7 @@ LoggingHttp2FrameDecoderListener::~LoggingHttp2FrameDecoderListener() = default;
 
 bool LoggingHttp2FrameDecoderListener::OnFrameHeader(
     const Http2FrameHeader& header) {
-  HTTP2_VLOG(1) << "OnFrameHeader: " << header;
+  QUICHE_VLOG(1) << "OnFrameHeader: " << header;
   if (wrapped_ != nullptr) {
     return wrapped_->OnFrameHeader(header);
   }
@@ -218,7 +218,7 @@ bool LoggingHttp2FrameDecoderListener::OnFrameHeader(
 
 void LoggingHttp2FrameDecoderListener::OnDataStart(
     const Http2FrameHeader& header) {
-  HTTP2_VLOG(1) << "OnDataStart: " << header;
+  QUICHE_VLOG(1) << "OnDataStart: " << header;
   if (wrapped_ != nullptr) {
     wrapped_->OnDataStart(header);
   }
@@ -226,14 +226,14 @@ void LoggingHttp2FrameDecoderListener::OnDataStart(
 
 void LoggingHttp2FrameDecoderListener::OnDataPayload(const char* data,
                                                      size_t len) {
-  HTTP2_VLOG(1) << "OnDataPayload: len=" << len;
+  QUICHE_VLOG(1) << "OnDataPayload: len=" << len;
   if (wrapped_ != nullptr) {
     wrapped_->OnDataPayload(data, len);
   }
 }
 
 void LoggingHttp2FrameDecoderListener::OnDataEnd() {
-  HTTP2_VLOG(1) << "OnDataEnd";
+  QUICHE_VLOG(1) << "OnDataEnd";
   if (wrapped_ != nullptr) {
     wrapped_->OnDataEnd();
   }
@@ -241,7 +241,7 @@ void LoggingHttp2FrameDecoderListener::OnDataEnd() {
 
 void LoggingHttp2FrameDecoderListener::OnHeadersStart(
     const Http2FrameHeader& header) {
-  HTTP2_VLOG(1) << "OnHeadersStart: " << header;
+  QUICHE_VLOG(1) << "OnHeadersStart: " << header;
   if (wrapped_ != nullptr) {
     wrapped_->OnHeadersStart(header);
   }
@@ -249,7 +249,7 @@ void LoggingHttp2FrameDecoderListener::OnHeadersStart(
 
 void LoggingHttp2FrameDecoderListener::OnHeadersPriority(
     const Http2PriorityFields& priority) {
-  HTTP2_VLOG(1) << "OnHeadersPriority: " << priority;
+  QUICHE_VLOG(1) << "OnHeadersPriority: " << priority;
   if (wrapped_ != nullptr) {
     wrapped_->OnHeadersPriority(priority);
   }
@@ -257,14 +257,14 @@ void LoggingHttp2FrameDecoderListener::OnHeadersPriority(
 
 void LoggingHttp2FrameDecoderListener::OnHpackFragment(const char* data,
                                                        size_t len) {
-  HTTP2_VLOG(1) << "OnHpackFragment: len=" << len;
+  QUICHE_VLOG(1) << "OnHpackFragment: len=" << len;
   if (wrapped_ != nullptr) {
     wrapped_->OnHpackFragment(data, len);
   }
 }
 
 void LoggingHttp2FrameDecoderListener::OnHeadersEnd() {
-  HTTP2_VLOG(1) << "OnHeadersEnd";
+  QUICHE_VLOG(1) << "OnHeadersEnd";
   if (wrapped_ != nullptr) {
     wrapped_->OnHeadersEnd();
   }
@@ -272,7 +272,7 @@ void LoggingHttp2FrameDecoderListener::OnHeadersEnd() {
 
 void LoggingHttp2FrameDecoderListener::OnPriorityFrame(
     const Http2FrameHeader& header, const Http2PriorityFields& priority) {
-  HTTP2_VLOG(1) << "OnPriorityFrame: " << header << "; priority: " << priority;
+  QUICHE_VLOG(1) << "OnPriorityFrame: " << header << "; priority: " << priority;
   if (wrapped_ != nullptr) {
     wrapped_->OnPriorityFrame(header, priority);
   }
@@ -280,21 +280,21 @@ void LoggingHttp2FrameDecoderListener::OnPriorityFrame(
 
 void LoggingHttp2FrameDecoderListener::OnContinuationStart(
     const Http2FrameHeader& header) {
-  HTTP2_VLOG(1) << "OnContinuationStart: " << header;
+  QUICHE_VLOG(1) << "OnContinuationStart: " << header;
   if (wrapped_ != nullptr) {
     wrapped_->OnContinuationStart(header);
   }
 }
 
 void LoggingHttp2FrameDecoderListener::OnContinuationEnd() {
-  HTTP2_VLOG(1) << "OnContinuationEnd";
+  QUICHE_VLOG(1) << "OnContinuationEnd";
   if (wrapped_ != nullptr) {
     wrapped_->OnContinuationEnd();
   }
 }
 
 void LoggingHttp2FrameDecoderListener::OnPadLength(size_t trailing_length) {
-  HTTP2_VLOG(1) << "OnPadLength: trailing_length=" << trailing_length;
+  QUICHE_VLOG(1) << "OnPadLength: trailing_length=" << trailing_length;
   if (wrapped_ != nullptr) {
     wrapped_->OnPadLength(trailing_length);
   }
@@ -302,7 +302,7 @@ void LoggingHttp2FrameDecoderListener::OnPadLength(size_t trailing_length) {
 
 void LoggingHttp2FrameDecoderListener::OnPadding(const char* padding,
                                                  size_t skipped_length) {
-  HTTP2_VLOG(1) << "OnPadding: skipped_length=" << skipped_length;
+  QUICHE_VLOG(1) << "OnPadding: skipped_length=" << skipped_length;
   if (wrapped_ != nullptr) {
     wrapped_->OnPadding(padding, skipped_length);
   }
@@ -310,7 +310,7 @@ void LoggingHttp2FrameDecoderListener::OnPadding(const char* padding,
 
 void LoggingHttp2FrameDecoderListener::OnRstStream(
     const Http2FrameHeader& header, Http2ErrorCode error_code) {
-  HTTP2_VLOG(1) << "OnRstStream: " << header << "; code=" << error_code;
+  QUICHE_VLOG(1) << "OnRstStream: " << header << "; code=" << error_code;
   if (wrapped_ != nullptr) {
     wrapped_->OnRstStream(header, error_code);
   }
@@ -318,7 +318,7 @@ void LoggingHttp2FrameDecoderListener::OnRstStream(
 
 void LoggingHttp2FrameDecoderListener::OnSettingsStart(
     const Http2FrameHeader& header) {
-  HTTP2_VLOG(1) << "OnSettingsStart: " << header;
+  QUICHE_VLOG(1) << "OnSettingsStart: " << header;
   if (wrapped_ != nullptr) {
     wrapped_->OnSettingsStart(header);
   }
@@ -326,14 +326,14 @@ void LoggingHttp2FrameDecoderListener::OnSettingsStart(
 
 void LoggingHttp2FrameDecoderListener::OnSetting(
     const Http2SettingFields& setting_fields) {
-  HTTP2_VLOG(1) << "OnSetting: " << setting_fields;
+  QUICHE_VLOG(1) << "OnSetting: " << setting_fields;
   if (wrapped_ != nullptr) {
     wrapped_->OnSetting(setting_fields);
   }
 }
 
 void LoggingHttp2FrameDecoderListener::OnSettingsEnd() {
-  HTTP2_VLOG(1) << "OnSettingsEnd";
+  QUICHE_VLOG(1) << "OnSettingsEnd";
   if (wrapped_ != nullptr) {
     wrapped_->OnSettingsEnd();
   }
@@ -341,7 +341,7 @@ void LoggingHttp2FrameDecoderListener::OnSettingsEnd() {
 
 void LoggingHttp2FrameDecoderListener::OnSettingsAck(
     const Http2FrameHeader& header) {
-  HTTP2_VLOG(1) << "OnSettingsAck: " << header;
+  QUICHE_VLOG(1) << "OnSettingsAck: " << header;
   if (wrapped_ != nullptr) {
     wrapped_->OnSettingsAck(header);
   }
@@ -350,15 +350,15 @@ void LoggingHttp2FrameDecoderListener::OnSettingsAck(
 void LoggingHttp2FrameDecoderListener::OnPushPromiseStart(
     const Http2FrameHeader& header, const Http2PushPromiseFields& promise,
     size_t total_padding_length) {
-  HTTP2_VLOG(1) << "OnPushPromiseStart: " << header << "; promise: " << promise
-                << "; total_padding_length: " << total_padding_length;
+  QUICHE_VLOG(1) << "OnPushPromiseStart: " << header << "; promise: " << promise
+                 << "; total_padding_length: " << total_padding_length;
   if (wrapped_ != nullptr) {
     wrapped_->OnPushPromiseStart(header, promise, total_padding_length);
   }
 }
 
 void LoggingHttp2FrameDecoderListener::OnPushPromiseEnd() {
-  HTTP2_VLOG(1) << "OnPushPromiseEnd";
+  QUICHE_VLOG(1) << "OnPushPromiseEnd";
   if (wrapped_ != nullptr) {
     wrapped_->OnPushPromiseEnd();
   }
@@ -366,7 +366,7 @@ void LoggingHttp2FrameDecoderListener::OnPushPromiseEnd() {
 
 void LoggingHttp2FrameDecoderListener::OnPing(const Http2FrameHeader& header,
                                               const Http2PingFields& ping) {
-  HTTP2_VLOG(1) << "OnPing: " << header << "; ping: " << ping;
+  QUICHE_VLOG(1) << "OnPing: " << header << "; ping: " << ping;
   if (wrapped_ != nullptr) {
     wrapped_->OnPing(header, ping);
   }
@@ -374,7 +374,7 @@ void LoggingHttp2FrameDecoderListener::OnPing(const Http2FrameHeader& header,
 
 void LoggingHttp2FrameDecoderListener::OnPingAck(const Http2FrameHeader& header,
                                                  const Http2PingFields& ping) {
-  HTTP2_VLOG(1) << "OnPingAck: " << header << "; ping: " << ping;
+  QUICHE_VLOG(1) << "OnPingAck: " << header << "; ping: " << ping;
   if (wrapped_ != nullptr) {
     wrapped_->OnPingAck(header, ping);
   }
@@ -382,7 +382,7 @@ void LoggingHttp2FrameDecoderListener::OnPingAck(const Http2FrameHeader& header,
 
 void LoggingHttp2FrameDecoderListener::OnGoAwayStart(
     const Http2FrameHeader& header, const Http2GoAwayFields& goaway) {
-  HTTP2_VLOG(1) << "OnGoAwayStart: " << header << "; goaway: " << goaway;
+  QUICHE_VLOG(1) << "OnGoAwayStart: " << header << "; goaway: " << goaway;
   if (wrapped_ != nullptr) {
     wrapped_->OnGoAwayStart(header, goaway);
   }
@@ -390,14 +390,14 @@ void LoggingHttp2FrameDecoderListener::OnGoAwayStart(
 
 void LoggingHttp2FrameDecoderListener::OnGoAwayOpaqueData(const char* data,
                                                           size_t len) {
-  HTTP2_VLOG(1) << "OnGoAwayOpaqueData: len=" << len;
+  QUICHE_VLOG(1) << "OnGoAwayOpaqueData: len=" << len;
   if (wrapped_ != nullptr) {
     wrapped_->OnGoAwayOpaqueData(data, len);
   }
 }
 
 void LoggingHttp2FrameDecoderListener::OnGoAwayEnd() {
-  HTTP2_VLOG(1) << "OnGoAwayEnd";
+  QUICHE_VLOG(1) << "OnGoAwayEnd";
   if (wrapped_ != nullptr) {
     wrapped_->OnGoAwayEnd();
   }
@@ -405,7 +405,7 @@ void LoggingHttp2FrameDecoderListener::OnGoAwayEnd() {
 
 void LoggingHttp2FrameDecoderListener::OnWindowUpdate(
     const Http2FrameHeader& header, uint32_t increment) {
-  HTTP2_VLOG(1) << "OnWindowUpdate: " << header << "; increment=" << increment;
+  QUICHE_VLOG(1) << "OnWindowUpdate: " << header << "; increment=" << increment;
   if (wrapped_ != nullptr) {
     wrapped_->OnWindowUpdate(header, increment);
   }
@@ -413,9 +413,9 @@ void LoggingHttp2FrameDecoderListener::OnWindowUpdate(
 
 void LoggingHttp2FrameDecoderListener::OnAltSvcStart(
     const Http2FrameHeader& header, size_t origin_length, size_t value_length) {
-  HTTP2_VLOG(1) << "OnAltSvcStart: " << header
-                << "; origin_length: " << origin_length
-                << "; value_length: " << value_length;
+  QUICHE_VLOG(1) << "OnAltSvcStart: " << header
+                 << "; origin_length: " << origin_length
+                 << "; value_length: " << value_length;
   if (wrapped_ != nullptr) {
     wrapped_->OnAltSvcStart(header, origin_length, value_length);
   }
@@ -423,7 +423,7 @@ void LoggingHttp2FrameDecoderListener::OnAltSvcStart(
 
 void LoggingHttp2FrameDecoderListener::OnAltSvcOriginData(const char* data,
                                                           size_t len) {
-  HTTP2_VLOG(1) << "OnAltSvcOriginData: len=" << len;
+  QUICHE_VLOG(1) << "OnAltSvcOriginData: len=" << len;
   if (wrapped_ != nullptr) {
     wrapped_->OnAltSvcOriginData(data, len);
   }
@@ -431,14 +431,14 @@ void LoggingHttp2FrameDecoderListener::OnAltSvcOriginData(const char* data,
 
 void LoggingHttp2FrameDecoderListener::OnAltSvcValueData(const char* data,
                                                          size_t len) {
-  HTTP2_VLOG(1) << "OnAltSvcValueData: len=" << len;
+  QUICHE_VLOG(1) << "OnAltSvcValueData: len=" << len;
   if (wrapped_ != nullptr) {
     wrapped_->OnAltSvcValueData(data, len);
   }
 }
 
 void LoggingHttp2FrameDecoderListener::OnAltSvcEnd() {
-  HTTP2_VLOG(1) << "OnAltSvcEnd";
+  QUICHE_VLOG(1) << "OnAltSvcEnd";
   if (wrapped_ != nullptr) {
     wrapped_->OnAltSvcEnd();
   }
@@ -447,7 +447,7 @@ void LoggingHttp2FrameDecoderListener::OnAltSvcEnd() {
 void LoggingHttp2FrameDecoderListener::OnPriorityUpdateStart(
     const Http2FrameHeader& header,
     const Http2PriorityUpdateFields& priority_update) {
-  HTTP2_VLOG(1) << "OnPriorityUpdateStart";
+  QUICHE_VLOG(1) << "OnPriorityUpdateStart";
   if (wrapped_ != nullptr) {
     wrapped_->OnPriorityUpdateStart(header, priority_update);
   }
@@ -455,14 +455,14 @@ void LoggingHttp2FrameDecoderListener::OnPriorityUpdateStart(
 
 void LoggingHttp2FrameDecoderListener::OnPriorityUpdatePayload(const char* data,
                                                                size_t len) {
-  HTTP2_VLOG(1) << "OnPriorityUpdatePayload";
+  QUICHE_VLOG(1) << "OnPriorityUpdatePayload";
   if (wrapped_ != nullptr) {
     wrapped_->OnPriorityUpdatePayload(data, len);
   }
 }
 
 void LoggingHttp2FrameDecoderListener::OnPriorityUpdateEnd() {
-  HTTP2_VLOG(1) << "OnPriorityUpdateEnd";
+  QUICHE_VLOG(1) << "OnPriorityUpdateEnd";
   if (wrapped_ != nullptr) {
     wrapped_->OnPriorityUpdateEnd();
   }
@@ -470,7 +470,7 @@ void LoggingHttp2FrameDecoderListener::OnPriorityUpdateEnd() {
 
 void LoggingHttp2FrameDecoderListener::OnUnknownStart(
     const Http2FrameHeader& header) {
-  HTTP2_VLOG(1) << "OnUnknownStart: " << header;
+  QUICHE_VLOG(1) << "OnUnknownStart: " << header;
   if (wrapped_ != nullptr) {
     wrapped_->OnUnknownStart(header);
   }
@@ -478,14 +478,14 @@ void LoggingHttp2FrameDecoderListener::OnUnknownStart(
 
 void LoggingHttp2FrameDecoderListener::OnUnknownPayload(const char* data,
                                                         size_t len) {
-  HTTP2_VLOG(1) << "OnUnknownPayload: len=" << len;
+  QUICHE_VLOG(1) << "OnUnknownPayload: len=" << len;
   if (wrapped_ != nullptr) {
     wrapped_->OnUnknownPayload(data, len);
   }
 }
 
 void LoggingHttp2FrameDecoderListener::OnUnknownEnd() {
-  HTTP2_VLOG(1) << "OnUnknownEnd";
+  QUICHE_VLOG(1) << "OnUnknownEnd";
   if (wrapped_ != nullptr) {
     wrapped_->OnUnknownEnd();
   }
@@ -493,8 +493,8 @@ void LoggingHttp2FrameDecoderListener::OnUnknownEnd() {
 
 void LoggingHttp2FrameDecoderListener::OnPaddingTooLong(
     const Http2FrameHeader& header, size_t missing_length) {
-  HTTP2_VLOG(1) << "OnPaddingTooLong: " << header
-                << "; missing_length: " << missing_length;
+  QUICHE_VLOG(1) << "OnPaddingTooLong: " << header
+                 << "; missing_length: " << missing_length;
   if (wrapped_ != nullptr) {
     wrapped_->OnPaddingTooLong(header, missing_length);
   }
@@ -502,7 +502,7 @@ void LoggingHttp2FrameDecoderListener::OnPaddingTooLong(
 
 void LoggingHttp2FrameDecoderListener::OnFrameSizeError(
     const Http2FrameHeader& header) {
-  HTTP2_VLOG(1) << "OnFrameSizeError: " << header;
+  QUICHE_VLOG(1) << "OnFrameSizeError: " << header;
   if (wrapped_ != nullptr) {
     wrapped_->OnFrameSizeError(header);
   }

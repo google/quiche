@@ -12,12 +12,12 @@
 #include "quiche/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures_test_util.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/test_tools/frame_parts_collector.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/tools/http2_frame_builder.h"
 #include "quiche/http2/tools/random_decoder_test.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -37,23 +37,23 @@ namespace {
 struct Listener : public FramePartsCollector {
   void OnGoAwayStart(const Http2FrameHeader& header,
                      const Http2GoAwayFields& goaway) override {
-    HTTP2_VLOG(1) << "OnGoAwayStart header: " << header
-                  << "; goaway: " << goaway;
+    QUICHE_VLOG(1) << "OnGoAwayStart header: " << header
+                   << "; goaway: " << goaway;
     StartFrame(header)->OnGoAwayStart(header, goaway);
   }
 
   void OnGoAwayOpaqueData(const char* data, size_t len) override {
-    HTTP2_VLOG(1) << "OnGoAwayOpaqueData: len=" << len;
+    QUICHE_VLOG(1) << "OnGoAwayOpaqueData: len=" << len;
     CurrentFrame()->OnGoAwayOpaqueData(data, len);
   }
 
   void OnGoAwayEnd() override {
-    HTTP2_VLOG(1) << "OnGoAwayEnd";
+    QUICHE_VLOG(1) << "OnGoAwayEnd";
     EndFrame()->OnGoAwayEnd();
   }
 
   void OnFrameSizeError(const Http2FrameHeader& header) override {
-    HTTP2_VLOG(1) << "OnFrameSizeError: " << header;
+    QUICHE_VLOG(1) << "OnFrameSizeError: " << header;
     FrameError(header)->OnFrameSizeError(header);
   }
 };
@@ -78,8 +78,8 @@ class GoAwayOpaqueDataLengthTests
       public ::testing::WithParamInterface<uint32_t> {
  protected:
   GoAwayOpaqueDataLengthTests() : length_(GetParam()) {
-    HTTP2_VLOG(1) << "################  length_=" << length_
-                  << "  ################";
+    QUICHE_VLOG(1) << "################  length_=" << length_
+                   << "  ################";
   }
 
   const uint32_t length_;

@@ -155,9 +155,9 @@ class Http2FrameHeaderTypeAndFlagTest
  protected:
   Http2FrameHeaderTypeAndFlagTest()
       : type_(std::get<0>(GetParam())), flags_(std::get<1>(GetParam())) {
-    HTTP2_LOG(INFO) << "Frame type: " << type_;
-    HTTP2_LOG(INFO) << "Frame flags: "
-                    << Http2FrameFlagsToString(type_, flags_);
+    QUICHE_LOG(INFO) << "Frame type: " << type_;
+    QUICHE_LOG(INFO) << "Frame flags: "
+                     << Http2FrameFlagsToString(type_, flags_);
   }
 
   const Http2FrameType type_;

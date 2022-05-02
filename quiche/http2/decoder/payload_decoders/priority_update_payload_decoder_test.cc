@@ -12,12 +12,12 @@
 #include "quiche/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures_test_util.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/test_tools/frame_parts_collector.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/tools/http2_frame_builder.h"
 #include "quiche/http2/tools/random_decoder_test.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -40,23 +40,23 @@ struct Listener : public FramePartsCollector {
   void OnPriorityUpdateStart(
       const Http2FrameHeader& header,
       const Http2PriorityUpdateFields& priority_update) override {
-    HTTP2_VLOG(1) << "OnPriorityUpdateStart header: " << header
-                  << "; priority_update: " << priority_update;
+    QUICHE_VLOG(1) << "OnPriorityUpdateStart header: " << header
+                   << "; priority_update: " << priority_update;
     StartFrame(header)->OnPriorityUpdateStart(header, priority_update);
   }
 
   void OnPriorityUpdatePayload(const char* data, size_t len) override {
-    HTTP2_VLOG(1) << "OnPriorityUpdatePayload: len=" << len;
+    QUICHE_VLOG(1) << "OnPriorityUpdatePayload: len=" << len;
     CurrentFrame()->OnPriorityUpdatePayload(data, len);
   }
 
   void OnPriorityUpdateEnd() override {
-    HTTP2_VLOG(1) << "OnPriorityUpdateEnd";
+    QUICHE_VLOG(1) << "OnPriorityUpdateEnd";
     EndFrame()->OnPriorityUpdateEnd();
   }
 
   void OnFrameSizeError(const Http2FrameHeader& header) override {
-    HTTP2_VLOG(1) << "OnFrameSizeError: " << header;
+    QUICHE_VLOG(1) << "OnFrameSizeError: " << header;
     FrameError(header)->OnFrameSizeError(header);
   }
 };
@@ -84,8 +84,8 @@ class PriorityUpdatePayloadLengthTests
       public ::testing::WithParamInterface<uint32_t> {
  protected:
   PriorityUpdatePayloadLengthTests() : length_(GetParam()) {
-    HTTP2_VLOG(1) << "################  length_=" << length_
-                  << "  ################";
+    QUICHE_VLOG(1) << "################  length_=" << length_
+                   << "  ################";
   }
 
   const uint32_t length_;

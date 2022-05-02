@@ -13,12 +13,12 @@
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_constants_test_util.h"
 #include "quiche/http2/http2_structures_test_util.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/test_tools/frame_parts_collector.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/tools/http2_frame_builder.h"
 #include "quiche/http2/tools/random_decoder_test.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -41,29 +41,29 @@ namespace {
 
 struct Listener : public FramePartsCollector {
   void OnSettingsStart(const Http2FrameHeader& header) override {
-    HTTP2_VLOG(1) << "OnSettingsStart: " << header;
+    QUICHE_VLOG(1) << "OnSettingsStart: " << header;
     EXPECT_EQ(Http2FrameType::SETTINGS, header.type) << header;
     EXPECT_EQ(Http2FrameFlag(), header.flags) << header;
     StartFrame(header)->OnSettingsStart(header);
   }
 
   void OnSetting(const Http2SettingFields& setting_fields) override {
-    HTTP2_VLOG(1) << "Http2SettingFields: setting_fields=" << setting_fields;
+    QUICHE_VLOG(1) << "Http2SettingFields: setting_fields=" << setting_fields;
     CurrentFrame()->OnSetting(setting_fields);
   }
 
   void OnSettingsEnd() override {
-    HTTP2_VLOG(1) << "OnSettingsEnd";
+    QUICHE_VLOG(1) << "OnSettingsEnd";
     EndFrame()->OnSettingsEnd();
   }
 
   void OnSettingsAck(const Http2FrameHeader& header) override {
-    HTTP2_VLOG(1) << "OnSettingsAck: " << header;
+    QUICHE_VLOG(1) << "OnSettingsAck: " << header;
     StartAndEndFrame(header)->OnSettingsAck(header);
   }
 
   void OnFrameSizeError(const Http2FrameHeader& header) override {
-    HTTP2_VLOG(1) << "OnFrameSizeError: " << header;
+    QUICHE_VLOG(1) << "OnFrameSizeError: " << header;
     FrameError(header)->OnFrameSizeError(header);
   }
 };

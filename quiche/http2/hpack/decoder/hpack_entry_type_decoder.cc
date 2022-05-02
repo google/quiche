@@ -7,8 +7,8 @@
 #include "absl/strings/str_cat.h"
 #include "quiche/http2/platform/api/http2_flag_utils.h"
 #include "quiche/http2/platform/api/http2_flags.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 

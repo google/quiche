@@ -6,7 +6,7 @@
 
 // Tests of HpackEntryCollector.
 
-#include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 using ::testing::HasSubstr;
@@ -17,27 +17,27 @@ namespace {
 
 TEST(HpackEntryCollectorTest, Clear) {
   HpackEntryCollector collector;
-  HTTP2_VLOG(1) << collector;
+  QUICHE_VLOG(1) << collector;
   EXPECT_THAT(collector.ToString(), HasSubstr("!started"));
   EXPECT_TRUE(collector.IsClear());
   collector.set_header_type(HpackEntryType::kIndexedLiteralHeader);
   EXPECT_FALSE(collector.IsClear());
-  HTTP2_VLOG(1) << collector;
+  QUICHE_VLOG(1) << collector;
   collector.Clear();
   EXPECT_TRUE(collector.IsClear());
   collector.set_index(123);
   EXPECT_FALSE(collector.IsClear());
-  HTTP2_VLOG(1) << collector;
+  QUICHE_VLOG(1) << collector;
   collector.Clear();
   EXPECT_TRUE(collector.IsClear());
   collector.set_name(HpackStringCollector("name", true));
   EXPECT_FALSE(collector.IsClear());
-  HTTP2_VLOG(1) << collector;
+  QUICHE_VLOG(1) << collector;
   collector.Clear();
   EXPECT_TRUE(collector.IsClear());
   collector.set_value(HpackStringCollector("value", false));
   EXPECT_FALSE(collector.IsClear());
-  HTTP2_VLOG(1) << collector;
+  QUICHE_VLOG(1) << collector;
 }
 
 // EXPECT_FATAL_FAILURE can not access variables in the scope of a test body,
@@ -54,7 +54,7 @@ void IndexedHeaderErrorTest() {
 TEST(HpackEntryCollectorTest, IndexedHeader) {
   HpackEntryCollector collector;
   collector.OnIndexedHeader(123);
-  HTTP2_VLOG(1) << collector;
+  QUICHE_VLOG(1) << collector;
   EXPECT_FALSE(collector.IsClear());
   EXPECT_TRUE(collector.IsComplete());
   EXPECT_TRUE(collector.ValidateIndexedHeader(123));
@@ -73,15 +73,15 @@ void LiteralValueErrorTest() {
 TEST(HpackEntryCollectorTest, LiteralValueHeader) {
   HpackEntryCollector collector;
   collector.OnStartLiteralHeader(HpackEntryType::kIndexedLiteralHeader, 4);
-  HTTP2_VLOG(1) << collector;
+  QUICHE_VLOG(1) << collector;
   EXPECT_FALSE(collector.IsClear());
   EXPECT_FALSE(collector.IsComplete());
   EXPECT_THAT(collector.ToString(), HasSubstr("!ended"));
   collector.OnValueStart(true, 5);
-  HTTP2_VLOG(1) << collector;
+  QUICHE_VLOG(1) << collector;
   collector.OnValueData("value", 5);
   collector.OnValueEnd();
-  HTTP2_VLOG(1) << collector;
+  QUICHE_VLOG(1) << collector;
   EXPECT_FALSE(collector.IsClear());
   EXPECT_TRUE(collector.IsComplete());
   EXPECT_TRUE(collector.ValidateLiteralValueHeader(
@@ -102,19 +102,19 @@ void LiteralNameValueHeaderErrorTest() {
 TEST(HpackEntryCollectorTest, LiteralNameValueHeader) {
   HpackEntryCollector collector;
   collector.OnStartLiteralHeader(HpackEntryType::kUnindexedLiteralHeader, 0);
-  HTTP2_VLOG(1) << collector;
+  QUICHE_VLOG(1) << collector;
   EXPECT_FALSE(collector.IsClear());
   EXPECT_FALSE(collector.IsComplete());
   collector.OnNameStart(false, 4);
   collector.OnNameData("na", 2);
-  HTTP2_VLOG(1) << collector;
+  QUICHE_VLOG(1) << collector;
   collector.OnNameData("me", 2);
   collector.OnNameEnd();
   collector.OnValueStart(true, 5);
-  HTTP2_VLOG(1) << collector;
+  QUICHE_VLOG(1) << collector;
   collector.OnValueData("Value", 5);
   collector.OnValueEnd();
-  HTTP2_VLOG(1) << collector;
+  QUICHE_VLOG(1) << collector;
   EXPECT_FALSE(collector.IsClear());
   EXPECT_TRUE(collector.IsComplete());
   EXPECT_TRUE(collector.ValidateLiteralNameValueHeader(
@@ -137,7 +137,7 @@ void DynamicTableSizeUpdateErrorTest() {
 TEST(HpackEntryCollectorTest, DynamicTableSizeUpdate) {
   HpackEntryCollector collector;
   collector.OnDynamicTableSizeUpdate(8192);
-  HTTP2_VLOG(1) << collector;
+  QUICHE_VLOG(1) << collector;
   EXPECT_FALSE(collector.IsClear());
   EXPECT_TRUE(collector.IsComplete());
   EXPECT_TRUE(collector.ValidateDynamicTableSizeUpdate(8192));

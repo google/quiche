@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <memory>
 
-#include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionResult;
@@ -53,7 +53,7 @@ void HpackBlockCollector::OnValueEnd() {
 
 void HpackBlockCollector::PushPendingEntry() {
   EXPECT_TRUE(pending_entry_.IsComplete());
-  HTTP2_DVLOG(2) << "PushPendingEntry: " << pending_entry_;
+  QUICHE_DVLOG(2) << "PushPendingEntry: " << pending_entry_;
   entries_.push_back(pending_entry_);
   EXPECT_TRUE(entries_.back().IsComplete());
   pending_entry_.Clear();

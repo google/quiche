@@ -9,7 +9,7 @@
 #include <initializer_list>
 
 #include "absl/strings/escaping.h"
-#include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/platform/api/quiche_test_helpers.h"
 
@@ -29,10 +29,10 @@ class HpackDecoderStringBufferTest : public QuicheTest {
   State state() const { return buf_.state_for_testing(); }
   Backing backing() const { return buf_.backing_for_testing(); }
 
-  // We want to know that HTTP2_LOG(x) << buf_ will work in production should
+  // We want to know that QUICHE_LOG(x) << buf_ will work in production should
   // that be needed, so we test that it outputs the expected values.
   AssertionResult VerifyLogHasSubstrs(std::initializer_list<std::string> strs) {
-    HTTP2_VLOG(1) << buf_;
+    QUICHE_VLOG(1) << buf_;
     std::ostringstream ss;
     buf_.OutputDebugStringTo(ss);
     std::string dbg_str(ss.str());
@@ -52,7 +52,7 @@ TEST_F(HpackDecoderStringBufferTest, SetStatic) {
   EXPECT_TRUE(VerifyLogHasSubstrs({"state=RESET"}));
 
   buf_.Set(data, /*is_static*/ true);
-  HTTP2_LOG(INFO) << buf_;
+  QUICHE_LOG(INFO) << buf_;
   EXPECT_EQ(state(), State::COMPLETE);
   EXPECT_EQ(backing(), Backing::STATIC);
   EXPECT_EQ(data, buf_.str());
@@ -73,13 +73,13 @@ TEST_F(HpackDecoderStringBufferTest, SetStatic) {
 TEST_F(HpackDecoderStringBufferTest, PlainWhole) {
   absl::string_view data("some text.");
 
-  HTTP2_LOG(INFO) << buf_;
+  QUICHE_LOG(INFO) << buf_;
   EXPECT_EQ(state(), State::RESET);
 
   buf_.OnStart(/*huffman_encoded*/ false, data.size());
   EXPECT_EQ(state(), State::COLLECTING);
   EXPECT_EQ(backing(), Backing::RESET);
-  HTTP2_LOG(INFO) << buf_;
+  QUICHE_LOG(INFO) << buf_;
 
   EXPECT_TRUE(buf_.OnData(data.data(), data.size()));
   EXPECT_EQ(state(), State::COLLECTING);
@@ -99,7 +99,7 @@ TEST_F(HpackDecoderStringBufferTest, PlainWhole) {
   // Now force it to buffer the string, after which it will still have the same
   // string value, but the backing store will be different.
   buf_.BufferStringIfUnbuffered();
-  HTTP2_LOG(INFO) << buf_;
+  QUICHE_LOG(INFO) << buf_;
   EXPECT_EQ(backing(), Backing::BUFFERED);
   EXPECT_EQ(buf_.BufferedLength(), data.size());
   EXPECT_EQ(data, buf_.str());
@@ -124,7 +124,7 @@ TEST_F(HpackDecoderStringBufferTest, PlainSplit) {
   EXPECT_EQ(state(), State::COLLECTING);
   EXPECT_EQ(backing(), Backing::BUFFERED);
   EXPECT_EQ(buf_.BufferedLength(), part1.size());
-  HTTP2_LOG(INFO) << buf_;
+  QUICHE_LOG(INFO) << buf_;
 
   EXPECT_TRUE(buf_.OnData(part2.data(), part2.size()));
   EXPECT_EQ(state(), State::COLLECTING);
@@ -135,7 +135,7 @@ TEST_F(HpackDecoderStringBufferTest, PlainSplit) {
   EXPECT_EQ(state(), State::COMPLETE);
   EXPECT_EQ(backing(), Backing::BUFFERED);
   EXPECT_EQ(buf_.BufferedLength(), data.size());
-  HTTP2_LOG(INFO) << buf_;
+  QUICHE_LOG(INFO) << buf_;
 
   absl::string_view buffered = buf_.str();
   EXPECT_EQ(data, buffered);
@@ -186,31 +186,31 @@ TEST_F(HpackDecoderStringBufferTest, HuffmanSplit) {
   EXPECT_EQ(state(), State::COLLECTING);
   EXPECT_EQ(backing(), Backing::BUFFERED);
   EXPECT_EQ(0u, buf_.BufferedLength());
-  HTTP2_LOG(INFO) << buf_;
+  QUICHE_LOG(INFO) << buf_;
 
   EXPECT_TRUE(buf_.OnData(part1.data(), part1.size()));
   EXPECT_EQ(state(), State::COLLECTING);
   EXPECT_EQ(backing(), Backing::BUFFERED);
   EXPECT_GT(buf_.BufferedLength(), 0u);
   EXPECT_LT(buf_.BufferedLength(), decoded.size());
-  HTTP2_LOG(INFO) << buf_;
+  QUICHE_LOG(INFO) << buf_;
 
   EXPECT_TRUE(buf_.OnData(part2.data(), part2.size()));
   EXPECT_EQ(state(), State::COLLECTING);
   EXPECT_EQ(backing(), Backing::BUFFERED);
   EXPECT_EQ(buf_.BufferedLength(), decoded.size());
-  HTTP2_LOG(INFO) << buf_;
+  QUICHE_LOG(INFO) << buf_;
 
   EXPECT_TRUE(buf_.OnEnd());
   EXPECT_EQ(state(), State::COMPLETE);
   EXPECT_EQ(backing(), Backing::BUFFERED);
   EXPECT_EQ(buf_.BufferedLength(), decoded.size());
   EXPECT_EQ(decoded, buf_.str());
-  HTTP2_LOG(INFO) << buf_;
+  QUICHE_LOG(INFO) << buf_;
 
   buf_.Reset();
   EXPECT_EQ(state(), State::RESET);
-  HTTP2_LOG(INFO) << buf_;
+  QUICHE_LOG(INFO) << buf_;
 }
 
 TEST_F(HpackDecoderStringBufferTest, InvalidHuffmanOnData) {
@@ -224,7 +224,7 @@ TEST_F(HpackDecoderStringBufferTest, InvalidHuffmanOnData) {
   EXPECT_EQ(state(), State::COLLECTING);
   EXPECT_EQ(backing(), Backing::BUFFERED);
 
-  HTTP2_LOG(INFO) << buf_;
+  QUICHE_LOG(INFO) << buf_;
 }
 
 TEST_F(HpackDecoderStringBufferTest, InvalidHuffmanOnEnd) {
@@ -239,7 +239,7 @@ TEST_F(HpackDecoderStringBufferTest, InvalidHuffmanOnEnd) {
   EXPECT_EQ(backing(), Backing::BUFFERED);
 
   EXPECT_FALSE(buf_.OnEnd());
-  HTTP2_LOG(INFO) << buf_;
+  QUICHE_LOG(INFO) << buf_;
 }
 
 // TODO(jamessynge): Add tests for ReleaseString().

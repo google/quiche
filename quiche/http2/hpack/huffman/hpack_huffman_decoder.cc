@@ -7,7 +7,7 @@
 #include <bitset>
 #include <limits>
 
-#include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 // Terminology:
 //
@@ -411,13 +411,13 @@ HpackHuffmanDecoder::HpackHuffmanDecoder() = default;
 HpackHuffmanDecoder::~HpackHuffmanDecoder() = default;
 
 bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
-  HTTP2_DVLOG(1) << "HpackHuffmanDecoder::Decode";
+  QUICHE_DVLOG(1) << "HpackHuffmanDecoder::Decode";
 
   // Fill bit_buffer_ from input.
   input.remove_prefix(bit_buffer_.AppendBytes(input));
 
   while (true) {
-    HTTP2_DVLOG(3) << "Enter Decode Loop, bit_buffer_: " << bit_buffer_;
+    QUICHE_DVLOG(3) << "Enter Decode Loop, bit_buffer_: " << bit_buffer_;
     if (bit_buffer_.count() >= 7) {
       // Get high 7 bits of the bit buffer, see if that contains a complete
       // code of 5, 6 or 7 bits.
@@ -443,10 +443,10 @@ bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
     }
 
     HuffmanCode code_prefix = bit_buffer_.value() >> kExtraAccumulatorBitCount;
-    HTTP2_DVLOG(3) << "code_prefix: " << HuffmanCodeBitSet(code_prefix);
+    QUICHE_DVLOG(3) << "code_prefix: " << HuffmanCodeBitSet(code_prefix);
 
     PrefixInfo prefix_info = PrefixToInfo(code_prefix);
-    HTTP2_DVLOG(3) << "prefix_info: " << prefix_info;
+    QUICHE_DVLOG(3) << "prefix_info: " << prefix_info;
     QUICHE_DCHECK_LE(kMinCodeBitCount, prefix_info.code_length);
     QUICHE_DCHECK_LE(prefix_info.code_length, kMaxCodeBitCount);
 
@@ -461,8 +461,8 @@ bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
         continue;
       }
       // Encoder is not supposed to explicity encode the EOS symbol.
-      HTTP2_DLOG(ERROR) << "EOS explicitly encoded!\n " << bit_buffer_ << "\n "
-                        << prefix_info;
+      QUICHE_DLOG(ERROR) << "EOS explicitly encoded!\n " << bit_buffer_ << "\n "
+                         << prefix_info;
       return false;
     }
     // bit_buffer_ doesn't have enough bits in it to decode the next symbol.

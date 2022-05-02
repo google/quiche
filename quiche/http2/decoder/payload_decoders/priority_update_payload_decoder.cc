@@ -11,8 +11,8 @@
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 
@@ -38,8 +38,8 @@ std::ostream& operator<<(std::ostream& out,
 
 DecodeStatus PriorityUpdatePayloadDecoder::StartDecodingPayload(
     FrameDecoderState* state, DecodeBuffer* db) {
-  HTTP2_DVLOG(2) << "PriorityUpdatePayloadDecoder::StartDecodingPayload: "
-                 << state->frame_header();
+  QUICHE_DVLOG(2) << "PriorityUpdatePayloadDecoder::StartDecodingPayload: "
+                  << state->frame_header();
   QUICHE_DCHECK_EQ(Http2FrameType::PRIORITY_UPDATE, state->frame_header().type);
   QUICHE_DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
   QUICHE_DCHECK_EQ(0, state->frame_header().flags);
@@ -51,10 +51,10 @@ DecodeStatus PriorityUpdatePayloadDecoder::StartDecodingPayload(
 
 DecodeStatus PriorityUpdatePayloadDecoder::ResumeDecodingPayload(
     FrameDecoderState* state, DecodeBuffer* db) {
-  HTTP2_DVLOG(2) << "PriorityUpdatePayloadDecoder::ResumeDecodingPayload: "
-                    "remaining_payload="
-                 << state->remaining_payload()
-                 << ", db->Remaining=" << db->Remaining();
+  QUICHE_DVLOG(2) << "PriorityUpdatePayloadDecoder::ResumeDecodingPayload: "
+                     "remaining_payload="
+                  << state->remaining_payload()
+                  << ", db->Remaining=" << db->Remaining();
 
   const Http2FrameHeader& frame_header = state->frame_header();
   QUICHE_DCHECK_EQ(Http2FrameType::PRIORITY_UPDATE, frame_header.type);
@@ -67,7 +67,7 @@ DecodeStatus PriorityUpdatePayloadDecoder::ResumeDecodingPayload(
   DecodeStatus status = DecodeStatus::kDecodeError;
   size_t avail;
   while (true) {
-    HTTP2_DVLOG(2)
+    QUICHE_DVLOG(2)
         << "PriorityUpdatePayloadDecoder::ResumeDecodingPayload payload_state_="
         << payload_state_;
     switch (payload_state_) {

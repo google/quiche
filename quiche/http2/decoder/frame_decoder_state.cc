@@ -8,8 +8,8 @@ namespace http2 {
 
 DecodeStatus FrameDecoderState::ReadPadLength(DecodeBuffer* db,
                                               bool report_pad_length) {
-  HTTP2_DVLOG(2) << "ReadPadLength db->Remaining=" << db->Remaining()
-                 << "; payload_length=" << frame_header().payload_length;
+  QUICHE_DVLOG(2) << "ReadPadLength db->Remaining=" << db->Remaining()
+                  << "; payload_length=" << frame_header().payload_length;
   QUICHE_DCHECK(IsPaddable());
   QUICHE_DCHECK(frame_header().IsPadded());
 
@@ -51,9 +51,9 @@ DecodeStatus FrameDecoderState::ReadPadLength(DecodeBuffer* db,
 }
 
 bool FrameDecoderState::SkipPadding(DecodeBuffer* db) {
-  HTTP2_DVLOG(2) << "SkipPadding remaining_padding_=" << remaining_padding_
-                 << ", db->Remaining=" << db->Remaining()
-                 << ", header: " << frame_header();
+  QUICHE_DVLOG(2) << "SkipPadding remaining_padding_=" << remaining_padding_
+                  << ", db->Remaining=" << db->Remaining()
+                  << ", header: " << frame_header();
   QUICHE_DCHECK_EQ(remaining_payload_, 0u);
   QUICHE_DCHECK(IsPaddable()) << "header: " << frame_header();
   QUICHE_DCHECK(remaining_padding_ == 0 || frame_header().IsPadded())
@@ -69,10 +69,10 @@ bool FrameDecoderState::SkipPadding(DecodeBuffer* db) {
 }
 
 DecodeStatus FrameDecoderState::ReportFrameSizeError() {
-  HTTP2_DVLOG(2) << "FrameDecoderState::ReportFrameSizeError: "
-                 << " remaining_payload_=" << remaining_payload_
-                 << "; remaining_padding_=" << remaining_padding_
-                 << ", header: " << frame_header();
+  QUICHE_DVLOG(2) << "FrameDecoderState::ReportFrameSizeError: "
+                  << " remaining_payload_=" << remaining_payload_
+                  << "; remaining_padding_=" << remaining_padding_
+                  << ", header: " << frame_header();
   listener()->OnFrameSizeError(frame_header());
   return DecodeStatus::kDecodeError;
 }

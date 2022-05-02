@@ -5,7 +5,7 @@
 #include "quiche/http2/hpack/huffman/hpack_huffman_encoder.h"
 
 #include "quiche/http2/hpack/huffman/huffman_spec_tables.h"
-#include "quiche/http2/platform/api/http2_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 

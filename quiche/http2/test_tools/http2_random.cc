@@ -1,9 +1,9 @@
 #include "quiche/http2/test_tools/http2_random.h"
 
 #include "absl/strings/escaping.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "openssl/chacha.h"
 #include "openssl/rand.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 static const uint8_t kZeroNonce[12] = {0};
 
@@ -13,7 +13,7 @@ namespace test {
 Http2Random::Http2Random() {
   RAND_bytes(key_, sizeof(key_));
 
-  HTTP2_LOG(INFO) << "Initialized test RNG with the following key: " << Key();
+  QUICHE_LOG(INFO) << "Initialized test RNG with the following key: " << Key();
 }
 
 Http2Random::Http2Random(absl::string_view key) {

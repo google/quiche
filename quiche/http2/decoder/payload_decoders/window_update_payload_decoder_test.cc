@@ -10,12 +10,12 @@
 #include "quiche/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures_test_util.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/test_tools/frame_parts_collector.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/tools/http2_frame_builder.h"
 #include "quiche/http2/tools/random_decoder_test.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -37,14 +37,14 @@ namespace {
 struct Listener : public FramePartsCollector {
   void OnWindowUpdate(const Http2FrameHeader& header,
                       uint32_t window_size_increment) override {
-    HTTP2_VLOG(1) << "OnWindowUpdate: " << header
-                  << "; window_size_increment=" << window_size_increment;
+    QUICHE_VLOG(1) << "OnWindowUpdate: " << header
+                   << "; window_size_increment=" << window_size_increment;
     EXPECT_EQ(Http2FrameType::WINDOW_UPDATE, header.type);
     StartAndEndFrame(header)->OnWindowUpdate(header, window_size_increment);
   }
 
   void OnFrameSizeError(const Http2FrameHeader& header) override {
-    HTTP2_VLOG(1) << "OnFrameSizeError: " << header;
+    QUICHE_VLOG(1) << "OnFrameSizeError: " << header;
     FrameError(header)->OnFrameSizeError(header);
   }
 };
@@ -57,7 +57,7 @@ class WindowUpdatePayloadDecoderTest
   Http2WindowUpdateFields RandWindowUpdateFields() {
     Http2WindowUpdateFields fields;
     test::Randomize(&fields, RandomPtr());
-    HTTP2_VLOG(3) << "RandWindowUpdateFields: " << fields;
+    QUICHE_VLOG(3) << "RandWindowUpdateFields: " << fields;
     return fields;
   }
 };

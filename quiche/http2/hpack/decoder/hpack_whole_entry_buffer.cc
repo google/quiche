@@ -7,7 +7,6 @@
 #include "absl/strings/str_cat.h"
 #include "quiche/http2/platform/api/http2_flag_utils.h"
 #include "quiche/http2/platform/api/http2_flags.h"
-#include "quiche/http2/platform/api/http2_logging.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_text_utils.h"
 
@@ -36,26 +35,27 @@ void HpackWholeEntryBuffer::BufferStringsIfUnbuffered() {
 }
 
 void HpackWholeEntryBuffer::OnIndexedHeader(size_t index) {
-  HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnIndexedHeader: index=" << index;
+  QUICHE_DVLOG(2) << "HpackWholeEntryBuffer::OnIndexedHeader: index=" << index;
   listener_->OnIndexedHeader(index);
 }
 
 void HpackWholeEntryBuffer::OnStartLiteralHeader(HpackEntryType entry_type,
                                                  size_t maybe_name_index) {
-  HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnStartLiteralHeader: entry_type="
-                 << entry_type << ",  maybe_name_index=" << maybe_name_index;
+  QUICHE_DVLOG(2) << "HpackWholeEntryBuffer::OnStartLiteralHeader: entry_type="
+                  << entry_type << ",  maybe_name_index=" << maybe_name_index;
   entry_type_ = entry_type;
   maybe_name_index_ = maybe_name_index;
 }
 
 void HpackWholeEntryBuffer::OnNameStart(bool huffman_encoded, size_t len) {
-  HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnNameStart: huffman_encoded="
-                 << (huffman_encoded ? "true" : "false") << ",  len=" << len;
+  QUICHE_DVLOG(2) << "HpackWholeEntryBuffer::OnNameStart: huffman_encoded="
+                  << (huffman_encoded ? "true" : "false") << ",  len=" << len;
   QUICHE_DCHECK_EQ(maybe_name_index_, 0u);
   if (!error_detected_) {
     if (len > max_string_size_bytes_) {
-      HTTP2_DVLOG(1) << "Name length (" << len << ") is longer than permitted ("
-                     << max_string_size_bytes_ << ")";
+      QUICHE_DVLOG(1) << "Name length (" << len
+                      << ") is longer than permitted ("
+                      << max_string_size_bytes_ << ")";
       ReportError(HpackDecodingError::kNameTooLong, "");
       HTTP2_CODE_COUNT_N(decompress_failure_3, 18, 23);
       return;
@@ -65,10 +65,10 @@ void HpackWholeEntryBuffer::OnNameStart(bool huffman_encoded, size_t len) {
 }
 
 void HpackWholeEntryBuffer::OnNameData(const char* data, size_t len) {
-  HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnNameData: len=" << len
-                 << " data:\n"
-                 << quiche::QuicheTextUtils::HexDump(
-                        absl::string_view(data, len));
+  QUICHE_DVLOG(2) << "HpackWholeEntryBuffer::OnNameData: len=" << len
+                  << " data:\n"
+                  << quiche::QuicheTextUtils::HexDump(
+                         absl::string_view(data, len));
   QUICHE_DCHECK_EQ(maybe_name_index_, 0u);
   if (!error_detected_ && !name_.OnData(data, len)) {
     ReportError(HpackDecodingError::kNameHuffmanError, "");
@@ -77,7 +77,7 @@ void HpackWholeEntryBuffer::OnNameData(const char* data, size_t len) {
 }
 
 void HpackWholeEntryBuffer::OnNameEnd() {
-  HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnNameEnd";
+  QUICHE_DVLOG(2) << "HpackWholeEntryBuffer::OnNameEnd";
   QUICHE_DCHECK_EQ(maybe_name_index_, 0u);
   if (!error_detected_ && !name_.OnEnd()) {
     ReportError(HpackDecodingError::kNameHuffmanError, "");
@@ -86,14 +86,14 @@ void HpackWholeEntryBuffer::OnNameEnd() {
 }
 
 void HpackWholeEntryBuffer::OnValueStart(bool huffman_encoded, size_t len) {
-  HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnValueStart: huffman_encoded="
-                 << (huffman_encoded ? "true" : "false") << ",  len=" << len;
+  QUICHE_DVLOG(2) << "HpackWholeEntryBuffer::OnValueStart: huffman_encoded="
+                  << (huffman_encoded ? "true" : "false") << ",  len=" << len;
   if (!error_detected_) {
     if (len > max_string_size_bytes_) {
       std::string detailed_error = absl::StrCat(
           "Value length (", len, ") of [", name_.GetStringIfComplete(),
           "] is longer than permitted (", max_string_size_bytes_, ")");
-      HTTP2_DVLOG(1) << detailed_error;
+      QUICHE_DVLOG(1) << detailed_error;
       ReportError(HpackDecodingError::kValueTooLong, detailed_error);
       HTTP2_CODE_COUNT_N(decompress_failure_3, 21, 23);
       return;
@@ -103,10 +103,10 @@ void HpackWholeEntryBuffer::OnValueStart(bool huffman_encoded, size_t len) {
 }
 
 void HpackWholeEntryBuffer::OnValueData(const char* data, size_t len) {
-  HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnValueData: len=" << len
-                 << " data:\n"
-                 << quiche::QuicheTextUtils::HexDump(
-                        absl::string_view(data, len));
+  QUICHE_DVLOG(2) << "HpackWholeEntryBuffer::OnValueData: len=" << len
+                  << " data:\n"
+                  << quiche::QuicheTextUtils::HexDump(
+                         absl::string_view(data, len));
   if (!error_detected_ && !value_.OnData(data, len)) {
     ReportError(HpackDecodingError::kValueHuffmanError, "");
     HTTP2_CODE_COUNT_N(decompress_failure_3, 22, 23);
@@ -114,7 +114,7 @@ void HpackWholeEntryBuffer::OnValueData(const char* data, size_t len) {
 }
 
 void HpackWholeEntryBuffer::OnValueEnd() {
-  HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnValueEnd";
+  QUICHE_DVLOG(2) << "HpackWholeEntryBuffer::OnValueEnd";
   if (error_detected_) {
     return;
   }
@@ -134,16 +134,16 @@ void HpackWholeEntryBuffer::OnValueEnd() {
 }
 
 void HpackWholeEntryBuffer::OnDynamicTableSizeUpdate(size_t size) {
-  HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnDynamicTableSizeUpdate: size="
-                 << size;
+  QUICHE_DVLOG(2) << "HpackWholeEntryBuffer::OnDynamicTableSizeUpdate: size="
+                  << size;
   listener_->OnDynamicTableSizeUpdate(size);
 }
 
 void HpackWholeEntryBuffer::ReportError(HpackDecodingError error,
                                         std::string detailed_error) {
   if (!error_detected_) {
-    HTTP2_DVLOG(1) << "HpackWholeEntryBuffer::ReportError: "
-                   << HpackDecodingErrorToString(error);
+    QUICHE_DVLOG(1) << "HpackWholeEntryBuffer::ReportError: "
+                    << HpackDecodingErrorToString(error);
     error_detected_ = true;
     listener_->OnHpackDecodeError(error, detailed_error);
     listener_ = HpackWholeEntryNoOpListener::NoOpListener();
