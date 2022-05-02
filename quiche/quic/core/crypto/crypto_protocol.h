@@ -430,7 +430,12 @@ const QuicTag kROWF = TAG('R', 'O', 'W', 'F');   // Send first 1-RTT packet on
                                                  // ROWP timeout.
 const QuicTag kROWR = TAG('R', 'O', 'W', 'R');   // Send random bytes on ROWP
                                                  // timeout.
-const QuicTag kGSR0 = TAG('G', 'S', 'R', '0');   // Selective Resumption
+// Selective Resumption variants.
+const QuicTag kGSR0 = TAG('G', 'S', 'R', '0');
+const QuicTag kGSR1 = TAG('G', 'S', 'R', '1');
+const QuicTag kGSR2 = TAG('G', 'S', 'R', '2');
+const QuicTag kGSR3 = TAG('G', 'S', 'R', '3');
+
 const QuicTag kNRES = TAG('N', 'R', 'E', 'S');   // No resumption
 
 const QuicTag kINVC = TAG('I', 'N', 'V', 'C');   // Send connection close for
