@@ -68,6 +68,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     // in RFC 8441. If true, this endpoint will send the appropriate setting in
     // initial SETTINGS.
     bool allow_extended_connect = true;
+    // Whether to allow `obs-text` (characters from hexadecimal 0x80 to 0xff) in
+    // header field values.
+    bool allow_obs_text = true;
   };
 
   OgHttp2Session(Http2VisitorInterface& visitor, Options options);
@@ -270,6 +273,10 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     void AllowConnect() { validator_.AllowConnect(); }
     void SetMaxFieldSize(uint32_t field_size) {
       validator_.SetMaxFieldSize(field_size);
+    }
+    void SetAllowObsText(bool allow) {
+      validator_.SetObsTextOption(allow ? ObsTextOption::kAllow
+                                        : ObsTextOption::kDisallow);
     }
     bool CanReceiveBody() const;
 

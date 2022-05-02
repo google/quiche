@@ -40,6 +40,14 @@ CharMap BuildValidCharMap(absl::string_view valid_chars) {
   }
   return map;
 }
+CharMap AllowObsText(CharMap map) {
+  // Characters above 0x80 are allowed in header field values as `obs-text` in
+  // RFC 7230.
+  for (char c = 0xff; c >= 0x80; --c) {
+    map[c] = true;
+  }
+  return map;
+}
 
 bool AllCharsInMap(absl::string_view str, const CharMap& map) {
   for (char c : str) {
@@ -56,10 +64,14 @@ bool IsValidHeaderName(absl::string_view name) {
   return AllCharsInMap(name, valid_chars);
 }
 
-bool IsValidHeaderValue(absl::string_view value) {
+bool IsValidHeaderValue(absl::string_view value, ObsTextOption option) {
   static const CharMap valid_chars =
       BuildValidCharMap(kHttp2HeaderValueAllowedChars);
-  return AllCharsInMap(value, valid_chars);
+  static const CharMap valid_chars_with_obs_text =
+      AllowObsText(BuildValidCharMap(kHttp2HeaderValueAllowedChars));
+  return AllCharsInMap(value, option == ObsTextOption::kAllow
+                                  ? valid_chars_with_obs_text
+                                  : valid_chars);
 }
 
 bool IsValidStatus(absl::string_view status) {
@@ -141,7 +153,7 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
                    << absl::CEscape(validated_key) << "]";
     return HEADER_FIELD_INVALID;
   }
-  if (!IsValidHeaderValue(value)) {
+  if (!IsValidHeaderValue(value, obs_text_option_)) {
     QUICHE_VLOG(2) << "invalid chars in header value: [" << absl::CEscape(value)
                    << "]";
     return HEADER_FIELD_INVALID;

@@ -356,6 +356,7 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
   if (options_.max_header_field_size.has_value()) {
     headers_handler_.SetMaxFieldSize(options_.max_header_field_size.value());
   }
+  headers_handler_.SetAllowObsText(options_.allow_obs_text);
 }
 
 OgHttp2Session::~OgHttp2Session() {}

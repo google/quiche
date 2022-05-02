@@ -101,6 +101,19 @@ TEST(HeaderValidatorTest, ValueHasInvalidChar) {
         v.ValidateSingleHeader("name", absl::string_view("val\0ue", 6));
     EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
   }
+  {
+    // Test that obs-text is disallowed by default.
+    EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+              v.ValidateSingleHeader("name", "val\xa9ue"));
+    // Test that obs-text is disallowed when configured.
+    v.SetObsTextOption(ObsTextOption::kDisallow);
+    EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+              v.ValidateSingleHeader("name", "val\xa9ue"));
+    // Test that obs-text is allowed when configured.
+    v.SetObsTextOption(ObsTextOption::kAllow);
+    EXPECT_EQ(HeaderValidator::HEADER_OK,
+              v.ValidateSingleHeader("name", "val\xa9ue"));
+  }
 }
 
 TEST(HeaderValidatorTest, StatusHasInvalidChar) {
