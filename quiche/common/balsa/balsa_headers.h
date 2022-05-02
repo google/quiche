@@ -1175,12 +1175,7 @@ class BalsaHeaders::iterator_base
     : public std::iterator<std::forward_iterator_tag,
                            std::pair<absl::string_view, absl::string_view>> {
  public:
-  // default constructor.
   iterator_base() : headers_(nullptr), idx_(0) {}
-
-  // copy constructor.
-  iterator_base(const iterator_base& it)
-      : headers_(it.headers_), idx_(it.idx_) {}
 
   std::pair<absl::string_view, absl::string_view>& operator*() const {
     return Lookup(idx_);
@@ -1271,9 +1266,6 @@ class BalsaHeaders::const_header_lines_iterator
     : public BalsaHeaders::iterator_base {
  public:
   const_header_lines_iterator() : iterator_base() {}
-
-  const_header_lines_iterator(const const_header_lines_iterator& it)
-      : iterator_base(it.headers_, it.idx_) {}
 
   const_header_lines_iterator& operator++() {
     iterator_base::increment();
