@@ -504,12 +504,14 @@ constexpr bool IsSourceUdpPortBlocked(uint16_t port) {
       111,    // Portmap.
       123,    // NTP, vulnerable to reflection attacks.
       137,    // NETBIOS Name Service,
-      128,    // NETBIOS Datagram Service
+      138,    // NETBIOS Datagram Service
       161,    // SNMP.
       389,    // CLDAP.
       500,    // IKE, can loop with QUIC.
       1900,   // SSDP, vulnerable to reflection attacks.
+      3702,   // WS-Discovery, vulnerable to reflection attacks.
       5353,   // mDNS, vulnerable to reflection attacks.
+      5355,   // LLMNR, vulnerable to reflection attacks.
       11211,  // memcache, vulnerable to reflection attacks.
               // This list MUST be sorted in increasing order.
   };
