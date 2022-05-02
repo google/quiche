@@ -924,11 +924,7 @@ TEST_P(TlsServerHandshakerTest, RequestClientCert) {
 
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
-  if (GetQuicRestartFlag(quic_tls_server_support_client_cert)) {
-    EXPECT_TRUE(server_handshaker_->received_client_cert());
-  } else {
-    EXPECT_FALSE(server_handshaker_->received_client_cert());
-  }
+  EXPECT_TRUE(server_handshaker_->received_client_cert());
 }
 
 TEST_P(TlsServerHandshakerTest, RequestClientCertByDelayedSslConfig) {
@@ -950,11 +946,7 @@ TEST_P(TlsServerHandshakerTest, RequestClientCertByDelayedSslConfig) {
 
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
-  if (GetQuicRestartFlag(quic_tls_server_support_client_cert)) {
-    EXPECT_TRUE(server_handshaker_->received_client_cert());
-  } else {
-    EXPECT_FALSE(server_handshaker_->received_client_cert());
-  }
+  EXPECT_TRUE(server_handshaker_->received_client_cert());
 }
 
 TEST_P(TlsServerHandshakerTest, RequestClientCert_NoCert) {
@@ -983,12 +975,7 @@ TEST_P(TlsServerHandshakerTest, RequestAndRequireClientCert) {
 
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
-
-  if (GetQuicRestartFlag(quic_tls_server_support_client_cert)) {
-    EXPECT_TRUE(server_handshaker_->received_client_cert());
-  } else {
-    EXPECT_FALSE(server_handshaker_->received_client_cert());
-  }
+  EXPECT_TRUE(server_handshaker_->received_client_cert());
 }
 
 TEST_P(TlsServerHandshakerTest, RequestAndRequireClientCertByDelayedSslConfig) {
@@ -1010,11 +997,7 @@ TEST_P(TlsServerHandshakerTest, RequestAndRequireClientCertByDelayedSslConfig) {
 
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
-  if (GetQuicRestartFlag(quic_tls_server_support_client_cert)) {
-    EXPECT_TRUE(server_handshaker_->received_client_cert());
-  } else {
-    EXPECT_FALSE(server_handshaker_->received_client_cert());
-  }
+  EXPECT_TRUE(server_handshaker_->received_client_cert());
 }
 
 TEST_P(TlsServerHandshakerTest, RequestAndRequireClientCert_NoCert) {
@@ -1025,10 +1008,9 @@ TEST_P(TlsServerHandshakerTest, RequestAndRequireClientCert_NoCert) {
       /*compute_signature_action=*/FakeProofSourceHandle::Action::
           DELEGATE_SYNC);
 
-  if (GetQuicRestartFlag(quic_tls_server_support_client_cert)) {
-    EXPECT_CALL(*server_connection_,
-                CloseConnection(QUIC_TLS_CERTIFICATE_REQUIRED, _, _, _));
-  }
+  EXPECT_CALL(*server_connection_,
+              CloseConnection(QUIC_TLS_CERTIFICATE_REQUIRED, _, _, _));
+
   AdvanceHandshakeWithFakeClient();
   AdvanceHandshakeWithFakeClient();
   EXPECT_FALSE(server_handshaker_->received_client_cert());

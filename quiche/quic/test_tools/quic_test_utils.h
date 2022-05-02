@@ -1037,11 +1037,7 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
 
   void set_early_data_enabled(bool enabled) { early_data_enabled_ = enabled; }
 
-  void set_client_cert_mode(ClientCertMode mode) {
-    if (support_client_cert()) {
-      client_cert_mode_ = mode;
-    }
-  }
+  void set_client_cert_mode(ClientCertMode mode) { client_cert_mode_ = mode; }
 
  private:
   MockQuicSessionVisitor visitor_;
