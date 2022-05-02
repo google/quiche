@@ -7,8 +7,7 @@
 #include <cstdint>
 
 #include "absl/strings/str_cat.h"
-#include "quiche/http2/platform/api/http2_flag_utils.h"
-#include "quiche/http2/platform/api/http2_flags.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
@@ -26,7 +25,7 @@ DecodeStatus HpackBlockDecoder::Decode(DecodeBuffer* db) {
         QUICHE_DCHECK_EQ(0u, db->Remaining());
         return DecodeStatus::kDecodeInProgress;
       case DecodeStatus::kDecodeError:
-        HTTP2_CODE_COUNT_N(decompress_failure_3, 1, 23);
+        QUICHE_CODE_COUNT_N(decompress_failure_3, 1, 23);
         return DecodeStatus::kDecodeError;
     }
   }
@@ -43,7 +42,7 @@ DecodeStatus HpackBlockDecoder::Decode(DecodeBuffer* db) {
         before_entry_ = false;
         return DecodeStatus::kDecodeInProgress;
       case DecodeStatus::kDecodeError:
-        HTTP2_CODE_COUNT_N(decompress_failure_3, 2, 23);
+        QUICHE_CODE_COUNT_N(decompress_failure_3, 2, 23);
         return DecodeStatus::kDecodeError;
     }
     QUICHE_DCHECK(false);

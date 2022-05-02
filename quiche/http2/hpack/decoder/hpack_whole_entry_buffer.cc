@@ -5,8 +5,7 @@
 #include "quiche/http2/hpack/decoder/hpack_whole_entry_buffer.h"
 
 #include "absl/strings/str_cat.h"
-#include "quiche/http2/platform/api/http2_flag_utils.h"
-#include "quiche/http2/platform/api/http2_flags.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_text_utils.h"
 
@@ -57,7 +56,7 @@ void HpackWholeEntryBuffer::OnNameStart(bool huffman_encoded, size_t len) {
                       << ") is longer than permitted ("
                       << max_string_size_bytes_ << ")";
       ReportError(HpackDecodingError::kNameTooLong, "");
-      HTTP2_CODE_COUNT_N(decompress_failure_3, 18, 23);
+      QUICHE_CODE_COUNT_N(decompress_failure_3, 18, 23);
       return;
     }
     name_.OnStart(huffman_encoded, len);
@@ -72,7 +71,7 @@ void HpackWholeEntryBuffer::OnNameData(const char* data, size_t len) {
   QUICHE_DCHECK_EQ(maybe_name_index_, 0u);
   if (!error_detected_ && !name_.OnData(data, len)) {
     ReportError(HpackDecodingError::kNameHuffmanError, "");
-    HTTP2_CODE_COUNT_N(decompress_failure_3, 19, 23);
+    QUICHE_CODE_COUNT_N(decompress_failure_3, 19, 23);
   }
 }
 
@@ -81,7 +80,7 @@ void HpackWholeEntryBuffer::OnNameEnd() {
   QUICHE_DCHECK_EQ(maybe_name_index_, 0u);
   if (!error_detected_ && !name_.OnEnd()) {
     ReportError(HpackDecodingError::kNameHuffmanError, "");
-    HTTP2_CODE_COUNT_N(decompress_failure_3, 20, 23);
+    QUICHE_CODE_COUNT_N(decompress_failure_3, 20, 23);
   }
 }
 
@@ -95,7 +94,7 @@ void HpackWholeEntryBuffer::OnValueStart(bool huffman_encoded, size_t len) {
           "] is longer than permitted (", max_string_size_bytes_, ")");
       QUICHE_DVLOG(1) << detailed_error;
       ReportError(HpackDecodingError::kValueTooLong, detailed_error);
-      HTTP2_CODE_COUNT_N(decompress_failure_3, 21, 23);
+      QUICHE_CODE_COUNT_N(decompress_failure_3, 21, 23);
       return;
     }
     value_.OnStart(huffman_encoded, len);
@@ -109,7 +108,7 @@ void HpackWholeEntryBuffer::OnValueData(const char* data, size_t len) {
                          absl::string_view(data, len));
   if (!error_detected_ && !value_.OnData(data, len)) {
     ReportError(HpackDecodingError::kValueHuffmanError, "");
-    HTTP2_CODE_COUNT_N(decompress_failure_3, 22, 23);
+    QUICHE_CODE_COUNT_N(decompress_failure_3, 22, 23);
   }
 }
 
@@ -120,7 +119,7 @@ void HpackWholeEntryBuffer::OnValueEnd() {
   }
   if (!value_.OnEnd()) {
     ReportError(HpackDecodingError::kValueHuffmanError, "");
-    HTTP2_CODE_COUNT_N(decompress_failure_3, 23, 23);
+    QUICHE_CODE_COUNT_N(decompress_failure_3, 23, 23);
     return;
   }
   if (maybe_name_index_ == 0) {

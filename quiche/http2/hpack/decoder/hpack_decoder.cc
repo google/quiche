@@ -5,8 +5,7 @@
 #include "quiche/http2/hpack/decoder/hpack_decoder.h"
 
 #include "quiche/http2/decoder/decode_status.h"
-#include "quiche/http2/platform/api/http2_flag_utils.h"
-#include "quiche/http2/platform/api/http2_flags.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
@@ -47,7 +46,7 @@ bool HpackDecoder::DecodeFragment(DecodeBuffer* db) {
                   << (DetectError() ? "true" : "false")
                   << ", size=" << db->Remaining();
   if (DetectError()) {
-    HTTP2_CODE_COUNT_N(decompress_failure_3, 3, 23);
+    QUICHE_CODE_COUNT_N(decompress_failure_3, 3, 23);
     return false;
   }
   // Decode contents of db as an HPACK block fragment, forwards the decoded
@@ -56,10 +55,10 @@ bool HpackDecoder::DecodeFragment(DecodeBuffer* db) {
   DecodeStatus status = block_decoder_.Decode(db);
   if (status == DecodeStatus::kDecodeError) {
     ReportError(block_decoder_.error(), "");
-    HTTP2_CODE_COUNT_N(decompress_failure_3, 4, 23);
+    QUICHE_CODE_COUNT_N(decompress_failure_3, 4, 23);
     return false;
   } else if (DetectError()) {
-    HTTP2_CODE_COUNT_N(decompress_failure_3, 5, 23);
+    QUICHE_CODE_COUNT_N(decompress_failure_3, 5, 23);
     return false;
   }
   // Should be positioned between entries iff decoding is complete.
@@ -76,19 +75,19 @@ bool HpackDecoder::EndDecodingBlock() {
   QUICHE_DVLOG(3) << "HpackDecoder::EndDecodingBlock, error_detected="
                   << (DetectError() ? "true" : "false");
   if (DetectError()) {
-    HTTP2_CODE_COUNT_N(decompress_failure_3, 6, 23);
+    QUICHE_CODE_COUNT_N(decompress_failure_3, 6, 23);
     return false;
   }
   if (!block_decoder_.before_entry()) {
     // The HPACK block ended in the middle of an entry.
     ReportError(HpackDecodingError::kTruncatedBlock, "");
-    HTTP2_CODE_COUNT_N(decompress_failure_3, 7, 23);
+    QUICHE_CODE_COUNT_N(decompress_failure_3, 7, 23);
     return false;
   }
   decoder_state_.OnHeaderBlockEnd();
   if (DetectError()) {
     // HpackDecoderState will have reported the error.
-    HTTP2_CODE_COUNT_N(decompress_failure_3, 8, 23);
+    QUICHE_CODE_COUNT_N(decompress_failure_3, 8, 23);
     return false;
   }
   return true;
@@ -101,7 +100,7 @@ bool HpackDecoder::DetectError() {
 
   if (decoder_state_.error() != HpackDecodingError::kOk) {
     QUICHE_DVLOG(2) << "Error detected in decoder_state_";
-    HTTP2_CODE_COUNT_N(decompress_failure_3, 10, 23);
+    QUICHE_CODE_COUNT_N(decompress_failure_3, 10, 23);
     error_ = decoder_state_.error();
     detailed_error_ = decoder_state_.detailed_error();
   }

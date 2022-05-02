@@ -5,9 +5,8 @@
 #include "quiche/http2/hpack/decoder/hpack_entry_type_decoder.h"
 
 #include "absl/strings/str_cat.h"
-#include "quiche/http2/platform/api/http2_flag_utils.h"
-#include "quiche/http2/platform/api/http2_flags.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
@@ -355,7 +354,7 @@ DecodeStatus HpackEntryTypeDecoder::Start(DecodeBuffer* db) {
   }
   QUICHE_BUG(http2_bug_66_1)
       << "Unreachable, byte=" << std::hex << static_cast<uint32_t>(byte);
-  HTTP2_CODE_COUNT_N(decompress_failure_3, 17, 23);
+  QUICHE_CODE_COUNT_N(decompress_failure_3, 17, 23);
   return DecodeStatus::kDecodeError;
 }
 

@@ -7,7 +7,8 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "quiche/http2/platform/api/http2_flag_utils.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
@@ -170,7 +171,7 @@ const InvalidHeaderSet& GetInvalidHttp2HeaderSet() {
                              std::end(http2::kHttp2InvalidHeaderNamesOld));
     return *invalid_header_set_old;
   }
-  HTTP2_RELOADABLE_FLAG_COUNT_N(quic_verify_request_headers_2, 3, 3);
+  QUICHE_RELOADABLE_FLAG_COUNT_N(quic_verify_request_headers_2, 3, 3);
   static const auto* invalid_header_set =
       new InvalidHeaderSet(std::begin(http2::kHttp2InvalidHeaderNames),
                            std::end(http2::kHttp2InvalidHeaderNames));
