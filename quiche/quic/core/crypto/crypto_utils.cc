@@ -55,7 +55,7 @@ namespace {
 // Secret, Label, and Length are passed in as |secret|, |label|, and
 // |out_len|, respectively. The resulting expanded secret is returned.
 std::vector<uint8_t> HkdfExpandLabel(const EVP_MD* prf,
-                                     const std::vector<uint8_t>& secret,
+                                     absl::Span<const uint8_t> secret,
                                      const std::string& label, size_t out_len) {
   bssl::ScopedCBB quic_hkdf_label;
   CBB inner_label;
@@ -115,7 +115,7 @@ void CryptoUtils::InitializeCrypterSecrets(
 }
 
 void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
-                              const std::vector<uint8_t>& pp_secret,
+                              absl::Span<const uint8_t> pp_secret,
                               const ParsedQuicVersion& version,
                               QuicCrypter* crypter) {
   std::vector<uint8_t> key =
@@ -130,7 +130,7 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
 }
 
 std::vector<uint8_t> CryptoUtils::GenerateHeaderProtectionKey(
-    const EVP_MD* prf, const std::vector<uint8_t>& pp_secret,
+    const EVP_MD* prf, absl::Span<const uint8_t> pp_secret,
     const ParsedQuicVersion& version, size_t out_len) {
   return HkdfExpandLabel(prf, pp_secret, getLabelForVersion(version, "hp"),
                          out_len);

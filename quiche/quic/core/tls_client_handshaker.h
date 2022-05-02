@@ -72,7 +72,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   void OnHandshakeDoneReceived() override;
   void OnNewTokenReceived(absl::string_view token) override;
   void SetWriteSecret(EncryptionLevel level, const SSL_CIPHER* cipher,
-                      const std::vector<uint8_t>& write_secret) override;
+                      absl::Span<const uint8_t> write_secret) override;
 
   // Override to drop initial keys if trying to write ENCRYPTION_HANDSHAKE data.
   void WriteMessage(EncryptionLevel level, absl::string_view data) override;

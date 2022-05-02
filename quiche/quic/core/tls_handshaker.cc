@@ -235,7 +235,7 @@ enum ssl_verify_result_t TlsHandshaker::VerifyCert(uint8_t* out_alert) {
 
 void TlsHandshaker::SetWriteSecret(EncryptionLevel level,
                                    const SSL_CIPHER* cipher,
-                                   const std::vector<uint8_t>& write_secret) {
+                                   absl::Span<const uint8_t> write_secret) {
   QUIC_DVLOG(1) << ENDPOINT << "SetWriteSecret level=" << level;
   std::unique_ptr<QuicEncrypter> encrypter =
       QuicEncrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
@@ -252,7 +252,7 @@ void TlsHandshaker::SetWriteSecret(EncryptionLevel level,
                         header_protection_key.size()));
   if (level == ENCRYPTION_FORWARD_SECURE) {
     QUICHE_DCHECK(latest_write_secret_.empty());
-    latest_write_secret_ = write_secret;
+    latest_write_secret_.assign(write_secret.begin(), write_secret.end());
     one_rtt_write_header_protection_key_ = header_protection_key;
   }
   handshaker_delegate_->OnNewEncryptionKeyAvailable(level,
@@ -261,7 +261,7 @@ void TlsHandshaker::SetWriteSecret(EncryptionLevel level,
 
 bool TlsHandshaker::SetReadSecret(EncryptionLevel level,
                                   const SSL_CIPHER* cipher,
-                                  const std::vector<uint8_t>& read_secret) {
+                                  absl::Span<const uint8_t> read_secret) {
   QUIC_DVLOG(1) << ENDPOINT << "SetReadSecret level=" << level;
   std::unique_ptr<QuicDecrypter> decrypter =
       QuicDecrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
@@ -278,7 +278,7 @@ bool TlsHandshaker::SetReadSecret(EncryptionLevel level,
                         header_protection_key.size()));
   if (level == ENCRYPTION_FORWARD_SECURE) {
     QUICHE_DCHECK(latest_read_secret_.empty());
-    latest_read_secret_ = read_secret;
+    latest_read_secret_.assign(read_secret.begin(), read_secret.end());
     one_rtt_read_header_protection_key_ = header_protection_key;
   }
   return handshaker_delegate_->OnNewDecryptionKeyAvailable(

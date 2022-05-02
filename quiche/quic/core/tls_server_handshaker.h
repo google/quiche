@@ -89,7 +89,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       override;
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
   void SetWriteSecret(EncryptionLevel level, const SSL_CIPHER* cipher,
-                      const std::vector<uint8_t>& write_secret) override;
+                      absl::Span<const uint8_t> write_secret) override;
 
   // Called with normalized SNI hostname as |hostname|.  Return value will be
   // sent in an ACCEPT_CH frame in the TLS ALPS extension, unless empty.

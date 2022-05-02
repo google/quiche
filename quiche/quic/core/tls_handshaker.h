@@ -138,14 +138,14 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   // traffic secrets and application traffic secrets. The provided write secret
   // must be used with the provided cipher suite |cipher|.
   void SetWriteSecret(EncryptionLevel level, const SSL_CIPHER* cipher,
-                      const std::vector<uint8_t>& write_secret) override;
+                      absl::Span<const uint8_t> write_secret) override;
 
   // SetReadSecret is similar to SetWriteSecret, except that it is used for
   // decrypting messages. SetReadSecret at a particular level is always called
   // after SetWriteSecret for that level, except for ENCRYPTION_ZERO_RTT, where
   // the EncryptionLevel for SetWriteSecret is ENCRYPTION_FORWARD_SECURE.
   bool SetReadSecret(EncryptionLevel level, const SSL_CIPHER* cipher,
-                     const std::vector<uint8_t>& read_secret) override;
+                     absl::Span<const uint8_t> read_secret) override;
 
   // WriteMessage is called when there is |data| from the TLS stack ready for
   // the QUIC stack to write in a crypto frame. The data must be transmitted at

@@ -47,7 +47,7 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
     // traffic secrets and application traffic secrets. The provided write
     // secret must be used with the provided cipher suite |cipher|.
     virtual void SetWriteSecret(EncryptionLevel level, const SSL_CIPHER* cipher,
-                                const std::vector<uint8_t>& write_secret) = 0;
+                                absl::Span<const uint8_t> write_secret) = 0;
 
     // SetReadSecret is similar to SetWriteSecret, except that it is used for
     // decrypting messages. SetReadSecret at a particular level is always called
@@ -55,7 +55,7 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
     // where the EncryptionLevel for SetWriteSecret is
     // ENCRYPTION_FORWARD_SECURE.
     virtual bool SetReadSecret(EncryptionLevel level, const SSL_CIPHER* cipher,
-                               const std::vector<uint8_t>& read_secret) = 0;
+                               absl::Span<const uint8_t> read_secret) = 0;
 
     // WriteMessage is called when there is |data| from the TLS stack ready for
     // the QUIC stack to write in a crypto frame. The data must be transmitted

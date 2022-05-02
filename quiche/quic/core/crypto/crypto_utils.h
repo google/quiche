@@ -91,13 +91,13 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // protection key. GenerateHeaderProtectionKey/SetHeaderProtectionKey must be
   // called before using |crypter|.
   static void SetKeyAndIV(const EVP_MD* prf,
-                          const std::vector<uint8_t>& pp_secret,
+                          absl::Span<const uint8_t> pp_secret,
                           const ParsedQuicVersion& version,
                           QuicCrypter* crypter);
 
   // Derives the header protection key from the packet protection secret.
   static std::vector<uint8_t> GenerateHeaderProtectionKey(
-      const EVP_MD* prf, const std::vector<uint8_t>& pp_secret,
+      const EVP_MD* prf, absl::Span<const uint8_t> pp_secret,
       const ParsedQuicVersion& version, size_t out_len);
 
   // Given a secret for key phase n, return the secret for phase n+1.

@@ -556,7 +556,7 @@ TlsServerHandshaker::SetTransportParameters() {
 
 void TlsServerHandshaker::SetWriteSecret(
     EncryptionLevel level, const SSL_CIPHER* cipher,
-    const std::vector<uint8_t>& write_secret) {
+    absl::Span<const uint8_t> write_secret) {
   if (is_connection_closed()) {
     return;
   }
