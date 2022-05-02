@@ -3425,7 +3425,7 @@ TEST_P(HTTPBalsaFrameTestOneChar, InvalidCharsWarningSet) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TestInvalidCharSet, HTTPBalsaFrameTestOneChar,
-                         Range((char)0, (char)32));
+                         Range<char>(0, 32));
 
 TEST_F(HTTPBalsaFrameTest, InvalidCharEndOfLine) {
   balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kWarning);
