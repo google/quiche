@@ -487,7 +487,7 @@ BalsaHeadersEnums::ContentLengthStatus BalsaFrame::ProcessContentLengthLine(
     }
     const size_t kMaxDiv10 = std::numeric_limits<size_t>::max() / 10;
     size_t length_x_10 = *length * 10;
-    const char c = *value_begin - '0';
+    const size_t c = *value_begin - '0';
     if (*length > kMaxDiv10 ||
         (std::numeric_limits<size_t>::max() - length_x_10) < c) {
       QUICHE_DVLOG(1) << "content-length overflow";
