@@ -371,8 +371,10 @@ TEST_F(BalsaBufferTest, ContiguousThenTwoSmallerThanBlocksize) {
 TEST_F(BalsaBufferTest, AccessFirstBlockUninitialized) {
   CreateBuffer(5);
   EXPECT_EQ(0u, buffer_->GetReadableBytesOfFirstBlock());
-  EXPECT_DFATAL(buffer_->StartOfFirstBlock(), "First block not allocated yet!");
-  EXPECT_DFATAL(buffer_->EndOfFirstBlock(), "First block not allocated yet!");
+  EXPECT_QUICHE_BUG(buffer_->StartOfFirstBlock(),
+                    "First block not allocated yet!");
+  EXPECT_QUICHE_BUG(buffer_->EndOfFirstBlock(),
+                    "First block not allocated yet!");
 }
 
 TEST_F(BalsaBufferTest, AccessFirstBlockInitialized) {
