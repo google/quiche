@@ -136,7 +136,11 @@ void QuicPingManager::UpdateDeadlines(QuicTime now, bool should_keep_alive,
     // Alarm is set to an earlier time. Do not postpone it.
     QUIC_BUG_IF(quic_retransmittable_on_wire_deadline_is_in_past,
                 retransmittable_on_wire_deadline_ < now)
-        << "QUIC retransmittable PING deadline is in past";
+        << "QUIC retransmittable PING deadline is in past, now: "
+        << now.ToDebuggingValue() << ", retransmittable_on_wire_deadline: "
+        << retransmittable_on_wire_deadline_.ToDebuggingValue()
+        << ", difference: "
+        << (now - retransmittable_on_wire_deadline_).ToDebuggingValue();
     return;
   }
   retransmittable_on_wire_deadline_ = now + retransmittable_on_wire_timeout;
