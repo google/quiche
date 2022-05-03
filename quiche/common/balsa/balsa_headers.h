@@ -21,6 +21,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quiche/common/balsa/balsa_enums.h"
 #include "quiche/common/balsa/header_api.h"
 #include "quiche/common/balsa/standard_header_map.h"
@@ -1227,6 +1228,7 @@ class BalsaHeaders::iterator_base
       : headers_(headers), idx_(index) {}
 
   void increment() {
+    value_.reset();
     const HeaderLines& header_lines = headers_->header_lines_;
     const HeaderLines::size_type header_lines_size = header_lines.size();
     const HeaderLines::size_type original_idx = idx_;
@@ -1247,18 +1249,22 @@ class BalsaHeaders::iterator_base
   std::pair<absl::string_view, absl::string_view>& Lookup(
       HeaderLines::size_type index) const {
     QUICHE_DCHECK_LT(index, headers_->header_lines_.size());
-    const HeaderLineDescription& line = headers_->header_lines_[index];
-    const char* stream_begin = headers_->GetPtr(line.buffer_base_idx);
-    value_ = std::make_pair(
-        absl::string_view(stream_begin + line.first_char_idx, line.KeyLength()),
-        absl::string_view(stream_begin + line.value_begin_idx,
-                          line.ValuesLength()));
-    return value_;
+    if (!value_.has_value()) {
+      const HeaderLineDescription& line = headers_->header_lines_[index];
+      const char* stream_begin = headers_->GetPtr(line.buffer_base_idx);
+      value_ =
+          std::make_pair(absl::string_view(stream_begin + line.first_char_idx,
+                                           line.KeyLength()),
+                         absl::string_view(stream_begin + line.value_begin_idx,
+                                           line.ValuesLength()));
+    }
+    return value_.value();
   }
 
   const BalsaHeaders* headers_;
   HeaderLines::size_type idx_;
-  mutable std::pair<absl::string_view, absl::string_view> value_;
+  mutable absl::optional<std::pair<absl::string_view, absl::string_view>>
+      value_;
 };
 
 // A const iterator for all the header lines.
