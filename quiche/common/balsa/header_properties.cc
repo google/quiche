@@ -62,7 +62,7 @@ MultivaluedHeadersSet* buildMultivaluedHeaders() {
 std::array<bool, 256> buildInvalidCharLookupTable() {
   std::array<bool, 256> invalidCharTable;
   invalidCharTable.fill(false);
-  for (char c : kInvalidHeaderCharList) {
+  for (uint8_t c : kInvalidHeaderCharList) {
     invalidCharTable[c] = true;
   }
   return invalidCharTable;
@@ -76,7 +76,7 @@ bool IsMultivaluedHeader(absl::string_view header) {
   return multivalued_headers->contains(header);
 }
 
-bool IsInvalidHeaderChar(char c) {
+bool IsInvalidHeaderChar(uint8_t c) {
   static const std::array<bool, 256> invalidCharTable =
       buildInvalidCharLookupTable();
 

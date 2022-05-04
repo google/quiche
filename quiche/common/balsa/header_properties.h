@@ -5,6 +5,8 @@
 #ifndef QUICHE_COMMON_BALSA_HEADER_PROPERTIES_H_
 #define QUICHE_COMMON_BALSA_HEADER_PROPERTIES_H_
 
+#include <cstdint>
+
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
@@ -27,7 +29,7 @@ inline constexpr char kInvalidHeaderCharList[] = {
 
 // Returns true if the given `c` is invalid in a header field or the `value` has
 // invalid characters.
-QUICHE_EXPORT_PRIVATE bool IsInvalidHeaderChar(char c);
+QUICHE_EXPORT_PRIVATE bool IsInvalidHeaderChar(uint8_t c);
 QUICHE_EXPORT_PRIVATE bool HasInvalidHeaderChars(absl::string_view value);
 
 }  // namespace quiche::header_properties
