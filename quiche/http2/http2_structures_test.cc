@@ -149,11 +149,11 @@ TEST(Http2FrameHeaderTest, Eq) {
 
 #if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 
-using TestParams = std::tuple<Http2FrameType, Http2FrameFlag>;
+using TestParams = std::tuple<Http2FrameType, uint8_t>;
 
 std::string TestParamToString(const testing::TestParamInfo<TestParams>& info) {
   Http2FrameType type = std::get<0>(info.param);
-  Http2FrameFlag flags = std::get<1>(info.param);
+  uint8_t flags = std::get<1>(info.param);
 
   return absl::StrCat(Http2FrameTypeToString(type), static_cast<int>(flags));
 }
@@ -170,7 +170,7 @@ class Http2FrameHeaderTypeAndFlagTest : public QuicheTestWithParam<TestParams> {
   }
 
   const Http2FrameType type_;
-  const Http2FrameFlag flags_;
+  const uint8_t flags_;
 };
 
 class IsEndStreamTest : public Http2FrameHeaderTypeAndFlagTest {};
