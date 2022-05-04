@@ -37,13 +37,13 @@ constexpr absl::string_view kTransferEncoding = "transfer-encoding";
 std::array<bool, 256> buildInvalidHeaderKeyCharLookupTable() {
   std::array<bool, 256> invalidCharTable;
   invalidCharTable.fill(false);
-  for (char c : BalsaFrame::kInvalidHeaderKeyCharList) {
+  for (uint8_t c : BalsaFrame::kInvalidHeaderKeyCharList) {
     invalidCharTable[c] = true;
   }
   return invalidCharTable;
 }
 
-inline bool IsInvalidHeaderKeyChar(char c) {
+inline bool IsInvalidHeaderKeyChar(uint8_t c) {
   static const std::array<bool, 256> invalidHeaderKeyCharTable =
       buildInvalidHeaderKeyCharLookupTable();
 
