@@ -43,7 +43,7 @@ CharMap BuildValidCharMap(absl::string_view valid_chars) {
 CharMap AllowObsText(CharMap map) {
   // Characters above 0x80 are allowed in header field values as `obs-text` in
   // RFC 7230.
-  for (char c = 0xff; c >= 0x80; --c) {
+  for (uint8_t c = 0xff; c >= 0x80; --c) {
     map[c] = true;
   }
   return map;
