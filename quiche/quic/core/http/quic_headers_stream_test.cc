@@ -31,7 +31,7 @@
 #include "quiche/spdy/core/recording_headers_handler.h"
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
 #include "quiche/spdy/core/spdy_protocol.h"
-#include "quiche/spdy/core/spdy_test_utils.h"
+#include "quiche/spdy/test_tools/spdy_test_utils.h"
 
 using spdy::ERROR_CODE_PROTOCOL_ERROR;
 using spdy::RecordingHeadersHandler;

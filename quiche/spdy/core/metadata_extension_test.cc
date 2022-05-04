@@ -6,11 +6,11 @@
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/spdy/core/array_output_buffer.h"
-#include "quiche/spdy/core/mock_spdy_framer_visitor.h"
 #include "quiche/spdy/core/spdy_framer.h"
 #include "quiche/spdy/core/spdy_header_block.h"
 #include "quiche/spdy/core/spdy_no_op_visitor.h"
 #include "quiche/spdy/core/spdy_protocol.h"
+#include "quiche/spdy/test_tools/mock_spdy_framer_visitor.h"
 
 namespace spdy {
 namespace test {

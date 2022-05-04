@@ -12,7 +12,7 @@
 #include "quiche/spdy/core/hpack/hpack_constants.h"
 #include "quiche/spdy/core/hpack/hpack_decoder_adapter.h"
 #include "quiche/spdy/core/hpack/hpack_encoder.h"
-#include "quiche/spdy/core/spdy_test_utils.h"
+#include "quiche/spdy/test_tools/spdy_test_utils.h"
 
 namespace spdy {
 namespace test {

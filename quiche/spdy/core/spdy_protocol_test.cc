@@ -11,7 +11,7 @@
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/platform/api/quiche_test_helpers.h"
 #include "quiche/spdy/core/spdy_bitmasks.h"
-#include "quiche/spdy/core/spdy_test_utils.h"
+#include "quiche/spdy/test_tools/spdy_test_utils.h"
 
 namespace spdy {
 

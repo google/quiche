@@ -26,7 +26,7 @@
 #include "quiche/spdy/core/hpack/hpack_encoder.h"
 #include "quiche/spdy/core/hpack/hpack_output_stream.h"
 #include "quiche/spdy/core/recording_headers_handler.h"
-#include "quiche/spdy/core/spdy_test_utils.h"
+#include "quiche/spdy/test_tools/spdy_test_utils.h"
 
 using ::http2::HpackEntryType;
 using ::http2::HpackStringPair;

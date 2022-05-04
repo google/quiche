@@ -8,7 +8,7 @@
 #include <utility>
 
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/spdy/core/spdy_test_utils.h"
+#include "quiche/spdy/test_tools/spdy_test_utils.h"
 
 using ::testing::ElementsAre;
 

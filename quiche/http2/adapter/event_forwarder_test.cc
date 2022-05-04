@@ -4,8 +4,8 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/spdy/core/mock_spdy_framer_visitor.h"
 #include "quiche/spdy/core/spdy_protocol.h"
+#include "quiche/spdy/test_tools/mock_spdy_framer_visitor.h"
 
 namespace http2 {
 namespace adapter {

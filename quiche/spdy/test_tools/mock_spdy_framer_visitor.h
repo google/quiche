@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_SPDY_CORE_MOCK_SPDY_FRAMER_VISITOR_H_
-#define QUICHE_SPDY_CORE_MOCK_SPDY_FRAMER_VISITOR_H_
+#ifndef QUICHE_SPDY_TEST_TOOLS_MOCK_SPDY_FRAMER_VISITOR_H_
+#define QUICHE_SPDY_TEST_TOOLS_MOCK_SPDY_FRAMER_VISITOR_H_
 
 #include <cstdint>
 #include <memory>
@@ -13,7 +13,7 @@
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/recording_headers_handler.h"
-#include "quiche/spdy/core/spdy_test_utils.h"
+#include "quiche/spdy/test_tools/spdy_test_utils.h"
 
 namespace spdy {
 
@@ -115,4 +115,4 @@ class QUICHE_NO_EXPORT MockSpdyFramerVisitor
 
 }  // namespace spdy
 
-#endif  // QUICHE_SPDY_CORE_MOCK_SPDY_FRAMER_VISITOR_H_
+#endif  // QUICHE_SPDY_TEST_TOOLS_MOCK_SPDY_FRAMER_VISITOR_H_

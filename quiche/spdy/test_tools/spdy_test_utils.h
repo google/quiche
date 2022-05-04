@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_SPDY_CORE_SPDY_TEST_UTILS_H_
-#define QUICHE_SPDY_CORE_SPDY_TEST_UTILS_H_
+#ifndef QUICHE_SPDY_TEST_TOOLS_SPDY_TEST_UTILS_H_
+#define QUICHE_SPDY_TEST_TOOLS_SPDY_TEST_UTILS_H_
 
 #include <cstddef>
 #include <cstdint>
@@ -38,4 +38,4 @@ void SetFrameLength(SpdySerializedFrame* frame, size_t length);
 }  // namespace test
 }  // namespace spdy
 
-#endif  // QUICHE_SPDY_CORE_SPDY_TEST_UTILS_H_
+#endif  // QUICHE_SPDY_TEST_TOOLS_SPDY_TEST_UTILS_H_
