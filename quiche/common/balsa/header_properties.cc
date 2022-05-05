@@ -59,6 +59,15 @@ MultivaluedHeadersSet* buildMultivaluedHeaders() {
   });
 }
 
+std::array<bool, 256> buildInvalidHeaderKeyCharLookupTable() {
+  std::array<bool, 256> invalidCharTable;
+  invalidCharTable.fill(false);
+  for (uint8_t c : kInvalidHeaderKeyCharList) {
+    invalidCharTable[c] = true;
+  }
+  return invalidCharTable;
+}
+
 std::array<bool, 256> buildInvalidCharLookupTable() {
   std::array<bool, 256> invalidCharTable;
   invalidCharTable.fill(false);
@@ -74,6 +83,13 @@ bool IsMultivaluedHeader(absl::string_view header) {
   static const MultivaluedHeadersSet* const multivalued_headers =
       buildMultivaluedHeaders();
   return multivalued_headers->contains(header);
+}
+
+bool IsInvalidHeaderKeyChar(uint8_t c) {
+  static const std::array<bool, 256> invalidHeaderKeyCharTable =
+      buildInvalidHeaderKeyCharLookupTable();
+
+  return invalidHeaderKeyCharTable[c];
 }
 
 bool IsInvalidHeaderChar(uint8_t c) {

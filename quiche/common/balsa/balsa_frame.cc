@@ -34,22 +34,6 @@ constexpr absl::string_view kContentLength = "content-length";
 constexpr absl::string_view kIdentity = "identity";
 constexpr absl::string_view kTransferEncoding = "transfer-encoding";
 
-std::array<bool, 256> buildInvalidHeaderKeyCharLookupTable() {
-  std::array<bool, 256> invalidCharTable;
-  invalidCharTable.fill(false);
-  for (uint8_t c : BalsaFrame::kInvalidHeaderKeyCharList) {
-    invalidCharTable[c] = true;
-  }
-  return invalidCharTable;
-}
-
-inline bool IsInvalidHeaderKeyChar(uint8_t c) {
-  static const std::array<bool, 256> invalidHeaderKeyCharTable =
-      buildInvalidHeaderKeyCharLookupTable();
-
-  return invalidHeaderKeyCharTable[c];
-}
-
 }  // namespace
 
 void BalsaFrame::Reset() {
@@ -408,7 +392,7 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
         break;
       }
 
-      if (IsInvalidHeaderKeyChar(*current)) {
+      if (header_properties::IsInvalidHeaderKeyChar(*current)) {
         // Generally invalid characters were found earlier.
         HandleError(is_trailer
                         ? BalsaFrameEnums::INVALID_TRAILER_NAME_CHARACTER

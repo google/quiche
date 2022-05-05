@@ -18,17 +18,48 @@ TEST(HeaderPropertiesTest, IsMultivaluedHeaderIsCaseInsensitive) {
   EXPECT_FALSE(IsMultivaluedHeader("Content-Length"));
 }
 
+TEST(HeaderPropertiesTest, IsInvalidHeaderKeyChar) {
+  EXPECT_TRUE(IsInvalidHeaderKeyChar(0x00));
+  EXPECT_TRUE(IsInvalidHeaderKeyChar(0x06));
+  EXPECT_TRUE(IsInvalidHeaderKeyChar(0x09));
+  EXPECT_TRUE(IsInvalidHeaderKeyChar(0x1F));
+  EXPECT_TRUE(IsInvalidHeaderKeyChar(0x7F));
+  EXPECT_TRUE(IsInvalidHeaderKeyChar(' '));
+  EXPECT_TRUE(IsInvalidHeaderKeyChar('\t'));
+  EXPECT_TRUE(IsInvalidHeaderKeyChar('\r'));
+  EXPECT_TRUE(IsInvalidHeaderKeyChar('\n'));
+
+  EXPECT_FALSE(IsInvalidHeaderKeyChar('a'));
+  EXPECT_FALSE(IsInvalidHeaderKeyChar('B'));
+  EXPECT_FALSE(IsInvalidHeaderKeyChar('7'));
+  EXPECT_FALSE(IsInvalidHeaderKeyChar(0x42));
+  EXPECT_FALSE(IsInvalidHeaderChar(0x7D));
+}
+
 TEST(HeaderPropertiesTest, IsInvalidHeaderChar) {
   EXPECT_TRUE(IsInvalidHeaderChar(0x00));
   EXPECT_TRUE(IsInvalidHeaderChar(0x06));
   EXPECT_TRUE(IsInvalidHeaderChar(0x1F));
   EXPECT_TRUE(IsInvalidHeaderChar(0x7F));
 
+  EXPECT_FALSE(IsInvalidHeaderChar(0x09));
   EXPECT_FALSE(IsInvalidHeaderChar(' '));
   EXPECT_FALSE(IsInvalidHeaderChar('\t'));
   EXPECT_FALSE(IsInvalidHeaderChar('\r'));
   EXPECT_FALSE(IsInvalidHeaderChar('\n'));
+  EXPECT_FALSE(IsInvalidHeaderChar('a'));
+  EXPECT_FALSE(IsInvalidHeaderChar('B'));
+  EXPECT_FALSE(IsInvalidHeaderChar('7'));
   EXPECT_FALSE(IsInvalidHeaderChar(0x42));
+  EXPECT_FALSE(IsInvalidHeaderChar(0x7D));
+}
+
+TEST(HeaderPropertiesTest, KeyMoreRestrictiveThanValue) {
+  for (int c = 0; c < 255; ++c) {
+    if (IsInvalidHeaderChar(c)) {
+      EXPECT_TRUE(IsInvalidHeaderKeyChar(c)) << c;
+    }
+  }
 }
 
 TEST(HeaderPropertiesTest, HasInvalidHeaderChars) {
