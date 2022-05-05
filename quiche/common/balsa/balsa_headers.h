@@ -1134,7 +1134,7 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders : public HeaderApi {
 };
 
 // Succinctly describes one header line as indices into a buffer.
-struct BalsaHeaders::HeaderLineDescription {
+struct QUICHE_EXPORT_PRIVATE BalsaHeaders::HeaderLineDescription {
   HeaderLineDescription(size_t first_character_index, size_t key_end_index,
                         size_t value_begin_index, size_t last_character_index,
                         size_t buffer_base_index)
@@ -1172,7 +1172,7 @@ struct BalsaHeaders::HeaderLineDescription {
 
 // Base class for iterating the headers in a BalsaHeaders object, returning a
 // pair of string_view's for each header.
-class BalsaHeaders::iterator_base
+class QUICHE_EXPORT_PRIVATE BalsaHeaders::iterator_base
     : public std::iterator<std::forward_iterator_tag,
                            std::pair<absl::string_view, absl::string_view>> {
  public:
@@ -1268,7 +1268,7 @@ class BalsaHeaders::iterator_base
 };
 
 // A const iterator for all the header lines.
-class BalsaHeaders::const_header_lines_iterator
+class QUICHE_EXPORT_PRIVATE BalsaHeaders::const_header_lines_iterator
     : public BalsaHeaders::iterator_base {
  public:
   const_header_lines_iterator() : iterator_base() {}
@@ -1287,7 +1287,7 @@ class BalsaHeaders::const_header_lines_iterator
 };
 
 // A const iterator that stops only on header lines for a particular key.
-class BalsaHeaders::const_header_lines_key_iterator
+class QUICHE_EXPORT_PRIVATE BalsaHeaders::const_header_lines_key_iterator
     : public BalsaHeaders::iterator_base {
  public:
   const_header_lines_key_iterator& operator++() {

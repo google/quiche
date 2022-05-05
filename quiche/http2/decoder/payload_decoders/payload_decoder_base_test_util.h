@@ -319,7 +319,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
 // means unpadded as there is then no room for the Pad Length field).
 // The frame type must support padding.
 template <class Decoder, class DecoderPeer, class Listener>
-class AbstractPaddablePayloadDecoderTest
+class QUICHE_NO_EXPORT AbstractPaddablePayloadDecoderTest
     : public AbstractPayloadDecoderTest<Decoder, DecoderPeer, Listener>,
       public ::testing::WithParamInterface<int> {
   typedef AbstractPayloadDecoderTest<Decoder, DecoderPeer, Listener> Base;
