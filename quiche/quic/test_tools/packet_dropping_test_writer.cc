@@ -4,7 +4,6 @@
 
 #include "quiche/quic/test_tools/packet_dropping_test_writer.h"
 
-#include "quiche/quic/core/quic_epoll_connection_helper.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 
 namespace quic {

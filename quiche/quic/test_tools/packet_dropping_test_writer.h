@@ -11,9 +11,11 @@
 
 #include "absl/base/attributes.h"
 #include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_clock.h"
+#include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_packet_writer_wrapper.h"
-#include "quiche/quic/test_tools/quic_test_client.h"
+#include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
