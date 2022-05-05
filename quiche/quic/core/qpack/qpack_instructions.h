@@ -71,6 +71,9 @@ using QpackInstructionFields = std::vector<QpackInstructionField>;
 // string literal type to guarantee that all bytes of the instruction are
 // consumed.
 struct QUIC_EXPORT_PRIVATE QpackInstruction {
+  QpackInstruction(QpackInstructionOpcode opcode, QpackInstructionFields fields)
+      : opcode(std::move(opcode)), fields(std::move(fields)) {}
+
   QpackInstruction(const QpackInstruction&) = delete;
   const QpackInstruction& operator=(const QpackInstruction&) = delete;
 

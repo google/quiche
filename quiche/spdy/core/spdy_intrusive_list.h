@@ -268,10 +268,13 @@ class QUICHE_EXPORT_PRIVATE SpdyIntrusiveList {
   // variant of T and the matching qualified link type. Essentially, QualifiedT
   // will either be 'T' or 'const T', the latter for a const_iterator.
   template <typename QualifiedT, typename QualifiedLinkT>
-  class QUICHE_EXPORT_PRIVATE iterator_impl
-      : public std::iterator<std::bidirectional_iterator_tag, QualifiedT> {
+  class QUICHE_EXPORT_PRIVATE iterator_impl {
    public:
-    typedef std::iterator<std::bidirectional_iterator_tag, QualifiedT> base;
+    using iterator_category = std::bidirectional_iterator_tag;
+    using value_type = QualifiedT;
+    using difference_type = std::ptrdiff_t;
+    using pointer = QualifiedT*;
+    using reference = QualifiedT&;
 
     iterator_impl() = default;
     iterator_impl(QualifiedLinkT* link) : link_(link) {}
@@ -291,10 +294,8 @@ class QUICHE_EXPORT_PRIVATE SpdyIntrusiveList {
       return link_ != x.link_;
     }
 
-    typename base::reference operator*() const { return *operator->(); }
-    typename base::pointer operator->() const {
-      return link_->cast_to_derived();
-    }
+    reference operator*() const { return *operator->(); }
+    pointer operator->() const { return link_->cast_to_derived(); }
 
     QualifiedLinkT* link() const { return link_; }
 

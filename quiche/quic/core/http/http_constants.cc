@@ -25,7 +25,7 @@ std::string H3SettingsToString(Http3AndQpackSettingsIdentifiers identifier) {
   return absl::StrCat("UNSUPPORTED_SETTINGS_TYPE(", identifier, ")");
 }
 
-const absl::string_view kUserAgentHeaderName = "user-agent";
+ABSL_CONST_INIT const absl::string_view kUserAgentHeaderName = "user-agent";
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
 

@@ -6,15 +6,15 @@
 namespace http2 {
 namespace adapter {
 
-const char kHttp2MethodPseudoHeader[] = ":method";
-const char kHttp2SchemePseudoHeader[] = ":scheme";
-const char kHttp2AuthorityPseudoHeader[] = ":authority";
-const char kHttp2PathPseudoHeader[] = ":path";
-const char kHttp2StatusPseudoHeader[] = ":status";
+ABSL_CONST_INIT const char kHttp2MethodPseudoHeader[] = ":method";
+ABSL_CONST_INIT const char kHttp2SchemePseudoHeader[] = ":scheme";
+ABSL_CONST_INIT const char kHttp2AuthorityPseudoHeader[] = ":authority";
+ABSL_CONST_INIT const char kHttp2PathPseudoHeader[] = ":path";
+ABSL_CONST_INIT const char kHttp2StatusPseudoHeader[] = ":status";
 
-const uint8_t kMetadataFrameType = 0x4d;
-const uint8_t kMetadataEndFlag = 0x04;
-const uint16_t kMetadataExtensionId = 0x4d44;
+ABSL_CONST_INIT const uint8_t kMetadataFrameType = 0x4d;
+ABSL_CONST_INIT const uint8_t kMetadataEndFlag = 0x04;
+ABSL_CONST_INIT const uint16_t kMetadataExtensionId = 0x4d44;
 
 std::pair<absl::string_view, bool> GetStringView(const HeaderRep& rep) {
   if (absl::holds_alternative<absl::string_view>(rep)) {
