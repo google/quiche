@@ -15,7 +15,7 @@
 #include "quiche/http2/http2_structures.h"
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/test_tools/frame_parts_collector.h"
-#include "quiche/http2/tools/random_decoder_test.h"
+#include "quiche/http2/test_tools/random_decoder_test.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 

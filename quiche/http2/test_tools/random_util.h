@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_HTTP2_TOOLS_RANDOM_UTIL_H_
-#define QUICHE_HTTP2_TOOLS_RANDOM_UTIL_H_
+#ifndef QUICHE_HTTP2_TEST_TOOLS_RANDOM_UTIL_H_
+#define QUICHE_HTTP2_TEST_TOOLS_RANDOM_UTIL_H_
 
 #include <stddef.h>
 
@@ -27,4 +27,4 @@ std::string GenerateWebSafeString(size_t lo, size_t hi, Http2Random* rng);
 }  // namespace test
 }  // namespace http2
 
-#endif  // QUICHE_HTTP2_TOOLS_RANDOM_UTIL_H_
+#endif  // QUICHE_HTTP2_TEST_TOOLS_RANDOM_UTIL_H_

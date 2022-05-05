@@ -17,7 +17,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "quiche/http2/hpack/tools/hpack_block_builder.h"
-#include "quiche/http2/tools/random_decoder_test.h"
+#include "quiche/http2/test_tools/random_decoder_test.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_text_utils.h"

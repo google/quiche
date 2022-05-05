@@ -16,8 +16,8 @@
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures_test_util.h"
+#include "quiche/http2/test_tools/http2_frame_builder.h"
 #include "quiche/http2/test_tools/http2_random.h"
-#include "quiche/http2/tools/http2_frame_builder.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 

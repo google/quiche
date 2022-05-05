@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_HTTP2_TOOLS_HTTP2_FRAME_BUILDER_H_
-#define QUICHE_HTTP2_TOOLS_HTTP2_FRAME_BUILDER_H_
+#ifndef QUICHE_HTTP2_TEST_TOOLS_HTTP2_FRAME_BUILDER_H_
+#define QUICHE_HTTP2_TEST_TOOLS_HTTP2_FRAME_BUILDER_H_
 
 // Http2FrameBuilder builds wire-format HTTP/2 frames (or fragments thereof)
 // from components.
@@ -100,4 +100,4 @@ class QUICHE_NO_EXPORT Http2FrameBuilder {
 }  // namespace test
 }  // namespace http2
 
-#endif  // QUICHE_HTTP2_TOOLS_HTTP2_FRAME_BUILDER_H_
+#endif  // QUICHE_HTTP2_TEST_TOOLS_HTTP2_FRAME_BUILDER_H_

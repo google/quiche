@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/http2/tools/http2_frame_builder.h"
+#include "quiche/http2/test_tools/http2_frame_builder.h"
 
 #ifdef WIN32
 #include <winsock2.h>  // for htonl() functions

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/http2/tools/random_util.h"
+#include "quiche/http2/test_tools/random_util.h"
 
 #include <cmath>
 
