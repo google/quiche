@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/http2/hpack/tools/hpack_block_builder.h"
+#include "quiche/http2/test_tools/hpack_block_builder.h"
 
 #include "absl/strings/escaping.h"
 #include "quiche/common/platform/api/quiche_test.h"

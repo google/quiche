@@ -7,9 +7,9 @@
 // Tests of HpackStringDecoder.
 
 #include "absl/strings/string_view.h"
-#include "quiche/http2/hpack/decoder/hpack_string_collector.h"
 #include "quiche/http2/hpack/decoder/hpack_string_decoder_listener.h"
-#include "quiche/http2/hpack/tools/hpack_block_builder.h"
+#include "quiche/http2/test_tools/hpack_block_builder.h"
+#include "quiche/http2/test_tools/hpack_string_collector.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/test_tools/random_decoder_test.h"
 #include "quiche/common/platform/api/quiche_test.h"

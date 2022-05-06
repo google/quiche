@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/http2/decoder/frame_decoder_state_test_util.h"
+#include "quiche/http2/test_tools/frame_decoder_state_test_util.h"
 
-#include "quiche/http2/decoder/http2_structure_decoder_test_util.h"
 #include "quiche/http2/http2_structures.h"
-#include "quiche/http2/http2_structures_test_util.h"
 #include "quiche/http2/test_tools/http2_random.h"
+#include "quiche/http2/test_tools/http2_structure_decoder_test_util.h"
+#include "quiche/http2/test_tools/http2_structures_test_util.h"
 #include "quiche/http2/test_tools/random_decoder_test.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 

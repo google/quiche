@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/http2/hpack/decoder/hpack_block_collector.h"
+#include "quiche/http2/test_tools/hpack_block_collector.h"
 
 // Tests of HpackBlockCollector. Not intended to be comprehensive, as
 // HpackBlockCollector is itself support for testing HpackBlockDecoder, and
 // should be pretty thoroughly exercised via the tests of HpackBlockDecoder.
 
-#include "quiche/http2/hpack/tools/hpack_block_builder.h"
+#include "quiche/http2/test_tools/hpack_block_builder.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {

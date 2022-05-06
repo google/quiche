@@ -20,8 +20,8 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
-#include "quiche/http2/http2_structures_test_util.h"
 #include "quiche/http2/test_tools/http2_random.h"
+#include "quiche/http2/test_tools/http2_structures_test_util.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/platform/api/quiche_test_helpers.h"
 

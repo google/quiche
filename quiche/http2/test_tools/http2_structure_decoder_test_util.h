@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_HTTP2_DECODER_HTTP2_STRUCTURE_DECODER_TEST_UTIL_H_
-#define QUICHE_HTTP2_DECODER_HTTP2_STRUCTURE_DECODER_TEST_UTIL_H_
+#ifndef QUICHE_HTTP2_TEST_TOOLS_HTTP2_STRUCTURE_DECODER_TEST_UTIL_H_
+#define QUICHE_HTTP2_TEST_TOOLS_HTTP2_STRUCTURE_DECODER_TEST_UTIL_H_
 
 #include "quiche/http2/decoder/http2_structure_decoder.h"
 #include "quiche/http2/test_tools/http2_random.h"
@@ -21,4 +21,4 @@ class QUICHE_NO_EXPORT Http2StructureDecoderPeer {
 }  // namespace test
 }  // namespace http2
 
-#endif  // QUICHE_HTTP2_DECODER_HTTP2_STRUCTURE_DECODER_TEST_UTIL_H_
+#endif  // QUICHE_HTTP2_TEST_TOOLS_HTTP2_STRUCTURE_DECODER_TEST_UTIL_H_

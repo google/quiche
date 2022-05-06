@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_HTTP2_HPACK_DECODER_HPACK_BLOCK_COLLECTOR_H_
-#define QUICHE_HTTP2_HPACK_DECODER_HPACK_BLOCK_COLLECTOR_H_
+#ifndef QUICHE_HTTP2_TEST_TOOLS_HPACK_BLOCK_COLLECTOR_H_
+#define QUICHE_HTTP2_TEST_TOOLS_HPACK_BLOCK_COLLECTOR_H_
 
 // HpackBlockCollector implements HpackEntryDecoderListener in order to record
 // the calls using HpackEntryCollector instances (one per HPACK entry). This
@@ -19,10 +19,10 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "quiche/http2/hpack/decoder/hpack_entry_collector.h"
 #include "quiche/http2/hpack/decoder/hpack_entry_decoder_listener.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
-#include "quiche/http2/hpack/tools/hpack_block_builder.h"
+#include "quiche/http2/test_tools/hpack_block_builder.h"
+#include "quiche/http2/test_tools/hpack_entry_collector.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
@@ -119,4 +119,4 @@ class QUICHE_NO_EXPORT HpackBlockCollector : public HpackEntryDecoderListener {
 }  // namespace test
 }  // namespace http2
 
-#endif  // QUICHE_HTTP2_HPACK_DECODER_HPACK_BLOCK_COLLECTOR_H_
+#endif  // QUICHE_HTTP2_TEST_TOOLS_HPACK_BLOCK_COLLECTOR_H_

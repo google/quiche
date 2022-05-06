@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/http2/hpack/decoder/hpack_entry_collector.h"
+#include "quiche/http2/test_tools/hpack_entry_collector.h"
 
 #include "absl/strings/str_cat.h"
-#include "quiche/http2/hpack/decoder/hpack_string_collector.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
+#include "quiche/http2/test_tools/hpack_string_collector.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/platform/api/quiche_test_helpers.h"

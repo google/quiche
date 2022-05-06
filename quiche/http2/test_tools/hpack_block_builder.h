@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_HTTP2_HPACK_TOOLS_HPACK_BLOCK_BUILDER_H_
-#define QUICHE_HTTP2_HPACK_TOOLS_HPACK_BLOCK_BUILDER_H_
+#ifndef QUICHE_HTTP2_TEST_TOOLS_HPACK_BLOCK_BUILDER_H_
+#define QUICHE_HTTP2_TEST_TOOLS_HPACK_BLOCK_BUILDER_H_
 
 // HpackBlockBuilder builds wire-format HPACK blocks (or fragments thereof)
 // from components.
@@ -94,4 +94,4 @@ class QUICHE_NO_EXPORT HpackBlockBuilder {
 }  // namespace test
 }  // namespace http2
 
-#endif  // QUICHE_HTTP2_HPACK_TOOLS_HPACK_BLOCK_BUILDER_H_
+#endif  // QUICHE_HTTP2_TEST_TOOLS_HPACK_BLOCK_BUILDER_H_

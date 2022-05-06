@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/http2/decoder/http2_frame_decoder_listener_test_util.h"
+#include "quiche/http2/test_tools/http2_frame_decoder_listener_test_util.h"
 
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
 #include "quiche/http2/http2_constants.h"

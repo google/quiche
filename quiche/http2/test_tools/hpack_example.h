@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_HTTP2_HPACK_TOOLS_HPACK_EXAMPLE_H_
-#define QUICHE_HTTP2_HPACK_TOOLS_HPACK_EXAMPLE_H_
+#ifndef QUICHE_HTTP2_TEST_TOOLS_HPACK_EXAMPLE_H_
+#define QUICHE_HTTP2_TEST_TOOLS_HPACK_EXAMPLE_H_
 
 #include <string>
 
@@ -29,4 +29,4 @@ std::string HpackExampleToStringOrDie(absl::string_view example);
 }  // namespace test
 }  // namespace http2
 
-#endif  // QUICHE_HTTP2_HPACK_TOOLS_HPACK_EXAMPLE_H_
+#endif  // QUICHE_HTTP2_TEST_TOOLS_HPACK_EXAMPLE_H_

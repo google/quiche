@@ -11,10 +11,10 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/http2/decoder/decode_buffer.h"
-#include "quiche/http2/hpack/decoder/hpack_block_collector.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
-#include "quiche/http2/hpack/tools/hpack_block_builder.h"
-#include "quiche/http2/hpack/tools/hpack_example.h"
+#include "quiche/http2/test_tools/hpack_block_builder.h"
+#include "quiche/http2/test_tools/hpack_block_collector.h"
+#include "quiche/http2/test_tools/hpack_example.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/test_tools/random_decoder_test.h"
 #include "quiche/common/platform/api/quiche_test.h"

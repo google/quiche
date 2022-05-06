@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_HTTP2_DECODER_FRAME_DECODER_STATE_TEST_UTIL_H_
-#define QUICHE_HTTP2_DECODER_FRAME_DECODER_STATE_TEST_UTIL_H_
+#ifndef QUICHE_HTTP2_TEST_TOOLS_FRAME_DECODER_STATE_TEST_UTIL_H_
+#define QUICHE_HTTP2_TEST_TOOLS_FRAME_DECODER_STATE_TEST_UTIL_H_
 
 #include "quiche/http2/decoder/frame_decoder_state.h"
 #include "quiche/http2/http2_structures.h"
@@ -34,4 +34,4 @@ class QUICHE_NO_EXPORT FrameDecoderStatePeer {
 }  // namespace test
 }  // namespace http2
 
-#endif  // QUICHE_HTTP2_DECODER_FRAME_DECODER_STATE_TEST_UTIL_H_
+#endif  // QUICHE_HTTP2_TEST_TOOLS_FRAME_DECODER_STATE_TEST_UTIL_H_

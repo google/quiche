@@ -6,7 +6,7 @@
 
 #include <vector>
 
-#include "quiche/http2/hpack/tools/hpack_block_builder.h"
+#include "quiche/http2/test_tools/hpack_block_builder.h"
 #include "quiche/http2/test_tools/random_decoder_test.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"

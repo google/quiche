@@ -1,4 +1,4 @@
-#include "quiche/http2/hpack/tools/hpack_example.h"
+#include "quiche/http2/test_tools/hpack_example.h"
 
 // Tests of HpackExampleToStringOrDie.
 
