@@ -145,8 +145,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   }
   bool want_write() const override {
     return !fatal_send_error_ &&
-           (!frames_.empty() || !buffered_data_.empty() ||
-            !connection_metadata_.empty() || HasReadyStream() ||
+           (!frames_.empty() || !buffered_data_.empty() || HasReadyStream() ||
             !goaway_rejected_streams_.empty());
   }
   int GetRemoteWindowSize() const override { return connection_send_window_; }
@@ -209,8 +208,6 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   void OnFramePayload(const char* data, size_t len) override;
 
  private:
-  using MetadataSequence = std::vector<std::unique_ptr<MetadataSource>>;
-
   struct QUICHE_EXPORT_PRIVATE StreamState {
     StreamState(int32_t stream_receive_window, int32_t stream_send_window,
                 WindowManager::WindowUpdateListener listener,
@@ -222,7 +219,6 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
     WindowManager window_manager;
     std::unique_ptr<DataFrameSource> outbound_body;
-    MetadataSequence outbound_metadata;
     std::unique_ptr<spdy::SpdyHeaderBlock> trailers;
     void* user_data = nullptr;
     int32_t send_window;
@@ -359,7 +355,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Writes DATA frames for stream `stream_id`.
   SendResult WriteForStream(Http2StreamId stream_id);
 
-  SendResult SendMetadata(Http2StreamId stream_id, MetadataSequence& sequence);
+  void SerializeMetadata(Http2StreamId stream_id,
+                         std::unique_ptr<MetadataSource> source);
 
   void SendHeaders(Http2StreamId stream_id, spdy::SpdyHeaderBlock headers,
                    bool end_stream);
@@ -487,12 +484,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   absl::flat_hash_map<Http2StreamId, int> queued_frames_;
   // Includes streams that are currently ready to write trailers.
   absl::flat_hash_set<Http2StreamId> trailers_ready_;
-  // Includes streams that are currently ready to write metadata.
-  absl::flat_hash_set<Http2StreamId> metadata_ready_;
   // Includes streams that will not be written due to receipt of GOAWAY.
   absl::flat_hash_set<Http2StreamId> goaway_rejected_streams_;
-
-  MetadataSequence connection_metadata_;
 
   Http2StreamId next_stream_id_ = 1;
   // The highest received stream ID is the highest stream ID in any frame read

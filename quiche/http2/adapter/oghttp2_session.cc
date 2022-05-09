@@ -588,10 +588,6 @@ int OgHttp2Session::Send() {
     // case, return early here to avoid sending other frames.
     return InterpretSendResult(continue_writing);
   }
-  while (continue_writing == SendResult::SEND_OK &&
-         !connection_metadata_.empty()) {
-    continue_writing = SendMetadata(0, connection_metadata_);
-  }
   // Notify on new/pending streams closed due to GOAWAY receipt.
   CloseGoAwayRejectedStreams();
   // Wake streams for writes.
@@ -618,18 +614,12 @@ int OgHttp2Session::InterpretSendResult(SendResult result) {
 }
 
 bool OgHttp2Session::HasReadyStream() const {
-  return !metadata_ready_.empty() || !trailers_ready_.empty() ||
+  return !trailers_ready_.empty() ||
          (write_scheduler_.HasReadyStreams() && connection_send_window_ > 0);
 }
 
 Http2StreamId OgHttp2Session::GetNextReadyStream() {
   QUICHE_DCHECK(HasReadyStream());
-  if (!metadata_ready_.empty()) {
-    const Http2StreamId stream_id = *metadata_ready_.begin();
-    // WriteForStream() will re-mark the stream as ready, if necessary.
-    write_scheduler_.MarkStreamNotReady(stream_id);
-    return stream_id;
-  }
   if (!trailers_ready_.empty()) {
     const Http2StreamId stream_id = *trailers_ready_.begin();
     // WriteForStream() will re-mark the stream as ready, if necessary.
@@ -786,14 +776,10 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
     // HEADERS.
     state.outbound_body = nullptr;
     state.trailers = nullptr;
-    state.outbound_metadata.clear();
     return SendResult::SEND_OK;
   }
-  SendResult connection_can_write = SendResult::SEND_OK;
-  if (!state.outbound_metadata.empty()) {
-    connection_can_write = SendMetadata(stream_id, state.outbound_metadata);
-  }
 
+  SendResult connection_can_write = SendResult::SEND_OK;
   if (state.outbound_body == nullptr ||
       (!options_.trailers_require_end_data && state.data_deferred)) {
     // No data to send, but there might be trailers.
@@ -900,19 +886,18 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
                                       : SendResult::SEND_OK;
 }
 
-OgHttp2Session::SendResult OgHttp2Session::SendMetadata(
-    Http2StreamId stream_id, OgHttp2Session::MetadataSequence& sequence) {
+void OgHttp2Session::SerializeMetadata(Http2StreamId stream_id,
+                                       std::unique_ptr<MetadataSource> source) {
   const uint32_t max_payload_size =
       std::min(kMaxAllowedMetadataFrameSize, max_frame_payload_);
   auto payload_buffer = absl::make_unique<uint8_t[]>(max_payload_size);
-  while (!sequence.empty()) {
-    MetadataSource& source = *sequence.front();
 
+  while (true) {
     auto [written, end_metadata] =
-        source.Pack(payload_buffer.get(), max_payload_size);
+        source->Pack(payload_buffer.get(), max_payload_size);
     if (written < 0) {
-      // Did not touch the connection, so perhaps writes are still possible.
-      return SendResult::SEND_OK;
+      // Unable to pack any metadata.
+      return;
     }
     QUICHE_DCHECK_LE(static_cast<size_t>(written), max_payload_size);
     auto payload = absl::string_view(
@@ -921,11 +906,9 @@ OgHttp2Session::SendResult OgHttp2Session::SendMetadata(
         stream_id, kMetadataFrameType, end_metadata ? kMetadataEndFlag : 0u,
         std::string(payload)));
     if (end_metadata) {
-      sequence.erase(sequence.begin());
-      metadata_ready_.erase(stream_id);
+      return;
     }
   }
-  return SendQueuedFrames();
 }
 
 int32_t OgHttp2Session::SubmitRequest(
@@ -1003,13 +986,7 @@ int OgHttp2Session::SubmitTrailer(Http2StreamId stream_id,
 
 void OgHttp2Session::SubmitMetadata(Http2StreamId stream_id,
                                     std::unique_ptr<MetadataSource> source) {
-  if (stream_id == 0) {
-    connection_metadata_.push_back(std::move(source));
-  } else {
-    auto iter = CreateStream(stream_id);
-    iter->second.outbound_metadata.push_back(std::move(source));
-    metadata_ready_.insert(stream_id);
-  }
+  SerializeMetadata(stream_id, std::move(source));
 }
 
 void OgHttp2Session::SubmitSettings(absl::Span<const Http2Setting> settings) {
@@ -1754,7 +1731,6 @@ void OgHttp2Session::CloseStream(Http2StreamId stream_id,
   }
   stream_map_.erase(stream_id);
   trailers_ready_.erase(stream_id);
-  metadata_ready_.erase(stream_id);
   streams_reset_.erase(stream_id);
   queued_frames_.erase(stream_id);
   if (write_scheduler_.StreamRegistered(stream_id)) {

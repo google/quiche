@@ -4683,9 +4683,8 @@ TEST(OgHttp2AdapterTest, ServerQueuesMetadataThenTrailers) {
   ASSERT_EQ(trailer_result, 0);
   EXPECT_TRUE(adapter->want_write());
 
-  // BUG! The library forgets to serialize and send the metadata.
-  // EXPECT_CALL(visitor, OnBeforeFrameSent(kMetadataFrameType, 1, _, 0x4));
-  // EXPECT_CALL(visitor, OnFrameSent(kMetadataFrameType, 1, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(kMetadataFrameType, 1, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(kMetadataFrameType, 1, _, 0x4, 0));
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
@@ -4694,7 +4693,9 @@ TEST(OgHttp2AdapterTest, ServerQueuesMetadataThenTrailers) {
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({static_cast<SpdyFrameType>(kMetadataFrameType),
+                            SpdyFrameType::HEADERS}));
 }
 
 TEST(OgHttp2AdapterTest, ServerHandlesDataWithPadding) {
