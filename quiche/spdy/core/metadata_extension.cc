@@ -101,7 +101,7 @@ void MetadataVisitor::OnSetting(SpdySettingsId id, uint32_t value) {
         on_support_(true);
       }
     } else {
-      LOG_EVERY_N_SEC(WARNING, 1)
+      QUICHE_LOG_EVERY_N_SEC(WARNING, 1)
           << "Unrecognized value for setting " << id << ": " << value;
     }
   }

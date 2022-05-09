@@ -147,7 +147,7 @@ class StructuredHeaderParser {
   // for parsing an Item from [SH09] 4.2.7).
   absl::optional<Item> ReadBareItem() {
     if (input_.empty()) {
-      DVLOG(1) << "ReadBareItem: unexpected EOF";
+      QUICHE_DVLOG(1) << "ReadBareItem: unexpected EOF";
       return absl::nullopt;
     }
     switch (input_.front()) {
@@ -234,8 +234,8 @@ class StructuredHeaderParser {
         value = std::move(*item);
       }
       if (!parameters.emplace(*name, value).second) {
-        DVLOG(1) << "ReadParameterisedIdentifier: duplicated parameter: "
-                 << *name;
+        QUICHE_DVLOG(1) << "ReadParameterisedIdentifier: duplicated parameter: "
+                        << *name;
         return absl::nullopt;
       }
       SkipWhitespaces();
@@ -426,24 +426,24 @@ class StructuredHeaderParser {
       size_t i = 0;
       for (; i < input_.size(); ++i) {
         if (!absl::ascii_isprint(input_[i])) {
-          DVLOG(1) << "ReadString: non printable-ASCII character";
+          QUICHE_DVLOG(1) << "ReadString: non printable-ASCII character";
           return absl::nullopt;
         }
         if (input_[i] == '"' || input_[i] == '\\') break;
       }
       if (i == input_.size()) {
-        DVLOG(1) << "ReadString: missing closing '\"'";
+        QUICHE_DVLOG(1) << "ReadString: missing closing '\"'";
         return absl::nullopt;
       }
       s.append(std::string(input_.substr(0, i)));
       input_.remove_prefix(i);
       if (ConsumeChar('\\')) {
         if (input_.empty()) {
-          DVLOG(1) << "ReadString: backslash at string end";
+          QUICHE_DVLOG(1) << "ReadString: backslash at string end";
           return absl::nullopt;
         }
         if (input_[0] != '"' && input_[0] != '\\') {
-          DVLOG(1) << "ReadString: invalid escape";
+          QUICHE_DVLOG(1) << "ReadString: invalid escape";
           return absl::nullopt;
         }
         s.push_back(input_.front());
@@ -462,7 +462,7 @@ class StructuredHeaderParser {
     }
     size_t len = input_.find(delimiter);
     if (len == absl::string_view::npos) {
-      DVLOG(1) << "ReadByteSequence: missing closing delimiter";
+      QUICHE_DVLOG(1) << "ReadByteSequence: missing closing delimiter";
       return absl::nullopt;
     }
     std::string base64(input_.substr(0, len));
@@ -471,7 +471,8 @@ class StructuredHeaderParser {
 
     std::string binary;
     if (!absl::Base64Unescape(base64, &binary)) {
-      DVLOG(1) << "ReadByteSequence: failed to decode base64: " << base64;
+      QUICHE_DVLOG(1) << "ReadByteSequence: failed to decode base64: "
+                      << base64;
       return absl::nullopt;
     }
     input_.remove_prefix(len);
@@ -518,9 +519,10 @@ class StructuredHeaderParser {
   }
 
   void LogParseError(const char* func, const char* expected) {
-    DVLOG(1) << func << ": " << expected << " expected, got "
-             << (input_.empty() ? "EOS"
-                                : "'" + std::string(input_.substr(0, 1)) + "'");
+    QUICHE_DVLOG(1) << func << ": " << expected << " expected, got "
+                    << (input_.empty()
+                            ? "EOS"
+                            : "'" + std::string(input_.substr(0, 1)) + "'");
   }
 
   absl::string_view input_;
