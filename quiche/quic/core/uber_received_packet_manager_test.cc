@@ -33,6 +33,20 @@ const QuicTime::Delta kMinRttMs = QuicTime::Delta::FromMilliseconds(40);
 const QuicTime::Delta kDelayedAckTime =
     QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
 
+EncryptionLevel GetEncryptionLevel(PacketNumberSpace packet_number_space) {
+  switch (packet_number_space) {
+    case INITIAL_DATA:
+      return ENCRYPTION_INITIAL;
+    case HANDSHAKE_DATA:
+      return ENCRYPTION_HANDSHAKE;
+    case APPLICATION_DATA:
+      return ENCRYPTION_FORWARD_SECURE;
+    default:
+      QUICHE_DCHECK(false);
+      return NUM_ENCRYPTION_LEVELS;
+  }
+}
+
 class UberReceivedPacketManagerTest : public QuicTest {
  protected:
   UberReceivedPacketManagerTest() {
@@ -108,7 +122,7 @@ class UberReceivedPacketManagerTest : public QuicTest {
         continue;
       }
       manager_->ResetAckStates(
-          QuicUtils::GetEncryptionLevel(static_cast<PacketNumberSpace>(i)));
+          GetEncryptionLevel(static_cast<PacketNumberSpace>(i)));
     }
   }
 

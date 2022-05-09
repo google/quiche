@@ -13,6 +13,7 @@
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -99,6 +100,22 @@ class MockQuicCryptoStream : public QuicCryptoStream,
   bool IsCryptoFrameExpectedForEncryptionLevel(
       EncryptionLevel level) const override {
     return level != ENCRYPTION_ZERO_RTT;
+  }
+
+  EncryptionLevel GetEncryptionLevelToSendCryptoDataOfSpace(
+      PacketNumberSpace space) const override {
+    switch (space) {
+      case INITIAL_DATA:
+        return ENCRYPTION_INITIAL;
+      case HANDSHAKE_DATA:
+        return ENCRYPTION_HANDSHAKE;
+      case APPLICATION_DATA:
+        return QuicCryptoStream::session()
+            ->GetEncryptionLevelToSendApplicationData();
+      default:
+        QUICHE_DCHECK(false);
+        return NUM_ENCRYPTION_LEVELS;
+    }
   }
 
  private:
@@ -266,6 +283,17 @@ TEST_F(QuicCryptoStreamTest, RetransmitCryptoDataInCryptoFrames) {
       .WillOnce(Invoke(connection_,
                        &MockQuicConnection::QuicConnection_SendCryptoData));
   stream_->WriteCryptoData(ENCRYPTION_ZERO_RTT, data);
+
+  // Before encryption moves to ENCRYPTION_FORWARD_SECURE, ZERO RTT data are
+  // retranmitted at ENCRYPTION_ZERO_RTT.
+  QuicCryptoFrame lost_frame = QuicCryptoFrame(ENCRYPTION_ZERO_RTT, 0, 650);
+  stream_->OnCryptoFrameLost(&lost_frame);
+
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_ZERO_RTT, 650, 0))
+      .WillOnce(Invoke(connection_,
+                       &MockQuicConnection::QuicConnection_SendCryptoData));
+  stream_->WritePendingCryptoRetransmission();
+
   connection_->SetEncrypter(
       ENCRYPTION_FORWARD_SECURE,
       std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
@@ -273,7 +301,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitCryptoDataInCryptoFrames) {
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, connection_->encryption_level());
 
   // Lost [0, 1000).
-  QuicCryptoFrame lost_frame(ENCRYPTION_INITIAL, 0, 1000);
+  lost_frame = QuicCryptoFrame(ENCRYPTION_INITIAL, 0, 1000);
   stream_->OnCryptoFrameLost(&lost_frame);
   EXPECT_TRUE(stream_->HasPendingCryptoRetransmission());
   // Lost [1200, 2000).
@@ -289,7 +317,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitCryptoDataInCryptoFrames) {
   EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 150, 1200))
       .WillOnce(Invoke(connection_,
                        &MockQuicConnection::QuicConnection_SendCryptoData));
-  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_ZERO_RTT, 650, 0))
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_FORWARD_SECURE, 650, 0))
       .WillOnce(Invoke(connection_,
                        &MockQuicConnection::QuicConnection_SendCryptoData));
   stream_->WritePendingCryptoRetransmission();
@@ -533,7 +561,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamDataWithCryptoFrames) {
       stream_->OnCryptoFrameAcked(acked_frame, QuicTime::Delta::Zero()));
 
   // Retransmit only [1350, 1500).
-  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_ZERO_RTT, 150, 0))
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_FORWARD_SECURE, 150, 0))
       .WillOnce(Invoke(connection_,
                        &MockQuicConnection::QuicConnection_SendCryptoData));
   QuicCryptoFrame frame_to_retransmit(ENCRYPTION_ZERO_RTT, 0, 150);
@@ -543,10 +571,11 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamDataWithCryptoFrames) {
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, connection_->encryption_level());
 
   // Retransmit [1350, 2700) again and all data is sent.
-  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_ZERO_RTT, 650, 0))
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_FORWARD_SECURE, 650, 0))
       .WillOnce(Invoke(connection_,
                        &MockQuicConnection::QuicConnection_SendCryptoData));
-  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_ZERO_RTT, 200, 1150))
+  EXPECT_CALL(*connection_,
+              SendCryptoData(ENCRYPTION_FORWARD_SECURE, 200, 1150))
       .WillOnce(Invoke(connection_,
                        &MockQuicConnection::QuicConnection_SendCryptoData));
   frame_to_retransmit = QuicCryptoFrame(ENCRYPTION_ZERO_RTT, 0, 1350);

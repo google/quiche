@@ -169,4 +169,10 @@ bool QuicCryptoClientStream::IsCryptoFrameExpectedForEncryptionLevel(
   return handshaker_->IsCryptoFrameExpectedForEncryptionLevel(level);
 }
 
+EncryptionLevel
+QuicCryptoClientStream::GetEncryptionLevelToSendCryptoDataOfSpace(
+    PacketNumberSpace space) const {
+  return handshaker_->GetEncryptionLevelToSendCryptoDataOfSpace(space);
+}
+
 }  // namespace quic

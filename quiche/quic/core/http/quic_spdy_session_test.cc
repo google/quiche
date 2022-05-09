@@ -199,11 +199,25 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
       EncryptionLevel level) const override {
     return level != ENCRYPTION_ZERO_RTT;
   }
+  EncryptionLevel GetEncryptionLevelToSendCryptoDataOfSpace(
+      PacketNumberSpace space) const override {
+    switch (space) {
+      case INITIAL_DATA:
+        return ENCRYPTION_INITIAL;
+      case HANDSHAKE_DATA:
+        return ENCRYPTION_HANDSHAKE;
+      case APPLICATION_DATA:
+        return ENCRYPTION_FORWARD_SECURE;
+      default:
+        QUICHE_DCHECK(false);
+        return NUM_ENCRYPTION_LEVELS;
+    }
+  }
 
   bool ExportKeyingMaterial(absl::string_view /*label*/,
                             absl::string_view /*context*/,
-                            size_t /*result_len*/,
-                            std::string* /*result*/) override {
+                            size_t /*result_len*/, std::string*
+                            /*result*/) override {
     return false;
   }
 

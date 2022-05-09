@@ -209,8 +209,8 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   static PacketNumberSpace GetPacketNumberSpace(
       EncryptionLevel encryption_level);
 
-  // Determines encryption level to send packets in |packet_number_space|.
-  static EncryptionLevel GetEncryptionLevel(
+  // Determines encryption level to send ACK in |packet_number_space|.
+  static EncryptionLevel GetEncryptionLevelToSendAckofSpace(
       PacketNumberSpace packet_number_space);
 
   // Get the maximum value for a V99/IETF QUIC stream count. If a count

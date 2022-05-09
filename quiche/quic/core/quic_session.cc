@@ -1558,7 +1558,7 @@ bool QuicSession::OnNewDecryptionKeyAvailable(
     bool set_alternative_decrypter, bool latch_once_used) {
   if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3 &&
       !connection()->framer().HasEncrypterOfEncryptionLevel(
-          QuicUtils::GetEncryptionLevel(
+          QuicUtils::GetEncryptionLevelToSendAckofSpace(
               QuicUtils::GetPacketNumberSpace(level)))) {
     // This should never happen because connection should never decrypt a packet
     // while an ACK for it cannot be encrypted.

@@ -236,8 +236,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   virtual void OnDataAvailableInSequencer(QuicStreamSequencer* sequencer,
                                           EncryptionLevel level);
 
-  QuicStreamSequencer* GetStreamSequencerForLevel(EncryptionLevel level) {
-    return &substreams_[level].sequencer;
+  QuicStreamSequencer* GetStreamSequencerForPacketNumberSpace(
+      PacketNumberSpace packet_number_space) {
+    return &substreams_[packet_number_space].sequencer;
   }
 
   // Called by OnCryptoFrame to check if a CRYPTO frame is received at an
@@ -245,13 +246,17 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   virtual bool IsCryptoFrameExpectedForEncryptionLevel(
       EncryptionLevel level) const = 0;
 
+  // Called to determine the encryption level to send/retransmit crypto data.
+  virtual EncryptionLevel GetEncryptionLevelToSendCryptoDataOfSpace(
+      PacketNumberSpace space) const = 0;
+
  private:
-  // Data sent and received in CRYPTO frames is sent at multiple encryption
-  // levels. Some of the state for the single logical crypto stream is split
-  // across encryption levels, and a CryptoSubstream is used to manage that
-  // state for a particular encryption level.
+  // Data sent and received in CRYPTO frames is sent at multiple packet number
+  // spaces. Some of the state for the single logical crypto stream is split
+  // across packet number spaces, and a CryptoSubstream is used to manage that
+  // state for a particular packet number space.
   struct QUIC_EXPORT_PRIVATE CryptoSubstream {
-    CryptoSubstream(QuicCryptoStream* crypto_stream, EncryptionLevel);
+    CryptoSubstream(QuicCryptoStream* crypto_stream);
 
     QuicStreamSequencer sequencer;
     QuicStreamSendBuffer send_buffer;
@@ -262,9 +267,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // TLS 1.3, which never encrypts crypto data.
   QuicIntervalSet<QuicStreamOffset> bytes_consumed_[NUM_ENCRYPTION_LEVELS];
 
-  // Keeps state for data sent/received in CRYPTO frames at each encryption
-  // level.
-  std::array<CryptoSubstream, NUM_ENCRYPTION_LEVELS> substreams_;
+  // Keeps state for data sent/received in CRYPTO frames at each packet number
+  // space;
+  std::array<CryptoSubstream, NUM_PACKET_NUMBER_SPACES> substreams_;
 };
 
 }  // namespace quic

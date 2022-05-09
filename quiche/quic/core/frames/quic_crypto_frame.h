@@ -25,6 +25,8 @@ struct QUIC_EXPORT_PRIVATE QuicCryptoFrame {
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                                       const QuicCryptoFrame& s);
 
+  // TODO(haoyuewang) Consider replace the EncryptionLevel here with
+  // PacketNumberSpace.
   // When writing a crypto frame to a packet, the packet must be encrypted at
   // |level|. When a crypto frame is read, the encryption level of the packet it
   // was received in is put in |level|.

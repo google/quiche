@@ -361,6 +361,19 @@ bool TlsClientHandshaker::IsCryptoFrameExpectedForEncryptionLevel(
   return level != ENCRYPTION_ZERO_RTT;
 }
 
+EncryptionLevel TlsClientHandshaker::GetEncryptionLevelToSendCryptoDataOfSpace(
+    PacketNumberSpace space) const {
+  switch (space) {
+    case INITIAL_DATA:
+      return ENCRYPTION_INITIAL;
+    case HANDSHAKE_DATA:
+      return ENCRYPTION_HANDSHAKE;
+    default:
+      QUICHE_DCHECK(false);
+      return NUM_ENCRYPTION_LEVELS;
+  }
+}
+
 bool TlsClientHandshaker::one_rtt_keys_available() const {
   return state_ >= HANDSHAKE_COMPLETE;
 }

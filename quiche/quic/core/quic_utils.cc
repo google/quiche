@@ -595,7 +595,7 @@ PacketNumberSpace QuicUtils::GetPacketNumberSpace(
 }
 
 // static
-EncryptionLevel QuicUtils::GetEncryptionLevel(
+EncryptionLevel QuicUtils::GetEncryptionLevelToSendAckofSpace(
     PacketNumberSpace packet_number_space) {
   switch (packet_number_space) {
     case INITIAL_DATA:

@@ -1863,6 +1863,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool ShouldSetRetransmissionAlarmOnPacketSent(bool in_flight,
                                                 EncryptionLevel level) const;
 
+  // Determines encryption level to send ping in `packet_number_space`.
+  EncryptionLevel GetEncryptionLevelToSendPingForSpace(
+      PacketNumberSpace space) const;
+
   QuicConnectionContext context_;
 
   QuicFramer framer_;

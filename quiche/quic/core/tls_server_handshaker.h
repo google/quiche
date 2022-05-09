@@ -73,6 +73,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   SSL* GetSsl() const override;
   bool IsCryptoFrameExpectedForEncryptionLevel(
       EncryptionLevel level) const override;
+  EncryptionLevel GetEncryptionLevelToSendCryptoDataOfSpace(
+      PacketNumberSpace space) const override;
 
   // From QuicCryptoServerStreamBase and TlsHandshaker
   ssl_early_data_reason_t EarlyDataReason() const override;

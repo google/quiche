@@ -4120,6 +4120,21 @@ void QuicConnection::SendAck() {
   visitor_->OnAckNeedsRetransmittableFrame();
 }
 
+EncryptionLevel QuicConnection::GetEncryptionLevelToSendPingForSpace(
+    PacketNumberSpace space) const {
+  switch (space) {
+    case INITIAL_DATA:
+      return ENCRYPTION_INITIAL;
+    case HANDSHAKE_DATA:
+      return ENCRYPTION_HANDSHAKE;
+    case APPLICATION_DATA:
+      return framer_.GetEncryptionLevelToSendApplicationData();
+    default:
+      QUICHE_DCHECK(false);
+      return NUM_ENCRYPTION_LEVELS;
+  }
+}
+
 void QuicConnection::OnRetransmissionTimeout() {
   ScopedRetransmissionTimeoutIndicator indicator(this);
 #ifndef NDEBUG
@@ -4182,7 +4197,8 @@ void QuicConnection::OnRetransmissionTimeout() {
       if (sent_packet_manager_
               .GetEarliestPacketSentTimeForPto(&packet_number_space)
               .IsInitialized()) {
-        SendPingAtLevel(QuicUtils::GetEncryptionLevel(packet_number_space));
+        SendPingAtLevel(
+            GetEncryptionLevelToSendPingForSpace(packet_number_space));
       } else {
         // The client must PTO when there is nothing in flight if the server
         // could be blocked from sending by the amplification limit
@@ -5911,7 +5927,8 @@ void QuicConnection::SendAllPendingAcks() {
                   << PacketNumberSpaceToString(
                          static_cast<PacketNumberSpace>(i));
     ScopedEncryptionLevelContext context(
-        this, QuicUtils::GetEncryptionLevel(static_cast<PacketNumberSpace>(i)));
+        this, QuicUtils::GetEncryptionLevelToSendAckofSpace(
+                  static_cast<PacketNumberSpace>(i)));
     QuicFrames frames;
     frames.push_back(uber_received_packet_manager_.GetUpdatedAckFrame(
         static_cast<PacketNumberSpace>(i), clock_->ApproximateNow()));

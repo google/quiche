@@ -192,6 +192,21 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     return level != ENCRYPTION_ZERO_RTT;
   }
 
+  EncryptionLevel GetEncryptionLevelToSendCryptoDataOfSpace(
+      PacketNumberSpace space) const override {
+    switch (space) {
+      case INITIAL_DATA:
+        return ENCRYPTION_INITIAL;
+      case HANDSHAKE_DATA:
+        return ENCRYPTION_HANDSHAKE;
+      case APPLICATION_DATA:
+        return ENCRYPTION_FORWARD_SECURE;
+      default:
+        QUICHE_DCHECK(false);
+        return NUM_ENCRYPTION_LEVELS;
+    }
+  }
+
  private:
   using QuicCryptoStream::session;
 

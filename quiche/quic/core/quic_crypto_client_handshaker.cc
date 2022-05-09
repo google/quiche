@@ -11,9 +11,11 @@
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/crypto_utils.h"
 #include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_client_stats.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -147,6 +149,16 @@ bool QuicCryptoClientHandshaker::encryption_established() const {
 bool QuicCryptoClientHandshaker::IsCryptoFrameExpectedForEncryptionLevel(
     EncryptionLevel /*level*/) const {
   return true;
+}
+
+EncryptionLevel
+QuicCryptoClientHandshaker::GetEncryptionLevelToSendCryptoDataOfSpace(
+    PacketNumberSpace space) const {
+  if (space == INITIAL_DATA) {
+    return ENCRYPTION_INITIAL;
+  }
+  QUICHE_DCHECK(false);
+  return NUM_ENCRYPTION_LEVELS;
 }
 
 bool QuicCryptoClientHandshaker::one_rtt_keys_available() const {

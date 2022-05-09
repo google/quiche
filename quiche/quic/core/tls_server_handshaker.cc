@@ -1130,4 +1130,19 @@ bool TlsServerHandshaker::IsCryptoFrameExpectedForEncryptionLevel(
   return level != ENCRYPTION_ZERO_RTT;
 }
 
+EncryptionLevel TlsServerHandshaker::GetEncryptionLevelToSendCryptoDataOfSpace(
+    PacketNumberSpace space) const {
+  switch (space) {
+    case INITIAL_DATA:
+      return ENCRYPTION_INITIAL;
+    case HANDSHAKE_DATA:
+      return ENCRYPTION_HANDSHAKE;
+    case APPLICATION_DATA:
+      return ENCRYPTION_FORWARD_SECURE;
+    default:
+      QUICHE_DCHECK(false);
+      return NUM_ENCRYPTION_LEVELS;
+  }
+}
+
 }  // namespace quic

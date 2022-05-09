@@ -17,6 +17,7 @@
 #include "quiche/quic/core/quic_crypto_stream.h"
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
@@ -173,6 +174,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     virtual bool IsCryptoFrameExpectedForEncryptionLevel(
         EncryptionLevel level) const = 0;
 
+    // Returns the encryption level to send CRYPTO_FRAME for `space`.
+    virtual EncryptionLevel GetEncryptionLevelToSendCryptoDataOfSpace(
+        PacketNumberSpace space) const = 0;
+
     // Returns true once 1RTT keys are available.
     virtual bool one_rtt_keys_available() const = 0;
 
@@ -289,6 +294,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   SSL* GetSsl() const override;
   bool IsCryptoFrameExpectedForEncryptionLevel(
       EncryptionLevel level) const override;
+  EncryptionLevel GetEncryptionLevelToSendCryptoDataOfSpace(
+      PacketNumberSpace space) const override;
+
   bool ExportKeyingMaterial(absl::string_view label, absl::string_view context,
                             size_t result_len, std::string* result) override;
   std::string chlo_hash() const;
