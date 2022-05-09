@@ -24,9 +24,8 @@ class QUICHE_EXPORT_PRIVATE QuicheMemSliceStorage {
                         QuicheBufferAllocator* allocator,
                         const quic::QuicByteCount max_slice_len);
 
-  QuicheMemSliceStorage(const QuicheMemSliceStorage& other) = default;
-  QuicheMemSliceStorage& operator=(const QuicheMemSliceStorage& other) =
-      default;
+  QuicheMemSliceStorage(const QuicheMemSliceStorage& other) = delete;
+  QuicheMemSliceStorage& operator=(const QuicheMemSliceStorage& other) = delete;
   QuicheMemSliceStorage(QuicheMemSliceStorage&& other) = default;
   QuicheMemSliceStorage& operator=(QuicheMemSliceStorage&& other) = default;
 
