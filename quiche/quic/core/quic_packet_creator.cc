@@ -511,8 +511,7 @@ size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(
       << "Attempt to serialize empty ENCRYPTION_INITIAL packet in coalesced "
          "packet";
 
-  if (close_connection_if_fail_to_serialzie_coalesced_packet_ &&
-      HasPendingFrames()) {
+  if (HasPendingFrames()) {
     QUIC_BUG(quic_packet_creator_unexpected_queued_frames)
         << "Unexpected queued frames: " << GetPendingFramesInfo();
     return 0;
@@ -549,15 +548,8 @@ size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(
     }
   }
 
-  if (close_connection_if_fail_to_serialzie_coalesced_packet_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_close_connection_if_fail_to_serialzie_coalesced_packet2, 1, 2);
-  }
-
-  if (!SerializePacket(
-          QuicOwnedPacketBuffer(buffer, nullptr), buffer_len,
-          /*allow_padding=*/
-          !close_connection_if_fail_to_serialzie_coalesced_packet_)) {
+  if (!SerializePacket(QuicOwnedPacketBuffer(buffer, nullptr), buffer_len,
+                       /*allow_padding=*/false)) {
     return 0;
   }
   const size_t encrypted_length = packet_.encrypted_length;

@@ -9919,12 +9919,8 @@ TEST_P(QuicConnectionTest, FailToCoalescePacket) {
 
   EXPECT_CALL(visitor_, OnHandshakePacketSent());
 
-  if (GetQuicReloadableFlag(
-          quic_close_connection_if_fail_to_serialzie_coalesced_packet2)) {
-    EXPECT_CALL(visitor_,
-                OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
-        .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
-  }
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
 
   ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_INITIAL);
   auto test_body = [&] {
@@ -9970,16 +9966,11 @@ TEST_P(QuicConnectionTest, FailToCoalescePacket) {
 
   EXPECT_QUIC_BUG(test_body(), "SerializeCoalescedPacket failed.");
 
-  if (GetQuicReloadableFlag(
-          quic_close_connection_if_fail_to_serialzie_coalesced_packet2)) {
-    EXPECT_FALSE(connection_.connected());
-    EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
-                IsError(QUIC_FAILED_TO_SERIALIZE_PACKET));
-    EXPECT_EQ(saved_connection_close_frame_.error_details,
-              "Failed to serialize coalesced packet.");
-  } else {
-    EXPECT_TRUE(connection_.connected());
-  }
+  EXPECT_FALSE(connection_.connected());
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_FAILED_TO_SERIALIZE_PACKET));
+  EXPECT_EQ(saved_connection_close_frame_.error_details,
+            "Failed to serialize coalesced packet.");
 }
 
 TEST_P(QuicConnectionTest, LegacyVersionEncapsulation) {
@@ -15272,22 +15263,12 @@ TEST_P(QuicConnectionTest, NoExtraPaddingInReserializedInitial) {
   // Server receives INITIAL 3, this will serialzie FS 7 (stream 4, stream 8),
   // which will trigger a flush of a coalesced packet consists of INITIAL 4,
   // HS 5 and FS 6 (stream 4).
-  if (GetQuicReloadableFlag(
-          quic_close_connection_if_fail_to_serialzie_coalesced_packet2)) {
-    // Expect no QUIC_BUG.
-    ProcessDataPacketAtLevel(3, !kHasStopWaiting, ENCRYPTION_INITIAL);
-    EXPECT_EQ(
-        debug_visitor_sent_count,
-        connection_.sent_packet_manager().GetLargestSentPacket().ToUint64());
-  } else {
-    // Expect QUIC_BUG due to extra padding.
-    EXPECT_QUIC_BUG(
-        { ProcessDataPacketAtLevel(3, !kHasStopWaiting, ENCRYPTION_INITIAL); },
-        "Reserialize initial packet in coalescer has unexpected size");
-    EXPECT_EQ(
-        debug_visitor_sent_count + 1,
-        connection_.sent_packet_manager().GetLargestSentPacket().ToUint64());
-  }
+
+  // Expect no QUIC_BUG.
+  ProcessDataPacketAtLevel(3, !kHasStopWaiting, ENCRYPTION_INITIAL);
+  EXPECT_EQ(
+      debug_visitor_sent_count,
+      connection_.sent_packet_manager().GetLargestSentPacket().ToUint64());
 
   // The error only happens if after serializing the second 1RTT packet(pkt #7),
   // the pending padding bytes is non zero.

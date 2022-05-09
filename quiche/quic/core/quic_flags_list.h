@@ -19,8 +19,6 @@ QUIC_FLAG(FLAGS_quic_restart_flag_quic_testonly_default_true, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bbr2_no_probe_up_exit_if_no_queue, true)
 // If true, 1) QUIC connections will use a lower minimum for trusted initial rtt, 2) When TRTT is received, QUIC server sessions will mark the initial rtt from CachedNetworkParameters as trusted.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_lower_min_for_trusted_irtt, true)
-// If true, QUIC connection will be closed if it fails to serialize a coalesced packet.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_close_connection_if_fail_to_serialzie_coalesced_packet2, true)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.

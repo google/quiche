@@ -485,10 +485,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   const QuicSocketAddress& peer_address() const { return packet_.peer_address; }
 
-  bool close_connection_if_fail_to_serialzie_coalesced_packet() const {
-    return close_connection_if_fail_to_serialzie_coalesced_packet_;
-  }
-
  private:
   friend class test::QuicPacketCreatorPeer;
 
@@ -692,10 +688,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Whether to attempt protecting initial packets with chaos.
   bool chaos_protection_enabled_;
-
-  const bool close_connection_if_fail_to_serialzie_coalesced_packet_ =
-      GetQuicReloadableFlag(
-          quic_close_connection_if_fail_to_serialzie_coalesced_packet2);
 };
 
 }  // namespace quic

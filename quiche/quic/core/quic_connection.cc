@@ -6025,11 +6025,7 @@ bool QuicConnection::FlushCoalescedPacket() {
   const size_t length = packet_creator_.SerializeCoalescedPacket(
       coalesced_packet_, buffer, coalesced_packet_.max_packet_length());
   if (length == 0) {
-    if (packet_creator_
-            .close_connection_if_fail_to_serialzie_coalesced_packet() &&
-        connected_) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(
-          quic_close_connection_if_fail_to_serialzie_coalesced_packet2, 2, 2);
+    if (connected_) {
       CloseConnection(QUIC_FAILED_TO_SERIALIZE_PACKET,
                       "Failed to serialize coalesced packet.",
                       ConnectionCloseBehavior::SILENT_CLOSE);
