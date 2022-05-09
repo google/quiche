@@ -3482,31 +3482,33 @@ TEST_F(HTTPBalsaFrameTest, InvalidCharsAreCounted) {
 // Test gibberish in headers and trailer. GFE does not crash but garbage in
 // garbage out.
 TEST_F(HTTPBalsaFrameTest, GibberishInHeadersAndTrailer) {
-  const char kGibberish1[] = {138, 175, 233, 0};
-  const char kGibberish2[] = {'?', '?', 128, 255, 129, 254, 0};
+  // Use static_cast<char> for values exceeding SCHAR_MAX to make sure this
+  // compiles on platforms where char is signed.
+  const char kGibberish1[] = {static_cast<char>(138), static_cast<char>(175),
+                              static_cast<char>(233), 0};
+  const char kGibberish2[] = {'?',
+                              '?',
+                              static_cast<char>(128),
+                              static_cast<char>(255),
+                              static_cast<char>(129),
+                              static_cast<char>(254),
+                              0};
   const char kGibberish3[] = "foo: bar : eeep : baz";
 
-  std::string gibberish_headers;
-  gibberish_headers += kGibberish1;
-  gibberish_headers += ":";
-  gibberish_headers += kGibberish2;
-  gibberish_headers += "\r\n";
-  gibberish_headers += kGibberish3;
-  gibberish_headers += "\r\n";
+  std::string gibberish_headers =
+      absl::StrCat(kGibberish1, ":", kGibberish2, "\r\n", kGibberish3, "\r\n");
 
-  std::string headers =
+  std::string headers = absl::StrCat(
       "HTTP/1.1 200 OK\r\n"
-      "transfer-encoding: chunked\r\n";
-  headers += gibberish_headers;
-  headers += "\r\n";
+      "transfer-encoding: chunked\r\n",
+      gibberish_headers, "\r\n");
 
   std::string chunks =
       "3\r\n"
       "123\r\n"
       "0\r\n";
-  std::string trailer = "k: v\n";
-  trailer += gibberish_headers;
-  trailer += "\n";
+
+  std::string trailer = absl::StrCat("k: v\n", gibberish_headers, "\n");
 
   balsa_frame_.set_is_request(false);
   balsa_frame_.set_balsa_trailer(&trailer_);
