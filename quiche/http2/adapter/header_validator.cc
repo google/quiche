@@ -194,9 +194,16 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
       }
     }
   } else if (key == "content-length") {
-    const bool success = HandleContentLength(value);
-    if (!success) {
-      return HEADER_FIELD_INVALID;
+    const ContentLengthStatus status = HandleContentLength(value);
+    switch (status) {
+      case CONTENT_LENGTH_ERROR:
+        return HEADER_FIELD_INVALID;
+      case CONTENT_LENGTH_SKIP:
+        return HEADER_SKIP;
+      case CONTENT_LENGTH_OK:
+        return HEADER_OK;
+      default:
+        return HEADER_FIELD_INVALID;
     }
   } else if (key == "te" && value != "trailers") {
     return HEADER_FIELD_INVALID;
@@ -227,28 +234,33 @@ bool HeaderValidator::FinishHeaderBlock(HeaderType type) {
   return false;
 }
 
-bool HeaderValidator::HandleContentLength(absl::string_view value) {
+HeaderValidator::ContentLengthStatus HeaderValidator::HandleContentLength(
+    absl::string_view value) {
   if (value.empty()) {
-    return false;
+    return CONTENT_LENGTH_ERROR;
   }
 
   if (status_ == "204" && value != "0") {
     // There should be no body in a "204 No Content" response.
-    return false;
+    return CONTENT_LENGTH_ERROR;
   }
   if (!status_.empty() && status_[0] == '1' && value != "0") {
     // There should also be no body in a 1xx response.
-    return false;
+    return CONTENT_LENGTH_ERROR;
   }
 
   size_t content_length = 0;
   const bool valid = absl::SimpleAtoi(value, &content_length);
   if (!valid) {
-    return false;
+    return CONTENT_LENGTH_ERROR;
   }
 
+  if (content_length_.has_value()) {
+    return content_length == content_length_.value() ? CONTENT_LENGTH_SKIP
+                                                     : CONTENT_LENGTH_ERROR;
+  }
   content_length_ = content_length;
-  return true;
+  return CONTENT_LENGTH_OK;
 }
 
 // Returns whether `authority` contains only characters from the `host` ABNF

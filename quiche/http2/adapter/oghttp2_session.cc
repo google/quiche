@@ -231,6 +231,7 @@ Http2VisitorInterface::OnHeaderResult InterpretHeaderStatus(
     HeaderValidator::HeaderStatus status) {
   switch (status) {
     case HeaderValidator::HEADER_OK:
+    case HeaderValidator::HEADER_SKIP:
       return Http2VisitorInterface::HEADER_OK;
     case HeaderValidator::HEADER_FIELD_INVALID:
       return Http2VisitorInterface::HEADER_FIELD_INVALID;
@@ -248,6 +249,9 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
   }
   const HeaderValidator::HeaderStatus validation_result =
       validator_.ValidateSingleHeader(key, value);
+  if (validation_result == HeaderValidator::HEADER_SKIP) {
+    return;
+  }
   if (validation_result != HeaderValidator::HEADER_OK) {
     QUICHE_VLOG(2) << "Header validation failed with result "
                    << static_cast<int>(validation_result);

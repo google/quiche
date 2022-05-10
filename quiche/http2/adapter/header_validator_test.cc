@@ -428,6 +428,30 @@ TEST(HeaderValidatorTest, Response204) {
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::RESPONSE));
 }
 
+TEST(HeaderValidatorTest, ResponseWithMultipleIdenticalContentLength) {
+  HeaderValidator v;
+
+  v.StartHeaderBlock();
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader(":status", "200"));
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("content-length", "13"));
+  EXPECT_EQ(HeaderValidator::HEADER_SKIP,
+            v.ValidateSingleHeader("content-length", "13"));
+}
+
+TEST(HeaderValidatorTest, ResponseWithMultipleDifferingContentLength) {
+  HeaderValidator v;
+
+  v.StartHeaderBlock();
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader(":status", "200"));
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("content-length", "13"));
+  EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+            v.ValidateSingleHeader("content-length", "17"));
+}
+
 TEST(HeaderValidatorTest, Response204WithContentLengthZero) {
   HeaderValidator v;
 

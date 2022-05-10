@@ -39,6 +39,7 @@ class QUICHE_EXPORT_PRIVATE HeaderValidator {
 
   enum HeaderStatus {
     HEADER_OK,
+    HEADER_SKIP,
     HEADER_FIELD_INVALID,
     HEADER_FIELD_TOO_LONG,
   };
@@ -55,7 +56,12 @@ class QUICHE_EXPORT_PRIVATE HeaderValidator {
   absl::optional<size_t> content_length() const { return content_length_; }
 
  private:
-  bool HandleContentLength(absl::string_view value);
+  enum ContentLengthStatus {
+    CONTENT_LENGTH_OK,
+    CONTENT_LENGTH_SKIP,  // Used to handle duplicate content length values.
+    CONTENT_LENGTH_ERROR,
+  };
+  ContentLengthStatus HandleContentLength(absl::string_view value);
   bool ValidateAndSetAuthority(absl::string_view authority);
 
   std::vector<std::string> pseudo_headers_;
