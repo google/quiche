@@ -23,6 +23,21 @@
 #include "quiche/common/balsa/header_properties.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
+// When comparing characters (other than == and !=), cast to unsigned char
+// to make sure values above 127 rank as expected, even on platforms where char
+// is signed and thus such values are represented as negative numbers before the
+// cast.
+#define CHAR_LT(a, b) \
+  (static_cast<unsigned char>(a) < static_cast<unsigned char>(b))
+#define CHAR_LE(a, b) \
+  (static_cast<unsigned char>(a) <= static_cast<unsigned char>(b))
+#define CHAR_GT(a, b) \
+  (static_cast<unsigned char>(a) > static_cast<unsigned char>(b))
+#define CHAR_GE(a, b) \
+  (static_cast<unsigned char>(a) >= static_cast<unsigned char>(b))
+#define QUICHE_DCHECK_CHAR_GE(a, b) \
+  QUICHE_DCHECK_GE(static_cast<unsigned char>(a), static_cast<unsigned char>(b))
+
 namespace quiche {
 
 namespace {
@@ -88,11 +103,11 @@ inline const char* ParseOneIsland(const char* current, const char* begin,
                                   const char* end, size_t* first_whitespace,
                                   size_t* first_nonwhite) {
   *first_whitespace = current - begin;
-  while (current < end && *current <= ' ') {
+  while (current < end && CHAR_LE(*current, ' ')) {
     ++current;
   }
   *first_nonwhite = current - begin;
-  while (current<end&& * current> ' ') {
+  while (current < end && CHAR_GT(*current, ' ')) {
     ++current;
   }
   return current;
@@ -151,14 +166,14 @@ bool ParseHTTPFirstLine(const char* begin, const char* end, bool is_request,
 
   // Clean up any trailing whitespace that comes after the third island
   const char* last = end;
-  while (current <= last && *last <= ' ') {
+  while (current <= last && CHAR_LE(*last, ' ')) {
     --last;
   }
   headers->whitespace_4_idx_ = last - begin + 1;
 
   // Either the passed-in line is empty, or it starts with a non-whitespace
   // character.
-  QUICHE_DCHECK(begin == end || *begin > ' ');
+  QUICHE_DCHECK(begin == end || static_cast<unsigned char>(*begin) > ' ');
 
   QUICHE_DCHECK_EQ(0u, headers->whitespace_1_idx_);
   QUICHE_DCHECK_EQ(0u, headers->non_whitespace_1_idx_);
@@ -268,13 +283,13 @@ void BalsaFrame::CleanUpKeyValueWhitespace(
   QUICHE_DCHECK_LT(colon_loc, line_end);
   QUICHE_DCHECK_EQ(':', *colon_loc);
   QUICHE_DCHECK_EQ(':', *current);
-  QUICHE_DCHECK_GE(' ', *line_end)
+  QUICHE_DCHECK_CHAR_GE(' ', *line_end)
       << "\"" << std::string(line_begin, line_end) << "\"";
 
   // TODO(fenix): Investigate whether or not the bounds tests in the
   // while loops here are redundant, and if so, remove them.
   --current;
-  while (current > line_begin && *current <= ' ') {
+  while (current > line_begin && CHAR_LE(*current, ' ')) {
     --current;
   }
   current += static_cast<int>(current != colon_loc);
@@ -283,7 +298,7 @@ void BalsaFrame::CleanUpKeyValueWhitespace(
   current = colon_loc;
   QUICHE_DCHECK_EQ(':', *current);
   ++current;
-  while (current < line_end && *current <= ' ') {
+  while (current < line_end && CHAR_LE(*current, ' ')) {
     ++current;
   }
   current_header_line->value_begin_idx = current - stream_begin;
@@ -323,7 +338,7 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
     // "\r\n", etc -within- the line (and not just at the end of it).
     for (++i; i < lines_size_m1; ++i) {
       const char c = *(stream_begin + lines[i].first);
-      if (c > ' ') {
+      if (CHAR_GT(c, ' ')) {
         // Not a continuation, so stop.  Note that if the 'original' i = 1,
         // and the next line is not a continuation, we'll end up with i = 2
         // when we break. This handles the incrementing of i for the outer
@@ -355,11 +370,11 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
     --line_end;
     QUICHE_DCHECK_EQ('\n', *line_end)
         << "\"" << std::string(line_begin, line_end) << "\"";
-    while (*line_end <= ' ' && line_end > line_begin) {
+    while (CHAR_LE(*line_end, ' ') && line_end > line_begin) {
       --line_end;
     }
     ++line_end;
-    QUICHE_DCHECK_GE(' ', *line_end);
+    QUICHE_DCHECK_CHAR_GE(' ', *line_end);
     QUICHE_DCHECK_LT(line_begin, line_end);
 
     // We use '0' for the block idx, because we're always writing to the first
@@ -731,7 +746,7 @@ size_t BalsaFrame::ProcessHeaders(const char* message_start,
       do {
         const char c = *message_current;
         if (c != '\r' && c != '\n') {
-          if (c <= ' ') {
+          if (CHAR_LE(c, ' ')) {
             HandleError(BalsaFrameEnums::NO_REQUEST_LINE_IN_REQUEST);
             return message_current - original_message_start;
           }
@@ -1294,3 +1309,9 @@ const int32_t BalsaFrame::kValidTerm2;
 const int32_t BalsaFrame::kValidTerm2Mask;
 
 }  // namespace quiche
+
+#undef CHAR_LT
+#undef CHAR_LE
+#undef CHAR_GT
+#undef CHAR_GE
+#undef QUICHE_DCHECK_CHAR_GE

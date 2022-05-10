@@ -182,8 +182,12 @@ void BalsaHeaders::ParseTokenList(absl::string_view header_value,
   const char* start = header_value.begin();
   const char* end = header_value.end();
   while (true) {
+    // Cast `*start` to unsigned char to make values above 127 rank as expected
+    // on platforms with signed char, where such values are represented as
+    // negative numbers before the cast.
+
     // search for first nonwhitespace, non separator char.
-    while (*start == ',' || *start <= ' ') {
+    while (*start == ',' || static_cast<unsigned char>(*start) <= ' ') {
       ++start;
       if (start == end) {
         return;
@@ -193,7 +197,7 @@ void BalsaHeaders::ParseTokenList(absl::string_view header_value,
     const char* nws = start;
 
     // search for next whitspace or separator char.
-    while (*start != ',' && *start > ' ') {
+    while (*start != ',' && static_cast<unsigned char>(*start) > ' ') {
       ++start;
       if (start == end) {
         if (nws != start) {
