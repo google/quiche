@@ -5562,14 +5562,12 @@ TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
   // Disconnect for next 0-rtt request.
   client_->Disconnect();
 
-  // Client get valid STK now. Do a 0-rtt request.
-  // Buffer a CHLO till another packets sent out.
-  reorder_writer_->SetDelay(1);
+  // Client has valid Session Ticket now. Do a 0-RTT request.
+  // Buffer a CHLO till the request is sent out. HTTP/3 sends two packets: a
+  // SETTINGS frame and a request.
+  reorder_writer_->SetDelay(version_.UsesHttp3() ? 2 : 1);
   // Only send out a CHLO.
   client_->client()->Initialize();
-  client_->client()->StartConnect();
-  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
-  ASSERT_TRUE(client_->client()->connected());
 
   // Send a request before handshake finishes.
   SpdyHeaderBlock headers;
@@ -5584,10 +5582,7 @@ TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
   QuicConnection* client_connection = GetClientConnection();
   ASSERT_TRUE(client_connection);
   QuicConnectionStats client_stats = client_connection->GetStats();
-  // Client sends CHLO in packet 1 and retransmitted in packet 2. Because of
-  // the delay, server processes packet 2 and later drops packet 1. ACK is
-  // bundled with SHLO, such that 1 can be detected loss by time threshold.
-  EXPECT_LE(0u, client_stats.packets_lost);
+  EXPECT_EQ(0u, client_stats.packets_lost);
   EXPECT_TRUE(client_->client()->EarlyDataAccepted());
 }
 
