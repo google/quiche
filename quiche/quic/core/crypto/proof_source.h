@@ -219,7 +219,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
     // |in|. If decryption fails, the callback is invoked with an empty
     // vector.
     virtual void Decrypt(absl::string_view in,
-                         std::unique_ptr<DecryptCallback> callback) = 0;
+                         std::shared_ptr<DecryptCallback> callback) = 0;
   };
 
   // Returns the TicketCrypter used for encrypting and decrypting TLS

@@ -742,9 +742,8 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
   }
 
   if (!ticket_decryption_callback_) {
-    ticket_decryption_callback_ = new DecryptCallback(this);
-    proof_source_->GetTicketCrypter()->Decrypt(
-        in, std::unique_ptr<DecryptCallback>(ticket_decryption_callback_));
+    ticket_decryption_callback_ = std::make_shared<DecryptCallback>(this);
+    proof_source_->GetTicketCrypter()->Decrypt(in, ticket_decryption_callback_);
 
     // Decrypt can run the callback synchronously. In that case, the callback
     // will clear the ticket_decryption_callback_ pointer, and instead of

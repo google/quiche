@@ -87,7 +87,7 @@ std::vector<uint8_t> SimpleTicketCrypter::Decrypt(absl::string_view in) {
 
 void SimpleTicketCrypter::Decrypt(
     absl::string_view in,
-    std::unique_ptr<quic::ProofSource::DecryptCallback> callback) {
+    std::shared_ptr<quic::ProofSource::DecryptCallback> callback) {
   callback->Run(Decrypt(in));
 }
 

@@ -22,7 +22,7 @@ class TestTicketCrypter : public ProofSource::TicketCrypter {
   std::vector<uint8_t> Encrypt(absl::string_view in,
                                absl::string_view encryption_key) override;
   void Decrypt(absl::string_view in,
-               std::unique_ptr<ProofSource::DecryptCallback> callback) override;
+               std::shared_ptr<ProofSource::DecryptCallback> callback) override;
 
   void SetRunCallbacksAsync(bool run_async);
   size_t NumPendingCallbacks();
@@ -36,7 +36,7 @@ class TestTicketCrypter : public ProofSource::TicketCrypter {
   std::vector<uint8_t> Decrypt(absl::string_view in);
 
   struct PendingCallback {
-    std::unique_ptr<ProofSource::DecryptCallback> callback;
+    std::shared_ptr<ProofSource::DecryptCallback> callback;
     std::vector<uint8_t> decrypted_ticket;
   };
 

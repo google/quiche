@@ -28,7 +28,7 @@ class QUIC_NO_EXPORT SimpleTicketCrypter
                                absl::string_view encryption_key) override;
   void Decrypt(
       absl::string_view in,
-      std::unique_ptr<quic::ProofSource::DecryptCallback> callback) override;
+      std::shared_ptr<quic::ProofSource::DecryptCallback> callback) override;
 
  private:
   std::vector<uint8_t> Decrypt(absl::string_view in);

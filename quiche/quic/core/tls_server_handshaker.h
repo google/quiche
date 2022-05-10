@@ -325,7 +325,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // |ticket_decryption_callback_| points to the non-owned callback that was
   // passed to ProofSource::TicketCrypter::Decrypt but hasn't finished running
   // yet.
-  DecryptCallback* ticket_decryption_callback_ = nullptr;
+  std::shared_ptr<DecryptCallback> ticket_decryption_callback_;
   // |decrypted_session_ticket_| contains the decrypted session ticket after the
   // callback has run but before it is passed to BoringSSL.
   std::vector<uint8_t> decrypted_session_ticket_;
