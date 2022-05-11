@@ -146,7 +146,7 @@ QuicAlarm* QuicConnectionPeer::GetAckAlarm(QuicConnection* connection) {
 
 // static
 QuicAlarm* QuicConnectionPeer::GetPingAlarm(QuicConnection* connection) {
-  if (GetQuicReloadableFlag(quic_use_ping_manager)) {
+  if (GetQuicReloadableFlag(quic_use_ping_manager2)) {
     return connection->ping_manager_.alarm_.get();
   }
   return connection->ping_alarm_.get();

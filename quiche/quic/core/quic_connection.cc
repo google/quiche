@@ -128,7 +128,7 @@ class PingAlarmDelegate : public QuicConnectionAlarmDelegate {
 
   void OnAlarm() override {
     QUICHE_DCHECK(connection_->connected());
-    QUICHE_DCHECK(!GetQuicReloadableFlag(quic_use_ping_manager));
+    QUICHE_DCHECK(!GetQuicReloadableFlag(quic_use_ping_manager2));
     connection_->OnPingTimeout();
   }
 };
@@ -4702,7 +4702,7 @@ void QuicConnection::SetPingAlarm() {
     return;
   }
   if (use_ping_manager_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_use_ping_manager);
+    QUIC_RELOADABLE_FLAG_COUNT(quic_use_ping_manager2);
     ping_manager_.SetAlarm(clock_->ApproximateNow(),
                            visitor_->ShouldKeepConnectionAlive(),
                            sent_packet_manager_.HasInFlightPackets());

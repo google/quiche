@@ -86,7 +86,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_update_ack_timeout_on_receipt_time, tr
 // If true, use BBRv2 as the default congestion controller. Takes precedence over --quic_default_to_bbr.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr_v2, false)
 // If true, use PING manager to manage the PING alarm.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_ping_manager, true)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_use_ping_manager2, true)
 // If true, use new connection ID in connection migration.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, true)
 // If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.

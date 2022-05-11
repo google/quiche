@@ -16,6 +16,11 @@ class QuicPingManagerPeer {
   static QuicAlarm* GetAlarm(QuicPingManager* manager) {
     return manager->alarm_.get();
   }
+
+  static void SetPerspective(QuicPingManager* manager,
+                             Perspective perspective) {
+    manager->perspective_ = perspective;
+  }
 };
 
 namespace {
@@ -292,6 +297,9 @@ TEST_F(QuicPingManagerTest,
                     !kHasInflightPackets);
   EXPECT_EQ(initial_retransmittable_on_wire_timeout,
             alarm_->deadline() - clock_.ApproximateNow());
+  EXPECT_CALL(delegate_, OnRetransmittableOnWireTimeout());
+  clock_.AdvanceTime(initial_retransmittable_on_wire_timeout);
+  alarm_->Fire();
 
   for (int i = 0; i < kMaxAggressiveRetransmittableOnWireCount; i++) {
     manager_.SetAlarm(clock_.ApproximateNow(), kShouldKeepAlive,
@@ -373,6 +381,46 @@ TEST_F(QuicPingManagerTest, RetransmittableOnWireLimit) {
   EXPECT_CALL(delegate_, OnKeepAliveTimeout());
   alarm_->Fire();
   EXPECT_FALSE(alarm_->IsSet());
+}
+
+TEST_F(QuicPingManagerTest, MaxRetransmittableOnWireDelayShift) {
+  QuicPingManagerPeer::SetPerspective(&manager_, Perspective::IS_SERVER);
+  const int kMaxAggressiveRetransmittableOnWireCount = 3;
+  SetQuicFlag(FLAGS_quic_max_aggressive_retransmittable_on_wire_ping_count,
+              kMaxAggressiveRetransmittableOnWireCount);
+  const QuicTime::Delta initial_retransmittable_on_wire_timeout =
+      QuicTime::Delta::FromMilliseconds(200);
+  manager_.set_initial_retransmittable_on_wire_timeout(
+      initial_retransmittable_on_wire_timeout);
+
+  for (int i = 0; i <= kMaxAggressiveRetransmittableOnWireCount; i++) {
+    manager_.SetAlarm(clock_.ApproximateNow(), kShouldKeepAlive,
+                      !kHasInflightPackets);
+    EXPECT_TRUE(alarm_->IsSet());
+    EXPECT_EQ(initial_retransmittable_on_wire_timeout,
+              alarm_->deadline() - clock_.ApproximateNow());
+    clock_.AdvanceTime(initial_retransmittable_on_wire_timeout);
+    EXPECT_CALL(delegate_, OnRetransmittableOnWireTimeout());
+    alarm_->Fire();
+    manager_.SetAlarm(clock_.ApproximateNow(), kShouldKeepAlive,
+                      kHasInflightPackets);
+  }
+  for (int i = 1; i <= 20; ++i) {
+    manager_.SetAlarm(clock_.ApproximateNow(), kShouldKeepAlive,
+                      !kHasInflightPackets);
+    EXPECT_TRUE(alarm_->IsSet());
+    if (i <= 10) {
+      EXPECT_EQ(initial_retransmittable_on_wire_timeout * (1 << i),
+                alarm_->deadline() - clock_.ApproximateNow());
+    } else {
+      // Verify shift is capped.
+      EXPECT_EQ(initial_retransmittable_on_wire_timeout * (1 << 10),
+                alarm_->deadline() - clock_.ApproximateNow());
+    }
+    clock_.AdvanceTime(alarm_->deadline() - clock_.ApproximateNow());
+    EXPECT_CALL(delegate_, OnRetransmittableOnWireTimeout());
+    alarm_->Fire();
+  }
 }
 
 }  // namespace

@@ -7185,7 +7185,7 @@ TEST_P(QuicConnectionTest, ServerRetransmittableOnWire) {
 }
 
 TEST_P(QuicConnectionTest, RetransmittableOnWireSendFirstPacket) {
-  if (!GetQuicReloadableFlag(quic_use_ping_manager) ||
+  if (!GetQuicReloadableFlag(quic_use_ping_manager2) ||
       !VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
@@ -7231,7 +7231,7 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSendFirstPacket) {
 }
 
 TEST_P(QuicConnectionTest, RetransmittableOnWireSendRandomBytes) {
-  if (!GetQuicReloadableFlag(quic_use_ping_manager) ||
+  if (!GetQuicReloadableFlag(quic_use_ping_manager2) ||
       !VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
@@ -7280,7 +7280,7 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSendRandomBytes) {
 
 TEST_P(QuicConnectionTest,
        RetransmittableOnWireSendRandomBytesWithWriterBlocked) {
-  if (!GetQuicReloadableFlag(quic_use_ping_manager) ||
+  if (!GetQuicReloadableFlag(quic_use_ping_manager2) ||
       !VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
@@ -8250,6 +8250,8 @@ TEST_P(QuicConnectionTest, ResetBackOffRetransmitableOnWireTimeout) {
                                          peer_creator_.packet_number() + 1);
   EXPECT_EQ(initial_retransmittable_on_wire_timeout,
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+  clock_.AdvanceTime(initial_retransmittable_on_wire_timeout);
+  connection_.GetPingAlarm()->Fire();
 
   // Verify the count of consecutive aggressive pings is reset.
   for (int i = 0; i < max_aggressive_retransmittable_on_wire_ping_count; i++) {

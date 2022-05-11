@@ -8,6 +8,11 @@ namespace quic {
 
 namespace {
 
+// Maximum shift used to calculate retransmittable on wire timeout. For 200ms
+// initial retransmittable on wire delay, this would get a maximum of 200ms * (1
+// << 10) = 204.8s
+const int kMaxRetransmittableOnWireDelayShift = 10;
+
 class AlarmDelegate : public QuicAlarm::DelegateWithContext {
  public:
   explicit AlarmDelegate(QuicPingManager* manager,
@@ -47,11 +52,6 @@ void QuicPingManager::SetAlarm(QuicTime now, bool should_keep_alive,
     return;
   }
   alarm_->Update(earliest_deadline, kAlarmGranularity);
-  if (GetQuicFlag(
-          FLAGS_quic_max_aggressive_retransmittable_on_wire_ping_count) != 0) {
-    ++consecutive_retransmittable_on_wire_count_;
-  }
-  ++retransmittable_on_wire_count_;
 }
 
 void QuicPingManager::OnAlarm() {
@@ -65,6 +65,12 @@ void QuicPingManager::OnAlarm() {
   // to SetAlarm later.
   if (earliest_deadline == retransmittable_on_wire_deadline_) {
     retransmittable_on_wire_deadline_ = QuicTime::Zero();
+    if (GetQuicFlag(
+            FLAGS_quic_max_aggressive_retransmittable_on_wire_ping_count) !=
+        0) {
+      ++consecutive_retransmittable_on_wire_count_;
+    }
+    ++retransmittable_on_wire_count_;
     delegate_->OnRetransmittableOnWireTimeout();
     return;
   }
@@ -125,8 +131,9 @@ void QuicPingManager::UpdateDeadlines(QuicTime now, bool should_keep_alive,
       max_aggressive_retransmittable_on_wire_count) {
     // Exponentially back off the timeout if the number of consecutive
     // retransmittable on wire pings has exceeds the allowance.
-    int shift = consecutive_retransmittable_on_wire_count_ -
-                max_aggressive_retransmittable_on_wire_count;
+    int shift = std::min(consecutive_retransmittable_on_wire_count_ -
+                             max_aggressive_retransmittable_on_wire_count,
+                         kMaxRetransmittableOnWireDelayShift);
     retransmittable_on_wire_timeout =
         initial_retransmittable_on_wire_timeout_ * (1 << shift);
   }

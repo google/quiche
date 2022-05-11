@@ -1995,7 +1995,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool defer_send_in_response_to_packets_;
 
   // TODO(fayang): remove PING related fields below when deprecating
-  // quic_use_ping_manager.
+  // quic_use_ping_manager2.
   // The timeout for keep-alive PING.
   QuicTime::Delta keep_alive_ping_timeout_;
 
@@ -2019,7 +2019,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // An alarm that is scheduled when the SentPacketManager requires a delay
   // before sending packets and fires when the packet may be sent.
   QuicArenaScopedPtr<QuicAlarm> send_alarm_;
-  // TODO(fayang): remove ping_alarm_ when deprecating quic_use_ping_manager.
+  // TODO(fayang): remove ping_alarm_ when deprecating quic_use_ping_manager2.
   // An alarm that fires when a ping should be sent.
   QuicArenaScopedPtr<QuicAlarm> ping_alarm_;
   // An alarm that fires when an MTU probe should be sent.
@@ -2256,7 +2256,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // If true, send connection close packet on INVALID_VERSION.
   bool send_connection_close_for_invalid_version_ = false;
 
-  const bool use_ping_manager_ = GetQuicReloadableFlag(quic_use_ping_manager);
+  const bool use_ping_manager_ = GetQuicReloadableFlag(quic_use_ping_manager2);
 
   QuicPingManager ping_manager_;
 
