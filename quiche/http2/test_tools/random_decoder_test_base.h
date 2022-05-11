@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_HTTP2_TEST_TOOLS_RANDOM_DECODER_TEST_H_
-#define QUICHE_HTTP2_TEST_TOOLS_RANDOM_DECODER_TEST_H_
+#ifndef QUICHE_HTTP2_TEST_TOOLS_RANDOM_DECODER_TEST_BASE_H_
+#define QUICHE_HTTP2_TEST_TOOLS_RANDOM_DECODER_TEST_BASE_H_
 
 // RandomDecoderTest is a base class for tests of decoding various kinds
 // of HTTP/2 and HPACK encodings.
@@ -256,4 +256,4 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public QuicheTest {
 }  // namespace test
 }  // namespace http2
 
-#endif  // QUICHE_HTTP2_TEST_TOOLS_RANDOM_DECODER_TEST_H_
+#endif  // QUICHE_HTTP2_TEST_TOOLS_RANDOM_DECODER_TEST_BASE_H_

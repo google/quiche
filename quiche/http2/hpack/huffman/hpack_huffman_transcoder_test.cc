@@ -11,7 +11,7 @@
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/hpack/huffman/hpack_huffman_decoder.h"
 #include "quiche/http2/hpack/huffman/hpack_huffman_encoder.h"
-#include "quiche/http2/test_tools/random_decoder_test.h"
+#include "quiche/http2/test_tools/random_decoder_test_base.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_text_utils.h"
 

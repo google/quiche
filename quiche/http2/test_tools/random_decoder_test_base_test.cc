@@ -1,4 +1,4 @@
-#include "quiche/http2/test_tools/random_decoder_test.h"
+#include "quiche/http2/test_tools/random_decoder_test_base.h"
 
 #include <stddef.h>
 

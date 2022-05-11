@@ -11,7 +11,7 @@
 #include "quiche/http2/test_tools/hpack_block_builder.h"
 #include "quiche/http2/test_tools/hpack_string_collector.h"
 #include "quiche/http2/test_tools/http2_random.h"
-#include "quiche/http2/test_tools/random_decoder_test.h"
+#include "quiche/http2/test_tools/random_decoder_test_base.h"
 #include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_test.h"
 

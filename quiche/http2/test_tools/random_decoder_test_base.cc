@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/http2/test_tools/random_decoder_test.h"
+#include "quiche/http2/test_tools/random_decoder_test_base.h"
 
 #include <stddef.h>
 

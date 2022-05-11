@@ -7,7 +7,7 @@
 
 #include "quiche/http2/decoder/frame_decoder_state.h"
 #include "quiche/http2/http2_structures.h"
-#include "quiche/http2/test_tools/random_decoder_test.h"
+#include "quiche/http2/test_tools/random_decoder_test_base.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace http2 {
