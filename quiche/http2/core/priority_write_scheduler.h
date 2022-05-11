@@ -8,12 +8,13 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <tuple>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
 #include "quiche/http2/core/write_scheduler.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
@@ -66,9 +67,11 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
           << "Stream " << root_stream_id_ << " already registered";
       return;
     }
-    StreamInfo stream_info = {precedence.spdy3_priority(), stream_id, false};
+    auto stream_info = std::make_unique<StreamInfo>(
+        StreamInfo{precedence.spdy3_priority(), stream_id, false});
     bool inserted =
-        stream_infos_.insert(std::make_pair(stream_id, stream_info)).second;
+        stream_infos_.insert(std::make_pair(stream_id, std::move(stream_info)))
+            .second;
     QUICHE_BUG_IF(spdy_bug_19_2, !inserted)
         << "Stream " << stream_id << " already registered";
   }
@@ -79,10 +82,10 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
       QUICHE_BUG(spdy_bug_19_3) << "Stream " << stream_id << " not registered";
       return;
     }
-    StreamInfo& stream_info = it->second;
-    if (stream_info.ready) {
-      bool erased =
-          Erase(&priority_infos_[stream_info.priority].ready_list, stream_info);
+    const StreamInfo* const stream_info = it->second.get();
+    if (stream_info->ready) {
+      bool erased = Erase(&priority_infos_[stream_info->priority].ready_list,
+                          stream_info);
       QUICHE_DCHECK(erased);
     }
     stream_infos_.erase(it);
@@ -99,7 +102,7 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
       QUICHE_DVLOG(1) << "Stream " << stream_id << " not registered";
       return StreamPrecedenceType(spdy::kV3LowestPriority);
     }
-    return StreamPrecedenceType(it->second.priority);
+    return StreamPrecedenceType(it->second->priority);
   }
 
   void UpdateStreamPrecedence(StreamIdType stream_id,
@@ -120,19 +123,19 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
       QUICHE_DVLOG(1) << "Stream " << stream_id << " not registered";
       return;
     }
-    StreamInfo& stream_info = it->second;
+    StreamInfo* const stream_info = it->second.get();
     spdy::SpdyPriority new_priority = precedence.spdy3_priority();
-    if (stream_info.priority == new_priority) {
+    if (stream_info->priority == new_priority) {
       return;
     }
-    if (stream_info.ready) {
-      bool erased =
-          Erase(&priority_infos_[stream_info.priority].ready_list, stream_info);
+    if (stream_info->ready) {
+      bool erased = Erase(&priority_infos_[stream_info->priority].ready_list,
+                          stream_info);
       QUICHE_DCHECK(erased);
-      priority_infos_[new_priority].ready_list.push_back(&stream_info);
+      priority_infos_[new_priority].ready_list.push_back(stream_info);
       ++num_ready_streams_;
     }
-    stream_info.priority = new_priority;
+    stream_info->priority = new_priority;
   }
 
   std::vector<StreamIdType> GetStreamChildren(
@@ -147,7 +150,7 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
       QUICHE_BUG(spdy_bug_19_4) << "Stream " << stream_id << " not registered";
       return;
     }
-    PriorityInfo& priority_info = priority_infos_[it->second.priority];
+    PriorityInfo& priority_info = priority_infos_[it->second->priority];
     priority_info.last_event_time_usec =
         std::max(priority_info.last_event_time_usec, now_in_usec);
   }
@@ -159,9 +162,9 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
       return 0;
     }
     int64_t last_event_time_usec = 0;
-    const StreamInfo& stream_info = it->second;
+    const StreamInfo* const stream_info = it->second.get();
     for (spdy::SpdyPriority p = spdy::kV3HighestPriority;
-         p < stream_info.priority; ++p) {
+         p < stream_info->priority; ++p) {
       last_event_time_usec = std::max(last_event_time_usec,
                                       priority_infos_[p].last_event_time_usec);
     }
@@ -179,7 +182,7 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
          p <= spdy::kV3LowestPriority; ++p) {
       ReadyList& ready_list = priority_infos_[p].ready_list;
       if (!ready_list.empty()) {
-        StreamInfo* info = ready_list.front();
+        StreamInfo* const info = ready_list.front();
         ready_list.pop_front();
         --num_ready_streams_;
 
@@ -202,9 +205,9 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
     }
 
     // If there's a higher priority stream, this stream should yield.
-    const StreamInfo& stream_info = it->second;
+    const StreamInfo* const stream_info = it->second.get();
     for (spdy::SpdyPriority p = spdy::kV3HighestPriority;
-         p < stream_info.priority; ++p) {
+         p < stream_info->priority; ++p) {
       if (!priority_infos_[p].ready_list.empty()) {
         return true;
       }
@@ -212,7 +215,7 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
 
     // If this priority level is empty, or this stream is the next up, there's
     // no need to yield.
-    const auto& ready_list = priority_infos_[it->second.priority].ready_list;
+    const auto& ready_list = priority_infos_[it->second->priority].ready_list;
     if (ready_list.empty() || ready_list.front()->stream_id == stream_id) {
       return false;
     }
@@ -228,18 +231,18 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
       QUICHE_BUG(spdy_bug_19_8) << "Stream " << stream_id << " not registered";
       return;
     }
-    StreamInfo& stream_info = it->second;
-    if (stream_info.ready) {
+    StreamInfo* const stream_info = it->second.get();
+    if (stream_info->ready) {
       return;
     }
-    ReadyList& ready_list = priority_infos_[stream_info.priority].ready_list;
+    ReadyList& ready_list = priority_infos_[stream_info->priority].ready_list;
     if (add_to_front) {
-      ready_list.push_front(&stream_info);
+      ready_list.push_front(stream_info);
     } else {
-      ready_list.push_back(&stream_info);
+      ready_list.push_back(stream_info);
     }
     ++num_ready_streams_;
-    stream_info.ready = true;
+    stream_info->ready = true;
   }
 
   void MarkStreamNotReady(StreamIdType stream_id) override {
@@ -248,14 +251,14 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
       QUICHE_BUG(spdy_bug_19_9) << "Stream " << stream_id << " not registered";
       return;
     }
-    StreamInfo& stream_info = it->second;
-    if (!stream_info.ready) {
+    StreamInfo* const stream_info = it->second.get();
+    if (!stream_info->ready) {
       return;
     }
     bool erased =
-        Erase(&priority_infos_[stream_info.priority].ready_list, stream_info);
+        Erase(&priority_infos_[stream_info->priority].ready_list, stream_info);
     QUICHE_DCHECK(erased);
-    stream_info.ready = false;
+    stream_info->ready = false;
   }
 
   // Returns true iff the number of ready streams is non-zero.
@@ -279,7 +282,7 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
       QUICHE_DLOG(INFO) << "Stream " << stream_id << " not registered";
       return false;
     }
-    return it->second.ready;
+    return it->second->ready;
   }
 
  private:
@@ -304,12 +307,15 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
     int64_t last_event_time_usec = 0;
   };
 
-  typedef std::unordered_map<StreamIdType, StreamInfo> StreamInfoMap;
+  // Use std::unique_ptr, because absl::flat_hash_map does not have pointer
+  // stability, but ReadyList stores pointers to the StreamInfo objects.
+  using StreamInfoMap =
+      absl::flat_hash_map<StreamIdType, std::unique_ptr<StreamInfo>>;
 
   // Erases `info` from `ready_list`, returning true if found (and erased), or
   // false otherwise. Decrements `num_ready_streams_` if an entry is erased.
-  bool Erase(ReadyList* ready_list, const StreamInfo& info) {
-    auto it = std::remove(ready_list->begin(), ready_list->end(), &info);
+  bool Erase(ReadyList* ready_list, const StreamInfo* info) {
+    auto it = std::remove(ready_list->begin(), ready_list->end(), info);
     if (it == ready_list->end()) {
       // `info` was not found.
       return false;
