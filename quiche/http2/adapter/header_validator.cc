@@ -128,12 +128,11 @@ bool ValidateResponseTrailers(const std::vector<std::string>& pseudo_headers) {
 }  // namespace
 
 void HeaderValidator::StartHeaderBlock() {
+  HeaderValidatorBase::StartHeaderBlock();
   pseudo_headers_.clear();
-  status_.clear();
   method_.clear();
   path_.clear();
   authority_ = absl::nullopt;
-  content_length_.reset();
 }
 
 HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
