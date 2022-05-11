@@ -7433,6 +7433,129 @@ TEST(OgHttp2AdapterTest, ServerUsesCustomWindowUpdateStrategy) {
                             SpdyFrameType::WINDOW_UPDATE}));
 }
 
+// Verifies that NoopHeaderValidator allows several header combinations that
+// would otherwise be invalid.
+TEST(OgHttp2AdapterTest, NoopHeaderValidatorTest) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kServer;
+  options.validate_http_headers = false;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/1"},
+                                           {"content-length", "7"},
+                                           {"content-length", "7"}},
+                                          /*fin=*/false)
+                                 .Headers(3,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/3"},
+                                           {"content-length", "11"},
+                                           {"content-length", "13"}},
+                                          /*fin=*/false)
+                                 .Headers(5,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "foo.com"},
+                                           {":path", "/"},
+                                           {"host", "bar.com"}},
+                                          /*fin=*/true)
+                                 .Headers(7,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/"},
+                                           {"Accept", "uppercase, oh boy!"}},
+                                          /*fin=*/false)
+                                 .Headers(9,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "ex|ample.com"},
+                                           {":path", "/"}},
+                                          /*fin=*/false)
+                                 .Headers(11,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/"},
+                                           {"content-length", "nan"}},
+                                          /*fin=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "POST"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/1"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, "content-length", "7"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, "content-length", "7"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  // Stream 3
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, ":method", "POST"));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, ":path", "/3"));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, "content-length", "11"));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, "content-length", "13"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(3));
+  // Stream 5
+  EXPECT_CALL(visitor, OnFrameHeader(5, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(5));
+  EXPECT_CALL(visitor, OnHeaderForStream(5, ":method", "POST"));
+  EXPECT_CALL(visitor, OnHeaderForStream(5, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(5, ":authority", "foo.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(5, ":path", "/"));
+  EXPECT_CALL(visitor, OnHeaderForStream(5, "host", "bar.com"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(5));
+  EXPECT_CALL(visitor, OnEndStream(5));
+  // Stream 7
+  EXPECT_CALL(visitor, OnFrameHeader(7, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(7));
+  EXPECT_CALL(visitor, OnHeaderForStream(7, ":method", "POST"));
+  EXPECT_CALL(visitor, OnHeaderForStream(7, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(7, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(7, ":path", "/"));
+  EXPECT_CALL(visitor, OnHeaderForStream(7, "Accept", "uppercase, oh boy!"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(7));
+  // Stream 9
+  EXPECT_CALL(visitor, OnFrameHeader(9, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(9));
+  EXPECT_CALL(visitor, OnHeaderForStream(9, ":method", "POST"));
+  EXPECT_CALL(visitor, OnHeaderForStream(9, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(9, ":authority", "ex|ample.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(9, ":path", "/"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(9));
+  // Stream 11
+  EXPECT_CALL(visitor, OnFrameHeader(11, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(11));
+  EXPECT_CALL(visitor, OnHeaderForStream(11, ":method", "GET"));
+  EXPECT_CALL(visitor, OnHeaderForStream(11, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(11, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(11, ":path", "/"));
+  EXPECT_CALL(visitor, OnHeaderForStream(11, "content-length", "nan"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(11));
+  EXPECT_CALL(visitor, OnEndStream(11));
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace adapter

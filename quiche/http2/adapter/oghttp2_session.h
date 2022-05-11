@@ -72,6 +72,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     // Whether to allow `obs-text` (characters from hexadecimal 0x80 to 0xff) in
     // header field values.
     bool allow_obs_text = true;
+    // If true, validates header field names and values according to RFC 7230
+    // and RFC 7540.
+    bool validate_http_headers = true;
   };
 
   OgHttp2Session(Http2VisitorInterface& visitor, Options options);
@@ -426,6 +429,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
 
+  const Options options_;
+
   // Forwards received events to the session if it can accept them.
   EventForwarder event_forwarder_;
 
@@ -512,7 +517,6 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
       std::numeric_limits<uint32_t>::max();
   uint32_t max_inbound_concurrent_streams_ =
       std::numeric_limits<uint32_t>::max();
-  const Options options_;
 
   // The HPACK encoder header table capacity that will be applied when
   // acking SETTINGS from the peer. Only contains a value if the peer advertises

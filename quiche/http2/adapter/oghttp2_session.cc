@@ -10,6 +10,7 @@
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/http2_util.h"
 #include "quiche/http2/adapter/http2_visitor_interface.h"
+#include "quiche/http2/adapter/noop_header_validator.h"
 #include "quiche/http2/adapter/oghttp2_util.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
@@ -219,7 +220,13 @@ bool IsNonAckSettings(const spdy::SpdyFrameIR& frame) {
 OgHttp2Session::PassthroughHeadersHandler::PassthroughHeadersHandler(
     OgHttp2Session& session, Http2VisitorInterface& visitor)
     : session_(session), visitor_(visitor) {
-  validator_ = absl::make_unique<HeaderValidator>();
+  if (session_.options_.validate_http_headers) {
+    QUICHE_LOG(INFO) << "birenroy | instantiating regular header validator";
+    validator_ = absl::make_unique<HeaderValidator>();
+  } else {
+    QUICHE_LOG(INFO) << "birenroy | instantiating noop header validator";
+    validator_ = absl::make_unique<NoopHeaderValidator>();
+  }
 }
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
@@ -332,6 +339,7 @@ struct OgHttp2Session::ProcessBytesResultVisitor {
 
 OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
     : visitor_(visitor),
+      options_(options),
       event_forwarder_([this]() { return !latched_error_; }, *this),
       receive_logger_(
           &event_forwarder_, TracePerspectiveAsString(options.perspective),
@@ -347,8 +355,7 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
             SendWindowUpdate(kConnectionStreamId, window_update_delta);
           },
           options.should_window_update_fn,
-          /*update_window_on_notify=*/false),
-      options_(options) {
+          /*update_window_on_notify=*/false) {
   decoder_.set_visitor(&receive_logger_);
   decoder_.set_extension_visitor(this);
   if (options_.max_header_list_bytes) {
