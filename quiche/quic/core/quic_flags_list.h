@@ -50,7 +50,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_version_draft_29, false)
 // If true, disable blackhole detection on server side.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_disable_server_blackhole_detection, false)
 // If true, disable resumption when receiving NRES connection option.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_disable_resumption, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_disable_resumption, true)
 // If true, discard INITIAL packet if the key has been dropped.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, true)
 // If true, do not bundle ACK while sending PATH_CHALLENGE on alternative path.
