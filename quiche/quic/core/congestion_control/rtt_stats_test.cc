@@ -6,13 +6,9 @@
 
 #include <cmath>
 
-#include "quiche/quic/platform/api/quic_logging.h"
-#include "quiche/quic/platform/api/quic_mock_log.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
-#include "quiche/quic/test_tools/rtt_stats_peer.h"
 
-using testing::_;
 using testing::Message;
 
 namespace quic {
@@ -141,9 +137,6 @@ TEST_F(RttStatsTest, ExpireSmoothedMetrics) {
 }
 
 TEST_F(RttStatsTest, UpdateRttWithBadSendDeltas) {
-  // Make sure we ignore bad RTTs.
-  CREATE_QUIC_MOCK_LOG(log);
-
   QuicTime::Delta initial_rtt = QuicTime::Delta::FromMilliseconds(10);
   rtt_stats_.UpdateRtt(initial_rtt, QuicTime::Delta::Zero(), QuicTime::Zero());
   EXPECT_EQ(initial_rtt, rtt_stats_.min_rtt());
@@ -153,16 +146,12 @@ TEST_F(RttStatsTest, UpdateRttWithBadSendDeltas) {
   bad_send_deltas.push_back(QuicTime::Delta::Zero());
   bad_send_deltas.push_back(QuicTime::Delta::Infinite());
   bad_send_deltas.push_back(QuicTime::Delta::FromMicroseconds(-1000));
-  log.StartCapturingLogs();
 
   for (QuicTime::Delta bad_send_delta : bad_send_deltas) {
     SCOPED_TRACE(Message() << "bad_send_delta = "
                            << bad_send_delta.ToMicroseconds());
-    if (QUIC_LOG_WARNING_IS_ON()) {
-      EXPECT_QUIC_LOG_CALL_CONTAINS(log, WARNING, "Ignoring");
-    }
-    rtt_stats_.UpdateRtt(bad_send_delta, QuicTime::Delta::Zero(),
-                         QuicTime::Zero());
+    EXPECT_FALSE(rtt_stats_.UpdateRtt(bad_send_delta, QuicTime::Delta::Zero(),
+                                      QuicTime::Zero()));
     EXPECT_EQ(initial_rtt, rtt_stats_.min_rtt());
     EXPECT_EQ(initial_rtt, rtt_stats_.smoothed_rtt());
   }
