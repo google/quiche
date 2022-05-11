@@ -13,6 +13,7 @@
 #include "quiche/http2/adapter/data_source.h"
 #include "quiche/http2/adapter/event_forwarder.h"
 #include "quiche/http2/adapter/header_validator.h"
+#include "quiche/http2/adapter/header_validator_base.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/http2_session.h"
 #include "quiche/http2/adapter/http2_util.h"
@@ -241,9 +242,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   class QUICHE_EXPORT_PRIVATE PassthroughHeadersHandler
       : public spdy::SpdyHeadersHandlerInterface {
    public:
-    explicit PassthroughHeadersHandler(OgHttp2Session& session,
-                                       Http2VisitorInterface& visitor)
-        : session_(session), visitor_(visitor) {}
+    PassthroughHeadersHandler(OgHttp2Session& session,
+                              Http2VisitorInterface& visitor);
 
     void set_stream_id(Http2StreamId stream_id) {
       stream_id_ = stream_id;
@@ -261,18 +261,18 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     absl::string_view status_header() const {
       QUICHE_DCHECK(type_ == HeaderType::RESPONSE ||
                     type_ == HeaderType::RESPONSE_100);
-      return validator_.status_header();
+      return validator_->status_header();
     }
     absl::optional<size_t> content_length() const {
-      return validator_.content_length();
+      return validator_->content_length();
     }
-    void AllowConnect() { validator_.AllowConnect(); }
+    void AllowConnect() { validator_->AllowConnect(); }
     void SetMaxFieldSize(uint32_t field_size) {
-      validator_.SetMaxFieldSize(field_size);
+      validator_->SetMaxFieldSize(field_size);
     }
     void SetAllowObsText(bool allow) {
-      validator_.SetObsTextOption(allow ? ObsTextOption::kAllow
-                                        : ObsTextOption::kDisallow);
+      validator_->SetObsTextOption(allow ? ObsTextOption::kAllow
+                                         : ObsTextOption::kDisallow);
     }
     bool CanReceiveBody() const;
 
@@ -283,7 +283,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     Http2VisitorInterface::OnHeaderResult result_ =
         Http2VisitorInterface::HEADER_OK;
     // Validates header blocks according to the HTTP/2 specification.
-    HeaderValidator validator_;
+    std::unique_ptr<HeaderValidatorBase> validator_;
     HeaderType type_ = HeaderType::RESPONSE;
     bool frame_contains_fin_ = false;
   };

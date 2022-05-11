@@ -216,6 +216,12 @@ bool IsNonAckSettings(const spdy::SpdyFrameIR& frame) {
 
 }  // namespace
 
+OgHttp2Session::PassthroughHeadersHandler::PassthroughHeadersHandler(
+    OgHttp2Session& session, Http2VisitorInterface& visitor)
+    : session_(session), visitor_(visitor) {
+  validator_ = absl::make_unique<HeaderValidator>();
+}
+
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
   result_ = Http2VisitorInterface::HEADER_OK;
   const bool status = visitor_.OnBeginHeadersForStream(stream_id_);
@@ -224,7 +230,7 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
         << "Visitor rejected header block, returning HEADER_CONNECTION_ERROR";
     result_ = Http2VisitorInterface::HEADER_CONNECTION_ERROR;
   }
-  validator_.StartHeaderBlock();
+  validator_->StartHeaderBlock();
 }
 
 Http2VisitorInterface::OnHeaderResult InterpretHeaderStatus(
@@ -248,7 +254,7 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
     return;
   }
   const HeaderValidator::HeaderStatus validation_result =
-      validator_.ValidateSingleHeader(key, value);
+      validator_->ValidateSingleHeader(key, value);
   if (validation_result == HeaderValidator::HEADER_SKIP) {
     return;
   }
@@ -265,7 +271,7 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
     size_t /* uncompressed_header_bytes */,
     size_t /* compressed_header_bytes */) {
   if (result_ == Http2VisitorInterface::HEADER_OK) {
-    if (!validator_.FinishHeaderBlock(type_)) {
+    if (!validator_->FinishHeaderBlock(type_)) {
       QUICHE_VLOG(1) << "FinishHeaderBlock returned false; returning "
                         "HEADER_HTTP_MESSAGING";
       result_ = Http2VisitorInterface::HEADER_HTTP_MESSAGING;
