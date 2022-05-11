@@ -9,9 +9,10 @@
 #include <initializer_list>
 
 #include "absl/strings/escaping.h"
+#include "absl/strings/match.h"
+#include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
@@ -37,7 +38,7 @@ class HpackDecoderStringBufferTest : public QuicheTest {
     buf_.OutputDebugStringTo(ss);
     std::string dbg_str(ss.str());
     for (const auto& expected : strs) {
-      VERIFY_THAT(dbg_str, HasSubstr(expected));
+      HTTP2_VERIFY_TRUE(absl::StrContains(dbg_str, expected));
     }
     return AssertionSuccess();
   }

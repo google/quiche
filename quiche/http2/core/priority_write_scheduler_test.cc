@@ -4,8 +4,8 @@
 
 #include "quiche/http2/core/priority_write_scheduler.h"
 
+#include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 #include "quiche/spdy/test_tools/spdy_test_utils.h"
 

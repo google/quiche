@@ -22,9 +22,9 @@
 #include "quiche/http2/test_tools/http2_constants_test_util.h"
 #include "quiche/http2/test_tools/http2_frame_builder.h"
 #include "quiche/http2/test_tools/random_decoder_test.h"
+#include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 namespace http2 {
 namespace test {
@@ -192,8 +192,8 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
   AssertionResult DecodePayloadAndValidateSeveralWays(
       absl::string_view payload, const FrameParts& expected) {
     auto validator = [&expected, this]() -> AssertionResult {
-      VERIFY_FALSE(listener_.IsInProgress());
-      VERIFY_EQ(1u, listener_.size());
+      HTTP2_VERIFY_FALSE(listener_.IsInProgress());
+      HTTP2_VERIFY_EQ(1u, listener_.size());
       return expected.VerifyEquals(*listener_.frame(0));
     };
     return PayloadDecoderBaseTest::DecodePayloadAndValidateSeveralWays(
@@ -221,15 +221,15 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
                     DecodeStatus status) -> ::testing::AssertionResult {
       QUICHE_DVLOG(2) << "VerifyDetectsFrameSizeError validator; status="
                       << status << "; input.Remaining=" << input.Remaining();
-      VERIFY_EQ(DecodeStatus::kDecodeError, status);
-      VERIFY_FALSE(listener_.IsInProgress());
-      VERIFY_EQ(1u, listener_.size());
+      HTTP2_VERIFY_EQ(DecodeStatus::kDecodeError, status);
+      HTTP2_VERIFY_FALSE(listener_.IsInProgress());
+      HTTP2_VERIFY_EQ(1u, listener_.size());
       const FrameParts* frame = listener_.frame(0);
-      VERIFY_EQ(header, frame->GetFrameHeader());
-      VERIFY_TRUE(frame->GetHasFrameSizeError());
+      HTTP2_VERIFY_EQ(header, frame->GetFrameHeader());
+      HTTP2_VERIFY_TRUE(frame->GetHasFrameSizeError());
       // Verify did not get OnPaddingTooLong, as we should only ever produce
       // one of these two errors for a single frame.
-      VERIFY_FALSE(frame->GetOptMissingLength());
+      HTTP2_VERIFY_FALSE(frame->GetOptMissingLength());
       return validator(input, status);
     };
     return PayloadDecoderBaseTest::DecodePayloadAndValidateSeveralWays(
@@ -250,10 +250,11 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
     // type AND are those that affect the decoding of the payload (otherwise,
     // the flag shouldn't be required).
     Http2FrameType frame_type = DecoderPeer::FrameType();
-    VERIFY_EQ(required_flags,
-              required_flags & KnownFlagsMaskForFrameType(frame_type));
-    VERIFY_EQ(required_flags,
-              required_flags & DecoderPeer::FlagsAffectingPayloadDecoding());
+    HTTP2_VERIFY_EQ(required_flags,
+                    required_flags & KnownFlagsMaskForFrameType(frame_type));
+    HTTP2_VERIFY_EQ(
+        required_flags,
+        required_flags & DecoderPeer::FlagsAffectingPayloadDecoding());
 
     if (0 !=
         (Http2FrameFlag::PADDED & KnownFlagsMaskForFrameType(frame_type))) {
@@ -264,7 +265,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
         required_flags |= Http2FrameFlag::PADDED;
       }
     } else {
-      VERIFY_EQ(0, total_pad_length);
+      HTTP2_VERIFY_EQ(0, total_pad_length);
     }
 
     bool validated = false;
@@ -291,10 +292,11 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
       // checking stream ids.
       uint32_t stream_id = RandStreamId();
       Http2FrameHeader header(fb.size(), frame_type, flags, stream_id);
-      VERIFY_SUCCESS(VerifyDetectsFrameSizeError(fb.buffer(), header, nullptr));
+      HTTP2_VERIFY_SUCCESS(
+          VerifyDetectsFrameSizeError(fb.buffer(), header, nullptr));
       validated = true;
     }
-    VERIFY_TRUE(validated);
+    HTTP2_VERIFY_TRUE(validated);
     return ::testing::AssertionSuccess();
   }
 
@@ -304,8 +306,8 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
       const ApproveSize& approve_size) {
     Http2FrameType frame_type = DecoderPeer::FrameType();
     uint8_t known_flags = KnownFlagsMaskForFrameType(frame_type);
-    VERIFY_EQ(0, known_flags & Http2FrameFlag::PADDED);
-    VERIFY_EQ(0, required_flags & Http2FrameFlag::PADDED);
+    HTTP2_VERIFY_EQ(0, known_flags & Http2FrameFlag::PADDED);
+    HTTP2_VERIFY_EQ(0, required_flags & Http2FrameFlag::PADDED);
     return VerifyDetectsMultipleFrameSizeErrors(
         required_flags, unpadded_payload, approve_size, 0);
   }
@@ -381,15 +383,16 @@ class QUICHE_NO_EXPORT AbstractPaddablePayloadDecoderTest
         [header, expected_missing_length, &listener](
             const DecodeBuffer&,
             DecodeStatus status) -> ::testing::AssertionResult {
-      VERIFY_EQ(DecodeStatus::kDecodeError, status);
-      VERIFY_FALSE(listener.IsInProgress());
-      VERIFY_EQ(1u, listener.size());
+      HTTP2_VERIFY_EQ(DecodeStatus::kDecodeError, status);
+      HTTP2_VERIFY_FALSE(listener.IsInProgress());
+      HTTP2_VERIFY_EQ(1u, listener.size());
       const FrameParts* frame = listener.frame(0);
-      VERIFY_EQ(header, frame->GetFrameHeader());
-      VERIFY_TRUE(frame->GetOptMissingLength());
-      VERIFY_EQ(expected_missing_length, frame->GetOptMissingLength().value());
+      HTTP2_VERIFY_EQ(header, frame->GetFrameHeader());
+      HTTP2_VERIFY_TRUE(frame->GetOptMissingLength());
+      HTTP2_VERIFY_EQ(expected_missing_length,
+                      frame->GetOptMissingLength().value());
       // Verify did not get OnFrameSizeError.
-      VERIFY_FALSE(frame->GetHasFrameSizeError());
+      HTTP2_VERIFY_FALSE(frame->GetHasFrameSizeError());
       return ::testing::AssertionSuccess();
     };
     return PayloadDecoderBaseTest::DecodePayloadAndValidateSeveralWays(

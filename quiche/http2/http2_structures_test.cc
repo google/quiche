@@ -22,8 +22,8 @@
 #include "absl/strings/str_cat.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/test_tools/http2_structures_test_util.h"
+#include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
@@ -58,20 +58,20 @@ AssertionResult VerifyRandomCalls() {
 
   // The two Randomize calls should have made the same number of calls into
   // the Http2Random implementations.
-  VERIFY_EQ(seq1.Rand64(), seq2.Rand64());
+  HTTP2_VERIFY_EQ(seq1.Rand64(), seq2.Rand64());
 
   // And because Http2Random implementation is returning the same sequence, and
   // Randomize should have been consistent in applying those results, the two
   // Ts should have the same value.
-  VERIFY_EQ(t1, t2);
+  HTTP2_VERIFY_EQ(t1, t2);
 
   Randomize(&t2, &seq2);
-  VERIFY_NE(t1, t2);
+  HTTP2_VERIFY_NE(t1, t2);
 
   Randomize(&t1, &seq1);
-  VERIFY_EQ(t1, t2);
+  HTTP2_VERIFY_EQ(t1, t2);
 
-  VERIFY_EQ(seq1.Rand64(), seq2.Rand64());
+  HTTP2_VERIFY_EQ(seq1.Rand64(), seq2.Rand64());
 
   return AssertionSuccess();
 }

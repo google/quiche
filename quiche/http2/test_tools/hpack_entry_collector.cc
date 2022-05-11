@@ -7,9 +7,9 @@
 #include "absl/strings/str_cat.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
 #include "quiche/http2/test_tools/hpack_string_collector.h"
+#include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionResult;
 
@@ -150,42 +150,44 @@ bool HpackEntryCollector::LiteralValueExpected() const {
 }
 AssertionResult HpackEntryCollector::ValidateIndexedHeader(
     size_t expected_index) const {
-  VERIFY_TRUE(started_);
-  VERIFY_TRUE(ended_);
-  VERIFY_EQ(HpackEntryType::kIndexedHeader, header_type_);
-  VERIFY_EQ(expected_index, index_);
+  HTTP2_VERIFY_TRUE(started_);
+  HTTP2_VERIFY_TRUE(ended_);
+  HTTP2_VERIFY_EQ(HpackEntryType::kIndexedHeader, header_type_);
+  HTTP2_VERIFY_EQ(expected_index, index_);
   return ::testing::AssertionSuccess();
 }
 AssertionResult HpackEntryCollector::ValidateLiteralValueHeader(
     HpackEntryType expected_type, size_t expected_index,
     bool expected_value_huffman, absl::string_view expected_value) const {
-  VERIFY_TRUE(started_);
-  VERIFY_TRUE(ended_);
-  VERIFY_EQ(expected_type, header_type_);
-  VERIFY_NE(0u, expected_index);
-  VERIFY_EQ(expected_index, index_);
-  VERIFY_TRUE(name_.IsClear());
-  VERIFY_SUCCESS(value_.Collected(expected_value, expected_value_huffman));
+  HTTP2_VERIFY_TRUE(started_);
+  HTTP2_VERIFY_TRUE(ended_);
+  HTTP2_VERIFY_EQ(expected_type, header_type_);
+  HTTP2_VERIFY_NE(0u, expected_index);
+  HTTP2_VERIFY_EQ(expected_index, index_);
+  HTTP2_VERIFY_TRUE(name_.IsClear());
+  HTTP2_VERIFY_SUCCESS(
+      value_.Collected(expected_value, expected_value_huffman));
   return ::testing::AssertionSuccess();
 }
 AssertionResult HpackEntryCollector::ValidateLiteralNameValueHeader(
     HpackEntryType expected_type, bool expected_name_huffman,
     absl::string_view expected_name, bool expected_value_huffman,
     absl::string_view expected_value) const {
-  VERIFY_TRUE(started_);
-  VERIFY_TRUE(ended_);
-  VERIFY_EQ(expected_type, header_type_);
-  VERIFY_EQ(0u, index_);
-  VERIFY_SUCCESS(name_.Collected(expected_name, expected_name_huffman));
-  VERIFY_SUCCESS(value_.Collected(expected_value, expected_value_huffman));
+  HTTP2_VERIFY_TRUE(started_);
+  HTTP2_VERIFY_TRUE(ended_);
+  HTTP2_VERIFY_EQ(expected_type, header_type_);
+  HTTP2_VERIFY_EQ(0u, index_);
+  HTTP2_VERIFY_SUCCESS(name_.Collected(expected_name, expected_name_huffman));
+  HTTP2_VERIFY_SUCCESS(
+      value_.Collected(expected_value, expected_value_huffman));
   return ::testing::AssertionSuccess();
 }
 AssertionResult HpackEntryCollector::ValidateDynamicTableSizeUpdate(
     size_t size) const {
-  VERIFY_TRUE(started_);
-  VERIFY_TRUE(ended_);
-  VERIFY_EQ(HpackEntryType::kDynamicTableSizeUpdate, header_type_);
-  VERIFY_EQ(index_, size);
+  HTTP2_VERIFY_TRUE(started_);
+  HTTP2_VERIFY_TRUE(ended_);
+  HTTP2_VERIFY_EQ(HpackEntryType::kDynamicTableSizeUpdate, header_type_);
+  HTTP2_VERIFY_EQ(index_, size);
   return ::testing::AssertionSuccess();
 }
 

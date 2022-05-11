@@ -30,8 +30,8 @@
 #include "quiche/http2/test_tools/http2_frame_builder.h"
 #include "quiche/http2/test_tools/http2_structures_test_util.h"
 #include "quiche/http2/test_tools/random_decoder_test.h"
+#include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionSuccess;
 
@@ -92,7 +92,7 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
   // *expected (if provided).
   AssertionResult DecodeLeadingStructure(const S* expected,
                                          absl::string_view data) {
-    VERIFY_LE(S::EncodedSize(), data.size());
+    HTTP2_VERIFY_LE(S::EncodedSize(), data.size());
     DecodeBuffer original(data);
 
     // The validator is called after each of the several times that the input
@@ -102,7 +102,7 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
     if (expected != nullptr) {
       validator = [expected, this](const DecodeBuffer& /*db*/,
                                    DecodeStatus /*status*/) -> AssertionResult {
-        VERIFY_EQ(*expected, *structure_);
+        HTTP2_VERIFY_EQ(*expected, *structure_);
         return AssertionSuccess();
       };
     }
@@ -116,26 +116,26 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
     slow_decode_count_ = 0;
     incomplete_start_count_ = 0;
     incomplete_resume_count_ = 0;
-    VERIFY_SUCCESS(DecodeAndValidateSeveralWays(
+    HTTP2_VERIFY_SUCCESS(DecodeAndValidateSeveralWays(
         &original, kMayReturnZeroOnFirst, validator));
-    VERIFY_FALSE(HasFailure());
-    VERIFY_EQ(S::EncodedSize(), structure_decoder_.offset());
-    VERIFY_EQ(S::EncodedSize(), original.Offset());
-    VERIFY_LT(0u, fast_decode_count_);
-    VERIFY_LT(0u, slow_decode_count_);
-    VERIFY_LT(0u, incomplete_start_count_);
+    HTTP2_VERIFY_FALSE(HasFailure());
+    HTTP2_VERIFY_EQ(S::EncodedSize(), structure_decoder_.offset());
+    HTTP2_VERIFY_EQ(S::EncodedSize(), original.Offset());
+    HTTP2_VERIFY_LT(0u, fast_decode_count_);
+    HTTP2_VERIFY_LT(0u, slow_decode_count_);
+    HTTP2_VERIFY_LT(0u, incomplete_start_count_);
 
     // If the structure is large enough so that SelectZeroOrOne will have
     // caused Resume to return false, check that occurred.
     if (S::EncodedSize() >= 2) {
-      VERIFY_LE(0u, incomplete_resume_count_);
+      HTTP2_VERIFY_LE(0u, incomplete_resume_count_);
     } else {
-      VERIFY_EQ(0u, incomplete_resume_count_);
+      HTTP2_VERIFY_EQ(0u, incomplete_resume_count_);
     }
     if (expected != nullptr) {
       QUICHE_DVLOG(1) << "DecodeLeadingStructure expected: " << *expected;
       QUICHE_DVLOG(1) << "DecodeLeadingStructure   actual: " << *structure_;
-      VERIFY_EQ(*expected, *structure_);
+      HTTP2_VERIFY_EQ(*expected, *structure_);
     }
     return AssertionSuccess();
   }
@@ -154,7 +154,7 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
   // and validate that the decoder produced the same field values.
   AssertionResult EncodeThenDecode(const S& in_s) {
     std::string bytes = SerializeStructure(in_s);
-    VERIFY_EQ(S::EncodedSize(), bytes.size());
+    HTTP2_VERIFY_EQ(S::EncodedSize(), bytes.size());
     return DecodeLeadingStructure(&in_s, bytes);
   }
 
@@ -165,13 +165,13 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
     for (size_t i = 0; i < count; ++i) {
       Structure input;
       Randomize(&input, RandomPtr());
-      VERIFY_SUCCESS(EncodeThenDecode(input));
+      HTTP2_VERIFY_SUCCESS(EncodeThenDecode(input));
     }
     return AssertionSuccess();
   }
 
   AssertionResult TestDecodingRandomizedStructures() {
-    VERIFY_SUCCESS(TestDecodingRandomizedStructures(100));
+    HTTP2_VERIFY_SUCCESS(TestDecodingRandomizedStructures(100));
     return AssertionSuccess();
   }
 

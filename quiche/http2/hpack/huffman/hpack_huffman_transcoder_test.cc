@@ -76,14 +76,14 @@ class HpackHuffmanTranscoderTest : public RandomDecoderTest {
     size_t encoded_size = HuffmanSize(plain);
     std::string encoded;
     HuffmanEncode(plain, encoded_size, &encoded);
-    VERIFY_EQ(encoded_size, encoded.size());
+    HTTP2_VERIFY_EQ(encoded_size, encoded.size());
     if (!expected_huffman.empty() || plain.empty()) {
-      VERIFY_EQ(encoded, expected_huffman);
+      HTTP2_VERIFY_EQ(encoded, expected_huffman);
     }
     input_bytes_expected_ = encoded.size();
     auto validator = [plain, this]() -> AssertionResult {
-      VERIFY_EQ(output_buffer_.size(), plain.size());
-      VERIFY_EQ(output_buffer_, plain);
+      HTTP2_VERIFY_EQ(output_buffer_.size(), plain.size());
+      HTTP2_VERIFY_EQ(output_buffer_, plain);
       return AssertionSuccess();
     };
     DecodeBuffer db(encoded);

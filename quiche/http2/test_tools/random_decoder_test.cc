@@ -12,9 +12,9 @@
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/http2_constants.h"
+#include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionResult;
 
@@ -81,7 +81,7 @@ AssertionResult RandomDecoderTest::DecodeAndValidateSeveralWays(
     // Fast decode (no stopping unless decoder does so).
     DecodeBuffer input(original->cursor(), original_remaining);
     QUICHE_VLOG(2) << "DecodeSegmentsAndValidate with SelectRemaining";
-    VERIFY_SUCCESS(
+    HTTP2_VERIFY_SUCCESS(
         DecodeSegmentsAndValidate(&input, SelectRemaining(), validator))
         << "\nFailed with SelectRemaining; input.Offset=" << input.Offset()
         << "; input.Remaining=" << input.Remaining();
@@ -91,19 +91,21 @@ AssertionResult RandomDecoderTest::DecodeAndValidateSeveralWays(
     // Decode again, one byte at a time.
     DecodeBuffer input(original->cursor(), original_remaining);
     QUICHE_VLOG(2) << "DecodeSegmentsAndValidate with SelectOne";
-    VERIFY_SUCCESS(DecodeSegmentsAndValidate(&input, SelectOne(), validator))
+    HTTP2_VERIFY_SUCCESS(
+        DecodeSegmentsAndValidate(&input, SelectOne(), validator))
         << "\nFailed with SelectOne; input.Offset=" << input.Offset()
         << "; input.Remaining=" << input.Remaining();
-    VERIFY_EQ(first_consumed, input.Offset()) << "\nFailed with SelectOne";
+    HTTP2_VERIFY_EQ(first_consumed, input.Offset())
+        << "\nFailed with SelectOne";
   }
   if (original_remaining <= 20) {
     // Decode again, one or zero bytes at a time.
     DecodeBuffer input(original->cursor(), original_remaining);
     QUICHE_VLOG(2) << "DecodeSegmentsAndValidate with SelectZeroAndOne";
-    VERIFY_SUCCESS(DecodeSegmentsAndValidate(
+    HTTP2_VERIFY_SUCCESS(DecodeSegmentsAndValidate(
         &input, SelectZeroAndOne(return_non_zero_on_first), validator))
         << "\nFailed with SelectZeroAndOne";
-    VERIFY_EQ(first_consumed, input.Offset())
+    HTTP2_VERIFY_EQ(first_consumed, input.Offset())
         << "\nFailed with SelectZeroAndOne; input.Offset=" << input.Offset()
         << "; input.Remaining=" << input.Remaining();
   }
@@ -111,13 +113,14 @@ AssertionResult RandomDecoderTest::DecodeAndValidateSeveralWays(
     // Decode again, with randomly selected segment sizes.
     DecodeBuffer input(original->cursor(), original_remaining);
     QUICHE_VLOG(2) << "DecodeSegmentsAndValidate with SelectRandom";
-    VERIFY_SUCCESS(DecodeSegmentsAndValidate(
+    HTTP2_VERIFY_SUCCESS(DecodeSegmentsAndValidate(
         &input, SelectRandom(return_non_zero_on_first), validator))
         << "\nFailed with SelectRandom; input.Offset=" << input.Offset()
         << "; input.Remaining=" << input.Remaining();
-    VERIFY_EQ(first_consumed, input.Offset()) << "\nFailed with SelectRandom";
+    HTTP2_VERIFY_EQ(first_consumed, input.Offset())
+        << "\nFailed with SelectRandom";
   }
-  VERIFY_EQ(original_remaining, original->Remaining());
+  HTTP2_VERIFY_EQ(original_remaining, original->Remaining());
   original->AdvanceCursor(first_consumed);
   QUICHE_VLOG(1) << "DecodeAndValidateSeveralWays - SUCCESS";
   return ::testing::AssertionSuccess();

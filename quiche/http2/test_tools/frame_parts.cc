@@ -8,9 +8,9 @@
 
 #include "absl/strings/escaping.h"
 #include "quiche/http2/test_tools/http2_structures_test_util.h"
+#include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
@@ -32,7 +32,7 @@ template <class T>
 AssertionResult VerifyOptionalEq(const T& opt_a, const T& opt_b) {
   if (opt_a) {
     if (opt_b) {
-      VERIFY_EQ(opt_a.value(), opt_b.value());
+      HTTP2_VERIFY_EQ(opt_a.value(), opt_b.value());
     } else {
       return AssertionFailure()
              << "opt_b is not set; opt_a.value()=" << opt_a.value();
@@ -71,29 +71,29 @@ FrameParts::~FrameParts() = default;
 AssertionResult FrameParts::VerifyEquals(const FrameParts& that) const {
 #define COMMON_MESSAGE "\n  this: " << *this << "\n  that: " << that
 
-  VERIFY_EQ(frame_header_, that.frame_header_) << COMMON_MESSAGE;
-  VERIFY_EQ(payload_, that.payload_) << COMMON_MESSAGE;
-  VERIFY_EQ(padding_, that.padding_) << COMMON_MESSAGE;
-  VERIFY_EQ(altsvc_origin_, that.altsvc_origin_) << COMMON_MESSAGE;
-  VERIFY_EQ(altsvc_value_, that.altsvc_value_) << COMMON_MESSAGE;
-  VERIFY_THAT(settings_, ContainerEq(that.settings_)) << COMMON_MESSAGE;
+  HTTP2_VERIFY_EQ(frame_header_, that.frame_header_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_EQ(payload_, that.payload_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_EQ(padding_, that.padding_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_EQ(altsvc_origin_, that.altsvc_origin_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_EQ(altsvc_value_, that.altsvc_value_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_EQ(settings_, that.settings_) << COMMON_MESSAGE;
 
-#define VERIFY_OPTIONAL_FIELD(field_name) \
-  VERIFY_SUCCESS(VerifyOptionalEq(field_name, that.field_name))
+#define HTTP2_VERIFY_OPTIONAL_FIELD(field_name) \
+  HTTP2_VERIFY_SUCCESS(VerifyOptionalEq(field_name, that.field_name))
 
-  VERIFY_OPTIONAL_FIELD(opt_altsvc_origin_length_) << COMMON_MESSAGE;
-  VERIFY_OPTIONAL_FIELD(opt_altsvc_value_length_) << COMMON_MESSAGE;
-  VERIFY_OPTIONAL_FIELD(opt_priority_update_) << COMMON_MESSAGE;
-  VERIFY_OPTIONAL_FIELD(opt_goaway_) << COMMON_MESSAGE;
-  VERIFY_OPTIONAL_FIELD(opt_missing_length_) << COMMON_MESSAGE;
-  VERIFY_OPTIONAL_FIELD(opt_pad_length_) << COMMON_MESSAGE;
-  VERIFY_OPTIONAL_FIELD(opt_ping_) << COMMON_MESSAGE;
-  VERIFY_OPTIONAL_FIELD(opt_priority_) << COMMON_MESSAGE;
-  VERIFY_OPTIONAL_FIELD(opt_push_promise_) << COMMON_MESSAGE;
-  VERIFY_OPTIONAL_FIELD(opt_rst_stream_error_code_) << COMMON_MESSAGE;
-  VERIFY_OPTIONAL_FIELD(opt_window_update_increment_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_OPTIONAL_FIELD(opt_altsvc_origin_length_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_OPTIONAL_FIELD(opt_altsvc_value_length_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_OPTIONAL_FIELD(opt_priority_update_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_OPTIONAL_FIELD(opt_goaway_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_OPTIONAL_FIELD(opt_missing_length_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_OPTIONAL_FIELD(opt_pad_length_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_OPTIONAL_FIELD(opt_ping_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_OPTIONAL_FIELD(opt_priority_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_OPTIONAL_FIELD(opt_push_promise_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_OPTIONAL_FIELD(opt_rst_stream_error_code_) << COMMON_MESSAGE;
+  HTTP2_VERIFY_OPTIONAL_FIELD(opt_window_update_increment_) << COMMON_MESSAGE;
 
-#undef VERIFY_OPTIONAL_FIELD
+#undef HTTP2_VERIFY_OPTIONAL_FIELD
 
   return AssertionSuccess();
 }
@@ -504,31 +504,31 @@ void FrameParts::OutputTo(std::ostream& out) const {
 
 AssertionResult FrameParts::StartFrameOfType(
     const Http2FrameHeader& header, Http2FrameType expected_frame_type) {
-  VERIFY_EQ(header.type, expected_frame_type);
-  VERIFY_FALSE(got_start_callback_);
-  VERIFY_FALSE(got_end_callback_);
-  VERIFY_EQ(frame_header_, header);
+  HTTP2_VERIFY_EQ(header.type, expected_frame_type);
+  HTTP2_VERIFY_FALSE(got_start_callback_);
+  HTTP2_VERIFY_FALSE(got_end_callback_);
+  HTTP2_VERIFY_EQ(frame_header_, header);
   got_start_callback_ = true;
   return AssertionSuccess();
 }
 
 AssertionResult FrameParts::InFrameOfType(Http2FrameType expected_frame_type) {
-  VERIFY_TRUE(got_start_callback_);
-  VERIFY_FALSE(got_end_callback_);
-  VERIFY_EQ(frame_header_.type, expected_frame_type);
+  HTTP2_VERIFY_TRUE(got_start_callback_);
+  HTTP2_VERIFY_FALSE(got_end_callback_);
+  HTTP2_VERIFY_EQ(frame_header_.type, expected_frame_type);
   return AssertionSuccess();
 }
 
 AssertionResult FrameParts::EndFrameOfType(Http2FrameType expected_frame_type) {
-  VERIFY_SUCCESS(InFrameOfType(expected_frame_type));
+  HTTP2_VERIFY_SUCCESS(InFrameOfType(expected_frame_type));
   got_end_callback_ = true;
   return AssertionSuccess();
 }
 
 AssertionResult FrameParts::InPaddedFrame() {
-  VERIFY_TRUE(got_start_callback_);
-  VERIFY_FALSE(got_end_callback_);
-  VERIFY_TRUE(FrameIsPadded(frame_header_));
+  HTTP2_VERIFY_TRUE(got_start_callback_);
+  HTTP2_VERIFY_FALSE(got_end_callback_);
+  HTTP2_VERIFY_TRUE(FrameIsPadded(frame_header_));
   return AssertionSuccess();
 }
 
@@ -537,8 +537,8 @@ AssertionResult FrameParts::AppendString(absl::string_view source,
                                          absl::optional<size_t>* opt_length) {
   target->append(source.data(), source.size());
   if (opt_length != nullptr) {
-    VERIFY_TRUE(*opt_length) << "Length is not set yet\n" << *this;
-    VERIFY_LE(target->size(), opt_length->value())
+    HTTP2_VERIFY_TRUE(*opt_length) << "Length is not set yet\n" << *this;
+    HTTP2_VERIFY_LE(target->size(), opt_length->value())
         << "String too large; source.size() = " << source.size() << "\n"
         << *this;
   }

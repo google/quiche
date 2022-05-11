@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <memory>
 
+#include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
@@ -99,17 +99,17 @@ void HpackBlockCollector::AppendToHpackBlockBuilder(
 
 AssertionResult HpackBlockCollector::ValidateSoleIndexedHeader(
     size_t ndx) const {
-  VERIFY_TRUE(pending_entry_.IsClear());
-  VERIFY_EQ(1u, entries_.size());
-  VERIFY_TRUE(entries_.front().ValidateIndexedHeader(ndx));
+  HTTP2_VERIFY_TRUE(pending_entry_.IsClear());
+  HTTP2_VERIFY_EQ(1u, entries_.size());
+  HTTP2_VERIFY_TRUE(entries_.front().ValidateIndexedHeader(ndx));
   return AssertionSuccess();
 }
 AssertionResult HpackBlockCollector::ValidateSoleLiteralValueHeader(
     HpackEntryType expected_type, size_t expected_index,
     bool expected_value_huffman, absl::string_view expected_value) const {
-  VERIFY_TRUE(pending_entry_.IsClear());
-  VERIFY_EQ(1u, entries_.size());
-  VERIFY_TRUE(entries_.front().ValidateLiteralValueHeader(
+  HTTP2_VERIFY_TRUE(pending_entry_.IsClear());
+  HTTP2_VERIFY_EQ(1u, entries_.size());
+  HTTP2_VERIFY_TRUE(entries_.front().ValidateLiteralValueHeader(
       expected_type, expected_index, expected_value_huffman, expected_value));
   return AssertionSuccess();
 }
@@ -117,25 +117,25 @@ AssertionResult HpackBlockCollector::ValidateSoleLiteralNameValueHeader(
     HpackEntryType expected_type, bool expected_name_huffman,
     absl::string_view expected_name, bool expected_value_huffman,
     absl::string_view expected_value) const {
-  VERIFY_TRUE(pending_entry_.IsClear());
-  VERIFY_EQ(1u, entries_.size());
-  VERIFY_TRUE(entries_.front().ValidateLiteralNameValueHeader(
+  HTTP2_VERIFY_TRUE(pending_entry_.IsClear());
+  HTTP2_VERIFY_EQ(1u, entries_.size());
+  HTTP2_VERIFY_TRUE(entries_.front().ValidateLiteralNameValueHeader(
       expected_type, expected_name_huffman, expected_name,
       expected_value_huffman, expected_value));
   return AssertionSuccess();
 }
 AssertionResult HpackBlockCollector::ValidateSoleDynamicTableSizeUpdate(
     size_t size) const {
-  VERIFY_TRUE(pending_entry_.IsClear());
-  VERIFY_EQ(1u, entries_.size());
-  VERIFY_TRUE(entries_.front().ValidateDynamicTableSizeUpdate(size));
+  HTTP2_VERIFY_TRUE(pending_entry_.IsClear());
+  HTTP2_VERIFY_EQ(1u, entries_.size());
+  HTTP2_VERIFY_TRUE(entries_.front().ValidateDynamicTableSizeUpdate(size));
   return AssertionSuccess();
 }
 
 AssertionResult HpackBlockCollector::VerifyEq(
     const HpackBlockCollector& that) const {
-  VERIFY_EQ(pending_entry_, that.pending_entry_);
-  VERIFY_EQ(entries_, that.entries_);
+  HTTP2_VERIFY_EQ(pending_entry_, that.pending_entry_);
+  HTTP2_VERIFY_EQ(entries_, that.entries_);
   return AssertionSuccess();
 }
 

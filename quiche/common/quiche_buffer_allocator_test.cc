@@ -5,8 +5,8 @@
 #include "quiche/common/quiche_buffer_allocator.h"
 
 #include "absl/strings/string_view.h"
+#include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 

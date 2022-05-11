@@ -77,7 +77,7 @@ DecodeStatus PayloadDecoderBaseTest::ResumeDecoding(DecodeBuffer* db) {
 ::testing::AssertionResult
 PayloadDecoderBaseTest::DecodePayloadAndValidateSeveralWays(
     absl::string_view payload, Validator validator) {
-  VERIFY_TRUE(frame_header_is_set_);
+  HTTP2_VERIFY_TRUE(frame_header_is_set_);
   // Cap the payload to be decoded at the declared payload length. This is
   // required by the decoders' preconditions; they are designed on the
   // assumption that they're never passed more than they're permitted to

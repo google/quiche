@@ -25,9 +25,9 @@
 #include "quiche/common/balsa/balsa_enums.h"
 #include "quiche/common/balsa/balsa_frame.h"
 #include "quiche/common/balsa/simple_buffer.h"
+#include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using absl::make_unique;
 using testing::AnyOf;

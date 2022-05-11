@@ -21,10 +21,10 @@
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/test_tools/http2_random.h"
+#include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 namespace http2 {
 namespace test {
@@ -76,7 +76,7 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public QuicheTest {
 
  protected:
   // TODO(jamessynge): Modify StartDecoding, etc. to (somehow) return
-  // AssertionResult so that the VERIFY_* methods exported from
+  // AssertionResult so that the HTTP2_VERIFY_* methods exported from
   // gunit_helpers.h can be widely used.
 
   // Start decoding; call allows sub-class to Reset the decoder, or deal with
@@ -178,8 +178,8 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public QuicheTest {
   static Validator ValidateDoneAndEmpty(const Validator& wrapped) {
     return [wrapped](const DecodeBuffer& input,
                      DecodeStatus status) -> AssertionResult {
-      VERIFY_EQ(status, DecodeStatus::kDecodeDone);
-      VERIFY_EQ(0u, input.Remaining()) << "\nOffset=" << input.Offset();
+      HTTP2_VERIFY_EQ(status, DecodeStatus::kDecodeDone);
+      HTTP2_VERIFY_EQ(0u, input.Remaining()) << "\nOffset=" << input.Offset();
       if (wrapped) {
         return wrapped(input, status);
       }
@@ -189,8 +189,8 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public QuicheTest {
   static Validator ValidateDoneAndEmpty(NoArgValidator wrapped) {
     return [wrapped](const DecodeBuffer& input,
                      DecodeStatus status) -> AssertionResult {
-      VERIFY_EQ(status, DecodeStatus::kDecodeDone);
-      VERIFY_EQ(0u, input.Remaining()) << "\nOffset=" << input.Offset();
+      HTTP2_VERIFY_EQ(status, DecodeStatus::kDecodeDone);
+      HTTP2_VERIFY_EQ(0u, input.Remaining()) << "\nOffset=" << input.Offset();
       if (wrapped) {
         return wrapped();
       }
@@ -212,8 +212,9 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public QuicheTest {
                                          const Validator& wrapped) {
     return [wrapped, offset](const DecodeBuffer& input,
                              DecodeStatus status) -> AssertionResult {
-      VERIFY_EQ(status, DecodeStatus::kDecodeDone);
-      VERIFY_EQ(offset, input.Offset()) << "\nRemaining=" << input.Remaining();
+      HTTP2_VERIFY_EQ(status, DecodeStatus::kDecodeDone);
+      HTTP2_VERIFY_EQ(offset, input.Offset())
+          << "\nRemaining=" << input.Remaining();
       if (wrapped) {
         return wrapped(input, status);
       }
@@ -224,8 +225,9 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public QuicheTest {
                                          NoArgValidator wrapped) {
     return [wrapped, offset](const DecodeBuffer& input,
                              DecodeStatus status) -> AssertionResult {
-      VERIFY_EQ(status, DecodeStatus::kDecodeDone);
-      VERIFY_EQ(offset, input.Offset()) << "\nRemaining=" << input.Remaining();
+      HTTP2_VERIFY_EQ(status, DecodeStatus::kDecodeDone);
+      HTTP2_VERIFY_EQ(offset, input.Offset())
+          << "\nRemaining=" << input.Remaining();
       if (wrapped) {
         return wrapped();
       }

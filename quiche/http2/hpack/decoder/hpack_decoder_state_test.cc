@@ -12,9 +12,9 @@
 #include "absl/strings/string_view.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
 #include "quiche/http2/http2_constants.h"
+#include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
@@ -147,25 +147,25 @@ class HpackDecoderStateTest : public QuicheTest {
                               const char* value) {
     const HpackStringPair* entry =
         Lookup(dynamic_index + kFirstDynamicTableIndex - 1);
-    VERIFY_NE(entry, nullptr);
-    VERIFY_EQ(entry->name, name);
-    VERIFY_EQ(entry->value, value);
+    HTTP2_VERIFY_NE(entry, nullptr);
+    HTTP2_VERIFY_EQ(entry->name, name);
+    HTTP2_VERIFY_EQ(entry->value, value);
     return AssertionSuccess();
   }
   AssertionResult VerifyNoEntry(size_t dynamic_index) {
     const HpackStringPair* entry =
         Lookup(dynamic_index + kFirstDynamicTableIndex - 1);
-    VERIFY_EQ(entry, nullptr);
+    HTTP2_VERIFY_EQ(entry, nullptr);
     return AssertionSuccess();
   }
   AssertionResult VerifyDynamicTableContents(
       const std::vector<std::pair<const char*, const char*>>& entries) {
     size_t index = 1;
     for (const auto& entry : entries) {
-      VERIFY_SUCCESS(VerifyEntry(index, entry.first, entry.second));
+      HTTP2_VERIFY_SUCCESS(VerifyEntry(index, entry.first, entry.second));
       ++index;
     }
-    VERIFY_SUCCESS(VerifyNoEntry(index));
+    HTTP2_VERIFY_SUCCESS(VerifyNoEntry(index));
     return AssertionSuccess();
   }
 

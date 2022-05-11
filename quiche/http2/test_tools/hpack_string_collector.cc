@@ -11,8 +11,8 @@
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
+#include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 namespace http2 {
 namespace test {
@@ -76,10 +76,10 @@ void HpackStringCollector::OnStringEnd() {
 
 ::testing::AssertionResult HpackStringCollector::Collected(
     absl::string_view str, bool is_huffman_encoded) const {
-  VERIFY_TRUE(HasEnded());
-  VERIFY_EQ(str.size(), len);
-  VERIFY_EQ(is_huffman_encoded, huffman_encoded);
-  VERIFY_EQ(str, s);
+  HTTP2_VERIFY_TRUE(HasEnded());
+  HTTP2_VERIFY_EQ(str.size(), len);
+  HTTP2_VERIFY_EQ(is_huffman_encoded, huffman_encoded);
+  HTTP2_VERIFY_EQ(str, s);
   return ::testing::AssertionSuccess();
 }
 

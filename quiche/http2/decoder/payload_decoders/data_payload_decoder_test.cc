@@ -18,9 +18,9 @@
 #include "quiche/http2/test_tools/http2_structures_test_util.h"
 #include "quiche/http2/test_tools/payload_decoder_base_test_util.h"
 #include "quiche/http2/test_tools/random_decoder_test.h"
+#include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 namespace http2 {
 namespace test {

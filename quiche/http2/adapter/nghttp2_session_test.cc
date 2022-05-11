@@ -5,8 +5,8 @@
 #include "quiche/http2/adapter/nghttp2_util.h"
 #include "quiche/http2/adapter/test_frame_sequence.h"
 #include "quiche/http2/adapter/test_utils.h"
+#include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/platform/api/quiche_test_helpers.h"
 
 namespace http2 {
 namespace adapter {
