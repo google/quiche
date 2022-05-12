@@ -3131,9 +3131,9 @@ TEST_P(QuicSpdyStreamTest, ReceiveHttpDatagram) {
     return;
   }
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
-  session_->set_local_http_datagram_support(HttpDatagramSupport::kDraft04);
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kDraft09);
   QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
-                                              HttpDatagramSupport::kDraft04);
+                                              HttpDatagramSupport::kDraft09);
   headers_[":method"] = "CONNECT";
   headers_[":protocol"] = "webtransport";
   ProcessHeaders(false, headers_);
@@ -3171,9 +3171,9 @@ TEST_P(QuicSpdyStreamTest, SendHttpDatagram) {
     return;
   }
   Initialize(kShouldProcessData);
-  session_->set_local_http_datagram_support(HttpDatagramSupport::kDraft04);
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kDraft09);
   QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
-                                              HttpDatagramSupport::kDraft04);
+                                              HttpDatagramSupport::kDraft09);
   std::string http_datagram_payload = {1, 2, 3, 4, 5, 6};
   EXPECT_CALL(*connection_, SendMessage(1, _, false))
       .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
@@ -3186,9 +3186,9 @@ TEST_P(QuicSpdyStreamTest, GetMaxDatagramSize) {
     return;
   }
   Initialize(kShouldProcessData);
-  session_->set_local_http_datagram_support(HttpDatagramSupport::kDraft04);
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kDraft09);
   QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
-                                              HttpDatagramSupport::kDraft04);
+                                              HttpDatagramSupport::kDraft09);
   EXPECT_GT(stream_->GetMaxDatagramSize(), 512u);
 }
 

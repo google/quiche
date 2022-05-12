@@ -516,10 +516,19 @@ void QuicSpdySession::FillSettingsFrame() {
   settings_.values[SETTINGS_MAX_FIELD_SECTION_SIZE] =
       max_inbound_header_list_size_;
   if (version().UsesHttp3()) {
-    HttpDatagramSupport local_http_datagram_support =
-        LocalHttpDatagramSupport();
-    if (local_http_datagram_support == HttpDatagramSupport::kDraft04) {
-      settings_.values[SETTINGS_H3_DATAGRAM_DRAFT04] = 1;
+    switch (LocalHttpDatagramSupport()) {
+      case HttpDatagramSupport::kNone:
+        break;
+      case HttpDatagramSupport::kDraft04:
+        settings_.values[SETTINGS_H3_DATAGRAM_DRAFT04] = 1;
+        break;
+      case HttpDatagramSupport::kDraft09:
+        settings_.values[SETTINGS_H3_DATAGRAM_DRAFT09] = 1;
+        break;
+      case HttpDatagramSupport::kDraft04And09:
+        settings_.values[SETTINGS_H3_DATAGRAM_DRAFT04] = 1;
+        settings_.values[SETTINGS_H3_DATAGRAM_DRAFT09] = 1;
+        break;
     }
   }
   if (WillNegotiateWebTransport()) {
@@ -1139,7 +1148,8 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
       case SETTINGS_H3_DATAGRAM_DRAFT04: {
         HttpDatagramSupport local_http_datagram_support =
             LocalHttpDatagramSupport();
-        if (local_http_datagram_support != HttpDatagramSupport::kDraft04) {
+        if (local_http_datagram_support != HttpDatagramSupport::kDraft04 &&
+            local_http_datagram_support != HttpDatagramSupport::kDraft04And09) {
           break;
         }
         QUIC_DVLOG(1) << ENDPOINT
@@ -1151,8 +1161,30 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         if (!VerifySettingIsZeroOrOne(id, value)) {
           return false;
         }
-        if (value) {
+        if (value && http_datagram_support_ != HttpDatagramSupport::kDraft09) {
+          // If both draft-04 and draft-09 are supported, use draft-09.
           http_datagram_support_ = HttpDatagramSupport::kDraft04;
+        }
+        break;
+      }
+      case SETTINGS_H3_DATAGRAM_DRAFT09: {
+        HttpDatagramSupport local_http_datagram_support =
+            LocalHttpDatagramSupport();
+        if (local_http_datagram_support != HttpDatagramSupport::kDraft09 &&
+            local_http_datagram_support != HttpDatagramSupport::kDraft04And09) {
+          break;
+        }
+        QUIC_DVLOG(1) << ENDPOINT
+                      << "SETTINGS_H3_DATAGRAM_DRAFT09 received with value "
+                      << value;
+        if (!version().UsesHttp3()) {
+          break;
+        }
+        if (!VerifySettingIsZeroOrOne(id, value)) {
+          return false;
+        }
+        if (value) {
+          http_datagram_support_ = HttpDatagramSupport::kDraft09;
         }
         break;
       }
@@ -1790,6 +1822,10 @@ std::string HttpDatagramSupportToString(
       return "None";
     case HttpDatagramSupport::kDraft04:
       return "Draft04";
+    case HttpDatagramSupport::kDraft09:
+      return "Draft09";
+    case HttpDatagramSupport::kDraft04And09:
+      return "Draft04And09";
   }
   return absl::StrCat("Unknown(", static_cast<int>(http_datagram_support), ")");
 }

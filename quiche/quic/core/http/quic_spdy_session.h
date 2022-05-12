@@ -120,6 +120,8 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
 enum class HttpDatagramSupport : uint8_t {
   kNone,  // HTTP Datagrams are not supported for this session.
   kDraft04,
+  kDraft09,
+  kDraft04And09,  // Only used locally for sending, we only negotiate one draft.
 };
 
 QUIC_EXPORT_PRIVATE std::string HttpDatagramSupportToString(

@@ -1511,10 +1511,12 @@ QuicByteCount QuicSpdyStream::GetMaxDatagramSize() const {
   QuicByteCount prefix_size = 0;
   switch (spdy_session_->http_datagram_support()) {
     case HttpDatagramSupport::kDraft04:
+    case HttpDatagramSupport::kDraft09:
       prefix_size =
           QuicDataWriter::GetVarInt62Len(id() / kHttpDatagramStreamIdDivisor);
       break;
     case HttpDatagramSupport::kNone:
+    case HttpDatagramSupport::kDraft04And09:
       QUIC_BUG(GetMaxDatagramSize called with no datagram support)
           << "GetMaxDatagramSize() called when no HTTP/3 datagram support has "
              "been negotiated.  Support value: "
