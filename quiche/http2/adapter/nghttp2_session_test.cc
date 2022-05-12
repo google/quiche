@@ -311,9 +311,12 @@ TEST_F(NgHttp2SessionTest, NullPayload) {
   ASSERT_EQ(0, result);
   EXPECT_TRUE(session.want_write());
   int send_result = -1;
-  EXPECT_QUICHE_BUG(send_result = nghttp2_session_send(session.raw_ptr()),
-                    "Extension frame payload for stream 1 is null!");
-  EXPECT_EQ(NGHTTP2_ERR_CALLBACK_FAILURE, send_result);
+  EXPECT_QUICHE_BUG(
+      {
+        send_result = nghttp2_session_send(session.raw_ptr());
+        EXPECT_EQ(NGHTTP2_ERR_CALLBACK_FAILURE, send_result);
+      },
+      "Extension frame payload for stream 1 is null!");
 }
 
 }  // namespace
