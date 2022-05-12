@@ -101,7 +101,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
           ValidateClientHelloResultCallback::Result>
           result,
       std::unique_ptr<ProofSource::Details> proof_source_details,
-      std::unique_ptr<ProcessClientHelloResultCallback> done_cb);
+      std::shared_ptr<ProcessClientHelloResultCallback> done_cb);
 
   // Hook that allows the server to set QuicConfig defaults just
   // before going through the parameter negotiation step.
@@ -254,7 +254,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   // ProcessClientHello and forward it to
   // FinishProcessingHandshakeMessageAfterProcessClientHello.  Note that this
   // field is mutually exclusive with validate_client_hello_cb_.
-  ProcessClientHelloCallback* process_client_hello_cb_;
+  std::weak_ptr<ProcessClientHelloCallback> process_client_hello_cb_;
 
   // The ProofSource::Details from this connection.
   std::unique_ptr<ProofSource::Details> proof_source_details_;

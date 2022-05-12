@@ -69,7 +69,6 @@ QuicCryptoServerStream::QuicCryptoServerStream(
       zero_rtt_attempted_(false),
       chlo_packet_size_(0),
       validate_client_hello_cb_(nullptr),
-      process_client_hello_cb_(nullptr),
       encryption_established_(false),
       one_rtt_keys_available_(false),
       one_rtt_packet_decrypted_(false),
@@ -89,9 +88,10 @@ void QuicCryptoServerStream::CancelOutstandingCallbacks() {
     send_server_config_update_cb_->Cancel();
     send_server_config_update_cb_ = nullptr;
   }
-  if (process_client_hello_cb_ != nullptr) {
-    process_client_hello_cb_->Cancel();
-    process_client_hello_cb_ = nullptr;
+  if (std::shared_ptr<ProcessClientHelloCallback> cb =
+          process_client_hello_cb_.lock()) {
+    cb->Cancel();
+    process_client_hello_cb_.reset();
   }
 }
 
@@ -115,7 +115,7 @@ void QuicCryptoServerStream::OnHandshakeMessage(
   }
 
   if (validate_client_hello_cb_ != nullptr ||
-      process_client_hello_cb_ != nullptr) {
+      !process_client_hello_cb_.expired()) {
     // Already processing some other handshake message.  The protocol
     // does not allow for clients to send multiple handshake messages
     // before the server has a chance to respond.
@@ -129,7 +129,7 @@ void QuicCryptoServerStream::OnHandshakeMessage(
 
   std::unique_ptr<ValidateCallback> cb(new ValidateCallback(this));
   QUICHE_DCHECK(validate_client_hello_cb_ == nullptr);
-  QUICHE_DCHECK(process_client_hello_cb_ == nullptr);
+  QUICHE_DCHECK(process_client_hello_cb_.expired());
   validate_client_hello_cb_ = cb.get();
   crypto_config_->ValidateClientHello(
       message, GetClientAddress(), session()->connection()->self_address(),
@@ -144,12 +144,11 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
     std::unique_ptr<ProofSource::Details> details) {
   // Clear the callback that got us here.
   QUICHE_DCHECK(validate_client_hello_cb_ != nullptr);
-  QUICHE_DCHECK(process_client_hello_cb_ == nullptr);
+  QUICHE_DCHECK(process_client_hello_cb_.expired());
   validate_client_hello_cb_ = nullptr;
 
-  std::unique_ptr<ProcessClientHelloCallback> cb(
-      new ProcessClientHelloCallback(this, result));
-  process_client_hello_cb_ = cb.get();
+  auto cb = std::make_shared<ProcessClientHelloCallback>(this, result);
+  process_client_hello_cb_ = cb;
   ProcessClientHello(result, std::move(details), std::move(cb));
 }
 
@@ -161,9 +160,9 @@ void QuicCryptoServerStream::
         std::unique_ptr<DiversificationNonce> diversification_nonce,
         std::unique_ptr<ProofSource::Details> proof_source_details) {
   // Clear the callback that got us here.
-  QUICHE_DCHECK(process_client_hello_cb_ != nullptr);
+  QUICHE_DCHECK(!process_client_hello_cb_.expired());
   QUICHE_DCHECK(validate_client_hello_cb_ == nullptr);
-  process_client_hello_cb_ = nullptr;
+  process_client_hello_cb_.reset();
   proof_source_details_ = std::move(proof_source_details);
 
   AdjustTestValue("quic::QuicCryptoServerStream::after_process_client_hello",
@@ -457,7 +456,7 @@ void QuicCryptoServerStream::ProcessClientHello(
         ValidateClientHelloResultCallback::Result>
         result,
     std::unique_ptr<ProofSource::Details> proof_source_details,
-    std::unique_ptr<ProcessClientHelloResultCallback> done_cb) {
+    std::shared_ptr<ProcessClientHelloResultCallback> done_cb) {
   proof_source_details_ = std::move(proof_source_details);
   const CryptoHandshakeMessage& message = result->client_hello;
   std::string error_details;
