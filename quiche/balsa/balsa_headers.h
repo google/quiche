@@ -1337,7 +1337,6 @@ BalsaHeaders::header_lines_key_end() const {
 inline void BalsaHeaders::erase(const const_header_lines_iterator& it) {
   QUICHE_DCHECK_EQ(it.headers_, this);
   QUICHE_DCHECK_LT(it.idx_, header_lines_.size());
-  QUICHE_DCHECK_GE(it.idx_, 0u);
   header_lines_[it.idx_].skip = true;
 }
 
