@@ -75,10 +75,6 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public QuicheTest {
   RandomDecoderTest();
 
  protected:
-  // TODO(jamessynge): Modify StartDecoding, etc. to (somehow) return
-  // AssertionResult so that the HTTP2_VERIFY_* methods exported from
-  // gunit_helpers.h can be widely used.
-
   // Start decoding; call allows sub-class to Reset the decoder, or deal with
   // the first byte if that is done in a unique fashion.  Might be called with
   // a zero byte buffer.
