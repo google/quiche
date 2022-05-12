@@ -4,8 +4,8 @@
 
 // A lightweight implementation for storing HTTP headers.
 
-#ifndef QUICHE_COMMON_BALSA_BALSA_HEADERS_H_
-#define QUICHE_COMMON_BALSA_BALSA_HEADERS_H_
+#ifndef QUICHE_BALSA_BALSA_HEADERS_H_
+#define QUICHE_BALSA_BALSA_HEADERS_H_
 
 #include <cstddef>
 #include <cstring>
@@ -22,9 +22,9 @@
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
-#include "quiche/common/balsa/balsa_enums.h"
-#include "quiche/common/balsa/header_api.h"
-#include "quiche/common/balsa/standard_header_map.h"
+#include "quiche/balsa/balsa_enums.h"
+#include "quiche/balsa/header_api.h"
+#include "quiche/balsa/standard_header_map.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -1466,4 +1466,4 @@ const IteratorType BalsaHeaders::HeaderLinesEndHelper() const {
 
 }  // namespace quiche
 
-#endif  // QUICHE_COMMON_BALSA_BALSA_HEADERS_H_
+#endif  // QUICHE_BALSA_BALSA_HEADERS_H_

@@ -1,4 +1,4 @@
-#include "quiche/common/balsa/header_properties.h"
+#include "quiche/balsa/header_properties.h"
 
 #include <array>
 

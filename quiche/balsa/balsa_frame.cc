@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/common/balsa/balsa_frame.h"
+#include "quiche/balsa/balsa_frame.h"
 
 #include <algorithm>
 #include <array>
@@ -17,10 +17,10 @@
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
-#include "quiche/common/balsa/balsa_enums.h"
-#include "quiche/common/balsa/balsa_headers.h"
-#include "quiche/common/balsa/balsa_visitor_interface.h"
-#include "quiche/common/balsa/header_properties.h"
+#include "quiche/balsa/balsa_enums.h"
+#include "quiche/balsa/balsa_headers.h"
+#include "quiche/balsa/balsa_visitor_interface.h"
+#include "quiche/balsa/header_properties.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 // When comparing characters (other than == and !=), cast to unsigned char

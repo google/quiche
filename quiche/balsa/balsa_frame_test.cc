@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/common/balsa/balsa_frame.h"
+#include "quiche/balsa/balsa_frame.h"
 
 #include <stdlib.h>
 
@@ -22,12 +22,12 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
-#include "quiche/common/balsa/balsa_enums.h"
-#include "quiche/common/balsa/balsa_headers.h"
-#include "quiche/common/balsa/balsa_visitor_interface.h"
-#include "quiche/common/balsa/http_validation_policy.h"
-#include "quiche/common/balsa/noop_balsa_visitor.h"
-#include "quiche/common/balsa/simple_buffer.h"
+#include "quiche/balsa/balsa_enums.h"
+#include "quiche/balsa/balsa_headers.h"
+#include "quiche/balsa/balsa_visitor_interface.h"
+#include "quiche/balsa/http_validation_policy.h"
+#include "quiche/balsa/noop_balsa_visitor.h"
+#include "quiche/balsa/simple_buffer.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_COMMON_BALSA_FRAMER_INTERFACE_H_
-#define QUICHE_COMMON_BALSA_FRAMER_INTERFACE_H_
+#ifndef QUICHE_BALSA_FRAMER_INTERFACE_H_
+#define QUICHE_BALSA_FRAMER_INTERFACE_H_
 
 #include <cstddef>
 
@@ -21,4 +21,4 @@ class QUICHE_EXPORT_PRIVATE FramerInterface {
 
 }  // namespace quiche
 
-#endif  // QUICHE_COMMON_BALSA_FRAMER_INTERFACE_H_
+#endif  // QUICHE_BALSA_FRAMER_INTERFACE_H_

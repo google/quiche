@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_COMMON_BALSA_BALSA_ENUMS_H_
-#define QUICHE_COMMON_BALSA_BALSA_ENUMS_H_
+#ifndef QUICHE_BALSA_BALSA_ENUMS_H_
+#define QUICHE_BALSA_BALSA_ENUMS_H_
 
 #include "quiche/common/platform/api/quiche_export.h"
 
@@ -123,4 +123,4 @@ struct QUICHE_EXPORT_PRIVATE BalsaHeadersEnums {
 
 }  // namespace quiche
 
-#endif  // QUICHE_COMMON_BALSA_BALSA_ENUMS_H_
+#endif  // QUICHE_BALSA_BALSA_ENUMS_H_

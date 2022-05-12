@@ -6,7 +6,7 @@
 // tested in the balsa_frame_test as the BalsaFrame and
 // BalsaHeaders classes are fairly related.
 
-#include "quiche/common/balsa/balsa_headers.h"
+#include "quiche/balsa/balsa_headers.h"
 
 #include <cstring>
 #include <limits>
@@ -22,9 +22,9 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "quiche/common/balsa/balsa_enums.h"
-#include "quiche/common/balsa/balsa_frame.h"
-#include "quiche/common/balsa/simple_buffer.h"
+#include "quiche/balsa/balsa_enums.h"
+#include "quiche/balsa/balsa_frame.h"
+#include "quiche/balsa/simple_buffer.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_COMMON_BALSA_SIMPLE_BUFFER_H_
-#define QUICHE_COMMON_BALSA_SIMPLE_BUFFER_H_
+#ifndef QUICHE_BALSA_SIMPLE_BUFFER_H_
+#define QUICHE_BALSA_SIMPLE_BUFFER_H_
 
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -113,4 +113,4 @@ class QUICHE_EXPORT_PRIVATE SimpleBuffer {
 
 }  // namespace quiche
 
-#endif  // QUICHE_COMMON_BALSA_SIMPLE_BUFFER_H_
+#endif  // QUICHE_BALSA_SIMPLE_BUFFER_H_

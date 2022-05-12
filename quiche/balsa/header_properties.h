@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_COMMON_BALSA_HEADER_PROPERTIES_H_
-#define QUICHE_COMMON_BALSA_HEADER_PROPERTIES_H_
+#ifndef QUICHE_BALSA_HEADER_PROPERTIES_H_
+#define QUICHE_BALSA_HEADER_PROPERTIES_H_
 
 #include <cstdint>
 
@@ -47,4 +47,4 @@ QUICHE_EXPORT_PRIVATE bool HasInvalidHeaderChars(absl::string_view value);
 
 }  // namespace quiche::header_properties
 
-#endif  // QUICHE_COMMON_BALSA_HEADER_PROPERTIES_H_
+#endif  // QUICHE_BALSA_HEADER_PROPERTIES_H_

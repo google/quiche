@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/common/balsa/balsa_headers.h"
+#include "quiche/balsa/balsa_headers.h"
 
 #include <sys/types.h>
 
@@ -19,8 +19,8 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
-#include "quiche/common/balsa/balsa_enums.h"
-#include "quiche/common/balsa/header_properties.h"
+#include "quiche/balsa/balsa_enums.h"
+#include "quiche/balsa/header_properties.h"
 #include "quiche/common/platform/api/quiche_header_policy.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 

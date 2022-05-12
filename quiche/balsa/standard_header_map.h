@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_COMMON_BALSA_STANDARD_HEADER_MAP_H_
-#define QUICHE_COMMON_BALSA_STANDARD_HEADER_MAP_H_
+#ifndef QUICHE_BALSA_STANDARD_HEADER_MAP_H_
+#define QUICHE_BALSA_STANDARD_HEADER_MAP_H_
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
@@ -21,4 +21,4 @@ const StandardHttpHeaderNameSet& GetStandardHeaderSet();
 
 }  // namespace quiche
 
-#endif  // QUICHE_COMMON_BALSA_STANDARD_HEADER_MAP_H_
+#endif  // QUICHE_BALSA_STANDARD_HEADER_MAP_H_

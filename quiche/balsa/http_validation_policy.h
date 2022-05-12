@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_COMMON_BALSA_HTTP_VALIDATION_POLICY_H_
-#define QUICHE_COMMON_BALSA_HTTP_VALIDATION_POLICY_H_
+#ifndef QUICHE_BALSA_HTTP_VALIDATION_POLICY_H_
+#define QUICHE_BALSA_HTTP_VALIDATION_POLICY_H_
 
 #include <ostream>
 
@@ -52,4 +52,4 @@ class QUICHE_EXPORT_PRIVATE HttpValidationPolicy {
 
 }  // namespace quiche
 
-#endif  // QUICHE_COMMON_BALSA_HTTP_VALIDATION_POLICY_H_
+#endif  // QUICHE_BALSA_HTTP_VALIDATION_POLICY_H_

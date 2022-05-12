@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/common/balsa/standard_header_map.h"
+#include "quiche/balsa/standard_header_map.h"
 
 namespace quiche {
 

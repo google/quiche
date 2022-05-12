@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_COMMON_BALSA_HEADER_API_H_
-#define QUICHE_COMMON_BALSA_HEADER_API_H_
+#ifndef QUICHE_BALSA_HEADER_API_H_
+#define QUICHE_BALSA_HEADER_API_H_
 
 #include <cstddef>
 #include <functional>
@@ -271,4 +271,4 @@ class QUICHE_EXPORT_PRIVATE HeaderApi : public virtual ConstHeaderApi {
 
 }  // namespace quiche
 
-#endif  // QUICHE_COMMON_BALSA_HEADER_API_H_
+#endif  // QUICHE_BALSA_HEADER_API_H_

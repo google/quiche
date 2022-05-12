@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_COMMON_BALSA_BALSA_FRAME_H_
-#define QUICHE_COMMON_BALSA_BALSA_FRAME_H_
+#ifndef QUICHE_BALSA_BALSA_FRAME_H_
+#define QUICHE_BALSA_BALSA_FRAME_H_
 
 #include <cstddef>
 #include <cstdint>
 #include <utility>
 #include <vector>
 
-#include "quiche/common/balsa/balsa_enums.h"
-#include "quiche/common/balsa/balsa_headers.h"
-#include "quiche/common/balsa/balsa_visitor_interface.h"
-#include "quiche/common/balsa/framer_interface.h"
-#include "quiche/common/balsa/http_validation_policy.h"
-#include "quiche/common/balsa/noop_balsa_visitor.h"
+#include "quiche/balsa/balsa_enums.h"
+#include "quiche/balsa/balsa_headers.h"
+#include "quiche/balsa/balsa_visitor_interface.h"
+#include "quiche/balsa/framer_interface.h"
+#include "quiche/balsa/http_validation_policy.h"
+#include "quiche/balsa/noop_balsa_visitor.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
@@ -311,4 +311,4 @@ class QUICHE_EXPORT_PRIVATE BalsaFrame : public FramerInterface {
 
 }  // namespace quiche
 
-#endif  // QUICHE_COMMON_BALSA_BALSA_FRAME_H_
+#endif  // QUICHE_BALSA_BALSA_FRAME_H_

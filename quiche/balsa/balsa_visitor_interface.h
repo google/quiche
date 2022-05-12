@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_COMMON_BALSA_BALSA_VISITOR_INTERFACE_H_
-#define QUICHE_COMMON_BALSA_BALSA_VISITOR_INTERFACE_H_
+#ifndef QUICHE_BALSA_BALSA_VISITOR_INTERFACE_H_
+#define QUICHE_BALSA_BALSA_VISITOR_INTERFACE_H_
 
 #include <cstddef>
 
 #include "absl/strings/string_view.h"
-#include "quiche/common/balsa/balsa_enums.h"
+#include "quiche/balsa/balsa_enums.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
@@ -145,4 +145,4 @@ class QUICHE_EXPORT_PRIVATE BalsaVisitorInterface {
 
 }  // namespace quiche
 
-#endif  // QUICHE_COMMON_BALSA_BALSA_VISITOR_INTERFACE_H_
+#endif  // QUICHE_BALSA_BALSA_VISITOR_INTERFACE_H_
