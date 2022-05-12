@@ -91,27 +91,39 @@ const char kFooResponseBody[] = "Artichoke hearts make me happy.";
 const char kBarResponseBody[] = "Palm hearts are pretty delicious, also.";
 const char kTestUserAgentId[] = "quic/core/http/end_to_end_test.cc";
 const float kSessionToStreamRatio = 1.5;
+const int kLongConnectionIdLength = 16;
 
 // Run all tests with the cross products of all versions.
 struct TestParams {
-  TestParams(const ParsedQuicVersion& version, QuicTag congestion_control_tag)
-      : version(version), congestion_control_tag(congestion_control_tag) {}
+  TestParams(const ParsedQuicVersion& version, QuicTag congestion_control_tag,
+             int override_server_connection_id_length)
+      : version(version),
+        congestion_control_tag(congestion_control_tag),
+        override_server_connection_id_length(
+            override_server_connection_id_length) {}
 
   friend std::ostream& operator<<(std::ostream& os, const TestParams& p) {
     os << "{ version: " << ParsedQuicVersionToString(p.version);
     os << " congestion_control_tag: "
-       << QuicTagToString(p.congestion_control_tag) << " }";
+       << QuicTagToString(p.congestion_control_tag)
+       << " connection ID length: " << p.override_server_connection_id_length
+       << " }";
     return os;
   }
 
   ParsedQuicVersion version;
   QuicTag congestion_control_tag;
+  int override_server_connection_id_length;
 };
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  std::string rv = absl::StrCat(ParsedQuicVersionToString(p.version), "_",
-                                QuicTagToString(p.congestion_control_tag));
+  std::string rv = absl::StrCat(
+      ParsedQuicVersionToString(p.version), "_",
+      QuicTagToString(p.congestion_control_tag), "_",
+      std::to_string((p.override_server_connection_id_length == -1)
+                         ? static_cast<int>(kQuicDefaultConnectionIdLength)
+                         : p.override_server_connection_id_length));
   std::replace(rv.begin(), rv.end(), ',', '_');
   std::replace(rv.begin(), rv.end(), ' ', '_');
   return rv;
@@ -120,15 +132,27 @@ std::string PrintToString(const TestParams& p) {
 // Constructs various test permutations.
 std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
-  for (const QuicTag congestion_control_tag : {kRENO, kTBBR, kQBIC, kB2ON}) {
-    if (!GetQuicReloadableFlag(quic_allow_client_enabled_bbr_v2) &&
-        congestion_control_tag == kB2ON) {
-      continue;
-    }
-    for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
-      params.push_back(TestParams(version, congestion_control_tag));
-    }  // End of outer version loop.
-  }    // End of congestion_control_tag loop.
+  std::vector<int> connection_id_lengths{-1, kLongConnectionIdLength};
+  for (auto connection_id_length : connection_id_lengths) {
+    for (const QuicTag congestion_control_tag : {kTBBR, kQBIC, kB2ON}) {
+      if (!GetQuicReloadableFlag(quic_allow_client_enabled_bbr_v2) &&
+          congestion_control_tag == kB2ON) {
+        continue;
+      }
+      for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
+        // TODO(b/232269029): Q050 should be able to handle 0-RTT when the
+        // initial connection ID is > 8 bytes, but it cannot. This is an
+        // invasive fix that has no impact as long as gQUIC clients always use
+        // 8B server connection IDs. If this bug is fixed, we can change
+        // 'UsesTls' to 'AllowsVariableLengthConnectionIds()' below to test
+        // qQUIC as well.
+        if (connection_id_length == -1 || version.UsesTls()) {
+          params.push_back(TestParams(version, congestion_control_tag,
+                                      connection_id_length));
+        }
+      }  // End of outer version loop.
+    }    // End of congestion_control_tag loop.
+  }      // End of connection_id_length loop.
 
   return params;
 }
@@ -182,6 +206,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         server_supported_versions_(CurrentSupportedVersions()),
         chlo_multiplier_(0),
         stream_factory_(nullptr),
+        override_server_connection_id_length_(
+            GetParam().override_server_connection_id_length),
         expected_server_connection_id_length_(kQuicDefaultConnectionIdLength) {
     QUIC_LOG(INFO) << "Using Configuration: " << GetParam();
 
@@ -820,7 +846,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   QuicTestServer::StreamFactory* stream_factory_;
   std::string pre_shared_key_client_;
   std::string pre_shared_key_server_;
-  int override_server_connection_id_length_ = -1;
+  int override_server_connection_id_length_;
   int override_client_connection_id_length_ = -1;
   uint8_t expected_server_connection_id_length_;
   bool enable_web_transport_ = false;
@@ -1080,7 +1106,8 @@ TEST_P(EndToEndTest, ForcedVersionNegotiation) {
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
-  if (!version_.AllowsVariableLengthConnectionIds()) {
+  if (!version_.AllowsVariableLengthConnectionIds() ||
+      override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1098,7 +1125,8 @@ TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
 }
 
 TEST_P(EndToEndTest, ZeroConnectionID) {
-  if (!version_.AllowsVariableLengthConnectionIds()) {
+  if (!version_.AllowsVariableLengthConnectionIds() ||
+      override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1114,28 +1142,12 @@ TEST_P(EndToEndTest, ZeroConnectionID) {
 }
 
 TEST_P(EndToEndTest, BadConnectionIdLength) {
-  if (!version_.AllowsVariableLengthConnectionIds()) {
+  if (!version_.AllowsVariableLengthConnectionIds() ||
+      override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
     return;
   }
   override_server_connection_id_length_ = 9;
-  ASSERT_TRUE(Initialize());
-  SendSynchronousFooRequestAndCheckResponse();
-  EXPECT_EQ(kQuicDefaultConnectionIdLength, client_->client()
-                                                ->client_session()
-                                                ->connection()
-                                                ->connection_id()
-                                                .length());
-}
-
-// Tests a very long (16-byte) initial destination connection ID to make
-// sure the dispatcher properly replaces it with an 8-byte one.
-TEST_P(EndToEndTest, LongBadConnectionIdLength) {
-  if (!version_.AllowsVariableLengthConnectionIds()) {
-    ASSERT_TRUE(Initialize());
-    return;
-  }
-  override_server_connection_id_length_ = 16;
   ASSERT_TRUE(Initialize());
   SendSynchronousFooRequestAndCheckResponse();
   EXPECT_EQ(kQuicDefaultConnectionIdLength, client_->client()
@@ -1179,7 +1191,8 @@ TEST_P(EndToEndTest, ForcedVersionNegotiationAndClientConnectionId) {
 }
 
 TEST_P(EndToEndTest, ForcedVersionNegotiationAndBadConnectionIdLength) {
-  if (!version_.AllowsVariableLengthConnectionIds()) {
+  if (!version_.AllowsVariableLengthConnectionIds() ||
+      override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1200,13 +1213,13 @@ TEST_P(EndToEndTest, ForcedVersionNegotiationAndBadConnectionIdLength) {
 // connection ID.
 TEST_P(EndToEndTest, ForcedVersNegoAndClientCIDAndLongCID) {
   if (!version_.SupportsClientConnectionIds() ||
-      !version_.AllowsVariableLengthConnectionIds()) {
+      !version_.AllowsVariableLengthConnectionIds() ||
+      override_server_connection_id_length_ != kLongConnectionIdLength) {
     ASSERT_TRUE(Initialize());
     return;
   }
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
-  override_server_connection_id_length_ = 16;
   override_client_connection_id_length_ = 18;
   ASSERT_TRUE(Initialize());
   ASSERT_TRUE(ServerSendsVersionNegotiation());
@@ -1224,7 +1237,8 @@ TEST_P(EndToEndTest, ForcedVersNegoAndClientCIDAndLongCID) {
 }
 
 TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {
-  if (!version_.AllowsVariableLengthConnectionIds()) {
+  if (!version_.AllowsVariableLengthConnectionIds() ||
+      override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1372,7 +1386,8 @@ TEST_P(EndToEndTest, MultipleRequestResponse) {
 }
 
 TEST_P(EndToEndTest, MultipleRequestResponseZeroConnectionID) {
-  if (!version_.AllowsVariableLengthConnectionIds()) {
+  if (!version_.AllowsVariableLengthConnectionIds() ||
+      override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1531,7 +1546,14 @@ TEST_P(EndToEndTest, LargePostWithPacketLoss) {
 
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
-  VerifyCleanConnection(true);
+  if (override_server_connection_id_length_ == -1) {
+    // If the client sends a longer connection ID, we can end up with dropped
+    // packets. The packets_dropped counter increments whenever a packet arrives
+    // with a new server connection ID that is not INITIAL, RETRY, or 1-RTT.
+    // With packet losses, we could easily lose a server INITIAL and have the
+    // first observed server packet be HANDSHAKE.
+    VerifyCleanConnection(true);
+  }
 }
 
 // Regression test for b/80090281.
@@ -4774,6 +4796,14 @@ TEST_P(EndToEndTest, SendStatelessResetTokenInShlo) {
 // Regression test for b/116200989.
 TEST_P(EndToEndTest,
        SendStatelessResetIfServerConnectionClosedLocallyDuringHandshake) {
+  // TODO(b/232285861)
+  // This test should probably work when the server issues a new connection ID
+  // during the handshake. When the bug is fixed, remove the check below to
+  // allow it to run when the client provides a 16B connection ID.
+  if (override_server_connection_id_length_ > -1) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
   connect_to_server_on_initialize_ = false;
   ASSERT_TRUE(Initialize());
 
@@ -5848,7 +5878,8 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
 }
 
 TEST_P(EndToEndTest, LegacyVersionEncapsulation) {
-  if (!version_.HasLongHeaderLengths()) {
+  if (!version_.HasLongHeaderLengths() ||
+      override_server_connection_id_length_ > -1) {
     // Decapsulating Legacy Version Encapsulation packets from these versions
     // is not currently supported in QuicDispatcher.
     ASSERT_TRUE(Initialize());
@@ -5865,7 +5896,8 @@ TEST_P(EndToEndTest, LegacyVersionEncapsulation) {
 }
 
 TEST_P(EndToEndTest, LegacyVersionEncapsulationWithMultiPacketChlo) {
-  if (!version_.HasLongHeaderLengths()) {
+  if (!version_.HasLongHeaderLengths() ||
+      override_server_connection_id_length_ > -1) {
     // Decapsulating Legacy Version Encapsulation packets from these versions
     // is not currently supported in QuicDispatcher.
     ASSERT_TRUE(Initialize());
@@ -5892,7 +5924,8 @@ TEST_P(EndToEndTest, LegacyVersionEncapsulationWithMultiPacketChlo) {
 }
 
 TEST_P(EndToEndTest, LegacyVersionEncapsulationWithVersionNegotiation) {
-  if (!version_.HasLongHeaderLengths()) {
+  if (!version_.HasLongHeaderLengths() ||
+      override_server_connection_id_length_ > -1) {
     // Decapsulating Legacy Version Encapsulation packets from these versions
     // is not currently supported in QuicDispatcher.
     ASSERT_TRUE(Initialize());
@@ -5911,7 +5944,8 @@ TEST_P(EndToEndTest, LegacyVersionEncapsulationWithVersionNegotiation) {
 }
 
 TEST_P(EndToEndTest, LegacyVersionEncapsulationWithLoss) {
-  if (!version_.HasLongHeaderLengths()) {
+  if (!version_.HasLongHeaderLengths() ||
+      override_server_connection_id_length_ > -1) {
     // Decapsulating Legacy Version Encapsulation packets from these versions
     // is not currently supported in QuicDispatcher.
     ASSERT_TRUE(Initialize());
@@ -5974,7 +6008,7 @@ TEST_P(EndToEndTest, ChaosProtectionDisabled) {
   // Parse the saved packet to make sure it's valid.
   SimpleQuicFramer validation_framer({version_});
   validation_framer.framer()->SetInitialObfuscators(
-      GetClientConnection()->connection_id());
+      GetServerConnection()->GetOriginalDestinationConnectionId());
   ASSERT_GT(copying_writer->packets().size(), 0u);
   EXPECT_TRUE(validation_framer.ProcessPacket(*copying_writer->packets()[0]));
   // TODO(dschinazi) figure out a way to use a MockRandom in this test so we

@@ -490,7 +490,8 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     ProcessFirstFlight(version, client_address, connection_id);
   }
 
-  void TestTlsMultiPacketClientHello(bool add_reordering);
+  void TestTlsMultiPacketClientHello(bool add_reordering,
+                                     bool long_connection_id);
 
   void TestVersionNegotiationForUnknownVersionInvalidShortInitialConnectionId(
       const QuicConnectionId& server_connection_id,
@@ -560,14 +561,23 @@ TEST_P(QuicDispatcherTestAllVersions, TlsClientHelloCreatesSession) {
 }
 
 void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
-    bool add_reordering) {
+    bool add_reordering, bool long_connection_id) {
   if (!version_.UsesTls()) {
     return;
   }
   SetAddressToken("857293462398");
 
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
-  QuicConnectionId server_connection_id = TestConnectionId();
+  QuicConnectionId original_connection_id, new_connection_id;
+  if (long_connection_id) {
+    original_connection_id = QuicConnectionId(
+        {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09});
+    new_connection_id =
+        QuicConnectionId({0x6c, 0x6b, 0x4b, 0xad, 0x8d, 0x00, 0x24, 0xd8});
+  } else {
+    original_connection_id = TestConnectionId();
+    new_connection_id = original_connection_id;
+  }
   QuicConfig client_config = DefaultQuicConfig();
   // Add a 2000-byte custom parameter to increase the length of the CHLO.
   constexpr auto kCustomParameterId =
@@ -576,7 +586,7 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
   client_config.custom_transport_parameters_to_send()[kCustomParameterId] =
       kCustomParameterValue;
   std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
-      GetFirstFlightOfPackets(version_, client_config, server_connection_id,
+      GetFirstFlightOfPackets(version_, client_config, original_connection_id,
                               EmptyQuicConnectionId(),
                               TestClientCryptoConfig());
   ASSERT_EQ(packets.size(), 2u);
@@ -585,11 +595,12 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
   }
 
   // Processing the first packet should not create a new session.
-  EXPECT_CALL(*dispatcher_,
-              ShouldCreateOrBufferPacketForConnection(
-                  ReceivedPacketInfoConnectionIdEquals(server_connection_id)));
+  EXPECT_CALL(
+      *dispatcher_,
+      ShouldCreateOrBufferPacketForConnection(
+          ReceivedPacketInfoConnectionIdEquals(original_connection_id)));
   ProcessReceivedPacket(std::move(packets[0]), client_address, version_,
-                        server_connection_id);
+                        original_connection_id);
 
   EXPECT_EQ(dispatcher_->NumSessions(), 0u)
       << "No session should be created before the rest of the CHLO arrives.";
@@ -597,10 +608,10 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
   // Processing the second packet should create the new session.
   EXPECT_CALL(
       *dispatcher_,
-      CreateQuicSession(server_connection_id, _, client_address,
+      CreateQuicSession(new_connection_id, _, client_address,
                         Eq(ExpectedAlpn()), _, Eq(ParsedClientHelloForTest())))
       .WillOnce(Return(ByMove(CreateSession(
-          dispatcher_.get(), config_, server_connection_id, client_address,
+          dispatcher_.get(), config_, new_connection_id, client_address,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
@@ -608,16 +619,29 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
       .Times(2);
 
   ProcessReceivedPacket(std::move(packets[1]), client_address, version_,
-                        server_connection_id);
+                        original_connection_id);
   EXPECT_EQ(dispatcher_->NumSessions(), 1u);
 }
 
 TEST_P(QuicDispatcherTestAllVersions, TlsMultiPacketClientHello) {
-  TestTlsMultiPacketClientHello(/*add_reordering=*/false);
+  TestTlsMultiPacketClientHello(/*add_reordering=*/false,
+                                /*long_connection_id=*/false);
 }
 
 TEST_P(QuicDispatcherTestAllVersions, TlsMultiPacketClientHelloWithReordering) {
-  TestTlsMultiPacketClientHello(/*add_reordering=*/true);
+  TestTlsMultiPacketClientHello(/*add_reordering=*/true,
+                                /*long_connection_id=*/false);
+}
+
+TEST_P(QuicDispatcherTestAllVersions, TlsMultiPacketClientHelloWithLongId) {
+  TestTlsMultiPacketClientHello(/*add_reordering=*/false,
+                                /*long_connection_id=*/true);
+}
+
+TEST_P(QuicDispatcherTestAllVersions,
+       TlsMultiPacketClientHelloWithReorderingAndLongId) {
+  TestTlsMultiPacketClientHello(/*add_reordering=*/true,
+                                /*long_connection_id=*/true);
 }
 
 TEST_P(QuicDispatcherTestAllVersions, LegacyVersionEncapsulation) {

@@ -1321,7 +1321,9 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
         << " ALPN \"" << alpn << "\" version " << packet_info->version;
     return;
   }
-  if (original_connection_id != packet_info->destination_connection_id) {
+  const bool replaced_connection_id =
+      original_connection_id != packet_info->destination_connection_id;
+  if (replaced_connection_id) {
     session->connection()->SetOriginalDestinationConnectionId(
         original_connection_id);
   }
@@ -1342,8 +1344,11 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
   }
   session_ptr = insertion_result.first->second.get();
   std::list<BufferedPacket> packets =
-      buffered_packets_.DeliverPackets(packet_info->destination_connection_id)
-          .buffered_packets;
+      buffered_packets_.DeliverPackets(original_connection_id).buffered_packets;
+  if (replaced_connection_id && !packets.empty()) {
+    QUIC_CODE_COUNT(
+        quic_delivered_buffered_packets_to_connection_with_replaced_id);
+  }
   // Process CHLO at first.
   session_ptr->ProcessUdpPacket(packet_info->self_address,
                                 packet_info->peer_address, packet_info->packet);
