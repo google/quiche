@@ -97,7 +97,7 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
   }
   HttpDatagramSupport LocalHttpDatagramSupport() override {
     if (ShouldNegotiateWebTransport()) {
-      return HttpDatagramSupport::kDraft00And04;
+      return HttpDatagramSupport::kDraft04;
     }
     return QuicServerSessionBase::LocalHttpDatagramSupport();
   }

@@ -54,15 +54,6 @@ class QUIC_EXPORT_PRIVATE SpdyUtils {
   static bool PopulateHeaderBlockFromUrl(const std::string url,
                                          spdy::SpdyHeaderBlock* headers);
 
-  // Parses the "datagram-flow-id" header, returns the flow ID on success, or
-  // returns absl::nullopt if the header was not present or failed to parse.
-  static absl::optional<QuicDatagramStreamId> ParseDatagramFlowIdHeader(
-      const spdy::SpdyHeaderBlock& headers);
-
-  // Adds the "datagram-flow-id" header.
-  static void AddDatagramFlowIdHeader(spdy::SpdyHeaderBlock* headers,
-                                      QuicDatagramStreamId flow_id);
-
   // Returns the advertised QUIC version from the specified alternative service
   // advertisement, or ParsedQuicVersion::Unsupported() if no supported version
   // is advertised.

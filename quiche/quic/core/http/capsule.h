@@ -31,7 +31,6 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                              const CapsuleType& capsule_type);
 
 struct QUIC_EXPORT_PRIVATE LegacyDatagramCapsule {
-  absl::optional<QuicDatagramContextId> context_id;
   absl::string_view http_datagram_payload;
 };
 struct QUIC_EXPORT_PRIVATE DatagramWithoutContextCapsule {
@@ -50,7 +49,6 @@ struct QUIC_EXPORT_PRIVATE CloseWebTransportSessionCapsule {
 class QUIC_EXPORT_PRIVATE Capsule {
  public:
   static Capsule LegacyDatagram(
-      absl::optional<QuicDatagramContextId> context_id = absl::nullopt,
       absl::string_view http_datagram_payload = absl::string_view());
   static Capsule DatagramWithoutContext(
       absl::string_view http_datagram_payload = absl::string_view());

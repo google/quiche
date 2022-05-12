@@ -28,13 +28,6 @@ using QuicPacketLength = uint16_t;
 using QuicControlFrameId = uint32_t;
 using QuicMessageId = uint32_t;
 
-// TODO(b/181256914) replace QuicDatagramStreamId with QuicStreamId once we
-// remove support for draft-ietf-masque-h3-datagram-00 in favor of later drafts.
-using QuicDatagramStreamId = uint64_t;
-using QuicDatagramContextId = uint64_t;
-// Note that for draft-ietf-masque-h3-datagram-00, we represent the flow ID as a
-// QuicDatagramStreamId.
-
 // IMPORTANT: IETF QUIC defines stream IDs and stream counts as being unsigned
 // 62-bit numbers. However, we have decided to only support up to 2^32-1 streams
 // in order to reduce the size of data structures such as QuicStreamFrame

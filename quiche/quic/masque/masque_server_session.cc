@@ -174,16 +174,6 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
                      << "\"";
     return CreateBackendErrorResponse("400", "Bad protocol");
   }
-  absl::optional<QuicDatagramStreamId> flow_id;
-  if (http_datagram_support() == HttpDatagramSupport::kDraft00) {
-    flow_id = SpdyUtils::ParseDatagramFlowIdHeader(request_headers);
-    if (!flow_id.has_value()) {
-      QUIC_DLOG(ERROR)
-          << "MASQUE request with bad or missing DatagramFlowId header";
-      return CreateBackendErrorResponse("400",
-                                        "Bad or missing DatagramFlowId header");
-    }
-  }
   // Extract target host and port from path using default template.
   std::vector<absl::string_view> path_split = absl::StrSplit(path, '/');
   if (path_split.size() != 4 || !path_split[0].empty() ||
@@ -221,10 +211,8 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
   QuicSocketAddress target_server_address(info_list->ai_addr,
                                           info_list->ai_addrlen);
   QUIC_DLOG(INFO) << "Got CONNECT_UDP request on stream ID "
-                  << request_handler->stream_id() << " flow_id="
-                  << (flow_id.has_value() ? absl::StrCat(*flow_id) : "none")
-                  << " target_server_address=\"" << target_server_address
-                  << "\"";
+                  << request_handler->stream_id() << " target_server_address=\""
+                  << target_server_address << "\"";
 
   FdWrapper fd_wrapper(target_server_address.host().AddressFamilyToInt());
   if (fd_wrapper.fd() == kQuicInvalidSocketFd) {
@@ -250,23 +238,11 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
         << request_handler->stream_id();
     return CreateBackendErrorResponse("500", "Bad stream type");
   }
-  if (flow_id.has_value()) {
-    stream->RegisterHttp3DatagramFlowId(*flow_id);
-  }
   connect_udp_server_states_.push_back(ConnectUdpServerState(
       stream, target_server_address, fd_wrapper.extract_fd(), this));
 
-  if (http_datagram_support() == HttpDatagramSupport::kDraft00) {
-    // TODO(b/181256914) remove this when we drop support for
-    // draft-ietf-masque-h3-datagram-00 in favor of later drafts.
-    stream->RegisterHttp3DatagramVisitor(&connect_udp_server_states_.back());
-  }
-
   spdy::Http2HeaderBlock response_headers;
   response_headers[":status"] = "200";
-  if (flow_id.has_value()) {
-    SpdyUtils::AddDatagramFlowIdHeader(&response_headers, *flow_id);
-  }
   auto response = std::make_unique<QuicBackendResponse>();
   response->set_response_type(QuicBackendResponse::INCOMPLETE_RESPONSE);
   response->set_headers(std::move(response_headers));

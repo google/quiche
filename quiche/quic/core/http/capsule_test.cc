@@ -74,8 +74,7 @@ TEST_F(CapsuleTest, LegacyDatagramCapsule) {
       "a1a2a3a4a5a6a7a8"  // HTTP Datagram payload
   );
   std::string datagram_payload = absl::HexStringToBytes("a1a2a3a4a5a6a7a8");
-  Capsule expected_capsule =
-      Capsule::LegacyDatagram(/*context_id=*/absl::nullopt, datagram_payload);
+  Capsule expected_capsule = Capsule::LegacyDatagram(datagram_payload);
   {
     EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
     ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));

@@ -262,8 +262,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
     virtual ~Http3DatagramVisitor() {}
 
     // Called when an HTTP/3 datagram is received. |payload| does not contain
-    // the stream ID. Note that this contains the stream ID even if flow IDs
-    // from draft-ietf-masque-h3-datagram-00 are in use.
+    // the stream ID.
     virtual void OnHttp3Datagram(QuicStreamId stream_id,
                                  absl::string_view payload) = 0;
   };
@@ -284,10 +283,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   void SetMaxDatagramTimeInQueue(QuicTime::Delta max_time_in_queue);
 
   void OnDatagramReceived(QuicDataReader* reader);
-
-  // Registers a datagram flow ID, only meant to be used when in legacy mode for
-  // draft-ietf-masque-h3-datagram-00.
-  void RegisterHttp3DatagramFlowId(QuicDatagramStreamId flow_id);
 
   QuicByteCount GetMaxDatagramSize() const;
 
@@ -467,9 +462,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   // HTTP/3 Datagram support.
   Http3DatagramVisitor* datagram_visitor_ = nullptr;
-  // Flow ID is only used when in legacy mode for
-  // draft-ietf-masque-h3-datagram-00.
-  absl::optional<QuicDatagramStreamId> datagram_flow_id_;
 };
 
 }  // namespace quic

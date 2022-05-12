@@ -118,10 +118,8 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
 // Whether draft-ietf-masque-h3-datagram is supported on this session and if so
 // which draft is currently in use.
 enum class HttpDatagramSupport : uint8_t {
-  kNone = 0,  // HTTP Datagrams are not supported for this session.
-  kDraft00 = 1,
-  kDraft04 = 2,
-  kDraft00And04 = 3,  // only used locally, we only negotiate one draft.
+  kNone,  // HTTP Datagrams are not supported for this session.
+  kDraft04,
 };
 
 QUIC_EXPORT_PRIVATE std::string HttpDatagramSupportToString(
@@ -378,17 +376,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   }
 
   // This must not be used except by QuicSpdyStream::SendHttp3Datagram.
-  MessageStatus SendHttp3Datagram(QuicDatagramStreamId stream_id,
+  MessageStatus SendHttp3Datagram(QuicStreamId stream_id,
                                   absl::string_view payload);
   // This must not be used except by QuicSpdyStream::SetMaxDatagramTimeInQueue.
   void SetMaxDatagramTimeInQueueForStreamId(QuicStreamId stream_id,
                                             QuicTime::Delta max_time_in_queue);
-  // This must not be used except by
-  // QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders.
-  void RegisterHttp3DatagramFlowId(QuicDatagramStreamId flow_id,
-                                   QuicStreamId stream_id);
-  // This must not be used except by QuicSpdyStream::OnClose.
-  void UnregisterHttp3DatagramFlowId(QuicDatagramStreamId flow_id);
 
   // Override from QuicSession to support HTTP/3 datagrams.
   void OnMessageReceived(absl::string_view message) override;
@@ -644,12 +636,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Whether the peer has indicated WebTransport support.
   bool peer_supports_webtransport_ = false;
-
-  // This maps from draft-ietf-masque-h3-datagram-00 flow IDs to stream IDs.
-  // TODO(b/181256914) remove this when we deprecate support for that draft in
-  // favor of more recent ones.
-  absl::flat_hash_map<uint64_t, QuicStreamId>
-      h3_datagram_flow_id_to_stream_id_map_;
 
   // Whether any settings have been received, either from the peer or from a
   // session ticket.

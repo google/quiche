@@ -123,9 +123,6 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   headers[":authority"] = authority;
   headers[":path"] = canonicalized_path;
   headers["connect-udp-version"] = "6";
-  if (http_datagram_support() == HttpDatagramSupport::kDraft00) {
-    SpdyUtils::AddDatagramFlowIdHeader(&headers, stream->id());
-  }
   size_t bytes_sent =
       stream->SendRequest(std::move(headers), /*body=*/"", /*fin=*/false);
   if (bytes_sent == 0) {

@@ -179,7 +179,6 @@ void WebTransportHttp3::HeadersReceived(const spdy::SpdyHeaderBlock& headers) {
       return;
     }
     bool should_validate_version =
-        session_->http_datagram_support() != HttpDatagramSupport::kDraft00 &&
         session_->ShouldValidateWebTransportVersion();
     if (should_validate_version) {
       auto draft_version_it = headers.find("sec-webtransport-http3-draft");

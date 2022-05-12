@@ -68,10 +68,8 @@ Capsule::Capsule(CapsuleType capsule_type) : capsule_type_(capsule_type) {
 
 // static
 Capsule Capsule::LegacyDatagram(
-    absl::optional<QuicDatagramContextId> context_id,
     absl::string_view http_datagram_payload) {
   Capsule capsule(CapsuleType::LEGACY_DATAGRAM);
-  capsule.legacy_datagram_capsule().context_id = context_id;
   capsule.legacy_datagram_capsule().http_datagram_payload =
       http_datagram_payload;
   return capsule;
@@ -134,10 +132,8 @@ bool Capsule::operator==(const Capsule& other) const {
   }
   switch (capsule_type_) {
     case CapsuleType::LEGACY_DATAGRAM:
-      return legacy_datagram_capsule_.context_id ==
-                 other.legacy_datagram_capsule_.context_id &&
-             legacy_datagram_capsule_.http_datagram_payload ==
-                 other.legacy_datagram_capsule_.http_datagram_payload;
+      return legacy_datagram_capsule_.http_datagram_payload ==
+             other.legacy_datagram_capsule_.http_datagram_payload;
     case CapsuleType::DATAGRAM_WITHOUT_CONTEXT:
       return datagram_without_context_capsule_.http_datagram_payload ==
              other.datagram_without_context_capsule_.http_datagram_payload;
@@ -155,10 +151,6 @@ std::string Capsule::ToString() const {
   std::string rv = CapsuleTypeToString(capsule_type_);
   switch (capsule_type_) {
     case CapsuleType::LEGACY_DATAGRAM:
-      if (legacy_datagram_capsule_.context_id.has_value()) {
-        absl::StrAppend(&rv, "(", legacy_datagram_capsule_.context_id.value(),
-                        ")");
-      }
       absl::StrAppend(&rv, "[",
                       absl::BytesToHexString(
                           legacy_datagram_capsule_.http_datagram_payload),
@@ -203,10 +195,6 @@ quiche::QuicheBuffer SerializeCapsule(
     case CapsuleType::LEGACY_DATAGRAM:
       capsule_data_length =
           capsule.legacy_datagram_capsule().http_datagram_payload.length();
-      if (capsule.legacy_datagram_capsule().context_id.has_value()) {
-        capsule_data_length += QuicDataWriter::GetVarInt62Len(
-            capsule.legacy_datagram_capsule().context_id.value());
-      }
       break;
     case CapsuleType::DATAGRAM_WITHOUT_CONTEXT:
       capsule_data_length = capsule.datagram_without_context_capsule()
@@ -237,14 +225,6 @@ quiche::QuicheBuffer SerializeCapsule(
   }
   switch (capsule.capsule_type()) {
     case CapsuleType::LEGACY_DATAGRAM:
-      if (capsule.legacy_datagram_capsule().context_id.has_value()) {
-        if (!writer.WriteVarInt62(
-                capsule.legacy_datagram_capsule().context_id.value())) {
-          QUIC_BUG(datagram capsule context ID write fail)
-              << "Failed to write LEGACY_DATAGRAM CAPSULE context ID";
-          return {};
-        }
-      }
       if (!writer.WriteStringPiece(
               capsule.legacy_datagram_capsule().http_datagram_payload)) {
         QUIC_BUG(datagram capsule payload write fail)

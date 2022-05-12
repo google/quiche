@@ -278,7 +278,6 @@ size_t QuicSpdyStream::WriteHeaders(
   MaybeProcessSentWebTransportHeaders(header_block);
 
   if (web_transport_ != nullptr &&
-      spdy_session_->http_datagram_support() != HttpDatagramSupport::kDraft00 &&
       spdy_session_->perspective() == Perspective::IS_SERVER) {
     header_block["sec-webtransport-http3-draft"] = "draft02";
   }
@@ -296,24 +295,20 @@ size_t QuicSpdyStream::WriteHeaders(
 
   if (web_transport_ != nullptr &&
       session()->perspective() == Perspective::IS_CLIENT) {
-    if (spdy_session_->http_datagram_support() !=
-        HttpDatagramSupport::kDraft00) {
-      // draft-ietf-masque-h3-datagram-01 and later use capsules.
+    WriteGreaseCapsule();
+    if (spdy_session_->http_datagram_support() ==
+        HttpDatagramSupport::kDraft04) {
+      // Send a REGISTER_DATAGRAM_NO_CONTEXT capsule to support servers that
+      // are running draft-ietf-masque-h3-datagram-04 or -05.
+      uint64_t capsule_type = 0xff37a2;  // REGISTER_DATAGRAM_NO_CONTEXT
+      constexpr unsigned char capsule_data[4] = {
+          0x80, 0xff, 0x7c, 0x00,  // WEBTRANSPORT datagram format type
+      };
+      WriteCapsule(Capsule::Unknown(
+          capsule_type,
+          absl::string_view(reinterpret_cast<const char*>(capsule_data),
+                            sizeof(capsule_data))));
       WriteGreaseCapsule();
-      if (spdy_session_->http_datagram_support() ==
-          HttpDatagramSupport::kDraft04) {
-        // Send a REGISTER_DATAGRAM_NO_CONTEXT capsule to support servers that
-        // are running draft-ietf-masque-h3-datagram-04 or -05.
-        uint64_t capsule_type = 0xff37a2;  // REGISTER_DATAGRAM_NO_CONTEXT
-        constexpr unsigned char capsule_data[4] = {
-            0x80, 0xff, 0x7c, 0x00,  // WEBTRANSPORT datagram format type
-        };
-        WriteCapsule(Capsule::Unknown(
-            capsule_type,
-            absl::string_view(reinterpret_cast<const char*>(capsule_data),
-                              sizeof(capsule_data))));
-        WriteGreaseCapsule();
-      }
     }
   }
 
@@ -906,10 +901,6 @@ void QuicSpdyStream::OnClose() {
     visitor->OnClose(this);
   }
 
-  if (datagram_flow_id_.has_value()) {
-    spdy_session_->UnregisterHttp3DatagramFlowId(datagram_flow_id_.value());
-  }
-
   if (web_transport_ != nullptr) {
     web_transport_->OnConnectStreamClosing();
   }
@@ -1261,8 +1252,6 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
 
   std::string method;
   std::string protocol;
-  absl::optional<QuicDatagramStreamId> flow_id;
-  bool version_indicated = false;
   for (const auto& [header_name, header_value] : header_list_) {
     if (header_name == ":method") {
       if (!method.empty() || header_value.empty()) {
@@ -1277,21 +1266,10 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
       protocol = header_value;
     }
     if (header_name == "datagram-flow-id") {
-      if (spdy_session_->http_datagram_support() !=
-          HttpDatagramSupport::kDraft00) {
-        QUIC_DLOG(ERROR) << ENDPOINT
-                         << "Rejecting WebTransport due to unexpected "
-                            "Datagram-Flow-Id header";
-        return;
-      }
-      if (flow_id.has_value() || header_value.empty()) {
-        return;
-      }
-      QuicDatagramStreamId flow_id_out;
-      if (!absl::SimpleAtoi(header_value, &flow_id_out)) {
-        return;
-      }
-      flow_id = flow_id_out;
+      QUIC_DLOG(ERROR) << ENDPOINT
+                       << "Rejecting WebTransport due to unexpected "
+                          "Datagram-Flow-Id header";
+      return;
     }
     if (header_name == "sec-webtransport-http3-draft02") {
       if (header_value != "1") {
@@ -1300,30 +1278,11 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
                             "Sec-Webtransport-Http3-Draft02 header";
         return;
       }
-      version_indicated = true;
     }
   }
 
   if (method != "CONNECT" || protocol != "webtransport") {
     return;
-  }
-
-  if (!version_indicated &&
-      spdy_session_->http_datagram_support() != HttpDatagramSupport::kDraft00) {
-    QUIC_DLOG(ERROR)
-        << ENDPOINT
-        << "WebTransport request rejected due to missing version header.";
-    return;
-  }
-
-  if (spdy_session_->http_datagram_support() == HttpDatagramSupport::kDraft00) {
-    if (!flow_id.has_value()) {
-      QUIC_DLOG(ERROR)
-          << ENDPOINT
-          << "Rejecting WebTransport due to missing Datagram-Flow-Id header";
-      return;
-    }
-    RegisterHttp3DatagramFlowId(*flow_id);
   }
 
   web_transport_ =
@@ -1349,11 +1308,7 @@ void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
     return;
   }
 
-  if (spdy_session_->http_datagram_support() == HttpDatagramSupport::kDraft00) {
-    headers["datagram-flow-id"] = absl::StrCat(id());
-  } else {
-    headers["sec-webtransport-http3-draft02"] = "1";
-  }
+  headers["sec-webtransport-http3-draft02"] = "1";
 
   web_transport_ =
       std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
@@ -1493,9 +1448,7 @@ void QuicSpdyStream::WriteGreaseCapsule() {
 }
 
 MessageStatus QuicSpdyStream::SendHttp3Datagram(absl::string_view payload) {
-  QuicDatagramStreamId stream_id =
-      datagram_flow_id_.has_value() ? datagram_flow_id_.value() : id();
-  return spdy_session_->SendHttp3Datagram(stream_id, payload);
+  return spdy_session_->SendHttp3Datagram(id(), payload);
 }
 
 void QuicSpdyStream::RegisterHttp3DatagramVisitor(
@@ -1557,20 +1510,11 @@ void QuicSpdyStream::OnDatagramReceived(QuicDataReader* reader) {
 QuicByteCount QuicSpdyStream::GetMaxDatagramSize() const {
   QuicByteCount prefix_size = 0;
   switch (spdy_session_->http_datagram_support()) {
-    case HttpDatagramSupport::kDraft00:
-      if (!datagram_flow_id_.has_value()) {
-        QUIC_BUG(GetMaxDatagramSize with no flow ID)
-            << "GetMaxDatagramSize() called when no flow ID available";
-        break;
-      }
-      prefix_size = QuicDataWriter::GetVarInt62Len(*datagram_flow_id_);
-      break;
     case HttpDatagramSupport::kDraft04:
       prefix_size =
           QuicDataWriter::GetVarInt62Len(id() / kHttpDatagramStreamIdDivisor);
       break;
     case HttpDatagramSupport::kNone:
-    case HttpDatagramSupport::kDraft00And04:
       QUIC_BUG(GetMaxDatagramSize called with no datagram support)
           << "GetMaxDatagramSize() called when no HTTP/3 datagram support has "
              "been negotiated.  Support value: "
@@ -1591,11 +1535,6 @@ QuicByteCount QuicSpdyStream::GetMaxDatagramSize() const {
     return 0;
   }
   return max_datagram_size - prefix_size;
-}
-
-void QuicSpdyStream::RegisterHttp3DatagramFlowId(QuicDatagramStreamId flow_id) {
-  datagram_flow_id_ = flow_id;
-  spdy_session_->RegisterHttp3DatagramFlowId(datagram_flow_id_.value(), id());
 }
 
 void QuicSpdyStream::HandleBodyAvailable() {
