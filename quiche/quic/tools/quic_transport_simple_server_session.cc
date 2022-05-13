@@ -15,6 +15,7 @@
 #include "quiche/quic/quic_transport/quic_transport_protocol.h"
 #include "quiche/quic/quic_transport/quic_transport_stream.h"
 #include "quiche/quic/tools/web_transport_test_visitors.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 
@@ -62,7 +63,7 @@ void QuicTransportSimpleServerSession::OnIncomingDataStream(
                   [this](const std::string& s) { this->EchoStreamBack(s); }));
           break;
         default:
-          QUIC_NOTREACHED();
+          QUICHE_NOTREACHED();
           break;
       }
       break;

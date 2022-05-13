@@ -9,6 +9,7 @@
 
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/simple_buffer_allocator.h"
@@ -123,7 +124,7 @@ class WebTransportUnidirectionalEchoReadVisitor
     }
   }
 
-  void OnCanWrite() override { QUIC_NOTREACHED(); }
+  void OnCanWrite() override { QUICHE_NOTREACHED(); }
 
   void OnResetStreamReceived(WebTransportStreamError /*error*/) override {}
   void OnStopSendingReceived(WebTransportStreamError /*error*/) override {}
@@ -143,7 +144,7 @@ class WebTransportUnidirectionalEchoWriteVisitor
                                              const std::string& data)
       : stream_(stream), data_(data) {}
 
-  void OnCanRead() override { QUIC_NOTREACHED(); }
+  void OnCanRead() override { QUICHE_NOTREACHED(); }
   void OnCanWrite() override {
     if (data_.empty()) {
       return;

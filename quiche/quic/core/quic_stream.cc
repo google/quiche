@@ -150,7 +150,7 @@ void PendingStream::AddBytesConsumed(QuicByteCount bytes) {
 void PendingStream::ResetWithError(QuicResetStreamError /*error*/) {
   // Currently PendingStream is only read-unidirectional. It shouldn't send
   // Reset.
-  QUIC_NOTREACHED();
+  QUICHE_NOTREACHED();
 }
 
 void PendingStream::OnUnrecoverableError(QuicErrorCode error,

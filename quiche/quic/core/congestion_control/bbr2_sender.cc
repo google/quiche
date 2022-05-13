@@ -16,6 +16,7 @@
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/print_elements.h"
 
 namespace quic {
@@ -221,7 +222,7 @@ Limits<QuicByteCount> Bbr2Sender::GetCwndLimitsByMode() const {
     case Bbr2Mode::PROBE_RTT:
       return probe_rtt_.GetCwndLimits();
     default:
-      QUIC_NOTREACHED();
+      QUICHE_NOTREACHED();
       return Unlimited<QuicByteCount>();
   }
 }

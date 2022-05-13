@@ -10,6 +10,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -46,7 +47,7 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
 
   // The send control stream is write unidirectional, so this method should
   // never be called.
-  void OnDataAvailable() override { QUIC_NOTREACHED(); }
+  void OnDataAvailable() override { QUICHE_NOTREACHED(); }
 
  private:
   // Track if a settings frame is already sent.

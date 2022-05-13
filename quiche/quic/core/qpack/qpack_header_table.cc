@@ -7,6 +7,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/qpack/qpack_static_table.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -232,7 +233,7 @@ void QpackDecoderHeaderTable::UnregisterObserver(uint64_t required_insert_count,
   }
 
   // |observer| must have been registered.
-  QUIC_NOTREACHED();
+  QUICHE_NOTREACHED();
 }
 
 }  // namespace quic

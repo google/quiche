@@ -275,7 +275,7 @@ void QuicCryptoClientHandshaker::DoHandshakeLoop(
         DoInitializeServerConfigUpdate(cached);
         break;
       case STATE_NONE:
-        QUIC_NOTREACHED();
+        QUICHE_NOTREACHED();
         return;
       case STATE_CONNECTION_CLOSED:
         rv = QUIC_FAILURE;

@@ -18,6 +18,7 @@
 #include "quiche/quic/qbone/platform/icmp_packet.h"
 #include "quiche/quic/qbone/qbone_constants.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 
@@ -92,7 +93,7 @@ QuicStream* QboneSessionBase::CreateIncomingStream(QuicStreamId id) {
 }
 
 QuicStream* QboneSessionBase::CreateIncomingStream(PendingStream* /*pending*/) {
-  QUIC_NOTREACHED();
+  QUICHE_NOTREACHED();
   return nullptr;
 }
 

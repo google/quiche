@@ -11,6 +11,7 @@
 #include "quiche/quic/core/qpack/qpack_stream_sender_delegate.h"
 #include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -36,7 +37,7 @@ class QUIC_EXPORT_PRIVATE QpackSendStream : public QuicStream,
 
   // The send QPACK stream is write unidirectional, so this method
   // should never be called.
-  void OnDataAvailable() override { QUIC_NOTREACHED(); }
+  void OnDataAvailable() override { QUICHE_NOTREACHED(); }
 
   // Writes the instructions to peer. The stream type will be sent
   // before the first instruction so that the peer can open an qpack stream.
