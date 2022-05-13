@@ -10,7 +10,7 @@
 namespace quiche {
 
 struct QUICHE_EXPORT_PRIVATE BalsaFrameEnums {
-  enum ParseState {
+  enum ParseState : int {
     ERROR,
     READING_HEADER_AND_FIRSTLINE,
     READING_CHUNK_LENGTH,
@@ -25,7 +25,7 @@ struct QUICHE_EXPORT_PRIVATE BalsaFrameEnums {
     NUM_STATES,
   };
 
-  enum ErrorCode {
+  enum ErrorCode : int {
     // A sentinel value for convenience, none of the callbacks should ever see
     // this error code.
     NO_ERROR = 0,
@@ -113,7 +113,7 @@ struct QUICHE_EXPORT_PRIVATE BalsaFrameEnums {
 };
 
 struct QUICHE_EXPORT_PRIVATE BalsaHeadersEnums {
-  enum ContentLengthStatus {
+  enum ContentLengthStatus : int {
     INVALID_CONTENT_LENGTH,
     CONTENT_LENGTH_OVERFLOW,
     NO_CONTENT_LENGTH,
