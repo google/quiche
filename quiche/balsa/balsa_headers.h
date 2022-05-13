@@ -517,6 +517,9 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders : public HeaderApi {
   // Returns the value corresponding to the given header key. Returns an empty
   // string if the header key does not exist. For headers that may consist of
   // multiple lines, use GetAllOfHeader() instead.
+  // Make the QuicheLowerCaseString overload visible,
+  // and only override the absl::string_view one.
+  using HeaderApi::GetHeader;
   absl::string_view GetHeader(absl::string_view key) const override;
 
   // Iterates over all currently valid header lines, appending their
@@ -545,7 +548,8 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders : public HeaderApi {
   // See gfe::header_properties::IsMultivaluedHeader() for which headers
   // GFE treats as being multivalued.
 
-  // Make all methods in this overload set visible, and override just one.
+  // Make the QuicheLowerCaseString overload visible,
+  // and only override the absl::string_view one.
   using HeaderApi::GetAllOfHeader;
   void GetAllOfHeader(absl::string_view key,
                       std::vector<absl::string_view>* out) const override;
@@ -557,6 +561,9 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders : public HeaderApi {
                                     std::vector<absl::string_view>* out) const;
 
   // Joins all values for `key` into a comma-separated string.
+  // Make the QuicheLowerCaseString overload visible,
+  // and only override the absl::string_view one.
+  using HeaderApi::GetAllOfHeaderAsString;
   std::string GetAllOfHeaderAsString(absl::string_view key) const override;
 
   // Determine if a given header is present.  Case-insensitive.
