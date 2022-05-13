@@ -148,6 +148,7 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
 class StatelessConnectionTerminator {
  public:
   StatelessConnectionTerminator(QuicConnectionId server_connection_id,
+                                QuicConnectionId original_server_connection_id,
                                 const ParsedQuicVersion version,
                                 QuicConnectionHelperInterface* helper,
                                 QuicTimeWaitListManager* time_wait_list_manager)
@@ -159,7 +160,8 @@ class StatelessConnectionTerminator {
         creator_(server_connection_id, &framer_, &collector_),
         time_wait_list_manager_(time_wait_list_manager) {
     framer_.set_data_producer(&collector_);
-    framer_.SetInitialObfuscators(server_connection_id);
+    // Always set encrypter with original_server_connection_id.
+    framer_.SetInitialObfuscators(original_server_connection_id);
   }
 
   ~StatelessConnectionTerminator() {
@@ -902,8 +904,9 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
       // This serializes a connection close termination packet and adds the
       // connection to the time wait list.
       StatelessConnectionTerminator terminator(
-          server_connection_id, connection->version(), helper_.get(),
-          time_wait_list_manager_.get());
+          server_connection_id,
+          connection->GetOriginalDestinationConnectionId(),
+          connection->version(), helper_.get(), time_wait_list_manager_.get());
       terminator.CloseConnection(
           QUIC_HANDSHAKE_FAILED,
           "Connection is closed by server before handshake confirmed",
@@ -1138,9 +1141,9 @@ void QuicDispatcher::StatelesslyTerminateConnection(
         << version << ", error_code:" << error_code
         << ", error_details:" << error_details;
 
-    StatelessConnectionTerminator terminator(server_connection_id, version,
-                                             helper_.get(),
-                                             time_wait_list_manager_.get());
+    StatelessConnectionTerminator terminator(
+        server_connection_id, server_connection_id, version, helper_.get(),
+        time_wait_list_manager_.get());
     // This also adds the connection to time wait list.
     terminator.CloseConnection(
         error_code, error_details, format != GOOGLE_QUIC_PACKET,

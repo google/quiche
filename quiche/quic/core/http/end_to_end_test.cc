@@ -4796,14 +4796,8 @@ TEST_P(EndToEndTest, SendStatelessResetTokenInShlo) {
 // Regression test for b/116200989.
 TEST_P(EndToEndTest,
        SendStatelessResetIfServerConnectionClosedLocallyDuringHandshake) {
-  // TODO(b/232285861)
-  // This test should probably work when the server issues a new connection ID
-  // during the handshake. When the bug is fixed, remove the check below to
-  // allow it to run when the client provides a 16B connection ID.
-  if (override_server_connection_id_length_ > -1) {
-    ASSERT_TRUE(Initialize());
-    return;
-  }
+  SetQuicReloadableFlag(
+      quic_consider_original_connection_id_as_active_pre_handshake, true);
   connect_to_server_on_initialize_ = false;
   ASSERT_TRUE(Initialize());
 

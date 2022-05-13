@@ -6940,11 +6940,38 @@ QuicConnectionId QuicConnection::GetOneActiveServerConnectionId() const {
 
 std::vector<QuicConnectionId> QuicConnection::GetActiveServerConnectionIds()
     const {
+  QUICHE_DCHECK_EQ(Perspective::IS_SERVER, perspective_);
+  std::vector<QuicConnectionId> result;
   if (self_issued_cid_manager_ == nullptr) {
-    return {default_path_.server_connection_id};
+    result.push_back(default_path_.server_connection_id);
+  } else {
+    QUICHE_DCHECK(version().HasIetfQuicFrames());
+    result = self_issued_cid_manager_->GetUnretiredConnectionIds();
   }
-  QUICHE_DCHECK(version().HasIetfQuicFrames());
-  return self_issued_cid_manager_->GetUnretiredConnectionIds();
+  if (GetQuicReloadableFlag(
+          quic_consider_original_connection_id_as_active_pre_handshake)) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_consider_original_connection_id_as_active_pre_handshake);
+    if (!IsHandshakeComplete() &&
+        original_destination_connection_id_.has_value()) {
+      // Consider original_destination_connection_id_ as active before handshake
+      // completes.
+      if (std::find(result.begin(), result.end(),
+                    original_destination_connection_id_.value()) !=
+          result.end()) {
+        QUIC_BUG(quic_unexpected_original_destination_connection_id)
+            << "original_destination_connection_id: "
+            << original_destination_connection_id_.value()
+            << " is unexpectedly in active "
+               "list";
+      } else {
+        result.insert(result.end(),
+                      original_destination_connection_id_.value());
+      }
+      QUIC_CODE_COUNT(quic_active_original_connection_id_pre_handshake);
+    }
+  }
+  return result;
 }
 
 void QuicConnection::CreateConnectionIdManager() {
