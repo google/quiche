@@ -6,6 +6,7 @@
 
 #include <cstring>
 
+#include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_ip_address_family.h"
@@ -62,7 +63,7 @@ QbonePacketProcessor::Filter::FilterPacket(Direction direction,
 
 void QbonePacketProcessor::ProcessPacket(std::string* packet,
                                          Direction direction) {
-  if (QUIC_PREDICT_FALSE(!IsValid())) {
+  if (ABSL_PREDICT_FALSE(!IsValid())) {
     QUIC_BUG(quic_bug_11024_1)
         << "QuicPacketProcessor is invoked in an invalid state.";
     stats_->OnPacketDroppedSilently(direction);

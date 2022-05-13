@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/optimization.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/chlo_extractor.h"
@@ -518,7 +519,7 @@ constexpr bool IsSourceUdpPortBlocked(uint16_t port) {
   constexpr size_t num_blocked_ports = ABSL_ARRAYSIZE(blocked_ports);
   constexpr uint16_t highest_blocked_port =
       blocked_ports[num_blocked_ports - 1];
-  if (QUICHE_PREDICT_TRUE(port > highest_blocked_port)) {
+  if (ABSL_PREDICT_TRUE(port > highest_blocked_port)) {
     // Early-return to skip comparisons for the majority of traffic.
     return false;
   }
@@ -1313,7 +1314,7 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
   std::unique_ptr<QuicSession> session = CreateQuicSession(
       packet_info->destination_connection_id, packet_info->self_address,
       packet_info->peer_address, alpn, packet_info->version, parsed_chlo);
-  if (QUIC_PREDICT_FALSE(session == nullptr)) {
+  if (ABSL_PREDICT_FALSE(session == nullptr)) {
     QUIC_BUG(quic_bug_10287_8)
         << "CreateQuicSession returned nullptr for "
         << packet_info->destination_connection_id << " from "

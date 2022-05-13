@@ -74,9 +74,6 @@ class QUICHE_EXPORT_PRIVATE FatalLogSink : public NoopLogSink {
 #define QUICHE_LOG_IMPL_WARNING() ::quiche::NoopLogSink().stream()
 #define QUICHE_LOG_IMPL_INFO() ::quiche::NoopLogSink().stream()
 
-#define QUICHE_PREDICT_FALSE_IMPL(x) (x)
-#define QUICHE_PREDICT_TRUE_IMPL(x) (x)
-
 #define QUICHE_PLOG_IMPL(severity) ::quiche::NoopLogSink(#severity)
 
 #define QUICHE_DLOG_INFO_IS_ON_IMPL() false

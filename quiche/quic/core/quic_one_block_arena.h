@@ -12,6 +12,7 @@
 
 #include <cstdint>
 
+#include "absl/base/optimization.h"
 #include "quiche/quic/core/quic_arena_scoped_ptr.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
@@ -37,7 +38,7 @@ class QUIC_EXPORT_PRIVATE QuicOneBlockArena {
         << "Object is too large for the arena.";
     static_assert(alignof(T) > 1,
                   "Objects added to the arena must be at least 2B aligned.");
-    if (QUIC_PREDICT_FALSE(offset_ > ArenaSize - AlignedSize<T>())) {
+    if (ABSL_PREDICT_FALSE(offset_ > ArenaSize - AlignedSize<T>())) {
       QUIC_BUG(quic_bug_10593_1)
           << "Ran out of space in QuicOneBlockArena at " << this
           << ", max size was " << ArenaSize << ", failing request was "

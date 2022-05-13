@@ -5701,7 +5701,7 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
         ++num_ack_blocks_written;
       }
       if (num_ack_blocks_written >= num_ack_blocks) {
-        if (QUIC_PREDICT_FALSE(num_ack_blocks_written != num_ack_blocks)) {
+        if (ABSL_PREDICT_FALSE(num_ack_blocks_written != num_ack_blocks)) {
           QUIC_BUG(quic_bug_10850_85)
               << "Wrote " << num_ack_blocks_written << ", expected to write "
               << num_ack_blocks;

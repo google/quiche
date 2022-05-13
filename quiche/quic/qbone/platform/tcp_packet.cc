@@ -6,6 +6,7 @@
 
 #include <netinet/ip6.h>
 
+#include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/qbone/platform/internet_checksum.h"
@@ -35,17 +36,17 @@ void CreateTcpResetPacket(absl::string_view original_packet,
   // By the time this method is called, original_packet should be fairly
   // strongly validated. However, it's better to be more paranoid than not, so
   // here are a bunch of very obvious checks.
-  if (QUIC_PREDICT_FALSE(original_packet.size() < sizeof(ip6_hdr))) {
+  if (ABSL_PREDICT_FALSE(original_packet.size() < sizeof(ip6_hdr))) {
     return;
   }
   auto* ip6_header = reinterpret_cast<const ip6_hdr*>(original_packet.data());
-  if (QUIC_PREDICT_FALSE(ip6_header->ip6_vfc >> 4 != 6)) {
+  if (ABSL_PREDICT_FALSE(ip6_header->ip6_vfc >> 4 != 6)) {
     return;
   }
-  if (QUIC_PREDICT_FALSE(ip6_header->ip6_nxt != IPPROTO_TCP)) {
+  if (ABSL_PREDICT_FALSE(ip6_header->ip6_nxt != IPPROTO_TCP)) {
     return;
   }
-  if (QUIC_PREDICT_FALSE(quiche::QuicheEndian::NetToHost16(
+  if (ABSL_PREDICT_FALSE(quiche::QuicheEndian::NetToHost16(
                              ip6_header->ip6_plen) < sizeof(tcphdr))) {
     return;
   }

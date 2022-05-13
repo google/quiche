@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#include "absl/base/optimization.h"
 #include "quiche/quic/core/quic_udp_socket.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_udp_socket_platform_api.h"
@@ -413,13 +414,13 @@ void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
     return;
   }
 
-  if (QUIC_PREDICT_FALSE(hdr.msg_flags & MSG_CTRUNC)) {
+  if (ABSL_PREDICT_FALSE(hdr.msg_flags & MSG_CTRUNC)) {
     QUIC_BUG(quic_bug_10751_3)
         << "Control buffer too small. size:" << control_buffer.buffer_len;
     return;
   }
 
-  if (QUIC_PREDICT_FALSE(hdr.msg_flags & MSG_TRUNC) ||
+  if (ABSL_PREDICT_FALSE(hdr.msg_flags & MSG_TRUNC) ||
       // Normally "bytes_read > packet_buffer.buffer_len" implies the MSG_TRUNC
       // bit is set, but it is not the case if tested with config=android_arm64.
       static_cast<size_t>(bytes_read) > packet_buffer.buffer_len) {
@@ -502,14 +503,14 @@ size_t QuicUdpSocketApi::ReadMultiplePackets(QuicUdpSocketFd fd,
     }
 
     msghdr& hdr = hdrs[i].msg_hdr;
-    if (QUIC_PREDICT_FALSE(hdr.msg_flags & MSG_CTRUNC)) {
+    if (ABSL_PREDICT_FALSE(hdr.msg_flags & MSG_CTRUNC)) {
       QUIC_BUG(quic_bug_10751_4) << "Control buffer too small. size:"
                                  << (*results)[i].control_buffer.buffer_len
                                  << ", need:" << hdr.msg_controllen;
       continue;
     }
 
-    if (QUIC_PREDICT_FALSE(hdr.msg_flags & MSG_TRUNC)) {
+    if (ABSL_PREDICT_FALSE(hdr.msg_flags & MSG_TRUNC)) {
       QUIC_LOG_FIRST_N(WARNING, 100)
           << "Received truncated QUIC packet: buffer size:"
           << (*results)[i].packet_buffer.buffer_len

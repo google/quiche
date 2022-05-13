@@ -26,9 +26,6 @@
 #define QUICHE_LOG_IF(severity, condition) \
   QUICHE_LOG_IF_IMPL(severity, condition)
 
-#define QUICHE_PREDICT_FALSE(x) QUICHE_PREDICT_FALSE_IMPL(x)
-#define QUICHE_PREDICT_TRUE(x) QUICHE_PREDICT_TRUE_IMPL(x)
-
 // This is a noop in release build.
 #define QUICHE_NOTREACHED() QUICHE_NOTREACHED_IMPL()
 
