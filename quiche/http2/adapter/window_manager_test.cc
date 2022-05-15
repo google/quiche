@@ -24,7 +24,7 @@ class WindowManagerPeer {
 
 namespace {
 
-class WindowManagerTest : public ::testing::Test {
+class WindowManagerTest : public QuicheTest {
  protected:
   WindowManagerTest()
       : wm_(kDefaultLimit, absl::bind_front(&WindowManagerTest::OnCall, this)),

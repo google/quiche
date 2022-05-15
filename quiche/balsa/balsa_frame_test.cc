@@ -2403,7 +2403,7 @@ TEST_F(HTTPBalsaFrameTest, AppropriateActionTakenWhenHeadersTooLongWhenReset) {
   EXPECT_EQ(BalsaFrameEnums::HEADERS_TOO_LONG, balsa_frame_.ErrorCode());
 }
 
-class BalsaFrameParsingTest : public testing::Test {
+class BalsaFrameParsingTest : public QuicheTest {
  protected:
   void SetUp() override {
     balsa_frame_.set_http_validation_policy(

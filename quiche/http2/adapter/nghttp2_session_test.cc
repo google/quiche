@@ -27,7 +27,7 @@ enum FrameType {
   WINDOW_UPDATE,
 };
 
-class NgHttp2SessionTest : public testing::Test {
+class NgHttp2SessionTest : public QuicheTest {
  public:
   void SetUp() override {
     nghttp2_option_new(&options_);
