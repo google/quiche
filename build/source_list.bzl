@@ -1391,11 +1391,13 @@ default_platform_impl_srcs = [
     "common/platform/default/quiche_platform_impl/quiche_url_utils_impl.cc",
 ]
 default_platform_impl_tool_support_hdrs = [
+    "common/platform/default/quiche_platform_impl/quiche_command_line_flags_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_file_utils_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_stream_buffer_allocator_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_system_event_loop_impl.h",
 ]
 default_platform_impl_tool_support_srcs = [
+    "common/platform/default/quiche_platform_impl/quiche_command_line_flags_impl.cc",
     "common/platform/default/quiche_platform_impl/quiche_file_utils_impl.cc",
 ]
 default_platform_impl_test_support_hdrs = [
