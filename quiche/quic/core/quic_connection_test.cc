@@ -1563,23 +1563,9 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtServer) {
   QuicSocketAddress self_address(host, 123);
   EXPECT_EQ(0u, connection_.GetStats().packets_dropped);
   EXPECT_CALL(visitor_, AllowSelfAddressChange()).WillOnce(Return(false));
-  if (GetQuicReloadableFlag(quic_drop_packets_with_changed_server_address)) {
-    ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address,
-                                    kPeerAddress, ENCRYPTION_INITIAL);
-    EXPECT_TRUE(connection_.connected());
-    EXPECT_EQ(1u, connection_.GetStats().packets_dropped);
-    return;
-  }
-  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
-    EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
-  }
-  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
-  EXPECT_QUIC_PEER_BUG(
-      ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address,
-                                      kPeerAddress, ENCRYPTION_INITIAL),
-      "Self address migration is not supported at the server");
-  EXPECT_FALSE(connection_.connected());
-  TestConnectionCloseQuicErrorCode(QUIC_ERROR_MIGRATING_ADDRESS);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address, kPeerAddress,
+                                  ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.connected());
   EXPECT_EQ(1u, connection_.GetStats().packets_dropped);
 }
 

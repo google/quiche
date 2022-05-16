@@ -77,8 +77,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_require_handshake_confirmation, false)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_retire_cid_on_reverse_path_validation_failure, true)
 // If true, server sends bandwidth eastimate when network is idle for a while.
 QUIC_FLAG(FLAGS_quic_restart_flag_quic_enable_sending_bandwidth_estimate_when_network_idle, true)
-// If true, servers drop received packets with changed server address.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_drop_packets_with_changed_server_address, true)
 // If true, set burst token to 2 in cwnd bootstrapping experiment.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_bursts, false)
 // If true, stop resetting ideal_next_packet_send_time_ in pacing sender.
