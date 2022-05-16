@@ -36,6 +36,8 @@ class MockQboneTunnel : public QboneTunnelInterface {
   MOCK_METHOD(State, state, ());
 
   MOCK_METHOD(std::string, HealthString, ());
+
+  MOCK_METHOD(std::string, ServerRegionString, ());
 };
 
 }  // namespace quic

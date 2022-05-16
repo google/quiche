@@ -61,6 +61,8 @@ class QboneTunnelInterface : public quic::QboneClientControlStream::Handler {
   virtual State state() = 0;
 
   virtual std::string HealthString() = 0;
+
+  virtual std::string ServerRegionString() = 0;
 };
 
 }  // namespace quic
