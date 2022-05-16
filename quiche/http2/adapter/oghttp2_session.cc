@@ -221,10 +221,10 @@ OgHttp2Session::PassthroughHeadersHandler::PassthroughHeadersHandler(
     OgHttp2Session& session, Http2VisitorInterface& visitor)
     : session_(session), visitor_(visitor) {
   if (session_.options_.validate_http_headers) {
-    QUICHE_LOG(INFO) << "birenroy | instantiating regular header validator";
+    QUICHE_VLOG(2) << "instantiating regular header validator";
     validator_ = absl::make_unique<HeaderValidator>();
   } else {
-    QUICHE_LOG(INFO) << "birenroy | instantiating noop header validator";
+    QUICHE_VLOG(2) << "instantiating noop header validator";
     validator_ = absl::make_unique<NoopHeaderValidator>();
   }
 }
