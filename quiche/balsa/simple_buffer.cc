@@ -20,8 +20,8 @@ SimpleBuffer::SimpleBuffer(int size) { Reserve(size); }
 ////////////////////////////////////////////////////////////////////////////////
 
 int SimpleBuffer::Write(const char* bytes, int size) {
-  if (size < 0) {
-    QUICHE_BUG(simple_buffer_write_negative_size)
+  if (size <= 0) {
+    QUICHE_BUG_IF(simple_buffer_write_negative_size, size < 0)
         << "size must not be negative: " << size;
     return 0;
   }
@@ -45,6 +45,10 @@ int SimpleBuffer::Read(char* bytes, int size) {
   int read_size = 0;
   GetReadablePtr(&read_ptr, &read_size);
   read_size = std::min(read_size, size);
+  if (read_size == 0) {
+    return 0;
+  }
+
   memcpy(bytes, read_ptr, read_size);
   AdvanceReadablePtr(read_size);
   return read_size;
