@@ -7,6 +7,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace quiche {
@@ -14,6 +15,8 @@ namespace quiche {
 namespace test {
 
 namespace {
+
+constexpr int kMinimumSimpleBufferSize = 10;
 
 // Buffer full of 40 char strings.
 const char ibuf[] = {
@@ -35,31 +38,60 @@ class SimpleBufferTest : public QuicheTest {
 
 namespace {
 
-TEST_F(SimpleBufferTest, TestCreationWithSize) {
-  SimpleBuffer buffer(5);
-  EXPECT_EQ(5, storage_size(buffer));
+TEST_F(SimpleBufferTest, CreationWithSize) {
+  SimpleBuffer buffer1(5);
+  EXPECT_EQ(kMinimumSimpleBufferSize, storage_size(buffer1));
+
+  SimpleBuffer buffer2(25);
+  EXPECT_EQ(25, storage_size(buffer2));
 }
 
 // Make sure that a zero-sized initial buffer does not throw things off.
-TEST_F(SimpleBufferTest, TestCreationWithZeroSize) {
+TEST_F(SimpleBufferTest, CreationWithZeroSize) {
   SimpleBuffer buffer(0);
   EXPECT_EQ(0, storage_size(buffer));
   EXPECT_EQ(4, buffer.Write(ibuf, 4));
   EXPECT_EQ(4, write_idx(buffer));
-  EXPECT_EQ(4, storage_size(buffer));
+  EXPECT_EQ(kMinimumSimpleBufferSize, storage_size(buffer));
   EXPECT_EQ(4, buffer.ReadableBytes());
 }
 
-TEST(SimpleBufferDeathTest, TestCreationWithNegativeSize) {
-  EXPECT_DEATH(SimpleBuffer buffer(-1), "Check failed");
+TEST_F(SimpleBufferTest, ReadZeroBytes) {
+  SimpleBuffer buffer;
+
+  EXPECT_EQ(0, buffer.Read(nullptr, 0));
 }
 
-TEST_F(SimpleBufferTest, TestBasics) {
+TEST_F(SimpleBufferTest, WriteZeroFromNullptr) {
+  SimpleBuffer buffer;
+
+  EXPECT_EQ(0, buffer.Write(nullptr, 0));
+}
+
+TEST(SimpleBufferExpectBug, ReserveNegativeSize) {
+  SimpleBuffer buffer;
+
+  EXPECT_QUICHE_BUG(buffer.Reserve(-1), "size must not be negative");
+}
+
+TEST(SimpleBufferExpectBug, ReadNegativeSize) {
+  SimpleBuffer buffer;
+
+  EXPECT_QUICHE_BUG(buffer.Read(nullptr, -1), "size must not be negative");
+}
+
+TEST(SimpleBufferExpectBug, WriteNegativeSize) {
+  SimpleBuffer buffer;
+
+  EXPECT_QUICHE_BUG(buffer.Write(nullptr, -1), "size must not be negative");
+}
+
+TEST_F(SimpleBufferTest, Basics) {
   SimpleBuffer buffer;
 
   EXPECT_TRUE(buffer.Empty());
   EXPECT_EQ("", buffer.GetReadableRegion());
-  EXPECT_EQ(10, storage_size(buffer));
+  EXPECT_EQ(0, storage_size(buffer));
   EXPECT_EQ(0, read_idx(buffer));
   EXPECT_EQ(0, write_idx(buffer));
 
@@ -73,20 +105,20 @@ TEST_F(SimpleBufferTest, TestBasics) {
   EXPECT_EQ(storage(buffer), readable_ptr);
   EXPECT_EQ(0, readable_size);
   EXPECT_EQ(storage(buffer), writeable_ptr);
-  EXPECT_EQ(10, writable_size);
+  EXPECT_EQ(0, writable_size);
   EXPECT_EQ(0, buffer.ReadableBytes());
 
   const SimpleBuffer buffer2;
   EXPECT_EQ(0, buffer2.ReadableBytes());
 }
 
-TEST_F(SimpleBufferTest, TestBasicWR) {
+TEST_F(SimpleBufferTest, BasicWR) {
   SimpleBuffer buffer;
 
   EXPECT_EQ(4, buffer.Write(ibuf, 4));
   EXPECT_EQ(0, read_idx(buffer));
   EXPECT_EQ(4, write_idx(buffer));
-  EXPECT_EQ(10, storage_size(buffer));
+  EXPECT_EQ(kMinimumSimpleBufferSize, storage_size(buffer));
   EXPECT_EQ(4, buffer.ReadableBytes());
   EXPECT_EQ("1234", buffer.GetReadableRegion());
   int bytes_written = 4;
@@ -109,7 +141,7 @@ TEST_F(SimpleBufferTest, TestBasicWR) {
   EXPECT_EQ(4, buffer.Read(obuf + bytes_read, 40));
   EXPECT_EQ(0, read_idx(buffer));
   EXPECT_EQ(0, write_idx(buffer));
-  EXPECT_EQ(10, storage_size(buffer));
+  EXPECT_EQ(kMinimumSimpleBufferSize, storage_size(buffer));
   EXPECT_EQ(0, buffer.ReadableBytes());
   EXPECT_EQ("", buffer.GetReadableRegion());
   bytes_read += 4;
@@ -119,7 +151,7 @@ TEST_F(SimpleBufferTest, TestBasicWR) {
   EXPECT_EQ(storage(buffer), readable_ptr);
   EXPECT_EQ(0, readable_size);
   EXPECT_EQ(storage(buffer), writeable_ptr);
-  EXPECT_EQ(10, writable_size);
+  EXPECT_EQ(kMinimumSimpleBufferSize, writable_size);
 
   EXPECT_EQ(bytes_written, bytes_read);
   for (int i = 0; i < bytes_read; ++i) {
@@ -160,37 +192,41 @@ TEST_F(SimpleBufferTest, TestBasicWR) {
   }
 }
 
-TEST_F(SimpleBufferTest, TestReserve) {
+TEST_F(SimpleBufferTest, Reserve) {
   SimpleBuffer buffer;
+  EXPECT_EQ(0, storage_size(buffer));
+
+  buffer.WriteString("foo");
+  EXPECT_EQ(kMinimumSimpleBufferSize, storage_size(buffer));
 
   // Reserve by expanding the buffer.
-  const int initial_size = storage_size(buffer);
-  buffer.Reserve(initial_size + 1);
-  EXPECT_EQ(2 * initial_size, storage_size(buffer));
+  buffer.Reserve(kMinimumSimpleBufferSize + 1);
+  EXPECT_EQ(2 * kMinimumSimpleBufferSize, storage_size(buffer));
 
-  buffer.AdvanceWritablePtr(initial_size);
-  buffer.AdvanceReadablePtr(initial_size - 2);
-  EXPECT_EQ(initial_size, write_idx(buffer));
-  EXPECT_EQ(2 * initial_size, storage_size(buffer));
+  buffer.Clear();
+  buffer.AdvanceWritablePtr(kMinimumSimpleBufferSize);
+  buffer.AdvanceReadablePtr(kMinimumSimpleBufferSize - 2);
+  EXPECT_EQ(kMinimumSimpleBufferSize, write_idx(buffer));
+  EXPECT_EQ(2 * kMinimumSimpleBufferSize, storage_size(buffer));
 
   // Reserve by moving data around.  `storage_size` does not change.
-  buffer.Reserve(initial_size + 1);
+  buffer.Reserve(kMinimumSimpleBufferSize + 1);
   EXPECT_EQ(2, write_idx(buffer));
-  EXPECT_EQ(2 * initial_size, storage_size(buffer));
+  EXPECT_EQ(2 * kMinimumSimpleBufferSize, storage_size(buffer));
 }
 
-TEST_F(SimpleBufferTest, TestExtend) {
+TEST_F(SimpleBufferTest, Extend) {
   SimpleBuffer buffer;
 
   // Test a write which should not extend the buffer.
   EXPECT_EQ(7, buffer.Write(ibuf, 7));
   EXPECT_EQ(0, read_idx(buffer));
   EXPECT_EQ(7, write_idx(buffer));
-  EXPECT_EQ(10, storage_size(buffer));
+  EXPECT_EQ(kMinimumSimpleBufferSize, storage_size(buffer));
   EXPECT_EQ(7, buffer.ReadableBytes());
   EXPECT_EQ(0, read_idx(buffer));
   EXPECT_EQ(7, write_idx(buffer));
-  EXPECT_EQ(10, storage_size(buffer));
+  EXPECT_EQ(kMinimumSimpleBufferSize, storage_size(buffer));
   EXPECT_EQ(7, buffer.ReadableBytes());
   int bytes_written = 7;
 
@@ -218,18 +254,26 @@ TEST_F(SimpleBufferTest, TestExtend) {
   }
 }
 
-TEST_F(SimpleBufferTest, TestClear) {
+TEST_F(SimpleBufferTest, Clear) {
   SimpleBuffer buffer;
 
   buffer.Clear();
+
   EXPECT_EQ(0, read_idx(buffer));
   EXPECT_EQ(0, write_idx(buffer));
-  EXPECT_EQ(10, storage_size(buffer));
+  EXPECT_EQ(0, storage_size(buffer));
   EXPECT_EQ(0, buffer.ReadableBytes());
-  EXPECT_EQ(10, storage_size(buffer));
+
+  buffer.WriteString("foo");
+  buffer.Clear();
+
+  EXPECT_EQ(0, read_idx(buffer));
+  EXPECT_EQ(0, write_idx(buffer));
+  EXPECT_EQ(kMinimumSimpleBufferSize, storage_size(buffer));
+  EXPECT_EQ(0, buffer.ReadableBytes());
 }
 
-TEST_F(SimpleBufferTest, TestLongWrite) {
+TEST_F(SimpleBufferTest, LongWrite) {
   SimpleBuffer buffer;
 
   std::string s1 = "HTTP/1.1 500 Service Unavailable";
@@ -337,11 +381,13 @@ TEST_F(SimpleBufferTest, ReleaseAsSlice) {
   char* readable_ptr = nullptr;
   int readable_size = 0;
   buffer.GetReadablePtr(&readable_ptr, &readable_size);
+  EXPECT_EQ(nullptr, readable_ptr);
   EXPECT_EQ(0, readable_size);
 
   buffer.WriteString("def");
   slice = buffer.ReleaseAsSlice();
   buffer.GetReadablePtr(&readable_ptr, &readable_size);
+  EXPECT_EQ(nullptr, readable_ptr);
   EXPECT_EQ(0, readable_size);
   EXPECT_EQ("def", slice.AsStringView());
 }
@@ -353,6 +399,7 @@ TEST_F(SimpleBufferTest, EmptyBufferReleaseAsSlice) {
 
   QuicheMemSlice slice = buffer.ReleaseAsSlice();
   buffer.GetReadablePtr(&readable_ptr, &readable_size);
+  EXPECT_EQ(nullptr, readable_ptr);
   EXPECT_EQ(0, readable_size);
   EXPECT_TRUE(slice.empty());
 }

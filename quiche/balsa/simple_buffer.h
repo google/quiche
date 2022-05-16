@@ -20,8 +20,8 @@ class SimpleBufferTest;
 // position.  Reading consumes data.
 class QUICHE_EXPORT_PRIVATE SimpleBuffer {
  public:
-  SimpleBuffer();
-  // Create SimpleBuffer with `size` reserved capacity.
+  SimpleBuffer() = default;
+  // Create SimpleBuffer with at least `size` reserved capacity.
   explicit SimpleBuffer(int size);
 
   SimpleBuffer(const SimpleBuffer&) = delete;
@@ -40,18 +40,19 @@ class QUICHE_EXPORT_PRIVATE SimpleBuffer {
     return Write(piece.data(), piece.size());
   }
 
-  // Gets a pointer into the buffer that can be written to.  Stores the number
-  // of characters which are allowed to be written in `*size`. The pointer and
-  // size can be used in functions like recv() or read().  If `*size` is zero
-  // upon returning from this function, then it is unsafe to dereference `*ptr`.
-  // Writing to this region after calling any other non-const method results in
-  // undefined behavior.
+  // Stores the pointer into the buffer that can be written to in `*ptr`, and
+  // the number of characters that are allowed to be written in `*size`.  The
+  // pointer and size can be used in functions like recv() or read().  If
+  // `*size` is zero upon returning from this function, then it is unsafe to
+  // dereference `*ptr`.  Writing to this region after calling any other
+  // non-const method results in undefined behavior.
   void GetWritablePtr(char** ptr, int* size) const {
     *ptr = storage_ + write_idx_;
     *size = storage_size_ - write_idx_;
   }
 
-  // Gets a pointer that can be read from.  This pointer (and size) can be used
+  // Stores the pointer that can be read from in `*ptr`, and the number of bytes
+  // that are allowed to be read in `*size`.  The pointer and size can be used
   // in functions like send() or write().  If `*size` is zero upon returning
   // from this function, then it is unsafe to dereference `*ptr`.  Reading from
   // this region after calling any other non-const method results in undefined
@@ -100,15 +101,16 @@ class QUICHE_EXPORT_PRIVATE SimpleBuffer {
 
   // The buffer owned by this class starts at `*storage_` and is `storage_size_`
   // bytes long.
+  // If `storage_` is nullptr, then `storage_size_` must be zero.
   // `0 <= read_idx_ <= write_idx_ <= storage_size_` must always hold.
   // If `read_idx_ == write_idx_`, then they must be equal to zero.
   // The first `read_idx_` bytes of the buffer are consumed,
   // the next `write_idx_ - read_idx_` bytes are the readable region, and the
   // remaining `storage_size_ - write_idx_` bytes are the writable region.
-  char* storage_;
-  int write_idx_;
-  int read_idx_;
-  int storage_size_;
+  char* storage_ = nullptr;
+  int write_idx_ = 0;
+  int read_idx_ = 0;
+  int storage_size_ = 0;
 };
 
 }  // namespace quiche
