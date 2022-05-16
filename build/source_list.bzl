@@ -1016,6 +1016,7 @@ quiche_tests_srcs = [
     "balsa/simple_buffer_test.cc",
     "common/platform/api/quiche_file_utils_test.cc",
     "common/platform/api/quiche_hostname_utils_test.cc",
+    "common/platform/api/quiche_lower_case_string_test.cc",
     "common/platform/api/quiche_mem_slice_test.cc",
     "common/platform/api/quiche_reference_counted_test.cc",
     "common/platform/api/quiche_stack_trace_test.cc",
