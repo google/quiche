@@ -6002,7 +6002,7 @@ TEST_P(EndToEndTest, ChaosProtectionDisabled) {
   // Parse the saved packet to make sure it's valid.
   SimpleQuicFramer validation_framer({version_});
   validation_framer.framer()->SetInitialObfuscators(
-      GetServerConnection()->GetOriginalDestinationConnectionId());
+      GetClientConnection()->GetOriginalDestinationConnectionId());
   ASSERT_GT(copying_writer->packets().size(), 0u);
   EXPECT_TRUE(validation_framer.ProcessPacket(*copying_writer->packets()[0]));
   // TODO(dschinazi) figure out a way to use a MockRandom in this test so we
