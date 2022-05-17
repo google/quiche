@@ -88,6 +88,19 @@ void MasqueServerBackend::FetchResponseFromBackend(
       request_headers, request_body, request_handler);
 }
 
+void MasqueServerBackend::HandleConnectHeaders(
+    const spdy::Http2HeaderBlock& request_headers,
+    RequestHandler* request_handler) {
+  if (MaybeHandleMasqueRequest(request_headers, request_handler)) {
+    // Request was handled as a MASQUE request.
+    return;
+  }
+  QUIC_DLOG(INFO) << "Fetching non-MASQUE CONNECT response for "
+                  << request_headers.DebugString();
+  QuicMemoryCacheBackend::HandleConnectHeaders(request_headers,
+                                               request_handler);
+}
+
 void MasqueServerBackend::CloseBackendResponseStream(
     QuicSimpleServerBackend::RequestHandler* request_handler) {
   QUIC_DLOG(INFO) << "Closing response stream";

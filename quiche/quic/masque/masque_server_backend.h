@@ -39,6 +39,8 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
       const spdy::Http2HeaderBlock& request_headers,
       const std::string& request_body,
       QuicSimpleServerBackend::RequestHandler* request_handler) override;
+  void HandleConnectHeaders(const spdy::Http2HeaderBlock& request_headers,
+                            RequestHandler* request_handler) override;
 
   void CloseBackendResponseStream(
       QuicSimpleServerBackend::RequestHandler* request_handler) override;
