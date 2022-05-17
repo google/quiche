@@ -1402,6 +1402,7 @@
   "default_platform_impl_test_support_hdrs": [
     "quiche/common/platform/default/quiche_platform_impl/quiche_test_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_test_loopback_impl.h",
+    "quiche/common/platform/default/quiche_platform_impl/quiche_test_output_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_thread_impl.h"
   ],
   "default_platform_impl_test_support_srcs": [
