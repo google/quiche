@@ -106,8 +106,9 @@ TEST(Http2FrameHeaderTest, Constructor) {
   } while (frame_type++ != 255);
 
 #if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
-  EXPECT_DEBUG_DEATH(Http2FrameHeader(0x01000000, Http2FrameType::DATA, 0, 1),
-                     "payload_length");
+  EXPECT_QUICHE_DEBUG_DEATH(
+      Http2FrameHeader(0x01000000, Http2FrameType::DATA, 0, 1),
+      "payload_length");
 #endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 }
 
@@ -158,8 +159,8 @@ std::string TestParamToString(const testing::TestParamInfo<TestParams>& info) {
   return absl::StrCat(Http2FrameTypeToString(type), static_cast<int>(flags));
 }
 
-// The tests of the valid frame types include EXPECT_DEBUG_DEATH, which is
-// quite slow, so using value parameterized tests in order to allow sharding.
+// The tests of the valid frame types include EXPECT_QUICHE_DEBUG_DEATH, which
+// is quite slow, so using value parameterized tests in order to allow sharding.
 class Http2FrameHeaderTypeAndFlagTest : public QuicheTestWithParam<TestParams> {
  protected:
   Http2FrameHeaderTypeAndFlagTest()
@@ -207,7 +208,7 @@ TEST_P(IsEndStreamTest, IsEndStream) {
       }
       break;
     default:
-      EXPECT_DEBUG_DEATH(v.IsEndStream(), "DATA.*HEADERS") << v;
+      EXPECT_QUICHE_DEBUG_DEATH(v.IsEndStream(), "DATA.*HEADERS");
   }
 }
 
@@ -244,7 +245,7 @@ TEST_P(IsACKTest, IsAck) {
       }
       break;
     default:
-      EXPECT_DEBUG_DEATH(v.IsAck(), "SETTINGS.*PING") << v;
+      EXPECT_QUICHE_DEBUG_DEATH(v.IsAck(), "SETTINGS.*PING");
   }
 }
 
@@ -283,9 +284,8 @@ TEST_P(IsEndHeadersTest, IsEndHeaders) {
       }
       break;
     default:
-      EXPECT_DEBUG_DEATH(v.IsEndHeaders(),
-                         "HEADERS.*PUSH_PROMISE.*CONTINUATION")
-          << v;
+      EXPECT_QUICHE_DEBUG_DEATH(v.IsEndHeaders(),
+                                "HEADERS.*PUSH_PROMISE.*CONTINUATION");
   }
 }
 
@@ -324,7 +324,7 @@ TEST_P(IsPaddedTest, IsPadded) {
       }
       break;
     default:
-      EXPECT_DEBUG_DEATH(v.IsPadded(), "DATA.*HEADERS.*PUSH_PROMISE") << v;
+      EXPECT_QUICHE_DEBUG_DEATH(v.IsPadded(), "DATA.*HEADERS.*PUSH_PROMISE");
   }
 }
 
@@ -361,7 +361,7 @@ TEST_P(HasPriorityTest, HasPriority) {
       }
       break;
     default:
-      EXPECT_DEBUG_DEATH(v.HasPriority(), "HEADERS") << v;
+      EXPECT_QUICHE_DEBUG_DEATH(v.HasPriority(), "HEADERS");
   }
 }
 
@@ -378,14 +378,14 @@ TEST(Http2PriorityFieldsTest, Constructor) {
   EXPECT_EQ(is_exclusive, v.is_exclusive);
 
   // The high-bit must not be set on the stream id.
-  EXPECT_DEBUG_DEATH(
+  EXPECT_QUICHE_DEBUG_DEATH(
       Http2PriorityFields(stream_dependency | 0x80000000, weight, is_exclusive),
       "31-bit");
 
   // The weight must be in the range 1-256.
-  EXPECT_DEBUG_DEATH(Http2PriorityFields(stream_dependency, 0, is_exclusive),
-                     "too small");
-  EXPECT_DEBUG_DEATH(
+  EXPECT_QUICHE_DEBUG_DEATH(
+      Http2PriorityFields(stream_dependency, 0, is_exclusive), "too small");
+  EXPECT_QUICHE_DEBUG_DEATH(
       Http2PriorityFields(stream_dependency, weight + 256, is_exclusive),
       "too large");
 
