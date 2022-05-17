@@ -558,15 +558,9 @@ TEST_F(UberReceivedPacketManagerTest,
   CheckAckTimeout(clock_.ApproximateNow());
 
   EXPECT_TRUE(HasPendingAck());
-  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
-    // Verify ACK delay is based on packet receipt time.
-    CheckAckTimeout(clock_.ApproximateNow() -
-                    QuicTime::Delta::FromMilliseconds(11) + kDelayedAckTime);
-  } else {
-    // Delayed ack is scheduled.
-    CheckAckTimeout(clock_.ApproximateNow() -
-                    QuicTime::Delta::FromMilliseconds(1) + kDelayedAckTime);
-  }
+  // Verify ACK delay is based on packet receipt time.
+  CheckAckTimeout(clock_.ApproximateNow() -
+                  QuicTime::Delta::FromMilliseconds(11) + kDelayedAckTime);
 }
 
 }  // namespace

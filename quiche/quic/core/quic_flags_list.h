@@ -79,8 +79,6 @@ QUIC_FLAG(FLAGS_quic_restart_flag_quic_enable_sending_bandwidth_estimate_when_ne
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_conservative_bursts, false)
 // If true, stop resetting ideal_next_packet_send_time_ in pacing sender.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_donot_reset_ideal_next_packet_send_time, false)
-// If true, update ACK timeout based on packet receipt time rather than now.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_update_ack_timeout_on_receipt_time, true)
 // If true, use BBRv2 as the default congestion controller. Takes precedence over --quic_default_to_bbr.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_to_bbr_v2, false)
 // If true, use PING manager to manage the PING alarm.

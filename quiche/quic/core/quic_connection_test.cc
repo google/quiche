@@ -11182,40 +11182,13 @@ TEST_P(QuicConnectionTest, ClientAckDelayForAsyncPacketProcessing) {
                            std::make_unique<TaggingEncrypter>(0x01));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
   // Verify HANDSHAKE packet gets processed.
-  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   connection_.GetProcessUndecryptablePacketsAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
-    // Verify immediate ACK has been sent out when flush went out of scope.
-    ASSERT_FALSE(connection_.HasPendingAcks());
-  } else {
-    ASSERT_TRUE(connection_.HasPendingAcks());
-    // Send ACKs.
-    clock_.AdvanceTime(connection_.GetAckAlarm()->deadline() - clock_.Now());
-    connection_.GetAckAlarm()->Fire();
-  }
+  // Verify immediate ACK has been sent out when flush went out of scope.
+  ASSERT_FALSE(connection_.HasPendingAcks());
   ASSERT_FALSE(writer_->ack_frames().empty());
-  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
-    // Verify the ack_delay_time in the sent HANDSHAKE ACK frame is 100ms.
-    EXPECT_EQ(QuicTime::Delta::FromMilliseconds(100),
-              writer_->ack_frames()[0].ack_delay_time);
-    ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
-    return;
-  }
-  // Verify the ack_delay_time in the INITIAL ACK frame is 1ms.
-  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(1),
-            writer_->ack_frames()[0].ack_delay_time);
-  // Process the coalesced HANDSHAKE packet.
-  ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
-  auto packet = writer_->coalesced_packet()->Clone();
-  writer_->framer()->ProcessPacket(*packet);
-  ASSERT_FALSE(writer_->ack_frames().empty());
-  // Verify the ack_delay_time in the HANDSHAKE ACK frame includes the
-  // buffering time.
-  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(101),
+  // Verify the ack_delay_time in the sent HANDSHAKE ACK frame is 100ms.
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(100),
             writer_->ack_frames()[0].ack_delay_time);
   ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
 }
@@ -15295,27 +15268,15 @@ TEST_P(QuicConnectionTest, ReportedAckDelayIncludesQueuingDelay) {
 
   connection_.GetProcessUndecryptablePacketsAlarm()->Fire();
   ASSERT_TRUE(connection_.HasPendingAcks());
-  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
-    EXPECT_EQ(packet_receipt_time + DefaultDelayedAckTime(),
-              connection_.GetAckAlarm()->deadline());
-    clock_.AdvanceTime(packet_receipt_time + DefaultDelayedAckTime() -
-                       clock_.Now());
-  } else {
-    EXPECT_EQ(clock_.Now() + DefaultDelayedAckTime(),
-              connection_.GetAckAlarm()->deadline());
-    clock_.AdvanceTime(DefaultDelayedAckTime());
-  }
+  EXPECT_EQ(packet_receipt_time + DefaultDelayedAckTime(),
+            connection_.GetAckAlarm()->deadline());
+  clock_.AdvanceTime(packet_receipt_time + DefaultDelayedAckTime() -
+                     clock_.Now());
   // Fire ACK alarm.
   connection_.GetAckAlarm()->Fire();
   ASSERT_EQ(1u, writer_->ack_frames().size());
-  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
-    // Verify ACK delay time does not include queuing delay.
-    EXPECT_EQ(DefaultDelayedAckTime(), writer_->ack_frames()[0].ack_delay_time);
-  } else {
-    // Verify ACK delay time = queuing delay + ack delay
-    EXPECT_EQ(DefaultDelayedAckTime() + kQueuingDelay,
-              writer_->ack_frames()[0].ack_delay_time);
-  }
+  // Verify ACK delay time does not include queuing delay.
+  EXPECT_EQ(DefaultDelayedAckTime(), writer_->ack_frames()[0].ack_delay_time);
 }
 
 TEST_P(QuicConnectionTest, CoalesceOneRTTPacketWithInitialAndHandshakePackets) {

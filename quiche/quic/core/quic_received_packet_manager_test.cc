@@ -650,13 +650,8 @@ TEST_F(QuicReceivedPacketManagerTest, UpdateAckTimeoutOnPacketReceiptTime) {
       kInstigateAck, QuicPacketNumber(3),
       /*last_packet_receipt_time=*/packet_receipt_time3,
       clock_.ApproximateNow(), &rtt_stats_);
-  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
-    // Make sure ACK timeout is based on receipt time.
-    CheckAckTimeout(packet_receipt_time3 + kDelayedAckTime);
-  } else {
-    // Make sure ACK timeout is based on now.
-    CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
-  }
+  // Make sure ACK timeout is based on receipt time.
+  CheckAckTimeout(packet_receipt_time3 + kDelayedAckTime);
 
   RecordPacketReceipt(4, clock_.ApproximateNow());
   MaybeUpdateAckTimeout(kInstigateAck, 4);
@@ -677,13 +672,8 @@ TEST_F(QuicReceivedPacketManagerTest,
       kInstigateAck, QuicPacketNumber(3),
       /*last_packet_receipt_time=*/packet_receipt_time3,
       clock_.ApproximateNow(), &rtt_stats_);
-  if (GetQuicReloadableFlag(quic_update_ack_timeout_on_receipt_time)) {
-    // Given 100ms > ack delay, verify immediate ACK.
-    CheckAckTimeout(clock_.ApproximateNow());
-  } else {
-    // Make sure ACK timeout is based on now.
-    CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
-  }
+  // Given 100ms > ack delay, verify immediate ACK.
+  CheckAckTimeout(clock_.ApproximateNow());
 }
 
 }  // namespace
