@@ -5,7 +5,7 @@
 #ifndef QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUIC_FLAGS_IMPL_H_
 #define QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUIC_FLAGS_IMPL_H_
 
-#include <string>
+#include <cstdint>
 
 #include "quiche/common/platform/api/quiche_export.h"
 
