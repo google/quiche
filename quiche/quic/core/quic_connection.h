@@ -2250,9 +2250,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Enable this via reloadable flag once this feature is complete.
   bool connection_migration_use_new_cid_ = false;
 
-  const bool flush_after_coalesce_higher_space_packets_ =
-      GetQuicReloadableFlag(quic_flush_after_coalesce_higher_space_packets);
-
   // If true, send connection close packet on INVALID_VERSION.
   bool send_connection_close_for_invalid_version_ = false;
 

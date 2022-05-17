@@ -4874,29 +4874,19 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
       }
     }
 
-    if (connection_->flush_after_coalesce_higher_space_packets_) {
-      // INITIAL or HANDSHAKE retransmission could cause peer to derive new
-      // keys, such that the buffered undecryptable packets may be processed.
-      // This endpoint would derive an inflated RTT sample when receiving ACKs
-      // of those undecryptable packets. To mitigate this, tries to coalesce as
-      // many higher space packets as possible (via for loop inside
-      // MaybeCoalescePacketOfHigherSpace) to fill the remaining space in the
-      // coalescer.
-      QUIC_RELOADABLE_FLAG_COUNT(
-          quic_flush_after_coalesce_higher_space_packets);
-      if (connection_->version().CanSendCoalescedPackets()) {
-        connection_->MaybeCoalescePacketOfHigherSpace();
-      }
-      connection_->packet_creator_.Flush();
-      if (connection_->version().CanSendCoalescedPackets()) {
-        connection_->FlushCoalescedPacket();
-      }
-    } else {
-      connection_->packet_creator_.Flush();
-      if (connection_->version().CanSendCoalescedPackets()) {
-        connection_->MaybeCoalescePacketOfHigherSpace();
-        connection_->FlushCoalescedPacket();
-      }
+    // INITIAL or HANDSHAKE retransmission could cause peer to derive new
+    // keys, such that the buffered undecryptable packets may be processed.
+    // This endpoint would derive an inflated RTT sample when receiving ACKs
+    // of those undecryptable packets. To mitigate this, tries to coalesce as
+    // many higher space packets as possible (via for loop inside
+    // MaybeCoalescePacketOfHigherSpace) to fill the remaining space in the
+    // coalescer.
+    if (connection_->version().CanSendCoalescedPackets()) {
+      connection_->MaybeCoalescePacketOfHigherSpace();
+    }
+    connection_->packet_creator_.Flush();
+    if (connection_->version().CanSendCoalescedPackets()) {
+      connection_->FlushCoalescedPacket();
     }
     connection_->FlushPackets();
     if (!handshake_packet_sent_ && connection_->handshake_packet_sent_) {
@@ -5980,8 +5970,7 @@ void QuicConnection::MaybeCoalescePacketOfHigherSpace() {
   }
   if (fill_coalesced_packet_) {
     // Make sure MaybeCoalescePacketOfHigherSpace is not re-entrant.
-    QUIC_BUG_IF(quic_coalesce_packet_reentrant,
-                flush_after_coalesce_higher_space_packets_);
+    QUIC_BUG(quic_coalesce_packet_reentrant);
     return;
   }
   for (EncryptionLevel retransmission_level :

@@ -14978,21 +14978,12 @@ TEST_P(QuicConnectionTest, FailedToRetransmitShlo) {
             connection_.GetAckAlarm()->deadline());
   // ACK is not throttled by amplification limit, and SHLO is bundled. Also
   // HANDSHAKE + 1RTT packets get coalesced.
-  if (GetQuicReloadableFlag(quic_flush_after_coalesce_higher_space_packets)) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(3);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(3);
   // ACK alarm fires.
   clock_.AdvanceTime(kAlarmGranularity);
   connection_.GetAckAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_flush_after_coalesce_higher_space_packets)) {
-    // Verify 1-RTT packet is coalesced.
-    EXPECT_EQ(0x04040404u, writer_->final_bytes_of_last_packet());
-  } else {
-    // Verify HANDSHAKE packet is coalesced with INITIAL ACK + SHLO.
-    EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
-  }
+  // Verify 1-RTT packet is coalesced.
+  EXPECT_EQ(0x04040404u, writer_->final_bytes_of_last_packet());
   // Only the first packet in the coalesced packet has been processed,
   // verify SHLO is bundled with INITIAL ACK.
   EXPECT_EQ(1u, writer_->ack_frames().size());
@@ -15003,16 +14994,12 @@ TEST_P(QuicConnectionTest, FailedToRetransmitShlo) {
   writer_->framer()->ProcessPacket(*packet);
   EXPECT_EQ(0u, writer_->ack_frames().size());
   EXPECT_EQ(1u, writer_->crypto_frames().size());
-  if (GetQuicReloadableFlag(quic_flush_after_coalesce_higher_space_packets)) {
-    // Process the coalesced 1-RTT packet.
-    ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
-    packet = writer_->coalesced_packet()->Clone();
-    writer_->framer()->ProcessPacket(*packet);
-    EXPECT_EQ(0u, writer_->crypto_frames().size());
-    EXPECT_EQ(1u, writer_->stream_frames().size());
-  } else {
-    ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
-  }
+  // Process the coalesced 1-RTT packet.
+  ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
+  packet = writer_->coalesced_packet()->Clone();
+  writer_->framer()->ProcessPacket(*packet);
+  EXPECT_EQ(0u, writer_->crypto_frames().size());
+  EXPECT_EQ(1u, writer_->stream_frames().size());
 
   // Received INITIAL 3.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
@@ -15393,10 +15380,6 @@ TEST_P(QuicConnectionTest, CoalesceOneRTTPacketWithInitialAndHandshakePackets) {
   auto packet = writer_->coalesced_packet()->Clone();
   writer_->framer()->ProcessPacket(*packet);
   EXPECT_EQ(1u, writer_->crypto_frames().size());
-  if (!GetQuicReloadableFlag(quic_flush_after_coalesce_higher_space_packets)) {
-    ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
-    return;
-  }
   // Process 1-RTT packet.
   ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
   packet = writer_->coalesced_packet()->Clone();

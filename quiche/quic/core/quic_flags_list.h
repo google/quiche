@@ -59,8 +59,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_discard_initial_packet_with_key_droppe
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_not_bundle_ack_on_alternative_path, true)
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
-// If true, flush creator after coalesce packet of higher space.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_flush_after_coalesce_higher_space_packets, true)
 // If true, flush pending frames as well as pending padding bytes on connection migration.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_flush_pending_frames_and_padding_bytes_on_migration, true)
 // If true, ietf connection migration is no longer conditioned on connection option RVCM.
