@@ -75,6 +75,10 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
 
   QuicSSLConfig GetSSLConfig() const override;
 
+  bool enable_sending_bandwidth_estimate_when_network_idle() const {
+    return enable_sending_bandwidth_estimate_when_network_idle_;
+  }
+
  protected:
   // QuicSession methods(override them with return type of QuicSpdyStream*):
   QuicCryptoServerStreamBase* GetMutableCryptoStream() override;

@@ -301,6 +301,7 @@ const QuicTag kNPCO = TAG('N', 'P', 'C', 'O');    // No pacing offload.
 const QuicTag kBWRE = TAG('B', 'W', 'R', 'E');  // Bandwidth resumption.
 const QuicTag kBWMX = TAG('B', 'W', 'M', 'X');  // Max bandwidth resumption.
 const QuicTag kBWID = TAG('B', 'W', 'I', 'D');  // Send bandwidth when idle.
+const QuicTag kBWR1 = TAG('B', 'W', 'I', '1');  // Resume bandwidth experiment 1
 const QuicTag kBWRS = TAG('B', 'W', 'R', 'S');  // Server bandwidth resumption.
 const QuicTag kBWS2 = TAG('B', 'W', 'S', '2');  // Server bw resumption v2.
 const QuicTag kBWS3 = TAG('B', 'W', 'S', '3');  // QUIC Initial CWND - Control.
