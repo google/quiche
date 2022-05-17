@@ -23,7 +23,7 @@ constexpr absl::string_view kUnknownSymbol = "(unknown)";
 std::string QuicheStackTraceImpl() {
   std::vector<void*> stacktrace(kMaxStackSize, nullptr);
   int num_frames = absl::GetStackTrace(stacktrace.data(), stacktrace.size(),
-                                       /*skip_count=*/1);
+                                       /*skip_count=*/0);
   if (num_frames <= 0) {
     return "";
   }
