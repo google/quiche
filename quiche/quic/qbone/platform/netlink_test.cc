@@ -12,7 +12,7 @@
 #include "quiche/quic/qbone/platform/mock_kernel.h"
 #include "quiche/quic/qbone/qbone_constants.h"
 
-namespace quic {
+namespace quic::test {
 namespace {
 
 using ::testing::_;
@@ -761,4 +761,4 @@ TEST_F(NetlinkTest, ChangeRouteReplace) {
 }
 
 }  // namespace
-}  // namespace quic
+}  // namespace quic::test

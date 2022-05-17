@@ -9,7 +9,7 @@
 
 using testing::ElementsAre;
 
-namespace quic {
+namespace quic::test {
 namespace {
 
 class TraceCollector : public QuicConnectionTracer {
@@ -170,4 +170,4 @@ TEST_F(QuicConnectionContextTest, TestAlternatingSwitch) {
 }
 
 }  // namespace
-}  // namespace quic
+}  // namespace quic::test

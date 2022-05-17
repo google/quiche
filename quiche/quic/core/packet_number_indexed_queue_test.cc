@@ -11,7 +11,7 @@
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/platform/api/quic_test.h"
 
-namespace quic {
+namespace quic::test {
 namespace {
 
 class PacketNumberIndexedQueueTest : public QuicTest {
@@ -202,4 +202,4 @@ TEST_F(PacketNumberIndexedQueueTest, ConstGetter) {
 }
 
 }  // namespace
-}  // namespace quic
+}  // namespace quic::test

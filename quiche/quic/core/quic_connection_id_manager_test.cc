@@ -13,7 +13,7 @@
 #include "quiche/quic/test_tools/quic_connection_id_manager_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
-namespace quic {
+namespace quic::test {
 namespace {
 
 using ::quic::test::IsError;
@@ -953,4 +953,4 @@ TEST_F(QuicSelfIssuedConnectionIdManagerTest,
 }
 
 }  // namespace
-}  // namespace quic
+}  // namespace quic::test

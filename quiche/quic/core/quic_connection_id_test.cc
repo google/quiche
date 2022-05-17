@@ -13,7 +13,7 @@
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
-namespace quic {
+namespace quic::test {
 
 namespace {
 
@@ -178,4 +178,4 @@ TEST_F(QuicConnectionIdTest, ChangeLength) {
 
 }  // namespace
 
-}  // namespace quic
+}  // namespace quic::test

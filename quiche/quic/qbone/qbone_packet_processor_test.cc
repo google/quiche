@@ -10,7 +10,7 @@
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/qbone_packet_processor_test_tools.h"
 
-namespace quic {
+namespace quic::test {
 namespace {
 
 using Direction = QbonePacketProcessor::Direction;
@@ -277,4 +277,4 @@ TEST_F(QbonePacketProcessorTest, FilterHelperFunctions) {
 }
 
 }  // namespace
-}  // namespace quic
+}  // namespace quic::test

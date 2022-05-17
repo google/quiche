@@ -14,7 +14,7 @@
 
 ABSL_DECLARE_FLAG(bool, qbone_tun_device_replace_default_routing_rules);
 
-namespace quic {
+namespace quic::test {
 namespace {
 using ::testing::Eq;
 
@@ -255,4 +255,4 @@ TEST_F(DisabledTunDeviceControllerTest, UpdateAddressIsNop) {
 }
 
 }  // namespace
-}  // namespace quic
+}  // namespace quic::test

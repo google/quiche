@@ -8,7 +8,7 @@
 
 #include "quiche/quic/platform/api/quic_test.h"
 
-namespace quic {
+namespace quic::test {
 
 namespace {
 
@@ -121,4 +121,4 @@ TEST_F(QuicServerIdTest, Equals) {
 
 }  // namespace
 
-}  // namespace quic
+}  // namespace quic::test

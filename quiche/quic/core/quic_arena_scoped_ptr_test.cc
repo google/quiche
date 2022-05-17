@@ -7,7 +7,7 @@
 #include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/quic/platform/api/quic_test.h"
 
-namespace quic {
+namespace quic::test {
 namespace {
 
 enum class TestParam { kFromHeap, kFromArena };
@@ -112,4 +112,4 @@ TEST_P(QuicArenaScopedPtrParamTest, Swap) {
 }
 
 }  // namespace
-}  // namespace quic
+}  // namespace quic::test

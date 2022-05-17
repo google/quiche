@@ -11,7 +11,7 @@
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
-namespace quic {
+namespace quic::test {
 namespace {
 
 class TestProofHandler : public QuicCryptoClientStream::ProofHandler {
@@ -214,4 +214,4 @@ TEST_P(QuicCryptoClientHandshakerTest, TestNoPaddingInFullHelloWhenDisabled) {
 }
 
 }  // namespace
-}  // namespace quic
+}  // namespace quic::test

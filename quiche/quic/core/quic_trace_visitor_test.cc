@@ -11,7 +11,7 @@
 #include "quiche/quic/test_tools/simulator/simulator.h"
 #include "quiche/quic/test_tools/simulator/switch.h"
 
-namespace quic {
+namespace quic::test {
 namespace {
 
 const QuicByteCount kTransferSize = 1000 * kMaxOutgoingPacketSize;
@@ -181,4 +181,4 @@ TEST_F(QuicTraceVisitorTest, EncryptionLevels) {
 }
 
 }  // namespace
-}  // namespace quic
+}  // namespace quic::test

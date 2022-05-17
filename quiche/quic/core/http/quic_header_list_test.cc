@@ -12,7 +12,7 @@
 using ::testing::ElementsAre;
 using ::testing::Pair;
 
-namespace quic {
+namespace quic::test {
 
 class QuicHeaderListTest : public QuicTest {};
 
@@ -83,4 +83,4 @@ TEST_F(QuicHeaderListTest, IsCopyableAndAssignable) {
                                     Pair("beep", "")));
 }
 
-}  // namespace quic
+}  // namespace quic::test

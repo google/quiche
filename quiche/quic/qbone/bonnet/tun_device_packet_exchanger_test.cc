@@ -9,7 +9,7 @@
 #include "quiche/quic/qbone/mock_qbone_client.h"
 #include "quiche/quic/qbone/platform/mock_kernel.h"
 
-namespace quic {
+namespace quic::test {
 namespace {
 
 const size_t kMtu = 1000;
@@ -116,4 +116,4 @@ TEST_F(TunDevicePacketExchangerTest,
 }
 
 }  // namespace
-}  // namespace quic
+}  // namespace quic::test

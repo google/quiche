@@ -11,7 +11,7 @@
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/platform/mock_kernel.h"
 
-namespace quic {
+namespace quic::test {
 namespace {
 
 using ::testing::_;
@@ -208,4 +208,4 @@ TEST_F(TunDeviceTest, FailToUp) {
 }
 
 }  // namespace
-}  // namespace quic
+}  // namespace quic::test
