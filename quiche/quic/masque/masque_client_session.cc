@@ -4,12 +4,14 @@
 
 #include "quiche/quic/masque/masque_client_session.h"
 
+#include <cstring>
 #include <string>
 
 #include "absl/algorithm/container.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "url/url_canon.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/quic_data_reader.h"
@@ -122,7 +124,7 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   headers[":scheme"] = scheme;
   headers[":authority"] = authority;
   headers[":path"] = canonicalized_path;
-  headers["connect-udp-version"] = "6";
+  headers["connect-udp-version"] = "12";
   size_t bytes_sent =
       stream->SendRequest(std::move(headers), /*body=*/"", /*fin=*/false);
   if (bytes_sent == 0) {
@@ -145,8 +147,12 @@ void MasqueClientSession::SendPacket(
     return;
   }
 
+  std::string http_payload;
+  http_payload.resize(1 + packet.size());
+  http_payload[0] = 0;
+  memcpy(&http_payload[1], packet.data(), packet.size());
   MessageStatus message_status =
-      SendHttp3Datagram(connect_udp->stream()->id(), packet);
+      SendHttp3Datagram(connect_udp->stream()->id(), http_payload);
 
   QUIC_DVLOG(1) << "Sent packet to " << target_server_address
                 << " compressed with stream ID " << connect_udp->stream()->id()
@@ -268,8 +274,21 @@ MasqueClientSession::ConnectUdpClientState::operator=(
 void MasqueClientSession::ConnectUdpClientState::OnHttp3Datagram(
     QuicStreamId stream_id, absl::string_view payload) {
   QUICHE_DCHECK_EQ(stream_id, stream()->id());
-  encapsulated_client_session_->ProcessPacket(payload, target_server_address_);
-  QUIC_DVLOG(1) << "Sent " << payload.size()
+  QuicDataReader reader(payload);
+  uint64_t context_id;
+  if (!reader.ReadVarInt62(&context_id)) {
+    QUIC_DLOG(ERROR) << "Failed to read context ID";
+    return;
+  }
+  if (context_id != 0) {
+    QUIC_DLOG(ERROR) << "Ignoring HTTP Datagram with unexpected context ID "
+                     << context_id;
+    return;
+  }
+  absl::string_view http_payload = reader.ReadRemainingPayload();
+  encapsulated_client_session_->ProcessPacket(http_payload,
+                                              target_server_address_);
+  QUIC_DVLOG(1) << "Sent " << http_payload.size()
                 << " bytes to connection for stream ID " << stream_id;
 }
 

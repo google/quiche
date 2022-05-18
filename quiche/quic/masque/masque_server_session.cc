@@ -176,20 +176,21 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
   }
   // Extract target host and port from path using default template.
   std::vector<absl::string_view> path_split = absl::StrSplit(path, '/');
-  if (path_split.size() != 4 || !path_split[0].empty() ||
-      path_split[1].empty() || path_split[2].empty() ||
-      !path_split[3].empty()) {
+  if (path_split.size() != 7 || !path_split[0].empty() ||
+      path_split[1] != ".well-known" || path_split[2] != "masque" ||
+      path_split[3] != "udp" || path_split[4].empty() ||
+      path_split[5].empty() || !path_split[6].empty()) {
     QUIC_DLOG(ERROR) << "MASQUE request with bad path \"" << path << "\"";
     return CreateBackendErrorResponse("400", "Bad path");
   }
-  absl::optional<std::string> host = quiche::AsciiUrlDecode(path_split[1]);
+  absl::optional<std::string> host = quiche::AsciiUrlDecode(path_split[4]);
   if (!host.has_value()) {
-    QUIC_DLOG(ERROR) << "Failed to decode host \"" << path_split[1] << "\"";
+    QUIC_DLOG(ERROR) << "Failed to decode host \"" << path_split[4] << "\"";
     return CreateBackendErrorResponse("500", "Failed to decode host");
   }
-  absl::optional<std::string> port = quiche::AsciiUrlDecode(path_split[2]);
+  absl::optional<std::string> port = quiche::AsciiUrlDecode(path_split[5]);
   if (!port.has_value()) {
-    QUIC_DLOG(ERROR) << "Failed to decode port \"" << path_split[2] << "\"";
+    QUIC_DLOG(ERROR) << "Failed to decode port \"" << path_split[5] << "\"";
     return CreateBackendErrorResponse("500", "Failed to decode port");
   }
 
@@ -283,11 +284,12 @@ void MasqueServerSession::OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) {
                 << " server " << expected_target_server_address;
   QuicUdpSocketApi socket_api;
   BitMask64 packet_info_interested(QuicUdpPacketInfoBit::PEER_ADDRESS);
-  char packet_buffer[kMaxIncomingPacketSize];
+  char packet_buffer[1 + kMaxIncomingPacketSize];
+  packet_buffer[0] = 0;  // context ID.
   char control_buffer[kDefaultUdpPacketControlBufferSize];
   while (true) {
     QuicUdpSocketApi::ReadPacketResult read_result;
-    read_result.packet_buffer = {packet_buffer, sizeof(packet_buffer)};
+    read_result.packet_buffer = {packet_buffer + 1, sizeof(packet_buffer) - 1};
     read_result.control_buffer = {control_buffer, sizeof(control_buffer)};
     socket_api.ReadPacket(fd, packet_info_interested, &read_result);
     if (!read_result.ok) {
@@ -316,9 +318,9 @@ void MasqueServerSession::OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) {
       return;
     }
     // The packet is valid, send it to the client in a DATAGRAM frame.
-    MessageStatus message_status = it->stream()->SendHttp3Datagram(
-        absl::string_view(read_result.packet_buffer.buffer,
-                          read_result.packet_buffer.buffer_len));
+    MessageStatus message_status =
+        it->stream()->SendHttp3Datagram(absl::string_view(
+            packet_buffer, read_result.packet_buffer.buffer_len + 1));
     QUIC_DVLOG(1) << "Sent UDP packet from " << expected_target_server_address
                   << " of length " << read_result.packet_buffer.buffer_len
                   << " with stream ID " << it->stream()->id()
@@ -409,12 +411,24 @@ MasqueServerSession::ConnectUdpServerState::operator=(
 void MasqueServerSession::ConnectUdpServerState::OnHttp3Datagram(
     QuicStreamId stream_id, absl::string_view payload) {
   QUICHE_DCHECK_EQ(stream_id, stream()->id());
+  QuicDataReader reader(payload);
+  uint64_t context_id;
+  if (!reader.ReadVarInt62(&context_id)) {
+    QUIC_DLOG(ERROR) << "Failed to read context ID";
+    return;
+  }
+  if (context_id != 0) {
+    QUIC_DLOG(ERROR) << "Ignoring HTTP Datagram with unexpected context ID "
+                     << context_id;
+    return;
+  }
+  absl::string_view http_payload = reader.ReadRemainingPayload();
   QuicUdpSocketApi socket_api;
   QuicUdpPacketInfo packet_info;
   packet_info.SetPeerAddress(target_server_address_);
   WriteResult write_result = socket_api.WritePacket(
-      fd_, payload.data(), payload.length(), packet_info);
-  QUIC_DVLOG(1) << "Wrote packet of length " << payload.length() << " to "
+      fd_, http_payload.data(), http_payload.length(), packet_info);
+  QUIC_DVLOG(1) << "Wrote packet of length " << http_payload.length() << " to "
                 << target_server_address_ << " with result " << write_result;
 }
 

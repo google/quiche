@@ -59,9 +59,11 @@ int RunMasqueClient(int argc, char* argv[]) {
 
   std::string uri_template = urls[0];
   if (!absl::StrContains(uri_template, '/')) {
-    // Allow passing in authority instead of URI template.
+    // If an authority is passed in instead of a URI template, use the default
+    // URI template.
     uri_template =
-        absl::StrCat("https://", uri_template, "/{target_host}/{target_port}/");
+        absl::StrCat("https://", uri_template,
+                     "/.well-known/masque/udp/{target_host}/{target_port}/");
   }
   url::Parsed parsed_uri_template;
   url::ParseStandardURL(uri_template.c_str(), uri_template.length(),
