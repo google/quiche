@@ -31,7 +31,9 @@ class QuicMemoryCacheBackendTest : public QuicTest {
     (*headers)[":scheme"] = "https";
   }
 
-  std::string CacheDirectory() { return QuicheGetTestMemoryCachePath(); }
+  std::string CacheDirectory() {
+    return quiche::test::QuicheGetTestMemoryCachePath();
+  }
 
   QuicMemoryCacheBackend cache_;
 };

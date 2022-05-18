@@ -40,7 +40,7 @@ class MockHpackWholeEntryListener : public HpackWholeEntryListener {
               (override));
 };
 
-class HpackWholeEntryBufferTest : public QuicheTest {
+class HpackWholeEntryBufferTest : public quiche::test::QuicheTest {
  protected:
   HpackWholeEntryBufferTest() : entry_buffer_(&listener_, kMaxStringSize) {}
   ~HpackWholeEntryBufferTest() override = default;

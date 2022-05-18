@@ -47,7 +47,7 @@ class Counter : public Actor {
   QuicTime::Delta period_;
 };
 
-class SimulatorTest : public QuicTest {};
+class SimulatorTest : public quic::test::QuicTest {};
 
 // Test that the basic event handling works, and that Actors can be created and
 // destroyed mid-simulation.

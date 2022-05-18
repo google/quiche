@@ -35,7 +35,7 @@ class PriorityWriteSchedulerPeer {
 
 namespace {
 
-class PriorityWriteSchedulerTest : public QuicheTest {
+class PriorityWriteSchedulerTest : public quiche::test::QuicheTest {
  public:
   PriorityWriteSchedulerTest() : peer_(&scheduler_) {}
 

@@ -27,7 +27,7 @@ using ::testing::IsEmpty;
 const size_t kBufferSize = 64 * 1024;
 char kBuffer[kBufferSize];
 
-class MetadataExtensionTest : public QuicheTest {
+class MetadataExtensionTest : public quiche::test::QuicheTest {
  protected:
   MetadataExtensionTest() : test_buffer_(kBuffer, kBufferSize) {}
 

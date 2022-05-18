@@ -127,7 +127,8 @@ enum EncodeStrategy {
   kRepresentations,
 };
 
-class HpackEncoderTest : public QuicheTestWithParam<EncodeStrategy> {
+class HpackEncoderTest
+    : public quiche::test::QuicheTestWithParam<EncodeStrategy> {
  protected:
   typedef test::HpackEncoderPeer::Representations Representations;
 

@@ -8,15 +8,16 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
-using QuicFlagSaver = QuicheFlagSaver;
+namespace quic::test {
+
+using QuicFlagSaver = quiche::test::QuicheFlagSaver;
 
 // Defines the base classes to be used in QUIC tests.
-using QuicTest = QuicheTest;
+using QuicTest = quiche::test::QuicheTest;
 template <class T>
-using QuicTestWithParam = QuicheTestWithParam<T>;
+using QuicTestWithParam = quiche::test::QuicheTestWithParam<T>;
 
-// Class which needs to be instantiated in tests which use threads.
-using ScopedEnvironmentForThreads = ScopedEnvironmentForThreadsImpl;
+}  // namespace quic::test
 
 #define QUIC_TEST_DISABLED_IN_CHROME(name) QUICHE_TEST_DISABLED_IN_CHROME(name)
 

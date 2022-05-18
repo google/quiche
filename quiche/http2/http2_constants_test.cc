@@ -10,7 +10,7 @@ namespace http2 {
 namespace test {
 namespace {
 
-class Http2ConstantsTest : public QuicheTest {};
+class Http2ConstantsTest : public quiche::test::QuicheTest {};
 
 TEST(Http2ConstantsTest, Http2FrameType) {
   EXPECT_EQ(Http2FrameType::DATA, static_cast<Http2FrameType>(0));

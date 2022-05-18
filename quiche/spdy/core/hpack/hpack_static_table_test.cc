@@ -17,7 +17,7 @@ namespace test {
 
 namespace {
 
-class HpackStaticTableTest : public QuicheTest {
+class HpackStaticTableTest : public quiche::test::QuicheTest {
  protected:
   HpackStaticTableTest() : table_() {}
 

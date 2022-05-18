@@ -38,7 +38,7 @@ nghttp2_option* GetOptions() {
   return options;
 }
 
-class Nghttp2Test : public QuicheTest {
+class Nghttp2Test : public quiche::test::QuicheTest {
  public:
   Nghttp2Test() : session_(MakeSessionPtr(nullptr)) {}
 

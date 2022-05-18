@@ -22,7 +22,7 @@ namespace http2 {
 namespace test {
 namespace {
 
-class HpackDecoderStringBufferTest : public QuicheTest {
+class HpackDecoderStringBufferTest : public quiche::test::QuicheTest {
  protected:
   typedef HpackDecoderStringBuffer::State State;
   typedef HpackDecoderStringBuffer::Backing Backing;

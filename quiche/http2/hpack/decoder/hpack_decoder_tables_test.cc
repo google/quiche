@@ -54,7 +54,7 @@ void ShuffleCollection(C* collection, Http2Random* r) {
   std::shuffle(collection->begin(), collection->end(), *r);
 }
 
-class HpackDecoderStaticTableTest : public QuicheTest {
+class HpackDecoderStaticTableTest : public quiche::test::QuicheTest {
  protected:
   HpackDecoderStaticTableTest() = default;
 

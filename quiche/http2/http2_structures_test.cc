@@ -161,7 +161,8 @@ std::string TestParamToString(const testing::TestParamInfo<TestParams>& info) {
 
 // The tests of the valid frame types include EXPECT_QUICHE_DEBUG_DEATH, which
 // is quite slow, so using value parameterized tests in order to allow sharding.
-class Http2FrameHeaderTypeAndFlagTest : public QuicheTestWithParam<TestParams> {
+class Http2FrameHeaderTypeAndFlagTest
+    : public quiche::test::QuicheTestWithParam<TestParams> {
  protected:
   Http2FrameHeaderTypeAndFlagTest()
       : type_(std::get<0>(GetParam())), flags_(std::get<1>(GetParam())) {

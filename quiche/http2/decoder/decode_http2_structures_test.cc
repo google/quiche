@@ -39,7 +39,7 @@ std::string SerializeStructure(const S& s) {
 }
 
 template <class S>
-class StructureDecoderTest : public QuicheTest {
+class StructureDecoderTest : public quiche::test::QuicheTest {
  protected:
   typedef S Structure;
 

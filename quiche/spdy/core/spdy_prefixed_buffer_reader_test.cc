@@ -15,7 +15,7 @@ namespace test {
 
 using testing::ElementsAreArray;
 
-class SpdyPrefixedBufferReaderTest : public QuicheTest {
+class SpdyPrefixedBufferReaderTest : public quiche::test::QuicheTest {
  protected:
   SpdyPrefixedBufferReader Build(const std::string& prefix,
                                  const std::string& suffix) {

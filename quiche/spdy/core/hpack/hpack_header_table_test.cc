@@ -67,7 +67,7 @@ class HpackHeaderTablePeer {
 
 namespace {
 
-class HpackHeaderTableTest : public QuicheTest {
+class HpackHeaderTableTest : public quiche::test::QuicheTest {
  protected:
   typedef std::vector<HpackEntry> HpackEntryVector;
 

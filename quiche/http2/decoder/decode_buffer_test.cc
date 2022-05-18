@@ -43,7 +43,7 @@ struct TestStruct {
   TestEnum8 f8;
 };
 
-class DecodeBufferTest : public QuicheTest {
+class DecodeBufferTest : public quiche::test::QuicheTest {
  protected:
   Http2Random random_;
   uint32_t decode_offset_;

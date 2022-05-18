@@ -69,7 +69,7 @@ class MockHpackDecoderListener : public HpackDecoderListener {
               (override));
 };
 
-class HpackDecoderTest : public QuicheTestWithParam<bool>,
+class HpackDecoderTest : public quiche::test::QuicheTestWithParam<bool>,
                          public HpackDecoderListener {
  protected:
   // Note that we initialize the random number generator with the same seed

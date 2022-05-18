@@ -55,7 +55,7 @@ void CorruptEnum(T* out, Http2Random* rng) {
 
 // Base class for tests of the ability to decode a sequence of bytes with
 // various boundaries between the DecodeBuffers provided to the decoder.
-class QUICHE_NO_EXPORT RandomDecoderTest : public QuicheTest {
+class QUICHE_NO_EXPORT RandomDecoderTest : public quiche::test::QuicheTest {
  public:
   // SelectSize returns the size of the next DecodeBuffer to be passed to the
   // decoder. Note that RandomDecoderTest allows that size to be zero, though

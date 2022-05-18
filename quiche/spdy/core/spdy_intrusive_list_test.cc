@@ -29,11 +29,11 @@ void swap(TestItem &a, TestItem &b) {
   swap(a.n, b.n);
 }
 
-class IntrusiveListTest : public QuicheTest {
+class IntrusiveListTest : public quiche::test::QuicheTest {
  protected:
   void CheckLists() {
     CheckLists(l1, ll1);
-    if (QuicheTest::HasFailure()) return;
+    if (quiche::test::QuicheTest::HasFailure()) return;
     CheckLists(l2, ll2);
   }
 
@@ -402,7 +402,7 @@ TEST(NewIntrusiveListTest, HandleInheritanceHierarchies) {
   }
 }
 
-class IntrusiveListTagTypeTest : public QuicheTest {
+class IntrusiveListTagTypeTest : public quiche::test::QuicheTest {
  protected:
   struct Tag {};
   class Element : public SpdyIntrusiveLink<Element, Tag> {};

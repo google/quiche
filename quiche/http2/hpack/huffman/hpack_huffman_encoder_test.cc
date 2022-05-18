@@ -11,7 +11,7 @@
 namespace http2 {
 namespace {
 
-class HuffmanEncoderTest : public QuicheTestWithParam<bool> {
+class HuffmanEncoderTest : public quiche::test::QuicheTestWithParam<bool> {
  protected:
   HuffmanEncoderTest() : use_fast_encoder_(GetParam()) {}
   virtual ~HuffmanEncoderTest() = default;

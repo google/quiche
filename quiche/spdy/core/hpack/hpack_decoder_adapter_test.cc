@@ -112,7 +112,7 @@ const char* kCookieKey = "cookie";
 enum StartChoice { START_WITH_HANDLER, START_WITHOUT_HANDLER, NO_START };
 
 class HpackDecoderAdapterTest
-    : public QuicheTestWithParam<std::tuple<StartChoice, bool>> {
+    : public quiche::test::QuicheTestWithParam<std::tuple<StartChoice, bool>> {
  protected:
   HpackDecoderAdapterTest() : decoder_(), decoder_peer_(&decoder_) {}
 

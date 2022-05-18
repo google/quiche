@@ -13,7 +13,7 @@ namespace spdy {
 
 namespace test {
 
-class SpdyPinnableBufferPieceTest : public QuicheTest {
+class SpdyPinnableBufferPieceTest : public quiche::test::QuicheTest {
  protected:
   SpdyPrefixedBufferReader Build(const std::string& prefix,
                                  const std::string& suffix) {

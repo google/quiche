@@ -28,7 +28,7 @@ const QuicByteCount kDefaultBdp = kDefaultBandwidth * kDefaultPropagationDelay;
 
 // A simple test harness where all hosts are connected to a switch with
 // identical links.
-class QuicEndpointTest : public QuicTest {
+class QuicEndpointTest : public quic::test::QuicTest {
  public:
   QuicEndpointTest()
       : simulator_(), switch_(&simulator_, "Switch", 8, kDefaultBdp * 2) {}

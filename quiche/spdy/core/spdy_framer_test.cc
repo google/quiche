@@ -568,7 +568,7 @@ class TestSpdyUnknownIR : public SpdyUnknownIR {
 
 enum Output { USE, NOT_USE };
 
-class SpdyFramerTest : public QuicheTestWithParam<Output> {
+class SpdyFramerTest : public quiche::test::QuicheTestWithParam<Output> {
  public:
   SpdyFramerTest()
       : output_(output_buffer, kSize),
@@ -2935,7 +2935,7 @@ TEST_P(SpdyFramerTest, PushPromiseFramesWithIterator) {
   EXPECT_FALSE(frame_it.HasNextFrame());
 }
 
-class SpdyControlFrameIteratorTest : public QuicheTest {
+class SpdyControlFrameIteratorTest : public quiche::test::QuicheTest {
  public:
   SpdyControlFrameIteratorTest() : output_(output_buffer, kSize) {}
 

@@ -822,7 +822,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     }
   }
 
-  ScopedEnvironmentForThreads environment_;
+  quiche::test::ScopedEnvironmentForThreads environment_;
   bool initialized_;
   // If true, the Initialize() function will create |client_| and starts to
   // connect to the server.

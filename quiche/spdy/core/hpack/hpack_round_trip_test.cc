@@ -22,7 +22,8 @@ namespace {
 // Supports testing with the input split at every byte boundary.
 enum InputSizeParam { ALL_INPUT, ONE_BYTE, ZERO_THEN_ONE_BYTE };
 
-class HpackRoundTripTest : public QuicheTestWithParam<InputSizeParam> {
+class HpackRoundTripTest
+    : public quiche::test::QuicheTestWithParam<InputSizeParam> {
  protected:
   void SetUp() override {
     // Use a small table size to tickle eviction handling.

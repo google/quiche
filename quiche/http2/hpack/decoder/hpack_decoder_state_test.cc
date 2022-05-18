@@ -45,7 +45,7 @@ class MockHpackDecoderListener : public HpackDecoderListener {
 
 enum StringBacking { STATIC, UNBUFFERED, BUFFERED };
 
-class HpackDecoderStateTest : public QuicheTest {
+class HpackDecoderStateTest : public quiche::test::QuicheTest {
  protected:
   HpackDecoderStateTest() : decoder_state_(&listener_) {}
 
