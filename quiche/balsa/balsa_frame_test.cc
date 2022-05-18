@@ -15,7 +15,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/flags/flag.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
@@ -28,7 +27,9 @@
 #include "quiche/balsa/http_validation_policy.h"
 #include "quiche/balsa/noop_balsa_visitor.h"
 #include "quiche/balsa/simple_buffer.h"
+#include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
@@ -43,9 +44,10 @@ using testing::Range;
 using testing::StrEq;
 using testing::StrictMock;
 
-ABSL_FLAG(std::string, randseed, "",
-          "This is the seed for Pseudo-random number"
-          " generator used when generating random messages for unittests");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, randseed, "",
+    "This is the seed for Pseudo-random number"
+    " generator used when generating random messages for unittests");
 
 namespace quiche {
 
@@ -2249,7 +2251,7 @@ TEST_F(
 TEST(HTTPBalsaFrame,
      VisitorInvokedProperlyForResponseWithTransferEncodingAndTrailersRandom) {
   TestSeed seed;
-  seed.Initialize(absl::GetFlag(FLAGS_randseed));
+  seed.Initialize(GetQuicheFlag(FLAGS_randseed));
   RandomEngine rng;
   rng.seed(seed.GetSeed());
   for (int i = 0; i < 1000; ++i) {
@@ -3170,7 +3172,7 @@ TEST_F(HTTPBalsaFrameTest, MultipleHeadersInTrailer) {
   std::map<std::string, std::string>::const_iterator iter;
   std::string trailer_data;
   TestSeed seed;
-  seed.Initialize(absl::GetFlag(FLAGS_randseed));
+  seed.Initialize(GetQuicheFlag(FLAGS_randseed));
   RandomEngine rng;
   rng.seed(seed.GetSeed());
   FakeHeaders fake_headers_in_trailer;
