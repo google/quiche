@@ -232,10 +232,10 @@ void QuicFlowController::UpdateReceiveWindowOffsetAndSendWindowUpdate(
   SendWindowUpdate();
 }
 
-bool QuicFlowController::ShouldSendBlocked() {
+void QuicFlowController::MaybeSendBlocked() {
   if (SendWindowSize() != 0 ||
       last_blocked_send_window_offset_ >= send_window_offset_) {
-    return false;
+    return;
   }
   QUIC_DLOG(INFO) << ENDPOINT << LogLabel() << " is flow control blocked. "
                   << "Send window: " << SendWindowSize()
@@ -247,7 +247,7 @@ bool QuicFlowController::ShouldSendBlocked() {
   // Keep track of when we last sent a BLOCKED frame so that we only send one
   // at a given send offset.
   last_blocked_send_window_offset_ = send_window_offset_;
-  return true;
+  session_->SendBlocked(id_, last_blocked_send_window_offset_);
 }
 
 bool QuicFlowController::UpdateSendWindowOffset(

@@ -72,7 +72,7 @@ class QuicControlFrameManagerTest : public QuicTest {
     manager_->WriteOrBufferGoAway(QUIC_PEER_GOING_AWAY, kTestStreamId,
                                   "Going away.");
     manager_->WriteOrBufferWindowUpdate(kTestStreamId, 100);
-    manager_->WriteOrBufferBlocked(kTestStreamId);
+    manager_->WriteOrBufferBlocked(kTestStreamId, 0);
     manager_->WriteOrBufferStopSending(
         QuicResetStreamError::FromInternal(kTestStopSendingCode),
         kTestStreamId);
@@ -93,7 +93,7 @@ class QuicControlFrameManagerTest : public QuicTest {
   QuicGoAwayFrame goaway_ = {2, QUIC_PEER_GOING_AWAY, kTestStreamId,
                              "Going away."};
   QuicWindowUpdateFrame window_update_ = {3, kTestStreamId, 100};
-  QuicBlockedFrame blocked_ = {4, kTestStreamId};
+  QuicBlockedFrame blocked_ = {4, kTestStreamId, 0};
   QuicStopSendingFrame stop_sending_ = {5, kTestStreamId, kTestStopSendingCode};
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;

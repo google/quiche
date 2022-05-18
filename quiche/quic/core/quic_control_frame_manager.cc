@@ -17,6 +17,7 @@
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 
 namespace quic {
 
@@ -81,10 +82,17 @@ void QuicControlFrameManager::WriteOrBufferWindowUpdate(
       QuicWindowUpdateFrame(++last_control_frame_id_, id, byte_offset)));
 }
 
-void QuicControlFrameManager::WriteOrBufferBlocked(QuicStreamId id) {
+void QuicControlFrameManager::WriteOrBufferBlocked(
+    QuicStreamId id, QuicStreamOffset byte_offset) {
   QUIC_DVLOG(1) << "Writing BLOCKED_FRAME";
-  WriteOrBufferQuicFrame(
-      QuicFrame(QuicBlockedFrame(++last_control_frame_id_, id)));
+  if (GetQuicReloadableFlag(quic_include_offset_in_blocked_frames)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_include_offset_in_blocked_frames);
+    WriteOrBufferQuicFrame(
+        QuicFrame(QuicBlockedFrame(++last_control_frame_id_, id, byte_offset)));
+  } else {
+    WriteOrBufferQuicFrame(
+        QuicFrame(QuicBlockedFrame(++last_control_frame_id_, id, 0)));
+  }
 }
 
 void QuicControlFrameManager::WriteOrBufferStreamsBlocked(QuicStreamCount count,

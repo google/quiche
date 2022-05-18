@@ -69,7 +69,7 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
 
   // Tries to send a BLOCKED_FRAME. Buffers the frame if it cannot be sent
   // immediately.
-  void WriteOrBufferBlocked(QuicStreamId id);
+  void WriteOrBufferBlocked(QuicStreamId id, QuicStreamOffset byte_offset);
 
   // Tries to send a STREAMS_BLOCKED Frame. Buffers the frame if it cannot be
   // sent immediately.

@@ -179,7 +179,7 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
                const spdy::Http2HeaderBlock& headers),
               ());
 
-  MOCK_METHOD(void, SendBlocked, (QuicStreamId), (override));
+  MOCK_METHOD(void, SendBlocked, (QuicStreamId, QuicStreamOffset), (override));
   MOCK_METHOD(bool, WriteControlFrame,
               (const QuicFrame& frame, TransmissionType type), (override));
 };

@@ -999,7 +999,7 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlBlocked) {
   }
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(kWindow - kHeaderLength, true)));
-  EXPECT_CALL(*session_, SendBlocked(_));
+  EXPECT_CALL(*session_, SendBlocked(_, _));
   EXPECT_CALL(*connection_, SendControlFrame(_));
   stream_->WriteOrBufferBody(body, false);
 
@@ -1254,7 +1254,8 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlFinNotBlocked) {
   std::string body = "";
   bool fin = true;
 
-  EXPECT_CALL(*session_, SendBlocked(GetNthClientInitiatedBidirectionalId(0)))
+  EXPECT_CALL(*session_,
+              SendBlocked(GetNthClientInitiatedBidirectionalId(0), _))
       .Times(0);
   EXPECT_CALL(*session_, WritevData(_, 0, _, FIN, _, _));
 

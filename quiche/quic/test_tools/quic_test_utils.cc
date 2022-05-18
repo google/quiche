@@ -657,9 +657,10 @@ MockQuicSpdySession::MockQuicSpdySession(QuicConnection* connection,
         return QuicSpdySession::SendWindowUpdate(id, byte_offset);
       });
 
-  ON_CALL(*this, SendBlocked(_)).WillByDefault([this](QuicStreamId id) {
-    return QuicSpdySession::SendBlocked(id);
-  });
+  ON_CALL(*this, SendBlocked(_, _))
+      .WillByDefault([this](QuicStreamId id, QuicStreamOffset byte_offset) {
+        return QuicSpdySession::SendBlocked(id, byte_offset);
+      });
 
   ON_CALL(*this, OnCongestionWindowChange(_)).WillByDefault(testing::Return());
 }

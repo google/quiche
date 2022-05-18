@@ -266,7 +266,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   virtual void SendGoAway(QuicErrorCode error_code, const std::string& reason);
 
   // Sends a BLOCKED frame.
-  virtual void SendBlocked(QuicStreamId id);
+  virtual void SendBlocked(QuicStreamId id, QuicStreamOffset byte_offset);
 
   // Sends a WINDOW_UPDATE frame.
   virtual void SendWindowUpdate(QuicStreamId id, QuicStreamOffset byte_offset);

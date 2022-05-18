@@ -63,6 +63,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_flush_pending_frames_and_padding_bytes_on_migration, true)
 // If true, ietf connection migration is no longer conditioned on connection option RVCM.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_remove_connection_migration_connection_option_v2, false)
+// If true, include offset in QUIC STREAM_DATA_BLOCKED and DATA_BLOCKED frames.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_include_offset_in_blocked_frames, false)
 // If true, include stream information in idle timeout connection close detail.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, quic server will send ENABLE_CONNECT_PROTOCOL setting and and endpoint will validate required request/response headers and extended CONNECT mechanism and update code counts of valid/invalid headers.

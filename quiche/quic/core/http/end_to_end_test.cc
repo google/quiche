@@ -17,10 +17,12 @@
 #include "absl/time/time.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/crypto/quic_client_session_cache.h"
+#include "quiche/quic/core/frames/quic_blocked_frame.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
 #include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_epoll_connection_helper.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -4475,6 +4477,72 @@ class ServerStreamThatSendsHugeResponseFactory
 
   int64_t body_bytes_;
 };
+
+class BlockedFrameObserver : public QuicConnectionDebugVisitor {
+ public:
+  std::vector<QuicBlockedFrame> blocked_frames() const {
+    return blocked_frames_;
+  }
+
+  void OnBlockedFrame(const QuicBlockedFrame& frame) override {
+    blocked_frames_.push_back(frame);
+  }
+
+ private:
+  std::vector<QuicBlockedFrame> blocked_frames_;
+};
+
+TEST_P(EndToEndTest, BlockedFrameIncludesOffset) {
+  if (!version_.HasIetfQuicFrames()) {
+    // For Google QUIC, the BLOCKED frame offset is ignored.
+    Initialize();
+    return;
+  }
+
+  set_smaller_flow_control_receive_window();
+  ASSERT_TRUE(Initialize());
+
+  // Observe the connection for BLOCKED frames.
+  BlockedFrameObserver observer;
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_TRUE(client_connection);
+  client_connection->set_debug_visitor(&observer);
+
+  // Set the response body larger than the flow control window so the server
+  // must receive a window update from the client before it can finish sending
+  // it (hence, causing the server to send a BLOCKED frame)
+  uint32_t response_body_size =
+      client_config_.GetInitialSessionFlowControlWindowToSend() + 10;
+  std::string response_body(response_body_size, 'a');
+  AddToCache("/blocked", 200, response_body);
+  SendSynchronousRequestAndCheckResponse("/blocked", response_body);
+  client_->Disconnect();
+
+  bool include_offset_flag =
+      GetQuicReloadableFlag(quic_include_offset_in_blocked_frames);
+  QuicStreamOffset expected_connection_offset =
+      include_offset_flag
+          ? client_config_.GetInitialSessionFlowControlWindowToSend()
+          : 0;
+  QuicStreamOffset expected_stream_offset =
+      include_offset_flag
+          ? client_config_.GetInitialStreamFlowControlWindowToSend()
+          : 0;
+
+  ASSERT_GE(observer.blocked_frames().size(), static_cast<uint64_t>(0));
+  for (const QuicBlockedFrame& frame : observer.blocked_frames()) {
+    if (frame.stream_id ==
+        QuicUtils::GetInvalidStreamId(version_.transport_version)) {
+      // connection-level BLOCKED frame
+      ASSERT_EQ(frame.offset, expected_connection_offset);
+    } else {
+      // stream-level BLOCKED frame
+      ASSERT_EQ(frame.offset, expected_stream_offset);
+    }
+  }
+
+  client_connection->set_debug_visitor(nullptr);
+}
 
 TEST_P(EndToEndTest, EarlyResponseFinRecording) {
   set_smaller_flow_control_receive_window();

@@ -779,6 +779,8 @@ class MockQuicSession : public QuicSession {
               (override));
   MOCK_METHOD(void, MaybeSendStopSendingFrame,
               (QuicStreamId stream_id, QuicResetStreamError error), (override));
+  MOCK_METHOD(void, SendBlocked,
+              (QuicStreamId stream_id, QuicStreamOffset offset), (override));
 
   MOCK_METHOD(bool, ShouldKeepConnectionAlive, (), (const, override));
   MOCK_METHOD(std::vector<std::string>, GetAlpnsToOffer, (), (const, override));
@@ -928,7 +930,8 @@ class MockQuicSpdySession : public QuicSpdySession {
               (QuicStreamId stream_id, QuicResetStreamError error), (override));
   MOCK_METHOD(void, SendWindowUpdate,
               (QuicStreamId id, QuicStreamOffset byte_offset), (override));
-  MOCK_METHOD(void, SendBlocked, (QuicStreamId id), (override));
+  MOCK_METHOD(void, SendBlocked,
+              (QuicStreamId id, QuicStreamOffset byte_offset), (override));
   MOCK_METHOD(void, OnStreamHeadersPriority,
               (QuicStreamId stream_id,
                const spdy::SpdyStreamPrecedence& precedence),

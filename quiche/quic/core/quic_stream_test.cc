@@ -1510,8 +1510,7 @@ TEST_P(QuicStreamTest, MarkConnectionLevelWriteBlockedOnWindowUpdateFrame) {
 
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillRepeatedly(Invoke(session_.get(), &MockQuicSession::ConsumeData));
-  EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
+  EXPECT_CALL(*session_, SendBlocked(_, _)).Times(1);
   std::string data(1024, '.');
   stream->WriteOrBufferData(data, false, nullptr);
   EXPECT_FALSE(HasWriteBlockedStreams());
@@ -1544,8 +1543,7 @@ TEST_P(QuicStreamTest,
   std::string data(100, '.');
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillRepeatedly(Invoke(session_.get(), &MockQuicSession::ConsumeData));
-  EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
+  EXPECT_CALL(*session_, SendBlocked(_, _)).Times(1);
   stream->WriteOrBufferData(data, false, nullptr);
   EXPECT_FALSE(HasWriteBlockedStreams());
 

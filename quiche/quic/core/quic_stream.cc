@@ -741,15 +741,12 @@ void QuicStream::MaybeSendBlocked() {
         << ENDPOINT << "MaybeSendBlocked called on stream without flow control";
     return;
   }
-  if (flow_controller_->ShouldSendBlocked()) {
-    session_->SendBlocked(id_);
-  }
+  flow_controller_->MaybeSendBlocked();
   if (!stream_contributes_to_connection_flow_control_) {
     return;
   }
-  if (connection_flow_controller_->ShouldSendBlocked()) {
-    session_->SendBlocked(QuicUtils::GetInvalidStreamId(transport_version()));
-  }
+  connection_flow_controller_->MaybeSendBlocked();
+
   // If the stream is blocked by connection-level flow control but not by
   // stream-level flow control, add the stream to the write blocked list so that
   // the stream will be given a chance to write when a connection-level

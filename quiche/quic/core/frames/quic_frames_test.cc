@@ -252,9 +252,10 @@ TEST_F(QuicFramesTest, BlockedFrameToString) {
   SetControlFrameId(4, &frame);
   EXPECT_EQ(4u, GetControlFrameId(frame));
   frame.blocked_frame.stream_id = 1;
+  frame.blocked_frame.offset = 2;
   std::ostringstream stream;
   stream << frame.blocked_frame;
-  EXPECT_EQ("{ control_frame_id: 4, stream_id: 1 }\n", stream.str());
+  EXPECT_EQ("{ control_frame_id: 4, stream_id: 1, offset: 2 }\n", stream.str());
   EXPECT_TRUE(IsControlFrame(frame.type));
 }
 

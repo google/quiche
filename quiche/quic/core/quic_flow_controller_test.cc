@@ -18,6 +18,7 @@
 
 using testing::_;
 using testing::Invoke;
+using testing::StrictMock;
 
 namespace quic {
 namespace test {
@@ -43,7 +44,7 @@ class QuicFlowControllerTest : public QuicTest {
     connection_->SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<NullEncrypter>(connection_->perspective()));
-    session_ = std::make_unique<MockQuicSession>(connection_);
+    session_ = std::make_unique<StrictMock<MockQuicSession>>(connection_);
     flow_controller_ = std::make_unique<QuicFlowController>(
         session_.get(), stream_id_, /*is_connection_flow_controller*/ false,
         send_window_, receive_window_, kStreamReceiveWindowLimit,
@@ -58,7 +59,7 @@ class QuicFlowControllerTest : public QuicTest {
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
   MockQuicConnection* connection_;
-  std::unique_ptr<MockQuicSession> session_;
+  std::unique_ptr<StrictMock<MockQuicSession>> session_;
   MockFlowController session_flow_controller_;
   bool should_auto_tune_receive_window_ = false;
 };
@@ -81,7 +82,8 @@ TEST_F(QuicFlowControllerTest, SendingBytes) {
   EXPECT_EQ(0u, flow_controller_->SendWindowSize());
 
   // BLOCKED frame should get sent.
-  EXPECT_TRUE(flow_controller_->ShouldSendBlocked());
+  EXPECT_CALL(*session_, SendBlocked(_, _)).Times(1);
+  flow_controller_->MaybeSendBlocked();
 
   // Update the send window, and verify this has unblocked.
   EXPECT_TRUE(flow_controller_->UpdateSendWindowOffset(2 * send_window_));
@@ -164,14 +166,16 @@ TEST_F(QuicFlowControllerTest, OnlySendBlockedFrameOncePerOffset) {
   EXPECT_EQ(0u, flow_controller_->SendWindowSize());
 
   // BLOCKED frame should get sent.
-  EXPECT_TRUE(flow_controller_->ShouldSendBlocked());
+  EXPECT_CALL(*session_, SendBlocked(_, _)).Times(1);
+  flow_controller_->MaybeSendBlocked();
 
   // BLOCKED frame should not get sent again until our send offset changes.
-  EXPECT_FALSE(flow_controller_->ShouldSendBlocked());
-  EXPECT_FALSE(flow_controller_->ShouldSendBlocked());
-  EXPECT_FALSE(flow_controller_->ShouldSendBlocked());
-  EXPECT_FALSE(flow_controller_->ShouldSendBlocked());
-  EXPECT_FALSE(flow_controller_->ShouldSendBlocked());
+  EXPECT_CALL(*session_, SendBlocked(_, _)).Times(0);
+  flow_controller_->MaybeSendBlocked();
+  flow_controller_->MaybeSendBlocked();
+  flow_controller_->MaybeSendBlocked();
+  flow_controller_->MaybeSendBlocked();
+  flow_controller_->MaybeSendBlocked();
 
   // Update the send window, then send enough bytes to block again.
   EXPECT_TRUE(flow_controller_->UpdateSendWindowOffset(2 * send_window_));
@@ -182,7 +186,8 @@ TEST_F(QuicFlowControllerTest, OnlySendBlockedFrameOncePerOffset) {
   EXPECT_EQ(0u, flow_controller_->SendWindowSize());
 
   // BLOCKED frame should get sent as send offset has changed.
-  EXPECT_TRUE(flow_controller_->ShouldSendBlocked());
+  EXPECT_CALL(*session_, SendBlocked(_, _)).Times(1);
+  flow_controller_->MaybeSendBlocked();
 }
 
 TEST_F(QuicFlowControllerTest, ReceivingBytesFastIncreasesFlowWindow) {

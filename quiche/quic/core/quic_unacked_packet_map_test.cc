@@ -551,7 +551,7 @@ TEST_P(QuicUnackedPacketMapTest, CannotAggregateAckedControlFrames) {
   QuicWindowUpdateFrame window_update(1, 5, 100);
   QuicStreamFrame stream_frame1(3, false, 0, 100);
   QuicStreamFrame stream_frame2(3, false, 100, 100);
-  QuicBlockedFrame blocked(2, 5);
+  QuicBlockedFrame blocked(2, 5, 0);
   QuicGoAwayFrame go_away(3, QUIC_PEER_GOING_AWAY, 5, "Going away.");
 
   QuicTransmissionInfo info1;
