@@ -1401,6 +1401,7 @@ default_platform_impl_tool_support_srcs = [
     "src/quiche/common/platform/default/quiche_platform_impl/quiche_file_utils_impl.cc",
 ]
 default_platform_impl_test_support_hdrs = [
+    "src/quiche/common/platform/default/quiche_platform_impl/quiche_expect_bug_impl.h",
     "src/quiche/common/platform/default/quiche_platform_impl/quiche_test_impl.h",
     "src/quiche/common/platform/default/quiche_platform_impl/quiche_test_loopback_impl.h",
     "src/quiche/common/platform/default/quiche_platform_impl/quiche_test_output_impl.h",
