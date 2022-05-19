@@ -436,7 +436,8 @@ void Http2DecoderAdapter::OnHeadersStart(const Http2FrameHeader& header) {
     }
     on_headers_called_ = true;
     ReportReceiveCompressedFrame(header);
-    visitor()->OnHeaders(header.stream_id, kNotHasPriorityFields,
+    visitor()->OnHeaders(header.stream_id, header.payload_length,
+                         kNotHasPriorityFields,
                          0,      // priority
                          0,      // parent_stream_id
                          false,  // exclusive
@@ -460,10 +461,10 @@ void Http2DecoderAdapter::OnHeadersPriority(
         << " priority:" << priority << " frame_header:" << frame_header_;
     return;
   }
-  visitor()->OnHeaders(frame_header_.stream_id, kHasPriorityFields,
-                       priority.weight, priority.stream_dependency,
-                       priority.is_exclusive, frame_header_.IsEndStream(),
-                       frame_header_.IsEndHeaders());
+  visitor()->OnHeaders(
+      frame_header_.stream_id, frame_header_.payload_length, kHasPriorityFields,
+      priority.weight, priority.stream_dependency, priority.is_exclusive,
+      frame_header_.IsEndStream(), frame_header_.IsEndHeaders());
   CommonStartHpackBlock();
 }
 

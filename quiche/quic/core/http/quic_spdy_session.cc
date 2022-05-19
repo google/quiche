@@ -318,8 +318,9 @@ class QuicSpdySession::SpdyFramerVisitor
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
 
-  void OnHeaders(SpdyStreamId stream_id, bool has_priority, int weight,
-                 SpdyStreamId /* parent_stream_id */, bool /* exclusive */,
+  void OnHeaders(SpdyStreamId stream_id, size_t /*payload_length*/,
+                 bool has_priority, int weight,
+                 SpdyStreamId /*parent_stream_id*/, bool /*exclusive*/,
                  bool fin, bool /*end*/) override {
     if (!session_->IsConnected()) {
       return;

@@ -71,9 +71,9 @@ class QUICHE_EXPORT_PRIVATE Http2TraceLogger
   void OnGoAway(SpdyStreamId last_accepted_stream_id,
                 SpdyErrorCode error_code) override;
   bool OnGoAwayFrameData(const char* goaway_data, size_t len) override;
-  void OnHeaders(SpdyStreamId stream_id, bool has_priority, int weight,
-                 SpdyStreamId parent_stream_id, bool exclusive, bool fin,
-                 bool end) override;
+  void OnHeaders(SpdyStreamId stream_id, size_t payload_length,
+                 bool has_priority, int weight, SpdyStreamId parent_stream_id,
+                 bool exclusive, bool fin, bool end) override;
   void OnWindowUpdate(SpdyStreamId stream_id, int delta_window_size) override;
   void OnPushPromise(SpdyStreamId stream_id, SpdyStreamId promised_stream_id,
                      bool end) override;

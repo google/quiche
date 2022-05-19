@@ -89,11 +89,12 @@ TEST(EventForwarderTest, ForwardsEventsWithTruePredicate) {
   EXPECT_CALL(receiver, OnGoAwayFrameData(some_data.data(), some_data.size()));
   event_forwarder.OnGoAwayFrameData(some_data.data(), some_data.size());
 
-  EXPECT_CALL(
-      receiver,
-      OnHeaders(stream_id, /*has_priority=*/false, /*weight=*/42, stream_id + 2,
-                /*exclusive=*/false, /*fin=*/true, /*end=*/true));
-  event_forwarder.OnHeaders(stream_id, /*has_priority=*/false, /*weight=*/42,
+  EXPECT_CALL(receiver,
+              OnHeaders(stream_id, /*payload_length=*/1234,
+                        /*has_priority=*/false, /*weight=*/42, stream_id + 2,
+                        /*exclusive=*/false, /*fin=*/true, /*end=*/true));
+  event_forwarder.OnHeaders(stream_id, /*payload_length=*/1234,
+                            /*has_priority=*/false, /*weight=*/42,
                             stream_id + 2, /*exclusive=*/false, /*fin=*/true,
                             /*end=*/true);
 
@@ -186,7 +187,8 @@ TEST(EventForwarderTest, DoesNotForwardEventsWithFalsePredicate) {
   event_forwarder.OnGoAwayFrameData(some_data.data(), some_data.size());
 
   EXPECT_CALL(receiver, OnHeaders).Times(0);
-  event_forwarder.OnHeaders(stream_id, /*has_priority=*/false, /*weight=*/42,
+  event_forwarder.OnHeaders(stream_id, /*payload_length=*/1234,
+                            /*has_priority=*/false, /*weight=*/42,
                             stream_id + 2, /*exclusive=*/false, /*fin=*/true,
                             /*end=*/true);
 

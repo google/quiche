@@ -59,9 +59,9 @@ class QUICHE_NO_EXPORT MockSpdyFramerVisitor
   MOCK_METHOD(bool, OnGoAwayFrameData, (const char* goaway_data, size_t len),
               (override));
   MOCK_METHOD(void, OnHeaders,
-              (SpdyStreamId stream_id, bool has_priority, int weight,
-               SpdyStreamId parent_stream_id, bool exclusive, bool fin,
-               bool end),
+              (SpdyStreamId stream_id, size_t payload_length, bool has_priority,
+               int weight, SpdyStreamId parent_stream_id, bool exclusive,
+               bool fin, bool end),
               (override));
   MOCK_METHOD(void, OnWindowUpdate,
               (SpdyStreamId stream_id, int delta_window_size), (override));

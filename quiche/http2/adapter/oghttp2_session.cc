@@ -1338,7 +1338,8 @@ bool OgHttp2Session::OnGoAwayFrameData(const char* /*goaway_data*/, size_t
 }
 
 void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
-                               bool /*has_priority*/, int /*weight*/,
+                               size_t /*payload_length*/, bool /*has_priority*/,
+                               int /*weight*/,
                                spdy::SpdyStreamId /*parent_stream_id*/,
                                bool /*exclusive*/, bool fin, bool /*end*/) {
   if (stream_id % 2 == 0) {

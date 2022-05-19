@@ -376,9 +376,12 @@ class QUICHE_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   virtual void OnCommonHeader(SpdyStreamId /*stream_id*/, size_t /*length*/,
                               uint8_t /*type*/, uint8_t /*flags*/) {}
 
-  // Called when a data frame header is received. The frame's data
-  // payload will be provided via subsequent calls to
-  // OnStreamFrameData().
+  // Called when a data frame header is received. The frame's data payload will
+  // be provided via subsequent calls to OnStreamFrameData().
+  // |stream_id| The stream receiving data.
+  // |length| The length of the payload in this DATA frame. Includes the length
+  //     of the data itself and potential padding.
+  // |fin| Whether the END_STREAM flag is set in the frame header.
   virtual void OnDataFrameHeader(SpdyStreamId stream_id, size_t length,
                                  bool fin) = 0;
 
@@ -444,6 +447,8 @@ class QUICHE_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   // Called when a HEADERS frame is received.
   // Note that header block data is not included. See OnHeaderFrameStart().
   // |stream_id| The stream receiving the header.
+  // |payload_length| The length of the payload in this HEADERS frame. Includes
+  //     the length of the encoded header block and potential padding.
   // |has_priority| Whether or not the headers frame included a priority value,
   //     and stream dependency info.
   // |weight| If |has_priority| is true, then weight (in the range [1, 256])
@@ -452,10 +457,11 @@ class QUICHE_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   //     receiving stream, else 0.
   // |exclusive| If |has_priority| is true the exclusivity of dependence on the
   //     parent stream, else false.
-  // |fin| Whether FIN flag is set in frame headers.
+  // |fin| Whether the END_STREAM flag is set in the frame header.
   // |end| False if HEADERs frame is to be followed by a CONTINUATION frame,
   //     or true if not.
-  virtual void OnHeaders(SpdyStreamId stream_id, bool has_priority, int weight,
+  virtual void OnHeaders(SpdyStreamId stream_id, size_t payload_length,
+                         bool has_priority, int weight,
                          SpdyStreamId parent_stream_id, bool exclusive,
                          bool fin, bool end) = 0;
 

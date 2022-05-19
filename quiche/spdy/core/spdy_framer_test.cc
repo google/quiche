@@ -353,12 +353,13 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
     ++goaway_count_;
   }
 
-  void OnHeaders(SpdyStreamId stream_id, bool has_priority, int weight,
-                 SpdyStreamId parent_stream_id, bool exclusive, bool fin,
-                 bool end) override {
-    QUICHE_VLOG(1) << "OnHeaders(" << stream_id << ", " << has_priority << ", "
-                   << weight << ", " << parent_stream_id << ", " << exclusive
-                   << ", " << fin << ", " << end << ")";
+  void OnHeaders(SpdyStreamId stream_id, size_t payload_length,
+                 bool has_priority, int weight, SpdyStreamId parent_stream_id,
+                 bool exclusive, bool fin, bool end) override {
+    QUICHE_VLOG(1) << "OnHeaders(" << stream_id << ", " << payload_length
+                   << ", " << has_priority << ", " << weight << ", "
+                   << parent_stream_id << ", " << exclusive << ", " << fin
+                   << ", " << end << ")";
     ++headers_frame_count_;
     InitHeaderStreaming(SpdyFrameType::HEADERS, stream_id);
     if (fin) {
@@ -852,7 +853,7 @@ TEST_P(SpdyFramerTest, OversizedHeadersPaddingError) {
                             sizeof(kH2FrameData), false);
 
   EXPECT_CALL(visitor, OnCommonHeader(1, 5, 0x1, 0x8));
-  EXPECT_CALL(visitor, OnHeaders(1, false, 0, 0, false, false, false));
+  EXPECT_CALL(visitor, OnHeaders(1, 5, false, 0, 0, false, false, false));
   EXPECT_CALL(visitor, OnHeaderFrameStart(1)).Times(1);
   EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_PADDING, _));
   EXPECT_EQ(frame.size(), deframer_->ProcessInput(frame.data(), frame.size()));
@@ -883,7 +884,7 @@ TEST_P(SpdyFramerTest, CorrectlySizedHeadersPaddingNoError) {
   SpdySerializedFrame frame(kH2FrameData, sizeof(kH2FrameData), false);
 
   EXPECT_CALL(visitor, OnCommonHeader(1, 5, 0x1, 0x8));
-  EXPECT_CALL(visitor, OnHeaders(1, false, 0, 0, false, false, false));
+  EXPECT_CALL(visitor, OnHeaders(1, 5, false, 0, 0, false, false, false));
   EXPECT_CALL(visitor, OnHeaderFrameStart(1)).Times(1);
 
   EXPECT_EQ(frame.size(), deframer_->ProcessInput(frame.data(), frame.size()));
@@ -1316,14 +1317,14 @@ TEST_P(SpdyFramerTest, BasicWithError) {
 
   testing::InSequence s;
   EXPECT_CALL(visitor, OnCommonHeader(1, 1, 0x1, 0x4));
-  EXPECT_CALL(visitor, OnHeaders(1, false, 0, 0, false, false, true));
+  EXPECT_CALL(visitor, OnHeaders(1, 1, false, 0, 0, false, false, true));
   EXPECT_CALL(visitor, OnHeaderFrameStart(1));
   EXPECT_CALL(visitor, OnHeaderFrameEnd(1));
   EXPECT_CALL(visitor, OnCommonHeader(1, 12, 0x0, 0x0));
   EXPECT_CALL(visitor, OnDataFrameHeader(1, 12, false));
   EXPECT_CALL(visitor, OnStreamFrameData(1, _, 12));
   EXPECT_CALL(visitor, OnCommonHeader(3, 6, 0x1, 0x24));
-  EXPECT_CALL(visitor, OnHeaders(3, true, 131, 0, false, false, true));
+  EXPECT_CALL(visitor, OnHeaders(3, 6, true, 131, 0, false, false, true));
   EXPECT_CALL(visitor, OnHeaderFrameStart(3));
   EXPECT_CALL(visitor, OnHeaderFrameEnd(3));
   EXPECT_CALL(visitor, OnCommonHeader(3, 8, 0x0, 0x0));
@@ -4196,7 +4197,7 @@ TEST_P(SpdyFramerTest, HeadersFrameFlags) {
       exclusive = true;
     }
     EXPECT_CALL(visitor, OnCommonHeader(stream_id, _, 0x1, set_flags));
-    EXPECT_CALL(visitor, OnHeaders(stream_id, has_priority, weight,
+    EXPECT_CALL(visitor, OnHeaders(stream_id, _, has_priority, weight,
                                    parent_stream_id, exclusive, fin, end));
     EXPECT_CALL(visitor, OnHeaderFrameStart(57)).Times(1);
     if (end) {
@@ -4338,7 +4339,7 @@ TEST_P(SpdyFramerTest, ContinuationFrameFlags) {
     EXPECT_CALL(debug_visitor,
                 OnReceiveCompressedFrame(42, SpdyFrameType::HEADERS, _));
     EXPECT_CALL(visitor, OnCommonHeader(42, _, 0x1, 0));
-    EXPECT_CALL(visitor, OnHeaders(42, false, 0, 0, false, false, false));
+    EXPECT_CALL(visitor, OnHeaders(42, _, false, 0, 0, false, false, false));
     EXPECT_CALL(visitor, OnHeaderFrameStart(42)).Times(1);
 
     SpdyHeadersIR headers_ir(/* stream_id = */ 42);

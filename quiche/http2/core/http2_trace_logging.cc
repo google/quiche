@@ -257,16 +257,17 @@ bool Http2TraceLogger::OnGoAwayFrameData(const char* goaway_data, size_t len) {
   return wrapped_->OnGoAwayFrameData(goaway_data, len);
 }
 
-void Http2TraceLogger::OnHeaders(SpdyStreamId stream_id, bool has_priority,
-                                 int weight, SpdyStreamId parent_stream_id,
-                                 bool exclusive, bool fin, bool end) {
+void Http2TraceLogger::OnHeaders(SpdyStreamId stream_id, size_t payload_length,
+                                 bool has_priority, int weight,
+                                 SpdyStreamId parent_stream_id, bool exclusive,
+                                 bool fin, bool end) {
   HTTP2_TRACE_LOG(perspective_, is_enabled_)
       << "OnHeaders:" << FORMAT_ARG(connection_id_) << FORMAT_ARG(stream_id)
-      << FORMAT_ARG(has_priority) << FORMAT_INT_ARG(weight)
-      << FORMAT_ARG(parent_stream_id) << FORMAT_ARG(exclusive)
-      << FORMAT_ARG(fin) << FORMAT_ARG(end);
-  wrapped_->OnHeaders(stream_id, has_priority, weight, parent_stream_id,
-                      exclusive, fin, end);
+      << FORMAT_ARG(payload_length) << FORMAT_ARG(has_priority)
+      << FORMAT_INT_ARG(weight) << FORMAT_ARG(parent_stream_id)
+      << FORMAT_ARG(exclusive) << FORMAT_ARG(fin) << FORMAT_ARG(end);
+  wrapped_->OnHeaders(stream_id, payload_length, has_priority, weight,
+                      parent_stream_id, exclusive, fin, end);
 }
 
 void Http2TraceLogger::OnWindowUpdate(SpdyStreamId stream_id,
