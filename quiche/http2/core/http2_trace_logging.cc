@@ -288,11 +288,12 @@ void Http2TraceLogger::OnPushPromise(SpdyStreamId original_stream_id,
   wrapped_->OnPushPromise(original_stream_id, promised_stream_id, end);
 }
 
-void Http2TraceLogger::OnContinuation(SpdyStreamId stream_id, bool end) {
+void Http2TraceLogger::OnContinuation(SpdyStreamId stream_id,
+                                      size_t payload_length, bool end) {
   HTTP2_TRACE_LOG(perspective_, is_enabled_)
       << "OnContinuation:" << FORMAT_ARG(connection_id_)
-      << FORMAT_ARG(stream_id) << FORMAT_ARG(end);
-  wrapped_->OnContinuation(stream_id, end);
+      << FORMAT_ARG(stream_id) << FORMAT_ARG(payload_length) << FORMAT_ARG(end);
+  wrapped_->OnContinuation(stream_id, payload_length, end);
 }
 
 void Http2TraceLogger::OnAltSvc(

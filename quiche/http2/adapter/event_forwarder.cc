@@ -141,9 +141,10 @@ void EventForwarder::OnPushPromise(spdy::SpdyStreamId stream_id,
   }
 }
 
-void EventForwarder::OnContinuation(spdy::SpdyStreamId stream_id, bool end) {
+void EventForwarder::OnContinuation(spdy::SpdyStreamId stream_id,
+                                    size_t payload_length, bool end) {
   if (can_forward_()) {
-    receiver_.OnContinuation(stream_id, end);
+    receiver_.OnContinuation(stream_id, payload_length, end);
   }
 }
 

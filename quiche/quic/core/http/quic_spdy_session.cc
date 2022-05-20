@@ -363,7 +363,8 @@ class QuicSpdySession::SpdyFramerVisitor
     session_->OnPushPromise(stream_id, promised_stream_id);
   }
 
-  void OnContinuation(SpdyStreamId /*stream_id*/, bool /*end*/) override {}
+  void OnContinuation(SpdyStreamId /*stream_id*/, size_t /*payload_size*/,
+                      bool /*end*/) override {}
 
   void OnPriority(SpdyStreamId stream_id, SpdyStreamId /* parent_id */,
                   int weight, bool /* exclusive */) override {

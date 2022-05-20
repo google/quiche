@@ -1435,8 +1435,8 @@ void OgHttp2Session::OnPushPromise(spdy::SpdyStreamId /*stream_id*/,
                       ConnectionError::kInvalidPushPromise);
 }
 
-void OgHttp2Session::OnContinuation(spdy::SpdyStreamId /*stream_id*/, bool
-                                    /*end*/) {}
+void OgHttp2Session::OnContinuation(spdy::SpdyStreamId /*stream_id*/,
+                                    size_t /*payload_length*/, bool /*end*/) {}
 
 void OgHttp2Session::OnAltSvc(spdy::SpdyStreamId /*stream_id*/,
                               absl::string_view /*origin*/,

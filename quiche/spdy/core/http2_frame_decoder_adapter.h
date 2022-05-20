@@ -485,7 +485,12 @@ class QUICHE_EXPORT_PRIVATE SpdyFramerVisitorInterface {
 
   // Called when a CONTINUATION frame is received.
   // Note that header block data is not included. See OnHeaderFrameStart().
-  virtual void OnContinuation(SpdyStreamId stream_id, bool end) = 0;
+  // |stream_id| The stream receiving the CONTINUATION.
+  // |payload_length| The length of the payload in this CONTINUATION frame.
+  // |end| True if this CONTINUATION frame will not be followed by another
+  //     CONTINUATION frame.
+  virtual void OnContinuation(SpdyStreamId stream_id, size_t payload_length,
+                              bool end) = 0;
 
   // Called when an ALTSVC frame has been parsed.
   virtual void OnAltSvc(

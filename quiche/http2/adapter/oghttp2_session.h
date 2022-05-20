@@ -188,7 +188,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
                       int delta_window_size) override;
   void OnPushPromise(spdy::SpdyStreamId stream_id,
                      spdy::SpdyStreamId promised_stream_id, bool end) override;
-  void OnContinuation(spdy::SpdyStreamId stream_id, bool end) override;
+  void OnContinuation(spdy::SpdyStreamId stream_id, size_t payload_length,
+                      bool end) override;
   void OnAltSvc(spdy::SpdyStreamId /*stream_id*/, absl::string_view /*origin*/,
                 const spdy::SpdyAltSvcWireFormat::
                     AlternativeServiceVector& /*altsvc_vector*/) override;

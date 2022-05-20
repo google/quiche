@@ -387,8 +387,10 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
     last_push_promise_promised_stream_ = promised_stream_id;
   }
 
-  void OnContinuation(SpdyStreamId stream_id, bool end) override {
-    QUICHE_VLOG(1) << "OnContinuation(" << stream_id << ", " << end << ")";
+  void OnContinuation(SpdyStreamId stream_id, size_t payload_size,
+                      bool end) override {
+    QUICHE_VLOG(1) << "OnContinuation(" << stream_id << ", " << payload_size
+                   << ", " << end << ")";
     ++continuation_count_;
   }
 
@@ -4368,7 +4370,8 @@ TEST_P(SpdyFramerTest, ContinuationFrameFlags) {
     EXPECT_CALL(debug_visitor,
                 OnReceiveCompressedFrame(42, SpdyFrameType::CONTINUATION, _));
     EXPECT_CALL(visitor, OnCommonHeader(42, _, 0x9, flags));
-    EXPECT_CALL(visitor, OnContinuation(42, flags & HEADERS_FLAG_END_HEADERS));
+    EXPECT_CALL(visitor,
+                OnContinuation(42, _, flags & HEADERS_FLAG_END_HEADERS));
     bool end = flags & HEADERS_FLAG_END_HEADERS;
     if (end) {
       EXPECT_CALL(visitor, OnHeaderFrameEnd(42)).Times(1);

@@ -69,7 +69,8 @@ class QUICHE_NO_EXPORT MockSpdyFramerVisitor
               (SpdyStreamId stream_id, SpdyStreamId promised_stream_id,
                bool end),
               (override));
-  MOCK_METHOD(void, OnContinuation, (SpdyStreamId stream_id, bool end),
+  MOCK_METHOD(void, OnContinuation,
+              (SpdyStreamId stream_id, size_t payload_length, bool end),
               (override));
   MOCK_METHOD(
       void, OnAltSvc,

@@ -506,7 +506,8 @@ void Http2DecoderAdapter::OnContinuationStart(const Http2FrameHeader& header) {
     frame_header_ = header;
     has_frame_header_ = true;
     ReportReceiveCompressedFrame(header);
-    visitor()->OnContinuation(header.stream_id, header.IsEndHeaders());
+    visitor()->OnContinuation(header.stream_id, header.payload_length,
+                              header.IsEndHeaders());
   }
 }
 

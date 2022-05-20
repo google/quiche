@@ -104,8 +104,10 @@ TEST(EventForwarderTest, ForwardsEventsWithTruePredicate) {
   EXPECT_CALL(receiver, OnPushPromise(stream_id, stream_id + 1, /*end=*/true));
   event_forwarder.OnPushPromise(stream_id, stream_id + 1, /*end=*/true);
 
-  EXPECT_CALL(receiver, OnContinuation(stream_id, /*end=*/true));
-  event_forwarder.OnContinuation(stream_id, /*end=*/true);
+  EXPECT_CALL(receiver,
+              OnContinuation(stream_id, /*payload_length=*/42, /*end=*/true));
+  event_forwarder.OnContinuation(stream_id, /*payload_length=*/42,
+                                 /*end=*/true);
 
   const spdy::SpdyAltSvcWireFormat::AlternativeServiceVector altsvc_vector;
   EXPECT_CALL(receiver, OnAltSvc(stream_id, some_data, altsvc_vector));
@@ -199,7 +201,8 @@ TEST(EventForwarderTest, DoesNotForwardEventsWithFalsePredicate) {
   event_forwarder.OnPushPromise(stream_id, stream_id + 1, /*end=*/true);
 
   EXPECT_CALL(receiver, OnContinuation).Times(0);
-  event_forwarder.OnContinuation(stream_id, /*end=*/true);
+  event_forwarder.OnContinuation(stream_id, /*payload_length=*/42,
+                                 /*end=*/true);
 
   EXPECT_CALL(receiver, OnAltSvc).Times(0);
   const spdy::SpdyAltSvcWireFormat::AlternativeServiceVector altsvc_vector;

@@ -55,7 +55,8 @@ class QUICHE_EXPORT_PRIVATE SpdyNoOpVisitor
   void OnPushPromise(SpdyStreamId /*stream_id*/,
                      SpdyStreamId /*promised_stream_id*/,
                      bool /*end*/) override {}
-  void OnContinuation(SpdyStreamId /*stream_id*/, bool /*end*/) override {}
+  void OnContinuation(SpdyStreamId /*stream_id*/, size_t /*payload_size*/,
+                      bool /*end*/) override {}
   void OnAltSvc(SpdyStreamId /*stream_id*/, absl::string_view /*origin*/,
                 const SpdyAltSvcWireFormat::AlternativeServiceVector&
                 /*altsvc_vector*/) override {}
