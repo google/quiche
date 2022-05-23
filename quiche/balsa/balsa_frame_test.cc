@@ -882,7 +882,7 @@ void WhitespaceHeaderTestHelper(
   SCOPED_TRACE(EscapeString(message));
   size_t bytes_consumed = framer.ProcessInput(message.data(), message.size());
   EXPECT_EQ(message.size(), bytes_consumed);
-  if (expected_error_code == BalsaFrameEnums::NO_ERROR) {
+  if (expected_error_code == BalsaFrameEnums::BALSA_NO_ERROR) {
     EXPECT_EQ(false, framer.Error());
   } else {
     EXPECT_EQ(true, framer.Error());
@@ -912,13 +912,13 @@ TEST(HTTPBalsaFrame, WhitespaceInRequestsProcessedProperly) {
       "test: test\r\n"
       " continued\r\n"
       "\r\n",
-      true, BalsaFrameEnums::NO_ERROR);
+      true, BalsaFrameEnums::BALSA_NO_ERROR);
   WhitespaceHeaderTestHelper(
       "GET / HTTP/1.1\r\n"
       "test: test\r\n"
       " \r\n"
       "\r\n",
-      true, BalsaFrameEnums::NO_ERROR);
+      true, BalsaFrameEnums::BALSA_NO_ERROR);
 }
 
 TEST(HTTPBalsaFrame, WhitespaceInResponsesProcessedProperly) {
@@ -938,14 +938,14 @@ TEST(HTTPBalsaFrame, WhitespaceInResponsesProcessedProperly) {
       " continued\r\n"
       "Content-Length: 0\r\n"
       "\r\n",
-      false, BalsaFrameEnums::NO_ERROR);
+      false, BalsaFrameEnums::BALSA_NO_ERROR);
   WhitespaceHeaderTestHelper(
       "HTTP/1.0 200 Reason\r\n"
       "test: test\r\n"
       " \r\n"
       "Content-Length: 0\r\n"
       "\r\n",
-      false, BalsaFrameEnums::NO_ERROR);
+      false, BalsaFrameEnums::BALSA_NO_ERROR);
 }
 
 TEST_F(HTTPBalsaFrameTest, VisitorInvokedProperlyForTrivialRequest) {
@@ -1196,7 +1196,7 @@ TEST_F(HTTPBalsaFrameTest, NothingBadHappensWhenNoVisitorIsAssigned) {
   EXPECT_EQ(trailer.size(),
             balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 TEST_F(HTTPBalsaFrameTest, NothingBadHappensWhenNoVisitorIsAssignedInResponse) {
@@ -1225,7 +1225,7 @@ TEST_F(HTTPBalsaFrameTest, NothingBadHappensWhenNoVisitorIsAssignedInResponse) {
   EXPECT_EQ(trailer.size(),
             balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
   const absl::string_view crass = trailer_.GetHeader("crass");
   EXPECT_EQ("monkeys", crass);
   const absl::string_view funky = trailer_.GetHeader("funky");
@@ -1248,7 +1248,7 @@ TEST_F(HTTPBalsaFrameTest, TransferEncodingIdentityIsIgnored) {
   EXPECT_FALSE(balsa_frame_.MessageFullyRead());
   ASSERT_EQ(body.size(), balsa_frame_.ProcessInput(body.data(), body.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 TEST_F(HTTPBalsaFrameTest,
@@ -1276,7 +1276,7 @@ TEST_F(HTTPBalsaFrameTest,
   ASSERT_EQ(trailer.size(),
             balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 TEST_F(HTTPBalsaFrameTest,
@@ -1307,7 +1307,7 @@ TEST_F(HTTPBalsaFrameTest,
   ASSERT_EQ(trailer.size(),
             balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
   const absl::string_view crass = trailer_.GetHeader("crass");
   EXPECT_EQ("monkeys", crass);
   const absl::string_view funky = trailer_.GetHeader("funky");
@@ -1519,7 +1519,7 @@ TEST_F(HTTPBalsaFrameTest, VisitorInvokedProperlyForRequestWithContentLength) {
                                       message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 TEST_F(HTTPBalsaFrameTest,
@@ -1555,7 +1555,7 @@ TEST_F(HTTPBalsaFrameTest,
                                       message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 TEST_F(HTTPBalsaFrameTest,
@@ -1617,7 +1617,7 @@ TEST_F(HTTPBalsaFrameTest,
                                       message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 
   EXPECT_EQ(message_body, body_input);
   EXPECT_EQ(message_body_data, body_data);
@@ -1689,7 +1689,7 @@ TEST_F(HTTPBalsaFrameTest,
                                       message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 
   EXPECT_EQ(message_body, body_input);
   EXPECT_EQ(message_body_data, body_data);
@@ -1930,7 +1930,7 @@ TEST_F(HTTPBalsaFrameTest, VisitorInvokedProperlyForTrivialResponse) {
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 TEST_F(HTTPBalsaFrameTest,
@@ -1963,7 +1963,7 @@ TEST_F(HTTPBalsaFrameTest,
                                      header_input.data(), header_input.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 TEST_F(HTTPBalsaFrameTest, VisitorInvokedProperlyForResponseWithBlankLines) {
@@ -1998,7 +1998,7 @@ TEST_F(HTTPBalsaFrameTest, VisitorInvokedProperlyForResponseWithBlankLines) {
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 TEST_F(HTTPBalsaFrameTest, VisitorInvokedProperlyForResponseWithContentLength) {
@@ -2034,7 +2034,7 @@ TEST_F(HTTPBalsaFrameTest, VisitorInvokedProperlyForResponseWithContentLength) {
                                       message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 TEST_F(HTTPBalsaFrameTest,
@@ -2093,7 +2093,7 @@ TEST_F(HTTPBalsaFrameTest,
                                       message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 
   EXPECT_EQ(message_body, body_input);
   EXPECT_EQ(message_body_data, body_data);
@@ -2163,7 +2163,7 @@ TEST_F(HTTPBalsaFrameTest,
                                       message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 
   EXPECT_EQ(message_body, body_input);
   EXPECT_EQ(message_body_data, body_data);
@@ -2238,7 +2238,7 @@ TEST_F(
   }
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 
   EXPECT_EQ(message_body, body_input);
   EXPECT_EQ(message_body_data, body_data);
@@ -2333,7 +2333,7 @@ TEST(HTTPBalsaFrame,
     EXPECT_EQ(message.size(), total_processed);
     EXPECT_TRUE(balsa_frame.MessageFullyRead());
     EXPECT_FALSE(balsa_frame.Error());
-    EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame.ErrorCode());
+    EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame.ErrorCode());
 
     EXPECT_EQ(message_body, body_input);
     EXPECT_EQ(message_body_data, body_data);
@@ -2880,10 +2880,10 @@ TEST_F(HTTPBalsaFrameTest, TwoSameContentHeadersIsNotAnError) {
       "\r\n"
       "1";
   balsa_frame_.ProcessInput(header.data(), header.size());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
   EXPECT_FALSE(balsa_frame_.Error());
   balsa_frame_.ProcessInput(header.data(), header.size());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
 }
@@ -3225,7 +3225,7 @@ TEST_F(HTTPBalsaFrameTest, MultipleHeadersInTrailer) {
                                      trailer_data.data(), trailer_data.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 
   EXPECT_EQ(chunks, body_input);
 
@@ -3263,7 +3263,7 @@ TEST_F(HTTPBalsaFrameTest, NothingBadHappensWithNULLTrailer) {
             balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 // Test Reset() correctly resets trailer related states.
@@ -3293,7 +3293,7 @@ TEST_F(HTTPBalsaFrameTest, FrameAndResetAndFrameAgain) {
             balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 
   absl::string_view value = trailer_.GetHeader("k");
   EXPECT_EQ("v", value);
@@ -3321,7 +3321,7 @@ TEST_F(HTTPBalsaFrameTest, FrameAndResetAndFrameAgain) {
             balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 
   value = trailer_.GetHeader("k");
   EXPECT_TRUE(value.empty());
@@ -3524,7 +3524,7 @@ TEST_F(HTTPBalsaFrameTest, GibberishInHeadersAndTrailer) {
             balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 
   // Transfer-encoding can be multi-valued, so GetHeader does not work.
   EXPECT_TRUE(headers_.transfer_encoding_is_chunked());
@@ -3612,7 +3612,7 @@ TEST_F(HTTPBalsaFrameTest,
             balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 // Handle two sets of headers when set up properly and the first is 100
@@ -3640,7 +3640,7 @@ TEST_F(HTTPBalsaFrameTest, Support100Continue) {
   ASSERT_EQ(body.size(), balsa_frame_.ProcessInput(body.data(), body.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 // Handle two sets of headers when set up properly and the first is 100
@@ -3668,7 +3668,7 @@ TEST_F(HTTPBalsaFrameTest, Support100Continue401Unauthorized) {
   ASSERT_EQ(body.size(), balsa_frame_.ProcessInput(body.data(), body.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 TEST_F(HTTPBalsaFrameTest, Support100ContinueRunTogether) {
@@ -3697,7 +3697,7 @@ TEST_F(HTTPBalsaFrameTest, Support100ContinueRunTogether) {
   ASSERT_EQ(body.size(), balsa_frame_.ProcessInput(body.data(), body.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 }  // namespace

@@ -61,7 +61,7 @@ class QUICHE_EXPORT_PRIVATE BalsaFrame : public FramerInterface {
         last_slash_n_idx_(0),
         term_chars_(0),
         parse_state_(BalsaFrameEnums::READING_HEADER_AND_FIRSTLINE),
-        last_error_(BalsaFrameEnums::NO_ERROR),
+        last_error_(BalsaFrameEnums::BALSA_NO_ERROR),
         continue_headers_(nullptr),
         headers_(nullptr),
         start_of_trailer_line_(0),

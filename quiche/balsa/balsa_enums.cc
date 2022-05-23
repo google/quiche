@@ -40,8 +40,8 @@ const char* BalsaFrameEnums::ParseStateToString(
 const char* BalsaFrameEnums::ErrorCodeToString(
     BalsaFrameEnums::ErrorCode error_code) {
   switch (error_code) {
-    case NO_ERROR:
-      return "NO_ERROR";
+    case BALSA_NO_ERROR:
+      return "BALSA_NO_ERROR";
     case NO_STATUS_LINE_IN_RESPONSE:
       return "NO_STATUS_LINE_IN_RESPONSE";
     case NO_REQUEST_LINE_IN_REQUEST:

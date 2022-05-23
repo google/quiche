@@ -68,7 +68,7 @@ void BalsaFrame::Reset() {
   last_slash_n_idx_ = 0;
   term_chars_ = 0;
   parse_state_ = BalsaFrameEnums::READING_HEADER_AND_FIRSTLINE;
-  last_error_ = BalsaFrameEnums::NO_ERROR;
+  last_error_ = BalsaFrameEnums::BALSA_NO_ERROR;
   invalid_chars_.clear();
   lines_.clear();
   if (continue_headers_ != nullptr) {
@@ -199,7 +199,7 @@ bool ParseHTTPFirstLine(const char* begin, const char* end, bool is_request,
     }
   }
   if (headers->whitespace_3_idx_ == headers->non_whitespace_3_idx_) {
-    if (*error_code == BalsaFrameEnums::NO_ERROR) {
+    if (*error_code == BalsaFrameEnums::BALSA_NO_ERROR) {
       // FAILED_TO_FIND_WS_AFTER_REQUEST_METHOD   for request
       // FAILED_TO_FIND_WS_AFTER_RESPONSE_VERSION for response
       *error_code = static_cast<BalsaFrameEnums::ErrorCode>(

@@ -28,7 +28,7 @@ struct QUICHE_EXPORT_PRIVATE BalsaFrameEnums {
   enum ErrorCode : int {
     // A sentinel value for convenience, none of the callbacks should ever see
     // this error code.
-    NO_ERROR = 0,
+    BALSA_NO_ERROR = 0,
 
     // Header parsing errors
     // Note that adding one to many of the REQUEST errors yields the
