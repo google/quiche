@@ -837,11 +837,11 @@ TEST(BalsaHeaders, TestRemovingValues) {
       EXPECT_TRUE(headers.HeaderHasValue(key, value2));
       EXPECT_EQ(value, headers.GetAllOfHeaderAsString(key));
 
-        EXPECT_EQ(1u, headers.RemoveValue(key, value2));
+      EXPECT_EQ(1u, headers.RemoveValue(key, value2));
 
-        EXPECT_TRUE(headers.HeaderHasValue(key, value1));
-        EXPECT_FALSE(headers.HeaderHasValue(key, value2));
-        EXPECT_EQ(value1, headers.GetAllOfHeaderAsString(key));
+      EXPECT_TRUE(headers.HeaderHasValue(key, value1));
+      EXPECT_FALSE(headers.HeaderHasValue(key, value2));
+      EXPECT_EQ(value1, headers.GetAllOfHeaderAsString(key));
     }
 
     {

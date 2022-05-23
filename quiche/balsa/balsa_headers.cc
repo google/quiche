@@ -788,13 +788,10 @@ size_t BalsaHeaders::RemoveValue(absl::string_view key,
       bool found = absl::StartsWith(values, needle);
 
       // Find the entirety of this value (including trailing comma if existent).
-      bool comma_found = false;
-      size_t cur_size = 0;
-
-        const size_t next_comma =
-            values.find(',', /* pos = */ found ? needle.size() : 0);
-        comma_found = next_comma != absl::string_view::npos;
-        cur_size = (comma_found ? next_comma + 1 : values.size());
+      const size_t next_comma =
+          values.find(',', /* pos = */ (found ? needle.size() : 0));
+      const bool comma_found = next_comma != absl::string_view::npos;
+      const size_t cur_size = (comma_found ? next_comma + 1 : values.size());
 
       // Make sure that our prefix match is a full match.
       if (found && cur_size != needle.size()) {
