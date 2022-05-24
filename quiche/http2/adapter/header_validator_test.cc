@@ -303,6 +303,15 @@ TEST(HeaderValidatorTest, ConnectHeaders) {
   EXPECT_EQ(HeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":method", "CONNECT"));
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
+
+  v.SetAllowExtendedConnect();
+  // "Classic" CONNECT headers should still be accepted.
+  v.StartHeaderBlock();
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader(":authority", "athena.dialup.mit.edu:23"));
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader(":method", "CONNECT"));
+  EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
 }
 
 TEST(HeaderValidatorTest, WebsocketPseudoHeaders) {

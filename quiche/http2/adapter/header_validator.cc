@@ -96,14 +96,15 @@ bool ValidateRequestHeaders(const std::vector<std::string>& pseudo_headers,
       static const std::vector<std::string>* kExtendedConnectHeaders =
           new std::vector<std::string>(
               {":authority", ":method", ":path", ":protocol", ":scheme"});
-      return pseudo_headers == *kExtendedConnectHeaders;
-    } else {
-      // See RFC 7540 Section 8.3.
-      static const std::vector<std::string>* kConnectHeaders =
-          new std::vector<std::string>({":authority", ":method"});
-      return authority.has_value() && !authority.value().empty() &&
-             pseudo_headers == *kConnectHeaders;
+      if (pseudo_headers == *kExtendedConnectHeaders) {
+        return true;
+      }
     }
+    // See RFC 7540 Section 8.3.
+    static const std::vector<std::string>* kConnectHeaders =
+        new std::vector<std::string>({":authority", ":method"});
+    return authority.has_value() && !authority.value().empty() &&
+           pseudo_headers == *kConnectHeaders;
   }
 
   if (path.empty()) {
