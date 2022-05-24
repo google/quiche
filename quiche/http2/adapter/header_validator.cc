@@ -81,17 +81,29 @@ bool IsValidStatus(absl::string_view status) {
 }
 
 bool ValidateRequestHeaders(const std::vector<std::string>& pseudo_headers,
+                            absl::optional<std::string>& authority,
                             absl::string_view method, absl::string_view path,
                             bool allow_extended_connect) {
   QUICHE_VLOG(2) << "Request pseudo-headers: ["
                  << absl::StrJoin(pseudo_headers, ", ")
                  << "], allow_extended_connect: " << allow_extended_connect
+                 << ", authority: "
+                 << (authority ? authority.value() : "<nullopt>")
                  << ", method: " << method << ", path: " << path;
-  if (allow_extended_connect && method == "CONNECT") {
-    static const std::vector<std::string>* kConnectHeaders =
-        new std::vector<std::string>(
-            {":authority", ":method", ":path", ":protocol", ":scheme"});
-    return pseudo_headers == *kConnectHeaders;
+  if (method == "CONNECT") {
+    if (allow_extended_connect) {
+      // See RFC 8441.
+      static const std::vector<std::string>* kExtendedConnectHeaders =
+          new std::vector<std::string>(
+              {":authority", ":method", ":path", ":protocol", ":scheme"});
+      return pseudo_headers == *kExtendedConnectHeaders;
+    } else {
+      // See RFC 7540 Section 8.3.
+      static const std::vector<std::string>* kConnectHeaders =
+          new std::vector<std::string>({":authority", ":method"});
+      return authority.has_value() && !authority.value().empty() &&
+             pseudo_headers == *kConnectHeaders;
+    }
   }
 
   if (path.empty()) {
@@ -220,7 +232,7 @@ bool HeaderValidator::FinishHeaderBlock(HeaderType type) {
   std::sort(pseudo_headers_.begin(), pseudo_headers_.end());
   switch (type) {
     case HeaderType::REQUEST:
-      return ValidateRequestHeaders(pseudo_headers_, method_, path_,
+      return ValidateRequestHeaders(pseudo_headers_, authority_, method_, path_,
                                     allow_extended_connect_);
     case HeaderType::REQUEST_TRAILER:
       return ValidateRequestTrailers(pseudo_headers_);
