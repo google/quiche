@@ -108,7 +108,8 @@ class BbrSenderTest : public QuicTest {
   }
 
   void SetUp() override {
-    if (GetQuicFlag(FLAGS_quic_bbr_test_regression_mode) == "regress") {
+    if (quiche::GetQuicheCommandLineFlag(FLAGS_quic_bbr_test_regression_mode) ==
+        "regress") {
       SendAlgorithmTestResult expected;
       ASSERT_TRUE(LoadSendAlgorithmTestResult(&expected));
       random_seed_ = expected.random_seed();
@@ -121,7 +122,7 @@ class BbrSenderTest : public QuicTest {
 
   ~BbrSenderTest() {
     const std::string regression_mode =
-        GetQuicFlag(FLAGS_quic_bbr_test_regression_mode);
+        quiche::GetQuicheCommandLineFlag(FLAGS_quic_bbr_test_regression_mode);
     const QuicTime::Delta simulated_duration = clock_->Now() - QuicTime::Zero();
     if (regression_mode == "record") {
       RecordSendAlgorithmTestResult(random_seed_,

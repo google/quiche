@@ -58,7 +58,8 @@ void QboneClientSession::Initialize() {
   QboneSessionBase::Initialize();
   static_cast<QuicCryptoClientStreamBase*>(GetMutableCryptoStream())
       ->CryptoConnect();
-  if (!GetQuicFlag(FLAGS_qbone_client_defer_control_stream_creation)) {
+  if (!quiche::GetQuicheCommandLineFlag(
+          FLAGS_qbone_client_defer_control_stream_creation)) {
     CreateControlStream();
   }
 }
@@ -66,7 +67,8 @@ void QboneClientSession::Initialize() {
 void QboneClientSession::SetDefaultEncryptionLevel(
     quic::EncryptionLevel level) {
   QboneSessionBase::SetDefaultEncryptionLevel(level);
-  if (GetQuicFlag(FLAGS_qbone_client_defer_control_stream_creation) &&
+  if (quiche::GetQuicheCommandLineFlag(
+          FLAGS_qbone_client_defer_control_stream_creation) &&
       level == quic::ENCRYPTION_FORWARD_SECURE) {
     CreateControlStream();
   }

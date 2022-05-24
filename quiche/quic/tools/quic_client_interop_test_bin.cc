@@ -395,9 +395,9 @@ int main(int argc, char* argv[]) {
     quiche::QuichePrintCommandLineFlagHelp(usage);
     exit(1);
   }
-  std::string dns_host = GetQuicFlag(FLAGS_host);
+  std::string dns_host = quiche::GetQuicheCommandLineFlag(FLAGS_host);
   std::string url_host = "";
-  int port = GetQuicFlag(FLAGS_port);
+  int port = quiche::GetQuicheCommandLineFlag(FLAGS_port);
 
   if (!args.empty()) {
     quic::QuicUrl url(args[0], "https");
@@ -423,7 +423,8 @@ int main(int argc, char* argv[]) {
   // Pick QUIC version to use.
   quic::QuicVersionInitializeSupportForIetfDraft();
   quic::ParsedQuicVersion version = quic::UnsupportedQuicVersion();
-  std::string quic_version_string = GetQuicFlag(FLAGS_quic_version);
+  std::string quic_version_string =
+      quiche::GetQuicheCommandLineFlag(FLAGS_quic_version);
   if (!quic_version_string.empty()) {
     version = quic::ParseQuicVersionString(quic_version_string);
   } else {

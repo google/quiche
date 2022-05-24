@@ -46,21 +46,22 @@ int main(int argc, char* argv[]) {
   }
 
   quic::MasqueMode masque_mode = quic::MasqueMode::kOpen;
-  std::string mode_string = GetQuicFlag(FLAGS_masque_mode);
+  std::string mode_string = quiche::GetQuicheCommandLineFlag(FLAGS_masque_mode);
   if (!mode_string.empty() && mode_string != "open") {
     std::cerr << "Invalid masque_mode \"" << mode_string << "\"" << std::endl;
     return 1;
   }
 
   auto backend = std::make_unique<quic::MasqueServerBackend>(
-      masque_mode, GetQuicFlag(FLAGS_server_authority),
-      GetQuicFlag(FLAGS_cache_dir));
+      masque_mode, quiche::GetQuicheCommandLineFlag(FLAGS_server_authority),
+      quiche::GetQuicheCommandLineFlag(FLAGS_cache_dir));
 
   auto server =
       std::make_unique<quic::MasqueEpollServer>(masque_mode, backend.get());
 
   if (!server->CreateUDPSocketAndListen(quic::QuicSocketAddress(
-          quic::QuicIpAddress::Any6(), GetQuicFlag(FLAGS_port)))) {
+          quic::QuicIpAddress::Any6(),
+          quiche::GetQuicheCommandLineFlag(FLAGS_port)))) {
     return 1;
   }
 

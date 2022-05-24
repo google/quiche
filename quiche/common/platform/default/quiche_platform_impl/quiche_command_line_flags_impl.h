@@ -12,6 +12,11 @@
 
 namespace quiche {
 
+template <typename T>
+T GetQuicheCommandLineFlag(const absl::Flag<T>& flag) {
+  return absl::GetFlag(flag);
+}
+
 std::vector<std::string> QuicheParseCommandLineFlagsImpl(
     const char* usage, int argc, const char* const* argv,
     bool parse_only = false);

@@ -75,7 +75,7 @@ void QboneSessionBase::OnStreamFrame(const QuicStreamFrame& frame) {
     flow_controller()->AddBytesConsumed(frame.data_length);
     // TODO(b/147817422): Add a counter for how many streams were actually
     // closed here.
-    if (GetQuicFlag(FLAGS_qbone_close_ephemeral_frames)) {
+    if (quiche::GetQuicheCommandLineFlag(FLAGS_qbone_close_ephemeral_frames)) {
       ResetStream(frame.stream_id, QUIC_STREAM_CANCELLED);
     }
     return;

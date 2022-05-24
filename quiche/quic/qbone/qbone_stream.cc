@@ -22,8 +22,8 @@ QboneWriteOnlyStream::QboneWriteOnlyStream(QuicStreamId id,
     : QuicStream(id, session, /*is_static=*/false, WRITE_UNIDIRECTIONAL) {
   // QBONE uses a LIFO queue to try to always make progress. An individual
   // packet may persist for upto to qbone_stream_ttl_secs seconds in memory.
-  MaybeSetTtl(
-      QuicTime::Delta::FromSeconds(GetQuicFlag(FLAGS_qbone_stream_ttl_secs)));
+  MaybeSetTtl(QuicTime::Delta::FromSeconds(
+      quiche::GetQuicheCommandLineFlag(FLAGS_qbone_stream_ttl_secs)));
 }
 
 void QboneWriteOnlyStream::WritePacketToQuicStream(absl::string_view packet) {
@@ -39,8 +39,8 @@ QboneReadOnlyStream::QboneReadOnlyStream(QuicStreamId id,
       session_(session) {
   // QBONE uses a LIFO queue to try to always make progress. An individual
   // packet may persist for upto to qbone_stream_ttl_secs seconds in memory.
-  MaybeSetTtl(
-      QuicTime::Delta::FromSeconds(GetQuicFlag(FLAGS_qbone_stream_ttl_secs)));
+  MaybeSetTtl(QuicTime::Delta::FromSeconds(
+      quiche::GetQuicheCommandLineFlag(FLAGS_qbone_stream_ttl_secs)));
 }
 
 void QboneReadOnlyStream::OnDataAvailable() {

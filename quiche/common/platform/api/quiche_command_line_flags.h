@@ -11,11 +11,16 @@
 #include "quiche_platform_impl/quiche_command_line_flags_impl.h"
 
 // Define a command-line flag that can be automatically set via
-// QuicheParseCommandLineFlags().
+// QuicheParseCommandLineFlags().  The macro has to be called in the .cc file of
+// a unit test or the CLI tool reading the flag.
 #define DEFINE_QUICHE_COMMAND_LINE_FLAG(type, name, default_value, help) \
   DEFINE_QUICHE_COMMAND_LINE_FLAG_IMPL(type, name, default_value, help)
 
 namespace quiche {
+
+// The impl header must provide GetQuicheCommandLineFlag(), which takes
+// PlatformSpecificFlag<T> variable defined by the macro above, and returns the
+// flag value of type T.
 
 // Parses command-line flags, setting flag variables defined using
 // DEFINE_QUICHE_COMMAND_LINE_FLAG if they appear in the command line, and

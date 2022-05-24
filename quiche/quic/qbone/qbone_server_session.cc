@@ -79,7 +79,8 @@ QuicStream* QboneServerSession::CreateControlStreamFromPendingStream(
 
 void QboneServerSession::Initialize() {
   QboneSessionBase::Initialize();
-  if (!GetQuicFlag(FLAGS_qbone_server_defer_control_stream_creation)) {
+  if (!quiche::GetQuicheCommandLineFlag(
+          FLAGS_qbone_server_defer_control_stream_creation)) {
     CreateControlStream();
   }
 }
@@ -87,7 +88,8 @@ void QboneServerSession::Initialize() {
 void QboneServerSession::SetDefaultEncryptionLevel(
     quic::EncryptionLevel level) {
   QboneSessionBase::SetDefaultEncryptionLevel(level);
-  if (GetQuicFlag(FLAGS_qbone_server_defer_control_stream_creation) &&
+  if (quiche::GetQuicheCommandLineFlag(
+          FLAGS_qbone_server_defer_control_stream_creation) &&
       level == quic::ENCRYPTION_FORWARD_SECURE) {
     CreateControlStream();
   }

@@ -45,14 +45,15 @@ namespace quic {
 std::unique_ptr<quic::QuicSimpleServerBackend>
 QuicToyServer::MemoryCacheBackendFactory::CreateBackend() {
   auto memory_cache_backend = std::make_unique<QuicMemoryCacheBackend>();
-  if (GetQuicFlag(FLAGS_generate_dynamic_responses)) {
+  if (quiche::GetQuicheCommandLineFlag(FLAGS_generate_dynamic_responses)) {
     memory_cache_backend->GenerateDynamicResponses();
   }
-  if (!GetQuicFlag(FLAGS_quic_response_cache_dir).empty()) {
+  if (!quiche::GetQuicheCommandLineFlag(FLAGS_quic_response_cache_dir)
+           .empty()) {
     memory_cache_backend->InitializeBackend(
-        GetQuicFlag(FLAGS_quic_response_cache_dir));
+        quiche::GetQuicheCommandLineFlag(FLAGS_quic_response_cache_dir));
   }
-  if (GetQuicFlag(FLAGS_enable_webtransport)) {
+  if (quiche::GetQuicheCommandLineFlag(FLAGS_enable_webtransport)) {
     memory_cache_backend->EnableWebTransport();
   }
   return memory_cache_backend;
@@ -64,7 +65,7 @@ QuicToyServer::QuicToyServer(BackendFactory* backend_factory,
 
 int QuicToyServer::Start() {
   ParsedQuicVersionVector supported_versions;
-  if (GetQuicFlag(FLAGS_quic_ietf_draft)) {
+  if (quiche::GetQuicheCommandLineFlag(FLAGS_quic_ietf_draft)) {
     QuicVersionInitializeSupportForIetfDraft();
     for (const ParsedQuicVersion& version : AllSupportedVersions()) {
       // Add all versions that supports IETF QUIC.
@@ -76,7 +77,8 @@ int QuicToyServer::Start() {
   } else {
     supported_versions = AllSupportedVersions();
   }
-  std::string versions_string = GetQuicFlag(FLAGS_quic_versions);
+  std::string versions_string =
+      quiche::GetQuicheCommandLineFlag(FLAGS_quic_versions);
   if (!versions_string.empty()) {
     supported_versions = ParseQuicVersionVectorString(versions_string);
   }
@@ -92,7 +94,8 @@ int QuicToyServer::Start() {
       backend.get(), std::move(proof_source), supported_versions);
 
   if (!server->CreateUDPSocketAndListen(quic::QuicSocketAddress(
-          quic::QuicIpAddress::Any6(), GetQuicFlag(FLAGS_port)))) {
+          quic::QuicIpAddress::Any6(),
+          quiche::GetQuicheCommandLineFlag(FLAGS_port)))) {
     return 1;
   }
 

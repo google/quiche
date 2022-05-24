@@ -54,7 +54,7 @@ int RunMasqueClient(int argc, char* argv[]) {
   }
 
   const bool disable_certificate_verification =
-      GetQuicFlag(FLAGS_disable_certificate_verification);
+      quiche::GetQuicheCommandLineFlag(FLAGS_disable_certificate_verification);
   QuicEpollServer epoll_server;
 
   std::string uri_template = urls[0];
@@ -84,7 +84,7 @@ int RunMasqueClient(int argc, char* argv[]) {
     proof_verifier = CreateDefaultProofVerifier(host);
   }
   MasqueMode masque_mode = MasqueMode::kOpen;
-  std::string mode_string = GetQuicFlag(FLAGS_masque_mode);
+  std::string mode_string = quiche::GetQuicheCommandLineFlag(FLAGS_masque_mode);
   if (!mode_string.empty() && mode_string != "open") {
     std::cerr << "Invalid masque_mode \"" << mode_string << "\"" << std::endl;
     return 1;

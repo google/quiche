@@ -2251,7 +2251,7 @@ TEST_F(
 TEST(HTTPBalsaFrame,
      VisitorInvokedProperlyForResponseWithTransferEncodingAndTrailersRandom) {
   TestSeed seed;
-  seed.Initialize(GetQuicheFlag(FLAGS_randseed));
+  seed.Initialize(GetQuicheCommandLineFlag(FLAGS_randseed));
   RandomEngine rng;
   rng.seed(seed.GetSeed());
   for (int i = 0; i < 1000; ++i) {
@@ -3172,7 +3172,7 @@ TEST_F(HTTPBalsaFrameTest, MultipleHeadersInTrailer) {
   std::map<std::string, std::string>::const_iterator iter;
   std::string trailer_data;
   TestSeed seed;
-  seed.Initialize(GetQuicheFlag(FLAGS_randseed));
+  seed.Initialize(GetQuicheCommandLineFlag(FLAGS_randseed));
   RandomEngine rng;
   rng.seed(seed.GetSeed());
   FakeHeaders fake_headers_in_trailer;
