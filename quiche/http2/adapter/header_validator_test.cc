@@ -280,7 +280,7 @@ TEST(HeaderValidatorTest, WebsocketPseudoHeaders) {
 
   // Future header blocks may send the `:protocol` pseudo-header for CONNECT
   // requests.
-  v.AllowConnect();
+  v.SetAllowExtendedConnect();
 
   v.StartHeaderBlock();
   for (Header to_add : kSampleRequestPseudoheaders) {

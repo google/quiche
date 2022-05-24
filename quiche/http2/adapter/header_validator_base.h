@@ -52,14 +52,15 @@ class QUICHE_EXPORT_PRIVATE HeaderValidatorBase {
 
   void SetMaxFieldSize(uint32_t field_size) { max_field_size_ = field_size; }
   void SetObsTextOption(ObsTextOption option) { obs_text_option_ = option; }
-  void AllowConnect() { allow_connect_ = true; }
+  // Allows the "extended CONNECT" syntax described in RFC 8441.
+  void SetAllowExtendedConnect() { allow_extended_connect_ = true; }
 
  protected:
   std::string status_;
   absl::optional<size_t> max_field_size_;
   absl::optional<size_t> content_length_;
   ObsTextOption obs_text_option_ = ObsTextOption::kDisallow;
-  bool allow_connect_ = false;
+  bool allow_extended_connect_ = false;
 };
 
 }  // namespace adapter

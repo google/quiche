@@ -271,7 +271,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
     absl::optional<size_t> content_length() const {
       return validator_->content_length();
     }
-    void AllowConnect() { validator_->AllowConnect(); }
+    void SetAllowExtendedConnect() { validator_->SetAllowExtendedConnect(); }
     void SetMaxFieldSize(uint32_t field_size) {
       validator_->SetMaxFieldSize(field_size);
     }

@@ -82,12 +82,12 @@ bool IsValidStatus(absl::string_view status) {
 
 bool ValidateRequestHeaders(const std::vector<std::string>& pseudo_headers,
                             absl::string_view method, absl::string_view path,
-                            bool allow_connect) {
+                            bool allow_extended_connect) {
   QUICHE_VLOG(2) << "Request pseudo-headers: ["
                  << absl::StrJoin(pseudo_headers, ", ")
-                 << "], allow_connect: " << allow_connect
+                 << "], allow_extended_connect: " << allow_extended_connect
                  << ", method: " << method << ", path: " << path;
-  if (allow_connect && method == "CONNECT") {
+  if (allow_extended_connect && method == "CONNECT") {
     static const std::vector<std::string>* kConnectHeaders =
         new std::vector<std::string>(
             {":authority", ":method", ":path", ":protocol", ":scheme"});
@@ -221,7 +221,7 @@ bool HeaderValidator::FinishHeaderBlock(HeaderType type) {
   switch (type) {
     case HeaderType::REQUEST:
       return ValidateRequestHeaders(pseudo_headers_, method_, path_,
-                                    allow_connect_);
+                                    allow_extended_connect_);
     case HeaderType::REQUEST_TRAILER:
       return ValidateRequestTrailers(pseudo_headers_);
     case HeaderType::RESPONSE_100:

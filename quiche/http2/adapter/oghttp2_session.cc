@@ -1599,7 +1599,7 @@ void OgHttp2Session::HandleOutboundSettings(
         if (value == 1u && IsServerSession()) {
           // Allow extended CONNECT semantics even before SETTINGS are acked, to
           // make things easier for clients.
-          headers_handler_.AllowConnect();
+          headers_handler_.SetAllowExtendedConnect();
         }
         break;
       case HEADER_TABLE_SIZE:

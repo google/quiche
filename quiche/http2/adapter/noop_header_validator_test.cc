@@ -203,7 +203,7 @@ TEST(NoopHeaderValidatorTest, WebsocketPseudoHeaders) {
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
 
   // This is a no-op for NoopHeaderValidator.
-  v.AllowConnect();
+  v.SetAllowExtendedConnect();
 
   v.StartHeaderBlock();
   for (Header to_add : kSampleRequestPseudoheaders) {
