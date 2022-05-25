@@ -829,6 +829,8 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 QUIC_EXPORT_PRIVATE std::string KeyUpdateReasonString(KeyUpdateReason reason);
 
+using QuicSignatureAlgorithmVector = absl::InlinedVector<uint16_t, 8>;
+
 // QuicSSLConfig contains configurations to be applied on a SSL object, which
 // overrides the configurations in SSL_CTX.
 struct QUIC_NO_EXPORT QuicSSLConfig {
@@ -839,7 +841,7 @@ struct QUIC_NO_EXPORT QuicSSLConfig {
   absl::optional<bool> disable_ticket_support;
   // If set, used to configure the SSL object with
   // SSL_set_signing_algorithm_prefs.
-  absl::optional<absl::InlinedVector<uint16_t, 8>> signing_algorithm_prefs;
+  absl::optional<QuicSignatureAlgorithmVector> signing_algorithm_prefs;
   // Client certificate mode for mTLS support. Only used at server side.
   ClientCertMode client_cert_mode = ClientCertMode::kNone;
 };

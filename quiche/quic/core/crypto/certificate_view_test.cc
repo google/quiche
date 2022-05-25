@@ -4,9 +4,11 @@
 
 #include "quiche/quic/core/crypto/certificate_view.h"
 
+#include <limits>
 #include <memory>
 #include <sstream>
 
+#include "absl/algorithm/container.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "openssl/base.h"
@@ -207,6 +209,20 @@ TEST(CertificateViewTest, NameAttribute) {
   std::string invalid_oid = absl::HexStringToBytes("060255800c0454657374");
   EXPECT_EQ("(5580)=Test",
             X509NameAttributeToString(StringPieceToCbs(invalid_oid)));
+}
+
+TEST(CertificateViewTest, SupportedSignatureAlgorithmsForQuicIsUpToDate) {
+  QuicSignatureAlgorithmVector supported =
+      SupportedSignatureAlgorithmsForQuic();
+  for (int i = 0; i < std::numeric_limits<uint16_t>::max(); i++) {
+    uint16_t sigalg = static_cast<uint16_t>(i);
+    PublicKeyType key_type = PublicKeyTypeFromSignatureAlgorithm(sigalg);
+    if (absl::c_find(supported, sigalg) == supported.end()) {
+      EXPECT_EQ(key_type, PublicKeyType::kUnknown);
+    } else {
+      EXPECT_NE(key_type, PublicKeyType::kUnknown);
+    }
+  }
 }
 
 }  // namespace

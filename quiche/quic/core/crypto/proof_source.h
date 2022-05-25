@@ -173,7 +173,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
   //
   // If returns a non-empty list, ComputeTlsSignature will only be called with a
   // algorithm in the list.
-  virtual absl::InlinedVector<uint16_t, 8> SupportedTlsSignatureAlgorithms()
+  virtual QuicSignatureAlgorithmVector SupportedTlsSignatureAlgorithms()
       const = 0;
 
   class QUIC_EXPORT_PRIVATE DecryptCallback {

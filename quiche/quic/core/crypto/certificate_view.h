@@ -43,6 +43,13 @@ enum class PublicKeyType {
   kUnknown,
 };
 QUIC_EXPORT_PRIVATE std::string PublicKeyTypeToString(PublicKeyType type);
+QUIC_EXPORT_PRIVATE PublicKeyType
+PublicKeyTypeFromSignatureAlgorithm(uint16_t signature_algorithm);
+
+// Returns the list of the signature algorithms that can be processed by
+// CertificateView::VerifySignature() and CertificatePrivateKey::Sign().
+QUIC_EXPORT_PRIVATE QuicSignatureAlgorithmVector
+SupportedSignatureAlgorithmsForQuic();
 
 // CertificateView represents a parsed version of a single X.509 certificate. As
 // the word "view" implies, it does not take ownership of the underlying strings
