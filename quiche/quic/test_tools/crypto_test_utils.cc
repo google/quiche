@@ -384,7 +384,7 @@ void CommunicateHandshakeMessages(PacketSavingConnection* client_conn,
                    << client_conn->encrypted_packets_.size() - client_i
                    << " packets client->server";
     MovePackets(client_conn, &client_i, server, server_conn,
-                Perspective::IS_SERVER);
+                Perspective::IS_SERVER, /*process_stream_data=*/false);
 
     if (client->one_rtt_keys_available() && server->one_rtt_keys_available() &&
         server_conn->encrypted_packets_.size() == server_i) {
@@ -395,7 +395,7 @@ void CommunicateHandshakeMessages(PacketSavingConnection* client_conn,
                    << server_conn->encrypted_packets_.size() - server_i
                    << " packets server->client";
     MovePackets(server_conn, &server_i, client, client_conn,
-                Perspective::IS_CLIENT);
+                Perspective::IS_CLIENT, /*process_stream_data=*/false);
   }
 }
 
@@ -404,7 +404,8 @@ bool CommunicateHandshakeMessagesUntil(PacketSavingConnection* client_conn,
                                        std::function<bool()> client_condition,
                                        PacketSavingConnection* server_conn,
                                        QuicCryptoStream* server,
-                                       std::function<bool()> server_condition) {
+                                       std::function<bool()> server_condition,
+                                       bool process_stream_data) {
   size_t client_next_packet_to_deliver =
       client_conn->number_of_packets_delivered_;
   size_t server_next_packet_to_deliver =
@@ -421,7 +422,7 @@ bool CommunicateHandshakeMessagesUntil(PacketSavingConnection* client_conn,
                             client_next_packet_to_deliver
                      << " packets client->server";
       MovePackets(client_conn, &client_next_packet_to_deliver, server,
-                  server_conn, Perspective::IS_SERVER);
+                  server_conn, Perspective::IS_SERVER, process_stream_data);
     }
     if (!client_condition()) {
       QUIC_LOG(INFO) << "Processing "
@@ -429,7 +430,7 @@ bool CommunicateHandshakeMessagesUntil(PacketSavingConnection* client_conn,
                             server_next_packet_to_deliver
                      << " packets server->client";
       MovePackets(server_conn, &server_next_packet_to_deliver, client,
-                  client_conn, Perspective::IS_CLIENT);
+                  client_conn, Perspective::IS_CLIENT, process_stream_data);
     }
   }
   client_conn->number_of_packets_delivered_ = client_next_packet_to_deliver;
@@ -457,7 +458,7 @@ std::pair<size_t, size_t> AdvanceHandshake(PacketSavingConnection* client_conn,
                    << client_conn->encrypted_packets_.size() - client_i
                    << " packets client->server";
     MovePackets(client_conn, &client_i, server, server_conn,
-                Perspective::IS_SERVER);
+                Perspective::IS_SERVER, /*process_stream_data=*/false);
   }
 
   if (server_conn->encrypted_packets_.size() != server_i) {
@@ -465,7 +466,7 @@ std::pair<size_t, size_t> AdvanceHandshake(PacketSavingConnection* client_conn,
                    << server_conn->encrypted_packets_.size() - server_i
                    << " packets server->client";
     MovePackets(server_conn, &server_i, client, client_conn,
-                Perspective::IS_CLIENT);
+                Perspective::IS_CLIENT, /*process_stream_data=*/false);
   }
 
   return std::make_pair(client_i, server_i);
@@ -709,7 +710,7 @@ CryptoHandshakeMessage CreateCHLO(
 void MovePackets(PacketSavingConnection* source_conn,
                  size_t* inout_packet_index, QuicCryptoStream* dest_stream,
                  PacketSavingConnection* dest_conn,
-                 Perspective dest_perspective) {
+                 Perspective dest_perspective, bool process_stream_data) {
   SimpleQuicFramer framer(source_conn->supported_versions(), dest_perspective);
   QuicFramerPeer::SetLastSerializedServerConnectionId(framer.framer(),
                                                       TestConnectionId());
@@ -779,10 +780,17 @@ void MovePackets(PacketSavingConnection* source_conn,
     QuicConnectionPeer::SetCurrentPacket(
         dest_conn, source_conn->encrypted_packets_[index]->AsStringPiece());
     for (const auto& stream_frame : framer.stream_frames()) {
-      // Ignore stream frames that are sent on other streams in the crypto
-      // event.
-      if (stream_frame->stream_id == dest_stream->id()) {
-        dest_stream->OnStreamFrame(*stream_frame);
+      if (process_stream_data &&
+          dest_stream->handshake_protocol() == PROTOCOL_TLS1_3) {
+        // Deliver STREAM_FRAME such that application state is available and can
+        // be stored along with resumption ticket in session cache,
+        dest_conn->OnStreamFrame(*stream_frame);
+      } else {
+        // Ignore stream frames that are sent on other streams in the crypto
+        // event.
+        if (stream_frame->stream_id == dest_stream->id()) {
+          dest_stream->OnStreamFrame(*stream_frame);
+        }
       }
     }
     for (const auto& crypto_frame : framer.crypto_frames()) {

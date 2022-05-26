@@ -515,6 +515,12 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // in settings and accept remote settings for.
   virtual HttpDatagramSupport LocalHttpDatagramSupport();
 
+  // Sends any data which should be sent at the start of a connection, including
+  // the initial SETTINGS frame.  When using 0-RTT, this method is called twice:
+  // once when encryption is established, and again when 1-RTT keys are
+  // available.
+  void SendInitialData();
+
  private:
   friend class test::QuicSpdySessionPeer;
 
@@ -548,12 +554,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   void CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
       absl::string_view type);
-
-  // Sends any data which should be sent at the start of a connection, including
-  // the initial SETTINGS frame.  When using 0-RTT, this method is called twice:
-  // once when encryption is established, and again when 1-RTT keys are
-  // available.
-  void SendInitialData();
 
   void FillSettingsFrame();
 

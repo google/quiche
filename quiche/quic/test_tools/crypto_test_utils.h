@@ -109,15 +109,18 @@ void CommunicateHandshakeMessages(PacketSavingConnection* client_conn,
 // CommunicateHandshakeMessagesUntil:
 // 1) Moves messages from |client| to |server| until |server_condition| is met.
 // 2) Moves messages from |server| to |client| until |client_condition| is met.
-// 3) Returns true if both conditions are met.
-// 4) Returns false if either connection is closed or there is no more packet to
+// 3)  For IETF QUIC, if `process_stream_data` is true, STREAM_FRAME within the
+// packet containing crypto messages is also processed.
+// 4) Returns true if both conditions are met.
+// 5) Returns false if either connection is closed or there is no more packet to
 // deliver before both conditions are met.
 bool CommunicateHandshakeMessagesUntil(PacketSavingConnection* client_conn,
                                        QuicCryptoStream* client,
                                        std::function<bool()> client_condition,
                                        PacketSavingConnection* server_conn,
                                        QuicCryptoStream* server,
-                                       std::function<bool()> server_condition);
+                                       std::function<bool()> server_condition,
+                                       bool process_stream_data);
 
 // AdvanceHandshake attempts to moves messages from |client| to |server| and
 // |server| to |client|. Returns the number of messages moved.
@@ -176,11 +179,13 @@ CryptoHandshakeMessage CreateCHLO(
 // MovePackets parses crypto handshake messages from packet number
 // |*inout_packet_index| through to the last packet (or until a packet fails
 // to decrypt) and has |dest_stream| process them. |*inout_packet_index| is
-// updated with an index one greater than the last packet processed.
+// updated with an index one greater than the last packet processed. For IETF
+// QUIC, if `process_stream_data` is true, STREAM_FRAME within the packet
+// containing crypto messages is also processed.
 void MovePackets(PacketSavingConnection* source_conn,
                  size_t* inout_packet_index, QuicCryptoStream* dest_stream,
                  PacketSavingConnection* dest_conn,
-                 Perspective dest_perspective);
+                 Perspective dest_perspective, bool process_stream_data);
 
 // Return an inchoate CHLO with some basic tag value pairs.
 CryptoHandshakeMessage GenerateDefaultInchoateCHLO(
