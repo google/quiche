@@ -13,8 +13,10 @@
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
@@ -649,6 +651,50 @@ TEST_F(QuicCryptoStreamTest, CryptoMessageFramingOverhead) {
     EXPECT_EQ(expected_overhead,
               QuicCryptoStream::CryptoMessageFramingOverhead(
                   version.transport_version, TestConnectionId()));
+  }
+}
+
+TEST_F(QuicCryptoStreamTest, WriteCryptoDataExceedsSendBufferLimit) {
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    return;
+  }
+  EXPECT_EQ(ENCRYPTION_INITIAL, connection_->encryption_level());
+  int32_t buffer_limit = GetQuicFlag(FLAGS_quic_max_buffered_crypto_bytes);
+
+  // Write data larger than the buffer limit, when there is no existing data in
+  // the buffer. Data is sent rather than closing the connection.
+  EXPECT_FALSE(stream_->HasBufferedCryptoFrames());
+  int32_t over_limit = buffer_limit + 1;
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, over_limit, 0))
+      // All the data is sent, no resulting buffer.
+      .WillOnce(Return(over_limit));
+  std::string large_data(over_limit, 'a');
+  stream_->WriteCryptoData(ENCRYPTION_INITIAL, large_data);
+
+  // Write data to the buffer up to the limit. One byte gets sent.
+  EXPECT_FALSE(stream_->HasBufferedCryptoFrames());
+  EXPECT_CALL(*connection_,
+              SendCryptoData(ENCRYPTION_INITIAL, buffer_limit, over_limit))
+      .WillOnce(Return(1));
+  std::string data(buffer_limit, 'a');
+  stream_->WriteCryptoData(ENCRYPTION_INITIAL, data);
+  EXPECT_TRUE(stream_->HasBufferedCryptoFrames());
+
+  // Write another byte that is not sent (due to there already being data in the
+  // buffer); send buffer is now full.
+  EXPECT_CALL(*connection_, SendCryptoData(_, _, _)).Times(0);
+  std::string data2(1, 'a');
+  stream_->WriteCryptoData(ENCRYPTION_INITIAL, data2);
+  EXPECT_TRUE(stream_->HasBufferedCryptoFrames());
+
+  // Writing an additional byte to the send buffer closes the connection.
+  if (GetQuicReloadableFlag(quic_bounded_crypto_send_buffer)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_bounded_crypto_send_buffer);
+    EXPECT_CALL(*connection_, CloseConnection(QUIC_INTERNAL_ERROR, _, _));
+    EXPECT_QUIC_BUG(
+        stream_->WriteCryptoData(ENCRYPTION_INITIAL, data2),
+        "Too much data for crypto send buffer with level: ENCRYPTION_INITIAL, "
+        "current_buffer_size: 16384, data length: 1");
   }
 }
 

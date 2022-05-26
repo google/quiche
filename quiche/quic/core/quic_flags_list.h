@@ -31,6 +31,8 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_can_send_ack_frequency, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, true)
 // If true, close read side but not write side in QuicSpdyStream::OnStreamReset().
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_fix_on_stream_reset, true)
+// If true, close the connection if a crypto send buffer exceeds its size limit.
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bounded_crypto_send_buffer, false)
 // If true, consider original connection ID as active before handshake completes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_consider_original_connection_id_as_active_pre_handshake, false)
 // If true, consolidate more logic into SetRetransmissionAlarm to ensure the logic is applied consistently.

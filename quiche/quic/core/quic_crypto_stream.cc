@@ -13,6 +13,7 @@
 #include "quiche/quic/core/crypto/crypto_utils.h"
 #include "quiche/quic/core/frames/quic_crypto_frame.h"
 #include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -145,17 +146,41 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
     return;
   }
   const bool had_buffered_data = HasBufferedCryptoFrames();
-  // Append |data| to the send buffer for this encryption level.
   QuicStreamSendBuffer* send_buffer =
       &substreams_[QuicUtils::GetPacketNumberSpace(level)].send_buffer;
   QuicStreamOffset offset = send_buffer->stream_offset();
+
+  // Ensure this data does not cause the send buffer for this encryption level
+  // to exceed its size limit.
+  if (GetQuicReloadableFlag(quic_bounded_crypto_send_buffer)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_bounded_crypto_send_buffer);
+    QUIC_BUG_IF(quic_crypto_stream_offset_lt_bytes_written,
+                offset < send_buffer->stream_bytes_written());
+    uint64_t current_buffer_size =
+        offset - std::min(offset, send_buffer->stream_bytes_written());
+    if (current_buffer_size > 0) {
+      QUIC_CODE_COUNT(quic_received_crypto_data_with_non_empty_send_buffer);
+      if (BufferSizeLimitForLevel(level) <
+          (current_buffer_size + data.length())) {
+        QUIC_BUG(quic_crypto_send_buffer_overflow)
+            << absl::StrCat("Too much data for crypto send buffer with level: ",
+                            EncryptionLevelToString(level),
+                            ", current_buffer_size: ", current_buffer_size,
+                            ", data length: ", data.length());
+        OnUnrecoverableError(QUIC_INTERNAL_ERROR,
+                             "Too much data for crypto send buffer");
+        return;
+      }
+    }
+  }
+
+  // Append |data| to the send buffer for this encryption level.
   send_buffer->SaveStreamData(data);
   if (kMaxStreamLength - offset < data.length()) {
     QUIC_BUG(quic_bug_10322_2) << "Writing too much crypto handshake data";
-    // TODO(nharper): Switch this to an IETF QUIC error code, possibly
-    // INTERNAL_ERROR?
-    OnUnrecoverableError(QUIC_STREAM_LENGTH_OVERFLOW,
+    OnUnrecoverableError(QUIC_INTERNAL_ERROR,
                          "Writing too much crypto handshake data");
+    return;
   }
   if (had_buffered_data) {
     // Do not try to write if there is buffered data.
@@ -227,7 +252,6 @@ void QuicCryptoStream::OnStreamDataConsumed(QuicByteCount bytes_consumed) {
   }
   QuicStream::OnStreamDataConsumed(bytes_consumed);
 }
-
 
 bool QuicCryptoStream::HasPendingCryptoRetransmission() const {
   if (!QuicVersionUsesCryptoFrames(session()->transport_version())) {
