@@ -1508,7 +1508,8 @@ TEST_P(EndToEndTest, LargePostNoPacketLoss) {
   VerifyCleanConnection(true);
 }
 
-TEST_P(EndToEndTest, LargePostNoPacketLoss1sRTT) {
+// Marked as slow since this adds a real-clock one second of delay.
+TEST_P(EndToEndTest, QUICHE_SLOW_TEST(LargePostNoPacketLoss1sRTT)) {
   ASSERT_TRUE(Initialize());
   SetPacketSendDelay(QuicTime::Delta::FromMilliseconds(1000));
 
@@ -1637,7 +1638,13 @@ TEST_P(EndToEndTest, LargePostNoPacketLossWithDelayAndReordering) {
             client_->SendCustomSynchronousRequest(headers, body));
 }
 
-TEST_P(EndToEndTest, AddressToken) {
+// TODO(b/214587920): make this test not rely on timeouts.
+TEST_P(EndToEndTest, QUICHE_SLOW_TEST(AddressToken)) {
+  client_config_.set_max_time_before_crypto_handshake(
+      QuicTime::Delta::FromSeconds(3));
+  client_config_.set_max_idle_time_before_crypto_handshake(
+      QuicTime::Delta::FromSeconds(1));
+
   client_extra_copts_.push_back(kTRTT);
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames()) {
@@ -1753,7 +1760,13 @@ TEST_P(EndToEndTest, AddressToken) {
 }
 
 // Verify that client does not reuse a source address token.
-TEST_P(EndToEndTest, AddressTokenNotReusedByClient) {
+// TODO(b/214587920): make this test not rely on timeouts.
+TEST_P(EndToEndTest, QUICHE_SLOW_TEST(AddressTokenNotReusedByClient)) {
+  client_config_.set_max_time_before_crypto_handshake(
+      QuicTime::Delta::FromSeconds(3));
+  client_config_.set_max_idle_time_before_crypto_handshake(
+      QuicTime::Delta::FromSeconds(1));
+
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames()) {
     return;
@@ -4254,7 +4267,8 @@ TEST_P(EndToEndTest, BadPacketHeaderFlags) {
 
 // Send a packet from the client with bad encrypted data.  The server should not
 // tear down the connection.
-TEST_P(EndToEndTest, BadEncryptedData) {
+// Marked as slow since it calls absl::SleepFor().
+TEST_P(EndToEndTest, QUICHE_SLOW_TEST(BadEncryptedData)) {
   ASSERT_TRUE(Initialize());
 
   // Start the connection.
