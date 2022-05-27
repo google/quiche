@@ -4,15 +4,20 @@
 
 #include "quiche/quic/qbone/platform/internet_checksum.h"
 
+#include <stdint.h>
+#include <string.h>
+
 namespace quic {
 
 void InternetChecksum::Update(const char* data, size_t size) {
   const char* current;
   for (current = data; current + 1 < data + size; current += 2) {
-    accumulator_ += *reinterpret_cast<const uint16_t*>(current);
+    uint16_t v;
+    memcpy(&v, current, sizeof(v));
+    accumulator_ += v;
   }
   if (current < data + size) {
-    accumulator_ += *reinterpret_cast<const uint8_t*>(current);
+    accumulator_ += *reinterpret_cast<const unsigned char*>(current);
   }
 }
 
