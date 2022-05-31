@@ -577,18 +577,22 @@ TEST_P(TlsClientHandshakerTest, ClientSendsNoSNI) {
 
 TEST_P(TlsClientHandshakerTest, ClientSendingTooManyALPNs) {
   std::string long_alpn(250, 'A');
-  EXPECT_CALL(*session_, GetAlpnsToOffer())
-      .WillOnce(testing::Return(std::vector<std::string>({
-          long_alpn + "1",
-          long_alpn + "2",
-          long_alpn + "3",
-          long_alpn + "4",
-          long_alpn + "5",
-          long_alpn + "6",
-          long_alpn + "7",
-          long_alpn + "8",
-      })));
-  EXPECT_QUIC_BUG(stream()->CryptoConnect(), "Failed to set ALPN");
+  EXPECT_QUIC_BUG(
+      {
+        EXPECT_CALL(*session_, GetAlpnsToOffer())
+            .WillOnce(testing::Return(std::vector<std::string>({
+                long_alpn + "1",
+                long_alpn + "2",
+                long_alpn + "3",
+                long_alpn + "4",
+                long_alpn + "5",
+                long_alpn + "6",
+                long_alpn + "7",
+                long_alpn + "8",
+            })));
+        stream()->CryptoConnect();
+      },
+      "Failed to set ALPN");
 }
 
 TEST_P(TlsClientHandshakerTest, ServerRequiresCustomALPN) {

@@ -484,12 +484,10 @@ TEST_P(TransportParametersTest, NoClientParamsWithStatelessResetToken) {
   orig_params.max_udp_payload_size.set_value(kMaxPacketSizeForTest);
 
   std::vector<uint8_t> out;
-  bool ok = true;
   EXPECT_QUIC_BUG(
-      ok = SerializeTransportParameters(orig_params, &out),
+      EXPECT_FALSE(SerializeTransportParameters(orig_params, &out)),
       "Not serializing invalid transport parameters: Client cannot send "
       "stateless reset token");
-  EXPECT_FALSE(ok);
 }
 
 TEST_P(TransportParametersTest, ParseClientParams) {

@@ -142,8 +142,9 @@ class QUICHE_EXPORT_PRIVATE CheckLogSink : public NoopLogSink {
 #define QUICHE_DCHECK_IMPL(condition) \
   QUICHE_NOOP_STREAM_WITH_CONDITION((condition))
 #else
-#define QUICHE_DCHECK_IMPL(condition) \
-  QUICHE_LOG_IF_IMPL(DFATAL, !static_cast<bool>(condition))
+#define QUICHE_DCHECK_IMPL(condition)                       \
+  QUICHE_LOG_IF_IMPL(DFATAL, !static_cast<bool>(condition)) \
+      << "Check failed: " << #condition
 #endif
 #define QUICHE_DCHECK_EQ_IMPL(val1, val2) QUICHE_DCHECK_IMPL((val1) == (val2))
 #define QUICHE_DCHECK_NE_IMPL(val1, val2) QUICHE_DCHECK_IMPL((val1) != (val2))

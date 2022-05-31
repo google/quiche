@@ -560,11 +560,14 @@ TEST_F(QuicStreamSequencerTest, MarkConsumedError) {
 
   // Now, attempt to mark consumed more data than was readable and expect the
   // stream to be closed.
-  EXPECT_CALL(stream_, ResetWithError(QuicResetStreamError::FromInternal(
-                           QUIC_ERROR_PROCESSING_STREAM)));
-  EXPECT_QUIC_BUG(sequencer_->MarkConsumed(4),
-                  "Invalid argument to MarkConsumed."
-                  " expect to consume: 4, but not enough bytes available.");
+  EXPECT_QUIC_BUG(
+      {
+        EXPECT_CALL(stream_, ResetWithError(QuicResetStreamError::FromInternal(
+                                 QUIC_ERROR_PROCESSING_STREAM)));
+        sequencer_->MarkConsumed(4);
+      },
+      "Invalid argument to MarkConsumed."
+      " expect to consume: 4, but not enough bytes available.");
 }
 
 TEST_F(QuicStreamSequencerTest, MarkConsumedWithMissingPacket) {

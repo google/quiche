@@ -1066,9 +1066,12 @@ TEST(HttpDecoderTestNoFixture, WebTransportStreamError) {
   EXPECT_CALL(visitor, OnWebTransportStreamFrameType(_, _));
   decoder.ProcessInput(input.data(), input.size());
 
-  EXPECT_CALL(visitor, OnError(_));
-  EXPECT_QUIC_BUG(decoder.ProcessInput(input.data(), input.size()),
-                  "HttpDecoder called after an indefinite-length frame");
+  EXPECT_QUIC_BUG(
+      {
+        EXPECT_CALL(visitor, OnError(_));
+        decoder.ProcessInput(input.data(), input.size());
+      },
+      "HttpDecoder called after an indefinite-length frame");
 }
 
 TEST_F(HttpDecoderTest, DecodeSettings) {

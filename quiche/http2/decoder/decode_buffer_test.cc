@@ -131,14 +131,9 @@ TEST(DecodeBufferDeathTest, NonNullBufferRequired) {
 TEST(DecodeBufferDeathTest, ModestBufferSizeRequired) {
   EXPECT_QUICHE_DEBUG_DEATH(
       {
-        // This depends on being able to allocate a fairly large array on the
-        // stack. If that fails, we can instead do this:
-        //
-        //   std::string data(DecodeBuffer::kMaxDecodeBufferLength + 1, ' ');
-        //   DecodeBuffer b(data.data(), data.size());
-
-        const char data[DecodeBuffer::kMaxDecodeBufferLength + 1] = {};
-        DecodeBuffer b(data, sizeof data);
+        constexpr size_t kLength = DecodeBuffer::kMaxDecodeBufferLength + 1;
+        auto data = std::make_unique<char[]>(kLength);
+        DecodeBuffer b(data.get(), kLength);
       },
       "Max.*Length");
 }
@@ -159,7 +154,7 @@ TEST(DecodeBufferDeathTest, LimitedAdvance) {
         DecodeBuffer b(data, 3);
         b.AdvanceCursor(4);
       },
-      "4 vs. 3");
+      "Remaining");
 }
 
 // Make sure that DecodeBuffer detects decode beyond end, in debug mode.
@@ -168,7 +163,7 @@ TEST(DecodeBufferDeathTest, DecodeUInt8PastEnd) {
   DecodeBuffer b(data, sizeof data);
   EXPECT_EQ(2u, b.FullSize());
   EXPECT_EQ(0x1223, b.DecodeUInt16());
-  EXPECT_QUICHE_DEBUG_DEATH({ b.DecodeUInt8(); }, "1 vs. 0");
+  EXPECT_QUICHE_DEBUG_DEATH({ b.DecodeUInt8(); }, "Remaining");
 }
 
 // Make sure that DecodeBuffer detects decode beyond end, in debug mode.
@@ -177,7 +172,7 @@ TEST(DecodeBufferDeathTest, DecodeUInt16OverEnd) {
   DecodeBuffer b(data, sizeof data);
   EXPECT_EQ(3u, b.FullSize());
   EXPECT_EQ(0x1223, b.DecodeUInt16());
-  EXPECT_QUICHE_DEBUG_DEATH({ b.DecodeUInt16(); }, "2 vs. 1");
+  EXPECT_QUICHE_DEBUG_DEATH({ b.DecodeUInt16(); }, "Remaining");
 }
 
 // Make sure that DecodeBuffer doesn't agree with having two subsets.
