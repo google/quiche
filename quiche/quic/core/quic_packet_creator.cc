@@ -2072,7 +2072,7 @@ size_t QuicPacketCreator::MinPlaintextPacketSize(
   // 1.3 is used, unittests still use NullEncrypter/NullDecrypter (and other
   // test crypters) which also only use 12 byte tags.
   //
-  // TODO(nharper): Set this based on the handshake protocol in use.
+  // TODO(b/234061734): Set this based on the handshake protocol in use.
   return 7;
 }
 
