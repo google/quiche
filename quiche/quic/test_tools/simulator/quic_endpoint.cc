@@ -151,14 +151,6 @@ void QuicEndpoint::OnCanWrite() {
   WriteStreamData();
 }
 
-bool QuicEndpoint::SendProbingData() {
-  if (connection()->sent_packet_manager().MaybeRetransmitOldestPacket(
-          PROBING_RETRANSMISSION)) {
-    return true;
-  }
-  return false;
-}
-
 bool QuicEndpoint::WillingAndAbleToWrite() const {
   if (notifier_ != nullptr) {
     return notifier_->WillingToWrite();

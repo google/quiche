@@ -208,8 +208,7 @@ class QuicSentPacketManagerTest : public QuicTest {
                                TransmissionType transmission_type) {
     bool is_lost = false;
     if (transmission_type == HANDSHAKE_RETRANSMISSION ||
-        transmission_type == PTO_RETRANSMISSION ||
-        transmission_type == PROBING_RETRANSMISSION) {
+        transmission_type == PTO_RETRANSMISSION) {
       EXPECT_CALL(notifier_, RetransmitFrames(_, _))
           .WillOnce(WithArgs<1>(
               Invoke([this, new_packet_number](TransmissionType type) {

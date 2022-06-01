@@ -502,7 +502,6 @@ class TestConnection : public QuicConnection {
   using QuicConnection::active_effective_peer_migration_type;
   using QuicConnection::IsCurrentPacketConnectivityProbing;
   using QuicConnection::SelectMutualVersion;
-  using QuicConnection::SendProbingRetransmissions;
   using QuicConnection::set_defer_send_in_response_to_packets;
 
  protected:
@@ -7648,57 +7647,6 @@ TEST_P(QuicConnectionTest, NotBecomeApplicationLimitedDueToWriteBlock) {
   connection_.OnCanWrite();
 }
 
-// Test the mode in which the link is filled up with probing retransmissions if
-// the connection becomes application-limited.
-TEST_P(QuicConnectionTest, SendDataWhenApplicationLimited) {
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-  EXPECT_CALL(*send_algorithm_, ShouldSendProbingPacket())
-      .WillRepeatedly(Return(true));
-  {
-    InSequence seq;
-    EXPECT_CALL(visitor_, WillingAndAbleToWrite()).WillRepeatedly(Return(true));
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
-    EXPECT_CALL(visitor_, WillingAndAbleToWrite())
-        .WillRepeatedly(Return(false));
-  }
-  EXPECT_CALL(visitor_, SendProbingData()).WillRepeatedly([this] {
-    return connection_.sent_packet_manager().MaybeRetransmitOldestPacket(
-        PROBING_RETRANSMISSION);
-  });
-  // Fix congestion window to be 20,000 bytes.
-  EXPECT_CALL(*send_algorithm_, CanSend(Ge(20000u)))
-      .WillRepeatedly(Return(false));
-  EXPECT_CALL(*send_algorithm_, CanSend(Lt(20000u)))
-      .WillRepeatedly(Return(true));
-
-  EXPECT_CALL(*send_algorithm_, OnApplicationLimited(_)).Times(0);
-  ASSERT_EQ(0u, connection_.GetStats().packets_sent);
-  connection_.set_fill_up_link_during_probing(true);
-  EXPECT_CALL(visitor_, GetHandshakeState())
-      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
-  connection_.OnHandshakeComplete();
-  connection_.SendStreamData3();
-
-  // We expect a lot of packets from a 20 kbyte window.
-  EXPECT_GT(connection_.GetStats().packets_sent, 10u);
-  // Ensure that the packets are padded.
-  QuicByteCount average_packet_size =
-      connection_.GetStats().bytes_sent / connection_.GetStats().packets_sent;
-  EXPECT_GT(average_packet_size, 1000u);
-
-  // Acknowledge all packets sent, except for the last one.
-  QuicAckFrame ack = InitAckFrame(
-      connection_.sent_packet_manager().GetLargestSentPacket() - 1);
-  EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _));
-  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
-
-  // Ensure that since we no longer have retransmittable bytes in flight, this
-  // will not cause any responses to be sent.
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  EXPECT_CALL(*send_algorithm_, OnApplicationLimited(_)).Times(1);
-  ProcessAckPacket(&ack);
-}
-
 TEST_P(QuicConnectionTest, DoNotForceSendingAckOnPacketTooLarge) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   // Send an ack by simulating delayed ack alarm firing.
@@ -7837,83 +7785,6 @@ TEST_P(QuicConnectionTest, ClientAlwaysSendConnectionId) {
   // Verify connection id is still sent in the packet.
   EXPECT_EQ(CONNECTION_ID_PRESENT,
             writer_->last_packet_header().destination_connection_id_included);
-}
-
-TEST_P(QuicConnectionTest, SendProbingRetransmissions) {
-  MockQuicConnectionDebugVisitor debug_visitor;
-  connection_.set_debug_visitor(&debug_visitor);
-
-  const QuicStreamId stream_id = 2;
-  QuicPacketNumber last_packet;
-  SendStreamDataToPeer(stream_id, "foo", 0, NO_FIN, &last_packet);
-  SendStreamDataToPeer(stream_id, "bar", 3, NO_FIN, &last_packet);
-  SendStreamDataToPeer(stream_id, "test", 6, NO_FIN, &last_packet);
-
-  const QuicByteCount old_bytes_in_flight =
-      connection_.sent_packet_manager().GetBytesInFlight();
-
-  // Allow 9 probing retransmissions to be sent.
-  {
-    InSequence seq;
-    EXPECT_CALL(*send_algorithm_, CanSend(_))
-        .Times(9 * 2)
-        .WillRepeatedly(Return(true));
-    EXPECT_CALL(*send_algorithm_, CanSend(_)).WillOnce(Return(false));
-  }
-  // Expect them retransmitted in cyclic order (foo, bar, test, foo, bar...).
-  QuicPacketCount sent_count = 0;
-
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _))
-      .WillRepeatedly(Invoke(
-          [this, &sent_count](QuicPacketNumber, QuicPacketLength, bool,
-                              TransmissionType, EncryptionLevel,
-                              const QuicFrames&, const QuicFrames&, QuicTime) {
-            ASSERT_EQ(1u, writer_->stream_frames().size());
-            if (connection_.version().CanSendCoalescedPackets()) {
-              // There is a delay of sending coalesced packet, so (6, 0, 3, 6,
-              // 0...).
-              EXPECT_EQ(3 * ((sent_count + 2) % 3),
-                        writer_->stream_frames()[0]->offset);
-            } else {
-              // Identify the frames by stream offset (0, 3, 6, 0, 3...).
-              EXPECT_EQ(3 * (sent_count % 3),
-                        writer_->stream_frames()[0]->offset);
-            }
-            sent_count++;
-          }));
-
-  EXPECT_CALL(*send_algorithm_, ShouldSendProbingPacket())
-      .WillRepeatedly(Return(true));
-  EXPECT_CALL(visitor_, SendProbingData()).WillRepeatedly([this] {
-    return connection_.sent_packet_manager().MaybeRetransmitOldestPacket(
-        PROBING_RETRANSMISSION);
-  });
-
-  connection_.SendProbingRetransmissions();
-
-  // Ensure that the in-flight has increased.
-  const QuicByteCount new_bytes_in_flight =
-      connection_.sent_packet_manager().GetBytesInFlight();
-  EXPECT_GT(new_bytes_in_flight, old_bytes_in_flight);
-}
-
-// Ensure that SendProbingRetransmissions() does not retransmit anything when
-// there are no outstanding packets.
-TEST_P(QuicConnectionTest,
-       SendProbingRetransmissionsFailsWhenNothingToRetransmit) {
-  ASSERT_TRUE(connection_.sent_packet_manager().unacked_packets().empty());
-
-  MockQuicConnectionDebugVisitor debug_visitor;
-  connection_.set_debug_visitor(&debug_visitor);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(*send_algorithm_, ShouldSendProbingPacket())
-      .WillRepeatedly(Return(true));
-  EXPECT_CALL(visitor_, SendProbingData()).WillRepeatedly([this] {
-    return connection_.sent_packet_manager().MaybeRetransmitOldestPacket(
-        PROBING_RETRANSMISSION);
-  });
-
-  connection_.SendProbingRetransmissions();
 }
 
 TEST_P(QuicConnectionTest, PingAfterLastRetransmittablePacketAcked) {

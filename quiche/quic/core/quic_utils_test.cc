@@ -131,8 +131,6 @@ TEST_F(QuicUtilsTest, RetransmissionTypeToPacketState) {
       EXPECT_EQ(UNACKABLE, state);
     } else if (i == PTO_RETRANSMISSION) {
       EXPECT_EQ(PTO_RETRANSMITTED, state);
-    } else if (i == PROBING_RETRANSMISSION) {
-      EXPECT_EQ(PROBE_RETRANSMITTED, state);
     } else if (i == PATH_RETRANSMISSION) {
       EXPECT_EQ(NOT_CONTRIBUTING_RTT, state);
     } else if (i == ALL_INITIAL_RETRANSMISSION) {

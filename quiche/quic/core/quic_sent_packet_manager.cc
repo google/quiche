@@ -47,7 +47,6 @@ static const float kPtoMultiplierWithoutRttSamples = 3;
 // the frames directly (as opposed to resulting in a loss notification).
 inline bool ShouldForceRetransmission(TransmissionType transmission_type) {
   return transmission_type == HANDSHAKE_RETRANSMISSION ||
-         transmission_type == PROBING_RETRANSMISSION ||
          transmission_type == PTO_RETRANSMISSION;
 }
 
@@ -509,9 +508,6 @@ void QuicSentPacketManager::MarkForRetransmission(
       << "packet number " << packet_number
       << " transmission_type: " << transmission_type << " transmission_info "
       << transmission_info->DebugString();
-  // Handshake packets should never be sent as probing retransmissions.
-  QUICHE_DCHECK(!transmission_info->has_crypto_handshake ||
-                transmission_type != PROBING_RETRANSMISSION);
   if (ShouldForceRetransmission(transmission_type)) {
     if (!unacked_packets_.RetransmitFrames(
             QuicFrames(transmission_info->retransmittable_frames),

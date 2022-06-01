@@ -42,8 +42,6 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
     return false;
   }
 
-  bool ShouldSendProbingPacket() const override;
-
   void SetFromConfig(const QuicConfig& config,
                      Perspective perspective) override;
 

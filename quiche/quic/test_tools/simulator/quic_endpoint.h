@@ -46,7 +46,6 @@ class QuicEndpoint : public QuicEndpointBase,
   void OnStreamFrame(const QuicStreamFrame& frame) override;
   void OnCryptoFrame(const QuicCryptoFrame& frame) override;
   void OnCanWrite() override;
-  bool SendProbingData() override;
   bool WillingAndAbleToWrite() const override;
   bool ShouldKeepConnectionAlive() const override;
 

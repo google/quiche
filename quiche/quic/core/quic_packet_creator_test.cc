@@ -1939,7 +1939,7 @@ TEST_P(QuicPacketCreatorTest, PacketTransmissionType) {
   EXPECT_TRUE(creator_.AddFrame(stream_frame, PTO_RETRANSMISSION));
   ASSERT_EQ(serialized_packet_, nullptr);
 
-  EXPECT_TRUE(creator_.AddFrame(padding_frame, PROBING_RETRANSMISSION));
+  EXPECT_TRUE(creator_.AddFrame(padding_frame, LOSS_RETRANSMISSION));
   creator_.FlushCurrentPacket();
   ASSERT_TRUE(serialized_packet_->encrypted_buffer);
 

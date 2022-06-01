@@ -204,16 +204,6 @@ bool BbrSender::InRecovery() const {
   return recovery_state_ != NOT_IN_RECOVERY;
 }
 
-bool BbrSender::ShouldSendProbingPacket() const {
-  if (pacing_gain_ <= 1) {
-    return false;
-  }
-
-  // TODO(b/77975811): If the pipe is highly under-utilized, consider not
-  // sending a probing transmission, because the extra bandwidth is not needed.
-  return true;
-}
-
 void BbrSender::SetFromConfig(const QuicConfig& config,
                               Perspective perspective) {
   if (config.HasClientRequestedIndependentOption(k1RTT, perspective)) {

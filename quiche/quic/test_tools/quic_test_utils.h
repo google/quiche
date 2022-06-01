@@ -453,7 +453,6 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
               (override));
   MOCK_METHOD(void, OnWriteBlocked, (), (override));
   MOCK_METHOD(void, OnCanWrite, (), (override));
-  MOCK_METHOD(bool, SendProbingData, (), (override));
   MOCK_METHOD(void, OnCongestionWindowChange, (QuicTime now), (override));
   MOCK_METHOD(void, OnConnectionMigration, (AddressChangeType type),
               (override));
@@ -1209,7 +1208,6 @@ class MockSendAlgorithm : public SendAlgorithmInterface {
   MOCK_METHOD(std::string, GetDebugState, (), (const, override));
   MOCK_METHOD(bool, InSlowStart, (), (const, override));
   MOCK_METHOD(bool, InRecovery, (), (const, override));
-  MOCK_METHOD(bool, ShouldSendProbingPacket, (), (const, override));
   MOCK_METHOD(QuicByteCount, GetSlowStartThreshold, (), (const, override));
   MOCK_METHOD(CongestionControlType, GetCongestionControlType, (),
               (const, override));

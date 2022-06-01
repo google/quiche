@@ -137,10 +137,6 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Called when a blocked socket becomes writable.
   virtual void OnCanWrite() = 0;
 
-  // Called when the connection needs more data to probe for additional
-  // bandwidth.  Returns true if data was sent, false otherwise.
-  virtual bool SendProbingData() = 0;
-
   // Called when the connection experiences a change in congestion window.
   virtual void OnCongestionWindowChange(QuicTime now) = 0;
 
@@ -1016,13 +1012,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return last_received_packet_info_.source_address;
   }
 
-  bool fill_up_link_during_probing() const {
-    return fill_up_link_during_probing_;
-  }
-  void set_fill_up_link_during_probing(bool new_value) {
-    fill_up_link_during_probing_ = new_value;
-  }
-
   // This setting may be changed during the crypto handshake in order to
   // enable/disable padding of different packets in the crypto handshake.
   //
@@ -1304,13 +1293,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Returns true if the packet should be discarded and not sent.
   virtual bool ShouldDiscardPacket(EncryptionLevel encryption_level);
-
-  // Retransmits packets continuously until blocked by the congestion control.
-  // If there are no packets to retransmit, does not do anything.
-  void SendProbingRetransmissions();
-
-  // Decides whether to send probing retransmissions, and does so if required.
-  void MaybeSendProbingRetransmissions();
 
   // Notify various components(Session etc.) that this connection has been
   // migrated.
@@ -2105,18 +2087,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // If true, bundle an ack-eliciting frame with an ACK if the PTO alarm have
   // previously fired.
   bool bundle_retransmittable_with_pto_ack_;
-
-  // If true, the connection will fill up the pipe with extra data whenever the
-  // congestion controller needs it in order to make a bandwidth estimate.  This
-  // is useful if the application pesistently underutilizes the link, but still
-  // relies on having a reasonable bandwidth estimate from the connection, e.g.
-  // for real time applications.
-  bool fill_up_link_during_probing_;
-
-  // If true, the probing retransmission will not be started again.  This is
-  // used to safeguard against an accidental tail recursion in probing
-  // retransmission code.
-  bool probing_retransmission_pending_;
 
   // Id of latest sent control frame. 0 if no control frame has been sent.
   QuicControlFrameId last_control_frame_id_;

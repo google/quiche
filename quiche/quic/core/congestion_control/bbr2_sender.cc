@@ -505,11 +505,6 @@ void Bbr2Sender::OnExitQuiescence(QuicTime now) {
   }
 }
 
-bool Bbr2Sender::ShouldSendProbingPacket() const {
-  // TODO(wub): Implement ShouldSendProbingPacket properly.
-  return BBR2_MODE_DISPATCH(IsProbingForBandwidth());
-}
-
 std::string Bbr2Sender::GetDebugState() const {
   std::ostringstream stream;
   stream << ExportDebugState();

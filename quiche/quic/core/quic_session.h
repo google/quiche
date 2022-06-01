@@ -138,7 +138,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
                         const QuicSocketAddress& peer_address,
                         bool is_connectivity_probe) override;
   void OnCanWrite() override;
-  bool SendProbingData() override;
   void OnCongestionWindowChange(QuicTime /*now*/) override {}
   void OnConnectionMigration(AddressChangeType /*type*/) override {}
   // Adds a connection level WINDOW_UPDATE frame.

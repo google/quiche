@@ -313,8 +313,6 @@ QuicConnection::QuicConnection(
       max_consecutive_num_packets_with_no_retransmittable_frames_(
           kMaxConsecutiveNonRetransmittablePackets),
       bundle_retransmittable_with_pto_ack_(false),
-      fill_up_link_during_probing_(false),
-      probing_retransmission_pending_(false),
       last_control_frame_id_(kInvalidControlFrameId),
       is_path_degrading_(false),
       processing_ack_frame_(false),
@@ -3113,17 +3111,6 @@ void QuicConnection::WriteQueuedPackets() {
   }
 }
 
-void QuicConnection::SendProbingRetransmissions() {
-  while (sent_packet_manager_.GetSendAlgorithm()->ShouldSendProbingPacket() &&
-         CanWrite(HAS_RETRANSMITTABLE_DATA)) {
-    if (!visitor_->SendProbingData()) {
-      QUIC_DVLOG(1)
-          << "Cannot send probing retransmissions: nothing to retransmit.";
-      break;
-    }
-  }
-}
-
 void QuicConnection::MarkZeroRttPacketsForRetransmission(int reject_reason) {
   sent_packet_manager_.MarkZeroRttPacketsForRetransmission();
   if (debug_visitor_ != nullptr && version().UsesTls()) {
@@ -5451,29 +5438,8 @@ bool QuicConnection::MaybeConsiderAsMemoryCorruption(
   return false;
 }
 
-void QuicConnection::MaybeSendProbingRetransmissions() {
-  QUICHE_DCHECK(fill_up_link_during_probing_);
-
-  // Don't send probing retransmissions until the handshake has completed.
-  if (!IsHandshakeComplete() ||
-      sent_packet_manager().HasUnackedCryptoPackets()) {
-    return;
-  }
-
-  if (probing_retransmission_pending_) {
-    QUIC_BUG(quic_bug_10511_37)
-        << "MaybeSendProbingRetransmissions is called while another call "
-           "to it is already in progress";
-    return;
-  }
-
-  probing_retransmission_pending_ = true;
-  SendProbingRetransmissions();
-  probing_retransmission_pending_ = false;
-}
-
 void QuicConnection::CheckIfApplicationLimited() {
-  if (!connected_ || probing_retransmission_pending_) {
+  if (!connected_) {
     return;
   }
 
@@ -5482,13 +5448,6 @@ void QuicConnection::CheckIfApplicationLimited() {
 
   if (!application_limited) {
     return;
-  }
-
-  if (fill_up_link_during_probing_) {
-    MaybeSendProbingRetransmissions();
-    if (!CanWrite(HAS_RETRANSMITTABLE_DATA)) {
-      return;
-    }
   }
 
   sent_packet_manager_.OnApplicationLimited();

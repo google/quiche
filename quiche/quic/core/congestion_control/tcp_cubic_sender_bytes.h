@@ -69,7 +69,6 @@ class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
   CongestionControlType GetCongestionControlType() const override;
   bool InSlowStart() const override;
   bool InRecovery() const override;
-  bool ShouldSendProbingPacket() const override;
   std::string GetDebugState() const override;
   void OnApplicationLimited(QuicByteCount bytes_in_flight) override;
   void PopulateConnectionStats(QuicConnectionStats* /*stats*/) const override {}

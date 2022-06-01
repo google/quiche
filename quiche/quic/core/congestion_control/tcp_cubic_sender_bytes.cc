@@ -233,8 +233,6 @@ bool TcpCubicSenderBytes::InRecovery() const {
          largest_acked_packet_number_ <= largest_sent_at_last_cutback_;
 }
 
-bool TcpCubicSenderBytes::ShouldSendProbingPacket() const { return false; }
-
 void TcpCubicSenderBytes::OnRetransmissionTimeout(bool packets_retransmitted) {
   largest_sent_at_last_cutback_.Clear();
   if (!packets_retransmitted) {
