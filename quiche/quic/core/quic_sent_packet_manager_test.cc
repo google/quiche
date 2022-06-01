@@ -2699,53 +2699,6 @@ TEST_F(QuicSentPacketManagerTest, ClearLastInflightPacketsSentTime) {
   EXPECT_EQ(packet2_sent_time + pto_delay, manager_.GetRetransmissionTime());
 }
 
-// Regression test for b/157895910.
-TEST_F(QuicSentPacketManagerTest, EarliestSentTimeNotInitializedWhenPtoFires) {
-  if (GetQuicReloadableFlag(quic_simplify_set_retransmission_alarm)) {
-    return;
-  }
-  manager_.EnableMultiplePacketNumberSpacesSupport();
-  EXPECT_CALL(*send_algorithm_, PacingRate(_))
-      .WillRepeatedly(Return(QuicBandwidth::Zero()));
-  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
-      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
-
-  // Send INITIAL 1.
-  SendDataPacket(1, ENCRYPTION_INITIAL);
-
-  // Send HANDSHAKE packets.
-  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
-  SendDataPacket(2, ENCRYPTION_HANDSHAKE);
-  SendDataPacket(3, ENCRYPTION_HANDSHAKE);
-  SendDataPacket(4, ENCRYPTION_HANDSHAKE);
-
-  // Send half RTT packet.
-  SendDataPacket(5, ENCRYPTION_FORWARD_SECURE);
-
-  // Received ACK for INITIAL packet 1.
-  ExpectAck(1);
-  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(90));
-  manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
-                           clock_.Now());
-  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
-  EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
-                                   ENCRYPTION_INITIAL));
-
-  // Received ACK for HANDSHAKE packets.
-  uint64_t acked[] = {2, 3, 4};
-  ExpectAcksAndLosses(true, acked, ABSL_ARRAYSIZE(acked), nullptr, 0);
-  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(90));
-  manager_.OnAckFrameStart(QuicPacketNumber(4), QuicTime::Delta::Infinite(),
-                           clock_.Now());
-  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(5));
-  EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(4),
-                                   ENCRYPTION_HANDSHAKE));
-  // Verify PTO will not be armed.
-  EXPECT_EQ(QuicTime::Zero(), manager_.GetRetransmissionTime());
-}
-
 TEST_F(QuicSentPacketManagerTest, MaybeRetransmitInitialData) {
   manager_.EnableMultiplePacketNumberSpacesSupport();
   EXPECT_CALL(*send_algorithm_, PacingRate(_))

@@ -1858,11 +1858,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // when a new client connection ID is received.
   void OnClientConnectionIdAvailable();
 
-  // Returns true if connection needs to set retransmission alarm after a packet
-  // gets sent.
-  bool ShouldSetRetransmissionAlarmOnPacketSent(bool in_flight,
-                                                EncryptionLevel level) const;
-
   // Determines encryption level to send ping in `packet_number_space`.
   EncryptionLevel GetEncryptionLevelToSendPingForSpace(
       PacketNumberSpace space) const;

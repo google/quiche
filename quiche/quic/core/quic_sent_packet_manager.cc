@@ -996,15 +996,6 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
     // Do not set the timer if there is any credit left.
     return QuicTime::Zero();
   }
-  PacketNumberSpace packet_number_space;
-  if (!simplify_set_retransmission_alarm_ &&
-      supports_multiple_packet_number_spaces() &&
-      unacked_packets_.perspective() == Perspective::IS_SERVER &&
-      !GetEarliestPacketSentTimeForPto(&packet_number_space).IsInitialized()) {
-    // Do not set the timer on the server side if the only in flight packets are
-    // half RTT data.
-    return QuicTime::Zero();
-  }
   switch (GetRetransmissionMode()) {
     case HANDSHAKE_MODE:
       return unacked_packets_.GetLastCryptoPacketSentTime() +

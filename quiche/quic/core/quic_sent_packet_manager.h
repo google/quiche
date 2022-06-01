@@ -466,10 +466,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   bool use_lower_min_irtt() const { return use_lower_min_irtt_; }
 
-  bool simplify_set_retransmission_alarm() const {
-    return simplify_set_retransmission_alarm_;
-  }
-
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
@@ -678,9 +674,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Latched value of --quic_use_lower_min_for_trusted_irtt.
   bool use_lower_min_irtt_ =
       GetQuicReloadableFlag(quic_use_lower_min_for_trusted_irtt);
-
-  const bool simplify_set_retransmission_alarm_ =
-      GetQuicReloadableFlag(quic_simplify_set_retransmission_alarm);
 };
 
 }  // namespace quic

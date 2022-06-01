@@ -35,8 +35,6 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_fix_on_stream_reset, true)
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bounded_crypto_send_buffer, false)
 // If true, consider original connection ID as active before handshake completes.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_consider_original_connection_id_as_active_pre_handshake, false)
-// If true, consolidate more logic into SetRetransmissionAlarm to ensure the logic is applied consistently.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_simplify_set_retransmission_alarm, true)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, deliver INITIAL packets before other types of packets in QuicBufferedPacketStore.
