@@ -36,7 +36,7 @@ QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_fix_on_stream_reset, true)
 // If true, close the connection if a crypto send buffer exceeds its size limit.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_bounded_crypto_send_buffer, false)
 // If true, consider original connection ID as active before handshake completes.
-QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_consider_original_connection_id_as_active_pre_handshake, false)
+QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_consider_original_connection_id_as_active_pre_handshake, true)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(FLAGS_quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, deliver INITIAL packets before other types of packets in QuicBufferedPacketStore.
