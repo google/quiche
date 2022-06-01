@@ -85,7 +85,7 @@ bool TlsHandshaker::ProcessInput(absl::string_view input,
 }
 
 void TlsHandshaker::AdvanceHandshake() {
-  if (is_connection_closed_) {
+  if (is_connection_closed()) {
     return;
   }
   if (GetHandshakeState() >= HANDSHAKE_COMPLETE) {
@@ -101,6 +101,13 @@ void TlsHandshaker::AdvanceHandshake() {
   QUIC_VLOG(1) << ENDPOINT << "Continuing handshake";
   int rv = SSL_do_handshake(ssl());
 
+  if (GetQuicReloadableFlag(quic_tls_handshaker_check_connection_closed) &&
+      is_connection_closed()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_handshaker_check_connection_closed, 1,
+                                 2);
+    return;
+  }
+
   // If SSL_do_handshake return success(1) and we are in early data, it is
   // possible that we have provided ServerHello to BoringSSL but it hasn't been
   // processed. Retry SSL_do_handshake once will advance the handshake more in
@@ -109,6 +116,14 @@ void TlsHandshaker::AdvanceHandshake() {
   if (rv == 1 && SSL_in_early_data(ssl())) {
     OnEnterEarlyData();
     rv = SSL_do_handshake(ssl());
+
+    if (GetQuicReloadableFlag(quic_tls_handshaker_check_connection_closed) &&
+        is_connection_closed()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_handshaker_check_connection_closed,
+                                   2, 2);
+      return;
+    }
+
     QUIC_VLOG(1) << ENDPOINT
                  << "SSL_do_handshake returned when entering early data. After "
                  << "retry, rv=" << rv
@@ -120,7 +135,7 @@ void TlsHandshaker::AdvanceHandshake() {
     //   SSL_in_early_data should be false.
     //
     // In either case, it should not both return 1 and stay in early data.
-    if (rv == 1 && SSL_in_early_data(ssl()) && !is_connection_closed_) {
+    if (rv == 1 && SSL_in_early_data(ssl()) && !is_connection_closed()) {
       QUIC_BUG(quic_handshaker_stay_in_early_data)
           << "The original and the retry of SSL_do_handshake both returned "
              "success and in early data";
@@ -139,7 +154,7 @@ void TlsHandshaker::AdvanceHandshake() {
     return;
   }
   if (ShouldCloseConnectionOnUnexpectedError(ssl_error) &&
-      !is_connection_closed_) {
+      !is_connection_closed()) {
     QUIC_VLOG(1) << "SSL_do_handshake failed; SSL_get_error returns "
                  << ssl_error;
     ERR_print_errors_fp(stderr);
