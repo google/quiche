@@ -7556,6 +7556,100 @@ TEST(OgHttp2AdapterTest, NoopHeaderValidatorTest) {
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 }
 
+TEST(OgHttp2AdapterTest, NegativeFlowControlStreamResumption) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kServer;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  const std::string frames =
+      TestFrameSequence()
+          .ClientPreface({{INITIAL_WINDOW_SIZE, 128u * 1024u}})
+          .WindowUpdate(0, 1 << 20)
+          .Headers(1,
+                   {{":method", "GET"},
+                    {":scheme", "https"},
+                    {":authority", "example.com"},
+                    {":path", "/this/is/request/one"}},
+                   /*fin=*/true)
+          .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor,
+              OnSetting(Http2Setting{Http2KnownSettingsId::INITIAL_WINDOW_SIZE,
+                                     128u * 1024u}));
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnWindowUpdate(0, 1 << 20));
+
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 0x5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  const int64_t read_result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+
+  // Submit a response for the stream.
+  auto body = absl::make_unique<TestDataFrameSource>(visitor, true);
+  TestDataFrameSource& body_ref = *body;
+  body_ref.AppendPayload(std::string(70000, 'a'));
+  int submit_result = adapter->SubmitResponse(
+      1, ToHeaders({{":status", "200"}}), std::move(body));
+  ASSERT_EQ(0, submit_result);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0)).Times(5);
+
+  adapter->Send();
+  EXPECT_FALSE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor,
+              OnSetting(Http2Setting{Http2KnownSettingsId::INITIAL_WINDOW_SIZE,
+                                     64u * 1024u}));
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  // Processing these SETTINGS will cause stream 1's send window to become
+  // negative.
+  adapter->ProcessBytes(TestFrameSequence()
+                            .Settings({{INITIAL_WINDOW_SIZE, 64u * 1024u}})
+                            .Serialize());
+  EXPECT_TRUE(adapter->want_write());
+  EXPECT_LT(adapter->GetStreamSendWindowSize(1), 0);
+
+  body_ref.AppendPayload("Stream should be resumed.");
+  adapter->ResumeStream(1);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  adapter->Send();
+  EXPECT_FALSE(adapter->want_write());
+
+  // Upon receiving the WINDOW_UPDATE, stream 1 should be ready to write.
+  EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnWindowUpdate(1, 10000));
+  adapter->ProcessBytes(TestFrameSequence().WindowUpdate(1, 10000).Serialize());
+  EXPECT_TRUE(adapter->want_write());
+  EXPECT_GT(adapter->GetStreamSendWindowSize(1), 0);
+
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
+  adapter->Send();
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace adapter

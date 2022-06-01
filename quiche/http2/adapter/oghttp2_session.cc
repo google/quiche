@@ -1416,12 +1416,13 @@ void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
       if (streams_reset_.contains(stream_id)) {
         return;
       }
-      if (it->second.send_window == 0) {
+      const bool was_blocked = (it->second.send_window <= 0);
+      it->second.send_window += delta_window_size;
+      if (was_blocked && it->second.send_window > 0) {
         // The stream was blocked on flow control.
         QUICHE_VLOG(1) << "Marking stream " << stream_id << " ready to write.";
         write_scheduler_.MarkStreamReady(stream_id, false);
       }
-      it->second.send_window += delta_window_size;
     }
   }
   visitor_.OnWindowUpdate(stream_id, delta_window_size);
