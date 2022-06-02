@@ -65,7 +65,8 @@ class TestStream : public QuicSimpleServerStream {
 
   MOCK_METHOD(void, WriteHeadersMock, (bool fin), ());
   MOCK_METHOD(void, WriteEarlyHintsHeadersMock, (bool fin), ());
-  MOCK_METHOD(void, WriteOrBufferBody, (absl::string_view data, bool fin), ());
+  MOCK_METHOD(void, WriteOrBufferBody, (absl::string_view data, bool fin),
+              (override));
 
   size_t WriteHeaders(
       spdy::Http2HeaderBlock header_block, bool fin,
