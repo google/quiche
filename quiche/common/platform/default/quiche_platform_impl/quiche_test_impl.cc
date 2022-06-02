@@ -7,7 +7,7 @@
 #include "quiche/common/platform/api/quiche_flags.h"
 
 QuicheFlagSaverImpl::QuicheFlagSaverImpl() {
-#define QUIC_FLAG(flag, value) saved_##flag##_ = flag;
+#define QUIC_FLAG(flag, value) saved_##flag##_ = FLAGS_##flag;
 #include "quiche/quic/core/quic_flags_list.h"
 #undef QUIC_FLAG
 #define QUIC_PROTOCOL_FLAG(type, flag, ...) saved_##flag##_ = FLAGS_##flag;
@@ -16,7 +16,7 @@ QuicheFlagSaverImpl::QuicheFlagSaverImpl() {
 }
 
 QuicheFlagSaverImpl::~QuicheFlagSaverImpl() {
-#define QUIC_FLAG(flag, value) flag = saved_##flag##_;
+#define QUIC_FLAG(flag, value) FLAGS_##flag = saved_##flag##_;
 #include "quiche/quic/core/quic_flags_list.h"  // NOLINT
 #undef QUIC_FLAG
 #define QUIC_PROTOCOL_FLAG(type, flag, ...) FLAGS_##flag = saved_##flag##_;
