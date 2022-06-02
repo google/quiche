@@ -480,9 +480,13 @@ TEST_P(QuicStreamTest, WriteOrBufferDataReachStreamLimit) {
       .WillOnce(Invoke(session_.get(), &MockQuicSession::ConsumeData));
   stream_->WriteOrBufferData(data, false, nullptr);
   EXPECT_TRUE(session_->HasUnackedStreamData());
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _));
-  EXPECT_QUIC_BUG(stream_->WriteOrBufferData("a", false, nullptr),
-                  "Write too many data via stream");
+  EXPECT_QUIC_BUG(
+      {
+        EXPECT_CALL(*connection_,
+                    CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _));
+        stream_->WriteOrBufferData("a", false, nullptr);
+      },
+      "Write too many data via stream");
 }
 
 TEST_P(QuicStreamTest, ConnectionCloseAfterStreamClose) {
@@ -789,11 +793,14 @@ TEST_P(QuicStreamTest, OnStreamFrameUpperLimit) {
 
 TEST_P(QuicStreamTest, StreamTooLong) {
   Initialize();
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _))
-      .Times(1);
   QuicStreamFrame stream_frame(stream_->id(), false, kMaxStreamLength, ".");
   EXPECT_QUIC_PEER_BUG(
-      stream_->OnStreamFrame(stream_frame),
+      {
+        EXPECT_CALL(*connection_,
+                    CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _))
+            .Times(1);
+        stream_->OnStreamFrame(stream_frame);
+      },
       absl::StrCat("Receive stream frame on stream ", stream_->id(),
                    " reaches max stream length"));
 }
@@ -1237,9 +1244,13 @@ TEST_P(QuicStreamTest, WritevDataReachStreamLimit) {
   quiche::QuicheMemSliceStorage storage2(
       &iov2, 1,
       session_->connection()->helper()->GetStreamSendBufferAllocator(), 1024);
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _));
-  EXPECT_QUIC_BUG(stream_->WriteMemSlices(storage2.ToSpan(), false),
-                  "Write too many data via stream");
+  EXPECT_QUIC_BUG(
+      {
+        EXPECT_CALL(*connection_,
+                    CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _));
+        stream_->WriteMemSlices(storage2.ToSpan(), false);
+      },
+      "Write too many data via stream");
 }
 
 TEST_P(QuicStreamTest, WriteMemSlices) {
@@ -1328,9 +1339,13 @@ TEST_P(QuicStreamTest, WriteMemSlicesReachStreamLimit) {
   EXPECT_EQ(5u, consumed.bytes_consumed);
 
   quiche::QuicheMemSlice slice2 = MemSliceFromString("6");
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _));
-  EXPECT_QUIC_BUG(stream_->WriteMemSlice(std::move(slice2), false),
-                  "Write too many data via stream");
+  EXPECT_QUIC_BUG(
+      {
+        EXPECT_CALL(*connection_,
+                    CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _));
+        stream_->WriteMemSlice(std::move(slice2), false);
+      },
+      "Write too many data via stream");
 }
 
 TEST_P(QuicStreamTest, StreamDataGetAckedMultipleTimes) {

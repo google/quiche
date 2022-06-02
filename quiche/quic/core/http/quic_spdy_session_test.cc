@@ -2679,11 +2679,13 @@ TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 1);
   QuicStreamFrame data2(id2, false, 0, absl::string_view(type1, 1));
   EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(id2)).Times(0);
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
-                              "Control stream is received twice.", _));
   EXPECT_QUIC_PEER_BUG(
-      session_.OnStreamFrame(data2),
+      {
+        EXPECT_CALL(*connection_,
+                    CloseConnection(QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
+                                    "Control stream is received twice.", _));
+        session_.OnStreamFrame(data2);
+      },
       "Received a duplicate Control stream: Closing connection.");
 
   QuicStreamId id3 =
@@ -2698,11 +2700,14 @@ TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
   QuicStreamFrame data4(id4, false, 0, absl::string_view(type2, 1));
   EXPECT_CALL(debug_visitor, OnPeerQpackEncoderStreamCreated(id4)).Times(0);
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
-                              "QPACK encoder stream is received twice.", _));
   EXPECT_QUIC_PEER_BUG(
-      session_.OnStreamFrame(data4),
+      {
+        EXPECT_CALL(
+            *connection_,
+            CloseConnection(QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
+                            "QPACK encoder stream is received twice.", _));
+        session_.OnStreamFrame(data4);
+      },
       "Received a duplicate QPACK encoder stream: Closing connection.");
 
   QuicStreamId id5 =
@@ -2717,11 +2722,14 @@ TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 5);
   QuicStreamFrame data6(id6, false, 0, absl::string_view(type3, 1));
   EXPECT_CALL(debug_visitor, OnPeerQpackDecoderStreamCreated(id6)).Times(0);
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
-                              "QPACK decoder stream is received twice.", _));
   EXPECT_QUIC_PEER_BUG(
-      session_.OnStreamFrame(data6),
+      {
+        EXPECT_CALL(
+            *connection_,
+            CloseConnection(QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
+                            "QPACK decoder stream is received twice.", _));
+        session_.OnStreamFrame(data6);
+      },
       "Received a duplicate QPACK decoder stream: Closing connection.");
 }
 
@@ -3790,10 +3798,12 @@ TEST_P(QuicSpdySessionTestServerNoExtendedConnect, BadExtendedConnectSetting) {
           ? GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3)
           : GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
   QuicStreamFrame frame(control_stream_id, /*fin=*/false, /*offset=*/0, data);
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_HTTP_INVALID_SETTING_VALUE, _, _));
   EXPECT_QUIC_PEER_BUG(
-      session_.OnStreamFrame(frame),
+      {
+        EXPECT_CALL(*connection_,
+                    CloseConnection(QUIC_HTTP_INVALID_SETTING_VALUE, _, _));
+        session_.OnStreamFrame(frame);
+      },
       "Received SETTINGS_ENABLE_CONNECT_PROTOCOL with invalid value");
 }
 

@@ -10446,11 +10446,14 @@ TEST_P(QuicFramerTest, EncryptEmptyPacket) {
       /*retry_token_length=*/0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
   char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length = 1;
-  EXPECT_QUIC_BUG(encrypted_length = framer_.EncryptPayload(
-                      ENCRYPTION_INITIAL, kPacketNumber, *packet, buffer,
-                      kMaxOutgoingPacketSize),
-                  "packet is shorter than associated data length");
-  EXPECT_EQ(0u, encrypted_length);
+  EXPECT_QUIC_BUG(
+      {
+        encrypted_length =
+            framer_.EncryptPayload(ENCRYPTION_INITIAL, kPacketNumber, *packet,
+                                   buffer, kMaxOutgoingPacketSize);
+        EXPECT_EQ(0u, encrypted_length);
+      },
+      "packet is shorter than associated data length");
 }
 
 TEST_P(QuicFramerTest, EncryptPacketWithVersionFlag) {

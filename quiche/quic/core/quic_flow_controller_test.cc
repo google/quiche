@@ -95,13 +95,16 @@ TEST_F(QuicFlowControllerTest, SendingBytes) {
   EXPECT_EQ(send_window_, flow_controller_->SendWindowSize());
 
   // Try to send more bytes, violating flow control.
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_FLOW_CONTROL_SENT_TOO_MUCH_DATA, _, _));
   EXPECT_QUIC_BUG(
-      flow_controller_->AddBytesSent(send_window_ * 10),
+      {
+        EXPECT_CALL(
+            *connection_,
+            CloseConnection(QUIC_FLOW_CONTROL_SENT_TOO_MUCH_DATA, _, _));
+        flow_controller_->AddBytesSent(send_window_ * 10);
+        EXPECT_TRUE(flow_controller_->IsBlocked());
+        EXPECT_EQ(0u, flow_controller_->SendWindowSize());
+      },
       absl::StrCat("Trying to send an extra ", send_window_ * 10, " bytes"));
-  EXPECT_TRUE(flow_controller_->IsBlocked());
-  EXPECT_EQ(0u, flow_controller_->SendWindowSize());
 }
 
 TEST_F(QuicFlowControllerTest, ReceivingBytes) {

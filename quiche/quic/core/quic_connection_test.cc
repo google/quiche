@@ -6957,14 +6957,19 @@ TEST_P(QuicConnectionTest, SendingUnencryptedStreamDataFails) {
     return;
   }
 
-  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
-      .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
-  EXPECT_QUIC_BUG(connection_.SaveAndSendStreamData(3, {}, 0, FIN),
-                  "Cannot send stream data with level: ENCRYPTION_INITIAL");
-  EXPECT_FALSE(connection_.connected());
-  EXPECT_EQ(1, connection_close_frame_count_);
-  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
-              IsError(QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA));
+  EXPECT_QUIC_BUG(
+      {
+        EXPECT_CALL(visitor_,
+                    OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+            .WillOnce(
+                Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
+        connection_.SaveAndSendStreamData(3, {}, 0, FIN);
+        EXPECT_FALSE(connection_.connected());
+        EXPECT_EQ(1, connection_close_frame_count_);
+        EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+                    IsError(QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA));
+      },
+      "Cannot send stream data with level: ENCRYPTION_INITIAL");
 }
 
 TEST_P(QuicConnectionTest, SetRetransmissionAlarmForCryptoPacket) {
@@ -9776,60 +9781,65 @@ TEST_P(QuicConnectionTest, FailToCoalescePacket) {
   set_perspective(Perspective::IS_SERVER);
   use_tagging_decrypter();
 
-  EXPECT_CALL(visitor_, OnHandshakePacketSent());
-
-  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
-      .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
-
-  ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_INITIAL);
   auto test_body = [&] {
-    QuicConnection::ScopedPacketFlusher flusher(&connection_);
-    connection_.SetEncrypter(ENCRYPTION_INITIAL,
-                             std::make_unique<TaggingEncrypter>(0x01));
-    connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
-    connection_.SendCryptoDataWithString("foo", 0);
-    // Verify this packet is on hold.
-    EXPECT_EQ(0u, writer_->packets_write_attempts());
+    EXPECT_CALL(visitor_, OnHandshakePacketSent());
 
-    connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
-                             std::make_unique<TaggingEncrypter>(0x02));
-    connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
-    connection_.SendCryptoDataWithString("bar", 3);
-    EXPECT_EQ(0u, writer_->packets_write_attempts());
+    EXPECT_CALL(visitor_,
+                OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+        .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
 
-    connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
-                             std::make_unique<TaggingEncrypter>(0x03));
-    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-    SendStreamDataToPeer(2, "baz", 3, NO_FIN, nullptr);
+    ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_INITIAL);
 
-    creator_->Flush();
+    {
+      QuicConnection::ScopedPacketFlusher flusher(&connection_);
+      connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                               std::make_unique<TaggingEncrypter>(0x01));
+      connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+      connection_.SendCryptoDataWithString("foo", 0);
+      // Verify this packet is on hold.
+      EXPECT_EQ(0u, writer_->packets_write_attempts());
 
-    auto& coalesced_packet =
-        QuicConnectionPeer::GetCoalescedPacket(&connection_);
-    QuicPacketLength coalesced_packet_max_length =
-        coalesced_packet.max_packet_length();
-    QuicCoalescedPacketPeer::SetMaxPacketLength(coalesced_packet,
-                                                coalesced_packet.length());
+      connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                               std::make_unique<TaggingEncrypter>(0x02));
+      connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+      connection_.SendCryptoDataWithString("bar", 3);
+      EXPECT_EQ(0u, writer_->packets_write_attempts());
 
-    // Make the coalescer's FORWARD_SECURE packet longer.
-    *QuicCoalescedPacketPeer::GetMutableEncryptedBuffer(
-        coalesced_packet, ENCRYPTION_FORWARD_SECURE) += "!!! TEST !!!";
+      connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                               std::make_unique<TaggingEncrypter>(0x03));
+      connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+      SendStreamDataToPeer(2, "baz", 3, NO_FIN, nullptr);
 
-    QUIC_LOG(INFO) << "Reduced coalesced_packet_max_length from "
-                   << coalesced_packet_max_length << " to "
-                   << coalesced_packet.max_packet_length()
-                   << ", coalesced_packet.length:" << coalesced_packet.length()
-                   << ", coalesced_packet.packet_lengths:"
-                   << absl::StrJoin(coalesced_packet.packet_lengths(), ":");
+      creator_->Flush();
+
+      auto& coalesced_packet =
+          QuicConnectionPeer::GetCoalescedPacket(&connection_);
+      QuicPacketLength coalesced_packet_max_length =
+          coalesced_packet.max_packet_length();
+      QuicCoalescedPacketPeer::SetMaxPacketLength(coalesced_packet,
+                                                  coalesced_packet.length());
+
+      // Make the coalescer's FORWARD_SECURE packet longer.
+      *QuicCoalescedPacketPeer::GetMutableEncryptedBuffer(
+          coalesced_packet, ENCRYPTION_FORWARD_SECURE) += "!!! TEST !!!";
+
+      QUIC_LOG(INFO) << "Reduced coalesced_packet_max_length from "
+                     << coalesced_packet_max_length << " to "
+                     << coalesced_packet.max_packet_length()
+                     << ", coalesced_packet.length:"
+                     << coalesced_packet.length()
+                     << ", coalesced_packet.packet_lengths:"
+                     << absl::StrJoin(coalesced_packet.packet_lengths(), ":");
+    }
+
+    EXPECT_FALSE(connection_.connected());
+    EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+                IsError(QUIC_FAILED_TO_SERIALIZE_PACKET));
+    EXPECT_EQ(saved_connection_close_frame_.error_details,
+              "Failed to serialize coalesced packet.");
   };
 
   EXPECT_QUIC_BUG(test_body(), "SerializeCoalescedPacket failed.");
-
-  EXPECT_FALSE(connection_.connected());
-  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
-              IsError(QUIC_FAILED_TO_SERIALIZE_PACKET));
-  EXPECT_EQ(saved_connection_close_frame_.error_details,
-            "Failed to serialize coalesced packet.");
 }
 
 TEST_P(QuicConnectionTest, LegacyVersionEncapsulation) {
@@ -14386,21 +14396,24 @@ TEST_P(QuicConnectionTest, LostDataThenGetAcknowledged) {
   QuicAckFrame ack = InitAckFrame({{QuicPacketNumber(1), QuicPacketNumber(5)}});
   frames.push_back(QuicFrame(&ack));
 
-  EXPECT_CALL(visitor_, OnConnectionMigration(_)).Times(1);
-
   // Invoke OnCanWrite.
-  EXPECT_CALL(visitor_, OnStreamFrame(_))
-      .WillOnce(
-          InvokeWithoutArgs(&notifier_, &SimpleSessionNotifier::OnCanWrite));
   QuicIpAddress ip_address;
   ASSERT_TRUE(ip_address.FromString("127.0.52.223"));
-  EXPECT_QUIC_BUG(ProcessFramesPacketWithAddresses(
-                      frames, kSelfAddress, QuicSocketAddress(ip_address, 1000),
-                      ENCRYPTION_FORWARD_SECURE),
-                  "Try to write mid packet processing");
-  EXPECT_EQ(1u, writer_->path_challenge_frames().size());
-  // Verify stream frame will not be retransmitted.
-  EXPECT_TRUE(writer_->stream_frames().empty());
+  EXPECT_QUIC_BUG(
+      {
+        EXPECT_CALL(visitor_, OnConnectionMigration(_)).Times(1);
+        EXPECT_CALL(visitor_, OnStreamFrame(_))
+            .WillOnce(InvokeWithoutArgs(&notifier_,
+                                        &SimpleSessionNotifier::OnCanWrite));
+        ProcessFramesPacketWithAddresses(frames, kSelfAddress,
+                                         QuicSocketAddress(ip_address, 1000),
+                                         ENCRYPTION_FORWARD_SECURE);
+        EXPECT_EQ(1u, writer_->path_challenge_frames().size());
+
+        // Verify stream frame will not be retransmitted.
+        EXPECT_TRUE(writer_->stream_frames().empty());
+      },
+      "Try to write mid packet processing");
 }
 
 TEST_P(QuicConnectionTest, PtoSendStreamData) {

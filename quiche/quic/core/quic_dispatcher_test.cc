@@ -2162,20 +2162,23 @@ TEST_P(QuicDispatcherWriteBlockedListTest, PerConnectionWriterBlocked) {
 
 TEST_P(QuicDispatcherWriteBlockedListTest,
        RemoveConnectionFromWriteBlockedListWhenDeletingSessions) {
-  dispatcher_->OnConnectionClosed(connection1()->connection_id(),
-                                  QUIC_PACKET_WRITE_ERROR, "Closed by test.",
-                                  ConnectionCloseSource::FROM_SELF);
+  EXPECT_QUIC_BUG(
+      {
+        dispatcher_->OnConnectionClosed(
+            connection1()->connection_id(), QUIC_PACKET_WRITE_ERROR,
+            "Closed by test.", ConnectionCloseSource::FROM_SELF);
 
-  SetBlocked();
+        SetBlocked();
 
-  ASSERT_FALSE(dispatcher_->HasPendingWrites());
-  SetBlocked();
-  dispatcher_->OnWriteBlocked(connection1());
-  ASSERT_TRUE(dispatcher_->HasPendingWrites());
+        ASSERT_FALSE(dispatcher_->HasPendingWrites());
+        SetBlocked();
+        dispatcher_->OnWriteBlocked(connection1());
+        ASSERT_TRUE(dispatcher_->HasPendingWrites());
 
-  EXPECT_QUIC_BUG(dispatcher_->DeleteSessions(),
-                  "QuicConnection was in WriteBlockedList before destruction");
-  MarkSession1Deleted();
+        dispatcher_->DeleteSessions();
+        MarkSession1Deleted();
+      },
+      "QuicConnection was in WriteBlockedList before destruction");
 }
 
 class QuicDispatcherSupportMultipleConnectionIdPerConnectionTest
