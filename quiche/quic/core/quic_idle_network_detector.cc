@@ -71,6 +71,7 @@ void QuicIdleNetworkDetector::SetTimeouts(
     QuicTime::Delta handshake_timeout, QuicTime::Delta idle_network_timeout) {
   handshake_timeout_ = handshake_timeout;
   idle_network_timeout_ = idle_network_timeout;
+  bandwidth_update_timeout_ = QuicTime::Delta::Infinite();
 
   if (GetQuicRestartFlag(
           quic_enable_sending_bandwidth_estimate_when_network_idle) &&

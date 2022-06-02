@@ -247,6 +247,35 @@ TEST_F(QuicIdleNetworkDetectorTest, NoAlarmAfterStopped) {
   EXPECT_FALSE(alarm_->IsSet());
 }
 
+TEST_F(QuicIdleNetworkDetectorTest,
+       ResetBandwidthTimeoutWhenHandshakeTimeoutIsSet) {
+  if (!GetQuicRestartFlag(
+          quic_enable_sending_bandwidth_estimate_when_network_idle)) {
+    return;
+  }
+  detector_->SetTimeouts(
+      /*handshake_timeout=*/QuicTime::Delta::Infinite(),
+      /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20));
+  // The deadline is set based on the bandwidth timeout.
+  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(10),
+            alarm_->deadline());
+
+  detector_->SetTimeouts(
+      /*handshake_timeout=*/QuicTime::Delta::FromSeconds(15),
+      /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20));
+  // Bandwidth timeout is reset and the deadline is set based on the handshake
+  // timeout.
+  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(15),
+            alarm_->deadline());
+
+  detector_->SetTimeouts(
+      /*handshake_timeout=*/QuicTime::Delta::Infinite(),
+      /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20));
+  // The deadline is set based on the bandwidth timeout.
+  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(10),
+            alarm_->deadline());
+}
+
 }  // namespace
 
 }  // namespace test
