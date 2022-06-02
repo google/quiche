@@ -292,6 +292,11 @@ QuicStreamOffset QuicStreamSequencer::NumBytesConsumed() const {
   return buffered_frames_.BytesConsumed();
 }
 
+bool QuicStreamSequencer::IsAllDataAvailable() const {
+  QUICHE_DCHECK_LE(NumBytesConsumed() + NumBytesBuffered(), close_offset_);
+  return NumBytesConsumed() + NumBytesBuffered() >= close_offset_;
+}
+
 const std::string QuicStreamSequencer::DebugString() const {
   // clang-format off
   return absl::StrCat("QuicStreamSequencer:",

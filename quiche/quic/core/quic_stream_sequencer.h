@@ -139,6 +139,10 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
   // Number of bytes has been consumed.
   QuicStreamOffset NumBytesConsumed() const;
 
+  // Returns true if all of the data within the stream up until the FIN is
+  // available.
+  bool IsAllDataAvailable() const;
+
   QuicStreamOffset close_offset() const { return close_offset_; }
 
   int num_frames_received() const { return num_frames_received_; }

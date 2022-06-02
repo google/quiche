@@ -347,8 +347,7 @@ bool WebTransportHttp3UnidirectionalStream::ReadSessionId() {
     // If all of the data has been received, and we still cannot associate the
     // stream with a session, consume all of the data so that the stream can
     // be closed.
-    if (sequencer()->NumBytesConsumed() + sequencer()->NumBytesBuffered() >=
-        sequencer()->close_offset()) {
+    if (sequencer()->IsAllDataAvailable()) {
       QUIC_DLOG(WARNING)
           << ENDPOINT << "Failed to associate WebTransport stream " << id()
           << " with a session because the stream ended prematurely.";

@@ -223,8 +223,10 @@ TEST_F(QuicStreamSequencerTest, BlockedThenFullFrameConsumed) {
     ConsumeData(3);
   }));
   EXPECT_FALSE(sequencer_->IsClosed());
+  EXPECT_FALSE(sequencer_->IsAllDataAvailable());
   OnFinFrame(3, "def");
   EXPECT_TRUE(sequencer_->IsClosed());
+  EXPECT_TRUE(sequencer_->IsAllDataAvailable());
 }
 
 TEST_F(QuicStreamSequencerTest, BlockedThenFullFrameAndFinConsumed) {
@@ -239,6 +241,7 @@ TEST_F(QuicStreamSequencerTest, BlockedThenFullFrameAndFinConsumed) {
     ConsumeData(3);
   }));
   EXPECT_FALSE(sequencer_->IsClosed());
+  EXPECT_TRUE(sequencer_->IsAllDataAvailable());
   sequencer_->SetUnblocked();
   EXPECT_TRUE(sequencer_->IsClosed());
   EXPECT_EQ(0u, NumBufferedBytes());
@@ -260,6 +263,7 @@ TEST_F(QuicStreamSequencerTest, EmptyFinFrame) {
   OnFinFrame(0, "");
   EXPECT_EQ(0u, NumBufferedBytes());
   EXPECT_EQ(0u, sequencer_->NumBytesConsumed());
+  EXPECT_TRUE(sequencer_->IsAllDataAvailable());
 }
 
 TEST_F(QuicStreamSequencerTest, PartialFrameConsumed) {
