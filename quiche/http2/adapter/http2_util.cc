@@ -101,6 +101,8 @@ absl::string_view ConnectionErrorToString(ConnectionError error) {
       return "FlowControlError";
     case ConnectionError::kInvalidGoAwayLastStreamId:
       return "InvalidGoAwayLastStreamId";
+    case ConnectionError::kInvalidSetting:
+      return "InvalidSetting";
   }
   return "UnknownConnectionError";
 }

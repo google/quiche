@@ -51,7 +51,11 @@ const Http2StreamId kConnectionStreamId = 0;
 
 // The default value for the size of the largest frame payload, according to RFC
 // 7540 Section 6.5.2 (SETTINGS_MAX_FRAME_SIZE).
-const int kDefaultFramePayloadSizeLimit = 16 * 1024;
+const uint32_t kDefaultFramePayloadSizeLimit = 16u * 1024u;
+
+// The maximum value for the size of the largest frame payload, according to RFC
+// 7540 Section 6.5.2 (SETTINGS_MAX_FRAME_SIZE).
+const uint32_t kMaximumFramePayloadSizeLimit = 16777215u;
 
 // The default value for the initial stream and connection flow control window
 // size, according to RFC 7540 Section 6.9.2.

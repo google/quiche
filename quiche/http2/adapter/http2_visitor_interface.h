@@ -82,6 +82,8 @@ class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
     kFlowControlError,
     // The peer sent a GOAWAY with an invalid last-stream-ID field.
     kInvalidGoAwayLastStreamId,
+    // The peer sent an invalid SETTINGS value.
+    kInvalidSetting,
   };
   virtual void OnConnectionError(ConnectionError error) = 0;
 

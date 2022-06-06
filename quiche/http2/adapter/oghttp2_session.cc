@@ -1219,6 +1219,16 @@ void OgHttp2Session::OnSettings() {
 void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
   switch (id) {
     case MAX_FRAME_SIZE:
+      if (value < kDefaultFramePayloadSizeLimit ||
+          value > kMaximumFramePayloadSizeLimit) {
+        visitor_.OnInvalidFrame(
+            0, Http2VisitorInterface::InvalidFrameError::kProtocol);
+        // The specification says this is a connection-level protocol error.
+        LatchErrorAndNotify(
+            Http2ErrorCode::PROTOCOL_ERROR,
+            Http2VisitorInterface::ConnectionError::kInvalidSetting);
+        return;
+      }
       max_frame_payload_ = value;
       break;
     case MAX_CONCURRENT_STREAMS:

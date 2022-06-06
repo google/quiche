@@ -5883,6 +5883,35 @@ TEST(NgHttp2AdapterTest, AutomaticPingAcksDisabled) {
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
+TEST(NgHttp2AdapterTest, InvalidMaxFrameSize) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  const std::string frames =
+      TestFrameSequence().ClientPreface({{MAX_FRAME_SIZE, 3}}).Serialize();
+  testing::InSequence s;
+
+  // Client preface
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(
+      visitor,
+      OnInvalidFrame(0, Http2VisitorInterface::InvalidFrameError::kProtocol));
+
+  const int64_t read_result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(GOAWAY, 0, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::GOAWAY}));
+}
+
 TEST(NgHttp2AdapterTest, ServerForbidsProtocolPseudoheaderBeforeAck) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
