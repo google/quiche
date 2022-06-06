@@ -1218,26 +1218,6 @@ void OgHttp2Session::OnSettings() {
 
 void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
   switch (id) {
-    case MAX_FRAME_SIZE:
-      if (value < kDefaultFramePayloadSizeLimit ||
-          value > kMaximumFramePayloadSizeLimit) {
-        visitor_.OnInvalidFrame(
-            0, Http2VisitorInterface::InvalidFrameError::kProtocol);
-        // The specification says this is a connection-level protocol error.
-        LatchErrorAndNotify(
-            Http2ErrorCode::PROTOCOL_ERROR,
-            Http2VisitorInterface::ConnectionError::kInvalidSetting);
-        return;
-      }
-      max_frame_payload_ = value;
-      break;
-    case MAX_CONCURRENT_STREAMS:
-      max_outbound_concurrent_streams_ = value;
-      if (!IsServerSession()) {
-        // We may now be able to start pending streams.
-        StartPendingStreams();
-      }
-      break;
     case HEADER_TABLE_SIZE:
       value = std::min(value, HpackCapacityBound(options_));
       if (value < framer_.GetHpackEncoder()->CurrentHeaderTableSizeSetting()) {
@@ -1253,6 +1233,13 @@ void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
         encoder_header_table_capacity_when_acking_ = value;
       }
       break;
+    case MAX_CONCURRENT_STREAMS:
+      max_outbound_concurrent_streams_ = value;
+      if (!IsServerSession()) {
+        // We may now be able to start pending streams.
+        StartPendingStreams();
+      }
+      break;
     case INITIAL_WINDOW_SIZE:
       if (value > spdy::kSpdyMaximumWindowSize) {
         visitor_.OnInvalidFrame(
@@ -1265,6 +1252,19 @@ void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
       } else {
         UpdateStreamSendWindowSizes(value);
       }
+      break;
+    case MAX_FRAME_SIZE:
+      if (value < kDefaultFramePayloadSizeLimit ||
+          value > kMaximumFramePayloadSizeLimit) {
+        visitor_.OnInvalidFrame(
+            0, Http2VisitorInterface::InvalidFrameError::kProtocol);
+        // The specification says this is a connection-level protocol error.
+        LatchErrorAndNotify(
+            Http2ErrorCode::PROTOCOL_ERROR,
+            Http2VisitorInterface::ConnectionError::kInvalidSetting);
+        return;
+      }
+      max_frame_payload_ = value;
       break;
     default:
       // TODO(bnc): See if C++17 inline constants are allowed in QUICHE.
