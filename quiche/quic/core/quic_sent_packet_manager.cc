@@ -285,24 +285,18 @@ void QuicSentPacketManager::AdjustNetworkParameters(
   const QuicBandwidth& bandwidth = params.bandwidth;
   const QuicTime::Delta& rtt = params.rtt;
 
-  if (use_lower_min_irtt()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_lower_min_for_trusted_irtt, 2, 2);
-    if (!rtt.IsZero()) {
-      if (params.is_rtt_trusted) {
-        // Always set initial rtt if it's trusted.
-        SetInitialRtt(rtt, /*trusted=*/true);
-      } else if (rtt_stats_.initial_rtt() ==
-                 QuicTime::Delta::FromMilliseconds(kInitialRttMs)) {
-        // Only set initial rtt if we are using the default. This avoids
-        // overwriting a trusted initial rtt by an untrusted one.
-        SetInitialRtt(rtt, /*trusted=*/false);
-      }
-    }
-  } else {
-    if (!rtt.IsZero()) {
+  if (!rtt.IsZero()) {
+    if (params.is_rtt_trusted) {
+      // Always set initial rtt if it's trusted.
+      SetInitialRtt(rtt, /*trusted=*/true);
+    } else if (rtt_stats_.initial_rtt() ==
+               QuicTime::Delta::FromMilliseconds(kInitialRttMs)) {
+      // Only set initial rtt if we are using the default. This avoids
+      // overwriting a trusted initial rtt by an untrusted one.
       SetInitialRtt(rtt, /*trusted=*/false);
     }
   }
+
   const QuicByteCount old_cwnd = send_algorithm_->GetCongestionWindow();
   if (GetQuicReloadableFlag(quic_conservative_bursts) && using_pacing_ &&
       !bandwidth.IsZero()) {

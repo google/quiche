@@ -1693,11 +1693,7 @@ TEST_P(EndToEndTest, QUICHE_SLOW_TEST(AddressToken)) {
     // QuicSentPacketManager::SetInitialRtt clamps the initial_rtt to between
     // [min_initial_rtt, max_initial_rtt].
     const QuicTime::Delta min_initial_rtt =
-        server_connection->sent_packet_manager().use_lower_min_irtt()
-            ? QuicTime::Delta::FromMicroseconds(
-                  kMinTrustedInitialRoundTripTimeUs)
-            : QuicTime::Delta::FromMicroseconds(
-                  kMinUntrustedInitialRoundTripTimeUs);
+        QuicTime::Delta::FromMicroseconds(kMinTrustedInitialRoundTripTimeUs);
     const QuicTime::Delta max_initial_rtt =
         QuicTime::Delta::FromMicroseconds(kMaxInitialRoundTripTimeUs);
     const QuicTime::Delta expected_initial_rtt =

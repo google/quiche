@@ -464,8 +464,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // kMinUntrustedInitialRoundTripTimeUs if not |trusted|.
   void SetInitialRtt(QuicTime::Delta rtt, bool trusted);
 
-  bool use_lower_min_irtt() const { return use_lower_min_irtt_; }
-
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
@@ -670,10 +668,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Whether to ignore the ack_delay in received ACKs.
   bool ignore_ack_delay_;
-
-  // Latched value of --quic_use_lower_min_for_trusted_irtt.
-  bool use_lower_min_irtt_ =
-      GetQuicReloadableFlag(quic_use_lower_min_for_trusted_irtt);
 };
 
 }  // namespace quic
