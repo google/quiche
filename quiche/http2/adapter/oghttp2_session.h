@@ -153,6 +153,9 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
             !goaway_rejected_streams_.empty());
   }
   int GetRemoteWindowSize() const override { return connection_send_window_; }
+  bool peer_enables_connect_protocol() {
+    return peer_enables_connect_protocol_;
+  }
 
   // From SpdyFramerVisitorInterface
   void OnError(http2::Http2DecoderAdapter::SpdyFramerError error,
@@ -508,7 +511,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   int32_t initial_stream_receive_window_ = kInitialFlowControlWindowSize;
   // The initial flow control send window size for any newly created streams.
   int32_t initial_stream_send_window_ = kInitialFlowControlWindowSize;
-  uint32_t max_frame_payload_ = 16384u;
+  uint32_t max_frame_payload_ = kDefaultFramePayloadSizeLimit;
   // The maximum number of concurrent streams that this connection can open to
   // its peer and allow from its peer, respectively. Although the initial value
   // is unlimited, the spec encourages a value of at least 100. We limit
@@ -536,6 +539,8 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   bool processing_bytes_ = false;
   // Recursion guard for Send().
   bool sending_ = false;
+
+  bool peer_enables_connect_protocol_ = false;
 
   // Replace this with a stream ID, for multiple GOAWAY support.
   bool queued_goaway_ = false;

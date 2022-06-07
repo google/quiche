@@ -5883,12 +5883,12 @@ TEST(NgHttp2AdapterTest, AutomaticPingAcksDisabled) {
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
-TEST(NgHttp2AdapterTest, InvalidMaxFrameSize) {
+TEST(NgHttp2AdapterTest, InvalidMaxFrameSizeSetting) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
 
   const std::string frames =
-      TestFrameSequence().ClientPreface({{MAX_FRAME_SIZE, 3}}).Serialize();
+      TestFrameSequence().ClientPreface({{MAX_FRAME_SIZE, 3u}}).Serialize();
   testing::InSequence s;
 
   // Client preface
@@ -5910,6 +5910,90 @@ TEST(NgHttp2AdapterTest, InvalidMaxFrameSize) {
   int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::GOAWAY}));
+}
+
+TEST(OgHttp2AdapterTest, InvalidPushSetting) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  const std::string frames =
+      TestFrameSequence().ClientPreface({{ENABLE_PUSH, 3u}}).Serialize();
+  testing::InSequence s;
+
+  // Client preface
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnInvalidFrame(0, _));
+
+  const int64_t read_result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(GOAWAY, 0, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::GOAWAY}));
+}
+
+TEST(NgHttp2AdapterTest, InvalidConnectProtocolSetting) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface({{ENABLE_CONNECT_PROTOCOL, 3u}})
+                                 .Serialize();
+  testing::InSequence s;
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(
+      visitor,
+      OnInvalidFrame(0, Http2VisitorInterface::InvalidFrameError::kProtocol));
+
+  int64_t read_result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
+
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(GOAWAY, 0, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::GOAWAY}));
+
+  auto adapter2 = NgHttp2Adapter::CreateServerAdapter(visitor);
+  const std::string frames2 = TestFrameSequence()
+                                  .ClientPreface({{ENABLE_CONNECT_PROTOCOL, 1}})
+                                  .Settings({{ENABLE_CONNECT_PROTOCOL, 0}})
+                                  .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{ENABLE_CONNECT_PROTOCOL, 1u}));
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  // Surprisingly, nghttp2 allows this behavior, which is prohibited in RFC
+  // 8441.
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{ENABLE_CONNECT_PROTOCOL, 0u}));
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  read_result = adapter2->ProcessBytes(frames2);
+  EXPECT_EQ(static_cast<size_t>(read_result), frames2.size());
+
+  EXPECT_TRUE(adapter2->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  adapter2->Send();
 }
 
 TEST(NgHttp2AdapterTest, ServerForbidsProtocolPseudoheaderBeforeAck) {

@@ -1233,6 +1233,18 @@ void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
         encoder_header_table_capacity_when_acking_ = value;
       }
       break;
+    case ENABLE_PUSH:
+      if (value > 1u) {
+        visitor_.OnInvalidFrame(
+            0, Http2VisitorInterface::InvalidFrameError::kProtocol);
+        // The specification says this is a connection-level protocol error.
+        LatchErrorAndNotify(
+            Http2ErrorCode::PROTOCOL_ERROR,
+            Http2VisitorInterface::ConnectionError::kInvalidSetting);
+        return;
+      }
+      // Aside from validation, this setting is ignored.
+      break;
     case MAX_CONCURRENT_STREAMS:
       max_outbound_concurrent_streams_ = value;
       if (!IsServerSession()) {
@@ -1265,6 +1277,17 @@ void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
         return;
       }
       max_frame_payload_ = value;
+      break;
+    case ENABLE_CONNECT_PROTOCOL:
+      if (value > 1u || (value == 0 && peer_enables_connect_protocol_)) {
+        visitor_.OnInvalidFrame(
+            0, Http2VisitorInterface::InvalidFrameError::kProtocol);
+        LatchErrorAndNotify(
+            Http2ErrorCode::PROTOCOL_ERROR,
+            Http2VisitorInterface::ConnectionError::kInvalidSetting);
+        return;
+      }
+      peer_enables_connect_protocol_ = (value == 1u);
       break;
     default:
       // TODO(bnc): See if C++17 inline constants are allowed in QUICHE.
