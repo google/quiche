@@ -255,6 +255,7 @@ bool MaybeHandleLegacyVersionEncapsulation(
     QuicDispatcher* dispatcher,
     std::string legacy_version_encapsulation_inner_packet,
     const ReceivedPacketInfo& packet_info) {
+  QUICHE_DCHECK(!GetQuicRestartFlag(quic_disable_legacy_version_encapsulation));
   if (legacy_version_encapsulation_inner_packet.empty()) {
     // This CHLO did not contain the Legacy Version Encapsulation tag.
     return false;
@@ -587,16 +588,21 @@ bool QuicDispatcher::MaybeDispatchPacket(
         packet_info.version == LegacyVersionForEncapsulation()) {
       // This packet is using the Legacy Version Encapsulation version but the
       // corresponding session isn't, attempt extraction of inner packet.
-      ChloAlpnSniExtractor alpn_extractor;
-      if (ChloExtractor::Extract(packet_info.packet, packet_info.version,
-                                 config_->create_session_tag_indicators(),
-                                 &alpn_extractor,
-                                 server_connection_id.length())) {
-        if (MaybeHandleLegacyVersionEncapsulation(
-                this,
-                alpn_extractor.ConsumeLegacyVersionEncapsulationInnerPacket(),
-                packet_info)) {
-          return true;
+      if (GetQuicRestartFlag(quic_disable_legacy_version_encapsulation)) {
+        QUIC_CODE_COUNT(
+            quic_disable_legacy_version_encapsulation_dispatch_packet);
+      } else {
+        ChloAlpnSniExtractor alpn_extractor;
+        if (ChloExtractor::Extract(packet_info.packet, packet_info.version,
+                                   config_->create_session_tag_indicators(),
+                                   &alpn_extractor,
+                                   server_connection_id.length())) {
+          if (MaybeHandleLegacyVersionEncapsulation(
+                  this,
+                  alpn_extractor.ConsumeLegacyVersionEncapsulationInnerPacket(),
+                  packet_info)) {
+            return true;
+          }
         }
       }
     }
@@ -725,10 +731,17 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
       QUICHE_DCHECK(
           parsed_chlo->legacy_version_encapsulation_inner_packet.empty() ||
           !packet_info->version.UsesTls());
-      if (MaybeHandleLegacyVersionEncapsulation(
-              this, parsed_chlo->legacy_version_encapsulation_inner_packet,
-              *packet_info)) {
-        return;
+      if (GetQuicRestartFlag(quic_disable_legacy_version_encapsulation)) {
+        if (!parsed_chlo->legacy_version_encapsulation_inner_packet.empty()) {
+          QUIC_CODE_COUNT(
+              quic_disable_legacy_version_encapsulation_process_header);
+        }
+      } else {
+        if (MaybeHandleLegacyVersionEncapsulation(
+                this, parsed_chlo->legacy_version_encapsulation_inner_packet,
+                *packet_info)) {
+          return;
+        }
       }
 
       ProcessChlo(*std::move(parsed_chlo), packet_info);

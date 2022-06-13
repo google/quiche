@@ -5950,6 +5950,10 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
 }
 
 TEST_P(EndToEndTest, LegacyVersionEncapsulation) {
+  if (GetQuicRestartFlag(quic_disable_legacy_version_encapsulation)) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
   if (!version_.HasLongHeaderLengths() ||
       override_server_connection_id_length_ > -1) {
     // Decapsulating Legacy Version Encapsulation packets from these versions
@@ -5968,6 +5972,10 @@ TEST_P(EndToEndTest, LegacyVersionEncapsulation) {
 }
 
 TEST_P(EndToEndTest, LegacyVersionEncapsulationWithMultiPacketChlo) {
+  if (GetQuicRestartFlag(quic_disable_legacy_version_encapsulation)) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
   if (!version_.HasLongHeaderLengths() ||
       override_server_connection_id_length_ > -1) {
     // Decapsulating Legacy Version Encapsulation packets from these versions
@@ -5996,6 +6004,10 @@ TEST_P(EndToEndTest, LegacyVersionEncapsulationWithMultiPacketChlo) {
 }
 
 TEST_P(EndToEndTest, LegacyVersionEncapsulationWithVersionNegotiation) {
+  if (GetQuicRestartFlag(quic_disable_legacy_version_encapsulation)) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
   if (!version_.HasLongHeaderLengths() ||
       override_server_connection_id_length_ > -1) {
     // Decapsulating Legacy Version Encapsulation packets from these versions
@@ -6016,6 +6028,10 @@ TEST_P(EndToEndTest, LegacyVersionEncapsulationWithVersionNegotiation) {
 }
 
 TEST_P(EndToEndTest, LegacyVersionEncapsulationWithLoss) {
+  if (GetQuicRestartFlag(quic_disable_legacy_version_encapsulation)) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
   if (!version_.HasLongHeaderLengths() ||
       override_server_connection_id_length_ > -1) {
     // Decapsulating Legacy Version Encapsulation packets from these versions

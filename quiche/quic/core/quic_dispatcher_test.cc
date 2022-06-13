@@ -645,6 +645,9 @@ TEST_P(QuicDispatcherTestAllVersions,
 }
 
 TEST_P(QuicDispatcherTestAllVersions, LegacyVersionEncapsulation) {
+  if (GetQuicRestartFlag(quic_disable_legacy_version_encapsulation)) {
+    return;
+  }
   if (!version_.HasLongHeaderLengths()) {
     // Decapsulating Legacy Version Encapsulation packets from these versions
     // is not currently supported in QuicDispatcher.

@@ -17,6 +17,8 @@ QUIC_FLAG(quic_restart_flag_quic_testonly_default_false, false)
 QUIC_FLAG(quic_restart_flag_quic_testonly_default_true, true)
 // If bytes in flight has dipped below 1.25*MaxBW in the last round, do not exit PROBE_UP due to excess queue buildup.
 QUIC_FLAG(quic_reloadable_flag_quic_bbr2_no_probe_up_exit_if_no_queue, true)
+// If true, QUIC Legacy Version Encapsulation will be disabled.
+QUIC_FLAG(quic_restart_flag_quic_disable_legacy_version_encapsulation, false)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
