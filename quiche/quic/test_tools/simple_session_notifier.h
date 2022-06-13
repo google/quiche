@@ -28,6 +28,9 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
   // Tries to write stream data and returns data consumed.
   QuicConsumedData WriteOrBufferData(QuicStreamId id, QuicByteCount data_length,
                                      StreamSendingState state);
+  QuicConsumedData WriteOrBufferData(QuicStreamId id, QuicByteCount data_length,
+                                     StreamSendingState state,
+                                     TransmissionType transmission_type);
 
   // Tries to write RST_STREAM_FRAME.
   void WriteOrBufferRstStream(QuicStreamId id, QuicRstStreamErrorCode error,

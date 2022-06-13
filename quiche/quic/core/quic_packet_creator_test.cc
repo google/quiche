@@ -18,6 +18,7 @@
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_data_writer.h"
@@ -1927,6 +1928,10 @@ TEST_P(QuicPacketCreatorTest, PacketTransmissionType) {
                                          absl::string_view()));
   ASSERT_TRUE(QuicUtils::IsRetransmittableFrame(stream_frame.type));
 
+  QuicFrame stream_frame_2(QuicStreamFrame(stream_id,
+                                           /*fin=*/false, 1u,
+                                           absl::string_view()));
+
   QuicFrame padding_frame{QuicPaddingFrame()};
   ASSERT_FALSE(QuicUtils::IsRetransmittableFrame(padding_frame.type));
 
@@ -1939,14 +1944,152 @@ TEST_P(QuicPacketCreatorTest, PacketTransmissionType) {
   EXPECT_TRUE(creator_.AddFrame(stream_frame, PTO_RETRANSMISSION));
   ASSERT_EQ(serialized_packet_, nullptr);
 
-  EXPECT_TRUE(creator_.AddFrame(padding_frame, LOSS_RETRANSMISSION));
+  EXPECT_TRUE(creator_.AddFrame(stream_frame_2, PATH_RETRANSMISSION));
+  ASSERT_EQ(serialized_packet_, nullptr);
+
+  EXPECT_TRUE(creator_.AddFrame(padding_frame, PTO_RETRANSMISSION));
   creator_.FlushCurrentPacket();
   ASSERT_TRUE(serialized_packet_->encrypted_buffer);
 
   // The last retransmittable frame on packet is a stream frame, the packet's
   // transmission type should be the same as the stream frame's.
-  EXPECT_EQ(serialized_packet_->transmission_type, PTO_RETRANSMISSION);
+  EXPECT_EQ(serialized_packet_->transmission_type, PATH_RETRANSMISSION);
   DeleteSerializedPacket();
+}
+
+TEST_P(QuicPacketCreatorTest,
+       PacketBytesRetransmitted_AddFrame_Retransmission) {
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+
+  QuicAckFrame temp_ack_frame = InitAckFrame(1);
+  QuicFrame ack_frame(&temp_ack_frame);
+  EXPECT_TRUE(creator_.AddFrame(ack_frame, LOSS_RETRANSMISSION));
+
+  QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      client_framer_.transport_version(), Perspective::IS_CLIENT);
+
+  QuicFrame stream_frame;
+  const std::string data("data");
+  // ConsumeDataToFillCurrentPacket calls AddFrame
+  ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
+      stream_id, data, 0u, false, false, PTO_RETRANSMISSION, &stream_frame));
+  EXPECT_EQ(4u, stream_frame.stream_frame.data_length);
+
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+
+  creator_.FlushCurrentPacket();
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+  ASSERT_FALSE(serialized_packet_->bytes_not_retransmitted.has_value());
+
+  DeleteSerializedPacket();
+}
+
+TEST_P(QuicPacketCreatorTest,
+       PacketBytesRetransmitted_AddFrame_NotRetransmission) {
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+
+  QuicAckFrame temp_ack_frame = InitAckFrame(1);
+  QuicFrame ack_frame(&temp_ack_frame);
+  EXPECT_TRUE(creator_.AddFrame(ack_frame, NOT_RETRANSMISSION));
+
+  QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      client_framer_.transport_version(), Perspective::IS_CLIENT);
+
+  QuicFrame stream_frame;
+  const std::string data("data");
+  // ConsumeDataToFillCurrentPacket calls AddFrame
+  ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
+      stream_id, data, 0u, false, false, NOT_RETRANSMISSION, &stream_frame));
+  EXPECT_EQ(4u, stream_frame.stream_frame.data_length);
+
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+
+  creator_.FlushCurrentPacket();
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+  ASSERT_FALSE(serialized_packet_->bytes_not_retransmitted.has_value());
+
+  DeleteSerializedPacket();
+}
+
+TEST_P(QuicPacketCreatorTest, PacketBytesRetransmitted_AddFrame_MixedFrames) {
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+
+  QuicAckFrame temp_ack_frame = InitAckFrame(1);
+  QuicFrame ack_frame(&temp_ack_frame);
+  EXPECT_TRUE(creator_.AddFrame(ack_frame, NOT_RETRANSMISSION));
+
+  QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      client_framer_.transport_version(), Perspective::IS_CLIENT);
+
+  QuicFrame stream_frame;
+  const std::string data("data");
+  // ConsumeDataToFillCurrentPacket calls AddFrame
+  ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
+      stream_id, data, 0u, false, false, NOT_RETRANSMISSION, &stream_frame));
+  EXPECT_EQ(4u, stream_frame.stream_frame.data_length);
+
+  QuicFrame stream_frame2;
+  // ConsumeDataToFillCurrentPacket calls AddFrame
+  ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
+      stream_id, data, 0u, false, false, LOSS_RETRANSMISSION, &stream_frame2));
+  EXPECT_EQ(4u, stream_frame2.stream_frame.data_length);
+
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+
+  creator_.FlushCurrentPacket();
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+  ASSERT_TRUE(serialized_packet_->bytes_not_retransmitted.has_value());
+  ASSERT_GE(serialized_packet_->bytes_not_retransmitted.value(), 4u);
+
+  DeleteSerializedPacket();
+}
+
+TEST_P(QuicPacketCreatorTest,
+       PacketBytesRetransmitted_CreateAndSerializeStreamFrame_Retransmission) {
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+
+  const std::string data("test");
+  producer_.SaveStreamData(GetNthClientInitiatedStreamId(0), data);
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+  size_t num_bytes_consumed;
+  // Retransmission frame adds to packet's bytes_retransmitted
+  creator_.CreateAndSerializeStreamFrame(
+      GetNthClientInitiatedStreamId(0), data.length(), 0, 0, true,
+      LOSS_RETRANSMISSION, &num_bytes_consumed);
+  EXPECT_EQ(4u, num_bytes_consumed);
+
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+  ASSERT_FALSE(serialized_packet_->bytes_not_retransmitted.has_value());
+  DeleteSerializedPacket();
+
+  EXPECT_FALSE(creator_.HasPendingFrames());
+}
+
+TEST_P(
+    QuicPacketCreatorTest,
+    PacketBytesRetransmitted_CreateAndSerializeStreamFrame_NotRetransmission) {
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+
+  const std::string data("test");
+  producer_.SaveStreamData(GetNthClientInitiatedStreamId(0), data);
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+  size_t num_bytes_consumed;
+  // Non-retransmission frame does not add to packet's bytes_retransmitted
+  creator_.CreateAndSerializeStreamFrame(
+      GetNthClientInitiatedStreamId(0), data.length(), 0, 0, true,
+      NOT_RETRANSMISSION, &num_bytes_consumed);
+  EXPECT_EQ(4u, num_bytes_consumed);
+
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+  ASSERT_FALSE(serialized_packet_->bytes_not_retransmitted.has_value());
+  DeleteSerializedPacket();
+
+  EXPECT_FALSE(creator_.HasPendingFrames());
 }
 
 TEST_P(QuicPacketCreatorTest, RetryToken) {

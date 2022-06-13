@@ -439,7 +439,8 @@ SerializedPacket::SerializedPacket(SerializedPacket&& other)
       has_ack_frequency(other.has_ack_frequency),
       has_message(other.has_message),
       fate(other.fate),
-      peer_address(other.peer_address) {
+      peer_address(other.peer_address),
+      bytes_not_retransmitted(other.bytes_not_retransmitted) {
   if (this != &other) {
     if (release_encrypted_buffer && encrypted_buffer != nullptr) {
       release_encrypted_buffer(encrypted_buffer);
@@ -486,6 +487,7 @@ SerializedPacket* CopySerializedPacket(const SerializedPacket& serialized,
   copy->has_message = serialized.has_message;
   copy->fate = serialized.fate;
   copy->peer_address = serialized.peer_address;
+  copy->bytes_not_retransmitted = serialized.bytes_not_retransmitted;
 
   if (copy_buffer) {
     copy->encrypted_buffer = CopyBuffer(serialized);

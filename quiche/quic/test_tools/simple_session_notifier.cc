@@ -37,6 +37,12 @@ SimpleSessionNotifier::StreamState::~StreamState() {}
 
 QuicConsumedData SimpleSessionNotifier::WriteOrBufferData(
     QuicStreamId id, QuicByteCount data_length, StreamSendingState state) {
+  return WriteOrBufferData(id, data_length, state, NOT_RETRANSMISSION);
+}
+
+QuicConsumedData SimpleSessionNotifier::WriteOrBufferData(
+    QuicStreamId id, QuicByteCount data_length, StreamSendingState state,
+    TransmissionType transmission_type) {
   if (!stream_map_.contains(id)) {
     stream_map_[id] = StreamState();
   }
@@ -53,7 +59,7 @@ QuicConsumedData SimpleSessionNotifier::WriteOrBufferData(
     return {0, false};
   }
   const size_t length = stream_state.bytes_total - stream_state.bytes_sent;
-  connection_->SetTransmissionType(NOT_RETRANSMISSION);
+  connection_->SetTransmissionType(transmission_type);
   QuicConsumedData consumed =
       connection_->SendStreamData(id, length, stream_state.bytes_sent, state);
   QUIC_DVLOG(1) << "consumed: " << consumed;

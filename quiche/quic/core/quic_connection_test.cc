@@ -240,10 +240,19 @@ class TestConnection : public QuicConnection {
                                          absl::string_view data,
                                          QuicStreamOffset offset,
                                          StreamSendingState state) {
+    return SaveAndSendStreamData(id, data, offset, state, NOT_RETRANSMISSION);
+  }
+
+  QuicConsumedData SaveAndSendStreamData(QuicStreamId id,
+                                         absl::string_view data,
+                                         QuicStreamOffset offset,
+                                         StreamSendingState state,
+                                         TransmissionType transmission_type) {
     ScopedPacketFlusher flusher(this);
     producer_.SaveStreamData(id, data);
     if (notifier_ != nullptr) {
-      return notifier_->WriteOrBufferData(id, data.length(), state);
+      return notifier_->WriteOrBufferData(id, data.length(), state,
+                                          transmission_type);
     }
     return QuicConnection::SendStreamData(id, data.length(), offset, state);
   }
@@ -3543,6 +3552,86 @@ TEST_P(QuicConnectionTest, RecordSentTimeBeforePacketSent) {
   EXPECT_EQ(expected_recorded_send_time, actual_recorded_send_time)
       << "Expected time = " << expected_recorded_send_time.ToDebuggingValue()
       << ".  Actual time = " << actual_recorded_send_time.ToDebuggingValue();
+}
+
+TEST_P(QuicConnectionTest, ConnectionStatsRetransmission_WithRetransmissions) {
+  // Send two stream frames in 1 packet by queueing them.
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    connection_.SaveAndSendStreamData(
+        GetNthClientInitiatedStreamId(1, connection_.transport_version()),
+        "helloworld", 0, NO_FIN, PTO_RETRANSMISSION);
+    connection_.SaveAndSendStreamData(
+        GetNthClientInitiatedStreamId(2, connection_.transport_version()),
+        "helloworld", 0, NO_FIN, LOSS_RETRANSMISSION);
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  }
+
+  EXPECT_EQ(0u, connection_.NumQueuedPackets());
+  EXPECT_FALSE(connection_.HasQueuedData());
+
+  EXPECT_EQ(2u, writer_->frame_count());
+  for (auto& frame : writer_->stream_frames()) {
+    EXPECT_EQ(frame->data_length, 10u);
+  }
+
+  ASSERT_EQ(connection_.GetStats().packets_retransmitted, 1u);
+  ASSERT_GE(connection_.GetStats().bytes_retransmitted, 20u);
+}
+
+TEST_P(QuicConnectionTest, ConnectionStatsRetransmission_WithMixedFrames) {
+  // Send two stream frames in 1 packet by queueing them.
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    // First frame is retransmission. Second is NOT_RETRANSMISSION but the
+    // packet retains the PTO_RETRANSMISSION type.
+    connection_.SaveAndSendStreamData(
+        GetNthClientInitiatedStreamId(1, connection_.transport_version()),
+        "helloworld", 0, NO_FIN, PTO_RETRANSMISSION);
+    connection_.SaveAndSendStreamData(
+        GetNthClientInitiatedStreamId(2, connection_.transport_version()),
+        "helloworld", 0, NO_FIN, NOT_RETRANSMISSION);
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  }
+
+  EXPECT_EQ(0u, connection_.NumQueuedPackets());
+  EXPECT_FALSE(connection_.HasQueuedData());
+
+  EXPECT_EQ(2u, writer_->frame_count());
+  for (auto& frame : writer_->stream_frames()) {
+    EXPECT_EQ(frame->data_length, 10u);
+  }
+
+  ASSERT_EQ(connection_.GetStats().packets_retransmitted, 1u);
+  ASSERT_GE(connection_.GetStats().bytes_retransmitted, 10u);
+}
+
+TEST_P(QuicConnectionTest, ConnectionStatsRetransmission_NoRetransmission) {
+  // Send two stream frames in 1 packet by queueing them.
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    // Both frames are NOT_RETRANSMISSION
+    connection_.SaveAndSendStreamData(
+        GetNthClientInitiatedStreamId(1, connection_.transport_version()),
+        "helloworld", 0, NO_FIN, NOT_RETRANSMISSION);
+    connection_.SaveAndSendStreamData(
+        GetNthClientInitiatedStreamId(2, connection_.transport_version()),
+        "helloworld", 0, NO_FIN, NOT_RETRANSMISSION);
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  }
+
+  EXPECT_EQ(0u, connection_.NumQueuedPackets());
+  EXPECT_FALSE(connection_.HasQueuedData());
+
+  EXPECT_EQ(2u, writer_->frame_count());
+  ASSERT_EQ(connection_.GetStats().packets_retransmitted, 0u);
+  ASSERT_EQ(connection_.GetStats().bytes_retransmitted, 0u);
 }
 
 TEST_P(QuicConnectionTest, FramePacking) {

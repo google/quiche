@@ -8,6 +8,7 @@
 #include <sys/types.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -3655,10 +3656,24 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       sent_packet_manager_.GetLeastPacketAwaitedByPeer(encryption_level_),
       sent_packet_manager_.EstimateMaxPacketsInFlight(max_packet_length()));
 
-  stats_.bytes_sent += result.bytes_written;
+  stats_.bytes_sent += encrypted_length;
   ++stats_.packets_sent;
+
+  QuicByteCount bytes_not_retransmitted =
+      packet->bytes_not_retransmitted.value_or(0);
   if (packet->transmission_type != NOT_RETRANSMISSION) {
-    stats_.bytes_retransmitted += result.bytes_written;
+    if (static_cast<uint64_t>(encrypted_length) < bytes_not_retransmitted) {
+      QUIC_BUG(quic_packet_bytes_written_lt_bytes_not_retransmitted)
+          << "Total bytes written to the packet should be larger than the "
+             "bytes in not-retransmitted frames. Bytes written: "
+          << encrypted_length
+          << ", bytes not retransmitted: " << bytes_not_retransmitted;
+    } else {
+      // bytes_retransmitted includes packet's headers and encryption
+      // overhead.
+      stats_.bytes_retransmitted +=
+          (encrypted_length - bytes_not_retransmitted);
+    }
     ++stats_.packets_retransmitted;
   }
 

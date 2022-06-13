@@ -476,6 +476,12 @@ void QuicPacketCreator::OnSerializedPacket() {
   QUIC_BUG_IF(quic_bug_12398_5, packet_.encrypted_buffer == nullptr)
       << ENDPOINT;
 
+  // Clear bytes_not_retransmitted for packets containing only
+  // NOT_RETRANSMISSION frames.
+  if (packet_.transmission_type == NOT_RETRANSMISSION) {
+    packet_.bytes_not_retransmitted.reset();
+  }
+
   SerializedPacket packet(std::move(packet_));
   ClearPacket();
   RemoveSoftMaxPacketLength();
@@ -499,6 +505,7 @@ void QuicPacketCreator::ClearPacket() {
   QUICHE_DCHECK(packet_.nonretransmittable_frames.empty()) << ENDPOINT;
   packet_.largest_acked.Clear();
   needs_full_padding_ = false;
+  packet_.bytes_not_retransmitted.reset();
 }
 
 size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(
@@ -1795,9 +1802,13 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
     debug_delegate_->OnFrameAddedToPacket(frame);
   }
 
-  // Packet transmission type is determined by the last added retransmittable
-  // frame.
-  if (QuicUtils::IsRetransmittableFrame(frame.type)) {
+  if (transmission_type == NOT_RETRANSMISSION) {
+    packet_.bytes_not_retransmitted.emplace(
+        packet_.bytes_not_retransmitted.value_or(0) + frame_len);
+  } else if (QuicUtils::IsRetransmittableFrame(frame.type)) {
+    // Packet transmission type is determined by the last added retransmittable
+    // frame of a retransmission type. If a packet has no retransmittable
+    // retransmission frames, it has type NOT_RETRANSMISSION.
     packet_.transmission_type = transmission_type;
   }
   return true;
