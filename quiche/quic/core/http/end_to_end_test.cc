@@ -201,6 +201,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         connect_to_server_on_initialize_(true),
         server_address_(QuicSocketAddress(TestLoopback(), 0)),
         server_hostname_("test.example.com"),
+        fd_(kQuicInvalidSocketFd),
         client_writer_(nullptr),
         server_writer_(nullptr),
         version_(GetParam().version),
@@ -464,10 +465,24 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     } else {
       ADD_FAILURE() << "Missing client connection";
     }
-    StopServer();
+    StopServer(/*will_restart=*/false);
+    if (fd_ != kQuicInvalidSocketFd) {
+      // Every test should follow StopServer(true) with StartServer(), so we
+      // should never get here.
+      QuicUdpSocketApi socket_api;
+      socket_api.Destroy(fd_);
+      fd_ = kQuicInvalidSocketFd;
+    }
   }
 
   void StartServer() {
+    if (fd_ != kQuicInvalidSocketFd) {
+      // We previously called StopServer to reserve the ephemeral port. Close
+      // the socket so that it's available below.
+      QuicUdpSocketApi socket_api;
+      socket_api.Destroy(fd_);
+      fd_ = kQuicInvalidSocketFd;
+    }
     auto test_server = std::make_unique<QuicTestServer>(
         crypto_test_utils::ProofSourceForTesting(), server_config_,
         server_supported_versions_, &memory_cache_backend_,
@@ -485,6 +500,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         QuicSocketAddress(server_address_.host(), server_thread_->GetPort());
     QuicDispatcher* dispatcher =
         QuicServerPeer::GetDispatcher(server_thread_->server());
+    ASSERT_TRUE(dispatcher != nullptr);
     QuicDispatcherPeer::UseWriter(dispatcher, server_writer_);
 
     server_writer_->Initialize(QuicDispatcherPeer::GetHelper(dispatcher),
@@ -498,10 +514,29 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     server_thread_->Start();
   }
 
-  void StopServer() {
+  void StopServer(bool will_restart = true) {
     if (server_thread_) {
       server_thread_->Quit();
       server_thread_->Join();
+    }
+    if (will_restart) {
+      // server_address_ now contains the random listening port. Since many
+      // tests will attempt to re-bind the socket, claim it so that the kernel
+      // doesn't give away the ephemeral port.
+      QuicUdpSocketApi socket_api;
+      fd_ = socket_api.Create(
+          server_address_.host().AddressFamilyToInt(),
+          /*receive_buffer_size =*/kDefaultSocketReceiveBuffer,
+          /*send_buffer_size =*/kDefaultSocketReceiveBuffer);
+      if (fd_ == kQuicInvalidSocketFd) {
+        QUIC_LOG(ERROR) << "CreateSocket() failed: " << strerror(errno);
+        return;
+      }
+      int rc = socket_api.Bind(fd_, server_address_);
+      if (rc < 0) {
+        QUIC_LOG(ERROR) << "Bind failed: " << strerror(errno);
+        return;
+      }
     }
   }
 
@@ -834,6 +869,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   std::string server_hostname_;
   QuicTestBackend memory_cache_backend_;
   std::unique_ptr<ServerThread> server_thread_;
+  // This socket keeps the ephemeral port reserved so that the kernel doesn't
+  // give it away while the server is shut down.
+  QuicUdpSocketFd fd_;
   std::unique_ptr<QuicTestClient> client_;
   QuicConnectionDebugVisitor* connection_debug_visitor_ = nullptr;
   PacketDroppingTestWriter* client_writer_;

@@ -27,8 +27,9 @@ void ServerThread::Initialize() {
   if (initialized_) {
     return;
   }
-
-  server_->CreateUDPSocketAndListen(address_);
+  if (!server_->CreateUDPSocketAndListen(address_)) {
+    return;
+  }
 
   QuicWriterMutexLock lock(&port_lock_);
   port_ = server_->port();
