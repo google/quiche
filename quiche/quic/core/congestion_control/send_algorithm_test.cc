@@ -102,22 +102,6 @@ const QuicTime::Delta kTestCellularPropagationDelay =
 const QuicTime::Delta kTestLinkSmallRTTDelay =
     QuicTime::Delta::FromMilliseconds(10);
 
-const char* CongestionControlTypeToString(CongestionControlType cc_type) {
-  switch (cc_type) {
-    case kCubicBytes:
-      return "CUBIC_BYTES";
-    case kRenoBytes:
-      return "RENO_BYTES";
-    case kBBR:
-      return "BBR";
-    case kPCC:
-      return "PCC";
-    default:
-      QUIC_DLOG(FATAL) << "Unexpected CongestionControlType";
-      return nullptr;
-  }
-}
-
 struct TestParams {
   explicit TestParams(CongestionControlType congestion_control_type)
       : congestion_control_type(congestion_control_type) {}

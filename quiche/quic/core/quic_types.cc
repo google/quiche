@@ -307,6 +307,24 @@ std::ostream& operator<<(std::ostream& os, SerializedPacketFate fate) {
   return os;
 }
 
+std::string CongestionControlTypeToString(CongestionControlType cc_type) {
+  switch (cc_type) {
+    case kCubicBytes:
+      return "CUBIC_BYTES";
+    case kRenoBytes:
+      return "RENO_BYTES";
+    case kBBR:
+      return "BBR";
+    case kBBRv2:
+      return "BBRv2";
+    case kPCC:
+      return "PCC";
+    case kGoogCC:
+      return "GoogCC";
+  }
+  return absl::StrCat("Unknown(", static_cast<int>(cc_type), ")");
+}
+
 std::string EncryptionLevelToString(EncryptionLevel level) {
   switch (level) {
     RETURN_STRING_LITERAL(ENCRYPTION_INITIAL);
