@@ -31,9 +31,13 @@ class QUICHE_EXPORT_PRIVATE QuicheMemSlice {
   QuicheMemSlice(std::unique_ptr<char[]> buffer, size_t length)
       : impl_(std::move(buffer), length) {}
 
-  // Constructs QuicheMemSlice from |impl|. It takes the reference away from
-  // |impl|.
-  explicit QuicheMemSlice(QuicheMemSliceImpl impl) : impl_(std::move(impl)) {}
+  // Ensures the use of the in-place constructor (below) is intentional.
+  struct InPlace {};
+
+  // Constructs a QuicheMemSlice by constructing |impl_| in-place.
+  template <typename... Args>
+  explicit QuicheMemSlice(InPlace, Args&&... args)
+      : impl_{std::forward<Args>(args)...} {}
 
   QuicheMemSlice(const QuicheMemSlice& other) = delete;
   QuicheMemSlice& operator=(const QuicheMemSlice& other) = delete;
