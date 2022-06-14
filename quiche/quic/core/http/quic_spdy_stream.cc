@@ -734,20 +734,15 @@ void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
     return;
   }
 
-  // TODO(bnc): Merge the two blocks below when both
-  // quic_abort_qpack_on_stream_reset and quic_fix_on_stream_reset are
-  // deprecated.
+  // TODO(bnc): Merge the two blocks below when deprecating
+  // quic_fix_on_stream_reset.
   if (frame.error_code != QUIC_STREAM_NO_ERROR) {
     if (VersionUsesHttp3(transport_version()) && !fin_received() &&
         spdy_session_->qpack_decoder()) {
-      QUIC_CODE_COUNT_N(quic_abort_qpack_on_stream_reset, 1, 2);
       spdy_session_->qpack_decoder()->OnStreamReset(id());
-      if (GetQuicReloadableFlag(quic_abort_qpack_on_stream_reset)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_abort_qpack_on_stream_reset, 1, 2);
-        qpack_decoded_headers_accumulator_.reset();
-        qpack_decoded_headers_accumulator_reset_reason_ =
-            QpackDecodedHeadersAccumulatorResetReason::kResetInOnStreamReset1;
-      }
+      qpack_decoded_headers_accumulator_.reset();
+      qpack_decoded_headers_accumulator_reset_reason_ =
+          QpackDecodedHeadersAccumulatorResetReason::kResetInOnStreamReset1;
     }
 
     QuicStream::OnStreamReset(frame);
@@ -781,14 +776,10 @@ void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
 void QuicSpdyStream::ResetWithError(QuicResetStreamError error) {
   if (VersionUsesHttp3(transport_version()) && !fin_received() &&
       spdy_session_->qpack_decoder() && web_transport_data_ == nullptr) {
-    QUIC_CODE_COUNT_N(quic_abort_qpack_on_stream_reset, 2, 2);
     spdy_session_->qpack_decoder()->OnStreamReset(id());
-    if (GetQuicReloadableFlag(quic_abort_qpack_on_stream_reset)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_abort_qpack_on_stream_reset, 2, 2);
-      qpack_decoded_headers_accumulator_.reset();
-      qpack_decoded_headers_accumulator_reset_reason_ =
-          QpackDecodedHeadersAccumulatorResetReason::kResetInResetWithError;
-    }
+    qpack_decoded_headers_accumulator_.reset();
+    qpack_decoded_headers_accumulator_reset_reason_ =
+        QpackDecodedHeadersAccumulatorResetReason::kResetInResetWithError;
   }
 
   QuicStream::ResetWithError(error);

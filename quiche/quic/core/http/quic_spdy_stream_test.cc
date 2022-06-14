@@ -2564,27 +2564,13 @@ TEST_P(QuicSpdyStreamTest, HeaderDecodingUnblockedAfterResetReceived) {
                          /* offset = */ 1, _, _, _));
 
   // OnStreamReset() is called when RESET_STREAM frame is received from peer.
+  // This aborts header decompression.
   stream_->OnStreamReset(QuicRstStreamFrame(
       kInvalidControlFrameId, stream_->id(), QUIC_STREAM_CANCELLED, 0));
 
-  if (!GetQuicReloadableFlag(quic_abort_qpack_on_stream_reset)) {
-    // Header acknowledgement.
-    EXPECT_CALL(*session_,
-                WritevData(decoder_send_stream->id(), /* write_length = */ 1,
-                           /* offset = */ 2, _, _, _));
-    EXPECT_CALL(debug_visitor, OnHeadersDecoded(stream_->id(), _));
-  }
-
   // Deliver dynamic table entry to decoder.
   session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
-
-  if (GetQuicReloadableFlag(quic_abort_qpack_on_stream_reset)) {
-    EXPECT_FALSE(stream_->headers_decompressed());
-  } else {
-    // Verify headers.
-    EXPECT_TRUE(stream_->headers_decompressed());
-    EXPECT_THAT(stream_->header_list(), ElementsAre(Pair("foo", "bar")));
-  }
+  EXPECT_FALSE(stream_->headers_decompressed());
 }
 
 class QuicSpdyStreamIncrementalConsumptionTest : public QuicSpdyStreamTest {

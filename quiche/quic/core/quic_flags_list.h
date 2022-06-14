@@ -25,8 +25,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 QUIC_FLAG(quic_restart_flag_quic_support_release_time_for_gso, false)
 // If true, TlsHandshaker::AdvanceHandshake will check if connection is closed after SSL_do_handshake.
 QUIC_FLAG(quic_reloadable_flag_quic_tls_handshaker_check_connection_closed, true)
-// If true, abort async QPACK header decompression in QuicSpdyStream::Reset() and in QuicSpdyStream::OnStreamReset().
-QUIC_FLAG(quic_reloadable_flag_quic_abort_qpack_on_stream_reset, true)
 // If true, ack frequency frame can be sent from server to client.
 QUIC_FLAG(quic_reloadable_flag_quic_can_send_ack_frequency, true)
 // If true, allow client to enable BBRv2 on server via connection option \'B2ON\'.
