@@ -166,7 +166,8 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
             << absl::StrCat("Too much data for crypto send buffer with level: ",
                             EncryptionLevelToString(level),
                             ", current_buffer_size: ", current_buffer_size,
-                            ", data length: ", data.length());
+                            ", data length: ", data.length(),
+                            ", SNI: ", crypto_negotiated_params().sni);
         OnUnrecoverableError(QUIC_INTERNAL_ERROR,
                              "Too much data for crypto send buffer");
         return;
