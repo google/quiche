@@ -131,17 +131,19 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     ignore_ack_delay_ = true;
   }
 
-  if (config.HasClientRequestedIndependentOption(kPDP1, perspective)) {
-    num_ptos_for_path_degrading_ = 1;
-  }
-  if (config.HasClientRequestedIndependentOption(kPDP2, perspective)) {
-    num_ptos_for_path_degrading_ = 2;
-  }
-  if (config.HasClientRequestedIndependentOption(kPDP3, perspective)) {
-    num_ptos_for_path_degrading_ = 3;
-  }
-  if (config.HasClientRequestedIndependentOption(kPDP5, perspective)) {
-    num_ptos_for_path_degrading_ = 5;
+  if (!remove_blackhole_detection_experiments_) {
+    if (config.HasClientRequestedIndependentOption(kPDP1, perspective)) {
+      num_ptos_for_path_degrading_ = 1;
+    }
+    if (config.HasClientRequestedIndependentOption(kPDP2, perspective)) {
+      num_ptos_for_path_degrading_ = 2;
+    }
+    if (config.HasClientRequestedIndependentOption(kPDP3, perspective)) {
+      num_ptos_for_path_degrading_ = 3;
+    }
+    if (config.HasClientRequestedIndependentOption(kPDP5, perspective)) {
+      num_ptos_for_path_degrading_ = 5;
+    }
   }
 
   // Configure congestion control.

@@ -1230,6 +1230,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return quic_bug_10511_43_error_detail_;
   }
 
+  // Ensures the network blackhole delay is longer than path degrading delay.
+  static QuicTime::Delta CalculateNetworkBlackholeDelay(
+      QuicTime::Delta blackhole_delay, QuicTime::Delta path_degrading_delay,
+      QuicTime::Delta pto_delay);
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();

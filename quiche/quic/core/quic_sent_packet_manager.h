@@ -26,6 +26,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_unacked_packet_map.h"
 #include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/quiche_circular_deque.h"
 
 namespace quic {
@@ -464,6 +465,11 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // kMinUntrustedInitialRoundTripTimeUs if not |trusted|.
   void SetInitialRtt(QuicTime::Delta rtt, bool trusted);
 
+  // Latched value of --quic_remove_blackhole_detection_experiments.
+  bool remove_blackhole_detection_experiments() const {
+    return remove_blackhole_detection_experiments_;
+  }
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
@@ -668,6 +674,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Whether to ignore the ack_delay in received ACKs.
   bool ignore_ack_delay_;
+
+  const bool remove_blackhole_detection_experiments_ =
+      GetQuicReloadableFlag(quic_remove_blackhole_detection_experiments);
 };
 
 }  // namespace quic

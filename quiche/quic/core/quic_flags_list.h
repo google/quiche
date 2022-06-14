@@ -17,6 +17,8 @@ QUIC_FLAG(quic_restart_flag_quic_testonly_default_false, false)
 QUIC_FLAG(quic_restart_flag_quic_testonly_default_true, true)
 // If bytes in flight has dipped below 1.25*MaxBW in the last round, do not exit PROBE_UP due to excess queue buildup.
 QUIC_FLAG(quic_reloadable_flag_quic_bbr2_no_probe_up_exit_if_no_queue, true)
+// If true, 1) remove all experiments that tunes blackhole detection delay or path degrading delay, and 2) ensure network blackhole delay is at least path degrading delay plus 2 PTOs.
+QUIC_FLAG(quic_reloadable_flag_quic_remove_blackhole_detection_experiments, true)
 // If true, QUIC Legacy Version Encapsulation will be disabled.
 QUIC_FLAG(quic_restart_flag_quic_disable_legacy_version_encapsulation, false)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.

@@ -2499,6 +2499,9 @@ TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelayDefaultPTO) {
 }
 
 TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelayUsing2PTO) {
+  if (GetQuicReloadableFlag(quic_remove_blackhole_detection_experiments)) {
+    return;
+  }
   QuicConfig client_config;
   QuicTagVector client_options;
   client_options.push_back(kPDP2);
@@ -2512,6 +2515,9 @@ TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelayUsing2PTO) {
 }
 
 TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelayUsing1PTO) {
+  if (GetQuicReloadableFlag(quic_remove_blackhole_detection_experiments)) {
+    return;
+  }
   QuicConfig client_config;
   QuicTagVector client_options;
   client_options.push_back(kPDP1);

@@ -10643,7 +10643,8 @@ TEST_P(QuicConnectionTest, ClientOnlyBlackholeDetectionServer) {
 }
 
 TEST_P(QuicConnectionTest, 2RtoBlackholeDetection) {
-  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2) ||
+      GetQuicReloadableFlag(quic_remove_blackhole_detection_experiments)) {
     return;
   }
   QuicConfig config;
@@ -10670,7 +10671,8 @@ TEST_P(QuicConnectionTest, 2RtoBlackholeDetection) {
 }
 
 TEST_P(QuicConnectionTest, 3RtoBlackholeDetection) {
-  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2) ||
+      GetQuicReloadableFlag(quic_remove_blackhole_detection_experiments)) {
     return;
   }
   QuicConfig config;
@@ -10697,7 +10699,8 @@ TEST_P(QuicConnectionTest, 3RtoBlackholeDetection) {
 }
 
 TEST_P(QuicConnectionTest, 4RtoBlackholeDetection) {
-  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2) ||
+      GetQuicReloadableFlag(quic_remove_blackhole_detection_experiments)) {
     return;
   }
   QuicConfig config;
@@ -10724,7 +10727,8 @@ TEST_P(QuicConnectionTest, 4RtoBlackholeDetection) {
 }
 
 TEST_P(QuicConnectionTest, 6RtoBlackholeDetection) {
-  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2) ||
+      GetQuicReloadableFlag(quic_remove_blackhole_detection_experiments)) {
     return;
   }
   QuicConfig config;
@@ -15403,6 +15407,26 @@ TEST_P(QuicConnectionTest, EarliestSentTimeNotInitializedWhenPtoFires) {
       {{2, frames1, ENCRYPTION_INITIAL}, {3, frames2, ENCRYPTION_HANDSHAKE}});
   // Verify PTO is not armed given the only outstanding data is half RTT data.
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+}
+
+TEST_P(QuicConnectionTest, CalculateNetworkBlackholeDelay) {
+  if (!IsDefaultTestConfiguration()) {
+    return;
+  }
+
+  const QuicTime::Delta kOneSec = QuicTime::Delta::FromSeconds(1);
+  const QuicTime::Delta kTwoSec = QuicTime::Delta::FromSeconds(2);
+  const QuicTime::Delta kFourSec = QuicTime::Delta::FromSeconds(4);
+
+  // Normal case: blackhole_delay longer than path_degrading_delay +
+  // 2*pto_delay.
+  EXPECT_EQ(QuicConnection::CalculateNetworkBlackholeDelay(kFourSec, kOneSec,
+                                                           kOneSec),
+            kFourSec);
+
+  EXPECT_EQ(QuicConnection::CalculateNetworkBlackholeDelay(kFourSec, kOneSec,
+                                                           kTwoSec),
+            QuicTime::Delta::FromSeconds(5));
 }
 
 }  // namespace
