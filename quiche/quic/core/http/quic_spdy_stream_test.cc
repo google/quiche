@@ -3195,15 +3195,14 @@ TEST_P(QuicSpdyStreamTest,
   // Resets `qpack_decoded_headers_accumulator_`.
   stream_->OnHeadersDecoded({}, false);
 
-  // This private method should never be called when
-  // `qpack_decoded_headers_accumulator_` is nullptr.  The number 1 identifies
-  // the site where `qpack_decoded_headers_accumulator_` was last reset.
   EXPECT_QUIC_BUG(
       {
         EXPECT_CALL(*connection_, CloseConnection(_, _, _));
+        // This private method should never be called when
+        // `qpack_decoded_headers_accumulator_` is nullptr.
         EXPECT_FALSE(QuicSpdyStreamPeer::OnHeadersFrameEnd(stream_));
       },
-      "b215142466_OnHeadersFrameEnd.?: 1");
+      "b215142466_OnHeadersFrameEnd");
 }
 
 }  // namespace
