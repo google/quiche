@@ -23,6 +23,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_remove_blackhole_detection_experiments, true
 QUIC_FLAG(quic_restart_flag_quic_disable_legacy_version_encapsulation, false)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
+// If true, QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher will early return if connection is disconnected after FlushPackets.
+QUIC_FLAG(quic_reloadable_flag_quic_packet_flusher_check_connected_after_flush_packets, true)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(quic_restart_flag_quic_support_release_time_for_gso, false)
 // If true, TlsHandshaker::AdvanceHandshake will check if connection is closed after SSL_do_handshake.

@@ -4844,6 +4844,14 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
       connection_->FlushCoalescedPacket();
     }
     connection_->FlushPackets();
+    if (GetQuicReloadableFlag(
+            quic_packet_flusher_check_connected_after_flush_packets)) {
+      QUIC_RELOADABLE_FLAG_COUNT(
+          quic_packet_flusher_check_connected_after_flush_packets);
+      if (!connection_->connected()) {
+        return;
+      }
+    }
     if (!handshake_packet_sent_ && connection_->handshake_packet_sent_) {
       // This would cause INITIAL key to be dropped. Drop keys here to avoid
       // missing the write keys in the middle of writing.
