@@ -1064,15 +1064,13 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
       << ", with details: " << error_details;
 
   QuicConnection* connection = it->second->connection();
-  if (ShouldDestroySessionAsynchronously()) {
-    // Set up alarm to fire immediately to bring destruction of this session
-    // out of current call stack.
-    if (closed_session_list_.empty()) {
-      delete_sessions_alarm_->Update(helper()->GetClock()->ApproximateNow(),
-                                     QuicTime::Delta::Zero());
-    }
-    closed_session_list_.push_back(std::move(it->second));
+  // Set up alarm to fire immediately to bring destruction of this session
+  // out of current call stack.
+  if (closed_session_list_.empty()) {
+    delete_sessions_alarm_->Update(helper()->GetClock()->ApproximateNow(),
+                                   QuicTime::Delta::Zero());
   }
+  closed_session_list_.push_back(std::move(it->second));
   CleanUpSession(it->first, connection, error, error_details, source);
   for (const QuicConnectionId& cid :
        connection->GetActiveServerConnectionIds()) {
@@ -1375,8 +1373,6 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
   DeliverPacketsToSession(packets, session_ptr);
   --new_sessions_allowed_per_event_loop_;
 }
-
-bool QuicDispatcher::ShouldDestroySessionAsynchronously() { return true; }
 
 void QuicDispatcher::SetLastError(QuicErrorCode error) { last_error_ = error; }
 

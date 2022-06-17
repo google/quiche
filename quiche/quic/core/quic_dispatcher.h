@@ -244,10 +244,6 @@ class QUIC_NO_EXPORT QuicDispatcher
   void ProcessChlo(ParsedClientHello parsed_chlo,
                    ReceivedPacketInfo* packet_info);
 
-  // Return true if dispatcher wants to destroy session outside of
-  // OnConnectionClosed() call stack.
-  virtual bool ShouldDestroySessionAsynchronously();
-
   QuicTimeWaitListManager* time_wait_list_manager() {
     return time_wait_list_manager_.get();
   }
