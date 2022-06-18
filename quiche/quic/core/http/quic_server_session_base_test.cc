@@ -608,7 +608,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
                                     HAS_RETRANSMITTABLE_DATA, true);
 
   if (GetQuicRestartFlag(
-          quic_enable_sending_bandwidth_estimate_when_network_idle)) {
+          quic_enable_sending_bandwidth_estimate_when_network_idle_v2)) {
     EXPECT_CALL(*connection_, OnSendConnectionState(_)).Times(0);
   } else {
     // Verify that the proto has exactly the values we expect.

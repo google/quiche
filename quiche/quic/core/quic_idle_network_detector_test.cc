@@ -103,7 +103,7 @@ TEST_F(QuicIdleNetworkDetectorTest,
       /*handshake_timeout=*/QuicTime::Delta::Infinite(),
       /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(600));
   if (!GetQuicRestartFlag(
-          quic_enable_sending_bandwidth_estimate_when_network_idle)) {
+          quic_enable_sending_bandwidth_estimate_when_network_idle_v2)) {
     EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(600),
               alarm_->deadline());
 
@@ -141,7 +141,7 @@ TEST_F(QuicIdleNetworkDetectorTest,
   // Handshake completes in 200ms.
   const bool enable_sending_bandwidth_estimate_when_network_idle =
       GetQuicRestartFlag(
-          quic_enable_sending_bandwidth_estimate_when_network_idle);
+          quic_enable_sending_bandwidth_estimate_when_network_idle_v2);
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(200));
   detector_->OnPacketReceived(clock_.Now());
   detector_->SetTimeouts(
@@ -195,7 +195,7 @@ TEST_F(QuicIdleNetworkDetectorTest, ShorterIdleTimeoutOnSentPacket) {
   detector_->enable_shorter_idle_timeout_on_sent_packet();
   QuicTime::Delta idle_network_timeout = QuicTime::Delta::Zero();
   if (GetQuicRestartFlag(
-          quic_enable_sending_bandwidth_estimate_when_network_idle)) {
+          quic_enable_sending_bandwidth_estimate_when_network_idle_v2)) {
     idle_network_timeout = QuicTime::Delta::FromSeconds(60);
   } else {
     idle_network_timeout = QuicTime::Delta::FromSeconds(30);
@@ -250,7 +250,7 @@ TEST_F(QuicIdleNetworkDetectorTest, NoAlarmAfterStopped) {
 TEST_F(QuicIdleNetworkDetectorTest,
        ResetBandwidthTimeoutWhenHandshakeTimeoutIsSet) {
   if (!GetQuicRestartFlag(
-          quic_enable_sending_bandwidth_estimate_when_network_idle)) {
+          quic_enable_sending_bandwidth_estimate_when_network_idle_v2)) {
     return;
   }
   detector_->SetTimeouts(

@@ -88,7 +88,7 @@ void QuicServerSessionBase::OnConfigNegotiated() {
 
   enable_sending_bandwidth_estimate_when_network_idle_ =
       GetQuicRestartFlag(
-          quic_enable_sending_bandwidth_estimate_when_network_idle) &&
+          quic_enable_sending_bandwidth_estimate_when_network_idle_v2) &&
       version().HasIetfQuicFrames() &&
       ContainsQuicTag(config()->ReceivedConnectionOptions(), kBWID);
 
@@ -146,7 +146,7 @@ void QuicServerSessionBase::OnBandwidthUpdateTimeout() {
     const bool success = MaybeSendAddressToken();
     QUIC_BUG_IF(QUIC_BUG_25522, !success) << "Failed to send address token.";
     QUIC_RESTART_FLAG_COUNT_N(
-        quic_enable_sending_bandwidth_estimate_when_network_idle, 2, 3);
+        quic_enable_sending_bandwidth_estimate_when_network_idle_v2, 2, 3);
   }
 }
 
@@ -154,9 +154,9 @@ void QuicServerSessionBase::OnCongestionWindowChange(QuicTime now) {
   // Sending bandwidth is no longer conditioned on if session does bandwidth
   // resumption.
   if (GetQuicRestartFlag(
-          quic_enable_sending_bandwidth_estimate_when_network_idle)) {
+          quic_enable_sending_bandwidth_estimate_when_network_idle_v2)) {
     QUIC_RESTART_FLAG_COUNT_N(
-        quic_enable_sending_bandwidth_estimate_when_network_idle, 3, 3);
+        quic_enable_sending_bandwidth_estimate_when_network_idle_v2, 3, 3);
     return;
   }
   if (!bandwidth_resumption_enabled_) {

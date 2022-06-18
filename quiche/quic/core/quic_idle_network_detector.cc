@@ -74,10 +74,10 @@ void QuicIdleNetworkDetector::SetTimeouts(
   bandwidth_update_timeout_ = QuicTime::Delta::Infinite();
 
   if (GetQuicRestartFlag(
-          quic_enable_sending_bandwidth_estimate_when_network_idle) &&
+          quic_enable_sending_bandwidth_estimate_when_network_idle_v2) &&
       handshake_timeout_.IsInfinite()) {
     QUIC_RESTART_FLAG_COUNT_N(
-        quic_enable_sending_bandwidth_estimate_when_network_idle, 1, 3);
+        quic_enable_sending_bandwidth_estimate_when_network_idle_v2, 1, 3);
     bandwidth_update_timeout_ = idle_network_timeout_ * 0.5;
   }
 
