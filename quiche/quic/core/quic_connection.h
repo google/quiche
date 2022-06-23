@@ -164,8 +164,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Called to send a RETIRE_CONNECTION_ID frame.
   virtual void SendRetireConnectionId(uint64_t sequence_number) = 0;
 
-  // Called when server starts to use a server issued connection ID.
-  virtual void OnServerConnectionIdIssued(
+  // Called when server starts to use a server issued connection ID. Returns
+  // true if this connection ID hasn't been used by another connection.
+  virtual bool MaybeReserveConnectionId(
       const QuicConnectionId& server_connection_id) = 0;
 
   // Called when server stops to use a server issued connection ID.
@@ -718,7 +719,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // QuicConnectionIdManagerVisitorInterface
   void OnPeerIssuedConnectionIdRetired() override;
   bool SendNewConnectionId(const QuicNewConnectionIdFrame& frame) override;
-  void OnNewConnectionIdIssued(const QuicConnectionId& connection_id) override;
+  bool MaybeReserveConnectionId(const QuicConnectionId& connection_id) override;
   void OnSelfIssuedConnectionIdRetired(
       const QuicConnectionId& connection_id) override;
 

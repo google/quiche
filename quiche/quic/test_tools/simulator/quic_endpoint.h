@@ -74,8 +74,10 @@ class QuicEndpoint : public QuicEndpointBase,
   void SendNewConnectionId(const QuicNewConnectionIdFrame& /*frame*/) override {
   }
   void SendRetireConnectionId(uint64_t /*sequence_number*/) override {}
-  void OnServerConnectionIdIssued(
-      const QuicConnectionId& /*server_connection_id*/) override {}
+  bool MaybeReserveConnectionId(
+      const QuicConnectionId& /*server_connection_id*/) override {
+    return true;
+  }
   void OnServerConnectionIdRetired(
       const QuicConnectionId& /*server_connection_id*/) override {}
   bool AllowSelfAddressChange() const override;

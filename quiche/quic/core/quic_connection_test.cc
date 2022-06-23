@@ -1866,9 +1866,11 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
   QuicConnectionPeer::SetAddressValidated(&connection_);
 
   // Sends new server CID to client.
-  EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_))
-      .WillOnce(
-          Invoke([&](const QuicConnectionId& cid) { server_cid1 = cid; }));
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
+      .WillOnce(Invoke([&](const QuicConnectionId& cid) {
+        server_cid1 = cid;
+        return true;
+      }));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.OnHandshakeComplete();
 
@@ -2057,8 +2059,11 @@ TEST_P(QuicConnectionTest, ConnectionMigrationWithPendingPaddingBytes) {
 
   // Sends new server CID to client.
   QuicConnectionId new_cid;
-  EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_))
-      .WillOnce(Invoke([&](const QuicConnectionId& cid) { new_cid = cid; }));
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
+      .WillOnce(Invoke([&](const QuicConnectionId& cid) {
+        new_cid = cid;
+        return true;
+      }));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   // Discard INITIAL key.
   connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
@@ -2111,8 +2116,11 @@ TEST_P(QuicConnectionTest,
 
   // Sends new server CID to client.
   QuicConnectionId new_cid;
-  EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_))
-      .WillOnce(Invoke([&](const QuicConnectionId& cid) { new_cid = cid; }));
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
+      .WillOnce(Invoke([&](const QuicConnectionId& cid) {
+        new_cid = cid;
+        return true;
+      }));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   // Discard INITIAL key.
   connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
@@ -2176,9 +2184,11 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   QuicConnectionId server_cid0 = connection_.connection_id();
   QuicConnectionId server_cid1;
   // Sends new server CID to client.
-  EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_))
-      .WillOnce(
-          Invoke([&](const QuicConnectionId& cid) { server_cid1 = cid; }));
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
+      .WillOnce(Invoke([&](const QuicConnectionId& cid) {
+        server_cid1 = cid;
+        return true;
+      }));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.OnHandshakeComplete();
   // Receives new client CID from client.
@@ -13315,9 +13325,11 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
   QuicConnectionId client_cid1 = TestConnectionId(2);
   QuicConnectionId server_cid1;
   // Sends new server CID to client.
-  EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_))
-      .WillOnce(
-          Invoke([&](const QuicConnectionId& cid) { server_cid1 = cid; }));
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
+      .WillOnce(Invoke([&](const QuicConnectionId& cid) {
+        server_cid1 = cid;
+        return true;
+      }));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.MaybeSendConnectionIdToClient();
   // Receives new client CID from client.
@@ -13461,9 +13473,11 @@ TEST_P(QuicConnectionTest,
   QuicConnectionId server_cid0 = connection_.connection_id();
   QuicConnectionId server_cid1;
   // Sends new server CID to client.
-  EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_))
-      .WillOnce(
-          Invoke([&](const QuicConnectionId& cid) { server_cid1 = cid; }));
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
+      .WillOnce(Invoke([&](const QuicConnectionId& cid) {
+        server_cid1 = cid;
+        return true;
+      }));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.MaybeSendConnectionIdToClient();
   auto* packet_creator = QuicConnectionPeer::GetPacketCreator(&connection_);
@@ -13580,9 +13594,11 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
   QuicConnectionId client_cid1 = TestConnectionId(2);
   QuicConnectionId server_cid1;
   // Sends new server CID to client.
-  EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_))
-      .WillOnce(
-          Invoke([&](const QuicConnectionId& cid) { server_cid1 = cid; }));
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
+      .WillOnce(Invoke([&](const QuicConnectionId& cid) {
+        server_cid1 = cid;
+        return true;
+      }));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.MaybeSendConnectionIdToClient();
   // Receives new client CID from client.
@@ -13680,6 +13696,27 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
                         ->Fire(),
                     "quic_bug_12645_2");
   }
+}
+
+TEST_P(QuicConnectionTest, DoNotIssueNewCidIfVisitorSaysNo) {
+  set_perspective(Perspective::IS_SERVER);
+  if (!connection_.connection_migration_use_new_cid()) {
+    return;
+  }
+
+  connection_.CreateConnectionIdManager();
+
+  QuicConnectionId server_cid0 = connection_.connection_id();
+  QuicConnectionId client_cid1 = TestConnectionId(2);
+  QuicConnectionId server_cid1;
+  // Sends new server CID to client.
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_)).WillOnce(Return(false));
+  if (GetQuicReloadableFlag(quic_check_cid_collision_when_issue_new_cid)) {
+    EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(0);
+  } else {
+    EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(1);
+  }
+  connection_.MaybeSendConnectionIdToClient();
 }
 
 TEST_P(QuicConnectionTest,
@@ -14217,7 +14254,7 @@ TEST_P(QuicConnectionTest, RetireConnectionIdFrameResultsInError) {
   set_perspective(Perspective::IS_SERVER);
   connection_.CreateConnectionIdManager();
 
-  EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_));
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.MaybeSendConnectionIdToClient();
 
@@ -14250,7 +14287,9 @@ TEST_P(QuicConnectionTest,
   QuicRetireConnectionIdFrame frame;
   frame.sequence_number = 0u;
   if (connection_.connection_migration_use_new_cid()) {
-    EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_)).Times(2);
+    EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
+        .Times(2)
+        .WillRepeatedly(Return(true));
     EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(2);
   }
   EXPECT_TRUE(connection_.OnRetireConnectionIdFrame(frame));
@@ -14270,8 +14309,9 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
   set_perspective(Perspective::IS_SERVER);
   connection_.CreateConnectionIdManager();
   QuicConnectionId recorded_cid;
-  auto cid_recorder = [&recorded_cid](const QuicConnectionId& cid) {
+  auto cid_recorder = [&recorded_cid](const QuicConnectionId& cid) -> bool {
     recorded_cid = cid;
+    return true;
   };
   QuicConnectionId cid0 = connection_id_;
   QuicConnectionId cid1;
@@ -14280,7 +14320,7 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
   EXPECT_EQ(connection_.GetOneActiveServerConnectionId(), cid0);
 
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_))
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
       .WillOnce(Invoke(cid_recorder));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.MaybeSendConnectionIdToClient();
@@ -14311,7 +14351,7 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
 
   // Packet2 with RetireConnectionId frame trigers sending NewConnectionId
   // immediately.
-  EXPECT_CALL(visitor_, OnServerConnectionIdIssued(_))
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
       .WillOnce(Invoke(cid_recorder));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   peer_creator_.SetServerConnectionId(cid1);

@@ -47,7 +47,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionIdManagerVisitorInterface {
   virtual ~QuicConnectionIdManagerVisitorInterface() = default;
   virtual void OnPeerIssuedConnectionIdRetired() = 0;
   virtual bool SendNewConnectionId(const QuicNewConnectionIdFrame& frame) = 0;
-  virtual void OnNewConnectionIdIssued(
+  virtual bool MaybeReserveConnectionId(
       const QuicConnectionId& connection_id) = 0;
   virtual void OnSelfIssuedConnectionIdRetired(
       const QuicConnectionId& connection_id) = 0;
@@ -130,7 +130,8 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
 
   virtual ~QuicSelfIssuedConnectionIdManager();
 
-  QuicNewConnectionIdFrame IssueNewConnectionIdForPreferredAddress();
+  absl::optional<QuicNewConnectionIdFrame>
+  MaybeIssueNewConnectionIdForPreferredAddress();
 
   QuicErrorCode OnRetireConnectionIdFrame(
       const QuicRetireConnectionIdFrame& frame, QuicTime::Delta pto_delay,
@@ -164,7 +165,8 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
  private:
   friend class test::QuicConnectionIdManagerPeer;
 
-  QuicNewConnectionIdFrame IssueNewConnectionId();
+  // Issue a new connection ID. Can return nullopt.
+  absl::optional<QuicNewConnectionIdFrame> MaybeIssueNewConnectionId();
 
   // This should be set to the min of:
   // (1) # of active connection IDs that peer can maintain.

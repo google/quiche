@@ -2098,12 +2098,13 @@ void QuicSession::SendRetireConnectionId(uint64_t sequence_number) {
   control_frame_manager_.WriteOrBufferRetireConnectionId(sequence_number);
 }
 
-void QuicSession::OnServerConnectionIdIssued(
+bool QuicSession::MaybeReserveConnectionId(
     const QuicConnectionId& server_connection_id) {
   if (visitor_) {
-    visitor_->OnNewConnectionIdSent(
+    return visitor_->TryAddNewConnectionId(
         connection_->GetOneActiveServerConnectionId(), server_connection_id);
   }
+  return true;
 }
 
 void QuicSession::OnServerConnectionIdRetired(

@@ -1099,7 +1099,7 @@ void QuicDispatcher::OnRstStreamReceived(const QuicRstStreamFrame& /*frame*/) {}
 void QuicDispatcher::OnStopSendingReceived(
     const QuicStopSendingFrame& /*frame*/) {}
 
-void QuicDispatcher::OnNewConnectionIdSent(
+bool QuicDispatcher::TryAddNewConnectionId(
     const QuicConnectionId& server_connection_id,
     const QuicConnectionId& new_connection_id) {
   auto it = reference_counted_session_map_.find(server_connection_id);
@@ -1108,13 +1108,16 @@ void QuicDispatcher::OnNewConnectionIdSent(
         << "Couldn't locate the session that issues the connection ID in "
            "reference_counted_session_map_.  server_connection_id:"
         << server_connection_id << " new_connection_id: " << new_connection_id;
-    return;
+    return false;
   }
   // Count new connection ID added to the dispatcher map.
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_connection_migration_use_new_cid_v2, 6, 6);
   auto insertion_result = reference_counted_session_map_.insert(
       std::make_pair(new_connection_id, it->second));
-  QUICHE_DCHECK(insertion_result.second);
+  if (!insertion_result.second) {
+    QUIC_CODE_COUNT(quic_cid_already_in_session_map);
+  }
+  return insertion_result.second;
 }
 
 void QuicDispatcher::OnConnectionIdRetired(

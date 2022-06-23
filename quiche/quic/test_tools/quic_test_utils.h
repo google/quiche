@@ -475,7 +475,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
               (const QuicNewConnectionIdFrame& frame), (override));
   MOCK_METHOD(void, SendRetireConnectionId, (uint64_t sequence_number),
               (override));
-  MOCK_METHOD(void, OnServerConnectionIdIssued,
+  MOCK_METHOD(bool, MaybeReserveConnectionId,
               (const QuicConnectionId& server_connection_id), (override));
   MOCK_METHOD(void, OnServerConnectionIdRetired,
               (const QuicConnectionId& server_connection_id), (override));

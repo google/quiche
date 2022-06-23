@@ -6398,11 +6398,12 @@ bool QuicConnection::SendNewConnectionId(
   return connected_;
 }
 
-void QuicConnection::OnNewConnectionIdIssued(
+bool QuicConnection::MaybeReserveConnectionId(
     const QuicConnectionId& connection_id) {
   if (perspective_ == Perspective::IS_SERVER) {
-    visitor_->OnServerConnectionIdIssued(connection_id);
+    return visitor_->MaybeReserveConnectionId(connection_id);
   }
+  return true;
 }
 
 void QuicConnection::OnSelfIssuedConnectionIdRetired(

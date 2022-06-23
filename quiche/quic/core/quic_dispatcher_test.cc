@@ -170,7 +170,10 @@ class MockServerConnection : public MockQuicConnection {
         active_connection_ids_({connection_id}) {}
 
   void AddNewConnectionId(QuicConnectionId id) {
-    dispatcher_->OnNewConnectionIdSent(active_connection_ids_.back(), id);
+    if (!dispatcher_->TryAddNewConnectionId(active_connection_ids_.back(),
+                                            id)) {
+      return;
+    }
     QuicConnectionPeer::SetServerConnectionId(this, id);
     active_connection_ids_.push_back(id);
   }
@@ -2243,7 +2246,14 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::PrintToStringParamName());
 
 TEST_P(QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
-       OnNewConnectionIdSent) {
+       FailToAddExistingConnectionId) {
+  AddConnection1();
+  EXPECT_FALSE(dispatcher_->TryAddNewConnectionId(TestConnectionId(1),
+                                                  TestConnectionId(1)));
+}
+
+TEST_P(QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
+       TryAddNewConnectionId) {
   AddConnection1();
   ASSERT_EQ(dispatcher_->NumSessions(), 1u);
   ASSERT_THAT(session1_, testing::NotNull());

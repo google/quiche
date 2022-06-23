@@ -102,8 +102,9 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   // QuicSession::Visitor interface implementation (via inheritance of
   // QuicTimeWaitListManager::Visitor):
-  // Add the newly issued connection ID to the session map.
-  void OnNewConnectionIdSent(
+  // Try to add the new connection ID to the session map. Returns true on
+  // success.
+  bool TryAddNewConnectionId(
       const QuicConnectionId& server_connection_id,
       const QuicConnectionId& new_connection_id) override;
 
