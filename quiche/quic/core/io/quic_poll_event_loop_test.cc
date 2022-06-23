@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/core/io/quic_default_event_loop.h"
+#include "quiche/quic/core/io/quic_poll_event_loop.h"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -21,9 +21,9 @@
 
 namespace quic {
 
-class QuicDefaultEventLoopPeer {
+class QuicPollEventLoopPeer {
  public:
-  static QuicTime::Delta ComputePollTimeout(const QuicDefaultEventLoop& loop,
+  static QuicTime::Delta ComputePollTimeout(const QuicPollEventLoop& loop,
                                             QuicTime now,
                                             QuicTime::Delta default_timeout) {
     return loop.ComputePollTimeout(now, default_timeout);
@@ -57,10 +57,10 @@ class MockDelegate : public QuicAlarm::Delegate {
   MOCK_METHOD(void, OnAlarm, (), (override));
 };
 
-class QuicDefaultEventLoopForTest : public QuicDefaultEventLoop {
+class QuicPollEventLoopForTest : public QuicPollEventLoop {
  public:
-  QuicDefaultEventLoopForTest(MockClock* clock)
-      : QuicDefaultEventLoop(clock), clock_(clock) {}
+  QuicPollEventLoopForTest(MockClock* clock)
+      : QuicPollEventLoop(clock), clock_(clock) {}
 
   int PollSyscall(pollfd* fds, nfds_t nfds, int timeout) override {
     timeouts_.push_back(timeout);
@@ -71,7 +71,7 @@ class QuicDefaultEventLoopForTest : public QuicDefaultEventLoop {
       return -1;
     }
     clock_->AdvanceTime(QuicTime::Delta::FromMilliseconds(timeout));
-    return QuicDefaultEventLoop::PollSyscall(fds, nfds, timeout);
+    return QuicPollEventLoop::PollSyscall(fds, nfds, timeout);
   }
 
   void TriggerEintrAfter(QuicTime::Delta time) { eintr_after_ = time; }
@@ -84,10 +84,9 @@ class QuicDefaultEventLoopForTest : public QuicDefaultEventLoop {
   std::vector<int> timeouts_;
 };
 
-class QuicDefaultEventLoopTest : public QuicTest {
+class QuicPollEventLoopTest : public QuicTest {
  public:
-  QuicDefaultEventLoopTest()
-      : loop_(&clock_), factory_(loop_.GetAlarmFactory()) {
+  QuicPollEventLoopTest() : loop_(&clock_), factory_(loop_.GetAlarmFactory()) {
     int fds[2];
     int result = ::pipe(fds);
     QUICHE_CHECK(result >= 0) << "Failed to create a pipe, errno: " << errno;
@@ -104,14 +103,14 @@ class QuicDefaultEventLoopTest : public QuicTest {
     clock_.AdvanceTime(10 * kDefaultTimeout);
   }
 
-  ~QuicDefaultEventLoopTest() {
+  ~QuicPollEventLoopTest() {
     close(read_fd_);
     close(write_fd_);
   }
 
   QuicTime::Delta ComputePollTimeout() {
-    return QuicDefaultEventLoopPeer::ComputePollTimeout(loop_, clock_.Now(),
-                                                        kDefaultTimeout);
+    return QuicPollEventLoopPeer::ComputePollTimeout(loop_, clock_.Now(),
+                                                     kDefaultTimeout);
   }
 
   std::pair<std::unique_ptr<QuicAlarm>, MockDelegate*> CreateAlarm() {
@@ -123,13 +122,13 @@ class QuicDefaultEventLoopTest : public QuicTest {
 
  protected:
   MockClock clock_;
-  QuicDefaultEventLoopForTest loop_;
+  QuicPollEventLoopForTest loop_;
   QuicAlarmFactory* factory_;
   int read_fd_;
   int write_fd_;
 };
 
-TEST_F(QuicDefaultEventLoopTest, NothingHappens) {
+TEST_F(QuicPollEventLoopTest, NothingHappens) {
   testing::StrictMock<MockQuicSocketEventListener> listener;
   ASSERT_TRUE(loop_.RegisterSocket(read_fd_, kAllEvents, &listener));
   ASSERT_TRUE(loop_.RegisterSocket(write_fd_, kAllEvents, &listener));
@@ -146,7 +145,7 @@ TEST_F(QuicDefaultEventLoopTest, NothingHappens) {
   EXPECT_THAT(loop_.timeouts(), ElementsAre(4, 5));
 }
 
-TEST_F(QuicDefaultEventLoopTest, RearmWriter) {
+TEST_F(QuicPollEventLoopTest, RearmWriter) {
   testing::StrictMock<MockQuicSocketEventListener> listener;
   ASSERT_TRUE(loop_.RegisterSocket(write_fd_, kAllEvents, &listener));
 
@@ -157,7 +156,7 @@ TEST_F(QuicDefaultEventLoopTest, RearmWriter) {
   loop_.RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(1));
 }
 
-TEST_F(QuicDefaultEventLoopTest, Readable) {
+TEST_F(QuicPollEventLoopTest, Readable) {
   testing::StrictMock<MockQuicSocketEventListener> listener;
   ASSERT_TRUE(loop_.RegisterSocket(read_fd_, kAllEvents, &listener));
 
@@ -168,7 +167,7 @@ TEST_F(QuicDefaultEventLoopTest, Readable) {
   loop_.RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(1));
 }
 
-TEST_F(QuicDefaultEventLoopTest, RearmReader) {
+TEST_F(QuicPollEventLoopTest, RearmReader) {
   testing::StrictMock<MockQuicSocketEventListener> listener;
   ASSERT_TRUE(loop_.RegisterSocket(read_fd_, kAllEvents, &listener));
 
@@ -179,7 +178,7 @@ TEST_F(QuicDefaultEventLoopTest, RearmReader) {
   loop_.RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(1));
 }
 
-TEST_F(QuicDefaultEventLoopTest, WriterUnblocked) {
+TEST_F(QuicPollEventLoopTest, WriterUnblocked) {
   testing::StrictMock<MockQuicSocketEventListener> listener;
   ASSERT_TRUE(loop_.RegisterSocket(write_fd_, kAllEvents, &listener));
 
@@ -206,7 +205,7 @@ TEST_F(QuicDefaultEventLoopTest, WriterUnblocked) {
   loop_.RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(1));
 }
 
-TEST_F(QuicDefaultEventLoopTest, ArtificialEvent) {
+TEST_F(QuicPollEventLoopTest, ArtificialEvent) {
   testing::StrictMock<MockQuicSocketEventListener> listener;
   ASSERT_TRUE(loop_.RegisterSocket(read_fd_, kAllEvents, &listener));
   ASSERT_TRUE(loop_.RegisterSocket(write_fd_, kAllEvents, &listener));
@@ -224,7 +223,7 @@ TEST_F(QuicDefaultEventLoopTest, ArtificialEvent) {
   EXPECT_EQ(ComputePollTimeout(), kDefaultTimeout);
 }
 
-TEST_F(QuicDefaultEventLoopTest, Unregister) {
+TEST_F(QuicPollEventLoopTest, Unregister) {
   testing::StrictMock<MockQuicSocketEventListener> listener;
   ASSERT_TRUE(loop_.RegisterSocket(write_fd_, kAllEvents, &listener));
   ASSERT_TRUE(loop_.UnregisterSocket(write_fd_));
@@ -237,7 +236,7 @@ TEST_F(QuicDefaultEventLoopTest, Unregister) {
   EXPECT_FALSE(loop_.ArtificiallyNotifyEvent(write_fd_, kSocketEventWritable));
 }
 
-TEST_F(QuicDefaultEventLoopTest, UnregisterInsideEventHandler) {
+TEST_F(QuicPollEventLoopTest, UnregisterInsideEventHandler) {
   testing::StrictMock<MockQuicSocketEventListener> listener;
   ASSERT_TRUE(loop_.RegisterSocket(read_fd_, kAllEvents, &listener));
   ASSERT_TRUE(loop_.RegisterSocket(write_fd_, kAllEvents, &listener));
@@ -250,7 +249,7 @@ TEST_F(QuicDefaultEventLoopTest, UnregisterInsideEventHandler) {
   loop_.RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(1));
 }
 
-TEST_F(QuicDefaultEventLoopTest, EintrHandler) {
+TEST_F(QuicPollEventLoopTest, EintrHandler) {
   testing::StrictMock<MockQuicSocketEventListener> listener;
   ASSERT_TRUE(loop_.RegisterSocket(read_fd_, kAllEvents, &listener));
 
@@ -259,7 +258,7 @@ TEST_F(QuicDefaultEventLoopTest, EintrHandler) {
   EXPECT_THAT(loop_.timeouts(), ElementsAre(100, 75));
 }
 
-TEST_F(QuicDefaultEventLoopTest, AlarmInFuture) {
+TEST_F(QuicPollEventLoopTest, AlarmInFuture) {
   EXPECT_EQ(ComputePollTimeout(), kDefaultTimeout);
 
   constexpr auto kAlarmTimeout = QuicTime::Delta::FromMilliseconds(5);
@@ -274,7 +273,7 @@ TEST_F(QuicDefaultEventLoopTest, AlarmInFuture) {
   EXPECT_EQ(ComputePollTimeout(), kDefaultTimeout);
 }
 
-TEST_F(QuicDefaultEventLoopTest, AlarmsInPast) {
+TEST_F(QuicPollEventLoopTest, AlarmsInPast) {
   EXPECT_EQ(ComputePollTimeout(), kDefaultTimeout);
 
   constexpr auto kAlarmTimeout = QuicTime::Delta::FromMilliseconds(5);
@@ -292,7 +291,7 @@ TEST_F(QuicDefaultEventLoopTest, AlarmsInPast) {
   loop_.RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(100));
 }
 
-TEST_F(QuicDefaultEventLoopTest, AlarmCancelled) {
+TEST_F(QuicPollEventLoopTest, AlarmCancelled) {
   EXPECT_EQ(ComputePollTimeout(), kDefaultTimeout);
 
   constexpr auto kAlarmTimeout = QuicTime::Delta::FromMilliseconds(5);
@@ -310,7 +309,7 @@ TEST_F(QuicDefaultEventLoopTest, AlarmCancelled) {
   EXPECT_EQ(ComputePollTimeout(), kDefaultTimeout);
 }
 
-TEST_F(QuicDefaultEventLoopTest, AlarmCancelsAnotherAlarm) {
+TEST_F(QuicPollEventLoopTest, AlarmCancelsAnotherAlarm) {
   EXPECT_EQ(ComputePollTimeout(), kDefaultTimeout);
 
   constexpr auto kAlarmTimeout = QuicTime::Delta::FromMilliseconds(5);

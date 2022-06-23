@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_IO_QUIC_DEFAULT_EVENT_LOOP_H_
-#define QUICHE_QUIC_CORE_IO_QUIC_DEFAULT_EVENT_LOOP_H_
+#ifndef QUICHE_QUIC_CORE_IO_QUIC_POLL_EVENT_LOOP_H_
+#define QUICHE_QUIC_CORE_IO_QUIC_POLL_EVENT_LOOP_H_
 
 #include <poll.h>
 
@@ -35,9 +35,9 @@ namespace quic {
 //      processing, when all of the state for the event loop is consistent.
 //   2. The callbacks are stored as weak pointers, since other callbacks can
 //      cause them to be unregistered.
-class QUICHE_NO_EXPORT QuicDefaultEventLoop : public QuicEventLoop {
+class QUICHE_NO_EXPORT QuicPollEventLoop : public QuicEventLoop {
  public:
-  QuicDefaultEventLoop(QuicClock* clock);
+  QuicPollEventLoop(QuicClock* clock);
 
   // QuicEventLoop implementation.
   bool SupportsEdgeTriggered() const override { return false; }
@@ -59,7 +59,7 @@ class QUICHE_NO_EXPORT QuicDefaultEventLoop : public QuicEventLoop {
   }
 
  private:
-  friend class QuicDefaultEventLoopPeer;
+  friend class QuicPollEventLoopPeer;
 
   struct Registration {
     QuicSocketEventMask events = 0;
@@ -70,7 +70,7 @@ class QUICHE_NO_EXPORT QuicDefaultEventLoop : public QuicEventLoop {
 
   class Alarm : public QuicAlarm {
    public:
-    Alarm(QuicDefaultEventLoop* loop,
+    Alarm(QuicPollEventLoop* loop,
           QuicArenaScopedPtr<QuicAlarm::Delegate> delegate);
 
     void SetImpl() override;
@@ -82,7 +82,7 @@ class QUICHE_NO_EXPORT QuicDefaultEventLoop : public QuicEventLoop {
     }
 
    private:
-    QuicDefaultEventLoop* loop_;
+    QuicPollEventLoop* loop_;
     // Deleted when the alarm is cancelled, causing the corresponding weak_ptr
     // in the alarm list to not be executed.
     std::shared_ptr<Alarm*> current_schedule_handle_;
@@ -90,7 +90,7 @@ class QUICHE_NO_EXPORT QuicDefaultEventLoop : public QuicEventLoop {
 
   class AlarmFactory : public QuicAlarmFactory {
    public:
-    AlarmFactory(QuicDefaultEventLoop* loop) : loop_(loop) {}
+    AlarmFactory(QuicPollEventLoop* loop) : loop_(loop) {}
 
     // QuicAlarmFactory implementation.
     QuicAlarm* CreateAlarm(QuicAlarm::Delegate* delegate) override;
@@ -99,7 +99,7 @@ class QUICHE_NO_EXPORT QuicDefaultEventLoop : public QuicEventLoop {
         QuicConnectionArena* arena) override;
 
    private:
-    QuicDefaultEventLoop* loop_;
+    QuicPollEventLoop* loop_;
   };
 
   // Used for deferred execution of I/O callbacks.
@@ -149,4 +149,4 @@ class QUICHE_NO_EXPORT QuicDefaultEventLoop : public QuicEventLoop {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_CORE_IO_QUIC_DEFAULT_EVENT_LOOP_H_
+#endif  // QUICHE_QUIC_CORE_IO_QUIC_POLL_EVENT_LOOP_H_
