@@ -468,6 +468,7 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
   bool resumption_attempted = false;
   bool early_data_attempted = false;
   QuicConfig config;
+  absl::optional<uint8_t> tls_alert;
 
   EXPECT_FALSE(store_.HasBufferedPackets(connection_id));
   store_.EnqueuePacket(connection_id, false, packet_, self_address_,
@@ -477,7 +478,7 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
   // The packet in 'packet_' is not a TLS CHLO packet.
   EXPECT_FALSE(store_.IngestPacketForTlsChloExtraction(
       connection_id, valid_version_, packet_, &alpns, &sni,
-      &resumption_attempted, &early_data_attempted));
+      &resumption_attempted, &early_data_attempted, &tls_alert));
 
   store_.DiscardPackets(connection_id);
 
@@ -498,10 +499,10 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
   EXPECT_TRUE(store_.HasBufferedPackets(connection_id));
   EXPECT_FALSE(store_.IngestPacketForTlsChloExtraction(
       connection_id, valid_version_, *packets[0], &alpns, &sni,
-      &resumption_attempted, &early_data_attempted));
+      &resumption_attempted, &early_data_attempted, &tls_alert));
   EXPECT_TRUE(store_.IngestPacketForTlsChloExtraction(
       connection_id, valid_version_, *packets[1], &alpns, &sni,
-      &resumption_attempted, &early_data_attempted));
+      &resumption_attempted, &early_data_attempted, &tls_alert));
 
   EXPECT_THAT(alpns, ElementsAre(AlpnForVersion(valid_version_)));
   EXPECT_EQ(sni, TestHostname());

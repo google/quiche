@@ -367,15 +367,26 @@ class QUIC_NO_EXPORT QuicDispatcher
   // ProcessValidatedPacketWithUnknownConnectionId.
   void ProcessHeader(ReceivedPacketInfo* packet_info);
 
+  struct ExtractChloResult {
+    // If set, a full client hello has been successfully parsed.
+    absl::optional<ParsedClientHello> parsed_chlo;
+    // If set, the TLS alert that will cause a connection close.
+    // Always empty for Google QUIC.
+    absl::optional<uint8_t> tls_alert;
+  };
+
   // Try to extract information(sni, alpns, ...) if the full Client Hello has
   // been parsed.
   //
-  // Return the parsed client hello if the full Client Hello has been
-  // successfully parsed.
+  // Returns the parsed client hello in ExtractChloResult.parsed_chlo, if the
+  // full Client Hello has been successfully parsed.
   //
-  // Otherwise return absl::nullopt and either buffer or (rarely) drop the
-  // packet.
-  absl::optional<ParsedClientHello> TryExtractChloOrBufferEarlyPacket(
+  // Returns the TLS alert in ExtractChloResult.tls_alert, if the extraction of
+  // Client Hello failed due to that alert.
+  //
+  // Otherwise returns a default-constructed ExtractChloResult and either buffer
+  // or (rarely) drop the packet.
+  ExtractChloResult TryExtractChloOrBufferEarlyPacket(
       const ReceivedPacketInfo& packet_info);
 
   // Deliver |packets| to |session| for further processing.

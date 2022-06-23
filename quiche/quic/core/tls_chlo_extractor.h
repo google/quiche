@@ -62,6 +62,13 @@ class QUIC_NO_EXPORT TlsChloExtractor
            state_ == State::kParsedFullMultiPacketChlo;
   }
 
+  // Returns the TLS alert that caused the unrecoverable error, if any.
+  absl::optional<uint8_t> tls_alert() const {
+    QUICHE_DCHECK(!tls_alert_.has_value() ||
+                  state_ == State::kUnrecoverableFailure);
+    return tls_alert_;
+  }
+
   // Methods from QuicFramerVisitorInterface.
   void OnError(QuicFramer* /*framer*/) override {}
   bool OnProtocolVersionMismatch(ParsedQuicVersion version) override;
@@ -249,6 +256,9 @@ class QUIC_NO_EXPORT TlsChloExtractor
   // Whether early data is attempted from the CHLO, indicated by the
   // 'early_data' TLS extension.
   bool early_data_attempted_ = false;
+  // If set, contains the TLS alert that caused an unrecoverable error, which is
+  // an AlertDescription value defined in go/rfc/8446#appendix-B.2.
+  absl::optional<uint8_t> tls_alert_;
 };
 
 // Convenience method to facilitate logging TlsChloExtractor::State.

@@ -294,9 +294,10 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
     const QuicConnectionId& connection_id, const ParsedQuicVersion& version,
     const QuicReceivedPacket& packet, std::vector<std::string>* out_alpns,
     std::string* out_sni, bool* out_resumption_attempted,
-    bool* out_early_data_attempted) {
+    bool* out_early_data_attempted, absl::optional<uint8_t>* tls_alert) {
   QUICHE_DCHECK_NE(out_alpns, nullptr);
   QUICHE_DCHECK_NE(out_sni, nullptr);
+  QUICHE_DCHECK_NE(tls_alert, nullptr);
   QUICHE_DCHECK_EQ(version.handshake_protocol, PROTOCOL_TLS1_3);
   auto it = undecryptable_packets_.find(connection_id);
   if (it == undecryptable_packets_.end()) {
@@ -306,6 +307,7 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
   }
   it->second.tls_chlo_extractor.IngestPacket(version, packet);
   if (!it->second.tls_chlo_extractor.HasParsedFullChlo()) {
+    *tls_alert = it->second.tls_chlo_extractor.tls_alert();
     return false;
   }
   const TlsChloExtractor& tls_chlo_extractor = it->second.tls_chlo_extractor;

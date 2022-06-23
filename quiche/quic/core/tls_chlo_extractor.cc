@@ -267,6 +267,9 @@ void TlsChloExtractor::SendAlert(uint8_t tls_alert_value) {
   HandleUnrecoverableError(absl::StrCat(
       "BoringSSL attempted to send alert ", static_cast<int>(tls_alert_value),
       " ", SSL_alert_desc_string_long(tls_alert_value)));
+  if (state_ == State::kUnrecoverableFailure) {
+    tls_alert_ = tls_alert_value;
+  }
 }
 
 // static
