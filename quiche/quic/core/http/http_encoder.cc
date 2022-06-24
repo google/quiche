@@ -33,7 +33,6 @@ QuicByteCount GetTotalLength(QuicByteCount payload_length, HttpFrameType type) {
 
 }  // namespace
 
-// static
 QuicByteCount HttpEncoder::GetDataFrameHeaderLength(
     QuicByteCount payload_length) {
   QUICHE_DCHECK_NE(0u, payload_length);
@@ -42,7 +41,6 @@ QuicByteCount HttpEncoder::GetDataFrameHeaderLength(
              static_cast<uint64_t>(HttpFrameType::DATA));
 }
 
-// static
 quiche::QuicheBuffer HttpEncoder::SerializeDataFrameHeader(
     QuicByteCount payload_length, quiche::QuicheBufferAllocator* allocator) {
   QUICHE_DCHECK_NE(0u, payload_length);
@@ -59,7 +57,6 @@ quiche::QuicheBuffer HttpEncoder::SerializeDataFrameHeader(
   return quiche::QuicheBuffer();
 }
 
-// static
 QuicByteCount HttpEncoder::SerializeHeadersFrameHeader(
     QuicByteCount payload_length, std::unique_ptr<char[]>* output) {
   QUICHE_DCHECK_NE(0u, payload_length);
@@ -68,7 +65,7 @@ QuicByteCount HttpEncoder::SerializeHeadersFrameHeader(
       QuicDataWriter::GetVarInt62Len(
           static_cast<uint64_t>(HttpFrameType::HEADERS));
 
-  output->reset(new char[header_length]);
+  *output = std::make_unique<char[]>(header_length);
   QuicDataWriter writer(header_length, output->get());
 
   if (WriteFrameHeader(payload_length, HttpFrameType::HEADERS, &writer)) {
@@ -80,7 +77,6 @@ QuicByteCount HttpEncoder::SerializeHeadersFrameHeader(
   return 0;
 }
 
-// static
 QuicByteCount HttpEncoder::SerializeSettingsFrame(
     const SettingsFrame& settings, std::unique_ptr<char[]>* output) {
   QuicByteCount payload_length = 0;
@@ -96,7 +92,7 @@ QuicByteCount HttpEncoder::SerializeSettingsFrame(
   QuicByteCount total_length =
       GetTotalLength(payload_length, HttpFrameType::SETTINGS);
 
-  output->reset(new char[total_length]);
+  *output = std::make_unique<char[]>(total_length);
   QuicDataWriter writer(total_length, output->get());
 
   if (!WriteFrameHeader(payload_length, HttpFrameType::SETTINGS, &writer)) {
@@ -116,14 +112,13 @@ QuicByteCount HttpEncoder::SerializeSettingsFrame(
   return total_length;
 }
 
-// static
 QuicByteCount HttpEncoder::SerializeGoAwayFrame(
     const GoAwayFrame& goaway, std::unique_ptr<char[]>* output) {
   QuicByteCount payload_length = QuicDataWriter::GetVarInt62Len(goaway.id);
   QuicByteCount total_length =
       GetTotalLength(payload_length, HttpFrameType::GOAWAY);
 
-  output->reset(new char[total_length]);
+  *output = std::make_unique<char[]>(total_length);
   QuicDataWriter writer(total_length, output->get());
 
   if (WriteFrameHeader(payload_length, HttpFrameType::GOAWAY, &writer) &&
@@ -135,7 +130,6 @@ QuicByteCount HttpEncoder::SerializeGoAwayFrame(
   return 0;
 }
 
-// static
 QuicByteCount HttpEncoder::SerializePriorityUpdateFrame(
     const PriorityUpdateFrame& priority_update,
     std::unique_ptr<char[]>* output) {
@@ -151,7 +145,7 @@ QuicByteCount HttpEncoder::SerializePriorityUpdateFrame(
   QuicByteCount total_length = GetTotalLength(
       payload_length, HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM);
 
-  output->reset(new char[total_length]);
+  *output = std::make_unique<char[]>(total_length);
   QuicDataWriter writer(total_length, output->get());
 
   if (WriteFrameHeader(payload_length,
@@ -168,7 +162,6 @@ QuicByteCount HttpEncoder::SerializePriorityUpdateFrame(
   return 0;
 }
 
-// static
 QuicByteCount HttpEncoder::SerializeAcceptChFrame(
     const AcceptChFrame& accept_ch, std::unique_ptr<char[]>* output) {
   QuicByteCount payload_length = 0;
@@ -182,7 +175,7 @@ QuicByteCount HttpEncoder::SerializeAcceptChFrame(
   QuicByteCount total_length =
       GetTotalLength(payload_length, HttpFrameType::ACCEPT_CH);
 
-  output->reset(new char[total_length]);
+  *output = std::make_unique<char[]>(total_length);
   QuicDataWriter writer(total_length, output->get());
 
   if (!WriteFrameHeader(payload_length, HttpFrameType::ACCEPT_CH, &writer)) {
@@ -203,7 +196,6 @@ QuicByteCount HttpEncoder::SerializeAcceptChFrame(
   return total_length;
 }
 
-// static
 QuicByteCount HttpEncoder::SerializeGreasingFrame(
     std::unique_ptr<char[]>* output) {
   uint64_t frame_type;
@@ -222,16 +214,15 @@ QuicByteCount HttpEncoder::SerializeGreasingFrame(
     payload_length = result % 4;
 
     if (payload_length > 0) {
-      std::unique_ptr<char[]> buffer(new char[payload_length]);
-      QuicRandom::GetInstance()->RandBytes(buffer.get(), payload_length);
-      payload = std::string(buffer.get(), payload_length);
+      payload.resize(payload_length);
+      QuicRandom::GetInstance()->RandBytes(payload.data(), payload_length);
     }
   }
   QuicByteCount total_length = QuicDataWriter::GetVarInt62Len(frame_type) +
                                QuicDataWriter::GetVarInt62Len(payload_length) +
                                payload_length;
 
-  output->reset(new char[total_length]);
+  *output = std::make_unique<char[]>(total_length);
   QuicDataWriter writer(total_length, output->get());
 
   bool success =

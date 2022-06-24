@@ -17,10 +17,8 @@ namespace test {
 TEST(HttpEncoderTest, SerializeDataFrameHeader) {
   quiche::QuicheBuffer buffer = HttpEncoder::SerializeDataFrameHeader(
       /* payload_length = */ 5, quiche::SimpleBufferAllocator::Get());
-  char output[] = {// type (DATA)
-                   0x00,
-                   // length
-                   0x05};
+  char output[] = {0x00,   // type (DATA)
+                   0x05};  // length
   EXPECT_EQ(ABSL_ARRAYSIZE(output), buffer.size());
   quiche::test::CompareCharArraysWithHexError(
       "DATA", buffer.data(), buffer.size(), output, ABSL_ARRAYSIZE(output));
@@ -30,10 +28,8 @@ TEST(HttpEncoderTest, SerializeHeadersFrameHeader) {
   std::unique_ptr<char[]> buffer;
   uint64_t length = HttpEncoder::SerializeHeadersFrameHeader(
       /* payload_length = */ 7, &buffer);
-  char output[] = {// type (HEADERS)
-                   0x01,
-                   // length
-                   0x07};
+  char output[] = {0x01,   // type (HEADERS)
+                   0x07};  // length
   EXPECT_EQ(ABSL_ARRAYSIZE(output), length);
   quiche::test::CompareCharArraysWithHexError("HEADERS", buffer.get(), length,
                                               output, ABSL_ARRAYSIZE(output));
@@ -44,22 +40,14 @@ TEST(HttpEncoderTest, SerializeSettingsFrame) {
   settings.values[1] = 2;
   settings.values[6] = 5;
   settings.values[256] = 4;
-  char output[] = {// type (SETTINGS)
-                   0x04,
-                   // length
-                   0x07,
-                   // identifier (SETTINGS_QPACK_MAX_TABLE_CAPACITY)
-                   0x01,
-                   // content
-                   0x02,
-                   // identifier (SETTINGS_MAX_HEADER_LIST_SIZE)
-                   0x06,
-                   // content
-                   0x05,
-                   // identifier (256 in variable length integer)
-                   0x40 + 0x01, 0x00,
-                   // content
-                   0x04};
+  char output[] = {0x04,  // type (SETTINGS)
+                   0x07,  // length
+                   0x01,  // identifier (SETTINGS_QPACK_MAX_TABLE_CAPACITY)
+                   0x02,  // content
+                   0x06,  // identifier (SETTINGS_MAX_HEADER_LIST_SIZE)
+                   0x05,  // content
+                   0x41, 0x00,  // identifier 0x100, varint encoded
+                   0x04};       // content
   std::unique_ptr<char[]> buffer;
   uint64_t length = HttpEncoder::SerializeSettingsFrame(settings, &buffer);
   EXPECT_EQ(ABSL_ARRAYSIZE(output), length);
@@ -70,12 +58,9 @@ TEST(HttpEncoderTest, SerializeSettingsFrame) {
 TEST(HttpEncoderTest, SerializeGoAwayFrame) {
   GoAwayFrame goaway;
   goaway.id = 0x1;
-  char output[] = {// type (GOAWAY)
-                   0x07,
-                   // length
-                   0x1,
-                   // ID
-                   0x01};
+  char output[] = {0x07,   // type (GOAWAY)
+                   0x1,    // length
+                   0x01};  // ID
   std::unique_ptr<char[]> buffer;
   uint64_t length = HttpEncoder::SerializeGoAwayFrame(goaway, &buffer);
   EXPECT_EQ(ABSL_ARRAYSIZE(output), length);
