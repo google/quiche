@@ -123,5 +123,16 @@ TEST(HttpEncoderTest, SerializeWebTransportStreamFrameHeader) {
       "WEBTRANSPORT_STREAM", buffer.get(), length, output, sizeof(output));
 }
 
+TEST(HttpEncoderTest, SerializeMetadataFrameHeader) {
+  std::unique_ptr<char[]> buffer;
+  uint64_t length = HttpEncoder::SerializeMetadataFrameHeader(
+      /* payload_length = */ 7, &buffer);
+  char output[] = {0x40, 0x4d,  // type (METADATA, 0x4d, varint encoded)
+                   0x07};       // length
+  EXPECT_EQ(ABSL_ARRAYSIZE(output), length);
+  quiche::test::CompareCharArraysWithHexError("METADATA", buffer.get(), length,
+                                              output, ABSL_ARRAYSIZE(output));
+}
+
 }  // namespace test
 }  // namespace quic

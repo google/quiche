@@ -34,6 +34,7 @@ enum class HttpFrameType {
   PRIORITY_UPDATE_REQUEST_STREAM = 0xF0700,
   // https://www.ietf.org/archive/id/draft-ietf-webtrans-http3-00.html
   WEBTRANSPORT_STREAM = 0x41,
+  METADATA = 0x4d,
 };
 
 // 7.2.1.  DATA

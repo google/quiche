@@ -65,6 +65,11 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
   // https://www.ietf.org/archive/id/draft-ietf-webtrans-http3-00.html#name-client-initiated-bidirectio
   static QuicByteCount SerializeWebTransportStreamFrameHeader(
       WebTransportSessionId session_id, std::unique_ptr<char[]>* output);
+
+  // Serializes a METADATA frame header into a new buffer stored in |output|.
+  // Returns the length of the buffer on success, or 0 otherwise.
+  static QuicByteCount SerializeMetadataFrameHeader(
+      QuicByteCount payload_length, std::unique_ptr<char[]>* output);
 };
 
 }  // namespace quic

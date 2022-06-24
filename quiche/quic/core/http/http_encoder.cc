@@ -261,4 +261,24 @@ QuicByteCount HttpEncoder::SerializeWebTransportStreamFrameHeader(
   return 0;
 }
 
+QuicByteCount HttpEncoder::SerializeMetadataFrameHeader(
+    QuicByteCount payload_length, std::unique_ptr<char[]>* output) {
+  QUICHE_DCHECK_NE(0u, payload_length);
+  QuicByteCount header_length =
+      QuicDataWriter::GetVarInt62Len(payload_length) +
+      QuicDataWriter::GetVarInt62Len(
+          static_cast<uint64_t>(HttpFrameType::METADATA));
+
+  *output = std::make_unique<char[]>(header_length);
+  QuicDataWriter writer(header_length, output->get());
+
+  if (WriteFrameHeader(payload_length, HttpFrameType::METADATA, &writer)) {
+    return header_length;
+  }
+  QUIC_DLOG(ERROR)
+      << "Http encoder failed when attempting to serialize METADATA "
+         "frame header.";
+  return 0;
+}
+
 }  // namespace quic

@@ -46,6 +46,7 @@ enum Http3AndQpackSettingsIdentifiers : uint64_t {
   SETTINGS_WEBTRANS_DRAFT00 = 0x2b603742,
   // draft-ietf-httpbis-h3-websockets
   SETTINGS_ENABLE_CONNECT_PROTOCOL = 0x08,
+  SETTINGS_ENABLE_METADATA = 0x4d44,
 };
 
 // Returns HTTP/3 SETTINGS identifier as a string.
