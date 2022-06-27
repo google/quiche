@@ -69,6 +69,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 QUIC_FLAG(quic_reloadable_flag_quic_flush_pending_frames_and_padding_bytes_on_migration, true)
 // If true, ietf connection migration is no longer conditioned on connection option RVCM.
 QUIC_FLAG(quic_reloadable_flag_quic_remove_connection_migration_connection_option_v2, false)
+// If true, if a fatal tls alert is raised while extracting CHLO, QuicDispatcher will send a connection close.
+QUIC_FLAG(quic_restart_flag_quic_dispatcher_send_connection_close_for_tls_alerts, true)
 // If true, include offset in QUIC STREAM_DATA_BLOCKED and DATA_BLOCKED frames.
 QUIC_FLAG(quic_reloadable_flag_quic_include_offset_in_blocked_frames, true)
 // If true, include stream information in idle timeout connection close detail.

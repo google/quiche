@@ -475,6 +475,9 @@ class QUIC_NO_EXPORT QuicDispatcher
   // If true, change expected_server_connection_id_length_ to be the received
   // destination connection ID length of all IETF long headers.
   bool should_update_expected_server_connection_id_length_;
+
+  const bool send_connection_close_for_tls_alerts_ =
+      GetQuicRestartFlag(quic_dispatcher_send_connection_close_for_tls_alerts);
 };
 
 }  // namespace quic

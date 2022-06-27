@@ -716,37 +716,61 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
   // Packet's connection ID is unknown.  Apply the validity checks.
   QuicPacketFate fate = ValidityChecks(*packet_info);
 
+  // |connection_close_error_code| is used if the final packet fate is
+  // kFateTimeWait.
+  QuicErrorCode connection_close_error_code = QUIC_HANDSHAKE_FAILED;
+
+  // If a fatal TLS alert was received when extracting Client Hello,
+  // |tls_alert_error_detail| will be set and will be used as the error_details
+  // of the connection close.
+  std::string tls_alert_error_detail;
+
   if (fate == kFateProcess) {
     ExtractChloResult extract_chlo_result =
         TryExtractChloOrBufferEarlyPacket(*packet_info);
     auto& parsed_chlo = extract_chlo_result.parsed_chlo;
-    if (!parsed_chlo.has_value()) {
+
+    if (send_connection_close_for_tls_alerts_ &&
+        extract_chlo_result.tls_alert.has_value()) {
+      QUIC_BUG_IF(quic_dispatcher_parsed_chlo_and_tls_alert_coexist_1,
+                  parsed_chlo.has_value())
+          << "parsed_chlo and tls_alert should not be set at the same time.";
+      // Fatal TLS alert when parsing Client Hello.
+      fate = kFateTimeWait;
+      uint8_t tls_alert = *extract_chlo_result.tls_alert;
+      connection_close_error_code = TlsAlertToQuicErrorCode(tls_alert);
+      tls_alert_error_detail =
+          absl::StrCat("TLS handshake failure (",
+                       EncryptionLevelToString(ENCRYPTION_INITIAL), ") ",
+                       static_cast<int>(tls_alert), ": ",
+                       SSL_alert_desc_string_long(tls_alert));
+    } else if (!parsed_chlo.has_value()) {
       // Client Hello incomplete. Packet has been buffered or (rarely) dropped.
       return;
-    }
+    } else {
+      // Client Hello fully received.
+      fate = ValidityChecksOnFullChlo(*packet_info, *parsed_chlo);
 
-    // Client Hello fully received.
-    fate = ValidityChecksOnFullChlo(*packet_info, *parsed_chlo);
+      if (fate == kFateProcess) {
+        QUICHE_DCHECK(
+            parsed_chlo->legacy_version_encapsulation_inner_packet.empty() ||
+            !packet_info->version.UsesTls());
+        if (GetQuicRestartFlag(quic_disable_legacy_version_encapsulation)) {
+          if (!parsed_chlo->legacy_version_encapsulation_inner_packet.empty()) {
+            QUIC_CODE_COUNT(
+                quic_disable_legacy_version_encapsulation_process_header);
+          }
+        } else {
+          if (MaybeHandleLegacyVersionEncapsulation(
+                  this, parsed_chlo->legacy_version_encapsulation_inner_packet,
+                  *packet_info)) {
+            return;
+          }
+        }
 
-    if (fate == kFateProcess) {
-      QUICHE_DCHECK(
-          parsed_chlo->legacy_version_encapsulation_inner_packet.empty() ||
-          !packet_info->version.UsesTls());
-      if (GetQuicRestartFlag(quic_disable_legacy_version_encapsulation)) {
-        if (!parsed_chlo->legacy_version_encapsulation_inner_packet.empty()) {
-          QUIC_CODE_COUNT(
-              quic_disable_legacy_version_encapsulation_process_header);
-        }
-      } else {
-        if (MaybeHandleLegacyVersionEncapsulation(
-                this, parsed_chlo->legacy_version_encapsulation_inner_packet,
-                *packet_info)) {
-          return;
-        }
+        ProcessChlo(*std::move(parsed_chlo), packet_info);
+        return;
       }
-
-      ProcessChlo(*std::move(parsed_chlo), packet_info);
-      return;
     }
   }
 
@@ -755,16 +779,19 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
       // kFateProcess have been processed above.
       QUIC_BUG(quic_dispatcher_bad_packet_fate) << fate;
       break;
-    case kFateTimeWait:
+    case kFateTimeWait: {
       // Add this connection_id to the time-wait state, to safely reject
       // future packets.
       QUIC_DLOG(INFO) << "Adding connection ID " << server_connection_id
                       << " to time-wait list.";
       QUIC_CODE_COUNT(quic_reject_fate_time_wait);
+      const std::string& connection_close_error_detail =
+          tls_alert_error_detail.empty() ? "Reject connection"
+                                         : tls_alert_error_detail;
       StatelesslyTerminateConnection(
           server_connection_id, packet_info->form, packet_info->version_flag,
           packet_info->use_length_prefix, packet_info->version,
-          QUIC_HANDSHAKE_FAILED, "Reject connection",
+          connection_close_error_code, connection_close_error_detail,
           quic::QuicTimeWaitListManager::SEND_STATELESS_RESET);
 
       QUICHE_DCHECK(time_wait_list_manager_->IsConnectionIdInTimeWait(
@@ -775,7 +802,7 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
           GetPerPacketContext());
 
       buffered_packets_.DiscardPackets(server_connection_id);
-      break;
+    } break;
     case kFateDrop:
       break;
   }
@@ -815,6 +842,14 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
         result.tls_alert = tls_chlo_extractor.tls_alert();
       }
     }
+
+    if (send_connection_close_for_tls_alerts_ && result.tls_alert.has_value()) {
+      QUIC_BUG_IF(quic_dispatcher_parsed_chlo_and_tls_alert_coexist_2,
+                  has_full_tls_chlo)
+          << "parsed_chlo and tls_alert should not be set at the same time.";
+      return result;
+    }
+
     if (!has_full_tls_chlo) {
       // This packet does not contain a full CHLO. It could be a 0-RTT
       // packet that arrived before the CHLO (due to loss or reordering),
