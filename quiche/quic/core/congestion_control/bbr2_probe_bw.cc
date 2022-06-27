@@ -365,8 +365,6 @@ void Bbr2ProbeBwMode::ProbeInflightHighUpward(
       return;
     }
   } else if (Params().probe_up_includes_acks_after_cwnd_limited) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_bbr2_add_bytes_acked_after_inflight_hi_limited);
     // Don't continue adding bytes to probe_up_acked if the sender was not
     // app-limited after being inflight_hi limited at least once.
     if (!cycle_.probe_up_app_limited_since_inflight_hi_limited_ ||

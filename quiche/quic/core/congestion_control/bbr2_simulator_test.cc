@@ -776,8 +776,6 @@ TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncrease)) {
 
 // Test Bbr2's reaction to a 100x bandwidth increase during a transfer with BBQ0
 TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseBBQ0)) {
-  SetQuicReloadableFlag(quic_bbr2_add_bytes_acked_after_inflight_hi_limited,
-                        true);
   SetConnectionOption(kBBQ0);
   DefaultTopologyParams params;
   params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);
@@ -811,8 +809,6 @@ TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseBBQ0)) {
 // in the presence of ACK aggregation.
 TEST_F(Bbr2DefaultTopologyTest,
        QUIC_SLOW_TEST(BandwidthIncreaseBBQ0Aggregation)) {
-  SetQuicReloadableFlag(quic_bbr2_add_bytes_acked_after_inflight_hi_limited,
-                        true);
   SetConnectionOption(kBBQ0);
   DefaultTopologyParams params;
   params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);

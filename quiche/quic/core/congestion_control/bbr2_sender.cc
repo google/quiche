@@ -198,9 +198,7 @@ void Bbr2Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kBBRB)) {
     model_.SetLimitMaxAckHeightTrackerBySendRate(true);
   }
-  if (GetQuicReloadableFlag(
-          quic_bbr2_add_bytes_acked_after_inflight_hi_limited) &&
-      ContainsQuicTag(connection_options, kBBQ0)) {
+  if (ContainsQuicTag(connection_options, kBBQ0)) {
     params_.probe_up_includes_acks_after_cwnd_limited = true;
   }
 
