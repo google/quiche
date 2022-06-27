@@ -75,7 +75,7 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
    * STARTUP parameters.
    */
 
-  // The gain for both CWND and PacingRate at startup.
+  // The gain for CWND in startup.
   float startup_cwnd_gain = 2.0;
   // TODO(wub): Maybe change to the newly derived value of 2.773 (4 * ln(2)).
   float startup_pacing_gain = 2.885;
