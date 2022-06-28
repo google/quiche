@@ -15472,6 +15472,27 @@ TEST_P(QuicConnectionTest, CalculateNetworkBlackholeDelay) {
             QuicTime::Delta::FromSeconds(5));
 }
 
+TEST_P(QuicConnectionTest, FixBytesAccountingForBufferedCoalescedPackets) {
+  if (!connection_.version().CanSendCoalescedPackets()) {
+    return;
+  }
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  // Write is blocked.
+  EXPECT_CALL(visitor_, OnWriteBlocked()).Times(AnyNumber());
+  writer_->SetWriteBlocked();
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  QuicConnectionPeer::SendPing(&connection_);
+  const QuicConnectionStats& stats = connection_.GetStats();
+  if (GetQuicReloadableFlag(
+          quic_fix_bytes_accounting_for_buffered_coalesced_packets)) {
+    // Verify padding is accounted.
+    EXPECT_EQ(stats.bytes_sent, connection_.max_packet_length());
+  } else {
+    EXPECT_LT(stats.bytes_sent, connection_.max_packet_length());
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

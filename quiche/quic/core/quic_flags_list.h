@@ -29,6 +29,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_packet_flusher_check_connected_after_flush_p
 QUIC_FLAG(quic_restart_flag_quic_support_release_time_for_gso, false)
 // If true, TlsHandshaker::AdvanceHandshake will check if connection is closed after SSL_do_handshake.
 QUIC_FLAG(quic_reloadable_flag_quic_tls_handshaker_check_connection_closed, true)
+// If true, account added padding when coalesced packets get buffered.
+QUIC_FLAG(quic_reloadable_flag_quic_fix_bytes_accounting_for_buffered_coalesced_packets, true)
 // If true, ack frequency frame can be sent from server to client.
 QUIC_FLAG(quic_reloadable_flag_quic_can_send_ack_frequency, true)
 // If true, allow client to enable BBRv2 on server via connection option \'B2ON\'.

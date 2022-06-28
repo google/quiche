@@ -5971,31 +5971,38 @@ bool QuicConnection::FlushCoalescedPacket() {
   }
   QUIC_DVLOG(1) << ENDPOINT << "Sending coalesced packet "
                 << coalesced_packet_.ToString(length);
-
+  if (GetQuicReloadableFlag(
+          quic_fix_bytes_accounting_for_buffered_coalesced_packets)) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_fix_bytes_accounting_for_buffered_coalesced_packets);
+  }
   if (!buffered_packets_.empty() || HandleWriteBlocked()) {
     QUIC_DVLOG(1) << ENDPOINT
                   << "Buffering coalesced packet of len: " << length;
     buffered_packets_.emplace_back(
         buffer, static_cast<QuicPacketLength>(length),
         coalesced_packet_.self_address(), coalesced_packet_.peer_address());
-    return true;
-  }
-
-  WriteResult result = writer_->WritePacket(
-      buffer, length, coalesced_packet_.self_address().host(),
-      coalesced_packet_.peer_address(), per_packet_options_);
-  if (IsWriteError(result.status)) {
-    OnWriteError(result.error_code);
-    return false;
-  }
-  if (IsWriteBlockedStatus(result.status)) {
-    visitor_->OnWriteBlocked();
-    if (result.status != WRITE_STATUS_BLOCKED_DATA_BUFFERED) {
-      QUIC_DVLOG(1) << ENDPOINT
-                    << "Buffering coalesced packet of len: " << length;
-      buffered_packets_.emplace_back(
-          buffer, static_cast<QuicPacketLength>(length),
-          coalesced_packet_.self_address(), coalesced_packet_.peer_address());
+    if (!GetQuicReloadableFlag(
+            quic_fix_bytes_accounting_for_buffered_coalesced_packets)) {
+      return true;
+    }
+  } else {
+    WriteResult result = writer_->WritePacket(
+        buffer, length, coalesced_packet_.self_address().host(),
+        coalesced_packet_.peer_address(), per_packet_options_);
+    if (IsWriteError(result.status)) {
+      OnWriteError(result.error_code);
+      return false;
+    }
+    if (IsWriteBlockedStatus(result.status)) {
+      visitor_->OnWriteBlocked();
+      if (result.status != WRITE_STATUS_BLOCKED_DATA_BUFFERED) {
+        QUIC_DVLOG(1) << ENDPOINT
+                      << "Buffering coalesced packet of len: " << length;
+        buffered_packets_.emplace_back(
+            buffer, static_cast<QuicPacketLength>(length),
+            coalesced_packet_.self_address(), coalesced_packet_.peer_address());
+      }
     }
   }
   // Account for added padding.
