@@ -230,7 +230,13 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
   if (config.HasClientRequestedIndependentOption(kBBQ1, perspective)) {
     set_high_gain(kDerivedHighGain);
     set_high_cwnd_gain(kDerivedHighGain);
-    set_drain_gain(1.f / kDerivedHighGain);
+    if (GetQuicReloadableFlag(quic_bbr2_support_new_startup_pacing_gain)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_support_new_startup_pacing_gain, 1,
+                                   2);
+      set_drain_gain(1.0 / kDerivedHighCWNDGain);
+    } else {
+      set_drain_gain(1.f / kDerivedHighGain);
+    }
   }
   if (config.HasClientRequestedIndependentOption(kBBQ3, perspective)) {
     enable_ack_aggregation_during_startup_ = true;

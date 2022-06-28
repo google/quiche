@@ -127,6 +127,13 @@ void Bbr2Sender::ApplyConnectionOptions(
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_extra_acked_window, 2, 2);
     model_.SetMaxAckHeightTrackerWindowLength(40);
   }
+  if (GetQuicReloadableFlag(quic_bbr2_support_new_startup_pacing_gain) &&
+      ContainsQuicTag(connection_options, kBBQ1)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_support_new_startup_pacing_gain, 2,
+                                 2);
+    params_.startup_pacing_gain = 2.773;
+    params_.drain_pacing_gain = 1.0 / params_.drain_cwnd_gain;
+  }
   if (ContainsQuicTag(connection_options, kBBQ2)) {
     params_.startup_cwnd_gain = 2.885;
     params_.drain_cwnd_gain = 2.885;
