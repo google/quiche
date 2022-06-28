@@ -19,6 +19,7 @@
 #include "quiche/balsa/noop_balsa_visitor.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
 
 namespace quiche {
 
@@ -104,15 +105,13 @@ class QUICHE_EXPORT_PRIVATE BalsaFrame : public FramerInterface {
     }
   }
 
-  // The method set_balsa_trailer clears the trailer provided and attaches it
-  // to the framer.  This is a required step before the framer will process any
-  // input message data.
-  // To detach the trailer object from the framer, use
+  // The method set_balsa_trailer() clears `trailer` and attaches it to the
+  // framer.  This is a required step before the framer will process any input
+  // message data.  To detach the trailer object from the framer, use
   // set_balsa_trailer(nullptr).
   void set_balsa_trailer(BalsaHeaders* trailer) {
     if (trailer != nullptr && is_request()) {
-      QUICHE_BUG(bug_1317_1) << "Trailer in request is not allowed.";
-      return;
+      QUICHE_CODE_COUNT(balsa_trailer_in_request);
     }
 
     if (trailer_ != trailer) {
