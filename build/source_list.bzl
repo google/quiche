@@ -924,6 +924,7 @@ quiche_test_support_srcs = [
 ]
 epoll_tool_support_hdrs = [
     "common/platform/api/quiche_epoll.h",
+    "common/platform/api/quiche_event_loop.h",
     "common/platform/api/quiche_stream_buffer_allocator.h",
     "common/platform/api/quiche_udp_socket_platform_api.h",
     "epoll_server/platform/api/epoll_bug.h",
@@ -935,6 +936,7 @@ epoll_tool_support_hdrs = [
     "quic/core/batch_writer/quic_batch_writer_test.h",
     "quic/core/batch_writer/quic_gso_batch_writer.h",
     "quic/core/batch_writer/quic_sendmmsg_batch_writer.h",
+    "quic/core/io/quic_default_event_loop.h",
     "quic/core/io/quic_event_loop.h",
     "quic/core/io/quic_poll_event_loop.h",
     "quic/core/quic_default_packet_writer.h",
@@ -967,6 +969,7 @@ epoll_tool_support_srcs = [
     "quic/core/batch_writer/quic_batch_writer_buffer.cc",
     "quic/core/batch_writer/quic_gso_batch_writer.cc",
     "quic/core/batch_writer/quic_sendmmsg_batch_writer.cc",
+    "quic/core/io/quic_default_event_loop.cc",
     "quic/core/io/quic_poll_event_loop.cc",
     "quic/core/quic_default_packet_writer.cc",
     "quic/core/quic_epoll_alarm_factory.cc",
@@ -1281,6 +1284,7 @@ epoll_tests_srcs = [
     "quic/core/http/quic_spdy_client_session_test.cc",
     "quic/core/http/quic_spdy_client_stream_test.cc",
     "quic/core/http/quic_spdy_server_stream_base_test.cc",
+    "quic/core/io/quic_all_event_loops_test.cc",
     "quic/core/io/quic_poll_event_loop_test.cc",
     "quic/core/quic_epoll_alarm_factory_test.cc",
     "quic/core/quic_epoll_clock_test.cc",
@@ -1399,6 +1403,7 @@ default_platform_impl_srcs = [
 ]
 default_platform_impl_tool_support_hdrs = [
     "common/platform/default/quiche_platform_impl/quiche_command_line_flags_impl.h",
+    "common/platform/default/quiche_platform_impl/quiche_event_loop_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_file_utils_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_stream_buffer_allocator_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_system_event_loop_impl.h",

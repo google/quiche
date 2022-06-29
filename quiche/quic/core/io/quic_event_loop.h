@@ -10,6 +10,7 @@
 
 #include "absl/base/attributes.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_udp_socket.h"
 
 namespace quic {
@@ -74,6 +75,21 @@ class QUICHE_NO_EXPORT QuicEventLoop {
   // Returns an alarm factory that allows alarms to be scheduled on this event
   // loop.  The factory is owned by the event loop.
   virtual QuicAlarmFactory* GetAlarmFactory() = 0;
+};
+
+// A factory object for the event loop. Every implementation is expected to have
+// a static singleton instance.
+class QUICHE_NO_EXPORT QuicEventLoopFactory {
+ public:
+  virtual ~QuicEventLoopFactory() {}
+
+  // Creates an event loop.  Note that |clock| may be ignored if the event loop
+  // implementation uses its own clock internally.
+  virtual std::unique_ptr<QuicEventLoop> Create(QuicClock* clock) = 0;
+
+  // A human-readable name of the event loop implementation used in diagnostics
+  // output.
+  virtual std::string GetName() const = 0;
 };
 
 }  // namespace quic

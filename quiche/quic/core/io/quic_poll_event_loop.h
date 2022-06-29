@@ -147,6 +147,20 @@ class QUICHE_NO_EXPORT QuicPollEventLoop : public QuicEventLoop {
   bool has_artificial_events_pending_ = false;
 };
 
+class QUICHE_NO_EXPORT QuicPollEventLoopFactory : public QuicEventLoopFactory {
+ public:
+  static QuicPollEventLoopFactory* Get() {
+    static QuicPollEventLoopFactory* factory = new QuicPollEventLoopFactory();
+    return factory;
+  }
+
+  std::unique_ptr<QuicEventLoop> Create(QuicClock* clock) override {
+    return std::make_unique<QuicPollEventLoop>(clock);
+  }
+
+  std::string GetName() const override { return "poll(2)"; }
+};
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_IO_QUIC_POLL_EVENT_LOOP_H_
