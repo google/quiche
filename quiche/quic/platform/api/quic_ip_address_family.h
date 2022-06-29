@@ -15,6 +15,9 @@ enum class IpAddressFamily {
   IP_UNSPEC,
 };
 
+int ToPlatformAddressFamily(IpAddressFamily family);
+IpAddressFamily FromPlatformAddressFamily(int family);
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_PLATFORM_API_QUIC_IP_ADDRESS_FAMILY_H_

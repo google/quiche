@@ -10,23 +10,10 @@
 #include <string>
 
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_ip_address_family.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 
 namespace quic {
-
-static int ToPlatformAddressFamily(IpAddressFamily family) {
-  switch (family) {
-    case IpAddressFamily::IP_V4:
-      return AF_INET;
-    case IpAddressFamily::IP_V6:
-      return AF_INET6;
-    case IpAddressFamily::IP_UNSPEC:
-      return AF_UNSPEC;
-  }
-  QUIC_BUG(quic_bug_10126_1)
-      << "Invalid IpAddressFamily " << static_cast<int32_t>(family);
-  return AF_UNSPEC;
-}
 
 QuicIpAddress QuicIpAddress::Loopback4() {
   QuicIpAddress result;
