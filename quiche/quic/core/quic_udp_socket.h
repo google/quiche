@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
@@ -17,10 +16,15 @@
 
 namespace quic {
 
-using QuicUdpSocketFd = SocketFd;
-inline constexpr QuicUdpSocketFd kQuicInvalidSocketFd = kInvalidSocketFd;
+#if defined(_WIN32)
+using QuicUdpSocketFd = SOCKET;
+const QuicUdpSocketFd kQuicInvalidSocketFd = INVALID_SOCKET;
+#else
+using QuicUdpSocketFd = int;
+const QuicUdpSocketFd kQuicInvalidSocketFd = -1;
+#endif
 
-inline constexpr size_t kDefaultUdpPacketControlBufferSize = 512;
+const size_t kDefaultUdpPacketControlBufferSize = 512;
 
 enum class QuicUdpPacketInfoBit : uint8_t {
   DROPPED_PACKETS = 0,   // Read
