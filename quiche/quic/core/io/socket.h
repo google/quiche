@@ -9,6 +9,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_ip_address_family.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -53,10 +54,22 @@ absl::StatusOr<SocketFd> CreateSocket(IpAddressFamily address_family,
 // `blocking` false). Must be a change from previous state.
 absl::Status SetSocketBlocking(SocketFd fd, bool blocking);
 
+// Sets buffer sizes for socket `fd` to `size` bytes.
+absl::Status SetReceiveBufferSize(SocketFd fd, QuicByteCount size);
+absl::Status SetSendBufferSize(SocketFd fd, QuicByteCount size);
+
 // Connects socket `fd` to `peer_address`.  Returns a status with
 // `absl::StatusCode::kUnavailable` iff the socket is non-blocking and the
-// connection could not be immediately completed.
+// connection could not be immediately completed.  The socket will then complete
+// connecting asynchronously, and on becoming writable, the result can be
+// checked using GetSocketError().
 absl::Status Connect(SocketFd fd, const QuicSocketAddress& peer_address);
+
+// Gets and clears socket error information for socket `fd`. Note that returned
+// error could be either the found socket error, or unusually, an error from the
+// attempt to retrieve error information. Typically used to determine connection
+// result after asynchronous completion of a Connect() call.
+absl::Status GetSocketError(SocketFd fd);
 
 // Assign `address` to socket `fd`.
 absl::Status Bind(SocketFd fd, const QuicSocketAddress& address);
@@ -83,8 +96,10 @@ absl::StatusOr<AcceptResult> Accept(SocketFd fd, bool blocking = false);
 // `buffer.size()` bytes. On success, returns a span pointing to the buffer
 // but resized to the actual number of bytes received. Returns a status with
 // `absl::StatusCode::kUnavailable` iff the socket is non-blocking and the
-// receive operation could not be immediately completed.
-absl::StatusOr<absl::Span<char>> Receive(SocketFd fd, absl::Span<char> buffer);
+// receive operation could not be immediately completed.  If `peek` is true,
+// received data is not removed from the underlying socket data queue.
+absl::StatusOr<absl::Span<char>> Receive(SocketFd fd, absl::Span<char> buffer,
+                                         bool peek = false);
 
 // Sends some or all of the data in `buffer` to socket `fd`. On success,
 // returns a string_view pointing to the unsent remainder of the buffer (or an

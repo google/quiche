@@ -56,6 +56,24 @@ TEST(SocketTest, SetSocketBlocking) {
   EXPECT_TRUE(socket_api::Close(socket).ok());
 }
 
+TEST(SocketTest, SetReceiveBufferSize) {
+  SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp,
+                                     /*blocking=*/true);
+
+  EXPECT_TRUE(socket_api::SetReceiveBufferSize(socket, /*size=*/100).ok());
+
+  EXPECT_TRUE(socket_api::Close(socket).ok());
+}
+
+TEST(SocketTest, SetSendBufferSize) {
+  SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp,
+                                     /*blocking=*/true);
+
+  EXPECT_TRUE(socket_api::SetSendBufferSize(socket, /*size=*/100).ok());
+
+  EXPECT_TRUE(socket_api::Close(socket).ok());
+}
+
 TEST(SocketTest, Connect) {
   SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp);
 
@@ -63,6 +81,16 @@ TEST(SocketTest, Connect) {
   EXPECT_TRUE(socket_api::Connect(
                   socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0))
                   .ok());
+
+  EXPECT_TRUE(socket_api::Close(socket).ok());
+}
+
+TEST(SocketTest, GetSocketError) {
+  SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp,
+                                     /*blocking=*/true);
+
+  absl::Status error = socket_api::GetSocketError(socket);
+  EXPECT_TRUE(error.ok());
 
   EXPECT_TRUE(socket_api::Close(socket).ok());
 }
@@ -128,6 +156,20 @@ TEST(SocketTest, Receive) {
   std::string buffer(100, 0);
   absl::StatusOr<absl::Span<char>> result =
       socket_api::Receive(socket, absl::MakeSpan(buffer));
+  ASSERT_FALSE(result.ok());
+  EXPECT_TRUE(absl::IsUnavailable(result.status()));
+
+  EXPECT_TRUE(socket_api::Close(socket).ok());
+}
+
+TEST(SocketTest, Peek) {
+  // Non-blocking to avoid waiting when no data to receive.
+  SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp,
+                                     /*blocking=*/false);
+
+  std::string buffer(100, 0);
+  absl::StatusOr<absl::Span<char>> result =
+      socket_api::Receive(socket, absl::MakeSpan(buffer), /*peek=*/true);
   ASSERT_FALSE(result.ok());
   EXPECT_TRUE(absl::IsUnavailable(result.status()));
 

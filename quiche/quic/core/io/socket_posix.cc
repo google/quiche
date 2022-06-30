@@ -4,6 +4,8 @@
 #include <fcntl.h>
 #include <sys/socket.h>
 
+#include <climits>
+
 #include "absl/base/attributes.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
@@ -212,6 +214,24 @@ socklen_t GetAddrlen(IpAddressFamily family) {
   }
 }
 
+absl::Status SetSockOptInt(SocketFd fd, int option, int value) {
+  QUICHE_DCHECK_GE(fd, 0);
+
+  int result;
+  do {
+    result = ::setsockopt(fd, SOL_SOCKET, option, &value, sizeof(value));
+  } while (result < 0 && errno == EINTR);
+
+  if (result >= 0) {
+    return absl::OkStatus();
+  } else {
+    absl::Status status = ToStatus(errno, "::setsockopt()");
+    QUICHE_DVLOG(1) << "Failed to set socket " << fd << " option " << option
+                    << " to " << value << " with error: " << status;
+    return status;
+  }
+}
+
 }  // namespace
 
 absl::StatusOr<SocketFd> CreateSocket(IpAddressFamily address_family,
@@ -257,6 +277,20 @@ absl::Status SetSocketBlocking(SocketFd fd, bool blocking) {
   }
 }
 
+absl::Status SetReceiveBufferSize(SocketFd fd, QuicByteCount size) {
+  QUICHE_DCHECK_GE(fd, 0);
+  QUICHE_DCHECK_LE(size, QuicByteCount{INT_MAX});
+
+  return SetSockOptInt(fd, SO_RCVBUF, static_cast<int>(size));
+}
+
+absl::Status SetSendBufferSize(SocketFd fd, QuicByteCount size) {
+  QUICHE_DCHECK_GE(fd, 0);
+  QUICHE_DCHECK_LE(size, QuicByteCount{INT_MAX});
+
+  return SetSockOptInt(fd, SO_SNDBUF, static_cast<int>(size));
+}
+
 absl::Status Connect(SocketFd fd, const QuicSocketAddress& peer_address) {
   QUICHE_DCHECK_GE(fd, 0);
   QUICHE_DCHECK(peer_address.IsInitialized());
@@ -279,6 +313,32 @@ absl::Status Connect(SocketFd fd, const QuicSocketAddress& peer_address) {
     QUICHE_DVLOG(1) << "Failed to connect socket " << fd
                     << " to address: " << peer_address.ToString()
                     << " with error: " << status;
+    return status;
+  }
+}
+
+absl::Status GetSocketError(SocketFd fd) {
+  QUICHE_DCHECK_GE(fd, 0);
+
+  int socket_error = 0;
+  socklen_t len = sizeof(socket_error);
+  int sockopt_result;
+  do {
+    sockopt_result =
+        ::getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_error, &len);
+  } while (sockopt_result < 0 && errno == EINTR);
+
+  if (sockopt_result >= 0) {
+    if (socket_error == 0) {
+      return absl::OkStatus();
+    } else {
+      return ToStatus(socket_error, "SO_ERROR");
+    }
+  } else {
+    absl::Status status = ToStatus(errno, "::getsockopt()");
+    QUICHE_LOG_FIRST_N(ERROR, 100)
+        << "Failed to get socket error information from socket " << fd
+        << " with error: " << status;
     return status;
   }
 }
@@ -380,13 +440,15 @@ absl::StatusOr<AcceptResult> Accept(SocketFd fd, bool blocking) {
   return accept_result;
 }
 
-absl::StatusOr<absl::Span<char>> Receive(SocketFd fd, absl::Span<char> buffer) {
+absl::StatusOr<absl::Span<char>> Receive(SocketFd fd, absl::Span<char> buffer,
+                                         bool peek) {
   QUICHE_DCHECK_GE(fd, 0);
   QUICHE_DCHECK(!buffer.empty());
 
   ssize_t num_read;
   do {
-    num_read = ::recv(fd, buffer.data(), buffer.size(), /*flags=*/0);
+    num_read =
+        ::recv(fd, buffer.data(), buffer.size(), /*flags=*/peek ? MSG_PEEK : 0);
   } while (num_read < 0 && errno == EINTR);
 
   if (num_read > 0 && static_cast<size_t>(num_read) > buffer.size()) {
