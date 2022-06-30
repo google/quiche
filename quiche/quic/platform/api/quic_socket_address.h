@@ -30,7 +30,11 @@ class QUIC_EXPORT_PRIVATE QuicSocketAddress {
 
   bool IsInitialized() const;
   std::string ToString() const;
+
+  // TODO(ericorth): Convert usage over to socket_api::GetSocketAddress() and
+  // remove.
   int FromSocket(int fd);
+
   QuicSocketAddress Normalized() const;
 
   QuicIpAddress host() const;
