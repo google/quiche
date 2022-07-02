@@ -3238,7 +3238,7 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     return true;
   }
 
-  if (LimitedByAmplificationFactor()) {
+  if (LimitedByAmplificationFactor(packet_creator_.max_packet_length())) {
     // Server is constrained by the amplification restriction.
     QUIC_CODE_COUNT(quic_throttled_by_amplification_limit);
     QUIC_DVLOG(1) << ENDPOINT
@@ -4739,7 +4739,7 @@ void QuicConnection::SetRetransmissionAlarm() {
     pending_retransmission_alarm_ = true;
     return;
   }
-  if (LimitedByAmplificationFactor()) {
+  if (LimitedByAmplificationFactor(packet_creator_.max_packet_length())) {
     // Do not set retransmission timer if connection is anti-amplification limit
     // throttled. Otherwise, nothing can be sent when timer fires.
     retransmission_alarm_->Cancel();
@@ -5854,7 +5854,9 @@ void QuicConnection::SendAllPendingAcks() {
     if (!flushed) {
       // Connection is write blocked.
       QUIC_BUG_IF(quic_bug_12714_33,
-                  !writer_->IsWriteBlocked() && !LimitedByAmplificationFactor())
+                  !writer_->IsWriteBlocked() &&
+                      !LimitedByAmplificationFactor(
+                          packet_creator_.max_packet_length()))
           << "Writer not blocked and not throttled by amplification factor, "
              "but ACK not flushed for packet space:"
           << i;
@@ -5976,14 +5978,20 @@ bool QuicConnection::FlushCoalescedPacket() {
     QUIC_RELOADABLE_FLAG_COUNT(
         quic_fix_bytes_accounting_for_buffered_coalesced_packets);
   }
-  if (!buffered_packets_.empty() || HandleWriteBlocked()) {
+  const size_t padding_size =
+      length - std::min<size_t>(length, coalesced_packet_.length());
+  // Buffer coalesced packet if padding + bytes_sent exceeds amplifcation limit.
+  if (!buffered_packets_.empty() || HandleWriteBlocked() ||
+      (enforce_strict_amplification_factor_ &&
+       LimitedByAmplificationFactor(padding_size))) {
     QUIC_DVLOG(1) << ENDPOINT
                   << "Buffering coalesced packet of len: " << length;
     buffered_packets_.emplace_back(
         buffer, static_cast<QuicPacketLength>(length),
         coalesced_packet_.self_address(), coalesced_packet_.peer_address());
     if (!GetQuicReloadableFlag(
-            quic_fix_bytes_accounting_for_buffered_coalesced_packets)) {
+            quic_fix_bytes_accounting_for_buffered_coalesced_packets) &&
+        !enforce_strict_amplification_factor_) {
       return true;
     }
   } else {
@@ -6007,7 +6015,6 @@ bool QuicConnection::FlushCoalescedPacket() {
   }
   // Account for added padding.
   if (length > coalesced_packet_.length()) {
-    size_t padding_size = length - coalesced_packet_.length();
     if (IsDefaultPath(coalesced_packet_.self_address(),
                       coalesced_packet_.peer_address())) {
       if (EnforceAntiAmplificationLimit()) {
@@ -6108,9 +6115,10 @@ bool QuicConnection::EnforceAntiAmplificationLimit() const {
 
 // TODO(danzh) Pass in path object or its reference of some sort to use this
 // method to check anti-amplification limit on non-default path.
-bool QuicConnection::LimitedByAmplificationFactor() const {
+bool QuicConnection::LimitedByAmplificationFactor(QuicByteCount bytes) const {
   return EnforceAntiAmplificationLimit() &&
-         default_path_.bytes_sent_before_address_validation >=
+         (default_path_.bytes_sent_before_address_validation +
+          (enforce_strict_amplification_factor_ ? bytes : 0)) >=
              anti_amplification_factor_ *
                  default_path_.bytes_received_before_address_validation;
 }

@@ -732,6 +732,9 @@ class PacketSavingConnection : public MockQuicConnection {
 
   ~PacketSavingConnection() override;
 
+  SerializedPacketFate GetSerializedPacketFate(
+      bool is_mtu_discovery, EncryptionLevel encryption_level) override;
+
   void SendOrQueuePacket(SerializedPacket packet) override;
 
   MOCK_METHOD(void, OnPacketSent, (EncryptionLevel, TransmissionType));
@@ -1859,7 +1862,9 @@ class TestPacketWriter : public QuicPacketWriter {
     return framer_.coalesced_packet();
   }
 
-  size_t last_packet_size() { return last_packet_size_; }
+  size_t last_packet_size() const { return last_packet_size_; }
+
+  size_t total_bytes_written() const { return total_bytes_written_; }
 
   const QuicPacketHeader& last_packet_header() const {
     return last_packet_header_;
@@ -1934,6 +1939,7 @@ class TestPacketWriter : public QuicPacketWriter {
   ParsedQuicVersion version_;
   SimpleQuicFramer framer_;
   size_t last_packet_size_ = 0;
+  size_t total_bytes_written_ = 0;
   QuicPacketHeader last_packet_header_;
   bool write_blocked_ = false;
   bool write_should_fail_ = false;

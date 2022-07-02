@@ -2850,6 +2850,9 @@ TEST_P(EndToEndTest, StreamCancelErrorTest) {
 
 TEST_P(EndToEndTest, ConnectionMigrationClientIPChanged) {
   ASSERT_TRUE(Initialize());
+  if (GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+    return;
+  }
   SendSynchronousFooRequestAndCheckResponse();
 
   // Store the client IP address which was used to send the first request.
@@ -2890,7 +2893,8 @@ TEST_P(EndToEndTest, ConnectionMigrationClientIPChanged) {
 
 TEST_P(EndToEndTest, IetfConnectionMigrationClientIPChangedMultipleTimes) {
   ASSERT_TRUE(Initialize());
-  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+  if (!GetClientConnection()->connection_migration_use_new_cid() ||
+      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
     return;
   }
   SendSynchronousFooRequestAndCheckResponse();
@@ -3001,7 +3005,8 @@ TEST_P(EndToEndTest, IetfConnectionMigrationClientIPChangedMultipleTimes) {
 
 TEST_P(EndToEndTest,
        ConnectionMigrationWithNonZeroConnectionIDClientIPChangedMultipleTimes) {
-  if (!version_.SupportsClientConnectionIds()) {
+  if (!version_.SupportsClientConnectionIds() ||
+      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -3138,7 +3143,8 @@ TEST_P(EndToEndTest,
 TEST_P(EndToEndTest, ConnectionMigrationNewTokenForNewIp) {
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames() ||
-      !client_->client()->session()->connection()->validate_client_address()) {
+      !client_->client()->session()->connection()->validate_client_address() ||
+      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
     return;
   }
   SendSynchronousFooRequestAndCheckResponse();

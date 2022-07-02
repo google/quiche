@@ -1709,7 +1709,8 @@ TEST_P(QuicConnectionTest, PeerPortChangeAtServer) {
 
 TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
   set_perspective(Perspective::IS_SERVER);
-  if (!connection_.validate_client_address()) {
+  if (!connection_.validate_client_address() ||
+      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
     return;
   }
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -1905,6 +1906,9 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
 
   QuicFrames frames2;
   frames2.push_back(QuicFrame(frame2_));
+  if (GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+    frames2.push_back(QuicFrame(QuicPaddingFrame(-1)));
+  }
   ProcessFramesPacketWithAddresses(frames2, kSelfAddress, kNewPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
@@ -1926,6 +1930,9 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
 }
 
 TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
+  if (GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+    return;
+  }
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
@@ -2102,7 +2109,8 @@ TEST_P(QuicConnectionTest, ConnectionMigrationWithPendingPaddingBytes) {
 TEST_P(QuicConnectionTest,
        ReversePathValidationResponseReceivedFromUnexpectedPeerAddress) {
   set_perspective(Perspective::IS_SERVER);
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!connection_.connection_migration_use_new_cid() ||
+      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
     return;
   }
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -7612,6 +7620,7 @@ TEST_P(QuicConnectionTest, MultipleCallsToCloseConnection) {
 TEST_P(QuicConnectionTest, ServerReceivesChloOnNonCryptoStream) {
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+  QuicConnectionPeer::SetAddressValidated(&connection_);
 
   CryptoHandshakeMessage message;
   CryptoFramer framer;
@@ -7838,6 +7847,9 @@ TEST_P(QuicConnectionTest, DoNotPadServerInitialConnectionClose) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
+  // Receives packet 1000 in initial data.
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
+  ProcessCryptoPacketAtLevel(1000, ENCRYPTION_INITIAL);
 
   if (version().handshake_protocol == PROTOCOL_TLS1_3) {
     EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
@@ -9544,7 +9556,8 @@ TEST_P(QuicConnectionTest, DeprecateHandshakeMode) {
 }
 
 TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
-  if (!connection_.version().SupportsAntiAmplificationLimit()) {
+  if (!connection_.version().SupportsAntiAmplificationLimit() ||
+      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
     return;
   }
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
@@ -9600,7 +9613,8 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
 }
 
 TEST_P(QuicConnectionTest, 3AntiAmplificationLimit) {
-  if (!connection_.version().SupportsAntiAmplificationLimit()) {
+  if (!connection_.version().SupportsAntiAmplificationLimit() ||
+      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
     return;
   }
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
@@ -9668,7 +9682,8 @@ TEST_P(QuicConnectionTest, 3AntiAmplificationLimit) {
 }
 
 TEST_P(QuicConnectionTest, 10AntiAmplificationLimit) {
-  if (!connection_.version().SupportsAntiAmplificationLimit()) {
+  if (!connection_.version().SupportsAntiAmplificationLimit() ||
+      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
     return;
   }
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
@@ -9873,7 +9888,8 @@ TEST_P(QuicConnectionTest, SendCoalescedPackets) {
 TEST_P(QuicConnectionTest, FailToCoalescePacket) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
   if (!IsDefaultTestConfiguration() ||
-      !connection_.version().CanSendCoalescedPackets()) {
+      !connection_.version().CanSendCoalescedPackets() ||
+      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
     return;
   }
 
@@ -11919,6 +11935,7 @@ TEST_P(QuicConnectionTest, ReceiveStreamFrameBeforePathChallenge) {
   frames.push_back(QuicFrame(frame1_));
   QuicPathFrameBuffer path_frame_buffer{0, 1, 2, 3, 4, 5, 6, 7};
   frames.push_back(QuicFrame(QuicPathChallengeFrame(0, path_frame_buffer)));
+  frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Loopback4(),
                                           /*port=*/23456);
 
@@ -14500,7 +14517,8 @@ TEST_P(QuicConnectionTest, ShouldGeneratePacketBlockedByMissingConnectionId) {
 // Regression test for b/182571515
 TEST_P(QuicConnectionTest, LostDataThenGetAcknowledged) {
   set_perspective(Perspective::IS_SERVER);
-  if (!connection_.validate_client_address()) {
+  if (!connection_.validate_client_address() ||
+      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
     return;
   }
 
@@ -14923,7 +14941,8 @@ TEST_P(QuicConnectionTest, ReceivedChloAndAck) {
 
 // Regression test for b/201643321.
 TEST_P(QuicConnectionTest, FailedToRetransmitShlo) {
-  if (!version().HasIetfQuicFrames()) {
+  if (!version().HasIetfQuicFrames() ||
+      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
@@ -15485,11 +15504,86 @@ TEST_P(QuicConnectionTest, FixBytesAccountingForBufferedCoalescedPackets) {
   QuicConnectionPeer::SendPing(&connection_);
   const QuicConnectionStats& stats = connection_.GetStats();
   if (GetQuicReloadableFlag(
-          quic_fix_bytes_accounting_for_buffered_coalesced_packets)) {
+          quic_fix_bytes_accounting_for_buffered_coalesced_packets) ||
+      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
     // Verify padding is accounted.
     EXPECT_EQ(stats.bytes_sent, connection_.max_packet_length());
   } else {
     EXPECT_LT(stats.bytes_sent, connection_.max_packet_length());
+  }
+}
+
+TEST_P(QuicConnectionTest, StrictAntiAmplificationLimit) {
+  if (!connection_.version().SupportsAntiAmplificationLimit()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(AnyNumber());
+  set_perspective(Perspective::IS_SERVER);
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  // Verify no data can be sent at the beginning because bytes received is 0.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  connection_.SendCryptoDataWithString("foo", 0);
+  EXPECT_FALSE(connection_.CanWrite(HAS_RETRANSMITTABLE_DATA));
+  EXPECT_FALSE(connection_.CanWrite(NO_RETRANSMITTABLE_DATA));
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  const size_t anti_amplification_factor =
+      GetQuicFlag(FLAGS_quic_anti_amplification_factor);
+  // Receives packet 1.
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(anti_amplification_factor);
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<TaggingEncrypter>(0x03));
+
+  for (size_t i = 1; i < anti_amplification_factor - 1; ++i) {
+    connection_.SendCryptoDataWithString("foo", i * 3);
+  }
+  // Send an addtion packet with max_packet_size - 1.
+  connection_.SetMaxPacketLength(connection_.max_packet_length() - 1);
+  connection_.SendCryptoDataWithString("bar",
+                                       (anti_amplification_factor - 1) * 3);
+  EXPECT_LT(writer_->total_bytes_written(),
+            anti_amplification_factor *
+                QuicConnectionPeer::BytesReceivedOnDefaultPath(&connection_));
+  if (GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+    // 3 connection closes which will be buffered.
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(3);
+    // Verify retransmission alarm is not set.
+    EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+  } else {
+    // Crypto + 3 connection closes.
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(4);
+    EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  }
+  // Try to send another packet with max_packet_size.
+  connection_.SetMaxPacketLength(connection_.max_packet_length() + 1);
+  connection_.SendCryptoDataWithString("bar", anti_amplification_factor * 3);
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+  // Close connection.
+  EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  connection_.CloseConnection(
+      QUIC_INTERNAL_ERROR, "error",
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  EXPECT_EQ(0u, connection_.NumQueuedPackets());
+  if (GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+    EXPECT_LT(writer_->total_bytes_written(),
+              anti_amplification_factor *
+                  QuicConnectionPeer::BytesReceivedOnDefaultPath(&connection_));
+  } else {
+    EXPECT_LT(writer_->total_bytes_written(),
+              (anti_amplification_factor + 2) *
+                  QuicConnectionPeer::BytesReceivedOnDefaultPath(&connection_));
+    EXPECT_GT(writer_->total_bytes_written(),
+              (anti_amplification_factor + 1) *
+                  QuicConnectionPeer::BytesReceivedOnDefaultPath(&connection_));
   }
 }
 

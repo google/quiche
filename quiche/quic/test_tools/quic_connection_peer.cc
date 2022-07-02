@@ -438,6 +438,12 @@ QuicPathValidator* QuicConnectionPeer::path_validator(
   return &connection->path_validator_;
 }
 
+// static
+QuicByteCount QuicConnectionPeer::BytesReceivedOnDefaultPath(
+    QuicConnection* connection) {
+  return connection->default_path_.bytes_received_before_address_validation;
+}
+
 //  static
 QuicByteCount QuicConnectionPeer::BytesSentOnAlternativePath(
     QuicConnection* connection) {

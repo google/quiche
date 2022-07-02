@@ -1709,7 +1709,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicPacketNumber GetLargestAckedPacket() const;
 
   // Whether connection is limited by amplification factor.
-  bool LimitedByAmplificationFactor() const;
+  // If enforce_strict_amplification_factor_ is true, this will return true if
+  // connection is amplification limited after sending |bytes|.
+  bool LimitedByAmplificationFactor(QuicByteCount bytes) const;
 
   // Called before sending a packet to get packet send time and to set the
   // release time delay in |per_packet_options_|. Return the time when the
@@ -2240,6 +2242,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool only_send_probing_frames_on_alternative_path_ =
       GetQuicReloadableFlag(quic_not_bundle_ack_on_alternative_path);
+
+  // If true, throttle sending if next created packet will exceed amplification
+  // limit.
+  const bool enforce_strict_amplification_factor_ =
+      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor);
 };
 
 }  // namespace quic

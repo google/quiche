@@ -215,4 +215,7 @@ QUIC_PROTOCOL_FLAG(
 
 QUIC_PROTOCOL_FLAG(bool, quic_use_lower_server_response_mtu_for_test, false,
                    "If true, cap server response packet size at 1250.")
+
+QUIC_PROTOCOL_FLAG(bool, quic_enforce_strict_amplification_factor, false,
+                   "If true, enforce strict amplification factor")
 #endif

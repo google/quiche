@@ -175,6 +175,8 @@ class QuicConnectionPeer {
 
   static QuicPathValidator* path_validator(QuicConnection* connection);
 
+  static QuicByteCount BytesReceivedOnDefaultPath(QuicConnection* connection);
+
   static QuicByteCount BytesSentOnAlternativePath(QuicConnection* connection);
 
   static QuicByteCount BytesReceivedOnAlternativePath(
