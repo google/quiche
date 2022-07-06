@@ -1204,6 +1204,45 @@ TEST_F(HTTPBalsaFrameTest, NothingBadHappensWhenNoVisitorIsAssigned) {
   EXPECT_EQ("monkeys", funky);
 }
 
+TEST_F(HTTPBalsaFrameTest, RequestWithTrailers) {
+  std::string headers =
+      "GET / HTTP/1.1\r\n"
+      "Connection: close\r\n"
+      "transfer-encoding: chunked\r\n"
+      "\r\n";
+
+  std::string chunks =
+      "3\r\n"
+      "123\r\n"
+      "0\r\n";
+  std::string trailer =
+      "crass: monkeys\r\n"
+      "funky: monkeys\r\n"
+      "\r\n";
+
+  ASSERT_EQ(headers.size(),
+            balsa_frame_.ProcessInput(headers.data(), headers.size()));
+  ASSERT_EQ(chunks.size(),
+            balsa_frame_.ProcessInput(chunks.data(), chunks.size()));
+
+  FakeHeaders fake_trailers;
+  fake_trailers.AddKeyValue("crass", "monkeys");
+  fake_trailers.AddKeyValue("funky", "monkeys");
+
+  EXPECT_CALL(visitor_mock_, OnTrailerInput(_)).Times(AtLeast(1));
+  EXPECT_CALL(visitor_mock_, ProcessTrailers(fake_trailers));
+  EXPECT_EQ(trailer.size(),
+            balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
+
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+
+  const absl::string_view crass = trailer_.GetHeader("crass");
+  EXPECT_EQ("monkeys", crass);
+  const absl::string_view funky = trailer_.GetHeader("funky");
+  EXPECT_EQ("monkeys", funky);
+}
+
 TEST_F(HTTPBalsaFrameTest, NothingBadHappensWhenNoVisitorIsAssignedInResponse) {
   std::string headers =
       "HTTP/1.1 502 Bad Gateway\r\n"
