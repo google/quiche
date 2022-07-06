@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/string_view.h"
@@ -30,6 +31,10 @@ namespace {
 
 using testing::_;
 using testing::AtMost;
+
+MATCHER_P(HasFlagSet, value, "Checks a flag in a bit mask") {
+  return (arg & value) != 0;
+}
 
 constexpr QuicSocketEventMask kAllEvents =
     kSocketEventReadable | kSocketEventWritable | kSocketEventError;
@@ -48,6 +53,11 @@ class MockDelegate : public QuicAlarm::Delegate {
   MOCK_METHOD(void, OnAlarm, (), (override));
 };
 
+void SetNonBlocking(int fd) {
+  QUICHE_CHECK(::fcntl(fd, F_SETFL, ::fcntl(fd, F_GETFL) | O_NONBLOCK) == 0)
+      << "Failed to mark FD non-blocking, errno: " << errno;
+}
+
 class QuicEventLoopFactoryTest
     : public QuicTestWithParam<QuicEventLoopFactory*> {
  public:
@@ -59,12 +69,8 @@ class QuicEventLoopFactoryTest
     read_fd_ = fds[0];
     write_fd_ = fds[1];
 
-    QUICHE_CHECK(::fcntl(read_fd_, F_SETFL,
-                         ::fcntl(read_fd_, F_GETFL) | O_NONBLOCK) == 0)
-        << "Failed to mark pipe FD non-blocking, errno: " << errno;
-    QUICHE_CHECK(::fcntl(write_fd_, F_SETFL,
-                         ::fcntl(write_fd_, F_GETFL) | O_NONBLOCK) == 0)
-        << "Failed to mark pipe FD non-blocking, errno: " << errno;
+    SetNonBlocking(read_fd_);
+    SetNonBlocking(write_fd_);
   }
 
   ~QuicEventLoopFactoryTest() {
@@ -267,6 +273,52 @@ TEST_P(QuicEventLoopFactoryTest, UnregisterInsideEventHandler) {
   EXPECT_EQ(total_called, 1);
 }
 
+// Creates a bidirectional socket and tests its behavior when it's both readable
+// and writable.
+TEST_P(QuicEventLoopFactoryTest, ReadWriteSocket) {
+  int sockets[2];
+  ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets), 0);
+  auto close_sockets = absl::MakeCleanup([&]() {
+    close(sockets[0]);
+    close(sockets[1]);
+  });
+  SetNonBlocking(sockets[0]);
+  SetNonBlocking(sockets[1]);
+
+  testing::StrictMock<MockQuicSocketEventListener> listener;
+  ASSERT_TRUE(loop_->RegisterSocket(sockets[0], kAllEvents, &listener));
+  EXPECT_CALL(listener, OnSocketEvent(_, sockets[0], kSocketEventWritable));
+  loop_->RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(4));
+
+  int io_result;
+  std::string data(2048, 'a');
+  do {
+    io_result = write(sockets[0], data.data(), data.size());
+  } while (io_result > 0);
+  ASSERT_EQ(errno, EAGAIN);
+
+  if (!loop_->SupportsEdgeTriggered()) {
+    ASSERT_TRUE(loop_->RearmSocket(sockets[0], kSocketEventWritable));
+  }
+  // We are not write-blocked, so this should not notify.
+  loop_->RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(4));
+
+  EXPECT_GT(write(sockets[1], data.data(), data.size()), 0);
+  EXPECT_CALL(listener, OnSocketEvent(_, sockets[0], kSocketEventReadable));
+  loop_->RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(4));
+
+  do {
+    char buffer[2048];
+    io_result = read(sockets[1], buffer, sizeof(buffer));
+  } while (io_result > 0);
+  ASSERT_EQ(errno, EAGAIN);
+  // Here, we can receive either "writable" or "readable and writable"
+  // notification depending on the backend in question.
+  EXPECT_CALL(listener,
+              OnSocketEvent(_, sockets[0], HasFlagSet(kSocketEventWritable)));
+  loop_->RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(4));
+}
+
 TEST_P(QuicEventLoopFactoryTest, AlarmInFuture) {
   constexpr auto kAlarmTimeout = QuicTime::Delta::FromMilliseconds(5);
   auto [alarm, delegate] = CreateAlarm();
@@ -345,6 +397,15 @@ TEST_P(QuicEventLoopFactoryTest, AlarmCancelsAnotherAlarm) {
   loop_->RunEventLoopOnce(kAlarmTimeout * 2);
   loop_->RunEventLoopOnce(kAlarmTimeout * 2);
   EXPECT_EQ(alarms_called, 1);
+}
+
+TEST_P(QuicEventLoopFactoryTest, DestructorWithPendingAlarm) {
+  constexpr auto kAlarmTimeout = QuicTime::Delta::FromMilliseconds(5);
+  auto [alarm1_ptr, delegate1] = CreateAlarm();
+
+  alarm1_ptr->Set(clock_.Now() + kAlarmTimeout);
+  // Expect destructor to cleanly unregister itself before the event loop is
+  // gone.
 }
 
 }  // namespace

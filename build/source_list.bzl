@@ -1002,6 +1002,7 @@ epoll_test_support_hdrs = [
     "epoll_server/platform/api/epoll_address_test_utils.h",
     "epoll_server/platform/api/epoll_expect_bug.h",
     "epoll_server/platform/api/epoll_test.h",
+    "quic/bindings/quic_libevent.h",
     "quic/test_tools/quic_client_peer.h",
     "quic/test_tools/quic_mock_syscall_wrapper.h",
     "quic/test_tools/quic_server_peer.h",
@@ -1011,6 +1012,7 @@ epoll_test_support_hdrs = [
 ]
 epoll_test_support_srcs = [
     "epoll_server/fake_simple_epoll_server.cc",
+    "quic/bindings/quic_libevent.cc",
     "quic/test_tools/quic_client_peer.cc",
     "quic/test_tools/quic_mock_syscall_wrapper.cc",
     "quic/test_tools/quic_server_peer.cc",
@@ -1098,6 +1100,7 @@ quiche_tests_srcs = [
     "http2/test_tools/http2_frame_builder_test.cc",
     "http2/test_tools/http2_random_test.cc",
     "http2/test_tools/random_decoder_test_base_test.cc",
+    "quic/bindings/quic_libevent_test.cc",
     "quic/core/congestion_control/bandwidth_sampler_test.cc",
     "quic/core/congestion_control/bbr2_simulator_test.cc",
     "quic/core/congestion_control/bbr_sender_test.cc",
