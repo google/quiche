@@ -185,7 +185,8 @@ TEST(SocketTest, Send) {
 
   char buffer[] = {12, 34, 56, 78};
   // Expect at least some data to be sent successfully.
-  absl::StatusOr<absl::string_view> result = socket_api::Send(socket, buffer);
+  absl::StatusOr<absl::string_view> result =
+      socket_api::Send(socket, absl::string_view(buffer, sizeof(buffer)));
   ASSERT_TRUE(result.ok());
   EXPECT_THAT(result.value(), SizeIs(Lt(4)));
 
