@@ -16,7 +16,6 @@
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
-#include "absl/strings/ascii.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
@@ -25,6 +24,7 @@
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic::test {
 namespace {
@@ -104,15 +104,7 @@ class QuicEventLoopFactoryTest
 
 std::string GetTestParamName(
     ::testing::TestParamInfo<QuicEventLoopFactory*> info) {
-  std::string name = info.param->GetName();
-  // Escape all characters that are not allowed by gtest ([a-zA-Z0-9_]).
-  for (char& c : name) {
-    bool valid = absl::ascii_isalnum(c) || c == '_';
-    if (!valid) {
-      c = '_';
-    }
-  }
-  return name;
+  return EscapeTestParamName(info.param->GetName());
 }
 
 INSTANTIATE_TEST_SUITE_P(QuicEventLoopFactoryTests, QuicEventLoopFactoryTest,

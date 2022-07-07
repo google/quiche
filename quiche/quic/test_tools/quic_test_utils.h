@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/congestion_control/loss_detection_interface.h"
@@ -2030,6 +2031,18 @@ class SavingHttp3DatagramVisitor : public QuicSpdyStream::Http3DatagramVisitor {
  private:
   std::vector<SavedHttp3Datagram> received_h3_datagrams_;
 };
+
+inline std::string EscapeTestParamName(absl::string_view name) {
+  std::string result(name);
+  // Escape all characters that are not allowed by gtest ([a-zA-Z0-9_]).
+  for (char& c : result) {
+    bool valid = absl::ascii_isalnum(c) || c == '_';
+    if (!valid) {
+      c = '_';
+    }
+  }
+  return result;
+}
 
 }  // namespace test
 }  // namespace quic

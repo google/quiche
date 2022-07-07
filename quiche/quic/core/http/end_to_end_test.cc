@@ -126,9 +126,7 @@ std::string PrintToString(const TestParams& p) {
       std::to_string((p.override_server_connection_id_length == -1)
                          ? static_cast<int>(kQuicDefaultConnectionIdLength)
                          : p.override_server_connection_id_length));
-  std::replace(rv.begin(), rv.end(), ',', '_');
-  std::replace(rv.begin(), rv.end(), ' ', '_');
-  return rv;
+  return EscapeTestParamName(rv);
 }
 
 // Constructs various test permutations.
