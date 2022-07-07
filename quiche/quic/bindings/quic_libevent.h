@@ -26,7 +26,9 @@ class QUICHE_EXPORT_PRIVATE LibeventQuicEventLoop : public QuicEventLoop {
 
   // QuicEventLoop implementation.
   bool SupportsEdgeTriggered() const override { return edge_triggered_; }
-  QuicAlarmFactory* GetAlarmFactory() override { return &alarm_factory_; }
+  std::unique_ptr<QuicAlarmFactory> CreateAlarmFactory() override {
+    return std::make_unique<AlarmFactory>(this);
+  }
   bool RegisterSocket(QuicUdpSocketFd fd, QuicSocketEventMask events,
                       QuicSocketEventListener* listener) override;
   bool UnregisterSocket(QuicUdpSocketFd fd) override;
@@ -85,7 +87,6 @@ class QUICHE_EXPORT_PRIVATE LibeventQuicEventLoop : public QuicEventLoop {
   QuicClock* clock_;
 
   RegistrationMap registration_map_;
-  AlarmFactory alarm_factory_;
 };
 
 // RAII-style wrapper around event_base.

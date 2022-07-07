@@ -36,8 +36,7 @@ QuicSocketEventMask GetEventMask(PollMask poll_mask) {
 
 }  // namespace
 
-QuicPollEventLoop::QuicPollEventLoop(QuicClock* clock)
-    : clock_(clock), alarm_factory_(this) {}
+QuicPollEventLoop::QuicPollEventLoop(QuicClock* clock) : clock_(clock) {}
 
 bool QuicPollEventLoop::RegisterSocket(QuicUdpSocketFd fd,
                                        QuicSocketEventMask events,
@@ -258,8 +257,8 @@ void QuicPollEventLoop::Alarm::CancelImpl() {
   current_schedule_handle_.reset();
 }
 
-QuicAlarmFactory* QuicPollEventLoop::GetAlarmFactory() {
-  return &alarm_factory_;
+std::unique_ptr<QuicAlarmFactory> QuicPollEventLoop::CreateAlarmFactory() {
+  return std::make_unique<AlarmFactory>(this);
 }
 
 }  // namespace quic

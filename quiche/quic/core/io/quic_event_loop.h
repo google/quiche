@@ -73,8 +73,8 @@ class QUICHE_NO_EXPORT QuicEventLoop {
   virtual void RunEventLoopOnce(QuicTime::Delta default_timeout) = 0;
 
   // Returns an alarm factory that allows alarms to be scheduled on this event
-  // loop.  The factory is owned by the event loop.
-  virtual QuicAlarmFactory* GetAlarmFactory() = 0;
+  // loop.
+  virtual std::unique_ptr<QuicAlarmFactory> CreateAlarmFactory() = 0;
 };
 
 // A factory object for the event loop. Every implementation is expected to have

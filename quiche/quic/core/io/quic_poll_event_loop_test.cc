@@ -86,7 +86,8 @@ class QuicPollEventLoopForTest : public QuicPollEventLoop {
 
 class QuicPollEventLoopTest : public QuicTest {
  public:
-  QuicPollEventLoopTest() : loop_(&clock_), factory_(loop_.GetAlarmFactory()) {
+  QuicPollEventLoopTest()
+      : loop_(&clock_), factory_(loop_.CreateAlarmFactory()) {
     int fds[2];
     int result = ::pipe(fds);
     QUICHE_CHECK(result >= 0) << "Failed to create a pipe, errno: " << errno;
@@ -123,7 +124,7 @@ class QuicPollEventLoopTest : public QuicTest {
  protected:
   MockClock clock_;
   QuicPollEventLoopForTest loop_;
-  QuicAlarmFactory* factory_;
+  std::unique_ptr<QuicAlarmFactory> factory_;
   int read_fd_;
   int write_fd_;
 };

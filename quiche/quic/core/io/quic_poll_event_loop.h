@@ -50,7 +50,7 @@ class QUICHE_NO_EXPORT QuicPollEventLoop : public QuicEventLoop {
   ABSL_MUST_USE_RESULT bool ArtificiallyNotifyEvent(
       QuicUdpSocketFd fd, QuicSocketEventMask events) override;
   void RunEventLoopOnce(QuicTime::Delta default_timeout) override;
-  QuicAlarmFactory* GetAlarmFactory() override;
+  std::unique_ptr<QuicAlarmFactory> CreateAlarmFactory() override;
 
  protected:
   // Allows poll(2) calls to be mocked out in unit tests.
@@ -143,7 +143,6 @@ class QUICHE_NO_EXPORT QuicPollEventLoop : public QuicEventLoop {
   const QuicClock* clock_;
   RegistrationMap registrations_;
   AlarmList alarms_;
-  AlarmFactory alarm_factory_;
   bool has_artificial_events_pending_ = false;
 };
 

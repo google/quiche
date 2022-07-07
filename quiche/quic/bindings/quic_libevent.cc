@@ -65,8 +65,7 @@ class LibeventAlarm : public QuicAlarm {
 LibeventQuicEventLoop::LibeventQuicEventLoop(event_base* base, QuicClock* clock)
     : base_(base),
       edge_triggered_(event_base_get_features(base) & EV_FEATURE_ET),
-      clock_(clock),
-      alarm_factory_(this) {
+      clock_(clock) {
   QUICHE_CHECK_LE(sizeof(event), event_get_struct_event_size())
       << "libevent ABI mismatch: sizeof(event) is bigger than the one QUICHE "
          "has been compiled with";

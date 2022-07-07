@@ -49,8 +49,10 @@ TEST(QuicLibeventTest, WakeUpFromAnotherThread) {
   auto event_loop_owned = QuicLibeventEventLoopFactory::Get()->Create(clock);
   LibeventQuicEventLoop* event_loop =
       static_cast<LibeventQuicEventLoop*>(event_loop_owned.get());
-  std::unique_ptr<QuicAlarm> timeout_alarm = absl::WrapUnique(
-      event_loop->GetAlarmFactory()->CreateAlarm(new FailureAlarmDelegate()));
+  std::unique_ptr<QuicAlarmFactory> alarm_factory =
+      event_loop->CreateAlarmFactory();
+  std::unique_ptr<QuicAlarm> timeout_alarm =
+      absl::WrapUnique(alarm_factory->CreateAlarm(new FailureAlarmDelegate()));
 
   const QuicTime kTimeoutAt = clock->Now() + QuicTime::Delta::FromSeconds(10);
   timeout_alarm->Set(kTimeoutAt);
