@@ -76,7 +76,7 @@ class QUIC_EXPORT_PRIVATE QuicBandwidth {
 
   int64_t ToKBytesPerSecond() const { return bits_per_second_ / 8000; }
 
-  QuicByteCount ToBytesPerPeriod(QuicTime::Delta time_period) const {
+  constexpr QuicByteCount ToBytesPerPeriod(QuicTime::Delta time_period) const {
     return bits_per_second_ * time_period.ToMicroseconds() / 8 /
            kNumMicrosPerSecond;
   }
@@ -91,7 +91,7 @@ class QUIC_EXPORT_PRIVATE QuicBandwidth {
     return bits_per_second_ == Infinite().ToBitsPerSecond();
   }
 
-  QuicTime::Delta TransferTime(QuicByteCount bytes) const {
+  constexpr QuicTime::Delta TransferTime(QuicByteCount bytes) const {
     if (bits_per_second_ == 0) {
       return QuicTime::Delta::Zero();
     }
@@ -107,9 +107,11 @@ class QUIC_EXPORT_PRIVATE QuicBandwidth {
 
   int64_t bits_per_second_;
 
-  friend QuicBandwidth operator+(QuicBandwidth lhs, QuicBandwidth rhs);
-  friend QuicBandwidth operator-(QuicBandwidth lhs, QuicBandwidth rhs);
-  friend QuicBandwidth operator*(QuicBandwidth lhs, float factor);
+  friend constexpr QuicBandwidth operator+(QuicBandwidth lhs,
+                                           QuicBandwidth rhs);
+  friend constexpr QuicBandwidth operator-(QuicBandwidth lhs,
+                                           QuicBandwidth rhs);
+  friend constexpr QuicBandwidth operator*(QuicBandwidth lhs, float rhs);
 };
 
 // Non-member relational operators for QuicBandwidth.
@@ -133,23 +135,25 @@ inline bool operator>=(QuicBandwidth lhs, QuicBandwidth rhs) {
 }
 
 // Non-member arithmetic operators for QuicBandwidth.
-inline QuicBandwidth operator+(QuicBandwidth lhs, QuicBandwidth rhs) {
+inline constexpr QuicBandwidth operator+(QuicBandwidth lhs, QuicBandwidth rhs) {
   return QuicBandwidth(lhs.bits_per_second_ + rhs.bits_per_second_);
 }
-inline QuicBandwidth operator-(QuicBandwidth lhs, QuicBandwidth rhs) {
+inline constexpr QuicBandwidth operator-(QuicBandwidth lhs, QuicBandwidth rhs) {
   return QuicBandwidth(lhs.bits_per_second_ - rhs.bits_per_second_);
 }
-inline QuicBandwidth operator*(QuicBandwidth lhs, float rhs) {
+inline constexpr QuicBandwidth operator*(QuicBandwidth lhs, float rhs) {
   return QuicBandwidth(
       static_cast<int64_t>(std::llround(lhs.bits_per_second_ * rhs)));
 }
 inline QuicBandwidth operator*(float lhs, QuicBandwidth rhs) {
   return rhs * lhs;
 }
-inline QuicByteCount operator*(QuicBandwidth lhs, QuicTime::Delta rhs) {
+inline constexpr QuicByteCount operator*(QuicBandwidth lhs,
+                                         QuicTime::Delta rhs) {
   return lhs.ToBytesPerPeriod(rhs);
 }
-inline QuicByteCount operator*(QuicTime::Delta lhs, QuicBandwidth rhs) {
+inline constexpr QuicByteCount operator*(QuicTime::Delta lhs,
+                                         QuicBandwidth rhs) {
   return rhs * lhs;
 }
 
