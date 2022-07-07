@@ -37,6 +37,10 @@ class MockPacketProcessorStats : public QbonePacketProcessor::StatsInterface {
 
 std::string PrependIPv6HeaderForTest(const std::string& body, int hops);
 
+// Returns true if the hop limit was decremented. Returns false if the packet is
+// too short, not IPv6, or already has a hop limit of zero.
+bool DecrementIPv6HopLimit(std::string& packet);
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_QBONE_QBONE_PACKET_PROCESSOR_TEST_TOOLS_H_

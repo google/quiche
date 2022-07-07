@@ -25,4 +25,16 @@ std::string PrependIPv6HeaderForTest(const std::string& body, int hops) {
   return packet;
 }
 
+bool DecrementIPv6HopLimit(std::string& packet) {
+  if (packet.size() < sizeof(ip6_hdr)) {
+    return false;
+  }
+  ip6_hdr* header = reinterpret_cast<ip6_hdr*>(&packet[0]);
+  if (header->ip6_vfc >> 4 != 6 || header->ip6_hops == 0) {
+    return false;
+  }
+  header->ip6_hops--;
+  return true;
+}
+
 }  // namespace quic
