@@ -4,10 +4,15 @@
 
 #include "quiche/quic/tools/quic_server.h"
 
+#include <memory>
+
 #include "absl/base/macros.h"
 #include "quiche/quic/core/crypto/quic_random.h"
-#include "quiche/quic/core/quic_epoll_alarm_factory.h"
-#include "quiche/quic/core/quic_epoll_connection_helper.h"
+#include "quiche/quic/core/io/quic_default_event_loop.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/quic_default_clock.h"
+#include "quiche/quic/core/quic_default_connection_helper.h"
+#include "quiche/quic/core/quic_default_packet_writer.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -62,14 +67,10 @@ class TestQuicServer : public QuicServer {
   QuicDispatcher* CreateQuicDispatcher() override {
     mock_dispatcher_ = new MockQuicSimpleDispatcher(
         &config(), &crypto_config(), version_manager(),
-        std::unique_ptr<QuicEpollConnectionHelper>(
-            new QuicEpollConnectionHelper(epoll_server(),
-                                          QuicAllocator::BUFFER_POOL)),
+        std::make_unique<QuicDefaultConnectionHelper>(),
         std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
             new QuicSimpleCryptoServerStreamHelper()),
-        std::unique_ptr<QuicEpollAlarmFactory>(
-            new QuicEpollAlarmFactory(epoll_server())),
-        &quic_simple_server_backend_);
+        event_loop()->CreateAlarmFactory(), &quic_simple_server_backend_);
     return mock_dispatcher_;
   }
 
@@ -147,14 +148,11 @@ class QuicServerDispatchPacketTest : public QuicTest {
                        crypto_test_utils::ProofSourceForTesting(),
                        KeyExchangeSource::Default()),
         version_manager_(AllSupportedVersions()),
+        event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
         dispatcher_(&config_, &crypto_config_, &version_manager_,
-                    std::unique_ptr<QuicEpollConnectionHelper>(
-                        new QuicEpollConnectionHelper(
-                            &eps_, QuicAllocator::BUFFER_POOL)),
-                    std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
-                        new QuicSimpleCryptoServerStreamHelper()),
-                    std::unique_ptr<QuicEpollAlarmFactory>(
-                        new QuicEpollAlarmFactory(&eps_)),
+                    std::make_unique<QuicDefaultConnectionHelper>(),
+                    std::make_unique<QuicSimpleCryptoServerStreamHelper>(),
+                    event_loop_->CreateAlarmFactory(),
                     &quic_simple_server_backend_) {
     dispatcher_.InitializeWithWriter(new QuicDefaultPacketWriter(1234));
   }
@@ -168,7 +166,7 @@ class QuicServerDispatchPacketTest : public QuicTest {
   QuicConfig config_;
   QuicCryptoServerConfig crypto_config_;
   QuicVersionManager version_manager_;
-  QuicEpollServer eps_;
+  std::unique_ptr<QuicEventLoop> event_loop_;
   QuicMemoryCacheBackend quic_simple_server_backend_;
   MockQuicDispatcher dispatcher_;
 };

@@ -8,8 +8,7 @@
 
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/quic_epoll_alarm_factory.h"
-#include "quiche/quic/core/quic_epoll_connection_helper.h"
+#include "quiche/quic/core/quic_default_connection_helper.h"
 #include "quiche/quic/tools/quic_simple_crypto_server_stream_helper.h"
 #include "quiche/quic/tools/quic_simple_dispatcher.h"
 #include "quiche/quic/tools/quic_simple_server_session.h"
@@ -178,11 +177,10 @@ QuicTestServer::QuicTestServer(
 QuicDispatcher* QuicTestServer::CreateQuicDispatcher() {
   return new QuicTestDispatcher(
       &config(), &crypto_config(), version_manager(),
-      std::make_unique<QuicEpollConnectionHelper>(epoll_server(),
-                                                  QuicAllocator::BUFFER_POOL),
+      std::make_unique<QuicDefaultConnectionHelper>(),
       std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
           new QuicSimpleCryptoServerStreamHelper()),
-      std::make_unique<QuicEpollAlarmFactory>(epoll_server()), server_backend(),
+      event_loop()->CreateAlarmFactory(), server_backend(),
       expected_server_connection_id_length());
 }
 

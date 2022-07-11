@@ -15,8 +15,8 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_config.h"
-#include "quiche/quic/core/quic_epoll_connection_helper.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_udp_socket.h"
@@ -35,8 +35,7 @@ class QuicServerPeer;
 class QuicDispatcher;
 class QuicPacketReader;
 
-class QuicServer : public QuicSpdyServerBase,
-                   public QuicEpollCallbackInterface {
+class QuicServer : public QuicSpdyServerBase, public QuicSocketEventListener {
  public:
   QuicServer(std::unique_ptr<ProofSource> proof_source,
              QuicSimpleServerBackend* quic_simple_server_backend);
@@ -54,8 +53,6 @@ class QuicServer : public QuicSpdyServerBase,
 
   ~QuicServer() override;
 
-  std::string Name() const override { return "QuicServer"; }
-
   // Start listening on the specified address.
   bool CreateUDPSocketAndListen(const QuicSocketAddress& address) override;
   // Handles all events. Does not return.
@@ -64,17 +61,12 @@ class QuicServer : public QuicSpdyServerBase,
   // Wait up to 50ms, and handle any events which occur.
   void WaitForEvents();
 
-  // Server deletion is imminent.  Start cleaning up the epoll server.
+  // Server deletion is imminent.  Start cleaning up any pending sessions.
   virtual void Shutdown();
 
-  // From EpollCallbackInterface
-  void OnRegistration(QuicEpollServer* /*eps*/, int /*fd*/,
-                      int /*event_mask*/) override {}
-  void OnModification(int /*fd*/, int /*event_mask*/) override {}
-  void OnEvent(int /*fd*/, QuicEpollEvent* /*event*/) override;
-  void OnUnregistration(int /*fd*/, bool /*replaced*/) override {}
-
-  void OnShutdown(QuicEpollServer* /*eps*/, int /*fd*/) override {}
+  // QuicSocketEventListener implementation.
+  void OnSocketEvent(QuicEventLoop* event_loop, QuicUdpSocketFd fd,
+                     QuicSocketEventMask events) override;
 
   void SetChloMultiplier(size_t multiplier) {
     crypto_config_.set_chlo_multiplier(multiplier);
@@ -90,12 +82,14 @@ class QuicServer : public QuicSpdyServerBase,
 
   int port() { return port_; }
 
-  QuicEpollServer* epoll_server() { return &epoll_server_; }
+  QuicEventLoop* event_loop() { return event_loop_.get(); }
 
  protected:
   virtual QuicPacketWriter* CreateWriter(int fd);
 
   virtual QuicDispatcher* CreateQuicDispatcher();
+
+  virtual std::unique_ptr<QuicEventLoop> CreateEventLoop();
 
   const QuicConfig& config() const { return config_; }
   const QuicCryptoServerConfig& crypto_config() const { return crypto_config_; }
@@ -120,10 +114,10 @@ class QuicServer : public QuicSpdyServerBase,
   // Initialize the internal state of the server.
   void Initialize();
 
+  // Schedules alarms and notifies the server of the I/O events.
+  std::unique_ptr<QuicEventLoop> event_loop_;
   // Accepts data from the framer and demuxes clients to sessions.
   std::unique_ptr<QuicDispatcher> dispatcher_;
-  // Frames incoming packets and hands them to the dispatcher.
-  QuicEpollServer epoll_server_;
 
   // The port the server is listening on.
   int port_;

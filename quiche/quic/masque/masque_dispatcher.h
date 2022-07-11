@@ -6,10 +6,10 @@
 #define QUICHE_QUIC_MASQUE_MASQUE_DISPATCHER_H_
 
 #include "absl/container/flat_hash_map.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/masque/masque_server_backend.h"
 #include "quiche/quic/masque/masque_server_session.h"
 #include "quiche/quic/masque/masque_utils.h"
-#include "quiche/quic/platform/api/quic_epoll.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/tools/quic_simple_dispatcher.h"
 
@@ -22,7 +22,7 @@ class QUIC_NO_EXPORT MasqueDispatcher : public QuicSimpleDispatcher {
   explicit MasqueDispatcher(
       MasqueMode masque_mode, const QuicConfig* config,
       const QuicCryptoServerConfig* crypto_config,
-      QuicVersionManager* version_manager, QuicEpollServer* epoll_server,
+      QuicVersionManager* version_manager, QuicEventLoop* event_loop,
       std::unique_ptr<QuicConnectionHelperInterface> helper,
       std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
@@ -42,7 +42,7 @@ class QUIC_NO_EXPORT MasqueDispatcher : public QuicSimpleDispatcher {
 
  private:
   MasqueMode masque_mode_;
-  QuicEpollServer* epoll_server_;               // Unowned.
+  QuicEventLoop* event_loop_;                   // Unowned.
   MasqueServerBackend* masque_server_backend_;  // Unowned.
 };
 

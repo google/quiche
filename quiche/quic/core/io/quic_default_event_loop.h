@@ -8,14 +8,13 @@
 #include <memory>
 
 #include "quiche/quic/core/io/quic_event_loop.h"
-#include "quiche/quic/core/quic_clock.h"
 
 namespace quic {
 
 // Returns the default implementation of QuicheEventLoop.  The embedders can
 // override this using the platform API.  The factory pointer returned is an
 // unowned static variable.
-QUICHE_NO_EXPORT QuicEventLoopFactory* GetDefaultEventLoop(QuicClock* clock);
+QUICHE_NO_EXPORT QuicEventLoopFactory* GetDefaultEventLoop();
 
 // Returns the factory objects for all event loops.  This is particularly useful
 // for the unit tests.  The factory pointers returned are unowned static

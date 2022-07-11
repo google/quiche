@@ -21,6 +21,8 @@
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
+#include "quiche/quic/core/io/quic_default_event_loop.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
@@ -98,9 +100,11 @@ const int kLongConnectionIdLength = 16;
 // Run all tests with the cross products of all versions.
 struct TestParams {
   TestParams(const ParsedQuicVersion& version, QuicTag congestion_control_tag,
+             QuicEventLoopFactory* event_loop,
              int override_server_connection_id_length)
       : version(version),
         congestion_control_tag(congestion_control_tag),
+        event_loop(event_loop),
         override_server_connection_id_length(
             override_server_connection_id_length) {}
 
@@ -108,6 +112,7 @@ struct TestParams {
     os << "{ version: " << ParsedQuicVersionToString(p.version);
     os << " congestion_control_tag: "
        << QuicTagToString(p.congestion_control_tag)
+       << " event loop: " << p.event_loop->GetName()
        << " connection ID length: " << p.override_server_connection_id_length
        << " }";
     return os;
@@ -115,6 +120,7 @@ struct TestParams {
 
   ParsedQuicVersion version;
   QuicTag congestion_control_tag;
+  QuicEventLoopFactory* event_loop;
   int override_server_connection_id_length;
 };
 
@@ -122,7 +128,8 @@ struct TestParams {
 std::string PrintToString(const TestParams& p) {
   std::string rv = absl::StrCat(
       ParsedQuicVersionToString(p.version), "_",
-      QuicTagToString(p.congestion_control_tag), "_",
+      QuicTagToString(p.congestion_control_tag), "_", p.event_loop->GetName(),
+      "_",
       std::to_string((p.override_server_connection_id_length == -1)
                          ? static_cast<int>(kQuicDefaultConnectionIdLength)
                          : p.override_server_connection_id_length));
@@ -148,11 +155,21 @@ std::vector<TestParams> GetTestParams() {
         // qQUIC as well.
         if (connection_id_length == -1 || version.UsesTls()) {
           params.push_back(TestParams(version, congestion_control_tag,
+                                      GetDefaultEventLoop(),
                                       connection_id_length));
         }
       }  // End of outer version loop.
     }    // End of congestion_control_tag loop.
   }      // End of connection_id_length loop.
+
+  // Only run every event loop implementation for one fixed configuration.
+  for (QuicEventLoopFactory* event_loop : GetAllSupportedEventLoops()) {
+    if (event_loop == GetDefaultEventLoop()) {
+      continue;
+    }
+    params.push_back(
+        TestParams(ParsedQuicVersion::RFCv1(), kTBBR, event_loop, -1));
+  }
 
   return params;
 }

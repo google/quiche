@@ -11,7 +11,7 @@ namespace quic {
 MasqueDispatcher::MasqueDispatcher(
     MasqueMode masque_mode, const QuicConfig* config,
     const QuicCryptoServerConfig* crypto_config,
-    QuicVersionManager* version_manager, QuicEpollServer* epoll_server,
+    QuicVersionManager* version_manager, QuicEventLoop* event_loop,
     std::unique_ptr<QuicConnectionHelperInterface> helper,
     std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
     std::unique_ptr<QuicAlarmFactory> alarm_factory,
@@ -22,7 +22,7 @@ MasqueDispatcher::MasqueDispatcher(
                            std::move(alarm_factory), masque_server_backend,
                            expected_server_connection_id_length),
       masque_mode_(masque_mode),
-      epoll_server_(epoll_server),
+      event_loop_(event_loop),
       masque_server_backend_(masque_server_backend) {}
 
 std::unique_ptr<QuicSession> MasqueDispatcher::CreateQuicSession(
@@ -39,8 +39,8 @@ std::unique_ptr<QuicSession> MasqueDispatcher::CreateQuicSession(
 
   auto session = std::make_unique<MasqueServerSession>(
       masque_mode_, config(), GetSupportedVersions(), connection, this,
-      epoll_server_, session_helper(), crypto_config(),
-      compressed_certs_cache(), masque_server_backend_);
+      event_loop_, session_helper(), crypto_config(), compressed_certs_cache(),
+      masque_server_backend_);
   session->Initialize();
   return session;
 }

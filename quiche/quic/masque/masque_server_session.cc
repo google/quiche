@@ -9,11 +9,13 @@
 #include <cstddef>
 #include <limits>
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quiche/quic/core/http/spdy_utils.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_udp_socket.h"
 #include "quiche/quic/tools/quic_url.h"
@@ -79,7 +81,7 @@ MasqueServerSession::MasqueServerSession(
     MasqueMode masque_mode, const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection, QuicSession::Visitor* visitor,
-    QuicEpollServer* epoll_server, QuicCryptoServerStreamBase::Helper* helper,
+    QuicEventLoop* event_loop, QuicCryptoServerStreamBase::Helper* helper,
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     MasqueServerBackend* masque_server_backend)
@@ -87,7 +89,7 @@ MasqueServerSession::MasqueServerSession(
                               helper, crypto_config, compressed_certs_cache,
                               masque_server_backend),
       masque_server_backend_(masque_server_backend),
-      epoll_server_(epoll_server),
+      event_loop_(event_loop),
       masque_mode_(masque_mode) {
   // Artificially increase the max packet length to 1350 to ensure we can fit
   // QUIC packets inside DATAGRAM frames.
@@ -95,7 +97,7 @@ MasqueServerSession::MasqueServerSession(
   connection->SetMaxPacketLength(kDefaultMaxPacketSize);
 
   masque_server_backend_->RegisterBackendClient(connection_id(), this);
-  QUICHE_DCHECK_NE(epoll_server_, nullptr);
+  QUICHE_DCHECK_NE(event_loop_, nullptr);
 }
 
 void MasqueServerSession::OnMessageAcked(QuicMessageId message_id,
@@ -229,7 +231,11 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     QUIC_DLOG(ERROR) << "Socket bind failed";
     return CreateBackendErrorResponse("500", "Socket bind failed");
   }
-  epoll_server_->RegisterFDForRead(fd_wrapper.fd(), this);
+  if (!event_loop_->RegisterSocket(fd_wrapper.fd(), kSocketEventReadable,
+                                   this)) {
+    QUIC_DLOG(ERROR) << "Failed to register socket with the event loop";
+    return CreateBackendErrorResponse("500", "Registering socket failed");
+  }
 
   QuicSpdyStream* stream =
       static_cast<QuicSpdyStream*>(GetActiveStream(request_handler->stream_id()));
@@ -252,19 +258,11 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
   return response;
 }
 
-void MasqueServerSession::OnRegistration(QuicEpollServer* /*eps*/,
-                                         QuicUdpSocketFd fd, int event_mask) {
-  QUIC_DVLOG(1) << "OnRegistration " << fd << " event_mask " << event_mask;
-}
-
-void MasqueServerSession::OnModification(QuicUdpSocketFd fd, int event_mask) {
-  QUIC_DVLOG(1) << "OnModification " << fd << " event_mask " << event_mask;
-}
-
-void MasqueServerSession::OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) {
-  if ((event->in_events & EPOLLIN) == 0) {
-    QUIC_DVLOG(1) << "Ignoring OnEvent fd " << fd << " event mask "
-                  << event->in_events;
+void MasqueServerSession::OnSocketEvent(QuicEventLoop* /*event_loop*/,
+                                        QuicUdpSocketFd fd,
+                                        QuicSocketEventMask events) {
+  if ((events & kSocketEventReadable) == 0) {
+    QUIC_DVLOG(1) << "Ignoring OnEvent fd " << fd << " event mask " << events;
     return;
   }
   auto it = absl::c_find_if(connect_udp_server_states_,
@@ -272,16 +270,26 @@ void MasqueServerSession::OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) {
                               return connect_udp.fd() == fd;
                             });
   if (it == connect_udp_server_states_.end()) {
-    QUIC_BUG(quic_bug_10974_1) << "Got unexpected event mask "
-                               << event->in_events << " on unknown fd " << fd;
+    QUIC_BUG(quic_bug_10974_1)
+        << "Got unexpected event mask " << events << " on unknown fd " << fd;
     return;
   }
+
+  auto rearm = absl::MakeCleanup([&]() {
+    if (!event_loop_->SupportsEdgeTriggered()) {
+      if (!event_loop_->RearmSocket(fd, kSocketEventReadable)) {
+        QUIC_BUG(MasqueServerSession_OnSocketEvent_Rearm)
+            << "Failed to re-arm socket " << fd << " for reading";
+      }
+    }
+  });
+
   QuicSocketAddress expected_target_server_address =
       it->target_server_address();
   QUICHE_DCHECK(expected_target_server_address.IsInitialized());
-  QUIC_DVLOG(1) << "Received readable event on fd " << fd << " (mask "
-                << event->in_events << ") stream ID " << it->stream()->id()
-                << " server " << expected_target_server_address;
+  QUIC_DVLOG(1) << "Received readable event on fd " << fd << " (mask " << events
+                << ") stream ID " << it->stream()->id() << " server "
+                << expected_target_server_address;
   QuicUdpSocketApi socket_api;
   BitMask64 packet_info_interested(QuicUdpPacketInfoBit::PEER_ADDRESS);
   char packet_buffer[1 + kMaxIncomingPacketSize];
@@ -329,20 +337,6 @@ void MasqueServerSession::OnEvent(QuicUdpSocketFd fd, QuicEpollEvent* event) {
   }
 }
 
-void MasqueServerSession::OnUnregistration(QuicUdpSocketFd fd, bool replaced) {
-  QUIC_DVLOG(1) << "OnUnregistration " << fd << " " << (replaced ? "" : "!")
-                << " replaced";
-}
-
-void MasqueServerSession::OnShutdown(QuicEpollServer* /*eps*/,
-                                     QuicUdpSocketFd fd) {
-  QUIC_DVLOG(1) << "OnShutdown " << fd;
-}
-
-std::string MasqueServerSession::Name() const {
-  return std::string("MasqueServerSession-") + connection_id().ToString();
-}
-
 bool MasqueServerSession::OnSettingsFrame(const SettingsFrame& frame) {
   QUIC_DLOG(INFO) << "Received SETTINGS: " << frame;
   if (!QuicSimpleServerSession::OnSettingsFrame(frame)) {
@@ -377,7 +371,9 @@ MasqueServerSession::ConnectUdpServerState::~ConnectUdpServerState() {
   }
   QuicUdpSocketApi socket_api;
   QUIC_DLOG(INFO) << "Closing fd " << fd_;
-  masque_session_->epoll_server()->UnregisterFD(fd_);
+  if (!masque_session_->event_loop()->UnregisterSocket(fd_)) {
+    QUIC_DLOG(ERROR) << "Failed to unregister FD " << fd_;
+  }
   socket_api.Destroy(fd_);
 }
 
@@ -393,7 +389,9 @@ MasqueServerSession::ConnectUdpServerState::operator=(
   if (fd_ != kQuicInvalidSocketFd) {
     QuicUdpSocketApi socket_api;
     QUIC_DLOG(INFO) << "Closing fd " << fd_;
-    masque_session_->epoll_server()->UnregisterFD(fd_);
+    if (!masque_session_->event_loop()->UnregisterSocket(fd_)) {
+      QUIC_DLOG(ERROR) << "Failed to unregister FD " << fd_;
+    }
     socket_api.Destroy(fd_);
   }
   stream_ = other.stream_;

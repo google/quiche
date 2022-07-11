@@ -4,6 +4,7 @@
 
 #include "quiche/quic/test_tools/server_thread.h"
 
+#include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_dispatcher.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/quic_dispatcher_peer.h"
@@ -16,7 +17,7 @@ ServerThread::ServerThread(std::unique_ptr<QuicServer> server,
                            const QuicSocketAddress& address)
     : QuicThread("server_thread"),
       server_(std::move(server)),
-      clock_(server_->epoll_server()),
+      clock_(QuicDefaultClock::Get()),
       address_(address),
       port_(0),
       initialized_(false) {}
@@ -73,8 +74,8 @@ void ServerThread::WaitForCryptoHandshakeConfirmed() {
 
 bool ServerThread::WaitUntil(std::function<bool()> termination_predicate,
                              QuicTime::Delta timeout) {
-  const QuicTime deadline = clock_.Now() + timeout;
-  while (clock_.Now() < deadline) {
+  const QuicTime deadline = clock_->Now() + timeout;
+  while (clock_->Now() < deadline) {
     QuicNotification done_checking;
     bool should_terminate = false;
     Schedule([&] {

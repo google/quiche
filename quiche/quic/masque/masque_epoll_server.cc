@@ -4,7 +4,7 @@
 
 #include "quiche/quic/masque/masque_epoll_server.h"
 
-#include "quiche/quic/core/quic_epoll_alarm_factory.h"
+#include "quiche/quic/core/quic_default_connection_helper.h"
 #include "quiche/quic/masque/masque_dispatcher.h"
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
@@ -22,12 +22,10 @@ MasqueEpollServer::MasqueEpollServer(MasqueMode masque_mode,
 QuicDispatcher* MasqueEpollServer::CreateQuicDispatcher() {
   return new MasqueDispatcher(
       masque_mode_, &config(), &crypto_config(), version_manager(),
-      epoll_server(),
-      std::make_unique<QuicEpollConnectionHelper>(epoll_server(),
-                                                  QuicAllocator::BUFFER_POOL),
+      event_loop(), std::make_unique<QuicDefaultConnectionHelper>(),
       std::make_unique<QuicSimpleCryptoServerStreamHelper>(),
-      std::make_unique<QuicEpollAlarmFactory>(epoll_server()),
-      masque_server_backend_, expected_server_connection_id_length());
+      event_loop()->CreateAlarmFactory(), masque_server_backend_,
+      expected_server_connection_id_length());
 }
 
 }  // namespace quic

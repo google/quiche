@@ -35,30 +35,33 @@ class LibeventAlarm : public QuicAlarm {
   LibeventAlarm(LibeventQuicEventLoop* loop,
                 QuicArenaScopedPtr<QuicAlarm::Delegate> delegate)
       : QuicAlarm(std::move(delegate)), clock_(loop->clock()) {
-    evtimer_assign(
-        &event_, loop->base(),
+    event_.reset(evtimer_new(
+        loop->base(),
         [](evutil_socket_t, LibeventEventMask, void* arg) {
           LibeventAlarm* self = reinterpret_cast<LibeventAlarm*>(arg);
           self->Fire();
         },
-        this);
+        this));
   }
-  ~LibeventAlarm() { event_del(&event_); }
 
  protected:
   void SetImpl() override {
     absl::Duration timeout =
         absl::Microseconds((deadline() - clock_->Now()).ToMicroseconds());
     timeval unix_time = absl::ToTimeval(timeout);
-    event_add(&event_, &unix_time);
+    event_add(event_.get(), &unix_time);
   }
 
-  void CancelImpl() override { event_del(&event_); }
+  void CancelImpl() override { event_del(event_.get()); }
 
  private:
-  // While this decreases ABI portability, we use event inline, rather than
-  // allocating it with event_new(), since this improves cache locality.
-  event event_;
+  // While we inline `struct event` elsewhere, it is actually quite large, so
+  // doing that for the libevent-based QuicAlarm would cause it to not fit into
+  // the QuicConnectionArena.
+  struct EventDeleter {
+    void operator()(event* ev) { event_free(ev); }
+  };
+  std::unique_ptr<event, EventDeleter> event_;
   QuicClock* clock_;
 };
 
@@ -205,8 +208,9 @@ struct LibeventConfigDeleter {
   void operator()(event_config* config) { event_config_free(config); }
 };
 
-std::unique_ptr<QuicEventLoop> QuicLibeventEventLoopFactory::Create(
-    QuicClock* clock) {
+std::unique_ptr<LibeventQuicEventLoopWithOwnership>
+LibeventQuicEventLoopWithOwnership::Create(QuicClock* clock,
+                                           bool force_level_triggered) {
   // Required for event_base_loopbreak() to actually work.
   static int threads_initialized = []() {
 #ifdef _WIN32
@@ -219,7 +223,7 @@ std::unique_ptr<QuicEventLoop> QuicLibeventEventLoopFactory::Create(
 
   std::unique_ptr<event_config, LibeventConfigDeleter> config(
       event_config_new());
-  if (force_level_triggered_) {
+  if (force_level_triggered) {
     // epoll and kqueue are the two only current libevent backends that support
     // edge-triggered I/O.
     event_config_avoid_method(config.get(), "epoll");

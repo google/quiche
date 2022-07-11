@@ -8,6 +8,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_default_connection_helper.h"
 #include "quiche/quic/core/quic_default_packet_writer.h"
 #include "quiche/quic/core/quic_dispatcher.h"
 #include "quiche/quic/core/quic_epoll_alarm_factory.h"
@@ -137,17 +138,11 @@ class QboneTestServer : public QuicServer {
   explicit QboneTestServer(std::unique_ptr<ProofSource> proof_source)
       : QuicServer(std::move(proof_source), &response_cache_) {}
   QuicDispatcher* CreateQuicDispatcher() override {
-    QuicEpollAlarmFactory alarm_factory(epoll_server());
     return new QuicQboneDispatcher(
         &config(), &crypto_config(), version_manager(),
-        std::unique_ptr<QuicEpollConnectionHelper>(
-            new QuicEpollConnectionHelper(epoll_server(),
-                                          QuicAllocator::BUFFER_POOL)),
-        std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
-            new QboneCryptoServerStreamHelper()),
-        std::unique_ptr<QuicEpollAlarmFactory>(
-            new QuicEpollAlarmFactory(epoll_server())),
-        &writer_);
+        std::make_unique<QuicDefaultConnectionHelper>(),
+        std::make_unique<QboneCryptoServerStreamHelper>(),
+        event_loop()->CreateAlarmFactory(), &writer_);
   }
 
   std::vector<std::string> data() { return writer_.data(); }

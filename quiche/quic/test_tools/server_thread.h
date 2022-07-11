@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "quiche/quic/core/quic_config.h"
-#include "quiche/quic/core/quic_epoll_clock.h"
 #include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_thread.h"
@@ -79,7 +78,7 @@ class ServerThread : public QuicThread {
   QuicNotification quit_;    // Notified when the server should quit.
 
   std::unique_ptr<QuicServer> server_;
-  QuicEpollClock clock_;
+  QuicClock* clock_;
   QuicSocketAddress address_;
   mutable QuicMutex port_lock_;
   int port_ QUIC_GUARDED_BY(port_lock_);

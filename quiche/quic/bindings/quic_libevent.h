@@ -109,6 +109,9 @@ class QUICHE_EXPORT_PRIVATE LibeventQuicEventLoopWithOwnership
     : public LibeventLoop,
       public LibeventQuicEventLoop {
  public:
+  static std::unique_ptr<LibeventQuicEventLoopWithOwnership> Create(
+      QuicClock* clock, bool force_level_triggered = false);
+
   // Takes ownership of |base|.
   explicit LibeventQuicEventLoopWithOwnership(struct event_base* base,
                                               QuicClock* clock)
@@ -134,7 +137,10 @@ class QUICHE_EXPORT_PRIVATE QuicLibeventEventLoopFactory
     return factory;
   }
 
-  std::unique_ptr<QuicEventLoop> Create(QuicClock* clock) override;
+  std::unique_ptr<QuicEventLoop> Create(QuicClock* clock) override {
+    return LibeventQuicEventLoopWithOwnership::Create(clock,
+                                                      force_level_triggered_);
+  }
   std::string GetName() const override { return name_; }
 
  private:
