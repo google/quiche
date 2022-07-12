@@ -17,7 +17,7 @@ inline constexpr uint8_t kLoadBalancerMaxServerIdLen = 15;
 
 // LoadBalancerServerId is the globally understood identifier for a given pool
 // member. It is unique to any given QUIC-LB configuration. See
-// draft-ietf-quic-load-balancers-12.
+// draft-ietf-quic-load-balancers.
 // Note: this has nothing to do with QuicServerID. It's an unfortunate collision
 // between an internal term for the destination identifiers for a particular
 // deployment (QuicServerID) and the object of a load balancing decision

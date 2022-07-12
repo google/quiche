@@ -85,7 +85,7 @@ TEST_F(LoadBalancerConfigTest, ValidParams) {
 }
 
 // Compare EncryptionPass() results to the example in
-// draft-ietf-quic-load-balancers-12, Section 5.3.2.
+// draft-ietf-quic-load-balancers-14, Section 4.3.2.
 TEST_F(LoadBalancerConfigTest, TestEncryptionPassExample) {
   auto config =
       LoadBalancerConfig::Create(0, 3, 4, absl::string_view(raw_key, 16));
@@ -98,16 +98,16 @@ TEST_F(LoadBalancerConfigTest, TestEncryptionPassExample) {
   EXPECT_FALSE(config->EncryptionPass(absl::Span<uint8_t>(bytes.data(), 6), 0));
   EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 1));
   EXPECT_TRUE((bytes == std::array<uint8_t, 7>(
-                            {0x31, 0x44, 0x1a, 0x9d, 0xbc, 0x04, 0x26})));
+                            {0x31, 0x44, 0x1a, 0x92, 0x52, 0xaa, 0xef})));
   EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 2));
   EXPECT_TRUE((bytes == std::array<uint8_t, 7>(
-                            {0x4f, 0xdd, 0x0c, 0x9d, 0xbc, 0x04, 0x26})));
+                            {0xe6, 0xa1, 0x3a, 0xb2, 0x52, 0xaa, 0xef})));
   EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 3));
   EXPECT_TRUE((bytes == std::array<uint8_t, 7>(
-                            {0x4f, 0xdd, 0x0c, 0x9b, 0xba, 0x1e, 0xe0})));
+                            {0xe6, 0xa1, 0x3a, 0xbc, 0xe1, 0xe0, 0xd2})));
   EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 4));
   EXPECT_TRUE((bytes == std::array<uint8_t, 7>(
-                            {0xe2, 0x3c, 0xb4, 0x2b, 0xba, 0x1e, 0xe0})));
+                            {0x32, 0xc3, 0x63, 0xfc, 0xe1, 0xe0, 0xd2})));
 }
 
 TEST_F(LoadBalancerConfigTest, EncryptionPassPlaintext) {
@@ -133,7 +133,7 @@ TEST_F(LoadBalancerConfigTest, InvalidBlockEncryption) {
 }
 
 // Block decrypt test from the Test Vector in
-// draft-ietf-quic-load-balancers-12, Appendix B.
+// draft-ietf-quic-load-balancers-14, Appendix B.
 TEST_F(LoadBalancerConfigTest, BlockEncryptionExample) {
   const uint8_t ptext[] = {0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f, 0x5f,
                            0xee, 0x08, 0x0d, 0xbf, 0x48, 0xc0, 0xd1, 0xe5};

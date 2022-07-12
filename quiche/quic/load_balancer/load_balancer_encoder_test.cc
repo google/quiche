@@ -157,22 +157,22 @@ TEST_F(LoadBalancerEncoderTest, FailToUpdateConfigWithSameId) {
 
 struct LoadBalancerEncoderTestCase {
   LoadBalancerConfig config;
-  LoadBalancerServerId server_id;
   QuicConnectionId connection_id;
+  LoadBalancerServerId server_id;
 };
 
 TEST_F(LoadBalancerEncoderTest, UnencryptedConnectionIdTestVectors) {
   const struct LoadBalancerEncoderTestCase test_vectors[2] = {
       {
           *LoadBalancerConfig::CreateUnencrypted(0, 3, 4),
-          MakeServerId(kServerId, 3),
           QuicConnectionId({0x07, 0xed, 0x79, 0x3a, 0x80, 0x49, 0x71, 0x8a}),
+          MakeServerId(kServerId, 3),
       },
       {
           *LoadBalancerConfig::CreateUnencrypted(1, 8, 5),
-          MakeServerId(kServerId, 8),
           QuicConnectionId({0x4d, 0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f,
                             0x5f, 0xee, 0x15, 0xda, 0x27, 0xc4}),
+          MakeServerId(kServerId, 8),
       },
   };
   for (const auto &test : test_vectors) {
@@ -185,7 +185,7 @@ TEST_F(LoadBalancerEncoderTest, UnencryptedConnectionIdTestVectors) {
   }
 }
 
-// Follow example in draft-ietf-quic-load-balancers-12.
+// Follow example in draft-ietf-quic-load-balancers-14.
 TEST_F(LoadBalancerEncoderTest, FollowSpecExample) {
   const uint8_t config_id = 0, server_id_len = 3, nonce_len = 4;
   const uint8_t raw_server_id[] = {
@@ -206,14 +206,14 @@ TEST_F(LoadBalancerEncoderTest, FollowSpecExample) {
   EXPECT_TRUE(encoder->UpdateConfig(
       *config, *LoadBalancerServerId::Create(raw_server_id)));
   EXPECT_TRUE(encoder->IsEncoding());
-  const char raw_connection_id[] = {0x07, 0xe2, 0x3c, 0xb4,
-                                    0x2b, 0xba, 0x1e, 0xe0};
+  const char raw_connection_id[] = {0x07, 0x32, 0xc3, 0x63,
+                                    0xfc, 0xe1, 0xe0, 0xd2};
   auto expected =
       QuicConnectionId(raw_connection_id, 1 + server_id_len + nonce_len);
   EXPECT_EQ(encoder->GenerateConnectionId(), expected);
 }
 
-// Compare test vectors from Appendix B of draft-ietf-quic-load-balancers-12.
+// Compare test vectors from Appendix B of draft-ietf-quic-load-balancers-14.
 TEST_F(LoadBalancerEncoderTest, EncoderTestVectors) {
   // Try (1) the "standard" ConnectionId length of 8
   // (2) server_id_len > nonce_len, so there is a fourth decryption pass
@@ -222,28 +222,28 @@ TEST_F(LoadBalancerEncoderTest, EncoderTestVectors) {
   const LoadBalancerEncoderTestCase test_vectors[4] = {
       {
           *LoadBalancerConfig::Create(0, 3, 4, kKey),
+          QuicConnectionId({0x07, 0x27, 0xed, 0xaa, 0x37, 0xe7, 0xfa, 0xc8}),
           MakeServerId(kServerId, 3),
-          QuicConnectionId({0x07, 0xfb, 0xfe, 0x05, 0xf7, 0x31, 0xb4, 0x25}),
       },
       {
           *LoadBalancerConfig::Create(1, 10, 5, kKey),
+          QuicConnectionId({0x4f, 0x22, 0x61, 0x4a, 0x97, 0xce, 0xee, 0x84,
+                            0x34, 0x1e, 0xd7, 0xfb, 0xfe, 0xb1, 0xe6, 0xe2}),
           MakeServerId(kServerId, 10),
-          QuicConnectionId({0x4f, 0x01, 0x09, 0x56, 0xfb, 0x5c, 0x1d, 0x4d,
-                            0x86, 0xe0, 0x10, 0x18, 0x3e, 0x0b, 0x7d, 0x1e}),
       },
       {
           *LoadBalancerConfig::Create(2, 8, 8, kKey),
-          MakeServerId(kServerId, 8),
           QuicConnectionId({0x90, 0x4d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9,
                             0xb2, 0xb9, 0x90, 0x7a, 0xfb, 0x5e, 0xcf, 0x8c,
                             0xc3}),
+          MakeServerId(kServerId, 8),
       },
       {
           *LoadBalancerConfig::Create(0, 9, 9, kKey),
+          QuicConnectionId({0x12, 0x5e, 0x3b, 0x00, 0xaa, 0x5f, 0xcf, 0xd1,
+                            0xa9, 0xa5, 0x81, 0x02, 0xa8, 0x9a, 0x19, 0xa1,
+                            0xe4, 0xa1, 0x0e}),
           MakeServerId(kServerId, 9),
-          QuicConnectionId({0x12, 0x7a, 0x28, 0x5a, 0x09, 0xf8, 0x52, 0x80,
-                            0xf4, 0xfd, 0x6a, 0xbb, 0x43, 0x4a, 0x71, 0x59,
-                            0xe4, 0xd3, 0xeb}),
       },
   };
   for (const auto &test : test_vectors) {
@@ -268,7 +268,7 @@ TEST_F(LoadBalancerEncoderTest, RunOutOfNonces) {
   LoadBalancerEncoderPeer::SetNumNoncesLeft(*encoder, 2);
   EXPECT_EQ(encoder->num_nonces_left(), 2);
   EXPECT_EQ(encoder->GenerateConnectionId(),
-            QuicConnectionId({0x07, 0xba, 0x7f, 0x38, 0x2f, 0x5c, 0x22, 0x1d}));
+            QuicConnectionId({0x07, 0xf4, 0xeb, 0x21, 0xfb, 0x22, 0xa8, 0x40}));
   EXPECT_EQ(encoder->num_nonces_left(), 1);
   encoder->GenerateConnectionId();
   EXPECT_EQ(encoder->IsEncoding(), false);

@@ -57,7 +57,7 @@ TEST_F(LoadBalancerDecoderTest, UnencryptedConnectionIdTestVectors) {
   }
 }
 
-// Compare test vectors from Appendix B of draft-ietf-quic-load-balancers-12.
+// Compare test vectors from Appendix B of draft-ietf-quic-load-balancers-14.
 TEST_F(LoadBalancerDecoderTest, DecoderTestVectors) {
   // Try (1) the "standard" CID length of 8
   // (2) server_id_len > nonce_len, so there is a fourth decryption pass
@@ -66,13 +66,13 @@ TEST_F(LoadBalancerDecoderTest, DecoderTestVectors) {
   const struct LoadBalancerDecoderTestCase test_vectors[4] = {
       {
           *LoadBalancerConfig::Create(0, 3, 4, kKey),
-          QuicConnectionId({0x07, 0xfb, 0xfe, 0x05, 0xf7, 0x31, 0xb4, 0x25}),
+          QuicConnectionId({0x07, 0x27, 0xed, 0xaa, 0x37, 0xe7, 0xfa, 0xc8}),
           MakeServerId(kServerId, 3),
       },
       {
           *LoadBalancerConfig::Create(1, 10, 5, kKey),
-          QuicConnectionId({0x4f, 0x01, 0x09, 0x56, 0xfb, 0x5c, 0x1d, 0x4d,
-                            0x86, 0xe0, 0x10, 0x18, 0x3e, 0x0b, 0x7d, 0x1e}),
+          QuicConnectionId({0x4f, 0x22, 0x61, 0x4a, 0x97, 0xce, 0xee, 0x84,
+                            0x34, 0x1e, 0xd7, 0xfb, 0xfe, 0xb1, 0xe6, 0xe2}),
           MakeServerId(kServerId, 10),
       },
       {
@@ -84,9 +84,9 @@ TEST_F(LoadBalancerDecoderTest, DecoderTestVectors) {
       },
       {
           *LoadBalancerConfig::Create(0, 9, 9, kKey),
-          QuicConnectionId({0x12, 0x7a, 0x28, 0x5a, 0x09, 0xf8, 0x52, 0x80,
-                            0xf4, 0xfd, 0x6a, 0xbb, 0x43, 0x4a, 0x71, 0x59,
-                            0xe4, 0xd3, 0xeb}),
+          QuicConnectionId({0x12, 0x5e, 0x3b, 0x00, 0xaa, 0x5f, 0xcf, 0xd1,
+                            0xa9, 0xa5, 0x81, 0x02, 0xa8, 0x9a, 0x19, 0xa1,
+                            0xe4, 0xa1, 0x0e}),
           MakeServerId(kServerId, 9),
       },
   };
