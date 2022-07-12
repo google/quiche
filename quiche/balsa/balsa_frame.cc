@@ -447,6 +447,15 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
       CleanUpKeyValueWhitespace(stream_begin, line_begin, current, line_end,
                                 &current_header_line);
     }
+
+    const absl::string_view key(
+        stream_begin + current_header_line.first_char_idx,
+        current_header_line.key_end_idx - current_header_line.first_char_idx);
+    const absl::string_view value(
+        stream_begin + current_header_line.value_begin_idx,
+        current_header_line.last_char_idx -
+            current_header_line.value_begin_idx);
+    visitor_->OnHeader(key, value);
   }
 
   return true;

@@ -539,6 +539,8 @@ class BalsaVisitorMock : public BalsaVisitorInterface {
   MOCK_METHOD(void, OnRawBodyInput, (absl::string_view input), (override));
   MOCK_METHOD(void, OnBodyChunkInput, (absl::string_view input), (override));
   MOCK_METHOD(void, OnHeaderInput, (absl::string_view input), (override));
+  MOCK_METHOD(void, OnHeader, (absl::string_view key, absl::string_view value),
+              (override));
   MOCK_METHOD(void, OnTrailerInput, (absl::string_view input), (override));
   MOCK_METHOD(void, ProcessHeaders, (const FakeHeaders& headers));
   MOCK_METHOD(void, ProcessTrailers, (const FakeHeaders& headers));
@@ -580,6 +582,8 @@ class HTTPBalsaFrameTest : public QuicheTest {
     balsa_frame_.set_balsa_trailer(&trailer_);
     balsa_frame_.set_balsa_visitor(&visitor_mock_);
     balsa_frame_.set_is_request(true);
+
+    EXPECT_CALL(visitor_mock_, OnHeader).Times(AnyNumber());
   }
 
   void VerifyFirstLineParsing(const std::string& firstline,
@@ -1220,17 +1224,28 @@ TEST_F(HTTPBalsaFrameTest, RequestWithTrailers) {
       "funky: monkeys\r\n"
       "\r\n";
 
+  InSequence s;
+
+  // OnHeader() visitor method is called as soon as headers are parsed.
+  EXPECT_CALL(visitor_mock_, OnHeader("Connection", "close"));
+  EXPECT_CALL(visitor_mock_, OnHeader("transfer-encoding", "chunked"));
   ASSERT_EQ(headers.size(),
             balsa_frame_.ProcessInput(headers.data(), headers.size()));
+  testing::Mock::VerifyAndClearExpectations(&visitor_mock_);
+
   ASSERT_EQ(chunks.size(),
             balsa_frame_.ProcessInput(chunks.data(), chunks.size()));
+
+  EXPECT_CALL(visitor_mock_, OnHeader("crass", "monkeys"));
+  EXPECT_CALL(visitor_mock_, OnHeader("funky", "monkeys"));
 
   FakeHeaders fake_trailers;
   fake_trailers.AddKeyValue("crass", "monkeys");
   fake_trailers.AddKeyValue("funky", "monkeys");
+  EXPECT_CALL(visitor_mock_, ProcessTrailers(fake_trailers));
 
   EXPECT_CALL(visitor_mock_, OnTrailerInput(_)).Times(AtLeast(1));
-  EXPECT_CALL(visitor_mock_, ProcessTrailers(fake_trailers));
+
   EXPECT_EQ(trailer.size(),
             balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
 
@@ -2336,8 +2351,10 @@ TEST(HTTPBalsaFrame,
       EXPECT_CALL(visitor_mock, OnResponseFirstLineInput(
                                     "HTTP/1.1  \t 200 Ok all is well",
                                     "HTTP/1.1", "200", "Ok all is well"));
+      EXPECT_CALL(visitor_mock, OnHeader);
       EXPECT_CALL(visitor_mock, ProcessHeaders(fake_headers));
       EXPECT_CALL(visitor_mock, HeaderDone());
+      EXPECT_CALL(visitor_mock, OnHeader);
       EXPECT_CALL(visitor_mock, ProcessTrailers(fake_headers_in_trailer));
       EXPECT_CALL(visitor_mock, MessageDone());
     }
@@ -2460,6 +2477,7 @@ class BalsaFrameParsingTest : public QuicheTest {
     EXPECT_CALL(visitor_mock_, OnRequestFirstLineInput("GET / HTTP/1.1", "GET",
                                                        "/", "HTTP/1.1"));
     EXPECT_CALL(visitor_mock_, OnHeaderInput(_));
+    EXPECT_CALL(visitor_mock_, OnHeader).Times(AnyNumber());
     EXPECT_CALL(visitor_mock_,
                 HandleError(BalsaFrameEnums::INVALID_HEADER_FORMAT));
 
@@ -2488,6 +2506,7 @@ class BalsaFrameParsingTest : public QuicheTest {
 
     EXPECT_CALL(visitor_mock_, OnResponseFirstLineInput);
     EXPECT_CALL(visitor_mock_, OnHeaderInput);
+    EXPECT_CALL(visitor_mock_, OnHeader).Times(AnyNumber());
     EXPECT_CALL(visitor_mock_, ProcessHeaders);
     EXPECT_CALL(visitor_mock_, HeaderDone);
     EXPECT_CALL(visitor_mock_, OnChunkLength(3));
@@ -2498,6 +2517,7 @@ class BalsaFrameParsingTest : public QuicheTest {
     EXPECT_CALL(visitor_mock_, OnChunkExtensionInput);
     EXPECT_CALL(visitor_mock_, OnRawBodyInput);
     EXPECT_CALL(visitor_mock_, OnRawBodyInput);
+    EXPECT_CALL(visitor_mock_, OnHeader).Times(AnyNumber());
     const auto expected_error =
         invalid_name_char ? BalsaFrameEnums::INVALID_TRAILER_NAME_CHARACTER
                           : BalsaFrameEnums::INVALID_TRAILER_FORMAT;
@@ -2565,6 +2585,8 @@ TEST_F(BalsaFrameParsingTest, AppropriateActionTakenWhenHeaderColonsAreFunny) {
   EXPECT_CALL(visitor_mock_, OnRequestFirstLineInput("GET / HTTP/1.1", "GET",
                                                      "/", "HTTP/1.1"));
   EXPECT_CALL(visitor_mock_, OnHeaderInput(_));
+  EXPECT_CALL(visitor_mock_, OnHeader("i", ""));
+  EXPECT_CALL(visitor_mock_, OnHeader("", "val"));
   EXPECT_CALL(visitor_mock_,
               HandleWarning(BalsaFrameEnums::HEADER_MISSING_COLON))
       .Times(27);

@@ -51,6 +51,14 @@ class QUICHE_EXPORT_PRIVATE BalsaVisitorInterface {
   virtual void OnHeaderInput(absl::string_view input) = 0;
 
   // Summary:
+  //   BalsaFrame passes each header through this function as soon as it is
+  //   parsed.
+  // Argument:
+  //   key - the header name.
+  //   value - the associated header value.
+  virtual void OnHeader(absl::string_view key, absl::string_view value) = 0;
+
+  // Summary:
   //   BalsaFrame passes the raw trailer data through this function. This is not
   //   cleaned up in any way.  Note that trailers only occur in a message if
   //   there was a chunked encoding, and not always then.
