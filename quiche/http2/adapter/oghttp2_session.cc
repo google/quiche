@@ -12,25 +12,24 @@
 #include "quiche/http2/adapter/http2_visitor_interface.h"
 #include "quiche/http2/adapter/noop_header_validator.h"
 #include "quiche/http2/adapter/oghttp2_util.h"
+#include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/spdy/core/spdy_protocol.h"
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, oghttp2_debug_trace, false,
+    "Enables debug trace logging for oghttp2 sessions.");
 
 namespace http2 {
 namespace adapter {
 
 namespace {
 
+using quiche::GetQuicheCommandLineFlag;
+
 using ConnectionError = Http2VisitorInterface::ConnectionError;
 using SpdyFramerError = Http2DecoderAdapter::SpdyFramerError;
 
 using ::spdy::SpdySettingsIR;
-
-// #define OGHTTP2_DEBUG_TRACE 1
-
-#ifdef OGHTTP2_DEBUG_TRACE
-const bool kTraceLoggingEnabled = true;
-#else
-const bool kTraceLoggingEnabled = false;
-#endif
 
 const uint32_t kMaxAllowedMetadataFrameSize = 65536u;
 const uint32_t kDefaultHpackTableCapacity = 4096u;
@@ -343,10 +342,14 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
       event_forwarder_([this]() { return !latched_error_; }, *this),
       receive_logger_(
           &event_forwarder_, TracePerspectiveAsString(options.perspective),
-          []() { return kTraceLoggingEnabled; }, this),
+          [enable_trace_logs = GetQuicheCommandLineFlag(
+               FLAGS_oghttp2_debug_trace)]() { return enable_trace_logs; },
+          this),
       send_logger_(
           TracePerspectiveAsString(options.perspective),
-          []() { return kTraceLoggingEnabled; }, this),
+          [enable_trace_logs = GetQuicheCommandLineFlag(
+               FLAGS_oghttp2_debug_trace)]() { return enable_trace_logs; },
+          this),
       headers_handler_(*this, visitor),
       noop_headers_handler_(/*listener=*/nullptr),
       connection_window_manager_(
