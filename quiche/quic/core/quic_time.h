@@ -258,8 +258,13 @@ inline constexpr QuicTime::Delta operator*(QuicTime::Delta lhs, int rhs) {
   return QuicTime::Delta(lhs.time_offset_ * rhs);
 }
 inline constexpr QuicTime::Delta operator*(QuicTime::Delta lhs, double rhs) {
+#if defined(__ANDROID__)
+  return QuicTime::Delta(static_cast<int64_t>(
+      static_cast<double>(lhs.time_offset_) * rhs));
+#else
   return QuicTime::Delta(static_cast<int64_t>(
       std::llround(static_cast<double>(lhs.time_offset_) * rhs)));
+#endif
 }
 inline QuicTime::Delta operator*(int lhs, QuicTime::Delta rhs) {
   return rhs * lhs;

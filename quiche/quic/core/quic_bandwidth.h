@@ -142,8 +142,13 @@ inline constexpr QuicBandwidth operator-(QuicBandwidth lhs, QuicBandwidth rhs) {
   return QuicBandwidth(lhs.bits_per_second_ - rhs.bits_per_second_);
 }
 inline constexpr QuicBandwidth operator*(QuicBandwidth lhs, float rhs) {
+#if defined(__ANDROID__)
+  return QuicBandwidth(
+      static_cast<int64_t>(lhs.bits_per_second_ * rhs));
+#else
   return QuicBandwidth(
       static_cast<int64_t>(std::llround(lhs.bits_per_second_ * rhs)));
+#endif
 }
 inline QuicBandwidth operator*(float lhs, QuicBandwidth rhs) {
   return rhs * lhs;
