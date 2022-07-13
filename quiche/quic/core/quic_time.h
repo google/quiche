@@ -89,8 +89,8 @@ class QUIC_EXPORT_PRIVATE QuicTime {
                                                       QuicTime::Delta rhs);
     friend inline constexpr QuicTime::Delta operator*(QuicTime::Delta lhs,
                                                       int rhs);
-    friend inline constexpr QuicTime::Delta operator*(QuicTime::Delta lhs,
-                                                      double rhs);
+    // Not constexpr since std::llround() is not constexpr.
+    friend inline QuicTime::Delta operator*(QuicTime::Delta lhs, double rhs);
 
     friend inline QuicTime operator+(QuicTime lhs, QuicTime::Delta rhs);
     friend inline QuicTime operator-(QuicTime lhs, QuicTime::Delta rhs);
@@ -257,7 +257,7 @@ inline constexpr QuicTime::Delta operator-(QuicTime::Delta lhs,
 inline constexpr QuicTime::Delta operator*(QuicTime::Delta lhs, int rhs) {
   return QuicTime::Delta(lhs.time_offset_ * rhs);
 }
-inline constexpr QuicTime::Delta operator*(QuicTime::Delta lhs, double rhs) {
+inline QuicTime::Delta operator*(QuicTime::Delta lhs, double rhs) {
   return QuicTime::Delta(static_cast<int64_t>(
       std::llround(static_cast<double>(lhs.time_offset_) * rhs)));
 }
