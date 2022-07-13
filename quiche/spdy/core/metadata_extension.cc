@@ -9,7 +9,6 @@
 #include "quiche/http2/hpack/decoder/hpack_decoder.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/spdy/core/hpack/hpack_encoder.h"
 #include "quiche/spdy/core/http2_header_block_hpack_listener.h"
 
 namespace spdy {
@@ -23,33 +22,19 @@ namespace {
 
 const size_t kMaxMetadataBlockSize = 1 << 20;  // 1 MB
 
-// This class uses an HpackEncoder to serialize a METADATA block as a series of
-// METADATA frames.
-class MetadataFrameSequence : public MetadataSerializer::FrameSequence {
- public:
-  MetadataFrameSequence(SpdyStreamId stream_id, spdy::SpdyHeaderBlock payload)
-      : stream_id_(stream_id), payload_(std::move(payload)) {
-    // Metadata should not use HPACK compression.
-    encoder_.DisableCompression();
-    HpackEncoder::Representations r;
-    for (const auto& kv_pair : payload_) {
-      r.push_back(kv_pair);
-    }
-    progressive_encoder_ = encoder_.EncodeRepresentations(r);
+}  // anonymous namespace
+
+MetadataFrameSequence::MetadataFrameSequence(SpdyStreamId stream_id,
+                                             spdy::Http2HeaderBlock payload)
+    : stream_id_(stream_id), payload_(std::move(payload)) {
+  // Metadata should not use HPACK compression.
+  encoder_.DisableCompression();
+  HpackEncoder::Representations r;
+  for (const auto& kv_pair : payload_) {
+    r.push_back(kv_pair);
   }
-
-  // Copies are not allowed.
-  MetadataFrameSequence(const MetadataFrameSequence& other) = delete;
-  MetadataFrameSequence& operator=(const MetadataFrameSequence& other) = delete;
-
-  std::unique_ptr<spdy::SpdyFrameIR> Next() override;
-
- private:
-  SpdyStreamId stream_id_;
-  SpdyHeaderBlock payload_;
-  HpackEncoder encoder_;
-  std::unique_ptr<HpackEncoder::ProgressiveEncoder> progressive_encoder_;
-};
+  progressive_encoder_ = encoder_.EncodeRepresentations(r);
+}
 
 std::unique_ptr<spdy::SpdyFrameIR> MetadataFrameSequence::Next() {
   if (!progressive_encoder_->HasNext()) {
@@ -64,8 +49,6 @@ std::unique_ptr<spdy::SpdyFrameIR> MetadataFrameSequence::Next() {
       stream_id_, MetadataVisitor::kMetadataFrameType, flags,
       std::move(payload));
 }
-
-}  // anonymous namespace
 
 struct MetadataVisitor::MetadataPayloadState {
   MetadataPayloadState(size_t remaining, bool end)
@@ -183,13 +166,6 @@ void MetadataVisitor::OnFramePayload(const char* data, size_t len) {
       }
     }
   }
-}
-
-std::unique_ptr<MetadataSerializer::FrameSequence>
-MetadataSerializer::FrameSequenceForPayload(SpdyStreamId stream_id,
-                                            MetadataPayload payload) {
-  return absl::make_unique<MetadataFrameSequence>(stream_id,
-                                                  std::move(payload));
 }
 
 }  // namespace spdy

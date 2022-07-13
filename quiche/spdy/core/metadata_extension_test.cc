@@ -17,9 +17,6 @@ namespace test {
 namespace {
 
 using ::absl::bind_front;
-using ::spdy::SpdyFramer;
-using ::spdy::SpdyHeaderBlock;
-using ::spdy::test::MockSpdyFramerVisitor;
 using ::testing::_;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
@@ -48,8 +45,8 @@ class MetadataExtensionTest : public quiche::test::QuicheTest {
     received_metadata_support_.push_back(peer_supports_metadata);
   }
 
-  MetadataSerializer::MetadataPayload PayloadForData(absl::string_view data) {
-    SpdyHeaderBlock block;
+  Http2HeaderBlock PayloadForData(absl::string_view data) {
+    Http2HeaderBlock block;
     block["example-payload"] = data;
     return block;
   }
@@ -90,9 +87,7 @@ TEST_F(MetadataExtensionTest, MetadataIgnoredWithoutExtension) {
   extension_->OnSetting(MetadataVisitor::kMetadataExtensionId, 1);
   ASSERT_TRUE(extension_->PeerSupportsMetadata());
 
-  MetadataSerializer serializer;
-  auto sequence = serializer.FrameSequenceForPayload(3, std::move(payload));
-  ASSERT_TRUE(sequence != nullptr);
+  MetadataFrameSequence sequence(3, std::move(payload));
 
   http2::Http2DecoderAdapter deframer;
   ::testing::StrictMock<MockSpdyFramerVisitor> visitor;
@@ -105,7 +100,7 @@ TEST_F(MetadataExtensionTest, MetadataIgnoredWithoutExtension) {
       .WillOnce(::testing::Return(true));
 
   SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
-  auto frame = sequence->Next();
+  auto frame = sequence.Next();
   ASSERT_TRUE(frame != nullptr);
   while (frame != nullptr) {
     const size_t frame_size = framer.SerializeFrame(*frame, &test_buffer_);
@@ -114,7 +109,7 @@ TEST_F(MetadataExtensionTest, MetadataIgnoredWithoutExtension) {
     ASSERT_EQ(frame_size, test_buffer_.Size());
     EXPECT_EQ(frame_size, deframer.ProcessInput(kBuffer, frame_size));
     test_buffer_.Reset();
-    frame = sequence->Next();
+    frame = sequence.Next();
   }
   EXPECT_FALSE(deframer.HasError());
   EXPECT_THAT(received_metadata_support_, ElementsAre(true));
@@ -140,17 +135,13 @@ TEST_F(MetadataExtensionTest, MetadataPayloadEndToEnd) {
     extension_->OnSetting(MetadataVisitor::kMetadataExtensionId, 1);
     ASSERT_TRUE(extension_->PeerSupportsMetadata());
 
-    MetadataSerializer serializer;
-    auto sequence =
-        serializer.FrameSequenceForPayload(3, payload_block.Clone());
-    ASSERT_TRUE(sequence != nullptr);
-
+    MetadataFrameSequence sequence(3, payload_block.Clone());
     http2::Http2DecoderAdapter deframer;
     ::spdy::SpdyNoOpVisitor visitor;
     deframer.set_visitor(&visitor);
     deframer.set_extension_visitor(extension_.get());
     SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
-    auto frame = sequence->Next();
+    auto frame = sequence.Next();
     ASSERT_TRUE(frame != nullptr);
     while (frame != nullptr) {
       const size_t frame_size = framer.SerializeFrame(*frame, &test_buffer_);
@@ -159,7 +150,7 @@ TEST_F(MetadataExtensionTest, MetadataPayloadEndToEnd) {
       ASSERT_EQ(frame_size, test_buffer_.Size());
       EXPECT_EQ(frame_size, deframer.ProcessInput(kBuffer, frame_size));
       test_buffer_.Reset();
-      frame = sequence->Next();
+      frame = sequence.Next();
     }
     EXPECT_EQ(1u, received_count_);
     auto it = received_payload_map_.find(3);
@@ -183,12 +174,8 @@ TEST_F(MetadataExtensionTest, MetadataPayloadInterleaved) {
   extension_->OnSetting(MetadataVisitor::kMetadataExtensionId, 1);
   ASSERT_TRUE(extension_->PeerSupportsMetadata());
 
-  MetadataSerializer serializer;
-  auto sequence1 = serializer.FrameSequenceForPayload(3, payload1.Clone());
-  ASSERT_TRUE(sequence1 != nullptr);
-
-  auto sequence2 = serializer.FrameSequenceForPayload(5, payload2.Clone());
-  ASSERT_TRUE(sequence2 != nullptr);
+  MetadataFrameSequence sequence1(3, payload1.Clone());
+  MetadataFrameSequence sequence2(5, payload2.Clone());
 
   http2::Http2DecoderAdapter deframer;
   ::spdy::SpdyNoOpVisitor visitor;
@@ -196,9 +183,9 @@ TEST_F(MetadataExtensionTest, MetadataPayloadInterleaved) {
   deframer.set_extension_visitor(extension_.get());
 
   SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
-  auto frame1 = sequence1->Next();
+  auto frame1 = sequence1.Next();
   ASSERT_TRUE(frame1 != nullptr);
-  auto frame2 = sequence2->Next();
+  auto frame2 = sequence2.Next();
   ASSERT_TRUE(frame2 != nullptr);
   while (frame1 != nullptr || frame2 != nullptr) {
     for (auto frame : {frame1.get(), frame2.get()}) {
@@ -211,8 +198,8 @@ TEST_F(MetadataExtensionTest, MetadataPayloadInterleaved) {
         test_buffer_.Reset();
       }
     }
-    frame1 = sequence1->Next();
-    frame2 = sequence2->Next();
+    frame1 = sequence1.Next();
+    frame2 = sequence2.Next();
   }
   EXPECT_EQ(2u, received_count_);
   auto it = received_payload_map_.find(3);

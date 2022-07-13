@@ -7,6 +7,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/spdy/core/hpack/hpack_encoder.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/spdy_header_block.h"
 #include "quiche/spdy/core/spdy_protocol.h"
@@ -90,27 +91,23 @@ class QUICHE_EXPORT_PRIVATE MetadataVisitor
   MetadataSupportState peer_supports_metadata_;
 };
 
-// A class that serializes metadata blocks as sequences of frames.
-class QUICHE_EXPORT_PRIVATE MetadataSerializer {
+// This class uses an HpackEncoder to serialize a METADATA block as a series of
+// METADATA frames.
+class QUICHE_EXPORT_PRIVATE MetadataFrameSequence {
  public:
-  using MetadataPayload = spdy::SpdyHeaderBlock;
+  MetadataFrameSequence(SpdyStreamId stream_id, spdy::Http2HeaderBlock payload);
 
-  class QUICHE_EXPORT_PRIVATE FrameSequence {
-   public:
-    virtual ~FrameSequence() {}
+  // Copies are not allowed.
+  MetadataFrameSequence(const MetadataFrameSequence& other) = delete;
+  MetadataFrameSequence& operator=(const MetadataFrameSequence& other) = delete;
 
-    // Returns nullptr once the sequence has been exhausted.
-    virtual std::unique_ptr<spdy::SpdyFrameIR> Next() = 0;
-  };
+  std::unique_ptr<spdy::SpdyFrameIR> Next();
 
-  MetadataSerializer() {}
-
-  MetadataSerializer(const MetadataSerializer&) = delete;
-  MetadataSerializer& operator=(const MetadataSerializer&) = delete;
-
-  // Returns nullptr on failure.
-  std::unique_ptr<FrameSequence> FrameSequenceForPayload(
-      spdy::SpdyStreamId stream_id, MetadataPayload payload);
+ private:
+  SpdyStreamId stream_id_;
+  Http2HeaderBlock payload_;
+  HpackEncoder encoder_;
+  std::unique_ptr<HpackEncoder::ProgressiveEncoder> progressive_encoder_;
 };
 
 }  // namespace spdy
