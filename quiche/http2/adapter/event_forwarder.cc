@@ -179,5 +179,20 @@ bool EventForwarder::OnUnknownFrame(spdy::SpdyStreamId stream_id,
   return false;
 }
 
+void EventForwarder::OnUnknownFrameStart(spdy::SpdyStreamId stream_id,
+                                         size_t length, uint8_t type,
+                                         uint8_t flags) {
+  if (can_forward_()) {
+    receiver_.OnUnknownFrameStart(stream_id, length, type, flags);
+  }
+}
+
+void EventForwarder::OnUnknownFramePayload(spdy::SpdyStreamId stream_id,
+                                           absl::string_view payload) {
+  if (can_forward_()) {
+    receiver_.OnUnknownFramePayload(stream_id, payload);
+  }
+}
+
 }  // namespace adapter
 }  // namespace http2

@@ -239,6 +239,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
         continuation_count_(0),
         altsvc_count_(0),
         priority_count_(0),
+        unknown_frame_count_(0),
         on_unknown_frame_result_(false),
         last_window_update_stream_(0),
         last_window_update_delta_(0),
@@ -253,6 +254,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
         data_frame_count_(0),
         last_payload_len_(0),
         last_frame_len_(0),
+        unknown_payload_len_(0),
         header_buffer_(new char[kDefaultHeaderBufferSize]),
         header_buffer_length_(0),
         header_buffer_size_(kDefaultHeaderBufferSize),
@@ -428,6 +430,21 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
     return on_unknown_frame_result_;
   }
 
+  void OnUnknownFrameStart(SpdyStreamId stream_id, size_t length, uint8_t type,
+                           uint8_t flags) override {
+    QUICHE_VLOG(1) << "OnUnknownFrameStart(" << stream_id << ", " << length
+                   << ", " << static_cast<int>(type) << ", "
+                   << static_cast<int>(flags) << ")";
+    ++unknown_frame_count_;
+  }
+
+  void OnUnknownFramePayload(SpdyStreamId stream_id,
+                             absl::string_view payload) override {
+    QUICHE_VLOG(1) << "OnUnknownFramePayload(" << stream_id << ", " << payload
+                   << ")";
+    unknown_payload_len_ += payload.length();
+  }
+
   void OnSendCompressedFrame(SpdyStreamId stream_id, SpdyFrameType type,
                              size_t payload_len, size_t frame_len) override {
     QUICHE_VLOG(1) << "OnSendCompressedFrame(" << stream_id << ", " << type
@@ -501,6 +518,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   int altsvc_count_;
   int priority_count_;
   std::unique_ptr<SpdyAltSvcIR> test_altsvc_ir_;
+  int unknown_frame_count_;
   bool on_unknown_frame_result_;
   SpdyStreamId last_window_update_stream_;
   int last_window_update_delta_;
@@ -516,6 +534,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   int data_frame_count_;
   size_t last_payload_len_;
   size_t last_frame_len_;
+  size_t unknown_payload_len_;
 
   // Header block streaming state:
   std::unique_ptr<char[]> header_buffer_;
@@ -3802,6 +3821,8 @@ TEST_P(SpdyFramerTest, ReadUnknownExtensionFrame) {
   visitor.on_unknown_frame_result_ = true;
   visitor.SimulateInFramer(unknown_frame, ABSL_ARRAYSIZE(unknown_frame));
   EXPECT_EQ(0, visitor.error_count_);
+  EXPECT_EQ(1, visitor.unknown_frame_count_);
+  EXPECT_EQ(8, visitor.unknown_payload_len_);
 
   // Follow it up with a valid control frame to make sure we handle
   // subsequent frames correctly.

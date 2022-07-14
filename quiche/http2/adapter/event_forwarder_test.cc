@@ -123,6 +123,11 @@ TEST(EventForwarderTest, ForwardsEventsWithTruePredicate) {
 
   EXPECT_CALL(receiver, OnUnknownFrame(stream_id, /*frame_type=*/0x4D));
   event_forwarder.OnUnknownFrame(stream_id, /*frame_type=*/0x4D);
+
+  EXPECT_CALL(receiver, OnUnknownFrameStart(stream_id, /*length=*/42,
+                                            /*type=*/0x4D, /*flags=*/0x0));
+  event_forwarder.OnUnknownFrameStart(stream_id, /*length=*/42, /*type=*/0x4D,
+                                      /*flags=*/0x0);
 }
 
 TEST(EventForwarderTest, DoesNotForwardEventsWithFalsePredicate) {
@@ -217,6 +222,10 @@ TEST(EventForwarderTest, DoesNotForwardEventsWithFalsePredicate) {
 
   EXPECT_CALL(receiver, OnUnknownFrame).Times(0);
   event_forwarder.OnUnknownFrame(stream_id, /*frame_type=*/0x4D);
+
+  EXPECT_CALL(receiver, OnUnknownFrameStart).Times(0);
+  event_forwarder.OnUnknownFrameStart(stream_id, /*length=*/42, /*type=*/0x4D,
+                                      /*flags=*/0x0);
 }
 
 }  // namespace

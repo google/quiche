@@ -66,6 +66,10 @@ class QUICHE_EXPORT_PRIVATE SpdyNoOpVisitor
                         absl::string_view /*priority_field_value*/) override {}
   bool OnUnknownFrame(SpdyStreamId /*stream_id*/,
                       uint8_t /*frame_type*/) override;
+  void OnUnknownFrameStart(SpdyStreamId /*stream_id*/, size_t /*length*/,
+                           uint8_t /*type*/, uint8_t /*flags*/) override {}
+  void OnUnknownFramePayload(SpdyStreamId /*stream_id*/,
+                             absl::string_view /*payload*/) override {}
 
   // SpdyFramerDebugVisitorInterface methods:
   void OnSendCompressedFrame(SpdyStreamId /*stream_id*/, SpdyFrameType /*type*/,

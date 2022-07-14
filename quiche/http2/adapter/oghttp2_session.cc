@@ -1491,6 +1491,13 @@ bool OgHttp2Session::OnUnknownFrame(spdy::SpdyStreamId /*stream_id*/,
   return true;
 }
 
+void OgHttp2Session::OnUnknownFrameStart(spdy::SpdyStreamId /*stream_id*/,
+                                         size_t /*length*/, uint8_t /*type*/,
+                                         uint8_t /*flags*/) {}
+
+void OgHttp2Session::OnUnknownFramePayload(spdy::SpdyStreamId /*stream_id*/,
+                                           absl::string_view /*payload*/) {}
+
 void OgHttp2Session::OnHeaderStatus(
     Http2StreamId stream_id, Http2VisitorInterface::OnHeaderResult result) {
   QUICHE_DCHECK_NE(result, Http2VisitorInterface::HEADER_OK);

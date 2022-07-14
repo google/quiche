@@ -725,17 +725,19 @@ void Http2DecoderAdapter::OnPriorityUpdateEnd() {
   priority_field_value_.clear();
 }
 
-// Except for BLOCKED frames, all other unknown frames are either dropped or
-// passed to a registered extension.
 void Http2DecoderAdapter::OnUnknownStart(const Http2FrameHeader& header) {
   QUICHE_DVLOG(1) << "OnUnknownStart: " << header;
   if (IsOkToStartFrame(header)) {
+    frame_header_ = header;
+    has_frame_header_ = true;
+    const uint8_t type = static_cast<uint8_t>(header.type);
+    const uint8_t flags = static_cast<uint8_t>(header.flags);
     if (extension_ != nullptr) {
-      const uint8_t type = static_cast<uint8_t>(header.type);
-      const uint8_t flags = static_cast<uint8_t>(header.flags);
       handling_extension_payload_ = extension_->OnFrameHeader(
           header.stream_id, header.payload_length, type, flags);
     }
+    visitor()->OnUnknownFrameStart(header.stream_id, header.payload_length,
+                                   type, flags);
   }
 }
 
@@ -745,6 +747,8 @@ void Http2DecoderAdapter::OnUnknownPayload(const char* data, size_t len) {
   } else {
     QUICHE_DVLOG(1) << "OnUnknownPayload: len=" << len;
   }
+  visitor()->OnUnknownFramePayload(frame_header_.stream_id,
+                                   absl::string_view(data, len));
 }
 
 void Http2DecoderAdapter::OnUnknownEnd() {

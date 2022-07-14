@@ -389,6 +389,12 @@ class QuicSpdySession::SpdyFramerVisitor
     return false;
   }
 
+  void OnUnknownFrameStart(SpdyStreamId /*stream_id*/, size_t /*length*/,
+                           uint8_t /*type*/, uint8_t /*flags*/) override {}
+
+  void OnUnknownFramePayload(SpdyStreamId /*stream_id*/,
+                             absl::string_view /*payload*/) override {}
+
   // SpdyFramerDebugVisitorInterface implementation
   void OnSendCompressedFrame(SpdyStreamId /*stream_id*/, SpdyFrameType /*type*/,
                              size_t payload_len, size_t frame_len) override {

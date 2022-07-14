@@ -19,6 +19,7 @@ namespace {
 using ::absl::bind_front;
 using ::testing::_;
 using ::testing::ElementsAre;
+using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 
 const size_t kBufferSize = 64 * 1024;
@@ -80,7 +81,7 @@ TEST_F(MetadataExtensionTest, MetadataSupported) {
   EXPECT_THAT(received_metadata_support_, ElementsAre(true, false));
 }
 
-TEST_F(MetadataExtensionTest, MetadataIgnoredWithoutExtension) {
+TEST_F(MetadataExtensionTest, MetadataDeliveredToUnknownFrameCallbacks) {
   const char kData[] = "some payload";
   SpdyHeaderBlock payload = PayloadForData(kData);
 
@@ -98,6 +99,10 @@ TEST_F(MetadataExtensionTest, MetadataIgnoredWithoutExtension) {
   // The Return(true) should not be necessary. http://b/36023792
   EXPECT_CALL(visitor, OnUnknownFrame(3, MetadataVisitor::kMetadataFrameType))
       .WillOnce(::testing::Return(true));
+  EXPECT_CALL(visitor,
+              OnUnknownFrameStart(3, _, MetadataVisitor::kMetadataFrameType,
+                                  MetadataVisitor::kEndMetadataFlag));
+  EXPECT_CALL(visitor, OnUnknownFramePayload(3, HasSubstr(kData)));
 
   SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
   auto frame = sequence.Next();

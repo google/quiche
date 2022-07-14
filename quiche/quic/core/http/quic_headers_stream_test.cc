@@ -129,6 +129,12 @@ class MockVisitor : public SpdyFramerVisitorInterface {
               (override));
   MOCK_METHOD(bool, OnUnknownFrame,
               (SpdyStreamId stream_id, uint8_t frame_type), (override));
+  MOCK_METHOD(void, OnUnknownFrameStart,
+              (SpdyStreamId stream_id, size_t length, uint8_t type,
+               uint8_t flags),
+              (override));
+  MOCK_METHOD(void, OnUnknownFramePayload,
+              (SpdyStreamId stream_id, absl::string_view payload), (override));
 };
 
 struct TestParams {

@@ -518,7 +518,28 @@ class QUICHE_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   // Return true if this appears to be a valid extension frame, false otherwise.
   // We distinguish between extension frames and nonsense by checking
   // whether the stream id is valid.
+  // TODO(b/239060116): Remove this callback altogether.
   virtual bool OnUnknownFrame(SpdyStreamId stream_id, uint8_t frame_type) = 0;
+
+  // Called when the common header for a non-standard frame is received. If the
+  // `length` is nonzero, the frame's payload will be provided via subsequent
+  // calls to OnUnknownFramePayload().
+  // |stream_id| The stream receiving the non-standard frame.
+  // |length| The length of the payload of the frame.
+  // |type| The type of the frame. This type is non-standard.
+  // |flags| The flags of the frame.
+  virtual void OnUnknownFrameStart(SpdyStreamId stream_id, size_t length,
+                                   uint8_t type, uint8_t flags) = 0;
+
+  // Called when a non-empty payload chunk for a non-standard frame is received.
+  // The payload for a single frame may be delivered as multiple calls to
+  // OnUnknownFramePayload(). Since the length field is passed in
+  // OnUnknownFrameStart(), there is no explicit indication of the end of the
+  // frame payload.
+  // |stream_id| The stream receiving the non-standard frame.
+  // |payload| The payload chunk, which will be non-empty.
+  virtual void OnUnknownFramePayload(SpdyStreamId stream_id,
+                                     absl::string_view payload) = 0;
 };
 
 class QUICHE_EXPORT_PRIVATE ExtensionVisitorInterface {

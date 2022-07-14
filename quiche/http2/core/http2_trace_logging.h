@@ -87,6 +87,10 @@ class QUICHE_EXPORT_PRIVATE Http2TraceLogger
   void OnPriorityUpdate(SpdyStreamId prioritized_stream_id,
                         absl::string_view priority_field_value) override;
   bool OnUnknownFrame(SpdyStreamId stream_id, uint8_t frame_type) override;
+  void OnUnknownFrameStart(SpdyStreamId stream_id, size_t length, uint8_t type,
+                           uint8_t flags) override;
+  void OnUnknownFramePayload(SpdyStreamId stream_id,
+                             absl::string_view payload) override;
 
  private:
   void LogReceivedHeaders() const;
