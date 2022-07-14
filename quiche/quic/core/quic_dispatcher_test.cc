@@ -187,7 +187,19 @@ class MockServerConnection : public MockQuicConnection {
   }
 
   std::vector<QuicConnectionId> GetActiveServerConnectionIds() const override {
-    return active_connection_ids_;
+    if (!GetQuicRestartFlag(quic_map_original_connection_ids)) {
+      return active_connection_ids_;
+    }
+    std::vector<QuicConnectionId> result;
+    for (const auto& cid : active_connection_ids_) {
+      result.push_back(cid);
+    }
+    auto original_connection_id = GetOriginalDestinationConnectionId();
+    if (std::find(result.begin(), result.end(), original_connection_id) ==
+        result.end()) {
+      result.push_back(original_connection_id);
+    }
+    return result;
   }
 
   void UnregisterOnConnectionClosed() {

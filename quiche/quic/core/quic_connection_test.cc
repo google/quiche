@@ -15587,6 +15587,29 @@ TEST_P(QuicConnectionTest, StrictAntiAmplificationLimit) {
   }
 }
 
+TEST_P(QuicConnectionTest, OriginalConnectionId) {
+  set_perspective(Perspective::IS_SERVER);
+  EXPECT_FALSE(connection_.GetDiscardZeroRttDecryptionKeysAlarm()->IsSet());
+  EXPECT_EQ(connection_.GetOriginalDestinationConnectionId(),
+            connection_.connection_id());
+  QuicConnectionId original({0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08});
+  connection_.SetOriginalDestinationConnectionId(original);
+  EXPECT_EQ(original, connection_.GetOriginalDestinationConnectionId());
+  // Send a 1-RTT packet to start the DiscardZeroRttDecryptionKeys timer.
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  ProcessDataPacketAtLevel(1, false, ENCRYPTION_FORWARD_SECURE);
+  if (GetQuicRestartFlag(quic_map_original_connection_ids) &&
+      connection_.version().UsesTls()) {
+    EXPECT_TRUE(connection_.GetDiscardZeroRttDecryptionKeysAlarm()->IsSet());
+    EXPECT_CALL(visitor_, OnServerConnectionIdRetired(original));
+    connection_.GetDiscardZeroRttDecryptionKeysAlarm()->Fire();
+    EXPECT_EQ(connection_.GetOriginalDestinationConnectionId(),
+              connection_.connection_id());
+  } else {
+    EXPECT_EQ(connection_.GetOriginalDestinationConnectionId(), original);
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

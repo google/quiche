@@ -75,6 +75,7 @@
 #include "quiche/quic/tools/quic_server.h"
 #include "quiche/quic/tools/quic_simple_client_stream.h"
 #include "quiche/quic/tools/quic_simple_server_stream.h"
+#include "quiche/common/platform/api/quiche_test.h"
 
 using spdy::kV3LowestPriority;
 using spdy::SpdyFramer;
@@ -7077,6 +7078,45 @@ TEST_P(EndToEndTest, RejectRequestWithInvalidToken) {
   client_->SendMessage(headers, "", /*fin=*/false);
   client_->WaitForResponse();
   CheckResponseHeaders("400");
+}
+
+TEST_P(EndToEndTest, OriginalConnectionIdClearedFromMap) {
+  SetQuicRestartFlag(quic_map_original_connection_ids, true);
+  connect_to_server_on_initialize_ = false;
+  ASSERT_TRUE(Initialize());
+  if (override_client_connection_id_length_ != kLongConnectionIdLength) {
+    // There might not be an original connection ID.
+    CreateClientWithWriter();
+    return;
+  }
+
+  server_thread_->Pause();
+  QuicDispatcher* dispatcher =
+      QuicServerPeer::GetDispatcher(server_thread_->server());
+  EXPECT_EQ(QuicDispatcherPeer::GetFirstSessionIfAny(dispatcher), nullptr);
+  server_thread_->Resume();
+
+  CreateClientWithWriter();  // Also connects.
+  EXPECT_NE(client_, nullptr);
+
+  server_thread_->Pause();
+  EXPECT_NE(QuicDispatcherPeer::GetFirstSessionIfAny(dispatcher), nullptr);
+  EXPECT_EQ(dispatcher->NumSessions(), 1);
+  auto ids = GetServerConnection()->GetActiveServerConnectionIds();
+  ASSERT_EQ(ids.size(), 2);
+  for (QuicConnectionId id : ids) {
+    EXPECT_NE(QuicDispatcherPeer::FindSession(dispatcher, id), nullptr);
+  }
+  QuicConnectionId original = ids[1];
+  server_thread_->Resume();
+
+  client_->SendSynchronousRequest("/foo");
+  client_->Disconnect();
+
+  server_thread_->Pause();
+  EXPECT_EQ(QuicDispatcherPeer::GetFirstSessionIfAny(dispatcher), nullptr);
+  EXPECT_EQ(QuicDispatcherPeer::FindSession(dispatcher, original), nullptr);
+  server_thread_->Resume();
 }
 
 }  // namespace

@@ -1081,7 +1081,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       const QuicConnectionId& original_destination_connection_id);
 
   // Returns the original destination connection ID used for this connection.
-  QuicConnectionId GetOriginalDestinationConnectionId();
+  QuicConnectionId GetOriginalDestinationConnectionId() const;
+
+  // Tells the visitor the serverside connection is no longer expecting packets
+  // with the client-generated destination connection ID.
+  void RetireOriginalDestinationConnectionId();
 
   // Called when ACK alarm goes off. Sends ACKs of those packet number spaces
   // which have expired ACK timeout. Only used when this connection supports
