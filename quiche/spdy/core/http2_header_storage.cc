@@ -1,4 +1,4 @@
-#include "quiche/spdy/core/spdy_header_storage.h"
+#include "quiche/spdy/core/http2_header_storage.h"
 
 #include <cstring>
 
@@ -7,22 +7,22 @@
 namespace spdy {
 namespace {
 
-// SpdyHeaderStorage allocates blocks of this size by default.
+// Http2HeaderStorage allocates blocks of this size by default.
 const size_t kDefaultStorageBlockSize = 2048;
 
 }  // namespace
 
-SpdyHeaderStorage::SpdyHeaderStorage() : arena_(kDefaultStorageBlockSize) {}
+Http2HeaderStorage::Http2HeaderStorage() : arena_(kDefaultStorageBlockSize) {}
 
-absl::string_view SpdyHeaderStorage::Write(const absl::string_view s) {
+absl::string_view Http2HeaderStorage::Write(const absl::string_view s) {
   return absl::string_view(arena_.Memdup(s.data(), s.size()), s.size());
 }
 
-void SpdyHeaderStorage::Rewind(const absl::string_view s) {
+void Http2HeaderStorage::Rewind(const absl::string_view s) {
   arena_.Free(const_cast<char*>(s.data()), s.size());
 }
 
-absl::string_view SpdyHeaderStorage::WriteFragments(
+absl::string_view Http2HeaderStorage::WriteFragments(
     const std::vector<absl::string_view>& fragments,
     absl::string_view separator) {
   if (fragments.empty()) {

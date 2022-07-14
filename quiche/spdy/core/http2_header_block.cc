@@ -37,7 +37,7 @@ absl::string_view SeparatorForKey(absl::string_view key) {
 
 }  // namespace
 
-Http2HeaderBlock::HeaderValue::HeaderValue(SpdyHeaderStorage* storage,
+Http2HeaderBlock::HeaderValue::HeaderValue(Http2HeaderStorage* storage,
                                            absl::string_view key,
                                            absl::string_view initial_value)
     : storage_(storage),
@@ -63,7 +63,7 @@ Http2HeaderBlock::HeaderValue& Http2HeaderBlock::HeaderValue::operator=(
   return *this;
 }
 
-void Http2HeaderBlock::HeaderValue::set_storage(SpdyHeaderStorage* storage) {
+void Http2HeaderBlock::HeaderValue::set_storage(Http2HeaderStorage* storage) {
   storage_ = storage;
 }
 
@@ -128,7 +128,7 @@ Http2HeaderBlock::ValueProxy& Http2HeaderBlock::ValueProxy::operator=(
 
 Http2HeaderBlock::ValueProxy::~ValueProxy() {
   // If the ValueProxy is destroyed while lookup_result_ == block_->end(),
-  // the assignment operator was never used, and the block's SpdyHeaderStorage
+  // the assignment operator was never used, and the block's Http2HeaderStorage
   // can reclaim the memory used by the key. This makes lookup-only access to
   // Http2HeaderBlock through operator[] memory-neutral.
   if (valid_ && lookup_result_ == block_->map_.end()) {
@@ -139,7 +139,7 @@ Http2HeaderBlock::ValueProxy::~ValueProxy() {
 Http2HeaderBlock::ValueProxy& Http2HeaderBlock::ValueProxy::operator=(
     absl::string_view value) {
   *spdy_header_block_value_size_ += value.size();
-  SpdyHeaderStorage* storage = &block_->storage_;
+  Http2HeaderStorage* storage = &block_->storage_;
   if (lookup_result_ == block_->map_.end()) {
     QUICHE_DVLOG(1) << "Inserting: (" << key_ << ", " << value << ")";
     lookup_result_ =

@@ -1,4 +1,4 @@
-#include "quiche/spdy/core/spdy_header_storage.h"
+#include "quiche/spdy/core/http2_header_storage.h"
 
 #include "quiche/common/platform/api/quiche_test.h"
 

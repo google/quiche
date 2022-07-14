@@ -18,7 +18,7 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 #include "quiche/common/quiche_text_utils.h"
-#include "quiche/spdy/core/spdy_header_storage.h"
+#include "quiche/spdy/core/http2_header_storage.h"
 
 namespace spdy {
 
@@ -52,14 +52,14 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
   // key-dependent separator.
   class QUICHE_EXPORT_PRIVATE HeaderValue {
    public:
-    HeaderValue(SpdyHeaderStorage* storage, absl::string_view key,
+    HeaderValue(Http2HeaderStorage* storage, absl::string_view key,
                 absl::string_view initial_value);
 
     // Moves are allowed.
     HeaderValue(HeaderValue&& other);
     HeaderValue& operator=(HeaderValue&& other);
 
-    void set_storage(SpdyHeaderStorage* storage);
+    void set_storage(Http2HeaderStorage* storage);
 
     // Copies are not.
     HeaderValue(const HeaderValue& other) = delete;
@@ -82,7 +82,7 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
     // fragments and separators.
     absl::string_view ConsolidatedValue() const;
 
-    mutable SpdyHeaderStorage* storage_;
+    mutable Http2HeaderStorage* storage_;
     mutable std::vector<absl::string_view> fragments_;
     // The first element is the key; the second is the consolidated value.
     mutable std::pair<absl::string_view, absl::string_view> pair_;
@@ -204,7 +204,7 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
   // This object provides automatic conversions that allow Http2HeaderBlock to
   // be nearly a drop-in replacement for
   // SpdyLinkedHashMap<std::string, std::string>.
-  // It reads data from or writes data to a SpdyHeaderStorage.
+  // It reads data from or writes data to a Http2HeaderStorage.
   class QUICHE_EXPORT_PRIVATE ValueProxy {
    public:
     ~ValueProxy();
@@ -280,7 +280,7 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
 
   // absl::string_views held by |map_| point to memory owned by |storage_|.
   MapType map_;
-  SpdyHeaderStorage storage_;
+  Http2HeaderStorage storage_;
 
   size_t key_size_ = 0;
   size_t value_size_ = 0;

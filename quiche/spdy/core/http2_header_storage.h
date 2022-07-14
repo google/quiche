@@ -1,5 +1,5 @@
-#ifndef QUICHE_SPDY_CORE_SPDY_HEADER_STORAGE_H_
-#define QUICHE_SPDY_CORE_SPDY_HEADER_STORAGE_H_
+#ifndef QUICHE_SPDY_CORE_HTTP2_HEADER_STORAGE_H_
+#define QUICHE_SPDY_CORE_HTTP2_HEADER_STORAGE_H_
 
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -9,22 +9,22 @@ namespace spdy {
 
 // This class provides a backing store for absl::string_views. It previously
 // used custom allocation logic, but now uses an UnsafeArena instead. It has the
-// property that absl::string_views that refer to data in SpdyHeaderStorage are
-// never invalidated until the SpdyHeaderStorage is deleted or Clear() is
+// property that absl::string_views that refer to data in Http2HeaderStorage are
+// never invalidated until the Http2HeaderStorage is deleted or Clear() is
 // called.
 //
 // Write operations always append to the last block. If there is not enough
 // space to perform the write, a new block is allocated, and any unused space
 // is wasted.
-class QUICHE_EXPORT_PRIVATE SpdyHeaderStorage {
+class QUICHE_EXPORT_PRIVATE Http2HeaderStorage {
  public:
-  SpdyHeaderStorage();
+  Http2HeaderStorage();
 
-  SpdyHeaderStorage(const SpdyHeaderStorage&) = delete;
-  SpdyHeaderStorage& operator=(const SpdyHeaderStorage&) = delete;
+  Http2HeaderStorage(const Http2HeaderStorage&) = delete;
+  Http2HeaderStorage& operator=(const Http2HeaderStorage&) = delete;
 
-  SpdyHeaderStorage(SpdyHeaderStorage&& other) = default;
-  SpdyHeaderStorage& operator=(SpdyHeaderStorage&& other) = default;
+  Http2HeaderStorage(Http2HeaderStorage&& other) = default;
+  Http2HeaderStorage& operator=(Http2HeaderStorage&& other) = default;
 
   absl::string_view Write(absl::string_view s);
 
@@ -55,4 +55,4 @@ Join(char* dst, const std::vector<absl::string_view>& fragments,
 
 }  // namespace spdy
 
-#endif  // QUICHE_SPDY_CORE_SPDY_HEADER_STORAGE_H_
+#endif  // QUICHE_SPDY_CORE_HTTP2_HEADER_STORAGE_H_
