@@ -993,7 +993,7 @@ int OgHttp2Session::SubmitTrailer(Http2StreamId stream_id,
         << "DataFrameSource will send fin, preventing trailers!";
     // Save trailers so they can be written once data is done.
     state.trailers =
-        absl::make_unique<spdy::SpdyHeaderBlock>(ToHeaderBlock(trailers));
+        absl::make_unique<spdy::Http2HeaderBlock>(ToHeaderBlock(trailers));
     if (!options_.trailers_require_end_data || !iter->second.data_deferred) {
       trailers_ready_.insert(stream_id);
     }
@@ -1693,7 +1693,7 @@ void OgHttp2Session::SendWindowUpdate(Http2StreamId stream_id,
 }
 
 void OgHttp2Session::SendHeaders(Http2StreamId stream_id,
-                                 spdy::SpdyHeaderBlock headers,
+                                 spdy::Http2HeaderBlock headers,
                                  bool end_stream) {
   auto frame =
       absl::make_unique<spdy::SpdyHeadersIR>(stream_id, std::move(headers));
@@ -1702,7 +1702,7 @@ void OgHttp2Session::SendHeaders(Http2StreamId stream_id,
 }
 
 void OgHttp2Session::SendTrailers(Http2StreamId stream_id,
-                                  spdy::SpdyHeaderBlock trailers) {
+                                  spdy::Http2HeaderBlock trailers) {
   auto frame =
       absl::make_unique<spdy::SpdyHeadersIR>(stream_id, std::move(trailers));
   frame->set_fin(true);
@@ -1752,7 +1752,7 @@ OgHttp2Session::StreamStateMap::iterator OgHttp2Session::CreateStream(
 }
 
 void OgHttp2Session::StartRequest(Http2StreamId stream_id,
-                                  spdy::SpdyHeaderBlock headers,
+                                  spdy::Http2HeaderBlock headers,
                                   std::unique_ptr<DataFrameSource> data_source,
                                   void* user_data) {
   if (received_goaway_) {

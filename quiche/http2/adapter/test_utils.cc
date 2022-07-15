@@ -82,13 +82,13 @@ bool TestDataFrameSource::Send(absl::string_view frame_header,
   return true;
 }
 
-std::string EncodeHeaders(const spdy::SpdyHeaderBlock& entries) {
+std::string EncodeHeaders(const spdy::Http2HeaderBlock& entries) {
   spdy::HpackEncoder encoder;
   encoder.DisableCompression();
   return encoder.EncodeHeaderBlock(entries);
 }
 
-TestMetadataSource::TestMetadataSource(const spdy::SpdyHeaderBlock& entries)
+TestMetadataSource::TestMetadataSource(const spdy::Http2HeaderBlock& entries)
     : encoded_entries_(EncodeHeaders(entries)) {
   remaining_ = encoded_entries_;
 }

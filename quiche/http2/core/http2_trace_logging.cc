@@ -6,6 +6,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
 // Convenience macros for printing function arguments in log lines in the
@@ -58,12 +59,12 @@ auto LogContainer(const T& container, ItemLogger item_logger)
 
 namespace http2 {
 
+using spdy::Http2HeaderBlock;
 using spdy::SettingsMap;
 using spdy::SpdyAltSvcIR;
 using spdy::SpdyContinuationIR;
 using spdy::SpdyDataIR;
 using spdy::SpdyGoAwayIR;
-using spdy::SpdyHeaderBlock;
 using spdy::SpdyHeadersIR;
 using spdy::SpdyPingIR;
 using spdy::SpdyPriorityIR;
@@ -79,7 +80,7 @@ namespace {
 // Defines how elements of SpdyHeaderBlocks are logged.
 struct LogHeaderBlockEntry {
   void Log(std::ostream& out,
-           const SpdyHeaderBlock::value_type& entry) const {  // NOLINT
+           const Http2HeaderBlock::value_type& entry) const {  // NOLINT
     out << "\"" << entry.first << "\": \"" << entry.second << "\"";
   }
 };

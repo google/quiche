@@ -8,6 +8,7 @@
 
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
 namespace http2 {

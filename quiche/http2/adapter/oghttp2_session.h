@@ -25,9 +25,9 @@
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
+#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/no_op_headers_handler.h"
 #include "quiche/spdy/core/spdy_framer.h"
-#include "quiche/spdy/core/spdy_header_block.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
 namespace http2 {
@@ -232,7 +232,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
     WindowManager window_manager;
     std::unique_ptr<DataFrameSource> outbound_body;
-    std::unique_ptr<spdy::SpdyHeaderBlock> trailers;
+    std::unique_ptr<spdy::Http2HeaderBlock> trailers;
     void* user_data = nullptr;
     int32_t send_window;
     absl::optional<HeaderType> received_header_type;
@@ -246,7 +246,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   using StreamStateMap = absl::flat_hash_map<Http2StreamId, StreamState>;
 
   struct QUICHE_EXPORT_PRIVATE PendingStreamState {
-    spdy::SpdyHeaderBlock headers;
+    spdy::Http2HeaderBlock headers;
     std::unique_ptr<DataFrameSource> data_source;
     void* user_data = nullptr;
   };
@@ -370,10 +370,10 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   void SerializeMetadata(Http2StreamId stream_id,
                          std::unique_ptr<MetadataSource> source);
 
-  void SendHeaders(Http2StreamId stream_id, spdy::SpdyHeaderBlock headers,
+  void SendHeaders(Http2StreamId stream_id, spdy::Http2HeaderBlock headers,
                    bool end_stream);
 
-  void SendTrailers(Http2StreamId stream_id, spdy::SpdyHeaderBlock trailers);
+  void SendTrailers(Http2StreamId stream_id, spdy::Http2HeaderBlock trailers);
 
   // Encapsulates the RST_STREAM NO_ERROR behavior described in RFC 7540
   // Section 8.1.
@@ -388,7 +388,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
 
   // Creates a stream for `stream_id`, stores the `data_source` and `user_data`
   // in the stream state, and sends the `headers`.
-  void StartRequest(Http2StreamId stream_id, spdy::SpdyHeaderBlock headers,
+  void StartRequest(Http2StreamId stream_id, spdy::Http2HeaderBlock headers,
                     std::unique_ptr<DataFrameSource> data_source,
                     void* user_data);
 

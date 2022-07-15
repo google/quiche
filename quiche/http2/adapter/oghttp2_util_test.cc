@@ -15,7 +15,7 @@ namespace {
 using HeaderPair = std::pair<absl::string_view, absl::string_view>;
 
 TEST(ToHeaderBlock, EmptySpan) {
-  spdy::SpdyHeaderBlock block = ToHeaderBlock({});
+  spdy::Http2HeaderBlock block = ToHeaderBlock({});
   EXPECT_TRUE(block.empty());
 }
 
@@ -26,7 +26,7 @@ TEST(ToHeaderBlock, ExampleRequestHeaders) {
                                          {":scheme", "http"},
                                          {"accept", "text/plain, text/html"}};
   const std::vector<Header> headers = ToHeaders(pairs);
-  spdy::SpdyHeaderBlock block = ToHeaderBlock(headers);
+  spdy::Http2HeaderBlock block = ToHeaderBlock(headers);
   EXPECT_THAT(block, testing::ElementsAreArray(pairs));
 }
 
@@ -36,7 +36,7 @@ TEST(ToHeaderBlock, ExampleResponseHeaders) {
       {"content-length", "1023"},
       {"x-extra-info", "humblest apologies"}};
   const std::vector<Header> headers = ToHeaders(pairs);
-  spdy::SpdyHeaderBlock block = ToHeaderBlock(headers);
+  spdy::Http2HeaderBlock block = ToHeaderBlock(headers);
   EXPECT_THAT(block, testing::ElementsAreArray(pairs));
 }
 
@@ -54,7 +54,7 @@ TEST(ToHeaderBlock, RepeatedRequestHeaderNames) {
       {"cookie", "chocolate_chips=yes; raisins=no"},
       {"accept", "text/plain, text/html"}};
   const std::vector<Header> headers = ToHeaders(pairs);
-  spdy::SpdyHeaderBlock block = ToHeaderBlock(headers);
+  spdy::Http2HeaderBlock block = ToHeaderBlock(headers);
   EXPECT_THAT(block, testing::ElementsAreArray(expected));
 }
 
@@ -73,7 +73,7 @@ TEST(ToHeaderBlock, RepeatedResponseHeaderNames) {
                                            9)},
       {"set-cookie", absl::string_view("chocolate_chips=yes\0raisins=no", 30)}};
   const std::vector<Header> headers = ToHeaders(pairs);
-  spdy::SpdyHeaderBlock block = ToHeaderBlock(headers);
+  spdy::Http2HeaderBlock block = ToHeaderBlock(headers);
   EXPECT_THAT(block, testing::ElementsAreArray(expected));
 }
 

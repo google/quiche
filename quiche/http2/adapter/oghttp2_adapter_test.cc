@@ -11,6 +11,7 @@
 #include "quiche/http2/adapter/test_utils.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace http2 {
 namespace adapter {
@@ -4868,7 +4869,7 @@ TEST(OgHttp2AdapterTest, ServerQueuesMetadataThenTrailers) {
   visitor.Clear();
   EXPECT_FALSE(adapter->want_write());
 
-  spdy::SpdyHeaderBlock block;
+  spdy::Http2HeaderBlock block;
   block["key"] = "wild value!";
   adapter->SubmitMetadata(
       1, 16384u, absl::make_unique<TestMetadataSource>(std::move(block)));
