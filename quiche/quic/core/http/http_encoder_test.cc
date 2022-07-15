@@ -76,13 +76,11 @@ TEST(HttpEncoderTest, SerializePriorityUpdateFrame) {
                        0x01,                    // length
                        0x03};                   // prioritized element id
 
-  std::unique_ptr<char[]> buffer;
-  uint64_t length =
-      HttpEncoder::SerializePriorityUpdateFrame(priority_update1, &buffer);
-  EXPECT_EQ(ABSL_ARRAYSIZE(output1), length);
+  std::string frame =
+      HttpEncoder::SerializePriorityUpdateFrame(priority_update1);
   quiche::test::CompareCharArraysWithHexError(
-      "PRIORITY_UPDATE", buffer.get(), length, reinterpret_cast<char*>(output1),
-      ABSL_ARRAYSIZE(output1));
+      "PRIORITY_UPDATE", frame.data(), frame.length(),
+      reinterpret_cast<char*>(output1), ABSL_ARRAYSIZE(output1));
 }
 
 TEST(HttpEncoderTest, SerializeAcceptChFrame) {

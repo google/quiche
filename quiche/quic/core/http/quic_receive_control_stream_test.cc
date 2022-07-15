@@ -116,15 +116,6 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
     return std::string(buffer.get(), settings_frame_length);
   }
 
-  std::string SerializePriorityUpdateFrame(
-      const PriorityUpdateFrame& priority_update) {
-    std::unique_ptr<char[]> priority_buffer;
-    QuicByteCount priority_frame_length =
-        HttpEncoder::SerializePriorityUpdateFrame(priority_update,
-                                                  &priority_buffer);
-    return std::string(priority_buffer.get(), priority_frame_length);
-  }
-
   QuicStreamOffset NumBytesConsumed() {
     return QuicStreamPeer::sequencer(receive_control_stream_)
         ->NumBytesConsumed();
@@ -250,7 +241,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveWrongFrame) {
 
 TEST_P(QuicReceiveControlStreamTest,
        ReceivePriorityUpdateFrameBeforeSettingsFrame) {
-  std::string serialized_frame = SerializePriorityUpdateFrame({});
+  std::string serialized_frame = HttpEncoder::SerializePriorityUpdateFrame({});
   QuicStreamFrame data(receive_control_stream_->id(), /* fin = */ false,
                        /* offset = */ 1, serialized_frame);
 

@@ -511,15 +511,6 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     return std::string(buffer.get(), header_length);
   }
 
-  std::string SerializePriorityUpdateFrame(
-      const PriorityUpdateFrame& priority_update) {
-    std::unique_ptr<char[]> priority_buffer;
-    QuicByteCount priority_frame_length =
-        HttpEncoder::SerializePriorityUpdateFrame(priority_update,
-                                                  &priority_buffer);
-    return std::string(priority_buffer.get(), priority_frame_length);
-  }
-
   QuicStreamId StreamCountToId(QuicStreamCount stream_count,
                                Perspective perspective, bool bidirectional) {
     // Calculate and build up stream ID rather than use
@@ -2231,7 +2222,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
   priority_update1.prioritized_element_id = stream_id1;
   priority_update1.priority_field_value = "u=2";
   std::string serialized_priority_update1 =
-      SerializePriorityUpdateFrame(priority_update1);
+      HttpEncoder::SerializePriorityUpdateFrame(priority_update1);
   QuicStreamFrame data3(receive_control_stream_id,
                         /* fin = */ false, offset, serialized_priority_update1);
   offset += serialized_priority_update1.size();
@@ -2251,7 +2242,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
   priority_update2.prioritized_element_id = stream_id2;
   priority_update2.priority_field_value = "u=2";
   std::string serialized_priority_update2 =
-      SerializePriorityUpdateFrame(priority_update2);
+      HttpEncoder::SerializePriorityUpdateFrame(priority_update2);
   QuicStreamFrame stream_frame3(receive_control_stream_id,
                                 /* fin = */ false, offset,
                                 serialized_priority_update2);

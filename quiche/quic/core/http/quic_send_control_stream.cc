@@ -96,13 +96,11 @@ void QuicSendControlStream::WritePriorityUpdate(
     spdy_session_->debug_visitor()->OnPriorityUpdateFrameSent(priority_update);
   }
 
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount frame_length =
-      HttpEncoder::SerializePriorityUpdateFrame(priority_update, &buffer);
+  std::string frame =
+      HttpEncoder::SerializePriorityUpdateFrame(priority_update);
   QUIC_DVLOG(1) << "Control Stream " << id() << " is writing "
                 << priority_update;
-  WriteOrBufferData(absl::string_view(buffer.get(), frame_length), false,
-                    nullptr);
+  WriteOrBufferData(frame, false, nullptr);
 }
 
 void QuicSendControlStream::SendGoAway(QuicStreamId id) {
