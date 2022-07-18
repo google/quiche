@@ -13,7 +13,6 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/first_flight.h"
 #include "quiche/quic/test_tools/mock_clock.h"
@@ -589,13 +588,11 @@ TEST_F(QuicBufferedPacketStoreTest, DeliverInitialPacketsFirst) {
         &unused_retry_token, &unused_detailed_error);
     EXPECT_THAT(error_code, IsQuicNoError());
 
-    if (GetQuicReloadableFlag(quic_deliver_initial_packets_first)) {
-      // INITIAL packets should not follow a non-INITIAL packet.
-      EXPECT_THAT(long_packet_type,
-                  Conditional(previous_packet_type == INITIAL,
-                              A<QuicLongHeaderType>(), Ne(INITIAL)));
-      previous_packet_type = long_packet_type;
-    }
+    // INITIAL packets should not follow a non-INITIAL packet.
+    EXPECT_THAT(long_packet_type,
+                Conditional(previous_packet_type == INITIAL,
+                            A<QuicLongHeaderType>(), Ne(INITIAL)));
+    previous_packet_type = long_packet_type;
   }
 }
 }  // namespace

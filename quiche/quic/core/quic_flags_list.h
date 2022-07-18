@@ -45,8 +45,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_bounded_crypto_send_buffer, false)
 QUIC_FLAG(quic_reloadable_flag_quic_consider_original_connection_id_as_active_pre_handshake, true)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
-// If true, deliver INITIAL packets before other types of packets in QuicBufferedPacketStore.
-QUIC_FLAG(quic_reloadable_flag_quic_deliver_initial_packets_first, true)
 // If true, disable QUIC version Q043.
 QUIC_FLAG(quic_reloadable_flag_quic_disable_version_q043, false)
 // If true, disable QUIC version Q046.
