@@ -4589,26 +4589,17 @@ TEST_P(EndToEndTest, BlockedFrameIncludesOffset) {
   SendSynchronousRequestAndCheckResponse("/blocked", response_body);
   client_->Disconnect();
 
-  bool include_offset_flag =
-      GetQuicReloadableFlag(quic_include_offset_in_blocked_frames);
-  QuicStreamOffset expected_connection_offset =
-      include_offset_flag
-          ? client_config_.GetInitialSessionFlowControlWindowToSend()
-          : 0;
-  QuicStreamOffset expected_stream_offset =
-      include_offset_flag
-          ? client_config_.GetInitialStreamFlowControlWindowToSend()
-          : 0;
-
   ASSERT_GE(observer.blocked_frames().size(), static_cast<uint64_t>(0));
   for (const QuicBlockedFrame& frame : observer.blocked_frames()) {
     if (frame.stream_id ==
         QuicUtils::GetInvalidStreamId(version_.transport_version)) {
       // connection-level BLOCKED frame
-      ASSERT_EQ(frame.offset, expected_connection_offset);
+      ASSERT_EQ(frame.offset,
+                client_config_.GetInitialSessionFlowControlWindowToSend());
     } else {
       // stream-level BLOCKED frame
-      ASSERT_EQ(frame.offset, expected_stream_offset);
+      ASSERT_EQ(frame.offset,
+                client_config_.GetInitialStreamFlowControlWindowToSend());
     }
   }
 

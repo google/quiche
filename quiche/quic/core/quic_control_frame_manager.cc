@@ -85,14 +85,8 @@ void QuicControlFrameManager::WriteOrBufferWindowUpdate(
 void QuicControlFrameManager::WriteOrBufferBlocked(
     QuicStreamId id, QuicStreamOffset byte_offset) {
   QUIC_DVLOG(1) << "Writing BLOCKED_FRAME";
-  if (GetQuicReloadableFlag(quic_include_offset_in_blocked_frames)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_include_offset_in_blocked_frames);
-    WriteOrBufferQuicFrame(
-        QuicFrame(QuicBlockedFrame(++last_control_frame_id_, id, byte_offset)));
-  } else {
-    WriteOrBufferQuicFrame(
-        QuicFrame(QuicBlockedFrame(++last_control_frame_id_, id, 0)));
-  }
+  WriteOrBufferQuicFrame(
+      QuicFrame(QuicBlockedFrame(++last_control_frame_id_, id, byte_offset)));
 }
 
 void QuicControlFrameManager::WriteOrBufferStreamsBlocked(QuicStreamCount count,
