@@ -9,6 +9,7 @@
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 

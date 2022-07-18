@@ -7,13 +7,13 @@
 #include "absl/strings/string_view.h"
 #include "url/gurl.h"
 
-using spdy::SpdyHeaderBlock;
+using spdy::Http2HeaderBlock;
 
 namespace quic {
 
 // static
 std::string SpdyServerPushUtils::GetPromisedUrlFromHeaders(
-    const SpdyHeaderBlock& headers) {
+    const Http2HeaderBlock& headers) {
   // RFC 7540, Section 8.1.2.3: All HTTP/2 requests MUST include exactly
   // one valid value for the ":method", ":scheme", and ":path" pseudo-header
   // fields, unless it is a CONNECT request.
@@ -31,7 +31,7 @@ std::string SpdyServerPushUtils::GetPromisedUrlFromHeaders(
   // POST as cacheable, ...
   //
   // So the only methods allowed in a PUSH_PROMISE are GET and HEAD.
-  SpdyHeaderBlock::const_iterator it = headers.find(":method");
+  Http2HeaderBlock::const_iterator it = headers.find(":method");
   if (it == headers.end() || (it->second != "GET" && it->second != "HEAD")) {
     return std::string();
   }
@@ -67,14 +67,14 @@ std::string SpdyServerPushUtils::GetPromisedUrlFromHeaders(
 
 // static
 std::string SpdyServerPushUtils::GetPromisedHostNameFromHeaders(
-    const SpdyHeaderBlock& headers) {
+    const Http2HeaderBlock& headers) {
   // TODO(fayang): Consider just checking out the value of the ":authority" key
   // in headers.
   return GURL(GetPromisedUrlFromHeaders(headers)).host();
 }
 
 // static
-bool SpdyServerPushUtils::PromisedUrlIsValid(const SpdyHeaderBlock& headers) {
+bool SpdyServerPushUtils::PromisedUrlIsValid(const Http2HeaderBlock& headers) {
   std::string url(GetPromisedUrlFromHeaders(headers));
   return !url.empty() && GURL(url).is_valid();
 }

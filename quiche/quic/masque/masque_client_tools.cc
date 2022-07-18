@@ -9,6 +9,7 @@
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
 #include "quiche/quic/tools/quic_url.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 namespace tools {

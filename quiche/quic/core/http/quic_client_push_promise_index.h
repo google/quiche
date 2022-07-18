@@ -10,6 +10,7 @@
 #include "quiche/quic/core/http/quic_spdy_client_session_base.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -32,9 +33,9 @@ class QUIC_EXPORT_PRIVATE QuicClientPushPromiseIndex {
     // is honored.  If Vary is not present, return true.  If Vary is
     // present, return whether designated header fields of
     // |promise_request| and |client_request| match.
-    virtual bool CheckVary(const spdy::SpdyHeaderBlock& client_request,
-                           const spdy::SpdyHeaderBlock& promise_request,
-                           const spdy::SpdyHeaderBlock& promise_response) = 0;
+    virtual bool CheckVary(const spdy::Http2HeaderBlock& client_request,
+                           const spdy::Http2HeaderBlock& promise_request,
+                           const spdy::Http2HeaderBlock& promise_response) = 0;
 
     // On rendezvous success, provides the promised |stream|.  Callee
     // does not inherit ownership of |stream|.  On rendezvous failure,
@@ -84,7 +85,7 @@ class QUIC_EXPORT_PRIVATE QuicClientPushPromiseIndex {
   // cancel the request if need be.  The caller does not inherit
   // ownership of |*handle|, and it ceases to be valid if the caller
   // invokes |handle->Cancel()| or if |delegate->OnReponse()| fires.
-  QuicAsyncStatus Try(const spdy::SpdyHeaderBlock& request, Delegate* delegate,
+  QuicAsyncStatus Try(const spdy::Http2HeaderBlock& request, Delegate* delegate,
                       TryHandle** handle);
 
   QuicPromisedByUrlMap* promised_by_url() { return &promised_by_url_; }

@@ -17,7 +17,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
-#include "quiche/spdy/core/spdy_header_block.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -44,7 +44,7 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   WebTransportHttp3(QuicSpdySession* session, QuicSpdyStream* connect_stream,
                     WebTransportSessionId id);
 
-  void HeadersReceived(const spdy::SpdyHeaderBlock& headers);
+  void HeadersReceived(const spdy::Http2HeaderBlock& headers);
   void SetVisitor(std::unique_ptr<WebTransportVisitor> visitor) {
     visitor_ = std::move(visitor);
   }

@@ -7,6 +7,7 @@
 
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 namespace test {

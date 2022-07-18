@@ -11,7 +11,6 @@
 #include "quiche/quic/core/qpack/qpack_encoder.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
-#include "quiche/spdy/core/spdy_header_block.h"
 
 namespace quic {
 namespace test {

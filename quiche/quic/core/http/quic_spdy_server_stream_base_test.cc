@@ -12,6 +12,7 @@
 #include "quiche/quic/test_tools/quic_spdy_session_peer.h"
 #include "quiche/quic/test_tools/quic_stream_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 using testing::_;
 
@@ -308,7 +309,7 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestHeader) {
 TEST_F(QuicSpdyServerStreamBaseTest, EmptyHeaders) {
   SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
-  spdy::SpdyHeaderBlock empty_header;
+  spdy::Http2HeaderBlock empty_header;
   quic::test::NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
   quic::test::NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
   auto qpack_encoder =

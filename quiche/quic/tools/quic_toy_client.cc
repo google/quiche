@@ -64,6 +64,7 @@
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/quiche_text_utils.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace {
 

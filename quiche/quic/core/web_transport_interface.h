@@ -17,7 +17,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
-#include "quiche/spdy/core/spdy_header_block.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -94,7 +94,7 @@ class QUIC_EXPORT_PRIVATE WebTransportVisitor {
 
   // Notifies the visitor when the session is ready to exchange application
   // data.
-  virtual void OnSessionReady(const spdy::SpdyHeaderBlock& headers) = 0;
+  virtual void OnSessionReady(const spdy::Http2HeaderBlock& headers) = 0;
 
   // Notifies the visitor when the session has been closed.
   virtual void OnSessionClosed(WebTransportSessionError error_code,

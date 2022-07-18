@@ -771,9 +771,9 @@ TestPushPromiseDelegate::TestPushPromiseDelegate(bool match)
     : match_(match), rendezvous_fired_(false), rendezvous_stream_(nullptr) {}
 
 bool TestPushPromiseDelegate::CheckVary(
-    const spdy::SpdyHeaderBlock& /*client_request*/,
-    const spdy::SpdyHeaderBlock& /*promise_request*/,
-    const spdy::SpdyHeaderBlock& /*promise_response*/) {
+    const spdy::Http2HeaderBlock& /*client_request*/,
+    const spdy::Http2HeaderBlock& /*promise_request*/,
+    const spdy::Http2HeaderBlock& /*promise_response*/) {
   QUIC_DVLOG(1) << "match " << match_;
   return match_;
 }

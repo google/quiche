@@ -14,8 +14,8 @@
 #include "quiche/quic/core/http/quic_header_list.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
-#include "quiche/spdy/core/spdy_header_block.h"
 
 namespace quic {
 
@@ -27,14 +27,14 @@ class QUIC_EXPORT_PRIVATE SpdyUtils {
   // Returns true on success, false if parsing fails or content-length header is
   // missing.
   static bool ExtractContentLengthFromHeaders(int64_t* content_length,
-                                              spdy::SpdyHeaderBlock* headers);
+                                              spdy::Http2HeaderBlock* headers);
 
-  // Copies a list of headers to a SpdyHeaderBlock.
+  // Copies a list of headers to a Http2HeaderBlock.
   static bool CopyAndValidateHeaders(const QuicHeaderList& header_list,
                                      int64_t* content_length,
-                                     spdy::SpdyHeaderBlock* headers);
+                                     spdy::Http2HeaderBlock* headers);
 
-  // Copies a list of headers to a SpdyHeaderBlock.
+  // Copies a list of headers to a Http2HeaderBlock.
   // If |expect_final_byte_offset| is true, requires exactly one header field
   // with key kFinalOffsetHeaderKey and an integer value.
   // If |expect_final_byte_offset| is false, no kFinalOffsetHeaderKey may be
@@ -47,12 +47,12 @@ class QUIC_EXPORT_PRIVATE SpdyUtils {
   static bool CopyAndValidateTrailers(const QuicHeaderList& header_list,
                                       bool expect_final_byte_offset,
                                       size_t* final_byte_offset,
-                                      spdy::SpdyHeaderBlock* trailers);
+                                      spdy::Http2HeaderBlock* trailers);
 
   // Populates the fields of |headers| to make a GET request of |url|,
   // which must be fully-qualified.
   static bool PopulateHeaderBlockFromUrl(const std::string url,
-                                         spdy::SpdyHeaderBlock* headers);
+                                         spdy::Http2HeaderBlock* headers);
 
   // Returns the advertised QUIC version from the specified alternative service
   // advertisement, or ParsedQuicVersion::Unsupported() if no supported version

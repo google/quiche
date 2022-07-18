@@ -20,7 +20,7 @@
 #include "quiche/quic/test_tools/quic_spdy_session_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
-using spdy::SpdyHeaderBlock;
+using spdy::Http2HeaderBlock;
 using testing::_;
 using testing::StrictMock;
 
@@ -122,12 +122,12 @@ class QuicClientPromisedInfoTest : public QuicTest {
   std::unique_ptr<QuicSpdyClientStream> stream_;
   std::unique_ptr<StreamVisitor> stream_visitor_;
   std::unique_ptr<QuicSpdyClientStream> promised_stream_;
-  SpdyHeaderBlock headers_;
+  Http2HeaderBlock headers_;
   std::string body_;
-  SpdyHeaderBlock push_promise_;
+  Http2HeaderBlock push_promise_;
   QuicStreamId promise_id_;
   std::string promise_url_;
-  SpdyHeaderBlock client_request_;
+  Http2HeaderBlock client_request_;
 };
 
 TEST_F(QuicClientPromisedInfoTest, PushPromise) {

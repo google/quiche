@@ -20,6 +20,7 @@
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_system_event_loop.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, host, "",
                                 "The IP or hostname to connect to.");
@@ -113,8 +114,8 @@ class QuicClientInteropRunner : QuicConnectionDebugVisitor {
                       bool test_version_negotiation, bool attempt_rebind,
                       bool attempt_multi_packet_chlo, bool attempt_key_update);
 
-  // Constructs a SpdyHeaderBlock containing the pseudo-headers needed to make a
-  // GET request to "/" on the hostname |authority|.
+  // Constructs a Http2HeaderBlock containing the pseudo-headers needed to make
+  // a GET request to "/" on the hostname |authority|.
   spdy::Http2HeaderBlock ConstructHeaderBlock(const std::string& authority);
 
   // Sends an HTTP request represented by |header_block| using |client|.

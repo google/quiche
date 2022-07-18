@@ -21,7 +21,7 @@
 #include "quiche/quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "quiche/quic/test_tools/qpack/qpack_encoder_peer.h"
 #include "quiche/common/quiche_circular_deque.h"
-#include "quiche/spdy/core/spdy_header_block.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 namespace test {

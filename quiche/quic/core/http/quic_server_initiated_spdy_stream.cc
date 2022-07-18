@@ -17,7 +17,7 @@ void QuicServerInitiatedSpdyStream::OnBodyAvailable() {
 }
 
 size_t QuicServerInitiatedSpdyStream::WriteHeaders(
-    spdy::SpdyHeaderBlock /*header_block*/, bool /*fin*/,
+    spdy::Http2HeaderBlock /*header_block*/, bool /*fin*/,
     quiche::QuicheReferenceCountedPointer<
         QuicAckListenerInterface> /*ack_listener*/) {
   QUIC_BUG(Writing headers in QuicServerInitiatedSpdyStream)

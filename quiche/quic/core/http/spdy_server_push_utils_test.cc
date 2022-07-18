@@ -10,7 +10,7 @@
 #include "absl/base/macros.h"
 #include "quiche/quic/platform/api/quic_test.h"
 
-using spdy::SpdyHeaderBlock;
+using spdy::Http2HeaderBlock;
 
 namespace quic {
 namespace test {
@@ -18,7 +18,7 @@ namespace test {
 using GetPromisedUrlFromHeaders = QuicTest;
 
 TEST_F(GetPromisedUrlFromHeaders, Basic) {
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers[":method"] = "GET";
   EXPECT_EQ(SpdyServerPushUtils::GetPromisedUrlFromHeaders(headers), "");
   headers[":scheme"] = "https";
@@ -35,7 +35,7 @@ TEST_F(GetPromisedUrlFromHeaders, Basic) {
 }
 
 TEST_F(GetPromisedUrlFromHeaders, Connect) {
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers[":method"] = "CONNECT";
   EXPECT_EQ(SpdyServerPushUtils::GetPromisedUrlFromHeaders(headers), "");
   headers[":authority"] = "www.google.com";
@@ -47,7 +47,7 @@ TEST_F(GetPromisedUrlFromHeaders, Connect) {
 }
 
 TEST_F(GetPromisedUrlFromHeaders, InvalidUserinfo) {
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers[":method"] = "GET";
   headers[":authority"] = "user@www.google.com";
   headers[":scheme"] = "https";
@@ -56,7 +56,7 @@ TEST_F(GetPromisedUrlFromHeaders, InvalidUserinfo) {
 }
 
 TEST_F(GetPromisedUrlFromHeaders, InvalidPath) {
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers[":method"] = "GET";
   headers[":authority"] = "www.google.com";
   headers[":scheme"] = "https";
@@ -67,7 +67,7 @@ TEST_F(GetPromisedUrlFromHeaders, InvalidPath) {
 using GetPromisedHostNameFromHeaders = QuicTest;
 
 TEST_F(GetPromisedHostNameFromHeaders, NormalUsage) {
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers[":method"] = "GET";
   EXPECT_EQ(SpdyServerPushUtils::GetPromisedHostNameFromHeaders(headers), "");
   headers[":scheme"] = "https";

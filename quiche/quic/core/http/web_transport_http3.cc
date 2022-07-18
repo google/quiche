@@ -29,7 +29,7 @@ namespace quic {
 
 namespace {
 class QUIC_NO_EXPORT NoopWebTransportVisitor : public WebTransportVisitor {
-  void OnSessionReady(const spdy::SpdyHeaderBlock&) override {}
+  void OnSessionReady(const spdy::Http2HeaderBlock&) override {}
   void OnSessionClosed(WebTransportSessionError /*error_code*/,
                        const std::string& /*error_message*/) override {}
   void OnIncomingBidirectionalStreamAvailable() override {}
@@ -159,7 +159,7 @@ void WebTransportHttp3::CloseSessionWithFinOnlyForTests() {
   connect_stream_->WriteOrBufferBody("", /*fin=*/true);
 }
 
-void WebTransportHttp3::HeadersReceived(const spdy::SpdyHeaderBlock& headers) {
+void WebTransportHttp3::HeadersReceived(const spdy::Http2HeaderBlock& headers) {
   if (session_->perspective() == Perspective::IS_CLIENT) {
     int status_code;
     if (!QuicSpdyStream::ParseHeaderStatusCode(headers, &status_code)) {

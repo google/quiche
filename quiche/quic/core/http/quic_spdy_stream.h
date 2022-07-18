@@ -36,8 +36,8 @@
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_framer.h"
-#include "quiche/spdy/core/spdy_header_block.h"
 
 namespace quic {
 
@@ -124,7 +124,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // number of bytes sent, including data sent on the encoder stream when using
   // QPACK.
   virtual size_t WriteHeaders(
-      spdy::SpdyHeaderBlock header_block, bool fin,
+      spdy::Http2HeaderBlock header_block, bool fin,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener);
 
@@ -136,7 +136,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // always have the FIN flag set.  Returns the number of bytes sent, including
   // data sent on the encoder stream when using QPACK.
   virtual size_t WriteTrailers(
-      spdy::SpdyHeaderBlock trailer_block,
+      spdy::Http2HeaderBlock trailer_block,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener);
 
@@ -178,7 +178,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   // Returns true if header contains a valid 3-digit status and parse the status
   // code to |status_code|.
-  static bool ParseHeaderStatusCode(const spdy::SpdyHeaderBlock& header,
+  static bool ParseHeaderStatusCode(const spdy::Http2HeaderBlock& header,
                                     int* status_code);
 
   // Returns true when all data from the peer has been read and consumed,
@@ -198,7 +198,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   bool trailers_decompressed() const { return trailers_decompressed_; }
 
   // Returns whatever trailers have been received for this stream.
-  const spdy::SpdyHeaderBlock& received_trailers() const {
+  const spdy::Http2HeaderBlock& received_trailers() const {
     return received_trailers_;
   }
 
@@ -301,7 +301,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   virtual void OnTrailingHeadersComplete(bool fin, size_t frame_len,
                                          const QuicHeaderList& header_list);
   virtual size_t WriteHeadersImpl(
-      spdy::SpdyHeaderBlock header_block, bool fin,
+      spdy::Http2HeaderBlock header_block, bool fin,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener);
 
@@ -357,7 +357,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   QuicByteCount GetNumFrameHeadersInInterval(QuicStreamOffset offset,
                                              QuicByteCount data_length) const;
 
-  void MaybeProcessSentWebTransportHeaders(spdy::SpdyHeaderBlock& headers);
+  void MaybeProcessSentWebTransportHeaders(spdy::Http2HeaderBlock& headers);
   void MaybeProcessReceivedWebTransportHeaders();
 
   // Writes HTTP/3 DATA frame header. If |force_write| is true, use
@@ -398,7 +398,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   bool trailers_consumed_;
 
   // The parsed trailers received from the peer.
-  spdy::SpdyHeaderBlock received_trailers_;
+  spdy::Http2HeaderBlock received_trailers_;
 
   // Headers accumulator for decoding HEADERS frame payload.
   std::unique_ptr<QpackDecodedHeadersAccumulator>

@@ -36,7 +36,7 @@
 #include "quiche/common/quiche_text_utils.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
-using spdy::SpdyHeaderBlock;
+using spdy::Http2HeaderBlock;
 using spdy::SpdyPriority;
 
 namespace quic {
@@ -246,7 +246,7 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
 QuicSpdyStream::~QuicSpdyStream() {}
 
 size_t QuicSpdyStream::WriteHeaders(
-    SpdyHeaderBlock header_block, bool fin,
+    Http2HeaderBlock header_block, bool fin,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener) {
   if (!AssertNotWebTransportDataStream("writing headers")) {
@@ -337,7 +337,7 @@ void QuicSpdyStream::WriteOrBufferBody(absl::string_view data, bool fin) {
 }
 
 size_t QuicSpdyStream::WriteTrailers(
-    SpdyHeaderBlock trailer_block,
+    Http2HeaderBlock trailer_block,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener) {
   if (fin_sent()) {
@@ -909,9 +909,9 @@ bool QuicSpdyStream::FinishedReadingHeaders() const {
 }
 
 // static
-bool QuicSpdyStream::ParseHeaderStatusCode(const SpdyHeaderBlock& header,
+bool QuicSpdyStream::ParseHeaderStatusCode(const Http2HeaderBlock& header,
                                            int* status_code) {
-  SpdyHeaderBlock::const_iterator it = header.find(spdy::kHttp2StatusHeader);
+  Http2HeaderBlock::const_iterator it = header.find(spdy::kHttp2StatusHeader);
   if (it == header.end()) {
     return false;
   }
@@ -1155,7 +1155,7 @@ bool QuicSpdyStream::OnUnknownFramePayload(absl::string_view payload) {
 bool QuicSpdyStream::OnUnknownFrameEnd() { return true; }
 
 size_t QuicSpdyStream::WriteHeadersImpl(
-    spdy::SpdyHeaderBlock header_block, bool fin,
+    spdy::Http2HeaderBlock header_block, bool fin,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener) {
   if (!VersionUsesHttp3(transport_version())) {
@@ -1263,7 +1263,7 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
 }
 
 void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
-    spdy::SpdyHeaderBlock& headers) {
+    spdy::Http2HeaderBlock& headers) {
   if (!spdy_session_->SupportsWebTransport()) {
     return;
   }

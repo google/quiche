@@ -13,6 +13,7 @@
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/simple_buffer_allocator.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -175,7 +176,7 @@ class EchoWebTransportSessionVisitor : public WebTransportVisitor {
   EchoWebTransportSessionVisitor(WebTransportSession* session)
       : session_(session) {}
 
-  void OnSessionReady(const spdy::SpdyHeaderBlock&) override {
+  void OnSessionReady(const spdy::Http2HeaderBlock&) override {
     if (session_->CanOpenNextOutgoingBidirectionalStream()) {
       OnCanCreateNewOutgoingBidirectionalStream();
     }

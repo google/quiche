@@ -7,7 +7,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/spdy/core/spdy_header_block.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -20,15 +20,15 @@ class QUIC_EXPORT_PRIVATE SpdyServerPushUtils {
   // conform to HTTP/2 spec or if the ":method" header contains a forbidden
   // method for PUSH_PROMISE.
   static std::string GetPromisedUrlFromHeaders(
-      const spdy::SpdyHeaderBlock& headers);
+      const spdy::Http2HeaderBlock& headers);
 
   // Returns hostname, or empty string if missing.
   static std::string GetPromisedHostNameFromHeaders(
-      const spdy::SpdyHeaderBlock& headers);
+      const spdy::Http2HeaderBlock& headers);
 
   // Returns true if result of |GetPromisedUrlFromHeaders()| is non-empty
   // and is a well-formed URL.
-  static bool PromisedUrlIsValid(const spdy::SpdyHeaderBlock& headers);
+  static bool PromisedUrlIsValid(const spdy::Http2HeaderBlock& headers);
 
   // Returns a canonical, valid URL for a PUSH_PROMISE with the specified
   // ":scheme", ":authority", and ":path" header fields, or an empty

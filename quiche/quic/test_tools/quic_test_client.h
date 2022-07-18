@@ -18,6 +18,7 @@
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/tools/quic_client.h"
 #include "quiche/common/quiche_linked_hash_map.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -133,23 +134,23 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
       const std::vector<std::string>& url_list);
   // Sends a request containing |headers| and |body| and returns the number of
   // bytes sent (the size of the serialized request headers and body).
-  ssize_t SendMessage(const spdy::SpdyHeaderBlock& headers,
+  ssize_t SendMessage(const spdy::Http2HeaderBlock& headers,
                       absl::string_view body);
   // Sends a request containing |headers| and |body| with the fin bit set to
   // |fin| and returns the number of bytes sent (the size of the serialized
   // request headers and body).
-  ssize_t SendMessage(const spdy::SpdyHeaderBlock& headers,
+  ssize_t SendMessage(const spdy::Http2HeaderBlock& headers,
                       absl::string_view body, bool fin);
   // Sends a request containing |headers| and |body| with the fin bit set to
   // |fin| and returns the number of bytes sent (the size of the serialized
   // request headers and body). If |flush| is true, will wait for the message to
   // be flushed before returning.
-  ssize_t SendMessage(const spdy::SpdyHeaderBlock& headers,
+  ssize_t SendMessage(const spdy::Http2HeaderBlock& headers,
                       absl::string_view body, bool fin, bool flush);
   // Sends a request containing |headers| and |body|, waits for the response,
   // and returns the response body.
-  std::string SendCustomSynchronousRequest(const spdy::SpdyHeaderBlock& headers,
-                                           const std::string& body);
+  std::string SendCustomSynchronousRequest(
+      const spdy::Http2HeaderBlock& headers, const std::string& body);
   // Sends a GET request for |uri|, waits for the response, and returns the
   // response body.
   std::string SendSynchronousRequest(const std::string& uri);
@@ -170,14 +171,14 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // is received. 2) returns state of the oldest active stream which have
   // received partial response (if any).
   // Group 1.
-  const spdy::SpdyHeaderBlock& response_trailers() const;
+  const spdy::Http2HeaderBlock& response_trailers() const;
   bool response_complete() const;
   int64_t response_body_size() const;
   const std::string& response_body() const;
   // Group 2.
   bool response_headers_complete() const;
-  const spdy::SpdyHeaderBlock* response_headers() const;
-  const spdy::SpdyHeaderBlock* preliminary_headers() const;
+  const spdy::Http2HeaderBlock* response_headers() const;
+  const spdy::Http2HeaderBlock* preliminary_headers() const;
   int64_t response_size() const;
   size_t bytes_read() const;
   size_t bytes_written() const;
@@ -225,9 +226,9 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   void OnClose(QuicSpdyStream* stream) override;
 
   // From QuicClientPushPromiseIndex::Delegate
-  bool CheckVary(const spdy::SpdyHeaderBlock& client_request,
-                 const spdy::SpdyHeaderBlock& promise_request,
-                 const spdy::SpdyHeaderBlock& promise_response) override;
+  bool CheckVary(const spdy::Http2HeaderBlock& client_request,
+                 const spdy::Http2HeaderBlock& promise_request,
+                 const spdy::Http2HeaderBlock& promise_response) override;
   void OnRendezvousResult(QuicSpdyStream*) override;
 
   // Configures client_ to take ownership of and use the writer.
@@ -253,7 +254,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // stores the request in case it needs to be resent.  If |headers| is
   // null, only the body will be sent on the stream.
   ssize_t GetOrCreateStreamAndSendRequest(
-      const spdy::SpdyHeaderBlock* headers, absl::string_view body, bool fin,
+      const spdy::Http2HeaderBlock* headers, absl::string_view body, bool fin,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener);
 
@@ -309,7 +310,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // request. If |uri| is a relative URL, the QuicServerId will be
   // use to specify the authority.
   bool PopulateHeaderBlockFromUrl(const std::string& uri,
-                                  spdy::SpdyHeaderBlock* headers);
+                                  spdy::Http2HeaderBlock* headers);
 
   // Waits for a period of time that is long enough to receive all delayed acks
   // sent by peer.
@@ -330,7 +331,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   class TestClientDataToResend : public QuicClient::QuicDataToResend {
    public:
     TestClientDataToResend(
-        std::unique_ptr<spdy::SpdyHeaderBlock> headers, absl::string_view body,
+        std::unique_ptr<spdy::Http2HeaderBlock> headers, absl::string_view body,
         bool fin, QuicTestClient* test_client,
         quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
             ack_listener);
@@ -350,10 +351,10 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
     PerStreamState(const PerStreamState& other);
     PerStreamState(QuicRstStreamErrorCode stream_error, bool response_complete,
                    bool response_headers_complete,
-                   const spdy::SpdyHeaderBlock& response_headers,
-                   const spdy::SpdyHeaderBlock& preliminary_headers,
+                   const spdy::Http2HeaderBlock& response_headers,
+                   const spdy::Http2HeaderBlock& preliminary_headers,
                    const std::string& response,
-                   const spdy::SpdyHeaderBlock& response_trailers,
+                   const spdy::Http2HeaderBlock& response_trailers,
                    uint64_t bytes_read, uint64_t bytes_written,
                    int64_t response_body_size);
     ~PerStreamState();
@@ -361,10 +362,10 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
     QuicRstStreamErrorCode stream_error;
     bool response_complete;
     bool response_headers_complete;
-    spdy::SpdyHeaderBlock response_headers;
-    spdy::SpdyHeaderBlock preliminary_headers;
+    spdy::Http2HeaderBlock response_headers;
+    spdy::Http2HeaderBlock preliminary_headers;
     std::string response;
-    spdy::SpdyHeaderBlock response_trailers;
+    spdy::Http2HeaderBlock response_trailers;
     uint64_t bytes_read;
     uint64_t bytes_written;
     int64_t response_body_size;
@@ -395,11 +396,11 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
 
   bool response_complete_;
   bool response_headers_complete_;
-  mutable spdy::SpdyHeaderBlock preliminary_headers_;
-  mutable spdy::SpdyHeaderBlock response_headers_;
+  mutable spdy::Http2HeaderBlock preliminary_headers_;
+  mutable spdy::Http2HeaderBlock response_headers_;
 
   // Parsed response trailers (if present), copied from the stream in OnClose.
-  spdy::SpdyHeaderBlock response_trailers_;
+  spdy::Http2HeaderBlock response_trailers_;
 
   spdy::SpdyPriority priority_;
   std::string response_;

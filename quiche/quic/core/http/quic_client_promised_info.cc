@@ -11,7 +11,7 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
-using spdy::SpdyHeaderBlock;
+using spdy::Http2HeaderBlock;
 
 namespace quic {
 
@@ -42,10 +42,10 @@ void QuicClientPromisedInfo::Init() {
       QuicTime::Delta::FromSeconds(kPushPromiseTimeoutSecs));
 }
 
-bool QuicClientPromisedInfo::OnPromiseHeaders(const SpdyHeaderBlock& headers) {
+bool QuicClientPromisedInfo::OnPromiseHeaders(const Http2HeaderBlock& headers) {
   // RFC7540, Section 8.2, requests MUST be safe [RFC7231], Section
   // 4.2.1.  GET and HEAD are the methods that are safe and required.
-  SpdyHeaderBlock::const_iterator it = headers.find(spdy::kHttp2MethodHeader);
+  Http2HeaderBlock::const_iterator it = headers.find(spdy::kHttp2MethodHeader);
   if (it == headers.end()) {
     QUIC_DVLOG(1) << "Promise for stream " << id_ << " has no method";
     Reset(QUIC_INVALID_PROMISE_METHOD);
@@ -72,8 +72,9 @@ bool QuicClientPromisedInfo::OnPromiseHeaders(const SpdyHeaderBlock& headers) {
   return true;
 }
 
-void QuicClientPromisedInfo::OnResponseHeaders(const SpdyHeaderBlock& headers) {
-  response_headers_ = std::make_unique<SpdyHeaderBlock>(headers.Clone());
+void QuicClientPromisedInfo::OnResponseHeaders(
+    const Http2HeaderBlock& headers) {
+  response_headers_ = std::make_unique<Http2HeaderBlock>(headers.Clone());
   if (client_request_delegate_) {
     // We already have a client request waiting.
     FinalValidation();
@@ -112,7 +113,7 @@ QuicAsyncStatus QuicClientPromisedInfo::FinalValidation() {
 }
 
 QuicAsyncStatus QuicClientPromisedInfo::HandleClientRequest(
-    const SpdyHeaderBlock& request_headers,
+    const Http2HeaderBlock& request_headers,
     QuicClientPushPromiseIndex::Delegate* delegate) {
   if (session_->IsClosedStream(id_)) {
     // There was a RST on the response stream.

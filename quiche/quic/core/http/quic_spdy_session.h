@@ -34,6 +34,7 @@
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -109,7 +110,7 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
                                QuicByteCount /*payload_length*/) {}
   virtual void OnHeadersFrameSent(
       QuicStreamId /*stream_id*/,
-      const spdy::SpdyHeaderBlock& /*header_block*/) {}
+      const spdy::Http2HeaderBlock& /*header_block*/) {}
 
   // 0-RTT related events.
   virtual void OnSettingsFrameResumed(const SettingsFrame& /*frame*/) {}
@@ -199,7 +200,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // If provided, |ack_notifier_delegate| will be registered to be notified when
   // we have seen ACKs for all packets resulting from this call.
   virtual size_t WriteHeadersOnHeadersStream(
-      QuicStreamId id, spdy::SpdyHeaderBlock headers, bool fin,
+      QuicStreamId id, spdy::Http2HeaderBlock headers, bool fin,
       const spdy::SpdyStreamPrecedence& precedence,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener);
@@ -230,7 +231,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // PUSH_PROMISE frame to peer.
   virtual void WritePushPromise(QuicStreamId original_stream_id,
                                 QuicStreamId promised_stream_id,
-                                spdy::SpdyHeaderBlock headers);
+                                spdy::Http2HeaderBlock headers);
 
   QpackEncoder* qpack_encoder();
   QpackDecoder* qpack_decoder();
@@ -482,7 +483,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   QuicStream* ProcessPendingStream(PendingStream* pending) override;
 
   size_t WriteHeadersOnHeadersStreamImpl(
-      QuicStreamId id, spdy::SpdyHeaderBlock headers, bool fin,
+      QuicStreamId id, spdy::Http2HeaderBlock headers, bool fin,
       QuicStreamId parent_stream_id, int weight, bool exclusive,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener);

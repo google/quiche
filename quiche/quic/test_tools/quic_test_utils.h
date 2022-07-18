@@ -42,6 +42,7 @@
 #include "quiche/quic/test_tools/simple_quic_framer.h"
 #include "quiche/common/quiche_mem_slice_storage.h"
 #include "quiche/common/simple_buffer_allocator.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -1006,7 +1007,7 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
 
   MOCK_METHOD(void, OnDataFrameSent, (QuicStreamId, QuicByteCount), (override));
   MOCK_METHOD(void, OnHeadersFrameSent,
-              (QuicStreamId, const spdy::SpdyHeaderBlock&), (override));
+              (QuicStreamId, const spdy::Http2HeaderBlock&), (override));
 };
 
 class TestQuicSpdyServerSession : public QuicServerSessionBase {
@@ -1077,9 +1078,9 @@ class TestPushPromiseDelegate : public QuicClientPushPromiseIndex::Delegate {
   // fields match for promise request and client request.
   explicit TestPushPromiseDelegate(bool match);
 
-  bool CheckVary(const spdy::SpdyHeaderBlock& client_request,
-                 const spdy::SpdyHeaderBlock& promise_request,
-                 const spdy::SpdyHeaderBlock& promise_response) override;
+  bool CheckVary(const spdy::Http2HeaderBlock& client_request,
+                 const spdy::Http2HeaderBlock& promise_request,
+                 const spdy::Http2HeaderBlock& promise_response) override;
 
   void OnRendezvousResult(QuicSpdyStream* stream) override;
 

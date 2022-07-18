@@ -11,6 +11,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_framer.h"
 
 namespace quic {
@@ -46,16 +47,16 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientStream : public QuicSpdyStream {
 
   // Serializes the headers and body, sends it to the server, and
   // returns the number of bytes sent.
-  size_t SendRequest(spdy::SpdyHeaderBlock headers, absl::string_view body,
+  size_t SendRequest(spdy::Http2HeaderBlock headers, absl::string_view body,
                      bool fin);
 
   // Returns the response data.
   const std::string& data() { return data_; }
 
   // Returns whatever headers have been received for this stream.
-  const spdy::SpdyHeaderBlock& response_headers() { return response_headers_; }
+  const spdy::Http2HeaderBlock& response_headers() { return response_headers_; }
 
-  const spdy::SpdyHeaderBlock& preliminary_headers() {
+  const spdy::Http2HeaderBlock& preliminary_headers() {
     return preliminary_headers_;
   }
 
@@ -74,7 +75,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientStream : public QuicSpdyStream {
 
  private:
   // The parsed headers received from the server.
-  spdy::SpdyHeaderBlock response_headers_;
+  spdy::Http2HeaderBlock response_headers_;
 
   // The parsed content-length, or -1 if none is specified.
   int64_t content_length_;
@@ -89,7 +90,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientStream : public QuicSpdyStream {
   // that may arrive before the response headers when the request has
   // Expect: 100-continue.
   bool has_preliminary_headers_;
-  spdy::SpdyHeaderBlock preliminary_headers_;
+  spdy::Http2HeaderBlock preliminary_headers_;
 };
 
 }  // namespace quic

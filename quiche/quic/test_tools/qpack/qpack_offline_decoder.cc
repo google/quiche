@@ -323,7 +323,7 @@ bool QpackOfflineDecoder::CompareHeaderBlocks(
       ++decoded_it;
       continue;
     }
-    // SpdyHeaderBlock does not support erasing by iterator, only by key.
+    // Http2HeaderBlock does not support erasing by iterator, only by key.
     ++decoded_it;
     expected_header_list.erase(key);
     // This will invalidate |key|.

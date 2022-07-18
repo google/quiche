@@ -16,7 +16,7 @@
 #include "quiche/common/quiche_text_utils.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
-using spdy::SpdyHeaderBlock;
+using spdy::Http2HeaderBlock;
 
 namespace quic {
 
@@ -126,7 +126,7 @@ void QuicSpdyClientStream::OnPromiseHeaderList(
     const QuicHeaderList& header_list) {
   header_bytes_read_ += frame_len;
   int64_t content_length = -1;
-  SpdyHeaderBlock promise_headers;
+  Http2HeaderBlock promise_headers;
   if (!SpdyUtils::CopyAndValidateHeaders(header_list, &content_length,
                                          &promise_headers)) {
     QUIC_DLOG(ERROR) << "Failed to parse promise headers: "
@@ -172,7 +172,7 @@ void QuicSpdyClientStream::OnBodyAvailable() {
   }
 }
 
-size_t QuicSpdyClientStream::SendRequest(SpdyHeaderBlock headers,
+size_t QuicSpdyClientStream::SendRequest(Http2HeaderBlock headers,
                                          absl::string_view body, bool fin) {
   QuicConnection::ScopedPacketFlusher flusher(session_->connection());
   bool send_fin_with_headers = fin && body.empty();

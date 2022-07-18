@@ -9,8 +9,6 @@
 #include "quiche/quic/core/http/quic_client_promised_info.h"
 #include "quiche/quic/core/http/spdy_server_push_utils.h"
 
-using spdy::SpdyHeaderBlock;
-
 namespace quic {
 
 QuicClientPushPromiseIndex::QuicClientPushPromiseIndex() {}
@@ -29,7 +27,7 @@ QuicClientPromisedInfo* QuicClientPushPromiseIndex::GetPromised(
 }
 
 QuicAsyncStatus QuicClientPushPromiseIndex::Try(
-    const spdy::SpdyHeaderBlock& request,
+    const spdy::Http2HeaderBlock& request,
     QuicClientPushPromiseIndex::Delegate* delegate, TryHandle** handle) {
   std::string url(SpdyServerPushUtils::GetPromisedUrlFromHeaders(request));
   auto it = promised_by_url_.find(url);

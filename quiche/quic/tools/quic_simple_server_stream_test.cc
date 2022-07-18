@@ -33,7 +33,6 @@
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 #include "quiche/quic/tools/quic_simple_server_session.h"
 #include "quiche/common/simple_buffer_allocator.h"
-#include "quiche/spdy/core/spdy_header_block.h"
 
 using testing::_;
 using testing::AnyNumber;

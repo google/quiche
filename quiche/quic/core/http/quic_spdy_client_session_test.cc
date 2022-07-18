@@ -39,8 +39,9 @@
 #include "quiche/quic/test_tools/quic_stream_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simple_session_cache.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
-using spdy::SpdyHeaderBlock;
+using spdy::Http2HeaderBlock;
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::AtLeast;
@@ -215,7 +216,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
   ::testing::NiceMock<PacketSavingConnection>* connection_;
   std::unique_ptr<TestQuicSpdyClientSession> session_;
   QuicClientPushPromiseIndex push_promise_index_;
-  SpdyHeaderBlock push_promise_;
+  Http2HeaderBlock push_promise_;
   std::string promise_url_;
   QuicStreamId promised_stream_id_;
   QuicStreamId associated_stream_id_;
@@ -715,7 +716,7 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseAlreadyClosed) {
               OnStreamReset(promised_stream_id_, QUIC_REFUSED_STREAM));
 
   session_->ResetPromised(promised_stream_id_, QUIC_REFUSED_STREAM);
-  SpdyHeaderBlock promise_headers;
+  Http2HeaderBlock promise_headers;
   EXPECT_FALSE(session_->HandlePromised(associated_stream_id_,
                                         promised_stream_id_, promise_headers));
 
@@ -820,14 +821,14 @@ TEST_P(QuicSpdyClientSessionTest, OnInitialHeadersCompleteIsPush) {
   EXPECT_NE(session_->GetPromisedStream(promised_stream_id_), nullptr);
   EXPECT_NE(session_->GetPromisedByUrl(promise_url_), nullptr);
 
-  session_->OnInitialHeadersComplete(promised_stream_id_, SpdyHeaderBlock());
+  session_->OnInitialHeadersComplete(promised_stream_id_, Http2HeaderBlock());
 }
 
 TEST_P(QuicSpdyClientSessionTest, OnInitialHeadersCompleteIsNotPush) {
   // Initialize crypto before the client session will create a stream.
   CompleteCryptoHandshake();
   session_->CreateOutgoingBidirectionalStream();
-  session_->OnInitialHeadersComplete(promised_stream_id_, SpdyHeaderBlock());
+  session_->OnInitialHeadersComplete(promised_stream_id_, Http2HeaderBlock());
 }
 
 TEST_P(QuicSpdyClientSessionTest, DeletePromised) {

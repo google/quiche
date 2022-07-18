@@ -18,6 +18,7 @@
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_client_base.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 

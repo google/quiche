@@ -21,7 +21,7 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
-using spdy::SpdyHeaderBlock;
+using spdy::Http2HeaderBlock;
 using testing::_;
 using testing::StrictMock;
 
@@ -99,7 +99,7 @@ class QuicSpdyClientStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   MockQuicSpdyClientSession session_;
   QuicSpdyClientStream* stream_;
   std::unique_ptr<StreamVisitor> stream_visitor_;
-  SpdyHeaderBlock headers_;
+  Http2HeaderBlock headers_;
   std::string body_;
 };
 
@@ -292,7 +292,7 @@ TEST_P(QuicSpdyClientStreamTest, ReceivingTrailers) {
   // Send trailers before sending the body. Even though a FIN has been received
   // the stream should not be closed, as it does not yet have all the data bytes
   // promised by the final offset field.
-  SpdyHeaderBlock trailer_block;
+  Http2HeaderBlock trailer_block;
   trailer_block["trailer key"] = "trailer value";
   trailer_block[kFinalOffsetHeaderKey] = absl::StrCat(body_.size());
   auto trailers = AsHeaderList(trailer_block);

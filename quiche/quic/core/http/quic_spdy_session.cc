@@ -34,6 +34,7 @@
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 
 using http2::Http2DecoderAdapter;
+using spdy::Http2HeaderBlock;
 using spdy::Http2WeightToSpdy3Priority;
 using spdy::Spdy3PriorityToHttp2Weight;
 using spdy::SpdyErrorCode;
@@ -41,7 +42,6 @@ using spdy::SpdyFramer;
 using spdy::SpdyFramerDebugVisitorInterface;
 using spdy::SpdyFramerVisitorInterface;
 using spdy::SpdyFrameType;
-using spdy::SpdyHeaderBlock;
 using spdy::SpdyHeadersHandlerInterface;
 using spdy::SpdyHeadersIR;
 using spdy::SpdyPingId;
@@ -690,7 +690,7 @@ size_t QuicSpdySession::ProcessHeaderData(const struct iovec& iov) {
 }
 
 size_t QuicSpdySession::WriteHeadersOnHeadersStream(
-    QuicStreamId id, SpdyHeaderBlock headers, bool fin,
+    QuicStreamId id, Http2HeaderBlock headers, bool fin,
     const spdy::SpdyStreamPrecedence& precedence,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener) {
@@ -802,7 +802,7 @@ void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
 
 void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
                                        QuicStreamId promised_stream_id,
-                                       SpdyHeaderBlock headers) {
+                                       Http2HeaderBlock headers) {
   if (perspective() == Perspective::IS_CLIENT) {
     QUIC_BUG(quic_bug_10360_4) << "Client shouldn't send PUSH_PROMISE";
     return;
@@ -909,7 +909,7 @@ bool QuicSpdySession::UsesPendingStreamForFrame(QuicFrameType type,
 }
 
 size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
-    QuicStreamId id, spdy::SpdyHeaderBlock headers, bool fin,
+    QuicStreamId id, spdy::Http2HeaderBlock headers, bool fin,
     QuicStreamId parent_stream_id, int weight, bool exclusive,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener) {

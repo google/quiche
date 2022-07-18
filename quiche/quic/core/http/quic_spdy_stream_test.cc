@@ -39,9 +39,9 @@
 #include "quiche/common/quiche_mem_slice_storage.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
+using spdy::Http2HeaderBlock;
 using spdy::kV3HighestPriority;
 using spdy::kV3LowestPriority;
-using spdy::SpdyHeaderBlock;
 using spdy::SpdyPriority;
 using testing::_;
 using testing::AnyNumber;
@@ -243,7 +243,7 @@ class TestStream : public QuicSpdyStream {
   MOCK_METHOD(void, WriteHeadersMock, (bool fin), ());
 
   size_t WriteHeadersImpl(
-      spdy::SpdyHeaderBlock header_block, bool fin,
+      spdy::Http2HeaderBlock header_block, bool fin,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
       /*ack_listener*/) override {
     saved_headers_ = std::move(header_block);
@@ -258,7 +258,7 @@ class TestStream : public QuicSpdyStream {
   }
 
   const std::string& data() const { return data_; }
-  const spdy::SpdyHeaderBlock& saved_headers() const { return saved_headers_; }
+  const spdy::Http2HeaderBlock& saved_headers() const { return saved_headers_; }
 
   // Expose protected accessor.
   const QuicStreamSequencer* sequencer() const {
@@ -280,7 +280,7 @@ class TestStream : public QuicSpdyStream {
 
  private:
   bool should_process_data_;
-  spdy::SpdyHeaderBlock saved_headers_;
+  spdy::Http2HeaderBlock saved_headers_;
   std::string data_;
   size_t headers_payload_length_;
 };
@@ -376,7 +376,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   // Return QPACK-encoded header block without using the dynamic table.
   std::string EncodeQpackHeaders(
       std::vector<std::pair<absl::string_view, absl::string_view>> headers) {
-    SpdyHeaderBlock header_block;
+    Http2HeaderBlock header_block;
     for (const auto& header_field : headers) {
       header_block.AppendValueOrAddHeader(header_field.first,
                                           header_field.second);
@@ -386,7 +386,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   // Return QPACK-encoded header block without using the dynamic table.
-  std::string EncodeQpackHeaders(const SpdyHeaderBlock& header) {
+  std::string EncodeQpackHeaders(const Http2HeaderBlock& header) {
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
     auto qpack_encoder = std::make_unique<QpackEncoder>(session_.get());
     qpack_encoder->set_qpack_stream_sender_delegate(
@@ -458,7 +458,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     session_->GetMutableCryptoStream()->OnHandshakeMessage(message);
   }
 
-  QuicHeaderList ProcessHeaders(bool fin, const SpdyHeaderBlock& headers) {
+  QuicHeaderList ProcessHeaders(bool fin, const Http2HeaderBlock& headers) {
     QuicHeaderList h = AsHeaderList(headers);
     stream_->OnStreamHeaderList(fin, h.uncompressed_header_bytes(), h);
     return h;
@@ -482,7 +482,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   // Construct HEADERS frame with QPACK-encoded |headers| without using the
   // dynamic table.
-  std::string HeadersFrame(const SpdyHeaderBlock& headers) {
+  std::string HeadersFrame(const Http2HeaderBlock& headers) {
     return HeadersFrame(EncodeQpackHeaders(headers));
   }
 
@@ -530,7 +530,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   TestStream* stream_;
   TestStream* stream2_;
 
-  SpdyHeaderBlock headers_;
+  Http2HeaderBlock headers_;
 };
 
 INSTANTIATE_TEST_SUITE_P(Tests, QuicSpdyStreamTest,
@@ -1281,11 +1281,11 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersViaHeaderList) {
   stream_->ConsumeHeaderList();
 
   // Receive trailing headers.
-  SpdyHeaderBlock trailers_block;
+  Http2HeaderBlock trailers_block;
   trailers_block["key1"] = "value1";
   trailers_block["key2"] = "value2";
   trailers_block["key3"] = "value3";
-  SpdyHeaderBlock trailers_block_with_final_offset = trailers_block.Clone();
+  Http2HeaderBlock trailers_block_with_final_offset = trailers_block.Clone();
   if (!UsesHttp3()) {
     // :final-offset pseudo-header is only added if trailers are sent
     // on the headers stream.
@@ -1328,7 +1328,7 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithOffset) {
   std::string data = UsesHttp3() ? DataFrame(body) : body;
 
   // Receive trailing headers.
-  SpdyHeaderBlock trailers_block;
+  Http2HeaderBlock trailers_block;
   trailers_block["key1"] = "value1";
   trailers_block["key2"] = "value2";
   trailers_block["key3"] = "value3";
@@ -1371,7 +1371,7 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithoutOffset) {
   stream_->ConsumeHeaderList();
 
   // Receive trailing headers, without kFinalOffsetHeaderKey.
-  SpdyHeaderBlock trailers_block;
+  Http2HeaderBlock trailers_block;
   trailers_block["key1"] = "value1";
   trailers_block["key2"] = "value2";
   trailers_block["key3"] = "value3";
@@ -1405,7 +1405,7 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithoutFin) {
   stream_->ConsumeHeaderList();
 
   // Receive trailing headers with FIN deliberately set to false.
-  SpdyHeaderBlock trailers_block;
+  Http2HeaderBlock trailers_block;
   trailers_block["foo"] = "bar";
   auto trailers = AsHeaderList(trailers_block);
 
@@ -1432,7 +1432,7 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersAfterHeadersWithFin) {
   stream_->ConsumeHeaderList();
 
   // Receive trailing headers after FIN already received.
-  SpdyHeaderBlock trailers_block;
+  Http2HeaderBlock trailers_block;
   trailers_block["foo"] = "bar";
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA, _, _))
@@ -1461,7 +1461,7 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersAfterBodyWithFin) {
   stream_->OnStreamFrame(frame);
 
   // Receive trailing headers after FIN already received.
-  SpdyHeaderBlock trailers_block;
+  Http2HeaderBlock trailers_block;
   trailers_block["foo"] = "bar";
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA, _, _))
@@ -1504,10 +1504,10 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersSendsAFin) {
 
   // Write the initial headers, without a FIN.
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
-  stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/false, nullptr);
+  stream_->WriteHeaders(Http2HeaderBlock(), /*fin=*/false, nullptr);
 
   // Writing trailers implicitly sends a FIN.
-  SpdyHeaderBlock trailers;
+  Http2HeaderBlock trailers;
   trailers["trailer key"] = "trailer value";
   EXPECT_CALL(*stream_, WriteHeadersMock(true));
   stream_->WriteTrailers(std::move(trailers), nullptr);
@@ -1537,10 +1537,10 @@ TEST_P(QuicSpdyStreamTest, DoNotSendPriorityUpdateWithDefaultUrgency) {
   // Write the initial headers, without a FIN.
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   EXPECT_CALL(debug_visitor, OnHeadersFrameSent(stream_->id(), _));
-  stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/false, nullptr);
+  stream_->WriteHeaders(Http2HeaderBlock(), /*fin=*/false, nullptr);
 
   // Writing trailers implicitly sends a FIN.
-  SpdyHeaderBlock trailers;
+  Http2HeaderBlock trailers;
   trailers["trailer key"] = "trailer value";
   EXPECT_CALL(*stream_, WriteHeadersMock(true));
   EXPECT_CALL(debug_visitor, OnHeadersFrameSent(stream_->id(), _));
@@ -1561,7 +1561,7 @@ TEST_P(QuicSpdyStreamTest, ChangePriority) {
   EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _)).Times(2);
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   EXPECT_CALL(debug_visitor, OnHeadersFrameSent(stream_->id(), _));
-  stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/false, nullptr);
+  stream_->WriteHeaders(Http2HeaderBlock(), /*fin=*/false, nullptr);
 
   // PRIORITY_UPDATE frame on the control stream.
   auto send_control_stream =
@@ -1594,7 +1594,7 @@ TEST_P(QuicSpdyStreamTest, ChangePriorityBeforeWritingHeaders) {
   // PRIORITY_UPDATE frame is not sent this time, because one is already sent.
   EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _)).Times(2);
   EXPECT_CALL(*stream_, WriteHeadersMock(true));
-  stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/true, nullptr);
+  stream_->WriteHeaders(Http2HeaderBlock(), /*fin=*/true, nullptr);
 }
 
 // Test that when writing trailers, the trailers that are actually sent to the
@@ -1610,7 +1610,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
 
   // Write the initial headers.
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
-  stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/false, nullptr);
+  stream_->WriteHeaders(Http2HeaderBlock(), /*fin=*/false, nullptr);
 
   // Write non-zero body data to force a non-zero final offset.
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(AtLeast(1));
@@ -1626,10 +1626,10 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
 
   // The final offset field in the trailing headers is populated with the
   // number of body bytes written (including queued bytes).
-  SpdyHeaderBlock trailers;
+  Http2HeaderBlock trailers;
   trailers["trailer key"] = "trailer value";
 
-  SpdyHeaderBlock expected_trailers(trailers.Clone());
+  Http2HeaderBlock expected_trailers(trailers.Clone());
   // :final-offset pseudo-header is only added if trailers are sent
   // on the headers stream.
   if (!UsesHttp3()) {
@@ -1654,7 +1654,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersClosesWriteSide) {
 
   // Write the initial headers.
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
-  stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/false, nullptr);
+  stream_->WriteHeaders(Http2HeaderBlock(), /*fin=*/false, nullptr);
 
   // Write non-zero body data.
   const int kBodySize = 1 * 1024;  // 1 kB
@@ -1664,7 +1664,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersClosesWriteSide) {
   // Headers and body have been fully written, there is no queued data. Writing
   // trailers marks the end of this stream, and thus the write side is closed.
   EXPECT_CALL(*stream_, WriteHeadersMock(true));
-  stream_->WriteTrailers(SpdyHeaderBlock(), nullptr);
+  stream_->WriteTrailers(Http2HeaderBlock(), nullptr);
   EXPECT_TRUE(stream_->write_side_closed());
 }
 
@@ -1683,7 +1683,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersWithQueuedBytes) {
 
   // Write the initial headers.
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
-  stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/false, nullptr);
+  stream_->WriteHeaders(Http2HeaderBlock(), /*fin=*/false, nullptr);
 
   // Write non-zero body data, but only consume partially, ensuring queueing.
   const int kBodySize = 1 * 1024;  // 1 kB
@@ -1698,7 +1698,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersWithQueuedBytes) {
   // Writing trailers will send a FIN, but not close the write side of the
   // stream as there are queued bytes.
   EXPECT_CALL(*stream_, WriteHeadersMock(true));
-  stream_->WriteTrailers(SpdyHeaderBlock(), nullptr);
+  stream_->WriteTrailers(Http2HeaderBlock(), nullptr);
   EXPECT_TRUE(stream_->fin_sent());
   EXPECT_FALSE(stream_->write_side_closed());
 
@@ -1720,12 +1720,12 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersAfterFIN) {
 
   // Write the initial headers, with a FIN.
   EXPECT_CALL(*stream_, WriteHeadersMock(true));
-  stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/true, nullptr);
+  stream_->WriteHeaders(Http2HeaderBlock(), /*fin=*/true, nullptr);
   EXPECT_TRUE(stream_->fin_sent());
 
   // Writing Trailers should fail, as the FIN has already been sent.
   // populated with the number of body bytes written.
-  EXPECT_QUIC_BUG(stream_->WriteTrailers(SpdyHeaderBlock(), nullptr),
+  EXPECT_QUIC_BUG(stream_->WriteTrailers(Http2HeaderBlock(), nullptr),
                   "Trailers cannot be sent after a FIN");
 }
 
@@ -2097,7 +2097,7 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
   // A header block that will take more than one block of sequencer buffer.
   // This ensures that when the trailers are consumed, some buffer buckets will
   // be freed.
-  SpdyHeaderBlock trailers_block;
+  Http2HeaderBlock trailers_block;
   trailers_block["key1"] = std::string(10000, 'x');
   std::string trailers = HeadersFrame(trailers_block);
 
@@ -2844,7 +2844,7 @@ TEST_P(QuicSpdyStreamTest, TrailersAfterTrailers) {
       .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
 
   // Receive another HEADERS frame, with no header fields.
-  std::string trailers2 = HeadersFrame(SpdyHeaderBlock());
+  std::string trailers2 = HeadersFrame(Http2HeaderBlock());
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), false, offset, trailers2));
 }
@@ -3017,7 +3017,7 @@ TEST_P(QuicSpdyStreamTest, WriteHeadersReturnValue) {
           DoAll(SaveArg<1>(&headers_frame_payload_length),
                 Invoke(session_.get(), &MockQuicSpdySession::ConsumeData)));
 
-  SpdyHeaderBlock request_headers;
+  Http2HeaderBlock request_headers;
   request_headers["foo"] = "bar";
   size_t write_headers_return_value =
       stream_->WriteHeaders(std::move(request_headers), /*fin=*/true, nullptr);
@@ -3079,7 +3079,7 @@ TEST_P(QuicSpdyStreamTest, ProcessOutgoingWebTransportHeadersDatagramDraft04) {
   EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _))
       .Times(AnyNumber());
 
-  spdy::SpdyHeaderBlock headers;
+  spdy::Http2HeaderBlock headers;
   headers[":method"] = "CONNECT";
   headers[":protocol"] = "webtransport";
   stream_->WriteHeaders(std::move(headers), /*fin=*/false, nullptr);

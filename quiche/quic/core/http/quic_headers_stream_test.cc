@@ -28,12 +28,14 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/quiche_endian.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
+#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/recording_headers_handler.h"
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 #include "quiche/spdy/test_tools/spdy_test_utils.h"
 
 using spdy::ERROR_CODE_PROTOCOL_ERROR;
+using spdy::Http2HeaderBlock;
 using spdy::RecordingHeadersHandler;
 using spdy::SETTINGS_ENABLE_PUSH;
 using spdy::SETTINGS_HEADER_TABLE_SIZE;
@@ -47,7 +49,6 @@ using spdy::SpdyErrorCode;
 using spdy::SpdyFramer;
 using spdy::SpdyFramerVisitorInterface;
 using spdy::SpdyGoAwayIR;
-using spdy::SpdyHeaderBlock;
 using spdy::SpdyHeadersHandlerInterface;
 using spdy::SpdyHeadersIR;
 using spdy::SpdyPingId;
@@ -353,7 +354,7 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
   StrictMock<MockQuicConnection>* connection_;
   StrictMock<MockQuicSpdySession> session_;
   QuicHeadersStream* headers_stream_;
-  SpdyHeaderBlock headers_;
+  Http2HeaderBlock headers_;
   std::unique_ptr<RecordingHeadersHandler> headers_handler_;
   std::string body_;
   std::string saved_data_;
