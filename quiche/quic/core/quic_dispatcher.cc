@@ -26,6 +26,7 @@
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_stack_trace.h"
 #include "quiche/common/quiche_text_utils.h"
 
@@ -1277,47 +1278,16 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
           << server_connection_id;
       continue;
     }
-    const ParsedClientHello& parsed_chlo = *packet_list.parsed_chlo;
-    QuicConnectionId original_connection_id = server_connection_id;
-    server_connection_id = MaybeReplaceServerConnectionId(server_connection_id,
-                                                          packet_list.version);
-    std::string alpn = SelectAlpn(parsed_chlo.alpns);
-    // TODO(martinduke): Consider changing CreateQuicSession to return a
-    // shared_ptr<QuicSession>.
-    std::unique_ptr<QuicSession> session = CreateQuicSession(
-        server_connection_id, packets.front().self_address,
-        packets.front().peer_address, alpn, packet_list.version, parsed_chlo);
-    if (original_connection_id != server_connection_id) {
-      session->connection()->SetOriginalDestinationConnectionId(
-          original_connection_id);
-    }
-    QUIC_DLOG(INFO) << "Created new session for " << server_connection_id;
-
-    auto insertion_result = reference_counted_session_map_.insert(
-        std::make_pair(server_connection_id,
-                       std::shared_ptr<QuicSession>(std::move(session))));
-    std::shared_ptr<QuicSession> session_ptr = insertion_result.first->second;
-    if (!insertion_result.second) {
-      QUIC_BUG(quic_bug_12724_5)
-          << "Tried to add a session to session_map with existing connection "
-             "id: "
-          << server_connection_id;
-    } else {
-      ++num_sessions_in_session_map_;
-      if (GetQuicRestartFlag(quic_map_original_connection_ids) &&
-          original_connection_id != server_connection_id) {
+    auto session_ptr = QuicDispatcher::CreateSessionFromChlo(
+        server_connection_id, *packet_list.parsed_chlo, packet_list.version,
+        packets.front().self_address, packets.front().peer_address);
+    if (session_ptr != nullptr) {
+      DeliverPacketsToSession(packets, session_ptr.get());
+      if (server_connection_id != session_ptr->connection_id() &&
+          GetQuicRestartFlag(quic_map_original_connection_ids)) {
         QUIC_RESTART_FLAG_COUNT_N(quic_map_original_connection_ids, 1, 4);
-        auto insertion_result2 = reference_counted_session_map_.insert(
-            std::make_pair(original_connection_id, session_ptr));
-        QUIC_BUG_IF(quic_460317833_01, !insertion_result2.second)
-            << "Original connection ID already in session_map: "
-            << original_connection_id;
-        // If insertion of the original connection ID fails, it might cause
-        // loss of 0-RTT and other first flight packets, but the connection
-        // will usually progress.
       }
     }
-    DeliverPacketsToSession(packets, session_ptr.get());
   }
 }
 
@@ -1389,61 +1359,25 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
     return;
   }
 
-  QuicConnectionId original_connection_id =
-      packet_info->destination_connection_id;
-  packet_info->destination_connection_id = MaybeReplaceServerConnectionId(
-      original_connection_id, packet_info->version);
-  // Creates a new session and process all buffered packets for this connection.
-  std::string alpn = SelectAlpn(parsed_chlo.alpns);
-  std::unique_ptr<QuicSession> session = CreateQuicSession(
-      packet_info->destination_connection_id, packet_info->self_address,
-      packet_info->peer_address, alpn, packet_info->version, parsed_chlo);
-  if (ABSL_PREDICT_FALSE(session == nullptr)) {
-    QUIC_BUG(quic_bug_10287_8)
-        << "CreateQuicSession returned nullptr for "
-        << packet_info->destination_connection_id << " from "
-        << packet_info->peer_address << " to " << packet_info->self_address
-        << " ALPN \"" << alpn << "\" version " << packet_info->version;
+  auto session_ptr = QuicDispatcher::CreateSessionFromChlo(
+      packet_info->destination_connection_id, parsed_chlo, packet_info->version,
+      packet_info->self_address, packet_info->peer_address);
+  if (session_ptr == nullptr) {
     return;
   }
-  const bool replaced_connection_id =
-      original_connection_id != packet_info->destination_connection_id;
-  if (replaced_connection_id) {
-    session->connection()->SetOriginalDestinationConnectionId(
-        original_connection_id);
-  }
-  QUIC_DLOG(INFO) << "Created new session for "
-                  << packet_info->destination_connection_id;
-
-  auto insertion_result = reference_counted_session_map_.insert(
-      std::make_pair(packet_info->destination_connection_id,
-                     std::shared_ptr<QuicSession>(std::move(session))));
-  std::shared_ptr<QuicSession> session_ptr = insertion_result.first->second;
-  if (!insertion_result.second) {
-    QUIC_BUG(quic_bug_10287_9)
-        << "Tried to add a session to session_map with existing "
-           "connection id: "
-        << packet_info->destination_connection_id;
-  } else {
-    ++num_sessions_in_session_map_;
-    if (GetQuicRestartFlag(quic_map_original_connection_ids) &&
-        replaced_connection_id) {
-      QUIC_RESTART_FLAG_COUNT_N(quic_map_original_connection_ids, 2, 4);
-      auto insertion_result2 = reference_counted_session_map_.insert(
-          std::make_pair(original_connection_id, session_ptr));
-      QUIC_BUG_IF(quic_460317833_02, !insertion_result2.second)
-          << "Original connection ID already in session_map: "
-          << original_connection_id;
-      // If insertion of the original connection ID fails, it might cause
-      // loss of 0-RTT and other first flight packets, but the connection
-      // will usually progress.
-    }
-  }
   std::list<BufferedPacket> packets =
-      buffered_packets_.DeliverPackets(original_connection_id).buffered_packets;
-  if (replaced_connection_id && !packets.empty()) {
-    QUIC_CODE_COUNT(
-        quic_delivered_buffered_packets_to_connection_with_replaced_id);
+      buffered_packets_.DeliverPackets(packet_info->destination_connection_id)
+          .buffered_packets;
+  if (packet_info->destination_connection_id != session_ptr->connection_id()) {
+    // Provide the calling function with access to the new connection ID.
+    packet_info->destination_connection_id = session_ptr->connection_id();
+    if (!packets.empty()) {
+      QUIC_CODE_COUNT(
+          quic_delivered_buffered_packets_to_connection_with_replaced_id);
+    }
+    if (GetQuicRestartFlag(quic_map_original_connection_ids)) {
+      QUIC_RESTART_FLAG_COUNT_N(quic_map_original_connection_ids, 2, 4);
+    }
   }
   // Process CHLO at first.
   session_ptr->ProcessUdpPacket(packet_info->self_address,
@@ -1482,6 +1416,58 @@ bool QuicDispatcher::IsSupportedVersion(const ParsedQuicVersion version) {
     }
   }
   return false;
+}
+
+std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
+    const QuicConnectionId original_connection_id,
+    const ParsedClientHello& parsed_chlo, const ParsedQuicVersion version,
+    const QuicSocketAddress self_address,
+    const QuicSocketAddress peer_address) {
+  QuicConnectionId server_connection_id =
+      MaybeReplaceServerConnectionId(original_connection_id, version);
+  // Creates a new session and process all buffered packets for this connection.
+  std::string alpn = SelectAlpn(parsed_chlo.alpns);
+  std::unique_ptr<QuicSession> session =
+      CreateQuicSession(server_connection_id, self_address, peer_address, alpn,
+                        version, parsed_chlo);
+  if (ABSL_PREDICT_FALSE(session == nullptr)) {
+    QUIC_BUG(quic_bug_10287_8)
+        << "CreateQuicSession returned nullptr for " << server_connection_id
+        << " from " << peer_address << " to " << self_address << " ALPN \""
+        << alpn << "\" version " << version;
+    return nullptr;
+  }
+  const bool replaced_connection_id =
+      original_connection_id != server_connection_id;
+  if (replaced_connection_id) {
+    session->connection()->SetOriginalDestinationConnectionId(
+        original_connection_id);
+  }
+  QUIC_DLOG(INFO) << "Created new session for " << server_connection_id;
+
+  auto insertion_result = reference_counted_session_map_.insert(std::make_pair(
+      server_connection_id, std::shared_ptr<QuicSession>(std::move(session))));
+  std::shared_ptr<QuicSession> session_ptr = insertion_result.first->second;
+  if (!insertion_result.second) {
+    QUIC_BUG(quic_bug_10287_9)
+        << "Tried to add a session to session_map with existing "
+           "connection id: "
+        << server_connection_id;
+  } else {
+    ++num_sessions_in_session_map_;
+    if (GetQuicRestartFlag(quic_map_original_connection_ids) &&
+        replaced_connection_id) {
+      auto insertion_result2 = reference_counted_session_map_.insert(
+          std::make_pair(original_connection_id, session_ptr));
+      QUIC_BUG_IF(quic_460317833_02, !insertion_result2.second)
+          << "Original connection ID already in session_map: "
+          << original_connection_id;
+      // If insertion of the original connection ID fails, it might cause
+      // loss of 0-RTT and other first flight packets, but the connection
+      // will usually progress.
+    }
+  }
+  return session_ptr;
 }
 
 void QuicDispatcher::MaybeResetPacketsWithNoVersion(

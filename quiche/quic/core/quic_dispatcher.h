@@ -397,6 +397,13 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Returns true if |version| is a supported protocol version.
   bool IsSupportedVersion(const ParsedQuicVersion version);
 
+  // Core CHLO processing logic.
+  std::shared_ptr<QuicSession> CreateSessionFromChlo(
+      const QuicConnectionId original_connection_id,
+      const ParsedClientHello& parsed_chlo, const ParsedQuicVersion version,
+      const QuicSocketAddress self_address,
+      const QuicSocketAddress peer_address);
+
   const QuicConfig* config_;
 
   const QuicCryptoServerConfig* crypto_config_;
