@@ -1175,20 +1175,17 @@ size_t QuicSpdyStream::WriteHeadersImpl(
   }
 
   // Write HEADERS frame.
-  std::unique_ptr<char[]> headers_frame_header;
-  const size_t headers_frame_header_length =
-      HttpEncoder::SerializeHeadersFrameHeader(encoded_headers.size(),
-                                               &headers_frame_header);
+  std::string headers_frame_header =
+      HttpEncoder::SerializeHeadersFrameHeader(encoded_headers.size());
   unacked_frame_headers_offsets_.Add(
       send_buffer().stream_offset(),
-      send_buffer().stream_offset() + headers_frame_header_length);
+      send_buffer().stream_offset() + headers_frame_header.length());
 
   QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing HEADERS frame header of length "
-                  << headers_frame_header_length;
-  WriteOrBufferData(absl::string_view(headers_frame_header.get(),
-                                      headers_frame_header_length),
-                    /* fin = */ false, /* ack_listener = */ nullptr);
+                  << headers_frame_header.length();
+  WriteOrBufferData(headers_frame_header, /* fin = */ false,
+                    /* ack_listener = */ nullptr);
 
   QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing HEADERS frame payload of length "
@@ -1320,10 +1317,9 @@ void QuicSpdyStream::ConvertToWebTransportDataStream(
     return;
   }
 
-  std::unique_ptr<char[]> header;
-  QuicByteCount header_size =
-      HttpEncoder::SerializeWebTransportStreamFrameHeader(session_id, &header);
-  if (header_size == 0) {
+  std::string header =
+      HttpEncoder::SerializeWebTransportStreamFrameHeader(session_id);
+  if (header.empty()) {
     QUIC_BUG(Failed to serialize WEBTRANSPORT_STREAM)
         << "Failed to serialize a WEBTRANSPORT_STREAM frame.";
     OnUnrecoverableError(QUIC_INTERNAL_ERROR,
@@ -1331,8 +1327,7 @@ void QuicSpdyStream::ConvertToWebTransportDataStream(
     return;
   }
 
-  WriteOrBufferData(absl::string_view(header.get(), header_size), /*fin=*/false,
-                    nullptr);
+  WriteOrBufferData(header, /*fin=*/false, nullptr);
   web_transport_data_ =
       std::make_unique<WebTransportDataStream>(this, session_id);
   QUIC_DVLOG(1) << ENDPOINT << "Successfully opened WebTransport data stream "

@@ -25,14 +25,13 @@ TEST(HttpEncoderTest, SerializeDataFrameHeader) {
 }
 
 TEST(HttpEncoderTest, SerializeHeadersFrameHeader) {
-  std::unique_ptr<char[]> buffer;
-  uint64_t length = HttpEncoder::SerializeHeadersFrameHeader(
-      /* payload_length = */ 7, &buffer);
+  std::string header =
+      HttpEncoder::SerializeHeadersFrameHeader(/* payload_length = */ 7);
   char output[] = {0x01,   // type (HEADERS)
                    0x07};  // length
-  EXPECT_EQ(ABSL_ARRAYSIZE(output), length);
-  quiche::test::CompareCharArraysWithHexError("HEADERS", buffer.get(), length,
-                                              output, ABSL_ARRAYSIZE(output));
+  quiche::test::CompareCharArraysWithHexError("HEADERS", header.data(),
+                                              header.length(), output,
+                                              ABSL_ARRAYSIZE(output));
 }
 
 TEST(HttpEncoderTest, SerializeSettingsFrame) {
@@ -48,11 +47,9 @@ TEST(HttpEncoderTest, SerializeSettingsFrame) {
                    0x05,  // content
                    0x41, 0x00,  // identifier 0x100, varint encoded
                    0x04};       // content
-  std::unique_ptr<char[]> buffer;
-  uint64_t length = HttpEncoder::SerializeSettingsFrame(settings, &buffer);
-  EXPECT_EQ(ABSL_ARRAYSIZE(output), length);
-  quiche::test::CompareCharArraysWithHexError("SETTINGS", buffer.get(), length,
-                                              output, ABSL_ARRAYSIZE(output));
+  std::string frame = HttpEncoder::SerializeSettingsFrame(settings);
+  quiche::test::CompareCharArraysWithHexError(
+      "SETTINGS", frame.data(), frame.length(), output, ABSL_ARRAYSIZE(output));
 }
 
 TEST(HttpEncoderTest, SerializeGoAwayFrame) {
@@ -61,11 +58,9 @@ TEST(HttpEncoderTest, SerializeGoAwayFrame) {
   char output[] = {0x07,   // type (GOAWAY)
                    0x1,    // length
                    0x01};  // ID
-  std::unique_ptr<char[]> buffer;
-  uint64_t length = HttpEncoder::SerializeGoAwayFrame(goaway, &buffer);
-  EXPECT_EQ(ABSL_ARRAYSIZE(output), length);
-  quiche::test::CompareCharArraysWithHexError("GOAWAY", buffer.get(), length,
-                                              output, ABSL_ARRAYSIZE(output));
+  std::string frame = HttpEncoder::SerializeGoAwayFrame(goaway);
+  quiche::test::CompareCharArraysWithHexError(
+      "GOAWAY", frame.data(), frame.length(), output, ABSL_ARRAYSIZE(output));
 }
 
 TEST(HttpEncoderTest, SerializePriorityUpdateFrame) {
@@ -113,23 +108,20 @@ TEST(HttpEncoderTest, SerializeWebTransportStreamFrameHeader) {
   char output[] = {0x40, 0x41,  // type (WEBTRANSPORT_STREAM)
                    0x17};       // session ID
 
-  std::unique_ptr<char[]> buffer;
-  uint64_t length =
-      HttpEncoder::SerializeWebTransportStreamFrameHeader(session_id, &buffer);
-  EXPECT_EQ(sizeof(output), length);
-  quiche::test::CompareCharArraysWithHexError(
-      "WEBTRANSPORT_STREAM", buffer.get(), length, output, sizeof(output));
+  std::string frame =
+      HttpEncoder::SerializeWebTransportStreamFrameHeader(session_id);
+  quiche::test::CompareCharArraysWithHexError("WEBTRANSPORT_STREAM",
+                                              frame.data(), frame.length(),
+                                              output, sizeof(output));
 }
 
 TEST(HttpEncoderTest, SerializeMetadataFrameHeader) {
-  std::unique_ptr<char[]> buffer;
-  uint64_t length = HttpEncoder::SerializeMetadataFrameHeader(
-      /* payload_length = */ 7, &buffer);
+  std::string frame = HttpEncoder::SerializeMetadataFrameHeader(
+      /* payload_length = */ 7);
   char output[] = {0x40, 0x4d,  // type (METADATA, 0x4d, varint encoded)
                    0x07};       // length
-  EXPECT_EQ(ABSL_ARRAYSIZE(output), length);
-  quiche::test::CompareCharArraysWithHexError("METADATA", buffer.get(), length,
-                                              output, ABSL_ARRAYSIZE(output));
+  quiche::test::CompareCharArraysWithHexError(
+      "METADATA", frame.data(), frame.length(), output, ABSL_ARRAYSIZE(output));
 }
 
 }  // namespace test

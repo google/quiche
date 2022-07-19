@@ -31,20 +31,14 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
   static quiche::QuicheBuffer SerializeDataFrameHeader(
       QuicByteCount payload_length, quiche::QuicheBufferAllocator* allocator);
 
-  // Serializes a HEADERS frame header into a new buffer stored in |output|.
-  // Returns the length of the buffer on success, or 0 otherwise.
-  static QuicByteCount SerializeHeadersFrameHeader(
-      QuicByteCount payload_length, std::unique_ptr<char[]>* output);
+  // Serializes a HEADERS frame header.
+  static std::string SerializeHeadersFrameHeader(QuicByteCount payload_length);
 
-  // Serializes a SETTINGS frame into a new buffer stored in |output|.
-  // Returns the length of the buffer on success, or 0 otherwise.
-  static QuicByteCount SerializeSettingsFrame(const SettingsFrame& settings,
-                                              std::unique_ptr<char[]>* output);
+  // Serializes a SETTINGS frame.
+  static std::string SerializeSettingsFrame(const SettingsFrame& settings);
 
-  // Serializes a GOAWAY frame into a new buffer stored in |output|.
-  // Returns the length of the buffer on success, or 0 otherwise.
-  static QuicByteCount SerializeGoAwayFrame(const GoAwayFrame& goaway,
-                                            std::unique_ptr<char[]>* output);
+  // Serializes a GOAWAY frame.
+  static std::string SerializeGoAwayFrame(const GoAwayFrame& goaway);
 
   // Serializes a PRIORITY_UPDATE frame.
   static std::string SerializePriorityUpdateFrame(
@@ -57,17 +51,15 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
 
   // Serializes a frame with reserved frame type specified in
   // https://tools.ietf.org/html/draft-ietf-quic-http-25#section-7.2.9.
-  static QuicByteCount SerializeGreasingFrame(std::unique_ptr<char[]>* output);
+  static std::string SerializeGreasingFrame();
 
   // Serializes a WEBTRANSPORT_STREAM frame header as specified in
   // https://www.ietf.org/archive/id/draft-ietf-webtrans-http3-00.html#name-client-initiated-bidirectio
-  static QuicByteCount SerializeWebTransportStreamFrameHeader(
-      WebTransportSessionId session_id, std::unique_ptr<char[]>* output);
+  static std::string SerializeWebTransportStreamFrameHeader(
+      WebTransportSessionId session_id);
 
-  // Serializes a METADATA frame header into a new buffer stored in |output|.
-  // Returns the length of the buffer on success, or 0 otherwise.
-  static QuicByteCount SerializeMetadataFrameHeader(
-      QuicByteCount payload_length, std::unique_ptr<char[]>* output);
+  // Serializes a METADATA frame header.
+  static std::string SerializeMetadataFrameHeader(QuicByteCount payload_length);
 };
 
 }  // namespace quic

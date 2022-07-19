@@ -318,12 +318,8 @@ TEST_F(QuicSpdyServerStreamBaseTest, EmptyHeaders) {
       &encoder_stream_sender_delegate);
   std::string payload =
       qpack_encoder->EncodeHeaderList(stream_->id(), empty_header, nullptr);
-  std::unique_ptr<char[]> headers_buffer;
-  quic::QuicByteCount headers_frame_header_length =
-      quic::HttpEncoder::SerializeHeadersFrameHeader(payload.length(),
-                                                     &headers_buffer);
-  absl::string_view headers_frame_header(headers_buffer.get(),
-                                         headers_frame_header_length);
+  std::string headers_frame_header =
+      quic::HttpEncoder::SerializeHeadersFrameHeader(payload.length());
 
   EXPECT_CALL(
       session_,

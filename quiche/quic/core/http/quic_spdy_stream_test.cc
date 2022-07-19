@@ -488,12 +488,8 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   // Construct HEADERS frame with given payload.
   std::string HeadersFrame(absl::string_view payload) {
-    std::unique_ptr<char[]> headers_buffer;
-    QuicByteCount headers_frame_header_length =
-        HttpEncoder::SerializeHeadersFrameHeader(payload.length(),
-                                                 &headers_buffer);
-    absl::string_view headers_frame_header(headers_buffer.get(),
-                                           headers_frame_header_length);
+    std::string headers_frame_header =
+        HttpEncoder::SerializeHeadersFrameHeader(payload.length());
     return absl::StrCat(headers_frame_header, payload);
   }
 
@@ -709,17 +705,14 @@ TEST_P(QuicSpdyStreamTest, ProcessWrongFramesOnSpdyStream) {
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
   GoAwayFrame goaway;
   goaway.id = 0x1;
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount header_length =
-      HttpEncoder::SerializeGoAwayFrame(goaway, &buffer);
-  std::string data = std::string(buffer.get(), header_length);
+  std::string goaway_frame = HttpEncoder::SerializeGoAwayFrame(goaway);
 
   EXPECT_EQ("", stream_->data());
   QuicHeaderList headers = ProcessHeaders(false, headers_);
   EXPECT_EQ(headers, stream_->header_list());
   stream_->ConsumeHeaderList();
   QuicStreamFrame frame(GetNthClientInitiatedBidirectionalId(0), false, 0,
-                        absl::string_view(data));
+                        goaway_frame);
 
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_SPDY_STREAM, _, _))

@@ -806,11 +806,11 @@ TEST_F(HttpDecoderTest, EmptyMaxPushIdFrame) {
 TEST_F(HttpDecoderTest, LargeStreamIdInGoAway) {
   GoAwayFrame frame;
   frame.id = 1ull << 60;
-  std::unique_ptr<char[]> buffer;
-  uint64_t length = HttpEncoder::SerializeGoAwayFrame(frame, &buffer);
+  std::string goaway = HttpEncoder::SerializeGoAwayFrame(frame);
   EXPECT_CALL(visitor_, OnGoAwayFrame(frame));
-  EXPECT_GT(length, 0u);
-  EXPECT_EQ(length, decoder_.ProcessInput(buffer.get(), length));
+  EXPECT_GT(goaway.length(), 0u);
+  EXPECT_EQ(goaway.length(),
+            decoder_.ProcessInput(goaway.data(), goaway.length()));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
 }

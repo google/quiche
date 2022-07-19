@@ -109,13 +109,6 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
 
   Perspective perspective() const { return GetParam().perspective; }
 
-  std::string EncodeSettings(const SettingsFrame& settings) {
-    std::unique_ptr<char[]> buffer;
-    QuicByteCount settings_frame_length =
-        HttpEncoder::SerializeSettingsFrame(settings, &buffer);
-    return std::string(buffer.get(), settings_frame_length);
-  }
-
   QuicStreamOffset NumBytesConsumed() {
     return QuicStreamPeer::sequencer(receive_control_stream_)
         ->NumBytesConsumed();
@@ -149,7 +142,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettings) {
   settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
   settings.values[SETTINGS_QPACK_BLOCKED_STREAMS] = 12;
   settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 37;
-  std::string data = EncodeSettings(settings);
+  std::string data = HttpEncoder::SerializeSettingsFrame(settings);
   QuicStreamFrame frame(receive_control_stream_->id(), false, 1, data);
 
   QpackEncoder* qpack_encoder = session_.qpack_encoder();
@@ -176,7 +169,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsTwice) {
   settings.values[0x21] = 100;
   settings.values[0x40] = 200;
 
-  std::string settings_frame = EncodeSettings(settings);
+  std::string settings_frame = HttpEncoder::SerializeSettingsFrame(settings);
 
   QuicStreamOffset offset = 1;
   EXPECT_EQ(offset, NumBytesConsumed());
@@ -214,7 +207,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsFragments) {
   SettingsFrame settings;
   settings.values[10] = 2;
   settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
-  std::string data = EncodeSettings(settings);
+  std::string data = HttpEncoder::SerializeSettingsFrame(settings);
   std::string data1 = data.substr(0, 1);
   std::string data2 = data.substr(1, data.length() - 1);
 
@@ -266,7 +259,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
 
   // Receive SETTINGS frame.
   SettingsFrame settings;
-  std::string settings_frame = EncodeSettings(settings);
+  std::string settings_frame = HttpEncoder::SerializeSettingsFrame(settings);
   EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
   receive_control_stream_->OnStreamFrame(
       QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false, offset,
@@ -274,18 +267,15 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
   offset += settings_frame.length();
 
   GoAwayFrame goaway{/* id = */ 0};
+  std::string goaway_frame = HttpEncoder::SerializeGoAwayFrame(goaway);
+  QuicStreamFrame frame(receive_control_stream_->id(), false, offset,
+                        goaway_frame);
 
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount header_length =
-      HttpEncoder::SerializeGoAwayFrame(goaway, &buffer);
-  std::string data = std::string(buffer.get(), header_length);
-
-  QuicStreamFrame frame(receive_control_stream_->id(), false, offset, data);
   EXPECT_FALSE(session_.goaway_received());
 
   EXPECT_CALL(debug_visitor, OnGoAwayFrameReceived(goaway));
-
   receive_control_stream_->OnStreamFrame(frame);
+
   EXPECT_TRUE(session_.goaway_received());
 }
 
@@ -311,7 +301,7 @@ TEST_P(QuicReceiveControlStreamTest, ConsumeUnknownFrame) {
   QuicStreamOffset offset = 1;
 
   // Receive SETTINGS frame.
-  std::string settings_frame = EncodeSettings({});
+  std::string settings_frame = HttpEncoder::SerializeSettingsFrame({});
   receive_control_stream_->OnStreamFrame(
       QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false, offset,
                       settings_frame));
@@ -343,7 +333,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveUnknownFrame) {
 
   // Receive SETTINGS frame.
   SettingsFrame settings;
-  std::string settings_frame = EncodeSettings(settings);
+  std::string settings_frame = HttpEncoder::SerializeSettingsFrame(settings);
   EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
   receive_control_stream_->OnStreamFrame(
       QuicStreamFrame(id, /* fin = */ false, offset, settings_frame));
@@ -417,7 +407,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveAcceptChFrame) {
 
   // Receive SETTINGS frame.
   SettingsFrame settings;
-  std::string settings_frame = EncodeSettings(settings);
+  std::string settings_frame = HttpEncoder::SerializeSettingsFrame(settings);
   EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
   receive_control_stream_->OnStreamFrame(
       QuicStreamFrame(id, /* fin = */ false, offset, settings_frame));

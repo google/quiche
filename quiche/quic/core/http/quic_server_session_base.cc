@@ -317,13 +317,12 @@ void QuicServerSessionBase::SendSettingsToCryptoStream() {
   if (!version().UsesTls()) {
     return;
   }
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount buffer_size =
-      HttpEncoder::SerializeSettingsFrame(settings(), &buffer);
+  std::string settings_frame = HttpEncoder::SerializeSettingsFrame(settings());
 
   std::unique_ptr<ApplicationState> serialized_settings =
-      std::make_unique<ApplicationState>(buffer.get(),
-                                         buffer.get() + buffer_size);
+      std::make_unique<ApplicationState>(
+          settings_frame.data(),
+          settings_frame.data() + settings_frame.length());
   GetMutableCryptoStream()->SetServerApplicationStateForResumption(
       std::move(serialized_settings));
 }

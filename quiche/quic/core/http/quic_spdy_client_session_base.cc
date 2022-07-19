@@ -259,11 +259,9 @@ bool QuicSpdyClientSessionBase::OnSettingsFrame(const SettingsFrame& frame) {
   if (!QuicSpdySession::OnSettingsFrame(frame)) {
     return false;
   }
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount frame_length =
-      HttpEncoder::SerializeSettingsFrame(frame, &buffer);
+  std::string settings_frame = HttpEncoder::SerializeSettingsFrame(frame);
   auto serialized_data = std::make_unique<ApplicationState>(
-      buffer.get(), buffer.get() + frame_length);
+      settings_frame.data(), settings_frame.data() + settings_frame.length());
   GetMutableCryptoStream()->SetServerApplicationStateForResumption(
       std::move(serialized_data));
   return true;

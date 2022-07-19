@@ -505,12 +505,6 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     return QuicUtils::StreamIdDelta(transport_version());
   }
 
-  std::string EncodeSettings(const SettingsFrame& settings) {
-    std::unique_ptr<char[]> buffer;
-    auto header_length = HttpEncoder::SerializeSettingsFrame(settings, &buffer);
-    return std::string(buffer.get(), header_length);
-  }
-
   QuicStreamId StreamCountToId(QuicStreamCount stream_count,
                                Perspective perspective, bool bidirectional) {
     // Calculate and build up stream ID rather than use
@@ -551,8 +545,8 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     settings.values[SETTINGS_H3_DATAGRAM_DRAFT04] = 1;
     settings.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
     settings.values[SETTINGS_ENABLE_CONNECT_PROTOCOL] = 1;
-    std::string data =
-        std::string(1, kControlStream) + EncodeSettings(settings);
+    std::string data = std::string(1, kControlStream) +
+                       HttpEncoder::SerializeSettingsFrame(settings);
     QuicStreamId control_stream_id =
         session_.perspective() == Perspective::IS_SERVER
             ? GetNthClientInitiatedUnidirectionalStreamId(transport_version(),
@@ -2208,7 +2202,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
             QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
 
   // Send SETTINGS frame.
-  std::string serialized_settings = EncodeSettings({});
+  std::string serialized_settings = HttpEncoder::SerializeSettingsFrame({});
   QuicStreamFrame data2(receive_control_stream_id, false, offset,
                         serialized_settings);
   offset += serialized_settings.length();
@@ -2412,8 +2406,8 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
   settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 512;
   settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
   settings.values[SETTINGS_QPACK_BLOCKED_STREAMS] = 42;
-  std::string data = EncodeSettings(settings);
-  QuicStreamFrame frame(stream_id, false, 1, absl::string_view(data));
+  std::string data = HttpEncoder::SerializeSettingsFrame(settings);
+  QuicStreamFrame frame(stream_id, false, 1, data);
 
   QpackEncoder* qpack_encoder = session_.qpack_encoder();
   QpackEncoderHeaderTable* header_table =
@@ -2442,9 +2436,9 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStreamOutOfOrderDelivery) {
   SettingsFrame settings;
   settings.values[10] = 2;
   settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
-  std::string data = EncodeSettings(settings);
+  std::string data = HttpEncoder::SerializeSettingsFrame(settings);
 
-  QuicStreamFrame data1(stream_id, false, 1, absl::string_view(data));
+  QuicStreamFrame data1(stream_id, false, 1, data);
   QuicStreamFrame data2(stream_id, false, 0, absl::string_view(type, 1));
 
   session_.OnStreamFrame(data1);
@@ -2465,15 +2459,12 @@ TEST_P(QuicSpdySessionTestServer, StreamClosedWhileHeaderDecodingBlocked) {
   TestStream* stream = session_.CreateIncomingStream(stream_id);
 
   // HEADERS frame referencing first dynamic table entry.
-  std::string headers_payload = absl::HexStringToBytes("020080");
-  std::unique_ptr<char[]> headers_buffer;
-  QuicByteCount headers_frame_header_length =
-      HttpEncoder::SerializeHeadersFrameHeader(headers_payload.length(),
-                                               &headers_buffer);
-  absl::string_view headers_frame_header(headers_buffer.get(),
-                                         headers_frame_header_length);
-  std::string headers = absl::StrCat(headers_frame_header, headers_payload);
-  stream->OnStreamFrame(QuicStreamFrame(stream_id, false, 0, headers));
+  std::string headers_frame_payload = absl::HexStringToBytes("020080");
+  std::string headers_frame_header =
+      HttpEncoder::SerializeHeadersFrameHeader(headers_frame_payload.length());
+  std::string headers_frame =
+      absl::StrCat(headers_frame_header, headers_frame_payload);
+  stream->OnStreamFrame(QuicStreamFrame(stream_id, false, 0, headers_frame));
 
   // Decoding is blocked because dynamic table entry has not been received yet.
   EXPECT_FALSE(stream->headers_decompressed());
@@ -2499,15 +2490,12 @@ TEST_P(QuicSpdySessionTestServer, SessionDestroyedWhileHeaderDecodingBlocked) {
   TestStream* stream = session_.CreateIncomingStream(stream_id);
 
   // HEADERS frame referencing first dynamic table entry.
-  std::string headers_payload = absl::HexStringToBytes("020080");
-  std::unique_ptr<char[]> headers_buffer;
-  QuicByteCount headers_frame_header_length =
-      HttpEncoder::SerializeHeadersFrameHeader(headers_payload.length(),
-                                               &headers_buffer);
-  absl::string_view headers_frame_header(headers_buffer.get(),
-                                         headers_frame_header_length);
-  std::string headers = absl::StrCat(headers_frame_header, headers_payload);
-  stream->OnStreamFrame(QuicStreamFrame(stream_id, false, 0, headers));
+  std::string headers_frame_payload = absl::HexStringToBytes("020080");
+  std::string headers_frame_header =
+      HttpEncoder::SerializeHeadersFrameHeader(headers_frame_payload.length());
+  std::string headers_frame =
+      absl::StrCat(headers_frame_header, headers_frame_payload);
+  stream->OnStreamFrame(QuicStreamFrame(stream_id, false, 0, headers_frame));
 
   // Decoding is blocked because dynamic table entry has not been received yet.
   EXPECT_FALSE(stream->headers_decompressed());
@@ -2824,7 +2812,7 @@ TEST_P(QuicSpdySessionTestClient, CloseConnectionOnCancelPush) {
             QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
 
   // First frame has to be SETTINGS.
-  std::string serialized_settings = EncodeSettings({});
+  std::string serialized_settings = HttpEncoder::SerializeSettingsFrame({});
   QuicStreamFrame data2(receive_control_stream_id, /* fin = */ false, offset,
                         serialized_settings);
   offset += serialized_settings.length();
@@ -3026,7 +3014,7 @@ TEST_P(QuicSpdySessionTestServer, CloseConnectionOnCancelPush) {
             QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
 
   // First frame has to be SETTINGS.
-  std::string serialized_settings = EncodeSettings({});
+  std::string serialized_settings = HttpEncoder::SerializeSettingsFrame({});
   QuicStreamFrame data2(receive_control_stream_id, /* fin = */ false, offset,
                         serialized_settings);
   offset += serialized_settings.length();
@@ -3064,13 +3052,9 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayWhenClosingConnection) {
 
   // Create stream by receiving some data (CreateIncomingStream() would not
   // update the session's largest peer created stream ID).
-  const size_t headers_payload_length = 10;
-  std::unique_ptr<char[]> headers_buffer;
-  QuicByteCount headers_frame_header_length =
-      HttpEncoder::SerializeHeadersFrameHeader(headers_payload_length,
-                                               &headers_buffer);
-  absl::string_view headers_frame_header(headers_buffer.get(),
-                                         headers_frame_header_length);
+  const QuicByteCount headers_payload_length = 10;
+  std::string headers_frame_header =
+      HttpEncoder::SerializeHeadersFrameHeader(headers_payload_length);
   EXPECT_CALL(debug_visitor,
               OnHeadersFrameReceived(stream_id, headers_payload_length));
   session_.OnStreamFrame(
@@ -3156,7 +3140,7 @@ TEST_P(QuicSpdySessionTestClient, ReceiveAcceptChFrame) {
             QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
 
   // First frame has to be SETTINGS.
-  std::string serialized_settings = EncodeSettings({});
+  std::string serialized_settings = HttpEncoder::SerializeSettingsFrame({});
   QuicStreamFrame data2(receive_control_stream_id, /* fin = */ false, offset,
                         serialized_settings);
   offset += serialized_settings.length();
@@ -3395,7 +3379,8 @@ void QuicSpdySessionTestBase::TestHttpDatagramSetting(
       settings.values[SETTINGS_H3_DATAGRAM_DRAFT09] = 1;
       break;
   }
-  std::string data = std::string(1, kControlStream) + EncodeSettings(settings);
+  std::string data = std::string(1, kControlStream) +
+                     HttpEncoder::SerializeSettingsFrame(settings);
   QuicStreamId stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
   QuicStreamFrame frame(stream_id, /*fin=*/false, /*offset=*/0, data);
@@ -3522,8 +3507,8 @@ TEST_P(QuicSpdySessionTestClient, WebTransportSettingSetToZero) {
   SettingsFrame server_settings;
   server_settings.values[SETTINGS_H3_DATAGRAM_DRAFT04] = 1;
   server_settings.values[SETTINGS_WEBTRANS_DRAFT00] = 0;
-  std::string data =
-      std::string(1, kControlStream) + EncodeSettings(server_settings);
+  std::string data = std::string(1, kControlStream) +
+                     HttpEncoder::SerializeSettingsFrame(server_settings);
   QuicStreamId stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
   QuicStreamFrame frame(stream_id, /*fin=*/false, /*offset=*/0, data);
@@ -3675,7 +3660,8 @@ TEST_P(QuicSpdySessionTestClient, WebTransportWithoutExtendedConnect) {
   settings.values[SETTINGS_H3_DATAGRAM_DRAFT04] = 1;
   settings.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
   // No SETTINGS_ENABLE_CONNECT_PROTOCOL here.
-  std::string data = std::string(1, kControlStream) + EncodeSettings(settings);
+  std::string data = std::string(1, kControlStream) +
+                     HttpEncoder::SerializeSettingsFrame(settings);
   QuicStreamId control_stream_id =
       session_.perspective() == Perspective::IS_SERVER
           ? GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3)
@@ -3783,7 +3769,8 @@ TEST_P(QuicSpdySessionTestServerNoExtendedConnect, BadExtendedConnectSetting) {
   // ENABLE_CONNECT_PROTOCOL setting value has to be 1 or 0;
   SettingsFrame settings;
   settings.values[SETTINGS_ENABLE_CONNECT_PROTOCOL] = 2;
-  std::string data = std::string(1, kControlStream) + EncodeSettings(settings);
+  std::string data = std::string(1, kControlStream) +
+                     HttpEncoder::SerializeSettingsFrame(settings);
   QuicStreamId control_stream_id =
       session_.perspective() == Perspective::IS_SERVER
           ? GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3)

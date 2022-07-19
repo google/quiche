@@ -76,13 +76,13 @@ class TlsChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
     SettingsFrame server_settings;
     server_settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] =
         kDefaultQpackMaxDynamicTableCapacity;
-    std::unique_ptr<char[]> buffer;
-    uint64_t length =
-        HttpEncoder::SerializeSettingsFrame(server_settings, &buffer);
+    std::string settings_frame =
+        HttpEncoder::SerializeSettingsFrame(server_settings);
     client_session.GetMutableCryptoStream()
         ->SetServerApplicationStateForResumption(
-            std::make_unique<ApplicationState>(buffer.get(),
-                                               buffer.get() + length));
+            std::make_unique<ApplicationState>(
+                settings_frame.data(),
+                settings_frame.data() + settings_frame.length()));
   }
 
   void IngestPackets() {
