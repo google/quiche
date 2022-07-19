@@ -357,7 +357,6 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
           options.should_window_update_fn,
           /*update_window_on_notify=*/false) {
   decoder_.set_visitor(&receive_logger_);
-  decoder_.set_extension_visitor(this);
   if (options_.max_header_list_bytes) {
     // Limit buffering of encoded HPACK data to 2x the decoded limit.
     decoder_.GetHpackDecoder()->set_max_decode_buffer_size_bytes(
@@ -1491,12 +1490,52 @@ bool OgHttp2Session::OnUnknownFrame(spdy::SpdyStreamId /*stream_id*/,
   return true;
 }
 
-void OgHttp2Session::OnUnknownFrameStart(spdy::SpdyStreamId /*stream_id*/,
-                                         size_t /*length*/, uint8_t /*type*/,
-                                         uint8_t /*flags*/) {}
+void OgHttp2Session::OnUnknownFrameStart(spdy::SpdyStreamId stream_id,
+                                         size_t length, uint8_t type,
+                                         uint8_t flags) {
+  process_metadata_ = false;
+  if (streams_reset_.contains(stream_id)) {
+    return;
+  }
+  if (type == kMetadataFrameType) {
+    QUICHE_DCHECK_EQ(metadata_length_, 0u);
+    visitor_.OnBeginMetadataForStream(stream_id, length);
+    metadata_length_ = length;
+    process_metadata_ = true;
+    end_metadata_ = flags & kMetadataEndFlag;
 
-void OgHttp2Session::OnUnknownFramePayload(spdy::SpdyStreamId /*stream_id*/,
-                                           absl::string_view /*payload*/) {}
+    // Empty metadata payloads will not trigger OnUnknownFramePayload(), so
+    // handle that possibility here.
+    MaybeHandleMetadataEndForStream(stream_id);
+  } else {
+    QUICHE_DLOG(INFO) << "Received unexpected frame type "
+                      << static_cast<int>(type);
+  }
+}
+
+void OgHttp2Session::OnUnknownFramePayload(spdy::SpdyStreamId stream_id,
+                                           absl::string_view payload) {
+  if (!process_metadata_) {
+    return;
+  }
+  if (streams_reset_.contains(stream_id)) {
+    return;
+  }
+  if (metadata_length_ > 0) {
+    QUICHE_DCHECK_LE(payload.size(), metadata_length_);
+    const bool payload_success =
+        visitor_.OnMetadataForStream(stream_id, payload);
+    if (payload_success) {
+      metadata_length_ -= payload.size();
+      MaybeHandleMetadataEndForStream(stream_id);
+    } else {
+      fatal_visitor_callback_failure_ = true;
+      decoder_.StopProcessing();
+    }
+  } else {
+    QUICHE_DLOG(INFO) << "Unexpected metadata payload for stream " << stream_id;
+  }
+}
 
 void OgHttp2Session::OnHeaderStatus(
     Http2StreamId stream_id, Http2VisitorInterface::OnHeaderResult result) {
@@ -1539,51 +1578,6 @@ void OgHttp2Session::OnHeaderStatus(
   } else if (result == Http2VisitorInterface::HEADER_COMPRESSION_ERROR) {
     LatchErrorAndNotify(Http2ErrorCode::COMPRESSION_ERROR,
                         ConnectionError::kHeaderError);
-  }
-}
-
-bool OgHttp2Session::OnFrameHeader(spdy::SpdyStreamId stream_id, size_t length,
-                                   uint8_t type, uint8_t flags) {
-  if (streams_reset_.contains(stream_id)) {
-    return false;
-  }
-  if (type == kMetadataFrameType) {
-    QUICHE_DCHECK_EQ(metadata_length_, 0u);
-    visitor_.OnBeginMetadataForStream(stream_id, length);
-    metadata_stream_id_ = stream_id;
-    metadata_length_ = length;
-    end_metadata_ = flags & kMetadataEndFlag;
-
-    // Empty metadata payloads will not trigger OnFramePayload(), so handle
-    // that possibility here.
-    MaybeHandleMetadataEndForStream(metadata_stream_id_);
-
-    return true;
-  } else {
-    QUICHE_DLOG(INFO) << "Unexpected frame type " << static_cast<int>(type)
-                      << " received by the extension visitor.";
-    return false;
-  }
-}
-
-void OgHttp2Session::OnFramePayload(const char* data, size_t len) {
-  if (streams_reset_.contains(metadata_stream_id_)) {
-    return;
-  }
-  if (metadata_length_ > 0) {
-    QUICHE_DCHECK_LE(len, metadata_length_);
-    const bool payload_success = visitor_.OnMetadataForStream(
-        metadata_stream_id_, absl::string_view(data, len));
-    if (payload_success) {
-      metadata_length_ -= len;
-      MaybeHandleMetadataEndForStream(metadata_stream_id_);
-    } else {
-      fatal_visitor_callback_failure_ = true;
-      decoder_.StopProcessing();
-    }
-  } else {
-    QUICHE_DLOG(INFO) << "Unexpected metadata payload for stream "
-                      << metadata_stream_id_;
   }
 }
 
@@ -1894,7 +1888,7 @@ void OgHttp2Session::MaybeHandleMetadataEndForStream(Http2StreamId stream_id) {
       fatal_visitor_callback_failure_ = true;
       decoder_.StopProcessing();
     }
-    metadata_stream_id_ = 0;
+    process_metadata_ = false;
     end_metadata_ = false;
   }
 }

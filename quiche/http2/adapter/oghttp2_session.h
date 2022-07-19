@@ -36,8 +36,7 @@ namespace adapter {
 // This class manages state associated with a single multiplexed HTTP/2 session.
 class QUICHE_EXPORT_PRIVATE OgHttp2Session
     : public Http2Session,
-      public spdy::SpdyFramerVisitorInterface,
-      public spdy::ExtensionVisitorInterface {
+      public spdy::SpdyFramerVisitorInterface {
  public:
   struct QUICHE_EXPORT_PRIVATE Options {
     // Returns whether to send a WINDOW_UPDATE based on the window limit, window
@@ -212,13 +211,6 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // problematic header.
   void OnHeaderStatus(Http2StreamId stream_id,
                       Http2VisitorInterface::OnHeaderResult result);
-
-  // Returns true if a recognized extension frame is received.
-  bool OnFrameHeader(spdy::SpdyStreamId stream_id, size_t length, uint8_t type,
-                     uint8_t flags) override;
-
-  // Handles the payload for a recognized extension frame.
-  void OnFramePayload(const char* data, size_t len) override;
 
  private:
   struct QUICHE_EXPORT_PRIVATE StreamState {
@@ -507,7 +499,6 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   // which this endpoint created a stream in the stream map.
   Http2StreamId highest_received_stream_id_ = 0;
   Http2StreamId highest_processed_stream_id_ = 0;
-  Http2StreamId metadata_stream_id_ = 0;
   Http2StreamId received_goaway_stream_id_ = 0;
   size_t metadata_length_ = 0;
   int32_t connection_send_window_ = kInitialFlowControlWindowSize;
@@ -537,6 +528,7 @@ class QUICHE_EXPORT_PRIVATE OgHttp2Session
   bool queued_preface_ = false;
   bool peer_supports_metadata_ = false;
   bool end_metadata_ = false;
+  bool process_metadata_ = false;
   bool sent_non_ack_settings_ = false;
 
   // Recursion guard for ProcessBytes().
