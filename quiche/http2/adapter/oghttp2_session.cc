@@ -1785,7 +1785,21 @@ void OgHttp2Session::CloseStream(Http2StreamId stream_id,
   stream_map_.erase(stream_id);
   trailers_ready_.erase(stream_id);
   streams_reset_.erase(stream_id);
-  queued_frames_.erase(stream_id);
+  auto queued_it = queued_frames_.find(stream_id);
+  if (queued_it != queued_frames_.end()) {
+    // Remove any queued frames for this stream.
+    int frames_remaining = queued_it->second;
+    queued_frames_.erase(queued_it);
+    for (auto it = frames_.begin();
+         frames_remaining > 0 && it != frames_.end();) {
+      if (static_cast<Http2StreamId>((*it)->stream_id()) == stream_id) {
+        it = frames_.erase(it);
+        --frames_remaining;
+      } else {
+        ++it;
+      }
+    }
+  }
   if (write_scheduler_.StreamRegistered(stream_id)) {
     write_scheduler_.UnregisterStream(stream_id);
   }

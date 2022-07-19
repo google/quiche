@@ -6185,16 +6185,14 @@ TEST(OgHttp2AdapterTest, ServerSubmitResponseWithResetFromClient) {
   const int64_t reset_result = adapter->ProcessBytes(reset);
   EXPECT_EQ(reset.size(), static_cast<size_t>(reset_result));
 
-  // Bug! The HEADERS frame for stream 1 should not be sent.
-  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, _)).Times(1);
-  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, _, _)).Times(1);
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, _)).Times(0);
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, _, _)).Times(0);
   EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, _, _)).Times(0);
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
 
-  // Bug! The HEADERS frame for stream 1 should not be sent.
-  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
+  EXPECT_THAT(visitor.data(), testing::IsEmpty());
 }
 
 TEST(OgHttp2AdapterTest, ServerRejectsStreamData) {
