@@ -6016,6 +6016,187 @@ TEST(OgHttpAdapterTest, ServerReceivesGoAway) {
                             SpdyFrameType::HEADERS}));
 }
 
+TEST(OgHttp2AdapterTest, ServerSubmitResponse) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kServer;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+  EXPECT_FALSE(adapter->want_write());
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  const char* kSentinel1 = "arbitrary pointer 1";
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "GET"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1))
+      .WillOnce(testing::InvokeWithoutArgs([&adapter, kSentinel1]() {
+        adapter->SetStreamUserData(1, const_cast<char*>(kSentinel1));
+        return true;
+      }));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), result);
+
+  EXPECT_EQ(1, adapter->GetHighestReceivedStreamId());
+
+  // Server will want to send a SETTINGS and a SETTINGS ack.
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  EXPECT_EQ(0, adapter->GetHpackEncoderDynamicTableSize());
+
+  EXPECT_FALSE(adapter->want_write());
+  const absl::string_view kBody = "This is an example response body.";
+  // A data fin is not sent so that the stream remains open, and the flow
+  // control state can be verified.
+  auto body1 = absl::make_unique<TestDataFrameSource>(visitor, false);
+  body1->AppendPayload(kBody);
+  int submit_result = adapter->SubmitResponse(
+      1,
+      ToHeaders({{":status", "404"},
+                 {"x-comment", "I have no idea what you're talking about."}}),
+      std::move(body1));
+  EXPECT_EQ(submit_result, 0);
+  EXPECT_TRUE(adapter->want_write());
+
+  // Stream user data should have been set successfully after receiving headers.
+  EXPECT_EQ(kSentinel1, adapter->GetStreamUserData(1));
+  adapter->SetStreamUserData(1, nullptr);
+  EXPECT_EQ(nullptr, adapter->GetStreamUserData(1));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
+
+  send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
+  EXPECT_THAT(visitor.data(), testing::HasSubstr(kBody));
+  EXPECT_FALSE(adapter->want_write());
+
+  // Some data was sent, so the remaining send window size should be less than
+  // the default.
+  EXPECT_LT(adapter->GetStreamSendWindowSize(1), kInitialFlowControlWindowSize);
+  EXPECT_GT(adapter->GetStreamSendWindowSize(1), 0);
+  // Send window for a nonexistent stream is not available.
+  EXPECT_EQ(adapter->GetStreamSendWindowSize(3), -1);
+
+  EXPECT_GT(adapter->GetHpackEncoderDynamicTableSize(), 0);
+}
+
+TEST(OgHttp2AdapterTest, ServerSubmitResponseWithResetFromClient) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kServer;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+  EXPECT_FALSE(adapter->want_write());
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), result);
+
+  EXPECT_EQ(1, adapter->GetHighestReceivedStreamId());
+
+  // Server will want to send a SETTINGS and a SETTINGS ack.
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  EXPECT_FALSE(adapter->want_write());
+  const absl::string_view kBody = "This is an example response body.";
+  auto body1 = absl::make_unique<TestDataFrameSource>(visitor, true);
+  body1->AppendPayload(kBody);
+  int submit_result = adapter->SubmitResponse(
+      1,
+      ToHeaders({{":status", "404"},
+                 {"x-comment", "I have no idea what you're talking about."}}),
+      std::move(body1));
+  EXPECT_EQ(submit_result, 0);
+  EXPECT_TRUE(adapter->want_write());
+
+  // Client resets the stream before the server can send the response.
+  const std::string reset =
+      TestFrameSequence().RstStream(1, Http2ErrorCode::CANCEL).Serialize();
+  EXPECT_CALL(visitor, OnFrameHeader(1, 4, RST_STREAM, 0));
+  EXPECT_CALL(visitor, OnRstStream(1, Http2ErrorCode::CANCEL));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::CANCEL));
+  const int64_t reset_result = adapter->ProcessBytes(reset);
+  EXPECT_EQ(reset.size(), static_cast<size_t>(reset_result));
+
+  // Bug! The HEADERS frame for stream 1 should not be sent.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, _)).Times(1);
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, _, _)).Times(1);
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, _, _)).Times(0);
+
+  send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+
+  // Bug! The HEADERS frame for stream 1 should not be sent.
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
+}
+
 TEST(OgHttp2AdapterTest, ServerRejectsStreamData) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options;
