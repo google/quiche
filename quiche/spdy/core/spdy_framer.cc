@@ -90,7 +90,7 @@ uint8_t SerializePushPromiseFrameFlags(const SpdyPushPromiseIR& push_promise_ir,
 }
 
 // Serializes a HEADERS frame from the given SpdyHeadersIR and encoded header
-// block. Does not need or use the SpdyHeaderBlock inside SpdyHeadersIR.
+// block. Does not need or use the Http2HeaderBlock inside SpdyHeadersIR.
 // Return false if the serialization fails. |encoding| should not be empty.
 bool SerializeHeadersGivenEncoding(const SpdyHeadersIR& headers,
                                    const std::string& encoding,
@@ -133,7 +133,7 @@ bool SerializeHeadersGivenEncoding(const SpdyHeadersIR& headers,
 }
 
 // Serializes a PUSH_PROMISE frame from the given SpdyPushPromiseIR and
-// encoded header block. Does not need or use the SpdyHeaderBlock inside
+// encoded header block. Does not need or use the Http2HeaderBlock inside
 // SpdyPushPromiseIR.
 bool SerializePushPromiseGivenEncoding(const SpdyPushPromiseIR& push_promise,
                                        const std::string& encoding,

@@ -84,7 +84,8 @@ HpackEncoder::HpackEncoder()
 
 HpackEncoder::~HpackEncoder() = default;
 
-std::string HpackEncoder::EncodeHeaderBlock(const SpdyHeaderBlock& header_set) {
+std::string HpackEncoder::EncodeHeaderBlock(
+    const Http2HeaderBlock& header_set) {
   // Separate header set into pseudo-headers and regular headers.
   Representations pseudo_headers;
   Representations regular_headers;
@@ -265,10 +266,10 @@ void HpackEncoder::DecomposeRepresentation(const Representation& header_field,
   }
 }
 
-// Iteratively encodes a SpdyHeaderBlock.
+// Iteratively encodes a Http2HeaderBlock.
 class HpackEncoder::Encoderator : public ProgressiveEncoder {
  public:
-  Encoderator(const SpdyHeaderBlock& header_set, HpackEncoder* encoder);
+  Encoderator(const Http2HeaderBlock& header_set, HpackEncoder* encoder);
   Encoderator(const Representations& representations, HpackEncoder* encoder);
 
   // Encoderator is neither copyable nor movable.
@@ -289,7 +290,7 @@ class HpackEncoder::Encoderator : public ProgressiveEncoder {
   bool has_next_;
 };
 
-HpackEncoder::Encoderator::Encoderator(const SpdyHeaderBlock& header_set,
+HpackEncoder::Encoderator::Encoderator(const Http2HeaderBlock& header_set,
                                        HpackEncoder* encoder)
     : encoder_(encoder), has_next_(true) {
   // Separate header set into pseudo-headers and regular headers.
@@ -362,7 +363,7 @@ std::string HpackEncoder::Encoderator::Next(size_t max_encoded_bytes) {
 }
 
 std::unique_ptr<HpackEncoder::ProgressiveEncoder> HpackEncoder::EncodeHeaderSet(
-    const SpdyHeaderBlock& header_set) {
+    const Http2HeaderBlock& header_set) {
   return std::make_unique<Encoderator>(header_set, this);
 }
 

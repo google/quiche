@@ -20,7 +20,7 @@
 #include "quiche/http2/hpack/http2_hpack_constants.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/spdy/core/hpack/hpack_header_table.h"
-#include "quiche/spdy/core/spdy_header_block.h"
+#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_headers_handler_interface.h"
 
 namespace spdy {
@@ -43,7 +43,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderAdapter {
   size_t GetCurrentHeaderTableSizeSetting() const;
 
   // If a SpdyHeadersHandlerInterface is provided, the decoder will emit
-  // headers to it rather than accumulating them in a SpdyHeaderBlock.
+  // headers to it rather than accumulating them in a Http2HeaderBlock.
   // Does not take ownership of the handler, but does use the pointer until
   // the current HPACK block is completely decoded.
   void HandleControlFrameHeadersStart(SpdyHeadersHandlerInterface* handler);
@@ -65,7 +65,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderAdapter {
   // call to HandleControlFrameHeadersData().
   // TODO(birenroy): Remove this method when all users of HpackDecoder specify
   // a SpdyHeadersHandlerInterface.
-  const SpdyHeaderBlock& decoded_block() const;
+  const Http2HeaderBlock& decoded_block() const;
 
   // Returns the current dynamic table size, including the 32 bytes per entry
   // overhead mentioned in RFC 7541 section 4.1.
@@ -98,11 +98,11 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderAdapter {
     ~ListenerAdapter() override;
 
     // If a SpdyHeadersHandlerInterface is provided, the decoder will emit
-    // headers to it rather than accumulating them in a SpdyHeaderBlock.
+    // headers to it rather than accumulating them in a Http2HeaderBlock.
     // Does not take ownership of the handler, but does use the pointer until
     // the current HPACK block is completely decoded.
     void set_handler(SpdyHeadersHandlerInterface* handler);
-    const SpdyHeaderBlock& decoded_block() const { return decoded_block_; }
+    const Http2HeaderBlock& decoded_block() const { return decoded_block_; }
 
     // Override the HpackDecoderListener methods:
     void OnHeaderListStart() override;
@@ -115,8 +115,8 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderAdapter {
 
    private:
     // If the caller doesn't provide a handler, the header list is stored in
-    // this SpdyHeaderBlock.
-    SpdyHeaderBlock decoded_block_;
+    // this Http2HeaderBlock.
+    Http2HeaderBlock decoded_block_;
 
     // If non-NULL, handles decoded headers. Not owned.
     SpdyHeadersHandlerInterface* handler_;

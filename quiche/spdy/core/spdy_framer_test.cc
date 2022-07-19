@@ -629,7 +629,7 @@ class SpdyFramerTest : public quiche::test::QuicheTestWithParam<Output> {
 INSTANTIATE_TEST_SUITE_P(SpdyFramerTests, SpdyFramerTest,
                          ::testing::Values(USE, NOT_USE));
 
-// Test that we can encode and decode a SpdyHeaderBlock in serialized form.
+// Test that we can encode and decode a Http2HeaderBlock in serialized form.
 TEST_P(SpdyFramerTest, HeaderBlockInBuffer) {
   SpdyFramer framer(SpdyFramer::DISABLE_COMPRESSION);
 

@@ -72,12 +72,12 @@ class HpackEncoderPeer {
   // TODO(dahollings): Remove or clean up these methods when deprecating
   // non-incremental encoding path.
   static std::string EncodeHeaderBlock(HpackEncoder* encoder,
-                                       const SpdyHeaderBlock& header_set) {
+                                       const Http2HeaderBlock& header_set) {
     return encoder->EncodeHeaderBlock(header_set);
   }
 
   static bool EncodeIncremental(HpackEncoder* encoder,
-                                const SpdyHeaderBlock& header_set,
+                                const Http2HeaderBlock& header_set,
                                 std::string* output) {
     std::unique_ptr<HpackEncoder::ProgressiveEncoder> encoderator =
         encoder->EncodeHeaderSet(header_set);
@@ -209,14 +209,14 @@ class HpackEncoderTest
     expected_.AppendPrefix(kHeaderTableSizeUpdateOpcode);
     expected_.AppendUint32(size);
   }
-  Representations MakeRepresentations(const SpdyHeaderBlock& header_set) {
+  Representations MakeRepresentations(const Http2HeaderBlock& header_set) {
     Representations r;
     for (const auto& header : header_set) {
       r.push_back(header);
     }
     return r;
   }
-  void CompareWithExpectedEncoding(const SpdyHeaderBlock& header_set) {
+  void CompareWithExpectedEncoding(const Http2HeaderBlock& header_set) {
     std::string actual_out;
     std::string expected_out = expected_.TakeString();
     switch (strategy_) {
@@ -348,7 +348,7 @@ TEST_P(HpackEncoderTest, SingleDynamicIndex) {
 
   ExpectIndex(DynamicIndexToWireIndex(key_2_index_));
 
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers[key_2_->name()] = key_2_->value();
   CompareWithExpectedEncoding(headers);
   EXPECT_THAT(headers_observed_,
@@ -358,7 +358,7 @@ TEST_P(HpackEncoderTest, SingleDynamicIndex) {
 TEST_P(HpackEncoderTest, SingleStaticIndex) {
   ExpectIndex(kStaticEntryIndex);
 
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers[static_->name()] = static_->value();
   CompareWithExpectedEncoding(headers);
 }
@@ -367,7 +367,7 @@ TEST_P(HpackEncoderTest, SingleStaticIndexTooLarge) {
   peer_.table()->SetMaxSize(1);  // Also evicts all fixtures.
   ExpectIndex(kStaticEntryIndex);
 
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers[static_->name()] = static_->value();
   CompareWithExpectedEncoding(headers);
 
@@ -377,7 +377,7 @@ TEST_P(HpackEncoderTest, SingleStaticIndexTooLarge) {
 TEST_P(HpackEncoderTest, SingleLiteralWithIndexName) {
   ExpectIndexedLiteral(DynamicIndexToWireIndex(key_2_index_), "value3");
 
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers[key_2_->name()] = "value3";
   CompareWithExpectedEncoding(headers);
 
@@ -390,7 +390,7 @@ TEST_P(HpackEncoderTest, SingleLiteralWithIndexName) {
 TEST_P(HpackEncoderTest, SingleLiteralWithLiteralName) {
   ExpectIndexedLiteral("key3", "value3");
 
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers["key3"] = "value3";
   CompareWithExpectedEncoding(headers);
 
@@ -406,7 +406,7 @@ TEST_P(HpackEncoderTest, SingleLiteralTooLarge) {
 
   // A header overflowing the header table is still emitted.
   // The header table is empty.
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers["key3"] = "value3";
   CompareWithExpectedEncoding(headers);
 
@@ -419,7 +419,7 @@ TEST_P(HpackEncoderTest, EmitThanEvict) {
   ExpectIndex(DynamicIndexToWireIndex(key_1_index_));
   ExpectIndexedLiteral("key3", "value3");
 
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers[key_1_->name()] = key_1_->value();
   headers["key3"] = "value3";
   CompareWithExpectedEncoding(headers);
@@ -430,14 +430,14 @@ TEST_P(HpackEncoderTest, CookieHeaderIsCrumbled) {
   ExpectIndex(DynamicIndexToWireIndex(cookie_c_index_));
   ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "e=ff");
 
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers["cookie"] = "a=bb; c=dd; e=ff";
   CompareWithExpectedEncoding(headers);
 }
 
 TEST_P(HpackEncoderTest, MultiValuedHeadersNotCrumbled) {
   ExpectIndexedLiteral("foo", "bar, baz");
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers["foo"] = "bar, baz";
   CompareWithExpectedEncoding(headers);
 }
@@ -479,7 +479,7 @@ TEST_P(HpackEncoderTest, EncodingWithoutCompression) {
   }
   ExpectNonIndexedLiteral("multivalue", "value1, value2");
 
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers[":path"] = "/index.html";
   headers["cookie"] = "foo=bar; baz=bing";
   headers["hello"] = "goodbye";
@@ -514,7 +514,7 @@ TEST_P(HpackEncoderTest, MultipleEncodingPasses) {
 
   // Pass 1.
   {
-    SpdyHeaderBlock headers;
+    Http2HeaderBlock headers;
     headers["key1"] = "value1";
     headers["cookie"] = "a=bb";
 
@@ -529,7 +529,7 @@ TEST_P(HpackEncoderTest, MultipleEncodingPasses) {
   // 62: cookie: c=dd
   // Pass 2.
   {
-    SpdyHeaderBlock headers;
+    Http2HeaderBlock headers;
     headers["key2"] = "value2";
     headers["cookie"] = "c=dd; e=ff";
 
@@ -550,7 +550,7 @@ TEST_P(HpackEncoderTest, MultipleEncodingPasses) {
   // 62: cookie: e=ff
   // Pass 3.
   {
-    SpdyHeaderBlock headers;
+    Http2HeaderBlock headers;
     headers["key2"] = "value2";
     headers["cookie"] = "a=bb; b=cc; c=dd";
 
@@ -584,7 +584,7 @@ TEST_P(HpackEncoderTest, MultipleEncodingPasses) {
 }
 
 TEST_P(HpackEncoderTest, PseudoHeadersFirst) {
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   // A pseudo-header that should not be indexed.
   headers[":path"] = "/spam/eggs.html";
   // A pseudo-header to be indexed.
@@ -672,7 +672,7 @@ TEST_P(HpackEncoderTest, CrumbleNullByteDelimitedValue) {
     // caller must crumble null-delimited values.
     return;
   }
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   // A header field to be crumbled: "spam: foo\0bar".
   headers["spam"] = std::string("foo\0bar", 7);
 
@@ -690,7 +690,7 @@ TEST_P(HpackEncoderTest, HeaderTableSizeUpdate) {
   ExpectHeaderTableSizeUpdate(1024);
   ExpectIndexedLiteral("key3", "value3");
 
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers["key3"] = "value3";
   CompareWithExpectedEncoding(headers);
 
@@ -709,7 +709,7 @@ TEST_P(HpackEncoderTest, HeaderTableSizeUpdateWithMin) {
   ExpectHeaderTableSizeUpdate(starting_size - 1);
   ExpectIndexedLiteral("key3", "value3");
 
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers["key3"] = "value3";
   CompareWithExpectedEncoding(headers);
 
@@ -723,7 +723,7 @@ TEST_P(HpackEncoderTest, HeaderTableSizeUpdateWithExistingSize) {
   // No encoded size update.
   ExpectIndexedLiteral("key3", "value3");
 
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers["key3"] = "value3";
   CompareWithExpectedEncoding(headers);
 
@@ -740,7 +740,7 @@ TEST_P(HpackEncoderTest, HeaderTableSizeUpdatesWithGreaterSize) {
   ExpectHeaderTableSizeUpdate(starting_size + 2);
   ExpectIndexedLiteral("key3", "value3");
 
-  SpdyHeaderBlock headers;
+  Http2HeaderBlock headers;
   headers["key3"] = "value3";
   CompareWithExpectedEncoding(headers);
 

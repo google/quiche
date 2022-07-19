@@ -5,12 +5,12 @@
 #include "quiche/http2/hpack/decoder/hpack_decoder_listener.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/spdy/core/spdy_header_block.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace spdy {
 
 // This class simply gathers the key-value pairs emitted by an HpackDecoder in
-// a SpdyHeaderBlock.
+// a Http2HeaderBlock.
 class QUICHE_EXPORT_PRIVATE Http2HeaderBlockHpackListener
     : public http2::HpackDecoderListener {
  public:
@@ -32,15 +32,15 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlockHpackListener
     hpack_error_ = true;
   }
 
-  SpdyHeaderBlock release_header_block() {
-    SpdyHeaderBlock block = std::move(header_block_);
+  Http2HeaderBlock release_header_block() {
+    Http2HeaderBlock block = std::move(header_block_);
     header_block_ = {};
     return block;
   }
   bool hpack_error() const { return hpack_error_; }
 
  private:
-  SpdyHeaderBlock header_block_;
+  Http2HeaderBlock header_block_;
   bool hpack_error_ = false;
 };
 

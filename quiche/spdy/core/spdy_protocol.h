@@ -22,9 +22,9 @@
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
 #include "quiche/spdy/core/spdy_bitmasks.h"
-#include "quiche/spdy/core/spdy_header_block.h"
 
 namespace spdy {
 

@@ -10,7 +10,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "quiche/spdy/core/spdy_header_block.h"
+#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
 namespace spdy {

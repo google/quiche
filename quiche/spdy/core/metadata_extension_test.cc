@@ -7,7 +7,6 @@
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/spdy/core/array_output_buffer.h"
 #include "quiche/spdy/core/spdy_framer.h"
-#include "quiche/spdy/core/spdy_header_block.h"
 #include "quiche/spdy/core/spdy_no_op_visitor.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 #include "quiche/spdy/test_tools/mock_spdy_framer_visitor.h"
@@ -53,7 +52,7 @@ class MetadataExtensionTest : public quiche::test::QuicheTest {
   }
 
   std::unique_ptr<MetadataVisitor> extension_;
-  absl::flat_hash_map<spdy::SpdyStreamId, SpdyHeaderBlock>
+  absl::flat_hash_map<spdy::SpdyStreamId, Http2HeaderBlock>
       received_payload_map_;
   std::vector<bool> received_metadata_support_;
   size_t received_count_ = 0;
@@ -83,7 +82,7 @@ TEST_F(MetadataExtensionTest, MetadataSupported) {
 
 TEST_F(MetadataExtensionTest, MetadataDeliveredToUnknownFrameCallbacks) {
   const char kData[] = "some payload";
-  SpdyHeaderBlock payload = PayloadForData(kData);
+  Http2HeaderBlock payload = PayloadForData(kData);
 
   extension_->OnSetting(MetadataVisitor::kMetadataExtensionId, 1);
   ASSERT_TRUE(extension_->PeerSupportsMetadata());
@@ -123,9 +122,9 @@ TEST_F(MetadataExtensionTest, MetadataDeliveredToUnknownFrameCallbacks) {
 // This test verifies that the METADATA frame emitted by a MetadataExtension
 // can be parsed by another SpdyFramer with a MetadataVisitor.
 TEST_F(MetadataExtensionTest, MetadataPayloadEndToEnd) {
-  SpdyHeaderBlock block1;
+  Http2HeaderBlock block1;
   block1["foo"] = "Some metadata value.";
-  SpdyHeaderBlock block2;
+  Http2HeaderBlock block2;
   block2["bar"] =
       "The color taupe truly represents a triumph of the human spirit over "
       "adversity.";
@@ -135,7 +134,7 @@ TEST_F(MetadataExtensionTest, MetadataPayloadEndToEnd) {
   const absl::string_view binary_payload{"binary\0payload", 14};
   block2["qux"] = binary_payload;
   EXPECT_EQ(binary_payload, block2["qux"]);
-  for (const SpdyHeaderBlock& payload_block :
+  for (const Http2HeaderBlock& payload_block :
        {std::move(block1), std::move(block2)}) {
     extension_->OnSetting(MetadataVisitor::kMetadataExtensionId, 1);
     ASSERT_TRUE(extension_->PeerSupportsMetadata());
@@ -173,8 +172,8 @@ TEST_F(MetadataExtensionTest, MetadataPayloadEndToEnd) {
 TEST_F(MetadataExtensionTest, MetadataPayloadInterleaved) {
   const std::string kData1 = std::string(65 * 1024, 'a');
   const std::string kData2 = std::string(65 * 1024, 'b');
-  const SpdyHeaderBlock payload1 = PayloadForData(kData1);
-  const SpdyHeaderBlock payload2 = PayloadForData(kData2);
+  const Http2HeaderBlock payload1 = PayloadForData(kData1);
+  const Http2HeaderBlock payload2 = PayloadForData(kData2);
 
   extension_->OnSetting(MetadataVisitor::kMetadataExtensionId, 1);
   ASSERT_TRUE(extension_->PeerSupportsMetadata());

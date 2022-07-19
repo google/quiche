@@ -16,8 +16,8 @@
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/spdy/core/hpack/hpack_encoder.h"
+#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
-#include "quiche/spdy/core/spdy_header_block.h"
 #include "quiche/spdy/core/spdy_headers_handler_interface.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 #include "quiche/spdy/core/zero_copy_output_buffer.h"
@@ -293,7 +293,7 @@ class QUICHE_EXPORT_PRIVATE SpdyFramer {
   };
 
   // Iteratively converts a SpdyHeadersIR (with a possibly huge
-  // SpdyHeaderBlock) into an appropriate sequence of SpdySerializedFrames, and
+  // Http2HeaderBlock) into an appropriate sequence of SpdySerializedFrames, and
   // write to the output.
   class QUICHE_EXPORT_PRIVATE SpdyHeaderFrameIterator
       : public SpdyFrameIterator {
@@ -314,7 +314,7 @@ class QUICHE_EXPORT_PRIVATE SpdyFramer {
   };
 
   // Iteratively converts a SpdyPushPromiseIR (with a possibly huge
-  // SpdyHeaderBlock) into an appropriate sequence of SpdySerializedFrames, and
+  // Http2HeaderBlock) into an appropriate sequence of SpdySerializedFrames, and
   // write to the output.
   class QUICHE_EXPORT_PRIVATE SpdyPushPromiseFrameIterator
       : public SpdyFrameIterator {

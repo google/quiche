@@ -18,6 +18,7 @@
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/spdy/core/hpack/hpack_header_table.h"
 #include "quiche/spdy/core/hpack/hpack_output_stream.h"
+#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
 // An HpackEncoder encodes header sets as outlined in
@@ -50,7 +51,7 @@ class QUICHE_EXPORT_PRIVATE HpackEncoder {
   ~HpackEncoder();
 
   // Encodes and returns the given header set as a string.
-  std::string EncodeHeaderBlock(const SpdyHeaderBlock& header_set);
+  std::string EncodeHeaderBlock(const Http2HeaderBlock& header_set);
 
   class QUICHE_EXPORT_PRIVATE ProgressiveEncoder {
    public:
@@ -64,9 +65,9 @@ class QUICHE_EXPORT_PRIVATE HpackEncoder {
   };
 
   // Returns a ProgressiveEncoder which must be outlived by both the given
-  // SpdyHeaderBlock and this object.
+  // Http2HeaderBlock and this object.
   std::unique_ptr<ProgressiveEncoder> EncodeHeaderSet(
-      const SpdyHeaderBlock& header_set);
+      const Http2HeaderBlock& header_set);
   // Returns a ProgressiveEncoder which must be outlived by this HpackEncoder.
   // The encoder will not attempt to split any \0-delimited values in
   // |representations|. If such splitting is desired, it must be performed by

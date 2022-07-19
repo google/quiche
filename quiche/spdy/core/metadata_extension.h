@@ -9,7 +9,7 @@
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/spdy/core/hpack/hpack_encoder.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
-#include "quiche/spdy/core/spdy_header_block.h"
+#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 #include "quiche/spdy/core/zero_copy_output_buffer.h"
 
@@ -24,7 +24,7 @@ namespace spdy {
 class QUICHE_EXPORT_PRIVATE MetadataVisitor
     : public spdy::ExtensionVisitorInterface {
  public:
-  using MetadataPayload = spdy::SpdyHeaderBlock;
+  using MetadataPayload = spdy::Http2HeaderBlock;
 
   static_assert(!std::is_copy_constructible<MetadataPayload>::value,
                 "MetadataPayload should be a move-only type!");
