@@ -891,8 +891,6 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
   size_t ssl_capabilities_len = 0;
   absl::string_view ssl_capabilities_view;
 
-  absl::optional<std::string> alps;
-
   if (CryptoUtils::GetSSLCapabilities(ssl(), &ssl_capabilities,
                                       &ssl_capabilities_len)) {
     ssl_capabilities_view =
@@ -906,10 +904,6 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
   if (!alps_result.success) {
     return ssl_select_cert_error;
   }
-  alps =
-      alps_result.alps_length > 0
-          ? std::string(alps_result.alps_buffer.get(), alps_result.alps_length)
-          : std::string();
 
   if (!session()->connection()->connected()) {
     select_cert_status_ = QUIC_FAILURE;
@@ -924,7 +918,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
       absl::string_view(
           reinterpret_cast<const char*>(client_hello->client_hello),
           client_hello->client_hello_len),
-      AlpnForVersion(session()->version()), std::move(alps),
+      AlpnForVersion(session()->version()), std::move(alps_result.alps_buffer),
       set_transport_params_result.quic_transport_params,
       set_transport_params_result.early_data_context,
       tls_connection_.ssl_config());
@@ -1092,7 +1086,6 @@ int TlsServerHandshaker::SelectAlpn(const uint8_t** out, uint8_t* out_len,
 TlsServerHandshaker::SetApplicationSettingsResult
 TlsServerHandshaker::SetApplicationSettings(absl::string_view alpn) {
   TlsServerHandshaker::SetApplicationSettingsResult result;
-  const uint8_t* alps_data = nullptr;
 
   const std::string& hostname = crypto_negotiated_params_->sni;
   std::string accept_ch_value = GetAcceptChValueForHostname(hostname);
@@ -1106,14 +1099,13 @@ TlsServerHandshaker::SetApplicationSettings(absl::string_view alpn) {
 
   if (!accept_ch_value.empty()) {
     AcceptChFrame frame{{{std::move(origin), std::move(accept_ch_value)}}};
-    result.alps_length =
-        HttpEncoder::SerializeAcceptChFrame(frame, &result.alps_buffer);
-    alps_data = reinterpret_cast<const uint8_t*>(result.alps_buffer.get());
+    result.alps_buffer = HttpEncoder::SerializeAcceptChFrame(frame);
   }
 
+  const std::string& alps = result.alps_buffer;
   if (SSL_add_application_settings(
           ssl(), reinterpret_cast<const uint8_t*>(alpn.data()), alpn.size(),
-          alps_data, result.alps_length) != 1) {
+          reinterpret_cast<const uint8_t*>(alps.data()), alps.size()) != 1) {
     QUIC_DLOG(ERROR) << "Failed to enable ALPS";
     result.success = false;
   } else {

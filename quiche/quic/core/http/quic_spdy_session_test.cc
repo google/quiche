@@ -3151,10 +3151,9 @@ TEST_P(QuicSpdySessionTestClient, ReceiveAcceptChFrame) {
   // Receive ACCEPT_CH frame.
   AcceptChFrame accept_ch;
   accept_ch.entries.push_back({"foo", "bar"});
-  std::unique_ptr<char[]> buffer;
-  auto frame_length = HttpEncoder::SerializeAcceptChFrame(accept_ch, &buffer);
+  std::string accept_ch_frame = HttpEncoder::SerializeAcceptChFrame(accept_ch);
   QuicStreamFrame data3(receive_control_stream_id, /* fin = */ false, offset,
-                        absl::string_view(buffer.get(), frame_length));
+                        accept_ch_frame);
 
   EXPECT_CALL(debug_visitor, OnAcceptChFrameReceived(accept_ch));
   EXPECT_CALL(session_, OnAcceptChFrame(accept_ch));

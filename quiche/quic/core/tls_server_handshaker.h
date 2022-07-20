@@ -304,8 +304,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   struct QUIC_NO_EXPORT SetApplicationSettingsResult {
     bool success = false;
-    std::unique_ptr<char[]> alps_buffer;
-    size_t alps_length = 0;
+    // TODO(b/239676439): Change type to absl::optional<std::string> and make
+    // sure SetApplicationSettings() returns nullopt if no ALPS data.
+    std::string alps_buffer;
   };
   SetApplicationSettingsResult SetApplicationSettings(absl::string_view alpn);
 
