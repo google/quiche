@@ -77,7 +77,7 @@ using spdy::SpdyWindowUpdateIR;
 
 namespace {
 
-// Defines how elements of SpdyHeaderBlocks are logged.
+// Defines how elements of Http2HeaderBlocks are logged.
 struct LogHeaderBlockEntry {
   void Log(std::ostream& out,
            const Http2HeaderBlock::value_type& entry) const {  // NOLINT
