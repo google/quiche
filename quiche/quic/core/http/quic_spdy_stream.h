@@ -318,6 +318,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   void OnWriteSideInDataRecvdState() override;
 
   virtual bool AreHeadersValid(const QuicHeaderList& header_list) const;
+  // TODO(b/202433856) Merge AreHeaderFieldValueValid into AreHeadersValid once
+  // all flags guarding the behavior of AreHeadersValid has been rolled out.
+  virtual bool AreHeaderFieldValuesValid(
+      const QuicHeaderList& header_list) const;
 
   // Reset stream upon invalid request headers.
   virtual void OnInvalidHeaders();

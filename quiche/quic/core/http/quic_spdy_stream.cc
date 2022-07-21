@@ -623,6 +623,12 @@ void QuicSpdyStream::OnInitialHeadersComplete(
   bool header_too_large = VersionUsesHttp3(transport_version())
                               ? header_list_size_limit_exceeded_
                               : header_list.empty();
+  if (!AreHeaderFieldValuesValid(header_list)) {
+    OnInvalidHeaders();
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_validate_header_field_value_at_spdy_stream, 2, 2);
+    return;
+  }
   // Validate request headers if it did not exceed size limit. If it did,
   // OnHeadersTooLarge() should have already handled it previously.
   if (!header_too_large && !AreHeadersValid(header_list)) {
@@ -1566,6 +1572,33 @@ bool QuicSpdyStream::AreHeadersValid(const QuicHeaderList& header_list) const {
     if (http2::GetInvalidHttp2HeaderSet().contains(name)) {
       QUIC_DLOG(ERROR) << name << " header is not allowed";
       return false;
+    }
+  }
+  return true;
+}
+
+bool QuicSpdyStream::AreHeaderFieldValuesValid(
+    const QuicHeaderList& header_list) const {
+  if (!GetQuicReloadableFlag(quic_validate_header_field_value_at_spdy_stream) ||
+      !VersionUsesHttp3(transport_version())) {
+    return true;
+  }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_validate_header_field_value_at_spdy_stream,
+                               1, 2);
+  // According to https://www.rfc-editor.org/rfc/rfc9114.html#section-10.3
+  // "[...] HTTP/3 can transport field values that are not valid. While most
+  // values that can be encoded will not alter field parsing, carriage return
+  // (ASCII 0x0d), line feed (ASCII 0x0a), and the null character (ASCII 0x00)
+  // might be exploited by an attacker if they are translated verbatim. Any
+  // request or response that contains a character not permitted in a field
+  // value MUST be treated as malformed.
+  // [...]"
+  for (const std::pair<std::string, std::string>& pair : header_list) {
+    const std::string& value = pair.second;
+    for (const auto c : value) {
+      if (c == '\0' || c == '\n' || c == '\r') {
+        return false;
+      }
     }
   }
   return true;

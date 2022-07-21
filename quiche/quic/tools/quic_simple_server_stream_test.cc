@@ -19,6 +19,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
@@ -643,6 +644,12 @@ TEST_P(QuicSimpleServerStreamTest, InvalidMultipleContentLength) {
   // \000 is a way to write the null byte when followed by a literal digit.
   header_list_.OnHeader("content-length", absl::string_view("11\00012", 5));
 
+  if (GetQuicReloadableFlag(quic_validate_header_field_value_at_spdy_stream) &&
+      session_.version().UsesHttp3()) {
+    EXPECT_CALL(session_,
+                MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
+                                                 QUIC_STREAM_NO_ERROR)));
+  }
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   EXPECT_CALL(session_, WritevData(_, _, _, _, _, _))
       .WillRepeatedly(
@@ -659,6 +666,12 @@ TEST_P(QuicSimpleServerStreamTest, InvalidLeadingNullContentLength) {
   // \000 is a way to write the null byte when followed by a literal digit.
   header_list_.OnHeader("content-length", absl::string_view("\00012", 3));
 
+  if (GetQuicReloadableFlag(quic_validate_header_field_value_at_spdy_stream) &&
+      session_.version().UsesHttp3()) {
+    EXPECT_CALL(session_,
+                MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
+                                                 QUIC_STREAM_NO_ERROR)));
+  }
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   EXPECT_CALL(session_, WritevData(_, _, _, _, _, _))
       .WillRepeatedly(
@@ -670,17 +683,35 @@ TEST_P(QuicSimpleServerStreamTest, InvalidLeadingNullContentLength) {
   EXPECT_TRUE(stream_->write_side_closed());
 }
 
-TEST_P(QuicSimpleServerStreamTest, ValidMultipleContentLength) {
+TEST_P(QuicSimpleServerStreamTest, InvalidMultipleContentLengthII) {
   spdy::Http2HeaderBlock request_headers;
   // \000 is a way to write the null byte when followed by a literal digit.
   header_list_.OnHeader("content-length", absl::string_view("11\00011", 5));
 
+  if (GetQuicReloadableFlag(quic_validate_header_field_value_at_spdy_stream) &&
+      session_.version().UsesHttp3()) {
+    EXPECT_CALL(session_,
+                MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
+                                                 QUIC_STREAM_NO_ERROR)));
+    EXPECT_CALL(*stream_, WriteHeadersMock(false));
+    EXPECT_CALL(session_, WritevData(_, _, _, _, _, _))
+        .WillRepeatedly(
+            Invoke(&session_, &MockQuicSimpleServerSession::ConsumeData));
+  }
+
   stream_->OnStreamHeaderList(false, kFakeFrameLen, header_list_);
 
-  EXPECT_EQ(11, stream_->content_length());
-  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
-  EXPECT_FALSE(stream_->reading_stopped());
-  EXPECT_FALSE(stream_->write_side_closed());
+  if (GetQuicReloadableFlag(quic_validate_header_field_value_at_spdy_stream) &&
+      session_.version().UsesHttp3()) {
+    EXPECT_TRUE(QuicStreamPeer::read_side_closed(stream_));
+    EXPECT_TRUE(stream_->reading_stopped());
+    EXPECT_TRUE(stream_->write_side_closed());
+  } else {
+    EXPECT_EQ(11, stream_->content_length());
+    EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
+    EXPECT_FALSE(stream_->reading_stopped());
+    EXPECT_FALSE(stream_->write_side_closed());
+  }
 }
 
 TEST_P(QuicSimpleServerStreamTest,
