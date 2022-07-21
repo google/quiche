@@ -36,8 +36,6 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
   // QuicSpdyStream
   void OnInitialHeadersComplete(bool fin, size_t frame_len,
                                 const QuicHeaderList& header_list) override;
-  void OnTrailingHeadersComplete(bool fin, size_t frame_len,
-                                 const QuicHeaderList& header_list) override;
   void OnCanWrite() override;
 
   // QuicStream implementation called by the sequencer when there is

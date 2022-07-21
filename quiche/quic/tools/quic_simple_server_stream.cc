@@ -96,12 +96,6 @@ void QuicSimpleServerStream::OnInitialHeadersComplete(
   }
 }
 
-void QuicSimpleServerStream::OnTrailingHeadersComplete(
-    bool /*fin*/, size_t /*frame_len*/, const QuicHeaderList& /*header_list*/) {
-  QUIC_BUG(quic_bug_10962_1) << "Server does not support receiving Trailers.";
-  SendErrorResponse();
-}
-
 void QuicSimpleServerStream::OnBodyAvailable() {
   while (HasBytesToRead()) {
     struct iovec iov;
