@@ -304,11 +304,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   void set_encryption_level(EncryptionLevel level);
   EncryptionLevel encryption_level() { return packet_.encryption_level; }
 
-  // Sets whether initial packets are protected with chaos.
-  void set_chaos_protection_enabled(bool chaos_protection_enabled) {
-    chaos_protection_enabled_ = chaos_protection_enabled;
-  }
-
   // packet number of the last created packet, or 0 if no packets have been
   // created.
   QuicPacketNumber packet_number() const { return packet_.packet_number; }
@@ -685,9 +680,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // accept. There is no limit for QUIC_CRYPTO connections, but QUIC+TLS
   // negotiates this during the handshake.
   QuicByteCount max_datagram_frame_size_;
-
-  // Whether to attempt protecting initial packets with chaos.
-  bool chaos_protection_enabled_;
 };
 
 }  // namespace quic

@@ -6132,41 +6132,6 @@ class CopyingPacketWriter : public PacketDroppingTestWriter {
   std::vector<std::unique_ptr<QuicEncryptedPacket>> packets_;
 };
 
-TEST_P(EndToEndTest, ChaosProtectionDisabled) {
-  if (!version_.UsesCryptoFrames()) {
-    ASSERT_TRUE(Initialize());
-    return;
-  }
-  // Replace the client's writer with one that'll save the first packet.
-  auto copying_writer = new CopyingPacketWriter(1);
-  delete client_writer_;
-  client_writer_ = copying_writer;
-  // Disable chaos protection and perform an HTTP request.
-  client_config_.SetClientConnectionOptions(QuicTagVector{kNCHP});
-  ASSERT_TRUE(Initialize());
-  SendSynchronousFooRequestAndCheckResponse();
-  // Parse the saved packet to make sure it's valid.
-  SimpleQuicFramer validation_framer({version_});
-  validation_framer.framer()->SetInitialObfuscators(
-      GetClientConnection()->GetOriginalDestinationConnectionId());
-  ASSERT_GT(copying_writer->packets().size(), 0u);
-  EXPECT_TRUE(validation_framer.ProcessPacket(*copying_writer->packets()[0]));
-  // TODO(dschinazi) figure out a way to use a MockRandom in this test so we
-  // can inspect the contents of this packet.
-}
-
-TEST_P(EndToEndTest, DisablePermuteTlsExtensions) {
-  if (!version_.UsesTls()) {
-    ASSERT_TRUE(Initialize());
-    return;
-  }
-  // Disable TLS extension permutation and perform an HTTP request.
-  client_config_.SetClientConnectionOptions(QuicTagVector{kNBPE});
-  ASSERT_TRUE(Initialize());
-  EXPECT_FALSE(GetClientSession()->permutes_tls_extensions());
-  SendSynchronousFooRequestAndCheckResponse();
-}
-
 TEST_P(EndToEndTest, KeyUpdateInitiatedByClient) {
   if (!version_.UsesTls()) {
     // Key Update is only supported in TLS handshake.

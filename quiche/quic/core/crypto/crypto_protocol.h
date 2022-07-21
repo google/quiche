@@ -30,7 +30,7 @@ using ServerConfigID = std::string;
 // "1CON", "BBQ4", "NCON", "RCID", "SREJ", "TBKP", "TB10", "SCLS", "SMHL",
 // "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS", "QNSP", "B2CL", "CHSP",
 // "BPTE", "ACKD", "AKD2", "AKD4", "MAD1", "MAD4", "MAD5", "ACD0", "ACKQ",
-// "TLPR", "CCS\0", "PDP4"
+// "TLPR", "CCS\0", "PDP4", "NCHP", "NBPE"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
@@ -354,9 +354,6 @@ const QuicTag kMTUL = TAG('M', 'T', 'U', 'L');  // Low-target MTU discovery.
 
 const QuicTag kNSLC = TAG('N', 'S', 'L', 'C');  // Always send connection close
                                                 // for idle timeout.
-const QuicTag kNCHP = TAG('N', 'C', 'H', 'P');  // No chaos protection.
-const QuicTag kNBPE = TAG('N', 'B', 'P', 'E');  // No BoringSSL Permutes
-                                                // TLS Extensions.
 
 // Proof types (i.e. certificate types)
 // NOTE: although it would be silly to do so, specifying both kX509 and kX59R

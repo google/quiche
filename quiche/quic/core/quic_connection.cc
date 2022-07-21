@@ -523,9 +523,6 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   } else {
     SetNetworkTimeouts(config.max_time_before_crypto_handshake(),
                        config.max_idle_time_before_crypto_handshake());
-    if (config.HasClientRequestedIndependentOption(kNCHP, perspective_)) {
-      packet_creator_.set_chaos_protection_enabled(false);
-    }
   }
 
   if (version().HasIetfQuicFrames() &&

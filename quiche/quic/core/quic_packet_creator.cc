@@ -129,10 +129,7 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       flusher_attached_(false),
       fully_pad_crypto_handshake_packets_(true),
       latched_hard_max_packet_length_(0),
-      max_datagram_frame_size_(0),
-      chaos_protection_enabled_(
-          GetQuicFlag(FLAGS_quic_enable_chaos_protection) &&
-          framer->perspective() == Perspective::IS_CLIENT) {
+      max_datagram_frame_size_(0) {
   SetMaxPacketLength(kDefaultMaxPacketSize);
   if (!framer_->version().UsesTls()) {
     // QUIC+TLS negotiates the maximum datagram frame size via the
@@ -756,7 +753,7 @@ bool QuicPacketCreator::AddPaddedSavedFrame(
 absl::optional<size_t>
 QuicPacketCreator::MaybeBuildDataPacketWithChaosProtection(
     const QuicPacketHeader& header, char* buffer) {
-  if (!chaos_protection_enabled_ ||
+  if (framer_->perspective() != Perspective::IS_CLIENT ||
       packet_.encryption_level != ENCRYPTION_INITIAL ||
       !framer_->version().UsesCryptoFrames() || queued_frames_.size() != 2u ||
       queued_frames_[0].type != CRYPTO_FRAME ||

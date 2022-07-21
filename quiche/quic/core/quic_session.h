@@ -617,8 +617,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return liveness_testing_in_progress_;
   }
 
-  bool permutes_tls_extensions() const { return permutes_tls_extensions_; }
-
   virtual QuicSSLConfig GetSSLConfig() const { return QuicSSLConfig(); }
 
   // Try converting all pending streams to normal streams.
@@ -1004,9 +1002,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // This indicates a liveness testing is in progress, and push back the
   // creation of new outgoing bidirectional streams.
   bool liveness_testing_in_progress_;
-
-  // Whether BoringSSL randomizes the order of TLS extensions.
-  bool permutes_tls_extensions_ = true;
 };
 
 }  // namespace quic
