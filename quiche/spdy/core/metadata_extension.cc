@@ -36,14 +36,18 @@ MetadataFrameSequence::MetadataFrameSequence(SpdyStreamId stream_id,
   progressive_encoder_ = encoder_.EncodeRepresentations(r);
 }
 
+bool MetadataFrameSequence::HasNext() const {
+  return progressive_encoder_->HasNext();
+}
+
 std::unique_ptr<spdy::SpdyFrameIR> MetadataFrameSequence::Next() {
-  if (!progressive_encoder_->HasNext()) {
+  if (!HasNext()) {
     return nullptr;
   }
   // METADATA frames obey the HTTP/2 maximum frame size.
   std::string payload =
       progressive_encoder_->Next(spdy::kHttp2DefaultFramePayloadLimit);
-  const bool end_metadata = (!progressive_encoder_->HasNext());
+  const bool end_metadata = !HasNext();
   const uint8_t flags = end_metadata ? MetadataVisitor::kEndMetadataFlag : 0;
   return absl::make_unique<spdy::SpdyUnknownIR>(
       stream_id_, MetadataVisitor::kMetadataFrameType, flags,

@@ -101,6 +101,12 @@ class QUICHE_EXPORT_PRIVATE MetadataFrameSequence {
   MetadataFrameSequence(const MetadataFrameSequence& other) = delete;
   MetadataFrameSequence& operator=(const MetadataFrameSequence& other) = delete;
 
+  // True if Next() would return non-nullptr.
+  bool HasNext() const;
+
+  // Returns the next HTTP/2 METADATA frame for this block, unless the block has
+  // been entirely serialized in frames returned by previous calls of Next(), in
+  // which case returns nullptr.
   std::unique_ptr<spdy::SpdyFrameIR> Next();
 
  private:

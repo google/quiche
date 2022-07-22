@@ -215,6 +215,65 @@ TEST_F(MetadataExtensionTest, MetadataPayloadInterleaved) {
   EXPECT_EQ(payload2, it->second);
 }
 
+// Test that an empty metadata block is serialized as a single frame with
+// END_METADATA set and empty frame payload.
+TEST_F(MetadataExtensionTest, EmptyBlock) {
+  MetadataFrameSequence sequence(1, Http2HeaderBlock{});
+
+  EXPECT_TRUE(sequence.HasNext());
+  std::unique_ptr<SpdyFrameIR> frame = sequence.Next();
+  EXPECT_FALSE(sequence.HasNext());
+
+  auto* const metadata_frame = static_cast<SpdyUnknownIR*>(frame.get());
+  EXPECT_EQ(MetadataVisitor::kEndMetadataFlag,
+            metadata_frame->flags() & MetadataVisitor::kEndMetadataFlag);
+  EXPECT_TRUE(metadata_frame->payload().empty());
+}
+
+// Test that a small metadata block is serialized as a single frame with
+// END_METADATA set and non-empty frame payload.
+TEST_F(MetadataExtensionTest, SmallBlock) {
+  Http2HeaderBlock metadata_block;
+  metadata_block["foo"] = "bar";
+  MetadataFrameSequence sequence(1, std::move(metadata_block));
+
+  EXPECT_TRUE(sequence.HasNext());
+  std::unique_ptr<SpdyFrameIR> frame = sequence.Next();
+  EXPECT_FALSE(sequence.HasNext());
+
+  auto* const metadata_frame = static_cast<SpdyUnknownIR*>(frame.get());
+  EXPECT_EQ(MetadataVisitor::kEndMetadataFlag,
+            metadata_frame->flags() & MetadataVisitor::kEndMetadataFlag);
+  EXPECT_LT(0u, metadata_frame->payload().size());
+}
+
+// Test that a large metadata block is serialized as multiple frames,
+// with END_METADATA set only on the last one.
+TEST_F(MetadataExtensionTest, LargeBlock) {
+  Http2HeaderBlock metadata_block;
+  metadata_block["foo"] = std::string(65 * 1024, 'a');
+  MetadataFrameSequence sequence(1, std::move(metadata_block));
+
+  int frame_count = 0;
+  while (sequence.HasNext()) {
+    std::unique_ptr<SpdyFrameIR> frame = sequence.Next();
+    ++frame_count;
+
+    auto* const metadata_frame = static_cast<SpdyUnknownIR*>(frame.get());
+    EXPECT_LT(0u, metadata_frame->payload().size());
+
+    if (sequence.HasNext()) {
+      EXPECT_EQ(0u,
+                metadata_frame->flags() & MetadataVisitor::kEndMetadataFlag);
+    } else {
+      EXPECT_EQ(MetadataVisitor::kEndMetadataFlag,
+                metadata_frame->flags() & MetadataVisitor::kEndMetadataFlag);
+    }
+  }
+
+  EXPECT_LE(2, frame_count);
+}
+
 }  // anonymous namespace
 }  // namespace test
 }  // namespace spdy
