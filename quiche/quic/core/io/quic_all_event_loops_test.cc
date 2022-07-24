@@ -266,6 +266,15 @@ TEST_P(QuicEventLoopFactoryTest, UnregisterInsideEventHandler) {
   EXPECT_EQ(total_called, 1);
 }
 
+TEST_P(QuicEventLoopFactoryTest, UnregisterSelfInsideEventHandler) {
+  testing::StrictMock<MockQuicSocketEventListener> listener;
+  ASSERT_TRUE(loop_->RegisterSocket(write_fd_, kAllEvents, &listener));
+
+  EXPECT_CALL(listener, OnSocketEvent(_, write_fd_, kSocketEventWritable))
+      .WillOnce([&]() { ASSERT_TRUE(loop_->UnregisterSocket(write_fd_)); });
+  loop_->RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(1));
+}
+
 // Creates a bidirectional socket and tests its behavior when it's both readable
 // and writable.
 TEST_P(QuicEventLoopFactoryTest, ReadWriteSocket) {
