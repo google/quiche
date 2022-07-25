@@ -22,7 +22,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_bbr2_support_new_startup_pacing_gain, true)
 // If true, 1) remove all experiments that tunes blackhole detection delay or path degrading delay, and 2) ensure network blackhole delay is at least path degrading delay plus 2 PTOs.
 QUIC_FLAG(quic_reloadable_flag_quic_remove_blackhole_detection_experiments, true)
 // If true, QUIC Legacy Version Encapsulation will be disabled.
-QUIC_FLAG(quic_restart_flag_quic_disable_legacy_version_encapsulation, false)
+QUIC_FLAG(quic_restart_flag_quic_disable_legacy_version_encapsulation, true)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 // If true, QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher will early return if connection is disconnected after FlushPackets.
