@@ -6913,11 +6913,6 @@ std::vector<QuicConnectionId> QuicConnection::GetActiveServerConnectionIds()
     QUICHE_DCHECK(version().HasIetfQuicFrames());
     result = self_issued_cid_manager_->GetUnretiredConnectionIds();
   }
-  if (GetQuicReloadableFlag(
-          quic_consider_original_connection_id_as_active_pre_handshake)) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_consider_original_connection_id_as_active_pre_handshake);
-  }
   if (!original_destination_connection_id_.has_value()) {
     return result;
   }
@@ -6925,10 +6920,7 @@ std::vector<QuicConnectionId> QuicConnection::GetActiveServerConnectionIds()
   if (GetQuicRestartFlag(quic_map_original_connection_ids)) {
     QUIC_RESTART_FLAG_COUNT_N(quic_map_original_connection_ids, 4, 4);
     add_original_connection_id = true;
-  } else if (
-      !IsHandshakeComplete() &&
-      GetQuicReloadableFlag(
-          quic_consider_original_connection_id_as_active_pre_handshake)) {
+  } else if (!IsHandshakeComplete()) {
     QUIC_CODE_COUNT(quic_active_original_connection_id_pre_handshake);
     add_original_connection_id = true;
   }

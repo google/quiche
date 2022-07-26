@@ -4926,8 +4926,6 @@ TEST_P(EndToEndTest, SendStatelessResetTokenInShlo) {
 // Regression test for b/116200989.
 TEST_P(EndToEndTest,
        SendStatelessResetIfServerConnectionClosedLocallyDuringHandshake) {
-  SetQuicReloadableFlag(
-      quic_consider_original_connection_id_as_active_pre_handshake, true);
   connect_to_server_on_initialize_ = false;
   ASSERT_TRUE(Initialize());
 
