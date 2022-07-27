@@ -74,6 +74,8 @@ class Netlink : public NetlinkInterface {
   //
   // preferred_source can be !IsInitialized(), in which case it will be omitted.
   //
+  // init_cwnd will be left unspecified if set to 0.
+  //
   // For Verb::kRemove, rule matching is done by (destination_subnet, scope,
   // preferred_source, interface_index). Return true if a matching rule is
   // found. interface_index can be 0 for wilecard.
@@ -86,8 +88,8 @@ class Netlink : public NetlinkInterface {
   // matching rule is found, a new entry will be created.
   bool ChangeRoute(Netlink::Verb verb, uint32_t table,
                    const IpRange& destination_subnet, uint8_t scope,
-                   QuicIpAddress preferred_source,
-                   int32_t interface_index) override;
+                   QuicIpAddress preferred_source, int32_t interface_index,
+                   uint32_t init_cwnd) override;
 
   // Returns the set of all rules in the routing policy database.
   bool GetRuleInfo(std::vector<Netlink::IpRule>* ip_rules) override;
