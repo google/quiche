@@ -8,6 +8,7 @@
 
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/quic_default_connection_helper.h"
 #include "quiche/quic/tools/quic_simple_crypto_server_stream_helper.h"
 #include "quiche/quic/tools/quic_simple_dispatcher.h"
@@ -196,6 +197,18 @@ void QuicTestServer::SetSpdyStreamFactory(StreamFactory* factory) {
 void QuicTestServer::SetCryptoStreamFactory(CryptoStreamFactory* factory) {
   static_cast<QuicTestDispatcher*>(dispatcher())
       ->SetCryptoStreamFactory(factory);
+}
+
+void QuicTestServer::SetEventLoopFactory(QuicEventLoopFactory* factory) {
+  event_loop_factory_ = factory;
+}
+
+std::unique_ptr<QuicEventLoop> QuicTestServer::CreateEventLoop() {
+  QuicEventLoopFactory* factory = event_loop_factory_;
+  if (factory == nullptr) {
+    factory = GetDefaultEventLoop();
+  }
+  return factory->Create(QuicDefaultClock::Get());
 }
 
 ///////////////////////////   TEST SESSIONS ///////////////////////////////

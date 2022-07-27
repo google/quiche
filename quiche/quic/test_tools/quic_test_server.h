@@ -88,6 +88,15 @@ class QuicTestServer : public QuicServer {
   // Sets a custom crypto stream factory, owned by the caller, for easy custom
   // crypto logic.  This is incompatible with setting a session factory.
   void SetCryptoStreamFactory(CryptoStreamFactory* factory);
+
+  // Sets the override for the default event loop factory used by the server.
+  void SetEventLoopFactory(QuicEventLoopFactory* factory);
+
+ protected:
+  std::unique_ptr<QuicEventLoop> CreateEventLoop() override;
+
+ private:
+  QuicEventLoopFactory* event_loop_factory_ = nullptr;
 };
 
 // Useful test sessions for the QuicTestServer.

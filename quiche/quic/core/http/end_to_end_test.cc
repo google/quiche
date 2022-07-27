@@ -504,6 +504,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         crypto_test_utils::ProofSourceForTesting(), server_config_,
         server_supported_versions_, &memory_cache_backend_,
         expected_server_connection_id_length_);
+    test_server->SetEventLoopFactory(GetParam().event_loop);
     server_thread_ =
         std::make_unique<ServerThread>(std::move(test_server), server_address_);
     if (chlo_multiplier_ != 0) {
