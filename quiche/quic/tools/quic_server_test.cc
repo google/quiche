@@ -55,9 +55,10 @@ class MockQuicSimpleDispatcher : public QuicSimpleDispatcher {
 
 class TestQuicServer : public QuicServer {
  public:
-  TestQuicServer()
+  explicit TestQuicServer(QuicEventLoopFactory* event_loop_factory)
       : QuicServer(crypto_test_utils::ProofSourceForTesting(),
-                   &quic_simple_server_backend_) {}
+                   &quic_simple_server_backend_),
+        event_loop_factory_(event_loop_factory) {}
 
   ~TestQuicServer() override = default;
 
@@ -74,13 +75,19 @@ class TestQuicServer : public QuicServer {
     return mock_dispatcher_;
   }
 
+  std::unique_ptr<QuicEventLoop> CreateEventLoop() override {
+    return event_loop_factory_->Create(QuicDefaultClock::Get());
+  }
+
   MockQuicSimpleDispatcher* mock_dispatcher_ = nullptr;
   QuicMemoryCacheBackend quic_simple_server_backend_;
+  QuicEventLoopFactory* event_loop_factory_;
 };
 
-class QuicServerEpollInTest : public QuicTest {
+class QuicServerEpollInTest : public QuicTestWithParam<QuicEventLoopFactory*> {
  public:
-  QuicServerEpollInTest() : server_address_(TestLoopback(), 0) {}
+  QuicServerEpollInTest()
+      : server_address_(TestLoopback(), 0), server_(GetParam()) {}
 
   void StartListening() {
     server_.CreateUDPSocketAndListen(server_address_);
@@ -99,10 +106,19 @@ class QuicServerEpollInTest : public QuicTest {
   TestQuicServer server_;
 };
 
+std::string GetTestParamName(
+    ::testing::TestParamInfo<QuicEventLoopFactory*> info) {
+  return EscapeTestParamName(info.param->GetName());
+}
+
+INSTANTIATE_TEST_SUITE_P(QuicServerEpollInTests, QuicServerEpollInTest,
+                         ::testing::ValuesIn(GetAllSupportedEventLoops()),
+                         GetTestParamName);
+
 // Tests that if dispatcher has CHLOs waiting for connection creation, EPOLLIN
 // event should try to create connections for them. And set epoll mask with
 // EPOLLIN if there are still CHLOs remaining at the end of epoll event.
-TEST_F(QuicServerEpollInTest, ProcessBufferedCHLOsOnEpollin) {
+TEST_P(QuicServerEpollInTest, ProcessBufferedCHLOsOnEpollin) {
   // Given an EPOLLIN event, try to create session for buffered CHLOs. In first
   // event, dispatcher can't create session for all of CHLOs. So listener should
   // register another EPOLLIN event by itself. Even without new packet arrival,

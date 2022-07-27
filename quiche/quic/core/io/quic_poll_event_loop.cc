@@ -151,7 +151,7 @@ void QuicPollEventLoop::ProcessIoEvents(QuicTime start_time,
   int poll_result =
       PollWithRetries(absl::Span<pollfd>(pollfds.get(), registration_count),
                       start_time, timeout);
-  if (poll_result == 0) {
+  if (poll_result == 0 && !has_artificial_events_pending_) {
     return;
   }
 
