@@ -49,6 +49,7 @@
     "quiche/common/quiche_endian.h",
     "quiche/common/quiche_linked_hash_map.h",
     "quiche/common/quiche_mem_slice_storage.h",
+    "quiche/common/quiche_protocol_flags_list.h",
     "quiche/common/quiche_text_utils.h",
     "quiche/common/simple_buffer_allocator.h",
     "quiche/common/structured_headers.h",

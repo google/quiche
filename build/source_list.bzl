@@ -50,6 +50,7 @@ quiche_core_hdrs = [
     "common/quiche_endian.h",
     "common/quiche_linked_hash_map.h",
     "common/quiche_mem_slice_storage.h",
+    "common/quiche_protocol_flags_list.h",
     "common/quiche_text_utils.h",
     "common/simple_buffer_allocator.h",
     "common/structured_headers.h",

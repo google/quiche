@@ -24,14 +24,6 @@ using SpdyFramerError = Http2DecoderAdapter::SpdyFramerError;
 
 using ::spdy::SpdySettingsIR;
 
-// #define OGHTTP2_DEBUG_TRACE 1
-
-#ifdef OGHTTP2_DEBUG_TRACE
-const bool kTraceLoggingEnabled = true;
-#else
-const bool kTraceLoggingEnabled = false;
-#endif
-
 const uint32_t kMaxAllowedMetadataFrameSize = 65536u;
 const uint32_t kDefaultHpackTableCapacity = 4096u;
 const uint32_t kMaximumHpackTableCapacity = 65536u;
@@ -343,10 +335,14 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
       event_forwarder_([this]() { return !latched_error_; }, *this),
       receive_logger_(
           &event_forwarder_, TracePerspectiveAsString(options.perspective),
-          []() { return kTraceLoggingEnabled; }, this),
+          [logging_enabled = GetQuicheFlag(
+               FLAGS_quiche_oghttp2_debug_trace)]() { return logging_enabled; },
+          this),
       send_logger_(
           TracePerspectiveAsString(options.perspective),
-          []() { return kTraceLoggingEnabled; }, this),
+          [logging_enabled = GetQuicheFlag(
+               FLAGS_quiche_oghttp2_debug_trace)]() { return logging_enabled; },
+          this),
       headers_handler_(*this, visitor),
       noop_headers_handler_(/*listener=*/nullptr),
       connection_window_manager_(

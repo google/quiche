@@ -7,3 +7,7 @@
 #define QUIC_FLAG(flag, value) bool FLAGS_##flag = value;
 #include "quiche/quic/core/quic_flags_list.h"
 #undef QUIC_FLAG
+
+#define QUICHE_PROTOCOL_FLAG(type, flag, value, doc) type FLAGS_##flag = value;
+#include "quiche/common/quiche_protocol_flags_list.h"
+#undef QUICHE_PROTOCOL_FLAG

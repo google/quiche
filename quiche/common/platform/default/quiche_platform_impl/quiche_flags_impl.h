@@ -17,6 +17,12 @@
 #include "quiche/quic/core/quic_flags_list.h"
 #undef QUIC_FLAG
 
+// Protocol flags.
+#define QUICHE_PROTOCOL_FLAG(type, flag, ...) \
+  QUICHE_EXPORT_PRIVATE extern type FLAGS_##flag;
+#include "quiche/common/quiche_protocol_flags_list.h"
+#undef QUICHE_PROTOCOL_FLAG
+
 inline bool GetQuicheFlagImpl(bool flag) { return flag; }
 inline int32_t GetQuicheFlagImpl(int32_t flag) { return flag; }
 inline int64_t GetQuicheFlagImpl(int64_t flag) { return flag; }
@@ -26,7 +32,7 @@ inline std::string GetQuicheFlagImpl(const std::string& flag) { return flag; }
 #define SetQuicheFlagImpl(flag, value) ((flag) = (value))
 
 // ------------------------------------------------------------------------
-// QUIC feature flags implementation.
+// QUICHE feature flags implementation.
 // ------------------------------------------------------------------------
 #define QUICHE_RELOADABLE_FLAG(flag) FLAGS_quic_reloadable_flag_##flag
 #define QUICHE_RESTART_FLAG(flag) FLAGS_quic_restart_flag_##flag

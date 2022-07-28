@@ -23,6 +23,7 @@
 #include "quiche/http2/core/priority_write_scheduler.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/http2_header_block.h"
