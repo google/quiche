@@ -3055,6 +3055,39 @@ TEST_P(QuicSessionTestServer, IncomingStreamWithServerInitiatedStreamId) {
   session_.OnStreamFrame(frame);
 }
 
+// Regression test for b/235204908.
+TEST_P(QuicSessionTestServer, BlockedFrameCausesWriteError) {
+  CompleteHandshake();
+  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
+      QuicConnectionPeer::GetWriter(session_.connection()));
+  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  // Set a small connection level flow control limit.
+  const uint64_t kWindow = 36;
+  QuicFlowControllerPeer::SetSendWindowOffset(session_.flow_controller(),
+                                              kWindow);
+  auto stream =
+      session_.GetOrCreateStream(GetNthClientInitiatedBidirectionalId(0));
+  // Try to send more data than the flow control limit allows.
+  const uint64_t kOverflow = 15;
+  std::string body(kWindow + kOverflow, 'a');
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillOnce(testing::InvokeWithoutArgs([this]() {
+        connection_->ReallyCloseConnection(
+            QUIC_PACKET_WRITE_ERROR, "write error",
+            ConnectionCloseBehavior::SILENT_CLOSE);
+        return false;
+      }));
+  std::string msg =
+      absl::StrCat("Marking unknown stream ", stream->id(), " blocked.");
+  if (GetQuicReloadableFlag(
+          quic_donot_mark_stream_write_blocked_if_write_side_closed)) {
+    stream->WriteOrBufferData(body, false, nullptr);
+  } else {
+    EXPECT_QUIC_BUG(stream->WriteOrBufferData(body, false, nullptr), msg);
+  }
+}
+
 // A client test class that can be used when the automatic configuration is not
 // desired.
 class QuicSessionTestClientUnconfigured : public QuicSessionTestBase {
