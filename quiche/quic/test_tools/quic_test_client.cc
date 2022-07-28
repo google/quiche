@@ -646,7 +646,7 @@ bool QuicTestClient::WaitUntil(int timeout_ms, std::function<bool()> trigger) {
           ->GetClock();
   QuicTime end_waiting_time =
       clock->Now() + QuicTime::Delta::FromMicroseconds(timeout_us);
-  while (HaveActiveStream() && !(trigger && trigger()) &&
+  while (connected() && !(trigger && trigger()) &&
          (timeout_us < 0 || clock->Now() < end_waiting_time)) {
     client_->WaitForEvents();
   }

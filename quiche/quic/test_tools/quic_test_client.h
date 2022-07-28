@@ -198,7 +198,9 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // responses are received while the client is waiting, subsequent calls to
   // this function will return immediately.
   void WaitForResponseForMs(int timeout_ms) {
-    WaitUntil(timeout_ms, [this]() { return !closed_stream_states_.empty(); });
+    WaitUntil(timeout_ms, [this]() {
+      return !HaveActiveStream() || !closed_stream_states_.empty();
+    });
     if (response_complete()) {
       QUIC_VLOG(1) << "Client received response:"
                    << response_headers()->DebugString() << response_body();
@@ -209,7 +211,8 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // complete response is received from the server, or once the timeout
   // expires. -1 means no timeout.
   void WaitForInitialResponseForMs(int timeout_ms) {
-    WaitUntil(timeout_ms, [this]() { return response_size() != 0; });
+    WaitUntil(timeout_ms,
+              [this]() { return !HaveActiveStream() || response_size() != 0; });
   }
 
   // Migrate local address to <|new_host|, a random port>.
