@@ -18,6 +18,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -61,6 +62,7 @@ TlsChloExtractor& TlsChloExtractor::operator=(TlsChloExtractor&& other) {
       other.parsed_crypto_frame_in_this_packet_;
   alpns_ = std::move(other.alpns_);
   server_name_ = std::move(other.server_name_);
+  client_hello_bytes_ = std::move(other.client_hello_bytes_);
   return *this;
 }
 
@@ -291,6 +293,11 @@ void TlsChloExtractor::HandleParsedChlo(const SSL_CLIENT_HELLO* client_hello) {
   resumption_attempted_ =
       HasExtension(client_hello, TLSEXT_TYPE_pre_shared_key);
   early_data_attempted_ = HasExtension(client_hello, TLSEXT_TYPE_early_data);
+
+  QUICHE_DCHECK(client_hello_bytes_.empty());
+  client_hello_bytes_.assign(
+      client_hello->client_hello,
+      client_hello->client_hello + client_hello->client_hello_len);
 
   const uint8_t* alpn_data;
   size_t alpn_len;

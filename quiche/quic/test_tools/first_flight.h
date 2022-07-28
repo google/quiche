@@ -112,6 +112,21 @@ std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
 std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
     const ParsedQuicVersion& version);
 
+// Functions that also provide additional information about the session.
+struct AnnotatedPackets {
+  std::vector<std::unique_ptr<QuicReceivedPacket>> packets;
+  uint64_t crypto_stream_size;
+};
+
+AnnotatedPackets GetAnnotatedFirstFlightOfPackets(
+    const ParsedQuicVersion& version, const QuicConfig& config,
+    const QuicConnectionId& server_connection_id,
+    const QuicConnectionId& client_connection_id,
+    std::unique_ptr<QuicCryptoClientConfig> crypto_config);
+
+AnnotatedPackets GetAnnotatedFirstFlightOfPackets(
+    const ParsedQuicVersion& version, const QuicConfig& config);
+
 }  // namespace test
 }  // namespace quic
 

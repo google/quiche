@@ -10,7 +10,6 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
-#include "quiche/quic/core/crypto/crypto_utils.h"
 #include "quiche/quic/core/frames/quic_crypto_frame.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -384,6 +383,11 @@ uint64_t QuicCryptoStream::crypto_bytes_read() const {
 uint64_t QuicCryptoStream::BytesReadOnLevel(EncryptionLevel level) const {
   return substreams_[QuicUtils::GetPacketNumberSpace(level)]
       .sequencer.NumBytesConsumed();
+}
+
+uint64_t QuicCryptoStream::BytesSentOnLevel(EncryptionLevel level) const {
+  return substreams_[QuicUtils::GetPacketNumberSpace(level)]
+      .send_buffer.stream_bytes_written();
 }
 
 bool QuicCryptoStream::WriteCryptoFrame(EncryptionLevel level,

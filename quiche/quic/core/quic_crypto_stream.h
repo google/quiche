@@ -200,6 +200,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // the peer in CRYPTO frames at a particular encryption level.
   QuicByteCount BytesReadOnLevel(EncryptionLevel level) const;
 
+  // Returns the number of bytes of handshake data that have been sent to
+  // the peer in CRYPTO frames at a particular encryption level.
+  QuicByteCount BytesSentOnLevel(EncryptionLevel level) const;
+
   // Writes |data_length| of data of a crypto frame to |writer|. The data
   // written is from the send buffer for encryption level |level| and starts at
   // |offset|.

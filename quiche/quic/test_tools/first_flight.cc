@@ -15,6 +15,7 @@
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -85,6 +86,13 @@ class FirstFlightExtractor : public DelegatedPacketWriter::Delegate {
     return std::move(packets_);
   }
 
+  uint64_t GetCryptoStreamBytesWritten() const {
+    QUICHE_DCHECK(session_);
+    QUICHE_DCHECK(session_->GetCryptoStream());
+    return session_->GetCryptoStream()->BytesSentOnLevel(
+        EncryptionLevel::ENCRYPTION_INITIAL);
+  }
+
  private:
   ParsedQuicVersion version_;
   QuicConnectionId server_connection_id_;
@@ -153,6 +161,28 @@ std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
     const ParsedQuicVersion& version) {
   return GetFirstFlightOfPackets(version, DefaultQuicConfig(),
                                  TestConnectionId());
+}
+
+AnnotatedPackets GetAnnotatedFirstFlightOfPackets(
+    const ParsedQuicVersion& version, const QuicConfig& config,
+    const QuicConnectionId& server_connection_id,
+    const QuicConnectionId& client_connection_id,
+    std::unique_ptr<QuicCryptoClientConfig> crypto_config) {
+  FirstFlightExtractor first_flight_extractor(
+      version, config, server_connection_id, client_connection_id,
+      std::move(crypto_config));
+  first_flight_extractor.GenerateFirstFlight();
+  return AnnotatedPackets{first_flight_extractor.ConsumePackets(),
+                          first_flight_extractor.GetCryptoStreamBytesWritten()};
+}
+
+AnnotatedPackets GetAnnotatedFirstFlightOfPackets(
+    const ParsedQuicVersion& version, const QuicConfig& config) {
+  FirstFlightExtractor first_flight_extractor(
+      version, config, TestConnectionId(), EmptyQuicConnectionId());
+  first_flight_extractor.GenerateFirstFlight();
+  return AnnotatedPackets{first_flight_extractor.ConsumePackets(),
+                          first_flight_extractor.GetCryptoStreamBytesWritten()};
 }
 
 }  // namespace test

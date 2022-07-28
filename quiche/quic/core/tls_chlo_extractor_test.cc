@@ -9,7 +9,6 @@
 #include "openssl/ssl.h"
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 #include "quiche/quic/core/quic_connection.h"
-#include "quiche/quic/core/quic_packet_writer_wrapper.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -29,11 +28,19 @@ class TlsChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
  protected:
   TlsChloExtractorTest() : version_(GetParam()), server_id_(TestServerId()) {}
 
-  void Initialize() { packets_ = GetFirstFlightOfPackets(version_, config_); }
+  void Initialize() {
+    AnnotatedPackets packets =
+        GetAnnotatedFirstFlightOfPackets(version_, config_);
+    packets_ = std::move(packets.packets);
+    crypto_stream_size_ = packets.crypto_stream_size;
+  }
+
   void Initialize(std::unique_ptr<QuicCryptoClientConfig> crypto_config) {
-    packets_ = GetFirstFlightOfPackets(version_, config_, TestConnectionId(),
-                                       EmptyQuicConnectionId(),
-                                       std::move(crypto_config));
+    AnnotatedPackets packets = GetAnnotatedFirstFlightOfPackets(
+        version_, config_, TestConnectionId(), EmptyQuicConnectionId(),
+        std::move(crypto_config));
+    packets_ = std::move(packets.packets);
+    crypto_stream_size_ = packets.crypto_stream_size;
   }
 
   // Perform a full handshake in order to insert a SSL_SESSION into
@@ -105,12 +112,28 @@ class TlsChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
     packets_.clear();
   }
 
-  void ValidateChloDetails() {
-    EXPECT_TRUE(tls_chlo_extractor_.HasParsedFullChlo());
-    std::vector<std::string> alpns = tls_chlo_extractor_.alpns();
+  void ValidateChloDetails(const TlsChloExtractor* extractor = nullptr) const {
+    if (extractor == nullptr) {
+      extractor = &tls_chlo_extractor_;
+    }
+
+    EXPECT_TRUE(extractor->HasParsedFullChlo());
+    std::vector<std::string> alpns = extractor->alpns();
     ASSERT_EQ(alpns.size(), 1u);
     EXPECT_EQ(alpns[0], AlpnForVersion(version_));
-    EXPECT_EQ(tls_chlo_extractor_.server_name(), TestHostname());
+    EXPECT_EQ(extractor->server_name(), TestHostname());
+    // Crypto stream has one frame in the following format:
+    // CRYPTO Frame {
+    //  Type (i) = 0x06,
+    //  Offset (i),
+    //  Length (i),
+    //  Crypto Data (..),
+    // }
+    //
+    // Type is 1 byte long, Offset is zero and also 1 byte long, and
+    // all generated ClientHello messages have 2 byte length. So
+    // the header is 4 bytes total.
+    EXPECT_EQ(extractor->client_hello_bytes().size(), crypto_stream_size_ - 4);
   }
 
   void IncreaseSizeOfChlo() {
@@ -127,6 +150,7 @@ class TlsChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
   TlsChloExtractor tls_chlo_extractor_;
   QuicConfig config_;
   std::vector<std::unique_ptr<QuicReceivedPacket>> packets_;
+  uint64_t crypto_stream_size_;
 };
 
 INSTANTIATE_TEST_SUITE_P(TlsChloExtractorTests, TlsChloExtractorTest,
@@ -209,6 +233,21 @@ TEST_P(TlsChloExtractorTest, MoveAssignment) {
   ValidateChloDetails();
   EXPECT_EQ(tls_chlo_extractor_.state(),
             TlsChloExtractor::State::kParsedFullSinglePacketChlo);
+}
+
+TEST_P(TlsChloExtractorTest, MoveAssignmentAfterExtraction) {
+  Initialize();
+  EXPECT_EQ(packets_.size(), 1u);
+  IngestPackets();
+  ValidateChloDetails();
+  EXPECT_EQ(tls_chlo_extractor_.state(),
+            TlsChloExtractor::State::kParsedFullSinglePacketChlo);
+
+  TlsChloExtractor other_extractor = std::move(tls_chlo_extractor_);
+
+  EXPECT_EQ(other_extractor.state(),
+            TlsChloExtractor::State::kParsedFullSinglePacketChlo);
+  ValidateChloDetails(&other_extractor);
 }
 
 TEST_P(TlsChloExtractorTest, MoveAssignmentBetweenPackets) {
