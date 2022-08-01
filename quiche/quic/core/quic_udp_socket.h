@@ -15,10 +15,6 @@
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 
-#ifndef UDP_GRO
-#define UDP_GRO 104
-#endif
-
 namespace quic {
 
 using QuicUdpSocketFd = SocketFd;
@@ -35,7 +31,6 @@ enum class QuicUdpPacketInfoBit : uint8_t {
   TTL,                   // Read & Write
   GOOGLE_PACKET_HEADER,  // Read
   NUM_BITS,
-  IS_GRO,  // Read
 };
 static_assert(static_cast<size_t>(QuicUdpPacketInfoBit::NUM_BITS) <=
                   BitMask64::NumBits(),
@@ -74,13 +69,6 @@ class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
     dropped_packets_ = dropped_packets;
     bitmask_.Set(QuicUdpPacketInfoBit::DROPPED_PACKETS);
   }
-
-  void set_gso_size(size_t gso_size) {
-    gso_size_ = gso_size;
-    bitmask_.Set(QuicUdpPacketInfoBit::IS_GRO);
-  }
-
-  size_t gso_size() { return gso_size_; }
 
   const QuicIpAddress& self_v4_ip() const {
     QUICHE_DCHECK(HasValue(QuicUdpPacketInfoBit::V4_SELF_IP));
@@ -159,7 +147,6 @@ class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
   QuicWallTime receive_timestamp_ = QuicWallTime::Zero();
   int ttl_;
   BufferSpan google_packet_headers_;
-  size_t gso_size_ = 0;
 };
 
 // QuicUdpSocketApi provides a minimal set of apis for sending and receiving
