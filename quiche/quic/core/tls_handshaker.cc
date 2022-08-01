@@ -101,10 +101,7 @@ void TlsHandshaker::AdvanceHandshake() {
   QUIC_VLOG(1) << ENDPOINT << "Continuing handshake";
   int rv = SSL_do_handshake(ssl());
 
-  if (GetQuicReloadableFlag(quic_tls_handshaker_check_connection_closed) &&
-      is_connection_closed()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_handshaker_check_connection_closed, 1,
-                                 2);
+  if (is_connection_closed()) {
     return;
   }
 
@@ -117,10 +114,7 @@ void TlsHandshaker::AdvanceHandshake() {
     OnEnterEarlyData();
     rv = SSL_do_handshake(ssl());
 
-    if (GetQuicReloadableFlag(quic_tls_handshaker_check_connection_closed) &&
-        is_connection_closed()) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_handshaker_check_connection_closed,
-                                   2, 2);
+    if (is_connection_closed()) {
       return;
     }
 

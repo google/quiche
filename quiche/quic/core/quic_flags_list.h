@@ -29,8 +29,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 QUIC_FLAG(quic_reloadable_flag_quic_packet_flusher_check_connected_after_flush_packets, true)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(quic_restart_flag_quic_support_release_time_for_gso, false)
-// If true, TlsHandshaker::AdvanceHandshake will check if connection is closed after SSL_do_handshake.
-QUIC_FLAG(quic_reloadable_flag_quic_tls_handshaker_check_connection_closed, true)
 // If true, account added padding when coalesced packets get buffered.
 QUIC_FLAG(quic_reloadable_flag_quic_fix_bytes_accounting_for_buffered_coalesced_packets, true)
 // If true, ack frequency frame can be sent from server to client.
