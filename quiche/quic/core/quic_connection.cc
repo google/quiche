@@ -6961,7 +6961,7 @@ void QuicConnection::CreateConnectionIdManager() {
 
 void QuicConnection::QuicBugIfHasPendingFrames(QuicStreamId id) const {
   QUIC_BUG_IF(quic_has_pending_frames_unexpectedly,
-              packet_creator_.HasPendingStreamFramesOfStream(id))
+              connected_ && packet_creator_.HasPendingStreamFramesOfStream(id))
       << "Stream " << id
       << " has pending frames unexpectedly. Received packet info: "
       << last_received_packet_info_;
