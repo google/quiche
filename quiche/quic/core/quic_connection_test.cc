@@ -2428,7 +2428,8 @@ class TestValidationResultDelegate : public QuicPathValidator::ResultDelegate {
         expected_peer_address_(expected_peer_address),
         success_(success) {}
   void OnPathValidationSuccess(
-      std::unique_ptr<QuicPathValidationContext> context) override {
+      std::unique_ptr<QuicPathValidationContext> context,
+      QuicTime /*start_time*/) override {
     EXPECT_EQ(expected_self_address_, context->self_address());
     EXPECT_EQ(expected_peer_address_, context->peer_address());
     *success_ = true;

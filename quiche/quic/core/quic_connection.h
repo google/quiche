@@ -1467,7 +1467,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
         const QuicSocketAddress& direct_peer_address);
 
     void OnPathValidationSuccess(
-        std::unique_ptr<QuicPathValidationContext> context) override;
+        std::unique_ptr<QuicPathValidationContext> context,
+        QuicTime start_time) override;
 
     void OnPathValidationFailure(
         std::unique_ptr<QuicPathValidationContext> context) override;

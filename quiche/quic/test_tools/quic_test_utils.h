@@ -1434,7 +1434,8 @@ class MockQuicPathValidationResultDelegate
     : public QuicPathValidator::ResultDelegate {
  public:
   MOCK_METHOD(void, OnPathValidationSuccess,
-              (std::unique_ptr<QuicPathValidationContext>), (override));
+              (std::unique_ptr<QuicPathValidationContext>, QuicTime),
+              (override));
 
   MOCK_METHOD(void, OnPathValidationFailure,
               (std::unique_ptr<QuicPathValidationContext>), (override));

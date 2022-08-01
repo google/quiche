@@ -37,6 +37,7 @@
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_path_validator.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
@@ -325,7 +326,7 @@ QuicConnection::QuicConnection(
       blackhole_detector_(this, &arena_, alarm_factory_, &context_),
       idle_network_detector_(this, clock_->ApproximateNow(), &arena_,
                              alarm_factory_, &context_),
-      path_validator_(alarm_factory_, &arena_, this, random_generator_,
+      path_validator_(alarm_factory_, &arena_, this, random_generator_, clock_,
                       &context_),
       ping_manager_(perspective, this, &arena_, alarm_factory_, &context_) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
@@ -7113,9 +7114,10 @@ QuicConnection::ReversePathValidationResultDelegate::
           connection_->active_effective_peer_migration_type_) {}
 
 void QuicConnection::ReversePathValidationResultDelegate::
-    OnPathValidationSuccess(
-        std::unique_ptr<QuicPathValidationContext> context) {
-  QUIC_DLOG(INFO) << "Successfully validated new path " << *context;
+    OnPathValidationSuccess(std::unique_ptr<QuicPathValidationContext> context,
+                            QuicTime start_time) {
+  QUIC_DLOG(INFO) << "Successfully validated new path " << *context
+                  << ", validation started at " << start_time;
   if (connection_->IsDefaultPath(context->self_address(),
                                  context->peer_address())) {
     QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 3, 6);

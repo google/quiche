@@ -34,10 +34,11 @@ std::ostream& operator<<(std::ostream& os,
 QuicPathValidator::QuicPathValidator(QuicAlarmFactory* alarm_factory,
                                      QuicConnectionArena* arena,
                                      SendDelegate* send_delegate,
-                                     QuicRandom* random,
+                                     QuicRandom* random, const QuicClock* clock,
                                      QuicConnectionContext* context)
     : send_delegate_(send_delegate),
       random_(random),
+      clock_(clock),
       retry_timer_(alarm_factory->CreateAlarm(
           arena->New<RetryAlarmDelegate>(this, context), arena)),
       retry_count_(0u) {}
@@ -57,14 +58,16 @@ void QuicPathValidator::OnPathResponse(const QuicPathFrameBuffer& probing_data,
     return;
   }
   // This iterates at most 3 times.
-  if (std::find(probing_data_.begin(), probing_data_.end(), probing_data) !=
-      probing_data_.end()) {
-    result_delegate_->OnPathValidationSuccess(std::move(path_context_));
-    ResetPathValidation();
-  } else {
-    QUIC_DVLOG(1) << "PATH_RESPONSE with payload " << probing_data.data()
-                  << " doesn't match the probing data.";
+  for (auto it = probing_data_.begin(); it != probing_data_.end(); ++it) {
+    if (it->frame_buffer == probing_data) {
+      result_delegate_->OnPathValidationSuccess(std::move(path_context_),
+                                                it->send_time);
+      ResetPathValidation();
+      return;
+    }
   }
+  QUIC_DVLOG(1) << "PATH_RESPONSE with payload " << probing_data.data()
+                << " doesn't match the probing data.";
 }
 
 void QuicPathValidator::StartPathValidation(
@@ -109,9 +112,10 @@ QuicPathValidationContext* QuicPathValidator::GetContext() const {
 }
 
 const QuicPathFrameBuffer& QuicPathValidator::GeneratePathChallengePayload() {
-  probing_data_.push_back(QuicPathFrameBuffer());
-  random_->RandBytes(probing_data_.back().data(), sizeof(QuicPathFrameBuffer));
-  return probing_data_.back();
+  probing_data_.emplace_back(clock_->Now());
+  random_->RandBytes(probing_data_.back().frame_buffer.data(),
+                     sizeof(QuicPathFrameBuffer));
+  return probing_data_.back().frame_buffer;
 }
 
 void QuicPathValidator::OnRetryTimeout() {

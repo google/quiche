@@ -49,7 +49,8 @@ class QuicClientSocketMigrationValidationResultDelegate
   // Overridden to start migration and takes the ownership of the writer in the
   // context.
   void OnPathValidationSuccess(
-      std::unique_ptr<QuicPathValidationContext> context) override {
+      std::unique_ptr<QuicPathValidationContext> context,
+      QuicTime /*start_time*/) override {
     QUIC_DLOG(INFO) << "Successfully validated path from " << *context
                     << ". Migrate to it now.";
     auto migration_context = std::unique_ptr<PathMigrationContext>(
@@ -467,8 +468,10 @@ class ValidationResultDelegate : public QuicPathValidator::ResultDelegate {
       : QuicPathValidator::ResultDelegate(), client_(client) {}
 
   void OnPathValidationSuccess(
-      std::unique_ptr<QuicPathValidationContext> context) override {
-    QUIC_DLOG(INFO) << "Successfully validated path from " << *context;
+      std::unique_ptr<QuicPathValidationContext> context,
+      QuicTime start_time) override {
+    QUIC_DLOG(INFO) << "Successfully validated path from " << *context
+                    << ", validation started at " << start_time;
     client_->AddValidatedPath(std::move(context));
   }
   void OnPathValidationFailure(
