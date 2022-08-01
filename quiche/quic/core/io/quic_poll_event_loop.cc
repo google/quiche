@@ -90,6 +90,7 @@ void QuicPollEventLoop::RunEventLoopOnce(QuicTime::Delta default_timeout) {
 
 QuicTime::Delta QuicPollEventLoop::ComputePollTimeout(
     QuicTime now, QuicTime::Delta default_timeout) const {
+  default_timeout = std::max(default_timeout, QuicTime::Delta::Zero());
   if (has_artificial_events_pending_) {
     return QuicTime::Delta::Zero();
   }
@@ -97,12 +98,13 @@ QuicTime::Delta QuicPollEventLoop::ComputePollTimeout(
     return default_timeout;
   }
   QuicTime end_time = std::min(now + default_timeout, alarms_.begin()->first);
-  if (end_time <= now) {
+  if (end_time < now) {
     // Since we call ProcessAlarmsUpTo() right before this, this should never
     // happen.
     QUIC_BUG(Newest alarm is in the past)
         << "now " << now.ToDebuggingValue()
-        << ", end_time: " << end_time.ToDebuggingValue();
+        << ", end_time: " << end_time.ToDebuggingValue()
+        << ", default timeout: " << default_timeout;
     return QuicTime::Delta::Zero();
   }
   return end_time - now;

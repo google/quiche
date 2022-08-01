@@ -410,5 +410,14 @@ TEST_P(QuicEventLoopFactoryTest, DestructorWithPendingAlarm) {
   // gone.
 }
 
+TEST_P(QuicEventLoopFactoryTest, NegativeTimeout) {
+  constexpr auto kAlarmTimeout = QuicTime::Delta::FromMilliseconds(500);
+  auto [alarm1_ptr, delegate1] = CreateAlarm();
+
+  alarm1_ptr->Set(clock_.Now() + kAlarmTimeout);
+
+  loop_->RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(-1));
+}
+
 }  // namespace
 }  // namespace quic::test
