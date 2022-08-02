@@ -12,7 +12,6 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/qpack/qpack_encoder_peer.h"
-#include "quiche/quic/test_tools/qpack/qpack_encoder_test_utils.h"
 #include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
 
 using ::testing::_;
@@ -29,6 +28,17 @@ namespace {
 // will instruct QpackEncoder not to generate any instructions for the encoder
 // stream.
 constexpr uint64_t kTooManyBytesBuffered = 1024 * 1024;
+
+// Mock QpackEncoder::DecoderStreamErrorDelegate implementation.
+class MockDecoderStreamErrorDelegate
+    : public QpackEncoder::DecoderStreamErrorDelegate {
+ public:
+  ~MockDecoderStreamErrorDelegate() override = default;
+
+  MOCK_METHOD(void, OnDecoderStreamError,
+              (QuicErrorCode error_code, absl::string_view error_message),
+              (override));
+};
 
 class QpackEncoderTest : public QuicTest {
  protected:

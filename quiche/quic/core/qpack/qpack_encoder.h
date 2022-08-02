@@ -155,6 +155,16 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   int header_list_count_;
 };
 
+// QpackEncoder::DecoderStreamErrorDelegate implementation that does nothing.
+class QUIC_EXPORT_PRIVATE NoopDecoderStreamErrorDelegate
+    : public QpackEncoder::DecoderStreamErrorDelegate {
+ public:
+  ~NoopDecoderStreamErrorDelegate() override = default;
+
+  void OnDecoderStreamError(QuicErrorCode /*error_code*/, absl::string_view
+                            /*error_message*/) override {}
+};
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QPACK_QPACK_ENCODER_H_

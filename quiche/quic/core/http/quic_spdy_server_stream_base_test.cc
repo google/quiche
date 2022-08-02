@@ -8,7 +8,7 @@
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/quic/test_tools/qpack/qpack_encoder_test_utils.h"
+#include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
 #include "quiche/quic/test_tools/quic_spdy_session_peer.h"
 #include "quiche/quic/test_tools/quic_stream_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -311,7 +311,7 @@ TEST_F(QuicSpdyServerStreamBaseTest, EmptyHeaders) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   spdy::Http2HeaderBlock empty_header;
   quic::test::NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
-  quic::test::NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
+  NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
   auto qpack_encoder =
       std::make_unique<quic::QpackEncoder>(&decoder_stream_error_delegate);
   qpack_encoder->set_qpack_stream_sender_delegate(
