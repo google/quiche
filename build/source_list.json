@@ -381,7 +381,6 @@
     "quiche/spdy/core/spdy_bitmasks.h",
     "quiche/spdy/core/spdy_frame_builder.h",
     "quiche/spdy/core/spdy_framer.h",
-    "quiche/spdy/core/spdy_header_block.h",
     "quiche/spdy/core/spdy_headers_handler_interface.h",
     "quiche/spdy/core/spdy_intrusive_list.h",
     "quiche/spdy/core/spdy_no_op_visitor.h",

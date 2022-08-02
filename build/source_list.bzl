@@ -382,7 +382,6 @@ quiche_core_hdrs = [
     "spdy/core/spdy_bitmasks.h",
     "spdy/core/spdy_frame_builder.h",
     "spdy/core/spdy_framer.h",
-    "spdy/core/spdy_header_block.h",
     "spdy/core/spdy_headers_handler_interface.h",
     "spdy/core/spdy_intrusive_list.h",
     "spdy/core/spdy_no_op_visitor.h",
