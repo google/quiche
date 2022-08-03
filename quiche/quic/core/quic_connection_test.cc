@@ -15599,7 +15599,7 @@ TEST_P(QuicConnectionTest, OriginalConnectionId) {
   // Send a 1-RTT packet to start the DiscardZeroRttDecryptionKeys timer.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacketAtLevel(1, false, ENCRYPTION_FORWARD_SECURE);
-  if (GetQuicRestartFlag(quic_map_original_connection_ids) &&
+  if (GetQuicRestartFlag(quic_map_original_connection_ids2) &&
       connection_.version().UsesTls()) {
     EXPECT_TRUE(connection_.GetDiscardZeroRttDecryptionKeysAlarm()->IsSet());
     EXPECT_CALL(visitor_, OnServerConnectionIdRetired(original));

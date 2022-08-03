@@ -187,7 +187,7 @@ class MockServerConnection : public MockQuicConnection {
   }
 
   std::vector<QuicConnectionId> GetActiveServerConnectionIds() const override {
-    if (!GetQuicRestartFlag(quic_map_original_connection_ids)) {
+    if (!GetQuicRestartFlag(quic_map_original_connection_ids2)) {
       return active_connection_ids_;
     }
     std::vector<QuicConnectionId> result;

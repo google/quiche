@@ -616,7 +616,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
     return true;
   }
   if (packet_info.version.IsKnown() &&
-      !GetQuicRestartFlag(quic_map_original_connection_ids)) {
+      !GetQuicRestartFlag(quic_map_original_connection_ids2)) {
     // We did not find the connection ID, check if we've replaced it.
     // This is only performed for supported versions because packets with
     // unsupported versions can flow through this function in order to send
@@ -1284,8 +1284,8 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
     if (session_ptr != nullptr) {
       DeliverPacketsToSession(packets, session_ptr.get());
       if (server_connection_id != session_ptr->connection_id() &&
-          GetQuicRestartFlag(quic_map_original_connection_ids)) {
-        QUIC_RESTART_FLAG_COUNT_N(quic_map_original_connection_ids, 1, 4);
+          GetQuicRestartFlag(quic_map_original_connection_ids2)) {
+        QUIC_RESTART_FLAG_COUNT_N(quic_map_original_connection_ids2, 1, 4);
       }
     }
   }
@@ -1375,8 +1375,8 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
       QUIC_CODE_COUNT(
           quic_delivered_buffered_packets_to_connection_with_replaced_id);
     }
-    if (GetQuicRestartFlag(quic_map_original_connection_ids)) {
-      QUIC_RESTART_FLAG_COUNT_N(quic_map_original_connection_ids, 2, 4);
+    if (GetQuicRestartFlag(quic_map_original_connection_ids2)) {
+      QUIC_RESTART_FLAG_COUNT_N(quic_map_original_connection_ids2, 2, 4);
     }
   }
   // Process CHLO at first.
@@ -1425,6 +1425,24 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
     const QuicSocketAddress peer_address) {
   QuicConnectionId server_connection_id =
       MaybeReplaceServerConnectionId(original_connection_id, version);
+  const bool replaced_connection_id =
+      original_connection_id != server_connection_id;
+  if (reference_counted_session_map_.count(server_connection_id) > 0 &&
+      GetQuicRestartFlag(quic_map_original_connection_ids2)) {
+    // The new connection ID is owned by another session. Avoid creating one
+    // altogether, as this connection attempt cannot possibly succeed.
+    if (replaced_connection_id) {
+      // The original connection ID does not correspond to an existing
+      // session. It is safe to send CONNECTION_CLOSE and add to TIME_WAIT.
+      StatelesslyTerminateConnection(
+          original_connection_id, IETF_QUIC_LONG_HEADER_PACKET,
+          /*version_flag=*/true, version.HasLengthPrefixedConnectionIds(),
+          version, QUIC_HANDSHAKE_FAILED,
+          "Connection ID collision, please retry",
+          QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS);
+    }
+    return nullptr;
+  }
   // Creates a new session and process all buffered packets for this connection.
   std::string alpn = SelectAlpn(parsed_chlo.alpns);
   std::unique_ptr<QuicSession> session =
@@ -1437,8 +1455,7 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
         << alpn << "\" version " << version;
     return nullptr;
   }
-  const bool replaced_connection_id =
-      original_connection_id != server_connection_id;
+
   if (replaced_connection_id) {
     session->connection()->SetOriginalDestinationConnectionId(
         original_connection_id);
@@ -1455,7 +1472,7 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
         << server_connection_id;
   } else {
     ++num_sessions_in_session_map_;
-    if (GetQuicRestartFlag(quic_map_original_connection_ids) &&
+    if (GetQuicRestartFlag(quic_map_original_connection_ids2) &&
         replaced_connection_id) {
       auto insertion_result2 = reference_counted_session_map_.insert(
           std::make_pair(original_connection_id, session_ptr));

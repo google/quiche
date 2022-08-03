@@ -177,7 +177,7 @@ class DiscardZeroRttDecryptionKeysAlarmDelegate
     QUICHE_DCHECK(connection_->connected());
     QUIC_DLOG(INFO) << "0-RTT discard alarm fired";
     connection_->RemoveDecrypter(ENCRYPTION_ZERO_RTT);
-    if (GetQuicRestartFlag(quic_map_original_connection_ids)) {
+    if (GetQuicRestartFlag(quic_map_original_connection_ids2)) {
       connection_->RetireOriginalDestinationConnectionId();
     }
   }
@@ -979,7 +979,7 @@ QuicConnectionId QuicConnection::GetOriginalDestinationConnectionId() const {
 void QuicConnection::RetireOriginalDestinationConnectionId() {
   if (original_destination_connection_id_.has_value()) {
     visitor_->OnServerConnectionIdRetired(*original_destination_connection_id_);
-    QUIC_RESTART_FLAG_COUNT_N(quic_map_original_connection_ids, 3, 4);
+    QUIC_RESTART_FLAG_COUNT_N(quic_map_original_connection_ids2, 3, 4);
     original_destination_connection_id_.reset();
   }
 }
@@ -1047,10 +1047,14 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
     if (debug_visitor_ != nullptr) {
       debug_visitor_->OnIncorrectConnectionId(server_connection_id);
     }
-    // If this is a server, the dispatcher routes each packet to the
-    // QuicConnection responsible for the packet's connection ID.  So if control
-    // arrives here and this is a server, the dispatcher must be malfunctioning.
-    QUICHE_DCHECK_NE(Perspective::IS_SERVER, perspective_);
+    // The only way for a connection to get a packet with an invalid connection
+    // ID is if quic_map_original_connection_ids2 is false and a packet
+    // arrives with a connection ID that is deterministically replaced with one
+    // that the connection owns, but is different from
+    // original_destination_connection_id_.
+    if (GetQuicRestartFlag(quic_map_original_connection_ids2)) {
+      QUICHE_DCHECK_NE(Perspective::IS_SERVER, perspective_);
+    }
     return false;
   }
 
@@ -6918,8 +6922,8 @@ std::vector<QuicConnectionId> QuicConnection::GetActiveServerConnectionIds()
     return result;
   }
   bool add_original_connection_id = false;
-  if (GetQuicRestartFlag(quic_map_original_connection_ids)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_map_original_connection_ids, 4, 4);
+  if (GetQuicRestartFlag(quic_map_original_connection_ids2)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_map_original_connection_ids2, 4, 4);
     add_original_connection_id = true;
   } else if (!IsHandshakeComplete()) {
     QUIC_CODE_COUNT(quic_active_original_connection_id_pre_handshake);
