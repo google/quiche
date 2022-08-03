@@ -132,6 +132,7 @@
     "quiche/quic/core/congestion_control/tcp_cubic_sender_bytes.h",
     "quiche/quic/core/congestion_control/uber_loss_algorithm.h",
     "quiche/quic/core/congestion_control/windowed_filter.h",
+    "quiche/quic/core/connection_id_generator.h",
     "quiche/quic/core/crypto/aead_base_decrypter.h",
     "quiche/quic/core/crypto/aead_base_encrypter.h",
     "quiche/quic/core/crypto/aes_128_gcm_12_decrypter.h",

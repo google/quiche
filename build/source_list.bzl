@@ -133,6 +133,7 @@ quiche_core_hdrs = [
     "quic/core/congestion_control/tcp_cubic_sender_bytes.h",
     "quic/core/congestion_control/uber_loss_algorithm.h",
     "quic/core/congestion_control/windowed_filter.h",
+    "quic/core/connection_id_generator.h",
     "quic/core/crypto/aead_base_decrypter.h",
     "quic/core/crypto/aead_base_encrypter.h",
     "quic/core/crypto/aes_128_gcm_12_decrypter.h",
