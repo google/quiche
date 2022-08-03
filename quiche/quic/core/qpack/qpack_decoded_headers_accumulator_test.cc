@@ -10,7 +10,6 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/qpack/qpack_decoder.h"
 #include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
 
 using ::testing::_;

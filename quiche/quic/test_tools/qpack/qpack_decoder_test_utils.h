@@ -18,16 +18,6 @@
 namespace quic {
 namespace test {
 
-// QpackDecoder::EncoderStreamErrorDelegate implementation that does nothing.
-class NoopEncoderStreamErrorDelegate
-    : public QpackDecoder::EncoderStreamErrorDelegate {
- public:
-  ~NoopEncoderStreamErrorDelegate() override = default;
-
-  void OnEncoderStreamError(QuicErrorCode error_code,
-                            absl::string_view error_message) override;
-};
-
 // Mock QpackDecoder::EncoderStreamErrorDelegate implementation.
 class MockEncoderStreamErrorDelegate
     : public QpackDecoder::EncoderStreamErrorDelegate {
