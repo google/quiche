@@ -699,6 +699,7 @@ quiche_tool_support_hdrs = [
     "quic/tools/quic_client_default_network_helper.h",
     "quic/tools/quic_default_client.h",
     "quic/tools/quic_memory_cache_backend.h",
+    "quic/tools/quic_server_factory.h",
     "quic/tools/quic_simple_client_session.h",
     "quic/tools/quic_simple_client_stream.h",
     "quic/tools/quic_simple_crypto_server_stream_helper.h",
@@ -720,6 +721,7 @@ quiche_tool_support_srcs = [
     "quic/tools/quic_client_default_network_helper.cc",
     "quic/tools/quic_default_client.cc",
     "quic/tools/quic_memory_cache_backend.cc",
+    "quic/tools/quic_server_factory.cc",
     "quic/tools/quic_simple_client_session.cc",
     "quic/tools/quic_simple_client_stream.cc",
     "quic/tools/quic_simple_crypto_server_stream_helper.cc",
@@ -1331,7 +1333,6 @@ fuzzers_srcs = [
 ]
 cli_tools_hdrs = [
     "quic/tools/quic_epoll_client_factory.h",
-    "quic/tools/quic_epoll_server_factory.h",
     "quic/tools/quic_toy_client.h",
     "quic/tools/quic_toy_server.h",
 ]
@@ -1343,7 +1344,6 @@ cli_tools_srcs = [
     "quic/tools/quic_client_bin.cc",
     "quic/tools/quic_client_interop_test_bin.cc",
     "quic/tools/quic_epoll_client_factory.cc",
-    "quic/tools/quic_epoll_server_factory.cc",
     "quic/tools/quic_packet_printer_bin.cc",
     "quic/tools/quic_reject_reason_decoder_bin.cc",
     "quic/tools/quic_server_bin.cc",

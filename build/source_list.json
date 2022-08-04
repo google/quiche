@@ -698,6 +698,7 @@
     "quiche/quic/tools/quic_client_default_network_helper.h",
     "quiche/quic/tools/quic_default_client.h",
     "quiche/quic/tools/quic_memory_cache_backend.h",
+    "quiche/quic/tools/quic_server_factory.h",
     "quiche/quic/tools/quic_simple_client_session.h",
     "quiche/quic/tools/quic_simple_client_stream.h",
     "quiche/quic/tools/quic_simple_crypto_server_stream_helper.h",
@@ -719,6 +720,7 @@
     "quiche/quic/tools/quic_client_default_network_helper.cc",
     "quiche/quic/tools/quic_default_client.cc",
     "quiche/quic/tools/quic_memory_cache_backend.cc",
+    "quiche/quic/tools/quic_server_factory.cc",
     "quiche/quic/tools/quic_simple_client_session.cc",
     "quiche/quic/tools/quic_simple_client_stream.cc",
     "quiche/quic/tools/quic_simple_crypto_server_stream_helper.cc",
@@ -1330,7 +1332,6 @@
   ],
   "cli_tools_hdrs": [
     "quiche/quic/tools/quic_epoll_client_factory.h",
-    "quiche/quic/tools/quic_epoll_server_factory.h",
     "quiche/quic/tools/quic_toy_client.h",
     "quiche/quic/tools/quic_toy_server.h"
   ],
@@ -1342,7 +1343,6 @@
     "quiche/quic/tools/quic_client_bin.cc",
     "quiche/quic/tools/quic_client_interop_test_bin.cc",
     "quiche/quic/tools/quic_epoll_client_factory.cc",
-    "quiche/quic/tools/quic_epoll_server_factory.cc",
     "quiche/quic/tools/quic_packet_printer_bin.cc",
     "quiche/quic/tools/quic_reject_reason_decoder_bin.cc",
     "quiche/quic/tools/quic_server_bin.cc",

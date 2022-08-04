@@ -9,7 +9,6 @@
 
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
-#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"

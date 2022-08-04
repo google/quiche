@@ -7,9 +7,7 @@
 
 #include <vector>
 
-#include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/platform/api/quic_flags.h"
-#include "quiche/quic/tools/quic_epoll_server_factory.h"
+#include "quiche/quic/tools/quic_server_factory.h"
 #include "quiche/quic/tools/quic_toy_server.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_system_event_loop.h"
@@ -25,7 +23,7 @@ int main(int argc, char* argv[]) {
   }
 
   quic::QuicToyServer::MemoryCacheBackendFactory backend_factory;
-  quic::QuicEpollServerFactory server_factory;
+  quic::QuicServerFactory server_factory;
   quic::QuicToyServer server(&backend_factory, &server_factory);
   return server.Start();
 }

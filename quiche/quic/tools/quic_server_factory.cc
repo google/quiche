@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/tools/quic_epoll_server_factory.h"
+#include "quiche/quic/tools/quic_server_factory.h"
 
 #include <utility>
 
@@ -10,7 +10,7 @@
 
 namespace quic {
 
-std::unique_ptr<quic::QuicSpdyServerBase> QuicEpollServerFactory::CreateServer(
+std::unique_ptr<quic::QuicSpdyServerBase> QuicServerFactory::CreateServer(
     quic::QuicSimpleServerBackend* backend,
     std::unique_ptr<quic::ProofSource> proof_source,
     const quic::ParsedQuicVersionVector& supported_versions) {
