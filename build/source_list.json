@@ -1387,7 +1387,6 @@
     "quiche/http2/adapter/nghttp2_util_test.cc"
   ],
   "default_platform_impl_hdrs": [
-    "quiche/common/platform/default/quiche_platform_impl/quic_flags_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_bug_tracker_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_client_stats_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_containers_impl.h",
@@ -1410,7 +1409,6 @@
     "quiche/common/platform/default/quiche_platform_impl/quiche_url_utils_impl.h"
   ],
   "default_platform_impl_srcs": [
-    "quiche/common/platform/default/quiche_platform_impl/quic_flags_impl.cc",
     "quiche/common/platform/default/quiche_platform_impl/quiche_flags_impl.cc",
     "quiche/common/platform/default/quiche_platform_impl/quiche_mutex_impl.cc",
     "quiche/common/platform/default/quiche_platform_impl/quiche_stack_trace_impl.cc",

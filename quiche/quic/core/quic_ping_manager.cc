@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_ping_manager.h"
 
+#include "quiche/quic/platform/api/quic_flags.h"
+
 namespace quic {
 
 namespace {

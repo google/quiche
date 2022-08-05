@@ -5,7 +5,6 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_FLAGS_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_FLAGS_H_
 
-#include "quiche_platform_impl/quic_flags_impl.h"
 #include "quiche_platform_impl/quiche_flags_impl.h"
 
 // Flags accessed via GetQuicheReloadableFlag/GetQuicheRestartFlag are temporary
