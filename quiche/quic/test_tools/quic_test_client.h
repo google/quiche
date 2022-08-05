@@ -10,13 +10,13 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/proto/cached_network_parameters_proto.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packet_creator.h"
 #include "quiche/quic/core/quic_packets.h"
-#include "quiche/quic/platform/api/quic_epoll.h"
 #include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/quic/tools/quic_client.h"
+#include "quiche/quic/tools/quic_default_client.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
@@ -27,31 +27,31 @@ class QuicPacketWriterWrapper;
 
 namespace test {
 
-class MockableQuicClientEpollNetworkHelper;
+class MockableQuicClientDefaultNetworkHelper;
 
 // A quic client which allows mocking out reads and writes.
-class MockableQuicClient : public QuicClient {
+class MockableQuicClient : public QuicDefaultClient {
  public:
   MockableQuicClient(QuicSocketAddress server_address,
                      const QuicServerId& server_id,
                      const ParsedQuicVersionVector& supported_versions,
-                     QuicEpollServer* epoll_server);
+                     QuicEventLoop* event_loop);
 
   MockableQuicClient(QuicSocketAddress server_address,
                      const QuicServerId& server_id, const QuicConfig& config,
                      const ParsedQuicVersionVector& supported_versions,
-                     QuicEpollServer* epoll_server);
+                     QuicEventLoop* event_loop);
 
   MockableQuicClient(QuicSocketAddress server_address,
                      const QuicServerId& server_id, const QuicConfig& config,
                      const ParsedQuicVersionVector& supported_versions,
-                     QuicEpollServer* epoll_server,
+                     QuicEventLoop* event_loop,
                      std::unique_ptr<ProofVerifier> proof_verifier);
 
   MockableQuicClient(QuicSocketAddress server_address,
                      const QuicServerId& server_id, const QuicConfig& config,
                      const ParsedQuicVersionVector& supported_versions,
-                     QuicEpollServer* epoll_server,
+                     QuicEventLoop* event_loop,
                      std::unique_ptr<ProofVerifier> proof_verifier,
                      std::unique_ptr<SessionCache> session_cache);
   MockableQuicClient(const MockableQuicClient&) = delete;
@@ -73,9 +73,9 @@ class MockableQuicClient : public QuicClient {
   // If true, copy each packet from ProcessPacket into |last_incoming_packet|
   void set_track_last_incoming_packet(bool track);
 
-  // Casts the network helper to a MockableQuicClientEpollNetworkHelper.
-  MockableQuicClientEpollNetworkHelper* mockable_network_helper();
-  const MockableQuicClientEpollNetworkHelper* mockable_network_helper() const;
+  // Casts the network helper to a MockableQuicClientDefaultNetworkHelper.
+  MockableQuicClientDefaultNetworkHelper* mockable_network_helper();
+  const MockableQuicClientDefaultNetworkHelper* mockable_network_helper() const;
 
  private:
   // Server connection ID to use, if server_connection_id_overridden_
@@ -108,6 +108,12 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
                  const ParsedQuicVersionVector& supported_versions,
                  std::unique_ptr<ProofVerifier> proof_verifier,
                  std::unique_ptr<SessionCache> session_cache);
+  QuicTestClient(QuicSocketAddress server_address,
+                 const std::string& server_hostname, const QuicConfig& config,
+                 const ParsedQuicVersionVector& supported_versions,
+                 std::unique_ptr<ProofVerifier> proof_verifier,
+                 std::unique_ptr<SessionCache> session_cache,
+                 std::unique_ptr<QuicEventLoop> event_loop);
 
   ~QuicTestClient() override;
 
@@ -284,7 +290,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
 
   void WaitForWriteToFlush();
 
-  QuicEpollServer* epoll_server() { return &epoll_server_; }
+  QuicEventLoop* event_loop() { return event_loop_.get(); }
 
   size_t num_requests() const { return num_requests_; }
 
@@ -331,7 +337,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   QuicTestClient& operator=(const QuicTestClient&&) = delete;
 
  private:
-  class TestClientDataToResend : public QuicClient::QuicDataToResend {
+  class TestClientDataToResend : public QuicDefaultClient::QuicDataToResend {
    public:
     TestClientDataToResend(
         std::unique_ptr<spdy::Http2HeaderBlock> headers, absl::string_view body,
@@ -387,7 +393,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // tracking its state.
   void SetLatestCreatedStream(QuicSpdyClientStream* stream);
 
-  QuicEpollServer epoll_server_;
+  std::unique_ptr<QuicEventLoop> event_loop_;
   std::unique_ptr<MockableQuicClient> client_;  // The actual client
   QuicSpdyClientStream* latest_created_stream_;
   std::map<QuicStreamId, QuicSpdyClientStream*> open_streams_;

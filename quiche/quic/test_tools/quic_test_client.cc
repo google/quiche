@@ -14,7 +14,8 @@
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/http/spdy_utils.h"
-#include "quiche/quic/core/quic_epoll_connection_helper.h"
+#include "quiche/quic/core/io/quic_default_event_loop.h"
+#include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_packet_writer_wrapper.h"
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -133,17 +134,17 @@ class RecordingProofVerifier : public ProofVerifier {
 };
 }  // namespace
 
-class MockableQuicClientEpollNetworkHelper
-    : public QuicClientEpollNetworkHelper {
+class MockableQuicClientDefaultNetworkHelper
+    : public QuicClientDefaultNetworkHelper {
  public:
-  using QuicClientEpollNetworkHelper::QuicClientEpollNetworkHelper;
-  ~MockableQuicClientEpollNetworkHelper() override = default;
+  using QuicClientDefaultNetworkHelper::QuicClientDefaultNetworkHelper;
+  ~MockableQuicClientDefaultNetworkHelper() override = default;
 
   void ProcessPacket(const QuicSocketAddress& self_address,
                      const QuicSocketAddress& peer_address,
                      const QuicReceivedPacket& packet) override {
-    QuicClientEpollNetworkHelper::ProcessPacket(self_address, peer_address,
-                                                packet);
+    QuicClientDefaultNetworkHelper::ProcessPacket(self_address, peer_address,
+                                                  packet);
     if (track_last_incoming_packet_) {
       last_incoming_packet_ = packet.Clone();
     }
@@ -151,7 +152,7 @@ class MockableQuicClientEpollNetworkHelper
 
   QuicPacketWriter* CreateQuicPacketWriter() override {
     QuicPacketWriter* writer =
-        QuicClientEpollNetworkHelper::CreateQuicPacketWriter();
+        QuicClientDefaultNetworkHelper::CreateQuicPacketWriter();
     if (!test_writer_) {
       return writer;
     }
@@ -188,35 +189,33 @@ class MockableQuicClientEpollNetworkHelper
 MockableQuicClient::MockableQuicClient(
     QuicSocketAddress server_address, const QuicServerId& server_id,
     const ParsedQuicVersionVector& supported_versions,
-    QuicEpollServer* epoll_server)
+    QuicEventLoop* event_loop)
     : MockableQuicClient(server_address, server_id, QuicConfig(),
-                         supported_versions, epoll_server) {}
+                         supported_versions, event_loop) {}
 
 MockableQuicClient::MockableQuicClient(
     QuicSocketAddress server_address, const QuicServerId& server_id,
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
-    QuicEpollServer* epoll_server)
+    QuicEventLoop* event_loop)
     : MockableQuicClient(server_address, server_id, config, supported_versions,
-                         epoll_server, nullptr) {}
+                         event_loop, nullptr) {}
 
 MockableQuicClient::MockableQuicClient(
     QuicSocketAddress server_address, const QuicServerId& server_id,
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
-    QuicEpollServer* epoll_server,
-    std::unique_ptr<ProofVerifier> proof_verifier)
+    QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier)
     : MockableQuicClient(server_address, server_id, config, supported_versions,
-                         epoll_server, std::move(proof_verifier), nullptr) {}
+                         event_loop, std::move(proof_verifier), nullptr) {}
 
 MockableQuicClient::MockableQuicClient(
     QuicSocketAddress server_address, const QuicServerId& server_id,
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
-    QuicEpollServer* epoll_server,
-    std::unique_ptr<ProofVerifier> proof_verifier,
+    QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier,
     std::unique_ptr<SessionCache> session_cache)
-    : QuicClient(
-          server_address, server_id, supported_versions, config, epoll_server,
-          std::make_unique<MockableQuicClientEpollNetworkHelper>(epoll_server,
-                                                                 this),
+    : QuicDefaultClient(
+          server_address, server_id, supported_versions, config, event_loop,
+          std::make_unique<MockableQuicClientDefaultNetworkHelper>(event_loop,
+                                                                   this),
           std::make_unique<RecordingProofVerifier>(std::move(proof_verifier)),
           std::move(session_cache)),
       override_server_connection_id_(EmptyQuicConnectionId()),
@@ -230,16 +229,16 @@ MockableQuicClient::~MockableQuicClient() {
   }
 }
 
-MockableQuicClientEpollNetworkHelper*
+MockableQuicClientDefaultNetworkHelper*
 MockableQuicClient::mockable_network_helper() {
-  return static_cast<MockableQuicClientEpollNetworkHelper*>(
-      epoll_network_helper());
+  return static_cast<MockableQuicClientDefaultNetworkHelper*>(
+      default_network_helper());
 }
 
-const MockableQuicClientEpollNetworkHelper*
+const MockableQuicClientDefaultNetworkHelper*
 MockableQuicClient::mockable_network_helper() const {
-  return static_cast<const MockableQuicClientEpollNetworkHelper*>(
-      epoll_network_helper());
+  return static_cast<const MockableQuicClientDefaultNetworkHelper*>(
+      default_network_helper());
 }
 
 QuicConnectionId MockableQuicClient::GenerateNewConnectionId() {
@@ -250,7 +249,7 @@ QuicConnectionId MockableQuicClient::GenerateNewConnectionId() {
     return QuicUtils::CreateRandomConnectionId(
         override_server_connection_id_length_);
   }
-  return QuicClient::GenerateNewConnectionId();
+  return QuicDefaultClient::GenerateNewConnectionId();
 }
 
 void MockableQuicClient::UseConnectionId(
@@ -272,7 +271,7 @@ QuicConnectionId MockableQuicClient::GetClientConnectionId() {
     return QuicUtils::CreateRandomConnectionId(
         override_client_connection_id_length_);
   }
-  return QuicClient::GetClientConnectionId();
+  return QuicDefaultClient::GetClientConnectionId();
 }
 
 void MockableQuicClient::UseClientConnectionId(
@@ -314,10 +313,11 @@ QuicTestClient::QuicTestClient(
 QuicTestClient::QuicTestClient(
     QuicSocketAddress server_address, const std::string& server_hostname,
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions)
-    : client_(new MockableQuicClient(
+    : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
+      client_(new MockableQuicClient(
           server_address,
           QuicServerId(server_hostname, server_address.port(), false), config,
-          supported_versions, &epoll_server_)) {
+          supported_versions, event_loop_.get())) {
   Initialize();
 }
 
@@ -325,10 +325,11 @@ QuicTestClient::QuicTestClient(
     QuicSocketAddress server_address, const std::string& server_hostname,
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     std::unique_ptr<ProofVerifier> proof_verifier)
-    : client_(new MockableQuicClient(
+    : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
+      client_(new MockableQuicClient(
           server_address,
           QuicServerId(server_hostname, server_address.port(), false), config,
-          supported_versions, &epoll_server_, std::move(proof_verifier))) {
+          supported_versions, event_loop_.get(), std::move(proof_verifier))) {
   Initialize();
 }
 
@@ -337,10 +338,26 @@ QuicTestClient::QuicTestClient(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     std::unique_ptr<ProofVerifier> proof_verifier,
     std::unique_ptr<SessionCache> session_cache)
-    : client_(new MockableQuicClient(
+    : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
+      client_(new MockableQuicClient(
           server_address,
           QuicServerId(server_hostname, server_address.port(), false), config,
-          supported_versions, &epoll_server_, std::move(proof_verifier),
+          supported_versions, event_loop_.get(), std::move(proof_verifier),
+          std::move(session_cache))) {
+  Initialize();
+}
+
+QuicTestClient::QuicTestClient(
+    QuicSocketAddress server_address, const std::string& server_hostname,
+    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
+    std::unique_ptr<ProofVerifier> proof_verifier,
+    std::unique_ptr<SessionCache> session_cache,
+    std::unique_ptr<QuicEventLoop> event_loop)
+    : event_loop_(std::move(event_loop)),
+      client_(new MockableQuicClient(
+          server_address,
+          QuicServerId(server_hostname, server_address.port(), false), config,
+          supported_versions, event_loop_.get(), std::move(proof_verifier),
           std::move(session_cache))) {
   Initialize();
 }
@@ -636,24 +653,15 @@ bool QuicTestClient::HaveActiveStream() {
 }
 
 bool QuicTestClient::WaitUntil(int timeout_ms, std::function<bool()> trigger) {
-  int64_t timeout_us = timeout_ms * kNumMicrosPerMilli;
-  int64_t old_timeout_us = epoll_server()->timeout_in_us_for_test();
-  if (timeout_us > 0) {
-    epoll_server()->set_timeout_in_us(timeout_us);
-  }
-  const QuicClock* clock =
-      QuicConnectionPeer::GetHelper(client()->session()->connection())
-          ->GetClock();
-  QuicTime end_waiting_time =
-      clock->Now() + QuicTime::Delta::FromMicroseconds(timeout_us);
+  QuicTime::Delta timeout = QuicTime::Delta::FromMilliseconds(timeout_ms);
+  const QuicClock* clock = client()->session()->connection()->clock();
+  QuicTime end_waiting_time = clock->Now() + timeout;
   while (connected() && !(trigger && trigger()) &&
-         (timeout_us < 0 || clock->Now() < end_waiting_time)) {
-    client_->WaitForEvents();
+         (timeout_ms < 0 || clock->Now() < end_waiting_time)) {
+    event_loop_->RunEventLoopOnce(timeout);
+    client_->WaitForEventsPostprocessing();
   }
   ReadNextResponse();
-  if (timeout_us > 0) {
-    epoll_server()->set_timeout_in_us(old_timeout_us);
-  }
   if (trigger && !trigger()) {
     QUIC_VLOG(1) << "Client WaitUntil returning with trigger returning false.";
     return false;
@@ -837,7 +845,7 @@ QuicTestClient::TestClientDataToResend::TestClientDataToResend(
     bool fin, QuicTestClient* test_client,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener)
-    : QuicClient::QuicDataToResend(std::move(headers), body, fin),
+    : QuicDefaultClient::QuicDataToResend(std::move(headers), body, fin),
       test_client_(test_client),
       ack_listener_(std::move(ack_listener)) {}
 

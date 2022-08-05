@@ -240,6 +240,10 @@ bool QuicClientBase::WaitForEvents() {
 
   network_helper_->RunEventLoop();
 
+  return WaitForEventsPostprocessing();
+}
+
+bool QuicClientBase::WaitForEventsPostprocessing() {
   QUICHE_DCHECK(session() != nullptr);
   ParsedQuicVersion version = UnsupportedQuicVersion();
   if (!connected() && CanReconnectWithDifferentVersion(&version)) {

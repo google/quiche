@@ -116,6 +116,10 @@ class QuicClientBase {
   // Returns true if there are any outstanding requests.
   bool WaitForEvents();
 
+  // Performs the part of WaitForEvents() that is done after the actual event
+  // loop call.
+  bool WaitForEventsPostprocessing();
+
   // Migrate to a new socket (new_host) during an active connection.
   bool MigrateSocket(const QuicIpAddress& new_host);
 

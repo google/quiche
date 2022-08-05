@@ -26,7 +26,7 @@
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
-#include "quiche/quic/core/quic_epoll_connection_helper.h"
+#include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packet_creator.h"
@@ -35,7 +35,6 @@
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
-#include "quiche/quic/platform/api/quic_epoll.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -199,15 +198,15 @@ class ServerDelegate : public PacketDroppingTestWriter::Delegate {
 
 class ClientDelegate : public PacketDroppingTestWriter::Delegate {
  public:
-  explicit ClientDelegate(QuicClient* client) : client_(client) {}
+  explicit ClientDelegate(QuicDefaultClient* client) : client_(client) {}
   ~ClientDelegate() override = default;
   void OnCanWrite() override {
-    QuicEpollEvent event(EPOLLOUT);
-    client_->epoll_network_helper()->OnEvent(client_->GetLatestFD(), &event);
+    client_->default_network_helper()->OnSocketEvent(
+        nullptr, client_->GetLatestFD(), kSocketEventWritable);
   }
 
  private:
-  QuicClient* client_;
+  QuicDefaultClient* client_;
 };
 
 class EndToEndTest : public QuicTestWithParam<TestParams> {
@@ -258,11 +257,12 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   QuicTestClient* CreateQuicClient(QuicPacketWriterWrapper* writer) {
-    QuicTestClient* client =
-        new QuicTestClient(server_address_, server_hostname_, client_config_,
-                           client_supported_versions_,
-                           crypto_test_utils::ProofVerifierForTesting(),
-                           std::make_unique<QuicClientSessionCache>());
+    QuicTestClient* client = new QuicTestClient(
+        server_address_, server_hostname_, client_config_,
+        client_supported_versions_,
+        crypto_test_utils::ProofVerifierForTesting(),
+        std::make_unique<QuicClientSessionCache>(),
+        GetParam().event_loop->Create(QuicDefaultClock::Get()));
     client->SetUserAgentID(kTestUserAgentId);
     client->UseWriter(writer);
     if (!pre_shared_key_client_.empty()) {
@@ -449,7 +449,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       ADD_FAILURE() << "Missing MockableQuicClient";
       return false;
     }
-    static QuicEpollEvent event(EPOLLOUT);
     if (client_writer_ != nullptr) {
       QuicConnection* client_connection = GetClientConnection();
       if (client_connection == nullptr) {
@@ -2256,7 +2255,7 @@ TEST_P(EndToEndTest, DoNotSetSendAlarmIfConnectionFlowControlBlocked) {
   // Regression test for b/14677858.
   // Test that the resume write alarm is not set in QuicConnection::OnCanWrite
   // if currently connection level flow control blocked. If set, this results in
-  // an infinite loop in the EpollServer, as the alarm fires and is immediately
+  // an infinite loop in the EventLoop, as the alarm fires and is immediately
   // rescheduled.
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
@@ -3452,10 +3451,12 @@ TEST_P(EndToEndTest, ConnectionMigrationClientPortChanged) {
 
   // Create a new socket before closing the old one, which will result in a new
   // ephemeral port.
-  QuicClientPeer::CreateUDPSocketAndBind(client_->client());
+  client_->client()->network_helper()->CreateUDPSocketAndBind(
+      client_->client()->server_address(), client_->client()->bind_to_address(),
+      client_->client()->local_port());
 
   // Stop listening and close the old FD.
-  QuicClientPeer::CleanUpUDPSocket(client_->client(), old_fd);
+  client_->client()->default_network_helper()->CleanUpUDPSocket(old_fd);
 
   // The packet writer needs to be updated to use the new FD.
   client_->client()->network_helper()->CreateQuicPacketWriter();
@@ -3467,18 +3468,12 @@ TEST_P(EndToEndTest, ConnectionMigrationClientPortChanged) {
   // FD rather than any more complex NAT rebinding simulation.
   int new_port =
       client_->client()->network_helper()->GetLatestClientAddress().port();
-  QuicClientPeer::SetClientPort(client_->client(), new_port);
+  client_->client()->default_network_helper()->SetClientPort(new_port);
   QuicConnection* client_connection = GetClientConnection();
   ASSERT_TRUE(client_connection);
   QuicConnectionPeer::SetSelfAddress(
       client_connection,
       QuicSocketAddress(client_connection->self_address().host(), new_port));
-
-  // Register the new FD for epoll events.
-  int new_fd = client_->client()->GetLatestFD();
-  QuicEpollServer* eps = client_->epoll_server();
-  eps->RegisterFD(new_fd, client_->client()->epoll_network_helper(),
-                  EPOLLIN | EPOLLOUT | EPOLLET);
 
   // Send a second request, using the new FD.
   SendSynchronousBarRequestAndCheckResponse();
@@ -4707,9 +4702,6 @@ TEST_P(EndToEndTest, DISABLED_TestHugePostWithPacketLoss) {
   ServerStreamThatDropsBodyFactory stream_factory;
   SetSpdyStreamFactory(&stream_factory);
   ASSERT_TRUE(Initialize());
-  // Set client's epoll server's time out to 0 to make this test be finished
-  // within a short time.
-  client_->epoll_server()->set_timeout_in_us(0);
 
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   SetPacketLossPercentage(1);
@@ -4760,7 +4752,6 @@ TEST_P(EndToEndTest, DISABLED_TestHugeResponseWithPacketLoss) {
   client->UseWriter(client_writer_);
   client->Connect();
   client_.reset(client);
-  static QuicEpollEvent event(EPOLLOUT);
   QuicConnection* client_connection = GetClientConnection();
   ASSERT_TRUE(client_connection);
   client_writer_->Initialize(
