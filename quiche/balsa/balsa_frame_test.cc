@@ -2403,9 +2403,8 @@ TEST(HTTPBalsaFrame,
 
 TEST_F(HTTPBalsaFrameTest,
        AppropriateActionTakenWhenHeadersTooLongWithTooMuchInput) {
-  std::string message =
-      "GET /asflkasfdhjsafdkljhasfdlkjhasdflkjhsafdlkjhh HTTP/1.1\r\n"
-      "\r\n";
+  const absl::string_view message =
+      "GET /asflkasfdhjsafdkljhasfdlkjhasdflkjhsafdlkjhh HTTP/1.1";
   const size_t kAmountLessThanHeaderLen = 10;
   ASSERT_LE(kAmountLessThanHeaderLen, message.size());
 
