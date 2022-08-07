@@ -10,9 +10,13 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/threading/thread_task_runner_handle.h"
+#include "base/time/time.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/web_transport_test_visitors.h"
 #include "quiche/common/platform/api/quiche_file_utils.h"
 #include "quiche/common/quiche_text_utils.h"
@@ -183,6 +187,15 @@ void QuicMemoryCacheBackend::AddSimpleResponse(absl::string_view host,
   AddResponse(host, path, std::move(response_headers), body);
 }
 
+void QuicMemoryCacheBackend::SetResponseDelay(absl::string_view host,
+                                      absl::string_view path,
+                                      base::TimeDelta delay) {
+  QuicWriterMutexLock lock(&response_mutex_);
+  auto it = responses_.find(GetKey(host, path));
+  DCHECK(it != responses_.end());
+  it->second->set_delay(delay);
+}
+
 void QuicMemoryCacheBackend::AddSimpleResponseWithServerPushResources(
     absl::string_view host, absl::string_view path, int response_code,
     absl::string_view body, std::list<ServerPushInfo> push_resources) {
@@ -346,7 +359,19 @@ void QuicMemoryCacheBackend::FetchResponseFromBackend(
   QUIC_DVLOG(1)
       << "Fetching QUIC response from backend in-memory cache for url "
       << request_url;
-  quic_stream->OnResponseBackendComplete(quic_response);
+
+  auto delay = quic_response->delay();
+
+  if (delay.is_zero()) {
+    quic_stream->OnResponseBackendComplete(quic_response);
+    return;
+  }
+  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+        FROM_HERE, base::BindOnce([](
+    QuicSimpleServerBackend::RequestHandler* stream,
+    const QuicBackendResponse* response) {
+    stream->OnResponseBackendComplete(response);
+  }, quic_stream, quic_response), delay);
 }
 
 // The memory cache does not have a per-stream handler
