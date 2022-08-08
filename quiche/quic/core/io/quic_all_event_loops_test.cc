@@ -411,7 +411,7 @@ TEST_P(QuicEventLoopFactoryTest, DestructorWithPendingAlarm) {
 }
 
 TEST_P(QuicEventLoopFactoryTest, NegativeTimeout) {
-  constexpr auto kAlarmTimeout = QuicTime::Delta::FromMilliseconds(500);
+  constexpr auto kAlarmTimeout = QuicTime::Delta::FromSeconds(300);
   auto [alarm1_ptr, delegate1] = CreateAlarm();
 
   alarm1_ptr->Set(clock_.Now() + kAlarmTimeout);
