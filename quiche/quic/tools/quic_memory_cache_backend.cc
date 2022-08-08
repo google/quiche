@@ -359,7 +359,8 @@ void QuicMemoryCacheBackend::FetchResponseFromBackend(
       << "Fetching QUIC response from backend in-memory cache for url "
       << request_url;
 
-  std::this_thread::sleep_for(std::chrono::milliseconds( quic_response->delay()));
+  std::this_thread::sleep_for(
+    std::chrono::milliseconds(quic_response->delay()));
   quic_stream->OnResponseBackendComplete(quic_response);
 }
 
