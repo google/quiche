@@ -12,7 +12,6 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
-#include "base/time/time.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/tools/quic_backend_response.h"
@@ -153,7 +152,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
   bool SupportsWebTransport() override { return enable_webtransport_; }
   void SetResponseDelay(absl::string_view host,
                                       absl::string_view path,
-                                      base::TimeDelta delay_millis);
+                                      int delay_millis);
 
  private:
   void AddResponseImpl(absl::string_view host, absl::string_view path,

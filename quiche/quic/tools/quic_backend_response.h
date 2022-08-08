@@ -6,7 +6,6 @@
 #define QUICHE_QUIC_TOOLS_QUIC_BACKEND_RESPONSE_H_
 
 #include "absl/strings/string_view.h"
-#include "base/time/time.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_protocol.h"
@@ -58,7 +57,7 @@ class QuicBackendResponse {
   const spdy::Http2HeaderBlock& headers() const { return headers_; }
   const spdy::Http2HeaderBlock& trailers() const { return trailers_; }
   const absl::string_view body() const { return absl::string_view(body_); }
-  base::TimeDelta delay() const { return delay_; }
+  int delay() const { return delay_; }
 
   void AddEarlyHints(const spdy::Http2HeaderBlock& headers) {
     spdy::Http2HeaderBlock hints = headers.Clone();
@@ -80,7 +79,7 @@ class QuicBackendResponse {
     body_.assign(body.data(), body.size());
   }
 
-  void set_delay(base::TimeDelta delay) {
+  void set_delay(int delay) {
     delay_ = delay;
   }
 
@@ -90,7 +89,7 @@ class QuicBackendResponse {
   spdy::Http2HeaderBlock headers_;
   spdy::Http2HeaderBlock trailers_;
   std::string body_;
-  base::TimeDelta delay_;
+  int delay_;
 };
 
 }  // namespace quic

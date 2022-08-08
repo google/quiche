@@ -4,15 +4,14 @@
 
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
 
+#include <chrono>
+#include <thread>
 #include <utility>
 
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "base/task/single_thread_task_runner.h"
-#include "base/threading/thread_task_runner_handle.h"
-#include "base/time/time.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -189,7 +188,7 @@ void QuicMemoryCacheBackend::AddSimpleResponse(absl::string_view host,
 
 void QuicMemoryCacheBackend::SetResponseDelay(absl::string_view host,
                                       absl::string_view path,
-                                      base::TimeDelta delay) {
+                                      int delay) {
   QuicWriterMutexLock lock(&response_mutex_);
   auto it = responses_.find(GetKey(host, path));
   DCHECK(it != responses_.end());
@@ -360,18 +359,8 @@ void QuicMemoryCacheBackend::FetchResponseFromBackend(
       << "Fetching QUIC response from backend in-memory cache for url "
       << request_url;
 
-  auto delay = quic_response->delay();
-
-  if (delay.is_zero()) {
-    quic_stream->OnResponseBackendComplete(quic_response);
-    return;
-  }
-  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
-        FROM_HERE, base::BindOnce([](
-    QuicSimpleServerBackend::RequestHandler* stream,
-    const QuicBackendResponse* response) {
-    stream->OnResponseBackendComplete(response);
-  }, quic_stream, quic_response), delay);
+  std::this_thread::sleep_for(std::chrono::milliseconds( quic_response->delay()));
+  quic_stream->OnResponseBackendComplete(quic_response);
 }
 
 // The memory cache does not have a per-stream handler
