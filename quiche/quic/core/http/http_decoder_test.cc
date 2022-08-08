@@ -38,54 +38,6 @@ class HttpDecoderPeer {
 
 namespace {
 
-class MockHttpDecoderVisitor : public HttpDecoder::Visitor {
- public:
-  ~MockHttpDecoderVisitor() override = default;
-
-  // Called if an error is detected.
-  MOCK_METHOD(void, OnError, (HttpDecoder*), (override));
-
-  MOCK_METHOD(bool, OnMaxPushIdFrame, (), (override));
-  MOCK_METHOD(bool, OnGoAwayFrame, (const GoAwayFrame& frame), (override));
-  MOCK_METHOD(bool, OnSettingsFrameStart, (QuicByteCount header_length),
-              (override));
-  MOCK_METHOD(bool, OnSettingsFrame, (const SettingsFrame& frame), (override));
-
-  MOCK_METHOD(bool, OnDataFrameStart,
-              (QuicByteCount header_length, QuicByteCount payload_length),
-              (override));
-  MOCK_METHOD(bool, OnDataFramePayload, (absl::string_view payload),
-              (override));
-  MOCK_METHOD(bool, OnDataFrameEnd, (), (override));
-
-  MOCK_METHOD(bool, OnHeadersFrameStart,
-              (QuicByteCount header_length, QuicByteCount payload_length),
-              (override));
-  MOCK_METHOD(bool, OnHeadersFramePayload, (absl::string_view payload),
-              (override));
-  MOCK_METHOD(bool, OnHeadersFrameEnd, (), (override));
-
-  MOCK_METHOD(bool, OnPriorityUpdateFrameStart, (QuicByteCount header_length),
-              (override));
-  MOCK_METHOD(bool, OnPriorityUpdateFrame, (const PriorityUpdateFrame& frame),
-              (override));
-
-  MOCK_METHOD(bool, OnAcceptChFrameStart, (QuicByteCount header_length),
-              (override));
-  MOCK_METHOD(bool, OnAcceptChFrame, (const AcceptChFrame& frame), (override));
-  MOCK_METHOD(void, OnWebTransportStreamFrameType,
-              (QuicByteCount header_length, WebTransportSessionId session_id),
-              (override));
-
-  MOCK_METHOD(bool, OnUnknownFrameStart,
-              (uint64_t frame_type, QuicByteCount header_length,
-               QuicByteCount payload_length),
-              (override));
-  MOCK_METHOD(bool, OnUnknownFramePayload, (absl::string_view payload),
-              (override));
-  MOCK_METHOD(bool, OnUnknownFrameEnd, (), (override));
-};
-
 class HttpDecoderTest : public QuicTest {
  public:
   HttpDecoderTest() : decoder_(&visitor_) {
