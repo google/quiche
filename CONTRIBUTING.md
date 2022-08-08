@@ -26,6 +26,9 @@ If you would like to make a contribution, please follow these steps:
 3.  Email a link to your pull request to <quiche-contribution@google.com>.
 4.  An engineer will review your pull request and merge it internally.
 
+Note: if you are a Google engineer with access to google3, please submit a CL to
+google3 directly.
+
 ## Community Guidelines
 
 This project follows
