@@ -281,6 +281,7 @@ const char* QuicErrorCodeToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_TLS_KEYING_MATERIAL_EXPORTS_MISMATCH);
     RETURN_STRING_LITERAL(QUIC_TLS_KEYING_MATERIAL_EXPORT_NOT_AVAILABLE);
     RETURN_STRING_LITERAL(QUIC_UNEXPECTED_DATA_BEFORE_ENCRYPTION_ESTABLISHED);
+    RETURN_STRING_LITERAL(QUIC_SERVER_UNHEALTHY);
 
     RETURN_STRING_LITERAL(QUIC_LAST_ERROR);
     // Intentionally have no default case, so we'll break the build
@@ -790,6 +791,8 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
       return {true, static_cast<uint64_t>(PROTOCOL_VIOLATION)};
     case QUIC_UNEXPECTED_DATA_BEFORE_ENCRYPTION_ESTABLISHED:
       return {true, static_cast<uint64_t>(PROTOCOL_VIOLATION)};
+    case QUIC_SERVER_UNHEALTHY:
+      return {true, static_cast<uint64_t>(INTERNAL_ERROR)};
     case QUIC_LAST_ERROR:
       return {false, static_cast<uint64_t>(QUIC_LAST_ERROR)};
   }

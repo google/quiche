@@ -614,8 +614,11 @@ enum QuicErrorCode {
   QUIC_TLS_KEYING_MATERIAL_EXPORT_NOT_AVAILABLE = 210,
   QUIC_UNEXPECTED_DATA_BEFORE_ENCRYPTION_ESTABLISHED = 211,
 
+  // Error code related to backend health-check.
+  QUIC_SERVER_UNHEALTHY = 213,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 213,
+  QUIC_LAST_ERROR = 214,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
