@@ -627,6 +627,37 @@ static_assert(static_cast<uint64_t>(QUIC_LAST_ERROR) <=
                   static_cast<uint64_t>(std::numeric_limits<uint32_t>::max()),
               "QuicErrorCode exceeds four octets");
 
+// Wire values for HTTP/3 errors.
+// https://www.rfc-editor.org/rfc/rfc9114.html#http-error-codes
+enum class QuicHttp3ErrorCode {
+  // NO_ERROR is defined as a C preprocessor macro on Windows.
+  HTTP3_NO_ERROR = 0x100,
+  GENERAL_PROTOCOL_ERROR = 0x101,
+  INTERNAL_ERROR = 0x102,
+  STREAM_CREATION_ERROR = 0x103,
+  CLOSED_CRITICAL_STREAM = 0x104,
+  FRAME_UNEXPECTED = 0x105,
+  FRAME_ERROR = 0x106,
+  EXCESSIVE_LOAD = 0x107,
+  ID_ERROR = 0x108,
+  SETTINGS_ERROR = 0x109,
+  MISSING_SETTINGS = 0x10A,
+  REQUEST_REJECTED = 0x10B,
+  REQUEST_CANCELLED = 0x10C,
+  REQUEST_INCOMPLETE = 0x10D,
+  MESSAGE_ERROR = 0x10E,
+  CONNECT_ERROR = 0x10F,
+  VERSION_FALLBACK = 0x110,
+};
+
+// Wire values for QPACK errors.
+// https://www.rfc-editor.org/rfc/rfc9204.html#error-code-registration
+enum class QuicHttpQpackErrorCode {
+  DECOMPRESSION_FAILED = 0x200,
+  ENCODER_STREAM_ERROR = 0x201,
+  DECODER_STREAM_ERROR = 0x202
+};
+
 // Represents a reason for resetting a stream in both gQUIC and IETF error code
 // space.  Both error codes have to be present.
 class QUIC_EXPORT_PRIVATE QuicResetStreamError {
@@ -637,6 +668,8 @@ class QUIC_EXPORT_PRIVATE QuicResetStreamError {
   // Constructs a QuicResetStreamError from an IETF error code; the internal
   // error code is inferred.
   static QuicResetStreamError FromIetf(uint64_t code);
+  static QuicResetStreamError FromIetf(QuicHttp3ErrorCode code);
+  static QuicResetStreamError FromIetf(QuicHttpQpackErrorCode code);
   // Constructs a QuicResetStreamError with no error.
   static QuicResetStreamError NoError() {
     return FromInternal(QUIC_STREAM_NO_ERROR);
@@ -715,37 +748,6 @@ struct QUIC_EXPORT_PRIVATE QuicErrorCodeToIetfMapping {
 // to be used in CONNECTION_CLOSE frames.
 QUIC_EXPORT_PRIVATE QuicErrorCodeToIetfMapping
 QuicErrorCodeToTransportErrorCode(QuicErrorCode error);
-
-// Wire values for HTTP/3 errors.
-// https://quicwg.org/base-drafts/draft-ietf-quic-http.html#http-error-codes
-enum class QuicHttp3ErrorCode {
-  // NO_ERROR is defined as a C preprocessor macro on Windows.
-  HTTP3_NO_ERROR = 0x100,
-  GENERAL_PROTOCOL_ERROR = 0x101,
-  INTERNAL_ERROR = 0x102,
-  STREAM_CREATION_ERROR = 0x103,
-  CLOSED_CRITICAL_STREAM = 0x104,
-  FRAME_UNEXPECTED = 0x105,
-  FRAME_ERROR = 0x106,
-  EXCESSIVE_LOAD = 0x107,
-  ID_ERROR = 0x108,
-  SETTINGS_ERROR = 0x109,
-  MISSING_SETTINGS = 0x10A,
-  REQUEST_REJECTED = 0x10B,
-  REQUEST_CANCELLED = 0x10C,
-  REQUEST_INCOMPLETE = 0x10D,
-  MESSAGE_ERROR = 0x10E,
-  CONNECT_ERROR = 0x10F,
-  VERSION_FALLBACK = 0x110,
-};
-
-// Wire values for QPACK errors.
-// https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#error-code-registration
-enum class QuicHttpQpackErrorCode {
-  DECOMPRESSION_FAILED = 0x200,
-  ENCODER_STREAM_ERROR = 0x201,
-  DECODER_STREAM_ERROR = 0x202
-};
 
 // Convert a QuicRstStreamErrorCode to an application error code to be used in
 // an IETF QUIC RESET_STREAM frame
