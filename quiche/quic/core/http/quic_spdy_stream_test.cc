@@ -1195,7 +1195,7 @@ TEST_P(QuicSpdyStreamTest, TestHandlingQuicRstStreamNoError) {
   stream_->OnStreamReset(QuicRstStreamFrame(
       kInvalidControlFrameId, stream_->id(), QUIC_STREAM_NO_ERROR, 0));
 
-  if (GetQuicReloadableFlag(quic_fix_on_stream_reset) && UsesHttp3()) {
+  if (UsesHttp3()) {
     // RESET_STREAM should close the read side but not the write side.
     EXPECT_TRUE(stream_->read_side_closed());
     EXPECT_FALSE(stream_->write_side_closed());
@@ -3039,20 +3039,9 @@ TEST_P(QuicSpdyStreamTest, TwoResetStreamFrames) {
 
   QuicRstStreamFrame rst_frame2(kInvalidControlFrameId, stream_->id(),
                                 QUIC_STREAM_NO_ERROR, /* bytes_written = */ 0);
-  if (GetQuicReloadableFlag(quic_fix_on_stream_reset)) {
-    stream_->OnStreamReset(rst_frame2);
-    EXPECT_TRUE(stream_->read_side_closed());
-    EXPECT_FALSE(stream_->write_side_closed());
-  } else {
-    EXPECT_CALL(
-        *session_,
-        MaybeSendRstStreamFrame(
-            stream_->id(),
-            QuicResetStreamError::FromInternal(QUIC_RST_ACKNOWLEDGEMENT), _));
-    EXPECT_QUIC_BUG(
-        stream_->OnStreamReset(rst_frame2),
-        "The stream should've already sent RST in response to STOP_SENDING");
-  }
+  stream_->OnStreamReset(rst_frame2);
+  EXPECT_TRUE(stream_->read_side_closed());
+  EXPECT_FALSE(stream_->write_side_closed());
 }
 
 TEST_P(QuicSpdyStreamTest, ProcessOutgoingWebTransportHeadersDatagramDraft04) {

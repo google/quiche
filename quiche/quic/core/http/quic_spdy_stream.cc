@@ -732,31 +732,16 @@ void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
     return;
   }
 
-  // TODO(bnc): Merge the two blocks below when deprecating
-  // quic_fix_on_stream_reset.
-  if (frame.error_code != QUIC_STREAM_NO_ERROR) {
-    if (VersionUsesHttp3(transport_version()) && !fin_received() &&
-        spdy_session_->qpack_decoder()) {
-      spdy_session_->qpack_decoder()->OnStreamReset(id());
-      qpack_decoded_headers_accumulator_.reset();
-    }
-
-    QuicStream::OnStreamReset(frame);
-    return;
+  if (VersionUsesHttp3(transport_version()) && !fin_received() &&
+      spdy_session_->qpack_decoder()) {
+    spdy_session_->qpack_decoder()->OnStreamReset(id());
+    qpack_decoded_headers_accumulator_.reset();
   }
 
-  if (VersionUsesHttp3(transport_version())) {
-    QUIC_CODE_COUNT(quic_fix_on_stream_reset);
-    if (GetQuicReloadableFlag(quic_fix_on_stream_reset)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_on_stream_reset);
-      if (!fin_received() && spdy_session_->qpack_decoder()) {
-        spdy_session_->qpack_decoder()->OnStreamReset(id());
-        qpack_decoded_headers_accumulator_.reset();
-      }
-
-      QuicStream::OnStreamReset(frame);
-      return;
-    }
+  if (VersionUsesHttp3(transport_version()) ||
+      frame.error_code != QUIC_STREAM_NO_ERROR) {
+    QuicStream::OnStreamReset(frame);
+    return;
   }
 
   QUIC_DVLOG(1) << ENDPOINT
