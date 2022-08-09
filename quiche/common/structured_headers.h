@@ -132,7 +132,7 @@ struct QUICHE_EXPORT_PRIVATE ParameterisedIdentifier {
 
   ParameterisedIdentifier(const ParameterisedIdentifier&);
   ParameterisedIdentifier& operator=(const ParameterisedIdentifier&);
-  ParameterisedIdentifier(Item, const Parameters&);
+  ParameterisedIdentifier(Item, Parameters);
   ~ParameterisedIdentifier();
 };
 
@@ -150,7 +150,7 @@ struct QUICHE_EXPORT_PRIVATE ParameterizedItem {
 
   ParameterizedItem(const ParameterizedItem&);
   ParameterizedItem& operator=(const ParameterizedItem&);
-  ParameterizedItem(Item, const Parameters&);
+  ParameterizedItem(Item, Parameters);
   ~ParameterizedItem();
 };
 
@@ -178,11 +178,11 @@ struct QUICHE_EXPORT_PRIVATE ParameterizedMember {
   ParameterizedMember(const ParameterizedMember&);
   ParameterizedMember& operator=(const ParameterizedMember&);
   ParameterizedMember(std::vector<ParameterizedItem>, bool member_is_inner_list,
-                      const Parameters&);
+                      Parameters);
   // Shorthand constructor for a member which is an inner list.
-  ParameterizedMember(std::vector<ParameterizedItem>, const Parameters&);
+  ParameterizedMember(std::vector<ParameterizedItem>, Parameters);
   // Shorthand constructor for a member which is a single Item.
-  ParameterizedMember(Item, const Parameters&);
+  ParameterizedMember(Item, Parameters);
   ~ParameterizedMember();
 };
 

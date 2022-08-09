@@ -756,8 +756,8 @@ bool operator==(const Item& lhs, const Item& rhs) {
 ParameterizedItem::ParameterizedItem(const ParameterizedItem&) = default;
 ParameterizedItem& ParameterizedItem::operator=(const ParameterizedItem&) =
     default;
-ParameterizedItem::ParameterizedItem(Item id, const Parameters& ps)
-    : item(std::move(id)), params(ps) {}
+ParameterizedItem::ParameterizedItem(Item id, Parameters ps)
+    : item(std::move(id)), params(std::move(ps)) {}
 ParameterizedItem::~ParameterizedItem() = default;
 
 ParameterizedMember::ParameterizedMember() = default;
@@ -766,23 +766,27 @@ ParameterizedMember& ParameterizedMember::operator=(
     const ParameterizedMember&) = default;
 ParameterizedMember::ParameterizedMember(std::vector<ParameterizedItem> id,
                                          bool member_is_inner_list,
-                                         const Parameters& ps)
+                                         Parameters ps)
     : member(std::move(id)),
       member_is_inner_list(member_is_inner_list),
-      params(ps) {}
+      params(std::move(ps)) {}
 ParameterizedMember::ParameterizedMember(std::vector<ParameterizedItem> id,
-                                         const Parameters& ps)
-    : member(std::move(id)), member_is_inner_list(true), params(ps) {}
-ParameterizedMember::ParameterizedMember(Item id, const Parameters& ps)
-    : member({{std::move(id), {}}}), member_is_inner_list(false), params(ps) {}
+                                         Parameters ps)
+    : member(std::move(id)),
+      member_is_inner_list(true),
+      params(std::move(ps)) {}
+ParameterizedMember::ParameterizedMember(Item id, Parameters ps)
+    : member({{std::move(id), {}}}),
+      member_is_inner_list(false),
+      params(std::move(ps)) {}
 ParameterizedMember::~ParameterizedMember() = default;
 
 ParameterisedIdentifier::ParameterisedIdentifier(
     const ParameterisedIdentifier&) = default;
 ParameterisedIdentifier& ParameterisedIdentifier::operator=(
     const ParameterisedIdentifier&) = default;
-ParameterisedIdentifier::ParameterisedIdentifier(Item id, const Parameters& ps)
-    : identifier(std::move(id)), params(ps) {}
+ParameterisedIdentifier::ParameterisedIdentifier(Item id, Parameters ps)
+    : identifier(std::move(id)), params(std::move(ps)) {}
 ParameterisedIdentifier::~ParameterisedIdentifier() = default;
 
 Dictionary::Dictionary() = default;
