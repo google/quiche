@@ -3872,7 +3872,9 @@ class TestResponseListener : public QuicSpdyClientBase::ResponseListener {
   }
 };
 
-TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
+// TODO(b/241910187): re-enable this test in Chrome.
+TEST_P(EndToEndTest, QUICHE_TEST_DISABLED_IN_CHROME(
+                         AckNotifierWithPacketLossAndBlockedSocket)) {
   // Verify that even in the presence of packet loss and occasionally blocked
   // socket, an AckNotifierDelegate will get informed that the data it is
   // interested in has been ACKed. This tests end-to-end ACK notification, and
@@ -3975,7 +3977,8 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
 }
 
 // Send a public reset from the server.
-TEST_P(EndToEndTest, ServerSendPublicReset) {
+// TODO(b/241910187): re-enable this test in Chrome.
+TEST_P(EndToEndTest, QUICHE_TEST_DISABLED_IN_CHROME(ServerSendPublicReset)) {
   ASSERT_TRUE(Initialize());
 
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
