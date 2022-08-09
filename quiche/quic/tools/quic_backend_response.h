@@ -89,7 +89,7 @@ class QuicBackendResponse {
   spdy::Http2HeaderBlock headers_;
   spdy::Http2HeaderBlock trailers_;
   std::string body_;
-  int delay_;
+  int delay_ = 0;
 };
 
 }  // namespace quic

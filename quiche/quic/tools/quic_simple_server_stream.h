@@ -61,6 +61,8 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
   void SendStreamData(absl::string_view data, bool close_stream) override;
   void TerminateStreamWithError(QuicResetStreamError error) override;
 
+  void Respond(const QuicBackendResponse* response);
+
  protected:
   // Handles fresh body data whenever received when method is CONNECT.
   void HandleRequestConnectData(bool fin_received);
@@ -119,6 +121,7 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
   bool response_sent_ = false;
 
   QuicSimpleServerBackend* quic_simple_server_backend_;  // Not owned.
+  std::unique_ptr<QuicAlarm> delayed_response_alarm_;
 };
 
 }  // namespace quic

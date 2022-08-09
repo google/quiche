@@ -15,6 +15,7 @@
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
+#include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
@@ -245,6 +246,27 @@ std::string QuicSimpleServerStream::peer_host() const {
   return spdy_session()->peer_address().host().ToString();
 }
 
+class DelayedResponse : public QuicAlarm::DelegateWithContext {
+public:
+  DelayedResponse(QuicSimpleServerStream* stream, const QuicBackendResponse* response)
+    : QuicAlarm::DelegateWithContext(stream->spdy_session()->connection()->context())
+    , stream_(stream)
+    , response_(response) {
+    stream_ = stream;
+    response_ = response;
+  }
+
+  ~DelayedResponse() override = default;
+
+  void OnAlarm() override {
+    stream_->Respond(response_);
+  }
+
+  private:
+    QuicSimpleServerStream* stream_;
+    const QuicBackendResponse* response_;
+};
+
 void QuicSimpleServerStream::OnResponseBackendComplete(
     const QuicBackendResponse* response) {
   if (response == nullptr) {
@@ -253,6 +275,18 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
     return;
   }
 
+  auto delay = response->delay();
+  if (!delay) {
+    Respond(response);
+    return;
+  }
+
+  auto* connection = session()->connection();
+  delayed_response_alarm_.reset(connection->alarm_factory()->CreateAlarm(new DelayedResponse(this, response)));
+  delayed_response_alarm_->Set(connection->clock()->Now() + QuicTime::Delta::FromMilliseconds(response->delay()));
+}
+
+void QuicSimpleServerStream::Respond(const QuicBackendResponse* response) {
   // Send Early Hints first.
   for (const auto& headers : response->early_hints()) {
     QUIC_DVLOG(1) << "Stream " << id() << " sending an Early Hints response: "
