@@ -26,19 +26,7 @@ namespace quic {
 // Manages a single connection tunneled over a CONNECT proxy.
 class ConnectTunnel : public StreamClientSocket::AsyncVisitor {
  public:
-  struct HostAndPort {
-    HostAndPort(std::string host, uint16_t port);
-
-    bool operator==(const HostAndPort& other) const;
-
-    template <typename H>
-    friend H AbslHashValue(H h, const HostAndPort& host_and_port) {
-      return H::combine(std::move(h), host_and_port.host, host_and_port.port);
-    }
-
-    std::string host;
-    uint16_t port;
-  };
+  using HostAndPort = std::pair<std::string, uint16_t>;
 
   // `client_stream_request_handler` and `socket_factory` must both outlive the
   // created ConnectTunnel.

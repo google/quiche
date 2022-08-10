@@ -16,7 +16,6 @@
 
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/quic_random.h"
-#include "quiche/quic/core/io/event_loop_socket_factory.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_clock.h"
@@ -33,7 +32,6 @@
 #include "quiche/quic/tools/quic_simple_crypto_server_stream_helper.h"
 #include "quiche/quic/tools/quic_simple_dispatcher.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
-#include "quiche/common/simple_buffer_allocator.h"
 
 namespace quic {
 
@@ -105,19 +103,10 @@ void QuicServer::Initialize() {
 QuicServer::~QuicServer() {
   close(fd_);
   fd_ = -1;
-
-  // Should be fine without because nothing should send requests to the backend
-  // after `this` is destroyed, but for extra pointer safety, clear the socket
-  // factory from the backend before the socket factory is destroyed.
-  quic_simple_server_backend_->SetSocketFactory(nullptr);
 }
 
 bool QuicServer::CreateUDPSocketAndListen(const QuicSocketAddress& address) {
   event_loop_ = CreateEventLoop();
-
-  socket_factory_ = std::make_unique<EventLoopSocketFactory>(
-      event_loop_.get(), quiche::SimpleBufferAllocator::Get());
-  quic_simple_server_backend_->SetSocketFactory(socket_factory_.get());
 
   QuicUdpSocketApi socket_api;
   fd_ = socket_api.Create(address.host().AddressFamilyToInt(),

@@ -9,10 +9,10 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/io/socket_factory.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
+#include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
@@ -59,10 +59,6 @@ class QuicSimpleServerBackend {
   // Returns true if the backend has been successfully initialized
   // and could be used to fetch HTTP requests
   virtual bool IsBackendInitialized() const = 0;
-  // Passes the socket factory in use by the QuicServer. Must live as long as
-  // incoming requests/data are still sent to the backend, or until cleared by
-  // calling with null. Must not be called while backend is handling requests.
-  virtual void SetSocketFactory(SocketFactory* /*socket_factory*/) {}
   // Triggers a HTTP request to be sent to the backend server or cache
   // If response is immediately available, the function synchronously calls
   // the `request_handler` with the HTTP response.

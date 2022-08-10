@@ -692,7 +692,6 @@
     "quiche/common/platform/api/quiche_file_utils.h",
     "quiche/common/platform/api/quiche_system_event_loop.h",
     "quiche/quic/platform/api/quic_default_proof_providers.h",
-    "quiche/quic/tools/connect_server_backend.h",
     "quiche/quic/tools/connect_tunnel.h",
     "quiche/quic/tools/fake_proof_verifier.h",
     "quiche/quic/tools/quic_backend_response.h",
@@ -717,7 +716,6 @@
   ],
   "quiche_tool_support_srcs": [
     "quiche/common/platform/api/quiche_file_utils.cc",
-    "quiche/quic/tools/connect_server_backend.cc",
     "quiche/quic/tools/connect_tunnel.cc",
     "quiche/quic/tools/quic_backend_response.cc",
     "quiche/quic/tools/quic_client_base.cc",
