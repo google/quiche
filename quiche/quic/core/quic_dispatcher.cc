@@ -1295,13 +1295,6 @@ bool QuicDispatcher::HasChlosBuffered() const {
   return buffered_packets_.HasChlosBuffered();
 }
 
-bool QuicDispatcher::ShouldCreateOrBufferPacketForConnection(
-    const ReceivedPacketInfo& packet_info) {
-  QUIC_VLOG(1) << "Received packet from new connection "
-               << packet_info.destination_connection_id;
-  return true;
-}
-
 // Return true if there is any packet buffered in the store.
 bool QuicDispatcher::HasBufferedPackets(QuicConnectionId server_connection_id) {
   return buffered_packets_.HasBufferedPackets(server_connection_id);
@@ -1319,13 +1312,6 @@ QuicTimeWaitListManager* QuicDispatcher::CreateQuicTimeWaitListManager() {
 }
 
 void QuicDispatcher::BufferEarlyPacket(const ReceivedPacketInfo& packet_info) {
-  bool is_new_connection = !buffered_packets_.HasBufferedPackets(
-      packet_info.destination_connection_id);
-  if (is_new_connection &&
-      !ShouldCreateOrBufferPacketForConnection(packet_info)) {
-    return;
-  }
-
   EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(
       packet_info.destination_connection_id,
       packet_info.form != GOOGLE_QUIC_PACKET, packet_info.packet,
@@ -1338,11 +1324,6 @@ void QuicDispatcher::BufferEarlyPacket(const ReceivedPacketInfo& packet_info) {
 
 void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
                                  ReceivedPacketInfo* packet_info) {
-  if (!buffered_packets_.HasBufferedPackets(
-          packet_info->destination_connection_id) &&
-      !ShouldCreateOrBufferPacketForConnection(*packet_info)) {
-    return;
-  }
   if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
       new_sessions_allowed_per_event_loop_ <= 0) {
     // Can't create new session any more. Wait till next event loop.
