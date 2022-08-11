@@ -35,6 +35,7 @@ class QuicPacketReader;
 
 class QuicServer : public QuicSpdyServerBase, public QuicSocketEventListener {
  public:
+  // `quic_simple_server_backend` must outlive the created QuicServer.
   QuicServer(std::unique_ptr<ProofSource> proof_source,
              QuicSimpleServerBackend* quic_simple_server_backend);
   QuicServer(std::unique_ptr<ProofSource> proof_source,
