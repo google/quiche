@@ -560,7 +560,8 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   QuicByteCount max_bytes_delivered_in_round_ = 0;
 
   // The minimum bytes in flight during this round.
-  QuicByteCount min_bytes_in_flight_in_round_ = 0;
+  QuicByteCount min_bytes_in_flight_in_round_ =
+      std::numeric_limits<uint64_t>::max();
 
   // Max bandwidth in the current round. Updated once per congestion event.
   QuicBandwidth bandwidth_latest_ = QuicBandwidth::Zero();

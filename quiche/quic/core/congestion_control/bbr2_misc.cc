@@ -76,6 +76,11 @@ void Bbr2NetworkModel::OnPacketSent(QuicTime sent_time,
                                     QuicPacketNumber packet_number,
                                     QuicByteCount bytes,
                                     HasRetransmittableData is_retransmittable) {
+  // Updating the min here ensures a more realistic (0) value when flows exit
+  // quiescence.
+  if (bytes_in_flight < min_bytes_in_flight_in_round_) {
+    min_bytes_in_flight_in_round_ = bytes_in_flight;
+  }
   round_trip_counter_.OnPacketSent(packet_number);
 
   bandwidth_sampler_.OnPacketSent(sent_time, packet_number, bytes,
@@ -160,12 +165,11 @@ void Bbr2NetworkModel::OnCongestionEventStart(
         congestion_event->last_packet_send_state.total_bytes_acked;
     max_bytes_delivered_in_round_ =
         std::max(max_bytes_delivered_in_round_, bytes_delivered);
-    // TODO(ianswett) Consider treating any bytes lost as decreasing inflight,
-    // because it's a sign of overutilization, not underutilization.
-    if (min_bytes_in_flight_in_round_ == 0 ||
-        congestion_event->bytes_in_flight < min_bytes_in_flight_in_round_) {
-      min_bytes_in_flight_in_round_ = congestion_event->bytes_in_flight;
-    }
+  }
+  // TODO(ianswett) Consider treating any bytes lost as decreasing inflight,
+  // because it's a sign of overutilization, not underutilization.
+  if (congestion_event->bytes_in_flight < min_bytes_in_flight_in_round_) {
+    min_bytes_in_flight_in_round_ = congestion_event->bytes_in_flight;
   }
 
   // |bandwidth_latest_| and |inflight_latest_| only increased within a round.
@@ -378,7 +382,7 @@ void Bbr2NetworkModel::OnNewRound() {
   bytes_lost_in_round_ = 0;
   loss_events_in_round_ = 0;
   max_bytes_delivered_in_round_ = 0;
-  min_bytes_in_flight_in_round_ = 0;
+  min_bytes_in_flight_in_round_ = std::numeric_limits<uint64_t>::max();
 }
 
 void Bbr2NetworkModel::cap_inflight_lo(QuicByteCount cap) {
@@ -432,6 +436,8 @@ bool Bbr2NetworkModel::HasBandwidthGrowth(
 bool Bbr2NetworkModel::CheckPersistentQueue(
     const Bbr2CongestionEvent& congestion_event, float bdp_gain) {
   QUICHE_DCHECK(congestion_event.end_of_round_trip);
+  QUICHE_DCHECK_NE(min_bytes_in_flight_in_round_,
+                   std::numeric_limits<uint64_t>::max());
   QuicByteCount target = bdp_gain * BDP();
   if (bdp_gain >= 2) {
     // Use a more conservative threshold for STARTUP because CWND gain is 2.
