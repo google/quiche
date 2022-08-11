@@ -81,8 +81,8 @@ absl::optional<ConnectTunnel::HostAndPort> ValidateAndParseAuthorityString(
   }
   QUICHE_DCHECK_LE(parsed_port_number, std::numeric_limits<uint16_t>::max());
 
-  return std::make_pair(std::move(hostname),
-                        static_cast<uint16_t>(parsed_port_number));
+  return ConnectTunnel::HostAndPort(std::move(hostname),
+                                    static_cast<uint16_t>(parsed_port_number));
 }
 
 absl::optional<ConnectTunnel::HostAndPort> ValidateHeadersAndGetAuthority(
@@ -114,21 +114,27 @@ absl::optional<ConnectTunnel::HostAndPort> ValidateHeadersAndGetAuthority(
   return ValidateAndParseAuthorityString(authority_it->second);
 }
 
-bool ValidateAuthority(
-    const ConnectTunnel::HostAndPort& authority,
-    const absl::flat_hash_set<std::pair<std::string, uint16_t>>&
-        acceptable_destinations) {
+bool ValidateAuthority(const ConnectTunnel::HostAndPort& authority,
+                       const absl::flat_hash_set<ConnectTunnel::HostAndPort>&
+                           acceptable_destinations) {
   if (acceptable_destinations.contains(authority)) {
     return true;
   }
 
   QUICHE_DVLOG(1) << "CONNECT request authority: "
-                  << absl::StrCat(authority.first, ":", authority.second)
+                  << absl::StrCat(authority.host, ":", authority.port)
                   << " is not an acceptable allow-listed destiation ";
   return false;
 }
 
 }  // namespace
+
+ConnectTunnel::HostAndPort::HostAndPort(std::string host, uint16_t port)
+    : host(std::move(host)), port(port) {}
+
+bool ConnectTunnel::HostAndPort::operator==(const HostAndPort& other) const {
+  return host == other.host && port == other.port;
+}
 
 ConnectTunnel::ConnectTunnel(
     QuicSimpleServerBackend::RequestHandler* client_stream_request_handler,
@@ -168,9 +174,8 @@ void ConnectTunnel::OpenTunnel(const spdy::Http2HeaderBlock& request_headers) {
     return;
   }
 
-  QuicSocketAddress address =
-      tools::LookupAddress(AF_UNSPEC, authority.value().first,
-                           absl::StrCat(authority.value().second));
+  QuicSocketAddress address = tools::LookupAddress(
+      AF_UNSPEC, authority->host, absl::StrCat(authority->port));
   if (!address.IsInitialized()) {
     TerminateClientStream("host resolution error");
     return;
@@ -193,7 +198,7 @@ void ConnectTunnel::OpenTunnel(const spdy::Http2HeaderBlock& request_headers) {
 
   QUICHE_DVLOG(1) << "CONNECT tunnel opened from stream "
                   << client_stream_request_handler_->stream_id() << " to "
-                  << authority.value().first << ":" << authority.value().second;
+                  << authority->host << ":" << authority->port;
 
   SendConnectResponse();
   BeginAsyncReadFromDestination();

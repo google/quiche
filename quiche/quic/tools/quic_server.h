@@ -16,6 +16,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/io/socket_factory.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_udp_socket.h"
@@ -115,6 +116,9 @@ class QuicServer : public QuicSpdyServerBase, public QuicSocketEventListener {
 
   // Schedules alarms and notifies the server of the I/O events.
   std::unique_ptr<QuicEventLoop> event_loop_;
+  // Used by some backends to create additional sockets, e.g. for upstream
+  // destination connections for proxying.
+  std::unique_ptr<SocketFactory> socket_factory_;
   // Accepts data from the framer and demuxes clients to sessions.
   std::unique_ptr<QuicDispatcher> dispatcher_;
 
