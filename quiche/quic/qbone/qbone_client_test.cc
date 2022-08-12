@@ -135,8 +135,9 @@ class QuicQboneDispatcher : public QuicDispatcher {
 
 class QboneTestServer : public QuicServer {
  public:
-  explicit QboneTestServer(std::unique_ptr<ProofSource> proof_source)
-      : QuicServer(std::move(proof_source), &response_cache_) {}
+  explicit QboneTestServer(std::unique_ptr<ProofSource> proof_source,
+                           quic::QuicMemoryCacheBackend* response_cache)
+      : QuicServer(std::move(proof_source), response_cache) {}
   QuicDispatcher* CreateQuicDispatcher() override {
     return new QuicQboneDispatcher(
         &config(), &crypto_config(), version_manager(),
@@ -148,7 +149,6 @@ class QboneTestServer : public QuicServer {
   std::vector<std::string> data() { return writer_.data(); }
 
  private:
-  quic::QuicMemoryCacheBackend response_cache_;
   DataSavingQbonePacketWriter writer_;
 };
 
@@ -203,8 +203,9 @@ INSTANTIATE_TEST_SUITE_P(Tests, QboneClientTest,
                          ::testing::PrintToStringParamName());
 
 TEST_P(QboneClientTest, SendDataFromClient) {
+  quic::QuicMemoryCacheBackend server_backend;
   auto server = std::make_unique<QboneTestServer>(
-      crypto_test_utils::ProofSourceForTesting());
+      crypto_test_utils::ProofSourceForTesting(), &server_backend);
   QboneTestServer* server_ptr = server.get();
   QuicSocketAddress server_address(TestLoopback(), 0);
   ServerThread server_thread(std::move(server), server_address);
