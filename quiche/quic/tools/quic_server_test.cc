@@ -55,9 +55,11 @@ class MockQuicSimpleDispatcher : public QuicSimpleDispatcher {
 
 class TestQuicServer : public QuicServer {
  public:
-  explicit TestQuicServer(QuicEventLoopFactory* event_loop_factory)
+  explicit TestQuicServer(QuicEventLoopFactory* event_loop_factory,
+                          QuicMemoryCacheBackend* quic_simple_server_backend)
       : QuicServer(crypto_test_utils::ProofSourceForTesting(),
-                   &quic_simple_server_backend_),
+                   quic_simple_server_backend),
+        quic_simple_server_backend_(quic_simple_server_backend),
         event_loop_factory_(event_loop_factory) {}
 
   ~TestQuicServer() override = default;
@@ -71,7 +73,7 @@ class TestQuicServer : public QuicServer {
         std::make_unique<QuicDefaultConnectionHelper>(),
         std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
             new QuicSimpleCryptoServerStreamHelper()),
-        event_loop()->CreateAlarmFactory(), &quic_simple_server_backend_);
+        event_loop()->CreateAlarmFactory(), quic_simple_server_backend_);
     return mock_dispatcher_;
   }
 
@@ -80,14 +82,15 @@ class TestQuicServer : public QuicServer {
   }
 
   MockQuicSimpleDispatcher* mock_dispatcher_ = nullptr;
-  QuicMemoryCacheBackend quic_simple_server_backend_;
+  QuicMemoryCacheBackend* quic_simple_server_backend_;
   QuicEventLoopFactory* event_loop_factory_;
 };
 
 class QuicServerEpollInTest : public QuicTestWithParam<QuicEventLoopFactory*> {
  public:
   QuicServerEpollInTest()
-      : server_address_(TestLoopback(), 0), server_(GetParam()) {}
+      : server_address_(TestLoopback(), 0),
+        server_(GetParam(), &quic_simple_server_backend_) {}
 
   void StartListening() {
     server_.CreateUDPSocketAndListen(server_address_);
@@ -103,6 +106,7 @@ class QuicServerEpollInTest : public QuicTestWithParam<QuicEventLoopFactory*> {
 
  protected:
   QuicSocketAddress server_address_;
+  QuicMemoryCacheBackend quic_simple_server_backend_;
   TestQuicServer server_;
 };
 
