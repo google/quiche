@@ -693,6 +693,7 @@ quiche_tool_support_hdrs = [
     "common/platform/api/quiche_file_utils.h",
     "common/platform/api/quiche_system_event_loop.h",
     "quic/platform/api/quic_default_proof_providers.h",
+    "quic/tools/connect_server_backend.h",
     "quic/tools/connect_tunnel.h",
     "quic/tools/fake_proof_verifier.h",
     "quic/tools/quic_backend_response.h",
@@ -717,6 +718,7 @@ quiche_tool_support_hdrs = [
 ]
 quiche_tool_support_srcs = [
     "common/platform/api/quiche_file_utils.cc",
+    "quic/tools/connect_server_backend.cc",
     "quic/tools/connect_tunnel.cc",
     "quic/tools/quic_backend_response.cc",
     "quic/tools/quic_client_base.cc",
