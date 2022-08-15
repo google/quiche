@@ -3872,9 +3872,7 @@ class TestResponseListener : public QuicSpdyClientBase::ResponseListener {
   }
 };
 
-// TODO(b/241910187): re-enable this test in Chrome.
-TEST_P(EndToEndTest, QUICHE_TEST_DISABLED_IN_CHROME(
-                         AckNotifierWithPacketLossAndBlockedSocket)) {
+TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   // Verify that even in the presence of packet loss and occasionally blocked
   // socket, an AckNotifierDelegate will get informed that the data it is
   // interested in has been ACKed. This tests end-to-end ACK notification, and
@@ -3924,7 +3922,10 @@ TEST_P(EndToEndTest, QUICHE_TEST_DISABLED_IN_CHROME(
   headers[":scheme"] = "https";
   headers[":authority"] = server_hostname_;
 
-  client_->SendMessage(headers, "", /*fin=*/false);
+  // Here, we have to specify flush=false, otherwise we risk a race condition in
+  // which the headers are sent and acknowledged before the ack notifier is
+  // installed.
+  client_->SendMessage(headers, "", /*fin=*/false, /*flush=*/false);
 
   // Size of headers on the request stream. This is zero if headers are sent on
   // the header stream.
@@ -3966,10 +3967,15 @@ TEST_P(EndToEndTest, QUICHE_TEST_DISABLED_IN_CHROME(
   SendSynchronousBarRequestAndCheckResponse();
 
   // Make sure the delegate does get the notification it expects.
+  int attempts = 0;
+  constexpr int kMaxAttempts = 20;
   while (ack_listener->total_bytes_acked() < expected_bytes_acked) {
     // Waits for up to 50 ms.
     client_->client()->WaitForEvents();
     ASSERT_TRUE(client_->connected());
+    if (++attempts >= kMaxAttempts) {
+      break;
+    }
   }
   EXPECT_EQ(ack_listener->total_bytes_acked(), expected_bytes_acked)
       << " header_size " << header_size << " request length "
@@ -3977,8 +3983,7 @@ TEST_P(EndToEndTest, QUICHE_TEST_DISABLED_IN_CHROME(
 }
 
 // Send a public reset from the server.
-// TODO(b/241910187): re-enable this test in Chrome.
-TEST_P(EndToEndTest, QUICHE_TEST_DISABLED_IN_CHROME(ServerSendPublicReset)) {
+TEST_P(EndToEndTest, ServerSendPublicReset) {
   ASSERT_TRUE(Initialize());
 
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
