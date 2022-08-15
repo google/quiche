@@ -3088,6 +3088,46 @@ TEST_P(QuicSessionTestServer, BlockedFrameCausesWriteError) {
   }
 }
 
+TEST_P(QuicSessionTestServer, BufferedCryptoFrameCausesWriteError) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  std::string data(1350, 'a');
+  TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
+  // Only consumed 1000 bytes.
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_FORWARD_SECURE, 1350, 0))
+      .WillOnce(Return(1000));
+  crypto_stream->WriteCryptoData(ENCRYPTION_FORWARD_SECURE, data);
+  EXPECT_TRUE(session_.HasPendingHandshake());
+  EXPECT_TRUE(session_.WillingAndAbleToWrite());
+
+  EXPECT_CALL(*connection_,
+              SendCryptoData(ENCRYPTION_FORWARD_SECURE, 350, 1000))
+      .WillOnce(Return(0));
+  // Buffer the HANDSHAKE_DONE frame.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(Return(false));
+  CryptoHandshakeMessage msg;
+  session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
+
+  // Flush both frames.
+  EXPECT_CALL(*connection_,
+              SendCryptoData(ENCRYPTION_FORWARD_SECURE, 350, 1000))
+      .WillOnce(testing::InvokeWithoutArgs([this]() {
+        connection_->ReallyCloseConnection(
+            QUIC_PACKET_WRITE_ERROR, "write error",
+            ConnectionCloseBehavior::SILENT_CLOSE);
+        return 350;
+      }));
+  if (!GetQuicReloadableFlag(
+          quic_no_write_control_frame_upon_connection_close)) {
+    EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(Return(false));
+    EXPECT_QUIC_BUG(session_.OnCanWrite(),
+                    "Try to write control frames when connection is closed");
+  } else {
+    session_.OnCanWrite();
+  }
+}
+
 // A client test class that can be used when the automatic configuration is not
 // desired.
 class QuicSessionTestClientUnconfigured : public QuicSessionTestBase {

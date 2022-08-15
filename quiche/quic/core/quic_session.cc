@@ -627,9 +627,12 @@ void QuicSession::OnCanWrite() {
     if (crypto_stream->HasBufferedCryptoFrames()) {
       crypto_stream->WriteBufferedCryptoFrames();
     }
-    if (crypto_stream->HasBufferedCryptoFrames()) {
-      // Cannot finish writing buffered crypto frames, connection is write
-      // blocked.
+    if ((GetQuicReloadableFlag(
+             quic_no_write_control_frame_upon_connection_close) &&
+         !connection_->connected()) ||
+        crypto_stream->HasBufferedCryptoFrames()) {
+      // Cannot finish writing buffered crypto frames, connection is either
+      // write blocked or closed.
       return;
     }
   }
@@ -846,7 +849,7 @@ void QuicSession::OnControlFrameManagerError(QuicErrorCode error_code,
 
 bool QuicSession::WriteControlFrame(const QuicFrame& frame,
                                     TransmissionType type) {
-  QUICHE_DCHECK(connection()->connected())
+  QUIC_BUG_IF(quic_bug_12435_11, !connection()->connected())
       << ENDPOINT << "Try to write control frames when connection is closed.";
   if (!IsEncryptionEstablished()) {
     // Suppress the write before encryption gets established.
