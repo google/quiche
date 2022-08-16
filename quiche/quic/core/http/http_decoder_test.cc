@@ -569,7 +569,8 @@ TEST_F(HttpDecoderTest, FrameWithOverlyLargePayload) {
     HttpDecoder decoder(&visitor);
     QuicDataWriter writer(max_input_length, input);
     ASSERT_TRUE(writer.WriteVarInt62(frame_type));         // frame type.
-    ASSERT_TRUE(writer.WriteVarInt62(kVarInt62MaxValue));  // frame length.
+    ASSERT_TRUE(
+        writer.WriteVarInt62(quiche::kVarInt62MaxValue));  // frame length.
     ASSERT_TRUE(writer.WriteUInt8(0x00));  // one byte of payload.
     EXPECT_NE(decoder.ProcessInput(input, writer.length()), 0u) << frame_type;
   }

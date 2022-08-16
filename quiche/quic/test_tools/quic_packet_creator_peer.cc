@@ -45,14 +45,14 @@ QuicPacketNumberLength QuicPacketCreatorPeer::GetPacketNumberLength(
 }
 
 // static
-QuicVariableLengthIntegerLength
+quiche::QuicheVariableLengthIntegerLength
 QuicPacketCreatorPeer::GetRetryTokenLengthLength(QuicPacketCreator* creator) {
   return creator->GetRetryTokenLengthLength();
 }
 
 // static
-QuicVariableLengthIntegerLength QuicPacketCreatorPeer::GetLengthLength(
-    QuicPacketCreator* creator) {
+quiche::QuicheVariableLengthIntegerLength
+QuicPacketCreatorPeer::GetLengthLength(QuicPacketCreator* creator) {
   return creator->GetLengthLength();
 }
 

@@ -65,8 +65,9 @@ class ChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
     header.packet_number_length = PACKET_4BYTE_PACKET_NUMBER;
     header.packet_number = QuicPacketNumber(1);
     if (version_.HasLongHeaderLengths()) {
-      header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
-      header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+      header.retry_token_length_length =
+          quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
+      header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
     }
     QuicFrames frames;
     size_t offset = 0;

@@ -425,9 +425,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicConnectionIdLength source_connection_id_length, bool includes_version,
       bool includes_diversification_nonce,
       QuicPacketNumberLength packet_number_length,
-      QuicVariableLengthIntegerLength retry_token_length_length,
+      quiche::QuicheVariableLengthIntegerLength retry_token_length_length,
       uint64_t retry_token_length,
-      QuicVariableLengthIntegerLength length_length);
+      quiche::QuicheVariableLengthIntegerLength length_length);
 
   // Parses the unencrypted fields in a QUIC header using |reader| as input,
   // stores the result in the other parameters.
@@ -440,7 +440,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicConnectionId* destination_connection_id,
       QuicConnectionId* source_connection_id,
       QuicLongHeaderType* long_packet_type,
-      QuicVariableLengthIntegerLength* retry_token_length_length,
+      quiche::QuicheVariableLengthIntegerLength* retry_token_length_length,
       absl::string_view* retry_token, std::string* detailed_error);
 
   // Parses the unencrypted fields in |packet| and stores them in the other

@@ -87,8 +87,9 @@ class QuicChaosProtectorTest : public QuicTestWithParam<ParsedQuicVersion>,
     header_.packet_number = QuicPacketNumber(1);
     header_.form = IETF_QUIC_LONG_HEADER_PACKET;
     header_.long_packet_type = INITIAL;
-    header_.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
-    header_.length_length = kQuicDefaultLongHeaderLengthLength;
+    header_.retry_token_length_length =
+        quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
+    header_.length_length = quiche::kQuicheDefaultLongHeaderLengthLength;
     // Setup validation framer.
     validation_framer_.framer()->SetInitialObfuscators(
         header_.destination_connection_id);

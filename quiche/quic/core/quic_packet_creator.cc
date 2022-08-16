@@ -384,8 +384,9 @@ size_t QuicPacketCreator::StreamFramePacketOverhead(
     QuicConnectionIdLength source_connection_id_length, bool include_version,
     bool include_diversification_nonce,
     QuicPacketNumberLength packet_number_length,
-    QuicVariableLengthIntegerLength retry_token_length_length,
-    QuicVariableLengthIntegerLength length_length, QuicStreamOffset offset) {
+    quiche::QuicheVariableLengthIntegerLength retry_token_length_length,
+    quiche::QuicheVariableLengthIntegerLength length_length,
+    QuicStreamOffset offset) {
   return GetPacketHeaderSize(version, destination_connection_id_length,
                              source_connection_id_length, include_version,
                              include_diversification_nonce,
@@ -1243,14 +1244,14 @@ size_t QuicPacketCreator::PacketHeaderSize() const {
       GetRetryTokenLengthLength(), GetRetryToken().length(), GetLengthLength());
 }
 
-QuicVariableLengthIntegerLength QuicPacketCreator::GetRetryTokenLengthLength()
-    const {
+quiche::QuicheVariableLengthIntegerLength
+QuicPacketCreator::GetRetryTokenLengthLength() const {
   if (QuicVersionHasLongHeaderLengths(framer_->transport_version()) &&
       HasIetfLongHeader() &&
       EncryptionlevelToLongHeaderType(packet_.encryption_level) == INITIAL) {
     return QuicDataWriter::GetVarInt62Len(GetRetryToken().length());
   }
-  return VARIABLE_LENGTH_INTEGER_LENGTH_0;
+  return quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
 }
 
 absl::string_view QuicPacketCreator::GetRetryToken() const {
@@ -1629,17 +1630,18 @@ MessageStatus QuicPacketCreator::AddMessageFrame(
   return MESSAGE_STATUS_SUCCESS;
 }
 
-QuicVariableLengthIntegerLength QuicPacketCreator::GetLengthLength() const {
+quiche::QuicheVariableLengthIntegerLength QuicPacketCreator::GetLengthLength()
+    const {
   if (QuicVersionHasLongHeaderLengths(framer_->transport_version()) &&
       HasIetfLongHeader()) {
     QuicLongHeaderType long_header_type =
         EncryptionlevelToLongHeaderType(packet_.encryption_level);
     if (long_header_type == INITIAL || long_header_type == ZERO_RTT_PROTECTED ||
         long_header_type == HANDSHAKE) {
-      return VARIABLE_LENGTH_INTEGER_LENGTH_2;
+      return quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
     }
   }
-  return VARIABLE_LENGTH_INTEGER_LENGTH_0;
+  return quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
 }
 
 void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
@@ -1979,7 +1981,7 @@ QuicPacketLength QuicPacketCreator::GetCurrentLargestMessagePayload() const {
       GetSourceConnectionIdLength(), IncludeVersionInHeader(),
       IncludeNonceInPublicHeader(), GetPacketNumberLength(),
       // No Retry token on packets containing application data.
-      VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, GetLengthLength());
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, GetLengthLength());
   // This is the largest possible message payload when the length field is
   // omitted.
   size_t max_plaintext_size =
@@ -2003,13 +2005,13 @@ QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
       framer_->version().handshake_protocol == PROTOCOL_QUIC_CRYPTO &&
       framer_->perspective() == Perspective::IS_SERVER;
   // IETF QUIC long headers include a length on client 0RTT packets.
-  QuicVariableLengthIntegerLength length_length =
-      VARIABLE_LENGTH_INTEGER_LENGTH_0;
+  quiche::QuicheVariableLengthIntegerLength length_length =
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
   if (framer_->perspective() == Perspective::IS_CLIENT) {
-    length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+    length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
   }
   if (!QuicVersionHasLongHeaderLengths(framer_->transport_version())) {
-    length_length = VARIABLE_LENGTH_INTEGER_LENGTH_0;
+    length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
   }
   const size_t packet_header_size = GetPacketHeaderSize(
       framer_->transport_version(), GetDestinationConnectionIdLength(),
@@ -2017,7 +2019,7 @@ QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
       GetSourceConnectionIdLength(), kIncludeVersion, may_include_nonce,
       PACKET_4BYTE_PACKET_NUMBER,
       // No Retry token on packets containing application data.
-      VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, length_length);
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, length_length);
   // This is the largest possible message payload when the length field is
   // omitted.
   size_t max_plaintext_size =

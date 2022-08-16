@@ -908,8 +908,8 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   ParsedQuicVersion version = (*versions)[0];
   if (QuicVersionHasLongHeaderLengths(version.transport_version) &&
       version_flag) {
-    header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
-    header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+    header.retry_token_length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
+    header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
   }
 
   QuicFrames frames;
@@ -973,8 +973,8 @@ std::unique_ptr<QuicEncryptedPacket> GetUndecryptableEarlyPacket(
   header.packet_number = QuicPacketNumber(33);
   header.long_packet_type = ZERO_RTT_PROTECTED;
   if (version.HasLongHeaderLengths()) {
-    header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
-    header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+    header.retry_token_length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
+    header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
   }
 
   QuicFrames frames;
@@ -1027,8 +1027,8 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
   header.packet_number = QuicPacketNumber(packet_number);
   if (QuicVersionHasLongHeaderLengths(version.transport_version) &&
       version_flag) {
-    header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
-    header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+    header.retry_token_length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
+    header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
   }
   QuicFrame frame(QuicStreamFrame(1, false, 0, absl::string_view(data)));
   QuicFrames frames;

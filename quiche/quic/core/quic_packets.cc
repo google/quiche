@@ -105,9 +105,9 @@ size_t GetPacketHeaderSize(
     QuicConnectionIdLength source_connection_id_length, bool include_version,
     bool include_diversification_nonce,
     QuicPacketNumberLength packet_number_length,
-    QuicVariableLengthIntegerLength retry_token_length_length,
+    quiche::QuicheVariableLengthIntegerLength retry_token_length_length,
     QuicByteCount retry_token_length,
-    QuicVariableLengthIntegerLength length_length) {
+    quiche::QuicheVariableLengthIntegerLength length_length) {
   if (VersionHasIetfInvariantHeader(version)) {
     if (include_version) {
       // Long header.
@@ -153,9 +153,9 @@ size_t GetStartOfEncryptedData(
     QuicConnectionIdLength source_connection_id_length, bool include_version,
     bool include_diversification_nonce,
     QuicPacketNumberLength packet_number_length,
-    QuicVariableLengthIntegerLength retry_token_length_length,
+    quiche::QuicheVariableLengthIntegerLength retry_token_length_length,
     QuicByteCount retry_token_length,
-    QuicVariableLengthIntegerLength length_length) {
+    quiche::QuicheVariableLengthIntegerLength length_length) {
   // Encryption starts before private flags.
   return GetPacketHeaderSize(
       version, destination_connection_id_length, source_connection_id_length,
@@ -177,9 +177,9 @@ QuicPacketHeader::QuicPacketHeader()
       form(GOOGLE_QUIC_PACKET),
       long_packet_type(INITIAL),
       possible_stateless_reset_token({}),
-      retry_token_length_length(VARIABLE_LENGTH_INTEGER_LENGTH_0),
+      retry_token_length_length(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0),
       retry_token(absl::string_view()),
-      length_length(VARIABLE_LENGTH_INTEGER_LENGTH_0),
+      length_length(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0),
       remaining_packet_length(0) {}
 
 QuicPacketHeader::QuicPacketHeader(const QuicPacketHeader& other) = default;
@@ -239,14 +239,15 @@ std::ostream& operator<<(std::ostream& os, const QuicPacketHeader& header) {
       os << ", long_packet_type: "
          << QuicUtils::QuicLongHeaderTypetoString(header.long_packet_type);
     }
-    if (header.retry_token_length_length != VARIABLE_LENGTH_INTEGER_LENGTH_0) {
+    if (header.retry_token_length_length !=
+        quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0) {
       os << ", retry_token_length_length: "
          << static_cast<int>(header.retry_token_length_length);
     }
     if (header.retry_token.length() != 0) {
       os << ", retry_token_length: " << header.retry_token.length();
     }
-    if (header.length_length != VARIABLE_LENGTH_INTEGER_LENGTH_0) {
+    if (header.length_length != quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0) {
       os << ", length_length: " << static_cast<int>(header.length_length);
     }
     if (header.remaining_packet_length != 0) {
@@ -285,9 +286,9 @@ QuicPacket::QuicPacket(
     QuicConnectionIdLength source_connection_id_length, bool includes_version,
     bool includes_diversification_nonce,
     QuicPacketNumberLength packet_number_length,
-    QuicVariableLengthIntegerLength retry_token_length_length,
+    quiche::QuicheVariableLengthIntegerLength retry_token_length_length,
     QuicByteCount retry_token_length,
-    QuicVariableLengthIntegerLength length_length)
+    quiche::QuicheVariableLengthIntegerLength length_length)
     : QuicData(buffer, length, owns_buffer),
       buffer_(buffer),
       destination_connection_id_length_(destination_connection_id_length),

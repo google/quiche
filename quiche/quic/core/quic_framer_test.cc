@@ -763,7 +763,8 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
     return CheckDecryption(
         encrypted, includes_version, includes_diversification_nonce,
         destination_connection_id_length, source_connection_id_length,
-        VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
+        quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+        quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0);
   }
 
   bool CheckDecryption(
@@ -771,9 +772,9 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
       bool includes_diversification_nonce,
       QuicConnectionIdLength destination_connection_id_length,
       QuicConnectionIdLength source_connection_id_length,
-      QuicVariableLengthIntegerLength retry_token_length_length,
+      quiche::QuicheVariableLengthIntegerLength retry_token_length_length,
       size_t retry_token_length,
-      QuicVariableLengthIntegerLength length_length) {
+      quiche::QuicheVariableLengthIntegerLength length_length) {
     if (visitor_.header_->packet_number != decrypter_->packet_number_) {
       QUIC_LOG(ERROR) << "Decrypted incorrect packet number.  expected "
                       << visitor_.header_->packet_number
@@ -1081,7 +1082,8 @@ TEST_P(QuicFramerTest, LargePacket) {
       framer_.transport_version(), PACKET_8BYTE_CONNECTION_ID,
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
-      VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0);
 
   memset(p + header_size, 0, kMaxIncomingPacketSize - header_size);
 
@@ -1395,8 +1397,8 @@ TEST_P(QuicFramerTest, ParsePublicHeader) {
   QuicConnectionId destination_connection_id = EmptyQuicConnectionId(),
                    source_connection_id = EmptyQuicConnectionId();
   QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
-  QuicVariableLengthIntegerLength retry_token_length_length =
-      VARIABLE_LENGTH_INTEGER_LENGTH_4;
+  quiche::QuicheVariableLengthIntegerLength retry_token_length_length =
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_4;
   absl::string_view retry_token;
   std::string detailed_error = "foobar";
 
@@ -1418,7 +1420,8 @@ TEST_P(QuicFramerTest, ParsePublicHeader) {
   EXPECT_EQ(framer_.version(), parsed_version);
   EXPECT_EQ(FramerTestConnectionId(), destination_connection_id);
   EXPECT_EQ(EmptyQuicConnectionId(), source_connection_id);
-  EXPECT_EQ(VARIABLE_LENGTH_INTEGER_LENGTH_0, retry_token_length_length);
+  EXPECT_EQ(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0,
+            retry_token_length_length);
   EXPECT_EQ(absl::string_view(), retry_token);
   if (framer_.version().HasIetfInvariantHeader()) {
     EXPECT_EQ(IETF_QUIC_LONG_HEADER_PACKET, format);
@@ -1464,8 +1467,8 @@ TEST_P(QuicFramerTest, ParsePublicHeaderProxBadSourceConnectionIdLength) {
   QuicConnectionId destination_connection_id = EmptyQuicConnectionId(),
                    source_connection_id = EmptyQuicConnectionId();
   QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
-  QuicVariableLengthIntegerLength retry_token_length_length =
-      VARIABLE_LENGTH_INTEGER_LENGTH_4;
+  quiche::QuicheVariableLengthIntegerLength retry_token_length_length =
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_4;
   absl::string_view retry_token;
   std::string detailed_error = "foobar";
 
@@ -1485,7 +1488,8 @@ TEST_P(QuicFramerTest, ParsePublicHeaderProxBadSourceConnectionIdLength) {
   EXPECT_EQ(UnsupportedQuicVersion(), parsed_version);
   EXPECT_EQ(FramerTestConnectionId(), destination_connection_id);
   EXPECT_EQ(EmptyQuicConnectionId(), source_connection_id);
-  EXPECT_EQ(VARIABLE_LENGTH_INTEGER_LENGTH_0, retry_token_length_length);
+  EXPECT_EQ(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0,
+            retry_token_length_length);
   EXPECT_EQ(absl::string_view(), retry_token);
   EXPECT_EQ(IETF_QUIC_LONG_HEADER_PACKET, format);
 }
@@ -2964,13 +2968,13 @@ TEST_P(QuicFramerTest, StreamFrameWithVersion) {
   };
   // clang-format on
 
-  QuicVariableLengthIntegerLength retry_token_length_length =
-      VARIABLE_LENGTH_INTEGER_LENGTH_0;
+  quiche::QuicheVariableLengthIntegerLength retry_token_length_length =
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
   size_t retry_token_length = 0;
-  QuicVariableLengthIntegerLength length_length =
+  quiche::QuicheVariableLengthIntegerLength length_length =
       QuicVersionHasLongHeaderLengths(framer_.transport_version())
-          ? VARIABLE_LENGTH_INTEGER_LENGTH_1
-          : VARIABLE_LENGTH_INTEGER_LENGTH_0;
+          ? quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1
+          : quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
 
   ReviseFirstByteByVersion(packet_ietf);
   PacketFragments& fragments =
@@ -6551,7 +6555,8 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
       framer_.transport_version(), PACKET_8BYTE_CONNECTION_ID,
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
-      VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0);
   memset(p + header_size + 1, 0x00, kMaxOutgoingPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
@@ -6740,7 +6745,8 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
       framer_.transport_version(), PACKET_8BYTE_CONNECTION_ID,
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
-      VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0);
   memset(p + header_size + 1, 0x00, kMaxOutgoingPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
@@ -6815,7 +6821,8 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
       framer_.transport_version(), PACKET_8BYTE_CONNECTION_ID,
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_2BYTE_PACKET_NUMBER,
-      VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0);
   memset(p + header_size + 1, 0x00, kMaxOutgoingPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
@@ -6890,7 +6897,8 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
       framer_.transport_version(), PACKET_8BYTE_CONNECTION_ID,
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_1BYTE_PACKET_NUMBER,
-      VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0);
   memset(p + header_size + 1, 0x00, kMaxOutgoingPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
@@ -6910,7 +6918,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacket) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
   if (QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
-    header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+    header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
   }
 
   QuicStreamFrame stream_frame(kStreamId, true, kStreamOffset,
@@ -7009,7 +7017,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithVersionFlag) {
   }
   header.packet_number = kPacketNumber;
   if (QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
-    header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+    header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
   }
 
   QuicStreamFrame stream_frame(kStreamId, true, kStreamOffset,
@@ -10422,11 +10430,12 @@ TEST_P(QuicFramerTest, EncryptPacket) {
     p = packet46;
   }
 
-  std::unique_ptr<QuicPacket> raw(new QuicPacket(
-      AsChars(p), p_size, false, PACKET_8BYTE_CONNECTION_ID,
-      PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
-      !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
-      VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0));
+  std::unique_ptr<QuicPacket> raw(
+      new QuicPacket(AsChars(p), p_size, false, PACKET_8BYTE_CONNECTION_ID,
+                     PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
+                     !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
+                     quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+                     quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0));
   char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length = framer_.EncryptPayload(
       ENCRYPTION_INITIAL, packet_number, *raw, buffer, kMaxOutgoingPacketSize);
@@ -10442,8 +10451,8 @@ TEST_P(QuicFramerTest, EncryptEmptyPacket) {
       PACKET_0BYTE_CONNECTION_ID,
       /*includes_version=*/true,
       /*includes_diversification_nonce=*/true, PACKET_1BYTE_PACKET_NUMBER,
-      VARIABLE_LENGTH_INTEGER_LENGTH_0,
-      /*retry_token_length=*/0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0,
+      /*retry_token_length=*/0, quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0);
   char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length = 1;
   EXPECT_QUIC_BUG(
@@ -10530,11 +10539,12 @@ TEST_P(QuicFramerTest, EncryptPacketWithVersionFlag) {
     p_size = ABSL_ARRAYSIZE(packet46);
   }
 
-  std::unique_ptr<QuicPacket> raw(new QuicPacket(
-      AsChars(p), p_size, false, PACKET_8BYTE_CONNECTION_ID,
-      PACKET_0BYTE_CONNECTION_ID, kIncludeVersion,
-      !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
-      VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0));
+  std::unique_ptr<QuicPacket> raw(
+      new QuicPacket(AsChars(p), p_size, false, PACKET_8BYTE_CONNECTION_ID,
+                     PACKET_0BYTE_CONNECTION_ID, kIncludeVersion,
+                     !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
+                     quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+                     quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0));
   char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length = framer_.EncryptPayload(
       ENCRYPTION_INITIAL, packet_number, *raw, buffer, kMaxOutgoingPacketSize);
@@ -14741,8 +14751,8 @@ TEST_P(QuicFramerTest, CoalescedPacketWithZeroesRoundTrip) {
   header.packet_number = kPacketNumber;
   header.packet_number_length = PACKET_4BYTE_PACKET_NUMBER;
   header.long_packet_type = INITIAL;
-  header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
-  header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
+  header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
+  header.retry_token_length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
   QuicFrames frames = {QuicFrame(QuicPingFrame()),
                        QuicFrame(QuicPaddingFrame(3))};
 

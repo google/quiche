@@ -17,6 +17,24 @@
 
 namespace quiche {
 
+// Maximum value that can be properly encoded using RFC 9000 62-bit Variable
+// Length Integer encoding.
+enum : uint64_t {
+  kVarInt62MaxValue = UINT64_C(0x3fffffffffffffff),
+};
+
+// RFC 9000 62-bit Variable Length Integer encoding masks
+// If a uint64_t anded with a mask is not 0 then the value is encoded
+// using that length (or is too big, in the case of kVarInt62ErrorMask).
+// Values must be checked in order (error, 8-, 4-, and then 2- bytes)
+// and if none are non-0, the value is encoded in 1 byte.
+enum : uint64_t {
+  kVarInt62ErrorMask = UINT64_C(0xc000000000000000),
+  kVarInt62Mask8Bytes = UINT64_C(0x3fffffffc0000000),
+  kVarInt62Mask4Bytes = UINT64_C(0x000000003fffc000),
+  kVarInt62Mask2Bytes = UINT64_C(0x0000000000003fc0),
+};
+
 // This class provides facilities for packing binary data.
 //
 // The QuicheDataWriter supports appending primitive values (int, string, etc)
@@ -68,6 +86,28 @@ class QUICHE_EXPORT_PRIVATE QuicheDataWriter {
   // MakeQuicTag and tags are written in byte order, so tags on the wire are
   // in big endian.
   bool WriteTag(uint32_t tag);
+
+  // Write a 62-bit unsigned integer using RFC 9000 Variable Length Integer
+  // encoding. Returns false if the value is out of range or if there is no room
+  // in the buffer.
+  bool WriteVarInt62(uint64_t value);
+
+  // Same as WriteVarInt62(uint64_t), but forces an encoding size to write to.
+  // This is not as optimized as WriteVarInt62(uint64_t). Returns false if the
+  // value does not fit in the specified write_length or if there is no room in
+  // the buffer.
+  bool WriteVarInt62WithForcedLength(
+      uint64_t value, QuicheVariableLengthIntegerLength write_length);
+
+  // Writes a string piece as a consecutive length/content pair. The
+  // length uses RFC 9000 Variable Length Integer encoding.
+  bool WriteStringPieceVarInt62(const absl::string_view& string_piece);
+
+  // Utility function to return the number of bytes needed to encode
+  // the given value using IETF VarInt62 encoding. Returns the number
+  // of bytes required to encode the given integer or 0 if the value
+  // is too large to encode.
+  static QuicheVariableLengthIntegerLength GetVarInt62Len(uint64_t value);
 
   // Advance the writer's position for writing by |length| bytes without writing
   // anything. This method only makes sense to be used on a buffer that has

@@ -21,6 +21,7 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/common/quiche_endian.h"
 
 namespace quic {
 
@@ -352,20 +353,6 @@ QUIC_EXPORT_PRIVATE std::string QuicIetfFrameTypeString(QuicIetfFrameType t);
 #define IETF_STREAM_FRAME_FIN_BIT 0x01
 #define IETF_STREAM_FRAME_LEN_BIT 0x02
 #define IETF_STREAM_FRAME_OFF_BIT 0x04
-
-enum QuicVariableLengthIntegerLength : uint8_t {
-  // Length zero means the variable length integer is not present.
-  VARIABLE_LENGTH_INTEGER_LENGTH_0 = 0,
-  VARIABLE_LENGTH_INTEGER_LENGTH_1 = 1,
-  VARIABLE_LENGTH_INTEGER_LENGTH_2 = 2,
-  VARIABLE_LENGTH_INTEGER_LENGTH_4 = 4,
-  VARIABLE_LENGTH_INTEGER_LENGTH_8 = 8,
-
-  // By default we write the IETF long header length using the 2-byte encoding
-  // of variable length integers, even when the length is below 64, which allows
-  // us to fill in the length before knowing what the length actually is.
-  kQuicDefaultLongHeaderLengthLength = VARIABLE_LENGTH_INTEGER_LENGTH_2,
-};
 
 enum QuicPacketNumberLength : uint8_t {
   PACKET_1BYTE_PACKET_NUMBER = 1,

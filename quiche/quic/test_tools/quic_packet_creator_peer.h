@@ -26,9 +26,9 @@ class QuicPacketCreatorPeer {
       QuicPacketCreator* creator, QuicPacketNumberLength packet_number_length);
   static QuicPacketNumberLength GetPacketNumberLength(
       QuicPacketCreator* creator);
-  static QuicVariableLengthIntegerLength GetRetryTokenLengthLength(
+  static quiche::QuicheVariableLengthIntegerLength GetRetryTokenLengthLength(
       QuicPacketCreator* creator);
-  static QuicVariableLengthIntegerLength GetLengthLength(
+  static quiche::QuicheVariableLengthIntegerLength GetLengthLength(
       QuicPacketCreator* creator);
   static void SetPacketNumber(QuicPacketCreator* creator, uint64_t s);
   static void SetPacketNumber(QuicPacketCreator* creator, QuicPacketNumber num);

@@ -62,29 +62,6 @@ class QUIC_EXPORT_PRIVATE QuicDataReader : public quiche::QuicheDataReader {
   // Forwards the internal iterator on success.
   // Returns true on success, false otherwise.
   bool ReadLengthPrefixedConnectionId(QuicConnectionId* connection_id);
-
-  // Returns the length in bytes of a variable length integer based on the next
-  // two bits available. Returns 1, 2, 4, or 8 on success, and 0 on failure.
-  QuicVariableLengthIntegerLength PeekVarInt62Length();
-
-  // Read an IETF-encoded Variable Length Integer and place the result
-  // in |*result|.
-  // Returns true if it works, false if not. The only error is that
-  // there is not enough in the buffer to read the number.
-  // If there is an error, |*result| is not altered.
-  // Numbers are encoded per the rules in draft-ietf-quic-transport-10.txt
-  // and that the integers in the range 0 ... (2^62)-1.
-  bool ReadVarInt62(uint64_t* result);
-
-  // Reads a string prefixed with a Variable Length integer length into the
-  // given output parameter.
-  //
-  // NOTE: Does not copy but rather references strings in the underlying buffer.
-  // This should be kept in mind when handling memory management!
-  //
-  // Forwards the internal iterator on success.
-  // Returns true on success, false otherwise.
-  bool ReadStringPieceVarInt62(absl::string_view* result);
 };
 
 }  // namespace quic

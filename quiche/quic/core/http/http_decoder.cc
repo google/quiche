@@ -657,9 +657,9 @@ QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
     case static_cast<uint64_t>(HttpFrameType::SETTINGS):
       return kPayloadLengthLimit;
     case static_cast<uint64_t>(HttpFrameType::GOAWAY):
-      return VARIABLE_LENGTH_INTEGER_LENGTH_8;
+      return quiche::VARIABLE_LENGTH_INTEGER_LENGTH_8;
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID):
-      return VARIABLE_LENGTH_INTEGER_LENGTH_8;
+      return quiche::VARIABLE_LENGTH_INTEGER_LENGTH_8;
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM):
       return kPayloadLengthLimit;
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH):

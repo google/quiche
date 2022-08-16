@@ -346,8 +346,8 @@ TEST_P(QuicStreamTest, WriteAllData) {
               connection_->transport_version(), PACKET_8BYTE_CONNECTION_ID,
               PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
               !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
-              VARIABLE_LENGTH_INTEGER_LENGTH_0,
-              VARIABLE_LENGTH_INTEGER_LENGTH_0, 0u);
+              quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0,
+              quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0u);
   connection_->SetMaxPacketLength(length);
 
   EXPECT_CALL(*session_, WritevData(kTestStreamId, _, _, _, _, _))
@@ -431,8 +431,8 @@ TEST_P(QuicStreamTest, WriteOrBufferData) {
               connection_->transport_version(), PACKET_8BYTE_CONNECTION_ID,
               PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
               !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
-              VARIABLE_LENGTH_INTEGER_LENGTH_0,
-              VARIABLE_LENGTH_INTEGER_LENGTH_0, 0u);
+              quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0,
+              quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0u);
   connection_->SetMaxPacketLength(length);
 
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))

@@ -61,7 +61,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
     friend struct TransportParameters;
     // Constructors for initial setup used by TransportParameters only.
     // This constructor sets |default_value| and |min_value| to 0, and
-    // |max_value| to kVarInt62MaxValue.
+    // |max_value| to quiche::kVarInt62MaxValue.
     explicit IntegerParameter(TransportParameterId param_id);
     IntegerParameter(TransportParameterId param_id, uint64_t default_value,
                      uint64_t min_value, uint64_t max_value);

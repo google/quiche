@@ -1119,9 +1119,10 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       header.long_packet_type = EncryptionlevelToLongHeaderType(level);
       if (QuicVersionHasLongHeaderLengths(
               peer_framer_.version().transport_version)) {
-        header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+        header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
         if (header.long_packet_type == INITIAL) {
-          header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
+          header.retry_token_length_length =
+              quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
         }
       }
     }
@@ -2893,8 +2894,8 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
   if (QuicVersionHasLongHeaderLengths(
           peer_framer_.version().transport_version)) {
     header.long_packet_type = INITIAL;
-    header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
-    header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+    header.retry_token_length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
+    header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
   }
 
   QuicFrames frames;
@@ -2941,8 +2942,8 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSizeWhileWriterLimited) {
   if (QuicVersionHasLongHeaderLengths(
           peer_framer_.version().transport_version)) {
     header.long_packet_type = INITIAL;
-    header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
-    header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+    header.retry_token_length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
+    header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
   }
 
   QuicFrames frames;

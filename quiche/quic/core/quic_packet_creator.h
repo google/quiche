@@ -146,8 +146,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
       QuicConnectionIdLength source_connection_id_length, bool include_version,
       bool include_diversification_nonce,
       QuicPacketNumberLength packet_number_length,
-      QuicVariableLengthIntegerLength retry_token_length_length,
-      QuicVariableLengthIntegerLength length_length, QuicStreamOffset offset);
+      quiche::QuicheVariableLengthIntegerLength retry_token_length_length,
+      quiche::QuicheVariableLengthIntegerLength length_length,
+      QuicStreamOffset offset);
 
   // Returns false and flushes all pending frames if current open packet is
   // full.
@@ -578,7 +579,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Returns length of the retry token variable length integer to send over the
   // wire. Is non-zero for v99 IETF Initial packets.
-  QuicVariableLengthIntegerLength GetRetryTokenLengthLength() const;
+  quiche::QuicheVariableLengthIntegerLength GetRetryTokenLengthLength() const;
 
   // Returns the retry token to send over the wire, only sent in
   // v99 IETF Initial packets.
@@ -586,7 +587,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Returns length of the length variable length integer to send over the
   // wire. Is non-zero for v99 IETF Initial, 0-RTT or Handshake packets.
-  QuicVariableLengthIntegerLength GetLengthLength() const;
+  quiche::QuicheVariableLengthIntegerLength GetLengthLength() const;
 
   // Returns true if |frame| is a ClientHello.
   bool StreamFrameIsClientHello(const QuicStreamFrame& frame) const;

@@ -147,9 +147,9 @@ uint64_t QuicFixedUint62::GetSendValue() const {
 }
 
 void QuicFixedUint62::SetSendValue(uint64_t value) {
-  if (value > kVarInt62MaxValue) {
+  if (value > quiche::kVarInt62MaxValue) {
     QUIC_BUG(quic_bug_10575_3) << "QuicFixedUint62 invalid value " << value;
-    value = kVarInt62MaxValue;
+    value = quiche::kVarInt62MaxValue;
   }
   has_send_value_ = true;
   send_value_ = value;

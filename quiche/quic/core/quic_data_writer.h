@@ -18,19 +18,6 @@ namespace quic {
 
 class QuicRandom;
 
-// Maximum value that can be properly encoded using VarInt62 coding.
-const uint64_t kVarInt62MaxValue = UINT64_C(0x3fffffffffffffff);
-
-// VarInt62 encoding masks
-// If a uint64_t anded with a mask is not 0 then the value is encoded
-// using that length (or is too big, in the case of kVarInt62ErrorMask).
-// Values must be checked in order (error, 8-, 4-, and then 2- bytes)
-// and if none are non-0, the value is encoded in 1 byte.
-const uint64_t kVarInt62ErrorMask = UINT64_C(0xc000000000000000);
-const uint64_t kVarInt62Mask8Bytes = UINT64_C(0x3fffffffc0000000);
-const uint64_t kVarInt62Mask4Bytes = UINT64_C(0x000000003fffc000);
-const uint64_t kVarInt62Mask2Bytes = UINT64_C(0x0000000000003fc0);
-
 // This class provides facilities for packing QUIC data.
 //
 // The QuicDataWriter supports appending primitive values (int, string, etc)
@@ -51,31 +38,6 @@ class QUIC_EXPORT_PRIVATE QuicDataWriter : public quiche::QuicheDataWriter {
 
   // Methods for adding to the payload.  These values are appended to the end
   // of the QuicDataWriter payload.
-
-  // Write an unsigned-integer value per the IETF QUIC/Variable Length
-  // Integer encoding rules (see draft-ietf-quic-transport-08.txt).
-  // IETF Variable Length Integers have 62 significant bits, so the
-  // value to write must be in the range of 0...(2^62)-1. Returns
-  // false if the value is out of range or if there is no room in the
-  // buffer.
-  bool WriteVarInt62(uint64_t value);
-
-  // Same as WriteVarInt62(uint64_t), but forces an encoding size to write to.
-  // This is not as optimized as WriteVarInt62(uint64_t).
-  // Returns false if the value does not fit in the specified write_length or if
-  // there is no room in the buffer.
-  bool WriteVarInt62(uint64_t value,
-                     QuicVariableLengthIntegerLength write_length);
-
-  // Writes a string piece as a consecutive length/content pair. The
-  // length is VarInt62 encoded.
-  bool WriteStringPieceVarInt62(const absl::string_view& string_piece);
-
-  // Utility function to return the number of bytes needed to encode
-  // the given value using IETF VarInt62 encoding. Returns the number
-  // of bytes required to encode the given integer or 0 if the value
-  // is too large to encode.
-  static QuicVariableLengthIntegerLength GetVarInt62Len(uint64_t value);
 
   // Write unsigned floating point corresponding to the value. Large values are
   // clamped to the maximum representable (kUFloat16MaxValue). Values that can

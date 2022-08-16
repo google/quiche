@@ -82,15 +82,15 @@ GetIncludedSourceConnectionIdLength(const QuicPacketHeader& header);
 QUIC_EXPORT_PRIVATE size_t GetPacketHeaderSize(QuicTransportVersion version,
                                                const QuicPacketHeader& header);
 
-QUIC_EXPORT_PRIVATE size_t
-GetPacketHeaderSize(QuicTransportVersion version,
-                    QuicConnectionIdLength destination_connection_id_length,
-                    QuicConnectionIdLength source_connection_id_length,
-                    bool include_version, bool include_diversification_nonce,
-                    QuicPacketNumberLength packet_number_length,
-                    QuicVariableLengthIntegerLength retry_token_length_length,
-                    QuicByteCount retry_token_length,
-                    QuicVariableLengthIntegerLength length_length);
+QUIC_EXPORT_PRIVATE size_t GetPacketHeaderSize(
+    QuicTransportVersion version,
+    QuicConnectionIdLength destination_connection_id_length,
+    QuicConnectionIdLength source_connection_id_length, bool include_version,
+    bool include_diversification_nonce,
+    QuicPacketNumberLength packet_number_length,
+    quiche::QuicheVariableLengthIntegerLength retry_token_length_length,
+    QuicByteCount retry_token_length,
+    quiche::QuicheVariableLengthIntegerLength length_length);
 
 // Index of the first byte in a QUIC packet of encrypted data.
 QUIC_EXPORT_PRIVATE size_t GetStartOfEncryptedData(
@@ -102,9 +102,9 @@ QUIC_EXPORT_PRIVATE size_t GetStartOfEncryptedData(
     QuicConnectionIdLength source_connection_id_length, bool include_version,
     bool include_diversification_nonce,
     QuicPacketNumberLength packet_number_length,
-    QuicVariableLengthIntegerLength retry_token_length_length,
+    quiche::QuicheVariableLengthIntegerLength retry_token_length_length,
     QuicByteCount retry_token_length,
-    QuicVariableLengthIntegerLength length_length);
+    quiche::QuicheVariableLengthIntegerLength length_length);
 
 struct QUIC_EXPORT_PRIVATE QuicPacketHeader {
   QuicPacketHeader();
@@ -147,12 +147,12 @@ struct QUIC_EXPORT_PRIVATE QuicPacketHeader {
   StatelessResetToken possible_stateless_reset_token;
   // Length of the retry token length variable length integer field,
   // carried only by v99 IETF Initial packets.
-  QuicVariableLengthIntegerLength retry_token_length_length;
+  quiche::QuicheVariableLengthIntegerLength retry_token_length_length;
   // Retry token, carried only by v99 IETF Initial packets.
   absl::string_view retry_token;
   // Length of the length variable length integer field,
   // carried only by v99 IETF Initial, 0-RTT and Handshake packets.
-  QuicVariableLengthIntegerLength length_length;
+  quiche::QuicheVariableLengthIntegerLength length_length;
   // Length of the packet number and payload, carried only by v99 IETF Initial,
   // 0-RTT and Handshake packets. Also includes the length of the
   // diversification nonce in server to client 0-RTT packets.
@@ -222,14 +222,15 @@ class QUIC_EXPORT_PRIVATE QuicData {
 
 class QUIC_EXPORT_PRIVATE QuicPacket : public QuicData {
  public:
-  QuicPacket(char* buffer, size_t length, bool owns_buffer,
-             QuicConnectionIdLength destination_connection_id_length,
-             QuicConnectionIdLength source_connection_id_length,
-             bool includes_version, bool includes_diversification_nonce,
-             QuicPacketNumberLength packet_number_length,
-             QuicVariableLengthIntegerLength retry_token_length_length,
-             QuicByteCount retry_token_length,
-             QuicVariableLengthIntegerLength length_length);
+  QuicPacket(
+      char* buffer, size_t length, bool owns_buffer,
+      QuicConnectionIdLength destination_connection_id_length,
+      QuicConnectionIdLength source_connection_id_length, bool includes_version,
+      bool includes_diversification_nonce,
+      QuicPacketNumberLength packet_number_length,
+      quiche::QuicheVariableLengthIntegerLength retry_token_length_length,
+      QuicByteCount retry_token_length,
+      quiche::QuicheVariableLengthIntegerLength length_length);
   QuicPacket(QuicTransportVersion version, char* buffer, size_t length,
              bool owns_buffer, const QuicPacketHeader& header);
   QuicPacket(const QuicPacket&) = delete;
@@ -247,9 +248,9 @@ class QUIC_EXPORT_PRIVATE QuicPacket : public QuicData {
   const bool includes_version_;
   const bool includes_diversification_nonce_;
   const QuicPacketNumberLength packet_number_length_;
-  const QuicVariableLengthIntegerLength retry_token_length_length_;
+  const quiche::QuicheVariableLengthIntegerLength retry_token_length_length_;
   const QuicByteCount retry_token_length_;
-  const QuicVariableLengthIntegerLength length_length_;
+  const quiche::QuicheVariableLengthIntegerLength length_length_;
 };
 
 class QUIC_EXPORT_PRIVATE QuicEncryptedPacket : public QuicData {

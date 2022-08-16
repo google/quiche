@@ -49,13 +49,13 @@ QuicByteCount QuicCryptoStream::CryptoMessageFramingOverhead(
     QuicTransportVersion version, QuicConnectionId connection_id) {
   QUICHE_DCHECK(
       QuicUtils::IsConnectionIdValidForVersion(connection_id, version));
-  QuicVariableLengthIntegerLength retry_token_length_length =
-      VARIABLE_LENGTH_INTEGER_LENGTH_1;
-  QuicVariableLengthIntegerLength length_length =
-      VARIABLE_LENGTH_INTEGER_LENGTH_2;
+  quiche::QuicheVariableLengthIntegerLength retry_token_length_length =
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
+  quiche::QuicheVariableLengthIntegerLength length_length =
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
   if (!QuicVersionHasLongHeaderLengths(version)) {
-    retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_0;
-    length_length = VARIABLE_LENGTH_INTEGER_LENGTH_0;
+    retry_token_length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
+    length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
   }
   return QuicPacketCreator::StreamFramePacketOverhead(
       version, static_cast<QuicConnectionIdLength>(connection_id.length()),
