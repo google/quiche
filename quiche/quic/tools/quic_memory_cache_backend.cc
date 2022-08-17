@@ -215,6 +215,17 @@ void QuicMemoryCacheBackend::AddResponse(absl::string_view host,
                   std::vector<spdy::Http2HeaderBlock>());
 }
 
+bool QuicMemoryCacheBackend::SetResponseDelay(absl::string_view host,
+                                              absl::string_view path,
+                                              QuicTime::Delta delay) {
+  QuicWriterMutexLock lock(&response_mutex_);
+  auto it = responses_.find(GetKey(host, path));
+  if (it == responses_.end()) return false;
+
+  it->second->set_delay(delay);
+  return true;
+}
+
 void QuicMemoryCacheBackend::AddResponseWithEarlyHints(
     absl::string_view host, absl::string_view path,
     spdy::Http2HeaderBlock response_headers, absl::string_view response_body,

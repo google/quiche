@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_TOOLS_QUIC_BACKEND_RESPONSE_H_
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_protocol.h"
@@ -78,12 +79,18 @@ class QuicBackendResponse {
     body_.assign(body.data(), body.size());
   }
 
+  // This would simulate a delay before sending the response
+  // back to the client. Intended for testing purposes.
+  void set_delay(QuicTime::Delta delay) { delay_ = delay; }
+  QuicTime::Delta delay() const { return delay_; }
+
  private:
   std::vector<spdy::Http2HeaderBlock> early_hints_;
   SpecialResponseType response_type_;
   spdy::Http2HeaderBlock headers_;
   spdy::Http2HeaderBlock trailers_;
   std::string body_;
+  QuicTime::Delta delay_;
 };
 
 }  // namespace quic

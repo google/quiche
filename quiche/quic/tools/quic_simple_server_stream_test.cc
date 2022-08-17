@@ -15,6 +15,8 @@
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/http/http_encoder.h"
 #include "quiche/quic/core/http/spdy_utils.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -29,6 +31,7 @@
 #include "quiche/quic/test_tools/quic_spdy_session_peer.h"
 #include "quiche/quic/test_tools/quic_stream_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/quic/test_tools/simulator/simulator.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
@@ -63,6 +66,7 @@ class TestStream : public QuicSimpleServerStream {
 
   ~TestStream() override = default;
 
+  MOCK_METHOD(void, FireAlarmMock, (), ());
   MOCK_METHOD(void, WriteHeadersMock, (bool fin), ());
   MOCK_METHOD(void, WriteEarlyHintsHeadersMock, (bool fin), ());
   MOCK_METHOD(void, WriteOrBufferBody, (absl::string_view data, bool fin),
@@ -205,7 +209,7 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
  public:
   QuicSimpleServerStreamTest()
       : connection_(new StrictMock<MockQuicConnection>(
-            &helper_, &alarm_factory_, Perspective::IS_SERVER,
+            &simulator_, simulator_.GetAlarmFactory(), Perspective::IS_SERVER,
             SupportedVersions(GetParam()))),
         crypto_config_(new QuicCryptoServerConfig(
             QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
@@ -275,9 +279,9 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     stream_->ReplaceBackend(replacement_backend_.get());
   }
 
+  quic::simulator::Simulator simulator_;
   spdy::Http2HeaderBlock response_headers_;
   MockQuicConnectionHelper helper_;
-  MockAlarmFactory alarm_factory_;
   StrictMock<MockQuicConnection>* connection_;
   StrictMock<MockQuicSessionVisitor> session_owner_;
   StrictMock<MockQuicCryptoServerStreamHelper> session_helper_;
@@ -561,6 +565,61 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithEarlyHints) {
   EXPECT_CALL(session_, WritevData(_, body.length(), _, FIN, _, _));
 
   stream_->DoSendResponse();
+  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
+  EXPECT_TRUE(stream_->write_side_closed());
+}
+
+class AlarmTestDelegate : public QuicAlarm::DelegateWithoutContext {
+ public:
+  AlarmTestDelegate(TestStream* stream) : stream_(stream) {}
+
+  void OnAlarm() override { stream_->FireAlarmMock(); }
+
+ private:
+  TestStream* stream_;
+};
+
+TEST_P(QuicSimpleServerStreamTest, SendResponseWithDelay) {
+  // Add a request and response with valid headers.
+  spdy::Http2HeaderBlock* request_headers = stream_->mutable_headers();
+  std::string host = "www.google.com";
+  std::string path = "/bar";
+  (*request_headers)[":path"] = path;
+  (*request_headers)[":authority"] = host;
+  (*request_headers)[":method"] = "GET";
+
+  response_headers_[":status"] = "200";
+  response_headers_["content-length"] = "5";
+  std::string body = "Yummm";
+  QuicTime::Delta delay = QuicTime::Delta::FromMilliseconds(3000);
+
+  quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
+      body.length(), quiche::SimpleBufferAllocator::Get());
+
+  memory_cache_backend_.AddResponse(host, path, std::move(response_headers_),
+                                    body);
+  auto did_delay_succeed =
+      memory_cache_backend_.SetResponseDelay(host, path, delay);
+  EXPECT_TRUE(did_delay_succeed);
+  auto did_invalid_delay_succeed =
+      memory_cache_backend_.SetResponseDelay(host, "nonsense", delay);
+  EXPECT_FALSE(did_invalid_delay_succeed);
+  std::unique_ptr<QuicAlarm> alarm(connection_->alarm_factory()->CreateAlarm(
+      new AlarmTestDelegate(stream_)));
+  alarm->Set(connection_->clock()->Now() + delay);
+  QuicStreamPeer::SetFinReceived(stream_);
+  InSequence s;
+  EXPECT_CALL(*stream_, FireAlarmMock());
+  EXPECT_CALL(*stream_, WriteHeadersMock(false));
+
+  if (UsesHttp3()) {
+    EXPECT_CALL(session_, WritevData(_, header.size(), _, NO_FIN, _, _));
+  }
+  EXPECT_CALL(session_, WritevData(_, body.length(), _, FIN, _, _));
+
+  stream_->DoSendResponse();
+  simulator_.RunFor(delay);
+
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
   EXPECT_TRUE(stream_->write_side_closed());
 }

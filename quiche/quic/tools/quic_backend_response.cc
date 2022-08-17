@@ -20,7 +20,8 @@ QuicBackendResponse::ServerPushInfo::ServerPushInfo(const ServerPushInfo& other)
       priority(other.priority),
       body(other.body) {}
 
-QuicBackendResponse::QuicBackendResponse() : response_type_(REGULAR_RESPONSE) {}
+QuicBackendResponse::QuicBackendResponse()
+    : response_type_(REGULAR_RESPONSE), delay_(QuicTime::Delta::Zero()) {}
 
 QuicBackendResponse::~QuicBackendResponse() = default;
 

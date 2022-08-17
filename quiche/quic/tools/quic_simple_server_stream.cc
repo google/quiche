@@ -245,6 +245,31 @@ std::string QuicSimpleServerStream::peer_host() const {
   return spdy_session()->peer_address().host().ToString();
 }
 
+namespace {
+
+class DelayedResponseAlarm : public QuicAlarm::DelegateWithContext {
+ public:
+  DelayedResponseAlarm(QuicSimpleServerStream* stream,
+                       const QuicBackendResponse* response)
+      : QuicAlarm::DelegateWithContext(
+            stream->spdy_session()->connection()->context()),
+        stream_(stream),
+        response_(response) {
+    stream_ = stream;
+    response_ = response;
+  }
+
+  ~DelayedResponseAlarm() override = default;
+
+  void OnAlarm() override { stream_->Respond(response_); }
+
+ private:
+  QuicSimpleServerStream* stream_;
+  const QuicBackendResponse* response_;
+};
+
+}  // namespace
+
 void QuicSimpleServerStream::OnResponseBackendComplete(
     const QuicBackendResponse* response) {
   if (response == nullptr) {
@@ -253,6 +278,19 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
     return;
   }
 
+  auto delay = response->delay();
+  if (delay.IsZero()) {
+    Respond(response);
+    return;
+  }
+
+  auto* connection = session()->connection();
+  delayed_response_alarm_.reset(connection->alarm_factory()->CreateAlarm(
+      new DelayedResponseAlarm(this, response)));
+  delayed_response_alarm_->Set(connection->clock()->Now() + delay);
+}
+
+void QuicSimpleServerStream::Respond(const QuicBackendResponse* response) {
   // Send Early Hints first.
   for (const auto& headers : response->early_hints()) {
     QUIC_DVLOG(1) << "Stream " << id() << " sending an Early Hints response: "

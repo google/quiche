@@ -121,6 +121,12 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
       spdy::Http2HeaderBlock response_headers, absl::string_view response_body,
       QuicBackendResponse::SpecialResponseType response_type);
 
+  // Finds a response with the given host and path, and assign it a simulated
+  // delay. Returns true if the requisite response was found and the delay was
+  // set.
+  bool SetResponseDelay(absl::string_view host, absl::string_view path,
+                        QuicTime::Delta delay);
+
   // Sets a default response in case of cache misses.  Takes ownership of
   // 'response'.
   void AddDefaultResponse(QuicBackendResponse* response);

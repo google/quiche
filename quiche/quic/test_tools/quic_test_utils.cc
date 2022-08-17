@@ -455,6 +455,8 @@ MockQuicConnectionHelper::~MockQuicConnectionHelper() {}
 
 const QuicClock* MockQuicConnectionHelper::GetClock() const { return &clock_; }
 
+QuicClock* MockQuicConnectionHelper::GetClock() { return &clock_; }
+
 QuicRandom* MockQuicConnectionHelper::GetRandomGenerator() {
   return &random_generator_;
 }
@@ -483,8 +485,8 @@ void MockQuicConnectionHelper::AdvanceTime(QuicTime::Delta delta) {
   clock_.AdvanceTime(delta);
 }
 
-MockQuicConnection::MockQuicConnection(MockQuicConnectionHelper* helper,
-                                       MockAlarmFactory* alarm_factory,
+MockQuicConnection::MockQuicConnection(QuicConnectionHelperInterface* helper,
+                                       QuicAlarmFactory* alarm_factory,
                                        Perspective perspective)
     : MockQuicConnection(TestConnectionId(),
                          QuicSocketAddress(TestPeerIPAddress(), kTestPort),
@@ -492,16 +494,16 @@ MockQuicConnection::MockQuicConnection(MockQuicConnectionHelper* helper,
                          ParsedVersionOfIndex(CurrentSupportedVersions(), 0)) {}
 
 MockQuicConnection::MockQuicConnection(QuicSocketAddress address,
-                                       MockQuicConnectionHelper* helper,
-                                       MockAlarmFactory* alarm_factory,
+                                       QuicConnectionHelperInterface* helper,
+                                       QuicAlarmFactory* alarm_factory,
                                        Perspective perspective)
     : MockQuicConnection(TestConnectionId(), address, helper, alarm_factory,
                          perspective,
                          ParsedVersionOfIndex(CurrentSupportedVersions(), 0)) {}
 
 MockQuicConnection::MockQuicConnection(QuicConnectionId connection_id,
-                                       MockQuicConnectionHelper* helper,
-                                       MockAlarmFactory* alarm_factory,
+                                       QuicConnectionHelperInterface* helper,
+                                       QuicAlarmFactory* alarm_factory,
                                        Perspective perspective)
     : MockQuicConnection(connection_id,
                          QuicSocketAddress(TestPeerIPAddress(), kTestPort),
@@ -509,7 +511,7 @@ MockQuicConnection::MockQuicConnection(QuicConnectionId connection_id,
                          ParsedVersionOfIndex(CurrentSupportedVersions(), 0)) {}
 
 MockQuicConnection::MockQuicConnection(
-    MockQuicConnectionHelper* helper, MockAlarmFactory* alarm_factory,
+    QuicConnectionHelperInterface* helper, QuicAlarmFactory* alarm_factory,
     Perspective perspective, const ParsedQuicVersionVector& supported_versions)
     : MockQuicConnection(
           TestConnectionId(), QuicSocketAddress(TestPeerIPAddress(), kTestPort),
@@ -517,7 +519,7 @@ MockQuicConnection::MockQuicConnection(
 
 MockQuicConnection::MockQuicConnection(
     QuicConnectionId connection_id, QuicSocketAddress initial_peer_address,
-    MockQuicConnectionHelper* helper, MockAlarmFactory* alarm_factory,
+    QuicConnectionHelperInterface* helper, QuicAlarmFactory* alarm_factory,
     Perspective perspective, const ParsedQuicVersionVector& supported_versions)
     : QuicConnection(
           connection_id,
@@ -546,13 +548,13 @@ bool MockQuicConnection::OnProtocolVersionMismatch(
   return false;
 }
 
-PacketSavingConnection::PacketSavingConnection(MockQuicConnectionHelper* helper,
-                                               MockAlarmFactory* alarm_factory,
-                                               Perspective perspective)
+PacketSavingConnection::PacketSavingConnection(
+    QuicConnectionHelperInterface* helper, QuicAlarmFactory* alarm_factory,
+    Perspective perspective)
     : MockQuicConnection(helper, alarm_factory, perspective) {}
 
 PacketSavingConnection::PacketSavingConnection(
-    MockQuicConnectionHelper* helper, MockAlarmFactory* alarm_factory,
+    QuicConnectionHelperInterface* helper, QuicAlarmFactory* alarm_factory,
     Perspective perspective, const ParsedQuicVersionVector& supported_versions)
     : MockQuicConnection(helper, alarm_factory, perspective,
                          supported_versions) {}
@@ -1125,7 +1127,7 @@ QuicCryptoClientStreamPeer::GetHandshaker(QuicCryptoClientStream* stream) {
 void CreateClientSessionForTest(
     QuicServerId server_id, QuicTime::Delta connection_start_time,
     const ParsedQuicVersionVector& supported_versions,
-    MockQuicConnectionHelper* helper, MockAlarmFactory* alarm_factory,
+    QuicConnectionHelperInterface* helper, QuicAlarmFactory* alarm_factory,
     QuicCryptoClientConfig* crypto_client_config,
     PacketSavingConnection** client_connection,
     TestQuicSpdyClientSession** client_session) {
@@ -1148,7 +1150,7 @@ void CreateClientSessionForTest(
 void CreateServerSessionForTest(
     QuicServerId /*server_id*/, QuicTime::Delta connection_start_time,
     ParsedQuicVersionVector supported_versions,
-    MockQuicConnectionHelper* helper, MockAlarmFactory* alarm_factory,
+    QuicConnectionHelperInterface* helper, QuicAlarmFactory* alarm_factory,
     QuicCryptoServerConfig* server_crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     PacketSavingConnection** server_connection,
