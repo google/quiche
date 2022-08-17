@@ -187,6 +187,9 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     int32_t, max_inbound_header_list_size, 128 * 1024,
     "Max inbound header list size. 0 means default.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, interface_name, "",
+                                "Interface name to bind QUIC UDP sockets to.");
+
 namespace quic {
 namespace {
 
@@ -366,6 +369,11 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       quiche::GetQuicheCommandLineFlag(FLAGS_max_inbound_header_list_size);
   if (max_inbound_header_list_size > 0) {
     client->set_max_inbound_header_list_size(max_inbound_header_list_size);
+  }
+  const std::string interface_name =
+      quiche::GetQuicheCommandLineFlag(FLAGS_interface_name);
+  if (!interface_name.empty()) {
+    client->set_interface_name(interface_name);
   }
   if (!client->Initialize()) {
     std::cerr << "Failed to initialize client." << std::endl;

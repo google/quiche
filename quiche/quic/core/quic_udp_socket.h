@@ -186,6 +186,12 @@ class QUIC_EXPORT_PRIVATE QuicUdpSocketApi {
   // to get the bound random port.
   bool Bind(QuicUdpSocketFd fd, QuicSocketAddress address);
 
+  // Bind |fd| to |interface_name|. Returns true if the setsockopt call
+  // succeeded. Returns false if |interface_name| is empty, its length exceeds
+  // IFNAMSIZ, or setsockopt experienced an error. Only implemented for
+  // non-Android Linux.
+  bool BindInterface(QuicUdpSocketFd fd, const std::string& interface_name);
+
   // Enable receiving of various per-packet information. Return true if the
   // corresponding information can be received on read.
   bool EnableDroppedPacketCount(QuicUdpSocketFd fd);

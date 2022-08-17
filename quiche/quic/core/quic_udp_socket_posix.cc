@@ -4,6 +4,7 @@
 
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -278,6 +279,25 @@ bool QuicUdpSocketApi::Bind(QuicUdpSocketFd fd, QuicSocketAddress address) {
   int addr_len =
       address.host().IsIPv4() ? sizeof(sockaddr_in) : sizeof(sockaddr_in6);
   return 0 == bind(fd, reinterpret_cast<sockaddr*>(&addr), addr_len);
+}
+
+bool QuicUdpSocketApi::BindInterface(QuicUdpSocketFd fd,
+                                     const std::string& interface_name) {
+#if defined(__linux__) && !defined(__ANDROID_API__)
+  if (interface_name.empty() || interface_name.size() >= IFNAMSIZ) {
+    QUIC_BUG(udp_bad_interface_name)
+        << "interface_name must be nonempty and shorter than " << IFNAMSIZ;
+    return false;
+  }
+
+  return 0 == setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE,
+                         interface_name.c_str(), interface_name.length());
+#else
+  (void)fd;
+  QUIC_BUG(interface_bind_not_implemented)
+      << "Interface binding is not implemented on this platform";
+  return false;
+#endif
 }
 
 bool QuicUdpSocketApi::EnableDroppedPacketCount(QuicUdpSocketFd fd) {
