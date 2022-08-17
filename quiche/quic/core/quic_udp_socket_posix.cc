@@ -294,6 +294,7 @@ bool QuicUdpSocketApi::BindInterface(QuicUdpSocketFd fd,
                          interface_name.c_str(), interface_name.length());
 #else
   (void)fd;
+  (void)interface_name;
   QUIC_BUG(interface_bind_not_implemented)
       << "Interface binding is not implemented on this platform";
   return false;
