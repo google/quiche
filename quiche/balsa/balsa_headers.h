@@ -366,7 +366,43 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders : public HeaderApi {
  public:
   // Each header line is parsed into a HeaderLineDescription, which maintains
   // pointers into the BalsaBuffer.
-  struct HeaderLineDescription;
+  //
+  // Succinctly describes one header line as indices into a buffer.
+  struct QUICHE_EXPORT_PRIVATE HeaderLineDescription {
+    HeaderLineDescription(size_t first_character_index, size_t key_end_index,
+                          size_t value_begin_index, size_t last_character_index,
+                          size_t buffer_base_index)
+        : first_char_idx(first_character_index),
+          key_end_idx(key_end_index),
+          value_begin_idx(value_begin_index),
+          last_char_idx(last_character_index),
+          buffer_base_idx(buffer_base_index),
+          skip(false) {}
+
+    HeaderLineDescription()
+        : first_char_idx(0),
+          key_end_idx(0),
+          value_begin_idx(0),
+          last_char_idx(0),
+          buffer_base_idx(0),
+          skip(false) {}
+
+    size_t KeyLength() const {
+      QUICHE_DCHECK_GE(key_end_idx, first_char_idx);
+      return key_end_idx - first_char_idx;
+    }
+    size_t ValuesLength() const {
+      QUICHE_DCHECK_GE(last_char_idx, value_begin_idx);
+      return last_char_idx - value_begin_idx;
+    }
+
+    size_t first_char_idx;
+    size_t key_end_idx;
+    size_t value_begin_idx;
+    size_t last_char_idx;
+    BalsaBuffer::Blocks::size_type buffer_base_idx;
+    bool skip;
+  };
 
   using HeaderTokenList = std::vector<absl::string_view>;
 
@@ -1140,43 +1176,6 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders : public HeaderApi {
   bool enforce_header_policy_ = true;
 
   HeaderLines header_lines_;
-};
-
-// Succinctly describes one header line as indices into a buffer.
-struct QUICHE_EXPORT_PRIVATE BalsaHeaders::HeaderLineDescription {
-  HeaderLineDescription(size_t first_character_index, size_t key_end_index,
-                        size_t value_begin_index, size_t last_character_index,
-                        size_t buffer_base_index)
-      : first_char_idx(first_character_index),
-        key_end_idx(key_end_index),
-        value_begin_idx(value_begin_index),
-        last_char_idx(last_character_index),
-        buffer_base_idx(buffer_base_index),
-        skip(false) {}
-
-  HeaderLineDescription()
-      : first_char_idx(0),
-        key_end_idx(0),
-        value_begin_idx(0),
-        last_char_idx(0),
-        buffer_base_idx(0),
-        skip(false) {}
-
-  size_t KeyLength() const {
-    QUICHE_DCHECK_GE(key_end_idx, first_char_idx);
-    return key_end_idx - first_char_idx;
-  }
-  size_t ValuesLength() const {
-    QUICHE_DCHECK_GE(last_char_idx, value_begin_idx);
-    return last_char_idx - value_begin_idx;
-  }
-
-  size_t first_char_idx;
-  size_t key_end_idx;
-  size_t value_begin_idx;
-  size_t last_char_idx;
-  BalsaBuffer::Blocks::size_type buffer_base_idx;
-  bool skip;
 };
 
 // Base class for iterating the headers in a BalsaHeaders object, returning a
