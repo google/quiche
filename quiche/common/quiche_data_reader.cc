@@ -276,7 +276,14 @@ bool QuicheDataReader::Seek(size_t size) {
 
 bool QuicheDataReader::IsDoneReading() const { return len_ == pos_; }
 
-size_t QuicheDataReader::BytesRemaining() const { return len_ - pos_; }
+size_t QuicheDataReader::BytesRemaining() const {
+  if (pos_ > len_) {
+    QUICHE_BUG(quiche_reader_pos_out_of_bound)
+        << "QUIC reader pos out of bound: " << pos_ << ", len: " << len_;
+    return 0;
+  }
+  return len_ - pos_;
+}
 
 bool QuicheDataReader::TruncateRemaining(size_t truncation_length) {
   if (truncation_length > BytesRemaining()) {
