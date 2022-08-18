@@ -99,6 +99,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 QUIC_FLAG(quic_reloadable_flag_quic_validate_header_field_value_at_spdy_stream, true)
 // Store original QUIC connection IDs in the dispatcher\'s map
 QUIC_FLAG(quic_restart_flag_quic_map_original_connection_ids2, false)
+// Use a library to generate connection IDs
+QUIC_FLAG(quic_restart_flag_quic_abstract_connection_id_generator, false)
 // When the flag is true, exit STARTUP after the same number of loss events as PROBE_UP.
 QUIC_FLAG(quic_reloadable_flag_quic_bbr2_startup_probe_up_loss_events, true)
 // When true, defaults to BBR congestion control instead of Cubic.

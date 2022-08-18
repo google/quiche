@@ -8,6 +8,7 @@
 
 #include "absl/base/macros.h"
 #include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/deterministic_connection_id_generator.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_default_clock.h"
@@ -40,11 +41,13 @@ class MockQuicSimpleDispatcher : public QuicSimpleDispatcher {
       std::unique_ptr<QuicConnectionHelperInterface> helper,
       std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
-      QuicSimpleServerBackend* quic_simple_server_backend)
-      : QuicSimpleDispatcher(
-            config, crypto_config, version_manager, std::move(helper),
-            std::move(session_helper), std::move(alarm_factory),
-            quic_simple_server_backend, kQuicDefaultConnectionIdLength) {}
+      QuicSimpleServerBackend* quic_simple_server_backend,
+      ConnectionIdGeneratorInterface& generator)
+      : QuicSimpleDispatcher(config, crypto_config, version_manager,
+                             std::move(helper), std::move(session_helper),
+                             std::move(alarm_factory),
+                             quic_simple_server_backend,
+                             kQuicDefaultConnectionIdLength, generator) {}
   ~MockQuicSimpleDispatcher() override = default;
 
   MOCK_METHOD(void, OnCanWrite, (), (override));
@@ -73,7 +76,8 @@ class TestQuicServer : public QuicServer {
         std::make_unique<QuicDefaultConnectionHelper>(),
         std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
             new QuicSimpleCryptoServerStreamHelper()),
-        event_loop()->CreateAlarmFactory(), quic_simple_server_backend_);
+        event_loop()->CreateAlarmFactory(), quic_simple_server_backend_,
+        connection_id_generator());
     return mock_dispatcher_;
   }
 
@@ -169,11 +173,12 @@ class QuicServerDispatchPacketTest : public QuicTest {
                        KeyExchangeSource::Default()),
         version_manager_(AllSupportedVersions()),
         event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
+        connection_id_generator_(kQuicDefaultConnectionIdLength),
         dispatcher_(&config_, &crypto_config_, &version_manager_,
                     std::make_unique<QuicDefaultConnectionHelper>(),
                     std::make_unique<QuicSimpleCryptoServerStreamHelper>(),
                     event_loop_->CreateAlarmFactory(),
-                    &quic_simple_server_backend_) {
+                    &quic_simple_server_backend_, connection_id_generator_) {
     dispatcher_.InitializeWithWriter(new QuicDefaultPacketWriter(1234));
   }
 
@@ -188,6 +193,7 @@ class QuicServerDispatchPacketTest : public QuicTest {
   QuicVersionManager version_manager_;
   std::unique_ptr<QuicEventLoop> event_loop_;
   QuicMemoryCacheBackend quic_simple_server_backend_;
+  DeterministicConnectionIdGenerator connection_id_generator_;
   MockQuicDispatcher dispatcher_;
 };
 

@@ -23,7 +23,8 @@ class MockQuicDispatcher : public QuicSimpleDispatcher {
       std::unique_ptr<QuicConnectionHelperInterface> helper,
       std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
-      QuicSimpleServerBackend* quic_simple_server_backend);
+      QuicSimpleServerBackend* quic_simple_server_backend,
+      ConnectionIdGeneratorInterface& generator);
   MockQuicDispatcher(const MockQuicDispatcher&) = delete;
   MockQuicDispatcher& operator=(const MockQuicDispatcher&) = delete;
 

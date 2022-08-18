@@ -334,7 +334,8 @@ QuicDispatcher::QuicDispatcher(
     std::unique_ptr<QuicConnectionHelperInterface> helper,
     std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
     std::unique_ptr<QuicAlarmFactory> alarm_factory,
-    uint8_t expected_server_connection_id_length)
+    uint8_t expected_server_connection_id_length,
+    ConnectionIdGeneratorInterface& connection_id_generator)
     : config_(config),
       crypto_config_(crypto_config),
       compressed_certs_cache_(
@@ -354,7 +355,8 @@ QuicDispatcher::QuicDispatcher(
           expected_server_connection_id_length),
       clear_stateless_reset_addresses_alarm_(alarm_factory_->CreateAlarm(
           new ClearStatelessResetAddressesAlarm(this))),
-      should_update_expected_server_connection_id_length_(false) {
+      should_update_expected_server_connection_id_length_(false),
+      connection_id_generator_(connection_id_generator) {
   QUIC_BUG_IF(quic_bug_12724_1, GetSupportedVersions().empty())
       << "Trying to create dispatcher without any supported versions";
   QUIC_DLOG(INFO) << "Created QuicDispatcher with versions: "
@@ -446,12 +448,17 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   ProcessHeader(&packet_info);
 }
 
-QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
+absl::optional<QuicConnectionId> QuicDispatcher::MaybeReplaceServerConnectionId(
     const QuicConnectionId& server_connection_id,
-    const ParsedQuicVersion& version) const {
+    const ParsedQuicVersion& version) {
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator)) {
+    QUIC_RESTART_FLAG_COUNT(quic_abstract_connection_id_generator);
+    return connection_id_generator_.MaybeReplaceConnectionId(
+        server_connection_id, version);
+  }
   const uint8_t server_connection_id_length = server_connection_id.length();
   if (server_connection_id_length == expected_server_connection_id_length_) {
-    return server_connection_id;
+    return absl::optional<QuicConnectionId>();
   }
   QUICHE_DCHECK(version.AllowsVariableLengthConnectionIds());
   QuicConnectionId new_connection_id;
@@ -627,14 +634,15 @@ bool QuicDispatcher::MaybeDispatchPacket(
     // |reference_counted_session_map_| is storing original connection IDs
     // separately. It can be counterproductive to do this check if that
     // consumes a nonce or generates a random connection ID.
-    QuicConnectionId replaced_connection_id = MaybeReplaceServerConnectionId(
-        server_connection_id, packet_info.version);
-    if (replaced_connection_id != server_connection_id) {
+    absl::optional<QuicConnectionId> replaced_connection_id =
+        MaybeReplaceServerConnectionId(server_connection_id,
+                                       packet_info.version);
+    if (replaced_connection_id.has_value()) {
       // Search for the replacement.
-      auto it2 = reference_counted_session_map_.find(replaced_connection_id);
+      auto it2 = reference_counted_session_map_.find(*replaced_connection_id);
       if (it2 != reference_counted_session_map_.end()) {
         QUICHE_DCHECK(
-            !buffered_packets_.HasBufferedPackets(replaced_connection_id));
+            !buffered_packets_.HasBufferedPackets(*replaced_connection_id));
         it2->second->ProcessUdpPacket(packet_info.self_address,
                                       packet_info.peer_address,
                                       packet_info.packet);
@@ -1404,11 +1412,13 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
     const ParsedClientHello& parsed_chlo, const ParsedQuicVersion version,
     const QuicSocketAddress self_address,
     const QuicSocketAddress peer_address) {
-  QuicConnectionId server_connection_id =
+  absl::optional<QuicConnectionId> server_connection_id =
       MaybeReplaceServerConnectionId(original_connection_id, version);
-  const bool replaced_connection_id =
-      original_connection_id != server_connection_id;
-  if (reference_counted_session_map_.count(server_connection_id) > 0 &&
+  const bool replaced_connection_id = server_connection_id.has_value();
+  if (!replaced_connection_id) {
+    server_connection_id = original_connection_id;
+  }
+  if (reference_counted_session_map_.count(*server_connection_id) > 0 &&
       GetQuicRestartFlag(quic_map_original_connection_ids2)) {
     // The new connection ID is owned by another session. Avoid creating one
     // altogether, as this connection attempt cannot possibly succeed.
@@ -1427,11 +1437,11 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
   // Creates a new session and process all buffered packets for this connection.
   std::string alpn = SelectAlpn(parsed_chlo.alpns);
   std::unique_ptr<QuicSession> session =
-      CreateQuicSession(server_connection_id, self_address, peer_address, alpn,
+      CreateQuicSession(*server_connection_id, self_address, peer_address, alpn,
                         version, parsed_chlo);
   if (ABSL_PREDICT_FALSE(session == nullptr)) {
     QUIC_BUG(quic_bug_10287_8)
-        << "CreateQuicSession returned nullptr for " << server_connection_id
+        << "CreateQuicSession returned nullptr for " << *server_connection_id
         << " from " << peer_address << " to " << self_address << " ALPN \""
         << alpn << "\" version " << version;
     return nullptr;
@@ -1441,16 +1451,16 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
     session->connection()->SetOriginalDestinationConnectionId(
         original_connection_id);
   }
-  QUIC_DLOG(INFO) << "Created new session for " << server_connection_id;
+  QUIC_DLOG(INFO) << "Created new session for " << *server_connection_id;
 
   auto insertion_result = reference_counted_session_map_.insert(std::make_pair(
-      server_connection_id, std::shared_ptr<QuicSession>(std::move(session))));
+      *server_connection_id, std::shared_ptr<QuicSession>(std::move(session))));
   std::shared_ptr<QuicSession> session_ptr = insertion_result.first->second;
   if (!insertion_result.second) {
     QUIC_BUG(quic_bug_10287_9)
         << "Tried to add a session to session_map with existing "
            "connection id: "
-        << server_connection_id;
+        << *server_connection_id;
   } else {
     ++num_sessions_in_session_map_;
     if (GetQuicRestartFlag(quic_map_original_connection_ids2) &&

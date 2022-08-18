@@ -25,7 +25,7 @@ QuicDispatcher* MasqueEpollServer::CreateQuicDispatcher() {
       event_loop(), std::make_unique<QuicDefaultConnectionHelper>(),
       std::make_unique<QuicSimpleCryptoServerStreamHelper>(),
       event_loop()->CreateAlarmFactory(), masque_server_backend_,
-      expected_server_connection_id_length());
+      expected_server_connection_id_length(), connection_id_generator());
 }
 
 }  // namespace quic

@@ -27,7 +27,8 @@ class QUIC_NO_EXPORT MasqueDispatcher : public QuicSimpleDispatcher {
       std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
       MasqueServerBackend* masque_server_backend,
-      uint8_t expected_server_connection_id_length);
+      uint8_t expected_server_connection_id_length,
+      ConnectionIdGeneratorInterface& generator);
 
   // Disallow copy and assign.
   MasqueDispatcher(const MasqueDispatcher&) = delete;

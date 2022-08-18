@@ -777,6 +777,7 @@
     "quiche/quic/test_tools/first_flight.h",
     "quiche/quic/test_tools/limited_mtu_test_writer.h",
     "quiche/quic/test_tools/mock_clock.h",
+    "quiche/quic/test_tools/mock_connection_id_generator.h",
     "quiche/quic/test_tools/mock_quic_client_promised_info.h",
     "quiche/quic/test_tools/mock_quic_dispatcher.h",
     "quiche/quic/test_tools/mock_quic_session_visitor.h",

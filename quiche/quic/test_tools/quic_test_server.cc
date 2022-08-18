@@ -73,11 +73,13 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
       std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
       QuicSimpleServerBackend* quic_simple_server_backend,
-      uint8_t expected_server_connection_id_length)
-      : QuicSimpleDispatcher(
-            config, crypto_config, version_manager, std::move(helper),
-            std::move(session_helper), std::move(alarm_factory),
-            quic_simple_server_backend, expected_server_connection_id_length),
+      uint8_t expected_server_connection_id_length,
+      ConnectionIdGeneratorInterface& generator)
+      : QuicSimpleDispatcher(config, crypto_config, version_manager,
+                             std::move(helper), std::move(session_helper),
+                             std::move(alarm_factory),
+                             quic_simple_server_backend,
+                             expected_server_connection_id_length, generator),
         session_factory_(nullptr),
         stream_factory_(nullptr),
         crypto_stream_factory_(nullptr) {}
@@ -182,7 +184,7 @@ QuicDispatcher* QuicTestServer::CreateQuicDispatcher() {
       std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
           new QuicSimpleCryptoServerStreamHelper()),
       event_loop()->CreateAlarmFactory(), server_backend(),
-      expected_server_connection_id_length());
+      expected_server_connection_id_length(), connection_id_generator());
 }
 
 void QuicTestServer::SetSessionFactory(SessionFactory* factory) {

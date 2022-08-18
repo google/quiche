@@ -16,6 +16,7 @@
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/deterministic_connection_id_generator.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_connection.h"
@@ -33,6 +34,7 @@
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/fake_proof_source.h"
 #include "quiche/quic/test_tools/first_flight.h"
+#include "quiche/quic/test_tools/mock_connection_id_generator.h"
 #include "quiche/quic/test_tools/mock_quic_time_wait_list_manager.h"
 #include "quiche/quic/test_tools/quic_buffered_packet_store_peer.h"
 #include "quiche/quic/test_tools/quic_connection_peer.h"
@@ -108,13 +110,14 @@ class TestDispatcher : public QuicDispatcher {
  public:
   TestDispatcher(const QuicConfig* config,
                  const QuicCryptoServerConfig* crypto_config,
-                 QuicVersionManager* version_manager, QuicRandom* random)
+                 QuicVersionManager* version_manager, QuicRandom* random,
+                 ConnectionIdGeneratorInterface& generator)
       : QuicDispatcher(config, crypto_config, version_manager,
                        std::make_unique<MockQuicConnectionHelper>(),
                        std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
                            new QuicSimpleCryptoServerStreamHelper()),
                        std::make_unique<TestAlarmFactory>(),
-                       kQuicDefaultConnectionIdLength),
+                       kQuicDefaultConnectionIdLength, generator),
         random_(random) {}
 
   MOCK_METHOD(std::unique_ptr<QuicSession>, CreateQuicSession,
@@ -223,9 +226,10 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
                        QuicRandom::GetInstance(), std::move(proof_source),
                        KeyExchangeSource::Default()),
         server_address_(QuicIpAddress::Any4(), 5),
+        connection_id_generator_(kQuicDefaultConnectionIdLength),
         dispatcher_(new NiceMock<TestDispatcher>(
             &config_, &crypto_config_, &version_manager_,
-            mock_helper_.GetRandomGenerator())),
+            mock_helper_.GetRandomGenerator(), connection_id_generator_)),
         time_wait_list_manager_(nullptr),
         session1_(nullptr),
         session2_(nullptr),
@@ -516,6 +520,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   QuicVersionManager version_manager_;
   QuicCryptoServerConfig crypto_config_;
   QuicSocketAddress server_address_;
+  DeterministicConnectionIdGenerator connection_id_generator_;
   std::unique_ptr<NiceMock<TestDispatcher>> dispatcher_;
   MockTimeWaitListManager* time_wait_list_manager_;
   TestQuicSpdyServerSession* session1_;
@@ -1056,6 +1061,78 @@ TEST_P(QuicDispatcherTestAllVersions,
                 "data");
   ProcessPacket(client_address3, connection_id, /*has_version_flag=*/false,
                 "data");
+}
+
+TEST_P(QuicDispatcherTestAllVersions, UsesConnectionIdGenerator) {
+  SetQuicRestartFlag(quic_abstract_connection_id_generator, true);
+  // Avoid multiple calls to MaybeReplaceConnectionId()
+  SetQuicRestartFlag(quic_map_original_connection_ids2, true);
+  // Create a new dispatcher with the Mock generator.
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  MockConnectionIdGenerator generator;
+  dispatcher_.reset();
+  dispatcher_ = std::make_unique<NiceMock<TestDispatcher>>(
+      &config_, &crypto_config_, &version_manager_,
+      mock_helper_.GetRandomGenerator(), generator);
+  SetUp();
+  // Generator does not change connection ID.
+  EXPECT_CALL(generator, MaybeReplaceConnectionId(TestConnectionId(1), _))
+      .WillOnce(Return(absl::optional<QuicConnectionId>()));
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(TestConnectionId(1), _, client_address,
+                                Eq(ExpectedAlpn()), _, _))
+      .WillOnce(Return(CreateSession(
+          dispatcher_.get(), config_, TestConnectionId(1), client_address,
+          &mock_helper_, &mock_alarm_factory_, &crypto_config_,
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_)));
+  ProcessFirstFlight(client_address, TestConnectionId(1));
+  // Generator changes connection ID.
+  QuicConnectionId new_connection_id(
+      {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08});
+  EXPECT_CALL(generator, MaybeReplaceConnectionId(TestConnectionId(2), _))
+      .WillOnce(Return(new_connection_id));
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(new_connection_id, _, client_address,
+                                Eq(ExpectedAlpn()), _, _))
+      .WillOnce(Return(CreateSession(
+          dispatcher_.get(), config_, new_connection_id, client_address,
+          &mock_helper_, &mock_alarm_factory_, &crypto_config_,
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_)));
+  ProcessFirstFlight(client_address, TestConnectionId(2));
+}
+
+TEST_P(QuicDispatcherTestAllVersions, DoesNotUseConnectionIdGenerator) {
+  SetQuicRestartFlag(quic_abstract_connection_id_generator, false);
+  // Avoid multiple calls to MaybeReplaceConnectionId()
+  SetQuicRestartFlag(quic_map_original_connection_ids2, true);
+  // Create a new dispatcher with the Mock generator.
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  MockConnectionIdGenerator generator;
+  dispatcher_.reset();
+  dispatcher_ = std::make_unique<NiceMock<TestDispatcher>>(
+      &config_, &crypto_config_, &version_manager_,
+      mock_helper_.GetRandomGenerator(), generator);
+  SetUp();
+  EXPECT_CALL(generator, MaybeReplaceConnectionId(TestConnectionId(1), _))
+      .Times(0);
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(TestConnectionId(1), _, client_address,
+                                Eq(ExpectedAlpn()), _, _))
+      .WillOnce(Return(CreateSession(
+          dispatcher_.get(), config_, TestConnectionId(1), client_address,
+          &mock_helper_, &mock_alarm_factory_, &crypto_config_,
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_)));
+  ProcessFirstFlight(client_address, TestConnectionId(1));
+  EXPECT_CALL(generator, MaybeReplaceConnectionId(TestConnectionId(2), _))
+      .Times(0);
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(TestConnectionId(2), _, client_address,
+                                Eq(ExpectedAlpn()), _, _))
+      .WillOnce(Return(CreateSession(
+          dispatcher_.get(), config_, TestConnectionId(2), client_address,
+          &mock_helper_, &mock_alarm_factory_, &crypto_config_,
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_)));
+  ProcessFirstFlight(client_address, TestConnectionId(2));
 }
 
 // Makes sure nine-byte connection IDs are replaced by 8-byte ones.
@@ -2158,7 +2235,7 @@ class QuicDispatcherSupportMultipleConnectionIdPerConnectionTest
       : QuicDispatcherTestBase(crypto_test_utils::ProofSourceForTesting()) {
     dispatcher_ = std::make_unique<NiceMock<TestDispatcher>>(
         &config_, &crypto_config_, &version_manager_,
-        mock_helper_.GetRandomGenerator());
+        mock_helper_.GetRandomGenerator(), connection_id_generator_);
   }
   void AddConnection1() {
     QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);

@@ -104,11 +104,11 @@ class QuicQboneDispatcher : public QuicDispatcher {
       std::unique_ptr<QuicConnectionHelperInterface> helper,
       std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
-      QbonePacketWriter* writer)
+      QbonePacketWriter* writer, ConnectionIdGeneratorInterface& generator)
       : QuicDispatcher(config, crypto_config, version_manager,
                        std::move(helper), std::move(session_helper),
-                       std::move(alarm_factory),
-                       kQuicDefaultConnectionIdLength),
+                       std::move(alarm_factory), kQuicDefaultConnectionIdLength,
+                       generator),
         writer_(writer) {}
 
   std::unique_ptr<QuicSession> CreateQuicSession(
@@ -143,7 +143,8 @@ class QboneTestServer : public QuicServer {
         &config(), &crypto_config(), version_manager(),
         std::make_unique<QuicDefaultConnectionHelper>(),
         std::make_unique<QboneCryptoServerStreamHelper>(),
-        event_loop()->CreateAlarmFactory(), &writer_);
+        event_loop()->CreateAlarmFactory(), &writer_,
+        connection_id_generator());
   }
 
   std::vector<std::string> data() { return writer_.data(); }
