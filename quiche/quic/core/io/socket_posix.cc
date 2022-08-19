@@ -18,9 +18,7 @@
 // accept4() is a Linux-specific extension that is available in glibc 2.10+.
 #if defined(__linux__) && defined(_GNU_SOURCE) && defined(__GLIBC_PREREQ)
 #if __GLIBC_PREREQ(2, 10)
-#define HAS_ACCEPT4 1
-#else
-#define HAS_ACCEPT4 0
+#define HAS_ACCEPT4
 #endif
 #endif
 
@@ -180,7 +178,7 @@ absl::StatusOr<AcceptResult> AcceptInternal(SocketFd fd) {
   }
 }
 
-#if HAS_ACCEPT4
+#if defined(HAS_ACCEPT4)
 absl::StatusOr<AcceptResult> AcceptWithFlags(SocketFd fd, int flags) {
   QUICHE_DCHECK_GE(fd, 0);
 
@@ -209,7 +207,7 @@ absl::StatusOr<AcceptResult> AcceptWithFlags(SocketFd fd, int flags) {
     return peer_address.status();
   }
 }
-#endif  // HAS_ACCEPT4
+#endif  // defined(HAS_ACCEPT4)
 
 socklen_t GetAddrlen(IpAddressFamily family) {
   switch (family) {
@@ -418,7 +416,7 @@ absl::Status Listen(SocketFd fd, int backlog) {
 absl::StatusOr<AcceptResult> Accept(SocketFd fd, bool blocking) {
   QUICHE_DCHECK_GE(fd, 0);
 
-#if HAS_ACCEPT4
+#if defined(HAS_ACCEPT4)
   if (!blocking) {
     return AcceptWithFlags(fd, SOCK_NONBLOCK);
   }
