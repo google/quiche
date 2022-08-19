@@ -7,23 +7,22 @@
 
 #include <string>
 
+#include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/masque/masque_client_session.h"
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/quic/tools/quic_client.h"
-#include "quiche/quic/tools/quic_url.h"
+#include "quiche/quic/tools/quic_default_client.h"
 
 namespace quic {
 
 // QUIC client that implements MASQUE.
-class QUIC_NO_EXPORT MasqueEpollClient : public QuicClient,
+class QUIC_NO_EXPORT MasqueEpollClient : public QuicDefaultClient,
                                          public MasqueClientSession::Owner {
  public:
   // Constructs a MasqueEpollClient, performs a synchronous DNS lookup.
   static std::unique_ptr<MasqueEpollClient> Create(
       const std::string& uri_template, MasqueMode masque_mode,
-      QuicEpollServer* epoll_server,
-      std::unique_ptr<ProofVerifier> proof_verifier);
+      QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier);
 
   // From QuicClient.
   std::unique_ptr<QuicSession> CreateQuicClientSession(
@@ -45,7 +44,7 @@ class QUIC_NO_EXPORT MasqueEpollClient : public QuicClient,
   // Constructor is private, use Create() instead.
   MasqueEpollClient(QuicSocketAddress server_address,
                     const QuicServerId& server_id, MasqueMode masque_mode,
-                    QuicEpollServer* epoll_server,
+                    QuicEventLoop* event_loop,
                     std::unique_ptr<ProofVerifier> proof_verifier,
                     const std::string& uri_template);
 

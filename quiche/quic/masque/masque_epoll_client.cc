@@ -9,17 +9,18 @@
 #include "absl/memory/memory.h"
 #include "quiche/quic/masque/masque_client_session.h"
 #include "quiche/quic/masque/masque_utils.h"
+#include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_url.h"
 
 namespace quic {
 
 MasqueEpollClient::MasqueEpollClient(
     QuicSocketAddress server_address, const QuicServerId& server_id,
-    MasqueMode masque_mode, QuicEpollServer* epoll_server,
+    MasqueMode masque_mode, QuicEventLoop* event_loop,
     std::unique_ptr<ProofVerifier> proof_verifier,
     const std::string& uri_template)
-    : QuicClient(server_address, server_id, MasqueSupportedVersions(),
-                 epoll_server, std::move(proof_verifier)),
+    : QuicDefaultClient(server_address, server_id, MasqueSupportedVersions(),
+                        event_loop, std::move(proof_verifier)),
       masque_mode_(masque_mode),
       uri_template_(uri_template) {}
 
@@ -34,7 +35,7 @@ std::unique_ptr<QuicSession> MasqueEpollClient::CreateQuicClientSession(
 }
 
 MasqueClientSession* MasqueEpollClient::masque_client_session() {
-  return static_cast<MasqueClientSession*>(QuicClient::session());
+  return static_cast<MasqueClientSession*>(QuicDefaultClient::session());
 }
 
 QuicConnectionId MasqueEpollClient::connection_id() {
@@ -49,8 +50,7 @@ std::string MasqueEpollClient::authority() const {
 // static
 std::unique_ptr<MasqueEpollClient> MasqueEpollClient::Create(
     const std::string& uri_template, MasqueMode masque_mode,
-    QuicEpollServer* epoll_server,
-    std::unique_ptr<ProofVerifier> proof_verifier) {
+    QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier) {
   QuicUrl url(uri_template);
   std::string host = url.host();
   uint16_t port = url.port();
@@ -65,7 +65,7 @@ std::unique_ptr<MasqueEpollClient> MasqueEpollClient::Create(
   // std::make_unique<MasqueEpollClient>(...) because the constructor for
   // MasqueEpollClient is private and therefore not accessible from make_unique.
   auto masque_client = absl::WrapUnique(
-      new MasqueEpollClient(addr, server_id, masque_mode, epoll_server,
+      new MasqueEpollClient(addr, server_id, masque_mode, event_loop,
                             std::move(proof_verifier), uri_template));
 
   if (masque_client == nullptr) {

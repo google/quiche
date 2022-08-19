@@ -5,19 +5,20 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_ENCAPSULATED_EPOLL_CLIENT_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_ENCAPSULATED_EPOLL_CLIENT_H_
 
+#include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/masque/masque_encapsulated_client_session.h"
 #include "quiche/quic/masque/masque_epoll_client.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/quic/tools/quic_client.h"
+#include "quiche/quic/tools/quic_default_client.h"
 
 namespace quic {
 
 // QUIC client for QUIC encapsulated in MASQUE.
-class QUIC_NO_EXPORT MasqueEncapsulatedEpollClient : public QuicClient {
+class QUIC_NO_EXPORT MasqueEncapsulatedEpollClient : public QuicDefaultClient {
  public:
   MasqueEncapsulatedEpollClient(QuicSocketAddress server_address,
                                 const QuicServerId& server_id,
-                                QuicEpollServer* epoll_server,
+                                QuicEventLoop* event_loop,
                                 std::unique_ptr<ProofVerifier> proof_verifier,
                                 MasqueEpollClient* masque_client);
   ~MasqueEncapsulatedEpollClient() override;

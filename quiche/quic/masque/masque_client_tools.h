@@ -11,11 +11,11 @@ namespace quic {
 namespace tools {
 
 // Sends an HTTP GET request for |url_string|, proxied over the MASQUE
-// connection represented by |masque_client|. A valid and owned |epoll_server|
+// connection represented by |masque_client|. A valid and owned |event_loop|
 // is required. |disable_certificate_verification| allows disabling verification
 // of the HTTP server's TLS certificate.
 bool SendEncapsulatedMasqueRequest(MasqueEpollClient* masque_client,
-                                   QuicEpollServer* epoll_server,
+                                   QuicEventLoop* event_loop,
                                    std::string url_string,
                                    bool disable_certificate_verification);
 

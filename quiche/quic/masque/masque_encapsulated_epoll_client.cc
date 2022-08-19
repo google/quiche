@@ -9,6 +9,7 @@
 #include "quiche/quic/masque/masque_encapsulated_client_session.h"
 #include "quiche/quic/masque/masque_epoll_client.h"
 #include "quiche/quic/masque/masque_utils.h"
+#include "quiche/quic/tools/quic_client_default_network_helper.h"
 
 namespace quic {
 
@@ -38,7 +39,7 @@ class MasquePacketWriter : public QuicPacketWriter {
   void SetWritable() override {}
 
   absl::optional<int> MessageTooBigErrorCode() const override {
-    return EMSGSIZE;
+    return absl::nullopt;
   }
 
   QuicByteCount GetMaxPacketSize(
@@ -63,11 +64,11 @@ class MasquePacketWriter : public QuicPacketWriter {
 
 // Custom network helper that allows injecting a custom packet writer in order
 // to get all of a connection's outgoing packets.
-class MasqueClientEpollNetworkHelper : public QuicClientEpollNetworkHelper {
+class MasqueClientDefaultNetworkHelper : public QuicClientDefaultNetworkHelper {
  public:
-  MasqueClientEpollNetworkHelper(QuicEpollServer* epoll_server,
-                                 MasqueEncapsulatedEpollClient* client)
-      : QuicClientEpollNetworkHelper(epoll_server, client), client_(client) {}
+  MasqueClientDefaultNetworkHelper(QuicEventLoop* event_loop,
+                                   MasqueEncapsulatedEpollClient* client)
+      : QuicClientDefaultNetworkHelper(event_loop, client), client_(client) {}
   QuicPacketWriter* CreateQuicPacketWriter() override {
     return new MasquePacketWriter(client_);
   }
@@ -80,13 +81,12 @@ class MasqueClientEpollNetworkHelper : public QuicClientEpollNetworkHelper {
 
 MasqueEncapsulatedEpollClient::MasqueEncapsulatedEpollClient(
     QuicSocketAddress server_address, const QuicServerId& server_id,
-    QuicEpollServer* epoll_server,
-    std::unique_ptr<ProofVerifier> proof_verifier,
+    QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier,
     MasqueEpollClient* masque_client)
-    : QuicClient(
+    : QuicDefaultClient(
           server_address, server_id, MasqueSupportedVersions(),
-          MasqueEncapsulatedConfig(), epoll_server,
-          std::make_unique<MasqueClientEpollNetworkHelper>(epoll_server, this),
+          MasqueEncapsulatedConfig(), event_loop,
+          std::make_unique<MasqueClientDefaultNetworkHelper>(event_loop, this),
           std::move(proof_verifier)),
       masque_client_(masque_client) {}
 
@@ -108,7 +108,8 @@ MasqueEncapsulatedEpollClient::CreateQuicClientSession(
 
 MasqueEncapsulatedClientSession*
 MasqueEncapsulatedEpollClient::masque_encapsulated_client_session() {
-  return static_cast<MasqueEncapsulatedClientSession*>(QuicClient::session());
+  return static_cast<MasqueEncapsulatedClientSession*>(
+      QuicDefaultClient::session());
 }
 
 }  // namespace quic
