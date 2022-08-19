@@ -261,7 +261,7 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         session_.config(), kMinimumFlowControlSendWindow);
     QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(session_.config(), 10);
     session_.OnConfigNegotiated();
-    connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
+    simulator_.RunFor(QuicTime::Delta::FromSeconds(1));
   }
 
   const std::string& StreamBody() { return stream_->body(); }
