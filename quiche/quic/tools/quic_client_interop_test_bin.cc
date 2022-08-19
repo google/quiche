@@ -9,14 +9,16 @@
 
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/crypto/quic_client_session_cache.h"
-#include "quiche/quic/core/quic_epoll_clock.h"
+#include "quiche/quic/core/io/quic_default_event_loop.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/platform/api/quic_epoll.h"
 #include "quiche/quic/test_tools/quic_connection_peer.h"
 #include "quiche/quic/test_tools/quic_session_peer.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
-#include "quiche/quic/tools/quic_client.h"
+#include "quiche/quic/tools/quic_default_client.h"
+#include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_system_event_loop.h"
@@ -107,7 +109,8 @@ class QuicClientInteropRunner : QuicConnectionDebugVisitor {
   // Attempts a resumption using |client| by disconnecting and reconnecting. If
   // resumption is successful, |features_| is modified to add
   // Feature::kResumption to it, otherwise it is left unmodified.
-  void AttemptResumption(QuicClient* client, const std::string& authority);
+  void AttemptResumption(QuicDefaultClient* client,
+                         const std::string& authority);
 
   void AttemptRequest(QuicSocketAddress addr, std::string authority,
                       QuicServerId server_id, ParsedQuicVersion version,
@@ -119,7 +122,7 @@ class QuicClientInteropRunner : QuicConnectionDebugVisitor {
   spdy::Http2HeaderBlock ConstructHeaderBlock(const std::string& authority);
 
   // Sends an HTTP request represented by |header_block| using |client|.
-  void SendRequest(QuicClient* client,
+  void SendRequest(QuicDefaultClient* client,
                    const spdy::Http2HeaderBlock& header_block);
 
   void OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) override {
@@ -157,7 +160,7 @@ class QuicClientInteropRunner : QuicConnectionDebugVisitor {
   std::set<Feature> features_;
 };
 
-void QuicClientInteropRunner::AttemptResumption(QuicClient* client,
+void QuicClientInteropRunner::AttemptResumption(QuicDefaultClient* client,
                                                 const std::string& authority) {
   client->Disconnect();
   if (!client->Initialize()) {
@@ -202,8 +205,6 @@ void QuicClientInteropRunner::AttemptRequest(
 
   auto proof_verifier = std::make_unique<FakeProofVerifier>();
   auto session_cache = std::make_unique<QuicClientSessionCache>();
-  QuicEpollServer epoll_server;
-  QuicEpollClock epoll_clock(&epoll_server);
   QuicConfig config;
   QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(20);
   config.SetIdleNetworkTimeout(timeout);
@@ -216,8 +217,10 @@ void QuicClientInteropRunner::AttemptRequest(
     config.custom_transport_parameters_to_send()[kCustomParameter] =
         custom_value;
   }
-  auto client = std::make_unique<QuicClient>(
-      addr, server_id, versions, config, &epoll_server,
+  std::unique_ptr<QuicEventLoop> event_loop =
+      GetDefaultEventLoop()->Create(QuicDefaultClock::Get());
+  auto client = std::make_unique<QuicDefaultClient>(
+      addr, server_id, versions, config, event_loop.get(),
       std::move(proof_verifier), std::move(session_cache));
   client->set_connection_debug_visitor(this);
   if (!client->Initialize()) {
@@ -339,7 +342,7 @@ spdy::Http2HeaderBlock QuicClientInteropRunner::ConstructHeaderBlock(
 }
 
 void QuicClientInteropRunner::SendRequest(
-    QuicClient* client, const spdy::Http2HeaderBlock& header_block) {
+    QuicDefaultClient* client, const spdy::Http2HeaderBlock& header_block) {
   client->set_store_response(true);
   client->SendRequestAndWaitForResponse(header_block, "", /*fin=*/true);
 
