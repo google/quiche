@@ -18,6 +18,7 @@
 #include "quiche/quic/core/quic_packet_reader.h"
 #include "quiche/quic/platform/api/quic_epoll.h"
 #include "quiche/quic/tools/quic_client_epoll_network_helper.h"
+#include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_spdy_client_base.h"
 
 namespace quic {
@@ -27,17 +28,6 @@ class QuicServerId;
 namespace test {
 class QuicClientPeer;
 }  // namespace test
-
-namespace tools {
-
-QuicSocketAddress LookupAddress(int address_family_for_lookup, std::string host,
-                                std::string port);
-
-inline QuicSocketAddress LookupAddress(std::string host, std::string port) {
-  return LookupAddress(0, host, port);
-}
-
-}  // namespace tools
 
 class QuicClient : public QuicSpdyClientBase {
  public:

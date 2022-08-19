@@ -4,13 +4,6 @@
 
 #include "quiche/quic/tools/quic_server.h"
 
-#include <errno.h>
-#include <features.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <sys/epoll.h>
-#include <sys/socket.h>
-
 #include <cstdint>
 #include <memory>
 
