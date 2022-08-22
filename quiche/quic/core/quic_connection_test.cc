@@ -9899,11 +9899,6 @@ TEST_P(QuicConnectionTest, FailToCoalescePacket) {
   use_tagging_decrypter();
 
   auto test_body = [&] {
-    if (!GetQuicReloadableFlag(
-            quic_packet_flusher_check_connected_after_flush_packets)) {
-      EXPECT_CALL(visitor_, OnHandshakePacketSent());
-    }
-
     EXPECT_CALL(visitor_,
                 OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
         .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
