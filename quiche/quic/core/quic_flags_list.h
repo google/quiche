@@ -19,8 +19,6 @@ QUIC_FLAG(quic_restart_flag_quic_testonly_default_true, true)
 QUIC_FLAG(quic_reloadable_flag_quic_bbr2_no_probe_up_exit_if_no_queue, true)
 // If trrue, early return before write control frame in OnCanWrite() if the connection is already closed.
 QUIC_FLAG(quic_reloadable_flag_quic_no_write_control_frame_upon_connection_close, true)
-// If true and BBQ1 connection option is set, QUIC BBR will use a pacing gain of 2.773 at startup and 0.5 at DRAIN.
-QUIC_FLAG(quic_reloadable_flag_quic_bbr2_support_new_startup_pacing_gain, true)
 // If true, 1) remove all experiments that tunes blackhole detection delay or path degrading delay, and 2) ensure network blackhole delay is at least path degrading delay plus 2 PTOs.
 QUIC_FLAG(quic_reloadable_flag_quic_remove_blackhole_detection_experiments, true)
 // If true, QUIC Legacy Version Encapsulation will be disabled.

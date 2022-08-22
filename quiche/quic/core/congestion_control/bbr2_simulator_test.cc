@@ -618,7 +618,6 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferBBR5) {
 }
 
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransferBBQ1) {
-  SetQuicReloadableFlag(quic_bbr2_support_new_startup_pacing_gain, true);
   SetConnectionOption(kBBQ1);
   DefaultTopologyParams params;
   CreateNetwork(params);
