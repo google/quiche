@@ -94,7 +94,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // If true, validate header field character at spdy stream instead of qpack for IETF QUIC.
 QUIC_FLAG(quic_reloadable_flag_quic_validate_header_field_value_at_spdy_stream, true)
 // Store original QUIC connection IDs in the dispatcher\'s map
-QUIC_FLAG(quic_restart_flag_quic_map_original_connection_ids2, false)
+QUIC_FLAG(quic_restart_flag_quic_map_original_connection_ids2, true)
 // Use a library to generate connection IDs
 QUIC_FLAG(quic_restart_flag_quic_abstract_connection_id_generator, false)
 // When the flag is true, exit STARTUP after the same number of loss events as PROBE_UP.
