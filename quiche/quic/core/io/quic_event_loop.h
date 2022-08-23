@@ -75,6 +75,10 @@ class QUICHE_NO_EXPORT QuicEventLoop {
   // Returns an alarm factory that allows alarms to be scheduled on this event
   // loop.
   virtual std::unique_ptr<QuicAlarmFactory> CreateAlarmFactory() = 0;
+
+  // Returns the clock that is used by the alarm factory that the event loop
+  // provides.
+  virtual const QuicClock* GetClock() = 0;
 };
 
 // A factory object for the event loop. Every implementation is expected to have

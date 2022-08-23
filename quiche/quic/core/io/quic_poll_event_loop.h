@@ -51,6 +51,7 @@ class QUICHE_NO_EXPORT QuicPollEventLoop : public QuicEventLoop {
       QuicUdpSocketFd fd, QuicSocketEventMask events) override;
   void RunEventLoopOnce(QuicTime::Delta default_timeout) override;
   std::unique_ptr<QuicAlarmFactory> CreateAlarmFactory() override;
+  const QuicClock* GetClock() override { return clock_; }
 
  protected:
   // Allows poll(2) calls to be mocked out in unit tests.

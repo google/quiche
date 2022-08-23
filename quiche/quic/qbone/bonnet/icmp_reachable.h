@@ -7,7 +7,14 @@
 
 #include <netinet/icmp6.h>
 
+#include <memory>
+
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_clock.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/qbone/bonnet/icmp_reachable_interface.h"
@@ -29,7 +36,7 @@ class IcmpReachable : public IcmpReachableInterface {
 
   struct ReachableEvent {
     Status status;
-    absl::Duration response_time;
+    QuicTime::Delta response_time;
     std::string source;
   };
 
@@ -65,8 +72,8 @@ class IcmpReachable : public IcmpReachableInterface {
   // |stats| is not owned, but should outlive this instance. It will be called
   //         back on Echo Replies, timeouts, and I/O errors.
   IcmpReachable(QuicIpAddress source, QuicIpAddress destination,
-                absl::Duration timeout, KernelInterface* kernel,
-                QuicEpollServer* epoll_server, StatsInterface* stats);
+                QuicTime::Delta timeout, KernelInterface* kernel,
+                QuicEventLoop* event_loop, StatsInterface* stats);
 
   ~IcmpReachable() override;
 
@@ -74,13 +81,12 @@ class IcmpReachable : public IcmpReachableInterface {
   // |epoll_server|'s thread.
   bool Init() QUIC_LOCKS_EXCLUDED(header_lock_) override;
 
-  int64 /* allow-non-std-int */ OnAlarm()
-      QUIC_LOCKS_EXCLUDED(header_lock_) override;
+  void OnAlarm() QUIC_LOCKS_EXCLUDED(header_lock_);
 
   static absl::string_view StatusName(Status status);
 
  private:
-  class EpollCallback : public QuicEpollCallbackInterface {
+  class EpollCallback : public QuicSocketEventListener {
    public:
     explicit EpollCallback(IcmpReachable* reachable) : reachable_(reachable) {}
 
@@ -90,18 +96,18 @@ class IcmpReachable : public IcmpReachableInterface {
     EpollCallback(EpollCallback&&) = delete;
     EpollCallback& operator=(EpollCallback&&) = delete;
 
-    void OnRegistration(QuicEpollServer* eps, int fd,
-                        int event_mask) override{};
+    void OnSocketEvent(QuicEventLoop* event_loop, QuicUdpSocketFd fd,
+                       QuicSocketEventMask events) override;
 
-    void OnModification(int fd, int event_mask) override{};
+   private:
+    IcmpReachable* reachable_;
+  };
 
-    void OnEvent(int fd, QuicEpollEvent* event) override;
+  class AlarmCallback : public QuicAlarm::DelegateWithoutContext {
+   public:
+    explicit AlarmCallback(IcmpReachable* reachable) : reachable_(reachable) {}
 
-    void OnUnregistration(int fd, bool replaced) override{};
-
-    void OnShutdown(QuicEpollServer* eps, int fd) override;
-
-    std::string Name() const override;
+    void OnAlarm() override { reachable_->OnAlarm(); }
 
    private:
     IcmpReachable* reachable_;
@@ -109,15 +115,19 @@ class IcmpReachable : public IcmpReachableInterface {
 
   bool OnEvent(int fd) QUIC_LOCKS_EXCLUDED(header_lock_);
 
-  const absl::Duration timeout_;
+  const QuicTime::Delta timeout_;
+
+  QuicEventLoop* event_loop_;
+  const QuicClock* clock_;
+  std::unique_ptr<QuicAlarmFactory> alarm_factory_;
 
   EpollCallback cb_;
+  std::unique_ptr<QuicAlarm> alarm_;
 
   sockaddr_in6 src_{};
   sockaddr_in6 dst_{};
 
   KernelInterface* kernel_;
-  QuicEpollServer* epoll_server_;
 
   StatsInterface* stats_;
 
@@ -127,8 +137,8 @@ class IcmpReachable : public IcmpReachableInterface {
   QuicMutex header_lock_;
   icmp6_hdr icmp_header_ QUIC_GUARDED_BY(header_lock_){};
 
-  absl::Time start_ = absl::InfinitePast();
-  absl::Time end_ = absl::InfinitePast();
+  QuicTime start_ = QuicTime::Zero();
+  QuicTime end_ = QuicTime::Zero();
 };
 
 }  // namespace quic

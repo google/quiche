@@ -8,16 +8,18 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/qbone/platform/icmp_packet.h"
-#include "quiche/common/quiche_endian.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
 namespace {
 
-constexpr int kEpollFlags = EPOLLIN | EPOLLET;
+constexpr QuicSocketEventMask kEventMask =
+    kSocketEventReadable | kSocketEventWritable;
 constexpr size_t kMtu = 1280;
 
 constexpr size_t kIPv6AddrSize = sizeof(in6_addr);
@@ -28,13 +30,15 @@ const char kUnknownSource[] = "UNKNOWN";
 const char kNoSource[] = "N/A";
 
 IcmpReachable::IcmpReachable(QuicIpAddress source, QuicIpAddress destination,
-                             absl::Duration timeout, KernelInterface* kernel,
-                             QuicEpollServer* epoll_server,
-                             StatsInterface* stats)
+                             QuicTime::Delta timeout, KernelInterface* kernel,
+                             QuicEventLoop* event_loop, StatsInterface* stats)
     : timeout_(timeout),
+      event_loop_(event_loop),
+      clock_(event_loop->GetClock()),
+      alarm_factory_(event_loop->CreateAlarmFactory()),
       cb_(this),
+      alarm_(alarm_factory_->CreateAlarm(new AlarmCallback(this))),
       kernel_(kernel),
-      epoll_server_(epoll_server),
       stats_(stats),
       send_fd_(0),
       recv_fd_(0) {
@@ -50,9 +54,8 @@ IcmpReachable::~IcmpReachable() {
     kernel_->close(send_fd_);
   }
   if (recv_fd_ > 0) {
-    if (!epoll_server_->ShutdownCalled()) {
-      epoll_server_->UnregisterFD(recv_fd_);
-    }
+    bool success = event_loop_->UnregisterSocket(recv_fd_);
+    QUICHE_DCHECK(success);
 
     kernel_->close(recv_fd_);
   }
@@ -93,8 +96,11 @@ bool IcmpReachable::Init() {
     return false;
   }
 
-  epoll_server_->RegisterFD(recv_fd_, &cb_, kEpollFlags);
-  epoll_server_->RegisterAlarm(0, this);
+  if (!event_loop_->RegisterSocket(recv_fd_, kEventMask, &cb_)) {
+    QUIC_LOG(ERROR) << "Unable to register recv ICMP socket";
+    return false;
+  }
+  alarm_->Set(clock_->Now());
 
   QuicWriterMutexLock mu(&header_lock_);
   icmp_header_.icmp6_type = ICMP6_ECHO_REQUEST;
@@ -135,9 +141,8 @@ bool IcmpReachable::OnEvent(int fd) {
                  << " seq: " << icmp_header_.icmp6_seq;
     return true;
   }
-  end_ = absl::Now();
-  QUIC_VLOG(1) << "Received ping response in "
-               << absl::ToInt64Microseconds(end_ - start_) << "us.";
+  end_ = clock_->Now();
+  QUIC_VLOG(1) << "Received ping response in " << (end_ - start_);
 
   std::string source;
   QuicIpAddress source_ip;
@@ -152,14 +157,12 @@ bool IcmpReachable::OnEvent(int fd) {
   return true;
 }
 
-int64 /* allow-non-std-int */ IcmpReachable::OnAlarm() {
-  EpollAlarm::OnAlarm();
-
+void IcmpReachable::OnAlarm() {
   QuicWriterMutexLock mu(&header_lock_);
 
   if (end_ < start_) {
     QUIC_VLOG(1) << "Timed out on sequence: " << icmp_header_.icmp6_seq;
-    stats_->OnEvent({Status::UNREACHABLE, absl::ZeroDuration(), kNoSource});
+    stats_->OnEvent({Status::UNREACHABLE, QuicTime::Delta::Zero(), kNoSource});
   }
 
   icmp_header_.icmp6_seq++;
@@ -175,10 +178,10 @@ int64 /* allow-non-std-int */ IcmpReachable::OnAlarm() {
                      if (size < packet.size()) {
                        stats_->OnWriteError(errno);
                      }
-                     start_ = absl::Now();
+                     start_ = clock_->Now();
                    });
 
-  return absl::ToUnixMicros(absl::Now() + timeout_);
+  alarm_->Set(clock_->ApproximateNow() + timeout_);
 }
 
 absl::string_view IcmpReachable::StatusName(IcmpReachable::Status status) {
@@ -192,19 +195,15 @@ absl::string_view IcmpReachable::StatusName(IcmpReachable::Status status) {
   }
 }
 
-void IcmpReachable::EpollCallback::OnEvent(int fd, QuicEpollEvent* event) {
+void IcmpReachable::EpollCallback::OnSocketEvent(QuicEventLoop* event_loop,
+                                                 QuicUdpSocketFd fd,
+                                                 QuicSocketEventMask events) {
   bool can_read_more = reachable_->OnEvent(fd);
   if (can_read_more) {
-    event->out_ready_mask |= EPOLLIN;
+    bool success =
+        event_loop->ArtificiallyNotifyEvent(fd, kSocketEventReadable);
+    QUICHE_DCHECK(success);
   }
-}
-
-void IcmpReachable::EpollCallback::OnShutdown(QuicEpollServer* eps, int fd) {
-  eps->UnregisterFD(fd);
-}
-
-std::string IcmpReachable::EpollCallback::Name() const {
-  return "ICMP Reachable";
 }
 
 }  // namespace quic

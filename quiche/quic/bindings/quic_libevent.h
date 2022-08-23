@@ -36,6 +36,7 @@ class QUICHE_EXPORT_PRIVATE LibeventQuicEventLoop : public QuicEventLoop {
   bool ArtificiallyNotifyEvent(QuicUdpSocketFd fd,
                                QuicSocketEventMask events) override;
   void RunEventLoopOnce(QuicTime::Delta default_timeout) override;
+  const QuicClock* GetClock() override { return clock_; }
 
   // Can be called from another thread to wake up the event loop from a blocking
   // RunEventLoopOnce() call.
