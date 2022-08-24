@@ -1329,6 +1329,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     validate_client_addresses_ = value;
   }
 
+  bool defer_send_in_response_to_packets() const {
+    return defer_send_in_response_to_packets_;
+  }
+
  private:
   friend class test::QuicConnectionPeer;
 
