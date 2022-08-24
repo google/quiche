@@ -5,7 +5,6 @@
 #include "quiche/quic/tools/connect_tunnel.h"
 
 #include <cstdint>
-#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
@@ -17,9 +16,9 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "absl/types/span.h"
-#include "url/third_party/mozilla/url_parse.h"
 #include "quiche/quic/core/io/socket_factory.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
@@ -35,57 +34,7 @@ namespace {
 // Arbitrarily chosen. No effort has been made to figure out an optimal size.
 constexpr size_t kReadSize = 4 * 1024;
 
-absl::optional<ConnectTunnel::HostAndPort> ValidateAndParseAuthorityString(
-    absl::string_view authority_string) {
-  url::Component username_component;
-  url::Component password_component;
-  url::Component host_component;
-  url::Component port_component;
-
-  url::ParseAuthority(authority_string.data(),
-                      url::Component(0, authority_string.size()),
-                      &username_component, &password_component, &host_component,
-                      &port_component);
-
-  // A valid CONNECT authority must contain host and port and nothing else, per
-  // https://www.rfc-editor.org/rfc/rfc9110.html#name-connect.
-  if (username_component.is_valid() || password_component.is_valid() ||
-      !host_component.is_nonempty() || !port_component.is_nonempty()) {
-    QUICHE_DVLOG(1) << "CONNECT request authority is malformed: "
-                    << authority_string;
-    return absl::nullopt;
-  }
-
-  QUICHE_DCHECK_LT(static_cast<size_t>(host_component.end()),
-                   authority_string.length());
-  if (authority_string.length() > 2 &&
-      authority_string.data()[host_component.begin] == '[' &&
-      authority_string.data()[host_component.end() - 1] == ']') {
-    // Strip "[]" off IPv6 literals.
-    host_component.begin += 1;
-    host_component.len -= 2;
-  }
-  std::string hostname(authority_string.data() + host_component.begin,
-                       host_component.len);
-
-  int parsed_port_number =
-      url::ParsePort(authority_string.data(), port_component);
-  // Negative result is either invalid or unspecified, either of which is
-  // disallowed for a CONNECT authority. Port 0 is technically valid but
-  // reserved and not really usable in practice, so easiest to just disallow it
-  // here.
-  if (parsed_port_number <= 0) {
-    QUICHE_DVLOG(1) << "CONNECT request authority port is malformed: "
-                    << authority_string;
-    return absl::nullopt;
-  }
-  QUICHE_DCHECK_LE(parsed_port_number, std::numeric_limits<uint16_t>::max());
-
-  return ConnectTunnel::HostAndPort(std::move(hostname),
-                                    static_cast<uint16_t>(parsed_port_number));
-}
-
-absl::optional<ConnectTunnel::HostAndPort> ValidateHeadersAndGetAuthority(
+absl::optional<QuicServerId> ValidateHeadersAndGetAuthority(
     const spdy::Http2HeaderBlock& request_headers) {
   QUICHE_DCHECK(request_headers.contains(":method"));
   QUICHE_DCHECK(request_headers.find(":method")->second == "CONNECT");
@@ -111,35 +60,39 @@ absl::optional<ConnectTunnel::HostAndPort> ValidateHeadersAndGetAuthority(
     return absl::nullopt;
   }
 
-  return ValidateAndParseAuthorityString(authority_it->second);
+  // A valid CONNECT authority must contain host and port and nothing else, per
+  // https://www.rfc-editor.org/rfc/rfc9110.html#name-connect. This matches the
+  // host and port parsing rules for QuicServerId.
+  absl::optional<QuicServerId> server_id =
+      QuicServerId::ParseFromHostPortString(authority_it->second);
+  if (!server_id.has_value()) {
+    QUICHE_DVLOG(1) << "CONNECT request authority is malformed: "
+                    << authority_it->second;
+    return absl::nullopt;
+  }
+
+  return server_id;
 }
 
-bool ValidateAuthority(const ConnectTunnel::HostAndPort& authority,
-                       const absl::flat_hash_set<ConnectTunnel::HostAndPort>&
-                           acceptable_destinations) {
+bool ValidateAuthority(
+    const QuicServerId& authority,
+    const absl::flat_hash_set<QuicServerId>& acceptable_destinations) {
   if (acceptable_destinations.contains(authority)) {
     return true;
   }
 
   QUICHE_DVLOG(1) << "CONNECT request authority: "
-                  << absl::StrCat(authority.host, ":", authority.port)
+                  << authority.ToHostPortString()
                   << " is not an acceptable allow-listed destiation ";
   return false;
 }
 
 }  // namespace
 
-ConnectTunnel::HostAndPort::HostAndPort(std::string host, uint16_t port)
-    : host(std::move(host)), port(port) {}
-
-bool ConnectTunnel::HostAndPort::operator==(const HostAndPort& other) const {
-  return host == other.host && port == other.port;
-}
-
 ConnectTunnel::ConnectTunnel(
     QuicSimpleServerBackend::RequestHandler* client_stream_request_handler,
     SocketFactory* socket_factory,
-    absl::flat_hash_set<HostAndPort> acceptable_destinations)
+    absl::flat_hash_set<QuicServerId> acceptable_destinations)
     : acceptable_destinations_(std::move(acceptable_destinations)),
       socket_factory_(socket_factory),
       client_stream_request_handler_(client_stream_request_handler) {
@@ -158,9 +111,9 @@ ConnectTunnel::~ConnectTunnel() {
 void ConnectTunnel::OpenTunnel(const spdy::Http2HeaderBlock& request_headers) {
   QUICHE_DCHECK(!IsConnectedToDestination());
 
-  absl::optional<HostAndPort> authority =
+  absl::optional<QuicServerId> authority =
       ValidateHeadersAndGetAuthority(request_headers);
-  if (!authority) {
+  if (!authority.has_value()) {
     TerminateClientStream(
         "invalid request headers",
         QuicResetStreamError::FromIetf(QuicHttp3ErrorCode::MESSAGE_ERROR));
@@ -174,8 +127,8 @@ void ConnectTunnel::OpenTunnel(const spdy::Http2HeaderBlock& request_headers) {
     return;
   }
 
-  QuicSocketAddress address = tools::LookupAddress(
-      AF_UNSPEC, authority->host, absl::StrCat(authority->port));
+  QuicSocketAddress address =
+      tools::LookupAddress(AF_UNSPEC, authority.value());
   if (!address.IsInitialized()) {
     TerminateClientStream("host resolution error");
     return;
@@ -198,7 +151,7 @@ void ConnectTunnel::OpenTunnel(const spdy::Http2HeaderBlock& request_headers) {
 
   QUICHE_DVLOG(1) << "CONNECT tunnel opened from stream "
                   << client_stream_request_handler_->stream_id() << " to "
-                  << authority->host << ":" << authority->port;
+                  << authority.value().ToHostPortString();
 
   SendConnectResponse();
   BeginAsyncReadFromDestination();

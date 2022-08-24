@@ -9,15 +9,27 @@
 
 #include "quiche/quic/platform/api/quic_socket_address.h"
 
-namespace quic::tools {
+namespace quic {
+
+class QuicServerId;
+
+namespace tools {
 
 quic::QuicSocketAddress LookupAddress(int address_family_for_lookup,
                                       std::string host, std::string port);
+
+quic::QuicSocketAddress LookupAddress(int address_family_for_lookup,
+                                      const QuicServerId& server_id);
 
 inline QuicSocketAddress LookupAddress(std::string host, std::string port) {
   return LookupAddress(0, host, port);
 }
 
-}  // namespace quic::tools
+inline QuicSocketAddress LookupAddress(const QuicServerId& server_id) {
+  return LookupAddress(0, server_id);
+}
+
+}  // namespace tools
+}  // namespace quic
 
 #endif  // QUICHE_QUIC_TOOLS_QUIC_NAME_LOOKUP_H_

@@ -17,6 +17,7 @@
 #include "quiche/quic/core/io/socket_factory.h"
 #include "quiche/quic/core/io/stream_client_socket.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/spdy/core/http2_header_block.h"
@@ -26,26 +27,12 @@ namespace quic {
 // Manages a single connection tunneled over a CONNECT proxy.
 class ConnectTunnel : public StreamClientSocket::AsyncVisitor {
  public:
-  struct HostAndPort {
-    HostAndPort(std::string host, uint16_t port);
-
-    bool operator==(const HostAndPort& other) const;
-
-    template <typename H>
-    friend H AbslHashValue(H h, const HostAndPort& host_and_port) {
-      return H::combine(std::move(h), host_and_port.host, host_and_port.port);
-    }
-
-    std::string host;
-    uint16_t port;
-  };
-
   // `client_stream_request_handler` and `socket_factory` must both outlive the
   // created ConnectTunnel.
   ConnectTunnel(
       QuicSimpleServerBackend::RequestHandler* client_stream_request_handler,
       SocketFactory* socket_factory,
-      absl::flat_hash_set<HostAndPort> acceptable_destinations);
+      absl::flat_hash_set<QuicServerId> acceptable_destinations);
   ~ConnectTunnel();
   ConnectTunnel(const ConnectTunnel&) = delete;
   ConnectTunnel& operator=(const ConnectTunnel&) = delete;
@@ -85,7 +72,7 @@ class ConnectTunnel : public StreamClientSocket::AsyncVisitor {
       QuicResetStreamError error_code =
           QuicResetStreamError::FromIetf(QuicHttp3ErrorCode::CONNECT_ERROR));
 
-  const absl::flat_hash_set<HostAndPort> acceptable_destinations_;
+  const absl::flat_hash_set<QuicServerId> acceptable_destinations_;
   SocketFactory* const socket_factory_;
 
   // Null when client stream closed.

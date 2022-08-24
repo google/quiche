@@ -13,7 +13,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "quiche/quic/core/io/socket_factory.h"
-#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/tools/connect_tunnel.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 
@@ -25,7 +25,7 @@ class ConnectServerBackend : public QuicSimpleServerBackend {
  public:
   ConnectServerBackend(
       std::unique_ptr<QuicSimpleServerBackend> non_connect_backend,
-      absl::flat_hash_set<ConnectTunnel::HostAndPort> acceptable_destinations);
+      absl::flat_hash_set<QuicServerId> acceptable_destinations);
 
   ConnectServerBackend(const ConnectServerBackend&) = delete;
   ConnectServerBackend& operator=(const ConnectServerBackend&) = delete;
@@ -48,8 +48,7 @@ class ConnectServerBackend : public QuicSimpleServerBackend {
 
  private:
   std::unique_ptr<QuicSimpleServerBackend> non_connect_backend_;
-  const absl::flat_hash_set<ConnectTunnel::HostAndPort>
-      acceptable_destinations_;
+  const absl::flat_hash_set<QuicServerId> acceptable_destinations_;
 
   SocketFactory* socket_factory_;  // unowned
   absl::flat_hash_map<QuicStreamId, std::unique_ptr<ConnectTunnel>> tunnels_;

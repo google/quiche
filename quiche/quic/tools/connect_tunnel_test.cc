@@ -107,12 +107,13 @@ class ConnectTunnelTest : public quiche::test::QuicheTest {
   NiceMock<MockSocketFactory> socket_factory_;
   StrictMock<MockSocket>* socket_;
 
-  ConnectTunnel tunnel_{&request_handler_,
-                        &socket_factory_,
-                        /*acceptable_destinations=*/
-                        {{std::string(kAcceptableDestination), kAcceptablePort},
-                         {TestLoopback4().ToString(), kAcceptablePort},
-                         {TestLoopback6().ToString(), kAcceptablePort}}};
+  ConnectTunnel tunnel_{
+      &request_handler_,
+      &socket_factory_,
+      /*acceptable_destinations=*/
+      {{std::string(kAcceptableDestination), kAcceptablePort},
+       {TestLoopback4().ToString(), kAcceptablePort},
+       {absl::StrCat("[", TestLoopback6().ToString(), "]"), kAcceptablePort}}};
 };
 
 TEST_F(ConnectTunnelTest, OpenTunnel) {

@@ -9,6 +9,8 @@
 #include <string>
 
 #include "absl/hash/hash.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -17,10 +19,15 @@ namespace quic {
 // privacy_mode.
 class QUIC_EXPORT_PRIVATE QuicServerId {
  public:
+  // Attempts to parse a QuicServerId from a "host:port" string. Returns nullopt
+  // if input could not be parsed. Requires input to contain both host and port
+  // and no other components of a URL authority.
+  static absl::optional<QuicServerId> ParseFromHostPortString(
+      absl::string_view host_port_string);
+
   QuicServerId();
-  QuicServerId(const std::string& host, uint16_t port);
-  QuicServerId(const std::string& host, uint16_t port,
-               bool privacy_mode_enabled);
+  QuicServerId(std::string host, uint16_t port);
+  QuicServerId(std::string host, uint16_t port, bool privacy_mode_enabled);
   ~QuicServerId();
 
   // Needed to be an element of an ordered container.
@@ -35,19 +42,31 @@ class QUIC_EXPORT_PRIVATE QuicServerId {
 
   bool privacy_mode_enabled() const { return privacy_mode_enabled_; }
 
+  // Returns a "host:port" representation. IPv6 literal hosts will always be
+  // bracketed in result.
+  std::string ToHostPortString() const;
+
+  // If host is an IPv6 literal surrounded by [], returns the substring without
+  // []. Otherwise, returns host as is.
+  absl::string_view GetHostWithoutIpv6Brackets() const;
+
+  // If host is an IPv6 literal without surrounding [], returns host wrapped in
+  // []. Otherwise, returns host as is.
+  std::string GetHostWithIpv6Brackets() const;
+
+  template <typename H>
+  friend H AbslHashValue(H h, const QuicServerId& server_id) {
+    return H::combine(std::move(h), server_id.host(), server_id.port(),
+                      server_id.privacy_mode_enabled());
+  }
+
  private:
   std::string host_;
   uint16_t port_;
   bool privacy_mode_enabled_;
 };
 
-class QUIC_EXPORT_PRIVATE QuicServerIdHash {
- public:
-  size_t operator()(const quic::QuicServerId& server_id) const noexcept {
-    return absl::HashOf(server_id.host(), server_id.port(),
-                        server_id.privacy_mode_enabled());
-  }
-};
+using QuicServerIdHash = absl::Hash<QuicServerId>;
 
 }  // namespace quic
 
