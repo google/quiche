@@ -1227,14 +1227,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     context_.bug_listener.swap(bug_listener);
   }
 
-  absl::optional<QuicWallTime> quic_bug_10511_43_timestamp() const {
-    return quic_bug_10511_43_timestamp_;
-  }
-
-  const std::string& quic_bug_10511_43_error_detail() const {
-    return quic_bug_10511_43_error_detail_;
-  }
-
   // Ensures the network blackhole delay is longer than path degrading delay.
   static QuicTime::Delta CalculateNetworkBlackholeDelay(
       QuicTime::Delta blackhole_delay, QuicTime::Delta path_degrading_delay,
@@ -2243,11 +2235,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   std::unique_ptr<BufferedPacket> first_serialized_one_rtt_packet_;
 
   RetransmittableOnWireBehavior retransmittable_on_wire_behavior_ = DEFAULT;
-
-  // TODO(b/205023946) Debug-only fields, to be deprecated after the bug is
-  // fixed.
-  absl::optional<QuicWallTime> quic_bug_10511_43_timestamp_;
-  std::string quic_bug_10511_43_error_detail_;
 
   bool only_send_probing_frames_on_alternative_path_ =
       GetQuicReloadableFlag(quic_not_bundle_ack_on_alternative_path);

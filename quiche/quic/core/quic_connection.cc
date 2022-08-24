@@ -7123,9 +7123,7 @@ void QuicConnection::ReversePathValidationResultDelegate::
                                  context->peer_address())) {
     QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 3, 6);
     if (connection_->active_effective_peer_migration_type_ == NO_CHANGE) {
-      connection_->quic_bug_10511_43_timestamp_ =
-          connection_->clock_->WallNow();
-      connection_->quic_bug_10511_43_error_detail_ = absl::StrCat(
+      std::string error_detail = absl::StrCat(
           "Reverse path validation on default path from ",
           context->self_address().ToString(), " to ",
           context->peer_address().ToString(),
@@ -7144,8 +7142,7 @@ void QuicConnection::ReversePathValidationResultDelegate::
           connection_->last_received_packet_info_.header.packet_number
               .ToString(),
           " Connection is connected: ", connection_->connected_);
-      QUIC_BUG(quic_bug_10511_43)
-          << connection_->quic_bug_10511_43_error_detail_;
+      QUIC_BUG(quic_bug_10511_43) << error_detail;
     }
     connection_->OnEffectivePeerMigrationValidated();
   } else {
