@@ -6,24 +6,24 @@
 #define QUICHE_QUIC_QBONE_QBONE_CLIENT_H_
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/qbone/qbone_client_interface.h"
 #include "quiche/quic/qbone/qbone_client_session.h"
 #include "quiche/quic/qbone/qbone_packet_writer.h"
 #include "quiche/quic/tools/quic_client_base.h"
-#include "quiche/quic/tools/quic_client_epoll_network_helper.h"
 
 namespace quic {
-// A QboneClient encapsulates connecting to a server via an epoll server
+// A QboneClient encapsulates connecting to a server via an event loop
 // and setting up a QBONE tunnel. See the QboneTestClient in qbone_client_test
 // for usage.
 class QboneClient : public QuicClientBase, public QboneClientInterface {
  public:
-  // Note that the epoll server, QBONE writer, and handler are owned
+  // Note that the event loop, QBONE writer, and handler are owned
   // by the caller.
   QboneClient(QuicSocketAddress server_address, const QuicServerId& server_id,
               const ParsedQuicVersionVector& supported_versions,
               QuicSession::Visitor* session_owner, const QuicConfig& config,
-              QuicEpollServer* epoll_server,
+              QuicEventLoop* event_loop,
               std::unique_ptr<ProofVerifier> proof_verifier,
               QbonePacketWriter* qbone_writer,
               QboneClientControlStream::Handler* qbone_handler);

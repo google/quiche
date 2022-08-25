@@ -6,19 +6,19 @@
 
 #include "quiche/quic/qbone/qbone_client.h"
 
+#include <memory>
+
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/io/quic_default_event_loop.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_default_connection_helper.h"
-#include "quiche/quic/core/quic_default_packet_writer.h"
 #include "quiche/quic/core/quic_dispatcher.h"
-#include "quiche/quic/core/quic_epoll_alarm_factory.h"
-#include "quiche/quic/core/quic_epoll_connection_helper.h"
-#include "quiche/quic/core/quic_packet_reader.h"
 #include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/platform/api/quic_test_loopback.h"
-#include "quiche/quic/qbone/qbone_constants.h"
 #include "quiche/quic/qbone/qbone_packet_processor_test_tools.h"
 #include "quiche/quic/qbone/qbone_server_session.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
@@ -158,10 +158,10 @@ class QboneTestClient : public QboneClient {
   QboneTestClient(QuicSocketAddress server_address,
                   const QuicServerId& server_id,
                   const ParsedQuicVersionVector& supported_versions,
-                  QuicEpollServer* epoll_server,
+                  QuicEventLoop* event_loop,
                   std::unique_ptr<ProofVerifier> proof_verifier)
       : QboneClient(server_address, server_id, supported_versions,
-                    /*session_owner=*/nullptr, QuicConfig(), epoll_server,
+                    /*session_owner=*/nullptr, QuicConfig(), event_loop,
                     std::move(proof_verifier), &qbone_writer_, nullptr) {}
 
   ~QboneTestClient() override {}
@@ -215,11 +215,12 @@ TEST_P(QboneClientTest, SendDataFromClient) {
       QuicSocketAddress(server_address.host(), server_thread.GetPort());
   server_thread.Start();
 
-  QuicEpollServer epoll_server;
+  std::unique_ptr<QuicEventLoop> event_loop =
+      GetDefaultEventLoop()->Create(quic::QuicDefaultClock::Get());
   QboneTestClient client(
       server_address,
       QuicServerId("test.example.com", server_address.port(), false),
-      ParsedQuicVersionVector{GetParam()}, &epoll_server,
+      ParsedQuicVersionVector{GetParam()}, event_loop.get(),
       crypto_test_utils::ProofVerifierForTesting());
   ASSERT_TRUE(client.Initialize());
   ASSERT_TRUE(client.Connect());

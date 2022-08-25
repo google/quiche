@@ -7,19 +7,17 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/quic_epoll_alarm_factory.h"
-#include "quiche/quic/core/quic_epoll_connection_helper.h"
-#include "quiche/quic/platform/api/quic_epoll.h"
-#include "quiche/quic/platform/api/quic_exported_stats.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/quic_default_connection_helper.h"
 #include "quiche/quic/platform/api/quic_testvalue.h"
-#include "quiche/quic/qbone/qbone_stream.h"
+#include "quiche/quic/tools/quic_client_default_network_helper.h"
 
 namespace quic {
 namespace {
 std::unique_ptr<QuicClientBase::NetworkHelper> CreateNetworkHelper(
-    QuicEpollServer* epoll_server, QboneClient* client) {
+    QuicEventLoop* event_loop, QboneClient* client) {
   std::unique_ptr<QuicClientBase::NetworkHelper> helper =
-      std::make_unique<QuicClientEpollNetworkHelper>(epoll_server, client);
+      std::make_unique<QuicClientDefaultNetworkHelper>(event_loop, client);
   quic::AdjustTestValue("QboneClient/network_helper", &helper);
   return helper;
 }
@@ -29,17 +27,15 @@ QboneClient::QboneClient(QuicSocketAddress server_address,
                          const QuicServerId& server_id,
                          const ParsedQuicVersionVector& supported_versions,
                          QuicSession::Visitor* session_owner,
-                         const QuicConfig& config,
-                         QuicEpollServer* epoll_server,
+                         const QuicConfig& config, QuicEventLoop* event_loop,
                          std::unique_ptr<ProofVerifier> proof_verifier,
                          QbonePacketWriter* qbone_writer,
                          QboneClientControlStream::Handler* qbone_handler)
-    : QuicClientBase(
-          server_id, supported_versions, config,
-          new QuicEpollConnectionHelper(epoll_server, QuicAllocator::SIMPLE),
-          new QuicEpollAlarmFactory(epoll_server),
-          CreateNetworkHelper(epoll_server, this), std::move(proof_verifier),
-          nullptr),
+    : QuicClientBase(server_id, supported_versions, config,
+                     new QuicDefaultConnectionHelper(),
+                     event_loop->CreateAlarmFactory().release(),
+                     CreateNetworkHelper(event_loop, this),
+                     std::move(proof_verifier), nullptr),
       qbone_writer_(qbone_writer),
       qbone_handler_(qbone_handler),
       session_owner_(session_owner) {
