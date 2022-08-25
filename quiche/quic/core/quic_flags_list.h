@@ -27,6 +27,8 @@ QUIC_FLAG(quic_restart_flag_quic_disable_legacy_version_encapsulation, true)
 QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(quic_restart_flag_quic_support_release_time_for_gso, false)
+// If true, QuicSpdyStream::OnDataAvailable will check if connection is still connected after HttpDecoder::ProcessInput.
+QUIC_FLAG(quic_reloadable_flag_quic_spdy_stream_check_connected_after_process_input, true)
 // If true, account added padding when coalesced packets get buffered.
 QUIC_FLAG(quic_reloadable_flag_quic_fix_bytes_accounting_for_buffered_coalesced_packets, true)
 // If true, ack frequency frame can be sent from server to client.
