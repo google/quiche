@@ -406,6 +406,12 @@ QuicIdleNetworkDetector& QuicConnectionPeer::GetIdleNetworkDetector(
 }
 
 // static
+QuicAlarm* QuicConnectionPeer::GetMultiPortProbingAlarm(
+    QuicConnection* connection) {
+  return connection->multi_port_probing_alarm_.get();
+}
+
+// static
 void QuicConnectionPeer::SetServerConnectionId(
     QuicConnection* connection, const QuicConnectionId& server_connection_id) {
   connection->default_path_.server_connection_id = server_connection_id;

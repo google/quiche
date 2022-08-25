@@ -109,6 +109,10 @@ class QuicEndpoint : public QuicEndpointBase,
     return false;
   }
   void OnBandwidthUpdateTimeout() override {}
+  std::unique_ptr<QuicPathValidationContext> CreateContextForMultiPortPath()
+      override {
+    return nullptr;
+  }
 
   // End QuicConnectionVisitorInterface implementation.
 

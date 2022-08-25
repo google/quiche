@@ -48,6 +48,7 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {
   os << " blocked_frames_sent: " << s.blocked_frames_sent;
   os << " num_connectivity_probing_received: "
      << s.num_connectivity_probing_received;
+  os << " num_path_response_received: " << s.num_path_response_received;
   os << " retry_packet_processed: "
      << (s.retry_packet_processed ? "yes" : "no");
   os << " num_coalesced_packets_received: " << s.num_coalesced_packets_received;

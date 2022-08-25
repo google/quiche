@@ -26,6 +26,24 @@ class ProofVerifier;
 class QuicServerId;
 class SessionCache;
 
+// A path context which owns the writer.
+class QUIC_EXPORT_PRIVATE PathMigrationContext
+    : public QuicPathValidationContext {
+ public:
+  PathMigrationContext(std::unique_ptr<QuicPacketWriter> writer,
+                       const QuicSocketAddress& self_address,
+                       const QuicSocketAddress& peer_address)
+      : QuicPathValidationContext(self_address, peer_address),
+        alternative_writer_(std::move(writer)) {}
+
+  QuicPacketWriter* WriterToUse() override { return alternative_writer_.get(); }
+
+  QuicPacketWriter* ReleaseWriter() { return alternative_writer_.release(); }
+
+ private:
+  std::unique_ptr<QuicPacketWriter> alternative_writer_;
+};
+
 // QuicClientBase handles establishing a connection to the passed in
 // server id, including ensuring that it supports the passed in versions
 // and config.

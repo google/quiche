@@ -501,6 +501,8 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(void, BeforeConnectionCloseSent, (), (override));
   MOCK_METHOD(bool, ValidateToken, (absl::string_view), (override));
   MOCK_METHOD(bool, MaybeSendAddressToken, (), (override));
+  MOCK_METHOD(std::unique_ptr<QuicPathValidationContext>,
+              CreateContextForMultiPortPath, (), (override));
 
   bool IsKnownServerAddress(
       const QuicSocketAddress& /*address*/) const override {

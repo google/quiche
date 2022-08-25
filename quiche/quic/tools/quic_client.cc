@@ -96,8 +96,9 @@ std::unique_ptr<QuicSession> QuicClient::CreateQuicClientSession(
     const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection) {
   return std::make_unique<QuicSimpleClientSession>(
-      *config(), supported_versions, connection, server_id(), crypto_config(),
-      push_promise_index(), drop_response_body(), enable_web_transport());
+      *config(), supported_versions, connection, network_helper(), server_id(),
+      crypto_config(), push_promise_index(), drop_response_body(),
+      enable_web_transport());
 }
 
 QuicClientEpollNetworkHelper* QuicClient::epoll_network_helper() {

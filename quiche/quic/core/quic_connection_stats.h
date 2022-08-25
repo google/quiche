@@ -143,6 +143,9 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // Number of connectivity probing packets received by this connection.
   uint64_t num_connectivity_probing_received = 0;
 
+  // Number of PATH_RESPONSE frame received by this connection.
+  uint64_t num_path_response_received = 0;
+
   // Whether a RETRY packet was successfully processed.
   bool retry_packet_processed = false;
 

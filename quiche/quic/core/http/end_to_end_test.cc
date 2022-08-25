@@ -5402,6 +5402,49 @@ TEST_P(EndToEndTest, ClientValidateNewNetwork) {
   server_thread_->Resume();
 }
 
+TEST_P(EndToEndTest, ClientMultiPortConnection) {
+  client_extra_copts_.push_back(kMPQC);
+  ASSERT_TRUE(Initialize());
+  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+    return;
+  }
+  client_.reset(EndToEndTest::CreateQuicClient(nullptr));
+  QuicConnection* client_connection = GetClientConnection();
+  // Increase the probing frequency to speed up this test.
+  client_connection->SetMultiPortProbingInterval(
+      QuicTime::Delta::FromMilliseconds(100));
+  SendSynchronousFooRequestAndCheckResponse();
+  EXPECT_TRUE(client_->WaitUntil(1000, [&]() {
+    return 1u == client_connection->GetStats().num_path_response_received;
+  }));
+  // Verify that the alternative path keeps sending probes periodically.
+  EXPECT_TRUE(client_->WaitUntil(1000, [&]() {
+    return 2u == client_connection->GetStats().num_path_response_received;
+  }));
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  // Verify that no migration has happened.
+  if (server_connection != nullptr) {
+    EXPECT_EQ(0u, server_connection->GetStats()
+                      .num_peer_migration_to_proactively_validated_address);
+  }
+  server_thread_->Resume();
+
+  // This will cause the next periodic probing to fail.
+  server_writer_->set_fake_packet_loss_percentage(100);
+  EXPECT_TRUE(client_->WaitUntil(
+      1000, [&]() { return client_->client()->HasPendingPathValidation(); }));
+  // Now wait for path validation to timeout.
+  EXPECT_TRUE(client_->WaitUntil(
+      2000, [&]() { return !client_->client()->HasPendingPathValidation(); }));
+  server_writer_->set_fake_packet_loss_percentage(0);
+  EXPECT_TRUE(client_->WaitUntil(1000, [&]() {
+    return 3u == client_connection->GetStats().num_path_response_received;
+  }));
+  // Verify that the previous path was retired.
+  EXPECT_EQ(1u, client_connection->GetStats().num_retire_connection_id_sent);
+}
+
 TEST_P(EndToEndPacketReorderingTest, ReorderedPathChallenge) {
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames()) {

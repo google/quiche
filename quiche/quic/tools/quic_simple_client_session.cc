@@ -10,22 +10,13 @@ namespace quic {
 
 QuicSimpleClientSession::QuicSimpleClientSession(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
-    QuicConnection* connection, const QuicServerId& server_id,
-    QuicCryptoClientConfig* crypto_config,
-    QuicClientPushPromiseIndex* push_promise_index, bool drop_response_body)
-    : QuicSimpleClientSession(config, supported_versions, connection, server_id,
-                              crypto_config, push_promise_index,
-                              drop_response_body,
-                              /*enable_web_transport=*/false) {}
-
-QuicSimpleClientSession::QuicSimpleClientSession(
-    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
-    QuicConnection* connection, const QuicServerId& server_id,
-    QuicCryptoClientConfig* crypto_config,
+    QuicConnection* connection, QuicClientBase::NetworkHelper* network_helper,
+    const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
     QuicClientPushPromiseIndex* push_promise_index, bool drop_response_body,
     bool enable_web_transport)
     : QuicSpdyClientSession(config, supported_versions, connection, server_id,
                             crypto_config, push_promise_index),
+      network_helper_(network_helper),
       drop_response_body_(drop_response_body),
       enable_web_transport_(enable_web_transport) {}
 
@@ -43,6 +34,26 @@ bool QuicSimpleClientSession::ShouldNegotiateWebTransport() {
 HttpDatagramSupport QuicSimpleClientSession::LocalHttpDatagramSupport() {
   return enable_web_transport_ ? HttpDatagramSupport::kDraft04
                                : HttpDatagramSupport::kNone;
+}
+
+std::unique_ptr<QuicPathValidationContext>
+QuicSimpleClientSession::CreateContextForMultiPortPath() {
+  if (!network_helper_ || !connection()->multi_port_enabled()) {
+    return nullptr;
+  }
+  auto self_address = connection()->self_address();
+  auto server_address = connection()->peer_address();
+  if (!network_helper_->CreateUDPSocketAndBind(
+          server_address, self_address.host(), self_address.port() + 1)) {
+    return nullptr;
+  }
+  QuicPacketWriter* writer = network_helper_->CreateQuicPacketWriter();
+  if (writer == nullptr) {
+    return nullptr;
+  }
+  return std::make_unique<PathMigrationContext>(
+      std::unique_ptr<QuicPacketWriter>(writer),
+      network_helper_->GetLatestClientAddress(), peer_address());
 }
 
 }  // namespace quic

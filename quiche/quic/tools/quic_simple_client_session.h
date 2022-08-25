@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_TOOLS_QUIC_SIMPLE_CLIENT_SESSION_H_
 
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
+#include "quiche/quic/tools/quic_client_base.h"
 #include "quiche/quic/tools/quic_simple_client_stream.h"
 
 namespace quic {
@@ -15,13 +16,7 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
   QuicSimpleClientSession(const QuicConfig& config,
                           const ParsedQuicVersionVector& supported_versions,
                           QuicConnection* connection,
-                          const QuicServerId& server_id,
-                          QuicCryptoClientConfig* crypto_config,
-                          QuicClientPushPromiseIndex* push_promise_index,
-                          bool drop_response_body);
-  QuicSimpleClientSession(const QuicConfig& config,
-                          const ParsedQuicVersionVector& supported_versions,
-                          QuicConnection* connection,
+                          QuicClientBase::NetworkHelper* network_helper,
                           const QuicServerId& server_id,
                           QuicCryptoClientConfig* crypto_config,
                           QuicClientPushPromiseIndex* push_promise_index,
@@ -30,8 +25,11 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
   std::unique_ptr<QuicSpdyClientStream> CreateClientStream() override;
   bool ShouldNegotiateWebTransport() override;
   HttpDatagramSupport LocalHttpDatagramSupport() override;
+  std::unique_ptr<QuicPathValidationContext> CreateContextForMultiPortPath()
+      override;
 
  private:
+  QuicClientBase::NetworkHelper* network_helper_;
   const bool drop_response_body_;
   const bool enable_web_transport_;
 };

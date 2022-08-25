@@ -178,6 +178,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return false;
   }
   void OnBandwidthUpdateTimeout() override {}
+  std::unique_ptr<QuicPathValidationContext> CreateContextForMultiPortPath()
+      override {
+    return nullptr;
+  }
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,

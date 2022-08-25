@@ -439,6 +439,8 @@ const QuicTag kNRES = TAG('N', 'R', 'E', 'S');   // No resumption
 const QuicTag kINVC = TAG('I', 'N', 'V', 'C');   // Send connection close for
                                                  // INVALID_VERSION
 
+const QuicTag kMPQC = TAG('M', 'P', 'Q', 'C');   // Multi-port QUIC connection
+
 // Client Hints triggers.
 const QuicTag kGWCH = TAG('G', 'W', 'C', 'H');
 const QuicTag kYTCH = TAG('Y', 'T', 'C', 'H');

@@ -183,6 +183,17 @@ class DiscardZeroRttDecryptionKeysAlarmDelegate
   }
 };
 
+class MultiPortProbingAlarmDelegate : public QuicConnectionAlarmDelegate {
+ public:
+  using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
+
+  void OnAlarm() override {
+    QUICHE_DCHECK(connection_->connected());
+    QUIC_DLOG(INFO) << "Alternative path probing alarm fired";
+    connection_->ProbeMultiPortPath();
+  }
+};
+
 // When the clearer goes out of scope, the coalesced packet gets cleared.
 class ScopedCoalescedPacketClearer {
  public:
@@ -298,6 +309,8 @@ QuicConnection::QuicConnection(
       discard_zero_rtt_decryption_keys_alarm_(alarm_factory_->CreateAlarm(
           arena_.New<DiscardZeroRttDecryptionKeysAlarmDelegate>(this),
           &arena_)),
+      multi_port_probing_alarm_(alarm_factory_->CreateAlarm(
+          arena_.New<MultiPortProbingAlarmDelegate>(this), &arena_)),
       visitor_(nullptr),
       debug_visitor_(nullptr),
       packet_creator_(server_connection_id, &framer_, random_generator_, this),
@@ -328,7 +341,8 @@ QuicConnection::QuicConnection(
                              alarm_factory_, &context_),
       path_validator_(alarm_factory_, &arena_, this, random_generator_, clock_,
                       &context_),
-      ping_manager_(perspective, this, &arena_, alarm_factory_, &context_) {
+      ping_manager_(perspective, this, &arena_, alarm_factory_, &context_),
+      multi_port_probing_interval_(kDefaultMultiPortProbingInterval) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
 
@@ -679,6 +693,10 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (supports_release_time_) {
     UpdateReleaseTimeIntoFuture();
   }
+
+  multi_port_enabled_ =
+      connection_migration_use_new_cid_ &&
+      config.HasClientSentConnectionOption(kMPQC, perspective_);
 }
 
 void QuicConnection::EnableLegacyVersionEncapsulation(
@@ -1800,6 +1818,7 @@ bool QuicConnection::OnPathResponseFrame(const QuicPathResponseFrame& frame) {
       << "Processing PATH_RESPONSE frame when connection is closed. Received "
          "packet info: "
       << last_received_packet_info_;
+  ++stats_.num_path_response_received;
   if (!UpdatePacketContent(PATH_RESPONSE_FRAME)) {
     return false;
   }
@@ -2021,7 +2040,14 @@ bool QuicConnection::OnNewConnectionIdFrame(
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnNewConnectionIdFrame(frame);
   }
-  return OnNewConnectionIdFrameInner(frame);
+
+  if (!OnNewConnectionIdFrameInner(frame)) {
+    return false;
+  }
+  if (perspective_ == Perspective::IS_CLIENT && multi_port_enabled_) {
+    MaybeCreateMultiPortPath();
+  }
+  return true;
 }
 
 bool QuicConnection::OnRetireConnectionIdFrame(
@@ -4058,6 +4084,20 @@ void QuicConnection::OnHandshakeComplete() {
   // Re-arm ack alarm.
   ack_alarm_->Update(uber_received_packet_manager_.GetEarliestAckTimeout(),
                      kAlarmGranularity);
+}
+
+void QuicConnection::MaybeCreateMultiPortPath() {
+  QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
+  auto path_context = visitor_->CreateContextForMultiPortPath();
+  if (!path_context || path_validator_.HasPendingPathValidation()) {
+    return;
+  }
+  auto multi_port_validation_result_delegate =
+      std::make_unique<MultiPortPathValidationResultDelegate>(this);
+  multi_port_probing_alarm_->Cancel();
+  multi_port_path_context_ = nullptr;
+  ValidatePath(std::move(path_context),
+               std::move(multi_port_validation_result_delegate));
 }
 
 void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
@@ -7099,6 +7139,47 @@ bool QuicConnection::IsReceivedPeerAddressValidated() const {
           alternative_path_.validated) ||
          (default_path_.validated && default_path_.peer_address.host() ==
                                          current_effective_peer_address.host());
+}
+
+void QuicConnection::OnMultiPortPathProbingSuccess(
+    std::unique_ptr<QuicPathValidationContext> context) {
+  multi_port_path_context_ = std::move(context);
+  multi_port_probing_alarm_->Set(clock_->ApproximateNow() +
+                                 multi_port_probing_interval_);
+}
+
+void QuicConnection::ProbeMultiPortPath() {
+  if (!connected_ || path_validator_.HasPendingPathValidation() ||
+      !multi_port_path_context_ ||
+      alternative_path_.self_address !=
+          multi_port_path_context_->self_address() ||
+      alternative_path_.peer_address !=
+          multi_port_path_context_->peer_address()) {
+    return;
+  }
+  auto multi_port_validation_result_delegate =
+      std::make_unique<MultiPortPathValidationResultDelegate>(this);
+  path_validator_.StartPathValidation(
+      std::move(multi_port_path_context_),
+      std::move(multi_port_validation_result_delegate));
+}
+
+QuicConnection::MultiPortPathValidationResultDelegate::
+    MultiPortPathValidationResultDelegate(QuicConnection* connection)
+    : connection_(connection) {
+  QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, connection->perspective());
+}
+
+void QuicConnection::MultiPortPathValidationResultDelegate::
+    OnPathValidationSuccess(std::unique_ptr<QuicPathValidationContext> context,
+                            QuicTime /*start_time*/) {
+  connection_->OnMultiPortPathProbingSuccess(std::move(context));
+}
+
+void QuicConnection::MultiPortPathValidationResultDelegate::
+    OnPathValidationFailure(
+        std::unique_ptr<QuicPathValidationContext> /*context*/) {
+  connection_->OnPathValidationFailureAtClient();
 }
 
 QuicConnection::ReversePathValidationResultDelegate::

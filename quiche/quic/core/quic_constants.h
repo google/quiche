@@ -321,6 +321,9 @@ QUIC_EXPORT_PRIVATE extern const char* const kEPIDGoogleFrontEnd0;
 
 inline constexpr uint64_t kHttpDatagramStreamIdDivisor = 4;
 
+inline constexpr QuicTime::Delta kDefaultMultiPortProbingInterval =
+    QuicTime::Delta::FromSeconds(3);
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_CONSTANTS_H_
