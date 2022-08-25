@@ -16,8 +16,6 @@
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/platform/api/quic_test_loopback.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
-#include "quiche/quic/test_tools/quic_client_peer.h"
-#include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
 namespace test {
@@ -117,15 +115,19 @@ TEST_F(QuicClientTest, CreateAndCleanUpUDPSockets) {
   EXPECT_EQ(number_of_open_fds + 1, NumOpenSocketFDs());
 
   // Create more UDP sockets.
-  EXPECT_TRUE(QuicClientPeer::CreateUDPSocketAndBind(client.get()));
+  EXPECT_TRUE(client->network_helper()->CreateUDPSocketAndBind(
+      client->server_address(), client->bind_to_address(),
+      client->local_port()));
   EXPECT_EQ(number_of_open_fds + 2, NumOpenSocketFDs());
-  EXPECT_TRUE(QuicClientPeer::CreateUDPSocketAndBind(client.get()));
+  EXPECT_TRUE(client->network_helper()->CreateUDPSocketAndBind(
+      client->server_address(), client->bind_to_address(),
+      client->local_port()));
   EXPECT_EQ(number_of_open_fds + 3, NumOpenSocketFDs());
 
   // Clean up UDP sockets.
-  QuicClientPeer::CleanUpUDPSocket(client.get(), client->GetLatestFD());
+  client->epoll_network_helper()->CleanUpUDPSocket(client->GetLatestFD());
   EXPECT_EQ(number_of_open_fds + 2, NumOpenSocketFDs());
-  QuicClientPeer::CleanUpUDPSocket(client.get(), client->GetLatestFD());
+  client->epoll_network_helper()->CleanUpUDPSocket(client->GetLatestFD());
   EXPECT_EQ(number_of_open_fds + 1, NumOpenSocketFDs());
 }
 

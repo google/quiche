@@ -22,7 +22,6 @@
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/platform/api/quic_test_loopback.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
-#include "quiche/quic/test_tools/quic_client_peer.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {

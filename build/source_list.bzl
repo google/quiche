@@ -1026,7 +1026,6 @@ epoll_test_support_hdrs = [
     "epoll_server/platform/api/epoll_expect_bug.h",
     "epoll_server/platform/api/epoll_test.h",
     "quic/bindings/quic_libevent.h",
-    "quic/test_tools/quic_client_peer.h",
     "quic/test_tools/quic_mock_syscall_wrapper.h",
     "quic/test_tools/quic_server_peer.h",
     "quic/test_tools/quic_test_client.h",
@@ -1036,7 +1035,6 @@ epoll_test_support_hdrs = [
 epoll_test_support_srcs = [
     "epoll_server/fake_simple_epoll_server.cc",
     "quic/bindings/quic_libevent.cc",
-    "quic/test_tools/quic_client_peer.cc",
     "quic/test_tools/quic_mock_syscall_wrapper.cc",
     "quic/test_tools/quic_server_peer.cc",
     "quic/test_tools/quic_test_client.cc",

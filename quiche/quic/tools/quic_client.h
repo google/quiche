@@ -77,9 +77,6 @@ class QuicClient : public QuicSpdyClientBase {
 
   QuicClientEpollNetworkHelper* epoll_network_helper();
   const QuicClientEpollNetworkHelper* epoll_network_helper() const;
-
- private:
-  friend class test::QuicClientPeer;
 };
 
 }  // namespace quic
