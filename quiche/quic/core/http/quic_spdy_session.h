@@ -192,6 +192,14 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // This method will only be called for client sessions.
   virtual void OnAcceptChFrame(const AcceptChFrame& /*frame*/) {}
 
+  // Called when an HTTP/3 frame of unknown type has been received.
+  virtual void OnUnknownFrameStart(QuicStreamId /*stream_id*/,
+                                   uint64_t /*frame_type*/,
+                                   QuicByteCount /*header_length*/,
+                                   QuicByteCount /*payload_length*/) {}
+  virtual void OnUnknownFramePayload(QuicStreamId /*stream_id*/,
+                                     absl::string_view /*payload*/) {}
+
   // Sends contents of |iov| to h2_deframer_, returns number of bytes processed.
   size_t ProcessHeaderData(const struct iovec& iov);
 
