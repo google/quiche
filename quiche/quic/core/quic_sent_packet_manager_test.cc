@@ -2498,38 +2498,6 @@ TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelayDefaultPTO) {
   EXPECT_EQ(expected_delay, manager_.GetPathDegradingDelay());
 }
 
-TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelayUsing2PTO) {
-  if (GetQuicReloadableFlag(quic_remove_blackhole_detection_experiments)) {
-    return;
-  }
-  QuicConfig client_config;
-  QuicTagVector client_options;
-  client_options.push_back(kPDP2);
-  QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
-  client_config.SetClientConnectionOptions(client_options);
-  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
-  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
-  manager_.SetFromConfig(client_config);
-  QuicTime::Delta expected_delay = 2 * manager_.GetPtoDelay();
-  EXPECT_EQ(expected_delay, manager_.GetPathDegradingDelay());
-}
-
-TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelayUsing1PTO) {
-  if (GetQuicReloadableFlag(quic_remove_blackhole_detection_experiments)) {
-    return;
-  }
-  QuicConfig client_config;
-  QuicTagVector client_options;
-  client_options.push_back(kPDP1);
-  QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
-  client_config.SetClientConnectionOptions(client_options);
-  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
-  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
-  manager_.SetFromConfig(client_config);
-  QuicTime::Delta expected_delay = 1 * manager_.GetPtoDelay();
-  EXPECT_EQ(expected_delay, manager_.GetPathDegradingDelay());
-}
-
 TEST_F(QuicSentPacketManagerTest, ClientsIgnorePings) {
   QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
   QuicConfig client_config;

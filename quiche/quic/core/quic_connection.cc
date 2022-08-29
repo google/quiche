@@ -578,24 +578,6 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     if (config.HasClientSentConnectionOption(kNBHD, perspective_)) {
       blackhole_detection_disabled_ = true;
     }
-    if (!sent_packet_manager_.remove_blackhole_detection_experiments()) {
-      if (config.HasClientSentConnectionOption(k2RTO, perspective_)) {
-        QUIC_CODE_COUNT(quic_2rto_blackhole_detection);
-        num_rtos_for_blackhole_detection_ = 2;
-      }
-      if (config.HasClientSentConnectionOption(k3RTO, perspective_)) {
-        QUIC_CODE_COUNT(quic_3rto_blackhole_detection);
-        num_rtos_for_blackhole_detection_ = 3;
-      }
-      if (config.HasClientSentConnectionOption(k4RTO, perspective_)) {
-        QUIC_CODE_COUNT(quic_4rto_blackhole_detection);
-        num_rtos_for_blackhole_detection_ = 4;
-      }
-      if (config.HasClientSentConnectionOption(k6RTO, perspective_)) {
-        QUIC_CODE_COUNT(quic_6rto_blackhole_detection);
-        num_rtos_for_blackhole_detection_ = 6;
-      }
-    }
   }
 
   if (config.HasClientRequestedIndependentOption(kFIDT, perspective_)) {
@@ -6515,22 +6497,17 @@ QuicTime QuicConnection::GetNetworkBlackholeDeadline() const {
     return QuicTime::Zero();
   }
   QUICHE_DCHECK_LT(0u, num_rtos_for_blackhole_detection_);
-  if (sent_packet_manager_.remove_blackhole_detection_experiments()) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_remove_blackhole_detection_experiments);
-    const QuicTime::Delta blackhole_delay =
-        sent_packet_manager_.GetNetworkBlackholeDelay(
-            num_rtos_for_blackhole_detection_);
-    if (!ShouldDetectPathDegrading()) {
-      return clock_->ApproximateNow() + blackhole_delay;
-    }
-    return clock_->ApproximateNow() +
-           CalculateNetworkBlackholeDelay(
-               blackhole_delay, sent_packet_manager_.GetPathDegradingDelay(),
-               sent_packet_manager_.GetPtoDelay());
+
+  const QuicTime::Delta blackhole_delay =
+      sent_packet_manager_.GetNetworkBlackholeDelay(
+          num_rtos_for_blackhole_detection_);
+  if (!ShouldDetectPathDegrading()) {
+    return clock_->ApproximateNow() + blackhole_delay;
   }
   return clock_->ApproximateNow() +
-         sent_packet_manager_.GetNetworkBlackholeDelay(
-             num_rtos_for_blackhole_detection_);
+         CalculateNetworkBlackholeDelay(
+             blackhole_delay, sent_packet_manager_.GetPathDegradingDelay(),
+             sent_packet_manager_.GetPtoDelay());
 }
 
 // static
