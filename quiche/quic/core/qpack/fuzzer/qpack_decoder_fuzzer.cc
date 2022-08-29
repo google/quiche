@@ -116,8 +116,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       // Feed encoder stream data to QpackDecoder.
       case 0: {
         size_t fragment_size = provider.ConsumeIntegral<uint8_t>();
-        std::string data = provider.ConsumeRandomLengthString(fragment_size);
-        decoder.encoder_stream_receiver()->Decode(data);
+        std::string encoded_data =
+            provider.ConsumeRandomLengthString(fragment_size);
+        decoder.encoder_stream_receiver()->Decode(encoded_data);
 
         continue;
       }
@@ -152,8 +153,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         std::advance(it, distance);
 
         size_t fragment_size = provider.ConsumeIntegral<uint8_t>();
-        std::string data = provider.ConsumeRandomLengthString(fragment_size);
-        it->second.decoder->Decode(data);
+        std::string encoded_data =
+            provider.ConsumeRandomLengthString(fragment_size);
+        it->second.decoder->Decode(encoded_data);
 
         continue;
       }
@@ -169,15 +171,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
             0, reading_decoders.size() - 1);
         std::advance(it, distance);
 
-        QpackProgressiveDecoder* decoder = it->second.decoder.get();
+        QpackProgressiveDecoder* reading_decoder = it->second.decoder.get();
 
-        // Move DecoderAndHandler to |reading_decoders| first, because
+        // Move DecoderAndHandler to |processing_decoders| first, because
         // EndHeaderBlock() might synchronously call OnDecodingCompleted().
         QuicStreamId stream_id = it->first;
         processing_decoders.insert({stream_id, std::move(it->second)});
         reading_decoders.erase(it);
 
-        decoder->EndHeaderBlock();
+        reading_decoder->EndHeaderBlock();
 
         continue;
       }
