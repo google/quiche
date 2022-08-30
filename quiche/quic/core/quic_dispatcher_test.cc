@@ -1064,7 +1064,6 @@ TEST_P(QuicDispatcherTestAllVersions,
 }
 
 // TODO(b/243181134): re-enable those tests once they compile in Chromium.
-#if 0
 TEST_P(QuicDispatcherTestAllVersions, UsesConnectionIdGenerator) {
   SetQuicRestartFlag(quic_abstract_connection_id_generator, true);
   // Avoid multiple calls to MaybeReplaceConnectionId()
@@ -1083,10 +1082,10 @@ TEST_P(QuicDispatcherTestAllVersions, UsesConnectionIdGenerator) {
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(TestConnectionId(1), _, client_address,
                                 Eq(ExpectedAlpn()), _, _))
-      .WillOnce(Return(CreateSession(
+      .WillOnce(Return(ByMove(CreateSession(
           dispatcher_.get(), config_, TestConnectionId(1), client_address,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
-          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_)));
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   ProcessFirstFlight(client_address, TestConnectionId(1));
   // Generator changes connection ID.
   QuicConnectionId new_connection_id(
@@ -1096,10 +1095,10 @@ TEST_P(QuicDispatcherTestAllVersions, UsesConnectionIdGenerator) {
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(new_connection_id, _, client_address,
                                 Eq(ExpectedAlpn()), _, _))
-      .WillOnce(Return(CreateSession(
+      .WillOnce(Return(ByMove(CreateSession(
           dispatcher_.get(), config_, new_connection_id, client_address,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
-          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_)));
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   ProcessFirstFlight(client_address, TestConnectionId(2));
 }
 
@@ -1120,23 +1119,22 @@ TEST_P(QuicDispatcherTestAllVersions, DoesNotUseConnectionIdGenerator) {
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(TestConnectionId(1), _, client_address,
                                 Eq(ExpectedAlpn()), _, _))
-      .WillOnce(Return(CreateSession(
+      .WillOnce(Return(ByMove(CreateSession(
           dispatcher_.get(), config_, TestConnectionId(1), client_address,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
-          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_)));
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   ProcessFirstFlight(client_address, TestConnectionId(1));
   EXPECT_CALL(generator, MaybeReplaceConnectionId(TestConnectionId(2), _))
       .Times(0);
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(TestConnectionId(2), _, client_address,
                                 Eq(ExpectedAlpn()), _, _))
-      .WillOnce(Return(CreateSession(
+      .WillOnce(Return(ByMove(CreateSession(
           dispatcher_.get(), config_, TestConnectionId(2), client_address,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
-          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_)));
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   ProcessFirstFlight(client_address, TestConnectionId(2));
 }
-#endif
 
 // Makes sure nine-byte connection IDs are replaced by 8-byte ones.
 TEST_P(QuicDispatcherTestAllVersions, LongConnectionIdLengthReplaced) {
