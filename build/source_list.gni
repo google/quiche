@@ -1469,6 +1469,13 @@ load_balancer_srcs = [
     "src/quiche/quic/load_balancer/load_balancer_server_id_map_test.cc",
     "src/quiche/quic/load_balancer/load_balancer_server_id_test.cc",
 ]
+binary_http_hdrs = [
+    "src/quiche/binary_http/binary_http_message.h",
+]
+binary_http_srcs = [
+    "src/quiche/binary_http/binary_http_message.cc",
+    "src/quiche/binary_http/binary_http_message_test.cc",
+]
 qbone_hdrs = [
     "src/quiche/quic/qbone/bonnet/icmp_reachable.h",
     "src/quiche/quic/qbone/bonnet/icmp_reachable_interface.h",
