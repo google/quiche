@@ -23,6 +23,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_no_write_control_frame_upon_connection_close
 QUIC_FLAG(quic_restart_flag_quic_disable_legacy_version_encapsulation, true)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
+// If true, QuicConnectionContext will track the decrypted payload and the offset of the current frame, for debugging.
+QUIC_FLAG(quic_reloadable_flag_quic_add_process_packet_context, true)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(quic_restart_flag_quic_support_release_time_for_gso, false)
 // If true, QuicSpdyStream::OnDataAvailable will check if connection is still connected after HttpDecoder::ProcessInput.

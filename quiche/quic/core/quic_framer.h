@@ -1165,6 +1165,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // Indicates whether received RETRY packets should be dropped.
   bool drop_incoming_retry_packets_ = false;
 
+  const bool add_process_packet_context_ =
+      GetQuicReloadableFlag(quic_add_process_packet_context);
+
   // The length in bytes of the last packet number written to an IETF-framed
   // packet.
   size_t last_written_packet_number_length_;

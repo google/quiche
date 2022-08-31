@@ -61,6 +61,23 @@ class QUIC_EXPORT_PRIVATE QuicBugListener {
                          absl::string_view bug_message) = 0;
 };
 
+// QuicConnectionProcessPacketContext is a member of QuicConnectionContext that
+// contains information of the packet currently being processed by the owning
+// QuicConnection.
+struct QUIC_EXPORT_PRIVATE QuicConnectionProcessPacketContext final {
+  // If !empty(), the decrypted payload of the packet currently being processed.
+  absl::string_view decrypted_payload;
+
+  // The offset within |decrypted_payload|, if it's non-empty, that marks the
+  // start of the frame currently being processed.
+  // Should not be used when |decrypted_payload| is empty.
+  size_t current_frame_offset = 0;
+
+  // NOTE: This can be very expansive. If used in logs, make sure it is rate
+  // limited via QUIC_BUG etc.
+  std::string DebugString() const;
+};
+
 // QuicConnectionContext is a per-QuicConnection context that includes
 // facilities useable by any part of a QuicConnection. A QuicConnectionContext
 // is owned by a QuicConnection.
@@ -78,6 +95,9 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionContext final {
 
   std::unique_ptr<QuicConnectionTracer> tracer;
   std::unique_ptr<QuicBugListener> bug_listener;
+
+  // Information about the packet currently being processed.
+  QuicConnectionProcessPacketContext process_packet_context;
 };
 
 // QuicConnectionContextSwitcher is a RAII object used for maintaining the
