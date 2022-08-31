@@ -67,7 +67,6 @@
 #include "quiche/quic/test_tools/server_thread.h"
 #include "quiche/quic/test_tools/web_transport_test_tools.h"
 #include "quiche/quic/tools/quic_backend_response.h"
-#include "quiche/quic/tools/quic_client.h"
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
 #include "quiche/quic/tools/quic_server.h"
 #include "quiche/quic/tools/quic_simple_client_stream.h"
