@@ -106,7 +106,13 @@ size_t QuicSpdyStreamBodyManager::ReadBody(const struct iovec* iov,
 
     const size_t bytes_to_copy =
         std::min<size_t>(body.length(), dest_remaining);
-    memcpy(dest, body.data(), bytes_to_copy);
+
+    // According to Section 7.1.4 of the C11 standard (ISO/IEC 9899:2011), null
+    // pointers should not be passed to standard library functions.
+    if (bytes_to_copy > 0) {
+      memcpy(dest, body.data(), bytes_to_copy);
+    }
+
     bytes_to_consume += bytes_to_copy;
     *total_bytes_read += bytes_to_copy;
 
