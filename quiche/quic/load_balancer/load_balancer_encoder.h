@@ -60,7 +60,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder {
   // random. |unroutable_connection_id_length| specifies the length of
   // connection IDs to be generated when there is no active config. It must not
   // be 0 and must not be larger than the RFC9000 maximum of 20.
-  static absl::optional<LoadBalancerEncoder> Create(
+  static std::unique_ptr<LoadBalancerEncoder> Create(
       QuicRandom& random, LoadBalancerEncoderVisitorInterface* const visitor,
       const bool len_self_encoded,
       const uint8_t unroutable_connection_id_len = kLoadBalancerUnroutableLen);
