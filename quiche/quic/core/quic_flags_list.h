@@ -29,8 +29,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_add_process_packet_context, true)
 QUIC_FLAG(quic_restart_flag_quic_support_release_time_for_gso, false)
 // If true, QuicSpdyStream::OnDataAvailable will check if connection is still connected after HttpDecoder::ProcessInput.
 QUIC_FLAG(quic_reloadable_flag_quic_spdy_stream_check_connected_after_process_input, true)
-// If true, account added padding when coalesced packets get buffered.
-QUIC_FLAG(quic_reloadable_flag_quic_fix_bytes_accounting_for_buffered_coalesced_packets, true)
 // If true, ack frequency frame can be sent from server to client.
 QUIC_FLAG(quic_reloadable_flag_quic_can_send_ack_frequency, true)
 // If true, allow client to enable BBRv2 on server via connection option \'B2ON\'.

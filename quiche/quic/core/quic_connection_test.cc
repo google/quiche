@@ -15541,14 +15541,8 @@ TEST_P(QuicConnectionTest, FixBytesAccountingForBufferedCoalescedPackets) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
   QuicConnectionPeer::SendPing(&connection_);
   const QuicConnectionStats& stats = connection_.GetStats();
-  if (GetQuicReloadableFlag(
-          quic_fix_bytes_accounting_for_buffered_coalesced_packets) ||
-      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
-    // Verify padding is accounted.
-    EXPECT_EQ(stats.bytes_sent, connection_.max_packet_length());
-  } else {
-    EXPECT_LT(stats.bytes_sent, connection_.max_packet_length());
-  }
+  // Verify padding is accounted.
+  EXPECT_EQ(stats.bytes_sent, connection_.max_packet_length());
 }
 
 TEST_P(QuicConnectionTest, StrictAntiAmplificationLimit) {

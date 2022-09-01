@@ -6007,11 +6007,6 @@ bool QuicConnection::FlushCoalescedPacket() {
   }
   QUIC_DVLOG(1) << ENDPOINT << "Sending coalesced packet "
                 << coalesced_packet_.ToString(length);
-  if (GetQuicReloadableFlag(
-          quic_fix_bytes_accounting_for_buffered_coalesced_packets)) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_fix_bytes_accounting_for_buffered_coalesced_packets);
-  }
   const size_t padding_size =
       length - std::min<size_t>(length, coalesced_packet_.length());
   // Buffer coalesced packet if padding + bytes_sent exceeds amplifcation limit.
@@ -6023,11 +6018,6 @@ bool QuicConnection::FlushCoalescedPacket() {
     buffered_packets_.emplace_back(
         buffer, static_cast<QuicPacketLength>(length),
         coalesced_packet_.self_address(), coalesced_packet_.peer_address());
-    if (!GetQuicReloadableFlag(
-            quic_fix_bytes_accounting_for_buffered_coalesced_packets) &&
-        !enforce_strict_amplification_factor_) {
-      return true;
-    }
   } else {
     WriteResult result = writer_->WritePacket(
         buffer, length, coalesced_packet_.self_address().host(),
