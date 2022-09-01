@@ -41,6 +41,7 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
+#include "quiche/quic/test_tools/mock_connection_id_generator.h"
 #include "quiche/quic/test_tools/mock_random.h"
 #include "quiche/quic/test_tools/quic_coalesced_packet_peer.h"
 #include "quiche/quic/test_tools/quic_config_peer.h"
@@ -187,11 +188,12 @@ class TestConnection : public QuicConnection {
                  QuicSocketAddress initial_peer_address,
                  TestConnectionHelper* helper, TestAlarmFactory* alarm_factory,
                  TestPacketWriter* writer, Perspective perspective,
-                 ParsedQuicVersion version)
+                 ParsedQuicVersion version,
+                 ConnectionIdGeneratorInterface& generator)
       : QuicConnection(connection_id, initial_self_address,
                        initial_peer_address, helper, alarm_factory, writer,
                        /* owns_writer= */ false, perspective,
-                       SupportedVersions(version)),
+                       SupportedVersions(version), generator),
         notifier_(nullptr) {
     writer->set_perspective(perspective);
     SetEncrypter(ENCRYPTION_FORWARD_SECURE,
@@ -611,7 +613,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
             new TestPacketWriter(version(), &clock_, Perspective::IS_CLIENT)),
         connection_(connection_id_, kSelfAddress, kPeerAddress, helper_.get(),
                     alarm_factory_.get(), writer_.get(), Perspective::IS_CLIENT,
-                    version()),
+                    version(), connection_id_generator_),
         creator_(QuicConnectionPeer::GetPacketCreator(&connection_)),
         manager_(QuicConnectionPeer::GetSentPacketManager(&connection_)),
         frame1_(0, false, 0, absl::string_view(data1)),
@@ -1493,6 +1495,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   QuicConnectionCloseFrame saved_connection_close_frame_;
   int connection_close_frame_count_;
+  MockConnectionIdGenerator connection_id_generator_;
 };
 
 // Run all end to end tests with all supported versions.
@@ -1873,6 +1876,11 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
   QuicConnectionPeer::SetAddressValidated(&connection_);
 
   // Sends new server CID to client.
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+      !connection_.connection_id().IsEmpty()) {
+    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
+        .WillOnce(Return(TestConnectionId(456)));
+  }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
       .WillOnce(Invoke([&](const QuicConnectionId& cid) {
         server_cid1 = cid;
@@ -2072,6 +2080,11 @@ TEST_P(QuicConnectionTest, ConnectionMigrationWithPendingPaddingBytes) {
 
   // Sends new server CID to client.
   QuicConnectionId new_cid;
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+      !connection_.connection_id().IsEmpty()) {
+    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
+        .WillOnce(Return(TestConnectionId(456)));
+  }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
       .WillOnce(Invoke([&](const QuicConnectionId& cid) {
         new_cid = cid;
@@ -2130,6 +2143,11 @@ TEST_P(QuicConnectionTest,
 
   // Sends new server CID to client.
   QuicConnectionId new_cid;
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+      !connection_.connection_id().IsEmpty()) {
+    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
+        .WillOnce(Return(TestConnectionId(456)));
+  }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
       .WillOnce(Invoke([&](const QuicConnectionId& cid) {
         new_cid = cid;
@@ -2198,6 +2216,11 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   QuicConnectionId server_cid0 = connection_.connection_id();
   QuicConnectionId server_cid1;
   // Sends new server CID to client.
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+      !connection_.connection_id().IsEmpty()) {
+    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
+        .WillOnce(Return(TestConnectionId(456)));
+  }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
       .WillOnce(Invoke([&](const QuicConnectionId& cid) {
         server_cid1 = cid;
@@ -2870,7 +2893,8 @@ TEST_P(QuicConnectionTest, PeerCannotRaiseMaxPacketSize) {
 TEST_P(QuicConnectionTest, SmallerServerMaxPacketSize) {
   TestConnection connection(TestConnectionId(), kSelfAddress, kPeerAddress,
                             helper_.get(), alarm_factory_.get(), writer_.get(),
-                            Perspective::IS_SERVER, version());
+                            Perspective::IS_SERVER, version(),
+                            connection_id_generator_);
   EXPECT_EQ(Perspective::IS_SERVER, connection.perspective());
   EXPECT_EQ(1000u, connection.max_packet_length());
 }
@@ -2999,7 +3023,8 @@ TEST_P(QuicConnectionTest, LimitMaxPacketSizeByWriterForNewConnection) {
   writer_->set_max_packet_size(lower_max_packet_size);
   TestConnection connection(connection_id, kSelfAddress, kPeerAddress,
                             helper_.get(), alarm_factory_.get(), writer_.get(),
-                            Perspective::IS_CLIENT, version());
+                            Perspective::IS_CLIENT, version(),
+                            connection_id_generator_);
   EXPECT_EQ(Perspective::IS_CLIENT, connection.perspective());
   EXPECT_EQ(lower_max_packet_size, connection.max_packet_length());
 }
@@ -6926,10 +6951,12 @@ TEST_P(QuicConnectionTest, OnPacketHeaderDebugVisitor) {
 TEST_P(QuicConnectionTest, Pacing) {
   TestConnection server(connection_id_, kPeerAddress, kSelfAddress,
                         helper_.get(), alarm_factory_.get(), writer_.get(),
-                        Perspective::IS_SERVER, version());
+                        Perspective::IS_SERVER, version(),
+                        connection_id_generator_);
   TestConnection client(connection_id_, kSelfAddress, kPeerAddress,
                         helper_.get(), alarm_factory_.get(), writer_.get(),
-                        Perspective::IS_CLIENT, version());
+                        Perspective::IS_CLIENT, version(),
+                        connection_id_generator_);
   EXPECT_FALSE(QuicSentPacketManagerPeer::UsingPacing(
       static_cast<const QuicSentPacketManager*>(
           &client.sent_packet_manager())));
@@ -13294,6 +13321,11 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
   QuicConnectionId client_cid1 = TestConnectionId(2);
   QuicConnectionId server_cid1;
   // Sends new server CID to client.
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+      !connection_.connection_id().IsEmpty()) {
+    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
+        .WillOnce(Return(TestConnectionId(456)));
+  }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
       .WillOnce(Invoke([&](const QuicConnectionId& cid) {
         server_cid1 = cid;
@@ -13442,6 +13474,11 @@ TEST_P(QuicConnectionTest,
   QuicConnectionId server_cid0 = connection_.connection_id();
   QuicConnectionId server_cid1;
   // Sends new server CID to client.
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+      !connection_.connection_id().IsEmpty()) {
+    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
+        .WillOnce(Return(TestConnectionId(456)));
+  }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
       .WillOnce(Invoke([&](const QuicConnectionId& cid) {
         server_cid1 = cid;
@@ -13563,6 +13600,11 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
   QuicConnectionId client_cid1 = TestConnectionId(2);
   QuicConnectionId server_cid1;
   // Sends new server CID to client.
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+      !connection_.connection_id().IsEmpty()) {
+    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
+        .WillOnce(Return(TestConnectionId(456)));
+  }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
       .WillOnce(Invoke([&](const QuicConnectionId& cid) {
         server_cid1 = cid;
@@ -13679,6 +13721,11 @@ TEST_P(QuicConnectionTest, DoNotIssueNewCidIfVisitorSaysNo) {
   QuicConnectionId client_cid1 = TestConnectionId(2);
   QuicConnectionId server_cid1;
   // Sends new server CID to client.
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+      !connection_.connection_id().IsEmpty()) {
+    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
+        .WillOnce(Return(TestConnectionId(456)));
+  }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_)).WillOnce(Return(false));
   if (GetQuicReloadableFlag(quic_check_cid_collision_when_issue_new_cid)) {
     EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(0);
@@ -13812,6 +13859,10 @@ TEST_P(QuicConnectionTest,
   ASSERT_EQ(packet_creator->GetDestinationConnectionId(), server_cid0);
 
   // Client will issue a new client connection ID to server.
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator)) {
+    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
+        .WillOnce(Return(TestConnectionId(456)));
+  }
   EXPECT_CALL(visitor_, SendNewConnectionId(_))
       .WillOnce(Invoke([&](const QuicNewConnectionIdFrame& frame) {
         client_cid1 = frame.connection_id;
@@ -13970,6 +14021,10 @@ TEST_P(QuicConnectionTest,
 
   // Client will issue a new client connection ID to server.
   QuicConnectionId new_client_connection_id;
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator)) {
+    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
+        .WillOnce(Return(TestConnectionId(456)));
+  }
   EXPECT_CALL(visitor_, SendNewConnectionId(_))
       .WillOnce(Invoke([&](const QuicNewConnectionIdFrame& frame) {
         new_client_connection_id = frame.connection_id;
@@ -14223,6 +14278,11 @@ TEST_P(QuicConnectionTest, RetireConnectionIdFrameResultsInError) {
   set_perspective(Perspective::IS_SERVER);
   connection_.CreateConnectionIdManager();
 
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+      !connection_.connection_id().IsEmpty()) {
+    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
+        .WillOnce(Return(TestConnectionId(456)));
+  }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.MaybeSendConnectionIdToClient();
@@ -14256,6 +14316,14 @@ TEST_P(QuicConnectionTest,
   QuicRetireConnectionIdFrame frame;
   frame.sequence_number = 0u;
   if (connection_.connection_migration_use_new_cid()) {
+    if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+        !connection_.connection_id().IsEmpty()) {
+      EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(cid0))
+          .WillOnce(Return(TestConnectionId(456)));
+      EXPECT_CALL(connection_id_generator_,
+                  GenerateNextConnectionId(TestConnectionId(456)))
+          .WillOnce(Return(TestConnectionId(789)));
+    }
     EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
         .Times(2)
         .WillRepeatedly(Return(true));
@@ -14289,6 +14357,11 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
   EXPECT_EQ(connection_.GetOneActiveServerConnectionId(), cid0);
 
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+      !connection_.connection_id().IsEmpty()) {
+    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
+        .WillOnce(Return(TestConnectionId(456)));
+  }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
       .WillOnce(Invoke(cid_recorder));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
@@ -14320,6 +14393,11 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
 
   // Packet2 with RetireConnectionId frame trigers sending NewConnectionId
   // immediately.
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+      !connection_.connection_id().IsEmpty()) {
+    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
+        .WillOnce(Return(TestConnectionId(456)));
+  }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
       .WillOnce(Invoke(cid_recorder));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
@@ -14729,6 +14807,14 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
   if (!version().HasIetfQuicFrames() ||
       !connection_.connection_migration_use_new_cid()) {
     return;
+  }
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator)) {
+    EXPECT_CALL(connection_id_generator_,
+                GenerateNextConnectionId(TestConnectionId(12)))
+        .WillOnce(Return(TestConnectionId(456)));
+    EXPECT_CALL(connection_id_generator_,
+                GenerateNextConnectionId(TestConnectionId(456)))
+        .WillOnce(Return(TestConnectionId(789)));
   }
   EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(2);
   EXPECT_CALL(visitor_, OnRstStream(_));

@@ -19,6 +19,7 @@
 #include "quiche/quic/qbone/qbone_server_session.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/mock_clock.h"
+#include "quiche/quic/test_tools/mock_connection_id_generator.h"
 #include "quiche/quic/test_tools/quic_connection_peer.h"
 #include "quiche/quic/test_tools/quic_session_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -314,7 +315,8 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
       client_connection_ = new QuicConnection(
           TestConnectionId(), client_address, server_address, &helper_,
           alarm_factory_.get(), new NiceMock<MockPacketWriter>(), true,
-          Perspective::IS_CLIENT, supported_versions_);
+          Perspective::IS_CLIENT, supported_versions_,
+          connection_id_generator_);
       client_connection_->SetSelfAddress(client_address);
       QuicConfig config;
       client_crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
@@ -333,7 +335,8 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
       server_connection_ = new QuicConnection(
           TestConnectionId(), server_address, client_address, &helper_,
           alarm_factory_.get(), new NiceMock<MockPacketWriter>(), true,
-          Perspective::IS_SERVER, supported_versions_);
+          Perspective::IS_SERVER, supported_versions_,
+          connection_id_generator_);
       server_connection_->SetSelfAddress(server_address);
       QuicConfig config;
       server_crypto_config_ = std::make_unique<QuicCryptoServerConfig>(
@@ -538,6 +541,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   std::unique_ptr<QboneServerSession> server_peer_;
   std::unique_ptr<QboneClientSession> client_peer_;
+  MockConnectionIdGenerator connection_id_generator_;
 };
 
 INSTANTIATE_TEST_SUITE_P(Tests, QboneSessionTest,

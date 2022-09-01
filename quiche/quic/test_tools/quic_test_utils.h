@@ -37,6 +37,7 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
+#include "quiche/quic/test_tools/mock_connection_id_generator.h"
 #include "quiche/quic/test_tools/mock_quic_session_visitor.h"
 #include "quiche/quic/test_tools/mock_random.h"
 #include "quiche/quic/test_tools/quic_framer_peer.h"
@@ -721,6 +722,19 @@ class MockQuicConnection : public QuicConnection {
                                        QuicStreamOffset offset) {
     return QuicConnection::SendCryptoData(level, write_length, offset);
   }
+
+  MockConnectionIdGenerator& connection_id_generator() {
+    return connection_id_generator_;
+  }
+
+ private:
+  // It would be more correct to pass the generator as an argument to the
+  // constructor, particularly in dispatcher tests that keep their own
+  // reference to a generator. But there are many, many instances of derived
+  // test classes that would have to declare a generator. As this object is
+  // public, it is straightforward for the caller to use it as an argument to
+  // EXPECT_CALL.
+  MockConnectionIdGenerator connection_id_generator_;
 };
 
 class PacketSavingConnection : public MockQuicConnection {

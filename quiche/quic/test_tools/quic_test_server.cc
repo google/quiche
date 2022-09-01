@@ -94,7 +94,7 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
     QuicConnection* connection = new QuicConnection(
         id, self_address, peer_address, helper(), alarm_factory(), writer(),
         /* owns_writer= */ false, Perspective::IS_SERVER,
-        ParsedQuicVersionVector{version});
+        ParsedQuicVersionVector{version}, connection_id_generator());
 
     std::unique_ptr<QuicServerSessionBase> session;
     if (session_factory_ == nullptr && stream_factory_ == nullptr &&

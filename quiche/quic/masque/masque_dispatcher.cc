@@ -32,11 +32,11 @@ std::unique_ptr<QuicSession> MasqueDispatcher::CreateQuicSession(
     const ParsedQuicVersion& version,
     const ParsedClientHello& /*parsed_chlo*/) {
   // The MasqueServerSession takes ownership of |connection| below.
-  QuicConnection* connection =
-      new QuicConnection(connection_id, self_address, peer_address, helper(),
-                         alarm_factory(), writer(),
-                         /*owns_writer=*/false, Perspective::IS_SERVER,
-                         ParsedQuicVersionVector{version});
+  QuicConnection* connection = new QuicConnection(
+      connection_id, self_address, peer_address, helper(), alarm_factory(),
+      writer(),
+      /*owns_writer=*/false, Perspective::IS_SERVER,
+      ParsedQuicVersionVector{version}, connection_id_generator());
 
   auto session = std::make_unique<MasqueServerSession>(
       masque_mode_, config(), GetSupportedVersions(), connection, this,

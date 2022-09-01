@@ -253,7 +253,8 @@ QuicConnection::QuicConnection(
     QuicSocketAddress initial_peer_address,
     QuicConnectionHelperInterface* helper, QuicAlarmFactory* alarm_factory,
     QuicPacketWriter* writer, bool owns_writer, Perspective perspective,
-    const ParsedQuicVersionVector& supported_versions)
+    const ParsedQuicVersionVector& supported_versions,
+    ConnectionIdGeneratorInterface& generator)
     : framer_(supported_versions, helper->GetClock()->ApproximateNow(),
               perspective, server_connection_id.length()),
       current_packet_content_(NO_FRAMES_RECEIVED),
@@ -342,7 +343,8 @@ QuicConnection::QuicConnection(
       path_validator_(alarm_factory_, &arena_, this, random_generator_, clock_,
                       &context_),
       ping_manager_(perspective, this, &arena_, alarm_factory_, &context_),
-      multi_port_probing_interval_(kDefaultMultiPortProbingInterval) {
+      multi_port_probing_interval_(kDefaultMultiPortProbingInterval),
+      connection_id_generator_(generator) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
 
@@ -4014,7 +4016,7 @@ QuicConnection::MakeSelfIssuedConnectionIdManager() {
       perspective_ == Perspective::IS_CLIENT
           ? default_path_.client_connection_id
           : default_path_.server_connection_id,
-      clock_, alarm_factory_, this, context());
+      clock_, alarm_factory_, this, context(), connection_id_generator_);
 }
 
 void QuicConnection::MaybeSendConnectionIdToClient() {

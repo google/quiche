@@ -15,6 +15,7 @@
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream_frame_data_producer.h"
 #include "quiche/quic/core/quic_trace_visitor.h"
+#include "quiche/quic/test_tools/mock_connection_id_generator.h"
 #include "quiche/quic/test_tools/simple_session_notifier.h"
 #include "quiche/quic/test_tools/simulator/link.h"
 #include "quiche/quic/test_tools/simulator/queue.h"
@@ -127,6 +128,8 @@ class QuicEndpointBase : public Endpoint,
   bool drop_next_packet_;
 
   std::unique_ptr<QuicTraceVisitor> trace_visitor_;
+
+  test::MockConnectionIdGenerator connection_id_generator_;
 };
 
 // Multiplexes multiple connections at the same host on the network.

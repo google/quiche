@@ -475,7 +475,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                  QuicConnectionHelperInterface* helper,
                  QuicAlarmFactory* alarm_factory, QuicPacketWriter* writer,
                  bool owns_writer, Perspective perspective,
-                 const ParsedQuicVersionVector& supported_versions);
+                 const ParsedQuicVersionVector& supported_versions,
+                 ConnectionIdGeneratorInterface& generator);
   QuicConnection(const QuicConnection&) = delete;
   QuicConnection& operator=(const QuicConnection&) = delete;
   ~QuicConnection() override;
@@ -1344,6 +1345,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool defer_send_in_response_to_packets() const {
     return defer_send_in_response_to_packets_;
+  }
+
+  ConnectionIdGeneratorInterface& connection_id_generator() const {
+    return connection_id_generator_;
   }
 
  private:
@@ -2290,6 +2295,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // limit.
   const bool enforce_strict_amplification_factor_ =
       GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor);
+
+  ConnectionIdGeneratorInterface& connection_id_generator_;
 };
 
 }  // namespace quic

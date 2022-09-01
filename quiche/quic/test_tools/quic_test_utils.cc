@@ -526,7 +526,8 @@ MockQuicConnection::MockQuicConnection(
           /*initial_self_address=*/QuicSocketAddress(QuicIpAddress::Any4(), 5),
           initial_peer_address, helper, alarm_factory,
           new testing::NiceMock<MockPacketWriter>(),
-          /* owns_writer= */ true, perspective, supported_versions) {
+          /* owns_writer= */ true, perspective, supported_versions,
+          connection_id_generator_) {
   ON_CALL(*this, OnError(_))
       .WillByDefault(
           Invoke(this, &PacketSavingConnection::QuicConnection_OnError));

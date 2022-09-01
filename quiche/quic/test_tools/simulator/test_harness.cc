@@ -18,8 +18,8 @@ QuicEndpointWithConnection::QuicEndpointWithConnection(
   connection_ = std::make_unique<QuicConnection>(
       quic::test::TestConnectionId(0x10), GetAddressFromName(name),
       GetAddressFromName(peer_name), simulator, simulator->GetAlarmFactory(),
-      &writer_,
-      /*owns_writer=*/false, perspective, supported_versions);
+      &writer_, /*owns_writer=*/false, perspective, supported_versions,
+      connection_id_generator_);
   connection_->SetSelfAddress(GetAddressFromName(name));
 }
 

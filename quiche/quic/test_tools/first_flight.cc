@@ -20,6 +20,7 @@
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
+#include "quiche/quic/test_tools/mock_connection_id_generator.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
@@ -55,13 +56,13 @@ class FirstFlightExtractor : public DelegatedPacketWriter::Delegate {
 
   void GenerateFirstFlight() {
     crypto_config_->set_alpn(AlpnForVersion(version_));
-    connection_ =
-        new QuicConnection(server_connection_id_,
-                           /*initial_self_address=*/QuicSocketAddress(),
-                           QuicSocketAddress(TestPeerIPAddress(), kTestPort),
-                           &connection_helper_, &alarm_factory_, &writer_,
-                           /*owns_writer=*/false, Perspective::IS_CLIENT,
-                           ParsedQuicVersionVector{version_});
+    connection_ = new QuicConnection(
+        server_connection_id_,
+        /*initial_self_address=*/QuicSocketAddress(),
+        QuicSocketAddress(TestPeerIPAddress(), kTestPort), &connection_helper_,
+        &alarm_factory_, &writer_,
+        /*owns_writer=*/false, Perspective::IS_CLIENT,
+        ParsedQuicVersionVector{version_}, connection_id_generator_);
     connection_->set_client_connection_id(client_connection_id_);
     session_ = std::make_unique<QuicSpdyClientSession>(
         config_, ParsedQuicVersionVector{version_},
@@ -106,6 +107,7 @@ class FirstFlightExtractor : public DelegatedPacketWriter::Delegate {
   QuicConnection* connection_;  // Owned by session_.
   std::unique_ptr<QuicSpdyClientSession> session_;
   std::vector<std::unique_ptr<QuicReceivedPacket>> packets_;
+  MockConnectionIdGenerator connection_id_generator_;
 };
 
 std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(

@@ -14,6 +14,7 @@
 #include <memory>
 
 #include "absl/types/optional.h"
+#include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/frames/quic_retire_connection_id_frame.h"
 #include "quiche/quic/core/quic_alarm.h"
@@ -126,7 +127,8 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
       const QuicConnectionId& initial_connection_id, const QuicClock* clock,
       QuicAlarmFactory* alarm_factory,
       QuicConnectionIdManagerVisitorInterface* visitor,
-      QuicConnectionContext* context);
+      QuicConnectionContext* context,
+      ConnectionIdGeneratorInterface& generator);
 
   virtual ~QuicSelfIssuedConnectionIdManager();
 
@@ -159,6 +161,9 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
   // tell if a received packet has a valid connection ID.
   bool IsConnectionIdInUse(const QuicConnectionId& cid) const;
 
+  // TODO(martinduke): This class will be eliminated when
+  // FLAGS_gfe2_reloadable_flag_quic_connection_uses_abstract_connection_id_generator
+  // goes away.
   virtual QuicConnectionId GenerateNewConnectionId(
       const QuicConnectionId& old_connection_id) const;
 
@@ -189,6 +194,8 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
   uint64_t next_connection_id_sequence_number_;
   // The sequence number of last connection ID consumed.
   uint64_t last_connection_id_consumed_by_self_sequence_number_;
+
+  ConnectionIdGeneratorInterface& connection_id_generator_;
 };
 
 }  // namespace quic

@@ -165,7 +165,7 @@ void QuicClientBase::StartConnect() {
       new QuicConnection(GetNextConnectionId(), QuicSocketAddress(),
                          server_address(), helper(), alarm_factory(), writer,
                          /* owns_writer= */ false, Perspective::IS_CLIENT,
-                         client_supported_versions));
+                         client_supported_versions, connection_id_generator_));
   if (can_reconnect_with_different_version) {
     session()->set_client_original_supported_versions(supported_versions());
   }

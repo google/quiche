@@ -352,6 +352,10 @@ class QUIC_NO_EXPORT QuicDispatcher
   virtual void MaybeResetPacketsWithNoVersion(
       const quic::ReceivedPacketInfo& packet_info);
 
+  ConnectionIdGeneratorInterface& connection_id_generator() {
+    return connection_id_generator_;
+  }
+
  private:
   friend class test::QuicDispatcherPeer;
 
