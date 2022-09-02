@@ -31,6 +31,13 @@ package(
 )
 
 cc_library(
+    name = "quiche_flags_list",
+    textual_hdrs = [
+        "common/quiche_protocol_flags_list.h",
+    ],
+)
+
+cc_library(
     name = "quic_flags_list",
     textual_hdrs = [
         "quic/core/quic_flags_list.h",
@@ -62,6 +69,7 @@ cc_library(
     strip_include_prefix = "common/platform/default",
     deps = [
         ":quic_flags_list",
+        ":quiche_flags_list",
         ":quiche_platform_quiche_export",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:flat_hash_map",
