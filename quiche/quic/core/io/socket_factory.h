@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "quiche/quic/core/io/stream_client_socket.h"
+#include "quiche/quic/core/io/connecting_client_socket.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -23,10 +23,10 @@ class QUICHE_EXPORT_PRIVATE SocketFactory {
   // `send_buffer_size` is zero. If `async_visitor` is null, async operations
   // must not be called on the created socket. If `async_visitor` is non-null,
   // it must outlive the created socket.
-  virtual std::unique_ptr<StreamClientSocket> CreateTcpClientSocket(
+  virtual std::unique_ptr<ConnectingClientSocket> CreateTcpClientSocket(
       const quic::QuicSocketAddress& peer_address,
       QuicByteCount receive_buffer_size, QuicByteCount send_buffer_size,
-      StreamClientSocket::AsyncVisitor* async_visitor) = 0;
+      ConnectingClientSocket::AsyncVisitor* async_visitor) = 0;
 };
 
 }  // namespace quic

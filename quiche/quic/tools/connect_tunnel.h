@@ -14,8 +14,8 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/io/connecting_client_socket.h"
 #include "quiche/quic/core/io/socket_factory.h"
-#include "quiche/quic/core/io/stream_client_socket.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
@@ -25,7 +25,7 @@
 namespace quic {
 
 // Manages a single connection tunneled over a CONNECT proxy.
-class ConnectTunnel : public StreamClientSocket::AsyncVisitor {
+class ConnectTunnel : public ConnectingClientSocket::AsyncVisitor {
  public:
   // `client_stream_request_handler` and `socket_factory` must both outlive the
   // created ConnectTunnel.
@@ -53,7 +53,7 @@ class ConnectTunnel : public StreamClientSocket::AsyncVisitor {
   // interacted with after completion.
   void OnClientStreamClose();
 
-  // StreamClientSocket::AsyncVisitor:
+  // ConnectingClientSocket::AsyncVisitor:
   void ConnectComplete(absl::Status status) override;
   void ReceiveComplete(absl::StatusOr<quiche::QuicheMemSlice> data) override;
   void SendComplete(absl::Status status) override;
@@ -79,7 +79,7 @@ class ConnectTunnel : public StreamClientSocket::AsyncVisitor {
   QuicSimpleServerBackend::RequestHandler* client_stream_request_handler_;
 
   // Null when destination connection disconnected.
-  std::unique_ptr<StreamClientSocket> destination_socket_;
+  std::unique_ptr<ConnectingClientSocket> destination_socket_;
 
   bool receive_started_ = false;
 };

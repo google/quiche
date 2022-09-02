@@ -6,9 +6,9 @@
 
 #include <memory>
 
+#include "quiche/quic/core/io/connecting_client_socket.h"
 #include "quiche/quic/core/io/event_loop_tcp_client_socket.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
-#include "quiche/quic/core/io/stream_client_socket.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -23,11 +23,11 @@ EventLoopSocketFactory::EventLoopSocketFactory(
   QUICHE_DCHECK(buffer_allocator_);
 }
 
-std::unique_ptr<StreamClientSocket>
+std::unique_ptr<ConnectingClientSocket>
 EventLoopSocketFactory::CreateTcpClientSocket(
     const quic::QuicSocketAddress& peer_address,
     QuicByteCount receive_buffer_size, QuicByteCount send_buffer_size,
-    StreamClientSocket::AsyncVisitor* async_visitor) {
+    ConnectingClientSocket::AsyncVisitor* async_visitor) {
   return std::make_unique<EventLoopTcpClientSocket>(
       peer_address, receive_buffer_size, send_buffer_size, event_loop_,
       buffer_allocator_, async_visitor);

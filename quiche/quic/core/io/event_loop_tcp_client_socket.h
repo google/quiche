@@ -11,8 +11,8 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "absl/types/variant.h"
+#include "quiche/quic/core/io/connecting_client_socket.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
-#include "quiche/quic/core/io/stream_client_socket.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -22,7 +22,7 @@ namespace quic {
 
 // A TCP client socket implemented using an underlying QuicEventLoop.
 class QUICHE_EXPORT_PRIVATE EventLoopTcpClientSocket
-    : public StreamClientSocket,
+    : public ConnectingClientSocket,
       public QuicSocketEventListener {
  public:
   // Will use platform default buffer size if `receive_buffer_size` or
@@ -38,12 +38,10 @@ class QUICHE_EXPORT_PRIVATE EventLoopTcpClientSocket
 
   ~EventLoopTcpClientSocket() override;
 
-  // StreamClientSocket:
+  // ConnectingClientSocket:
   absl::Status ConnectBlocking() override;
   void ConnectAsync() override;
   void Disconnect() override;
-
-  // Socket:
   absl::StatusOr<quiche::QuicheMemSlice> ReceiveBlocking(
       QuicByteCount max_size) override;
   void ReceiveAsync(QuicByteCount max_size) override;

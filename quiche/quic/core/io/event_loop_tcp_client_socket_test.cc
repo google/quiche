@@ -15,11 +15,11 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "absl/types/span.h"
+#include "quiche/quic/core/io/connecting_client_socket.h"
 #include "quiche/quic/core/io/event_loop_socket_factory.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/io/socket.h"
-#include "quiche/quic/core/io/stream_client_socket.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_ip_address_family.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -128,7 +128,7 @@ class TestTcpServerSocketRunner : public quiche::QuicheThread {
 
 class EventLoopTcpClientSocketTest
     : public quiche::test::QuicheTestWithParam<QuicEventLoopFactory*>,
-      public StreamClientSocket::AsyncVisitor {
+      public ConnectingClientSocket::AsyncVisitor {
  public:
   void SetUp() override {
     QUICHE_CHECK(CreateListeningServerSocket(&server_socket_descriptor_,
@@ -181,7 +181,7 @@ INSTANTIATE_TEST_SUITE_P(EventLoopTcpClientSocketTests,
                          &GetTestParamName);
 
 TEST_P(EventLoopTcpClientSocketTest, Connect) {
-  std::unique_ptr<StreamClientSocket> socket =
+  std::unique_ptr<ConnectingClientSocket> socket =
       socket_factory_.CreateTcpClientSocket(server_socket_address_,
                                             /*receive_buffer_size=*/0,
                                             /*send_buffer_size=*/0,
@@ -195,7 +195,7 @@ TEST_P(EventLoopTcpClientSocketTest, Connect) {
 }
 
 TEST_P(EventLoopTcpClientSocketTest, ConnectAsync) {
-  std::unique_ptr<StreamClientSocket> socket =
+  std::unique_ptr<ConnectingClientSocket> socket =
       socket_factory_.CreateTcpClientSocket(server_socket_address_,
                                             /*receive_buffer_size=*/0,
                                             /*send_buffer_size=*/0,
@@ -220,7 +220,7 @@ TEST_P(EventLoopTcpClientSocketTest, ConnectAsync) {
 }
 
 TEST_P(EventLoopTcpClientSocketTest, ErrorBeforeConnectAsync) {
-  std::unique_ptr<StreamClientSocket> socket =
+  std::unique_ptr<ConnectingClientSocket> socket =
       socket_factory_.CreateTcpClientSocket(server_socket_address_,
                                             /*receive_buffer_size=*/0,
                                             /*send_buffer_size=*/0,
@@ -241,7 +241,7 @@ TEST_P(EventLoopTcpClientSocketTest, ErrorBeforeConnectAsync) {
 }
 
 TEST_P(EventLoopTcpClientSocketTest, ErrorDuringConnectAsync) {
-  std::unique_ptr<StreamClientSocket> socket =
+  std::unique_ptr<ConnectingClientSocket> socket =
       socket_factory_.CreateTcpClientSocket(server_socket_address_,
                                             /*receive_buffer_size=*/0,
                                             /*send_buffer_size=*/0,
@@ -268,7 +268,7 @@ TEST_P(EventLoopTcpClientSocketTest, ErrorDuringConnectAsync) {
 }
 
 TEST_P(EventLoopTcpClientSocketTest, Disconnect) {
-  std::unique_ptr<StreamClientSocket> socket =
+  std::unique_ptr<ConnectingClientSocket> socket =
       socket_factory_.CreateTcpClientSocket(server_socket_address_,
                                             /*receive_buffer_size=*/0,
                                             /*send_buffer_size=*/0,
@@ -279,7 +279,7 @@ TEST_P(EventLoopTcpClientSocketTest, Disconnect) {
 }
 
 TEST_P(EventLoopTcpClientSocketTest, DisconnectCancelsConnectAsync) {
-  std::unique_ptr<StreamClientSocket> socket =
+  std::unique_ptr<ConnectingClientSocket> socket =
       socket_factory_.CreateTcpClientSocket(server_socket_address_,
                                             /*receive_buffer_size=*/0,
                                             /*send_buffer_size=*/0,
@@ -302,7 +302,7 @@ TEST_P(EventLoopTcpClientSocketTest, DisconnectCancelsConnectAsync) {
 }
 
 TEST_P(EventLoopTcpClientSocketTest, ConnectAndReconnect) {
-  std::unique_ptr<StreamClientSocket> socket =
+  std::unique_ptr<ConnectingClientSocket> socket =
       socket_factory_.CreateTcpClientSocket(server_socket_address_,
                                             /*receive_buffer_size=*/0,
                                             /*send_buffer_size=*/0,
@@ -332,7 +332,7 @@ TEST_P(EventLoopTcpClientSocketTest, Receive) {
   TestTcpServerSocketRunner runner(
       server_socket_descriptor_, absl::bind_front(&SendDataOnSocket, expected));
 
-  std::unique_ptr<StreamClientSocket> socket =
+  std::unique_ptr<ConnectingClientSocket> socket =
       socket_factory_.CreateTcpClientSocket(server_socket_address_,
                                             /*receive_buffer_size=*/0,
                                             /*send_buffer_size=*/0,
@@ -352,7 +352,7 @@ TEST_P(EventLoopTcpClientSocketTest, Receive) {
 }
 
 TEST_P(EventLoopTcpClientSocketTest, ReceiveAsync) {
-  std::unique_ptr<StreamClientSocket> socket =
+  std::unique_ptr<ConnectingClientSocket> socket =
       socket_factory_.CreateTcpClientSocket(server_socket_address_,
                                             /*receive_buffer_size=*/0,
                                             /*send_buffer_size=*/0,
@@ -396,7 +396,7 @@ TEST_P(EventLoopTcpClientSocketTest, ReceiveAsync) {
 }
 
 TEST_P(EventLoopTcpClientSocketTest, DisconnectCancelsReceiveAsync) {
-  std::unique_ptr<StreamClientSocket> socket =
+  std::unique_ptr<ConnectingClientSocket> socket =
       socket_factory_.CreateTcpClientSocket(server_socket_address_,
                                             /*receive_buffer_size=*/0,
                                             /*send_buffer_size=*/0,
@@ -438,7 +438,7 @@ TEST_P(EventLoopTcpClientSocketTest, Send) {
       server_socket_descriptor_,
       absl::bind_front(&ReceiveDataFromSocket, &sent));
 
-  std::unique_ptr<StreamClientSocket> socket =
+  std::unique_ptr<ConnectingClientSocket> socket =
       socket_factory_.CreateTcpClientSocket(server_socket_address_,
                                             /*receive_buffer_size=*/0,
                                             /*send_buffer_size=*/0,
@@ -456,7 +456,7 @@ TEST_P(EventLoopTcpClientSocketTest, Send) {
 TEST_P(EventLoopTcpClientSocketTest, SendAsync) {
   // Use a small send buffer to improve chances of a send needing to be
   // asynchronous.
-  std::unique_ptr<StreamClientSocket> socket =
+  std::unique_ptr<ConnectingClientSocket> socket =
       socket_factory_.CreateTcpClientSocket(server_socket_address_,
                                             /*receive_buffer_size=*/0,
                                             /*send_buffer_size=*/4,
@@ -497,7 +497,7 @@ TEST_P(EventLoopTcpClientSocketTest, SendAsync) {
 TEST_P(EventLoopTcpClientSocketTest, DisconnectCancelsSendAsync) {
   // Use a small send buffer to improve chances of a send needing to be
   // asynchronous.
-  std::unique_ptr<StreamClientSocket> socket =
+  std::unique_ptr<ConnectingClientSocket> socket =
       socket_factory_.CreateTcpClientSocket(server_socket_address_,
                                             /*receive_buffer_size=*/0,
                                             /*send_buffer_size=*/4,

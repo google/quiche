@@ -7,9 +7,9 @@
 
 #include <memory>
 
+#include "quiche/quic/core/io/connecting_client_socket.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/io/socket_factory.h"
-#include "quiche/quic/core/io/stream_client_socket.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -26,10 +26,10 @@ class QUICHE_EXPORT_PRIVATE EventLoopSocketFactory : public SocketFactory {
                          quiche::QuicheBufferAllocator* buffer_allocator);
 
   // SocketFactory:
-  std::unique_ptr<StreamClientSocket> CreateTcpClientSocket(
+  std::unique_ptr<ConnectingClientSocket> CreateTcpClientSocket(
       const quic::QuicSocketAddress& peer_address,
       QuicByteCount receive_buffer_size, QuicByteCount send_buffer_size,
-      StreamClientSocket::AsyncVisitor* async_visitor) override;
+      ConnectingClientSocket::AsyncVisitor* async_visitor) override;
 
  private:
   QuicEventLoop* const event_loop_;                  // unowned

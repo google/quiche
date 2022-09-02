@@ -12,8 +12,8 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/io/connecting_client_socket.h"
 #include "quiche/quic/core/io/socket_factory.h"
-#include "quiche/quic/core/io/stream_client_socket.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
@@ -63,15 +63,15 @@ class MockRequestHandler : public QuicSimpleServerBackend::RequestHandler {
 
 class MockSocketFactory : public SocketFactory {
  public:
-  MOCK_METHOD(std::unique_ptr<StreamClientSocket>, CreateTcpClientSocket,
+  MOCK_METHOD(std::unique_ptr<ConnectingClientSocket>, CreateTcpClientSocket,
               (const quic::QuicSocketAddress& peer_address,
                QuicByteCount receive_buffer_size,
                QuicByteCount send_buffer_size,
-               StreamClientSocket::AsyncVisitor* async_visitor),
+               ConnectingClientSocket::AsyncVisitor* async_visitor),
               (override));
 };
 
-class MockSocket : public StreamClientSocket {
+class MockSocket : public ConnectingClientSocket {
  public:
   MOCK_METHOD(absl::Status, ConnectBlocking, (), (override));
   MOCK_METHOD(void, ConnectAsync, (), (override));
