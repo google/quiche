@@ -17,6 +17,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
@@ -688,8 +689,7 @@ TEST_F(QuicCryptoStreamTest, WriteCryptoDataExceedsSendBufferLimit) {
   EXPECT_TRUE(stream_->HasBufferedCryptoFrames());
 
   // Writing an additional byte to the send buffer closes the connection.
-  if (GetQuicReloadableFlag(quic_bounded_crypto_send_buffer)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bounded_crypto_send_buffer);
+  if (GetQuicFlag(FLAGS_quic_bounded_crypto_send_buffer)) {
     EXPECT_CALL(*connection_, CloseConnection(QUIC_INTERNAL_ERROR, _, _));
     EXPECT_QUIC_BUG(
         stream_->WriteCryptoData(ENCRYPTION_INITIAL, data2),

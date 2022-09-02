@@ -214,4 +214,8 @@ QUIC_PROTOCOL_FLAG(bool, quic_use_lower_server_response_mtu_for_test, false,
 
 QUIC_PROTOCOL_FLAG(bool, quic_enforce_strict_amplification_factor, false,
                    "If true, enforce strict amplification factor")
+
+QUIC_PROTOCOL_FLAG(bool, quic_bounded_crypto_send_buffer, false,
+                   "If true, close the connection if a crypto send buffer "
+                   "exceeds its size limit.")
 #endif

@@ -33,8 +33,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_spdy_stream_check_connected_after_process_in
 QUIC_FLAG(quic_reloadable_flag_quic_can_send_ack_frequency, true)
 // If true, allow client to enable BBRv2 on server via connection option \'B2ON\'.
 QUIC_FLAG(quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, true)
-// If true, close the connection if a crypto send buffer exceeds its size limit.
-QUIC_FLAG(quic_reloadable_flag_quic_bounded_crypto_send_buffer, false)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, disable QUIC version Q043.
