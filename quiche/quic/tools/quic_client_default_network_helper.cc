@@ -4,6 +4,7 @@
 
 #include "quiche/quic/tools/quic_client_default_network_helper.h"
 
+#include "absl/cleanup/cleanup.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_default_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
@@ -71,6 +72,7 @@ bool QuicClientDefaultNetworkHelper::CreateUDPSocketAndBind(
   if (fd < 0) {
     return false;
   }
+  auto closer = absl::MakeCleanup([fd] { close(fd); });
 
   QuicSocketAddress client_address;
   if (bind_to_address.IsInitialized()) {
@@ -113,10 +115,13 @@ bool QuicClientDefaultNetworkHelper::CreateUDPSocketAndBind(
                     << strerror(errno);
   }
 
-  fd_address_map_[fd] = client_address;
-  bool success = event_loop_->RegisterSocket(
-      fd, kSocketEventReadable | kSocketEventWritable, this);
-  return success;
+  if (event_loop_->RegisterSocket(
+          fd, kSocketEventReadable | kSocketEventWritable, this)) {
+    fd_address_map_[fd] = client_address;
+    std::move(closer).Cancel();
+    return true;
+  }
+  return false;
 }
 
 void QuicClientDefaultNetworkHelper::CleanUpUDPSocket(int fd) {

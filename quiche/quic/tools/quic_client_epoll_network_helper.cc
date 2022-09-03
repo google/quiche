@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "absl/cleanup/cleanup.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/quic_connection.h"
@@ -62,6 +63,7 @@ bool QuicClientEpollNetworkHelper::CreateUDPSocketAndBind(
   if (fd < 0) {
     return false;
   }
+  auto closer = absl::MakeCleanup([fd] { close(fd); });
 
   QuicSocketAddress client_address;
   if (bind_to_address.IsInitialized()) {
@@ -106,6 +108,7 @@ bool QuicClientEpollNetworkHelper::CreateUDPSocketAndBind(
 
   fd_address_map_[fd] = client_address;
   epoll_server_->RegisterFD(fd, this, kEpollFlags);
+  std::move(closer).Cancel();
   return true;
 }
 
