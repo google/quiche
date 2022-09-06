@@ -4,6 +4,8 @@
 
 load(
     "//build:source_list.bzl",
+    "binary_http_hdrs",
+    "binary_http_srcs",
     "default_platform_impl_hdrs",
     "default_platform_impl_srcs",
     "default_platform_impl_test_support_hdrs",
@@ -42,6 +44,20 @@ cc_library(
     textual_hdrs = [
         "quic/core/quic_flags_list.h",
         "quic/core/quic_protocol_flags_list.h",
+    ],
+)
+
+cc_library(
+    name = "binary_http",
+    srcs = binary_http_srcs,
+    hdrs = binary_http_hdrs,
+    deps = [
+        ":quiche_core",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -200,6 +216,7 @@ cc_library(
     srcs = quiche_test_support_srcs,
     hdrs = quiche_test_support_hdrs,
     deps = [
+        ":binary_http",
         ":quiche_core",
         ":quiche_platform_default_testonly",
         ":quiche_protobufs_testonly_cc_proto",
@@ -264,6 +281,12 @@ cc_binary(
 alias(
     name = "quiche_unstable_api",
     actual = ":quiche_core",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "binary_http_unstable_api",
+    actual = ":binary_http",
     visibility = ["//visibility:public"],
 )
 
