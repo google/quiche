@@ -1048,6 +1048,7 @@
     "quiche/balsa/balsa_headers_test.cc",
     "quiche/balsa/header_properties_test.cc",
     "quiche/balsa/simple_buffer_test.cc",
+    "quiche/binary_http/binary_http_message_test.cc",
     "quiche/common/platform/api/quiche_file_utils_test.cc",
     "quiche/common/platform/api/quiche_hostname_utils_test.cc",
     "quiche/common/platform/api/quiche_lower_case_string_test.cc",
@@ -1472,8 +1473,7 @@
     "quiche/binary_http/binary_http_message.h"
   ],
   "binary_http_srcs": [
-    "quiche/binary_http/binary_http_message.cc",
-    "quiche/binary_http/binary_http_message_test.cc"
+    "quiche/binary_http/binary_http_message.cc"
   ],
   "qbone_hdrs": [
     "quiche/quic/qbone/bonnet/icmp_reachable.h",

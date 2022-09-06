@@ -1049,6 +1049,7 @@ quiche_tests_srcs = [
     "balsa/balsa_headers_test.cc",
     "balsa/header_properties_test.cc",
     "balsa/simple_buffer_test.cc",
+    "binary_http/binary_http_message_test.cc",
     "common/platform/api/quiche_file_utils_test.cc",
     "common/platform/api/quiche_hostname_utils_test.cc",
     "common/platform/api/quiche_lower_case_string_test.cc",
@@ -1474,7 +1475,6 @@ binary_http_hdrs = [
 ]
 binary_http_srcs = [
     "binary_http/binary_http_message.cc",
-    "binary_http/binary_http_message_test.cc",
 ]
 qbone_hdrs = [
     "quic/qbone/bonnet/icmp_reachable.h",
