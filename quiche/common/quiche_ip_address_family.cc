@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/platform/api/quic_ip_address_family.h"
+#include "quiche/common/quiche_ip_address_family.h"
 
-#include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 
 #if defined(_WIN32)
 #include <winsock2.h>
@@ -12,7 +12,7 @@
 #include <sys/socket.h>
 #endif  // defined(_WIN32)
 
-namespace quic {
+namespace quiche {
 
 int ToPlatformAddressFamily(IpAddressFamily family) {
   switch (family) {
@@ -23,7 +23,7 @@ int ToPlatformAddressFamily(IpAddressFamily family) {
     case IpAddressFamily::IP_UNSPEC:
       return AF_UNSPEC;
     default:
-      QUIC_BUG(quic_bug_10126_1)
+      QUICHE_BUG(quic_bug_10126_1)
           << "Invalid IpAddressFamily " << static_cast<int32_t>(family);
       return AF_UNSPEC;
   }
@@ -38,10 +38,10 @@ IpAddressFamily FromPlatformAddressFamily(int family) {
     case AF_UNSPEC:
       return IpAddressFamily::IP_UNSPEC;
     default:
-      QUIC_BUG(quic_FromPlatformAddressFamily_unrecognized_family)
+      QUICHE_BUG(quic_FromPlatformAddressFamily_unrecognized_family)
           << "Invalid platform address family int " << family;
       return IpAddressFamily::IP_UNSPEC;
   }
 }
 
-}  // namespace quic
+}  // namespace quiche

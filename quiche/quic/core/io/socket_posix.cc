@@ -128,7 +128,7 @@ absl::StatusOr<QuicSocketAddress> ValidateAndConvertAddress(
 absl::StatusOr<SocketFd> CreateSocketWithFlags(IpAddressFamily address_family,
                                                SocketProtocol protocol,
                                                int flags) {
-  int address_family_int = ToPlatformAddressFamily(address_family);
+  int address_family_int = quiche::ToPlatformAddressFamily(address_family);
 
   int type_int = ToPlatformSocketType(protocol);
   type_int |= flags;

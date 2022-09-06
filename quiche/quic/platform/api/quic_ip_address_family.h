@@ -5,18 +5,11 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_IP_ADDRESS_FAMILY_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_IP_ADDRESS_FAMILY_H_
 
+#include "quiche/common/quiche_ip_address_family.h"
+
 namespace quic {
 
-// IP address family type used in QUIC. This hides platform dependant IP address
-// family types.
-enum class IpAddressFamily {
-  IP_V4,
-  IP_V6,
-  IP_UNSPEC,
-};
-
-int ToPlatformAddressFamily(IpAddressFamily family);
-IpAddressFamily FromPlatformAddressFamily(int family);
+using IpAddressFamily = ::quiche::IpAddressFamily;
 
 }  // namespace quic
 

@@ -2,21 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/common/quiche_ip_address.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <string>
 
-#include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_ip_address_family.h"
-#include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_ip_address_family.h"
 
-namespace quic {
+namespace quiche {
 
-QuicIpAddress QuicIpAddress::Loopback4() {
-  QuicIpAddress result;
+QuicheIpAddress QuicheIpAddress::Loopback4() {
+  QuicheIpAddress result;
   result.family_ = IpAddressFamily::IP_V4;
   result.address_.bytes[0] = 127;
   result.address_.bytes[1] = 0;
@@ -25,8 +25,8 @@ QuicIpAddress QuicIpAddress::Loopback4() {
   return result;
 }
 
-QuicIpAddress QuicIpAddress::Loopback6() {
-  QuicIpAddress result;
+QuicheIpAddress QuicheIpAddress::Loopback6() {
+  QuicheIpAddress result;
   result.family_ = IpAddressFamily::IP_V6;
   uint8_t* bytes = result.address_.bytes;
   memset(bytes, 0, 15);
@@ -34,63 +34,65 @@ QuicIpAddress QuicIpAddress::Loopback6() {
   return result;
 }
 
-QuicIpAddress QuicIpAddress::Any4() {
+QuicheIpAddress QuicheIpAddress::Any4() {
   in_addr address;
   memset(&address, 0, sizeof(address));
-  return QuicIpAddress(address);
+  return QuicheIpAddress(address);
 }
 
-QuicIpAddress QuicIpAddress::Any6() {
+QuicheIpAddress QuicheIpAddress::Any6() {
   in6_addr address;
   memset(&address, 0, sizeof(address));
-  return QuicIpAddress(address);
+  return QuicheIpAddress(address);
 }
 
-QuicIpAddress::QuicIpAddress() : family_(IpAddressFamily::IP_UNSPEC) {}
+QuicheIpAddress::QuicheIpAddress() : family_(IpAddressFamily::IP_UNSPEC) {}
 
-QuicIpAddress::QuicIpAddress(const in_addr& ipv4_address)
+QuicheIpAddress::QuicheIpAddress(const in_addr& ipv4_address)
     : family_(IpAddressFamily::IP_V4) {
   address_.v4 = ipv4_address;
 }
-QuicIpAddress::QuicIpAddress(const in6_addr& ipv6_address)
+QuicheIpAddress::QuicheIpAddress(const in6_addr& ipv6_address)
     : family_(IpAddressFamily::IP_V6) {
   address_.v6 = ipv6_address;
 }
 
-bool operator==(QuicIpAddress lhs, QuicIpAddress rhs) {
+bool operator==(QuicheIpAddress lhs, QuicheIpAddress rhs) {
   if (lhs.family_ != rhs.family_) {
     return false;
   }
   switch (lhs.family_) {
     case IpAddressFamily::IP_V4:
       return std::equal(lhs.address_.bytes,
-                        lhs.address_.bytes + QuicIpAddress::kIPv4AddressSize,
+                        lhs.address_.bytes + QuicheIpAddress::kIPv4AddressSize,
                         rhs.address_.bytes);
     case IpAddressFamily::IP_V6:
       return std::equal(lhs.address_.bytes,
-                        lhs.address_.bytes + QuicIpAddress::kIPv6AddressSize,
+                        lhs.address_.bytes + QuicheIpAddress::kIPv6AddressSize,
                         rhs.address_.bytes);
     case IpAddressFamily::IP_UNSPEC:
       return true;
   }
-  QUIC_BUG(quic_bug_10126_2)
+  QUICHE_BUG(quiche_bug_10126_2)
       << "Invalid IpAddressFamily " << static_cast<int32_t>(lhs.family_);
   return false;
 }
 
-bool operator!=(QuicIpAddress lhs, QuicIpAddress rhs) { return !(lhs == rhs); }
+bool operator!=(QuicheIpAddress lhs, QuicheIpAddress rhs) {
+  return !(lhs == rhs);
+}
 
-bool QuicIpAddress::IsInitialized() const {
+bool QuicheIpAddress::IsInitialized() const {
   return family_ != IpAddressFamily::IP_UNSPEC;
 }
 
-IpAddressFamily QuicIpAddress::address_family() const { return family_; }
+IpAddressFamily QuicheIpAddress::address_family() const { return family_; }
 
-int QuicIpAddress::AddressFamilyToInt() const {
+int QuicheIpAddress::AddressFamilyToInt() const {
   return ToPlatformAddressFamily(family_);
 }
 
-std::string QuicIpAddress::ToPackedString() const {
+std::string QuicheIpAddress::ToPackedString() const {
   switch (family_) {
     case IpAddressFamily::IP_V4:
       return std::string(address_.chars, sizeof(address_.v4));
@@ -99,12 +101,12 @@ std::string QuicIpAddress::ToPackedString() const {
     case IpAddressFamily::IP_UNSPEC:
       return "";
   }
-  QUIC_BUG(quic_bug_10126_3)
+  QUICHE_BUG(quiche_bug_10126_3)
       << "Invalid IpAddressFamily " << static_cast<int32_t>(family_);
   return "";
 }
 
-std::string QuicIpAddress::ToString() const {
+std::string QuicheIpAddress::ToString() const {
   if (!IsInitialized()) {
     return "";
   }
@@ -112,7 +114,7 @@ std::string QuicIpAddress::ToString() const {
   char buffer[INET6_ADDRSTRLEN] = {0};
   const char* result =
       inet_ntop(AddressFamilyToInt(), address_.bytes, buffer, sizeof(buffer));
-  QUIC_BUG_IF(quic_bug_10126_4, result == nullptr)
+  QUICHE_BUG_IF(quiche_bug_10126_4, result == nullptr)
       << "Failed to convert an IP address to string";
   return buffer;
 }
@@ -121,7 +123,7 @@ static const uint8_t kMappedAddressPrefix[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff,
 };
 
-QuicIpAddress QuicIpAddress::Normalized() const {
+QuicheIpAddress QuicheIpAddress::Normalized() const {
   if (!IsIPv6()) {
     return *this;
   }
@@ -132,15 +134,15 @@ QuicIpAddress QuicIpAddress::Normalized() const {
 
   in_addr result;
   memcpy(&result, &address_.bytes[12], sizeof(result));
-  return QuicIpAddress(result);
+  return QuicheIpAddress(result);
 }
 
-QuicIpAddress QuicIpAddress::DualStacked() const {
+QuicheIpAddress QuicheIpAddress::DualStacked() const {
   if (!IsIPv4()) {
     return *this;
   }
 
-  QuicIpAddress result;
+  QuicheIpAddress result;
   result.family_ = IpAddressFamily::IP_V6;
   memcpy(result.address_.bytes, kMappedAddressPrefix,
          sizeof(kMappedAddressPrefix));
@@ -148,7 +150,7 @@ QuicIpAddress QuicIpAddress::DualStacked() const {
   return result;
 }
 
-bool QuicIpAddress::FromPackedString(const char* data, size_t length) {
+bool QuicheIpAddress::FromPackedString(const char* data, size_t length) {
   switch (length) {
     case kIPv4AddressSize:
       family_ = IpAddressFamily::IP_V4;
@@ -163,7 +165,7 @@ bool QuicIpAddress::FromPackedString(const char* data, size_t length) {
   return true;
 }
 
-bool QuicIpAddress::FromString(std::string str) {
+bool QuicheIpAddress::FromString(std::string str) {
   for (IpAddressFamily family :
        {IpAddressFamily::IP_V6, IpAddressFamily::IP_V4}) {
     int result =
@@ -176,19 +178,23 @@ bool QuicIpAddress::FromString(std::string str) {
   return false;
 }
 
-bool QuicIpAddress::IsIPv4() const { return family_ == IpAddressFamily::IP_V4; }
+bool QuicheIpAddress::IsIPv4() const {
+  return family_ == IpAddressFamily::IP_V4;
+}
 
-bool QuicIpAddress::IsIPv6() const { return family_ == IpAddressFamily::IP_V6; }
+bool QuicheIpAddress::IsIPv6() const {
+  return family_ == IpAddressFamily::IP_V6;
+}
 
-bool QuicIpAddress::InSameSubnet(const QuicIpAddress& other,
-                                 int subnet_length) {
+bool QuicheIpAddress::InSameSubnet(const QuicheIpAddress& other,
+                                   int subnet_length) {
   if (!IsInitialized()) {
-    QUIC_BUG(quic_bug_10126_5)
+    QUICHE_BUG(quiche_bug_10126_5)
         << "Attempting to do subnet matching on undefined address";
     return false;
   }
   if ((IsIPv4() && subnet_length > 32) || (IsIPv6() && subnet_length > 128)) {
-    QUIC_BUG(quic_bug_10126_6) << "Subnet mask is out of bounds";
+    QUICHE_BUG(quiche_bug_10126_6) << "Subnet mask is out of bounds";
     return false;
   }
 
@@ -207,14 +213,14 @@ bool QuicIpAddress::InSameSubnet(const QuicIpAddress& other,
   return (lhs[bytes_to_check] & mask) == (rhs[bytes_to_check] & mask);
 }
 
-in_addr QuicIpAddress::GetIPv4() const {
+in_addr QuicheIpAddress::GetIPv4() const {
   QUICHE_DCHECK(IsIPv4());
   return address_.v4;
 }
 
-in6_addr QuicIpAddress::GetIPv6() const {
+in6_addr QuicheIpAddress::GetIPv6() const {
   QUICHE_DCHECK(IsIPv6());
   return address_.v6;
 }
 
-}  // namespace quic
+}  // namespace quiche

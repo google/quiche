@@ -205,10 +205,10 @@ QuicUdpSocketFd QuicUdpSocketApi::Create(int address_family,
   // on ios/osx because CMSG_SPACE isn't a constant expression there.
   QUICHE_DCHECK_GE(kDefaultUdpPacketControlBufferSize, kMinCmsgSpaceForRead);
 
-  absl::StatusOr<SocketFd> socket =
-      socket_api::CreateSocket(FromPlatformAddressFamily(address_family),
-                               socket_api::SocketProtocol::kUdp,
-                               /*blocking=*/false);
+  absl::StatusOr<SocketFd> socket = socket_api::CreateSocket(
+      quiche::FromPlatformAddressFamily(address_family),
+      socket_api::SocketProtocol::kUdp,
+      /*blocking=*/false);
 
   if (!socket.ok()) {
     QUIC_LOG_FIRST_N(ERROR, 100)

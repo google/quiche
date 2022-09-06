@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/common/quiche_ip_address.h"
 
 #include <cstdint>
 
-#include "quiche/quic/platform/api/quic_ip_address_family.h"
-#include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_ip_address_family.h"
 
-namespace quic {
+namespace quiche {
 namespace test {
 namespace {
 
-TEST(QuicIpAddressTest, IPv4) {
-  QuicIpAddress ip_address;
+TEST(QuicheIpAddressTest, IPv4) {
+  QuicheIpAddress ip_address;
   EXPECT_FALSE(ip_address.IsInitialized());
 
   EXPECT_TRUE(ip_address.FromString("127.0.52.223"));
@@ -34,8 +34,8 @@ TEST(QuicIpAddressTest, IPv4) {
   EXPECT_EQ(223u, *(v4_address_ptr + 3));
 }
 
-TEST(QuicIpAddressTest, IPv6) {
-  QuicIpAddress ip_address;
+TEST(QuicheIpAddressTest, IPv6) {
+  QuicheIpAddress ip_address;
   EXPECT_FALSE(ip_address.IsInitialized());
 
   EXPECT_TRUE(ip_address.FromString("fe80::1ff:fe23:4567"));
@@ -62,19 +62,19 @@ TEST(QuicIpAddressTest, IPv6) {
   EXPECT_EQ(ip_address, ip_address.DualStacked());
 }
 
-TEST(QuicIpAddressTest, FromPackedString) {
-  QuicIpAddress loopback4, loopback6;
+TEST(QuicheIpAddressTest, FromPackedString) {
+  QuicheIpAddress loopback4, loopback6;
   const char loopback4_packed[] = "\x7f\0\0\x01";
   const char loopback6_packed[] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x01";
   EXPECT_TRUE(loopback4.FromPackedString(loopback4_packed, 4));
   EXPECT_TRUE(loopback6.FromPackedString(loopback6_packed, 16));
-  EXPECT_EQ(loopback4, QuicIpAddress::Loopback4());
-  EXPECT_EQ(loopback6, QuicIpAddress::Loopback6());
+  EXPECT_EQ(loopback4, QuicheIpAddress::Loopback4());
+  EXPECT_EQ(loopback6, QuicheIpAddress::Loopback6());
 }
 
-TEST(QuicIpAddressTest, MappedAddress) {
-  QuicIpAddress ipv4_address;
-  QuicIpAddress mapped_address;
+TEST(QuicheIpAddressTest, MappedAddress) {
+  QuicheIpAddress ipv4_address;
+  QuicheIpAddress mapped_address;
 
   EXPECT_TRUE(ipv4_address.FromString("127.0.0.1"));
   EXPECT_TRUE(mapped_address.FromString("::ffff:7f00:1"));
@@ -83,7 +83,7 @@ TEST(QuicIpAddressTest, MappedAddress) {
   EXPECT_EQ(ipv4_address, mapped_address.Normalized());
 }
 
-TEST(QuicIpAddressTest, Subnets) {
+TEST(QuicheIpAddressTest, Subnets) {
   struct {
     const char* address1;
     const char* address2;
@@ -118,7 +118,7 @@ TEST(QuicIpAddressTest, Subnets) {
   };
 
   for (const auto& test_case : test_cases) {
-    QuicIpAddress address1, address2;
+    QuicheIpAddress address1, address2;
     ASSERT_TRUE(address1.FromString(test_case.address1));
     ASSERT_TRUE(address2.FromString(test_case.address2));
     EXPECT_EQ(test_case.same_subnet,
@@ -128,15 +128,15 @@ TEST(QuicIpAddressTest, Subnets) {
   }
 }
 
-TEST(QuicIpAddress, LoopbackAddresses) {
-  QuicIpAddress loopback4;
-  QuicIpAddress loopback6;
+TEST(QuicheIpAddress, LoopbackAddresses) {
+  QuicheIpAddress loopback4;
+  QuicheIpAddress loopback6;
   ASSERT_TRUE(loopback4.FromString("127.0.0.1"));
   ASSERT_TRUE(loopback6.FromString("::1"));
-  EXPECT_EQ(loopback4, QuicIpAddress::Loopback4());
-  EXPECT_EQ(loopback6, QuicIpAddress::Loopback6());
+  EXPECT_EQ(loopback4, QuicheIpAddress::Loopback4());
+  EXPECT_EQ(loopback6, QuicheIpAddress::Loopback6());
 }
 
 }  // namespace
 }  // namespace test
-}  // namespace quic
+}  // namespace quiche
