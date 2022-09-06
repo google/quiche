@@ -167,6 +167,23 @@ QuicConnectionId LoadBalancerEncoder::GenerateConnectionId() {
   return id;
 }
 
+absl::optional<QuicConnectionId> LoadBalancerEncoder::GenerateNextConnectionId(
+    [[maybe_unused]] const QuicConnectionId &original) {
+  // Do not allow new connection IDs if linkable.
+  return (IsEncoding() && !IsEncrypted()) ? absl::optional<QuicConnectionId>()
+                                          : GenerateConnectionId();
+}
+
+absl::optional<QuicConnectionId> LoadBalancerEncoder::MaybeReplaceConnectionId(
+    const QuicConnectionId &original, const ParsedQuicVersion &version) {
+  // Pre-IETF versions of QUIC can respond poorly to new connection IDs issued
+  // during the handshake.
+  return (!version.HasIetfQuicFrames() &&
+          original.length() == CurrentConnectionIdLength())
+             ? absl::optional<QuicConnectionId>()
+             : GenerateConnectionId();
+}
+
 QuicConnectionId LoadBalancerEncoder::MakeUnroutableConnectionId(
     uint8_t first_byte) {
   QuicConnectionId id;

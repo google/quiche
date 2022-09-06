@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_ENCODER_H_
 #define QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_ENCODER_H_
 
+#include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/load_balancer/load_balancer_config.h"
 #include "quiche/quic/load_balancer/load_balancer_server_id.h"
@@ -50,7 +51,8 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoderVisitorInterface {
 
 // Manages QUIC-LB configurations to properly encode a given server ID in a
 // QUIC Connection ID.
-class QUIC_EXPORT_PRIVATE LoadBalancerEncoder {
+class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
+    : public ConnectionIdGeneratorInterface {
  public:
   // Returns a newly created encoder with no active config, if
   // |unroutable_connection_id_length| is valid. |visitor| specifies an optional
@@ -94,6 +96,13 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder {
   // length Connection ID.
   QuicConnectionId GenerateConnectionId();
 
+  // Functions from ConnectionIdGeneratorInterface
+  absl::optional<QuicConnectionId> GenerateNextConnectionId(
+      const QuicConnectionId& original) override;
+  absl::optional<QuicConnectionId> MaybeReplaceConnectionId(
+      const QuicConnectionId& original,
+      const ParsedQuicVersion& version) override;
+
  private:
   friend class test::LoadBalancerEncoderPeer;
 
@@ -107,6 +116,10 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder {
         unroutable_connection_id_len_(unroutable_connection_id_len) {}
 
   QuicConnectionId MakeUnroutableConnectionId(uint8_t first_byte);
+
+  uint8_t CurrentConnectionIdLength() const {
+    return IsEncoding() ? config_->total_len() : unroutable_connection_id_len_;
+  }
 
   QuicRandom& random_;
   const bool len_self_encoded_;
