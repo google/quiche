@@ -548,7 +548,8 @@ class QuicSelfIssuedConnectionIdManagerTest : public QuicTest {
   QuicConnectionId CheckGenerate(QuicConnectionId old_cid) {
     QuicConnectionId new_cid =
         QuicUtils::CreateReplacementConnectionId(old_cid);
-    if (GetQuicRestartFlag(quic_abstract_connection_id_generator)) {
+    if (GetQuicReloadableFlag(
+            quic_connection_uses_abstract_connection_id_generator)) {
       // Ready for the actual call.
       EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(old_cid))
           .WillOnce(Return(new_cid));
