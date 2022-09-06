@@ -119,18 +119,18 @@ constexpr uint8_t kServerId[] = {0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f, 0x5f,
 
 TEST_F(LoadBalancerEncoderTest, BadUnroutableLength) {
   EXPECT_QUIC_BUG(
-      EXPECT_EQ(LoadBalancerEncoder::Create(random_, nullptr, false, 0),
-                nullptr),
+      EXPECT_FALSE(
+          LoadBalancerEncoder::Create(random_, nullptr, false, 0).has_value()),
       "Invalid unroutable_connection_id_len = 0");
   EXPECT_QUIC_BUG(
-      EXPECT_EQ(LoadBalancerEncoder::Create(random_, nullptr, false, 21),
-                nullptr),
+      EXPECT_FALSE(
+          LoadBalancerEncoder::Create(random_, nullptr, false, 21).has_value()),
       "Invalid unroutable_connection_id_len = 21");
 }
 
 TEST_F(LoadBalancerEncoderTest, BadServerIdLength) {
   auto encoder = LoadBalancerEncoder::Create(random_, nullptr, true);
-  EXPECT_NE(encoder, nullptr);
+  EXPECT_TRUE(encoder.has_value());
   // Expects a 3 byte server ID and got 4.
   auto config = LoadBalancerConfig::CreateUnencrypted(1, 3, 4);
   EXPECT_TRUE(config.has_value());
@@ -143,7 +143,8 @@ TEST_F(LoadBalancerEncoderTest, BadServerIdLength) {
 TEST_F(LoadBalancerEncoderTest, FailToUpdateConfigWithSameId) {
   TestLoadBalancerEncoderVisitor visitor;
   auto encoder = LoadBalancerEncoder::Create(random_, &visitor, true);
-  EXPECT_NE(encoder, nullptr);
+  EXPECT_TRUE(encoder.has_value());
+  EXPECT_TRUE(encoder.has_value());
   auto config = LoadBalancerConfig::CreateUnencrypted(1, 3, 4);
   EXPECT_TRUE(config.has_value());
   EXPECT_TRUE(encoder->UpdateConfig(*config, MakeServerId(kServerId, 3)));
@@ -198,7 +199,7 @@ TEST_F(LoadBalancerEncoderTest, FollowSpecExample) {
   };
   random_.AddNextValues(0, 0x75c2699c);
   auto encoder = LoadBalancerEncoder::Create(random_, nullptr, true, 8);
-  EXPECT_NE(encoder, nullptr);
+  EXPECT_TRUE(encoder.has_value());
   auto config = LoadBalancerConfig::Create(config_id, server_id_len, nonce_len,
                                            absl::string_view(raw_key));
   EXPECT_TRUE(config.has_value());
@@ -247,7 +248,7 @@ TEST_F(LoadBalancerEncoderTest, EncoderTestVectors) {
   };
   for (const auto &test : test_vectors) {
     auto encoder = LoadBalancerEncoder::Create(random_, nullptr, true, 8);
-    EXPECT_NE(encoder, nullptr);
+    EXPECT_TRUE(encoder.has_value());
     random_.AddNextValues(kNonceHigh, kNonceLow);
     EXPECT_TRUE(encoder->UpdateConfig(test.config, test.server_id));
     EXPECT_EQ(encoder->GenerateConnectionId(), test.connection_id);
@@ -258,7 +259,7 @@ TEST_F(LoadBalancerEncoderTest, RunOutOfNonces) {
   const uint8_t server_id_len = 3;
   TestLoadBalancerEncoderVisitor visitor;
   auto encoder = LoadBalancerEncoder::Create(random_, &visitor, true, 8);
-  EXPECT_NE(encoder, nullptr);
+  EXPECT_TRUE(encoder.has_value());
   auto config = LoadBalancerConfig::Create(0, server_id_len, 4, kKey);
   EXPECT_TRUE(config.has_value());
   EXPECT_TRUE(
@@ -278,7 +279,7 @@ TEST_F(LoadBalancerEncoderTest, RunOutOfNonces) {
 TEST_F(LoadBalancerEncoderTest, UnroutableConnectionId) {
   random_.AddNextValues(0x83, kNonceHigh);
   auto encoder = LoadBalancerEncoder::Create(random_, nullptr, false);
-  EXPECT_NE(encoder, nullptr);
+  EXPECT_TRUE(encoder.has_value());
   EXPECT_EQ(encoder->num_nonces_left(), 0);
   auto connection_id = encoder->GenerateConnectionId();
   // The first byte is the config_id (0xc0) xored with (0x83 & 0x3f).
@@ -289,7 +290,7 @@ TEST_F(LoadBalancerEncoderTest, UnroutableConnectionId) {
 
 TEST_F(LoadBalancerEncoderTest, NonDefaultUnroutableConnectionIdLength) {
   auto encoder = LoadBalancerEncoder::Create(random_, nullptr, true, 9);
-  EXPECT_NE(encoder, nullptr);
+  EXPECT_TRUE(encoder.has_value());
   QuicConnectionId connection_id = encoder->GenerateConnectionId();
   EXPECT_EQ(connection_id.length(), 9);
 }
@@ -297,7 +298,7 @@ TEST_F(LoadBalancerEncoderTest, NonDefaultUnroutableConnectionIdLength) {
 TEST_F(LoadBalancerEncoderTest, DeleteConfigWhenNoConfigExists) {
   TestLoadBalancerEncoderVisitor visitor;
   auto encoder = LoadBalancerEncoder::Create(random_, &visitor, true);
-  EXPECT_NE(encoder, nullptr);
+  EXPECT_TRUE(encoder.has_value());
   encoder->DeleteConfig();
   EXPECT_EQ(visitor.num_deletes(), 0u);
 }

@@ -47,7 +47,7 @@ bool WriteUint128(const absl::uint128 in, uint8_t size, QuicDataWriter &out) {
 constexpr uint8_t kLoadBalancerLengthMask = 0x3f;
 constexpr uint8_t kLoadBalancerUnroutableConfigId = 0xc0;
 
-std::unique_ptr<LoadBalancerEncoder> LoadBalancerEncoder::Create(
+absl::optional<LoadBalancerEncoder> LoadBalancerEncoder::Create(
     QuicRandom &random, LoadBalancerEncoderVisitorInterface *const visitor,
     const bool len_self_encoded, const uint8_t unroutable_connection_id_len) {
   if (unroutable_connection_id_len == 0 ||
@@ -56,10 +56,10 @@ std::unique_ptr<LoadBalancerEncoder> LoadBalancerEncoder::Create(
     QUIC_BUG(quic_bug_435375038_01)
         << "Invalid unroutable_connection_id_len = "
         << static_cast<int>(unroutable_connection_id_len);
-    return nullptr;
+    return absl::optional<LoadBalancerEncoder>();
   }
-  return absl::WrapUnique(new LoadBalancerEncoder(
-      random, visitor, len_self_encoded, unroutable_connection_id_len));
+  return LoadBalancerEncoder(random, visitor, len_self_encoded,
+                             unroutable_connection_id_len);
 }
 
 bool LoadBalancerEncoder::UpdateConfig(const LoadBalancerConfig &config,
