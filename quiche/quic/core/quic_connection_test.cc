@@ -1877,7 +1877,8 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
   QuicConnectionPeer::SetAddressValidated(&connection_);
 
   // Sends new server CID to client.
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+  if (GetQuicReloadableFlag(
+          quic_connection_uses_abstract_connection_id_generator) &&
       !connection_.connection_id().IsEmpty()) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
@@ -2081,7 +2082,8 @@ TEST_P(QuicConnectionTest, ConnectionMigrationWithPendingPaddingBytes) {
 
   // Sends new server CID to client.
   QuicConnectionId new_cid;
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+  if (GetQuicReloadableFlag(
+          quic_connection_uses_abstract_connection_id_generator) &&
       !connection_.connection_id().IsEmpty()) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
@@ -2144,7 +2146,8 @@ TEST_P(QuicConnectionTest,
 
   // Sends new server CID to client.
   QuicConnectionId new_cid;
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+  if (GetQuicReloadableFlag(
+          quic_connection_uses_abstract_connection_id_generator) &&
       !connection_.connection_id().IsEmpty()) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
@@ -2217,7 +2220,8 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   QuicConnectionId server_cid0 = connection_.connection_id();
   QuicConnectionId server_cid1;
   // Sends new server CID to client.
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+  if (GetQuicReloadableFlag(
+          quic_connection_uses_abstract_connection_id_generator) &&
       !connection_.connection_id().IsEmpty()) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
@@ -13322,7 +13326,8 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
   QuicConnectionId client_cid1 = TestConnectionId(2);
   QuicConnectionId server_cid1;
   // Sends new server CID to client.
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+  if (GetQuicReloadableFlag(
+          quic_connection_uses_abstract_connection_id_generator) &&
       !connection_.connection_id().IsEmpty()) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
@@ -13475,7 +13480,8 @@ TEST_P(QuicConnectionTest,
   QuicConnectionId server_cid0 = connection_.connection_id();
   QuicConnectionId server_cid1;
   // Sends new server CID to client.
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+  if (GetQuicReloadableFlag(
+          quic_connection_uses_abstract_connection_id_generator) &&
       !connection_.connection_id().IsEmpty()) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
@@ -13601,7 +13607,8 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
   QuicConnectionId client_cid1 = TestConnectionId(2);
   QuicConnectionId server_cid1;
   // Sends new server CID to client.
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+  if (GetQuicReloadableFlag(
+          quic_connection_uses_abstract_connection_id_generator) &&
       !connection_.connection_id().IsEmpty()) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
@@ -13722,7 +13729,8 @@ TEST_P(QuicConnectionTest, DoNotIssueNewCidIfVisitorSaysNo) {
   QuicConnectionId client_cid1 = TestConnectionId(2);
   QuicConnectionId server_cid1;
   // Sends new server CID to client.
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+  if (GetQuicReloadableFlag(
+          quic_connection_uses_abstract_connection_id_generator) &&
       !connection_.connection_id().IsEmpty()) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
@@ -13860,7 +13868,8 @@ TEST_P(QuicConnectionTest,
   ASSERT_EQ(packet_creator->GetDestinationConnectionId(), server_cid0);
 
   // Client will issue a new client connection ID to server.
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator)) {
+  if (GetQuicReloadableFlag(
+          quic_connection_uses_abstract_connection_id_generator)) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
   }
@@ -14022,7 +14031,8 @@ TEST_P(QuicConnectionTest,
 
   // Client will issue a new client connection ID to server.
   QuicConnectionId new_client_connection_id;
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator)) {
+  if (GetQuicReloadableFlag(
+          quic_connection_uses_abstract_connection_id_generator)) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
   }
@@ -14279,7 +14289,8 @@ TEST_P(QuicConnectionTest, RetireConnectionIdFrameResultsInError) {
   set_perspective(Perspective::IS_SERVER);
   connection_.CreateConnectionIdManager();
 
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+  if (GetQuicReloadableFlag(
+          quic_connection_uses_abstract_connection_id_generator) &&
       !connection_.connection_id().IsEmpty()) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
@@ -14317,7 +14328,8 @@ TEST_P(QuicConnectionTest,
   QuicRetireConnectionIdFrame frame;
   frame.sequence_number = 0u;
   if (connection_.connection_migration_use_new_cid()) {
-    if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+    if (GetQuicReloadableFlag(
+            quic_connection_uses_abstract_connection_id_generator) &&
         !connection_.connection_id().IsEmpty()) {
       EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(cid0))
           .WillOnce(Return(TestConnectionId(456)));
@@ -14358,7 +14370,8 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
   EXPECT_EQ(connection_.GetOneActiveServerConnectionId(), cid0);
 
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+  if (GetQuicReloadableFlag(
+          quic_connection_uses_abstract_connection_id_generator) &&
       !connection_.connection_id().IsEmpty()) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
@@ -14394,7 +14407,8 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
 
   // Packet2 with RetireConnectionId frame trigers sending NewConnectionId
   // immediately.
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+  if (GetQuicReloadableFlag(
+          quic_connection_uses_abstract_connection_id_generator) &&
       !connection_.connection_id().IsEmpty()) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
@@ -14809,7 +14823,8 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
       !connection_.connection_migration_use_new_cid()) {
     return;
   }
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator)) {
+  if (GetQuicReloadableFlag(
+          quic_connection_uses_abstract_connection_id_generator)) {
     EXPECT_CALL(connection_id_generator_,
                 GenerateNextConnectionId(TestConnectionId(12)))
         .WillOnce(Return(TestConnectionId(456)));
