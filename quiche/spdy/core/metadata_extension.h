@@ -109,6 +109,8 @@ class QUICHE_EXPORT_PRIVATE MetadataFrameSequence {
   // which case returns nullptr.
   std::unique_ptr<spdy::SpdyFrameIR> Next();
 
+  SpdyStreamId stream_id() const { return stream_id_; }
+
  private:
   SpdyStreamId stream_id_;
   Http2HeaderBlock payload_;
