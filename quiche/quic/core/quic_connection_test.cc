@@ -2474,7 +2474,7 @@ class TestValidationResultDelegate : public QuicPathValidator::ResultDelegate {
     EXPECT_EQ(expected_self_address_, context->self_address());
     EXPECT_EQ(expected_peer_address_, context->peer_address());
     if (connection_->perspective() == Perspective::IS_CLIENT) {
-      connection_->OnPathValidationFailureAtClient();
+      connection_->OnPathValidationFailureAtClient(/*is_multi_port=*/false);
     }
     *success_ = false;
   }
@@ -13003,6 +13003,9 @@ TEST_P(QuicConnectionTest, MultiPortCreation) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   connection_.OnHandshakeComplete();
 
+  EXPECT_CALL(visitor_, OnPathDegrading());
+  connection_.OnPathDegradingDetected();
+
   auto self_address = connection_.self_address();
   const QuicSocketAddress kNewSelfAddress(self_address.host(),
                                           self_address.port() + 1);
@@ -13025,6 +13028,11 @@ TEST_P(QuicConnectionTest, MultiPortCreation) {
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
       &connection_, kNewSelfAddress, connection_.peer_address()));
 
+  // 30ms RTT.
+  const QuicTime::Delta kTestRTT = QuicTime::Delta::FromMilliseconds(30);
+  // Fake a response delay.
+  clock_.AdvanceTime(kTestRTT);
+
   QuicFrames frames;
   frames.push_back(QuicFrame(QuicPathResponseFrame(
       99, new_writer.path_challenge_frames().front().data_buffer)));
@@ -13034,6 +13042,13 @@ TEST_P(QuicConnectionTest, MultiPortCreation) {
   EXPECT_FALSE(connection_.HasPendingPathValidation());
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
       &connection_, kNewSelfAddress, connection_.peer_address()));
+
+  auto stats = connection_.multi_port_stats();
+  EXPECT_EQ(1, stats->num_path_degrading);
+  EXPECT_EQ(0, stats->num_multi_port_probe_failures_when_path_degrading);
+  EXPECT_EQ(kTestRTT, stats->rtt_stats.latest_rtt());
+  EXPECT_EQ(kTestRTT,
+            stats->rtt_stats_when_default_path_degrading.latest_rtt());
 
   connection_.GetMultiPortProbingAlarm()->Fire();
   EXPECT_TRUE(connection_.HasPendingPathValidation());
@@ -13050,6 +13065,9 @@ TEST_P(QuicConnectionTest, MultiPortCreation) {
   EXPECT_FALSE(connection_.HasPendingPathValidation());
   EXPECT_FALSE(QuicConnectionPeer::IsAlternativePath(
       &connection_, kNewSelfAddress, connection_.peer_address()));
+  EXPECT_EQ(1, stats->num_path_degrading);
+  EXPECT_EQ(1, stats->num_multi_port_probe_failures_when_path_degrading);
+  EXPECT_EQ(0, stats->num_multi_port_probe_failures_when_path_not_degrading);
 }
 
 TEST_P(QuicConnectionTest, SingleAckInPacket) {

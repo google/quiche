@@ -49,7 +49,8 @@ class QuicClientSocketMigrationValidationResultDelegate
       std::unique_ptr<QuicPathValidationContext> context) override {
     QUIC_LOG(WARNING) << "Fail to validate path " << *context
                       << ", stop migrating.";
-    client_->session()->connection()->OnPathValidationFailureAtClient();
+    client_->session()->connection()->OnPathValidationFailureAtClient(
+        /*is_multi_port=*/false);
   }
 
  private:
@@ -464,7 +465,8 @@ class ValidationResultDelegate : public QuicPathValidator::ResultDelegate {
       std::unique_ptr<QuicPathValidationContext> context) override {
     QUIC_LOG(WARNING) << "Fail to validate path " << *context
                       << ", stop migrating.";
-    client_->session()->connection()->OnPathValidationFailureAtClient();
+    client_->session()->connection()->OnPathValidationFailureAtClient(
+        /*is_multi_port=*/false);
   }
 
  private:

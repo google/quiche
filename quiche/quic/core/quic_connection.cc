@@ -681,6 +681,9 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   multi_port_enabled_ =
       connection_migration_use_new_cid_ &&
       config.HasClientSentConnectionOption(kMPQC, perspective_);
+  if (multi_port_enabled_) {
+    multi_port_stats_ = std::make_unique<MultiPortStats>();
+  }
 }
 
 void QuicConnection::EnableLegacyVersionEncapsulation(
@@ -6237,6 +6240,9 @@ void QuicConnection::set_client_connection_id(
 
 void QuicConnection::OnPathDegradingDetected() {
   is_path_degrading_ = true;
+  if (multi_port_stats_) {
+    multi_port_stats_->num_path_degrading++;
+  }
   visitor_->OnPathDegrading();
 }
 
@@ -6888,11 +6894,21 @@ bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
   return true;
 }
 
-void QuicConnection::OnPathValidationFailureAtClient() {
+void QuicConnection::OnPathValidationFailureAtClient(bool is_multi_port) {
   if (connection_migration_use_new_cid_) {
     QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT);
     alternative_path_.Clear();
   }
+
+  if (is_multi_port && multi_port_stats_ != nullptr) {
+    if (is_path_degrading_) {
+      multi_port_stats_->num_multi_port_probe_failures_when_path_degrading++;
+    } else {
+      multi_port_stats_
+          ->num_multi_port_probe_failures_when_path_not_degrading++;
+    }
+  }
+
   RetirePeerIssuedConnectionIdsOnPathValidationFailure();
 }
 
@@ -7111,10 +7127,20 @@ bool QuicConnection::IsReceivedPeerAddressValidated() const {
 }
 
 void QuicConnection::OnMultiPortPathProbingSuccess(
-    std::unique_ptr<QuicPathValidationContext> context) {
+    std::unique_ptr<QuicPathValidationContext> context, QuicTime start_time) {
   multi_port_path_context_ = std::move(context);
   multi_port_probing_alarm_->Set(clock_->ApproximateNow() +
                                  multi_port_probing_interval_);
+  if (multi_port_stats_ != nullptr) {
+    auto now = clock_->Now();
+    auto time_delta = now - start_time;
+    multi_port_stats_->rtt_stats.UpdateRtt(time_delta, QuicTime::Delta::Zero(),
+                                           now);
+    if (is_path_degrading_) {
+      multi_port_stats_->rtt_stats_when_default_path_degrading.UpdateRtt(
+          time_delta, QuicTime::Delta::Zero(), now);
+    }
+  }
 }
 
 void QuicConnection::ProbeMultiPortPath() {
@@ -7141,14 +7167,14 @@ QuicConnection::MultiPortPathValidationResultDelegate::
 
 void QuicConnection::MultiPortPathValidationResultDelegate::
     OnPathValidationSuccess(std::unique_ptr<QuicPathValidationContext> context,
-                            QuicTime /*start_time*/) {
-  connection_->OnMultiPortPathProbingSuccess(std::move(context));
+                            QuicTime start_time) {
+  connection_->OnMultiPortPathProbingSuccess(std::move(context), start_time);
 }
 
 void QuicConnection::MultiPortPathValidationResultDelegate::
     OnPathValidationFailure(
         std::unique_ptr<QuicPathValidationContext> /*context*/) {
-  connection_->OnPathValidationFailureAtClient();
+  connection_->OnPathValidationFailureAtClient(/*is_multi_port=*/true);
 }
 
 QuicConnection::ReversePathValidationResultDelegate::

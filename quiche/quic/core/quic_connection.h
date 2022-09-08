@@ -26,6 +26,7 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
@@ -481,6 +482,19 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicConnection& operator=(const QuicConnection&) = delete;
   ~QuicConnection() override;
 
+  struct MultiPortStats {
+    // general rtt stats of the multi-port path.
+    RttStats rtt_stats;
+    // rtt stats for the multi-port path when the default path is degrading.
+    RttStats rtt_stats_when_default_path_degrading;
+    // number of path degrading triggered when multi-port is enabled.
+    size_t num_path_degrading = 0;
+    // number of multi-port probe failures when path is not degrading
+    size_t num_multi_port_probe_failures_when_path_not_degrading = 0;
+    // number of multi-port probe failure when path is degrading
+    size_t num_multi_port_probe_failures_when_path_degrading = 0;
+  };
+
   // Sets connection parameters from the supplied |config|.
   void SetFromConfig(const QuicConfig& config);
 
@@ -748,7 +762,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Called in multi-port QUIC when the alternative path validation succeeds.
   // Stores the path validation context and prepares for the next validation.
   void OnMultiPortPathProbingSuccess(
-      std::unique_ptr<QuicPathValidationContext> context);
+      std::unique_ptr<QuicPathValidationContext> context, QuicTime start_time);
 
   // Probe the existing alternative path. Does not create a new alternative
   // path. This method is the callback for |multi_port_probing_alarm_|.
@@ -819,6 +833,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   void SetMultiPortProbingInterval(QuicTime::Delta probing_interval) {
     multi_port_probing_interval_ = probing_interval;
+  }
+
+  const MultiPortStats* multi_port_stats() const {
+    return multi_port_stats_.get();
   }
 
   // Called when the ping alarm fires. Causes a ping frame to be sent only
@@ -1210,7 +1228,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Called to clear the alternative_path_ when path validation failed on the
   // client side.
-  void OnPathValidationFailureAtClient();
+  void OnPathValidationFailureAtClient(bool is_multi_port);
 
   void SetSourceAddressTokenToSend(absl::string_view token);
 
@@ -2285,6 +2303,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool multi_port_enabled_ = false;
 
   QuicTime::Delta multi_port_probing_interval_;
+
+  std::unique_ptr<MultiPortStats> multi_port_stats_;
 
   RetransmittableOnWireBehavior retransmittable_on_wire_behavior_ = DEFAULT;
 
