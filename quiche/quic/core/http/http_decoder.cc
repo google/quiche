@@ -670,4 +670,16 @@ QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
   }
 }
 
+std::string HttpDecoder::DebugString() const {
+  return absl::StrCat(
+      "HttpDecoder:", "\n  state: ", state_, "\n  error: ", error_,
+      "\n  current_frame_type: ", current_frame_type_,
+      "\n  current_length_field_length: ", current_length_field_length_,
+      "\n  remaining_length_field_length: ", remaining_length_field_length_,
+      "\n  current_frame_length: ", current_frame_length_,
+      "\n  remaining_frame_length: ", remaining_frame_length_,
+      "\n  current_type_field_length: ", current_type_field_length_,
+      "\n  remaining_type_field_length: ", remaining_type_field_length_);
+}
+
 }  // namespace quic
