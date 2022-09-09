@@ -9,8 +9,10 @@
 #include <memory>
 #include <string>
 
+#include "absl/types/optional.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_packet_reader.h"
+#include "quiche/quic/core/quic_udp_socket.h"
 #include "quiche/quic/tools/quic_client_base.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 
@@ -83,6 +85,14 @@ class QuicClientDefaultNetworkHelper : public QuicClientBase::NetworkHelper,
   // Used for testing.
   void SetClientPort(int port);
 
+  // Indicates that some of the FDs owned by the network helper may be
+  // unregistered by the external code by manually calling
+  // event_loop()->UnregisterSocket() (this is useful for certain scenarios
+  // where an external event loop is used).
+  void AllowFdsToBeUnregisteredExternally() {
+    fds_unregistered_externally_ = true;
+  }
+
  private:
   // Actually clean up |fd|.
   void CleanUpUDPSocketImpl(int fd);
@@ -109,6 +119,10 @@ class QuicClientDefaultNetworkHelper : public QuicClientBase::NetworkHelper,
   QuicClientBase* client_;
 
   int max_reads_per_event_loop_;
+
+  // If true, some of the FDs owned by the network helper may be unregistered by
+  // the external code.
+  bool fds_unregistered_externally_ = false;
 };
 
 }  // namespace quic

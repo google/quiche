@@ -139,7 +139,7 @@ void QuicClientDefaultNetworkHelper::CleanUpAllUDPSockets() {
 void QuicClientDefaultNetworkHelper::CleanUpUDPSocketImpl(int fd) {
   if (fd > -1) {
     bool success = event_loop_->UnregisterSocket(fd);
-    QUICHE_DCHECK(success);
+    QUICHE_DCHECK(success || fds_unregistered_externally_);
     int rc = close(fd);
     QUICHE_DCHECK_EQ(0, rc);
   }
