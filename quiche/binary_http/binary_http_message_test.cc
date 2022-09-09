@@ -264,7 +264,7 @@ TEST(BinaryHttpResponse, DecodeNoBody) {
       {"server", "Apache"}};
   ASSERT_THAT(response.GetHeaderFields(), ContainerEq(expected_fields));
   ASSERT_EQ(response.body(), "");
-  ASSERT_TRUE(response.GetInformationalResponse().empty());
+  ASSERT_TRUE(response.informational_responses().empty());
 }
 
 TEST(BinaryHttpResponse, EncodeBody) {
@@ -318,7 +318,7 @@ TEST(BinaryHttpResponse, DecodeBody) {
       {"server", "Apache"}};
   ASSERT_THAT(response.GetHeaderFields(), ContainerEq(expected_fields));
   ASSERT_EQ(response.body(), "Hello, world!\r\n");
-  ASSERT_TRUE(response.GetInformationalResponse().empty());
+  ASSERT_TRUE(response.informational_responses().empty());
 }
 
 TEST(BHttpResponse, AddBadInformationalResponseCode) {
@@ -482,7 +482,7 @@ TEST(BinaryHttpResponse, DecodeMultiInformationalWithBody) {
       {"link", "</script.js>; rel=preload; as=script"}};
   std::vector<BinaryHttpResponse::InformationalResponse> expected_control = {
       {102, header102}, {103, header103}};
-  ASSERT_THAT(response.GetInformationalResponse(),
+  ASSERT_THAT(response.informational_responses(),
               ContainerEq(expected_control));
 }
 

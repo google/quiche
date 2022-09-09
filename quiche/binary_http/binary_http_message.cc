@@ -228,7 +228,7 @@ absl::Status BinaryHttpResponse::AddInformationalResponse(
   if (status_code > 199) {
     return absl::InvalidArgumentError("status code > 199");
   }
-  InformationalResponseInternal data(status_code);
+  InformationalResponse data(status_code);
   for (Field& header : header_fields) {
     data.AddField(header.name, std::move(header.value));
   }
@@ -239,16 +239,6 @@ absl::Status BinaryHttpResponse::AddInformationalResponse(
 absl::StatusOr<std::string> BinaryHttpResponse::Serialize() const {
   // Only supporting known length requests so far.
   return EncodeAsKnownLength();
-}
-
-std::vector<BinaryHttpResponse::InformationalResponse>
-BinaryHttpResponse::GetInformationalResponse() const {
-  std::vector<InformationalResponse> data;
-  data.reserve(informational_response_control_data_.size());
-  for (const auto& control_data : informational_response_control_data_) {
-    data.push_back({control_data.response_code(), control_data.fields()});
-  }
-  return data;
 }
 
 absl::StatusOr<std::string> BinaryHttpResponse::EncodeAsKnownLength() const {
@@ -285,21 +275,20 @@ uint64_t BinaryHttpResponse::EncodedSize() const {
          EncodedKnownLengthFieldsAndBodySize();
 }
 
-void BinaryHttpResponse::InformationalResponseInternal::AddField(
-    absl::string_view name, std::string value) {
+void BinaryHttpResponse::InformationalResponse::AddField(absl::string_view name,
+                                                         std::string value) {
   fields_.AddField({absl::AsciiStrToLower(name), std::move(value)});
 }
 
 // Appends the encoded fields and body to data.
-absl::Status BinaryHttpResponse::InformationalResponseInternal::Encode(
+absl::Status BinaryHttpResponse::InformationalResponse::Encode(
     quiche::QuicheDataWriter& writer) const {
-  writer.WriteVarInt62(response_code_);
+  writer.WriteVarInt62(status_code_);
   return fields_.Encode(writer);
 }
 
-uint64_t BinaryHttpResponse::InformationalResponseInternal::EncodedSize()
-    const {
-  return quiche::QuicheDataWriter::GetVarInt62Len(response_code_) +
+uint64_t BinaryHttpResponse::InformationalResponse::EncodedSize() const {
+  return quiche::QuicheDataWriter::GetVarInt62Len(status_code_) +
          fields_.EncodedSize();
 }
 

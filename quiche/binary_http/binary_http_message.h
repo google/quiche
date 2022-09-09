@@ -60,6 +60,10 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpMessage {
       return fields_;
     }
 
+    bool operator==(const BinaryHttpMessage::Fields& rhs) const {
+      return fields_ == rhs.fields_;
+    }
+
     // Encode fields in insertion order.
     // https://www.ietf.org/archive/id/draft-ietf-httpbis-binary-message-06.html#name-header-and-trailer-field-li
     absl::Status Encode(quiche::QuicheDataWriter& writer) const;
@@ -129,14 +133,47 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpRequest : public BinaryHttpMessage {
 class QUICHE_EXPORT_PRIVATE BinaryHttpResponse : public BinaryHttpMessage {
  public:
   // https://www.ietf.org/archive/id/draft-ietf-httpbis-binary-message-06.html#name-response-control-data
-  struct InformationalResponse {
-    uint16_t status_code;
-    const std::vector<Field>& header_fields;
+  // A response can contain 0 to N informational responses.  Each informational
+  // response contains a status code followed by a header field. Valid status
+  // codes are [100,199].
+  class InformationalResponse {
+   public:
+    explicit InformationalResponse(uint16_t status_code)
+        : status_code_(status_code) {}
+    InformationalResponse(uint16_t status_code,
+                          const std::vector<BinaryHttpMessage::Field>& fields)
+        : status_code_(status_code) {
+      for (const BinaryHttpMessage::Field& field : fields) {
+        AddField(field.name, field.value);
+      }
+    }
+
     bool operator==(
         const BinaryHttpResponse::InformationalResponse& rhs) const {
-      return status_code == rhs.status_code &&
-             header_fields == rhs.header_fields;
+      return status_code_ == rhs.status_code_ && fields_ == rhs.fields_;
     }
+
+    // Adds a field with the provided name, converted to lower case.
+    // Fields are in the order they are added.
+    void AddField(absl::string_view name, std::string value);
+
+    const std::vector<BinaryHttpMessage::Field>& fields() const {
+      return fields_.fields();
+    }
+
+    uint16_t status_code() const { return status_code_; }
+
+   private:
+    // Give BinaryHttpResponse access to Encoding functionality.
+    friend class BinaryHttpResponse;
+
+    uint64_t EncodedSize() const;
+
+    // Appends the encoded fields and body to `writer`.
+    absl::Status Encode(quiche::QuicheDataWriter& writer) const;
+
+    const uint16_t status_code_;
+    BinaryHttpMessage::Fields fields_;
   };
 
   explicit BinaryHttpResponse(uint16_t status_code)
@@ -152,45 +189,20 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpResponse : public BinaryHttpMessage {
                                         std::vector<Field> header_fields);
 
   uint16_t status_code() const { return status_code_; }
+
   // References in the returned `ResponseControlData` are invalidated on
   // `BinaryHttpResponse` object mutations.
-  std::vector<InformationalResponse> GetInformationalResponse() const;
+  const std::vector<InformationalResponse>& informational_responses() const {
+    return informational_response_control_data_;
+  }
 
  private:
-  //
-  // Valid response codes are [100,199].
-  // TODO(bschneider): Collapse this inner class into the public
-  // `InformationalResponse` struct.
-  class InformationalResponseInternal {
-   public:
-    explicit InformationalResponseInternal(uint16_t response_code)
-        : response_code_(response_code) {}
-
-    void AddField(absl::string_view name, std::string value);
-
-    // Appends the encoded fields and body to `writer`.
-    absl::Status Encode(quiche::QuicheDataWriter& writer) const;
-
-    uint64_t EncodedSize() const;
-
-    uint16_t response_code() const { return response_code_; }
-
-    const std::vector<BinaryHttpMessage::Field>& fields() const {
-      return fields_.fields();
-    }
-
-   private:
-    const uint16_t response_code_;
-    BinaryHttpMessage::Fields fields_;
-  };
-
   // Returns Binary Http known length request formatted response.
   absl::StatusOr<std::string> EncodeAsKnownLength() const;
 
   uint64_t EncodedSize() const;
 
-  std::vector<InformationalResponseInternal>
-      informational_response_control_data_;
+  std::vector<InformationalResponse> informational_response_control_data_;
   const uint16_t status_code_;
 };
 }  // namespace quiche
