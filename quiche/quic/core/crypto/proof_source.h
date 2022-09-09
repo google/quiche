@@ -310,6 +310,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandle {
   virtual QuicAsyncStatus SelectCertificate(
       const QuicSocketAddress& server_address,
       const QuicSocketAddress& client_address,
+      const QuicConnectionId& original_connection_id,
       absl::string_view ssl_capabilities, const std::string& hostname,
       absl::string_view client_hello, const std::string& alpn,
       absl::optional<std::string> alps,
