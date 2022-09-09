@@ -1297,8 +1297,17 @@ size_t QuicFramer::GetMinStatelessResetPacketLength() {
 
 // static
 std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
-    QuicConnectionId /*connection_id*/, size_t received_packet_length,
+    QuicConnectionId connection_id, size_t received_packet_length,
     StatelessResetToken stateless_reset_token) {
+  return BuildIetfStatelessResetPacket(connection_id, received_packet_length,
+                                       stateless_reset_token,
+                                       QuicRandom::GetInstance());
+}
+
+// static
+std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
+    QuicConnectionId /*connection_id*/, size_t received_packet_length,
+    StatelessResetToken stateless_reset_token, QuicRandom* random) {
   QUIC_DVLOG(1) << "Building IETF stateless reset packet.";
   if (received_packet_length <= GetMinStatelessResetPacketLength()) {
     QUICHE_DLOG(ERROR)
@@ -1318,10 +1327,10 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
   // from comparing the entire packet to a known value. Therefore it has no
   // cryptographic use, and does not need a secure cryptographic pseudo-random
   // number generator. It's therefore safe to use WriteInsecureRandomBytes.
-  if (!writer.WriteInsecureRandomBytes(QuicRandom::GetInstance(),
-                                       len - kStatelessResetTokenLength)) {
+  const size_t random_bytes_size = len - kStatelessResetTokenLength;
+  if (!writer.WriteInsecureRandomBytes(random, random_bytes_size)) {
     QUIC_BUG(362045737_2) << "Failed to append random bytes of length: "
-                          << len - kStatelessResetTokenLength;
+                          << random_bytes_size;
     return nullptr;
   }
   // Change first 2 fixed bits to 01.

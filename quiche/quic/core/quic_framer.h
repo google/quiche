@@ -476,6 +476,13 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicConnectionId connection_id, size_t received_packet_length,
       StatelessResetToken stateless_reset_token);
 
+  // Returns a new IETF stateless reset packet with random bytes generated from
+  // |random|->InsecureRandBytes(). NOTE: the first two bits of the random bytes
+  // will be modified to 01b to make it look like a short header packet.
+  static std::unique_ptr<QuicEncryptedPacket> BuildIetfStatelessResetPacket(
+      QuicConnectionId connection_id, size_t received_packet_length,
+      StatelessResetToken stateless_reset_token, QuicRandom* random);
+
   // Returns a new version negotiation packet.
   static std::unique_ptr<QuicEncryptedPacket> BuildVersionNegotiationPacket(
       QuicConnectionId server_connection_id,
