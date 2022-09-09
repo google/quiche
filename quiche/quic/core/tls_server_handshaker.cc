@@ -62,7 +62,6 @@ QuicAsyncStatus
 TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
     const QuicSocketAddress& server_address,
     const QuicSocketAddress& client_address,
-    const QuicConnectionId& /*original_connection_id*/,
     absl::string_view /*ssl_capabilities*/, const std::string& hostname,
     absl::string_view /*client_hello*/, const std::string& /*alpn*/,
     absl::optional<std::string> /*alps*/,
@@ -915,7 +914,6 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
   const QuicAsyncStatus status = proof_source_handle_->SelectCertificate(
       session()->connection()->self_address().Normalized(),
       session()->connection()->peer_address().Normalized(),
-      session()->connection()->GetOriginalDestinationConnectionId(),
       ssl_capabilities_view, crypto_negotiated_params_->sni,
       absl::string_view(
           reinterpret_cast<const char*>(client_hello->client_hello),
