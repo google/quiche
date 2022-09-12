@@ -41,7 +41,7 @@ void QpackDecodedHeadersAccumulator::OnHeaderDecoded(absl::string_view name,
       name.size() + value.size() + kQpackEntrySizeOverhead;
 
   const size_t uncompressed_header_bytes =
-      GetQuicFlag(FLAGS_quic_header_size_limit_includes_overhead)
+      GetQuicFlag(quic_header_size_limit_includes_overhead)
           ? uncompressed_header_bytes_including_overhead_
           : uncompressed_header_bytes_without_overhead_;
   if (uncompressed_header_bytes > max_header_list_size_) {

@@ -105,7 +105,7 @@ std::unique_ptr<QuicSession> QuicSpdyClientBase::CreateQuicClientSession(
 
 void QuicSpdyClientBase::SendRequest(const Http2HeaderBlock& headers,
                                      absl::string_view body, bool fin) {
-  if (GetQuicFlag(FLAGS_quic_client_convert_http_header_name_to_lowercase)) {
+  if (GetQuicFlag(quic_client_convert_http_header_name_to_lowercase)) {
     QUIC_CODE_COUNT(quic_client_convert_http_header_name_to_lowercase);
     Http2HeaderBlock sanitized_headers;
     for (const auto& p : headers) {

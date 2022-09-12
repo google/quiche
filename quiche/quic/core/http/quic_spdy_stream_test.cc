@@ -597,7 +597,7 @@ TEST_P(QuicSpdyStreamTest, QpackProcessLargeHeaderListDiscountOverhead) {
   }
   // Setting this flag to false causes no per-entry overhead to be included
   // in the header size.
-  SetQuicFlag(FLAGS_quic_header_size_limit_includes_overhead, false);
+  SetQuicFlag(quic_header_size_limit_includes_overhead, false);
   Initialize(kShouldProcessData);
   session_->set_max_inbound_header_list_size(40);
   std::string headers =

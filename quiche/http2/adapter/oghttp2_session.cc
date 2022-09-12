@@ -335,13 +335,15 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
       event_forwarder_([this]() { return !latched_error_; }, *this),
       receive_logger_(
           &event_forwarder_, TracePerspectiveAsString(options.perspective),
-          [logging_enabled = GetQuicheFlag(
-               FLAGS_quiche_oghttp2_debug_trace)]() { return logging_enabled; },
+          [logging_enabled = GetQuicheFlag(quiche_oghttp2_debug_trace)]() {
+            return logging_enabled;
+          },
           this),
       send_logger_(
           TracePerspectiveAsString(options.perspective),
-          [logging_enabled = GetQuicheFlag(
-               FLAGS_quiche_oghttp2_debug_trace)]() { return logging_enabled; },
+          [logging_enabled = GetQuicheFlag(quiche_oghttp2_debug_trace)]() {
+            return logging_enabled;
+          },
           this),
       headers_handler_(*this, visitor),
       noop_headers_handler_(/*listener=*/nullptr),

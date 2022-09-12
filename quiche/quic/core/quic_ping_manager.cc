@@ -67,8 +67,7 @@ void QuicPingManager::OnAlarm() {
   // to SetAlarm later.
   if (earliest_deadline == retransmittable_on_wire_deadline_) {
     retransmittable_on_wire_deadline_ = QuicTime::Zero();
-    if (GetQuicFlag(
-            FLAGS_quic_max_aggressive_retransmittable_on_wire_ping_count) !=
+    if (GetQuicFlag(quic_max_aggressive_retransmittable_on_wire_ping_count) !=
         0) {
       ++consecutive_retransmittable_on_wire_count_;
     }
@@ -116,7 +115,7 @@ void QuicPingManager::UpdateDeadlines(QuicTime now, bool should_keep_alive,
   if (initial_retransmittable_on_wire_timeout_.IsInfinite() ||
       has_in_flight_packets ||
       retransmittable_on_wire_count_ >
-          GetQuicFlag(FLAGS_quic_max_retransmittable_on_wire_ping_count)) {
+          GetQuicFlag(quic_max_retransmittable_on_wire_ping_count)) {
     // No need to set retransmittable-on-wire timeout.
     retransmittable_on_wire_deadline_ = QuicTime::Zero();
     return;
@@ -127,7 +126,7 @@ void QuicPingManager::UpdateDeadlines(QuicTime now, bool should_keep_alive,
   QuicTime::Delta retransmittable_on_wire_timeout =
       initial_retransmittable_on_wire_timeout_;
   const int max_aggressive_retransmittable_on_wire_count =
-      GetQuicFlag(FLAGS_quic_max_aggressive_retransmittable_on_wire_ping_count);
+      GetQuicFlag(quic_max_aggressive_retransmittable_on_wire_ping_count);
   QUICHE_DCHECK_LE(0, max_aggressive_retransmittable_on_wire_count);
   if (consecutive_retransmittable_on_wire_count_ >
       max_aggressive_retransmittable_on_wire_count) {

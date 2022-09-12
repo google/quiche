@@ -2771,7 +2771,7 @@ TEST_P(
     HalfRttResponseBlocksShloRetransmissionWithoutTokenBasedAddressValidation) {
   // Turn off token based address validation to make the server get constrained
   // by amplification factor during handshake.
-  SetQuicFlag(FLAGS_quic_reject_retry_token_in_initial_packet, true);
+  SetQuicFlag(quic_reject_retry_token_in_initial_packet, true);
   ASSERT_TRUE(Initialize());
   if (!version_.SupportsAntiAmplificationLimit()) {
     return;
@@ -2864,7 +2864,7 @@ TEST_P(EndToEndTest, StreamCancelErrorTest) {
 
 TEST_P(EndToEndTest, ConnectionMigrationClientIPChanged) {
   ASSERT_TRUE(Initialize());
-  if (GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+  if (GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
   SendSynchronousFooRequestAndCheckResponse();
@@ -2908,7 +2908,7 @@ TEST_P(EndToEndTest, ConnectionMigrationClientIPChanged) {
 TEST_P(EndToEndTest, IetfConnectionMigrationClientIPChangedMultipleTimes) {
   ASSERT_TRUE(Initialize());
   if (!GetClientConnection()->connection_migration_use_new_cid() ||
-      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
   SendSynchronousFooRequestAndCheckResponse();
@@ -3020,7 +3020,7 @@ TEST_P(EndToEndTest, IetfConnectionMigrationClientIPChangedMultipleTimes) {
 TEST_P(EndToEndTest,
        ConnectionMigrationWithNonZeroConnectionIDClientIPChangedMultipleTimes) {
   if (!version_.SupportsClientConnectionIds() ||
-      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -3158,7 +3158,7 @@ TEST_P(EndToEndTest, ConnectionMigrationNewTokenForNewIp) {
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames() ||
       !client_->client()->session()->connection()->validate_client_address() ||
-      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
   SendSynchronousFooRequestAndCheckResponse();
@@ -4957,7 +4957,7 @@ TEST_P(EndToEndTest,
 TEST_P(EndToEndTest,
        SendStatelessResetIfServerConnectionClosedLocallyAfterHandshake) {
   // Prevent the connection from expiring in the time wait list.
-  SetQuicFlag(FLAGS_quic_time_wait_list_seconds, 10000);
+  SetQuicFlag(quic_time_wait_list_seconds, 10000);
   connect_to_server_on_initialize_ = false;
   ASSERT_TRUE(Initialize());
 
@@ -6359,7 +6359,7 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByBoth) {
 }
 
 TEST_P(EndToEndTest, KeyUpdateInitiatedByConfidentialityLimit) {
-  SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 16U);
+  SetQuicFlag(quic_key_update_confidentiality_limit, 16U);
 
   if (!version_.UsesTls()) {
     // Key Update is only supported in TLS handshake.
@@ -6385,8 +6385,8 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByConfidentialityLimit) {
       },
       QuicTime::Delta::FromSeconds(5));
 
-  for (uint64_t i = 0;
-       i < GetQuicFlag(FLAGS_quic_key_update_confidentiality_limit); ++i) {
+  for (uint64_t i = 0; i < GetQuicFlag(quic_key_update_confidentiality_limit);
+       ++i) {
     SendSynchronousFooRequestAndCheckResponse();
   }
 
@@ -6406,7 +6406,7 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByConfidentialityLimit) {
 }
 
 TEST_P(EndToEndTest, TlsResumptionEnabledOnTheFly) {
-  SetQuicFlag(FLAGS_quic_disable_server_tls_resumption, true);
+  SetQuicFlag(quic_disable_server_tls_resumption, true);
   ASSERT_TRUE(Initialize());
 
   if (!version_.UsesTls()) {
@@ -6423,7 +6423,7 @@ TEST_P(EndToEndTest, TlsResumptionEnabledOnTheFly) {
   EXPECT_FALSE(client_session->EarlyDataAccepted());
   client_->Disconnect();
 
-  SetQuicFlag(FLAGS_quic_disable_server_tls_resumption, false);
+  SetQuicFlag(quic_disable_server_tls_resumption, false);
 
   // Send the second request. Client should still have no resumption ticket, but
   // it will receive one which can be used by the next request.
@@ -6448,7 +6448,7 @@ TEST_P(EndToEndTest, TlsResumptionEnabledOnTheFly) {
 }
 
 TEST_P(EndToEndTest, TlsResumptionDisabledOnTheFly) {
-  SetQuicFlag(FLAGS_quic_disable_server_tls_resumption, false);
+  SetQuicFlag(quic_disable_server_tls_resumption, false);
   ASSERT_TRUE(Initialize());
 
   if (!version_.UsesTls()) {
@@ -6472,7 +6472,7 @@ TEST_P(EndToEndTest, TlsResumptionDisabledOnTheFly) {
   EXPECT_TRUE(client_session->EarlyDataAccepted());
   client_->Disconnect();
 
-  SetQuicFlag(FLAGS_quic_disable_server_tls_resumption, true);
+  SetQuicFlag(quic_disable_server_tls_resumption, true);
 
   // Send the third request. The client should try resumption but server should
   // decline it.

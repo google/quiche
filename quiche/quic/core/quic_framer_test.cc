@@ -7309,7 +7309,7 @@ TEST_P(QuicFramerTest, CryptoFrame) {
 }
 
 TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
-  SetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness, true);
+  SetQuicFlag(quic_disable_version_negotiation_grease_randomness, true);
   // clang-format off
   unsigned char packet[] = {
       // public flags (version, 8 byte connection_id)
@@ -7375,7 +7375,7 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacketWithClientConnectionId) {
     return;
   }
 
-  SetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness, true);
+  SetQuicFlag(quic_disable_version_negotiation_grease_randomness, true);
 
   // clang-format off
   unsigned char packet[] = {

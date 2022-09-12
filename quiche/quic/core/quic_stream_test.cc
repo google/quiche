@@ -1108,7 +1108,7 @@ TEST_P(QuicStreamTest, ConnectionClosed) {
 }
 
 TEST_P(QuicStreamTest, CanWriteNewDataAfterData) {
-  SetQuicFlag(FLAGS_quic_buffered_data_threshold, 100);
+  SetQuicFlag(quic_buffered_data_threshold, 100);
   Initialize();
   EXPECT_TRUE(stream_->CanWriteNewDataAfterData(99));
   EXPECT_FALSE(stream_->CanWriteNewDataAfterData(100));
@@ -1116,7 +1116,7 @@ TEST_P(QuicStreamTest, CanWriteNewDataAfterData) {
 
 TEST_P(QuicStreamTest, WriteBufferedData) {
   // Set buffered data low water mark to be 100.
-  SetQuicFlag(FLAGS_quic_buffered_data_threshold, 100);
+  SetQuicFlag(quic_buffered_data_threshold, 100);
 
   Initialize();
   std::string data(1024, 'a');
@@ -1149,8 +1149,7 @@ TEST_P(QuicStreamTest, WriteBufferedData) {
 
   // Send buffered data to make buffered data size < threshold.
   QuicByteCount data_to_write =
-      3 * data.length() - 200 -
-      GetQuicFlag(FLAGS_quic_buffered_data_threshold) + 1;
+      3 * data.length() - 200 - GetQuicFlag(quic_buffered_data_threshold) + 1;
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(InvokeWithoutArgs([this, data_to_write]() {
         return session_->ConsumeData(stream_->id(), data_to_write, 200u, NO_FIN,
@@ -1159,9 +1158,9 @@ TEST_P(QuicStreamTest, WriteBufferedData) {
   // Buffered data size < threshold, ask upper layer for more data.
   EXPECT_CALL(*stream_, OnCanWriteNewData()).Times(1);
   stream_->OnCanWrite();
-  EXPECT_EQ(static_cast<uint64_t>(
-                GetQuicFlag(FLAGS_quic_buffered_data_threshold) - 1),
-            stream_->BufferedDataBytes());
+  EXPECT_EQ(
+      static_cast<uint64_t>(GetQuicFlag(quic_buffered_data_threshold) - 1),
+      stream_->BufferedDataBytes());
   EXPECT_TRUE(stream_->CanWriteNewData());
 
   // Flush all buffered data.
@@ -1199,8 +1198,7 @@ TEST_P(QuicStreamTest, WriteBufferedData) {
   EXPECT_FALSE(consumed.fin_consumed);
   EXPECT_EQ(data.length(), stream_->BufferedDataBytes());
 
-  data_to_write =
-      data.length() - GetQuicFlag(FLAGS_quic_buffered_data_threshold) + 1;
+  data_to_write = data.length() - GetQuicFlag(quic_buffered_data_threshold) + 1;
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(InvokeWithoutArgs([this, data_to_write]() {
         return session_->ConsumeData(stream_->id(), data_to_write, 0u, NO_FIN,
@@ -1209,9 +1207,9 @@ TEST_P(QuicStreamTest, WriteBufferedData) {
 
   EXPECT_CALL(*stream_, OnCanWriteNewData()).Times(1);
   stream_->OnCanWrite();
-  EXPECT_EQ(static_cast<uint64_t>(
-                GetQuicFlag(FLAGS_quic_buffered_data_threshold) - 1),
-            stream_->BufferedDataBytes());
+  EXPECT_EQ(
+      static_cast<uint64_t>(GetQuicFlag(quic_buffered_data_threshold) - 1),
+      stream_->BufferedDataBytes());
   EXPECT_TRUE(stream_->CanWriteNewData());
 
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(0);
@@ -1222,7 +1220,7 @@ TEST_P(QuicStreamTest, WriteBufferedData) {
   consumed = stream_->WriteMemSlices(storage3.ToSpan(), false);
   EXPECT_EQ(data.length(), consumed.bytes_consumed);
   EXPECT_FALSE(consumed.fin_consumed);
-  EXPECT_EQ(data.length() + GetQuicFlag(FLAGS_quic_buffered_data_threshold) - 1,
+  EXPECT_EQ(data.length() + GetQuicFlag(quic_buffered_data_threshold) - 1,
             stream_->BufferedDataBytes());
   EXPECT_FALSE(stream_->CanWriteNewData());
 }
@@ -1255,7 +1253,7 @@ TEST_P(QuicStreamTest, WritevDataReachStreamLimit) {
 
 TEST_P(QuicStreamTest, WriteMemSlices) {
   // Set buffered data low water mark to be 100.
-  SetQuicFlag(FLAGS_quic_buffered_data_threshold, 100);
+  SetQuicFlag(quic_buffered_data_threshold, 100);
 
   Initialize();
   constexpr QuicByteCount kDataSize = 1024;
@@ -1295,7 +1293,7 @@ TEST_P(QuicStreamTest, WriteMemSlices) {
   EXPECT_FALSE(stream_->fin_buffered());
 
   QuicByteCount data_to_write =
-      2 * kDataSize - 100 - GetQuicFlag(FLAGS_quic_buffered_data_threshold) + 1;
+      2 * kDataSize - 100 - GetQuicFlag(quic_buffered_data_threshold) + 1;
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(InvokeWithoutArgs([this, data_to_write]() {
         return session_->ConsumeData(stream_->id(), data_to_write, 100u, NO_FIN,
@@ -1303,15 +1301,15 @@ TEST_P(QuicStreamTest, WriteMemSlices) {
       }));
   EXPECT_CALL(*stream_, OnCanWriteNewData()).Times(1);
   stream_->OnCanWrite();
-  EXPECT_EQ(static_cast<uint64_t>(
-                GetQuicFlag(FLAGS_quic_buffered_data_threshold) - 1),
-            stream_->BufferedDataBytes());
+  EXPECT_EQ(
+      static_cast<uint64_t>(GetQuicFlag(quic_buffered_data_threshold) - 1),
+      stream_->BufferedDataBytes());
   // Try to write slices2 again.
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(0);
   consumed = stream_->WriteMemSlices(span2, true);
   EXPECT_EQ(2048u, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
-  EXPECT_EQ(2 * kDataSize + GetQuicFlag(FLAGS_quic_buffered_data_threshold) - 1,
+  EXPECT_EQ(2 * kDataSize + GetQuicFlag(quic_buffered_data_threshold) - 1,
             stream_->BufferedDataBytes());
   EXPECT_TRUE(stream_->fin_buffered());
 

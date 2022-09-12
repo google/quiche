@@ -88,15 +88,14 @@ void PacingSender::OnPacketSent(
     // Reset lumpy_tokens_ if either application or cwnd throttles sending or
     // token runs out.
     lumpy_tokens_ = std::max(
-        1u, std::min(static_cast<uint32_t>(
-                         GetQuicFlag(FLAGS_quic_lumpy_pacing_size)),
+        1u, std::min(static_cast<uint32_t>(GetQuicFlag(quic_lumpy_pacing_size)),
                      static_cast<uint32_t>(
                          (sender_->GetCongestionWindow() *
-                          GetQuicFlag(FLAGS_quic_lumpy_pacing_cwnd_fraction)) /
+                          GetQuicFlag(quic_lumpy_pacing_cwnd_fraction)) /
                          kDefaultTCPMSS)));
     if (sender_->BandwidthEstimate() <
         QuicBandwidth::FromKBitsPerSecond(
-            GetQuicFlag(FLAGS_quic_lumpy_pacing_min_bandwidth_kbps))) {
+            GetQuicFlag(quic_lumpy_pacing_min_bandwidth_kbps))) {
       // Below 1.2Mbps, send 1 packet at once, because one full-sized packet
       // is about 10ms of queueing.
       lumpy_tokens_ = 1u;

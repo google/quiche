@@ -1375,7 +1375,7 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
     // depends on this randomness.
     size_t version_index = 0;
     const bool disable_randomness =
-        GetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness);
+        GetQuicFlag(quic_disable_version_negotiation_grease_randomness);
     if (!disable_randomness) {
       version_index =
           QuicRandom::GetInstance()->RandUint64() % (wire_versions.size() + 1);

@@ -25,7 +25,7 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
     QuicConnectionStats* stats, QuicPacketCount initial_congestion_window,
     SendAlgorithmInterface* old_send_algorithm) {
   QuicPacketCount max_congestion_window =
-      GetQuicFlag(FLAGS_quic_max_congestion_window);
+      GetQuicFlag(quic_max_congestion_window);
   switch (congestion_control_type) {
     case kGoogCC:  // GoogCC is not supported by quic/core, fall back to BBR.
     case kBBR:

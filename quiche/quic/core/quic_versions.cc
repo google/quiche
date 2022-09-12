@@ -25,7 +25,7 @@ namespace {
 
 QuicVersionLabel CreateRandomVersionLabelForNegotiation() {
   QuicVersionLabel result;
-  if (!GetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness)) {
+  if (!GetQuicFlag(quic_disable_version_negotiation_grease_randomness)) {
     QuicRandom::GetInstance()->RandBytes(&result, sizeof(result));
   } else {
     result = MakeVersionLabel(0xd1, 0x57, 0x38, 0x3f);

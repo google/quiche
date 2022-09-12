@@ -280,7 +280,7 @@ QuicConnection::QuicConnection(
       current_packet_data_(nullptr),
       should_last_packet_instigate_acks_(false),
       max_undecryptable_packets_(0),
-      max_tracked_packets_(GetQuicFlag(FLAGS_quic_max_tracked_packet_count)),
+      max_tracked_packets_(GetQuicFlag(quic_max_tracked_packet_count)),
       idle_timeout_connection_close_behavior_(
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET),
       num_rtos_for_blackhole_detection_(0),
@@ -3071,7 +3071,7 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
   if (perspective_ == Perspective::IS_SERVER &&
       encryption_level_ == ENCRYPTION_INITIAL &&
       last_received_packet_info_.length > packet_creator_.max_packet_length()) {
-    if (GetQuicFlag(FLAGS_quic_use_lower_server_response_mtu_for_test)) {
+    if (GetQuicFlag(quic_use_lower_server_response_mtu_for_test)) {
       SetMaxPacketLength(
           std::min(last_received_packet_info_.length, QuicByteCount(1250)));
     } else {
@@ -3758,7 +3758,7 @@ bool QuicConnection::MaybeHandleAeadConfidentialityLimits(
         confidentiality_limit - kKeyUpdateConfidentialityLimitOffset;
   }
   const QuicPacketCount key_update_limit_override =
-      GetQuicFlag(FLAGS_quic_key_update_confidentiality_limit);
+      GetQuicFlag(quic_key_update_confidentiality_limit);
   if (key_update_limit_override) {
     key_update_limit = key_update_limit_override;
   }
@@ -4716,7 +4716,7 @@ void QuicConnection::SetPingAlarm() {
   if (initial_retransmittable_on_wire_timeout_.IsInfinite() ||
       sent_packet_manager_.HasInFlightPackets() ||
       retransmittable_on_wire_ping_count_ >
-          GetQuicFlag(FLAGS_quic_max_retransmittable_on_wire_ping_count)) {
+          GetQuicFlag(quic_max_retransmittable_on_wire_ping_count)) {
     if (perspective_ == Perspective::IS_CLIENT) {
       // Clients send 15s PINGs to avoid NATs from timing out.
       ping_alarm_->Update(clock_->ApproximateNow() + keep_alive_ping_timeout_,
@@ -4732,7 +4732,7 @@ void QuicConnection::SetPingAlarm() {
   QuicTime::Delta retransmittable_on_wire_timeout =
       initial_retransmittable_on_wire_timeout_;
   int max_aggressive_retransmittable_on_wire_ping_count =
-      GetQuicFlag(FLAGS_quic_max_aggressive_retransmittable_on_wire_ping_count);
+      GetQuicFlag(quic_max_aggressive_retransmittable_on_wire_ping_count);
   QUICHE_DCHECK_LE(0, max_aggressive_retransmittable_on_wire_ping_count);
   if (consecutive_retransmittable_on_wire_ping_count_ >
       max_aggressive_retransmittable_on_wire_ping_count) {
@@ -5738,11 +5738,10 @@ void QuicConnection::UpdateReleaseTimeIntoFuture() {
   const QuicTime::Delta prior_max_release_time = release_time_into_future_;
   release_time_into_future_ = std::max(
       QuicTime::Delta::FromMilliseconds(kMinReleaseTimeIntoFutureMs),
-      std::min(
-          QuicTime::Delta::FromMilliseconds(
-              GetQuicFlag(FLAGS_quic_max_pace_time_into_future_ms)),
-          sent_packet_manager_.GetRttStats()->SmoothedOrInitialRtt() *
-              GetQuicFlag(FLAGS_quic_pace_time_into_future_srtt_fraction)));
+      std::min(QuicTime::Delta::FromMilliseconds(
+                   GetQuicFlag(quic_max_pace_time_into_future_ms)),
+               sent_packet_manager_.GetRttStats()->SmoothedOrInitialRtt() *
+                   GetQuicFlag(quic_pace_time_into_future_srtt_fraction)));
   QUIC_DVLOG(3) << "Updated max release time delay from "
                 << prior_max_release_time << " to "
                 << release_time_into_future_;

@@ -56,7 +56,7 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   // https://tools.ietf.org/html/draft-ietf-quic-http-25#section-7.2.4.1
   // specifies that setting identifiers of 0x1f * N + 0x21 are reserved and
   // greasing should be attempted.
-  if (!GetQuicFlag(FLAGS_quic_enable_http3_grease_randomness)) {
+  if (!GetQuicFlag(quic_enable_http3_grease_randomness)) {
     settings.values[0x40] = 20;
   } else {
     uint32_t result;

@@ -402,8 +402,8 @@ TEST_F(PacingSenderTest, CwndLimited) {
 
 TEST_F(PacingSenderTest, LumpyPacingWithInitialBurstToken) {
   // Set lumpy size to be 3, and cwnd faction to 0.5
-  SetQuicFlag(FLAGS_quic_lumpy_pacing_size, 3);
-  SetQuicFlag(FLAGS_quic_lumpy_pacing_cwnd_fraction, 0.5f);
+  SetQuicFlag(quic_lumpy_pacing_size, 3);
+  SetQuicFlag(quic_lumpy_pacing_cwnd_fraction, 0.5f);
   // Configure pacing rate of 1 packet per 1 ms.
   InitPacingRate(
       10, QuicBandwidth::FromBytesAndTimeDelta(
@@ -459,8 +459,8 @@ TEST_F(PacingSenderTest, LumpyPacingWithInitialBurstToken) {
 
 TEST_F(PacingSenderTest, NoLumpyPacingForLowBandwidthFlows) {
   // Set lumpy size to be 3, and cwnd fraction to 0.5
-  SetQuicFlag(FLAGS_quic_lumpy_pacing_size, 3);
-  SetQuicFlag(FLAGS_quic_lumpy_pacing_cwnd_fraction, 0.5f);
+  SetQuicFlag(quic_lumpy_pacing_size, 3);
+  SetQuicFlag(quic_lumpy_pacing_cwnd_fraction, 0.5f);
 
   // Configure pacing rate of 1 packet per 100 ms.
   QuicTime::Delta inter_packet_delay = QuicTime::Delta::FromMilliseconds(100);
@@ -522,8 +522,8 @@ TEST_F(PacingSenderTest, NoBurstsForLumpyPacingWithAckAggregation) {
 
 TEST_F(PacingSenderTest, IdealNextPacketSendTimeWithLumpyPacing) {
   // Set lumpy size to be 3, and cwnd faction to 0.5
-  SetQuicFlag(FLAGS_quic_lumpy_pacing_size, 3);
-  SetQuicFlag(FLAGS_quic_lumpy_pacing_cwnd_fraction, 0.5f);
+  SetQuicFlag(quic_lumpy_pacing_size, 3);
+  SetQuicFlag(quic_lumpy_pacing_cwnd_fraction, 0.5f);
 
   // Configure pacing rate of 1 packet per millisecond.
   QuicTime::Delta inter_packet_delay = QuicTime::Delta::FromMilliseconds(1);

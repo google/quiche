@@ -1720,7 +1720,7 @@ TEST_P(QuicConnectionTest, PeerPortChangeAtServer) {
 TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
   set_perspective(Perspective::IS_SERVER);
   if (!connection_.validate_client_address() ||
-      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -1922,7 +1922,7 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
 
   QuicFrames frames2;
   frames2.push_back(QuicFrame(frame2_));
-  if (GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+  if (GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     frames2.push_back(QuicFrame(QuicPaddingFrame(-1)));
   }
   ProcessFramesPacketWithAddresses(frames2, kSelfAddress, kNewPeerAddress,
@@ -1946,7 +1946,7 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
 }
 
 TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
-  if (GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+  if (GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
@@ -2132,7 +2132,7 @@ TEST_P(QuicConnectionTest,
        ReversePathValidationResponseReceivedFromUnexpectedPeerAddress) {
   set_perspective(Perspective::IS_SERVER);
   if (!connection_.connection_migration_use_new_cid() ||
-      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -2909,7 +2909,7 @@ TEST_P(QuicConnectionTest, LowerServerResponseMtuTest) {
   connection_.SetMaxPacketLength(1000);
   EXPECT_EQ(1000u, connection_.max_packet_length());
 
-  SetQuicFlag(FLAGS_quic_use_lower_server_response_mtu_for_test, true);
+  SetQuicFlag(quic_use_lower_server_response_mtu_for_test, true);
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(::testing::AtMost(1));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(::testing::AtMost(1));
   ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
@@ -8108,7 +8108,7 @@ TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
 // afterwards until it exceeds the default ping timeout.
 TEST_P(QuicConnectionTest, BackOffRetransmittableOnWireTimeout) {
   int max_aggressive_retransmittable_on_wire_ping_count = 5;
-  SetQuicFlag(FLAGS_quic_max_aggressive_retransmittable_on_wire_ping_count,
+  SetQuicFlag(quic_max_aggressive_retransmittable_on_wire_ping_count,
               max_aggressive_retransmittable_on_wire_ping_count);
   const QuicTime::Delta initial_retransmittable_on_wire_timeout =
       QuicTime::Delta::FromMilliseconds(200);
@@ -8203,7 +8203,7 @@ TEST_P(QuicConnectionTest, BackOffRetransmittableOnWireTimeout) {
 // after receiving new stream data.
 TEST_P(QuicConnectionTest, ResetBackOffRetransmitableOnWireTimeout) {
   int max_aggressive_retransmittable_on_wire_ping_count = 3;
-  SetQuicFlag(FLAGS_quic_max_aggressive_retransmittable_on_wire_ping_count, 3);
+  SetQuicFlag(quic_max_aggressive_retransmittable_on_wire_ping_count, 3);
   const QuicTime::Delta initial_retransmittable_on_wire_timeout =
       QuicTime::Delta::FromMilliseconds(200);
   connection_.set_initial_retransmittable_on_wire_timeout(
@@ -8318,7 +8318,7 @@ TEST_P(QuicConnectionTest, ResetBackOffRetransmitableOnWireTimeout) {
 // the limit in FLAGS_quic_max_retransmittable_on_wire_ping_count.
 TEST_P(QuicConnectionTest, RetransmittableOnWirePingLimit) {
   static constexpr int kMaxRetransmittableOnWirePingCount = 3;
-  SetQuicFlag(FLAGS_quic_max_retransmittable_on_wire_ping_count,
+  SetQuicFlag(quic_max_retransmittable_on_wire_ping_count,
               kMaxRetransmittableOnWirePingCount);
   static constexpr QuicTime::Delta initial_retransmittable_on_wire_timeout =
       QuicTime::Delta::FromMilliseconds(200);
@@ -9596,7 +9596,7 @@ TEST_P(QuicConnectionTest, DeprecateHandshakeMode) {
 
 TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
   if (!connection_.version().SupportsAntiAmplificationLimit() ||
-      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
@@ -9614,7 +9614,7 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
   ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
 
   const size_t anti_amplification_factor =
-      GetQuicFlag(FLAGS_quic_anti_amplification_factor);
+      GetQuicFlag(quic_anti_amplification_factor);
   // Verify now packets can be sent.
   for (size_t i = 1; i < anti_amplification_factor; ++i) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
@@ -9653,7 +9653,7 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
 
 TEST_P(QuicConnectionTest, 3AntiAmplificationLimit) {
   if (!connection_.version().SupportsAntiAmplificationLimit() ||
-      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
@@ -9722,7 +9722,7 @@ TEST_P(QuicConnectionTest, 3AntiAmplificationLimit) {
 
 TEST_P(QuicConnectionTest, 10AntiAmplificationLimit) {
   if (!connection_.version().SupportsAntiAmplificationLimit() ||
-      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
@@ -9928,7 +9928,7 @@ TEST_P(QuicConnectionTest, FailToCoalescePacket) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
   if (!IsDefaultTestConfiguration() ||
       !connection_.version().CanSendCoalescedPackets() ||
-      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
 
@@ -11040,7 +11040,7 @@ TEST_P(QuicConnectionTest, CoalscingPacketCausesInfiniteLoop) {
 
   // Set anti amplification factor to 2, such that RetransmitDataOfSpaceIfAny
   // makes no forward progress and causes infinite loop.
-  SetQuicFlag(FLAGS_quic_anti_amplification_factor, 2);
+  SetQuicFlag(quic_anti_amplification_factor, 2);
 
   ProcessCryptoPacketAtLevel(1000, ENCRYPTION_INITIAL);
   EXPECT_TRUE(connection_.HasPendingAcks());
@@ -12403,7 +12403,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdateApproachingConfidentialityLimit) {
     return;
   }
 
-  SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 3U);
+  SetQuicFlag(quic_key_update_confidentiality_limit, 3U);
 
   std::string error_details;
   TransportParameters params;
@@ -12497,7 +12497,7 @@ TEST_P(QuicConnectionTest,
   }
 
   // Set key update confidentiality limit to 1 packet.
-  SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 1U);
+  SetQuicFlag(quic_key_update_confidentiality_limit, 1U);
   // Use confidentiality limit for connection close of 3 packets.
   constexpr size_t kConfidentialityLimit = 3U;
 
@@ -14581,7 +14581,7 @@ TEST_P(QuicConnectionTest, ShouldGeneratePacketBlockedByMissingConnectionId) {
 TEST_P(QuicConnectionTest, LostDataThenGetAcknowledged) {
   set_perspective(Perspective::IS_SERVER);
   if (!connection_.validate_client_address() ||
-      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
 
@@ -15014,7 +15014,7 @@ TEST_P(QuicConnectionTest, ReceivedChloAndAck) {
 // Regression test for b/201643321.
 TEST_P(QuicConnectionTest, FailedToRetransmitShlo) {
   if (!version().HasIetfQuicFrames() ||
-      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+      GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
@@ -15597,7 +15597,7 @@ TEST_P(QuicConnectionTest, StrictAntiAmplificationLimit) {
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   const size_t anti_amplification_factor =
-      GetQuicFlag(FLAGS_quic_anti_amplification_factor);
+      GetQuicFlag(quic_anti_amplification_factor);
   // Receives packet 1.
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
@@ -15618,7 +15618,7 @@ TEST_P(QuicConnectionTest, StrictAntiAmplificationLimit) {
   EXPECT_LT(writer_->total_bytes_written(),
             anti_amplification_factor *
                 QuicConnectionPeer::BytesReceivedOnDefaultPath(&connection_));
-  if (GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+  if (GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     // 3 connection closes which will be buffered.
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(3);
     // Verify retransmission alarm is not set.
@@ -15639,7 +15639,7 @@ TEST_P(QuicConnectionTest, StrictAntiAmplificationLimit) {
       QUIC_INTERNAL_ERROR, "error",
       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
-  if (GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor)) {
+  if (GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     EXPECT_LT(writer_->total_bytes_written(),
               anti_amplification_factor *
                   QuicConnectionPeer::BytesReceivedOnDefaultPath(&connection_));

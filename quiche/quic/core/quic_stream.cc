@@ -364,7 +364,7 @@ QuicStream::QuicStream(QuicStreamId id, QuicSession* session,
       add_random_padding_after_fin_(false),
       send_buffer_(
           session->connection()->helper()->GetStreamSendBufferAllocator()),
-      buffered_data_threshold_(GetQuicFlag(FLAGS_quic_buffered_data_threshold)),
+      buffered_data_threshold_(GetQuicFlag(quic_buffered_data_threshold)),
       is_static_(is_static),
       deadline_(QuicTime::Zero()),
       was_draining_(false),

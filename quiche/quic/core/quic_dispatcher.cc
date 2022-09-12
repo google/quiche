@@ -892,7 +892,7 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
   }
 
   ChloAlpnSniExtractor alpn_extractor;
-  if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
+  if (GetQuicFlag(quic_allow_chlo_buffering) &&
       !ChloExtractor::Extract(packet_info.packet, packet_info.version,
                               config_->create_session_tag_indicators(),
                               &alpn_extractor,
@@ -1332,7 +1332,7 @@ void QuicDispatcher::BufferEarlyPacket(const ReceivedPacketInfo& packet_info) {
 
 void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
                                  ReceivedPacketInfo* packet_info) {
-  if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
+  if (GetQuicFlag(quic_allow_chlo_buffering) &&
       new_sessions_allowed_per_event_loop_ <= 0) {
     // Can't create new session any more. Wait till next event loop.
     QUIC_BUG_IF(quic_bug_12724_7, buffered_packets_.HasChloForConnection(
@@ -1507,15 +1507,15 @@ void QuicDispatcher::MaybeResetPacketsWithNoVersion(
   // Do not send a stateless reset if there are too many stateless reset
   // addresses.
   if (recent_stateless_reset_addresses_.size() >=
-      GetQuicFlag(FLAGS_quic_max_recent_stateless_reset_addresses)) {
+      GetQuicFlag(quic_max_recent_stateless_reset_addresses)) {
     QUIC_CODE_COUNT(quic_too_many_recent_reset_addresses);
     return;
   }
   if (recent_stateless_reset_addresses_.empty()) {
     clear_stateless_reset_addresses_alarm_->Update(
         helper()->GetClock()->ApproximateNow() +
-            QuicTime::Delta::FromMilliseconds(GetQuicFlag(
-                FLAGS_quic_recent_stateless_reset_addresses_lifetime_ms)),
+            QuicTime::Delta::FromMilliseconds(
+                GetQuicFlag(quic_recent_stateless_reset_addresses_lifetime_ms)),
         QuicTime::Delta::Zero());
   }
   recent_stateless_reset_addresses_.emplace(packet_info.peer_address);

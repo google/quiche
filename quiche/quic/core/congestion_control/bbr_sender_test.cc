@@ -161,7 +161,7 @@ class BbrSenderTest : public QuicTest {
         QuicSentPacketManagerPeer::GetUnackedPacketMap(
             QuicConnectionPeer::GetSentPacketManager(endpoint->connection())),
         kInitialCongestionWindowPackets,
-        GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
+        GetQuicFlag(quic_max_congestion_window), &random_,
         QuicConnectionPeer::GetStats(endpoint->connection()));
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();
@@ -433,14 +433,13 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes) {
 TEST_F(BbrSenderTest, SimpleTransferAckDecimation) {
   SetConnectionOption(kBSAO);
   // Decrease the CWND gain so extra CWND is required with stretch acks.
-  SetQuicFlag(FLAGS_quic_bbr_cwnd_gain, 1.0);
+  SetQuicFlag(quic_bbr_cwnd_gain, 1.0);
   sender_ = new BbrSender(
       bbr_sender_.connection()->clock()->Now(), rtt_stats_,
       QuicSentPacketManagerPeer::GetUnackedPacketMap(
           QuicConnectionPeer::GetSentPacketManager(bbr_sender_.connection())),
-      kInitialCongestionWindowPackets,
-      GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
-      QuicConnectionPeer::GetStats(bbr_sender_.connection()));
+      kInitialCongestionWindowPackets, GetQuicFlag(quic_max_congestion_window),
+      &random_, QuicConnectionPeer::GetStats(bbr_sender_.connection()));
   QuicConnectionPeer::SetSendAlgorithm(bbr_sender_.connection(), sender_);
   CreateDefaultSetup();
 

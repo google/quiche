@@ -71,7 +71,7 @@ QuicTimeWaitListManager::QuicTimeWaitListManager(
     QuicPacketWriter* writer, Visitor* visitor, const QuicClock* clock,
     QuicAlarmFactory* alarm_factory)
     : time_wait_period_(QuicTime::Delta::FromSeconds(
-          GetQuicFlag(FLAGS_quic_time_wait_list_seconds))),
+          GetQuicFlag(quic_time_wait_list_seconds))),
       connection_id_clean_up_alarm_(
           alarm_factory->CreateAlarm(new ConnectionIdCleanUpAlarm(this))),
       clock_(clock),
@@ -130,8 +130,7 @@ void QuicTimeWaitListManager::AddConnectionIdToTimeWait(
     RemoveConnectionDataFromMap(it);
   }
   TrimTimeWaitListIfNeeded();
-  int64_t max_connections =
-      GetQuicFlag(FLAGS_quic_time_wait_list_max_connections);
+  int64_t max_connections = GetQuicFlag(quic_time_wait_list_max_connections);
   QUICHE_DCHECK(connection_id_map_.empty() ||
                 num_connections() < static_cast<size_t>(max_connections));
   if (new_connection_id) {
@@ -357,7 +356,7 @@ bool QuicTimeWaitListManager::SendOrQueuePacket(
     return true;
   }
   if (pending_packets_queue_.size() >=
-      GetQuicFlag(FLAGS_quic_time_wait_list_max_pending_packets)) {
+      GetQuicFlag(quic_time_wait_list_max_pending_packets)) {
     // There are too many pending packets.
     QUIC_CODE_COUNT(quic_too_many_pending_packets_in_time_wait);
     return true;
@@ -456,7 +455,7 @@ void QuicTimeWaitListManager::CleanUpOldConnectionIds() {
 
 void QuicTimeWaitListManager::TrimTimeWaitListIfNeeded() {
   const int64_t kMaxConnections =
-      GetQuicFlag(FLAGS_quic_time_wait_list_max_connections);
+      GetQuicFlag(quic_time_wait_list_max_connections);
   if (kMaxConnections < 0) {
     return;
   }

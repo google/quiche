@@ -1017,9 +1017,9 @@ TEST_P(QuicDispatcherTestAllVersions, LimitResetsToSameClientAddress) {
 
 TEST_P(QuicDispatcherTestAllVersions,
        StopSendingResetOnTooManyRecentAddresses) {
-  SetQuicFlag(FLAGS_quic_max_recent_stateless_reset_addresses, 2);
+  SetQuicFlag(quic_max_recent_stateless_reset_addresses, 2);
   const size_t kTestLifeTimeMs = 10;
-  SetQuicFlag(FLAGS_quic_recent_stateless_reset_addresses_lifetime_ms,
+  SetQuicFlag(quic_recent_stateless_reset_addresses_lifetime_ms,
               kTestLifeTimeMs);
   CreateTimeWaitListManager();
 

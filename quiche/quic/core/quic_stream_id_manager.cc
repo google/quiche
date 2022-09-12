@@ -96,7 +96,7 @@ void QuicStreamIdManager::SetMaxOpenIncomingStreams(
 }
 
 void QuicStreamIdManager::MaybeSendMaxStreamsFrame() {
-  int divisor = GetQuicFlag(FLAGS_quic_max_streams_window_divisor);
+  int divisor = GetQuicFlag(quic_max_streams_window_divisor);
 
   if (divisor > 0) {
     if ((incoming_advertised_max_streams_ - incoming_stream_count_) >

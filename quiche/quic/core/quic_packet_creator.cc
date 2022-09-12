@@ -324,7 +324,7 @@ bool QuicPacketCreator::ConsumeDataToFillCurrentPacket(
   }
   CreateStreamFrame(id, data_size, offset, fin, frame);
   // Explicitly disallow multi-packet CHLOs.
-  if (GetQuicFlag(FLAGS_quic_enforce_single_packet_chlo) &&
+  if (GetQuicFlag(quic_enforce_single_packet_chlo) &&
       StreamFrameIsClientHello(frame->stream_frame) &&
       frame->stream_frame.data_length < data_size) {
     const std::string error_details =
@@ -1569,7 +1569,7 @@ void QuicPacketCreator::Flush() {
   FlushCurrentPacket();
   SendRemainingPendingPadding();
   flusher_attached_ = false;
-  if (GetQuicFlag(FLAGS_quic_export_write_path_stats_at_server)) {
+  if (GetQuicFlag(quic_export_write_path_stats_at_server)) {
     if (!write_start_packet_number_.IsInitialized()) {
       QUIC_BUG(quic_bug_10752_32)
           << ENDPOINT << "write_start_packet_number is not initialized";

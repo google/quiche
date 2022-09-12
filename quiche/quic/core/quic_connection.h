@@ -2235,7 +2235,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool fill_coalesced_packet_ = false;
 
   size_t anti_amplification_factor_ =
-      GetQuicFlag(FLAGS_quic_anti_amplification_factor);
+      GetQuicFlag(quic_anti_amplification_factor);
 
   // True if AckFrequencyFrame is supported.
   bool can_receive_ack_frequency_frame_ = false;
@@ -2314,7 +2314,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // If true, throttle sending if next created packet will exceed amplification
   // limit.
   const bool enforce_strict_amplification_factor_ =
-      GetQuicFlag(FLAGS_quic_enforce_strict_amplification_factor);
+      GetQuicFlag(quic_enforce_strict_amplification_factor);
 
   ConnectionIdGeneratorInterface& connection_id_generator_;
 };

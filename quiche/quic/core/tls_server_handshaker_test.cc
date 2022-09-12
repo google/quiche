@@ -169,7 +169,7 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
         server_id_(kServerHostname, kServerPort, false),
         supported_versions_({GetParam().version}) {
-    SetQuicFlag(FLAGS_quic_disable_server_tls_resumption,
+    SetQuicFlag(quic_disable_server_tls_resumption,
                 GetParam().disable_resumption);
     client_crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
         crypto_test_utils::ProofVerifierForTesting(),

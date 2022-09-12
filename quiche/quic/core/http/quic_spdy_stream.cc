@@ -383,7 +383,7 @@ QuicConsumedData QuicSpdyStream::WritevBody(const struct iovec* iov, int count,
   quiche::QuicheMemSliceStorage storage(
       iov, count,
       session()->connection()->helper()->GetStreamSendBufferAllocator(),
-      GetQuicFlag(FLAGS_quic_send_buffer_max_data_slice_size));
+      GetQuicFlag(quic_send_buffer_max_data_slice_size));
   return WriteBodySlices(storage.ToSpan(), fin);
 }
 

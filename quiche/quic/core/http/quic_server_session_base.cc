@@ -333,7 +333,7 @@ QuicSSLConfig QuicServerSessionBase::GetSSLConfig() const {
   QuicSSLConfig ssl_config = QuicSpdySession::GetSSLConfig();
 
   ssl_config.disable_ticket_support =
-      GetQuicFlag(FLAGS_quic_disable_server_tls_resumption);
+      GetQuicFlag(quic_disable_server_tls_resumption);
 
   if (!crypto_config_ || !crypto_config_->proof_source()) {
     return ssl_config;

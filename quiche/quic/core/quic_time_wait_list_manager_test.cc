@@ -592,12 +592,12 @@ TEST_F(QuicTimeWaitListManagerTest, ConnectionIdsOrderedByTime) {
 
 TEST_F(QuicTimeWaitListManagerTest, MaxConnectionsTest) {
   // Basically, shut off time-based eviction.
-  SetQuicFlag(FLAGS_quic_time_wait_list_seconds, 10000000000);
-  SetQuicFlag(FLAGS_quic_time_wait_list_max_connections, 5);
+  SetQuicFlag(quic_time_wait_list_seconds, 10000000000);
+  SetQuicFlag(quic_time_wait_list_max_connections, 5);
 
   uint64_t current_conn_id = 0;
   const int64_t kMaxConnections =
-      GetQuicFlag(FLAGS_quic_time_wait_list_max_connections);
+      GetQuicFlag(quic_time_wait_list_max_connections);
   // Add exactly the maximum number of connections
   for (int64_t i = 0; i < kMaxConnections; ++i) {
     ++current_conn_id;
@@ -631,9 +631,9 @@ TEST_F(QuicTimeWaitListManagerTest, MaxConnectionsTest) {
 
 TEST_F(QuicTimeWaitListManagerTest, ZeroMaxConnections) {
   // Basically, shut off time-based eviction.
-  SetQuicFlag(FLAGS_quic_time_wait_list_seconds, 10000000000);
+  SetQuicFlag(quic_time_wait_list_seconds, 10000000000);
   // Keep time wait list empty.
-  SetQuicFlag(FLAGS_quic_time_wait_list_max_connections, 0);
+  SetQuicFlag(quic_time_wait_list_max_connections, 0);
 
   uint64_t current_conn_id = 0;
   // Add exactly the maximum number of connections
@@ -753,7 +753,7 @@ TEST_F(QuicTimeWaitListManagerTest, SendOrQueueNullPacket) {
 }
 
 TEST_F(QuicTimeWaitListManagerTest, TooManyPendingPackets) {
-  SetQuicFlag(FLAGS_quic_time_wait_list_max_pending_packets, 5);
+  SetQuicFlag(quic_time_wait_list_max_pending_packets, 5);
   const size_t kNumOfUnProcessablePackets = 2048;
   EXPECT_CALL(visitor_, OnWriteBlocked(&time_wait_list_manager_))
       .Times(testing::AnyNumber());

@@ -151,7 +151,7 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
 
   // Ensure this data does not cause the send buffer for this encryption level
   // to exceed its size limit.
-  if (GetQuicFlag(FLAGS_quic_bounded_crypto_send_buffer)) {
+  if (GetQuicFlag(quic_bounded_crypto_send_buffer)) {
     QUIC_BUG_IF(quic_crypto_stream_offset_lt_bytes_written,
                 offset < send_buffer->stream_bytes_written());
     uint64_t current_buffer_size =
@@ -192,7 +192,7 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
 }
 
 size_t QuicCryptoStream::BufferSizeLimitForLevel(EncryptionLevel) const {
-  return GetQuicFlag(FLAGS_quic_max_buffered_crypto_bytes);
+  return GetQuicFlag(quic_max_buffered_crypto_bytes);
 }
 
 bool QuicCryptoStream::OnCryptoFrameAcked(const QuicCryptoFrame& frame,

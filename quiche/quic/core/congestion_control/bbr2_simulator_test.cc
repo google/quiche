@@ -123,7 +123,7 @@ class Bbr2SimulatorTest : public QuicTest {
   Bbr2SimulatorTest() : simulator_(&random_) {
     // Prevent the server(receiver), which only sends acks, from closing
     // connection due to too many outstanding packets.
-    SetQuicFlag(FLAGS_quic_max_tracked_packet_count, 1000000);
+    SetQuicFlag(quic_max_tracked_packet_count, 1000000);
   }
 
   void SetUp() override {
@@ -193,7 +193,7 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
         endpoint->connection()->clock()->Now(),
         endpoint->connection()->sent_packet_manager().GetRttStats(),
         GetUnackedMap(endpoint->connection()), kDefaultInitialCwndPackets,
-        GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
+        GetQuicFlag(quic_max_congestion_window), &random_,
         QuicConnectionPeer::GetStats(endpoint->connection()), old_sender);
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     const int kTestMaxPacketSize = 1350;
@@ -1442,8 +1442,8 @@ TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLossB2SL) {
 // STARTUP at the end of the round even if there's enough bandwidth growth.
 TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLossB2NE) {
   // Set up flags such that any loss will be considered "too high".
-  SetQuicFlag(FLAGS_quic_bbr2_default_startup_full_loss_count, 0);
-  SetQuicFlag(FLAGS_quic_bbr2_default_loss_threshold, 0.0);
+  SetQuicFlag(quic_bbr2_default_startup_full_loss_count, 0);
+  SetQuicFlag(quic_bbr2_default_loss_threshold, 0.0);
 
   sender_ = SetupBbr2Sender(&sender_endpoint_, /*old_sender=*/nullptr);
 
@@ -1682,7 +1682,7 @@ TEST_F(Bbr2DefaultTopologyTest, SwitchToBbr2MidConnection) {
                        sender_connection()->sent_packet_manager().GetRttStats(),
                        GetUnackedMap(sender_connection()),
                        kDefaultInitialCwndPackets + 1,
-                       GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
+                       GetQuicFlag(quic_max_congestion_window), &random_,
                        QuicConnectionPeer::GetStats(sender_connection()));
 
   QuicPacketNumber next_packet_number(1);
@@ -1972,9 +1972,9 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
         endpoint->connection()->sent_packet_manager().GetRttStats(),
         QuicSentPacketManagerPeer::GetUnackedPacketMap(
             QuicConnectionPeer::GetSentPacketManager(endpoint->connection())),
-        kDefaultInitialCwndPackets,
-        GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
-        QuicConnectionPeer::GetStats(endpoint->connection()), nullptr);
+        kDefaultInitialCwndPackets, GetQuicFlag(quic_max_congestion_window),
+        &random_, QuicConnectionPeer::GetStats(endpoint->connection()),
+        nullptr);
     // TODO(ianswett): Add dedicated tests for this option until it becomes
     // the default behavior.
     SetConnectionOption(sender, kBBRA);
@@ -1991,9 +1991,8 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
         endpoint->connection()->sent_packet_manager().GetRttStats(),
         QuicSentPacketManagerPeer::GetUnackedPacketMap(
             QuicConnectionPeer::GetSentPacketManager(endpoint->connection())),
-        kDefaultInitialCwndPackets,
-        GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
-        QuicConnectionPeer::GetStats(endpoint->connection()));
+        kDefaultInitialCwndPackets, GetQuicFlag(quic_max_congestion_window),
+        &random_, QuicConnectionPeer::GetStats(endpoint->connection()));
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();
     return sender;
@@ -2006,8 +2005,7 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
     TcpCubicSenderBytes* sender = new TcpCubicSenderBytes(
         endpoint->connection()->clock(),
         endpoint->connection()->sent_packet_manager().GetRttStats(), reno,
-        kDefaultInitialCwndPackets,
-        GetQuicFlag(FLAGS_quic_max_congestion_window),
+        kDefaultInitialCwndPackets, GetQuicFlag(quic_max_congestion_window),
         QuicConnectionPeer::GetStats(endpoint->connection()));
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();

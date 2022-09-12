@@ -107,7 +107,7 @@ INSTANTIATE_TEST_SUITE_P(Tests, QuicSendControlStreamTest,
                          ::testing::PrintToStringParamName());
 
 TEST_P(QuicSendControlStreamTest, WriteSettings) {
-  SetQuicFlag(FLAGS_quic_enable_http3_grease_randomness, false);
+  SetQuicFlag(quic_enable_http3_grease_randomness, false);
   session_.set_qpack_maximum_dynamic_table_capacity(255);
   session_.set_qpack_maximum_blocked_streams(16);
   session_.set_max_inbound_header_list_size(1024);

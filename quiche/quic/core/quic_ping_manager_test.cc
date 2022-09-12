@@ -172,7 +172,7 @@ TEST_F(QuicPingManagerTest, RetransmittableOnWireTimeout) {
 
 TEST_F(QuicPingManagerTest, RetransmittableOnWireTimeoutExponentiallyBackOff) {
   const int kMaxAggressiveRetransmittableOnWireCount = 5;
-  SetQuicFlag(FLAGS_quic_max_aggressive_retransmittable_on_wire_ping_count,
+  SetQuicFlag(quic_max_aggressive_retransmittable_on_wire_ping_count,
               kMaxAggressiveRetransmittableOnWireCount);
   const QuicTime::Delta initial_retransmittable_on_wire_timeout =
       QuicTime::Delta::FromMilliseconds(200);
@@ -257,7 +257,7 @@ TEST_F(QuicPingManagerTest, RetransmittableOnWireTimeoutExponentiallyBackOff) {
 TEST_F(QuicPingManagerTest,
        ResetRetransmitableOnWireTimeoutExponentiallyBackOff) {
   const int kMaxAggressiveRetransmittableOnWireCount = 3;
-  SetQuicFlag(FLAGS_quic_max_aggressive_retransmittable_on_wire_ping_count,
+  SetQuicFlag(quic_max_aggressive_retransmittable_on_wire_ping_count,
               kMaxAggressiveRetransmittableOnWireCount);
   const QuicTime::Delta initial_retransmittable_on_wire_timeout =
       QuicTime::Delta::FromMilliseconds(200);
@@ -338,7 +338,7 @@ TEST_F(QuicPingManagerTest,
 
 TEST_F(QuicPingManagerTest, RetransmittableOnWireLimit) {
   static constexpr int kMaxRetransmittableOnWirePingCount = 3;
-  SetQuicFlag(FLAGS_quic_max_retransmittable_on_wire_ping_count,
+  SetQuicFlag(quic_max_retransmittable_on_wire_ping_count,
               kMaxRetransmittableOnWirePingCount);
   static constexpr QuicTime::Delta initial_retransmittable_on_wire_timeout =
       QuicTime::Delta::FromMilliseconds(200);
@@ -386,7 +386,7 @@ TEST_F(QuicPingManagerTest, RetransmittableOnWireLimit) {
 TEST_F(QuicPingManagerTest, MaxRetransmittableOnWireDelayShift) {
   QuicPingManagerPeer::SetPerspective(&manager_, Perspective::IS_SERVER);
   const int kMaxAggressiveRetransmittableOnWireCount = 3;
-  SetQuicFlag(FLAGS_quic_max_aggressive_retransmittable_on_wire_ping_count,
+  SetQuicFlag(quic_max_aggressive_retransmittable_on_wire_ping_count,
               kMaxAggressiveRetransmittableOnWireCount);
   const QuicTime::Delta initial_retransmittable_on_wire_timeout =
       QuicTime::Delta::FromMilliseconds(200);

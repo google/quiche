@@ -181,7 +181,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     ignore_pings_ = true;
   }
 
-  using_pacing_ = !GetQuicFlag(FLAGS_quic_disable_pacing_for_perf_tests);
+  using_pacing_ = !GetQuicFlag(quic_disable_pacing_for_perf_tests);
   // Configure loss detection.
   if (config.HasClientRequestedIndependentOption(kILD0, perspective)) {
     uber_loss_algorithm_.SetReorderingShift(kDefaultIetfLossDelayShift);

@@ -66,7 +66,7 @@ QuicCryptoClientConfig::QuicCryptoClientConfig(
     : proof_verifier_(std::move(proof_verifier)),
       session_cache_(std::move(session_cache)),
       ssl_ctx_(TlsClientConnection::CreateSslCtx(
-          !GetQuicFlag(FLAGS_quic_disable_client_tls_zero_rtt))) {
+          !GetQuicFlag(quic_disable_client_tls_zero_rtt))) {
   QUICHE_DCHECK(proof_verifier_.get());
   SetDefaults();
 }

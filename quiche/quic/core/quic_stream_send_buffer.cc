@@ -63,7 +63,7 @@ void QuicStreamSendBuffer::SaveStreamData(absl::string_view data) {
 
   // Latch the maximum data slice size.
   const QuicByteCount max_data_slice_size =
-      GetQuicFlag(FLAGS_quic_send_buffer_max_data_slice_size);
+      GetQuicFlag(quic_send_buffer_max_data_slice_size);
   while (!data.empty()) {
     auto slice_len = std::min<absl::string_view::size_type>(
         data.length(), max_data_slice_size);

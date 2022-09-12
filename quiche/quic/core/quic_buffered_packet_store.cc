@@ -91,7 +91,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     QuicSocketAddress peer_address, const ParsedQuicVersion& version,
     absl::optional<ParsedClientHello> parsed_chlo) {
   const bool is_chlo = parsed_chlo.has_value();
-  QUIC_BUG_IF(quic_bug_12410_1, !GetQuicFlag(FLAGS_quic_allow_chlo_buffering))
+  QUIC_BUG_IF(quic_bug_12410_1, !GetQuicFlag(quic_allow_chlo_buffering))
       << "Shouldn't buffer packets if disabled via flag.";
   QUIC_BUG_IF(quic_bug_12410_2,
               is_chlo && connections_with_chlo_.contains(connection_id))

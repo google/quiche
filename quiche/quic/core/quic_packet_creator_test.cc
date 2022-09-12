@@ -470,7 +470,7 @@ TEST_P(QuicPacketCreatorTest, StreamFrameConsumption) {
 TEST_P(QuicPacketCreatorTest, CryptoStreamFramePacketPadding) {
   // This test serializes crypto payloads slightly larger than a packet, which
   // Causes the multi-packet ClientHello check to fail.
-  SetQuicFlag(FLAGS_quic_enforce_single_packet_chlo, false);
+  SetQuicFlag(quic_enforce_single_packet_chlo, false);
   // Compute the total overhead for a single frame in packet.
   size_t overhead =
       GetPacketHeaderOverhead(client_framer_.transport_version()) +

@@ -41,7 +41,7 @@ class QuicStreamSendBufferTest : public QuicTest {
     quiche::QuicheMemSlice slice2(std::move(buffer2));
 
     // `data` will be split into two BufferedSlices.
-    SetQuicFlag(FLAGS_quic_send_buffer_max_data_slice_size, 1024);
+    SetQuicFlag(quic_send_buffer_max_data_slice_size, 1024);
     send_buffer_.SaveStreamData(data1);
 
     send_buffer_.SaveMemSlice(std::move(slice1));

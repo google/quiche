@@ -142,7 +142,7 @@ BandwidthSampler::BandwidthSampler(
       last_acked_packet_ack_time_(QuicTime::Zero()),
       is_app_limited_(true),
       connection_state_map_(),
-      max_tracked_packets_(GetQuicFlag(FLAGS_quic_max_tracked_packet_count)),
+      max_tracked_packets_(GetQuicFlag(quic_max_tracked_packet_count)),
       unacked_packet_map_(unacked_packet_map),
       max_ack_height_tracker_(max_height_tracker_window_length),
       total_bytes_acked_after_last_ack_event_(0),

@@ -202,7 +202,7 @@ std::string HttpEncoder::SerializeGreasingFrame() {
   uint64_t frame_type;
   QuicByteCount payload_length;
   std::string payload;
-  if (!GetQuicFlag(FLAGS_quic_enable_http3_grease_randomness)) {
+  if (!GetQuicFlag(quic_enable_http3_grease_randomness)) {
     frame_type = 0x40;
     payload_length = 1;
     payload = "a";

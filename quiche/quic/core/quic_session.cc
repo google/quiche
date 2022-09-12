@@ -2629,7 +2629,7 @@ bool QuicSession::MigratePath(const QuicSocketAddress& self_address,
 
 bool QuicSession::ValidateToken(absl::string_view token) {
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_SERVER);
-  if (GetQuicFlag(FLAGS_quic_reject_retry_token_in_initial_packet)) {
+  if (GetQuicFlag(quic_reject_retry_token_in_initial_packet)) {
     return false;
   }
   if (token.empty() || token[0] != kAddressTokenPrefix) {

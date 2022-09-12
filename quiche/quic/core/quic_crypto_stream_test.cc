@@ -660,7 +660,7 @@ TEST_F(QuicCryptoStreamTest, WriteCryptoDataExceedsSendBufferLimit) {
     return;
   }
   EXPECT_EQ(ENCRYPTION_INITIAL, connection_->encryption_level());
-  int32_t buffer_limit = GetQuicFlag(FLAGS_quic_max_buffered_crypto_bytes);
+  int32_t buffer_limit = GetQuicFlag(quic_max_buffered_crypto_bytes);
 
   // Write data larger than the buffer limit, when there is no existing data in
   // the buffer. Data is sent rather than closing the connection.
@@ -689,7 +689,7 @@ TEST_F(QuicCryptoStreamTest, WriteCryptoDataExceedsSendBufferLimit) {
   EXPECT_TRUE(stream_->HasBufferedCryptoFrames());
 
   // Writing an additional byte to the send buffer closes the connection.
-  if (GetQuicFlag(FLAGS_quic_bounded_crypto_send_buffer)) {
+  if (GetQuicFlag(quic_bounded_crypto_send_buffer)) {
     EXPECT_CALL(*connection_, CloseConnection(QUIC_INTERNAL_ERROR, _, _));
     EXPECT_QUIC_BUG(
         stream_->WriteCryptoData(ENCRYPTION_INITIAL, data2),
@@ -745,8 +745,7 @@ TEST_F(QuicCryptoStreamTest, LimitBufferedCryptoData) {
 
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA, _, _));
-  std::string large_frame(2 * GetQuicFlag(FLAGS_quic_max_buffered_crypto_bytes),
-                          'a');
+  std::string large_frame(2 * GetQuicFlag(quic_max_buffered_crypto_bytes), 'a');
 
   // Set offset to 1 so that we guarantee the data gets buffered instead of
   // immediately processed.

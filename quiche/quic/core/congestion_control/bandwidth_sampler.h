@@ -177,7 +177,7 @@ class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
   // one. Stats only.
   uint64_t num_ack_aggregation_epochs_ = 0;
   double ack_aggregation_bandwidth_threshold_ =
-      GetQuicFlag(FLAGS_quic_ack_aggregation_bandwidth_threshold);
+      GetQuicFlag(quic_ack_aggregation_bandwidth_threshold);
   bool start_new_aggregation_epoch_after_full_round_ = false;
   bool reduce_extra_acked_on_bandwidth_increase_ = false;
 };

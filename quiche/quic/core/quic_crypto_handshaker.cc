@@ -45,7 +45,7 @@ CryptoMessageParser* QuicCryptoHandshaker::crypto_message_parser() {
 }
 
 size_t QuicCryptoHandshaker::BufferSizeLimitForLevel(EncryptionLevel) const {
-  return GetQuicFlag(FLAGS_quic_max_buffered_crypto_bytes);
+  return GetQuicFlag(quic_max_buffered_crypto_bytes);
 }
 
 #undef ENDPOINT  // undef for jumbo builds
