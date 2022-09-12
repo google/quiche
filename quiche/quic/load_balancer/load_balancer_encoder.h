@@ -84,12 +84,14 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
   // the current config, or 0 if there is no current config.
   absl::uint128 num_nonces_left() const { return num_nonces_left_; }
 
+  // Functions below are declared virtual to enable mocking.
   // Returns true if there is an active configuration.
-  bool IsEncoding() const { return config_.has_value(); }
+  virtual bool IsEncoding() const { return config_.has_value(); }
   // Returns true if there is an active configuration that uses encryption.
-  bool IsEncrypted() const {
+  virtual bool IsEncrypted() const {
     return config_.has_value() && config_->IsEncrypted();
   }
+  virtual bool len_self_encoded() const { return len_self_encoded_; }
 
   // If there's an active config, generates a connection ID using it. If not,
   // generates an unroutable connection_id. If there's an error, returns a zero-
@@ -103,9 +105,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
       const QuicConnectionId& original,
       const ParsedQuicVersion& version) override;
 
- private:
-  friend class test::LoadBalancerEncoderPeer;
-
+ protected:
   LoadBalancerEncoder(QuicRandom& random,
                       LoadBalancerEncoderVisitorInterface* const visitor,
                       const bool len_self_encoded,
@@ -115,11 +115,10 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
         visitor_(visitor),
         unroutable_connection_id_len_(unroutable_connection_id_len) {}
 
-  QuicConnectionId MakeUnroutableConnectionId(uint8_t first_byte);
+ private:
+  friend class test::LoadBalancerEncoderPeer;
 
-  uint8_t CurrentConnectionIdLength() const {
-    return IsEncoding() ? config_->total_len() : unroutable_connection_id_len_;
-  }
+  QuicConnectionId MakeUnroutableConnectionId(uint8_t first_byte);
 
   QuicRandom& random_;
   const bool len_self_encoded_;

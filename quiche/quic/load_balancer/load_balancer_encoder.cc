@@ -178,8 +178,9 @@ absl::optional<QuicConnectionId> LoadBalancerEncoder::MaybeReplaceConnectionId(
     const QuicConnectionId &original, const ParsedQuicVersion &version) {
   // Pre-IETF versions of QUIC can respond poorly to new connection IDs issued
   // during the handshake.
-  return (!version.HasIetfQuicFrames() &&
-          original.length() == CurrentConnectionIdLength())
+  uint8_t needed_length = config_.has_value() ? config_->total_len()
+                                              : unroutable_connection_id_len_;
+  return (!version.HasIetfQuicFrames() && original.length() == needed_length)
              ? absl::optional<QuicConnectionId>()
              : GenerateConnectionId();
 }
