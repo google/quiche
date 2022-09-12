@@ -4,6 +4,7 @@
 
 #include "quiche/quic/test_tools/fake_proof_source_handle.h"
 
+#include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
@@ -68,18 +69,21 @@ void FakeProofSourceHandle::CloseHandle() {
 
 QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
     const QuicSocketAddress& server_address,
-    const QuicSocketAddress& client_address, absl::string_view ssl_capabilities,
-    const std::string& hostname, absl::string_view client_hello,
-    const std::string& alpn, absl::optional<std::string> alps,
+    const QuicSocketAddress& client_address,
+    const QuicConnectionId& original_connection_id,
+    absl::string_view ssl_capabilities, const std::string& hostname,
+    absl::string_view client_hello, const std::string& alpn,
+    absl::optional<std::string> alps,
     const std::vector<uint8_t>& quic_transport_params,
     const absl::optional<std::vector<uint8_t>>& early_data_context,
     const QuicSSLConfig& ssl_config) {
   if (select_cert_action_ != Action::FAIL_SYNC_DO_NOT_CHECK_CLOSED) {
     QUICHE_CHECK(!closed_);
   }
-  all_select_cert_args_.push_back(SelectCertArgs(
-      server_address, client_address, ssl_capabilities, hostname, client_hello,
-      alpn, alps, quic_transport_params, early_data_context, ssl_config));
+  all_select_cert_args_.push_back(
+      SelectCertArgs(server_address, client_address, original_connection_id,
+                     ssl_capabilities, hostname, client_hello, alpn, alps,
+                     quic_transport_params, early_data_context, ssl_config));
 
   if (select_cert_action_ == Action::DELEGATE_ASYNC ||
       select_cert_action_ == Action::FAIL_ASYNC) {

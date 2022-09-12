@@ -13,6 +13,7 @@
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/crypto/tls_server_connection.h"
 #include "quiche/quic/core/proto/cached_network_parameters_proto.h"
+#include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_crypto_server_stream_base.h"
 #include "quiche/quic/core/quic_crypto_stream.h"
 #include "quiche/quic/core/quic_time_accumulator.h"
@@ -229,6 +230,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     QuicAsyncStatus SelectCertificate(
         const QuicSocketAddress& server_address,
         const QuicSocketAddress& client_address,
+        const QuicConnectionId& original_connection_id,
         absl::string_view ssl_capabilities, const std::string& hostname,
         absl::string_view client_hello, const std::string& alpn,
         absl::optional<std::string> alps,
