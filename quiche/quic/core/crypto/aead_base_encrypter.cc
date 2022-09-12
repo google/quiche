@@ -12,25 +12,11 @@
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/quiche_crypto_logging.h"
 
 namespace quic {
-
+using ::quiche::DLogOpenSslErrors;
 namespace {
-
-// In debug builds only, log OpenSSL error stack. Then clear OpenSSL error
-// stack.
-void DLogOpenSslErrors() {
-#ifdef NDEBUG
-  while (ERR_get_error()) {
-  }
-#else
-  while (unsigned long error = ERR_get_error()) {
-    char buf[120];
-    ERR_error_string_n(error, buf, ABSL_ARRAYSIZE(buf));
-    QUIC_DLOG(ERROR) << "OpenSSL error: " << buf;
-  }
-#endif
-}
 
 const EVP_AEAD* InitAndCall(const EVP_AEAD* (*aead_getter)()) {
   // Ensure BoringSSL is initialized before calling |aead_getter|. In Chromium,
