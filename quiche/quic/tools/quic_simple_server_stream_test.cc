@@ -703,8 +703,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidMultipleContentLength) {
   // \000 is a way to write the null byte when followed by a literal digit.
   header_list_.OnHeader("content-length", absl::string_view("11\00012", 5));
 
-  if (GetQuicReloadableFlag(quic_validate_header_field_value_at_spdy_stream) &&
-      session_.version().UsesHttp3()) {
+  if (session_.version().UsesHttp3()) {
     EXPECT_CALL(session_,
                 MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
                                                  QUIC_STREAM_NO_ERROR)));
@@ -725,8 +724,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidLeadingNullContentLength) {
   // \000 is a way to write the null byte when followed by a literal digit.
   header_list_.OnHeader("content-length", absl::string_view("\00012", 3));
 
-  if (GetQuicReloadableFlag(quic_validate_header_field_value_at_spdy_stream) &&
-      session_.version().UsesHttp3()) {
+  if (session_.version().UsesHttp3()) {
     EXPECT_CALL(session_,
                 MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
                                                  QUIC_STREAM_NO_ERROR)));
@@ -747,8 +745,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidMultipleContentLengthII) {
   // \000 is a way to write the null byte when followed by a literal digit.
   header_list_.OnHeader("content-length", absl::string_view("11\00011", 5));
 
-  if (GetQuicReloadableFlag(quic_validate_header_field_value_at_spdy_stream) &&
-      session_.version().UsesHttp3()) {
+  if (session_.version().UsesHttp3()) {
     EXPECT_CALL(session_,
                 MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
                                                  QUIC_STREAM_NO_ERROR)));
@@ -760,8 +757,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidMultipleContentLengthII) {
 
   stream_->OnStreamHeaderList(false, kFakeFrameLen, header_list_);
 
-  if (GetQuicReloadableFlag(quic_validate_header_field_value_at_spdy_stream) &&
-      session_.version().UsesHttp3()) {
+  if (session_.version().UsesHttp3()) {
     EXPECT_TRUE(QuicStreamPeer::read_side_closed(stream_));
     EXPECT_TRUE(stream_->reading_stopped());
     EXPECT_TRUE(stream_->write_side_closed());

@@ -625,8 +625,6 @@ void QuicSpdyStream::OnInitialHeadersComplete(
                               : header_list.empty();
   if (!AreHeaderFieldValuesValid(header_list)) {
     OnInvalidHeaders();
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_validate_header_field_value_at_spdy_stream, 2, 2);
     return;
   }
   // Validate request headers if it did not exceed size limit. If it did,
@@ -1571,12 +1569,9 @@ bool QuicSpdyStream::AreHeadersValid(const QuicHeaderList& header_list) const {
 
 bool QuicSpdyStream::AreHeaderFieldValuesValid(
     const QuicHeaderList& header_list) const {
-  if (!GetQuicReloadableFlag(quic_validate_header_field_value_at_spdy_stream) ||
-      !VersionUsesHttp3(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     return true;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_validate_header_field_value_at_spdy_stream,
-                               1, 2);
   // According to https://www.rfc-editor.org/rfc/rfc9114.html#section-10.3
   // "[...] HTTP/3 can transport field values that are not valid. While most
   // values that can be encoded will not alter field parsing, carriage return

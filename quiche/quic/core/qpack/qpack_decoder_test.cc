@@ -223,15 +223,8 @@ TEST_P(QpackDecoderTest, ValueLenExceedsLimit) {
 }
 
 TEST_P(QpackDecoderTest, LineFeedInValue) {
-  if (!GetQuicReloadableFlag(quic_validate_header_field_value_at_spdy_stream)) {
-    EXPECT_CALL(handler_,
-                OnDecodingErrorDetected(QUIC_INVALID_CHARACTER_IN_FIELD_VALUE,
-                                        "Invalid character in field value."));
-  } else {
-    EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("ba\nr")));
-    EXPECT_CALL(handler_, OnDecodingCompleted());
-  }
-
+  EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("ba\nr")));
+  EXPECT_CALL(handler_, OnDecodingCompleted());
   DecodeHeaderBlock(absl::HexStringToBytes("000023666f6f0462610a72"));
 }
 

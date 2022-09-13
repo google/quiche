@@ -339,31 +339,9 @@ bool QpackProgressiveDecoder::DoPrefixInstruction() {
   return true;
 }
 
-bool QpackProgressiveDecoder::OnHeaderDecoded(bool value_from_static_table,
+bool QpackProgressiveDecoder::OnHeaderDecoded(bool /*value_from_static_table*/,
                                               absl::string_view name,
                                               absl::string_view value) {
-  if (!GetQuicReloadableFlag(quic_validate_header_field_value_at_spdy_stream)) {
-    // Skip test for static table entries as they are all known to be valid.
-    if (!value_from_static_table) {
-      // According to Section 10.3 of
-      // https://quicwg.org/base-drafts/draft-ietf-quic-http.html,
-      // "[...] HTTP/3 can transport field values that are not valid. While most
-      // values that can be encoded will not alter field parsing, carriage
-      // return (CR, ASCII 0x0d), line feed (LF, ASCII 0x0a), and the zero
-      // character (NUL, ASCII 0x00) might be exploited by an attacker if they
-      // are translated verbatim. Any request or response that contains a
-      // character not permitted in a field value MUST be treated as malformed
-      // [...]"
-      for (const auto c : value) {
-        if (c == '\0' || c == '\n' || c == '\r') {
-          OnError(QUIC_INVALID_CHARACTER_IN_FIELD_VALUE,
-                  "Invalid character in field value.");
-          return false;
-        }
-      }
-    }
-  }
-
   handler_->OnHeaderDecoded(name, value);
   return true;
 }
