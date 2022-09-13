@@ -88,7 +88,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, true)
 // If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.
 QUIC_FLAG(quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // QuicConnection uses a library to generate connection IDs
-QUIC_FLAG(quic_reloadable_flag_quic_connection_uses_abstract_connection_id_generator, false)
+QUIC_FLAG(quic_reloadable_flag_quic_connection_uses_abstract_connection_id_generator, true)
 // QuicDispatcher uses a library to generate connection IDs
 QUIC_FLAG(quic_restart_flag_quic_abstract_connection_id_generator, true)
 // Store original QUIC connection IDs in the dispatcher\'s map
