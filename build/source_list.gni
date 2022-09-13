@@ -986,8 +986,6 @@ epoll_tool_support_hdrs = [
     "src/quiche/quic/masque/masque_utils.h",
     "src/quiche/quic/platform/api/quic_epoll.h",
     "src/quiche/quic/platform/api/quic_udp_socket_platform_api.h",
-    "src/quiche/quic/tools/quic_client.h",
-    "src/quiche/quic/tools/quic_client_epoll_network_helper.h",
     "src/quiche/quic/tools/quic_server.h",
 ]
 epoll_tool_support_srcs = [
@@ -1019,8 +1017,6 @@ epoll_tool_support_srcs = [
     "src/quiche/quic/masque/masque_server_backend.cc",
     "src/quiche/quic/masque/masque_server_session.cc",
     "src/quiche/quic/masque/masque_utils.cc",
-    "src/quiche/quic/tools/quic_client.cc",
-    "src/quiche/quic/tools/quic_client_epoll_network_helper.cc",
     "src/quiche/quic/tools/quic_server.cc",
 ]
 epoll_test_support_hdrs = [
@@ -1327,7 +1323,6 @@ epoll_tests_srcs = [
     "src/quiche/quic/core/quic_epoll_clock_test.cc",
     "src/quiche/quic/core/quic_epoll_connection_helper_test.cc",
     "src/quiche/quic/core/quic_linux_socket_utils_test.cc",
-    "src/quiche/quic/tools/quic_client_test.cc",
     "src/quiche/quic/tools/quic_server_test.cc",
     "src/quiche/quic/tools/quic_simple_server_session_test.cc",
     "src/quiche/quic/tools/quic_simple_server_stream_test.cc",
