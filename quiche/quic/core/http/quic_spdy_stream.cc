@@ -828,11 +828,7 @@ void QuicSpdyStream::OnDataAvailable() {
     QuicByteCount processed_bytes = decoder_.ProcessInput(
         reinterpret_cast<const char*>(iov.iov_base), iov.iov_len);
     is_decoder_processing_input_ = false;
-    if (GetQuicReloadableFlag(
-            quic_spdy_stream_check_connected_after_process_input) &&
-        !session()->connection()->connected()) {
-      QUIC_RELOADABLE_FLAG_COUNT(
-          quic_spdy_stream_check_connected_after_process_input);
+    if (!session()->connection()->connected()) {
       return;
     }
     sequencer_offset_ += processed_bytes;

@@ -27,8 +27,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 QUIC_FLAG(quic_reloadable_flag_quic_add_process_packet_context, true)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(quic_restart_flag_quic_support_release_time_for_gso, false)
-// If true, QuicSpdyStream::OnDataAvailable will check if connection is still connected after HttpDecoder::ProcessInput.
-QUIC_FLAG(quic_reloadable_flag_quic_spdy_stream_check_connected_after_process_input, true)
 // If true, ack frequency frame can be sent from server to client.
 QUIC_FLAG(quic_reloadable_flag_quic_can_send_ack_frequency, true)
 // If true, allow client to enable BBRv2 on server via connection option \'B2ON\'.
