@@ -275,5 +275,21 @@ TEST(Http2HeaderBlockTest, TotalBytesUsed) {
   EXPECT_EQ(block_copy.TotalBytesUsed(), Http2HeaderBlockSize(block_copy));
 }
 
+// The order of header fields is preserved.  Note that all pseudo-header fields
+// must appear before regular header fields, both in HTTP/2 and HTTP/3, see
+// https://www.rfc-editor.org/rfc/rfc9113.html#name-http-control-data and
+// https://www.rfc-editor.org/rfc/rfc9114.html#name-http-control-data.  It is
+// the responsibility of the higher layer to add header fields in the correct
+// order.
+TEST(Http2HeaderBlockTest, OrderPreserved) {
+  Http2HeaderBlock block;
+  block[":method"] = "GET";
+  block["foo"] = "bar";
+  block[":path"] = "/";
+
+  EXPECT_THAT(block, ElementsAre(Pair(":method", "GET"), Pair("foo", "bar"),
+                                 Pair(":path", "/")));
+}
+
 }  // namespace test
 }  // namespace spdy
