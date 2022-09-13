@@ -527,7 +527,7 @@ class MockQuicConnectionHelper : public QuicConnectionHelperInterface {
 
  private:
   MockClock clock_;
-  MockRandom random_generator_;
+  testing::NiceMock<MockRandom> random_generator_;
   quiche::SimpleBufferAllocator buffer_allocator_;
 };
 
