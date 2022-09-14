@@ -2308,9 +2308,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   RetransmittableOnWireBehavior retransmittable_on_wire_behavior_ = DEFAULT;
 
-  bool only_send_probing_frames_on_alternative_path_ =
-      GetQuicReloadableFlag(quic_not_bundle_ack_on_alternative_path);
-
   // If true, throttle sending if next created packet will exceed amplification
   // limit.
   const bool enforce_strict_amplification_factor_ =

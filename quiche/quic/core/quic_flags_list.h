@@ -49,8 +49,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_disable_server_blackhole_detection, false)
 QUIC_FLAG(quic_reloadable_flag_quic_enable_disable_resumption, true)
 // If true, discard INITIAL packet if the key has been dropped.
 QUIC_FLAG(quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, true)
-// If true, do not bundle ACK while sending PATH_CHALLENGE on alternative path.
-QUIC_FLAG(quic_reloadable_flag_quic_not_bundle_ack_on_alternative_path, true)
 // If true, do not issue a new connection ID that has been claimed by another connection.
 QUIC_FLAG(quic_reloadable_flag_quic_check_cid_collision_when_issue_new_cid, true)
 // If true, do not mark stream connection level write blocked if its write side has been closed.

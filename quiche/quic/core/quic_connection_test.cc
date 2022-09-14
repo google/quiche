@@ -13709,7 +13709,6 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
       .WillOnce(Invoke([this]() {
         connection_.SendControlFrame(QuicFrame(QuicWindowUpdateFrame(1, 0, 0)));
       }));
-  if (GetQuicReloadableFlag(quic_not_bundle_ack_on_alternative_path)) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
         .WillOnce(Invoke([&]() {
           EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
@@ -13726,13 +13725,6 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
         QuicPathValidatorPeer::retry_timer(
             QuicConnectionPeer::path_validator(&connection_)))
         ->Fire();
-  } else {
-    EXPECT_QUIC_BUG(static_cast<TestAlarmFactory::TestAlarm*>(
-                        QuicPathValidatorPeer::retry_timer(
-                            QuicConnectionPeer::path_validator(&connection_)))
-                        ->Fire(),
-                    "quic_bug_12645_2");
-  }
 }
 
 TEST_P(QuicConnectionTest, DoNotIssueNewCidIfVisitorSaysNo) {
