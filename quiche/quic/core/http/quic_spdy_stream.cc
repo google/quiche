@@ -254,22 +254,6 @@ size_t QuicSpdyStream::WriteHeaders(
   }
 
   QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
-  // Send stream type for server push stream
-  if (VersionUsesHttp3(transport_version()) && type() == WRITE_UNIDIRECTIONAL &&
-      send_buffer().stream_offset() == 0) {
-    char data[sizeof(kServerPushStream)];
-    QuicDataWriter writer(ABSL_ARRAYSIZE(data), data);
-    writer.WriteVarInt62(kServerPushStream);
-
-    // Similar to frame headers, stream type byte shouldn't be exposed to upper
-    // layer applications.
-    unacked_frame_headers_offsets_.Add(0, writer.length());
-
-    QUIC_LOG(INFO) << ENDPOINT << "Stream " << id()
-                   << " is writing type as server push";
-    WriteOrBufferData(absl::string_view(writer.data(), writer.length()), false,
-                      nullptr);
-  }
 
   MaybeProcessSentWebTransportHeaders(header_block);
 
