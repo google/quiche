@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/masque/masque_epoll_server.h"
+#include "quiche/quic/masque/masque_server.h"
 
 #include "quiche/quic/core/quic_default_connection_helper.h"
 #include "quiche/quic/masque/masque_dispatcher.h"
@@ -12,14 +12,14 @@
 
 namespace quic {
 
-MasqueEpollServer::MasqueEpollServer(MasqueMode masque_mode,
-                                     MasqueServerBackend* masque_server_backend)
+MasqueServer::MasqueServer(MasqueMode masque_mode,
+                           MasqueServerBackend* masque_server_backend)
     : QuicServer(CreateDefaultProofSource(), masque_server_backend,
                  MasqueSupportedVersions()),
       masque_mode_(masque_mode),
       masque_server_backend_(masque_server_backend) {}
 
-QuicDispatcher* MasqueEpollServer::CreateQuicDispatcher() {
+QuicDispatcher* MasqueServer::CreateQuicDispatcher() {
   return new MasqueDispatcher(
       masque_mode_, &config(), &crypto_config(), version_manager(),
       event_loop(), std::make_unique<QuicDefaultConnectionHelper>(),

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/masque/masque_epoll_client.h"
+#include "quiche/quic/masque/masque_client.h"
 
 #include <string>
 
@@ -14,17 +14,17 @@
 
 namespace quic {
 
-MasqueEpollClient::MasqueEpollClient(
-    QuicSocketAddress server_address, const QuicServerId& server_id,
-    MasqueMode masque_mode, QuicEventLoop* event_loop,
-    std::unique_ptr<ProofVerifier> proof_verifier,
-    const std::string& uri_template)
+MasqueClient::MasqueClient(QuicSocketAddress server_address,
+                           const QuicServerId& server_id,
+                           MasqueMode masque_mode, QuicEventLoop* event_loop,
+                           std::unique_ptr<ProofVerifier> proof_verifier,
+                           const std::string& uri_template)
     : QuicDefaultClient(server_address, server_id, MasqueSupportedVersions(),
                         event_loop, std::move(proof_verifier)),
       masque_mode_(masque_mode),
       uri_template_(uri_template) {}
 
-std::unique_ptr<QuicSession> MasqueEpollClient::CreateQuicClientSession(
+std::unique_ptr<QuicSession> MasqueClient::CreateQuicClientSession(
     const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection) {
   QUIC_DLOG(INFO) << "Creating MASQUE session for "
@@ -34,21 +34,21 @@ std::unique_ptr<QuicSession> MasqueEpollClient::CreateQuicClientSession(
       server_id(), crypto_config(), push_promise_index(), this);
 }
 
-MasqueClientSession* MasqueEpollClient::masque_client_session() {
+MasqueClientSession* MasqueClient::masque_client_session() {
   return static_cast<MasqueClientSession*>(QuicDefaultClient::session());
 }
 
-QuicConnectionId MasqueEpollClient::connection_id() {
+QuicConnectionId MasqueClient::connection_id() {
   return masque_client_session()->connection_id();
 }
 
-std::string MasqueEpollClient::authority() const {
+std::string MasqueClient::authority() const {
   QuicUrl url(uri_template_);
   return absl::StrCat(url.host(), ":", url.port());
 }
 
 // static
-std::unique_ptr<MasqueEpollClient> MasqueEpollClient::Create(
+std::unique_ptr<MasqueClient> MasqueClient::Create(
     const std::string& uri_template, MasqueMode masque_mode,
     QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier) {
   QuicUrl url(uri_template);
@@ -61,12 +61,12 @@ std::unique_ptr<MasqueEpollClient> MasqueEpollClient::Create(
     return nullptr;
   }
   QuicServerId server_id(host, port);
-  // Use absl::WrapUnique(new MasqueEpollClient(...)) instead of
-  // std::make_unique<MasqueEpollClient>(...) because the constructor for
-  // MasqueEpollClient is private and therefore not accessible from make_unique.
+  // Use absl::WrapUnique(new MasqueClient(...)) instead of
+  // std::make_unique<MasqueClient>(...) because the constructor for
+  // MasqueClient is private and therefore not accessible from make_unique.
   auto masque_client = absl::WrapUnique(
-      new MasqueEpollClient(addr, server_id, masque_mode, event_loop,
-                            std::move(proof_verifier), uri_template));
+      new MasqueClient(addr, server_id, masque_mode, event_loop,
+                       std::move(proof_verifier), uri_template));
 
   if (masque_client == nullptr) {
     QUIC_LOG(ERROR) << "Failed to create masque_client";
@@ -94,9 +94,9 @@ std::unique_ptr<MasqueEpollClient> MasqueEpollClient::Create(
   return masque_client;
 }
 
-void MasqueEpollClient::OnSettingsReceived() { settings_received_ = true; }
+void MasqueClient::OnSettingsReceived() { settings_received_ = true; }
 
-bool MasqueEpollClient::WaitUntilSettingsReceived() {
+bool MasqueClient::WaitUntilSettingsReceived() {
   while (connected() && !settings_received_) {
     network_helper()->RunEventLoop();
   }

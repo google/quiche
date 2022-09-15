@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_MASQUE_MASQUE_EPOLL_CLIENT_H_
-#define QUICHE_QUIC_MASQUE_MASQUE_EPOLL_CLIENT_H_
+#ifndef QUICHE_QUIC_MASQUE_MASQUE_CLIENT_H_
+#define QUICHE_QUIC_MASQUE_MASQUE_CLIENT_H_
 
 #include <string>
 
@@ -16,11 +16,11 @@
 namespace quic {
 
 // QUIC client that implements MASQUE.
-class QUIC_NO_EXPORT MasqueEpollClient : public QuicDefaultClient,
-                                         public MasqueClientSession::Owner {
+class QUIC_NO_EXPORT MasqueClient : public QuicDefaultClient,
+                                    public MasqueClientSession::Owner {
  public:
-  // Constructs a MasqueEpollClient, performs a synchronous DNS lookup.
-  static std::unique_ptr<MasqueEpollClient> Create(
+  // Constructs a MasqueClient, performs a synchronous DNS lookup.
+  static std::unique_ptr<MasqueClient> Create(
       const std::string& uri_template, MasqueMode masque_mode,
       QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier);
 
@@ -42,11 +42,10 @@ class QUIC_NO_EXPORT MasqueEpollClient : public QuicDefaultClient,
 
  private:
   // Constructor is private, use Create() instead.
-  MasqueEpollClient(QuicSocketAddress server_address,
-                    const QuicServerId& server_id, MasqueMode masque_mode,
-                    QuicEventLoop* event_loop,
-                    std::unique_ptr<ProofVerifier> proof_verifier,
-                    const std::string& uri_template);
+  MasqueClient(QuicSocketAddress server_address, const QuicServerId& server_id,
+               MasqueMode masque_mode, QuicEventLoop* event_loop,
+               std::unique_ptr<ProofVerifier> proof_verifier,
+               const std::string& uri_template);
 
   // Wait synchronously until we receive the peer's settings. Returns whether
   // they were received.
@@ -55,8 +54,8 @@ class QUIC_NO_EXPORT MasqueEpollClient : public QuicDefaultClient,
   std::string authority() const;
 
   // Disallow copy and assign.
-  MasqueEpollClient(const MasqueEpollClient&) = delete;
-  MasqueEpollClient& operator=(const MasqueEpollClient&) = delete;
+  MasqueClient(const MasqueClient&) = delete;
+  MasqueClient& operator=(const MasqueClient&) = delete;
 
   MasqueMode masque_mode_;
   std::string uri_template_;
@@ -65,4 +64,4 @@ class QUIC_NO_EXPORT MasqueEpollClient : public QuicDefaultClient,
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_MASQUE_MASQUE_EPOLL_CLIENT_H_
+#endif  // QUICHE_QUIC_MASQUE_MASQUE_CLIENT_H_

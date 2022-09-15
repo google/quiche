@@ -4,7 +4,7 @@
 
 #include "quiche/quic/masque/masque_client_tools.h"
 
-#include "quiche/quic/masque/masque_encapsulated_epoll_client.h"
+#include "quiche/quic/masque/masque_encapsulated_client.h"
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
@@ -15,7 +15,7 @@
 namespace quic {
 namespace tools {
 
-bool SendEncapsulatedMasqueRequest(MasqueEpollClient* masque_client,
+bool SendEncapsulatedMasqueRequest(MasqueClient* masque_client,
                                    QuicEventLoop* event_loop,
                                    std::string url_string,
                                    bool disable_certificate_verification) {
@@ -35,11 +35,11 @@ bool SendEncapsulatedMasqueRequest(MasqueEpollClient* masque_client,
     return false;
   }
   const QuicServerId server_id(url.host(), url.port());
-  auto client = std::make_unique<MasqueEncapsulatedEpollClient>(
+  auto client = std::make_unique<MasqueEncapsulatedClient>(
       addr, server_id, event_loop, std::move(proof_verifier), masque_client);
 
   if (client == nullptr) {
-    QUIC_LOG(ERROR) << "Failed to create MasqueEncapsulatedEpollClient for "
+    QUIC_LOG(ERROR) << "Failed to create MasqueEncapsulatedClient for "
                     << url_string;
     return false;
   }
@@ -47,7 +47,7 @@ bool SendEncapsulatedMasqueRequest(MasqueEpollClient* masque_client,
   client->set_initial_max_packet_length(kMasqueMaxEncapsulatedPacketSize);
   client->set_drop_response_body(false);
   if (!client->Initialize()) {
-    QUIC_LOG(ERROR) << "Failed to initialize MasqueEncapsulatedEpollClient for "
+    QUIC_LOG(ERROR) << "Failed to initialize MasqueEncapsulatedClient for "
                     << url_string;
     return false;
   }

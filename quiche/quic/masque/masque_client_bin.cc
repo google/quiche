@@ -17,9 +17,9 @@
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/masque/masque_client.h"
 #include "quiche/quic/masque/masque_client_tools.h"
-#include "quiche/quic/masque/masque_encapsulated_epoll_client.h"
-#include "quiche/quic/masque/masque_epoll_client.h"
+#include "quiche/quic/masque/masque_encapsulated_client.h"
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -93,7 +93,7 @@ int RunMasqueClient(int argc, char* argv[]) {
     std::cerr << "Invalid masque_mode \"" << mode_string << "\"" << std::endl;
     return 1;
   }
-  std::unique_ptr<MasqueEpollClient> masque_client = MasqueEpollClient::Create(
+  std::unique_ptr<MasqueClient> masque_client = MasqueClient::Create(
       uri_template, masque_mode, event_loop.get(), std::move(proof_verifier));
   if (masque_client == nullptr) {
     return 1;

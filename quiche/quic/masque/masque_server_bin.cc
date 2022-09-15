@@ -9,7 +9,7 @@
 
 #include <memory>
 
-#include "quiche/quic/masque/masque_epoll_server.h"
+#include "quiche/quic/masque/masque_server.h"
 #include "quiche/quic/masque/masque_server_backend.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
       quiche::GetQuicheCommandLineFlag(FLAGS_cache_dir));
 
   auto server =
-      std::make_unique<quic::MasqueEpollServer>(masque_mode, backend.get());
+      std::make_unique<quic::MasqueServer>(masque_mode, backend.get());
 
   if (!server->CreateUDPSocketAndListen(quic::QuicSocketAddress(
           quic::QuicIpAddress::Any6(),

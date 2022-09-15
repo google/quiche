@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/masque/masque_encapsulated_epoll_client.h"
+#include "quiche/quic/masque/masque_encapsulated_client.h"
 
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/masque/masque_client.h"
 #include "quiche/quic/masque/masque_client_session.h"
 #include "quiche/quic/masque/masque_encapsulated_client_session.h"
-#include "quiche/quic/masque/masque_epoll_client.h"
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/tools/quic_client_default_network_helper.h"
 
@@ -19,7 +19,7 @@ namespace {
 // packets.
 class MasquePacketWriter : public QuicPacketWriter {
  public:
-  explicit MasquePacketWriter(MasqueEncapsulatedEpollClient* client)
+  explicit MasquePacketWriter(MasqueEncapsulatedClient* client)
       : client_(client) {}
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& /*self_address*/,
@@ -59,7 +59,7 @@ class MasquePacketWriter : public QuicPacketWriter {
   WriteResult Flush() override { return WriteResult(WRITE_STATUS_OK, 0); }
 
  private:
-  MasqueEncapsulatedEpollClient* client_;  // Unowned.
+  MasqueEncapsulatedClient* client_;  // Unowned.
 };
 
 // Custom network helper that allows injecting a custom packet writer in order
@@ -67,22 +67,22 @@ class MasquePacketWriter : public QuicPacketWriter {
 class MasqueClientDefaultNetworkHelper : public QuicClientDefaultNetworkHelper {
  public:
   MasqueClientDefaultNetworkHelper(QuicEventLoop* event_loop,
-                                   MasqueEncapsulatedEpollClient* client)
+                                   MasqueEncapsulatedClient* client)
       : QuicClientDefaultNetworkHelper(event_loop, client), client_(client) {}
   QuicPacketWriter* CreateQuicPacketWriter() override {
     return new MasquePacketWriter(client_);
   }
 
  private:
-  MasqueEncapsulatedEpollClient* client_;  // Unowned.
+  MasqueEncapsulatedClient* client_;  // Unowned.
 };
 
 }  // namespace
 
-MasqueEncapsulatedEpollClient::MasqueEncapsulatedEpollClient(
+MasqueEncapsulatedClient::MasqueEncapsulatedClient(
     QuicSocketAddress server_address, const QuicServerId& server_id,
     QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier,
-    MasqueEpollClient* masque_client)
+    MasqueClient* masque_client)
     : QuicDefaultClient(
           server_address, server_id, MasqueSupportedVersions(),
           MasqueEncapsulatedConfig(), event_loop,
@@ -90,13 +90,12 @@ MasqueEncapsulatedEpollClient::MasqueEncapsulatedEpollClient(
           std::move(proof_verifier)),
       masque_client_(masque_client) {}
 
-MasqueEncapsulatedEpollClient::~MasqueEncapsulatedEpollClient() {
+MasqueEncapsulatedClient::~MasqueEncapsulatedClient() {
   masque_client_->masque_client_session()->CloseConnectUdpStream(
       masque_encapsulated_client_session());
 }
 
-std::unique_ptr<QuicSession>
-MasqueEncapsulatedEpollClient::CreateQuicClientSession(
+std::unique_ptr<QuicSession> MasqueEncapsulatedClient::CreateQuicClientSession(
     const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection) {
   QUIC_DLOG(INFO) << "Creating MASQUE encapsulated session for "
@@ -107,7 +106,7 @@ MasqueEncapsulatedEpollClient::CreateQuicClientSession(
 }
 
 MasqueEncapsulatedClientSession*
-MasqueEncapsulatedEpollClient::masque_encapsulated_client_session() {
+MasqueEncapsulatedClient::masque_encapsulated_client_session() {
   return static_cast<MasqueEncapsulatedClientSession*>(
       QuicDefaultClient::session());
 }

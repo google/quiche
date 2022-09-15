@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_MASQUE_MASQUE_EPOLL_SERVER_H_
-#define QUICHE_QUIC_MASQUE_MASQUE_EPOLL_SERVER_H_
+#ifndef QUICHE_QUIC_MASQUE_MASQUE_SERVER_H_
+#define QUICHE_QUIC_MASQUE_MASQUE_SERVER_H_
 
 #include "quiche/quic/masque/masque_server_backend.h"
 #include "quiche/quic/masque/masque_utils.h"
@@ -13,14 +13,14 @@
 namespace quic {
 
 // QUIC server that implements MASQUE.
-class QUIC_NO_EXPORT MasqueEpollServer : public QuicServer {
+class QUIC_NO_EXPORT MasqueServer : public QuicServer {
  public:
-  explicit MasqueEpollServer(MasqueMode masque_mode,
-                             MasqueServerBackend* masque_server_backend);
+  explicit MasqueServer(MasqueMode masque_mode,
+                        MasqueServerBackend* masque_server_backend);
 
   // Disallow copy and assign.
-  MasqueEpollServer(const MasqueEpollServer&) = delete;
-  MasqueEpollServer& operator=(const MasqueEpollServer&) = delete;
+  MasqueServer(const MasqueServer&) = delete;
+  MasqueServer& operator=(const MasqueServer&) = delete;
 
   // From QuicServer.
   QuicDispatcher* CreateQuicDispatcher() override;
@@ -32,4 +32,4 @@ class QUIC_NO_EXPORT MasqueEpollServer : public QuicServer {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_MASQUE_MASQUE_EPOLL_SERVER_H_
+#endif  // QUICHE_QUIC_MASQUE_MASQUE_SERVER_H_
