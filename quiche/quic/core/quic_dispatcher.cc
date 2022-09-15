@@ -451,7 +451,11 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
 absl::optional<QuicConnectionId> QuicDispatcher::MaybeReplaceServerConnectionId(
     const QuicConnectionId& server_connection_id,
     const ParsedQuicVersion& version) {
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator)) {
+  if (GetQuicRestartFlag(quic_abstract_connection_id_generator) &&
+      GetQuicRestartFlag(quic_map_original_connection_ids2)) {
+    // If the Dispatcher doesn't map the original connection ID, then using a
+    // connection ID generator that isn't deterministic may break the handshake
+    // and will certainly drop all 0-RTT packets.
     QUIC_RESTART_FLAG_COUNT(quic_abstract_connection_id_generator);
     return connection_id_generator_.MaybeReplaceConnectionId(
         server_connection_id, version);
