@@ -945,7 +945,6 @@ quiche_test_support_srcs = [
     "spdy/test_tools/spdy_test_utils.cc",
 ]
 epoll_tool_support_hdrs = [
-    "common/platform/api/quiche_epoll.h",
     "common/platform/api/quiche_event_loop.h",
     "common/platform/api/quiche_stream_buffer_allocator.h",
     "common/platform/api/quiche_udp_socket_platform_api.h",
@@ -981,7 +980,6 @@ epoll_tool_support_hdrs = [
     "quic/masque/masque_server_backend.h",
     "quic/masque/masque_server_session.h",
     "quic/masque/masque_utils.h",
-    "quic/platform/api/quic_epoll.h",
     "quic/platform/api/quic_udp_socket_platform_api.h",
     "quic/tools/quic_server.h",
 ]
@@ -1014,7 +1012,6 @@ epoll_tool_support_srcs = [
     "quic/tools/quic_server.cc",
 ]
 epoll_test_support_hdrs = [
-    "common/platform/api/quiche_epoll_test_tools.h",
     "epoll_server/fake_simple_epoll_server.h",
     "epoll_server/platform/api/epoll_address_test_utils.h",
     "epoll_server/platform/api/epoll_expect_bug.h",
