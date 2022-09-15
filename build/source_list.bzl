@@ -948,10 +948,6 @@ epoll_tool_support_hdrs = [
     "common/platform/api/quiche_event_loop.h",
     "common/platform/api/quiche_stream_buffer_allocator.h",
     "common/platform/api/quiche_udp_socket_platform_api.h",
-    "epoll_server/platform/api/epoll_bug.h",
-    "epoll_server/platform/api/epoll_logging.h",
-    "epoll_server/platform/api/epoll_thread.h",
-    "epoll_server/simple_epoll_server.h",
     "quic/core/batch_writer/quic_batch_writer_base.h",
     "quic/core/batch_writer/quic_batch_writer_buffer.h",
     "quic/core/batch_writer/quic_batch_writer_test.h",
@@ -984,7 +980,6 @@ epoll_tool_support_hdrs = [
     "quic/tools/quic_server.h",
 ]
 epoll_tool_support_srcs = [
-    "epoll_server/simple_epoll_server.cc",
     "quic/core/batch_writer/quic_batch_writer_base.cc",
     "quic/core/batch_writer/quic_batch_writer_buffer.cc",
     "quic/core/batch_writer/quic_gso_batch_writer.cc",
@@ -1012,10 +1007,6 @@ epoll_tool_support_srcs = [
     "quic/tools/quic_server.cc",
 ]
 epoll_test_support_hdrs = [
-    "epoll_server/fake_simple_epoll_server.h",
-    "epoll_server/platform/api/epoll_address_test_utils.h",
-    "epoll_server/platform/api/epoll_expect_bug.h",
-    "epoll_server/platform/api/epoll_test.h",
     "quic/bindings/quic_libevent.h",
     "quic/test_tools/quic_mock_syscall_wrapper.h",
     "quic/test_tools/quic_server_peer.h",
@@ -1024,7 +1015,6 @@ epoll_test_support_hdrs = [
     "quic/test_tools/server_thread.h",
 ]
 epoll_test_support_srcs = [
-    "epoll_server/fake_simple_epoll_server.cc",
     "quic/bindings/quic_libevent.cc",
     "quic/test_tools/quic_mock_syscall_wrapper.cc",
     "quic/test_tools/quic_server_peer.cc",
@@ -1296,7 +1286,6 @@ epoll_tests_hdrs = [
 
 ]
 epoll_tests_srcs = [
-    "epoll_server/simple_epoll_server_test.cc",
     "quic/core/batch_writer/quic_batch_writer_buffer_test.cc",
     "quic/core/batch_writer/quic_batch_writer_test.cc",
     "quic/core/batch_writer/quic_gso_batch_writer_test.cc",
