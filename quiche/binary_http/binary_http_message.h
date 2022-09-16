@@ -29,6 +29,8 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpMessage {
     bool operator==(const BinaryHttpMessage::Field& rhs) const {
       return name == rhs.name && value == rhs.value;
     }
+
+    std::string DebugString() const;
   };
   virtual ~BinaryHttpMessage() = default;
 
@@ -50,6 +52,9 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpMessage {
   virtual absl::StatusOr<std::string> Serialize() const = 0;
   // TODO(bschneider): Add AddTrailerField for chunked messages
   // TODO(bschneider): Add SetBodyCallback() for chunked messages
+
+  virtual std::string DebugString() const;
+
  protected:
   class Fields {
    public:
@@ -117,6 +122,8 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpRequest : public BinaryHttpMessage {
   absl::StatusOr<std::string> Serialize() const override;
   const ControlData& control_data() const { return control_data_; }
 
+  virtual std::string DebugString() const override;
+
  private:
   absl::Status EncodeControlData(quiche::QuicheDataWriter& writer) const;
 
@@ -129,6 +136,8 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpRequest : public BinaryHttpMessage {
 
   const ControlData control_data_;
 };
+
+void PrintTo(const BinaryHttpRequest& msg, std::ostream* os);
 
 class QUICHE_EXPORT_PRIVATE BinaryHttpResponse : public BinaryHttpMessage {
  public:
@@ -163,6 +172,8 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpResponse : public BinaryHttpMessage {
 
     uint16_t status_code() const { return status_code_; }
 
+    std::string DebugString() const;
+
    private:
     // Give BinaryHttpResponse access to Encoding functionality.
     friend class BinaryHttpResponse;
@@ -196,6 +207,8 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpResponse : public BinaryHttpMessage {
     return informational_response_control_data_;
   }
 
+  virtual std::string DebugString() const override;
+
  private:
   // Returns Binary Http known length request formatted response.
   absl::StatusOr<std::string> EncodeAsKnownLength() const;
@@ -205,6 +218,8 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpResponse : public BinaryHttpMessage {
   std::vector<InformationalResponse> informational_response_control_data_;
   const uint16_t status_code_;
 };
+
+void PrintTo(const BinaryHttpResponse& msg, std::ostream* os);
 }  // namespace quiche
 
 #endif  // QUICHE_BINARY_HTTP_BINARY_HTTP_MESSAGE_H_

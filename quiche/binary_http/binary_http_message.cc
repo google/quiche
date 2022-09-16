@@ -13,6 +13,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
@@ -386,6 +387,50 @@ absl::StatusOr<BinaryHttpResponse> BinaryHttpResponse::Create(
   }
   return absl::UnimplementedError(
       absl::StrCat("Unsupported framing type ", framing));
+}
+
+std::string BinaryHttpMessage::DebugString() const {
+  std::vector<std::string> headers;
+  for (const auto& field : GetHeaderFields()) {
+    headers.emplace_back(field.DebugString());
+  }
+  return absl::StrCat("BinaryHttpMessage{Headers{",
+                      absl::StrJoin(headers, ";;"), "}Body{", body(), "}}");
+}
+
+std::string BinaryHttpMessage::Field::DebugString() const {
+  return absl::StrCat(name, "=", value);
+}
+
+std::string BinaryHttpResponse::InformationalResponse::DebugString() const {
+  std::vector<std::string> fs;
+  for (const auto& field : fields()) {
+    fs.emplace_back(field.DebugString());
+  }
+  return absl::StrCat("InformationalResponse{", absl::StrJoin(fs, ";;"), "}");
+}
+
+std::string BinaryHttpResponse::DebugString() const {
+  std::vector<std::string> irs;
+  for (const auto& ir : informational_responses()) {
+    irs.emplace_back(ir.DebugString());
+  }
+  return absl::StrCat("BinaryHttpResponse(", status_code_, "){",
+                      BinaryHttpMessage::DebugString(),
+                      absl::StrJoin(irs, ";;"), "}");
+}
+
+std::string BinaryHttpRequest::DebugString() const {
+  return absl::StrCat("BinaryHttpRequest{", BinaryHttpMessage::DebugString(),
+                      "}");
+}
+
+void PrintTo(const BinaryHttpRequest& msg, std::ostream* os) {
+  *os << msg.DebugString();
+}
+
+void PrintTo(const BinaryHttpResponse& msg, std::ostream* os) {
+  *os << msg.DebugString();
 }
 
 }  // namespace quiche

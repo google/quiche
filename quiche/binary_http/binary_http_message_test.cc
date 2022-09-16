@@ -10,6 +10,7 @@
 
 using ::testing::ContainerEq;
 using ::testing::FieldsAre;
+using ::testing::StrEq;
 
 namespace quiche {
 namespace {
@@ -20,6 +21,12 @@ std::string WordToBytes(uint32_t word) {
        static_cast<uint8_t>(word >> 8), static_cast<uint8_t>(word)});
 }
 
+template <class T>
+void TestPrintTo(const T& resp) {
+  std::ostringstream os;
+  PrintTo(resp, &os);
+  EXPECT_EQ(os.str(), resp.DebugString());
+}
 }  // namespace
 // Test examples from
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-binary-message-06.html
@@ -65,6 +72,13 @@ TEST(BinaryHttpRequest, EncodeGetNoBody) {
   const auto result = request.Serialize();
   ASSERT_TRUE(result.ok());
   ASSERT_EQ(*result, expected);
+  EXPECT_THAT(
+      request.DebugString(),
+      StrEq(
+          "BinaryHttpRequest{BinaryHttpMessage{Headers{user-agent=curl/7.16.3 "
+          "libcurl/7.16.3 OpenSSL/0.9.7l "
+          "zlib/1.2.3;;host=www.example.com;;accept-language=en, mi}Body{}}}"));
+  TestPrintTo(request);
 }
 
 TEST(BinaryHttpRequest, DecodeGetNoBody) {
@@ -90,6 +104,13 @@ TEST(BinaryHttpRequest, DecodeGetNoBody) {
       {"accept-language", "en, mi"}};
   ASSERT_THAT(request.GetHeaderFields(), ContainerEq(expected_fields));
   ASSERT_EQ(request.body(), "");
+  EXPECT_THAT(
+      request.DebugString(),
+      StrEq(
+          "BinaryHttpRequest{BinaryHttpMessage{Headers{user-agent=curl/7.16.3 "
+          "libcurl/7.16.3 OpenSSL/0.9.7l "
+          "zlib/1.2.3;;host=www.example.com;;accept-language=en, mi}Body{}}}"));
+  TestPrintTo(request);
 }
 
 TEST(BinaryHttpRequest, EncodeGetWithAuthority) {
@@ -128,6 +149,11 @@ TEST(BinaryHttpRequest, EncodeGetWithAuthority) {
   const auto result = request.Serialize();
   ASSERT_TRUE(result.ok());
   ASSERT_EQ(*result, expected);
+  EXPECT_THAT(
+      request.DebugString(),
+      StrEq("BinaryHttpRequest{BinaryHttpMessage{Headers{user-agent=curl/"
+            "7.16.3 libcurl/7.16.3 OpenSSL/0.9.7l "
+            "zlib/1.2.3;;accept-language=en, mi}Body{}}}"));
 }
 
 TEST(BinaryHttpRequest, DecodeGetWithAuthority) {
@@ -152,6 +178,11 @@ TEST(BinaryHttpRequest, DecodeGetWithAuthority) {
       {"accept-language", "en, mi"}};
   ASSERT_THAT(request.GetHeaderFields(), ContainerEq(expected_fields));
   ASSERT_EQ(request.body(), "");
+  EXPECT_THAT(
+      request.DebugString(),
+      StrEq("BinaryHttpRequest{BinaryHttpMessage{Headers{user-agent=curl/"
+            "7.16.3 libcurl/7.16.3 OpenSSL/0.9.7l "
+            "zlib/1.2.3;;accept-language=en, mi}Body{}}}"));
 }
 
 TEST(BinaryHttpRequest, EncodePostBody) {
@@ -194,6 +225,11 @@ TEST(BinaryHttpRequest, EncodePostBody) {
   const auto result = request.Serialize();
   ASSERT_TRUE(result.ok());
   ASSERT_EQ(*result, expected);
+  EXPECT_THAT(
+      request.DebugString(),
+      StrEq("BinaryHttpRequest{BinaryHttpMessage{Headers{user-agent=not/"
+            "telling;;host=www.example.com;;accept-language=en}Body{Some "
+            "body that I used to post.\r\n}}}"));
 }
 
 TEST(BinaryHttpRequest, DecodePostBody) {
@@ -219,6 +255,11 @@ TEST(BinaryHttpRequest, DecodePostBody) {
       {"accept-language", "en"}};
   ASSERT_THAT(request.GetHeaderFields(), ContainerEq(expected_fields));
   ASSERT_EQ(request.body(), "Some body that I used to post.\r\n");
+  EXPECT_THAT(
+      request.DebugString(),
+      StrEq("BinaryHttpRequest{BinaryHttpMessage{Headers{user-agent=not/"
+            "telling;;host=www.example.com;;accept-language=en}Body{Some "
+            "body that I used to post.\r\n}}}"));
 }
 
 TEST(BinaryHttpResponse, EncodeNoBody) {
@@ -243,6 +284,9 @@ TEST(BinaryHttpResponse, EncodeNoBody) {
   const auto result = response.Serialize();
   ASSERT_TRUE(result.ok());
   ASSERT_EQ(*result, expected);
+  EXPECT_THAT(response.DebugString(),
+              StrEq("BinaryHttpResponse(404){BinaryHttpMessage{Headers{server="
+                    "Apache}Body{}}}"));
 }
 
 TEST(BinaryHttpResponse, DecodeNoBody) {
@@ -265,6 +309,9 @@ TEST(BinaryHttpResponse, DecodeNoBody) {
   ASSERT_THAT(response.GetHeaderFields(), ContainerEq(expected_fields));
   ASSERT_EQ(response.body(), "");
   ASSERT_TRUE(response.informational_responses().empty());
+  EXPECT_THAT(response.DebugString(),
+              StrEq("BinaryHttpResponse(404){BinaryHttpMessage{Headers{server="
+                    "Apache}Body{}}}"));
 }
 
 TEST(BinaryHttpResponse, EncodeBody) {
@@ -295,6 +342,9 @@ TEST(BinaryHttpResponse, EncodeBody) {
   const auto result = response.Serialize();
   ASSERT_TRUE(result.ok());
   ASSERT_EQ(*result, expected);
+  EXPECT_THAT(response.DebugString(),
+              StrEq("BinaryHttpResponse(200){BinaryHttpMessage{Headers{server="
+                    "Apache}Body{Hello, world!\r\n}}}"));
 }
 
 TEST(BinaryHttpResponse, DecodeBody) {
@@ -319,6 +369,9 @@ TEST(BinaryHttpResponse, DecodeBody) {
   ASSERT_THAT(response.GetHeaderFields(), ContainerEq(expected_fields));
   ASSERT_EQ(response.body(), "Hello, world!\r\n");
   ASSERT_TRUE(response.informational_responses().empty());
+  EXPECT_THAT(response.DebugString(),
+              StrEq("BinaryHttpResponse(200){BinaryHttpMessage{Headers{server="
+                    "Apache}Body{Hello, world!\r\n}}}"));
 }
 
 TEST(BHttpResponse, AddBadInformationalResponseCode) {
@@ -416,6 +469,18 @@ TEST(BinaryHttpResponse, EncodeMultiInformationalWithBody) {
   const auto result = response.Serialize();
   ASSERT_TRUE(result.ok());
   ASSERT_EQ(*result, expected);
+  EXPECT_THAT(
+      response.DebugString(),
+      StrEq("BinaryHttpResponse(200){BinaryHttpMessage{Headers{date=Mon, "
+            "27 Jul 2009 12:28:53 GMT;;server=Apache;;last-modified=Wed, "
+            "22 Jul 2009 19:15:56 "
+            "GMT;;etag=\"34aa387-d-1568eb00\";;accept-ranges=bytes;;"
+            "content-length=51;;vary=Accept-Encoding;;content-type=text/"
+            "plain}Body{Hello World! My content includes a trailing "
+            "CRLF.\r\n}}InformationalResponse{running=\"sleep "
+            "15\"};;InformationalResponse{link=</style.css>; rel=preload; "
+            "as=style;;link=</script.js>; rel=preload; as=script}}"));
+  TestPrintTo(response);
 }
 
 TEST(BinaryHttpResponse, DecodeMultiInformationalWithBody) {
@@ -484,6 +549,18 @@ TEST(BinaryHttpResponse, DecodeMultiInformationalWithBody) {
       {102, header102}, {103, header103}};
   ASSERT_THAT(response.informational_responses(),
               ContainerEq(expected_control));
+  EXPECT_THAT(
+      response.DebugString(),
+      StrEq("BinaryHttpResponse(200){BinaryHttpMessage{Headers{date=Mon, "
+            "27 Jul 2009 12:28:53 GMT;;server=Apache;;last-modified=Wed, "
+            "22 Jul 2009 19:15:56 "
+            "GMT;;etag=\"34aa387-d-1568eb00\";;accept-ranges=bytes;;"
+            "content-length=51;;vary=Accept-Encoding;;content-type=text/"
+            "plain}Body{Hello World! My content includes a trailing "
+            "CRLF.\r\n}}InformationalResponse{running=\"sleep "
+            "15\"};;InformationalResponse{link=</style.css>; rel=preload; "
+            "as=style;;link=</script.js>; rel=preload; as=script}}"));
+  TestPrintTo(response);
 }
 
 }  // namespace quiche
