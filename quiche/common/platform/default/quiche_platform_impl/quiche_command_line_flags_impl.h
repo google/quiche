@@ -26,7 +26,7 @@ void QuichePrintCommandLineFlagHelpImpl(const char* usage);
 }  // namespace quiche
 
 template <typename T>
-T GetQuicheFlagImpl(const absl::Flag<T>& flag) {
+T GetQuicheFlagImplImpl(const absl::Flag<T>& flag) {
   return absl::GetFlag(flag);
 }
 

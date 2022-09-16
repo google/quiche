@@ -29,13 +29,14 @@
 #include "quiche/common/quiche_protocol_flags_list.h"
 #undef QUICHE_PROTOCOL_FLAG
 
-inline bool GetQuicheFlagImpl(bool flag) { return FLAGS_##flag; }
-inline int32_t GetQuicheFlagImpl(int32_t flag) { return FLAGS_##flag; }
-inline int64_t GetQuicheFlagImpl(int64_t flag) { return FLAGS_##flag; }
-inline uint64_t GetQuicheFlagImpl(uint64_t flag) { return FLAGS_##flag; }
-inline double GetQuicheFlagImpl(double flag) { return FLAGS_##flag; }
-inline std::string GetQuicheFlagImpl(const std::string& flag) {
-  return FLAGS_##flag;
+#define GetQuicheFlagImpl(flag) GetQuicheFlagImplImpl(FLAGS_##flag)
+inline bool GetQuicheFlagImplImpl(bool flag) { return flag; }
+inline int32_t GetQuicheFlagImplImpl(int32_t flag) { return flag; }
+inline int64_t GetQuicheFlagImplImpl(int64_t flag) { return flag; }
+inline uint64_t GetQuicheFlagImplImpl(uint64_t flag) { return flag; }
+inline double GetQuicheFlagImplImpl(double flag) { return flag; }
+inline std::string GetQuicheFlagImplImpl(const std::string& flag) {
+  return flag;
 }
 #define SetQuicheFlagImpl(flag, value) ((FLAGS_##flag) = (value))
 
