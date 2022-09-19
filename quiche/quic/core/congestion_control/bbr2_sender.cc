@@ -206,9 +206,7 @@ void Bbr2Sender::ApplyConnectionOptions(
     params_.probe_up_includes_acks_after_cwnd_limited = true;
   }
 
-  if (GetQuicReloadableFlag(quic_bbr2_startup_probe_up_loss_events) &&
-      ContainsQuicTag(connection_options, kB206)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_startup_probe_up_loss_events);
+  if (ContainsQuicTag(connection_options, kB206)) {
     params_.startup_full_loss_count = params_.probe_bw_full_loss_count;
   }
 }

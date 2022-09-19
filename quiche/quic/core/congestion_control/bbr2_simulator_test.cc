@@ -519,7 +519,6 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB201) {
 }
 
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB206) {
-  SetQuicReloadableFlag(quic_bbr2_startup_probe_up_loss_events, true);
   SetConnectionOption(kB206);
   DefaultTopologyParams params;
   CreateNetwork(params);
