@@ -73,6 +73,16 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientStream : public QuicSpdyStream {
  protected:
   bool AreHeadersValid(const QuicHeaderList& header_list) const override;
 
+  // Called by OnInitialHeadersComplete to set response_header_. Returns false
+  // on error.
+  virtual bool CopyAndValidateHeaders(const QuicHeaderList& header_list,
+                                      int64_t& content_length,
+                                      spdy::Http2HeaderBlock& headers);
+
+  // Called by OnInitialHeadersComplete to set response_code_ based on
+  // response_header_. Returns false on error.
+  virtual bool ParseAndValidateStatusCode();
+
  private:
   // The parsed headers received from the server.
   spdy::Http2HeaderBlock response_headers_;
