@@ -467,6 +467,8 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       }
       std::cout << "trailers: " << client->latest_response_trailers()
                 << std::endl;
+      std::cout << "early data accepted: " << client->EarlyDataAccepted()
+                << std::endl;
     }
 
     if (!client->connected()) {
