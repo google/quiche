@@ -563,4 +563,13 @@ TEST(BinaryHttpResponse, DecodeMultiInformationalWithBody) {
   TestPrintTo(response);
 }
 
+TEST(BinaryHttpMessage, SwapBody) {
+  BinaryHttpRequest request({});
+  request.set_body("hello, world!");
+  std::string other = "goodbye, world!";
+  request.swap_body(other);
+  EXPECT_EQ(request.body(), "goodbye, world!");
+  EXPECT_EQ(other, "hello, world!");
+}
+
 }  // namespace quiche

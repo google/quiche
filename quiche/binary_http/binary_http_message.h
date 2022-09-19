@@ -46,6 +46,8 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpMessage {
     return this;
   }
 
+  void swap_body(std::string& body) { body_.swap(body); }
+
   absl::string_view body() const { return body_; }
 
   // Returns the Binary Http formatted message.
