@@ -361,10 +361,6 @@ QuicDispatcher::QuicDispatcher(
       << "Trying to create dispatcher without any supported versions";
   QUIC_DLOG(INFO) << "Created QuicDispatcher with versions: "
                   << ParsedQuicVersionVectorToString(GetSupportedVersions());
-  if (send_connection_close_for_tls_alerts_) {
-    QUIC_RESTART_FLAG_COUNT_N(
-        quic_dispatcher_send_connection_close_for_tls_alerts, 1, 3);
-  }
 }
 
 QuicDispatcher::~QuicDispatcher() {
@@ -752,10 +748,7 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
         TryExtractChloOrBufferEarlyPacket(*packet_info);
     auto& parsed_chlo = extract_chlo_result.parsed_chlo;
 
-    if (send_connection_close_for_tls_alerts_ &&
-        extract_chlo_result.tls_alert.has_value()) {
-      QUIC_RESTART_FLAG_COUNT_N(
-          quic_dispatcher_send_connection_close_for_tls_alerts, 2, 3);
+    if (extract_chlo_result.tls_alert.has_value()) {
       QUIC_BUG_IF(quic_dispatcher_parsed_chlo_and_tls_alert_coexist_1,
                   parsed_chlo.has_value())
           << "parsed_chlo and tls_alert should not be set at the same time.";
@@ -867,9 +860,7 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
       }
     }
 
-    if (send_connection_close_for_tls_alerts_ && result.tls_alert.has_value()) {
-      QUIC_RESTART_FLAG_COUNT_N(
-          quic_dispatcher_send_connection_close_for_tls_alerts, 3, 3);
+    if (result.tls_alert.has_value()) {
       QUIC_BUG_IF(quic_dispatcher_parsed_chlo_and_tls_alert_coexist_2,
                   has_full_tls_chlo)
           << "parsed_chlo and tls_alert should not be set at the same time.";
