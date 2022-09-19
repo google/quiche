@@ -10,8 +10,8 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/io/socket_factory.h"
 #include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/core/socket_factory.h"
 #include "quiche/quic/tools/connect_tunnel.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"

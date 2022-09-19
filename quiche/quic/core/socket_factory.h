@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_IO_SOCKET_FACTORY_H_
-#define QUICHE_QUIC_CORE_IO_SOCKET_FACTORY_H_
+#ifndef QUICHE_QUIC_CORE_SOCKET_FACTORY_H_
+#define QUICHE_QUIC_CORE_SOCKET_FACTORY_H_
 
 #include <memory>
 
-#include "quiche/quic/core/io/connecting_client_socket.h"
+#include "quiche/quic/core/connecting_client_socket.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -31,4 +31,4 @@ class QUICHE_EXPORT_PRIVATE SocketFactory {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_CORE_IO_SOCKET_FACTORY_H_
+#endif  // QUICHE_QUIC_CORE_SOCKET_FACTORY_H_

@@ -9,9 +9,9 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/io/socket_factory.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/socket_factory.h"
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/spdy/core/http2_header_block.h"

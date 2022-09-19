@@ -7,10 +7,10 @@
 
 #include <memory>
 
-#include "quiche/quic/core/io/connecting_client_socket.h"
+#include "quiche/quic/core/connecting_client_socket.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
-#include "quiche/quic/core/io/socket_factory.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/socket_factory.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"

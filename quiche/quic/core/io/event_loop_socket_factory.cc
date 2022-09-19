@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "quiche/quic/core/io/connecting_client_socket.h"
+#include "quiche/quic/core/connecting_client_socket.h"
 #include "quiche/quic/core/io/event_loop_tcp_client_socket.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_types.h"

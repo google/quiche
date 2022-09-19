@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_IO_CONNECTING_CLIENT_SOCKET_H_
-#define QUICHE_QUIC_CORE_IO_CONNECTING_CLIENT_SOCKET_H_
+#ifndef QUICHE_QUIC_CORE_CONNECTING_CLIENT_SOCKET_H_
+#define QUICHE_QUIC_CORE_CONNECTING_CLIENT_SOCKET_H_
 
 #include <string>
 
@@ -104,4 +104,4 @@ class QUICHE_EXPORT_PRIVATE ConnectingClientSocket {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_CORE_IO_CONNECTING_CLIENT_SOCKET_H_
+#endif  // QUICHE_QUIC_CORE_CONNECTING_CLIENT_SOCKET_H_
