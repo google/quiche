@@ -704,11 +704,8 @@ quiche_tool_support_hdrs = [
     "src/quiche/quic/tools/fake_proof_verifier.h",
     "src/quiche/quic/tools/quic_backend_response.h",
     "src/quiche/quic/tools/quic_client_base.h",
-    "src/quiche/quic/tools/quic_client_default_network_helper.h",
-    "src/quiche/quic/tools/quic_default_client.h",
     "src/quiche/quic/tools/quic_memory_cache_backend.h",
     "src/quiche/quic/tools/quic_name_lookup.h",
-    "src/quiche/quic/tools/quic_server_factory.h",
     "src/quiche/quic/tools/quic_simple_client_session.h",
     "src/quiche/quic/tools/quic_simple_client_stream.h",
     "src/quiche/quic/tools/quic_simple_crypto_server_stream_helper.h",
@@ -729,11 +726,8 @@ quiche_tool_support_srcs = [
     "src/quiche/quic/tools/connect_tunnel.cc",
     "src/quiche/quic/tools/quic_backend_response.cc",
     "src/quiche/quic/tools/quic_client_base.cc",
-    "src/quiche/quic/tools/quic_client_default_network_helper.cc",
-    "src/quiche/quic/tools/quic_default_client.cc",
     "src/quiche/quic/tools/quic_memory_cache_backend.cc",
     "src/quiche/quic/tools/quic_name_lookup.cc",
-    "src/quiche/quic/tools/quic_server_factory.cc",
     "src/quiche/quic/tools/quic_simple_client_session.cc",
     "src/quiche/quic/tools/quic_simple_client_stream.cc",
     "src/quiche/quic/tools/quic_simple_crypto_server_stream_helper.cc",
@@ -977,6 +971,8 @@ epoll_tool_support_hdrs = [
     "src/quiche/quic/masque/masque_server_session.h",
     "src/quiche/quic/masque/masque_utils.h",
     "src/quiche/quic/platform/api/quic_udp_socket_platform_api.h",
+    "src/quiche/quic/tools/quic_client_default_network_helper.h",
+    "src/quiche/quic/tools/quic_default_client.h",
     "src/quiche/quic/tools/quic_server.h",
 ]
 epoll_tool_support_srcs = [
@@ -1004,6 +1000,8 @@ epoll_tool_support_srcs = [
     "src/quiche/quic/masque/masque_server_backend.cc",
     "src/quiche/quic/masque/masque_server_session.cc",
     "src/quiche/quic/masque/masque_utils.cc",
+    "src/quiche/quic/tools/quic_client_default_network_helper.cc",
+    "src/quiche/quic/tools/quic_default_client.cc",
     "src/quiche/quic/tools/quic_server.cc",
 ]
 epoll_test_support_hdrs = [
@@ -1104,7 +1102,6 @@ quiche_tests_srcs = [
     "src/quiche/http2/test_tools/http2_frame_builder_test.cc",
     "src/quiche/http2/test_tools/http2_random_test.cc",
     "src/quiche/http2/test_tools/random_decoder_test_base_test.cc",
-    "src/quiche/quic/bindings/quic_libevent_test.cc",
     "src/quiche/quic/core/congestion_control/bandwidth_sampler_test.cc",
     "src/quiche/quic/core/congestion_control/bbr2_simulator_test.cc",
     "src/quiche/quic/core/congestion_control/bbr_sender_test.cc",
@@ -1258,7 +1255,6 @@ quiche_tests_srcs = [
     "src/quiche/quic/test_tools/simulator/quic_endpoint_test.cc",
     "src/quiche/quic/test_tools/simulator/simulator_test.cc",
     "src/quiche/quic/tools/connect_tunnel_test.cc",
-    "src/quiche/quic/tools/quic_default_client_test.cc",
     "src/quiche/quic/tools/quic_memory_cache_backend_test.cc",
     "src/quiche/quic/tools/quic_tcp_like_trace_converter_test.cc",
     "src/quiche/quic/tools/simple_ticket_crypter_test.cc",
@@ -1286,6 +1282,7 @@ epoll_tests_hdrs = [
 
 ]
 epoll_tests_srcs = [
+    "src/quiche/quic/bindings/quic_libevent_test.cc",
     "src/quiche/quic/core/batch_writer/quic_batch_writer_buffer_test.cc",
     "src/quiche/quic/core/batch_writer/quic_batch_writer_test.cc",
     "src/quiche/quic/core/batch_writer/quic_gso_batch_writer_test.cc",
@@ -1300,6 +1297,7 @@ epoll_tests_srcs = [
     "src/quiche/quic/core/io/quic_poll_event_loop_test.cc",
     "src/quiche/quic/core/io/socket_test.cc",
     "src/quiche/quic/core/quic_linux_socket_utils_test.cc",
+    "src/quiche/quic/tools/quic_default_client_test.cc",
     "src/quiche/quic/tools/quic_server_test.cc",
     "src/quiche/quic/tools/quic_simple_server_session_test.cc",
     "src/quiche/quic/tools/quic_simple_server_stream_test.cc",
@@ -1323,6 +1321,7 @@ fuzzers_srcs = [
 ]
 cli_tools_hdrs = [
     "src/quiche/quic/tools/quic_epoll_client_factory.h",
+    "src/quiche/quic/tools/quic_server_factory.h",
     "src/quiche/quic/tools/quic_toy_client.h",
     "src/quiche/quic/tools/quic_toy_server.h",
 ]
@@ -1337,6 +1336,7 @@ cli_tools_srcs = [
     "src/quiche/quic/tools/quic_packet_printer_bin.cc",
     "src/quiche/quic/tools/quic_reject_reason_decoder_bin.cc",
     "src/quiche/quic/tools/quic_server_bin.cc",
+    "src/quiche/quic/tools/quic_server_factory.cc",
     "src/quiche/quic/tools/quic_toy_client.cc",
     "src/quiche/quic/tools/quic_toy_server.cc",
 ]

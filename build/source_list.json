@@ -703,11 +703,8 @@
     "quiche/quic/tools/fake_proof_verifier.h",
     "quiche/quic/tools/quic_backend_response.h",
     "quiche/quic/tools/quic_client_base.h",
-    "quiche/quic/tools/quic_client_default_network_helper.h",
-    "quiche/quic/tools/quic_default_client.h",
     "quiche/quic/tools/quic_memory_cache_backend.h",
     "quiche/quic/tools/quic_name_lookup.h",
-    "quiche/quic/tools/quic_server_factory.h",
     "quiche/quic/tools/quic_simple_client_session.h",
     "quiche/quic/tools/quic_simple_client_stream.h",
     "quiche/quic/tools/quic_simple_crypto_server_stream_helper.h",
@@ -728,11 +725,8 @@
     "quiche/quic/tools/connect_tunnel.cc",
     "quiche/quic/tools/quic_backend_response.cc",
     "quiche/quic/tools/quic_client_base.cc",
-    "quiche/quic/tools/quic_client_default_network_helper.cc",
-    "quiche/quic/tools/quic_default_client.cc",
     "quiche/quic/tools/quic_memory_cache_backend.cc",
     "quiche/quic/tools/quic_name_lookup.cc",
-    "quiche/quic/tools/quic_server_factory.cc",
     "quiche/quic/tools/quic_simple_client_session.cc",
     "quiche/quic/tools/quic_simple_client_stream.cc",
     "quiche/quic/tools/quic_simple_crypto_server_stream_helper.cc",
@@ -976,6 +970,8 @@
     "quiche/quic/masque/masque_server_session.h",
     "quiche/quic/masque/masque_utils.h",
     "quiche/quic/platform/api/quic_udp_socket_platform_api.h",
+    "quiche/quic/tools/quic_client_default_network_helper.h",
+    "quiche/quic/tools/quic_default_client.h",
     "quiche/quic/tools/quic_server.h"
   ],
   "epoll_tool_support_srcs": [
@@ -1003,6 +999,8 @@
     "quiche/quic/masque/masque_server_backend.cc",
     "quiche/quic/masque/masque_server_session.cc",
     "quiche/quic/masque/masque_utils.cc",
+    "quiche/quic/tools/quic_client_default_network_helper.cc",
+    "quiche/quic/tools/quic_default_client.cc",
     "quiche/quic/tools/quic_server.cc"
   ],
   "epoll_test_support_hdrs": [
@@ -1103,7 +1101,6 @@
     "quiche/http2/test_tools/http2_frame_builder_test.cc",
     "quiche/http2/test_tools/http2_random_test.cc",
     "quiche/http2/test_tools/random_decoder_test_base_test.cc",
-    "quiche/quic/bindings/quic_libevent_test.cc",
     "quiche/quic/core/congestion_control/bandwidth_sampler_test.cc",
     "quiche/quic/core/congestion_control/bbr2_simulator_test.cc",
     "quiche/quic/core/congestion_control/bbr_sender_test.cc",
@@ -1257,7 +1254,6 @@
     "quiche/quic/test_tools/simulator/quic_endpoint_test.cc",
     "quiche/quic/test_tools/simulator/simulator_test.cc",
     "quiche/quic/tools/connect_tunnel_test.cc",
-    "quiche/quic/tools/quic_default_client_test.cc",
     "quiche/quic/tools/quic_memory_cache_backend_test.cc",
     "quiche/quic/tools/quic_tcp_like_trace_converter_test.cc",
     "quiche/quic/tools/simple_ticket_crypter_test.cc",
@@ -1285,6 +1281,7 @@
 
   ],
   "epoll_tests_srcs": [
+    "quiche/quic/bindings/quic_libevent_test.cc",
     "quiche/quic/core/batch_writer/quic_batch_writer_buffer_test.cc",
     "quiche/quic/core/batch_writer/quic_batch_writer_test.cc",
     "quiche/quic/core/batch_writer/quic_gso_batch_writer_test.cc",
@@ -1299,6 +1296,7 @@
     "quiche/quic/core/io/quic_poll_event_loop_test.cc",
     "quiche/quic/core/io/socket_test.cc",
     "quiche/quic/core/quic_linux_socket_utils_test.cc",
+    "quiche/quic/tools/quic_default_client_test.cc",
     "quiche/quic/tools/quic_server_test.cc",
     "quiche/quic/tools/quic_simple_server_session_test.cc",
     "quiche/quic/tools/quic_simple_server_stream_test.cc",
@@ -1322,6 +1320,7 @@
   ],
   "cli_tools_hdrs": [
     "quiche/quic/tools/quic_epoll_client_factory.h",
+    "quiche/quic/tools/quic_server_factory.h",
     "quiche/quic/tools/quic_toy_client.h",
     "quiche/quic/tools/quic_toy_server.h"
   ],
@@ -1336,6 +1335,7 @@
     "quiche/quic/tools/quic_packet_printer_bin.cc",
     "quiche/quic/tools/quic_reject_reason_decoder_bin.cc",
     "quiche/quic/tools/quic_server_bin.cc",
+    "quiche/quic/tools/quic_server_factory.cc",
     "quiche/quic/tools/quic_toy_client.cc",
     "quiche/quic/tools/quic_toy_server.cc"
   ],

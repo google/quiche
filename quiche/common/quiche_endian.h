@@ -49,7 +49,7 @@ class QUICHE_EXPORT_PRIVATE QuicheEndian {
       char bytes[sizeof(T)];
     } value;
     value.number = input;
-    std::reverse(std::begin(value.bytes), std::end(value.bytes));
+    std::reverse(&value.bytes[0], &value.bytes[sizeof(T)]);
     return value.number;
   }
 };

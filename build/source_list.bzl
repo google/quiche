@@ -704,11 +704,8 @@ quiche_tool_support_hdrs = [
     "quic/tools/fake_proof_verifier.h",
     "quic/tools/quic_backend_response.h",
     "quic/tools/quic_client_base.h",
-    "quic/tools/quic_client_default_network_helper.h",
-    "quic/tools/quic_default_client.h",
     "quic/tools/quic_memory_cache_backend.h",
     "quic/tools/quic_name_lookup.h",
-    "quic/tools/quic_server_factory.h",
     "quic/tools/quic_simple_client_session.h",
     "quic/tools/quic_simple_client_stream.h",
     "quic/tools/quic_simple_crypto_server_stream_helper.h",
@@ -729,11 +726,8 @@ quiche_tool_support_srcs = [
     "quic/tools/connect_tunnel.cc",
     "quic/tools/quic_backend_response.cc",
     "quic/tools/quic_client_base.cc",
-    "quic/tools/quic_client_default_network_helper.cc",
-    "quic/tools/quic_default_client.cc",
     "quic/tools/quic_memory_cache_backend.cc",
     "quic/tools/quic_name_lookup.cc",
-    "quic/tools/quic_server_factory.cc",
     "quic/tools/quic_simple_client_session.cc",
     "quic/tools/quic_simple_client_stream.cc",
     "quic/tools/quic_simple_crypto_server_stream_helper.cc",
@@ -977,6 +971,8 @@ epoll_tool_support_hdrs = [
     "quic/masque/masque_server_session.h",
     "quic/masque/masque_utils.h",
     "quic/platform/api/quic_udp_socket_platform_api.h",
+    "quic/tools/quic_client_default_network_helper.h",
+    "quic/tools/quic_default_client.h",
     "quic/tools/quic_server.h",
 ]
 epoll_tool_support_srcs = [
@@ -1004,6 +1000,8 @@ epoll_tool_support_srcs = [
     "quic/masque/masque_server_backend.cc",
     "quic/masque/masque_server_session.cc",
     "quic/masque/masque_utils.cc",
+    "quic/tools/quic_client_default_network_helper.cc",
+    "quic/tools/quic_default_client.cc",
     "quic/tools/quic_server.cc",
 ]
 epoll_test_support_hdrs = [
@@ -1104,7 +1102,6 @@ quiche_tests_srcs = [
     "http2/test_tools/http2_frame_builder_test.cc",
     "http2/test_tools/http2_random_test.cc",
     "http2/test_tools/random_decoder_test_base_test.cc",
-    "quic/bindings/quic_libevent_test.cc",
     "quic/core/congestion_control/bandwidth_sampler_test.cc",
     "quic/core/congestion_control/bbr2_simulator_test.cc",
     "quic/core/congestion_control/bbr_sender_test.cc",
@@ -1258,7 +1255,6 @@ quiche_tests_srcs = [
     "quic/test_tools/simulator/quic_endpoint_test.cc",
     "quic/test_tools/simulator/simulator_test.cc",
     "quic/tools/connect_tunnel_test.cc",
-    "quic/tools/quic_default_client_test.cc",
     "quic/tools/quic_memory_cache_backend_test.cc",
     "quic/tools/quic_tcp_like_trace_converter_test.cc",
     "quic/tools/simple_ticket_crypter_test.cc",
@@ -1286,6 +1282,7 @@ epoll_tests_hdrs = [
 
 ]
 epoll_tests_srcs = [
+    "quic/bindings/quic_libevent_test.cc",
     "quic/core/batch_writer/quic_batch_writer_buffer_test.cc",
     "quic/core/batch_writer/quic_batch_writer_test.cc",
     "quic/core/batch_writer/quic_gso_batch_writer_test.cc",
@@ -1300,6 +1297,7 @@ epoll_tests_srcs = [
     "quic/core/io/quic_poll_event_loop_test.cc",
     "quic/core/io/socket_test.cc",
     "quic/core/quic_linux_socket_utils_test.cc",
+    "quic/tools/quic_default_client_test.cc",
     "quic/tools/quic_server_test.cc",
     "quic/tools/quic_simple_server_session_test.cc",
     "quic/tools/quic_simple_server_stream_test.cc",
@@ -1323,6 +1321,7 @@ fuzzers_srcs = [
 ]
 cli_tools_hdrs = [
     "quic/tools/quic_epoll_client_factory.h",
+    "quic/tools/quic_server_factory.h",
     "quic/tools/quic_toy_client.h",
     "quic/tools/quic_toy_server.h",
 ]
@@ -1337,6 +1336,7 @@ cli_tools_srcs = [
     "quic/tools/quic_packet_printer_bin.cc",
     "quic/tools/quic_reject_reason_decoder_bin.cc",
     "quic/tools/quic_server_bin.cc",
+    "quic/tools/quic_server_factory.cc",
     "quic/tools/quic_toy_client.cc",
     "quic/tools/quic_toy_server.cc",
 ]
