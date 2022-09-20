@@ -30,6 +30,10 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpMessage {
       return name == rhs.name && value == rhs.value;
     }
 
+    bool operator!=(const BinaryHttpMessage::Field& rhs) const {
+      return !(*this == rhs);
+    }
+
     std::string DebugString() const;
   };
   virtual ~BinaryHttpMessage() = default;
@@ -87,6 +91,12 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpMessage {
     std::vector<BinaryHttpMessage::Field> fields_;
   };
 
+  bool operator==(const BinaryHttpMessage& rhs) const {
+    // `has_host_` is derived from `header_fields_` so it doesn't need to be
+    // tested directly.
+    return body_ == rhs.body_ && header_fields_ == rhs.header_fields_;
+  }
+
   absl::Status EncodeKnownLengthFieldsAndBody(
       quiche::QuicheDataWriter& writer) const;
   uint64_t EncodedKnownLengthFieldsAndBodySize() const;
@@ -114,6 +124,9 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpRequest : public BinaryHttpMessage {
       return method == rhs.method && scheme == rhs.scheme &&
              authority == rhs.authority && path == rhs.path;
     }
+    bool operator!=(const BinaryHttpRequest::ControlData& rhs) const {
+      return !(*this == rhs);
+    }
   };
   explicit BinaryHttpRequest(ControlData control_data)
       : control_data_(std::move(control_data)) {}
@@ -125,6 +138,15 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpRequest : public BinaryHttpMessage {
   const ControlData& control_data() const { return control_data_; }
 
   virtual std::string DebugString() const override;
+
+  bool operator==(const BinaryHttpRequest& rhs) const {
+    return control_data_ == rhs.control_data_ &&
+           BinaryHttpMessage::operator==(rhs);
+  }
+
+  bool operator!=(const BinaryHttpRequest& rhs) const {
+    return !(*this == rhs);
+  }
 
  private:
   absl::Status EncodeControlData(quiche::QuicheDataWriter& writer) const;
@@ -162,6 +184,11 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpResponse : public BinaryHttpMessage {
     bool operator==(
         const BinaryHttpResponse::InformationalResponse& rhs) const {
       return status_code_ == rhs.status_code_ && fields_ == rhs.fields_;
+    }
+
+    bool operator!=(
+        const BinaryHttpResponse::InformationalResponse& rhs) const {
+      return !(*this == rhs);
     }
 
     // Adds a field with the provided name, converted to lower case.
@@ -210,6 +237,16 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpResponse : public BinaryHttpMessage {
   }
 
   virtual std::string DebugString() const override;
+
+  bool operator==(const BinaryHttpResponse& rhs) const {
+    return informational_response_control_data_ ==
+               rhs.informational_response_control_data_ &&
+           status_code_ == rhs.status_code_ &&
+           BinaryHttpMessage::operator==(rhs);
+  }
+  bool operator!=(const BinaryHttpResponse& rhs) const {
+    return !(*this == rhs);
+  }
 
  private:
   // Returns Binary Http known length request formatted response.

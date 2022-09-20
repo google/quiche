@@ -262,6 +262,50 @@ TEST(BinaryHttpRequest, DecodePostBody) {
             "body that I used to post.\r\n}}}"));
 }
 
+TEST(BinaryHttpRequest, Equality) {
+  BinaryHttpRequest request({"POST", "https", "www.example.com", "/hello.txt"});
+  request.AddHeaderField({"User-Agent", "not/telling"})
+      ->set_body({"hello, world!\r\n"});
+
+  BinaryHttpRequest same({"POST", "https", "www.example.com", "/hello.txt"});
+  same.AddHeaderField({"User-Agent", "not/telling"})
+      ->set_body({"hello, world!\r\n"});
+  EXPECT_EQ(request, same);
+}
+
+TEST(BinaryHttpRequest, Inequality) {
+  BinaryHttpRequest request({"POST", "https", "www.example.com", "/hello.txt"});
+  request.AddHeaderField({"User-Agent", "not/telling"})
+      ->set_body({"hello, world!\r\n"});
+
+  BinaryHttpRequest different_control(
+      {"PUT", "https", "www.example.com", "/hello.txt"});
+  different_control.AddHeaderField({"User-Agent", "not/telling"})
+      ->set_body({"hello, world!\r\n"});
+  EXPECT_NE(request, different_control);
+
+  BinaryHttpRequest different_header(
+      {"PUT", "https", "www.example.com", "/hello.txt"});
+  different_header.AddHeaderField({"User-Agent", "told/you"})
+      ->set_body({"hello, world!\r\n"});
+  EXPECT_NE(request, different_header);
+
+  BinaryHttpRequest no_header(
+      {"PUT", "https", "www.example.com", "/hello.txt"});
+  no_header.set_body({"hello, world!\r\n"});
+  EXPECT_NE(request, no_header);
+
+  BinaryHttpRequest different_body(
+      {"POST", "https", "www.example.com", "/hello.txt"});
+  different_body.AddHeaderField({"User-Agent", "not/telling"})
+      ->set_body({"goodbye, world!\r\n"});
+  EXPECT_NE(request, different_body);
+
+  BinaryHttpRequest no_body({"POST", "https", "www.example.com", "/hello.txt"});
+  no_body.AddHeaderField({"User-Agent", "not/telling"});
+  EXPECT_NE(request, no_body);
+}
+
 TEST(BinaryHttpResponse, EncodeNoBody) {
   /*
     HTTP/1.1 404 Not Found
@@ -570,6 +614,70 @@ TEST(BinaryHttpMessage, SwapBody) {
   request.swap_body(other);
   EXPECT_EQ(request.body(), "goodbye, world!");
   EXPECT_EQ(other, "hello, world!");
+}
+
+TEST(BinaryHttpResponse, Equality) {
+  BinaryHttpResponse response(200);
+  response.AddHeaderField({"Server", "Apache"})->set_body("Hello, world!\r\n");
+  ASSERT_OK(
+      response.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}}));
+
+  BinaryHttpResponse same(200);
+  same.AddHeaderField({"Server", "Apache"})->set_body("Hello, world!\r\n");
+  ASSERT_OK(same.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}}));
+  ASSERT_EQ(response, same);
+}
+
+TEST(BinaryHttpResponse, Inequality) {
+  BinaryHttpResponse response(200);
+  response.AddHeaderField({"Server", "Apache"})->set_body("Hello, world!\r\n");
+  ASSERT_OK(
+      response.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}}));
+
+  BinaryHttpResponse different_status(201);
+  different_status.AddHeaderField({"Server", "Apache"})
+      ->set_body("Hello, world!\r\n");
+  EXPECT_OK(different_status.AddInformationalResponse(
+      102, {{"Running", "\"sleep 15\""}}));
+  EXPECT_NE(response, different_status);
+
+  BinaryHttpResponse different_header(200);
+  different_header.AddHeaderField({"Server", "python3"})
+      ->set_body("Hello, world!\r\n");
+  EXPECT_OK(different_header.AddInformationalResponse(
+      102, {{"Running", "\"sleep 15\""}}));
+  EXPECT_NE(response, different_header);
+
+  BinaryHttpResponse no_header(200);
+  no_header.set_body("Hello, world!\r\n");
+  EXPECT_OK(
+      no_header.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}}));
+  EXPECT_NE(response, no_header);
+
+  BinaryHttpResponse different_body(200);
+  different_body.AddHeaderField({"Server", "Apache"})
+      ->set_body("Goodbye, world!\r\n");
+  EXPECT_OK(different_body.AddInformationalResponse(
+      102, {{"Running", "\"sleep 15\""}}));
+  EXPECT_NE(response, different_body);
+
+  BinaryHttpResponse no_body(200);
+  no_body.AddHeaderField({"Server", "Apache"});
+  EXPECT_OK(
+      no_body.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}}));
+  EXPECT_NE(response, no_body);
+
+  BinaryHttpResponse different_informational(200);
+  different_informational.AddHeaderField({"Server", "Apache"})
+      ->set_body("Hello, world!\r\n");
+  EXPECT_OK(different_informational.AddInformationalResponse(
+      198, {{"Running", "\"sleep 15\""}}));
+  EXPECT_NE(response, different_informational);
+
+  BinaryHttpResponse no_informational(200);
+  no_informational.AddHeaderField({"Server", "Apache"})
+      ->set_body("Hello, world!\r\n");
+  EXPECT_NE(response, no_informational);
 }
 
 }  // namespace quiche
