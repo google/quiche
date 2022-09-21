@@ -101,8 +101,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_enable_version_2_draft_01, false)
 QUIC_FLAG(quic_reloadable_flag_quic_bbr2_ignore_inflight_hi_in_probe_up, true)
 // When true, the B205 connection option enables extra acked in STARTUP, and B204 adds new logic to decrease it whenever max bandwidth increases.
 QUIC_FLAG(quic_reloadable_flag_quic_bbr2_startup_extra_acked, true)
-// When true, the B207 connection option causes BBR2 to exit STARTUP if a persistent queue of 2*BDP has existed for the entire round.
-QUIC_FLAG(quic_reloadable_flag_quic_bbr2_exit_startup_on_persistent_queue2, true)
 // When true, the BBR4 copt sets the extra_acked window to 20 RTTs and BBR5 sets it to 40 RTTs.
 QUIC_FLAG(quic_reloadable_flag_quic_bbr2_extra_acked_window, true)
 

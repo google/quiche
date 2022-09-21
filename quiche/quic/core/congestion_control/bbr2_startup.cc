@@ -54,7 +54,6 @@ Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
   }
   bool has_bandwidth_growth = model_->HasBandwidthGrowth(congestion_event);
   if (Params().exit_startup_on_persistent_queue && !has_bandwidth_growth) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_exit_startup_on_persistent_queue2);
     model_->CheckPersistentQueue(congestion_event, Params().startup_cwnd_gain);
   }
   // TCP BBR always exits upon excessive losses. QUIC BBRv1 does not exit

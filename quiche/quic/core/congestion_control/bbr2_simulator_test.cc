@@ -385,7 +385,6 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartup) {
 }
 
 TEST_F(Bbr2DefaultTopologyTest, NormalStartupB207) {
-  SetQuicReloadableFlag(quic_bbr2_exit_startup_on_persistent_queue2, true);
   SetConnectionOption(kB207);
   DefaultTopologyParams params;
   CreateNetwork(params);
@@ -417,7 +416,6 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartupB207) {
 // Add extra_acked to CWND in STARTUP and exit STARTUP on a persistent queue.
 TEST_F(Bbr2DefaultTopologyTest, NormalStartupB207andB205) {
   SetQuicReloadableFlag(quic_bbr2_startup_extra_acked, true);
-  SetQuicReloadableFlag(quic_bbr2_exit_startup_on_persistent_queue2, true);
   SetConnectionOption(kB205);
   SetConnectionOption(kB207);
   DefaultTopologyParams params;
@@ -538,7 +536,6 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB206) {
 }
 
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB207) {
-  SetQuicReloadableFlag(quic_bbr2_exit_startup_on_persistent_queue2, true);
   SetConnectionOption(kB207);
   DefaultTopologyParams params;
   CreateNetwork(params);
