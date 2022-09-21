@@ -14,6 +14,7 @@
 #include "absl/strings/string_view.h"
 #include "openssl/evp.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -29,7 +30,6 @@ class QuicCryptoClientStream;
 class QuicCryptoServerConfig;
 class QuicCryptoServerStreamBase;
 class QuicCryptoStream;
-class QuicRandom;
 class QuicServerId;
 
 namespace test {

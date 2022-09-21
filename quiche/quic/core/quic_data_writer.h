@@ -9,14 +9,13 @@
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/common/quiche_data_writer.h"
 #include "quiche/common/quiche_endian.h"
 
 namespace quic {
-
-class QuicRandom;
 
 // This class provides facilities for packing QUIC data.
 //

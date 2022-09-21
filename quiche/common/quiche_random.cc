@@ -1,18 +1,11 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-
-#include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/common/quiche_random.h"
 
 #include <cstdint>
 #include <cstring>
 
 #include "openssl/rand.h"
-#include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-
-namespace quic {
+namespace quiche {
 
 namespace {
 
@@ -48,12 +41,12 @@ uint64_t Xoshiro256PlusPlus() {
   return result;
 }
 
-class DefaultRandom : public QuicRandom {
+class DefaultQuicheRandom : public QuicheRandom {
  public:
-  DefaultRandom() {}
-  DefaultRandom(const DefaultRandom&) = delete;
-  DefaultRandom& operator=(const DefaultRandom&) = delete;
-  ~DefaultRandom() override {}
+  DefaultQuicheRandom() {}
+  DefaultQuicheRandom(const DefaultQuicheRandom&) = delete;
+  DefaultQuicheRandom& operator=(const DefaultQuicheRandom&) = delete;
+  ~DefaultQuicheRandom() override {}
 
   // QuicRandom implementation
   void RandBytes(void* data, size_t len) override;
@@ -62,17 +55,17 @@ class DefaultRandom : public QuicRandom {
   uint64_t InsecureRandUint64() override;
 };
 
-void DefaultRandom::RandBytes(void* data, size_t len) {
+void DefaultQuicheRandom::RandBytes(void* data, size_t len) {
   RAND_bytes(reinterpret_cast<uint8_t*>(data), len);
 }
 
-uint64_t DefaultRandom::RandUint64() {
+uint64_t DefaultQuicheRandom::RandUint64() {
   uint64_t value;
   RandBytes(&value, sizeof(value));
   return value;
 }
 
-void DefaultRandom::InsecureRandBytes(void* data, size_t len) {
+void DefaultQuicheRandom::InsecureRandBytes(void* data, size_t len) {
   while (len >= sizeof(uint64_t)) {
     uint64_t random_bytes64 = Xoshiro256PlusPlus();
     memcpy(data, &random_bytes64, sizeof(uint64_t));
@@ -86,14 +79,15 @@ void DefaultRandom::InsecureRandBytes(void* data, size_t len) {
   }
 }
 
-uint64_t DefaultRandom::InsecureRandUint64() { return Xoshiro256PlusPlus(); }
+uint64_t DefaultQuicheRandom::InsecureRandUint64() {
+  return Xoshiro256PlusPlus();
+}
 
 }  // namespace
 
 // static
-QuicRandom* QuicRandom::GetInstance() {
-  static DefaultRandom* random = new DefaultRandom();
+QuicheRandom* QuicheRandom::GetInstance() {
+  static DefaultQuicheRandom* random = new DefaultQuicheRandom();
   return random;
 }
-
-}  // namespace quic
+}  // namespace quiche

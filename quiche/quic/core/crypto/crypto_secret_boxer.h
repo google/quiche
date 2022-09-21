@@ -11,12 +11,11 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_mutex.h"
 
 namespace quic {
-
-class QuicRandom;
 
 // CryptoSecretBoxer encrypts small chunks of plaintext (called 'boxing') and
 // then, later, can authenticate+decrypt the resulting boxes. This object is

@@ -5,12 +5,12 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_PACKET_CREATOR_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_PACKET_CREATOR_PEER_H_
 
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_packets.h"
 
 namespace quic {
 class QuicFramer;
 class QuicPacketCreator;
-class QuicRandom;
 
 namespace test {
 

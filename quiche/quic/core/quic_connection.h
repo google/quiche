@@ -29,6 +29,7 @@
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
 #include "quiche/quic/core/frames/quic_max_streams_frame.h"
@@ -67,7 +68,6 @@ namespace quic {
 class QuicClock;
 class QuicConfig;
 class QuicConnection;
-class QuicRandom;
 
 namespace test {
 class QuicConnectionPeer;

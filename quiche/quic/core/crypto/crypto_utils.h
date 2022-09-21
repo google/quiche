@@ -18,6 +18,7 @@
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/quic_crypter.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_time.h"
@@ -25,8 +26,6 @@
 #include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
-
-class QuicRandom;
 
 class QUIC_EXPORT_PRIVATE CryptoUtils {
  public:

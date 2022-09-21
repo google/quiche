@@ -22,6 +22,7 @@
 #include "quiche/quic/core/crypto/proof_source.h"
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quiche/quic/core/crypto/quic_crypto_proof.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/proto/cached_network_parameters_proto.h"
 #include "quiche/quic/core/proto/source_address_token_proto.h"
 #include "quiche/quic/core/quic_time.h"
@@ -35,7 +36,6 @@ namespace quic {
 class CryptoHandshakeMessage;
 class ProofSource;
 class QuicClock;
-class QuicRandom;
 class QuicServerConfigProtobuf;
 struct QuicSignedServerConfig;
 

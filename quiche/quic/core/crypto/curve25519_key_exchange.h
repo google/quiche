@@ -10,11 +10,10 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/key_exchange.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
-
-class QuicRandom;
 
 // Curve25519KeyExchange implements a SynchronousKeyExchange using
 // elliptic-curve Diffie-Hellman on curve25519. See http://cr.yp.to/ecdh.html

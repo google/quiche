@@ -17,6 +17,7 @@
 #include "quiche/quic/core/crypto/client_proof_source.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_server_id.h"
@@ -28,7 +29,6 @@ namespace quic {
 class CryptoHandshakeMessage;
 class ProofVerifier;
 class ProofVerifyDetails;
-class QuicRandom;
 
 // QuicResumptionState stores the state a client needs for performing connection
 // resumption.

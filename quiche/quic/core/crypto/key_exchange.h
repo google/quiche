@@ -10,11 +10,10 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
-
-class QuicRandom;
 
 // Interface for a Diffie-Hellman key exchange with an asynchronous interface.
 // This allows for implementations which hold the private key locally, as well
