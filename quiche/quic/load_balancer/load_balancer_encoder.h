@@ -54,6 +54,13 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoderVisitorInterface {
 class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
     : public ConnectionIdGeneratorInterface {
  public:
+  LoadBalancerEncoder(QuicRandom& random,
+                      LoadBalancerEncoderVisitorInterface* const visitor,
+                      const bool len_self_encoded)
+      : LoadBalancerEncoder(random, visitor, len_self_encoded,
+                            kLoadBalancerUnroutableLen) {}
+  ~LoadBalancerEncoder() override {}
+
   // Returns a newly created encoder with no active config, if
   // |unroutable_connection_id_length| is valid. |visitor| specifies an optional
   // interface to receive callbacks when config status changes.
