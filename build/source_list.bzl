@@ -943,7 +943,6 @@ quiche_test_support_srcs = [
 ]
 epoll_tool_support_hdrs = [
     "common/platform/api/quiche_event_loop.h",
-    "common/platform/api/quiche_stream_buffer_allocator.h",
     "common/platform/api/quiche_udp_socket_platform_api.h",
     "quic/core/batch_writer/quic_batch_writer_base.h",
     "quic/core/batch_writer/quic_batch_writer_buffer.h",
