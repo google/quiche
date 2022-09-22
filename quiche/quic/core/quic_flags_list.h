@@ -97,8 +97,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_fix_pacing_sender_bursts, true)
 QUIC_FLAG(quic_reloadable_flag_quic_unified_iw_options, true)
 // When true, support draft-ietf-quic-v2-01
 QUIC_FLAG(quic_reloadable_flag_quic_enable_version_2_draft_01, false)
-// When true, the B203 connection option causes the Bbr2Sender to ignore inflight_hi during PROBE_UP and increase it when the bytes delivered without loss are higher.
-QUIC_FLAG(quic_reloadable_flag_quic_bbr2_ignore_inflight_hi_in_probe_up, true)
 // When true, the B205 connection option enables extra acked in STARTUP, and B204 adds new logic to decrease it whenever max bandwidth increases.
 QUIC_FLAG(quic_reloadable_flag_quic_bbr2_startup_extra_acked, true)
 // When true, the BBR4 copt sets the extra_acked window to 20 RTTs and BBR5 sets it to 40 RTTs.

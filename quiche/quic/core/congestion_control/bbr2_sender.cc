@@ -176,9 +176,7 @@ void Bbr2Sender::ApplyConnectionOptions(
       ContainsQuicTag(connection_options, kB202)) {
     params_.probe_up_dont_exit_if_no_queue_ = true;
   }
-  if (GetQuicReloadableFlag(quic_bbr2_ignore_inflight_hi_in_probe_up) &&
-      ContainsQuicTag(connection_options, kB203)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_ignore_inflight_hi_in_probe_up);
+  if (ContainsQuicTag(connection_options, kB203)) {
     params_.probe_up_ignore_inflight_hi = true;
   }
   if (GetQuicReloadableFlag(quic_bbr2_startup_extra_acked) &&
