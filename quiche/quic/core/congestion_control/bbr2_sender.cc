@@ -179,14 +179,10 @@ void Bbr2Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kB203)) {
     params_.probe_up_ignore_inflight_hi = true;
   }
-  if (GetQuicReloadableFlag(quic_bbr2_startup_extra_acked) &&
-      ContainsQuicTag(connection_options, kB204)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_startup_extra_acked, 1, 2);
+  if (ContainsQuicTag(connection_options, kB204)) {
     model_.SetReduceExtraAckedOnBandwidthIncrease(true);
   }
-  if (GetQuicReloadableFlag(quic_bbr2_startup_extra_acked) &&
-      ContainsQuicTag(connection_options, kB205)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_startup_extra_acked, 2, 2);
+  if (ContainsQuicTag(connection_options, kB205)) {
     params_.startup_include_extra_acked = true;
   }
   if (ContainsQuicTag(connection_options, kB207)) {

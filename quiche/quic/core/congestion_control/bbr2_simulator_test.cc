@@ -415,7 +415,6 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartupB207) {
 
 // Add extra_acked to CWND in STARTUP and exit STARTUP on a persistent queue.
 TEST_F(Bbr2DefaultTopologyTest, NormalStartupB207andB205) {
-  SetQuicReloadableFlag(quic_bbr2_startup_extra_acked, true);
   SetConnectionOption(kB205);
   SetConnectionOption(kB207);
   DefaultTopologyParams params;
@@ -1004,7 +1003,6 @@ TEST_F(Bbr2DefaultTopologyTest,
 
 // Test Bbr2's reaction to a 100x bandwidth increase during a transfer with B204
 TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseB204)) {
-  SetQuicReloadableFlag(quic_bbr2_startup_extra_acked, true);
   SetConnectionOption(kB204);
   DefaultTopologyParams params;
   params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);
@@ -1039,7 +1037,6 @@ TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseB204)) {
 // in the presence of ACK aggregation.
 TEST_F(Bbr2DefaultTopologyTest,
        QUIC_SLOW_TEST(BandwidthIncreaseB204Aggregation)) {
-  SetQuicReloadableFlag(quic_bbr2_startup_extra_acked, true);
   SetConnectionOption(kB204);
   DefaultTopologyParams params;
   params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);
@@ -1079,7 +1076,6 @@ TEST_F(Bbr2DefaultTopologyTest,
 
 // Test Bbr2's reaction to a 100x bandwidth increase during a transfer with B205
 TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseB205)) {
-  SetQuicReloadableFlag(quic_bbr2_startup_extra_acked, true);
   SetConnectionOption(kB205);
   DefaultTopologyParams params;
   params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);
@@ -1113,7 +1109,6 @@ TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseB205)) {
 // in the presence of ACK aggregation.
 TEST_F(Bbr2DefaultTopologyTest,
        QUIC_SLOW_TEST(BandwidthIncreaseB205Aggregation)) {
-  SetQuicReloadableFlag(quic_bbr2_startup_extra_acked, true);
   SetConnectionOption(kB205);
   DefaultTopologyParams params;
   params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);
