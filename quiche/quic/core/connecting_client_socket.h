@@ -9,9 +9,10 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
-#include "quiche/quic/core/quic_types.h"
 
 namespace quic {
 
@@ -72,6 +73,9 @@ class QUICHE_EXPORT_PRIVATE ConnectingClientSocket {
   // either FIN or RST, depending on socket/platform state and undefined
   // platform behavior.
   virtual void Disconnect() = 0;
+
+  // Gets the address assigned to a connected socket.
+  virtual absl::StatusOr<QuicSocketAddress> GetLocalAddress() = 0;
 
   // Blocking read. Receives and returns a buffer of up to `max_size` bytes from
   // socket. Returns status on error.

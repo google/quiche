@@ -27,6 +27,19 @@ class QUICHE_EXPORT_PRIVATE SocketFactory {
       const quic::QuicSocketAddress& peer_address,
       QuicByteCount receive_buffer_size, QuicByteCount send_buffer_size,
       ConnectingClientSocket::AsyncVisitor* async_visitor) = 0;
+
+  // Will use platform default buffer size if `receive_buffer_size` or
+  // `send_buffer_size` is zero. If `async_visitor` is null, async operations
+  // must not be called on the created socket. If `async_visitor` is non-null,
+  // it must outlive the created socket.
+  //
+  // TODO(ericorth): Consider creating a sub-interface for connecting UDP
+  // sockets with additional functionality, e.g. sendto, if needed.
+  virtual std::unique_ptr<ConnectingClientSocket>
+  CreateConnectingUdpClientSocket(
+      const quic::QuicSocketAddress& peer_address,
+      QuicByteCount receive_buffer_size, QuicByteCount send_buffer_size,
+      ConnectingClientSocket::AsyncVisitor* async_visitor) = 0;
 };
 
 }  // namespace quic

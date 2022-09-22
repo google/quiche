@@ -69,6 +69,13 @@ class MockSocketFactory : public SocketFactory {
                QuicByteCount send_buffer_size,
                ConnectingClientSocket::AsyncVisitor* async_visitor),
               (override));
+  MOCK_METHOD(std::unique_ptr<ConnectingClientSocket>,
+              CreateConnectingUdpClientSocket,
+              (const quic::QuicSocketAddress& peer_address,
+               QuicByteCount receive_buffer_size,
+               QuicByteCount send_buffer_size,
+               ConnectingClientSocket::AsyncVisitor* async_visitor),
+              (override));
 };
 
 class MockSocket : public ConnectingClientSocket {
@@ -76,6 +83,8 @@ class MockSocket : public ConnectingClientSocket {
   MOCK_METHOD(absl::Status, ConnectBlocking, (), (override));
   MOCK_METHOD(void, ConnectAsync, (), (override));
   MOCK_METHOD(void, Disconnect, (), (override));
+  MOCK_METHOD(absl::StatusOr<QuicSocketAddress>, GetLocalAddress, (),
+              (override));
   MOCK_METHOD(absl::StatusOr<quiche::QuicheMemSlice>, ReceiveBlocking,
               (QuicByteCount max_size), (override));
   MOCK_METHOD(void, ReceiveAsync, (QuicByteCount max_size), (override));

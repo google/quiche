@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_IO_EVENT_LOOP_TCP_CLIENT_SOCKET_H_
-#define QUICHE_QUIC_CORE_IO_EVENT_LOOP_TCP_CLIENT_SOCKET_H_
+#ifndef QUICHE_QUIC_CORE_IO_EVENT_LOOP_CONNECTING_CLIENT_SOCKET_H_
+#define QUICHE_QUIC_CORE_IO_EVENT_LOOP_CONNECTING_CLIENT_SOCKET_H_
 
 #include <string>
 
@@ -13,6 +13,7 @@
 #include "absl/types/variant.h"
 #include "quiche/quic/core/connecting_client_socket.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -20,8 +21,9 @@
 
 namespace quic {
 
-// A TCP client socket implemented using an underlying QuicEventLoop.
-class QUICHE_EXPORT_PRIVATE EventLoopTcpClientSocket
+// A connection-based client socket implemented using an underlying
+// QuicEventLoop.
+class QUICHE_EXPORT_PRIVATE EventLoopConnectingClientSocket
     : public ConnectingClientSocket,
       public QuicSocketEventListener {
  public:
@@ -29,19 +31,21 @@ class QUICHE_EXPORT_PRIVATE EventLoopTcpClientSocket
   // `send_buffer_size` is zero. `async_visitor` may be null if no async
   // operations will be  requested. `event_loop`, `buffer_allocator`, and
   // `async_visitor` (if non-null) must outlive the created socket.
-  EventLoopTcpClientSocket(const quic::QuicSocketAddress& peer_address,
-                           QuicByteCount receive_buffer_size,
-                           QuicByteCount send_buffer_size,
-                           QuicEventLoop* event_loop,
-                           quiche::QuicheBufferAllocator* buffer_allocator,
-                           AsyncVisitor* async_visitor);
+  EventLoopConnectingClientSocket(
+      socket_api::SocketProtocol protocol,
+      const quic::QuicSocketAddress& peer_address,
+      QuicByteCount receive_buffer_size, QuicByteCount send_buffer_size,
+      QuicEventLoop* event_loop,
+      quiche::QuicheBufferAllocator* buffer_allocator,
+      AsyncVisitor* async_visitor);
 
-  ~EventLoopTcpClientSocket() override;
+  ~EventLoopConnectingClientSocket() override;
 
   // ConnectingClientSocket:
   absl::Status ConnectBlocking() override;
   void ConnectAsync() override;
   void Disconnect() override;
+  absl::StatusOr<QuicSocketAddress> GetLocalAddress() override;
   absl::StatusOr<quiche::QuicheMemSlice> ReceiveBlocking(
       QuicByteCount max_size) override;
   void ReceiveAsync(QuicByteCount max_size) override;
@@ -75,6 +79,7 @@ class QUICHE_EXPORT_PRIVATE EventLoopTcpClientSocket
   absl::Status SendInternal();
   void FinishOrRearmAsyncSend(absl::Status status);
 
+  const socket_api::SocketProtocol protocol_;
   const QuicSocketAddress peer_address_;
   const QuicByteCount receive_buffer_size_;
   const QuicByteCount send_buffer_size_;
@@ -98,4 +103,4 @@ class QUICHE_EXPORT_PRIVATE EventLoopTcpClientSocket
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_CORE_IO_EVENT_LOOP_TCP_CLIENT_SOCKET_H_
+#endif  // QUICHE_QUIC_CORE_IO_EVENT_LOOP_CONNECTING_CLIENT_SOCKET_H_

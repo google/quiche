@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/core/io/event_loop_tcp_client_socket.h"
+#include "quiche/quic/core/io/event_loop_connecting_client_socket.h"
 
 #include <limits>
 #include <string>
@@ -21,12 +21,14 @@
 
 namespace quic {
 
-EventLoopTcpClientSocket::EventLoopTcpClientSocket(
+EventLoopConnectingClientSocket::EventLoopConnectingClientSocket(
+    socket_api::SocketProtocol protocol,
     const quic::QuicSocketAddress& peer_address,
     QuicByteCount receive_buffer_size, QuicByteCount send_buffer_size,
     QuicEventLoop* event_loop, quiche::QuicheBufferAllocator* buffer_allocator,
     AsyncVisitor* async_visitor)
-    : peer_address_(peer_address),
+    : protocol_(protocol),
+      peer_address_(peer_address),
       receive_buffer_size_(receive_buffer_size),
       send_buffer_size_(send_buffer_size),
       event_loop_(event_loop),
@@ -36,15 +38,15 @@ EventLoopTcpClientSocket::EventLoopTcpClientSocket(
   QUICHE_DCHECK(buffer_allocator_);
 }
 
-EventLoopTcpClientSocket::~EventLoopTcpClientSocket() {
+EventLoopConnectingClientSocket::~EventLoopConnectingClientSocket() {
   // Connected socket must be closed via Disconnect() before destruction. Cannot
   // safely recover if state indicates caller may be expecting async callbacks.
   QUICHE_DCHECK(connect_status_ != ConnectStatus::kConnecting);
   QUICHE_DCHECK(!receive_max_size_.has_value());
   QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
   if (descriptor_ != kInvalidSocketFd) {
-    QUICHE_BUG(quic_event_loop_tcp_socket_invalid_destruction)
-        << "Must call Disconnect() on connected TCP socket before destruction.";
+    QUICHE_BUG(quic_event_loop_connecting_socket_invalid_destruction)
+        << "Must call Disconnect() on connected socket before destruction.";
     Close();
   }
 
@@ -52,7 +54,7 @@ EventLoopTcpClientSocket::~EventLoopTcpClientSocket() {
   QUICHE_DCHECK(send_remaining_.empty());
 }
 
-absl::Status EventLoopTcpClientSocket::ConnectBlocking() {
+absl::Status EventLoopConnectingClientSocket::ConnectBlocking() {
   QUICHE_DCHECK_EQ(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kNotConnected);
   QUICHE_DCHECK(!receive_max_size_.has_value());
@@ -101,7 +103,7 @@ absl::Status EventLoopTcpClientSocket::ConnectBlocking() {
   return status;
 }
 
-void EventLoopTcpClientSocket::ConnectAsync() {
+void EventLoopConnectingClientSocket::ConnectAsync() {
   QUICHE_DCHECK(async_visitor_);
   QUICHE_DCHECK_EQ(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kNotConnected);
@@ -117,7 +119,7 @@ void EventLoopTcpClientSocket::ConnectAsync() {
   FinishOrRearmAsyncConnect(DoInitialConnect());
 }
 
-void EventLoopTcpClientSocket::Disconnect() {
+void EventLoopConnectingClientSocket::Disconnect() {
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ != ConnectStatus::kNotConnected);
 
@@ -148,8 +150,16 @@ void EventLoopTcpClientSocket::Disconnect() {
   }
 }
 
+absl::StatusOr<QuicSocketAddress>
+EventLoopConnectingClientSocket::GetLocalAddress() {
+  QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
+  QUICHE_DCHECK(connect_status_ == ConnectStatus::kConnected);
+
+  return socket_api::GetSocketAddress(descriptor_);
+}
+
 absl::StatusOr<quiche::QuicheMemSlice>
-EventLoopTcpClientSocket::ReceiveBlocking(QuicByteCount max_size) {
+EventLoopConnectingClientSocket::ReceiveBlocking(QuicByteCount max_size) {
   QUICHE_DCHECK_GT(max_size, 0u);
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kConnected);
@@ -189,7 +199,7 @@ EventLoopTcpClientSocket::ReceiveBlocking(QuicByteCount max_size) {
   return buffer;
 }
 
-void EventLoopTcpClientSocket::ReceiveAsync(QuicByteCount max_size) {
+void EventLoopConnectingClientSocket::ReceiveAsync(QuicByteCount max_size) {
   QUICHE_DCHECK(async_visitor_);
   QUICHE_DCHECK_GT(max_size, 0u);
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
@@ -201,7 +211,7 @@ void EventLoopTcpClientSocket::ReceiveAsync(QuicByteCount max_size) {
   FinishOrRearmAsyncReceive(ReceiveInternal());
 }
 
-absl::Status EventLoopTcpClientSocket::SendBlocking(std::string data) {
+absl::Status EventLoopConnectingClientSocket::SendBlocking(std::string data) {
   QUICHE_DCHECK(!data.empty());
   QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
 
@@ -209,7 +219,7 @@ absl::Status EventLoopTcpClientSocket::SendBlocking(std::string data) {
   return SendBlockingInternal();
 }
 
-absl::Status EventLoopTcpClientSocket::SendBlocking(
+absl::Status EventLoopConnectingClientSocket::SendBlocking(
     quiche::QuicheMemSlice data) {
   QUICHE_DCHECK(!data.empty());
   QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
@@ -218,7 +228,7 @@ absl::Status EventLoopTcpClientSocket::SendBlocking(
   return SendBlockingInternal();
 }
 
-void EventLoopTcpClientSocket::SendAsync(std::string data) {
+void EventLoopConnectingClientSocket::SendAsync(std::string data) {
   QUICHE_DCHECK(!data.empty());
   QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
 
@@ -228,7 +238,7 @@ void EventLoopTcpClientSocket::SendAsync(std::string data) {
   FinishOrRearmAsyncSend(SendInternal());
 }
 
-void EventLoopTcpClientSocket::SendAsync(quiche::QuicheMemSlice data) {
+void EventLoopConnectingClientSocket::SendAsync(quiche::QuicheMemSlice data) {
   QUICHE_DCHECK(!data.empty());
   QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
 
@@ -239,9 +249,8 @@ void EventLoopTcpClientSocket::SendAsync(quiche::QuicheMemSlice data) {
   FinishOrRearmAsyncSend(SendInternal());
 }
 
-void EventLoopTcpClientSocket::OnSocketEvent(QuicEventLoop* event_loop,
-                                             SocketFd fd,
-                                             QuicSocketEventMask events) {
+void EventLoopConnectingClientSocket::OnSocketEvent(
+    QuicEventLoop* event_loop, SocketFd fd, QuicSocketEventMask events) {
   QUICHE_DCHECK_EQ(event_loop, event_loop_);
   QUICHE_DCHECK_EQ(fd, descriptor_);
 
@@ -261,16 +270,16 @@ void EventLoopTcpClientSocket::OnSocketEvent(QuicEventLoop* event_loop,
   }
 }
 
-absl::Status EventLoopTcpClientSocket::Open() {
+absl::Status EventLoopConnectingClientSocket::Open() {
   QUICHE_DCHECK_EQ(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kNotConnected);
   QUICHE_DCHECK(!receive_max_size_.has_value());
   QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
   QUICHE_DCHECK(send_remaining_.empty());
 
-  absl::StatusOr<SocketFd> descriptor = socket_api::CreateSocket(
-      peer_address_.host().address_family(), socket_api::SocketProtocol::kTcp,
-      /*blocking=*/false);
+  absl::StatusOr<SocketFd> descriptor =
+      socket_api::CreateSocket(peer_address_.host().address_family(), protocol_,
+                               /*blocking=*/false);
   if (!descriptor.ok()) {
     QUICHE_DVLOG(1) << "Failed to open socket for connection to address: "
                     << peer_address_.ToString()
@@ -327,7 +336,7 @@ absl::Status EventLoopTcpClientSocket::Open() {
   return absl::OkStatus();
 }
 
-void EventLoopTcpClientSocket::Close() {
+void EventLoopConnectingClientSocket::Close() {
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
 
   bool unregistered = event_loop_->UnregisterSocket(descriptor_);
@@ -343,7 +352,7 @@ void EventLoopTcpClientSocket::Close() {
   descriptor_ = kInvalidSocketFd;
 }
 
-absl::Status EventLoopTcpClientSocket::DoInitialConnect() {
+absl::Status EventLoopConnectingClientSocket::DoInitialConnect() {
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kNotConnected);
   QUICHE_DCHECK(!receive_max_size_.has_value());
@@ -366,7 +375,7 @@ absl::Status EventLoopTcpClientSocket::DoInitialConnect() {
   return connect_result;
 }
 
-absl::Status EventLoopTcpClientSocket::GetConnectResult() {
+absl::Status EventLoopConnectingClientSocket::GetConnectResult() {
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kConnecting);
   QUICHE_DCHECK(!receive_max_size_.has_value());
@@ -414,7 +423,8 @@ absl::Status EventLoopTcpClientSocket::GetConnectResult() {
   return error;
 }
 
-void EventLoopTcpClientSocket::FinishOrRearmAsyncConnect(absl::Status status) {
+void EventLoopConnectingClientSocket::FinishOrRearmAsyncConnect(
+    absl::Status status) {
   if (absl::IsUnavailable(status)) {
     if (!event_loop_->SupportsEdgeTriggered()) {
       bool result = event_loop_->RearmSocket(
@@ -429,7 +439,7 @@ void EventLoopTcpClientSocket::FinishOrRearmAsyncConnect(absl::Status status) {
 }
 
 absl::StatusOr<quiche::QuicheMemSlice>
-EventLoopTcpClientSocket::ReceiveInternal() {
+EventLoopConnectingClientSocket::ReceiveInternal() {
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kConnected);
   QUICHE_CHECK(receive_max_size_.has_value());
@@ -473,7 +483,7 @@ EventLoopTcpClientSocket::ReceiveInternal() {
   }
 }
 
-void EventLoopTcpClientSocket::FinishOrRearmAsyncReceive(
+void EventLoopConnectingClientSocket::FinishOrRearmAsyncReceive(
     absl::StatusOr<quiche::QuicheMemSlice> buffer) {
   QUICHE_DCHECK(async_visitor_);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kConnected);
@@ -491,7 +501,7 @@ void EventLoopTcpClientSocket::FinishOrRearmAsyncReceive(
   }
 }
 
-absl::StatusOr<bool> EventLoopTcpClientSocket::OneBytePeek() {
+absl::StatusOr<bool> EventLoopConnectingClientSocket::OneBytePeek() {
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
 
   char peek_buffer;
@@ -504,7 +514,7 @@ absl::StatusOr<bool> EventLoopTcpClientSocket::OneBytePeek() {
   }
 }
 
-absl::Status EventLoopTcpClientSocket::SendBlockingInternal() {
+absl::Status EventLoopConnectingClientSocket::SendBlockingInternal() {
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kConnected);
   QUICHE_DCHECK(!absl::holds_alternative<absl::monostate>(send_data_));
@@ -552,7 +562,7 @@ absl::Status EventLoopTcpClientSocket::SendBlockingInternal() {
   return status;
 }
 
-absl::Status EventLoopTcpClientSocket::SendInternal() {
+absl::Status EventLoopConnectingClientSocket::SendInternal() {
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kConnected);
   QUICHE_DCHECK(!absl::holds_alternative<absl::monostate>(send_data_));
@@ -588,7 +598,8 @@ absl::Status EventLoopTcpClientSocket::SendInternal() {
   return absl::OkStatus();
 }
 
-void EventLoopTcpClientSocket::FinishOrRearmAsyncSend(absl::Status status) {
+void EventLoopConnectingClientSocket::FinishOrRearmAsyncSend(
+    absl::Status status) {
   QUICHE_DCHECK(async_visitor_);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kConnected);
 

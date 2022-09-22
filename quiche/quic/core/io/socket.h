@@ -40,6 +40,17 @@ enum class SocketProtocol {
   kTcp,
 };
 
+inline absl::string_view GetProtocolName(SocketProtocol protocol) {
+  switch (protocol) {
+    case SocketProtocol::kUdp:
+      return "UDP";
+    case SocketProtocol::kTcp:
+      return "TCP";
+  }
+
+  return "unknown";
+}
+
 struct QUICHE_EXPORT_PRIVATE AcceptResult {
   // Socket for interacting with the accepted connection.
   SocketFd fd;

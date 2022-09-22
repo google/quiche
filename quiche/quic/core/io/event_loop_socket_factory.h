@@ -30,6 +30,10 @@ class QUICHE_EXPORT_PRIVATE EventLoopSocketFactory : public SocketFactory {
       const quic::QuicSocketAddress& peer_address,
       QuicByteCount receive_buffer_size, QuicByteCount send_buffer_size,
       ConnectingClientSocket::AsyncVisitor* async_visitor) override;
+  std::unique_ptr<ConnectingClientSocket> CreateConnectingUdpClientSocket(
+      const quic::QuicSocketAddress& peer_address,
+      QuicByteCount receive_buffer_size, QuicByteCount send_buffer_size,
+      ConnectingClientSocket::AsyncVisitor* async_visitor) override;
 
  private:
   QuicEventLoop* const event_loop_;                  // unowned
