@@ -619,59 +619,68 @@ TEST(BinaryHttpMessage, SwapBody) {
 TEST(BinaryHttpResponse, Equality) {
   BinaryHttpResponse response(200);
   response.AddHeaderField({"Server", "Apache"})->set_body("Hello, world!\r\n");
-  ASSERT_OK(
-      response.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}}));
+  ASSERT_TRUE(
+      response.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}})
+          .ok());
 
   BinaryHttpResponse same(200);
   same.AddHeaderField({"Server", "Apache"})->set_body("Hello, world!\r\n");
-  ASSERT_OK(same.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}}));
+  ASSERT_TRUE(
+      same.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}}).ok());
   ASSERT_EQ(response, same);
 }
 
 TEST(BinaryHttpResponse, Inequality) {
   BinaryHttpResponse response(200);
   response.AddHeaderField({"Server", "Apache"})->set_body("Hello, world!\r\n");
-  ASSERT_OK(
-      response.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}}));
+  ASSERT_TRUE(
+      response.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}})
+          .ok());
 
   BinaryHttpResponse different_status(201);
   different_status.AddHeaderField({"Server", "Apache"})
       ->set_body("Hello, world!\r\n");
-  EXPECT_OK(different_status.AddInformationalResponse(
-      102, {{"Running", "\"sleep 15\""}}));
+  EXPECT_TRUE(different_status
+                  .AddInformationalResponse(102, {{"Running", "\"sleep 15\""}})
+                  .ok());
   EXPECT_NE(response, different_status);
 
   BinaryHttpResponse different_header(200);
   different_header.AddHeaderField({"Server", "python3"})
       ->set_body("Hello, world!\r\n");
-  EXPECT_OK(different_header.AddInformationalResponse(
-      102, {{"Running", "\"sleep 15\""}}));
+  EXPECT_TRUE(different_header
+                  .AddInformationalResponse(102, {{"Running", "\"sleep 15\""}})
+                  .ok());
   EXPECT_NE(response, different_header);
 
   BinaryHttpResponse no_header(200);
   no_header.set_body("Hello, world!\r\n");
-  EXPECT_OK(
-      no_header.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}}));
+  EXPECT_TRUE(
+      no_header.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}})
+          .ok());
   EXPECT_NE(response, no_header);
 
   BinaryHttpResponse different_body(200);
   different_body.AddHeaderField({"Server", "Apache"})
       ->set_body("Goodbye, world!\r\n");
-  EXPECT_OK(different_body.AddInformationalResponse(
-      102, {{"Running", "\"sleep 15\""}}));
+  EXPECT_TRUE(different_body
+                  .AddInformationalResponse(102, {{"Running", "\"sleep 15\""}})
+                  .ok());
   EXPECT_NE(response, different_body);
 
   BinaryHttpResponse no_body(200);
   no_body.AddHeaderField({"Server", "Apache"});
-  EXPECT_OK(
-      no_body.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}}));
+  EXPECT_TRUE(
+      no_body.AddInformationalResponse(102, {{"Running", "\"sleep 15\""}})
+          .ok());
   EXPECT_NE(response, no_body);
 
   BinaryHttpResponse different_informational(200);
   different_informational.AddHeaderField({"Server", "Apache"})
       ->set_body("Hello, world!\r\n");
-  EXPECT_OK(different_informational.AddInformationalResponse(
-      198, {{"Running", "\"sleep 15\""}}));
+  EXPECT_TRUE(different_informational
+                  .AddInformationalResponse(198, {{"Running", "\"sleep 15\""}})
+                  .ok());
   EXPECT_NE(response, different_informational);
 
   BinaryHttpResponse no_informational(200);
