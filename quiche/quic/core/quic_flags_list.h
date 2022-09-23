@@ -89,8 +89,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 QUIC_FLAG(quic_reloadable_flag_quic_connection_uses_abstract_connection_id_generator, true)
 // QuicDispatcher uses a library to generate connection IDs
 QUIC_FLAG(quic_restart_flag_quic_abstract_connection_id_generator, true)
-// Store original QUIC connection IDs in the dispatcher\'s map
-QUIC_FLAG(quic_restart_flag_quic_map_original_connection_ids2, true)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
 // When true, prevents QUIC\'s PacingSender from generating bursts when the congestion controller is CWND limited and not pacing limited.

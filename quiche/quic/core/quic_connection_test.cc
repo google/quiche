@@ -13709,22 +13709,22 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
       .WillOnce(Invoke([this]() {
         connection_.SendControlFrame(QuicFrame(QuicWindowUpdateFrame(1, 0, 0)));
       }));
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
-        .WillOnce(Invoke([&]() {
-          EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
-          EXPECT_FALSE(writer_->path_challenge_frames().empty());
-          // Retry path validation shouldn't bundle ACK.
-          EXPECT_TRUE(writer_->ack_frames().empty());
-        }))
-        .WillOnce(Invoke([&]() {
-          EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
-          EXPECT_FALSE(writer_->ack_frames().empty());
-          EXPECT_FALSE(writer_->window_update_frames().empty());
-        }));
-    static_cast<TestAlarmFactory::TestAlarm*>(
-        QuicPathValidatorPeer::retry_timer(
-            QuicConnectionPeer::path_validator(&connection_)))
-        ->Fire();
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
+        EXPECT_FALSE(writer_->path_challenge_frames().empty());
+        // Retry path validation shouldn't bundle ACK.
+        EXPECT_TRUE(writer_->ack_frames().empty());
+      }))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
+        EXPECT_FALSE(writer_->ack_frames().empty());
+        EXPECT_FALSE(writer_->window_update_frames().empty());
+      }));
+  static_cast<TestAlarmFactory::TestAlarm*>(
+      QuicPathValidatorPeer::retry_timer(
+          QuicConnectionPeer::path_validator(&connection_)))
+      ->Fire();
 }
 
 TEST_P(QuicConnectionTest, DoNotIssueNewCidIfVisitorSaysNo) {
@@ -15656,8 +15656,7 @@ TEST_P(QuicConnectionTest, OriginalConnectionId) {
   // Send a 1-RTT packet to start the DiscardZeroRttDecryptionKeys timer.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacketAtLevel(1, false, ENCRYPTION_FORWARD_SECURE);
-  if (GetQuicRestartFlag(quic_map_original_connection_ids2) &&
-      connection_.version().UsesTls()) {
+  if (connection_.version().UsesTls()) {
     EXPECT_TRUE(connection_.GetDiscardZeroRttDecryptionKeysAlarm()->IsSet());
     EXPECT_CALL(visitor_, OnServerConnectionIdRetired(original));
     connection_.GetDiscardZeroRttDecryptionKeysAlarm()->Fire();

@@ -7076,7 +7076,6 @@ TEST_P(EndToEndTest, RejectRequestWithInvalidToken) {
 }
 
 TEST_P(EndToEndTest, OriginalConnectionIdClearedFromMap) {
-  SetQuicRestartFlag(quic_map_original_connection_ids2, true);
   connect_to_server_on_initialize_ = false;
   ASSERT_TRUE(Initialize());
   if (override_client_connection_id_length_ != kLongConnectionIdLength) {

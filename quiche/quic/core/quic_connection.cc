@@ -177,9 +177,7 @@ class DiscardZeroRttDecryptionKeysAlarmDelegate
     QUICHE_DCHECK(connection_->connected());
     QUIC_DLOG(INFO) << "0-RTT discard alarm fired";
     connection_->RemoveDecrypter(ENCRYPTION_ZERO_RTT);
-    if (GetQuicRestartFlag(quic_map_original_connection_ids2)) {
-      connection_->RetireOriginalDestinationConnectionId();
-    }
+    connection_->RetireOriginalDestinationConnectionId();
   }
 };
 
@@ -984,7 +982,6 @@ QuicConnectionId QuicConnection::GetOriginalDestinationConnectionId() const {
 void QuicConnection::RetireOriginalDestinationConnectionId() {
   if (original_destination_connection_id_.has_value()) {
     visitor_->OnServerConnectionIdRetired(*original_destination_connection_id_);
-    QUIC_RESTART_FLAG_COUNT_N(quic_map_original_connection_ids2, 3, 4);
     original_destination_connection_id_.reset();
   }
 }
@@ -1052,14 +1049,7 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
     if (debug_visitor_ != nullptr) {
       debug_visitor_->OnIncorrectConnectionId(server_connection_id);
     }
-    // The only way for a connection to get a packet with an invalid connection
-    // ID is if quic_map_original_connection_ids2 is false and a packet
-    // arrives with a connection ID that is deterministically replaced with one
-    // that the connection owns, but is different from
-    // original_destination_connection_id_.
-    if (GetQuicRestartFlag(quic_map_original_connection_ids2)) {
-      QUICHE_DCHECK_NE(Perspective::IS_SERVER, perspective_);
-    }
+    QUICHE_DCHECK_NE(Perspective::IS_SERVER, perspective_);
     return false;
   }
 
@@ -6913,26 +6903,15 @@ std::vector<QuicConnectionId> QuicConnection::GetActiveServerConnectionIds()
   if (!original_destination_connection_id_.has_value()) {
     return result;
   }
-  bool add_original_connection_id = false;
-  if (GetQuicRestartFlag(quic_map_original_connection_ids2)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_map_original_connection_ids2, 4, 4);
-    add_original_connection_id = true;
-  } else if (!IsHandshakeComplete()) {
-    QUIC_CODE_COUNT(quic_active_original_connection_id_pre_handshake);
-    add_original_connection_id = true;
-  }
-  if (add_original_connection_id) {
-    if (std::find(result.begin(), result.end(),
-                  original_destination_connection_id_.value()) !=
-        result.end()) {
-      QUIC_BUG(quic_unexpected_original_destination_connection_id)
-          << "original_destination_connection_id: "
-          << original_destination_connection_id_.value()
-          << " is unexpectedly in active "
-             "list";
-    } else {
-      result.insert(result.end(), original_destination_connection_id_.value());
-    }
+  // Add the original connection ID
+  if (std::find(result.begin(), result.end(),
+                original_destination_connection_id_.value()) != result.end()) {
+    QUIC_BUG(quic_unexpected_original_destination_connection_id)
+        << "original_destination_connection_id: "
+        << original_destination_connection_id_.value()
+        << " is unexpectedly in active list";
+  } else {
+    result.insert(result.end(), original_destination_connection_id_.value());
   }
   return result;
 }
