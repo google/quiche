@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/socket_factory.h"
@@ -33,6 +34,7 @@ class QuicSimpleServerBackend {
     virtual QuicConnectionId connection_id() const = 0;
     virtual QuicStreamId stream_id() const = 0;
     virtual std::string peer_host() const = 0;
+    virtual QuicSpdyStream* GetStream() = 0;
     // Called when the response is ready at the backend and can be send back to
     // the QUIC client.
     virtual void OnResponseBackendComplete(

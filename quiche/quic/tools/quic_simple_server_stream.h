@@ -57,6 +57,7 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
   QuicConnectionId connection_id() const override;
   QuicStreamId stream_id() const override;
   std::string peer_host() const override;
+  QuicSpdyStream* GetStream() override;
   void OnResponseBackendComplete(const QuicBackendResponse* response) override;
   void SendStreamData(absl::string_view data, bool close_stream) override;
   void TerminateStreamWithError(QuicResetStreamError error) override;

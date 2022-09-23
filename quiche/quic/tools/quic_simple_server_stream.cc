@@ -245,6 +245,8 @@ std::string QuicSimpleServerStream::peer_host() const {
   return spdy_session()->peer_address().host().ToString();
 }
 
+QuicSpdyStream* QuicSimpleServerStream::GetStream() { return this; }
+
 namespace {
 
 class DelayedResponseAlarm : public QuicAlarm::DelegateWithContext {

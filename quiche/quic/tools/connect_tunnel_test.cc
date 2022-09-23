@@ -53,6 +53,7 @@ class MockRequestHandler : public QuicSimpleServerBackend::RequestHandler {
   QuicStreamId stream_id() const override { return 100; }
   std::string peer_host() const override { return "127.0.0.1"; }
 
+  MOCK_METHOD(QuicSpdyStream*, GetStream, (), (override));
   MOCK_METHOD(void, OnResponseBackendComplete,
               (const QuicBackendResponse* response), (override));
   MOCK_METHOD(void, SendStreamData, (absl::string_view data, bool close_stream),
