@@ -943,7 +943,7 @@ quiche_test_support_srcs = [
     "spdy/test_tools/mock_spdy_framer_visitor.cc",
     "spdy/test_tools/spdy_test_utils.cc",
 ]
-epoll_tool_support_hdrs = [
+io_tool_support_hdrs = [
     "common/platform/api/quiche_event_loop.h",
     "common/platform/api/quiche_udp_socket_platform_api.h",
     "quic/core/batch_writer/quic_batch_writer_base.h",
@@ -977,7 +977,7 @@ epoll_tool_support_hdrs = [
     "quic/tools/quic_default_client.h",
     "quic/tools/quic_server.h",
 ]
-epoll_tool_support_srcs = [
+io_tool_support_srcs = [
     "quic/core/batch_writer/quic_batch_writer_base.cc",
     "quic/core/batch_writer/quic_batch_writer_buffer.cc",
     "quic/core/batch_writer/quic_gso_batch_writer.cc",
@@ -1006,16 +1006,14 @@ epoll_tool_support_srcs = [
     "quic/tools/quic_default_client.cc",
     "quic/tools/quic_server.cc",
 ]
-epoll_test_support_hdrs = [
-    "quic/bindings/quic_libevent.h",
+io_test_support_hdrs = [
     "quic/test_tools/quic_mock_syscall_wrapper.h",
     "quic/test_tools/quic_server_peer.h",
     "quic/test_tools/quic_test_client.h",
     "quic/test_tools/quic_test_server.h",
     "quic/test_tools/server_thread.h",
 ]
-epoll_test_support_srcs = [
-    "quic/bindings/quic_libevent.cc",
+io_test_support_srcs = [
     "quic/test_tools/quic_mock_syscall_wrapper.cc",
     "quic/test_tools/quic_server_peer.cc",
     "quic/test_tools/quic_test_client.cc",
@@ -1281,11 +1279,10 @@ quiche_tests_srcs = [
     "spdy/core/spdy_protocol_test.cc",
     "spdy/core/spdy_simple_arena_test.cc",
 ]
-epoll_tests_hdrs = [
+io_tests_hdrs = [
 
 ]
-epoll_tests_srcs = [
-    "quic/bindings/quic_libevent_test.cc",
+io_tests_srcs = [
     "quic/core/batch_writer/quic_batch_writer_buffer_test.cc",
     "quic/core/batch_writer/quic_batch_writer_test.cc",
     "quic/core/batch_writer/quic_gso_batch_writer_test.cc",
@@ -1384,6 +1381,8 @@ default_platform_impl_hdrs = [
     "common/platform/default/quiche_platform_impl/quiche_bug_tracker_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_client_stats_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_containers_impl.h",
+    "common/platform/default/quiche_platform_impl/quiche_default_proof_providers_impl.h",
+    "common/platform/default/quiche_platform_impl/quiche_event_loop_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_export_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_flag_utils_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_flags_impl.h",
@@ -1400,6 +1399,7 @@ default_platform_impl_hdrs = [
     "common/platform/default/quiche_platform_impl/quiche_testvalue_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_thread_local_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_time_utils_impl.h",
+    "common/platform/default/quiche_platform_impl/quiche_udp_socket_platform_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_url_utils_impl.h",
 ]
 default_platform_impl_srcs = [
@@ -1411,7 +1411,6 @@ default_platform_impl_srcs = [
 ]
 default_platform_impl_tool_support_hdrs = [
     "common/platform/default/quiche_platform_impl/quiche_command_line_flags_impl.h",
-    "common/platform/default/quiche_platform_impl/quiche_event_loop_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_file_utils_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_stream_buffer_allocator_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_system_event_loop_impl.h",
@@ -1534,4 +1533,11 @@ qbone_srcs = [
     "quic/qbone/qbone_session_test.cc",
     "quic/qbone/qbone_stream.cc",
     "quic/qbone/qbone_stream_test.cc",
+]
+libevent_hdrs = [
+    "quic/bindings/quic_libevent.h",
+]
+libevent_srcs = [
+    "quic/bindings/quic_libevent.cc",
+    "quic/bindings/quic_libevent_test.cc",
 ]
