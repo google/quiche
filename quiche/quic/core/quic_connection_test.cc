@@ -13027,6 +13027,8 @@ TEST_P(QuicConnectionTest, MultiPortCreation) {
   EXPECT_TRUE(connection_.HasPendingPathValidation());
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
       &connection_, kNewSelfAddress, connection_.peer_address()));
+  auto* alt_path = QuicConnectionPeer::GetAlternativePath(&connection_);
+  EXPECT_FALSE(alt_path->validated);
 
   // 30ms RTT.
   const QuicTime::Delta kTestRTT = QuicTime::Delta::FromMilliseconds(30);
@@ -13042,6 +13044,7 @@ TEST_P(QuicConnectionTest, MultiPortCreation) {
   EXPECT_FALSE(connection_.HasPendingPathValidation());
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
       &connection_, kNewSelfAddress, connection_.peer_address()));
+  EXPECT_TRUE(alt_path->validated);
 
   auto stats = connection_.multi_port_stats();
   EXPECT_EQ(1, stats->num_path_degrading);

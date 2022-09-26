@@ -7077,6 +7077,8 @@ bool QuicConnection::IsReceivedPeerAddressValidated() const {
 
 void QuicConnection::OnMultiPortPathProbingSuccess(
     std::unique_ptr<QuicPathValidationContext> context, QuicTime start_time) {
+  QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective());
+  alternative_path_.validated = true;
   multi_port_path_context_ = std::move(context);
   multi_port_probing_alarm_->Set(clock_->ApproximateNow() +
                                  multi_port_probing_interval_);
