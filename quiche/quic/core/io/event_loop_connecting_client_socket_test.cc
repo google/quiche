@@ -50,10 +50,7 @@ class TestServerSocketRunner : public quiche::QuicheThread {
                          SocketBehavior behavior)
       : QuicheThread("TestServerSocketRunner"),
         server_socket_descriptor_(server_socket_descriptor),
-        behavior_(std::move(behavior)) {
-    Start();
-  }
-
+        behavior_(std::move(behavior)) {}
   ~TestServerSocketRunner() override { WaitForCompletion(); }
 
   void WaitForCompletion() { completion_notification_.WaitForNotification(); }
@@ -83,8 +80,11 @@ class TestTcpServerSocketRunner : public TestServerSocketRunner {
   // closes the accepted connection socket.
   TestTcpServerSocketRunner(SocketFd server_socket_descriptor,
                             SocketBehavior behavior)
-      : TestServerSocketRunner(server_socket_descriptor, behavior) {}
-      ~TestTcpServerSocketRunner() override = default;
+      : TestServerSocketRunner(server_socket_descriptor, behavior) {
+    Start();
+  }
+
+  ~TestTcpServerSocketRunner() override = default;
 
  protected:
   void Run() override {
@@ -120,7 +120,10 @@ class TestUdpServerSocketRunner : public TestServerSocketRunner {
                             SocketBehavior behavior,
                             QuicSocketAddress client_socket_address)
       : TestServerSocketRunner(server_socket_descriptor, behavior),
-        client_socket_address_(std::move(client_socket_address)) {}
+        client_socket_address_(std::move(client_socket_address)) {
+    Start();
+  }
+
   ~TestUdpServerSocketRunner() override = default;
 
  protected:
