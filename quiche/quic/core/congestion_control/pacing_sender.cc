@@ -26,11 +26,7 @@ PacingSender::PacingSender()
       initial_burst_size_(kInitialUnpacedBurst),
       lumpy_tokens_(0),
       alarm_granularity_(kAlarmGranularity),
-      pacing_limited_(false) {
-  if (GetQuicReloadableFlag(quic_donot_reset_ideal_next_packet_send_time)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_donot_reset_ideal_next_packet_send_time);
-  }
-}
+      pacing_limited_(false) {}
 
 PacingSender::~PacingSender() {}
 
@@ -74,9 +70,7 @@ void PacingSender::OnPacketSent(
   }
   if (burst_tokens_ > 0) {
     --burst_tokens_;
-    if (!GetQuicReloadableFlag(quic_donot_reset_ideal_next_packet_send_time)) {
-      ideal_next_packet_send_time_ = QuicTime::Zero();
-    }
+    ideal_next_packet_send_time_ = QuicTime::Zero();
     pacing_limited_ = false;
     return;
   }
