@@ -672,11 +672,7 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytes) {
   EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
                    sender_->ExportDebugState().bandwidth_hi, 0.01f);
 
-  if (GetQuicReloadableFlag(quic_fix_pacing_sender_bursts)) {
-    EXPECT_EQ(sender_loss_rate_in_packets(), 0);
-  } else {
-    EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
-  }
+  EXPECT_EQ(sender_loss_rate_in_packets(), 0);
   // The margin here is high, because both link level aggregation and ack
   // decimation can greatly increase smoothed rtt.
   EXPECT_GE(params.RTT() * 5, rtt_stats()->smoothed_rtt());
@@ -698,11 +694,7 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytesB201) {
   EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
                    sender_->ExportDebugState().bandwidth_hi, 0.5f);
 
-  if (GetQuicReloadableFlag(quic_fix_pacing_sender_bursts)) {
-    EXPECT_LE(sender_loss_rate_in_packets(), 0.01);
-  } else {
-    EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
-  }
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.01);
   // The margin here is high, because both link level aggregation and ack
   // decimation can greatly increase smoothed rtt.
   EXPECT_GE(params.RTT() * 5, rtt_stats()->smoothed_rtt());

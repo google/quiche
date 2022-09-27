@@ -89,8 +89,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_connection_uses_abstract_connection_id_gener
 QUIC_FLAG(quic_restart_flag_quic_abstract_connection_id_generator, true)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
-// When true, prevents QUIC\'s PacingSender from generating bursts when the congestion controller is CWND limited and not pacing limited.
-QUIC_FLAG(quic_reloadable_flag_quic_fix_pacing_sender_bursts, true)
 // When true, set the initial congestion control window from connection options in QuicSentPacketManager rather than TcpCubicSenderBytes.
 QUIC_FLAG(quic_reloadable_flag_quic_unified_iw_options, true)
 // When true, support draft-ietf-quic-v2-01

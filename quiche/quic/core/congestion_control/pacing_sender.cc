@@ -94,9 +94,7 @@ void PacingSender::OnPacketSent(
       // is about 10ms of queueing.
       lumpy_tokens_ = 1u;
     }
-    if (GetQuicReloadableFlag(quic_fix_pacing_sender_bursts) &&
-        (bytes_in_flight + bytes) >= sender_->GetCongestionWindow()) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_pacing_sender_bursts);
+    if ((bytes_in_flight + bytes) >= sender_->GetCongestionWindow()) {
       // Don't add lumpy_tokens if the congestion controller is CWND limited.
       lumpy_tokens_ = 1u;
     }
