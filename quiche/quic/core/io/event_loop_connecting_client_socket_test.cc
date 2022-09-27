@@ -84,7 +84,7 @@ class TestTcpServerSocketRunner : public TestServerSocketRunner {
     Start();
   }
 
-  ~TestTcpServerSocketRunner() override = default;
+  ~TestTcpServerSocketRunner() override { Join(); }
 
  protected:
   void Run() override {
@@ -124,7 +124,7 @@ class TestUdpServerSocketRunner : public TestServerSocketRunner {
     Start();
   }
 
-  ~TestUdpServerSocketRunner() override = default;
+  ~TestUdpServerSocketRunner() override { Join(); }
 
  protected:
   void Run() override {
