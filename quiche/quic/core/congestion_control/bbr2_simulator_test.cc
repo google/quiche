@@ -853,7 +853,6 @@ TEST_F(Bbr2DefaultTopologyTest,
 
 // Test Bbr2's reaction to a 100x bandwidth increase during a transfer with B202
 TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseB202)) {
-  SetQuicReloadableFlag(quic_bbr2_no_probe_up_exit_if_no_queue, true);
   SetConnectionOption(kB202);
   DefaultTopologyParams params;
   params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);
@@ -887,7 +886,6 @@ TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseB202)) {
 // in the presence of ACK aggregation.
 TEST_F(Bbr2DefaultTopologyTest,
        QUIC_SLOW_TEST(BandwidthIncreaseB202Aggregation)) {
-  SetQuicReloadableFlag(quic_bbr2_no_probe_up_exit_if_no_queue, true);
   SetConnectionOption(kB202);
   DefaultTopologyParams params;
   params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);

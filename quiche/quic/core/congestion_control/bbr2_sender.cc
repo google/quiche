@@ -172,8 +172,7 @@ void Bbr2Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kB201)) {
     params_.probe_bw_check_cwnd_limited_before_aggregation_epoch = true;
   }
-  if (GetQuicReloadableFlag(quic_bbr2_no_probe_up_exit_if_no_queue) &&
-      ContainsQuicTag(connection_options, kB202)) {
+  if (ContainsQuicTag(connection_options, kB202)) {
     params_.probe_up_dont_exit_if_no_queue_ = true;
   }
   if (ContainsQuicTag(connection_options, kB203)) {

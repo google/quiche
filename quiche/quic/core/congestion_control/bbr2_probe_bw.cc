@@ -202,8 +202,6 @@ Bbr2ProbeBwMode::AdaptUpperBoundsResult Bbr2ProbeBwMode::MaybeAdaptUpperBounds(
         if (send_state.is_app_limited) {
           // If there's excess loss or a queue is building, exit even if the
           // last sample was app limited.
-          QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_no_probe_up_exit_if_no_queue,
-                                       2, 2);
         }
         const QuicByteCount inflight_target =
             sender_->GetTargetBytesInflight() * (1.0 - Params().beta);
@@ -483,8 +481,6 @@ void Bbr2ProbeBwMode::UpdateProbeUp(
     //   HasPhaseLasted(model_->MinRtt(), congestion_event)
   } else if (cycle_.rounds_in_phase > 0) {
     if (Params().probe_up_dont_exit_if_no_queue_) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_no_probe_up_exit_if_no_queue, 1,
-                                   2);
       is_queuing = congestion_event.end_of_round_trip &&
                    model_->CheckPersistentQueue(
                        congestion_event, Params().probe_bw_probe_inflight_gain);
