@@ -430,12 +430,6 @@ void QuicCryptoClientHandshaker::DoReceiveREJ(
       packed_error |= 1 << (reason - 1);
     }
     QUIC_DVLOG(1) << "Reasons for rejection: " << packed_error;
-    if (num_client_hellos_ == QuicCryptoClientStream::kMaxClientHellos) {
-      QuicClientSparseHistogram("QuicClientHelloRejectReasons.TooMany",
-                                packed_error);
-    }
-    QuicClientSparseHistogram("QuicClientHelloRejectReasons.Secure",
-                              packed_error);
   }
 
   // Receipt of a REJ message means that the server received the CHLO
