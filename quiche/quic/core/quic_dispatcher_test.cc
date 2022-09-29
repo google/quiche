@@ -2281,6 +2281,82 @@ TEST_P(QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
 }
 
 TEST_P(QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
+       TryAddNewConnectionIdWithCollision) {
+  AddConnection1();
+  AddConnection2();
+  ASSERT_EQ(dispatcher_->NumSessions(), 2u);
+  ASSERT_THAT(session1_, testing::NotNull());
+  ASSERT_THAT(session2_, testing::NotNull());
+  MockServerConnection* mock_server_connection1 =
+      reinterpret_cast<MockServerConnection*>(connection1());
+  MockServerConnection* mock_server_connection2 =
+      reinterpret_cast<MockServerConnection*>(connection2());
+
+  {
+    // TestConnectionId(2) is already claimed by connection2 but connection1
+    // still thinks it owns it.
+    mock_server_connection1->UnconditionallyAddNewConnectionIdForTest(
+        TestConnectionId(2));
+    EXPECT_EQ(dispatcher_->NumSessions(), 2u);
+    auto* session =
+        QuicDispatcherPeer::FindSession(dispatcher_.get(), TestConnectionId(2));
+    ASSERT_EQ(session, session2_);
+    EXPECT_THAT(mock_server_connection1->GetActiveServerConnectionIds(),
+                testing::ElementsAre(TestConnectionId(1), TestConnectionId(2)));
+  }
+
+  {
+    mock_server_connection2->AddNewConnectionId(TestConnectionId(3));
+    EXPECT_EQ(dispatcher_->NumSessions(), 2u);
+    auto* session =
+        QuicDispatcherPeer::FindSession(dispatcher_.get(), TestConnectionId(3));
+    ASSERT_EQ(session, session2_);
+    EXPECT_THAT(mock_server_connection2->GetActiveServerConnectionIds(),
+                testing::ElementsAre(TestConnectionId(2), TestConnectionId(3)));
+  }
+
+  // Connection2 removes both TestConnectionId(2) & TestConnectionId(3) from the
+  // session map.
+  dispatcher_->OnConnectionClosed(TestConnectionId(2),
+                                  QuicErrorCode::QUIC_NO_ERROR, "detail",
+                                  quic::ConnectionCloseSource::FROM_SELF);
+    // QUICHE_BUG fires when connection1 tries to remove TestConnectionId(2)
+    // again from the session_map.
+    EXPECT_QUICHE_BUG(dispatcher_->OnConnectionClosed(
+                          TestConnectionId(1), QuicErrorCode::QUIC_NO_ERROR,
+                          "detail", quic::ConnectionCloseSource::FROM_SELF),
+                      "Missing session for cid");
+}
+
+TEST_P(QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
+       MismatchedSessionAfterAddingCollidedConnectionId) {
+  AddConnection1();
+  AddConnection2();
+  MockServerConnection* mock_server_connection1 =
+      reinterpret_cast<MockServerConnection*>(connection1());
+
+  {
+    // TestConnectionId(2) is already claimed by connection2 but connection1
+    // still thinks it owns it.
+    mock_server_connection1->UnconditionallyAddNewConnectionIdForTest(
+        TestConnectionId(2));
+    EXPECT_EQ(dispatcher_->NumSessions(), 2u);
+    auto* session =
+        QuicDispatcherPeer::FindSession(dispatcher_.get(), TestConnectionId(2));
+    ASSERT_EQ(session, session2_);
+    EXPECT_THAT(mock_server_connection1->GetActiveServerConnectionIds(),
+                testing::ElementsAre(TestConnectionId(1), TestConnectionId(2)));
+  }
+
+  // Connection1 tries to remove both Cid1 & Cid2, but they point to different
+  // sessions.
+  EXPECT_QUIC_BUG(dispatcher_->OnConnectionClosed(
+                      TestConnectionId(1), QuicErrorCode::QUIC_NO_ERROR,
+                      "detail", quic::ConnectionCloseSource::FROM_SELF),
+                  "Session is mismatched in the map");
+}
+
+TEST_P(QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
        RetireConnectionIdFromSingleConnection) {
   AddConnection1();
   ASSERT_EQ(dispatcher_->NumSessions(), 1u);

@@ -1099,10 +1099,38 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
   }
   closed_session_list_.push_back(std::move(it->second));
   CleanUpSession(it->first, connection, error, error_details, source);
+  bool session_removed = false;
   for (const QuicConnectionId& cid :
        connection->GetActiveServerConnectionIds()) {
-    reference_counted_session_map_.erase(cid);
+    auto it1 = reference_counted_session_map_.find(cid);
+    if (it1 != reference_counted_session_map_.end()) {
+      const QuicSession* session2 = it1->second.get();
+      // For cid == server_connection_id, session2 is a nullptr (and hence
+      // session2 != session) now since we have std::move the session into
+      // closed_session_list_ above.
+      if (session2 == session || cid == server_connection_id) {
+        reference_counted_session_map_.erase(it1);
+        session_removed = true;
+      } else {
+        // Leave this session in the map.
+        QUIC_BUG(quic_dispatcher_session_mismatch)
+            << "Session is mismatched in the map. server_connection_id: "
+            << server_connection_id << ". Current cid: " << cid
+            << ". Cid of the other session "
+            << (session2 == nullptr
+                    ? "null"
+                    : session2->connection()->connection_id().ToString());
+      }
+    } else {
+      // GetActiveServerConnectionIds might return the original destination
+      // ID, which is not contained in the session map.
+      QUIC_BUG_IF(quic_dispatcher_session_not_found,
+                  cid != connection->GetOriginalDestinationConnectionId())
+          << "Missing session for cid " << cid
+          << ". server_connection_id: " << server_connection_id;
+    }
   }
+  QUIC_BUG_IF(quic_session_is_not_removed, !session_removed);
   --num_sessions_in_session_map_;
 }
 
