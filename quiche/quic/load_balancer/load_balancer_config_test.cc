@@ -149,6 +149,22 @@ TEST_F(LoadBalancerConfigTest, BlockEncryptionExample) {
   EXPECT_EQ(memcmp(result, ptext, sizeof(ptext)), 0);
 }
 
+TEST_F(LoadBalancerConfigTest, ConfigIsCopyable) {
+  const uint8_t ptext[] = {0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f, 0x5f,
+                           0xee, 0x08, 0x0d, 0xbf, 0x48, 0xc0, 0xd1, 0xe5};
+  const uint8_t ctext[] = {0x4d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9, 0xb2,
+                           0xb9, 0x90, 0x7a, 0xfb, 0x5e, 0xcf, 0x8c, 0xc3};
+  const char key[] = {0x8f, 0x95, 0xf0, 0x92, 0x45, 0x76, 0x5f, 0x80,
+                      0x25, 0x69, 0x34, 0xe5, 0x0c, 0x66, 0x20, 0x7f};
+  uint8_t result[sizeof(ptext)];
+  auto config = LoadBalancerConfig::Create(0, 8, 8, absl::string_view(key, 16));
+  auto config2 = config;
+  EXPECT_TRUE(config->BlockEncrypt(ptext, result));
+  EXPECT_EQ(memcmp(result, ctext, sizeof(ctext)), 0);
+  EXPECT_TRUE(config2->BlockEncrypt(ptext, result));
+  EXPECT_EQ(memcmp(result, ctext, sizeof(ctext)), 0);
+}
+
 }  // namespace
 
 }  // namespace test
