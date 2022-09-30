@@ -13,6 +13,7 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "absl/types/variant.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
@@ -73,8 +74,7 @@ class QUICHE_EXPORT_PRIVATE Item {
 
   // Constructors for string-like items: Strings, Tokens and Byte Sequences.
   Item(const char* value, Item::ItemType type = kStringType);
-  Item(const std::string& value, Item::ItemType type = kStringType);
-  Item(std::string&& value, Item::ItemType type = kStringType);
+  Item(std::string value, Item::ItemType type = kStringType);
 
   QUICHE_EXPORT_PRIVATE friend bool operator==(const Item& lhs,
                                                const Item& rhs);
@@ -82,43 +82,49 @@ class QUICHE_EXPORT_PRIVATE Item {
     return !(lhs == rhs);
   }
 
-  bool is_null() const { return type_ == kNullType; }
-  bool is_integer() const { return type_ == kIntegerType; }
-  bool is_decimal() const { return type_ == kDecimalType; }
-  bool is_string() const { return type_ == kStringType; }
-  bool is_token() const { return type_ == kTokenType; }
-  bool is_byte_sequence() const { return type_ == kByteSequenceType; }
-  bool is_boolean() const { return type_ == kBooleanType; }
+  bool is_null() const { return Type() == kNullType; }
+  bool is_integer() const { return Type() == kIntegerType; }
+  bool is_decimal() const { return Type() == kDecimalType; }
+  bool is_string() const { return Type() == kStringType; }
+  bool is_token() const { return Type() == kTokenType; }
+  bool is_byte_sequence() const { return Type() == kByteSequenceType; }
+  bool is_boolean() const { return Type() == kBooleanType; }
 
   int64_t GetInteger() const {
-    QUICHE_CHECK_EQ(type_, kIntegerType);
-    return integer_value_;
+    const auto* value = absl::get_if<int64_t>(&value_);
+    QUICHE_CHECK(value);
+    return *value;
   }
   double GetDecimal() const {
-    QUICHE_CHECK_EQ(type_, kDecimalType);
-    return decimal_value_;
+    const auto* value = absl::get_if<double>(&value_);
+    QUICHE_CHECK(value);
+    return *value;
   }
   bool GetBoolean() const {
-    QUICHE_CHECK_EQ(type_, kBooleanType);
-    return boolean_value_;
+    const auto* value = absl::get_if<bool>(&value_);
+    QUICHE_CHECK(value);
+    return *value;
   }
   // TODO(iclelland): Split up accessors for String, Token and Byte Sequence.
   const std::string& GetString() const {
-    QUICHE_CHECK(type_ == kStringType || type_ == kTokenType ||
-                 type_ == kByteSequenceType);
-    return string_value_;
+    struct Visitor {
+      const std::string* operator()(const absl::monostate&) { return nullptr; }
+      const std::string* operator()(const int64_t&) { return nullptr; }
+      const std::string* operator()(const double&) { return nullptr; }
+      const std::string* operator()(const std::string& value) { return &value; }
+      const std::string* operator()(const bool&) { return nullptr; }
+    };
+    const std::string* value = absl::visit(Visitor(), value_);
+    QUICHE_CHECK(value);
+    return *value;
   }
 
-  ItemType Type() const { return type_; }
+  ItemType Type() const { return static_cast<ItemType>(value_.index()); }
 
  private:
-  ItemType type_ = kNullType;
-  // TODO(iclelland): Make this class more memory-efficient, replacing the
-  // values here with a union or std::variant (when available).
-  int64_t integer_value_ = 0;
-  std::string string_value_;
-  double decimal_value_;
-  bool boolean_value_;
+  absl::variant<absl::monostate, int64_t, double, std::string, std::string,
+                std::string, bool>
+      value_;
 };
 
 // Holds a ParameterizedIdentifier (draft 9 only). The contained Item must be a

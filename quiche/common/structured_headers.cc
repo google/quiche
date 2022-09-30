@@ -720,37 +720,30 @@ class StructuredHeaderSerializer {
 }  // namespace
 
 Item::Item() {}
-Item::Item(const std::string& value, Item::ItemType type)
-    : type_(type), string_value_(value) {}
-Item::Item(std::string&& value, Item::ItemType type)
-    : type_(type), string_value_(std::move(value)) {
-  QUICHE_CHECK(type_ == kStringType || type_ == kTokenType ||
-               type_ == kByteSequenceType);
+Item::Item(std::string value, Item::ItemType type) {
+  switch (type) {
+    case kStringType:
+      value_.emplace<kStringType>(std::move(value));
+      break;
+    case kTokenType:
+      value_.emplace<kTokenType>(std::move(value));
+      break;
+    case kByteSequenceType:
+      value_.emplace<kByteSequenceType>(std::move(value));
+      break;
+    default:
+      QUICHE_CHECK(false);
+      break;
+  }
 }
 Item::Item(const char* value, Item::ItemType type)
     : Item(std::string(value), type) {}
-Item::Item(int64_t value) : type_(kIntegerType), integer_value_(value) {}
-Item::Item(double value) : type_(kDecimalType), decimal_value_(value) {}
-Item::Item(bool value) : type_(kBooleanType), boolean_value_(value) {}
+Item::Item(int64_t value) : value_(value) {}
+Item::Item(double value) : value_(value) {}
+Item::Item(bool value) : value_(value) {}
 
 bool operator==(const Item& lhs, const Item& rhs) {
-  if (lhs.type_ != rhs.type_) return false;
-  switch (lhs.type_) {
-    case Item::kNullType:
-      return true;
-    case Item::kStringType:
-    case Item::kTokenType:
-    case Item::kByteSequenceType:
-      return lhs.string_value_ == rhs.string_value_;
-    case Item::kIntegerType:
-      return lhs.integer_value_ == rhs.integer_value_;
-    case Item::kDecimalType:
-      return lhs.decimal_value_ == rhs.decimal_value_;
-    case Item::kBooleanType:
-      return lhs.boolean_value_ == rhs.boolean_value_;
-  }
-  QUICHE_NOTREACHED();
-  return false;
+  return lhs.value_ == rhs.value_;
 }
 
 ParameterizedItem::ParameterizedItem(const ParameterizedItem&) = default;
