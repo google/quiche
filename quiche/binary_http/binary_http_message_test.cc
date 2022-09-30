@@ -16,9 +16,9 @@ namespace quiche {
 namespace {
 
 std::string WordToBytes(uint32_t word) {
-  return std::string(
-      {static_cast<uint8_t>(word >> 24), static_cast<uint8_t>(word >> 16),
-       static_cast<uint8_t>(word >> 8), static_cast<uint8_t>(word)});
+  return std::string({static_cast<char>(word >> 24),
+                      static_cast<char>(word >> 16),
+                      static_cast<char>(word >> 8), static_cast<char>(word)});
 }
 
 template <class T>
