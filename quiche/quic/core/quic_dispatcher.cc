@@ -1090,6 +1090,7 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
       << ") due to error: " << QuicErrorCodeToString(error)
       << ", with details: " << error_details;
 
+  const QuicSession* session = it->second.get();
   QuicConnection* connection = it->second->connection();
   // Set up alarm to fire immediately to bring destruction of this session
   // out of current call stack.
