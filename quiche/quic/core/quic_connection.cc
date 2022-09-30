@@ -214,6 +214,20 @@ bool PacketCanReplaceServerConnectionId(const QuicPacketHeader& header,
           header.long_packet_type == RETRY);
 }
 
+// Due to a lost Initial packet, a Handshake packet might use a new connection
+// ID we haven't seen before. We shouldn't update the connection ID based on
+// this, but should buffer the packet in case it works out.
+bool NewServerConnectionIdMightBeValid(const QuicPacketHeader& header,
+                                       Perspective perspective,
+                                       bool connection_id_already_replaced) {
+  return perspective == Perspective::IS_CLIENT &&
+         header.form == IETF_QUIC_LONG_HEADER_PACKET &&
+         header.version.IsKnown() &&
+         header.version.AllowsVariableLengthConnectionIds() &&
+         header.long_packet_type == HANDSHAKE &&
+         !connection_id_already_replaced;
+}
+
 CongestionControlType GetDefaultCongestionControlType() {
   if (GetQuicReloadableFlag(quic_default_to_bbr_v2)) {
     return kBBRv2;
@@ -1012,6 +1026,11 @@ bool QuicConnection::ValidateServerConnectionId(
       perspective_ == Perspective::IS_SERVER &&
       self_issued_cid_manager_ != nullptr &&
       self_issued_cid_manager_->IsConnectionIdInUse(server_connection_id)) {
+    return true;
+  }
+
+  if (NewServerConnectionIdMightBeValid(
+          header, perspective_, server_connection_id_replaced_by_initial_)) {
     return true;
   }
 
