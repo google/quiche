@@ -292,6 +292,10 @@ size_t QuicSpdyStream::WriteHeaders(
     }
   }
 
+  if (connect_ip_visitor_ != nullptr) {
+    connect_ip_visitor_->OnHeadersWritten();
+  }
+
   return bytes_written;
 }
 
@@ -1361,6 +1365,24 @@ bool QuicSpdyStream::OnCapsule(const Capsule& capsule) {
           capsule.close_web_transport_session_capsule().error_code,
           capsule.close_web_transport_session_capsule().error_message);
     } break;
+    case CapsuleType::ADDRESS_ASSIGN:
+      if (connect_ip_visitor_ == nullptr) {
+        return true;
+      }
+      return connect_ip_visitor_->OnAddressAssignCapsule(
+          capsule.address_assign_capsule());
+    case CapsuleType::ADDRESS_REQUEST:
+      if (connect_ip_visitor_ == nullptr) {
+        return true;
+      }
+      return connect_ip_visitor_->OnAddressRequestCapsule(
+          capsule.address_request_capsule());
+    case CapsuleType::ROUTE_ADVERTISEMENT:
+      if (connect_ip_visitor_ == nullptr) {
+        return true;
+      }
+      return connect_ip_visitor_->OnRouteAdvertisementCapsule(
+          capsule.route_advertisement_capsule());
   }
   return true;
 }
@@ -1439,6 +1461,43 @@ void QuicSpdyStream::ReplaceHttp3DatagramVisitor(
       << "Attempted to move missing datagram visitor on HTTP/3 stream ID "
       << id();
   datagram_visitor_ = visitor;
+}
+
+void QuicSpdyStream::RegisterConnectIpVisitor(ConnectIpVisitor* visitor) {
+  if (visitor == nullptr) {
+    QUIC_BUG(null connect - ip visitor)
+        << ENDPOINT << "Null connect-ip visitor for stream ID " << id();
+    return;
+  }
+  QUIC_DLOG(INFO) << ENDPOINT
+                  << "Registering CONNECT-IP visitor with stream ID " << id();
+
+  if (connect_ip_visitor_ != nullptr) {
+    QUIC_BUG(connect - ip double registration)
+        << ENDPOINT << "Attempted to doubly register CONNECT-IP with stream ID "
+        << id();
+    return;
+  }
+  connect_ip_visitor_ = visitor;
+}
+
+void QuicSpdyStream::UnregisterConnectIpVisitor() {
+  if (connect_ip_visitor_ == nullptr) {
+    QUIC_BUG(connect - ip visitor empty during unregistration)
+        << ENDPOINT << "Cannot unregister CONNECT-IP visitor for stream ID "
+        << id();
+    return;
+  }
+  QUIC_DLOG(INFO) << ENDPOINT
+                  << "Unregistering CONNECT-IP visitor for stream ID " << id();
+  connect_ip_visitor_ = nullptr;
+}
+
+void QuicSpdyStream::ReplaceConnectIpVisitor(ConnectIpVisitor* visitor) {
+  QUIC_BUG_IF(connect - ip unknown move, connect_ip_visitor_ == nullptr)
+      << "Attempted to move missing CONNECT-IP visitor on HTTP/3 stream ID "
+      << id();
+  connect_ip_visitor_ = visitor;
 }
 
 void QuicSpdyStream::SetMaxDatagramTimeInQueue(

@@ -5,6 +5,7 @@
 #ifndef QUICHE_COMMON_QUICHE_IP_ADDRESS_H_
 #define QUICHE_COMMON_QUICHE_IP_ADDRESS_H_
 
+#include <cstdint>
 #if defined(_WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -90,6 +91,37 @@ class QUICHE_EXPORT_PRIVATE QuicheIpAddress {
 inline std::ostream& operator<<(std::ostream& os,
                                 const QuicheIpAddress address) {
   os << address.ToString();
+  return os;
+}
+
+// Represents an IP prefix, which is an IP address and a prefix length in bits.
+class QUICHE_EXPORT_PRIVATE QuicheIpPrefix {
+ public:
+  QuicheIpPrefix();
+  explicit QuicheIpPrefix(const QuicheIpAddress& address);
+  explicit QuicheIpPrefix(const QuicheIpAddress& address,
+                          uint8_t prefix_length);
+
+  QuicheIpAddress address() const { return address_; }
+  uint8_t prefix_length() const { return prefix_length_; }
+  // Human-readable string representation of the prefix suitable for logging.
+  std::string ToString() const;
+
+  QuicheIpPrefix(const QuicheIpPrefix& other) = default;
+  QuicheIpPrefix& operator=(const QuicheIpPrefix& other) = default;
+  QuicheIpPrefix& operator=(QuicheIpPrefix&& other) = default;
+  QUICHE_EXPORT_PRIVATE friend bool operator==(const QuicheIpPrefix& lhs,
+                                               const QuicheIpPrefix& rhs);
+  QUICHE_EXPORT_PRIVATE friend bool operator!=(const QuicheIpPrefix& lhs,
+                                               const QuicheIpPrefix& rhs);
+
+ private:
+  QuicheIpAddress address_;
+  uint8_t prefix_length_;
+};
+
+inline std::ostream& operator<<(std::ostream& os, const QuicheIpPrefix prefix) {
+  os << prefix.ToString();
   return os;
 }
 

@@ -2100,6 +2100,46 @@ class SavingHttp3DatagramVisitor : public QuicSpdyStream::Http3DatagramVisitor {
   std::vector<SavedHttp3Datagram> received_h3_datagrams_;
 };
 
+// Implementation of ConnectIpVisitor which saves all received capsules.
+class SavingConnectIpVisitor : public QuicSpdyStream::ConnectIpVisitor {
+ public:
+  const std::vector<AddressAssignCapsule>& received_address_assign_capsules()
+      const {
+    return received_address_assign_capsules_;
+  }
+  const std::vector<AddressRequestCapsule>& received_address_request_capsules()
+      const {
+    return received_address_request_capsules_;
+  }
+  const std::vector<RouteAdvertisementCapsule>&
+  received_route_advertisement_capsules() const {
+    return received_route_advertisement_capsules_;
+  }
+  bool headers_written() const { return headers_written_; }
+
+  // From QuicSpdyStream::ConnectIpVisitor.
+  bool OnAddressAssignCapsule(const AddressAssignCapsule& capsule) override {
+    received_address_assign_capsules_.push_back(capsule);
+    return true;
+  }
+  bool OnAddressRequestCapsule(const AddressRequestCapsule& capsule) override {
+    received_address_request_capsules_.push_back(capsule);
+    return true;
+  }
+  bool OnRouteAdvertisementCapsule(
+      const RouteAdvertisementCapsule& capsule) override {
+    received_route_advertisement_capsules_.push_back(capsule);
+    return true;
+  }
+  void OnHeadersWritten() override { headers_written_ = true; }
+
+ private:
+  std::vector<AddressAssignCapsule> received_address_assign_capsules_;
+  std::vector<AddressRequestCapsule> received_address_request_capsules_;
+  std::vector<RouteAdvertisementCapsule> received_route_advertisement_capsules_;
+  bool headers_written_ = false;
+};
+
 inline std::string EscapeTestParamName(absl::string_view name) {
   std::string result(name);
   // Escape all characters that are not allowed by gtest ([a-zA-Z0-9_]).

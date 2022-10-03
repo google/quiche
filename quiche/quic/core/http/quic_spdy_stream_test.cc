@@ -15,6 +15,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
+#include "quiche/quic/core/http/capsule.h"
 #include "quiche/quic/core/http/http_encoder.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/spdy_utils.h"
@@ -36,6 +37,7 @@
 #include "quiche/quic/test_tools/quic_spdy_stream_peer.h"
 #include "quiche/quic/test_tools/quic_stream_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/quiche_ip_address.h"
 #include "quiche/common/quiche_mem_slice_storage.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
@@ -3159,6 +3161,64 @@ TEST_P(QuicSpdyStreamTest, GetMaxDatagramSize) {
   QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
                                               HttpDatagramSupport::kDraft09);
   EXPECT_GT(stream_->GetMaxDatagramSize(), 512u);
+}
+
+TEST_P(QuicSpdyStreamTest, Capsules) {
+  if (!UsesHttp3()) {
+    return;
+  }
+  Initialize(kShouldProcessData);
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kDraft09);
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kDraft09);
+  SavingHttp3DatagramVisitor h3_datagram_visitor;
+  stream_->RegisterHttp3DatagramVisitor(&h3_datagram_visitor);
+  SavingConnectIpVisitor connect_ip_visitor;
+  stream_->RegisterConnectIpVisitor(&connect_ip_visitor);
+  headers_[":method"] = "CONNECT";
+  headers_[":protocol"] = "fake-capsule-protocol";
+  ProcessHeaders(/*fin=*/false, headers_);
+  // Datagram capsule.
+  std::string http_datagram_payload = {1, 2, 3, 4, 5, 6};
+  stream_->OnCapsule(Capsule::DatagramWithoutContext(http_datagram_payload));
+  EXPECT_THAT(h3_datagram_visitor.received_h3_datagrams(),
+              ElementsAre(SavingHttp3DatagramVisitor::SavedHttp3Datagram{
+                  stream_->id(), http_datagram_payload}));
+  // Address assign capsule.
+  PrefixWithId ip_prefix_with_id;
+  ip_prefix_with_id.request_id = 1;
+  quiche::QuicheIpAddress ip_address;
+  ip_address.FromString("::");
+  ip_prefix_with_id.ip_prefix =
+      quiche::QuicheIpPrefix(ip_address, /*prefix_length=*/96);
+  Capsule address_assign_capsule = Capsule::AddressAssign();
+  address_assign_capsule.address_assign_capsule().assigned_addresses.push_back(
+      ip_prefix_with_id);
+  stream_->OnCapsule(address_assign_capsule);
+  EXPECT_THAT(connect_ip_visitor.received_address_assign_capsules(),
+              ElementsAre(address_assign_capsule.address_assign_capsule()));
+  // Address request capsule.
+  Capsule address_request_capsule = Capsule::AddressRequest();
+  address_request_capsule.address_request_capsule()
+      .requested_addresses.push_back(ip_prefix_with_id);
+  stream_->OnCapsule(address_request_capsule);
+  EXPECT_THAT(connect_ip_visitor.received_address_request_capsules(),
+              ElementsAre(address_request_capsule.address_request_capsule()));
+  // Route advertisement capsule.
+  Capsule route_advertisement_capsule = Capsule::RouteAdvertisement();
+  IpAddressRange ip_address_range;
+  ip_address_range.start_ip_address.FromString("192.0.2.24");
+  ip_address_range.end_ip_address.FromString("192.0.2.42");
+  ip_address_range.ip_protocol = 0;
+  route_advertisement_capsule.route_advertisement_capsule()
+      .ip_address_ranges.push_back(ip_address_range);
+  stream_->OnCapsule(route_advertisement_capsule);
+  EXPECT_THAT(
+      connect_ip_visitor.received_route_advertisement_capsules(),
+      ElementsAre(route_advertisement_capsule.route_advertisement_capsule()));
+  // Cleanup.
+  stream_->UnregisterHttp3DatagramVisitor();
+  stream_->UnregisterConnectIpVisitor();
 }
 
 TEST_P(QuicSpdyStreamTest,

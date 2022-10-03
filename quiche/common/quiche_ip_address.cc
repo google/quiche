@@ -9,6 +9,7 @@
 #include <cstring>
 #include <string>
 
+#include "absl/strings/str_cat.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_ip_address_family.h"
@@ -221,6 +222,37 @@ in_addr QuicheIpAddress::GetIPv4() const {
 in6_addr QuicheIpAddress::GetIPv6() const {
   QUICHE_DCHECK(IsIPv6());
   return address_.v6;
+}
+
+QuicheIpPrefix::QuicheIpPrefix() : prefix_length_(0) {}
+QuicheIpPrefix::QuicheIpPrefix(const QuicheIpAddress& address)
+    : address_(address) {
+  if (address_.IsIPv6()) {
+    prefix_length_ = QuicheIpAddress::kIPv6AddressSize * 8;
+  } else if (address_.IsIPv4()) {
+    prefix_length_ = QuicheIpAddress::kIPv4AddressSize * 8;
+  } else {
+    prefix_length_ = 0;
+  }
+}
+QuicheIpPrefix::QuicheIpPrefix(const QuicheIpAddress& address,
+                               uint8_t prefix_length)
+    : address_(address), prefix_length_(prefix_length) {
+  QUICHE_DCHECK(prefix_length <= QuicheIpPrefix(address).prefix_length())
+      << "prefix_length cannot be longer than the size of the IP address";
+}
+
+std::string QuicheIpPrefix::ToString() const {
+  return absl::StrCat(address_.ToString(), "/", prefix_length_);
+}
+
+bool operator==(const QuicheIpPrefix& lhs, const QuicheIpPrefix& rhs) {
+  return lhs.address_ == rhs.address_ &&
+         lhs.prefix_length_ == rhs.prefix_length_;
+}
+
+bool operator!=(const QuicheIpPrefix& lhs, const QuicheIpPrefix& rhs) {
+  return !(lhs == rhs);
 }
 
 }  // namespace quiche

@@ -279,6 +279,31 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Mainly meant to be used by the visitors' move operators.
   void ReplaceHttp3DatagramVisitor(Http3DatagramVisitor* visitor);
 
+  class QUIC_EXPORT_PRIVATE ConnectIpVisitor {
+   public:
+    virtual ~ConnectIpVisitor() {}
+
+    virtual bool OnAddressAssignCapsule(
+        const AddressAssignCapsule& capsule) = 0;
+    virtual bool OnAddressRequestCapsule(
+        const AddressRequestCapsule& capsule) = 0;
+    virtual bool OnRouteAdvertisementCapsule(
+        const RouteAdvertisementCapsule& capsule) = 0;
+    virtual void OnHeadersWritten() = 0;
+  };
+
+  // Registers |visitor| to receive CONNECT-IP capsules. |visitor| must be
+  // valid until a corresponding call to UnregisterConnectIpVisitor.
+  void RegisterConnectIpVisitor(ConnectIpVisitor* visitor);
+
+  // Unregisters a CONNECT-IP visitor. Must only be called after a call to
+  // RegisterConnectIpVisitor.
+  void UnregisterConnectIpVisitor();
+
+  // Replaces the current CONNECT-IP visitor with a different visitor.
+  // Mainly meant to be used by the visitors' move operators.
+  void ReplaceConnectIpVisitor(ConnectIpVisitor* visitor);
+
   // Sets max datagram time in queue.
   void SetMaxDatagramTimeInQueue(QuicTime::Delta max_time_in_queue);
 
@@ -449,6 +474,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   // HTTP/3 Datagram support.
   Http3DatagramVisitor* datagram_visitor_ = nullptr;
+  // CONNECT-IP support.
+  ConnectIpVisitor* connect_ip_visitor_ = nullptr;
 };
 
 }  // namespace quic
