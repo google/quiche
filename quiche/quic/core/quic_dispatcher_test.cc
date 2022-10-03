@@ -177,6 +177,11 @@ class MockServerConnection : public MockQuicConnection {
     active_connection_ids_.push_back(id);
   }
 
+  void UnconditionallyAddNewConnectionIdForTest(QuicConnectionId id) {
+    dispatcher_->TryAddNewConnectionId(active_connection_ids_.back(), id);
+    active_connection_ids_.push_back(id);
+  }
+
   void RetireConnectionId(QuicConnectionId id) {
     auto it = std::find(active_connection_ids_.begin(),
                         active_connection_ids_.end(), id);
