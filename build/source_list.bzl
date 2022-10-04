@@ -946,11 +946,6 @@ quiche_test_support_srcs = [
 io_tool_support_hdrs = [
     "common/platform/api/quiche_event_loop.h",
     "common/platform/api/quiche_udp_socket_platform_api.h",
-    "quic/core/batch_writer/quic_batch_writer_base.h",
-    "quic/core/batch_writer/quic_batch_writer_buffer.h",
-    "quic/core/batch_writer/quic_batch_writer_test.h",
-    "quic/core/batch_writer/quic_gso_batch_writer.h",
-    "quic/core/batch_writer/quic_sendmmsg_batch_writer.h",
     "quic/core/io/event_loop_connecting_client_socket.h",
     "quic/core/io/event_loop_socket_factory.h",
     "quic/core/io/quic_default_event_loop.h",
@@ -958,7 +953,6 @@ io_tool_support_hdrs = [
     "quic/core/io/quic_poll_event_loop.h",
     "quic/core/io/socket.h",
     "quic/core/quic_default_packet_writer.h",
-    "quic/core/quic_linux_socket_utils.h",
     "quic/core/quic_packet_reader.h",
     "quic/core/quic_syscall_wrapper.h",
     "quic/core/quic_udp_socket.h",
@@ -978,17 +972,12 @@ io_tool_support_hdrs = [
     "quic/tools/quic_server.h",
 ]
 io_tool_support_srcs = [
-    "quic/core/batch_writer/quic_batch_writer_base.cc",
-    "quic/core/batch_writer/quic_batch_writer_buffer.cc",
-    "quic/core/batch_writer/quic_gso_batch_writer.cc",
-    "quic/core/batch_writer/quic_sendmmsg_batch_writer.cc",
     "quic/core/io/event_loop_connecting_client_socket.cc",
     "quic/core/io/event_loop_socket_factory.cc",
     "quic/core/io/quic_default_event_loop.cc",
     "quic/core/io/quic_poll_event_loop.cc",
     "quic/core/io/socket_posix.cc",
     "quic/core/quic_default_packet_writer.cc",
-    "quic/core/quic_linux_socket_utils.cc",
     "quic/core/quic_packet_reader.cc",
     "quic/core/quic_syscall_wrapper.cc",
     "quic/core/quic_udp_socket_posix.cc",
@@ -1283,10 +1272,6 @@ io_tests_hdrs = [
 
 ]
 io_tests_srcs = [
-    "quic/core/batch_writer/quic_batch_writer_buffer_test.cc",
-    "quic/core/batch_writer/quic_batch_writer_test.cc",
-    "quic/core/batch_writer/quic_gso_batch_writer_test.cc",
-    "quic/core/batch_writer/quic_sendmmsg_batch_writer_test.cc",
     "quic/core/chlo_extractor_test.cc",
     "quic/core/http/end_to_end_test.cc",
     "quic/core/http/quic_spdy_client_session_test.cc",
@@ -1296,7 +1281,6 @@ io_tests_srcs = [
     "quic/core/io/quic_all_event_loops_test.cc",
     "quic/core/io/quic_poll_event_loop_test.cc",
     "quic/core/io/socket_test.cc",
-    "quic/core/quic_linux_socket_utils_test.cc",
     "quic/tools/quic_default_client_test.cc",
     "quic/tools/quic_server_test.cc",
     "quic/tools/quic_simple_server_session_test.cc",
@@ -1540,4 +1524,29 @@ libevent_hdrs = [
 libevent_srcs = [
     "quic/bindings/quic_libevent.cc",
     "quic/bindings/quic_libevent_test.cc",
+]
+linux_only_hdrs = [
+    "quic/core/batch_writer/quic_batch_writer_base.h",
+    "quic/core/batch_writer/quic_batch_writer_buffer.h",
+    "quic/core/batch_writer/quic_batch_writer_test.h",
+    "quic/core/batch_writer/quic_gso_batch_writer.h",
+    "quic/core/batch_writer/quic_sendmmsg_batch_writer.h",
+    "quic/core/quic_linux_socket_utils.h",
+]
+linux_only_srcs = [
+    "quic/core/batch_writer/quic_batch_writer_base.cc",
+    "quic/core/batch_writer/quic_batch_writer_buffer.cc",
+    "quic/core/batch_writer/quic_gso_batch_writer.cc",
+    "quic/core/batch_writer/quic_sendmmsg_batch_writer.cc",
+    "quic/core/quic_linux_socket_utils.cc",
+]
+linux_only_tests_hdrs = [
+
+]
+linux_only_tests_srcs = [
+    "quic/core/batch_writer/quic_batch_writer_buffer_test.cc",
+    "quic/core/batch_writer/quic_batch_writer_test.cc",
+    "quic/core/batch_writer/quic_gso_batch_writer_test.cc",
+    "quic/core/batch_writer/quic_sendmmsg_batch_writer_test.cc",
+    "quic/core/quic_linux_socket_utils_test.cc",
 ]
