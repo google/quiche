@@ -300,7 +300,9 @@ WebTransportHttp3UnidirectionalStream::WebTransportHttp3UnidirectionalStream(
     : QuicStream(pending, session, /*is_static=*/false),
       session_(session),
       adapter_(session, this, sequencer()),
-      needs_to_send_preamble_(false) {}
+      needs_to_send_preamble_(false) {
+  sequencer()->set_level_triggered(true);
+}
 
 WebTransportHttp3UnidirectionalStream::WebTransportHttp3UnidirectionalStream(
     QuicStreamId id, QuicSpdySession* session, WebTransportSessionId session_id)
