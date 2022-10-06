@@ -15747,15 +15747,15 @@ TEST_P(QuicConnectionTest, OriginalConnectionId) {
   }
 }
 
-ACTION_P(InstallHandshakeKeys, conn) {
-  conn->SetEncrypter(ENCRYPTION_HANDSHAKE,
-                     std::make_unique<TaggingEncrypter>(0x02));
-  conn->InstallDecrypter(ENCRYPTION_HANDSHAKE,
-                         std::make_unique<StrictTaggingDecrypter>(0x02));
-  conn->SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+ACTION_P2(InstallKeys, conn, level) {
+  uint8_t crypto_input = (level == ENCRYPTION_FORWARD_SECURE) ? 0x03 : 0x02;
+  conn->SetEncrypter(level, std::make_unique<TaggingEncrypter>(crypto_input));
+  conn->InstallDecrypter(
+      level, std::make_unique<StrictTaggingDecrypter>(crypto_input));
+  conn->SetDefaultEncryptionLevel(level);
 }
 
-TEST_P(QuicConnectionTest, ServerConnectionIdChangeWithLostInitial) {
+TEST_P(QuicConnectionTest, ServerConnectionIdChangeWithLateInitial) {
   if (!connection_.version().HasIetfQuicFrames()) {
     return;
   }
@@ -15764,34 +15764,42 @@ TEST_P(QuicConnectionTest, ServerConnectionIdChangeWithLostInitial) {
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _)).Times(1);
   QuicConfig config;
   connection_.SetFromConfig(config);
+  connection_.RemoveEncrypter(ENCRYPTION_FORWARD_SECURE);
+  connection_.RemoveDecrypter(ENCRYPTION_FORWARD_SECURE);
 
   // Send Client Initial.
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
   connection_.SendCryptoStreamData();
 
   EXPECT_EQ(1u, writer_->packets_write_attempts());
-  // Server Handshake Packet Arrives with new connection ID.
+  // Server Handshake packet with new connection ID is buffered.
   QuicConnectionId old_id = connection_id_;
   connection_id_ = TestConnectionId(2);
   peer_creator_.SetEncrypter(ENCRYPTION_HANDSHAKE,
                              std::make_unique<TaggingEncrypter>(0x02));
   ProcessCryptoPacketAtLevel(0, ENCRYPTION_HANDSHAKE);
-  // Packet is buffered.
   EXPECT_EQ(QuicConnectionPeer::NumUndecryptablePackets(&connection_), 1u);
   EXPECT_EQ(connection_.connection_id(), old_id);
+
+  // Server 1-RTT Packet is buffered.
+  peer_creator_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                             std::make_unique<TaggingEncrypter>(0x03));
+  ProcessDataPacket(0);
+  EXPECT_EQ(QuicConnectionPeer::NumUndecryptablePackets(&connection_), 2u);
 
   // Pretend the server Initial packet will yield the Handshake keys.
   EXPECT_CALL(visitor_, OnCryptoFrame(_))
       .Times(2)
-      .WillOnce(InstallHandshakeKeys(&connection_))
-      .WillOnce(Return());
+      .WillOnce(InstallKeys(&connection_, ENCRYPTION_HANDSHAKE))
+      .WillOnce(InstallKeys(&connection_, ENCRYPTION_FORWARD_SECURE));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessCryptoPacketAtLevel(0, ENCRYPTION_INITIAL);
   // Two packets processed, connection ID changed.
   EXPECT_EQ(QuicConnectionPeer::NumUndecryptablePackets(&connection_), 0u);
   EXPECT_EQ(connection_.connection_id(), connection_id_);
 }
 
-TEST_P(QuicConnectionTest, ServerConnectionIdChangeTwiceWithLostInitial) {
+TEST_P(QuicConnectionTest, ServerConnectionIdChangeTwiceWithLateInitial) {
   if (!connection_.version().HasIetfQuicFrames()) {
     return;
   }
@@ -15818,7 +15826,7 @@ TEST_P(QuicConnectionTest, ServerConnectionIdChangeTwiceWithLostInitial) {
 
   // Pretend the server Initial packet will yield the Handshake keys.
   EXPECT_CALL(visitor_, OnCryptoFrame(_))
-      .WillOnce(InstallHandshakeKeys(&connection_));
+      .WillOnce(InstallKeys(&connection_, ENCRYPTION_HANDSHAKE));
   connection_id_ = TestConnectionId(1);
   ProcessCryptoPacketAtLevel(0, ENCRYPTION_INITIAL);
   // Handshake packet discarded because there's a different connection ID.
