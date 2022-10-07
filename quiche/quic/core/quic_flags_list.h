@@ -33,6 +33,8 @@ QUIC_FLAG(quic_restart_flag_quic_support_release_time_for_gso, false)
 QUIC_FLAG(quic_reloadable_flag_quic_can_send_ack_frequency, true)
 // If true, allow client to enable BBRv2 on server via connection option \'B2ON\'.
 QUIC_FLAG(quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, true)
+// If true, combine two WriteOrBufferData to one while writing headers.
+QUIC_FLAG(quic_reloadable_flag_quic_one_write_for_headers, true)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, disable QUIC version Q043.
