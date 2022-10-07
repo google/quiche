@@ -1610,6 +1610,11 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
     QUIC_LOG(WARNING) << "Server config message is missing SCID";
     return nullptr;
   }
+  if (GetQuicRestartFlag(quic_return_error_on_empty_scid) && scid.empty()) {
+    QUIC_RESTART_FLAG_COUNT(quic_return_error_on_empty_scid);
+    QUIC_LOG(WARNING) << "Server config message contains an empty SCID";
+    return nullptr;
+  }
   QUICHE_DCHECK(!scid.empty());
   config->id = std::string(scid);
 
