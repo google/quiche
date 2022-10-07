@@ -3499,7 +3499,6 @@ TEST_P(EndToEndTest, ConnectionMigrationClientPortChanged) {
 }
 
 TEST_P(EndToEndTest, NegotiatedInitialCongestionWindow) {
-  SetQuicReloadableFlag(quic_unified_iw_options, true);
   client_extra_copts_.push_back(kIW03);
 
   ASSERT_TRUE(Initialize());

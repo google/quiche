@@ -545,7 +545,6 @@ TEST_F(TcpCubicSenderBytesTest, MultipleLossesInOneWindow) {
 }
 
 TEST_F(TcpCubicSenderBytesTest, ConfigureMaxInitialWindow) {
-  SetQuicReloadableFlag(quic_unified_iw_options, false);
   QuicConfig config;
 
   // Verify that kCOPT: kIW10 forces the congestion window to the default of 10.

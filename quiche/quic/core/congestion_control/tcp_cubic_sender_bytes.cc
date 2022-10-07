@@ -55,47 +55,18 @@ TcpCubicSenderBytes::~TcpCubicSenderBytes() {}
 
 void TcpCubicSenderBytes::SetFromConfig(const QuicConfig& config,
                                         Perspective perspective) {
-  if (perspective == Perspective::IS_SERVER) {
-    if (!GetQuicReloadableFlag(quic_unified_iw_options)) {
-      if (config.HasReceivedConnectionOptions() &&
-          ContainsQuicTag(config.ReceivedConnectionOptions(), kIW03)) {
-        // Initial window experiment.
-        SetInitialCongestionWindowInPackets(3);
-      }
-      if (config.HasReceivedConnectionOptions() &&
-          ContainsQuicTag(config.ReceivedConnectionOptions(), kIW10)) {
-        // Initial window experiment.
-        SetInitialCongestionWindowInPackets(10);
-      }
-      if (config.HasReceivedConnectionOptions() &&
-          ContainsQuicTag(config.ReceivedConnectionOptions(), kIW20)) {
-        // Initial window experiment.
-        SetInitialCongestionWindowInPackets(20);
-      }
-      if (config.HasReceivedConnectionOptions() &&
-          ContainsQuicTag(config.ReceivedConnectionOptions(), kIW50)) {
-        // Initial window experiment.
-        SetInitialCongestionWindowInPackets(50);
-      }
-      if (config.HasReceivedConnectionOptions() &&
-          ContainsQuicTag(config.ReceivedConnectionOptions(), kMIN1)) {
-        // Min CWND experiment.
-        SetMinCongestionWindowInPackets(1);
-      }
-    }
-    if (config.HasReceivedConnectionOptions() &&
-        ContainsQuicTag(config.ReceivedConnectionOptions(), kMIN4)) {
+  if (perspective == Perspective::IS_SERVER &&
+      config.HasReceivedConnectionOptions()) {
+    if (ContainsQuicTag(config.ReceivedConnectionOptions(), kMIN4)) {
       // Min CWND of 4 experiment.
       min4_mode_ = true;
       SetMinCongestionWindowInPackets(1);
     }
-    if (config.HasReceivedConnectionOptions() &&
-        ContainsQuicTag(config.ReceivedConnectionOptions(), kSSLR)) {
+    if (ContainsQuicTag(config.ReceivedConnectionOptions(), kSSLR)) {
       // Slow Start Fast Exit experiment.
       slow_start_large_reduction_ = true;
     }
-    if (config.HasReceivedConnectionOptions() &&
-        ContainsQuicTag(config.ReceivedConnectionOptions(), kNPRR)) {
+    if (ContainsQuicTag(config.ReceivedConnectionOptions(), kNPRR)) {
       // Use unity pacing instead of PRR.
       no_prr_ = true;
     }

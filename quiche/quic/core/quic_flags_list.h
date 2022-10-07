@@ -87,8 +87,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_connection_uses_abstract_connection_id_gener
 QUIC_FLAG(quic_restart_flag_quic_abstract_connection_id_generator, true)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
-// When true, set the initial congestion control window from connection options in QuicSentPacketManager rather than TcpCubicSenderBytes.
-QUIC_FLAG(quic_reloadable_flag_quic_unified_iw_options, true)
 // When true, support draft-ietf-quic-v2-01
 QUIC_FLAG(quic_reloadable_flag_quic_enable_version_2_draft_01, false)
 // When true, the BBR4 copt sets the extra_acked window to 20 RTTs and BBR5 sets it to 40 RTTs.
