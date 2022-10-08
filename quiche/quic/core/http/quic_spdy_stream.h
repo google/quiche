@@ -254,8 +254,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   bool OnCapsule(const Capsule& capsule) override;
   void OnCapsuleParseFailure(const std::string& error_message) override;
 
-  // Sends an HTTP/3 datagram. The stream ID is not part of |payload|.
-  MessageStatus SendHttp3Datagram(absl::string_view payload);
+  // Sends an HTTP/3 datagram. The stream ID is not part of |payload|. Virtual
+  // to allow mocking in tests.
+  virtual MessageStatus SendHttp3Datagram(absl::string_view payload);
 
   class QUIC_EXPORT_PRIVATE Http3DatagramVisitor {
    public:
