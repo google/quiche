@@ -4079,6 +4079,24 @@ TEST_P(EndToEndTest, ServerSendPublicResetWithDifferentConnectionId) {
   client_connection->set_debug_visitor(nullptr);
 }
 
+TEST_P(EndToEndTest, InduceStatelessResetFromServer) {
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  SetPacketLossPercentage(100);  // Block PEER_GOING_AWAY message from server.
+  StopServer(true);
+  server_writer_ = new PacketDroppingTestWriter();
+  StartServer();
+  SetPacketLossPercentage(0);
+  // The request should generate a public reset.
+  EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
+  EXPECT_TRUE(client_->response_headers()->empty());
+  EXPECT_THAT(client_->connection_error(), IsError(QUIC_PUBLIC_RESET));
+  EXPECT_FALSE(client_->connected());
+}
+
 // Send a public reset from the client for a different connection ID.
 // It should be ignored.
 TEST_P(EndToEndTest, ClientSendPublicResetWithDifferentConnectionId) {
