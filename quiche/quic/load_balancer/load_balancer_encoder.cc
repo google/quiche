@@ -44,9 +44,6 @@ bool WriteUint128(const absl::uint128 in, uint8_t size, QuicDataWriter &out) {
 
 }  // namespace
 
-constexpr uint8_t kLoadBalancerLengthMask = 0x3f;
-constexpr uint8_t kLoadBalancerUnroutableConfigId = 0xc0;
-
 absl::optional<LoadBalancerEncoder> LoadBalancerEncoder::Create(
     QuicRandom &random, LoadBalancerEncoderVisitorInterface *const visitor,
     const bool len_self_encoded, const uint8_t unroutable_connection_id_len) {
@@ -89,6 +86,7 @@ bool LoadBalancerEncoder::UpdateConfig(const LoadBalancerConfig &config,
   seed_ = absl::MakeUint128(random_.RandUint64(), random_.RandUint64()) %
           NumberOfNonces(config.nonce_len());
   num_nonces_left_ = NumberOfNonces(config.nonce_len());
+  connection_id_lengths_[config.config_id()] = config.total_len();
   return true;
 }
 
@@ -102,10 +100,10 @@ void LoadBalancerEncoder::DeleteConfig() {
 }
 
 QuicConnectionId LoadBalancerEncoder::GenerateConnectionId() {
-  uint8_t length = (config_.has_value()) ? config_->total_len()
-                                         : unroutable_connection_id_len_;
-  uint8_t config_id = config_.has_value() ? (config_->config_id() << 6)
+  uint8_t config_id = config_.has_value() ? config_->config_id()
                                           : kLoadBalancerUnroutableConfigId;
+  uint8_t shifted_config_id = config_id << 6;
+  uint8_t length = connection_id_lengths_[config_id];
   if (config_.has_value() != server_id_.has_value()) {
     QUIC_BUG(quic_bug_435375038_04)
         << "Existence of config and server_id are out of sync";
@@ -114,12 +112,12 @@ QuicConnectionId LoadBalancerEncoder::GenerateConnectionId() {
   uint8_t first_byte;
   // first byte
   if (len_self_encoded_) {
-    first_byte = config_id | (length - 1);
+    first_byte = shifted_config_id | (length - 1);
   } else {
     random_.RandBytes(static_cast<void *>(&first_byte), 1);
-    first_byte = config_id | (first_byte & kLoadBalancerLengthMask);
+    first_byte = shifted_config_id | (first_byte & kLoadBalancerLengthMask);
   }
-  if (config_id == kLoadBalancerUnroutableConfigId) {
+  if (!config_.has_value()) {
     return MakeUnroutableConnectionId(first_byte);
   }
   QuicConnectionId id;
@@ -178,19 +176,27 @@ absl::optional<QuicConnectionId> LoadBalancerEncoder::MaybeReplaceConnectionId(
     const QuicConnectionId &original, const ParsedQuicVersion &version) {
   // Pre-IETF versions of QUIC can respond poorly to new connection IDs issued
   // during the handshake.
-  uint8_t needed_length = config_.has_value() ? config_->total_len()
-                                              : unroutable_connection_id_len_;
+  uint8_t needed_length = config_.has_value()
+                              ? config_->total_len()
+                              : connection_id_lengths_[kNumLoadBalancerConfigs];
   return (!version.HasIetfQuicFrames() && original.length() == needed_length)
              ? absl::optional<QuicConnectionId>()
              : GenerateConnectionId();
 }
 
+uint8_t LoadBalancerEncoder::ConnectionIdLength(uint8_t first_byte) const {
+  if (len_self_encoded()) {
+    return (first_byte &= kLoadBalancerLengthMask) + 1;
+  }
+  return connection_id_lengths_[first_byte >> 6];
+}
+
 QuicConnectionId LoadBalancerEncoder::MakeUnroutableConnectionId(
     uint8_t first_byte) {
   QuicConnectionId id;
-  id.set_length(unroutable_connection_id_len_);
+  id.set_length(connection_id_lengths_[kLoadBalancerUnroutableConfigId]);
   id.mutable_data()[0] = first_byte;
-  random_.RandBytes(&id.mutable_data()[1], unroutable_connection_id_len_ - 1);
+  random_.RandBytes(&id.mutable_data()[1], connection_id_lengths_[3] - 1);
   return id;
 }
 

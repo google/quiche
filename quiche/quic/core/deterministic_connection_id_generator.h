@@ -27,6 +27,9 @@ class QUIC_EXPORT_PRIVATE DeterministicConnectionIdGenerator
   absl::optional<QuicConnectionId> MaybeReplaceConnectionId(
       const QuicConnectionId& original,
       const ParsedQuicVersion& version) override;
+  uint8_t ConnectionIdLength(uint8_t /*first_byte*/) const override {
+    return expected_connection_id_length_;
+  }
 
  private:
   const uint8_t expected_connection_id_length_;

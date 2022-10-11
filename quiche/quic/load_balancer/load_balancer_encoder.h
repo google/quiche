@@ -18,6 +18,18 @@ class LoadBalancerEncoderPeer;
 
 // Default length of a 4-tuple connection ID.
 inline constexpr uint8_t kLoadBalancerUnroutableLen = 8;
+// When the encoder is self-encoding the connection ID length, these are the
+// bits of the first byte that do so.
+constexpr uint8_t kLoadBalancerLengthMask = 0x3f;
+// The bits of the connection ID first byte that encode the config ID.
+constexpr uint8_t kLoadBalancerConfigIdMask = 0xc0;
+// The config ID that means the connection ID does not contain routing
+// information.
+constexpr uint8_t kLoadBalancerUnroutableConfigId = kNumLoadBalancerConfigs;
+// The bits of the connection ID first byte that correspond to a connection ID
+// that does not contain routing information.
+constexpr uint8_t kLoadBalancerUnroutablePrefix =
+    kLoadBalancerUnroutableConfigId << 6;
 
 // Interface which receives notifications when the current config is updated.
 class QUIC_EXPORT_PRIVATE LoadBalancerEncoderVisitorInterface {
@@ -111,6 +123,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
   absl::optional<QuicConnectionId> MaybeReplaceConnectionId(
       const QuicConnectionId& original,
       const ParsedQuicVersion& version) override;
+  uint8_t ConnectionIdLength(uint8_t first_byte) const override;
 
  protected:
   LoadBalancerEncoder(QuicRandom& random,
@@ -119,8 +132,9 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
                       const uint8_t unroutable_connection_id_len)
       : random_(random),
         len_self_encoded_(len_self_encoded),
-        visitor_(visitor),
-        unroutable_connection_id_len_(unroutable_connection_id_len) {}
+        visitor_(visitor) {
+    std::fill_n(connection_id_lengths_, 4, unroutable_connection_id_len);
+  }
 
  private:
   friend class test::LoadBalancerEncoderPeer;
@@ -130,11 +144,11 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
   QuicRandom& random_;
   const bool len_self_encoded_;
   LoadBalancerEncoderVisitorInterface* const visitor_;
-  const uint8_t unroutable_connection_id_len_;
 
   absl::optional<LoadBalancerConfig> config_;
   absl::uint128 seed_, num_nonces_left_ = 0;
   absl::optional<LoadBalancerServerId> server_id_;
+  uint8_t connection_id_lengths_[kNumLoadBalancerConfigs + 1];
 };
 
 }  // namespace quic

@@ -20,6 +20,9 @@ class MockConnectionIdGenerator : public quic::ConnectionIdGeneratorInterface {
               (const quic::QuicConnectionId& original,
                const quic::ParsedQuicVersion& version),
               (override));
+
+  MOCK_METHOD(uint8_t, ConnectionIdLength, (uint8_t first_byte),
+              (const, override));
 };
 
 }  // namespace test

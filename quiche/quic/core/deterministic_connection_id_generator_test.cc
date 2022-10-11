@@ -118,5 +118,9 @@ TEST_P(DeterministicConnectionIdGeneratorTest,
   }
 }
 
+TEST_P(DeterministicConnectionIdGeneratorTest, ReturnLength) {
+  EXPECT_EQ(generator_.ConnectionIdLength(0x01), connection_id_length_);
+}
+
 }  // namespace test
 }  // namespace quic

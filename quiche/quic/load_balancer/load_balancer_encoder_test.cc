@@ -397,6 +397,53 @@ TEST_F(LoadBalancerEncoderTest, GenerateNextConnectionIdReturnsChange) {
   EXPECT_EQ(*encoder->GenerateNextConnectionId(TestConnectionId(1)), expected);
 }
 
+TEST_F(LoadBalancerEncoderTest, ConnectionIdLengthsEncoded) {
+  // The first byte literally encodes the length.
+  auto len_encoder = LoadBalancerEncoder::Create(random_, nullptr, true);
+  ASSERT_TRUE(len_encoder.has_value());
+  EXPECT_EQ(len_encoder->ConnectionIdLength(0xc8), 9);
+  EXPECT_EQ(len_encoder->ConnectionIdLength(0x4a), 11);
+  EXPECT_EQ(len_encoder->ConnectionIdLength(0x09), 10);
+  // The length is not self-encoded anymore.
+  auto encoder = LoadBalancerEncoder::Create(random_, nullptr, false);
+  ASSERT_TRUE(encoder.has_value());
+  EXPECT_EQ(encoder->ConnectionIdLength(0xc8), kQuicDefaultConnectionIdLength);
+  EXPECT_EQ(encoder->ConnectionIdLength(0x4a), kQuicDefaultConnectionIdLength);
+  EXPECT_EQ(encoder->ConnectionIdLength(0x09), kQuicDefaultConnectionIdLength);
+  // Add config ID 0, so that ID now returns a different length.
+  uint8_t config_id = 0;
+  uint8_t server_id_len = 3;
+  uint8_t nonce_len = 6;
+  uint8_t config_0_len = server_id_len + nonce_len + 1;
+  auto config0 = LoadBalancerConfig::CreateUnencrypted(config_id, server_id_len,
+                                                       nonce_len);
+  ASSERT_TRUE(config0.has_value());
+  EXPECT_TRUE(
+      encoder->UpdateConfig(*config0, MakeServerId(kServerId, server_id_len)));
+  EXPECT_EQ(encoder->ConnectionIdLength(0xc8), kQuicDefaultConnectionIdLength);
+  EXPECT_EQ(encoder->ConnectionIdLength(0x4a), kQuicDefaultConnectionIdLength);
+  EXPECT_EQ(encoder->ConnectionIdLength(0x09), config_0_len);
+  // Replace config ID 0 with 1. There are probably still packets with config
+  // ID 0 arriving, so keep that length in memory.
+  config_id = 1;
+  nonce_len++;
+  uint8_t config_1_len = server_id_len + nonce_len + 1;
+  auto config1 = LoadBalancerConfig::CreateUnencrypted(config_id, server_id_len,
+                                                       nonce_len);
+  ASSERT_TRUE(config1.has_value());
+  // Old config length still there after replacement
+  EXPECT_TRUE(
+      encoder->UpdateConfig(*config1, MakeServerId(kServerId, server_id_len)));
+  EXPECT_EQ(encoder->ConnectionIdLength(0xc8), kQuicDefaultConnectionIdLength);
+  EXPECT_EQ(encoder->ConnectionIdLength(0x4a), config_1_len);
+  EXPECT_EQ(encoder->ConnectionIdLength(0x09), config_0_len);
+  // Old config length still there after delete
+  encoder->DeleteConfig();
+  EXPECT_EQ(encoder->ConnectionIdLength(0xc8), kQuicDefaultConnectionIdLength);
+  EXPECT_EQ(encoder->ConnectionIdLength(0x4a), config_1_len);
+  EXPECT_EQ(encoder->ConnectionIdLength(0x09), config_0_len);
+}
+
 }  // namespace
 
 }  // namespace test
