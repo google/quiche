@@ -137,6 +137,8 @@ class QUICHE_EXPORT_PRIVATE CheckLogSink : public NoopLogSink {
   ::quiche::CheckLogSink((val1) >= (val2)).stream()
 #define QUICHE_CHECK_GT_IMPL(val1, val2) \
   ::quiche::CheckLogSink((val1) > (val2)).stream()
+#define QUICHE_CHECK_OK_IMPL(status) \
+  QUICHE_CHECK_EQ_IMPL(absl::OkStatus(), (status))
 
 #ifdef NDEBUG
 #define QUICHE_DCHECK_IMPL(condition) \
