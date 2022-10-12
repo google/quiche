@@ -419,5 +419,22 @@ TEST_P(QuicEventLoopFactoryTest, NegativeTimeout) {
   loop_->RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(-1));
 }
 
+TEST_P(QuicEventLoopFactoryTest, ScheduleAlarmInPastFromInsideAlarm) {
+  constexpr auto kAlarmTimeout = QuicTime::Delta::FromMilliseconds(20);
+  auto [alarm1_ptr, delegate1] = CreateAlarm();
+  auto [alarm2_ptr, delegate2] = CreateAlarm();
+
+  alarm1_ptr->Set(clock_.Now() - kAlarmTimeout);
+  EXPECT_CALL(*delegate1, OnAlarm())
+      .WillOnce([&, alarm2_unowned = alarm2_ptr.get()]() {
+        alarm2_unowned->Set(clock_.Now() - 2 * kAlarmTimeout);
+      });
+  bool fired = false;
+  EXPECT_CALL(*delegate2, OnAlarm()).WillOnce([&]() { fired = true; });
+
+  RunEventLoopUntil([&]() { return fired; },
+                    QuicTime::Delta::FromMilliseconds(100));
+}
+
 }  // namespace
 }  // namespace quic::test

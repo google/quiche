@@ -99,12 +99,9 @@ QuicTime::Delta QuicPollEventLoop::ComputePollTimeout(
   }
   QuicTime end_time = std::min(now + default_timeout, alarms_.begin()->first);
   if (end_time < now) {
-    // Since we call ProcessAlarmsUpTo() right before this, this should never
-    // happen.
-    QUIC_BUG(Newest alarm is in the past)
-        << "now " << now.ToDebuggingValue()
-        << ", end_time: " << end_time.ToDebuggingValue()
-        << ", default timeout: " << default_timeout;
+    // We only run a single pass of processing alarm callbacks per
+    // RunEventLoopOnce() call.  If an alarm schedules another alarm in the past
+    // while in the callback, this will happen.
     return QuicTime::Delta::Zero();
   }
   return end_time - now;
