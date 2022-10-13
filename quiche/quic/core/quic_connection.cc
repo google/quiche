@@ -2497,18 +2497,16 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
       QuicUtils::IsCryptoStreamId(transport_version(), id)) {
     MaybeActivateLegacyVersionEncapsulation();
   }
-  if (version().CanSendCoalescedPackets() && !IsHandshakeConfirmed()) {
+  if (perspective_ == Perspective::IS_SERVER &&
+      version().CanSendCoalescedPackets() && !IsHandshakeConfirmed()) {
     if (in_on_retransmission_time_out_ &&
         coalesced_packet_.NumberOfPackets() == 0u) {
       // PTO fires while handshake is not confirmed. Do not preempt handshake
       // data with stream data.
       QUIC_CODE_COUNT(quic_try_to_send_half_rtt_data_when_pto_fires);
-      QUIC_DVLOG(1) << ENDPOINT
-                    << "Not PTOing stream data before handshake gets confirmed";
       return QuicConsumedData(0, false);
     }
-    if (perspective_ == Perspective::IS_SERVER &&
-        coalesced_packet_.ContainsPacketOfEncryptionLevel(ENCRYPTION_INITIAL) &&
+    if (coalesced_packet_.ContainsPacketOfEncryptionLevel(ENCRYPTION_INITIAL) &&
         coalesced_packet_.NumberOfPackets() == 1u) {
       // Handshake is not confirmed yet, if there is only an initial packet in
       // the coalescer, try to bundle an ENCRYPTION_HANDSHAKE packet before

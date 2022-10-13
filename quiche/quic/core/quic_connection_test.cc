@@ -9865,9 +9865,6 @@ TEST_P(QuicConnectionTest, PtoSkipsPacketNumber) {
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
-  EXPECT_CALL(visitor_, GetHandshakeState())
-      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
-  connection_.OnHandshakeComplete();
 
   QuicStreamId stream_id = 2;
   QuicPacketNumber last_packet;
@@ -14670,80 +14667,6 @@ TEST_P(QuicConnectionTest, PtoSendStreamData) {
   ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
   connection_.GetRetransmissionAlarm()->Fire();
   // Verify INITIAL and HANDSHAKE get retransmitted.
-  EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
-}
-
-TEST_P(QuicConnectionTest, ClientPtoSendZeroRttStreamData) {
-  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
-    return;
-  }
-  use_tagging_decrypter();
-  connection_.SetEncrypter(ENCRYPTION_INITIAL,
-                           std::make_unique<TaggingEncrypter>(0x01));
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
-  // Send CHLO.
-  connection_.SendCryptoStreamData();
-  ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-  // Install 0-RTT keys.
-  connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                           std::make_unique<TaggingEncrypter>(0x02));
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
-  // Send 0-RTT stream data with congestion control blocked.
-  EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(false));
-  connection_.SendStreamDataWithString(2, std::string(1500, 'a'), 0, NO_FIN);
-
-  ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-  connection_.GetRetransmissionAlarm()->Fire();
-  // Verify INITIAL packet get retransmitted.
-  EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
-}
-
-TEST_P(QuicConnectionTest, ClientPtoSendForwardSecureStreamData) {
-  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
-    return;
-  }
-  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
-  }
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
-  use_tagging_decrypter();
-  connection_.SetEncrypter(ENCRYPTION_INITIAL,
-                           std::make_unique<TaggingEncrypter>(0x01));
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
-  // Send CHLO.
-  connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_INITIAL);
-  // Receive server INITIAL + HANDSHAKE
-  QuicFrames frames1;
-  frames1.push_back(QuicFrame(&crypto_frame_));
-  QuicAckFrame ack_frame1 = InitAckFrame(1);
-  frames1.push_back(QuicFrame(&ack_frame1));
-
-  QuicFrames frames2;
-  QuicCryptoFrame crypto_frame(ENCRYPTION_HANDSHAKE, 0,
-                               absl::string_view(data1));
-  frames2.push_back(QuicFrame(&crypto_frame));
-  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
-  ProcessCoalescedPacket(
-      {{1, frames1, ENCRYPTION_INITIAL}, {2, frames2, ENCRYPTION_HANDSHAKE}});
-  // Send Client finished.
-  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
-                           std::make_unique<TaggingEncrypter>(0x02));
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
-  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
-  connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
-
-  EXPECT_CALL(visitor_, GetHandshakeState())
-      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
-  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
-                           std::make_unique<TaggingEncrypter>(0x03));
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  // Send 1-RTT stream data with congestion control blocked.
-  EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(false));
-  connection_.SendStreamDataWithString(2, std::string(1500, 'a'), 0, NO_FIN);
-
-  ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-  connection_.GetRetransmissionAlarm()->Fire();
-  // Verify HANDSHAKE packet get retransmitted.
   EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
 }
 
