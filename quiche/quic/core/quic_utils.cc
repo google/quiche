@@ -538,14 +538,6 @@ bool QuicUtils::IsConnectionIdLengthValidForVersion(
   if (!VersionAllowsVariableLengthConnectionIds(transport_version)) {
     return connection_id_length8 == kQuicDefaultConnectionIdLength;
   }
-  // Versions that do support variable length but do not have length-prefixed
-  // connection IDs use the 4-bit connection ID length encoding which can
-  // only encode values 0 and 4-18.
-  if (!VersionHasLengthPrefixedConnectionIds(transport_version)) {
-    return connection_id_length8 == 0 ||
-           (connection_id_length8 >= 4 &&
-            connection_id_length8 <= kQuicMaxConnectionId4BitLength);
-  }
   return connection_id_length8 <= kQuicMaxConnectionIdWithLengthPrefixLength;
 }
 
