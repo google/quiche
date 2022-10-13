@@ -311,7 +311,7 @@ size_t TruncatedErrorStringSize(const absl::string_view& error) {
   return kMaxErrorStringLength;
 }
 
-uint8_t GetConnectionIdLengthValue(QuicConnectionIdLength length) {
+uint8_t GetConnectionIdLengthValue(uint8_t length) {
   if (length == 0) {
     return 0;
   }
@@ -343,10 +343,8 @@ bool AppendIetfConnectionIds(bool version_flag, bool use_length_prefix,
   }
 
   // Compute connection ID length byte.
-  uint8_t dcil = GetConnectionIdLengthValue(
-      static_cast<QuicConnectionIdLength>(destination_connection_id.length()));
-  uint8_t scil = GetConnectionIdLengthValue(
-      static_cast<QuicConnectionIdLength>(source_connection_id.length()));
+  uint8_t dcil = GetConnectionIdLengthValue(destination_connection_id.length());
+  uint8_t scil = GetConnectionIdLengthValue(source_connection_id.length());
   uint8_t connection_id_length = dcil << 4 | scil;
 
   return writer->WriteUInt8(connection_id_length) &&
@@ -4390,8 +4388,8 @@ bool QuicFramer::ProcessMessageFrame(QuicDataReader* reader,
 // static
 absl::string_view QuicFramer::GetAssociatedDataFromEncryptedPacket(
     QuicTransportVersion version, const QuicEncryptedPacket& encrypted,
-    QuicConnectionIdLength destination_connection_id_length,
-    QuicConnectionIdLength source_connection_id_length, bool includes_version,
+    uint8_t destination_connection_id_length,
+    uint8_t source_connection_id_length, bool includes_version,
     bool includes_diversification_nonce,
     QuicPacketNumberLength packet_number_length,
     quiche::QuicheVariableLengthIntegerLength retry_token_length_length,

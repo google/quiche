@@ -379,9 +379,8 @@ bool QuicPacketCreator::HasRoomForMessageFrame(QuicByteCount length) {
 
 // static
 size_t QuicPacketCreator::StreamFramePacketOverhead(
-    QuicTransportVersion version,
-    QuicConnectionIdLength destination_connection_id_length,
-    QuicConnectionIdLength source_connection_id_length, bool include_version,
+    QuicTransportVersion version, uint8_t destination_connection_id_length,
+    uint8_t source_connection_id_length, bool include_version,
     bool include_diversification_nonce,
     QuicPacketNumberLength packet_number_length,
     quiche::QuicheVariableLengthIntegerLength retry_token_length_length,
@@ -1207,25 +1206,22 @@ QuicConnectionIdIncluded QuicPacketCreator::GetSourceConnectionIdIncluded()
   return CONNECTION_ID_ABSENT;
 }
 
-QuicConnectionIdLength QuicPacketCreator::GetDestinationConnectionIdLength()
-    const {
+uint8_t QuicPacketCreator::GetDestinationConnectionIdLength() const {
   QUICHE_DCHECK(QuicUtils::IsConnectionIdValidForVersion(server_connection_id_,
                                                          transport_version()))
       << ENDPOINT;
   return GetDestinationConnectionIdIncluded() == CONNECTION_ID_PRESENT
-             ? static_cast<QuicConnectionIdLength>(
-                   GetDestinationConnectionId().length())
-             : PACKET_0BYTE_CONNECTION_ID;
+             ? GetDestinationConnectionId().length()
+             : 0;
 }
 
-QuicConnectionIdLength QuicPacketCreator::GetSourceConnectionIdLength() const {
+uint8_t QuicPacketCreator::GetSourceConnectionIdLength() const {
   QUICHE_DCHECK(QuicUtils::IsConnectionIdValidForVersion(server_connection_id_,
                                                          transport_version()))
       << ENDPOINT;
   return GetSourceConnectionIdIncluded() == CONNECTION_ID_PRESENT
-             ? static_cast<QuicConnectionIdLength>(
-                   GetSourceConnectionId().length())
-             : PACKET_0BYTE_CONNECTION_ID;
+             ? GetSourceConnectionId().length()
+             : 0;
 }
 
 QuicPacketNumberLength QuicPacketCreator::GetPacketNumberLength() const {

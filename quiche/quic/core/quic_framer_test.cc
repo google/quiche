@@ -49,6 +49,8 @@ namespace {
 
 const uint64_t kEpoch = UINT64_C(1) << 32;
 const uint64_t kMask = kEpoch - 1;
+const uint8_t kPacket0ByteConnectionId = 0;
+const uint8_t kPacket8ByteConnectionId = 8;
 
 const StatelessResetToken kTestStatelessResetToken{
     0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
@@ -761,8 +763,8 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
   bool CheckDecryption(const QuicEncryptedPacket& encrypted,
                        bool includes_version,
                        bool includes_diversification_nonce,
-                       QuicConnectionIdLength destination_connection_id_length,
-                       QuicConnectionIdLength source_connection_id_length) {
+                       uint8_t destination_connection_id_length,
+                       uint8_t source_connection_id_length) {
     return CheckDecryption(
         encrypted, includes_version, includes_diversification_nonce,
         destination_connection_id_length, source_connection_id_length,
@@ -773,8 +775,8 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
   bool CheckDecryption(
       const QuicEncryptedPacket& encrypted, bool includes_version,
       bool includes_diversification_nonce,
-      QuicConnectionIdLength destination_connection_id_length,
-      QuicConnectionIdLength source_connection_id_length,
+      uint8_t destination_connection_id_length,
+      uint8_t source_connection_id_length,
       quiche::QuicheVariableLengthIntegerLength retry_token_length_length,
       size_t retry_token_length,
       quiche::QuicheVariableLengthIntegerLength length_length) {
@@ -1082,10 +1084,9 @@ TEST_P(QuicFramerTest, LargePacket) {
   }
 
   const size_t header_size = GetPacketHeaderSize(
-      framer_.transport_version(), PACKET_8BYTE_CONNECTION_ID,
-      PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
-      !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
-      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+      framer_.transport_version(), kPacket8ByteConnectionId,
+      kPacket0ByteConnectionId, !kIncludeVersion, !kIncludeDiversificationNonce,
+      PACKET_4BYTE_PACKET_NUMBER, quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
       quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0);
 
   memset(p + header_size, 0, kMaxIncomingPacketSize - header_size);
@@ -2231,7 +2232,7 @@ TEST_P(QuicFramerTest, PaddingFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   ASSERT_EQ(1u, visitor_.stream_frames_.size());
   EXPECT_EQ(0u, visitor_.ack_frames_.size());
@@ -2350,7 +2351,7 @@ TEST_P(QuicFramerTest, StreamFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   ASSERT_EQ(1u, visitor_.stream_frames_.size());
   EXPECT_EQ(0u, visitor_.ack_frames_.size());
@@ -2405,7 +2406,7 @@ TEST_P(QuicFramerTest, EmptyStreamFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   ASSERT_EQ(1u, visitor_.stream_frames_.size());
   EXPECT_EQ(0u, visitor_.ack_frames_.size());
@@ -2554,7 +2555,7 @@ TEST_P(QuicFramerTest, StreamFrame3ByteStreamId) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   ASSERT_EQ(1u, visitor_.stream_frames_.size());
   EXPECT_EQ(0u, visitor_.ack_frames_.size());
@@ -2673,7 +2674,7 @@ TEST_P(QuicFramerTest, StreamFrame2ByteStreamId) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   ASSERT_EQ(1u, visitor_.stream_frames_.size());
   EXPECT_EQ(0u, visitor_.ack_frames_.size());
@@ -2792,7 +2793,7 @@ TEST_P(QuicFramerTest, StreamFrame1ByteStreamId) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   ASSERT_EQ(1u, visitor_.stream_frames_.size());
   EXPECT_EQ(0u, visitor_.ack_frames_.size());
@@ -2995,7 +2996,7 @@ TEST_P(QuicFramerTest, StreamFrameWithVersion) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID,
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId,
       retry_token_length_length, retry_token_length, length_length));
 
   ASSERT_EQ(1u, visitor_.stream_frames_.size());
@@ -3078,7 +3079,7 @@ TEST_P(QuicFramerTest, RejectPacket) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   ASSERT_EQ(0u, visitor_.stream_frames_.size());
   EXPECT_EQ(0u, visitor_.ack_frames_.size());
@@ -3225,7 +3226,7 @@ TEST_P(QuicFramerTest, AckFrameOneAckBlock) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
   ASSERT_EQ(1u, visitor_.ack_frames_.size());
@@ -3718,7 +3719,7 @@ TEST_P(QuicFramerTest, AckFrameFirstAckBlockLengthZero) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
   ASSERT_EQ(1u, visitor_.ack_frames_.size());
@@ -3825,7 +3826,7 @@ TEST_P(QuicFramerTest, AckFrameOneAckBlockMaxLength) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
   ASSERT_EQ(1u, visitor_.ack_frames_.size());
@@ -4061,7 +4062,7 @@ TEST_P(QuicFramerTest, AckFrameTwoTimeStampsMultipleAckBlocks) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
   ASSERT_EQ(1u, visitor_.ack_frames_.size());
@@ -4589,7 +4590,7 @@ TEST_P(QuicFramerTest, NewStopWaitingFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
   ASSERT_EQ(1u, visitor_.stop_waiting_frames_.size());
@@ -4736,7 +4737,7 @@ TEST_P(QuicFramerTest, RstStreamFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(kStreamId, visitor_.rst_stream_frame_.stream_id);
   EXPECT_EQ(QUIC_STREAM_CANCELLED, visitor_.rst_stream_frame_.error_code);
@@ -4847,7 +4848,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
   EXPECT_EQ(0x11u, static_cast<unsigned>(
@@ -4972,7 +4973,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrameWithUnknownErrorCode) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
   EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
@@ -5102,7 +5103,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrameWithExtractedInfoIgnoreGCuic) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
   EXPECT_EQ(0x11u, static_cast<unsigned>(
@@ -5172,7 +5173,7 @@ TEST_P(QuicFramerTest, ApplicationCloseFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
 
@@ -5234,7 +5235,7 @@ TEST_P(QuicFramerTest, ApplicationCloseFrameExtract) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
 
@@ -5331,7 +5332,7 @@ TEST_P(QuicFramerTest, GoAwayFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(kStreamId, visitor_.goaway_frame_.last_good_stream_id);
   EXPECT_EQ(0x9u, visitor_.goaway_frame_.error_code);
@@ -5422,7 +5423,7 @@ TEST_P(QuicFramerTest, GoAwayFrameWithUnknownErrorCode) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(kStreamId, visitor_.goaway_frame_.last_good_stream_id);
   EXPECT_EQ(0xC0DE, visitor_.goaway_frame_.error_code);
@@ -5495,7 +5496,7 @@ TEST_P(QuicFramerTest, WindowUpdateFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(kStreamId, visitor_.window_update_frame_.stream_id);
   EXPECT_EQ(kStreamOffset, visitor_.window_update_frame_.max_data);
@@ -5538,7 +5539,7 @@ TEST_P(QuicFramerTest, MaxDataFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(QuicUtils::GetInvalidStreamId(framer_.transport_version()),
             visitor_.window_update_frame_.stream_id);
@@ -5585,7 +5586,7 @@ TEST_P(QuicFramerTest, MaxStreamDataFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(kStreamId, visitor_.window_update_frame_.stream_id);
   EXPECT_EQ(kStreamOffset, visitor_.window_update_frame_.max_data);
@@ -5666,7 +5667,7 @@ TEST_P(QuicFramerTest, BlockedFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
     EXPECT_EQ(kStreamOffset, visitor_.blocked_frame_.offset);
@@ -5739,7 +5740,7 @@ TEST_P(QuicFramerTest, PingFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(1u, visitor_.ping_frames_.size());
 
@@ -5773,7 +5774,7 @@ TEST_P(QuicFramerTest, HandshakeDoneFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(1u, visitor_.handshake_done_frames_.size());
 }
@@ -5813,7 +5814,7 @@ TEST_P(QuicFramerTest, ParseAckFrequencyFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   ASSERT_EQ(1u, visitor_.ack_frequency_frames_.size());
   const auto& frame = visitor_.ack_frequency_frames_.front();
@@ -5895,7 +5896,7 @@ TEST_P(QuicFramerTest, MessageFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   ASSERT_EQ(2u, visitor_.message_frames_.size());
   EXPECT_EQ(7u, visitor_.message_frames_[0]->message_length);
@@ -6555,10 +6556,9 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
   }
 
   uint64_t header_size = GetPacketHeaderSize(
-      framer_.transport_version(), PACKET_8BYTE_CONNECTION_ID,
-      PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
-      !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
-      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+      framer_.transport_version(), kPacket8ByteConnectionId,
+      kPacket0ByteConnectionId, !kIncludeVersion, !kIncludeDiversificationNonce,
+      PACKET_4BYTE_PACKET_NUMBER, quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
       quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0);
   memset(p + header_size + 1, 0x00, kMaxOutgoingPacketSize - header_size - 1);
 
@@ -6745,10 +6745,9 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
   }
 
   uint64_t header_size = GetPacketHeaderSize(
-      framer_.transport_version(), PACKET_8BYTE_CONNECTION_ID,
-      PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
-      !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
-      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+      framer_.transport_version(), kPacket8ByteConnectionId,
+      kPacket0ByteConnectionId, !kIncludeVersion, !kIncludeDiversificationNonce,
+      PACKET_4BYTE_PACKET_NUMBER, quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
       quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0);
   memset(p + header_size + 1, 0x00, kMaxOutgoingPacketSize - header_size - 1);
 
@@ -6821,10 +6820,9 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
   }
 
   uint64_t header_size = GetPacketHeaderSize(
-      framer_.transport_version(), PACKET_8BYTE_CONNECTION_ID,
-      PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
-      !kIncludeDiversificationNonce, PACKET_2BYTE_PACKET_NUMBER,
-      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+      framer_.transport_version(), kPacket8ByteConnectionId,
+      kPacket0ByteConnectionId, !kIncludeVersion, !kIncludeDiversificationNonce,
+      PACKET_2BYTE_PACKET_NUMBER, quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
       quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0);
   memset(p + header_size + 1, 0x00, kMaxOutgoingPacketSize - header_size - 1);
 
@@ -6897,10 +6895,9 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
   }
 
   uint64_t header_size = GetPacketHeaderSize(
-      framer_.transport_version(), PACKET_8BYTE_CONNECTION_ID,
-      PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
-      !kIncludeDiversificationNonce, PACKET_1BYTE_PACKET_NUMBER,
-      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+      framer_.transport_version(), kPacket8ByteConnectionId,
+      kPacket0ByteConnectionId, !kIncludeVersion, !kIncludeDiversificationNonce,
+      PACKET_1BYTE_PACKET_NUMBER, quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
       quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0);
   memset(p + header_size + 1, 0x00, kMaxOutgoingPacketSize - header_size - 1);
 
@@ -7297,7 +7294,7 @@ TEST_P(QuicFramerTest, CryptoFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
   ASSERT_EQ(1u, visitor_.crypto_frames_.size());
   QuicCryptoFrame* frame = visitor_.crypto_frames_[0].get();
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, frame->level);
@@ -10470,12 +10467,11 @@ TEST_P(QuicFramerTest, EncryptPacket) {
     p = packet46;
   }
 
-  std::unique_ptr<QuicPacket> raw(
-      new QuicPacket(AsChars(p), p_size, false, PACKET_8BYTE_CONNECTION_ID,
-                     PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
-                     !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
-                     quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
-                     quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0));
+  std::unique_ptr<QuicPacket> raw(new QuicPacket(
+      AsChars(p), p_size, false, kPacket8ByteConnectionId,
+      kPacket0ByteConnectionId, !kIncludeVersion, !kIncludeDiversificationNonce,
+      PACKET_4BYTE_PACKET_NUMBER, quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0));
   char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length = framer_.EncryptPayload(
       ENCRYPTION_INITIAL, packet_number, *raw, buffer, kMaxOutgoingPacketSize);
@@ -10487,8 +10483,8 @@ TEST_P(QuicFramerTest, EncryptPacket) {
 // Regression test for b/158014497.
 TEST_P(QuicFramerTest, EncryptEmptyPacket) {
   auto packet = std::make_unique<QuicPacket>(
-      new char[100], 0, true, PACKET_8BYTE_CONNECTION_ID,
-      PACKET_0BYTE_CONNECTION_ID,
+      new char[100], 0, true, kPacket8ByteConnectionId,
+      kPacket0ByteConnectionId,
       /*includes_version=*/true,
       /*includes_diversification_nonce=*/true, PACKET_1BYTE_PACKET_NUMBER,
       quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0,
@@ -10579,12 +10575,11 @@ TEST_P(QuicFramerTest, EncryptPacketWithVersionFlag) {
     p_size = ABSL_ARRAYSIZE(packet46);
   }
 
-  std::unique_ptr<QuicPacket> raw(
-      new QuicPacket(AsChars(p), p_size, false, PACKET_8BYTE_CONNECTION_ID,
-                     PACKET_0BYTE_CONNECTION_ID, kIncludeVersion,
-                     !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
-                     quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
-                     quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0));
+  std::unique_ptr<QuicPacket> raw(new QuicPacket(
+      AsChars(p), p_size, false, kPacket8ByteConnectionId,
+      kPacket0ByteConnectionId, kIncludeVersion, !kIncludeDiversificationNonce,
+      PACKET_4BYTE_PACKET_NUMBER, quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0));
   char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length = framer_.EncryptPayload(
       ENCRYPTION_INITIAL, packet_number, *raw, buffer, kMaxOutgoingPacketSize);
@@ -11049,7 +11044,7 @@ TEST_P(QuicFramerTest, IetfBlockedFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(kStreamOffset, visitor_.blocked_frame_.offset);
 
@@ -11134,7 +11129,7 @@ TEST_P(QuicFramerTest, IetfStreamBlockedFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(kStreamId, visitor_.blocked_frame_.stream_id);
   EXPECT_EQ(kStreamOffset, visitor_.blocked_frame_.offset);
@@ -11220,7 +11215,7 @@ TEST_P(QuicFramerTest, BiDiMaxStreamsFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(3u, visitor_.max_streams_frame_.stream_count);
   EXPECT_FALSE(visitor_.max_streams_frame_.unidirectional);
@@ -11261,7 +11256,7 @@ TEST_P(QuicFramerTest, UniDiMaxStreamsFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_0BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket0ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(3u, visitor_.max_streams_frame_.stream_count);
   EXPECT_TRUE(visitor_.max_streams_frame_.unidirectional);
@@ -11303,7 +11298,7 @@ TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(3u, visitor_.max_streams_frame_.stream_count);
   EXPECT_TRUE(visitor_.max_streams_frame_.unidirectional);
@@ -11344,7 +11339,7 @@ TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_0BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket0ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(3u, visitor_.max_streams_frame_.stream_count);
   EXPECT_TRUE(visitor_.max_streams_frame_.unidirectional);
@@ -11389,7 +11384,7 @@ TEST_P(QuicFramerTest, BiDiMaxStreamsFrameTooBig) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0x40000000u, visitor_.max_streams_frame_.stream_count);
   EXPECT_FALSE(visitor_.max_streams_frame_.unidirectional);
@@ -11428,7 +11423,7 @@ TEST_P(QuicFramerTest, ClientBiDiMaxStreamsFrameTooBig) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_0BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket0ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0x40000000u, visitor_.max_streams_frame_.stream_count);
   EXPECT_FALSE(visitor_.max_streams_frame_.unidirectional);
@@ -11467,7 +11462,7 @@ TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrameTooBig) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0x40000000u, visitor_.max_streams_frame_.stream_count);
   EXPECT_TRUE(visitor_.max_streams_frame_.unidirectional);
@@ -11506,7 +11501,7 @@ TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrameTooBig) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_0BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket0ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0x40000000u, visitor_.max_streams_frame_.stream_count);
   EXPECT_TRUE(visitor_.max_streams_frame_.unidirectional);
@@ -11575,7 +11570,7 @@ TEST_P(QuicFramerTest, ServerBiDiStreamsBlockedFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.max_streams_frame_.stream_count);
   EXPECT_TRUE(visitor_.max_streams_frame_.unidirectional);
@@ -11619,7 +11614,7 @@ TEST_P(QuicFramerTest, BiDiStreamsBlockedFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(3u, visitor_.streams_blocked_frame_.stream_count);
   EXPECT_FALSE(visitor_.streams_blocked_frame_.unidirectional);
@@ -11663,7 +11658,7 @@ TEST_P(QuicFramerTest, UniDiStreamsBlockedFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(3u, visitor_.streams_blocked_frame_.stream_count);
   EXPECT_TRUE(visitor_.streams_blocked_frame_.unidirectional);
@@ -11705,7 +11700,7 @@ TEST_P(QuicFramerTest, ClientUniDiStreamsBlockedFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_0BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket0ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(3u, visitor_.streams_blocked_frame_.stream_count);
   EXPECT_TRUE(visitor_.streams_blocked_frame_.unidirectional);
@@ -11788,7 +11783,7 @@ TEST_P(QuicFramerTest, StreamsBlockedFrameZeroCount) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.streams_blocked_frame_.stream_count);
   EXPECT_TRUE(visitor_.streams_blocked_frame_.unidirectional);
@@ -12010,7 +12005,7 @@ TEST_P(QuicFramerTest, NewConnectionIdFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
 
@@ -12069,7 +12064,7 @@ TEST_P(QuicFramerTest, NewConnectionIdFrameVariableLength) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
 
@@ -12274,7 +12269,7 @@ TEST_P(QuicFramerTest, NewTokenFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
 
@@ -12368,7 +12363,7 @@ TEST_P(QuicFramerTest, IetfStopSendingFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(kStreamId, visitor_.stop_sending_frame_.stream_id);
   EXPECT_EQ(QUIC_STREAM_UNKNOWN_APPLICATION_ERROR_CODE,
@@ -12459,7 +12454,7 @@ TEST_P(QuicFramerTest, IetfPathChallengeFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(QuicPathFrameBuffer({{0, 1, 2, 3, 4, 5, 6, 7}}),
             visitor_.path_challenge_frame_.data_buffer);
@@ -12542,7 +12537,7 @@ TEST_P(QuicFramerTest, IetfPathResponseFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(QuicPathFrameBuffer({{0, 1, 2, 3, 4, 5, 6, 7}}),
             visitor_.path_response_frame_.data_buffer);
@@ -13344,7 +13339,7 @@ TEST_P(QuicFramerTest, RetireConnectionIdFrame) {
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
 

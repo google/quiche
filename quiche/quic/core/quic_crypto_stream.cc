@@ -58,9 +58,7 @@ QuicByteCount QuicCryptoStream::CryptoMessageFramingOverhead(
     length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
   }
   return QuicPacketCreator::StreamFramePacketOverhead(
-      version, static_cast<QuicConnectionIdLength>(connection_id.length()),
-      PACKET_0BYTE_CONNECTION_ID,
-      /*include_version=*/true,
+      version, connection_id.length(), 0, /*include_version=*/true,
       /*include_diversification_nonce=*/true,
       VersionHasIetfInvariantHeader(version) ? PACKET_4BYTE_PACKET_NUMBER
                                              : PACKET_1BYTE_PACKET_NUMBER,

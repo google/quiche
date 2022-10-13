@@ -3331,17 +3331,14 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, PacketTransmissionType) {
 TEST_F(QuicPacketCreatorMultiplePacketsTest, TestConnectionIdLength) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   creator_.SetServerConnectionIdLength(0);
-  EXPECT_EQ(PACKET_0BYTE_CONNECTION_ID,
-            creator_.GetDestinationConnectionIdLength());
+  EXPECT_EQ(0, creator_.GetDestinationConnectionIdLength());
 
   for (size_t i = 1; i < 10; i++) {
     creator_.SetServerConnectionIdLength(i);
     if (framer_.version().HasIetfInvariantHeader()) {
-      EXPECT_EQ(PACKET_0BYTE_CONNECTION_ID,
-                creator_.GetDestinationConnectionIdLength());
+      EXPECT_EQ(0, creator_.GetDestinationConnectionIdLength());
     } else {
-      EXPECT_EQ(PACKET_8BYTE_CONNECTION_ID,
-                creator_.GetDestinationConnectionIdLength());
+      EXPECT_EQ(8, creator_.GetDestinationConnectionIdLength());
     }
   }
 }

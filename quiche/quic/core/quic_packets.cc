@@ -66,25 +66,24 @@ QuicConnectionIdIncluded GetClientConnectionIdIncludedAsSender(
   return header.destination_connection_id_included;
 }
 
-QuicConnectionIdLength GetIncludedConnectionIdLength(
+uint8_t GetIncludedConnectionIdLength(
     QuicConnectionId connection_id,
     QuicConnectionIdIncluded connection_id_included) {
   QUICHE_DCHECK(connection_id_included == CONNECTION_ID_PRESENT ||
                 connection_id_included == CONNECTION_ID_ABSENT);
   return connection_id_included == CONNECTION_ID_PRESENT
-             ? static_cast<QuicConnectionIdLength>(connection_id.length())
-             : PACKET_0BYTE_CONNECTION_ID;
+             ? connection_id.length()
+             : 0;
 }
 
-QuicConnectionIdLength GetIncludedDestinationConnectionIdLength(
+uint8_t GetIncludedDestinationConnectionIdLength(
     const QuicPacketHeader& header) {
   return GetIncludedConnectionIdLength(
       header.destination_connection_id,
       header.destination_connection_id_included);
 }
 
-QuicConnectionIdLength GetIncludedSourceConnectionIdLength(
-    const QuicPacketHeader& header) {
+uint8_t GetIncludedSourceConnectionIdLength(const QuicPacketHeader& header) {
   return GetIncludedConnectionIdLength(header.source_connection_id,
                                        header.source_connection_id_included);
 }
@@ -100,9 +99,8 @@ size_t GetPacketHeaderSize(QuicTransportVersion version,
 }
 
 size_t GetPacketHeaderSize(
-    QuicTransportVersion version,
-    QuicConnectionIdLength destination_connection_id_length,
-    QuicConnectionIdLength source_connection_id_length, bool include_version,
+    QuicTransportVersion version, uint8_t destination_connection_id_length,
+    uint8_t source_connection_id_length, bool include_version,
     bool include_diversification_nonce,
     QuicPacketNumberLength packet_number_length,
     quiche::QuicheVariableLengthIntegerLength retry_token_length_length,
@@ -148,9 +146,8 @@ size_t GetStartOfEncryptedData(QuicTransportVersion version,
 }
 
 size_t GetStartOfEncryptedData(
-    QuicTransportVersion version,
-    QuicConnectionIdLength destination_connection_id_length,
-    QuicConnectionIdLength source_connection_id_length, bool include_version,
+    QuicTransportVersion version, uint8_t destination_connection_id_length,
+    uint8_t source_connection_id_length, bool include_version,
     bool include_diversification_nonce,
     QuicPacketNumberLength packet_number_length,
     quiche::QuicheVariableLengthIntegerLength retry_token_length_length,
@@ -282,8 +279,8 @@ QuicData::~QuicData() {
 
 QuicPacket::QuicPacket(
     char* buffer, size_t length, bool owns_buffer,
-    QuicConnectionIdLength destination_connection_id_length,
-    QuicConnectionIdLength source_connection_id_length, bool includes_version,
+    uint8_t destination_connection_id_length,
+    uint8_t source_connection_id_length, bool includes_version,
     bool includes_diversification_nonce,
     QuicPacketNumberLength packet_number_length,
     quiche::QuicheVariableLengthIntegerLength retry_token_length_length,

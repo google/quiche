@@ -50,6 +50,8 @@ namespace {
 const char kData1[] = "FooAndBar";
 const char kData2[] = "EepAndBaz";
 const QuicByteCount kDataLen = 9;
+const uint8_t kPacket0ByteConnectionId = 0;
+const uint8_t kPacket8ByteConnectionId = 8;
 
 class TestStream : public QuicStream {
  public:
@@ -343,8 +345,8 @@ TEST_P(QuicStreamTest, WriteAllData) {
 
   QuicByteCount length =
       1 + QuicPacketCreator::StreamFramePacketOverhead(
-              connection_->transport_version(), PACKET_8BYTE_CONNECTION_ID,
-              PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
+              connection_->transport_version(), kPacket8ByteConnectionId,
+              kPacket0ByteConnectionId, !kIncludeVersion,
               !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
               quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0,
               quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0u);
@@ -428,8 +430,8 @@ TEST_P(QuicStreamTest, WriteOrBufferData) {
   EXPECT_FALSE(HasWriteBlockedStreams());
   QuicByteCount length =
       1 + QuicPacketCreator::StreamFramePacketOverhead(
-              connection_->transport_version(), PACKET_8BYTE_CONNECTION_ID,
-              PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
+              connection_->transport_version(), kPacket8ByteConnectionId,
+              kPacket0ByteConnectionId, !kIncludeVersion,
               !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
               quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0,
               quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0u);

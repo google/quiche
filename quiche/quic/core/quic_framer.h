@@ -421,8 +421,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // stringpiece.
   static absl::string_view GetAssociatedDataFromEncryptedPacket(
       QuicTransportVersion version, const QuicEncryptedPacket& encrypted,
-      QuicConnectionIdLength destination_connection_id_length,
-      QuicConnectionIdLength source_connection_id_length, bool includes_version,
+      uint8_t destination_connection_id_length,
+      uint8_t source_connection_id_length, bool includes_version,
       bool includes_diversification_nonce,
       QuicPacketNumberLength packet_number_length,
       quiche::QuicheVariableLengthIntegerLength retry_token_length_length,

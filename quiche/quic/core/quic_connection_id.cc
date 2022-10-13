@@ -174,7 +174,7 @@ QuicConnectionId EmptyQuicConnectionId() { return QuicConnectionId(); }
 
 static_assert(kQuicDefaultConnectionIdLength == sizeof(uint64_t),
               "kQuicDefaultConnectionIdLength changed");
-static_assert(kQuicDefaultConnectionIdLength == PACKET_8BYTE_CONNECTION_ID,
+static_assert(kQuicDefaultConnectionIdLength == 8,
               "kQuicDefaultConnectionIdLength changed");
 
 }  // namespace quic
