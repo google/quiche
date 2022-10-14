@@ -7,11 +7,17 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
+#include "absl/strings/str_split.h"
+#include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/quic/tools/connect_server_backend.h"
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, port, 6121,
                                 "The port the quic server will listen on.");
@@ -39,6 +45,11 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
 DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, enable_webtransport, false,
                                 "If true, WebTransport support is enabled.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, connect_proxy_destinations, "",
+    "Specifies a comma-separated list of destinations (\"hostname:port\") to "
+    "which the quic server will allow tunneling via CONNECT.");
+
 namespace quic {
 
 std::unique_ptr<quic::QuicSimpleServerBackend>
@@ -55,6 +66,25 @@ QuicToyServer::MemoryCacheBackendFactory::CreateBackend() {
   if (quiche::GetQuicheCommandLineFlag(FLAGS_enable_webtransport)) {
     memory_cache_backend->EnableWebTransport();
   }
+
+  if (!quiche::GetQuicheCommandLineFlag(FLAGS_connect_proxy_destinations)
+           .empty()) {
+    absl::flat_hash_set<QuicServerId> connect_proxy_destinations;
+    for (absl::string_view destination : absl::StrSplit(
+             quiche::GetQuicheCommandLineFlag(FLAGS_connect_proxy_destinations),
+             ',', absl::SkipEmpty())) {
+      absl::optional<QuicServerId> destination_server_id =
+          QuicServerId::ParseFromHostPortString(destination);
+      QUICHE_CHECK(destination_server_id.has_value());
+      connect_proxy_destinations.insert(
+          std::move(destination_server_id).value());
+    }
+    QUICHE_CHECK(!connect_proxy_destinations.empty());
+
+    return std::make_unique<ConnectServerBackend>(
+        std::move(memory_cache_backend), std::move(connect_proxy_destinations));
+  }
+
   return memory_cache_backend;
 }
 
