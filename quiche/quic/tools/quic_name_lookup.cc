@@ -4,15 +4,22 @@
 
 #include "quiche/quic/tools/quic_name_lookup.h"
 
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-
+#include <cstring>
 #include <string>
 
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
+
+#if defined(_WIN32)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else  // else assume POSIX
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#endif
 
 namespace quic::tools {
 
