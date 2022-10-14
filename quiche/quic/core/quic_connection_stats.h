@@ -170,10 +170,6 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // Max consecutive retransmission timeout before making forward progress.
   size_t max_consecutive_rto_with_forward_progress = 0;
 
-  // Number of sent packets that were encapsulated using Legacy Version
-  // Encapsulation.
-  QuicPacketCount sent_legacy_version_encapsulated_packets = 0;
-
   // Number of times when the connection tries to send data but gets throttled
   // by amplification factor.
   size_t num_amplification_throttling = 0;

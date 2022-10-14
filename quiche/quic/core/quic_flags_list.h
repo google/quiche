@@ -19,8 +19,6 @@ QUIC_FLAG(quic_restart_flag_quic_testonly_default_false, false)
 QUIC_FLAG(quic_restart_flag_quic_testonly_default_true, true)
 // If trrue, early return before write control frame in OnCanWrite() if the connection is already closed.
 QUIC_FLAG(quic_reloadable_flag_quic_no_write_control_frame_upon_connection_close, true)
-// If true, QUIC Legacy Version Encapsulation will be disabled.
-QUIC_FLAG(quic_restart_flag_quic_disable_legacy_version_encapsulation, true)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 // If true, QuicConnectionContext will track the decrypted payload and the offset of the current frame, for debugging.

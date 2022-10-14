@@ -1167,10 +1167,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   virtual void OnUserAgentIdKnown(const std::string& user_agent_id);
 
-  // Enables Legacy Version Encapsulation using |server_name| as SNI.
-  // Can only be set if this is a client connection.
-  void EnableLegacyVersionEncapsulation(const std::string& server_name);
-
   // If now is close to idle timeout, returns true and sends a connectivity
   // probing packet to test the connection for liveness. Otherwise, returns
   // false.
@@ -1822,13 +1818,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns string which contains undecryptable packets information.
   std::string UndecryptablePacketsInfo() const;
 
-  // Sets the max packet length on the packet creator if needed.
-  void MaybeUpdatePacketCreatorMaxPacketLengthAndPadding();
-
-  // Sets internal state to enable or disable Legacy Version Encapsulation.
-  void MaybeActivateLegacyVersionEncapsulation();
-  void MaybeDisactivateLegacyVersionEncapsulation();
-
   // For Google Quic, if the current packet is connectivity probing packet, call
   // session OnPacketReceived() which eventually sends connectivity probing
   // response on server side. And no-op on client side. And for both Google Quic
@@ -2223,13 +2212,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const bool default_enable_5rto_blackhole_detection_ =
       GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2);
 
-  // Whether the Legacy Version Encapsulation feature is enabled.
-  bool legacy_version_encapsulation_enabled_ = false;
-  // Whether we are in the middle of sending a packet using Legacy Version
-  // Encapsulation.
-  bool legacy_version_encapsulation_in_progress_ = false;
-  // SNI to send when using Legacy Version Encapsulation.
-  std::string legacy_version_encapsulation_sni_;
   // True if next packet is intended to consume remaining space in the
   // coalescer.
   bool fill_coalesced_packet_ = false;

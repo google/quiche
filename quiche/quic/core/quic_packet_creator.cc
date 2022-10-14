@@ -1881,9 +1881,8 @@ void QuicPacketCreator::MaybeAddPadding() {
     return;
   }
 
-  if (packet_.fate == COALESCE || packet_.fate == LEGACY_VERSION_ENCAPSULATE) {
-    // Do not add full padding if the packet is going to be coalesced or
-    // encapsulated.
+  if (packet_.fate == COALESCE) {
+    // Do not add full padding if the packet is going to be coalesced.
     needs_full_padding_ = false;
   }
 

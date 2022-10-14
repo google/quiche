@@ -212,7 +212,7 @@ class StatelessConnectionTerminator {
 // Class which extracts the ALPN and SNI from a QUIC_CRYPTO CHLO packet.
 class ChloAlpnSniExtractor : public ChloExtractor::Delegate {
  public:
-  void OnChlo(QuicTransportVersion version,
+  void OnChlo(QuicTransportVersion /*version*/,
               QuicConnectionId /*server_connection_id*/,
               const CryptoHandshakeMessage& chlo) override {
     absl::string_view alpn_value;
@@ -227,12 +227,6 @@ class ChloAlpnSniExtractor : public ChloExtractor::Delegate {
     if (chlo.GetStringPiece(quic::kUAID, &uaid_value)) {
       uaid_ = std::string(uaid_value);
     }
-    if (version == LegacyVersionForEncapsulation().transport_version) {
-      absl::string_view qlve_value;
-      if (chlo.GetStringPiece(kQLVE, &qlve_value)) {
-        legacy_version_encapsulation_inner_packet_ = std::string(qlve_value);
-      }
-    }
   }
 
   std::string&& ConsumeAlpn() { return std::move(alpn_); }
@@ -241,90 +235,11 @@ class ChloAlpnSniExtractor : public ChloExtractor::Delegate {
 
   std::string&& ConsumeUaid() { return std::move(uaid_); }
 
-  std::string&& ConsumeLegacyVersionEncapsulationInnerPacket() {
-    return std::move(legacy_version_encapsulation_inner_packet_);
-  }
-
  private:
   std::string alpn_;
   std::string sni_;
   std::string uaid_;
-  std::string legacy_version_encapsulation_inner_packet_;
 };
-
-bool MaybeHandleLegacyVersionEncapsulation(
-    QuicDispatcher* dispatcher,
-    std::string legacy_version_encapsulation_inner_packet,
-    const ReceivedPacketInfo& packet_info) {
-  QUICHE_DCHECK(!GetQuicRestartFlag(quic_disable_legacy_version_encapsulation));
-  if (legacy_version_encapsulation_inner_packet.empty()) {
-    // This CHLO did not contain the Legacy Version Encapsulation tag.
-    return false;
-  }
-  PacketHeaderFormat format;
-  QuicLongHeaderType long_packet_type;
-  bool version_present;
-  bool has_length_prefix;
-  QuicVersionLabel version_label;
-  ParsedQuicVersion parsed_version = ParsedQuicVersion::Unsupported();
-  QuicConnectionId destination_connection_id, source_connection_id;
-  absl::optional<absl::string_view> retry_token;
-  std::string detailed_error;
-  const QuicErrorCode error = QuicFramer::ParsePublicHeaderDispatcher(
-      QuicEncryptedPacket(legacy_version_encapsulation_inner_packet.data(),
-                          legacy_version_encapsulation_inner_packet.length()),
-      kQuicDefaultConnectionIdLength, &format, &long_packet_type,
-      &version_present, &has_length_prefix, &version_label, &parsed_version,
-      &destination_connection_id, &source_connection_id, &retry_token,
-      &detailed_error);
-  if (error != QUIC_NO_ERROR) {
-    QUIC_DLOG(ERROR)
-        << "Failed to parse Legacy Version Encapsulation inner packet:"
-        << detailed_error;
-    return false;
-  }
-  if (destination_connection_id != packet_info.destination_connection_id) {
-    // We enforce that the inner and outer connection IDs match to make sure
-    // this never impacts routing of packets.
-    QUIC_DLOG(ERROR) << "Ignoring Legacy Version Encapsulation packet "
-                        "with mismatched connection ID "
-                     << destination_connection_id << " vs "
-                     << packet_info.destination_connection_id;
-    return false;
-  }
-  if (legacy_version_encapsulation_inner_packet.length() >=
-      packet_info.packet.length()) {
-    QUIC_BUG(quic_bug_10287_2)
-        << "Inner packet cannot be larger than outer "
-        << legacy_version_encapsulation_inner_packet.length() << " vs "
-        << packet_info.packet.length();
-    return false;
-  }
-
-  QUIC_DVLOG(1) << "Extracted a Legacy Version Encapsulation "
-                << legacy_version_encapsulation_inner_packet.length()
-                << " byte packet of version " << parsed_version;
-
-  // Append zeroes to the end of the packet. This will ensure that
-  // we use the right number of bytes for calculating anti-amplification
-  // limits. Note that this only works for long headers of versions that carry
-  // long header lengths, since they'll ignore any trailing zeroes. We still
-  // do this for all packets to ensure version negotiation works.
-  legacy_version_encapsulation_inner_packet.append(
-      packet_info.packet.length() -
-          legacy_version_encapsulation_inner_packet.length(),
-      0x00);
-
-  // Process the inner packet as if it had been received by itself.
-  QuicReceivedPacket received_encapsulated_packet(
-      legacy_version_encapsulation_inner_packet.data(),
-      legacy_version_encapsulation_inner_packet.length(),
-      packet_info.packet.receipt_time());
-  dispatcher->ProcessPacket(packet_info.self_address, packet_info.peer_address,
-                            received_encapsulated_packet);
-  QUIC_CODE_COUNT(quic_legacy_version_encapsulation_decapsulated);
-  return true;
-}
 
 }  // namespace
 
@@ -594,29 +509,6 @@ bool QuicDispatcher::MaybeDispatchPacket(
   auto it = reference_counted_session_map_.find(server_connection_id);
   if (it != reference_counted_session_map_.end()) {
     QUICHE_DCHECK(!buffered_packets_.HasBufferedPackets(server_connection_id));
-    if (packet_info.version_flag &&
-        packet_info.version != it->second->version() &&
-        packet_info.version == LegacyVersionForEncapsulation()) {
-      // This packet is using the Legacy Version Encapsulation version but the
-      // corresponding session isn't, attempt extraction of inner packet.
-      if (GetQuicRestartFlag(quic_disable_legacy_version_encapsulation)) {
-        QUIC_CODE_COUNT(
-            quic_disable_legacy_version_encapsulation_dispatch_packet);
-      } else {
-        ChloAlpnSniExtractor alpn_extractor;
-        if (ChloExtractor::Extract(packet_info.packet, packet_info.version,
-                                   config_->create_session_tag_indicators(),
-                                   &alpn_extractor,
-                                   server_connection_id.length())) {
-          if (MaybeHandleLegacyVersionEncapsulation(
-                  this,
-                  alpn_extractor.ConsumeLegacyVersionEncapsulationInnerPacket(),
-                  packet_info)) {
-            return true;
-          }
-        }
-      }
-    }
     it->second->ProcessUdpPacket(packet_info.self_address,
                                  packet_info.peer_address, packet_info.packet);
     return true;
@@ -740,22 +632,6 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
       fate = ValidityChecksOnFullChlo(*packet_info, *parsed_chlo);
 
       if (fate == kFateProcess) {
-        QUICHE_DCHECK(
-            parsed_chlo->legacy_version_encapsulation_inner_packet.empty() ||
-            !packet_info->version.UsesTls());
-        if (GetQuicRestartFlag(quic_disable_legacy_version_encapsulation)) {
-          if (!parsed_chlo->legacy_version_encapsulation_inner_packet.empty()) {
-            QUIC_CODE_COUNT(
-                quic_disable_legacy_version_encapsulation_process_header);
-          }
-        } else {
-          if (MaybeHandleLegacyVersionEncapsulation(
-                  this, parsed_chlo->legacy_version_encapsulation_inner_packet,
-                  *packet_info)) {
-            return;
-          }
-        }
-
         ProcessChlo(*std::move(parsed_chlo), packet_info);
         return;
       }
@@ -882,8 +758,6 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
   }
 
   ParsedClientHello& parsed_chlo = result.parsed_chlo.emplace();
-  parsed_chlo.legacy_version_encapsulation_inner_packet =
-      alpn_extractor.ConsumeLegacyVersionEncapsulationInnerPacket();
   parsed_chlo.sni = alpn_extractor.ConsumeSni();
   parsed_chlo.uaid = alpn_extractor.ConsumeUaid();
   parsed_chlo.alpns = {alpn_extractor.ConsumeAlpn()};

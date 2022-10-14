@@ -383,10 +383,6 @@ QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion QuicVersionReservedForNegotiation();
 
-// Outer version used when encapsulating other packets using the Legacy Version
-// Encapsulation feature.
-QUIC_EXPORT_PRIVATE ParsedQuicVersion LegacyVersionForEncapsulation();
-
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                              const ParsedQuicVersion& version);
 

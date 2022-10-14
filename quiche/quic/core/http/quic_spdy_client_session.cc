@@ -36,14 +36,6 @@ QuicSpdyClientSession::~QuicSpdyClientSession() = default;
 
 void QuicSpdyClientSession::Initialize() {
   crypto_stream_ = CreateQuicCryptoStream();
-  if (config()->HasClientRequestedIndependentOption(kQLVE,
-                                                    Perspective::IS_CLIENT)) {
-    if (GetQuicRestartFlag(quic_disable_legacy_version_encapsulation)) {
-      QUIC_CODE_COUNT(quic_disable_legacy_version_encapsulation_client_init);
-    } else {
-      connection()->EnableLegacyVersionEncapsulation(server_id_.host());
-    }
-  }
   QuicSpdyClientSessionBase::Initialize();
 }
 

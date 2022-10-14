@@ -9994,49 +9994,6 @@ TEST_P(QuicConnectionTest, FailToCoalescePacket) {
   EXPECT_QUIC_BUG(test_body(), "SerializeCoalescedPacket failed.");
 }
 
-TEST_P(QuicConnectionTest, LegacyVersionEncapsulation) {
-  connection_.EnableLegacyVersionEncapsulation("test.example.org");
-
-  MockQuicConnectionDebugVisitor debug_visitor;
-  connection_.set_debug_visitor(&debug_visitor);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(1);
-
-  // Our TestPacketWriter normally parses the sent packet using the version
-  // from the connection, so here we need to tell it to use the encapsulation
-  // version, and reset the initial decrypter for that version.
-  writer_->framer()->SetSupportedVersions(
-      SupportedVersions(LegacyVersionForEncapsulation()));
-  writer_->framer()->framer()->SetInitialObfuscators(
-      connection_.connection_id());
-
-  {
-    QuicConnection::ScopedPacketFlusher flusher(&connection_);
-    connection_.SendCryptoDataWithString("TEST_CRYPTO_DATA", /*offset=*/0);
-  }
-
-  EXPECT_EQ(1u, writer_->packets_write_attempts());
-  // Verify that the packet is fully padded.
-  EXPECT_EQ(connection_.max_packet_length(), writer_->last_packet_size());
-
-  // Check that the connection stats show Legacy Version Encapsulation was used.
-  EXPECT_GT(connection_.GetStats().sent_legacy_version_encapsulated_packets,
-            0u);
-
-  // Verify that the sent packet was in fact encapsulated, and check header.
-  const QuicPacketHeader& encapsulated_header = writer_->last_packet_header();
-  EXPECT_TRUE(encapsulated_header.version_flag);
-  EXPECT_EQ(encapsulated_header.version, LegacyVersionForEncapsulation());
-  EXPECT_EQ(encapsulated_header.destination_connection_id,
-            connection_.connection_id());
-
-  // Encapsulated packet should contain a stream frame for the crypto stream,
-  // optionally padding, and nothing else.
-  EXPECT_EQ(0u, writer_->crypto_frames().size());
-  EXPECT_EQ(1u, writer_->stream_frames().size());
-  EXPECT_EQ(writer_->frame_count(), writer_->framer()->padding_frames().size() +
-                                        writer_->stream_frames().size());
-}
-
 TEST_P(QuicConnectionTest, ClientReceivedHandshakeDone) {
   if (!connection_.version().UsesTls()) {
     return;

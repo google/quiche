@@ -55,8 +55,6 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {
   os << " num_coalesced_packets_processed: "
      << s.num_coalesced_packets_processed;
   os << " num_ack_aggregation_epochs: " << s.num_ack_aggregation_epochs;
-  os << " sent_legacy_version_encapsulated_packets: "
-     << s.sent_legacy_version_encapsulated_packets;
   os << " key_update_count: " << s.key_update_count;
   os << " num_failed_authentication_packets_received: "
      << s.num_failed_authentication_packets_received;
