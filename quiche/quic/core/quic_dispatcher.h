@@ -181,31 +181,6 @@ class QUIC_NO_EXPORT QuicDispatcher
   // otherwise, returns false and the packet needs further processing.
   virtual bool MaybeDispatchPacket(const ReceivedPacketInfo& packet_info);
 
-  // Generate a connection ID with a length that is expected by the dispatcher.
-  // Called only when |server_connection_id| is shorter than
-  // |expected_connection_id_length|.
-  // Note that this MUST produce a deterministic result (calling this method
-  // with two connection IDs that are equal must produce the same result).
-  // Note that this is not used in general operation because our default
-  // |expected_server_connection_id_length| is 8, and the IETF specification
-  // requires clients to use an initial length of at least 8. However, we
-  // allow disabling that requirement via
-  // |allow_short_initial_server_connection_ids_|.
-  virtual QuicConnectionId ReplaceShortServerConnectionId(
-      const ParsedQuicVersion& version,
-      const QuicConnectionId& server_connection_id,
-      uint8_t expected_server_connection_id_length) const;
-
-  // Generate a connection ID with a length that is expected by the dispatcher.
-  // Called only when |server_connection_id| is longer than
-  // |expected_connection_id_length|.
-  // Note that this MUST produce a deterministic result (calling this method
-  // with two connection IDs that are equal must produce the same result).
-  virtual QuicConnectionId ReplaceLongServerConnectionId(
-      const ParsedQuicVersion& version,
-      const QuicConnectionId& server_connection_id,
-      uint8_t expected_server_connection_id_length) const;
-
   // Values to be returned by ValidityChecks() to indicate what should be done
   // with a packet. Fates with greater values are considered to be higher
   // priority. ValidityChecks should return fate based on the priority order
@@ -341,11 +316,6 @@ class QUIC_NO_EXPORT QuicDispatcher
   // first one it supports. If no supported versions are found, the first
   // element of the vector is returned.
   std::string SelectAlpn(const std::vector<std::string>& alpns);
-
-  // Check if the client-generated server connection ID needs to be replaced.
-  absl::optional<QuicConnectionId> MaybeReplaceServerConnectionId(
-      const QuicConnectionId& server_connection_id,
-      const ParsedQuicVersion& version);
 
   // Sends public/stateless reset packets with no version and unknown
   // connection ID according to the packet's size.

@@ -85,8 +85,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, true)
 QUIC_FLAG(quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // QuicConnection uses a library to generate connection IDs
 QUIC_FLAG(quic_reloadable_flag_quic_connection_uses_abstract_connection_id_generator, true)
-// QuicDispatcher uses a library to generate connection IDs
-QUIC_FLAG(quic_restart_flag_quic_abstract_connection_id_generator, true)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
 // When true, support draft-ietf-quic-v2-01

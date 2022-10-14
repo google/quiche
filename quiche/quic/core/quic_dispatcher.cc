@@ -359,68 +359,6 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   ProcessHeader(&packet_info);
 }
 
-absl::optional<QuicConnectionId> QuicDispatcher::MaybeReplaceServerConnectionId(
-    const QuicConnectionId& server_connection_id,
-    const ParsedQuicVersion& version) {
-  if (GetQuicRestartFlag(quic_abstract_connection_id_generator)) {
-    // If the Dispatcher doesn't map the original connection ID, then using a
-    // connection ID generator that isn't deterministic may break the handshake
-    // and will certainly drop all 0-RTT packets.
-    QUIC_RESTART_FLAG_COUNT(quic_abstract_connection_id_generator);
-    return connection_id_generator_.MaybeReplaceConnectionId(
-        server_connection_id, version);
-  }
-  const uint8_t server_connection_id_length = server_connection_id.length();
-  if (server_connection_id_length == expected_server_connection_id_length_) {
-    return absl::optional<QuicConnectionId>();
-  }
-  QUICHE_DCHECK(version.AllowsVariableLengthConnectionIds());
-  QuicConnectionId new_connection_id;
-  if (server_connection_id_length < expected_server_connection_id_length_) {
-    new_connection_id = ReplaceShortServerConnectionId(
-        version, server_connection_id, expected_server_connection_id_length_);
-    // Verify that ReplaceShortServerConnectionId is deterministic.
-    QUICHE_DCHECK_EQ(
-        new_connection_id,
-        ReplaceShortServerConnectionId(version, server_connection_id,
-                                       expected_server_connection_id_length_));
-  } else {
-    new_connection_id = ReplaceLongServerConnectionId(
-        version, server_connection_id, expected_server_connection_id_length_);
-    // Verify that ReplaceLongServerConnectionId is deterministic.
-    QUICHE_DCHECK_EQ(
-        new_connection_id,
-        ReplaceLongServerConnectionId(version, server_connection_id,
-                                      expected_server_connection_id_length_));
-  }
-  QUICHE_DCHECK_EQ(expected_server_connection_id_length_,
-                   new_connection_id.length());
-
-  QUIC_DLOG(INFO) << "Replacing incoming connection ID " << server_connection_id
-                  << " with " << new_connection_id;
-  return new_connection_id;
-}
-
-QuicConnectionId QuicDispatcher::ReplaceShortServerConnectionId(
-    const ParsedQuicVersion& /*version*/,
-    const QuicConnectionId& server_connection_id,
-    uint8_t expected_server_connection_id_length) const {
-  QUICHE_DCHECK_LT(server_connection_id.length(),
-                   expected_server_connection_id_length);
-  return QuicUtils::CreateReplacementConnectionId(
-      server_connection_id, expected_server_connection_id_length);
-}
-
-QuicConnectionId QuicDispatcher::ReplaceLongServerConnectionId(
-    const ParsedQuicVersion& /*version*/,
-    const QuicConnectionId& server_connection_id,
-    uint8_t expected_server_connection_id_length) const {
-  QUICHE_DCHECK_GT(server_connection_id.length(),
-                   expected_server_connection_id_length);
-  return QuicUtils::CreateReplacementConnectionId(
-      server_connection_id, expected_server_connection_id_length);
-}
-
 namespace {
 constexpr bool IsSourceUdpPortBlocked(uint16_t port) {
   // These UDP source ports have been observed in large scale denial of service
@@ -1275,7 +1213,8 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
     const QuicSocketAddress self_address,
     const QuicSocketAddress peer_address) {
   absl::optional<QuicConnectionId> server_connection_id =
-      MaybeReplaceServerConnectionId(original_connection_id, version);
+      connection_id_generator_.MaybeReplaceConnectionId(original_connection_id,
+                                                        version);
   const bool replaced_connection_id = server_connection_id.has_value();
   if (!replaced_connection_id) {
     server_connection_id = original_connection_id;
