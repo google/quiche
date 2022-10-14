@@ -584,6 +584,58 @@ TEST_P(QuicDispatcherTestAllVersions, TlsClientHelloCreatesSession) {
   ProcessFirstFlight(client_address, TestConnectionId(1));
 }
 
+TEST_P(QuicDispatcherTestAllVersions, VariableServerConnectionIdLength) {
+  QuicConnectionId old_id = TestConnectionId(1);
+  // Return a connection ID that is not expected_server_connection_id_length_
+  // bytes long.
+  generated_connection_id_ = QuicConnectionId(
+      {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b});
+  expect_generator_is_called_ = version_.HasIetfQuicFrames();
+  QuicConnectionId new_id =
+      expect_generator_is_called_ ? *generated_connection_id_ : old_id;
+  // This will not return the correct value for long headers that might use a
+  // first byte other than 0x00, but long header replies don't matter.
+  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length)) {
+    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(0x00))
+        .WillRepeatedly(Return(generated_connection_id_->length()));
+  } else {
+    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_)).Times(0);
+  }
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(new_id, _, client_address, Eq(ExpectedAlpn()),
+                                _, Eq(ParsedClientHelloForTest())))
+      .WillOnce(Return(ByMove(CreateSession(
+          dispatcher_.get(), config_, new_id, client_address, &mock_helper_,
+          &mock_alarm_factory_, &crypto_config_,
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
+  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+              ProcessUdpPacket(_, _, _))
+      .WillOnce(WithArg<2>(Invoke([this](const QuicEncryptedPacket& packet) {
+        ValidatePacket(TestConnectionId(1), packet);
+      })));
+  ProcessFirstFlight(client_address, old_id);
+
+  // Send short header packets with the new length and verify they are parsed
+  // correctly. If flag is set, all versions should succeed. If not, it should
+  // fail (this is the bugfix!). gQUIC never gets a new connection ID, so it's
+  // not affected by asking.
+  if (version_.HasIetfQuicFrames() &&
+      !GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length)) {
+    // Dispatcher issued a longer connection ID if IETF QUIC, but won't ask for
+    // that length when processing a short header. Thus dispatch will fail.
+    EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+                ProcessUdpPacket(_, _, _))
+        .Times(0);
+  } else {
+    // Dispatch succeeds, because it's gQUIC or all the flags are aligned.
+    EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+                ProcessUdpPacket(_, _, _))
+        .Times(1);
+  }
+  ProcessPacket(client_address, new_id, false, "foo");
+}
+
 void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
     bool add_reordering, bool long_connection_id) {
   if (!version_.UsesTls()) {

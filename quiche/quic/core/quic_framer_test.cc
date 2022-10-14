@@ -16416,6 +16416,65 @@ TEST_P(QuicFramerTest, ErrorWhenUnexpectedFrameTypeEncountered) {
       framer_.detailed_error());
 }
 
+TEST_P(QuicFramerTest, ShortHeaderWithNonDefaultConnectionIdLength) {
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  unsigned char packet[kMaxIncomingPacketSize + 1] = {
+     // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0x28, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x48,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // frame type (padding frame)
+    0x00,
+    0x00, 0x00, 0x00, 0x00
+  };
+  unsigned char* p = packet;
+  size_t p_size = ABSL_ARRAYSIZE(packet);
+
+  const size_t header_size = GetPacketHeaderSize(
+      framer_.transport_version(), kPacket8ByteConnectionId + 1,
+      kPacket0ByteConnectionId, !kIncludeVersion,
+      !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
+      quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0) + 1;
+  // Add one because it's a 9 byte connection ID.
+
+  memset(p + header_size, 0, kMaxIncomingPacketSize - header_size);
+
+  QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
+  MockConnectionIdGenerator generator;
+  PacketHeaderFormat format;
+  QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
+  bool version_flag;
+  QuicConnectionId destination_connection_id, source_connection_id;
+  QuicVersionLabel version_label;
+  std::string detailed_error;
+  bool use_length_prefix;
+  absl::optional<absl::string_view> retry_token;
+  ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
+  EXPECT_CALL(generator, ConnectionIdLength(0x28))
+      .WillOnce(Return(9));
+  EXPECT_EQ(QUIC_NO_ERROR,
+      QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
+          encrypted, &format, &long_packet_type, &version_flag,
+          &use_length_prefix, &version_label, &parsed_version,
+          &destination_connection_id, &source_connection_id, &retry_token,
+          &detailed_error, generator));
+  EXPECT_EQ(format, IETF_QUIC_SHORT_HEADER_PACKET);
+  EXPECT_EQ(long_packet_type, INVALID_PACKET_TYPE);
+  EXPECT_FALSE(version_flag);
+  EXPECT_FALSE(use_length_prefix);
+  EXPECT_EQ(version_label, 0);
+  EXPECT_EQ(parsed_version, UnsupportedQuicVersion());
+  EXPECT_EQ(destination_connection_id.length(), 9);
+  EXPECT_EQ(source_connection_id.length(), 0);
+  EXPECT_FALSE(retry_token.has_value());
+  EXPECT_EQ(detailed_error, "");
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

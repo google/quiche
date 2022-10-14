@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_framer.h"
 
+#include <sys/types.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -6863,6 +6865,35 @@ QuicErrorCode QuicFramer::ParsePublicHeaderDispatcher(
 }
 
 // static
+QuicErrorCode QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
+    const QuicEncryptedPacket& packet, PacketHeaderFormat* format,
+    QuicLongHeaderType* long_packet_type, bool* version_present,
+    bool* has_length_prefix, QuicVersionLabel* version_label,
+    ParsedQuicVersion* parsed_version,
+    QuicConnectionId* destination_connection_id,
+    QuicConnectionId* source_connection_id,
+    absl::optional<absl::string_view>* retry_token, std::string* detailed_error,
+    ConnectionIdGeneratorInterface& generator) {
+  QuicDataReader reader(packet.data(), packet.length());
+  // Get the first two bytes.
+  if (reader.BytesRemaining() < 2) {
+    *detailed_error = "Unable to read first two bytes.";
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+  uint8_t two_bytes[2];
+  reader.ReadBytes(two_bytes, 2);
+  uint8_t expected_destination_connection_id_length =
+      (two_bytes[0] & FLAGS_LONG_HEADER)
+          ? 0
+          : generator.ConnectionIdLength(two_bytes[1]);
+  return ParsePublicHeaderDispatcher(
+      packet, expected_destination_connection_id_length, format,
+      long_packet_type, version_present, has_length_prefix, version_label,
+      parsed_version, destination_connection_id, source_connection_id,
+      retry_token, detailed_error);
+}
+
+// static
 QuicErrorCode QuicFramer::ParsePublicHeaderGoogleQuic(
     QuicDataReader* reader, uint8_t* first_byte, PacketHeaderFormat* format,
     bool* version_present, QuicVersionLabel* version_label,
@@ -7021,8 +7052,6 @@ QuicErrorCode QuicFramer::ParsePublicHeader(
   *format = GetIetfPacketHeaderFormat(*first_byte);
 
   if (*format == IETF_QUIC_SHORT_HEADER_PACKET) {
-    // Read destination connection ID using
-    // expected_destination_connection_id_length to determine its length.
     if (!reader->ReadConnectionId(destination_connection_id,
                                   expected_destination_connection_id_length)) {
       *detailed_error = "Unable to read destination connection ID.";
