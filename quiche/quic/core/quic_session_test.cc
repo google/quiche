@@ -3128,6 +3128,40 @@ TEST_P(QuicSessionTestServer, BufferedCryptoFrameCausesWriteError) {
   }
 }
 
+TEST_P(QuicSessionTestServer, DonotPtoStreamDataBeforeHandshakeConfirmed) {
+  if (!session_.version().UsesTls()) {
+    return;
+  }
+  EXPECT_NE(HANDSHAKE_CONFIRMED, session_.GetHandshakeState());
+
+  TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
+  EXPECT_FALSE(crypto_stream->HasBufferedCryptoFrames());
+  std::string data(1350, 'a');
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 1350, 0))
+      .WillOnce(Return(1000));
+  crypto_stream->WriteCryptoData(ENCRYPTION_INITIAL, data);
+  ASSERT_TRUE(crypto_stream->HasBufferedCryptoFrames());
+
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
+
+  session_.MarkConnectionLevelWriteBlocked(stream->id());
+  // Buffered crypto data gets sent.
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, _, _))
+      .WillOnce(Return(350));
+  if (GetQuicReloadableFlag(
+          quic_donot_pto_stream_data_before_handshake_confirmed)) {
+    // Verify stream data is not sent on PTO before handshake confirmed.
+    EXPECT_CALL(*stream, OnCanWrite()).Times(0);
+  } else {
+    EXPECT_CALL(*stream, OnCanWrite());
+  }
+
+  // Fire PTO.
+  QuicConnectionPeer::SetInProbeTimeOut(connection_, true);
+  session_.OnCanWrite();
+  EXPECT_FALSE(crypto_stream->HasBufferedCryptoFrames());
+}
+
 // A client test class that can be used when the automatic configuration is not
 // desired.
 class QuicSessionTestClientUnconfigured : public QuicSessionTestBase {

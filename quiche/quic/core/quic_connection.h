@@ -1263,6 +1263,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     context_.bug_listener.swap(bug_listener);
   }
 
+  bool in_probe_time_out() const { return in_probe_time_out_; }
+
   // Ensures the network blackhole delay is longer than path degrading delay.
   static QuicTime::Delta CalculateNetworkBlackholeDelay(
       QuicTime::Delta blackhole_delay, QuicTime::Delta path_degrading_delay,
@@ -1537,7 +1539,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     QuicConnection* connection_;
   };
 
-  // A class which sets and clears in_on_retransmission_time_out_ when entering
+  // A class which sets and clears in_probe_time_out_ when entering
   // and exiting OnRetransmissionTimeout, respectively.
   class QUIC_EXPORT_PRIVATE ScopedRetransmissionTimeoutIndicator {
    public:
@@ -2244,7 +2246,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool have_decrypted_first_one_rtt_packet_ = false;
 
   // True if we are currently processing OnRetransmissionTimeout.
-  bool in_on_retransmission_time_out_ = false;
+  bool in_probe_time_out_ = false;
 
   QuicPathValidator path_validator_;
 

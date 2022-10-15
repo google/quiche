@@ -2438,8 +2438,7 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
 
   if (perspective_ == Perspective::IS_SERVER &&
       version().CanSendCoalescedPackets() && !IsHandshakeConfirmed()) {
-    if (in_on_retransmission_time_out_ &&
-        coalesced_packet_.NumberOfPackets() == 0u) {
+    if (in_probe_time_out_ && coalesced_packet_.NumberOfPackets() == 0u) {
       // PTO fires while handshake is not confirmed. Do not preempt handshake
       // data with stream data.
       QUIC_CODE_COUNT(quic_try_to_send_half_rtt_data_when_pto_fires);
@@ -7088,15 +7087,15 @@ void QuicConnection::ReversePathValidationResultDelegate::
 QuicConnection::ScopedRetransmissionTimeoutIndicator::
     ScopedRetransmissionTimeoutIndicator(QuicConnection* connection)
     : connection_(connection) {
-  QUICHE_DCHECK(!connection_->in_on_retransmission_time_out_)
+  QUICHE_DCHECK(!connection_->in_probe_time_out_)
       << "ScopedRetransmissionTimeoutIndicator is not supposed to be nested";
-  connection_->in_on_retransmission_time_out_ = true;
+  connection_->in_probe_time_out_ = true;
 }
 
 QuicConnection::ScopedRetransmissionTimeoutIndicator::
     ~ScopedRetransmissionTimeoutIndicator() {
-  QUICHE_DCHECK(connection_->in_on_retransmission_time_out_);
-  connection_->in_on_retransmission_time_out_ = false;
+  QUICHE_DCHECK(connection_->in_probe_time_out_);
+  connection_->in_probe_time_out_ = false;
 }
 
 void QuicConnection::RestoreToLastValidatedPath(

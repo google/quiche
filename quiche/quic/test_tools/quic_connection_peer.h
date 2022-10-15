@@ -226,6 +226,8 @@ class QuicConnectionPeer {
   static void FlushCoalescedPacket(QuicConnection* connection);
 
   static QuicAlarm* GetMultiPortProbingAlarm(QuicConnection* connection);
+
+  static void SetInProbeTimeOut(QuicConnection* connection, bool value);
 };
 
 }  // namespace test
