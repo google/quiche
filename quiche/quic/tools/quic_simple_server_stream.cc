@@ -459,8 +459,13 @@ void QuicSimpleServerStream::SendIncompleteResponse(
   if (response_headers.has_value()) {
     QUIC_DLOG(INFO) << "Stream " << id() << " writing headers (fin = false) : "
                     << response_headers.value().DebugString();
+    // Do not mark response sent for early 100 continue response.
+    int response_code;
+    if (!ParseHeaderStatusCode(*response_headers, &response_code) ||
+        response_code != 100) {
+      response_sent_ = true;
+    }
     WriteHeaders(std::move(response_headers).value(), /*fin=*/false, nullptr);
-    response_sent_ = true;
   }
 
   QUIC_DLOG(INFO) << "Stream " << id()

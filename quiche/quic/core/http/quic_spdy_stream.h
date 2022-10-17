@@ -180,6 +180,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // code to |status_code|.
   static bool ParseHeaderStatusCode(const spdy::Http2HeaderBlock& header,
                                     int* status_code);
+  // Returns true if status_value (associated with :status) contains a valid
+  // 3-digit status and parse the status code to |status_code|.
+  static bool ParseHeaderStatusCode(absl::string_view status_value,
+                                    int* status_code);
 
   // Returns true when all data from the peer has been read and consumed,
   // including the fin.

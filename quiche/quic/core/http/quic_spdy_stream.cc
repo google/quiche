@@ -888,7 +888,6 @@ bool QuicSpdyStream::FinishedReadingHeaders() const {
   return headers_decompressed_ && header_list_.empty();
 }
 
-// static
 bool QuicSpdyStream::ParseHeaderStatusCode(const Http2HeaderBlock& header,
                                            int* status_code) {
   Http2HeaderBlock::const_iterator it = header.find(spdy::kHttp2StatusHeader);
@@ -896,6 +895,11 @@ bool QuicSpdyStream::ParseHeaderStatusCode(const Http2HeaderBlock& header,
     return false;
   }
   const absl::string_view status(it->second);
+  return ParseHeaderStatusCode(status, status_code);
+}
+
+bool QuicSpdyStream::ParseHeaderStatusCode(absl::string_view status,
+                                           int* status_code) {
   if (status.size() != 3) {
     return false;
   }

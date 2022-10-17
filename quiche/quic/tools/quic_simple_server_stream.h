@@ -110,7 +110,7 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
   }
 
   bool response_sent() const { return response_sent_; }
-
+  void set_response_sent() { response_sent_ = true; }
   // The parsed headers received from the client.
   spdy::Http2HeaderBlock request_headers_;
   int64_t content_length_;
