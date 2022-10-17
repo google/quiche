@@ -39,8 +39,8 @@ QuicSocketAddress LookupAddress(int address_family_for_lookup, std::string host,
   }
 
   QUICHE_CHECK(info_list != nullptr);
-  std::unique_ptr<addrinfo, void (*)(addrinfo*)> info_list_owned(info_list,
-                                                                 freeaddrinfo);
+  std::unique_ptr<addrinfo, void (*)(addrinfo*)> info_list_owned(
+      info_list, [](addrinfo* ai) { freeaddrinfo(ai); });
   return QuicSocketAddress(info_list->ai_addr, info_list->ai_addrlen);
 }
 
