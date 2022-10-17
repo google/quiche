@@ -136,6 +136,7 @@ struct QUICHE_EXPORT_PRIVATE ParameterisedIdentifier {
   Item identifier;
   Parameters params;
 
+  ParameterisedIdentifier();
   ParameterisedIdentifier(const ParameterisedIdentifier&);
   ParameterisedIdentifier& operator=(const ParameterisedIdentifier&);
   ParameterisedIdentifier(Item, Parameters);
@@ -154,6 +155,7 @@ struct QUICHE_EXPORT_PRIVATE ParameterizedItem {
   Item item;
   Parameters params;
 
+  ParameterizedItem();
   ParameterizedItem(const ParameterizedItem&);
   ParameterizedItem& operator=(const ParameterizedItem&);
   ParameterizedItem(Item, Parameters);

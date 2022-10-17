@@ -746,6 +746,7 @@ bool operator==(const Item& lhs, const Item& rhs) {
   return lhs.value_ == rhs.value_;
 }
 
+ParameterizedItem::ParameterizedItem() = default;
 ParameterizedItem::ParameterizedItem(const ParameterizedItem&) = default;
 ParameterizedItem& ParameterizedItem::operator=(const ParameterizedItem&) =
     default;
@@ -774,6 +775,7 @@ ParameterizedMember::ParameterizedMember(Item id, Parameters ps)
       params(std::move(ps)) {}
 ParameterizedMember::~ParameterizedMember() = default;
 
+ParameterisedIdentifier::ParameterisedIdentifier() = default;
 ParameterisedIdentifier::ParameterisedIdentifier(
     const ParameterisedIdentifier&) = default;
 ParameterisedIdentifier& ParameterisedIdentifier::operator=(
