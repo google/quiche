@@ -111,6 +111,8 @@ TEST(AdapterImplComparisonTest, SubmitWindowUpdateBumpsWindow) {
   nghttp2_window = nghttp2_adapter->GetReceiveWindowSize();
 
   oghttp2_adapter->ProcessBytes(frames);
+  // Marking the data consumed causes a window update, which is reflected in the
+  // advertised window size.
   oghttp2_adapter->MarkDataConsumedForStream(oghttp2_stream_id,
                                              kNumFrames * kMaxFrameSize);
   result = oghttp2_adapter->Send();
@@ -120,8 +122,7 @@ TEST(AdapterImplComparisonTest, SubmitWindowUpdateBumpsWindow) {
   const int kMinExpectation =
       (kInitialFlowControlWindow + kConnectionWindowIncrease) / 2;
   EXPECT_GT(nghttp2_window, kMinExpectation);
-  // BUG! oghttp2 does not maintain the larger window persistently.
-  EXPECT_LT(oghttp2_window, kMinExpectation);
+  EXPECT_GT(oghttp2_window, kMinExpectation);
 }
 
 TEST(AdapterImplComparisonTest, ServerHandlesFrames) {

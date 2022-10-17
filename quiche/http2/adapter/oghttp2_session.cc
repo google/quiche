@@ -1931,10 +1931,24 @@ void OgHttp2Session::UpdateReceiveWindow(Http2StreamId stream_id,
                                          int32_t delta) {
   if (stream_id == 0) {
     connection_window_manager_.IncreaseWindow(delta);
+    // TODO(b/181586191): Provide an explicit way to set the desired window
+    // limit, remove the upsize-on-window-update behavior.
+    const int64_t current_window =
+        connection_window_manager_.CurrentWindowSize();
+    if (current_window > connection_window_manager_.WindowSizeLimit()) {
+      connection_window_manager_.SetWindowSizeLimit(current_window);
+    }
   } else {
     auto iter = stream_map_.find(stream_id);
     if (iter != stream_map_.end()) {
-      iter->second.window_manager.IncreaseWindow(delta);
+      WindowManager& manager = iter->second.window_manager;
+      manager.IncreaseWindow(delta);
+      // TODO(b/181586191): Provide an explicit way to set the desired window
+      // limit, remove the upsize-on-window-update behavior.
+      const int64_t current_window = manager.CurrentWindowSize();
+      if (current_window > manager.WindowSizeLimit()) {
+        manager.SetWindowSizeLimit(current_window);
+      }
     }
   }
 }

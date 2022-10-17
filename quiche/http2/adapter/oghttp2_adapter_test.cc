@@ -3832,6 +3832,84 @@ TEST(OgHttp2AdapterTest, GetSendWindowSize) {
   EXPECT_EQ(peer_window, kInitialFlowControlWindowSize);
 }
 
+TEST(OgHttp2AdapterTest, WindowUpdateRaisesFlowControlWindowLimit) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kServer;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  const std::string data_chunk(kDefaultFramePayloadSizeLimit, 'a');
+  const std::string request = TestFrameSequence()
+                                  .ClientPreface()
+                                  .Headers(1,
+                                           {{":method", "GET"},
+                                            {":scheme", "https"},
+                                            {":authority", "example.com"},
+                                            {":path", "/"}},
+                                           /*fin=*/false)
+                                  .Serialize();
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+
+  adapter->ProcessBytes(request);
+
+  // Updates the advertised window for the connection and stream 1.
+  adapter->SubmitWindowUpdate(0, 2 * kDefaultFramePayloadSizeLimit);
+  adapter->SubmitWindowUpdate(1, 2 * kDefaultFramePayloadSizeLimit);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 0, 4, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 0, 4, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 1, 4, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 1, 4, 0x0, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+
+  // Verifies the advertised window.
+  EXPECT_EQ(kInitialFlowControlWindowSize + 2 * kDefaultFramePayloadSizeLimit,
+            adapter->GetReceiveWindowSize());
+  EXPECT_EQ(kInitialFlowControlWindowSize + 2 * kDefaultFramePayloadSizeLimit,
+            adapter->GetStreamReceiveWindowSize(1));
+
+  const std::string request_body = TestFrameSequence()
+                                       .Data(1, data_chunk)
+                                       .Data(1, data_chunk)
+                                       .Data(1, data_chunk)
+                                       .Data(1, data_chunk)
+                                       .Data(1, data_chunk)
+                                       .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 0)).Times(5);
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, _)).Times(5);
+  EXPECT_CALL(visitor, OnDataForStream(1, _)).Times(5);
+
+  // DATA frames on stream 1 consume most of the window.
+  adapter->ProcessBytes(request_body);
+  EXPECT_EQ(kInitialFlowControlWindowSize - 3 * kDefaultFramePayloadSizeLimit,
+            adapter->GetReceiveWindowSize());
+  EXPECT_EQ(kInitialFlowControlWindowSize - 3 * kDefaultFramePayloadSizeLimit,
+            adapter->GetStreamReceiveWindowSize(1));
+
+  // Marking the data consumed should result in an advertised window larger than
+  // the initial window.
+  adapter->MarkDataConsumedForStream(1, 4 * kDefaultFramePayloadSizeLimit);
+  EXPECT_GT(adapter->GetReceiveWindowSize(), kInitialFlowControlWindowSize);
+  EXPECT_GT(adapter->GetStreamReceiveWindowSize(1),
+            kInitialFlowControlWindowSize);
+}
+
 TEST(OgHttp2AdapterTest, MarkDataConsumedForNonexistentStream) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options;
