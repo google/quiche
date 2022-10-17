@@ -7,10 +7,32 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"time"
 
 	"github.com/bazelbuild/buildtools/build"
 	"quiche.googlesource.com/quiche/depstool/deps"
 )
+
+func list(path string, contents []byte) {
+	flags, err := deps.ParseHTTPArchiveRules(contents)
+	if err != nil {
+		log.Fatalf("Failed to parse %s: %v", path, err)
+	}
+
+	fmt.Println("+------------------------------+--------------------------+")
+	fmt.Println("|                   Dependency | Last updated             |")
+	fmt.Println("+------------------------------+--------------------------+")
+	for _, flag := range flags {
+		lastUpdated, err := time.Parse("2006-01-02", flag.LastUpdated)
+		if err != nil {
+			log.Fatalf("Failed to parse date %s: %v", flag.LastUpdated, err)
+		}
+		delta := time.Since(lastUpdated)
+		days := int(delta.Hours() / 24)
+		fmt.Printf("| %28s | %s, %3d days ago |\n", flag.Name, flag.LastUpdated, days)
+	}
+	fmt.Println("+------------------------------+--------------------------+")
+}
 
 func validate(path string, contents []byte) {
 	file, err := build.ParseWorkspace(path, contents)
@@ -42,7 +64,10 @@ func usage() {
 usage: depstool [WORKSPACE file] [subcommand]
 
 Available subcommands:
+    list       Lists all of the rules in the file
     validate   Validates that the WORKSPACE file is parsable
+
+If no subcommand is specified, "list" is assumed.
 `)
 	flag.PrintDefaults()
 }
@@ -62,6 +87,10 @@ func main() {
 
 	subcommand := flag.Arg(1)
 	switch subcommand {
+	case "":
+		fallthrough // list is the default action
+	case "list":
+		list(path, contents)
 	case "validate":
 		validate(path, contents)
 	default:
