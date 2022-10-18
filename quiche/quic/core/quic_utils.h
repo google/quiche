@@ -159,20 +159,6 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   static QuicStreamId GetMaxClientInitiatedBidirectionalStreamId(
       QuicTransportVersion version);
 
-  // Generates a connection ID of length |expected_connection_id_length|
-  // derived from |connection_id|.
-  // This is guaranteed to be deterministic (calling this method with two
-  // connection IDs that are equal is guaranteed to produce the same result).
-  static QuicConnectionId CreateReplacementConnectionId(
-      const QuicConnectionId& connection_id,
-      uint8_t expected_connection_id_length);
-
-  // Generates a 64bit connection ID derived from |connection_id|.
-  // This is guaranteed to be deterministic (calling this method with two
-  // connection IDs that are equal is guaranteed to produce the same result).
-  static QuicConnectionId CreateReplacementConnectionId(
-      const QuicConnectionId& connection_id);
-
   // Generates a random 64bit connection ID.
   static QuicConnectionId CreateRandomConnectionId();
 

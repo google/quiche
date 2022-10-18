@@ -161,12 +161,6 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
   // tell if a received packet has a valid connection ID.
   bool IsConnectionIdInUse(const QuicConnectionId& cid) const;
 
-  // TODO(martinduke): This class will be eliminated when
-  // FLAGS_gfe2_reloadable_flag_quic_connection_uses_abstract_connection_id_generator
-  // goes away.
-  virtual QuicConnectionId GenerateNewConnectionId(
-      const QuicConnectionId& old_connection_id) const;
-
  private:
   friend class test::QuicConnectionIdManagerPeer;
 

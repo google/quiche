@@ -444,41 +444,6 @@ QuicStreamId QuicUtils::GetMaxClientInitiatedBidirectionalStreamId(
 }
 
 // static
-QuicConnectionId QuicUtils::CreateReplacementConnectionId(
-    const QuicConnectionId& connection_id) {
-  return CreateReplacementConnectionId(connection_id,
-                                       kQuicDefaultConnectionIdLength);
-}
-
-// static
-QuicConnectionId QuicUtils::CreateReplacementConnectionId(
-    const QuicConnectionId& connection_id,
-    uint8_t expected_connection_id_length) {
-  if (expected_connection_id_length == 0) {
-    return EmptyQuicConnectionId();
-  }
-  const uint64_t connection_id_hash64 = FNV1a_64_Hash(
-      absl::string_view(connection_id.data(), connection_id.length()));
-  if (expected_connection_id_length <= sizeof(uint64_t)) {
-    return QuicConnectionId(
-        reinterpret_cast<const char*>(&connection_id_hash64),
-        expected_connection_id_length);
-  }
-  char new_connection_id_data[255] = {};
-  const absl::uint128 connection_id_hash128 = FNV1a_128_Hash(
-      absl::string_view(connection_id.data(), connection_id.length()));
-  static_assert(sizeof(connection_id_hash64) + sizeof(connection_id_hash128) <=
-                    sizeof(new_connection_id_data),
-                "bad size");
-  memcpy(new_connection_id_data, &connection_id_hash64,
-         sizeof(connection_id_hash64));
-  memcpy(new_connection_id_data + sizeof(connection_id_hash64),
-         &connection_id_hash128, sizeof(connection_id_hash128));
-  return QuicConnectionId(new_connection_id_data,
-                          expected_connection_id_length);
-}
-
-// static
 QuicConnectionId QuicUtils::CreateRandomConnectionId() {
   return CreateRandomConnectionId(kQuicDefaultConnectionIdLength,
                                   QuicRandom::GetInstance());

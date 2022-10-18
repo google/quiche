@@ -296,29 +296,13 @@ QuicSelfIssuedConnectionIdManager::~QuicSelfIssuedConnectionIdManager() {
   retire_connection_id_alarm_->Cancel();
 }
 
-QuicConnectionId QuicSelfIssuedConnectionIdManager::GenerateNewConnectionId(
-    const QuicConnectionId& old_connection_id) const {
-  return QuicUtils::CreateReplacementConnectionId(old_connection_id);
-}
-
 absl::optional<QuicNewConnectionIdFrame>
 QuicSelfIssuedConnectionIdManager::MaybeIssueNewConnectionId() {
   const bool check_cid_collision_when_issue_new_cid =
       GetQuicReloadableFlag(quic_check_cid_collision_when_issue_new_cid);
-  absl::optional<QuicConnectionId> new_cid;
-  if (GetQuicReloadableFlag(
-          quic_connection_uses_abstract_connection_id_generator)) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_connection_uses_abstract_connection_id_generator);
-    new_cid =
-        connection_id_generator_.GenerateNextConnectionId(last_connection_id_);
-  } else {
-    new_cid = GenerateNewConnectionId(last_connection_id_);
-  }
+  absl::optional<QuicConnectionId> new_cid =
+      connection_id_generator_.GenerateNextConnectionId(last_connection_id_);
   if (!new_cid.has_value()) {
-    QUIC_BUG_IF(quic_bug_469887433_1,
-                !GetQuicReloadableFlag(
-                    quic_connection_uses_abstract_connection_id_generator));
     return {};
   }
   if (check_cid_collision_when_issue_new_cid) {

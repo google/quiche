@@ -41,13 +41,6 @@ namespace {
 // Minimal INITIAL packet length sent by clients is 1200.
 const QuicPacketLength kMinClientInitialPacketLength = 1200;
 
-bool VariableShortHeaderConnectionIdLengths() {
-  return GetQuicReloadableFlag(
-             quic_ask_for_short_header_connection_id_length) &&
-         GetQuicReloadableFlag(
-             quic_connection_uses_abstract_connection_id_generator);
-}
-
 // An alarm that informs the QuicDispatcher to delete old sessions.
 class DeleteSessionsAlarm : public QuicAlarm::DelegateWithoutContext {
  public:
@@ -393,9 +386,7 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   if (!packet_info.version_flag &&
       GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length) &&
       (IsSupportedVersion(ParsedQuicVersion::Q046()) ||
-       IsSupportedVersion(ParsedQuicVersion::Q050()) ||
-       !GetQuicReloadableFlag(
-           quic_connection_uses_abstract_connection_id_generator))) {
+       IsSupportedVersion(ParsedQuicVersion::Q050()))) {
     ReceivedPacketInfo gquic_packet_info(self_address, peer_address, packet);
     // Try again without asking |connection_id_generator_| for the length.
     const QuicErrorCode gquic_error = QuicFramer::ParsePublicHeaderDispatcher(
@@ -476,7 +467,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
   // unknown, in which case we allow short connection IDs for version
   // negotiation because that version could allow those.
   uint8_t expected_connection_id_length =
-      VariableShortHeaderConnectionIdLengths()
+      GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length)
           ? connection_id_generator_.ConnectionIdLength(
                 static_cast<uint8_t>(*server_connection_id.data()))
           : expected_server_connection_id_length_;
@@ -1359,7 +1350,7 @@ void QuicDispatcher::MaybeResetPacketsWithNoVersion(
     }
   } else {
     uint8_t min_connection_id_length =
-        VariableShortHeaderConnectionIdLengths()
+        GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length)
             ? connection_id_generator_.ConnectionIdLength(static_cast<uint8_t>(
                   *packet_info.destination_connection_id.data()))
             : expected_server_connection_id_length_;

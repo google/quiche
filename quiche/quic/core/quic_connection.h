@@ -1886,7 +1886,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Return true if framer should continue processing the packet.
   bool OnPathChallengeFrameInternal(const QuicPathChallengeFrame& frame);
 
-  virtual std::unique_ptr<QuicSelfIssuedConnectionIdManager>
+  std::unique_ptr<QuicSelfIssuedConnectionIdManager>
   MakeSelfIssuedConnectionIdManager();
 
   // Called on peer IP change or restoring to previous address to reset

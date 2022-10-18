@@ -1244,6 +1244,10 @@ TEST_P(QuicDispatcherTestAllVersions,
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
   // dispatcher_ should drop this packet.
+  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length)) {
+    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_))
+        .WillOnce(Return(15));
+  }
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
       .Times(0);
