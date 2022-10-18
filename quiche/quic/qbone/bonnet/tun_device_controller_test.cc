@@ -123,12 +123,12 @@ TEST_F(TunDeviceControllerTest, UpdateRoutesRemovedOldRoutes) {
   EXPECT_CALL(netlink_, GetRouteInfo(_))
       .WillOnce(
           Invoke([](std::vector<NetlinkInterface::RoutingRule>* routing_rules) {
-            NetlinkInterface::RoutingRule non_matching_route;
+            NetlinkInterface::RoutingRule non_matching_route{};
             non_matching_route.table = QboneConstants::kQboneRouteTableId;
             non_matching_route.out_interface = kIfindex + 1;
             routing_rules->push_back(non_matching_route);
 
-            NetlinkInterface::RoutingRule matching_route;
+            NetlinkInterface::RoutingRule matching_route{};
             matching_route.table = QboneConstants::kQboneRouteTableId;
             matching_route.out_interface = kIfindex;
             matching_route.init_cwnd = NetlinkInterface::kUnspecifiedInitCwnd;
@@ -136,7 +136,7 @@ TEST_F(TunDeviceControllerTest, UpdateRoutesRemovedOldRoutes) {
               routing_rules->push_back(matching_route);
             }
 
-            NetlinkInterface::RoutingRule non_matching_table;
+            NetlinkInterface::RoutingRule non_matching_table{};
             non_matching_table.table = QboneConstants::kQboneRouteTableId + 1;
             non_matching_table.out_interface = kIfindex;
             routing_rules->push_back(non_matching_table);
