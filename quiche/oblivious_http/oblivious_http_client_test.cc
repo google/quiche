@@ -184,7 +184,7 @@ TEST(ObliviousHttpClient,
   EXPECT_EQ(decapsulate_resp_on_client->GetPlaintextData(), "test response");
 }
 
-TEST(ObliviousHttpGatewayReceiver, TestWithMultipleThreads) {
+TEST(ObliviousHttpClient, TestWithMultipleThreads) {
   class TestQuicheThread : public QuicheThread {
    public:
     TestQuicheThread(const ObliviousHttpClient& client,

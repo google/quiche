@@ -27,7 +27,7 @@ absl::Status ValidateClientParameters(
   bssl::UniquePtr<EVP_HPKE_CTX> client_ctx(EVP_HPKE_CTX_new());
   if (client_ctx == nullptr) {
     return SslErrorAsStatus(
-        "Failed to initialize HPKE ObliviousHttpClientSender Context.");
+        "Failed to initialize HPKE ObliviousHttpClient Context.");
   }
   // Setup the sender (client)
   std::string encapsulated_key(EVP_HPKE_MAX_ENC_LENGTH, '\0');

@@ -23,7 +23,7 @@ ObliviousHttpGateway::ObliviousHttpGateway(
       ohttp_key_config_(ohttp_key_config),
       quiche_random_(quiche_random) {}
 
-// Initialize ObliviousHttpGatewayReceiver(Recipient/Server) context.
+// Initialize ObliviousHttpGateway(Recipient/Server) context.
 absl::StatusOr<ObliviousHttpGateway> ObliviousHttpGateway::Create(
     absl::string_view hpke_private_key,
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
@@ -35,7 +35,7 @@ absl::StatusOr<ObliviousHttpGateway> ObliviousHttpGateway::Create(
   bssl::UniquePtr<EVP_HPKE_KEY> recipient_key(EVP_HPKE_KEY_new());
   if (recipient_key == nullptr) {
     return SslErrorAsStatus(
-        "Failed to initialize ObliviousHttpGatewayReceiver/Server's Key.");
+        "Failed to initialize ObliviousHttpGateway/Server's Key.");
   }
   if (!EVP_HPKE_KEY_init(
           recipient_key.get(), ohttp_key_config.GetHpkeKem(),
