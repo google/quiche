@@ -1093,6 +1093,12 @@ quiche_tests_srcs = [
     "src/quiche/http2/test_tools/http2_frame_builder_test.cc",
     "src/quiche/http2/test_tools/http2_random_test.cc",
     "src/quiche/http2/test_tools/random_decoder_test_base_test.cc",
+    "src/quiche/oblivious_http/buffers/oblivious_http_integration_test.cc",
+    "src/quiche/oblivious_http/buffers/oblivious_http_request_test.cc",
+    "src/quiche/oblivious_http/buffers/oblivious_http_response_test.cc",
+    "src/quiche/oblivious_http/common/oblivious_http_header_key_config_test.cc",
+    "src/quiche/oblivious_http/oblivious_http_client_test.cc",
+    "src/quiche/oblivious_http/oblivious_http_gateway_test.cc",
     "src/quiche/quic/core/congestion_control/bandwidth_sampler_test.cc",
     "src/quiche/quic/core/congestion_control/bbr2_simulator_test.cc",
     "src/quiche/quic/core/congestion_control/bbr_sender_test.cc",
@@ -1437,6 +1443,20 @@ binary_http_hdrs = [
 ]
 binary_http_srcs = [
     "src/quiche/binary_http/binary_http_message.cc",
+]
+oblivious_http_hdrs = [
+    "src/quiche/oblivious_http/buffers/oblivious_http_request.h",
+    "src/quiche/oblivious_http/buffers/oblivious_http_response.h",
+    "src/quiche/oblivious_http/common/oblivious_http_header_key_config.h",
+    "src/quiche/oblivious_http/oblivious_http_client.h",
+    "src/quiche/oblivious_http/oblivious_http_gateway.h",
+]
+oblivious_http_srcs = [
+    "src/quiche/oblivious_http/buffers/oblivious_http_request.cc",
+    "src/quiche/oblivious_http/buffers/oblivious_http_response.cc",
+    "src/quiche/oblivious_http/common/oblivious_http_header_key_config.cc",
+    "src/quiche/oblivious_http/oblivious_http_client.cc",
+    "src/quiche/oblivious_http/oblivious_http_gateway.cc",
 ]
 qbone_hdrs = [
     "src/quiche/quic/qbone/bonnet/icmp_reachable.h",
