@@ -137,18 +137,21 @@ TEST(ObliviousHttpClient, TestObliviousResponseHandling) {
           *(ConstructHpkeKey(GetHpkePrivateKey(), ohttp_key_config)),
           ohttp_key_config);
   ASSERT_TRUE(decapsulate_req_on_gateway.ok());
+  auto gateway_request_context =
+      std::move(decapsulate_req_on_gateway.value()).ReleaseContext();
   auto encapsulate_resp_on_gateway =
       ObliviousHttpResponse::CreateServerObliviousResponse(
-          "test response",
-          *(decapsulate_req_on_gateway->oblivious_http_request_context()));
+          "test response", gateway_request_context);
   ASSERT_TRUE(encapsulate_resp_on_gateway.ok());
 
   auto client =
       ObliviousHttpClient::Create(GetHpkePublicKey(), ohttp_key_config);
   ASSERT_TRUE(client.ok());
+  auto client_request_context =
+      std::move(encapsulate_req_on_client.value()).ReleaseContext();
   auto decapsulate_resp_on_client = client->DecryptObliviousHttpResponse(
       absl::string_view(encapsulate_resp_on_gateway->EncapsulateAndSerialize()),
-      *(encapsulate_req_on_client->oblivious_http_request_context()));
+      client_request_context);
   ASSERT_TRUE(decapsulate_resp_on_client.ok());
   EXPECT_EQ(decapsulate_resp_on_client->GetPlaintextData(), "test response");
 }
@@ -168,10 +171,11 @@ TEST(ObliviousHttpClient,
           *(ConstructHpkeKey(GetHpkePrivateKey(), ohttp_key_config)),
           ohttp_key_config);
   ASSERT_TRUE(decapsulate_req_on_gateway.ok());
+  auto gateway_request_context =
+      std::move(decapsulate_req_on_gateway.value()).ReleaseContext();
   auto encapsulate_resp_on_gateway =
       ObliviousHttpResponse::CreateServerObliviousResponse(
-          "test response",
-          *(decapsulate_req_on_gateway->oblivious_http_request_context()));
+          "test response", gateway_request_context);
   ASSERT_TRUE(encapsulate_resp_on_gateway.ok());
 
   auto client =
@@ -179,7 +183,7 @@ TEST(ObliviousHttpClient,
   ASSERT_TRUE(client.ok());
   auto decapsulate_resp_on_client = client->DecryptObliviousHttpResponse(
       absl::string_view(encapsulate_resp_on_gateway->EncapsulateAndSerialize()),
-      *(decapsulate_req_on_gateway->oblivious_http_request_context()));
+      gateway_request_context);
   ASSERT_TRUE(decapsulate_resp_on_client.ok());
   EXPECT_EQ(decapsulate_resp_on_client->GetPlaintextData(), "test response");
 }
@@ -208,17 +212,19 @@ TEST(ObliviousHttpClient, TestWithMultipleThreads) {
               *(ConstructHpkeKey(GetHpkePrivateKey(), ohttp_key_config_)),
               ohttp_key_config_);
       ASSERT_TRUE(decapsulate_req_on_gateway.ok());
+      auto gateway_request_context =
+          std::move(decapsulate_req_on_gateway.value()).ReleaseContext();
       auto encapsulate_resp_on_gateway =
           ObliviousHttpResponse::CreateServerObliviousResponse(
-              "test response",
-              *(decapsulate_req_on_gateway->oblivious_http_request_context()));
+              "test response", gateway_request_context);
       ASSERT_TRUE(encapsulate_resp_on_gateway.ok());
       ASSERT_FALSE(
           encapsulate_resp_on_gateway->EncapsulateAndSerialize().empty());
-
+      auto client_request_context =
+          std::move(encrypted_request.value()).ReleaseContext();
       auto decrypted_response = client_.DecryptObliviousHttpResponse(
           encapsulate_resp_on_gateway->EncapsulateAndSerialize(),
-          *(encrypted_request->oblivious_http_request_context()));
+          client_request_context);
       ASSERT_TRUE(decrypted_response.ok());
       ASSERT_FALSE(decrypted_response->GetPlaintextData().empty());
     }

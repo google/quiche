@@ -125,9 +125,10 @@ TEST(ObliviousHttpGateway, TestObliviousResponseHandling) {
   auto decapsulated_req_on_server = instance->DecryptObliviousHttpRequest(
       encapsualte_request_on_client->EncapsulateAndSerialize());
   ASSERT_TRUE(decapsulated_req_on_server.ok());
+  auto server_request_context =
+      std::move(decapsulated_req_on_server.value()).ReleaseContext();
   auto encapsulate_resp_on_gateway = instance->CreateObliviousHttpResponse(
-      "some response",
-      *(decapsulated_req_on_server->oblivious_http_request_context()));
+      "some response", server_request_context);
   ASSERT_TRUE(encapsulate_resp_on_gateway.ok());
   ASSERT_FALSE(encapsulate_resp_on_gateway->EncapsulateAndSerialize().empty());
 }
@@ -155,18 +156,15 @@ TEST(ObliviousHttpGateway,
 
   // Extract contexts and handle the response for each corresponding request.
   auto oblivious_request_context_1 =
-      decrypted_request_1->oblivious_http_request_context();
-  EXPECT_NE(oblivious_request_context_1, nullptr);
+      std::move(decrypted_request_1.value()).ReleaseContext();
   auto encrypted_response_1 = instance->CreateObliviousHttpResponse(
-      "test response 1", *(oblivious_request_context_1));
+      "test response 1", oblivious_request_context_1);
   ASSERT_TRUE(encrypted_response_1.ok());
   ASSERT_FALSE(encrypted_response_1->EncapsulateAndSerialize().empty());
-
   auto oblivious_request_context_2 =
-      decrypted_request_1->oblivious_http_request_context();
-  EXPECT_NE(oblivious_request_context_2, nullptr);
+      std::move(decrypted_request_2.value()).ReleaseContext();
   auto encrypted_response_2 = instance->CreateObliviousHttpResponse(
-      "test response 2", *(oblivious_request_context_2));
+      "test response 2", oblivious_request_context_2);
   ASSERT_TRUE(encrypted_response_2.ok());
   ASSERT_FALSE(encrypted_response_2->EncapsulateAndSerialize().empty());
 }
@@ -187,9 +185,10 @@ TEST(ObliviousHttpGateway, TestWithMultipleThreads) {
           gateway_receiver_.DecryptObliviousHttpRequest(request_payload_);
       ASSERT_TRUE(decrypted_request.ok());
       ASSERT_FALSE(decrypted_request->GetPlaintextData().empty());
+      auto gateway_request_context =
+          std::move(decrypted_request.value()).ReleaseContext();
       auto encrypted_response = gateway_receiver_.CreateObliviousHttpResponse(
-          response_payload_,
-          *(decrypted_request->oblivious_http_request_context()));
+          response_payload_, gateway_request_context);
       ASSERT_TRUE(encrypted_response.ok());
       ASSERT_FALSE(encrypted_response->EncapsulateAndSerialize().empty());
     }

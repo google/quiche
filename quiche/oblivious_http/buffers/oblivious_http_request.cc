@@ -7,11 +7,14 @@
 #include <string>
 #include <utility>
 
+#include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "openssl/hpke.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_crypto_logging.h"
 
@@ -27,8 +30,8 @@ ObliviousHttpRequest::ObliviousHttpRequest(
     bssl::UniquePtr<EVP_HPKE_CTX> hpke_context, std::string encapsulated_key,
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
     std::string req_ciphertext, std::string req_plaintext)
-    : oblivious_http_request_context_(
-          new Context(std::move(hpke_context), std::move(encapsulated_key))),
+    : oblivious_http_request_context_(absl::make_optional(
+          Context(std::move(hpke_context), std::move(encapsulated_key)))),
       key_config_(ohttp_key_config),
       request_ciphertext_(std::move(req_ciphertext)),
       request_plaintext_(std::move(req_plaintext)) {}
@@ -180,6 +183,11 @@ absl::StatusOr<ObliviousHttpRequest> ObliviousHttpRequest::EncapsulateWithSeed(
 // Builds request=[hdr, enc, ct].
 // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.1-4.5
 std::string ObliviousHttpRequest::EncapsulateAndSerialize() const {
+  if (!oblivious_http_request_context_.has_value()) {
+    QUICHE_BUG(ohttp_encapsulate_after_context_extract)
+        << "EncapsulateAndSerialize cannot be called after ReleaseContext()";
+    return "";
+  }
   return absl::StrCat(key_config_.SerializeOhttpPayloadHeader(),
                       oblivious_http_request_context_->encapsulated_key_,
                       request_ciphertext_);

@@ -109,7 +109,8 @@ TEST(ObliviousHttpRequest, TestDecapsulateWithSpecAppendixAExample) {
   // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-10
   constexpr absl::string_view kExpectedEphemeralPublicKey =
       "4b28f881333e7c164ffc499ad9796f877f4e1051ee6d31bad19dec96c208b472";
-  EXPECT_EQ(instance->oblivious_http_request_context()->encapsulated_key_,
+  auto oblivious_request_context = std::move(instance.value()).ReleaseContext();
+  EXPECT_EQ(oblivious_request_context.encapsulated_key_,
             absl::HexStringToBytes(kExpectedEphemeralPublicKey));
 
   // Binary HTTP message.
@@ -145,8 +146,8 @@ TEST(ObliviousHttpRequest, TestEncapsulatedRequestStructure) {
   uint16_t aead_id;
   EXPECT_TRUE(reader.ReadUInt16(&aead_id));
   EXPECT_EQ(aead_id, test_aead_id);
-  auto client_encapsulated_key =
-      instance->oblivious_http_request_context()->encapsulated_key_;
+  auto client_request_context = std::move(instance.value()).ReleaseContext();
+  auto client_encapsulated_key = client_request_context.encapsulated_key_;
   EXPECT_EQ(client_encapsulated_key.size(), X25519_PUBLIC_VALUE_LEN);
   auto enc_key_plus_ciphertext = payload_bytes.substr(kHeaderLength);
   auto packed_encapsulated_key =
@@ -163,18 +164,18 @@ TEST(ObliviousHttpRequest, TestDeterministicSeededOhttpRequest) {
   auto encapsulated = CreateClientObliviousRequestWithSeedForTesting(
       "test", GetHpkePublicKey(), ohttp_key_config, GetSeed());
   ASSERT_TRUE(encapsulated.ok());
-  EXPECT_EQ(encapsulated->oblivious_http_request_context()->encapsulated_key_,
+  auto encapsulated_request = encapsulated->EncapsulateAndSerialize();
+  auto ohttp_request_context = std::move(encapsulated.value()).ReleaseContext();
+  EXPECT_EQ(ohttp_request_context.encapsulated_key_,
             GetSeededEncapsulatedKey());
   absl::string_view expected_encrypted_request =
       "9f37cfed07d0111ecd2c34f794671759bcbd922a";
-  EXPECT_NE(encapsulated->oblivious_http_request_context()->hpke_context_,
-            nullptr);
-  size_t encapsulated_key_len = EVP_HPKE_KEM_enc_len(EVP_HPKE_CTX_kem(
-      encapsulated->oblivious_http_request_context()->hpke_context_.get()));
+  EXPECT_NE(ohttp_request_context.hpke_context_, nullptr);
+  size_t encapsulated_key_len = EVP_HPKE_KEM_enc_len(
+      EVP_HPKE_CTX_kem(ohttp_request_context.hpke_context_.get()));
   int encrypted_payload_offset = kHeaderLength + encapsulated_key_len;
-  EXPECT_EQ(
-      encapsulated->EncapsulateAndSerialize().substr(encrypted_payload_offset),
-      absl::HexStringToBytes(expected_encrypted_request));
+  EXPECT_EQ(encapsulated_request.substr(encrypted_payload_offset),
+            absl::HexStringToBytes(expected_encrypted_request));
 }
 
 TEST(ObliviousHttpRequest,

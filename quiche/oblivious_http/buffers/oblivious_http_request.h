@@ -6,6 +6,8 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
+#include "openssl/hpke.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace quiche {
@@ -22,6 +24,10 @@ class QUICHE_EXPORT_PRIVATE ObliviousHttpRequest {
   class Context {
    public:
     ~Context() = default;
+
+    // Movable
+    Context(Context&& other) = default;
+    Context& operator=(Context&& other) = default;
 
    private:
     explicit Context(bssl::UniquePtr<EVP_HPKE_CTX> hpke_context,
@@ -41,7 +47,7 @@ class QUICHE_EXPORT_PRIVATE ObliviousHttpRequest {
     friend class ObliviousHttpResponse_TestEncapsulateWithQuicheRandom_Test;
 
     bssl::UniquePtr<EVP_HPKE_CTX> hpke_context_;
-    const std::string encapsulated_key_;
+    std::string encapsulated_key_;
   };
   // Parse the OHTTP request from the given `encrypted_data`.
   // On success, returns obj that callers will use to `GetPlaintextData`.
@@ -64,6 +70,8 @@ class QUICHE_EXPORT_PRIVATE ObliviousHttpRequest {
   ~ObliviousHttpRequest() = default;
 
   // Returns serialized OHTTP request bytestring.
+  // @note: This method MUST NOT be called after `ReleaseContext()` has been
+  // called.
   std::string EncapsulateAndSerialize() const;
 
   // Generic Usecase : server-side calls this method after Decapsulation using
@@ -73,8 +81,14 @@ class QUICHE_EXPORT_PRIVATE ObliviousHttpRequest {
   // Oblivious HTTP request context is created after successful creation of
   // `this` object, and subsequently passed into the `ObliviousHttpResponse` for
   // followup response handling.
-  std::shared_ptr<Context> oblivious_http_request_context() const {
-    return oblivious_http_request_context_;
+  // @returns: This rvalue reference qualified member function transfers the
+  // ownership of `Context` to the caller, and further invokes
+  // ClangTidy:misc-use-after-move warning if callers try to extract `Context`
+  // twice after the fact that the ownership has already been transferred.
+  // @note: Callers shouldn't extract the `Context` until you're done with this
+  // Request and its data.
+  Context ReleaseContext() && {
+    return std::move(oblivious_http_request_context_.value());
   }
 
  private:
@@ -94,7 +108,8 @@ class QUICHE_EXPORT_PRIVATE ObliviousHttpRequest {
       const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
       absl::string_view seed);
 
-  std::shared_ptr<Context> oblivious_http_request_context_;
+  // This field will be empty after calling `ReleaseContext()`.
+  absl::optional<Context> oblivious_http_request_context_;
   ObliviousHttpHeaderKeyConfig key_config_;
   std::string request_ciphertext_;
   std::string request_plaintext_;

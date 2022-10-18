@@ -84,14 +84,16 @@ TEST_P(ObliviousHttpParameterizedTest, TestEndToEndWithOfflineStrings) {
   EXPECT_EQ(server_req_decap->GetPlaintextData(), test.request_plaintext);
 
   // Round-trip response flow.
+  auto server_request_context =
+      std::move(server_req_decap.value()).ReleaseContext();
   auto server_resp_encap = ObliviousHttpResponse::CreateServerObliviousResponse(
-      test.response_plaintext,
-      *(server_req_decap->oblivious_http_request_context()));
+      test.response_plaintext, server_request_context);
   EXPECT_TRUE(server_resp_encap.ok());
   ASSERT_FALSE(server_resp_encap->EncapsulateAndSerialize().empty());
+  auto client_request_context =
+      std::move(client_req_encap.value()).ReleaseContext();
   auto client_resp_decap = ObliviousHttpResponse::CreateClientObliviousResponse(
-      server_resp_encap->EncapsulateAndSerialize(),
-      *(client_req_encap->oblivious_http_request_context()));
+      server_resp_encap->EncapsulateAndSerialize(), client_request_context);
   EXPECT_TRUE(client_resp_decap.ok());
   EXPECT_EQ(client_resp_decap->GetPlaintextData(), test.response_plaintext);
 }

@@ -96,9 +96,10 @@ bssl::UniquePtr<EVP_HPKE_KEY> ConstructHpkeKey(
   return bssl_hpke_key;
 }
 
-const ObliviousHttpRequest SetUpObliviousHttpContext(
-    uint8_t key_id, uint16_t kem_id, uint16_t kdf_id, uint16_t aead_id,
-    absl::string_view plaintext) {
+ObliviousHttpRequest SetUpObliviousHttpContext(uint8_t key_id, uint16_t kem_id,
+                                               uint16_t kdf_id,
+                                               uint16_t aead_id,
+                                               absl::string_view plaintext) {
   auto ohttp_key_config = GetOhttpKeyConfig(key_id, kem_id, kdf_id, aead_id);
   auto client_request_encapsulate =
       CreateClientObliviousRequestWithSeedForTesting(
@@ -157,12 +158,13 @@ TEST(ObliviousHttpResponse, TestDecapsulateReceivedResponse) {
   absl::string_view encrypted_response =
       "39d5b03c02c97e216df444e4681007105974d4df1585aae05e7b53f3ccdb55d51f711d48"
       "eeefbc1a555d6d928e35df33fd23c23846fa7b083e30692f7b";
+  auto oblivious_context =
+      SetUpObliviousHttpContext(4, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+                                EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_256_GCM,
+                                "test")
+          .ReleaseContext();
   auto decapsulated = ObliviousHttpResponse::CreateClientObliviousResponse(
-      absl::HexStringToBytes(encrypted_response),
-      *(SetUpObliviousHttpContext(4, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
-                                  EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_256_GCM,
-                                  "test")
-            .oblivious_http_request_context()));
+      absl::HexStringToBytes(encrypted_response), oblivious_context);
   EXPECT_TRUE(decapsulated.ok());
   auto decrypted = decapsulated->GetPlaintextData();
   EXPECT_EQ(decrypted, "test response");
@@ -192,29 +194,25 @@ TEST(ObliviousHttpResponse, TestEncapsulateWithQuicheRandom) {
   auto server_seeded_request = SetUpObliviousHttpContext(
       6, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
       EVP_HPKE_AES_256_GCM, "test");
+  auto server_request_context =
+      std::move(server_seeded_request).ReleaseContext();
   auto server_response_encapsulate =
       ObliviousHttpResponse::CreateServerObliviousResponse(
-          "test response",
-          *(server_seeded_request.oblivious_http_request_context()), &random);
+          "test response", server_request_context, &random);
   EXPECT_TRUE(server_response_encapsulate.ok());
   std::string response_nonce =
       server_response_encapsulate->EncapsulateAndSerialize().substr(
-          0, GetResponseNonceLength(
-                 *(server_seeded_request.oblivious_http_request_context()
-                       ->hpke_context_)));
-  EXPECT_EQ(
-      response_nonce,
-      std::string(GetResponseNonceLength(
-                      *(server_seeded_request.oblivious_http_request_context()
-                            ->hpke_context_)),
-                  'z'));
+          0, GetResponseNonceLength(*(server_request_context.hpke_context_)));
+  EXPECT_EQ(response_nonce,
+            std::string(
+                GetResponseNonceLength(*(server_request_context.hpke_context_)),
+                'z'));
   absl::string_view expected_encrypted_response =
       "2a3271ac4e6a501f51d0264d3dd7d0bc8a06973b58e89c26d6dac06144";
-  EXPECT_EQ(server_response_encapsulate->EncapsulateAndSerialize().substr(
-                GetResponseNonceLength(
-                    *(server_seeded_request.oblivious_http_request_context()
-                          ->hpke_context_))),
-            absl::HexStringToBytes(expected_encrypted_response));
+  EXPECT_EQ(
+      server_response_encapsulate->EncapsulateAndSerialize().substr(
+          GetResponseNonceLength(*(server_request_context.hpke_context_))),
+      absl::HexStringToBytes(expected_encrypted_response));
 }
 
 }  // namespace quiche
