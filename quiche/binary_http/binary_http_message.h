@@ -161,7 +161,8 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpRequest : public BinaryHttpMessage {
   const ControlData control_data_;
 };
 
-void PrintTo(const BinaryHttpRequest& msg, std::ostream* os);
+void QUICHE_EXPORT_PRIVATE PrintTo(const BinaryHttpRequest& msg,
+                                   std::ostream* os);
 
 class QUICHE_EXPORT_PRIVATE BinaryHttpResponse : public BinaryHttpMessage {
  public:
@@ -258,7 +259,8 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpResponse : public BinaryHttpMessage {
   const uint16_t status_code_;
 };
 
-void PrintTo(const BinaryHttpResponse& msg, std::ostream* os);
+void QUICHE_EXPORT_PRIVATE PrintTo(const BinaryHttpResponse& msg,
+                                   std::ostream* os);
 }  // namespace quiche
 
 #endif  // QUICHE_BINARY_HTTP_BINARY_HTTP_MESSAGE_H_
