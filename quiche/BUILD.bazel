@@ -17,6 +17,8 @@ load(
     "io_tests_srcs",
     "io_tool_support_hdrs",
     "io_tool_support_srcs",
+    "oblivious_http_hdrs",
+    "oblivious_http_srcs",
     "quiche_core_hdrs",
     "quiche_core_srcs",
     "quiche_test_support_hdrs",
@@ -63,6 +65,23 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "oblivious_http",
+    srcs = oblivious_http_srcs,
+    hdrs = oblivious_http_hdrs,
+    deps = [
+        ":quiche_core",
+        "@boringssl//:crypto",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:optional",
     ],
 )
 
@@ -258,6 +277,7 @@ test_suite_from_source_list(
         ":quiche_protobufs_testonly_cc_proto",
         ":quiche_test_support",
         ":quiche_tool_support",
+        ":oblivious_http",
         "@boringssl//:crypto",
         "@boringssl//:ssl",
         "@com_google_absl//absl/algorithm:container",
