@@ -125,6 +125,11 @@ absl::Status ObliviousHttpHeaderKeyConfig::ParseOhttpPayloadHeader(
     return absl::InvalidArgumentError("Empty request payload.");
   }
   QuicheDataReader reader(payload_bytes);
+  return ParseOhttpPayloadHeader(reader);
+}
+
+absl::Status ObliviousHttpHeaderKeyConfig::ParseOhttpPayloadHeader(
+    QuicheDataReader& reader) const {
   uint8_t key_id;
   if (!reader.ReadUInt8(&key_id)) {
     return absl::InvalidArgumentError("Failed to read key_id from header.");
