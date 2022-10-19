@@ -199,7 +199,7 @@ BufferedPacketList QuicBufferedPacketStore::DeliverPackets(
       // connection ID.
       QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
           *packet.packet,
-          GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length)
+          GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2)
               ? connection_id.length()
               : kQuicDefaultConnectionIdLength,
           &unused_format, &long_packet_type, &unused_version_flag,

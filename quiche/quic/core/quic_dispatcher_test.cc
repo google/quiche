@@ -324,6 +324,21 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         client_connection_id_included, packet_number_length, &versions));
     std::unique_ptr<QuicReceivedPacket> received_packet(
         ConstructReceivedPacket(*packet, mock_helper_.GetClock()->Now()));
+    // Call ConnectionIdLength if the packet clears the Long Header bit, or
+    // if the test involves sending a connection ID that is too short
+    if ((!has_version_flag || !version.AllowsVariableLengthConnectionIds() ||
+         server_connection_id.length() == 0 ||
+         server_connection_id_included == CONNECTION_ID_ABSENT) &&
+        GetQuicReloadableFlag(
+            quic_ask_for_short_header_connection_id_length2)) {
+      // Short headers will ask for the length
+      EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_))
+          .WillRepeatedly(Return(generated_connection_id_.has_value()
+                                     ? generated_connection_id_->length()
+                                     : kQuicDefaultConnectionIdLength));
+    } else {
+      EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_)).Times(0);
+    }
     ProcessReceivedPacket(std::move(received_packet), peer_address, version,
                           server_connection_id);
   }
@@ -436,12 +451,15 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       const QuicConnectionId& client_connection_id,
       std::unique_ptr<QuicCryptoClientConfig> client_crypto_config) {
     if (expect_generator_is_called_) {
-      // Can't replace the connection ID in early gQUIC versions!
-      ASSERT_TRUE(version.AllowsVariableLengthConnectionIds() ||
-                  generated_connection_id_ == absl::nullopt);
-      EXPECT_CALL(connection_id_generator_,
-                  MaybeReplaceConnectionId(server_connection_id, version))
-          .WillOnce(Return(generated_connection_id_));
+      if (version.AllowsVariableLengthConnectionIds()) {
+        EXPECT_CALL(connection_id_generator_,
+                    MaybeReplaceConnectionId(server_connection_id, version))
+            .WillOnce(Return(generated_connection_id_));
+      } else {
+        EXPECT_CALL(connection_id_generator_,
+                    MaybeReplaceConnectionId(server_connection_id, version))
+            .WillOnce(Return(absl::nullopt));
+      }
     }
     std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
         GetFirstFlightOfPackets(version, DefaultQuicConfig(),
@@ -485,6 +503,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   void MarkSession1Deleted() { session1_ = nullptr; }
 
   void VerifyVersionSupported(ParsedQuicVersion version) {
+    expect_generator_is_called_ = true;
     QuicConnectionId connection_id = TestConnectionId(++connection_id_);
     QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
     EXPECT_CALL(*dispatcher_,
@@ -532,9 +551,11 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   QuicVersionManager version_manager_;
   QuicCryptoServerConfig crypto_config_;
   QuicSocketAddress server_address_;
+  // Set to false if the dispatcher won't create a session.
   bool expect_generator_is_called_ = true;
+  // Set in conditions where the generator should return a different connection
+  // ID.
   absl::optional<QuicConnectionId> generated_connection_id_;
-  // Constant to set generated_connection_id to when needed.
   MockConnectionIdGenerator connection_id_generator_;
   std::unique_ptr<NiceMock<TestDispatcher>> dispatcher_;
   MockTimeWaitListManager* time_wait_list_manager_;
@@ -588,19 +609,13 @@ TEST_P(QuicDispatcherTestAllVersions, VariableServerConnectionIdLength) {
   QuicConnectionId old_id = TestConnectionId(1);
   // Return a connection ID that is not expected_server_connection_id_length_
   // bytes long.
-  generated_connection_id_ = QuicConnectionId(
-      {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b});
-  expect_generator_is_called_ = version_.HasIetfQuicFrames();
-  QuicConnectionId new_id =
-      expect_generator_is_called_ ? *generated_connection_id_ : old_id;
-  // This will not return the correct value for long headers that might use a
-  // first byte other than 0x00, but long header replies don't matter.
-  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length)) {
-    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(0x00))
-        .WillRepeatedly(Return(generated_connection_id_->length()));
-  } else {
-    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_)).Times(0);
+  if (version_.HasIetfQuicFrames()) {
+    generated_connection_id_ =
+        QuicConnectionId({0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                          0x09, 0x0a, 0x0b});
   }
+  QuicConnectionId new_id =
+      generated_connection_id_.has_value() ? *generated_connection_id_ : old_id;
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(new_id, _, client_address, Eq(ExpectedAlpn()),
@@ -621,7 +636,7 @@ TEST_P(QuicDispatcherTestAllVersions, VariableServerConnectionIdLength) {
   // fail (this is the bugfix!). gQUIC never gets a new connection ID, so it's
   // not affected by asking.
   if (version_.HasIetfQuicFrames() &&
-      !GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length)) {
+      !GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2)) {
     // Dispatcher issued a longer connection ID if IETF QUIC, but won't ask for
     // that length when processing a short header. Thus dispatch will fail.
     EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
@@ -960,21 +975,43 @@ TEST_P(QuicDispatcherTestAllVersions,
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
 
-  uint8_t short_packet[21] = {0x70, 0xa7, 0x02, 0x6b};
-  QuicReceivedPacket packet(reinterpret_cast<char*>(short_packet), 21,
-                            QuicTime::Zero());
+  uint8_t short_packet[22] = {0x70, 0xa7, 0x02, 0x6b};
   uint8_t valid_size_packet[23] = {0x70, 0xa7, 0x02, 0x6c};
-  QuicReceivedPacket packet2(reinterpret_cast<char*>(valid_size_packet), 23,
-                             QuicTime::Zero());
+  size_t short_packet_len;
+  if (version_.HasIetfInvariantHeader()) {
+    short_packet_len = 21;
+  } else {
+    short_packet_len = 22;
+    short_packet[0] = 0x0a;
+    valid_size_packet[0] = 0x0a;
+  }
+  QuicReceivedPacket packet(reinterpret_cast<char*>(short_packet),
+                            short_packet_len, QuicTime::Zero());
+  QuicReceivedPacket packet2(reinterpret_cast<char*>(valid_size_packet),
+                             short_packet_len + 1, QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
       .Times(0);
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   // Verify small packet is silently dropped.
+  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2) &&
+      version_.HasIetfInvariantHeader()) {
+    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(0xa7))
+        .WillOnce(Return(kQuicDefaultConnectionIdLength));
+  } else {
+    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_)).Times(0);
+  }
   EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
       .Times(0);
   dispatcher_->ProcessPacket(server_address_, client_address, packet);
+  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2) &&
+      version_.HasIetfInvariantHeader()) {
+    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(0xa7))
+        .WillOnce(Return(kQuicDefaultConnectionIdLength));
+  } else {
+    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_)).Times(0);
+  }
   EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
       .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address, packet2);
@@ -993,6 +1030,12 @@ TEST_P(QuicDispatcherTestOneVersion, DropPacketWithInvalidFlags) {
       .Times(0);
   EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
       .Times(0);
+  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2)) {
+    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_))
+        .WillOnce(Return(kQuicDefaultConnectionIdLength));
+  } else {
+    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_)).Times(0);
+  }
   dispatcher_->ProcessPacket(server_address_, client_address, packet);
 }
 
@@ -1115,7 +1158,6 @@ TEST_P(QuicDispatcherTestAllVersions, InvalidShortConnectionIdLengthReplaced) {
   dispatcher_->SetAllowShortInitialServerConnectionIds(true);
   // Note that StrayPacketTruncatedConnectionId covers the case where the
   // validation is still enabled.
-
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(*generated_connection_id_, _, client_address,
                                 Eq(ExpectedAlpn()), _, _))
@@ -1244,9 +1286,11 @@ TEST_P(QuicDispatcherTestAllVersions,
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
   // dispatcher_ should drop this packet.
-  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length)) {
-    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_))
-        .WillOnce(Return(15));
+  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2)) {
+    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(0x00))
+        .WillOnce(Return(10));
+  } else {
+    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_)).Times(0);
   }
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
@@ -1297,6 +1341,7 @@ void QuicDispatcherTestBase::
                   /*use_length_prefix=*/true, _, _, client_address, _))
       .Times(1);
   expect_generator_is_called_ = false;
+  EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_)).Times(0);
   ProcessFirstFlight(ParsedQuicVersion::ReservedForNegotiation(),
                      client_address, server_connection_id,
                      client_connection_id);
@@ -1817,6 +1862,7 @@ TEST_P(QuicDispatcherTestAllVersions, StartAcceptingNewConnections) {
   dispatcher_->StartAcceptingNewConnections();
   EXPECT_TRUE(dispatcher_->accept_new_connections());
 
+  expect_generator_is_called_ = true;
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(TestConnectionId(1), _, client_address,
                                 Eq(ExpectedAlpn()), _, _))
@@ -2571,6 +2617,9 @@ TEST_P(BufferedPacketStoreTest,
   // create session.
   QuicDispatcherPeer::set_new_sessions_allowed_per_event_loop(dispatcher_.get(),
                                                               kNumConnections);
+  // Deactivate the EXPECT_CALL in ProcessFirstFlight() because we have to be
+  // in sequence, so the EXPECT_CALL has to explicitly be in order here.
+  expect_generator_is_called_ = false;
   // Process CHLOs to create session for these connections.
   for (size_t i = 1; i <= kNumConnections; ++i) {
     QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 20000 + i);
@@ -2596,7 +2645,6 @@ TEST_P(BufferedPacketStoreTest,
                 ValidatePacket(conn_id, packet);
               }
             })));
-    expect_generator_is_called_ = false;
     ProcessFirstFlight(client_address, conn_id);
   }
 }

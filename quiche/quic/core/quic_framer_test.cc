@@ -16431,6 +16431,13 @@ TEST_P(QuicFramerTest, ShortHeaderWithNonDefaultConnectionIdLength) {
     0x00,
     0x00, 0x00, 0x00, 0x00
   };
+  MockConnectionIdGenerator generator;
+  if (version_.HasIetfInvariantHeader()) {
+    EXPECT_CALL(generator, ConnectionIdLength(0x28)).WillOnce(Return(9));
+  } else {
+    packet[0] = 0x0a;
+    EXPECT_CALL(generator, ConnectionIdLength(_)).Times(0);
+  }
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
 
@@ -16445,7 +16452,6 @@ TEST_P(QuicFramerTest, ShortHeaderWithNonDefaultConnectionIdLength) {
   memset(p + header_size, 0, kMaxIncomingPacketSize - header_size);
 
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
-  MockConnectionIdGenerator generator;
   PacketHeaderFormat format;
   QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
   bool version_flag;
@@ -16455,21 +16461,24 @@ TEST_P(QuicFramerTest, ShortHeaderWithNonDefaultConnectionIdLength) {
   bool use_length_prefix;
   absl::optional<absl::string_view> retry_token;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
-  EXPECT_CALL(generator, ConnectionIdLength(0x28))
-      .WillOnce(Return(9));
   EXPECT_EQ(QUIC_NO_ERROR,
       QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
           encrypted, &format, &long_packet_type, &version_flag,
           &use_length_prefix, &version_label, &parsed_version,
           &destination_connection_id, &source_connection_id, &retry_token,
           &detailed_error, generator));
-  EXPECT_EQ(format, IETF_QUIC_SHORT_HEADER_PACKET);
+  if (version_.HasIetfInvariantHeader()) {
+    EXPECT_EQ(format, IETF_QUIC_SHORT_HEADER_PACKET);
+    EXPECT_EQ(destination_connection_id.length(), 9);
+  } else {
+    EXPECT_EQ(format, GOOGLE_QUIC_PACKET);
+    EXPECT_EQ(destination_connection_id.length(), 8);
+  }
   EXPECT_EQ(long_packet_type, INVALID_PACKET_TYPE);
   EXPECT_FALSE(version_flag);
   EXPECT_FALSE(use_length_prefix);
   EXPECT_EQ(version_label, 0);
   EXPECT_EQ(parsed_version, UnsupportedQuicVersion());
-  EXPECT_EQ(destination_connection_id.length(), 9);
   EXPECT_EQ(source_connection_id.length(), 0);
   EXPECT_FALSE(retry_token.has_value());
   EXPECT_EQ(detailed_error, "");

@@ -306,7 +306,8 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   ReceivedPacketInfo packet_info(self_address, peer_address, packet);
   std::string detailed_error;
   QuicErrorCode error;
-  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length)) {
+  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_ask_for_short_header_connection_id_length2);
     error = QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
         packet, &packet_info.form, &packet_info.long_packet_type,
         &packet_info.version_flag, &packet_info.use_length_prefix,
@@ -362,7 +363,7 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   // update |expected_server_connection_id_length_|.
   QUIC_BUG_IF(
       quic_bug_480483284_01,
-      !GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length) &&
+      !GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2) &&
           !packet_info.version_flag &&
           packet_info.destination_connection_id.length() !=
               expected_server_connection_id_length_);
@@ -384,7 +385,7 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   // where NEW_CONNECTION_IDs are not using the generator, and the dispatcher
   // is, due to flag misconfiguration.
   if (!packet_info.version_flag &&
-      GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length) &&
+      GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2) &&
       (IsSupportedVersion(ParsedQuicVersion::Q046()) ||
        IsSupportedVersion(ParsedQuicVersion::Q050()))) {
     ReceivedPacketInfo gquic_packet_info(self_address, peer_address, packet);
@@ -466,20 +467,13 @@ bool QuicDispatcher::MaybeDispatchPacket(
   // than 64 bits and smaller than what we expect. Unless the version is
   // unknown, in which case we allow short connection IDs for version
   // negotiation because that version could allow those.
-  uint8_t expected_connection_id_length =
-      GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length)
-          ? connection_id_generator_.ConnectionIdLength(
-                static_cast<uint8_t>(*server_connection_id.data()))
-          : expected_server_connection_id_length_;
   if (packet_info.version_flag && packet_info.version.IsKnown() &&
-      server_connection_id.length() < kQuicMinimumInitialConnectionIdLength &&
-      server_connection_id.length() < expected_connection_id_length &&
-      !allow_short_initial_server_connection_ids_) {
+      IsServerConnectionIdTooShort(server_connection_id)) {
     QUICHE_DCHECK(packet_info.version_flag);
     QUICHE_DCHECK(packet_info.version.AllowsVariableLengthConnectionIds());
     QUIC_DLOG(INFO) << "Packet with short destination connection ID "
                     << server_connection_id << " expected "
-                    << static_cast<int>(expected_connection_id_length);
+                    << static_cast<int>(expected_server_connection_id_length_);
     // Drop the packet silently.
     QUIC_CODE_COUNT(quic_dropped_invalid_small_initial_connection_id);
     return true;
@@ -1262,6 +1256,24 @@ bool QuicDispatcher::IsSupportedVersion(const ParsedQuicVersion version) {
   return false;
 }
 
+bool QuicDispatcher::IsServerConnectionIdTooShort(
+    QuicConnectionId connection_id) const {
+  if (connection_id.length() >= kQuicMinimumInitialConnectionIdLength ||
+      connection_id.length() >= expected_server_connection_id_length_ ||
+      allow_short_initial_server_connection_ids_) {
+    return false;
+  }
+  if (!GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2)) {
+    return true;
+  }
+  uint8_t generator_output =
+      connection_id.IsEmpty()
+          ? connection_id_generator_.ConnectionIdLength(0x00)
+          : connection_id_generator_.ConnectionIdLength(
+                static_cast<uint8_t>(*connection_id.data()));
+  return connection_id.length() < generator_output;
+}
+
 std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
     const QuicConnectionId original_connection_id,
     const ParsedClientHello& parsed_chlo, const ParsedQuicVersion version,
@@ -1349,13 +1361,8 @@ void QuicDispatcher::MaybeResetPacketsWithNoVersion(
       return;
     }
   } else {
-    uint8_t min_connection_id_length =
-        GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length)
-            ? connection_id_generator_.ConnectionIdLength(static_cast<uint8_t>(
-                  *packet_info.destination_connection_id.data()))
-            : expected_server_connection_id_length_;
     const size_t MinValidPacketLength =
-        kPacketHeaderTypeSize + min_connection_id_length +
+        kPacketHeaderTypeSize + expected_server_connection_id_length_ +
         PACKET_1BYTE_PACKET_NUMBER + /*payload size=*/1 + /*tag size=*/12;
     if (packet_info.packet.length() < MinValidPacketLength) {
       // The packet size is too small.

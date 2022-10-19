@@ -86,7 +86,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, true)
 // If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.
 QUIC_FLAG(quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // Instead of assuming an incoming connection ID length for short headers, ask each time, if both quic_abstract_connection_id_generator and quic_connection_uses_abstract_connection_id_generator are true.
-QUIC_FLAG(quic_reloadable_flag_quic_ask_for_short_header_connection_id_length, false)
+QUIC_FLAG(quic_reloadable_flag_quic_ask_for_short_header_connection_id_length2, false)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
 // When true, support draft-ietf-quic-v2-01

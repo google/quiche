@@ -363,6 +363,10 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Returns true if |version| is a supported protocol version.
   bool IsSupportedVersion(const ParsedQuicVersion version);
 
+  // Returns true if a server connection ID length is below all the minima
+  // required by various parameters.
+  bool IsServerConnectionIdTooShort(QuicConnectionId connection_id) const;
+
   // Core CHLO processing logic.
   std::shared_ptr<QuicSession> CreateSessionFromChlo(
       const QuicConnectionId original_connection_id,

@@ -1811,9 +1811,9 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
         !IsValidFullPacketNumber(full_packet_number, version())) {
       if (IsIetfStatelessResetPacket(*header)) {
         // This is a stateless reset packet.
-        QuicIetfStatelessResetPacket packet(
+        QuicIetfStatelessResetPacket reset_packet(
             *header, header->possible_stateless_reset_token);
-        visitor_->OnAuthenticatedIetfStatelessResetPacket(packet);
+        visitor_->OnAuthenticatedIetfStatelessResetPacket(reset_packet);
         return true;
       }
       if (hp_removal_failed) {
@@ -1880,9 +1880,9 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
                       &decrypted_level)) {
     if (IsIetfStatelessResetPacket(*header)) {
       // This is a stateless reset packet.
-      QuicIetfStatelessResetPacket packet(
+      QuicIetfStatelessResetPacket reset_packet(
           *header, header->possible_stateless_reset_token);
-      visitor_->OnAuthenticatedIetfStatelessResetPacket(packet);
+      visitor_->OnAuthenticatedIetfStatelessResetPacket(reset_packet);
       return true;
     }
     const EncryptionLevel decryption_level = GetEncryptionLevel(*header);
@@ -4664,10 +4664,10 @@ bool QuicFramer::ApplyHeaderProtection(EncryptionLevel level, char* buffer,
   // Apply the rest of the mask to the packet number.
   for (size_t i = 0; i < last_written_packet_number_length_; ++i) {
     uint8_t buffer_byte;
-    uint8_t mask_byte;
-    if (!mask_reader.ReadUInt8(&mask_byte) ||
+    uint8_t pn_mask_byte;
+    if (!mask_reader.ReadUInt8(&pn_mask_byte) ||
         !buffer_reader.ReadUInt8(&buffer_byte) ||
-        !buffer_writer.WriteUInt8(buffer_byte ^ mask_byte)) {
+        !buffer_writer.WriteUInt8(buffer_byte ^ pn_mask_byte)) {
       return false;
     }
   }
@@ -4743,10 +4743,10 @@ bool QuicFramer::RemoveHeaderProtection(QuicDataReader* reader,
   // Read the (protected) packet number from the reader and unmask the packet
   // number.
   for (size_t i = 0; i < header->packet_number_length; ++i) {
-    uint8_t protected_pn_byte, mask_byte;
-    if (!mask_reader.ReadUInt8(&mask_byte) ||
+    uint8_t protected_pn_byte, pn_mask_byte;
+    if (!mask_reader.ReadUInt8(&pn_mask_byte) ||
         !reader->ReadUInt8(&protected_pn_byte) ||
-        !pn_writer.WriteUInt8(protected_pn_byte ^ mask_byte)) {
+        !pn_writer.WriteUInt8(protected_pn_byte ^ pn_mask_byte)) {
       QUIC_DVLOG(1) << "Failed to unmask packet number";
       return false;
     }
@@ -5055,9 +5055,9 @@ bool QuicFramer::DecryptPayload(size_t udp_packet_length,
         alternative_decrypter_level_ = NUM_ENCRYPTION_LEVELS;
       } else {
         // Switch the alternative decrypter so that we use it first next time.
-        EncryptionLevel level = alternative_decrypter_level_;
+        EncryptionLevel alt_level = alternative_decrypter_level_;
         alternative_decrypter_level_ = decrypter_level_;
-        decrypter_level_ = level;
+        decrypter_level_ = alt_level;
       }
     }
   }
@@ -6883,7 +6883,8 @@ QuicErrorCode QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
   uint8_t two_bytes[2];
   reader.ReadBytes(two_bytes, 2);
   uint8_t expected_destination_connection_id_length =
-      (two_bytes[0] & FLAGS_LONG_HEADER)
+      (!QuicUtils::IsIetfPacketHeader(two_bytes[0]) ||
+       two_bytes[0] & FLAGS_LONG_HEADER)
           ? 0
           : generator.ConnectionIdLength(two_bytes[1]);
   return ParsePublicHeaderDispatcher(
