@@ -20,15 +20,6 @@
 
 namespace quiche {
 
-absl::StatusOr<ObliviousHttpRequest>
-CreateClientObliviousRequestWithSeedForTesting(
-    absl::string_view plaintext_payload, absl::string_view hpke_public_key,
-    const ObliviousHttpHeaderKeyConfig &ohttp_key_config,
-    absl::string_view seed) {
-  return ObliviousHttpRequest::EncapsulateWithSeed(
-      plaintext_payload, hpke_public_key, ohttp_key_config, seed);
-}
-
 namespace {
 const uint32_t kHeaderLength = ObliviousHttpHeaderKeyConfig::kHeaderLength;
 std::string GetHpkePrivateKey() {
@@ -161,7 +152,7 @@ TEST(ObliviousHttpRequest, TestDeterministicSeededOhttpRequest) {
   auto ohttp_key_config =
       GetOhttpKeyConfig(4, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
                         EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_256_GCM);
-  auto encapsulated = CreateClientObliviousRequestWithSeedForTesting(
+  auto encapsulated = ObliviousHttpRequest::CreateClientWithSeedForTesting(
       "test", GetHpkePublicKey(), ohttp_key_config, GetSeed());
   ASSERT_TRUE(encapsulated.ok());
   auto encapsulated_request = encapsulated->EncapsulateAndSerialize();
@@ -184,12 +175,12 @@ TEST(ObliviousHttpRequest,
       GetOhttpKeyConfig(8, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
                         EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_256_GCM);
   auto req_with_same_plaintext_1 =
-      CreateClientObliviousRequestWithSeedForTesting(
+      ObliviousHttpRequest::CreateClientWithSeedForTesting(
           "same plaintext", GetHpkePublicKey(), ohttp_key_config, GetSeed());
   ASSERT_TRUE(req_with_same_plaintext_1.ok());
   auto ciphertext_1 = req_with_same_plaintext_1->EncapsulateAndSerialize();
   auto req_with_same_plaintext_2 =
-      CreateClientObliviousRequestWithSeedForTesting(
+      ObliviousHttpRequest::CreateClientWithSeedForTesting(
           "same plaintext", GetHpkePublicKey(), ohttp_key_config, GetSeed());
   ASSERT_TRUE(req_with_same_plaintext_2.ok());
   auto ciphertext_2 = req_with_same_plaintext_2->EncapsulateAndSerialize();
@@ -202,12 +193,12 @@ TEST(ObliviousHttpRequest,
       GetOhttpKeyConfig(8, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
                         EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_256_GCM);
   auto req_with_different_plaintext_1 =
-      CreateClientObliviousRequestWithSeedForTesting(
+      ObliviousHttpRequest::CreateClientWithSeedForTesting(
           "different 1", GetHpkePublicKey(), ohttp_key_config, GetSeed());
   ASSERT_TRUE(req_with_different_plaintext_1.ok());
   auto ciphertext_1 = req_with_different_plaintext_1->EncapsulateAndSerialize();
   auto req_with_different_plaintext_2 =
-      CreateClientObliviousRequestWithSeedForTesting(
+      ObliviousHttpRequest::CreateClientWithSeedForTesting(
           "different 2", GetHpkePublicKey(), ohttp_key_config, GetSeed());
   ASSERT_TRUE(req_with_different_plaintext_2.ok());
   auto ciphertext_2 = req_with_different_plaintext_2->EncapsulateAndSerialize();

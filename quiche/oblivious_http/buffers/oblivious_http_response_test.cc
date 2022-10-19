@@ -18,15 +18,6 @@
 
 namespace quiche {
 
-absl::StatusOr<ObliviousHttpRequest>
-CreateClientObliviousRequestWithSeedForTesting(
-    absl::string_view plaintext_payload, absl::string_view hpke_public_key,
-    const ObliviousHttpHeaderKeyConfig &ohttp_key_config,
-    absl::string_view seed) {
-  return ObliviousHttpRequest::EncapsulateWithSeed(
-      plaintext_payload, hpke_public_key, ohttp_key_config, seed);
-}
-
 namespace {
 std::string GetHpkePrivateKey() {
   absl::string_view hpke_key_hex =
@@ -102,7 +93,7 @@ ObliviousHttpRequest SetUpObliviousHttpContext(uint8_t key_id, uint16_t kem_id,
                                                absl::string_view plaintext) {
   auto ohttp_key_config = GetOhttpKeyConfig(key_id, kem_id, kdf_id, aead_id);
   auto client_request_encapsulate =
-      CreateClientObliviousRequestWithSeedForTesting(
+      ObliviousHttpRequest::CreateClientWithSeedForTesting(
           plaintext, GetHpkePublicKey(), ohttp_key_config, GetSeed());
   EXPECT_TRUE(client_request_encapsulate.ok());
   auto oblivious_request =

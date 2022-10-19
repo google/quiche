@@ -63,6 +63,12 @@ class QUICHE_EXPORT_PRIVATE ObliviousHttpRequest {
       absl::string_view plaintext_payload, absl::string_view hpke_public_key,
       const ObliviousHttpHeaderKeyConfig& ohttp_key_config);
 
+  // Same as above but accepts a random number seed for testing.
+  static absl::StatusOr<ObliviousHttpRequest> CreateClientWithSeedForTesting(
+      absl::string_view plaintext_payload, absl::string_view hpke_public_key,
+      const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
+      absl::string_view seed);
+
   // Movable.
   ObliviousHttpRequest(ObliviousHttpRequest&& other) = default;
   ObliviousHttpRequest& operator=(ObliviousHttpRequest&& other) = default;
@@ -92,12 +98,6 @@ class QUICHE_EXPORT_PRIVATE ObliviousHttpRequest {
   }
 
  private:
-  friend absl::StatusOr<ObliviousHttpRequest>
-  CreateClientObliviousRequestWithSeedForTesting(
-      absl::string_view plaintext_payload, absl::string_view hpke_public_key,
-      const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
-      absl::string_view seed);
-
   explicit ObliviousHttpRequest(
       bssl::UniquePtr<EVP_HPKE_CTX> hpke_context, std::string encapsulated_key,
       const ObliviousHttpHeaderKeyConfig& ohttp_key_config,

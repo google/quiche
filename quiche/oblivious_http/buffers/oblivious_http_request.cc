@@ -104,6 +104,15 @@ ObliviousHttpRequest::CreateClientObliviousRequest(
                              ohttp_key_config, "");
 }
 
+absl::StatusOr<ObliviousHttpRequest>
+ObliviousHttpRequest::CreateClientWithSeedForTesting(
+    absl::string_view plaintext_payload, absl::string_view hpke_public_key,
+    const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
+    absl::string_view seed) {
+  return ObliviousHttpRequest::EncapsulateWithSeed(
+      plaintext_payload, hpke_public_key, ohttp_key_config, seed);
+}
+
 absl::StatusOr<ObliviousHttpRequest> ObliviousHttpRequest::EncapsulateWithSeed(
     absl::string_view plaintext_payload, absl::string_view hpke_public_key,
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
