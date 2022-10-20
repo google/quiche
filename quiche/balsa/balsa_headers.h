@@ -114,7 +114,7 @@ class QUICHE_EXPORT_PRIVATE BalsaBuffer {
       if (rhs.buffer == nullptr) {
         buffer = nullptr;
       } else {
-        buffer = absl::make_unique<char[]>(buffer_size);
+        buffer = std::make_unique<char[]>(buffer_size);
         memcpy(buffer.get(), rhs.buffer.get(), rhs.bytes_used());
       }
     }
@@ -310,7 +310,7 @@ class QUICHE_EXPORT_PRIVATE BalsaBuffer {
   BufferBlock AllocBlock() { return AllocCustomBlock(blocksize_); }
 
   BufferBlock AllocCustomBlock(size_t blocksize) {
-    return BufferBlock{absl::make_unique<char[]>(blocksize), blocksize,
+    return BufferBlock{std::make_unique<char[]>(blocksize), blocksize,
                        blocksize};
   }
 

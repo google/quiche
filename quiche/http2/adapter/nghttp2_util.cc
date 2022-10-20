@@ -1,6 +1,7 @@
 #include "quiche/http2/adapter/nghttp2_util.h"
 
 #include <cstdint>
+#include <memory>
 
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
@@ -215,7 +216,7 @@ class Nghttp2DataFrameSource : public DataFrameSource {
 std::unique_ptr<DataFrameSource> MakeZeroCopyDataFrameSource(
     nghttp2_data_provider provider, void* user_data,
     nghttp2_send_data_callback send_data) {
-  return absl::make_unique<Nghttp2DataFrameSource>(
+  return std::make_unique<Nghttp2DataFrameSource>(
       std::move(provider), std::move(send_data), user_data);
 }
 

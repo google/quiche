@@ -1,6 +1,7 @@
 #include "quiche/http2/adapter/oghttp2_session.h"
 
 #include <cstdint>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -214,10 +215,10 @@ OgHttp2Session::PassthroughHeadersHandler::PassthroughHeadersHandler(
     : session_(session), visitor_(visitor) {
   if (session_.options_.validate_http_headers) {
     QUICHE_VLOG(2) << "instantiating regular header validator";
-    validator_ = absl::make_unique<HeaderValidator>();
+    validator_ = std::make_unique<HeaderValidator>();
   } else {
     QUICHE_VLOG(2) << "instantiating noop header validator";
-    validator_ = absl::make_unique<NoopHeaderValidator>();
+    validator_ = std::make_unique<NoopHeaderValidator>();
   }
 }
 
@@ -530,7 +531,7 @@ int OgHttp2Session::Consume(Http2StreamId stream_id, size_t num_bytes) {
 void OgHttp2Session::StartGracefulShutdown() {
   if (IsServerSession()) {
     if (!queued_goaway_) {
-      EnqueueFrame(absl::make_unique<spdy::SpdyGoAwayIR>(
+      EnqueueFrame(std::make_unique<spdy::SpdyGoAwayIR>(
           std::numeric_limits<int32_t>::max(), spdy::ERROR_CODE_NO_ERROR,
           "graceful_shutdown"));
     }
@@ -762,7 +763,7 @@ bool OgHttp2Session::AfterFrameSent(uint8_t frame_type_int, uint32_t stream_id,
       options_.rst_stream_no_error_when_incomplete && IsServerSession()) {
     // Since the peer has not yet ended the stream, this endpoint should
     // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
-    frames_.push_front(absl::make_unique<spdy::SpdyRstStreamIR>(
+    frames_.push_front(std::make_unique<spdy::SpdyRstStreamIR>(
         stream_id, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
     auto queued_result = queued_frames_.insert({stream_id, 1});
     if (!queued_result.second) {
@@ -904,7 +905,7 @@ void OgHttp2Session::SerializeMetadata(Http2StreamId stream_id,
                                        std::unique_ptr<MetadataSource> source) {
   const uint32_t max_payload_size =
       std::min(kMaxAllowedMetadataFrameSize, max_frame_payload_);
-  auto payload_buffer = absl::make_unique<uint8_t[]>(max_payload_size);
+  auto payload_buffer = std::make_unique<uint8_t[]>(max_payload_size);
 
   while (true) {
     auto [written, end_metadata] =
@@ -916,7 +917,7 @@ void OgHttp2Session::SerializeMetadata(Http2StreamId stream_id,
     QUICHE_DCHECK_LE(static_cast<size_t>(written), max_payload_size);
     auto payload = absl::string_view(
         reinterpret_cast<const char*>(payload_buffer.get()), written);
-    EnqueueFrame(absl::make_unique<spdy::SpdyUnknownIR>(
+    EnqueueFrame(std::make_unique<spdy::SpdyUnknownIR>(
         stream_id, kMetadataFrameType, end_metadata ? kMetadataEndFlag : 0u,
         std::string(payload)));
     if (end_metadata) {
@@ -990,7 +991,7 @@ int OgHttp2Session::SubmitTrailer(Http2StreamId stream_id,
         << "DataFrameSource will send fin, preventing trailers!";
     // Save trailers so they can be written once data is done.
     state.trailers =
-        absl::make_unique<spdy::Http2HeaderBlock>(ToHeaderBlock(trailers));
+        std::make_unique<spdy::Http2HeaderBlock>(ToHeaderBlock(trailers));
     if (!options_.trailers_require_end_data || !iter->second.data_deferred) {
       trailers_ready_.insert(stream_id);
     }
@@ -1057,7 +1058,7 @@ void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
   if (static_cast<int64_t>(length) >
       iter->second.window_manager.CurrentWindowSize()) {
     // Peer exceeded the stream flow control limit.
-    EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+    EnqueueFrame(std::make_unique<spdy::SpdyRstStreamIR>(
         stream_id, spdy::ERROR_CODE_FLOW_CONTROL_ERROR));
     return;
   }
@@ -1069,7 +1070,7 @@ void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
   }
 
   if (!iter->second.can_receive_body && length > 0) {
-    EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+    EnqueueFrame(std::make_unique<spdy::SpdyRstStreamIR>(
         stream_id, spdy::ERROR_CODE_PROTOCOL_ERROR));
     return;
   }
@@ -1208,7 +1209,7 @@ void OgHttp2Session::OnRstStream(spdy::SpdyStreamId stream_id,
 
 void OgHttp2Session::OnSettings() {
   visitor_.OnSettingsStart();
-  auto settings = absl::make_unique<SpdySettingsIR>();
+  auto settings = std::make_unique<SpdySettingsIR>();
   settings->set_is_ack(true);
   EnqueueFrame(std::move(settings));
 }
@@ -1312,7 +1313,7 @@ void OgHttp2Session::OnSettingsAck() {
 void OgHttp2Session::OnPing(spdy::SpdyPingId unique_id, bool is_ack) {
   visitor_.OnPing(unique_id, is_ack);
   if (options_.auto_ping_ack && !is_ack) {
-    auto ping = absl::make_unique<spdy::SpdyPingIR>(unique_id);
+    auto ping = std::make_unique<spdy::SpdyPingIR>(unique_id);
     ping->set_is_ack(true);
     EnqueueFrame(std::move(ping));
   }
@@ -1410,7 +1411,7 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
     if (stream_map_.size() >= pending_max_inbound_concurrent_streams_) {
       // The new stream would exceed our advertised but unacked
       // MAX_CONCURRENT_STREAMS. Refuse the stream for parity with nghttp2.
-      EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+      EnqueueFrame(std::make_unique<spdy::SpdyRstStreamIR>(
           stream_id, spdy::ERROR_CODE_REFUSED_STREAM));
       const bool ok = visitor_.OnInvalidFrame(
           stream_id, Http2VisitorInterface::InvalidFrameError::kRefusedStream);
@@ -1558,7 +1559,7 @@ void OgHttp2Session::OnHeaderStatus(
     auto it = streams_reset_.find(stream_id);
     if (it == streams_reset_.end()) {
       EnqueueFrame(
-          absl::make_unique<spdy::SpdyRstStreamIR>(stream_id, spdy_error_code));
+          std::make_unique<spdy::SpdyRstStreamIR>(stream_id, spdy_error_code));
 
       if (result == Http2VisitorInterface::HEADER_FIELD_INVALID ||
           result == Http2VisitorInterface::HEADER_HTTP_MESSAGING) {
@@ -1614,7 +1615,7 @@ std::vector<Http2Setting> OgHttp2Session::GetInitialSettings() const {
 
 std::unique_ptr<SpdySettingsIR> OgHttp2Session::PrepareSettingsFrame(
     absl::Span<const Http2Setting> settings) {
-  auto settings_ir = absl::make_unique<SpdySettingsIR>();
+  auto settings_ir = std::make_unique<SpdySettingsIR>();
   for (const Http2Setting& setting : settings) {
     settings_ir->AddSetting(setting.id, setting.value);
   }
@@ -1681,14 +1682,14 @@ void OgHttp2Session::HandleOutboundSettings(
 void OgHttp2Session::SendWindowUpdate(Http2StreamId stream_id,
                                       size_t update_delta) {
   EnqueueFrame(
-      absl::make_unique<spdy::SpdyWindowUpdateIR>(stream_id, update_delta));
+      std::make_unique<spdy::SpdyWindowUpdateIR>(stream_id, update_delta));
 }
 
 void OgHttp2Session::SendHeaders(Http2StreamId stream_id,
                                  spdy::Http2HeaderBlock headers,
                                  bool end_stream) {
   auto frame =
-      absl::make_unique<spdy::SpdyHeadersIR>(stream_id, std::move(headers));
+      std::make_unique<spdy::SpdyHeadersIR>(stream_id, std::move(headers));
   frame->set_fin(end_stream);
   EnqueueFrame(std::move(frame));
 }
@@ -1696,7 +1697,7 @@ void OgHttp2Session::SendHeaders(Http2StreamId stream_id,
 void OgHttp2Session::SendTrailers(Http2StreamId stream_id,
                                   spdy::Http2HeaderBlock trailers) {
   auto frame =
-      absl::make_unique<spdy::SpdyHeadersIR>(stream_id, std::move(trailers));
+      std::make_unique<spdy::SpdyHeadersIR>(stream_id, std::move(trailers));
   frame->set_fin(true);
   EnqueueFrame(std::move(frame));
   trailers_ready_.erase(stream_id);
@@ -1709,7 +1710,7 @@ void OgHttp2Session::MaybeFinWithRstStream(StreamStateMap::iterator iter) {
       !iter->second.half_closed_remote) {
     // Since the peer has not yet ended the stream, this endpoint should
     // send a RST_STREAM NO_ERROR. See RFC 7540 Section 8.1.
-    EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+    EnqueueFrame(std::make_unique<spdy::SpdyRstStreamIR>(
         iter->first, spdy::SpdyErrorCode::ERROR_CODE_NO_ERROR));
     iter->second.half_closed_remote = true;
   }
@@ -1836,7 +1837,7 @@ void OgHttp2Session::LatchErrorAndNotify(Http2ErrorCode error_code,
   latched_error_ = true;
   visitor_.OnConnectionError(error);
   decoder_.StopProcessing();
-  EnqueueFrame(absl::make_unique<spdy::SpdyGoAwayIR>(
+  EnqueueFrame(std::make_unique<spdy::SpdyGoAwayIR>(
       highest_processed_stream_id_, TranslateErrorCode(error_code),
       ConnectionErrorToString(error)));
 }
@@ -1923,7 +1924,7 @@ void OgHttp2Session::DecrementQueuedFrameCount(uint32_t stream_id,
 }
 
 void OgHttp2Session::HandleContentLengthError(Http2StreamId stream_id) {
-  EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+  EnqueueFrame(std::make_unique<spdy::SpdyRstStreamIR>(
       stream_id, spdy::ERROR_CODE_PROTOCOL_ERROR));
 }
 
@@ -1961,7 +1962,7 @@ void OgHttp2Session::UpdateStreamSendWindowSizes(uint32_t new_value) {
     const int64_t current_window_size = stream_state.send_window;
     const int64_t new_window_size = current_window_size + delta;
     if (new_window_size > spdy::kSpdyMaximumWindowSize) {
-      EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+      EnqueueFrame(std::make_unique<spdy::SpdyRstStreamIR>(
           stream_id, spdy::ERROR_CODE_FLOW_CONTROL_ERROR));
     } else {
       stream_state.send_window += delta;

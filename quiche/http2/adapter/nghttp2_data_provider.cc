@@ -1,5 +1,7 @@
 #include "quiche/http2/adapter/nghttp2_data_provider.h"
 
+#include <memory>
+
 #include "quiche/http2/adapter/http2_visitor_interface.h"
 #include "quiche/http2/adapter/nghttp2_util.h"
 
@@ -50,7 +52,7 @@ std::unique_ptr<nghttp2_data_provider> MakeDataProvider(
   if (source == nullptr) {
     return nullptr;
   }
-  auto provider = absl::make_unique<nghttp2_data_provider>();
+  auto provider = std::make_unique<nghttp2_data_provider>();
   provider->source.ptr = source;
   provider->read_callback = &callbacks::DataFrameSourceReadCallback;
   return provider;

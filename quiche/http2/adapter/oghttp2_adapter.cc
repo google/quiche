@@ -1,5 +1,7 @@
 #include "quiche/http2/adapter/oghttp2_adapter.h"
 
+#include <memory>
+
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "quiche/http2/adapter/http2_util.h"
@@ -42,12 +44,12 @@ void OgHttp2Adapter::SubmitSettings(absl::Span<const Http2Setting> settings) {
 void OgHttp2Adapter::SubmitPriorityForStream(Http2StreamId stream_id,
                                              Http2StreamId parent_stream_id,
                                              int weight, bool exclusive) {
-  session_->EnqueueFrame(absl::make_unique<SpdyPriorityIR>(
+  session_->EnqueueFrame(std::make_unique<SpdyPriorityIR>(
       stream_id, parent_stream_id, weight, exclusive));
 }
 
 void OgHttp2Adapter::SubmitPing(Http2PingId ping_id) {
-  session_->EnqueueFrame(absl::make_unique<SpdyPingIR>(ping_id));
+  session_->EnqueueFrame(std::make_unique<SpdyPingIR>(ping_id));
 }
 
 void OgHttp2Adapter::SubmitShutdownNotice() {
@@ -57,14 +59,14 @@ void OgHttp2Adapter::SubmitShutdownNotice() {
 void OgHttp2Adapter::SubmitGoAway(Http2StreamId last_accepted_stream_id,
                                   Http2ErrorCode error_code,
                                   absl::string_view opaque_data) {
-  session_->EnqueueFrame(absl::make_unique<SpdyGoAwayIR>(
+  session_->EnqueueFrame(std::make_unique<SpdyGoAwayIR>(
       last_accepted_stream_id, TranslateErrorCode(error_code),
       std::string(opaque_data)));
 }
 void OgHttp2Adapter::SubmitWindowUpdate(Http2StreamId stream_id,
                                         int window_increment) {
   session_->EnqueueFrame(
-      absl::make_unique<SpdyWindowUpdateIR>(stream_id, window_increment));
+      std::make_unique<SpdyWindowUpdateIR>(stream_id, window_increment));
 }
 
 void OgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
@@ -124,7 +126,7 @@ void OgHttp2Adapter::MarkDataConsumedForStream(Http2StreamId stream_id,
 
 void OgHttp2Adapter::SubmitRst(Http2StreamId stream_id,
                                Http2ErrorCode error_code) {
-  session_->EnqueueFrame(absl::make_unique<spdy::SpdyRstStreamIR>(
+  session_->EnqueueFrame(std::make_unique<spdy::SpdyRstStreamIR>(
       stream_id, TranslateErrorCode(error_code)));
 }
 
@@ -160,8 +162,7 @@ bool OgHttp2Adapter::ResumeStream(Http2StreamId stream_id) {
 
 OgHttp2Adapter::OgHttp2Adapter(Http2VisitorInterface& visitor, Options options)
     : Http2Adapter(visitor),
-      session_(absl::make_unique<OgHttp2Session>(visitor, std::move(options))) {
-}
+      session_(std::make_unique<OgHttp2Session>(visitor, std::move(options))) {}
 
 }  // namespace adapter
 }  // namespace http2
