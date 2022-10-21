@@ -335,6 +335,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener);
 
+  virtual bool CopyAndValidateTrailers(const QuicHeaderList& header_list,
+                                       bool expect_final_byte_offset,
+                                       size_t* final_byte_offset,
+                                       spdy::Http2HeaderBlock* trailers);
+
   Visitor* visitor() { return visitor_; }
 
   void set_headers_decompressed(bool val) { headers_decompressed_ = val; }

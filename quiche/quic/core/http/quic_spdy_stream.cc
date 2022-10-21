@@ -659,6 +659,14 @@ void QuicSpdyStream::OnPromiseHeaderList(
                                    "Promise headers received by server");
 }
 
+bool QuicSpdyStream::CopyAndValidateTrailers(const QuicHeaderList& header_list,
+                                             bool expect_final_byte_offset,
+                                             size_t* final_byte_offset,
+                                             spdy::Http2HeaderBlock* trailers) {
+  return SpdyUtils::CopyAndValidateTrailers(
+      header_list, expect_final_byte_offset, final_byte_offset, trailers);
+}
+
 void QuicSpdyStream::OnTrailingHeadersComplete(
     bool fin, size_t /*frame_len*/, const QuicHeaderList& header_list) {
   // TODO(b/134706391): remove |fin| argument.
@@ -681,9 +689,8 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
 
   size_t final_byte_offset = 0;
   const bool expect_final_byte_offset = !VersionUsesHttp3(transport_version());
-  if (!SpdyUtils::CopyAndValidateTrailers(header_list, expect_final_byte_offset,
-                                          &final_byte_offset,
-                                          &received_trailers_)) {
+  if (!CopyAndValidateTrailers(header_list, expect_final_byte_offset,
+                               &final_byte_offset, &received_trailers_)) {
     QUIC_DLOG(ERROR) << ENDPOINT << "Trailers for stream " << id()
                      << " are malformed.";
     stream_delegate()->OnStreamError(QUIC_INVALID_HEADERS_STREAM_DATA,
